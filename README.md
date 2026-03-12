@@ -17,10 +17,22 @@
 npm install
 ```
 
-2. 类型检查
+2. 启动前端开发环境
 
 ```bash
-npx tsc --noEmit
+npm run dev
+```
+
+3. 类型检查
+
+```bash
+npm run typecheck
+```
+
+4. 生产构建
+
+```bash
+npm run build
 ```
 
 ## 项目结构
@@ -50,3 +62,8 @@ npx tsc --noEmit
 - 音频时间轴与标注编辑器
 - AI 双模式 (AUTO / SUGGEST) 与审计流
 - 多端协作同步与导出能力
+
+## 当前前端状态
+
+- 已完成五标签页路由骨架：转写、标注、分析、写作、词典
+- 转写页已接入 RxDB，可读取数据库名称、集合数量与基础记录数

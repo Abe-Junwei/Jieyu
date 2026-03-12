@@ -6,9 +6,12 @@
  * Local database definitions (RxDB / DLx-compatible)
  */
 
-import { createRxDatabase } from 'rxdb';
+import { addRxPlugin, createRxDatabase } from 'rxdb';
 import type { RxDatabase, RxCollection, RxJsonSchema } from 'rxdb';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
+import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
+
+addRxPlugin(RxDBMigrationSchemaPlugin);
 
 // ============================================================
 //  共享类型定义 | Shared type definitions
@@ -369,7 +372,7 @@ const aiMetadataSchema = {
 // ---- texts | 语料项目 ----
 
 const textSchema: RxJsonSchema<TextDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -382,13 +385,13 @@ const textSchema: RxJsonSchema<TextDocType> = {
     updatedAt:    { type: 'string', format: 'date-time' },
   },
   required: ['id', 'title', 'createdAt', 'updatedAt'],
-  indexes: ['languageCode', 'updatedAt'],
+  indexes: ['updatedAt'],
 };
 
 // ---- media_items | 媒体资源 ----
 
 const mediaItemSchema: RxJsonSchema<MediaItemDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -408,7 +411,7 @@ const mediaItemSchema: RxJsonSchema<MediaItemDocType> = {
 // ---- utterances | 句子/话语 ----
 
 const utteranceSchema: RxJsonSchema<UtteranceDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -453,13 +456,13 @@ const utteranceSchema: RxJsonSchema<UtteranceDocType> = {
     updatedAt:   { type: 'string', format: 'date-time' },
   },
   required: ['id', 'textId', 'transcription', 'startTime', 'endTime', 'isVerified', 'createdAt', 'updatedAt'],
-  indexes: ['textId', 'language', 'startTime', 'updatedAt'],
+  indexes: ['textId', 'startTime', 'updatedAt'],
 };
 
 // ---- lexemes | 词条 ----
 
 const lexemeSchema: RxJsonSchema<LexemeDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -502,13 +505,13 @@ const lexemeSchema: RxJsonSchema<LexemeDocType> = {
     updatedAt:   { type: 'string', format: 'date-time' },
   },
   required: ['id', 'lemma', 'senses', 'createdAt', 'updatedAt'],
-  indexes: ['language', 'updatedAt'],
+  indexes: ['updatedAt'],
 };
 
 // ---- annotations | 标注 ----
 
 const annotationSchema: RxJsonSchema<AnnotationDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -530,7 +533,7 @@ const annotationSchema: RxJsonSchema<AnnotationDocType> = {
 // ---- corpus_lexicon_links | 语料↔词典交叉引用 ----
 
 const corpusLexiconLinkSchema: RxJsonSchema<CorpusLexiconLinkDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -548,7 +551,7 @@ const corpusLexiconLinkSchema: RxJsonSchema<CorpusLexiconLinkDocType> = {
 // ---- languages | 语言档案 ----
 
 const languageSchema: RxJsonSchema<LanguageDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -564,13 +567,13 @@ const languageSchema: RxJsonSchema<LanguageDocType> = {
     updatedAt:          { type: 'string', format: 'date-time' },
   },
   required: ['id', 'name', 'createdAt', 'updatedAt'],
-  indexes: ['family', 'updatedAt'],
+  indexes: ['updatedAt'],
 };
 
 // ---- speakers | 说话人 ----
 
 const speakerSchema: RxJsonSchema<SpeakerDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -595,7 +598,7 @@ const speakerSchema: RxJsonSchema<SpeakerDocType> = {
 // ---- orthographies | 正字法方案 ----
 
 const orthographySchema: RxJsonSchema<OrthographyDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -608,13 +611,13 @@ const orthographySchema: RxJsonSchema<OrthographyDocType> = {
     createdAt:    { type: 'string', format: 'date-time' },
   },
   required: ['id', 'name', 'createdAt'],
-  indexes: ['languageId'],
+  indexes: [],
 };
 
 // ---- locations | 地理位置 ----
 
 const locationSchema: RxJsonSchema<LocationDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -628,13 +631,13 @@ const locationSchema: RxJsonSchema<LocationDocType> = {
     createdAt: { type: 'string', format: 'date-time' },
   },
   required: ['id', 'name', 'createdAt'],
-  indexes: ['country'],
+  indexes: [],
 };
 
 // ---- bibliographic_sources | 文献引用 ----
 
 const bibliographicSourceSchema: RxJsonSchema<BibliographicSourceDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -651,13 +654,13 @@ const bibliographicSourceSchema: RxJsonSchema<BibliographicSourceDocType> = {
     createdAt:   { type: 'string', format: 'date-time' },
   },
   required: ['id', 'title', 'createdAt'],
-  indexes: ['citationKey'],
+  indexes: [],
 };
 
 // ---- grammar_docs | 参考语法文档 ----
 
 const grammarDocSchema: RxJsonSchema<GrammarDocDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -673,13 +676,13 @@ const grammarDocSchema: RxJsonSchema<GrammarDocDocType> = {
     updatedAt:         { type: 'string', format: 'date-time' },
   },
   required: ['id', 'title', 'content', 'createdAt', 'updatedAt'],
-  indexes: ['parentId', 'updatedAt'],
+  indexes: ['updatedAt'],
 };
 
 // ---- abbreviations | 标注缩写定义 ----
 
 const abbreviationSchema: RxJsonSchema<AbbreviationDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -692,13 +695,13 @@ const abbreviationSchema: RxJsonSchema<AbbreviationDocType> = {
     createdAt:           { type: 'string', format: 'date-time' },
   },
   required: ['id', 'abbreviation', 'name', 'createdAt'],
-  indexes: ['abbreviation', 'category'],
+  indexes: ['abbreviation'],
 };
 
 // ---- phonemes | 音位库存 ----
 
 const phonemeSchema: RxJsonSchema<PhonemeDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -721,7 +724,7 @@ const phonemeSchema: RxJsonSchema<PhonemeDocType> = {
 // ---- tag_definitions | 标签定义 ----
 
 const tagDefinitionSchema: RxJsonSchema<TagDefinitionDocType> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -734,7 +737,7 @@ const tagDefinitionSchema: RxJsonSchema<TagDefinitionDocType> = {
     createdAt:   { type: 'string', format: 'date-time' },
   },
   required: ['id', 'key', 'name', 'createdAt'],
-  indexes: ['key', 'scope'],
+  indexes: ['key'],
 };
 
 // ============================================================
@@ -769,7 +772,7 @@ async function _createDb(): Promise<JieyuDatabase> {
     name: 'jieyudb',
     storage: getRxStorageDexie(),
     multiInstance: true,
-    ignoreDuplicate: true,
+    closeDuplicates: true,
   });
 
   await db.addCollections({
