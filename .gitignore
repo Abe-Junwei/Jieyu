@@ -2,3 +2,20 @@ node_modules/
 .DS_Store
 dist/
 *.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Build and cache
+coverage/
+.turbo/
+.cache/
+*.tsbuildinfo
+
+# IDE and OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
