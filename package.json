@@ -1,0 +1,21 @@
+{
+  "name": "jieyu",
+  "version": "1.0.0",
+  "description": "解语 (Jieyu) — 濒危语言科研协作平台",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "rxdb": "^16.21.1",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "typescript": "^5.9.3"
+  }
+}
