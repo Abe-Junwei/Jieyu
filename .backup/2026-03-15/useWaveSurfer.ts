@@ -1,0 +1,498 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import WaveSurfer from 'wavesurfer.js';
+import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
+
+type RegionHandle = {
+  id: string;
+  start: number;
+  end: number;
+  on: (event: string, callback: (...args: unknown[]) => void) => void;
+  remove: () => void;
+};
+
+export interface WaveSurferRegion {
+  id: string;
+  start: number;
+  end: number;
+}
+
+export interface UseWaveSurferOptions {
+  /** URL of audio to load. Instance is (re)created when this changes. */
+  mediaUrl: string | undefined;
+  /** Region descriptors rendered on the waveform. Memoize for stability. */
+  regions?: WaveSurferRegion[];
+  /** IDs of all selected regions (highlighted differently). */
+  activeRegionIds?: Set<string>;
+  /** ID of the primary selected region (yellow highlight). */
+  primaryRegionId?: string;
+  /** Fires when the user clicks a region. The player auto-seeks to region start. */
+  onRegionClick?: (regionId: string, start: number, event: MouseEvent) => void;
+  /** Fires during region drag / resize. */
+  onRegionUpdate?: (regionId: string, start: number, end: number) => void;
+  /** Fires when region drag / resize ends. */
+  onRegionUpdateEnd?: (regionId: string, start: number, end: number) => void;
+  /** Fires when user drag-creates a new region on empty waveform area. */
+  onRegionCreate?: (start: number, end: number) => void;
+  /** Enable WaveSurfer built-in empty-drag region creation. */
+  enableEmptyDragCreate?: boolean;
+  /** Fires on right-click of a region. */
+  onRegionContextMenu?: (regionId: string, x: number, y: number) => void;
+  /** Fires on double-click of a region. */
+  onRegionDblClick?: (regionId: string, start: number, end: number) => void;
+  /** Fires on every playback time tick. */
+  onTimeUpdate?: (time: number) => void;
+  /** 像素/秒缩放比例 */
+  zoomLevel?: number;
+  /** 键盘标记起点时间（显示为绿色标记线），undefined 表示无标记 */
+  startMarker?: number | undefined;
+  /** Whether the waveform area currently has keyboard focus */
+  waveformFocused?: boolean;
+  /** Whether segment playback should loop */
+  loop?: boolean;
+  /** Sub-selection range to render as a highlight inside a region */
+  subSelection?: { start: number; end: number } | null;
+  /** Fires when user Alt+pointerdowns on a region (for sub-range drag) */
+  onRegionAltPointerDown?: (regionId: string, time: number, pointerId: number, clientX: number) => void;
+}
+
+export function useWaveSurfer(options: UseWaveSurferOptions) {
+  const { mediaUrl, regions, activeRegionIds, primaryRegionId, startMarker, waveformFocused } = options;
+
+  // Mirror callbacks in a ref so the heavy init effect doesn't re-run when they change.
+  const cbRef = useRef(options);
+  cbRef.current = options;
+
+  const waveformRef = useRef<HTMLDivElement | null>(null);
+  const instanceRef = useRef<WaveSurfer | null>(null);
+  const regionsRef = useRef<ReturnType<typeof RegionsPlugin.create> | null>(null);
+  // Segment-bounded playback: when set, auto-stop (or loop) at this time.
+  const segmentBoundsRef = useRef<{ start: number; end: number } | null>(null);
+  // Timestamp (performance.now) when segment playback was last started/looped.
+  // Used to ignore stale timeupdate events that fire before the seek completes.
+  const segmentPlayTsRef = useRef(0);
+
+  const [isReady, setIsReady] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [playbackRate, _setRate] = useState(1);
+  const [volume, _setVol] = useState(0.9);
+
+  // Keep refs in sync so the init effect can apply rate/volume without depending on state.
+  const rateRef = useRef(playbackRate);
+  const volRef = useRef(volume);
+
+  const setPlaybackRate = useCallback((r: number) => {
+    _setRate(r);
+    rateRef.current = r;
+  }, []);
+
+  const setVolume = useCallback((v: number) => {
+    _setVol(v);
+    volRef.current = v;
+  }, []);
+
+  // ---- Core lifecycle: create / destroy WaveSurfer when media URL changes ----
+  useEffect(() => {
+    const container = waveformRef.current;
+    if (!container) return;
+
+    instanceRef.current?.destroy();
+    instanceRef.current = null;
+    regionsRef.current = null;
+    setIsReady(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setIsPlaying(false);
+
+    if (!mediaUrl) return;
+
+    const plugin = RegionsPlugin.create();
+    regionsRef.current = plugin;
+
+    const ws = WaveSurfer.create({
+      container,
+      waveColor: '#1e3a5f',
+      progressColor: '#2563eb',
+      cursorColor: '#dc2626',
+      height: 180,
+      normalize: true,
+      dragToSeek: false,
+      plugins: [plugin],
+      minPxPerSec: options.zoomLevel ?? 40,
+    });
+
+    instanceRef.current = ws;
+    ws.setVolume(volRef.current);
+    ws.setPlaybackRate(rateRef.current);
+    ws.load(mediaUrl);
+
+    ws.on('ready', () => {
+      setIsReady(true);
+      setDuration(ws.getDuration() || 0);
+    });
+    ws.on('timeupdate', (time: number) => {
+      setCurrentTime(time);
+      // Auto-stop or loop at segment boundary
+      const bounds = segmentBoundsRef.current;
+      if (bounds && time >= bounds.end) {
+        // Grace period: ignore stale timeupdate events right after starting
+        // segment playback (browser may report pre-seek currentTime briefly).
+        if (performance.now() - segmentPlayTsRef.current < 200) return;
+        if (cbRef.current.loop) {
+          segmentPlayTsRef.current = performance.now();
+          ws.setTime(bounds.start);
+        } else {
+          ws.pause();
+          segmentBoundsRef.current = null; // clear BEFORE setTime to prevent recursive timeupdate
+          ws.setTime(bounds.end);
+        }
+      }
+      cbRef.current.onTimeUpdate?.(time);
+    });
+    ws.on('play', () => setIsPlaying(true));
+    ws.on('pause', () => setIsPlaying(false));
+    ws.on('finish', () => {
+      segmentBoundsRef.current = null;
+      setIsPlaying(false);
+    });
+
+    return () => {
+      ws.destroy();
+      instanceRef.current = null;
+      regionsRef.current = null;
+      regionHandlesRef.current = new Map();
+    };
+  }, [mediaUrl]);
+
+  // ---- Incremental sync (no instance recreation) ----
+  useEffect(() => { instanceRef.current?.setPlaybackRate(playbackRate); }, [playbackRate]);
+  useEffect(() => { instanceRef.current?.setVolume(volume); }, [volume]);
+
+  // ---- Region rendering ----
+  // Keep a map of region handles so we can update colors without clearing.
+  const regionHandlesRef = useRef<Map<string, RegionHandle>>(new Map());
+  const syncingRegionsRef = useRef(false);
+  const activeRegionIdsRef = useRef(activeRegionIds);
+  activeRegionIdsRef.current = activeRegionIds;
+  const primaryRegionIdRef = useRef(primaryRegionId);
+  primaryRegionIdRef.current = primaryRegionId;
+  const draggingRegionRef = useRef<string | null>(null);
+
+  // Enable drag-selection region creation and notify external handler.
+  useEffect(() => {
+    const rp = regionsRef.current;
+    if (!rp || !isReady) return;
+    if (options.enableEmptyDragCreate === false) return;
+
+    const disableDragSelection = rp.enableDragSelection(
+      {
+        drag: true,
+        resize: true,
+        color: 'rgba(69, 121, 245, 0.24)',
+      },
+      3,
+    );
+
+    const unsub = rp.on('region-created', (region) => {
+      if (syncingRegionsRef.current) return;
+      // Skip our own programmatic regions
+      if ((region as unknown as { id: string }).id === '__sub_selection__') return;
+      const start = Math.min(region.start, region.end);
+      const end = Math.max(region.start, region.end);
+      // If the drag-created region overlaps an existing region, silently
+      // discard it.  This happens when the user sub-range-selects inside a
+      // region: our capture handler intercepts the pointer, but WaveSurfer's
+      // enableDragSelection (inside the Shadow DOM) still fires.
+      const existing = cbRef.current.regions;
+      if (existing?.some((r) => r.end > start && r.start < end)) {
+        region.remove();
+        return;
+      }
+      cbRef.current.onRegionCreate?.(start, end);
+      region.remove();
+    });
+
+    return () => {
+      unsub();
+      disableDragSelection();
+    };
+  }, [isReady]);
+
+  useEffect(() => {
+    const rp = regionsRef.current;
+    const ws = instanceRef.current;
+    if (!rp || !ws || !isReady) return;
+
+    syncingRegionsRef.current = true;
+
+    const prevHandles = regionHandlesRef.current;
+    const nextHandles = new Map<string, RegionHandle>();
+    const incomingIds = new Set<string>();
+
+    const addRegionWithListeners = (r: { id: string; start: number; end: number }) => {
+      const handle = rp.addRegion({
+        id: r.id, start: r.start, end: r.end,
+        drag: true, resize: true,
+        color: r.id === primaryRegionIdRef.current
+          ? 'rgba(250, 204, 21, 0.22)'
+          : activeRegionIdsRef.current?.has(r.id)
+            ? 'rgba(69, 121, 245, 0.18)'
+            : 'rgba(69, 121, 245, 0.12)',
+      }) as unknown as RegionHandle;
+      // Alt+pointerdown: intercept native region drag so we can do sub-range selection
+      const elForAlt = (handle as unknown as { element?: HTMLElement }).element;
+      if (elForAlt) {
+        elForAlt.addEventListener('pointerdown', (ev: PointerEvent) => {
+          if (!ev.altKey || ev.button !== 0) return;
+          ev.stopImmediatePropagation();
+          ev.preventDefault();
+          // Compute the time at the click position
+          const wrapper = ws.getWrapper();
+          const scrollParent = wrapper?.parentElement;
+          if (!wrapper || !scrollParent) return;
+          const wrapperRect = scrollParent.getBoundingClientRect();
+          const pxOffset = ev.clientX - wrapperRect.left + scrollParent.scrollLeft;
+          const totalWidth = wrapper.scrollWidth;
+          const dur = ws.getDuration() || 1;
+          const time = Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
+          cbRef.current.onRegionAltPointerDown?.(r.id, time, ev.pointerId, ev.clientX);
+        }, { capture: true });
+      }
+      handle.on('click', (...args: unknown[]) => {
+        const ev = args[0] as MouseEvent | undefined;
+        ev?.stopPropagation();
+        ws.setTime(handle.start);
+        cbRef.current.onRegionClick?.(r.id, handle.start, ev ?? new MouseEvent('click'));
+      });
+      handle.on('update', () => {
+        draggingRegionRef.current = r.id;
+        cbRef.current.onRegionUpdate?.(r.id, handle.start, handle.end);
+      });
+      handle.on('update-end', () => {
+        draggingRegionRef.current = null;
+        cbRef.current.onRegionUpdateEnd?.(r.id, handle.start, handle.end);
+      });
+      // Attach contextmenu on region DOM element
+      const el = (handle as unknown as { element?: HTMLElement }).element;
+      if (el) {
+        el.addEventListener('contextmenu', (ev: MouseEvent) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          cbRef.current.onRegionContextMenu?.(r.id, ev.clientX, ev.clientY);
+        });
+        el.addEventListener('dblclick', (ev: MouseEvent) => {
+          ev.stopPropagation();
+          cbRef.current.onRegionDblClick?.(r.id, handle.start, handle.end);
+        });
+      }
+      return handle;
+    };
+
+    (regions ?? []).forEach((r) => {
+      incomingIds.add(r.id);
+      const existing = prevHandles.get(r.id);
+
+      if (existing) {
+        // Skip the region being dragged — never touch it during active drag
+        if (draggingRegionRef.current === r.id) {
+          nextHandles.set(r.id, existing);
+        } else if (Math.abs(existing.start - r.start) > 0.0005 || Math.abs(existing.end - r.end) > 0.0005) {
+          const el = (existing as unknown as { element?: HTMLElement }).element;
+          const obj = existing as unknown as { setOptions?: (o: Record<string, unknown>) => void };
+          if (obj.setOptions && el) {
+            obj.setOptions({ start: r.start, end: r.end });
+            nextHandles.set(r.id, existing);
+          } else {
+            // Element destroyed or no setOptions — remove + re-add
+            try { existing.remove(); } catch { /* already gone */ }
+            nextHandles.set(r.id, addRegionWithListeners(r));
+          }
+        } else {
+          nextHandles.set(r.id, existing);
+        }
+      } else {
+        // New region
+        nextHandles.set(r.id, addRegionWithListeners(r));
+      }
+    });
+
+    // Remove deleted regions
+    prevHandles.forEach((handle, id) => {
+      if (!incomingIds.has(id) && id !== '__start_marker__' && id !== '__sub_selection__') {
+        try { handle.remove(); } catch { /* element already destroyed */ }
+      }
+    });
+
+    // Always rebuild start marker (lightweight, no drag state to preserve)
+    const oldMarker = prevHandles.get('__start_marker__') ?? nextHandles.get('__start_marker__');
+    if (oldMarker) try { (oldMarker as unknown as { remove: () => void }).remove(); } catch { /* already gone */ }
+    nextHandles.delete('__start_marker__');
+    if (startMarker != null) {
+      const markerHandle = rp.addRegion({
+        id: '__start_marker__',
+        start: startMarker, end: startMarker,
+        color: '#10b981', drag: false, resize: false,
+      }) as unknown as RegionHandle;
+      nextHandles.set('__start_marker__', markerHandle);
+    }
+
+    regionHandlesRef.current = nextHandles;
+    syncingRegionsRef.current = false;
+  }, [isReady, regions, startMarker]);
+
+  // Render sub-selection highlight as a non-interactive region.
+  useEffect(() => {
+    const rp = regionsRef.current;
+    if (!rp || !isReady) return;
+    const sub = options.subSelection;
+    const prevSub = regionHandlesRef.current.get('__sub_selection__');
+    if (prevSub) {
+      try { prevSub.remove(); } catch { /* already gone */ }
+      regionHandlesRef.current.delete('__sub_selection__');
+    }
+    if (sub) {
+      const handle = rp.addRegion({
+        id: '__sub_selection__',
+        start: sub.start,
+        end: sub.end,
+        color: 'rgba(34, 197, 94, 0.38)',
+        drag: false,
+        resize: false,
+      }) as unknown as RegionHandle;
+      // Make the sub-selection non-interactive (pass clicks through)
+      const el = (handle as unknown as { element?: HTMLElement }).element;
+      if (el) el.style.pointerEvents = 'none';
+      regionHandlesRef.current.set('__sub_selection__', handle);
+    }
+  }, [isReady, options.subSelection]);
+
+  // Update region colors without rebuilding (avoids interrupting drag).
+  useEffect(() => {
+    const focused = waveformFocused !== false;
+    regionHandlesRef.current.forEach((handle, id) => {
+      if (id === '__start_marker__' || id === '__sub_selection__') return;
+      const el = (handle as unknown as { element?: HTMLElement }).element;
+      if (el) {
+        el.style.backgroundColor = id === primaryRegionId
+          ? (focused ? 'rgba(250, 204, 21, 0.22)' : 'rgba(34, 197, 94, 0.18)')
+          : activeRegionIds?.has(id)
+            ? 'rgba(69, 121, 245, 0.18)'
+            : 'rgba(69, 121, 245, 0.12)';
+      }
+    });
+  }, [activeRegionIds, primaryRegionId, waveformFocused]);
+
+  // Toggle cursor to hair-line on region elements when Alt is held.
+  useEffect(() => {
+    const hairCursor = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='3' height='32'%3E%3Cline x1='1' y1='0' x2='1' y2='32' stroke='%23333' stroke-width='1'/%3E%3C/svg%3E\") 1 16, text";
+    const setCursor = (cursor: string) => {
+      regionHandlesRef.current.forEach((handle, id) => {
+        if (id === '__start_marker__' || id === '__sub_selection__') return;
+        const el = (handle as unknown as { element?: HTMLElement }).element;
+        if (el) el.style.cursor = cursor;
+      });
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') setCursor(hairCursor);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') setCursor('');
+    };
+    const onBlur = () => setCursor('');
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, []);
+
+  // ---- Playback controls ----
+  const togglePlayback = useCallback(() => {
+    const ws = instanceRef.current;
+    if (!ws) return;
+
+    if (ws.isPlaying()) {
+      ws.pause();
+      segmentBoundsRef.current = null;
+      return;
+    }
+
+    // Always leave segment-bounded mode when using the global play/pause button.
+    segmentBoundsRef.current = null;
+
+    const dur = ws.getDuration() || 0;
+    const now = ws.getCurrentTime() || 0;
+    const atEnd = dur > 0 && now >= dur - 0.02;
+
+    if (atEnd) {
+      ws.setTime(0);
+    }
+    void ws.play();
+  }, []);
+
+  /** Play a specific time range. Automatically stops (or loops) at `end`.
+   *  When `resume` is true and current time is already within [start, end],
+   *  continue from the current position instead of seeking to `start`. */
+  const playRegion = useCallback((start: number, end: number, resume?: boolean) => {
+    const ws = instanceRef.current;
+    if (!ws) return;
+    segmentBoundsRef.current = { start, end };
+    segmentPlayTsRef.current = performance.now();
+    const cur = ws.getCurrentTime();
+    if (!(resume && cur >= start && cur < end)) {
+      ws.setTime(start);
+    }
+    void ws.play();
+  }, []);
+
+  /** Stop playback and clear segment bounds. */
+  const stop = useCallback(() => {
+    const ws = instanceRef.current;
+    if (!ws) return;
+    ws.pause();
+    segmentBoundsRef.current = null;
+  }, []);
+
+  const seekBySeconds = useCallback((delta: number) => {
+    const ws = instanceRef.current;
+    if (!ws) return;
+    const next = Math.max(0, Math.min((ws.getCurrentTime() || 0) + delta, ws.getDuration() || 0));
+    ws.setTime(next);
+  }, []);
+
+  const seekTo = useCallback((time: number) => {
+    const ws = instanceRef.current;
+    if (!ws) return;
+    const dur = ws.getDuration() || 0;
+    if (dur <= 0) return;
+    ws.setTime(Math.max(0, Math.min(time, dur)));
+  }, []);
+
+  // 缩放级别变化时动态 zoom
+  useEffect(() => {
+    if (!isReady || !options.zoomLevel) return;
+    instanceRef.current?.zoom(options.zoomLevel);
+  }, [isReady, options.zoomLevel]);
+
+  return {
+    waveformRef,
+    instanceRef,
+    isReady,
+    isPlaying,
+    currentTime,
+    duration,
+    playbackRate,
+    setPlaybackRate,
+    volume,
+    setVolume,
+    togglePlayback,
+    playRegion,
+    stop,
+    seekBySeconds,
+    seekTo,
+  };
+}

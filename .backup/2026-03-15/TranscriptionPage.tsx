@@ -172,15 +172,12 @@ export function TranscriptionPage() {
   const [quickDeleteLayerId, setQuickDeleteLayerId] = useState('');
   const [activeTextId, setActiveTextId] = useState<string | null>(null);
   const [waveformFocused, setWaveformFocused] = useState(false);
-  const [segmentLoopPlayback, setSegmentLoopPlayback] = useState(false);
-  const [globalLoopPlayback, setGlobalLoopPlayback] = useState(false);
-  const [segmentPlaybackRate, setSegmentPlaybackRate] = useState(1);
+  const [loopPlayback, setLoopPlayback] = useState(false);
   const waveformAreaRef = useRef<HTMLDivElement | null>(null);
 
   const utteranceRowRef = useRef<Record<string, HTMLDivElement | null>>({});
   const waveCanvasRef = useRef<HTMLDivElement | null>(null);
   const [zoomPercent, setZoomPercent] = useState(100);
-  const [zoomMode, setZoomMode] = useState<'fit-all' | 'fit-selection' | 'custom'>('fit-all');
   const [snapEnabled, setSnapEnabled] = useState(false);
   const [rulerView, setRulerView] = useState<{ start: number; end: number } | null>(null);
   const [hoverTime, setHoverTime] = useState<{ time: number; x: number; y: number } | null>(null);
@@ -258,7 +255,7 @@ export function TranscriptionPage() {
   const waveLassoRef = useRef<{
     active: boolean;
     anchorX: number; anchorY: number;
-    anchorTime: number;
+    scrollLeft0: number;
     baseIds: Set<string>;
     pointerId: number;
     hitCount: number;
@@ -400,14 +397,11 @@ export function TranscriptionPage() {
   selectedUtteranceIdsRef.current = selectedUtteranceIds;
   const selectedUtteranceIdRef = useRef(selectedUtteranceId);
   selectedUtteranceIdRef.current = selectedUtteranceId;
-  const previousSelectedUtteranceIdRef = useRef(selectedUtteranceId);
   const safeDur = lastDurationRef.current;
   const fitPxPerSec = safeDur > 0 ? containerWidth / safeDur : 40;
   const zoomPxPerSec = fitPxPerSec * (zoomPercent / 100);
   zoomPxPerSecRef.current = zoomPxPerSec;
   const maxZoomPercent = Math.max(200, Math.ceil((2000 / fitPxPerSec) * 100));
-  const isFitZoomMode = zoomMode === 'fit-all' || zoomMode === 'fit-selection';
-  const shouldDisableAutoScroll = segmentLoopPlayback && isFitZoomMode;
 
   const player = useWaveSurfer({
     mediaUrl: selectedMediaUrl,
@@ -415,10 +409,7 @@ export function TranscriptionPage() {
     activeRegionIds: selectedUtteranceIds,
     primaryRegionId: selectedUtteranceId,
     waveformFocused,
-    segmentLoop: segmentLoopPlayback,
-    globalLoop: globalLoopPlayback,
-    segmentPlaybackRate,
-    autoScrollDuringPlayback: !shouldDisableAutoScroll,
+    loop: loopPlayback,
     enableEmptyDragCreate: false,
     zoomLevel: zoomPxPerSec,
     startMarker: segMarkStart ?? undefined,
@@ -429,13 +420,9 @@ export function TranscriptionPage() {
       // Capture pointer on waveCanvasRef so we get pointermove/up
       waveCanvasRef.current?.setPointerCapture(pointerId);
     },
-    onRegionClick: (regionId, clickTime, event) => {
-      if (player.isPlaying) {
-        player.stop();
-      }
+    onRegionClick: (regionId, _start, event) => {
       setSubSelectionRange(null);
       manualSelectTsRef.current = Date.now();
-      player.seekTo(clickTime);
       if (event.shiftKey) {
         const anchor = selectedUtteranceId || regionId;
         selectUtteranceRange(anchor, regionId);
@@ -449,12 +436,6 @@ export function TranscriptionPage() {
       zoomToUtterance(start, end);
     },
     onRegionUpdate: (regionId, start, end) => {
-      // Stop playback when the user starts dragging a boundary — playing
-      // while adjusting boundaries leads to stale segmentBounds and confusing
-      // behavior (playback ignoring the new boundary).
-      if (player.isPlaying) {
-        player.stop();
-      }
       beginTimingGesture(regionId);
       setDragPreview({ id: regionId, start, end });
       const item = utterancesOnCurrentMedia.find((u) => u.id === regionId);
@@ -491,9 +472,6 @@ export function TranscriptionPage() {
       void createUtteranceFromSelection(start, end);
     },
     onRegionContextMenu: (regionId, x, y) => {
-      if (player.isPlaying) {
-        player.stop();
-      }
       setSelectedUtteranceId(regionId);
       // Convert click clientX → waveform time
       const ws = player.instanceRef.current;
@@ -539,11 +517,7 @@ export function TranscriptionPage() {
   }
 
   // ---- 缩放（锚点保持）—— 接受百分比 ----
-  const zoomToPercent = useCallback((
-    newPercent: number,
-    anchorFraction?: number,
-    nextMode: 'fit-all' | 'fit-selection' | 'custom' = 'custom',
-  ) => {
+  const zoomToPercent = useCallback((newPercent: number, anchorFraction?: number) => {
     const ws = player.instanceRef.current;
     if (!ws) return;
     const clamped = Math.max(100, Math.min(maxZoomPercent, Math.round(newPercent)));
@@ -553,7 +527,6 @@ export function TranscriptionPage() {
     const width = ws.getWidth();
     const anchorTime = (scrollLeft + width * frac) / zoomPxPerSec;
     setZoomPercent(clamped);
-    setZoomMode(nextMode);
     requestAnimationFrame(() => {
       const ws2 = player.instanceRef.current;
       if (!ws2) return;
@@ -581,7 +554,6 @@ export function TranscriptionPage() {
       ws.setScroll(scrollTarget);
       if (tierContainerRef.current) tierContainerRef.current.scrollLeft = scrollTarget;
     };
-    setZoomMode('fit-selection');
     if (clamped === zoomPercent) {
       applyScroll();
     } else {
@@ -604,9 +576,6 @@ export function TranscriptionPage() {
     event.stopPropagation();
 
     manualSelectTsRef.current = Date.now();
-    if (player.isPlaying) {
-      player.stop();
-    }
     selectUtterance(utterance.id);
     if (layerId) {
       setSelectedLayerId(layerId);
@@ -732,34 +701,19 @@ export function TranscriptionPage() {
     const el = waveCanvasRef.current;
     if (!el) return;
 
-    // Convert a clientX position to audio time using WaveSurfer's actual layout.
-    // This is the ground-truth coordinate system — wrapper.scrollWidth reflects the
-    // real rendered pixel width, so time ≡ pxOffset / scrollWidth * duration.
-    const clientXToTime = (clientX: number): number | null => {
+    const getScrollContainer = () => {
       const ws = player.instanceRef.current;
-      const wrapper = ws?.getWrapper();
-      const sc = wrapper?.parentElement;
-      if (!wrapper || !sc) return null;
-      const totalWidth = wrapper.scrollWidth;
-      if (totalWidth <= 0) return null;
-      const dur = ws?.getDuration() ?? 0;
-      if (dur <= 0) return null;
-      const rect = sc.getBoundingClientRect();
-      const pxOffset = clientX - rect.left + sc.scrollLeft;
-      return Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
+      return (ws?.getWrapper()?.parentElement ?? null) as HTMLElement | null;
     };
 
     const hitTestExistingAtClientX = (clientX: number) => {
-      const time = clientXToTime(clientX);
-      if (time === null) return false;
-      const ws = player.instanceRef.current;
-      const wrapper = ws?.getWrapper();
-      const dur = ws?.getDuration() ?? 0;
-      const totalWidth = wrapper?.scrollWidth ?? 0;
-      // eps = 3 pixels worth of time (tolerance for region edge clicks)
-      const eps = totalWidth > 0 && dur > 0
-        ? Math.min(0.03, Math.max(0.005, 3 / totalWidth * dur))
-        : 0.01;
+      const sc = getScrollContainer();
+      const rect = el.getBoundingClientRect();
+      const contentX = clientX - rect.left + (sc?.scrollLeft ?? 0);
+      if (zoomPxPerSecRef.current <= 0) return false;
+      const time = contentX / zoomPxPerSecRef.current;
+      // Clamp tolerance to avoid over-capturing at low zoom levels.
+      const eps = Math.min(0.03, Math.max(0.005, 3 / zoomPxPerSecRef.current));
       return utterancesOnCurrentMediaRef.current.some(
         (u) => u.startTime - eps <= time && u.endTime + eps >= time,
       );
@@ -782,6 +736,7 @@ export function TranscriptionPage() {
 
       // Robust hit-test: if pointer time is inside any existing utterance, don't
       // start empty-area lasso; let region click/selection logic handle it.
+      const sc = getScrollContainer();
       const hitExisting = hitTestExistingAtClientX(e.clientX);
       if (hitExisting) return;
 
@@ -792,10 +747,8 @@ export function TranscriptionPage() {
       e.stopPropagation();
       e.preventDefault();
 
-      const anchorTime = clientXToTime(e.clientX);
-      if (anchorTime === null) return;
-
-      // Shift-drag = additive lasso; plain drag = replace by lasso.
+      const scForDrag = sc ?? getScrollContainer();
+      // Shift-drag = additive lasso; Cmd/Ctrl-drag = replace by lasso only.
       const baseIds = e.shiftKey
         ? new Set(selectedUtteranceIdsRef.current)
         : new Set<string>();
@@ -803,7 +756,7 @@ export function TranscriptionPage() {
         active: false,
         anchorX: e.clientX,
         anchorY: e.clientY,
-        anchorTime,
+        scrollLeft0: scForDrag?.scrollLeft ?? 0,
         baseIds,
         pointerId: e.pointerId,
         hitCount: 0,
@@ -860,40 +813,30 @@ export function TranscriptionPage() {
       info.active = true;
 
       const rect = el.getBoundingClientRect();
+      const sc = getScrollContainer();
+      const scrollLeft = sc?.scrollLeft ?? 0;
 
+      const toX = (cx: number) => cx - rect.left;
       const toY = (cy: number) => cy - rect.top;
 
-      const axRaw = info.anchorX - rect.left;
+      const ax = toX(info.anchorX);
       const ay = toY(info.anchorY);
-      const cxRaw = e.clientX - rect.left;
+      const cx = toX(e.clientX);
       const cy = toY(e.clientY);
 
-      let ax = axRaw;
-      let cx = cxRaw;
+      const left = Math.max(0, Math.min(ax, cx));
+      const top = Math.max(0, Math.min(ay, cy));
+      const width = Math.abs(cx - ax);
+      const height = Math.abs(cy - ay);
 
-      // Use WaveSurfer coordinate system for time calculation (same as sub-selection).
-      const currentTime = clientXToTime(e.clientX);
-      if (currentTime !== null) {
-        const ws = player.instanceRef.current;
-        const wrapper = ws?.getWrapper();
-        const sc = wrapper?.parentElement;
-        const totalWidth = wrapper?.scrollWidth ?? 0;
-        const dur = ws?.getDuration() ?? 0;
-        if (sc && totalWidth > 0 && dur > 0) {
-          const scrollLeft = sc.scrollLeft;
-          const anchorContentX = (info.anchorTime / dur) * totalWidth;
-          const currentContentX = (currentTime / dur) * totalWidth;
-          ax = anchorContentX - scrollLeft;
-          cx = currentContentX - scrollLeft;
-        }
+      const contentAx = ax + scrollLeft;
+      const contentCx = cx + scrollLeft;
+      const contentLeft = Math.min(contentAx, contentCx);
+      const contentRight = Math.max(contentAx, contentCx);
 
-        const left = Math.max(0, Math.min(ax, cx));
-        const top = Math.max(0, Math.min(ay, cy));
-        const width = Math.abs(cx - ax);
-        const height = Math.abs(cy - ay);
-
-        const tStart = Math.min(info.anchorTime, currentTime);
-        const tEnd = Math.max(info.anchorTime, currentTime);
+      if (zoomPxPerSecRef.current > 0) {
+        const tStart = contentLeft / zoomPxPerSecRef.current;
+        const tEnd = contentRight / zoomPxPerSecRef.current;
         const outcome = computeLassoOutcome(
           utterancesOnCurrentMediaRef.current,
           tStart,
@@ -977,8 +920,11 @@ export function TranscriptionPage() {
         if (!hitTestExistingAtClientX(e.clientX)) {
           clearUtteranceSelection();
           // Click-to-seek: move playback position to the clicked time
-          const clickTime = clientXToTime(e.clientX);
-          if (clickTime !== null) {
+          const sc = getScrollContainer();
+          if (sc && zoomPxPerSecRef.current > 0) {
+            const rect = el.getBoundingClientRect();
+            const contentX = e.clientX - rect.left + (sc.scrollLeft ?? 0);
+            const clickTime = contentX / zoomPxPerSecRef.current;
             player.seekTo(clickTime);
           }
         }
@@ -1320,19 +1266,6 @@ export function TranscriptionPage() {
     setSubSelectionRange(null);
   }, [selectedUtteranceId]);
 
-  // Any target switch clears segment-loop mode, so the next play is manual non-loop by default.
-  // Also reset segment playback rate to 1x for the new segment.
-  useEffect(() => {
-    const prev = previousSelectedUtteranceIdRef.current;
-    if (prev !== selectedUtteranceId && segmentLoopPlayback) {
-      setSegmentLoopPlayback(false);
-    }
-    if (prev !== selectedUtteranceId) {
-      setSegmentPlaybackRate(1);
-    }
-    previousSelectedUtteranceIdRef.current = selectedUtteranceId;
-  }, [selectedUtteranceId, segmentLoopPlayback]);
-
   // Seek waveform to selected utterance's start.
   // Use a ref for isPlaying to avoid changing the dep array size and to prevent
   // re-running the effect when playback stops (which would yank the cursor).
@@ -1353,32 +1286,21 @@ export function TranscriptionPage() {
   // ---- Keybinding system ----
   const keymap = useMemo(() => getEffectiveKeymap(), []);
 
-  // Segment-focused play action used by waveform keyboard playPause.
-  const handlePlayPauseAction = useCallback(() => {
-    if (!player.isReady) return;
-    if (player.isPlaying) {
-      player.stop();
-    } else if (subSelectionRange) {
-      player.playRegion(subSelectionRange.start, subSelectionRange.end, true);
-    } else if (selectedUtterance) {
-      player.playRegion(selectedUtterance.startTime, selectedUtterance.endTime, true);
-    } else {
-      player.togglePlayback();
-    }
-  }, [player, subSelectionRange, selectedUtterance]);
-
-  // Top toolbar play button controls global timeline playback.
-  const handleGlobalPlayPauseAction = useCallback(() => {
-    if (segmentLoopPlayback) {
-      setSegmentLoopPlayback(false);
-    }
-    player.togglePlayback();
-  }, [player, segmentLoopPlayback]);
-
   // Action dispatch table — maps action IDs to handler functions
   const waveformActionsRef = useRef<Record<string, (e: KeyboardEvent | React.KeyboardEvent) => void>>({});
   waveformActionsRef.current = {
-    playPause: () => { handlePlayPauseAction(); },
+    playPause: () => {
+      if (!player.isReady) return;
+      if (player.isPlaying) {
+        player.stop();
+      } else if (subSelectionRange) {
+        player.playRegion(subSelectionRange.start, subSelectionRange.end, true);
+      } else if (selectedUtterance) {
+        player.playRegion(selectedUtterance.startTime, selectedUtterance.endTime, true);
+      } else {
+        player.togglePlayback();
+      }
+    },
     markSegment: () => {
       const ws = player.instanceRef.current;
       if (!ws || !player.isReady || !selectedMediaUrl) return;
@@ -1427,9 +1349,6 @@ export function TranscriptionPage() {
       const target = utterancesOnCurrentMedia[idx - 1];
       if (target) {
         manualSelectTsRef.current = Date.now();
-        if (player.isPlaying) {
-          player.stop();
-        }
         selectUtterance(target.id);
         const el = (e.target as HTMLElement).closest('[tabindex]') as HTMLElement | null;
         if (el) requestAnimationFrame(() => el.focus());
@@ -1441,9 +1360,6 @@ export function TranscriptionPage() {
       const target = utterancesOnCurrentMedia[idx + 1];
       if (target) {
         manualSelectTsRef.current = Date.now();
-        if (player.isPlaying) {
-          player.stop();
-        }
         selectUtterance(target.id);
         const el = (e.target as HTMLElement).closest('[tabindex]') as HTMLElement | null;
         if (el) requestAnimationFrame(() => el.focus());
@@ -1985,13 +1901,16 @@ export function TranscriptionPage() {
               filename={selectedUtteranceMedia?.filename ?? '未绑定音频'}
               isReady={player.isReady}
               isPlaying={player.isPlaying}
+              currentTime={player.currentTime}
+              duration={player.duration}
               playbackRate={player.playbackRate}
               onPlaybackRateChange={player.setPlaybackRate}
               volume={player.volume}
               onVolumeChange={player.setVolume}
-              loop={globalLoopPlayback}
-              onLoopChange={setGlobalLoopPlayback}
-              onTogglePlayback={handleGlobalPlayPauseAction}
+              loop={loopPlayback}
+              onLoopChange={setLoopPlayback}
+              selectedRowMeta={selectedRowMeta}
+              onTogglePlayback={player.togglePlayback}
               onSeek={player.seekBySeconds}
             >
               <button className="icon-btn" onClick={() => void loadSnapshot()} title="刷新数据">
@@ -2169,66 +2088,11 @@ export function TranscriptionPage() {
                     const widthPx = (selectedUtterance.endTime - selectedUtterance.startTime) * zoomPxPerSec;
                     // Hide if region is scrolled out of view or too narrow
                     if (leftPx + widthPx < 0 || leftPx > (ws?.getWidth() ?? 9999)) return null;
-                    const showSpeedSlider = widthPx >= 160;
-                    const showLoopBtn = widthPx >= 72;
                     return (
                       <div
                         className="region-action-overlay"
                         style={{ left: Math.max(0, leftPx) }}
                       >
-                        {showSpeedSlider && (
-                          <div className="segment-speed-control" onPointerDown={(e) => e.stopPropagation()}>
-                          <input
-                            type="range"
-                            className="segment-speed-slider"
-                            min={0.25}
-                            max={2}
-                            step={0.05}
-                            value={segmentPlaybackRate}
-                            onChange={(e) => {
-                              const rate = Number(e.target.value);
-                              setSegmentPlaybackRate(rate);
-                              // If segment is currently playing, apply immediately
-                              const ws = player.instanceRef.current;
-                              if (ws && player.isPlaying) {
-                                ws.setPlaybackRate(rate);
-                              }
-                            }}
-                            title={`语段播放速度: ${segmentPlaybackRate.toFixed(2)}x`}
-                          />
-                          <span
-                            className={`segment-speed-label${segmentPlaybackRate !== 1 ? ' segment-speed-label-reset' : ''}`}
-                            title={segmentPlaybackRate !== 1 ? '点击恢复原速' : '当前为原速'}
-                            onClick={() => {
-                              setSegmentPlaybackRate(1);
-                              const ws = player.instanceRef.current;
-                              if (ws && player.isPlaying) {
-                                ws.setPlaybackRate(1);
-                              }
-                            }}
-                          >{segmentPlaybackRate === 1 ? '1x' : `${segmentPlaybackRate.toFixed(segmentPlaybackRate % 0.25 === 0 ? 1 : 2)}x`}</span>
-                        </div>
-                        )}
-                        {showLoopBtn && (
-                        <button
-                          className={`region-action-btn ${segmentLoopPlayback ? 'region-action-btn-active' : ''}`}
-                          title={segmentLoopPlayback ? '关闭语段循环播放' : '循环播放该语段'}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (segmentLoopPlayback) {
-                              setSegmentLoopPlayback(false);
-                              player.stop();
-                            } else {
-                              setSegmentLoopPlayback(true);
-                              const s = subSelectionRange ?? { start: selectedUtterance.startTime, end: selectedUtterance.endTime };
-                              player.playRegion(s.start, s.end, true);
-                            }
-                          }}
-                        >
-                          <Repeat size={13} />
-                        </button>
-                        )}
                         <button
                           className="region-action-btn"
                           title={player.isPlaying ? '停止播放' : '播放该语段'}
@@ -2244,6 +2108,24 @@ export function TranscriptionPage() {
                           }}
                         >
                           {player.isPlaying ? <Square size={13} /> : <Play size={13} />}
+                        </button>
+                        <button
+                          className={`region-action-btn ${loopPlayback ? 'region-action-btn-active' : ''}`}
+                          title={loopPlayback ? '关闭循环播放' : '循环播放该语段'}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (loopPlayback) {
+                              setLoopPlayback(false);
+                              player.stop();
+                            } else {
+                              setLoopPlayback(true);
+                              const s = subSelectionRange ?? { start: selectedUtterance.startTime, end: selectedUtterance.endTime };
+                              player.playRegion(s.start, s.end);
+                            }
+                          }}
+                        >
+                          <Repeat size={13} />
                         </button>
                       </div>
                     );
@@ -2304,9 +2186,6 @@ export function TranscriptionPage() {
                   currentUtteranceId={selectedUtteranceId || undefined}
                   onNavigate={(id) => {
                     manualSelectTsRef.current = Date.now();
-                    if (player.isPlaying) {
-                      player.stop();
-                    }
                     selectUtterance(id);
                   }}
                   onReplace={handleSearchReplace}
@@ -2543,9 +2422,6 @@ export function TranscriptionPage() {
                                 }}
                                 onClick={(e) => {
                                   manualSelectTsRef.current = Date.now();
-                                  if (player.isPlaying) {
-                                    player.stop();
-                                  }
                                   if (e.shiftKey && selectedUtteranceId) {
                                     selectUtteranceRange(selectedUtteranceId, utt.id);
                                   } else if (e.metaKey || e.ctrlKey) {
@@ -2559,9 +2435,6 @@ export function TranscriptionPage() {
                                   e.preventDefault();
                                   e.stopPropagation();
                                   manualSelectTsRef.current = Date.now();
-                                  if (player.isPlaying) {
-                                    player.stop();
-                                  }
                                   selectUtterance(utt.id);
                                   setFocusedLayerRowId(layer.id);
                                   const sc = tierContainerRef.current;
@@ -2655,9 +2528,6 @@ export function TranscriptionPage() {
                                 }}
                                 onClick={(e) => {
                                   manualSelectTsRef.current = Date.now();
-                                  if (player.isPlaying) {
-                                    player.stop();
-                                  }
                                   if (e.shiftKey && selectedUtteranceId) {
                                     selectUtteranceRange(selectedUtteranceId, utt.id);
                                   } else if (e.metaKey || e.ctrlKey) {
@@ -2672,9 +2542,6 @@ export function TranscriptionPage() {
                                   e.preventDefault();
                                   e.stopPropagation();
                                   manualSelectTsRef.current = Date.now();
-                                  if (player.isPlaying) {
-                                    player.stop();
-                                  }
                                   selectUtterance(utt.id);
                                   setSelectedLayerId(layer.id);
                                   setFocusedLayerRowId(layer.id);
@@ -2771,7 +2638,7 @@ export function TranscriptionPage() {
               <div className="transcription-list-toolbar transcription-list-toolbar-zoom-only">
                 <div className="transcription-list-toolbar-left">
                   <div className="waveform-zoom-bar waveform-zoom-bar-bottom">
-                    <button className="icon-btn" onClick={() => zoomToPercent(100, undefined, 'fit-all')} title="适应全部">
+                    <button className="icon-btn" onClick={() => zoomToPercent(100)} title="适应全部">
                       <Maximize2 size={14} />
                     </button>
                     <button
@@ -2787,7 +2654,7 @@ export function TranscriptionPage() {
                     </button>
                     <button
                       className="icon-btn"
-                      onClick={() => zoomToPercent(Math.round((100 / fitPxPerSec) * 100), undefined, 'custom')}
+                      onClick={() => zoomToPercent(Math.round((100 / fitPxPerSec) * 100))}
                       title="1:1 (100px/s)"
                     >
                       <span style={{ fontSize: 11, fontWeight: 600 }}>1:1</span>
@@ -2811,7 +2678,7 @@ export function TranscriptionPage() {
                       onChange={(e) => {
                         const pos = Number(e.target.value);
                         const pct = 100 * Math.pow(maxZoomPercent / 100, pos / 1000);
-                        zoomToPercent(pct, undefined, 'custom');
+                        zoomToPercent(pct);
                       }}
                       title={`缩放：${zoomPercent}%`}
                     />
