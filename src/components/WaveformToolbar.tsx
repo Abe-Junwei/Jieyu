@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { FastForward, Pause, Play, Repeat, Rewind, Volume2, Waves } from 'lucide-react';
 
 interface WaveformToolbarProps {
@@ -16,7 +16,7 @@ interface WaveformToolbarProps {
   children?: ReactNode;
 }
 
-export function WaveformToolbar({
+export const WaveformToolbar = memo(function WaveformToolbar({
   filename,
   isReady,
   isPlaying,
@@ -42,7 +42,7 @@ export function WaveformToolbar({
         <button className="icon-btn" onClick={() => onSeek(-10)} title="后退 10 秒">
           <Rewind size={16} />
         </button>
-        <button className="play-btn" onClick={onTogglePlayback} disabled={!isReady}>
+        <button className="play-btn" onClick={onTogglePlayback} disabled={!isReady} aria-label={isPlaying ? '暂停' : '播放'} title={isPlaying ? '暂停' : '播放'}>
           {isPlaying ? <Pause size={18} /> : <Play size={18} />}
         </button>
         <button className="icon-btn" onClick={() => onSeek(10)} title="前进 10 秒">
@@ -84,4 +84,4 @@ export function WaveformToolbar({
       </div>
     </div>
   );
-}
+});

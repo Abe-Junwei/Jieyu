@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchKeyEvent } from '../src/services/KeybindingService';
+import { DEFAULT_KEYBINDINGS, matchKeyEvent } from '../src/services/KeybindingService';
 
 describe('matchKeyEvent', () => {
   it('matches space combo for blank-space key value', () => {
@@ -33,5 +33,19 @@ describe('matchKeyEvent', () => {
       altKey: false,
     } as KeyboardEvent;
     expect(matchKeyEvent(fake, 'mod+m')).toBe(true);
+  });
+
+  it('supports mod+y as redo alternative', () => {
+    const redo = DEFAULT_KEYBINDINGS.find((item) => item.id === 'redo');
+    expect(redo?.defaultKey).toContain('mod+y');
+
+    const fake = {
+      key: 'y',
+      metaKey: true,
+      ctrlKey: false,
+      shiftKey: false,
+      altKey: false,
+    } as KeyboardEvent;
+    expect(matchKeyEvent(fake, 'mod+y')).toBe(true);
   });
 });

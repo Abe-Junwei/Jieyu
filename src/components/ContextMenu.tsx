@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 
 export interface ContextMenuItem {
   label: string;
@@ -15,7 +15,7 @@ interface ContextMenuProps {
   onClose: () => void;
 }
 
-export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
+export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,12 +40,13 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   };
 
   return (
-    <div ref={ref} className="context-menu" style={style}>
+    <div ref={ref} className="context-menu" style={style} role="menu">
       {items.map((item) => (
         <button
           key={item.label}
           className={`context-menu-item${item.danger ? ' context-menu-danger' : ''}`}
           disabled={item.disabled}
+          role="menuitem"
           onClick={() => { item.onClick(); onClose(); }}
         >
           <span>{item.label}</span>
@@ -54,4 +55,4 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
       ))}
     </div>
   );
-}
+});

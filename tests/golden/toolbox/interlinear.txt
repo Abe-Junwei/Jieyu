@@ -1,0 +1,17 @@
+\ref rec1
+\ts 0.500
+\te 3.000
+\tx nga jongs
+\mb nga jongs
+\ge 1SG come.PST
+\ps PRON V
+\ft I came
+
+\ref rec2
+\ts 3.000
+\te 5.250
+\tx de ring dus tshod
+\mb de ring dus-tshod
+\ge DEM day time-clock
+\ps DEM N N-N
+\ft this daytime

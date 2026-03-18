@@ -5,9 +5,13 @@ import {
   type ImportConflictStrategy,
   type ImportResult,
   type UtteranceDocType,
+  type UtteranceTokenDocType,
+  type UtteranceMorphemeDocType,
+  type TokenLexemeLinkDocType,
+  type TokenLexemeLinkTargetType,
   type LexemeDocType,
   type TranslationLayerDocType,
-  type UtteranceTranslationDocType,
+  type UtteranceTextDocType,
   type TextDocType,
   type MediaItemDocType,
   type TierDefinitionDocType,
@@ -15,7 +19,16 @@ import {
   type TierType,
   type AuditLogDocType,
   type AuditSource,
+  type AnchorDocType,
 } from '../db';
+import { newId } from '../src/utils/transcriptionFormatters';
+import {
+  assertReviewProtection,
+  assertStableId,
+  normalizeTierAnnotationDocForStorage,
+  normalizeUtteranceDocForStorage,
+  normalizeUtteranceTextDocForStorage,
+} from '../src/utils/camDataUtils';
 
 // ── Constraint violation types ──────────────────────────────
 
@@ -27,6 +40,46 @@ export interface ConstraintViolation {
   tierId: string;
   annotationId?: string;
   message: string;
+}
+
+/** Result returned by validated tier save operations. */
+export interface TierSaveResult {
+  /** Saved document ID (empty string if save was rejected). */
+  id: string;
+  /** Error-level violations that blocked the save (non-empty ⇒ id is ''). */
+  errors: ConstraintViolation[];
+  /** Warning-level violations (informational, save still proceeded). */
+  warnings: ConstraintViolation[];
+}
+
+export interface ImportQualityReport {
+  generatedAt: string;
+  scope: {
+    textId?: string;
+  };
+  totals: {
+    utterances: number;
+    utteranceTexts: number;
+    transcriptionLayers: number;
+    translationLayers: number;
+    canonicalTokens: number;
+    canonicalMorphemes: number;
+    userNotes: number;
+  };
+  coverage: {
+    transcribedUtterances: number;
+    translatedUtterances: number;
+    glossedUtterances: number;
+    verifiedUtterances: number;
+    transcribedRate: number;
+    translatedRate: number;
+    glossedRate: number;
+    verifiedRate: number;
+  };
+  integrity: {
+    orphanNotes: number;
+    orphanAnchors: number;
+  };
 }
 
 // ── Allowed parent tier-type map ──────────────────────────────
@@ -399,7 +452,7 @@ export function validateTierConstraints(
 
 /** Fields tracked per collection. Only changes to these fields generate audit entries. */
 const TRACKED_FIELDS: Record<string, readonly string[]> = {
-  tier_annotations: ['value', 'startTime', 'endTime', 'isVerified', 'parentAnnotationId'],
+  tier_annotations: ['value', 'startTime', 'endTime', 'startAnchorId', 'endAnchorId', 'isVerified', 'parentAnnotationId'],
   tier_definitions: ['parentTierId', 'tierType', 'contentType', 'name'],
   utterances: ['transcription', 'startTime', 'endTime', 'isVerified'],
 };
@@ -472,6 +525,172 @@ function diffTrackedFields(
 }
 
 export class LinguisticService {
+  private static async removeNotesForUtteranceIds(
+    db: Awaited<ReturnType<typeof getDb>>,
+    utteranceIds: readonly string[],
+  ): Promise<void> {
+    const ids = [...new Set(utteranceIds.filter((id) => id.trim().length > 0))];
+    if (ids.length === 0) return;
+
+    const tokens = await db.dexie.utterance_tokens.where('utteranceId').anyOf(ids).toArray();
+    const morphemes = await db.dexie.utterance_morphemes.where('utteranceId').anyOf(ids).toArray();
+
+    const deleteByTarget = async (targetType: 'utterance' | 'token' | 'morpheme', targetIds: readonly string[]) => {
+      if (targetIds.length === 0) return;
+      await db.dexie.user_notes
+        .where('[targetType+targetId]')
+        .anyOf(targetIds.map((targetId) => [targetType, targetId] as [string, string]))
+        .delete();
+    };
+
+    await deleteByTarget('utterance', ids);
+    await deleteByTarget('token', tokens.map((token) => token.id));
+    await deleteByTarget('morpheme', morphemes.map((morpheme) => morpheme.id));
+  }
+
+  static async generateImportQualityReport(textId?: string): Promise<ImportQualityReport> {
+    const db = await getDb();
+
+    const [utterancesAll, utteranceTextsAll, layersAll, tokensAll, morphemesAll, userNotesAll, anchorsAll] = await Promise.all([
+      db.dexie.utterances.toArray(),
+      db.dexie.utterance_texts.toArray(),
+      db.collections.translation_layers.find().exec().then((docs) => docs.map((doc) => doc.toJSON())),
+      db.dexie.utterance_tokens.toArray(),
+      db.dexie.utterance_morphemes.toArray(),
+      db.dexie.user_notes.toArray(),
+      db.dexie.anchors.toArray(),
+    ]);
+
+    const inScopeUtterances = textId
+      ? utterancesAll.filter((u) => u.textId === textId)
+      : utterancesAll;
+    const inScopeUtteranceIds = new Set(inScopeUtterances.map((u) => u.id));
+
+    const inScopeUtteranceTexts = utteranceTextsAll.filter((row) => inScopeUtteranceIds.has(row.utteranceId));
+    const inScopeTokens = tokensAll.filter((row) => inScopeUtteranceIds.has(row.utteranceId));
+    const inScopeMorphemes = morphemesAll.filter((row) => inScopeUtteranceIds.has(row.utteranceId));
+
+    const inScopeTokenIds = new Set(inScopeTokens.map((t) => t.id));
+    const inScopeMorphemeIds = new Set(inScopeMorphemes.map((m) => m.id));
+    const inScopeTranslationIds = new Set(inScopeUtteranceTexts.map((t) => t.id));
+
+    const inScopeNotes = userNotesAll.filter((note) => {
+      if (!textId) return true;
+      if (note.targetType === 'utterance') return inScopeUtteranceIds.has(note.targetId);
+      if (note.targetType === 'translation') return inScopeTranslationIds.has(note.targetId);
+      if (note.targetType === 'token') {
+        return inScopeTokenIds.has(note.targetId)
+          || (typeof note.parentTargetId === 'string' && inScopeUtteranceIds.has(note.parentTargetId));
+      }
+      if (note.targetType === 'morpheme') {
+        return inScopeMorphemeIds.has(note.targetId)
+          || (typeof note.parentTargetId === 'string' && inScopeTokenIds.has(note.parentTargetId));
+      }
+      return false;
+    });
+
+    const layerTypeById = new Map(layersAll.map((layer) => [layer.id, layer.layerType] as const));
+
+    const transcribedUttIds = new Set<string>();
+    const translatedUttIds = new Set<string>();
+    const glossedUttIds = new Set<string>();
+    const verifiedUttIds = new Set<string>();
+
+    for (const utt of inScopeUtterances) {
+      if (utt.isVerified) verifiedUttIds.add(utt.id);
+
+      const legacyTr = utt.transcription?.default;
+      if (typeof legacyTr === 'string' && legacyTr.trim().length > 0) {
+        transcribedUttIds.add(utt.id);
+      }
+    }
+
+    for (const row of inScopeUtteranceTexts) {
+      const text = row.text?.trim() ?? '';
+      if (!text) continue;
+      const layerType = layerTypeById.get(row.tierId);
+      if (layerType === 'transcription') transcribedUttIds.add(row.utteranceId);
+      if (layerType === 'translation') translatedUttIds.add(row.utteranceId);
+    }
+
+    for (const token of inScopeTokens) {
+      if (token.gloss && Object.keys(token.gloss).length > 0) {
+        glossedUttIds.add(token.utteranceId);
+        continue;
+      }
+      if (token.pos && token.pos.trim().length > 0) {
+        glossedUttIds.add(token.utteranceId);
+      }
+    }
+    for (const morph of inScopeMorphemes) {
+      if (morph.gloss && Object.keys(morph.gloss).length > 0) {
+        glossedUttIds.add(morph.utteranceId);
+        continue;
+      }
+      if (morph.pos && morph.pos.trim().length > 0) {
+        glossedUttIds.add(morph.utteranceId);
+      }
+    }
+
+    const utteranceById = new Set(inScopeUtterances.map((u) => u.id));
+    const tokenById = new Set(inScopeTokens.map((u) => u.id));
+    const morphemeById = new Set(inScopeMorphemes.map((u) => u.id));
+    const translationById = new Set(inScopeUtteranceTexts.map((u) => u.id));
+
+    let orphanNotes = 0;
+    for (const note of inScopeNotes) {
+      if (note.targetType === 'utterance' && !utteranceById.has(note.targetId)) orphanNotes++;
+      if (note.targetType === 'token' && !tokenById.has(note.targetId)) orphanNotes++;
+      if (note.targetType === 'morpheme' && !morphemeById.has(note.targetId)) orphanNotes++;
+      if (note.targetType === 'translation' && !translationById.has(note.targetId)) orphanNotes++;
+    }
+
+    const referencedAnchors = new Set<string>();
+    for (const utt of inScopeUtterances) {
+      if (utt.startAnchorId) referencedAnchors.add(utt.startAnchorId);
+      if (utt.endAnchorId) referencedAnchors.add(utt.endAnchorId);
+    }
+    let orphanAnchors = 0;
+    for (const anchor of anchorsAll) {
+      if (!referencedAnchors.has(anchor.id)) orphanAnchors++;
+    }
+
+    const totalUtterances = inScopeUtterances.length;
+    const ratio = (part: number): number => (totalUtterances === 0 ? 0 : part / totalUtterances);
+
+    const transcriptionLayers = layersAll.filter((l) => l.layerType === 'transcription');
+    const translationLayers = layersAll.filter((l) => l.layerType === 'translation');
+    const inScopeTextIds = new Set(inScopeUtterances.map((u) => u.textId));
+
+    return {
+      generatedAt: new Date().toISOString(),
+      scope: textId ? { textId } : {},
+      totals: {
+        utterances: totalUtterances,
+        utteranceTexts: inScopeUtteranceTexts.length,
+        transcriptionLayers: transcriptionLayers.filter((l) => inScopeTextIds.has(l.textId)).length,
+        translationLayers: translationLayers.filter((l) => inScopeTextIds.has(l.textId)).length,
+        canonicalTokens: inScopeTokens.length,
+        canonicalMorphemes: inScopeMorphemes.length,
+        userNotes: inScopeNotes.length,
+      },
+      coverage: {
+        transcribedUtterances: transcribedUttIds.size,
+        translatedUtterances: translatedUttIds.size,
+        glossedUtterances: glossedUttIds.size,
+        verifiedUtterances: verifiedUttIds.size,
+        transcribedRate: ratio(transcribedUttIds.size),
+        translatedRate: ratio(translatedUttIds.size),
+        glossedRate: ratio(glossedUttIds.size),
+        verifiedRate: ratio(verifiedUttIds.size),
+      },
+      integrity: {
+        orphanNotes,
+        orphanAnchors,
+      },
+    };
+  }
+
   static async getAllUtterances(): Promise<UtteranceDocType[]> {
     const db = await getDb();
     const docs = await db.collections.utterances.find().exec();
@@ -486,21 +705,136 @@ export class LinguisticService {
 
   static async saveUtterance(data: UtteranceDocType): Promise<string> {
     const db = await getDb();
-    const doc = await db.collections.utterances.insert(data);
+    const normalized = normalizeUtteranceDocForStorage(data);
+    const doc = await db.collections.utterances.insert(normalized);
     return doc.primary;
   }
 
   static async getUtterancesByTextId(textId: string): Promise<UtteranceDocType[]> {
     const db = await getDb();
-    const docs = await db.collections.utterances.find().exec();
-    return docs.map((doc) => doc.toJSON()).filter((u) => u.textId === textId);
+    const docs = await db.collections.utterances.findByIndex('textId', textId);
+    return docs.map((doc) => doc.toJSON());
   }
 
   static async saveUtterancesBatch(items: UtteranceDocType[]): Promise<void> {
     const db = await getDb();
-    for (const item of items) {
-      await db.collections.utterances.insert(item);
+    const normalized = items.map(normalizeUtteranceDocForStorage);
+    await db.collections.utterances.bulkInsert(normalized);
+  }
+
+  static async getTokensByUtteranceId(utteranceId: string): Promise<UtteranceTokenDocType[]> {
+    const db = await getDb();
+    const docs = await db.collections.utterance_tokens.findByIndex('utteranceId', utteranceId);
+    return docs.map((doc) => doc.toJSON()).sort((a, b) => a.tokenIndex - b.tokenIndex);
+  }
+
+  static async getMorphemesByTokenId(tokenId: string): Promise<UtteranceMorphemeDocType[]> {
+    const db = await getDb();
+    const docs = await db.collections.utterance_morphemes.findByIndex('tokenId', tokenId);
+    return docs.map((doc) => doc.toJSON()).sort((a, b) => a.morphemeIndex - b.morphemeIndex);
+  }
+
+  static async saveToken(data: UtteranceTokenDocType): Promise<string> {
+    const db = await getDb();
+    const doc = await db.collections.utterance_tokens.insert(data);
+    return doc.primary;
+  }
+
+  static async saveTokensBatch(items: UtteranceTokenDocType[]): Promise<void> {
+    const db = await getDb();
+    await db.collections.utterance_tokens.bulkInsert(items);
+  }
+
+  static async updateTokenPos(tokenId: string, pos: string | null): Promise<void> {
+    const db = await getDb();
+    const existing = await db.collections.utterance_tokens
+      .findOne({ selector: { id: tokenId } }).exec();
+    if (!existing) {
+      throw new Error(`未找到 token: ${tokenId}`);
     }
+
+    const row = existing.toJSON();
+    const trimmed = (pos ?? '').trim();
+    const nextPos = trimmed.length > 0 ? trimmed : undefined;
+    const { pos: _oldPos, ...rest } = row;
+
+    await db.collections.utterance_tokens.insert({
+      ...rest,
+      ...(nextPos ? { pos: nextPos } : {}),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  static async batchUpdateTokenPosByForm(
+    utteranceId: string,
+    form: string,
+    pos: string | null,
+    orthographyKey = 'default',
+  ): Promise<number> {
+    const db = await getDb();
+    const normalizedForm = form.trim();
+    if (!normalizedForm) return 0;
+
+    const tokens = await db.collections.utterance_tokens.findByIndex('utteranceId', utteranceId);
+    const rows = tokens.map((doc) => doc.toJSON());
+    const normalizedPos = (pos ?? '').trim();
+    const now = new Date().toISOString();
+
+    const matches = rows.filter((row) => {
+      const direct = row.form[orthographyKey];
+      if (direct === normalizedForm) return true;
+      return Object.values(row.form).some((v) => v === normalizedForm);
+    });
+
+    if (matches.length === 0) return 0;
+
+    await db.collections.utterance_tokens.bulkInsert(matches.map((row) => {
+      const { pos: _oldPos, ...rest } = row;
+      return {
+        ...rest,
+        ...(normalizedPos ? { pos: normalizedPos } : {}),
+        updatedAt: now,
+      };
+    }));
+
+    return matches.length;
+  }
+
+  static async saveMorpheme(data: UtteranceMorphemeDocType): Promise<string> {
+    const db = await getDb();
+    const doc = await db.collections.utterance_morphemes.insert(data);
+    return doc.primary;
+  }
+
+  static async saveMorphemesBatch(items: UtteranceMorphemeDocType[]): Promise<void> {
+    const db = await getDb();
+    await db.collections.utterance_morphemes.bulkInsert(items);
+  }
+
+  static async removeToken(tokenId: string): Promise<void> {
+    const db = await getDb();
+    await db.collections.utterance_morphemes.removeBySelector({ tokenId });
+    await db.collections.utterance_tokens.remove(tokenId);
+    await db.collections.token_lexeme_links.removeBySelector({ targetType: 'token', targetId: tokenId });
+  }
+
+  static async saveTokenLexemeLink(data: TokenLexemeLinkDocType): Promise<string> {
+    const db = await getDb();
+    const doc = await db.collections.token_lexeme_links.insert(data);
+    return doc.primary;
+  }
+
+  static async getTokenLexemeLinks(
+    targetType: TokenLexemeLinkTargetType,
+    targetId: string,
+  ): Promise<TokenLexemeLinkDocType[]> {
+    const db = await getDb();
+    return db.dexie.token_lexeme_links.where('[targetType+targetId]').equals([targetType, targetId]).toArray();
+  }
+
+  static async removeTokenLexemeLinks(targetType: TokenLexemeLinkTargetType, targetId: string): Promise<void> {
+    const db = await getDb();
+    await db.collections.token_lexeme_links.removeBySelector({ targetType, targetId });
   }
 
   static async searchLexemes(query: string): Promise<LexemeDocType[]> {
@@ -515,7 +849,6 @@ export class LinguisticService {
         Object.values(item.lemma).some((value) => value.toLowerCase().includes(normalized)),
       );
   }
-
   static async saveLexeme(data: LexemeDocType): Promise<string> {
     const db = await getDb();
     const doc = await db.collections.lexemes.insert(data);
@@ -524,12 +857,20 @@ export class LinguisticService {
 
   static async getTranslationLayers(
     layerType?: TranslationLayerDocType['layerType'],
+    textId?: string,
   ): Promise<TranslationLayerDocType[]> {
     const db = await getDb();
+    if (textId) {
+      const docs = await db.collections.translation_layers.findByIndex('textId', textId);
+      const layers = docs.map((doc) => doc.toJSON());
+      return layerType ? layers.filter((l) => l.layerType === layerType) : layers;
+    }
+    if (layerType) {
+      const docs = await db.collections.translation_layers.findByIndex('layerType', layerType);
+      return docs.map((doc) => doc.toJSON());
+    }
     const docs = await db.collections.translation_layers.find().exec();
-    const all = docs.map((doc) => doc.toJSON());
-    if (!layerType) return all;
-    return all.filter((layer) => layer.layerType === layerType);
+    return docs.map((doc) => doc.toJSON());
   }
 
   static async saveTranslationLayer(data: TranslationLayerDocType): Promise<string> {
@@ -538,15 +879,15 @@ export class LinguisticService {
     return doc.primary;
   }
 
-  static async getUtteranceTranslations(utteranceId: string): Promise<UtteranceTranslationDocType[]> {
+  static async getUtteranceTexts(utteranceId: string): Promise<UtteranceTextDocType[]> {
     const db = await getDb();
-    const docs = await db.collections.utterance_translations.find().exec();
-    return docs.map((doc) => doc.toJSON()).filter((item) => item.utteranceId === utteranceId);
+    const docs = await db.collections.utterance_texts.findByIndex('utteranceId', utteranceId);
+    return docs.map((doc) => doc.toJSON());
   }
 
-  static async saveUtteranceTranslation(data: UtteranceTranslationDocType): Promise<string> {
+  static async saveUtteranceText(data: UtteranceTextDocType): Promise<string> {
     const db = await getDb();
-    const doc = await db.collections.utterance_translations.insert(data);
+    const doc = await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(data));
     return doc.primary;
   }
 
@@ -564,8 +905,8 @@ export class LinguisticService {
 
   static async getMediaItemsByTextId(textId: string): Promise<MediaItemDocType[]> {
     const db = await getDb();
-    const docs = await db.collections.media_items.find().exec();
-    return docs.map((doc) => doc.toJSON()).filter((item) => item.textId === textId);
+    const docs = await db.collections.media_items.findByIndex('textId', textId);
+    return docs.map((doc) => doc.toJSON());
   }
 
   static async saveMediaItem(data: MediaItemDocType): Promise<string> {
@@ -590,11 +931,12 @@ export class LinguisticService {
 
   static async getTierDefinitions(textId: string): Promise<TierDefinitionDocType[]> {
     const db = await getDb();
-    const docs = await db.collections.tier_definitions.find().exec();
-    return docs.map((doc) => doc.toJSON()).filter((t) => t.textId === textId);
+    const docs = await db.collections.tier_definitions.findByIndex('textId', textId);
+    return docs.map((doc) => doc.toJSON());
   }
 
-  static async saveTierDefinition(data: TierDefinitionDocType, source: AuditSource = 'human'): Promise<string> {
+  /** Internal: persist tier definition + audit, no constraint validation. */
+  private static async _persistTierDefinition(data: TierDefinitionDocType, source: AuditSource): Promise<string> {
     const db = await getDb();
     const existing = await db.collections.tier_definitions.findOne({ selector: { id: data.id } as any }).exec();
     const doc = await db.collections.tier_definitions.insert(data);
@@ -609,22 +951,117 @@ export class LinguisticService {
     return doc.primary;
   }
 
-  static async removeTierDefinition(id: string, source: AuditSource = 'human'): Promise<void> {
+  /**
+   * Save tier definition with structural constraint validation (R1, S5, S6).
+   * Errors block the save; warnings are returned but the save proceeds.
+   */
+  static async saveTierDefinition(data: TierDefinitionDocType, source: AuditSource = 'human'): Promise<TierSaveResult> {
     const db = await getDb();
+
+    // Load all tier definitions for the same text
+    const allDocs = await db.collections.tier_definitions.findByIndex('textId', data.textId);
+    const allTiers = allDocs.map((d) => d.toJSON());
+
+    // Simulate adding/updating this tier
+    const merged = allTiers.filter((t) => t.id !== data.id);
+    merged.push(data);
+
+    // Validate structural rules (no annotations needed for R1, S5, S6)
+    const violations = validateTierConstraints(merged, []);
+    const errors = violations.filter((v) => v.severity === 'error');
+    if (errors.length > 0) {
+      return { id: '', errors, warnings: [] };
+    }
+
+    const id = await this._persistTierDefinition(data, source);
+    const warnings = violations.filter((v) => v.severity === 'warning');
+    return { id, errors: [], warnings };
+  }
+
+  /**
+   * Remove tier definition with cascade: deletes all annotations on this tier,
+   * and rejects if child tiers still reference it.
+   */
+  static async removeTierDefinition(id: string, source: AuditSource = 'human'): Promise<{ errors: ConstraintViolation[] }> {
+    const db = await getDb();
+
+    // Check for child tiers that reference this tier as parent
+    const allDocs = await db.collections.tier_definitions.findByIndex('parentTierId', id);
+    const childTiers = allDocs.map((d) => d.toJSON());
+    if (childTiers.length > 0) {
+      return {
+        errors: childTiers.map((ct) => ({
+          rule: 'CASCADE',
+          severity: 'error' as ConstraintSeverity,
+          tierId: id,
+          message: `Cannot delete: child tier "${ct.key}" (${ct.id}) still references this tier as parent.`,
+        })),
+      };
+    }
+
+    // Cascade: delete all annotations belonging to this tier (including owned anchors)
+    const annDocs = await db.collections.tier_annotations.findByIndex('tierId', id);
+    const tierAnns = annDocs.map((d) => d.toJSON());
+    for (const ann of tierAnns) {
+      if (ann.startAnchorId) await db.collections.anchors.remove(ann.startAnchorId);
+      if (ann.endAnchorId) await db.collections.anchors.remove(ann.endAnchorId);
+      await db.collections.tier_annotations.remove(ann.id);
+      await writeAuditLog('tier_annotations', ann.id, 'delete', source);
+    }
+
     await db.collections.tier_definitions.remove(id);
     await writeAuditLog('tier_definitions', id, 'delete', source);
+    return { errors: [] };
   }
 
   // ── Tier annotation CRUD ───────────────────────────────────
 
   static async getTierAnnotations(tierId: string): Promise<TierAnnotationDocType[]> {
     const db = await getDb();
-    const docs = await db.collections.tier_annotations.find().exec();
-    return docs.map((doc) => doc.toJSON()).filter((a) => a.tierId === tierId);
+    const docs = await db.collections.tier_annotations.findByIndex('tierId', tierId);
+    return docs.map((doc) => doc.toJSON());
   }
 
-  static async saveTierAnnotation(data: TierAnnotationDocType, source: AuditSource = 'human'): Promise<string> {
+  /** Internal: load tier definitions + annotations for a given textId. */
+  private static async _loadTierGraph(textId: string) {
     const db = await getDb();
+    const tierDocs = await db.collections.tier_definitions.findByIndex('textId', textId);
+    const tiers = tierDocs.map((d) => d.toJSON());
+    const tierIds = tiers.map((t) => t.id);
+    const annDocs = await db.collections.tier_annotations.findByIndexAnyOf('tierId', tierIds);
+    const annotations = annDocs.map((d) => d.toJSON());
+    return { tiers, annotations };
+  }
+
+  /** Internal: persist tier annotation + anchors + audit, no constraint validation. */
+  private static async _persistTierAnnotation(data: TierAnnotationDocType, source: AuditSource, mediaId?: string): Promise<string> {
+    const db = await getDb();
+    data = normalizeTierAnnotationDocForStorage(data, {
+      actorType: source === 'ai' ? 'ai' : source === 'system' ? 'system' : 'human',
+      method: source === 'ai' ? 'auto-gloss' : source === 'system' ? 'migration' : 'manual',
+    });
+
+    // Enforce CAM write contract: stable IDs and confirmed-review lock for AI writes.
+    assertStableId(data.id, 'tier annotation');
+    assertReviewProtection(data.provenance?.reviewStatus, source);
+
+    // Create anchors for time-bearing annotations (dual-write: keep startTime/endTime as cache)
+    if (mediaId && data.startTime !== undefined && data.endTime !== undefined) {
+      const now = new Date().toISOString();
+      const startTime = data.startTime;
+      const endTime = data.endTime;
+      if (!data.startAnchorId) {
+        const startAnchor: AnchorDocType = { id: newId('anc'), mediaId, time: startTime, createdAt: now };
+        await db.collections.anchors.insert(startAnchor);
+        data = { ...data, startAnchorId: startAnchor.id };
+      }
+      if (!data.endAnchorId) {
+        const endAnchor: AnchorDocType = { id: newId('anc'), mediaId, time: endTime, createdAt: now };
+        await db.collections.anchors.insert(endAnchor);
+        data = { ...data, endAnchorId: endAnchor.id };
+      }
+    }
+
     const existing = await db.collections.tier_annotations.findOne({ selector: { id: data.id } as any }).exec();
     const doc = await db.collections.tier_annotations.insert(data);
     if (existing) {
@@ -638,8 +1075,71 @@ export class LinguisticService {
     return doc.primary;
   }
 
+  /**
+   * Save tier annotation with full constraint validation.
+   * Loads the tier graph context, simulates adding this annotation,
+   * then runs all 14 constraint rules. Errors block the save.
+   */
+  static async saveTierAnnotation(data: TierAnnotationDocType, source: AuditSource = 'human'): Promise<TierSaveResult> {
+    const db = await getDb();
+
+    // Look up the tier to get textId for loading the full context
+    const tierDoc = await db.collections.tier_definitions.findOne({ selector: { id: data.tierId } as any }).exec();
+    if (!tierDoc) {
+      return {
+        id: '',
+        errors: [{ rule: 'R2', severity: 'error', tierId: data.tierId, annotationId: data.id, message: `Annotation references non-existent tier "${data.tierId}".` }],
+        warnings: [],
+      };
+    }
+    const textId = tierDoc.toJSON().textId;
+
+    // Resolve mediaId for anchor creation
+    const mediaItems = await db.collections.media_items.findByIndex('textId', textId);
+    const mediaId = mediaItems[0]?.toJSON().id;
+
+    // Load full tier graph + annotations
+    const { tiers, annotations: existingAnns } = await this._loadTierGraph(textId);
+
+    // Merge: this annotation overrides any existing one with same id
+    const merged = new Map(existingAnns.map((a) => [a.id, a]));
+    merged.set(data.id, data);
+
+    // Validate full constraint set
+    const violations = validateTierConstraints(tiers, [...merged.values()]);
+    const errors = violations.filter((v) => v.severity === 'error');
+    if (errors.length > 0) {
+      return { id: '', errors, warnings: [] };
+    }
+
+    const id = await this._persistTierAnnotation(data, source, mediaId);
+    const warnings = violations.filter((v) => v.severity === 'warning');
+    return { id, errors: [], warnings };
+  }
+
+  /**
+   * Remove tier annotation with cascade: deletes all child annotations
+   * that reference this annotation as parentAnnotationId.
+   * Also removes owned anchors (independent anchor model).
+   */
   static async removeTierAnnotation(id: string, source: AuditSource = 'human'): Promise<void> {
     const db = await getDb();
+
+    // Cascade: delete child annotations referencing this one
+    const childDocs = await db.collections.tier_annotations.findByIndex('parentAnnotationId', id);
+    const children = childDocs.map((d) => d.toJSON());
+    for (const child of children) {
+      await this.removeTierAnnotation(child.id, source);
+    }
+
+    // Delete owned anchors
+    const annDoc = await db.collections.tier_annotations.findOne({ selector: { id } as any }).exec();
+    if (annDoc) {
+      const ann = annDoc.toJSON();
+      if (ann.startAnchorId) await db.collections.anchors.remove(ann.startAnchorId);
+      if (ann.endAnchorId) await db.collections.anchors.remove(ann.endAnchorId);
+    }
+
     await db.collections.tier_annotations.remove(id);
     await writeAuditLog('tier_annotations', id, 'delete', source);
   }
@@ -649,17 +1149,15 @@ export class LinguisticService {
   static async saveTierAnnotationsBatch(
     textId: string,
     newAnnotations: readonly TierAnnotationDocType[],
-  ): Promise<{ violations: ConstraintViolation[] }> {
-    const db = await getDb();
+  ): Promise<{ violations: ConstraintViolation[]; warnings: ConstraintViolation[] }> {
 
     // Load current tier graph
-    const tierDocs = await db.collections.tier_definitions.find().exec();
-    const tiers = tierDocs.map((d) => d.toJSON()).filter((t) => t.textId === textId);
-    const tierIds = new Set(tiers.map((t) => t.id));
+    const { tiers, annotations: existingAnns } = await this._loadTierGraph(textId);
 
-    // Load existing annotations for relevant tiers
-    const existingDocs = await db.collections.tier_annotations.find().exec();
-    const existingAnns = existingDocs.map((d) => d.toJSON()).filter((a) => tierIds.has(a.tierId));
+    // Resolve mediaId for anchor creation
+    const db = await getDb();
+    const mediaItems = await db.collections.media_items.findByIndex('textId', textId);
+    const mediaId = mediaItems[0]?.toJSON().id;
 
     // Merge: new annotations override existing ones with same id
     const merged = new Map(existingAnns.map((a) => [a.id, a]));
@@ -668,37 +1166,36 @@ export class LinguisticService {
     }
 
     // Validate
-    const violations = validateTierConstraints(tiers, [...merged.values()]);
-    const errors = violations.filter((v) => v.severity === 'error');
+    const allViolations = validateTierConstraints(tiers, [...merged.values()]);
+    const errors = allViolations.filter((v) => v.severity === 'error');
     if (errors.length > 0) {
-      return { violations: errors };
+      return { violations: errors, warnings: [] };
     }
 
-    // Persist + audit
+    // Persist + audit (using internal method to skip per-item re-validation)
     for (const ann of newAnnotations) {
-      await this.saveTierAnnotation(ann, 'human');
+      await this._persistTierAnnotation(ann, 'human', mediaId);
     }
 
-    return { violations: [] };
+    const warnings = allViolations.filter((v) => v.severity === 'warning');
+    return { violations: [], warnings };
   }
 
   // ── Audit log queries ──────────────────────────────────────
 
   static async getAuditLogs(documentId: string): Promise<AuditLogDocType[]> {
     const db = await getDb();
-    const docs = await db.collections.audit_logs.find().exec();
+    const docs = await db.collections.audit_logs.findByIndex('documentId', documentId);
     return docs
       .map((d) => d.toJSON())
-      .filter((log) => log.documentId === documentId)
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }
 
   static async getAuditLogsByCollection(collection: string): Promise<AuditLogDocType[]> {
     const db = await getDb();
-    const docs = await db.collections.audit_logs.find().exec();
+    const docs = await db.collections.audit_logs.findByIndex('collection', collection);
     return docs
       .map((d) => d.toJSON())
-      .filter((log) => log.collection === collection)
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }
 
@@ -711,7 +1208,7 @@ export class LinguisticService {
   }): Promise<{ textId: string }> {
     const db = await getDb();
     const now = new Date().toISOString();
-    const textId = `text_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const textId = newId('text');
 
     await db.collections.texts.insert({
       id: textId,
@@ -734,7 +1231,7 @@ export class LinguisticService {
   }): Promise<{ mediaId: string }> {
     const db = await getDb();
     const now = new Date().toISOString();
-    const mediaId = `media_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const mediaId = newId('media');
 
     await db.collections.media_items.insert({
       id: mediaId,
@@ -753,70 +1250,215 @@ export class LinguisticService {
   static async deleteProject(textId: string): Promise<void> {
     const db = await getDb();
 
-    // Collect utterance IDs so we can cascade to translations
-    const allUtts = await db.collections.utterances.find().exec();
-    const uttIds = allUtts
-      .map((d) => d.toJSON() as { id: string; textId: string })
-      .filter((u) => u.textId === textId)
-      .map((u) => u.id);
+    await db.dexie.transaction(
+      'rw',
+      [
+        db.dexie.utterance_texts,
+        db.dexie.tier_annotations,
+        db.dexie.tier_definitions,
+        db.dexie.utterances,
+        db.dexie.media_items,
+        db.dexie.anchors,
+        db.dexie.texts,
+      ],
+      async () => {
+        // Collect utterance IDs so we can cascade to translations
+        const allUtts = await db.dexie.utterances.where('textId').equals(textId).toArray();
+        const uttIds = allUtts.map((u) => u.id);
 
-    // Cascade: utterance_translations for these utterances
-    for (const uttId of uttIds) {
-      await db.collections.utterance_translations.removeBySelector(
-        { utteranceId: uttId } as never,
-      );
-    }
+        await this.removeNotesForUtteranceIds(db, uttIds);
 
-    // Cascade: tier_annotations belonging to tier_definitions of this text
-    const allTierDefs = await db.collections.tier_definitions.find().exec();
-    const tierDefIds = allTierDefs
-      .map((d) => d.toJSON() as { id: string; textId: string })
-      .filter((td) => td.textId === textId)
-      .map((td) => td.id);
+        // Cascade: utterance_texts for these utterances
+        for (const uttId of uttIds) {
+          const tokens = await db.dexie.utterance_tokens.where('utteranceId').equals(uttId).toArray();
+          const tokenIds = tokens.map((t) => t.id);
+          const morphemeIds = (await db.dexie.utterance_morphemes.where('utteranceId').equals(uttId).toArray()).map((m) => m.id);
+          await db.dexie.utterance_texts.where('utteranceId').equals(uttId).delete();
+          if (tokenIds.length > 0 || morphemeIds.length > 0) {
+            const targets: Array<[string, string]> = [
+              ...tokenIds.map((id) => ['token', id] as [string, string]),
+              ...morphemeIds.map((id) => ['morpheme', id] as [string, string]),
+            ];
+            await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
+          }
+          await db.dexie.utterance_tokens.where('utteranceId').equals(uttId).delete();
+          await db.dexie.utterance_morphemes.where('utteranceId').equals(uttId).delete();
+        }
 
-    for (const tdId of tierDefIds) {
-      await db.collections.tier_annotations.removeBySelector(
-        { tierId: tdId } as never,
-      );
-    }
+        // Cascade: tier_annotations belonging to tier_definitions of this text
+        const tierDefs = await db.dexie.tier_definitions.where('textId').equals(textId).toArray();
+        for (const td of tierDefs) {
+          await db.dexie.tier_annotations.where('tierId').equals(td.id).delete();
+        }
 
-    await db.collections.tier_definitions.removeBySelector({ textId } as never);
-    await db.collections.utterances.removeBySelector({ textId } as never);
-    await db.collections.media_items.removeBySelector({ textId } as never);
-    await db.collections.texts.remove(textId);
+        await db.dexie.tier_definitions.where('textId').equals(textId).delete();
+        await db.dexie.utterances.where('textId').equals(textId).delete();
+
+        // Cascade: anchors belonging to media of this text
+        const mediaItems = await db.dexie.media_items.where('textId').equals(textId).toArray();
+        for (const m of mediaItems) {
+          await db.dexie.anchors.where('mediaId').equals(m.id).delete();
+        }
+
+        await db.dexie.media_items.where('textId').equals(textId).delete();
+        await db.dexie.texts.delete(textId);
+      },
+    );
   }
 
-  /** Delete a media item and its associated utterances + translations (cascade). */
+  /** Delete a media item and its associated utterances + translations + anchors (cascade). */
   static async deleteAudio(mediaId: string): Promise<void> {
     const db = await getDb();
 
-    // Find utterances linked to this media
-    const allUtts = await db.collections.utterances.find().exec();
-    const uttIds = allUtts
-      .map((d) => d.toJSON() as { id: string; mediaId?: string })
-      .filter((u) => u.mediaId === mediaId)
-      .map((u) => u.id);
+    await db.dexie.transaction(
+      'rw',
+      [
+        db.dexie.utterance_texts,
+        db.dexie.utterance_tokens,
+        db.dexie.utterance_morphemes,
+        db.dexie.token_lexeme_links,
+        db.dexie.user_notes,
+        db.dexie.utterances,
+        db.dexie.anchors,
+        db.dexie.media_items,
+      ],
+      async () => {
+        // Find utterances linked to this media
+        const utts = (await db.dexie.utterances.toArray()).filter((u) => u.mediaId === mediaId);
+        const uttIds = utts.map((u) => u.id);
 
-    // Cascade: utterance_translations
-    for (const uttId of uttIds) {
-      await db.collections.utterance_translations.removeBySelector(
-        { utteranceId: uttId } as never,
-      );
-    }
+        await this.removeNotesForUtteranceIds(db, uttIds);
 
-    await db.collections.utterances.removeBySelector({ mediaId } as never);
-    await db.collections.media_items.remove(mediaId);
+        // Cascade: utterance_texts + canonical token entities
+        for (const u of utts) {
+          const tokens = await db.dexie.utterance_tokens.where('utteranceId').equals(u.id).toArray();
+          const tokenIds = tokens.map((t) => t.id);
+          const morphemeIds = (await db.dexie.utterance_morphemes.where('utteranceId').equals(u.id).toArray()).map((m) => m.id);
+          await db.dexie.utterance_texts.where('utteranceId').equals(u.id).delete();
+          if (tokenIds.length > 0 || morphemeIds.length > 0) {
+            const targets: Array<[string, string]> = [
+              ...tokenIds.map((id) => ['token', id] as [string, string]),
+              ...morphemeIds.map((id) => ['morpheme', id] as [string, string]),
+            ];
+            await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
+          }
+          await db.dexie.utterance_tokens.where('utteranceId').equals(u.id).delete();
+          await db.dexie.utterance_morphemes.where('utteranceId').equals(u.id).delete();
+        }
+
+        if (uttIds.length > 0) {
+          await db.dexie.utterances.bulkDelete(uttIds);
+        }
+        await db.dexie.anchors.where('mediaId').equals(mediaId).delete();
+        await db.dexie.media_items.delete(mediaId);
+      },
+    );
   }
 
-  /** Delete a single utterance and cascade-delete its translations + lexicon links. */
+  /** Delete a single utterance and cascade-delete its translations + lexicon links + anchors. */
   static async removeUtterance(utteranceId: string): Promise<void> {
     const db = await getDb();
-    await db.collections.utterance_translations.removeBySelector(
-      { utteranceId } as never,
+    await db.dexie.transaction(
+      'rw',
+      [
+        db.dexie.utterance_texts,
+        db.dexie.utterance_tokens,
+        db.dexie.utterance_morphemes,
+        db.dexie.token_lexeme_links,
+        db.dexie.user_notes,
+        db.dexie.utterances,
+        db.dexie.anchors,
+      ],
+      async () => {
+        await this.removeNotesForUtteranceIds(db, [utteranceId]);
+
+        // Read utterance to get anchor IDs before deleting
+        const utt = await db.dexie.utterances.get(utteranceId);
+        const tokens = await db.dexie.utterance_tokens.where('utteranceId').equals(utteranceId).toArray();
+        const tokenIds = tokens.map((t) => t.id);
+        const morphemeIds = (await db.dexie.utterance_morphemes.where('utteranceId').equals(utteranceId).toArray()).map((m) => m.id);
+
+        await db.dexie.utterance_texts.where('utteranceId').equals(utteranceId).delete();
+        if (tokenIds.length > 0 || morphemeIds.length > 0) {
+          const targets: Array<[string, string]> = [
+            ...tokenIds.map((id) => ['token', id] as [string, string]),
+            ...morphemeIds.map((id) => ['morpheme', id] as [string, string]),
+          ];
+          await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
+        }
+        await db.dexie.utterance_tokens.where('utteranceId').equals(utteranceId).delete();
+        await db.dexie.utterance_morphemes.where('utteranceId').equals(utteranceId).delete();
+        await db.dexie.utterances.delete(utteranceId);
+
+        // Cleanup owned anchors
+        if (utt?.startAnchorId) await db.dexie.anchors.delete(utt.startAnchorId);
+        if (utt?.endAnchorId) await db.dexie.anchors.delete(utt.endAnchorId);
+      },
     );
-    await db.collections.corpus_lexicon_links.removeBySelector(
-      { utteranceId } as never,
+  }
+
+  /**
+   * Delete multiple utterances in one transaction with the same cascade semantics
+    * as removeUtterance (utterance_texts, token_lexeme_links, anchors).
+   */
+  static async removeUtterancesBatch(utteranceIds: readonly string[]): Promise<void> {
+    const ids = [...new Set(utteranceIds.filter((id) => id.trim().length > 0))];
+    if (ids.length === 0) return;
+
+    const db = await getDb();
+    await db.dexie.transaction(
+      'rw',
+      [
+        db.dexie.utterance_texts,
+        db.dexie.utterance_tokens,
+        db.dexie.utterance_morphemes,
+        db.dexie.token_lexeme_links,
+        db.dexie.user_notes,
+        db.dexie.utterances,
+        db.dexie.anchors,
+      ],
+      async () => {
+        const utts = (await db.dexie.utterances.bulkGet(ids)).filter((u): u is NonNullable<typeof u> => Boolean(u));
+
+        await this.removeNotesForUtteranceIds(db, ids);
+
+        for (const utteranceId of ids) {
+          const tokens = await db.dexie.utterance_tokens.where('utteranceId').equals(utteranceId).toArray();
+          const tokenIds = tokens.map((t) => t.id);
+          const morphemeIds = (await db.dexie.utterance_morphemes.where('utteranceId').equals(utteranceId).toArray()).map((m) => m.id);
+          await db.dexie.utterance_texts.where('utteranceId').equals(utteranceId).delete();
+          if (tokenIds.length > 0 || morphemeIds.length > 0) {
+            const targets: Array<[string, string]> = [
+              ...tokenIds.map((id) => ['token', id] as [string, string]),
+              ...morphemeIds.map((id) => ['morpheme', id] as [string, string]),
+            ];
+            await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
+          }
+          await db.dexie.utterance_tokens.where('utteranceId').equals(utteranceId).delete();
+          await db.dexie.utterance_morphemes.where('utteranceId').equals(utteranceId).delete();
+        }
+
+        await db.dexie.utterances.bulkDelete(ids);
+
+        const anchorIds = new Set<string>();
+        for (const utt of utts) {
+          if (utt.startAnchorId) anchorIds.add(utt.startAnchorId);
+          if (utt.endAnchorId) anchorIds.add(utt.endAnchorId);
+        }
+
+        if (anchorIds.size > 0) {
+          await db.dexie.anchors.bulkDelete([...anchorIds]);
+        }
+      },
     );
-    await db.collections.utterances.remove(utteranceId);
+  }
+
+  /** Prune audit logs older than the given number of days. */
+  static async pruneAuditLogs(maxAgeDays: number = 90): Promise<number> {
+    const db = await getDb();
+    const cutoff = new Date(Date.now() - maxAgeDays * 86_400_000).toISOString();
+    const old = await db.dexie.audit_logs.where('timestamp').below(cutoff).primaryKeys();
+    await db.dexie.audit_logs.bulkDelete(old);
+    return old.length;
   }
 }

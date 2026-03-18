@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { fireAndForget } from '../utils/fireAndForget';
 
 const LANGUAGE_SUGGESTIONS = [
   { code: 'cmn', label: '普通话 Mandarin' },
@@ -137,7 +138,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
           <button
             className="btn"
             disabled={!canSubmit}
-            onClick={() => void handleSubmit()}
+            onClick={() => fireAndForget(handleSubmit())}
           >
             {submitting ? '创建中...' : '创建项目'}
           </button>

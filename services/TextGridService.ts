@@ -5,14 +5,15 @@
  * which is the most common variant.
  */
 
-import type { UtteranceDocType, TranslationLayerDocType, UtteranceTranslationDocType } from '../db';
+import type { UtteranceDocType, TranslationLayerDocType, UtteranceTextDocType, UserNoteDocType } from '../db';
 
 // ── Types ───────────────────────────────────────────────────
 
 export interface TextGridExportInput {
   utterances: UtteranceDocType[];
   layers: TranslationLayerDocType[];
-  translations: UtteranceTranslationDocType[];
+  translations: UtteranceTextDocType[];
+  userNotes?: UserNoteDocType[];
 }
 
 export interface TextGridImportResult {
@@ -37,7 +38,7 @@ function escapeTextGridString(s: string): string {
 }
 
 export function exportToTextGrid(input: TextGridExportInput): string {
-  const { utterances, layers, translations } = input;
+  const { utterances, layers, translations, userNotes } = input;
   const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
   if (sorted.length === 0) return '';
 
@@ -52,23 +53,34 @@ export function exportToTextGrid(input: TextGridExportInput): string {
 
   const tiers: TierEntry[] = [];
 
+  // Determine default transcription layer
+  const transcriptionLayers = layers.filter((l) => l.layerType === 'transcription');
+  const defaultTrcId = transcriptionLayers.find((l) => l.isDefault)?.id ?? transcriptionLayers[0]?.id;
+
   // Transcription tier
   const transcriptionIntervals = buildIntervalsWithGaps(
-    sorted.map((u) => ({
-      xmin: u.startTime,
-      xmax: u.endTime,
-      text: u.transcription?.default ?? '',
-    })),
+    sorted.map((u) => {
+      const tr = defaultTrcId
+        ? translations.find((t) => t.utteranceId === u.id && t.tierId === defaultTrcId && t.modality === 'text')
+        : undefined;
+      return {
+        xmin: u.startTime,
+        xmax: u.endTime,
+        text: tr?.text ?? u.transcription?.default ?? '',
+      };
+    }),
     globalXmin,
     globalXmax,
   );
   tiers.push({ name: 'transcription', intervals: transcriptionIntervals });
 
-  // Translation tiers
-  const translationLayers = layers.filter((l) => l.layerType === 'translation');
-  for (const layer of translationLayers) {
+  // Additional tiers: non-default transcription layers + translation layers
+  const additionalLayers = layers.filter(
+    (l) => l.layerType === 'translation' || (l.layerType === 'transcription' && l.id !== defaultTrcId),
+  );
+  for (const layer of additionalLayers) {
     const layerTranslations = translations.filter(
-      (t) => t.translationLayerId === layer.id && t.modality === 'text',
+      (t) => t.tierId === layer.id && t.modality === 'text',
     );
     const tierName = layer.name?.eng ?? layer.name?.zho ?? layer.key;
 
@@ -81,6 +93,32 @@ export function exportToTextGrid(input: TextGridExportInput): string {
       globalXmax,
     );
     tiers.push({ name: tierName, intervals });
+  }
+
+  // Notes tier
+  if (userNotes && userNotes.length > 0) {
+    const notesByUtt = new Map<string, UserNoteDocType[]>();
+    for (const note of userNotes) {
+      if (note.targetType !== 'utterance') continue;
+      const arr = notesByUtt.get(note.targetId);
+      if (arr) arr.push(note);
+      else notesByUtt.set(note.targetId, [note]);
+    }
+    const noteIntervals = buildIntervalsWithGaps(
+      sorted.map((u) => {
+        const uttNotes = notesByUtt.get(u.id);
+        const text = uttNotes
+          ? uttNotes.map((n) => {
+              const prefix = n.category ? `[${n.category}] ` : '';
+              return prefix + (n.content['default'] ?? Object.values(n.content)[0] ?? '');
+            }).join(' | ')
+          : '';
+        return { xmin: u.startTime, xmax: u.endTime, text };
+      }),
+      globalXmin,
+      globalXmax,
+    );
+    tiers.push({ name: 'notes', intervals: noteIntervals });
   }
 
   // Build TextGrid output
@@ -150,7 +188,8 @@ export function importFromTextGrid(text: string): TextGridImportResult {
     return idx < lines.length ? lines[idx]!.trim() : '';
   }
   function nextLine(): string {
-    return idx < lines.length ? lines[idx++]!.trim() : '';
+    if (idx >= lines.length) throw new Error(`TextGrid parse error: unexpected end of file at line ${idx + 1}`);
+    return lines[idx++]!.trim();
   }
   function readValue(prefix: string): string {
     const line = nextLine();
@@ -158,7 +197,9 @@ export function importFromTextGrid(text: string): TextGridImportResult {
     return match ? match[1]!.trim() : '';
   }
   function readNumber(prefix: string): number {
-    return parseFloat(readValue(prefix));
+    const val = parseFloat(readValue(prefix));
+    if (!Number.isFinite(val)) throw new Error(`TextGrid parse error: invalid number for "${prefix}"`);
+    return val;
   }
   function readQuotedString(prefix: string): string {
     const raw = readValue(prefix);
@@ -176,6 +217,9 @@ export function importFromTextGrid(text: string): TextGridImportResult {
   readNumber('xmax');
   nextLine(); // tiers? <exists>
   const tierCount = parseInt(readValue('size'), 10);
+  if (!Number.isFinite(tierCount) || tierCount < 0) {
+    throw new Error('TextGrid parse error: invalid tier count');
+  }
   nextLine(); // item []:
 
   interface ParsedTier {
@@ -194,6 +238,9 @@ export function importFromTextGrid(text: string): TextGridImportResult {
 
     if (tierClass === 'IntervalTier') {
       const intervalCount = parseInt(readValue('intervals: size'), 10);
+      if (!Number.isFinite(intervalCount) || intervalCount < 0) {
+        throw new Error(`TextGrid parse error: invalid interval count for tier "${tierName}"`);
+      }
       const intervals: ParsedTier['intervals'] = [];
 
       for (let i = 0; i < intervalCount; i++) {
@@ -208,6 +255,9 @@ export function importFromTextGrid(text: string): TextGridImportResult {
     } else {
       // Skip PointTier or other types — consume lines until next item or EOF
       const pointCount = parseInt(readValue('points: size'), 10);
+      if (!Number.isFinite(pointCount) || pointCount < 0) {
+        throw new Error(`TextGrid parse error: invalid point count for tier "${tierName}"`);
+      }
       for (let i = 0; i < pointCount; i++) {
         nextLine(); // points [n]:
         nextLine(); // number

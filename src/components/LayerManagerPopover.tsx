@@ -3,6 +3,7 @@ import { AudioLines, Languages, Trash2 } from 'lucide-react';
 import type { TranslationLayerDocType } from '../../db';
 import type { LayerCreateInput } from '../hooks/useTranscriptionData';
 import { COMMON_LANGUAGES } from '../utils/transcriptionFormatters';
+import { fireAndForget } from '../utils/fireAndForget';
 
 const BUBBLE_ANIMATION_MS = 180;
 
@@ -191,7 +192,7 @@ export function LayerManagerPopover({
                   />
                 </div>
                 <div className="action-row">
-                  <button className="btn" onClick={() => void handleCreateTranscription()}>创建转写层</button>
+                  <button className="btn" onClick={() => fireAndForget(handleCreateTranscription())}>创建转写层</button>
                 </div>
               </div>
 
@@ -242,7 +243,7 @@ export function LayerManagerPopover({
                   </select>
                 </div>
                 <div className="action-row">
-                  <button className="btn" onClick={() => void handleCreateTranslation()}>创建翻译层</button>
+                  <button className="btn" onClick={() => fireAndForget(handleCreateTranslation())}>创建翻译层</button>
                 </div>
               </div>
 
@@ -286,7 +287,7 @@ export function LayerManagerPopover({
                 <div className="action-row">
                   <button
                     className="btn btn-danger"
-                    onClick={() => void onDeleteLayer()}
+                    onClick={() => fireAndForget(Promise.resolve(onDeleteLayer()))}
                     disabled={deletableLayers.length === 0 || !layerPendingDelete}
                   >
                     确认删除

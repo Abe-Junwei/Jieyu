@@ -1,0 +1,86 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0
+xmax = 11.4
+tiers? <exists>
+size = 3
+item []:
+    item [1]:
+        class = "IntervalTier"
+        name = "default"
+        xmin = 0
+        xmax = 11.4
+        intervals: size = 5
+        intervals [1]:
+            xmin = 0
+            xmax = 3.2
+            text = "tɕʰa mo ɣa ra"
+        intervals [2]:
+            xmin = 3.2
+            xmax = 3.2
+            text = ""
+        intervals [3]:
+            xmin = 3.2
+            xmax = 7.1
+            text = "ŋa joŋs pa yin"
+        intervals [4]:
+            xmin = 7.1
+            xmax = 7.1
+            text = ""
+        intervals [5]:
+            xmin = 7.1
+            xmax = 11.4
+            text = "de ring dus tshod"
+    item [2]:
+        class = "IntervalTier"
+        name = "English"
+        xmin = 0
+        xmax = 11.4
+        intervals: size = 5
+        intervals [1]:
+            xmin = 0
+            xmax = 3.2
+            text = "The tea is hot"
+        intervals [2]:
+            xmin = 3.2
+            xmax = 3.2
+            text = ""
+        intervals [3]:
+            xmin = 3.2
+            xmax = 7.1
+            text = "I have come"
+        intervals [4]:
+            xmin = 7.1
+            xmax = 7.1
+            text = ""
+        intervals [5]:
+            xmin = 7.1
+            xmax = 11.4
+            text = "What time is it today"
+    item [3]:
+        class = "IntervalTier"
+        name = "Chinese"
+        xmin = 0
+        xmax = 11.4
+        intervals: size = 5
+        intervals [1]:
+            xmin = 0
+            xmax = 3.2
+            text = "茶很烫"
+        intervals [2]:
+            xmin = 3.2
+            xmax = 3.2
+            text = ""
+        intervals [3]:
+            xmin = 3.2
+            xmax = 7.1
+            text = "我来了"
+        intervals [4]:
+            xmin = 7.1
+            xmax = 7.1
+            text = ""
+        intervals [5]:
+            xmin = 7.1
+            xmax = 11.4
+            text = ""

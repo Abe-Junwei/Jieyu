@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<document version="2">
+  <interlinear-text>
+    <paragraphs>
+      <paragraph>
+        <phrases>
+          <phrase guid="p1" begin-time-offset="0" end-time-offset="2">
+            <item type="txt" lang="bod">tɕʰa mo ɣa ra</item>
+          </phrase>
+          <phrase guid="p2" begin-time-offset="2" end-time-offset="5.5">
+            <item type="txt" lang="bod">ŋa joŋs pa yin</item>
+          </phrase>
+        </phrases>
+      </paragraph>
+    </paragraphs>
+  </interlinear-text>
+</document>

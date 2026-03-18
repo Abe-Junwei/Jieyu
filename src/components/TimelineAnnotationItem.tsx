@@ -1,0 +1,107 @@
+import {
+  memo,
+  type ChangeEvent,
+  type FocusEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+} from 'react';
+
+// ── Types ────────────────────────────────────────────────────
+
+export interface TimelineAnnotationItemProps {
+  left: number;
+  width: number;
+  isSelected: boolean;
+  isActive: boolean;
+  isCompact: boolean;
+  title: string;
+  draft: string;
+  placeholder?: string;
+  noteCount?: number;
+  onClick: (e: MouseEvent) => void;
+  onContextMenu: (e: MouseEvent) => void;
+  onDoubleClick: () => void;
+  onResizeStartPointerDown: (e: PointerEvent<HTMLSpanElement>) => void;
+  onResizeEndPointerDown: (e: PointerEvent<HTMLSpanElement>) => void;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onFocus?: (e: FocusEvent<HTMLInputElement>) => void;
+  onBlur: (e: FocusEvent<HTMLInputElement>) => void;
+  onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
+  onNoteClick?: (e: MouseEvent) => void;
+}
+
+// ── Component ────────────────────────────────────────────────
+
+export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
+  left,
+  width,
+  isSelected,
+  isActive,
+  isCompact,
+  title,
+  draft,
+  placeholder,
+  noteCount,
+  onClick,
+  onContextMenu,
+  onDoubleClick,
+  onResizeStartPointerDown,
+  onResizeEndPointerDown,
+  onChange,
+  onFocus,
+  onBlur,
+  onKeyDown,
+  onNoteClick,
+}: TimelineAnnotationItemProps) {
+  return (
+    <div
+      className={`timeline-annotation ${isSelected ? 'timeline-annotation-selected' : ''} ${isActive ? 'timeline-annotation-active' : ''} ${isCompact ? 'timeline-annotation-compact' : ''}`}
+      style={{ left, width }}
+      onClick={onClick}
+      onContextMenu={onContextMenu}
+      title={title}
+      onDoubleClick={onDoubleClick}
+    >
+      <span
+        className="timeline-annotation-resize-handle timeline-annotation-resize-handle-start"
+        onPointerDown={onResizeStartPointerDown}
+      />
+      <span
+        className="timeline-annotation-resize-handle timeline-annotation-resize-handle-end"
+        onPointerDown={onResizeEndPointerDown}
+      />
+      {isActive ? (
+        <input
+          className="timeline-annotation-input"
+          value={draft}
+          autoFocus
+          placeholder={placeholder}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.stopPropagation()}
+          onChange={onChange}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          onKeyDown={onKeyDown}
+        />
+      ) : (
+        <span>{draft || '\u00A0'}</span>
+      )}
+      {noteCount != null && noteCount > 0 && (
+        <svg
+          className="timeline-annotation-note-icon"
+          onClick={(e) => { e.stopPropagation(); onNoteClick?.(e); }}
+          viewBox="0 0 16 16"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <title>{`${noteCount} 条备注`}</title>
+          <path d="M4.5 1.5h5l3 3v8a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+          <path d="M6.5 7h3M6.5 9.5h3" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+        </svg>
+      )}
+    </div>
+  );
+});

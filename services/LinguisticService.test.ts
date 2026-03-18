@@ -9,9 +9,12 @@ async function clearDatabase(): Promise<void> {
     db.texts.clear(),
     db.media_items.clear(),
     db.utterances.clear(),
+    db.utterance_tokens.clear(),
+    db.utterance_morphemes.clear(),
     db.lexemes.clear(),
-    db.annotations.clear(),
-    db.corpus_lexicon_links.clear(),
+    db.token_lexeme_links.clear(),
+    db.ai_tasks.clear(),
+    db.embeddings.clear(),
     db.languages.clear(),
     db.speakers.clear(),
     db.orthographies.clear(),
@@ -21,12 +24,12 @@ async function clearDatabase(): Promise<void> {
     db.abbreviations.clear(),
     db.phonemes.clear(),
     db.tag_definitions.clear(),
-    db.translation_layers.clear(),
-    db.utterance_translations.clear(),
+    db.utterance_texts.clear(),
     db.layer_links.clear(),
     db.tier_definitions.clear(),
     db.tier_annotations.clear(),
     db.audit_logs.clear(),
+    db.user_notes.clear(),
   ]);
 }
 
@@ -42,7 +45,6 @@ describe('LinguisticService smoke tests', () => {
     await LinguisticService.saveUtterance({
       id: 'utt_1',
       textId: 'text_1',
-      transcription: { default: 'hello world' },
       startTime: 2.5,
       endTime: 6.5,
       isVerified: false,
@@ -57,11 +59,12 @@ describe('LinguisticService smoke tests', () => {
     expect(miss).toBeUndefined();
   });
 
-  it('can persist translation layer and utterance translation linkage', async () => {
+  it('can persist translation layer and utterance text linkage', async () => {
     const now = new Date().toISOString();
 
     await LinguisticService.saveTranslationLayer({
       id: 'layer_1',
+      textId: 'text_1',
       key: 'eng_free',
       name: { eng: 'English Free Translation' },
       layerType: 'translation',
@@ -74,18 +77,17 @@ describe('LinguisticService smoke tests', () => {
     await LinguisticService.saveUtterance({
       id: 'utt_2',
       textId: 'text_1',
-      transcription: { default: 'ni hao' },
       startTime: 0,
       endTime: 1,
-      isVerified: false,
+      annotationStatus: 'raw',
       createdAt: now,
       updatedAt: now,
     });
 
-    await LinguisticService.saveUtteranceTranslation({
+    await LinguisticService.saveUtteranceText({
       id: 'utr_1',
       utteranceId: 'utt_2',
-      translationLayerId: 'layer_1',
+      tierId: 'layer_1',
       modality: 'text',
       text: 'hello',
       sourceType: 'human',
@@ -94,12 +96,220 @@ describe('LinguisticService smoke tests', () => {
     });
 
     const layers = await LinguisticService.getTranslationLayers('translation');
-    const records = await LinguisticService.getUtteranceTranslations('utt_2');
+    const records = await LinguisticService.getUtteranceTexts('utt_2');
 
     expect(layers).toHaveLength(1);
     expect(layers[0]!.id).toBe('layer_1');
     expect(records).toHaveLength(1);
     expect(records[0]!.text).toBe('hello');
+  });
+
+  it('can read canonical tokens/morphemes via service APIs', async () => {
+    const now = new Date().toISOString();
+
+    await LinguisticService.saveUtterance({
+      id: 'utt_read_1',
+      textId: 'text_read',
+      startTime: 0,
+      endTime: 2,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await LinguisticService.saveTokensBatch([
+      {
+        id: 'tok_2',
+        textId: 'text_read',
+        utteranceId: 'utt_read_1',
+        tokenIndex: 1,
+        form: { default: 'word2' },
+        gloss: { eng: 'second' },
+        pos: 'VERB',
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'tok_1',
+        textId: 'text_read',
+        utteranceId: 'utt_read_1',
+        tokenIndex: 0,
+        form: { default: 'word1' },
+        gloss: { eng: 'first' },
+        pos: 'NOUN',
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    await LinguisticService.saveMorphemesBatch([
+      {
+        id: 'mor_2',
+        textId: 'text_read',
+        utteranceId: 'utt_read_1',
+        tokenId: 'tok_2',
+        morphemeIndex: 1,
+        form: { default: 'mor2' },
+        gloss: { eng: 'suffix' },
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'mor_1',
+        textId: 'text_read',
+        utteranceId: 'utt_read_1',
+        tokenId: 'tok_2',
+        morphemeIndex: 0,
+        form: { default: 'mor1' },
+        gloss: { eng: 'root' },
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const tokens = await LinguisticService.getTokensByUtteranceId('utt_read_1');
+    expect(tokens).toHaveLength(2);
+    expect(tokens[0]!.id).toBe('tok_1');
+    expect(tokens[0]!.form.default).toBe('word1');
+    expect(tokens[0]!.tokenIndex).toBe(0);
+    expect(tokens[1]!.id).toBe('tok_2');
+    expect(tokens[1]!.form.default).toBe('word2');
+    expect(tokens[1]!.tokenIndex).toBe(1);
+
+    const morph1 = await LinguisticService.getMorphemesByTokenId('tok_1');
+    expect(morph1).toHaveLength(0);
+
+    const morph2 = await LinguisticService.getMorphemesByTokenId('tok_2');
+    expect(morph2).toHaveLength(2);
+    expect(morph2[0]!.form.default).toBe('mor1');
+    expect(morph2[0]!.morphemeIndex).toBe(0);
+    expect(morph2[1]!.form.default).toBe('mor2');
+    expect(morph2[1]!.morphemeIndex).toBe(1);
+  });
+
+  it('supports token/morpheme lexeme links lifecycle', async () => {
+    await LinguisticService.saveTokenLexemeLink({
+      id: 'link_tok',
+      targetType: 'token',
+      targetId: 'tok_1',
+      lexemeId: 'lex_tok',
+      role: 'manual',
+      confidence: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await LinguisticService.saveTokenLexemeLink({
+      id: 'link_mor',
+      targetType: 'morpheme',
+      targetId: 'mor_1',
+      lexemeId: 'lex_mor',
+      role: 'stem',
+      confidence: 0.8,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const tokenLinks = await LinguisticService.getTokenLexemeLinks('token', 'tok_1');
+    const morphemeLinks = await LinguisticService.getTokenLexemeLinks('morpheme', 'mor_1');
+    expect(tokenLinks).toHaveLength(1);
+    expect(morphemeLinks).toHaveLength(1);
+
+    await LinguisticService.removeTokenLexemeLinks('token', 'tok_1');
+    expect(await LinguisticService.getTokenLexemeLinks('token', 'tok_1')).toHaveLength(0);
+    expect(await LinguisticService.getTokenLexemeLinks('morpheme', 'mor_1')).toHaveLength(1);
+  });
+
+  it('generates import quality report with coverage and integrity metrics', async () => {
+    await LinguisticService.saveTranslationLayer({
+      id: 'layer_trc_quality',
+      textId: 'text_quality',
+      key: 'trc_quality',
+      name: { eng: 'Transcription Quality' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await LinguisticService.saveTranslationLayer({
+      id: 'layer_trl_quality',
+      textId: 'text_quality',
+      key: 'trl_quality',
+      name: { eng: 'Translation Quality' },
+      layerType: 'translation',
+      languageId: 'eng',
+      modality: 'text',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await LinguisticService.saveUtterance({
+      id: 'utt_quality_1',
+      textId: 'text_quality',
+      startTime: 0,
+      endTime: 1,
+      annotationStatus: 'verified',
+      isVerified: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await LinguisticService.saveToken({
+      id: 'tok_quality_1',
+      textId: 'text_quality',
+      utteranceId: 'utt_quality_1',
+      tokenIndex: 0,
+      form: { default: 'tok' },
+      gloss: { eng: 'GLOSS' },
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await LinguisticService.saveUtteranceText({
+      id: 'utr_quality_trc',
+      utteranceId: 'utt_quality_1',
+      tierId: 'layer_trc_quality',
+      modality: 'text',
+      text: 'transcribed',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await LinguisticService.saveUtteranceText({
+      id: 'utr_quality_trl',
+      utteranceId: 'utt_quality_1',
+      tierId: 'layer_trl_quality',
+      modality: 'text',
+      text: 'translated',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    // Add one orphan anchor and one orphan note
+    await db.anchors.put({ id: 'anc_orphan_quality', mediaId: 'media_orphan', time: 99, createdAt: NOW });
+    await db.user_notes.put({
+      id: 'note_orphan_quality',
+      targetType: 'token',
+      targetId: 'non_existing_token',
+      parentTargetId: 'utt_quality_1',
+      content: { eng: 'orphan-note' },
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const report = await LinguisticService.generateImportQualityReport('text_quality');
+
+    expect(report.totals.utterances).toBe(1);
+    expect(report.coverage.transcribedUtterances).toBe(1);
+    expect(report.coverage.translatedUtterances).toBe(1);
+    expect(report.coverage.glossedUtterances).toBe(1);
+    expect(report.coverage.verifiedUtterances).toBe(1);
+    expect(report.integrity.orphanNotes).toBe(1);
+    expect(report.integrity.orphanAnchors).toBe(1);
   });
 
   it('can export and re-import snapshot', async () => {
@@ -115,10 +325,9 @@ describe('LinguisticService smoke tests', () => {
     await LinguisticService.saveUtterance({
       id: 'utt_3',
       textId: 'text_2',
-      transcription: { default: 'sample utterance' },
       startTime: 1,
       endTime: 2,
-      isVerified: false,
+      annotationStatus: 'raw',
       createdAt: now,
       updatedAt: now,
     });
@@ -132,6 +341,325 @@ describe('LinguisticService smoke tests', () => {
 
     expect(report.collections.utterances?.written).toBeGreaterThan(0);
     expect(await db.utterances.count()).toBe(1);
+  });
+
+  it('rejects AI tier annotation writes with confirmed reviewStatus', async () => {
+    await db.tier_definitions.put({
+      id: 'tier_ai_guard',
+      textId: 'text_guard',
+      key: 'guard',
+      name: { default: 'guard' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await expect(
+      LinguisticService.saveTierAnnotation({
+        id: 'ann_ai_guard',
+        tierId: 'tier_ai_guard',
+        value: 'x',
+        startTime: 0,
+        endTime: 1,
+        isVerified: false,
+        provenance: {
+          actorType: 'ai',
+          method: 'auto-gloss',
+          createdAt: NOW,
+          reviewStatus: 'confirmed',
+        },
+        createdAt: NOW,
+        updatedAt: NOW,
+      }, 'ai'),
+    ).rejects.toThrow(/confirmed.*AI/);
+  });
+
+  it('removes multiple utterances in one transaction with cascade cleanup', async () => {
+    await db.anchors.bulkPut([
+      { id: 'anc_s1', mediaId: 'media_batch', time: 0, createdAt: NOW },
+      { id: 'anc_e1', mediaId: 'media_batch', time: 1, createdAt: NOW },
+      { id: 'anc_s2', mediaId: 'media_batch', time: 1, createdAt: NOW },
+      { id: 'anc_e2', mediaId: 'media_batch', time: 2, createdAt: NOW },
+    ]);
+
+    await LinguisticService.saveUtterancesBatch([
+      {
+        id: 'utt_batch_1',
+        textId: 'text_batch',
+        mediaId: 'media_batch',
+        startTime: 0,
+        endTime: 1,
+        startAnchorId: 'anc_s1',
+        endAnchorId: 'anc_e1',
+        annotationStatus: 'raw',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'utt_batch_2',
+        textId: 'text_batch',
+        mediaId: 'media_batch',
+        startTime: 1,
+        endTime: 2,
+        startAnchorId: 'anc_s2',
+        endAnchorId: 'anc_e2',
+        annotationStatus: 'raw',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    await LinguisticService.saveTokensBatch([
+      {
+        id: 'tok_batch_1',
+        textId: 'text_batch',
+        utteranceId: 'utt_batch_1',
+        tokenIndex: 0,
+        form: { default: 'a' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'tok_batch_2',
+        textId: 'text_batch',
+        utteranceId: 'utt_batch_2',
+        tokenIndex: 0,
+        form: { default: 'b' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    await LinguisticService.saveMorphemesBatch([
+      {
+        id: 'mor_batch_1',
+        textId: 'text_batch',
+        utteranceId: 'utt_batch_1',
+        tokenId: 'tok_batch_1',
+        morphemeIndex: 0,
+        form: { default: 'a1' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'mor_batch_2',
+        textId: 'text_batch',
+        utteranceId: 'utt_batch_2',
+        tokenId: 'tok_batch_2',
+        morphemeIndex: 0,
+        form: { default: 'b1' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    await LinguisticService.saveTokenLexemeLink({
+      id: 'link_batch_1',
+      targetType: 'token',
+      targetId: 'tok_batch_1',
+      lexemeId: 'lex_a',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await LinguisticService.saveTokenLexemeLink({
+      id: 'link_batch_2',
+      targetType: 'morpheme',
+      targetId: 'mor_batch_2',
+      lexemeId: 'lex_b',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await db.utterance_texts.bulkPut([
+      {
+        id: 'utr_batch_1',
+        utteranceId: 'utt_batch_1',
+        tierId: 'layer_batch',
+        modality: 'text',
+        text: 'x',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'utr_batch_2',
+        utteranceId: 'utt_batch_2',
+        tierId: 'layer_batch',
+        modality: 'text',
+        text: 'y',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    await db.user_notes.bulkPut([
+      {
+        id: 'note_u_batch_1',
+        targetType: 'utterance',
+        targetId: 'utt_batch_1',
+        content: { eng: 'u1' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'note_t_batch_1',
+        targetType: 'token',
+        targetId: 'tok_batch_1',
+        parentTargetId: 'utt_batch_1',
+        content: { eng: 't1' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'note_m_batch_2',
+        targetType: 'morpheme',
+        targetId: 'mor_batch_2',
+        parentTargetId: 'tok_batch_2',
+        content: { eng: 'm2' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    await LinguisticService.removeUtterancesBatch(['utt_batch_1', 'utt_batch_2']);
+
+    expect(await db.utterances.where('id').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
+    expect(await db.utterance_texts.where('utteranceId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
+    expect(await db.utterance_tokens.where('utteranceId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
+    expect(await db.utterance_morphemes.where('utteranceId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
+    expect(await db.token_lexeme_links.where('id').anyOf(['link_batch_1', 'link_batch_2']).count()).toBe(0);
+    expect(await db.user_notes.where('id').anyOf(['note_u_batch_1', 'note_t_batch_1', 'note_m_batch_2']).count()).toBe(0);
+    expect(await db.anchors.where('id').anyOf(['anc_s1', 'anc_e1', 'anc_s2', 'anc_e2']).count()).toBe(0);
+  });
+
+  it('regression: single/media cascade deletes token_lexeme_links via indexed composite key', async () => {
+    await db.media_items.bulkPut([
+      {
+        id: 'media_del_single',
+        textId: 'text_del',
+        filename: 'single.wav',
+        isOfflineCached: true,
+        createdAt: NOW,
+      },
+      {
+        id: 'media_del_audio',
+        textId: 'text_del',
+        filename: 'audio.wav',
+        isOfflineCached: true,
+        createdAt: NOW,
+      },
+    ]);
+
+    await LinguisticService.saveUtterancesBatch([
+      {
+        id: 'utt_del_single',
+        textId: 'text_del',
+        mediaId: 'media_del_single',
+        startTime: 0,
+        endTime: 1,
+        annotationStatus: 'raw',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'utt_del_audio',
+        textId: 'text_del',
+        mediaId: 'media_del_audio',
+        startTime: 1,
+        endTime: 2,
+        annotationStatus: 'raw',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    await LinguisticService.saveTokensBatch([
+      {
+        id: 'tok_del_single',
+        textId: 'text_del',
+        utteranceId: 'utt_del_single',
+        tokenIndex: 0,
+        form: { default: 'single' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'tok_del_audio',
+        textId: 'text_del',
+        utteranceId: 'utt_del_audio',
+        tokenIndex: 0,
+        form: { default: 'audio' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    await LinguisticService.saveMorphemesBatch([
+      {
+        id: 'mor_del_single',
+        textId: 'text_del',
+        utteranceId: 'utt_del_single',
+        tokenId: 'tok_del_single',
+        morphemeIndex: 0,
+        form: { default: 'single-m' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'mor_del_audio',
+        textId: 'text_del',
+        utteranceId: 'utt_del_audio',
+        tokenId: 'tok_del_audio',
+        morphemeIndex: 0,
+        form: { default: 'audio-m' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    await db.token_lexeme_links.bulkPut([
+      {
+        id: 'link_del_single_tok',
+        targetType: 'token',
+        targetId: 'tok_del_single',
+        lexemeId: 'lex_single_tok',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'link_del_single_mor',
+        targetType: 'morpheme',
+        targetId: 'mor_del_single',
+        lexemeId: 'lex_single_mor',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'link_del_audio_tok',
+        targetType: 'token',
+        targetId: 'tok_del_audio',
+        lexemeId: 'lex_audio_tok',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'link_del_audio_mor',
+        targetType: 'morpheme',
+        targetId: 'mor_del_audio',
+        lexemeId: 'lex_audio_mor',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    await expect(LinguisticService.removeUtterance('utt_del_single')).resolves.toBeUndefined();
+    expect(await db.token_lexeme_links.where('id').anyOf(['link_del_single_tok', 'link_del_single_mor']).count()).toBe(0);
+    expect(await db.token_lexeme_links.where('id').anyOf(['link_del_audio_tok', 'link_del_audio_mor']).count()).toBe(2);
+
+    await expect(LinguisticService.deleteAudio('media_del_audio')).resolves.toBeUndefined();
+    expect(await db.token_lexeme_links.where('id').anyOf(['link_del_audio_tok', 'link_del_audio_mor']).count()).toBe(0);
   });
 });
 
@@ -606,5 +1134,174 @@ describe('Audit logging', () => {
     const logs2 = await LinguisticService.getAuditLogs('a2');
     expect(logs1.some((l) => l.action === 'create')).toBe(true);
     expect(logs2.some((l) => l.action === 'create')).toBe(true);
+  });
+});
+
+// ── Validated CRUD tests ───────────────────────────────────────
+
+describe('Validated single-item CRUD', () => {
+  beforeEach(async () => {
+    await db.open();
+    await clearDatabase();
+  });
+
+  // saveTierAnnotation — validation
+  it('saveTierAnnotation blocks save on T2 overlap error', async () => {
+    const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
+    await LinguisticService.saveTierDefinition(tier);
+
+    // First annotation succeeds
+    const r1 = await LinguisticService.saveTierAnnotation(
+      makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 3 }),
+    );
+    expect(r1.errors).toHaveLength(0);
+    expect(r1.id).toBeTruthy();
+
+    // Overlapping annotation is blocked
+    const r2 = await LinguisticService.saveTierAnnotation(
+      makeAnn({ id: 'a2', tierId: 'td1', startTime: 2, endTime: 5 }),
+    );
+    expect(r2.errors.length).toBeGreaterThan(0);
+    expect(r2.errors.some((e) => e.rule === 'T2')).toBe(true);
+    expect(r2.id).toBe('');
+
+    // Only first annotation persisted
+    const stored = await LinguisticService.getTierAnnotations('td1');
+    expect(stored).toHaveLength(1);
+  });
+
+  it('saveTierAnnotation returns warnings for T4 coverage gap', async () => {
+    const root = makeTier({ id: 'td1', textId: 'text_1', key: 'utt', tierType: 'time-aligned' });
+    const sub = makeTier({ id: 'td2', textId: 'text_1', key: 'word', tierType: 'time-subdivision', parentTierId: 'td1' });
+    await LinguisticService.saveTierDefinition(root);
+    await LinguisticService.saveTierDefinition(sub);
+
+    // Root annotation
+    await LinguisticService.saveTierAnnotation(
+      makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 10 }),
+    );
+
+    // Subdivision only covers part of parent → T4 warning, but save proceeds
+    const r = await LinguisticService.saveTierAnnotation(
+      makeAnn({ id: 'a2', tierId: 'td2', parentAnnotationId: 'a1', startTime: 0, endTime: 5 }),
+    );
+    expect(r.errors).toHaveLength(0);
+    expect(r.id).toBeTruthy();
+    expect(r.warnings.some((w) => w.rule === 'T4')).toBe(true);
+  });
+
+  it('saveTierAnnotation rejects reference to non-existent tier', async () => {
+    const r = await LinguisticService.saveTierAnnotation(
+      makeAnn({ id: 'a1', tierId: 'ghost', startTime: 0, endTime: 1 }),
+    );
+    expect(r.errors.length).toBeGreaterThan(0);
+    expect(r.errors[0]!.rule).toBe('R2');
+    expect(r.id).toBe('');
+  });
+
+  // saveTierDefinition — validation
+  it('saveTierDefinition blocks save on S6 incompatible parent type', async () => {
+    const root = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'symbolic-association' });
+    await LinguisticService.saveTierDefinition(root);
+
+    // time-subdivision cannot have symbolic-association parent
+    const child = makeTier({ id: 'td2', textId: 'text_1', key: 'sub', tierType: 'time-subdivision', parentTierId: 'td1' });
+    const r = await LinguisticService.saveTierDefinition(child);
+    expect(r.errors.length).toBeGreaterThan(0);
+    expect(r.errors.some((e) => e.rule === 'S6')).toBe(true);
+    expect(r.id).toBe('');
+
+    // Child tier should not be in the database
+    const defs = await LinguisticService.getTierDefinitions('text_1');
+    expect(defs).toHaveLength(1);
+    expect(defs[0]!.id).toBe('td1');
+  });
+
+  it('saveTierDefinition blocks save on R1 non-existent parent', async () => {
+    const child = makeTier({ id: 'td1', textId: 'text_1', key: 'orphan', tierType: 'time-subdivision', parentTierId: 'ghost' });
+    const r = await LinguisticService.saveTierDefinition(child);
+    expect(r.errors.some((e) => e.rule === 'R1')).toBe(true);
+    expect(r.id).toBe('');
+  });
+
+  // removeTierDefinition — cascade + child tier rejection
+  it('removeTierDefinition cascades to annotations', async () => {
+    const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
+    await LinguisticService.saveTierDefinition(tier);
+    await LinguisticService.saveTierAnnotation(
+      makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 1 }),
+    );
+    await LinguisticService.saveTierAnnotation(
+      makeAnn({ id: 'a2', tierId: 'td1', startTime: 1, endTime: 2 }),
+    );
+
+    const result = await LinguisticService.removeTierDefinition('td1');
+    expect(result.errors).toHaveLength(0);
+
+    // Annotations should be gone too
+    const anns = await LinguisticService.getTierAnnotations('td1');
+    expect(anns).toHaveLength(0);
+  });
+
+  it('removeTierDefinition rejects when child tiers depend on it', async () => {
+    const root = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
+    const child = makeTier({ id: 'td2', textId: 'text_1', key: 'child', tierType: 'symbolic-subdivision', parentTierId: 'td1' });
+    await LinguisticService.saveTierDefinition(root);
+    await LinguisticService.saveTierDefinition(child);
+
+    const result = await LinguisticService.removeTierDefinition('td1');
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]!.rule).toBe('CASCADE');
+
+    // Root tier should still exist
+    const defs = await LinguisticService.getTierDefinitions('text_1');
+    expect(defs).toHaveLength(2);
+  });
+
+  // removeTierAnnotation — cascade to child annotations
+  it('removeTierAnnotation cascades to child annotations', async () => {
+    const root = makeTier({ id: 'td1', textId: 'text_1', key: 'utt', tierType: 'time-aligned' });
+    const sub = makeTier({ id: 'td2', textId: 'text_1', key: 'morph', tierType: 'symbolic-subdivision', parentTierId: 'td1' });
+    await LinguisticService.saveTierDefinition(root);
+    await LinguisticService.saveTierDefinition(sub);
+
+    await LinguisticService.saveTierAnnotation(
+      makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 2 }),
+    );
+    await LinguisticService.saveTierAnnotation(
+      makeAnn({ id: 'm1', tierId: 'td2', parentAnnotationId: 'a1', ordinal: 0 }),
+    );
+    await LinguisticService.saveTierAnnotation(
+      makeAnn({ id: 'm2', tierId: 'td2', parentAnnotationId: 'a1', ordinal: 1 }),
+    );
+
+    // Removing parent also removes children
+    await LinguisticService.removeTierAnnotation('a1');
+    const rootAnns = await LinguisticService.getTierAnnotations('td1');
+    const childAnns = await LinguisticService.getTierAnnotations('td2');
+    expect(rootAnns).toHaveLength(0);
+    expect(childAnns).toHaveLength(0);
+  });
+
+  // saveTierAnnotationsBatch returns warnings
+  it('saveTierAnnotationsBatch returns warnings for T4', async () => {
+    const root = makeTier({ id: 'td1', textId: 'text_1', key: 'utt', tierType: 'time-aligned' });
+    const sub = makeTier({ id: 'td2', textId: 'text_1', key: 'word', tierType: 'time-subdivision', parentTierId: 'td1' });
+    await LinguisticService.saveTierDefinition(root);
+    await LinguisticService.saveTierDefinition(sub);
+
+    const anns = [
+      makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 10 }),
+      makeAnn({ id: 'a2', tierId: 'td2', parentAnnotationId: 'a1', startTime: 0, endTime: 5 }),
+      // gap 5-10 → T4 warning
+    ];
+
+    const result = await LinguisticService.saveTierAnnotationsBatch('text_1', anns);
+    expect(result.violations).toHaveLength(0);
+    expect(result.warnings.some((w) => w.rule === 'T4')).toBe(true);
+
+    // Annotations still saved despite warning
+    const stored = await LinguisticService.getTierAnnotations('td1');
+    expect(stored).toHaveLength(1);
   });
 });

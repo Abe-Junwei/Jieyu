@@ -1,5 +1,6 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Moon, Sun } from 'lucide-react';
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import {
   AnalysisPage,
   AnnotationPage,
@@ -7,88 +8,90 @@ import {
   TranscriptionPage,
   WritingPage,
 } from './pages';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { AiPanelProvider } from './contexts/AiPanelContext';
+import { detectLocale, t } from './i18n';
 
-const navItems = [
-  { to: '/transcription', label: '转写' },
-  { to: '/annotation', label: '标注' },
-  { to: '/analysis', label: '分析' },
-  { to: '/writing', label: '写作' },
-  { to: '/lexicon', label: '词典' },
-];
+type ThemeMode = 'light' | 'dark';
 
-class ErrorBoundary extends Component<
-  { children: ReactNode },
-  { error: Error | null }
-> {
-  override state: { error: Error | null } = { error: null };
-
-  static getDerivedStateFromError(error: Error) {
-    return { error };
-  }
-
-  override componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('Uncaught error:', error, info.componentStack);
-  }
-
-  override render() {
-    if (this.state.error) {
-      return (
-        <section className="panel" style={{ padding: '2rem' }}>
-          <h2>应用出错</h2>
-          <p>{this.state.error.message}</p>
-          <button className="btn" onClick={() => this.setState({ error: null })}>
-            重试
-          </button>
-        </section>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-function NotFound() {
+function NotFound({ locale }: { locale: ReturnType<typeof detectLocale> }) {
   return (
     <section className="panel">
-      <h2>404</h2>
-      <p>页面不存在，请从导航栏选择功能。</p>
+      <h2>{t(locale, 'app.notFound.title')}</h2>
+      <p>{t(locale, 'app.notFound.desc')}</p>
     </section>
   );
 }
 
 export function App() {
+  const location = useLocation();
+  const isTranscriptionRoute = location.pathname.startsWith('/transcription');
+  const locale = useMemo(() => detectLocale(), []);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    const stored = window.localStorage.getItem('jieyu-theme');
+    if (stored === 'light' || stored === 'dark') return stored;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', themeMode);
+    window.localStorage.setItem('jieyu-theme', themeMode);
+  }, [themeMode]);
+
+  const navItems = useMemo(() => [
+    { to: '/transcription', label: t(locale, 'app.nav.transcription') },
+    { to: '/annotation', label: t(locale, 'app.nav.annotation') },
+    { to: '/analysis', label: t(locale, 'app.nav.analysis') },
+    { to: '/writing', label: t(locale, 'app.nav.writing') },
+    { to: '/lexicon', label: t(locale, 'app.nav.lexicon') },
+  ], [locale]);
+
   return (
     <ErrorBoundary>
     <div className="app-shell">
-      <header className="app-header">
+      <header className={`app-header ${isTranscriptionRoute ? 'app-header-compact' : ''}`}>
         <div className="brand-block">
-          <h1>解语 Jieyu</h1>
-          <p>濒危语言科研协作平台</p>
+          <h1>{t(locale, 'app.title')}</h1>
+          <p>{t(locale, 'app.subtitle')}</p>
         </div>
-        <nav className="tab-nav" aria-label="主功能标签页">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                isActive ? 'tab-link tab-link-active' : 'tab-link'
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
+        <div className="app-header-actions">
+          <nav className="tab-nav" aria-label="主功能标签页">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  isActive ? 'tab-link tab-link-active' : 'tab-link'
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+          <button
+            type="button"
+            className="theme-toggle-btn"
+            aria-label={themeMode === 'dark' ? t(locale, 'theme.toggle.light') : t(locale, 'theme.toggle.dark')}
+            title={themeMode === 'dark' ? t(locale, 'theme.toggle.light') : t(locale, 'theme.toggle.dark')}
+            onClick={() => setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+          >
+            {themeMode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+        </div>
       </header>
 
-      <main className="app-main">
-        <Routes>
-          <Route path="/" element={<Navigate to="/transcription" replace />} />
-          <Route path="/transcription" element={<TranscriptionPage />} />
-          <Route path="/annotation" element={<AnnotationPage />} />
-          <Route path="/analysis" element={<AnalysisPage />} />
-          <Route path="/writing" element={<WritingPage />} />
-          <Route path="/lexicon" element={<LexiconPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+      <main className={`app-main ${isTranscriptionRoute ? 'app-main-transcription' : ''}`}>
+        <AiPanelProvider>
+          <Routes>
+            <Route path="/" element={<Navigate to="/transcription" replace />} />
+            <Route path="/transcription" element={<TranscriptionPage />} />
+            <Route path="/annotation" element={<AnnotationPage />} />
+            <Route path="/analysis" element={<AnalysisPage />} />
+            <Route path="/writing" element={<WritingPage />} />
+            <Route path="/lexicon" element={<LexiconPage />} />
+            <Route path="*" element={<NotFound locale={locale} />} />
+          </Routes>
+        </AiPanelProvider>
       </main>
     </div>
     </ErrorBoundary>

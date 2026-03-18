@@ -5,15 +5,17 @@
  * This service converts between Jieyu's data model and EAF 3.0.
  */
 
-import type { UtteranceDocType, TranslationLayerDocType, UtteranceTranslationDocType, MediaItemDocType } from '../db';
+import type { UtteranceDocType, AnchorDocType, TranslationLayerDocType, UtteranceTextDocType, MediaItemDocType, UserNoteDocType } from '../db';
 
 // ── Types ───────────────────────────────────────────────────
 
 export interface EafExportInput {
-  mediaItem: MediaItemDocType;
+  mediaItem?: MediaItemDocType;
   utterances: UtteranceDocType[];
+  anchors?: AnchorDocType[];
   layers: TranslationLayerDocType[];
-  translations: UtteranceTranslationDocType[];
+  translations: UtteranceTextDocType[];
+  userNotes?: UserNoteDocType[];
 }
 
 export interface EafImportResult {
@@ -44,29 +46,68 @@ function escapeXml(str: string): string {
 }
 
 export function exportToEaf(input: EafExportInput): string {
-  const { mediaItem, utterances, layers, translations } = input;
+  const { mediaItem, utterances, anchors, layers, translations, userNotes } = input;
   const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
 
-  // Build time slots
+  // Build time slots — use shared anchors when available
   let tsCounter = 1;
   const timeSlots: Array<{ id: string; ms: number }> = [];
   const uttSlotMap = new Map<string, { tsStart: string; tsEnd: string }>();
 
-  for (const utt of sorted) {
-    const tsStart = `ts${tsCounter++}`;
-    const tsEnd = `ts${tsCounter++}`;
-    timeSlots.push({ id: tsStart, ms: Math.round(utt.startTime * 1000) });
-    timeSlots.push({ id: tsEnd, ms: Math.round(utt.endTime * 1000) });
-    uttSlotMap.set(utt.id, { tsStart, tsEnd });
+  if (anchors && anchors.length > 0) {
+    // Standoff mode: map anchor IDs to TIME_SLOT IDs (shared anchors → shared TIME_SLOTs)
+    const anchorToTsId = new Map<string, string>();
+    const anchorById = new Map(anchors.map((a) => [a.id, a]));
+
+    const getOrCreateTsForAnchor = (anchorId: string, fallbackMs: number): string => {
+      const existing = anchorToTsId.get(anchorId);
+      if (existing) return existing;
+      const tsId = `ts${tsCounter++}`;
+      const anchor = anchorById.get(anchorId);
+      timeSlots.push({ id: tsId, ms: anchor ? Math.round(anchor.time * 1000) : Math.round(fallbackMs * 1000) });
+      anchorToTsId.set(anchorId, tsId);
+      return tsId;
+    };
+
+    for (const utt of sorted) {
+      const tsStart = utt.startAnchorId
+        ? getOrCreateTsForAnchor(utt.startAnchorId, utt.startTime)
+        : `ts${tsCounter++}`;
+      const tsEnd = utt.endAnchorId
+        ? getOrCreateTsForAnchor(utt.endAnchorId, utt.endTime)
+        : `ts${tsCounter++}`;
+
+      // Add fallback time slots for utterances without anchors
+      if (!utt.startAnchorId) timeSlots.push({ id: tsStart, ms: Math.round(utt.startTime * 1000) });
+      if (!utt.endAnchorId) timeSlots.push({ id: tsEnd, ms: Math.round(utt.endTime * 1000) });
+
+      uttSlotMap.set(utt.id, { tsStart, tsEnd });
+    }
+  } else {
+    // Legacy mode: each utterance gets its own pair of time slots
+    for (const utt of sorted) {
+      const tsStart = `ts${tsCounter++}`;
+      const tsEnd = `ts${tsCounter++}`;
+      timeSlots.push({ id: tsStart, ms: Math.round(utt.startTime * 1000) });
+      timeSlots.push({ id: tsEnd, ms: Math.round(utt.endTime * 1000) });
+      uttSlotMap.set(utt.id, { tsStart, tsEnd });
+    }
   }
 
   // Build annotation ID counter
   let annCounter = 1;
 
+  // Determine default transcription layer
+  const transcriptionLayers = layers.filter((l) => l.layerType === 'transcription');
+  const defaultTrcId = transcriptionLayers.find((l) => l.isDefault)?.id ?? transcriptionLayers[0]?.id;
+
   // Transcription tier (default)
   const transcriptionAnnotations = sorted.map((utt) => {
     const slots = uttSlotMap.get(utt.id)!;
-    const text = utt.transcription?.default ?? '';
+    const tr = defaultTrcId
+      ? translations.find((t) => t.utteranceId === utt.id && t.tierId === defaultTrcId && t.modality === 'text')
+      : undefined;
+    const text = tr?.text ?? utt.transcription?.default ?? '';
     return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="a${annCounter++}" TIME_SLOT_REF1="${slots.tsStart}" TIME_SLOT_REF2="${slots.tsEnd}">
                 <ANNOTATION_VALUE>${escapeXml(text)}</ANNOTATION_VALUE>
@@ -74,12 +115,14 @@ export function exportToEaf(input: EafExportInput): string {
         </ANNOTATION>`;
   });
 
-  // Translation tiers
-  const translationLayers = layers.filter((l) => l.layerType === 'translation');
+  // Additional tiers: non-default transcription layers + translation layers
+  const additionalLayers = layers.filter(
+    (l) => l.layerType === 'translation' || (l.layerType === 'transcription' && l.id !== defaultTrcId),
+  );
   const translationTierXml: string[] = [];
 
-  for (const layer of translationLayers) {
-    const layerTranslations = translations.filter((t) => t.translationLayerId === layer.id && t.modality === 'text');
+  for (const layer of additionalLayers) {
+    const layerTranslations = translations.filter((t) => t.tierId === layer.id && t.modality === 'text');
     const tierName = layer.name?.eng ?? layer.name?.zho ?? layer.key;
 
     const annotations = sorted
@@ -102,15 +145,16 @@ ${annotations.join('\n')}
     }
   }
 
-  const mediaUrl = mediaItem.url ?? mediaItem.filename;
-  const mediaFilename = mediaItem.filename;
+  const mediaHeader = mediaItem
+    ? `    <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
+        <MEDIA_DESCRIPTOR MEDIA_URL="${escapeXml(mediaItem.url ?? mediaItem.filename)}" MIME_TYPE="audio/x-wav" RELATIVE_MEDIA_URL="./${escapeXml(mediaItem.filename)}" />
+    </HEADER>`
+    : '    <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds" />';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <ANNOTATION_DOCUMENT AUTHOR="Jieyu" DATE="${new Date().toISOString()}" FORMAT="3.0" VERSION="3.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.mpi.nl/tools/elan/EAFv3.0.xsd">
-    <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
-        <MEDIA_DESCRIPTOR MEDIA_URL="${escapeXml(mediaUrl)}" MIME_TYPE="audio/x-wav" RELATIVE_MEDIA_URL="./${escapeXml(mediaFilename)}" />
-    </HEADER>
+${mediaHeader}
     <TIME_ORDER>
 ${timeSlots.map((ts) => `        <TIME_SLOT TIME_SLOT_ID="${ts.id}" TIME_VALUE="${ts.ms}" />`).join('\n')}
     </TIME_ORDER>
@@ -118,9 +162,53 @@ ${timeSlots.map((ts) => `        <TIME_SLOT TIME_SLOT_ID="${ts.id}" TIME_VALUE="
 ${transcriptionAnnotations.join('\n')}
     </TIER>
 ${translationTierXml.join('\n')}
+${buildNoteTierXml(sorted, uttSlotMap, userNotes ?? [], annCounter)}
     <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
 </ANNOTATION_DOCUMENT>
 `;
+}
+
+function buildNoteTierXml(
+  sorted: UtteranceDocType[],
+  uttSlotMap: Map<string, { tsStart: string; tsEnd: string }>,
+  notes: UserNoteDocType[],
+  annCounterStart: number,
+): string {
+  if (notes.length === 0) return '';
+
+  // Group notes by utterance
+  const notesByUtt = new Map<string, UserNoteDocType[]>();
+  for (const note of notes) {
+    if (note.targetType !== 'utterance') continue;
+    const arr = notesByUtt.get(note.targetId);
+    if (arr) arr.push(note);
+    else notesByUtt.set(note.targetId, [note]);
+  }
+
+  let counter = annCounterStart;
+  const annotations = sorted
+    .map((utt) => {
+      const uttNotes = notesByUtt.get(utt.id);
+      if (!uttNotes || uttNotes.length === 0) return null;
+      const slots = uttSlotMap.get(utt.id);
+      if (!slots) return null;
+      const text = uttNotes.map((n) => {
+        const prefix = n.category ? `[${n.category}] ` : '';
+        return prefix + (n.content['default'] ?? Object.values(n.content)[0] ?? '');
+      }).join(' | ');
+      return `        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a${counter++}" TIME_SLOT_REF1="${slots.tsStart}" TIME_SLOT_REF2="${slots.tsEnd}">
+                <ANNOTATION_VALUE>${escapeXml(text)}</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>`;
+    })
+    .filter(Boolean);
+
+  if (annotations.length === 0) return '';
+
+  return `    <TIER TIER_ID="notes" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="en">
+${annotations.join('\n')}
+    </TIER>`;
 }
 
 // ── Import ──────────────────────────────────────────────────
@@ -201,11 +289,11 @@ export function downloadEaf(content: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-export function readFileAsText(file: File): Promise<string> {
+export function readFileAsText(file: File, encoding = 'utf-8'): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error('文件读取失败'));
-    reader.readAsText(file);
+    reader.onerror = () => reject(new Error(`文件读取失败: ${reader.error?.message ?? 'unknown'}`));
+    reader.readAsText(file, encoding);
   });
 }

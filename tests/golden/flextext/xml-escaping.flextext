@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<document version="2">
+  <interlinear-text>
+    <paragraphs>
+      <paragraph>
+        <phrases>
+          <phrase guid="p1" begin-time-offset="0" end-time-offset="3">
+            <item type="txt" lang="und">a &lt; b &amp; c &gt; d &quot;quoted&quot;</item>
+            <item type="gls" lang="en">XML special chars &amp; &lt;entities&gt;</item>
+          </phrase>
+        </phrases>
+      </paragraph>
+    </paragraphs>
+  </interlinear-text>
+</document>

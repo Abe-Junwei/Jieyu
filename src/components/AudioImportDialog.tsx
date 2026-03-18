@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import { Upload, FileAudio, X } from 'lucide-react';
+import { detectLocale, t } from '../i18n';
+import { fireAndForget } from '../utils/fireAndForget';
 
 type AudioImportDialogProps = {
   isOpen: boolean;
@@ -10,6 +12,7 @@ type AudioImportDialogProps = {
 const ACCEPTED_FORMATS = '.mp3,.wav,.ogg,.webm,.m4a,.flac,.aac';
 
 export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDialogProps) {
+  const locale = detectLocale();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
@@ -39,7 +42,7 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
     }
 
     if (!file.type.startsWith('audio/')) {
-      setError('请选择音频文件（MP3、WAV、OGG 等）。');
+      setError(t(locale, 'transcription.importDialog.invalidAudio'));
       setSelectedFile(null);
       return;
     }
@@ -54,12 +57,12 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
       if (Number.isFinite(audio.duration)) {
         setDuration(audio.duration);
       } else {
-        setError('无法读取音频时长，文件可能已损坏。');
+        setError(t(locale, 'transcription.importDialog.unreadableDuration'));
       }
       URL.revokeObjectURL(objectUrl);
     });
     audio.addEventListener('error', () => {
-      setError('无法解析音频文件，请检查格式是否受支持。');
+      setError(t(locale, 'transcription.importDialog.unsupportedAudio'));
       URL.revokeObjectURL(objectUrl);
     });
   };
@@ -72,7 +75,7 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
       await onImport(selectedFile, duration);
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '导入失败');
+      setError(err instanceof Error ? err.message : t(locale, 'transcription.importDialog.importFailed'));
       setImporting(false);
     }
   };
@@ -83,8 +86,8 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
     <div className="dialog-overlay" onClick={handleClose}>
       <div className="dialog-card" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">
-          <h3>导入音频</h3>
-          <button className="icon-btn" onClick={handleClose} title="关闭">
+          <h3>{t(locale, 'transcription.importDialog.title')}</h3>
+          <button className="icon-btn" onClick={handleClose} title={t(locale, 'transcription.importDialog.close')}>
             <X size={18} />
           </button>
         </div>
@@ -106,8 +109,8 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
             ) : (
               <>
                 <Upload size={28} />
-                <strong>点击选择音频文件</strong>
-                <span className="small-text">支持 MP3、WAV、OGG、WebM、M4A、FLAC</span>
+                <strong>{t(locale, 'transcription.importDialog.selectAudio')}</strong>
+                <span className="small-text">{t(locale, 'transcription.importDialog.supportedFormats')}</span>
               </>
             )}
           </div>
@@ -124,14 +127,14 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
 
         <div className="dialog-footer">
           <button className="btn btn-ghost" onClick={handleClose} disabled={importing}>
-            取消
+            {t(locale, 'transcription.importDialog.cancel')}
           </button>
           <button
             className="btn"
             disabled={!selectedFile || !duration || importing}
-            onClick={() => void handleImport()}
+            onClick={() => fireAndForget(handleImport())}
           >
-            {importing ? '导入中...' : '确认导入'}
+            {importing ? t(locale, 'transcription.importDialog.importing') : t(locale, 'transcription.importDialog.confirmImport')}
           </button>
         </div>
       </div>

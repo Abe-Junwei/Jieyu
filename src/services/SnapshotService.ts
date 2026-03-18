@@ -1,7 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import type {
   UtteranceDocType,
-  UtteranceTranslationDocType,
+  UtteranceTextDocType,
   TranslationLayerDocType,
 } from '../../db';
 
@@ -21,7 +21,7 @@ export interface RecoveryData {
   schemaVersion: number;
   timestamp: number;
   utterances: UtteranceDocType[];
-  translations: UtteranceTranslationDocType[];
+  translations: UtteranceTextDocType[];
   layers: TranslationLayerDocType[];
 }
 
@@ -49,7 +49,7 @@ export async function saveRecoverySnapshot(
   dbName: string,
   data: {
     utterances: UtteranceDocType[];
-    translations: UtteranceTranslationDocType[];
+    translations: UtteranceTextDocType[];
     layers: TranslationLayerDocType[];
   },
 ): Promise<void> {
@@ -69,13 +69,18 @@ export async function getRecoverySnapshot(dbName: string): Promise<RecoveryData 
   const row = await db.snapshots.get(dbName);
   if (!row) return null;
   if (row.schemaVersion !== RECOVERY_SCHEMA_VERSION) return null;
-  return {
-    schemaVersion: row.schemaVersion,
-    timestamp: row.timestamp,
-    utterances: JSON.parse(row.utterances) as UtteranceDocType[],
-    translations: JSON.parse(row.translations) as UtteranceTranslationDocType[],
-    layers: JSON.parse(row.layers) as TranslationLayerDocType[],
-  };
+  try {
+    return {
+      schemaVersion: row.schemaVersion,
+      timestamp: row.timestamp,
+      utterances: JSON.parse(row.utterances) as UtteranceDocType[],
+      translations: JSON.parse(row.translations) as UtteranceTextDocType[],
+      layers: JSON.parse(row.layers) as TranslationLayerDocType[],
+    };
+  } catch (err) {
+    console.error('[SnapshotService] Corrupted recovery snapshot, cannot parse:', err);
+    return null;
+  }
 }
 
 export async function clearRecoverySnapshot(dbName: string): Promise<void> {

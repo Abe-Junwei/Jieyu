@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Trans SYSTEM "trans-14.dtd">
+<Trans program="Minimal" air_date="2026-01-01" scribe="" version="1" version_date="2026-01-01">
+  <Speakers>
+    <Speaker id="spk1" name="Speaker One" check="no" dialect="native" accent="" scope="local" />
+  </Speakers>
+  <Episode>
+    <Section type="report" startTime="0.000" endTime="4.000">
+        <Turn speaker="spk1" startTime="0.000" endTime="4.000">
+          <Sync time="0.000"/>
+          Hello world
+        </Turn>
+    </Section>
+  </Episode>
+</Trans>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Trans SYSTEM "trans-14.dtd">
+<Trans scribe="golden-test" audio_filename="test.wav" version="6" version_date="2026-01-01">
+  <Speakers>
+    <Speaker id="spk1" name="Narrator" check="no" dialect="native" accent="" scope="local"/>
+  </Speakers>
+  <Episode>
+    <Section type="report" startTime="0.000" endTime="0.000">
+      <Turn speaker="spk1" startTime="0.000" endTime="0.000">
+      </Turn>
+    </Section>
+  </Episode>
+</Trans>

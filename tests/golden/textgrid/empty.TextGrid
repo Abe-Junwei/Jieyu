@@ -1,0 +1,14 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0
+xmax = 0
+tiers? <exists>
+size = 1
+item []:
+    item [1]:
+        class = "IntervalTier"
+        name = "default"
+        xmin = 0
+        xmax = 0
+        intervals: size = 0

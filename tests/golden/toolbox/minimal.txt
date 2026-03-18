@@ -1,0 +1,5 @@
+\ref rec1
+\ts 0.000
+\te 2.000
+\tx Hello world
+\ft 你好，世界

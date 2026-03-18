@@ -309,7 +309,7 @@ export function SearchReplaceOverlay({
             </div>
           ))}
           <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowReplacePreview(false)} style={btnStyle}>取消</button>
+            <button onClick={() => setShowReplacePreview(false)} style={btnStyle} title="取消预览">取消</button>
             <button onClick={handleReplaceAll} style={btnStyle} title="确认全部替换">确认替换</button>
           </div>
         </div>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Trans SYSTEM "trans-14.dtd">
+<Trans program="Fieldwork Session 1" air_date="2026-01-01" scribe="" version="1" version_date="2026-01-01">
+  <Speakers>
+    <Speaker id="spk1" name="Alice Doe" check="no" dialect="native" accent="" scope="local" />
+    <Speaker id="spk2" name="Bob Smith" check="no" dialect="native" accent="" scope="local" />
+  </Speakers>
+  <Episode>
+    <Section type="report" startTime="0.000" endTime="12.500">
+        <Turn speaker="spk1" startTime="0.000" endTime="5.200">
+          <Sync time="0.000"/>
+          First utterance by Alice
+          <Sync time="2.600"/>
+          Second utterance by Alice
+        </Turn>
+        <Turn speaker="spk2" startTime="5.200" endTime="12.500">
+          <Sync time="5.200"/>
+          Bob responds here
+          <Sync time="9.000"/>
+          Bob continues speaking
+        </Turn>
+    </Section>
+  </Episode>
+</Trans>

@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 type ConfirmDeleteDialogProps = {
   open: boolean;
   totalCount: number;
@@ -9,7 +11,7 @@ type ConfirmDeleteDialogProps = {
   onConfirm: () => void;
 };
 
-export function ConfirmDeleteDialog({
+export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
   open,
   totalCount,
   textCount,
@@ -49,4 +51,4 @@ export function ConfirmDeleteDialog({
       </div>
     </div>
   );
-}
+});

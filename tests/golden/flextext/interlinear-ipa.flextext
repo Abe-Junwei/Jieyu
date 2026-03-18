@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<document version="2">
+  <interlinear-text>
+    <paragraphs>
+      <paragraph>
+        <phrases>
+          <phrase guid="p1" begin-time-offset="0" end-time-offset="2.5">
+            <item type="txt" lang="bod">tɕʰa mo ɣa ra</item>
+            <item type="gls" lang="en">The tea is hot</item>
+            <words>
+              <word>
+                <item type="txt" lang="bod">tɕʰa</item>
+                <morphemes>
+                  <morph>
+                    <item type="txt" lang="bod">tɕʰa</item>
+                    <item type="gls" lang="en">tea</item>
+                  </morph>
+                </morphemes>
+              </word>
+              <word>
+                <item type="txt" lang="bod">mo</item>
+                <morphemes>
+                  <morph>
+                    <item type="txt" lang="bod">mo</item>
+                    <item type="gls" lang="en">NOM</item>
+                  </morph>
+                </morphemes>
+              </word>
+              <word>
+                <item type="txt" lang="bod">ɣa ra</item>
+                <morphemes>
+                  <morph>
+                    <item type="txt" lang="bod">ɣa</item>
+                    <item type="gls" lang="en">hot</item>
+                  </morph>
+                  <morph>
+                    <item type="txt" lang="bod">ra</item>
+                    <item type="gls" lang="en">COP</item>
+                  </morph>
+                </morphemes>
+              </word>
+            </words>
+          </phrase>
+          <phrase guid="p2" begin-time-offset="2.5" end-time-offset="5">
+            <item type="txt" lang="bod">ŋa joŋs pa yin</item>
+            <item type="gls" lang="en">I came</item>
+            <words>
+              <word>
+                <item type="txt" lang="bod">ŋa</item>
+                <morphemes>
+                  <morph>
+                    <item type="txt" lang="bod">ŋa</item>
+                    <item type="gls" lang="en">1SG</item>
+                  </morph>
+                </morphemes>
+              </word>
+              <word>
+                <item type="txt" lang="bod">joŋs</item>
+                <morphemes>
+                  <morph>
+                    <item type="txt" lang="bod">joŋs</item>
+                    <item type="gls" lang="en">come</item>
+                  </morph>
+                </morphemes>
+              </word>
+              <word>
+                <item type="txt" lang="bod">pa</item>
+                <morphemes>
+                  <morph>
+                    <item type="txt" lang="bod">pa</item>
+                    <item type="gls" lang="en">PST</item>
+                  </morph>
+                </morphemes>
+              </word>
+              <word>
+                <item type="txt" lang="bod">yin</item>
+                <morphemes>
+                  <morph>
+                    <item type="txt" lang="bod">yin</item>
+                    <item type="gls" lang="en">COP</item>
+                  </morph>
+                </morphemes>
+              </word>
+            </words>
+          </phrase>
+          <phrase guid="p3" begin-time-offset="5" end-time-offset="8">
+            <item type="txt" lang="bod">de ring dus tshod</item>
+            <item type="gls" lang="en">Today&apos;s time</item>
+          </phrase>
+        </phrases>
+      </paragraph>
+    </paragraphs>
+  </interlinear-text>
+</document>

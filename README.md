@@ -1,15 +1,17 @@
 # 解语 (Jieyu)
 
 解语 (Jieyu) 是一个面向濒危语言研究与协作的本地优先应用。
-当前阶段已完成核心数据层，基于 Dexie + TypeScript，按 DLx 标准建模。
+当前阶段已完成核心数据层与互操作基础，基于 Dexie + TypeScript，按 CAM-v2/DLx 方向建模。
 
 ## 当前能力
 
 - 本地数据库：Dexie (IndexedDB)
-- 数据模型：18 个集合，覆盖 DLx 关键实体
+- 数据模型：26 个集合，覆盖语料、层、词法、备注、审计与 AI 基础实体
 - 数据安全：支持全库 JSON 导出与导入（含冲突策略）
 - 数据校验：入库前使用 Zod 校验（与数据库实现解耦）
 - 代码语言：TypeScript
+- 互操作：EAF、TextGrid、FLEx、Toolbox、Transcriber 双向转换
+- 项目归档：JYM/JYT 导入导出
 
 ## 快速开始
 
@@ -48,7 +50,9 @@ npm test
 - db.ts: Dexie 实例、Zod 校验、导入导出能力
 - services/LinguisticService.ts: 数据访问服务层（数据库可替换边界）
 - services/LinguisticService.test.ts: 服务层 smoke tests
-- types/dlx.ts: DLx 业务类型导出
+- src/pages/TranscriptionPage.tsx: 主转写工作区
+- src/hooks/useTranscriptionData.ts: 转写页核心数据流与状态逻辑
+- src/services/SnapshotService.ts: 恢复快照能力
 - package.json: 项目依赖与脚本配置
 - tsconfig.json: TypeScript 配置
 
@@ -62,6 +66,41 @@ npm test
 1. 从 dev 创建功能分支
 2. 提交后发起 PR 合并回 dev
 3. 周期性从 dev 合并到 main 并打版本标签
+
+## 开发工作流（Hook 结构纪律）
+
+为避免再次出现 mega-hook，新增以下默认规则（从现在起执行）：
+
+1. 复杂度阈值
+- 单个 hook 超过 300 行，或 `useEffect/useMemo/useCallback` 总数超过 12 个时，必须拆分。
+
+2. 新功能落位规则（先分类再实现）
+- `state`：状态定义与最小 set/get。
+- `derived`：纯派生计算（`useMemo`/纯函数）。
+- `effect`：副作用与生命周期。
+- `actions`：命令型写操作（含互斥、持久化）。
+- 主编排 hook 仅负责组装，不承载具体业务细节。
+
+3. PR 检查项（必填）
+- 本次新增逻辑是否可独立 hook：`是/否`。
+- 若 `否`：给出原因（例如依赖边界未稳定、属于临时过渡）。
+- 是否触发阈值：`是/否`。
+- 若触发阈值：本 PR 内完成拆分，或附上下一 PR 的拆分承诺。
+
+4. 小步拆分节奏
+- 每次新增功能后，优先在同一迭代内完成 1 次“顺手拆分”，避免累计债务。
+- 拆分策略按“低风险切刀”：先派生，再副作用，再动作包装，最后持久化协调。
+
+5. 回归门禁
+- 任何结构性拆分必须通过：
+	- `npm run typecheck`
+	- `npm test`
+- 不通过不得合并。
+
+6. 代码评审重点
+- 是否出现 orchestrator 以外的业务逻辑集中。
+- 是否有跨层依赖倒置（例如 effect 直接操作持久化细节）。
+- 返回对象是否按 `state/derived/actions` 分组组装，便于阅读与维护。
 
 ## 版本标签
 
@@ -77,7 +116,8 @@ npm test
 ## 当前前端状态
 
 - 已完成五标签页路由骨架：转写、标注、分析、写作、词典
-- 转写页已接入 Dexie，可读取数据库名称、集合数量与基础记录数
+- 转写页为当前主工作区（含波形编辑、层管理、导入导出、备注）
+- 标注/分析/写作/词典页当前为占位实现，待逐步完善
 
 ## 数据快照规范（迁移关键）
 

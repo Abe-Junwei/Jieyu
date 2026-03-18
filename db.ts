@@ -4,6 +4,12 @@ import { z } from 'zod';
 const JIEYU_DB_NAME = 'jieyudb';
 const SNAPSHOT_SCHEMA_VERSION = 1;
 
+/**
+ * 层数量软上限（UI 警告，非硬限制）
+ * Soft limits for layer counts (UI warning, not hard limits)
+ */
+const LAYER_SOFT_LIMITS = { transcription: 5, translation: 10 } as const;
+
 interface MultiLangString {
   [languageTag: string]: string;
 }
@@ -17,6 +23,35 @@ interface AiMetadata {
   model?: string;
   generatedAt?: string;
   [key: string]: unknown;
+}
+
+type ReviewStatus = 'draft' | 'suggested' | 'confirmed' | 'rejected';
+type ActorType = 'human' | 'ai' | 'system' | 'importer';
+type CreationMethod =
+  | 'manual'
+  | 'import'
+  | 'auto-segmentation'
+  | 'auto-transcription'
+  | 'auto-gloss'
+  | 'alignment'
+  | 'projection'
+  | 'merge'
+  | 'split'
+  | 'migration';
+
+interface ProvenanceEnvelope {
+  actorType: ActorType;
+  actorId?: string;
+  method: CreationMethod;
+  taskId?: string;
+  model?: string;
+  modelVersion?: string;
+  confidence?: number;
+  createdAt: string;
+  updatedAt?: string;
+  reviewStatus?: ReviewStatus;
+  reviewedBy?: string;
+  reviewedAt?: string;
 }
 
 interface TextDocType {
@@ -41,35 +76,122 @@ interface MediaItemDocType {
   createdAt: string;
 }
 
-interface Word {
-  transcription: Transcription;
+// ── Morpheme-level annotation types ──────────────────────────────────────────
+
+/**
+ * A single morpheme within a word.
+ * Maps to FLEx morpheme entries and Toolbox \mb/\ge markers.
+ */
+interface Morpheme {
+  id?: string;
+  /** Surface form of this morpheme, keyed by orthography (e.g. 'default', 'ipa') */
+  form: Transcription;
+  /** Interlinear gloss keyed by language tag (e.g. { eng: 'run', zho: '跑' }) */
   gloss?: MultiLangString;
-  morphemes?: Array<{
-    transcription: Transcription;
-    gloss?: MultiLangString;
-  }>;
-  [key: string]: unknown;
+  /** Part-of-speech tag (Leipzig abbreviation, e.g. 'V', 'N.SG') */
+  pos?: string;
+  /** Optional link to a lexeme entry in the lexemes table */
+  lexemeId?: string;
+  /** Provenance tracking for morpheme-level edits */
+  provenance?: ProvenanceEnvelope;
+}
+
+/**
+ * A single word token within an utterance.
+ * Contains optional morpheme decomposition for interlinear glossing.
+ */
+interface UtteranceWord {
+  id?: string;
+  /** Surface form of this word, keyed by orthography */
+  form: Transcription;
+  /** Word-level interlinear gloss */
+  gloss?: MultiLangString;
+  /** Part-of-speech tag */
+  pos?: string;
+  /** Sub-word morpheme decomposition (for FLEx/Toolbox interlinear data) */
+  morphemes?: Morpheme[];
+  /** Optional link to a lexeme entry */
+  lexemeId?: string;
+  /** Provenance tracking for gloss/pos edits (who glossed this word) */
+  provenance?: ProvenanceEnvelope;
 }
 
 interface UtteranceDocType {
   id: string;
   textId: string;
   mediaId?: string;
-  transcription: Transcription;
-  translation?: MultiLangString;
-  words?: Word[];
+  /** @deprecated Use utterance_texts table instead. Kept for backward-compat reads. */
+  transcription?: Transcription;
   speaker?: string;
+  /** FK reference to speakers table (preferred over freetext `speaker` field) */
+  speakerId?: string;
   language?: string;
   startTime: number;
   endTime: number;
+  startAnchorId?: string;
+  endAnchorId?: string;
   notes?: MultiLangString;
   tags?: Record<string, boolean>;
   ai_metadata?: AiMetadata;
   aiMode?: 'AUTO' | 'SUGGEST';
-  isVerified: boolean;
+  /** @deprecated Prefer `annotationStatus === 'verified'`. Kept for UI compat. */
+  isVerified?: boolean;
+  /**
+   * Annotation depth status for coverage tracking (F16 稀疏转写).
+   * - 'raw'        : audio only, no transcription
+   * - 'transcribed': has transcription text
+   * - 'translated' : has at least one translation
+   * - 'glossed'    : has interlinear word/morpheme glosses
+   * - 'verified'   : human-reviewed and confirmed
+   */
+  annotationStatus?: 'raw' | 'transcribed' | 'translated' | 'glossed' | 'verified';
+  /**
+   * View-only cache derived from `utterance_tokens` / `utterance_morphemes`.
+   * NOT written to DB by `saveUtterance()`. Populated by the hook's read path.
+   */
+  words?: UtteranceWord[];
+  provenance?: ProvenanceEnvelope;
   accessRights?: 'open' | 'restricted' | 'confidential';
   createdAt: string;
   updatedAt: string;
+}
+
+/** Canonical token entity (v17+), independent of utterance.words cache. */
+interface UtteranceTokenDocType {
+  id: string;
+  textId: string;
+  utteranceId: string;
+  form: Transcription;
+  gloss?: MultiLangString;
+  pos?: string;
+  lexemeId?: string;
+  tokenIndex: number;
+  provenance?: ProvenanceEnvelope;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Canonical morpheme entity (v16), tied to utterance token entities. */
+interface UtteranceMorphemeDocType {
+  id: string;
+  textId: string;
+  utteranceId: string;
+  tokenId: string;
+  form: Transcription;
+  gloss?: MultiLangString;
+  pos?: string;
+  lexemeId?: string;
+  morphemeIndex: number;
+  provenance?: ProvenanceEnvelope;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface AnchorDocType {
+  id: string;
+  mediaId: string;
+  time: number;
+  createdAt: string;
 }
 
 interface Sense {
@@ -96,6 +218,7 @@ interface LexemeDocType {
   notes?: MultiLangString;
   tags?: Record<string, boolean>;
   ai_metadata?: AiMetadata;
+  provenance?: ProvenanceEnvelope;
   examples?: string[];
   usageCount?: number;
   accessRights?: 'open' | 'restricted' | 'confidential';
@@ -103,27 +226,83 @@ interface LexemeDocType {
   updatedAt: string;
 }
 
-interface AnnotationDocType {
+type TokenLexemeLinkTargetType = 'token' | 'morpheme';
+type TokenLexemeLinkRole = 'exact' | 'stem' | 'gloss_candidate' | 'manual';
+
+interface TokenLexemeLinkDocType {
   id: string;
-  textId: string;
-  annotationType: 'timespan' | 'timestamp';
-  startTime?: number;
-  endTime?: number;
-  ts?: number;
-  tags?: Record<string, boolean>;
-  notes?: MultiLangString;
-  linkedEntityId?: string;
-  accessRights?: 'open' | 'restricted' | 'confidential';
+  targetType: TokenLexemeLinkTargetType;
+  targetId: string; // utterance_tokens.id or utterance_morphemes.id
+  lexemeId: string;
+  role?: TokenLexemeLinkRole;
+  confidence?: number;
+  provenance?: ProvenanceEnvelope;
+  createdAt: string;
+  updatedAt: string;
+}
+
+type AiTaskStatus = 'pending' | 'running' | 'done' | 'failed';
+type AiTaskType = 'transcribe' | 'gloss' | 'translate' | 'embed' | 'detect_language';
+
+interface AiTaskDoc {
+  id: string;
+  taskType: AiTaskType;
+  status: AiTaskStatus;
+  targetId: string;
+  targetType?: string;
+  modelId?: string;
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+type EmbeddingSourceType = 'utterance' | 'token' | 'morpheme' | 'lexeme' | 'note' | 'pdf' | 'schema';
+
+interface EmbeddingDoc {
+  id: string;
+  sourceType: EmbeddingSourceType;
+  sourceId: string;
+  model: string;
+  modelVersion?: string;
+  contentHash: string;
+  vector: number[];
   createdAt: string;
 }
 
-interface CorpusLexiconLinkDocType {
+type AiConversationMode = 'assistant' | 'analysis' | 'review';
+
+interface AiConversationDoc {
   id: string;
-  utteranceId: string;
-  lexemeId: string;
-  wordIndex?: number;
-  confidence?: number;
+  textId?: string;
+  title: string;
+  mode: AiConversationMode;
+  providerId: string;
+  model: string;
+  archived?: boolean;
   createdAt: string;
+  updatedAt: string;
+}
+
+type AiMessageRole = 'system' | 'user' | 'assistant' | 'tool';
+type AiMessageStatus = 'streaming' | 'done' | 'error' | 'aborted';
+
+interface AiMessageCitation {
+  type: 'utterance' | 'note' | 'pdf' | 'schema';
+  refId: string;
+  label?: string;
+}
+
+interface AiMessageDoc {
+  id: string;
+  conversationId: string;
+  role: AiMessageRole;
+  content: string;
+  status: AiMessageStatus;
+  contextSnapshot?: Record<string, unknown>;
+  citations?: AiMessageCitation[];
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface LanguageDocType {
@@ -167,6 +346,10 @@ interface OrthographyDocType {
   abbreviation?: string;
   languageId?: string;
   type?: 'phonemic' | 'phonetic' | 'practical' | 'historical' | 'other';
+  /** BCP 47 script subtag (e.g. 'Latn', 'Thai', 'Deva') */
+  scriptTag?: string;
+  /** Transliteration / conversion rule definitions (F30 预留) */
+  conversionRules?: Record<string, unknown>;
   notes?: MultiLangString;
   createdAt: string;
 }
@@ -231,6 +414,7 @@ interface PhonemeDocType {
   distribution?: string;
   examples?: string[];
   notes?: MultiLangString;
+  provenance?: ProvenanceEnvelope;
   createdAt: string;
   updatedAt: string;
 }
@@ -247,6 +431,7 @@ interface TagDefinitionDocType {
 
 interface TranslationLayerDocType {
   id: string;
+  textId: string;
   key: string;
   name: MultiLangString;
   layerType: 'transcription' | 'translation';
@@ -260,16 +445,17 @@ interface TranslationLayerDocType {
   updatedAt: string;
 }
 
-interface UtteranceTranslationDocType {
+interface UtteranceTextDocType {
   id: string;
   utteranceId: string;
-  translationLayerId: string;
+  tierId: string;
   modality: 'text' | 'audio' | 'mixed';
   text?: string;
   translationAudioMediaId?: string;
   recordedBySpeakerId?: string;
   sourceType: 'human' | 'ai';
   ai_metadata?: AiMetadata;
+  provenance?: ProvenanceEnvelope;
   accessRights?: 'open' | 'restricted' | 'confidential';
   createdAt: string;
   updatedAt: string;
@@ -278,7 +464,7 @@ interface UtteranceTranslationDocType {
 interface LayerLinkDocType {
   id: string;
   transcriptionLayerKey: string;
-  translationLayerId: string;
+  tierId: string;
   linkType: 'direct' | 'free' | 'literal' | 'pedagogical';
   isPreferred: boolean;
   createdAt: string;
@@ -298,10 +484,21 @@ interface TierDefinitionDocType {
   participantId?: string;
   dataCategory?: string;
   contentType: TierContentType;
+  modality?: 'text' | 'audio' | 'mixed';
+  acceptsAudio?: boolean;
+  isDefault?: boolean;
+  accessRights?: 'open' | 'restricted' | 'confidential';
   delimiter?: string;
   sortOrder?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+/** A single annotation hypothesis with confidence score */
+interface AnnotationHypothesis {
+  value: string;
+  confidence: number;
+  source: string;
 }
 
 interface TierAnnotationDocType {
@@ -310,12 +507,21 @@ interface TierAnnotationDocType {
   parentAnnotationId?: string;
   startTime?: number;
   endTime?: number;
+  startAnchorId?: string;
+  endAnchorId?: string;
   ordinal?: number;
   value: string;
   lexemeId?: string;
   senseIndex?: number;
   speakerId?: string;
+  /** Who created this annotation (user id or agent name) */
+  createdBy?: string;
+  /** How this annotation was produced: 'manual' | 'auto-transcription' | 'import' | etc. */
+  method?: string;
+  /** Alternative hypotheses for multi-hypothesis annotation (F1 多假设标注) */
+  hypotheses?: AnnotationHypothesis[];
   ai_metadata?: AiMetadata;
+  provenance?: ProvenanceEnvelope;
   isVerified: boolean;
   createdAt: string;
   updatedAt: string;
@@ -334,6 +540,32 @@ interface AuditLogDocType {
   newValue?: string;
   source: AuditSource;
   timestamp: string;
+}
+
+type NoteTargetType =
+  | 'utterance'
+  | 'translation'
+  | 'lexeme'
+  | 'sense'
+  | 'tier_annotation'
+  | 'text'
+  | 'token'
+  | 'morpheme'
+  | 'annotation';
+
+type NoteCategory = 'comment' | 'question' | 'todo' | 'linguistic' | 'fieldwork' | 'correction';
+
+interface UserNoteDocType {
+  id: string;
+  targetType: NoteTargetType;
+  targetId: string;
+  targetIndex?: number;
+  parentTargetId?: string;
+  content: MultiLangString;
+  category?: NoteCategory;
+  provenance?: ProvenanceEnvelope;
+  createdAt: string;
+  updatedAt: string;
 }
 
 type Selector<T> = Partial<{ [K in keyof T]: T[K] }>;
@@ -357,6 +589,35 @@ const aiMetadataSchema = z
   })
   .passthrough();
 
+const reviewStatusSchema = z.enum(['draft', 'suggested', 'confirmed', 'rejected']);
+const actorTypeSchema = z.enum(['human', 'ai', 'system', 'importer']);
+const creationMethodSchema = z.enum([
+  'manual',
+  'import',
+  'auto-segmentation',
+  'auto-transcription',
+  'auto-gloss',
+  'alignment',
+  'projection',
+  'merge',
+  'split',
+  'migration',
+]);
+const provenanceSchema = z.object({
+  actorType: actorTypeSchema,
+  actorId: z.string().optional(),
+  method: creationMethodSchema,
+  taskId: z.string().optional(),
+  model: z.string().optional(),
+  modelVersion: z.string().optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema.optional(),
+  reviewStatus: reviewStatusSchema.optional(),
+  reviewedBy: z.string().optional(),
+  reviewedAt: isoDateSchema.optional(),
+});
+
 const textDocSchema = z.object({
   id: z.string().min(1),
   title: multiLangStringSchema,
@@ -379,38 +640,26 @@ const mediaItemDocSchema = z.object({
   createdAt: isoDateSchema,
 });
 
-const utteranceWordSchema = z
-  .object({
-    transcription: transcriptionSchema,
-    gloss: multiLangStringSchema.optional(),
-    morphemes: z
-      .array(
-        z.object({
-          transcription: transcriptionSchema,
-          gloss: multiLangStringSchema.optional(),
-        }),
-      )
-      .optional(),
-  })
-  .passthrough();
-
 const utteranceDocSchema = z
   .object({
     id: z.string().min(1),
     textId: z.string().min(1),
     mediaId: z.string().optional(),
-    transcription: transcriptionSchema,
-    translation: multiLangStringSchema.optional(),
-    words: z.array(utteranceWordSchema).optional(),
+    transcription: transcriptionSchema.optional(),
     speaker: z.string().optional(),
+    speakerId: z.string().min(1).optional(),
     language: z.string().optional(),
     startTime: z.number().finite(),
     endTime: z.number().finite(),
+    startAnchorId: z.string().min(1).optional(),
+    endAnchorId: z.string().min(1).optional(),
     notes: multiLangStringSchema.optional(),
     tags: z.record(z.string(), z.boolean()).optional(),
     ai_metadata: aiMetadataSchema.optional(),
     aiMode: z.enum(['AUTO', 'SUGGEST']).optional(),
-    isVerified: z.boolean(),
+    isVerified: z.boolean().optional(),
+    annotationStatus: z.enum(['raw', 'transcribed', 'translated', 'glossed', 'verified']).optional(),
+    provenance: provenanceSchema.optional(),
     accessRights: accessRightsSchema.optional(),
     createdAt: isoDateSchema,
     updatedAt: isoDateSchema,
@@ -419,6 +668,42 @@ const utteranceDocSchema = z
     message: 'endTime must be >= startTime',
     path: ['endTime'],
   });
+
+const anchorDocSchema = z.object({
+  id: z.string().min(1),
+  mediaId: z.string().min(1),
+  time: z.number().finite(),
+  createdAt: isoDateSchema,
+});
+
+const utteranceTokenDocSchema = z.object({
+  id: z.string().min(1),
+  textId: z.string().min(1),
+  utteranceId: z.string().min(1),
+  form: transcriptionSchema,
+  gloss: multiLangStringSchema.optional(),
+  pos: z.string().optional(),
+  lexemeId: z.string().min(1).optional(),
+  tokenIndex: z.number().int().min(0),
+  provenance: provenanceSchema.optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const utteranceMorphemeDocSchema = z.object({
+  id: z.string().min(1),
+  textId: z.string().min(1),
+  utteranceId: z.string().min(1),
+  tokenId: z.string().min(1),
+  form: transcriptionSchema,
+  gloss: multiLangStringSchema.optional(),
+  pos: z.string().optional(),
+  lexemeId: z.string().min(1).optional(),
+  morphemeIndex: z.number().int().min(0),
+  provenance: provenanceSchema.optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
 
 const lexemeDocSchema = z.object({
   id: z.string().min(1),
@@ -442,6 +727,7 @@ const lexemeDocSchema = z.object({
   notes: multiLangStringSchema.optional(),
   tags: z.record(z.string(), z.boolean()).optional(),
   ai_metadata: aiMetadataSchema.optional(),
+  provenance: provenanceSchema.optional(),
   examples: z.array(z.string()).optional(),
   usageCount: z.number().int().min(0).optional(),
   accessRights: accessRightsSchema.optional(),
@@ -449,27 +735,83 @@ const lexemeDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
-const annotationDocSchema = z.object({
+const tokenLexemeLinkTargetTypeSchema = z.enum(['token', 'morpheme']);
+const tokenLexemeLinkRoleSchema = z.enum(['exact', 'stem', 'gloss_candidate', 'manual']);
+
+const tokenLexemeLinkDocSchema = z.object({
   id: z.string().min(1),
-  textId: z.string().min(1),
-  annotationType: z.enum(['timespan', 'timestamp']),
-  startTime: z.number().finite().optional(),
-  endTime: z.number().finite().optional(),
-  ts: z.number().finite().optional(),
-  tags: z.record(z.string(), z.boolean()).optional(),
-  notes: multiLangStringSchema.optional(),
-  linkedEntityId: z.string().optional(),
-  accessRights: accessRightsSchema.optional(),
+  targetType: tokenLexemeLinkTargetTypeSchema,
+  targetId: z.string().min(1),
+  lexemeId: z.string().min(1),
+  role: tokenLexemeLinkRoleSchema.optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  provenance: provenanceSchema.optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const aiTaskStatusSchema = z.enum(['pending', 'running', 'done', 'failed']);
+const aiTaskTypeSchema = z.enum(['transcribe', 'gloss', 'translate', 'embed', 'detect_language']);
+
+const aiTaskDocSchema = z.object({
+  id: z.string().min(1),
+  taskType: aiTaskTypeSchema,
+  status: aiTaskStatusSchema,
+  targetId: z.string().min(1),
+  targetType: z.string().optional(),
+  modelId: z.string().optional(),
+  errorMessage: z.string().optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const embeddingSourceTypeSchema = z.enum(['utterance', 'token', 'morpheme', 'lexeme', 'note', 'pdf', 'schema']);
+
+const embeddingDocSchema = z.object({
+  id: z.string().min(1),
+  sourceType: embeddingSourceTypeSchema,
+  sourceId: z.string().min(1),
+  model: z.string().min(1),
+  modelVersion: z.string().min(1).optional(),
+  contentHash: z.string().min(1),
+  vector: z.array(z.number().finite()),
   createdAt: isoDateSchema,
 });
 
-const corpusLexiconLinkDocSchema = z.object({
+const aiConversationModeSchema = z.enum(['assistant', 'analysis', 'review']);
+
+const aiConversationDocSchema = z.object({
   id: z.string().min(1),
-  utteranceId: z.string().min(1),
-  lexemeId: z.string().min(1),
-  wordIndex: z.number().int().optional(),
-  confidence: z.number().min(0).max(1).optional(),
+  textId: z.string().min(1).optional(),
+  title: z.string().min(1),
+  mode: aiConversationModeSchema,
+  providerId: z.string().min(1),
+  model: z.string().min(1),
+  archived: z.boolean().optional(),
   createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const aiMessageRoleSchema = z.enum(['system', 'user', 'assistant', 'tool']);
+const aiMessageStatusSchema = z.enum(['streaming', 'done', 'error', 'aborted']);
+
+const aiMessageCitationSchema = z.object({
+  type: z.enum(['utterance', 'note', 'pdf', 'schema']),
+  refId: z.string().min(1),
+  label: z.string().optional(),
+});
+
+const aiMessageDocSchema = z.object({
+  id: z.string().min(1),
+  conversationId: z.string().min(1),
+  role: aiMessageRoleSchema,
+  content: z.string(),
+  status: aiMessageStatusSchema,
+  contextSnapshot: z.record(z.string(), z.unknown()).optional(),
+  citations: z.array(aiMessageCitationSchema).optional(),
+  errorMessage: z.string().optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
 });
 
 const languageDocSchema = z.object({
@@ -516,6 +858,8 @@ const orthographyDocSchema = z.object({
   abbreviation: z.string().optional(),
   languageId: z.string().optional(),
   type: z.enum(['phonemic', 'phonetic', 'practical', 'historical', 'other']).optional(),
+  scriptTag: z.string().optional(),
+  conversionRules: z.record(z.string(), z.unknown()).optional(),
   notes: multiLangStringSchema.optional(),
   createdAt: isoDateSchema,
 });
@@ -580,6 +924,7 @@ const phonemeDocSchema = z.object({
   distribution: z.string().optional(),
   examples: z.array(z.string()).optional(),
   notes: multiLangStringSchema.optional(),
+  provenance: provenanceSchema.optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });
@@ -596,6 +941,7 @@ const tagDefinitionDocSchema = z.object({
 
 const translationLayerDocSchema = z.object({
   id: z.string().min(1),
+  textId: z.string().min(1),
   key: z.string().min(1),
   name: multiLangStringSchema,
   layerType: z.enum(['transcription', 'translation']),
@@ -609,16 +955,17 @@ const translationLayerDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
-const utteranceTranslationDocSchema = z.object({
+const utteranceTextDocSchema = z.object({
   id: z.string().min(1),
   utteranceId: z.string().min(1),
-  translationLayerId: z.string().min(1),
+  tierId: z.string().min(1),
   modality: z.enum(['text', 'audio', 'mixed']),
   text: z.string().optional(),
   translationAudioMediaId: z.string().optional(),
   recordedBySpeakerId: z.string().optional(),
   sourceType: z.enum(['human', 'ai']),
   ai_metadata: aiMetadataSchema.optional(),
+  provenance: provenanceSchema.optional(),
   accessRights: accessRightsSchema.optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
@@ -638,10 +985,20 @@ const tierDefinitionDocSchema = z.object({
   participantId: z.string().optional(),
   dataCategory: z.string().optional(),
   contentType: tierContentTypeSchema,
+  modality: z.enum(['text', 'audio', 'mixed']).optional(),
+  acceptsAudio: z.boolean().optional(),
+  isDefault: z.boolean().optional(),
+  accessRights: accessRightsSchema.optional(),
   delimiter: z.string().optional(),
   sortOrder: z.number().int().optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
+});
+
+const annotationHypothesisSchema = z.object({
+  value: z.string(),
+  confidence: z.number().min(0).max(1),
+  source: z.string(),
 });
 
 const tierAnnotationDocSchema = z.object({
@@ -650,12 +1007,18 @@ const tierAnnotationDocSchema = z.object({
   parentAnnotationId: z.string().min(1).optional(),
   startTime: z.number().finite().optional(),
   endTime: z.number().finite().optional(),
+  startAnchorId: z.string().min(1).optional(),
+  endAnchorId: z.string().min(1).optional(),
   ordinal: z.number().int().min(0).optional(),
   value: z.string(),
   lexemeId: z.string().min(1).optional(),
   senseIndex: z.number().int().min(0).optional(),
   speakerId: z.string().optional(),
+  createdBy: z.string().optional(),
+  method: z.string().optional(),
+  hypotheses: z.array(annotationHypothesisSchema).optional(),
   ai_metadata: aiMetadataSchema.optional(),
+  provenance: provenanceSchema.optional(),
   isVerified: z.boolean(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
@@ -679,10 +1042,30 @@ const auditLogDocSchema = z.object({
 const layerLinkDocSchema = z.object({
   id: z.string().min(1),
   transcriptionLayerKey: z.string().min(1),
-  translationLayerId: z.string().min(1),
+  tierId: z.string().min(1),
   linkType: z.enum(['direct', 'free', 'literal', 'pedagogical']),
   isPreferred: z.boolean(),
   createdAt: isoDateSchema,
+});
+
+const noteTargetTypeSchema = z.enum([
+  'utterance', 'translation', 'lexeme',
+  'sense', 'tier_annotation', 'text',
+  'token', 'morpheme', 'annotation',
+]);
+const noteCategorySchema = z.enum(['comment', 'question', 'todo', 'linguistic', 'fieldwork', 'correction']);
+
+const userNoteDocSchema = z.object({
+  id: z.string().min(1),
+  targetType: noteTargetTypeSchema,
+  targetId: z.string().min(1),
+  targetIndex: z.number().int().min(0).optional(),
+  parentTargetId: z.string().min(1).optional(),
+  content: multiLangStringSchema,
+  category: noteCategorySchema.optional(),
+  provenance: provenanceSchema.optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
 });
 
 function wrapDoc<T extends { id: string }>(value: T): JieyuDoc<T> {
@@ -709,12 +1092,36 @@ function validateLexemeDoc(doc: LexemeDocType): void {
   lexemeDocSchema.parse(doc);
 }
 
-function validateAnnotationDoc(doc: AnnotationDocType): void {
-  annotationDocSchema.parse(doc);
+function validateAnchorDoc(doc: AnchorDocType): void {
+  anchorDocSchema.parse(doc);
 }
 
-function validateCorpusLexiconLinkDoc(doc: CorpusLexiconLinkDocType): void {
-  corpusLexiconLinkDocSchema.parse(doc);
+function validateUtteranceTokenDoc(doc: UtteranceTokenDocType): void {
+  utteranceTokenDocSchema.parse(doc);
+}
+
+function validateUtteranceMorphemeDoc(doc: UtteranceMorphemeDocType): void {
+  utteranceMorphemeDocSchema.parse(doc);
+}
+
+function validateTokenLexemeLinkDoc(doc: TokenLexemeLinkDocType): void {
+  tokenLexemeLinkDocSchema.parse(doc);
+}
+
+function validateAiTaskDoc(doc: AiTaskDoc): void {
+  aiTaskDocSchema.parse(doc);
+}
+
+function validateEmbeddingDoc(doc: EmbeddingDoc): void {
+  embeddingDocSchema.parse(doc);
+}
+
+function validateAiConversationDoc(doc: AiConversationDoc): void {
+  aiConversationDocSchema.parse(doc);
+}
+
+function validateAiMessageDoc(doc: AiMessageDoc): void {
+  aiMessageDocSchema.parse(doc);
 }
 
 function validateLanguageDoc(doc: LanguageDocType): void {
@@ -757,8 +1164,8 @@ function validateTranslationLayerDoc(doc: TranslationLayerDocType): void {
   translationLayerDocSchema.parse(doc);
 }
 
-function validateUtteranceTranslationDoc(doc: UtteranceTranslationDocType): void {
-  utteranceTranslationDocSchema.parse(doc);
+function validateUtteranceTextDoc(doc: UtteranceTextDocType): void {
+  utteranceTextDocSchema.parse(doc);
 }
 
 function validateLayerLinkDoc(doc: LayerLinkDocType): void {
@@ -775,6 +1182,10 @@ function validateTierAnnotationDoc(doc: TierAnnotationDocType): void {
 
 function validateAuditLogDoc(doc: AuditLogDocType): void {
   auditLogDocSchema.parse(doc);
+}
+
+function validateUserNoteDoc(doc: UserNoteDocType): void {
+  userNoteDocSchema.parse(doc);
 }
 
 class DexieCollectionAdapter<T extends { id: string }> {
@@ -804,6 +1215,16 @@ class DexieCollectionAdapter<T extends { id: string }> {
     };
   }
 
+  async findByIndex(indexName: string, value: string | number): Promise<Array<JieyuDoc<T>>> {
+    const rows = await this.table.where(indexName).equals(value).toArray();
+    return rows.map((row) => wrapDoc(row));
+  }
+
+  async findByIndexAnyOf(indexName: string, values: readonly (string | number)[]): Promise<Array<JieyuDoc<T>>> {
+    const rows = await this.table.where(indexName).anyOf([...values]).toArray();
+    return rows.map((row) => wrapDoc(row));
+  }
+
   async insert(doc: T): Promise<JieyuDoc<T>> {
     if (this.validate) {
       this.validate(doc);
@@ -814,6 +1235,13 @@ class DexieCollectionAdapter<T extends { id: string }> {
 
   async remove(id: string): Promise<void> {
     await this.table.delete(id);
+  }
+
+  async bulkInsert(docs: T[]): Promise<void> {
+    if (this.validate) {
+      for (const doc of docs) this.validate(doc);
+    }
+    await this.table.bulkPut(docs);
   }
 
   async removeBySelector(selector: Selector<T>): Promise<number> {
@@ -831,15 +1259,162 @@ class DexieCollectionAdapter<T extends { id: string }> {
   }
 }
 
-type CollectionAdapter<T extends { id: string }> = DexieCollectionAdapter<T>;
+type CollectionAdapter<T extends { id: string }> = {
+  find: () => { exec: () => Promise<Array<JieyuDoc<T>>> };
+  findOne: (args: { selector: Selector<T> }) => { exec: () => Promise<JieyuDoc<T> | null> };
+  findByIndex: (indexName: string, value: string | number) => Promise<Array<JieyuDoc<T>>>;
+  findByIndexAnyOf: (indexName: string, values: readonly (string | number)[]) => Promise<Array<JieyuDoc<T>>>;
+  insert: (doc: T) => Promise<JieyuDoc<T>>;
+  remove: (id: string) => Promise<void>;
+  bulkInsert: (docs: T[]) => Promise<void>;
+  removeBySelector: (selector: Selector<T>) => Promise<number>;
+};
+
+const BRIDGE_TIER_PREFIX = 'bridge_';
+
+function isBridgeLayerTier(tier: TierDefinitionDocType): boolean {
+  return tier.key.startsWith(BRIDGE_TIER_PREFIX)
+    && (tier.contentType === 'transcription' || tier.contentType === 'translation');
+}
+
+function bridgeTierToLayer(tier: TierDefinitionDocType): TranslationLayerDocType | null {
+  if (!isBridgeLayerTier(tier)) return null;
+  return {
+    id: tier.id,
+    textId: tier.textId,
+    key: tier.key.slice(BRIDGE_TIER_PREFIX.length),
+    name: tier.name,
+    layerType: tier.contentType as 'transcription' | 'translation',
+    languageId: tier.languageId ?? '',
+    modality: tier.modality ?? 'text',
+    ...(tier.acceptsAudio !== undefined && { acceptsAudio: tier.acceptsAudio }),
+    ...(tier.isDefault !== undefined && { isDefault: tier.isDefault }),
+    ...(tier.sortOrder !== undefined && { sortOrder: tier.sortOrder }),
+    ...(tier.accessRights !== undefined && { accessRights: tier.accessRights }),
+    createdAt: tier.createdAt,
+    updatedAt: tier.updatedAt,
+  };
+}
+
+function layerToBridgeTier(layer: TranslationLayerDocType): TierDefinitionDocType {
+  return {
+    id: layer.id,
+    textId: layer.textId,
+    key: `${BRIDGE_TIER_PREFIX}${layer.key}`,
+    name: layer.name,
+    tierType: 'time-aligned',
+    languageId: layer.languageId,
+    contentType: layer.layerType,
+    modality: layer.modality,
+    ...(layer.acceptsAudio !== undefined && { acceptsAudio: layer.acceptsAudio }),
+    ...(layer.isDefault !== undefined && { isDefault: layer.isDefault }),
+    ...(layer.accessRights !== undefined && { accessRights: layer.accessRights }),
+    ...(layer.sortOrder !== undefined && { sortOrder: layer.sortOrder }),
+    createdAt: layer.createdAt,
+    updatedAt: layer.updatedAt,
+  };
+}
+
+class TierBackedLayerCollectionAdapter implements CollectionAdapter<TranslationLayerDocType> {
+  constructor(
+    private readonly tierTable: Table<TierDefinitionDocType, string>,
+    private readonly validate?: (doc: TranslationLayerDocType) => void,
+  ) {}
+
+  private async loadLayers(): Promise<TranslationLayerDocType[]> {
+    const tiers = await this.tierTable.toArray();
+    return tiers
+      .map((tier) => bridgeTierToLayer(tier))
+      .filter((layer): layer is TranslationLayerDocType => Boolean(layer));
+  }
+
+  find() {
+    return {
+      exec: async (): Promise<Array<JieyuDoc<TranslationLayerDocType>>> => {
+        const rows = await this.loadLayers();
+        return rows.map((row) => wrapDoc(row));
+      },
+    };
+  }
+
+  findOne(args: { selector: Selector<TranslationLayerDocType> }) {
+    return {
+      exec: async (): Promise<JieyuDoc<TranslationLayerDocType> | null> => {
+        const rows = await this.loadLayers();
+        const entries = Object.entries(args.selector) as Array<[keyof TranslationLayerDocType, unknown]>;
+        const found = rows.find((row) => entries.every(([key, expected]) => row[key] === expected));
+        return found ? wrapDoc(found) : null;
+      },
+    };
+  }
+
+  async findByIndex(indexName: string, value: string | number): Promise<Array<JieyuDoc<TranslationLayerDocType>>> {
+    if (indexName === 'textId') {
+      const rows = await this.tierTable.where('textId').equals(String(value)).toArray();
+      return rows
+        .map((row) => bridgeTierToLayer(row))
+        .filter((row): row is TranslationLayerDocType => Boolean(row))
+        .map((row) => wrapDoc(row));
+    }
+
+    const rows = await this.loadLayers();
+    return rows
+      .filter((row) => (row as unknown as Record<string, unknown>)[indexName] === value)
+      .map((row) => wrapDoc(row));
+  }
+
+  async findByIndexAnyOf(indexName: string, values: readonly (string | number)[]): Promise<Array<JieyuDoc<TranslationLayerDocType>>> {
+    const collected: TranslationLayerDocType[] = [];
+    for (const value of values) {
+      const docs = await this.findByIndex(indexName, value);
+      collected.push(...docs.map((doc) => doc.toJSON()));
+    }
+    const dedup = new Map(collected.map((item) => [item.id, item]));
+    return [...dedup.values()].map((row) => wrapDoc(row));
+  }
+
+  async insert(doc: TranslationLayerDocType): Promise<JieyuDoc<TranslationLayerDocType>> {
+    if (this.validate) this.validate(doc);
+    await this.tierTable.put(layerToBridgeTier(doc));
+    return wrapDoc(doc);
+  }
+
+  async remove(id: string): Promise<void> {
+    await this.tierTable.delete(id);
+  }
+
+  async bulkInsert(docs: TranslationLayerDocType[]): Promise<void> {
+    if (this.validate) {
+      for (const doc of docs) this.validate(doc);
+    }
+    await this.tierTable.bulkPut(docs.map((doc) => layerToBridgeTier(doc)));
+  }
+
+  async removeBySelector(selector: Selector<TranslationLayerDocType>): Promise<number> {
+    const rows = await this.loadLayers();
+    const entries = Object.entries(selector) as Array<[keyof TranslationLayerDocType, unknown]>;
+    const ids = rows
+      .filter((row) => entries.every(([key, expected]) => row[key] === expected))
+      .map((row) => row.id);
+    if (ids.length === 0) return 0;
+    await this.tierTable.bulkDelete(ids);
+    return ids.length;
+  }
+}
 
 type JieyuCollections = {
   texts: CollectionAdapter<TextDocType>;
   media_items: CollectionAdapter<MediaItemDocType>;
   utterances: CollectionAdapter<UtteranceDocType>;
+  utterance_tokens: CollectionAdapter<UtteranceTokenDocType>;
+  utterance_morphemes: CollectionAdapter<UtteranceMorphemeDocType>;
+  anchors: CollectionAdapter<AnchorDocType>;
   lexemes: CollectionAdapter<LexemeDocType>;
-  annotations: CollectionAdapter<AnnotationDocType>;
-  corpus_lexicon_links: CollectionAdapter<CorpusLexiconLinkDocType>;
+  token_lexeme_links: CollectionAdapter<TokenLexemeLinkDocType>;
+  ai_tasks: CollectionAdapter<AiTaskDoc>;
+  embeddings: CollectionAdapter<EmbeddingDoc>;
+  ai_conversations: CollectionAdapter<AiConversationDoc>;
+  ai_messages: CollectionAdapter<AiMessageDoc>;
   languages: CollectionAdapter<LanguageDocType>;
   speakers: CollectionAdapter<SpeakerDocType>;
   orthographies: CollectionAdapter<OrthographyDocType>;
@@ -850,15 +1425,17 @@ type JieyuCollections = {
   phonemes: CollectionAdapter<PhonemeDocType>;
   tag_definitions: CollectionAdapter<TagDefinitionDocType>;
   translation_layers: CollectionAdapter<TranslationLayerDocType>;
-  utterance_translations: CollectionAdapter<UtteranceTranslationDocType>;
+  utterance_texts: CollectionAdapter<UtteranceTextDocType>;
   layer_links: CollectionAdapter<LayerLinkDocType>;
   tier_definitions: CollectionAdapter<TierDefinitionDocType>;
   tier_annotations: CollectionAdapter<TierAnnotationDocType>;
   audit_logs: CollectionAdapter<AuditLogDocType>;
+  user_notes: CollectionAdapter<UserNoteDocType>;
 };
 
 type JieyuDatabase = {
   name: string;
+  dexie: JieyuDexie;
   collections: JieyuCollections;
   close: () => Promise<void>;
 };
@@ -882,9 +1459,15 @@ class JieyuDexie extends Dexie {
   texts!: Table<TextDocType, string>;
   media_items!: Table<MediaItemDocType, string>;
   utterances!: Table<UtteranceDocType, string>;
+  utterance_tokens!: Table<UtteranceTokenDocType, string>;
+  utterance_morphemes!: Table<UtteranceMorphemeDocType, string>;
+  anchors!: Table<AnchorDocType, string>;
   lexemes!: Table<LexemeDocType, string>;
-  annotations!: Table<AnnotationDocType, string>;
-  corpus_lexicon_links!: Table<CorpusLexiconLinkDocType, string>;
+  token_lexeme_links!: Table<TokenLexemeLinkDocType, string>;
+  ai_tasks!: Table<AiTaskDoc, string>;
+  embeddings!: Table<EmbeddingDoc, string>;
+  ai_conversations!: Table<AiConversationDoc, string>;
+  ai_messages!: Table<AiMessageDoc, string>;
   languages!: Table<LanguageDocType, string>;
   speakers!: Table<SpeakerDocType, string>;
   orthographies!: Table<OrthographyDocType, string>;
@@ -894,12 +1477,12 @@ class JieyuDexie extends Dexie {
   abbreviations!: Table<AbbreviationDocType, string>;
   phonemes!: Table<PhonemeDocType, string>;
   tag_definitions!: Table<TagDefinitionDocType, string>;
-  translation_layers!: Table<TranslationLayerDocType, string>;
-  utterance_translations!: Table<UtteranceTranslationDocType, string>;
+  utterance_texts!: Table<UtteranceTextDocType, string>;
   layer_links!: Table<LayerLinkDocType, string>;
   tier_definitions!: Table<TierDefinitionDocType, string>;
   tier_annotations!: Table<TierAnnotationDocType, string>;
   audit_logs!: Table<AuditLogDocType, string>;
+  user_notes!: Table<UserNoteDocType, string>;
 
   constructor(name: string) {
     super(name);
@@ -951,6 +1534,389 @@ class JieyuDexie extends Dexie {
       tier_annotations: 'id, tierId, parentAnnotationId, startTime, endTime',
       audit_logs: 'id, collection, documentId, action, timestamp',
     });
+
+    this.version(3).stores({
+      texts: 'id, updatedAt, languageCode',
+      media_items: 'id, textId, createdAt',
+      utterances: 'id, textId, mediaId, [textId+mediaId], [mediaId+startTime], [textId+startTime], startTime, updatedAt',
+      lexemes: 'id, updatedAt',
+      annotations: 'id, textId, createdAt',
+      corpus_lexicon_links: 'id, utteranceId, lexemeId',
+      languages: 'id, updatedAt',
+      speakers: 'id, updatedAt',
+      orthographies: 'id, languageId',
+      locations: 'id, country, region',
+      bibliographic_sources: 'id, citationKey',
+      grammar_docs: 'id, updatedAt, parentId',
+      abbreviations: 'id, abbreviation',
+      phonemes: 'id, languageId, type',
+      tag_definitions: 'id, key',
+      translation_layers: 'id, key, languageId, updatedAt, layerType',
+      utterance_translations: 'id, utteranceId, translationLayerId, [utteranceId+translationLayerId], updatedAt',
+      layer_links: 'id, transcriptionLayerKey, translationLayerId',
+      tier_definitions: 'id, textId, key, parentTierId, tierType',
+      tier_annotations: 'id, tierId, parentAnnotationId, startTime, endTime',
+      audit_logs: 'id, collection, documentId, action, timestamp',
+    });
+
+    this.version(4).stores({
+      tier_annotations: 'id, tierId, parentAnnotationId, [tierId+startTime], startTime, endTime',
+      audit_logs: 'id, collection, documentId, [collection+action], action, timestamp',
+    });
+
+    this.version(5).stores({
+      user_notes: 'id, [targetType+targetId], [targetId+targetIndex], updatedAt',
+    });
+
+    this.version(6).stores({
+      anchors: 'id, mediaId, [mediaId+time], time',
+    }).upgrade(async (tx: any) => {
+      const utterancesTable = tx.table('utterances');
+      const anchorsTable = tx.table('anchors');
+      const allUtterances: UtteranceDocType[] = await utterancesTable.toArray();
+
+      if (allUtterances.length === 0) return;
+
+      const now = new Date().toISOString();
+      let anchorCounter = 0;
+
+      const anchorsToInsert: AnchorDocType[] = [];
+      const utterancesToUpdate: UtteranceDocType[] = [];
+
+      for (const u of allUtterances) {
+        const mediaId = u.mediaId ?? '';
+        const startAnchorId = `anc_${Date.now()}_${++anchorCounter}`;
+        const endAnchorId = `anc_${Date.now()}_${++anchorCounter}`;
+        anchorsToInsert.push(
+          { id: startAnchorId, mediaId, time: u.startTime, createdAt: now },
+          { id: endAnchorId, mediaId, time: u.endTime, createdAt: now },
+        );
+        utterancesToUpdate.push({
+          ...u,
+          startAnchorId,
+          endAnchorId,
+        });
+      }
+
+      await anchorsTable.bulkPut(anchorsToInsert);
+      await utterancesTable.bulkPut(utterancesToUpdate);
+    });
+
+    this.version(7).stores({
+      corpus_lexicon_links: 'id, utteranceId, lexemeId, annotationId',
+    }).upgrade(async (tx: any) => {
+      const linksTable = tx.table('corpus_lexicon_links');
+      const allLinks = await linksTable.toArray();
+      if (allLinks.length === 0) return;
+      const updated = allLinks.map((link: any) => {
+        const { wordIndex, ...rest } = link;
+        return rest;
+      });
+      await linksTable.bulkPut(updated);
+    });
+
+    this.version(8).stores({
+      tier_annotations: 'id, tierId, parentAnnotationId, [tierId+startTime], startTime, endTime, startAnchorId, endAnchorId',
+    });
+
+    this.version(9).stores({
+      annotations: null,
+    });
+
+    // v10: Rename utterance_translations → utterance_texts + strip deprecated transcription cache
+    this.version(10).stores({
+      utterance_translations: null,
+      utterance_texts: 'id, utteranceId, translationLayerId, [utteranceId+translationLayerId], updatedAt',
+    }).upgrade(async (tx: any) => {
+      // 1. Copy all rows from old table to new table
+      const oldTable = tx.table('utterance_translations');
+      const newTable = tx.table('utterance_texts');
+      const allRows = await oldTable.toArray();
+      if (allRows.length > 0) {
+        await newTable.bulkPut(allRows);
+      }
+
+      // 2. Migrate utterance.transcription.default → utterance_texts if not yet present
+      const utterancesTable = tx.table('utterances');
+      const allUtterances: UtteranceDocType[] = await utterancesTable.toArray();
+
+      for (const utt of allUtterances) {
+        const defaultText = utt.transcription?.['default'];
+        if (!defaultText) continue;
+
+        // Check if there's already an utterance_text for the default transcription layer
+        const existing = await newTable.where('[utteranceId+translationLayerId]').equals([utt.id, 'default']).first();
+        if (!existing) {
+          const now = new Date().toISOString();
+          await newTable.put({
+            id: `ut_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            utteranceId: utt.id,
+            translationLayerId: 'default',
+            modality: 'text',
+            text: defaultText,
+            sourceType: 'human',
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+      }
+
+      // 3. Strip transcription field from utterances
+      const cleaned = allUtterances.map(({ transcription, ...rest }) => rest);
+      if (cleaned.length > 0) {
+        await utterancesTable.bulkPut(cleaned);
+      }
+    });
+
+    // v11: Add textId to translation_layers (scope layers per text)
+    this.version(11).stores({
+      translation_layers: 'id, textId, key, languageId, updatedAt, layerType',
+    }).upgrade(async (tx: any) => {
+      const layersTable = tx.table('translation_layers');
+      const allLayers = await layersTable.toArray();
+      if (allLayers.length === 0) return;
+
+      // Find textId from utterances or texts
+      const utterancesTable = tx.table('utterances');
+      const firstUtt = await utterancesTable.toCollection().first();
+      let textId = firstUtt?.textId;
+
+      if (!textId) {
+        const textsTable = tx.table('texts');
+        const firstText = await textsTable.toCollection().first();
+        textId = firstText?.id;
+      }
+
+      if (!textId) return; // No text in DB — layers will need manual fix
+
+      const updated = allLayers.map((layer: any) => ({ ...layer, textId }));
+      await layersTable.bulkPut(updated);
+    });
+
+    // v12: Fully merge layer system into tier_definitions and remove translation_layers table
+    this.version(12).stores({
+      translation_layers: null,
+      tier_definitions: 'id, textId, key, parentTierId, tierType, contentType',
+    }).upgrade(async (tx: any) => {
+      const layersTable = tx.table('translation_layers');
+      const tiersTable = tx.table('tier_definitions');
+      const annotationsTable = tx.table('tier_annotations');
+
+      const layers: TranslationLayerDocType[] = await layersTable.toArray();
+      if (layers.length === 0) return;
+
+      for (const layer of layers) {
+        const bridgeKey = `${BRIDGE_TIER_PREFIX}${layer.key}`;
+        const existingTier = await tiersTable
+          .filter((t: TierDefinitionDocType) => t.textId === layer.textId && t.key === bridgeKey)
+          .first();
+
+        const mergedTier: TierDefinitionDocType = {
+          ...(existingTier ?? {
+            tierType: 'time-aligned',
+            contentType: layer.layerType,
+            createdAt: layer.createdAt,
+          }),
+          id: layer.id,
+          textId: layer.textId,
+          key: bridgeKey,
+          name: layer.name,
+          languageId: layer.languageId,
+          contentType: layer.layerType,
+          modality: layer.modality,
+          acceptsAudio: layer.acceptsAudio,
+          isDefault: layer.isDefault,
+          accessRights: layer.accessRights,
+          sortOrder: layer.sortOrder,
+          createdAt: existingTier?.createdAt ?? layer.createdAt,
+          updatedAt: layer.updatedAt,
+        };
+
+        await tiersTable.put(mergedTier);
+
+        if (existingTier && existingTier.id !== layer.id) {
+          const oldTierId = existingTier.id;
+
+          const tierAnnotations = await annotationsTable.where('tierId').equals(oldTierId).toArray();
+          if (tierAnnotations.length > 0) {
+            await annotationsTable.bulkPut(
+              tierAnnotations.map((ann: TierAnnotationDocType) => ({ ...ann, tierId: layer.id })),
+            );
+          }
+
+          const childTiers = await tiersTable.where('parentTierId').equals(oldTierId).toArray();
+          if (childTiers.length > 0) {
+            await tiersTable.bulkPut(
+              childTiers.map((tier: TierDefinitionDocType) => ({ ...tier, parentTierId: layer.id })),
+            );
+          }
+
+          await tiersTable.delete(oldTierId);
+        }
+      }
+    });
+
+    // v13: CAM-Lite morpheme-level data model.
+    // Adds optional fields to utterances (no index change except speakerId):
+    //   - speakerId: FK reference to speakers table (replaces freetext `speaker`)
+    //   - annotationStatus: coverage depth enum
+    //   - words: UtteranceWord[] with optional Morpheme[] nested structure
+    this.version(13).stores({
+      utterances: 'id, textId, startTime, updatedAt, speakerId',
+    });
+    // No upgrade hook needed — new fields are optional and default to undefined.
+    // Existing utterances remain valid; speakerId index is populated on next save.
+
+    // v14: Schema expansion — F1 schema补全 + 多假设标注 + F29 user_notes扩展
+    // - OrthographyDocType: +scriptTag, +conversionRules (F30 预留)
+    // - TierAnnotationDocType: +createdBy, +method (provenance), +hypotheses[] (多假设标注)
+    // - NoteTargetType: +'word'|'morpheme'|'annotation'
+    // - NoteCategory: +'linguistic'|'fieldwork'|'correction'
+    // All new fields are optional — no index changes, no upgrade hook needed.
+    this.version(14).stores({});
+
+    // v15: Phase A/B foundation — provenance envelope + stable word/morpheme ids.
+    this.version(15).stores({}).upgrade(async (tx: any) => {
+      const utterancesTable = tx.table('utterances');
+      const allUtterances: UtteranceDocType[] = await utterancesTable.toArray();
+      if (allUtterances.length === 0) return;
+
+      let changed = false;
+      let wordCounter = 0;
+      let morphCounter = 0;
+      const nowPart = Date.now();
+
+      const updatedUtterances = allUtterances.map((utterance) => {
+        if (!Array.isArray(utterance.words) || utterance.words.length === 0) return utterance;
+
+        let utteranceChanged = false;
+        const nextWords = utterance.words.map((word) => {
+          const nextWordId = typeof word.id === 'string' && word.id.length > 0
+            ? word.id
+            : `tok_${nowPart}_${++wordCounter}`;
+          if (nextWordId !== word.id) utteranceChanged = true;
+
+          const nextMorphemes = Array.isArray(word.morphemes)
+            ? word.morphemes.map((morpheme) => {
+              const nextMorphId = typeof morpheme.id === 'string' && morpheme.id.length > 0
+                ? morpheme.id
+                : `morph_${nowPart}_${++morphCounter}`;
+              if (nextMorphId !== morpheme.id) utteranceChanged = true;
+              return {
+                ...morpheme,
+                id: nextMorphId,
+              };
+            })
+            : word.morphemes;
+
+          return {
+            ...word,
+            id: nextWordId,
+            ...(Array.isArray(nextMorphemes) ? { morphemes: nextMorphemes } : {}),
+          };
+        });
+
+        if (!utteranceChanged) return utterance;
+        changed = true;
+        return {
+          ...utterance,
+          words: nextWords,
+        };
+      });
+
+      if (changed) {
+        await utterancesTable.bulkPut(updatedUtterances);
+      }
+    });
+
+    // v16: canonical token/morpheme entities for stable word-level operations.
+    this.version(16).stores({
+      utterance_tokens: 'id, textId, utteranceId, [utteranceId+tokenIndex], lexemeId',
+      utterance_morphemes: 'id, textId, utteranceId, tokenId, [tokenId+morphemeIndex], lexemeId',
+    }).upgrade(async (tx: any) => {
+      const utterancesTable = tx.table('utterances');
+      const tokensTable = tx.table('utterance_tokens');
+      const morphemesTable = tx.table('utterance_morphemes');
+      const allUtterances: UtteranceDocType[] = await utterancesTable.toArray();
+      if (allUtterances.length === 0) return;
+
+      const nextTokens: UtteranceTokenDocType[] = [];
+      const nextMorphemes: UtteranceMorphemeDocType[] = [];
+      let tokenCounter = 0;
+      let morphemeCounter = 0;
+      const nowSeed = Date.now();
+
+      for (const utterance of allUtterances) {
+        if (!Array.isArray(utterance.words) || utterance.words.length === 0) continue;
+        const createdAt = utterance.createdAt;
+        const updatedAt = utterance.updatedAt;
+
+        for (let wi = 0; wi < utterance.words.length; wi++) {
+          const word = utterance.words[wi]!;
+          const tokenId = `tokv16_${nowSeed}_${++tokenCounter}`;
+
+          nextTokens.push({
+            id: tokenId,
+            textId: utterance.textId,
+            utteranceId: utterance.id,
+            form: word.form,
+            ...(word.gloss ? { gloss: word.gloss } : {}),
+            ...(word.pos ? { pos: word.pos } : {}),
+            ...(word.lexemeId ? { lexemeId: word.lexemeId } : {}),
+            tokenIndex: wi,
+            ...(word.provenance ? { provenance: word.provenance } : {}),
+            createdAt,
+            updatedAt,
+          });
+
+          if (!Array.isArray(word.morphemes) || word.morphemes.length === 0) continue;
+          for (let mi = 0; mi < word.morphemes.length; mi++) {
+            const morpheme = word.morphemes[mi]!;
+            const morphemeId = `morphv16_${nowSeed}_${++morphemeCounter}`;
+            nextMorphemes.push({
+              id: morphemeId,
+              textId: utterance.textId,
+              utteranceId: utterance.id,
+              tokenId,
+              form: morpheme.form,
+              ...(morpheme.gloss ? { gloss: morpheme.gloss } : {}),
+              ...(morpheme.pos ? { pos: morpheme.pos } : {}),
+              ...(morpheme.lexemeId ? { lexemeId: morpheme.lexemeId } : {}),
+              morphemeIndex: mi,
+              ...(morpheme.provenance ? { provenance: morpheme.provenance } : {}),
+              createdAt,
+              updatedAt,
+            });
+          }
+        }
+      }
+
+      if (nextTokens.length > 0) await tokensTable.bulkPut(nextTokens);
+      if (nextMorphemes.length > 0) await morphemesTable.bulkPut(nextMorphemes);
+    });
+
+    // v17: CAM-v2 naming + token-level links + ai/embedding foundational tables.
+    this.version(17).stores({
+      utterance_tokens: 'id, textId, utteranceId, [utteranceId+tokenIndex], lexemeId',
+      utterance_morphemes: 'id, textId, utteranceId, tokenId, [tokenId+morphemeIndex], lexemeId',
+      utterance_texts: 'id, utteranceId, tierId, [utteranceId+tierId], updatedAt',
+      corpus_lexicon_links: null,
+      token_lexeme_links: 'id, [targetType+targetId], lexemeId, [lexemeId+targetType]',
+      layer_links: 'id, transcriptionLayerKey, tierId',
+      ai_tasks: 'id, taskType, status, targetId, createdAt, updatedAt',
+      embeddings: 'id, sourceType, sourceId, model, contentHash, createdAt',
+    });
+
+    // v18: AI conversation persistence for chat panel.
+    this.version(18).stores({
+      ai_conversations: 'id, textId, updatedAt, archived',
+      ai_messages: 'id, conversationId, [conversationId+createdAt], status, updatedAt',
+    });
+
+    // v19: index optimization for recent AI tool decision logs.
+    this.version(19).stores({
+      audit_logs: 'id, collection, documentId, [collection+action], action, timestamp, [collection+field+timestamp]',
+    });
   }
 }
 
@@ -978,12 +1944,21 @@ async function _createDb(): Promise<JieyuDatabase> {
     texts: new DexieCollectionAdapter(dexie.texts, validateTextDoc),
     media_items: new DexieCollectionAdapter(dexie.media_items, validateMediaItemDoc),
     utterances: new DexieCollectionAdapter(dexie.utterances, validateUtteranceDoc),
+    utterance_tokens: new DexieCollectionAdapter(dexie.utterance_tokens, validateUtteranceTokenDoc),
+    utterance_morphemes: new DexieCollectionAdapter(dexie.utterance_morphemes, validateUtteranceMorphemeDoc),
+    anchors: new DexieCollectionAdapter(dexie.anchors, validateAnchorDoc),
     lexemes: new DexieCollectionAdapter(dexie.lexemes, validateLexemeDoc),
-    annotations: new DexieCollectionAdapter(dexie.annotations, validateAnnotationDoc),
-    corpus_lexicon_links: new DexieCollectionAdapter(
-      dexie.corpus_lexicon_links,
-      validateCorpusLexiconLinkDoc,
+    token_lexeme_links: new DexieCollectionAdapter(
+      dexie.token_lexeme_links,
+      validateTokenLexemeLinkDoc,
     ),
+    ai_tasks: new DexieCollectionAdapter(dexie.ai_tasks, validateAiTaskDoc),
+    embeddings: new DexieCollectionAdapter(dexie.embeddings, validateEmbeddingDoc),
+    ai_conversations: new DexieCollectionAdapter(
+      dexie.ai_conversations,
+      validateAiConversationDoc,
+    ),
+    ai_messages: new DexieCollectionAdapter(dexie.ai_messages, validateAiMessageDoc),
     languages: new DexieCollectionAdapter(dexie.languages, validateLanguageDoc),
     speakers: new DexieCollectionAdapter(dexie.speakers, validateSpeakerDoc),
     orthographies: new DexieCollectionAdapter(dexie.orthographies, validateOrthographyDoc),
@@ -999,22 +1974,24 @@ async function _createDb(): Promise<JieyuDatabase> {
       dexie.tag_definitions,
       validateTagDefinitionDoc,
     ),
-    translation_layers: new DexieCollectionAdapter(
-      dexie.translation_layers,
+    translation_layers: new TierBackedLayerCollectionAdapter(
+      dexie.tier_definitions,
       validateTranslationLayerDoc,
     ),
-    utterance_translations: new DexieCollectionAdapter(
-      dexie.utterance_translations,
-      validateUtteranceTranslationDoc,
+    utterance_texts: new DexieCollectionAdapter(
+      dexie.utterance_texts,
+      validateUtteranceTextDoc,
     ),
     layer_links: new DexieCollectionAdapter(dexie.layer_links, validateLayerLinkDoc),
     tier_definitions: new DexieCollectionAdapter(dexie.tier_definitions, validateTierDefinitionDoc),
     tier_annotations: new DexieCollectionAdapter(dexie.tier_annotations, validateTierAnnotationDoc),
     audit_logs: new DexieCollectionAdapter(dexie.audit_logs, validateAuditLogDoc),
+    user_notes: new DexieCollectionAdapter(dexie.user_notes, validateUserNoteDoc),
   };
 
   return {
     name: dexie.name,
+    dexie,
     collections,
     close: async () => {
       dexie.close();
@@ -1108,9 +2085,15 @@ const knownCollectionNames = [
   'texts',
   'media_items',
   'utterances',
+  'utterance_tokens',
+  'utterance_morphemes',
+  'anchors',
   'lexemes',
-  'annotations',
-  'corpus_lexicon_links',
+  'token_lexeme_links',
+  'ai_tasks',
+  'embeddings',
+  'ai_conversations',
+  'ai_messages',
   'languages',
   'speakers',
   'orthographies',
@@ -1121,22 +2104,29 @@ const knownCollectionNames = [
   'phonemes',
   'tag_definitions',
   'translation_layers',
-  'utterance_translations',
+  'utterance_texts',
   'layer_links',
   'tier_definitions',
   'tier_annotations',
   'audit_logs',
+  'user_notes',
 ] as const;
 
 type KnownCollectionName = (typeof knownCollectionNames)[number];
 
-const tableByCollection: Record<KnownCollectionName, Table<{ id: string }, string>> = {
+const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string }, string>>> = {
   texts: db.texts,
   media_items: db.media_items,
   utterances: db.utterances,
+  utterance_tokens: db.utterance_tokens,
+  utterance_morphemes: db.utterance_morphemes,
+  anchors: db.anchors,
   lexemes: db.lexemes,
-  annotations: db.annotations,
-  corpus_lexicon_links: db.corpus_lexicon_links,
+  token_lexeme_links: db.token_lexeme_links,
+  ai_tasks: db.ai_tasks,
+  embeddings: db.embeddings,
+  ai_conversations: db.ai_conversations,
+  ai_messages: db.ai_messages,
   languages: db.languages,
   speakers: db.speakers,
   orthographies: db.orthographies,
@@ -1146,21 +2136,27 @@ const tableByCollection: Record<KnownCollectionName, Table<{ id: string }, strin
   abbreviations: db.abbreviations,
   phonemes: db.phonemes,
   tag_definitions: db.tag_definitions,
-  translation_layers: db.translation_layers,
-  utterance_translations: db.utterance_translations,
+  utterance_texts: db.utterance_texts,
   layer_links: db.layer_links,
   tier_definitions: db.tier_definitions,
   tier_annotations: db.tier_annotations,
   audit_logs: db.audit_logs,
+  user_notes: db.user_notes,
 };
 
 const validatorByCollection: Record<KnownCollectionName, (value: unknown) => void> = {
   texts: (value) => validateTextDoc(value as TextDocType),
   media_items: (value) => validateMediaItemDoc(value as MediaItemDocType),
   utterances: (value) => validateUtteranceDoc(value as UtteranceDocType),
+  utterance_tokens: (value) => validateUtteranceTokenDoc(value as UtteranceTokenDocType),
+  utterance_morphemes: (value) => validateUtteranceMorphemeDoc(value as UtteranceMorphemeDocType),
+  anchors: (value) => validateAnchorDoc(value as AnchorDocType),
   lexemes: (value) => validateLexemeDoc(value as LexemeDocType),
-  annotations: (value) => validateAnnotationDoc(value as AnnotationDocType),
-  corpus_lexicon_links: (value) => validateCorpusLexiconLinkDoc(value as CorpusLexiconLinkDocType),
+  token_lexeme_links: (value) => validateTokenLexemeLinkDoc(value as TokenLexemeLinkDocType),
+  ai_tasks: (value) => validateAiTaskDoc(value as AiTaskDoc),
+  embeddings: (value) => validateEmbeddingDoc(value as EmbeddingDoc),
+  ai_conversations: (value) => validateAiConversationDoc(value as AiConversationDoc),
+  ai_messages: (value) => validateAiMessageDoc(value as AiMessageDoc),
   languages: (value) => validateLanguageDoc(value as LanguageDocType),
   speakers: (value) => validateSpeakerDoc(value as SpeakerDocType),
   orthographies: (value) => validateOrthographyDoc(value as OrthographyDocType),
@@ -1171,20 +2167,141 @@ const validatorByCollection: Record<KnownCollectionName, (value: unknown) => voi
   phonemes: (value) => validatePhonemeDoc(value as PhonemeDocType),
   tag_definitions: (value) => validateTagDefinitionDoc(value as TagDefinitionDocType),
   translation_layers: (value) => validateTranslationLayerDoc(value as TranslationLayerDocType),
-  utterance_translations: (value) =>
-    validateUtteranceTranslationDoc(value as UtteranceTranslationDocType),
+  utterance_texts: (value) =>
+    validateUtteranceTextDoc(value as UtteranceTextDocType),
   layer_links: (value) => validateLayerLinkDoc(value as LayerLinkDocType),
   tier_definitions: (value) => validateTierDefinitionDoc(value as TierDefinitionDocType),
   tier_annotations: (value) => validateTierAnnotationDoc(value as TierAnnotationDocType),
   audit_logs: (value) => validateAuditLogDoc(value as AuditLogDocType),
+  user_notes: (value) => validateUserNoteDoc(value as UserNoteDocType),
 };
+
+function ensureImportProvenance<T extends { provenance?: ProvenanceEnvelope; createdAt?: string }>(
+  doc: T,
+  fallbackCreatedAt: string,
+): T {
+  if (doc.provenance) return doc;
+  return {
+    ...doc,
+    provenance: {
+      actorType: 'importer',
+      method: 'import',
+      createdAt: doc.createdAt ?? fallbackCreatedAt,
+    },
+  };
+}
+
+function normalizeImportedUtteranceDoc(doc: UtteranceDocType, fallbackCreatedAt: string): UtteranceDocType {
+  const normalizedWords = doc.words?.map((word, wi) => {
+    const wordId = word.id ?? `${doc.id}_w${wi + 1}`;
+    const normalizedMorphemes = word.morphemes?.map((morpheme, mi) => {
+      const morphemeId = morpheme.id ?? `${wordId}_m${mi + 1}`;
+      return ensureImportProvenance({ ...morpheme, id: morphemeId }, fallbackCreatedAt);
+    });
+
+    return ensureImportProvenance(
+      {
+        ...word,
+        id: wordId,
+        ...(normalizedMorphemes ? { morphemes: normalizedMorphemes } : {}),
+      },
+      fallbackCreatedAt,
+    );
+  });
+
+  return ensureImportProvenance(
+    {
+      ...doc,
+      ...(normalizedWords ? { words: normalizedWords } : {}),
+    },
+    fallbackCreatedAt,
+  );
+}
+
+function normalizeImportedDoc(collectionName: KnownCollectionName, doc: unknown, fallbackCreatedAt: string): unknown {
+  if (!doc || typeof doc !== 'object') return doc;
+
+  switch (collectionName) {
+    case 'utterances':
+      return normalizeImportedUtteranceDoc(doc as UtteranceDocType, fallbackCreatedAt);
+    case 'utterance_tokens':
+      return ensureImportProvenance(doc as UtteranceTokenDocType, fallbackCreatedAt);
+    case 'utterance_morphemes':
+      return ensureImportProvenance(doc as UtteranceMorphemeDocType, fallbackCreatedAt);
+    case 'utterance_texts':
+      return ensureImportProvenance(doc as UtteranceTextDocType, fallbackCreatedAt);
+    case 'tier_annotations':
+      return ensureImportProvenance(doc as TierAnnotationDocType, fallbackCreatedAt);
+    case 'user_notes':
+      return ensureImportProvenance(doc as UserNoteDocType, fallbackCreatedAt);
+    case 'lexemes':
+      return ensureImportProvenance(doc as LexemeDocType, fallbackCreatedAt);
+    case 'token_lexeme_links':
+      return ensureImportProvenance(doc as TokenLexemeLinkDocType, fallbackCreatedAt);
+    case 'phonemes':
+      return ensureImportProvenance(doc as PhonemeDocType, fallbackCreatedAt);
+    default:
+      return doc;
+  }
+}
+
+async function pruneOrphanUserNotes(): Promise<number> {
+  const notes = await db.user_notes.toArray();
+  if (notes.length === 0) return 0;
+
+  const utteranceIds = new Set<string>();
+  const textIds = new Set<string>();
+  const lexemeIds = new Set<string>();
+  const annotationIds = new Set<string>();
+  const tokenIds = new Set<string>();
+  const morphemeIds = new Set<string>();
+
+  for (const note of notes) {
+    if (note.targetType === 'utterance') utteranceIds.add(note.targetId);
+    if (note.targetType === 'text') textIds.add(note.targetId);
+    if (note.targetType === 'lexeme') lexemeIds.add(note.targetId);
+    if (note.targetType === 'tier_annotation' && !note.targetId.includes('::')) annotationIds.add(note.targetId);
+    if (note.targetType === 'token') tokenIds.add(note.targetId);
+    if (note.targetType === 'morpheme') morphemeIds.add(note.targetId);
+  }
+
+  const existingUtteranceIds = new Set((await db.utterances.bulkGet([...utteranceIds])).flatMap((d) => (d?.id ? [d.id] : [])));
+  const existingTextIds = new Set((await db.texts.bulkGet([...textIds])).flatMap((d) => (d?.id ? [d.id] : [])));
+  const existingLexemeIds = new Set((await db.lexemes.bulkGet([...lexemeIds])).flatMap((d) => (d?.id ? [d.id] : [])));
+  const existingAnnotationIds = new Set((await db.tier_annotations.bulkGet([...annotationIds])).flatMap((d) => (d?.id ? [d.id] : [])));
+  const existingTokenIds = new Set((await db.utterance_tokens.bulkGet([...tokenIds])).flatMap((d) => (d?.id ? [d.id] : [])));
+  const existingMorphemeIds = new Set((await db.utterance_morphemes.bulkGet([...morphemeIds])).flatMap((d) => (d?.id ? [d.id] : [])));
+
+  const orphanIds: string[] = [];
+  for (const note of notes) {
+    if (note.targetType === 'utterance' && !existingUtteranceIds.has(note.targetId)) orphanIds.push(note.id);
+    if (note.targetType === 'text' && !existingTextIds.has(note.targetId)) orphanIds.push(note.id);
+    if (note.targetType === 'lexeme' && !existingLexemeIds.has(note.targetId)) orphanIds.push(note.id);
+    if (note.targetType === 'tier_annotation' && !note.targetId.includes('::') && !existingAnnotationIds.has(note.targetId)) {
+      orphanIds.push(note.id);
+    }
+    if (note.targetType === 'token' && !existingTokenIds.has(note.targetId)) orphanIds.push(note.id);
+    if (note.targetType === 'morpheme' && !existingMorphemeIds.has(note.targetId)) orphanIds.push(note.id);
+  }
+
+  if (orphanIds.length > 0) {
+    await db.user_notes.bulkDelete(orphanIds);
+  }
+
+  return orphanIds.length;
+}
 
 export async function importDatabaseFromJson(
   input: unknown,
   options?: { strategy?: ImportConflictStrategy },
 ): Promise<ImportResult> {
   const strategy = options?.strategy ?? 'upsert';
-  const parsedRaw = typeof input === 'string' ? JSON.parse(input) : input;
+  let parsedRaw: unknown;
+  try {
+    parsedRaw = typeof input === 'string' ? JSON.parse(input) : input;
+  } catch (e) {
+    throw new Error(`Invalid JSON input: ${e instanceof Error ? e.message : 'unknown parse error'}`);
+  }
   const snapshot = databaseSnapshotSchema.parse(parsedRaw);
 
   if (snapshot.schemaVersion > SNAPSHOT_SCHEMA_VERSION) {
@@ -1199,6 +2316,7 @@ export async function importDatabaseFromJson(
     collections: {},
     ignoredCollections: [],
   };
+  const importStartedAt = result.importedAt;
 
   for (const [name, docs] of Object.entries(snapshot.collections)) {
     if (!knownCollectionNames.includes(name as KnownCollectionName)) {
@@ -1207,7 +2325,58 @@ export async function importDatabaseFromJson(
     }
 
     const collectionName = name as KnownCollectionName;
+    if (collectionName === 'translation_layers') {
+      const collection = (await getDb()).collections.translation_layers;
+      let written = 0;
+      let skipped = 0;
+
+      if (strategy === 'replace-all') {
+        const existing = await collection.find().exec();
+        for (const row of existing) {
+          await collection.remove(row.primary);
+        }
+      }
+
+      const normalizedDocs = docs.map((doc) => normalizeImportedDoc(collectionName, doc, importStartedAt));
+
+      for (const doc of normalizedDocs) {
+        const candidate = doc as { id?: unknown };
+        if (typeof candidate.id !== 'string' || candidate.id.trim() === '') {
+          throw new Error(`Invalid doc in ${collectionName}: missing non-empty id`);
+        }
+        validatorByCollection[collectionName](doc);
+      }
+
+      if (strategy === 'skip-existing') {
+        for (const doc of normalizedDocs as TranslationLayerDocType[]) {
+          const existing = await collection.findOne({ selector: { id: doc.id } }).exec();
+          if (existing) {
+            skipped += 1;
+            continue;
+          }
+          await collection.insert(doc);
+          written += 1;
+        }
+      } else {
+        for (const doc of normalizedDocs as TranslationLayerDocType[]) {
+          await collection.insert(doc);
+          written += 1;
+        }
+      }
+
+      result.collections[collectionName] = {
+        received: docs.length,
+        written,
+        skipped,
+      };
+      continue;
+    }
+
     const table = tableByCollection[collectionName];
+    if (!table) {
+      result.ignoredCollections.push(collectionName);
+      continue;
+    }
     const validate = validatorByCollection[collectionName];
     let written = 0;
     let skipped = 0;
@@ -1216,7 +2385,9 @@ export async function importDatabaseFromJson(
       await table.clear();
     }
 
-    for (const doc of docs) {
+    const normalizedDocs = docs.map((doc) => normalizeImportedDoc(collectionName, doc, importStartedAt));
+
+    for (const doc of normalizedDocs) {
       const candidate = doc as { id?: unknown };
       if (typeof candidate.id !== 'string' || candidate.id.trim() === '') {
         throw new Error(`Invalid doc in ${collectionName}: missing non-empty id`);
@@ -1236,14 +2407,14 @@ export async function importDatabaseFromJson(
     }
 
     if (strategy === 'skip-existing') {
-      const existingDocs = await table.bulkGet(docs.map((d) => (d as { id: string }).id));
-      const toInsert = docs.filter((_, i) => !existingDocs[i]);
-      skipped = docs.length - toInsert.length;
+      const existingDocs = await table.bulkGet(normalizedDocs.map((d) => (d as { id: string }).id));
+      const toInsert = normalizedDocs.filter((_, i) => !existingDocs[i]);
+      skipped = normalizedDocs.length - toInsert.length;
       if (toInsert.length > 0) await table.bulkPut(toInsert as Array<{ id: string }>);
       written = toInsert.length;
     } else {
-      if (docs.length > 0) await table.bulkPut(docs as Array<{ id: string }>);
-      written = docs.length;
+      if (normalizedDocs.length > 0) await table.bulkPut(normalizedDocs as Array<{ id: string }>);
+      written = normalizedDocs.length;
     }
 
     result.collections[collectionName] = {
@@ -1252,6 +2423,8 @@ export async function importDatabaseFromJson(
       skipped,
     };
   }
+
+  await pruneOrphanUserNotes();
 
   return result;
 }
@@ -1265,9 +2438,24 @@ export type {
   TextDocType,
   MediaItemDocType,
   UtteranceDocType,
+  UtteranceTokenDocType,
+  UtteranceMorphemeDocType,
+  AnchorDocType,
   LexemeDocType,
-  AnnotationDocType,
-  CorpusLexiconLinkDocType,
+  TokenLexemeLinkDocType,
+  TokenLexemeLinkTargetType,
+  TokenLexemeLinkRole,
+  AiTaskDoc,
+  AiTaskStatus,
+  AiTaskType,
+  EmbeddingDoc,
+  EmbeddingSourceType,
+  AiConversationDoc,
+  AiConversationMode,
+  AiMessageDoc,
+  AiMessageRole,
+  AiMessageStatus,
+  AiMessageCitation,
   LanguageDocType,
   SpeakerDocType,
   OrthographyDocType,
@@ -1278,16 +2466,28 @@ export type {
   PhonemeDocType,
   TagDefinitionDocType,
   TranslationLayerDocType,
-  UtteranceTranslationDocType,
+  UtteranceTextDocType,
   LayerLinkDocType,
   TierDefinitionDocType,
   TierAnnotationDocType,
+  AnnotationHypothesis,
   TierType,
   TierContentType,
   AuditLogDocType,
+  UserNoteDocType,
+  NoteTargetType,
+  NoteCategory,
   AuditAction,
   AuditSource,
   AiMetadata,
+  ReviewStatus,
+  ActorType,
+  CreationMethod,
+  ProvenanceEnvelope,
   MultiLangString,
   Transcription,
+  Morpheme,
+  UtteranceWord,
 };
+
+export { LAYER_SOFT_LIMITS };

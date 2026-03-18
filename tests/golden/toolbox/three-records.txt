@@ -1,0 +1,26 @@
+\ref rec1
+\ts 0.000
+\te 2.000
+\tx tɕʰa mo
+\mb tɕʰa mo
+\ge tea NOM
+\ps N PRT
+\ft 茶
+
+\ref rec2
+\ts 2.000
+\te 4.500
+\tx ŋa joŋs pa yin
+\mb ŋa joŋs pa yin
+\ge 1SG come PST COP
+\ps PRO V PTCL COP
+\ft 我来了
+
+\ref rec3
+\ts 4.500
+\te 7.000
+\tx de ring
+\mb de ring
+\ge this day
+\ps DEM N
+\ft 今天

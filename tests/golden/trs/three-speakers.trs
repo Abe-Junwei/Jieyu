@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Trans SYSTEM "trans-14.dtd">
+<Trans scribe="golden-test" audio_filename="conversation.wav" version="6" version_date="2026-01-01">
+  <Speakers>
+    <Speaker id="spk1" name="Elder Dawa" check="no" dialect="native" accent="" scope="local"/>
+    <Speaker id="spk2" name="Researcher Li" check="no" dialect="" accent="" scope="local"/>
+    <Speaker id="spk3" name="Translator Tenzin" check="no" dialect="native" accent="" scope="local"/>
+  </Speakers>
+  <Episode>
+    <Section type="report" startTime="0.000" endTime="15.000">
+      <Turn speaker="spk2" startTime="0.000" endTime="4.000">
+        <Sync time="0.000"/>
+        请讲一下你的家乡
+        <Sync time="2.000"/>
+        你从哪里来
+      </Turn>
+      <Turn speaker="spk1" startTime="4.000" endTime="9.000">
+        <Sync time="4.000"/>
+        ŋa bod ljongs nas yin
+        <Sync time="6.500"/>
+        pha yul ri bo chen po yod
+      </Turn>
+      <Turn speaker="spk3" startTime="9.000" endTime="12.000">
+        <Sync time="9.000"/>
+        他说他来自藏区
+        <Sync time="10.500"/>
+        家乡有大山
+      </Turn>
+      <Turn speaker="spk1" startTime="12.000" endTime="15.000">
+        <Sync time="12.000"/>
+        chu bo yaŋ yod red
+      </Turn>
+    </Section>
+  </Episode>
+</Trans>

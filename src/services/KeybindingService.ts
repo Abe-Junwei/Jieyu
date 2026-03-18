@@ -26,8 +26,9 @@ export interface KeybindingEntry {
 export const DEFAULT_KEYBINDINGS: KeybindingEntry[] = [
   // Global (active even when an input is focused)
   { id: 'undo',          label: '撤销',         defaultKey: 'mod+z',          scope: 'global',   category: 'editing' },
-  { id: 'redo',          label: '重做',         defaultKey: 'mod+shift+z',    scope: 'global',   category: 'editing' },
+  { id: 'redo',          label: '重做',         defaultKey: 'mod+shift+z|mod+y', scope: 'global',   category: 'editing' },
   { id: 'search',        label: '搜索替换',     defaultKey: 'mod+f',          scope: 'global',   category: 'view' },
+  { id: 'toggleNotes',   label: '切换备注面板', defaultKey: 'mod+shift+n',    scope: 'global',   category: 'view' },
 
   // Waveform (only when waveform area is focused, not in text inputs)
   { id: 'playPause',     label: '播放/暂停',    defaultKey: 'space',          scope: 'waveform', category: 'playback' },

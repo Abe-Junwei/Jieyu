@@ -572,6 +572,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   return {
     waveformRef,
     instanceRef,
+    regionHandlesRef,
     isReady,
     isPlaying,
     currentTime,
