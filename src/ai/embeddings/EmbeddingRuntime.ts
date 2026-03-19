@@ -155,7 +155,16 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
 
   private postRequest(request: WorkerRequest, onProgress?: (progress: EmbeddingRuntimeProgress) => void): Promise<WorkerResultMessage> {
     return new Promise<WorkerResultMessage>((resolve, reject) => {
-      this.pending.set(request.requestId, onProgress ? { resolve, reject, onProgress } : { resolve, reject });
+      const timer = setTimeout(() => {
+        if (this.pending.delete(request.requestId)) {
+          reject(new Error(`Embedding request timed out after 60s (${request.requestId})`));
+        }
+      }, 60_000);
+      const wrappedResolve = (value: WorkerResultMessage) => { clearTimeout(timer); resolve(value); };
+      const wrappedReject = (reason?: unknown) => { clearTimeout(timer); reject(reason); };
+      this.pending.set(request.requestId, onProgress
+        ? { resolve: wrappedResolve, reject: wrappedReject, onProgress }
+        : { resolve: wrappedResolve, reject: wrappedReject });
       this.worker.postMessage(request);
     });
   }

@@ -125,8 +125,8 @@ async function createTransformerExtractor(modelId: string, requestId: string): P
   };
 }
 
-async function ensureExtractor(modelId: string, requestId: string): Promise<ExtractorState> {
-  if (cachedExtractor && cachedModelId === modelId) {
+async function ensureExtractor(modelId: string, requestId: string, forceRetry = false): Promise<ExtractorState> {
+  if (cachedExtractor && cachedModelId === modelId && !(forceRetry && cachedDegraded)) {
     return {
       extractor: cachedExtractor,
       degraded: cachedDegraded,
@@ -161,7 +161,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
     const request = event.data;
 
     try {
-      const extractorState = await ensureExtractor(request.modelId, request.requestId);
+      const extractorState = await ensureExtractor(request.modelId, request.requestId, request.type === 'preload');
       const extractor = extractorState.extractor;
 
       if (request.type === 'preload') {

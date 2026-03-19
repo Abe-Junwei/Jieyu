@@ -1,10 +1,20 @@
-import { getDb, type AiTaskDoc, type EmbeddingDoc, type EmbeddingSourceType } from '../../../db';
+import { getDb, type EmbeddingDoc, type EmbeddingSourceType } from '../../../db';
 import {
   WorkerEmbeddingRuntime,
   type EmbeddingRuntime,
   type EmbeddingRuntimeOptions,
   type EmbeddingRuntimeProgress,
 } from './EmbeddingRuntime';
+import { TaskRunner } from '../tasks/TaskRunner';
+import { getGlobalTaskRunner } from '../tasks/taskRunnerSingleton';
+import {
+  buildPdfEmbeddingSourceId,
+  extractPdfDetailsPatch,
+  extractPdfTextFragments,
+  extractPdfTextFragmentsFromSource,
+  isPdfMediaItem,
+  splitPdfFragmentsToChunks,
+} from './pdfTextUtils';
 
 export interface EmbeddingBuildSource {
   sourceType: EmbeddingSourceType;
@@ -24,6 +34,7 @@ export interface BuildEmbeddingsOptions {
   modelVersion?: string;
   batchSize?: number;
   retries?: number;
+  chunkSizeChars?: number;
   onProgress?: (progress: EmbeddingBuildProgress) => void;
 }
 
@@ -44,10 +55,6 @@ const DEFAULT_BATCH_SIZE = 8;
 
 function nowIso(): string {
   return new Date().toISOString();
-}
-
-function newTaskId(): string {
-  return `task_embed_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function normalizeBatchSize(input: number | undefined): number {
@@ -89,22 +96,85 @@ function chunkArray<T>(input: T[], batchSize: number): T[][] {
   return chunks;
 }
 
-function createTask(taskId: string, modelId: string): AiTaskDoc {
-  const timestamp = nowIso();
-  return {
-    id: taskId,
-    taskType: 'embed',
-    status: 'running',
-    targetId: 'embeddings',
-    targetType: 'batch',
-    modelId,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-}
-
 export class EmbeddingService {
-  constructor(private readonly runtime: EmbeddingRuntime = new WorkerEmbeddingRuntime()) {}
+  constructor(
+    private readonly runtime: EmbeddingRuntime = new WorkerEmbeddingRuntime(),
+    private readonly taskRunner: TaskRunner = getGlobalTaskRunner(),
+  ) {}
+
+  /**
+   * 从 user_notes 表拉取全部笔记并向量化 | Vectorize all user notes from the user_notes table.
+   * 自动过滤无文字内容的笔记 | Skips notes with empty text.
+   */
+  async buildNotesEmbeddings(options?: BuildEmbeddingsOptions): Promise<BuildEmbeddingsResult> {
+    const db = await getDb();
+    const noteRows = await db.collections.user_notes.find().exec();
+    const sources: EmbeddingBuildSource[] = [];
+    for (const row of noteRows) {
+      const note = row.toJSON();
+      // MultiLangString: prefer 'und' → 'en' → first available key | 优先取 'und'，其次 'en'，最后第一个非空值
+      const content = note.content as Record<string, string>;
+      const text = (content['und'] ?? content['en'] ?? Object.values(content).find((v) => v.trim()) ?? '').trim();
+      if (!text) continue;
+      sources.push({ sourceType: 'note', sourceId: note.id, text });
+    }
+    return this.buildEmbeddings(sources, options);
+  }
+
+  /**
+   * 从 media_items 抽取 PDF 文本并向量化 | Build PDF embeddings from media_items extracted text fields.
+   */
+  async buildPdfEmbeddings(options?: BuildEmbeddingsOptions): Promise<BuildEmbeddingsResult> {
+    const db = await getDb();
+    const mediaRows = await db.collections.media_items.find().exec();
+    const chunkSizeChars = Number.isFinite(options?.chunkSizeChars)
+      ? Math.max(160, Math.floor(options?.chunkSizeChars ?? 720))
+      : 720;
+
+    const sources: EmbeddingBuildSource[] = [];
+    for (const row of mediaRows) {
+      const media = row.toJSON();
+      if (!isPdfMediaItem(media)) continue;
+
+      const details = media.details as Record<string, unknown> | undefined;
+      const preExtracted = extractPdfTextFragments(details);
+      let fragments = preExtracted;
+      if (fragments.length === 0) {
+        try {
+          fragments = await extractPdfTextFragmentsFromSource(details);
+          if (fragments.length > 0) {
+            const patch = await extractPdfDetailsPatch(details);
+            if (patch) {
+              await db.collections.media_items.insert({
+                ...media,
+                details: {
+                  ...(details ?? {}),
+                  extractedText: patch.extractedText,
+                  pages: patch.pages,
+                  extractor: patch.extractor,
+                  extractedAt: patch.extractedAt,
+                },
+              });
+            }
+          }
+        } catch {
+          // 跳过无法解析的 PDF，避免中断整批任务 | Skip unreadable PDFs to keep batch embedding resilient.
+          fragments = [];
+        }
+      }
+      const chunks = splitPdfFragmentsToChunks(fragments, chunkSizeChars);
+      for (const chunk of chunks) {
+        if (!chunk.text.trim()) continue;
+        sources.push({
+          sourceType: 'pdf',
+          sourceId: buildPdfEmbeddingSourceId(media.id, chunk.page, chunk.chunk),
+          text: chunk.text,
+        });
+      }
+    }
+
+    return this.buildEmbeddings(sources, options);
+  }
 
   async buildEmbeddings(
     sources: EmbeddingBuildSource[],
@@ -114,20 +184,41 @@ export class EmbeddingService {
     const modelVersion = options?.modelVersion ?? DEFAULT_MODEL_VERSION;
     const batchSize = normalizeBatchSize(options?.batchSize);
     const retries = normalizeRetries(options?.retries);
-    const taskId = newTaskId();
+    const enqueued = await this.taskRunner.enqueue<BuildEmbeddingsResult>({
+      taskType: 'embed',
+      targetId: 'embeddings',
+      targetType: 'batch',
+      modelId,
+      maxAttempts: 1,
+      run: async ({ taskId }) => this.executeBuild(taskId, sources, {
+        ...options,
+        modelId,
+        modelVersion,
+        batchSize,
+        retries,
+      }),
+    });
+
+    return enqueued.result;
+  }
+
+  terminate(): void {
+    this.runtime.terminate();
+  }
+
+  private async executeBuild(
+    taskId: string,
+    sources: EmbeddingBuildSource[],
+    options: Required<Pick<BuildEmbeddingsOptions, 'modelId' | 'modelVersion' | 'batchSize' | 'retries'>> & BuildEmbeddingsOptions,
+  ): Promise<BuildEmbeddingsResult> {
+    const modelId = options.modelId;
+    const modelVersion = options.modelVersion;
     const total = sources.length;
     const startedAt = Date.now();
-
     const db = await getDb();
-    await db.collections.ai_tasks.insert(createTask(taskId, modelId));
 
     if (total === 0) {
-      await db.collections.ai_tasks.insert({
-        ...(await this.requireTask(db, taskId)),
-        status: 'done',
-        updatedAt: nowIso(),
-      });
-      options?.onProgress?.({ stage: 'done', processed: 0, total: 0 });
+      options.onProgress?.({ stage: 'done', processed: 0, total: 0 });
       return {
         taskId,
         total: 0,
@@ -140,13 +231,13 @@ export class EmbeddingService {
       };
     }
 
-    options?.onProgress?.({ stage: 'preparing', processed: 0, total });
+    options.onProgress?.({ stage: 'preparing', processed: 0, total });
 
     const runtimeOptions: EmbeddingRuntimeOptions = {
       modelId,
-      retries,
+      retries: options.retries,
       onProgress: (progress) => {
-        options?.onProgress?.({
+        options.onProgress?.({
           stage: 'running',
           processed: 0,
           total,
@@ -158,110 +249,78 @@ export class EmbeddingService {
     let generated = 0;
     let skipped = 0;
 
-    try {
-      await this.runtime.preload(runtimeOptions);
+    await this.runtime.preload(runtimeOptions);
 
-      const batches = chunkArray(sources, batchSize);
-      let processed = 0;
-      let batchElapsedSum = 0;
+    const batches = chunkArray(sources, options.batchSize);
+    let processed = 0;
+    let batchElapsedSum = 0;
 
-      for (const batch of batches) {
-        const batchStartedAt = Date.now();
-        const batchTexts = batch.map((item) => normalizeSourceText(item.text));
-        const vectors = await this.runtime.embed(batchTexts, runtimeOptions);
+    for (const batch of batches) {
+      const batchStartedAt = Date.now();
+      const batchTexts = batch.map((item) => normalizeSourceText(item.text));
+      const vectors = await this.runtime.embed(batchTexts, runtimeOptions);
 
-        options?.onProgress?.({ stage: 'persisting', processed, total });
+      options.onProgress?.({ stage: 'persisting', processed: processed + batch.length, total });
 
-        const batchIds = batch.map((source) => (
-          buildEmbeddingId(source.sourceType, source.sourceId, modelId, modelVersion)
-        ));
-        const existingRows = await db.collections.embeddings.findByIndexAnyOf('id', batchIds);
-        const existingHashById = new Map<string, string>(
-          existingRows.map((row) => {
-            const item = row.toJSON();
-            return [item.id, item.contentHash] as const;
-          }),
-        );
+      const batchIds = batch.map((source) => (
+        buildEmbeddingId(source.sourceType, source.sourceId, modelId, modelVersion)
+      ));
+      const existingRows = await db.collections.embeddings.findByIndexAnyOf('id', batchIds);
+      const existingHashById = new Map<string, string>(
+        existingRows.map((row) => {
+          const item = row.toJSON();
+          return [item.id, item.contentHash] as const;
+        }),
+      );
 
-        const upserts: EmbeddingDoc[] = [];
-        for (let i = 0; i < batch.length; i += 1) {
-          const source = batch[i];
-          if (!source) continue;
+      const upserts: EmbeddingDoc[] = [];
+      for (let i = 0; i < batch.length; i += 1) {
+        const source = batch[i];
+        if (!source) continue;
 
-          const normalizedText = batchTexts[i] ?? '';
-          const vector = vectors[i] ?? [];
-          const id = buildEmbeddingId(source.sourceType, source.sourceId, modelId, modelVersion);
-          const contentHash = buildContentHash(normalizedText, modelId, modelVersion);
-          const existingHash = existingHashById.get(id);
-          if (existingHash && existingHash === contentHash) {
-            skipped += 1;
-            continue;
-          }
-
-          upserts.push({
-            id,
-            sourceType: source.sourceType,
-            sourceId: source.sourceId,
-            model: modelId,
-            modelVersion,
-            contentHash,
-            vector,
-            createdAt: nowIso(),
-          });
+        const normalizedText = batchTexts[i] ?? '';
+        const vector = vectors[i] ?? [];
+        const id = buildEmbeddingId(source.sourceType, source.sourceId, modelId, modelVersion);
+        const contentHash = buildContentHash(normalizedText, modelId, modelVersion);
+        const existingHash = existingHashById.get(id);
+        if (existingHash && existingHash === contentHash) {
+          skipped += 1;
+          continue;
         }
 
-        if (upserts.length > 0) {
-          await db.collections.embeddings.bulkInsert(upserts);
-          generated += upserts.length;
-        }
-
-        processed += batch.length;
-        batchElapsedSum += Date.now() - batchStartedAt;
-        options?.onProgress?.({ stage: 'running', processed, total });
+        upserts.push({
+          id,
+          sourceType: source.sourceType,
+          sourceId: source.sourceId,
+          model: modelId,
+          modelVersion,
+          contentHash,
+          vector,
+          createdAt: nowIso(),
+        });
       }
 
-      await db.collections.ai_tasks.insert({
-        ...(await this.requireTask(db, taskId)),
-        status: 'done',
-        updatedAt: nowIso(),
-      });
+      if (upserts.length > 0) {
+        await db.collections.embeddings.bulkInsert(upserts);
+        generated += upserts.length;
+      }
 
-      options?.onProgress?.({ stage: 'done', processed: total, total });
-
-      return {
-        taskId,
-        total,
-        generated,
-        skipped,
-        modelId,
-        modelVersion,
-        elapsedMs: Date.now() - startedAt,
-        averageBatchMs: batches.length > 0 ? Math.round(batchElapsedSum / batches.length) : 0,
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Embedding build failed';
-      await db.collections.ai_tasks.insert({
-        ...(await this.requireTask(db, taskId)),
-        status: 'failed',
-        errorMessage: message,
-        updatedAt: nowIso(),
-      });
-      throw error;
+      processed += batch.length;
+      batchElapsedSum += Date.now() - batchStartedAt;
+      options.onProgress?.({ stage: 'running', processed, total });
     }
-  }
 
-  terminate(): void {
-    this.runtime.terminate();
-  }
+    options.onProgress?.({ stage: 'done', processed: total, total });
 
-  private async requireTask(
-    db: Awaited<ReturnType<typeof getDb>>,
-    taskId: string,
-  ): Promise<AiTaskDoc> {
-    const task = await db.collections.ai_tasks.findOne({ selector: { id: taskId } }).exec();
-    if (!task) {
-      throw new Error(`AI task not found: ${taskId}`);
-    }
-    return task.toJSON();
+    return {
+      taskId,
+      total,
+      generated,
+      skipped,
+      modelId,
+      modelVersion,
+      elapsedMs: Date.now() - startedAt,
+      averageBatchMs: batches.length > 0 ? Math.round(batchElapsedSum / batches.length) : 0,
+    };
   }
 }
