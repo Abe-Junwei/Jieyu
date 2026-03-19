@@ -1,0 +1,76 @@
+/**
+ * GroqSttProvider — Groq Cloud STT (free tier available).
+ *
+ * Uses Groq's OpenAI-compatible API for Whisper transcription.
+ * Groq free tier includes 14,400 seconds/month of audio.
+ * Endpoint: POST https://api.groq.com/openai/v1/audio/transcriptions
+ *
+ * Note: Groq API key starts with 'gsk_'.
+ */
+
+import type { CommercialSttProvider, SttResult } from '../VoiceInputService';
+
+export interface GroqSttProviderConfig {
+  apiKey: string;
+  model?: string;   // defaults to 'whisper-large-v3'
+}
+
+/** Map BCP-47 to ISO 639-1 for Groq language parameter */
+function toIso639_1(bcp47: string): string {
+  return (bcp47.split('-')[0] ?? bcp47).toLowerCase();
+}
+
+export class GroqSttProvider implements CommercialSttProvider {
+  readonly label = 'Groq Whisper (免费)';
+  private readonly config: Required<Omit<GroqSttProviderConfig, 'model'>> & { model: string };
+
+  constructor(config: GroqSttProviderConfig) {
+    this.config = {
+      apiKey: config.apiKey,
+      model: config.model ?? 'whisper-large-v3',
+    };
+  }
+
+  async isAvailable(): Promise<boolean> {
+    if (!this.config.apiKey) return false;
+    try {
+      const resp = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: { Authorization: `Bearer ${this.config.apiKey}` },
+      });
+      return resp.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  async transcribe(audioBlob: Blob, lang: string): Promise<SttResult> {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'recording.webm');
+    formData.append('model', this.config.model);
+
+    const langCode = toIso639_1(lang);
+    if (langCode) formData.append('language', langCode);
+
+    const resp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${this.config.apiKey}` },
+      body: formData,
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw new Error(`Groq STT failed: ${resp.status} ${text}`);
+    }
+
+    const json = await resp.json() as { text?: string };
+
+    return {
+      text: json.text ?? '',
+      lang,
+      isFinal: true,
+      confidence: 1.0,
+      engine: 'commercial',
+      audioBlob,
+    };
+  }
+}
