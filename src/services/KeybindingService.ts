@@ -18,7 +18,7 @@ export interface KeybindingEntry {
   label: string;
   defaultKey: KeyCombo;
   scope: ActionScope;
-  category: 'playback' | 'editing' | 'navigation' | 'view';
+  category: 'playback' | 'editing' | 'navigation' | 'view' | 'voice';
 }
 
 // ---- Default keymap ----
@@ -45,6 +45,9 @@ export const DEFAULT_KEYBINDINGS: KeybindingEntry[] = [
   { id: 'navNext',       label: '下一个句段',   defaultKey: 'arrowright',     scope: 'waveform', category: 'navigation' },
   { id: 'tabNext',       label: 'Tab 播放下一个', defaultKey: 'tab',          scope: 'waveform', category: 'navigation' },
   { id: 'tabPrev',       label: 'Tab 播放上一个', defaultKey: 'shift+tab',    scope: 'waveform', category: 'navigation' },
+
+  // Voice agent
+  { id: 'toggleVoice',   label: '语音智能体',     defaultKey: 'mod+shift+.',  scope: 'global',   category: 'voice' },
 ];
 
 // ---- Combo matching ----

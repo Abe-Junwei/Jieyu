@@ -1,0 +1,3 @@
+{
+    "deepseek.apiKey": "${env:DEEPSEEK_API_KEY}"
+}

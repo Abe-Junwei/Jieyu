@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type { UtteranceDocType, TranslationLayerDocType, MediaItemDocType } from '../../db';
 import type { AiChatToolCall, AiChatToolResult } from './useAiChat';
 import { useLatest } from './useLatest';
+import { AutoGlossService } from '../ai/AutoGlossService';
 
 type Params = {
   utterances: UtteranceDocType[];
@@ -287,6 +288,24 @@ export function useAiToolCallHandler({
           ? `已链接：${trcLabel} -> ${trlLabel}`
           : `已取消链接：${trcLabel} -> ${trlLabel}`,
       };
+    }
+
+    if (call.name === 'auto_gloss_utterance') {
+      const targetUtterance = resolveTargetUtterance();
+      if (!targetUtterance) {
+        return { ok: false, message: '当前没有可标注的句段。' };
+      }
+      const service = new AutoGlossService();
+      const result = await service.glossUtterance(targetUtterance.id);
+      if (result.matched.length === 0) {
+        return { ok: true, message: `共 ${result.total} 个 token，未匹配到词库中的条目（已有 gloss 的跳过 ${result.skipped} 个）。` };
+      }
+      const labels = result.matched.map((m) => {
+        const form = Object.values(m.tokenForm)[0] ?? '';
+        const gloss = Object.values(m.gloss)[0] ?? '';
+        return `${form}→${gloss}`;
+      }).join('、');
+      return { ok: true, message: `已自动标注 ${result.matched.length}/${result.total} 个 token：${labels}` };
     }
 
     return { ok: false, message: `暂不支持的工具调用：${call.name}` };

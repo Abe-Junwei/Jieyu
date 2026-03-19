@@ -22,6 +22,10 @@ export interface LLMProvider {
   id: string;
   label: string;
   supportsStreaming: boolean;
+  /**
+   * Stream chat completion chunks. The final chunk MUST have `{ delta: '', done: true }`.
+   * On error, yield `{ delta: '', error: message }` and return.
+   */
   chat(
     messages: ChatMessage[],
     options?: ChatRequestOptions,

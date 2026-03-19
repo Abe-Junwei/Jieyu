@@ -79,43 +79,49 @@ export class GeminiProvider implements LLMProvider {
 
     let emittedText = '';
 
-    for await (const payload of iterateSseData(response)) {
-      if (payload === '[DONE]') {
-        yield { delta: '', done: true };
-        return;
-      }
+    try {
+      for await (const payload of iterateSseData(response)) {
+        if (payload === '[DONE]') {
+          yield { delta: '', done: true };
+          return;
+        }
 
-      const json = parseProviderJson<{
-        candidates?: Array<{
-          content?: {
-            parts?: Array<{ text?: string }>;
-          };
-          finishReason?: string;
-        }>;
-        error?: { message?: string };
-      }>(payload, this.label, 'Gemini SSE');
+        const json = parseProviderJson<{
+          candidates?: Array<{
+            content?: {
+              parts?: Array<{ text?: string }>;
+            };
+            finishReason?: string;
+          }>;
+          error?: { message?: string };
+        }>(payload, this.label, 'Gemini SSE');
 
-      const errorMessage = json.error?.message;
-      if (errorMessage) {
-        yield toErrorChunk(errorMessage);
-        return;
-      }
+        const errorMessage = json.error?.message;
+        if (errorMessage) {
+          yield toErrorChunk(errorMessage);
+          return;
+        }
 
-      const fullText = json.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '';
-      if (fullText.length > emittedText.length) {
-        const delta = fullText.slice(emittedText.length);
-        emittedText = fullText;
-        if (delta.length > 0) {
-          yield { delta };
+        const fullText = json.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '';
+        if (fullText.length > emittedText.length) {
+          const delta = fullText.slice(emittedText.length);
+          emittedText = fullText;
+          if (delta.length > 0) {
+            yield { delta };
+          }
+        }
+
+        if (json.candidates?.[0]?.finishReason) {
+          yield { delta: '', done: true };
+          return;
         }
       }
-
-      if (json.candidates?.[0]?.finishReason) {
-        yield { delta: '', done: true };
-        return;
-      }
+    } catch (streamError) {
+      yield toErrorChunk(streamError instanceof Error ? streamError.message : 'Stream read failed');
+      return;
     }
 
+    // Fallback: if the stream ended without an explicit finishReason, still signal completion.
     yield { delta: '', done: true };
   }
 }

@@ -49,81 +49,63 @@ function buildMockFunctionCallingReply(source: string): string {
         arguments: {},
       },
     });
-  }
-
-  if (/(删除|移除).*(转写行|句段|语段)/.test(normalized)) {
+  } else if (/(删除|移除).*(转写行|句段|语段)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'delete_transcription_segment',
         arguments: {},
       },
     });
-  }
-
-  if (/(清空|删除|移除).*(翻译行|译文|翻译内容|翻译文本)/.test(normalized)) {
+  } else if (/(清空|删除|移除).*(翻译行|译文|翻译内容|翻译文本)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'clear_translation_segment',
         arguments: {},
       },
     });
-  }
-
-  if (/(创建|新建|建立).*(转写层)/.test(normalized)) {
+  } else if (/(创建|新建|建立).*(转写层)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'create_transcription_layer',
         arguments: languageId ? { languageId } : {},
       },
     });
-  }
-
-  if (/(创建|新建|建立).*(翻译层)/.test(normalized)) {
+  } else if (/(创建|新建|建立).*(翻译层)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'create_translation_layer',
         arguments: languageId ? { languageId } : {},
       },
     });
-  }
-
-  if (/(删除|移除).*(层)/.test(normalized)) {
+  } else if (/(删除|移除).*(层)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'delete_layer',
         arguments: {},
       },
     });
-  }
-
-  if (/(链接|关联|连接).*(层)/.test(normalized)) {
+  } else if (/(链接|关联|连接).*(层)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'link_translation_layer',
         arguments: {},
       },
     });
-  }
-
-  if (/(取消链接|取消关联|断开).*(层)/.test(normalized)) {
+  } else if (/(取消链接|取消关联|断开).*(层)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'unlink_translation_layer',
         arguments: {},
       },
     });
-  }
-
-  if (/(转写|写入转写|设置转写)/.test(normalized) && text) {
+  } else if (/(转写|写入转写|设置转写)/.test(normalized) && text) {
     return JSON.stringify({
       tool_call: {
         name: 'set_transcription_text',
         arguments: { text },
       },
     });
-  }
-
-  if (/(翻译|译文|写入翻译|设置翻译)/.test(normalized) && text) {
+  } else if (/(翻译|译文|写入翻译|设置翻译)/.test(normalized) && text) {
     return JSON.stringify({
       tool_call: {
         name: 'set_translation_text',

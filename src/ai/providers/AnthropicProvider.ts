@@ -71,35 +71,40 @@ export class AnthropicProvider implements LLMProvider {
       await throwProviderHttpError(this.label, response, `Anthropic 请求失败 (${response.status})`);
     }
 
-    for await (const payload of iterateSseData(response)) {
-      if (payload === '[DONE]') {
-        yield { delta: '', done: true };
-        return;
-      }
+    try {
+      for await (const payload of iterateSseData(response)) {
+        if (payload === '[DONE]') {
+          yield { delta: '', done: true };
+          return;
+        }
 
-      const json = parseProviderJson<{
-        type?: string;
-        delta?: { text?: string };
-        error?: { message?: string };
-      }>(payload, this.label, 'Anthropic SSE');
+        const json = parseProviderJson<{
+          type?: string;
+          delta?: { text?: string };
+          error?: { message?: string };
+        }>(payload, this.label, 'Anthropic SSE');
 
-      const errorMessage = json.error?.message;
-      if (errorMessage) {
-        yield toErrorChunk(errorMessage);
-        return;
-      }
+        const errorMessage = json.error?.message;
+        if (errorMessage) {
+          yield toErrorChunk(errorMessage);
+          return;
+        }
 
-      if (json.type === 'content_block_delta') {
-        const delta = json.delta?.text ?? '';
-        if (delta.length > 0) {
-          yield { delta };
+        if (json.type === 'content_block_delta') {
+          const delta = json.delta?.text ?? '';
+          if (delta.length > 0) {
+            yield { delta };
+          }
+        }
+
+        if (json.type === 'message_stop') {
+          yield { delta: '', done: true };
+          return;
         }
       }
-
-      if (json.type === 'message_stop') {
-        yield { delta: '', done: true };
-        return;
-      }
+    } catch (streamError) {
+      yield toErrorChunk(streamError instanceof Error ? streamError.message : 'Stream read failed');
+      return;
     }
 
     yield { delta: '', done: true };

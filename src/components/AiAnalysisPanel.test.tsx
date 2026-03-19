@@ -103,4 +103,46 @@ describe('AiAnalysisPanel embedding integration', () => {
     expect(screen.getByText(/delete_layer/)).toBeTruthy();
     expect(screen.getByText(/已取消执行|Cancelled/i)).toBeTruthy();
   });
+
+  it('renders pending high-risk impact preview details', () => {
+    render(
+      <AiPanelContext.Provider
+        value={makeContextValue({
+          aiChatEnabled: true,
+          aiPendingToolCall: {
+            call: {
+              name: 'delete_layer',
+              arguments: { layerId: 'layer-jp' },
+            },
+            assistantMessageId: 'ast-1',
+            riskSummary: 'Delete an entire layer and all its rows',
+            impactPreview: [
+              'Target layer: layer-jp',
+              'All utterance texts in this layer may be removed',
+            ],
+          },
+        })}
+      >
+        <AiAnalysisPanel isCollapsed={false} />
+      </AiPanelContext.Provider>,
+    );
+
+    expect(screen.getByText(/高风险工具调用待确认|High-risk tool call pending confirmation/i)).toBeTruthy();
+    expect(screen.getByText(/风险摘要|Risk summary/i)).toBeTruthy();
+    expect(screen.getByText(/Target layer: layer-jp/)).toBeTruthy();
+  });
+
+  it('renders embedding fallback warning when provided', () => {
+    render(
+      <AiPanelContext.Provider
+        value={makeContextValue({
+          aiEmbeddingWarning: 'Running fallback embedding (model unavailable). Retrieval quality may degrade.',
+        })}
+      >
+        <AiAnalysisPanel isCollapsed={false} />
+      </AiPanelContext.Provider>,
+    );
+
+    expect(screen.getByText(/fallback embedding/i)).toBeTruthy();
+  });
 });

@@ -56,27 +56,32 @@ export class QwenProvider implements LLMProvider {
       await throwProviderHttpError(this.label, response, `Qwen 请求失败 (${response.status})`);
     }
 
-    for await (const payload of iterateSseData(response)) {
-      if (payload === '[DONE]') {
-        yield { delta: '', done: true };
-        return;
-      }
+    try {
+      for await (const payload of iterateSseData(response)) {
+        if (payload === '[DONE]') {
+          yield { delta: '', done: true };
+          return;
+        }
 
-      const json = parseProviderJson<{
-        choices?: Array<{ delta?: { content?: string } }>;
-        error?: { message?: string };
-      }>(payload, this.label, 'Qwen SSE');
+        const json = parseProviderJson<{
+          choices?: Array<{ delta?: { content?: string } }>;
+          error?: { message?: string };
+        }>(payload, this.label, 'Qwen SSE');
 
-      const errorMessage = json.error?.message;
-      if (errorMessage) {
-        yield toErrorChunk(errorMessage);
-        return;
-      }
+        const errorMessage = json.error?.message;
+        if (errorMessage) {
+          yield toErrorChunk(errorMessage);
+          return;
+        }
 
-      const delta = json.choices?.[0]?.delta?.content ?? '';
-      if (delta.length > 0) {
-        yield { delta };
+        const delta = json.choices?.[0]?.delta?.content ?? '';
+        if (delta.length > 0) {
+          yield { delta };
+        }
       }
+    } catch (streamError) {
+      yield toErrorChunk(streamError instanceof Error ? streamError.message : 'Stream read failed');
+      return;
     }
 
     yield { delta: '', done: true };

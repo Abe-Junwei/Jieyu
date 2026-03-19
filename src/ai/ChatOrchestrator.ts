@@ -25,10 +25,15 @@ export class ChatOrchestrator {
     const systemPrompt = trimMessageContent(input.systemPrompt ?? '');
     if (systemPrompt.length > 0) {
       nextMessages.push({ role: 'system', content: systemPrompt });
+    } else if (import.meta.env.DEV && input.systemPrompt != null) {
+      console.debug('[ChatOrchestrator] systemPrompt trimmed to empty, skipped');
     }
 
     for (const msg of input.history) {
-      if (trimMessageContent(msg.content).length === 0) continue;
+      if (trimMessageContent(msg.content).length === 0) {
+        if (import.meta.env.DEV) console.debug('[ChatOrchestrator] skipped empty history message', msg.role);
+        continue;
+      }
       nextMessages.push(msg);
     }
 

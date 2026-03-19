@@ -48,7 +48,10 @@ export async function* iterateSseData(response: Response): AsyncGenerator<string
     if (buffer.length > 0) {
       const tailLine = buffer.endsWith('\r') ? buffer.slice(0, -1) : buffer;
       if (tailLine.startsWith('data:')) {
-        dataLines.push(tailLine.slice(5).replace(/^\s/, ''));
+        const content = tailLine.slice(5).replace(/^\s/, '');
+        if (content.length > 0) {
+          dataLines.push(content);
+        }
       }
     }
 

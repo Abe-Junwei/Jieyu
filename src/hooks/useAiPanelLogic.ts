@@ -2,6 +2,21 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiAnalysisPanel';
 import { LinguisticService } from '../../services/LinguisticService';
 import { ProjectObserver, type Recommendation } from '../ai/ProjectObserver';
+import type { AiSystemPersonaKey } from './useAiChat';
+
+const TASK_TO_PERSONA: Record<AiPanelTask, AiSystemPersonaKey> = {
+  segmentation: 'transcription',
+  transcription: 'transcription',
+  translation: 'transcription',
+  pos_tagging: 'glossing',
+  glossing: 'glossing',
+  risk_review: 'review',
+  ai_chat_setup: 'transcription',
+};
+
+export function taskToPersona(task: AiPanelTask): AiSystemPersonaKey {
+  return TASK_TO_PERSONA[task];
+}
 import type { UtteranceDocType } from '../../db';
 import type { SaveState } from './useTranscriptionData';
 

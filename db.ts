@@ -290,6 +290,7 @@ interface AiMessageCitation {
   type: 'utterance' | 'note' | 'pdf' | 'schema';
   refId: string;
   label?: string;
+  snippet?: string;
 }
 
 interface AiMessageDoc {
@@ -799,6 +800,7 @@ const aiMessageCitationSchema = z.object({
   type: z.enum(['utterance', 'note', 'pdf', 'schema']),
   refId: z.string().min(1),
   label: z.string().optional(),
+  snippet: z.string().optional(),
 });
 
 const aiMessageDocSchema = z.object({

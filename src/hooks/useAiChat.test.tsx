@@ -19,6 +19,11 @@ vi.mock('../ai/ChatOrchestrator', () => {
           yield { delta: '', done: true };
           return;
         }
+        if (userText.includes('__TOOL_RENAME_LAYER__')) {
+          yield { delta: '{"tool_call":{"name":"set_transcription_text","arguments":{"text":"hello"}}}' };
+          yield { delta: '', done: true };
+          return;
+        }
         yield { delta: 'x' };
         while (!signal?.aborted) {
           await new Promise((resolve) => setTimeout(resolve, 5));
@@ -255,6 +260,9 @@ describe('useAiChat abort and recovery', () => {
 
     expect(onToolCall).not.toHaveBeenCalled();
     expect(result.current.pendingToolCall?.call.name).toBe('delete_layer');
+    expect(result.current.pendingToolCall?.riskSummary).toContain('Delete an entire layer');
+    expect(result.current.pendingToolCall?.impactPreview?.length ?? 0).toBeGreaterThan(0);
+    expect(result.current.pendingToolCall?.impactPreview?.[0]).toContain('Target layer');
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(assistant?.content).toContain('执行待确认');
   });
@@ -323,5 +331,107 @@ describe('useAiChat abort and recovery', () => {
     const decisionLog = auditRows.find((row) => row.field === 'ai_tool_call_decision');
     expect(decisionLog?.newValue).toBe('cancelled:delete_layer');
     expect(decisionLog?.source).toBe('human');
+  });
+
+  it('should write confirm_failed exception audit log when tool execution throws', async () => {
+    const onToolCall = vi.fn().mockRejectedValue(new Error('boom'));
+    const { result } = renderHook(() => useAiChat({ onToolCall }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_DELETE_LAYER__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.pendingToolCall).not.toBeNull();
+    });
+
+    await act(async () => {
+      await result.current.confirmPendingToolCall();
+    });
+
+    const assistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(assistant?.content).toContain('执行失败');
+
+    const auditRows = await db.audit_logs.toArray();
+    const decisionLog = auditRows.find((row) => row.field === 'ai_tool_call_decision');
+    expect(decisionLog?.newValue).toBe('confirm_failed:delete_layer:exception');
+    expect(decisionLog?.source).toBe('human');
+  });
+
+  it('should set error status when auto-executed tool call fails', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: false, message: '重命名失败' });
+    const { result } = renderHook(() => useAiChat({ onToolCall }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_RENAME_LAYER__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const assistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(assistant?.status).toBe('error');
+    expect(assistant?.content).toContain('执行失败');
+    expect(result.current.lastError).toBe('重命名失败');
+  });
+
+  it('should write auto audit log for non-destructive tool execution', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '已重命名' });
+    const { result } = renderHook(() => useAiChat({ onToolCall }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_RENAME_LAYER__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const assistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(assistant?.status).toBe('done');
+    expect(assistant?.content).toContain('执行成功');
+
+    const auditRows = await db.audit_logs.toArray();
+    const decisionLog = auditRows.find((row) => row.field === 'ai_tool_call_decision');
+    expect(decisionLog?.newValue).toBe('auto_confirmed:set_transcription_text');
+    expect(decisionLog?.oldValue).toBe('auto:set_transcription_text');
+  });
+
+  it('should write auto_failed audit log when auto-executed tool throws', async () => {
+    const onToolCall = vi.fn().mockRejectedValue(new Error('network'));
+    const { result } = renderHook(() => useAiChat({ onToolCall }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_RENAME_LAYER__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const assistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(assistant?.status).toBe('error');
+    expect(result.current.lastError).toBe('network');
+
+    const auditRows = await db.audit_logs.toArray();
+    const decisionLog = auditRows.find((row) => row.field === 'ai_tool_call_decision');
+    expect(decisionLog?.newValue).toBe('auto_failed:set_transcription_text:exception');
   });
 });

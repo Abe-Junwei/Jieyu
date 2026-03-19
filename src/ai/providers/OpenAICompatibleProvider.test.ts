@@ -72,7 +72,7 @@ describe('OpenAICompatibleProvider', () => {
     expect(all[0]?.done).toBe(true);
   });
 
-  it('throws format error on malformed SSE JSON payload', async () => {
+  it('yields error chunk on malformed SSE JSON payload', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       createSseResponse([
         'data: {bad json}\n\n',
@@ -85,10 +85,51 @@ describe('OpenAICompatibleProvider', () => {
       model: 'gpt-test',
     });
 
-    await expect(async () => {
-      for await (const _chunk of provider.chat([{ role: 'user', content: 'ping' }])) {
-        // iterate until failure
-      }
-    }).rejects.toThrow('返回格式无法解析');
+    const all: Array<{ delta: string; done?: boolean; error?: string }> = [];
+    for await (const chunk of provider.chat([{ role: 'user', content: 'ping' }])) {
+      all.push(chunk);
+    }
+
+    const errChunk = all.find((c) => c.error);
+    expect(errChunk).toBeDefined();
+    expect(errChunk?.error).toContain('返回格式无法解析');
+    expect(errChunk?.done).toBe(true);
+  });
+
+  it('yields error chunk when stream read fails mid-stream', async () => {
+    const encoder = new TextEncoder();
+    let readCount = 0;
+    const mockReader = {
+      read: async () => {
+        readCount += 1;
+        if (readCount === 1) {
+          return { done: false, value: encoder.encode('data: {"choices":[{"delta":{"content":"he"}}]}\n\n') };
+        }
+        throw new Error('network disconnect');
+      },
+      cancel: async () => {},
+    };
+    const mockResponse = {
+      ok: true,
+      status: 200,
+      body: { getReader: () => mockReader },
+    } as unknown as Response;
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse);
+
+    const provider = new OpenAICompatibleProvider({
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-test',
+      model: 'gpt-test',
+    });
+
+    const all: Array<{ delta: string; done?: boolean; error?: string }> = [];
+    for await (const chunk of provider.chat([{ role: 'user', content: 'ping' }])) {
+      all.push(chunk);
+    }
+
+    const errChunk = all.find((c) => c.error);
+    expect(errChunk).toBeDefined();
+    expect(errChunk?.error).toContain('network disconnect');
+    expect(errChunk?.done).toBe(true);
   });
 });

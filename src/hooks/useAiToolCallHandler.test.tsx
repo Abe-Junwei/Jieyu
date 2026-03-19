@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import type { UtteranceDocType, TranslationLayerDocType } from '../../db';
@@ -165,5 +166,52 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
     });
 
     expect(saveSpy).toHaveBeenCalledWith('target-u', '', 'layer1');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// auto_gloss_utterance
+// ---------------------------------------------------------------------------
+
+describe('useAiToolCallHandler — auto_gloss_utterance', () => {
+  it('returns 暂不支持 for utterly unknown tool name', async () => {
+    const { result } = renderHook(() => useAiToolCallHandler(makeParams()));
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      // Use a cast since 'no_such_tool' is not in AiChatToolName
+      response = await result.current({
+        name: 'auto_gloss_utterance' as Parameters<typeof result.current>[0]['name'],
+        arguments: {},
+      });
+    });
+
+    // When no utterance is available, it should return an error
+    expect(response?.ok).toBe(false);
+    expect(response?.message).toContain('没有可标注的句段');
+  });
+
+  it('calls glossUtterance when utterance is selected', async () => {
+    const utterance = makeUtterance('u1');
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [utterance],
+          selectedUtterance: utterance,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'auto_gloss_utterance',
+        arguments: {},
+      });
+    });
+
+    // The service will find 0 tokens for this utterance (they're in IndexedDB, not mocked here)
+    expect(response?.ok).toBe(true);
+    expect(response?.message).toContain('token');
   });
 });

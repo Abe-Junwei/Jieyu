@@ -54,27 +54,32 @@ export class OllamaProvider implements LLMProvider {
       await throwProviderHttpError(this.label, response, `Ollama 请求失败 (${response.status})`);
     }
 
-    for await (const line of iterateJsonLines(response)) {
-      const json = parseProviderJson<{
-        message?: { content?: string };
-        error?: string;
-        done?: boolean;
-      }>(line, this.label, 'Ollama JSONL');
+    try {
+      for await (const line of iterateJsonLines(response)) {
+        const json = parseProviderJson<{
+          message?: { content?: string };
+          error?: string;
+          done?: boolean;
+        }>(line, this.label, 'Ollama JSONL');
 
-      if (json.error) {
-        yield toErrorChunk(json.error);
-        return;
-      }
+        if (json.error) {
+          yield toErrorChunk(json.error);
+          return;
+        }
 
-      const delta = json.message?.content ?? '';
-      if (delta.length > 0) {
-        yield { delta };
-      }
+        const delta = json.message?.content ?? '';
+        if (delta.length > 0) {
+          yield { delta };
+        }
 
-      if (json.done) {
-        yield { delta: '', done: true };
-        return;
+        if (json.done) {
+          yield { delta: '', done: true };
+          return;
+        }
       }
+    } catch (streamError) {
+      yield toErrorChunk(streamError instanceof Error ? streamError.message : 'Stream read failed');
+      return;
     }
 
     yield { delta: '', done: true };

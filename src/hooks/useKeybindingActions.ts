@@ -45,6 +45,7 @@ interface UseKeybindingActionsInput {
   redo: () => Promise<void>;
   setShowSearch: React.Dispatch<React.SetStateAction<boolean>>;
   toggleNotes: () => void;
+  toggleVoice?: () => void;
 }
 
 export function useKeybindingActions(input: UseKeybindingActionsInput) {
@@ -62,7 +63,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     selectUtterance, selectAllUtterances, setSelectedUtteranceId,
     runDeleteSelection, runMergePrev, runMergeNext, runSplitAtTime,
     runSelectBefore, runSelectAfter,
-    undo, redo, setShowSearch, toggleNotes,
+    undo, redo, setShowSearch, toggleNotes, toggleVoice,
   } = input;
 
   const keymap = useMemo(() => getEffectiveKeymap(), []);
@@ -192,6 +193,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
       redo:   () => fireAndForget(redo()),
       search: () => setShowSearch(true),
       toggleNotes: () => toggleNotes(),
+      ...(toggleVoice ? { toggleVoice } : {}),
     };
     const onKeyDown = (e: KeyboardEvent) => {
       for (const [actionId, combo] of keymap) {
@@ -206,7 +208,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [undo, redo, keymap, setShowSearch, toggleNotes]);
+  }, [undo, redo, keymap, setShowSearch, toggleNotes, toggleVoice]);
 
   // Navigate to prev/next utterance from an inline input
   const navigateUtteranceFromInput = useCallback(
@@ -248,10 +250,32 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     }
   }, [selectedUtteranceIds.size, waveformAreaRef]);
 
+  /**
+   * Programmatically execute any registered action by ID.
+   * Used by voice agent to dispatch commands without physical keystrokes.
+   */
+  const executeAction = useCallback((actionId: string) => {
+    // Waveform-scoped actions
+    const waveformAction = waveformActionsRef.current[actionId];
+    if (waveformAction) {
+      waveformAction(new KeyboardEvent('keydown'));
+      return;
+    }
+    // Global actions handled inline to avoid stale closure
+    switch (actionId) {
+      case 'undo': fireAndForget(undo()); break;
+      case 'redo': fireAndForget(redo()); break;
+      case 'search': setShowSearch(true); break;
+      case 'toggleNotes': toggleNotes(); break;
+      default: break;
+    }
+  }, [undo, redo, setShowSearch, toggleNotes]);
+
   return {
     handlePlayPauseAction,
     handleGlobalPlayPauseAction,
     handleWaveformKeyDown,
     navigateUtteranceFromInput,
+    executeAction,
   };
 }

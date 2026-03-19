@@ -128,7 +128,7 @@ export function TranscriptionToolbarActions(props: TranscriptionToolbarActionsPr
           <div
             ref={exportMenuRef}
             style={{
-              position: 'absolute', top: '100%', left: 0, zIndex: 'var(--z-context-menu)',
+              position: 'absolute', top: '100%', left: 0, zIndex: 'var(--z-context-menu, 180)',
               background: '#fff', border: '1px solid #d1d5db', borderRadius: 6,
               boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: '4px 0',
             }}

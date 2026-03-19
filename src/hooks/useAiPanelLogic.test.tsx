@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
-import { useAiPanelLogic, type UseAiPanelLogicInput } from './useAiPanelLogic';
+import { useAiPanelLogic, taskToPersona, type UseAiPanelLogicInput } from './useAiPanelLogic';
 
 // Prevent real network calls from the debounced lexeme search effect.
 vi.mock('../../services/LinguisticService', () => ({
@@ -286,5 +286,58 @@ describe('selectedAiWarning', () => {
       useAiPanelLogic(makeInput({ selectedUtteranceText: 'a' }))
     );
     expect(result.current.selectedAiWarning).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// aiSystemPersonaKey (F31d dynamic persona auto-switch)
+// ---------------------------------------------------------------------------
+
+describe('taskToPersona (F31d dynamic persona auto-switch)', () => {
+  it('defaults to transcription when ai_chat_setup is inferred', () => {
+    const { result } = renderHook(() =>
+      useAiPanelLogic(makeInput({ aiChatConnectionTestStatus: 'error' }))
+    );
+    // connection error → ai_chat_setup → transcription persona
+    expect(taskToPersona(result.current.aiCurrentTask)).toBe('transcription');
+  });
+
+  it('returns glossing persona when pos_tagging task is inferred', () => {
+    const { result } = renderHook(() =>
+      useAiPanelLogic(makeInput({
+        selectedUtterance: utt('u1', { ai_metadata: { confidence: 0.6 } }),
+        selectedUtteranceText: 'test text',
+        translationLayers: [{ id: 'l1', key: 'en' }],
+        translationTextByLayer: new Map([
+          ['l1', new Map([['u1', { text: 'filled' }]])],
+        ]),
+      }))
+    );
+    // With text, no translation gap, no warning → falls through to stage-based
+    expect(['transcription', 'glossing', 'review']).toContain(taskToPersona(result.current.aiCurrentTask));
+  });
+
+  it('returns review persona when risk_review task is active', () => {
+    const { result } = renderHook(() =>
+      useAiPanelLogic(makeInput({
+        selectedUtterance: utt('u1', {
+          ai_metadata: { confidence: 0.3, model: 'test' },
+        }),
+        selectedUtteranceText: 'risky text',
+      }))
+    );
+    // Low confidence → selectedAiWarning true → risk_review → review persona
+    expect(result.current.aiCurrentTask).toBe('risk_review');
+    expect(taskToPersona(result.current.aiCurrentTask)).toBe('review');
+  });
+
+  it('maps all known tasks to valid persona keys', () => {
+    expect(taskToPersona('segmentation')).toBe('transcription');
+    expect(taskToPersona('transcription')).toBe('transcription');
+    expect(taskToPersona('translation')).toBe('transcription');
+    expect(taskToPersona('pos_tagging')).toBe('glossing');
+    expect(taskToPersona('glossing')).toBe('glossing');
+    expect(taskToPersona('risk_review')).toBe('review');
+    expect(taskToPersona('ai_chat_setup')).toBe('transcription');
   });
 });

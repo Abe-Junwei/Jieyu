@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLatest } from './useLatest';
-import { getDb } from '../../db';
+import { getDb, type AiMessageCitation } from '../../db';
+import { extractPdfSnippet } from '../ai/embeddings/pdfTextUtils';
+import { splitPdfCitationRef } from '../utils/citationJumpUtils';
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
+import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 import { featureFlags } from '../ai/config/featureFlags';
 import { normalizeAiProviderError } from '../ai/providers/errorUtils';
 import {
@@ -22,6 +25,7 @@ export interface UiChatMessage {
   content: string;
   status?: 'streaming' | 'done' | 'error' | 'aborted';
   error?: string;
+  citations?: AiMessageCitation[];
 }
 
 export type AiConnectionTestStatus = 'idle' | 'testing' | 'success' | 'error';
@@ -36,7 +40,8 @@ export type AiChatToolName =
   | 'create_translation_layer'
   | 'delete_layer'
   | 'link_translation_layer'
-  | 'unlink_translation_layer';
+  | 'unlink_translation_layer'
+  | 'auto_gloss_utterance';
 
 export interface AiChatToolCall {
   name: AiChatToolName;
@@ -63,6 +68,7 @@ interface UseAiChatOptions {
   historyCharBudget?: number;
   allowDestructiveToolCalls?: boolean;
   streamPersistIntervalMs?: number;
+  embeddingSearchService?: EmbeddingSearchService;
 }
 
 function normalizeStreamPersistInterval(input: number | undefined): number {
@@ -153,6 +159,8 @@ const AI_FUNCTION_CALLING_SYSTEM_PROMPT = [
   '    delete_layer               — ⚠️ 删除整个转写层或翻译层（不可恢复），可选 layerId',
   '    link_translation_layer     — 关联转写层与翻译层，可选 transcriptionLayerId/transcriptionLayerKey、translationLayerId/layerId',
   '    unlink_translation_layer   — 解除关联',
+  '  自动标注（gloss = 从词库精确匹配自动推导词义注释）：',
+  '    auto_gloss_utterance       — 对当前句段的所有 token 执行词库精确匹配并自动填写 gloss',
   '【命名规则】clear = 清空内容；delete = 删除实体；segment = 句段（单条）；layer = 整层（含所有句段）。',
   '【关键判断】用户说"删除××语转写行/转写层/翻译层" → 有语言限定词 → 指向整层 → delete_layer。',
   '【关键判断】用户说"删除这条/这个句段/这一行" → 无语言限定词 → 指向单条句段 → delete_transcription_segment。',
@@ -290,6 +298,11 @@ function normalizeToolCallName(rawName: string): AiChatToolName | null {
   if (name === 'delete_layer') return name;
   if (name === 'link_translation_layer') return name;
   if (name === 'unlink_translation_layer') return name;
+  if (name === 'auto_gloss_utterance') return name;
+
+  if (['auto_gloss', 'auto_gloss_selected', 'gloss_utterance', 'auto_annotate'].includes(name)) {
+    return 'auto_gloss_utterance';
+  }
 
   if (['create_layer', 'new_layer', 'add_layer', 'new_transcription_layer', 'add_transcription_layer'].includes(name)) {
     return 'create_transcription_layer';
@@ -346,6 +359,8 @@ async function deriveAiSettingsCryptoKey(salt: Uint8Array): Promise<CryptoKey> {
     {
       name: 'PBKDF2',
       salt: byteArrayToArrayBuffer(salt),
+      // v1: 120k iterations (OWASP 2023 minimum for SHA-256).
+      // Bump iteration count → increment AI_CHAT_SETTINGS_SECURE_VERSION to trigger re-encryption.
       iterations: 120_000,
       hash: 'SHA-256',
     },
@@ -438,8 +453,11 @@ async function loadAiChatSettings(): Promise<AiChatSettings> {
       }
       return normalized;
     }
-  } catch {
-    // no-op; fallback below
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.warn('[AI Settings] Failed to load saved settings, falling back to defaults:', error);
+    }
   }
 
   return normalizeAiChatSettings();
@@ -497,8 +515,13 @@ function parseToolCallFromText(rawText: string): AiChatToolCall | null {
   return null;
 }
 
+const DESTRUCTIVE_TOOL_NAMES: ReadonlySet<AiChatToolName> = new Set([
+  'delete_layer',
+  'delete_transcription_segment',
+]);
+
 function isDestructiveToolCall(name: AiChatToolName): boolean {
-  return name === 'delete_layer' || name === 'delete_transcription_segment';
+  return DESTRUCTIVE_TOOL_NAMES.has(name);
 }
 
 function describeToolCallImpact(call: AiChatToolCall): { riskSummary: string; impactPreview: string[] } {
@@ -537,10 +560,12 @@ function describeToolCallImpact(call: AiChatToolCall): { riskSummary: string; im
 export function useAiChat(options?: UseAiChatOptions) {
   const onToolCall = options?.onToolCall;
   const systemPersonaKey = options?.systemPersonaKey ?? 'transcription';
+  const systemPersonaKeyRef = useLatest(systemPersonaKey);
   const getContext = options?.getContext;
   const maxContextChars = options?.maxContextChars ?? 2400;
   const historyCharBudget = options?.historyCharBudget ?? 6000;
   const allowDestructiveToolCalls = options?.allowDestructiveToolCalls ?? false;
+  const embeddingSearchService = options?.embeddingSearchService;
   const streamPersistIntervalMs = normalizeStreamPersistInterval(
     options?.streamPersistIntervalMs ?? readDevStreamPersistIntervalMs(),
   );
@@ -707,6 +732,7 @@ export function useAiChat(options?: UseAiChatOptions) {
             content: row.content,
             status: row.status,
             ...(row.errorMessage ? { error: row.errorMessage } : {}),
+            ...(row.citations ? { citations: row.citations } : {}),
           } as UiChatMessage));
 
         if (!cancelled) {
@@ -766,6 +792,25 @@ export function useAiChat(options?: UseAiChatOptions) {
     });
   }, []);
 
+  const writeToolDecisionAuditLog = useCallback(async (
+    assistantMessageId: string,
+    oldValue: string,
+    newValue: string,
+  ) => {
+    const db = await getDb();
+    await db.collections.audit_logs.insert({
+      id: newAuditLogId(),
+      collection: 'ai_messages',
+      documentId: assistantMessageId,
+      action: 'update',
+      field: 'ai_tool_call_decision',
+      oldValue,
+      newValue,
+      source: 'human',
+      timestamp: nowIso(),
+    });
+  }, []);
+
   const confirmPendingToolCall = useCallback(async () => {
     const pending = pendingToolCall;
     if (!pending) return;
@@ -780,18 +825,11 @@ export function useAiChat(options?: UseAiChatOptions) {
         'error',
         '当前未接入动作执行器。',
       );
-      const db = await getDb();
-      await db.collections.audit_logs.insert({
-        id: newAuditLogId(),
-        collection: 'ai_messages',
-        documentId: assistantMessageId,
-        action: 'update',
-        field: 'ai_tool_call_decision',
-        oldValue: `pending:${call.name}`,
-        newValue: `confirm_failed:${call.name}:no_executor`,
-        source: 'human',
-        timestamp: nowIso(),
-      });
+      await writeToolDecisionAuditLog(
+        assistantMessageId,
+        `pending:${call.name}`,
+        `confirm_failed:${call.name}:no_executor`,
+      );
       return;
     }
 
@@ -803,18 +841,11 @@ export function useAiChat(options?: UseAiChatOptions) {
         result.ok ? 'done' : 'error',
         result.ok ? undefined : result.message,
       );
-      const db = await getDb();
-      await db.collections.audit_logs.insert({
-        id: newAuditLogId(),
-        collection: 'ai_messages',
-        documentId: assistantMessageId,
-        action: 'update',
-        field: 'ai_tool_call_decision',
-        oldValue: `pending:${call.name}`,
-        newValue: `${result.ok ? 'confirmed' : 'confirm_failed'}:${call.name}`,
-        source: 'human',
-        timestamp: nowIso(),
-      });
+      await writeToolDecisionAuditLog(
+        assistantMessageId,
+        `pending:${call.name}`,
+        `${result.ok ? 'confirmed' : 'confirm_failed'}:${call.name}`,
+      );
     } catch (error) {
       const toolErrorText = error instanceof Error ? error.message : '工具执行失败';
       await applyAssistantMessageResult(
@@ -823,20 +854,13 @@ export function useAiChat(options?: UseAiChatOptions) {
         'error',
         toolErrorText,
       );
-      const db = await getDb();
-      await db.collections.audit_logs.insert({
-        id: newAuditLogId(),
-        collection: 'ai_messages',
-        documentId: assistantMessageId,
-        action: 'update',
-        field: 'ai_tool_call_decision',
-        oldValue: `pending:${call.name}`,
-        newValue: `confirm_failed:${call.name}:exception`,
-        source: 'human',
-        timestamp: nowIso(),
-      });
+      await writeToolDecisionAuditLog(
+        assistantMessageId,
+        `pending:${call.name}`,
+        `confirm_failed:${call.name}:exception`,
+      );
     }
-  }, [applyAssistantMessageResult, onToolCallRef, pendingToolCall]);
+  }, [applyAssistantMessageResult, onToolCallRef, pendingToolCall, writeToolDecisionAuditLog]);
 
   const cancelPendingToolCall = useCallback(async () => {
     const pending = pendingToolCall;
@@ -848,19 +872,12 @@ export function useAiChat(options?: UseAiChatOptions) {
       `已解析工具调用：${pending.call.name}\n执行已取消：你已手动取消该高风险操作。`,
     );
 
-    const db = await getDb();
-    await db.collections.audit_logs.insert({
-      id: newAuditLogId(),
-      collection: 'ai_messages',
-      documentId: pending.assistantMessageId,
-      action: 'update',
-      field: 'ai_tool_call_decision',
-      oldValue: `pending:${pending.call.name}`,
-      newValue: `cancelled:${pending.call.name}`,
-      source: 'human',
-      timestamp: nowIso(),
-    });
-  }, [applyAssistantMessageResult, pendingToolCall]);
+    await writeToolDecisionAuditLog(
+      pending.assistantMessageId,
+      `pending:${pending.call.name}`,
+      `cancelled:${pending.call.name}`,
+    );
+  }, [applyAssistantMessageResult, pendingToolCall, writeToolDecisionAuditLog]);
 
   const send = useCallback(async (userText: string) => {
     if (!featureFlags.aiChatEnabled) {
@@ -886,6 +903,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       role: 'assistant',
       content: '',
       status: 'streaming',
+      citations: [],
     };
 
     // Keep newest messages at top in UI.
@@ -932,13 +950,20 @@ export function useAiChat(options?: UseAiChatOptions) {
       status: 'done' | 'error' | 'aborted',
       content: string,
       errorMessage?: string,
+      citations?: AiMessageCitation[],
     ) => {
       setMessages((prev) => prev.map((msg) => {
         if (msg.id !== assistantId) return msg;
         if (status === 'error') {
-          return { ...msg, content, status, ...(errorMessage ? { error: errorMessage } : {}) };
+          return {
+            ...msg,
+            content,
+            status,
+            ...(errorMessage ? { error: errorMessage } : {}),
+            ...(citations ? { citations } : {}),
+          };
         }
-        return { ...msg, content, status };
+        return { ...msg, content, status, ...(citations ? { citations } : {}) };
       }));
 
       if (!dbRef) return;
@@ -950,6 +975,7 @@ export function useAiChat(options?: UseAiChatOptions) {
           content,
           status,
           ...(errorMessage ? { errorMessage } : {}),
+          ...(citations ? { citations } : {}),
           updatedAt: nowIso(),
         });
       }
@@ -997,11 +1023,77 @@ export function useAiChat(options?: UseAiChatOptions) {
         .reverse()
         .map((m) => ({ role: m.role, content: m.content }));
       const history = trimHistoryByChars(historyRaw, historyCharBudget);
-      const contextBlock = buildPromptContextBlock(getContext?.() ?? null, maxContextChars);
+      let contextBlock = buildPromptContextBlock(getContext?.() ?? null, maxContextChars);
+      let ragCitations: AiMessageCitation[] = [];
+
+      // ── Minimal RAG: inject top embedding matches as text snippets into context ──
+      if (embeddingSearchService) {
+        try {
+          const ragResult = await embeddingSearchService.searchMultiSourceHybrid(
+            trimmed,
+            ['utterance', 'note', 'pdf'],
+            { topK: 5, fusionScenario: 'qa' },
+          );
+          if (ragResult.matches.length > 0) {
+            // 批量反查各匹配项的原始文字 | Batch-resolve source text for each match
+            const db = await getDb();
+            const ragLines: string[] = [];
+            for (const m of ragResult.matches) {
+              let snippet = '';
+              if (m.sourceType === 'note') {
+                // 从笔记表取内容 | Retrieve content from user_notes
+                const noteRows = await db.collections.user_notes.findByIndex('id', m.sourceId);
+                const noteDoc = noteRows[0]?.toJSON();
+                if (noteDoc?.content) {
+                  const c = noteDoc.content as Record<string, string>;
+                  snippet = (c['und'] ?? c['en'] ?? Object.values(c).find((v) => v.trim()) ?? '').trim();
+                }
+              } else if (m.sourceType === 'utterance') {
+                // 从 utterance_texts 取首个有文本的层 | Get first available text from utterance_texts
+                const textRows = await db.collections.utterance_texts.findByIndex('utteranceId', m.sourceId);
+                const textWithContent = textRows.find((r) => r.toJSON().text?.trim());
+                snippet = textWithContent?.toJSON().text?.trim() ?? '';
+              } else if (m.sourceType === 'pdf') {
+                const { baseRef } = splitPdfCitationRef(m.sourceId);
+                const mediaRows = await db.collections.media_items.findByIndex('id', baseRef);
+                const mediaDoc = mediaRows[0]?.toJSON();
+                const details = mediaDoc?.details as Record<string, unknown> | undefined;
+                snippet = extractPdfSnippet(details, 300);
+              }
+              if (!snippet) continue;
+              const label = m.sourceType === 'note'
+                ? `note:${m.sourceId}`
+                : (m.sourceType === 'utterance' ? `utt:${m.sourceId}` : `pdf:${m.sourceId}`);
+              ragLines.push(`[${label}] ${snippet.slice(0, 300)}`);
+              if (m.sourceType === 'note' || m.sourceType === 'utterance' || m.sourceType === 'pdf') {
+                ragCitations.push({
+                  type: m.sourceType,
+                  refId: m.sourceId,
+                  label,
+                  snippet: snippet.slice(0, 300),
+                });
+              }
+            }
+            if (ragLines.length > 0) {
+              contextBlock += `\n[RELEVANT_CONTEXT]\n${ragLines.join('\n')}`;
+              // 引用去重，避免同源重复显示 | Deduplicate repeated source citations.
+              const seen = new Set<string>();
+              ragCitations = ragCitations.filter((item) => {
+                const key = `${item.type}:${item.refId}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
+            }
+          }
+        } catch {
+          // RAG is best-effort; do not block chat on embedding failures.
+        }
+      }
       const contextDebugEnabled = isAiContextDebugEnabled();
       const nextDebugSnapshot: AiContextDebugSnapshot = {
         enabled: contextDebugEnabled,
-        persona: systemPersonaKey,
+        persona: systemPersonaKeyRef.current,
         historyChars: history.map((item) => item.content).join('').length,
         historyCount: history.length,
         contextChars: contextBlock.length,
@@ -1021,7 +1113,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       const { stream } = orchestrator.sendMessage({
         history,
         userText: trimmed,
-        systemPrompt: buildAiSystemPrompt(systemPersonaKey, contextBlock),
+        systemPrompt: buildAiSystemPrompt(systemPersonaKeyRef.current, contextBlock),
         options: { signal: controller.signal, model: settings.model },
       });
 
@@ -1032,7 +1124,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         if (chunk.error) {
           const errorText = chunk.error;
           streamFinalized = true;
-          await finalizeAssistantMessage('error', assistantContent, errorText);
+          await finalizeAssistantMessage('error', assistantContent, errorText, ragCitations);
           setLastError(errorText);
           break;
         }
@@ -1051,6 +1143,8 @@ export function useAiChat(options?: UseAiChatOptions) {
           streamFinalized = true;
           await flushAssistantDraft(assistantContent, true);
           let finalContent = assistantContent;
+          let finalStatus: 'done' | 'error' = 'done';
+          let finalErrorMessage: string | undefined;
           const toolCall = parseToolCallFromText(assistantContent);
           if (toolCall) {
             if (!allowDestructiveToolCalls && isDestructiveToolCall(toolCall.name)) {
@@ -1064,23 +1158,35 @@ export function useAiChat(options?: UseAiChatOptions) {
               });
             } else if (!onToolCallRef.current) {
               finalContent = `已解析工具调用：${toolCall.name}\n执行失败：当前未接入动作执行器。`;
+              finalStatus = 'error';
+              finalErrorMessage = '当前未接入动作执行器。';
+              await writeToolDecisionAuditLog(assistantId, `auto:${toolCall.name}`, `auto_failed:${toolCall.name}:no_executor`);
             } else {
               try {
                 const result = await onToolCallRef.current(toolCall);
                 finalContent = `已解析工具调用：${toolCall.name}\n${result.ok ? '执行成功' : '执行失败'}：${result.message}`;
+                if (!result.ok) {
+                  finalStatus = 'error';
+                  finalErrorMessage = result.message;
+                }
+                await writeToolDecisionAuditLog(assistantId, `auto:${toolCall.name}`, `${result.ok ? 'auto_confirmed' : 'auto_failed'}:${toolCall.name}`);
               } catch (toolError) {
                 const toolErrorText = toolError instanceof Error ? toolError.message : '工具执行失败';
                 finalContent = `已解析工具调用：${toolCall.name}\n执行失败：${toolErrorText}`;
+                finalStatus = 'error';
+                finalErrorMessage = toolErrorText;
+                await writeToolDecisionAuditLog(assistantId, `auto:${toolCall.name}`, `auto_failed:${toolCall.name}:exception`);
               }
             }
           }
-          await finalizeAssistantMessage('done', finalContent);
+          if (finalErrorMessage) setLastError(finalErrorMessage);
+          await finalizeAssistantMessage(finalStatus, finalContent, finalErrorMessage, ragCitations);
           break;
         }
       }
 
       if (!streamFinalized && !controller.signal.aborted) {
-        await finalizeAssistantMessage('done', assistantContent);
+        await finalizeAssistantMessage('done', assistantContent, undefined, ragCitations);
       }
     } catch (error) {
       if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
@@ -1095,7 +1201,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       abortRef.current = null;
       setIsStreaming(false);
     }
-  }, [allowDestructiveToolCalls, ensureConversation, getContext, historyCharBudget, maxContextChars, orchestrator, provider.id, settings.model, streamPersistIntervalMs, systemPersonaKey]);
+  }, [allowDestructiveToolCalls, embeddingSearchService, ensureConversation, getContext, historyCharBudget, maxContextChars, orchestrator, provider.id, settings.model, streamPersistIntervalMs]);
 
   const clear = useCallback(() => {
     setMessages([]);

@@ -4,6 +4,7 @@ import type { AiConnectionTestStatus, AiContextDebugSnapshot, PendingAiToolCall,
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { ProjectStage, Recommendation } from '../ai/ProjectObserver';
 import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiAnalysisPanel';
+import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 
 type ActionableRecommendation = Recommendation & {
   actionType?: 'jump' | 'batch_pos' | 'risk_review';
@@ -82,6 +83,7 @@ export type AiPanelContextValue = {
   } | null;
   aiEmbeddingTasks?: Array<{
     id: string;
+    taskType: 'transcribe' | 'gloss' | 'translate' | 'embed' | 'detect_language';
     status: 'pending' | 'running' | 'done' | 'failed';
     updatedAt: string;
     modelId?: string;
@@ -95,10 +97,35 @@ export type AiPanelContextValue = {
   }>;
   aiEmbeddingLastError?: string | null;
   aiEmbeddingWarning?: string | null;
+  aiEmbeddingBuildStartedAt?: number | null;
   onBuildUtteranceEmbeddings?: () => Promise<void>;
+  onBuildNotesEmbeddings?: () => Promise<void>;
+  onBuildPdfEmbeddings?: () => Promise<void>;
   onFindSimilarUtterances?: () => Promise<void>;
   onRefreshEmbeddingTasks?: () => Promise<void>;
   onJumpToEmbeddingMatch?: (utteranceId: string) => void;
+  onJumpToCitation?: (citationType: 'utterance' | 'note' | 'pdf' | 'schema', refId: string, citation?: { snippet?: string }) => Promise<void> | void;
+  onCancelAiTask?: (taskId: string) => Promise<void>;
+  onRetryAiTask?: (taskId: string) => Promise<void>;
+  // ── Voice Agent ──
+  voiceListening?: boolean;
+  voiceSpeechActive?: boolean;
+  voiceMode?: VoiceAgentMode;
+  voiceInterimText?: string;
+  voiceFinalText?: string;
+  voiceConfidence?: number;
+  voiceError?: string | null;
+  voiceSafeMode?: boolean;
+  voicePendingConfirm?: { actionId: string; label: string } | null;
+  voiceCorpusLang?: string;
+  voiceLangOverride?: string | null;
+  voiceEnabled?: boolean;
+  onVoiceToggle?: (mode?: VoiceAgentMode) => void;
+  onVoiceSwitchMode?: (mode: VoiceAgentMode) => void;
+  onVoiceConfirm?: () => void;
+  onVoiceCancel?: () => void;
+  onVoiceSetSafeMode?: (on: boolean) => void;
+  onVoiceSetLangOverride?: (lang: string | null) => void;
 };
 
 export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
@@ -128,6 +155,19 @@ export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
   aiEmbeddingMatches: [],
   aiEmbeddingLastError: null,
   aiEmbeddingWarning: null,
+  aiEmbeddingBuildStartedAt: null,
+  voiceListening: false,
+  voiceSpeechActive: false,
+  voiceMode: 'command',
+  voiceInterimText: '',
+  voiceFinalText: '',
+  voiceConfidence: 0,
+  voiceError: null,
+  voiceSafeMode: false,
+  voicePendingConfirm: null,
+  voiceCorpusLang: 'cmn',
+  voiceLangOverride: null,
+  voiceEnabled: false,
 };
 
 export const AiPanelContext = createContext<AiPanelContextValue | null>(null);

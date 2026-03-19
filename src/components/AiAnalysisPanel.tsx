@@ -110,9 +110,14 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     aiEmbeddingLastError,
     aiEmbeddingWarning,
     onBuildUtteranceEmbeddings,
+    onBuildNotesEmbeddings,
+    onBuildPdfEmbeddings,
     onFindSimilarUtterances,
     onRefreshEmbeddingTasks,
     onJumpToEmbeddingMatch,
+    onJumpToCitation,
+    onCancelAiTask,
+    onRetryAiTask,
   } = useAiPanelContext();
 
   const [batchForm, setBatchForm] = useState('');
@@ -126,12 +131,18 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [templateTitleInput, setTemplateTitleInput] = useState('');
   const [templateContentInput, setTemplateContentInput] = useState('');
+  const [taskTypeFilter, setTaskTypeFilter] = useState<'all' | 'embed' | 'gloss'>('all');
   const posInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const activeProviderDefinition = aiChatSettings
     ? getAiChatProviderDefinition(aiChatSettings.providerKind)
     : getAiChatProviderDefinition('mock');
 
   const words = selectedUtterance?.words ?? [];
+  const visibleAiTasks = useMemo(() => {
+    const list = aiEmbeddingTasks ?? [];
+    if (taskTypeFilter === 'all') return list;
+    return list.filter((task) => task.taskType === taskTypeFilter);
+  }, [aiEmbeddingTasks, taskTypeFilter]);
   const taggedCount = useMemo(
     () => words.filter((word) => (word.pos ?? '').trim().length > 0).length,
     [words],
@@ -627,6 +638,34 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                       >
                         <strong style={{ marginRight: 6 }}>{msg.role === 'user' ? t(locale, 'ai.chat.roleUser') : t(locale, 'ai.chat.roleAi')}</strong>
                         <span>{msg.content || (msg.status === 'streaming' ? '...' : (msg.status === 'aborted' ? '⏹ 已中断' : ''))}</span>
+                        {msg.role === 'assistant' && (msg.citations ?? []).length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                            {(msg.citations ?? []).map((citation) => (
+                              <button
+                                key={`${msg.id}-${citation.type}-${citation.refId}`}
+                                style={{
+                                  fontSize: 10,
+                                  lineHeight: '14px',
+                                  padding: '1px 6px',
+                                  borderRadius: 999,
+                                  border: '1px solid #cbd5e1',
+                                  background: '#ffffff',
+                                  color: '#334155',
+                                  cursor: onJumpToCitation ? 'pointer' : 'default',
+                                }}
+                                title={`${citation.type}:${citation.refId}`}
+                                type="button"
+                                onClick={() => {
+                                  if (!onJumpToCitation) return;
+                                  void onJumpToCitation(citation.type, citation.refId, citation);
+                                }}
+                                disabled={!onJumpToCitation}
+                              >
+                                {citation.label ?? `${citation.type}:${citation.refId}`}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))
                   )}
@@ -773,7 +812,7 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
             <span>{isZh ? '向量索引' : 'Embedding Index'}</span>
             <span className="transcription-ai-tag">F28</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 6, marginBottom: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 6, marginBottom: 8 }}>
             <button
               type="button"
               className="icon-btn"
@@ -785,6 +824,30 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
               }}
             >
               {isZh ? '构建当前媒体' : 'Build Current Media'}
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              style={{ height: 28, fontSize: 12 }}
+              disabled={!onBuildNotesEmbeddings || !!aiEmbeddingBusy}
+              onClick={() => {
+                if (!onBuildNotesEmbeddings) return;
+                void onBuildNotesEmbeddings();
+              }}
+            >
+              {isZh ? '向量化笔记' : 'Embed Notes'}
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              style={{ height: 28, fontSize: 12 }}
+              disabled={!onBuildPdfEmbeddings || !!aiEmbeddingBusy}
+              onClick={() => {
+                if (!onBuildPdfEmbeddings) return;
+                void onBuildPdfEmbeddings();
+              }}
+            >
+              {isZh ? '向量化 PDF' : 'Embed PDF'}
             </button>
             <button
               type="button"
@@ -852,16 +915,53 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
           )}
 
           <div style={{ display: 'grid', gap: 6 }}>
-            <span className="transcription-ai-caption" style={{ marginBottom: 0 }}>
-              {isZh ? '最近任务' : 'Recent Tasks'}
-            </span>
-            {(aiEmbeddingTasks ?? []).length === 0 ? (
-              <p className="small-text">{isZh ? '暂无 embedding 任务' : 'No embedding tasks yet.'}</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span className="transcription-ai-caption" style={{ marginBottom: 0 }}>
+                {isZh ? '最近 AI 任务' : 'Recent AI Tasks'}
+              </span>
+              <select
+                value={taskTypeFilter}
+                onChange={(e) => setTaskTypeFilter(e.target.value as 'all' | 'embed' | 'gloss')}
+                style={{ height: 24, fontSize: 11, borderRadius: 6, border: '1px solid #d1d5db' }}
+              >
+                <option value="all">{isZh ? '全部' : 'All'}</option>
+                <option value="embed">embed</option>
+                <option value="gloss">gloss</option>
+              </select>
+            </div>
+            {visibleAiTasks.length === 0 ? (
+              <p className="small-text">{isZh ? '暂无 AI 任务' : 'No AI tasks yet.'}</p>
             ) : (
-              (aiEmbeddingTasks ?? []).slice(0, 4).map((task) => (
-                <div key={task.id} className="transcription-match-row" style={{ marginTop: 0 }}>
-                  <span style={{ fontSize: 11 }}>{task.status.toUpperCase()}</span>
-                  <em>{new Date(task.updatedAt).toLocaleTimeString()}</em>
+              visibleAiTasks.slice(0, 6).map((task) => (
+                <div key={task.id} className="transcription-match-row" style={{ marginTop: 0, display: 'grid', gap: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontSize: 11 }}>{`${task.taskType.toUpperCase()} · ${task.status.toUpperCase()}`}</span>
+                    <em>{new Date(task.updatedAt).toLocaleTimeString()}</em>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {(task.status === 'pending' || task.status === 'running') && (
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        style={{ height: 24, minWidth: 64, fontSize: 11 }}
+                        disabled={!onCancelAiTask}
+                        onClick={() => void onCancelAiTask?.(task.id)}
+                      >
+                        {isZh ? '取消' : 'Cancel'}
+                      </button>
+                    )}
+                    {task.status === 'failed' && (
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        style={{ height: 24, minWidth: 64, fontSize: 11 }}
+                        disabled={!onRetryAiTask}
+                        onClick={() => void onRetryAiTask?.(task.id)}
+                      >
+                        {isZh ? '重试' : 'Retry'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))
             )}

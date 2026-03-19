@@ -112,6 +112,7 @@ export class CustomHttpProvider implements LLMProvider {
     }
 
     if (this.config.responseFormat === 'plain-json') {
+      // Non-streaming single-shot: read entire response body and yield at once.
       const payload = parseProviderJson<unknown>(await response.text(), this.label, 'Plain JSON');
       const text = extractPlainJsonText(payload);
       if (text.length > 0) {
@@ -122,45 +123,77 @@ export class CustomHttpProvider implements LLMProvider {
     }
 
     if (this.config.responseFormat === 'ollama-jsonl') {
-      for await (const line of iterateJsonLines(response)) {
-        const json = parseProviderJson<{
-          message?: { content?: string };
-          error?: string;
-          done?: boolean;
-        }>(line, this.label, 'Ollama JSONL');
+      try {
+        for await (const line of iterateJsonLines(response)) {
+          const json = parseProviderJson<{
+            message?: { content?: string };
+            error?: string;
+            done?: boolean;
+          }>(line, this.label, 'Ollama JSONL');
 
-        if (json.error) {
-          yield toErrorChunk(json.error);
-          return;
-        }
+          if (json.error) {
+            yield toErrorChunk(json.error);
+            return;
+          }
 
-        const delta = json.message?.content ?? '';
-        if (delta.length > 0) {
-          yield { delta };
-        }
+          const delta = json.message?.content ?? '';
+          if (delta.length > 0) {
+            yield { delta };
+          }
 
-        if (json.done) {
-          yield { delta: '', done: true };
-          return;
+          if (json.done) {
+            yield { delta: '', done: true };
+            return;
+          }
         }
+      } catch (streamError) {
+        yield toErrorChunk(streamError instanceof Error ? streamError.message : 'Stream read failed');
+        return;
       }
 
       yield { delta: '', done: true };
       return;
     }
 
-    for await (const payload of iterateSseData(response)) {
-      if (payload === '[DONE]') {
-        yield { delta: '', done: true };
-        return;
-      }
+    try {
+      for await (const payload of iterateSseData(response)) {
+        if (payload === '[DONE]') {
+          yield { delta: '', done: true };
+          return;
+        }
 
-      if (this.config.responseFormat === 'anthropic-sse') {
+        if (this.config.responseFormat === 'anthropic-sse') {
+          const json = parseProviderJson<{
+            type?: string;
+            delta?: { text?: string };
+            error?: { message?: string };
+          }>(payload, this.label, 'Anthropic SSE');
+
+          const errorMessage = json.error?.message;
+          if (errorMessage) {
+            yield toErrorChunk(errorMessage);
+            return;
+          }
+
+          if (json.type === 'content_block_delta') {
+            const delta = json.delta?.text ?? '';
+            if (delta.length > 0) {
+              yield { delta };
+            }
+          }
+
+          if (json.type === 'message_stop') {
+            yield { delta: '', done: true };
+            return;
+          }
+
+          continue;
+        }
+
         const json = parseProviderJson<{
-          type?: string;
-          delta?: { text?: string };
+          choices?: Array<{ delta?: { content?: string } }>;
           error?: { message?: string };
-        }>(payload, this.label, 'Anthropic SSE');
+        }>(payload, this.label, 'OpenAI SSE');
 
         const errorMessage = json.error?.message;
         if (errorMessage) {
@@ -168,36 +201,14 @@ export class CustomHttpProvider implements LLMProvider {
           return;
         }
 
-        if (json.type === 'content_block_delta') {
-          const delta = json.delta?.text ?? '';
-          if (delta.length > 0) {
-            yield { delta };
-          }
+        const delta = json.choices?.[0]?.delta?.content ?? '';
+        if (delta.length > 0) {
+          yield { delta };
         }
-
-        if (json.type === 'message_stop') {
-          yield { delta: '', done: true };
-          return;
-        }
-
-        continue;
       }
-
-      const json = parseProviderJson<{
-        choices?: Array<{ delta?: { content?: string } }>;
-        error?: { message?: string };
-      }>(payload, this.label, 'OpenAI SSE');
-
-      const errorMessage = json.error?.message;
-      if (errorMessage) {
-        yield toErrorChunk(errorMessage);
-        return;
-      }
-
-      const delta = json.choices?.[0]?.delta?.content ?? '';
-      if (delta.length > 0) {
-        yield { delta };
-      }
+    } catch (streamError) {
+      yield toErrorChunk(streamError instanceof Error ? streamError.message : 'Stream read failed');
+      return;
     }
 
     yield { delta: '', done: true };

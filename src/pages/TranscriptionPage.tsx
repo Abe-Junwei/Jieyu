@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { AiAnalysisPanel } from '../components/AiAnalysisPanel';
 import type { AiPanelMode } from '../components/AiAnalysisPanel';
+import { PdfViewerPanel } from '../components/PdfViewerPanel';
+import { VoiceAgentWidget } from '../components/VoiceAgentWidget';
 import { AudioImportDialog } from '../components/AudioImportDialog';
 import { BatchOperationPanel } from '../components/BatchOperationPanel';
 import { ProjectSetupDialog } from '../components/ProjectSetupDialog';
@@ -36,9 +38,13 @@ import { useWaveSurfer } from '../hooks/useWaveSurfer';
 import { useZoom } from '../hooks/useZoom';
 import { useKeybindingActions } from '../hooks/useKeybindingActions';
 import { useAiChat } from '../hooks/useAiChat';
+import { useVoiceAgent } from '../hooks/useVoiceAgent';
+import { featureFlags } from '../ai/config/featureFlags';
+import { DEFAULT_VOICE_INTENT_RESOLVER_CONFIG } from '../ai/config/voiceIntentResolver';
+import { resolveVoiceIntentWithLlmUsingConfig } from '../services/VoiceIntentLlmResolver';
 import { useImportExport } from '../hooks/useImportExport';
 import { useLayerActionPanel } from '../hooks/useLayerActionPanel';
-import { useAiPanelLogic } from '../hooks/useAiPanelLogic';
+import { useAiPanelLogic, taskToPersona } from '../hooks/useAiPanelLogic';
 import { useNoteHandlers } from '../hooks/useNoteHandlers';
 import { useTimelineAnnotationHelpers } from '../hooks/useTimelineAnnotationHelpers';
 import { useAiToolCallHandler } from '../hooks/useAiToolCallHandler';
@@ -53,6 +59,10 @@ import { formatLayerRailLabel, formatTime } from '../utils/transcriptionFormatte
 import { WorkerEmbeddingRuntime } from '../ai/embeddings/EmbeddingRuntime';
 import { EmbeddingService } from '../ai/embeddings/EmbeddingService';
 import { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
+import { buildEmbeddingFallbackWarning, readFallbackReason } from '../ai/embeddings/fallbackWarning';
+import { mapAuditRowToAiToolDecisionLog } from '../ai/toolDecisionLog';
+import { getGlobalTaskRunner } from '../ai/tasks/taskRunnerSingleton';
+import { extractUtteranceIdFromNote, getPdfPageFromHash, isDirectPdfCitationRef, splitPdfCitationRef } from '../utils/citationJumpUtils';
 
 export function TranscriptionPage() {
   const locale = detectLocale();
@@ -169,6 +179,78 @@ export function TranscriptionPage() {
   // ---- Page-only UI state ----
   const [focusedLayerRowId, setFocusedLayerRowId] = useState<string>('');
   const [flashLayerRowId, setFlashLayerRowId] = useState<string>('');
+  const [pdfPreview, setPdfPreview] = useState<{
+    sourceUrl: string;
+    url: string;
+    title: string;
+    page: number | null;
+    hashSuffix: string;
+    navToken: number;
+    searchSnippet?: string;
+  } | null>(null);
+  const [pdfPreviewPos, setPdfPreviewPos] = useState<{ right: number; bottom: number }>({ right: 16, bottom: 16 });
+  const [pdfPreviewDragging, setPdfPreviewDragging] = useState(false);
+  const pdfPreviewRef = useRef<HTMLElement | null>(null);
+  const pdfPreviewDragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startRight: number;
+    startBottom: number;
+  } | null>(null);
+
+  const buildPdfPreviewUrl = useCallback((sourceUrl: string, page: number | null, hashSuffix = '', searchSnippet?: string): string => {
+    const trimmedSource = sourceUrl.trim();
+    if (!trimmedSource) return '';
+    const normalizedBase = trimmedSource.replace(/#.*/, '');
+    let hash = '';
+    if (page && Number.isFinite(page) && page >= 1) {
+      hash = `page=${Math.floor(page)}`;
+    } else if (hashSuffix) {
+      hash = hashSuffix.replace(/^#/, '');
+    }
+    if (searchSnippet?.trim()) {
+      const escapedSnippet = encodeURIComponent(searchSnippet.trim());
+      hash = hash ? `${hash}&search=${escapedSnippet}` : `search=${escapedSnippet}`;
+    }
+    return hash ? `${normalizedBase}#${hash}` : normalizedBase;
+  }, []);
+
+  const openPdfPreview = useCallback((sourceUrl: string, title: string, page: number | null, hashSuffix = '', searchSnippet?: string) => {
+    const normalizedPage = page && Number.isFinite(page) && page >= 1 ? Math.floor(page) : null;
+    setPdfPreview((current) => {
+      const next: typeof current = {
+        sourceUrl,
+        url: buildPdfPreviewUrl(sourceUrl, normalizedPage, hashSuffix, searchSnippet),
+        title,
+        page: normalizedPage,
+        hashSuffix,
+        navToken: (current?.navToken ?? 0) + 1,
+      };
+      if (searchSnippet) next.searchSnippet = searchSnippet;
+      return next;
+    });
+  }, [buildPdfPreviewUrl]);
+
+  const handlePdfPreviewPageChange = useCallback((delta: number) => {
+    setPdfPreview((current) => {
+      if (!current) return current;
+      const basePage = current.page ?? 1;
+      const nextPage = Math.max(1, basePage + delta);
+      const next: typeof current = {
+        ...current,
+        page: nextPage,
+        url: buildPdfPreviewUrl(current.sourceUrl, nextPage, current.hashSuffix, current.searchSnippet),
+        navToken: current.navToken + 1,
+      };
+      return next;
+    });
+  }, [buildPdfPreviewUrl]);
+
+  const handlePdfPreviewOpenExternal = useCallback(() => {
+    if (!pdfPreview) return;
+    window.open(pdfPreview.url, '_blank', 'noopener,noreferrer');
+  }, [pdfPreview]);
 
   const handleFocusLayerRow = useCallback((id: string) => {
     setFocusedLayerRowId(id);
@@ -203,8 +285,174 @@ export function TranscriptionPage() {
     setShowUndoHistory,
     activeTextId,
     setActiveTextId,
+    activeTextPrimaryLanguageId,
     getActiveTextId,
+    getActiveTextPrimaryLanguageId,
   } = useDialogs(utterances);
+
+  const [voiceCorpusLang, setVoiceCorpusLang] = useState('cmn');
+  const [voiceCorpusLangOverride, setVoiceCorpusLangOverride] = useState<string | null>(null);
+  const [voiceDockExpanded, setVoiceDockExpanded] = useState(false);
+  const [voiceDockPos, setVoiceDockPos] = useState<{ right: number; bottom: number }>({ right: 16, bottom: 16 });
+  const [voiceDockDragging, setVoiceDockDragging] = useState(false);
+  const voiceDockDragRef = useRef<{ pointerId: number; startX: number; startY: number; startRight: number; startBottom: number; moved: boolean } | null>(null);
+  const voiceDockContainerRef = useRef<HTMLElement | null>(null);
+  const voiceDockDraggedAtRef = useRef(0);
+
+  useEffect(() => {
+    const preferredLanguage = activeTextPrimaryLanguageId?.trim();
+    if (preferredLanguage) {
+      setVoiceCorpusLang(preferredLanguage);
+      return;
+    }
+    let cancelled = false;
+    fireAndForget((async () => {
+      const fallbackLanguage = (await getActiveTextPrimaryLanguageId())?.trim();
+      if (!cancelled && fallbackLanguage) {
+        setVoiceCorpusLang(fallbackLanguage);
+      }
+    })());
+    return () => { cancelled = true; };
+  }, [activeTextPrimaryLanguageId, getActiveTextPrimaryLanguageId]);
+
+  const effectiveVoiceCorpusLang = (voiceCorpusLangOverride?.trim() || voiceCorpusLang || 'cmn').toLowerCase();
+  const handleVoiceSetLangOverride = useCallback((lang: string | null) => {
+    const next = lang?.trim() ?? '';
+    setVoiceCorpusLangOverride(next ? next.toLowerCase() : null);
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem('jieyu.voiceDock.pos');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { right?: unknown; bottom?: unknown };
+      const right = typeof parsed.right === 'number' ? parsed.right : 16;
+      const bottom = typeof parsed.bottom === 'number' ? parsed.bottom : 16;
+      setVoiceDockPos({ right: Math.max(8, right), bottom: Math.max(8, bottom) });
+    } catch {
+      // ignore storage parsing errors
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem('jieyu.voiceDock.pos', JSON.stringify(voiceDockPos));
+  }, [voiceDockPos]);
+
+  const handleVoiceDockDragStart = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    setVoiceDockDragging(true);
+    voiceDockDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startRight: voiceDockPos.right,
+      startBottom: voiceDockPos.bottom,
+      moved: false,
+    };
+    event.preventDefault();
+  }, [voiceDockPos.bottom, voiceDockPos.right]);
+
+  const handleVoiceDockDragMove = useCallback((event: PointerEvent) => {
+    const drag = voiceDockDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (!drag.moved && Math.hypot(dx, dy) >= 4) {
+      drag.moved = true;
+    }
+    const nextRight = Math.max(8, Math.min(window.innerWidth - 56, drag.startRight - dx));
+    const nextBottom = Math.max(8, Math.min(window.innerHeight - 56, drag.startBottom - dy));
+    setVoiceDockPos({ right: nextRight, bottom: nextBottom });
+  }, []);
+
+  const handleVoiceDockDragEnd = useCallback((event: PointerEvent) => {
+    const drag = voiceDockDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    voiceDockDragRef.current = null;
+    setVoiceDockDragging(false);
+
+    if (drag.moved) {
+      voiceDockDraggedAtRef.current = Date.now();
+    }
+
+    const edge = 16;
+    const dockWidth = voiceDockContainerRef.current?.offsetWidth ?? 460;
+    const dockHeight = voiceDockContainerRef.current?.offsetHeight ?? 168;
+    const maxRight = Math.max(edge, window.innerWidth - dockWidth - edge);
+    const maxBottom = Math.max(edge, window.innerHeight - dockHeight - edge);
+
+    setVoiceDockPos((current) => {
+      const snapRight = current.right <= maxRight / 2 ? edge : maxRight;
+      const snapBottom = Math.max(edge, Math.min(maxBottom, current.bottom));
+      return { right: snapRight, bottom: snapBottom };
+    });
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('pointermove', handleVoiceDockDragMove);
+    window.addEventListener('pointerup', handleVoiceDockDragEnd);
+    window.addEventListener('pointercancel', handleVoiceDockDragEnd);
+    return () => {
+      window.removeEventListener('pointermove', handleVoiceDockDragMove);
+      window.removeEventListener('pointerup', handleVoiceDockDragEnd);
+      window.removeEventListener('pointercancel', handleVoiceDockDragEnd);
+    };
+  }, [handleVoiceDockDragEnd, handleVoiceDockDragMove]);
+
+  const handlePdfPreviewDragStart = useCallback((event: React.PointerEvent<HTMLElement>) => {
+    const target = event.target;
+    if (target instanceof HTMLElement && target.closest('button')) {
+      return;
+    }
+    setPdfPreviewDragging(true);
+    pdfPreviewDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startRight: pdfPreviewPos.right,
+      startBottom: pdfPreviewPos.bottom,
+    };
+    event.preventDefault();
+  }, [pdfPreviewPos.bottom, pdfPreviewPos.right]);
+
+  const handlePdfPreviewDragMove = useCallback((event: PointerEvent) => {
+    const drag = pdfPreviewDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    const nextRight = Math.max(8, drag.startRight - dx);
+    const nextBottom = Math.max(8, drag.startBottom - dy);
+    setPdfPreviewPos({ right: nextRight, bottom: nextBottom });
+  }, []);
+
+  const handlePdfPreviewDragEnd = useCallback((event: PointerEvent) => {
+    const drag = pdfPreviewDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    pdfPreviewDragRef.current = null;
+    setPdfPreviewDragging(false);
+
+    const edge = 16;
+    const panelWidth = pdfPreviewRef.current?.offsetWidth ?? 520;
+    const panelHeight = pdfPreviewRef.current?.offsetHeight ?? 360;
+    const maxRight = Math.max(edge, window.innerWidth - panelWidth - edge);
+    const maxBottom = Math.max(edge, window.innerHeight - panelHeight - edge);
+
+    setPdfPreviewPos((current) => ({
+      right: Math.max(edge, Math.min(maxRight, current.right)),
+      bottom: Math.max(edge, Math.min(maxBottom, current.bottom)),
+    }));
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('pointermove', handlePdfPreviewDragMove);
+    window.addEventListener('pointerup', handlePdfPreviewDragEnd);
+    window.addEventListener('pointercancel', handlePdfPreviewDragEnd);
+    return () => {
+      window.removeEventListener('pointermove', handlePdfPreviewDragMove);
+      window.removeEventListener('pointerup', handlePdfPreviewDragEnd);
+      window.removeEventListener('pointercancel', handlePdfPreviewDragEnd);
+    };
+  }, [handlePdfPreviewDragEnd, handlePdfPreviewDragMove]);
 
   const createLayerWithActiveContext = useCallback(async (
     ...args: Parameters<typeof createLayer>
@@ -229,12 +477,14 @@ export function TranscriptionPage() {
   const [globalLoopPlayback, setGlobalLoopPlayback] = useState(false);
   const [segmentPlaybackRate, setSegmentPlaybackRate] = useState(1);
   const [aiPanelMode, setAiPanelMode] = useState<AiPanelMode>('auto');
+  const aiDerivedPersonaRef = useRef<'transcription' | 'glossing' | 'review'>('transcription');
   const aiObserverStageRef = useRef<string>('');
   const aiRecommendationRef = useRef<string[]>([]);
   const aiLexemeSummaryRef = useRef<string[]>([]);
   const aiAudioTimeRef = useRef(0);
   const embeddingRuntime = useMemo(() => new WorkerEmbeddingRuntime(), []);
-  const embeddingService = useMemo(() => new EmbeddingService(embeddingRuntime), [embeddingRuntime]);
+  const taskRunner = useMemo(() => getGlobalTaskRunner(), []);
+  const embeddingService = useMemo(() => new EmbeddingService(embeddingRuntime, taskRunner), [embeddingRuntime, taskRunner]);
   const embeddingSearchService = useMemo(() => new EmbeddingSearchService(embeddingRuntime), [embeddingRuntime]);
   const [aiEmbeddingBusy, setAiEmbeddingBusy] = useState(false);
   const [aiEmbeddingProgressLabel, setAiEmbeddingProgressLabel] = useState<string | null>(null);
@@ -251,6 +501,7 @@ export function TranscriptionPage() {
   } | null>(null);
   const [aiEmbeddingTasks, setAiEmbeddingTasks] = useState<Array<{
     id: string;
+    taskType: 'transcribe' | 'gloss' | 'translate' | 'embed' | 'detect_language';
     status: 'pending' | 'running' | 'done' | 'failed';
     updatedAt: string;
     modelId?: string;
@@ -280,13 +531,14 @@ export function TranscriptionPage() {
 
   const refreshEmbeddingTasks = useCallback(async () => {
     const db = await getDb();
-    const rows = await db.collections.ai_tasks.findByIndex('taskType', 'embed');
+    const rows = await db.collections.ai_tasks.find().exec();
     const normalized = rows
       .map((item) => item.toJSON())
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, 8)
       .map((item) => ({
         id: item.id,
+        taskType: item.taskType,
         status: item.status,
         updatedAt: item.updatedAt,
         ...(item.modelId ? { modelId: item.modelId } : {}),
@@ -306,18 +558,27 @@ export function TranscriptionPage() {
       .limit(6)
       .toArray();
     const normalized = rows
-      .map((item) => {
-        const decisionRaw = (item.newValue ?? '').trim();
-        const [decision = '', toolName = ''] = decisionRaw.split(':');
-        return {
-          id: item.id,
-          toolName,
-          decision,
-          timestamp: item.timestamp,
-        };
-      });
+      .map((item) => mapAuditRowToAiToolDecisionLog(item));
     setAiToolDecisionLogs(normalized);
   }, []);
+
+  const handleCancelAiTask = useCallback(async (taskId: string) => {
+    const ok = taskRunner.cancel(taskId);
+    if (!ok) {
+      setAiEmbeddingLastError(locale === 'zh-CN' ? '任务不可取消（可能已完成）。' : 'Task cannot be cancelled (may have finished).');
+    }
+    await refreshEmbeddingTasks();
+  }, [locale, refreshEmbeddingTasks, taskRunner]);
+
+  const handleRetryAiTask = useCallback(async (taskId: string) => {
+    const nextTaskId = await taskRunner.retry(taskId);
+    if (!nextTaskId) {
+      setAiEmbeddingLastError(locale === 'zh-CN' ? '该任务暂不支持重试。' : 'Retry is not available for this task.');
+      return;
+    }
+    setAiEmbeddingProgressLabel(locale === 'zh-CN' ? `已重新排队: ${nextTaskId}` : `Re-queued: ${nextTaskId}`);
+    await refreshEmbeddingTasks();
+  }, [locale, refreshEmbeddingTasks, taskRunner]);
 
   const handleBuildUtteranceEmbeddings = useCallback(async () => {
     const sources = utterancesOnCurrentMedia
@@ -340,11 +601,9 @@ export function TranscriptionPage() {
     try {
       const result = await embeddingService.buildEmbeddings(sources, {
         onProgress: (progress) => {
-          if (progress.runtime?.stage === 'ready' && progress.runtime.message?.startsWith('fallback:')) {
-            const reason = progress.runtime.message.slice('fallback:'.length).trim();
-            setAiEmbeddingWarning(locale === 'zh-CN'
-              ? `当前使用降级 embedding（${reason || '模型不可用'}）。检索质量可能下降。`
-              : `Running fallback embedding (${reason || 'model unavailable'}). Retrieval quality may degrade.`);
+          const fallbackReason = readFallbackReason(progress.runtime);
+          if (fallbackReason !== null) {
+            setAiEmbeddingWarning(buildEmbeddingFallbackWarning(locale, fallbackReason));
           }
           if (progress.stage === 'done') {
             setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'embedding 构建完成。' : 'Embedding build completed.');
@@ -368,6 +627,62 @@ export function TranscriptionPage() {
       setAiEmbeddingBusy(false);
     }
   }, [embeddingService, getUtteranceTextForLayer, locale, refreshEmbeddingTasks, utterancesOnCurrentMedia]);
+
+  const handleBuildNotesEmbeddings = useCallback(async () => {
+    setAiEmbeddingBusy(true);
+    setAiEmbeddingLastError(null);
+    setAiEmbeddingWarning(null);
+    setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '准备笔记 embedding 任务...' : 'Preparing notes embedding task...');
+    try {
+      const result = await embeddingService.buildNotesEmbeddings({
+        onProgress: (progress) => {
+          if (progress.stage === 'done') {
+            setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '笔记 embedding 完成。' : 'Notes embedding completed.');
+            return;
+          }
+          const prefix = locale === 'zh-CN' ? '向量化笔记' : 'Embedding notes';
+          setAiEmbeddingProgressLabel(`${prefix}: ${progress.processed}/${progress.total}`);
+        },
+      });
+      setAiEmbeddingLastResult({ ...result, completedAt: new Date().toISOString() });
+      await refreshEmbeddingTasks();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Notes embedding failed';
+      setAiEmbeddingLastError(message);
+      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '笔记 embedding 失败。' : 'Notes embedding failed.');
+      await refreshEmbeddingTasks();
+    } finally {
+      setAiEmbeddingBusy(false);
+    }
+  }, [embeddingService, locale, refreshEmbeddingTasks]);
+
+  const handleBuildPdfEmbeddings = useCallback(async () => {
+    setAiEmbeddingBusy(true);
+    setAiEmbeddingLastError(null);
+    setAiEmbeddingWarning(null);
+    setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '准备 PDF embedding 任务...' : 'Preparing PDF embedding task...');
+    try {
+      const result = await embeddingService.buildPdfEmbeddings({
+        onProgress: (progress) => {
+          if (progress.stage === 'done') {
+            setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'PDF embedding 完成。' : 'PDF embedding completed.');
+            return;
+          }
+          const prefix = locale === 'zh-CN' ? '向量化 PDF' : 'Embedding PDF';
+          setAiEmbeddingProgressLabel(`${prefix}: ${progress.processed}/${progress.total}`);
+        },
+      });
+      setAiEmbeddingLastResult({ ...result, completedAt: new Date().toISOString() });
+      await refreshEmbeddingTasks();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'PDF embedding failed';
+      setAiEmbeddingLastError(message);
+      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'PDF embedding 失败。' : 'PDF embedding failed.');
+      await refreshEmbeddingTasks();
+    } finally {
+      setAiEmbeddingBusy(false);
+    }
+  }, [embeddingService, locale, refreshEmbeddingTasks]);
 
   const handleFindSimilarUtterances = useCallback(async () => {
     if (!selectedUtterance) {
@@ -399,6 +714,11 @@ export function TranscriptionPage() {
       const result = await embeddingSearchService.searchSimilarUtterances(queryText, {
         topK: 5,
         candidateSourceIds: utterancesOnCurrentMedia.map((item) => item.id),
+        onProgress: (progress) => {
+          const fallbackReason = readFallbackReason(progress);
+          if (fallbackReason === null) return;
+          setAiEmbeddingWarning(buildEmbeddingFallbackWarning(locale, fallbackReason));
+        },
       });
 
       const mapped = result.matches
@@ -472,11 +792,36 @@ export function TranscriptionPage() {
 
   const aiChat = useAiChat({
     onToolCall: handleAiToolCall,
-    systemPersonaKey: 'transcription',
+    systemPersonaKey: aiDerivedPersonaRef.current,
     getContext: buildAiPromptContext,
     maxContextChars: 2400,
     historyCharBudget: 6000,
+    embeddingSearchService,
   });
+
+  const voiceIntentResolverConfig = DEFAULT_VOICE_INTENT_RESOLVER_CONFIG;
+
+  const handleResolveVoiceIntentWithLlm = useCallback(async ({
+    text,
+    mode,
+    session,
+  }: {
+    text: string;
+    mode: 'command' | 'dictation' | 'analysis';
+    session: { entries: Array<{ intent: { type: string }; sttText: string }> };
+  }) => {
+    if (!featureFlags.aiChatEnabled || !aiChat.enabled) {
+      return null;
+    }
+    return resolveVoiceIntentWithLlmUsingConfig({
+      transcript: text,
+      mode,
+      settings: aiChat.settings,
+      recentContext: session.entries
+        .slice(-4)
+        .map((entry) => `[${entry.intent.type}] ${entry.sttText}`),
+    }, voiceIntentResolverConfig);
+  }, [aiChat.enabled, aiChat.settings, voiceIntentResolverConfig]);
 
   useEffect(() => {
     fireAndForget(refreshAiToolDecisionLogs());
@@ -750,6 +1095,163 @@ export function TranscriptionPage() {
     player.seekTo(target.startTime);
   }, [player, selectUtterance, utterances]);
 
+  const handleJumpToCitation = useCallback(async (
+    citationType: 'utterance' | 'note' | 'pdf' | 'schema',
+    refId: string,
+    citationRef?: { snippet?: string },
+  ) => {
+    if (!refId) return;
+    if (citationType === 'utterance') {
+      handleJumpToEmbeddingMatch(refId);
+      return;
+    }
+    if (citationType === 'note') {
+      const note = await appDb.user_notes.get(refId);
+      if (!note) {
+        setAiEmbeddingLastError(locale === 'zh-CN' ? '未找到引用的笔记。' : 'Referenced note was not found.');
+        return;
+      }
+
+      const utteranceId = extractUtteranceIdFromNote(note);
+
+      if (utteranceId) {
+        handleJumpToEmbeddingMatch(utteranceId);
+      }
+
+      // 打开笔记弹层，至少展示该笔记所附着的目标 | Open note popover near top-right as a visible landing.
+      setNotePopover({
+        x: Math.max(40, window.innerWidth - 360),
+        y: 100,
+        uttId: utteranceId ?? selectedUtteranceId ?? '',
+        noteTarget: {
+          targetType: note.targetType,
+          targetId: note.targetId,
+          ...(note.parentTargetId ? { parentTargetId: note.parentTargetId } : {}),
+          ...(typeof note.targetIndex === 'number' ? { targetIndex: note.targetIndex } : {}),
+        },
+      });
+      return;
+    }
+
+    if (citationType === 'schema') {
+      const targetLayer = layerRailRows.find((item) => item.id === refId || item.key === refId);
+      if (!targetLayer) {
+        setAiEmbeddingLastError(locale === 'zh-CN'
+          ? '未找到引用的层定义。'
+          : 'Referenced layer schema was not found.');
+        return;
+      }
+
+      // 聚焦到层面板并高亮目标层，作为 schema 引用的落点。 | Focus layer rail and highlight target layer as schema citation landing.
+      setIsLayerRailCollapsed(false);
+      setLayerRailTab('layers');
+      setSelectedLayerId(targetLayer.id);
+      setFocusedLayerRowId(targetLayer.id);
+      setFlashLayerRowId(targetLayer.id);
+      return;
+    }
+
+    if (citationType === 'pdf') {
+      const { baseRef, hashSuffix } = splitPdfCitationRef(refId);
+      const page = getPdfPageFromHash(hashSuffix);
+      const displayTitle = baseRef.split('/').pop() || baseRef || 'PDF';
+
+      // 优先直接打开 URL 形式引用 | Prefer direct URL-like PDF citations.
+      if (isDirectPdfCitationRef(refId)) {
+        const snippet = citationRef?.snippet?.trim();
+        openPdfPreview(baseRef || refId.trim(), displayTitle, page, hashSuffix, snippet);
+        return;
+      }
+
+      const resolveMediaLink = (media: { url?: string; details?: Record<string, unknown> } | undefined): string | null => {
+        if (!media) return null;
+        if (typeof media.url === 'string' && media.url.trim()) return media.url;
+        const details = media.details;
+        if (!details) return null;
+        const detailUrl = details.url;
+        if (typeof detailUrl === 'string' && detailUrl.trim()) return detailUrl;
+        const pdfBlob = details.pdfBlob;
+        if (pdfBlob instanceof Blob) {
+          const url = URL.createObjectURL(pdfBlob);
+          window.setTimeout(() => {
+            URL.revokeObjectURL(url);
+          }, 30_000);
+          return url;
+        }
+        return null;
+      };
+
+      // 支持 refId=media_id 或 filename 的文档定位 | Resolve PDF citation by media id or filename.
+      let media = await appDb.media_items.get(baseRef);
+      if (!media) {
+        const allMedia = await appDb.media_items.toArray();
+        media = allMedia.find((item) => {
+          const details = item.details as Record<string, unknown> | undefined;
+          const mime = typeof details?.mimeType === 'string' ? details.mimeType.toLowerCase() : '';
+          const isPdf = item.filename.toLowerCase().endsWith('.pdf') || mime.includes('pdf');
+          if (!isPdf) return false;
+          return item.filename === baseRef || item.id === baseRef;
+        });
+      }
+
+      const mediaLink = resolveMediaLink(media);
+      if (mediaLink) {
+        const snippet = citationRef?.snippet?.trim();
+        openPdfPreview(mediaLink, media?.filename || displayTitle, page, hashSuffix, snippet);
+        return;
+      }
+
+      // 若无文档链接，再退化到 note 落点定位。 | Fall back to note landing when no direct PDF link is available.
+      let note = await appDb.user_notes.get(refId);
+      if (!note) {
+        const related = (await appDb.user_notes.toArray()).find((item) => item.targetId === refId || item.targetId === baseRef);
+        note = related;
+      }
+
+      if (note) {
+        const utteranceId = extractUtteranceIdFromNote(note);
+
+        if (utteranceId) {
+          handleJumpToEmbeddingMatch(utteranceId);
+        }
+
+        setNotePopover({
+          x: Math.max(40, window.innerWidth - 360),
+          y: 100,
+          uttId: utteranceId ?? selectedUtteranceId ?? '',
+          noteTarget: {
+            targetType: note.targetType,
+            targetId: note.targetId,
+            ...(note.parentTargetId ? { parentTargetId: note.parentTargetId } : {}),
+            ...(typeof note.targetIndex === 'number' ? { targetIndex: note.targetIndex } : {}),
+          },
+        });
+        return;
+      }
+
+      setAiEmbeddingLastError(locale === 'zh-CN'
+        ? '未找到可打开的 PDF 引用目标。'
+        : 'No openable PDF citation target was found.');
+      return;
+    }
+
+    setAiEmbeddingLastError(locale === 'zh-CN'
+      ? `当前暂不支持跳转到 ${citationType} 引用。`
+      : `Jump for ${citationType} citation is not supported yet.`);
+  }, [
+    handleJumpToEmbeddingMatch,
+    layerRailRows,
+    locale,
+    selectedUtteranceId,
+    setFlashLayerRowId,
+    setFocusedLayerRowId,
+    setIsLayerRailCollapsed,
+    setLayerRailTab,
+    setNotePopover,
+    openPdfPreview,
+    setSelectedLayerId,
+  ]);
+
   // 同步 duration 到 ref（供下次渲染的 zoom 计算使用）
   if (player.duration > 0 && player.duration !== lastDurationRef.current) {
     lastDurationRef.current = player.duration;
@@ -879,6 +1381,9 @@ export function TranscriptionPage() {
   });
   const setAiPanelContext = useAiPanelContextUpdater();
 
+  // Sync derived persona key to ref (read by useAiChat via useLatest)
+  aiDerivedPersonaRef.current = taskToPersona(aiCurrentTask);
+
   useEffect(() => {
     aiObserverStageRef.current = observerResult.stage;
     aiRecommendationRef.current = actionableObserverRecommendations
@@ -888,113 +1393,6 @@ export function TranscriptionPage() {
       .slice(0, 6)
       .map((item) => Object.values(item.lemma)[0] ?? item.id);
   }, [actionableObserverRecommendations, lexemeMatches, observerResult.stage]);
-
-  const aiPanelContextValue = useMemo(() => ({
-    dbName: state.phase === 'ready' ? state.dbName : '',
-    utteranceCount: state.phase === 'ready' ? state.utteranceCount : utterances.length,
-    translationLayerCount: state.phase === 'ready' ? state.translationLayerCount : translationLayers.length,
-    aiConfidenceAvg,
-    selectedUtterance: selectedUtterance ?? null,
-    selectedRowMeta,
-    selectedAiWarning,
-    lexemeMatches,
-    onOpenWordNote: handleOpenWordNote,
-    onOpenMorphemeNote: handleOpenMorphemeNote,
-    onUpdateTokenPos: handleUpdateTokenPos,
-    onBatchUpdateTokenPosByForm: handleBatchUpdateTokenPosByForm,
-    aiChatEnabled: aiChat.enabled,
-    aiProviderLabel: aiChat.providerLabel,
-    aiChatSettings: aiChat.settings,
-    aiMessages: aiChat.messages,
-    aiIsStreaming: aiChat.isStreaming,
-    aiLastError: aiChat.lastError,
-    aiConnectionTestStatus: aiChat.connectionTestStatus,
-    aiConnectionTestMessage: aiChat.connectionTestMessage,
-    aiContextDebugSnapshot: aiChat.contextDebugSnapshot,
-    aiPendingToolCall: aiChat.pendingToolCall,
-    aiToolDecisionLogs,
-    onUpdateAiChatSettings: aiChat.updateSettings,
-    onTestAiConnection: aiChat.testConnection,
-    onSendAiMessage: aiChat.send,
-    onStopAiMessage: aiChat.stop,
-    onClearAiMessages: aiChat.clear,
-    onConfirmPendingToolCall: aiChat.confirmPendingToolCall,
-    onCancelPendingToolCall: aiChat.cancelPendingToolCall,
-    aiPanelMode,
-    aiCurrentTask,
-    aiVisibleCards,
-    selectedTranslationGapCount,
-    onJumpToTranslationGap: handleJumpToTranslationGap,
-    onChangeAiPanelMode: setAiPanelMode,
-    observerStage: observerResult.stage,
-    observerRecommendations: actionableObserverRecommendations,
-    onExecuteRecommendation: handleExecuteRecommendation,
-    aiEmbeddingBusy,
-    aiEmbeddingProgressLabel,
-    aiEmbeddingLastResult,
-    aiEmbeddingTasks,
-    aiEmbeddingMatches,
-    aiEmbeddingLastError,
-    aiEmbeddingWarning,
-    onBuildUtteranceEmbeddings: handleBuildUtteranceEmbeddings,
-    onFindSimilarUtterances: handleFindSimilarUtterances,
-    onRefreshEmbeddingTasks: refreshEmbeddingTasks,
-    onJumpToEmbeddingMatch: handleJumpToEmbeddingMatch,
-  }), [
-    state,
-    utterances.length,
-    translationLayers.length,
-    aiConfidenceAvg,
-    selectedUtterance,
-    selectedRowMeta,
-    selectedAiWarning,
-    lexemeMatches,
-    handleOpenWordNote,
-    handleOpenMorphemeNote,
-    handleUpdateTokenPos,
-    handleBatchUpdateTokenPosByForm,
-    aiChat.enabled,
-    aiChat.providerLabel,
-    aiChat.settings,
-    aiChat.messages,
-    aiChat.isStreaming,
-    aiChat.lastError,
-    aiChat.connectionTestStatus,
-    aiChat.connectionTestMessage,
-    aiChat.contextDebugSnapshot,
-    aiChat.pendingToolCall,
-    aiToolDecisionLogs,
-    aiChat.updateSettings,
-    aiChat.testConnection,
-    aiChat.send,
-    aiChat.stop,
-    aiChat.clear,
-    aiChat.confirmPendingToolCall,
-    aiChat.cancelPendingToolCall,
-    aiPanelMode,
-    aiCurrentTask,
-    aiVisibleCards,
-    selectedTranslationGapCount,
-    handleJumpToTranslationGap,
-    observerResult.stage,
-    actionableObserverRecommendations,
-    handleExecuteRecommendation,
-    aiEmbeddingBusy,
-    aiEmbeddingProgressLabel,
-    aiEmbeddingLastResult,
-    aiEmbeddingTasks,
-    aiEmbeddingMatches,
-    aiEmbeddingLastError,
-    aiEmbeddingWarning,
-    handleBuildUtteranceEmbeddings,
-    handleFindSimilarUtterances,
-    refreshEmbeddingTasks,
-    handleJumpToEmbeddingMatch,
-  ]);
-
-  useEffect(() => {
-    setAiPanelContext(aiPanelContextValue);
-  }, [aiPanelContextValue, setAiPanelContext]);
 
   // Keep focused layer rail row in sync with available layers.
   useEffect(() => {
@@ -1065,11 +1463,15 @@ export function TranscriptionPage() {
   }, [selectedUtterance?.id, player.isReady, player.seekTo]);
 
   // ---- Keybinding system (from hook) ----
+  // toggleVoice is wired via ref to break the forward-declaration cycle.
+  const toggleVoiceRef = useRef<(() => void) | undefined>(undefined);
+
   const {
     handlePlayPauseAction: _handlePlayPauseAction,
     handleGlobalPlayPauseAction,
     handleWaveformKeyDown,
     navigateUtteranceFromInput,
+    executeAction,
   } = useKeybindingActions({
     player,
     subSelectionRange,
@@ -1102,7 +1504,242 @@ export function TranscriptionPage() {
     redo,
     setShowSearch,
     toggleNotes,
+    toggleVoice: useCallback(() => toggleVoiceRef.current?.(), []),
   });
+
+  // ---- Voice Agent ----
+  // insertDictation: write dictated text to the active translation or transcription layer
+  const handleVoiceDictation = useCallback((text: string) => {
+    if (!selectedUtterance) {
+      setSaveState({ kind: 'error', message: '请先选择要填充的句段' });
+      return;
+    }
+    // Resolve target layer — prefer explicit selection, else first translation layer
+    let targetLayerId: string | undefined = selectedLayerId;
+    if (!targetLayerId) {
+      targetLayerId = translationLayers[0]?.id;
+    }
+    if (!targetLayerId) {
+      setSaveState({ kind: 'error', message: '无可用翻译层，请先创建翻译层' });
+      return;
+    }
+    const targetLayer = layers.find((l) => l.id === targetLayerId);
+    if (!targetLayer) return;
+
+    if (targetLayer.layerType === 'transcription') {
+      fireAndForget(saveUtteranceText(selectedUtterance.id, text, targetLayerId));
+    } else {
+      fireAndForget(saveTextTranslationForUtterance(selectedUtterance.id, text, targetLayerId));
+    }
+  }, [selectedUtterance, selectedLayerId, layers, translationLayers, saveUtteranceText, saveTextTranslationForUtterance, setSaveState]);
+
+  // Pass Ollama config to voice agent if the chat provider is Ollama
+  const isOllamaProvider = aiChat.settings.providerKind === 'ollama';
+  const voiceAgentOptions: Parameters<typeof useVoiceAgent>[0] = {
+    corpusLang: effectiveVoiceCorpusLang,
+    executeAction,
+    sendToAiChat: aiChat.send,
+    resolveIntentWithLlm: handleResolveVoiceIntentWithLlm,
+    insertDictation: handleVoiceDictation,
+  };
+  if (isOllamaProvider) {
+    voiceAgentOptions.ollamaBaseUrl = aiChat.settings.baseUrl;
+    if (aiChat.settings.model) voiceAgentOptions.ollamaModel = aiChat.settings.model;
+  }
+  const voiceAgent = useVoiceAgent(voiceAgentOptions);
+
+  // Wire toggleVoiceRef so the keybinding can toggle voice without circular deps.
+  useEffect(() => {
+    toggleVoiceRef.current = featureFlags.voiceAgentEnabled ? voiceAgent.toggle : undefined;
+  });
+
+  useEffect(() => {
+    if (voiceAgent.listening || voiceAgent.pendingConfirm || voiceAgent.error) {
+      setVoiceDockExpanded(true);
+    }
+  }, [voiceAgent.error, voiceAgent.listening, voiceAgent.pendingConfirm]);
+
+  const handleVoiceAssistantIconClick = useCallback(() => {
+    if (Date.now() - voiceDockDraggedAtRef.current < 260) {
+      return;
+    }
+    if (voiceAgent.listening) {
+      // For whisper-local, clicking while listening is a no-op (press-and-hold controls recording)
+      if (voiceAgent.engine === 'whisper-local') return;
+      voiceAgent.toggle();
+      setVoiceDockExpanded(false);
+      return;
+    }
+    setVoiceDockExpanded(true);
+    voiceAgent.toggle();
+  }, [voiceAgent.listening, voiceAgent.toggle, voiceAgent.engine]);
+
+  // Press-and-hold for whisper-local push-to-talk recording
+  const handleMicPointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    void handleVoiceDockDragStart(event);
+    if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
+      void voiceAgent.startRecording();
+    }
+  }, [voiceAgent.listening, voiceAgent.engine, voiceAgent.startRecording, handleVoiceDockDragStart]);
+
+  const handleMicPointerUp = useCallback(() => {
+    if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
+      void voiceAgent.stopRecording();
+    }
+  }, [voiceAgent.listening, voiceAgent.engine, voiceAgent.stopRecording]);
+
+  const aiPanelContextValue = useMemo(() => ({
+    dbName: state.phase === 'ready' ? state.dbName : '',
+    utteranceCount: state.phase === 'ready' ? state.utteranceCount : utterances.length,
+    translationLayerCount: state.phase === 'ready' ? state.translationLayerCount : translationLayers.length,
+    aiConfidenceAvg,
+    selectedUtterance: selectedUtterance ?? null,
+    selectedRowMeta,
+    selectedAiWarning,
+    lexemeMatches,
+    onOpenWordNote: handleOpenWordNote,
+    onOpenMorphemeNote: handleOpenMorphemeNote,
+    onUpdateTokenPos: handleUpdateTokenPos,
+    onBatchUpdateTokenPosByForm: handleBatchUpdateTokenPosByForm,
+    aiChatEnabled: aiChat.enabled,
+    aiProviderLabel: aiChat.providerLabel,
+    aiChatSettings: aiChat.settings,
+    aiMessages: aiChat.messages,
+    aiIsStreaming: aiChat.isStreaming,
+    aiLastError: aiChat.lastError,
+    aiConnectionTestStatus: aiChat.connectionTestStatus,
+    aiConnectionTestMessage: aiChat.connectionTestMessage,
+    aiContextDebugSnapshot: aiChat.contextDebugSnapshot,
+    aiPendingToolCall: aiChat.pendingToolCall,
+    aiToolDecisionLogs,
+    onUpdateAiChatSettings: aiChat.updateSettings,
+    onTestAiConnection: aiChat.testConnection,
+    onSendAiMessage: aiChat.send,
+    onStopAiMessage: aiChat.stop,
+    onClearAiMessages: aiChat.clear,
+    onConfirmPendingToolCall: aiChat.confirmPendingToolCall,
+    onCancelPendingToolCall: aiChat.cancelPendingToolCall,
+    aiPanelMode,
+    aiCurrentTask,
+    aiVisibleCards,
+    selectedTranslationGapCount,
+    onJumpToTranslationGap: handleJumpToTranslationGap,
+    onChangeAiPanelMode: setAiPanelMode,
+    observerStage: observerResult.stage,
+    observerRecommendations: actionableObserverRecommendations,
+    onExecuteRecommendation: handleExecuteRecommendation,
+    aiEmbeddingBusy,
+    aiEmbeddingProgressLabel,
+    aiEmbeddingLastResult,
+    aiEmbeddingTasks,
+    aiEmbeddingMatches,
+    aiEmbeddingLastError,
+    aiEmbeddingWarning,
+    onBuildUtteranceEmbeddings: handleBuildUtteranceEmbeddings,
+    onBuildNotesEmbeddings: handleBuildNotesEmbeddings,
+    onBuildPdfEmbeddings: handleBuildPdfEmbeddings,
+    onFindSimilarUtterances: handleFindSimilarUtterances,
+    onRefreshEmbeddingTasks: refreshEmbeddingTasks,
+    onJumpToEmbeddingMatch: handleJumpToEmbeddingMatch,
+    onJumpToCitation: handleJumpToCitation,
+    onCancelAiTask: handleCancelAiTask,
+    onRetryAiTask: handleRetryAiTask,
+    // Voice Agent
+    voiceEnabled: featureFlags.voiceAgentEnabled,
+    voiceListening: voiceAgent.listening,
+    voiceSpeechActive: voiceAgent.speechActive,
+    voiceMode: voiceAgent.mode,
+    voiceInterimText: voiceAgent.interimText,
+    voiceFinalText: voiceAgent.finalText,
+    voiceConfidence: voiceAgent.confidence,
+    voiceError: voiceAgent.error,
+    voiceSafeMode: voiceAgent.safeMode,
+    voicePendingConfirm: voiceAgent.pendingConfirm,
+    voiceCorpusLang: effectiveVoiceCorpusLang,
+    voiceLangOverride: voiceCorpusLangOverride,
+    onVoiceToggle: voiceAgent.toggle,
+    onVoiceSwitchMode: voiceAgent.switchMode,
+    onVoiceConfirm: voiceAgent.confirmPending,
+    onVoiceCancel: voiceAgent.cancelPending,
+    onVoiceSetSafeMode: voiceAgent.setSafeMode,
+    onVoiceSetLangOverride: handleVoiceSetLangOverride,
+  }), [
+    state,
+    utterances.length,
+    translationLayers.length,
+    aiConfidenceAvg,
+    selectedUtterance,
+    selectedRowMeta,
+    selectedAiWarning,
+    lexemeMatches,
+    handleOpenWordNote,
+    handleOpenMorphemeNote,
+    handleUpdateTokenPos,
+    handleBatchUpdateTokenPosByForm,
+    aiChat.enabled,
+    aiChat.providerLabel,
+    aiChat.settings,
+    aiChat.messages,
+    aiChat.isStreaming,
+    aiChat.lastError,
+    aiChat.connectionTestStatus,
+    aiChat.connectionTestMessage,
+    aiChat.contextDebugSnapshot,
+    aiChat.pendingToolCall,
+    aiToolDecisionLogs,
+    aiChat.updateSettings,
+    aiChat.testConnection,
+    aiChat.send,
+    aiChat.stop,
+    aiChat.clear,
+    aiChat.confirmPendingToolCall,
+    aiChat.cancelPendingToolCall,
+    aiPanelMode,
+    aiCurrentTask,
+    aiVisibleCards,
+    selectedTranslationGapCount,
+    handleJumpToTranslationGap,
+    observerResult.stage,
+    actionableObserverRecommendations,
+    handleExecuteRecommendation,
+    aiEmbeddingBusy,
+    aiEmbeddingProgressLabel,
+    aiEmbeddingLastResult,
+    aiEmbeddingTasks,
+    aiEmbeddingMatches,
+    aiEmbeddingLastError,
+    aiEmbeddingWarning,
+    handleBuildUtteranceEmbeddings,
+    handleBuildNotesEmbeddings,
+    handleBuildPdfEmbeddings,
+    handleFindSimilarUtterances,
+    refreshEmbeddingTasks,
+    handleJumpToEmbeddingMatch,
+    handleJumpToCitation,
+    handleCancelAiTask,
+    handleRetryAiTask,
+    voiceAgent.listening,
+    voiceAgent.speechActive,
+    voiceAgent.mode,
+    voiceAgent.interimText,
+    voiceAgent.finalText,
+    voiceAgent.confidence,
+    voiceAgent.error,
+    voiceAgent.safeMode,
+    voiceAgent.pendingConfirm,
+    effectiveVoiceCorpusLang,
+    voiceCorpusLangOverride,
+    voiceAgent.toggle,
+    voiceAgent.switchMode,
+    voiceAgent.confirmPending,
+    voiceAgent.cancelPending,
+    voiceAgent.setSafeMode,
+    handleVoiceSetLangOverride,
+  ]);
+
+  useEffect(() => {
+    setAiPanelContext(aiPanelContextValue);
+  }, [aiPanelContextValue, setAiPanelContext]);
 
   const { handleLayerRailResizeStart, handleAiPanelResizeStart } = usePanelResize({
     isLayerRailCollapsed,
@@ -1435,6 +2072,70 @@ export function TranscriptionPage() {
               />
             </WaveformToolbar>
           </section>
+
+          {featureFlags.voiceAgentEnabled && (() => {
+            const hasActiveToast = saveState.kind !== 'idle' || recording || Boolean(recordingError);
+            const dockBottom = voiceDockPos.bottom + (hasActiveToast ? 92 : 0);
+            const dockStyle = {
+              right: `${voiceDockPos.right}px`,
+              bottom: `${dockBottom}px`,
+            } as React.CSSProperties;
+            const bubbleStyle = {
+              right: `${Math.max(-10, voiceDockPos.right - 12)}px`,
+              bottom: `${dockBottom}px`,
+            } as React.CSSProperties;
+            const bubbleEdgeClass = voiceDockPos.right <= 28 ? 'transcription-voice-bubble-edge' : '';
+
+            if (!voiceDockExpanded) {
+              return (
+                <button
+                  type="button"
+                  className={`transcription-voice-bubble ${bubbleEdgeClass} ${voiceDockDragging ? 'transcription-voice-dragging' : ''} ${voiceAgent.listening ? 'transcription-voice-bubble-active' : ''}`}
+                  style={bubbleStyle}
+                  aria-label="打开语音助手"
+                  onPointerDown={handleVoiceDockDragStart}
+                  onClick={handleVoiceAssistantIconClick}
+                >
+                  <_Mic size={22} />
+                  <span className={`transcription-voice-bubble-dot ${voiceAgent.listening ? 'transcription-voice-bubble-dot-active' : ''}`} aria-hidden="true" />
+                </button>
+              );
+            }
+
+            return (
+              <section
+                ref={voiceDockContainerRef}
+                className={`transcription-voice-dock ${voiceDockDragging ? 'transcription-voice-dragging' : ''} ${voiceAgent.listening ? 'transcription-voice-dock-active' : 'transcription-voice-dock-idle'}`}
+                aria-label="语音智能体控制栏"
+                style={dockStyle}
+              >
+                <VoiceAgentWidget
+                  listening={voiceAgent.listening}
+                  speechActive={voiceAgent.speechActive}
+                  mode={voiceAgent.mode}
+                  interimText={voiceAgent.interimText}
+                  finalText={voiceAgent.finalText}
+                  confidence={voiceAgent.confidence}
+                  error={voiceAgent.error}
+                  pendingConfirm={voiceAgent.pendingConfirm}
+                  safeMode={voiceAgent.safeMode}
+                  corpusLang={effectiveVoiceCorpusLang}
+                  langOverride={voiceCorpusLangOverride}
+                  engine={voiceAgent.engine}
+                  isRecording={voiceAgent.isRecording}
+                  onToggle={handleVoiceAssistantIconClick}
+                  onMicPointerDown={handleMicPointerDown}
+                  onMicPointerUp={handleMicPointerUp}
+                  onSwitchMode={voiceAgent.switchMode}
+                  onSwitchEngine={voiceAgent.switchEngine}
+                  onConfirm={voiceAgent.confirmPending}
+                  onCancel={voiceAgent.cancelPending}
+                  onSetSafeMode={voiceAgent.setSafeMode}
+                  onSetLangOverride={handleVoiceSetLangOverride}
+                />
+              </section>
+            );
+          })()}
 
           {/* Editor workspace: left side for row editing, right side for AI guidance. */}
           <main
@@ -1885,6 +2586,75 @@ export function TranscriptionPage() {
 
             <AiAnalysisPanel isCollapsed={isAiPanelCollapsed} />
           </main>
+
+          {pdfPreview && (
+            <section
+              ref={(node) => {
+                pdfPreviewRef.current = node;
+              }}
+              className={`transcription-pdf-preview-panel ${pdfPreviewDragging ? 'is-dragging' : ''}`}
+              aria-label="PDF Citation Preview"
+              style={{ right: `${pdfPreviewPos.right}px`, bottom: `${pdfPreviewPos.bottom}px` }}
+            >
+              <header className="transcription-pdf-preview-header" onPointerDown={handlePdfPreviewDragStart}>
+                <strong className="transcription-pdf-preview-title" title={pdfPreview.title}>{pdfPreview.title}</strong>
+                {pdfPreview.page && (
+                  <span className="transcription-pdf-preview-page-tag">
+                    {locale === 'zh-CN' ? `第 ${pdfPreview.page} 页` : `Page ${pdfPreview.page}`}
+                  </span>
+                )}
+                <div className="transcription-pdf-preview-actions">
+                  <button
+                    type="button"
+                    className="transcription-pdf-preview-nav"
+                    onClick={() => handlePdfPreviewPageChange(-1)}
+                    disabled={(pdfPreview.page ?? 1) <= 1}
+                  >
+                    {locale === 'zh-CN' ? '上一页' : 'Prev'}
+                  </button>
+                  <button
+                    type="button"
+                    className="transcription-pdf-preview-nav"
+                    onClick={() => handlePdfPreviewPageChange(1)}
+                  >
+                    {locale === 'zh-CN' ? '下一页' : 'Next'}
+                  </button>
+                  <button
+                    type="button"
+                    className="transcription-pdf-preview-nav"
+                    onClick={handlePdfPreviewOpenExternal}
+                  >
+                    {locale === 'zh-CN' ? '新窗' : 'Open'}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="transcription-pdf-preview-close"
+                  onClick={() => setPdfPreview(null)}
+                >
+                  {locale === 'zh-CN' ? '关闭' : 'Close'}
+                </button>
+              </header>
+              <div className="transcription-pdf-preview-frame">
+                {pdfPreview.searchSnippet ? (
+                  <PdfViewerPanel
+                    key={pdfPreview.navToken}
+                    url={pdfPreview.url}
+                    title={pdfPreview.title}
+                    page={pdfPreview.page}
+                    searchSnippet={pdfPreview.searchSnippet}
+                  />
+                ) : (
+                  <PdfViewerPanel
+                    key={pdfPreview.navToken}
+                    url={pdfPreview.url}
+                    title={pdfPreview.title}
+                    page={pdfPreview.page}
+                  />
+                )}
+              </div>
+            </section>
+          )}
 
           <div className="transcription-toast-container">
             {saveState.kind === 'saving' && <div className="transcription-toast transcription-toast-info">{t(locale, 'transcription.toast.saving')}</div>}

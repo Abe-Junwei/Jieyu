@@ -22,9 +22,12 @@ export interface ObserverResult {
 
 export function inferStage(metrics: ObserverMetrics): ProjectStage {
   if (metrics.utteranceCount <= 0) return 'collecting';
-  if (metrics.transcribedRate < 0.2) return 'collecting';
-  if (metrics.glossedRate < 0.2) return 'transcribing';
-  if (metrics.verifiedRate < 0.5) return 'glossing';
+  const t = Math.max(0, Math.min(1, metrics.transcribedRate));
+  const g = Math.max(0, Math.min(1, metrics.glossedRate));
+  const v = Math.max(0, Math.min(1, metrics.verifiedRate));
+  if (t < 0.2) return 'collecting';
+  if (g < 0.2) return 'transcribing';
+  if (v < 0.5) return 'glossing';
   return 'reviewing';
 }
 
