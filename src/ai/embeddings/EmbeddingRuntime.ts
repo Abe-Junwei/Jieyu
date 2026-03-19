@@ -7,6 +7,8 @@ export interface EmbeddingRuntimeProgress {
   processed?: number;
   totalItems?: number;
   message?: string;
+  /** True when the model failed to load and FNV-hash fallback is being used */
+  usingFallback?: boolean;
 }
 
 export interface EmbeddingRuntimeOptions {

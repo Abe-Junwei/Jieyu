@@ -167,6 +167,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       if (request.type === 'preload') {
         postProgress(request.requestId, {
           stage: 'ready',
+          usingFallback: extractorState.degraded,
           message: extractorState.degraded
             ? `fallback:${extractorState.reason ?? 'model unavailable'}`
             : 'model ready',

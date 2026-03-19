@@ -4,6 +4,12 @@
  * 将 STT 转写文本匹配到 UI ActionId、AI 工具调用、听写模式或闲聊。
  * 采用优先级从高到低的正则规则链。
  *
+ * 有两套规则层：
+ *   1. 精确规则（INTENT_RULES）— 优先级高，锚定 ^ … $
+ *   2. 模糊规则（FUZZY_RULES）— 优先级低，仅做子串包含匹配；
+ *      专门处理口语化表达（"播放一下"、"撤一下"、"算了"等），
+ *      减少对 LLM fallback 的依赖。
+ *
  * @see 解语-语音智能体架构设计方案 §4.4
  */
 
@@ -70,6 +76,8 @@ export interface ActionIntent {
   type: 'action';
   actionId: ActionId;
   raw: string;
+  /** True when matched via fuzzy (substring) rules rather than exact regex. */
+  fromFuzzy?: boolean;
 }
 
 export interface ToolIntent {
@@ -303,13 +311,63 @@ const INTENT_RULES: IntentRule[] = [
 // Sort rules by priority descending (highest first)
 const SORTED_RULES = [...INTENT_RULES].sort((a, b) => b.priority - a.priority);
 
+// ── Fuzzy (substring) Rules ───────────────────────────────────────────────────
+
+interface FuzzyRule {
+  /** Space-separated keywords; matches if ANY keyword is contained in the cleaned text. */
+  keywords: string;
+  actionId: ActionId;
+  priority: number;
+}
+
+/**
+ * Fuzzy rules — matched after exact rules fail.
+ * Keywords are lower-cased; Chinese text uses pinyin romanisation or Chinese characters.
+ * These handle colloquial / partial expressions ("播放一下", "撤一下", "算了").
+ *
+ * Coverage is intentionally broad so that most common commands succeed even with
+ * imperfect STT output or offline (no LLM) conditions.
+ */
+const FUZZY_RULES: FuzzyRule[] = [
+  // Playback — very high recall (play/pause/stop are the same action)
+  { keywords: '播放 播一下 播放一下 播呗 播放呗 停一下 暂停 停止 关了 关上 打开 开', actionId: 'playPause', priority: 50 },
+  // Navigation — also very high recall
+  { keywords: '上一 前一个 上一个 上  previous prev 向后', actionId: 'navPrev', priority: 50 },
+  { keywords: '下一 后一个 下一个 下  next 向后', actionId: 'navNext', priority: 50 },
+  // Segment editing — common partial speech forms
+  { keywords: '标记 标一下 标记一下 标记句段 mark segment mark一下 标注', actionId: 'markSegment', priority: 50 },
+  { keywords: '删除 删掉 删一下 删除一下 删除这句 删了 删', actionId: 'deleteSegment', priority: 50 },
+  { keywords: '合并上 合并上一个 合并上 合并前', actionId: 'mergePrev', priority: 50 },
+  { keywords: '合并下 合并下一个 合并下 合并后', actionId: 'mergeNext', priority: 50 },
+  { keywords: '分割 split 分割一下 分一下 切开 切', actionId: 'splitSegment', priority: 50 },
+  // Cancel / undo — multiple forms
+  { keywords: '取消 算了 不要了 算了算了 取消吧 不做了', actionId: 'cancel', priority: 50 },
+  { keywords: '撤销 撤一下 撤销一下 撤销 撤  undo 取消操作', actionId: 'undo', priority: 50 },
+  { keywords: '重做 重来 再做一遍 重试 重新做 再做', actionId: 'redo', priority: 50 },
+  // Selection
+  { keywords: '全选 select all 选中全部 全部选中', actionId: 'selectAll', priority: 50 },
+  { keywords: '选前 选到前面 选开头 选到开头', actionId: 'selectBefore', priority: 50 },
+  { keywords: '选后 选到后面 选结尾 选到结尾', actionId: 'selectAfter', priority: 50 },
+  // View
+  { keywords: '搜索 搜一下 查找 找一下 搜索一下 查一下', actionId: 'search', priority: 50 },
+  { keywords: '备注 笔记 note 备注一下', actionId: 'toggleNotes', priority: 50 },
+  // Voice toggle
+  { keywords: '语音 语音助手 开关语音 打开语音 关闭语音', actionId: 'toggleVoice', priority: 50 },
+  // Tab navigation
+  { keywords: 'tab下一个 下一个tab 切到下tab', actionId: 'tabNext', priority: 50 },
+  { keywords: 'tab上一个 上一个tab 切到上tab', actionId: 'tabPrev', priority: 50 },
+];
+
+// Sort fuzzy rules by priority descending
+const SORTED_FUZZY_RULES = [...FUZZY_RULES].sort((a, b) => b.priority - a.priority);
+
 // ── Public API ──
 
 /**
  * Route a raw STT transcript to a VoiceIntent.
  *
  * Rules are always tried first (filtered by mode). If no rule matches,
- * the mode-specific fallback is used.
+ * the fuzzy rules are tried. Finally, the mode-specific fallback is used.
  *
  * @param text  Raw transcript from STT, may include whitespace / punctuation.
  * @param mode  Current voice agent mode.
@@ -325,17 +383,25 @@ export function routeIntent(
   }
 
   // Strip trailing punctuation for matching (e.g. "播放。" → "播放")
-  const cleaned = trimmed.replace(/[。！？，、,.!?]+$/, '');
+  const cleaned = trimmed.replace(/[。！？，、,.!?]+$/, '').toLowerCase();
 
-  // Try all rules in priority order, respecting mode filter
+  // Try all exact rules in priority order, respecting mode filter
   for (const rule of SORTED_RULES) {
-    // Skip rules that don't apply to this mode
     if (rule.mode !== undefined && rule.mode !== mode) continue;
     const match = cleaned.match(rule.pattern);
     if (match) {
       const intent = rule.extract(match);
-      // Preserve original (untrimmed, unpunctuated) text as raw
       return { ...intent, raw: text } as VoiceIntent;
+    }
+  }
+
+  // Try fuzzy rules (command mode only) — substring contains match
+  if (mode === 'command') {
+    for (const rule of SORTED_FUZZY_RULES) {
+      const kwList = rule.keywords.split(' ').filter(Boolean);
+      if (kwList.some((kw) => cleaned.includes(kw))) {
+        return { type: 'action', actionId: rule.actionId, raw: text, fromFuzzy: true };
+      }
     }
   }
 

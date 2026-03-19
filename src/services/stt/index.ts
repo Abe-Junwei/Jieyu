@@ -123,3 +123,17 @@ export function createCommercialProvider(
 export function getCommercialProviderDefinition(kind: CommercialProviderKind): CommercialProviderDefinition {
   return PROVIDERS[kind];
 }
+
+/** Test commercial provider availability by constructing and calling isAvailable(). */
+export async function testCommercialProvider(
+  kind: CommercialProviderKind,
+  config: CommercialProviderCreateConfig,
+): Promise<{ available: boolean; error?: string }> {
+  try {
+    const provider = createCommercialProvider(kind, config);
+    const available = await provider.isAvailable();
+    return { available };
+  } catch (err) {
+    return { available: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}

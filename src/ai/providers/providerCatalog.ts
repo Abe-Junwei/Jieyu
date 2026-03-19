@@ -34,18 +34,20 @@ export interface AiChatSettings {
   responseFormat: CustomHttpResponseFormat;
 }
 
-// ─── Per-provider create config types ───────────────────────────────────────
+// ─── Unified create config (flat, all fields optional) ───────────────────────
+// This works with exactOptionalPropertyTypes: missing fields are simply absent,
+// never passed as explicit undefined.
 
-export type AiChatProviderCreateConfig =
-  | { kind: 'mock' }
-  | { kind: 'openai-compatible'; baseUrl: string; apiKey: string; model?: string }
-  | { kind: 'deepseek'; baseUrl: string; apiKey: string; model?: string }
-  | { kind: 'qwen'; baseUrl: string; apiKey: string; model?: string }
-  | { kind: 'anthropic'; baseUrl: string; apiKey: string; model?: string }
-  | { kind: 'gemini'; baseUrl: string; apiKey: string; model?: string }
-  | { kind: 'ollama'; baseUrl: string; model?: string }
-  | { kind: 'custom-http'; endpointUrl: string; model: string; apiKey?: string; authHeaderName?: string; authScheme?: CustomHttpAuthScheme; responseFormat?: CustomHttpResponseFormat }
-  | { kind: 'minimax'; baseUrl?: string; apiKey: string; model?: string };
+export interface AiChatProviderCreateConfig {
+  kind: AiChatProviderKind;
+  baseUrl?: string;
+  apiKey?: string;
+  model?: string;
+  endpointUrl?: string;
+  authHeaderName?: string;
+  authScheme?: CustomHttpAuthScheme;
+  responseFormat?: CustomHttpResponseFormat;
+}
 
 export interface AiChatFieldDefinition {
   key: keyof AiChatSettings;
@@ -69,37 +71,37 @@ export interface AiChatProviderDefinition {
 // ─── Config builders (avoid exactOptionalPropertyTypes undefined issues) ───
 
 function buildOpenAIConfig(cfg: { baseUrl?: string; apiKey?: string; model?: string }):
-  { baseUrl: string; apiKey: string; model?: string } {
+  { baseUrl: string; apiKey: string; model: string } {
   return {
-    baseUrl: cfg.baseUrl ?? 'https://api.openai.com/v1',
-    apiKey: cfg.apiKey ?? '',
-    ...(cfg.model ? { model: cfg.model } : {}),
+    baseUrl: cfg.baseUrl || 'https://api.openai.com/v1',
+    apiKey: cfg.apiKey || '',
+    model: cfg.model || 'gpt-4o-mini',
   };
 }
 
 function buildAnthropicConfig(cfg: { baseUrl?: string; apiKey?: string; model?: string }):
-  { baseUrl: string; apiKey: string; model?: string } {
+  { baseUrl: string; apiKey: string; model: string } {
   return {
-    baseUrl: cfg.baseUrl ?? 'https://api.anthropic.com/v1',
-    apiKey: cfg.apiKey ?? '',
-    ...(cfg.model ? { model: cfg.model } : {}),
+    baseUrl: cfg.baseUrl || 'https://api.anthropic.com/v1',
+    apiKey: cfg.apiKey || '',
+    model: cfg.model || 'claude-3-5-sonnet-latest',
   };
 }
 
 function buildGeminiConfig(cfg: { baseUrl?: string; apiKey?: string; model?: string }):
-  { baseUrl: string; apiKey: string; model?: string } {
+  { baseUrl: string; apiKey: string; model: string } {
   return {
-    baseUrl: cfg.baseUrl ?? 'https://generativelanguage.googleapis.com/v1beta',
-    apiKey: cfg.apiKey ?? '',
-    ...(cfg.model ? { model: cfg.model } : {}),
+    baseUrl: cfg.baseUrl || 'https://generativelanguage.googleapis.com/v1beta',
+    apiKey: cfg.apiKey || '',
+    model: cfg.model || 'gemini-2.0-flash',
   };
 }
 
 function buildOllamaConfig(cfg: { baseUrl?: string; model?: string }):
-  { baseUrl: string; model?: string } {
+  { baseUrl: string; model: string } {
   return {
-    baseUrl: cfg.baseUrl ?? 'http://localhost:11434',
-    ...(cfg.model ? { model: cfg.model } : {}),
+    baseUrl: cfg.baseUrl || 'http://localhost:11434',
+    model: cfg.model || 'llama3.2',
   };
 }
 
@@ -125,7 +127,7 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'eyJ...', required: true },
     ],
     create: (cfg): LLMProvider =>
-      new OpenAICompatibleProvider(buildOpenAIConfig(cfg as { baseUrl?: string; apiKey?: string; model?: string })),
+      new OpenAICompatibleProvider(buildOpenAIConfig(cfg)),
   },
   'openai-compatible': {
     kind: 'openai-compatible',
@@ -138,7 +140,7 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...', required: true },
     ],
     create: (cfg): LLMProvider =>
-      new OpenAICompatibleProvider(buildOpenAIConfig(cfg as { baseUrl?: string; apiKey?: string; model?: string })),
+      new OpenAICompatibleProvider(buildOpenAIConfig(cfg)),
   },
   deepseek: {
     kind: 'deepseek',
@@ -151,7 +153,7 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...', required: true },
     ],
     create: (cfg): LLMProvider =>
-      new DeepSeekProvider({ baseUrl: cfg.baseUrl, apiKey: cfg.apiKey, model: cfg.model ?? 'deepseek-chat' }),
+      new DeepSeekProvider({ baseUrl: cfg.baseUrl || '', apiKey: cfg.apiKey || '', model: cfg.model || 'deepseek-chat' }),
   },
   qwen: {
     kind: 'qwen',
@@ -164,7 +166,7 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...', required: true },
     ],
     create: (cfg): LLMProvider =>
-      new QwenProvider({ baseUrl: cfg.baseUrl, apiKey: cfg.apiKey, model: cfg.model ?? 'qwen-plus' }),
+      new QwenProvider({ baseUrl: cfg.baseUrl || '', apiKey: cfg.apiKey || '', model: cfg.model || 'qwen-plus' }),
   },
   anthropic: {
     kind: 'anthropic',
@@ -177,7 +179,7 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-ant-...', required: true },
     ],
     create: (cfg): LLMProvider =>
-      new AnthropicProvider(buildAnthropicConfig(cfg as { baseUrl?: string; apiKey?: string; model?: string })),
+      new AnthropicProvider(buildAnthropicConfig(cfg)),
   },
   gemini: {
     kind: 'gemini',
@@ -190,7 +192,7 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'AIza...', required: true },
     ],
     create: (cfg): LLMProvider =>
-      new GeminiProvider(buildGeminiConfig(cfg as { baseUrl?: string; apiKey?: string; model?: string })),
+      new GeminiProvider(buildGeminiConfig(cfg)),
   },
   ollama: {
     kind: 'ollama',
@@ -202,7 +204,7 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
       { key: 'model', label: 'Model', type: 'text', placeholder: 'llama3.2', required: true },
     ],
     create: (cfg): LLMProvider =>
-      new OllamaProvider(buildOllamaConfig(cfg as { baseUrl?: string; model?: string })),
+      new OllamaProvider(buildOllamaConfig(cfg)),
   },
   'custom-http': {
     kind: 'custom-http',
@@ -242,8 +244,8 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
     ],
     create: (cfg): LLMProvider =>
       new CustomHttpProvider({
-        endpointUrl: cfg.endpointUrl,
-        model: cfg.model,
+        endpointUrl: cfg.endpointUrl || '',
+        model: cfg.model || 'custom-model',
         apiKey: cfg.apiKey ?? '',
         authHeaderName: cfg.authHeaderName ?? 'Authorization',
         authScheme: cfg.authScheme ?? 'bearer',

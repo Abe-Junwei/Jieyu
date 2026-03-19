@@ -72,9 +72,7 @@ describe('AiAnalysisPanel embedding integration', () => {
     );
 
     const matchBtn = screen.getByRole('button', { name: /U2/i });
-    const matchBtnStyle = (matchBtn as HTMLButtonElement).style;
-    expect(matchBtnStyle.background).toBe('rgb(239, 246, 255)');
-    expect(matchBtnStyle.borderColor).toBe('rgb(37, 99, 235)');
+    expect(matchBtn.className).toContain('ai-embed-match-btn-active');
 
     fireEvent.click(matchBtn);
     expect(onJumpToEmbeddingMatch).toHaveBeenCalledWith('utt-2');

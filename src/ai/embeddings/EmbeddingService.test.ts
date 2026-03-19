@@ -3,27 +3,33 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../../db';
 import { EmbeddingService, type EmbeddingBuildSource } from './EmbeddingService';
-import type { EmbeddingRuntime, EmbeddingRuntimeOptions } from './EmbeddingRuntime';
+import type { EmbeddingProvider } from './EmbeddingProvider';
 
-class FakeRuntime implements EmbeddingRuntime {
+class FakeRuntime implements EmbeddingProvider {
+  readonly kind = 'local' as const;
+  readonly label = 'FakeRuntime';
+  readonly modelId = 'fake';
+
   constructor(
     private readonly vectors: number[][],
     private readonly shouldFail = false,
   ) {}
 
-  async preload(options: EmbeddingRuntimeOptions): Promise<void> {
-    options.onProgress?.({ stage: 'loading', loaded: 1, total: 1 });
+  async preload(): Promise<void> {
     if (this.shouldFail) {
       throw new Error('runtime preload failed');
     }
   }
 
-  async embed(texts: string[], options: EmbeddingRuntimeOptions): Promise<number[][]> {
-    options.onProgress?.({ stage: 'embedding', processed: texts.length, totalItems: texts.length });
+  async embed(texts: string[]): Promise<number[][]> {
     if (this.shouldFail) {
       throw new Error('runtime embed failed');
     }
     return this.vectors.slice(0, texts.length);
+  }
+
+  async isAvailable(): Promise<boolean> {
+    return !this.shouldFail;
   }
 
   terminate(): void {

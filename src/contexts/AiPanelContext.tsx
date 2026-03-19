@@ -4,6 +4,8 @@ import type { AiConnectionTestStatus, AiContextDebugSnapshot, PendingAiToolCall,
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { ProjectStage, Recommendation } from '../ai/ProjectObserver';
 import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiAnalysisPanel';
+import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
+import type { EmbeddingProviderCreateConfig } from '../ai/embeddings/EmbeddingProvider';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 
 type ActionableRecommendation = Recommendation & {
@@ -98,6 +100,10 @@ export type AiPanelContextValue = {
   aiEmbeddingLastError?: string | null;
   aiEmbeddingWarning?: string | null;
   aiEmbeddingBuildStartedAt?: number | null;
+  embeddingProviderKind?: EmbeddingProviderKind;
+  embeddingProviderConfig?: EmbeddingProviderCreateConfig;
+  onSetEmbeddingProviderKind?: (kind: EmbeddingProviderKind) => void;
+  onTestEmbeddingProvider?: (() => Promise<{ available: boolean; error?: string }>) | undefined;
   onBuildUtteranceEmbeddings?: () => Promise<void>;
   onBuildNotesEmbeddings?: () => Promise<void>;
   onBuildPdfEmbeddings?: () => Promise<void>;
@@ -156,6 +162,8 @@ export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
   aiEmbeddingLastError: null,
   aiEmbeddingWarning: null,
   aiEmbeddingBuildStartedAt: null,
+  embeddingProviderKind: 'local',
+  onTestEmbeddingProvider: undefined,
   voiceListening: false,
   voiceSpeechActive: false,
   voiceMode: 'command',

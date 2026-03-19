@@ -1,25 +1,28 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../../db';
 import { EmbeddingSearchService } from './EmbeddingSearchService';
-import type { EmbeddingRuntime, EmbeddingRuntimeOptions } from './EmbeddingRuntime';
+import type { EmbeddingProvider } from './EmbeddingProvider';
 
-class QueryRuntime implements EmbeddingRuntime {
+class QueryRuntime implements EmbeddingProvider {
+  readonly kind = 'local' as const;
+  readonly label = 'QueryRuntime';
+  readonly modelId = 'query';
   preloadCount = 0;
 
   constructor(private readonly queryVector: number[]) {}
 
-  async preload(options: EmbeddingRuntimeOptions): Promise<void> {
+  async preload(): Promise<void> {
     this.preloadCount += 1;
-    options.onProgress?.({
-      stage: 'ready',
-      message: 'fallback:model unavailable',
-    });
   }
 
-  async embed(texts: string[], _options: EmbeddingRuntimeOptions): Promise<number[][]> {
+  async embed(texts: string[]): Promise<number[][]> {
     return texts.map(() => this.queryVector);
+  }
+
+  async isAvailable(): Promise<boolean> {
+    return true;
   }
 
   terminate(): void {
@@ -151,16 +154,11 @@ describe('EmbeddingSearchService', () => {
       createdAt: new Date().toISOString(),
     });
 
-    const onProgress = vi.fn();
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
     await service.searchSimilarUtterances('hello', {
       modelId: 'test-model',
       modelVersion: 'v-test',
-      onProgress,
     });
-
-    expect(onProgress).toHaveBeenCalled();
-    expect(onProgress.mock.calls.some((entry) => entry[0]?.stage === 'ready')).toBe(true);
   });
 
   it('skips preload on repeated searches with same model', async () => {

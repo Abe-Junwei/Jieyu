@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { db } from '../../../db';
 import { EmbeddingService, type EmbeddingBuildSource } from '../embeddings/EmbeddingService';
-import type { EmbeddingRuntime, EmbeddingRuntimeOptions } from '../embeddings/EmbeddingRuntime';
+import type { EmbeddingProvider } from '../embeddings/EmbeddingProvider';
 import { useAiChat } from '../../hooks/useAiChat';
 
 vi.mock('../../ai/ChatOrchestrator', () => {
@@ -31,14 +31,22 @@ vi.mock('../../ai/ChatOrchestrator', () => {
   return { ChatOrchestrator: MockChatOrchestrator };
 });
 
-class TimedRuntime implements EmbeddingRuntime {
-  async preload(_options: EmbeddingRuntimeOptions): Promise<void> {
+class TimedRuntime implements EmbeddingProvider {
+  readonly kind = 'local' as const;
+  readonly label = 'TimedRuntime';
+  readonly modelId = 'timed';
+
+  async preload(): Promise<void> {
     // no-op for perf baseline
   }
 
-  async embed(texts: string[], _options: EmbeddingRuntimeOptions): Promise<number[][]> {
+  async embed(texts: string[]): Promise<number[][]> {
     await new Promise((resolve) => setTimeout(resolve, 3));
     return texts.map(() => [0.1, 0.2, 0.3]);
+  }
+
+  async isAvailable(): Promise<boolean> {
+    return true;
   }
 
   terminate(): void {

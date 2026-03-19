@@ -1,10 +1,6 @@
 import { getDb, type EmbeddingDoc, type EmbeddingSourceType } from '../../../db';
-import {
-  WorkerEmbeddingRuntime,
-  type EmbeddingRuntime,
-  type EmbeddingRuntimeOptions,
-  type EmbeddingRuntimeProgress,
-} from './EmbeddingRuntime';
+import type { EmbeddingProvider } from './EmbeddingProvider';
+import type { EmbeddingRuntimeProgress } from './EmbeddingRuntime';
 import { TaskRunner } from '../tasks/TaskRunner';
 import { getGlobalTaskRunner } from '../tasks/taskRunnerSingleton';
 import {
@@ -27,6 +23,8 @@ export interface EmbeddingBuildProgress {
   processed: number;
   total: number;
   runtime?: EmbeddingRuntimeProgress;
+  /** Set when local model failed to load and FNV-hash fallback is in use */
+  usingFallback?: boolean;
 }
 
 export interface BuildEmbeddingsOptions {
@@ -47,6 +45,8 @@ export interface BuildEmbeddingsResult {
   modelVersion: string;
   elapsedMs: number;
   averageBatchMs: number;
+  /** True if the local embedding model was unavailable and FNV-hash fallback was used */
+  usingFallback?: boolean;
 }
 
 const DEFAULT_MODEL_ID = 'Xenova/multilingual-e5-small';
@@ -98,7 +98,7 @@ function chunkArray<T>(input: T[], batchSize: number): T[][] {
 
 export class EmbeddingService {
   constructor(
-    private readonly runtime: EmbeddingRuntime = new WorkerEmbeddingRuntime(),
+    private readonly provider: EmbeddingProvider,
     private readonly taskRunner: TaskRunner = getGlobalTaskRunner(),
   ) {}
 
@@ -203,7 +203,19 @@ export class EmbeddingService {
   }
 
   terminate(): void {
-    this.runtime.terminate();
+    this.provider.terminate();
+  }
+
+  private async embedWithRetry(texts: string[], retries: number): Promise<number[][]> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= retries; attempt += 1) {
+      try {
+        return await this.provider.embed(texts);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error('Embedding failed after retries');
   }
 
   private async executeBuild(
@@ -228,28 +240,25 @@ export class EmbeddingService {
         modelVersion,
         elapsedMs: 0,
         averageBatchMs: 0,
+        usingFallback: false,
       };
     }
 
     options.onProgress?.({ stage: 'preparing', processed: 0, total });
 
-    const runtimeOptions: EmbeddingRuntimeOptions = {
-      modelId,
-      retries: options.retries,
-      onProgress: (progress) => {
-        options.onProgress?.({
-          stage: 'running',
-          processed: 0,
-          total,
-          runtime: progress,
-        });
-      },
-    };
-
     let generated = 0;
     let skipped = 0;
+    let usingFallback = false;
 
-    await this.runtime.preload(runtimeOptions);
+    // Capture usingFallback from preload progress if the provider surfaces it
+    await this.provider.preload?.({
+      onProgress: (progress) => {
+        if (progress.usingFallback) {
+          usingFallback = true;
+          options.onProgress?.({ stage: 'preparing', processed: 0, total, usingFallback: true });
+        }
+      },
+    });
 
     const batches = chunkArray(sources, options.batchSize);
     let processed = 0;
@@ -258,9 +267,9 @@ export class EmbeddingService {
     for (const batch of batches) {
       const batchStartedAt = Date.now();
       const batchTexts = batch.map((item) => normalizeSourceText(item.text));
-      const vectors = await this.runtime.embed(batchTexts, runtimeOptions);
+      const vectors = await this.embedWithRetry(batchTexts, options.retries);
 
-      options.onProgress?.({ stage: 'persisting', processed: processed + batch.length, total });
+      options.onProgress?.({ stage: 'persisting', processed: processed + batch.length, total, usingFallback });
 
       const batchIds = batch.map((source) => (
         buildEmbeddingId(source.sourceType, source.sourceId, modelId, modelVersion)
@@ -307,10 +316,10 @@ export class EmbeddingService {
 
       processed += batch.length;
       batchElapsedSum += Date.now() - batchStartedAt;
-      options.onProgress?.({ stage: 'running', processed, total });
+      options.onProgress?.({ stage: 'running', processed, total, usingFallback });
     }
 
-    options.onProgress?.({ stage: 'done', processed: total, total });
+    options.onProgress?.({ stage: 'done', processed: total, total, usingFallback });
 
     return {
       taskId,
@@ -321,6 +330,7 @@ export class EmbeddingService {
       modelVersion,
       elapsedMs: Date.now() - startedAt,
       averageBatchMs: batches.length > 0 ? Math.round(batchElapsedSum / batches.length) : 0,
+      usingFallback,
     };
   }
 }

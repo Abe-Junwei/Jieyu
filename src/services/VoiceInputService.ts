@@ -34,6 +34,8 @@ export interface VoiceInputConfig {
   vadRmsThreshold?: number;
   vadSilenceMs?: number;
   vadFrameIntervalMs?: number;
+  /** Auto-stop after this many ms of continuous silence (VAD-triggered). Default: 30000. */
+  maxSilenceMs?: number;
   /** Ollama base URL for whisper-local engine, e.g. 'http://localhost:11434' */
   ollamaBaseUrl?: string;
   /** Ollama whisper model name, e.g. 'whisper-small' */
@@ -76,6 +78,7 @@ type VoiceInputListener = (result: SttResult) => void;
 type VoiceInputErrorListener = (error: string) => void;
 type VoiceInputStateListener = (listening: boolean) => void;
 type VoiceInputVadListener = (speaking: boolean) => void;
+type VoiceInputEnergyListener = (rms: number) => void;
 
 // ── Web Speech API type augmentation ──
 
@@ -209,6 +212,13 @@ export class VoiceInputService {
   private vadTimerId: number | null = null;
   private vadLastSpeechTs = 0;
 
+  // Silence timeout (auto-stop after prolonged silence)
+  private silenceTimerId: number | null = null;
+  private lastSpeechTimestamp = 0;
+
+  // Energy level for UI visualization (RMS, updated every VAD frame)
+  private _energyLevel = 0;
+
   // Push-to-talk MediaRecorder (for whisper-local)
   private mediaRecorder: MediaRecorder | null = null;
   private mediaStream: MediaStream | null = null;
@@ -220,9 +230,13 @@ export class VoiceInputService {
   private errorListeners: VoiceInputErrorListener[] = [];
   private stateListeners: VoiceInputStateListener[] = [];
   private vadListeners: VoiceInputVadListener[] = [];
+  private energyListeners: VoiceInputEnergyListener[] = [];
 
   /** The currently active STT engine (may differ from preferredEngine after fallback). */
   private _currentEngine: SttEngine = 'web-speech';
+
+  /** Per-engine failure reasons collected during _attemptEngineWithFallback. */
+  private _engineFailureReasons: Partial<Record<SttEngine, string>> = {};
 
   get listening(): boolean {
     return this._listening;
@@ -263,6 +277,16 @@ export class VoiceInputService {
     return () => { this.vadListeners = this.vadListeners.filter((l) => l !== fn); };
   }
 
+  onEnergyLevel(fn: VoiceInputEnergyListener): () => void {
+    this.energyListeners.push(fn);
+    return () => { this.energyListeners = this.energyListeners.filter((l) => l !== fn); };
+  }
+
+  /** Returns the most recent RMS energy level (0–1 normalised). */
+  getEnergyLevel(): number {
+    return this._energyLevel;
+  }
+
   // ── Lifecycle ──
 
   start(config?: Partial<VoiceInputConfig>): void {
@@ -288,7 +312,7 @@ export class VoiceInputService {
    * Attempt to start an engine, falling back to the next engine in the chain on failure.
    */
   private async _attemptEngineWithFallback(engine: SttEngine): Promise<void> {
-    // Find engine and all engines after it in the fallback chain
+    this._engineFailureReasons = {};
     const chain = this.fallbackChain;
     const startIdx = chain.indexOf(engine);
     const enginesToTry = startIdx >= 0 ? chain.slice(startIdx) : chain;
@@ -297,12 +321,28 @@ export class VoiceInputService {
       this._currentEngine = e;
       const started = this._startEngine(e);
       if (started) return;
-      // Engine failed — loop will try the next one
+      // Engine failed — reason was recorded by _startEngine
     }
 
-    // All engines failed
-    this.emitError('所有 STT 引擎均不可用。请检查网络连接和 Ollama 服务状态。');
+    // All engines failed — build a detailed message
+    const reasons = enginesToTry
+      .map((e) => {
+        const reason = this._engineFailureReasons[e];
+        const label = this._engineLabel(e);
+        return reason ? `• ${label}：${reason}` : `• ${label}`;
+      })
+      .join('\n');
+    this.emitError(`所有 STT 引擎均不可用：\n${reasons}\n请检查上述配置和网络连接。`);
     this.setListening(false);
+  }
+
+  private _engineLabel(e: SttEngine): string {
+    switch (e) {
+      case 'web-speech': return 'Web Speech API';
+      case 'whisper-local': return 'Ollama Whisper';
+      case 'commercial': return '商业 STT';
+      default: return e;
+    }
   }
 
   /**
@@ -321,7 +361,10 @@ export class VoiceInputService {
       case 'commercial':
         // commercial requires push-to-talk (it sends a recorded blob);
         // if no commercial provider is configured, treat as unavailable
-        if (!this._config.commercialFallback) return false;
+        if (!this._config.commercialFallback) {
+          this._engineFailureReasons['commercial'] = '未配置商业 STT provider';
+          return false;
+        }
         this._listening = true;
         this.emitState(true);
         return true;
@@ -332,7 +375,10 @@ export class VoiceInputService {
 
   private _startWebSpeech(): boolean {
     const Ctor = getSpeechRecognitionCtor();
-    if (!Ctor) return false;
+    if (!Ctor) {
+      this._engineFailureReasons['web-speech'] = '浏览器不支持 Web Speech API';
+      return false;
+    }
 
     const rec = new Ctor();
     rec.lang = this._config.lang;
@@ -343,6 +389,7 @@ export class VoiceInputService {
     rec.onstart = () => {
       this._listening = true;
       this.emitState(true);
+      this.resetSilenceTimer();
       void this.startVadMonitor();
     };
 
@@ -375,6 +422,7 @@ export class VoiceInputService {
     // Fatal errors trigger fallback; non-fatal are silently ignored
     rec.onerror = (event: SpeechRecognitionErrorEvent) => {
       if (event.error === 'no-speech' || event.error === 'aborted') return;
+      this._engineFailureReasons['web-speech'] = `Web Speech API 错误: ${event.error}`;
       // Fatal error — attempt fallback to next engine in chain
       const chain = this.fallbackChain;
       const nextIdx = chain.indexOf('web-speech') + 1;
@@ -384,9 +432,9 @@ export class VoiceInputService {
       } else if (this._config.commercialFallback) {
         // All local engines failed and commercial is configured — notify caller
         this._stopCurrentEngine();
-        this.emitError(`Web Speech 不可用。请切换到商业 STT 引擎，或检查 Ollama 服务。`);
+        this.emitError(`Web Speech 不可用（${event.error}）。请切换到商业 STT 引擎，或检查 Ollama 服务。`);
       } else {
-        this.emitError(event.error);
+        this.emitError(`Web Speech 不可用（${event.error}）。`);
       }
     };
 
@@ -594,6 +642,8 @@ export class VoiceInputService {
     this.errorListeners = [];
     this.stateListeners = [];
     this.vadListeners = [];
+    this.energyListeners = [];
+    this.stopSilenceTimer();
   }
 
   // ── Private ──
@@ -667,15 +717,21 @@ export class VoiceInputService {
           sum += sample * sample;
         }
         const rms = Math.sqrt(sum / buffer.length);
+        this._energyLevel = rms;
+        for (const l of this.energyListeners) l(rms);
+
         const now = Date.now();
         if (rms >= rmsThreshold) {
           this.vadLastSpeechTs = now;
+          this.lastSpeechTimestamp = now;
           this.setSpeaking(true);
+          this.resetSilenceTimer();
           return;
         }
         if (now - this.vadLastSpeechTs >= silenceMs) {
           this.setSpeaking(false);
         }
+        this.checkSilenceTimeout();
       }, intervalMs);
     } catch {
       // VAD is best-effort only; don't fail voice recognition when unavailable.
@@ -687,6 +743,7 @@ export class VoiceInputService {
       window.clearInterval(this.vadTimerId);
       this.vadTimerId = null;
     }
+    this.stopSilenceTimer();
 
     this.vadSource?.disconnect();
     this.vadSource = null;
@@ -705,5 +762,33 @@ export class VoiceInputService {
     }
 
     this.setSpeaking(false);
+  }
+
+  /** Start / reset the silence timeout counter. */
+  private resetSilenceTimer(): void {
+    const maxSilenceMs = this._config.maxSilenceMs ?? 30_000;
+    if (maxSilenceMs <= 0) return;
+    this.stopSilenceTimer();
+    this.lastSpeechTimestamp = Date.now();
+    this.silenceTimerId = window.setTimeout(() => {
+      if (!this._intentionalStop && this._listening) {
+        this.stop();
+      }
+    }, maxSilenceMs);
+  }
+
+  private checkSilenceTimeout(): void {
+    const maxSilenceMs = this._config.maxSilenceMs ?? 30_000;
+    if (maxSilenceMs <= 0) return;
+    if (Date.now() - this.lastSpeechTimestamp >= maxSilenceMs) {
+      this.stop();
+    }
+  }
+
+  private stopSilenceTimer(): void {
+    if (this.silenceTimerId !== null) {
+      window.clearTimeout(this.silenceTimerId);
+      this.silenceTimerId = null;
+    }
   }
 }

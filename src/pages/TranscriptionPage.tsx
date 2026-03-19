@@ -3,7 +3,6 @@ import {
   Focus,
   Maximize2,
   Merge as _Merge,
-  Mic as _Mic,
   Pause as _Pause,
   Play,
   Repeat,
@@ -12,8 +11,6 @@ import {
 } from 'lucide-react';
 import { AiAnalysisPanel } from '../components/AiAnalysisPanel';
 import type { AiPanelMode } from '../components/AiAnalysisPanel';
-import { PdfViewerPanel } from '../components/PdfViewerPanel';
-import { VoiceAgentWidget } from '../components/VoiceAgentWidget';
 import { AudioImportDialog } from '../components/AudioImportDialog';
 import { BatchOperationPanel } from '../components/BatchOperationPanel';
 import { ProjectSetupDialog } from '../components/ProjectSetupDialog';
@@ -25,8 +22,11 @@ import { TranscriptionToolbarActions } from '../components/TranscriptionToolbarA
 import { TranscriptionOverlays } from '../components/TranscriptionOverlays';
 import { TranscriptionTimelineTextOnly } from '../components/TranscriptionTimelineTextOnly';
 import { TranscriptionTimelineMediaLanes } from '../components/TranscriptionTimelineMediaLanes';
+import { RecoveryBanner } from '../components/RecoveryBanner';
+import { VoiceDockSection } from '../components/VoiceDockSection';
+import { PdfPreviewSection } from '../components/PdfPreviewSection';
 import { LinguisticService } from '../../services/LinguisticService';
-import { db as appDb, getDb } from '../../db';
+import { db as appDb } from '../../db';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { useAiPanelContextUpdater } from '../contexts/AiPanelContext';
 import { snapToZeroCrossing } from '../services/AudioAnalysisService';
@@ -53,16 +53,40 @@ import { useDialogs } from '../hooks/useDialogs';
 import { usePanelResize } from '../hooks/usePanelResize';
 import { usePanelAutoCollapse } from '../hooks/usePanelAutoCollapse';
 import { usePanelToggles } from '../hooks/usePanelToggles';
+import { useRecoveryBanner } from '../hooks/useRecoveryBanner';
+import { usePdfPreview } from '../hooks/usePdfPreview';
+import { useVoiceDock } from '../hooks/useVoiceDock';
+import { useAiEmbeddingState } from '../hooks/useAiEmbeddingState';
 import { detectLocale, t, tf } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { formatLayerRailLabel, formatTime } from '../utils/transcriptionFormatters';
-import { WorkerEmbeddingRuntime } from '../ai/embeddings/EmbeddingRuntime';
 import { EmbeddingService } from '../ai/embeddings/EmbeddingService';
 import { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
-import { buildEmbeddingFallbackWarning, readFallbackReason } from '../ai/embeddings/fallbackWarning';
-import { mapAuditRowToAiToolDecisionLog } from '../ai/toolDecisionLog';
+import { createEmbeddingProvider, testEmbeddingProvider } from '../ai/embeddings/EmbeddingProviderCatalog';
+import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import { getGlobalTaskRunner } from '../ai/tasks/taskRunnerSingleton';
 import { extractUtteranceIdFromNote, getPdfPageFromHash, isDirectPdfCitationRef, splitPdfCitationRef } from '../utils/citationJumpUtils';
+import { applyVoiceCommercialConfigChange } from '../utils/voiceCommercialConfigSync';
+
+// ─── Storage keys ─────────────────────────────────────────────────────────────
+
+const EMBEDDING_PROVIDER_STORAGE_KEY = 'jieyu.embeddingProvider';
+
+// ─── Persistence helpers ───────────────────────────────────────────────────────
+
+function loadEmbeddingProviderConfig(): { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string } {
+  try {
+    const raw = window.localStorage.getItem(EMBEDDING_PROVIDER_STORAGE_KEY);
+    if (raw) return JSON.parse(raw) as { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string };
+  } catch { /* ignore */ }
+  return { kind: 'local' };
+}
+
+function saveEmbeddingProviderConfig(cfg: { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }): void {
+  try {
+    window.localStorage.setItem(EMBEDDING_PROVIDER_STORAGE_KEY, JSON.stringify(cfg));
+  } catch { /* ignore */ }
+}
 
 export function TranscriptionPage() {
   const locale = detectLocale();
@@ -155,102 +179,63 @@ export function TranscriptionPage() {
   } = data;
 
   // ---- Recovery banner ----
-  const [recoveryAvailable, setRecoveryAvailable] = useState(false);
-  const [recoveryDiffSummary, setRecoveryDiffSummary] = useState<{ utterances: number; translations: number; layers: number } | null>(null);
-  const recoveryDataRef = useRef<Awaited<ReturnType<typeof checkRecovery>>>(null);
-
-  useEffect(() => {
-    if (data.state.phase !== 'ready') return;
-    let cancelled = false;
-    fireAndForget(checkRecovery().then((snap) => {
-      if (cancelled || !snap) return;
-      recoveryDataRef.current = snap;
-      setRecoveryDiffSummary({
-        utterances: Math.max(0, snap.utterances.length - utterances.length),
-        translations: Math.max(0, snap.translations.length - translations.length),
-        layers: Math.max(0, snap.layers.length - layers.length),
-      });
-      setRecoveryAvailable(true);
-    }));
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.state.phase, utterances.length, translations.length, layers.length]);
+  const {
+    recoveryAvailable,
+    recoveryDiffSummary,
+    recoveryDataRef,
+    hideRecoveryBanner,
+  } = useRecoveryBanner({
+    phase: data.state.phase,
+    utterancesLength: utterances.length,
+    translationsLength: translations.length,
+    layersLength: layers.length,
+    checkRecovery,
+  });
 
   // ---- Page-only UI state ----
   const [focusedLayerRowId, setFocusedLayerRowId] = useState<string>('');
   const [flashLayerRowId, setFlashLayerRowId] = useState<string>('');
-  const [pdfPreview, setPdfPreview] = useState<{
-    sourceUrl: string;
-    url: string;
-    title: string;
-    page: number | null;
-    hashSuffix: string;
-    navToken: number;
-    searchSnippet?: string;
-  } | null>(null);
-  const [pdfPreviewPos, setPdfPreviewPos] = useState<{ right: number; bottom: number }>({ right: 16, bottom: 16 });
-  const [pdfPreviewDragging, setPdfPreviewDragging] = useState(false);
-  const pdfPreviewRef = useRef<HTMLElement | null>(null);
-  const pdfPreviewDragRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startY: number;
-    startRight: number;
-    startBottom: number;
-  } | null>(null);
+  const {
+    pdfPreview,
+    setPdfPreview,
+    pdfPreviewPos,
+    pdfPreviewDragging,
+    pdfPreviewRef,
+    openPdfPreview,
+    handlePdfPreviewPageChange,
+    handlePdfPreviewOpenExternal,
+    handlePdfPreviewDragStart,
+  } = usePdfPreview();
+  const pdfCitationObjectUrlRef = useRef<string | null>(null);
 
-  const buildPdfPreviewUrl = useCallback((sourceUrl: string, page: number | null, hashSuffix = '', searchSnippet?: string): string => {
-    const trimmedSource = sourceUrl.trim();
-    if (!trimmedSource) return '';
-    const normalizedBase = trimmedSource.replace(/#.*/, '');
-    let hash = '';
-    if (page && Number.isFinite(page) && page >= 1) {
-      hash = `page=${Math.floor(page)}`;
-    } else if (hashSuffix) {
-      hash = hashSuffix.replace(/^#/, '');
-    }
-    if (searchSnippet?.trim()) {
-      const escapedSnippet = encodeURIComponent(searchSnippet.trim());
-      hash = hash ? `${hash}&search=${escapedSnippet}` : `search=${escapedSnippet}`;
-    }
-    return hash ? `${normalizedBase}#${hash}` : normalizedBase;
+  const cleanupPdfCitationObjectUrl = useCallback(() => {
+    const current = pdfCitationObjectUrlRef.current;
+    if (!current) return;
+    URL.revokeObjectURL(current);
+    pdfCitationObjectUrlRef.current = null;
   }, []);
 
-  const openPdfPreview = useCallback((sourceUrl: string, title: string, page: number | null, hashSuffix = '', searchSnippet?: string) => {
-    const normalizedPage = page && Number.isFinite(page) && page >= 1 ? Math.floor(page) : null;
-    setPdfPreview((current) => {
-      const next: typeof current = {
-        sourceUrl,
-        url: buildPdfPreviewUrl(sourceUrl, normalizedPage, hashSuffix, searchSnippet),
-        title,
-        page: normalizedPage,
-        hashSuffix,
-        navToken: (current?.navToken ?? 0) + 1,
-      };
-      if (searchSnippet) next.searchSnippet = searchSnippet;
-      return next;
-    });
-  }, [buildPdfPreviewUrl]);
+  const handleClosePdfPreview = useCallback(() => {
+    setPdfPreview(null);
+    cleanupPdfCitationObjectUrl();
+  }, [cleanupPdfCitationObjectUrl, setPdfPreview]);
 
-  const handlePdfPreviewPageChange = useCallback((delta: number) => {
-    setPdfPreview((current) => {
-      if (!current) return current;
-      const basePage = current.page ?? 1;
-      const nextPage = Math.max(1, basePage + delta);
-      const next: typeof current = {
-        ...current,
-        page: nextPage,
-        url: buildPdfPreviewUrl(current.sourceUrl, nextPage, current.hashSuffix, current.searchSnippet),
-        navToken: current.navToken + 1,
-      };
-      return next;
-    });
-  }, [buildPdfPreviewUrl]);
+  const openPdfPreviewWithManagedObjectUrl = useCallback((
+    sourceUrl: string,
+    title: string,
+    page: number | null,
+    hashSuffix = '',
+    searchSnippet?: string,
+  ) => {
+    if (!sourceUrl.startsWith('blob:')) {
+      cleanupPdfCitationObjectUrl();
+    }
+    openPdfPreview(sourceUrl, title, page, hashSuffix, searchSnippet);
+  }, [cleanupPdfCitationObjectUrl, openPdfPreview]);
 
-  const handlePdfPreviewOpenExternal = useCallback(() => {
-    if (!pdfPreview) return;
-    window.open(pdfPreview.url, '_blank', 'noopener,noreferrer');
-  }, [pdfPreview]);
+  useEffect(() => () => {
+    cleanupPdfCitationObjectUrl();
+  }, [cleanupPdfCitationObjectUrl]);
 
   const handleFocusLayerRow = useCallback((id: string) => {
     setFocusedLayerRowId(id);
@@ -290,169 +275,26 @@ export function TranscriptionPage() {
     getActiveTextPrimaryLanguageId,
   } = useDialogs(utterances);
 
-  const [voiceCorpusLang, setVoiceCorpusLang] = useState('cmn');
-  const [voiceCorpusLangOverride, setVoiceCorpusLangOverride] = useState<string | null>(null);
-  const [voiceDockExpanded, setVoiceDockExpanded] = useState(false);
-  const [voiceDockPos, setVoiceDockPos] = useState<{ right: number; bottom: number }>({ right: 16, bottom: 16 });
-  const [voiceDockDragging, setVoiceDockDragging] = useState(false);
-  const voiceDockDragRef = useRef<{ pointerId: number; startX: number; startY: number; startRight: number; startBottom: number; moved: boolean } | null>(null);
-  const voiceDockContainerRef = useRef<HTMLElement | null>(null);
-  const voiceDockDraggedAtRef = useRef(0);
-
-  useEffect(() => {
-    const preferredLanguage = activeTextPrimaryLanguageId?.trim();
-    if (preferredLanguage) {
-      setVoiceCorpusLang(preferredLanguage);
-      return;
-    }
-    let cancelled = false;
-    fireAndForget((async () => {
-      const fallbackLanguage = (await getActiveTextPrimaryLanguageId())?.trim();
-      if (!cancelled && fallbackLanguage) {
-        setVoiceCorpusLang(fallbackLanguage);
-      }
-    })());
-    return () => { cancelled = true; };
-  }, [activeTextPrimaryLanguageId, getActiveTextPrimaryLanguageId]);
-
-  const effectiveVoiceCorpusLang = (voiceCorpusLangOverride?.trim() || voiceCorpusLang || 'cmn').toLowerCase();
-  const handleVoiceSetLangOverride = useCallback((lang: string | null) => {
-    const next = lang?.trim() ?? '';
-    setVoiceCorpusLangOverride(next ? next.toLowerCase() : null);
-  }, []);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem('jieyu.voiceDock.pos');
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as { right?: unknown; bottom?: unknown };
-      const right = typeof parsed.right === 'number' ? parsed.right : 16;
-      const bottom = typeof parsed.bottom === 'number' ? parsed.bottom : 16;
-      setVoiceDockPos({ right: Math.max(8, right), bottom: Math.max(8, bottom) });
-    } catch {
-      // ignore storage parsing errors
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem('jieyu.voiceDock.pos', JSON.stringify(voiceDockPos));
-  }, [voiceDockPos]);
-
-  const handleVoiceDockDragStart = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
-    setVoiceDockDragging(true);
-    voiceDockDragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      startRight: voiceDockPos.right,
-      startBottom: voiceDockPos.bottom,
-      moved: false,
-    };
-    event.preventDefault();
-  }, [voiceDockPos.bottom, voiceDockPos.right]);
-
-  const handleVoiceDockDragMove = useCallback((event: PointerEvent) => {
-    const drag = voiceDockDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-
-    const dx = event.clientX - drag.startX;
-    const dy = event.clientY - drag.startY;
-    if (!drag.moved && Math.hypot(dx, dy) >= 4) {
-      drag.moved = true;
-    }
-    const nextRight = Math.max(8, Math.min(window.innerWidth - 56, drag.startRight - dx));
-    const nextBottom = Math.max(8, Math.min(window.innerHeight - 56, drag.startBottom - dy));
-    setVoiceDockPos({ right: nextRight, bottom: nextBottom });
-  }, []);
-
-  const handleVoiceDockDragEnd = useCallback((event: PointerEvent) => {
-    const drag = voiceDockDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    voiceDockDragRef.current = null;
-    setVoiceDockDragging(false);
-
-    if (drag.moved) {
-      voiceDockDraggedAtRef.current = Date.now();
-    }
-
-    const edge = 16;
-    const dockWidth = voiceDockContainerRef.current?.offsetWidth ?? 460;
-    const dockHeight = voiceDockContainerRef.current?.offsetHeight ?? 168;
-    const maxRight = Math.max(edge, window.innerWidth - dockWidth - edge);
-    const maxBottom = Math.max(edge, window.innerHeight - dockHeight - edge);
-
-    setVoiceDockPos((current) => {
-      const snapRight = current.right <= maxRight / 2 ? edge : maxRight;
-      const snapBottom = Math.max(edge, Math.min(maxBottom, current.bottom));
-      return { right: snapRight, bottom: snapBottom };
-    });
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener('pointermove', handleVoiceDockDragMove);
-    window.addEventListener('pointerup', handleVoiceDockDragEnd);
-    window.addEventListener('pointercancel', handleVoiceDockDragEnd);
-    return () => {
-      window.removeEventListener('pointermove', handleVoiceDockDragMove);
-      window.removeEventListener('pointerup', handleVoiceDockDragEnd);
-      window.removeEventListener('pointercancel', handleVoiceDockDragEnd);
-    };
-  }, [handleVoiceDockDragEnd, handleVoiceDockDragMove]);
-
-  const handlePdfPreviewDragStart = useCallback((event: React.PointerEvent<HTMLElement>) => {
-    const target = event.target;
-    if (target instanceof HTMLElement && target.closest('button')) {
-      return;
-    }
-    setPdfPreviewDragging(true);
-    pdfPreviewDragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      startRight: pdfPreviewPos.right,
-      startBottom: pdfPreviewPos.bottom,
-    };
-    event.preventDefault();
-  }, [pdfPreviewPos.bottom, pdfPreviewPos.right]);
-
-  const handlePdfPreviewDragMove = useCallback((event: PointerEvent) => {
-    const drag = pdfPreviewDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    const dx = event.clientX - drag.startX;
-    const dy = event.clientY - drag.startY;
-    const nextRight = Math.max(8, drag.startRight - dx);
-    const nextBottom = Math.max(8, drag.startBottom - dy);
-    setPdfPreviewPos({ right: nextRight, bottom: nextBottom });
-  }, []);
-
-  const handlePdfPreviewDragEnd = useCallback((event: PointerEvent) => {
-    const drag = pdfPreviewDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    pdfPreviewDragRef.current = null;
-    setPdfPreviewDragging(false);
-
-    const edge = 16;
-    const panelWidth = pdfPreviewRef.current?.offsetWidth ?? 520;
-    const panelHeight = pdfPreviewRef.current?.offsetHeight ?? 360;
-    const maxRight = Math.max(edge, window.innerWidth - panelWidth - edge);
-    const maxBottom = Math.max(edge, window.innerHeight - panelHeight - edge);
-
-    setPdfPreviewPos((current) => ({
-      right: Math.max(edge, Math.min(maxRight, current.right)),
-      bottom: Math.max(edge, Math.min(maxBottom, current.bottom)),
-    }));
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener('pointermove', handlePdfPreviewDragMove);
-    window.addEventListener('pointerup', handlePdfPreviewDragEnd);
-    window.addEventListener('pointercancel', handlePdfPreviewDragEnd);
-    return () => {
-      window.removeEventListener('pointermove', handlePdfPreviewDragMove);
-      window.removeEventListener('pointerup', handlePdfPreviewDragEnd);
-      window.removeEventListener('pointercancel', handlePdfPreviewDragEnd);
-    };
-  }, [handlePdfPreviewDragEnd, handlePdfPreviewDragMove]);
+  const {
+    effectiveVoiceCorpusLang,
+    voiceCorpusLangOverride,
+    voiceDockExpanded,
+    setVoiceDockExpanded,
+    voiceDockPos,
+    voiceDockDragging,
+    voiceDockContainerRef,
+    voiceDockDraggedAtRef,
+    handleVoiceSetLangOverride,
+    handleCommercialConfigChange,
+    handleVoiceDockDragStart,
+    commercialProviderKind,
+    setCommercialProviderKind,
+    commercialProviderConfig,
+    setCommercialProviderConfig,
+  } = useVoiceDock({
+    activeTextPrimaryLanguageId,
+    getActiveTextPrimaryLanguageId,
+  });
 
   const createLayerWithActiveContext = useCallback(async (
     ...args: Parameters<typeof createLayer>
@@ -482,263 +324,45 @@ export function TranscriptionPage() {
   const aiRecommendationRef = useRef<string[]>([]);
   const aiLexemeSummaryRef = useRef<string[]>([]);
   const aiAudioTimeRef = useRef(0);
-  const embeddingRuntime = useMemo(() => new WorkerEmbeddingRuntime(), []);
+  const [embeddingProviderConfig, setEmbeddingProviderConfig] = useState<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>(() => loadEmbeddingProviderConfig());
+  const embeddingProvider = useMemo(() => createEmbeddingProvider(embeddingProviderConfig), [embeddingProviderConfig]);
   const taskRunner = useMemo(() => getGlobalTaskRunner(), []);
-  const embeddingService = useMemo(() => new EmbeddingService(embeddingRuntime, taskRunner), [embeddingRuntime, taskRunner]);
-  const embeddingSearchService = useMemo(() => new EmbeddingSearchService(embeddingRuntime), [embeddingRuntime]);
-  const [aiEmbeddingBusy, setAiEmbeddingBusy] = useState(false);
-  const [aiEmbeddingProgressLabel, setAiEmbeddingProgressLabel] = useState<string | null>(null);
-  const [aiEmbeddingLastResult, setAiEmbeddingLastResult] = useState<{
-    taskId: string;
-    total: number;
-    generated: number;
-    skipped: number;
-    modelId: string;
-    modelVersion: string;
-    completedAt: string;
-    elapsedMs?: number;
-    averageBatchMs?: number;
-  } | null>(null);
-  const [aiEmbeddingTasks, setAiEmbeddingTasks] = useState<Array<{
-    id: string;
-    taskType: 'transcribe' | 'gloss' | 'translate' | 'embed' | 'detect_language';
-    status: 'pending' | 'running' | 'done' | 'failed';
-    updatedAt: string;
-    modelId?: string;
-    errorMessage?: string;
-  }>>([]);
-  const [aiEmbeddingMatches, setAiEmbeddingMatches] = useState<Array<{
-    utteranceId: string;
-    score: number;
-    label: string;
-    text: string;
-  }>>([]);
-  const [aiEmbeddingLastError, setAiEmbeddingLastError] = useState<string | null>(null);
-  const [aiEmbeddingWarning, setAiEmbeddingWarning] = useState<string | null>(null);
-  const [aiToolDecisionLogs, setAiToolDecisionLogs] = useState<Array<{
-    id: string;
-    toolName: string;
-    decision: string;
-    timestamp: string;
-  }>>([]);
+  const embeddingService = useMemo(() => new EmbeddingService(embeddingProvider, taskRunner), [embeddingProvider, taskRunner]);
+  const embeddingSearchService = useMemo(() => new EmbeddingSearchService(embeddingProvider), [embeddingProvider]);
 
+  // Persist embedding provider config to localStorage when it changes
   useEffect(() => {
-    return () => {
-      embeddingService.terminate();
-      embeddingSearchService.terminate();
-    };
-  }, [embeddingSearchService, embeddingService]);
+    saveEmbeddingProviderConfig(embeddingProviderConfig);
+  }, [embeddingProviderConfig]);
 
-  const refreshEmbeddingTasks = useCallback(async () => {
-    const db = await getDb();
-    const rows = await db.collections.ai_tasks.find().exec();
-    const normalized = rows
-      .map((item) => item.toJSON())
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-      .slice(0, 8)
-      .map((item) => ({
-        id: item.id,
-        taskType: item.taskType,
-        status: item.status,
-        updatedAt: item.updatedAt,
-        ...(item.modelId ? { modelId: item.modelId } : {}),
-        ...(item.errorMessage ? { errorMessage: item.errorMessage } : {}),
-      }));
-    setAiEmbeddingTasks(normalized);
-  }, []);
-
-  const refreshAiToolDecisionLogs = useCallback(async () => {
-    const rows = await appDb.audit_logs
-      .where('[collection+field+timestamp]')
-      .between(
-        ['ai_messages', 'ai_tool_call_decision', ''],
-        ['ai_messages', 'ai_tool_call_decision', '\uffff'],
-      )
-      .reverse()
-      .limit(6)
-      .toArray();
-    const normalized = rows
-      .map((item) => mapAuditRowToAiToolDecisionLog(item));
-    setAiToolDecisionLogs(normalized);
-  }, []);
-
-  const handleCancelAiTask = useCallback(async (taskId: string) => {
-    const ok = taskRunner.cancel(taskId);
-    if (!ok) {
-      setAiEmbeddingLastError(locale === 'zh-CN' ? '任务不可取消（可能已完成）。' : 'Task cannot be cancelled (may have finished).');
-    }
-    await refreshEmbeddingTasks();
-  }, [locale, refreshEmbeddingTasks, taskRunner]);
-
-  const handleRetryAiTask = useCallback(async (taskId: string) => {
-    const nextTaskId = await taskRunner.retry(taskId);
-    if (!nextTaskId) {
-      setAiEmbeddingLastError(locale === 'zh-CN' ? '该任务暂不支持重试。' : 'Retry is not available for this task.');
-      return;
-    }
-    setAiEmbeddingProgressLabel(locale === 'zh-CN' ? `已重新排队: ${nextTaskId}` : `Re-queued: ${nextTaskId}`);
-    await refreshEmbeddingTasks();
-  }, [locale, refreshEmbeddingTasks, taskRunner]);
-
-  const handleBuildUtteranceEmbeddings = useCallback(async () => {
-    const sources = utterancesOnCurrentMedia
-      .map((utterance) => ({
-        sourceType: 'utterance' as const,
-        sourceId: utterance.id,
-        text: getUtteranceTextForLayer(utterance).trim(),
-      }))
-      .filter((item) => item.text.length > 0);
-
-    if (sources.length === 0) {
-      setAiEmbeddingLastError(locale === 'zh-CN' ? '当前媒体没有可向量化文本。' : 'No text to embed for current media.');
-      return;
-    }
-
-    setAiEmbeddingBusy(true);
-    setAiEmbeddingLastError(null);
-    setAiEmbeddingWarning(null);
-    setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '准备 embedding 任务...' : 'Preparing embedding task...');
-    try {
-      const result = await embeddingService.buildEmbeddings(sources, {
-        onProgress: (progress) => {
-          const fallbackReason = readFallbackReason(progress.runtime);
-          if (fallbackReason !== null) {
-            setAiEmbeddingWarning(buildEmbeddingFallbackWarning(locale, fallbackReason));
-          }
-          if (progress.stage === 'done') {
-            setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'embedding 构建完成。' : 'Embedding build completed.');
-            return;
-          }
-          const prefix = locale === 'zh-CN' ? '构建中' : 'Running';
-          setAiEmbeddingProgressLabel(`${prefix}: ${progress.processed}/${progress.total}`);
-        },
-      });
-      setAiEmbeddingLastResult({
-        ...result,
-        completedAt: new Date().toISOString(),
-      });
-      await refreshEmbeddingTasks();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Embedding build failed';
-      setAiEmbeddingLastError(message);
-      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'embedding 构建失败。' : 'Embedding build failed.');
-      await refreshEmbeddingTasks();
-    } finally {
-      setAiEmbeddingBusy(false);
-    }
-  }, [embeddingService, getUtteranceTextForLayer, locale, refreshEmbeddingTasks, utterancesOnCurrentMedia]);
-
-  const handleBuildNotesEmbeddings = useCallback(async () => {
-    setAiEmbeddingBusy(true);
-    setAiEmbeddingLastError(null);
-    setAiEmbeddingWarning(null);
-    setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '准备笔记 embedding 任务...' : 'Preparing notes embedding task...');
-    try {
-      const result = await embeddingService.buildNotesEmbeddings({
-        onProgress: (progress) => {
-          if (progress.stage === 'done') {
-            setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '笔记 embedding 完成。' : 'Notes embedding completed.');
-            return;
-          }
-          const prefix = locale === 'zh-CN' ? '向量化笔记' : 'Embedding notes';
-          setAiEmbeddingProgressLabel(`${prefix}: ${progress.processed}/${progress.total}`);
-        },
-      });
-      setAiEmbeddingLastResult({ ...result, completedAt: new Date().toISOString() });
-      await refreshEmbeddingTasks();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Notes embedding failed';
-      setAiEmbeddingLastError(message);
-      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '笔记 embedding 失败。' : 'Notes embedding failed.');
-      await refreshEmbeddingTasks();
-    } finally {
-      setAiEmbeddingBusy(false);
-    }
-  }, [embeddingService, locale, refreshEmbeddingTasks]);
-
-  const handleBuildPdfEmbeddings = useCallback(async () => {
-    setAiEmbeddingBusy(true);
-    setAiEmbeddingLastError(null);
-    setAiEmbeddingWarning(null);
-    setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '准备 PDF embedding 任务...' : 'Preparing PDF embedding task...');
-    try {
-      const result = await embeddingService.buildPdfEmbeddings({
-        onProgress: (progress) => {
-          if (progress.stage === 'done') {
-            setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'PDF embedding 完成。' : 'PDF embedding completed.');
-            return;
-          }
-          const prefix = locale === 'zh-CN' ? '向量化 PDF' : 'Embedding PDF';
-          setAiEmbeddingProgressLabel(`${prefix}: ${progress.processed}/${progress.total}`);
-        },
-      });
-      setAiEmbeddingLastResult({ ...result, completedAt: new Date().toISOString() });
-      await refreshEmbeddingTasks();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'PDF embedding failed';
-      setAiEmbeddingLastError(message);
-      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'PDF embedding 失败。' : 'PDF embedding failed.');
-      await refreshEmbeddingTasks();
-    } finally {
-      setAiEmbeddingBusy(false);
-    }
-  }, [embeddingService, locale, refreshEmbeddingTasks]);
-
-  const handleFindSimilarUtterances = useCallback(async () => {
-    if (!selectedUtterance) {
-      setAiEmbeddingLastError(locale === 'zh-CN' ? '请先选择一条语句。' : 'Select an utterance first.');
-      return;
-    }
-
-    const queryText = getUtteranceTextForLayer(selectedUtterance).trim();
-    if (!queryText) {
-      setAiEmbeddingLastError(locale === 'zh-CN' ? '当前语句为空，无法检索。' : 'Current utterance is empty.');
-      return;
-    }
-
-    setAiEmbeddingBusy(true);
-    setAiEmbeddingLastError(null);
-    setAiEmbeddingWarning(null);
-    setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '检索相似语句中...' : 'Searching similar utterances...');
-    try {
-      const rowLabelById = new Map<string, string>(
-        utterancesOnCurrentMedia.map((item, index) => [
-          item.id,
-          `${index + 1} · ${formatTime(item.startTime)}-${formatTime(item.endTime)}`,
-        ]),
-      );
-      const textById = new Map<string, string>(
-        utterancesOnCurrentMedia.map((item) => [item.id, getUtteranceTextForLayer(item)]),
-      );
-
-      const result = await embeddingSearchService.searchSimilarUtterances(queryText, {
-        topK: 5,
-        candidateSourceIds: utterancesOnCurrentMedia.map((item) => item.id),
-        onProgress: (progress) => {
-          const fallbackReason = readFallbackReason(progress);
-          if (fallbackReason === null) return;
-          setAiEmbeddingWarning(buildEmbeddingFallbackWarning(locale, fallbackReason));
-        },
-      });
-
-      const mapped = result.matches
-        .filter((item) => item.sourceId !== selectedUtterance.id)
-        .map((item) => ({
-          utteranceId: item.sourceId,
-          score: item.score,
-          label: rowLabelById.get(item.sourceId) ?? item.sourceId,
-          text: textById.get(item.sourceId) ?? '',
-        }));
-      setAiEmbeddingMatches(mapped);
-      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? `检索完成：${mapped.length} 条` : `Search done: ${mapped.length} items`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Similarity search failed';
-      setAiEmbeddingLastError(message);
-      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '检索失败。' : 'Search failed.');
-    } finally {
-      setAiEmbeddingBusy(false);
-    }
-  }, [embeddingSearchService, getUtteranceTextForLayer, locale, selectedUtterance, utterancesOnCurrentMedia]);
+  const {
+    aiEmbeddingBusy,
+    aiEmbeddingProgressLabel,
+    aiEmbeddingLastResult,
+    aiEmbeddingTasks,
+    aiEmbeddingMatches,
+    aiEmbeddingLastError,
+    aiEmbeddingWarning,
+    aiToolDecisionLogs,
+    setAiEmbeddingLastError,
+    refreshEmbeddingTasks,
+    refreshAiToolDecisionLogs,
+    handleCancelAiTask,
+    handleRetryAiTask,
+    handleBuildUtteranceEmbeddings,
+    handleBuildNotesEmbeddings,
+    handleBuildPdfEmbeddings,
+    handleFindSimilarUtterances,
+  } = useAiEmbeddingState({
+    locale,
+    taskRunner,
+    embeddingService,
+    embeddingSearchService,
+    selectedUtterance,
+    utterancesOnCurrentMedia,
+    getUtteranceTextForLayer,
+    formatTime,
+  });
 
   useEffect(() => {
     if (state.phase !== 'ready') return;
@@ -822,6 +446,10 @@ export function TranscriptionPage() {
         .map((entry) => `[${entry.intent.type}] ${entry.sttText}`),
     }, voiceIntentResolverConfig);
   }, [aiChat.enabled, aiChat.settings, voiceIntentResolverConfig]);
+
+  const handleTestEmbeddingProvider = useCallback(async (): Promise<{ available: boolean; error?: string }> => {
+    return testEmbeddingProvider(embeddingProviderConfig);
+  }, [embeddingProviderConfig]);
 
   useEffect(() => {
     fireAndForget(refreshAiToolDecisionLogs());
@@ -1159,7 +787,7 @@ export function TranscriptionPage() {
       // 优先直接打开 URL 形式引用 | Prefer direct URL-like PDF citations.
       if (isDirectPdfCitationRef(refId)) {
         const snippet = citationRef?.snippet?.trim();
-        openPdfPreview(baseRef || refId.trim(), displayTitle, page, hashSuffix, snippet);
+        openPdfPreviewWithManagedObjectUrl(baseRef || refId.trim(), displayTitle, page, hashSuffix, snippet);
         return;
       }
 
@@ -1172,10 +800,9 @@ export function TranscriptionPage() {
         if (typeof detailUrl === 'string' && detailUrl.trim()) return detailUrl;
         const pdfBlob = details.pdfBlob;
         if (pdfBlob instanceof Blob) {
+          cleanupPdfCitationObjectUrl();
           const url = URL.createObjectURL(pdfBlob);
-          window.setTimeout(() => {
-            URL.revokeObjectURL(url);
-          }, 30_000);
+          pdfCitationObjectUrlRef.current = url;
           return url;
         }
         return null;
@@ -1197,7 +824,7 @@ export function TranscriptionPage() {
       const mediaLink = resolveMediaLink(media);
       if (mediaLink) {
         const snippet = citationRef?.snippet?.trim();
-        openPdfPreview(mediaLink, media?.filename || displayTitle, page, hashSuffix, snippet);
+        openPdfPreviewWithManagedObjectUrl(mediaLink, media?.filename || displayTitle, page, hashSuffix, snippet);
         return;
       }
 
@@ -1248,8 +875,9 @@ export function TranscriptionPage() {
     setIsLayerRailCollapsed,
     setLayerRailTab,
     setNotePopover,
-    openPdfPreview,
+    openPdfPreviewWithManagedObjectUrl,
     setSelectedLayerId,
+    cleanupPdfCitationObjectUrl,
   ]);
 
   // 同步 duration 到 ref（供下次渲染的 zoom 计算使用）
@@ -1537,16 +1165,38 @@ export function TranscriptionPage() {
   const isOllamaProvider = aiChat.settings.providerKind === 'ollama';
   const voiceAgentOptions: Parameters<typeof useVoiceAgent>[0] = {
     corpusLang: effectiveVoiceCorpusLang,
+    langOverride: voiceCorpusLangOverride,
     executeAction,
     sendToAiChat: aiChat.send,
     resolveIntentWithLlm: handleResolveVoiceIntentWithLlm,
     insertDictation: handleVoiceDictation,
+    commercialProviderKind: commercialProviderKind,
+    commercialProviderConfig,
   };
   if (isOllamaProvider) {
     voiceAgentOptions.ollamaBaseUrl = aiChat.settings.baseUrl;
     if (aiChat.settings.model) voiceAgentOptions.ollamaModel = aiChat.settings.model;
   }
   const voiceAgent = useVoiceAgent(voiceAgentOptions);
+
+  const handleVoiceCommercialConfigChange = useCallback((config: {
+    apiKey?: string;
+    baseUrl?: string;
+    model?: string;
+    appId?: string;
+    accessToken?: string;
+  }) => {
+    applyVoiceCommercialConfigChange(config, handleCommercialConfigChange, voiceAgent.setCommercialProviderConfig);
+  }, [handleCommercialConfigChange, voiceAgent]);
+
+  // Sync voice agent commercial provider state back to page-level state
+  useEffect(() => {
+    setCommercialProviderKind(voiceAgent.commercialProviderKind);
+  }, [voiceAgent.commercialProviderKind]);
+
+  useEffect(() => {
+    setCommercialProviderConfig(voiceAgent.commercialProviderConfig);
+  }, [voiceAgent.commercialProviderConfig]);
 
   // Wire toggleVoiceRef so the keybinding can toggle voice without circular deps.
   useEffect(() => {
@@ -1635,6 +1285,10 @@ export function TranscriptionPage() {
     aiEmbeddingMatches,
     aiEmbeddingLastError,
     aiEmbeddingWarning,
+    embeddingProviderKind: embeddingProviderConfig.kind,
+    embeddingProviderConfig,
+    onSetEmbeddingProviderKind: (kind: EmbeddingProviderKind) => setEmbeddingProviderConfig((prev) => ({ ...prev, kind })),
+    onTestEmbeddingProvider: handleTestEmbeddingProvider,
     onBuildUtteranceEmbeddings: handleBuildUtteranceEmbeddings,
     onBuildNotesEmbeddings: handleBuildNotesEmbeddings,
     onBuildPdfEmbeddings: handleBuildPdfEmbeddings,
@@ -1718,6 +1372,7 @@ export function TranscriptionPage() {
     handleJumpToCitation,
     handleCancelAiTask,
     handleRetryAiTask,
+    embeddingProviderConfig,
     voiceAgent.listening,
     voiceAgent.speechActive,
     voiceAgent.mode,
@@ -1984,47 +1639,20 @@ export function TranscriptionPage() {
 
       {state.phase === 'ready' && (
         <>
-          {/* Recovery banner */}
-          {recoveryAvailable && (
-            <div style={{
-              background: '#fef3c7', borderBottom: '1px solid #f59e0b', padding: '8px 16px',
-              display: 'flex', alignItems: 'center', gap: 12, fontSize: 13,
-            }}>
-              <span>
-                {t(locale, 'transcription.recovery.prompt')}
-                {recoveryDiffSummary && (
-                  <>
-                    {' '}
-                    {tf(locale, 'transcription.recovery.summary', {
-                      utterances: recoveryDiffSummary.utterances,
-                      translations: recoveryDiffSummary.translations,
-                      layers: recoveryDiffSummary.layers,
-                    })}
-                  </>
-                )}
-              </span>
-              <button
-                style={{ padding: '2px 10px', borderRadius: 4, background: '#f59e0b', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}
-                onClick={() => {
-                  const snap = recoveryDataRef.current;
-                  if (snap) fireAndForget(applyRecovery(snap));
-                  setRecoveryAvailable(false);
-                }}
-              >
-                {t(locale, 'transcription.recovery.apply')}
-              </button>
-              <button
-                style={{ padding: '2px 10px', borderRadius: 4, background: '#e5e7eb', border: 'none', cursor: 'pointer' }}
-                onClick={() => {
-                  fireAndForget(dismissRecovery());
-                  setRecoveryAvailable(false);
-                }}
-              >
-                {t(locale, 'transcription.recovery.dismiss')}
-              </button>
-            </div>
-          )}
-          {/* Waveform workspace: unified toolbar and interactive timeline. */}
+          <RecoveryBanner
+            locale={locale}
+            recoveryAvailable={recoveryAvailable}
+            recoveryDiffSummary={recoveryDiffSummary}
+            onApply={() => {
+              const snap = recoveryDataRef.current;
+              if (snap) fireAndForget(applyRecovery(snap));
+              hideRecoveryBanner();
+            }}
+            onDismiss={() => {
+              fireAndForget(dismissRecovery());
+              hideRecoveryBanner();
+            }}
+          />
           <section className="transcription-waveform">
             <WaveformToolbar
               filename={selectedUtteranceMedia?.filename ?? t(locale, 'transcription.media.unbound')}
@@ -2073,69 +1701,26 @@ export function TranscriptionPage() {
             </WaveformToolbar>
           </section>
 
-          {featureFlags.voiceAgentEnabled && (() => {
-            const hasActiveToast = saveState.kind !== 'idle' || recording || Boolean(recordingError);
-            const dockBottom = voiceDockPos.bottom + (hasActiveToast ? 92 : 0);
-            const dockStyle = {
-              right: `${voiceDockPos.right}px`,
-              bottom: `${dockBottom}px`,
-            } as React.CSSProperties;
-            const bubbleStyle = {
-              right: `${Math.max(-10, voiceDockPos.right - 12)}px`,
-              bottom: `${dockBottom}px`,
-            } as React.CSSProperties;
-            const bubbleEdgeClass = voiceDockPos.right <= 28 ? 'transcription-voice-bubble-edge' : '';
-
-            if (!voiceDockExpanded) {
-              return (
-                <button
-                  type="button"
-                  className={`transcription-voice-bubble ${bubbleEdgeClass} ${voiceDockDragging ? 'transcription-voice-dragging' : ''} ${voiceAgent.listening ? 'transcription-voice-bubble-active' : ''}`}
-                  style={bubbleStyle}
-                  aria-label="打开语音助手"
-                  onPointerDown={handleVoiceDockDragStart}
-                  onClick={handleVoiceAssistantIconClick}
-                >
-                  <_Mic size={22} />
-                  <span className={`transcription-voice-bubble-dot ${voiceAgent.listening ? 'transcription-voice-bubble-dot-active' : ''}`} aria-hidden="true" />
-                </button>
-              );
-            }
-
-            return (
-              <section
-                ref={voiceDockContainerRef}
-                className={`transcription-voice-dock ${voiceDockDragging ? 'transcription-voice-dragging' : ''} ${voiceAgent.listening ? 'transcription-voice-dock-active' : 'transcription-voice-dock-idle'}`}
-                aria-label="语音智能体控制栏"
-                style={dockStyle}
-              >
-                <VoiceAgentWidget
-                  listening={voiceAgent.listening}
-                  speechActive={voiceAgent.speechActive}
-                  mode={voiceAgent.mode}
-                  interimText={voiceAgent.interimText}
-                  finalText={voiceAgent.finalText}
-                  confidence={voiceAgent.confidence}
-                  error={voiceAgent.error}
-                  pendingConfirm={voiceAgent.pendingConfirm}
-                  safeMode={voiceAgent.safeMode}
-                  corpusLang={effectiveVoiceCorpusLang}
-                  langOverride={voiceCorpusLangOverride}
-                  engine={voiceAgent.engine}
-                  isRecording={voiceAgent.isRecording}
-                  onToggle={handleVoiceAssistantIconClick}
-                  onMicPointerDown={handleMicPointerDown}
-                  onMicPointerUp={handleMicPointerUp}
-                  onSwitchMode={voiceAgent.switchMode}
-                  onSwitchEngine={voiceAgent.switchEngine}
-                  onConfirm={voiceAgent.confirmPending}
-                  onCancel={voiceAgent.cancelPending}
-                  onSetSafeMode={voiceAgent.setSafeMode}
-                  onSetLangOverride={handleVoiceSetLangOverride}
-                />
-              </section>
-            );
-          })()}
+          {featureFlags.voiceAgentEnabled && (
+            <VoiceDockSection
+              saveStateKind={saveState.kind}
+              recording={recording}
+              recordingError={recordingError}
+              voiceDockPos={voiceDockPos}
+              voiceDockDragging={voiceDockDragging}
+              voiceDockExpanded={voiceDockExpanded}
+              voiceDockContainerRef={voiceDockContainerRef}
+              voiceCorpusLang={effectiveVoiceCorpusLang}
+              voiceLangOverride={voiceCorpusLangOverride}
+              voiceAgent={voiceAgent}
+              onBubblePointerDown={handleVoiceDockDragStart}
+              onBubbleClick={handleVoiceAssistantIconClick}
+              onMicPointerDown={handleMicPointerDown}
+              onMicPointerUp={handleMicPointerUp}
+              onSetLangOverride={handleVoiceSetLangOverride}
+              onCommercialConfigChange={handleVoiceCommercialConfigChange}
+            />
+          )}
 
           {/* Editor workspace: left side for row editing, right side for AI guidance. */}
           <main
@@ -2587,74 +2172,17 @@ export function TranscriptionPage() {
             <AiAnalysisPanel isCollapsed={isAiPanelCollapsed} />
           </main>
 
-          {pdfPreview && (
-            <section
-              ref={(node) => {
-                pdfPreviewRef.current = node;
-              }}
-              className={`transcription-pdf-preview-panel ${pdfPreviewDragging ? 'is-dragging' : ''}`}
-              aria-label="PDF Citation Preview"
-              style={{ right: `${pdfPreviewPos.right}px`, bottom: `${pdfPreviewPos.bottom}px` }}
-            >
-              <header className="transcription-pdf-preview-header" onPointerDown={handlePdfPreviewDragStart}>
-                <strong className="transcription-pdf-preview-title" title={pdfPreview.title}>{pdfPreview.title}</strong>
-                {pdfPreview.page && (
-                  <span className="transcription-pdf-preview-page-tag">
-                    {locale === 'zh-CN' ? `第 ${pdfPreview.page} 页` : `Page ${pdfPreview.page}`}
-                  </span>
-                )}
-                <div className="transcription-pdf-preview-actions">
-                  <button
-                    type="button"
-                    className="transcription-pdf-preview-nav"
-                    onClick={() => handlePdfPreviewPageChange(-1)}
-                    disabled={(pdfPreview.page ?? 1) <= 1}
-                  >
-                    {locale === 'zh-CN' ? '上一页' : 'Prev'}
-                  </button>
-                  <button
-                    type="button"
-                    className="transcription-pdf-preview-nav"
-                    onClick={() => handlePdfPreviewPageChange(1)}
-                  >
-                    {locale === 'zh-CN' ? '下一页' : 'Next'}
-                  </button>
-                  <button
-                    type="button"
-                    className="transcription-pdf-preview-nav"
-                    onClick={handlePdfPreviewOpenExternal}
-                  >
-                    {locale === 'zh-CN' ? '新窗' : 'Open'}
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  className="transcription-pdf-preview-close"
-                  onClick={() => setPdfPreview(null)}
-                >
-                  {locale === 'zh-CN' ? '关闭' : 'Close'}
-                </button>
-              </header>
-              <div className="transcription-pdf-preview-frame">
-                {pdfPreview.searchSnippet ? (
-                  <PdfViewerPanel
-                    key={pdfPreview.navToken}
-                    url={pdfPreview.url}
-                    title={pdfPreview.title}
-                    page={pdfPreview.page}
-                    searchSnippet={pdfPreview.searchSnippet}
-                  />
-                ) : (
-                  <PdfViewerPanel
-                    key={pdfPreview.navToken}
-                    url={pdfPreview.url}
-                    title={pdfPreview.title}
-                    page={pdfPreview.page}
-                  />
-                )}
-              </div>
-            </section>
-          )}
+          <PdfPreviewSection
+            locale={locale}
+            pdfPreview={pdfPreview}
+            pdfPreviewDragging={pdfPreviewDragging}
+            pdfPreviewPos={pdfPreviewPos}
+            pdfPreviewRef={pdfPreviewRef}
+            onDragStart={handlePdfPreviewDragStart}
+            onChangePage={handlePdfPreviewPageChange}
+            onOpenExternal={handlePdfPreviewOpenExternal}
+            onClose={handleClosePdfPreview}
+          />
 
           <div className="transcription-toast-container">
             {saveState.kind === 'saving' && <div className="transcription-toast transcription-toast-info">{t(locale, 'transcription.toast.saving')}</div>}

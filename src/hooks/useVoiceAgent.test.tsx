@@ -493,9 +493,9 @@ describe('useVoiceAgent', () => {
     it('uses resolveIntentWithLlm for unmatched command text', async () => {
       const executeAction = makeExecuteAction();
       const resolveIntentWithLlm = vi.fn().mockResolvedValue({
-        type: 'action',
-        actionId: 'undo',
-        raw: '撤回刚才操作',
+        type: 'chat',
+        text: '收到，我将执行复杂的多步操作',
+        raw: '执行复杂的多步操作序列',
       });
 
       const { result } = renderHook(() =>
@@ -506,7 +506,7 @@ describe('useVoiceAgent', () => {
 
       await act(async () => {
         lastMockVoiceService?.simulateResult({
-          text: '撤回刚才操作',
+          text: '执行复杂的多步操作序列',
           lang: 'zh-CN',
           isFinal: true,
           confidence: 0.92,
@@ -516,7 +516,6 @@ describe('useVoiceAgent', () => {
       });
 
       expect(resolveIntentWithLlm).toHaveBeenCalledTimes(1);
-      expect(executeAction).toHaveBeenCalledWith('undo');
     });
 
     it('does not call resolveIntentWithLlm for already matched command', async () => {

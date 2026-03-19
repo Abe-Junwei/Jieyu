@@ -1,11 +1,6 @@
 import { getDb } from '../../../db';
 import type { EmbeddingSourceType } from '../../../db';
-import {
-  WorkerEmbeddingRuntime,
-  type EmbeddingRuntime,
-  type EmbeddingRuntimeOptions,
-  type EmbeddingRuntimeProgress,
-} from './EmbeddingRuntime';
+import type { EmbeddingProvider } from './EmbeddingProvider';
 import MiniSearch from 'minisearch';
 import { splitPdfCitationRef } from '../../utils/citationJumpUtils';
 import { extractPdfSnippet, isPdfMediaItem } from './pdfTextUtils';
@@ -17,7 +12,6 @@ export interface SearchSimilarUtterancesOptions {
   topK?: number;
   retries?: number;
   candidateSourceIds?: readonly string[];
-  onProgress?: (progress: EmbeddingRuntimeProgress) => void;
   keywordWeight?: number;
   fullTextWeight?: number;
   /** 检索融合场景（qa|review|terminology|balanced），默认 balanced | Fusion scenario profile */
@@ -43,11 +37,6 @@ const DEFAULT_MODEL_VERSION = '2026-03';
 function normalizeTopK(input: number | undefined): number {
   if (!Number.isFinite(input)) return 5;
   return Math.min(20, Math.max(1, Math.floor(input ?? 5)));
-}
-
-function normalizeRetries(input: number | undefined): number {
-  if (!Number.isFinite(input)) return 2;
-  return Math.min(3, Math.max(1, Math.floor(input ?? 2)));
 }
 
 function normalizeText(text: string): string {
@@ -158,7 +147,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
 export class EmbeddingSearchService {
   private preloadedCacheKey: string | null = null;
 
-  constructor(private readonly runtime: EmbeddingRuntime = new WorkerEmbeddingRuntime()) {}
+  constructor(private readonly provider: EmbeddingProvider) {}
 
   async searchSimilarUtterances(
     query: string,
@@ -172,21 +161,14 @@ export class EmbeddingSearchService {
     const modelId = options?.modelId ?? DEFAULT_MODEL_ID;
     const modelVersion = options?.modelVersion ?? DEFAULT_MODEL_VERSION;
     const topK = normalizeTopK(options?.topK);
-    const retries = normalizeRetries(options?.retries);
-
-    const runtimeOptions: EmbeddingRuntimeOptions = {
-      modelId,
-      retries,
-      ...(options?.onProgress ? { onProgress: options.onProgress } : {}),
-    };
 
     const cacheKey = `${modelId}::${modelVersion}`;
     if (this.preloadedCacheKey !== cacheKey) {
-      await this.runtime.preload(runtimeOptions);
+      await this.provider.preload?.();
       this.preloadedCacheKey = cacheKey;
     }
 
-    const [queryVector] = await this.runtime.embed([normalizedQuery], runtimeOptions);
+    const [queryVector] = await this.provider.embed([normalizedQuery]);
     if (!queryVector || queryVector.length === 0) {
       return { query: normalizedQuery, matches: [] };
     }
@@ -240,21 +222,14 @@ export class EmbeddingSearchService {
     const modelId = options?.modelId ?? DEFAULT_MODEL_ID;
     const modelVersion = options?.modelVersion ?? DEFAULT_MODEL_VERSION;
     const topK = normalizeTopK(options?.topK);
-    const retries = normalizeRetries(options?.retries);
-
-    const runtimeOptions: EmbeddingRuntimeOptions = {
-      modelId,
-      retries,
-      ...(options?.onProgress ? { onProgress: options.onProgress } : {}),
-    };
 
     const cacheKey = `${modelId}::${modelVersion}`;
     if (this.preloadedCacheKey !== cacheKey) {
-      await this.runtime.preload(runtimeOptions);
+      await this.provider.preload?.();
       this.preloadedCacheKey = cacheKey;
     }
 
-    const [queryVector] = await this.runtime.embed([normalizedQuery], runtimeOptions);
+    const [queryVector] = await this.provider.embed([normalizedQuery]);
     if (!queryVector || queryVector.length === 0) {
       return { query: normalizedQuery, matches: [] };
     }
@@ -481,6 +456,6 @@ export class EmbeddingSearchService {
 
   terminate(): void {
     this.preloadedCacheKey = null;
-    this.runtime.terminate();
+    this.provider.terminate();
   }
 }
