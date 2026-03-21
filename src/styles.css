@@ -3948,6 +3948,35 @@ body {
   animation: toastSlideIn 0.25s ease-out, inspectorPulse 1.4s ease-in-out infinite;
 }
 
+/* Voice agent toast variants */
+.toast-listening {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  animation: toastSlideIn 0.25s ease-out, inspectorPulse 1.4s ease-in-out infinite;
+}
+
+.toast-routing {
+  background: #faf5ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+  animation: toastSlideIn 0.25s ease-out;
+}
+
+.toast-executing {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+  animation: toastSlideIn 0.25s ease-out;
+}
+
+.toast-ai-thinking {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  animation: toastSlideIn 0.25s ease-out, inspectorPulse 1.4s ease-in-out infinite;
+}
+
 @keyframes toastSlideIn {
   from {
     opacity: 0;

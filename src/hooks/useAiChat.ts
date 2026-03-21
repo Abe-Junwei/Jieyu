@@ -7,6 +7,7 @@ import { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 import { featureFlags } from '../ai/config/featureFlags';
 import { normalizeAiProviderError } from '../ai/providers/errorUtils';
+import { buildAiToolRequestId } from '../ai/toolRequestId';
 import {
   applyAiChatSettingsPatch,
   createAiChatProvider,
@@ -26,9 +27,116 @@ export interface UiChatMessage {
   status?: 'streaming' | 'done' | 'error' | 'aborted';
   error?: string;
   citations?: AiMessageCitation[];
+  /** 推理内容（reasoning_content），如 DeepSeek 的思考过程 */
+  reasoningContent?: string;
+  /** 思考中状态：provider正在处理但尚未发出任何内容delta。
+   * 用于非reasoning_content型provider（Anthropic/Gemini/Ollama）的UX反馈。
+   * 有reasoningContent时不显示thinking状态。 */
+  thinking?: boolean;
 }
 
 export type AiConnectionTestStatus = 'idle' | 'testing' | 'success' | 'error';
+export type AiToolDecisionMode = 'enabled' | 'gray' | 'rollback';
+
+export interface AiClarifyCandidate {
+  key: string;
+  label: string;
+  argsPatch: Record<string, unknown>;
+}
+
+export interface AiTaskSession {
+  id: string;
+  status: 'idle' | 'waiting_clarify' | 'waiting_confirm' | 'executing' | 'explaining';
+  toolName?: AiChatToolName;
+  clarifyReason?: ToolPlannerClarifyReason;
+  candidates?: AiClarifyCandidate[];
+  updatedAt: string;
+}
+
+/**
+ * 交互指标统计 | Interaction metrics counters
+ * 供 UI 仪表盘和 CI 护栏消费。
+ */
+export interface AiInteractionMetrics {
+  /** 用户发送总轮次 | Total user turns */
+  turnCount: number;
+  /** 执行成功次数 | Successful tool executions */
+  successCount: number;
+  /** 执行失败次数 | Failed tool executions */
+  failureCount: number;
+  /** 目标澄清次数 | Target clarification rounds */
+  clarifyCount: number;
+  /** 意图不明确而回退为解释的次数 | Intent ambiguous fallbacks */
+  explainFallbackCount: number;
+  /** 用户取消确认次数 | User-cancelled confirmations */
+  cancelCount: number;
+  /** 失败后恢复（重试成功）次数 | Recovery-after-failure count */
+  recoveryCount: number;
+}
+
+const INITIAL_METRICS: AiInteractionMetrics = {
+  turnCount: 0,
+  successCount: 0,
+  failureCount: 0,
+  clarifyCount: 0,
+  explainFallbackCount: 0,
+  cancelCount: 0,
+  recoveryCount: 0,
+};
+
+/**
+ * 会话级短期偏好记忆 | Session-scoped short-term preference memory
+ * 在一次对话中累积用户偏好，用于候选排序 & 默认值预填。
+ */
+export interface AiSessionMemory {
+  /** 最近一次成功使用的语言代码 | Last language code used successfully */
+  lastLanguage?: string;
+  /** 最近一次执行的工具名 | Last tool name executed */
+  lastToolName?: AiChatToolName;
+  /** 最近一次选中的层 ID | Last layer ID selected */
+  lastLayerId?: string;
+}
+
+type ToolPlannerClarifyReason =
+  | 'missing-utterance-target'
+  | 'missing-translation-layer-target'
+  | 'missing-layer-link-target'
+  | 'missing-layer-target'
+  | 'missing-language-target';
+
+interface ToolAuditContext {
+  userText: string;
+  providerId: string;
+  model: string;
+  toolDecisionMode: AiToolDecisionMode;
+  toolFeedbackStyle: AiToolFeedbackStyle;
+  plannerDecision?: ToolPlannerDecision;
+  plannerReason?: ToolPlannerClarifyReason;
+  intentAssessment?: ToolIntentAssessment;
+}
+
+interface ToolIntentAuditMetadata {
+  schemaVersion: 1;
+  phase: 'intent';
+  requestId: string;
+  assistantMessageId: string;
+  toolCall: AiChatToolCall;
+  context: ToolAuditContext;
+}
+
+interface ToolDecisionAuditMetadata {
+  schemaVersion: 1;
+  phase: 'decision';
+  requestId: string;
+  assistantMessageId: string;
+  source: 'human' | 'ai' | 'system';
+  toolCall: AiChatToolCall;
+  context: ToolAuditContext;
+  executed: boolean;
+  outcome: string;
+  message?: string;
+  reason?: string;
+}
 
 export type AiChatToolName =
   | 'create_transcription_segment'
@@ -43,9 +151,14 @@ export type AiChatToolName =
   | 'unlink_translation_layer'
   | 'auto_gloss_utterance';
 
+/**
+ * 工具调用结构，支持幂等性指纹 | Tool call structure with idempotency fingerprint
+ */
 export interface AiChatToolCall {
   name: AiChatToolName;
   arguments: Record<string, unknown>;
+  /** 幂等性指纹，自动生成 | Idempotency fingerprint, auto-generated */
+  requestId?: string;
 }
 
 export interface AiChatToolResult {
@@ -53,11 +166,34 @@ export interface AiChatToolResult {
   message: string;
 }
 
+/**
+ * 待确认高风险工具调用，带幂等指纹 | Pending high-risk tool call with idempotency fingerprint
+ */
 export interface PendingAiToolCall {
   call: AiChatToolCall;
   assistantMessageId: string;
   riskSummary?: string;
   impactPreview?: string[];
+  /** 结构化预演合同 | Structured preview of affected entities */
+  previewContract?: PreviewContract;
+  /** 幂等性指纹，便于回放/去重 | Idempotency fingerprint for replay/dedup */
+  requestId?: string;
+  auditContext?: ToolAuditContext;
+}
+
+/**
+ * 执行预演合同 | Execution preview contract
+ * 为高风险操作提供受影响实体的结构化描述，供 UI 展示预览。
+ */
+export interface PreviewContract {
+  /** 受影响实体数量 | Number of entities that will be affected */
+  affectedCount: number;
+  /** 受影响实体 ID 列表（截取前 5 条）| Affected entity IDs (first 5) */
+  affectedIds: string[];
+  /** 操作是否可撤销 | Whether the operation is reversible */
+  reversible: boolean;
+  /** 级联影响的其他实体类型 | Other entity types affected by cascading */
+  cascadeTypes?: string[];
 }
 
 export interface AiToolRiskCheckResult {
@@ -78,6 +214,7 @@ interface UseAiChatOptions {
   allowDestructiveToolCalls?: boolean;
   streamPersistIntervalMs?: number;
   firstChunkTimeoutMs?: number;
+  autoProbeIntervalMs?: number;
   embeddingSearchService?: EmbeddingSearchService;
 }
 
@@ -85,6 +222,8 @@ function normalizeStreamPersistInterval(input: number | undefined): number {
   if (!Number.isFinite(input)) return 120;
   return Math.min(1000, Math.max(16, Math.floor(input ?? 120)));
 }
+
+const DEFAULT_FIRST_CHUNK_TIMEOUT_MS = 25000;
 
 function readDevStreamPersistIntervalMs(): number | undefined {
   if (typeof window === 'undefined') return undefined;
@@ -102,8 +241,8 @@ function readDevStreamPersistIntervalMs(): number | undefined {
 }
 
 function normalizeFirstChunkTimeoutMs(input: number | undefined): number {
-  if (!Number.isFinite(input)) return 25000;
-  return Math.min(120000, Math.max(1000, Math.floor(input ?? 25000)));
+  if (!Number.isFinite(input)) return DEFAULT_FIRST_CHUNK_TIMEOUT_MS;
+  return Math.min(120000, Math.max(1000, Math.floor(input ?? DEFAULT_FIRST_CHUNK_TIMEOUT_MS)));
 }
 
 function normalizeAutoProbeIntervalMs(input: number | undefined): number {
@@ -111,11 +250,66 @@ function normalizeAutoProbeIntervalMs(input: number | undefined): number {
   return Math.min(60000, Math.max(3000, Math.floor(input ?? 8000)));
 }
 
+function normalizeRagContextTimeoutMs(input: number | undefined): number {
+  if (!Number.isFinite(input)) return 1800;
+  return Math.min(10000, Math.max(300, Math.floor(input ?? 1800)));
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+function readDevAutoProbeIntervalMs(): number | undefined {
+  if (typeof window === 'undefined') return undefined;
+  if (!import.meta.env.DEV) return undefined;
+
+  const globalValue = (window as unknown as { __JIEYU_AI_AUTO_PROBE_MS__?: unknown }).__JIEYU_AI_AUTO_PROBE_MS__;
+  if (typeof globalValue === 'number' && Number.isFinite(globalValue)) {
+    return globalValue;
+  }
+
+  const fromStorage = window.localStorage.getItem(AI_CHAT_AUTO_PROBE_INTERVAL_STORAGE_KEY);
+  if (!fromStorage) return undefined;
+  const parsed = Number(fromStorage);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function readDevRagContextTimeoutMs(): number | undefined {
+  if (typeof window === 'undefined') return undefined;
+  if (!import.meta.env.DEV) return undefined;
+
+  const globalValue = (window as unknown as { __JIEYU_AI_RAG_TIMEOUT_MS__?: unknown }).__JIEYU_AI_RAG_TIMEOUT_MS__;
+  if (typeof globalValue === 'number' && Number.isFinite(globalValue)) {
+    return globalValue;
+  }
+
+  const fromStorage = window.localStorage.getItem(AI_CHAT_RAG_CONTEXT_TIMEOUT_STORAGE_KEY);
+  if (!fromStorage) return undefined;
+  const parsed = Number(fromStorage);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 export type AiSystemPersonaKey = 'transcription' | 'glossing' | 'review';
 
 export interface AiShortTermContext {
   page?: string;
   selectedUtteranceId?: string;
+  selectedLayerId?: string;
+  selectedLayerType?: 'transcription' | 'translation';
+  selectedTranslationLayerId?: string;
+  selectedTranscriptionLayerId?: string;
   selectedText?: string;
   selectionTimeRange?: string;
   audioTimeSec?: number;
@@ -153,6 +347,8 @@ const AI_CHAT_SETTINGS_STORAGE_KEY = 'jieyu.aiChat.settings';
 const AI_CHAT_SETTINGS_SECURE_STORAGE_KEY = 'jieyu.aiChat.settings.secure';
 const AI_CHAT_SETTINGS_SECURE_VERSION = 'v1';
 const AI_CHAT_STREAM_PERSIST_INTERVAL_STORAGE_KEY = 'jieyu.aiChat.streamPersistIntervalMs';
+const AI_CHAT_AUTO_PROBE_INTERVAL_STORAGE_KEY = 'jieyu.aiChat.autoProbeIntervalMs';
+const AI_CHAT_RAG_CONTEXT_TIMEOUT_STORAGE_KEY = 'jieyu.aiChat.ragContextTimeoutMs';
 
 interface AiChatSecureEnvelopeV1 {
   v: 'v1';
@@ -240,6 +436,10 @@ function buildPromptContextBlock(context: AiPromptContext | null | undefined, ma
 
   if (short?.page) shortLines.push(`page=${short.page}`);
   if (short?.selectedUtteranceId) shortLines.push(`selectedUtteranceId=${short.selectedUtteranceId}`);
+  if (short?.selectedLayerId) shortLines.push(`selectedLayerId=${short.selectedLayerId}`);
+  if (short?.selectedLayerType) shortLines.push(`selectedLayerType=${short.selectedLayerType}`);
+  if (short?.selectedTranslationLayerId) shortLines.push(`selectedTranslationLayerId=${short.selectedTranslationLayerId}`);
+  if (short?.selectedTranscriptionLayerId) shortLines.push(`selectedTranscriptionLayerId=${short.selectedTranscriptionLayerId}`);
   if (short?.selectionTimeRange) shortLines.push(`selectionTimeRange=${short.selectionTimeRange}`);
   if (typeof short?.audioTimeSec === 'number') shortLines.push(`audioTimeSec=${short.audioTimeSec.toFixed(2)}`);
   if (short?.selectedText) shortLines.push(`selectedText=${short.selectedText}`);
@@ -587,13 +787,49 @@ function parseToolCallFromText(rawText: string): AiChatToolCall | null {
   return null;
 }
 
-function enrichToolCallWithUserText(call: AiChatToolCall, userText: string): AiChatToolCall {
-  if (call.name !== 'delete_layer') return call;
-  const layerId = String(call.arguments.layerId ?? '').trim();
-  if (layerId.length > 0) return call;
+function parseLegacyNarratedToolCall(text: string): AiChatToolCall | null {
+  const match = text.match(/我识别到你想执行[“\"]([^”\"]+)[”\"]/);
+  if (!match) return null;
+  const legacyName = match[1]?.trim() ?? '';
+  const normalizedName = normalizeToolCallName(legacyName);
+  if (!normalizedName) return null;
+  return { name: normalizedName, arguments: {} };
+}
 
+type ToolPlannerDecision = 'resolved' | 'clarify';
+
+interface ToolPlannerResult {
+  decision: ToolPlannerDecision;
+  call: AiChatToolCall;
+  reason?: ToolPlannerClarifyReason;
+}
+
+// 语言目标歧义值（应先澄清）| Ambiguous language targets that must trigger clarification.
+const AMBIGUOUS_LANGUAGE_TARGET_PATTERN = /^(und|unknown|auto|default)$/i;
+
+function isAmbiguousLanguageTarget(value: unknown): boolean {
+  if (typeof value !== 'string') return true;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return true;
+  return AMBIGUOUS_LANGUAGE_TARGET_PATTERN.test(trimmed);
+}
+
+function requiresConcreteLanguageTarget(callName: AiChatToolName): boolean {
+  return callName === 'create_transcription_layer' || callName === 'create_translation_layer';
+}
+
+function getFirstNonEmptyString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value !== 'string') continue;
+    const trimmed = value.trim();
+    if (trimmed.length > 0) return trimmed;
+  }
+  return '';
+}
+
+function inferDeleteLayerArgumentsFromText(userText: string): Partial<AiChatToolCall['arguments']> {
   const normalizedText = userText.trim();
-  if (!normalizedText) return call;
+  if (!normalizedText) return {};
 
   let layerType: 'translation' | 'transcription' | undefined;
   if (/(翻译层|译文层)/i.test(normalizedText)) layerType = 'translation';
@@ -602,15 +838,307 @@ function enrichToolCallWithUserText(call: AiChatToolCall, userText: string): AiC
   const languageQueryMatch = normalizedText.match(/删除\s*(.+?)\s*(?:翻译层|译文层|转写层|转录层|听写层|层)/i);
   const languageQuery = languageQueryMatch?.[1]?.trim();
 
-  if (!layerType && !languageQuery) return call;
-  return {
-    ...call,
-    arguments: {
-      ...call.arguments,
-      ...(layerType && { layerType }),
-      ...(languageQuery ? { languageQuery } : {}),
-    },
+  const result: Partial<AiChatToolCall['arguments']> = {};
+  if (layerType) result.layerType = layerType;
+  if (languageQuery) result.languageQuery = languageQuery;
+  return result;
+}
+
+// ── 参数校验辅助函数（供策略矩阵各条目引用）| Arg validation helpers used by the strategy table ──
+const TOOL_ARG_MAX_ID_LENGTH = 128;
+const TOOL_ARG_MAX_TEXT_LENGTH = 5000;
+
+function validateArgId(args: Record<string, unknown>, key: string, required: boolean): string | null {
+  if (!(key in args)) return required ? `缺少 ${key}。` : null;
+  const value = args[key];
+  if (typeof value !== 'string') return `${key} 必须是字符串。`;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return `${key} 不能为空。`;
+  if (trimmed.length > TOOL_ARG_MAX_ID_LENGTH) return `${key} 长度不能超过 ${TOOL_ARG_MAX_ID_LENGTH}。`;
+  return null;
+}
+
+function validateArgText(args: Record<string, unknown>): string | null {
+  const value = args.text;
+  if (typeof value !== 'string') return 'text 必须是字符串。';
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return 'text 不能为空。';
+  if (trimmed.length > TOOL_ARG_MAX_TEXT_LENGTH) return `text 长度不能超过 ${TOOL_ARG_MAX_TEXT_LENGTH}。`;
+  return null;
+}
+
+function validateArgLayerCreate(args: Record<string, unknown>, allowModality: boolean): string | null {
+  const languageId = args.languageId;
+  if (typeof languageId !== 'string' || languageId.trim().length === 0) {
+    return 'languageId 必须是非空字符串。';
+  }
+  if (isAmbiguousLanguageTarget(languageId)) {
+    return 'languageId 不能是 und/unknown/auto/default，请提供明确语言。';
+  }
+  if (languageId.trim().length > 16) return 'languageId 长度不能超过 16。';
+  if ('alias' in args) {
+    const alias = args.alias;
+    if (typeof alias !== 'string') return 'alias 必须是字符串。';
+    if (alias.trim().length > 64) return 'alias 长度不能超过 64。';
+  }
+  if (allowModality && 'modality' in args) {
+    const modality = args.modality;
+    if (typeof modality !== 'string') return 'modality 必须是字符串。';
+    if (!['text', 'audio', 'mixed'].includes((modality as string).trim().toLowerCase())) {
+      return 'modality 必须是 text/audio/mixed 之一。';
+    }
+  }
+  return null;
+}
+
+function validateDeleteLayerArgs(args: Record<string, unknown>): string | null {
+  const layerIdValidation = validateArgId(args, 'layerId', false);
+  if (layerIdValidation) return layerIdValidation;
+  const hasLayerId = typeof args.layerId === 'string' && args.layerId.trim().length > 0;
+  if (hasLayerId) return null;
+  const layerType = args.layerType;
+  if (layerType !== 'translation' && layerType !== 'transcription') {
+    return '缺少 layerId，且 layerType 必须是 translation/transcription 之一。';
+  }
+  const languageQuery = args.languageQuery;
+  if (typeof languageQuery !== 'string' || languageQuery.trim().length === 0) {
+    return '缺少 layerId 时必须提供 languageQuery。';
+  }
+  if (languageQuery.trim().length > 32) return 'languageQuery 长度不能超过 32。';
+  return null;
+}
+
+function validateLinkLayerArgs(args: Record<string, unknown>): string | null {
+  if (!('transcriptionLayerId' in args) && !('transcriptionLayerKey' in args)) {
+    return '缺少 transcriptionLayerId/transcriptionLayerKey。';
+  }
+  if (!('translationLayerId' in args) && !('layerId' in args)) {
+    return '缺少 translationLayerId/layerId。';
+  }
+  return validateArgId(args, 'transcriptionLayerId', false)
+    ?? validateArgId(args, 'transcriptionLayerKey', false)
+    ?? validateArgId(args, 'translationLayerId', false)
+    ?? validateArgId(args, 'layerId', false);
+}
+
+// ── 工具策略矩阵 | Tool strategy matrix ─────────────────────────────────────
+// 每条记录集中描述一个工具的：上下文填充规则、参数校验、破坏性标志与风险描述。
+// 新增工具时只需在此处追加一条记录，无需修改 planToolCallTargets / validate / isDestructive 等主流程函数。
+// Each entry centralizes a tool's context-fill rules, arg validation, destructiveness, and risk spec.
+// Adding a new tool only requires appending one record — no changes to main-flow functions needed.
+interface ToolContextFillSpec {
+  /** 从 selectedUtteranceId 填入 utteranceId；仍缺则澄清 | Fill utteranceId from context; clarify if still missing */
+  utteranceId?: boolean;
+  /** 从 selectedTranslationLayerId 填入 layerId；仍缺则澄清 | Fill layerId from context; clarify if still missing */
+  translationLayerId?: boolean;
+  /** 同时填入 transcriptionLayerId 与 translationLayerId；任意缺失则澄清 | Fill both layer IDs; clarify if either is missing */
+  linkBothLayers?: boolean;
+  /** delete_layer 专用文本推断 | Special text-inference pass for delete_layer */
+  layerTargetInference?: boolean;
+}
+
+interface ToolStrategy {
+  /** 供 UI 显示的中文操作标签 | Human-readable Chinese action label for UI */
+  label: string;
+  /** 上下文填充规则 | Context auto-fill rules for the planner */
+  contextFill?: ToolContextFillSpec;
+  /** 该工具是否需要用户确认（破坏性操作）| Whether this tool requires user confirmation */
+  destructive?: boolean;
+  /** 参数校验函数；返回错误消息字符串或 null | Argument validator; returns error string or null */
+  validateArgs?: (args: Record<string, unknown>) => string | null;
+  /** 破坏性工具的风险描述 | Risk summary and impact preview for destructive tools */
+  riskSpec?: {
+    summary: (args: Record<string, unknown>) => string;
+    preview: string[];
   };
+}
+
+const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
+  create_transcription_segment: {
+    label: '创建句段',
+    contextFill: { utteranceId: true },
+    validateArgs: (args) => validateArgId(args, 'utteranceId', true),
+  },
+  delete_transcription_segment: {
+    label: '删除句段',
+    contextFill: { utteranceId: true },
+    destructive: true,
+    validateArgs: (args) => validateArgId(args, 'utteranceId', true),
+    riskSpec: {
+      summary: (args) => {
+        const utteranceId = typeof args.utteranceId === 'string' ? args.utteranceId : '';
+        const target = utteranceId.trim().length > 0 ? utteranceId : 'current-segment';
+        return `将删除 1 条句段（目标：${target}）`;
+      },
+      preview: [
+        '该句段的时间范围与转写文本会被清除',
+        '删除后在当前应用内不可恢复',
+        '关联翻译可能变为空引用',
+      ],
+    },
+  },
+  clear_translation_segment: {
+    label: '清空翻译',
+    contextFill: { utteranceId: true, translationLayerId: true },
+    validateArgs: (args) => validateArgId(args, 'utteranceId', true) ?? validateArgId(args, 'layerId', true),
+  },
+  set_transcription_text: {
+    label: '写入转写',
+    contextFill: { utteranceId: true },
+    validateArgs: (args) => validateArgText(args) ?? validateArgId(args, 'utteranceId', true),
+  },
+  set_translation_text: {
+    label: '写入翻译',
+    contextFill: { utteranceId: true, translationLayerId: true },
+    validateArgs: (args) => validateArgText(args) ?? validateArgId(args, 'utteranceId', true) ?? validateArgId(args, 'layerId', true),
+  },
+  create_transcription_layer: {
+    label: '创建转写层',
+    validateArgs: (args) => validateArgLayerCreate(args, false),
+  },
+  create_translation_layer: {
+    label: '创建翻译层',
+    validateArgs: (args) => validateArgLayerCreate(args, true),
+  },
+  delete_layer: {
+    label: '删除层',
+    contextFill: { layerTargetInference: true },
+    destructive: true,
+    validateArgs: validateDeleteLayerArgs,
+    riskSpec: {
+      summary: (args) => {
+        const layerId = typeof args.layerId === 'string' ? args.layerId : '';
+        const layerLabel = layerId.trim().length > 0 ? layerId : 'current-layer';
+        return `将删除整层数据（目标层：${layerLabel}）`;
+      },
+      preview: [
+        '该层下的文本会被一并移除',
+        '删除后在当前应用内不可恢复',
+        '与该层相关的链接/对齐关系可能失效',
+      ],
+    },
+  },
+  link_translation_layer: {
+    label: '关联翻译层',
+    contextFill: { linkBothLayers: true },
+    validateArgs: validateLinkLayerArgs,
+  },
+  unlink_translation_layer: {
+    label: '解除翻译层关联',
+    contextFill: { linkBothLayers: true },
+    validateArgs: validateLinkLayerArgs,
+  },
+  auto_gloss_utterance: {
+    label: '自动词汇标注',
+    contextFill: { utteranceId: true },
+    validateArgs: (args) => validateArgId(args, 'utteranceId', true),
+  },
+};
+
+function planToolCallTargets(
+  call: AiChatToolCall,
+  userText: string,
+  context: AiPromptContext | null | undefined,
+): ToolPlannerResult {
+  const shortTerm = context?.shortTerm;
+  const currentUtteranceId = getFirstNonEmptyString(shortTerm?.selectedUtteranceId);
+  const selectedLayerId = getFirstNonEmptyString(shortTerm?.selectedLayerId);
+  const selectedLayerType = shortTerm?.selectedLayerType;
+  const selectedTranslationLayerId = getFirstNonEmptyString(
+    shortTerm?.selectedTranslationLayerId,
+    selectedLayerType === 'translation' ? selectedLayerId : '',
+  );
+  const selectedTranscriptionLayerId = getFirstNonEmptyString(
+    shortTerm?.selectedTranscriptionLayerId,
+    selectedLayerType === 'transcription' ? selectedLayerId : '',
+  );
+
+  const nextCall: AiChatToolCall = {
+    ...call,
+    arguments: { ...call.arguments },
+  };
+
+  const ensureUtteranceId = (): string => {
+    const existing = getFirstNonEmptyString(nextCall.arguments.utteranceId);
+    if (existing) return existing;
+    if (currentUtteranceId) {
+      nextCall.arguments.utteranceId = currentUtteranceId;
+      return currentUtteranceId;
+    }
+    return '';
+  };
+
+  const cf = TOOL_STRATEGY_TABLE[call.name]?.contextFill;
+
+  // 创建层时必须有明确 languageId，避免误创建 und 层
+  // Creating layers requires a concrete languageId to avoid accidental "und" layers.
+  if (requiresConcreteLanguageTarget(call.name)) {
+    if (isAmbiguousLanguageTarget(nextCall.arguments.languageId)) {
+      return { decision: 'clarify', call: nextCall, reason: 'missing-language-target' };
+    }
+  }
+
+  // utteranceId 填充与澄清 | Fill utteranceId from context; clarify if still missing
+  if (cf?.utteranceId) {
+    const utteranceId = ensureUtteranceId();
+    if (!utteranceId) {
+      return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+    }
+  }
+
+  // translationLayerId 填充与澄清 | Fill translation layerId from context; clarify if still missing
+  if (cf?.translationLayerId) {
+    const layerId = getFirstNonEmptyString(nextCall.arguments.layerId);
+    if (!layerId && selectedTranslationLayerId) {
+      nextCall.arguments.layerId = selectedTranslationLayerId;
+    }
+    if (!getFirstNonEmptyString(nextCall.arguments.layerId)) {
+      return { decision: 'clarify', call: nextCall, reason: 'missing-translation-layer-target' };
+    }
+  }
+
+  // link/unlink 层对目标填充与澄清 | Fill both layer IDs for link ops; clarify if either is missing
+  if (cf?.linkBothLayers) {
+    const transcriptionLayerId = getFirstNonEmptyString(nextCall.arguments.transcriptionLayerId);
+    const transcriptionLayerKey = getFirstNonEmptyString(nextCall.arguments.transcriptionLayerKey);
+    if (!transcriptionLayerId && !transcriptionLayerKey && selectedTranscriptionLayerId) {
+      nextCall.arguments.transcriptionLayerId = selectedTranscriptionLayerId;
+    }
+
+    const translationLayerId = getFirstNonEmptyString(nextCall.arguments.translationLayerId, nextCall.arguments.layerId);
+    if (!translationLayerId && selectedTranslationLayerId) {
+      nextCall.arguments.translationLayerId = selectedTranslationLayerId;
+    }
+
+    const hasTranscriptionTarget = getFirstNonEmptyString(nextCall.arguments.transcriptionLayerId, nextCall.arguments.transcriptionLayerKey).length > 0;
+    const hasTranslationTarget = getFirstNonEmptyString(nextCall.arguments.translationLayerId, nextCall.arguments.layerId).length > 0;
+    if (!hasTranscriptionTarget || !hasTranslationTarget) {
+      return { decision: 'clarify', call: nextCall, reason: 'missing-layer-link-target' };
+    }
+  }
+
+  // delete_layer 专用文本推断 | Special text-inference pass for delete_layer
+  if (cf?.layerTargetInference) {
+    const layerId = getFirstNonEmptyString(nextCall.arguments.layerId);
+    if (!layerId) {
+      const inferred = inferDeleteLayerArgumentsFromText(userText);
+      nextCall.arguments = { ...nextCall.arguments, ...inferred };
+
+      const refersCurrentLayer = /(当前|这层|该层|本层).*(层)|删除当前层|删除这层/i.test(userText);
+      if (refersCurrentLayer && selectedLayerId) {
+        nextCall.arguments.layerId = selectedLayerId;
+      }
+    }
+
+    const hasLayerId = getFirstNonEmptyString(nextCall.arguments.layerId).length > 0;
+    const hasLayerType = getFirstNonEmptyString(nextCall.arguments.layerType).length > 0;
+    const hasLanguageQuery = getFirstNonEmptyString(nextCall.arguments.languageQuery).length > 0;
+    if (!hasLayerId && !(hasLayerType && hasLanguageQuery)) {
+      return { decision: 'clarify', call: nextCall, reason: 'missing-layer-target' };
+    }
+  }
+
+  return { decision: 'resolved', call: nextCall };
 }
 
 type ToolIntentDecision = 'execute' | 'clarify' | 'ignore';
@@ -626,10 +1154,80 @@ interface ToolIntentAssessment {
   hasTechnicalDiscussion: boolean;
 }
 
-function assessToolActionIntent(userText: string): ToolIntentAssessment {
+interface ToolIntentAssessmentOptions {
+  allowDeicticExecution?: boolean;
+}
+
+function isDeicticConfirmationMessage(userText: string): boolean {
+  const normalized = userText.trim();
+  return /^(这个|这个吧|就这个|它|它吧|就它|这条|该条|这一条|这个句段|该句段|这个字段|该字段)$/i.test(normalized);
+}
+
+function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: AiPromptContext | null | undefined): boolean {
+  const short = context?.shortTerm;
+  const selectedUtteranceId = getFirstNonEmptyString(short?.selectedUtteranceId);
+  const selectedLayerId = getFirstNonEmptyString(short?.selectedLayerId);
+  const selectedLayerType = short?.selectedLayerType;
+  const selectedTranslationLayerId = getFirstNonEmptyString(
+    short?.selectedTranslationLayerId,
+    selectedLayerType === 'translation' ? selectedLayerId : '',
+  );
+  const selectedTranscriptionLayerId = getFirstNonEmptyString(
+    short?.selectedTranscriptionLayerId,
+    selectedLayerType === 'transcription' ? selectedLayerId : '',
+  );
+
+  if (['create_transcription_segment', 'delete_transcription_segment', 'set_transcription_text', 'auto_gloss_utterance'].includes(callName)) {
+    return selectedUtteranceId.length > 0;
+  }
+  if (['set_translation_text', 'clear_translation_segment'].includes(callName)) {
+    return selectedUtteranceId.length > 0 && selectedTranslationLayerId.length > 0;
+  }
+  if (callName === 'delete_layer') {
+    return selectedLayerId.length > 0;
+  }
+  if (['link_translation_layer', 'unlink_translation_layer'].includes(callName)) {
+    return selectedTranscriptionLayerId.length > 0 && selectedTranslationLayerId.length > 0;
+  }
+  return false;
+}
+
+function wasRecentAssistantClarification(messages: UiChatMessage[]): boolean {
+  const latestAssistant = messages.find((item) => item.role === 'assistant' && item.content.trim().length > 0);
+  if (!latestAssistant) return false;
+  return /(还不够确定|还不能安全执行|缺少目标|请先选中目标)/.test(latestAssistant.content);
+}
+
+function shouldAllowDeicticExecutionIntent(
+  userText: string,
+  callName: AiChatToolName,
+  context: AiPromptContext | null | undefined,
+  messages: UiChatMessage[],
+): boolean {
+  if (!isDeicticConfirmationMessage(userText)) return false;
+  const hasResolvableTarget = hasResolvableSelectionTargetForTool(callName, context);
+  if (!hasResolvableTarget) return false;
+  // 兼容“澄清后确认”与“已选中直接确认”两种流 | Support both post-clarify confirmation and direct confirmation with active selection.
+  return wasRecentAssistantClarification(messages) || hasResolvableTarget;
+}
+
+function assessToolActionIntent(userText: string, options?: ToolIntentAssessmentOptions): ToolIntentAssessment {
   const trimmed = userText.trim();
   const normalized = trimmed.toLowerCase();
+  const allowDeicticExecution = options?.allowDeicticExecution ?? false;
   if (!normalized || normalized.length <= 2 || /^[\p{P}\p{S}\s]+$/u.test(normalized)) {
+    if (allowDeicticExecution && isDeicticConfirmationMessage(trimmed)) {
+      return {
+        decision: 'execute',
+        score: 3,
+        hasExecutionCue: false,
+        hasActionVerb: false,
+        hasActionTarget: true,
+        hasExplicitId: true,
+        hasMetaQuestion: false,
+        hasTechnicalDiscussion: false,
+      };
+    }
     return {
       decision: 'ignore',
       score: -1,
@@ -657,15 +1255,18 @@ function assessToolActionIntent(userText: string): ToolIntentAssessment {
   }
 
   // ── Positive signals (action intent) ───────────────────────────────────
-  const executionCuePattern = /(请帮|请把|请将|帮我|把|将|给我|执行|run|do|please|麻烦|帮忙|可否|可以把)/i;
+  // "当前" / "此" 明确指向当前选中对象，是强执行信号 | "current" / "this" are strong execution cues pointing to the selected item.
+  const executionCuePattern = /(请帮|请把|请将|帮我|把|将|给我|执行|run|do|please|麻烦|帮忙|可否|可以把|当前|此)/i;
   const actionVerbPattern = /(创建|新建|新增|切分|拆分|删除|清空|移除|写入|填写|填入|设置|设为|修改|改成|改为|更新|覆盖|替换|关联|链接|解除|断开|自动标注|转写|翻译|create|add|insert|split|delete|remove|clear|set|update|replace|link|unlink|gloss)/i;
-  const actionTargetPattern = /(句段|段落|segment|层|layer|转写|翻译|文本|text|gloss|词义|utterance)/i;
-  const explicitIdPattern = /(utteranceId|layerId|transcriptionLayerId|translationLayerId|\bu\d+\b|\blayer[-_a-z0-9]+\b)/i;
+  const actionTargetPattern = /(句段|段落|segment|层|layer|转写|翻译|文本|text|gloss|词义|utterance|当前|此|这个|那个)/i;
+  const actionObjectPronounPattern = /(之|它|其|这条|该条|本条|此条|这个|那个)$/i;
+  const explicitIdPattern = /(utteranceId|layerId|transcriptionLayerId|translationLayerId|\bu\d+\b|\blayer[-_a-z0-9]+\b|当前|此|这个|那个)/i;
 
   let score = 0;
   const hasExecutionCue = executionCuePattern.test(trimmed);
   const hasActionVerb = actionVerbPattern.test(trimmed);
-  const hasActionTarget = actionTargetPattern.test(trimmed);
+  const hasActionTarget = actionTargetPattern.test(trimmed)
+    || (actionVerbPattern.test(trimmed) && actionObjectPronounPattern.test(trimmed));
   const hasExplicitId = explicitIdPattern.test(trimmed);
 
   if (hasExecutionCue) score += 1;
@@ -682,7 +1283,6 @@ function assessToolActionIntent(userText: string): ToolIntentAssessment {
   const hasTechnicalDiscussion = technicalDiscussionPattern.test(trimmed);
   const hasActionCore = hasActionVerb && hasActionTarget;
   const hasAnyActionSignal = hasExecutionCue || hasActionVerb || hasActionTarget || hasExplicitId;
-
   if (greetingPattern.test(trimmed)) score -= 4;
   if (hasMetaQuestion) score -= 3;
   if (hasMetaQuestion && hasTechnicalDiscussion) score -= 2;
@@ -704,6 +1304,20 @@ function assessToolActionIntent(userText: string): ToolIntentAssessment {
 
   // 需要至少有动作动词 + 目标对象，且总分达到阈值，才执行工具 | Require both verb+target and threshold.
   if (hasActionCore && score >= 3) {
+    return {
+      decision: 'execute',
+      score,
+      hasExecutionCue,
+      hasActionVerb,
+      hasActionTarget,
+      hasExplicitId,
+      hasMetaQuestion,
+      hasTechnicalDiscussion,
+    };
+  }
+
+  // 澄清后“这个/它”可作为确认执行信号（需可解析目标）| After clarification, deictic reply can confirm execution when target is resolvable.
+  if (allowDeicticExecution && hasActionTarget && score >= 3) {
     return {
       decision: 'execute',
       score,
@@ -742,155 +1356,59 @@ function assessToolActionIntent(userText: string): ToolIntentAssessment {
   };
 }
 
-const DESTRUCTIVE_TOOL_NAMES: ReadonlySet<AiChatToolName> = new Set([
-  'delete_layer',
-  'delete_transcription_segment',
-]);
-
 function isDestructiveToolCall(name: AiChatToolName): boolean {
-  return DESTRUCTIVE_TOOL_NAMES.has(name);
+  return TOOL_STRATEGY_TABLE[name]?.destructive ?? false;
 }
 
 function describeToolCallImpact(call: AiChatToolCall): { riskSummary: string; impactPreview: string[] } {
-  if (call.name === 'delete_layer') {
-    const layerId = typeof call.arguments.layerId === 'string' ? call.arguments.layerId : '';
-    const layerLabel = layerId.trim().length > 0 ? layerId : 'current-layer';
+  const spec = TOOL_STRATEGY_TABLE[call.name];
+  if (spec?.riskSpec) {
     return {
-      riskSummary: `将删除整层数据（目标层：${layerLabel}）`,
-      impactPreview: [
-        '该层下的文本会被一并移除',
-        '删除后在当前应用内不可恢复',
-        '与该层相关的链接/对齐关系可能失效',
-      ],
+      riskSummary: spec.riskSpec.summary(call.arguments),
+      impactPreview: spec.riskSpec.preview,
     };
   }
-
-  if (call.name === 'delete_transcription_segment') {
-    const utteranceId = typeof call.arguments.utteranceId === 'string' ? call.arguments.utteranceId : '';
-    const target = utteranceId.trim().length > 0 ? utteranceId : 'current-segment';
-    return {
-      riskSummary: `将删除 1 条句段（目标：${target}）`,
-      impactPreview: [
-        '该句段的时间范围与转写文本会被清除',
-        '删除后在当前应用内不可恢复',
-        '关联翻译可能变为空引用',
-      ],
-    };
-  }
-
   return {
     riskSummary: `该操作会修改数据：${call.name}`,
     impactPreview: ['请确认目标与影响后再继续。'],
   };
 }
 
-const TOOL_ARG_MAX_ID_LENGTH = 128;
-const TOOL_ARG_MAX_TEXT_LENGTH = 5000;
+/**
+ * 构建执行预演合同 | Build structured preview contract for a destructive tool call
+ */
+function buildPreviewContract(call: AiChatToolCall): PreviewContract {
+  const args = call.arguments;
+  if (call.name === 'delete_transcription_segment') {
+    const uid = typeof args.utteranceId === 'string' ? args.utteranceId.trim() : '';
+    return {
+      affectedCount: 1,
+      affectedIds: uid ? [uid] : [],
+      reversible: false,
+      cascadeTypes: ['translation'],
+    };
+  }
+  if (call.name === 'delete_layer') {
+    const lid = typeof args.layerId === 'string' ? args.layerId.trim() : '';
+    return {
+      affectedCount: 1,
+      affectedIds: lid ? [lid] : [],
+      reversible: false,
+      cascadeTypes: ['link', 'alignment'],
+    };
+  }
+  // 默认合同 | Default contract for other destructive ops
+  return {
+    affectedCount: 1,
+    affectedIds: [],
+    reversible: false,
+  };
+}
 
 function validateToolCallArguments(call: AiChatToolCall): string | null {
-  const args = call.arguments ?? {};
-
-  const validateOptionalId = (key: string): string | null => {
-    if (!(key in args)) return null;
-    const value = args[key];
-    if (typeof value !== 'string') return `${key} 必须是字符串。`;
-    const trimmed = value.trim();
-    if (trimmed.length === 0) return `${key} 不能为空。`;
-    if (trimmed.length > TOOL_ARG_MAX_ID_LENGTH) return `${key} 长度不能超过 ${TOOL_ARG_MAX_ID_LENGTH}。`;
-    return null;
-  };
-
-  const validateRequiredId = (key: string): string | null => {
-    if (!(key in args)) return `缺少 ${key}。`;
-    return validateOptionalId(key);
-  };
-
-  const validateText = (): string | null => {
-    const value = args.text;
-    if (typeof value !== 'string') return 'text 必须是字符串。';
-    const trimmed = value.trim();
-    if (trimmed.length === 0) return 'text 不能为空。';
-    if (trimmed.length > TOOL_ARG_MAX_TEXT_LENGTH) return `text 长度不能超过 ${TOOL_ARG_MAX_TEXT_LENGTH}。`;
-    return null;
-  };
-
-  switch (call.name) {
-    case 'set_transcription_text': {
-      return validateText() ?? validateRequiredId('utteranceId');
-    }
-    case 'set_translation_text': {
-      return validateText() ?? validateRequiredId('utteranceId') ?? validateRequiredId('layerId');
-    }
-    case 'clear_translation_segment': {
-      return validateRequiredId('utteranceId') ?? validateRequiredId('layerId');
-    }
-    case 'delete_transcription_segment': {
-      return validateRequiredId('utteranceId');
-    }
-    case 'delete_layer': {
-      const layerIdValidation = validateOptionalId('layerId');
-      if (layerIdValidation) return layerIdValidation;
-      const hasLayerId = typeof args.layerId === 'string' && args.layerId.trim().length > 0;
-      if (hasLayerId) return null;
-
-      const layerType = args.layerType;
-      if (layerType !== 'translation' && layerType !== 'transcription') {
-        return '缺少 layerId，且 layerType 必须是 translation/transcription 之一。';
-      }
-
-      const languageQuery = args.languageQuery;
-      if (typeof languageQuery !== 'string' || languageQuery.trim().length === 0) {
-        return '缺少 layerId 时必须提供 languageQuery。';
-      }
-      if (languageQuery.trim().length > 32) {
-        return 'languageQuery 长度不能超过 32。';
-      }
-
-      return null;
-    }
-    case 'create_transcription_layer':
-    case 'create_translation_layer': {
-      const languageId = args.languageId;
-      if (typeof languageId !== 'string' || languageId.trim().length === 0) {
-        return 'languageId 必须是非空字符串。';
-      }
-      if (languageId.trim().length > 16) {
-        return 'languageId 长度不能超过 16。';
-      }
-      if ('alias' in args) {
-        const alias = args.alias;
-        if (typeof alias !== 'string') return 'alias 必须是字符串。';
-        if (alias.trim().length > 64) return 'alias 长度不能超过 64。';
-      }
-      if (call.name === 'create_translation_layer' && 'modality' in args) {
-        const modality = args.modality;
-        if (typeof modality !== 'string') return 'modality 必须是字符串。';
-        if (!['text', 'audio', 'mixed'].includes(modality.trim().toLowerCase())) {
-          return 'modality 必须是 text/audio/mixed 之一。';
-        }
-      }
-      return null;
-    }
-    case 'link_translation_layer':
-    case 'unlink_translation_layer': {
-      if (!('transcriptionLayerId' in args) && !('transcriptionLayerKey' in args)) {
-        return '缺少 transcriptionLayerId/transcriptionLayerKey。';
-      }
-      if (!('translationLayerId' in args) && !('layerId' in args)) {
-        return '缺少 translationLayerId/layerId。';
-      }
-      return validateOptionalId('transcriptionLayerId')
-        ?? validateOptionalId('transcriptionLayerKey')
-        ?? validateOptionalId('translationLayerId')
-        ?? validateOptionalId('layerId');
-    }
-    case 'create_transcription_segment':
-    case 'auto_gloss_utterance': {
-      return validateRequiredId('utteranceId');
-    }
-    default:
-      return null;
-  }
+  const spec = TOOL_STRATEGY_TABLE[call.name];
+  if (!spec?.validateArgs) return null;
+  return spec.validateArgs(call.arguments);
 }
 
 function toNaturalToolSuccess(callName: AiChatToolName, message: string, style: AiToolFeedbackStyle): string {
@@ -899,13 +1417,120 @@ function toNaturalToolSuccess(callName: AiChatToolName, message: string, style: 
 }
 
 function toNaturalToolFailure(callName: AiChatToolName, message: string, style: AiToolFeedbackStyle): string {
-  if (style === 'concise') return `未完成（${callName}）：${message}`;
-  return `我尝试执行了这个操作（${callName}），但没有成功：${message}`;
+  const recoveryHint = toFailureRecoveryHint(callName, message, style);
+  if (style === 'concise') return `未完成（${callName}）：${message}${recoveryHint}`;
+  return `我尝试执行了这个操作（${callName}），但没有成功：${message}${recoveryHint}`;
+}
+
+function toFailureRecoveryHint(callName: AiChatToolName, message: string, style: AiToolFeedbackStyle): string {
+  const normalized = message.toLowerCase();
+  const prefix = style === 'concise' ? '。下一步：' : '。建议下一步：';
+  if (normalized.includes('缺少') || normalized.includes('missing')) {
+    return `${prefix}请先选中目标，或回复“第1个/这个”确认候选对象。`;
+  }
+  if (normalized.includes('未找到') || normalized.includes('not found')) {
+    return `${prefix}请改为提供更精确的对象名称，或直接给出明确 ID。`;
+  }
+  if (normalized.includes('多个') || normalized.includes('ambiguous')) {
+    return `${prefix}当前目标不唯一，请回复“第1个/第2个”明确选择后继续。`;
+  }
+  if (callName === 'delete_layer' || callName === 'delete_transcription_segment') {
+    return `${prefix}可先让我预演影响范围，再确认是否执行删除。`;
+  }
+  return `${prefix}你可以换一种更具体的表达重试，我会继续沿用当前上下文。`;
+}
+
+function toToolActionLabel(callName: AiChatToolName): string {
+  return TOOL_STRATEGY_TABLE[callName]?.label ?? callName;
 }
 
 function toNaturalToolPending(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
-  if (style === 'concise') return `待确认（${callName}）：该操作风险较高，请先确认。`;
-  return `我识别到你想执行“${callName}”。这个操作风险较高，我先暂停，等你确认后再继续。`;
+  const actionLabel = toToolActionLabel(callName);
+  if (style === 'concise') return `待确认：${actionLabel}。该操作风险较高且不可恢复，请确认是否继续。`;
+  return `你正在执行“${actionLabel}”。该操作风险较高且不可恢复，我已暂停执行，请确认是否继续。`;
+}
+
+function toNaturalToolGraySkipped(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
+  const actionLabel = toToolActionLabel(callName);
+  if (style === 'concise') {
+    return `灰度模式：已识别 ${actionLabel}，但当前只记录审计，不自动执行。`;
+  }
+  return `我已识别到你想执行“${actionLabel}”，但当前处于灰度模式：这次只做识别与审计记录，不会自动执行。`;
+}
+
+function toNaturalToolRollbackSkipped(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
+  const actionLabel = toToolActionLabel(callName);
+  if (style === 'concise') {
+    return `回滚模式：已关闭 ${actionLabel} 的自动执行，请改为手动操作。`;
+  }
+  return `我已识别到你想执行“${actionLabel}”，但工具决策链当前处于回滚模式，自动执行已关闭。请改为手动操作，或在恢复开关后重试。`;
+}
+
+function resolveAiToolDecisionMode(): AiToolDecisionMode {
+  if (featureFlags.aiChatRollbackMode) return 'rollback';
+  if (featureFlags.aiChatGrayMode) return 'gray';
+  return 'enabled';
+}
+
+function buildToolAuditContext(
+  userText: string,
+  providerId: string,
+  model: string,
+  toolDecisionMode: AiToolDecisionMode,
+  toolFeedbackStyle: AiToolFeedbackStyle,
+  planner?: ToolPlannerResult | null,
+  intentAssessment?: ToolIntentAssessment,
+): ToolAuditContext {
+  return {
+    userText,
+    providerId,
+    model,
+    toolDecisionMode,
+    toolFeedbackStyle,
+    ...(planner?.decision ? { plannerDecision: planner.decision } : {}),
+    ...(planner?.reason ? { plannerReason: planner.reason } : {}),
+    ...(intentAssessment ? { intentAssessment } : {}),
+  };
+}
+
+function buildToolIntentAuditMetadata(
+  assistantMessageId: string,
+  toolCall: AiChatToolCall,
+  context: ToolAuditContext,
+): ToolIntentAuditMetadata {
+  return {
+    schemaVersion: 1,
+    phase: 'intent',
+    requestId: toolCall.requestId ?? buildAiToolRequestId(toolCall),
+    assistantMessageId,
+    toolCall,
+    context,
+  };
+}
+
+function buildToolDecisionAuditMetadata(
+  assistantMessageId: string,
+  toolCall: AiChatToolCall,
+  context: ToolAuditContext,
+  source: 'human' | 'ai' | 'system',
+  outcome: string,
+  executed: boolean,
+  message?: string,
+  reason?: string,
+): ToolDecisionAuditMetadata {
+  return {
+    schemaVersion: 1,
+    phase: 'decision',
+    requestId: toolCall.requestId ?? buildAiToolRequestId(toolCall),
+    assistantMessageId,
+    source,
+    toolCall,
+    context,
+    executed,
+    outcome,
+    ...(message ? { message } : {}),
+    ...(reason ? { reason } : {}),
+  };
 }
 
 function toNaturalToolCancelled(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
@@ -925,10 +1550,87 @@ function toNaturalNonActionFallback(userText: string): string {
 }
 
 function toNaturalActionClarify(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
+  const actionLabel = toToolActionLabel(callName);
   if (style === 'concise') {
-    return `我检测到可能的操作（${callName}），但意图不够明确。请确认：1）执行该操作；2）仅做解释说明。`;
+    return `我检测到可能的操作（${actionLabel}），但意图不够明确。请确认：1）执行该操作；2）仅做解释说明。`;
   }
-  return `我看到了一个可能的操作意图（${callName}），但目前还不够确定。你可以告诉我“执行这个操作”，或者说“先解释，不执行”。`;
+  return `我看到了一个可能的操作意图（${actionLabel}），但目前还不够确定。你可以告诉我“执行这个操作”，或者说“先解释，不执行”。`;
+}
+
+const CLARIFY_TARGET_HINT_BY_REASON: Record<ToolPlannerClarifyReason, string> = {
+  'missing-utterance-target': '缺少目标句段',
+  'missing-translation-layer-target': '缺少目标翻译层',
+  'missing-layer-link-target': '缺少目标层',
+  'missing-layer-target': '缺少目标层',
+  'missing-language-target': '缺少明确语言或目标层',
+};
+
+function buildClarifyCandidates(
+  callName: AiChatToolName,
+  reason: ToolPlannerClarifyReason | undefined,
+  context: AiPromptContext | null | undefined,
+): AiClarifyCandidate[] {
+  const short = context?.shortTerm;
+  const selectedUtteranceId = getFirstNonEmptyString(short?.selectedUtteranceId);
+  const selectedLayerId = getFirstNonEmptyString(short?.selectedLayerId);
+  const selectedLayerType = short?.selectedLayerType;
+  const selectedTranslationLayerId = getFirstNonEmptyString(
+    short?.selectedTranslationLayerId,
+    selectedLayerType === 'translation' ? selectedLayerId : '',
+  );
+  const selectedTranscriptionLayerId = getFirstNonEmptyString(
+    short?.selectedTranscriptionLayerId,
+    selectedLayerType === 'transcription' ? selectedLayerId : '',
+  );
+
+  const candidates: AiClarifyCandidate[] = [];
+  if (reason === 'missing-utterance-target' && selectedUtteranceId) {
+    candidates.push({ key: '1', label: `当前选中句段（${selectedUtteranceId}）`, argsPatch: { utteranceId: selectedUtteranceId } });
+  }
+  if (reason === 'missing-layer-target' && selectedLayerId) {
+    candidates.push({ key: '1', label: `当前选中层（${selectedLayerId}）`, argsPatch: { layerId: selectedLayerId } });
+  }
+  if (reason === 'missing-translation-layer-target' && selectedTranslationLayerId) {
+    candidates.push({ key: '1', label: `当前选中翻译层（${selectedTranslationLayerId}）`, argsPatch: { layerId: selectedTranslationLayerId } });
+  }
+  if (reason === 'missing-layer-link-target' && selectedTranscriptionLayerId && selectedTranslationLayerId) {
+    candidates.push({
+      key: '1',
+      label: `当前选中层对（${selectedTranscriptionLayerId} -> ${selectedTranslationLayerId}）`,
+      argsPatch: { transcriptionLayerId: selectedTranscriptionLayerId, translationLayerId: selectedTranslationLayerId },
+    });
+  }
+  if (reason === 'missing-language-target' && callName === 'create_transcription_layer') {
+    candidates.push({ key: '1', label: '创建中文转写层（zho）', argsPatch: { languageId: 'zho' } });
+    candidates.push({ key: '2', label: '创建英文转写层（eng）', argsPatch: { languageId: 'eng' } });
+  }
+  return candidates;
+}
+
+function toNaturalTargetClarify(
+  callName: AiChatToolName,
+  reason: ToolPlannerClarifyReason | undefined,
+  style: AiToolFeedbackStyle,
+  candidates: AiClarifyCandidate[] = [],
+): string {
+  const actionLabel = toToolActionLabel(callName);
+  const targetHint = reason != null ? CLARIFY_TARGET_HINT_BY_REASON[reason] ?? '缺少目标对象' : '缺少目标对象';
+  const candidateText = candidates.length > 0
+    ? ` 可选项：${candidates.map((item, index) => `${index + 1})${item.label}`).join('；')}。`
+    : '';
+  if (style === 'concise') {
+    return `无法执行（${actionLabel}）：${targetHint}。请先选中目标，或直接提供对应 ID。${candidateText} 你也可以回复“第1个/这个”。`;
+  }
+  return `我已识别到你想执行“${actionLabel}”，但目前${targetHint}，还不能安全执行。请先选中目标，或在指令里补充对应 ID。${candidateText} 你也可以直接回复“第1个/这个”。`;
+}
+
+function normalizeLegacyRiskNarration(content: string, style: AiToolFeedbackStyle): string {
+  const legacyCall = parseLegacyNarratedToolCall(content);
+  if (!legacyCall) return content;
+  const normalizedName = legacyCall.name;
+  if (!normalizedName) return content;
+  // 旧句式通常缺少可执行参数，改为澄清提示更准确 | Legacy narration often lacks executable args, so fallback to clarification.
+  return toNaturalActionClarify(normalizedName, style);
 }
 
 export function useAiChat(options?: UseAiChatOptions) {
@@ -945,13 +1647,18 @@ export function useAiChat(options?: UseAiChatOptions) {
     options?.streamPersistIntervalMs ?? readDevStreamPersistIntervalMs(),
   );
   const firstChunkTimeoutMs = normalizeFirstChunkTimeoutMs(options?.firstChunkTimeoutMs);
-  const autoProbeIntervalMs = normalizeAutoProbeIntervalMs(undefined);
+  const autoProbeIntervalMs = normalizeAutoProbeIntervalMs(
+    options?.autoProbeIntervalMs ?? readDevAutoProbeIntervalMs(),
+  );
+  const ragContextTimeoutMs = normalizeRagContextTimeoutMs(readDevRagContextTimeoutMs());
   const onToolCallRef = useLatest(onToolCall);
   const onToolRiskCheckRef = useLatest(onToolRiskCheck);
   const onMessageCompleteRef = useLatest(options?.onMessageComplete);
+  const toolDecisionMode = resolveAiToolDecisionMode();
   const settingsHydratedRef = useRef(false);
   // 用户是否在水合完成前手动改过设置 | Whether user patched settings before hydration finished
   const userDirtyRef = useRef(false);
+  const clearInFlightRef = useRef(false);
   const [messages, setMessages] = useState<UiChatMessage[]>([]);
   const messagesRef = useLatest(messages);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -963,11 +1670,33 @@ export function useAiChat(options?: UseAiChatOptions) {
   const [connectionTestMessage, setConnectionTestMessage] = useState<string | null>(null);
   const [contextDebugSnapshot, setContextDebugSnapshot] = useState<AiContextDebugSnapshot | null>(null);
   const [pendingToolCall, setPendingToolCall] = useState<PendingAiToolCall | null>(null);
+  const [taskSession, setTaskSession] = useState<AiTaskSession>({
+    id: newMessageId('task'),
+    status: 'idle',
+    updatedAt: nowIso(),
+  });
+  const [metrics, setMetrics] = useState<AiInteractionMetrics>({ ...INITIAL_METRICS });
+  const metricsRef = useLatest(metrics);
+  const sessionMemoryRef = useRef<AiSessionMemory>({});
+  const bumpMetric = useCallback((key: keyof AiInteractionMetrics, delta = 1) => {
+    setMetrics((prev) => ({ ...prev, [key]: prev[key] + delta }));
+  }, []);
   const abortRef = useRef<AbortController | null>(null);
   const testAbortRef = useRef<AbortController | null>(null);
 
   const provider = useMemo(() => createAiChatProvider(settings), [settings]);
   const orchestrator = useMemo(() => new ChatOrchestrator(provider), [provider]);
+
+  // 用 useLatest 包装 send 内部读取的频繁变更值，减少 send 的依赖数组长度，
+  // 避免长依赖数组导致的闭包重建风险（如 settings.model 变更时全量重建）。
+  const settingsRef = useLatest(settings);
+  const getContextRef = useLatest(getContext);
+  const embeddingSearchServiceRef = useLatest(embeddingSearchService);
+  const toolDecisionModeRef = useLatest(toolDecisionMode);
+  const pendingToolCallRef = useLatest(pendingToolCall);
+  const taskSessionRef = useLatest(taskSession);
+  const streamPersistIntervalMsRef = useLatest(streamPersistIntervalMs);
+  const ragContextTimeoutMsRef = useLatest(ragContextTimeoutMs);
 
   useEffect(() => {
     let cancelled = false;
@@ -1028,7 +1757,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         if (chunk.error) {
           throw new Error(chunk.error);
         }
-        if (chunk.delta.trim().length > 0) {
+        if ((chunk.delta ?? '').trim().length > 0) {
           receivedAnyResponse = true;
         }
         if (chunk.done || receivedAnyResponse) {
@@ -1152,17 +1881,22 @@ export function useAiChat(options?: UseAiChatOptions) {
 
         const latest = conversations[0]!;
         setConversationId(latest.id);
-        const history = (await db.collections.ai_messages.findByIndex('conversationId', latest.id))
+        const rows = (await db.collections.ai_messages.findByIndex('conversationId', latest.id))
           .map((doc) => doc.toJSON())
-          .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-          .map((row) => ({
-            id: row.id,
-            role: row.role === 'assistant' ? 'assistant' : 'user',
-            content: row.content,
-            status: row.status,
-            ...(row.errorMessage ? { error: row.errorMessage } : {}),
-            ...(row.citations ? { citations: row.citations } : {}),
-          } as UiChatMessage));
+          .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        const historyRowsMap: Record<string, typeof rows[number]> = {};
+        for (const row of rows) { historyRowsMap[row.id] = row; }
+        const history: UiChatMessage[] = rows.map((row) => ({
+          id: row.id,
+          role: row.role === 'assistant' ? 'assistant' : 'user',
+          content: row.content,
+          status: row.status,
+          ...(row.errorMessage ? { error: row.errorMessage } : {}),
+          ...(row.citations ? { citations: row.citations } : {}),
+          ...('reasoningContent' in row && row.reasoningContent
+            ? { reasoningContent: String(row.reasoningContent) }
+            : {}),
+        }));
 
         if (!cancelled) {
           // UI renders newest-first to keep latest dialog always visible at top.
@@ -1225,11 +1959,16 @@ export function useAiChat(options?: UseAiChatOptions) {
     });
   }, []);
 
+  /**
+   * 写入工具决策审计日志，自动补充 requestId | Write tool decision audit log with requestId
+   */
   const writeToolDecisionAuditLog = useCallback(async (
     assistantMessageId: string,
     oldValue: string,
     newValue: string,
-    source: 'human' | 'ai',
+    source: 'human' | 'ai' | 'system',
+    requestId?: string,
+    metadata?: ToolDecisionAuditMetadata,
   ) => {
     const db = await getDb();
     await db.collections.audit_logs.insert({
@@ -1242,6 +1981,8 @@ export function useAiChat(options?: UseAiChatOptions) {
       newValue,
       source,
       timestamp: nowIso(),
+      ...(requestId ? { requestId } : {}),
+      ...(metadata ? { metadataJson: JSON.stringify(metadata) } : {}),
     });
   }, []);
 
@@ -1249,6 +1990,8 @@ export function useAiChat(options?: UseAiChatOptions) {
     assistantMessageId: string,
     callName: AiChatToolName,
     assessment: ToolIntentAssessment,
+    requestId?: string,
+    metadata?: ToolIntentAuditMetadata,
   ) => {
     const db = await getDb();
     await db.collections.audit_logs.insert({
@@ -1261,21 +2004,120 @@ export function useAiChat(options?: UseAiChatOptions) {
       newValue: JSON.stringify(assessment),
       source: 'ai',
       timestamp: nowIso(),
+      ...(requestId ? { requestId } : {}),
+      ...(metadata ? { metadataJson: JSON.stringify(metadata) } : {}),
     });
   }, []);
 
+  // 幂等性工具调用去重集 | Idempotency deduplication set
+  const executedRequestIds = useRef<Set<string>>(new Set());
+
+  // 生成幂等性指纹（按 assistant 消息作用域）| Generate idempotency fingerprint scoped to assistant message
+  function genRequestId(call: AiChatToolCall, scopeMessageId?: string): string {
+    const base = buildAiToolRequestId(call);
+    if (!scopeMessageId) return base;
+    return `${base}_${scopeMessageId}`;
+  }
+
+  const hasPersistedExecutionForRequest = useCallback(async (requestId: string): Promise<boolean> => {
+    if (executedRequestIds.current.has(requestId)) return true;
+
+    const db = await getDb();
+    const rows = await db.dexie.audit_logs
+      .where('[collection+field+requestId]')
+      .equals(['ai_messages', 'ai_tool_call_decision', requestId])
+      .toArray();
+
+    const hasExecuted = rows.some((row) => {
+      if (typeof row.metadataJson === 'string' && row.metadataJson.trim().length > 0) {
+        try {
+          const parsed = JSON.parse(row.metadataJson) as { phase?: unknown; executed?: unknown };
+          if (parsed.phase === 'decision' && parsed.executed === true) {
+            return true;
+          }
+        } catch {
+          // Ignore malformed metadata and fall back to compact decision parsing.
+        }
+      }
+
+      const parts = String(row.newValue ?? '').split(':');
+      const decision = parts[0] ?? '';
+      const reason = parts[2] ?? '';
+      if (decision === 'confirmed' || decision === 'auto_confirmed') return true;
+      if ((decision === 'confirm_failed' || decision === 'auto_failed')
+        && reason !== 'invalid_args'
+        && reason !== 'no_executor'
+        && reason !== 'duplicate_requestId') {
+        return true;
+      }
+      return false;
+    });
+
+    if (hasExecuted) {
+      executedRequestIds.current.add(requestId);
+    }
+    return hasExecuted;
+  }, []);
+
   const confirmPendingToolCall = useCallback(async () => {
-    const pending = pendingToolCall;
+    const pending = pendingToolCallRef.current;
     if (!pending) return;
 
     const { call, assistantMessageId } = pending;
     setPendingToolCall(null);
+    setTaskSession({
+      id: taskSessionRef.current.id,
+      status: 'executing',
+      toolName: call.name,
+      updatedAt: nowIso(),
+    });
+    const auditContext = pending.auditContext ?? buildToolAuditContext(
+      '',
+      provider.id,
+      settingsRef.current.model,
+      toolDecisionModeRef.current,
+      settingsRef.current.toolFeedbackStyle,
+    );
+
+    // 注入 requestId | Inject requestId
+    if (!call.requestId) call.requestId = genRequestId(call, assistantMessageId);
+    if (await hasPersistedExecutionForRequest(call.requestId)) {
+      await applyAssistantMessageResult(
+        assistantMessageId,
+        toNaturalToolFailure(call.name, '重复的工具调用已被忽略（幂等保护）', settingsRef.current.toolFeedbackStyle),
+        'error',
+        '重复的工具调用已被忽略',
+      );
+      await writeToolDecisionAuditLog(
+        assistantMessageId,
+        `pending:${call.name}`,
+        `confirm_failed:${call.name}:duplicate_requestId`,
+        'human',
+        call.requestId,
+        buildToolDecisionAuditMetadata(
+          assistantMessageId,
+          call,
+          auditContext,
+          'human',
+          'confirm_failed',
+          false,
+          '重复的工具调用已被忽略',
+          'duplicate_requestId',
+        ),
+      );
+      setTaskSession({
+        id: taskSessionRef.current.id,
+        status: 'idle',
+        updatedAt: nowIso(),
+      });
+      return;
+    }
 
     const argsValidationError = validateToolCallArguments(call);
     if (argsValidationError) {
       await applyAssistantMessageResult(
         assistantMessageId,
-        toNaturalToolFailure(call.name, `参数校验失败：${argsValidationError}`, settings.toolFeedbackStyle),
+        toNaturalToolFailure(call.name, `参数校验失败：${argsValidationError}`, settingsRef.current.toolFeedbackStyle),
         'error',
         `参数校验失败：${argsValidationError}`,
       );
@@ -1284,14 +2126,30 @@ export function useAiChat(options?: UseAiChatOptions) {
         `pending:${call.name}`,
         `confirm_failed:${call.name}:invalid_args`,
         'human',
+        call.requestId,
+        buildToolDecisionAuditMetadata(
+          assistantMessageId,
+          call,
+          auditContext,
+          'human',
+          'confirm_failed',
+          false,
+          `参数校验失败：${argsValidationError}`,
+          'invalid_args',
+        ),
       );
+      setTaskSession({
+        id: taskSessionRef.current.id,
+        status: 'idle',
+        updatedAt: nowIso(),
+      });
       return;
     }
 
     if (!onToolCallRef.current) {
       await applyAssistantMessageResult(
         assistantMessageId,
-        toNaturalToolFailure(call.name, '当前还没有接入对应的动作执行器。', settings.toolFeedbackStyle),
+        toNaturalToolFailure(call.name, '当前还没有接入对应的动作执行器。', settingsRef.current.toolFeedbackStyle),
         'error',
         '当前未接入动作执行器。',
       );
@@ -1300,17 +2158,42 @@ export function useAiChat(options?: UseAiChatOptions) {
         `pending:${call.name}`,
         `confirm_failed:${call.name}:no_executor`,
         'human',
+        call.requestId,
+        buildToolDecisionAuditMetadata(
+          assistantMessageId,
+          call,
+          auditContext,
+          'human',
+          'confirm_failed',
+          false,
+          '当前未接入动作执行器。',
+          'no_executor',
+        ),
       );
+      setTaskSession({
+        id: taskSessionRef.current.id,
+        status: 'idle',
+        updatedAt: nowIso(),
+      });
       return;
     }
 
     try {
+      executedRequestIds.current.add(call.requestId);
       const result = await onToolCallRef.current(call);
+      if (result.ok) {
+        bumpMetric('successCount');
+        sessionMemoryRef.current = { ...sessionMemoryRef.current, lastToolName: call.name };
+        const lang = typeof call.arguments.language === 'string' ? call.arguments.language : undefined;
+        if (lang) sessionMemoryRef.current.lastLanguage = lang;
+      } else {
+        bumpMetric('failureCount');
+      }
       await applyAssistantMessageResult(
         assistantMessageId,
         result.ok
-          ? toNaturalToolSuccess(call.name, result.message, settings.toolFeedbackStyle)
-          : toNaturalToolFailure(call.name, result.message, settings.toolFeedbackStyle),
+          ? toNaturalToolSuccess(call.name, result.message, settingsRef.current.toolFeedbackStyle)
+          : toNaturalToolFailure(call.name, result.message, settingsRef.current.toolFeedbackStyle),
         result.ok ? 'done' : 'error',
         result.ok ? undefined : result.message,
       );
@@ -1319,12 +2202,27 @@ export function useAiChat(options?: UseAiChatOptions) {
         `pending:${call.name}`,
         `${result.ok ? 'confirmed' : 'confirm_failed'}:${call.name}`,
         'human',
+        call.requestId,
+        buildToolDecisionAuditMetadata(
+          assistantMessageId,
+          call,
+          auditContext,
+          'human',
+          result.ok ? 'confirmed' : 'confirm_failed',
+          true,
+          result.message,
+        ),
       );
+      setTaskSession({
+        id: taskSessionRef.current.id,
+        status: 'idle',
+        updatedAt: nowIso(),
+      });
     } catch (error) {
       const toolErrorText = error instanceof Error ? error.message : '工具执行失败';
       await applyAssistantMessageResult(
         assistantMessageId,
-        toNaturalToolFailure(call.name, toolErrorText, settings.toolFeedbackStyle),
+        toNaturalToolFailure(call.name, toolErrorText, settingsRef.current.toolFeedbackStyle),
         'error',
         toolErrorText,
       );
@@ -1333,18 +2231,47 @@ export function useAiChat(options?: UseAiChatOptions) {
         `pending:${call.name}`,
         `confirm_failed:${call.name}:exception`,
         'human',
+        call.requestId,
+        buildToolDecisionAuditMetadata(
+          assistantMessageId,
+          call,
+          auditContext,
+          'human',
+          'confirm_failed',
+          true,
+          toolErrorText,
+          'exception',
+        ),
       );
+      setTaskSession({
+        id: taskSessionRef.current.id,
+        status: 'idle',
+        updatedAt: nowIso(),
+      });
     }
-  }, [applyAssistantMessageResult, onToolCallRef, pendingToolCall, settings.toolFeedbackStyle, writeToolDecisionAuditLog]);
+  }, [applyAssistantMessageResult, hasPersistedExecutionForRequest, onToolCallRef, provider.id, taskSessionRef, writeToolDecisionAuditLog]);
 
   const cancelPendingToolCall = useCallback(async () => {
-    const pending = pendingToolCall;
+    const pending = pendingToolCallRef.current;
     if (!pending) return;
+    const auditContext = pending.auditContext ?? buildToolAuditContext(
+      '',
+      provider.id,
+      settingsRef.current.model,
+      toolDecisionModeRef.current,
+      settingsRef.current.toolFeedbackStyle,
+    );
 
     setPendingToolCall(null);
+    bumpMetric('cancelCount');
+    setTaskSession({
+      id: taskSessionRef.current.id,
+      status: 'idle',
+      updatedAt: nowIso(),
+    });
     await applyAssistantMessageResult(
       pending.assistantMessageId,
-      toNaturalToolCancelled(pending.call.name, settings.toolFeedbackStyle),
+      toNaturalToolCancelled(pending.call.name, settingsRef.current.toolFeedbackStyle),
     );
 
     await writeToolDecisionAuditLog(
@@ -1352,8 +2279,17 @@ export function useAiChat(options?: UseAiChatOptions) {
       `pending:${pending.call.name}`,
       `cancelled:${pending.call.name}`,
       'human',
+      pending.call.requestId,
+      buildToolDecisionAuditMetadata(
+        pending.assistantMessageId,
+        pending.call,
+        auditContext,
+        'human',
+        'cancelled',
+        false,
+      ),
     );
-  }, [applyAssistantMessageResult, pendingToolCall, settings.toolFeedbackStyle, writeToolDecisionAuditLog]);
+  }, [applyAssistantMessageResult, provider.id, taskSessionRef, writeToolDecisionAuditLog]);
 
   const send = useCallback(async (userText: string) => {
     if (!featureFlags.aiChatEnabled) {
@@ -1368,12 +2304,13 @@ export function useAiChat(options?: UseAiChatOptions) {
 
     const trimmed = userText.trim();
     if (trimmed.length === 0) return;
-    if (pendingToolCall) {
+    if (pendingToolCallRef.current) {
       setLastError('存在待确认的高风险工具调用，请先确认或取消后再继续。');
       return;
     }
 
     setLastError(null);
+    bumpMetric('turnCount');
     const shouldTrackRemoteStatus = provider.id !== 'mock' && provider.id !== 'ollama';
     if (shouldTrackRemoteStatus) {
       setConnectionTestStatus('testing');
@@ -1393,6 +2330,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       content: '',
       status: 'streaming',
       citations: [],
+      reasoningContent: '',
     };
 
     // Keep newest messages at top in UI.
@@ -1408,20 +2346,25 @@ export function useAiChat(options?: UseAiChatOptions) {
     let firstChunkArrived = false;
     let connectionMarkedSuccess = false;
     let timedOutBeforeFirstChunk = false;
-    const enforceFirstChunkTimeout = provider.id !== 'ollama';
-    const timeoutHandle = (typeof window !== 'undefined' && enforceFirstChunkTimeout)
+    // DeepSeek 和 MiniMax 思考链较长，默认首包超时延长至 60s；若调用方显式覆盖则尊重调用方配置。
+    // DeepSeek often needs longer thinking time; default timeout is extended to 60s,
+    // but explicit overrides should be honored (tests/dev tuning).
+    const effectiveTimeoutMs = provider.id === 'deepseek' || provider.id === 'minimax'
+      ? (firstChunkTimeoutMs === DEFAULT_FIRST_CHUNK_TIMEOUT_MS ? 60000 : firstChunkTimeoutMs)
+      : (provider.id === 'ollama' ? 0 : firstChunkTimeoutMs);
+    const timeoutHandle = (typeof window !== 'undefined' && effectiveTimeoutMs > 0)
       ? window.setTimeout(() => {
         if (firstChunkArrived || controller.signal.aborted) return;
         timedOutBeforeFirstChunk = true;
         controller.abort();
-      }, firstChunkTimeoutMs)
+      }, effectiveTimeoutMs)
       : null;
 
     const flushAssistantDraft = async (content: string, force = false): Promise<void> => {
       if (!dbRef) return;
       if (content === lastPersistedAssistantContent) return;
       const now = Date.now();
-      if (!force && now - lastPersistedAt < streamPersistIntervalMs) return;
+      if (!force && now - lastPersistedAt < streamPersistIntervalMsRef.current) return;
 
       const existing = await dbRef.collections.ai_messages.findOne({ selector: { id: assistantId } }).exec();
       if (!existing) return;
@@ -1451,6 +2394,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       content: string,
       errorMessage?: string,
       citations?: AiMessageCitation[],
+      reasoningContent?: string,
     ) => {
       setMessages((prev) => prev.map((msg) => {
         if (msg.id !== assistantId) return msg;
@@ -1461,9 +2405,10 @@ export function useAiChat(options?: UseAiChatOptions) {
             status,
             ...(errorMessage ? { error: errorMessage } : {}),
             ...(citations ? { citations } : {}),
+            ...(reasoningContent ? { reasoningContent } : {}),
           };
         }
-        return { ...msg, content, status, ...(citations ? { citations } : {}) };
+        return { ...msg, content, status, ...(citations ? { citations } : {}), ...(reasoningContent ? { reasoningContent } : {}) };
       }));
 
       if (!dbRef) return;
@@ -1476,11 +2421,14 @@ export function useAiChat(options?: UseAiChatOptions) {
           status,
           ...(errorMessage ? { errorMessage } : {}),
           ...(citations ? { citations } : {}),
+          ...(reasoningContent ? { reasoningContent } : {}),
           updatedAt: nowIso(),
         });
       }
       await updateConversationTimestamp();
     };
+
+    let assistantContent = '';
 
     try {
       activeConversationId = await ensureConversation();
@@ -1513,7 +2461,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         await db.collections.ai_conversations.insert({
           ...row,
           providerId: provider.id,
-          model: settings.model,
+          model: settingsRef.current.model,
           updatedAt: nowIso(),
         });
       }
@@ -1523,16 +2471,21 @@ export function useAiChat(options?: UseAiChatOptions) {
         .reverse()
         .map((m) => ({ role: m.role, content: m.content }));
       const history = trimHistoryByChars(historyRaw, historyCharBudget);
-      let contextBlock = buildPromptContextBlock(getContext?.() ?? null, maxContextChars);
+      const aiContext = getContextRef.current?.() ?? null;
+      let contextBlock = buildPromptContextBlock(aiContext, maxContextChars);
       let ragCitations: AiMessageCitation[] = [];
 
       // ── Minimal RAG: inject top embedding matches as text snippets into context ──
-      if (embeddingSearchService) {
+      if (embeddingSearchServiceRef.current) {
         try {
-          const ragResult = await embeddingSearchService.searchMultiSourceHybrid(
-            trimmed,
-            ['utterance', 'note', 'pdf'],
-            { topK: 5, fusionScenario: 'qa' },
+          const ragResult = await withTimeout(
+            embeddingSearchServiceRef.current.searchMultiSourceHybrid(
+              trimmed,
+              ['utterance', 'note', 'pdf'],
+              { topK: 5, fusionScenario: 'qa' },
+            ),
+            ragContextTimeoutMsRef.current,
+            `RAG context timed out after ${ragContextTimeoutMsRef.current}ms`,
           );
           if (ragResult.matches.length > 0) {
             // 批量反查各匹配项的原始文字 | Batch-resolve source text for each match
@@ -1589,8 +2542,10 @@ export function useAiChat(options?: UseAiChatOptions) {
               });
             }
           }
-        } catch {
+        } catch (error) {
           // RAG is best-effort; do not block chat on embedding failures.
+          // eslint-disable-next-line no-console
+          console.warn('[useAiChat] RAG context enrichment failed:', error);
         }
       }
       const contextDebugEnabled = isAiContextDebugEnabled();
@@ -1617,10 +2572,11 @@ export function useAiChat(options?: UseAiChatOptions) {
         history,
         userText: trimmed,
         systemPrompt: buildAiSystemPrompt(systemPersonaKeyRef.current, contextBlock),
-        options: { signal: controller.signal, model: settings.model },
+        options: { signal: controller.signal, model: settingsRef.current.model },
       });
 
-      let assistantContent = '';
+      let assistantReasoningContent = '';
+      let assistantThinking = false;
       let streamFinalized = false;
 
       for await (const chunk of stream) {
@@ -1639,7 +2595,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         if (chunk.error) {
           const errorText = chunk.error;
           streamFinalized = true;
-          await finalizeAssistantMessage('error', assistantContent, errorText, ragCitations);
+          await finalizeAssistantMessage('error', assistantContent, errorText, ragCitations, assistantReasoningContent);
           setLastError(errorText);
           if (shouldTrackRemoteStatus) {
             setConnectionTestStatus('error');
@@ -1648,14 +2604,36 @@ export function useAiChat(options?: UseAiChatOptions) {
           break;
         }
 
-        if (chunk.delta.length > 0) {
-          assistantContent += chunk.delta;
+        if ((chunk.delta ?? '').length > 0) {
+          const delta = chunk.delta ?? '';
+          assistantContent += delta;
           setMessages((prev) => prev.map((msg) => (
             msg.id === assistantId
-              ? { ...msg, content: msg.content + chunk.delta }
+              ? { ...msg, content: msg.content + delta, ...(assistantThinking ? { thinking: false } : {}) }
               : msg
           )));
           await flushAssistantDraft(assistantContent);
+        }
+
+        // 思考中状态：非reasoning_content型provider的首包到达前显示"正在思考"
+        // Anthropic/Gemini/Ollama等provider在首个delta到达前会yield { thinking: true }
+        if (chunk.thinking && !chunk.delta) {
+          assistantThinking = true;
+          setMessages((prev) => prev.map((msg) => (
+            msg.id === assistantId
+              ? { ...msg, thinking: true }
+              : msg
+          )));
+        }
+
+        // 累加推理内容（reasoning_content），如 DeepSeek 思考过程
+        if (chunk.reasoningContent && chunk.reasoningContent.length > 0) {
+          assistantReasoningContent += chunk.reasoningContent;
+          setMessages((prev) => prev.map((msg) => (
+            msg.id === assistantId
+              ? { ...msg, reasoningContent: (msg.reasoningContent ?? '') + chunk.reasoningContent }
+              : msg
+          )));
         }
 
         if (chunk.done) {
@@ -1675,84 +2653,356 @@ export function useAiChat(options?: UseAiChatOptions) {
               setConnectionTestStatus('error');
               setConnectionTestMessage(finalErrorMessage);
             }
-            await finalizeAssistantMessage(finalStatus, finalContent, finalErrorMessage, ragCitations);
+            await finalizeAssistantMessage(finalStatus, finalContent, finalErrorMessage, ragCitations, assistantReasoningContent);
             break;
           }
 
-          const parsedToolCall = parseToolCallFromText(assistantContent);
-          const toolCall = parsedToolCall ? enrichToolCallWithUserText(parsedToolCall, trimmed) : null;
+          const parsedToolCall = parseToolCallFromText(assistantContent) ?? parseLegacyNarratedToolCall(assistantContent);
+          const planner = parsedToolCall ? planToolCallTargets(parsedToolCall, trimmed, aiContext) : null;
+          const toolCall = planner?.call ?? null;
           if (toolCall) {
-            const intentAssessment = assessToolActionIntent(trimmed);
-            await writeToolIntentAuditLog(assistantId, toolCall.name, intentAssessment);
+            // 幂等性指纹注入 | Inject idempotency fingerprint
+            if (!toolCall.requestId) toolCall.requestId = genRequestId(toolCall, assistantId);
+            const baseAuditContext = buildToolAuditContext(
+              trimmed,
+              provider.id,
+              settingsRef.current.model,
+              toolDecisionModeRef.current,
+              settingsRef.current.toolFeedbackStyle,
+              planner,
+            );
+            if (toolDecisionModeRef.current === 'rollback') {
+              finalContent = toNaturalToolRollbackSkipped(toolCall.name, settingsRef.current.toolFeedbackStyle);
+              await writeToolDecisionAuditLog(
+                assistantId,
+                `auto:${toolCall.name}`,
+                `rollback_skipped:${toolCall.name}`,
+                'system',
+                toolCall.requestId,
+                buildToolDecisionAuditMetadata(
+                  assistantId,
+                  toolCall,
+                  baseAuditContext,
+                  'system',
+                  'rollback_skipped',
+                  false,
+                ),
+              );
+            } else if (toolDecisionModeRef.current === 'gray') {
+              const allowDeicticExecution = shouldAllowDeicticExecutionIntent(trimmed, toolCall.name, aiContext, messagesRef.current);
+              const intentAssessment = assessToolActionIntent(trimmed, { allowDeicticExecution });
+              const auditContext = buildToolAuditContext(
+                trimmed,
+                provider.id,
+                settingsRef.current.model,
+                toolDecisionModeRef.current,
+                settingsRef.current.toolFeedbackStyle,
+                planner,
+                intentAssessment,
+              );
+              await writeToolIntentAuditLog(
+                assistantId,
+                toolCall.name,
+                intentAssessment,
+                toolCall.requestId,
+                buildToolIntentAuditMetadata(assistantId, toolCall, auditContext),
+              );
 
-            if (intentAssessment.decision === 'ignore') {
-              finalContent = toNaturalNonActionFallback(trimmed);
-            } else if (intentAssessment.decision === 'clarify') {
-              finalContent = toNaturalActionClarify(toolCall.name, settings.toolFeedbackStyle);
-            } else {
-              const argsValidationError = validateToolCallArguments(toolCall);
-              if (argsValidationError) {
-                finalContent = toNaturalToolFailure(toolCall.name, `参数校验失败：${argsValidationError}`, settings.toolFeedbackStyle);
-                finalStatus = 'error';
-                finalErrorMessage = `参数校验失败：${argsValidationError}`;
-                await writeToolDecisionAuditLog(assistantId, `auto:${toolCall.name}`, `auto_failed:${toolCall.name}:invalid_args`, 'ai');
+              if (intentAssessment.decision === 'ignore') {
+                finalContent = toNaturalNonActionFallback(trimmed);
+                bumpMetric('explainFallbackCount');
+                setTaskSession({ id: taskSessionRef.current.id, status: 'explaining', updatedAt: nowIso() });
+              } else if (planner?.decision === 'clarify') {
+                const clarifyCandidates = buildClarifyCandidates(toolCall.name, planner.reason, aiContext, sessionMemoryRef.current);
+                setTaskSession({
+                  id: taskSessionRef.current.id,
+                  status: 'waiting_clarify',
+                  toolName: toolCall.name,
+                  clarifyReason: planner.reason!,
+                  candidates: clarifyCandidates,
+                  updatedAt: nowIso(),
+                });
+                bumpMetric('clarifyCount');
+                finalContent = toNaturalTargetClarify(toolCall.name, planner.reason!, settingsRef.current.toolFeedbackStyle, clarifyCandidates);
+              } else if (intentAssessment.decision === 'clarify') {
+                finalContent = toNaturalActionClarify(toolCall.name, settingsRef.current.toolFeedbackStyle);
+                bumpMetric('clarifyCount');
               } else {
-                const destructiveBlocked = !allowDestructiveToolCalls && isDestructiveToolCall(toolCall.name);
-                let riskCheck: AiToolRiskCheckResult | null | undefined;
-                if (destructiveBlocked && onToolRiskCheckRef.current) {
-                  riskCheck = await onToolRiskCheckRef.current(toolCall);
-                }
-
-                const shouldRequireConfirmation = destructiveBlocked && (riskCheck?.requiresConfirmation ?? true);
-                if (shouldRequireConfirmation) {
-                  const impact = describeToolCallImpact(toolCall);
-                  finalContent = toNaturalToolPending(toolCall.name, settings.toolFeedbackStyle);
-                  setPendingToolCall({
-                    call: toolCall,
-                    assistantMessageId: assistantId,
-                    riskSummary: riskCheck?.riskSummary ?? impact.riskSummary,
-                    impactPreview: riskCheck?.impactPreview ?? impact.impactPreview,
-                  });
-                } else if (!onToolCallRef.current) {
-                  finalContent = toNaturalToolFailure(toolCall.name, '当前还没有接入对应的动作执行器。', settings.toolFeedbackStyle);
+                const argsValidationError = validateToolCallArguments(toolCall);
+                if (argsValidationError) {
+                  finalContent = toNaturalToolFailure(toolCall.name, `参数校验失败：${argsValidationError}`, settingsRef.current.toolFeedbackStyle);
                   finalStatus = 'error';
-                  finalErrorMessage = '当前未接入动作执行器。';
-                  await writeToolDecisionAuditLog(assistantId, `auto:${toolCall.name}`, `auto_failed:${toolCall.name}:no_executor`, 'ai');
+                  finalErrorMessage = `参数校验失败：${argsValidationError}`;
+                  bumpMetric('failureCount');
+                  await writeToolDecisionAuditLog(
+                    assistantId,
+                    `auto:${toolCall.name}`,
+                    `gray_failed:${toolCall.name}:invalid_args`,
+                    'system',
+                    toolCall.requestId,
+                    buildToolDecisionAuditMetadata(
+                      assistantId,
+                      toolCall,
+                      auditContext,
+                      'system',
+                      'gray_failed',
+                      false,
+                      `参数校验失败：${argsValidationError}`,
+                      'invalid_args',
+                    ),
+                  );
                 } else {
-                  try {
-                    const result = await onToolCallRef.current(toolCall);
-                    finalContent = result.ok
-                      ? toNaturalToolSuccess(toolCall.name, result.message, settings.toolFeedbackStyle)
-                      : toNaturalToolFailure(toolCall.name, result.message, settings.toolFeedbackStyle);
-                    if (!result.ok) {
-                      finalStatus = 'error';
-                      finalErrorMessage = result.message;
-                    }
-                    await writeToolDecisionAuditLog(assistantId, `auto:${toolCall.name}`, `${result.ok ? 'auto_confirmed' : 'auto_failed'}:${toolCall.name}`, 'ai');
-                  } catch (toolError) {
-                    const toolErrorText = toolError instanceof Error ? toolError.message : '工具执行失败';
-                    finalContent = toNaturalToolFailure(toolCall.name, toolErrorText, settings.toolFeedbackStyle);
+                  finalContent = toNaturalToolGraySkipped(toolCall.name, settingsRef.current.toolFeedbackStyle);
+                  await writeToolDecisionAuditLog(
+                    assistantId,
+                    `auto:${toolCall.name}`,
+                    `gray_skipped:${toolCall.name}`,
+                    'system',
+                    toolCall.requestId,
+                    buildToolDecisionAuditMetadata(
+                      assistantId,
+                      toolCall,
+                      auditContext,
+                      'system',
+                      'gray_skipped',
+                      false,
+                    ),
+                  );
+                }
+              }
+            } else if (await hasPersistedExecutionForRequest(toolCall.requestId)) {
+              finalContent = toNaturalToolFailure(toolCall.name, '重复的工具调用已被忽略（幂等保护）', settingsRef.current.toolFeedbackStyle);
+              finalStatus = 'error';
+              finalErrorMessage = '重复的工具调用已被忽略';
+              await writeToolDecisionAuditLog(
+                assistantId,
+                `auto:${toolCall.name}`,
+                `auto_failed:${toolCall.name}:duplicate_requestId`,
+                'ai',
+                toolCall.requestId,
+                buildToolDecisionAuditMetadata(
+                  assistantId,
+                  toolCall,
+                  baseAuditContext,
+                  'ai',
+                  'auto_failed',
+                  false,
+                  '重复的工具调用已被忽略',
+                  'duplicate_requestId',
+                ),
+              );
+            } else {
+              const allowDeicticExecution = shouldAllowDeicticExecutionIntent(trimmed, toolCall.name, aiContext, messagesRef.current);
+              const intentAssessment = assessToolActionIntent(trimmed, { allowDeicticExecution });
+              const auditContext = buildToolAuditContext(
+                trimmed,
+                provider.id,
+                settingsRef.current.model,
+                toolDecisionModeRef.current,
+                settingsRef.current.toolFeedbackStyle,
+                planner,
+                intentAssessment,
+              );
+              await writeToolIntentAuditLog(
+                assistantId,
+                toolCall.name,
+                intentAssessment,
+                toolCall.requestId,
+                buildToolIntentAuditMetadata(assistantId, toolCall, auditContext),
+              );
+
+              if (intentAssessment.decision === 'ignore') {
+                finalContent = toNaturalNonActionFallback(trimmed);
+                bumpMetric('explainFallbackCount');
+                setTaskSession({ id: taskSessionRef.current.id, status: 'explaining', updatedAt: nowIso() });
+              } else if (planner?.decision === 'clarify') {
+                const clarifyCandidates = buildClarifyCandidates(toolCall.name, planner.reason, aiContext, sessionMemoryRef.current);
+                setTaskSession({
+                  id: taskSessionRef.current.id,
+                  status: 'waiting_clarify',
+                  toolName: toolCall.name,
+                  clarifyReason: planner.reason!,
+                  candidates: clarifyCandidates,
+                  updatedAt: nowIso(),
+                });
+                bumpMetric('clarifyCount');
+                finalContent = toNaturalTargetClarify(toolCall.name, planner.reason!, settingsRef.current.toolFeedbackStyle, clarifyCandidates);
+              } else if (intentAssessment.decision === 'clarify') {
+                finalContent = toNaturalActionClarify(toolCall.name, settingsRef.current.toolFeedbackStyle);
+                bumpMetric('clarifyCount');
+              } else {
+                const argsValidationError = validateToolCallArguments(toolCall);
+                if (argsValidationError) {
+                  finalContent = toNaturalToolFailure(toolCall.name, `参数校验失败：${argsValidationError}`, settingsRef.current.toolFeedbackStyle);
+                  finalStatus = 'error';
+                  finalErrorMessage = `参数校验失败：${argsValidationError}`;
+                  bumpMetric('failureCount');
+                  await writeToolDecisionAuditLog(
+                    assistantId,
+                    `auto:${toolCall.name}`,
+                    `auto_failed:${toolCall.name}:invalid_args`,
+                    'ai',
+                    toolCall.requestId,
+                    buildToolDecisionAuditMetadata(
+                      assistantId,
+                      toolCall,
+                      auditContext,
+                      'ai',
+                      'auto_failed',
+                      false,
+                      `参数校验失败：${argsValidationError}`,
+                      'invalid_args',
+                    ),
+                  );
+                } else {
+                  const destructiveBlocked = !allowDestructiveToolCalls && isDestructiveToolCall(toolCall.name);
+                  let riskCheck: AiToolRiskCheckResult | null | undefined;
+                  if (destructiveBlocked && onToolRiskCheckRef.current) {
+                    riskCheck = await onToolRiskCheckRef.current(toolCall);
+                  }
+
+                  const shouldRequireConfirmation = destructiveBlocked && (riskCheck?.requiresConfirmation ?? true);
+                  if (shouldRequireConfirmation) {
+                    const impact = describeToolCallImpact(toolCall);
+                    finalContent = toNaturalToolPending(toolCall.name, settingsRef.current.toolFeedbackStyle);
+                    setTaskSession({
+                      id: taskSessionRef.current.id,
+                      status: 'waiting_confirm',
+                      toolName: toolCall.name,
+                      updatedAt: nowIso(),
+                    });
+                    setPendingToolCall({
+                      call: toolCall,
+                      assistantMessageId: assistantId,
+                      riskSummary: riskCheck?.riskSummary ?? impact.riskSummary,
+                      impactPreview: riskCheck?.impactPreview ?? impact.impactPreview,
+                      previewContract: buildPreviewContract(toolCall),
+                      requestId: toolCall.requestId,
+                      auditContext,
+                    });
+                  } else if (!onToolCallRef.current) {
+                    finalContent = toNaturalToolFailure(toolCall.name, '当前还没有接入对应的动作执行器。', settingsRef.current.toolFeedbackStyle);
                     finalStatus = 'error';
-                    finalErrorMessage = toolErrorText;
-                    await writeToolDecisionAuditLog(assistantId, `auto:${toolCall.name}`, `auto_failed:${toolCall.name}:exception`, 'ai');
+                    finalErrorMessage = '当前未接入动作执行器。';
+                    await writeToolDecisionAuditLog(
+                      assistantId,
+                      `auto:${toolCall.name}`,
+                      `auto_failed:${toolCall.name}:no_executor`,
+                      'ai',
+                      toolCall.requestId,
+                      buildToolDecisionAuditMetadata(
+                        assistantId,
+                        toolCall,
+                        auditContext,
+                        'ai',
+                        'auto_failed',
+                        false,
+                        '当前未接入动作执行器。',
+                        'no_executor',
+                      ),
+                    );
+                  } else {
+                    try {
+                      setTaskSession({
+                        id: taskSessionRef.current.id,
+                        status: 'executing',
+                        toolName: toolCall.name,
+                        updatedAt: nowIso(),
+                      });
+                      executedRequestIds.current.add(toolCall.requestId);
+                      const result = await onToolCallRef.current(toolCall);
+                      finalContent = result.ok
+                        ? toNaturalToolSuccess(toolCall.name, result.message, settingsRef.current.toolFeedbackStyle)
+                        : toNaturalToolFailure(toolCall.name, result.message, settingsRef.current.toolFeedbackStyle);
+                      if (result.ok) {
+                        bumpMetric('successCount');
+                        // 写入会话记忆 | Update session memory on success
+                        sessionMemoryRef.current = { ...sessionMemoryRef.current, lastToolName: toolCall.name };
+                        const lang = typeof toolCall.arguments.language === 'string' ? toolCall.arguments.language : undefined;
+                        if (lang) sessionMemoryRef.current.lastLanguage = lang;
+                        const lid = typeof toolCall.arguments.layerId === 'string' ? toolCall.arguments.layerId : undefined;
+                        if (lid) sessionMemoryRef.current.lastLayerId = lid;
+                        // 上一轮是失败，本次成功 → 恢复 | Previous was failure, this is recovery
+                        if (metricsRef.current.failureCount > 0 && taskSessionRef.current.status === 'executing') {
+                          bumpMetric('recoveryCount');
+                        }
+                      } else {
+                        finalStatus = 'error';
+                        finalErrorMessage = result.message;
+                        bumpMetric('failureCount');
+                      }
+                      await writeToolDecisionAuditLog(
+                        assistantId,
+                        `auto:${toolCall.name}`,
+                        `${result.ok ? 'auto_confirmed' : 'auto_failed'}:${toolCall.name}`,
+                        'ai',
+                        toolCall.requestId,
+                        buildToolDecisionAuditMetadata(
+                          assistantId,
+                          toolCall,
+                          auditContext,
+                          'ai',
+                          result.ok ? 'auto_confirmed' : 'auto_failed',
+                          true,
+                          result.message,
+                        ),
+                      );
+                      setTaskSession({
+                        id: taskSessionRef.current.id,
+                        status: 'idle',
+                        updatedAt: nowIso(),
+                      });
+                    } catch (toolError) {
+                      const toolErrorText = toolError instanceof Error ? toolError.message : '工具执行失败';
+                      finalContent = toNaturalToolFailure(toolCall.name, toolErrorText, settingsRef.current.toolFeedbackStyle);
+                      finalStatus = 'error';
+                      finalErrorMessage = toolErrorText;
+                      await writeToolDecisionAuditLog(
+                        assistantId,
+                        `auto:${toolCall.name}`,
+                        `auto_failed:${toolCall.name}:exception`,
+                        'ai',
+                        toolCall.requestId,
+                        buildToolDecisionAuditMetadata(
+                          assistantId,
+                          toolCall,
+                          auditContext,
+                          'ai',
+                          'auto_failed',
+                          true,
+                          toolErrorText,
+                          'exception',
+                        ),
+                      );
+                      setTaskSession({
+                        id: taskSessionRef.current.id,
+                        status: 'idle',
+                        updatedAt: nowIso(),
+                      });
+                    }
                   }
                 }
               }
             }
+          } else {
+            finalContent = normalizeLegacyRiskNarration(finalContent, settingsRef.current.toolFeedbackStyle);
           }
           if (finalErrorMessage) setLastError(finalErrorMessage);
-          await finalizeAssistantMessage(finalStatus, finalContent, finalErrorMessage, ragCitations);
+          await finalizeAssistantMessage(finalStatus, finalContent, finalErrorMessage, ragCitations, assistantReasoningContent);
           break;
         }
       }
 
       if (!streamFinalized && !controller.signal.aborted) {
-        await finalizeAssistantMessage('done', assistantContent, undefined, ragCitations);
+        await finalizeAssistantMessage('done', assistantContent, undefined, ragCitations, assistantReasoningContent);
       }
     } catch (error) {
       if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
         if (timedOutBeforeFirstChunk) {
-          const timeoutMessage = '上游模型响应超时（首包超时），请稍后重试或切换模型。';
+          const isLongThinkProvider = provider.id === 'deepseek' || provider.id === 'minimax';
+          const timeoutMessage = isLongThinkProvider
+            ? `${provider.label} 思考时间较长（首包超时，已等待60秒），请稍后重试，或切换至其他模型。`
+            : '上游模型响应超时（首包超时），请稍后重试或切换模型。';
           const timeoutContent = messagesRef.current.find((msg) => msg.id === assistantId)?.content ?? '';
           await finalizeAssistantMessage('error', timeoutContent, timeoutMessage);
           setLastError(timeoutMessage);
@@ -1788,29 +3038,42 @@ export function useAiChat(options?: UseAiChatOptions) {
         abortRef.current = null;
         setIsStreaming(false);
       }
-      // Fire onMessageComplete once per stream — capture the latest assistant content
-      const latestAssistant = messagesRef.current.find((m) => m.id === assistantId);
-      if (latestAssistant?.content) {
-        onMessageCompleteRef.current?.(assistantId, latestAssistant.content);
+      // Fire onMessageComplete once per stream — prefer latest stream buffer to avoid stale ref reads.
+      const completionContent = assistantContent.trim().length > 0
+        ? assistantContent
+        : (messagesRef.current.find((m) => m.id === assistantId)?.content ?? '');
+      if (completionContent) {
+        onMessageCompleteRef.current?.(assistantId, completionContent);
       }
     }
-  }, [allowDestructiveToolCalls, embeddingSearchService, ensureConversation, firstChunkTimeoutMs, getContext, historyCharBudget, isStreaming, maxContextChars, onMessageCompleteRef, onToolCallRef, onToolRiskCheckRef, orchestrator, pendingToolCall, provider.id, provider.label, settings.model, settings.toolFeedbackStyle, streamPersistIntervalMs, writeToolDecisionAuditLog, writeToolIntentAuditLog]);
+  }, [allowDestructiveToolCalls, ensureConversation, firstChunkTimeoutMs, historyCharBudget, isStreaming, maxContextChars, onMessageCompleteRef, onToolCallRef, onToolRiskCheckRef, orchestrator, provider.id, provider.label, taskSessionRef, writeToolDecisionAuditLog, writeToolIntentAuditLog]);
 
   const clear = useCallback(() => {
+    if (clearInFlightRef.current) return;
+    clearInFlightRef.current = true;
     setMessages([]);
     setLastError(null);
     setPendingToolCall(null);
+    setTaskSession({
+      id: newMessageId('task'),
+      status: 'idle',
+      updatedAt: nowIso(),
+    });
     void (async () => {
-      const db = await getDb();
-      const activeConversationId = await ensureConversation();
-      await db.collections.ai_messages.removeBySelector({ conversationId: activeConversationId });
-      const conversation = await db.collections.ai_conversations.findOne({ selector: { id: activeConversationId } }).exec();
-      if (conversation) {
-        const row = conversation.toJSON();
-        await db.collections.ai_conversations.insert({
-          ...row,
-          updatedAt: nowIso(),
-        });
+      try {
+        const db = await getDb();
+        const activeConversationId = await ensureConversation();
+        await db.collections.ai_messages.removeBySelector({ conversationId: activeConversationId });
+        const conversation = await db.collections.ai_conversations.findOne({ selector: { id: activeConversationId } }).exec();
+        if (conversation) {
+          const row = conversation.toJSON();
+          await db.collections.ai_conversations.insert({
+            ...row,
+            updatedAt: nowIso(),
+          });
+        }
+      } finally {
+        clearInFlightRef.current = false;
       }
     })();
   }, [ensureConversation]);
@@ -1824,6 +3087,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     clear,
     testConnection,
     enabled: featureFlags.aiChatEnabled,
+    toolDecisionMode,
     isBootstrapping,
     providerLabel: provider.label,
     settings,
@@ -1832,6 +3096,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     connectionTestMessage,
     contextDebugSnapshot,
     pendingToolCall,
+    taskSession,
     confirmPendingToolCall,
     cancelPendingToolCall,
   };

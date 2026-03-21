@@ -31,6 +31,7 @@ import { LinguisticService } from '../../services/LinguisticService';
 import { db as appDb, getDb, type JieyuDatabase, type UtteranceDocType } from '../../db';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { useAiPanelContextUpdater, AiPanelContext } from '../contexts/AiPanelContext';
+import { ToastProvider, useToast } from '../contexts/ToastContext';
 import { snapToZeroCrossing } from '../services/AudioAnalysisService';
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
 import { useRecording } from '../hooks/useRecording';
@@ -77,6 +78,75 @@ const EMBEDDING_PROVIDER_STORAGE_KEY = 'jieyu.embeddingProvider';
 
 // ─── Persistence helpers ───────────────────────────────────────────────────────
 
+// ── ToastController — bridges TranscriptionPage state to ToastProvider ─────────────
+
+interface ToastControllerProps {
+  /** Subset of useVoiceAgent return value needed for toast routing */
+  voiceAgent: {
+    agentState: string;
+    mode: string;
+    listening: boolean;
+    isRecording: boolean;
+  };
+  saveState: { kind: string; message?: string };
+  recording: boolean;
+  recordingUtteranceId: string | null;
+  recordingError: string | null;
+  /** i18n function for recording toast message */
+  tf: (key: string, opts?: Record<string, unknown>) => string;
+}
+
+function ToastController({
+  voiceAgent,
+  saveState,
+  recording,
+  recordingUtteranceId,
+  recordingError,
+  tf,
+}: ToastControllerProps) {
+  const { showToast, showSaveState, showVoiceState } = useToast();
+
+  // SaveState changes → toast
+  useEffect(() => {
+    showSaveState(saveState as Parameters<typeof showSaveState>[0]);
+  }, [saveState, showSaveState]);
+
+  // Recording error → error toast
+  useEffect(() => {
+    if (recordingError) {
+      showToast(recordingError, 'error', 0);
+    }
+  }, [recordingError, showToast]);
+
+  // Recording active → persistent recording toast
+  useEffect(() => {
+    if (recording) {
+      showToast(
+        tf('transcription.toast.recording', {
+          id: recordingUtteranceId ?? tf('transcription.toast.recordingUnknownRow'),
+        }),
+        'recording',
+        0,
+      );
+    }
+  }, [recording, recordingUtteranceId, showToast, tf]);
+
+  // Voice agent state → toast
+  useEffect(() => {
+    if (voiceAgent.listening || voiceAgent.agentState !== 'idle') {
+      showVoiceState(
+        voiceAgent.agentState as Parameters<typeof showVoiceState>[0],
+        voiceAgent.listening,
+      );
+    } else {
+      showVoiceState(null);
+    }
+  }, [voiceAgent.agentState, voiceAgent.listening, showVoiceState]);
+
+  // This component renders nothing — it only manages side-effects via the toast context.
+  return null;
+}
+
 function loadEmbeddingProviderConfig(): { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string } {
   try {
     const raw = window.localStorage.getItem(EMBEDDING_PROVIDER_STORAGE_KEY);
@@ -93,6 +163,8 @@ function saveEmbeddingProviderConfig(cfg: { kind: EmbeddingProviderKind; baseUrl
 
 export function TranscriptionPage() {
   const locale = detectLocale();
+  /** Pre-bound tf for components that need (key, params) without locale */
+  const tfB = (key: string, opts?: Record<string, unknown>) => tf(locale, key as Parameters<typeof tf>[1], opts as Parameters<typeof tf>[2]);
   // ---- Data layer (from hook) ----
   const data = useTranscriptionData();
   const {
@@ -395,11 +467,27 @@ export function TranscriptionPage() {
     const selectionTimeRange = selectedUtterance
       ? `${formatTime(selectedUtterance.startTime)}-${formatTime(selectedUtterance.endTime)}`
       : undefined;
+    const selectedLayer = layers.find((layer) => layer.id === selectedLayerId)
+      ?? translationLayers.find((layer) => layer.id === selectedLayerId)
+      ?? null;
+    const selectedLayerType: 'transcription' | 'translation' | undefined = selectedLayer
+      ? (selectedLayer.layerType === 'translation' ? 'translation' : 'transcription')
+      : undefined;
+    const selectedTranslationLayerId = selectedLayerType === 'translation'
+      ? selectedLayer?.id
+      : undefined;
+    const selectedTranscriptionLayerId = selectedLayerType === 'transcription'
+      ? selectedLayer?.id
+      : undefined;
 
     return {
       shortTerm: {
         page: 'transcription',
         ...(selectedUtterance?.id ? { selectedUtteranceId: selectedUtterance.id } : {}),
+        ...(selectedLayer?.id ? { selectedLayerId: selectedLayer.id } : {}),
+        ...(selectedLayerType ? { selectedLayerType } : {}),
+        ...(selectedTranslationLayerId ? { selectedTranslationLayerId } : {}),
+        ...(selectedTranscriptionLayerId ? { selectedTranscriptionLayerId } : {}),
         selectedText,
         ...(selectionTimeRange ? { selectionTimeRange } : {}),
         audioTimeSec: aiAudioTimeRef.current,
@@ -416,7 +504,7 @@ export function TranscriptionPage() {
         recommendations: aiRecommendationRef.current,
       },
     };
-  }, [aiConfidenceAvg, getUtteranceTextForLayer, selectedUtterance, state, translationLayers.length, undoHistory, utterances.length]);
+  }, [aiConfidenceAvg, formatTime, getUtteranceTextForLayer, layers, selectedLayerId, selectedUtterance, state, translationLayers, undoHistory, utterances.length]);
 
   const handleAiToolRiskCheck = useCallback((call: AiChatToolCall): AiToolRiskCheckResult | null => {
     if (call.name !== 'delete_transcription_segment') return null;
@@ -427,7 +515,14 @@ export function TranscriptionPage() {
     const targetUtterance = utterances.find((item) => item.id === utteranceId);
     if (!targetUtterance) return null;
 
+    const sortedByTime = [...utterances].sort((a, b) => a.startTime - b.startTime);
+    const rowIndex = Math.max(0, sortedByTime.findIndex((item) => item.id === utteranceId)) + 1;
+    const timeRange = `${formatTime(targetUtterance.startTime)}-${formatTime(targetUtterance.endTime)}`;
+
     const transcriptionText = getUtteranceTextForLayer(targetUtterance).trim();
+    const transcriptionPreview = transcriptionText.length > 0
+      ? (transcriptionText.length > 18 ? `${transcriptionText.slice(0, 18)}...` : transcriptionText)
+      : '（无转写文本）';
     const translationLayerCountWithText = translations.filter((item) => {
       if (item.utteranceId !== utteranceId) return false;
       if (!(item.modality === 'text' || item.modality === 'mixed')) return false;
@@ -441,14 +536,14 @@ export function TranscriptionPage() {
 
     return {
       requiresConfirmation: true,
-      riskSummary: `将删除 1 条包含内容的句段（目标：${utteranceId}）`,
+      riskSummary: `将删除第 ${rowIndex} 条句段（${timeRange}）`,
       impactPreview: [
-        `转写内容：${transcriptionText.length > 0 ? '有' : '无'}`,
-        `翻译内容：${translationLayerCountWithText} 个层有文本`,
+        `内容预览：${transcriptionPreview}`,
+        `关联影响：${translationLayerCountWithText} 个翻译层包含文本，删除后会失去关联`,
         '删除后在当前应用内不可恢复',
       ],
     };
-  }, [getUtteranceTextForLayer, translations, utterances]);
+  }, [formatTime, getUtteranceTextForLayer, translations, utterances]);
 
   const aiChat = useAiChat({
     onToolCall: handleAiToolCall,
@@ -474,7 +569,7 @@ export function TranscriptionPage() {
     if (!featureFlags.aiChatEnabled || !aiChat.enabled) {
       return null;
     }
-    return resolveVoiceIntentWithLlmUsingConfig({
+    const resolved = await resolveVoiceIntentWithLlmUsingConfig({
       transcript: text,
       mode,
       settings: aiChat.settings,
@@ -482,6 +577,10 @@ export function TranscriptionPage() {
         .slice(-4)
         .map((entry) => `[${entry.intent.type}] ${entry.sttText}`),
     }, voiceIntentResolverConfig);
+    if (resolved.ok) {
+      return resolved.intent;
+    }
+    throw new Error(resolved.message);
   }, [aiChat.enabled, aiChat.settings, voiceIntentResolverConfig]);
 
   const handleTestEmbeddingProvider = useCallback(async (): Promise<{ available: boolean; error?: string }> => {
@@ -919,9 +1018,11 @@ export function TranscriptionPage() {
   ]);
 
   // 同步 duration 到 ref（供下次渲染的 zoom 计算使用）
-  if (player.duration > 0 && player.duration !== lastDurationRef.current) {
-    lastDurationRef.current = player.duration;
-  }
+  useEffect(() => {
+    if (player.duration > 0 && player.duration !== lastDurationRef.current) {
+      lastDurationRef.current = player.duration;
+    }
+  }, [player.duration]);
 
   // ---- Waveform region note indicators (rendered outside Shadow DOM via React) ----
   const [waveformScrollLeft, setWaveformScrollLeft] = useState(0);
@@ -1449,6 +1550,7 @@ export function TranscriptionPage() {
     aiConnectionTestMessage: aiChat.connectionTestMessage,
     aiContextDebugSnapshot: aiChat.contextDebugSnapshot,
     aiPendingToolCall: aiChat.pendingToolCall,
+    aiTaskSession: aiChat.taskSession,
     aiToolDecisionLogs,
     onUpdateAiChatSettings: aiChat.updateSettings,
     onTestAiConnection: aiChat.testConnection,
@@ -1897,6 +1999,7 @@ export function TranscriptionPage() {
           </section>
 
           {/* Editor workspace: left side for row editing, right side for AI guidance. */}
+          <ToastProvider>
           <main
             ref={workspaceRef}
             className={`transcription-workspace ${isAiPanelCollapsed ? 'transcription-workspace-ai-collapsed' : ''}`}
@@ -2370,9 +2473,17 @@ export function TranscriptionPage() {
             </button>
 
             <AiPanelContext.Provider value={aiPanelContextValue}>
-              <AiAssistantHubContext.Provider value={aiAssistantHubContextValue}>
-                <aside className={`transcription-ai-panel ${isAiPanelCollapsed ? 'transcription-ai-panel-collapsed' : ''}`}>
-                  <div className="transcription-hub-sidebar-tabs" role="tablist">
+                <AiAssistantHubContext.Provider value={aiAssistantHubContextValue}>
+                  <ToastController
+                    voiceAgent={voiceAgent}
+                    saveState={saveState}
+                    recording={recording}
+                    recordingUtteranceId={recordingUtteranceId}
+                    recordingError={recordingError}
+                    tf={tfB}
+                  />
+                  <aside className={`transcription-ai-panel ${isAiPanelCollapsed ? 'transcription-ai-panel-collapsed' : ''}`}>
+                    <div className="transcription-hub-sidebar-tabs" role="tablist">
                     <button
                       type="button"
                       role="tab"
@@ -2463,6 +2574,7 @@ export function TranscriptionPage() {
               </AiAssistantHubContext.Provider>
             </AiPanelContext.Provider>
           </main>
+          </ToastProvider>
 
           <PdfPreviewSection
             locale={locale}
@@ -2475,16 +2587,6 @@ export function TranscriptionPage() {
             onOpenExternal={handlePdfPreviewOpenExternal}
             onClose={handleClosePdfPreview}
           />
-
-          <div className="transcription-toast-container">
-            {saveState.kind === 'saving' && <div className="transcription-toast transcription-toast-info">{t(locale, 'transcription.toast.saving')}</div>}
-            {saveState.kind === 'done' && <div className="transcription-toast transcription-toast-success">{saveState.message}</div>}
-            {saveState.kind === 'error' && <div className="transcription-toast transcription-toast-error">{saveState.message}</div>}
-            {recording && (
-              <div className="transcription-toast transcription-toast-recording">{tf(locale, 'transcription.toast.recording', { id: recordingUtteranceId ?? t(locale, 'transcription.toast.recordingUnknownRow') })}</div>
-            )}
-            {recordingError && <div className="transcription-toast transcription-toast-error">{recordingError}</div>}
-          </div>
 
           <ProjectSetupDialog
             isOpen={showProjectSetup}
