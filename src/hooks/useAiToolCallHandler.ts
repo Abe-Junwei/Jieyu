@@ -41,6 +41,37 @@ export function useAiToolCallHandler({
   saveUtteranceText,
   saveTextTranslationForUtterance,
 }: Params): (call: AiChatToolCall) => Promise<AiChatToolResult> {
+  const normalizeText = (value: string): string => value.trim().toLowerCase();
+
+  const buildLanguageTokens = (query: string): string[] => {
+    const q = normalizeText(query);
+    const tokens = new Set<string>([q]);
+    if (/(日本|日语|日文|日本语|japanese|\bja\b|\bjpn\b)/i.test(query)) {
+      ['日本', '日语', '日文', '日本语', 'japanese', 'ja', 'jpn'].forEach((token) => tokens.add(token));
+    }
+    if (/(英语|英文|english|\ben\b|\beng\b)/i.test(query)) {
+      ['英语', '英文', 'english', 'en', 'eng'].forEach((token) => tokens.add(token));
+    }
+    if (/(中文|汉语|普通话|chinese|\bzh\b|\bzho\b)/i.test(query)) {
+      ['中文', '汉语', '普通话', 'chinese', 'zh', 'zho'].forEach((token) => tokens.add(token));
+    }
+    return Array.from(tokens).filter((token) => token.length > 0);
+  };
+
+  const layerMatchesLanguage = (layer: TranslationLayerDocType, languageQuery: string): boolean => {
+    const fields = [
+      layer.languageId,
+      layer.key,
+      layer.name.zho,
+      layer.name.eng,
+    ]
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .map((value) => normalizeText(value));
+
+    const tokens = buildLanguageTokens(languageQuery).map((token) => normalizeText(token));
+    return tokens.some((token) => fields.some((field) => field.includes(token) || token.includes(field)));
+  };
+
   const utterancesRef = useLatest(utterances);
   const selectedUtteranceRef = useLatest(selectedUtterance);
   const selectedUtteranceMediaRef = useLatest(selectedUtteranceMedia);
@@ -69,6 +100,19 @@ export function useAiToolCallHandler({
 
       if (currentSelectedUtterance) return currentSelectedUtterance;
       return fallbackUtterance ?? null;
+    };
+
+    const resolveRequestedUtterance = (): UtteranceDocType | null => {
+      const requestedId = String(call.arguments.utteranceId ?? '').trim();
+      if (requestedId.length === 0) return null;
+      return currentUtterances.find((item) => item.id === requestedId) ?? null;
+    };
+
+    const resolveRequestedTranslationLayerId = (): string => {
+      const requestedLayerId = String(call.arguments.layerId ?? '').trim();
+      if (requestedLayerId.length === 0) return '';
+      if (!currentTranslationLayers.some((layer) => layer.id === requestedLayerId)) return '';
+      return requestedLayerId;
     };
 
     const resolveTargetTranslationLayerId = (): string => {
@@ -119,31 +163,35 @@ export function useAiToolCallHandler({
     };
 
     if (call.name === 'create_transcription_segment') {
-      const baseUtterance = resolveTargetUtterance();
+      const requestedId = String(call.arguments.utteranceId ?? '').trim();
+      if (requestedId.length === 0) {
+        return { ok: false, message: '缺少 utteranceId，切分句段必须显式指定目标句段。' };
+      }
+
+      const baseUtterance = resolveRequestedUtterance();
       if (!baseUtterance) {
-        return { ok: false, message: '当前没有可用句段，无法创建新句段。' };
+        return { ok: false, message: `未找到目标句段：${requestedId}` };
       }
 
       const mediaDuration = typeof currentSelectedUtteranceMedia?.duration === 'number'
         ? currentSelectedUtteranceMedia.duration
         : baseUtterance.endTime + 2;
       await createNextUtterance(baseUtterance, mediaDuration);
-      if (!currentSelectedUtterance && fallbackUtterance) {
-        return { ok: true, message: `未选中句段，已自动基于现有句段（${baseUtterance.id}）创建新区间。` };
-      }
       return { ok: true, message: '已在当前句段后创建新区间。' };
     }
 
     if (call.name === 'delete_transcription_segment') {
-      const targetUtterance = resolveTargetUtterance();
+      const requestedId = String(call.arguments.utteranceId ?? '').trim();
+      if (requestedId.length === 0) {
+        return { ok: false, message: '缺少 utteranceId，删除句段必须显式指定目标句段。' };
+      }
+
+      const targetUtterance = resolveRequestedUtterance();
       if (!targetUtterance) {
-        return { ok: false, message: '当前没有可删除的句段。' };
+        return { ok: false, message: `未找到目标句段：${requestedId}` };
       }
 
       await deleteUtterance(targetUtterance.id);
-      if (!currentSelectedUtterance) {
-        return { ok: true, message: `未选中句段，已自动删除现有句段（${targetUtterance.id}）。` };
-      }
       return { ok: true, message: '句段已删除。' };
     }
 
@@ -153,15 +201,17 @@ export function useAiToolCallHandler({
         return { ok: false, message: '缺少 text 参数，无法写入转写文本。' };
       }
 
-      const targetUtterance = resolveTargetUtterance();
+      const requestedId = String(call.arguments.utteranceId ?? '').trim();
+      if (requestedId.length === 0) {
+        return { ok: false, message: '缺少 utteranceId，写入转写文本必须显式指定目标句段。' };
+      }
+
+      const targetUtterance = resolveRequestedUtterance();
       if (!targetUtterance) {
-        return { ok: false, message: '当前没有可写入的转写行。' };
+        return { ok: false, message: `未找到目标句段：${requestedId}` };
       }
 
       await saveUtteranceText(targetUtterance.id, text);
-      if (!currentSelectedUtterance) {
-        return { ok: true, message: `未选中行，已自动写入现有转写行（${targetUtterance.id}）。` };
-      }
       return { ok: true, message: '转写文本已写入。' };
     }
 
@@ -171,32 +221,49 @@ export function useAiToolCallHandler({
         return { ok: false, message: '缺少 text 参数，无法写入翻译文本。' };
       }
 
-      const targetUtterance = resolveTargetUtterance();
-      if (!targetUtterance) {
-        return { ok: false, message: '当前没有可写入翻译的转写行。' };
+      const requestedUtteranceId = String(call.arguments.utteranceId ?? '').trim();
+      if (requestedUtteranceId.length === 0) {
+        return { ok: false, message: '缺少 utteranceId，写入翻译文本必须显式指定目标句段。' };
       }
 
-      const targetLayerId = resolveTargetTranslationLayerId();
+      const targetUtterance = resolveRequestedUtterance();
+      if (!targetUtterance) {
+        return { ok: false, message: `未找到目标句段：${requestedUtteranceId}` };
+      }
+
+      const requestedLayerId = String(call.arguments.layerId ?? '').trim();
+      if (requestedLayerId.length === 0) {
+        return { ok: false, message: '缺少 layerId，写入翻译文本必须显式指定目标翻译层。' };
+      }
+
+      const targetLayerId = resolveRequestedTranslationLayerId();
       if (!targetLayerId) {
-        return { ok: false, message: '当前没有翻译层，请先创建翻译层。' };
+        return { ok: false, message: `未找到目标翻译层：${requestedLayerId}` };
       }
 
       await saveTextTranslationForUtterance(targetUtterance.id, text, targetLayerId);
-      if (!currentSelectedUtterance) {
-        return { ok: true, message: `未选中行，已自动写入现有转写行（${targetUtterance.id}）的翻译。` };
-      }
       return { ok: true, message: '翻译文本已写入。' };
     }
 
     if (call.name === 'clear_translation_segment') {
-      const targetUtterance = resolveTargetUtterance();
-      if (!targetUtterance) {
-        return { ok: false, message: '当前没有可清空翻译的句段。' };
+      const requestedUtteranceId = String(call.arguments.utteranceId ?? '').trim();
+      if (requestedUtteranceId.length === 0) {
+        return { ok: false, message: '缺少 utteranceId，清空翻译必须显式指定目标句段。' };
       }
 
-      const targetLayerId = resolveTargetTranslationLayerId();
+      const targetUtterance = resolveRequestedUtterance();
+      if (!targetUtterance) {
+        return { ok: false, message: `未找到目标句段：${requestedUtteranceId}` };
+      }
+
+      const requestedLayerId = String(call.arguments.layerId ?? '').trim();
+      if (requestedLayerId.length === 0) {
+        return { ok: false, message: '缺少 layerId，清空翻译必须显式指定目标翻译层。' };
+      }
+
+      const targetLayerId = resolveRequestedTranslationLayerId();
       if (!targetLayerId) {
-        return { ok: false, message: '当前没有可清空翻译的翻译层。' };
+        return { ok: false, message: `未找到目标翻译层：${requestedLayerId}` };
       }
 
       const targetLayer = currentTranslationLayers.find((layer) => layer.id === targetLayerId);
@@ -206,12 +273,6 @@ export function useAiToolCallHandler({
 
       await saveTextTranslationForUtterance(targetUtterance.id, '', targetLayerId);
       const layerLabel = targetLayer.name.zho ?? targetLayer.name.eng ?? targetLayer.key;
-      if (!currentSelectedUtterance) {
-        return { ok: true, message: `未选中句段，已清空句段（${targetUtterance.id}）在层 ${layerLabel} 的翻译文本。` };
-      }
-      if (!currentSelectedLayerId || currentSelectedLayerId !== targetLayerId) {
-        return { ok: true, message: `已自动定位层 ${layerLabel} 并清空当前句段的翻译文本。` };
-      }
       return { ok: true, message: `已清空句段 ${targetUtterance.id} 在层 ${layerLabel} 的翻译文本。` };
     }
 
@@ -254,15 +315,57 @@ export function useAiToolCallHandler({
     }
 
     if (call.name === 'delete_layer') {
-      const targetLayerId = resolveTargetLayerId();
-      if (!targetLayerId) {
-        return { ok: false, message: '缺少 layerId，且当前没有已选中层，无法删除。' };
+      const requestedLayerId = String(call.arguments.layerId ?? '').trim();
+      if (requestedLayerId.length > 0) {
+        const exists = currentTranscriptionLayers.some((layer) => layer.id === requestedLayerId)
+          || currentTranslationLayers.some((layer) => layer.id === requestedLayerId);
+        if (!exists) {
+          return { ok: false, message: `未找到目标层：${requestedLayerId}` };
+        }
+        await deleteLayer(requestedLayerId);
+        return { ok: true, message: `已删除层：${requestedLayerId}` };
       }
-      await deleteLayer(targetLayerId);
-      return { ok: true, message: `已删除层：${targetLayerId}` };
+
+      const layerType = String(call.arguments.layerType ?? '').trim().toLowerCase();
+      const languageQuery = String(call.arguments.languageQuery ?? '').trim();
+      if (!layerType || !languageQuery) {
+        return { ok: false, message: '缺少 layerId，删除层必须显式指定 layerId，或提供 layerType + languageQuery。' };
+      }
+
+      const pool = layerType === 'translation'
+        ? currentTranslationLayers
+        : layerType === 'transcription'
+          ? currentTranscriptionLayers
+          : [];
+      if (pool.length === 0) {
+        return { ok: false, message: `未找到可删除的${layerType === 'translation' ? '翻译' : '转写'}层。` };
+      }
+
+      const matched = pool.filter((layer) => layerMatchesLanguage(layer, languageQuery));
+      if (matched.length === 0) {
+        return { ok: false, message: `未找到匹配“${languageQuery}”的${layerType === 'translation' ? '翻译' : '转写'}层。` };
+      }
+      if (matched.length > 1) {
+        return { ok: false, message: `匹配到多个${layerType === 'translation' ? '翻译' : '转写'}层，请改用 layerId 精确指定。` };
+      }
+
+      const targetLayer = matched[0]!;
+      await deleteLayer(targetLayer.id);
+      return { ok: true, message: `已删除层：${targetLayer.id}` };
     }
 
     if (call.name === 'link_translation_layer' || call.name === 'unlink_translation_layer') {
+      const requestedTranscriptionLayerId = String(call.arguments.transcriptionLayerId ?? '').trim();
+      const requestedTranscriptionLayerKey = String(call.arguments.transcriptionLayerKey ?? '').trim();
+      if (!requestedTranscriptionLayerId && !requestedTranscriptionLayerKey) {
+        return { ok: false, message: '缺少 transcriptionLayerId/transcriptionLayerKey，必须显式指定目标转写层。' };
+      }
+
+      const requestedTranslationLayerId = String(call.arguments.translationLayerId ?? call.arguments.layerId ?? '').trim();
+      if (!requestedTranslationLayerId) {
+        return { ok: false, message: '缺少 translationLayerId/layerId，必须显式指定目标翻译层。' };
+      }
+
       const trcLayer = resolveTranscriptionLayerForLink();
       if (!trcLayer) {
         return { ok: false, message: '未找到可用转写层，无法设置链接。' };
@@ -291,9 +394,14 @@ export function useAiToolCallHandler({
     }
 
     if (call.name === 'auto_gloss_utterance') {
-      const targetUtterance = resolveTargetUtterance();
+      const requestedId = String(call.arguments.utteranceId ?? '').trim();
+      if (requestedId.length === 0) {
+        return { ok: false, message: '缺少 utteranceId，自动标注必须显式指定目标句段。' };
+      }
+
+      const targetUtterance = resolveRequestedUtterance();
       if (!targetUtterance) {
-        return { ok: false, message: '当前没有可标注的句段。' };
+        return { ok: false, message: `未找到目标句段：${requestedId}` };
       }
       const service = new AutoGlossService();
       const result = await service.glossUtterance(targetUtterance.id);

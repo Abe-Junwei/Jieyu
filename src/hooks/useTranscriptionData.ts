@@ -488,5 +488,7 @@ export function useTranscriptionData() {
     ...undoApi,
     ...recoveryApi,
     ...canonicalApi,
+    pushUndo,
+    setUtterances,
   };
 }

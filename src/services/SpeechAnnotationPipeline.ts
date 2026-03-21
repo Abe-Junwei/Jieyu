@@ -65,6 +65,8 @@ export interface DictationPipelineState {
   progress: { done: number; total: number };
   /** 最后更新时间戳 */
   lastUpdateAt: number;
+  /** 最后一次填充错误 | Last fill error message */
+  lastError?: string;
 }
 
 export interface DictationPipelineCallbacks {
@@ -74,6 +76,8 @@ export interface DictationPipelineCallbacks {
   getCurrentSegmentId: () => string | null;
   /** 填充文本到句段 */
   fillSegment: (segmentId: string, layer: AnnotationLayer, text: string) => Promise<void>;
+  /** 恢复句段文本（用于撤销） */
+  restoreSegment: (segmentId: string, layer: AnnotationLayer, previousText: string | null) => Promise<void>;
   /** 导航到指定句段 */
   navigateTo: (segmentId: string) => void;
   /** 导航到下一个未标注句段 */
@@ -93,6 +97,7 @@ export class SpeechAnnotationPipeline {
   private _silenceTimer: ReturnType<typeof setTimeout> | null = null;
   private _maxDurationTimer: ReturnType<typeof setTimeout> | null = null;
   private _lastFinalText = '';
+  private _filledHistory: Array<{ segmentId: string; layer: AnnotationLayer; previousText: string | null }> = [];
 
   constructor(callbacks: DictationPipelineCallbacks, config: QuickDictationConfig = {}) {
     this._callbacks = callbacks;
@@ -212,13 +217,67 @@ export class SpeechAnnotationPipeline {
     this._advanceToNext();
   }
 
+  /** Number of undo-able operations. | 可撤销操作次数 */
+  get undoCount(): number {
+    return this._filledHistory.length;
+  }
+
   /**
-   * Undo the last fill (restore previous text)
+   * Undo the last fill (restore previous text) and navigate back.
+   * 撤销最后一次填充，恢复文本并跳回该句段。
    */
   async undoLast(): Promise<void> {
-    if (this._state.filledCount <= 0) return;
-    // The actual undo is handled by the page — we just signal the count decremented
-    this._state = { ...this._state, filledCount: this._state.filledCount - 1 };
+    const last = this._filledHistory.pop();
+    if (!last) return;
+
+    await this._callbacks.restoreSegment(last.segmentId, last.layer, last.previousText);
+
+    const nextDone = Math.max(0, this._state.progress.done - 1);
+    this._state = {
+      ...this._state,
+      filledCount: Math.max(0, this._state.filledCount - 1),
+      progress: { ...this._state.progress, done: nextDone },
+      confirmedText: '',
+      lastUpdateAt: Date.now(),
+    };
+
+    // Navigate back to the restored segment so user can re-dictate
+    // 跳回被撤销的句段，便于重新听写
+    const restoredIdx = this._segments.findIndex((s) => s.segmentId === last.segmentId);
+    if (restoredIdx >= 0) {
+      this._currentSegmentIndex = restoredIdx;
+      const segment = this._segments[restoredIdx] ?? null;
+      this._state = { ...this._state, currentSegment: segment };
+      if (segment) this._callbacks.navigateTo(segment.segmentId);
+    }
+  }
+
+  /**
+   * Undo all fills (batch rollback) — restores every segment in reverse order.
+   * 批量撤销所有填充，按逆序恢复每个句段。
+   */
+  async undoAll(): Promise<number> {
+    let count = 0;
+    while (this._filledHistory.length > 0) {
+      const entry = this._filledHistory.pop()!;
+      await this._callbacks.restoreSegment(entry.segmentId, entry.layer, entry.previousText);
+      count++;
+    }
+    if (count > 0) {
+      this._state = {
+        ...this._state,
+        filledCount: 0,
+        progress: { ...this._state.progress, done: 0 },
+        confirmedText: '',
+        lastUpdateAt: Date.now(),
+      };
+      // Navigate back to first segment | 跳回第一个句段
+      this._currentSegmentIndex = 0;
+      const segment = this._segments[0] ?? null;
+      this._state = { ...this._state, currentSegment: segment };
+      if (segment) this._callbacks.navigateTo(segment.segmentId);
+    }
+    return count;
   }
 
   // ── Private ───────────────────────────────────────────────────────────────
@@ -227,8 +286,24 @@ export class SpeechAnnotationPipeline {
     const segment = this._state.currentSegment;
     if (!segment) return;
 
+    const previousText = this._config.targetLayer === 'transcription'
+      ? segment.existingText
+      : (this._config.targetLayer === 'translation' ? segment.existingTranslation : null);
+
     try {
       await this._callbacks.fillSegment(segment.segmentId, this._config.targetLayer, text);
+      this._filledHistory.push({
+        segmentId: segment.segmentId,
+        layer: this._config.targetLayer,
+        previousText,
+      });
+
+      if (this._config.targetLayer === 'transcription') {
+        segment.existingText = text;
+      } else if (this._config.targetLayer === 'translation') {
+        segment.existingTranslation = text;
+      }
+
       this._callbacks.playEarcon?.('success');
       this._state = {
         ...this._state,
@@ -246,8 +321,12 @@ export class SpeechAnnotationPipeline {
       } else if (this._config.autoStopOnComplete) {
         this.stop();
       }
-    } catch {
+    } catch (err) {
       this._callbacks.playEarcon?.('error');
+      this._state = {
+        ...this._state,
+        lastError: err instanceof Error ? err.message : '填充失败 | Fill failed',
+      };
     }
   }
 

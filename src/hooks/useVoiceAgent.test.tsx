@@ -2,7 +2,19 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { useVoiceAgent } from './useVoiceAgent';
-import type { ActionId } from '../services/IntentRouter';
+import {
+  clearVoiceAliasLearningLog,
+  loadVoiceAliasLearningLog,
+  saveVoiceIntentAliasMap,
+  type ActionId,
+} from '../services/IntentRouter';
+
+// ── Mock region detection (avoids 3-second timeout in tests) ──
+vi.mock('../utils/regionDetection', () => ({
+  detectRegion: vi.fn().mockResolvedValue('global'),
+  saveRegionPreference: vi.fn(),
+  clearRegionPreference: vi.fn(),
+}));
 
 // ── Mock VoiceInputService ──
 
@@ -42,6 +54,7 @@ vi.mock('../services/VoiceInputService', () => {
 
     start() { for (const fn of this.stateListeners) fn(true); }
     stop()  { for (const fn of this.stateListeners) fn(false); }
+    setLang() {}
     dispose() { this.stop(); }
 
     simulateResult(result: unknown) {
@@ -71,9 +84,14 @@ vi.mock('../services/EarconService', () => ({
   playSuccess:    vi.fn(),
   playError:      vi.fn(),
   playTick:       vi.fn(),
+  unlockAudio:    vi.fn(async () => {}),
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  clearVoiceAliasLearningLog();
+  saveVoiceIntentAliasMap({});
+});
 
 const makeExecuteAction = () => vi.fn<(actionId: ActionId) => void>();
 
@@ -538,6 +556,83 @@ describe('useVoiceAgent', () => {
       });
 
       expect(resolveIntentWithLlm).not.toHaveBeenCalled();
+    });
+
+    it('learns alias after action fallback and skips LLM next time', async () => {
+      const executeAction = makeExecuteAction();
+      const resolveIntentWithLlm = vi.fn().mockResolvedValue({
+        type: 'action',
+        actionId: 'playPause',
+        confidence: 1,
+        raw: '开始一下',
+      });
+
+      const { result } = renderHook(() =>
+        useVoiceAgent({ executeAction, resolveIntentWithLlm }),
+      );
+
+      await act(async () => { result.current.start('command'); });
+
+      await act(async () => {
+        lastMockVoiceService?.simulateResult({
+          text: '开始一下',
+          lang: 'zh-CN',
+          isFinal: true,
+          confidence: 0.9,
+          engine: 'web-speech',
+        });
+        await Promise.resolve();
+      });
+
+      await act(async () => {
+        lastMockVoiceService?.simulateResult({
+          text: '开始一下',
+          lang: 'zh-CN',
+          isFinal: true,
+          confidence: 0.9,
+          engine: 'web-speech',
+        });
+        await Promise.resolve();
+      });
+
+      expect(resolveIntentWithLlm).toHaveBeenCalledTimes(1);
+      expect(executeAction).toHaveBeenCalledTimes(2);
+      expect(executeAction).toHaveBeenNthCalledWith(1, 'playPause');
+      expect(executeAction).toHaveBeenNthCalledWith(2, 'playPause');
+    });
+
+    it('records alias learning log entries for fallback decisions', async () => {
+      const resolveIntentWithLlm = vi.fn().mockResolvedValue({
+        type: 'action',
+        actionId: 'playPause',
+        confidence: 1,
+        raw: '开始一下',
+      });
+
+      const { result } = renderHook(() =>
+        useVoiceAgent({ executeAction: makeExecuteAction(), resolveIntentWithLlm }),
+      );
+
+      await act(async () => { result.current.start('command'); });
+
+      await act(async () => {
+        lastMockVoiceService?.simulateResult({
+          text: '开始一下',
+          lang: 'zh-CN',
+          isFinal: true,
+          confidence: 0.9,
+          engine: 'web-speech',
+        });
+        await Promise.resolve();
+      });
+
+      const log = loadVoiceAliasLearningLog();
+      expect(log.length).toBeGreaterThan(0);
+      expect(log[log.length - 1]).toMatchObject({
+        phrase: '开始一下',
+        actionId: 'playPause',
+        reason: 'updated',
+      });
     });
   });
 });

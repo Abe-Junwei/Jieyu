@@ -78,6 +78,10 @@ export interface ActionIntent {
   raw: string;
   /** True when matched via fuzzy (substring) rules rather than exact regex. */
   fromFuzzy?: boolean;
+  /** True when matched via user alias map — caller should call bumpAliasUsage. */
+  fromAlias?: boolean;
+  /** Intent confidence (0-1), derived from STT confidence and rule matching path. */
+  confidence: number;
 }
 
 export interface ToolIntent {
@@ -162,10 +166,12 @@ export function exportReplaySequence(session: VoiceSession): VoiceReplayAction[]
 
 interface IntentRule {
   pattern: RegExp;
-  extract: (match: RegExpMatchArray) => VoiceIntent;
+  extract: (match: RegExpMatchArray, confidence: number) => VoiceIntent;
   priority: number;
   /** Modes where this rule is active. Undefined = all modes. */
   mode?: VoiceAgentMode;
+  /** Optional locale guard; if omitted, applies to all locales. */
+  locales?: readonly string[];
 }
 
 /** Matches VoiceAgentMode values used for rule filtering. */
@@ -180,79 +186,80 @@ type VoiceAgentMode = 'command' | 'dictation' | 'analysis';
 const INTENT_RULES: IntentRule[] = [
   // ── Priority 100: Playback (all modes — always useful) ──
   {
-    pattern: /^(播放|暂停|停|play|pause|stop)$/,
-    extract: (m) => ({ type: 'action', actionId: 'playPause', raw: m[0] }),
+    // Allow optional trailing punctuation (whisper may return "播放!" or "播放。")
+    pattern: /^(播放|暂停|停|play|pause|stop)[.!。!?]*$/,
+    extract: (m, confidence) => ({ type: 'action', actionId: 'playPause', raw: m[0].replace(/[.!。!?]+$/, ''), confidence }),
     priority: 100,
   },
 
   // ── Priority 90: Navigation (all modes) ──
   {
     pattern: /^(上一[个句段条]|前一[个句段条]|previous|prev)$/,
-    extract: (m) => ({ type: 'action', actionId: 'navPrev', raw: m[0] }),
+    extract: (m, confidence) => ({ type: 'action', actionId: 'navPrev', raw: m[0], confidence }),
     priority: 90,
   },
   {
     pattern: /^(下一[个句段条]|后一[个句段条]|next)$/,
-    extract: (m) => ({ type: 'action', actionId: 'navNext', raw: m[0] }),
+    extract: (m, confidence) => ({ type: 'action', actionId: 'navNext', raw: m[0], confidence }),
     priority: 90,
   },
 
   // ── Priority 85: Editing (all modes) ──
   {
     pattern: /^(标记|mark|mark\s*segment)$/,
-    extract: (m) => ({ type: 'action', actionId: 'markSegment', raw: m[0] }),
+    extract: (m, confidence) => ({ type: 'action', actionId: 'markSegment', raw: m[0], confidence }),
     priority: 85,
   },
   {
     pattern: /^(删除|删掉|delete|remove)$/,
-    extract: (m) => ({ type: 'action', actionId: 'deleteSegment', raw: m[0] }),
+    extract: (m, confidence) => ({ type: 'action', actionId: 'deleteSegment', raw: m[0], confidence }),
     priority: 85,
   },
   {
     pattern: /^(合并上一个|merge\s*prev(?:ious)?)$/,
-    extract: (m) => ({ type: 'action', actionId: 'mergePrev', raw: m[0] }),
+    extract: (m, confidence) => ({ type: 'action', actionId: 'mergePrev', raw: m[0], confidence }),
     priority: 85,
   },
   {
     pattern: /^(合并下一个|merge\s*next)$/,
-    extract: (m) => ({ type: 'action', actionId: 'mergeNext', raw: m[0] }),
+    extract: (m, confidence) => ({ type: 'action', actionId: 'mergeNext', raw: m[0], confidence }),
     priority: 85,
   },
   {
     pattern: /^(分割|split|分割句段)$/,
-    extract: (m) => ({ type: 'action', actionId: 'splitSegment', raw: m[0] }),
+    extract: (m, confidence) => ({ type: 'action', actionId: 'splitSegment', raw: m[0], confidence }),
     priority: 85,
   },
   {
     pattern: /^(取消|cancel|escape)$/,
-    extract: (m) => ({ type: 'action', actionId: 'cancel', raw: m[0] }),
+    extract: (m, confidence) => ({ type: 'action', actionId: 'cancel', raw: m[0], confidence }),
     priority: 85,
   },
   {
     pattern: /^(撤销|undo)$/,
-    extract: (m) => ({ type: 'action', actionId: 'undo', raw: m[0] }),
+    extract: (m, confidence) => ({ type: 'action', actionId: 'undo', raw: m[0], confidence }),
     priority: 85,
   },
   {
     pattern: /^(重做|redo)$/,
-    extract: (m) => ({ type: 'action', actionId: 'redo', raw: m[0] }),
+    extract: (m, confidence) => ({ type: 'action', actionId: 'redo', raw: m[0], confidence }),
     priority: 85,
   },
   {
     pattern: /^(全选|select\s*all)$/,
-    extract: (m) => ({ type: 'action', actionId: 'selectAll', raw: m[0] }),
+    extract: (m, confidence) => ({ type: 'action', actionId: 'selectAll', raw: m[0], confidence }),
     priority: 85,
   },
 
   // ── Priority 80: View (all modes) ──
   {
     pattern: /^(搜索|查找|search|find)$/,
-    extract: (m) => ({ type: 'action', actionId: 'search', raw: m[0] }),
+    extract: (m, confidence) => ({ type: 'action', actionId: 'search', raw: m[0], confidence }),
     priority: 80,
   },
   {
     pattern: /^(备注|笔记|notes|toggle\s*notes)$/,
-    extract: (m) => ({ type: 'action', actionId: 'toggleNotes', raw: m[0] }),
+    extract: (m, confidence) => ({ type: 'action', actionId: 'toggleNotes', raw: m[0], confidence }),
     priority: 80,
   },
 
@@ -281,7 +288,7 @@ const INTENT_RULES: IntentRule[] = [
   // ── Priority 65: Dictation-mode control (all modes) ──
   {
     pattern: /^(?:退出听写|停止听写|结束听写|exit\s*dictation|stop\s*dictation)$/,
-    extract: (m) => ({ type: 'action', actionId: 'cancel', raw: m[0] }),
+    extract: (m, confidence) => ({ type: 'action', actionId: 'cancel', raw: m[0], confidence }),
     priority: 65,
   },
 
@@ -330,10 +337,10 @@ interface FuzzyRule {
  */
 const FUZZY_RULES: FuzzyRule[] = [
   // Playback — very high recall (play/pause/stop are the same action)
-  { keywords: '播放 播一下 播放一下 播呗 播放呗 停一下 暂停 停止 关了 关上 打开 开', actionId: 'playPause', priority: 50 },
+  { keywords: '播放 播一下 播放一下 播呗 播放呗 停一下 暂停 停止', actionId: 'playPause', priority: 50 },
   // Navigation — also very high recall
-  { keywords: '上一 前一个 上一个 上  previous prev 向后', actionId: 'navPrev', priority: 50 },
-  { keywords: '下一 后一个 下一个 下  next 向后', actionId: 'navNext', priority: 50 },
+  { keywords: '上一 前一个 上一个 上一条 前一条 previous prev 向前 往前', actionId: 'navPrev', priority: 50 },
+  { keywords: '下一 后一个 下一个 下一条 后一条 next 向后 往后', actionId: 'navNext', priority: 50 },
   // Segment editing — common partial speech forms
   { keywords: '标记 标一下 标记一下 标记句段 mark segment mark一下 标注', actionId: 'markSegment', priority: 50 },
   { keywords: '删除 删掉 删一下 删除一下 删除这句 删了 删', actionId: 'deleteSegment', priority: 50 },
@@ -376,21 +383,34 @@ const SORTED_FUZZY_RULES = [...FUZZY_RULES].sort((a, b) => b.priority - a.priori
 export function routeIntent(
   text: string,
   mode: VoiceAgentMode = 'command',
+  options?: { sttConfidence?: number; detectedLang?: string; aliasMap?: Record<string, ActionId> },
 ): VoiceIntent {
   const trimmed = text.trim();
   if (!trimmed) {
     return { type: 'chat', text: '', raw: text };
   }
 
+  const sttConfidence = Math.min(1, Math.max(0, options?.sttConfidence ?? 1));
+  const locale = (options?.detectedLang ?? '').toLowerCase();
+
   // Strip trailing punctuation for matching (e.g. "播放。" → "播放")
   const cleaned = trimmed.replace(/[。！？，、,.!?]+$/, '').toLowerCase();
+
+  // Alias map has the highest priority for user-specific adaptation.
+  const aliasAction = options?.aliasMap?.[cleaned];
+  if (aliasAction) {
+    return { type: 'action', actionId: aliasAction, raw: text, fromAlias: true, confidence: sttConfidence };
+  }
 
   // Try all exact rules in priority order, respecting mode filter
   for (const rule of SORTED_RULES) {
     if (rule.mode !== undefined && rule.mode !== mode) continue;
+    if (rule.locales && rule.locales.length > 0 && !rule.locales.some((item) => locale.startsWith(item.toLowerCase()))) {
+      continue;
+    }
     const match = cleaned.match(rule.pattern);
     if (match) {
-      const intent = rule.extract(match);
+      const intent = rule.extract(match, sttConfidence);
       return { ...intent, raw: text } as VoiceIntent;
     }
   }
@@ -399,8 +419,18 @@ export function routeIntent(
   if (mode === 'command') {
     for (const rule of SORTED_FUZZY_RULES) {
       const kwList = rule.keywords.split(' ').filter(Boolean);
-      if (kwList.some((kw) => cleaned.includes(kw))) {
-        return { type: 'action', actionId: rule.actionId, raw: text, fromFuzzy: true };
+      const matched = kwList.some((kw) => {
+        if (locale.startsWith('zh') && /^[a-z\s-]+$/i.test(kw)) return false;
+        return cleaned.includes(kw);
+      });
+      if (matched) {
+        return {
+          type: 'action',
+          actionId: rule.actionId,
+          raw: text,
+          fromFuzzy: true,
+          confidence: Math.max(0.35, sttConfidence * 0.7),
+        };
       }
     }
   }
@@ -416,6 +446,267 @@ export function routeIntent(
   return { type: 'chat', text: trimmed, raw: text };
 }
 
+/** Confidence threshold below which disambiguation alternatives are offered.
+ * 低于此信心度时提供消歧备选列表。 */
+export const LOW_CONFIDENCE_THRESHOLD = 0.55;
+
+/**
+ * Collect alternative action intents from fuzzy rules (for disambiguation UI).
+ * Returns up to `maxAlternatives` candidates sorted by priority, excluding the primary intent.
+ *
+ * 采集备选动作意图（模糊规则），用于消歧面板。
+ */
+export function collectAlternativeIntents(
+  text: string,
+  primaryActionId: ActionId | null,
+  sttConfidence: number,
+  maxAlternatives = 3,
+): ActionIntent[] {
+  const cleaned = text.trim().replace(/[。！？，、,.!?]+$/, '').toLowerCase();
+  if (!cleaned) return [];
+
+  const alternatives: ActionIntent[] = [];
+  for (const rule of SORTED_FUZZY_RULES) {
+    if (rule.actionId === primaryActionId) continue;
+    const kwList = rule.keywords.split(' ').filter(Boolean);
+    const matched = kwList.some((kw) => cleaned.includes(kw));
+    if (matched) {
+      alternatives.push({
+        type: 'action',
+        actionId: rule.actionId,
+        raw: text,
+        fromFuzzy: true,
+        confidence: Math.max(0.2, sttConfidence * 0.5),
+      });
+    }
+    if (alternatives.length >= maxAlternatives) break;
+  }
+  return alternatives;
+}
+
+const VOICE_ALIAS_STORAGE_KEY = 'jieyu.voice.intent.aliases';
+const VOICE_ALIAS_META_STORAGE_KEY = 'jieyu.voice.intent.aliases.meta';
+const VOICE_ALIAS_LEARNING_LOG_KEY = 'jieyu.voice.intent.aliasLearningLog';
+const MAX_VOICE_ALIAS_LOG_SIZE = 50;
+
+/** Per-entry metadata stored alongside the alias map.
+ * 别名元数据：学习时间、最后匹配时间、使用次数 */
+export interface VoiceAliasMeta {
+  learnedAt: number;
+  lastUsedAt: number;
+  usageCount: number;
+}
+
+function loadVoiceAliasMetaMapInternal(): Record<string, VoiceAliasMeta> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(VOICE_ALIAS_META_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, VoiceAliasMeta>;
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
+function saveVoiceAliasMetaMap(map: Record<string, VoiceAliasMeta>): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(VOICE_ALIAS_META_STORAGE_KEY, JSON.stringify(map));
+}
+
+/** Returns a copy of the meta map for all stored aliases.
+ * 读取别名元数据 map（只读快照）。 */
+export function loadVoiceAliasMetaMap(): Record<string, VoiceAliasMeta> {
+  return loadVoiceAliasMetaMapInternal();
+}
+
+/**
+ * Increment usage count and update lastUsedAt for a matched alias.
+ * 更新别名使用计数，应在 alias 命中路由后由调用方显式调用。
+ */
+export function bumpAliasUsage(phrase: string): void {
+  const key = phrase.trim().toLowerCase();
+  if (!key) return;
+  const meta = loadVoiceAliasMetaMapInternal();
+  const existing = meta[key];
+  meta[key] = {
+    learnedAt: existing?.learnedAt ?? Date.now(),
+    lastUsedAt: Date.now(),
+    usageCount: (existing?.usageCount ?? 0) + 1,
+  };
+  saveVoiceAliasMetaMap(meta);
+}
+
+/**
+ * Remove aliases not used within maxAgeDays days from both alias map and meta map.
+ * Returns the number of pruned entries.
+ *
+ * 剪枝超过 maxAgeDays 天未使用的别名。
+ */
+export function pruneStaleVoiceAliases(maxAgeDays = 30): number {
+  const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+  const aliasMap = loadVoiceIntentAliasMap();
+  const metaMap = loadVoiceAliasMetaMapInternal();
+
+  const staleKeys = Object.keys(aliasMap).filter((key) => {
+    const meta = metaMap[key];
+    // An alias with no meta is assumed stale (was created before P3 migration);
+    // use learnedAt as fallback sentinel if lastUsedAt is absent.
+    const lastUsed = meta?.lastUsedAt ?? meta?.learnedAt ?? 0;
+    return lastUsed < cutoff;
+  });
+
+  if (staleKeys.length === 0) return 0;
+
+  const nextAlias = { ...aliasMap };
+  const nextMeta = { ...metaMap };
+  for (const key of staleKeys) {
+    delete nextAlias[key];
+    delete nextMeta[key];
+  }
+  saveVoiceIntentAliasMap(nextAlias);
+  saveVoiceAliasMetaMap(nextMeta);
+  return staleKeys.length;
+}
+
+export function loadVoiceIntentAliasMap(): Record<string, ActionId> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(VOICE_ALIAS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    const out: Record<string, ActionId> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (isActionId(value)) out[key.toLowerCase()] = value;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function saveVoiceIntentAliasMap(aliasMap: Record<string, ActionId>): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(VOICE_ALIAS_STORAGE_KEY, JSON.stringify(aliasMap));
+}
+
+export interface VoiceAliasLearningResult {
+  applied: boolean;
+  key: string | null;
+  aliasMap: Record<string, ActionId>;
+  reason: 'empty' | 'updated' | 'unchanged' | 'conflict';
+}
+
+export interface VoiceAliasLearningLogEntry {
+  timestamp: number;
+  phrase: string;
+  actionId: ActionId;
+  reason: VoiceAliasLearningResult['reason'];
+  previousActionId?: ActionId;
+}
+
+export function learnVoiceIntentAliasFromMap(
+  aliasMap: Record<string, ActionId>,
+  phrase: string,
+  actionId: ActionId,
+): VoiceAliasLearningResult {
+  const key = phrase.trim().toLowerCase();
+  if (!key) {
+    return { applied: false, key: null, aliasMap, reason: 'empty' };
+  }
+
+  const existing = aliasMap[key];
+  if (existing && existing !== actionId) {
+    return { applied: false, key, aliasMap, reason: 'conflict' };
+  }
+
+  if (existing === actionId) {
+    return { applied: false, key, aliasMap, reason: 'unchanged' };
+  }
+
+  return {
+    applied: true,
+    key,
+    aliasMap: {
+      ...aliasMap,
+      [key]: actionId,
+    },
+    reason: 'updated',
+  };
+}
+
+export function loadVoiceAliasLearningLog(): VoiceAliasLearningLogEntry[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(VOICE_ALIAS_LEARNING_LOG_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as VoiceAliasLearningLogEntry[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((entry) => {
+      return typeof entry?.timestamp === 'number'
+        && typeof entry?.phrase === 'string'
+        && typeof entry?.actionId === 'string'
+        && typeof entry?.reason === 'string'
+        && isActionId(entry.actionId);
+    });
+  } catch {
+    return [];
+  }
+}
+
+export function clearVoiceAliasLearningLog(): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(VOICE_ALIAS_LEARNING_LOG_KEY);
+}
+
+function appendVoiceAliasLearningLog(entry: VoiceAliasLearningLogEntry): void {
+  if (typeof window === 'undefined') return;
+  const current = loadVoiceAliasLearningLog();
+  const next = [...current, entry];
+  if (next.length > MAX_VOICE_ALIAS_LOG_SIZE) {
+    next.splice(0, next.length - MAX_VOICE_ALIAS_LOG_SIZE);
+  }
+  window.localStorage.setItem(VOICE_ALIAS_LEARNING_LOG_KEY, JSON.stringify(next));
+}
+
+export function learnVoiceIntentAlias(phrase: string, actionId: ActionId): VoiceAliasLearningResult {
+  const current = loadVoiceIntentAliasMap();
+  const learned = learnVoiceIntentAliasFromMap(current, phrase, actionId);
+  const normalizedPhrase = phrase.trim();
+  const normalizedKey = normalizedPhrase.toLowerCase();
+  const previousActionId = normalizedKey ? current[normalizedKey] : undefined;
+  if (learned.applied && normalizedKey) {
+    saveVoiceIntentAliasMap(learned.aliasMap);
+    // Initialize meta entry for newly learned alias | 为新别名初始化元数据
+    const meta = loadVoiceAliasMetaMapInternal();
+    meta[normalizedKey] = {
+      learnedAt: Date.now(),
+      lastUsedAt: Date.now(),
+      usageCount: 0,
+    };
+    saveVoiceAliasMetaMap(meta);
+    // Lazy GC: prune stale entries on every new learn | 惰性清理过期别名
+    pruneStaleVoiceAliases();
+  }
+  appendVoiceAliasLearningLog({
+    timestamp: Date.now(),
+    phrase: normalizedPhrase,
+    actionId,
+    reason: learned.reason,
+    ...(previousActionId !== undefined && { previousActionId }),
+  });
+  return learned;
+}
+
+export function upsertVoiceIntentAlias(phrase: string, actionId: ActionId): void {
+  const key = phrase.trim().toLowerCase();
+  if (!key) return;
+  const current = loadVoiceIntentAliasMap();
+  current[key] = actionId;
+  saveVoiceIntentAliasMap(current);
+}
+
 /**
  * Check if a given ActionId requires safeMode confirmation.
  * Destructive actions (delete, merge, split) need confirmation when safeMode is on.
@@ -428,6 +719,10 @@ export function isDestructiveAction(actionId: ActionId): boolean {
     'splitSegment',
   ]);
   return destructive.has(actionId);
+}
+
+export function shouldConfirmFuzzyAction(actionId: ActionId): boolean {
+  return isDestructiveAction(actionId);
 }
 
 /**

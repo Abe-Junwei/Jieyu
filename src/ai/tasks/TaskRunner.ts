@@ -179,6 +179,7 @@ export class TaskRunner {
 
   private async runTask<TResult>(task: InternalTask<TResult>): Promise<void> {
     const db = await getDb();
+    let terminalStatus: AiTaskDoc['status'] = 'failed';
 
     try {
       await this.updateTaskStatus(db, task.taskId, 'running');
@@ -195,6 +196,7 @@ export class TaskRunner {
             throw new Error('Task cancelled');
           }
           await this.updateTaskStatus(db, task.taskId, 'done');
+          terminalStatus = 'done';
           task.completed = true;
           task.resolve(result);
           return;
@@ -217,15 +219,20 @@ export class TaskRunner {
           : (lastError instanceof Error ? lastError.message : 'Task failed'));
 
       await this.updateTaskStatus(db, task.taskId, 'failed', message);
+      terminalStatus = 'failed';
       task.completed = true;
       task.reject(lastError);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Task failed';
       await this.updateTaskStatus(db, task.taskId, 'failed', message);
+      terminalStatus = 'failed';
       task.completed = true;
       task.reject(error);
     } finally {
       this.tasks.delete(task.taskId);
+      if (terminalStatus === 'done') {
+        this.retryInputs.delete(task.taskId);
+      }
       this.activeCount = Math.max(0, this.activeCount - 1);
       this.pumpQueue();
     }

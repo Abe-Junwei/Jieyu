@@ -305,7 +305,14 @@ export class VoiceInputService {
     this._intentionalStop = false;
     this._stopCurrentEngine();
     this._currentEngine = engine;
-    void this._attemptEngineWithFallback(engine);
+    setTimeout(() => {
+      if (!this._listening) return;
+      try {
+        void this._attemptEngineWithFallback(engine);
+      } catch (err) {
+        console.error('[VoiceInput] switchEngine error:', err);
+      }
+    }, 300);
   }
 
   /**
@@ -349,6 +356,7 @@ export class VoiceInputService {
    * Start a specific engine. Returns true if the engine started successfully.
    */
   private _startEngine(engine: SttEngine): boolean {
+    console.log('[DEBUG] _startEngine:', engine);
     switch (engine) {
       case 'web-speech':
         return this._startWebSpeech();
@@ -357,6 +365,7 @@ export class VoiceInputService {
         // but the user must press-and-hold to record.
         this._listening = true;
         this.emitState(true);
+        console.log('[DEBUG] _startEngine: whisper-local listening=true');
         return true;
       case 'commercial':
         // commercial requires push-to-talk (it sends a recorded blob);
@@ -453,7 +462,11 @@ export class VoiceInputService {
 
     this.recognition = rec;
     try {
-      rec.start();
+      // Small delay to let the MediaStream microphone stabilize before the
+      // browser's internal VAD initializes. Without this, the first few
+      // hundred milliseconds of audio can be dropped causing immediate
+      // "no-speech" errors on some browsers/devices.
+      setTimeout(() => { try { rec.start(); } catch { /* already stopped */ } }, 150);
       return true;
     } catch {
       return false;
@@ -461,13 +474,18 @@ export class VoiceInputService {
   }
 
   private _stopCurrentEngine(): void {
-    this._intentionalStop = true;
+    console.log('[DEBUG] _stopCurrentEngine: entry');
+    this._intentionalStop = false;
     if (this.recognition) {
       try { this.recognition.stop(); } catch { /* ignore */ }
       this.recognition = null;
     }
+    console.log('[DEBUG] _stopCurrentEngine: recognition stopped');
     this.stopVadMonitor();
+    console.log('[DEBUG] _stopCurrentEngine: VAD stopped');
     this._isRecording = false;
+    this._intentionalStop = true;
+    console.log('[DEBUG] _stopCurrentEngine: done');
   }
 
   stop(): void {

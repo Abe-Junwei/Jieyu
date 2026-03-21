@@ -44,14 +44,16 @@ export class VolcEngineSttProvider implements CommercialSttProvider {
     if (!this.config.accessToken || !this.config.appId) return false;
     try {
       const resp = await fetch(`${this.config.baseUrl}/asr`, {
-        method: 'HEAD',
+        method: 'POST',
         headers: {
           'X-App-Id': this.config.appId,
           'Authorization': `Bearer ${this.config.accessToken}`,
+          'Content-Type': 'application/json',
         },
+        body: '{}',
       });
-      // 401/403 means credentials exist but invalid; 200/404 means endpoint exists
-      return resp.ok || resp.status === 404;
+      // 任何非网络错误响应都说明端点可达 | Any non-network response means the endpoint is reachable
+      return resp.ok || resp.status === 400 || resp.status === 401 || resp.status === 403 || resp.status === 404;
     } catch {
       return false;
     }

@@ -11,7 +11,13 @@ export type CommercialProviderConfig = {
   accessToken?: string;
 };
 
+export type VoiceLocalWhisperConfig = {
+  baseUrl?: string;
+  model?: string;
+};
+
 const VOICE_COMMERCIAL_STT_STORAGE_KEY = 'jieyu.voiceAgent.commercialStt';
+const VOICE_LOCAL_WHISPER_STORAGE_KEY = 'jieyu.voiceAgent.localWhisper';
 
 function loadCommercialSttConfig(): { kind: CommercialProviderKind; config: CommercialProviderConfig } {
   try {
@@ -24,6 +30,20 @@ function loadCommercialSttConfig(): { kind: CommercialProviderKind; config: Comm
 function saveCommercialSttConfig(kind: string, config: CommercialProviderConfig): void {
   try {
     window.localStorage.setItem(VOICE_COMMERCIAL_STT_STORAGE_KEY, JSON.stringify({ kind, config }));
+  } catch { /* ignore */ }
+}
+
+function loadLocalWhisperConfig(): VoiceLocalWhisperConfig {
+  try {
+    const raw = window.localStorage.getItem(VOICE_LOCAL_WHISPER_STORAGE_KEY);
+    if (raw) return JSON.parse(raw) as VoiceLocalWhisperConfig;
+  } catch { /* ignore */ }
+  return { baseUrl: 'http://localhost:3040', model: 'ggml-small-q5_k.bin' };
+}
+
+function saveLocalWhisperConfig(config: VoiceLocalWhisperConfig): void {
+  try {
+    window.localStorage.setItem(VOICE_LOCAL_WHISPER_STORAGE_KEY, JSON.stringify(config));
   } catch { /* ignore */ }
 }
 
@@ -46,6 +66,7 @@ export function useVoiceDock({
   const voiceDockDraggedAtRef = useRef(0);
   const [commercialProviderKind, setCommercialProviderKind] = useState<CommercialProviderKind>(() => loadCommercialSttConfig().kind);
   const [commercialProviderConfig, setCommercialProviderConfig] = useState<CommercialProviderConfig>(() => loadCommercialSttConfig().config);
+  const [localWhisperConfig, setLocalWhisperConfig] = useState<VoiceLocalWhisperConfig>(() => loadLocalWhisperConfig());
 
   useEffect(() => {
     const preferredLanguage = activeTextPrimaryLanguageId?.trim();
@@ -86,6 +107,10 @@ export function useVoiceDock({
     saveCommercialSttConfig(commercialProviderKind, commercialProviderConfig);
   }, [commercialProviderKind, commercialProviderConfig]);
 
+  useEffect(() => {
+    saveLocalWhisperConfig(localWhisperConfig);
+  }, [localWhisperConfig]);
+
   const effectiveVoiceCorpusLang = (voiceCorpusLangOverride ?? voiceCorpusLang ?? 'cmn').toLowerCase();
 
   const handleVoiceSetLangOverride = useCallback((lang: string | null) => {
@@ -95,6 +120,10 @@ export function useVoiceDock({
 
   const handleCommercialConfigChange = useCallback((config: CommercialProviderConfig) => {
     setCommercialProviderConfig(config);
+  }, []);
+
+  const handleLocalWhisperConfigChange = useCallback((config: VoiceLocalWhisperConfig) => {
+    setLocalWhisperConfig(config);
   }, []);
 
   const handleVoiceDockDragStart = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
@@ -174,5 +203,8 @@ export function useVoiceDock({
     setCommercialProviderKind,
     commercialProviderConfig,
     setCommercialProviderConfig,
+    localWhisperConfig,
+    setLocalWhisperConfig,
+    handleLocalWhisperConfigChange,
   };
 }

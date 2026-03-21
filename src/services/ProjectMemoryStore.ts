@@ -118,6 +118,8 @@ class ProjectMemoryStore {
   private _currentProjectId: string | null = null;
   private _memory: ProjectMemory | null = null;
   private _listeners = new Set<(m: ProjectMemory) => void>();
+  // 缓存 IndexedDB 连接避免频繁 open() | Cache IndexedDB connection to avoid repeated open()
+  private _dbPromise: Promise<IDBDatabase> | null = null;
 
   private constructor() {}
 
@@ -436,51 +438,49 @@ class ProjectMemoryStore {
     }
   }
 
+  private _getDb(): Promise<IDBDatabase> {
+    if (!this._dbPromise) {
+      this._dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('jieyu-project-memory', 1);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains('projectMemory')) {
+            db.createObjectStore('projectMemory', { keyPath: 'projectId' });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => {
+          this._dbPromise = null;
+          reject(request.error);
+        };
+      });
+    }
+    return this._dbPromise;
+  }
+
   private async _loadFromDB(projectId: string): Promise<ProjectMemory | null> {
-    return new Promise((resolve) => {
-      const request = indexedDB.open('jieyu-project-memory', 1);
-
-      request.onupgradeneeded = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains('projectMemory')) {
-          db.createObjectStore('projectMemory', { keyPath: 'projectId' });
-        }
-      };
-
-      request.onsuccess = () => {
-        const db = request.result;
+    try {
+      const db = await this._getDb();
+      return new Promise((resolve) => {
         const tx = db.transaction('projectMemory', 'readonly');
         const store = tx.objectStore('projectMemory');
         const getReq = store.get(projectId);
         getReq.onsuccess = () => resolve(getReq.result ?? null);
         getReq.onerror = () => resolve(null);
-      };
-
-      request.onerror = () => resolve(null);
-    });
+      });
+    } catch {
+      return null;
+    }
   }
 
   private async _saveToDB(memory: ProjectMemory): Promise<void> {
+    const db = await this._getDb();
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open('jieyu-project-memory', 1);
-
-      request.onupgradeneeded = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains('projectMemory')) {
-          db.createObjectStore('projectMemory', { keyPath: 'projectId' });
-        }
-      };
-
-      request.onsuccess = () => {
-        const db = request.result;
-        const tx = db.transaction('projectMemory', 'readwrite');
-        const store = tx.objectStore('projectMemory');
-        store.put(memory);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      };
-
-      request.onerror = () => reject(request.error);
+      const tx = db.transaction('projectMemory', 'readwrite');
+      const store = tx.objectStore('projectMemory');
+      store.put(memory);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
     });
   }
 }

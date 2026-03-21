@@ -330,7 +330,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       );
     }
     svc.start(startConfig);
-
+    console.log('[DEBUG] start() called, service started, about to play activate sound');
     Earcon.playActivate();
   }, [listening, langOverrideRef, handleSttResult, engineRef, ollamaBaseUrl, ollamaModel, commercialProviderKindRef, commercialProviderConfigRef]);
 
@@ -388,6 +388,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   }, [listening]);
 
   const toggle = useCallback((targetMode?: VoiceAgentMode) => {
+    console.log('[DEBUG] toggle called, listening=', listening, 'engine=', engineRef.current);
     if (listening) {
       stop();
     } else {

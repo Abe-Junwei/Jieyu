@@ -88,6 +88,13 @@ export interface CorpusSearchResult {
 
 // ── Default factories ─────────────────────────────────────────────────────────
 
+/** 同步区域检测：仅用于首次默认值 | Sync region hint for initial defaults only */
+function isCnLocale(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const lang = navigator.language;
+  return lang === 'zh-CN' || lang === 'zh';
+}
+
 function createDefaultUserBehaviorProfile(): UserBehaviorProfile {
   return {
     actionFrequencies: {},
@@ -102,7 +109,7 @@ function createDefaultUserBehaviorProfile(): UserBehaviorProfile {
       preferredMode: 'command',
       safeModeDefault: false,
       wakeWordEnabled: false,
-      preferredEngine: 'web-speech',
+      preferredEngine: isCnLocale() ? 'commercial' : 'web-speech',
       preferredLang: null,
       confirmationThreshold: 'destructive',
     },

@@ -14,7 +14,10 @@
 import { EventEmitter } from 'events';
 import { VoiceInputService } from './VoiceInputService';
 import { WakeWordDetector } from './WakeWordDetector';
+import { AmbientObserver } from './AmbientObserver';
+import { SpeechQualityAnalyzer } from './SpeechQualityAnalyzer';
 import { saveVoiceSession, loadRecentVoiceSessions } from './VoiceSessionStore';
+import { projectMemoryStore } from './ProjectMemoryStore';
 import {
   SpeechAnnotationPipeline,
   type QuickDictationConfig,
@@ -187,6 +190,12 @@ export class VoiceAgentService extends EventEmitter {
   // ── Dictation pipeline (SpeechAnnotationPipeline) ───────────────────────
   private _dictationPipeline: SpeechAnnotationPipeline | null = null;
 
+  // ── Environment & quality observers ─────────────────────────────────────
+  private _ambientUnsubscribe: (() => void) | null = null;
+  private _speechQuality: SpeechQualityAnalyzer | null = null;
+  private _engineSwitchCounter = 0;
+  private static readonly _ENGINE_SWITCH_THRESHOLD = 3; // require N consecutive recommendations before switching
+
   // ── UI context (set by page via setUiContext) ────────────────────────────
   private _currentSegmentId: string | null = null;
   private _selectedSegmentIds: string[] = [];
@@ -222,6 +231,19 @@ export class VoiceAgentService extends EventEmitter {
     if (this._wakeWordEnabled) {
       this._startWakeWordDetector();
     }
+
+    // Subscribe to ambient environment changes — adapt STT engine when offline
+    this._ambientUnsubscribe = AmbientObserver.getInstance().onEnvironmentChange((env) => {
+      if (!env.online && this._listening) {
+        // Network offline: prefer local engines, switch away from commercial
+        if (this._engine === 'commercial') {
+          this.switchEngine('whisper-local');
+        }
+      }
+    });
+
+    // Initialize speech quality analyzer for adaptive STT engine recommendation
+    this._speechQuality = SpeechQualityAnalyzer.getInstance();
   }
 
   // ── Public getters (read-only state) ───────────────────────────────────
@@ -561,9 +583,26 @@ export class VoiceAgentService extends EventEmitter {
       return;
     }
 
+    // Dictation pipeline routing — when active, feed results to the pipeline
+    // instead of intent routing. The pipeline handles confirmation/navigation.
+    if (this._dictationPipeline) {
+      this._setState({ interimText: '', finalText: result.text, confidence: result.confidence });
+      this._dictationPipeline.onSttResult(result);
+      this._speechQuality?.recordSegmentQuality('dictation');
+      void this._checkAndSwitchEngineIfNeeded();
+      return;
+    }
+
+    // Record audio quality for command-mode segments
+    this._speechQuality?.recordSegmentQuality('command');
+
+    // Detect and record term/phrase patterns from natural language
+    this._detectAndRecordMemoryPattern(result.text);
+
     this._setState({ interimText: '', finalText: result.text, confidence: result.confidence, agentState: 'routing' });
 
     let intent = routeIntent(result.text, this._mode);
+    console.log('[DEBUG] routeIntent:', JSON.stringify({ text: result.text, mode: this._mode, intentType: intent.type }));
 
     // LLM fallback for chat intents
     let llmFallbackFailed = false;
@@ -675,6 +714,72 @@ export class VoiceAgentService extends EventEmitter {
     this._wakeWordDetector = null;
   }
 
+  /**
+   * Detect natural-language memory patterns in the transcript and record them
+   * to ProjectMemoryStore. Currently detects:
+   * - Term confirmation: "记住这个词" / "这是术语" / "添加术语"
+   * - Phrase recording: "记住这个表达" / "常见说法是" / "固定说法"
+   */
+  private _detectAndRecordMemoryPattern(text: string): void {
+    const trimmed = text.trim();
+    if (!trimmed || trimmed.length < 4) return;
+
+    const LOWER = trimmed.toLowerCase();
+
+    // Term confirmation: "记住这个词" / "记住这个术语" / "添加术语"
+    if (LOWER.includes('记住这个词') || LOWER.includes('记住这个术语') || LOWER.includes('添加术语')) {
+      // Try to extract term and gloss from the full transcript
+      // e.g. "记住了，'坚持'的意思是..." or "'坚持'的意思是..."
+      const termMatch = trimmed.match(/['"»‘’"](.+?)['"»‘’"]/);
+      if (termMatch) {
+        const term = termMatch[1];
+        // Use the full sentence as the gloss approximation
+        const gloss = trimmed.replace(/记得.*?[，,]?/, '').replace(/记住.*?[，,]?/, '').trim();
+        if (term && gloss && term !== gloss) {
+          void projectMemoryStore.confirmTerm(term, gloss.slice(0, 200), this._corpusLang);
+        }
+      }
+    }
+
+    // Phrase recording: "记住这个表达" / "常见说法是" / "固定说法"
+    if (LOWER.includes('记住这个表达') || LOWER.includes('常见说法是') || LOWER.includes('固定说法')) {
+      const phraseMatch = trimmed.match(/['"»‘’"](.+?)['"»‘’"]/);
+      if (phraseMatch) {
+        const phrase = phraseMatch[1];
+        const translation = trimmed.replace(/记住.*?[，,]?/, '').replace(/常见.*?[，,]?/, '').replace(/固定.*?[，,]?/, '').trim();
+        if (phrase && translation && phrase !== translation) {
+          void projectMemoryStore.recordPhrase(phrase, translation.slice(0, 200), 'voice-confirmed');
+        }
+      }
+    }
+  }
+
+  /**
+   * Check if audio quality recommends a different STT engine and switch
+   * if the recommendation is consistent (hysteresis to avoid flapping).
+   * Called asynchronously after each final STT result.
+   */
+  private _checkAndSwitchEngineIfNeeded(): void {
+    const sq = this._speechQuality;
+    if (!sq || !this._listening) return;
+
+    const recommended = sq.recommendSttEngine();
+    // Map 'whisper-local' | 'commercial' | 'web-speech' → 'whisper-local' | 'commercial' | 'web-speech'
+    const targetEngine: SttEngine = recommended;
+
+    if (targetEngine === this._engine) {
+      // Already using the recommended engine — reset counter
+      this._engineSwitchCounter = 0;
+      return;
+    }
+
+    this._engineSwitchCounter += 1;
+    if (this._engineSwitchCounter >= VoiceAgentService._ENGINE_SWITCH_THRESHOLD) {
+      this.switchEngine(targetEngine);
+      this._engineSwitchCounter = 0;
+    }
+  }
+
   // ── Grounding Context (Stage 2) ─────────────────────────────────────────
 
   /**
@@ -784,6 +889,7 @@ export class VoiceAgentService extends EventEmitter {
   // ── Cleanup ────────────────────────────────────────────────────────────
 
   dispose(): void {
+    this._ambientUnsubscribe?.();
     this._voiceService?.dispose();
     this._voiceService = null;
     this._stopWakeWordDetector();

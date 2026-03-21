@@ -23,11 +23,16 @@ export type AiChatProviderKind =
   | 'custom-http'
   | 'minimax';
 
+export type AiChatProviderApiKeyMap = Partial<Record<AiChatProviderKind, string>>;
+export type AiToolFeedbackStyle = 'concise' | 'detailed';
+
 export interface AiChatSettings {
   providerKind: AiChatProviderKind;
   baseUrl: string;
   model: string;
   apiKey: string;
+  apiKeysByProvider: AiChatProviderApiKeyMap;
+  toolFeedbackStyle: AiToolFeedbackStyle;
   endpointUrl: string;
   authHeaderName: string;
   authScheme: CustomHttpAuthScheme;
@@ -265,38 +270,56 @@ export function getAiChatProviderDefinition(kind: AiChatProviderKind): AiChatPro
 const DEFAULT_SETTINGS: Record<AiChatProviderKind, AiChatSettings> = {
   mock: {
     providerKind: 'mock', baseUrl: '', model: 'mock-1', apiKey: '',
+    apiKeysByProvider: {},
+    toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'bearer', responseFormat: 'openai-sse',
   },
   minimax: {
     providerKind: 'minimax', baseUrl: 'https://api.minimax.chat/v1', model: 'MiniMax-Text-01', apiKey: '',
+    apiKeysByProvider: {},
+    toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'bearer', responseFormat: 'openai-sse',
   },
   'openai-compatible': {
     providerKind: 'openai-compatible', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', apiKey: '',
+    apiKeysByProvider: {},
+    toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'bearer', responseFormat: 'openai-sse',
   },
   deepseek: {
     providerKind: 'deepseek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', apiKey: '',
+    apiKeysByProvider: {},
+    toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'bearer', responseFormat: 'openai-sse',
   },
   qwen: {
     providerKind: 'qwen', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', apiKey: '',
+    apiKeysByProvider: {},
+    toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'bearer', responseFormat: 'openai-sse',
   },
   anthropic: {
     providerKind: 'anthropic', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-3-5-sonnet-latest', apiKey: '',
+    apiKeysByProvider: {},
+    toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'x-api-key', authScheme: 'raw', responseFormat: 'anthropic-sse',
   },
   gemini: {
     providerKind: 'gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-2.0-flash', apiKey: '',
+    apiKeysByProvider: {},
+    toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'x-goog-api-key', authScheme: 'raw', responseFormat: 'plain-json',
   },
   ollama: {
     providerKind: 'ollama', baseUrl: 'http://localhost:11434', model: 'llama3.2', apiKey: '',
+    apiKeysByProvider: {},
+    toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'none', responseFormat: 'ollama-jsonl',
   },
   'custom-http': {
     providerKind: 'custom-http', baseUrl: '', model: 'custom-model', apiKey: '',
+    apiKeysByProvider: {},
+    toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'bearer', responseFormat: 'openai-sse',
   },
 };
@@ -305,17 +328,44 @@ export function getDefaultAiChatSettings(kind: AiChatProviderKind): AiChatSettin
   return { ...DEFAULT_SETTINGS[kind] };
 }
 
+function normalizeApiKeysByProvider(raw: unknown): AiChatProviderApiKeyMap {
+  if (!raw || typeof raw !== 'object') return {};
+  const source = raw as Record<string, unknown>;
+  const normalized: AiChatProviderApiKeyMap = {};
+
+  for (const kind of Object.keys(DEFAULT_SETTINGS) as AiChatProviderKind[]) {
+    const value = source[kind];
+    if (typeof value === 'string') {
+      normalized[kind] = value;
+    }
+  }
+
+  return normalized;
+}
+
 export function normalizeAiChatSettings(raw?: Partial<AiChatSettings>): AiChatSettings {
   const providerKind = raw?.providerKind && raw.providerKind in DEFAULT_SETTINGS
     ? raw.providerKind
     : 'mock';
   const defaults = getDefaultAiChatSettings(providerKind);
+  const rawApiKeysByProvider = normalizeApiKeysByProvider(raw?.apiKeysByProvider);
+  const apiKeyFromRaw = typeof raw?.apiKey === 'string' ? raw.apiKey : undefined;
+  const apiKeyFromMap = rawApiKeysByProvider[providerKind];
+  const effectiveApiKey = apiKeyFromRaw ?? apiKeyFromMap ?? defaults.apiKey;
+  const apiKeysByProvider: AiChatProviderApiKeyMap = {
+    ...rawApiKeysByProvider,
+    [providerKind]: effectiveApiKey,
+  };
 
   return {
     providerKind,
     baseUrl: typeof raw?.baseUrl === 'string' ? raw.baseUrl : defaults.baseUrl,
     model: typeof raw?.model === 'string' && raw.model.trim().length > 0 ? raw.model : defaults.model,
-    apiKey: typeof raw?.apiKey === 'string' ? raw.apiKey : defaults.apiKey,
+    apiKey: effectiveApiKey,
+    apiKeysByProvider,
+    toolFeedbackStyle: raw?.toolFeedbackStyle === 'concise' || raw?.toolFeedbackStyle === 'detailed'
+      ? raw.toolFeedbackStyle
+      : defaults.toolFeedbackStyle,
     endpointUrl: typeof raw?.endpointUrl === 'string' ? raw.endpointUrl : defaults.endpointUrl,
     authHeaderName: typeof raw?.authHeaderName === 'string' ? raw.authHeaderName : defaults.authHeaderName,
     authScheme: raw?.authScheme === 'none' || raw?.authScheme === 'raw' || raw?.authScheme === 'bearer'
@@ -334,15 +384,42 @@ export function applyAiChatSettingsPatch(
   current: AiChatSettings,
   patch: Partial<AiChatSettings>,
 ): AiChatSettings {
+  const incomingMap = normalizeApiKeysByProvider(patch.apiKeysByProvider);
+
   if (patch.providerKind && patch.providerKind !== current.providerKind) {
+    const persistedApiKeysByProvider: AiChatProviderApiKeyMap = {
+      ...current.apiKeysByProvider,
+      [current.providerKind]: current.apiKey,
+      ...incomingMap,
+    };
+    const nextProviderApiKey = typeof patch.apiKey === 'string'
+      ? patch.apiKey
+      : (persistedApiKeysByProvider[patch.providerKind] ?? '');
+
     return normalizeAiChatSettings({
       ...getDefaultAiChatSettings(patch.providerKind),
-      apiKey: patch.apiKey ?? '',
+      apiKeysByProvider: {
+        ...persistedApiKeysByProvider,
+        [patch.providerKind]: nextProviderApiKey,
+      },
+      apiKey: nextProviderApiKey,
       ...patch,
     });
   }
 
-  return normalizeAiChatSettings({ ...current, ...patch });
+  const nextApiKeysByProvider: AiChatProviderApiKeyMap = {
+    ...current.apiKeysByProvider,
+    ...incomingMap,
+  };
+  if (typeof patch.apiKey === 'string') {
+    nextApiKeysByProvider[current.providerKind] = patch.apiKey;
+  }
+
+  return normalizeAiChatSettings({
+    ...current,
+    ...patch,
+    apiKeysByProvider: nextApiKeysByProvider,
+  });
 }
 
 // ─── Provider factory (registry-based) ──────────────────────────────────────

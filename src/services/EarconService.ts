@@ -8,12 +8,27 @@
  */
 
 let audioCtx: AudioContext | null = null;
+let audioUnlocked = false;
 
 function getAudioContext(): AudioContext {
   if (!audioCtx) {
     audioCtx = new AudioContext();
   }
   return audioCtx;
+}
+
+async function ensureAudioContext(): Promise<AudioContext> {
+  const ctx = getAudioContext();
+  if (ctx.state === 'suspended') {
+    await ctx.resume();
+  }
+  return ctx;
+}
+
+export async function unlockAudio(): Promise<void> {
+  if (audioUnlocked) return;
+  await ensureAudioContext();
+  audioUnlocked = true;
 }
 
 /**
@@ -25,24 +40,27 @@ function playTone(
   volume = 0.15,
   type: OscillatorType = 'sine',
 ): void {
-  const ctx = getAudioContext();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
+  void ensureAudioContext().then((ctx) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
-  osc.type = type;
-  osc.frequency.value = frequency;
-  gain.gain.value = volume;
+    osc.type = type;
+    osc.frequency.value = frequency;
+    gain.gain.value = volume;
 
-  // Fade-out envelope to avoid clicks
-  const endTime = ctx.currentTime + durationMs / 1000;
-  gain.gain.setValueAtTime(volume, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, endTime);
+    // Fade-out envelope to avoid clicks
+    const endTime = ctx.currentTime + durationMs / 1000;
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, endTime);
 
-  osc.connect(gain);
-  gain.connect(ctx.destination);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
 
-  osc.start(ctx.currentTime);
-  osc.stop(endTime);
+    osc.start(ctx.currentTime);
+    osc.stop(endTime);
+  }).catch(() => {
+    // Earcon is best-effort only.
+  });
 }
 
 /**

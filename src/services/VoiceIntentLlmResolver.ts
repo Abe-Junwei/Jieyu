@@ -116,7 +116,7 @@ export function parseVoiceIntentFromLlmResponse(
   if (type === 'action') {
     const actionId = readStringField(data, schema.actionIdField) ?? '';
     if (!isActionId(actionId)) return null;
-    return { type: 'action', actionId, raw: rawTranscript };
+    return { type: 'action', actionId, raw: rawTranscript, confidence: 1 };
   }
   if (type === 'tool') {
     const toolName = readStringField(data, schema.toolNameField) ?? '';

@@ -1210,7 +1210,9 @@ export function TranscriptionPage() {
   }, [voiceAgent.error, voiceAgent.listening, voiceAgent.pendingConfirm]);
 
   const handleVoiceAssistantIconClick = useCallback(() => {
+    console.log('[DEBUG] handleVoiceAssistantIconClick called, listening=', voiceAgent.listening, 'engine=', voiceAgent.engine);
     if (Date.now() - voiceDockDraggedAtRef.current < 260) {
+      console.log('[DEBUG] click blocked by drag cooldown');
       return;
     }
     if (voiceAgent.listening) {

@@ -2,6 +2,8 @@ import { Mic as _Mic } from 'lucide-react';
 import { VoiceAgentWidget } from './VoiceAgentWidget';
 import type { SttEngine, CommercialProviderKind } from '../services/VoiceInputService';
 import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
+import type { ProviderReachability } from '../services/stt';
+import type { VoicePreset } from '../utils/voicePresets';
 
 type VoiceAgentShape = {
   listening: boolean;
@@ -33,6 +35,9 @@ type VoiceAgentShape = {
   setWakeWordEnabled: (on: boolean) => void;
   setCommercialProviderKind: (kind: CommercialProviderKind) => void;
   testCommercialProvider: () => Promise<{ available: boolean; error?: string }>;
+  providerStatusMap: ProviderReachability[];
+  refreshProviderStatus: () => Promise<void>;
+  selectPreset: (preset: VoicePreset) => void;
 };
 
 type Props = {
@@ -50,6 +55,7 @@ type Props = {
   onBubbleClick: () => void;
   onMicPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => void;
   onMicPointerUp: () => void;
+  onSwitchEngine: (engine: SttEngine) => void | Promise<void>;
   onSetLangOverride: (lang: string | null) => void;
   onCommercialConfigChange: (config: { apiKey?: string; baseUrl?: string; model?: string; appId?: string; accessToken?: string }) => void;
 };
@@ -69,6 +75,7 @@ export function VoiceDockSection({
   onBubbleClick,
   onMicPointerDown,
   onMicPointerUp,
+  onSwitchEngine,
   onSetLangOverride,
   onCommercialConfigChange,
 }: Props) {
@@ -134,7 +141,7 @@ export function VoiceDockSection({
         onMicPointerDown={onMicPointerDown}
         onMicPointerUp={onMicPointerUp}
         onSwitchMode={voiceAgent.switchMode}
-        onSwitchEngine={voiceAgent.switchEngine}
+        onSwitchEngine={onSwitchEngine}
         onConfirm={voiceAgent.confirmPending}
         onCancel={voiceAgent.cancelPending}
         onSetSafeMode={voiceAgent.setSafeMode}
@@ -144,6 +151,10 @@ export function VoiceDockSection({
         onCommercialConfigChange={onCommercialConfigChange}
         onTestCommercialProvider={voiceAgent.testCommercialProvider}
         agentState={voiceAgent.agentState}
+        targetSummary=""
+        statusSummary=""
+        environmentSummary=""
+        selectionSummary=""
       />
     </section>
   );

@@ -77,6 +77,8 @@ export class AmbientObserver {
   private _env: AmbientEnvironment;
   private _listeners = new Set<(env: AmbientEnvironment) => void>();
   private _battery: BatteryManager | null = null;
+  private _batteryUpdateHandler: (() => void) | null = null;
+  private _activityHandler: (() => void) | null = null;
   private _idleController: IdleDetector | null = null;
   private _pollInterval: ReturnType<typeof setInterval> | null = null;
   private _sessionStart = Date.now();
@@ -169,6 +171,7 @@ export class AmbientObserver {
       this._notify();
     };
 
+    this._batteryUpdateHandler = update;
     this._battery.addEventListener('chargingchange', update);
     this._battery.addEventListener('levelchange', update);
     update();
@@ -178,7 +181,20 @@ export class AmbientObserver {
   stop(): void {
     this._stopPoll();
     this._stopIdleDetection();
+    // 移除电池监听器 | Remove battery listeners
+    if (this._battery && this._batteryUpdateHandler) {
+      this._battery.removeEventListener('chargingchange', this._batteryUpdateHandler);
+      this._battery.removeEventListener('levelchange', this._batteryUpdateHandler);
+      this._batteryUpdateHandler = null;
+    }
     this._battery = null;
+    // 移除活动跟踪监听器 | Remove activity tracking listeners
+    if (this._activityHandler) {
+      for (const ev of ['mousedown', 'keydown', 'touchstart', 'scroll']) {
+        document.removeEventListener(ev, this._activityHandler);
+      }
+      this._activityHandler = null;
+    }
     window.removeEventListener('online', this._onNetworkChange);
     window.removeEventListener('offline', this._onNetworkChange);
     document.removeEventListener('visibilitychange', this._onVisibilityChange);
@@ -226,6 +242,7 @@ export class AmbientObserver {
     const handler = () => {
       this.recordActivity();
     };
+    this._activityHandler = handler;
     for (const ev of events) {
       document.addEventListener(ev, handler, { passive: true });
     }

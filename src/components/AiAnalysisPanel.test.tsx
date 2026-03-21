@@ -39,7 +39,7 @@ describe('AiAnalysisPanel embedding integration', () => {
 
     render(
       <AiPanelContext.Provider value={makeContextValue({ onFindSimilarUtterances })}>
-        <AiAnalysisPanel isCollapsed={false} />
+        <AiAnalysisPanel isCollapsed={false} activeTab="embedding" />
       </AiPanelContext.Provider>,
     );
 
@@ -67,7 +67,7 @@ describe('AiAnalysisPanel embedding integration', () => {
           onJumpToEmbeddingMatch,
         })}
       >
-        <AiAnalysisPanel isCollapsed={false} />
+        <AiAnalysisPanel isCollapsed={false} activeTab="embedding" />
       </AiPanelContext.Provider>,
     );
 
@@ -78,7 +78,7 @@ describe('AiAnalysisPanel embedding integration', () => {
     expect(onJumpToEmbeddingMatch).toHaveBeenCalledWith('utt-2');
   });
 
-  it('renders recent AI tool decision logs when provided', () => {
+  it('does not render AI chat decision logs inside analysis panel after hub decoupling', () => {
     render(
       <AiPanelContext.Provider
         value={makeContextValue({
@@ -97,12 +97,12 @@ describe('AiAnalysisPanel embedding integration', () => {
       </AiPanelContext.Provider>,
     );
 
-    expect(screen.getByText(/最近 AI 决策日志|Recent AI Decisions/i)).toBeTruthy();
-    expect(screen.getByText(/delete_layer/)).toBeTruthy();
-    expect(screen.getByText(/已取消执行|Cancelled/i)).toBeTruthy();
+    expect(screen.queryByText(/最近 AI 决策日志|Recent AI Decisions/i)).toBeNull();
+    expect(screen.queryByText(/delete_layer/)).toBeNull();
+    expect(screen.queryByText(/已取消执行|Cancelled/i)).toBeNull();
   });
 
-  it('renders pending high-risk impact preview details', () => {
+  it('does not render pending high-risk preview in analysis panel after hub decoupling', () => {
     render(
       <AiPanelContext.Provider
         value={makeContextValue({
@@ -125,9 +125,9 @@ describe('AiAnalysisPanel embedding integration', () => {
       </AiPanelContext.Provider>,
     );
 
-    expect(screen.getByText(/高风险工具调用待确认|High-risk tool call pending confirmation/i)).toBeTruthy();
-    expect(screen.getByText(/风险摘要|Risk summary/i)).toBeTruthy();
-    expect(screen.getByText(/Target layer: layer-jp/)).toBeTruthy();
+    expect(screen.queryByText(/高风险工具调用待确认|High-risk tool call pending confirmation/i)).toBeNull();
+    expect(screen.queryByText(/风险摘要|Risk summary/i)).toBeNull();
+    expect(screen.queryByText(/Target layer: layer-jp/)).toBeNull();
   });
 
   it('renders embedding fallback warning when provided', () => {
@@ -137,7 +137,7 @@ describe('AiAnalysisPanel embedding integration', () => {
           aiEmbeddingWarning: 'Running fallback embedding (model unavailable). Retrieval quality may degrade.',
         })}
       >
-        <AiAnalysisPanel isCollapsed={false} />
+        <AiAnalysisPanel isCollapsed={false} activeTab="embedding" />
       </AiPanelContext.Provider>,
     );
 

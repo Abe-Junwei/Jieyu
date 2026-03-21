@@ -86,6 +86,9 @@ export class SpeechQualityAnalyzer {
   private _buffer: Float32Array | null = null;
   private _noiseFloor: number[] = [];
   private _speechHistory: boolean[] = [];
+  // 累积 SNR 历史用于句段级均值 | Accumulated SNR history for segment-level averaging
+  private _snrHistory: number[] = [];
+  private _qualityScoreHistory: number[] = [];
   private _listeners = new Set<(m: AudioQualityMetrics) => void>();
   private _rafId: number | null = null;
   private _active = false;
@@ -122,11 +125,20 @@ export class SpeechQualityAnalyzer {
    * Start analyzing the microphone input.
    * If a stream is already active, this is a no-op.
    */
-  async start(): Promise<void> {
+  async start(existingStream?: MediaStream): Promise<void> {
     if (this._active) return;
 
     try {
-      this._stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      if (existingStream) {
+        const baseTrack = existingStream.getAudioTracks()[0];
+        this._stream = baseTrack ? new MediaStream([baseTrack.clone()]) : null;
+      } else {
+        this._stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      }
+      if (!this._stream) {
+        this._active = false;
+        return;
+      }
       this._audioContext = new AudioContext();
       const source = this._audioContext.createMediaStreamSource(this._stream);
       this._analyser = this._audioContext.createAnalyser();
@@ -135,6 +147,8 @@ export class SpeechQualityAnalyzer {
       this._buffer = new Float32Array(this._analyser.fftSize);
       this._noiseFloor = [];
       this._speechHistory = [];
+      this._snrHistory = [];
+      this._qualityScoreHistory = [];
       this._active = true;
       this._tick();
     } catch {
@@ -169,9 +183,13 @@ export class SpeechQualityAnalyzer {
     if (this._speechHistory.length === 0) return null;
 
     const speechActiveRatio = this._speechHistory.filter(Boolean).length / this._speechHistory.length;
-    const metrics = this.currentMetrics;
-    const avgSnrDb = metrics?.snrDb ?? 0;
-    const avgQualityScore = metrics?.qualityScore ?? 0;
+    // 使用累积历史均值而非瞬时帧值 | Use accumulated history averages instead of instant frame values
+    const avgSnrDb = this._snrHistory.length > 0
+      ? this._snrHistory.reduce((a, b) => a + b, 0) / this._snrHistory.length
+      : 0;
+    const avgQualityScore = this._qualityScoreHistory.length > 0
+      ? this._qualityScoreHistory.reduce((a, b) => a + b, 0) / this._qualityScoreHistory.length
+      : 0;
 
     const record: SegmentQualityRecord = {
       segmentId,
@@ -182,6 +200,10 @@ export class SpeechQualityAnalyzer {
     };
 
     this._sessionRecords.push(record);
+    // 清空累积历史，为下一句段重新累积 | Clear accumulated history for next segment
+    this._snrHistory = [];
+    this._qualityScoreHistory = [];
+    this._speechHistory = [];
     return record;
   }
 
@@ -233,6 +255,9 @@ export class SpeechQualityAnalyzer {
 
     this._analyser.getFloatTimeDomainData(this._buffer as Float32Array<ArrayBuffer>);
     const metrics = this._analyzeFrame();
+    // 累积每帧指标用于句段级均值 | Accumulate per-frame metrics for segment averaging
+    this._snrHistory.push(metrics.snrDb);
+    this._qualityScoreHistory.push(metrics.qualityScore);
     this._listeners.forEach((cb) => cb(metrics));
   };
 

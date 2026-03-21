@@ -10,6 +10,10 @@ type UsePanelResizeParams = {
   setAiPanelWidth: React.Dispatch<React.SetStateAction<number>>;
   workspaceRef: React.RefObject<HTMLElement | null>;
   dragCleanupRef: React.MutableRefObject<(() => void) | null>;
+  isHubCollapsed: boolean;
+  hubHeight: number;
+  setHubHeight: React.Dispatch<React.SetStateAction<number>>;
+  screenRef: React.RefObject<HTMLElement | null>;
 };
 
 export function usePanelResize({
@@ -22,6 +26,10 @@ export function usePanelResize({
   setAiPanelWidth,
   workspaceRef,
   dragCleanupRef,
+  isHubCollapsed,
+  hubHeight,
+  setHubHeight,
+  screenRef,
 }: UsePanelResizeParams) {
   const handleLayerRailResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -83,8 +91,39 @@ export function usePanelResize({
     dragCleanupRef.current = onUp;
   }, [isAiPanelCollapsed, workspaceRef, aiPanelWidth, setAiPanelWidth, dragCleanupRef]);
 
+  const handleHubResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (isHubCollapsed) return;
+
+    const root = screenRef.current;
+    if (!root) return;
+
+    const rootRect = root.getBoundingClientRect();
+    const startY = event.clientY;
+    const startHeight = hubHeight;
+    const minHeight = 120;
+    const maxHeight = Math.min(800, rootRect.height * 0.6);
+
+    const onMove = (ev: PointerEvent) => {
+      const dy = startY - ev.clientY;
+      const nextHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + dy));
+      setHubHeight(nextHeight);
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      dragCleanupRef.current = null;
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    dragCleanupRef.current = onUp;
+  }, [isHubCollapsed, screenRef, hubHeight, setHubHeight, dragCleanupRef]);
+
   return {
     handleLayerRailResizeStart,
     handleAiPanelResizeStart,
+    handleHubResizeStart,
   };
 }

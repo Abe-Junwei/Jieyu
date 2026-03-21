@@ -115,13 +115,12 @@ export function useTranscriptionUtteranceActions({
     const normalizedValue = value.trim();
 
     if (targetLayer) {
-      const translationDocs = await db.collections.utterance_texts.find().exec();
-      const existing = translationDocs
+      const matchingDocs = await db.collections.utterance_texts.findByIndex('utteranceId', utteranceId);
+      const existing = matchingDocs
         .map((doc) => doc.toJSON() as unknown as UtteranceTextDocType)
         .filter(
           (item) =>
-            item.utteranceId === utteranceId
-            && item.tierId === targetLayer.id
+            item.tierId === targetLayer.id
             && (item.modality === 'text' || item.modality === 'mixed'),
         )
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
@@ -253,16 +252,18 @@ export function useTranscriptionUtteranceActions({
     const now = new Date().toISOString();
     const trimmed = value.trim();
 
+    // 按 utteranceId 索引查询，避免全表扫描 | Query by utteranceId index to avoid full table scan
+    const utteranceDocs = await db.collections.utterance_texts.findByIndex('utteranceId', utteranceId);
+    const candidates = utteranceDocs
+      .map((doc) => doc.toJSON() as unknown as UtteranceTextDocType)
+      .filter(
+        (item) =>
+          item.tierId === layerId &&
+          (item.modality === 'text' || item.modality === 'mixed'),
+      );
+
     if (!trimmed) {
-      const translationDocs = await db.collections.utterance_texts.find().exec();
-      const existing = translationDocs
-        .map((doc) => doc.toJSON() as unknown as UtteranceTextDocType)
-        .filter(
-          (item) =>
-            item.utteranceId === utteranceId &&
-            item.tierId === layerId &&
-            (item.modality === 'text' || item.modality === 'mixed'),
-        )[0];
+      const existing = candidates[0];
       if (existing) {
         pushUndo('清空翻译文本');
         await db.collections.utterance_texts.remove(existing.id);
@@ -273,16 +274,7 @@ export function useTranscriptionUtteranceActions({
     }
 
     pushUndo('编辑翻译文本');
-    const translationDocs = await db.collections.utterance_texts.find().exec();
-    const existing = translationDocs
-      .map((doc) => doc.toJSON() as unknown as UtteranceTextDocType)
-      .filter(
-        (item) =>
-          item.utteranceId === utteranceId &&
-          item.tierId === layerId &&
-          (item.modality === 'text' || item.modality === 'mixed'),
-      )
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    const existing = [...candidates].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
 
     if (existing) {
       const updatedTranslation: UtteranceTextDocType = {

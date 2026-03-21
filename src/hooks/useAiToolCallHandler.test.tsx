@@ -82,7 +82,10 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
 
     let response: Awaited<ReturnType<typeof result.current>> | undefined;
     await act(async () => {
-      response = await result.current({ name: 'clear_translation_segment', arguments: {} });
+      response = await result.current({
+        name: 'clear_translation_segment',
+        arguments: { utteranceId: 'u1', layerId: 'layer1' },
+      });
     });
 
     // 验证以空字符串调用（清空）而非删除记录
@@ -111,7 +114,10 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
 
     let response: Awaited<ReturnType<typeof result.current>> | undefined;
     await act(async () => {
-      response = await result.current({ name: 'clear_translation_segment', arguments: {} });
+      response = await result.current({
+        name: 'clear_translation_segment',
+        arguments: { utteranceId: 'u1', layerId: 'layer1' },
+      });
     });
 
     expect(response?.ok).toBe(false);
@@ -136,7 +142,10 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
 
     let response: Awaited<ReturnType<typeof result.current>> | undefined;
     await act(async () => {
-      response = await result.current({ name: 'clear_translation_segment', arguments: {} });
+      response = await result.current({
+        name: 'clear_translation_segment',
+        arguments: { utteranceId: 'u1', layerId: 'layer1' },
+      });
     });
 
     expect(response?.ok).toBe(false);
@@ -162,7 +171,10 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
     );
 
     await act(async () => {
-      await result.current({ name: 'clear_translation_segment', arguments: { utteranceId: 'target-u' } });
+      await result.current({
+        name: 'clear_translation_segment',
+        arguments: { utteranceId: 'target-u', layerId: 'layer1' },
+      });
     });
 
     expect(saveSpy).toHaveBeenCalledWith('target-u', '', 'layer1');
@@ -182,13 +194,13 @@ describe('useAiToolCallHandler — auto_gloss_utterance', () => {
       // Use a cast since 'no_such_tool' is not in AiChatToolName
       response = await result.current({
         name: 'auto_gloss_utterance' as Parameters<typeof result.current>[0]['name'],
-        arguments: {},
+        arguments: { utteranceId: 'u1' },
       });
     });
 
-    // When no utterance is available, it should return an error
+    // When target utterance does not exist, it should return an error
     expect(response?.ok).toBe(false);
-    expect(response?.message).toContain('没有可标注的句段');
+    expect(response?.message).toContain('未找到目标句段');
   });
 
   it('calls glossUtterance when utterance is selected', async () => {
@@ -206,12 +218,222 @@ describe('useAiToolCallHandler — auto_gloss_utterance', () => {
     await act(async () => {
       response = await result.current({
         name: 'auto_gloss_utterance',
-        arguments: {},
+        arguments: { utteranceId: 'u1' },
       });
     });
 
     // The service will find 0 tokens for this utterance (they're in IndexedDB, not mocked here)
     expect(response?.ok).toBe(true);
     expect(response?.message).toContain('token');
+  });
+});
+
+describe('useAiToolCallHandler — strict target requirements', () => {
+  it('rejects set_transcription_text without utteranceId', async () => {
+    const utterance = makeUtterance('u1');
+    const saveSpy = vi.fn<(u: string, t: string, l?: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [utterance],
+          selectedUtterance: utterance,
+          saveUtteranceText: saveSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({ name: 'set_transcription_text', arguments: { text: 'abc' } });
+    });
+
+    expect(response?.ok).toBe(false);
+    expect(response?.message).toContain('缺少 utteranceId');
+    expect(saveSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects delete_layer without explicit valid layerId', async () => {
+    const deleteLayerSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          translationLayers: [makeTranslationLayer('layer1', '普通话')],
+          deleteLayer: deleteLayerSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({ name: 'delete_layer', arguments: {} });
+    });
+    expect(response?.ok).toBe(false);
+    expect(response?.message).toContain('缺少 layerId');
+
+    await act(async () => {
+      response = await result.current({ name: 'delete_layer', arguments: { layerId: 'missing-layer' } });
+    });
+    expect(response?.ok).toBe(false);
+    expect(response?.message).toContain('未找到目标层');
+    expect(deleteLayerSpy).not.toHaveBeenCalled();
+  });
+
+  it('deletes translation layer by layerType + languageQuery when uniquely matched', async () => {
+    const deleteLayerSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+    const jpLayer = {
+      id: 'trl-jpn',
+      textId: 't1',
+      key: 'translation_jpn',
+      name: { zho: '日本语翻译层' },
+      layerType: 'translation',
+      languageId: 'jpn',
+      modality: 'text',
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as TranslationLayerDocType;
+    const zhLayer = makeTranslationLayer('trl-zho', '中文翻译层');
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          translationLayers: [jpLayer, zhLayer],
+          deleteLayer: deleteLayerSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'delete_layer',
+        arguments: { layerType: 'translation', languageQuery: '日本语' },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(deleteLayerSpy).toHaveBeenCalledWith('trl-jpn');
+  });
+
+  it('rejects delete_layer by layerType + languageQuery when multiple layers match', async () => {
+    const deleteLayerSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+    const jpLayer1 = {
+      id: 'trl-jpn-1',
+      textId: 't1',
+      key: 'translation_jpn_1',
+      name: { zho: '日本语翻译层A' },
+      layerType: 'translation',
+      languageId: 'jpn',
+      modality: 'text',
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as TranslationLayerDocType;
+    const jpLayer2 = {
+      id: 'trl-jpn-2',
+      textId: 't1',
+      key: 'translation_jpn_2',
+      name: { zho: '日本语翻译层B' },
+      layerType: 'translation',
+      languageId: 'ja',
+      modality: 'text',
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as TranslationLayerDocType;
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          translationLayers: [jpLayer1, jpLayer2],
+          deleteLayer: deleteLayerSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'delete_layer',
+        arguments: { layerType: 'translation', languageQuery: '日本语' },
+      });
+    });
+
+    expect(response?.ok).toBe(false);
+    expect(response?.message).toContain('匹配到多个翻译层');
+    expect(deleteLayerSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects create_transcription_segment without utteranceId', async () => {
+    const utterance = makeUtterance('u1');
+    const createNextSpy = vi.fn<(u: UtteranceDocType, d: number) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [utterance],
+          selectedUtterance: utterance,
+          createNextUtterance: createNextSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({ name: 'create_transcription_segment', arguments: {} });
+    });
+
+    expect(response?.ok).toBe(false);
+    expect(response?.message).toContain('缺少 utteranceId');
+    expect(createNextSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects auto_gloss_utterance without utteranceId', async () => {
+    const utterance = makeUtterance('u1');
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [utterance],
+          selectedUtterance: utterance,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({ name: 'auto_gloss_utterance', arguments: {} });
+    });
+
+    expect(response?.ok).toBe(false);
+    expect(response?.message).toContain('缺少 utteranceId');
+  });
+
+  it('rejects link/unlink without explicit source and target layer ids', async () => {
+    const toggleSpy = vi.fn<(k: string, t: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          transcriptionLayers: [{
+            id: 'trc-1', textId: 't1', key: 'trc-key-1', name: { zho: '转写层' }, layerType: 'transcription', languageId: 'zho', modality: 'text', createdAt: NOW, updatedAt: NOW,
+          } as TranslationLayerDocType],
+          translationLayers: [makeTranslationLayer('trl-1', '翻译层')],
+          toggleLayerLink: toggleSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({ name: 'link_translation_layer', arguments: {} });
+    });
+    expect(response?.ok).toBe(false);
+    expect(response?.message).toContain('缺少 transcriptionLayerId/transcriptionLayerKey');
+
+    await act(async () => {
+      response = await result.current({ name: 'unlink_translation_layer', arguments: { transcriptionLayerId: 'trc-1' } });
+    });
+    expect(response?.ok).toBe(false);
+    expect(response?.message).toContain('缺少 translationLayerId/layerId');
+    expect(toggleSpy).not.toHaveBeenCalled();
   });
 });

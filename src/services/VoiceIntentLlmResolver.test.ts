@@ -7,7 +7,7 @@ describe('VoiceIntentLlmResolver', () => {
       '{"type":"action","actionId":"undo"}',
       '撤回',
     );
-    expect(parsed).toEqual({ type: 'action', actionId: 'undo', raw: '撤回' });
+    expect(parsed).toEqual({ type: 'action', actionId: 'undo', confidence: 1, raw: '撤回' });
   });
 
   it('parses tool_call JSON shape', () => {
@@ -48,6 +48,6 @@ describe('VoiceIntentLlmResolver', () => {
         actionIdField: 'action',
       },
     );
-    expect(parsed).toEqual({ type: 'action', actionId: 'redo', raw: '重做一下' });
+    expect(parsed).toEqual({ type: 'action', actionId: 'redo', confidence: 1, raw: '重做一下' });
   });
 });
