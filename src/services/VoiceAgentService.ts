@@ -26,8 +26,12 @@ import {
 import {
   routeIntent,
   isDestructiveAction,
+  shouldConfirmFuzzyAction,
   getActionLabel,
   createVoiceSession,
+  loadVoiceIntentAliasMap,
+  learnVoiceIntentAlias,
+  bumpAliasUsage,
   type ActionId,
   type VoiceIntent,
   type VoiceSession,
@@ -35,7 +39,10 @@ import {
 } from './IntentRouter';
 import { toBcp47 } from '../utils/langMapping';
 import { createCommercialProvider, testCommercialProvider as testCommercialProviderFactory, type CommercialProviderCreateConfig } from './stt';
+import { chooseSttEngine } from './SttStrategyRouter';
+import { detectRegion } from '../utils/regionDetection';
 import * as Earcon from './EarconService';
+import { unlockAudio } from './EarconService';
 import type { SttEngine, SttResult, CommercialProviderKind } from './VoiceInputService';
 import { globalContext } from './GlobalContextService';
 import { userBehaviorStore } from './UserBehaviorStore';
@@ -109,8 +116,10 @@ export interface VoiceAgentServiceOptions {
   langOverride?: string | null;
   initialSafeMode?: boolean;
   initialWakeWordEnabled?: boolean;
-  ollamaBaseUrl?: string;
-  ollamaModel?: string;
+  /** Whisper-server URL for whisper-local engine (port 3040) */
+  whisperServerUrl?: string;
+  /** Whisper-server model name */
+  whisperServerModel?: string;
   commercialProviderKind?: CommercialProviderKind;
   commercialProviderConfig?: CommercialProviderCreateConfig;
   /** Called when the user confirms a pending action */
@@ -158,6 +167,7 @@ export class VoiceAgentService extends EventEmitter {
   private _commercialProviderKind: CommercialProviderKind = 'groq';
   private _commercialProviderConfig: CommercialProviderCreateConfig = {};
   private _energyLevel = 0;
+  private _batteryLevel: number | undefined; // cached from Battery Status API
   private _recordingDuration = 0;
   private _wakeWordEnabled = false;
   private _wakeWordEnergyLevel = 0;
@@ -167,9 +177,9 @@ export class VoiceAgentService extends EventEmitter {
   // ── Options ────────────────────────────────────────────────────────────────
 
   private readonly _corpusLang: string;
-  private readonly _langOverride: string | null;
-  private readonly _ollamaBaseUrl: string | undefined;
-  private readonly _ollamaModel: string;
+  private _langOverride: string | null;
+  private readonly _whisperServerUrl: string;
+  private readonly _whisperServerModel: string;
   private readonly _onExecuteAction: ((actionId: ActionId) => void) | undefined;
   private readonly _onInsertDictation: ((text: string) => void) | undefined;
   private readonly _onSendToAiChat: ((text: string) => void) | undefined;
@@ -194,6 +204,7 @@ export class VoiceAgentService extends EventEmitter {
   private _ambientUnsubscribe: (() => void) | null = null;
   private _speechQuality: SpeechQualityAnalyzer | null = null;
   private _engineSwitchCounter = 0;
+  private _intentAliasMap: Record<string, ActionId> = {};
   private static readonly _ENGINE_SWITCH_THRESHOLD = 3; // require N consecutive recommendations before switching
 
   // ── UI context (set by page via setUiContext) ────────────────────────────
@@ -201,6 +212,13 @@ export class VoiceAgentService extends EventEmitter {
   private _selectedSegmentIds: string[] = [];
   private _currentPhase: string = 'transcribing';
   private _attentionHotspots: Array<{ segmentId: string; index: number; score: number }> = [];
+
+  // 页面隐藏 / 关闭时持久化会话 | Persist session on page hide / close
+  private readonly _handleVisibilityChange = (): void => {
+    if (document.visibilityState === 'hidden' && this._session.entries.length > 0) {
+      void saveVoiceSession(this._session).catch(() => { /* best-effort */ });
+    }
+  };
 
   // ── Constructor ─────────────────────────────────────────────────────────
 
@@ -210,10 +228,11 @@ export class VoiceAgentService extends EventEmitter {
     this._langOverride = options.langOverride ?? null;
     this._safeMode = options.initialSafeMode ?? false;
     this._wakeWordEnabled = options.initialWakeWordEnabled ?? false;
-    this._ollamaBaseUrl = options.ollamaBaseUrl;
-    this._ollamaModel = options.ollamaModel ?? 'whisper-small';
+    this._whisperServerUrl = options.whisperServerUrl ?? 'http://localhost:3040';
+    this._whisperServerModel = options.whisperServerModel ?? 'ggml-small-q5_k.bin';
     this._commercialProviderKind = options.commercialProviderKind ?? 'groq';
     this._commercialProviderConfig = options.commercialProviderConfig ?? {};
+    this._intentAliasMap = loadVoiceIntentAliasMap();
     this._onExecuteAction = options.onExecuteAction;
     this._onInsertDictation = options.onInsertDictation;
     this._onSendToAiChat = options.onSendToAiChat;
@@ -244,6 +263,9 @@ export class VoiceAgentService extends EventEmitter {
 
     // Initialize speech quality analyzer for adaptive STT engine recommendation
     this._speechQuality = SpeechQualityAnalyzer.getInstance();
+
+    // 页面关闭 / 隐藏时保存会话 | Save session on page hide / close
+    document.addEventListener('visibilitychange', this._handleVisibilityChange);
   }
 
   // ── Public getters (read-only state) ───────────────────────────────────
@@ -290,7 +312,31 @@ export class VoiceAgentService extends EventEmitter {
   // ── State setters with event emission ───────────────────────────────────
 
   private _setState(partial: Partial<VoiceAgentServiceState>): void {
-    Object.assign(this, partial);
+    // NOTE: Do NOT use Object.assign — it overwrites prototype getter/setter pairs
+    // (listening, mode, interimText, finalText, confidence, error, lastIntent,
+    // pendingConfirm, etc.) with plain own properties, breaking React state reactivity.
+    if (partial.listening !== undefined) this._listening = partial.listening;
+    if (partial.speechActive !== undefined) this._speechActive = partial.speechActive;
+    if (partial.mode !== undefined) this._mode = partial.mode;
+    if (partial.interimText !== undefined) this._interimText = partial.interimText;
+    if (partial.finalText !== undefined) this._finalText = partial.finalText;
+    if (partial.confidence !== undefined) this._confidence = partial.confidence;
+    if (partial.lastIntent !== undefined) this._lastIntent = partial.lastIntent;
+    if (partial.error !== undefined) this._error = partial.error;
+    if (partial.safeMode !== undefined) this._safeMode = partial.safeMode;
+    if (partial.pendingConfirm !== undefined) this._pendingConfirm = partial.pendingConfirm;
+    if (partial.session !== undefined) this._session = partial.session;
+    if (partial.engine !== undefined) this._engine = partial.engine;
+    if (partial.isRecording !== undefined) this._isRecording = partial.isRecording;
+    if (partial.commercialProviderKind !== undefined) this._commercialProviderKind = partial.commercialProviderKind;
+    if (partial.commercialProviderConfig !== undefined) this._commercialProviderConfig = partial.commercialProviderConfig;
+    if (partial.energyLevel !== undefined) this._energyLevel = partial.energyLevel;
+    if (partial.recordingDuration !== undefined) this._recordingDuration = partial.recordingDuration;
+    if (partial.wakeWordEnabled !== undefined) this._wakeWordEnabled = partial.wakeWordEnabled;
+    if (partial.wakeWordEnergyLevel !== undefined) this._wakeWordEnergyLevel = partial.wakeWordEnergyLevel;
+    if (partial.detectedLang !== undefined) this._detectedLang = partial.detectedLang;
+    if (partial.agentState !== undefined) this._agentState = partial.agentState;
+    // groundingContext is derived — read via _buildGroundingContext(), not assigned here
     this._emitStateChange();
   }
 
@@ -334,6 +380,17 @@ export class VoiceAgentService extends EventEmitter {
     return toBcp47(this._corpusLang) ?? this._corpusLang;
   }
 
+  /** Asynchronously refresh the cached battery level (fire-and-forget).
+   * 异步更新电量缓存，下次 chooseSttEngine 时生效。 */
+  private _refreshBatteryLevel(): void {
+    if (typeof navigator === 'undefined' || !('getBattery' in navigator)) return;
+    type BatteryManager = { level: number };
+    (navigator as unknown as { getBattery(): Promise<BatteryManager> })
+      .getBattery()
+      .then((b) => { this._batteryLevel = b.level; })
+      .catch(() => { /* ignore — not available in all environments */ });
+  }
+
   private _ensureVoiceService(): VoiceInputService {
     if (!this._voiceService) {
       this._voiceService = new VoiceInputService();
@@ -356,12 +413,13 @@ export class VoiceAgentService extends EventEmitter {
         });
       }
     }
+
     return this._voiceService;
   }
 
   // ── Start / Stop ─────────────────────────────────────────────────────────
 
-  start(targetMode?: VoiceAgentMode): void {
+  async start(targetMode?: VoiceAgentMode): Promise<void> {
     if (this._listening) return;
 
     if (targetMode) this._setState({ mode: targetMode });
@@ -371,26 +429,60 @@ export class VoiceAgentService extends EventEmitter {
     const svc = this._ensureVoiceService();
     const lang = this._getEffectiveLang();
 
+    // Refresh battery level for next call; use cached value now | 异步刷新电量，当前用缓存值
+    this._refreshBatteryLevel();
+    const region = await detectRegion();
+    const runtimeEngine = chooseSttEngine({
+      preferred: this._engine,
+      online: typeof navigator !== 'undefined' ? navigator.onLine : true,
+      noiseLevel: this._energyLevel,
+      ...(this._batteryLevel !== undefined && { batteryLevel: this._batteryLevel }),
+      regionHint: region,
+    });
+
     const startConfig: Parameters<typeof svc.start>[0] = {
       lang,
       continuous: true,
       interimResults: true,
-      preferredEngine: this._engine,
+      preferredEngine: runtimeEngine,
+      region,
       maxAlternatives: 3,
     };
-    if (this._ollamaBaseUrl) startConfig.ollamaBaseUrl = this._ollamaBaseUrl;
-    if (this._ollamaModel) startConfig.ollamaModel = this._ollamaModel;
-    if (this._engine === 'commercial' && this._commercialProviderConfig) {
+    // whisper-local uses whisper-server (port 3040)
+    if (runtimeEngine === 'whisper-local') {
+      console.log('[DEBUG] VoiceAgentService.start: setting whisper config, _whisperServerUrl=', this._whisperServerUrl, '_whisperServerModel=', this._whisperServerModel);
+      startConfig.whisperServerUrl = this._whisperServerUrl;
+      startConfig.whisperServerModel = this._whisperServerModel;
+    }
+    if (runtimeEngine === 'commercial' && this._commercialProviderConfig) {
       startConfig.commercialFallback = createCommercialProvider(
         this._commercialProviderKind,
         this._commercialProviderConfig,
       );
     }
     svc.start(startConfig);
+
+    // Start speech quality analyzer after the voice service has a live MediaStream.
+    // This must happen AFTER svc.start() so that createAnalysisCloneStream()
+    // can successfully clone the shared microphone stream.
+    if (this._speechQuality && !this._speechQuality.isActive) {
+      const stream = await this._voiceService!.createAnalysisCloneStream();
+      if (stream) {
+        this._speechQuality.start(stream);
+      } else {
+        // Fallback: let SpeechQualityAnalyzer request its own getUserMedia.
+        // This may prompt the browser for microphone permission a second time.
+        void this._speechQuality.start();
+      }
+    }
+
+    void unlockAudio();
     Earcon.playActivate();
   }
 
   stop(): void {
+    this._speechQuality?.stop();
+    this._voiceService?.releaseSharedAnalysisStream();
     this._voiceService?.stop();
     this._setState({
       listening: false,
@@ -407,11 +499,11 @@ export class VoiceAgentService extends EventEmitter {
     Earcon.playDeactivate();
   }
 
-  toggle(targetMode?: VoiceAgentMode): void {
+  async toggle(targetMode?: VoiceAgentMode): Promise<void> {
     if (this._listening) {
       this.stop();
     } else {
-      this.start(targetMode);
+      await this.start(targetMode);
     }
   }
 
@@ -487,11 +579,21 @@ export class VoiceAgentService extends EventEmitter {
 
   async startRecording(): Promise<void> {
     const svc = this._ensureVoiceService();
-    this._setState({ isRecording: true, recordingDuration: 0, agentState: 'listening' });
-    this._recordingDurationInterval = setInterval(() => {
-      this._setState({ recordingDuration: this._recordingDuration + 1 });
-    }, 1000);
-    await svc.startRecording();
+    this._setState({ agentState: 'listening' });
+    try {
+      await svc.startRecording();
+      this._setState({ isRecording: true, recordingDuration: 0 });
+      this._recordingDurationInterval = setInterval(() => {
+        this._setState({ recordingDuration: this._recordingDuration + 1 });
+      }, 1000);
+    } catch (error) {
+      if (this._recordingDurationInterval !== null) {
+        clearInterval(this._recordingDurationInterval);
+        this._recordingDurationInterval = null;
+      }
+      this._setState({ isRecording: false, agentState: 'idle', error: error instanceof Error ? error.message : '录音启动失败' });
+      Earcon.playError();
+    }
   }
 
   async stopRecording(): Promise<void> {
@@ -507,8 +609,18 @@ export class VoiceAgentService extends EventEmitter {
 
   switchEngine(newEngine: SttEngine): void {
     this._setState({ engine: newEngine });
+    // 持久化引擎偏好 | Persist engine preference
+    globalContext.updatePreference('preferredEngine', newEngine);
     if (this._listening) {
-      this._voiceService?.switchEngine(newEngine);
+      // When switching to whisper-local, we need to pass the config again
+      if (newEngine === 'whisper-local') {
+        this._voiceService?.switchEngine(newEngine, {
+          whisperServerUrl: this._whisperServerUrl,
+          whisperServerModel: this._whisperServerModel,
+        });
+      } else {
+        this._voiceService?.switchEngine(newEngine);
+      }
     }
   }
 
@@ -547,8 +659,12 @@ export class VoiceAgentService extends EventEmitter {
   }
 
   setLangOverride(lang: string | null): void {
-    // Note: langOverride is stored in options, not mutable after construction
-    // For dynamic language override, use a separate mechanism
+    this._langOverride = lang;
+    // 同步更新正在运行的 VoiceInputService | Sync to running VoiceInputService
+    if (this._voiceService && lang) {
+      const bcp47 = lang === '__auto__' ? '' : (toBcp47(lang) ?? lang);
+      this._voiceService.setLang(bcp47);
+    }
     this._emitStateChange();
   }
 
@@ -601,11 +717,16 @@ export class VoiceAgentService extends EventEmitter {
 
     this._setState({ interimText: '', finalText: result.text, confidence: result.confidence, agentState: 'routing' });
 
-    let intent = routeIntent(result.text, this._mode);
+    let intent = routeIntent(result.text, this._mode, {
+      sttConfidence: result.confidence,
+      detectedLang: result.lang,
+      aliasMap: this._intentAliasMap,
+    });
     console.log('[DEBUG] routeIntent:', JSON.stringify({ text: result.text, mode: this._mode, intentType: intent.type }));
 
     // LLM fallback for chat intents
     let llmFallbackFailed = false;
+    let llmResolvedAction = false;
     if (intent.type === 'chat' && this._mode === 'command' && this._resolveIntentWithLlm) {
       try {
         const fallbackIntent = await this._resolveIntentWithLlm({
@@ -615,6 +736,7 @@ export class VoiceAgentService extends EventEmitter {
         });
         if (fallbackIntent) {
           intent = fallbackIntent;
+          llmResolvedAction = fallbackIntent.type === 'action';
         } else {
           llmFallbackFailed = true;
           this._setState({ error: '无法识别该指令，请重试或切换到"分析"模式直接发送文本' });
@@ -623,6 +745,17 @@ export class VoiceAgentService extends EventEmitter {
         llmFallbackFailed = true;
         this._setState({ error: err instanceof Error ? err.message : 'LLM intent解析失败' });
       }
+    }
+
+    if (llmResolvedAction && intent.type === 'action') {
+      const learned = learnVoiceIntentAlias(result.text, intent.actionId);
+      if (learned.applied) {
+        this._intentAliasMap = learned.aliasMap;
+      }
+    }
+    // Bump usage stats for alias-matched intents | 命中别名时更新使用统计
+    if (!llmResolvedAction && intent.type === 'action' && intent.fromAlias) {
+      bumpAliasUsage(result.text);
     }
 
     this._setState({ lastIntent: intent, agentState: llmFallbackFailed ? 'idle' : 'executing' });
@@ -640,7 +773,9 @@ export class VoiceAgentService extends EventEmitter {
     // Dispatch by intent type
     switch (intent.type) {
       case 'action': {
-        const needsConfirm = intent.fromFuzzy || (this._safeMode && isDestructiveAction(intent.actionId));
+        const needsConfirm =
+          (intent.fromFuzzy && shouldConfirmFuzzyAction(intent.actionId))
+          || (this._safeMode && isDestructiveAction(intent.actionId));
         if (needsConfirm) {
           const label = intent.fromFuzzy
             ? `[模糊] ${getActionLabel(intent.actionId)}`
@@ -691,7 +826,7 @@ export class VoiceAgentService extends EventEmitter {
         speechMs: 400,
         cooldownMs: 3000,
         onWake: () => {
-          this.start('command');
+          void this.start('command');
         },
         onEnergy: (rms) => {
           this._setState({ wakeWordEnergyLevel: rms });
@@ -889,9 +1024,12 @@ export class VoiceAgentService extends EventEmitter {
   // ── Cleanup ────────────────────────────────────────────────────────────
 
   dispose(): void {
+    document.removeEventListener('visibilitychange', this._handleVisibilityChange);
     this._ambientUnsubscribe?.();
     this._voiceService?.dispose();
+    this._voiceService?.releaseSharedAnalysisStream();
     this._voiceService = null;
+    this._speechQuality?.stop();
     this._stopWakeWordDetector();
     if (this._recordingDurationInterval !== null) {
       clearInterval(this._recordingDurationInterval);

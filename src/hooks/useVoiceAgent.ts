@@ -13,22 +13,33 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { VoiceInputService, type SttEngine, type SttResult, type CommercialProviderKind } from '../services/VoiceInputService';
+import { VoiceInputService, testWhisperServerAvailability, type SttEngine, type SttResult, type CommercialProviderKind } from '../services/VoiceInputService';
 import { WakeWordDetector } from '../services/WakeWordDetector';
 import { saveVoiceSession, loadRecentVoiceSessions } from '../services/VoiceSessionStore';
 import {
   routeIntent,
+  collectAlternativeIntents,
+  LOW_CONFIDENCE_THRESHOLD,
   isDestructiveAction,
+  shouldConfirmFuzzyAction,
   getActionLabel,
   createVoiceSession,
+  loadVoiceIntentAliasMap,
+  learnVoiceIntentAlias,
+  bumpAliasUsage,
   type ActionId,
+  type ActionIntent,
   type VoiceIntent,
   type VoiceSession,
   type VoiceSessionEntry,
 } from '../services/IntentRouter';
 import { toBcp47 } from '../utils/langMapping';
-import { createCommercialProvider, testCommercialProvider as testCommercialProviderFactory, type CommercialProviderCreateConfig } from '../services/stt';
+import { createCommercialProvider, testCommercialProvider as testCommercialProviderFactory, probeAllCommercialProviders, type CommercialProviderCreateConfig, type ProviderReachability } from '../services/stt';
+import type { VoicePreset } from '../utils/voicePresets';
+import { chooseSttEngine } from '../services/SttStrategyRouter';
+import { detectRegion } from '../utils/regionDetection';
 import * as Earcon from '../services/EarconService';
+import { unlockAudio } from '../services/EarconService';
 import { useLatest } from './useLatest';
 import { globalContext } from '../services/GlobalContextService';
 import { userBehaviorStore } from '../services/UserBehaviorStore';
@@ -60,6 +71,8 @@ export interface VoiceAgentState {
   detectedLang: string | null;
   // Multi-agent pipeline state (Stage 1 new)
   agentState: 'idle' | 'listening' | 'routing' | 'executing' | 'ai-thinking';
+  /** 消歧备选列表 | Disambiguation alternatives for low-confidence fuzzy matches */
+  disambiguationOptions: ActionIntent[];
 }
 
 export interface UseVoiceAgentOptions {
@@ -69,7 +82,7 @@ export interface UseVoiceAgentOptions {
   langOverride?: string | null;
   /** Execute a UI action by ActionId */
   executeAction: (actionId: ActionId) => void;
-  /** Send text to AI chat (for analysis/chat intents) */
+  /** Send text to AI chat (for analysis/chat intents). The AI response is captured via setAnalysisFillCallback. */
   sendToAiChat?: (text: string) => void;
   /** Insert dictated text into the active field */
   insertDictation?: (text: string) => void;
@@ -81,10 +94,10 @@ export interface UseVoiceAgentOptions {
     mode: VoiceAgentMode;
     session: VoiceSession;
   }) => Promise<VoiceIntent | null>;
-  /** Ollama base URL for whisper-local engine, e.g. 'http://localhost:11434' */
-  ollamaBaseUrl?: string;
-  /** Ollama whisper model name, e.g. 'whisper-small' */
-  ollamaModel?: string;
+  /** Whisper-server URL (used when engine === 'whisper-local') */
+  whisperServerUrl?: string;
+  /** Whisper-server model name (used when engine === 'whisper-local') */
+  whisperServerModel?: string;
   /** Commercial STT provider kind (used when engine === 'commercial') */
   commercialProviderKind?: CommercialProviderKind;
   /** Commercial STT provider config (used when engine === 'commercial') */
@@ -112,8 +125,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     insertDictation,
     initialSafeMode = false,
     resolveIntentWithLlm,
-    ollamaBaseUrl,
-    ollamaModel = 'whisper-small',
+    whisperServerUrl = 'http://localhost:3040',
+    whisperServerModel = 'ggml-small-q5_k.bin',
     commercialProviderKind = 'groq',
     commercialProviderConfig,
     initialWakeWordEnabled = false,
@@ -142,6 +155,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const [detectedLang, setDetectedLang] = useState<string | null>(null);
   /** Multi-agent pipeline state (Stage 1 new) */
   const [agentState, setAgentState] = useState<VoiceAgentState['agentState']>('idle');
+  /** 消歧备选列表 | Low-confidence fuzzy alternatives for disambiguation */
+  const [disambiguationOptions, setDisambiguationOptions] = useState<ActionIntent[]>([]);
 
   // Stable refs
   const serviceRef = useRef<VoiceInputService | null>(null);
@@ -157,8 +172,34 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const commercialProviderKindRef = useLatest(commercialProviderKindState);
   const commercialProviderConfigRef = useLatest(commercialProviderConfigState);
   const langOverrideRef = useLatest(langOverride);
+  // whisperServerUrl and whisperServerModel are used for the 'whisper-local' engine (whisper-server on port 3040)
   const energyLevelRef = useRef(0);
   const recordingDurationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingAiResponseCountRef = useRef(0);
+  const aliasMapRef = useRef<Record<string, ActionId>>(loadVoiceIntentAliasMap());
+  /** Tracks the target utterance ID for the active analysis session (set before sendToAiChat in analysis mode). */
+  const analysisTargetUtteranceIdRef = useRef<string | null>(null);
+  /** Internal simplified callback: called with the AI response text when the stream completes in analysis mode. */
+  const analysisFillCallbackRef = useRef<((text: string) => void) | null>(null);
+  // 存储监听器取消函数，防止 start/stop 多次后叠加 | Store listener unsubscribes to prevent accumulation on toggle
+  const svcUnsubscribesRef = useRef<Array<() => void>>([]);
+
+  const queueAiThinking = useCallback(() => {
+    pendingAiResponseCountRef.current += 1;
+    setAgentState('ai-thinking');
+  }, []);
+
+  const consumeAiThinking = useCallback(() => {
+    if (pendingAiResponseCountRef.current > 0) {
+      pendingAiResponseCountRef.current -= 1;
+    }
+    setAgentState('idle');
+  }, []);
+
+  const clearAiThinking = useCallback(() => {
+    pendingAiResponseCountRef.current = 0;
+    setAgentState('idle');
+  }, []);
 
   // Load most recent session from IndexedDB on mount
   useEffect(() => {
@@ -178,20 +219,29 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     }
 
     if (!result.isFinal) {
+      if (result.text.trim().length > 0) {
+        setError(null);
+      }
       setInterimText(result.text);
       setConfidence(result.confidence);
       return;
     }
 
+    setError(null);
     setInterimText('');
     setFinalText(result.text);
     setConfidence(result.confidence);
     setAgentState('routing');
 
     const currentMode = modeRef.current;
-    let intent = routeIntent(result.text, currentMode);
+    let intent = routeIntent(result.text, currentMode, {
+      sttConfidence: result.confidence,
+      detectedLang: result.lang,
+      aliasMap: aliasMapRef.current,
+    });
 
     let llmFallbackFailed = false;
+    let llmResolvedAction = false;
     if (intent.type === 'chat' && currentMode === 'command' && resolveIntentWithLlmRef.current) {
       try {
         const fallbackIntent = await resolveIntentWithLlmRef.current({
@@ -201,6 +251,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
         });
         if (fallbackIntent) {
           intent = fallbackIntent;
+          llmResolvedAction = fallbackIntent.type === 'action';
         } else {
           llmFallbackFailed = true;
           setError('无法识别该指令，请重试或切换到"分析"模式直接发送文本');
@@ -210,7 +261,34 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
         setError(err instanceof Error ? err.message : 'LLM intent解析失败，请检查 API 配置');
       }
     }
+
+    if (llmResolvedAction && intent.type === 'action') {
+      const learned = learnVoiceIntentAlias(result.text, intent.actionId);
+      if (learned.applied) {
+        aliasMapRef.current = learned.aliasMap;
+      }
+    }
+    // Bump usage stats for alias-matched intents | 命中别名时更新使用统计
+    if (!llmResolvedAction && intent.type === 'action' && intent.fromAlias) {
+      bumpAliasUsage(result.text);
+    }
     setLastIntent(intent);
+
+    // 低信心度模糊匹配时采集消歧备选 | Collect disambiguation alternatives on low-confidence fuzzy matches
+    if (
+      intent.type === 'action'
+      && intent.fromFuzzy
+      && intent.confidence < LOW_CONFIDENCE_THRESHOLD
+    ) {
+      const alternatives = collectAlternativeIntents(
+        result.text,
+        intent.actionId,
+        result.confidence,
+      );
+      setDisambiguationOptions(alternatives);
+    } else {
+      setDisambiguationOptions([]);
+    }
 
     // Record to session
     const entry: VoiceSessionEntry = {
@@ -230,7 +308,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     switch (intent.type) {
       case 'action': {
         const needsConfirm =
-          intent.fromFuzzy || (safeModeRef.current && isDestructiveAction(intent.actionId));
+          (intent.fromFuzzy && shouldConfirmFuzzyAction(intent.actionId))
+          || (safeModeRef.current && isDestructiveAction(intent.actionId));
         if (needsConfirm) {
           const label = intent.fromFuzzy
             ? `[模糊] ${getActionLabel(intent.actionId)}`
@@ -239,6 +318,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
           Earcon.playTick();
           setAgentState('idle');
         } else {
+          setError(null);
           executeActionRef.current(intent.actionId);
           Earcon.playSuccess();
           globalContext.markSessionStart();
@@ -252,32 +332,48 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
         break;
       }
       case 'tool': {
-        sendToAiChatRef.current?.(`[语音指令] ${intent.raw}`);
+        if (!sendToAiChatRef.current) {
+          setAgentState('idle');
+          break;
+        }
+        setError(null);
+        queueAiThinking();
+        sendToAiChatRef.current(`[语音指令] ${intent.raw}`);
         Earcon.playSuccess();
-        setAgentState('idle');
         break;
       }
       case 'dictation': {
+        setError(null);
         insertDictationRef.current?.(intent.text);
         setAgentState('idle');
         break;
       }
       case 'slot-fill': {
-        sendToAiChatRef.current?.(`[槽位填充] ${intent.slotName}: ${intent.value}`);
-        setAgentState('idle');
+        if (!sendToAiChatRef.current) {
+          setAgentState('idle');
+          break;
+        }
+        setError(null);
+        queueAiThinking();
+        sendToAiChatRef.current(`[槽位填充] ${intent.slotName}: ${intent.value}`);
         break;
       }
       case 'chat': {
         if (llmFallbackFailed) break;
-        sendToAiChatRef.current?.(intent.text);
-        setAgentState('idle');
+        if (!sendToAiChatRef.current) {
+          setAgentState('idle');
+          break;
+        }
+        setError(null);
+        queueAiThinking();
+        sendToAiChatRef.current(intent.text);
         break;
       }
     }
-  }, [modeRef, safeModeRef, executeActionRef, sendToAiChatRef, insertDictationRef, resolveIntentWithLlmRef, sessionRef]);
+  }, [modeRef, safeModeRef, executeActionRef, sendToAiChatRef, insertDictationRef, resolveIntentWithLlmRef, sessionRef, queueAiThinking]);
 
   // ── Start / Stop ───────────────────────────────────────────────────────────
-  const start = useCallback((targetMode?: VoiceAgentMode) => {
+  const start = useCallback(async (targetMode?: VoiceAgentMode) => {
     if (listening) return;
 
     const effectiveLang = (() => {
@@ -290,6 +386,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     setError(null);
     setPendingConfirm(null);
     setSession(createVoiceSession());
+    pendingAiResponseCountRef.current = 0;
     setAgentState('listening');
 
     let svc = serviceRef.current;
@@ -298,55 +395,87 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       serviceRef.current = svc;
     }
 
-    svc.onResult(handleSttResult);
-    svc.onError((err) => {
+    // 清除旧监听器防止叠加 | Remove previous listeners to prevent accumulation
+    for (const unsub of svcUnsubscribesRef.current) unsub();
+    svcUnsubscribesRef.current = [];
+
+    svcUnsubscribesRef.current.push(svc.onResult(handleSttResult));
+    svcUnsubscribesRef.current.push(svc.onError((err) => {
       setError(err);
       Earcon.playError();
-    });
-    svc.onStateChange(setListening);
+    }));
+    svcUnsubscribesRef.current.push(svc.onStateChange(setListening));
     if ('onVadStateChange' in svc && typeof svc.onVadStateChange === 'function') {
-      svc.onVadStateChange(setSpeechActive);
+      svcUnsubscribesRef.current.push(svc.onVadStateChange(setSpeechActive));
     }
     if ('onEnergyLevel' in svc && typeof svc.onEnergyLevel === 'function') {
-      svc.onEnergyLevel((rms) => {
+      svcUnsubscribesRef.current.push(svc.onEnergyLevel((rms) => {
         energyLevelRef.current = rms;
         setEnergyLevel(rms);
-      });
+      }));
     }
+
+    // Battery Status API hookup | 接入电量状态 API
+    let batteryLevel: number | undefined;
+    if (typeof navigator !== 'undefined' && 'getBattery' in navigator) {
+      try {
+        type BatteryManager = { level: number };
+        const battery = await (navigator as unknown as { getBattery(): Promise<BatteryManager> }).getBattery();
+        batteryLevel = battery.level;
+      } catch { /* ignore — not available in all environments */ }
+    }
+
+    // Detect region and set appropriate fallback chain
+    const region = await detectRegion();
+
+    const runtimeEngine = chooseSttEngine({
+      preferred: engineRef.current,
+      online: typeof navigator !== 'undefined' ? navigator.onLine : true,
+      noiseLevel: energyLevelRef.current,
+      ...(batteryLevel !== undefined && { batteryLevel }),
+      regionHint: region,
+    });
 
     const startConfig: Parameters<typeof svc.start>[0] = {
       lang: effectiveLang,
       continuous: true,
       interimResults: true,
-      preferredEngine: engineRef.current,
+      preferredEngine: runtimeEngine,
+      region,
       maxAlternatives: 3,
     };
-    if (ollamaBaseUrl) startConfig.ollamaBaseUrl = ollamaBaseUrl;
-    if (ollamaModel) startConfig.ollamaModel = ollamaModel;
-    if (engineRef.current === 'commercial' && commercialProviderConfigRef.current) {
+    // whisper-local uses whisper-server (port 3040)
+    if (runtimeEngine === 'whisper-local') {
+      startConfig.whisperServerUrl = whisperServerUrl;
+      startConfig.whisperServerModel = whisperServerModel;
+    }
+    if (runtimeEngine === 'commercial' && commercialProviderConfigRef.current) {
       startConfig.commercialFallback = createCommercialProvider(
         commercialProviderKindRef.current,
         commercialProviderConfigRef.current,
       );
     }
     svc.start(startConfig);
-    console.log('[DEBUG] start() called, service started, about to play activate sound');
+    void unlockAudio();
     Earcon.playActivate();
-  }, [listening, langOverrideRef, handleSttResult, engineRef, ollamaBaseUrl, ollamaModel, commercialProviderKindRef, commercialProviderConfigRef]);
+  }, [listening, langOverrideRef, handleSttResult, engineRef, whisperServerUrl, whisperServerModel, commercialProviderKindRef, commercialProviderConfigRef]);
 
-  const stop = useCallback(() => {
+  const stop = useCallback(async () => {
     serviceRef.current?.stop();
     setListening(false);
     setSpeechActive(false);
     setInterimText('');
     setPendingConfirm(null);
+    pendingAiResponseCountRef.current = 0;
     setAgentState('idle');
 
     const currentSession = sessionRef.current;
     if (currentSession.entries.length > 0) {
-      saveVoiceSession(currentSession).catch(() => {
+      try {
+        await saveVoiceSession(currentSession);
+      } catch {
         // IndexedDB unavailable — silently skip
-      });
+      }
     }
 
     Earcon.playDeactivate();
@@ -357,13 +486,23 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const startRecording = useCallback(async () => {
     const svc = serviceRef.current;
     if (!svc) return;
-    setIsRecording(true);
-    setRecordingDuration(0);
     setAgentState('listening');
-    recordingDurationIntervalRef.current = setInterval(() => {
-      setRecordingDuration((d) => d + 1);
-    }, 1000);
-    await svc.startRecording();
+    try {
+      await svc.startRecording();
+      setIsRecording(true);
+      setRecordingDuration(0);
+      if (recordingDurationIntervalRef.current !== null) {
+        clearInterval(recordingDurationIntervalRef.current);
+      }
+      recordingDurationIntervalRef.current = setInterval(() => {
+        setRecordingDuration((d) => d + 1);
+      }, 1000);
+    } catch (err) {
+      setIsRecording(false);
+      setAgentState('idle');
+      Earcon.playError();
+      setError(err instanceof Error ? err.message : '录音启动失败');
+    }
   }, []);
 
   const stopRecording = useCallback(async () => {
@@ -382,13 +521,14 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
 
   const switchEngine = useCallback((newEngine: SttEngine) => {
     setEngine(newEngine);
+    // 持久化引擎偏好 | Persist engine preference
+    globalContext.updatePreference('preferredEngine', newEngine);
     if (listening) {
       serviceRef.current?.switchEngine(newEngine);
     }
   }, [listening]);
 
   const toggle = useCallback((targetMode?: VoiceAgentMode) => {
-    console.log('[DEBUG] toggle called, listening=', listening, 'engine=', engineRef.current);
     if (listening) {
       stop();
     } else {
@@ -415,12 +555,37 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     Earcon.playTick();
   }, []);
 
+  // ── Disambiguation selection | 消歧选择 ──────────────────────────────────
+  const selectDisambiguation = useCallback((actionId: ActionId) => {
+    setDisambiguationOptions([]);
+    executeActionRef.current(actionId);
+    Earcon.playSuccess();
+    globalContext.markSessionStart();
+    userBehaviorStore.recordAction({
+      actionId,
+      durationMs: 0,
+      sessionId: sessionRef.current.id,
+    });
+  }, [executeActionRef, sessionRef]);
+
+  const dismissDisambiguation = useCallback(() => {
+    setDisambiguationOptions([]);
+  }, []);
+
   // ── Mode switching ────────────────────────────────────────────────────────
   const switchMode = useCallback((newMode: VoiceAgentMode) => {
     setMode(newMode);
     setPendingConfirm(null);
     setInterimText('');
   }, []);
+
+  // ── Language sync: keep VoiceInputService._config.lang in sync with UI override ──
+  // Use langOverrideRef to read the current value without causing re-renders
+  useEffect(() => {
+    const override = langOverride;
+    const effective = override === '__auto__' ? '' : (override ? toBcp47(override) : toBcp47(corpusLang));
+    serviceRef.current?.setLang(effective);
+  }, [langOverride, corpusLang, listening]);
 
   // ── Wake-word detector lifecycle ──────────────────────────────────────────
   useEffect(() => {
@@ -452,11 +617,13 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       detector.stop();
       wakeWordDetectorRef.current = null;
     };
-  }, [wakeWordEnabled, listening]);
+  }, [wakeWordEnabled, listening, start]);
 
   // ── Cleanup ────────────────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
+      for (const unsub of svcUnsubscribesRef.current) unsub();
+      svcUnsubscribesRef.current = [];
       serviceRef.current?.dispose();
       serviceRef.current = null;
       wakeWordDetectorRef.current?.stop();
@@ -487,6 +654,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     wakeWordEnergyLevel,
     detectedLang,
     agentState,
+    disambiguationOptions,
   };
 
   const setWakeWordEnabled = useCallback((on: boolean) => {
@@ -501,14 +669,82 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     setCommercialProviderConfigState(config);
   }, []);
 
+  const setExternalError = useCallback((message: string | null) => {
+    setError(message);
+  }, []);
+
+  const notifyAiStreamStarted = useCallback(() => {
+    consumeAiThinking();
+  }, [consumeAiThinking]);
+
+  const notifyAiStreamFinished = useCallback((finalContent?: string) => {
+    clearAiThinking();
+    // V2: Invoke the analysis fill callback if present (set by setAnalysisFillCallback before sendToAiChat in analysis mode).
+    const cb = analysisFillCallbackRef.current;
+    if (cb && finalContent !== undefined) {
+      cb(finalContent);
+      analysisFillCallbackRef.current = null;
+      analysisTargetUtteranceIdRef.current = null;
+    }
+  }, [clearAiThinking]);
+
+  const testWhisperLocal = useCallback(async (): Promise<{ available: boolean; error?: string }> => {
+    // whisper-local uses whisper-server on port 3040
+    return testWhisperServerAvailability(
+      'http://localhost:3040',
+      'ggml-small-q5_k.bin',
+    );
+  }, []);
+
   const testCommercialProvider = useCallback(async (): Promise<{ available: boolean; error?: string }> => {
     return testCommercialProviderFactory(commercialProviderKindState, commercialProviderConfigState ?? {});
   }, [commercialProviderKindState, commercialProviderConfigState]);
+
+  /**
+   * Register a callback to receive the AI response text when the current
+   * AI chat stream completes (after notifyAiStreamFinished).
+   * This is used by analysis mode to capture the AI's response and write
+   * it back to the utterance layer.
+   *
+   * @param utteranceId - Target utterance ID (from current selection). Pass null if no utterance selected.
+   * @param callback - Called with the AI's final response text. Pass null to clear/deregister.
+   */
+  const setAnalysisFillCallback = useCallback((
+    utteranceId: string | null,
+    callback: ((content: string) => void) | null,
+  ) => {
+    analysisTargetUtteranceIdRef.current = utteranceId;
+    analysisFillCallbackRef.current = callback;
+  }, []);
+
+  // ── Preset selection & provider probing | 预设选择与可用性探测 ─────────────
+
+  const [providerStatusMap, setProviderStatusMap] = useState<ProviderReachability[]>([]);
+
+  const refreshProviderStatus = useCallback(async () => {
+    const configs: Partial<Record<CommercialProviderKind, CommercialProviderCreateConfig>> = {};
+    if (commercialProviderConfigRef.current) {
+      configs[commercialProviderKindRef.current] = commercialProviderConfigRef.current;
+    }
+    const results = await probeAllCommercialProviders(configs);
+    setProviderStatusMap(results);
+  }, [commercialProviderKindRef, commercialProviderConfigRef]);
+
+  const selectPreset = useCallback((preset: VoicePreset) => {
+    switchEngine(preset.engine);
+    if (preset.commercialKind) {
+      setCommercialProviderKind(preset.commercialKind);
+    }
+  }, [switchEngine, setCommercialProviderKind]);
 
   return {
     ...state,
     setCommercialProviderKind,
     setCommercialProviderConfig,
+    setExternalError,
+    notifyAiStreamStarted,
+    notifyAiStreamFinished,
+    testWhisperLocal,
     testCommercialProvider,
     start,
     stop,
@@ -518,8 +754,14 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     setWakeWordEnabled,
     confirmPending,
     cancelPending,
+    selectDisambiguation,
+    dismissDisambiguation,
     switchEngine,
     startRecording,
     stopRecording,
+    providerStatusMap,
+    refreshProviderStatus,
+    selectPreset,
+    setAnalysisFillCallback,
   };
 }

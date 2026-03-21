@@ -1,3 +1,4 @@
+import { AiAssistantHubContext } from '../contexts/AiAssistantHubContext';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Focus,
@@ -10,7 +11,9 @@ import {
   Square,
 } from 'lucide-react';
 import { AiAnalysisPanel } from '../components/AiAnalysisPanel';
-import type { AiPanelMode } from '../components/AiAnalysisPanel';
+import { AiChatCard } from '../components/ai/AiChatCard';
+import type { AiPanelMode, AnalysisBottomTab } from '../components/AiAnalysisPanel';
+import { VoiceAgentWidget } from '../components/VoiceAgentWidget';
 import { AudioImportDialog } from '../components/AudioImportDialog';
 import { BatchOperationPanel } from '../components/BatchOperationPanel';
 import { ProjectSetupDialog } from '../components/ProjectSetupDialog';
@@ -23,12 +26,11 @@ import { TranscriptionOverlays } from '../components/TranscriptionOverlays';
 import { TranscriptionTimelineTextOnly } from '../components/TranscriptionTimelineTextOnly';
 import { TranscriptionTimelineMediaLanes } from '../components/TranscriptionTimelineMediaLanes';
 import { RecoveryBanner } from '../components/RecoveryBanner';
-import { VoiceDockSection } from '../components/VoiceDockSection';
 import { PdfPreviewSection } from '../components/PdfPreviewSection';
 import { LinguisticService } from '../../services/LinguisticService';
-import { db as appDb } from '../../db';
+import { db as appDb, getDb, type JieyuDatabase, type UtteranceDocType } from '../../db';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
-import { useAiPanelContextUpdater } from '../contexts/AiPanelContext';
+import { useAiPanelContextUpdater, AiPanelContext } from '../contexts/AiPanelContext';
 import { snapToZeroCrossing } from '../services/AudioAnalysisService';
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
 import { useRecording } from '../hooks/useRecording';
@@ -37,7 +39,7 @@ import { useLasso, type SubSelectDrag } from '../hooks/useLasso';
 import { useWaveSurfer } from '../hooks/useWaveSurfer';
 import { useZoom } from '../hooks/useZoom';
 import { useKeybindingActions } from '../hooks/useKeybindingActions';
-import { useAiChat } from '../hooks/useAiChat';
+import { useAiChat, type AiChatToolCall, type AiToolRiskCheckResult } from '../hooks/useAiChat';
 import { useVoiceAgent } from '../hooks/useVoiceAgent';
 import { featureFlags } from '../ai/config/featureFlags';
 import { DEFAULT_VOICE_INTENT_RESOLVER_CONFIG } from '../ai/config/voiceIntentResolver';
@@ -57,9 +59,10 @@ import { useRecoveryBanner } from '../hooks/useRecoveryBanner';
 import { usePdfPreview } from '../hooks/usePdfPreview';
 import { useVoiceDock } from '../hooks/useVoiceDock';
 import { useAiEmbeddingState } from '../hooks/useAiEmbeddingState';
+import { useAiAssistantHubContextValue } from '../hooks/useAiAssistantHubContextValue';
 import { detectLocale, t, tf } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
-import { formatLayerRailLabel, formatTime } from '../utils/transcriptionFormatters';
+import { formatLanguageLabel, formatLayerRailLabel, formatTime } from '../utils/transcriptionFormatters';
 import { EmbeddingService } from '../ai/embeddings/EmbeddingService';
 import { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 import { createEmbeddingProvider, testEmbeddingProvider } from '../ai/embeddings/EmbeddingProviderCatalog';
@@ -257,7 +260,14 @@ export function TranscriptionPage() {
     setAiPanelWidth,
     handleLayerRailToggle,
     handleAiPanelToggle,
+    isHubCollapsed,
+    hubHeight,
+    setHubHeight,
   } = usePanelToggles();
+
+  const [analysisTab, setAnalysisTab] = useState<AnalysisBottomTab>('embedding');
+  const [hubSidebarTab, setHubSidebarTab] = useState<'assistant' | 'analysis'>('assistant');
+  const [assistantVoiceExpanded, setAssistantVoiceExpanded] = useState(false);
 
   const {
     showProjectSetup,
@@ -278,19 +288,13 @@ export function TranscriptionPage() {
   const {
     effectiveVoiceCorpusLang,
     voiceCorpusLangOverride,
-    voiceDockExpanded,
-    setVoiceDockExpanded,
-    voiceDockPos,
-    voiceDockDragging,
-    voiceDockContainerRef,
-    voiceDockDraggedAtRef,
     handleVoiceSetLangOverride,
     handleCommercialConfigChange,
-    handleVoiceDockDragStart,
     commercialProviderKind,
     setCommercialProviderKind,
     commercialProviderConfig,
     setCommercialProviderConfig,
+    localWhisperConfig,
   } = useVoiceDock({
     activeTextPrimaryLanguageId,
     getActiveTextPrimaryLanguageId,
@@ -414,8 +418,41 @@ export function TranscriptionPage() {
     };
   }, [aiConfidenceAvg, getUtteranceTextForLayer, selectedUtterance, state, translationLayers.length, undoHistory, utterances.length]);
 
+  const handleAiToolRiskCheck = useCallback((call: AiChatToolCall): AiToolRiskCheckResult | null => {
+    if (call.name !== 'delete_transcription_segment') return null;
+
+    const utteranceId = String(call.arguments.utteranceId ?? '').trim();
+    if (!utteranceId) return null;
+
+    const targetUtterance = utterances.find((item) => item.id === utteranceId);
+    if (!targetUtterance) return null;
+
+    const transcriptionText = getUtteranceTextForLayer(targetUtterance).trim();
+    const translationLayerCountWithText = translations.filter((item) => {
+      if (item.utteranceId !== utteranceId) return false;
+      if (!(item.modality === 'text' || item.modality === 'mixed')) return false;
+      return typeof item.text === 'string' && item.text.trim().length > 0;
+    }).length;
+
+    const hasAnyContent = transcriptionText.length > 0 || translationLayerCountWithText > 0;
+    if (!hasAnyContent) {
+      return { requiresConfirmation: false };
+    }
+
+    return {
+      requiresConfirmation: true,
+      riskSummary: `将删除 1 条包含内容的句段（目标：${utteranceId}）`,
+      impactPreview: [
+        `转写内容：${transcriptionText.length > 0 ? '有' : '无'}`,
+        `翻译内容：${translationLayerCountWithText} 个层有文本`,
+        '删除后在当前应用内不可恢复',
+      ],
+    };
+  }, [getUtteranceTextForLayer, translations, utterances]);
+
   const aiChat = useAiChat({
     onToolCall: handleAiToolCall,
+    onToolRiskCheck: handleAiToolRiskCheck,
     systemPersonaKey: aiDerivedPersonaRef.current,
     getContext: buildAiPromptContext,
     maxContextChars: 2400,
@@ -491,6 +528,7 @@ export function TranscriptionPage() {
   const tierContainerRef = useRef<HTMLDivElement>(null);
   const listMainRef = useRef<HTMLDivElement | null>(null);
   const workspaceRef = useRef<HTMLElement | null>(null);
+  const screenRef = useRef<HTMLElement | null>(null);
   const dragCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -1142,13 +1180,16 @@ export function TranscriptionPage() {
       setSaveState({ kind: 'error', message: '请先选择要填充的句段' });
       return;
     }
-    // Resolve target layer — prefer explicit selection, else first translation layer
+    // Resolve target layer — prefer explicit selection, then default transcription, then first translation
     let targetLayerId: string | undefined = selectedLayerId;
+    if (!targetLayerId) {
+      targetLayerId = defaultTranscriptionLayerId;
+    }
     if (!targetLayerId) {
       targetLayerId = translationLayers[0]?.id;
     }
     if (!targetLayerId) {
-      setSaveState({ kind: 'error', message: '无可用翻译层，请先创建翻译层' });
+      setSaveState({ kind: 'error', message: '无可用层，请先创建转写或翻译层' });
       return;
     }
     const targetLayer = layers.find((l) => l.id === targetLayerId);
@@ -1159,25 +1200,155 @@ export function TranscriptionPage() {
     } else {
       fireAndForget(saveTextTranslationForUtterance(selectedUtterance.id, text, targetLayerId));
     }
-  }, [selectedUtterance, selectedLayerId, layers, translationLayers, saveUtteranceText, saveTextTranslationForUtterance, setSaveState]);
+  }, [selectedUtterance, selectedLayerId, defaultTranscriptionLayerId, layers, translationLayers, saveUtteranceText, saveTextTranslationForUtterance, setSaveState]);
 
-  // Pass Ollama config to voice agent if the chat provider is Ollama
-  const isOllamaProvider = aiChat.settings.providerKind === 'ollama';
+  // V2: Handle analysis result — write AI analysis text to the current utterance's notes field
+  const handleVoiceAnalysisResult = useCallback((utteranceId: string | null, analysisText: string) => {
+    if (!utteranceId) {
+      setSaveState({ kind: 'error', message: '请先选择要分析的句段' });
+      return;
+    }
+    const trimmed = analysisText.trim();
+    if (!trimmed) return;
+
+    data.pushUndo('AI 分析填充');
+    const now = new Date().toISOString();
+    getDb().then(async (db: JieyuDatabase) => {
+      const utterances = await db.collections.utterances.find().exec();
+      const target = utterances.find((u) => u.id === utteranceId);
+      if (!target) {
+        setSaveState({ kind: 'error', message: '未找到目标句段' });
+        return;
+      }
+      const doc = target.toJSON() as UtteranceDocType;
+      const existingNotes = doc.notes ?? {};
+      const updated: UtteranceDocType = {
+        ...doc,
+        notes: { ...existingNotes, eng: trimmed },
+        updatedAt: now,
+      };
+      await db.collections.utterances.insert(updated);
+      data.setUtterances((prev) =>
+        prev.map((u) => (u.id === utteranceId ? updated : u))
+      );
+      setSaveState({ kind: 'done', message: 'AI 分析结果已保存到句段备注' });
+    }).catch((err: unknown) => {
+      setSaveState({ kind: 'error', message: `保存分析结果失败: ${err instanceof Error ? err.message : String(err)}` });
+    });
+  }, [data.pushUndo, setSaveState, data]);
+
   const voiceAgentOptions: Parameters<typeof useVoiceAgent>[0] = {
     corpusLang: effectiveVoiceCorpusLang,
     langOverride: voiceCorpusLangOverride,
     executeAction,
-    sendToAiChat: aiChat.send,
+    sendToAiChat: (text: string) => {
+      // V2: Wire analysis result fill-back — set up callback before send so the
+      // AI response is captured and written to the utterance notes when streaming ends.
+      void (async () => {
+        const utteranceId = selectedUtterance?.id ?? null;
+        voiceAgent.setAnalysisFillCallback?.(utteranceId, (analysisText) => {
+          handleVoiceAnalysisResult(utteranceId, analysisText);
+        });
+        // Also register via aiChat.onMessageComplete so the result fires when streaming finishes
+        await aiChat.send(text);
+      })();
+    },
     resolveIntentWithLlm: handleResolveVoiceIntentWithLlm,
     insertDictation: handleVoiceDictation,
+    // whisper-local uses whisper-server (port 3040), not Ollama (port 11434)
+    ...(localWhisperConfig.baseUrl ? { whisperServerUrl: localWhisperConfig.baseUrl } : {}),
+    ...(localWhisperConfig.model ? { whisperServerModel: localWhisperConfig.model } : {}),
     commercialProviderKind: commercialProviderKind,
     commercialProviderConfig,
   };
-  if (isOllamaProvider) {
-    voiceAgentOptions.ollamaBaseUrl = aiChat.settings.baseUrl;
-    if (aiChat.settings.model) voiceAgentOptions.ollamaModel = aiChat.settings.model;
-  }
   const voiceAgent = useVoiceAgent(voiceAgentOptions);
+  const voiceTargetSummary = useMemo(() => {
+    const rowLabel = selectedRowMeta ? `第 ${selectedRowMeta.rowNumber} 句` : (selectedUtterance ? '当前句段' : '未选择句段');
+
+    if (voiceAgent.mode === 'command') {
+      return '当前页面操作';
+    }
+
+    if (voiceAgent.mode === 'analysis') {
+      return selectedUtterance ? `${rowLabel} / AI 分析备注` : '未选择句段';
+    }
+
+    const targetLayerId = selectedLayerId ?? defaultTranscriptionLayerId ?? translationLayers[0]?.id;
+    const targetLayer = targetLayerId ? layers.find((layer) => layer.id === targetLayerId) : undefined;
+    const layerLabel = targetLayer ? formatLayerRailLabel(targetLayer) : '未选择层';
+    return `${layerLabel} / ${rowLabel}`;
+  }, [voiceAgent.mode, selectedRowMeta, selectedUtterance, selectedLayerId, defaultTranscriptionLayerId, translationLayers, layers]);
+
+  const voiceStatusSummary = useMemo(() => {
+    switch (voiceAgent.agentState) {
+      case 'listening':
+        return voiceAgent.mode === 'dictation' ? '正在听写，请直接说出要写入的内容。' : '正在监听，请开始说话。';
+      case 'routing':
+        return '已识别语音，正在判断意图。';
+      case 'executing':
+        if (voiceAgent.mode === 'dictation') return '正在将识别结果写入文本框。';
+        if (voiceAgent.mode === 'analysis') return '正在准备发送到 AI 分析。';
+        return '正在执行语音操作。';
+      case 'ai-thinking':
+        return '正在等待 AI 处理结果。';
+      case 'idle':
+      default:
+        return voiceAgent.listening ? '语音通道已开启，等待下一句输入。' : '就绪，点击麦克风开始语音交互。';
+    }
+  }, [voiceAgent.agentState, voiceAgent.mode, voiceAgent.listening]);
+
+  const voiceEnvironmentSummary = useMemo(() => {
+    const currentLanguage = voiceCorpusLangOverride === '__auto__'
+      ? '自动检测'
+      : formatLanguageLabel(voiceCorpusLangOverride ?? effectiveVoiceCorpusLang);
+    const currentEngine = voiceAgent.engine === 'web-speech'
+      ? 'Web Speech'
+      : voiceAgent.engine === 'whisper-local'
+        ? 'Ollama Whisper'
+        : '商业模型';
+    const detectedLanguage = voiceCorpusLangOverride === '__auto__' && voiceAgent.detectedLang
+      ? ` · 已识别 ${formatLanguageLabel(voiceAgent.detectedLang)}`
+      : '';
+    return `${currentLanguage} · ${currentEngine}${detectedLanguage}`;
+  }, [voiceCorpusLangOverride, effectiveVoiceCorpusLang, voiceAgent.engine, voiceAgent.detectedLang]);
+  const voiceSelectionSummary = useMemo(() => {
+    if (selectedRowMeta) {
+      return `${formatTime(selectedRowMeta.start)} - ${formatTime(selectedRowMeta.end)}`;
+    }
+    if (selectedUtterance) {
+      return `${formatTime(selectedUtterance.startTime)} - ${formatTime(selectedUtterance.endTime)}`;
+    }
+    return '未定位句段';
+  }, [selectedRowMeta, selectedUtterance]);
+  const prevAiStreamingRef = useRef(false);
+
+  useEffect(() => {
+    const wasStreaming = prevAiStreamingRef.current;
+    const isStreaming = aiChat.isStreaming;
+
+    if (!wasStreaming && isStreaming) {
+      voiceAgent.notifyAiStreamStarted?.();
+    }
+
+    if (wasStreaming && !isStreaming) {
+      // V2: Find the most recent assistant message and pass it to notifyAiStreamFinished
+      // so that analysis mode can capture the AI response for utterance fill-back.
+      const latestAssistant = aiChat.messages.find((m) => m.role === 'assistant' && m.status === 'done');
+      voiceAgent.notifyAiStreamFinished?.(latestAssistant?.content);
+    }
+
+    prevAiStreamingRef.current = isStreaming;
+  }, [aiChat.isStreaming, aiChat.messages, voiceAgent]);
+
+  const ensureWhisperLocalReady = useCallback(async (): Promise<boolean> => {
+    const result = await voiceAgent.testWhisperLocal();
+    if (!result.available) {
+      voiceAgent.setExternalError(result.error ?? '本地 Whisper 不可用');
+      return false;
+    }
+    voiceAgent.setExternalError(null);
+    return true;
+  }, [voiceAgent]);
 
   const handleVoiceCommercialConfigChange = useCallback((config: {
     apiKey?: string;
@@ -1201,44 +1372,59 @@ export function TranscriptionPage() {
   // Wire toggleVoiceRef so the keybinding can toggle voice without circular deps.
   useEffect(() => {
     toggleVoiceRef.current = featureFlags.voiceAgentEnabled ? voiceAgent.toggle : undefined;
-  });
-
-  useEffect(() => {
-    if (voiceAgent.listening || voiceAgent.pendingConfirm || voiceAgent.error) {
-      setVoiceDockExpanded(true);
-    }
-  }, [voiceAgent.error, voiceAgent.listening, voiceAgent.pendingConfirm]);
+  }, [voiceAgent.toggle]);
 
   const handleVoiceAssistantIconClick = useCallback(() => {
-    console.log('[DEBUG] handleVoiceAssistantIconClick called, listening=', voiceAgent.listening, 'engine=', voiceAgent.engine);
-    if (Date.now() - voiceDockDraggedAtRef.current < 260) {
-      console.log('[DEBUG] click blocked by drag cooldown');
-      return;
-    }
-    if (voiceAgent.listening) {
-      // For whisper-local, clicking while listening is a no-op (press-and-hold controls recording)
-      if (voiceAgent.engine === 'whisper-local') return;
+    void (async () => {
+      if (voiceAgent.listening) {
+        voiceAgent.toggle();
+        return;
+      }
+      if (voiceAgent.engine === 'whisper-local') {
+        const ready = await ensureWhisperLocalReady();
+        if (!ready) return;
+      }
       voiceAgent.toggle();
-      setVoiceDockExpanded(false);
-      return;
-    }
-    setVoiceDockExpanded(true);
-    voiceAgent.toggle();
-  }, [voiceAgent.listening, voiceAgent.toggle, voiceAgent.engine]);
+    })();
+  }, [ensureWhisperLocalReady, voiceAgent]);
+
+  const handleVoiceSwitchEngine = useCallback((engine: 'web-speech' | 'whisper-local' | 'commercial') => {
+    void (async () => {
+      if (engine === 'whisper-local') {
+        const ready = await ensureWhisperLocalReady();
+        if (!ready) return;
+      }
+      voiceAgent.switchEngine(engine);
+    })();
+  }, [ensureWhisperLocalReady, voiceAgent]);
 
   // Press-and-hold for whisper-local push-to-talk recording
   const handleMicPointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
-    void handleVoiceDockDragStart(event);
+    void event;
     if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
-      void voiceAgent.startRecording();
+      void (async () => {
+        const ready = await ensureWhisperLocalReady();
+        if (!ready) return;
+        void voiceAgent.startRecording();
+      })();
     }
-  }, [voiceAgent.listening, voiceAgent.engine, voiceAgent.startRecording, handleVoiceDockDragStart]);
+  }, [ensureWhisperLocalReady, voiceAgent]);
 
   const handleMicPointerUp = useCallback(() => {
     if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
       void voiceAgent.stopRecording();
     }
   }, [voiceAgent.listening, voiceAgent.engine, voiceAgent.stopRecording]);
+
+  const handleAssistantVoicePanelToggle = useCallback(() => {
+    setAssistantVoiceExpanded((value) => !value);
+  }, []);
+
+  useEffect(() => {
+    if (voiceAgent.listening || voiceAgent.isRecording || Boolean(voiceAgent.pendingConfirm) || Boolean(voiceAgent.error)) {
+      setAssistantVoiceExpanded(true);
+    }
+  }, [voiceAgent.listening, voiceAgent.isRecording, voiceAgent.pendingConfirm, voiceAgent.error]);
 
   const aiPanelContextValue = useMemo(() => ({
     dbName: state.phase === 'ready' ? state.dbName : '',
@@ -1365,6 +1551,7 @@ export function TranscriptionPage() {
     aiEmbeddingMatches,
     aiEmbeddingLastError,
     aiEmbeddingWarning,
+    handleTestEmbeddingProvider,
     handleBuildUtteranceEmbeddings,
     handleBuildNotesEmbeddings,
     handleBuildPdfEmbeddings,
@@ -1398,6 +1585,8 @@ export function TranscriptionPage() {
     setAiPanelContext(aiPanelContextValue);
   }, [aiPanelContextValue, setAiPanelContext]);
 
+  const aiAssistantHubContextValue = useAiAssistantHubContextValue(aiPanelContextValue);
+
   const { handleLayerRailResizeStart, handleAiPanelResizeStart } = usePanelResize({
     isLayerRailCollapsed,
     layerRailWidth,
@@ -1408,6 +1597,10 @@ export function TranscriptionPage() {
     setAiPanelWidth,
     workspaceRef,
     dragCleanupRef,
+    isHubCollapsed,
+    hubHeight,
+    setHubHeight,
+    screenRef,
   });
 
   useEffect(() => {
@@ -1635,7 +1828,7 @@ export function TranscriptionPage() {
   ]);
 
   return (
-    <section className="transcription-screen">
+    <section className="transcription-screen" ref={screenRef}>
       {state.phase === 'loading' && <p className="hint">{t(locale, 'transcription.status.loading')}</p>}
       {state.phase === 'error' && <p className="error">{tf(locale, 'transcription.status.dbError', { message: state.message })}</p>}
 
@@ -1702,27 +1895,6 @@ export function TranscriptionPage() {
               />
             </WaveformToolbar>
           </section>
-
-          {featureFlags.voiceAgentEnabled && (
-            <VoiceDockSection
-              saveStateKind={saveState.kind}
-              recording={recording}
-              recordingError={recordingError}
-              voiceDockPos={voiceDockPos}
-              voiceDockDragging={voiceDockDragging}
-              voiceDockExpanded={voiceDockExpanded}
-              voiceDockContainerRef={voiceDockContainerRef}
-              voiceCorpusLang={effectiveVoiceCorpusLang}
-              voiceLangOverride={voiceCorpusLangOverride}
-              voiceAgent={voiceAgent}
-              onBubblePointerDown={handleVoiceDockDragStart}
-              onBubbleClick={handleVoiceAssistantIconClick}
-              onMicPointerDown={handleMicPointerDown}
-              onMicPointerUp={handleMicPointerUp}
-              onSetLangOverride={handleVoiceSetLangOverride}
-              onCommercialConfigChange={handleVoiceCommercialConfigChange}
-            />
-          )}
 
           {/* Editor workspace: left side for row editing, right side for AI guidance. */}
           <main
@@ -2110,6 +2282,32 @@ export function TranscriptionPage() {
                     />
                     <span className="waveform-zoom-value">{zoomPercent}%</span>
                   </div>
+                  <span style={{ width: 1, height: 14, background: '#d1d5db', margin: '0 6px', flexShrink: 0 }} />
+                  <div className="transcription-ai-observer-status-bar">
+                    <span className="transcription-ai-observer-stage-label">
+                      {t(locale, 'ai.observer.currentStage')}
+                      {(observerResult.stage && (observerResult.stage === 'collecting' ? t(locale, 'ai.stages.collecting')
+                        : observerResult.stage === 'transcribing' ? t(locale, 'ai.stages.transcribing')
+                        : observerResult.stage === 'glossing' ? t(locale, 'ai.stages.glossing')
+                        : observerResult.stage === 'reviewing' ? t(locale, 'ai.stages.reviewing')
+                        : t(locale, 'ai.stages.collecting'))) ?? t(locale, 'ai.stages.collecting')}
+                    </span>
+                    {actionableObserverRecommendations && actionableObserverRecommendations.length > 0 && (
+                      <div className="transcription-ai-observer-recs-inline">
+                        {actionableObserverRecommendations.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className="transcription-ai-observer-rec-btn"
+                            onClick={() => handleExecuteRecommendation(item)}
+                            title={item.detail}
+                          >
+                            {item.actionLabel ?? item.title}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="transcription-list-toolbar-right">
                   {canUndo && undoLabel && (
@@ -2171,7 +2369,99 @@ export function TranscriptionPage() {
               </span>
             </button>
 
-            <AiAnalysisPanel isCollapsed={isAiPanelCollapsed} />
+            <AiPanelContext.Provider value={aiPanelContextValue}>
+              <AiAssistantHubContext.Provider value={aiAssistantHubContextValue}>
+                <aside className={`transcription-ai-panel ${isAiPanelCollapsed ? 'transcription-ai-panel-collapsed' : ''}`}>
+                  <div className="transcription-hub-sidebar-tabs" role="tablist">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={hubSidebarTab === 'assistant'}
+                      className={`transcription-hub-sidebar-tab ${hubSidebarTab === 'assistant' ? 'is-active' : ''}`}
+                      onClick={() => setHubSidebarTab('assistant')}
+                    >
+                      {locale === 'zh-CN' ? '助手' : 'Assistant'}
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={hubSidebarTab === 'analysis'}
+                      className={`transcription-hub-sidebar-tab ${hubSidebarTab === 'analysis' ? 'is-active' : ''}`}
+                      onClick={() => setHubSidebarTab('analysis')}
+                    >
+                      {locale === 'zh-CN' ? 'AI 分析' : 'AI Analysis'}
+                    </button>
+                  </div>
+
+                  {hubSidebarTab === 'assistant' ? (
+                    <div className="transcription-hub-assistant-panel">
+                      <div className="transcription-hub-assistant-chat-section">
+                        <AiChatCard
+                          embedded
+                          voiceDrawer={featureFlags.voiceAgentEnabled ? (
+                            <VoiceAgentWidget
+                              listening={voiceAgent.listening}
+                              speechActive={voiceAgent.speechActive}
+                              mode={voiceAgent.mode}
+                              interimText={voiceAgent.interimText}
+                              finalText={voiceAgent.finalText}
+                              confidence={voiceAgent.confidence}
+                              error={voiceAgent.error}
+                              lastIntent={voiceAgent.lastIntent}
+                              pendingConfirm={voiceAgent.pendingConfirm}
+                              safeMode={voiceAgent.safeMode}
+                              wakeWordEnabled={voiceAgent.wakeWordEnabled}
+                              wakeWordEnergyLevel={voiceAgent.wakeWordEnergyLevel}
+                              corpusLang={effectiveVoiceCorpusLang}
+                              langOverride={voiceCorpusLangOverride}
+                              detectedLang={voiceAgent.detectedLang}
+                              engine={voiceAgent.engine}
+                              isRecording={voiceAgent.isRecording}
+                              energyLevel={voiceAgent.energyLevel}
+                              agentState={voiceAgent.agentState}
+                              recordingDuration={voiceAgent.recordingDuration}
+                              session={voiceAgent.session}
+                              commercialProviderKind={voiceAgent.commercialProviderKind}
+                              commercialProviderConfig={voiceAgent.commercialProviderConfig}
+                              targetSummary={voiceTargetSummary}
+                              statusSummary={voiceStatusSummary}
+                              environmentSummary={voiceEnvironmentSummary}
+                              selectionSummary={voiceSelectionSummary}
+                              onToggle={handleVoiceAssistantIconClick}
+                              onMicPointerDown={handleMicPointerDown}
+                              onMicPointerUp={handleMicPointerUp}
+                              onSwitchMode={voiceAgent.switchMode}
+                              onSwitchEngine={handleVoiceSwitchEngine}
+                              onConfirm={voiceAgent.confirmPending}
+                              onCancel={voiceAgent.cancelPending}
+                              onSetSafeMode={voiceAgent.setSafeMode}
+                              onSetWakeWordEnabled={voiceAgent.setWakeWordEnabled}
+                              onSetLangOverride={handleVoiceSetLangOverride}
+                              onSetCommercialProviderKind={voiceAgent.setCommercialProviderKind}
+                              onCommercialConfigChange={handleVoiceCommercialConfigChange}
+                              onTestCommercialProvider={voiceAgent.testCommercialProvider}
+                            />
+                          ) : undefined}
+                          voiceEntry={featureFlags.voiceAgentEnabled ? {
+                            enabled: true,
+                            expanded: assistantVoiceExpanded,
+                            listening: voiceAgent.listening,
+                            statusText: voiceAgent.listening
+                              ? (locale === 'zh-CN' ? '监听中' : 'Listening')
+                              : (locale === 'zh-CN' ? '待命' : 'Standby'),
+                            onTogglePanel: handleAssistantVoicePanelToggle,
+                          } : undefined}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="transcription-hub-sidebar-panel-body">
+                      <AiAnalysisPanel isCollapsed={false} activeTab={analysisTab} onChangeActiveTab={setAnalysisTab} />
+                    </div>
+                  )}
+                </aside>
+              </AiAssistantHubContext.Provider>
+            </AiPanelContext.Provider>
           </main>
 
           <PdfPreviewSection

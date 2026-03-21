@@ -2,14 +2,21 @@
  * VoiceInputService — 语音采集与识别
  *
  * 统一管理麦克风权限、音频流、STT 转写。
- * 支持 Web Speech API、Ollama Whisper Local、以及可插拔的商业模型接口。
+ * 支持:
+ *   - Web Speech API (浏览器内置)
+ *   - whisper-local (whisper.cpp HTTP 服务, 端口 3040)
+ *   - commercial (Groq/Gemini 等商业 STT)
+ *
+ * 注意: Ollama (端口 11434) 不支持音频转写 API.
  *
  * @see 解语-语音智能体架构设计方案 §4.1
  */
 
+import type { Region } from '../utils/regionDetection';
+
 // ── Types ──
 
-export type SttEngine = 'web-speech' | 'whisper' | 'whisper-local' | 'commercial';
+export type SttEngine = 'web-speech' | 'whisper-local' | 'commercial';
 
 export interface SttResult {
   text: string;
@@ -29,6 +36,8 @@ export interface VoiceInputConfig {
   continuous: boolean;
   interimResults: boolean;
   preferredEngine: SttEngine;
+  /** Detected or selected region. Controls fallback chain order. */
+  region?: Region;
   maxAlternatives?: number;      // default 3
   vadEnabled?: boolean;
   vadRmsThreshold?: number;
@@ -36,10 +45,10 @@ export interface VoiceInputConfig {
   vadFrameIntervalMs?: number;
   /** Auto-stop after this many ms of continuous silence (VAD-triggered). Default: 30000. */
   maxSilenceMs?: number;
-  /** Ollama base URL for whisper-local engine, e.g. 'http://localhost:11434' */
-  ollamaBaseUrl?: string;
-  /** Ollama whisper model name, e.g. 'whisper-small' */
-  ollamaModel?: string;
+  /** Whisper-server URL for whisper-local engine (OpenAI-compatible), e.g. 'http://localhost:3040' */
+  whisperServerUrl?: string;
+  /** Whisper-server model name, e.g. 'ggml-small-q5_k.bin' */
+  whisperServerModel?: string;
   /**
    * Pluggable commercial STT provider.
    * Tried automatically when all local engines (Web Speech + Whisper Local) fail.
@@ -65,8 +74,16 @@ export interface CommercialSttProvider {
   transcribe(audioBlob: Blob, lang: string): Promise<SttResult>;
 }
 
+export interface OllamaWhisperAvailabilityResult {
+  available: boolean;
+  error?: string;
+}
+
 /** Built-in commercial provider kinds for UI display. */
 export type CommercialProviderKind = 'gemini' | 'openai-audio' | 'groq' | 'custom-http' | 'minimax' | 'volcengine';
+
+export type SttProviderCapability = 'browser-native' | 'local-http' | 'cloud-api';
+export type SttBillingKind = 'free' | 'metered' | 'self-hosted';
 
 export interface AecCapability {
   echoCancellation: boolean;
@@ -137,6 +154,139 @@ function getSpeechRecognitionCtor(): (new () => SpeechRecognition) | undefined {
   return window.SpeechRecognition ?? window.webkitSpeechRecognition;
 }
 
+function buildOllamaTranscriptionEndpoints(baseUrl: string): string[] {
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
+  const withoutV1 = normalizedBaseUrl.replace(/\/v1$/, '');
+
+  return Array.from(new Set([
+    `${normalizedBaseUrl}/v1/audio/transcriptions`,
+    `${withoutV1}/v1/audio/transcriptions`,
+    `${normalizedBaseUrl}/api/audio/transcriptions`,
+    `${withoutV1}/api/audio/transcriptions`,
+  ]));
+}
+
+export async function testOllamaWhisperAvailability(
+  baseUrl: string,
+  model: string,
+): Promise<OllamaWhisperAvailabilityResult> {
+  const normalizedBaseUrl = (baseUrl || 'http://localhost:11434').replace(/\/+$/, '');
+  const normalizedModel = model.trim();
+  if (!normalizedModel) {
+    return { available: false, error: '请先填写本地 Whisper 模型名' };
+  }
+
+  const tagsUrl = `${normalizedBaseUrl.replace(/\/v1$/, '')}/api/tags`;
+  let availableModels: string[] = [];
+  try {
+    const resp = await fetch(tagsUrl);
+    if (!resp.ok) {
+      return { available: false, error: `无法连接 Ollama 服务：${resp.status}` };
+    }
+    const json = await resp.json() as { models?: Array<{ name?: string; model?: string }> };
+    availableModels = (json.models ?? [])
+      .map((item) => item.name ?? item.model ?? '')
+      .filter((name): name is string => typeof name === 'string' && name.trim().length > 0);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { available: false, error: `无法连接 Ollama 服务：${message}` };
+  }
+
+  if (availableModels.length > 0 && !availableModels.includes(normalizedModel)) {
+    const preview = availableModels.slice(0, 3).join('、');
+    return {
+      available: false,
+      error: `未找到模型 ${normalizedModel}。当前可用模型：${preview || '无'}`,
+    };
+  }
+
+  const endpoints = buildOllamaTranscriptionEndpoints(normalizedBaseUrl);
+  for (const endpoint of endpoints) {
+    const body = new FormData();
+    body.append('file', new Blob(['probe'], { type: 'audio/webm' }), 'probe.webm');
+    body.append('model', normalizedModel);
+    body.append('language', 'en');
+
+    try {
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        body,
+      });
+      if (resp.status !== 404) {
+        return { available: true };
+      }
+    } catch {
+      // ignore and continue probing
+    }
+  }
+
+  return {
+    available: false,
+    error: '当前 Ollama 实例未暴露音频转写接口，请改用支持音频转写的本地服务或其他 STT 引擎',
+  };
+}
+
+/**
+ * Check if a whisper-server (OpenAI-compatible local transcription server) is available.
+ * Probes the /v1/models health endpoint and the /v1/audio/transcriptions endpoint.
+ */
+export async function testWhisperServerAvailability(
+  baseUrl: string,
+  model: string,
+): Promise<{ available: boolean; error?: string }> {
+  const normalizedBaseUrl = (baseUrl || 'http://localhost:3040').replace(/\/+$/, '');
+  const normalizedModel = model.trim();
+  if (!normalizedModel) {
+    return { available: false, error: '请先填写 Whisper 模型名' };
+  }
+
+  // Probe the health endpoint
+  try {
+    const healthResp = await fetch(`${normalizedBaseUrl}/v1/models`, {
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!healthResp.ok) {
+      return { available: false, error: `whisper-server 不可用：${healthResp.status}` };
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { available: false, error: `无法连接 whisper-server（${normalizedBaseUrl}）：${msg}` };
+  }
+
+  // Probe the transcription endpoint with a valid minimal WAV header
+  // (whisper-server rejects empty/tiny blobs with 500, so use a real minimal WAV)
+  try {
+    // Minimal valid WAV: 16-bit mono 8kHz PCM, 0.01 seconds of silence
+    // WAV header (44 bytes) + 2 bytes of silence = 46 bytes total
+    const minWav = new Uint8Array([
+      0x52, 0x49, 0x46, 0x46, 0x2E, 0x00, 0x00, 0x00, // "RIFF" + size
+      0x57, 0x41, 0x56, 0x45, 0x66, 0x6D, 0x74, 0x20, // "WAVEfmt "
+      0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, // PCM, mono
+      0x40, 0x1F, 0x00, 0x00, 0x80, 0x3E, 0x00, 0x00, // 8000Hz, 16000 bytes/sec
+      0x02, 0x00, 0x10, 0x00,                         // block align, bits/sample
+      0x64, 0x61, 0x74, 0x61, 0x22, 0x00, 0x00, 0x00, // "data" + size
+      0x00, 0x00, 0x00, 0x00,                         // 2 bytes of silence
+    ]);
+    const formData = new FormData();
+    formData.append('file', new Blob([minWav], { type: 'audio/wav' }), 'probe.wav');
+    formData.append('model', normalizedModel);
+    formData.append('language', 'en');
+    const resp = await fetch(`${normalizedBaseUrl}/v1/audio/transcriptions`, {
+      method: 'POST',
+      body: formData,
+      signal: AbortSignal.timeout(15000),
+    });
+    // Any non-404 means the endpoint accepts audio (server is up)
+    if (resp.status !== 404) {
+      return { available: true };
+    }
+    return { available: false, error: `whisper-server 未暴露音频转写接口` };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { available: false, error: `whisper-server 转写探测失败：${msg}` };
+  }
+}
+
 export function isWebSpeechSupported(): boolean {
   return getSpeechRecognitionCtor() !== undefined;
 }
@@ -189,13 +339,13 @@ const DEFAULT_CONFIG: VoiceInputConfig = {
  *   svc.start({ lang: 'ja-JP', continuous: true, interimResults: true, preferredEngine: 'web-speech' });
  *   svc.stop();
  *
- * Usage (Ollama Whisper Local — push-to-talk):
+ * Usage (whisper-local — push-to-talk):
  *   const svc = new VoiceInputService();
  *   svc.onResult(result => { ... });
- *   svc.start({ lang: 'ja-JP', preferredEngine: 'whisper-local', ollamaBaseUrl: 'http://localhost:11434', ollamaModel: 'whisper-small' });
+ *   svc.start({ lang: 'ja-JP', preferredEngine: 'whisper-local', whisperServerUrl: 'http://localhost:3040', whisperServerModel: 'ggml-small-q5_k.bin' });
  *   // Press-and-hold:
  *   svc.startRecording();  // begins MediaRecorder capture
- *   svc.stopRecording();   // stops capture, sends to Ollama, emits result via onResult
+ *   svc.stopRecording();   // stops capture, sends to whisper-server, emits result via onResult
  */
 export class VoiceInputService {
   private recognition: SpeechRecognition | null = null;
@@ -222,8 +372,56 @@ export class VoiceInputService {
   // Push-to-talk MediaRecorder (for whisper-local)
   private mediaRecorder: MediaRecorder | null = null;
   private mediaStream: MediaStream | null = null;
+  private sharedAnalysisStream: MediaStream | null = null;
+
+  // ── Language override (updated from UI without restarting engine) ──────────
+
+  /**
+   * Update the language used for the next transcription.
+   * Called by useVoiceAgent when the user changes the language selector
+   * while the engine is already running.
+   */
+  setLang(lang: string): void {
+    this._config = { ...this._config, lang };
+    // 实时更新 Web Speech API 的 lang | Update running Web Speech recognition lang
+    if (this.recognition) {
+      this.recognition.lang = lang;
+    }
+  }
+
+  async ensureSharedAnalysisStream(): Promise<MediaStream | null> {
+    if (this.sharedAnalysisStream && this.sharedAnalysisStream.active) {
+      return this.sharedAnalysisStream;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) return null;
+    this.sharedAnalysisStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
+    return this.sharedAnalysisStream;
+  }
+
+  async createAnalysisCloneStream(): Promise<MediaStream | null> {
+    const base = await this.ensureSharedAnalysisStream();
+    const track = base?.getAudioTracks?.()[0];
+    if (!track) return null;
+    return new MediaStream([track.clone()]);
+  }
+
+  releaseSharedAnalysisStream(): void {
+    if (!this.sharedAnalysisStream) return;
+    for (const track of this.sharedAnalysisStream.getTracks()) {
+      track.stop();
+    }
+    this.sharedAnalysisStream = null;
+  }
   private recordedChunks: Blob[] = [];
   private _isRecording = false;
+  /** Guard against concurrent stopRecording calls | 防止并发 stopRecording 竞态 */
+  private _stopRecordingPromise: Promise<void> | null = null;
 
   // Listeners
   private resultListeners: VoiceInputListener[] = [];
@@ -237,23 +435,6 @@ export class VoiceInputService {
 
   /** Per-engine failure reasons collected during _attemptEngineWithFallback. */
   private _engineFailureReasons: Partial<Record<SttEngine, string>> = {};
-
-  get listening(): boolean {
-    return this._listening;
-  }
-
-  get isRecording(): boolean {
-    return this._isRecording;
-  }
-
-  get engine(): SttEngine {
-    return this._currentEngine;
-  }
-
-  /** Ordered fallback chain tried when the preferred engine fails. */
-  private get fallbackChain(): SttEngine[] {
-    return ['web-speech', 'whisper-local', 'commercial'];
-  }
 
   // ── Event subscription ──
 
@@ -287,6 +468,22 @@ export class VoiceInputService {
     return this._energyLevel;
   }
 
+  get engine(): SttEngine {
+    return this._currentEngine;
+  }
+
+  /**
+   * Ordered fallback chain tried when the preferred engine fails.
+   * Order adapts to user region — CN users prefer commercial engines first
+   * (Web Speech API / Google is unreliable in mainland China).
+   */
+  private get fallbackChain(): SttEngine[] {
+    if (this._config.region === 'cn') {
+      return ['commercial', 'whisper-local', 'web-speech'];
+    }
+    return ['web-speech', 'whisper-local', 'commercial'];
+  }
+
   // ── Lifecycle ──
 
   start(config?: Partial<VoiceInputConfig>): void {
@@ -299,19 +496,24 @@ export class VoiceInputService {
   /**
    * Switch to a different STT engine while already listening.
    * Stops the current engine and starts the new one.
+   * Optional config can be passed to update settings (e.g., when switching to whisper-local).
    */
-  switchEngine(engine: SttEngine): void {
+  switchEngine(engine: SttEngine, config?: { whisperServerUrl?: string; whisperServerModel?: string }): void {
+    console.log('[DEBUG] switchEngine:', engine, 'config=', config, 'current _config.whisperServerUrl=', this._config.whisperServerUrl);
     if (!this._listening) return;
+    // Update config if provided (e.g., whisper config when switching to whisper-local)
+    if (config) {
+      this._config = { ...this._config, ...config };
+      console.log('[DEBUG] switchEngine: updated _config.whisperServerUrl=', this._config.whisperServerUrl);
+    }
     this._intentionalStop = false;
     this._stopCurrentEngine();
     this._currentEngine = engine;
     setTimeout(() => {
       if (!this._listening) return;
-      try {
-        void this._attemptEngineWithFallback(engine);
-      } catch (err) {
+      this._attemptEngineWithFallback(engine).catch((err) => {
         console.error('[VoiceInput] switchEngine error:', err);
-      }
+      });
     }, 300);
   }
 
@@ -346,7 +548,7 @@ export class VoiceInputService {
   private _engineLabel(e: SttEngine): string {
     switch (e) {
       case 'web-speech': return 'Web Speech API';
-      case 'whisper-local': return 'Ollama Whisper';
+      case 'whisper-local': return 'Whisper.cpp';
       case 'commercial': return '商业 STT';
       default: return e;
     }
@@ -356,7 +558,6 @@ export class VoiceInputService {
    * Start a specific engine. Returns true if the engine started successfully.
    */
   private _startEngine(engine: SttEngine): boolean {
-    console.log('[DEBUG] _startEngine:', engine);
     switch (engine) {
       case 'web-speech':
         return this._startWebSpeech();
@@ -365,7 +566,6 @@ export class VoiceInputService {
         // but the user must press-and-hold to record.
         this._listening = true;
         this.emitState(true);
-        console.log('[DEBUG] _startEngine: whisper-local listening=true');
         return true;
       case 'commercial':
         // commercial requires push-to-talk (it sends a recorded blob);
@@ -452,21 +652,17 @@ export class VoiceInputService {
         try {
           rec.start();
         } catch {
-          this.setListening(false);
         }
         return;
       }
       this.setListening(false);
       this.stopVadMonitor();
+
     };
 
     this.recognition = rec;
     try {
-      // Small delay to let the MediaStream microphone stabilize before the
-      // browser's internal VAD initializes. Without this, the first few
-      // hundred milliseconds of audio can be dropped causing immediate
-      // "no-speech" errors on some browsers/devices.
-      setTimeout(() => { try { rec.start(); } catch { /* already stopped */ } }, 150);
+      rec.start();
       return true;
     } catch {
       return false;
@@ -474,18 +670,13 @@ export class VoiceInputService {
   }
 
   private _stopCurrentEngine(): void {
-    console.log('[DEBUG] _stopCurrentEngine: entry');
-    this._intentionalStop = false;
+    this._intentionalStop = true;
     if (this.recognition) {
       try { this.recognition.stop(); } catch { /* ignore */ }
       this.recognition = null;
     }
-    console.log('[DEBUG] _stopCurrentEngine: recognition stopped');
     this.stopVadMonitor();
-    console.log('[DEBUG] _stopCurrentEngine: VAD stopped');
     this._isRecording = false;
-    this._intentionalStop = true;
-    console.log('[DEBUG] _stopCurrentEngine: done');
   }
 
   stop(): void {
@@ -501,6 +692,7 @@ export class VoiceInputService {
     this.setListening(false);
     this.stopVadMonitor();
     this.recognition = null;
+    this.releaseSharedAnalysisStream();
   }
 
   /**
@@ -538,44 +730,72 @@ export class VoiceInputService {
       recorder.start(100); // chunk every 100ms for responsive stop
       this._isRecording = true;
     } catch (err) {
-      this.emitError(err instanceof Error ? err.message : 'Failed to start audio recording');
+      const message = err instanceof Error ? err.message : '录音启动失败';
+      this.emitError(message);
+      throw new Error(message);
     }
   }
 
   /**
-   * Stop push-to-talk recording and transcribe the captured audio via Ollama Whisper Local.
+   * Stop push-to-talk recording and transcribe the captured audio via whisper-server.
    * Emits the transcription result via onResult().
    * No-op if not currently recording.
    */
   async stopRecording(): Promise<void> {
+    // Re-entrant guard: if a stop is already in flight, await it instead of racing
+    // 竞态防护：如果已有 stop 正在执行，直接等待而非重入
+    if (this._stopRecordingPromise) {
+      await this._stopRecordingPromise;
+      return;
+    }
     if (!this._isRecording || !this.mediaRecorder) return;
 
-    const recorder = this.mediaRecorder;
+    this._stopRecordingPromise = this._stopRecordingInternal();
+    try {
+      await this._stopRecordingPromise;
+    } finally {
+      this._stopRecordingPromise = null;
+    }
+  }
+
+  private async _stopRecordingInternal(): Promise<void> {
+    const recorder = this.mediaRecorder!;
     const stream = this.mediaStream;
 
     this._isRecording = false;
     this.mediaRecorder = null;
     this.mediaStream = null;
 
-    recorder.stop();
+    // Wait for final chunk(s) and recorder stop event.
+    await new Promise<void>((resolve, reject) => {
+      const dataHandler = (event: BlobEvent) => {
+        if (event.data && event.data.size > 0) {
+          this.recordedChunks.push(event.data);
+        }
+      };
+      const stopHandler = () => {
+        recorder.removeEventListener('dataavailable', dataHandler);
+        recorder.removeEventListener('error', errorHandler as EventListener);
+        resolve();
+      };
+      const errorHandler = (event: Event) => {
+        recorder.removeEventListener('dataavailable', dataHandler);
+        recorder.removeEventListener('stop', stopHandler as EventListener);
+        const err = (event as unknown as { error?: string }).error;
+        reject(new Error(typeof err === 'string' ? err : '录音停止失败'));
+      };
+
+      recorder.addEventListener('dataavailable', dataHandler);
+      recorder.addEventListener('stop', stopHandler, { once: true });
+      recorder.addEventListener('error', errorHandler as EventListener, { once: true });
+      recorder.stop();
+    });
+
     if (stream) {
       for (const track of stream.getTracks()) {
         track.stop();
       }
     }
-
-    // Wait for the recorder to finish delivering all chunks
-    await new Promise<void>((resolve) => {
-      // One final dataavailable event fires after stop() with all remaining chunks
-      const handler = (event: BlobEvent) => {
-        if (event.data && event.data.size > 0) {
-          this.recordedChunks.push(event.data);
-        }
-        recorder.removeEventListener('dataavailable', handler);
-        resolve();
-      };
-      recorder.addEventListener('dataavailable', handler);
-    });
 
     if (this.recordedChunks.length === 0) {
       this.emitError('No audio recorded');
@@ -585,15 +805,41 @@ export class VoiceInputService {
     const audioBlob = new Blob(this.recordedChunks, { type: 'audio/webm' });
     this.recordedChunks = [];
 
-    // Transcribe via Ollama Whisper; fall back to commercial provider on failure
-    const baseUrl = this._config.ollamaBaseUrl?.replace(/\/+$/, '') ?? 'http://localhost:11434';
-    const model = this._config.ollamaModel ?? 'whisper-small';
+    // Route based on the active engine: try the primary engine first,
+    // fall back to the other if unavailable.
+    const primaryEngine = this._currentEngine;
+
+    if (primaryEngine === 'commercial' && this._config.commercialFallback) {
+      try {
+        const commercialResult = await this._config.commercialFallback.transcribe(
+          audioBlob,
+          this._config.lang,
+        );
+        this.emitResult(commercialResult);
+        return;
+      } catch (err) {
+        // Commercial failed — try whisper-server as fallback
+        await this._transcribeWithWhisperServerFallback(audioBlob, err);
+        return;
+      }
+    }
+
+    // Default: whisper-local (whisper-server on port 3040)
+    await this._transcribeWithWhisperServerFallback(audioBlob, null);
+  }
+
+  /**
+   * Try whisper-server, falling back to commercial STT if configured.
+   * lastError is passed when called as secondary to a failed commercial attempt.
+   */
+  private async _transcribeWithWhisperServerFallback(audioBlob: Blob, lastError: unknown): Promise<void> {
+    const baseUrl = this._config.whisperServerUrl?.replace(/\/+$/, '') ?? 'http://localhost:3040';
+    const model = this._config.whisperServerModel ?? 'ggml-small-q5_k.bin';
 
     try {
-      const result = await this.transcribeWithOllamaWhisper(audioBlob, baseUrl, model, this._config.lang);
+      const result = await this.transcribeWithWhisperServer(audioBlob, baseUrl, model, this._config.lang);
       this.emitResult(result);
-    } catch (ollamaErr) {
-      // Ollama failed — try commercial fallback if configured
+    } catch (err) {
       if (this._config.commercialFallback) {
         try {
           const commercialResult = await this._config.commercialFallback.transcribe(
@@ -603,48 +849,64 @@ export class VoiceInputService {
           this.emitResult(commercialResult);
           return;
         } catch {
-          // Commercial also failed — emit the original Ollama error
-          this.emitError(ollamaErr instanceof Error ? ollamaErr.message : 'Ollama Whisper transcription failed');
+          // Commercial also failed — emit the original error
+          this.emitError(lastError instanceof Error ? lastError.message : 'STT 转写失败');
           return;
         }
       }
-      this.emitError(ollamaErr instanceof Error ? ollamaErr.message : 'Ollama Whisper transcription failed');
+      this.emitError(err instanceof Error ? err.message : 'STT 转写失败');
     }
   }
 
   /**
-   * Transcribe an audio blob using Ollama's /api/audio/transcriptions endpoint.
+   * Transcribe an audio blob using whisper-server (OpenAI-compatible endpoint).
+   *
+   * Prefer /v1/audio/transcriptions. Some local setups or older proxies may still
+   * expose /api/audio/transcriptions, so we probe both to reduce configuration drift.
    */
-  private async transcribeWithOllamaWhisper(
+  private async transcribeWithWhisperServer(
     audioBlob: Blob,
     baseUrl: string,
     model: string,
     lang?: string,
   ): Promise<SttResult> {
-    const formData = new FormData();
-    formData.append('file', audioBlob, 'recording.webm');
-    formData.append('model', model);
-    if (lang) formData.append('language', lang);
+    const endpoints = buildOllamaTranscriptionEndpoints(baseUrl);
+    const failures: string[] = [];
 
-    const resp = await fetch(`${baseUrl}/api/audio/transcriptions`, {
-      method: 'POST',
-      body: formData,
-    });
+    for (const endpoint of endpoints) {
+      const body = new FormData();
+      body.append('file', audioBlob, 'recording.webm');
+      body.append('model', model);
+      if (lang) body.append('language', lang);
 
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      throw new Error(`Ollama Whisper failed: ${resp.status} ${text}`);
+      try {
+        const resp = await fetch(endpoint, {
+          method: 'POST',
+          body,
+        });
+
+        if (!resp.ok) {
+          const text = await resp.text().catch(() => '');
+          failures.push(`${endpoint} -> ${resp.status} ${text}`.trim());
+          continue;
+        }
+
+        const json = await resp.json() as { text?: string };
+        return {
+          text: json.text ?? '',
+          lang: lang ?? 'unknown',
+          isFinal: true,
+          confidence: 1.0,
+          engine: 'whisper-local',
+          audioBlob,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        failures.push(`${endpoint} -> ${message}`);
+      }
     }
 
-    const json = await resp.json() as { text?: string };
-    return {
-      text: json.text ?? '',
-      lang: lang ?? 'unknown',
-      isFinal: true,
-      confidence: 1.0,
-      engine: 'whisper-local',
-      audioBlob,
-    };
+    throw new Error(`whisper-server 转写失败. 已尝试:\n${failures.join('\n')}`);
   }
 
   dispose(): void {
@@ -662,6 +924,7 @@ export class VoiceInputService {
     this.vadListeners = [];
     this.energyListeners = [];
     this.stopSilenceTimer();
+    this.releaseSharedAnalysisStream();
   }
 
   // ── Private ──
@@ -701,13 +964,8 @@ export class VoiceInputService {
     if (this.vadTimerId !== null) return;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
+      const stream = await this.createAnalysisCloneStream();
+      if (!stream) return;
 
       const audioContext = new AudioContext();
       const source = audioContext.createMediaStreamSource(stream);
