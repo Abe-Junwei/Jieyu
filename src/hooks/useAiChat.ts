@@ -1408,7 +1408,8 @@ export function useAiChat(options?: UseAiChatOptions) {
     let firstChunkArrived = false;
     let connectionMarkedSuccess = false;
     let timedOutBeforeFirstChunk = false;
-    const timeoutHandle = typeof window !== 'undefined'
+    const enforceFirstChunkTimeout = provider.id !== 'ollama';
+    const timeoutHandle = (typeof window !== 'undefined' && enforceFirstChunkTimeout)
       ? window.setTimeout(() => {
         if (firstChunkArrived || controller.signal.aborted) return;
         timedOutBeforeFirstChunk = true;
