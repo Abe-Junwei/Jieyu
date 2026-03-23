@@ -14,6 +14,8 @@ interface LayerActionPopoverProps {
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
   deleteLayer: (layerId: string) => Promise<void>;
+  deleteLayerWithoutConfirm?: (layerId: string) => Promise<void>;
+  checkLayerHasContent?: (layerId: string) => Promise<number>;
   onClose: () => void;
 }
 
@@ -56,6 +58,8 @@ export function LayerActionPopover({
   deletableLayers,
   createLayer,
   deleteLayer,
+  deleteLayerWithoutConfirm,
+  checkLayerHasContent,
   onClose,
 }: LayerActionPopoverProps) {
   const storageKey = `jieyu:layer-action-popover-rect:${action}`;
@@ -65,6 +69,7 @@ export function LayerActionPopover({
   const [modality, setModality] = useState<'text' | 'audio' | 'mixed'>('text');
   const [deleteLayerId, setDeleteLayerId] = useState(layerId ?? '');
   const [isLoading, setIsLoading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ layerId: string; layerName: string; textCount: number } | null>(null);
   const [position, setPosition] = useState<PanelPosition>(() => {
     try {
       if (typeof window === 'undefined') return { x: 24, y: 24 };
@@ -229,11 +234,36 @@ export function LayerActionPopover({
 
   const handleDelete = useCallback(async () => {
     if (!deleteLayerId) return;
+    const layer = deletableLayers.find((l) => l.id === deleteLayerId);
+    const layerName = layer?.name?.zho ?? layer?.name?.zh ?? layer?.name?.eng ?? layer?.name?.en ?? layer?.key ?? deleteLayerId;
+
+    // Check if layer has content
+    const textCount = checkLayerHasContent ? await checkLayerHasContent(deleteLayerId) : 0;
+
+    if (textCount === 0) {
+      // No content - delete directly
+      setIsLoading(true);
+      await (deleteLayerWithoutConfirm ?? deleteLayer)(deleteLayerId);
+      setIsLoading(false);
+      onClose();
+    } else {
+      // Has content - show confirmation
+      setDeleteConfirm({ layerId: deleteLayerId, layerName, textCount });
+    }
+  }, [deleteLayerId, deletableLayers, checkLayerHasContent, deleteLayerWithoutConfirm, deleteLayer, onClose]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteConfirm) return;
     setIsLoading(true);
-    await deleteLayer(deleteLayerId);
+    await (deleteLayerWithoutConfirm ?? deleteLayer)(deleteConfirm.layerId);
     setIsLoading(false);
+    setDeleteConfirm(null);
     onClose();
-  }, [deleteLayerId, deleteLayer, onClose]);
+  }, [deleteConfirm, deleteLayerWithoutConfirm, deleteLayer, onClose]);
+
+  const handleCancelDelete = useCallback(() => {
+    setDeleteConfirm(null);
+  }, []);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') onClose();
@@ -327,29 +357,53 @@ export function LayerActionPopover({
 
         {action === 'delete' ? (
           <>
-            <select
-              className="input transcription-layer-rail-action-input"
-              value={deleteLayerId}
-              onChange={(e) => setDeleteLayerId(e.target.value)}
-            >
-              {deletableLayers.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name?.zho ?? l.name?.zh ?? l.name?.eng ?? l.name?.en ?? l.key}
-                </option>
-              ))}
-            </select>
-            <div className="transcription-layer-rail-action-row">
-              <button
-                className="btn btn-sm btn-danger"
-                disabled={!deleteLayerId || isLoading}
-                onClick={handleDelete}
-              >
-                删除
-              </button>
-              <button className="btn btn-ghost btn-sm" onClick={onClose}>
-                取消
-              </button>
-            </div>
+            {deleteConfirm ? (
+              // Delete confirmation view
+              <>
+                <p style={{ margin: '0 0 12px', color: '#334155', fontSize: 14 }}>
+                  层「{deleteConfirm.layerName}」包含 {deleteConfirm.textCount} 条文本记录，删除后将无法恢复。
+                </p>
+                <div className="transcription-layer-rail-action-row">
+                  <button
+                    className="btn btn-sm btn-danger"
+                    disabled={isLoading}
+                    onClick={handleConfirmDelete}
+                  >
+                    确认删除
+                  </button>
+                  <button className="btn btn-ghost btn-sm" onClick={handleCancelDelete} disabled={isLoading}>
+                    取消
+                  </button>
+                </div>
+              </>
+            ) : (
+              // Delete selection view
+              <>
+                <select
+                  className="input transcription-layer-rail-action-input"
+                  value={deleteLayerId}
+                  onChange={(e) => setDeleteLayerId(e.target.value)}
+                >
+                  {deletableLayers.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name?.zho ?? l.name?.zh ?? l.name?.eng ?? l.name?.en ?? l.key}
+                    </option>
+                  ))}
+                </select>
+                <div className="transcription-layer-rail-action-row">
+                  <button
+                    className="btn btn-sm btn-danger"
+                    disabled={!deleteLayerId || isLoading}
+                    onClick={handleDelete}
+                  >
+                    删除
+                  </button>
+                  <button className="btn btn-ghost btn-sm" onClick={onClose}>
+                    取消
+                  </button>
+                </div>
+              </>
+            )}
           </>
         ) : (
           <>

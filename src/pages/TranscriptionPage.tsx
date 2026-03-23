@@ -2247,6 +2247,8 @@ export function TranscriptionPage() {
         renderLaneLabel,
         createLayer: createLayerWithActiveContext,
         deleteLayer,
+        deleteLayerWithoutConfirm,
+        checkLayerHasContent,
     }), [
         utteranceDrafts,
         setUtteranceDrafts,
@@ -2261,6 +2263,8 @@ export function TranscriptionPage() {
         renderLaneLabel,
         createLayerWithActiveContext,
         deleteLayer,
+        deleteLayerWithoutConfirm,
+        checkLayerHasContent,
     ]);
 
     return (

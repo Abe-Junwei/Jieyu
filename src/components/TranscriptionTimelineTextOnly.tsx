@@ -85,6 +85,8 @@ export function TranscriptionTimelineTextOnly({
     saveTextTranslationForUtterance,
     createLayer,
     deleteLayer,
+    deleteLayerWithoutConfirm,
+    checkLayerHasContent,
   } = useTranscriptionEditorContext();
 
   const horizontalVirtualizer = useVirtualizer({
@@ -444,6 +446,8 @@ export function TranscriptionTimelineTextOnly({
           deletableLayers={deletableLayers}
           createLayer={createLayer}
           deleteLayer={deleteLayer}
+          deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}
+          checkLayerHasContent={checkLayerHasContent}
           onClose={() => setLayerAction(null)}
         />
       )}

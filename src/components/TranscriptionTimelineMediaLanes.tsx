@@ -99,6 +99,8 @@ export function TranscriptionTimelineMediaLanes({
     saveTextTranslationForUtterance,
     createLayer,
     deleteLayer,
+    deleteLayerWithoutConfirm,
+    checkLayerHasContent,
   } = useTranscriptionEditorContext();
   return (
     <div className="timeline-content" style={{ width: playerDuration * zoomPxPerSec }}>
@@ -255,6 +257,8 @@ export function TranscriptionTimelineMediaLanes({
           deletableLayers={deletableLayers}
           createLayer={createLayer}
           deleteLayer={deleteLayer}
+          deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}
+          checkLayerHasContent={checkLayerHasContent}
           onClose={() => setLayerAction(null)}
         />
       )}
