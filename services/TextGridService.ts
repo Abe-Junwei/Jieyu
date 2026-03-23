@@ -29,6 +29,8 @@ export interface TextGridImportResult {
     endTime: number;
     text: string;
   }>>;
+  /** Name of the first IntervalTier | 首层名称 */
+  transcriptionTierName?: string;
 }
 
 // ── Export ───────────────────────────────────────────────────
@@ -298,7 +300,12 @@ export function importFromTextGrid(text: string): TextGridImportResult {
     }
   });
 
-  return { utterances, additionalTiers };
+  const transcriptionTierName = parsedTiers[0]?.name;
+  return {
+    utterances,
+    additionalTiers,
+    ...(transcriptionTierName ? { transcriptionTierName } : {}),
+  };
 }
 
 // ── File helpers ────────────────────────────────────────────

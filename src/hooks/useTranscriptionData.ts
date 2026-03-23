@@ -229,6 +229,8 @@ export function useTranscriptionData() {
     mergeSelectedUtterances: mergeSelectedUtterancesRaw,
     createLayer: createLayerRaw,
     deleteLayer: deleteLayerRaw,
+    deleteLayerWithoutConfirm,
+    checkLayerHasContent,
     toggleLayerLink: toggleLayerLinkRaw,
     addMediaItem,
     reorderLayers,
@@ -461,6 +463,8 @@ export function useTranscriptionData() {
     mergeSelectedUtterances,
     createLayer,
     deleteLayer,
+    deleteLayerWithoutConfirm,
+    checkLayerHasContent,
     toggleLayerLink,
     reorderLayers,
     getNeighborBounds,
@@ -504,5 +508,6 @@ export function useTranscriptionData() {
     ...canonicalApi,
     pushUndo,
     setUtterances,
+    setSpeakers,
   };
 }

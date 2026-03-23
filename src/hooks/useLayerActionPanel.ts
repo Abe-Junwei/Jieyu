@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export type LayerActionPanelKind = 'create-transcription' | 'create-translation' | 'delete' | null;
+export type LayerActionPanelKind = 'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null;
 
 export interface UseLayerActionPanelInput {
   createLayer: (
@@ -8,7 +8,9 @@ export interface UseLayerActionPanelInput {
     config: { languageId: string; alias?: string },
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
-  deleteLayer: (layerId: string) => Promise<void>;
+  deleteLayer: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
+  deleteLayerWithoutConfirm?: (layerId: string) => Promise<void>;
+  checkLayerHasContent?: (layerId: string) => Promise<number>;
   deletableLayers: Array<{ id: string }>;
   focusedLayerRowId: string;
   isLayerRailCollapsed: boolean;
@@ -17,10 +19,14 @@ export interface UseLayerActionPanelInput {
 export function useLayerActionPanel({
   createLayer,
   deleteLayer,
+  deleteLayerWithoutConfirm,
+  checkLayerHasContent,
   deletableLayers,
   focusedLayerRowId,
   isLayerRailCollapsed,
 }: UseLayerActionPanelInput) {
+  const _deleteLayerWithoutConfirm = deleteLayerWithoutConfirm ?? (async () => {});
+  const _checkLayerHasContent = checkLayerHasContent ?? (async () => 0);
   const [layerActionPanel, setLayerActionPanel] = useState<LayerActionPanelKind>(null);
   const layerActionRootRef = useRef<HTMLDivElement | null>(null);
 
@@ -37,6 +43,7 @@ export function useLayerActionPanel({
 
   // ── Quick-delete form ──
   const [quickDeleteLayerId, setQuickDeleteLayerId] = useState('');
+  const [quickDeleteKeepUtterances, setQuickDeleteKeepUtterances] = useState(false);
 
   // ── Handlers ──
 
@@ -73,9 +80,10 @@ export function useLayerActionPanel({
 
   const handleDeleteLayerFromPanel = useCallback(async () => {
     if (!quickDeleteLayerId) return;
-    await deleteLayer(quickDeleteLayerId);
+    await deleteLayer(quickDeleteLayerId, { keepUtterances: quickDeleteKeepUtterances });
     setLayerActionPanel(null);
-  }, [deleteLayer, quickDeleteLayerId]);
+    setQuickDeleteKeepUtterances(false);
+  }, [deleteLayer, quickDeleteKeepUtterances, quickDeleteLayerId]);
 
   // ── Effects ──
 
@@ -144,6 +152,8 @@ export function useLayerActionPanel({
     // Delete form
     quickDeleteLayerId,
     setQuickDeleteLayerId,
+    quickDeleteKeepUtterances,
+    setQuickDeleteKeepUtterances,
     // Handlers
     handleCreateTranscriptionFromPanel,
     handleCreateTranslationFromPanel,
@@ -151,5 +161,7 @@ export function useLayerActionPanel({
     // Direct access for context menu
     createLayer,
     deleteLayer,
+    deleteLayerWithoutConfirm: _deleteLayerWithoutConfirm,
+    checkLayerHasContent: _checkLayerHasContent,
   };
 }

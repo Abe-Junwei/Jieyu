@@ -459,6 +459,8 @@ interface UtteranceTextDocType {
   ai_metadata?: AiMetadata;
   provenance?: ProvenanceEnvelope;
   accessRights?: 'open' | 'restricted' | 'confidential';
+  /** 外部引用（如 EAF 的 ANNOTATION_ID），用于往返一致性 | External reference (e.g. EAF ANNOTATION_ID) for round-trip consistency */
+  externalRef?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -978,6 +980,7 @@ const utteranceTextDocSchema = z.object({
   ai_metadata: aiMetadataSchema.optional(),
   provenance: provenanceSchema.optional(),
   accessRights: accessRightsSchema.optional(),
+  externalRef: z.string().optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });

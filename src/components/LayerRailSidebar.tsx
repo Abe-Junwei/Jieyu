@@ -1,9 +1,11 @@
-import { useState, type CSSProperties } from 'react';
-import type { TranslationLayerDocType } from '../../db';
+import { useState, useCallback, useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import type { SpeakerDocType, TranslationLayerDocType } from '../../db';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
 import { COMMON_LANGUAGES, formatLayerRailLabel } from '../utils/transcriptionFormatters';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
 
@@ -31,6 +33,202 @@ interface LayerRailSidebarProps {
   onExportSpeakerSegments: (speakerKey: string) => void;
   onRenameSpeaker: (speakerKey: string) => void;
   onMergeSpeaker: (sourceSpeakerKey: string) => void;
+  // 新增：说话人管理入口
+  speakerOptions: SpeakerDocType[];
+  selectedUtteranceIds: Set<string>;
+  selectedSpeakerSummary: string;
+  speakerSaving: boolean;
+  speakerDraftName: string;
+  setSpeakerDraftName: React.Dispatch<React.SetStateAction<string>>;
+  batchSpeakerId: string;
+  setBatchSpeakerId: React.Dispatch<React.SetStateAction<string>>;
+  onAssignSpeakerToSelected: () => Promise<void>;
+  onCreateSpeakerAndAssign: () => Promise<void>;
+}
+
+interface LayerRailActionModalProps {
+  ariaLabel: string;
+  children: ReactNode;
+  onClose: () => void;
+  className?: string;
+}
+
+function LayerRailActionModal({ ariaLabel, children, onClose, className }: LayerRailActionModalProps) {
+  const isSpeakerModal = Boolean(className?.includes('transcription-layer-rail-action-popover-speaker-centered'));
+  const defaultSize = useMemo(
+    () => (isSpeakerModal ? { width: 560, height: 560 } : { width: 340, height: 200 }),
+    [isSpeakerModal],
+  );
+  const minSize = useMemo(
+    () => (isSpeakerModal ? { width: 420, height: 320 } : { width: 280, height: 160 }),
+    [isSpeakerModal],
+  );
+
+  const clampSize = useCallback((raw: { width: number; height: number }) => {
+    const viewportPadding = 16;
+    const maxWidth = Math.max(minSize.width, window.innerWidth - viewportPadding * 2);
+    const maxHeight = Math.max(minSize.height, window.innerHeight - viewportPadding * 2);
+    return {
+      width: Math.min(Math.max(raw.width, minSize.width), maxWidth),
+      height: Math.min(Math.max(raw.height, minSize.height), maxHeight),
+    };
+  }, [minSize.height, minSize.width]);
+
+  const centerPosition = useCallback((panelSize: { width: number; height: number }) => ({
+    x: Math.max(16, Math.round((window.innerWidth - panelSize.width) / 2)),
+    y: Math.max(16, Math.round((window.innerHeight - panelSize.height) / 2)),
+  }), []);
+
+  const clampPosition = useCallback((raw: { x: number; y: number }, panelSize: { width: number; height: number }) => {
+    const viewportPadding = 16;
+    const maxX = Math.max(viewportPadding, window.innerWidth - panelSize.width - viewportPadding);
+    const maxY = Math.max(viewportPadding, window.innerHeight - panelSize.height - viewportPadding);
+    return {
+      x: Math.min(Math.max(raw.x, viewportPadding), maxX),
+      y: Math.min(Math.max(raw.y, viewportPadding), maxY),
+    };
+  }, []);
+
+  const [size, setSize] = useState(() => clampSize(defaultSize));
+  const [position, setPosition] = useState(() => centerPosition(clampSize(defaultSize)));
+  const dragRef = useRef<{ startX: number; startY: number; startLeft: number; startTop: number } | null>(null);
+  const resizeRef = useRef<{ startX: number; startY: number; startWidth: number; startHeight: number } | null>(null);
+
+  useEffect(() => {
+    const safeSize = clampSize(defaultSize);
+    setSize(safeSize);
+    setPosition(centerPosition(safeSize));
+  }, [ariaLabel, centerPosition, clampSize, defaultSize]);
+
+  useEffect(() => {
+    const onPointerMove = (event: PointerEvent) => {
+      if (dragRef.current) {
+        const next = {
+          x: dragRef.current.startLeft + (event.clientX - dragRef.current.startX),
+          y: dragRef.current.startTop + (event.clientY - dragRef.current.startY),
+        };
+        setPosition(clampPosition(next, size));
+      }
+
+      if (resizeRef.current) {
+        const nextSize = clampSize({
+          width: resizeRef.current.startWidth + (event.clientX - resizeRef.current.startX),
+          height: resizeRef.current.startHeight + (event.clientY - resizeRef.current.startY),
+        });
+        setSize(nextSize);
+        setPosition((prev) => clampPosition(prev, nextSize));
+      }
+    };
+
+    const onPointerUp = () => {
+      if (!dragRef.current && !resizeRef.current) return;
+      dragRef.current = null;
+      resizeRef.current = null;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [clampPosition, clampSize, size]);
+
+  useEffect(() => {
+    const onResize = () => {
+      setSize((prev) => {
+        const safe = clampSize(prev);
+        setPosition((old) => clampPosition(old, safe));
+        return safe;
+      });
+    };
+
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [clampPosition, clampSize]);
+
+  const handleDragStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      startLeft: position.x,
+      startTop: position.y,
+    };
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'move';
+  };
+
+  const handleResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    resizeRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      startWidth: size.width,
+      startHeight: size.height,
+    };
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'nwse-resize';
+  };
+
+  const handleResetLayout = (event?: React.MouseEvent<HTMLElement>) => {
+    event?.stopPropagation();
+    const safe = clampSize(defaultSize);
+    setSize(safe);
+    setPosition(centerPosition(safe));
+  };
+
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  return createPortal(
+    <div className="layer-action-popover-backdrop" onClick={onClose} role="presentation">
+      <div
+        className={className ?? 'transcription-layer-rail-action-popover transcription-layer-rail-action-popover-centered floating-panel'}
+        role="dialog"
+        aria-modal="true"
+        aria-label={ariaLabel}
+        onClick={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
+        style={{
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          width: `${size.width}px`,
+          height: `${size.height}px`,
+          maxWidth: 'calc(100vw - 32px)',
+          maxHeight: 'calc(100vh - 32px)',
+          transform: 'none',
+        }}
+      >
+        <div
+          className="transcription-layer-rail-action-popover-title floating-panel-title-row floating-panel-drag-handle"
+          onPointerDown={handleDragStart}
+          onDoubleClick={() => handleResetLayout()}
+          title="拖动移动，双击回中并重置尺寸"
+        >
+          <span>{ariaLabel}</span>
+          <button
+            type="button"
+            className="floating-panel-reset-btn"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={handleResetLayout}
+            aria-label="重置位置与尺寸"
+            title="重置位置与尺寸"
+          >
+            ↺
+          </button>
+        </div>
+        <div className="transcription-layer-rail-action-popover-body">
+          {children}
+        </div>
+        <div className="floating-panel-resize-handle" onPointerDown={handleResizeStart} aria-hidden="true" />
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 export function LayerRailSidebar({
@@ -57,6 +255,16 @@ export function LayerRailSidebar({
   onExportSpeakerSegments,
   onRenameSpeaker,
   onMergeSpeaker,
+  speakerOptions,
+  selectedUtteranceIds,
+  selectedSpeakerSummary,
+  speakerSaving,
+  speakerDraftName,
+  setSpeakerDraftName,
+  batchSpeakerId,
+  setBatchSpeakerId,
+  onAssignSpeakerToSelected,
+  onCreateSpeakerAndAssign,
 }: LayerRailSidebarProps) {
   const {
     layerActionPanel, setLayerActionPanel, layerActionRootRef,
@@ -68,15 +276,25 @@ export function LayerRailSidebar({
     quickTranslationAlias, setQuickTranslationAlias,
     quickTranslationModality, setQuickTranslationModality,
     quickDeleteLayerId, setQuickDeleteLayerId,
+    quickDeleteKeepUtterances, setQuickDeleteKeepUtterances,
     handleCreateTranscriptionFromPanel,
     handleCreateTranslationFromPanel,
     handleDeleteLayerFromPanel,
     createLayer,
-    deleteLayer,
+    deleteLayerWithoutConfirm,
+    checkLayerHasContent,
   } = layerAction;
 
   // ── Context menu state ──
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string } | null>(null);
+
+  // ── Delete layer confirmation dialog state ──
+  const [deleteLayerConfirm, setDeleteLayerConfirm] = useState<{
+    layerId: string;
+    layerName: string;
+    layerType: 'transcription' | 'translation';
+    textCount: number;
+  } | null>(null);
 
   const handleLayerContextMenu = (e: React.MouseEvent, layerId: string) => {
     e.preventDefault();
@@ -199,10 +417,193 @@ export function LayerRailSidebar({
       danger: true,
       disabled: !deletableLayers.some((l) => l.id === contextMenu.layerId),
       onClick: () => {
-        fireAndForget(deleteLayer(contextMenu.layerId));
+        fireAndForget((async () => {
+          const layer = deletableLayers.find((l) => l.id === contextMenu.layerId);
+          if (!layer) return;
+          const textCount = await checkLayerHasContent(contextMenu.layerId!);
+          const layerName = layer.name.zho ?? layer.name.eng ?? layer.key;
+          if (textCount === 0) {
+            // No content - delete directly without confirmation
+            await deleteLayerWithoutConfirm(contextMenu.layerId!);
+          } else {
+            // Has content - show confirmation dialog
+            setDeleteLayerConfirm({
+              layerId: contextMenu.layerId!,
+              layerName,
+              layerType: layer.layerType,
+              textCount,
+            });
+          }
+        })());
       },
     },
   ] : [];
+
+  const renderSpeakerManagementPopover = () => (
+    <LayerRailActionModal
+      ariaLabel="说话人管理"
+      onClose={() => setLayerActionPanel(null)}
+      className="transcription-layer-rail-action-popover transcription-layer-rail-action-popover-centered transcription-layer-rail-action-popover-speaker transcription-layer-rail-action-popover-speaker-centered floating-panel"
+    >
+      <div className="transcription-layer-rail-speaker-panel-section transcription-layer-rail-speaker-panel-summary">
+        <strong className="transcription-layer-rail-speaker-panel-title">说话人管理</strong>
+        <div className="transcription-layer-rail-speaker-panel-meta">
+          <span>说话人：{speakerFilterOptions.length}</span>
+          <span>已选句段：{selectedUtteranceIds.size}</span>
+        </div>
+        <div className="transcription-layer-rail-speaker-panel-summary-text">{selectedSpeakerSummary}</div>
+      </div>
+
+      <div className="transcription-layer-rail-speaker-panel-section">
+        <strong className="transcription-layer-rail-speaker-panel-subtitle">批量分配</strong>
+        <select
+          className="input transcription-layer-rail-action-input"
+          value={batchSpeakerId}
+          onChange={(e) => setBatchSpeakerId(e.target.value)}
+          disabled={speakerSaving || selectedUtteranceIds.size === 0}
+        >
+          <option value="">清空说话人标签</option>
+          {speakerOptions.map((speaker) => (
+            <option key={speaker.id} value={speaker.id}>{speaker.name}</option>
+          ))}
+        </select>
+        <div className="transcription-layer-rail-action-row transcription-layer-rail-action-row-fill">
+          <button
+            className="btn btn-sm"
+            disabled={speakerSaving || selectedUtteranceIds.size === 0}
+            onClick={() => { fireAndForget(onAssignSpeakerToSelected()); }}
+          >
+            应用到已选
+          </button>
+        </div>
+        <input
+          className="input transcription-layer-rail-action-input"
+          placeholder="新说话人名称"
+          value={speakerDraftName}
+          onChange={(e) => setSpeakerDraftName(e.target.value)}
+          disabled={speakerSaving || selectedUtteranceIds.size === 0}
+        />
+        <div className="transcription-layer-rail-action-row transcription-layer-rail-action-row-fill">
+          <button
+            className="btn btn-sm"
+            disabled={speakerSaving || selectedUtteranceIds.size === 0 || speakerDraftName.trim().length === 0}
+            onClick={() => { fireAndForget(onCreateSpeakerAndAssign()); }}
+          >
+            新建并分配
+          </button>
+        </div>
+      </div>
+
+      <div className="transcription-layer-rail-speaker-panel-section">
+        <div className="transcription-layer-rail-speaker-filter" aria-label="说话人筛选">
+          <button
+            type="button"
+            className={`transcription-layer-rail-speaker-chip ${activeSpeakerFilterKey === 'all' ? 'transcription-layer-rail-speaker-chip-active' : ''}`}
+            onClick={() => onSpeakerFilterChange('all')}
+            title="显示全部说话人"
+          >
+            全部
+          </button>
+          {speakerFilterOptions.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              className={`transcription-layer-rail-speaker-chip ${activeSpeakerFilterKey === option.key ? 'transcription-layer-rail-speaker-chip-active' : ''}`}
+              onClick={() => onSpeakerFilterChange(option.key)}
+              title={`${option.name}（${option.count}）`}
+              style={option.color ? ({ '--speaker-color': option.color } as CSSProperties) : undefined}
+            >
+              <span className="transcription-layer-rail-speaker-dot" />
+              <span className="transcription-layer-rail-speaker-name">{option.name}</span>
+              <span className="transcription-layer-rail-speaker-count">{option.count}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {speakerFilterOptions.length > 0 && (
+        <div className="transcription-layer-rail-speaker-panel-section transcription-layer-rail-speaker-groups" aria-label="说话人组">
+          {speakerFilterOptions.map((option) => {
+            const isCollapsedGroup = collapsedSpeakerGroupKeys.has(option.key);
+            return (
+              <div key={`group-${option.key}`} className="transcription-layer-rail-speaker-group">
+                <div className="transcription-layer-rail-speaker-group-head" style={option.color ? ({ '--speaker-color': option.color } as CSSProperties) : undefined}>
+                  <button
+                    type="button"
+                    className="transcription-layer-rail-speaker-group-toggle"
+                    onClick={() => toggleSpeakerGroupCollapsed(option.key)}
+                    aria-expanded={!isCollapsedGroup}
+                    title={isCollapsedGroup ? '展开说话人组' : '折叠说话人组'}
+                  >
+                    <span className="transcription-layer-rail-speaker-dot" />
+                    <span className="transcription-layer-rail-speaker-name">{option.name}</span>
+                    <span className="transcription-layer-rail-speaker-count">{option.count}</span>
+                  </button>
+                  <div className="transcription-layer-rail-speaker-group-actions">
+                    <button
+                      type="button"
+                      className={`transcription-layer-rail-speaker-mini-btn ${activeSpeakerFilterKey === option.key ? 'transcription-layer-rail-speaker-mini-btn-active' : ''}`}
+                      onClick={() => onSpeakerFilterChange(option.key)}
+                      title="只看该说话人"
+                    >
+                      聚焦
+                    </button>
+                    <button
+                      type="button"
+                      className="transcription-layer-rail-speaker-mini-btn"
+                      onClick={() => onSelectSpeakerUtterances(option.key)}
+                      title="选中该说话人的全部句段"
+                    >
+                      选中
+                    </button>
+                    <button
+                      type="button"
+                      className="transcription-layer-rail-speaker-mini-btn"
+                      onClick={() => onClearSpeakerAssignments(option.key)}
+                      title="清空该说话人的标签"
+                    >
+                      清空
+                    </button>
+                    <button
+                      type="button"
+                      className="transcription-layer-rail-speaker-mini-btn"
+                      onClick={() => onExportSpeakerSegments(option.key)}
+                      title="导出该说话人句段清单"
+                    >
+                      导出
+                    </button>
+                    <button
+                      type="button"
+                      className="transcription-layer-rail-speaker-mini-btn"
+                      onClick={() => onRenameSpeaker(option.key)}
+                      title={option.isEntity ? '重命名该说话人' : '仅实体说话人支持重命名'}
+                      disabled={!option.isEntity}
+                    >
+                      改名
+                    </button>
+                    <button
+                      type="button"
+                      className="transcription-layer-rail-speaker-mini-btn"
+                      onClick={() => onMergeSpeaker(option.key)}
+                      title={option.isEntity ? '将该说话人合并到其他说话人' : '仅实体说话人支持合并'}
+                      disabled={!option.isEntity}
+                    >
+                      合并
+                    </button>
+                  </div>
+                </div>
+                {!isCollapsedGroup && (
+                  <div className="transcription-layer-rail-speaker-group-body">
+                    <span>句段数：{option.count}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </LayerRailActionModal>
+  );
 
   return (
     <aside className={`transcription-layer-rail ${isCollapsed ? 'transcription-layer-rail-collapsed' : ''}`} aria-label="文本区层滚动栏">
@@ -236,111 +637,6 @@ export function LayerRailSidebar({
         onMouseUp={dragState ? handleMouseUp : undefined}
         onMouseLeave={dragState ? handleMouseUp : undefined}
       >
-        <div className="transcription-layer-rail-speaker-filter" aria-label="说话人筛选">
-          <button
-            type="button"
-            className={`transcription-layer-rail-speaker-chip ${activeSpeakerFilterKey === 'all' ? 'transcription-layer-rail-speaker-chip-active' : ''}`}
-            onClick={() => onSpeakerFilterChange('all')}
-            title="显示全部说话人"
-          >
-            全部
-          </button>
-          {speakerFilterOptions.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              className={`transcription-layer-rail-speaker-chip ${activeSpeakerFilterKey === option.key ? 'transcription-layer-rail-speaker-chip-active' : ''}`}
-              onClick={() => onSpeakerFilterChange(option.key)}
-              title={`${option.name}（${option.count}）`}
-              style={option.color ? ({ '--speaker-color': option.color } as CSSProperties) : undefined}
-            >
-              <span className="transcription-layer-rail-speaker-dot" />
-              <span className="transcription-layer-rail-speaker-name">{option.name}</span>
-              <span className="transcription-layer-rail-speaker-count">{option.count}</span>
-            </button>
-          ))}
-        </div>
-        {speakerFilterOptions.length > 0 && (
-          <div className="transcription-layer-rail-speaker-groups" aria-label="说话人组">
-            {speakerFilterOptions.map((option) => {
-              const isCollapsedGroup = collapsedSpeakerGroupKeys.has(option.key);
-              return (
-                <div key={`group-${option.key}`} className="transcription-layer-rail-speaker-group">
-                  <div className="transcription-layer-rail-speaker-group-head" style={option.color ? ({ '--speaker-color': option.color } as CSSProperties) : undefined}>
-                    <button
-                      type="button"
-                      className="transcription-layer-rail-speaker-group-toggle"
-                      onClick={() => toggleSpeakerGroupCollapsed(option.key)}
-                      aria-expanded={!isCollapsedGroup}
-                      title={isCollapsedGroup ? '展开说话人组' : '折叠说话人组'}
-                    >
-                      <span className="transcription-layer-rail-speaker-dot" />
-                      <span className="transcription-layer-rail-speaker-name">{option.name}</span>
-                      <span className="transcription-layer-rail-speaker-count">{option.count}</span>
-                    </button>
-                    <div className="transcription-layer-rail-speaker-group-actions">
-                      <button
-                        type="button"
-                        className={`transcription-layer-rail-speaker-mini-btn ${activeSpeakerFilterKey === option.key ? 'transcription-layer-rail-speaker-mini-btn-active' : ''}`}
-                        onClick={() => onSpeakerFilterChange(option.key)}
-                        title="只看该说话人"
-                      >
-                        聚焦
-                      </button>
-                      <button
-                        type="button"
-                        className="transcription-layer-rail-speaker-mini-btn"
-                        onClick={() => onSelectSpeakerUtterances(option.key)}
-                        title="选中该说话人的全部句段"
-                      >
-                        选中
-                      </button>
-                      <button
-                        type="button"
-                        className="transcription-layer-rail-speaker-mini-btn"
-                        onClick={() => onClearSpeakerAssignments(option.key)}
-                        title="清空该说话人的标签"
-                      >
-                        清空
-                      </button>
-                      <button
-                        type="button"
-                        className="transcription-layer-rail-speaker-mini-btn"
-                        onClick={() => onExportSpeakerSegments(option.key)}
-                        title="导出该说话人句段清单"
-                      >
-                        导出
-                      </button>
-                      <button
-                        type="button"
-                        className="transcription-layer-rail-speaker-mini-btn"
-                        onClick={() => onRenameSpeaker(option.key)}
-                        title={option.isEntity ? '重命名该说话人' : '仅实体说话人支持重命名'}
-                        disabled={!option.isEntity}
-                      >
-                        改名
-                      </button>
-                      <button
-                        type="button"
-                        className="transcription-layer-rail-speaker-mini-btn"
-                        onClick={() => onMergeSpeaker(option.key)}
-                        title={option.isEntity ? '将该说话人合并到其他说话人' : '仅实体说话人支持合并'}
-                        disabled={!option.isEntity}
-                      >
-                        合并
-                      </button>
-                    </div>
-                  </div>
-                  {!isCollapsedGroup && (
-                    <div className="transcription-layer-rail-speaker-group-body">
-                      <span>句段数：{option.count}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
         {(() => {
           return layerRailRows.length > 0 ? (
           layerRailRows.map((layer, index) => {
@@ -427,6 +723,13 @@ export function LayerRailSidebar({
       <div className="transcription-layer-rail-actions" aria-label="层管理快捷操作" ref={layerActionRootRef}>
         <button
           type="button"
+          className={`transcription-layer-rail-action-btn ${layerActionPanel === 'speaker-management' ? 'transcription-layer-rail-action-btn-active' : ''}`}
+          onClick={() => setLayerActionPanel((prev) => (prev === 'speaker-management' ? null : 'speaker-management'))}
+        >
+          <strong>说话人管理</strong>
+        </button>
+        <button
+          type="button"
           className={`transcription-layer-rail-action-btn ${layerActionPanel === 'create-transcription' ? 'transcription-layer-rail-action-btn-active' : ''}`}
           onClick={() => setLayerActionPanel((prev) => (prev === 'create-transcription' ? null : 'create-transcription'))}
         >
@@ -448,8 +751,10 @@ export function LayerRailSidebar({
           <strong>删除</strong>
         </button>
 
+        {layerActionPanel === 'speaker-management' && renderSpeakerManagementPopover()}
+
         {layerActionPanel === 'create-transcription' && (
-          <div className="transcription-layer-rail-action-popover" role="dialog" aria-label="新建转写层">
+          <LayerRailActionModal ariaLabel="新建转写层" onClose={() => setLayerActionPanel(null)}>
             <select
               className="input transcription-layer-rail-action-input"
               value={quickTranscriptionLangId}
@@ -479,11 +784,11 @@ export function LayerRailSidebar({
               <button className="btn btn-sm" onClick={() => { fireAndForget(handleCreateTranscriptionFromPanel()); }}>创建</button>
               <button className="btn btn-ghost btn-sm" onClick={() => setLayerActionPanel(null)}>取消</button>
             </div>
-          </div>
+          </LayerRailActionModal>
         )}
 
         {layerActionPanel === 'create-translation' && (
-          <div className="transcription-layer-rail-action-popover" role="dialog" aria-label="新建翻译层">
+          <LayerRailActionModal ariaLabel="新建翻译层" onClose={() => setLayerActionPanel(null)}>
             <select
               className="input transcription-layer-rail-action-input"
               value={quickTranslationLangId}
@@ -522,11 +827,11 @@ export function LayerRailSidebar({
               <button className="btn btn-sm" onClick={() => { fireAndForget(handleCreateTranslationFromPanel()); }}>创建</button>
               <button className="btn btn-ghost btn-sm" onClick={() => setLayerActionPanel(null)}>取消</button>
             </div>
-          </div>
+          </LayerRailActionModal>
         )}
 
         {layerActionPanel === 'delete' && (
-          <div className="transcription-layer-rail-action-popover" role="dialog" aria-label="删除层">
+          <LayerRailActionModal ariaLabel="删除层" onClose={() => setLayerActionPanel(null)}>
             <select
               className="input transcription-layer-rail-action-input"
               value={quickDeleteLayerId}
@@ -538,6 +843,14 @@ export function LayerRailSidebar({
                 </option>
               ))}
             </select>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={quickDeleteKeepUtterances}
+                onChange={(e) => setQuickDeleteKeepUtterances(e.target.checked)}
+              />
+              保留现有语段
+            </label>
             <div className="transcription-layer-rail-action-row">
               <button
                 className="btn btn-sm btn-danger"
@@ -548,7 +861,7 @@ export function LayerRailSidebar({
               </button>
               <button className="btn btn-ghost btn-sm" onClick={() => setLayerActionPanel(null)}>取消</button>
             </div>
-          </div>
+          </LayerRailActionModal>
         )}
 
         {layerCreateMessage && (
@@ -567,6 +880,20 @@ export function LayerRailSidebar({
           onClose={() => setContextMenu(null)}
         />
       )}
+
+      {/* Delete layer confirmation dialog */}
+      <DeleteLayerConfirmDialog
+        open={deleteLayerConfirm !== null}
+        layerName={deleteLayerConfirm?.layerName ?? ''}
+        layerType={deleteLayerConfirm?.layerType ?? 'transcription'}
+        textCount={deleteLayerConfirm?.textCount ?? 0}
+        onCancel={() => setDeleteLayerConfirm(null)}
+        onConfirm={() => {
+          if (!deleteLayerConfirm) return;
+          fireAndForget(deleteLayerWithoutConfirm(deleteLayerConfirm.layerId));
+          setDeleteLayerConfirm(null);
+        }}
+      />
     </aside>
   );
 }

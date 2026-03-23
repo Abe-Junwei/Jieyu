@@ -130,6 +130,8 @@ export function useTranscriptionActions({
   const {
     createLayer,
     deleteLayer,
+    deleteLayerWithoutConfirm,
+    checkLayerHasContent,
     toggleLayerLink,
     addMediaItem,
     reorderLayers,
@@ -150,6 +152,7 @@ export function useTranscriptionActions({
     setMediaItems,
     setSelectedUtteranceId,
     setTranslations,
+    setUtterances,
   });
 
   return {
@@ -170,6 +173,8 @@ export function useTranscriptionActions({
     mergeSelectedUtterances,
     createLayer,
     deleteLayer,
+    deleteLayerWithoutConfirm,
+    checkLayerHasContent,
     toggleLayerLink,
     addMediaItem,
     reorderLayers,

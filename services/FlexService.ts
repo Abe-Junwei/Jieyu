@@ -45,6 +45,10 @@ export interface FlexImportResult {
   }>;
   /** phrase-level gls items keyed by generated phrase id */
   phraseGlosses: Map<string, string>;
+  /** Source language tag extracted from item[@type=txt]@lang | 从 txt 元素提取的源语言 */
+  sourceLanguage?: string;
+  /** Gloss language tag extracted from item[@type=gls]@lang | 从 gls 元素提取的翻译语言 */
+  glossLanguage?: string;
 }
 
 function escapeXml(str: string): string {
@@ -160,6 +164,8 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
 
   const utterances: FlexImportResult['utterances'] = [];
   const phraseGlosses = new Map<string, string>();
+  let sourceLanguage: string | undefined;
+  let glossLanguage: string | undefined;
 
   doc.querySelectorAll('phrase').forEach((phrase, index) => {
     const phraseId = phrase.getAttribute('guid') ?? `p${index + 1}`;
@@ -170,6 +176,16 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
     const phraseItems = phrase.querySelectorAll(':scope > item');
     const txtItem = Array.from(phraseItems).find((el) => el.getAttribute('type') === 'txt');
     const glsItem = Array.from(phraseItems).find((el) => el.getAttribute('type') === 'gls');
+
+    // 提取源语言与翻译语言标签 | Extract source & gloss language tags
+    if (!sourceLanguage && txtItem) {
+      const lang = txtItem.getAttribute('lang');
+      if (lang) sourceLanguage = lang;
+    }
+    if (!glossLanguage && glsItem) {
+      const lang = glsItem.getAttribute('lang');
+      if (lang) glossLanguage = lang;
+    }
 
     const transcription = getText(txtItem ?? null);
     const phraseGloss = getText(glsItem ?? null);
@@ -189,25 +205,31 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
       const wordItems = wordEl.querySelectorAll(':scope > item');
       const wordTxtItem = Array.from(wordItems).find((el) => el.getAttribute('type') === 'txt');
       const wordGlsItem = Array.from(wordItems).find((el) => el.getAttribute('type') === 'gls');
+      const wordPsItem = Array.from(wordItems).find((el) => el.getAttribute('type') === 'ps');
 
       const wordText = getText(wordTxtItem ?? null);
       const wordGloss = getText(wordGlsItem ?? null);
+      const wordPos = getText(wordPsItem ?? null);
 
       const morphemes = Array.from(wordEl.querySelectorAll(':scope > morphemes > morph')).map((morphEl) => {
         const morphItems = morphEl.querySelectorAll(':scope > item');
         const morphTxtItem = Array.from(morphItems).find((el) => el.getAttribute('type') === 'txt');
         const morphGlsItem = Array.from(morphItems).find((el) => el.getAttribute('type') === 'gls');
+        const morphPsItem = Array.from(morphItems).find((el) => el.getAttribute('type') === 'ps');
         const mTxt = getText(morphTxtItem ?? null);
         const mGls = getText(morphGlsItem ?? null);
+        const mPos = getText(morphPsItem ?? null);
         return {
           form: { default: mTxt },
           ...(mGls && { gloss: { eng: mGls } }),
+          ...(mPos && { pos: mPos }),
         };
       });
 
       words.push({
         form: { default: wordText },
         ...(wordGloss && { gloss: { eng: wordGloss } }),
+        ...(wordPos && { pos: wordPos }),
         ...(morphemes.length > 0 && { morphemes }),
       });
     });
@@ -235,7 +257,12 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
     });
   });
 
-  return { utterances, phraseGlosses };
+  return {
+    utterances,
+    phraseGlosses,
+    ...(sourceLanguage !== undefined && { sourceLanguage }),
+    ...(glossLanguage !== undefined && { glossLanguage }),
+  };
 }
 
 // ── File helper ──────────────────────────────────────────────

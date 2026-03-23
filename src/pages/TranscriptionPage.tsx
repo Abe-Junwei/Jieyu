@@ -15,11 +15,11 @@ import { BatchOperationPanel } from '../components/BatchOperationPanel';
 import { ProjectSetupDialog } from '../components/ProjectSetupDialog';
 import { SearchReplaceOverlay } from '../components/SearchReplaceOverlay';
 import { WaveformToolbar } from '../components/WaveformToolbar';
-import { WaveformOverviewBar } from '../components/WaveformOverviewBar';
 import { ShortcutsPanel } from '../components/ShortcutsPanel';
 import { LayerRailSidebar } from '../components/LayerRailSidebar';
 import { TranscriptionToolbarActions } from '../components/TranscriptionToolbarActions';
 import { TranscriptionOverlays } from '../components/TranscriptionOverlays';
+import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
 import { TranscriptionTimelineTextOnly } from '../components/TranscriptionTimelineTextOnly';
 import { TranscriptionTimelineMediaLanes } from '../components/TranscriptionTimelineMediaLanes';
 import {
@@ -43,7 +43,7 @@ import {
 import { WaveformHoverTooltip } from '../components/transcription/WaveformHoverTooltip';
 import { WaveformLeftStatusStrip } from '../components/transcription/WaveformLeftStatusStrip';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
-import { SpeakerAssignPanel } from '../components/transcription/SpeakerAssignPanel';
+import { SpeakerManagementDialog } from '../components/transcription/SpeakerManagementDialog';
 import { LinguisticService } from '../../services/LinguisticService';
 import { db as appDb, getDb, type JieyuDatabase, type UtteranceDocType } from '../../db';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
@@ -202,6 +202,7 @@ export function TranscriptionPage() {
   const {
     state,
     utterances,
+    speakers,
     anchors,
     layers,
     translations,
@@ -216,6 +217,8 @@ export function TranscriptionPage() {
     setSelectedLayerId,
     saveState,
     setSaveState,
+    setUtterances,
+    setSpeakers,
     layerCreateMessage,
     utteranceDrafts,
     setUtteranceDrafts,
@@ -265,6 +268,8 @@ export function TranscriptionPage() {
     mergeSelectedUtterances,
     createLayer,
     deleteLayer,
+    deleteLayerWithoutConfirm,
+    checkLayerHasContent,
     toggleLayerLink,
     reorderLayers,
     getNeighborBounds,
@@ -420,6 +425,8 @@ export function TranscriptionPage() {
   const layerAction = useLayerActionPanel({
     createLayer: createLayerWithActiveContext,
     deleteLayer,
+    deleteLayerWithoutConfirm: deleteLayerWithoutConfirm ?? deleteLayer,
+    checkLayerHasContent: checkLayerHasContent ?? (async () => 0),
     deletableLayers,
     focusedLayerRowId,
     isLayerRailCollapsed,
@@ -444,6 +451,69 @@ export function TranscriptionPage() {
   useEffect(() => {
     saveEmbeddingProviderConfig(embeddingProviderConfig);
   }, [embeddingProviderConfig]);
+
+  // Hidden file input for direct media import
+  const mediaFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleDirectMediaImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const isAudio = file.type.startsWith('audio/');
+    const isVideo = file.type.startsWith('video/');
+    if (!isAudio && !isVideo) {
+      event.target.value = '';
+      return;
+    }
+
+    // Get duration
+    const media = document.createElement(isVideo ? 'video' : 'audio') as HTMLMediaElement;
+    const objectUrl = URL.createObjectURL(file);
+    media.src = objectUrl;
+    const duration = await new Promise<number>((resolve) => {
+      media.addEventListener('loadedmetadata', () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(Number.isFinite(media.duration) ? media.duration : 0);
+      });
+      media.addEventListener('error', () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(0);
+      });
+    });
+
+    // Import using the same logic as AudioImportDialog
+    let textId = activeTextId ?? (await getActiveTextId());
+    if (!textId) {
+      const baseName = file.name.replace(/\.[^.]+$/, '');
+      const result = await LinguisticService.createProject({
+        titleZh: baseName,
+        titleEn: baseName,
+        primaryLanguageId: 'und',
+      });
+      textId = result.textId;
+      setActiveTextId(textId);
+    }
+    const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+    const { mediaId } = await LinguisticService.importAudio({
+      textId,
+      audioBlob: blob,
+      filename: file.name,
+      duration,
+    });
+    addMediaItem({
+      id: mediaId,
+      textId,
+      filename: file.name,
+      duration,
+      details: { audioBlob: blob },
+      isOfflineCached: true,
+      createdAt: new Date().toISOString(),
+    } as import('../../db').MediaItemDocType);
+    setSaveState({ kind: 'done', message: tf(locale, 'transcription.action.audioImported', { filename: file.name }) });
+
+    // Reset file input
+    event.target.value = '';
+  };
 
   const {
     aiEmbeddingBusy,
@@ -1755,9 +1825,18 @@ export function TranscriptionPage() {
     setSaveState,
   });
 
+  // ── Delete confirmation dialogs ──
+  const [audioDeleteConfirm, setAudioDeleteConfirm] = useState<{ filename: string } | null>(null);
+  const [projectDeleteConfirm, setProjectDeleteConfirm] = useState<boolean>(false);
+
   const handleDeleteCurrentAudio = useCallback(() => {
     if (!selectedUtteranceMedia) return;
-    if (!window.confirm(tf(locale, 'transcription.action.confirmDeleteAudio', { filename: selectedUtteranceMedia.filename }))) return;
+    setAudioDeleteConfirm({ filename: selectedUtteranceMedia.filename });
+  }, [selectedUtteranceMedia]);
+
+  const handleConfirmAudioDelete = useCallback(() => {
+    if (!selectedUtteranceMedia) return;
+    setAudioDeleteConfirm(null);
     fireAndForget((async () => {
       await LinguisticService.deleteAudio(selectedUtteranceMedia.id);
       await loadSnapshot();
@@ -1768,7 +1847,12 @@ export function TranscriptionPage() {
 
   const handleDeleteCurrentProject = useCallback(() => {
     if (!activeTextId) return;
-    if (!window.confirm(t(locale, 'transcription.action.confirmDeleteProject'))) return;
+    setProjectDeleteConfirm(true);
+  }, [activeTextId]);
+
+  const handleConfirmProjectDelete = useCallback(() => {
+    if (!activeTextId) return;
+    setProjectDeleteConfirm(false);
     fireAndForget((async () => {
       await LinguisticService.deleteProject(activeTextId);
       setActiveTextId(null);
@@ -2043,6 +2127,7 @@ export function TranscriptionPage() {
         speakerSaving,
         activeSpeakerFilterKey,
         setActiveSpeakerFilterKey,
+        speakerDialogState,
         speakerVisualByUtteranceId,
         speakerFilterOptions,
         selectedSpeakerSummary,
@@ -2053,7 +2138,15 @@ export function TranscriptionPage() {
         handleMergeSpeaker,
         handleAssignSpeakerToSelected,
         handleCreateSpeakerAndAssign,
+        closeSpeakerDialog,
+        updateSpeakerDialogDraftName,
+        updateSpeakerDialogTargetKey,
+        confirmSpeakerDialog,
     } = useSpeakerManagement({
+        utterances,
+        setUtterances,
+        speakers,
+        setSpeakers,
         utterancesOnCurrentMedia,
         selectedUtteranceId,
         selectedUtteranceIds,
@@ -2061,7 +2154,6 @@ export function TranscriptionPage() {
         isReady: state.phase === 'ready',
         setUtteranceSelection,
         data,
-        loadSnapshot,
         setSaveState,
         getUtteranceTextForLayer,
         formatTime,
@@ -2247,13 +2339,6 @@ export function TranscriptionPage() {
                             />
                           </WaveformToolbar>
           </section>
-          <WaveformOverviewBar
-            duration={player.duration}
-            utterances={utterancesOnCurrentMedia}
-            rulerView={rulerView ?? null}
-            onSeek={player.seekTo}
-            isReady={player.isReady}
-          />
 
           {/* Editor workspace: left side for row editing, right side for AI guidance. */}
           <ToastProvider>
@@ -2375,46 +2460,73 @@ export function TranscriptionPage() {
                     playerWaveformRef={player.waveformRef}
                     onSeek={player.seekTo}
                     onPlayRegion={player.playRegion}
+                    waveformOverlay={(
+                      <>
+                        {waveLassoRect ? (
+                          <div
+                            className={`wave-lasso-rect ${waveLassoRect.mode === 'create' ? 'wave-lasso-rect-create' : 'wave-lasso-rect-select'}`}
+                            style={{
+                              left: waveLassoRect.x,
+                              top: waveLassoRect.y,
+                              width: Math.max(2, waveLassoRect.w),
+                              height: Math.max(2, waveLassoRect.h),
+                            }}
+                          >
+                            {waveLassoRect.mode === 'select' && (
+                              <div className="wave-lasso-hint">
+                                {tf(locale, 'transcription.wave.selectionHint', { count: waveLassoHintCount })}
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+                        {waveformNoteIndicators.map(({ uttId, leftPx, widthPx }) => (
+                          <div
+                            key={`note-${uttId}`}
+                            style={{
+                              position: 'absolute', top: 0, left: leftPx + widthPx - 26,
+                              width: 16, height: '100%', pointerEvents: 'auto', zIndex: 6,
+                              display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+                              paddingBottom: 2, cursor: 'pointer',
+                            }}
+                            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setNotePopover({ x: e.clientX, y: e.clientY, uttId, layerId: '' });
+                            }}
+                          >
+                            <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: 16, height: 16, color: '#93c5fd' }}>
+                              <path d="M4.5 1.5h5l3 3v8a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+                              <path d="M6.5 7h3M6.5 9.5h3" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+                            </svg>
+                          </div>
+                        ))}
+                        {snapGuide.visible && player.duration > 0 && rulerView && (() => {
+                          const windowSec = rulerView.end - rulerView.start;
+                          if (windowSec <= 0) return null;
+                          const pctL = ((snapGuide.left ?? 0) - rulerView.start) / windowSec * 100;
+                          const pctR = typeof snapGuide.right === 'number' ? (snapGuide.right - rulerView.start) / windowSec * 100 : null;
+                          return (
+                            <>
+                              <div
+                                className={`snap-line snap-line-left ${snapGuide.nearSide === 'left' || snapGuide.nearSide === 'both' ? 'snap-line-near' : ''}`}
+                                style={{ left: `${pctL}%` }}
+                              >
+                                <span>L</span>
+                              </div>
+                              {pctR !== null && (
+                                <div
+                                  className={`snap-line snap-line-right ${snapGuide.nearSide === 'right' || snapGuide.nearSide === 'both' ? 'snap-line-near' : ''}`}
+                                  style={{ left: `${pctR}%` }}
+                                >
+                                  <span>R</span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </>
+                    )}
                   />
-                  {waveLassoRect && (
-                    <div
-                      className={`wave-lasso-rect ${waveLassoRect.mode === 'create' ? 'wave-lasso-rect-create' : 'wave-lasso-rect-select'}`}
-                      style={{
-                        left: waveLassoRect.x,
-                        top: waveLassoRect.y,
-                        width: waveLassoRect.w,
-                        height: waveLassoRect.h,
-                      }}
-                    >
-                      {waveLassoRect.mode === 'select' && (
-                        <div className="wave-lasso-hint">
-                          {tf(locale, 'transcription.wave.selectionHint', { count: waveLassoHintCount })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {waveformNoteIndicators.map(({ uttId, leftPx, widthPx }) => (
-                    <div
-                      key={`note-${uttId}`}
-                      style={{
-                        position: 'absolute', top: 0, left: leftPx + widthPx - 26,
-                        width: 16, height: '100%', pointerEvents: 'auto', zIndex: 6,
-                        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-                        paddingBottom: 2, cursor: 'pointer',
-                      }}
-                      onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setNotePopover({ x: e.clientX, y: e.clientY, uttId, layerId: '' });
-                      }}
-                    >
-                      <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: 16, height: 16, color: '#93c5fd' }}>
-                        <path d="M4.5 1.5h5l3 3v8a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-                        <path d="M6.5 7h3M6.5 9.5h3" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-                      </svg>
-                    </div>
-                  ))}
-
                   {!selectedMediaIsVideo && selectedUtterance && player.isReady && (
                     <RegionActionOverlay
                       utteranceStartTime={selectedUtterance.startTime}
@@ -2452,37 +2564,24 @@ export function TranscriptionPage() {
                   )}
                 </>
               ) : (
-                <div className="wave-empty transcription-wave-empty">
-                  {!selectedMediaUrl
-                    ? t(locale, 'transcription.wave.emptyTextOnly')
-                    : t(locale, 'transcription.wave.emptyNoMedia')}
+                <div className="wave-empty transcription-wave-empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  {!selectedMediaUrl ? (
+                    <button
+                      className="transcription-import-media-btn"
+                      onClick={() => mediaFileInputRef.current?.click()}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                      </svg>
+                      {t(locale, 'transcription.wave.emptyImportMedia')}
+                    </button>
+                  ) : (
+                    t(locale, 'transcription.wave.emptyNoMedia')
+                  )}
                 </div>
               )}
-              {snapGuide.visible && player.duration > 0 && rulerView && (() => {
-                const windowSec = rulerView.end - rulerView.start;
-                if (windowSec <= 0) return null;
-                const pctL = ((snapGuide.left ?? 0) - rulerView.start) / windowSec * 100;
-                const pctR = typeof snapGuide.right === 'number' ? (snapGuide.right - rulerView.start) / windowSec * 100 : null;
-                return (
-                  <>
-                    <div
-                      className={`snap-line snap-line-left ${snapGuide.nearSide === 'left' || snapGuide.nearSide === 'both' ? 'snap-line-near' : ''}`}
-                      style={{ left: `${pctL}%` }}
-                    >
-                      <span>L</span>
-                    </div>
-                    {pctR !== null && (
-                      <div
-                        className={`snap-line snap-line-right ${snapGuide.nearSide === 'right' || snapGuide.nearSide === 'both' ? 'snap-line-near' : ''}`}
-                        style={{ left: `${pctR}%` }}
-                      >
-                        <span>R</span>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-
               {segMarkStart !== null && (
                 <div className="seg-mark-status">
                   ✦ {tf(locale, 'transcription.wave.markingHint', { start: formatTime(segMarkStart) })}
@@ -2564,6 +2663,16 @@ export function TranscriptionPage() {
                     onExportSpeakerSegments={handleExportSpeakerSegments}
                     onRenameSpeaker={handleRenameSpeaker}
                     onMergeSpeaker={handleMergeSpeaker}
+                    speakerOptions={speakerOptions}
+                    selectedUtteranceIds={selectedUtteranceIds}
+                    selectedSpeakerSummary={selectedSpeakerSummary}
+                    speakerSaving={speakerSaving}
+                    speakerDraftName={speakerDraftName}
+                    setSpeakerDraftName={setSpeakerDraftName}
+                    batchSpeakerId={batchSpeakerId}
+                    setBatchSpeakerId={setBatchSpeakerId}
+                    onAssignSpeakerToSelected={handleAssignSpeakerToSelected}
+                    onCreateSpeakerAndAssign={handleCreateSpeakerAndAssign}
                   />
                   <div
                     className="transcription-layer-rail-resizer"
@@ -2604,7 +2713,7 @@ export function TranscriptionPage() {
                   }}
                 >
                   <TranscriptionEditorContext.Provider value={editorContextValue}>
-                  {selectedMediaUrl && player.isReady && player.duration > 0 ? (
+                  {selectedMediaUrl && player.isReady && player.duration > 0 && layers.length > 0 ? (
                     <TranscriptionTimelineMediaLanes
                       playerDuration={player.duration}
                       zoomPxPerSec={zoomPxPerSec}
@@ -2651,11 +2760,39 @@ export function TranscriptionPage() {
                     />
                   ) : (
                     <div className="timeline-empty-state">
-                      {layers.length === 0
-                        ? t(locale, 'transcription.timeline.empty.noLayer')
-                        : selectedMediaUrl
-                          ? t(locale, 'transcription.timeline.empty.noUtteranceWithWave')
-                          : t(locale, 'transcription.timeline.empty.startWork')}
+                      {(() => {
+                        if (layers.length === 0) {
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', padding: '48px 24px' }}>
+                              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                                <button
+                                  type="button"
+                                  className="btn"
+                                  onClick={() => layerAction.setLayerActionPanel('create-transcription')}
+                                >
+                                  新建转写层
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn"
+                                  onClick={() => importFileRef.current?.click()}
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                  </svg>
+                                  {t(locale, 'transcription.timeline.empty.importFile')}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+                        if (selectedMediaUrl) {
+                          return t(locale, 'transcription.timeline.empty.noUtteranceWithWave');
+                        }
+                        return t(locale, 'transcription.timeline.empty.startWork');
+                      })()}
                     </div>
                   )}
                   </TranscriptionEditorContext.Provider>
@@ -2826,21 +2963,14 @@ export function TranscriptionPage() {
                 </aside>
               </AiAssistantHubContext.Provider>
             </AiPanelContext.Provider>
-
-          {selectedUtteranceIds.size > 0 && (
-            <SpeakerAssignPanel
-              selectedCount={selectedUtteranceIds.size}
-              summary={selectedSpeakerSummary}
-              batchSpeakerId={batchSpeakerId}
-              speakerOptions={speakerOptions}
-              speakerDraftName={speakerDraftName}
-              speakerSaving={speakerSaving}
-              onBatchSpeakerIdChange={setBatchSpeakerId}
-              onAssign={() => { fireAndForget(handleAssignSpeakerToSelected()); }}
-              onDraftNameChange={setSpeakerDraftName}
-              onCreateAndAssign={() => { fireAndForget(handleCreateSpeakerAndAssign()); }}
-            />
-          )}
+          <SpeakerManagementDialog
+            state={speakerDialogState}
+            busy={speakerSaving}
+            onClose={closeSpeakerDialog}
+            onConfirm={() => { fireAndForget(confirmSpeakerDialog()); }}
+            onDraftNameChange={updateSpeakerDialogDraftName}
+            onTargetSpeakerChange={updateSpeakerDialogTargetKey}
+          />
           </main>
           </ToastProvider>
 
@@ -2902,6 +3032,15 @@ export function TranscriptionPage() {
               } as import('../../db').MediaItemDocType);
               setSaveState({ kind: 'done', message: tf(locale, 'transcription.action.audioImported', { filename: file.name }) });
             }}
+          />
+
+          {/* Hidden file input for direct media import from empty state button */}
+          <input
+            ref={mediaFileInputRef}
+            type="file"
+            accept=".mp3,.wav,.ogg,.webm,.m4a,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv"
+            style={{ display: 'none' }}
+            onChange={handleDirectMediaImport}
           />
 
           {showBatchOperationPanel && (
@@ -2971,6 +3110,22 @@ export function TranscriptionPage() {
         getUtteranceTextForLayer={getUtteranceTextForLayer}
         transcriptionLayers={transcriptionLayers}
         translationLayers={translationLayers}
+      />
+      {/* 音频删除确认对话框 | Audio delete confirmation dialog */}
+      <ConfirmDeleteDialog
+        open={audioDeleteConfirm !== null}
+        title="删除音频"
+        description={audioDeleteConfirm ? `确定删除音频「${audioDeleteConfirm.filename}」及其所有句段？此操作不可撤销。` : ''}
+        onCancel={() => setAudioDeleteConfirm(null)}
+        onConfirm={handleConfirmAudioDelete}
+      />
+      {/* 项目删除确认对话框 | Project delete confirmation dialog */}
+      <ConfirmDeleteDialog
+        open={projectDeleteConfirm}
+        title="删除项目"
+        description="确定删除当前项目及其所有数据（音频、句段、翻译）？此操作不可撤销。"
+        onCancel={() => setProjectDeleteConfirm(false)}
+        onConfirm={handleConfirmProjectDelete}
       />
       {/* 清洁焦点模式退出提示 | Focus mode exit badge */}
       {isFocusMode && (

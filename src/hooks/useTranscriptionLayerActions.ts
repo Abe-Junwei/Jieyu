@@ -8,6 +8,7 @@ import type {
   UtteranceTextDocType,
 } from '../../db';
 import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
+import { LinguisticService } from '../../services/LinguisticService';
 import { newId } from '../utils/transcriptionFormatters';
 import type { LayerCreateInput } from './transcriptionTypes';
 import { canCreateLayer, canDeleteLayer, getMostRecentLayerOfType } from '../../services/LayerConstraintService';
@@ -29,10 +30,13 @@ export type TranscriptionLayerActionsParams = {
   setMediaItems: React.Dispatch<React.SetStateAction<MediaItemDocType[]>>;
   setSelectedUtteranceId: React.Dispatch<React.SetStateAction<string>>;
   setTranslations: React.Dispatch<React.SetStateAction<UtteranceTextDocType[]>>;
+  setUtterances: React.Dispatch<React.SetStateAction<UtteranceDocType[]>>;
 };
 
 type DeleteLayerOptions = {
   skipBrowserConfirm?: boolean;
+  /** 保留关联语段 | Keep associated utterances */
+  keepUtterances?: boolean;
 };
 
 export function useTranscriptionLayerActions({
@@ -52,6 +56,7 @@ export function useTranscriptionLayerActions({
   setMediaItems,
   setSelectedUtteranceId,
   setTranslations,
+  setUtterances,
 }: TranscriptionLayerActionsParams) {
   const createLayer = useCallback(async (
     layerType: 'transcription' | 'translation',
@@ -171,6 +176,113 @@ export function useTranscriptionLayerActions({
     }
   }, [layers, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers, setSelectedLayerId, utterancesRef]);
 
+  /** 检查层是否有文本内容（用于判断是否需要确认） */
+  const checkLayerHasContent = useCallback(async (layerId: string): Promise<number> => {
+    const db = await getDb();
+    const texts = await db.collections.utterance_texts.find().exec();
+    return texts.filter((t) => (t.toJSON() as { tierId: string }).tierId === layerId).length;
+  }, []);
+
+  /** 执行层的实际删除操作（无确认提示） */
+  const performLayerDelete = useCallback(async (targetLayerId: string, options?: { keepUtterances?: boolean }) => {
+    const effectiveLayerId = targetLayerId;
+    const targetLayer = layers.find((item) => item.id === effectiveLayerId);
+    if (!targetLayer) {
+      setLayerCreateMessage('未找到要删除的层。');
+      return;
+    }
+
+    const db = await getDb();
+    const allLinkDocs = await db.collections.layer_links.find().exec();
+    const allLinks = allLinkDocs.map((d) => d.toJSON()) as unknown as LayerLinkDocType[];
+    const deleteCheck = canDeleteLayer(layers, allLinks, effectiveLayerId);
+
+    const layerLabel = targetLayer.name.zho ?? targetLayer.name.eng ?? targetLayer.key;
+    const layerTypeLabel = targetLayer.layerType === 'translation' ? '翻译层' : '转写层';
+    const translationDocs = await db.collections.utterance_texts.find().exec();
+    const keepUtterances = options?.keepUtterances ?? false;
+
+    try {
+      pushUndo(`删除${layerTypeLabel}`);
+
+      const affectedUtteranceIds = keepUtterances
+        ? []
+        : translationDocs
+            .filter((d) => (d.toJSON() as unknown as { tierId: string }).tierId === effectiveLayerId)
+            .map((d) => (d.toJSON() as unknown as { utteranceId: string }).utteranceId);
+
+      await db.collections.utterance_texts.removeBySelector({ tierId: effectiveLayerId });
+
+      const newAutoLinks: LayerLinkDocType[] = [];
+      if (targetLayer.layerType === 'transcription') {
+        if (deleteCheck.orphanedTranslationIds && deleteCheck.relinkTargetKey) {
+          const now = new Date().toISOString();
+          for (const trlId of deleteCheck.orphanedTranslationIds) {
+            const relink: LayerLinkDocType = {
+              id: newId('link'),
+              transcriptionLayerKey: deleteCheck.relinkTargetKey,
+              tierId: trlId,
+              linkType: 'free',
+              isPreferred: false,
+              createdAt: now,
+            };
+            await db.collections.layer_links.insert(relink);
+            newAutoLinks.push(relink);
+          }
+        }
+        await db.collections.layer_links.removeBySelector({ transcriptionLayerKey: targetLayer.key });
+      } else {
+        await db.collections.layer_links.removeBySelector({ tierId: effectiveLayerId });
+      }
+      await LayerTierUnifiedService.deleteLayer(targetLayer);
+
+      let removedUtteranceIds = new Set<string>();
+      if (!keepUtterances && affectedUtteranceIds.length > 0) {
+        const uniqueIds = [...new Set(affectedUtteranceIds)];
+        const remainingTexts = await db.collections.utterance_texts.find().exec();
+        const stillReferencedIds = new Set(remainingTexts.map(
+          (d) => (d.toJSON() as unknown as { utteranceId: string }).utteranceId,
+        ));
+        const orphanIds = uniqueIds.filter((id) => !stillReferencedIds.has(id));
+        if (orphanIds.length > 0) {
+          await LinguisticService.removeUtterancesBatch(orphanIds);
+          removedUtteranceIds = new Set(orphanIds);
+        }
+      }
+
+      if (selectedLayerId === effectiveLayerId) {
+        setSelectedLayerId('');
+      }
+
+      setLayers((prev) => prev.filter((item) => item.id !== effectiveLayerId));
+      setTranslations((prev) => prev.filter((item) => item.tierId !== effectiveLayerId));
+      if (removedUtteranceIds.size > 0) {
+        setUtterances((prev) => prev.filter((u) => !removedUtteranceIds.has(u.id)));
+      }
+      if (targetLayer.layerType === 'transcription') {
+        setLayerLinks((prev) => [
+          ...prev.filter((item) => item.transcriptionLayerKey !== targetLayer.key),
+          ...newAutoLinks,
+        ]);
+      } else {
+        setLayerLinks((prev) => prev.filter((item) => item.tierId !== effectiveLayerId));
+      }
+      setLayerToDeleteId('');
+      setShowLayerManager(false);
+      const removedCount = removedUtteranceIds.size;
+      setLayerCreateMessage(removedCount > 0
+        ? `已删除层：${layerLabel}（同时清除 ${removedCount} 个孤立语段）`
+        : `已删除层：${layerLabel}`);
+    } catch (error) {
+      setLayerCreateMessage(error instanceof Error ? error.message : '删除层失败');
+    }
+  }, [layers, pushUndo, selectedLayerId, setLayerCreateMessage, setLayerLinks, setLayerToDeleteId, setLayers, setSelectedLayerId, setShowLayerManager, setTranslations, setUtterances]);
+
+  /** 删除层，不弹出浏览器确认（用于已通过自定义确认对话框的用户） */
+  const deleteLayerWithoutConfirm = useCallback(async (targetLayerId: string) => {
+    return performLayerDelete(targetLayerId);
+  }, [performLayerDelete]);
+
   const deleteLayer = useCallback(async (targetLayerId?: string, options?: DeleteLayerOptions) => {
     const effectiveLayerId = targetLayerId ?? layerToDeleteId;
     if (!effectiveLayerId) {
@@ -216,61 +328,15 @@ export function useTranscriptionLayerActions({
     }
 
     const depInfo = depLines.length > 0 ? `\n\n关联数据：\n${depLines.join('\n')}` : '';
-    if (!options?.skipBrowserConfirm) {
-      const confirmed = window.confirm(
-        `确认删除层"${layerLabel}"吗？\n\n类型：${layerTypeLabel}\n键名：${targetLayer.key}${depInfo}\n\n将同时删除该层下全部文本/录音记录以及关联链接。可通过Ctrl+Z撤销。`,
-      );
-      if (!confirmed) return;
-    }
+    const keepUtterances = options?.keepUtterances ?? false;
+    const confirmMsg = keepUtterances
+      ? `确认删除层"${layerLabel}"吗？\n\n类型：${layerTypeLabel}\n键名：${targetLayer.key}${depInfo}\n\n将删除该层下全部文本/录音记录以及关联链接，保留语段。可通过Ctrl+Z撤销。`
+      : `确认删除层"${layerLabel}"吗？\n\n类型：${layerTypeLabel}\n键名：${targetLayer.key}${depInfo}\n\n将同时删除该层下全部文本/录音记录、关联链接以及不再被任何层引用的语段。可通过Ctrl+Z撤销。`;
+    const confirmed = window.confirm(confirmMsg);
+    if (!confirmed) return;
 
-    try {
-      pushUndo(`删除${layerTypeLabel}`);
-      await db.collections.utterance_texts.removeBySelector({ tierId: effectiveLayerId });
-
-      const newAutoLinks: LayerLinkDocType[] = [];
-      if (targetLayer.layerType === 'transcription') {
-        if (deleteCheck.orphanedTranslationIds && deleteCheck.relinkTargetKey) {
-          const now = new Date().toISOString();
-          for (const trlId of deleteCheck.orphanedTranslationIds) {
-            const relink: LayerLinkDocType = {
-              id: newId('link'),
-              transcriptionLayerKey: deleteCheck.relinkTargetKey,
-              tierId: trlId,
-              linkType: 'free',
-              isPreferred: false,
-              createdAt: now,
-            };
-            await db.collections.layer_links.insert(relink);
-            newAutoLinks.push(relink);
-          }
-        }
-        await db.collections.layer_links.removeBySelector({ transcriptionLayerKey: targetLayer.key });
-      } else {
-        await db.collections.layer_links.removeBySelector({ tierId: effectiveLayerId });
-      }
-      await LayerTierUnifiedService.deleteLayer(targetLayer);
-
-      if (selectedLayerId === effectiveLayerId) {
-        setSelectedLayerId('');
-      }
-
-      setLayers((prev) => prev.filter((item) => item.id !== effectiveLayerId));
-      setTranslations((prev) => prev.filter((item) => item.tierId !== effectiveLayerId));
-      if (targetLayer.layerType === 'transcription') {
-        setLayerLinks((prev) => [
-          ...prev.filter((item) => item.transcriptionLayerKey !== targetLayer.key),
-          ...newAutoLinks,
-        ]);
-      } else {
-        setLayerLinks((prev) => prev.filter((item) => item.tierId !== effectiveLayerId));
-      }
-      setLayerToDeleteId('');
-      setShowLayerManager(false);
-      setLayerCreateMessage(`已删除层：${layerLabel}`);
-    } catch (error) {
-      setLayerCreateMessage(error instanceof Error ? error.message : '删除层失败');
-    }
-  }, [layerToDeleteId, layers, pushUndo, selectedLayerId, setLayerCreateMessage, setLayerLinks, setLayerToDeleteId, setLayers, setSelectedLayerId, setShowLayerManager, setTranslations]);
+    await performLayerDelete(effectiveLayerId, { keepUtterances });
+  }, [layerToDeleteId, layers, performLayerDelete, setLayerCreateMessage]);
 
   const toggleLayerLink = useCallback(async (
     transcriptionLayerKey: string,
@@ -419,6 +485,8 @@ export function useTranscriptionLayerActions({
   return {
     createLayer,
     deleteLayer,
+    deleteLayerWithoutConfirm,
+    checkLayerHasContent,
     toggleLayerLink,
     addMediaItem,
     reorderLayers,
