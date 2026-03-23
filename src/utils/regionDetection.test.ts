@@ -112,6 +112,27 @@ describe('regionDetection', () => {
     expect(result).toBe('global');
   });
 
+  it('Google 探测超时 + zh-SG locale → global（新加坡中文）', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
+    stubNavigatorLanguage('zh-SG');
+    const result = await detectRegion();
+    expect(result).toBe('global');
+  });
+
+  it('Google 探测超时 + zh-MY locale → global（马来西亚中文）', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
+    stubNavigatorLanguage('zh-MY');
+    const result = await detectRegion();
+    expect(result).toBe('global');
+  });
+
+  it('Google 探测超时 + 空 locale → global', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
+    stubNavigatorLanguage('');
+    const result = await detectRegion();
+    expect(result).toBe('global');
+  });
+
   // ── detectRegion: Google probe → zh-CN user abroad can reach Google ─────
 
   it('zh-CN locale 但 Google 可达 → global（海外中文用户）', async () => {

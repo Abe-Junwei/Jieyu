@@ -56,11 +56,32 @@ function playTone(
     osc.connect(gain);
     gain.connect(ctx.destination);
 
+    osc.onended = () => {
+      // 播放结束后主动断开节点，减少图节点残留 | Disconnect nodes on end to reduce graph residue
+      osc.disconnect();
+      gain.disconnect();
+    };
+
     osc.start(ctx.currentTime);
     osc.stop(endTime);
   }).catch(() => {
     // Earcon is best-effort only.
   });
+}
+
+/**
+ * Release WebAudio resources explicitly (for tests / app teardown).
+ * 显式释放 WebAudio 资源（用于测试或应用退出阶段）
+ */
+export function disposeEarconAudio(): void {
+  if (!audioCtx) return;
+  if (audioCtx.state !== 'closed') {
+    void audioCtx.close().catch(() => {
+      // best-effort cleanup
+    });
+  }
+  audioCtx = null;
+  audioUnlocked = false;
 }
 
 /**

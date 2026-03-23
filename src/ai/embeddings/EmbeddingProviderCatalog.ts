@@ -64,12 +64,6 @@ const PROVIDERS: Record<EmbeddingProviderKind, EmbeddingProviderDefinition> = {
   },
 };
 
-export const embeddingProviderDefinitions = Object.values(PROVIDERS);
-
-export function getEmbeddingProviderDefinition(kind: EmbeddingProviderKind): EmbeddingProviderDefinition {
-  return PROVIDERS[kind];
-}
-
 export function createEmbeddingProvider(config: EmbeddingProviderCreateConfig): EmbeddingProvider {
   return PROVIDERS[config.kind]?.create(config) ?? PROVIDERS['local'].create({ kind: 'local' });
 }

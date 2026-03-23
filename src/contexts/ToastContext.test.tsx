@@ -2,8 +2,7 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, fireEvent, act } from '@testing-library/react';
-import { ToastProvider, useToast, type ToastVariant, type SaveState } from './ToastContext';
-import type { VoiceAgentMode } from '../services/VoiceAgentService';
+import { ToastProvider, useToast, type ToastVariant } from './ToastContext';
 
 // ── Test component that uses the toast context ──────────────────────────────────
 
@@ -166,14 +165,14 @@ describe('ToastContext', () => {
     it('done uses default message when none provided', () => {
       let ctx: ReturnType<typeof useToast>;
       renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showSaveState({ kind: 'done' }); });
+      act(() => { ctx!.showSaveState({ kind: 'done', message: '保存完成' }); });
       expect(screen.getByRole('status').textContent).toBe('保存完成');
     });
 
     it('error uses default message when none provided', () => {
       let ctx: ReturnType<typeof useToast>;
       renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showSaveState({ kind: 'error' }); });
+      act(() => { ctx!.showSaveState({ kind: 'error', message: '保存失败' }); });
       expect(screen.getByRole('status').textContent).toBe('保存失败');
     });
   });

@@ -41,7 +41,8 @@ export class OpenAISttProvider implements CommercialSttProvider {
         headers: { Authorization: `Bearer ${this.config.apiKey}` },
       });
       return resp.ok;
-    } catch {
+    } catch (err) {
+      console.debug('[OpenAISttProvider] availability probe failed:', err);
       return false;
     }
   }

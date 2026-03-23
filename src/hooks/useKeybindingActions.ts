@@ -7,10 +7,12 @@ interface UseKeybindingActionsInput {
   player: {
     isReady: boolean;
     isPlaying: boolean;
+    playbackRate: number;
     instanceRef: React.RefObject<import('wavesurfer.js').default | null>;
     stop: () => void;
     playRegion: (start: number, end: number, force?: boolean) => void;
     togglePlayback: () => void;
+    seekBySeconds: (delta: number) => void;
   };
   subSelectionRange: { start: number; end: number } | null;
   setSubSelectionRange: React.Dispatch<React.SetStateAction<{ start: number; end: number } | null>>;
@@ -90,101 +92,113 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     player.togglePlayback();
   }, [player, segmentLoopPlayback, setSegmentLoopPlayback]);
 
-  // Action dispatch table
+  // Action dispatch table — stored in a ref to avoid re-creating on every render.
+  // The individual callbacks are stable via useCallback; we mutate .current in useEffect.
   const waveformActionsRef = useRef<Record<string, (e: KeyboardEvent | React.KeyboardEvent) => void>>({});
-  waveformActionsRef.current = {
-    playPause: () => { handlePlayPauseAction(); },
-    markSegment: () => {
-      const ws = player.instanceRef.current;
-      if (!ws || !player.isReady || !selectedMediaUrl) return;
-      const now = ws.getCurrentTime();
-      if (segMarkStart === null) {
-        markingModeRef.current = true;
-        setSegMarkStart(now);
-        if (!player.isPlaying) player.togglePlayback();
-      } else {
-        const s = Math.min(segMarkStart, now);
-        const end = Math.max(segMarkStart, now);
-        if (end - s >= 0.05) {
-          skipSeekForIdRef.current = '__next_created__';
-          creatingSegmentRef.current = true;
-          fireAndForget(createUtteranceFromSelection(s, end).then(() => {
-            if (markingModeRef.current) setSelectedUtteranceId('');
-          }).finally(() => { creatingSegmentRef.current = false; }));
+
+  useEffect(() => {
+    waveformActionsRef.current = {
+      playPause: () => { handlePlayPauseAction(); },
+      markSegment: () => {
+        const ws = player.instanceRef.current;
+        if (!ws || !player.isReady || !selectedMediaUrl) return;
+        const now = ws.getCurrentTime();
+        if (segMarkStart === null) {
+          markingModeRef.current = true;
+          setSegMarkStart(now);
+          if (!player.isPlaying) player.togglePlayback();
+        } else {
+          const s = Math.min(segMarkStart, now);
+          const end = Math.max(segMarkStart, now);
+          if (end - s >= 0.05) {
+            skipSeekForIdRef.current = '__next_created__';
+            creatingSegmentRef.current = true;
+            fireAndForget(createUtteranceFromSelection(s, end).then(() => {
+              if (markingModeRef.current) setSelectedUtteranceId('');
+            }).finally(() => { creatingSegmentRef.current = false; }));
+          }
+          setSegMarkStart(null);
         }
-        setSegMarkStart(null);
-      }
-    },
-    cancel: () => {
-      if (subSelectionRange) { setSubSelectionRange(null); return; }
-      markingModeRef.current = false;
-      if (segMarkStart !== null) {
-        setSegMarkStart(null);
-        if (player.isPlaying) player.togglePlayback();
-      }
-    },
-    deleteSegment: () => {
-      runDeleteSelection(selectedUtteranceId, selectedUtteranceIds);
-    },
-    mergePrev: () => { runMergePrev(selectedUtteranceId); },
-    mergeNext: () => { runMergeNext(selectedUtteranceId); },
-    splitSegment: () => {
-      if (!selectedUtteranceId) return;
-      const ws = player.instanceRef.current;
-      if (ws) runSplitAtTime(selectedUtteranceId, ws.getCurrentTime());
-    },
-    selectBefore: () => { runSelectBefore(selectedUtteranceId); },
-    selectAfter:  () => { runSelectAfter(selectedUtteranceId); },
-    selectAll:    () => { selectAllUtterances(); },
-    navPrev: (e) => {
-      if (!selectedUtteranceId) return;
-      const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === selectedUtteranceId);
-      const target = utterancesOnCurrentMedia[idx - 1];
-      if (target) {
-        manualSelectTsRef.current = Date.now();
-        if (player.isPlaying) {
-          player.stop();
+      },
+      cancel: () => {
+        if (subSelectionRange) { setSubSelectionRange(null); return; }
+        markingModeRef.current = false;
+        if (segMarkStart !== null) {
+          setSegMarkStart(null);
+          if (player.isPlaying) player.togglePlayback();
         }
-        selectUtterance(target.id);
-        const el = (e.target as HTMLElement).closest('[tabindex]') as HTMLElement | null;
-        if (el) requestAnimationFrame(() => el.focus());
-      }
-    },
-    navNext: (e) => {
-      if (!selectedUtteranceId) return;
-      const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === selectedUtteranceId);
-      const target = utterancesOnCurrentMedia[idx + 1];
-      if (target) {
-        manualSelectTsRef.current = Date.now();
-        if (player.isPlaying) {
-          player.stop();
+      },
+      deleteSegment: () => {
+        runDeleteSelection(selectedUtteranceId, selectedUtteranceIds);
+      },
+      mergePrev: () => { runMergePrev(selectedUtteranceId); },
+      mergeNext: () => { runMergeNext(selectedUtteranceId); },
+      splitSegment: () => {
+        if (!selectedUtteranceId) return;
+        const ws = player.instanceRef.current;
+        if (ws) runSplitAtTime(selectedUtteranceId, ws.getCurrentTime());
+      },
+      selectBefore: () => { runSelectBefore(selectedUtteranceId); },
+      selectAfter:  () => { runSelectAfter(selectedUtteranceId); },
+      selectAll:    () => { selectAllUtterances(); },
+      stepBack: () => {
+        if (player.isPlaying) player.stop();
+        player.seekBySeconds(-(1 / 25));
+      },
+      stepForward: () => {
+        if (player.isPlaying) player.stop();
+        player.seekBySeconds(1 / 25);
+      },
+      navPrev: (e) => {
+        if (!selectedUtteranceId) return;
+        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === selectedUtteranceId);
+        const target = utterancesOnCurrentMedia[idx - 1];
+        if (target) {
+          manualSelectTsRef.current = Date.now();
+          if (player.isPlaying) {
+            player.stop();
+          }
+          selectUtterance(target.id);
+          const el = (e.target as HTMLElement).closest('[tabindex]') as HTMLElement | null;
+          if (el) requestAnimationFrame(() => el.focus());
         }
-        selectUtterance(target.id);
-        const el = (e.target as HTMLElement).closest('[tabindex]') as HTMLElement | null;
-        if (el) requestAnimationFrame(() => el.focus());
-      }
-    },
-    tabNext: () => {
-      if (!selectedUtteranceId) return;
-      const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === selectedUtteranceId);
-      const target = utterancesOnCurrentMedia[idx + 1];
-      if (target) {
-        manualSelectTsRef.current = Date.now();
-        selectUtterance(target.id);
-        if (player.isReady) player.playRegion(target.startTime, target.endTime);
-      }
-    },
-    tabPrev: () => {
-      if (!selectedUtteranceId) return;
-      const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === selectedUtteranceId);
-      const target = utterancesOnCurrentMedia[idx - 1];
-      if (target) {
-        manualSelectTsRef.current = Date.now();
-        selectUtterance(target.id);
-        if (player.isReady) player.playRegion(target.startTime, target.endTime);
-      }
-    },
-  };
+      },
+      navNext: (e) => {
+        if (!selectedUtteranceId) return;
+        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === selectedUtteranceId);
+        const target = utterancesOnCurrentMedia[idx + 1];
+        if (target) {
+          manualSelectTsRef.current = Date.now();
+          if (player.isPlaying) {
+            player.stop();
+          }
+          selectUtterance(target.id);
+          const el = (e.target as HTMLElement).closest('[tabindex]') as HTMLElement | null;
+          if (el) requestAnimationFrame(() => el.focus());
+        }
+      },
+      tabNext: () => {
+        if (!selectedUtteranceId) return;
+        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === selectedUtteranceId);
+        const target = utterancesOnCurrentMedia[idx + 1];
+        if (target) {
+          manualSelectTsRef.current = Date.now();
+          selectUtterance(target.id);
+          if (player.isReady) player.playRegion(target.startTime, target.endTime);
+        }
+      },
+      tabPrev: () => {
+        if (!selectedUtteranceId) return;
+        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === selectedUtteranceId);
+        const target = utterancesOnCurrentMedia[idx - 1];
+        if (target) {
+          manualSelectTsRef.current = Date.now();
+          selectUtterance(target.id);
+          if (player.isReady) player.playRegion(target.startTime, target.endTime);
+        }
+      },
+    };
+  }, [handlePlayPauseAction, player, player.isReady, player.isPlaying, selectedMediaUrl, segMarkStart, subSelectionRange, selectedUtteranceId, selectedUtteranceIds, utterancesOnCurrentMedia, createUtteranceFromSelection, runDeleteSelection, runMergePrev, runMergeNext, runSplitAtTime, runSelectBefore, runSelectAfter, selectAllUtterances, selectUtterance, manualSelectTsRef]);
 
   // Global keybinding handler (undo, redo, search)
   useEffect(() => {
@@ -254,7 +268,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
    * Programmatically execute any registered action by ID.
    * Used by voice agent to dispatch commands without physical keystrokes.
    */
-  const executeAction = useCallback((actionId: string) => {
+  const executeAction = useCallback((actionId: string, params?: { segmentIndex?: number }) => {
     // Waveform-scoped actions
     const waveformAction = waveformActionsRef.current[actionId];
     if (waveformAction) {
@@ -267,9 +281,20 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
       case 'redo': fireAndForget(redo()); break;
       case 'search': setShowSearch(true); break;
       case 'toggleNotes': toggleNotes(); break;
+      case 'navToIndex': {
+        const idx = params?.segmentIndex;
+        if (idx == null || idx < 1) break;
+        const target = utterancesOnCurrentMedia[idx - 1];
+        if (!target) break;
+        manualSelectTsRef.current = Date.now();
+        if (player.isPlaying) player.stop();
+        selectUtterance(target.id);
+        if (player.isReady) player.playRegion(target.startTime, target.endTime);
+        break;
+      }
       default: break;
     }
-  }, [undo, redo, setShowSearch, toggleNotes]);
+  }, [undo, redo, setShowSearch, toggleNotes, utterancesOnCurrentMedia, selectUtterance, player, manualSelectTsRef]);
 
   return {
     handlePlayPauseAction,

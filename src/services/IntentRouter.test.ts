@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
-import { toBcp47, toIso639_3, knownIso639_3Codes } from '../utils/langMapping';
+import { toBcp47, toIso639_3, knownIso639_3Codes, resolveLanguageQuery } from '../utils/langMapping';
 import {
   routeIntent,
   collectAlternativeIntents,
@@ -62,6 +62,17 @@ describe('langMapping', () => {
       expect(codes).toContain('eng');
     });
   });
+
+  describe('resolveLanguageQuery', () => {
+    it('resolves newly-added China language aliases', () => {
+      expect(resolveLanguageQuery('客家话')).toBe('hak');
+      expect(resolveLanguageQuery('赣语')).toBe('gan');
+      expect(resolveLanguageQuery('晋语')).toBe('cjy');
+      expect(resolveLanguageQuery('壮文')).toBe('zha');
+      expect(resolveLanguageQuery('满语')).toBe('mnc');
+      expect(resolveLanguageQuery('哈萨克语')).toBe('kaz');
+    });
+  });
 });
 
 // ── IntentRouter tests ──
@@ -80,7 +91,7 @@ describe('IntentRouter', () => {
     });
 
     it('matches colloquial playback via fuzzy rules without relying on a single-character keyword', () => {
-      expect(routeIntent('播放一下')).toEqual({ type: 'action', actionId: 'playPause', confidence: 0.7, raw: '播放一下', fromFuzzy: true });
+      expect(routeIntent('播放一下')).toEqual({ type: 'action', actionId: 'playPause', confidence: 0.35, raw: '播放一下', fromFuzzy: true });
     });
 
     it('matches navigation commands', () => {
@@ -171,8 +182,13 @@ describe('IntentRouter', () => {
     });
 
     it('returns chat intent for empty input', () => {
-      expect(routeIntent('')).toEqual({ type: 'chat', text: '', raw: '' });
-      expect(routeIntent('   ')).toEqual({ type: 'chat', text: '', raw: '   ' });
+      expect(routeIntent('')).toEqual({ type: 'chat', text: '', raw: '', confidence: 0 });
+      expect(routeIntent('   ')).toEqual({ type: 'chat', text: '', raw: '   ', confidence: 0 });
+    });
+
+    it('treats missing stt confidence as neutral instead of max confidence', () => {
+      const result = routeIntent('播放一下', 'command');
+      expect(result).toEqual({ type: 'action', actionId: 'playPause', confidence: 0.35, raw: '播放一下', fromFuzzy: true });
     });
   });
 

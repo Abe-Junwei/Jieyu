@@ -100,7 +100,7 @@ item [1]:
 `;
       const { words } = parseTextGrid(textGrid);
       expect(words).toHaveLength(1);
-      expect(words[0].text).toBe('real');
+      expect(words[0]!.text).toBe('real');
     });
 
     it('handles Chinese text in transcription tier', () => {
@@ -163,7 +163,7 @@ item [1]:
 `;
       const { phonemes } = parseTextGrid(textGrid);
       expect(phonemes).toHaveLength(2);
-      expect(phonemes[0].text).toBe('a');
+      expect(phonemes[0]!.text).toBe('a');
     });
   });
 });

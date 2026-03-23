@@ -72,4 +72,44 @@ describe('audit log indexed query', () => {
     expect(queried.every((item) => item.collection === 'ai_messages')).toBe(true);
     expect(queried.every((item) => item.field === 'ai_tool_call_decision')).toBe(true);
   });
+
+  it('reads ai tool decision logs via [collection+field+requestId] index', async () => {
+    expect(db.audit_logs.schema.idxByName['[collection+field+requestId]']).toBeDefined();
+
+    await db.audit_logs.bulkPut([
+      {
+        id: 'audit-req-1',
+        collection: 'ai_messages',
+        documentId: 'ast-1',
+        action: 'update' as const,
+        field: 'ai_tool_call_decision',
+        oldValue: 'auto:set_transcription_text',
+        newValue: 'auto_confirmed:set_transcription_text',
+        source: 'ai' as const,
+        timestamp: '2026-03-21T00:00:00.000Z',
+        requestId: 'toolreq_123',
+        metadataJson: JSON.stringify({ schemaVersion: 1, phase: 'decision', executed: true }),
+      },
+      {
+        id: 'audit-req-2',
+        collection: 'ai_messages',
+        documentId: 'ast-2',
+        action: 'update' as const,
+        field: 'ai_tool_call_decision',
+        oldValue: 'auto:set_translation_text',
+        newValue: 'auto_confirmed:set_translation_text',
+        source: 'ai' as const,
+        timestamp: '2026-03-21T00:00:01.000Z',
+        requestId: 'toolreq_456',
+      },
+    ]);
+
+    const queried = await db.audit_logs
+      .where('[collection+field+requestId]')
+      .equals(['ai_messages', 'ai_tool_call_decision', 'toolreq_123'])
+      .toArray();
+
+    expect(queried.map((item) => item.id)).toEqual(['audit-req-1']);
+    expect(queried[0]?.requestId).toBe('toolreq_123');
+  });
 });

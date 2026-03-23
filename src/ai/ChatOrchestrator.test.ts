@@ -1,0 +1,151 @@
+/**
+ * ChatOrchestrator 测试：降级链 (fallback) 与基本消息组装
+ * ChatOrchestrator tests: fallback chain & basic message assembly
+ */
+import { describe, expect, it } from 'vitest';
+import { ChatOrchestrator, isRetryableStreamError } from './ChatOrchestrator';
+import type { ChatChunk, LLMProvider } from './providers/LLMProvider';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function makeMockProvider(
+  id: string,
+  chunks: ChatChunk[],
+): LLMProvider {
+  return {
+    id,
+    label: id,
+    supportsStreaming: true,
+    async *chat() {
+      for (const c of chunks) yield c;
+    },
+  };
+}
+
+function makeErrorProvider(id: string, errorMsg: string): LLMProvider {
+  return {
+    id,
+    label: id,
+    supportsStreaming: true,
+    async *chat() {
+      // 首个 chunk 即为错误 | First chunk is an error
+      yield { delta: '', error: errorMsg };
+      yield { delta: '', done: true };
+    },
+  };
+}
+
+function makeThrowProvider(id: string, errorMsg: string): LLMProvider {
+  return {
+    id,
+    label: id,
+    supportsStreaming: true,
+    async *chat() {
+      throw new Error(errorMsg);
+    },
+  };
+}
+
+async function collectChunks(stream: AsyncGenerator<ChatChunk, void, unknown>): Promise<ChatChunk[]> {
+  const result: ChatChunk[] = [];
+  for await (const chunk of stream) {
+    result.push(chunk);
+  }
+  return result;
+}
+
+// ─── Tests ───────────────────────────────────────────────────────────────────
+
+describe('isRetryableStreamError', () => {
+  it.each([
+    ['HTTP 429 rate limit', 'Request failed with status 429'],
+    ['HTTP 503 unavailable', 'Service unavailable 503'],
+    ['rate limit text', 'Rate limit exceeded'],
+    ['network error', 'fetch failed'],
+    ['ECONNRESET', 'socket hang up ECONNRESET'],
+  ])('should classify "%s" as retryable', (_label, msg) => {
+    expect(isRetryableStreamError(new Error(msg))).toBe(true);
+  });
+
+  it.each([
+    ['auth failure', 'Invalid API key (401)'],
+    ['bad request', 'Request failed with status 400'],
+    ['generic error', 'Something went wrong'],
+  ])('should classify "%s" as non-retryable', (_label, msg) => {
+    expect(isRetryableStreamError(new Error(msg))).toBe(false);
+  });
+});
+
+describe('ChatOrchestrator', () => {
+  const baseInput = {
+    history: [],
+    userText: '你好',
+    systemPrompt: '你是助手',
+  };
+
+  it('should assemble messages in correct order', () => {
+    const provider = makeMockProvider('primary', [{ delta: 'Hi', done: true }]);
+    const orchestrator = new ChatOrchestrator(provider);
+    const { messages } = orchestrator.sendMessage(baseInput);
+    expect(messages).toEqual([
+      { role: 'system', content: '你是助手' },
+      { role: 'user', content: '你好' },
+    ]);
+  });
+
+  it('should stream from primary provider when no fallback', async () => {
+    const provider = makeMockProvider('primary', [
+      { delta: 'Hello' },
+      { delta: ' world', done: true },
+    ]);
+    const orchestrator = new ChatOrchestrator(provider);
+    const { stream } = orchestrator.sendMessage(baseInput);
+    const chunks = await collectChunks(stream);
+    expect(chunks.map((c) => c.delta)).toEqual(['Hello', ' world']);
+  });
+
+  it('should fallback on retryable first-chunk error', async () => {
+    const primary = makeErrorProvider('primary', 'Service unavailable 503');
+    const fallback = makeMockProvider('fallback', [
+      { delta: 'Fallback reply', done: true },
+    ]);
+    const orchestrator = new ChatOrchestrator(primary, fallback);
+    const { stream } = orchestrator.sendMessage(baseInput);
+    const chunks = await collectChunks(stream);
+    // 应有降级提示 + fallback 的内容 | Should include degradation notice + fallback content
+    const allText = chunks.map((c) => `${c.delta ?? ''}${c.error ?? ''}`).join('');
+    expect(allText).toContain('降级');
+    expect(allText).toContain('Fallback reply');
+  });
+
+  it('should fallback when primary throws retryable error', async () => {
+    const primary = makeThrowProvider('primary', 'fetch failed');
+    const fallback = makeMockProvider('fallback', [
+      { delta: 'OK', done: true },
+    ]);
+    const orchestrator = new ChatOrchestrator(primary, fallback);
+    const { stream } = orchestrator.sendMessage(baseInput);
+    const chunks = await collectChunks(stream);
+    expect(chunks.some((c) => c.delta === 'OK')).toBe(true);
+  });
+
+  it('should fallback on non-retryable error', async () => {
+    const primary = makeThrowProvider('primary', 'Invalid API key (401)');
+    const fallback = makeMockProvider('fallback', [
+      { delta: 'OK', done: true },
+    ]);
+    const orchestrator = new ChatOrchestrator(primary, fallback);
+    const { stream } = orchestrator.sendMessage(baseInput);
+    const chunks = await collectChunks(stream);
+    const allText = chunks.map((c) => `${c.delta ?? ''}${c.error ?? ''}`).join('');
+    expect(allText).toContain('降级');
+    expect(chunks.some((c) => c.delta === 'OK')).toBe(true);
+  });
+
+  it('should NOT fallback on retryable error if no fallback configured', async () => {
+    const primary = makeThrowProvider('primary', 'Service unavailable 503');
+    const orchestrator = new ChatOrchestrator(primary);
+    const { stream } = orchestrator.sendMessage(baseInput);
+    await expect(collectChunks(stream)).rejects.toThrow('503');
+  });
+});

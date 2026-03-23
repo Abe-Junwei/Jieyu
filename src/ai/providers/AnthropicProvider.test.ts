@@ -63,7 +63,30 @@ describe('AnthropicProvider', () => {
       all.push(chunk);
     }
 
-    expect(all[0]?.error).toBe('invalid auth');
-    expect(all[0]?.done).toBe(true);
+    const errorChunk = all.find((chunk) => typeof chunk.error === 'string');
+    expect(errorChunk?.error).toBe('invalid auth');
+    expect(errorChunk?.done).toBe(true);
+  });
+
+  it('strips think tags from anthropic visible output', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createSseResponse([
+        'data: {"type":"content_block_delta","delta":{"text":"<think>内部</think>你好"}}\n\n',
+        'data: {"type":"message_stop"}\n\n',
+      ]),
+    );
+
+    const provider = new AnthropicProvider({
+      baseUrl: 'https://api.anthropic.com/v1',
+      apiKey: 'sk-ant-test',
+      model: 'claude-test',
+    });
+
+    const visible: string[] = [];
+    for await (const chunk of provider.chat([{ role: 'user', content: 'ping' }])) {
+      if (chunk.delta) visible.push(chunk.delta);
+    }
+
+    expect(visible.join('')).toBe('你好');
   });
 });

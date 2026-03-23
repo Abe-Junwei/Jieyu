@@ -24,4 +24,16 @@ export class LayerTierUnifiedService {
       key: bridgeKey,
     } as any);
   }
+
+  static async updateLayerSortOrder(layerId: string, sortOrder: number): Promise<void> {
+    const db = await getDb();
+    const layer = await db.collections.translation_layers.findOne({ selector: { id: layerId } }).exec();
+    if (!layer) return;
+    const updated = {
+      ...layer.toJSON() as TranslationLayerDocType,
+      sortOrder,
+      updatedAt: new Date().toISOString(),
+    };
+    await db.collections.translation_layers.insert(updated);
+  }
 }

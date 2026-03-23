@@ -9,7 +9,7 @@ import {
   requireProviderValue,
   throwProviderHttpError,
 } from './errorUtils';
-import { iterateJsonLines, toErrorChunk } from './streamUtils';
+import { createThinkTagStripper, iterateJsonLines, toErrorChunk } from './streamUtils';
 
 export interface OllamaProviderConfig {
   baseUrl: string;
@@ -54,6 +54,11 @@ export class OllamaProvider implements LLMProvider {
       await throwProviderHttpError(this.label, response, `Ollama 请求失败 (${response.status})`);
     }
 
+    // 发出思考中信号：首个delta到达前显示"正在思考"
+    yield { delta: '', thinking: true };
+
+    let emittedFirstDelta = false;
+    const visibleTextStripper = createThinkTagStripper();
     try {
       for await (const line of iterateJsonLines(response)) {
         const json = parseProviderJson<{
@@ -69,10 +74,18 @@ export class OllamaProvider implements LLMProvider {
 
         const delta = json.message?.content ?? '';
         if (delta.length > 0) {
-          yield { delta };
+          const visibleDelta = visibleTextStripper.feed(delta);
+          if (visibleDelta.length > 0) {
+            yield { delta: visibleDelta, ...(!emittedFirstDelta ? { thinking: false } : {}) };
+            emittedFirstDelta = true;
+          }
         }
 
         if (json.done) {
+          const tail = visibleTextStripper.feed('', true);
+          if (tail.length > 0) {
+            yield { delta: tail };
+          }
           yield { delta: '', done: true };
           return;
         }
@@ -80,6 +93,11 @@ export class OllamaProvider implements LLMProvider {
     } catch (streamError) {
       yield toErrorChunk(streamError instanceof Error ? streamError.message : 'Stream read failed');
       return;
+    }
+
+    const tail = visibleTextStripper.feed('', true);
+    if (tail.length > 0) {
+      yield { delta: tail };
     }
 
     yield { delta: '', done: true };

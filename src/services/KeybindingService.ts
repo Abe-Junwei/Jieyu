@@ -45,6 +45,8 @@ export const DEFAULT_KEYBINDINGS: KeybindingEntry[] = [
   { id: 'navNext',       label: '下一个句段',   defaultKey: 'arrowright',     scope: 'waveform', category: 'navigation' },
   { id: 'tabNext',       label: 'Tab 播放下一个', defaultKey: 'tab',          scope: 'waveform', category: 'navigation' },
   { id: 'tabPrev',       label: 'Tab 播放上一个', defaultKey: 'shift+tab',    scope: 'waveform', category: 'navigation' },
+  { id: 'stepBack',     label: '后退一帧',       defaultKey: ',',            scope: 'waveform', category: 'navigation' },
+  { id: 'stepForward',  label: '前进一帧',       defaultKey: '.',            scope: 'waveform', category: 'navigation' },
 
   // Voice agent
   { id: 'toggleVoice',   label: '语音智能体',     defaultKey: 'mod+shift+.',  scope: 'global',   category: 'voice' },
@@ -101,7 +103,8 @@ export function loadUserOverrides(): Map<string, KeyCombo> {
     if (!raw) return new Map();
     const obj = JSON.parse(raw) as Record<string, string>;
     return new Map(Object.entries(obj));
-  } catch {
+  } catch (err) {
+    console.warn('[KeybindingService] loadUserOverrides failed, using empty overrides:', err);
     return new Map();
   }
 }

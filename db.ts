@@ -302,6 +302,7 @@ interface AiMessageDoc {
   contextSnapshot?: Record<string, unknown>;
   citations?: AiMessageCitation[];
   errorMessage?: string;
+  reasoningContent?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -531,6 +532,9 @@ interface TierAnnotationDocType {
 type AuditAction = 'create' | 'update' | 'delete';
 type AuditSource = 'human' | 'ai' | 'system';
 
+/**
+ * 审计日志结构，支持 requestId 幂等指纹 | Audit log structure with requestId for idempotency
+ */
 interface AuditLogDocType {
   id: string;
   collection: string;
@@ -541,6 +545,10 @@ interface AuditLogDocType {
   newValue?: string;
   source: AuditSource;
   timestamp: string;
+  /** 幂等性指纹，便于回放/对比 | Idempotency fingerprint for replay/diff */
+  requestId?: string;
+  /** 结构化回放元数据 | Structured replay metadata */
+  metadataJson?: string;
 }
 
 type NoteTargetType =
@@ -812,6 +820,7 @@ const aiMessageDocSchema = z.object({
   contextSnapshot: z.record(z.string(), z.unknown()).optional(),
   citations: z.array(aiMessageCitationSchema).optional(),
   errorMessage: z.string().optional(),
+  reasoningContent: z.string().optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });
@@ -1039,6 +1048,10 @@ const auditLogDocSchema = z.object({
   newValue: z.string().optional(),
   source: auditSourceSchema,
   timestamp: isoDateSchema,
+  /** 幂等性指纹，便于回放/对比 | Idempotency fingerprint for replay/diff */
+  requestId: z.string().optional(),
+  /** 结构化回放元数据 | Structured replay metadata */
+  metadataJson: z.string().optional(),
 });
 
 const layerLinkDocSchema = z.object({
@@ -1259,6 +1272,11 @@ class DexieCollectionAdapter<T extends { id: string }> {
     await this.table.bulkDelete(keys);
     return keys.length;
   }
+
+  async update(id: string, changes: Partial<T>): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (this.table as any).update(id, changes);
+  }
 }
 
 type CollectionAdapter<T extends { id: string }> = {
@@ -1270,6 +1288,7 @@ type CollectionAdapter<T extends { id: string }> = {
   remove: (id: string) => Promise<void>;
   bulkInsert: (docs: T[]) => Promise<void>;
   removeBySelector: (selector: Selector<T>) => Promise<number>;
+  update: (id: string, changes: Partial<T>) => Promise<void>;
 };
 
 const BRIDGE_TIER_PREFIX = 'bridge_';
@@ -1401,6 +1420,24 @@ class TierBackedLayerCollectionAdapter implements CollectionAdapter<TranslationL
     if (ids.length === 0) return 0;
     await this.tierTable.bulkDelete(ids);
     return ids.length;
+  }
+
+  async update(id: string, changes: Partial<TranslationLayerDocType>): Promise<void> {
+    const existingTier = await this.tierTable.get(id);
+    if (!existingTier) return;
+    // Apply only the fields that exist in TierDefinitionDocType
+    const updatedTier: TierDefinitionDocType = {
+      ...existingTier,
+      ...(changes.name !== undefined ? { name: changes.name } : {}),
+      ...(changes.languageId !== undefined ? { languageId: changes.languageId } : {}),
+      ...(changes.modality !== undefined ? { modality: changes.modality } : {}),
+      ...(changes.acceptsAudio !== undefined ? { acceptsAudio: changes.acceptsAudio } : {}),
+      ...(changes.isDefault !== undefined ? { isDefault: changes.isDefault } : {}),
+      ...(changes.sortOrder !== undefined ? { sortOrder: changes.sortOrder } : {}),
+      ...(changes.accessRights !== undefined ? { accessRights: changes.accessRights } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+    await this.tierTable.put(updatedTier);
   }
 }
 
@@ -1918,6 +1955,17 @@ class JieyuDexie extends Dexie {
     // v19: index optimization for recent AI tool decision logs.
     this.version(19).stores({
       audit_logs: 'id, collection, documentId, [collection+action], action, timestamp, [collection+field+timestamp]',
+    });
+
+    // v20: requestId index for replay/dedup queries.
+    this.version(20).stores({
+      audit_logs: 'id, collection, documentId, [collection+action], action, timestamp, [collection+field+timestamp], requestId, [collection+field+requestId]',
+    });
+
+    // v21: compound index for efficient embedding queries by (sourceType, model).
+    // B-08 fix: enables Dexie to use index seek instead of scan + JS filter for model field.
+    this.version(21).stores({
+      embeddings: 'id, sourceType, sourceId, [sourceType+model], model, contentHash, createdAt',
     });
   }
 }

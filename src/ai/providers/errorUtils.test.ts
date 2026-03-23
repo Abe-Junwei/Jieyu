@@ -42,4 +42,10 @@ describe('errorUtils', () => {
     const aborted = normalizeAiProviderError(new DOMException('aborted', 'AbortError'), 'OpenAI Compatible');
     expect(aborted).toContain('请求已取消');
   });
+
+  it('keeps provider label on generic errors', () => {
+    const message = normalizeAiProviderError(new Error('远程模型未返回可读流'), 'OpenAI Compatible');
+    expect(message).toContain('OpenAI Compatible');
+    expect(message).toContain('远程模型未返回可读流');
+  });
 });

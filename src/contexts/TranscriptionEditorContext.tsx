@@ -7,6 +7,7 @@ import {
   type SetStateAction,
 } from 'react';
 import type { TranslationLayerDocType, UtteranceDocType, UtteranceTextDocType } from '../../db';
+import type { LayerCreateInput } from '../hooks/transcriptionTypes';
 
 export type TranscriptionEditorContextValue = {
   utteranceDrafts: Record<string, string>;
@@ -21,6 +22,13 @@ export type TranscriptionEditorContextValue = {
   saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
   getUtteranceTextForLayer: (utt: UtteranceDocType, layerId?: string) => string;
   renderLaneLabel: (layer: TranslationLayerDocType) => ReactNode;
+  // Layer management
+  createLayer: (
+    layerType: 'transcription' | 'translation',
+    input: LayerCreateInput,
+    modality?: 'text' | 'audio' | 'mixed',
+  ) => Promise<boolean>;
+  deleteLayer: (layerId: string) => Promise<void>;
 };
 
 export const TranscriptionEditorContext =

@@ -72,4 +72,33 @@ describe('CustomHttpProvider', () => {
     expect(chunks[0]?.error).toBe('bad gateway');
     expect(chunks[0]?.done).toBe(true);
   });
+
+  it('keeps reasoning_content private and strips think tags in openai-sse mode', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createStreamResponse([
+        'data: {"choices":[{"delta":{"reasoning_content":"内部链路"}}]}\n\n',
+        'data: {"choices":[{"delta":{"content":"<think>隐藏</think>ab"}}]}\n\n',
+        'data: [DONE]\n\n',
+      ]),
+    );
+
+    const provider = new CustomHttpProvider({
+      endpointUrl: 'https://gateway.example.com/chat',
+      model: 'model-x',
+      apiKey: 'sk-test',
+      authHeaderName: 'Authorization',
+      authScheme: 'bearer',
+      responseFormat: 'openai-sse',
+    });
+
+    const visible: string[] = [];
+    const reasoning: string[] = [];
+    for await (const chunk of provider.chat([{ role: 'user', content: 'ping' }])) {
+      if (chunk.delta) visible.push(chunk.delta);
+      if (chunk.reasoningContent) reasoning.push(chunk.reasoningContent);
+    }
+
+    expect(visible.join('')).toBe('ab');
+    expect(reasoning.join('')).toBe('内部链路');
+  });
 });

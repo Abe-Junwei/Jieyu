@@ -41,7 +41,7 @@ function buildMockFunctionCallingReply(source: string): string {
     });
   }
 
-  // 带语言限定词时（如"日本语转写行"、"中文翻译层"）→ 删除整层
+  // 带语言限定词时（如"日本语转写行"、"中文翻译层"）→ 删除整层 | with language qualifier → delete entire layer
   if (/(删除|移除).*(日|中|英|法|德|韩|俄|西|葡|阿|藏|维|蒙|粤|闽|语|文).*(转写|翻译)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {

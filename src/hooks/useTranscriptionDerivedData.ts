@@ -25,19 +25,28 @@ export function useTranscriptionDerivedData({
   utterances,
   translations,
 }: Params) {
+  const sortLayersByOrder = useCallback((items: TranslationLayerDocType[]) => (
+    [...items].sort((a, b) => {
+      const ao = a.sortOrder ?? 0;
+      const bo = b.sortOrder ?? 0;
+      if (ao !== bo) return ao - bo;
+      return a.id.localeCompare(b.id);
+    })
+  ), []);
+
   const translationLayers = useMemo(
-    () => layers.filter((item) => item.layerType === 'translation'),
-    [layers],
+    () => sortLayersByOrder(layers.filter((item) => item.layerType === 'translation')),
+    [layers, sortLayersByOrder],
   );
 
   const transcriptionLayers = useMemo(
-    () => layers.filter((item) => item.layerType === 'transcription'),
-    [layers],
+    () => sortLayersByOrder(layers.filter((item) => item.layerType === 'transcription')),
+    [layers, sortLayersByOrder],
   );
 
   const layerRailRows = useMemo(
-    () => [...transcriptionLayers, ...translationLayers],
-    [transcriptionLayers, translationLayers],
+    () => [...layers].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+    [layers],
   );
 
   const deletableLayers = layers;

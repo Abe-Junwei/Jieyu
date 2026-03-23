@@ -1,5 +1,6 @@
 import {
   memo,
+  type CSSProperties,
   type ChangeEvent,
   type FocusEvent,
   type KeyboardEvent,
@@ -18,6 +19,8 @@ export interface TimelineAnnotationItemProps {
   title: string;
   draft: string;
   placeholder?: string;
+  speakerLabel?: string;
+  speakerColor?: string;
   noteCount?: number;
   onClick: (e: MouseEvent) => void;
   onContextMenu: (e: MouseEvent) => void;
@@ -42,6 +45,8 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   title,
   draft,
   placeholder,
+  speakerLabel,
+  speakerColor,
   noteCount,
   onClick,
   onContextMenu,
@@ -56,8 +61,12 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
 }: TimelineAnnotationItemProps) {
   return (
     <div
-      className={`timeline-annotation ${isSelected ? 'timeline-annotation-selected' : ''} ${isActive ? 'timeline-annotation-active' : ''} ${isCompact ? 'timeline-annotation-compact' : ''}`}
-      style={{ left, width }}
+      className={`timeline-annotation ${isSelected ? 'timeline-annotation-selected' : ''} ${isActive ? 'timeline-annotation-active' : ''} ${isCompact ? 'timeline-annotation-compact' : ''} ${speakerLabel ? 'timeline-annotation-has-speaker' : ''}`}
+      style={{
+        left,
+        width,
+        ...(speakerColor ? ({ '--speaker-color': speakerColor } as CSSProperties) : {}),
+      }}
       onClick={onClick}
       onContextMenu={onContextMenu}
       title={title}
@@ -71,6 +80,14 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         className="timeline-annotation-resize-handle timeline-annotation-resize-handle-end"
         onPointerDown={onResizeEndPointerDown}
       />
+      {speakerLabel && (
+        <span
+          className={`timeline-annotation-speaker-badge${isCompact ? ' timeline-annotation-speaker-badge-compact' : ''}`}
+          title={`说话人：${speakerLabel}`}
+        >
+          {isCompact ? '●' : speakerLabel}
+        </span>
+      )}
       {isActive ? (
         <input
           className="timeline-annotation-input"

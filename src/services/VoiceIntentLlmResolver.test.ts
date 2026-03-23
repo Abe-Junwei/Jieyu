@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { parseVoiceIntentFromLlmResponse } from './VoiceIntentLlmResolver';
+import {
+  parseVoiceIntentFromLlmResponse,
+  parseVoiceIntentFromLlmResponseDetailed,
+} from './VoiceIntentLlmResolver';
 
 describe('VoiceIntentLlmResolver', () => {
   it('parses action intent JSON', () => {
@@ -29,6 +32,28 @@ describe('VoiceIntentLlmResolver', () => {
       '无效操作',
     );
     expect(parsed).toBeNull();
+  });
+
+  it('returns diagnosable error details for invalid action id', () => {
+    const parsed = parseVoiceIntentFromLlmResponseDetailed(
+      '{"type":"action","actionId":"not_a_real_action"}',
+      '无效操作',
+    );
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      expect(parsed.errorKind).toBe('invalid-action');
+    }
+  });
+
+  it('returns diagnosable error details for invalid json', () => {
+    const parsed = parseVoiceIntentFromLlmResponseDetailed(
+      '{bad json',
+      '坏 JSON',
+    );
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      expect(parsed.errorKind).toBe('invalid-json');
+    }
   });
 
   it('parses fenced json', () => {

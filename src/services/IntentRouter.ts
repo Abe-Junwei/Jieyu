@@ -34,6 +34,7 @@ export type ActionId =
   | 'selectAll'
   | 'navPrev'
   | 'navNext'
+  | 'navToIndex'
   | 'tabNext'
   | 'tabPrev'
   // View
@@ -57,6 +58,7 @@ const ACTION_ID_SET: ReadonlySet<ActionId> = new Set<ActionId>([
   'selectAll',
   'navPrev',
   'navNext',
+  'navToIndex',
   'tabNext',
   'tabPrev',
   'search',
@@ -82,6 +84,8 @@ export interface ActionIntent {
   fromAlias?: boolean;
   /** Intent confidence (0-1), derived from STT confidence and rule matching path. */
   confidence: number;
+  /** Optional parameters for indexed navigation actions. */
+  params?: { segmentIndex?: number };
 }
 
 export interface ToolIntent {
@@ -202,6 +206,20 @@ const INTENT_RULES: IntentRule[] = [
     pattern: /^(下一[个句段条]|后一[个句段条]|next)$/,
     extract: (m, confidence) => ({ type: 'action', actionId: 'navNext', raw: m[0], confidence }),
     priority: 90,
+  },
+
+  // ── Priority 95: Indexed navigation (jump to Nth segment) ──
+  {
+    // 跳到第5句 / 第5句 / 跳到第5个 / 去第3段 / 第12个
+    pattern: /^跳?[至去]?第(\d+)[句个段]$/,
+    extract: (m, confidence) => ({
+      type: 'action',
+      actionId: 'navToIndex',
+      raw: m[0],
+      confidence,
+      params: { segmentIndex: parseInt(m[1]!, 10) },
+    }),
+    priority: 95,
   },
 
   // ── Priority 85: Editing (all modes) ──
@@ -387,10 +405,14 @@ export function routeIntent(
 ): VoiceIntent {
   const trimmed = text.trim();
   if (!trimmed) {
-    return { type: 'chat', text: '', raw: text };
+    return { type: 'chat', text: '', raw: text, confidence: 0 } as VoiceIntent;
   }
 
-  const sttConfidence = Math.min(1, Math.max(0, options?.sttConfidence ?? 1));
+  const hasExplicitConfidence = typeof options?.sttConfidence === 'number' && Number.isFinite(options.sttConfidence);
+  const sttConfidence = hasExplicitConfidence
+    ? Math.min(1, Math.max(0, options!.sttConfidence!))
+    : 1;
+  const fuzzyConfidenceBase = hasExplicitConfidence ? sttConfidence : 0.5;
   const locale = (options?.detectedLang ?? '').toLowerCase();
 
   // Strip trailing punctuation for matching (e.g. "播放。" → "播放")
@@ -429,7 +451,7 @@ export function routeIntent(
           actionId: rule.actionId,
           raw: text,
           fromFuzzy: true,
-          confidence: Math.max(0.35, sttConfidence * 0.7),
+          confidence: Math.max(0.35, fuzzyConfidenceBase * 0.7),
         };
       }
     }
@@ -505,7 +527,8 @@ function loadVoiceAliasMetaMapInternal(): Record<string, VoiceAliasMeta> {
     const parsed = JSON.parse(raw) as Record<string, VoiceAliasMeta>;
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
     return parsed;
-  } catch {
+  } catch (err) {
+    console.debug('[IntentRouter] loadVoiceAliasMetaMapInternal failed, using empty map:', err);
     return {};
   }
 }
@@ -581,7 +604,8 @@ export function loadVoiceIntentAliasMap(): Record<string, ActionId> {
       if (isActionId(value)) out[key.toLowerCase()] = value;
     }
     return out;
-  } catch {
+  } catch (err) {
+    console.debug('[IntentRouter] loadVoiceIntentAliasMap failed, using empty map:', err);
     return {};
   }
 }
@@ -650,7 +674,8 @@ export function loadVoiceAliasLearningLog(): VoiceAliasLearningLogEntry[] {
         && typeof entry?.reason === 'string'
         && isActionId(entry.actionId);
     });
-  } catch {
+  } catch (err) {
+    console.debug('[IntentRouter] loadVoiceAliasLearningLog failed, using empty log:', err);
     return [];
   }
 }
@@ -744,11 +769,12 @@ export function getActionLabel(actionId: ActionId): string {
     selectAll: '全选',
     navPrev: '上一个句段',
     navNext: '下一个句段',
+    navToIndex: '跳到指定句段',
     tabNext: 'Tab下一个',
     tabPrev: 'Tab上一个',
     search: '搜索',
     toggleNotes: '备注面板',
     toggleVoice: '语音',
   };
-  return labels[actionId];
+  return labels[actionId] ?? String(actionId);
 }

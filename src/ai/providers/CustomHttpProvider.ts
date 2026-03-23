@@ -10,7 +10,7 @@ import {
   requireProviderValue,
   throwProviderHttpError,
 } from './errorUtils';
-import { iterateJsonLines, iterateSseData, toErrorChunk } from './streamUtils';
+import { createThinkTagStripper, iterateJsonLines, iterateSseData, toErrorChunk } from './streamUtils';
 
 export type CustomHttpAuthScheme = 'none' | 'bearer' | 'raw';
 export type CustomHttpResponseFormat = 'openai-sse' | 'anthropic-sse' | 'ollama-jsonl' | 'plain-json';
@@ -116,13 +116,18 @@ export class CustomHttpProvider implements LLMProvider {
       const payload = parseProviderJson<unknown>(await response.text(), this.label, 'Plain JSON');
       const text = extractPlainJsonText(payload);
       if (text.length > 0) {
-        yield { delta: text };
+        const visibleTextStripper = createThinkTagStripper();
+        const visible = visibleTextStripper.feed(text, true);
+        if (visible.length > 0) {
+          yield { delta: visible };
+        }
       }
       yield { delta: '', done: true };
       return;
     }
 
     if (this.config.responseFormat === 'ollama-jsonl') {
+      const visibleTextStripper = createThinkTagStripper();
       try {
         for await (const line of iterateJsonLines(response)) {
           const json = parseProviderJson<{
@@ -138,10 +143,17 @@ export class CustomHttpProvider implements LLMProvider {
 
           const delta = json.message?.content ?? '';
           if (delta.length > 0) {
-            yield { delta };
+            const visibleDelta = visibleTextStripper.feed(delta);
+            if (visibleDelta.length > 0) {
+              yield { delta: visibleDelta };
+            }
           }
 
           if (json.done) {
+            const tail = visibleTextStripper.feed('', true);
+            if (tail.length > 0) {
+              yield { delta: tail };
+            }
             yield { delta: '', done: true };
             return;
           }
@@ -151,13 +163,22 @@ export class CustomHttpProvider implements LLMProvider {
         return;
       }
 
+      const tail = visibleTextStripper.feed('', true);
+      if (tail.length > 0) {
+        yield { delta: tail };
+      }
       yield { delta: '', done: true };
       return;
     }
 
+    const visibleTextStripper = createThinkTagStripper();
     try {
       for await (const payload of iterateSseData(response)) {
         if (payload === '[DONE]') {
+          const tail = visibleTextStripper.feed('', true);
+          if (tail.length > 0) {
+            yield { delta: tail };
+          }
           yield { delta: '', done: true };
           return;
         }
@@ -178,11 +199,18 @@ export class CustomHttpProvider implements LLMProvider {
           if (json.type === 'content_block_delta') {
             const delta = json.delta?.text ?? '';
             if (delta.length > 0) {
-              yield { delta };
+              const visibleDelta = visibleTextStripper.feed(delta);
+              if (visibleDelta.length > 0) {
+                yield { delta: visibleDelta };
+              }
             }
           }
 
           if (json.type === 'message_stop') {
+            const tail = visibleTextStripper.feed('', true);
+            if (tail.length > 0) {
+              yield { delta: tail };
+            }
             yield { delta: '', done: true };
             return;
           }
@@ -191,7 +219,7 @@ export class CustomHttpProvider implements LLMProvider {
         }
 
         const json = parseProviderJson<{
-          choices?: Array<{ delta?: { content?: string } }>;
+          choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
           error?: { message?: string };
         }>(payload, this.label, 'OpenAI SSE');
 
@@ -201,14 +229,27 @@ export class CustomHttpProvider implements LLMProvider {
           return;
         }
 
+        const reasoningContent = json.choices?.[0]?.delta?.reasoning_content;
+        if (typeof reasoningContent === 'string' && reasoningContent.length > 0) {
+          yield { delta: '', reasoningContent };
+        }
+
         const delta = json.choices?.[0]?.delta?.content ?? '';
         if (delta.length > 0) {
-          yield { delta };
+          const visibleDelta = visibleTextStripper.feed(delta);
+          if (visibleDelta.length > 0) {
+            yield { delta: visibleDelta };
+          }
         }
       }
     } catch (streamError) {
       yield toErrorChunk(streamError instanceof Error ? streamError.message : 'Stream read failed');
       return;
+    }
+
+    const tail = visibleTextStripper.feed('', true);
+    if (tail.length > 0) {
+      yield { delta: tail };
     }
 
     yield { delta: '', done: true };

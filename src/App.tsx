@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import {
@@ -27,6 +27,8 @@ export function App() {
   const location = useLocation();
   const isTranscriptionRoute = location.pathname.startsWith('/transcription');
   const locale = useMemo(() => detectLocale(), []);
+  const headerRef = useRef<HTMLElement | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     const stored = window.localStorage.getItem('jieyu-theme');
     if (stored === 'light' || stored === 'dark') return stored;
@@ -38,6 +40,25 @@ export function App() {
     window.localStorage.setItem('jieyu-theme', themeMode);
   }, [themeMode]);
 
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+
+    const updateHeaderHeight = () => {
+      setHeaderHeight(header.getBoundingClientRect().height);
+    };
+
+    updateHeaderHeight();
+    const observer = new ResizeObserver(updateHeaderHeight);
+    observer.observe(header);
+    window.addEventListener('resize', updateHeaderHeight);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateHeaderHeight);
+    };
+  }, []);
+
   const navItems = useMemo(() => [
     { to: '/transcription', label: t(locale, 'app.nav.transcription') },
     { to: '/annotation', label: t(locale, 'app.nav.annotation') },
@@ -46,10 +67,26 @@ export function App() {
     { to: '/lexicon', label: t(locale, 'app.nav.lexicon') },
   ], [locale]);
 
+  const transcriptionMainStyle = isTranscriptionRoute
+    ? ({
+        '--app-header-height': `${headerHeight}px`,
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        top: `${headerHeight}px`,
+        bottom: 0,
+        width: '100%',
+        maxWidth: 'none',
+        margin: 0,
+        display: 'flex',
+        overflow: 'hidden',
+      } as React.CSSProperties)
+    : undefined;
+
   return (
     <ErrorBoundary>
-    <div className="app-shell">
-      <header className={`app-header ${isTranscriptionRoute ? 'app-header-compact' : ''}`}>
+    <div className={`app-shell ${isTranscriptionRoute ? 'app-shell-transcription' : ''}`}>
+      <header ref={headerRef} className={`app-header ${isTranscriptionRoute ? 'app-header-compact' : ''}`}>
         <div className="brand-block">
           <h1>{t(locale, 'app.title')}</h1>
           <p>{t(locale, 'app.subtitle')}</p>
@@ -80,7 +117,10 @@ export function App() {
         </div>
       </header>
 
-      <main className={`app-main ${isTranscriptionRoute ? 'app-main-transcription' : ''}`}>
+      <main
+        className={`app-main ${isTranscriptionRoute ? 'app-main-transcription' : ''}`}
+        style={transcriptionMainStyle}
+      >
         <AiPanelProvider>
           <Routes>
             <Route path="/" element={<Navigate to="/transcription" replace />} />

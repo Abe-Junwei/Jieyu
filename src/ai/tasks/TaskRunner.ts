@@ -67,6 +67,21 @@ class TaskTimeoutError extends Error {
   }
 }
 
+/** 指数退避延迟 | Exponential backoff delay (attempt 1-indexed, cap at maxMs) */
+export function backoffDelay(attempt: number, baseMs = 500, maxMs = 8000): number {
+  // attempt=1 → 0ms (第一次不等), attempt=2 → baseMs, attempt=3 → baseMs*2, ...
+  if (attempt <= 1) return 0;
+  return Math.min(baseMs * 2 ** (attempt - 2), maxMs);
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener('abort', () => { clearTimeout(timer); resolve(); }, { once: true });
+  });
+}
+
 export class TaskRunner {
   private readonly concurrency: number;
 
@@ -82,6 +97,8 @@ export class TaskRunner {
 
   private activeCount = 0;
 
+  private pumpQueued = false;
+
   constructor(concurrencyOrOptions: number | TaskRunnerOptions = 1, options?: TaskRunnerOptions) {
     const merged = typeof concurrencyOrOptions === 'number'
       ? { ...(options ?? {}), concurrency: concurrencyOrOptions }
@@ -92,7 +109,9 @@ export class TaskRunner {
     this.staleTaskTtlMs = normalizeTimeoutMs(merged.staleTaskTtlMs, 5 * 60_000);
 
     // 最佳努力恢复：把上次崩溃遗留的 pending/running 任务标记为 failed。 | Best-effort recovery: mark pending/running tasks left from a crash as failed.
-    void this.recoverStaleTasks();
+    void this.recoverStaleTasks().catch((error) => {
+      console.error('[TaskRunner] recoverStaleTasks failed:', error);
+    });
   }
 
   async enqueue<TResult>(input: EnqueueTaskInput<TResult>): Promise<EnqueueTaskResult<TResult>> {
@@ -120,7 +139,6 @@ export class TaskRunner {
       started: false,
       completed: false,
     };
-    this.retryInputs.set(taskId, input as EnqueueTaskInput<unknown>);
     this.tasks.set(taskId, internalTask as InternalTask<unknown>);
     this.queue.push(taskId);
 
@@ -137,7 +155,7 @@ export class TaskRunner {
       updatedAt: timestamp,
     });
 
-    this.pumpQueue();
+    this.schedulePumpQueue();
 
     return {
       taskId,
@@ -159,8 +177,23 @@ export class TaskRunner {
     const retryInput = this.retryInputs.get(taskId);
     if (!retryInput) return null;
 
-    const enqueued = await this.enqueue(retryInput as EnqueueTaskInput<unknown>);
-    return enqueued.taskId;
+    this.retryInputs.delete(taskId);
+    try {
+      const enqueued = await this.enqueue(retryInput as EnqueueTaskInput<unknown>);
+      return enqueued.taskId;
+    } catch (error) {
+      this.retryInputs.set(taskId, retryInput);
+      throw error;
+    }
+  }
+
+  private schedulePumpQueue(): void {
+    if (this.pumpQueued) return;
+    this.pumpQueued = true;
+    queueMicrotask(() => {
+      this.pumpQueued = false;
+      this.pumpQueue();
+    });
   }
 
   private pumpQueue(): void {
@@ -206,6 +239,9 @@ export class TaskRunner {
             break;
           }
           if (attempt < task.maxAttempts) {
+            const delay = backoffDelay(attempt + 1);
+            if (delay > 0) await sleep(delay, task.controller.signal);
+            if (task.controller.signal.aborted) break;
             await this.updateTaskStatus(db, task.taskId, 'running');
             continue;
           }
@@ -232,9 +268,11 @@ export class TaskRunner {
       this.tasks.delete(task.taskId);
       if (terminalStatus === 'done') {
         this.retryInputs.delete(task.taskId);
+      } else {
+        this.retryInputs.set(task.taskId, task.input as EnqueueTaskInput<unknown>);
       }
       this.activeCount = Math.max(0, this.activeCount - 1);
-      this.pumpQueue();
+      this.schedulePumpQueue();
     }
   }
 
@@ -284,6 +322,13 @@ export class TaskRunner {
         updatedAt: nowIso(),
       });
     }
+
+    // 通知 UI：有过期任务被恢复 | Notify UI: stale tasks were recovered
+    if (staleRows.length > 0) {
+      window.dispatchEvent(new CustomEvent('taskrunner:stale-recovered', {
+        detail: { count: staleRows.length },
+      }));
+    }
   }
 
   private async updateTaskStatus(
@@ -295,9 +340,7 @@ export class TaskRunner {
     const row = await db.collections.ai_tasks.findOne({ selector: { id: taskId } }).exec();
     if (!row) return;
 
-    const prev = row.toJSON();
-    await db.collections.ai_tasks.insert({
-      ...prev,
+    await db.collections.ai_tasks.update(taskId, {
       status,
       updatedAt: nowIso(),
       ...(errorMessage ? { errorMessage } : {}),

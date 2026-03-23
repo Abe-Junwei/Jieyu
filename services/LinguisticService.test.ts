@@ -187,6 +187,114 @@ describe('LinguisticService smoke tests', () => {
     expect(morph2[1]!.morphemeIndex).toBe(1);
   });
 
+    it('supports creating speaker and assigning speaker to utterances', async () => {
+      const now = new Date().toISOString();
+
+      await LinguisticService.saveUtterance({
+        id: 'utt_spk_assign_1',
+        textId: 'text_spk_assign',
+        startTime: 0,
+        endTime: 1,
+        annotationStatus: 'raw',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const speaker = await LinguisticService.createSpeaker({ name: '说话人甲' });
+      const updatedCount = await LinguisticService.assignSpeakerToUtterances(['utt_spk_assign_1'], speaker.id);
+      const utterances = await LinguisticService.getAllUtterances();
+      const speakers = await LinguisticService.getSpeakers();
+
+      expect(updatedCount).toBe(1);
+      expect(utterances).toHaveLength(1);
+      expect(utterances[0]!.speakerId).toBe(speaker.id);
+      expect(utterances[0]!.speaker).toBe('说话人甲');
+      expect(speakers.map((s) => s.id)).toContain(speaker.id);
+    });
+
+    it('renames speaker and propagates the new name to linked utterances', async () => {
+      const now = new Date().toISOString();
+
+      await LinguisticService.saveUtterance({
+        id: 'utt_spk_rename_1',
+        textId: 'text_spk_rename',
+        startTime: 0,
+        endTime: 1,
+        annotationStatus: 'raw',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const speaker = await LinguisticService.createSpeaker({ name: '旧名' });
+      await LinguisticService.assignSpeakerToUtterances(['utt_spk_rename_1'], speaker.id);
+      const renamed = await LinguisticService.renameSpeaker(speaker.id, '新名');
+      const utterances = await LinguisticService.getAllUtterances();
+
+      expect(renamed.name).toBe('新名');
+      expect(utterances[0]!.speakerId).toBe(speaker.id);
+      expect(utterances[0]!.speaker).toBe('新名');
+    });
+
+    it('merges speaker and migrates utterances to target speaker', async () => {
+      const now = new Date().toISOString();
+
+      await LinguisticService.saveUtterance({
+        id: 'utt_spk_merge_1',
+        textId: 'text_spk_merge',
+        startTime: 0,
+        endTime: 1,
+        annotationStatus: 'raw',
+        createdAt: now,
+        updatedAt: now,
+      });
+      await LinguisticService.saveUtterance({
+        id: 'utt_spk_merge_2',
+        textId: 'text_spk_merge',
+        startTime: 2,
+        endTime: 3,
+        annotationStatus: 'raw',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const source = await LinguisticService.createSpeaker({ name: '来源说话人' });
+      const target = await LinguisticService.createSpeaker({ name: '目标说话人' });
+      await LinguisticService.assignSpeakerToUtterances(['utt_spk_merge_1', 'utt_spk_merge_2'], source.id);
+
+      const moved = await LinguisticService.mergeSpeakers(source.id, target.id);
+      const speakers = await LinguisticService.getSpeakers();
+      const utterances = await LinguisticService.getAllUtterances();
+
+      expect(moved).toBe(2);
+      expect(speakers.map((s) => s.id)).not.toContain(source.id);
+      expect(speakers.map((s) => s.id)).toContain(target.id);
+      expect(utterances.every((u) => u.speakerId === target.id)).toBe(true);
+      expect(utterances.every((u) => u.speaker === '目标说话人')).toBe(true);
+    });
+
+    it('clears speaker assignment when assigning undefined speaker id', async () => {
+      const now = new Date().toISOString();
+
+      await LinguisticService.saveUtterance({
+        id: 'utt_spk_clear_1',
+        textId: 'text_spk_clear',
+        startTime: 0,
+        endTime: 1,
+        annotationStatus: 'raw',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const speaker = await LinguisticService.createSpeaker({ name: '待清空说话人' });
+      await LinguisticService.assignSpeakerToUtterances(['utt_spk_clear_1'], speaker.id);
+      const cleared = await LinguisticService.assignSpeakerToUtterances(['utt_spk_clear_1'], undefined);
+      const utterances = await LinguisticService.getAllUtterances();
+
+      expect(cleared).toBe(1);
+      expect(utterances[0]!.speakerId).toBeUndefined();
+      expect(utterances[0]!.speaker).toBeUndefined();
+    });
+
   it('supports token/morpheme lexeme links lifecycle', async () => {
     await LinguisticService.saveTokenLexemeLink({
       id: 'link_tok',

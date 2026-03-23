@@ -135,7 +135,8 @@ class ProjectMemoryStore {
     try {
       const stored = await this._loadFromDB(projectId);
       this._memory = stored ?? createEmptyMemory(projectId);
-    } catch {
+    } catch (err) {
+      console.warn('[ProjectMemoryStore] loadProject fallback to empty memory:', err);
       this._memory = createEmptyMemory(projectId);
     }
 
@@ -157,6 +158,28 @@ class ProjectMemoryStore {
   onMemoryChange(callback: (m: ProjectMemory) => void): () => void {
     this._listeners.add(callback);
     return () => { this._listeners.delete(callback); };
+  }
+
+  /**
+   * Dispose cached resources and listeners.
+   * Useful for app teardown, HMR, and tests.
+   */
+  dispose(): void {
+    this._listeners.clear();
+    this._memory = null;
+    this._currentProjectId = null;
+    const dbPromise = this._dbPromise;
+    this._dbPromise = null;
+    void dbPromise?.then((db) => {
+      try {
+        db.close();
+      } catch (err) {
+        console.debug('[ProjectMemoryStore] db.close() failed during dispose:', err);
+        // 忽略关闭失败，后续按需懒加载重建 | Ignore close failures and reopen lazily on next use.
+      }
+    }).catch(() => {
+      // 忽略打开失败，后续访问时再重试 | Ignore failed open attempts and retry on later access.
+    });
   }
 
   // ── Term management ───────────────────────────────────────────────────────
@@ -433,7 +456,8 @@ class ProjectMemoryStore {
     if (!this._memory) return;
     try {
       await this._saveToDB(this._memory);
-    } catch {
+    } catch (err) {
+      console.warn('[ProjectMemoryStore] persist failed, staying in-memory only:', err);
       // IndexedDB unavailable — in-memory only
     }
   }
@@ -448,7 +472,17 @@ class ProjectMemoryStore {
             db.createObjectStore('projectMemory', { keyPath: 'projectId' });
           }
         };
-        request.onsuccess = () => resolve(request.result);
+        request.onsuccess = () => {
+          const db = request.result;
+          db.onclose = () => {
+            this._dbPromise = null;
+          };
+          db.onversionchange = () => {
+            this._dbPromise = null;
+            db.close();
+          };
+          resolve(db);
+        };
         request.onerror = () => {
           this._dbPromise = null;
           reject(request.error);
@@ -458,32 +492,49 @@ class ProjectMemoryStore {
     return this._dbPromise;
   }
 
+  private async _withDb<T>(runner: (db: IDBDatabase) => Promise<T>): Promise<T> {
+    const db = await this._getDb();
+    try {
+      return await runner(db);
+    } catch (error) {
+      // 仅对可恢复的 IndexedDB 状态错误做一次重试 | Retry once only for recoverable IndexedDB state errors
+      const retryable = error instanceof DOMException
+        && ['InvalidStateError', 'AbortError', 'UnknownError'].includes(error.name);
+      if (!retryable) throw error;
+      this._dbPromise = null;
+      const retryDb = await this._getDb();
+      return await runner(retryDb);
+    }
+  }
+
   private async _loadFromDB(projectId: string): Promise<ProjectMemory | null> {
     try {
-      const db = await this._getDb();
-      return new Promise((resolve) => {
+      return await this._withDb(async (db) => new Promise((resolve) => {
         const tx = db.transaction('projectMemory', 'readonly');
         const store = tx.objectStore('projectMemory');
         const getReq = store.get(projectId);
         getReq.onsuccess = () => resolve(getReq.result ?? null);
         getReq.onerror = () => resolve(null);
-      });
-    } catch {
+      }));
+    } catch (err) {
+      console.warn('[ProjectMemoryStore] load from IndexedDB failed:', err);
       return null;
     }
   }
 
   private async _saveToDB(memory: ProjectMemory): Promise<void> {
-    const db = await this._getDb();
-    return new Promise((resolve, reject) => {
+    await this._withDb(async (db) => new Promise<void>((resolve, reject) => {
       const tx = db.transaction('projectMemory', 'readwrite');
       const store = tx.objectStore('projectMemory');
       store.put(memory);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
-    });
+    }));
   }
 }
+
+export { ProjectMemoryStore };
+
 
 // ── Singleton export ──────────────────────────────────────────────────────────
 

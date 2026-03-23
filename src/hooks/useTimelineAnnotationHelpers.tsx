@@ -3,7 +3,12 @@ import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../com
 import type { TranslationLayerDocType, UtteranceDocType } from '../../db';
 import { formatTime, getLayerLabelParts } from '../utils/transcriptionFormatters';
 
-type TimelineUtterance = Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime'>;
+type TimelineUtterance = Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime' | 'speaker' | 'speakerId'>;
+
+type SpeakerVisual = {
+  name: string;
+  color: string;
+};
 
 type CtxMenuState = {
   x: number;
@@ -24,6 +29,7 @@ type UseTimelineAnnotationHelpersParams = {
   player: {
     isPlaying: boolean;
     stop: () => void;
+    seekTo: (time: number) => void;
   };
   selectedUtteranceId: string;
   selectUtteranceRange: (startId: string, endId: string) => void;
@@ -48,6 +54,7 @@ type UseTimelineAnnotationHelpersParams = {
   ) => void;
   noteCounts: Map<string, number>;
   handleNoteClick: (utteranceId: string, layerId: string, event: React.MouseEvent) => void;
+  speakerVisualByUtteranceId?: Record<string, SpeakerVisual>;
 };
 
 export function useTimelineAnnotationHelpers({
@@ -71,9 +78,11 @@ export function useTimelineAnnotationHelpers({
   startTimelineResizeDrag,
   noteCounts,
   handleNoteClick,
+  speakerVisualByUtteranceId = {},
 }: UseTimelineAnnotationHelpersParams) {
   const handleAnnotationClick = useCallback((
     uttId: string,
+    uttStartTime: number,
     layerId: string,
     e: React.MouseEvent,
   ) => {
@@ -85,6 +94,7 @@ export function useTimelineAnnotationHelpers({
       toggleUtteranceSelection(uttId);
     } else {
       selectUtterance(uttId);
+      player.seekTo(uttStartTime);
     }
     setSelectedLayerId(layerId);
     onFocusLayerRow(layerId);
@@ -135,13 +145,13 @@ export function useTimelineAnnotationHelpers({
   ]);
 
   const handleAnnotationKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === 'Tab') {
       navigateUtteranceFromInput(e, e.shiftKey ? -1 : 1);
     } else if (e.key === 'Enter') {
-      e.preventDefault();
-      (e.target as HTMLInputElement).blur();
-      waveformAreaRef.current?.focus();
+      navigateUtteranceFromInput(e, e.shiftKey ? -1 : 1);
     } else if (e.key === 'Escape') {
+      e.preventDefault();
       (e.target as HTMLInputElement).blur();
       waveformAreaRef.current?.focus();
     }
@@ -156,6 +166,7 @@ export function useTimelineAnnotationHelpers({
   ) => {
     const dpStart = dragPreview?.id === utt.id ? dragPreview.start : utt.startTime;
     const dpEnd = dragPreview?.id === utt.id ? dragPreview.end : utt.endTime;
+    const speakerVisual = speakerVisualByUtteranceId[utt.id];
     return (
       <TimelineAnnotationItem
         key={utt.id}
@@ -164,9 +175,11 @@ export function useTimelineAnnotationHelpers({
         isSelected={selectedUtteranceIds.has(utt.id)}
         isActive={utt.id === selectedUtteranceId && layer.id === focusedLayerRowId}
         isCompact={(dpEnd - dpStart) * zoomPxPerSec < 36}
-        title={`${formatTime(utt.startTime)} – ${formatTime(utt.endTime)}`}
+        title={`${formatTime(utt.startTime)} – ${formatTime(utt.endTime)}${speakerVisual ? ` | 说话人：${speakerVisual.name}` : ''}`}
         draft={draft}
-        onClick={(e) => handleAnnotationClick(utt.id, layer.id, e)}
+        speakerLabel={speakerVisual?.name ?? ''}
+        speakerColor={speakerVisual?.color ?? '#2563eb'}
+        onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e)}
         onContextMenu={(e) => handleAnnotationContextMenu(utt.id, utt, layer.id, e)}
         onDoubleClick={() => zoomToUtterance(utt.startTime, utt.endTime)}
         onResizeStartPointerDown={(e) => startTimelineResizeDrag(e, utt, 'start', layer.id)}
@@ -190,6 +203,7 @@ export function useTimelineAnnotationHelpers({
     handleAnnotationKeyDown,
     noteCounts,
     handleNoteClick,
+    speakerVisualByUtteranceId,
   ]);
 
   const renderLaneLabel = useCallback((layer: TranslationLayerDocType) => {

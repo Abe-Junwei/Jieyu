@@ -23,7 +23,11 @@ export async function* iterateSseData(response: Response): AsyncGenerator<string
   try {
     while (true) {
       const { done, value } = await reader.read();
-      buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+      if (done) {
+        buffer += decoder.decode(value ?? new Uint8Array(), { stream: false });
+      } else if (value) {
+        buffer += decoder.decode(value, { stream: true });
+      }
 
       let newlineIndex = buffer.indexOf('\n');
       while (newlineIndex >= 0) {
@@ -42,14 +46,19 @@ export async function* iterateSseData(response: Response): AsyncGenerator<string
         newlineIndex = buffer.indexOf('\n');
       }
 
-      if (done) break;
+      if (done) {
+        // Exit the read loop; post-loop handles final flush to avoid double-yield.
+        break;
+      }
     }
 
+    // Post-loop: flush any remaining buffer (e.g., a data: line with no trailing newline
+    // that arrived in the same chunk as done: true, bypassing the newline scan).
     if (buffer.length > 0) {
       const tailLine = buffer.endsWith('\r') ? buffer.slice(0, -1) : buffer;
       if (tailLine.startsWith('data:')) {
         const content = tailLine.slice(5).replace(/^\s/, '');
-        if (content.length > 0) {
+        if (content.length > 0 && content !== '[DONE]') {
           dataLines.push(content);
         }
       }
@@ -102,4 +111,41 @@ export async function* iterateJsonLines(response: Response): AsyncGenerator<stri
 
 export function toErrorChunk(message: string): ChatChunk {
   return { delta: '', done: true, error: message };
+}
+
+function stripThinkBlocks(raw: string): string {
+  return raw
+    .replace(/<think>[\s\S]*?(<\/think>|$)/gi, '')
+    .replace(/<\/think>/gi, '');
+}
+
+export interface ThinkTagStripper {
+  feed(chunk: string, flush?: boolean): string;
+}
+
+/**
+ * 流式剥离 `<think>...</think>`，防止推理内容进入可见回复。
+ * Stream-strip `<think>...</think>` blocks to avoid exposing reasoning text.
+ */
+export function createThinkTagStripper(): ThinkTagStripper {
+  let raw = '';
+  let emittedVisibleLength = 0;
+  const holdBackChars = 8;
+
+  return {
+    feed(chunk: string, flush = false): string {
+      if (chunk.length > 0) raw += chunk;
+      const visible = stripThinkBlocks(raw);
+      const commitLength = flush ? visible.length : Math.max(0, visible.length - holdBackChars);
+
+      if (commitLength <= emittedVisibleLength) {
+        emittedVisibleLength = Math.min(emittedVisibleLength, commitLength);
+        return '';
+      }
+
+      const delta = visible.slice(emittedVisibleLength, commitLength);
+      emittedVisibleLength = commitLength;
+      return delta;
+    },
+  };
 }

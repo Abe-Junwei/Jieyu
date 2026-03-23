@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../../../db';
-import { TaskRunner } from './TaskRunner';
+import { TaskRunner, backoffDelay } from './TaskRunner';
 
 async function clearTables(): Promise<void> {
   await db.ai_tasks.clear();
@@ -142,6 +142,18 @@ describe('TaskRunner', () => {
     expect(retried?.taskType).toBe('gloss');
   });
 
+  it('does not keep retry input for successful tasks', async () => {
+    const runner = new TaskRunner(1);
+    const task = await runner.enqueue({
+      taskType: 'embed',
+      targetId: 'embeddings',
+      run: async () => 'ok',
+    });
+
+    await expect(task.result).resolves.toBe('ok');
+    await expect(runner.retry(task.taskId)).resolves.toBeNull();
+  });
+
   it('fails task on timeout and stores timeout message', async () => {
     const runner = new TaskRunner({ concurrency: 1, defaultTimeoutMs: 1000 });
 
@@ -191,5 +203,72 @@ describe('TaskRunner', () => {
     const pendingRow = await db.ai_tasks.get('stale-pending');
     expect(runningRow?.errorMessage).toContain('Recovered as stale task');
     expect(pendingRow?.errorMessage).toContain('Recovered as stale task');
+  });
+});
+
+describe('backoffDelay', () => {
+  it('returns 0 for first attempt', () => {
+    expect(backoffDelay(1)).toBe(0);
+  });
+
+  it('returns baseMs for second attempt', () => {
+    expect(backoffDelay(2)).toBe(500);
+  });
+
+  it('doubles for each subsequent attempt', () => {
+    expect(backoffDelay(3)).toBe(1000);
+    expect(backoffDelay(4)).toBe(2000);
+    expect(backoffDelay(5)).toBe(4000);
+  });
+
+  it('caps at maxMs', () => {
+    expect(backoffDelay(10)).toBe(8000);
+    expect(backoffDelay(20)).toBe(8000);
+  });
+
+  it('respects custom baseMs and maxMs', () => {
+    expect(backoffDelay(2, 100, 300)).toBe(100);
+    expect(backoffDelay(4, 100, 300)).toBe(300);
+  });
+});
+
+describe('TaskRunner backoff', () => {
+  beforeEach(async () => {
+    await db.open();
+    await clearTables();
+  });
+
+  afterEach(async () => {
+    await clearTables();
+  });
+
+  it('applies backoff delay between retry attempts', async () => {
+    const runner = new TaskRunner(1);
+    const timestamps: number[] = [];
+
+    const enqueued = await runner.enqueue({
+      taskType: 'embed',
+      targetId: 'embeddings',
+      maxAttempts: 3,
+      run: async ({ attempt }) => {
+        timestamps.push(Date.now());
+        if (attempt < 3) throw new Error(`fail-${attempt}`);
+        return 'ok';
+      },
+    });
+
+    const result = await enqueued.result;
+    expect(result).toBe('ok');
+    expect(timestamps).toHaveLength(3);
+
+    // 第二次尝试应有 ≥400ms 退避（标称500ms，允许定时器抖动）
+    // Second attempt should have ≥400ms backoff (nominal 500ms, allow timer jitter)
+    const gap1 = timestamps[1]! - timestamps[0]!;
+    expect(gap1).toBeGreaterThanOrEqual(400);
+
+    // 第三次尝试应有 ≥800ms 退避（标称1000ms）
+    // Third attempt should have ≥800ms backoff (nominal 1000ms)
+    const gap2 = timestamps[2]! - timestamps[1]!;
+    expect(gap2).toBeGreaterThanOrEqual(800);
   });
 });

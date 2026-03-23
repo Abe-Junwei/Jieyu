@@ -188,7 +188,8 @@ class GlobalContextService {
             source: (m.sourceType === 'utterance' ? 'transcription' : m.sourceType) as CorpusSearchResult['source'],
           };
         });
-    } catch {
+    } catch (err) {
+      console.warn('[GlobalContextService] searchCorpus failed, returning empty result:', err);
       return [];
     }
   }
@@ -309,6 +310,17 @@ class GlobalContextService {
   reset(): void {
     this._corpusContext = null;
     this._behaviorProfile = createDefaultUserBehaviorProfile();
+  }
+
+  /**
+   * Dispose all retained references and listeners.
+   * 释放全部持有引用与监听器。
+   */
+  dispose(): void {
+    this._corpusListeners.clear();
+    this._behaviorListeners.clear();
+    this._embeddingSearchService = null;
+    this._corpusContext = null;
   }
 }
 

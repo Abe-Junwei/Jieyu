@@ -1,7 +1,28 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(brew install:*)",
+      "Bash(curl -sI \"https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin\")",
+      "Read(//Users/junwei/.whisper-models/**)",
+      "Bash(whisper-cli --help)",
+      "Bash(curl -s \"https://huggingface.co/api/models?search=ggml-small\")",
+      "Bash(whisper-cli -h)",
+      "Bash(curl -s -X POST http://localhost:3040/v1/audio/transcriptions -F \"file=@/tmp/test-play.wav\" -F \"model=ggml-base.bin\" -F \"language=zh\")",
+      "Bash(whisper-cli -m ~/.whisper-models/ggml-base.bin -l zh -f /tmp/test-play.wav -oj -np)",
+      "Bash(lsof -ti:3040)",
+      "Bash(xargs ps:*)",
+      "Bash(kill -9 67865)",
+      "Bash(python3:*)",
+      "Bash(ls -la /Users/junwei/Documents/Dev/Jieyu/*.md)",
+      "Bash(npm uninstall:*)",
+      "Bash(ls /Users/junwei/Documents/Dev/Jieyu/src/db*)",
+      "Bash(git stash:*)",
+      "Bash(echo \"exit: $?\")",
+      "Read(//Users/junwei/Documents/Dev/Jevyu/src/components/**)",
+      "Read(//Users/junwei/Dev/Jieyu/src/**)",
+      "Bash(ls /Users/junwei/Documents/Dev/Jieyu/*.md)",
+      "Bash(git diff:*)"
     ]
   }
 }

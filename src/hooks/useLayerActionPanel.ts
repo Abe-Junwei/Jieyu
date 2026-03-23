@@ -148,5 +148,8 @@ export function useLayerActionPanel({
     handleCreateTranscriptionFromPanel,
     handleCreateTranslationFromPanel,
     handleDeleteLayerFromPanel,
+    // Direct access for context menu
+    createLayer,
+    deleteLayer,
   };
 }

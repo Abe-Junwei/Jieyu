@@ -62,6 +62,10 @@ export interface UseWaveSurferOptions {
   onRegionAltPointerDown?: (regionId: string, time: number, pointerId: number, clientX: number) => void;
   /** Whether WaveSurfer should auto-scroll/center during playback */
   autoScrollDuringPlayback?: boolean;
+  /** WaveSurfer 波形区高度（像素）| Waveform canvas height in pixels */
+  waveformHeight?: number;
+  /** 波形增益倍率（1 = 默认，>1 峰值放大）| Amplitude scale multiplier via barHeight */
+  amplitudeScale?: number;
 }
 
 export function useWaveSurfer(options: UseWaveSurferOptions) {
@@ -125,13 +129,17 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       waveColor: '#1e3a5f',
       progressColor: '#2563eb',
       cursorColor: '#dc2626',
-      height: 180,
+      height: options.waveformHeight ?? 180,
       normalize: true,
       dragToSeek: false,
       autoScroll: options.autoScrollDuringPlayback !== false,
       autoCenter: options.autoScrollDuringPlayback !== false,
       plugins: [plugin],
       minPxPerSec: options.zoomLevel ?? 40,
+      barWidth: 2,
+      barHeight: options.amplitudeScale ?? 1,
+      barGap: 1,
+      barRadius: 1,
     });
 
     instanceRef.current = ws;
@@ -554,11 +562,28 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     ws.setTime(Math.max(0, Math.min(time, dur)));
   }, []);
 
-  // 缩放级别变化时动态 zoom
+  // 缩放级别变化时动态 zoom | Dynamically zoom waveform when zoom level changes
   useEffect(() => {
     if (!isReady || !options.zoomLevel) return;
-    instanceRef.current?.zoom(options.zoomLevel);
+    try {
+      instanceRef.current?.zoom(options.zoomLevel);
+    } catch {
+      // WaveSurfer throws "No audio loaded" for video/streaming media where
+      // decodedData is null even after the ready event. Safe to ignore.
+    }
   }, [isReady, options.zoomLevel]);
+
+  // 波形高度变化时动态更新 | Update waveform height dynamically
+  useEffect(() => {
+    if (!isReady || options.waveformHeight == null) return;
+    instanceRef.current?.setOptions({ height: options.waveformHeight });
+  }, [isReady, options.waveformHeight]);
+
+  // 增益倍率变化时动态更新 | Update amplitude scale (barHeight) dynamically
+  useEffect(() => {
+    if (!isReady || options.amplitudeScale == null) return;
+    instanceRef.current?.setOptions({ barHeight: options.amplitudeScale });
+  }, [isReady, options.amplitudeScale]);
 
   // Toggle playback auto-scroll behavior (used by zoom-to-fit mode).
   useEffect(() => {

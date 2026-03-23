@@ -78,8 +78,8 @@ export interface DictationPipelineCallbacks {
   fillSegment: (segmentId: string, layer: AnnotationLayer, text: string) => Promise<void>;
   /** 恢复句段文本（用于撤销） */
   restoreSegment: (segmentId: string, layer: AnnotationLayer, previousText: string | null) => Promise<void>;
-  /** 导航到指定句段 */
-  navigateTo: (segmentId: string) => void;
+  /** 导航到指定句段（支持同步或异步实现）| Navigate to segment (sync or async impl) */
+  navigateTo: (segmentId: string) => Promise<void> | void;
   /** 导航到下一个未标注句段 */
   navigateToNextUnannotated: (layer: AnnotationLayer) => string | null;
   /** 播放提示音 */
@@ -119,7 +119,7 @@ export class SpeechAnnotationPipeline {
   }
 
   /** Start the pipeline — find first unannotated segment and begin listening */
-  start(): void {
+  async start(): Promise<void> {
     if (this._state.active) return;
 
     this._segments = this._callbacks.getSegments();
@@ -153,8 +153,9 @@ export class SpeechAnnotationPipeline {
       lastUpdateAt: Date.now(),
     };
 
-    if (segment) this._callbacks.navigateTo(segment.segmentId);
-    this._resetMaxDurationTimer();
+    if (segment) await this._callbacks.navigateTo(segment.segmentId);
+    // B-07 fix: defer timer reset to next tick so React UI can flush re-render first
+    setTimeout(() => this._resetMaxDurationTimer(), 0);
   }
 
   /** Stop the pipeline */
@@ -192,8 +193,14 @@ export class SpeechAnnotationPipeline {
     this._clearSilenceTimer();
 
     // Confirm after silence delay
-    this._silenceTimer = setTimeout(async () => {
-      await this._confirmAndFill(finalText);
+    this._silenceTimer = setTimeout(() => {
+      void this._confirmAndFill(finalText).catch((err) => {
+        this._callbacks.playEarcon?.('error');
+        this._state = {
+          ...this._state,
+          lastError: err instanceof Error ? err.message : '确认失败 | Confirm failed',
+        };
+      });
     }, this._config.silenceConfirmDelayMs);
   }
 
@@ -214,7 +221,7 @@ export class SpeechAnnotationPipeline {
     this._clearSilenceTimer();
     this._lastFinalText = '';
     this._state = { ...this._state, interimText: '', confirmedText: '' };
-    this._advanceToNext();
+    void this._advanceToNext();
   }
 
   /** Number of undo-able operations. | 可撤销操作次数 */
@@ -330,7 +337,7 @@ export class SpeechAnnotationPipeline {
     }
   }
 
-  private _advanceToNext(): void {
+  private async _advanceToNext(): Promise<void> {
     const nextIdx = this._findFirstUnannotated(this._currentSegmentIndex + 1);
 
     if (nextIdx < 0) {
@@ -348,8 +355,9 @@ export class SpeechAnnotationPipeline {
       interimText: '',
       confirmedText: '',
     };
-    if (segment) this._callbacks.navigateTo(segment.segmentId);
-    this._resetMaxDurationTimer();
+    if (segment) await this._callbacks.navigateTo(segment.segmentId);
+    // B-07 fix: defer timer reset to next tick so React UI can flush re-render first
+    setTimeout(() => this._resetMaxDurationTimer(), 0);
   }
 
   private _findFirstUnannotated(fromIndex: number): number {

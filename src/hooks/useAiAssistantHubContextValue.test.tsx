@@ -32,7 +32,6 @@ describe('useAiAssistantHubContextValue', () => {
           id: 'm1',
           role: 'user',
           content: 'hello',
-          timestamp: Date.now(),
         },
       ],
       voiceEnabled: true,

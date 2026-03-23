@@ -49,4 +49,26 @@ describe('GeminiProvider', () => {
     const headers = (init?.headers ?? {}) as Record<string, string>;
     expect(headers['x-goog-api-key']).toBe('AIza-test-key');
   });
+
+  it('strips think tags from streamed visible content', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createSseResponse([
+        'data: {"candidates":[{"content":{"parts":[{"text":"<think>内部推理</think>hello"}]}}]}\n\n',
+        'data: {"candidates":[{"content":{"parts":[{"text":"<think>内部推理</think>hello world"}]},"finishReason":"STOP"}]}\n\n',
+      ]),
+    );
+
+    const provider = new GeminiProvider({
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+      model: 'gemini-2.0-flash',
+      apiKey: 'AIza-test-key',
+    });
+
+    const chunks: string[] = [];
+    for await (const chunk of provider.chat([{ role: 'user', content: 'ping' }])) {
+      if (chunk.delta) chunks.push(chunk.delta);
+    }
+
+    expect(chunks.join('')).toBe('hello world');
+  });
 });

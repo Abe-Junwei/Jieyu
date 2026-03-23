@@ -12,6 +12,7 @@ interface UseUtteranceOpsInput {
   mergeSelectedUtterances: (ids: Set<string>) => Promise<void>;
   mergeWithPrevious: (id: string) => Promise<void>;
   mergeWithNext: (id: string) => Promise<void>;
+  onMergeTargetMissing?: () => void;
   splitUtterance: (id: string, splitTime: number) => Promise<void>;
   selectAllBefore: (id: string) => void;
   selectAllAfter: (id: string) => void;
@@ -22,6 +23,7 @@ export function useUtteranceOps(input: UseUtteranceOpsInput) {
     translationTextByLayer,
     deleteUtterance, deleteSelectedUtterances,
     mergeSelectedUtterances, mergeWithPrevious, mergeWithNext,
+    onMergeTargetMissing,
     splitUtterance, selectAllBefore, selectAllAfter,
   } = input;
 
@@ -63,14 +65,20 @@ export function useUtteranceOps(input: UseUtteranceOpsInput) {
   }, [mergeSelectedUtterances]);
 
   const runMergePrev = useCallback((id: string) => {
-    if (!id) return;
+    if (!id) {
+      onMergeTargetMissing?.();
+      return;
+    }
     fireAndForget(mergeWithPrevious(id));
-  }, [mergeWithPrevious]);
+  }, [mergeWithPrevious, onMergeTargetMissing]);
 
   const runMergeNext = useCallback((id: string) => {
-    if (!id) return;
+    if (!id) {
+      onMergeTargetMissing?.();
+      return;
+    }
     fireAndForget(mergeWithNext(id));
-  }, [mergeWithNext]);
+  }, [mergeWithNext, onMergeTargetMissing]);
 
   const runSplitAtTime = useCallback((id: string, splitTime: number) => {
     if (!id) return;

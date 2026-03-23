@@ -59,4 +59,45 @@ describe('tool decision log helpers', () => {
       timestamp: '2026-03-18T12:00:00.000Z',
     });
   });
+
+  it('prefers structured metadata for replay-ready decision logs', () => {
+    const row = {
+      id: 'audit-3',
+      newValue: 'auto_failed:rename_layer:exception',
+      requestId: 'toolreq_abc123',
+      metadataJson: JSON.stringify({
+        schemaVersion: 1,
+        phase: 'decision',
+        requestId: 'toolreq_abc123',
+        toolCall: { name: 'set_transcription_text' },
+        outcome: 'auto_confirmed',
+      }),
+      timestamp: '2026-03-18T13:00:00.000Z',
+    };
+
+    expect(mapAuditRowToAiToolDecisionLog(row)).toEqual({
+      id: 'audit-3',
+      decision: 'auto_confirmed',
+      toolName: 'set_transcription_text',
+      requestId: 'toolreq_abc123',
+      timestamp: '2026-03-18T13:00:00.000Z',
+    });
+  });
+
+  it('falls back to compact decision string when metadata is malformed', () => {
+    const row = {
+      id: 'audit-4',
+      newValue: 'confirm_failed:delete_layer:duplicate_requestId',
+      metadataJson: '{bad json',
+      timestamp: '2026-03-18T14:00:00.000Z',
+    };
+
+    expect(mapAuditRowToAiToolDecisionLog(row)).toEqual({
+      id: 'audit-4',
+      decision: 'confirm_failed',
+      toolName: 'delete_layer',
+      reason: 'duplicate_requestId',
+      timestamp: '2026-03-18T14:00:00.000Z',
+    });
+  });
 });

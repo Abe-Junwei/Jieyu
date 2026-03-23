@@ -30,7 +30,8 @@ export class LocalWhisperSttProvider implements CommercialSttProvider {
         signal: AbortSignal.timeout(3000),
       });
       return resp.ok;
-    } catch {
+    } catch (err) {
+      console.debug('[LocalWhisperSttProvider] availability probe failed:', err);
       return false;
     }
   }

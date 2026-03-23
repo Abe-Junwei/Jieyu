@@ -215,8 +215,8 @@ export async function testOllamaWhisperAvailability(
       if (resp.status !== 404) {
         return { available: true };
       }
-    } catch {
-      // ignore and continue probing
+    } catch (err) {
+      console.debug('[VoiceInputService] Ollama probe failed, trying next endpoint:', { endpoint, err });
     }
   }
 
@@ -311,7 +311,8 @@ export async function runAecDiagnostic(): Promise<AecCapability> {
       noiseSuppression: settings.noiseSuppression ?? false,
       autoGainControl: settings.autoGainControl ?? false,
     };
-  } catch {
+  } catch (err) {
+    console.warn('[VoiceInputService] detectInputCapabilities failed, using defaults:', err);
     return { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
   }
 }
@@ -353,6 +354,10 @@ export class VoiceInputService {
   private _config: VoiceInputConfig = DEFAULT_CONFIG;
   private _intentionalStop = false;
   private _speaking = false;
+  private _disposed = false;
+  private _engineSwitchToken = 0;
+  private _switchingEngine = false;
+  private switchEngineTimer: ReturnType<typeof setTimeout> | null = null;
 
   // VAD runtime
   private vadStream: MediaStream | null = null;
@@ -488,6 +493,7 @@ export class VoiceInputService {
 
   start(config?: Partial<VoiceInputConfig>): void {
     if (this._listening) return;
+    this._disposed = false;
     this._config = { ...DEFAULT_CONFIG, ...config };
     this._intentionalStop = false;
     void this._attemptEngineWithFallback(this._config.preferredEngine);
@@ -499,20 +505,31 @@ export class VoiceInputService {
    * Optional config can be passed to update settings (e.g., when switching to whisper-local).
    */
   switchEngine(engine: SttEngine, config?: { whisperServerUrl?: string; whisperServerModel?: string }): void {
-    console.log('[DEBUG] switchEngine:', engine, 'config=', config, 'current _config.whisperServerUrl=', this._config.whisperServerUrl);
+    console.debug('[VoiceInputService] switchEngine:', engine, { config, currentUrl: this._config.whisperServerUrl });
     if (!this._listening) return;
     // Update config if provided (e.g., whisper config when switching to whisper-local)
     if (config) {
       this._config = { ...this._config, ...config };
-      console.log('[DEBUG] switchEngine: updated _config.whisperServerUrl=', this._config.whisperServerUrl);
+      console.debug('[VoiceInputService] switchEngine: updated whisperServerUrl=', this._config.whisperServerUrl);
     }
-    this._intentionalStop = false;
+    if (this.switchEngineTimer) {
+      clearTimeout(this.switchEngineTimer);
+      this.switchEngineTimer = null;
+    }
+    const switchToken = ++this._engineSwitchToken;
+    this._switchingEngine = true;
     this._stopCurrentEngine();
     this._currentEngine = engine;
-    setTimeout(() => {
-      if (!this._listening) return;
+    this.switchEngineTimer = setTimeout(() => {
+      this.switchEngineTimer = null;
+      if (this._disposed || !this._listening || !this._switchingEngine || switchToken !== this._engineSwitchToken) return;
+      this._intentionalStop = false;
       this._attemptEngineWithFallback(engine).catch((err) => {
         console.error('[VoiceInput] switchEngine error:', err);
+      }).finally(() => {
+        if (switchToken === this._engineSwitchToken) {
+          this._switchingEngine = false;
+        }
       });
     }, 300);
   }
@@ -612,14 +629,19 @@ export class VoiceInputService {
         const alternatives: Array<{ text: string; confidence: number }> = [];
         for (let j = 1; j < result.length; j++) {
           const alt = result[j];
-          if (alt) alternatives.push({ text: alt.transcript, confidence: alt.confidence });
+          if (alt) {
+            alternatives.push({
+              text: alt.transcript,
+              confidence: typeof alt.confidence === 'number' && Number.isFinite(alt.confidence) ? alt.confidence : 0,
+            });
+          }
         }
 
         const sttResult: SttResult = {
           text: primary.transcript,
           lang: this._config.lang,
           isFinal: result.isFinal,
-          confidence: primary.confidence,
+          confidence: typeof primary.confidence === 'number' && Number.isFinite(primary.confidence) ? primary.confidence : 0,
           engine: 'web-speech',
           ...(alternatives.length > 0 ? { alternatives } : {}),
         };
@@ -648,10 +670,13 @@ export class VoiceInputService {
     };
 
     rec.onend = () => {
+      if (this.recognition !== rec) return;
+      if (this._switchingEngine) return;
       if (this._listening && !this._intentionalStop && this._config.continuous) {
         try {
           rec.start();
-        } catch {
+        } catch (err) {
+          console.warn('[VoiceInputService] continuous restart failed:', err);
         }
         return;
       }
@@ -664,7 +689,8 @@ export class VoiceInputService {
     try {
       rec.start();
       return true;
-    } catch {
+    } catch (err) {
+      console.warn('[VoiceInputService] rec.start() failed:', err);
       return false;
     }
   }
@@ -672,7 +698,7 @@ export class VoiceInputService {
   private _stopCurrentEngine(): void {
     this._intentionalStop = true;
     if (this.recognition) {
-      try { this.recognition.stop(); } catch { /* ignore */ }
+      try { this.recognition.stop(); } catch (err) { console.debug('[VoiceInputService] recognition.stop() failed during engine stop:', err); }
       this.recognition = null;
     }
     this.stopVadMonitor();
@@ -680,14 +706,20 @@ export class VoiceInputService {
   }
 
   stop(): void {
+    if (this.switchEngineTimer) {
+      clearTimeout(this.switchEngineTimer);
+      this.switchEngineTimer = null;
+    }
+    this._engineSwitchToken += 1;
+    this._switchingEngine = false;
     this._intentionalStop = true;
     if (this.recognition) {
-      try { this.recognition.stop(); } catch { /* ignore */ }
+      try { this.recognition.stop(); } catch (err) { console.debug('[VoiceInputService] recognition.stop() failed during stop():', err); }
     }
     if (this._isRecording) {
-      this.mediaRecorder?.stop();
-      for (const track of (this.mediaStream?.getTracks() ?? [])) track.stop();
-      this._isRecording = false;
+      void this.stopRecording().catch((error) => {
+        this.emitError(error instanceof Error ? error.message : '录音停止失败');
+      });
     }
     this.setListening(false);
     this.stopVadMonitor();
@@ -759,7 +791,8 @@ export class VoiceInputService {
   }
 
   private async _stopRecordingInternal(): Promise<void> {
-    const recorder = this.mediaRecorder!;
+    const recorder = this.mediaRecorder;
+    if (!recorder) return;
     const stream = this.mediaStream;
 
     this._isRecording = false;
@@ -848,7 +881,8 @@ export class VoiceInputService {
           );
           this.emitResult(commercialResult);
           return;
-        } catch {
+        } catch (fallbackErr) {
+          console.warn('[VoiceInputService] commercial fallback transcription failed:', fallbackErr);
           // Commercial also failed — emit the original error
           this.emitError(lastError instanceof Error ? lastError.message : 'STT 转写失败');
           return;
@@ -910,14 +944,8 @@ export class VoiceInputService {
   }
 
   dispose(): void {
+    this._disposed = true;
     this.stop();
-    if (this._isRecording) {
-      this.mediaRecorder?.stop();
-      for (const track of (this.mediaStream?.getTracks() ?? [])) {
-        track.stop();
-      }
-      this._isRecording = false;
-    }
     this.resultListeners = [];
     this.errorListeners = [];
     this.stateListeners = [];
@@ -937,18 +965,22 @@ export class VoiceInputService {
   }
 
   private emitResult(result: SttResult): void {
+    if (this._disposed) return;
     for (const fn of this.resultListeners) fn(result);
   }
 
   private emitError(error: string): void {
+    if (this._disposed) return;
     for (const fn of this.errorListeners) fn(error);
   }
 
   private emitState(listening: boolean): void {
+    if (this._disposed) return;
     for (const fn of this.stateListeners) fn(listening);
   }
 
   private emitVadState(speaking: boolean): void {
+    if (this._disposed) return;
     for (const fn of this.vadListeners) fn(speaking);
   }
 
@@ -963,11 +995,13 @@ export class VoiceInputService {
     if (!navigator.mediaDevices?.getUserMedia) return;
     if (this.vadTimerId !== null) return;
 
+    let stream: MediaStream | null = null;
+    let audioContext: AudioContext | null = null;
     try {
-      const stream = await this.createAnalysisCloneStream();
+      stream = await this.createAnalysisCloneStream();
       if (!stream) return;
 
-      const audioContext = new AudioContext();
+      audioContext = new AudioContext();
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 1024;
@@ -1009,8 +1043,17 @@ export class VoiceInputService {
         }
         this.checkSilenceTimeout();
       }, intervalMs);
-    } catch {
-      // VAD is best-effort only; don't fail voice recognition when unavailable.
+    } catch (err) {
+      console.warn('[VoiceInputService] VAD monitor unavailable, continuing without VAD:', err);
+      if (audioContext) {
+        void audioContext.close();
+      }
+      if (stream) {
+        for (const track of stream.getTracks()) {
+          track.stop();
+        }
+      }
+      // VAD 为尽力增强能力，不可用时不应导致识别失败 | VAD is best-effort and must not fail recognition when unavailable.
     }
   }
 

@@ -4,6 +4,7 @@ import type {
   AnchorDocType,
   LayerLinkDocType,
   MediaItemDocType,
+  SpeakerDocType,
   TranslationLayerDocType,
   UtteranceDocType,
   UtteranceMorphemeDocType,
@@ -18,6 +19,7 @@ type Params = {
   setLayerLinks: React.Dispatch<React.SetStateAction<LayerLinkDocType[]>>;
   setLayers: React.Dispatch<React.SetStateAction<TranslationLayerDocType[]>>;
   setMediaItems: React.Dispatch<React.SetStateAction<MediaItemDocType[]>>;
+  setSpeakers: React.Dispatch<React.SetStateAction<SpeakerDocType[]>>;
   setSelectedLayerId: React.Dispatch<React.SetStateAction<string>>;
   setSelectedUtteranceId: React.Dispatch<React.SetStateAction<string>>;
   setState: React.Dispatch<React.SetStateAction<DbState>>;
@@ -32,6 +34,7 @@ export function useTranscriptionSnapshotLoader({
   setLayerLinks,
   setLayers,
   setMediaItems,
+  setSpeakers,
   setSelectedLayerId,
   setSelectedUtteranceId,
   setState,
@@ -47,6 +50,7 @@ export function useTranscriptionSnapshotLoader({
       layerDocs,
       translationDocs,
       mediaDocs,
+      speakerDocs,
       linkDocs,
       tokenDocs,
       morphemeDocs,
@@ -56,6 +60,7 @@ export function useTranscriptionSnapshotLoader({
       db.collections.translation_layers.find().exec(),
       db.collections.utterance_texts.find().exec(),
       db.collections.media_items.find().exec(),
+      db.collections.speakers.find().exec(),
       db.collections.layer_links.find().exec(),
       db.collections.utterance_tokens.find().exec(),
       db.collections.utterance_morphemes.find().exec(),
@@ -68,6 +73,7 @@ export function useTranscriptionSnapshotLoader({
       (doc) => doc.toJSON() as unknown as UtteranceTextDocType,
     );
     const mediaRows = mediaDocs.map((doc) => doc.toJSON() as unknown as MediaItemDocType);
+      const speakerRows = speakerDocs.map((doc) => doc.toJSON() as unknown as SpeakerDocType);
     const linkRows = linkDocs.map((doc) => doc.toJSON() as unknown as LayerLinkDocType);
     const tokenRows = tokenDocs
       .map((doc) => doc.toJSON() as unknown as UtteranceTokenDocType)
@@ -141,6 +147,7 @@ export function useTranscriptionSnapshotLoader({
     setLayers(layerRows);
     setTranslations(translationRows);
     setMediaItems(mediaRows);
+    setSpeakers(speakerRows);
     setLayerLinks(linkRows);
     setUtteranceDrafts(() => {
       const next: Record<string, string> = {};
@@ -185,6 +192,7 @@ export function useTranscriptionSnapshotLoader({
     setLayerLinks,
     setLayers,
     setMediaItems,
+    setSpeakers,
     setSelectedLayerId,
     setSelectedUtteranceId,
     setState,

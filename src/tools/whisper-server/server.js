@@ -48,6 +48,7 @@ const CONFIG = {
   defaultLang: cliArgs.language ?? process.env.WHISPER_LANG ?? DEFAULT_LANG,
   whisperCli: cliArgs['whisper-cli'] ?? process.env.WHISPER_CLI ?? '/opt/homebrew/bin/whisper-cli',
   threads: parseInt(cliArgs.threads ?? '4', 10),
+  maxBodyBytes: parseInt(cliArgs['max-body-bytes'] ?? process.env.WHISPER_MAX_BODY_BYTES ?? String(25 * 1024 * 1024), 10),
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -234,7 +235,22 @@ async function handleRequest(req, res) {
 
     try {
       const chunks = [];
-      for await (const chunk of req) chunks.push(chunk);
+      let totalBytes = 0;
+      for await (const chunk of req) {
+        totalBytes += chunk.length;
+        if (totalBytes > CONFIG.maxBodyBytes) {
+          req.resume();
+          res.writeHead(413, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: {
+              message: `Request body too large (max ${CONFIG.maxBodyBytes} bytes)`,
+              type: 'invalid_request_error',
+            },
+          }));
+          return;
+        }
+        chunks.push(chunk);
+      }
       const body = Buffer.concat(chunks);
 
       const ct = req.headers['content-type'] ?? '';

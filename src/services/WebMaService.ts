@@ -191,8 +191,8 @@ export function parseTextGrid(textGrid: string): {
     const parts = tierTxt.split(searchWord, 2);
     if (parts.length < 2) continue; // malformed tier
 
-    const header = parts[0];
-    const tierData = parts[1];
+    const header = parts[0]!;
+    const tierData = parts[1]!;
 
     // Extract tier name from header
     const nameMatch = header.match(/name = "([^"]+)"/);
@@ -286,7 +286,7 @@ export class WebMaServiceClient {
 
     // Convert to WAV if needed (WebMAUS requires WAV; MediaRecorder gives WebM)
     let audioToSend: Blob = audioBlob;
-    if (!audioBlob.type.includes('wav') && !audioBlob.type.includes('wav')) {
+    if (!audioBlob.type.includes('wav')) {
       try {
         onProgress?.({ status: 'submitting', message: 'Converting audio to WAV…' });
         audioToSend = await audioBlobToWav(audioBlob);

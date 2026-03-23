@@ -31,6 +31,10 @@ export type TranscriptionLayerActionsParams = {
   setTranslations: React.Dispatch<React.SetStateAction<UtteranceTextDocType[]>>;
 };
 
+type DeleteLayerOptions = {
+  skipBrowserConfirm?: boolean;
+};
+
 export function useTranscriptionLayerActions({
   layers,
   layerLinks,
@@ -88,6 +92,11 @@ export function useTranscriptionLayerActions({
     const typeLabel = layerType === 'transcription' ? '转写' : '翻译';
     const autoName = alias ? `${typeLabel} · ${alias}` : typeLabel;
 
+    // Compute sortOrder: append to end of appropriate section
+    const existingOfType = layers.filter((l) => l.layerType === layerType);
+    const maxSortOrder = existingOfType.reduce((max, l) => Math.max(max, l.sortOrder ?? 0), -1);
+    const newSortOrder = maxSortOrder + 1;
+
     try {
       const db = await getDb();
       const now = new Date().toISOString();
@@ -108,6 +117,7 @@ export function useTranscriptionLayerActions({
         languageId,
         modality: effectiveModality,
         acceptsAudio: effectiveModality !== 'text',
+        sortOrder: newSortOrder,
         createdAt: now,
         updatedAt: now,
       } as TranslationLayerDocType;
@@ -161,7 +171,7 @@ export function useTranscriptionLayerActions({
     }
   }, [layers, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers, setSelectedLayerId, utterancesRef]);
 
-  const deleteLayer = useCallback(async (targetLayerId?: string) => {
+  const deleteLayer = useCallback(async (targetLayerId?: string, options?: DeleteLayerOptions) => {
     const effectiveLayerId = targetLayerId ?? layerToDeleteId;
     if (!effectiveLayerId) {
       setLayerCreateMessage('请先选择要删除的层。');
@@ -206,10 +216,12 @@ export function useTranscriptionLayerActions({
     }
 
     const depInfo = depLines.length > 0 ? `\n\n关联数据：\n${depLines.join('\n')}` : '';
-    const confirmed = window.confirm(
-      `确认删除层"${layerLabel}"吗？\n\n类型：${layerTypeLabel}\n键名：${targetLayer.key}${depInfo}\n\n将同时删除该层下全部文本/录音记录以及关联链接。可通过Ctrl+Z撤销。`,
-    );
-    if (!confirmed) return;
+    if (!options?.skipBrowserConfirm) {
+      const confirmed = window.confirm(
+        `确认删除层"${layerLabel}"吗？\n\n类型：${layerTypeLabel}\n键名：${targetLayer.key}${depInfo}\n\n将同时删除该层下全部文本/录音记录以及关联链接。可通过Ctrl+Z撤销。`,
+      );
+      if (!confirmed) return;
+    }
 
     try {
       pushUndo(`删除${layerTypeLabel}`);
@@ -296,10 +308,119 @@ export function useTranscriptionLayerActions({
     setSelectedUtteranceId('');
   }, [setMediaItems, setSelectedMediaId, setSelectedUtteranceId]);
 
+  /**
+   * Reorder layers within their own type section (transcription or translation).
+   * Translation layers cannot move above transcription layers.
+   */
+  const reorderLayers = useCallback(async (draggedLayerId: string, targetIndex: number) => {
+    // Current order: transcription layers first, then translation layers
+    const transcriptionLayers = layers.filter((l) => l.layerType === 'transcription');
+    const translationLayers = layers.filter((l) => l.layerType === 'translation');
+
+    const trcCount = transcriptionLayers.length;
+
+    const draggedLayer = layers.find((l) => l.id === draggedLayerId);
+    if (!draggedLayer) return;
+
+    let reorderedLayers: TranslationLayerDocType[];
+
+    if (draggedLayer.layerType === 'transcription') {
+      // Can only reorder within transcription section
+      const sorted = [...transcriptionLayers].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+      const currentIndex = sorted.findIndex((l) => l.id === draggedLayerId);
+      if (currentIndex === -1) return;
+
+      // Clamp target to valid range
+      const clampedTarget = Math.max(0, Math.min(targetIndex, trcCount - 1));
+      if (clampedTarget === currentIndex) return;
+
+      // Reorder in memory
+      sorted.splice(currentIndex, 1);
+      sorted.splice(clampedTarget, 0, draggedLayer);
+
+      // Assign new sortOrder values to transcription layers
+      const updates: Array<{ layer: TranslationLayerDocType; sortOrder: number }> = sorted.map((l, i) => ({
+        layer: l,
+        sortOrder: i,
+      }));
+
+      // Translation layers keep their relative order (and their sortOrder offset)
+      translationLayers.forEach((l, i) => {
+        updates.push({ layer: l, sortOrder: trcCount + i });
+      });
+
+      // Build new layers array
+      const trcSortMap = new Map(updates.slice(0, trcCount).map((u) => [u.layer.id, u.sortOrder]));
+      const trlSortMap = new Map(updates.slice(trcCount).map((u) => [u.layer.id, u.sortOrder]));
+
+      reorderedLayers = layers.map((l) => {
+        if (trcSortMap.has(l.id)) {
+          return { ...l, sortOrder: trcSortMap.get(l.id)! };
+        }
+        if (trlSortMap.has(l.id)) {
+          return { ...l, sortOrder: trlSortMap.get(l.id)! };
+        }
+        return l;
+      });
+    } else {
+      // Translation layer - can only reorder within translation section
+      const sorted = [...translationLayers].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+      const currentIndex = sorted.findIndex((l) => l.id === draggedLayerId);
+      if (currentIndex === -1) return;
+
+      const trlCount = translationLayers.length;
+      // Clamp target to valid range within translation section
+      const clampedTarget = Math.max(0, Math.min(targetIndex, trlCount - 1));
+      if (clampedTarget === currentIndex) return;
+
+      // Reorder in memory
+      sorted.splice(currentIndex, 1);
+      sorted.splice(clampedTarget, 0, draggedLayer);
+
+      // Assign new sortOrder values
+      const updates: Array<{ layer: TranslationLayerDocType; sortOrder: number }> = [];
+
+      // Transcription layers keep their relative order
+      transcriptionLayers.forEach((l, i) => {
+        updates.push({ layer: l, sortOrder: i });
+      });
+
+      // Translation layers reordered
+      sorted.forEach((l, i) => {
+        updates.push({ layer: l, sortOrder: trcCount + i });
+      });
+
+      const trcSortMap = new Map(updates.slice(0, trcCount).map((u) => [u.layer.id, u.sortOrder]));
+      const trlSortMap = new Map(updates.slice(trcCount).map((u) => [u.layer.id, u.sortOrder]));
+
+      reorderedLayers = layers.map((l) => {
+        if (trcSortMap.has(l.id)) {
+          return { ...l, sortOrder: trcSortMap.get(l.id)! };
+        }
+        if (trlSortMap.has(l.id)) {
+          return { ...l, sortOrder: trlSortMap.get(l.id)! };
+        }
+        return l;
+      });
+    }
+
+    // Persist sortOrder updates to database
+    for (const layer of reorderedLayers) {
+      const original = layers.find((l) => l.id === layer.id);
+      if (original && original.sortOrder !== layer.sortOrder) {
+        await LayerTierUnifiedService.updateLayerSortOrder(layer.id, layer.sortOrder ?? 0);
+      }
+    }
+
+    // Update state
+    setLayers(reorderedLayers);
+  }, [layers, setLayers]);
+
   return {
     createLayer,
     deleteLayer,
     toggleLayerLink,
     addMediaItem,
+    reorderLayers,
   };
 }

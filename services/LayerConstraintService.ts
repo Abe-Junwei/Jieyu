@@ -109,7 +109,7 @@ export function canDeleteLayer(
       }
     }
 
-    // 最近的剩余转写层（重链目标）
+    // 最近的剩余转写层（重链目标）| Most recent remaining transcription layer (re-link target)
     const remainingTrc = transcriptionLayers
       .filter((l) => l.id !== targetLayerId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
@@ -124,7 +124,7 @@ export function canDeleteLayer(
     return result;
   }
 
-  // 翻译层：统计受影响链接
+  // 翻译层：统计受影响链接 | Translation layer: count affected links
   const affectedLinkCount = layerLinks.filter(
     (link) => link.tierId === targetLayerId,
   ).length;

@@ -10,7 +10,7 @@
  *
  * 使用方式：
  *   const svc = WakeWordService.getInstance();
- *   svc.onWake(() => { console.log('Wake!'); });
+ *   svc.onWake(() => { console.debug('[WakeWordService] wake event'); });
  *   await svc.start();
  *
  * @see 解语-语音智能体架构设计方案 v2.5 §阶段5
@@ -187,7 +187,8 @@ export class WakeWordService {
     try {
       const raw = localStorage.getItem(CONFIG_KEY);
       return raw ? JSON.parse(raw) : null;
-    } catch {
+    } catch (err) {
+      console.warn('[WakeWordService] load config failed, using defaults:', err);
       return null;
     }
   }
@@ -195,8 +196,8 @@ export class WakeWordService {
   private _saveConfig(config: Required<WakeWordServiceConfig>): void {
     try {
       localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-    } catch {
-      // localStorage unavailable
+    } catch (err) {
+      console.warn('[WakeWordService] save config failed:', err);
     }
   }
 }

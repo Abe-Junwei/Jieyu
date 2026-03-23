@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import type { UtteranceDocType } from '../../db';
-import type { AiConnectionTestStatus, AiContextDebugSnapshot, PendingAiToolCall, UiChatMessage } from '../hooks/useAiChat';
+import type { AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiTaskSession, PendingAiToolCall, UiChatMessage } from '../hooks/useAiChat';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { ProjectStage, Recommendation } from '../ai/ProjectObserver';
 import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiAnalysisPanel';
@@ -48,10 +48,14 @@ export type AiPanelContextValue = {
   aiConnectionTestMessage?: string | null;
   aiContextDebugSnapshot?: AiContextDebugSnapshot | null;
   aiPendingToolCall?: PendingAiToolCall | null;
+  aiTaskSession?: AiTaskSession | null;
+  aiInteractionMetrics?: AiInteractionMetrics | null;
+  aiSessionMemory?: AiSessionMemory | null;
   aiToolDecisionLogs?: Array<{
     id: string;
     toolName: string;
     decision: string;
+    requestId?: string;
     timestamp: string;
   }>;
   onUpdateAiChatSettings?: (patch: Partial<AiChatSettings>) => void;
@@ -136,6 +140,7 @@ export type AiPanelContextValue = {
 
 export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
   dbName: '',
+  observerStage: 'collecting' as const,
   utteranceCount: 0,
   translationLayerCount: 0,
   aiConfidenceAvg: null,
@@ -150,6 +155,9 @@ export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
   aiConnectionTestStatus: 'idle',
   aiConnectionTestMessage: null,
   aiPendingToolCall: null,
+  aiTaskSession: null,
+  aiInteractionMetrics: null,
+  aiSessionMemory: null,
   aiToolDecisionLogs: [],
   aiPanelMode: 'auto',
   selectedTranslationGapCount: 0,

@@ -23,6 +23,7 @@ let lastMockVoiceService: {
   simulateError: (e: string) => void;
   simulateVadState: (s: boolean) => void;
 } | null = null;
+let mockStartError: Error | null = null;
 
 vi.mock('../services/VoiceInputService', () => {
   class MockVoiceInputService {
@@ -52,7 +53,10 @@ vi.mock('../services/VoiceInputService', () => {
       return () => { this.vadListeners = this.vadListeners.filter((l) => l !== fn); };
     }
 
-    start() { for (const fn of this.stateListeners) fn(true); }
+    async start() {
+      if (mockStartError) throw mockStartError;
+      for (const fn of this.stateListeners) fn(true);
+    }
     stop()  { for (const fn of this.stateListeners) fn(false); }
     setLang() {}
     dispose() { this.stop(); }
@@ -89,6 +93,7 @@ vi.mock('../services/EarconService', () => ({
 
 afterEach(() => {
   cleanup();
+  mockStartError = null;
   clearVoiceAliasLearningLog();
   saveVoiceIntentAliasMap({});
 });
@@ -162,6 +167,19 @@ describe('useVoiceAgent', () => {
       await act(async () => { result.current.start(); });
       await act(async () => { result.current.start(); });
       expect(result.current.listening).toBe(true);
+    });
+
+    it('sets error and stays idle when start() fails', async () => {
+      mockStartError = new Error('mic denied');
+      const { result } = renderHook(() =>
+        useVoiceAgent({ executeAction: makeExecuteAction() }),
+      );
+
+      await act(async () => { await result.current.start(); });
+
+      expect(result.current.listening).toBe(false);
+      expect(result.current.agentState).toBe('idle');
+      expect(result.current.error).toContain('mic denied');
     });
   });
 
@@ -633,6 +651,40 @@ describe('useVoiceAgent', () => {
         actionId: 'playPause',
         reason: 'updated',
       });
+    });
+    it('requires confirmation for destructive actions returned by LLM fallback', async () => {
+      const executeAction = makeExecuteAction();
+      const resolveIntentWithLlm = vi.fn().mockResolvedValue({
+        type: 'action',
+        actionId: 'deleteSegment',
+        confidence: 1,
+        raw: '把这个去掉吧',
+      });
+
+      const { result } = renderHook(() =>
+        useVoiceAgent({ executeAction, resolveIntentWithLlm }),
+      );
+
+      await act(async () => { result.current.start('command'); });
+
+      await act(async () => {
+        lastMockVoiceService?.simulateResult({
+          text: '把这个去掉吧',
+          lang: 'zh-CN',
+          isFinal: true,
+          confidence: 0.82,
+          engine: 'web-speech',
+        });
+        await Promise.resolve();
+      });
+
+      expect(resolveIntentWithLlm).toHaveBeenCalledTimes(1);
+      expect(result.current.lastIntent?.type).toBe('action');
+      if (result.current.lastIntent?.type === 'action') {
+        expect(result.current.lastIntent.fromFuzzy).toBe(true);
+      }
+      expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
+      expect(executeAction).not.toHaveBeenCalled();
     });
   });
 });

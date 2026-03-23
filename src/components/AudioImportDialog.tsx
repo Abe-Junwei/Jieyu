@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Upload, FileAudio, X } from 'lucide-react';
+import { Upload, FileAudio, FileVideo, X } from 'lucide-react';
 import { detectLocale, t } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 
@@ -9,7 +9,9 @@ type AudioImportDialogProps = {
   onImport: (file: File, duration: number) => Promise<void>;
 };
 
-const ACCEPTED_FORMATS = '.mp3,.wav,.ogg,.webm,.m4a,.flac,.aac';
+const ACCEPTED_AUDIO_FORMATS = '.mp3,.wav,.ogg,.webm,.m4a,.flac,.aac';
+const ACCEPTED_VIDEO_FORMATS = '.mp4,.webm,.mov,.avi,.mkv';
+const ALL_ACCEPTED_FORMATS = `${ACCEPTED_AUDIO_FORMATS},${ACCEPTED_VIDEO_FORMATS}`;
 
 export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDialogProps) {
   const locale = detectLocale();
@@ -41,28 +43,30 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
       return;
     }
 
-    if (!file.type.startsWith('audio/')) {
-      setError(t(locale, 'transcription.importDialog.invalidAudio'));
+    const isAudio = file.type.startsWith('audio/');
+    const isVideo = file.type.startsWith('video/');
+    if (!isAudio && !isVideo) {
+      setError(t(locale, 'transcription.importDialog.invalidMedia'));
       setSelectedFile(null);
       return;
     }
 
     setSelectedFile(file);
 
-    // Extract duration using HTML5 Audio
-    const audio = new Audio();
+    // Extract duration using HTML5 media element (works for both audio and video)
+    const media = document.createElement(isVideo ? 'video' : 'audio') as HTMLMediaElement;
     const objectUrl = URL.createObjectURL(file);
-    audio.src = objectUrl;
-    audio.addEventListener('loadedmetadata', () => {
-      if (Number.isFinite(audio.duration)) {
-        setDuration(audio.duration);
+    media.src = objectUrl;
+    media.addEventListener('loadedmetadata', () => {
+      if (Number.isFinite(media.duration)) {
+        setDuration(media.duration);
       } else {
         setError(t(locale, 'transcription.importDialog.unreadableDuration'));
       }
       URL.revokeObjectURL(objectUrl);
     });
-    audio.addEventListener('error', () => {
-      setError(t(locale, 'transcription.importDialog.unsupportedAudio'));
+    media.addEventListener('error', () => {
+      setError(t(locale, 'transcription.importDialog.unsupportedMedia'));
       URL.revokeObjectURL(objectUrl);
     });
   };
@@ -79,6 +83,8 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
       setImporting(false);
     }
   };
+
+  const isVideoFile = selectedFile?.type.startsWith('video/') ?? false;
 
   if (!isOpen) return null;
 
@@ -99,7 +105,7 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
           >
             {selectedFile ? (
               <>
-                <FileAudio size={28} />
+                {isVideoFile ? <FileVideo size={28} /> : <FileAudio size={28} />}
                 <strong>{selectedFile.name}</strong>
                 <span className="small-text">
                   {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
@@ -109,7 +115,7 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
             ) : (
               <>
                 <Upload size={28} />
-                <strong>{t(locale, 'transcription.importDialog.selectAudio')}</strong>
+                <strong>{t(locale, 'transcription.importDialog.selectMedia')}</strong>
                 <span className="small-text">{t(locale, 'transcription.importDialog.supportedFormats')}</span>
               </>
             )}
@@ -117,7 +123,7 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
           <input
             ref={fileRef}
             type="file"
-            accept={ACCEPTED_FORMATS}
+            accept={ALL_ACCEPTED_FORMATS}
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />

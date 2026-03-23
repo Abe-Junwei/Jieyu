@@ -42,11 +42,13 @@ interface ExtractorState {
 }
 
 const DEFAULT_DIMENSION = 256;
+const DEGRADED_RETRY_COOLDOWN_MS = 30_000;
 
 let cachedModelId = '';
 let cachedExtractor: EmbeddingExtractor | null = null;
 let cachedDegraded = false;
 let cachedDegradedReason: string | undefined;
+let cachedLoadedAt = 0;
 
 function postProgress(requestId: string, progress: EmbeddingRuntimeProgress): void {
   const payload: WorkerProgressMessage = {
@@ -99,6 +101,17 @@ function fallbackEmbedding(text: string, dimension = DEFAULT_DIMENSION): number[
 
 async function createTransformerExtractor(modelId: string, requestId: string): Promise<EmbeddingExtractor> {
   const transformers = await import('@xenova/transformers');
+
+  // 生产构建时让 ONNX 从 Worker 同源加载 WASM（已由 vite 插件复制）
+  // In production builds, load WASM from same origin as the worker (copied by vite plugin)
+  if (typeof transformers.env?.backends?.onnx?.wasm !== 'undefined') {
+    const workerUrl = (self as unknown as { location?: { href?: string } }).location?.href ?? '';
+    if (workerUrl && !workerUrl.includes('node_modules')) {
+      const wasmDir = workerUrl.substring(0, workerUrl.lastIndexOf('/') + 1);
+      transformers.env.backends.onnx.wasm.wasmPaths = wasmDir;
+    }
+  }
+
   const pipeline = await transformers.pipeline('feature-extraction', modelId, {
     progress_callback: (event: { progress?: number; loaded?: number; total?: number; status?: string }) => {
       const progress: EmbeddingRuntimeProgress = {
@@ -126,7 +139,8 @@ async function createTransformerExtractor(modelId: string, requestId: string): P
 }
 
 async function ensureExtractor(modelId: string, requestId: string, forceRetry = false): Promise<ExtractorState> {
-  if (cachedExtractor && cachedModelId === modelId && !(forceRetry && cachedDegraded)) {
+  const degradedCooldownElapsed = cachedDegraded && (Date.now() - cachedLoadedAt >= DEGRADED_RETRY_COOLDOWN_MS);
+  if (cachedExtractor && cachedModelId === modelId && !(forceRetry && cachedDegraded) && !degradedCooldownElapsed) {
     return {
       extractor: cachedExtractor,
       degraded: cachedDegraded,
@@ -139,6 +153,7 @@ async function ensureExtractor(modelId: string, requestId: string, forceRetry = 
     cachedModelId = modelId;
     cachedDegraded = false;
     cachedDegradedReason = undefined;
+    cachedLoadedAt = Date.now();
     return {
       extractor: cachedExtractor,
       degraded: false,
@@ -148,6 +163,7 @@ async function ensureExtractor(modelId: string, requestId: string, forceRetry = 
     cachedModelId = modelId;
     cachedDegraded = true;
     cachedDegradedReason = error instanceof Error ? error.message : 'model load failed';
+    cachedLoadedAt = Date.now();
     return {
       extractor: cachedExtractor,
       degraded: true,

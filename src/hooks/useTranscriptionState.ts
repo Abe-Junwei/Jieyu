@@ -3,6 +3,7 @@ import type {
   AnchorDocType,
   LayerLinkDocType,
   MediaItemDocType,
+  SpeakerDocType,
   TranslationLayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
@@ -18,6 +19,7 @@ export function useTranscriptionState() {
   const [translations, setTranslations] = useState<UtteranceTextDocType[]>([]);
   const [layerLinks, setLayerLinks] = useState<LayerLinkDocType[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaItemDocType[]>([]);
+  const [speakers, setSpeakers] = useState<SpeakerDocType[]>([]);
   const [selectedUtteranceId, setSelectedUtteranceId] = useState<string>('');
   const [selectedUtteranceIds, setSelectedUtteranceIds] = useState<Set<string>>(new Set());
   const [selectedMediaId, setSelectedMediaId] = useState<string>('');
@@ -39,6 +41,7 @@ export function useTranscriptionState() {
   const translationsRef = useLatest(translations);
   const layersRef = useLatest(layers);
   const layerLinksRef = useLatest(layerLinks);
+  const speakersRef = useLatest(speakers);
   const selectedUtteranceIdRef = useLatest(selectedUtteranceId);
   const selectedUtteranceIdsRef = useLatest(selectedUtteranceIds);
 
@@ -57,6 +60,8 @@ export function useTranscriptionState() {
     setLayerLinks,
     mediaItems,
     setMediaItems,
+    speakers,
+    setSpeakers,
     selectedUtteranceId,
     setSelectedUtteranceId,
     selectedUtteranceIds,
@@ -86,6 +91,7 @@ export function useTranscriptionState() {
     translationsRef,
     layersRef,
     layerLinksRef,
+      speakersRef,
     selectedUtteranceIdRef,
     selectedUtteranceIdsRef,
   };

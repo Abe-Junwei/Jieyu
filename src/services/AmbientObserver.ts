@@ -269,7 +269,8 @@ export class AmbientObserver {
     if (!('getBattery' in navigator)) return null;
     try {
       return await (navigator as NavigatorWithBattery).getBattery();
-    } catch {
+    } catch (err) {
+      console.debug('[AmbientObserver] getBattery unavailable:', err);
       return null;
     }
   }
@@ -284,7 +285,8 @@ export class AmbientObserver {
         const idle = this._idleController!.userState === 'idle';
         this._updateEnv({ userIdle: idle });
       });
-    } catch {
+    } catch (err) {
+      console.debug('[AmbientObserver] IdleDetector unavailable or denied:', err);
       // Idle Detection API not permitted or unavailable
       this._updateEnv({ idlePermissionGranted: false });
     }
@@ -313,7 +315,6 @@ declare var IdleDetector: {
   new (): IdleDetector;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface BatteryManager extends EventTarget {
   readonly charging: boolean;
   readonly level: number;

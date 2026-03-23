@@ -1,14 +1,10 @@
 import { AiAssistantHubContext } from '../contexts/AiAssistantHubContext';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Focus,
-  Maximize2,
+  ChevronLeft,
+  ChevronRight,
   Merge as _Merge,
   Pause as _Pause,
-  Play,
-  Repeat,
-  Undo2,
-  Square,
 } from 'lucide-react';
 import { AiAnalysisPanel } from '../components/AiAnalysisPanel';
 import { AiChatCard } from '../components/ai/AiChatCard';
@@ -19,14 +15,35 @@ import { BatchOperationPanel } from '../components/BatchOperationPanel';
 import { ProjectSetupDialog } from '../components/ProjectSetupDialog';
 import { SearchReplaceOverlay } from '../components/SearchReplaceOverlay';
 import { WaveformToolbar } from '../components/WaveformToolbar';
-import { TimeRuler } from '../components/TimeRuler';
+import { WaveformOverviewBar } from '../components/WaveformOverviewBar';
+import { ShortcutsPanel } from '../components/ShortcutsPanel';
 import { LayerRailSidebar } from '../components/LayerRailSidebar';
 import { TranscriptionToolbarActions } from '../components/TranscriptionToolbarActions';
 import { TranscriptionOverlays } from '../components/TranscriptionOverlays';
 import { TranscriptionTimelineTextOnly } from '../components/TranscriptionTimelineTextOnly';
 import { TranscriptionTimelineMediaLanes } from '../components/TranscriptionTimelineMediaLanes';
+import {
+  TimelineHeaderSection,
+  TimelineRailSection,
+  TimelineScrollSection,
+  VideoPreviewSection,
+} from '../components/transcription/TranscriptionTimelineSections';
+import type { VideoLayoutMode } from '../components/transcription/TranscriptionTimelineSections';
 import { RecoveryBanner } from '../components/RecoveryBanner';
 import { PdfPreviewSection } from '../components/PdfPreviewSection';
+import {
+  BottomToolbarSection,
+  ObserverStatusSection,
+  TimelineMainSection,
+  ToolbarLeftSection,
+  ToolbarRightSection,
+  WaveformAreaSection,
+  ZoomControlsSection,
+} from '../components/transcription/TranscriptionLayoutSections';
+import { WaveformHoverTooltip } from '../components/transcription/WaveformHoverTooltip';
+import { WaveformLeftStatusStrip } from '../components/transcription/WaveformLeftStatusStrip';
+import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
+import { SpeakerAssignPanel } from '../components/transcription/SpeakerAssignPanel';
 import { LinguisticService } from '../../services/LinguisticService';
 import { db as appDb, getDb, type JieyuDatabase, type UtteranceDocType } from '../../db';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
@@ -40,8 +57,9 @@ import { useLasso, type SubSelectDrag } from '../hooks/useLasso';
 import { useWaveSurfer } from '../hooks/useWaveSurfer';
 import { useZoom } from '../hooks/useZoom';
 import { useKeybindingActions } from '../hooks/useKeybindingActions';
+import { useJKLShuttle } from '../hooks/useJKLShuttle';
 import { useAiChat, type AiChatToolCall, type AiToolRiskCheckResult } from '../hooks/useAiChat';
-import { useVoiceAgent } from '../hooks/useVoiceAgent';
+import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 import { featureFlags } from '../ai/config/featureFlags';
 import { DEFAULT_VOICE_INTENT_RESOLVER_CONFIG } from '../ai/config/voiceIntentResolver';
 import { resolveVoiceIntentWithLlmUsingConfig } from '../services/VoiceIntentLlmResolver';
@@ -51,6 +69,7 @@ import { useAiPanelLogic, taskToPersona } from '../hooks/useAiPanelLogic';
 import { useNoteHandlers } from '../hooks/useNoteHandlers';
 import { useTimelineAnnotationHelpers } from '../hooks/useTimelineAnnotationHelpers';
 import { useAiToolCallHandler } from '../hooks/useAiToolCallHandler';
+import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import { useTimelineResize } from '../hooks/useTimelineResize';
 import { useDialogs } from '../hooks/useDialogs';
 import { usePanelResize } from '../hooks/usePanelResize';
@@ -61,21 +80,22 @@ import { usePdfPreview } from '../hooks/usePdfPreview';
 import { useVoiceDock } from '../hooks/useVoiceDock';
 import { useAiEmbeddingState } from '../hooks/useAiEmbeddingState';
 import { useAiAssistantHubContextValue } from '../hooks/useAiAssistantHubContextValue';
+import { useSpeakerManagement, getUtteranceSpeakerKey } from '../hooks/useSpeakerManagement';
+import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/useTimelineLaneHeightResize';
+import type { AiObserverRecommendation } from '../components/transcription/toolbar/ObserverStatus';
 import { detectLocale, t, tf } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
-import { formatLanguageLabel, formatLayerRailLabel, formatTime } from '../utils/transcriptionFormatters';
+import { formatLayerRailLabel, formatTime } from '../utils/transcriptionFormatters';
 import { EmbeddingService } from '../ai/embeddings/EmbeddingService';
 import { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 import { createEmbeddingProvider, testEmbeddingProvider } from '../ai/embeddings/EmbeddingProviderCatalog';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import { getGlobalTaskRunner } from '../ai/tasks/taskRunnerSingleton';
 import { extractUtteranceIdFromNote, getPdfPageFromHash, isDirectPdfCitationRef, splitPdfCitationRef } from '../utils/citationJumpUtils';
-import { applyVoiceCommercialConfigChange } from '../utils/voiceCommercialConfigSync';
 
 // ─── Storage keys ─────────────────────────────────────────────────────────────
 
 const EMBEDDING_PROVIDER_STORAGE_KEY = 'jieyu.embeddingProvider';
-
 // ─── Persistence helpers ───────────────────────────────────────────────────────
 
 // ── ToastController — bridges TranscriptionPage state to ToastProvider ─────────────
@@ -143,6 +163,18 @@ function ToastController({
     }
   }, [voiceAgent.agentState, voiceAgent.listening, showVoiceState]);
 
+  // TaskRunner stale task recovery → alert toast
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const count = (e as CustomEvent<{ count: number }>).detail?.count ?? 0;
+      if (count > 0) {
+        showToast(`已自动清理 ${count} 个过期任务`, 'info');
+      }
+    };
+    window.addEventListener('taskrunner:stale-recovered', handler);
+    return () => window.removeEventListener('taskrunner:stale-recovered', handler);
+  }, [showToast]);
+
   // This component renders nothing — it only manages side-effects via the toast context.
   return null;
 }
@@ -200,6 +232,7 @@ export function TranscriptionPage() {
     selectedUtterance,
     selectedUtteranceMedia,
     selectedMediaUrl,
+    selectedMediaIsVideo,
     utterancesOnCurrentMedia,
     aiConfidenceAvg,
     translationTextByLayer,
@@ -233,6 +266,7 @@ export function TranscriptionPage() {
     createLayer,
     deleteLayer,
     toggleLayerLink,
+    reorderLayers,
     getNeighborBounds,
     makeSnapGuide,
     clearAutoSaveTimer,
@@ -251,6 +285,7 @@ export function TranscriptionPage() {
     dismissRecovery,
     updateTokenPos,
     batchUpdateTokenPosByForm,
+    updateTokenGloss,
   } = data;
 
   // ---- Recovery banner ----
@@ -339,7 +374,6 @@ export function TranscriptionPage() {
 
   const [analysisTab, setAnalysisTab] = useState<AnalysisBottomTab>('embedding');
   const [hubSidebarTab, setHubSidebarTab] = useState<'assistant' | 'analysis'>('assistant');
-  const [assistantVoiceExpanded, setAssistantVoiceExpanded] = useState(false);
 
   const {
     showProjectSetup,
@@ -445,6 +479,9 @@ export function TranscriptionPage() {
     fireAndForget(refreshEmbeddingTasks());
   }, [refreshEmbeddingTasks, state.phase]);
 
+  // Pre-declare executeActionRef before useAiToolCallHandler; populated after useKeybindingActions.
+  const executeActionRef = useRef<((actionId: string) => void) | undefined>(undefined);
+
   const handleAiToolCall = useAiToolCallHandler({
     utterances,
     selectedUtterance,
@@ -455,11 +492,18 @@ export function TranscriptionPage() {
     layerLinks,
     createLayer: createLayerWithActiveContext,
     createNextUtterance: _createNextUtterance,
+    splitUtterance,
     deleteUtterance,
     deleteLayer,
     toggleLayerLink,
     saveUtteranceText,
     saveTextTranslationForUtterance,
+    updateTokenPos,
+    batchUpdateTokenPosByForm,
+    updateTokenGloss,
+    ...(executeActionRef.current ? { executeAction: executeActionRef.current } : {}),
+    getSegments: () => utterancesOnCurrentMedia,
+    navigateTo: selectUtterance,
   });
 
   const buildAiPromptContext = useCallback(() => {
@@ -484,6 +528,7 @@ export function TranscriptionPage() {
       shortTerm: {
         page: 'transcription',
         ...(selectedUtterance?.id ? { selectedUtteranceId: selectedUtterance.id } : {}),
+        ...(selectedUtterance ? { selectedUtteranceStartSec: selectedUtterance.startTime, selectedUtteranceEndSec: selectedUtterance.endTime } : {}),
         ...(selectedLayer?.id ? { selectedLayerId: selectedLayer.id } : {}),
         ...(selectedLayerType ? { selectedLayerType } : {}),
         ...(selectedTranslationLayerId ? { selectedTranslationLayerId } : {}),
@@ -507,6 +552,45 @@ export function TranscriptionPage() {
   }, [aiConfidenceAvg, formatTime, getUtteranceTextForLayer, layers, selectedLayerId, selectedUtterance, state, translationLayers, undoHistory, utterances.length]);
 
   const handleAiToolRiskCheck = useCallback((call: AiChatToolCall): AiToolRiskCheckResult | null => {
+    // ── delete_layer 层存在性预检 | Pre-check layer existence for delete_layer ──
+    if (call.name === 'delete_layer') {
+      const layerId = String(call.arguments.layerId ?? '').trim();
+      if (layerId) {
+        // 精确 ID 匹配 | Exact ID match
+        const exists = transcriptionLayers.some((l) => l.id === layerId)
+          || translationLayers.some((l) => l.id === layerId);
+        if (!exists) {
+          return { requiresConfirmation: false, riskSummary: `未找到目标层：${layerId}`, impactPreview: [] };
+        }
+      } else {
+        // layerType + languageQuery 模糊匹配 | Fuzzy match by layerType + languageQuery
+        const layerType = String(call.arguments.layerType ?? '').trim().toLowerCase();
+        const languageQuery = String(call.arguments.languageQuery ?? '').trim();
+        if (layerType && languageQuery) {
+          const pool = layerType === 'translation' ? translationLayers
+            : layerType === 'transcription' ? transcriptionLayers : [];
+          const code = resolveLanguageQuery(languageQuery);
+          // 尝试用 ISO 639-3 code 和原始查询匹配层字段 | Try matching layer fields with ISO code and raw query
+          const matchTokens = [languageQuery.toLowerCase(), ...(code ? [code] : [])];
+          const entry = code ? SUPPORTED_VOICE_LANGS.flatMap((g) => g.langs).find((l) => l.code === code) : undefined;
+          if (entry) entry.label.split(/\s*\/\s*/).forEach((p) => matchTokens.push(p.trim().toLowerCase()));
+          const matched = pool.filter((layer) => {
+            const fields = [layer.languageId, layer.key, layer.name.zho, layer.name.eng]
+              .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+              .map((v) => v.trim().toLowerCase());
+            return matchTokens.some((t) => fields.some((f) => f.includes(t) || t.includes(f)));
+          });
+          if (matched.length === 0) {
+            return { requiresConfirmation: false, riskSummary: `未找到匹配“${languageQuery}”的${layerType === 'translation' ? '翻译' : '转写'}层`, impactPreview: [] };
+          }
+          if (matched.length > 1) {
+            return { requiresConfirmation: false, riskSummary: `匹配到多个${layerType === 'translation' ? '翻译' : '转写'}层，请改用 layerId 精确指定。`, impactPreview: [] };
+          }
+        }
+      }
+      return null; // 继续默认确认流程 | Continue default confirmation flow
+    }
+
     if (call.name !== 'delete_transcription_segment') return null;
 
     const utteranceId = String(call.arguments.utteranceId ?? '').trim();
@@ -540,10 +624,10 @@ export function TranscriptionPage() {
       impactPreview: [
         `内容预览：${transcriptionPreview}`,
         `关联影响：${translationLayerCountWithText} 个翻译层包含文本，删除后会失去关联`,
-        '删除后在当前应用内不可恢复',
+        '可通过撤销（Undo）恢复',
       ],
     };
-  }, [formatTime, getUtteranceTextForLayer, translations, utterances]);
+  }, [formatTime, getUtteranceTextForLayer, transcriptionLayers, translationLayers, translations, utterances]);
 
   const aiChat = useAiChat({
     onToolCall: handleAiToolCall,
@@ -597,6 +681,66 @@ export function TranscriptionPage() {
   const waveCanvasRef = useRef<HTMLDivElement | null>(null);
   const [zoomPercent, setZoomPercent] = useState(100);
   const [zoomMode, setZoomMode] = useState<'fit-all' | 'fit-selection' | 'custom'>('fit-all');
+  const [isTimelineLaneHeaderCollapsed, setIsTimelineLaneHeaderCollapsed] = useState(false);
+  const [showAllLayerConnectors, setShowAllLayerConnectors] = useState(false);
+  const [timelineLaneHeights, setTimelineLaneHeights] = useState<Record<string, number>>(() => {
+    try {
+      const stored = localStorage.getItem('jieyu:lane-heights');
+      if (stored) { const parsed: unknown = JSON.parse(stored); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, number>; }
+    } catch {}
+    return {};
+  });
+  const [waveformHeight, setWaveformHeight] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem('jieyu:waveform-height');
+      if (stored) return Math.min(Math.max(Number(stored), 80), 400);
+    } catch {}
+    return 180;
+  });
+  const waveformResizeRef = useRef<{ startY: number; startHeight: number; startAmplitude: number } | null>(null);
+  const [isResizingWaveform, setIsResizingWaveform] = useState(false);
+  /** 视频预览面板高度（可拖动调整）| Video preview panel height (drag-resizable) */
+  const [videoPreviewHeight, setVideoPreviewHeight] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem('jieyu:video-preview-height');
+      if (stored) return Math.min(Math.max(Number(stored), 120), 600);
+    } catch {}
+    return 220;
+  });
+  const videoPreviewResizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
+  const [isResizingVideoPreview, setIsResizingVideoPreview] = useState(false);
+  const videoRightPanelResizeRef = useRef<{ startX: number; startWidth: number; factor: number } | null>(null);
+  const [isResizingVideoRightPanel, setIsResizingVideoRightPanel] = useState(false);
+  const [videoRightPanelWidth, setVideoRightPanelWidth] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem('jieyu:video-right-panel-width');
+      if (stored) return Math.min(Math.max(Number(stored), 260), 720);
+    } catch {}
+    return 360;
+  });
+  /** 视频布局模式（上方/右侧/左侧），持久化到 localStorage | Video layout mode (top/right/left), persisted to localStorage */
+  const [videoLayoutMode, setVideoLayoutMode] = useState<VideoLayoutMode>(() => {
+    try {
+      const stored = localStorage.getItem('jieyu:video-layout-mode');
+      return (stored === 'right' || stored === 'left') ? stored as VideoLayoutMode : 'top';
+    } catch {
+      return 'top';
+    }
+  });
+  /** 波形增益倍率 | Waveform amplitude scale via barHeight, persisted to localStorage */
+  const [amplitudeScale, setAmplitudeScale] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem('jieyu:amplitude-scale');
+      if (stored) return Math.min(Math.max(Number(stored), 0.25), 4);
+    } catch {}
+    return 1;
+  });
+  /** 播放时自动滚动到当前语段 | Auto-scroll timeline rows to playhead during playback */
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+  /** 清洁标注模式开关 | Focus / Clean annotation mode */
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  /** 快捷键面板开关 | Keyboard shortcuts panel visibility */
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [snapEnabled, setSnapEnabled] = useState(false);
   const [hoverTime, setHoverTime] = useState<{ time: number; x: number; y: number } | null>(null);
   const [segMarkStart, setSegMarkStart] = useState<number | null>(null);
@@ -691,6 +835,9 @@ export function TranscriptionPage() {
     mergeSelectedUtterances,
     mergeWithPrevious,
     mergeWithNext,
+    onMergeTargetMissing: () => {
+      setSaveState({ kind: 'error', message: '请先选择一个句段再执行合并' });
+    },
     splitUtterance,
     selectAllBefore,
     selectAllAfter,
@@ -741,6 +888,8 @@ export function TranscriptionPage() {
     zoomLevel: zoomPxPerSec,
     startMarker: segMarkStart ?? undefined,
     subSelection: subSelectionRange,
+    waveformHeight,
+    amplitudeScale,
     onRegionAltPointerDown: (regionId, time, pointerId, _clientX) => {
       // Begin sub-range drag
       subSelectDragRef.current = { active: false, regionId, anchorTime: time, pointerId };
@@ -1161,6 +1310,12 @@ export function TranscriptionPage() {
       .map((item) => Object.values(item.lemma)[0] ?? item.id);
   }, [actionableObserverRecommendations, lexemeMatches, observerResult.stage]);
 
+  const handleExecuteObserverRecommendation = useCallback((item: AiObserverRecommendation) => {
+    const match = actionableObserverRecommendations.find((candidate) => candidate.id === item.id);
+    if (!match) return;
+    fireAndForget(handleExecuteRecommendation(match));
+  }, [actionableObserverRecommendations, handleExecuteRecommendation]);
+
   // Keep focused layer rail row in sync with available layers.
   useEffect(() => {
     if (layerRailRows.length === 0) {
@@ -1232,7 +1387,6 @@ export function TranscriptionPage() {
   // ---- Keybinding system (from hook) ----
   // toggleVoice is wired via ref to break the forward-declaration cycle.
   const toggleVoiceRef = useRef<(() => void) | undefined>(undefined);
-
   const {
     handlePlayPauseAction: _handlePlayPauseAction,
     handleGlobalPlayPauseAction,
@@ -1273,6 +1427,12 @@ export function TranscriptionPage() {
     toggleNotes,
     toggleVoice: useCallback(() => toggleVoiceRef.current?.(), []),
   });
+
+  // JKL shuttle — global broadcast-standard playback control + frame stepping
+  useJKLShuttle(player);
+
+  // Wire executeActionRef so useAiToolCallHandler (called earlier) can access executeAction.
+  executeActionRef.current = executeAction;
 
   // ---- Voice Agent ----
   // insertDictation: write dictated text to the active translation or transcription layer
@@ -1338,194 +1498,47 @@ export function TranscriptionPage() {
     });
   }, [data.pushUndo, setSaveState, data]);
 
-  const voiceAgentOptions: Parameters<typeof useVoiceAgent>[0] = {
-    corpusLang: effectiveVoiceCorpusLang,
-    langOverride: voiceCorpusLangOverride,
+  const {
+    voiceAgent,
+    assistantVoiceExpanded,
+    voiceTargetSummary,
+    voiceStatusSummary,
+    voiceEnvironmentSummary,
+    voiceSelectionSummary,
+    handleVoiceCommercialConfigChange,
+    handleVoiceAssistantIconClick,
+    handleVoiceSwitchEngine,
+    handleMicPointerDown,
+    handleMicPointerUp,
+    handleAssistantVoicePanelToggle,
+  } = useVoiceInteraction({
+    effectiveVoiceCorpusLang,
+    voiceCorpusLangOverride,
     executeAction,
-    sendToAiChat: (text: string) => {
-      // V2: Wire analysis result fill-back — set up callback before send so the
-      // AI response is captured and written to the utterance notes when streaming ends.
-      void (async () => {
-        const utteranceId = selectedUtterance?.id ?? null;
-        voiceAgent.setAnalysisFillCallback?.(utteranceId, (analysisText) => {
-          handleVoiceAnalysisResult(utteranceId, analysisText);
-        });
-        // Also register via aiChat.onMessageComplete so the result fires when streaming finishes
-        await aiChat.send(text);
-      })();
-    },
-    resolveIntentWithLlm: handleResolveVoiceIntentWithLlm,
-    insertDictation: handleVoiceDictation,
-    // whisper-local uses whisper-server (port 3040), not Ollama (port 11434)
-    ...(localWhisperConfig.baseUrl ? { whisperServerUrl: localWhisperConfig.baseUrl } : {}),
-    ...(localWhisperConfig.model ? { whisperServerModel: localWhisperConfig.model } : {}),
-    commercialProviderKind: commercialProviderKind,
+    handleResolveVoiceIntentWithLlm,
+    handleVoiceDictation,
+    onVoiceAnalysisResult: handleVoiceAnalysisResult,
+    selectedUtteranceId: selectedUtterance?.id ?? null,
+    selectedUtterance: selectedUtterance ?? null,
+    selectedRowMeta,
+    selectedLayerId,
+    ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
+    translationLayers,
+    layers,
+    formatLayerRailLabel,
+    formatTime,
+    aiChatSend: aiChat.send,
+    aiIsStreaming: aiChat.isStreaming,
+    aiMessages: aiChat.messages,
+    localWhisperConfig,
+    commercialProviderKind,
     commercialProviderConfig,
-  };
-  const voiceAgent = useVoiceAgent(voiceAgentOptions);
-  const voiceTargetSummary = useMemo(() => {
-    const rowLabel = selectedRowMeta ? `第 ${selectedRowMeta.rowNumber} 句` : (selectedUtterance ? '当前句段' : '未选择句段');
-
-    if (voiceAgent.mode === 'command') {
-      return '当前页面操作';
-    }
-
-    if (voiceAgent.mode === 'analysis') {
-      return selectedUtterance ? `${rowLabel} / AI 分析备注` : '未选择句段';
-    }
-
-    const targetLayerId = selectedLayerId ?? defaultTranscriptionLayerId ?? translationLayers[0]?.id;
-    const targetLayer = targetLayerId ? layers.find((layer) => layer.id === targetLayerId) : undefined;
-    const layerLabel = targetLayer ? formatLayerRailLabel(targetLayer) : '未选择层';
-    return `${layerLabel} / ${rowLabel}`;
-  }, [voiceAgent.mode, selectedRowMeta, selectedUtterance, selectedLayerId, defaultTranscriptionLayerId, translationLayers, layers]);
-
-  const voiceStatusSummary = useMemo(() => {
-    switch (voiceAgent.agentState) {
-      case 'listening':
-        return voiceAgent.mode === 'dictation' ? '正在听写，请直接说出要写入的内容。' : '正在监听，请开始说话。';
-      case 'routing':
-        return '已识别语音，正在判断意图。';
-      case 'executing':
-        if (voiceAgent.mode === 'dictation') return '正在将识别结果写入文本框。';
-        if (voiceAgent.mode === 'analysis') return '正在准备发送到 AI 分析。';
-        return '正在执行语音操作。';
-      case 'ai-thinking':
-        return '正在等待 AI 处理结果。';
-      case 'idle':
-      default:
-        return voiceAgent.listening ? '语音通道已开启，等待下一句输入。' : '就绪，点击麦克风开始语音交互。';
-    }
-  }, [voiceAgent.agentState, voiceAgent.mode, voiceAgent.listening]);
-
-  const voiceEnvironmentSummary = useMemo(() => {
-    const currentLanguage = voiceCorpusLangOverride === '__auto__'
-      ? '自动检测'
-      : formatLanguageLabel(voiceCorpusLangOverride ?? effectiveVoiceCorpusLang);
-    const currentEngine = voiceAgent.engine === 'web-speech'
-      ? 'Web Speech'
-      : voiceAgent.engine === 'whisper-local'
-        ? 'Ollama Whisper'
-        : '商业模型';
-    const detectedLanguage = voiceCorpusLangOverride === '__auto__' && voiceAgent.detectedLang
-      ? ` · 已识别 ${formatLanguageLabel(voiceAgent.detectedLang)}`
-      : '';
-    return `${currentLanguage} · ${currentEngine}${detectedLanguage}`;
-  }, [voiceCorpusLangOverride, effectiveVoiceCorpusLang, voiceAgent.engine, voiceAgent.detectedLang]);
-  const voiceSelectionSummary = useMemo(() => {
-    if (selectedRowMeta) {
-      return `${formatTime(selectedRowMeta.start)} - ${formatTime(selectedRowMeta.end)}`;
-    }
-    if (selectedUtterance) {
-      return `${formatTime(selectedUtterance.startTime)} - ${formatTime(selectedUtterance.endTime)}`;
-    }
-    return '未定位句段';
-  }, [selectedRowMeta, selectedUtterance]);
-  const prevAiStreamingRef = useRef(false);
-
-  useEffect(() => {
-    const wasStreaming = prevAiStreamingRef.current;
-    const isStreaming = aiChat.isStreaming;
-
-    if (!wasStreaming && isStreaming) {
-      voiceAgent.notifyAiStreamStarted?.();
-    }
-
-    if (wasStreaming && !isStreaming) {
-      // V2: Find the most recent assistant message and pass it to notifyAiStreamFinished
-      // so that analysis mode can capture the AI response for utterance fill-back.
-      const latestAssistant = aiChat.messages.find((m) => m.role === 'assistant' && m.status === 'done');
-      voiceAgent.notifyAiStreamFinished?.(latestAssistant?.content);
-    }
-
-    prevAiStreamingRef.current = isStreaming;
-  }, [aiChat.isStreaming, aiChat.messages, voiceAgent]);
-
-  const ensureWhisperLocalReady = useCallback(async (): Promise<boolean> => {
-    const result = await voiceAgent.testWhisperLocal();
-    if (!result.available) {
-      voiceAgent.setExternalError(result.error ?? '本地 Whisper 不可用');
-      return false;
-    }
-    voiceAgent.setExternalError(null);
-    return true;
-  }, [voiceAgent]);
-
-  const handleVoiceCommercialConfigChange = useCallback((config: {
-    apiKey?: string;
-    baseUrl?: string;
-    model?: string;
-    appId?: string;
-    accessToken?: string;
-  }) => {
-    applyVoiceCommercialConfigChange(config, handleCommercialConfigChange, voiceAgent.setCommercialProviderConfig);
-  }, [handleCommercialConfigChange, voiceAgent]);
-
-  // Sync voice agent commercial provider state back to page-level state
-  useEffect(() => {
-    setCommercialProviderKind(voiceAgent.commercialProviderKind);
-  }, [voiceAgent.commercialProviderKind]);
-
-  useEffect(() => {
-    setCommercialProviderConfig(voiceAgent.commercialProviderConfig);
-  }, [voiceAgent.commercialProviderConfig]);
-
-  // Wire toggleVoiceRef so the keybinding can toggle voice without circular deps.
-  useEffect(() => {
-    toggleVoiceRef.current = featureFlags.voiceAgentEnabled ? voiceAgent.toggle : undefined;
-  }, [voiceAgent.toggle]);
-
-  const handleVoiceAssistantIconClick = useCallback(() => {
-    void (async () => {
-      if (voiceAgent.listening) {
-        voiceAgent.toggle();
-        return;
-      }
-      if (voiceAgent.engine === 'whisper-local') {
-        const ready = await ensureWhisperLocalReady();
-        if (!ready) return;
-      }
-      voiceAgent.toggle();
-    })();
-  }, [ensureWhisperLocalReady, voiceAgent]);
-
-  const handleVoiceSwitchEngine = useCallback((engine: 'web-speech' | 'whisper-local' | 'commercial') => {
-    void (async () => {
-      if (engine === 'whisper-local') {
-        const ready = await ensureWhisperLocalReady();
-        if (!ready) return;
-      }
-      voiceAgent.switchEngine(engine);
-    })();
-  }, [ensureWhisperLocalReady, voiceAgent]);
-
-  // Press-and-hold for whisper-local push-to-talk recording
-  const handleMicPointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
-    void event;
-    if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
-      void (async () => {
-        const ready = await ensureWhisperLocalReady();
-        if (!ready) return;
-        void voiceAgent.startRecording();
-      })();
-    }
-  }, [ensureWhisperLocalReady, voiceAgent]);
-
-  const handleMicPointerUp = useCallback(() => {
-    if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
-      void voiceAgent.stopRecording();
-    }
-  }, [voiceAgent.listening, voiceAgent.engine, voiceAgent.stopRecording]);
-
-  const handleAssistantVoicePanelToggle = useCallback(() => {
-    setAssistantVoiceExpanded((value) => !value);
-  }, []);
-
-  useEffect(() => {
-    if (voiceAgent.listening || voiceAgent.isRecording || Boolean(voiceAgent.pendingConfirm) || Boolean(voiceAgent.error)) {
-      setAssistantVoiceExpanded(true);
-    }
-  }, [voiceAgent.listening, voiceAgent.isRecording, voiceAgent.pendingConfirm, voiceAgent.error]);
+    onCommercialConfigChange: handleCommercialConfigChange,
+    setCommercialProviderKind,
+    setCommercialProviderConfig,
+    featureVoiceEnabled: featureFlags.voiceAgentEnabled,
+    toggleVoiceRef,
+  });
 
   const aiPanelContextValue = useMemo(() => ({
     dbName: state.phase === 'ready' ? state.dbName : '',
@@ -1551,6 +1564,8 @@ export function TranscriptionPage() {
     aiContextDebugSnapshot: aiChat.contextDebugSnapshot,
     aiPendingToolCall: aiChat.pendingToolCall,
     aiTaskSession: aiChat.taskSession,
+    aiInteractionMetrics: aiChat.metrics,
+    aiSessionMemory: aiChat.sessionMemory,
     aiToolDecisionLogs,
     onUpdateAiChatSettings: aiChat.updateSettings,
     onTestAiConnection: aiChat.testConnection,
@@ -1706,10 +1721,11 @@ export function TranscriptionPage() {
   });
 
   useEffect(() => {
+    if (!autoScrollEnabled) return;
     if (!selectedUtterance) return;
     const row = utteranceRowRef.current[selectedUtterance.id];
     row?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [selectedUtterance?.id]);
+  }, [autoScrollEnabled, selectedUtterance?.id]);
 
   // ── Import / Export (extracted hook) ──
 
@@ -1828,175 +1844,416 @@ export function TranscriptionPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  const timelineRenderUtterances = useMemo(() => {
-    if (!rulerView || player.duration <= 0) return utterancesOnCurrentMedia;
-    const viewSpan = Math.max(0, rulerView.end - rulerView.start);
-    const buffer = Math.max(1, viewSpan * 0.45);
-    const left = Math.max(0, rulerView.start - buffer);
-    const right = Math.min(player.duration, rulerView.end + buffer);
-    return utterancesOnCurrentMedia.filter((utt) => utt.endTime >= left && utt.startTime <= right);
-  }, [utterancesOnCurrentMedia, rulerView, player.duration]);
-
-  const { handleAnnotationClick, renderAnnotationItem, renderLaneLabel } = useTimelineAnnotationHelpers({
-    manualSelectTsRef,
-    player,
-    selectedUtteranceId,
-    selectUtteranceRange,
-    toggleUtteranceSelection,
-    selectUtterance,
-    setSelectedLayerId,
-    onFocusLayerRow: handleFocusLayerRow,
-    tierContainerRef,
-    zoomPxPerSec,
-    setCtxMenu,
-    navigateUtteranceFromInput,
-    waveformAreaRef,
-    dragPreview,
-    selectedUtteranceIds,
-    focusedLayerRowId,
-    zoomToUtterance,
-    startTimelineResizeDrag,
-    noteCounts,
-    handleNoteClick,
-  });
-
-  const selectedBatchUtterances = useMemo(
-    () => utterancesOnCurrentMedia
-      .filter((utt) => selectedUtteranceIds.has(utt.id))
-      .sort((a, b) => a.startTime - b.startTime),
-    [selectedUtteranceIds, utterancesOnCurrentMedia],
-  );
-
-  const selectedBatchUtteranceTextById = useMemo(() => {
-    const next: Record<string, string> = {};
-    for (const utt of selectedBatchUtterances) {
-      next[utt.id] = getUtteranceTextForLayer(utt) || '';
-    }
-    return next;
-  }, [getUtteranceTextForLayer, selectedBatchUtterances]);
-
-  const batchPreviewLayerOptions = useMemo(
-    () => transcriptionLayers.map((layer) => ({
-      id: layer.id,
-      label: formatLayerRailLabel(layer),
-    })),
-    [transcriptionLayers],
-  );
-
-  const batchPreviewTextByLayerId = useMemo(() => {
-    const next: Record<string, Record<string, string>> = {};
-    for (const layer of transcriptionLayers) {
-      const layerMap: Record<string, string> = {};
-      for (const utt of utterancesOnCurrentMedia) {
-        layerMap[utt.id] = getUtteranceTextForLayer(utt, layer.id) || '';
+  // 清洁标注模式快捷键：Cmd+Shift+F 切换，Escape 退出 | Focus mode: Mod+Shift+F to toggle, Escape to exit
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const hasMod = event.metaKey || event.ctrlKey;
+      if (hasMod && event.shiftKey && !event.altKey && event.key.toLowerCase() === 'f') {
+        // Only if Cmd+F search is not intended (search is just Cmd+F, not Cmd+Shift+F)
+        event.preventDefault();
+        setIsFocusMode((prev) => !prev);
+        return;
       }
-      next[layer.id] = layerMap;
-    }
-    return next;
-  }, [getUtteranceTextForLayer, transcriptionLayers, utterancesOnCurrentMedia]);
+      if (event.key === 'Escape') {
+        // Exit focus mode on Escape regardless of focus target
+        setIsFocusMode((prev) => { if (prev) { event.preventDefault(); return false; } return prev; });
+      }
+      if (event.key === '?' && !event.ctrlKey && !event.metaKey) {
+        const target = event.target as HTMLElement | null;
+        if (!target || (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable)) {
+          event.preventDefault();
+          setShowShortcuts((prev) => !prev);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
-  const defaultBatchPreviewLayerId = useMemo(() => {
-    if (transcriptionLayers.some((layer) => layer.id === selectedLayerId)) {
-      return selectedLayerId;
-    }
-    return transcriptionLayers[0]?.id;
-  }, [selectedLayerId, transcriptionLayers]);
+  useEffect(() => {
+    const layerIds = new Set(layers.map((layer) => layer.id));
+    setTimelineLaneHeights((prev) => {
+      const next = Object.fromEntries(
+        Object.entries(prev).filter(([layerId]) => layerIds.has(layerId)),
+      );
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+  }, [layers]);
 
-  const editorContextValue = useMemo(() => ({
-    utteranceDrafts,
-    setUtteranceDrafts,
-    translationDrafts,
-    setTranslationDrafts,
-    translationTextByLayer,
-    focusedTranslationDraftKeyRef,
-    scheduleAutoSave,
-    clearAutoSaveTimer,
-    saveUtteranceText,
-    saveTextTranslationForUtterance,
-    getUtteranceTextForLayer,
-    renderLaneLabel,
-  }), [
-    utteranceDrafts,
-    setUtteranceDrafts,
-    translationDrafts,
-    setTranslationDrafts,
-    translationTextByLayer,
-    scheduleAutoSave,
-    clearAutoSaveTimer,
-    saveUtteranceText,
-    saveTextTranslationForUtterance,
-    getUtteranceTextForLayer,
-    renderLaneLabel,
-  ]);
+  const handleTimelineLaneHeightChange = useCallback((layerId: string, nextHeight: number) => {
+    setTimelineLaneHeights((prev) => {
+      if (nextHeight === DEFAULT_TIMELINE_LANE_HEIGHT) {
+        if (!(layerId in prev)) return prev;
+        const next = { ...prev };
+        delete next[layerId];
+        return next;
+      }
+      if (prev[layerId] === nextHeight) return prev;
+      return { ...prev, [layerId]: nextHeight };
+    });
+  }, []);
 
-  return (
-    <section className="transcription-screen" ref={screenRef}>
-      {state.phase === 'loading' && <p className="hint">{t(locale, 'transcription.status.loading')}</p>}
-      {state.phase === 'error' && <p className="error">{tf(locale, 'transcription.status.dbError', { message: state.message })}</p>}
+  // 持久化层高到 localStorage | Persist lane heights to localStorage
+  useEffect(() => {
+    try { localStorage.setItem('jieyu:lane-heights', JSON.stringify(timelineLaneHeights)); } catch {}
+  }, [timelineLaneHeights]);
 
-      {state.phase === 'ready' && (
-        <>
-          <RecoveryBanner
-            locale={locale}
-            recoveryAvailable={recoveryAvailable}
-            recoveryDiffSummary={recoveryDiffSummary}
-            onApply={() => {
-              const snap = recoveryDataRef.current;
-              if (snap) fireAndForget(applyRecovery(snap));
-              hideRecoveryBanner();
-            }}
-            onDismiss={() => {
-              fireAndForget(dismissRecovery());
-              hideRecoveryBanner();
-            }}
-          />
-          <section className="transcription-waveform">
-            <WaveformToolbar
-              filename={selectedUtteranceMedia?.filename ?? t(locale, 'transcription.media.unbound')}
-              isReady={player.isReady}
-              isPlaying={player.isPlaying}
-              playbackRate={player.playbackRate}
-              onPlaybackRateChange={player.setPlaybackRate}
-              volume={player.volume}
-              onVolumeChange={player.setVolume}
-              loop={globalLoopPlayback}
-              onLoopChange={setGlobalLoopPlayback}
-              onTogglePlayback={handleGlobalPlayPauseAction}
-              onSeek={player.seekBySeconds}
-            >
-              <TranscriptionToolbarActions
-                canUndo={canUndo}
-                canRedo={canRedo}
-                undoLabel={undoLabel}
-                canDeleteAudio={Boolean(selectedUtteranceMedia)}
-                canDeleteProject={Boolean(activeTextId)}
-                canToggleNotes={Boolean(selectedUtteranceId)}
-                canOpenUttOpsMenu={Boolean(selectedUtteranceId)}
-                notePopoverOpen={Boolean(notePopover)}
-                showExportMenu={showExportMenu}
-                exportMenuRef={exportMenuRef}
-                importFileRef={importFileRef}
-                onRefresh={() => fireAndForget(loadSnapshot())}
-                onUndo={() => fireAndForget(undo())}
-                onRedo={() => fireAndForget(redo())}
-                onOpenProjectSetup={() => setShowProjectSetup(true)}
-                onOpenAudioImport={() => setShowAudioImport(true)}
-                onDeleteCurrentAudio={handleDeleteCurrentAudio}
-                onDeleteCurrentProject={handleDeleteCurrentProject}
-                onToggleExportMenu={() => setShowExportMenu((v) => !v)}
-                onExportEaf={handleExportEaf}
-                onExportTextGrid={handleExportTextGrid}
-                onExportTrs={handleExportTrs}
-                onExportFlextext={handleExportFlextext}
-                onExportToolbox={handleExportToolbox}
-                onExportJyt={handleExportJyt}
-                onExportJym={handleExportJym}
-                onImportFile={(file) => { fireAndForget(handleImportFile(file)); }}
-                onToggleNotes={toggleNotes}
-                onOpenUttOpsMenu={(x, y) => setUttOpsMenu({ x, y })}
-              />
-            </WaveformToolbar>
+  // 持久化波形高度到 localStorage | Persist waveform height to localStorage
+  useEffect(() => {
+    try { localStorage.setItem('jieyu:waveform-height', String(waveformHeight)); } catch {}
+  }, [waveformHeight]);
+
+  // 持久化增益倍率到 localStorage | Persist amplitude scale to localStorage
+  useEffect(() => {
+    try { localStorage.setItem('jieyu:amplitude-scale', String(amplitudeScale)); } catch {}
+  }, [amplitudeScale]);
+
+  // 波形区域高度拖拽调整 | Waveform area height resize via drag
+  useEffect(() => {
+    if (!isResizingWaveform) return;
+    const handleMove = (e: PointerEvent): void => {
+      const drag = waveformResizeRef.current;
+      if (!drag) return;
+      const nextHeight = Math.min(Math.max(Math.round(drag.startHeight + e.clientY - drag.startY), 80), 400);
+      setWaveformHeight(nextHeight);
+
+      // 任意媒体模式下拖动同调幅度倍率 | In both video and audio modes, drag also updates amplitude scale.
+      if (drag.startHeight > 0) {
+        const ratio = nextHeight / drag.startHeight;
+        const nextAmplitude = Math.min(
+          Math.max(Number((drag.startAmplitude * ratio).toFixed(2)), 0.25),
+          4,
+        );
+        setAmplitudeScale(nextAmplitude);
+      }
+    };
+    const stop = (): void => {
+      waveformResizeRef.current = null;
+      setIsResizingWaveform(false);
+    };
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', stop);
+    window.addEventListener('pointercancel', stop);
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ns-resize';
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [isResizingWaveform]);
+
+  // 视频预览面板高度拖拽调整 | Video preview height resize via drag
+  useEffect(() => {
+    if (!isResizingVideoPreview) return;
+    const handleMove = (e: PointerEvent): void => {
+      const drag = videoPreviewResizeRef.current;
+      if (!drag) return;
+      const next = Math.min(Math.max(Math.round(drag.startHeight + e.clientY - drag.startY), 120), 600);
+      setVideoPreviewHeight(next);
+    };
+    const stop = (): void => {
+      videoPreviewResizeRef.current = null;
+      setIsResizingVideoPreview(false);
+    };
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', stop);
+    window.addEventListener('pointercancel', stop);
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ns-resize';
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [isResizingVideoPreview]);
+
+  // 右侧/左侧视频面板宽度拖拽调整 | Side video panel width resize via drag
+  useEffect(() => {
+    if (!isResizingVideoRightPanel) return;
+    const handleMove = (e: PointerEvent): void => {
+      const drag = videoRightPanelResizeRef.current;
+      if (!drag) return;
+      // factor=1: 右侧（向左拉大）; factor=-1: 左侧（向右拉大）
+      // factor=1: right layout (drag left = bigger); factor=-1: left layout (drag right = bigger)
+      const next = Math.min(Math.max(Math.round(drag.startWidth + drag.factor * (drag.startX - e.clientX)), 260), 720);
+      setVideoRightPanelWidth(next);
+    };
+    const stop = (): void => {
+      videoRightPanelResizeRef.current = null;
+      setIsResizingVideoRightPanel(false);
+    };
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', stop);
+    window.addEventListener('pointercancel', stop);
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ew-resize';
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [isResizingVideoRightPanel]);
+
+  // 切换到非侧边布局时，强制结束拖拽状态，避免游标残留 | Force-stop side resize state when leaving side layout to avoid cursor residue
+  useEffect(() => {
+    if (videoLayoutMode === 'right' || videoLayoutMode === 'left') return;
+    videoRightPanelResizeRef.current = null;
+    setIsResizingVideoRightPanel(false);
+  }, [videoLayoutMode]);
+
+  // Persist video preview height to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('jieyu:video-preview-height', String(videoPreviewHeight));
+    } catch {}
+  }, [videoPreviewHeight]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('jieyu:video-layout-mode', videoLayoutMode);
+    } catch {}
+  }, [videoLayoutMode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('jieyu:video-right-panel-width', String(videoRightPanelWidth));
+    } catch {}
+  }, [videoRightPanelWidth]);
+
+    const selectedBatchUtterances = useMemo(
+        () => utterancesOnCurrentMedia
+            .filter((utt) => selectedUtteranceIds.has(utt.id))
+            .sort((a, b) => a.startTime - b.startTime),
+        [selectedUtteranceIds, utterancesOnCurrentMedia],
+    );
+
+    const {
+        speakerOptions,
+        speakerDraftName,
+        setSpeakerDraftName,
+        batchSpeakerId,
+        setBatchSpeakerId,
+        speakerSaving,
+        activeSpeakerFilterKey,
+        setActiveSpeakerFilterKey,
+        speakerVisualByUtteranceId,
+        speakerFilterOptions,
+        selectedSpeakerSummary,
+        handleSelectSpeakerUtterances,
+        handleClearSpeakerAssignments,
+        handleExportSpeakerSegments,
+        handleRenameSpeaker,
+        handleMergeSpeaker,
+        handleAssignSpeakerToSelected,
+        handleCreateSpeakerAndAssign,
+    } = useSpeakerManagement({
+        utterancesOnCurrentMedia,
+        selectedUtteranceId,
+        selectedUtteranceIds,
+        selectedBatchUtterances,
+        isReady: state.phase === 'ready',
+        setUtteranceSelection,
+        data,
+        loadSnapshot,
+        setSaveState,
+        getUtteranceTextForLayer,
+        formatTime,
+    });
+
+    const filteredUtterancesOnCurrentMedia = useMemo(() => {
+        if (activeSpeakerFilterKey === 'all') return utterancesOnCurrentMedia;
+        return utterancesOnCurrentMedia.filter((utterance) => getUtteranceSpeakerKey(utterance) === activeSpeakerFilterKey);
+    }, [activeSpeakerFilterKey, utterancesOnCurrentMedia]);
+
+    const timelineRenderUtterances = useMemo(() => {
+        if (!rulerView || player.duration <= 0) return filteredUtterancesOnCurrentMedia;
+        const viewSpan = Math.max(0, rulerView.end - rulerView.start);
+        const buffer = Math.max(1, viewSpan * 0.45);
+        const left = Math.max(0, rulerView.start - buffer);
+        const right = Math.min(player.duration, rulerView.end + buffer);
+        return filteredUtterancesOnCurrentMedia.filter((utt) => utt.endTime >= left && utt.startTime <= right);
+    }, [filteredUtterancesOnCurrentMedia, rulerView, player.duration]);
+
+    const { handleAnnotationClick, renderAnnotationItem, renderLaneLabel } = useTimelineAnnotationHelpers({
+        manualSelectTsRef,
+        player,
+        selectedUtteranceId,
+        selectUtteranceRange,
+        toggleUtteranceSelection,
+        selectUtterance,
+        setSelectedLayerId,
+        onFocusLayerRow: handleFocusLayerRow,
+        tierContainerRef,
+        zoomPxPerSec,
+        setCtxMenu,
+        navigateUtteranceFromInput,
+        waveformAreaRef,
+        dragPreview,
+        selectedUtteranceIds,
+        focusedLayerRowId,
+        zoomToUtterance,
+        startTimelineResizeDrag,
+        noteCounts,
+        handleNoteClick,
+        speakerVisualByUtteranceId,
+    });
+
+    const selectedBatchUtteranceTextById = useMemo(() => {
+        const next: Record<string, string> = {};
+        for (const utt of selectedBatchUtterances) {
+            next[utt.id] = getUtteranceTextForLayer(utt) || '';
+        }
+        return next;
+    }, [getUtteranceTextForLayer, selectedBatchUtterances]);
+
+    const batchPreviewLayerOptions = useMemo(
+        () => transcriptionLayers.map((layer) => ({
+            id: layer.id,
+            label: formatLayerRailLabel(layer),
+        })),
+        [transcriptionLayers],
+    );
+
+    const batchPreviewTextByLayerId = useMemo(() => {
+        const next: Record<string, Record<string, string>> = {};
+        for (const layer of transcriptionLayers) {
+            const layerMap: Record<string, string> = {};
+            for (const utt of utterancesOnCurrentMedia) {
+                layerMap[utt.id] = getUtteranceTextForLayer(utt, layer.id) || '';
+            }
+            next[layer.id] = layerMap;
+        }
+        return next;
+    }, [getUtteranceTextForLayer, transcriptionLayers, utterancesOnCurrentMedia]);
+
+    const defaultBatchPreviewLayerId = useMemo(() => {
+        if (transcriptionLayers.some((layer) => layer.id === selectedLayerId)) {
+            return selectedLayerId;
+        }
+        return transcriptionLayers[0]?.id;
+    }, [selectedLayerId, transcriptionLayers]);
+
+    const editorContextValue = useMemo(() => ({
+        utteranceDrafts,
+        setUtteranceDrafts,
+        translationDrafts,
+        setTranslationDrafts,
+        translationTextByLayer,
+        focusedTranslationDraftKeyRef,
+        scheduleAutoSave,
+        clearAutoSaveTimer,
+        saveUtteranceText,
+        saveTextTranslationForUtterance,
+        getUtteranceTextForLayer,
+        renderLaneLabel,
+        createLayer: createLayerWithActiveContext,
+        deleteLayer,
+    }), [
+        utteranceDrafts,
+        setUtteranceDrafts,
+        translationDrafts,
+        setTranslationDrafts,
+        translationTextByLayer,
+        scheduleAutoSave,
+        clearAutoSaveTimer,
+        saveUtteranceText,
+        saveTextTranslationForUtterance,
+        getUtteranceTextForLayer,
+        renderLaneLabel,
+        createLayerWithActiveContext,
+        deleteLayer,
+    ]);
+
+    return (
+        <section className="transcription-screen" ref={screenRef}>
+            {state.phase === 'loading' && <p className="hint">{t(locale, 'transcription.status.loading')}</p>}
+            {state.phase === 'error' && <p className="error">{tf(locale, 'transcription.status.dbError', { message: state.message })}</p>}
+
+            {state.phase === 'ready' && (
+                <>
+                    <RecoveryBanner
+                        locale={locale}
+                        recoveryAvailable={recoveryAvailable}
+                        recoveryDiffSummary={recoveryDiffSummary}
+                        onApply={() => {
+                            const snap = recoveryDataRef.current;
+                            if (snap) fireAndForget(applyRecovery(snap));
+                            hideRecoveryBanner();
+                        }}
+                        onDismiss={() => {
+                            fireAndForget(dismissRecovery());
+                            hideRecoveryBanner();
+                        }}
+                    />
+                    <section className="transcription-waveform">
+                        <WaveformToolbar
+                            filename={selectedUtteranceMedia?.filename ?? t(locale, 'transcription.media.unbound')}
+                            isReady={player.isReady}
+                            isPlaying={player.isPlaying}
+                            playbackRate={player.playbackRate}
+                            onPlaybackRateChange={player.setPlaybackRate}
+                            volume={player.volume}
+                            onVolumeChange={player.setVolume}
+                            loop={globalLoopPlayback}
+                            onLoopChange={setGlobalLoopPlayback}
+                            onTogglePlayback={handleGlobalPlayPauseAction}
+                            onSeek={player.seekBySeconds}
+                          >
+                            <TranscriptionToolbarActions
+                              canUndo={canUndo}
+                              canRedo={canRedo}
+                              undoLabel={undoLabel}
+                              canDeleteAudio={Boolean(selectedUtteranceMedia)}
+                              canDeleteProject={Boolean(activeTextId)}
+                              canToggleNotes={Boolean(selectedUtteranceId || notePopover)}
+                              canOpenUttOpsMenu={Boolean(selectedUtteranceId)}
+                              notePopoverOpen={Boolean(notePopover)}
+                              showExportMenu={showExportMenu}
+                              importFileRef={importFileRef}
+                              exportMenuRef={exportMenuRef}
+                              onRefresh={() => {
+                                void loadSnapshot();
+                              }}
+                              onUndo={() => {
+                                void undo();
+                              }}
+                              onRedo={() => {
+                                void redo();
+                              }}
+                              onOpenProjectSetup={() => setShowProjectSetup(true)}
+                              onOpenAudioImport={() => setShowAudioImport(true)}
+                              onDeleteCurrentAudio={handleDeleteCurrentAudio}
+                              onDeleteCurrentProject={handleDeleteCurrentProject}
+                              onToggleExportMenu={() => setShowExportMenu((value) => !value)}
+                              onExportEaf={handleExportEaf}
+                              onExportTextGrid={handleExportTextGrid}
+                              onExportTrs={handleExportTrs}
+                              onExportFlextext={handleExportFlextext}
+                              onExportToolbox={handleExportToolbox}
+                              onExportJyt={handleExportJyt}
+                              onExportJym={handleExportJym}
+                              onImportFile={(file) => {
+                                void handleImportFile(file);
+                              }}
+                              onToggleNotes={toggleNotes}
+                              onOpenUttOpsMenu={(x, y) => setUttOpsMenu({ x, y })}
+                            />
+                          </WaveformToolbar>
           </section>
+          <WaveformOverviewBar
+            duration={player.duration}
+            utterances={utterancesOnCurrentMedia}
+            rulerView={rulerView ?? null}
+            onSeek={player.seekTo}
+            isReady={player.isReady}
+          />
 
           {/* Editor workspace: left side for row editing, right side for AI guidance. */}
           <ToastProvider>
@@ -2009,41 +2266,115 @@ export function TranscriptionPage() {
               '--transcription-rail-width': `${isLayerRailCollapsed ? 0 : layerRailWidth}px`,
             } as React.CSSProperties}
           >
-            <section className="transcription-list-panel">
-              <div
-                ref={waveformAreaRef}
-                className={`transcription-waveform-area ${snapGuide.nearSide ? 'transcription-waveform-area-snapping' : ''} ${segMarkStart !== null ? 'transcription-waveform-area-marking' : ''}`}
-                tabIndex={0}
-              onKeyDown={handleWaveformKeyDown}
-              onFocus={() => setWaveformFocused(true)}
-              onBlur={() => setWaveformFocused(false)}
-              onMouseMove={(e) => {
-                const el = waveCanvasRef.current;
-                if (!el || !player.isReady) { setHoverTime(null); return; }
-                const rect = el.getBoundingClientRect();
-                if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom + 30) {
-                  setHoverTime(null); return;
-                }
-                const ws = player.instanceRef.current;
-                const scrollLeft = ws ? ws.getScroll() : 0;
-                const time = (scrollLeft + (e.clientX - rect.left)) / zoomPxPerSec;
-                setHoverTime({ time: Math.max(0, Math.min(time, player.duration)), x: e.clientX, y: rect.top - 4 });
-              }}
-              onMouseLeave={() => setHoverTime(null)}
+            <section
+              className={`transcription-list-panel ${isTimelineLaneHeaderCollapsed ? 'transcription-list-panel-lane-header-collapsed' : ''}`}
+              style={{ '--lane-label-width': isTimelineLaneHeaderCollapsed ? '0px' : '64px', '--video-left-panel-width': videoLayoutMode === 'left' ? `${videoRightPanelWidth + 8}px` : '0px' } as React.CSSProperties}
             >
+              <WaveformAreaSection
+                containerRef={waveformAreaRef}
+                className={`transcription-waveform-area ${snapGuide.nearSide ? 'transcription-waveform-area-snapping' : ''} ${segMarkStart !== null ? 'transcription-waveform-area-marking' : ''} ${isResizingWaveform ? 'waveform-area-resizing' : ''}`}
+                style={{ '--waveform-height': `${waveformHeight}px` } as React.CSSProperties}
+                tabIndex={0}
+                onKeyDown={handleWaveformKeyDown}
+                onFocus={() => setWaveformFocused(true)}
+                onBlur={() => setWaveformFocused(false)}
+                onMouseMove={(e) => {
+                  const el = waveCanvasRef.current;
+                  if (!el || !player.isReady) { setHoverTime(null); return; }
+                  const rect = el.getBoundingClientRect();
+                  if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom + 30) {
+                    setHoverTime(null); return;
+                  }
+                  const ws = player.instanceRef.current;
+                  const scrollLeft = ws ? ws.getScroll() : 0;
+                  const time = (scrollLeft + (e.clientX - rect.left)) / zoomPxPerSec;
+                  setHoverTime({ time: Math.max(0, Math.min(time, player.duration)), x: e.clientX, y: rect.top - 4 });
+                }}
+                onMouseLeave={() => setHoverTime(null)}
+                onWheel={(e) => {
+                  // Ctrl+Wheel → zoom in/out at cursor position
+                  if (e.ctrlKey) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const delta = e.deltaY > 0 ? -10 : 10;
+                    setZoomPercent((prev) => Math.min(800, Math.max(10, prev + delta)));
+                    return;
+                  }
+                  // Alt+Wheel → change waveform amplitude
+                  if (e.altKey) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                    setAmplitudeScale((prev) => Math.min(4, Math.max(0.25, prev + delta)));
+                  }
+                }}
+              >
               {hoverTime && (
-                <div className="waveform-hover-tooltip" style={{ left: hoverTime.x, top: hoverTime.y }}>
-                  {formatTime(hoverTime.time)}
-                </div>
+                <WaveformHoverTooltip
+                  time={hoverTime.time}
+                  x={hoverTime.x}
+                  y={hoverTime.y}
+                  utterances={utterancesOnCurrentMedia}
+                  getUtteranceTextForLayer={getUtteranceTextForLayer}
+                  formatTime={formatTime}
+                />
               )}
+              <WaveformLeftStatusStrip
+                zoomPercent={zoomPercent}
+                snapEnabled={snapEnabled}
+                onSnapToggle={() => setSnapEnabled((v) => !v)}
+                playbackRate={player.playbackRate}
+                currentTime={player.currentTime}
+                selectedUtteranceDuration={selectedUtterance
+                  ? selectedUtterance.endTime - selectedUtterance.startTime
+                  : null}
+                amplitudeScale={amplitudeScale}
+                onAmplitudeChange={setAmplitudeScale}
+                onAmplitudeReset={() => setAmplitudeScale(1)}
+                selectedMediaIsVideo={selectedMediaIsVideo}
+                videoLayoutMode={videoLayoutMode}
+                onVideoLayoutModeChange={setVideoLayoutMode}
+                formatTime={formatTime}
+              />
+              <div className="waveform-content-offset">
               {selectedMediaUrl ? (
                 <>
-                  <div
-                    ref={(el) => {
-                      waveCanvasRef.current = el;
-                      player.waveformRef.current = el;
+                  <VideoPreviewSection
+                    selectedMediaIsVideo={selectedMediaIsVideo}
+                    selectedMediaUrl={selectedMediaUrl}
+                    videoLayoutMode={videoLayoutMode}
+                    videoPreviewHeight={videoPreviewHeight}
+                    videoRightPanelWidth={videoRightPanelWidth}
+                    waveformRegions={waveformRegions}
+                    selectedUtteranceIds={selectedUtteranceIds}
+                    selectedUtteranceId={selectedUtteranceId}
+                    segmentLoopPlayback={segmentLoopPlayback}
+                    subSelectionRange={subSelectionRange}
+                    isResizingVideoPreview={isResizingVideoPreview}
+                    isResizingVideoRightPanel={isResizingVideoRightPanel}
+                    onVideoPreviewResizeStart={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      videoPreviewResizeRef.current = { startY: e.clientY, startHeight: videoPreviewHeight };
+                      setIsResizingVideoPreview(true);
                     }}
-                    className="wave-canvas transcription-wave-canvas"
+                    onVideoRightPanelResizeStart={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // factor=1: 右侧布局（向左拖 = 变宽）; factor=-1: 左侧布局（向右拖 = 变宽）
+                      // factor=1: right layout; factor=-1: left layout (mirror direction)
+                      videoRightPanelResizeRef.current = {
+                        startX: e.clientX,
+                        startWidth: videoRightPanelWidth,
+                        factor: videoLayoutMode === 'left' ? -1 : 1,
+                      };
+                      setIsResizingVideoRightPanel(true);
+                    }}
+                    waveformStripHeight={waveformHeight}
+                    waveCanvasRef={waveCanvasRef}
+                    playerWaveformRef={player.waveformRef}
+                    onSeek={player.seekTo}
+                    onPlayRegion={player.playRegion}
                   />
                   {waveLassoRect && (
                     <div
@@ -2083,92 +2414,42 @@ export function TranscriptionPage() {
                       </svg>
                     </div>
                   ))}
-                  {selectedUtterance && player.isReady && (() => {
-                    const ws = player.instanceRef.current;
-                    const scrollLeft = ws ? ws.getScroll() : 0;
-                    const leftPx = selectedUtterance.startTime * zoomPxPerSec - scrollLeft;
-                    const widthPx = (selectedUtterance.endTime - selectedUtterance.startTime) * zoomPxPerSec;
-                    // Hide if region is scrolled out of view or too narrow
-                    if (leftPx + widthPx < 0 || leftPx > (ws?.getWidth() ?? 9999)) return null;
-                    const showSpeedSlider = widthPx >= 160;
-                    const showLoopBtn = widthPx >= 72;
-                    return (
-                      <div
-                        className="region-action-overlay"
-                        style={{ left: Math.max(0, leftPx) }}
-                      >
-                        {showSpeedSlider && (
-                          <div className="segment-speed-control" onPointerDown={(e) => e.stopPropagation()}>
-                          <input
-                            type="range"
-                            className="segment-speed-slider"
-                            min={0.25}
-                            max={2}
-                            step={0.05}
-                            value={segmentPlaybackRate}
-                            onChange={(e) => {
-                              const rate = Number(e.target.value);
-                              setSegmentPlaybackRate(rate);
-                              // If segment is currently playing, apply immediately
-                              const ws = player.instanceRef.current;
-                              if (ws && player.isPlaying) {
-                                ws.setPlaybackRate(rate);
-                              }
-                            }}
-                            title={tf(locale, 'transcription.wave.segmentSpeed', { rate: segmentPlaybackRate.toFixed(2) })}
-                          />
-                          <span
-                            className={`segment-speed-label${segmentPlaybackRate !== 1 ? ' segment-speed-label-reset' : ''}`}
-                            title={segmentPlaybackRate !== 1 ? t(locale, 'transcription.wave.segmentSpeedReset') : t(locale, 'transcription.wave.segmentSpeedNormal')}
-                            onClick={() => {
-                              setSegmentPlaybackRate(1);
-                              const ws = player.instanceRef.current;
-                              if (ws && player.isPlaying) {
-                                ws.setPlaybackRate(1);
-                              }
-                            }}
-                          >{segmentPlaybackRate === 1 ? '1x' : `${segmentPlaybackRate.toFixed(segmentPlaybackRate % 0.25 === 0 ? 1 : 2)}x`}</span>
-                        </div>
-                        )}
-                        {showLoopBtn && (
-                        <button
-                          className={`region-action-btn ${segmentLoopPlayback ? 'region-action-btn-active' : ''}`}
-                          title={segmentLoopPlayback ? t(locale, 'transcription.wave.loopOn') : t(locale, 'transcription.wave.loopOff')}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (segmentLoopPlayback) {
-                              setSegmentLoopPlayback(false);
-                              player.stop();
-                            } else {
-                              setSegmentLoopPlayback(true);
-                              const s = subSelectionRange ?? { start: selectedUtterance.startTime, end: selectedUtterance.endTime };
-                              player.playRegion(s.start, s.end, true);
-                            }
-                          }}
-                        >
-                          <Repeat size={13} />
-                        </button>
-                        )}
-                        <button
-                          className="region-action-btn"
-                          title={player.isPlaying ? t(locale, 'transcription.wave.stop') : t(locale, 'transcription.wave.play')}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (player.isPlaying) {
-                              player.stop();
-                            } else {
-                              const s = subSelectionRange ?? { start: selectedUtterance.startTime, end: selectedUtterance.endTime };
-                              player.playRegion(s.start, s.end, true);
-                            }
-                          }}
-                        >
-                          {player.isPlaying ? <Square size={13} /> : <Play size={13} />}
-                        </button>
-                      </div>
-                    );
-                  })()}
+
+                  {!selectedMediaIsVideo && selectedUtterance && player.isReady && (
+                    <RegionActionOverlay
+                      utteranceStartTime={selectedUtterance.startTime}
+                      utteranceEndTime={selectedUtterance.endTime}
+                      zoomPxPerSec={zoomPxPerSec}
+                      scrollLeft={waveformScrollLeft}
+                      waveAreaWidth={player.instanceRef.current?.getWidth() ?? 9999}
+                      isPlaying={player.isPlaying}
+                      segmentPlaybackRate={segmentPlaybackRate}
+                      segmentLoopPlayback={segmentLoopPlayback}
+                      onPlaybackRateChange={(rate) => {
+                        setSegmentPlaybackRate(rate);
+                        const ws = player.instanceRef.current;
+                        if (ws && player.isPlaying) ws.setPlaybackRate(rate);
+                      }}
+                      onToggleLoop={() => {
+                        if (segmentLoopPlayback) {
+                          setSegmentLoopPlayback(false);
+                          player.stop();
+                        } else {
+                          setSegmentLoopPlayback(true);
+                          const s = subSelectionRange ?? { start: selectedUtterance.startTime, end: selectedUtterance.endTime };
+                          player.playRegion(s.start, s.end, true);
+                        }
+                      }}
+                      onTogglePlay={() => {
+                        if (player.isPlaying) {
+                          player.stop();
+                        } else {
+                          const s = subSelectionRange ?? { start: selectedUtterance.startTime, end: selectedUtterance.endTime };
+                          player.playRegion(s.start, s.end, true);
+                        }
+                      }}
+                    />
+                  )}
                 </>
               ) : (
                 <div className="wave-empty transcription-wave-empty">
@@ -2201,24 +2482,43 @@ export function TranscriptionPage() {
                   </>
                 );
               })()}
+
               {segMarkStart !== null && (
                 <div className="seg-mark-status">
                   ✦ {tf(locale, 'transcription.wave.markingHint', { start: formatTime(segMarkStart) })}
                 </div>
               )}
-            </div>
-            {player.isReady && player.duration > 0 && rulerView && (
-              <TimeRuler
-                duration={player.duration}
-                currentTime={player.currentTime}
-                rulerView={rulerView}
-                zoomPxPerSec={zoomPxPerSec}
-                seekTo={player.seekTo}
-                instanceRef={player.instanceRef}
-                waveCanvasRef={waveCanvasRef}
-                tierContainerRef={tierContainerRef}
+              <div
+                className="waveform-area-resize-handle"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  waveformResizeRef.current = {
+                    startY: e.clientY,
+                    startHeight: waveformHeight,
+                    startAmplitude: amplitudeScale,
+                  };
+                  setIsResizingWaveform(true);
+                }}
+                role="separator"
+                aria-orientation="horizontal"
               />
-            )}
+              </div>
+            </WaveformAreaSection>
+            <TimelineHeaderSection
+              duration={player.duration}
+              utterances={utterancesOnCurrentMedia}
+              rulerView={rulerView ?? null}
+              onSeek={player.seekTo}
+              isReady={player.isReady}
+              currentTime={player.currentTime}
+              zoomPxPerSec={zoomPxPerSec}
+              isLaneHeaderCollapsed={isTimelineLaneHeaderCollapsed}
+              onToggleLaneHeader={() => setIsTimelineLaneHeaderCollapsed((v) => !v)}
+              instanceRef={player.instanceRef}
+              waveCanvasRef={waveCanvasRef}
+              tierContainerRef={tierContainerRef}
+            />
               {showSearch && (
                 <SearchReplaceOverlay
                   items={searchableItems}
@@ -2235,52 +2535,63 @@ export function TranscriptionPage() {
                   onClose={() => setShowSearch(false)}
                 />
               )}
-              <div
-                ref={listMainRef}
-                className={`transcription-list-main ${isLayerRailCollapsed ? 'transcription-list-main-rail-collapsed' : ''}`}
+              <TimelineMainSection
+                containerRef={listMainRef}
+                className={`transcription-list-main ${isLayerRailCollapsed ? 'transcription-list-main-rail-collapsed' : ''} ${isTimelineLaneHeaderCollapsed ? 'transcription-list-main-lane-header-collapsed' : ''}`}
               >
-                <LayerRailSidebar
-                  isCollapsed={isLayerRailCollapsed}
-                  layerRailTab={layerRailTab}
-                  onTabChange={setLayerRailTab}
-                  layerRailRows={layerRailRows}
-                  focusedLayerRowId={focusedLayerRowId}
-                  flashLayerRowId={flashLayerRowId}
-                  onFocusLayer={handleFocusLayerRow}
-                  transcriptionLayers={transcriptionLayers}
-                  translationLayers={translationLayers}
-                  layerLinks={layerLinks}
-                  toggleLayerLink={toggleLayerLink}
-                  deletableLayers={deletableLayers}
-                  layerCreateMessage={layerCreateMessage}
-                  layerAction={layerAction}
-                />
-                <div
-                  className="transcription-layer-rail-resizer"
-                  onPointerDown={handleLayerRailResizeStart}
-                  role="separator"
-                  aria-orientation="vertical"
-                  aria-label={t(locale, 'transcription.panel.resizeLayerRail')}
-                />
-                <button
-                  type="button"
-                  className="transcription-layer-rail-toggle"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={handleLayerRailToggle}
-                  aria-label={isLayerRailCollapsed
-                    ? t(locale, 'transcription.panel.expandLayerRail')
-                    : t(locale, 'transcription.panel.collapseLayerRail')}
-                >
-                  <span className="transcription-panel-toggle-icon" aria-hidden="true">
-                    <span
-                      className={`transcription-panel-toggle-triangle ${isLayerRailCollapsed ? 'transcription-panel-toggle-triangle-right' : 'transcription-panel-toggle-triangle-left'}`}
-                    />
-                  </span>
-                </button>
+                <TimelineRailSection>
+                  <LayerRailSidebar
+                    isCollapsed={isLayerRailCollapsed}
+                    layerRailTab={layerRailTab}
+                    onTabChange={setLayerRailTab}
+                    layerRailRows={layerRailRows}
+                    focusedLayerRowId={focusedLayerRowId}
+                    flashLayerRowId={flashLayerRowId}
+                    onFocusLayer={handleFocusLayerRow}
+                    transcriptionLayers={transcriptionLayers}
+                    translationLayers={translationLayers}
+                    layerLinks={layerLinks}
+                    toggleLayerLink={toggleLayerLink}
+                    deletableLayers={deletableLayers}
+                    layerCreateMessage={layerCreateMessage}
+                    layerAction={layerAction}
+                    onReorderLayers={reorderLayers}
+                    speakerFilterOptions={speakerFilterOptions}
+                    activeSpeakerFilterKey={activeSpeakerFilterKey}
+                    onSpeakerFilterChange={setActiveSpeakerFilterKey}
+                    onSelectSpeakerUtterances={handleSelectSpeakerUtterances}
+                    onClearSpeakerAssignments={handleClearSpeakerAssignments}
+                    onExportSpeakerSegments={handleExportSpeakerSegments}
+                    onRenameSpeaker={handleRenameSpeaker}
+                    onMergeSpeaker={handleMergeSpeaker}
+                  />
+                  <div
+                    className="transcription-layer-rail-resizer"
+                    onPointerDown={handleLayerRailResizeStart}
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label={t(locale, 'transcription.panel.resizeLayerRail')}
+                  />
+                  <button
+                    type="button"
+                    className="transcription-layer-rail-toggle"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={handleLayerRailToggle}
+                    aria-label={isLayerRailCollapsed
+                      ? t(locale, 'transcription.panel.expandLayerRail')
+                      : t(locale, 'transcription.panel.collapseLayerRail')}
+                    title={isLayerRailCollapsed
+                      ? t(locale, 'transcription.panel.expandLayerRail')
+                      : t(locale, 'transcription.panel.collapseLayerRail')}
+                  >
+                    {isLayerRailCollapsed
+                      ? <ChevronRight size={14} aria-hidden="true" />
+                      : <ChevronLeft size={14} aria-hidden="true" />}
+                  </button>
+                </TimelineRailSection>
 
-                <div
-                  className="timeline-scroll"
-                  ref={tierContainerRef}
+                <TimelineScrollSection
+                  containerRef={tierContainerRef}
                   onPointerDown={handleLassoPointerDown}
                   onPointerMove={handleLassoPointerMove}
                   onPointerUp={handleLassoPointerUp}
@@ -2302,19 +2613,41 @@ export function TranscriptionPage() {
                       translationLayers={translationLayers}
                       timelineRenderUtterances={timelineRenderUtterances}
                       flashLayerRowId={flashLayerRowId}
+                      focusedLayerRowId={focusedLayerRowId}
                       defaultTranscriptionLayerId={defaultTranscriptionLayerId}
                       renderAnnotationItem={renderAnnotationItem}
+                      allLayersOrdered={layerRailRows}
+                      onReorderLayers={reorderLayers}
+                      deletableLayers={deletableLayers}
+                      onFocusLayer={handleFocusLayerRow}
+                      layerLinks={layerLinks}
+                      showConnectors={showAllLayerConnectors}
+                      onToggleConnectors={() => setShowAllLayerConnectors((prev) => !prev)}
+                      laneHeights={timelineLaneHeights}
+                      onLaneHeightChange={handleTimelineLaneHeightChange}
                     />
                   ) : layers.length > 0 ? (
                     <TranscriptionTimelineTextOnly
                       transcriptionLayers={transcriptionLayers}
                       translationLayers={translationLayers}
-                      utterancesOnCurrentMedia={utterancesOnCurrentMedia}
+                      utterancesOnCurrentMedia={filteredUtterancesOnCurrentMedia}
                       selectedUtteranceId={selectedUtteranceId}
                       flashLayerRowId={flashLayerRowId}
+                      focusedLayerRowId={focusedLayerRowId}
                       defaultTranscriptionLayerId={defaultTranscriptionLayerId ?? ''}
                       scrollContainerRef={tierContainerRef}
                       handleAnnotationClick={handleAnnotationClick}
+                      allLayersOrdered={layerRailRows}
+                      onReorderLayers={reorderLayers}
+                      deletableLayers={deletableLayers}
+                      onFocusLayer={handleFocusLayerRow}
+                      navigateUtteranceFromInput={navigateUtteranceFromInput}
+                      layerLinks={layerLinks}
+                      showConnectors={showAllLayerConnectors}
+                      onToggleConnectors={() => setShowAllLayerConnectors((prev) => !prev)}
+                      laneHeights={timelineLaneHeights}
+                      onLaneHeightChange={handleTimelineLaneHeightChange}
+                      speakerVisualByUtteranceId={speakerVisualByUtteranceId}
                     />
                   ) : (
                     <div className="timeline-empty-state">
@@ -2326,8 +2659,8 @@ export function TranscriptionPage() {
                     </div>
                   )}
                   </TranscriptionEditorContext.Provider>
-                </div>
-              </div>
+                </TimelineScrollSection>
+              </TimelineMainSection>
               {timelineResizeTooltip && (
                 <div
                   className="timeline-resize-tooltip"
@@ -2336,117 +2669,37 @@ export function TranscriptionPage() {
                   {formatTime(timelineResizeTooltip.start)} - {formatTime(timelineResizeTooltip.end)}
                 </div>
               )}
-              <div className="transcription-list-toolbar transcription-list-toolbar-zoom-only">
-                <div className="transcription-list-toolbar-left">
-                  <div className="waveform-zoom-bar waveform-zoom-bar-bottom">
-                    <button className="icon-btn" onClick={() => zoomToPercent(100, undefined, 'fit-all')} title={t(locale, 'transcription.zoom.fitAll')}>
-                      <Maximize2 size={14} />
-                    </button>
-                    <button
-                      className="icon-btn"
-                      onClick={() => {
-                        const sel = utterancesOnCurrentMedia.find((u) => u.id === selectedUtteranceId);
-                        if (sel) zoomToUtterance(sel.startTime, sel.endTime);
-                      }}
-                      title={t(locale, 'transcription.zoom.fitSelection')}
-                      disabled={!selectedUtteranceId}
-                    >
-                      <Focus size={14} />
-                    </button>
-                    <button
-                      className="icon-btn"
-                      onClick={() => zoomToPercent(Math.round((100 / fitPxPerSec) * 100), undefined, 'custom')}
-                      title="1:1 (100px/s)"
-                    >
-                      <span style={{ fontSize: 11, fontWeight: 600 }}>1:1</span>
-                    </button>
-                    <span style={{ width: 1, height: 14, background: '#d1d5db', margin: '0 2px' }} />
-                    <button
-                      className={`icon-btn${snapEnabled ? ' icon-btn-active' : ''}`}
-                      onClick={() => setSnapEnabled((v) => !v)}
-                      title={snapEnabled ? t(locale, 'transcription.zoom.snapOn') : t(locale, 'transcription.zoom.snapOff')}
-                    >
-                      <span style={{ fontSize: 10, fontWeight: 600 }}>ZC</span>
-                    </button>
-                    <span style={{ width: 1, height: 14, background: '#d1d5db', margin: '0 2px' }} />
-                    <input
-                      type="range"
-                      className="waveform-zoom-slider"
-                      min={0}
-                      max={1000}
-                      step={1}
-                      value={Math.round(Math.log(zoomPercent / 100) / Math.log(maxZoomPercent / 100) * 1000)}
-                      onChange={(e) => {
-                        const pos = Number(e.target.value);
-                        const pct = 100 * Math.pow(maxZoomPercent / 100, pos / 1000);
-                        zoomToPercent(pct, undefined, 'custom');
-                      }}
-                      title={tf(locale, 'transcription.zoom.scale', { percent: zoomPercent })}
-                    />
-                    <span className="waveform-zoom-value">{zoomPercent}%</span>
-                  </div>
-                  <span style={{ width: 1, height: 14, background: '#d1d5db', margin: '0 6px', flexShrink: 0 }} />
-                  <div className="transcription-ai-observer-status-bar">
-                    <span className="transcription-ai-observer-stage-label">
-                      {t(locale, 'ai.observer.currentStage')}
-                      {(observerResult.stage && (observerResult.stage === 'collecting' ? t(locale, 'ai.stages.collecting')
-                        : observerResult.stage === 'transcribing' ? t(locale, 'ai.stages.transcribing')
-                        : observerResult.stage === 'glossing' ? t(locale, 'ai.stages.glossing')
-                        : observerResult.stage === 'reviewing' ? t(locale, 'ai.stages.reviewing')
-                        : t(locale, 'ai.stages.collecting'))) ?? t(locale, 'ai.stages.collecting')}
-                    </span>
-                    {actionableObserverRecommendations && actionableObserverRecommendations.length > 0 && (
-                      <div className="transcription-ai-observer-recs-inline">
-                        {actionableObserverRecommendations.map((item) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            className="transcription-ai-observer-rec-btn"
-                            onClick={() => handleExecuteRecommendation(item)}
-                            title={item.detail}
-                          >
-                            {item.actionLabel ?? item.title}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="transcription-list-toolbar-right">
-                  {canUndo && undoLabel && (
-                    <>
-                      <button
-                        type="button"
-                        className="transcription-undo-chip"
-                        title={tf(locale, 'transcription.undo.next', { label: undoLabel })}
-                        onClick={() => setShowUndoHistory((v) => !v)}
-                      >
-                        <Undo2 size={13} />
-                        <span className="transcription-undo-chip-label">{tf(locale, 'transcription.undo.current', { label: undoLabel })}</span>
-                      </button>
-                      {showUndoHistory && (
-                        <div className="transcription-undo-history">
-                          <div className="transcription-undo-history-title">{t(locale, 'transcription.undo.historyTitle')}</div>
-                          {undoHistory.map((label, idx) => (
-                            <button
-                              key={`${label}-${idx}`}
-                              type="button"
-                              className="transcription-undo-history-item"
-                              onClick={() => {
-                                fireAndForget(undoToHistoryIndex(idx));
-                                setShowUndoHistory(false);
-                              }}
-                              title={tf(locale, 'transcription.undo.jumpTo', { label })}
-                            >
-                              {idx + 1}. {label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
+              <BottomToolbarSection>
+                <ToolbarLeftSection>
+                  <ZoomControlsSection
+                    zoomPercent={zoomPercent}
+                    snapEnabled={snapEnabled}
+                    autoScrollEnabled={autoScrollEnabled}
+                    selectedUtteranceId={selectedUtteranceId}
+                    utterancesOnCurrentMedia={utterancesOnCurrentMedia}
+                    fitPxPerSec={fitPxPerSec}
+                    maxZoomPercent={maxZoomPercent}
+                    onZoomToPercent={(percent, mode) => zoomToPercent(percent, undefined, mode)}
+                    onZoomToUtterance={zoomToUtterance}
+                    onSnapEnabledChange={setSnapEnabled}
+                    onAutoScrollEnabledChange={setAutoScrollEnabled}
+                  />
+                  <div className="toolbar-sep" style={{ margin: '0 6px' }} />
+                  <ObserverStatusSection
+                    observerStage={observerResult.stage}
+                    recommendations={actionableObserverRecommendations || []}
+                    onExecuteRecommendation={handleExecuteObserverRecommendation}
+                  />
+                </ToolbarLeftSection>
+                <ToolbarRightSection
+                  canUndo={canUndo}
+                  undoLabel={undoLabel}
+                  undoHistory={undoHistory}
+                  isHistoryVisible={showUndoHistory}
+                  onToggleHistoryVisible={setShowUndoHistory}
+                  onJumpToHistoryIndex={(idx) => fireAndForget(undoToHistoryIndex(idx))}
+                />
+              </BottomToolbarSection>
             </section>
 
             <div
@@ -2573,6 +2826,21 @@ export function TranscriptionPage() {
                 </aside>
               </AiAssistantHubContext.Provider>
             </AiPanelContext.Provider>
+
+          {selectedUtteranceIds.size > 0 && (
+            <SpeakerAssignPanel
+              selectedCount={selectedUtteranceIds.size}
+              summary={selectedSpeakerSummary}
+              batchSpeakerId={batchSpeakerId}
+              speakerOptions={speakerOptions}
+              speakerDraftName={speakerDraftName}
+              speakerSaving={speakerSaving}
+              onBatchSpeakerIdChange={setBatchSpeakerId}
+              onAssign={() => { fireAndForget(handleAssignSpeakerToSelected()); }}
+              onDraftNameChange={setSpeakerDraftName}
+              onCreateAndAssign={() => { fireAndForget(handleCreateSpeakerAndAssign()); }}
+            />
+          )}
           </main>
           </ToastProvider>
 
@@ -2704,6 +2972,16 @@ export function TranscriptionPage() {
         transcriptionLayers={transcriptionLayers}
         translationLayers={translationLayers}
       />
+      {/* 清洁焦点模式退出提示 | Focus mode exit badge */}
+      {isFocusMode && (
+        <div className="focus-mode-badge" onClick={() => setIsFocusMode(false)}>
+          焦点模式 — 点击或 ⌘⇧F 退出
+        </div>
+      )}
+      {/* 快捷键面板 | Keyboard shortcuts panel */}
+      {showShortcuts && (
+        <ShortcutsPanel onClose={() => setShowShortcuts(false)} />
+      )}
     </section>
   );
 }

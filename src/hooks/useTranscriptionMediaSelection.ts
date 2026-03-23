@@ -9,6 +9,26 @@ type Params = {
   selectedUtteranceMedia: MediaItemDocType | undefined;
 };
 
+const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v'];
+
+function isMediaVideo(media: MediaItemDocType): boolean {
+  const details = media.details as Record<string, unknown> | undefined;
+  const blob = details?.audioBlob;
+  if (blob instanceof Blob && (blob.type.startsWith('video/') || blob.type === 'application/octet-stream')) {
+    // For blobs with unknown type, check filename extension
+    const filename = media.filename.toLowerCase();
+    return VIDEO_EXTENSIONS.some((ext) => filename.endsWith(ext));
+  }
+  if (blob instanceof Blob && blob.type.startsWith('video/')) {
+    return true;
+  }
+  if (media.url) {
+    const url = media.url.toLowerCase();
+    return VIDEO_EXTENSIONS.some((ext) => url.includes(ext));
+  }
+  return false;
+}
+
 export function useTranscriptionMediaSelection({
   mediaItems,
   selectedMediaId,
@@ -81,5 +101,6 @@ export function useTranscriptionMediaSelection({
 
   return {
     selectedMediaUrl,
+    selectedMediaIsVideo: selectedUtteranceMedia ? isMediaVideo(selectedUtteranceMedia) : false,
   };
 }

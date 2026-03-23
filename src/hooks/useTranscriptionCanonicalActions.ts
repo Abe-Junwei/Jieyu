@@ -34,6 +34,7 @@ export function useTranscriptionCanonicalActions({
   const {
     updateTokenPos,
     batchUpdateTokenPosByForm,
+    updateTokenGloss,
   } = useTranscriptionTokenActions({
     runWithDbMutex,
     setUtterances,
@@ -44,5 +45,6 @@ export function useTranscriptionCanonicalActions({
     getCanonicalMorphemesForToken,
     updateTokenPos,
     batchUpdateTokenPosByForm,
+    updateTokenGloss,
   };
 }

@@ -16,6 +16,8 @@ export interface SearchSimilarUtterancesOptions {
   fullTextWeight?: number;
   /** 检索融合场景（qa|review|terminology|balanced），默认 balanced | Fusion scenario profile */
   fusionScenario?: SearchFusionScenario;
+  /** 最低相似度阈值（0-1）；低于此值的匹配结果将被丢弃，默认 0.3 | Minimum similarity score threshold (0-1); matches below this are discarded */
+  minScore?: number;
 }
 
 export interface SimilarUtteranceMatch {
@@ -33,6 +35,7 @@ export interface SearchSimilarUtterancesResult {
 
 const DEFAULT_MODEL_ID = 'Xenova/multilingual-e5-small';
 const DEFAULT_MODEL_VERSION = '2026-03';
+const DEFAULT_MIN_SCORE = 0.3;
 
 function normalizeTopK(input: number | undefined): number {
   if (!Number.isFinite(input)) return 5;
@@ -149,6 +152,21 @@ export class EmbeddingSearchService {
 
   constructor(private readonly provider: EmbeddingProvider) {}
 
+  private async ensurePreloaded(cacheKey: string): Promise<void> {
+    if (this.preloadedCacheKey === cacheKey) return;
+
+    let usingFallback = false;
+    await this.provider.preload?.({
+      onProgress: (progress) => {
+        if (progress.usingFallback) {
+          usingFallback = true;
+        }
+      },
+    });
+
+    this.preloadedCacheKey = usingFallback ? null : cacheKey;
+  }
+
   async searchSimilarUtterances(
     query: string,
     options?: SearchSimilarUtterancesOptions,
@@ -161,12 +179,10 @@ export class EmbeddingSearchService {
     const modelId = options?.modelId ?? DEFAULT_MODEL_ID;
     const modelVersion = options?.modelVersion ?? DEFAULT_MODEL_VERSION;
     const topK = normalizeTopK(options?.topK);
+    const minScore = options?.minScore ?? DEFAULT_MIN_SCORE;
 
     const cacheKey = `${modelId}::${modelVersion}`;
-    if (this.preloadedCacheKey !== cacheKey) {
-      await this.provider.preload?.();
-      this.preloadedCacheKey = cacheKey;
-    }
+    await this.ensurePreloaded(cacheKey);
 
     const [queryVector] = await this.provider.embed([normalizedQuery]);
     if (!queryVector || queryVector.length === 0) {
@@ -199,9 +215,11 @@ export class EmbeddingSearchService {
 
     scored.sort((a, b) => b.score - a.score);
 
+    // Filter by minimum similarity threshold to discard hallucinated/low-quality matches
+    const minScoreMatches = scored.filter((m) => m.score >= minScore);
     return {
       query: normalizedQuery,
-      matches: scored.slice(0, topK),
+      matches: minScoreMatches.slice(0, topK),
     };
   }
 
@@ -222,12 +240,10 @@ export class EmbeddingSearchService {
     const modelId = options?.modelId ?? DEFAULT_MODEL_ID;
     const modelVersion = options?.modelVersion ?? DEFAULT_MODEL_VERSION;
     const topK = normalizeTopK(options?.topK);
+    const minScore = options?.minScore ?? DEFAULT_MIN_SCORE;
 
     const cacheKey = `${modelId}::${modelVersion}`;
-    if (this.preloadedCacheKey !== cacheKey) {
-      await this.provider.preload?.();
-      this.preloadedCacheKey = cacheKey;
-    }
+    await this.ensurePreloaded(cacheKey);
 
     const [queryVector] = await this.provider.embed([normalizedQuery]);
     if (!queryVector || queryVector.length === 0) {
@@ -241,10 +257,13 @@ export class EmbeddingSearchService {
       : null;
 
     for (const sourceType of sourceTypes) {
-      const embeddingRows = await db.collections.embeddings.findByIndex('sourceType', sourceType);
-      for (const row of embeddingRows) {
-        const item = row.toJSON();
-        if (item.model !== modelId) continue;
+      // B-08 fix: use compound [sourceType+model] index for direct seek instead of scan + JS filter
+      const rows = await db.dexie.embeddings
+        .where('[sourceType+model]')
+        .equals([sourceType, modelId])
+        .toArray();
+      for (const row of rows) {
+        const item = row;
         if ((item.modelVersion ?? DEFAULT_MODEL_VERSION) !== modelVersion) continue;
         if (candidateSet && !candidateSet.has(item.sourceId)) continue;
 
@@ -262,9 +281,10 @@ export class EmbeddingSearchService {
 
     scored.sort((a, b) => b.score - a.score);
 
+    const minScoreMatches = scored.filter((m) => m.score >= minScore);
     return {
       query: normalizedQuery,
-      matches: scored.slice(0, topK),
+      matches: minScoreMatches.slice(0, topK),
     };
   }
 
@@ -277,6 +297,7 @@ export class EmbeddingSearchService {
     options?: SearchSimilarUtterancesOptions,
   ): Promise<SearchSimilarUtterancesResult> {
     const topK = normalizeTopK(options?.topK);
+    const minScore = options?.minScore ?? DEFAULT_MIN_SCORE;
     const base = await this.searchMultiSource(query, sourceTypes, {
       ...options,
       topK: Math.max(topK * 3, 12),
@@ -354,11 +375,14 @@ export class EmbeddingSearchService {
     }
 
     if (sourceTypes.includes('utterance')) {
-      const utteranceRows = await db.collections.utterance_texts.find().exec();
+      // B-02 fix: only load utterance_texts for candidate IDs when candidateSet is provided,
+      // instead of unconditionally loading ALL rows and then filtering in JS.
+      const utteranceRows = candidateSet
+        ? await db.collections.utterance_texts.findByIndexAnyOf('utteranceId', [...candidateSet])
+        : await db.collections.utterance_texts.find().exec();
       const merged = new Map<string, string[]>();
       for (const row of utteranceRows) {
         const item = row.toJSON();
-        if (candidateSet && !candidateSet.has(item.utteranceId)) continue;
         const text = item.text?.trim();
         if (!text) continue;
         const list = merged.get(item.utteranceId) ?? [];
@@ -444,6 +468,7 @@ export class EmbeddingSearchService {
         const fusedScore = vectorWeight * match.score + keywordWeight * keywordScore + fullTextWeight * fullTextScore;
         return { match, fusedScore };
       })
+      .filter((item) => item.fusedScore >= minScore)
       .sort((a, b) => b.fusedScore - a.fusedScore)
       .map((item) => item.match)
       .slice(0, topK);

@@ -36,6 +36,8 @@ export function useTranscriptionData() {
     setLayerLinks,
     mediaItems,
     setMediaItems,
+    speakers,
+    setSpeakers,
     selectedUtteranceId,
     setSelectedUtteranceId,
     selectedUtteranceIds,
@@ -65,6 +67,7 @@ export function useTranscriptionData() {
     translationsRef,
     layersRef,
     layerLinksRef,
+      speakersRef,
     selectedUtteranceIdRef,
     selectedUtteranceIdsRef,
   } = useTranscriptionState();
@@ -75,6 +78,7 @@ export function useTranscriptionData() {
   } = useTranscriptionPersistence({
     utterancesRef,
     translationsRef,
+      speakersRef,
   });
 
   const {
@@ -118,6 +122,7 @@ export function useTranscriptionData() {
     translationsRef,
     layersRef,
     layerLinksRef,
+    speakersRef,
     dirtyRef,
     scheduleRecoverySave,
     syncToDb,
@@ -125,6 +130,7 @@ export function useTranscriptionData() {
     setTranslations,
     setLayers,
     setLayerLinks,
+      setSpeakers,
     setSaveState,
   });
 
@@ -157,6 +163,7 @@ export function useTranscriptionData() {
 
   const {
     selectedMediaUrl,
+    selectedMediaIsVideo,
   } = useTranscriptionMediaSelection({
     mediaItems,
     selectedMediaId,
@@ -182,6 +189,7 @@ export function useTranscriptionData() {
     setLayerLinks,
     setLayers,
     setMediaItems,
+    setSpeakers,
     setSelectedLayerId,
     setSelectedUtteranceId,
     setState,
@@ -223,6 +231,7 @@ export function useTranscriptionData() {
     deleteLayer: deleteLayerRaw,
     toggleLayerLink: toggleLayerLinkRaw,
     addMediaItem,
+    reorderLayers,
   } = useTranscriptionActions({
     defaultTranscriptionLayerId,
     layerById,
@@ -349,6 +358,7 @@ export function useTranscriptionData() {
     getCanonicalMorphemesForToken,
     updateTokenPos,
     batchUpdateTokenPosByForm,
+    updateTokenGloss,
   } = useTranscriptionCanonicalActions({
     runWithDbMutex,
     setUtterances,
@@ -379,6 +389,7 @@ export function useTranscriptionData() {
     translations,
     layerLinks,
     mediaItems,
+    speakers,
     selectedUtteranceId,
     setSelectedUtteranceId,
     selectedUtteranceIds,
@@ -413,6 +424,7 @@ export function useTranscriptionData() {
     selectedUtterance,
     selectedUtteranceMedia,
     selectedMediaUrl,
+    selectedMediaIsVideo,
     utterancesOnCurrentMedia,
     visibleUtterances,
     aiConfidenceAvg,
@@ -450,6 +462,7 @@ export function useTranscriptionData() {
     createLayer,
     deleteLayer,
     toggleLayerLink,
+    reorderLayers,
     getNeighborBounds,
     makeSnapGuide,
     clearAutoSaveTimer,
@@ -479,6 +492,7 @@ export function useTranscriptionData() {
     getCanonicalMorphemesForToken,
     updateTokenPos,
     batchUpdateTokenPosByForm,
+    updateTokenGloss,
   };
 
   return {

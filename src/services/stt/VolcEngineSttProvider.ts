@@ -54,7 +54,8 @@ export class VolcEngineSttProvider implements CommercialSttProvider {
       });
       // 任何非网络错误响应都说明端点可达 | Any non-network response means the endpoint is reachable
       return resp.ok || resp.status === 400 || resp.status === 401 || resp.status === 403 || resp.status === 404;
-    } catch {
+    } catch (err) {
+      console.debug('[VolcEngineSttProvider] availability probe failed:', err);
       return false;
     }
   }

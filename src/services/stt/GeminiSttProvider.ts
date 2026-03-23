@@ -53,7 +53,8 @@ export class GeminiSttProvider implements CommercialSttProvider {
         { method: 'GET' },
       );
       return resp.ok;
-    } catch {
+    } catch (err) {
+      console.debug('[GeminiSttProvider] availability probe failed:', err);
       return false;
     }
   }

@@ -34,6 +34,7 @@ function inferStatusCode(
   status: number,
   bodyText: string,
   fallbackMessage: string,
+  retryAfterHeader?: string | null,
 ): AiProviderError {
   const normalizedBody = bodyText.toLowerCase();
   const suffix = bodyText.trim().length > 0 ? `：${shortenText(bodyText)}` : '';
@@ -60,7 +61,16 @@ function inferStatusCode(
     return new AiProviderError(`${providerLabel} 请求超时，请稍后重试或检查网络`, 'network', providerLabel);
   }
   if (status === 429) {
-    return new AiProviderError(`${providerLabel} 请求过于频繁或额度已耗尽${suffix}`, 'rate-limit', providerLabel);
+    let retryHint = '';
+    if (retryAfterHeader) {
+      const seconds = parseInt(retryAfterHeader, 10);
+      if (Number.isFinite(seconds) && seconds > 0) {
+        retryHint = seconds >= 60
+          ? `，请 ${Math.ceil(seconds / 60)} 分钟后重试`
+          : `，请 ${seconds} 秒后重试`;
+      }
+    }
+    return new AiProviderError(`${providerLabel} 请求过于频繁或额度已耗尽${retryHint}${suffix}`, 'rate-limit', providerLabel);
   }
   if (status >= 500) {
     return new AiProviderError(`${providerLabel} 服务端异常，请稍后重试${suffix}`, 'server', providerLabel);
@@ -75,7 +85,8 @@ export async function throwProviderHttpError(
   fallbackMessage: string,
 ): Promise<never> {
   const bodyText = await response.text();
-  throw inferStatusCode(providerLabel, response.status, bodyText, fallbackMessage);
+  const retryAfter = response.headers.get('Retry-After');
+  throw inferStatusCode(providerLabel, response.status, bodyText, fallbackMessage, retryAfter);
 }
 
 export function parseProviderJson<T>(
@@ -109,7 +120,8 @@ export function normalizeAiProviderError(error: unknown, providerLabel: string):
     }
   }
   if (error instanceof Error) {
-    return compactText(error.message);
+    const message = compactText(error.message);
+    return message.startsWith(providerLabel) ? message : `${providerLabel}：${message}`;
   }
 
   return `${providerLabel} 请求失败`;

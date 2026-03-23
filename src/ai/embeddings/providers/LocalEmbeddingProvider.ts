@@ -25,16 +25,18 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
 
   async preload(options?: { onProgress?: (progress: { usingFallback?: boolean }) => void }): Promise<void> {
     if (this._preloaded) return;
+    let usingFallback = false;
     const preloadOptions: EmbeddingRuntimeOptions = {
       modelId: this.modelId,
       onProgress: (progress) => {
         if (progress.usingFallback) {
+          usingFallback = true;
           options?.onProgress?.({ usingFallback: true });
         }
       },
     };
     await this.runtime.preload(preloadOptions);
-    this._preloaded = true;
+    this._preloaded = !usingFallback;
   }
 
   /** Local provider is available if the runtime is responsive (model preloaded or loads on first use). */

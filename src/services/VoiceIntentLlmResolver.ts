@@ -37,6 +37,19 @@ export interface ResolveVoiceIntentWithLlmInput {
   signal?: AbortSignal;
 }
 
+export type VoiceIntentLlmErrorKind =
+  | 'empty-input'
+  | 'missing-json'
+  | 'invalid-json'
+  | 'invalid-shape'
+  | 'invalid-action'
+  | 'missing-tool-name'
+  | 'stream-error';
+
+export type VoiceIntentLlmParseResult =
+  | { ok: true; intent: VoiceIntent; rawResponse: string }
+  | { ok: false; errorKind: VoiceIntentLlmErrorKind; message: string; rawResponse: string };
+
 const DEFAULT_SYSTEM_PROMPT = [
   '你是解语语音指令解析器。',
   '你的任务是把用户语音文本解析为一个 JSON 意图对象。',
@@ -47,6 +60,8 @@ const DEFAULT_SYSTEM_PROMPT = [
   '{"type":"chat","text":"<原文>","raw":"<原文>"}',
   '{"tool_call":{"name":"<tool_name>","arguments":{}}}',
   'ActionId 仅允许：playPause,markSegment,cancel,deleteSegment,mergePrev,mergeNext,splitSegment,undo,redo,selectBefore,selectAfter,selectAll,navPrev,navNext,tabNext,tabPrev,search,toggleNotes,toggleVoice。',
+  '额外允许的工具（返回 type:"tool"，toolName 选其一）：',
+  'nav_to_segment, nav_to_time, play_pause, mark_segment, delete_segment, split_at_time, merge_prev, merge_next, undo, redo, focus_segment, zoom_to_segment, toggle_notes, search_segments, auto_gloss_segment, auto_translate_segment, auto_segment, suggest_segment_improvement, analyze_segment_quality, get_current_segment, get_project_summary, get_recent_history。',
 ].join('\n');
 
 const DEFAULT_MODE_PROMPTS: Record<VoiceResolverMode, string> = {
@@ -98,66 +113,148 @@ export function parseVoiceIntentFromLlmResponse(
   rawTranscript: string,
   schemaConfig?: Partial<VoiceIntentLlmSchemaConfig>,
 ): VoiceIntent | null {
+  const result = parseVoiceIntentFromLlmResponseDetailed(responseText, rawTranscript, schemaConfig);
+  return result.ok ? result.intent : null;
+}
+
+export function parseVoiceIntentFromLlmResponseDetailed(
+  responseText: string,
+  rawTranscript: string,
+  schemaConfig?: Partial<VoiceIntentLlmSchemaConfig>,
+): VoiceIntentLlmParseResult {
   const schema = buildSchema(schemaConfig);
   const candidate = extractJsonCandidate(responseText);
-  if (!candidate) return null;
+  if (!candidate) {
+    const trimmedResponse = responseText.trim();
+    const looksLikeBrokenJson = trimmedResponse.startsWith('{') || trimmedResponse.startsWith('```');
+    return {
+      ok: false,
+      errorKind: looksLikeBrokenJson ? 'invalid-json' : 'missing-json',
+      message: looksLikeBrokenJson
+        ? 'LLM 返回了看似 JSON 的内容，但 JSON 结构不完整。'
+        : 'LLM 未返回可解析的 JSON 意图对象。',
+      rawResponse: responseText,
+    };
+  }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(candidate);
-  } catch {
-    return null;
+  } catch (err) {
+    console.warn('[VoiceIntentLlmResolver] JSON.parse failed:', err);
+    return {
+      ok: false,
+      errorKind: 'invalid-json',
+      message: 'LLM 返回了 JSON 片段，但 JSON 语法无效。',
+      rawResponse: responseText,
+    };
   }
 
   const data = asRecord(parsed);
-  if (!data) return null;
+  if (!data) {
+    return {
+      ok: false,
+      errorKind: 'invalid-shape',
+      message: 'LLM 返回的 JSON 不是对象结构。',
+      rawResponse: responseText,
+    };
+  }
 
   const type = readStringField(data, schema.typeField);
   if (type === 'action') {
     const actionId = readStringField(data, schema.actionIdField) ?? '';
-    if (!isActionId(actionId)) return null;
-    return { type: 'action', actionId, raw: rawTranscript, confidence: 1 };
+    if (!isActionId(actionId)) {
+      return {
+        ok: false,
+        errorKind: 'invalid-action',
+        message: `LLM 返回了未注册的 actionId：${actionId || '(empty)'}`,
+        rawResponse: responseText,
+      };
+    }
+    return {
+      ok: true,
+      intent: { type: 'action', actionId, raw: rawTranscript, confidence: 1 },
+      rawResponse: responseText,
+    };
   }
   if (type === 'tool') {
     const toolName = readStringField(data, schema.toolNameField) ?? '';
-    if (!toolName) return null;
+    if (!toolName) {
+      return {
+        ok: false,
+        errorKind: 'missing-tool-name',
+        message: 'LLM 返回了 tool 类型，但缺少 toolName。',
+        rawResponse: responseText,
+      };
+    }
     const params = asRecord(data[schema.paramsField]) ?? {};
     const stringParams: Record<string, string> = {};
     for (const [key, value] of Object.entries(params)) {
       if (typeof value === 'string') stringParams[key] = value;
     }
-    return { type: 'tool', toolName, params: stringParams, raw: rawTranscript };
+    return {
+      ok: true,
+      intent: { type: 'tool', toolName, params: stringParams, raw: rawTranscript },
+      rawResponse: responseText,
+    };
   }
   if (type === 'chat') {
     const text = readStringField(data, schema.chatTextField) ?? rawTranscript;
-    return { type: 'chat', text, raw: rawTranscript };
+    return {
+      ok: true,
+      intent: { type: 'chat', text, raw: rawTranscript },
+      rawResponse: responseText,
+    };
   }
 
   const toolCall = asRecord(data[schema.toolCallField]);
   if (toolCall) {
     const toolName = readStringField(toolCall, schema.toolCallNameField) ?? '';
-    if (!toolName) return null;
+    if (!toolName) {
+      return {
+        ok: false,
+        errorKind: 'missing-tool-name',
+        message: 'LLM 返回了 tool_call，但缺少 name。',
+        rawResponse: responseText,
+      };
+    }
     const args = asRecord(toolCall[schema.toolCallArgsField]) ?? {};
     const params: Record<string, string> = {};
     for (const [key, value] of Object.entries(args)) {
       if (typeof value === 'string') params[key] = value;
     }
-    return { type: 'tool', toolName, params, raw: rawTranscript };
+    return {
+      ok: true,
+      intent: { type: 'tool', toolName, params, raw: rawTranscript },
+      rawResponse: responseText,
+    };
   }
 
-  return null;
+  return {
+    ok: false,
+    errorKind: 'invalid-shape',
+    message: 'LLM 返回的 JSON 缺少可识别的 type 或 tool_call 结构。',
+    rawResponse: responseText,
+  };
 }
 
 export async function resolveVoiceIntentWithLlm(input: ResolveVoiceIntentWithLlmInput): Promise<VoiceIntent | null> {
-  return resolveVoiceIntentWithLlmUsingConfig(input, {});
+  const resolved = await resolveVoiceIntentWithLlmUsingConfig(input, {});
+  return resolved.ok ? resolved.intent : null;
 }
 
 export async function resolveVoiceIntentWithLlmUsingConfig(
   input: ResolveVoiceIntentWithLlmInput,
   config: VoiceIntentLlmResolverConfig,
-): Promise<VoiceIntent | null> {
+) : Promise<VoiceIntentLlmParseResult> {
   const transcript = input.transcript.trim();
-  if (!transcript) return null;
+  if (!transcript) {
+    return {
+      ok: true,
+      intent: { type: 'chat', text: '', raw: input.transcript },
+      rawResponse: '',
+    };
+  }
 
   const provider = createAiChatProvider(input.settings);
   const recentContext = input.recentContext ?? [];
@@ -182,10 +279,17 @@ export async function resolveVoiceIntentWithLlmUsingConfig(
     maxTokens: config.maxTokens ?? 180,
     ...(input.signal ? { signal: input.signal } : {}),
   })) {
-    if (chunk.error) break;
+    if (chunk.error) {
+      return {
+        ok: false,
+        errorKind: 'stream-error',
+        message: chunk.error,
+        rawResponse: response,
+      };
+    }
     response += chunk.delta;
     if (chunk.done) break;
   }
 
-  return parseVoiceIntentFromLlmResponse(response, transcript, config.schema);
+  return parseVoiceIntentFromLlmResponseDetailed(response, transcript, config.schema);
 }

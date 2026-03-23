@@ -1,3 +1,4 @@
 {
-    "deepseek.apiKey": "${env:DEEPSEEK_API_KEY}"
+    "deepseek.apiKey": "${env:DEEPSEEK_API_KEY}",
+    "claudeCode.preferredLocation": "sidebar"
 }

@@ -20,11 +20,11 @@ import type { ActionId, VoiceIntent } from './IntentRouter';
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type ConversationTurnMode =
-  | 'command'      // 单条指令即执行
-  | 'multi-step'   // 多步操作进行中（如连续标注）
-  | 'chat'         // 闲聊/问答模式
-  | 'dictation'    // 听写模式
-  | 'idle';        // 无活跃上下文
+  | 'command'      // 单条指令即执行 | single command, execute immediately
+  | 'multi-step'   // 多步操作进行中（如连续标注）| multi-step operation in progress
+  | 'chat'         // 闲聊/问答模式 | chat / Q&A mode
+  | 'dictation'    // 听写模式 | dictation mode
+  | 'idle';        // 无活跃上下文 | no active context
 
 export interface ConversationTurn {
   /** 本轮原始转写文本 */
@@ -74,7 +74,7 @@ export interface ConversationalState {
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
-const MAX_TURNS = 50;          // 保留最近 50 轮
+const MAX_TURNS = 50;          // 保留最近 50 轮 | keep last 50 turns
 const MAX_RECENT_SEGMENTS = 10; // 保留最近 10 个 segment 引用
 
 function createDefaultState(): ConversationalState {

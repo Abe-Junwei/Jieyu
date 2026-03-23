@@ -79,8 +79,35 @@ export function useTranscriptionTokenActions({
     return updated;
   }, [runWithDbMutex, setUtterances]);
 
+  const updateTokenGloss = useCallback(async (tokenId: string, gloss: string | null, lang = 'eng') => {
+    await runWithDbMutex(() => LinguisticService.updateTokenGloss(tokenId, gloss, lang));
+    const trimmed = (gloss ?? '').trim();
+    setUtterances((prev) => prev.map((utterance) => {
+      if (!Array.isArray(utterance.words) || utterance.words.length === 0) return utterance;
+
+      let changed = false;
+      const nextWords = utterance.words.map((word) => {
+        if (word.id !== tokenId) return word;
+        changed = true;
+        if (trimmed.length === 0) {
+          if (!word.gloss) return word;
+          const { [lang]: _removed, ...rest } = word.gloss;
+          const nextGloss = Object.keys(rest).length > 0 ? rest : undefined;
+          if (nextGloss) return { ...word, gloss: nextGloss };
+          const { gloss: _g, ...wordRest } = word;
+          return wordRest;
+        }
+        return { ...word, gloss: { ...(word.gloss ?? {}), [lang]: trimmed } };
+      });
+
+      if (!changed) return utterance;
+      return { ...utterance, words: nextWords };
+    }));
+  }, [runWithDbMutex, setUtterances]);
+
   return {
     updateTokenPos,
     batchUpdateTokenPosByForm,
+    updateTokenGloss,
   };
 }

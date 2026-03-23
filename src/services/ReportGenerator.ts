@@ -182,8 +182,8 @@ export class ReportGenerator {
       try {
         const dayReport = await this._generateDaily({ ...options, startTime: dayStart, endTime: dayEnd });
         days.push(dayReport);
-      } catch {
-        // Skip days with no data
+      } catch (err) {
+        console.debug('[ReportGenerator] skip weekly day slice:', { dayStart, dayEnd, err });
       }
     }
 
@@ -222,7 +222,7 @@ export class ReportGenerator {
       ? Object.values(profile.actionDurationsMs).reduce((sum, d) => sum + (d ?? 0), 0) / annotatedSegments
       : 0;
 
-    // Get recent activity (last 7 days)
+    // 获取最近活动（近 7 天） | Get recent activity (last 7 days)
     const recentActivity: Array<{ date: string; actions: number; durationMs: number }> = [];
     for (let d = 6; d >= 0; d--) {
       const dayStart = this._todayStart(Date.now() - d * 86400000);
@@ -234,12 +234,13 @@ export class ReportGenerator {
           actions: actions.length,
           durationMs: actions.reduce((sum, a) => sum + a.durationMs, 0),
         });
-      } catch {
+      } catch (err) {
+        console.debug('[ReportGenerator] daily activity query failed, using zero fallback:', { dayStart, dayEnd, err });
         recentActivity.push({ date: new Date(dayStart).toISOString().split('T')[0] ?? '', actions: 0, durationMs: 0 });
       }
     }
 
-    // Estimate completion date based on current pace
+    // 基于当前节奏估算完成日期 | Estimate completion date based on current pace
     const todayActions = recentActivity[recentActivity.length - 1]?.actions ?? 0;
     const remaining = totalSegments - annotatedSegments;
     const dailyPace = todayActions > 0 ? todayActions : 10;

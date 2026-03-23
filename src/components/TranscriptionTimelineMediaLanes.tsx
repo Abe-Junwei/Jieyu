@@ -1,8 +1,12 @@
 import type { TranslationLayerDocType, UtteranceDocType } from '../../db';
+import { useState } from 'react';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { fireAndForget } from '../utils/fireAndForget';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
+import { TimelineLaneHeader } from './TimelineLaneHeader';
+import { LayerActionPopover } from './LayerActionPopover';
+import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
 
 type LassoRect = {
   x: number;
@@ -19,6 +23,7 @@ type TranscriptionTimelineMediaLanesProps = {
   translationLayers: TranslationLayerDocType[];
   timelineRenderUtterances: UtteranceDocType[];
   flashLayerRowId: string;
+  focusedLayerRowId: string;
   defaultTranscriptionLayerId: string | undefined;
   renderAnnotationItem: (
     utt: UtteranceDocType,
@@ -27,7 +32,19 @@ type TranscriptionTimelineMediaLanesProps = {
     extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>
       & Partial<Pick<TimelineAnnotationItemProps, 'onFocus' | 'placeholder'>>,
   ) => React.ReactNode;
+  // TimelineLaneHeader props
+  allLayersOrdered: TranslationLayerDocType[];
+  onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
+  deletableLayers: TranslationLayerDocType[];
+  onFocusLayer: (layerId: string) => void;
+  layerLinks?: Array<{ transcriptionLayerKey: string; tierId: string }>;
+  showConnectors?: boolean;
+  onToggleConnectors?: () => void;
+  laneHeights: Record<string, number>;
+  onLaneHeightChange: (layerId: string, nextHeight: number) => void;
 };
+
+type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
 export function TranscriptionTimelineMediaLanes({
   playerDuration,
@@ -37,9 +54,36 @@ export function TranscriptionTimelineMediaLanes({
   translationLayers,
   timelineRenderUtterances,
   flashLayerRowId,
+  focusedLayerRowId,
   defaultTranscriptionLayerId,
   renderAnnotationItem,
-}: TranscriptionTimelineMediaLanesProps) {
+  allLayersOrdered,
+  onReorderLayers,
+  deletableLayers,
+  onFocusLayer,
+  layerLinks = [],
+  showConnectors = false,
+  onToggleConnectors,
+  laneHeights,
+  onLaneHeightChange,
+}: Omit<TranscriptionTimelineMediaLanesProps, 'allLayersOrdered'> & {
+  allLayersOrdered: TranslationLayerDocType[];
+  deletableLayers: TranslationLayerDocType[];
+  onFocusLayer: (layerId: string) => void;
+  layerLinks?: Array<{ transcriptionLayerKey: string; tierId: string }>;
+}) {
+  const [layerAction, setLayerAction] = useState<{ action: LayerActionType; layerId?: string } | null>(null);
+  const [collapsedLayerIds, setCollapsedLayerIds] = useState<Set<string>>(new Set());
+  const { resizingLayerId, startLaneHeightResize } = useTimelineLaneHeightResize(onLaneHeightChange);
+
+  const toggleLayerCollapsed = (layerId: string) => {
+    setCollapsedLayerIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(layerId)) next.delete(layerId); else next.add(layerId);
+      return next;
+    });
+  };
+
   const {
     utteranceDrafts,
     setUtteranceDrafts,
@@ -53,6 +97,8 @@ export function TranscriptionTimelineMediaLanes({
     clearAutoSaveTimer,
     saveUtteranceText,
     saveTextTranslationForUtterance,
+    createLayer,
+    deleteLayer,
   } = useTranscriptionEditorContext();
   return (
     <div className="timeline-content" style={{ width: playerDuration * zoomPxPerSec }}>
@@ -67,13 +113,39 @@ export function TranscriptionTimelineMediaLanes({
           }}
         />
       )}
-      {transcriptionLayers.map((layer) => (
+      {transcriptionLayers.map((layer, idx) => {
+        const isCollapsed = collapsedLayerIds.has(layer.id);
+        return (
         <div
           key={`tl-${layer.id}`}
-          className={`timeline-lane ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''}`}
+          className={`timeline-lane ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${isCollapsed ? 'timeline-lane-collapsed' : ''}`}
+          style={{
+            position: 'relative',
+            '--timeline-lane-height': `${isCollapsed ? 14 : (laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)}px`,
+          } as React.CSSProperties}
+          onPointerDown={(e) => {
+            if (isCollapsed) toggleLayerCollapsed(layer.id);
+            e.preventDefault();
+            e.stopPropagation();
+          }}
         >
-          <span className="timeline-lane-label">{renderLaneLabel(layer)}</span>
-          {timelineRenderUtterances.map((utt) => {
+          <TimelineLaneHeader
+            layer={layer}
+            layerIndex={idx}
+            allLayers={allLayersOrdered}
+            transcriptionLayersCount={transcriptionLayers.length}
+            onReorderLayers={onReorderLayers}
+            deletableLayers={deletableLayers}
+            onFocusLayer={onFocusLayer}
+            renderLaneLabel={renderLaneLabel}
+            onLayerAction={(action, layerId) => setLayerAction({ action, layerId })}
+            layerLinks={layerLinks}
+            showConnectors={showConnectors}
+            onToggleConnectors={onToggleConnectors ?? (() => {})}
+            isCollapsed={isCollapsed}
+            onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
+          />
+          {!isCollapsed && timelineRenderUtterances.map((utt) => {
             const sourceText = getUtteranceTextForLayer(utt, layer.id);
             const draftKey = `trc-${layer.id}-${utt.id}`;
             const legacyDraft = layer.id === defaultTranscriptionLayerId ? utteranceDrafts[utt.id] : undefined;
@@ -97,15 +169,47 @@ export function TranscriptionTimelineMediaLanes({
               },
             });
           })}
+          {!isCollapsed && <div
+            className="timeline-lane-resize-handle"
+            onPointerDown={(event) => startLaneHeightResize(event, layer.id, laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)}
+            role="separator"
+            aria-orientation="horizontal"
+          />}
         </div>
-      ))}
-      {translationLayers.map((layer) => (
+      );})}
+      {translationLayers.map((layer, idx) => {
+        const isCollapsed = collapsedLayerIds.has(layer.id);
+        return (
         <div
           key={`tl-${layer.id}`}
-          className={`timeline-lane timeline-lane-translation ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''}`}
+          className={`timeline-lane timeline-lane-translation ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${isCollapsed ? 'timeline-lane-collapsed' : ''}`}
+          style={{
+            position: 'relative',
+            '--timeline-lane-height': `${isCollapsed ? 14 : (laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)}px`,
+          } as React.CSSProperties}
+          onPointerDown={(e) => {
+            if (isCollapsed) toggleLayerCollapsed(layer.id);
+            e.preventDefault();
+            e.stopPropagation();
+          }}
         >
-          <span className="timeline-lane-label">{renderLaneLabel(layer)}</span>
-          {timelineRenderUtterances.map((utt) => {
+          <TimelineLaneHeader
+            layer={layer}
+            layerIndex={transcriptionLayers.length + idx}
+            allLayers={allLayersOrdered}
+            transcriptionLayersCount={transcriptionLayers.length}
+            onReorderLayers={onReorderLayers}
+            deletableLayers={deletableLayers}
+            onFocusLayer={onFocusLayer}
+            renderLaneLabel={renderLaneLabel}
+            onLayerAction={(action, layerId) => setLayerAction({ action, layerId })}
+            layerLinks={layerLinks}
+            showConnectors={showConnectors}
+            onToggleConnectors={onToggleConnectors ?? (() => {})}
+            isCollapsed={isCollapsed}
+            onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
+          />
+          {!isCollapsed && timelineRenderUtterances.map((utt) => {
             const text = translationTextByLayer.get(layer.id)?.get(utt.id)?.text ?? '';
             const draftKey = `${layer.id}-${utt.id}`;
             const draft = translationDrafts[draftKey] ?? text;
@@ -135,8 +239,25 @@ export function TranscriptionTimelineMediaLanes({
               },
             });
           })}
+          {!isCollapsed && <div
+            className="timeline-lane-resize-handle"
+            onPointerDown={(event) => startLaneHeightResize(event, layer.id, laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)}
+            role="separator"
+            aria-orientation="horizontal"
+          />}
         </div>
-      ))}
+      );})}
+
+      {layerAction && (
+        <LayerActionPopover
+          action={layerAction.action}
+          layerId={layerAction.layerId}
+          deletableLayers={deletableLayers}
+          createLayer={createLayer}
+          deleteLayer={deleteLayer}
+          onClose={() => setLayerAction(null)}
+        />
+      )}
     </div>
   );
 }

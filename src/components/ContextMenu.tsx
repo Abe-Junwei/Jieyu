@@ -1,4 +1,5 @@
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface ContextMenuItem {
   label: string;
@@ -17,6 +18,26 @@ interface ContextMenuProps {
 
 export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ left: x, top: y });
+
+  useLayoutEffect(() => {
+    const menu = ref.current;
+    if (!menu) {
+      setPosition({ left: x, top: y });
+      return;
+    }
+
+    const margin = 8;
+    const width = menu.offsetWidth || 180;
+    const height = menu.offsetHeight || 120;
+    const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - height - margin);
+
+    setPosition({
+      left: Math.min(Math.max(margin, x), maxLeft),
+      top: Math.min(Math.max(margin, y), maxTop),
+    });
+  }, [x, y, items.length]);
 
   useEffect(() => {
     const handler = (e: MouseEvent | KeyboardEvent) => {
@@ -31,15 +52,14 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: C
     };
   }, [onClose]);
 
-  // Clamp to viewport
   const style: React.CSSProperties = {
     position: 'fixed',
-    left: x,
-    top: y,
+    left: position.left,
+    top: position.top,
     zIndex: 9999,
   };
 
-  return (
+  const node = (
     <div ref={ref} className="context-menu" style={style} role="menu">
       {items.map((item) => (
         <button
@@ -55,4 +75,10 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: C
       ))}
     </div>
   );
+
+  if (typeof document === 'undefined' || !document.body) {
+    return node;
+  }
+
+  return createPortal(node, document.body);
 });

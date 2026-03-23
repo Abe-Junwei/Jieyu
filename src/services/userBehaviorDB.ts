@@ -121,14 +121,15 @@ export const userBehaviorDB = getUserBehaviorDB();
 // ── Convenience helpers ────────────────────────────────────────────────────
 
 /**
- * Persist a single action record.
- * Called frequently — errors are silently ignored to avoid impacting UX.
+ * 持久化单条操作记录 | Persist a single action record.
+ * 高频调用，出错时静默降级以避免影响交互 | Called frequently; degrade silently on failure to avoid UX impact.
  */
 export async function recordActionToDB(record: Omit<ActionRecordDoc, 'id'>): Promise<void> {
   try {
     await userBehaviorDB.actionRecords.add(record as ActionRecordDoc);
-  } catch {
-    // IndexedDB unavailable — silently skip
+  } catch (err) {
+    console.debug('[UserBehaviorDB] recordActionToDB failed, skipped:', err);
+    // IndexedDB 不可用时静默跳过 | Silently skip when IndexedDB is unavailable
   }
 }
 
@@ -138,7 +139,8 @@ export async function recordActionToDB(record: Omit<ActionRecordDoc, 'id'>): Pro
 export async function loadBehaviorProfile(): Promise<UserBehaviorProfileDoc | undefined> {
   try {
     return await userBehaviorDB.userBehaviorProfiles.get('current');
-  } catch {
+  } catch (err) {
+    console.debug('[UserBehaviorDB] loadBehaviorProfile failed:', err);
     return undefined;
   }
 }
@@ -149,14 +151,15 @@ export async function loadBehaviorProfile(): Promise<UserBehaviorProfileDoc | un
 export async function saveBehaviorProfile(profile: UserBehaviorProfileDoc): Promise<void> {
   try {
     await userBehaviorDB.userBehaviorProfiles.put({ ...profile, updatedAt: Date.now() });
-  } catch {
+  } catch (err) {
+    console.debug('[UserBehaviorDB] saveBehaviorProfile failed, skipped:', err);
     // IndexedDB unavailable — silently skip
   }
 }
 
 /**
- * Prune old action records to prevent unbounded growth.
- * Keeps the most recent MAX_RECORDS records.
+ * 清理旧操作记录以避免无限增长 | Prune old action records to prevent unbounded growth.
+ * 保留最近 MAX_RECORDS 条记录 | Keeps the most recent MAX_RECORDS records.
  */
 const MAX_RECORDS = 10_000;
 
@@ -165,7 +168,7 @@ export async function pruneOldRecords(): Promise<void> {
     const count = await userBehaviorDB.actionRecords.count();
     if (count <= MAX_RECORDS) return;
 
-    // Delete oldest records beyond MAX_RECORDS
+    // 删除超过 MAX_RECORDS 的最旧记录 | Delete oldest records beyond MAX_RECORDS
     const oldestToKeep = await userBehaviorDB.actionRecords
       .orderBy('timestamp')
       .reverse()
@@ -178,8 +181,9 @@ export async function pruneOldRecords(): Promise<void> {
         .below(oldestToKeep.timestamp)
         .delete();
     }
-  } catch {
-    // Silently skip
+  } catch (err) {
+    console.debug('[UserBehaviorDB] pruneOldRecords failed, skipped:', err);
+    // 静默跳过 | Silently skip
   }
 }
 
@@ -195,7 +199,8 @@ export async function getActionRecordsInRange(
       .where('timestamp')
       .between(startMs, endMs)
       .toArray();
-  } catch {
+  } catch (err) {
+    console.debug('[UserBehaviorDB] getActionRecordsInRange failed, returning empty:', err);
     return [];
   }
 }
@@ -206,7 +211,8 @@ export async function getActionRecordsInRange(
 export async function recordTaskPhase(record: Omit<TaskPhaseRecordDoc, 'id'>): Promise<void> {
   try {
     await userBehaviorDB.taskPhaseRecords.add(record as TaskPhaseRecordDoc);
-  } catch {
+  } catch (err) {
+    console.debug('[UserBehaviorDB] recordTaskPhase failed, skipped:', err);
     // Silently skip
   }
 }
@@ -217,7 +223,8 @@ export async function recordTaskPhase(record: Omit<TaskPhaseRecordDoc, 'id'>): P
 export async function recordDifficultSegment(record: Omit<DifficultSegmentDoc, 'id'>): Promise<void> {
   try {
     await userBehaviorDB.difficultSegments.add(record as DifficultSegmentDoc);
-  } catch {
+  } catch (err) {
+    console.debug('[UserBehaviorDB] recordDifficultSegment failed, skipped:', err);
     // Silently skip
   }
 }
@@ -234,7 +241,8 @@ export async function getTaskPhaseRecordsInRange(
       .where('startedAt')
       .between(startMs, endMs)
       .toArray();
-  } catch {
+  } catch (err) {
+    console.debug('[UserBehaviorDB] getTaskPhaseRecordsInRange failed, returning empty:', err);
     return [];
   }
 }
@@ -251,7 +259,8 @@ export async function getDifficultSegmentsInRange(
       .where('recordedAt')
       .between(startMs, endMs)
       .toArray();
-  } catch {
+  } catch (err) {
+    console.debug('[UserBehaviorDB] getDifficultSegmentsInRange failed, returning empty:', err);
     return [];
   }
 }

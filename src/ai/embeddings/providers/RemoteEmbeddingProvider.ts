@@ -43,13 +43,10 @@ export class RemoteEmbeddingProvider implements EmbeddingProvider {
   }
 
   async preload(_options?: { onProgress?: (progress: { usingFallback?: boolean }) => void }): Promise<void> {
-    // Lightweight health check — try a tiny embedding request.
-    if (!this.apiKey) return;
-    try {
-      await this.embed(['']);
-    } catch {
-      // Ignore preload errors; embed() will surface real failures.
+    if (!this.apiKey) {
+      throw new Error(`${this.label} 缺少 API Key`);
     }
+    await this.embed(['health-check']);
   }
 
   /** Ping the remote endpoint with a minimal embed request to verify connectivity and credentials. */
@@ -62,7 +59,7 @@ export class RemoteEmbeddingProvider implements EmbeddingProvider {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
         },
-        body: JSON.stringify({ input: [''], model: this.modelId }),
+        body: JSON.stringify({ input: ['health-check'], model: this.modelId }),
       });
       return resp.ok;
     } catch {

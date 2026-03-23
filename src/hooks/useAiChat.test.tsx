@@ -16,7 +16,7 @@ vi.mock('../ai/ChatOrchestrator', () => {
       const userText = input.userText ?? input.history?.[input.history.length - 1]?.content ?? '';
       async function* stream() {
         if (userText.includes('请解释删除层命令是什么意思')) {
-          yield { delta: '{"tool_call":{"name":"delete_layer","arguments":{"layerId":"layer-1"}}}' };
+          yield { delta: '{"tool_call":{"name":"delete_layer","arguments":{"layerType":"transcription","languageQuery":"中文"}}}' };
           yield { delta: '', done: true };
           return;
         }
@@ -26,7 +26,7 @@ vi.mock('../ai/ChatOrchestrator', () => {
           return;
         }
         if (userText.includes('__TOOL_DELETE_LAYER__')) {
-          yield { delta: '{"tool_call":{"name":"delete_layer","arguments":{"layerId":"layer-1"}}}' };
+          yield { delta: '{"tool_call":{"name":"delete_layer","arguments":{"layerType":"transcription","languageQuery":"中文"}}}' };
           yield { delta: '', done: true };
           return;
         }
@@ -85,6 +85,11 @@ vi.mock('../ai/ChatOrchestrator', () => {
           yield { delta: '', done: true };
           return;
         }
+        if (userText.includes('__TOOL_CREATE_TRANSCRIPTION_LAYER__')) {
+          yield { delta: '{"tool_call":{"name":"create_transcription_layer","arguments":{"languageId":"eng"}}}' };
+          yield { delta: '', done: true };
+          return;
+        }
         if (userText.includes('__TOOL_MIXED_REPLY__')) {
           yield { delta: '{"tool_call":{"name":"set_transcription_text","arguments":{"utteranceId":"u1","text":"hello"}}}\n---\n好的，我已经处理完毕。' };
           yield { delta: '', done: true };
@@ -127,6 +132,21 @@ vi.mock('../ai/ChatOrchestrator', () => {
         }
         if (userText.includes('删除日本语翻译层')) {
           yield { delta: '{"tool_call":{"name":"delete_layer","arguments":{}}}' };
+          yield { delta: '', done: true };
+          return;
+        }
+        if (userText.includes('__TOOL_DELETE_LAYER_HALLUCINATED_ID__')) {
+          yield { delta: '{"tool_call":{"name":"delete_layer","arguments":{"layerId":"transcription_layer_1","layerType":"transcription"}}}' };
+          yield { delta: '', done: true };
+          return;
+        }
+        if (userText.includes('__TOOL_SET_TEXT_HALLUCINATED_UTTERANCE__')) {
+          yield { delta: '{"tool_call":{"name":"set_transcription_text","arguments":{"utteranceId":"utt_fake_999","text":"hello"}}}' };
+          yield { delta: '', done: true };
+          return;
+        }
+        if (userText.includes('__TOOL_SET_TRANSLATION_HALLUCINATED_LAYER__')) {
+          yield { delta: '{"tool_call":{"name":"set_translation_text","arguments":{"layerId":"translation_layer_fake","utteranceId":"u1","text":"hi"}}}' };
           yield { delta: '', done: true };
           return;
         }
@@ -410,7 +430,7 @@ describe('useAiChat abort and recovery', () => {
     expect(result.current.pendingToolCall?.impactPreview?.length ?? 0).toBeGreaterThan(0);
     expect(result.current.pendingToolCall?.impactPreview?.[0]).toContain('文本会被一并移除');
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
-    expect(assistant?.content).toContain('风险较高');
+    expect(assistant?.content).toContain('你想继续');
   });
 
   it('should rewrite legacy risk narration to clarification without raw tool key', async () => {
@@ -464,7 +484,7 @@ describe('useAiChat abort and recovery', () => {
     expect(result.current.pendingToolCall?.call.arguments.utteranceId).toBe('u-current');
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(assistant?.content).toContain('删除句段');
-    expect(assistant?.content).toContain('风险较高');
+    expect(assistant?.content).toContain('等你确认');
     expect(onToolCall).not.toHaveBeenCalled();
   });
 
@@ -604,6 +624,36 @@ describe('useAiChat abort and recovery', () => {
     expect(result.current.pendingToolCall?.impactPreview).toEqual(['自定义影响A', '自定义影响B']);
   });
 
+  it('should stop before confirmation when delete_layer target is ambiguous in risk check', async () => {
+    const onToolCall = vi.fn();
+    const onToolRiskCheck = vi.fn().mockReturnValue({
+      requiresConfirmation: false,
+      riskSummary: '匹配到多个转写层，请改用 layerId 精确指定。',
+      impactPreview: [],
+    });
+    const { result } = renderHook(() => useAiChat({ onToolCall, onToolRiskCheck }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_DELETE_LAYER__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    expect(onToolCall).not.toHaveBeenCalled();
+    expect(result.current.pendingToolCall).toBeNull();
+    expect(result.current.taskSession.status).toBe('waiting_clarify');
+    const assistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(assistant?.status).toBe('error');
+    expect(assistant?.content).toContain('你想删除哪个转写层');
+    expect(assistant?.content).not.toContain('第1个/第2个');
+  });
+
   it('should execute destructive tool call after explicit confirmation', async () => {
     const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '已删除目标层' });
     const { result } = renderHook(() => useAiChat({ onToolCall }));
@@ -629,7 +679,7 @@ describe('useAiChat abort and recovery', () => {
       expect(result.current.pendingToolCall).toBeNull();
     });
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
-    expect(assistant?.content).toContain('我已经按你的意思完成了这个操作');
+    expect(assistant?.content).toContain('已完成“删除层”');
     expect(assistant?.content).toContain('已删除目标层');
 
     const auditRows = await db.audit_logs.toArray();
@@ -692,7 +742,7 @@ describe('useAiChat abort and recovery', () => {
     });
 
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
-    expect(assistant?.content).toContain('没有成功');
+    expect(assistant?.content).toContain('没有完成');
 
     const auditRows = await db.audit_logs.toArray();
     const decisionLog = auditRows.find((row) => row.field === 'ai_tool_call_decision');
@@ -718,7 +768,7 @@ describe('useAiChat abort and recovery', () => {
 
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(assistant?.status).toBe('error');
-    expect(assistant?.content).toContain('没有成功');
+    expect(assistant?.content).toContain('没有完成');
     expect(result.current.lastError).toBe('重命名失败');
   });
 
@@ -740,7 +790,7 @@ describe('useAiChat abort and recovery', () => {
 
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(assistant?.status).toBe('done');
-    expect(assistant?.content).toContain('我已经按你的意思完成了这个操作');
+    expect(assistant?.content).toContain('已完成“写入转写”');
     expect(assistant?.content).toContain('已重命名');
 
     const auditRows = await db.audit_logs.toArray();
@@ -825,6 +875,7 @@ describe('useAiChat abort and recovery', () => {
     const assistant = second.result.current.messages.find((item) => item.role === 'assistant');
     expect(assistant?.status).toBe('done');
     expect(assistant?.content).toContain('已重命名');
+    expect(assistant?.content).toContain('已完成');
   });
 
   it('should render concise tool feedback when configured', async () => {
@@ -849,8 +900,8 @@ describe('useAiChat abort and recovery', () => {
 
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(assistant?.status).toBe('done');
-    expect(assistant?.content).toContain('已完成（set_transcription_text）：已重命名');
-    expect(assistant?.content).not.toContain('我已经按你的意思完成了这个操作');
+    expect(assistant?.content).toContain('已完成写入转写：已重命名');
+    expect(assistant?.content).not.toContain('set_transcription_text');
   });
 
   it('should write auto_failed audit log when auto-executed tool throws', async () => {
@@ -1091,7 +1142,7 @@ describe('useAiChat abort and recovery', () => {
     expect(onToolCall).toHaveBeenCalledTimes(1);
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(assistant?.status).toBe('done');
-    expect(assistant?.content).toContain('set_transcription_text');
+    expect(assistant?.content).toContain('已完成“写入转写”');
     expect(assistant?.content).toContain('转写文本已写入。');
     expect(assistant?.content).not.toContain('好的，我已经处理完毕');
   });
@@ -1285,8 +1336,18 @@ describe('useAiChat abort and recovery', () => {
   });
 
   it('should treat split-segment command as actionable intent', async () => {
-    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '已在当前句段后创建新区间。' });
-    const { result } = renderHook(() => useAiChat({ onToolCall }));
+    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '已在 12.50s 处切分当前句段。' });
+    const { result } = renderHook(() => useAiChat({
+      onToolCall,
+      getContext: () => ({
+        shortTerm: {
+          selectedUtteranceId: 'u1',
+          selectedUtteranceStartSec: 10,
+          selectedUtteranceEndSec: 14,
+          audioTimeSec: 12.5,
+        },
+      }),
+    }));
 
     await waitFor(() => {
       expect(result.current.isBootstrapping).toBe(false);
@@ -1301,10 +1362,56 @@ describe('useAiChat abort and recovery', () => {
     });
 
     expect(onToolCall).toHaveBeenCalledTimes(1);
-    const assistant = result.current.messages.find((item) => item.role === 'assistant');
-    expect(assistant?.status).toBe('done');
-    expect(assistant?.content).toContain('create_transcription_segment');
-    expect(assistant?.content).toContain('已在当前句段后创建新区间。');
+    const firstCall = onToolCall.mock.calls[0]?.[0];
+    expect(firstCall?.name).toBe('split_transcription_segment');
+    expect(firstCall?.arguments.utteranceId).toBe('u1');
+    expect(firstCall?.arguments.splitTime).toBe(12.5);
+  });
+
+  it('should clarify split position when cursor is at edge, then split at cursor after replying 这里', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '已在 12.00s 处切分当前句段。' });
+    let cursor = 10;
+    const { result } = renderHook(() => useAiChat({
+      onToolCall,
+      getContext: () => ({
+        shortTerm: {
+          selectedUtteranceId: 'u1',
+          selectedUtteranceStartSec: 10,
+          selectedUtteranceEndSec: 14,
+          audioTimeSec: cursor,
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('切分此句段');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    expect(onToolCall).toHaveBeenCalledTimes(0);
+    expect(result.current.messages[result.current.messages.length - 1]?.content ?? '').toMatch(/光标在语段边界|切分的位置/);
+
+    cursor = 12;
+    await act(async () => {
+      await result.current.send('这里');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    expect(onToolCall).toHaveBeenCalledTimes(1);
+    const firstCall = onToolCall.mock.calls[0]?.[0];
+    expect(firstCall?.name).toBe('split_transcription_segment');
+    expect(firstCall?.arguments.utteranceId).toBe('u1');
+    expect(firstCall?.arguments.splitTime).toBe(12);
   });
 
   it('should treat polite question style edit request as actionable intent', async () => {
@@ -1378,11 +1485,12 @@ describe('useAiChat abort and recovery', () => {
     expect(result.current.taskSession.clarifyReason).toBe('missing-utterance-target');
 
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
-    expect(assistant?.content).toContain('第1个/这个');
+    expect(assistant?.content).toContain('补充对应 ID');
+    expect(assistant?.content).not.toContain('第1个/这个');
   });
 
   it('should include recovery next-step hints when tool execution fails', async () => {
-    const onToolCall = vi.fn().mockResolvedValue({ ok: false, message: '未找到目标句段：u404' });
+    const onToolCall = vi.fn().mockResolvedValue({ ok: false, message: '网络请求超时' });
     const { result } = renderHook(() => useAiChat({ onToolCall }));
 
     await waitFor(() => {
@@ -1400,6 +1508,51 @@ describe('useAiChat abort and recovery', () => {
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(assistant?.status).toBe('error');
     expect(assistant?.content).toContain('建议下一步');
+  });
+
+  it('should use unified natural-language prompt when utterance target is missing', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: false, message: '未找到目标句段：u404' });
+    const { result } = renderHook(() => useAiChat({ onToolCall }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_RENAME_LAYER__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const assistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(assistant?.status).toBe('error');
+    expect(assistant?.content).toContain('你想修改哪个句段');
+    expect(assistant?.content).not.toContain('我尝试执行了这个操作');
+    expect(assistant?.content).not.toContain('建议下一步');
+  });
+
+  it('should use concise natural-language prompt when create_transcription_layer fails by conflict', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: false, message: '创建转写层失败，请检查语言或别名是否冲突。' });
+    const { result } = renderHook(() => useAiChat({ onToolCall }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_CREATE_TRANSCRIPTION_LAYER__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const assistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(assistant?.status).toBe('error');
+    expect(assistant?.content).toContain('你想新建哪个转写层');
+    expect(assistant?.content).not.toContain('我尝试执行了这个操作');
   });
 
   it('should enrich delete_layer args from user text for language-specific translation-layer deletion', async () => {
@@ -1439,7 +1592,7 @@ describe('useAiChat abort and recovery', () => {
 
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(assistant?.status).toBe('done');
-    expect(assistant?.content).toContain('delete_layer');
+    expect(assistant?.content).toContain('已完成“删除层”');
     expect(assistant?.content).toContain('已删除层：trl-jpn');
   });
 
@@ -1473,7 +1626,8 @@ describe('useAiChat abort and recovery', () => {
     expect(onToolCall).toHaveBeenCalledTimes(1);
     const firstCall = onToolCall.mock.calls[0]?.[0];
     expect(firstCall?.name).toBe('set_translation_text');
-    expect(firstCall?.arguments.utteranceId).toBe('u1');
+    // 幻觉防护：LLM 的 u1 被上下文 u-selected 替换 | Hallucination guard: LLM u1 replaced by context
+    expect(firstCall?.arguments.utteranceId).toBe('u-selected');
     expect(firstCall?.arguments.layerId).toBe('trl-selected');
   });
 
@@ -1528,7 +1682,8 @@ describe('useAiChat abort and recovery', () => {
     expect(onToolCall).toHaveBeenCalledTimes(1);
     const firstCall = onToolCall.mock.calls[0]?.[0];
     expect(firstCall?.name).toBe('clear_translation_segment');
-    expect(firstCall?.arguments.utteranceId).toBe('u1');
+    // 幻觉防护：LLM 的 u1 被上下文 u-selected 替换 | Hallucination guard: LLM u1 replaced by context
+    expect(firstCall?.arguments.utteranceId).toBe('u-selected');
     expect(firstCall?.arguments.layerId).toBe('trl-selected');
   });
 
@@ -1542,6 +1697,38 @@ describe('useAiChat abort and recovery', () => {
 
     await act(async () => {
       await result.current.send('__TOOL_LINK_MISSING_TARGETS__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    expect(onToolCall).not.toHaveBeenCalled();
+    const assistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(assistant?.status).toBe('done');
+    expect(assistant?.content).toContain('缺少目标层');
+  });
+
+  it('should clarify instead of auto-linking when user does not explicitly refer to current layer pair', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '不应执行' });
+    const { result } = renderHook(() => useAiChat({
+      onToolCall,
+      getContext: () => ({
+        shortTerm: {
+          selectedLayerId: 'trl-selected',
+          selectedLayerType: 'translation',
+          selectedTranslationLayerId: 'trl-selected',
+          selectedTranscriptionLayerId: 'trc-selected',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('关联翻译层');
     });
 
     await waitFor(() => {
@@ -1596,5 +1783,224 @@ describe('useAiChat abort and recovery', () => {
     const [assistantMessageId, content] = onMessageComplete.mock.calls[0] ?? [];
     expect(typeof assistantMessageId).toBe('string');
     expect(content).toContain('普通对话回复');
+  });
+
+  it('should track interaction metrics across tool execution lifecycle', async () => {
+    const onToolCall = vi.fn<(call: { name: string; arguments: Record<string, unknown> }) => Promise<{ ok: boolean; message: string }>>()
+      .mockResolvedValueOnce({ ok: false, message: '目标不存在' })
+      .mockResolvedValueOnce({ ok: true, message: '已完成' });
+    const { result } = renderHook(() => useAiChat({ onToolCall }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    // 首轮：执行失败 | First turn: tool execution fails
+    await act(async () => {
+      await result.current.send('__TOOL_RENAME_LAYER__');
+    });
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+    expect(result.current.metrics.turnCount).toBe(1);
+    expect(result.current.metrics.failureCount).toBe(1);
+    expect(result.current.metrics.successCount).toBe(0);
+
+    // 二轮：执行成功 | Second turn: tool execution succeeds
+    await act(async () => {
+      await result.current.send('__TOOL_RENAME_LAYER__');
+    });
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+    expect(result.current.metrics.turnCount).toBe(2);
+    expect(result.current.metrics.successCount).toBe(1);
+    expect(result.current.metrics.failureCount).toBe(1);
+  });
+
+  it('should bump clarifyCount when planner requires target clarification', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '不应执行' });
+    const { result } = renderHook(() => useAiChat({ onToolCall }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('删除当前句段');
+    });
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    expect(result.current.metrics.clarifyCount).toBe(1);
+    expect(result.current.taskSession.status).toBe('waiting_clarify');
+  });
+
+  it('should bump cancelCount when user cancels a pending tool call', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '已删除' });
+    const onToolRiskCheck = vi.fn().mockReturnValue({ requiresConfirmation: true, riskSummary: '将删除' });
+    const { result } = renderHook(() => useAiChat({ onToolCall, onToolRiskCheck }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_DELETE_SEGMENT__');
+    });
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    expect(result.current.pendingToolCall).not.toBeNull();
+
+    await act(async () => {
+      await result.current.cancelPendingToolCall();
+    });
+
+    expect(result.current.metrics.cancelCount).toBe(1);
+    expect(result.current.pendingToolCall).toBeNull();
+  });
+
+  it('should include previewContract on pending destructive tool call', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '已删除' });
+    const onToolRiskCheck = vi.fn().mockReturnValue({ requiresConfirmation: true, riskSummary: '将删除' });
+    const { result } = renderHook(() => useAiChat({ onToolCall, onToolRiskCheck }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_DELETE_SEGMENT__');
+    });
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    expect(result.current.pendingToolCall).not.toBeNull();
+    expect(result.current.pendingToolCall?.previewContract).toBeDefined();
+    expect(result.current.pendingToolCall?.previewContract?.reversible).toBe(true);
+    expect(result.current.pendingToolCall?.previewContract?.affectedCount).toBe(1);
+    expect(result.current.pendingToolCall?.previewContract?.cascadeTypes).toContain('translation');
+  });
+
+  it('should discard hallucinated layerId and clarify when no context layer matches', async () => {
+    const onToolCall = vi.fn();
+    const { result } = renderHook(() => useAiChat({ onToolCall }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_DELETE_LAYER_HALLUCINATED_ID__');
+    });
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    // 幻觉 ID 被丢弃后，无 layerType/languageQuery → 应落入 clarify
+    // Hallucinated ID discarded, no layerType/languageQuery → should clarify
+    expect(onToolCall).not.toHaveBeenCalled();
+    expect(result.current.pendingToolCall).toBeNull();
+    expect(result.current.taskSession.status).toBe('waiting_clarify');
+    expect(result.current.taskSession.clarifyReason).toBe('missing-layer-target');
+  });
+
+  it('should use context selectedTranscriptionLayerId when hallucinated layerId is discarded', async () => {
+    const onToolCall = vi.fn();
+    const onToolRiskCheck = vi.fn().mockReturnValue({ requiresConfirmation: true, riskSummary: '将删除' });
+    const { result } = renderHook(() => useAiChat({
+      onToolCall,
+      onToolRiskCheck,
+      getContext: () => ({
+        shortTerm: {
+          selectedLayerId: 'real_layer_42',
+          selectedLayerType: 'transcription' as const,
+          selectedTranscriptionLayerId: 'real_layer_42',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_DELETE_LAYER_HALLUCINATED_ID__');
+    });
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    // 幻觉 ID 被丢弃，推断出 layerType=transcription 但无 languageQuery；
+    // 有 selectedTranscriptionLayerId → 自动填充真实 ID → 进入确认
+    // Hallucinated ID discarded, inferred transcription type, fills from context → pending confirm
+    expect(result.current.pendingToolCall).not.toBeNull();
+    expect(result.current.pendingToolCall?.call.arguments.layerId).toBe('real_layer_42');
+  });
+
+  it('should replace hallucinated utteranceId with context currentUtteranceId', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: 'done' });
+    const { result } = renderHook(() => useAiChat({
+      onToolCall,
+      getContext: () => ({
+        shortTerm: {
+          selectedUtteranceId: 'utt_real_001',
+          selectedTranscriptionLayerId: 'layer_trans_1',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_SET_TEXT_HALLUCINATED_UTTERANCE__');
+    });
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    // 幻觉 utteranceId 被替换为上下文真实 ID | Hallucinated utteranceId replaced by context
+    expect(onToolCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        arguments: expect.objectContaining({ utteranceId: 'utt_real_001' }),
+      }),
+    );
+  });
+
+  it('should replace hallucinated translationLayerId with context selectedTranslationLayerId', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: 'done' });
+    const { result } = renderHook(() => useAiChat({
+      onToolCall,
+      getContext: () => ({
+        shortTerm: {
+          selectedUtteranceId: 'utt_real_001',
+          selectedTranslationLayerId: 'layer_trans_real_42',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_SET_TRANSLATION_HALLUCINATED_LAYER__');
+    });
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    // 幻觉 layerId 被替换为上下文翻译层 ID | Hallucinated layerId replaced by context translation layer
+    expect(onToolCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        arguments: expect.objectContaining({ layerId: 'layer_trans_real_42' }),
+      }),
+    );
   });
 });

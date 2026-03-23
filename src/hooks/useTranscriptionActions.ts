@@ -132,6 +132,7 @@ export function useTranscriptionActions({
     deleteLayer,
     toggleLayerLink,
     addMediaItem,
+    reorderLayers,
   } = useTranscriptionLayerActions({
     layers,
     layerLinks,
@@ -171,5 +172,6 @@ export function useTranscriptionActions({
     deleteLayer,
     toggleLayerLink,
     addMediaItem,
+    reorderLayers,
   };
 }

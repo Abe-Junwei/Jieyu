@@ -8,6 +8,15 @@ export type Region = 'cn' | 'global';
 
 const REGION_STORAGE_KEY = 'jieyu.voice.region';
 
+function isMainlandLikeLocale(lang: string): boolean {
+  const normalized = lang.trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized === 'zh-cn' || normalized === 'zh') return true;
+  // 新马中文用户通常不应默认归为大陆 | zh-SG/zh-MY should not be mapped to CN by default
+  if (normalized === 'zh-sg' || normalized === 'zh-my') return false;
+  return false;
+}
+
 /**
  * Detect user region without requiring IP geolocation API.
  * Uses a 3-second timeout to avoid blocking startup.
@@ -19,7 +28,9 @@ const REGION_STORAGE_KEY = 'jieyu.voice.region';
  */
 export async function detectRegion(): Promise<Region> {
   // 1. Use cached preference
-  const cached = localStorage.getItem(REGION_STORAGE_KEY);
+  const cached = typeof localStorage !== 'undefined'
+    ? localStorage.getItem(REGION_STORAGE_KEY)
+    : null;
   if (cached === 'cn' || cached === 'global') return cached;
 
   // 2. Google reachability probe (most accurate for CN detection)
@@ -28,18 +39,21 @@ export async function detectRegion(): Promise<Region> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
-    const res = await fetch('https://www.google.com/generate_204', {
-      signal: controller.signal,
-      mode: 'no-cors',
-    });
-    clearTimeout(timeout);
-    // If we reach Google, user is outside mainland China
-    return res.ok || res.status === 0 ? 'global' : 'cn';
+    try {
+      const res = await fetch('https://www.google.com/generate_204', {
+        signal: controller.signal,
+        mode: 'no-cors',
+      });
+      // If we reach Google, user is outside mainland China
+      return res.ok || res.status === 0 ? 'global' : 'cn';
+    } finally {
+      clearTimeout(timeout);
+    }
   } catch {
     // Network error or timeout — fall back to locale heuristic
     // Only 'zh-CN' strongly suggests mainland; zh-HK / zh-TW are global
     const lang = typeof navigator !== 'undefined' ? navigator.language : '';
-    return lang === 'zh-CN' || lang === 'zh' ? 'cn' : 'global';
+    return isMainlandLikeLocale(lang) ? 'cn' : 'global';
   }
 }
 

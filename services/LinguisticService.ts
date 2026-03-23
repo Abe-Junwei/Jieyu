@@ -20,6 +20,7 @@ import {
   type AuditLogDocType,
   type AuditSource,
   type AnchorDocType,
+  type SpeakerDocType,
 } from '../db';
 import { newId } from '../src/utils/transcriptionFormatters';
 import {
@@ -703,6 +704,147 @@ export class LinguisticService {
     return docs.map((doc) => doc.toJSON()).find((u) => u.startTime <= time && u.endTime >= time);
   }
 
+  static async getSpeakers(): Promise<SpeakerDocType[]> {
+    const db = await getDb();
+    const docs = await db.collections.speakers.find().exec();
+    return docs
+      .map((doc) => doc.toJSON())
+      .sort((a, b) => {
+        const byName = a.name.localeCompare(b.name, 'zh-Hans-CN');
+        if (byName !== 0) return byName;
+        return a.id.localeCompare(b.id, 'en');
+      });
+  }
+
+  static async createSpeaker(input: {
+    name: string;
+    pseudonym?: string;
+    role?: SpeakerDocType['role'];
+  }): Promise<SpeakerDocType> {
+    const db = await getDb();
+    const name = input.name.trim();
+    if (!name) throw new Error('说话人名称不能为空');
+
+    const now = new Date().toISOString();
+    const speaker: SpeakerDocType = {
+      id: newId('speaker'),
+      name,
+      ...(input.pseudonym?.trim() ? { pseudonym: input.pseudonym.trim() } : {}),
+      ...(input.role ? { role: input.role } : {}),
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.collections.speakers.insert(speaker);
+    return speaker;
+  }
+
+  static async renameSpeaker(speakerId: string, nextName: string): Promise<SpeakerDocType> {
+    const db = await getDb();
+    const id = speakerId.trim();
+    const name = nextName.trim();
+    if (!id) throw new Error('说话人 ID 不能为空');
+    if (!name) throw new Error('说话人名称不能为空');
+
+    const speakerDoc = await db.collections.speakers.findOne({ selector: { id } }).exec();
+    if (!speakerDoc) throw new Error(`说话人不存在: ${id}`);
+    const current = speakerDoc.toJSON();
+    const now = new Date().toISOString();
+    const updated: SpeakerDocType = {
+      ...current,
+      name,
+      updatedAt: now,
+    };
+    await db.collections.speakers.insert(updated);
+
+    const utterances = await db.collections.utterances.findByIndex('speakerId', id);
+    if (utterances.length > 0) {
+      const normalized = utterances.map((doc) => {
+        const row = doc.toJSON();
+        return normalizeUtteranceDocForStorage({
+          ...row,
+          speaker: name,
+          updatedAt: now,
+        });
+      });
+      await db.collections.utterances.bulkInsert(normalized);
+    }
+
+    return updated;
+  }
+
+  static async mergeSpeakers(sourceSpeakerId: string, targetSpeakerId: string): Promise<number> {
+    const db = await getDb();
+    const sourceId = sourceSpeakerId.trim();
+    const targetId = targetSpeakerId.trim();
+    if (!sourceId || !targetId) throw new Error('说话人 ID 不能为空');
+    if (sourceId === targetId) return 0;
+
+    const [sourceDoc, targetDoc] = await Promise.all([
+      db.collections.speakers.findOne({ selector: { id: sourceId } }).exec(),
+      db.collections.speakers.findOne({ selector: { id: targetId } }).exec(),
+    ]);
+
+    if (!sourceDoc) throw new Error(`来源说话人不存在: ${sourceId}`);
+    if (!targetDoc) throw new Error(`目标说话人不存在: ${targetId}`);
+
+    const target = targetDoc.toJSON();
+    const now = new Date().toISOString();
+    const utterances = await db.collections.utterances.findByIndex('speakerId', sourceId);
+
+    if (utterances.length > 0) {
+      const normalized = utterances.map((doc) => {
+        const row = doc.toJSON();
+        return normalizeUtteranceDocForStorage({
+          ...row,
+          speakerId: target.id,
+          speaker: target.name,
+          updatedAt: now,
+        });
+      });
+      await db.collections.utterances.bulkInsert(normalized);
+    }
+
+    await db.collections.speakers.remove(sourceId);
+    return utterances.length;
+  }
+
+  static async assignSpeakerToUtterances(
+    utteranceIds: Iterable<string>,
+    speakerId?: string,
+  ): Promise<number> {
+    const db = await getDb();
+    const ids = [...new Set(Array.from(utteranceIds).map((id) => id.trim()).filter((id) => id.length > 0))];
+    if (ids.length === 0) return 0;
+
+    const selectedSpeakerId = speakerId?.trim();
+    let speaker: SpeakerDocType | undefined;
+    if (selectedSpeakerId) {
+      const speakerDoc = await db.collections.speakers.findOne({ selector: { id: selectedSpeakerId } }).exec();
+      if (!speakerDoc) {
+        throw new Error(`说话人不存在: ${selectedSpeakerId}`);
+      }
+      speaker = speakerDoc.toJSON();
+    }
+
+    const docs = await Promise.all(ids.map((id) => db.collections.utterances.findOne({ selector: { id } }).exec()));
+    const rows = docs.filter((doc): doc is NonNullable<typeof doc> => Boolean(doc)).map((doc) => doc.toJSON());
+    if (rows.length === 0) return 0;
+
+    const now = new Date().toISOString();
+    const updates = rows.map((row) => {
+      const { speaker: _oldSpeaker, speakerId: _oldSpeakerId, ...rest } = row;
+      return normalizeUtteranceDocForStorage({
+        ...rest,
+        ...(speaker ? { speaker: speaker.name, speakerId: speaker.id } : {}),
+        updatedAt: now,
+      });
+    });
+
+    await db.collections.utterances.bulkInsert(updates);
+    return updates.length;
+  }
+
   static async saveUtterance(data: UtteranceDocType): Promise<string> {
     const db = await getDb();
     const normalized = normalizeUtteranceDocForStorage(data);
@@ -761,6 +903,35 @@ export class LinguisticService {
     await db.collections.utterance_tokens.insert({
       ...rest,
       ...(nextPos ? { pos: nextPos } : {}),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  static async updateTokenGloss(tokenId: string, gloss: string | null, lang = 'eng'): Promise<void> {
+    const db = await getDb();
+    const existing = await db.collections.utterance_tokens
+      .findOne({ selector: { id: tokenId } }).exec();
+    if (!existing) {
+      throw new Error(`未找到 token: ${tokenId}`);
+    }
+
+    const row = existing.toJSON();
+    const trimmed = (gloss ?? '').trim();
+
+    let nextGloss: Record<string, string> | undefined;
+    if (trimmed.length > 0) {
+      nextGloss = { ...(row.gloss ?? {}), [lang]: trimmed };
+    } else if (row.gloss) {
+      // 清除指定语言的 gloss；若无其他语言则整体清除
+      // Remove gloss for this lang; clear entirely if no other langs remain
+      const { [lang]: _removed, ...rest } = row.gloss;
+      nextGloss = Object.keys(rest).length > 0 ? rest : undefined;
+    }
+
+    const { gloss: _oldGloss, ...rest } = row;
+    await db.collections.utterance_tokens.insert({
+      ...rest,
+      ...(nextGloss ? { gloss: nextGloss } : {}),
       updatedAt: new Date().toISOString(),
     });
   }

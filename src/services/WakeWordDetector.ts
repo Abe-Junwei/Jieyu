@@ -75,8 +75,8 @@ export class WakeWordDetector {
       this.speechStartTs = null;
       this._active = true;
       this._tick();
-    } catch {
-      // 麦克风不可用，静默失败
+    } catch (err) {
+      console.warn('[WakeWordDetector] start failed, microphone unavailable:', err);
       this._active = false;
     }
   }
@@ -120,13 +120,13 @@ export class WakeWordDetector {
 
     if (rms >= this.energyThreshold) {
       if (!this.triggered) {
-        // 首次触发
+        // 首次触发 | first trigger
         this.triggered = true;
         this.speechStartTs = now;
       } else if (this.speechStartTs !== null) {
         // 持续触发中，检查是否达到 speechMs
         if (now - this.speechStartTs >= this.speechMs) {
-          // 确认唤醒
+          // 确认唤醒 | wake confirmed
           if (now - this.lastTriggerTs >= this.cooldownMs) {
             this.lastTriggerTs = now;
             this.onWake();
@@ -137,7 +137,7 @@ export class WakeWordDetector {
         }
       }
     } else {
-      // 能量下降，重置触发状态
+      // 能量下降，重置触发状态 | energy dropped, reset trigger state
       this.triggered = false;
       this.speechStartTs = null;
     }

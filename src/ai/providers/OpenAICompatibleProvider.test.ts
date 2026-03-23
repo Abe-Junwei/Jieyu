@@ -132,4 +132,30 @@ describe('OpenAICompatibleProvider', () => {
     expect(errChunk?.error).toContain('network disconnect');
     expect(errChunk?.done).toBe(true);
   });
+
+  it('keeps reasoning_content private and strips think tags from visible content', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createSseResponse([
+        'data: {"choices":[{"delta":{"reasoning_content":"内部推理"}}]}\n\n',
+        'data: {"choices":[{"delta":{"content":"<think>隐私</think>可见"}}]}\n\n',
+        'data: [DONE]\n\n',
+      ]),
+    );
+
+    const provider = new OpenAICompatibleProvider({
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-test',
+      model: 'gpt-test',
+    });
+
+    const visible: string[] = [];
+    const reasoning: string[] = [];
+    for await (const chunk of provider.chat([{ role: 'user', content: 'ping' }])) {
+      if (chunk.delta) visible.push(chunk.delta);
+      if (chunk.reasoningContent) reasoning.push(chunk.reasoningContent);
+    }
+
+    expect(visible.join('')).toBe('可见');
+    expect(reasoning.join('')).toBe('内部推理');
+  });
 });

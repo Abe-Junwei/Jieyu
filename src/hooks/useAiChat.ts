@@ -3,14 +3,49 @@ import { useLatest } from './useLatest';
 import { getDb, type AiMessageCitation } from '../../db';
 import { extractPdfSnippet } from '../ai/embeddings/pdfTextUtils';
 import { splitPdfCitationRef } from '../utils/citationJumpUtils';
+import { RAG_CITATION_INSTRUCTION } from '../utils/citationFootnoteUtils';
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 import { featureFlags } from '../ai/config/featureFlags';
+import { resolveCommand } from '../services/CommandResolver';
+import type { VoiceActionToolName } from '../ai/voice/VoiceActionTools';
+import { resolveLanguageQuery } from '../utils/langMapping';
 import { normalizeAiProviderError } from '../ai/providers/errorUtils';
 import { buildAiToolRequestId } from '../ai/toolRequestId';
 import {
+  formatAbortedMessage,
+  formatActionClarify,
+  formatAiChatDisabledError,
+  formatConnectionHealthyMessage,
+  formatConnectionProbeNoContentError,
+  formatConnectionProbeSuccessMessage,
+  formatDuplicateRequestIgnoredDetail,
+  formatDuplicateRequestIgnoredError,
+  formatEmptyModelReply,
+  formatEmptyModelResponseError,
+  formatFirstChunkTimeoutError,
+  formatHistoryLoadFailedFallbackError,
+  formatInlineCancelReply,
+  formatInvalidArgsError,
+  formatNoExecutorInternalError,
+  formatNoExecutorToolFailureDetail,
+  formatNonActionFallback,
+  formatPendingConfirmationBlockedError,
+  formatRecoveredInterruptedMessage,
+  formatStreamingBusyError,
+  formatTargetClarify,
+  formatToolCancelledMessage,
+  formatToolExecutionFallbackError,
+  formatToolFailureMessage,
+  formatToolGraySkippedMessage,
+  formatToolPendingMessage,
+  formatToolRollbackSkippedMessage,
+  formatToolSuccessMessage,
+} from '../ai/messages';
+import {
   applyAiChatSettingsPatch,
   createAiChatProvider,
+  getDefaultAiChatSettings,
   normalizeAiChatSettings,
 } from '../ai/providers/providerCatalog';
 import type { AiChatSettings, AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
@@ -27,6 +62,8 @@ export interface UiChatMessage {
   status?: 'streaming' | 'done' | 'error' | 'aborted';
   error?: string;
   citations?: AiMessageCitation[];
+  generationSource?: 'llm' | 'local';
+  generationModel?: string;
   /** 推理内容（reasoning_content），如 DeepSeek 的思考过程 */
   reasoningContent?: string;
   /** 思考中状态：provider正在处理但尚未发出任何内容delta。
@@ -99,6 +136,7 @@ export interface AiSessionMemory {
 
 type ToolPlannerClarifyReason =
   | 'missing-utterance-target'
+  | 'missing-split-position'
   | 'missing-translation-layer-target'
   | 'missing-layer-link-target'
   | 'missing-layer-target'
@@ -136,10 +174,13 @@ interface ToolDecisionAuditMetadata {
   outcome: string;
   message?: string;
   reason?: string;
+  /** 工具执行耗时（ms），仅在 executed=true 时有值 | Tool execution duration, only when executed=true */
+  durationMs?: number;
 }
 
 export type AiChatToolName =
   | 'create_transcription_segment'
+  | 'split_transcription_segment'
   | 'delete_transcription_segment'
   | 'clear_translation_segment'
   | 'set_transcription_text'
@@ -149,7 +190,10 @@ export type AiChatToolName =
   | 'delete_layer'
   | 'link_translation_layer'
   | 'unlink_translation_layer'
-  | 'auto_gloss_utterance';
+  | 'auto_gloss_utterance'
+  | 'set_token_pos'
+  | 'set_token_gloss'
+  | VoiceActionToolName;
 
 /**
  * 工具调用结构，支持幂等性指纹 | Tool call structure with idempotency fingerprint
@@ -306,6 +350,8 @@ export type AiSystemPersonaKey = 'transcription' | 'glossing' | 'review';
 export interface AiShortTermContext {
   page?: string;
   selectedUtteranceId?: string;
+  selectedUtteranceStartSec?: number;
+  selectedUtteranceEndSec?: number;
   selectedLayerId?: string;
   selectedLayerType?: 'transcription' | 'translation';
   selectedTranslationLayerId?: string;
@@ -349,6 +395,23 @@ const AI_CHAT_SETTINGS_SECURE_VERSION = 'v1';
 const AI_CHAT_STREAM_PERSIST_INTERVAL_STORAGE_KEY = 'jieyu.aiChat.streamPersistIntervalMs';
 const AI_CHAT_AUTO_PROBE_INTERVAL_STORAGE_KEY = 'jieyu.aiChat.autoProbeIntervalMs';
 const AI_CHAT_RAG_CONTEXT_TIMEOUT_STORAGE_KEY = 'jieyu.aiChat.ragContextTimeoutMs';
+const AI_SESSION_MEMORY_STORAGE_KEY = 'jieyu.aiChat.sessionMemory';
+
+function loadSessionMemory(): AiSessionMemory {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(AI_SESSION_MEMORY_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as AiSessionMemory;
+    if (!parsed || typeof parsed !== 'object') return {};
+    return parsed;
+  } catch { return {}; }
+}
+
+function persistSessionMemory(mem: AiSessionMemory): void {
+  if (typeof window === 'undefined') return;
+  try { window.localStorage.setItem(AI_SESSION_MEMORY_STORAGE_KEY, JSON.stringify(mem)); } catch { /* ignore */ }
+}
 
 interface AiChatSecureEnvelopeV1 {
   v: 'v1';
@@ -365,19 +428,23 @@ const AI_FUNCTION_CALLING_SYSTEM_PROMPT = [
   '可用 tool_name 及语义（严格区分，勿混用）：',
   '  句段操作（segment = 一条带时间区间的转写单元，无语言归属）：',
   '    create_transcription_segment — 在目标句段后插入新的时间区间（新建句段），且必须提供 utteranceId',
-  '    delete_transcription_segment — ⚠️ 永久删除当前这一条句段（时间区间 + 文本全部移除，不可恢复）',
+  '    split_transcription_segment  — 切分目标句段；必须提供 utteranceId，可选 splitTime（秒，位于句段内部）',
+  '    delete_transcription_segment — ⚠️ 删除当前这一条句段（时间区间 + 文本全部移除，可通过撤销恢复）',
   '    clear_translation_segment    — 仅清空指定句段在某翻译层上的翻译文本（句段本身保留，仅内容变为空）',
   '  文本操作：',
   '    set_transcription_text — 写入/覆盖转写文本，需要 text，且必须提供 utteranceId',
   '    set_translation_text   — 写入/覆盖翻译文本，需要 text，且必须提供 utteranceId、layerId',
   '  层操作（layer = 整条转写层或翻译层，通常有语言归属，如"日语转写层"）：',
-  '    create_transcription_layer — 新建转写层，需要 languageId，可选 alias',
-  '    create_translation_layer   — 新建翻译层，需要 languageId，可选 alias、modality(text/audio/mixed)',
-  '    delete_layer               — ⚠️ 删除整个转写层或翻译层（不可恢复），且必须提供 layerId',
+  '    create_transcription_layer — 新建转写层，需要 languageId（ISO 639-3 三字母代码如 eng/jpn/cmn，也接受中英文名如英语/English），可选 alias',
+  '    create_translation_layer   — 新建翻译层，需要 languageId（同上格式），可选 alias、modality(text/audio/mixed)',
+  '    delete_layer               — ⚠️ 删除整个转写层或翻译层（可通过撤销恢复），且必须提供 layerId',
   '    link_translation_layer     — 关联转写层与翻译层，必须提供 transcriptionLayerId/transcriptionLayerKey 与 translationLayerId/layerId',
   '    unlink_translation_layer   — 解除关联，必须提供 transcriptionLayerId/transcriptionLayerKey 与 translationLayerId/layerId',
   '  自动标注（gloss = 从词库精确匹配自动推导词义注释）：',
   '    auto_gloss_utterance       — 对目标句段的所有 token 执行词库精确匹配并自动填写 gloss，且必须提供 utteranceId',
+  '  词（token）操作：',
+  '    set_token_pos              — 设置词性标签；精确模式需要 tokenId + pos，批量模式需要 utteranceId + form + pos（将同一句段内所有匹配 form 的 token 统一标注）',
+  '    set_token_gloss            — 设置/覆盖单个 token 的 gloss；需要 tokenId + gloss（字符串），可选 lang（ISO 639-3，默认 eng）。若需批量标注请用 auto_gloss_utterance',
   '【命名规则】clear = 清空内容；delete = 删除实体；segment = 句段（单条）；layer = 整层（含所有句段）。',
   '【参数约束】执行写入/清空/删除/切分/自动标注/层链接动作时，必须显式提供目标 id（utteranceId/layerId/transcriptionLayerId 等），不要省略。',
   '【关键判断】用户说"删除××语转写行/转写层/翻译层" → 有语言限定词 → 指向整层 → delete_layer。',
@@ -406,24 +473,93 @@ function trimTextToMax(input: string, maxChars: number): string {
   return `${input.slice(0, maxChars - 3)}...`;
 }
 
-function trimHistoryByChars(history: ChatMessage[], maxChars: number): ChatMessage[] {
-  if (maxChars <= 0) return [];
-  let usedChars = 0;
-  const kept: ChatMessage[] = [];
-  for (let i = history.length - 1; i >= 0; i -= 1) {
-    const msg = history[i]!;
-    const messageChars = msg.content.length;
-    if (messageChars > maxChars && kept.length === 0) {
-      kept.push({ ...msg, content: trimTextToMax(msg.content, maxChars) });
-      break;
-    }
-    if (usedChars + messageChars > maxChars) {
-      break;
-    }
-    kept.push(msg);
-    usedChars += messageChars;
+/**
+ * 压缩单条消息内容（截取首尾，保留关键信息）
+ * Compress a single message content: keep head+tail, preserve tool call names.
+ */
+function compressMessageContent(content: string, maxLen: number): string {
+  if (content.length <= maxLen) return content;
+  // 保留工具调用 JSON 的名称 | Preserve tool call name if present
+  const toolMatch = content.match(/"name"\s*:\s*"([^"]+)"/);
+  if (toolMatch) {
+    return `[tool: ${toolMatch[1]}] ${content.slice(0, Math.max(40, maxLen - 30))}...`;
   }
-  return kept.reverse();
+  const half = Math.floor(maxLen / 2);
+  return `${content.slice(0, half)}…${content.slice(-Math.max(20, maxLen - half - 1))}`;
+}
+
+/**
+ * 结构化历史截断 | Structured history trimming
+ *
+ * 策略：最近 recentRounds 轮完整保留，更早的消息压缩为摘要行。
+ * 效果：保持最近上下文完整性，同时在预算内尽可能多保留早期轮次要点。
+ *
+ * Strategy: keep the most recent `recentRounds` turns intact, compress older
+ * messages into summary lines. This preserves recent context fidelity while
+ * fitting more early-round key facts within budget.
+ */
+function trimHistoryByChars(
+  history: ChatMessage[],
+  maxChars: number,
+  recentRounds = 3,
+): ChatMessage[] {
+  if (maxChars <= 0) return [];
+  if (history.length === 0) return [];
+
+  // 1. 分离最近 N 轮与早期消息 | Separate recent N rounds from older messages
+  // 一轮 = user + assistant 一对 | One round = user + assistant pair
+  let recentStartIndex = history.length;
+  let roundsSeen = 0;
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    if (history[i]!.role === 'user') {
+      roundsSeen += 1;
+      if (roundsSeen > recentRounds) break;
+      recentStartIndex = i;
+    }
+  }
+
+  const recentMessages = history.slice(recentStartIndex);
+  const olderMessages = history.slice(0, recentStartIndex);
+
+  // 2. 计算最近消息字符数 | Calculate recent messages char count
+  let recentChars = 0;
+  for (const msg of recentMessages) {
+    recentChars += msg.content.length;
+  }
+
+  // 若最近消息已超预算，回退到简单截断 | Fallback to simple truncation if recent alone exceeds budget
+  if (recentChars >= maxChars) {
+    const kept: ChatMessage[] = [];
+    let usedChars = 0;
+    for (let i = history.length - 1; i >= 0; i -= 1) {
+      const msg = history[i]!;
+      const messageChars = msg.content.length;
+      if (messageChars > maxChars && kept.length === 0) {
+        kept.push({ ...msg, content: trimTextToMax(msg.content, maxChars) });
+        break;
+      }
+      if (usedChars + messageChars > maxChars) break;
+      kept.push(msg);
+      usedChars += messageChars;
+    }
+    return kept.reverse();
+  }
+
+  // 3. 用剩余预算压缩早期消息 | Compress older messages within remaining budget
+  const remainingBudget = maxChars - recentChars;
+  const compressed: ChatMessage[] = [];
+  // 每条早期消息的压缩上限 | Per-message compression limit
+  const perMsgLimit = olderMessages.length > 0 ? Math.max(60, Math.floor(remainingBudget / olderMessages.length)) : 0;
+  let usedOlder = 0;
+
+  for (const msg of olderMessages) {
+    const content = compressMessageContent(msg.content, perMsgLimit);
+    if (usedOlder + content.length > remainingBudget) break;
+    compressed.push({ ...msg, content });
+    usedOlder += content.length;
+  }
+
+  return [...compressed, ...recentMessages];
 }
 
 function buildPromptContextBlock(context: AiPromptContext | null | undefined, maxChars: number): string {
@@ -436,6 +572,8 @@ function buildPromptContextBlock(context: AiPromptContext | null | undefined, ma
 
   if (short?.page) shortLines.push(`page=${short.page}`);
   if (short?.selectedUtteranceId) shortLines.push(`selectedUtteranceId=${short.selectedUtteranceId}`);
+  if (typeof short?.selectedUtteranceStartSec === 'number') shortLines.push(`selectedUtteranceStartSec=${short.selectedUtteranceStartSec.toFixed(2)}`);
+  if (typeof short?.selectedUtteranceEndSec === 'number') shortLines.push(`selectedUtteranceEndSec=${short.selectedUtteranceEndSec.toFixed(2)}`);
   if (short?.selectedLayerId) shortLines.push(`selectedLayerId=${short.selectedLayerId}`);
   if (short?.selectedLayerType) shortLines.push(`selectedLayerType=${short.selectedLayerType}`);
   if (short?.selectedTranslationLayerId) shortLines.push(`selectedTranslationLayerId=${short.selectedTranslationLayerId}`);
@@ -506,9 +644,11 @@ function normalizeToolCallName(rawName: string): AiChatToolName | null {
 
   // 句段操作（新名）
   if (name === 'create_transcription_segment') return name;
+  if (name === 'split_transcription_segment') return name;
   if (name === 'delete_transcription_segment') return name;
   if (name === 'clear_translation_segment') return name;
   // 旧名/别名向后兼容 → 映射到新名
+  if (['split_segment', 'split_transcription_row', 'split_row', 'split_utterance', 'cut_segment', 'split_current_segment'].includes(name)) return 'split_transcription_segment';
   if (['create_transcription_row', 'create_segment', 'new_segment', 'add_segment', 'new_transcription_row', 'add_transcription_row'].includes(name)) return 'create_transcription_segment';
   if (['delete_transcription_row', 'remove_transcription_row', 'remove_utterance', 'delete_utterance', 'remove_row', 'delete_row', 'delete_segment', 'remove_segment'].includes(name)) return 'delete_transcription_segment';
   // 清空类别名 → clear_translation_segment
@@ -521,6 +661,8 @@ function normalizeToolCallName(rawName: string): AiChatToolName | null {
   if (name === 'link_translation_layer') return name;
   if (name === 'unlink_translation_layer') return name;
   if (name === 'auto_gloss_utterance') return name;
+  if (name === 'set_token_pos') return name;
+  if (name === 'set_token_gloss') return name;
 
   if (['auto_gloss', 'auto_gloss_selected', 'gloss_utterance', 'auto_annotate'].includes(name)) {
     return 'auto_gloss_utterance';
@@ -788,12 +930,24 @@ function parseToolCallFromText(rawText: string): AiChatToolCall | null {
 }
 
 function parseLegacyNarratedToolCall(text: string): AiChatToolCall | null {
-  const match = text.match(/我识别到你想执行[“\"]([^”\"]+)[”\"]/);
-  if (!match) return null;
-  const legacyName = match[1]?.trim() ?? '';
-  const normalizedName = normalizeToolCallName(legacyName);
-  if (!normalizedName) return null;
-  return { name: normalizedName, arguments: {} };
+  // B-20 fix: support multiple language patterns for legacy narration detection
+  const patterns = [
+    // Chinese: 我识别到你想执行”toolName”
+    /我识别到你想执行[“\”]([^”\”]+)[“\”]/,
+    // English: I think you want to run “toolName”
+    /I think you want to (?:run|use|execute) [“\']([^”\']+)[“\']/i,
+    // Generic fallback: you want to “toolName”
+    /you want to (?:run|use|execute) [“\']([^”\']+)[“\']/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (!match) continue;
+    const legacyName = match[1]?.trim() ?? '';
+    const normalizedName = normalizeToolCallName(legacyName);
+    if (!normalizedName) continue;
+    return { name: normalizedName, arguments: {} };
+  }
+  return null;
 }
 
 type ToolPlannerDecision = 'resolved' | 'clarify';
@@ -867,15 +1021,38 @@ function validateArgText(args: Record<string, unknown>): string | null {
   return null;
 }
 
+function validateSplitSegmentArgs(args: Record<string, unknown>): string | null {
+  const idValidation = validateArgId(args, 'utteranceId', true);
+  if (idValidation) return idValidation;
+
+  if (!('splitTime' in args)) return null;
+  const splitTime = args.splitTime;
+  if (typeof splitTime !== 'number' || !Number.isFinite(splitTime)) {
+    return 'splitTime 必须是数值（秒）。';
+  }
+  if (splitTime < 0) {
+    return 'splitTime 不能为负数。';
+  }
+  return null;
+}
+
 function validateArgLayerCreate(args: Record<string, unknown>, allowModality: boolean): string | null {
+  // languageId 或 languageQuery 至少有一个非空即可（执行层会统一规范化）
+  // Either languageId or languageQuery must be non-empty (execution layer normalizes)
   const languageId = args.languageId;
-  if (typeof languageId !== 'string' || languageId.trim().length === 0) {
+  const languageQuery = args.languageQuery;
+  const effectiveLang = (typeof languageId === 'string' && languageId.trim().length > 0)
+    ? languageId.trim()
+    : (typeof languageQuery === 'string' && languageQuery.trim().length > 0)
+      ? languageQuery.trim()
+      : '';
+  if (effectiveLang.length === 0) {
     return 'languageId 必须是非空字符串。';
   }
-  if (isAmbiguousLanguageTarget(languageId)) {
+  if (isAmbiguousLanguageTarget(effectiveLang)) {
     return 'languageId 不能是 und/unknown/auto/default，请提供明确语言。';
   }
-  if (languageId.trim().length > 16) return 'languageId 长度不能超过 16。';
+  if (effectiveLang.length > 32) return 'languageId/languageQuery 长度不能超过 32。';
   if ('alias' in args) {
     const alias = args.alias;
     if (typeof alias !== 'string') return 'alias 必须是字符串。';
@@ -959,6 +1136,11 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
     contextFill: { utteranceId: true },
     validateArgs: (args) => validateArgId(args, 'utteranceId', true),
   },
+  split_transcription_segment: {
+    label: '切分句段',
+    contextFill: { utteranceId: true },
+    validateArgs: validateSplitSegmentArgs,
+  },
   delete_transcription_segment: {
     label: '删除句段',
     contextFill: { utteranceId: true },
@@ -972,7 +1154,7 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
       },
       preview: [
         '该句段的时间范围与转写文本会被清除',
-        '删除后在当前应用内不可恢复',
+        '可通过撤销（Undo）恢复',
         '关联翻译可能变为空引用',
       ],
     },
@@ -1007,13 +1189,21 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
     validateArgs: validateDeleteLayerArgs,
     riskSpec: {
       summary: (args) => {
-        const layerId = typeof args.layerId === 'string' ? args.layerId : '';
-        const layerLabel = layerId.trim().length > 0 ? layerId : 'current-layer';
+        const layerId = typeof args.layerId === 'string' ? args.layerId.trim() : '';
+        const layerType = typeof args.layerType === 'string' ? args.layerType.trim() : '';
+        const languageQuery = typeof args.languageQuery === 'string' ? args.languageQuery.trim() : '';
+        // 优先用人类可读描述（如"中文转写层"），其次用 layerId
+        // Prefer human-readable description (e.g. "中文转写层"), fallback to layerId
+        const typeLabel = layerType === 'transcription' ? '转写层' : layerType === 'translation' ? '翻译层' : '层';
+        if (languageQuery) {
+          return `将删除整层数据（目标：${languageQuery}${typeLabel}${layerId ? `，ID：${layerId}` : ''}）`;
+        }
+        const layerLabel = layerId || 'current-layer';
         return `将删除整层数据（目标层：${layerLabel}）`;
       },
       preview: [
         '该层下的文本会被一并移除',
-        '删除后在当前应用内不可恢复',
+        '可通过撤销（Undo）恢复',
         '与该层相关的链接/对齐关系可能失效',
       ],
     },
@@ -1033,6 +1223,79 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
     contextFill: { utteranceId: true },
     validateArgs: (args) => validateArgId(args, 'utteranceId', true),
   },
+  set_token_pos: {
+    label: '设置词性',
+    contextFill: { utteranceId: true },
+    validateArgs: (args) => validateArgId(args, 'utteranceId', false),
+  },
+  set_token_gloss: {
+    label: '设置词汇标注',
+    contextFill: {},
+    validateArgs: (args) => validateArgId(args, 'tokenId', true),
+  },
+  // ── VoiceActionTools ──────────────────────────────────────────────────────
+  play_pause: { label: '播放/暂停', contextFill: {}, validateArgs: () => null },
+  undo: { label: '撤销', contextFill: {}, validateArgs: () => null },
+  redo: { label: '重做', contextFill: {}, validateArgs: () => null },
+  search_segments: { label: '搜索句段', contextFill: {}, validateArgs: () => null },
+  toggle_notes: { label: '切换备注', contextFill: {}, validateArgs: () => null },
+  mark_segment: { label: '标记句段', contextFill: {}, validateArgs: () => null },
+  delete_segment: { label: '删除句段', contextFill: {}, validateArgs: () => null },
+  auto_gloss_segment: {
+    label: '自动标注',
+    contextFill: { utteranceId: true },
+    validateArgs: (args) => validateArgId(args, 'utteranceId', false),
+  },
+  auto_translate_segment: {
+    label: '自动翻译',
+    contextFill: { utteranceId: true },
+    validateArgs: (args) => validateArgId(args, 'utteranceId', false),
+  },
+  nav_to_segment: {
+    label: '导航到句段',
+    contextFill: {},
+    validateArgs: (args) => validateArgId(args, 'segmentIndex', true),
+  },
+  nav_to_time: {
+    label: '导航到时间',
+    contextFill: {},
+    validateArgs: (args) => validateArgId(args, 'timeSeconds', true),
+  },
+  focus_segment: {
+    label: '聚焦句段',
+    contextFill: {},
+    validateArgs: (args) => validateArgId(args, 'segmentId', true),
+  },
+  zoom_to_segment: {
+    label: '缩放至句段',
+    contextFill: {},
+    validateArgs: (args) => validateArgId(args, 'segmentId', true),
+  },
+  split_at_time: {
+    label: '时间点分割',
+    contextFill: {},
+    validateArgs: (args) => validateArgId(args, 'timeSeconds', true),
+  },
+  merge_prev: { label: '合并上一个', contextFill: {}, validateArgs: () => null },
+  merge_next: { label: '合并下一个', contextFill: {}, validateArgs: () => null },
+  auto_segment: {
+    label: '自动切分',
+    contextFill: {},
+    validateArgs: (args) => validateArgId(args, 'startTime', false),
+  },
+  suggest_segment_improvement: {
+    label: '建议改进',
+    contextFill: { utteranceId: true },
+    validateArgs: (args) => validateArgId(args, 'utteranceId', false),
+  },
+  analyze_segment_quality: {
+    label: '分析质量',
+    contextFill: { utteranceId: true },
+    validateArgs: (args) => validateArgId(args, 'utteranceId', false),
+  },
+  get_current_segment: { label: '获取当前句段', contextFill: {}, validateArgs: () => null },
+  get_project_summary: { label: '获取项目摘要', contextFill: {}, validateArgs: () => null },
+  get_recent_history: { label: '获取最近历史', contextFill: {}, validateArgs: () => null },
 };
 
 function planToolCallTargets(
@@ -1042,6 +1305,15 @@ function planToolCallTargets(
 ): ToolPlannerResult {
   const shortTerm = context?.shortTerm;
   const currentUtteranceId = getFirstNonEmptyString(shortTerm?.selectedUtteranceId);
+  const currentUtteranceStartSec = typeof shortTerm?.selectedUtteranceStartSec === 'number' && Number.isFinite(shortTerm.selectedUtteranceStartSec)
+    ? shortTerm.selectedUtteranceStartSec
+    : undefined;
+  const currentUtteranceEndSec = typeof shortTerm?.selectedUtteranceEndSec === 'number' && Number.isFinite(shortTerm.selectedUtteranceEndSec)
+    ? shortTerm.selectedUtteranceEndSec
+    : undefined;
+  const currentAudioTimeSec = typeof shortTerm?.audioTimeSec === 'number' && Number.isFinite(shortTerm.audioTimeSec)
+    ? shortTerm.audioTimeSec
+    : undefined;
   const selectedLayerId = getFirstNonEmptyString(shortTerm?.selectedLayerId);
   const selectedLayerType = shortTerm?.selectedLayerType;
   const selectedTranslationLayerId = getFirstNonEmptyString(
@@ -1060,7 +1332,23 @@ function planToolCallTargets(
 
   const ensureUtteranceId = (): string => {
     const existing = getFirstNonEmptyString(nextCall.arguments.utteranceId);
-    if (existing) return existing;
+    if (existing) {
+      // 幻觉检测：LLM 提供的 utteranceId 必须与当前选中句段一致
+      // Hallucination guard: LLM-provided utteranceId must match context selection
+      if (currentUtteranceId && existing !== currentUtteranceId) {
+        // LLM 给的 ID 与上下文不匹配 → 用上下文的真实 ID
+        // Mismatch → prefer the real context ID
+        nextCall.arguments.utteranceId = currentUtteranceId;
+        return currentUtteranceId;
+      }
+      // 上下文无选中句段时，无法验证 LLM 给的 ID 是否真实存在
+      // → 接受但记录警告；如为幻觉 ID 将在执行层失败（安全）
+      // No selection: accept LLM's ID; if fabricated it will fail at execution time (safe)
+      if (!currentUtteranceId) {
+        return existing;
+      }
+      return existing;
+    }
     if (currentUtteranceId) {
       nextCall.arguments.utteranceId = currentUtteranceId;
       return currentUtteranceId;
@@ -1070,10 +1358,10 @@ function planToolCallTargets(
 
   const cf = TOOL_STRATEGY_TABLE[call.name]?.contextFill;
 
-  // 创建层时必须有明确 languageId，避免误创建 und 层
-  // Creating layers requires a concrete languageId to avoid accidental "und" layers.
+  // 创建层时必须有明确语言信息，避免误创建 und 层
+  // Creating layers requires a concrete language (languageId or languageQuery) to avoid accidental "und" layers.
   if (requiresConcreteLanguageTarget(call.name)) {
-    if (isAmbiguousLanguageTarget(nextCall.arguments.languageId)) {
+    if (isAmbiguousLanguageTarget(nextCall.arguments.languageId) && isAmbiguousLanguageTarget(nextCall.arguments.languageQuery)) {
       return { decision: 'clarify', call: nextCall, reason: 'missing-language-target' };
     }
   }
@@ -1086,10 +1374,36 @@ function planToolCallTargets(
     }
   }
 
+  if (call.name === 'split_transcription_segment') {
+    const rawSplitTime = nextCall.arguments.splitTime;
+    const splitTime = typeof rawSplitTime === 'number' && Number.isFinite(rawSplitTime)
+      ? rawSplitTime
+      : currentAudioTimeSec;
+
+    if (!(typeof splitTime === 'number' && Number.isFinite(splitTime))) {
+      return { decision: 'clarify', call: nextCall, reason: 'missing-split-position' };
+    }
+
+    nextCall.arguments.splitTime = splitTime;
+
+    if (typeof currentUtteranceStartSec === 'number' && typeof currentUtteranceEndSec === 'number') {
+      const minSpan = 0.05;
+      if (splitTime <= currentUtteranceStartSec + minSpan || splitTime >= currentUtteranceEndSec - minSpan) {
+        return { decision: 'clarify', call: nextCall, reason: 'missing-split-position' };
+      }
+    }
+  }
+
   // translationLayerId 填充与澄清 | Fill translation layerId from context; clarify if still missing
   if (cf?.translationLayerId) {
     const layerId = getFirstNonEmptyString(nextCall.arguments.layerId);
-    if (!layerId && selectedTranslationLayerId) {
+    if (layerId) {
+      // 幻觉检测：LLM 的 layerId 必须匹配当前选中翻译层
+      // Hallucination guard: LLM layerId must match context translation layer
+      if (selectedTranslationLayerId && layerId !== selectedTranslationLayerId) {
+        nextCall.arguments.layerId = selectedTranslationLayerId;
+      }
+    } else if (selectedTranslationLayerId) {
       nextCall.arguments.layerId = selectedTranslationLayerId;
     }
     if (!getFirstNonEmptyString(nextCall.arguments.layerId)) {
@@ -1099,14 +1413,28 @@ function planToolCallTargets(
 
   // link/unlink 层对目标填充与澄清 | Fill both layer IDs for link ops; clarify if either is missing
   if (cf?.linkBothLayers) {
-    const transcriptionLayerId = getFirstNonEmptyString(nextCall.arguments.transcriptionLayerId);
+    let transcriptionLayerId = getFirstNonEmptyString(nextCall.arguments.transcriptionLayerId);
     const transcriptionLayerKey = getFirstNonEmptyString(nextCall.arguments.transcriptionLayerKey);
-    if (!transcriptionLayerId && !transcriptionLayerKey && selectedTranscriptionLayerId) {
+    const refersCurrentLayerPair = /(当前|这层|该层|本层|当前层)/i.test(userText);
+
+    // 幻觉检测：LLM 的 transcriptionLayerId 必须匹配上下文
+    // Hallucination guard: verify transcriptionLayerId against context
+    if (transcriptionLayerId && selectedTranscriptionLayerId && transcriptionLayerId !== selectedTranscriptionLayerId) {
+      nextCall.arguments.transcriptionLayerId = selectedTranscriptionLayerId;
+      transcriptionLayerId = selectedTranscriptionLayerId;
+    }
+    if (!transcriptionLayerId && !transcriptionLayerKey && selectedTranscriptionLayerId && refersCurrentLayerPair) {
       nextCall.arguments.transcriptionLayerId = selectedTranscriptionLayerId;
     }
 
-    const translationLayerId = getFirstNonEmptyString(nextCall.arguments.translationLayerId, nextCall.arguments.layerId);
-    if (!translationLayerId && selectedTranslationLayerId) {
+    let translationLayerId = getFirstNonEmptyString(nextCall.arguments.translationLayerId, nextCall.arguments.layerId);
+    // 幻觉检测：LLM 的 translationLayerId 必须匹配上下文
+    // Hallucination guard: verify translationLayerId against context
+    if (translationLayerId && selectedTranslationLayerId && translationLayerId !== selectedTranslationLayerId) {
+      nextCall.arguments.translationLayerId = selectedTranslationLayerId;
+      translationLayerId = selectedTranslationLayerId;
+    }
+    if (!translationLayerId && selectedTranslationLayerId && refersCurrentLayerPair) {
       nextCall.arguments.translationLayerId = selectedTranslationLayerId;
     }
 
@@ -1119,7 +1447,22 @@ function planToolCallTargets(
 
   // delete_layer 专用文本推断 | Special text-inference pass for delete_layer
   if (cf?.layerTargetInference) {
-    const layerId = getFirstNonEmptyString(nextCall.arguments.layerId);
+    let layerId = getFirstNonEmptyString(nextCall.arguments.layerId);
+
+    // 幻觉检测：LLM 可能捏造看似合理但不存在的 layerId（如 transcription_layer_1）。
+    // 只信任来自上下文的已知 ID，否则丢弃并走文本推断。
+    // Hallucination guard: LLM may fabricate plausible-looking layerIds.
+    // Only trust IDs that match a known context layer; otherwise discard and fall through to text inference.
+    if (layerId) {
+      const knownIds = [selectedLayerId, selectedTranscriptionLayerId, selectedTranslationLayerId].filter(Boolean);
+      if (!knownIds.includes(layerId)) {
+        // layerId 不在当前上下文中 → 视为幻觉，清除 | Not in context → treat as hallucinated, clear
+        nextCall.arguments = { ...nextCall.arguments };
+        delete nextCall.arguments.layerId;
+        layerId = '';
+      }
+    }
+
     if (!layerId) {
       const inferred = inferDeleteLayerArgumentsFromText(userText);
       nextCall.arguments = { ...nextCall.arguments, ...inferred };
@@ -1127,6 +1470,24 @@ function planToolCallTargets(
       const refersCurrentLayer = /(当前|这层|该层|本层).*(层)|删除当前层|删除这层/i.test(userText);
       if (refersCurrentLayer && selectedLayerId) {
         nextCall.arguments.layerId = selectedLayerId;
+      }
+
+      // 用户说"删除转写层/翻译层"且上下文有对应类型的选中层 → 直接使用
+      // 但如果用户指定了具体语言（languageQuery），则不自动填充 layerId，
+      // 交由执行层按 layerType + languageQuery 精确匹配，避免误删不相关的层。
+      // User says "delete transcription/translation layer" and context has matching selected layer → use it
+      // But if user specified a concrete language (languageQuery), skip auto-fill layerId —
+      // let the execution layer match by layerType + languageQuery to avoid deleting the wrong layer.
+      if (!getFirstNonEmptyString(nextCall.arguments.layerId)) {
+        const inferredType = getFirstNonEmptyString(nextCall.arguments.layerType);
+        const hasLanguageHint = getFirstNonEmptyString(nextCall.arguments.languageQuery).length > 0;
+        if (!hasLanguageHint) {
+          if (inferredType === 'transcription' && selectedTranscriptionLayerId) {
+            nextCall.arguments.layerId = selectedTranscriptionLayerId;
+          } else if (inferredType === 'translation' && selectedTranslationLayerId) {
+            nextCall.arguments.layerId = selectedTranslationLayerId;
+          }
+        }
       }
     }
 
@@ -1141,7 +1502,7 @@ function planToolCallTargets(
   return { decision: 'resolved', call: nextCall };
 }
 
-type ToolIntentDecision = 'execute' | 'clarify' | 'ignore';
+type ToolIntentDecision = 'execute' | 'clarify' | 'ignore' | 'cancel';
 
 interface ToolIntentAssessment {
   decision: ToolIntentDecision;
@@ -1160,7 +1521,31 @@ interface ToolIntentAssessmentOptions {
 
 function isDeicticConfirmationMessage(userText: string): boolean {
   const normalized = userText.trim();
-  return /^(这个|这个吧|就这个|它|它吧|就它|这条|该条|这一条|这个句段|该句段|这个字段|该字段)$/i.test(normalized);
+  return /^(这个|这个吧|就这个|它|它吧|就它|这条|该条|这一条|这个句段|该句段|这个字段|该字段|这里|此处|在这里|在此处|就这里|就此处)$/i.test(normalized);
+}
+
+/**
+ * 从澄清回复中提取语言属性 → argsPatch | Extract language attribute from clarify reply
+ * 例："日语的" → { languageId: 'jpn', languageQuery: '日语' }
+ */
+function extractClarifyLanguagePatch(userText: string): Record<string, string> | null {
+  const trimmed = userText.trim().replace(/[的那个吧]$/g, '').trim();
+  if (!trimmed || trimmed.length > 20) return null;
+  const resolved = resolveLanguageQuery(trimmed);
+  if (!resolved) return null;
+  return { languageId: resolved, languageQuery: trimmed };
+}
+
+function extractClarifySplitPositionPatch(
+  userText: string,
+  context: AiPromptContext | null | undefined,
+): Record<string, number | string> | null {
+  if (!/^(这里|此处|在这里|在此处|就这里|就此处)$/i.test(userText.trim())) return null;
+  const selectedUtteranceId = getFirstNonEmptyString(context?.shortTerm?.selectedUtteranceId);
+  const audioTimeSec = context?.shortTerm?.audioTimeSec;
+  if (!selectedUtteranceId) return null;
+  if (typeof audioTimeSec !== 'number' || !Number.isFinite(audioTimeSec)) return null;
+  return { utteranceId: selectedUtteranceId, splitTime: audioTimeSec };
 }
 
 function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: AiPromptContext | null | undefined): boolean {
@@ -1177,7 +1562,7 @@ function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: 
     selectedLayerType === 'transcription' ? selectedLayerId : '',
   );
 
-  if (['create_transcription_segment', 'delete_transcription_segment', 'set_transcription_text', 'auto_gloss_utterance'].includes(callName)) {
+  if (['create_transcription_segment', 'split_transcription_segment', 'delete_transcription_segment', 'set_transcription_text', 'auto_gloss_utterance', 'set_token_pos', 'set_token_gloss'].includes(callName)) {
     return selectedUtteranceId.length > 0;
   }
   if (['set_translation_text', 'clear_translation_segment'].includes(callName)) {
@@ -1249,6 +1634,21 @@ function assessToolActionIntent(userText: string, options?: ToolIntentAssessment
       hasActionVerb: true,
       hasActionTarget: true,
       hasExplicitId: true,
+      hasMetaQuestion: false,
+      hasTechnicalDiscussion: false,
+    };
+  }
+
+  // ── Cancel intent: 用户放弃操作 | User wants to abort the pending action ──
+  const cancelPattern = /^(算了|不做了|不用了|取消|取消吧|别[做删建]了|不要了|never\s*mind|cancel|forget\s*it|stop|nvm|没事了|不需要了|还是算了)$/i;
+  if (cancelPattern.test(normalized)) {
+    return {
+      decision: 'cancel',
+      score: -5,
+      hasExecutionCue: false,
+      hasActionVerb: false,
+      hasActionTarget: false,
+      hasExplicitId: false,
       hasMetaQuestion: false,
       hasTechnicalDiscussion: false,
     };
@@ -1384,7 +1784,7 @@ function buildPreviewContract(call: AiChatToolCall): PreviewContract {
     return {
       affectedCount: 1,
       affectedIds: uid ? [uid] : [],
-      reversible: false,
+      reversible: true,
       cascadeTypes: ['translation'],
     };
   }
@@ -1393,7 +1793,7 @@ function buildPreviewContract(call: AiChatToolCall): PreviewContract {
     return {
       affectedCount: 1,
       affectedIds: lid ? [lid] : [],
-      reversible: false,
+      reversible: true,
       cascadeTypes: ['link', 'alignment'],
     };
   }
@@ -1412,32 +1812,11 @@ function validateToolCallArguments(call: AiChatToolCall): string | null {
 }
 
 function toNaturalToolSuccess(callName: AiChatToolName, message: string, style: AiToolFeedbackStyle): string {
-  if (style === 'concise') return `已完成（${callName}）：${message}`;
-  return `我已经按你的意思完成了这个操作（${callName}）。${message}`;
+  return formatToolSuccessMessage(toToolActionLabel(callName), message, style);
 }
 
 function toNaturalToolFailure(callName: AiChatToolName, message: string, style: AiToolFeedbackStyle): string {
-  const recoveryHint = toFailureRecoveryHint(callName, message, style);
-  if (style === 'concise') return `未完成（${callName}）：${message}${recoveryHint}`;
-  return `我尝试执行了这个操作（${callName}），但没有成功：${message}${recoveryHint}`;
-}
-
-function toFailureRecoveryHint(callName: AiChatToolName, message: string, style: AiToolFeedbackStyle): string {
-  const normalized = message.toLowerCase();
-  const prefix = style === 'concise' ? '。下一步：' : '。建议下一步：';
-  if (normalized.includes('缺少') || normalized.includes('missing')) {
-    return `${prefix}请先选中目标，或回复“第1个/这个”确认候选对象。`;
-  }
-  if (normalized.includes('未找到') || normalized.includes('not found')) {
-    return `${prefix}请改为提供更精确的对象名称，或直接给出明确 ID。`;
-  }
-  if (normalized.includes('多个') || normalized.includes('ambiguous')) {
-    return `${prefix}当前目标不唯一，请回复“第1个/第2个”明确选择后继续。`;
-  }
-  if (callName === 'delete_layer' || callName === 'delete_transcription_segment') {
-    return `${prefix}可先让我预演影响范围，再确认是否执行删除。`;
-  }
-  return `${prefix}你可以换一种更具体的表达重试，我会继续沿用当前上下文。`;
+  return formatToolFailureMessage(callName, toToolActionLabel(callName), message, style);
 }
 
 function toToolActionLabel(callName: AiChatToolName): string {
@@ -1445,25 +1824,15 @@ function toToolActionLabel(callName: AiChatToolName): string {
 }
 
 function toNaturalToolPending(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
-  const actionLabel = toToolActionLabel(callName);
-  if (style === 'concise') return `待确认：${actionLabel}。该操作风险较高且不可恢复，请确认是否继续。`;
-  return `你正在执行“${actionLabel}”。该操作风险较高且不可恢复，我已暂停执行，请确认是否继续。`;
+  return formatToolPendingMessage(toToolActionLabel(callName), style);
 }
 
 function toNaturalToolGraySkipped(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
-  const actionLabel = toToolActionLabel(callName);
-  if (style === 'concise') {
-    return `灰度模式：已识别 ${actionLabel}，但当前只记录审计，不自动执行。`;
-  }
-  return `我已识别到你想执行“${actionLabel}”，但当前处于灰度模式：这次只做识别与审计记录，不会自动执行。`;
+  return formatToolGraySkippedMessage(toToolActionLabel(callName), style);
 }
 
 function toNaturalToolRollbackSkipped(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
-  const actionLabel = toToolActionLabel(callName);
-  if (style === 'concise') {
-    return `回滚模式：已关闭 ${actionLabel} 的自动执行，请改为手动操作。`;
-  }
-  return `我已识别到你想执行“${actionLabel}”，但工具决策链当前处于回滚模式，自动执行已关闭。请改为手动操作，或在恢复开关后重试。`;
+  return formatToolRollbackSkippedMessage(toToolActionLabel(callName), style);
 }
 
 function resolveAiToolDecisionMode(): AiToolDecisionMode {
@@ -1517,6 +1886,7 @@ function buildToolDecisionAuditMetadata(
   executed: boolean,
   message?: string,
   reason?: string,
+  durationMs?: number,
 ): ToolDecisionAuditMetadata {
   return {
     schemaVersion: 1,
@@ -1530,45 +1900,27 @@ function buildToolDecisionAuditMetadata(
     outcome,
     ...(message ? { message } : {}),
     ...(reason ? { reason } : {}),
+    ...(durationMs !== undefined ? { durationMs } : {}),
   };
 }
 
 function toNaturalToolCancelled(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
-  if (style === 'concise') return `已取消（${callName}）。`;
-  return `好的，已取消“${callName}”操作，不会对当前数据做修改。`;
+  return formatToolCancelledMessage(toToolActionLabel(callName), style);
 }
 
 function toNaturalNonActionFallback(userText: string): string {
-  const trimmed = userText.trim();
-  if (/^(你好|您好|嗨)([！!，,.。?？\s].*)?$/i.test(trimmed) || /^(hello|hi)\b/i.test(trimmed)) {
-    return '你好，我在。你可以直接问我问题，也可以明确告诉我要执行的操作。';
-  }
-  if (/[?？]$/.test(trimmed) || /(什么意思|是什么|如何|怎么|解释|说明|why|what|how)/i.test(trimmed)) {
-    return '这是一个说明或提问，我不会执行工具操作。你可以继续追问，我会直接回答你。';
-  }
-  return '收到，这条更像普通对话，我不会执行工具操作。你可以继续聊天，或明确描述要执行的动作。';
+  return formatNonActionFallback(userText);
 }
 
 function toNaturalActionClarify(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
-  const actionLabel = toToolActionLabel(callName);
-  if (style === 'concise') {
-    return `我检测到可能的操作（${actionLabel}），但意图不够明确。请确认：1）执行该操作；2）仅做解释说明。`;
-  }
-  return `我看到了一个可能的操作意图（${actionLabel}），但目前还不够确定。你可以告诉我“执行这个操作”，或者说“先解释，不执行”。`;
+  return formatActionClarify(toToolActionLabel(callName), style);
 }
-
-const CLARIFY_TARGET_HINT_BY_REASON: Record<ToolPlannerClarifyReason, string> = {
-  'missing-utterance-target': '缺少目标句段',
-  'missing-translation-layer-target': '缺少目标翻译层',
-  'missing-layer-link-target': '缺少目标层',
-  'missing-layer-target': '缺少目标层',
-  'missing-language-target': '缺少明确语言或目标层',
-};
 
 function buildClarifyCandidates(
   callName: AiChatToolName,
   reason: ToolPlannerClarifyReason | undefined,
   context: AiPromptContext | null | undefined,
+  sessionMemory?: AiSessionMemory,
 ): AiClarifyCandidate[] {
   const short = context?.shortTerm;
   const selectedUtteranceId = getFirstNonEmptyString(short?.selectedUtteranceId);
@@ -1601,8 +1953,13 @@ function buildClarifyCandidates(
     });
   }
   if (reason === 'missing-language-target' && callName === 'create_transcription_layer') {
-    candidates.push({ key: '1', label: '创建中文转写层（zho）', argsPatch: { languageId: 'zho' } });
-    candidates.push({ key: '2', label: '创建英文转写层（eng）', argsPatch: { languageId: 'eng' } });
+    // 优先排列上次使用过的语言 | Prioritize previously used language
+    const lastLang = sessionMemory?.lastLanguage;
+    if (lastLang && lastLang !== 'zho' && lastLang !== 'eng') {
+      candidates.push({ key: `${candidates.length}`, label: `上次使用（${lastLang}）`, argsPatch: { languageId: lastLang } });
+    }
+    candidates.push({ key: `${candidates.length}`, label: '创建中文转写层（zho）', argsPatch: { languageId: 'zho' } });
+    candidates.push({ key: `${candidates.length}`, label: '创建英文转写层（eng）', argsPatch: { languageId: 'eng' } });
   }
   return candidates;
 }
@@ -1613,15 +1970,7 @@ function toNaturalTargetClarify(
   style: AiToolFeedbackStyle,
   candidates: AiClarifyCandidate[] = [],
 ): string {
-  const actionLabel = toToolActionLabel(callName);
-  const targetHint = reason != null ? CLARIFY_TARGET_HINT_BY_REASON[reason] ?? '缺少目标对象' : '缺少目标对象';
-  const candidateText = candidates.length > 0
-    ? ` 可选项：${candidates.map((item, index) => `${index + 1})${item.label}`).join('；')}。`
-    : '';
-  if (style === 'concise') {
-    return `无法执行（${actionLabel}）：${targetHint}。请先选中目标，或直接提供对应 ID。${candidateText} 你也可以回复“第1个/这个”。`;
-  }
-  return `我已识别到你想执行“${actionLabel}”，但目前${targetHint}，还不能安全执行。请先选中目标，或在指令里补充对应 ID。${candidateText} 你也可以直接回复“第1个/这个”。`;
+  return formatTargetClarify(toToolActionLabel(callName), reason, style, candidates);
 }
 
 function normalizeLegacyRiskNarration(content: string, style: AiToolFeedbackStyle): string {
@@ -1631,6 +1980,14 @@ function normalizeLegacyRiskNarration(content: string, style: AiToolFeedbackStyl
   if (!normalizedName) return content;
   // 旧句式通常缺少可执行参数，改为澄清提示更准确 | Legacy narration often lacks executable args, so fallback to clarification.
   return toNaturalActionClarify(normalizedName, style);
+}
+
+function isAmbiguousTargetRiskSummary(summary: string): boolean {
+  const normalized = summary.toLowerCase();
+  return normalized.includes('匹配到多个')
+    || normalized.includes('目标不唯一')
+    || normalized.includes('multiple')
+    || normalized.includes('ambiguous');
 }
 
 export function useAiChat(options?: UseAiChatOptions) {
@@ -1677,7 +2034,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   });
   const [metrics, setMetrics] = useState<AiInteractionMetrics>({ ...INITIAL_METRICS });
   const metricsRef = useLatest(metrics);
-  const sessionMemoryRef = useRef<AiSessionMemory>({});
+  const sessionMemoryRef = useRef<AiSessionMemory>(loadSessionMemory());
   const bumpMetric = useCallback((key: keyof AiInteractionMetrics, delta = 1) => {
     setMetrics((prev) => ({ ...prev, [key]: prev[key] + delta }));
   }, []);
@@ -1685,7 +2042,14 @@ export function useAiChat(options?: UseAiChatOptions) {
   const testAbortRef = useRef<AbortController | null>(null);
 
   const provider = useMemo(() => createAiChatProvider(settings), [settings]);
-  const orchestrator = useMemo(() => new ChatOrchestrator(provider), [provider]);
+  // 备用 provider：主模型限速/不可用时自动降级 | Fallback provider for auto-degradation
+  const fallbackProvider = useMemo(() => {
+    if (!settings.fallbackProviderKind || settings.fallbackProviderKind === settings.providerKind) return null;
+    const fallbackApiKey = settings.apiKeysByProvider[settings.fallbackProviderKind] ?? '';
+    const fallbackSettings = getDefaultAiChatSettings(settings.fallbackProviderKind);
+    return createAiChatProvider({ ...fallbackSettings, apiKey: fallbackApiKey });
+  }, [settings]);
+  const orchestrator = useMemo(() => new ChatOrchestrator(provider, fallbackProvider), [provider, fallbackProvider]);
 
   // 用 useLatest 包装 send 内部读取的频繁变更值，减少 send 的依赖数组长度，
   // 避免长依赖数组导致的闭包重建风险（如 settings.model 变更时全量重建）。
@@ -1767,11 +2131,11 @@ export function useAiChat(options?: UseAiChatOptions) {
 
       const acceptChunkOnly = provider.id === 'ollama';
       if (!receivedAnyResponse && !(acceptChunkOnly && receivedAnyChunk)) {
-        throw new Error('连接测试未收到有效响应内容');
+        throw new Error(formatConnectionProbeNoContentError());
       }
 
       setConnectionTestStatus('success');
-      setConnectionTestMessage(showTesting ? `${provider.label} 连接成功` : `${provider.label} 连接正常`);
+      setConnectionTestMessage(formatConnectionProbeSuccessMessage(provider.label, showTesting));
     } catch (error) {
       if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
         if (showTesting) {
@@ -1841,7 +2205,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       title: '默认会话',
       mode: 'assistant',
       providerId: provider.id,
-      model: settings.model,
+      model: settings.model || provider.id,
       createdAt: timestamp,
       updatedAt: timestamp,
     });
@@ -1863,7 +2227,7 @@ export function useAiChat(options?: UseAiChatOptions) {
             await db.collections.ai_messages.insert({
               ...row,
               status: 'aborted',
-              errorMessage: row.errorMessage ?? '会话恢复时检测到未完成响应，已标记为中断。',
+              errorMessage: row.errorMessage ?? formatRecoveredInterruptedMessage(),
               updatedAt: now,
             });
           }));
@@ -1908,7 +2272,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         }
       } catch (error) {
         if (!cancelled) {
-          setLastError(error instanceof Error ? error.message : '加载历史会话失败');
+          setLastError(error instanceof Error ? error.message : formatHistoryLoadFailedFallbackError());
         }
       } finally {
         if (!cancelled) {
@@ -1947,11 +2311,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     }));
 
     const db = await getDb();
-    const existing = await db.collections.ai_messages.findOne({ selector: { id: messageId } }).exec();
-    if (!existing) return;
-    const row = existing.toJSON();
-    await db.collections.ai_messages.insert({
-      ...row,
+    await db.collections.ai_messages.update(messageId, {
       content,
       status,
       ...(errorMessage ? { errorMessage } : {}),
@@ -2084,9 +2444,9 @@ export function useAiChat(options?: UseAiChatOptions) {
     if (await hasPersistedExecutionForRequest(call.requestId)) {
       await applyAssistantMessageResult(
         assistantMessageId,
-        toNaturalToolFailure(call.name, '重复的工具调用已被忽略（幂等保护）', settingsRef.current.toolFeedbackStyle),
+        toNaturalToolFailure(call.name, formatDuplicateRequestIgnoredDetail(), settingsRef.current.toolFeedbackStyle),
         'error',
-        '重复的工具调用已被忽略',
+        formatDuplicateRequestIgnoredError(),
       );
       await writeToolDecisionAuditLog(
         assistantMessageId,
@@ -2101,7 +2461,7 @@ export function useAiChat(options?: UseAiChatOptions) {
           'human',
           'confirm_failed',
           false,
-          '重复的工具调用已被忽略',
+          formatDuplicateRequestIgnoredError(),
           'duplicate_requestId',
         ),
       );
@@ -2115,11 +2475,12 @@ export function useAiChat(options?: UseAiChatOptions) {
 
     const argsValidationError = validateToolCallArguments(call);
     if (argsValidationError) {
+      const invalidArgsText = formatInvalidArgsError(argsValidationError);
       await applyAssistantMessageResult(
         assistantMessageId,
-        toNaturalToolFailure(call.name, `参数校验失败：${argsValidationError}`, settingsRef.current.toolFeedbackStyle),
+        toNaturalToolFailure(call.name, invalidArgsText, settingsRef.current.toolFeedbackStyle),
         'error',
-        `参数校验失败：${argsValidationError}`,
+        invalidArgsText,
       );
       await writeToolDecisionAuditLog(
         assistantMessageId,
@@ -2134,7 +2495,7 @@ export function useAiChat(options?: UseAiChatOptions) {
           'human',
           'confirm_failed',
           false,
-          `参数校验失败：${argsValidationError}`,
+          invalidArgsText,
           'invalid_args',
         ),
       );
@@ -2149,9 +2510,9 @@ export function useAiChat(options?: UseAiChatOptions) {
     if (!onToolCallRef.current) {
       await applyAssistantMessageResult(
         assistantMessageId,
-        toNaturalToolFailure(call.name, '当前还没有接入对应的动作执行器。', settingsRef.current.toolFeedbackStyle),
+        toNaturalToolFailure(call.name, formatNoExecutorToolFailureDetail(), settingsRef.current.toolFeedbackStyle),
         'error',
-        '当前未接入动作执行器。',
+        formatNoExecutorInternalError(),
       );
       await writeToolDecisionAuditLog(
         assistantMessageId,
@@ -2166,7 +2527,7 @@ export function useAiChat(options?: UseAiChatOptions) {
           'human',
           'confirm_failed',
           false,
-          '当前未接入动作执行器。',
+          formatNoExecutorInternalError(),
           'no_executor',
         ),
       );
@@ -2178,14 +2539,17 @@ export function useAiChat(options?: UseAiChatOptions) {
       return;
     }
 
+    const execStart = performance.now();
     try {
       executedRequestIds.current.add(call.requestId);
       const result = await onToolCallRef.current(call);
+      const execDurationMs = Math.round(performance.now() - execStart);
       if (result.ok) {
         bumpMetric('successCount');
         sessionMemoryRef.current = { ...sessionMemoryRef.current, lastToolName: call.name };
         const lang = typeof call.arguments.language === 'string' ? call.arguments.language : undefined;
         if (lang) sessionMemoryRef.current.lastLanguage = lang;
+        persistSessionMemory(sessionMemoryRef.current);
       } else {
         bumpMetric('failureCount');
       }
@@ -2211,6 +2575,8 @@ export function useAiChat(options?: UseAiChatOptions) {
           result.ok ? 'confirmed' : 'confirm_failed',
           true,
           result.message,
+          undefined,
+          execDurationMs,
         ),
       );
       setTaskSession({
@@ -2219,7 +2585,8 @@ export function useAiChat(options?: UseAiChatOptions) {
         updatedAt: nowIso(),
       });
     } catch (error) {
-      const toolErrorText = error instanceof Error ? error.message : '工具执行失败';
+      const execDurationMsErr = Math.round(performance.now() - execStart);
+      const toolErrorText = error instanceof Error ? error.message : formatToolExecutionFallbackError();
       await applyAssistantMessageResult(
         assistantMessageId,
         toNaturalToolFailure(call.name, toolErrorText, settingsRef.current.toolFeedbackStyle),
@@ -2241,6 +2608,7 @@ export function useAiChat(options?: UseAiChatOptions) {
           true,
           toolErrorText,
           'exception',
+          execDurationMsErr,
         ),
       );
       setTaskSession({
@@ -2293,19 +2661,19 @@ export function useAiChat(options?: UseAiChatOptions) {
 
   const send = useCallback(async (userText: string) => {
     if (!featureFlags.aiChatEnabled) {
-      setLastError('AI Chat 功能未启用');
+      setLastError(formatAiChatDisabledError());
       return;
     }
 
     if (isStreaming) {
-      setLastError('上一条回复仍在生成中，请稍候或先停止后再发送。');
+      setLastError(formatStreamingBusyError());
       return;
     }
 
     const trimmed = userText.trim();
     if (trimmed.length === 0) return;
     if (pendingToolCallRef.current) {
-      setLastError('存在待确认的高风险工具调用，请先确认或取消后再继续。');
+      setLastError(formatPendingConfirmationBlockedError());
       return;
     }
 
@@ -2330,6 +2698,8 @@ export function useAiChat(options?: UseAiChatOptions) {
       content: '',
       status: 'streaming',
       citations: [],
+      generationSource: 'local',
+      generationModel: '',
       reasoningContent: '',
     };
 
@@ -2461,7 +2831,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         await db.collections.ai_conversations.insert({
           ...row,
           providerId: provider.id,
-          model: settingsRef.current.model,
+          model: settingsRef.current.model || provider.id,
           updatedAt: nowIso(),
         });
       }
@@ -2487,59 +2857,100 @@ export function useAiChat(options?: UseAiChatOptions) {
             ragContextTimeoutMsRef.current,
             `RAG context timed out after ${ragContextTimeoutMsRef.current}ms`,
           );
-          if (ragResult.matches.length > 0) {
+          let activeMatches = ragResult.matches;
+          // 降级策略：严格阈值无结果时，放宽阈值重试（降级阈值 0.3 → 0.1）
+          // Degradation: if strict threshold returns empty, retry with relaxed threshold
+          if (activeMatches.length === 0) {
+            const fallbackResult = await withTimeout(
+              embeddingSearchServiceRef.current.searchMultiSourceHybrid(
+                trimmed,
+                ['utterance', 'note', 'pdf'],
+                { topK: 5, fusionScenario: 'qa', minScore: 0.1 },
+              ),
+              ragContextTimeoutMsRef.current,
+              `RAG fallback timed out after ${ragContextTimeoutMsRef.current}ms`,
+            );
+            activeMatches = fallbackResult.matches;
+          }
+          // F-04 degradation: log when RAG returns empty after strict + relaxed attempts
+          if (activeMatches.length === 0) {
+            // eslint-disable-next-line no-console
+            console.debug(`[useAiChat] RAG no matches for query "${trimmed.slice(0, 80)}" — proceeding without context augmentation`);
+          }
+          if (activeMatches.length > 0) {
             // 批量反查各匹配项的原始文字 | Batch-resolve source text for each match
             const db = await getDb();
-            const ragLines: string[] = [];
-            for (const m of ragResult.matches) {
-              let snippet = '';
-              if (m.sourceType === 'note') {
-                // 从笔记表取内容 | Retrieve content from user_notes
-                const noteRows = await db.collections.user_notes.findByIndex('id', m.sourceId);
-                const noteDoc = noteRows[0]?.toJSON();
-                if (noteDoc?.content) {
-                  const c = noteDoc.content as Record<string, string>;
-                  snippet = (c['und'] ?? c['en'] ?? Object.values(c).find((v) => v.trim()) ?? '').trim();
+            // 收集原始 RAG 来源，之后统一去重编号 | Collect raw RAG sources for dedup & numbering
+            // E-01: 并行查询替代串行 N+1 | Parallelize DB lookups to eliminate N+1 round-trips
+            const rawRagResults = await Promise.all(
+              activeMatches.map(async (m): Promise<{
+                contextTag: string;
+                safeSnippet: string;
+                citation: AiMessageCitation;
+              } | null> => {
+                let snippet = '';
+                if (m.sourceType === 'note') {
+                  // 从笔记表取内容 | Retrieve content from user_notes
+                  const noteRows = await db.collections.user_notes.findByIndex('id', m.sourceId);
+                  const noteDoc = noteRows[0]?.toJSON();
+                  if (noteDoc?.content) {
+                    const c = noteDoc.content as Record<string, string>;
+                    snippet = (c['und'] ?? c['en'] ?? Object.values(c).find((v) => v.trim()) ?? '').trim();
+                  }
+                } else if (m.sourceType === 'utterance') {
+                  // 从 utterance_texts 取首个有文本的层 | Get first available text from utterance_texts
+                  const textRows = await db.collections.utterance_texts.findByIndex('utteranceId', m.sourceId);
+                  const textWithContent = textRows.find((r) => r.toJSON().text?.trim());
+                  snippet = textWithContent?.toJSON().text?.trim() ?? '';
+                } else if (m.sourceType === 'pdf') {
+                  const { baseRef } = splitPdfCitationRef(m.sourceId);
+                  const mediaRows = await db.collections.media_items.findByIndex('id', baseRef);
+                  const mediaDoc = mediaRows[0]?.toJSON();
+                  const details = mediaDoc?.details as Record<string, unknown> | undefined;
+                  snippet = extractPdfSnippet(details, 300);
                 }
-              } else if (m.sourceType === 'utterance') {
-                // 从 utterance_texts 取首个有文本的层 | Get first available text from utterance_texts
-                const textRows = await db.collections.utterance_texts.findByIndex('utteranceId', m.sourceId);
-                const textWithContent = textRows.find((r) => r.toJSON().text?.trim());
-                snippet = textWithContent?.toJSON().text?.trim() ?? '';
-              } else if (m.sourceType === 'pdf') {
-                const { baseRef } = splitPdfCitationRef(m.sourceId);
-                const mediaRows = await db.collections.media_items.findByIndex('id', baseRef);
-                const mediaDoc = mediaRows[0]?.toJSON();
-                const details = mediaDoc?.details as Record<string, unknown> | undefined;
-                snippet = extractPdfSnippet(details, 300);
-              }
-              if (!snippet) continue;
-              const label = m.sourceType === 'note'
-                ? '笔记参考'
-                : (m.sourceType === 'utterance' ? '句段参考' : '文档参考');
-              const contextTag = m.sourceType === 'note'
-                ? 'NOTE_CONTEXT'
-                : (m.sourceType === 'utterance' ? 'UTTERANCE_CONTEXT' : 'PDF_CONTEXT');
-              ragLines.push(`[${contextTag}] ${snippet.slice(0, 300)}`);
-              if (m.sourceType === 'note' || m.sourceType === 'utterance' || m.sourceType === 'pdf') {
-                ragCitations.push({
-                  type: m.sourceType,
-                  refId: m.sourceId,
-                  label,
-                  snippet: snippet.slice(0, 300),
-                });
-              }
-            }
-            if (ragLines.length > 0) {
-              contextBlock += `\n[RELEVANT_CONTEXT]\n${ragLines.join('\n')}`;
-              // 引用去重，避免同源重复显示 | Deduplicate repeated source citations.
-              const seen = new Set<string>();
-              ragCitations = ragCitations.filter((item) => {
-                const key = `${item.type}:${item.refId}`;
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-              });
+                if (!snippet) return null;
+                const label = m.sourceType === 'note'
+                  ? '笔记参考'
+                  : (m.sourceType === 'utterance' ? '句段参考' : '文档参考');
+                const contextTag = m.sourceType === 'note'
+                  ? 'NOTE_CONTEXT'
+                  : (m.sourceType === 'utterance' ? 'UTTERANCE_CONTEXT' : 'PDF_CONTEXT');
+                // 转义 RAG 片段中的括号，防止 prompt injection 攻击
+                // Escape bracket characters in snippets to prevent prompt injection
+                const safeSnippet = snippet.slice(0, 300).replace(/[[\]]/g, (c) => (c === '[' ? '【' : '】'));
+                // 只对有有效引用类型的来源构建 citation | Only build citations for valid source types
+                const validCitationTypes: Array<'note' | 'utterance' | 'pdf' | 'schema'> = ['note', 'utterance', 'pdf', 'schema'];
+                if (!validCitationTypes.includes(m.sourceType as typeof validCitationTypes[number])) return null;
+                return {
+                  contextTag,
+                  safeSnippet,
+                  citation: {
+                    type: m.sourceType as 'note' | 'utterance' | 'pdf' | 'schema',
+                    refId: m.sourceId,
+                    label,
+                    snippet: snippet.slice(0, 300),
+                  },
+                };
+              }),
+            );
+            const rawRagSources = rawRagResults.filter((r): r is NonNullable<typeof r> =>
+              r !== null && ['note', 'utterance', 'pdf'].includes(r.citation.type),
+            );
+            // 去重并编号注入上下文 | Deduplicate then inject numbered sources into context
+            const seen = new Set<string>();
+            const dedupedSources = rawRagSources.filter((s) => {
+              const key = `${s.citation.type}:${s.citation.refId}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+            if (dedupedSources.length > 0) {
+              const ragLines = dedupedSources.map(
+                (s, i) => `[${i + 1}] (${s.contextTag}) ${s.safeSnippet}`,
+              );
+              ragCitations = dedupedSources.map((s) => s.citation);
+              contextBlock += `\n[RELEVANT_CONTEXT]\n${ragLines.join('\n')}\n${RAG_CITATION_INSTRUCTION}`;
             }
           }
         } catch (error) {
@@ -2568,12 +2979,63 @@ export function useAiChat(options?: UseAiChatOptions) {
           contextPreview: nextDebugSnapshot.contextPreview.slice(0, 240),
         });
       }
-      const { stream } = orchestrator.sendMessage({
-        history,
-        userText: trimmed,
-        systemPrompt: buildAiSystemPrompt(systemPersonaKeyRef.current, contextBlock),
-        options: { signal: controller.signal, model: settingsRef.current.model },
-      });
+      // ── 澄清回复属性提取快速路径 | Clarify reply attribute extraction fast-path ──
+      // 用户在 waiting_clarify 状态回复语言名称（如"日语"）时，直接提取并补丁参数，跳过 LLM。
+      const clarifySession = taskSessionRef.current;
+      let clarifyFastPathCall: { name: AiChatToolName; arguments: Record<string, unknown> } | null = null;
+      if (clarifySession.status === 'waiting_clarify' && clarifySession.toolName && clarifySession.clarifyReason === 'missing-language-target') {
+        const langPatch = extractClarifyLanguagePatch(trimmed);
+        if (langPatch) {
+          clarifyFastPathCall = { name: clarifySession.toolName, arguments: langPatch };
+        }
+      } else if (clarifySession.status === 'waiting_clarify'
+        && clarifySession.toolName === 'split_transcription_segment'
+        && clarifySession.clarifyReason === 'missing-split-position') {
+        const splitPatch = extractClarifySplitPositionPatch(trimmed, aiContext);
+        if (splitPatch) {
+          clarifyFastPathCall = { name: 'split_transcription_segment', arguments: splitPatch };
+        }
+      }
+
+      // ── 本地指令快速路径：明确指令跳过 LLM | Local command fast-path: skip LLM for unambiguous commands ──
+      const localResolve = clarifyFastPathCall ? null : resolveCommand(trimmed);
+      let stream: AsyncGenerator<{ delta?: string; done?: boolean; error?: string; reasoningContent?: string; thinking?: boolean }>;
+      let generationSource: UiChatMessage['generationSource'] = 'local';
+      let generationModel = '';
+      if (clarifyFastPathCall) {
+        // 澄清回复直接合成工具调用 | Synthesize tool call from clarify reply attribute
+        const syntheticJson = JSON.stringify({ tool_call: { name: clarifyFastPathCall.name, arguments: clarifyFastPathCall.arguments } });
+        stream = (async function* () {
+          yield { delta: syntheticJson };
+          yield { delta: '', done: true };
+        })();
+      } else if (localResolve) {
+        // 构造与 LLM 相同格式的合成响应 | Synthesize response in same format as LLM
+        const syntheticJson = JSON.stringify({ tool_call: { name: localResolve.call.name, arguments: localResolve.call.arguments } });
+        stream = (async function* () {
+          yield { delta: syntheticJson };
+          yield { delta: '', done: true };
+        })();
+      } else {
+        // 模型路由：解释模式使用轻量模型（若已配置）| Model routing: use lightweight model for explain mode
+        const effectiveModel = taskSessionRef.current.status === 'explaining' && settingsRef.current.explainModel
+          ? settingsRef.current.explainModel
+          : settingsRef.current.model;
+        generationSource = 'llm';
+        generationModel = (effectiveModel ?? '').trim();
+        ({ stream } = orchestrator.sendMessage({
+          history,
+          userText: trimmed,
+          systemPrompt: buildAiSystemPrompt(systemPersonaKeyRef.current, contextBlock),
+          options: { signal: controller.signal, model: effectiveModel },
+        }));
+      }
+
+      setMessages((prev) => prev.map((msg) => (
+        msg.id === assistantId
+          ? { ...msg, generationSource, generationModel }
+          : msg
+      )));
 
       let assistantReasoningContent = '';
       let assistantThinking = false;
@@ -2585,7 +3047,7 @@ export function useAiChat(options?: UseAiChatOptions) {
           if (shouldTrackRemoteStatus && !connectionMarkedSuccess) {
             connectionMarkedSuccess = true;
             setConnectionTestStatus('success');
-            setConnectionTestMessage(`${provider.label} 连接正常`);
+            setConnectionTestMessage(formatConnectionHealthyMessage(provider.label));
           }
           if (timeoutHandle !== null && typeof window !== 'undefined') {
             window.clearTimeout(timeoutHandle);
@@ -2645,9 +3107,9 @@ export function useAiChat(options?: UseAiChatOptions) {
 
           // 防止空响应导致“看起来无反应” | Guard against empty model replies that look like no-op in UI.
           if (assistantContent.trim().length === 0) {
-            finalContent = '这次没有收到模型的有效回复，请重试一次；如果仍为空，请切换模型或检查上游服务状态。';
+            finalContent = formatEmptyModelReply();
             finalStatus = 'error';
-            finalErrorMessage = '模型返回空响应';
+            finalErrorMessage = formatEmptyModelResponseError();
             setLastError(finalErrorMessage);
             if (shouldTrackRemoteStatus) {
               setConnectionTestStatus('error');
@@ -2708,7 +3170,12 @@ export function useAiChat(options?: UseAiChatOptions) {
                 buildToolIntentAuditMetadata(assistantId, toolCall, auditContext),
               );
 
-              if (intentAssessment.decision === 'ignore') {
+              if (intentAssessment.decision === 'cancel') {
+                finalContent = formatInlineCancelReply();
+                bumpMetric('cancelCount');
+                setPendingToolCall(null);
+                setTaskSession({ id: taskSessionRef.current.id, status: 'idle', updatedAt: nowIso() });
+              } else if (intentAssessment.decision === 'ignore') {
                 finalContent = toNaturalNonActionFallback(trimmed);
                 bumpMetric('explainFallbackCount');
                 setTaskSession({ id: taskSessionRef.current.id, status: 'explaining', updatedAt: nowIso() });
@@ -2730,9 +3197,10 @@ export function useAiChat(options?: UseAiChatOptions) {
               } else {
                 const argsValidationError = validateToolCallArguments(toolCall);
                 if (argsValidationError) {
-                  finalContent = toNaturalToolFailure(toolCall.name, `参数校验失败：${argsValidationError}`, settingsRef.current.toolFeedbackStyle);
+                  const invalidArgsText = formatInvalidArgsError(argsValidationError);
+                  finalContent = toNaturalToolFailure(toolCall.name, invalidArgsText, settingsRef.current.toolFeedbackStyle);
                   finalStatus = 'error';
-                  finalErrorMessage = `参数校验失败：${argsValidationError}`;
+                  finalErrorMessage = invalidArgsText;
                   bumpMetric('failureCount');
                   await writeToolDecisionAuditLog(
                     assistantId,
@@ -2747,7 +3215,7 @@ export function useAiChat(options?: UseAiChatOptions) {
                       'system',
                       'gray_failed',
                       false,
-                      `参数校验失败：${argsValidationError}`,
+                      invalidArgsText,
                       'invalid_args',
                     ),
                   );
@@ -2771,9 +3239,9 @@ export function useAiChat(options?: UseAiChatOptions) {
                 }
               }
             } else if (await hasPersistedExecutionForRequest(toolCall.requestId)) {
-              finalContent = toNaturalToolFailure(toolCall.name, '重复的工具调用已被忽略（幂等保护）', settingsRef.current.toolFeedbackStyle);
+              finalContent = toNaturalToolFailure(toolCall.name, formatDuplicateRequestIgnoredDetail(), settingsRef.current.toolFeedbackStyle);
               finalStatus = 'error';
-              finalErrorMessage = '重复的工具调用已被忽略';
+              finalErrorMessage = formatDuplicateRequestIgnoredError();
               await writeToolDecisionAuditLog(
                 assistantId,
                 `auto:${toolCall.name}`,
@@ -2787,7 +3255,7 @@ export function useAiChat(options?: UseAiChatOptions) {
                   'ai',
                   'auto_failed',
                   false,
-                  '重复的工具调用已被忽略',
+                  formatDuplicateRequestIgnoredError(),
                   'duplicate_requestId',
                 ),
               );
@@ -2811,7 +3279,12 @@ export function useAiChat(options?: UseAiChatOptions) {
                 buildToolIntentAuditMetadata(assistantId, toolCall, auditContext),
               );
 
-              if (intentAssessment.decision === 'ignore') {
+              if (intentAssessment.decision === 'cancel') {
+                finalContent = formatInlineCancelReply();
+                bumpMetric('cancelCount');
+                setPendingToolCall(null);
+                setTaskSession({ id: taskSessionRef.current.id, status: 'idle', updatedAt: nowIso() });
+              } else if (intentAssessment.decision === 'ignore') {
                 finalContent = toNaturalNonActionFallback(trimmed);
                 bumpMetric('explainFallbackCount');
                 setTaskSession({ id: taskSessionRef.current.id, status: 'explaining', updatedAt: nowIso() });
@@ -2833,9 +3306,10 @@ export function useAiChat(options?: UseAiChatOptions) {
               } else {
                 const argsValidationError = validateToolCallArguments(toolCall);
                 if (argsValidationError) {
-                  finalContent = toNaturalToolFailure(toolCall.name, `参数校验失败：${argsValidationError}`, settingsRef.current.toolFeedbackStyle);
+                  const invalidArgsText = formatInvalidArgsError(argsValidationError);
+                  finalContent = toNaturalToolFailure(toolCall.name, invalidArgsText, settingsRef.current.toolFeedbackStyle);
                   finalStatus = 'error';
-                  finalErrorMessage = `参数校验失败：${argsValidationError}`;
+                  finalErrorMessage = invalidArgsText;
                   bumpMetric('failureCount');
                   await writeToolDecisionAuditLog(
                     assistantId,
@@ -2850,7 +3324,7 @@ export function useAiChat(options?: UseAiChatOptions) {
                       'ai',
                       'auto_failed',
                       false,
-                      `参数校验失败：${argsValidationError}`,
+                      invalidArgsText,
                       'invalid_args',
                     ),
                   );
@@ -2860,6 +3334,38 @@ export function useAiChat(options?: UseAiChatOptions) {
                   if (destructiveBlocked && onToolRiskCheckRef.current) {
                     riskCheck = await onToolRiskCheckRef.current(toolCall);
                   }
+
+                  if (destructiveBlocked && riskCheck?.riskSummary && isAmbiguousTargetRiskSummary(riskCheck.riskSummary)) {
+                    finalContent = toNaturalToolFailure(toolCall.name, riskCheck.riskSummary, settingsRef.current.toolFeedbackStyle);
+                    finalStatus = 'error';
+                    finalErrorMessage = riskCheck.riskSummary;
+                    bumpMetric('failureCount');
+                    setTaskSession({
+                      id: taskSessionRef.current.id,
+                      status: 'waiting_clarify',
+                      toolName: toolCall.name,
+                      clarifyReason: 'missing-layer-target',
+                      candidates: [],
+                      updatedAt: nowIso(),
+                    });
+                    await writeToolDecisionAuditLog(
+                      assistantId,
+                      `auto:${toolCall.name}`,
+                      `auto_failed:${toolCall.name}:ambiguous_target`,
+                      'ai',
+                      toolCall.requestId,
+                      buildToolDecisionAuditMetadata(
+                        assistantId,
+                        toolCall,
+                        auditContext,
+                        'ai',
+                        'auto_failed',
+                        false,
+                        riskCheck.riskSummary,
+                        'ambiguous_target',
+                      ),
+                    );
+                  } else {
 
                   const shouldRequireConfirmation = destructiveBlocked && (riskCheck?.requiresConfirmation ?? true);
                   if (shouldRequireConfirmation) {
@@ -2881,9 +3387,9 @@ export function useAiChat(options?: UseAiChatOptions) {
                       auditContext,
                     });
                   } else if (!onToolCallRef.current) {
-                    finalContent = toNaturalToolFailure(toolCall.name, '当前还没有接入对应的动作执行器。', settingsRef.current.toolFeedbackStyle);
+                    finalContent = toNaturalToolFailure(toolCall.name, formatNoExecutorToolFailureDetail(), settingsRef.current.toolFeedbackStyle);
                     finalStatus = 'error';
-                    finalErrorMessage = '当前未接入动作执行器。';
+                    finalErrorMessage = formatNoExecutorInternalError();
                     await writeToolDecisionAuditLog(
                       assistantId,
                       `auto:${toolCall.name}`,
@@ -2897,11 +3403,12 @@ export function useAiChat(options?: UseAiChatOptions) {
                         'ai',
                         'auto_failed',
                         false,
-                        '当前未接入动作执行器。',
+                        formatNoExecutorInternalError(),
                         'no_executor',
                       ),
                     );
                   } else {
+                    const autoExecStart = performance.now();
                     try {
                       setTaskSession({
                         id: taskSessionRef.current.id,
@@ -2911,6 +3418,7 @@ export function useAiChat(options?: UseAiChatOptions) {
                       });
                       executedRequestIds.current.add(toolCall.requestId);
                       const result = await onToolCallRef.current(toolCall);
+                      const autoExecDurationMs = Math.round(performance.now() - autoExecStart);
                       finalContent = result.ok
                         ? toNaturalToolSuccess(toolCall.name, result.message, settingsRef.current.toolFeedbackStyle)
                         : toNaturalToolFailure(toolCall.name, result.message, settingsRef.current.toolFeedbackStyle);
@@ -2922,6 +3430,7 @@ export function useAiChat(options?: UseAiChatOptions) {
                         if (lang) sessionMemoryRef.current.lastLanguage = lang;
                         const lid = typeof toolCall.arguments.layerId === 'string' ? toolCall.arguments.layerId : undefined;
                         if (lid) sessionMemoryRef.current.lastLayerId = lid;
+                        persistSessionMemory(sessionMemoryRef.current);
                         // 上一轮是失败，本次成功 → 恢复 | Previous was failure, this is recovery
                         if (metricsRef.current.failureCount > 0 && taskSessionRef.current.status === 'executing') {
                           bumpMetric('recoveryCount');
@@ -2945,6 +3454,8 @@ export function useAiChat(options?: UseAiChatOptions) {
                           result.ok ? 'auto_confirmed' : 'auto_failed',
                           true,
                           result.message,
+                          undefined,
+                          autoExecDurationMs,
                         ),
                       );
                       setTaskSession({
@@ -2953,7 +3464,8 @@ export function useAiChat(options?: UseAiChatOptions) {
                         updatedAt: nowIso(),
                       });
                     } catch (toolError) {
-                      const toolErrorText = toolError instanceof Error ? toolError.message : '工具执行失败';
+                      const autoExecDurationMsErr = Math.round(performance.now() - autoExecStart);
+                      const toolErrorText = toolError instanceof Error ? toolError.message : formatToolExecutionFallbackError();
                       finalContent = toNaturalToolFailure(toolCall.name, toolErrorText, settingsRef.current.toolFeedbackStyle);
                       finalStatus = 'error';
                       finalErrorMessage = toolErrorText;
@@ -2972,6 +3484,7 @@ export function useAiChat(options?: UseAiChatOptions) {
                           true,
                           toolErrorText,
                           'exception',
+                          autoExecDurationMsErr,
                         ),
                       );
                       setTaskSession({
@@ -2980,6 +3493,7 @@ export function useAiChat(options?: UseAiChatOptions) {
                         updatedAt: nowIso(),
                       });
                     }
+                  }
                   }
                 }
               }
@@ -3000,9 +3514,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
         if (timedOutBeforeFirstChunk) {
           const isLongThinkProvider = provider.id === 'deepseek' || provider.id === 'minimax';
-          const timeoutMessage = isLongThinkProvider
-            ? `${provider.label} 思考时间较长（首包超时，已等待60秒），请稍后重试，或切换至其他模型。`
-            : '上游模型响应超时（首包超时），请稍后重试或切换模型。';
+          const timeoutMessage = formatFirstChunkTimeoutError(isLongThinkProvider, provider.label);
           const timeoutContent = messagesRef.current.find((msg) => msg.id === assistantId)?.content ?? '';
           await finalizeAssistantMessage('error', timeoutContent, timeoutMessage);
           setLastError(timeoutMessage);
@@ -3017,7 +3529,7 @@ export function useAiChat(options?: UseAiChatOptions) {
           setConnectionTestMessage(null);
         }
         const abortedContent = messagesRef.current.find((msg) => msg.id === assistantId)?.content ?? '';
-        await finalizeAssistantMessage('aborted', abortedContent, '已中断');
+        await finalizeAssistantMessage('aborted', abortedContent, formatAbortedMessage());
         return;
       }
 
@@ -3097,6 +3609,8 @@ export function useAiChat(options?: UseAiChatOptions) {
     contextDebugSnapshot,
     pendingToolCall,
     taskSession,
+    metrics,
+    sessionMemory: sessionMemoryRef.current,
     confirmPendingToolCall,
     cancelPendingToolCall,
   };

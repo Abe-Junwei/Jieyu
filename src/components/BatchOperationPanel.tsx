@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { UtteranceDocType } from '../../db';
 
 type BatchTab = 'offset' | 'scale' | 'split' | 'merge';
@@ -121,6 +121,20 @@ export function BatchOperationPanel({
   const [showOnlyConflicts, setShowOnlyConflicts] = useState(false);
   const [previewScope, setPreviewScope] = useState<PreviewScope>('selected');
   const [previewLayerId, setPreviewLayerId] = useState<string>(defaultPreviewLayerId ?? previewLayerOptions[0]?.id ?? '');
+  const isMountedRef = useRef(true);
+
+  useEffect(() => () => {
+    isMountedRef.current = false;
+  }, []);
+
+  const runAction = (task: Promise<void>): void => {
+    setRunning(true);
+    void task.finally(() => {
+      if (isMountedRef.current) {
+        setRunning(false);
+      }
+    });
+  };
 
   useEffect(() => {
     if (previewLayerOptions.length === 0) {
@@ -498,24 +512,26 @@ export function BatchOperationPanel({
 
         <div style={{ ...sectionStyle, gap: 8 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <label style={labelStyle}>预览范围</label>
+            <label className="ai-cfg-label">预览范围</label>
             <select
               aria-label="预览范围"
               value={previewScope}
               onChange={(e) => setPreviewScope(e.target.value as PreviewScope)}
-              style={{ ...inputStyle, minWidth: 170 }}
+              className="ai-cfg-input"
+              style={{ minWidth: 170 }}
             >
               <option value="selected">仅已选句段</option>
               <option value="layer-all">特定层全部句段</option>
             </select>
 
-            <label style={labelStyle}>预览层</label>
+            <label className="ai-cfg-label">预览层</label>
             <select
               aria-label="预览层"
               value={previewLayerId}
               onChange={(e) => setPreviewLayerId(e.target.value)}
               disabled={previewLayerOptions.length === 0}
-              style={{ ...inputStyle, minWidth: 220 }}
+              className="ai-cfg-input"
+              style={{ minWidth: 220 }}
             >
               {previewLayerOptions.length === 0 && <option value="">当前层</option>}
               {previewLayerOptions.map((layer) => (
@@ -616,16 +632,15 @@ export function BatchOperationPanel({
 
         {tab === 'offset' && (
           <div style={sectionStyle}>
-            <label style={labelStyle}>偏移秒数（可负数）</label>
-            <input value={deltaSec} onChange={(e) => setDeltaSec(e.target.value)} style={inputStyle} />
+            <label className="ai-cfg-label">偏移秒数（可负数）</label>
+            <input value={deltaSec} onChange={(e) => setDeltaSec(e.target.value)} className="ai-cfg-input" />
             <button
               className="icon-btn"
               disabled={!canSubmit}
               onClick={() => {
                 const value = Number(deltaSec);
                 if (!Number.isFinite(value)) return;
-                setRunning(true);
-                void onOffset(value).finally(() => setRunning(false));
+                runAction(onOffset(value));
               }}
             >
               执行偏移
@@ -635,10 +650,10 @@ export function BatchOperationPanel({
 
         {tab === 'scale' && (
           <div style={sectionStyle}>
-            <label style={labelStyle}>缩放系数（{'>'} 0）</label>
-            <input value={scaleFactor} onChange={(e) => setScaleFactor(e.target.value)} style={inputStyle} />
-            <label style={labelStyle}>锚点时间（可选，秒）</label>
-            <input value={anchorTime} onChange={(e) => setAnchorTime(e.target.value)} style={inputStyle} placeholder="默认取第一个选中句段起点" />
+            <label className="ai-cfg-label">缩放系数（{'>'} 0）</label>
+            <input value={scaleFactor} onChange={(e) => setScaleFactor(e.target.value)} className="ai-cfg-input" />
+            <label className="ai-cfg-label">锚点时间（可选，秒）</label>
+            <input value={anchorTime} onChange={(e) => setAnchorTime(e.target.value)} className="ai-cfg-input" placeholder="默认取第一个选中句段起点" />
             <button
               className="icon-btn"
               disabled={!canSubmit}
@@ -646,8 +661,7 @@ export function BatchOperationPanel({
                 const factor = Number(scaleFactor);
                 const anchor = anchorTime.trim() ? Number(anchorTime) : undefined;
                 if (!Number.isFinite(factor)) return;
-                setRunning(true);
-                void onScale(factor, Number.isFinite(anchor ?? Number.NaN) ? anchor : undefined).finally(() => setRunning(false));
+                runAction(onScale(factor, Number.isFinite(anchor ?? Number.NaN) ? anchor : undefined));
               }}
             >
               执行缩放
@@ -657,17 +671,16 @@ export function BatchOperationPanel({
 
         {tab === 'split' && (
           <div style={sectionStyle}>
-            <label style={labelStyle}>正则表达式</label>
-            <input value={regexPattern} onChange={(e) => setRegexPattern(e.target.value)} style={inputStyle} />
-            <label style={labelStyle}>Flags（可选，如 i）</label>
-            <input value={regexFlags} onChange={(e) => setRegexFlags(e.target.value)} style={inputStyle} />
+            <label className="ai-cfg-label">正则表达式</label>
+            <input value={regexPattern} onChange={(e) => setRegexPattern(e.target.value)} className="ai-cfg-input" />
+            <label className="ai-cfg-label">Flags（可选，如 i）</label>
+            <input value={regexFlags} onChange={(e) => setRegexFlags(e.target.value)} className="ai-cfg-input" />
             <button
               className="icon-btn"
               disabled={!canSubmit}
               onClick={() => {
                 if (!regexPattern.trim()) return;
-                setRunning(true);
-                void onSplitByRegex(regexPattern, regexFlags).finally(() => setRunning(false));
+                runAction(onSplitByRegex(regexPattern, regexFlags));
               }}
             >
               执行拆分
@@ -684,8 +697,7 @@ export function BatchOperationPanel({
               className="icon-btn"
               disabled={!canSubmit || selectedCount < 2}
               onClick={() => {
-                setRunning(true);
-                void onMerge().finally(() => setRunning(false));
+                runAction(onMerge());
               }}
             >
               执行合并
@@ -807,16 +819,4 @@ const badgeStyleByLevel: Record<PreviewLevel, CSSProperties> = {
     background: '#fee2e2',
     color: '#b91c1c',
   },
-};
-
-const labelStyle: CSSProperties = {
-  fontSize: 12,
-  color: '#4b5563',
-};
-
-const inputStyle: CSSProperties = {
-  border: '1px solid #cbd5e1',
-  borderRadius: 8,
-  padding: '6px 8px',
-  fontSize: 13,
 };

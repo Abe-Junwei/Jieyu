@@ -10,7 +10,7 @@ import {
   requireProviderValue,
   throwProviderHttpError,
 } from './errorUtils';
-import { iterateSseData, toErrorChunk } from './streamUtils';
+import { createThinkTagStripper, iterateSseData, toErrorChunk } from './streamUtils';
 
 export interface DeepSeekProviderConfig {
   baseUrl: string;
@@ -56,34 +56,62 @@ export class DeepSeekProvider implements LLMProvider {
       await throwProviderHttpError(this.label, response, `DeepSeek 请求失败 (${response.status})`);
     }
 
+    const visibleTextStripper = createThinkTagStripper();
+
     try {
       for await (const payload of iterateSseData(response)) {
         if (payload === '[DONE]') {
+          const tail = visibleTextStripper.feed('', true);
+          if (tail.length > 0) {
+            yield { delta: tail };
+          }
           yield { delta: '', done: true };
           return;
         }
 
         const json = parseProviderJson<{
           choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
-          error?: { message?: string };
+          error?: { message?: string } | string;
         }>(payload, this.label, 'DeepSeek SSE');
 
-        const errorMessage = json.error?.message;
-        if (errorMessage) {
-          yield toErrorChunk(errorMessage);
+        const reasoningDelta = json.choices?.[0]?.delta?.reasoning_content ?? '';
+        const contentDelta = json.choices?.[0]?.delta?.content ?? '';
+
+        // 显式 error.message 优先处理（如 rate_limit、invalid_request）
+        const explicitError = json.error && typeof json.error === 'object' && 'message' in json.error
+          ? (json.error as { message: string }).message
+          : null;
+        if (explicitError) {
+          yield toErrorChunk(explicitError);
           return;
         }
 
-        const delta = json.choices?.[0]?.delta?.content
-          ?? json.choices?.[0]?.delta?.reasoning_content
-          ?? '';
-        if (delta.length > 0) {
-          yield { delta };
+        // 兜底：如果有 error 字段但无 choices（DeepSeek 偶发返回）
+        if (json.error && !reasoningDelta && !contentDelta) {
+          const rawError = typeof json.error === 'string' ? json.error : JSON.stringify(json.error);
+          yield toErrorChunk(`DeepSeek 请求异常：${rawError}`);
+          return;
+        }
+
+        // 推理内容单独 yield，不与 content 混淆
+        if (reasoningDelta.length > 0) {
+          yield { delta: '', reasoningContent: reasoningDelta };
+        }
+        if (contentDelta.length > 0) {
+          const visibleDelta = visibleTextStripper.feed(contentDelta);
+          if (visibleDelta.length > 0) {
+            yield { delta: visibleDelta };
+          }
         }
       }
     } catch (streamError) {
       yield toErrorChunk(streamError instanceof Error ? streamError.message : 'Stream read failed');
       return;
+    }
+
+    const tail = visibleTextStripper.feed('', true);
+    if (tail.length > 0) {
+      yield { delta: tail };
     }
 
     yield { delta: '', done: true };

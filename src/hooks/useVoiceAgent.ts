@@ -33,6 +33,7 @@ import {
   type VoiceSession,
   type VoiceSessionEntry,
 } from '../services/IntentRouter';
+import { refineLlmFallbackIntent } from '../services/VoiceAgentService';
 import { toBcp47 } from '../utils/langMapping';
 import { createCommercialProvider, testCommercialProvider as testCommercialProviderFactory, probeAllCommercialProviders, type CommercialProviderCreateConfig, type ProviderReachability } from '../services/stt';
 import type { VoicePreset } from '../utils/voicePresets';
@@ -58,7 +59,7 @@ export interface VoiceAgentState {
   lastIntent: VoiceIntent | null;
   error: string | null;
   safeMode: boolean;
-  pendingConfirm: { actionId: ActionId; label: string } | null;
+  pendingConfirm: { actionId: ActionId; label: string; fromFuzzy?: boolean } | null;
   session: VoiceSession;
   engine: SttEngine;
   isRecording: boolean;
@@ -113,7 +114,6 @@ export function getConfidenceColor(confidence: number): string {
   if (confidence >= 0.6) return 'var(--voice-confidence-mid, #eab308)';
   return 'var(--voice-confidence-low, #ef4444)';
 }
-
 // ── Hook ────────────────────────────────────────────────────────────────────
 
 export function useVoiceAgent(options: UseVoiceAgentOptions) {
@@ -144,7 +144,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const [safeMode, setSafeMode] = useState(initialSafeMode);
   const [energyLevel, setEnergyLevel] = useState(0);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [pendingConfirm, setPendingConfirm] = useState<{ actionId: ActionId; label: string } | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{ actionId: ActionId; label: string; fromFuzzy?: boolean } | null>(null);
   const [session, setSession] = useState<VoiceSession>(createVoiceSession);
   const [engine, setEngine] = useState<SttEngine>('web-speech');
   const [isRecording, setIsRecording] = useState(false);
@@ -250,8 +250,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
           session: sessionRef.current,
         });
         if (fallbackIntent) {
-          intent = fallbackIntent;
-          llmResolvedAction = fallbackIntent.type === 'action';
+          intent = refineLlmFallbackIntent(fallbackIntent, result);
+          llmResolvedAction = intent.type === 'action';
         } else {
           llmFallbackFailed = true;
           setError('无法识别该指令，请重试或切换到"分析"模式直接发送文本');
@@ -455,7 +455,16 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
         commercialProviderConfigRef.current,
       );
     }
-    svc.start(startConfig);
+    try {
+      await svc.start(startConfig);
+    } catch (err) {
+      setListening(false);
+      setSpeechActive(false);
+      setAgentState('idle');
+      setError(err instanceof Error ? err.message : '语音启动失败');
+      Earcon.playError();
+      return;
+    }
     void unlockAudio();
     Earcon.playActivate();
   }, [listening, langOverrideRef, handleSttResult, engineRef, whisperServerUrl, whisperServerModel, commercialProviderKindRef, commercialProviderConfigRef]);
@@ -473,8 +482,9 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     if (currentSession.entries.length > 0) {
       try {
         await saveVoiceSession(currentSession);
-      } catch {
-        // IndexedDB unavailable — silently skip
+      } catch (err) {
+        // IndexedDB unavailable — best effort save only | IndexedDB 不可用，保存会话仅尽力而为
+        console.warn('[useVoiceAgent] saveVoiceSession failed:', err);
       }
     }
 

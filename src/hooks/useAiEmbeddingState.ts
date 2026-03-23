@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { db as appDb, getDb } from '../../db';
-import { mapAuditRowToAiToolDecisionLog } from '../ai/toolDecisionLog';
+import { getDb } from '../../db';
+import { listRecentAiToolDecisionLogs } from '../ai/auditReplay';
 import { buildEmbeddingFallbackWarning, readFallbackReason } from '../ai/embeddings/fallbackWarning';
 
 type TaskRunnerLike = {
@@ -121,6 +121,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
     id: string;
     toolName: string;
     decision: string;
+    requestId?: string;
     timestamp: string;
   }>>([]);
   const isMountedRef = useRef(true);
@@ -231,16 +232,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
   }, [requestRefreshEmbeddingTasks]);
 
   const refreshAiToolDecisionLogs = useCallback(async () => {
-    const rows = await appDb.audit_logs
-      .where('[collection+field+timestamp]')
-      .between(
-        ['ai_messages', 'ai_tool_call_decision', ''],
-        ['ai_messages', 'ai_tool_call_decision', '\uffff'],
-      )
-      .reverse()
-      .limit(6)
-      .toArray();
-    const normalized = rows.map((item) => mapAuditRowToAiToolDecisionLog(item));
+    const normalized = await listRecentAiToolDecisionLogs(6);
     setAiToolDecisionLogs(normalized);
   }, []);
 

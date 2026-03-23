@@ -7,6 +7,7 @@ import {
 import { DeepSeekProvider } from './DeepSeekProvider';
 import type { LLMProvider } from './LLMProvider';
 import { GeminiProvider } from './GeminiProvider';
+import { MiniMaxProvider } from './MiniMaxProvider';
 import { MockLLMProvider } from './MockLLMProvider';
 import { OllamaProvider } from './OllamaProvider';
 import { OpenAICompatibleProvider } from './OpenAICompatibleProvider';
@@ -24,19 +25,27 @@ export type AiChatProviderKind =
   | 'minimax';
 
 export type AiChatProviderApiKeyMap = Partial<Record<AiChatProviderKind, string>>;
+export type AiChatProviderModelMap = Partial<Record<AiChatProviderKind, string>>;
+export type AiChatProviderBaseUrlMap = Partial<Record<AiChatProviderKind, string>>;
 export type AiToolFeedbackStyle = 'concise' | 'detailed';
 
 export interface AiChatSettings {
   providerKind: AiChatProviderKind;
   baseUrl: string;
   model: string;
+  /** 解释/非执行对话使用的轻量模型 | Lightweight model for explain / non-execute turns */
+  explainModel?: string;
   apiKey: string;
   apiKeysByProvider: AiChatProviderApiKeyMap;
+  modelsByProvider?: AiChatProviderModelMap;
+  baseUrlsByProvider?: AiChatProviderBaseUrlMap;
   toolFeedbackStyle: AiToolFeedbackStyle;
   endpointUrl: string;
   authHeaderName: string;
   authScheme: CustomHttpAuthScheme;
   responseFormat: CustomHttpResponseFormat;
+  /** 备用 provider（主模型限速/不可用时自动降级）| Fallback provider (auto-degrade on rate-limit / unavailable) */
+  fallbackProviderKind?: AiChatProviderKind;
 }
 
 // ─── Unified create config (flat, all fields optional) ───────────────────────
@@ -106,7 +115,7 @@ function buildOllamaConfig(cfg: { baseUrl?: string; model?: string }):
   { baseUrl: string; model: string } {
   return {
     baseUrl: cfg.baseUrl || 'http://localhost:11434',
-    model: cfg.model || 'llama3.2',
+    model: cfg.model || '',
   };
 }
 
@@ -132,7 +141,7 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'eyJ...', required: true },
     ],
     create: (cfg): LLMProvider =>
-      new OpenAICompatibleProvider(buildOpenAIConfig(cfg)),
+      new MiniMaxProvider({ baseUrl: cfg.baseUrl || 'https://api.minimax.chat/v1', apiKey: cfg.apiKey || '', model: cfg.model || 'MiniMax-Text-01' }),
   },
   'openai-compatible': {
     kind: 'openai-compatible',
@@ -206,7 +215,7 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
     tag: '本地',
     fields: [
       { key: 'baseUrl', label: 'Base URL', type: 'text', placeholder: 'http://localhost:11434', required: true },
-      { key: 'model', label: 'Model', type: 'text', placeholder: 'llama3.2', required: true },
+      { key: 'model', label: 'Model', type: 'text', placeholder: 'e.g. llama3.2, qwen2.5', required: true },
     ],
     create: (cfg): LLMProvider =>
       new OllamaProvider(buildOllamaConfig(cfg)),
@@ -262,7 +271,7 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
 export const aiChatProviderDefinitions = Object.values(PROVIDER_DEFINITIONS);
 
 export function getAiChatProviderDefinition(kind: AiChatProviderKind): AiChatProviderDefinition {
-  return PROVIDER_DEFINITIONS[kind];
+  return PROVIDER_DEFINITIONS[kind] ?? PROVIDER_DEFINITIONS.mock;
 }
 
 // ─── Settings helpers ────────────────────────────────────────────────────────
@@ -271,54 +280,72 @@ const DEFAULT_SETTINGS: Record<AiChatProviderKind, AiChatSettings> = {
   mock: {
     providerKind: 'mock', baseUrl: '', model: 'mock-1', apiKey: '',
     apiKeysByProvider: {},
+    modelsByProvider: {},
+    baseUrlsByProvider: {},
     toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'bearer', responseFormat: 'openai-sse',
   },
   minimax: {
     providerKind: 'minimax', baseUrl: 'https://api.minimax.chat/v1', model: 'MiniMax-Text-01', apiKey: '',
     apiKeysByProvider: {},
+    modelsByProvider: {},
+    baseUrlsByProvider: {},
     toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'bearer', responseFormat: 'openai-sse',
   },
   'openai-compatible': {
     providerKind: 'openai-compatible', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', apiKey: '',
     apiKeysByProvider: {},
+    modelsByProvider: {},
+    baseUrlsByProvider: {},
     toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'bearer', responseFormat: 'openai-sse',
   },
   deepseek: {
     providerKind: 'deepseek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', apiKey: '',
     apiKeysByProvider: {},
+    modelsByProvider: {},
+    baseUrlsByProvider: {},
     toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'bearer', responseFormat: 'openai-sse',
   },
   qwen: {
     providerKind: 'qwen', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', apiKey: '',
     apiKeysByProvider: {},
+    modelsByProvider: {},
+    baseUrlsByProvider: {},
     toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'bearer', responseFormat: 'openai-sse',
   },
   anthropic: {
     providerKind: 'anthropic', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-3-5-sonnet-latest', apiKey: '',
     apiKeysByProvider: {},
+    modelsByProvider: {},
+    baseUrlsByProvider: {},
     toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'x-api-key', authScheme: 'raw', responseFormat: 'anthropic-sse',
   },
   gemini: {
     providerKind: 'gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-2.0-flash', apiKey: '',
     apiKeysByProvider: {},
+    modelsByProvider: {},
+    baseUrlsByProvider: {},
     toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'x-goog-api-key', authScheme: 'raw', responseFormat: 'plain-json',
   },
   ollama: {
-    providerKind: 'ollama', baseUrl: 'http://localhost:11434', model: 'llama3.2', apiKey: '',
+    providerKind: 'ollama', baseUrl: 'http://localhost:11434', model: '', apiKey: '',
     apiKeysByProvider: {},
+    modelsByProvider: {},
+    baseUrlsByProvider: {},
     toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'none', responseFormat: 'ollama-jsonl',
   },
   'custom-http': {
     providerKind: 'custom-http', baseUrl: '', model: 'custom-model', apiKey: '',
     apiKeysByProvider: {},
+    modelsByProvider: {},
+    baseUrlsByProvider: {},
     toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'bearer', responseFormat: 'openai-sse',
   },
@@ -343,29 +370,78 @@ function normalizeApiKeysByProvider(raw: unknown): AiChatProviderApiKeyMap {
   return normalized;
 }
 
+function normalizeModelsByProvider(raw: unknown): AiChatProviderModelMap {
+  if (!raw || typeof raw !== 'object') return {};
+  const source = raw as Record<string, unknown>;
+  const normalized: AiChatProviderModelMap = {};
+
+  for (const kind of Object.keys(DEFAULT_SETTINGS) as AiChatProviderKind[]) {
+    const value = source[kind];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      normalized[kind] = value;
+    }
+  }
+
+  return normalized;
+}
+
+function normalizeBaseUrlsByProvider(raw: unknown): AiChatProviderBaseUrlMap {
+  if (!raw || typeof raw !== 'object') return {};
+  const source = raw as Record<string, unknown>;
+  const normalized: AiChatProviderBaseUrlMap = {};
+
+  for (const kind of Object.keys(DEFAULT_SETTINGS) as AiChatProviderKind[]) {
+    const value = source[kind];
+    if (typeof value === 'string') {
+      normalized[kind] = value;
+    }
+  }
+
+  return normalized;
+}
+
 export function normalizeAiChatSettings(raw?: Partial<AiChatSettings>): AiChatSettings {
   const providerKind = raw?.providerKind && raw.providerKind in DEFAULT_SETTINGS
     ? raw.providerKind
     : 'mock';
   const defaults = getDefaultAiChatSettings(providerKind);
   const rawApiKeysByProvider = normalizeApiKeysByProvider(raw?.apiKeysByProvider);
+  const rawModelsByProvider = normalizeModelsByProvider(raw?.modelsByProvider);
+  const rawBaseUrlsByProvider = normalizeBaseUrlsByProvider(raw?.baseUrlsByProvider);
   const apiKeyFromRaw = typeof raw?.apiKey === 'string' ? raw.apiKey : undefined;
   const apiKeyFromMap = rawApiKeysByProvider[providerKind];
   const effectiveApiKey = apiKeyFromRaw ?? apiKeyFromMap ?? defaults.apiKey;
+  const baseUrlFromRaw = typeof raw?.baseUrl === 'string' ? raw.baseUrl : undefined;
+  const baseUrlFromMap = rawBaseUrlsByProvider[providerKind];
+  const effectiveBaseUrl = baseUrlFromRaw ?? baseUrlFromMap ?? defaults.baseUrl;
+  const modelFromRaw = typeof raw?.model === 'string' && raw.model.trim().length > 0 ? raw.model : undefined;
+  const modelFromMap = rawModelsByProvider[providerKind];
+  const effectiveModel = modelFromRaw ?? modelFromMap ?? defaults.model;
   const apiKeysByProvider: AiChatProviderApiKeyMap = {
     ...rawApiKeysByProvider,
     [providerKind]: effectiveApiKey,
   };
+  const modelsByProvider: AiChatProviderModelMap = {
+    ...rawModelsByProvider,
+    [providerKind]: effectiveModel,
+  };
+  const baseUrlsByProvider: AiChatProviderBaseUrlMap = {
+    ...rawBaseUrlsByProvider,
+    [providerKind]: effectiveBaseUrl,
+  };
 
   return {
     providerKind,
-    baseUrl: typeof raw?.baseUrl === 'string' ? raw.baseUrl : defaults.baseUrl,
-    model: typeof raw?.model === 'string' && raw.model.trim().length > 0 ? raw.model : defaults.model,
+    baseUrl: effectiveBaseUrl,
+    model: effectiveModel,
     apiKey: effectiveApiKey,
     apiKeysByProvider,
+    modelsByProvider,
+    baseUrlsByProvider,
     toolFeedbackStyle: raw?.toolFeedbackStyle === 'concise' || raw?.toolFeedbackStyle === 'detailed'
       ? raw.toolFeedbackStyle
       : defaults.toolFeedbackStyle,
+    ...(typeof raw?.explainModel === 'string' && raw.explainModel.trim().length > 0 ? { explainModel: raw.explainModel } : {}),
     endpointUrl: typeof raw?.endpointUrl === 'string' ? raw.endpointUrl : defaults.endpointUrl,
     authHeaderName: typeof raw?.authHeaderName === 'string' ? raw.authHeaderName : defaults.authHeaderName,
     authScheme: raw?.authScheme === 'none' || raw?.authScheme === 'raw' || raw?.authScheme === 'bearer'
@@ -377,6 +453,9 @@ export function normalizeAiChatSettings(raw?: Partial<AiChatSettings>): AiChatSe
       || raw?.responseFormat === 'plain-json'
       ? raw.responseFormat
       : defaults.responseFormat,
+    ...(raw?.fallbackProviderKind && raw.fallbackProviderKind in DEFAULT_SETTINGS
+      ? { fallbackProviderKind: raw.fallbackProviderKind }
+      : {}),
   };
 }
 
@@ -385,6 +464,8 @@ export function applyAiChatSettingsPatch(
   patch: Partial<AiChatSettings>,
 ): AiChatSettings {
   const incomingMap = normalizeApiKeysByProvider(patch.apiKeysByProvider);
+  const incomingModelMap = normalizeModelsByProvider(patch.modelsByProvider);
+  const incomingBaseUrlMap = normalizeBaseUrlsByProvider(patch.baseUrlsByProvider);
 
   if (patch.providerKind && patch.providerKind !== current.providerKind) {
     const persistedApiKeysByProvider: AiChatProviderApiKeyMap = {
@@ -392,9 +473,25 @@ export function applyAiChatSettingsPatch(
       [current.providerKind]: current.apiKey,
       ...incomingMap,
     };
+    const persistedModelsByProvider: AiChatProviderModelMap = {
+      ...(current.modelsByProvider ?? {}),
+      [current.providerKind]: current.model,
+      ...incomingModelMap,
+    };
+    const persistedBaseUrlsByProvider: AiChatProviderBaseUrlMap = {
+      ...(current.baseUrlsByProvider ?? {}),
+      [current.providerKind]: current.baseUrl,
+      ...incomingBaseUrlMap,
+    };
     const nextProviderApiKey = typeof patch.apiKey === 'string'
       ? patch.apiKey
       : (persistedApiKeysByProvider[patch.providerKind] ?? '');
+    const nextProviderBaseUrl = typeof patch.baseUrl === 'string'
+      ? patch.baseUrl
+      : (persistedBaseUrlsByProvider[patch.providerKind] ?? getDefaultAiChatSettings(patch.providerKind).baseUrl);
+    const nextProviderModel = typeof patch.model === 'string' && patch.model.trim().length > 0
+      ? patch.model
+      : (persistedModelsByProvider[patch.providerKind] ?? getDefaultAiChatSettings(patch.providerKind).model);
 
     return normalizeAiChatSettings({
       ...getDefaultAiChatSettings(patch.providerKind),
@@ -402,7 +499,17 @@ export function applyAiChatSettingsPatch(
         ...persistedApiKeysByProvider,
         [patch.providerKind]: nextProviderApiKey,
       },
+      modelsByProvider: {
+        ...persistedModelsByProvider,
+        [patch.providerKind]: nextProviderModel,
+      },
+      baseUrlsByProvider: {
+        ...persistedBaseUrlsByProvider,
+        [patch.providerKind]: nextProviderBaseUrl,
+      },
       apiKey: nextProviderApiKey,
+      baseUrl: nextProviderBaseUrl,
+      model: nextProviderModel,
       ...patch,
     });
   }
@@ -411,14 +518,30 @@ export function applyAiChatSettingsPatch(
     ...current.apiKeysByProvider,
     ...incomingMap,
   };
+  const nextModelsByProvider: AiChatProviderModelMap = {
+    ...(current.modelsByProvider ?? {}),
+    ...incomingModelMap,
+  };
+  const nextBaseUrlsByProvider: AiChatProviderBaseUrlMap = {
+    ...(current.baseUrlsByProvider ?? {}),
+    ...incomingBaseUrlMap,
+  };
   if (typeof patch.apiKey === 'string') {
     nextApiKeysByProvider[current.providerKind] = patch.apiKey;
+  }
+  if (typeof patch.baseUrl === 'string') {
+    nextBaseUrlsByProvider[current.providerKind] = patch.baseUrl;
+  }
+  if (typeof patch.model === 'string' && patch.model.trim().length > 0) {
+    nextModelsByProvider[current.providerKind] = patch.model;
   }
 
   return normalizeAiChatSettings({
     ...current,
     ...patch,
     apiKeysByProvider: nextApiKeysByProvider,
+    modelsByProvider: nextModelsByProvider,
+    baseUrlsByProvider: nextBaseUrlsByProvider,
   });
 }
 

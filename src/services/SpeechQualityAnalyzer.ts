@@ -151,8 +151,8 @@ export class SpeechQualityAnalyzer {
       this._qualityScoreHistory = [];
       this._active = true;
       this._tick();
-    } catch {
-      // Microphone unavailable — silent failure
+    } catch (err) {
+      console.warn('[SpeechQualityAnalyzer] start failed, microphone unavailable:', err);
       this._active = false;
     }
   }

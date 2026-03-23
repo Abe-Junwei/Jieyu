@@ -10,11 +10,15 @@ class QueryRuntime implements EmbeddingProvider {
   readonly label = 'QueryRuntime';
   readonly modelId = 'query';
   preloadCount = 0;
+  usingFallback = false;
 
   constructor(private readonly queryVector: number[]) {}
 
-  async preload(): Promise<void> {
+  async preload(options?: { onProgress?: (progress: { usingFallback?: boolean }) => void }): Promise<void> {
     this.preloadCount += 1;
+    if (this.usingFallback) {
+      options?.onProgress?.({ usingFallback: true });
+    }
   }
 
   async embed(texts: string[]): Promise<number[][]> {
@@ -262,6 +266,27 @@ describe('EmbeddingSearchService', () => {
     const service = new EmbeddingSearchService(runtime);
     await service.searchSimilarUtterances('hello', { modelId: 'test-model', modelVersion: 'v1' });
     await service.searchSimilarUtterances('hello', { modelId: 'test-model', modelVersion: 'v2' });
+
+    expect(runtime.preloadCount).toBe(2);
+  });
+
+  it('does not cache preload when provider reports fallback mode', async () => {
+    await db.embeddings.put({
+      id: 'utterance::utt_1::test-model::v-test',
+      sourceType: 'utterance',
+      sourceId: 'utt_1',
+      model: 'test-model',
+      modelVersion: 'v-test',
+      contentHash: 'h1',
+      vector: [1, 0],
+      createdAt: new Date().toISOString(),
+    });
+
+    const runtime = new QueryRuntime([1, 0]);
+    runtime.usingFallback = true;
+    const service = new EmbeddingSearchService(runtime);
+    await service.searchSimilarUtterances('hello', { modelId: 'test-model', modelVersion: 'v-test' });
+    await service.searchSimilarUtterances('world', { modelId: 'test-model', modelVersion: 'v-test' });
 
     expect(runtime.preloadCount).toBe(2);
   });
@@ -584,6 +609,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
       topK: 1,
       fusionScenario: 'qa',
       keywordWeight: 0.8, // 手动覆盖 QA 模板的 0.25 | Override QA's 0.25
+      minScore: 0, // 高 keywordWeight 时 fusedScore 可能低于默认阈值，测试时禁用阈值 | fusedScore may fall below default threshold with high keywordWeight; disable for this test
     });
     expect(overrideResult.matches.length).toBeGreaterThan(0);
   });

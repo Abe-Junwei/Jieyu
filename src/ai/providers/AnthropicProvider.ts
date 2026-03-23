@@ -10,7 +10,7 @@ import {
   requireProviderValue,
   throwProviderHttpError,
 } from './errorUtils';
-import { iterateSseData, toErrorChunk } from './streamUtils';
+import { createThinkTagStripper, iterateSseData, toErrorChunk } from './streamUtils';
 
 export interface AnthropicProviderConfig {
   baseUrl: string;
@@ -71,9 +71,18 @@ export class AnthropicProvider implements LLMProvider {
       await throwProviderHttpError(this.label, response, `Anthropic 请求失败 (${response.status})`);
     }
 
+    // 发出思考中信号：首个delta到达前显示"正在思考"
+    yield { delta: '', thinking: true };
+    const visibleTextStripper = createThinkTagStripper();
+
+    let emittedFirstDelta = false;
     try {
       for await (const payload of iterateSseData(response)) {
         if (payload === '[DONE]') {
+          const tail = visibleTextStripper.feed('', true);
+          if (tail.length > 0) {
+            yield { delta: tail };
+          }
           yield { delta: '', done: true };
           return;
         }
@@ -81,23 +90,41 @@ export class AnthropicProvider implements LLMProvider {
         const json = parseProviderJson<{
           type?: string;
           delta?: { text?: string };
-          error?: { message?: string };
+          error?: { message?: string } | string;
         }>(payload, this.label, 'Anthropic SSE');
 
-        const errorMessage = json.error?.message;
-        if (errorMessage) {
-          yield toErrorChunk(errorMessage);
+        // 显式 error.message 优先处理
+        const explicitError = json.error && typeof json.error === 'object' && 'message' in json.error
+          ? (json.error as { message: string }).message
+          : null;
+        if (explicitError) {
+          yield toErrorChunk(explicitError);
+          return;
+        }
+
+        // 兜底：如果有 error 字段但无 type
+        if (json.error && json.type !== 'content_block_delta') {
+          const rawError = typeof json.error === 'string' ? json.error : JSON.stringify(json.error);
+          yield toErrorChunk(`Anthropic 请求异常：${rawError}`);
           return;
         }
 
         if (json.type === 'content_block_delta') {
           const delta = json.delta?.text ?? '';
           if (delta.length > 0) {
-            yield { delta };
+            const visibleDelta = visibleTextStripper.feed(delta);
+            if (visibleDelta.length > 0) {
+              yield { delta: visibleDelta, ...(!emittedFirstDelta ? { thinking: false } : {}) };
+              emittedFirstDelta = true;
+            }
           }
         }
 
         if (json.type === 'message_stop') {
+          const tail = visibleTextStripper.feed('', true);
+          if (tail.length > 0) {
+            yield { delta: tail };
+          }
           yield { delta: '', done: true };
           return;
         }
@@ -105,6 +132,11 @@ export class AnthropicProvider implements LLMProvider {
     } catch (streamError) {
       yield toErrorChunk(streamError instanceof Error ? streamError.message : 'Stream read failed');
       return;
+    }
+
+    const tail = visibleTextStripper.feed('', true);
+    if (tail.length > 0) {
+      yield { delta: tail };
     }
 
     yield { delta: '', done: true };

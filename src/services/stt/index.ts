@@ -140,7 +140,7 @@ export function createCommercialProvider(
 }
 
 export function getCommercialProviderDefinition(kind: CommercialProviderKind): CommercialProviderDefinition {
-  return PROVIDERS[kind];
+  return PROVIDERS[kind] ?? PROVIDERS['groq'];
 }
 
 /** Test commercial provider availability by constructing and calling isAvailable(). */

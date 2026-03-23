@@ -41,7 +41,8 @@ export class MiniMaxSttProvider implements CommercialSttProvider {
         headers: { Authorization: `Bearer ${this.config.apiKey}` },
       });
       return resp.ok;
-    } catch {
+    } catch (err) {
+      console.debug('[MiniMaxSttProvider] availability probe failed:', err);
       return false;
     }
   }

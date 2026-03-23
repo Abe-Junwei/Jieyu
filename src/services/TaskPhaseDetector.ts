@@ -15,12 +15,12 @@ import type { ActionId } from './IntentRouter';
 import { recordTaskPhase } from './userBehaviorDB';
 
 export type TaskPhase =
-  | 'importing'    // 导入音视频、创建项目
-  | 'transcribing' // 听写/转写阶段
+  | 'importing'    // 导入音视频、创建项目 | import media, create project
+  | 'transcribing' // 听写/转写阶段 | transcription phase
   | 'annotating'   // IGT 标注（gloss、morpheme 等）
-  | 'translating'  // 翻译阶段
-  | 'reviewing'    // 审校/润色
-  | 'exporting';   // 导出阶段
+  | 'translating'  // 翻译阶段 | translation phase
+  | 'reviewing'    // 审校/润色 | review and polish
+  | 'exporting';   // 导出阶段 | export phase
 
 interface PhaseIndicator {
   phase: TaskPhase;
@@ -31,7 +31,7 @@ interface PhaseIndicator {
 // Keywords in AI tool calls that indicate phase
 const PHASE_TOOL_KEYWORDS: Record<TaskPhase, string[]> = {
   importing: ['import', 'load', 'create_project'],
-  transcribing: ['transcribe', 'create_transcription_segment', 'set_transcription_text'],
+  transcribing: ['transcribe', 'create_transcription_segment', 'split_transcription_segment', 'set_transcription_text'],
   annotating: ['auto_gloss', 'set_gloss_text', 'create_transcription_layer'],
   translating: ['set_translation_text', 'translate'],
   reviewing: ['review', 'confirm', 'approve'],

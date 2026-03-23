@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type MutableRefObject } from 'react';
-import type { LayerLinkDocType, TranslationLayerDocType, UtteranceDocType, UtteranceTextDocType } from '../../db';
+import type { LayerLinkDocType, SpeakerDocType, TranslationLayerDocType, UtteranceDocType, UtteranceTextDocType } from '../../db';
 import { CommandHistory, type ReversibleCommand } from '../../services/CommandService';
 import type { SaveState } from './transcriptionTypes';
 import type { TimingUndoState } from '../utils/selectionUtils';
@@ -10,6 +10,7 @@ type UndoEntry = {
   translations: UtteranceTextDocType[];
   layers?: TranslationLayerDocType[];
   layerLinks?: LayerLinkDocType[];
+  speakers?: SpeakerDocType[];
 };
 
 type Params = {
@@ -17,16 +18,19 @@ type Params = {
   translationsRef: MutableRefObject<UtteranceTextDocType[]>;
   layersRef: MutableRefObject<TranslationLayerDocType[]>;
   layerLinksRef: MutableRefObject<LayerLinkDocType[]>;
+  speakersRef: MutableRefObject<SpeakerDocType[]>;
   dirtyRef: MutableRefObject<boolean>;
   scheduleRecoverySave: () => void;
   syncToDb: (
     targetUtterances: UtteranceDocType[],
     targetTranslations: UtteranceTextDocType[],
+    targetSpeakers: SpeakerDocType[],
   ) => Promise<void>;
   setUtterances: React.Dispatch<React.SetStateAction<UtteranceDocType[]>>;
   setTranslations: React.Dispatch<React.SetStateAction<UtteranceTextDocType[]>>;
   setLayers: React.Dispatch<React.SetStateAction<TranslationLayerDocType[]>>;
   setLayerLinks: React.Dispatch<React.SetStateAction<LayerLinkDocType[]>>;
+  setSpeakers: React.Dispatch<React.SetStateAction<SpeakerDocType[]>>;
   setSaveState: (s: SaveState) => void;
 };
 
@@ -35,6 +39,7 @@ export function useTranscriptionUndo({
   translationsRef,
   layersRef,
   layerLinksRef,
+  speakersRef,
   dirtyRef,
   scheduleRecoverySave,
   syncToDb,
@@ -42,6 +47,7 @@ export function useTranscriptionUndo({
   setTranslations,
   setLayers,
   setLayerLinks,
+  setSpeakers,
   setSaveState,
 }: Params) {
   const MAX_UNDO = 50;
@@ -60,12 +66,13 @@ export function useTranscriptionUndo({
       translations: [...translationsRef.current],
       layers: [...layersRef.current],
       layerLinks: [...layerLinksRef.current],
+        speakers: [...speakersRef.current],
     });
     if (undoStackRef.current.length > MAX_UNDO) undoStackRef.current.shift();
     redoStackRef.current = [];
     setUndoRedoVersion((v) => v + 1);
     scheduleRecoverySave();
-  }, [dirtyRef, layerLinksRef, layersRef, scheduleRecoverySave, translationsRef, utterancesRef]);
+  }, [dirtyRef, layerLinksRef, layersRef, scheduleRecoverySave, speakersRef, translationsRef, utterancesRef]);
 
   const beginTimingGesture = useCallback((utteranceId: string) => {
     const current = timingGestureRef.current;
@@ -104,16 +111,18 @@ export function useTranscriptionUndo({
       translations: [...translationsRef.current],
       layers: [...layersRef.current],
       layerLinks: [...layerLinksRef.current],
+        speakers: [...speakersRef.current],
     });
-    await syncToDb(entry.utterances, entry.translations);
+      await syncToDb(entry.utterances, entry.translations, entry.speakers ?? []);
     setUtterances(entry.utterances);
     setTranslations(entry.translations);
     if (entry.layers) setLayers(entry.layers);
     if (entry.layerLinks) setLayerLinks(entry.layerLinks);
+      setSpeakers(entry.speakers ?? []);
     await commandHistoryRef.current.undo();
     setUndoRedoVersion((v) => v + 1);
     setSaveState({ kind: 'done', message: `已撤销: ${entry.label}` });
-  }, [layerLinksRef, layersRef, setLayerLinks, setLayers, setSaveState, setTranslations, setUtterances, syncToDb, translationsRef, utterancesRef]);
+    }, [layerLinksRef, layersRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, syncToDb, translationsRef, utterancesRef]);
 
   const undoToHistoryIndex = useCallback(async (historyIndex: number) => {
     const stack = undoStackRef.current;
@@ -134,6 +143,7 @@ export function useTranscriptionUndo({
           translations: [...translationsRef.current],
           layers: [...layersRef.current],
           layerLinks: [...layerLinksRef.current],
+            speakers: [...speakersRef.current],
         });
       } else {
         const newerEntry = stack[j + 1];
@@ -144,6 +154,7 @@ export function useTranscriptionUndo({
           translations: [...newerEntry.translations],
           ...(newerEntry.layers ? { layers: [...newerEntry.layers] } : {}),
           ...(newerEntry.layerLinks ? { layerLinks: [...newerEntry.layerLinks] } : {}),
+            ...(newerEntry.speakers ? { speakers: [...newerEntry.speakers] } : {}),
         });
       }
     }
@@ -151,17 +162,18 @@ export function useTranscriptionUndo({
     redoStackRef.current = [...redoStackRef.current, ...redoAdds];
     undoStackRef.current = stack.slice(0, targetStackIndex);
 
-    await syncToDb(targetEntry.utterances, targetEntry.translations);
+    await syncToDb(targetEntry.utterances, targetEntry.translations, targetEntry.speakers ?? []);
     setUtterances(targetEntry.utterances);
     setTranslations(targetEntry.translations);
     if (targetEntry.layers) setLayers(targetEntry.layers);
     if (targetEntry.layerLinks) setLayerLinks(targetEntry.layerLinks);
+    setSpeakers(targetEntry.speakers ?? []);
     await commandHistoryRef.current.undoToIndex(historyIndex);
     setUndoRedoVersion((v) => v + 1);
 
     const steps = stack.length - targetStackIndex;
     setSaveState({ kind: 'done', message: `已撤销 ${steps} 步: ${targetEntry.label}` });
-  }, [layerLinksRef, layersRef, setLayerLinks, setLayers, setSaveState, setTranslations, setUtterances, syncToDb, translationsRef, utterancesRef]);
+  }, [layerLinksRef, layersRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, syncToDb, translationsRef, utterancesRef]);
 
   const redo = useCallback(async () => {
     const entry = redoStackRef.current.pop();
@@ -172,16 +184,18 @@ export function useTranscriptionUndo({
       translations: [...translationsRef.current],
       layers: [...layersRef.current],
       layerLinks: [...layerLinksRef.current],
+        speakers: [...speakersRef.current],
     });
-    await syncToDb(entry.utterances, entry.translations);
+      await syncToDb(entry.utterances, entry.translations, entry.speakers ?? []);
     setUtterances(entry.utterances);
     setTranslations(entry.translations);
     if (entry.layers) setLayers(entry.layers);
     if (entry.layerLinks) setLayerLinks(entry.layerLinks);
+      setSpeakers(entry.speakers ?? []);
     await commandHistoryRef.current.redo();
     setUndoRedoVersion((v) => v + 1);
     setSaveState({ kind: 'done', message: `已重做: ${entry.label}` });
-  }, [layerLinksRef, layersRef, setLayerLinks, setLayers, setSaveState, setTranslations, setUtterances, syncToDb, translationsRef, utterancesRef]);
+    }, [layerLinksRef, layersRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, syncToDb, translationsRef, utterancesRef]);
 
   const canUndo = undoStackRef.current.length > 0;
   const canRedo = redoStackRef.current.length > 0;
