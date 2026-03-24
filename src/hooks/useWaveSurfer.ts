@@ -611,9 +611,10 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     if (!isReady || !options.zoomLevel) return;
     try {
       instanceRef.current?.zoom(options.zoomLevel);
-    } catch {
+    } catch (err) {
       // WaveSurfer throws "No audio loaded" for video/streaming media where
       // decodedData is null even after the ready event. Safe to ignore.
+      console.error('[Jieyu] useWaveSurfer: zoom failed', err);
     }
   }, [isReady, options.zoomLevel]);
 

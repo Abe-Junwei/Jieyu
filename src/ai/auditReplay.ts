@@ -86,7 +86,8 @@ function safeParseJson(raw: string | undefined): unknown {
   if (typeof raw !== 'string' || raw.trim().length === 0) return null;
   try {
     return JSON.parse(raw) as unknown;
-  } catch {
+  } catch (err) {
+    console.error('[Jieyu] auditReplay: safeParseJson failed', { raw, err });
     return null;
   }
 }

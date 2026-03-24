@@ -738,8 +738,8 @@ export function useAiChat(options?: UseAiChatOptions) {
           if (parsed.phase === 'decision' && parsed.executed === true) {
             return true;
           }
-        } catch {
-          // Ignore malformed metadata and fall back to compact decision parsing.
+        } catch (err) {
+          console.error('[Jieyu] useAiChat: failed to parse tool decision metadata, falling back to compact parsing', err);
         }
       }
 

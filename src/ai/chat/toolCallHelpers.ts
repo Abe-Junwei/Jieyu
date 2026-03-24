@@ -221,7 +221,7 @@ export function parseToolCallFromText(rawText: string): AiChatToolCall | null {
         : {};
       return { name: normalizedName, arguments: args };
     } catch {
-      // Ignore non-JSON assistant content.
+      // 候选可能包含自然语言片段，解析失败属于正常分支 | Candidates may contain natural language; parse failure is expected on non-JSON text
     }
   }
 

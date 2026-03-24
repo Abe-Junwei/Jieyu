@@ -82,7 +82,8 @@ export function LayerActionPopover({
         x: typeof p.x === 'number' ? p.x : 24,
         y: typeof p.y === 'number' ? p.y : 24,
       };
-    } catch {
+    } catch (err) {
+      console.error('[Jieyu] LayerActionPopover: failed to read position from localStorage, using default', { storageKey, err });
       return { x: 24, y: 24 };
     }
   });
@@ -98,7 +99,8 @@ export function LayerActionPopover({
         width: typeof p.width === 'number' ? p.width : 360,
         height: typeof p.height === 'number' ? p.height : 240,
       };
-    } catch {
+    } catch (err) {
+      console.error('[Jieyu] LayerActionPopover: failed to read size from localStorage, using default', { storageKey, err });
       return PANEL_DEFAULT_SIZE;
     }
   });
@@ -207,8 +209,8 @@ export function LayerActionPopover({
         width: size.width,
         height: size.height,
       }));
-    } catch {
-      // 忽略持久化失败 | Ignore persistence errors
+    } catch (err) {
+      console.error('[Jieyu] LayerActionPopover: failed to persist panel rect to localStorage', { storageKey, err });
     }
   }, [position.x, position.y, size.height, size.width, storageKey]);
 
@@ -305,8 +307,8 @@ export function LayerActionPopover({
     if (typeof window !== 'undefined') {
       try {
         window.localStorage.removeItem(storageKey);
-      } catch {
-        // ignore
+      } catch (err) {
+        console.error('[Jieyu] LayerActionPopover: failed to remove panel rect from localStorage', { storageKey, err });
       }
     }
     centerPanel(PANEL_DEFAULT_SIZE);

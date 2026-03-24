@@ -54,7 +54,8 @@ function parseToolDecisionMetadata(raw: string | undefined): { decision: string;
       ...(reason ? { reason } : {}),
       ...(requestId ? { requestId } : {}),
     };
-  } catch {
+  } catch (err) {
+    console.error('[Jieyu] toolDecisionLog: failed to parse tool decision metadata', { raw, err });
     return null;
   }
 }

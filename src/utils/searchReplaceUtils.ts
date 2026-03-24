@@ -63,7 +63,8 @@ export function analyzeSearchPattern(query: string, options: SearchReplaceOption
 
   try {
     return { pattern: new RegExp(body, flags) };
-  } catch {
+  } catch (err) {
+    console.error('[Jieyu] searchReplaceUtils: invalid regex pattern', { body, flags, err });
     return {
       pattern: null,
       error: '正则表达式无效，请检查语法。',

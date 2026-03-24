@@ -46,6 +46,9 @@ export default defineConfig({
           if (id.includes('/src/services/VoiceInputService')) {
             return 'voice-input-runtime';
           }
+          if (id.includes('/src/services/VoiceAgentService')) {
+            return 'voice-agent-runtime';
+          }
           if (id.includes('/src/services/stt/')) {
             return 'voice-stt-core';
           }

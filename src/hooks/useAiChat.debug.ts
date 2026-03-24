@@ -1,4 +1,7 @@
 import type { AiContextDebugSnapshot, AiSystemPersonaKey } from './useAiChat.types';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('useAiChat.debug');
 
 interface BuildContextDebugSnapshotParams {
   enabled: boolean;
@@ -37,8 +40,7 @@ export function buildContextDebugSnapshot({
  */
 export function logContextDebugSnapshot(snapshot: AiContextDebugSnapshot): void {
   // 仅开发期：用于调优截断和 token 预算 | Dev-only diagnostics for truncation and token budget tuning
-  // eslint-disable-next-line no-console
-  console.debug('[AI Context Debug]', {
+  log.debug('AI Context Debug', {
     ...snapshot,
     contextPreview: snapshot.contextPreview.slice(0, 240),
   });

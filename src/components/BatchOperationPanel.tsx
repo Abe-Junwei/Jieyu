@@ -350,7 +350,8 @@ export function BatchOperationPanel({
       try {
         const normalizedFlags = [...new Set(`${regexFlags}g`.split(''))].join('');
         splitter = new RegExp(rawPattern, normalizedFlags);
-      } catch {
+      } catch (err) {
+        console.error('[Jieyu] BatchOperationPanel: invalid regex pattern', { rawPattern, regexFlags, err });
         return {
           rows: [],
           blockingCount: 1,

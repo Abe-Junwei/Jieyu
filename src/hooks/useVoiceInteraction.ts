@@ -93,7 +93,8 @@ interface UseVoiceInteractionReturn {
 function formatLanguageLabel(code: string): string {
   try {
     return new Intl.DisplayNames(['zh-CN', 'en'], { type: 'language' }).of(code) || code;
-  } catch {
+  } catch (err) {
+    console.error('[Jieyu] useVoiceInteraction: formatLanguageLabel failed', { code, err });
     return code;
   }
 }

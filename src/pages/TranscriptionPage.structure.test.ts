@@ -69,7 +69,8 @@ function isRangeNested(inner: JsxWithClass, outer: JsxWithClass): boolean {
 
 describe('TranscriptionPage structure invariants', () => {
   it('keeps transcription-list-main outside transcription-waveform-area', () => {
-    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.tsx');
+    // The actual component JSX lives in TranscriptionPage.Orchestrator.tsx
+    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
     const code = fs.readFileSync(filePath, 'utf8');
     const sourceFile = ts.createSourceFile(filePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 

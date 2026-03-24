@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import { memo, type RefObject } from 'react';
 import {
   ChevronDown,
   Download,
@@ -51,7 +51,7 @@ interface TranscriptionToolbarActionsProps {
   onOpenUttOpsMenu: (x: number, y: number) => void;
 }
 
-export function TranscriptionToolbarActions(props: TranscriptionToolbarActionsProps) {
+function TranscriptionToolbarActionsInner(props: TranscriptionToolbarActionsProps) {
   const locale = detectLocale();
   const {
     canUndo,
@@ -250,3 +250,5 @@ export function TranscriptionToolbarActions(props: TranscriptionToolbarActionsPr
     </>
   );
 }
+
+export const TranscriptionToolbarActions = memo(TranscriptionToolbarActionsInner);

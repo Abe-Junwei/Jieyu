@@ -96,7 +96,8 @@ export function parseProviderJson<T>(
 ): T {
   try {
     return JSON.parse(payload) as T;
-  } catch {
+  } catch (err) {
+    console.error('[Jieyu] parseProviderResponse: JSON parse failed', { providerLabel, formatLabel, payload, err });
     throw new AiProviderError(
       `${providerLabel} 返回格式无法解析，请检查响应格式是否选择正确（当前：${formatLabel}）`,
       'format',

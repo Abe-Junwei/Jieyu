@@ -137,7 +137,8 @@ export function TranscriptionTimelineTextOnly({
     try {
       await saveTask();
       setCellSaveStatus(cellKey);
-    } catch {
+    } catch (err) {
+      console.error('[Jieyu] TranscriptionTimelineTextOnly: cell save failed', { cellKey, err });
       setCellSaveStatus(cellKey, 'error');
     }
   };

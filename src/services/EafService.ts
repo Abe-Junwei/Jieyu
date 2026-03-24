@@ -75,7 +75,8 @@ function parseEafMetaFromLayerKey(layerKey?: string): { tierId?: string; langLab
       ...(typeof parsed.tierId === 'string' && parsed.tierId.trim().length > 0 ? { tierId: parsed.tierId.trim() } : {}),
       ...(typeof parsed.langLabel === 'string' && parsed.langLabel.trim().length > 0 ? { langLabel: parsed.langLabel.trim() } : {}),
     };
-  } catch {
+  } catch (err) {
+    console.error('[Jieyu] EafService: failed to parse locale info from layerKey', { layerKey, err });
     return {};
   }
 }

@@ -101,7 +101,8 @@ async function decryptAiChatSettings(rawSecurePayload: string): Promise<AiChatSe
     );
     const text = new TextDecoder().decode(decrypted);
     return normalizeAiChatSettings(JSON.parse(text) as Partial<AiChatSettings>);
-  } catch {
+  } catch (err) {
+    console.error('[Jieyu] aiChatSettingsStorage: failed to decrypt settings', err);
     return null;
   }
 }
@@ -136,13 +137,13 @@ export async function loadAiChatSettingsFromStorage(): Promise<AiChatSettings> {
       const normalized = normalizeAiChatSettings(JSON.parse(legacyRaw) as Partial<AiChatSettings>);
       try {
         await persistAiChatSettings(normalized);
-      } catch {
-        // Keep legacy fallback when secure write is unavailable.
+      } catch (err) {
+        console.error('[Jieyu] aiChatSettingsStorage: failed to persist migrated settings, keeping legacy', err);
       }
       return normalized;
     }
-  } catch {
-    // 读取失败时返回默认配置 | Fall back to defaults if storage payload is invalid
+  } catch (err) {
+    console.error('[Jieyu] aiChatSettingsStorage: failed to load settings from storage, using defaults', err);
   }
 
   return normalizeAiChatSettings();

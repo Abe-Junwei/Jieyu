@@ -45,7 +45,8 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
       // Try a single-vector embed to verify the worker is alive
       await this.embed(['health-check']);
       return true;
-    } catch {
+    } catch (err) {
+      console.error('[Jieyu] LocalEmbeddingProvider: health check failed', err);
       return false;
     }
   }

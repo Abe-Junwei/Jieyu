@@ -13,6 +13,9 @@
  */
 
 import type { Region } from '../utils/regionDetection';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('VoiceInputService');
 
 // ── Types ──
 
@@ -216,7 +219,7 @@ export async function testOllamaWhisperAvailability(
         return { available: true };
       }
     } catch (err) {
-      console.debug('[VoiceInputService] Ollama probe failed, trying next endpoint:', { endpoint, err });
+      log.debug('Ollama probe failed, trying next endpoint', { endpoint, err });
     }
   }
 
@@ -312,7 +315,7 @@ export async function runAecDiagnostic(): Promise<AecCapability> {
       autoGainControl: settings.autoGainControl ?? false,
     };
   } catch (err) {
-    console.warn('[VoiceInputService] detectInputCapabilities failed, using defaults:', err);
+    log.warn('detectInputCapabilities failed, using defaults', { err });
     return { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
   }
 }
@@ -505,12 +508,12 @@ export class VoiceInputService {
    * Optional config can be passed to update settings (e.g., when switching to whisper-local).
    */
   switchEngine(engine: SttEngine, config?: { whisperServerUrl?: string; whisperServerModel?: string }): void {
-    console.debug('[VoiceInputService] switchEngine:', engine, { config, currentUrl: this._config.whisperServerUrl });
+    log.debug('switchEngine', { engine, config, currentUrl: this._config.whisperServerUrl });
     if (!this._listening) return;
     // Update config if provided (e.g., whisper config when switching to whisper-local)
     if (config) {
       this._config = { ...this._config, ...config };
-      console.debug('[VoiceInputService] switchEngine: updated whisperServerUrl=', this._config.whisperServerUrl);
+      log.debug('switchEngine updated whisperServerUrl', { whisperServerUrl: this._config.whisperServerUrl });
     }
     if (this.switchEngineTimer) {
       clearTimeout(this.switchEngineTimer);
@@ -525,7 +528,7 @@ export class VoiceInputService {
       if (this._disposed || !this._listening || !this._switchingEngine || switchToken !== this._engineSwitchToken) return;
       this._intentionalStop = false;
       this._attemptEngineWithFallback(engine).catch((err) => {
-        console.error('[VoiceInput] switchEngine error:', err);
+        log.error('switchEngine error', { err });
       }).finally(() => {
         if (switchToken === this._engineSwitchToken) {
           this._switchingEngine = false;
@@ -676,7 +679,7 @@ export class VoiceInputService {
         try {
           rec.start();
         } catch (err) {
-          console.warn('[VoiceInputService] continuous restart failed:', err);
+          log.warn('continuous restart failed', { err });
         }
         return;
       }
@@ -690,7 +693,7 @@ export class VoiceInputService {
       rec.start();
       return true;
     } catch (err) {
-      console.warn('[VoiceInputService] rec.start() failed:', err);
+      log.warn('rec.start() failed', { err });
       return false;
     }
   }
@@ -698,7 +701,7 @@ export class VoiceInputService {
   private _stopCurrentEngine(): void {
     this._intentionalStop = true;
     if (this.recognition) {
-      try { this.recognition.stop(); } catch (err) { console.debug('[VoiceInputService] recognition.stop() failed during engine stop:', err); }
+      try { this.recognition.stop(); } catch (err) { log.debug('recognition.stop() failed during engine stop', { err }); }
       this.recognition = null;
     }
     this.stopVadMonitor();
@@ -714,7 +717,7 @@ export class VoiceInputService {
     this._switchingEngine = false;
     this._intentionalStop = true;
     if (this.recognition) {
-      try { this.recognition.stop(); } catch (err) { console.debug('[VoiceInputService] recognition.stop() failed during stop():', err); }
+      try { this.recognition.stop(); } catch (err) { log.debug('recognition.stop() failed during stop()', { err }); }
     }
     if (this._isRecording) {
       void this.stopRecording().catch((error) => {
@@ -882,7 +885,7 @@ export class VoiceInputService {
           this.emitResult(commercialResult);
           return;
         } catch (fallbackErr) {
-          console.warn('[VoiceInputService] commercial fallback transcription failed:', fallbackErr);
+          log.warn('commercial fallback transcription failed', { fallbackErr });
           // Commercial also failed — emit the original error
           this.emitError(lastError instanceof Error ? lastError.message : 'STT 转写失败');
           return;
@@ -1044,7 +1047,7 @@ export class VoiceInputService {
         this.checkSilenceTimeout();
       }, intervalMs);
     } catch (err) {
-      console.warn('[VoiceInputService] VAD monitor unavailable, continuing without VAD:', err);
+      log.warn('VAD monitor unavailable, continuing without VAD', { err });
       if (audioContext) {
         void audioContext.close();
       }

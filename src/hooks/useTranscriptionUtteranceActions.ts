@@ -884,7 +884,8 @@ export function useTranscriptionUtteranceActions({
     let splitter: RegExp;
     try {
       splitter = new RegExp(rawPattern, normalizedFlags);
-    } catch {
+    } catch (err) {
+      console.error('[Jieyu] useTranscriptionUtteranceActions: regex compilation failed', { rawPattern, flags, err });
       reportValidationError({
         message: '正则表达式无效。',
         i18nKey: 'transcription.error.validation.regexPatternInvalid',

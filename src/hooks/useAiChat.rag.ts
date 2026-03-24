@@ -4,6 +4,9 @@ import { extractPdfSnippet } from '../ai/embeddings/pdfTextUtils';
 import { splitPdfCitationRef } from '../utils/citationJumpUtils';
 import { RAG_CITATION_INSTRUCTION } from '../utils/citationFootnoteUtils';
 import { withTimeout } from './useAiChat.config';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('useAiChat.rag');
 
 export interface RagEnrichmentResult {
   contextBlock: string;
@@ -53,8 +56,9 @@ export async function enrichContextWithRag({
     }
 
     if (activeMatches.length === 0) {
-      // eslint-disable-next-line no-console
-      console.debug(`[useAiChat] RAG no matches for query "${userText.slice(0, 80)}" — proceeding without context augmentation`);
+      log.debug('RAG no matches, proceeding without context augmentation', {
+        queryPreview: userText.slice(0, 80),
+      });
       return { contextBlock, citations: [] };
     }
 
@@ -134,8 +138,9 @@ export async function enrichContextWithRag({
       citations: dedupedSources.map((source) => source.citation),
     };
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.warn('[useAiChat] RAG context enrichment failed:', error);
+    log.warn('RAG context enrichment failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return { contextBlock, citations: [] };
   }
 }

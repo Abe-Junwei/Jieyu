@@ -115,8 +115,8 @@ export function useVoiceDock({
       const right = typeof parsed.right === 'number' ? parsed.right : 16;
       const bottom = typeof parsed.bottom === 'number' ? parsed.bottom : 16;
       setVoiceDockPos({ right: Math.max(8, right), bottom: Math.max(8, bottom) });
-    } catch {
-      // ignore storage parsing errors
+    } catch (err) {
+      console.error('[Jieyu] useVoiceDock: failed to read voice dock position from localStorage', err);
     }
   }, []);
 

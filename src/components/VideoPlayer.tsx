@@ -55,7 +55,8 @@ export function VideoPlayer({
       const stored = window.localStorage.getItem(VIDEO_FIT_MODE_STORAGE_KEY);
       if (stored === 'fill' || stored === 'original') return stored as VideoFitMode;
       return 'fit';
-    } catch {
+    } catch (err) {
+      console.error('[Jieyu] VideoPlayer: failed to read video fit mode from localStorage, using default', err);
       return 'fit';
     }
   });
@@ -64,8 +65,8 @@ export function VideoPlayer({
     try {
       if (typeof window === 'undefined') return;
       window.localStorage.setItem(VIDEO_FIT_MODE_STORAGE_KEY, videoFitMode);
-    } catch {
-      // ignore persistence errors
+    } catch (err) {
+      console.error('[Jieyu] VideoPlayer: failed to persist video fit mode to localStorage', err);
     }
   }, [videoFitMode]);
 

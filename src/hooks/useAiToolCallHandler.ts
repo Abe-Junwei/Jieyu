@@ -758,7 +758,8 @@ const voiceAdapter: ToolObjectAdapter = {
           return `${i + 1}. ${label}：${e.sttText.slice(0, 50)}`;
         }).join('\n');
         return { ok: true, message: `最近命令：\n${entries}` };
-      } catch {
+      } catch (err) {
+        console.error('[Jieyu] useAiToolCallHandler: failed to read voice command history', err);
         return { ok: false, message: '读取命令历史失败。' };
       }
     }

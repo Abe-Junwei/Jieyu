@@ -49,9 +49,10 @@ export async function detectRegion(): Promise<Region> {
     } finally {
       clearTimeout(timeout);
     }
-  } catch {
+  } catch (err) {
     // Network error or timeout — fall back to locale heuristic
     // Only 'zh-CN' strongly suggests mainland; zh-HK / zh-TW are global
+    console.error('[Jieyu] regionDetection: region check failed, falling back to locale heuristic', err);
     const lang = typeof navigator !== 'undefined' ? navigator.language : '';
     return isMainlandLikeLocale(lang) ? 'cn' : 'global';
   }

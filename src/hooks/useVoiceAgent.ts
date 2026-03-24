@@ -33,7 +33,7 @@ import {
   type VoiceSession,
   type VoiceSessionEntry,
 } from '../services/IntentRouter';
-import { refineLlmFallbackIntent } from '../services/VoiceAgentService';
+import { refineLlmFallbackIntent } from '../services/voiceIntentRefine';
 import { toBcp47 } from '../utils/langMapping';
 import type { CommercialProviderCreateConfig, ProviderReachability } from '../services/stt';
 import type { VoicePreset } from '../utils/voicePresets';

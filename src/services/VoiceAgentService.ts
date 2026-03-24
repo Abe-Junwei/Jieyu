@@ -1,14 +1,3 @@
-export function refineLlmFallbackIntent(intent: VoiceIntent, sttResult: SttResult): VoiceIntent {
-  if (intent.type !== 'action') return intent;
-  const refinedConfidence = Number.isFinite(sttResult.confidence)
-    ? Math.min(intent.confidence ?? 1, Math.max(0.35, sttResult.confidence * 0.7))
-    : (intent.confidence ?? 0.5);
-  return {
-    ...intent,
-    fromFuzzy: true,
-    confidence: refinedConfidence,
-  };
-}
 /**
  * VoiceAgentService — 语音智能体业务逻辑类（非 React）
  *
@@ -55,6 +44,10 @@ import * as Earcon from './EarconService';
 import { unlockAudio } from './EarconService';
 import { globalContext } from './GlobalContextService';
 import { userBehaviorStore } from './UserBehaviorStore';
+import { refineLlmFallbackIntent } from './voiceIntentRefine';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('VoiceAgentService');
 
 // ── Lazy runtime loaders | 运行时懒加载器 ─────────────────────────────────────
 
@@ -301,7 +294,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   // 页面隐藏 / 关闭时持久化会话 | Persist session on page hide / close
   private readonly _handleVisibilityChange = (): void => {
     if (document.visibilityState === 'hidden' && this._session.entries.length > 0) {
-      void saveVoiceSession(this._session).catch(() => { /* best-effort */ });
+      void saveVoiceSession(this._session).catch((err) => { log.error('failed to persist session', { err }); });
     }
   };
 
@@ -336,7 +329,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
         this._session = recent;
         this._emitStateChange();
       }
-    }).catch(() => { /* IndexedDB unavailable — silently skip */ });
+    }).catch((err) => { log.error('failed to restore session from IndexedDB', { err }); });
 
     // Start wake-word detector if enabled
     if (this._wakeWordEnabled) {
@@ -509,7 +502,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     (navigator as unknown as { getBattery(): Promise<BatteryManager> })
       .getBattery()
       .then((b) => { this._batteryLevel = b.level; })
-      .catch(() => { /* ignore — not available in all environments */ });
+      .catch((err) => { log.error('failed to get battery level', { err }); });
   }
 
   private async _ensureVoiceService(): Promise<VoiceInputServiceType> {
@@ -573,7 +566,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     };
     // whisper-local 使用 whisper-server（3040 端口） | whisper-local uses whisper-server (port 3040)
     if (runtimeEngine === 'whisper-local') {
-      console.debug('[VoiceAgentService] start whisper config:', { url: this._whisperServerUrl, model: this._whisperServerModel });
+      log.debug('start whisper config', { url: this._whisperServerUrl, model: this._whisperServerModel });
       startConfig.whisperServerUrl = this._whisperServerUrl;
       startConfig.whisperServerModel = this._whisperServerModel;
     }
@@ -629,7 +622,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     });
 
     if (this._session.entries.length > 0) {
-      void saveVoiceSession(this._session).catch(() => { /* IndexedDB unavailable */ });
+      void saveVoiceSession(this._session).catch((err) => { log.error('failed to persist session on deactivate', { err }); });
     }
 
     Earcon.playDeactivate();
@@ -860,7 +853,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       detectedLang: result.lang,
       aliasMap: this._intentAliasMap,
     });
-    console.debug('[VoiceAgentService] routeIntent:', { text: result.text, mode: this._mode, intentType: intent.type });
+    log.debug('routeIntent', { text: result.text, mode: this._mode, intentType: intent.type });
 
     // LLM fallback for chat intents
     let llmFallbackFailed = false;
@@ -995,7 +988,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
           this._emitStateChange();
         });
       } catch (err) {
-        console.warn('[VoiceAgentService] wake-word detector setup failed, disabling:', err);
+        log.warn('wake-word detector setup failed, disabling', { err });
         this._wakeWordEnabled = false;
         this._emitStateChange();
       }
