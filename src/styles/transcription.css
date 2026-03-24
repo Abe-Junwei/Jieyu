@@ -415,11 +415,8 @@
 
 /* Transcription page shell and section framing. */
 .transcription-screen {
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 16px;
   overflow: hidden;
-  background: #f8fafc;
-  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+  background: var(--surface-bg);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -3170,7 +3167,7 @@
   flex-direction: column;
   padding: 0;
   overflow-y: auto;
-  transition: width var(--rail-motion), border-color var(--rail-motion), box-shadow var(--rail-motion), right var(--rail-motion);
+  transition: width var(--rail-motion), border-color var(--rail-motion), box-shadow var(--rail-motion), right var(--rail-motion), transform var(--rail-motion);
   min-width: 0;
 }
 
