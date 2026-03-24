@@ -778,17 +778,16 @@
   transition: right var(--rail-motion);
 }
 
-.transcription-layer-rail-resizer::before,
-.transcription-ai-panel-resizer::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
+.transcription-layer-rail-resizer::before {
   left: 50%;
-  width: 2px;
-  transform: translateX(-50%);
-  background: rgba(148, 163, 184, 0.22);
+  right: auto;
   transition: background var(--rail-motion), box-shadow var(--rail-motion);
+}
+
+.transcription-ai-panel-resizer::before {
+  left: auto;
+  right: calc(var(--transcription-ai-visible-width) / 2);
+  transition: right var(--rail-motion), background var(--rail-motion), box-shadow var(--rail-motion);
 }
 
 .transcription-layer-rail-resizer:hover::before,
