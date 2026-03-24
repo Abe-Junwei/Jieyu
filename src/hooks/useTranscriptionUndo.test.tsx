@@ -8,7 +8,7 @@ import type {
   TranslationLayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
-} from '../../db';
+} from '../db';
 import { useTranscriptionUndo } from './useTranscriptionUndo';
 
 type StateRefHarness<T> = {
@@ -69,6 +69,7 @@ function makeSpeaker(id: string, name: string): SpeakerDocType {
 function setupHarness(input: {
   utterances: UtteranceDocType[];
   speakers: SpeakerDocType[];
+  syncToDbImpl?: (...args: unknown[]) => Promise<void>;
 }) {
   const utterances = createStateRefHarness<UtteranceDocType[]>(input.utterances);
   const translations = createStateRefHarness<UtteranceTextDocType[]>([]);
@@ -76,7 +77,7 @@ function setupHarness(input: {
   const layerLinks = createStateRefHarness<LayerLinkDocType[]>([]);
   const speakers = createStateRefHarness<SpeakerDocType[]>(input.speakers);
   const dirtyRef = { current: false };
-  const syncToDb = vi.fn(async () => undefined);
+  const syncToDb = vi.fn(input.syncToDbImpl ?? (async () => undefined));
   const setSaveState = vi.fn();
   const scheduleRecoverySave = vi.fn();
 
@@ -100,6 +101,7 @@ function setupHarness(input: {
   return {
     hook,
     syncToDb,
+    setSaveState,
     utterances,
     speakers,
   };
@@ -133,6 +135,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
       expect.arrayContaining([expect.objectContaining({ id: 'utt-1', speaker: 'Alice' })]),
       expect.any(Array),
       expect.arrayContaining([expect.objectContaining({ id: 'spk-1', name: 'Alice' })]),
+      expect.objectContaining({ conflictGuard: true }),
     );
 
     await act(async () => {
@@ -146,6 +149,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
       expect.arrayContaining([expect.objectContaining({ id: 'utt-1', speaker: 'Alice Renamed' })]),
       expect.any(Array),
       expect.arrayContaining([expect.objectContaining({ id: 'spk-1', name: 'Alice Renamed' })]),
+      expect.objectContaining({ conflictGuard: true }),
     );
   });
 
@@ -182,6 +186,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
       expect.arrayContaining([expect.objectContaining({ id: 'utt-2', speakerId: 'spk-2' })]),
       expect.any(Array),
       expect.arrayContaining([expect.objectContaining({ id: 'spk-2', name: 'Bob' })]),
+      expect.objectContaining({ conflictGuard: true }),
     );
 
     await act(async () => {
@@ -195,6 +200,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
       expect.arrayContaining([expect.objectContaining({ id: 'utt-2', speakerId: 'spk-1' })]),
       expect.any(Array),
       expect.arrayContaining([expect.objectContaining({ id: 'spk-1', name: 'Alice' })]),
+      expect.objectContaining({ conflictGuard: true }),
     );
   });
 
@@ -224,6 +230,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
       expect.arrayContaining([expect.objectContaining({ id: 'utt-1' })]),
       expect.any(Array),
       [],
+      expect.objectContaining({ conflictGuard: true }),
     );
 
     await act(async () => {
@@ -238,6 +245,37 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
       expect.arrayContaining([expect.objectContaining({ id: 'utt-1', speakerId: 'spk-new' })]),
       expect.any(Array),
       expect.arrayContaining([expect.objectContaining({ id: 'spk-new', name: 'New Speaker' })]),
+      expect.objectContaining({ conflictGuard: true }),
     );
+  });
+
+  it('undo conflict: should keep ui state and show user-friendly conflict message', async () => {
+    const conflict = new Error('utterances conflict: row utt-1 changed externally');
+    conflict.name = 'TranscriptionPersistenceConflictError';
+
+    const harness = setupHarness({
+      utterances: [makeUtterance('utt-1', 'spk-1', 'Alice')],
+      speakers: [makeSpeaker('spk-1', 'Alice')],
+      syncToDbImpl: async () => {
+        throw conflict;
+      },
+    });
+
+    await act(async () => {
+      harness.hook.result.current.pushUndo('测试冲突撤销');
+    });
+
+    harness.utterances.setDirect([makeUtterance('utt-1', 'spk-1', 'Alice Edited')]);
+
+    await act(async () => {
+      await harness.hook.result.current.undo();
+    });
+
+    expect(harness.utterances.get()[0]?.speaker).toBe('Alice Edited');
+    expect(harness.setSaveState).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'error',
+      message: '撤销失败：检测到数据已被其他操作更新，请刷新后重试',
+      errorMeta: expect.objectContaining({ category: 'conflict', action: '撤销' }),
+    }));
   });
 });

@@ -6,7 +6,7 @@
  * Click or drag to seek.
  */
 import { useCallback, useEffect, useRef } from 'react';
-import type { UtteranceDocType } from '../../db';
+import type { UtteranceDocType } from '../db';
 
 interface WaveformOverviewBarProps {
   duration: number;

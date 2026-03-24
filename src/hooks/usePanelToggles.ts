@@ -1,7 +1,9 @@
 import { useCallback, useState } from 'react';
+import { createLogger } from '../observability/logger';
 
 const HUB_HEIGHT_KEY = 'jieyu.hub.height';
 const HUB_DEFAULT_HEIGHT = 320;
+const log = createLogger('usePanelToggles');
 
 function readPersistedHubHeight(): number {
   try {
@@ -10,7 +12,12 @@ function readPersistedHubHeight(): number {
       const n = Number(raw);
       if (Number.isFinite(n) && n >= 120 && n <= 800) return n;
     }
-  } catch { /* SSR / blocked */ }
+  } catch (error) {
+    log.warn('Failed to read persisted hub height from localStorage', {
+      key: HUB_HEIGHT_KEY,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
   return HUB_DEFAULT_HEIGHT;
 }
 
@@ -23,13 +30,13 @@ export function usePanelToggles() {
   const [isHubCollapsed, setIsHubCollapsed] = useState(false);
   const [hubHeight, setHubHeight] = useState(readPersistedHubHeight);
 
-  const handleLayerRailToggle = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
+  const handleLayerRailToggle = useCallback((e?: React.MouseEvent<HTMLButtonElement>) => {
+    e?.stopPropagation();
     setIsLayerRailCollapsed((prev) => !prev);
   }, []);
 
-  const handleAiPanelToggle = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
+  const handleAiPanelToggle = useCallback((e?: React.MouseEvent<HTMLButtonElement>) => {
+    e?.stopPropagation();
     setIsAiPanelCollapsed((prev) => !prev);
   }, []);
 
@@ -41,7 +48,15 @@ export function usePanelToggles() {
   const setHubHeightPersisted: typeof setHubHeight = useCallback((action) => {
     setHubHeight((prev) => {
       const next = typeof action === 'function' ? action(prev) : action;
-      try { window.localStorage.setItem(HUB_HEIGHT_KEY, String(next)); } catch { /* noop */ }
+      try {
+        window.localStorage.setItem(HUB_HEIGHT_KEY, String(next));
+      } catch (error) {
+        log.warn('Failed to persist hub height to localStorage', {
+          key: HUB_HEIGHT_KEY,
+          next,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
       return next;
     });
   }, []);

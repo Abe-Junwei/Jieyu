@@ -1,13 +1,19 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import type { UtteranceDocType } from '../../db';
+import type { UtteranceDocType } from '../db';
 import { AiAnalysisPanel } from './AiAnalysisPanel';
 import {
   AiPanelContext,
   DEFAULT_AI_PANEL_CONTEXT_VALUE,
   type AiPanelContextValue,
 } from '../contexts/AiPanelContext';
+import {
+  EmbeddingProvider,
+  DEFAULT_EMBEDDING_CONTEXT_VALUE,
+  type EmbeddingContextValue,
+} from '../contexts/EmbeddingContext';
+import { pickEmbeddingContextValue } from '../hooks/useEmbeddingContextValue';
 
 function makeUtterance(overrides: Partial<UtteranceDocType> = {}): UtteranceDocType {
   return {
@@ -33,13 +39,27 @@ function makeContextValue(overrides: Partial<AiPanelContextValue> = {}): AiPanel
   };
 }
 
+function makeEmbeddingContextValue(overrides: Partial<EmbeddingContextValue> = {}): EmbeddingContextValue {
+  return pickEmbeddingContextValue({
+    ...DEFAULT_EMBEDDING_CONTEXT_VALUE,
+    ...overrides,
+  });
+}
+
 describe('AiAnalysisPanel embedding integration', () => {
   it('invokes similarity search callback from embedding card', () => {
     const onFindSimilarUtterances = vi.fn().mockResolvedValue(undefined);
+    const baseContext = makeContextValue();
+    const embeddingContext = makeEmbeddingContextValue({
+      selectedUtterance: baseContext.selectedUtterance,
+      onFindSimilarUtterances,
+    });
 
     render(
-      <AiPanelContext.Provider value={makeContextValue({ onFindSimilarUtterances })}>
-        <AiAnalysisPanel isCollapsed={false} activeTab="embedding" />
+      <AiPanelContext.Provider value={baseContext}>
+        <EmbeddingProvider value={embeddingContext}>
+          <AiAnalysisPanel isCollapsed={false} activeTab="embedding" />
+        </EmbeddingProvider>
       </AiPanelContext.Provider>,
     );
 
@@ -51,23 +71,27 @@ describe('AiAnalysisPanel embedding integration', () => {
 
   it('invokes jump callback and highlights active similarity match', () => {
     const onJumpToEmbeddingMatch = vi.fn();
+    const baseContext = makeContextValue({
+      selectedUtterance: makeUtterance({ id: 'utt-2' }),
+    });
+    const embeddingContext = makeEmbeddingContextValue({
+      selectedUtterance: makeUtterance({ id: 'utt-2' }),
+      aiEmbeddingMatches: [
+        {
+          utteranceId: 'utt-2',
+          score: 0.93,
+          label: 'U2',
+          text: 'matched text',
+        },
+      ],
+      onJumpToEmbeddingMatch,
+    });
 
     render(
-      <AiPanelContext.Provider
-        value={makeContextValue({
-          selectedUtterance: makeUtterance({ id: 'utt-2' }),
-          aiEmbeddingMatches: [
-            {
-              utteranceId: 'utt-2',
-              score: 0.93,
-              label: 'U2',
-              text: 'matched text',
-            },
-          ],
-          onJumpToEmbeddingMatch,
-        })}
-      >
-        <AiAnalysisPanel isCollapsed={false} activeTab="embedding" />
+      <AiPanelContext.Provider value={baseContext}>
+        <EmbeddingProvider value={embeddingContext}>
+          <AiAnalysisPanel isCollapsed={false} activeTab="embedding" />
+        </EmbeddingProvider>
       </AiPanelContext.Provider>,
     );
 
@@ -80,19 +104,7 @@ describe('AiAnalysisPanel embedding integration', () => {
 
   it('does not render AI chat decision logs inside analysis panel after hub decoupling', () => {
     render(
-      <AiPanelContext.Provider
-        value={makeContextValue({
-          aiChatEnabled: true,
-          aiToolDecisionLogs: [
-            {
-              id: 'audit-1',
-              toolName: 'delete_layer',
-              decision: 'cancelled',
-              timestamp: new Date('2026-03-18T10:00:00.000Z').toISOString(),
-            },
-          ],
-        })}
-      >
+      <AiPanelContext.Provider value={makeContextValue()}>
         <AiAnalysisPanel isCollapsed={false} />
       </AiPanelContext.Provider>,
     );
@@ -104,23 +116,7 @@ describe('AiAnalysisPanel embedding integration', () => {
 
   it('does not render pending high-risk preview in analysis panel after hub decoupling', () => {
     render(
-      <AiPanelContext.Provider
-        value={makeContextValue({
-          aiChatEnabled: true,
-          aiPendingToolCall: {
-            call: {
-              name: 'delete_layer',
-              arguments: { layerId: 'layer-jp' },
-            },
-            assistantMessageId: 'ast-1',
-            riskSummary: 'Delete an entire layer and all its rows',
-            impactPreview: [
-              'Target layer: layer-jp',
-              'All utterance texts in this layer may be removed',
-            ],
-          },
-        })}
-      >
+      <AiPanelContext.Provider value={makeContextValue()}>
         <AiAnalysisPanel isCollapsed={false} />
       </AiPanelContext.Provider>,
     );
@@ -131,13 +127,14 @@ describe('AiAnalysisPanel embedding integration', () => {
   });
 
   it('renders embedding fallback warning when provided', () => {
+    const baseContext = makeContextValue();
+    const embeddingCtx = makeEmbeddingContextValue({ aiEmbeddingWarning: 'Running fallback embedding (model unavailable). Retrieval quality may degrade.' });
+
     render(
-      <AiPanelContext.Provider
-        value={makeContextValue({
-          aiEmbeddingWarning: 'Running fallback embedding (model unavailable). Retrieval quality may degrade.',
-        })}
-      >
-        <AiAnalysisPanel isCollapsed={false} activeTab="embedding" />
+      <AiPanelContext.Provider value={baseContext}>
+        <EmbeddingProvider value={embeddingCtx}>
+          <AiAnalysisPanel isCollapsed={false} activeTab="embedding" />
+        </EmbeddingProvider>
       </AiPanelContext.Provider>,
     );
 

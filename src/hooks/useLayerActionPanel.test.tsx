@@ -147,7 +147,7 @@ describe('handleDeleteLayerFromPanel', () => {
     });
 
     expect(deleteLayer).toHaveBeenCalledOnce();
-    expect(deleteLayer).toHaveBeenCalledWith('layer-a');
+    expect(deleteLayer).toHaveBeenCalledWith('layer-a', { keepUtterances: false });
     expect(result.current.layerActionPanel).toBeNull();
   });
 });

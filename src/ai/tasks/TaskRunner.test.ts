@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { db } from '../../../db';
+import { db } from '../../db';
 import { TaskRunner, backoffDelay } from './TaskRunner';
 
 async function clearTables(): Promise<void> {

@@ -147,7 +147,7 @@ describe('useVoiceAgent', () => {
       const { result } = renderHook(() =>
         useVoiceAgent({ executeAction: makeExecuteAction() }),
       );
-      await act(async () => { result.current.start(); });
+      await act(async () => { await result.current.start(); });
       expect(result.current.listening).toBe(true);
     });
 
@@ -155,7 +155,7 @@ describe('useVoiceAgent', () => {
       const { result } = renderHook(() =>
         useVoiceAgent({ executeAction: makeExecuteAction() }),
       );
-      await act(async () => { result.current.start(); });
+      await act(async () => { await result.current.start(); });
       await act(async () => { result.current.stop(); });
       expect(result.current.listening).toBe(false);
     });
@@ -164,8 +164,8 @@ describe('useVoiceAgent', () => {
       const { result } = renderHook(() =>
         useVoiceAgent({ executeAction: makeExecuteAction() }),
       );
-      await act(async () => { result.current.start(); });
-      await act(async () => { result.current.start(); });
+      await act(async () => { await result.current.start(); });
+      await act(async () => { await result.current.start(); });
       expect(result.current.listening).toBe(true);
     });
 

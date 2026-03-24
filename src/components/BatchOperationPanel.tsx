@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import type { UtteranceDocType } from '../../db';
+import type { UtteranceDocType } from '../db';
 
 type BatchTab = 'offset' | 'scale' | 'split' | 'merge';
 type PreviewScope = 'selected' | 'layer-all';

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { MutableRefObject } from 'react';
-import type { TranslationLayerDocType } from '../../db';
+import type { TranslationLayerDocType } from '../db';
 
 type Params = {
   selectedLayerId: string;

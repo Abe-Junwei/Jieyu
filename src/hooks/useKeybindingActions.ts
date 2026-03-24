@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import type { UtteranceDocType } from '../../db';
+import type { UtteranceDocType } from '../db';
 import { DEFAULT_KEYBINDINGS, getEffectiveKeymap, matchKeyEvent } from '../services/KeybindingService';
 import { fireAndForget } from '../utils/fireAndForget';
 

@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
-import { db } from '../../../db';
+import { db } from '../../db';
 import { EmbeddingService, type EmbeddingBuildSource } from '../embeddings/EmbeddingService';
 import type { EmbeddingProvider } from '../embeddings/EmbeddingProvider';
 import { useAiChat } from '../../hooks/useAiChat';

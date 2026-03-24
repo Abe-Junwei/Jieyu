@@ -1,10 +1,13 @@
 import { useCallback, useRef } from 'react';
-import type { UtteranceDocType, TranslationLayerDocType, MediaItemDocType } from '../../db';
+import type { UtteranceDocType, TranslationLayerDocType, MediaItemDocType } from '../db';
 import type { AiChatToolCall, AiChatToolResult } from './useAiChat';
 import { useLatest } from './useLatest';
 import { AutoGlossService } from '../ai/AutoGlossService';
 import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import { loadRecentVoiceSessions } from '../services/VoiceSessionStore';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('useAiToolCallHandler');
 
 /** 补偿上下文：记录最近成功创建的层，用于后续链接失败时回滚 | Compensation context: track recently created layers for rollback on link failure */
 interface CompensationEntry {
@@ -444,7 +447,15 @@ const layerAdapter: ToolObjectAdapter = {
         const comp = compensationRef.current.get(call.requestId ?? 'default');
         if (comp && Date.now() - comp.createdAt < COMPENSATION_TTL_MS) {
           compensationRef.current.delete(call.requestId ?? 'default');
-          try { await ctx.deleteLayer(comp.layerId); } catch { /* best effort */ }
+          try {
+            await ctx.deleteLayer(comp.layerId);
+          } catch (error) {
+            log.warn('Compensation rollback failed after missing transcription layer', {
+              requestId: call.requestId ?? 'default',
+              layerId: comp.layerId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
           return { ok: false, message: `未找到可用转写层，无法设置链接。已自动回滚刚创建的层（${comp.layerId}）。` };
         }
         return { ok: false, message: '未找到可用转写层，无法设置链接。' };
@@ -454,7 +465,15 @@ const layerAdapter: ToolObjectAdapter = {
         const comp = compensationRef.current.get(call.requestId ?? 'default');
         if (comp && Date.now() - comp.createdAt < COMPENSATION_TTL_MS) {
           compensationRef.current.delete(call.requestId ?? 'default');
-          try { await ctx.deleteLayer(comp.layerId); } catch { /* best effort */ }
+          try {
+            await ctx.deleteLayer(comp.layerId);
+          } catch (error) {
+            log.warn('Compensation rollback failed after missing translation layer', {
+              requestId: call.requestId ?? 'default',
+              layerId: comp.layerId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
           return { ok: false, message: `未找到可用翻译层，无法设置链接。已自动回滚刚创建的层（${comp.layerId}）。` };
         }
         return { ok: false, message: '未找到可用翻译层，无法设置链接。' };
@@ -473,7 +492,15 @@ const layerAdapter: ToolObjectAdapter = {
         const comp = compensationRef.current.get(call.requestId ?? 'default');
         if (comp && Date.now() - comp.createdAt < COMPENSATION_TTL_MS) {
           compensationRef.current.delete(call.requestId ?? 'default');
-          try { await ctx.deleteLayer(comp.layerId); } catch { /* best effort */ }
+          try {
+            await ctx.deleteLayer(comp.layerId);
+          } catch (error) {
+            log.warn('Compensation rollback failed after link toggle error', {
+              requestId: call.requestId ?? 'default',
+              layerId: comp.layerId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
           const errMsg = linkError instanceof Error ? linkError.message : '链接操作失败';
           return { ok: false, message: `${errMsg}。已自动回滚刚创建的层（${comp.layerId}）。` };
         }

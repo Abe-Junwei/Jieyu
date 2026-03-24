@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { getDb } from '../../db';
-import type { AnchorDocType, UtteranceDocType } from '../../db';
+import { getDb } from '../db';
+import type { AnchorDocType, UtteranceDocType } from '../db';
 import { newId } from '../utils/transcriptionFormatters';
 
 type Params = {

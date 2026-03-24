@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { UtteranceDocType, UtteranceTextDocType } from '../../db';
+import type { UtteranceDocType, UtteranceTextDocType } from '../db';
 import { useDeleteConfirmFlow } from './useDeleteConfirmFlow';
 import { resolveDeletePlan } from '../utils/deleteSelectionUtils';
 import { fireAndForget } from '../utils/fireAndForget';

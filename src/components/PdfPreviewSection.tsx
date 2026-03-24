@@ -1,4 +1,6 @@
-import { PdfViewerPanel } from './PdfViewerPanel';
+import { Suspense, lazy } from 'react';
+
+const PdfViewerPanel = lazy(async () => import('./PdfViewerPanel').then((module) => ({ default: module.PdfViewerPanel })));
 
 type PdfPreviewState = {
   url: string;
@@ -65,11 +67,19 @@ export function PdfPreviewSection({
         </div>
       </header>
       <div className="transcription-pdf-preview-frame">
-        {pdfPreview.searchSnippet ? (
-          <PdfViewerPanel key={pdfPreview.navToken} url={pdfPreview.url} title={pdfPreview.title} page={pdfPreview.page} searchSnippet={pdfPreview.searchSnippet} />
-        ) : (
-          <PdfViewerPanel key={pdfPreview.navToken} url={pdfPreview.url} title={pdfPreview.title} page={pdfPreview.page} />
-        )}
+        <Suspense
+          fallback={
+            <div className="transcription-pdf-preview-loading" role="status" aria-live="polite">
+              {locale === 'zh-CN' ? 'PDF 加载中...' : 'Loading PDF...'}
+            </div>
+          }
+        >
+          {pdfPreview.searchSnippet ? (
+            <PdfViewerPanel key={pdfPreview.navToken} url={pdfPreview.url} title={pdfPreview.title} page={pdfPreview.page} searchSnippet={pdfPreview.searchSnippet} />
+          ) : (
+            <PdfViewerPanel key={pdfPreview.navToken} url={pdfPreview.url} title={pdfPreview.title} page={pdfPreview.page} />
+          )}
+        </Suspense>
       </div>
     </section>
   );

@@ -1,10 +1,24 @@
 import { useCallback, useRef } from 'react';
 import type { MutableRefObject } from 'react';
-import { getDb } from '../../db';
-import type { SpeakerDocType, UtteranceDocType, UtteranceTextDocType } from '../../db';
-import { LinguisticService } from '../../services/LinguisticService';
+import { getDb } from '../db';
+import type { SpeakerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import { LinguisticService } from '../services/LinguisticService';
 import { createAsyncMutex } from '../utils/asyncMutex';
 import { normalizeUtteranceTextDocForStorage } from '../utils/camDataUtils';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('useTranscriptionPersistence');
+
+export class TranscriptionPersistenceConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TranscriptionPersistenceConflictError';
+  }
+}
+
+type SyncToDbOptions = {
+  conflictGuard?: boolean;
+};
 
 type Params = {
   utterancesRef: MutableRefObject<UtteranceDocType[]>;
@@ -25,8 +39,57 @@ export function useTranscriptionPersistence({
     targetUtterances: UtteranceDocType[],
     targetTranslations: UtteranceTextDocType[],
     targetSpeakers: SpeakerDocType[],
+    options?: SyncToDbOptions,
   ) => {
     await dbMutexRef.current.run(async () => {
+      const db = await getDb();
+      if (options?.conflictGuard) {
+        const assertNoConflict = async <T extends { id: string; updatedAt?: string }>(
+          label: string,
+          baseRows: T[],
+          fetchRows: () => Promise<Array<{ toJSON: () => T }>>,
+        ): Promise<void> => {
+          if (baseRows.length === 0) return;
+          const expectedById = new Map(baseRows.map((row) => [row.id, row.updatedAt ?? ''] as const));
+          const persistedRows = await fetchRows();
+          const persistedById = new Map(
+            persistedRows.map((row) => {
+              const doc = row.toJSON();
+              return [doc.id, doc.updatedAt ?? ''] as const;
+            }),
+          );
+
+          for (const [id, expectedUpdatedAt] of expectedById) {
+            if (!persistedById.has(id)) {
+              throw new TranscriptionPersistenceConflictError(`${label} conflict: missing persisted row ${id}`);
+            }
+            const persistedUpdatedAt = persistedById.get(id) ?? '';
+            if (persistedUpdatedAt !== expectedUpdatedAt) {
+              throw new TranscriptionPersistenceConflictError(
+                `${label} conflict: row ${id} changed externally (${expectedUpdatedAt} -> ${persistedUpdatedAt})`,
+              );
+            }
+          }
+        };
+
+        try {
+          await assertNoConflict('utterances', utterancesRef.current, async () => (
+            db.collections.utterances.findByIndexAnyOf('id', utterancesRef.current.map((row) => row.id))
+          ));
+          await assertNoConflict('translations', translationsRef.current, async () => (
+            db.collections.utterance_texts.findByIndexAnyOf('id', translationsRef.current.map((row) => row.id))
+          ));
+          await assertNoConflict('speakers', speakersRef.current, async () => (
+            db.collections.speakers.findByIndexAnyOf('id', speakersRef.current.map((row) => row.id))
+          ));
+        } catch (error) {
+          log.warn('Abort syncToDb because persistence conflict guard failed', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          throw error;
+        }
+      }
+
       const currentUttIds = new Set(utterancesRef.current.map((u) => u.id));
       const targetUttIds = new Set(targetUtterances.map((u) => u.id));
       // Remove deleted utterances
@@ -35,7 +98,6 @@ export function useTranscriptionPersistence({
       }
       // Upsert target utterances
       for (const u of targetUtterances) await LinguisticService.saveUtterance(u);
-      const db = await getDb();
 
       const currentTrIds = new Set(translationsRef.current.map((t) => t.id));
       const targetTrIds = new Set(targetTranslations.map((t) => t.id));

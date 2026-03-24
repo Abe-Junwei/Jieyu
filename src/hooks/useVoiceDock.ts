@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fireAndForget } from '../utils/fireAndForget';
+import { createLogger } from '../observability/logger';
 
 export type CommercialProviderKind = 'groq' | 'gemini' | 'openai-audio' | 'custom-http' | 'minimax' | 'volcengine';
 
@@ -18,33 +19,55 @@ export type VoiceLocalWhisperConfig = {
 
 const VOICE_COMMERCIAL_STT_STORAGE_KEY = 'jieyu.voiceAgent.commercialStt';
 const VOICE_LOCAL_WHISPER_STORAGE_KEY = 'jieyu.voiceAgent.localWhisper';
+const log = createLogger('useVoiceDock');
 
 function loadCommercialSttConfig(): { kind: CommercialProviderKind; config: CommercialProviderConfig } {
   try {
     const raw = window.localStorage.getItem(VOICE_COMMERCIAL_STT_STORAGE_KEY);
     if (raw) return JSON.parse(raw) as { kind: CommercialProviderKind; config: CommercialProviderConfig };
-  } catch { /* ignore */ }
+  } catch (error) {
+    log.warn('Failed to load commercial STT config from localStorage', {
+      key: VOICE_COMMERCIAL_STT_STORAGE_KEY,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
   return { kind: 'groq', config: {} };
 }
 
 function saveCommercialSttConfig(kind: string, config: CommercialProviderConfig): void {
   try {
     window.localStorage.setItem(VOICE_COMMERCIAL_STT_STORAGE_KEY, JSON.stringify({ kind, config }));
-  } catch { /* ignore */ }
+  } catch (error) {
+    log.warn('Failed to save commercial STT config to localStorage', {
+      key: VOICE_COMMERCIAL_STT_STORAGE_KEY,
+      kind,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 function loadLocalWhisperConfig(): VoiceLocalWhisperConfig {
   try {
     const raw = window.localStorage.getItem(VOICE_LOCAL_WHISPER_STORAGE_KEY);
     if (raw) return JSON.parse(raw) as VoiceLocalWhisperConfig;
-  } catch { /* ignore */ }
+  } catch (error) {
+    log.warn('Failed to load local Whisper config from localStorage', {
+      key: VOICE_LOCAL_WHISPER_STORAGE_KEY,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
   return { baseUrl: 'http://localhost:3040', model: 'ggml-small-q5_k.bin' };
 }
 
 function saveLocalWhisperConfig(config: VoiceLocalWhisperConfig): void {
   try {
     window.localStorage.setItem(VOICE_LOCAL_WHISPER_STORAGE_KEY, JSON.stringify(config));
-  } catch { /* ignore */ }
+  } catch (error) {
+    log.warn('Failed to save local Whisper config to localStorage', {
+      key: VOICE_LOCAL_WHISPER_STORAGE_KEY,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 type UseVoiceDockParams = {

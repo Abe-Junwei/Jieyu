@@ -175,6 +175,69 @@ describe('ToastContext', () => {
       act(() => { ctx!.showSaveState({ kind: 'error', message: '保存失败' }); });
       expect(screen.getByRole('status').textContent).toBe('保存失败');
     });
+
+    it('maps validation errors to info toast variant', () => {
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+      act(() => {
+        ctx!.showSaveState({
+          kind: 'error',
+          message: '请先选择句段',
+          errorMeta: { category: 'validation', action: '批量合并', recoverable: true },
+        });
+      });
+
+      expect(screen.getByRole('status').textContent).toBe('请先选择句段');
+      expect(document.querySelector('.toast-info')).not.toBeNull();
+    });
+
+    it('appends refresh hint for conflict errors when message has no refresh text', () => {
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+      act(() => {
+        ctx!.showSaveState({
+          kind: 'error',
+          message: '导入文件失败：外部写入冲突',
+          errorMeta: { category: 'conflict', action: '导入文件', recoverable: true },
+        });
+      });
+
+      expect(screen.getByRole('status').textContent).toMatch(/导入文件失败：外部写入冲突（建议刷新后重试）|导入文件失败：外部写入冲突（Refresh and try again）/);
+      expect(document.querySelector('.toast-error')).not.toBeNull();
+    });
+
+    it('keeps conflict message unchanged when it already includes refresh hint', () => {
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+      act(() => {
+        ctx!.showSaveState({
+          kind: 'error',
+          message: '导入文件失败：检测到数据已被其他操作更新，请刷新后重试',
+          errorMeta: { category: 'conflict', action: '导入文件', recoverable: true },
+        });
+      });
+
+      expect(screen.getByRole('status').textContent).toBe('导入文件失败：检测到数据已被其他操作更新，请刷新后重试');
+    });
+
+    it('prefers i18nKey message when key is provided on save error', () => {
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+      act(() => {
+        ctx!.showSaveState({
+          kind: 'error',
+          message: 'raw fallback message',
+          errorMeta: {
+            category: 'conflict',
+            action: '导入文件',
+            recoverable: true,
+            i18nKey: 'transcription.importExport.conflict',
+          },
+        });
+      });
+
+      expect(screen.getByRole('status').textContent).toMatch(/导入失败：检测到数据已被其他操作更新，请刷新后重试|Import failed: data was modified by another operation\. Refresh and try again\./);
+    });
   });
 
   describe('showVoiceState', () => {

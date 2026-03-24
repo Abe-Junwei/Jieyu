@@ -19,3 +19,9 @@ coverage/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# Local AI agent config
+.claude/
+
+# Reference materials (non-code)
+参考/

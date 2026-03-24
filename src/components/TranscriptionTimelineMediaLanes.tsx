@@ -1,5 +1,5 @@
-import type { TranslationLayerDocType, UtteranceDocType } from '../../db';
-import { useState } from 'react';
+import type { TranslationLayerDocType, UtteranceDocType } from '../db';
+import { useState, useCallback } from 'react';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -121,6 +121,23 @@ export function TranscriptionTimelineMediaLanes({
     deleteLayer,
     deleteLayerWithoutConfirm,
   });
+
+  // Stable callback for layer actions - avoids creating new function per layer per render
+  const handleLayerAction = useCallback((action: LayerActionType, layerId?: string) => {
+    if (action === 'delete' && layerId) {
+      fireAndForget(requestDeleteLayer(layerId));
+      return;
+    }
+    setLayerAction({ action, ...(layerId ? { layerId } : {}) });
+  }, [requestDeleteLayer]);
+
+  // Stable callback for lane pointer down - avoids creating new function per layer per render
+  const handleLanePointerDown = useCallback((layerId: string, isCollapsed: boolean, e: React.PointerEvent<HTMLDivElement>) => {
+    if (isCollapsed) toggleLayerCollapsed(layerId);
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
   return (
     <div className="timeline-content" style={{ width: playerDuration * zoomPxPerSec }}>
       {lassoRect && (
@@ -144,11 +161,7 @@ export function TranscriptionTimelineMediaLanes({
             position: 'relative',
             '--timeline-lane-height': `${isCollapsed ? 14 : (laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)}px`,
           } as React.CSSProperties}
-          onPointerDown={(e) => {
-            if (isCollapsed) toggleLayerCollapsed(layer.id);
-            e.preventDefault();
-            e.stopPropagation();
-          }}
+          onPointerDown={(e) => handleLanePointerDown(layer.id, isCollapsed, e)}
         >
           <TimelineLaneHeader
             layer={layer}
@@ -159,19 +172,13 @@ export function TranscriptionTimelineMediaLanes({
             deletableLayers={deletableLayers}
             onFocusLayer={onFocusLayer}
             renderLaneLabel={renderLaneLabel}
-            onLayerAction={(action, layerId) => {
-              if (action === 'delete' && layerId) {
-                fireAndForget(requestDeleteLayer(layerId));
-                return;
-              }
-              setLayerAction({ action, layerId });
-            }}
+            onLayerAction={handleLayerAction}
             layerLinks={layerLinks}
             showConnectors={showConnectors}
             onToggleConnectors={onToggleConnectors ?? (() => {})}
             isCollapsed={isCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
-            onLaneLabelWidthResize={onLaneLabelWidthResize}
+            {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
           />
           {!isCollapsed && timelineRenderUtterances.map((utt) => {
             const sourceText = getUtteranceTextForLayer(utt, layer.id);
@@ -215,11 +222,7 @@ export function TranscriptionTimelineMediaLanes({
             position: 'relative',
             '--timeline-lane-height': `${isCollapsed ? 14 : (laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)}px`,
           } as React.CSSProperties}
-          onPointerDown={(e) => {
-            if (isCollapsed) toggleLayerCollapsed(layer.id);
-            e.preventDefault();
-            e.stopPropagation();
-          }}
+          onPointerDown={(e) => handleLanePointerDown(layer.id, isCollapsed, e)}
         >
           <TimelineLaneHeader
             layer={layer}
@@ -230,19 +233,13 @@ export function TranscriptionTimelineMediaLanes({
             deletableLayers={deletableLayers}
             onFocusLayer={onFocusLayer}
             renderLaneLabel={renderLaneLabel}
-            onLayerAction={(action, layerId) => {
-              if (action === 'delete' && layerId) {
-                fireAndForget(requestDeleteLayer(layerId));
-                return;
-              }
-              setLayerAction({ action, layerId });
-            }}
+            onLayerAction={handleLayerAction}
             layerLinks={layerLinks}
             showConnectors={showConnectors}
             onToggleConnectors={onToggleConnectors ?? (() => {})}
             isCollapsed={isCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
-            onLaneLabelWidthResize={onLaneLabelWidthResize}
+            {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
           />
           {!isCollapsed && timelineRenderUtterances.map((utt) => {
             const text = translationTextByLayer.get(layer.id)?.get(utt.id)?.text ?? '';

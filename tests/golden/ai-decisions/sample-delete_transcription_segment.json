@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "exportedAt": "2026-03-21T00:00:00.000Z",
+  "requestId": "req_golden_sample_001",
+  "toolName": "delete_transcription_segment",
+  "replayable": true,
+  "toolCall": {
+    "name": "delete_transcription_segment",
+    "arguments": { "segmentId": "seg_abc123" },
+    "requestId": "req_golden_sample_001"
+  },
+  "context": { "userText": "删掉这句", "providerId": "mock" },
+  "latestDecision": {
+    "decision": "confirmed",
+    "executed": true,
+    "source": "ai",
+    "timestamp": "2026-03-21T00:00:01.000Z"
+  },
+  "decisions": [
+    {
+      "decision": "confirmed",
+      "executed": true,
+      "source": "ai",
+      "timestamp": "2026-03-21T00:00:01.000Z"
+    }
+  ]
+}

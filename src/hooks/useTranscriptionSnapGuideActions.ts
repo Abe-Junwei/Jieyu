@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { UtteranceDocType } from '../../db';
+import type { UtteranceDocType } from '../db';
 import type { SnapGuide } from './transcriptionTypes';
 
 type Params = {

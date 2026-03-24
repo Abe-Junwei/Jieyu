@@ -1,5 +1,5 @@
-import { getDb } from '../../../db';
-import type { EmbeddingSourceType } from '../../../db';
+import { getDb } from '../../db';
+import type { EmbeddingSourceType } from '../../db';
 import type { EmbeddingProvider } from './EmbeddingProvider';
 import MiniSearch from 'minisearch';
 import { splitPdfCitationRef } from '../../utils/citationJumpUtils';

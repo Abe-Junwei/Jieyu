@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { TranslationLayerDocType, UtteranceDocType } from '../../db';
+import type { TranslationLayerDocType, UtteranceDocType } from '../db';
 import type { LayerCreateInput } from './transcriptionTypes';
 
 type Params = {

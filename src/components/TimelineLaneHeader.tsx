@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import type { TranslationLayerDocType } from '../../db';
+import type { TranslationLayerDocType } from '../db';
 import { fireAndForget } from '../utils/fireAndForget';
 import { buildLayerLinkConnectorLayout, getLayerLinkStackWidth } from '../utils/layerLinkConnector';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
@@ -21,6 +21,7 @@ interface TimelineLaneHeaderProps {
   onToggleConnectors?: () => void;
   isCollapsed?: boolean;
   onToggleCollapsed?: () => void;
+  onLaneLabelWidthResize?: (e: React.PointerEvent<HTMLDivElement>) => void;
 }
 
 export function TimelineLaneHeader({
@@ -38,6 +39,7 @@ export function TimelineLaneHeader({
   onToggleCollapsed,
   onLayerAction,
   layerLinks: layerLinks = [],
+  onLaneLabelWidthResize,
 }: TimelineLaneHeaderProps) {
   const connectorLayout = useMemo(() => buildLayerLinkConnectorLayout(allLayers, layerLinks), [allLayers, layerLinks]);
   const rowSegments = connectorLayout.segmentsByLayerId[layer.id] ?? [];
@@ -360,7 +362,7 @@ export function TimelineLaneHeader({
   const isDropBelow = dropTargetIndex === layerIndex + 1 && !isDragged;
 
   return (
-    <>
+    <div style={{ position: 'relative', display: 'contents' }}>
       {/* Drop indicator lines */}
       {isDropAbove && (
         <div
@@ -426,6 +428,16 @@ export function TimelineLaneHeader({
           );
         })()}
         {!isCollapsed && renderLaneLabel(layer)}
+        {/* Lane label width resize handle — pinned to header right edge */}
+        {onLaneLabelWidthResize && (
+          <div
+            className="lane-label-resize-handle"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              onLaneLabelWidthResize(e);
+            }}
+          />
+        )}
       </span>
 
       {/* Context menu */}
@@ -437,6 +449,7 @@ export function TimelineLaneHeader({
           onClose={() => setContextMenu(null)}
         />
       )}
-    </>
+
+    </div>
   );
 }

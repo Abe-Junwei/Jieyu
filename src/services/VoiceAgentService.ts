@@ -22,8 +22,8 @@ export function refineLlmFallbackIntent(intent: VoiceIntent, sttResult: SttResul
  * @see 解语语音智能体架构设计方案 v2.5 §阶段1
  */
 
-import { VoiceInputService } from './VoiceInputService';
-import { WakeWordDetector } from './WakeWordDetector';
+import type { VoiceInputService as VoiceInputServiceType, SttEngine, SttResult, CommercialProviderKind } from './VoiceInputService';
+import type { WakeWordDetector as WakeWordDetectorType } from './WakeWordDetector';
 import { AmbientObserver } from './AmbientObserver';
 import { SpeechQualityAnalyzer } from './SpeechQualityAnalyzer';
 import { saveVoiceSession, loadRecentVoiceSessions } from './VoiceSessionStore';
@@ -48,14 +48,48 @@ import {
   type VoiceSessionEntry,
 } from './IntentRouter';
 import { toBcp47 } from '../utils/langMapping';
-import { createCommercialProvider, testCommercialProvider as testCommercialProviderFactory, type CommercialProviderCreateConfig } from './stt';
-import { chooseSttEngine } from './SttStrategyRouter';
+import type { CommercialProviderCreateConfig } from './stt';
+import { resolveVoiceAgentRuntimeConfig } from './config/voiceAgentRuntimeConfig';
 import { detectRegion } from '../utils/regionDetection';
 import * as Earcon from './EarconService';
 import { unlockAudio } from './EarconService';
-import type { SttEngine, SttResult, CommercialProviderKind } from './VoiceInputService';
 import { globalContext } from './GlobalContextService';
 import { userBehaviorStore } from './UserBehaviorStore';
+
+// ── Lazy runtime loaders | 运行时懒加载器 ─────────────────────────────────────
+
+let voiceInputRuntimePromise: Promise<typeof import('./VoiceInputService')> | null = null;
+let wakeWordRuntimePromise: Promise<typeof import('./WakeWordDetector')> | null = null;
+let sttRuntimePromise: Promise<typeof import('./stt')> | null = null;
+let sttStrategyRuntimePromise: Promise<typeof import('./SttStrategyRouter')> | null = null;
+
+function loadVoiceInputRuntime() {
+  if (!voiceInputRuntimePromise) {
+    voiceInputRuntimePromise = import('./VoiceInputService');
+  }
+  return voiceInputRuntimePromise;
+}
+
+function loadWakeWordRuntime() {
+  if (!wakeWordRuntimePromise) {
+    wakeWordRuntimePromise = import('./WakeWordDetector');
+  }
+  return wakeWordRuntimePromise;
+}
+
+function loadSttRuntime() {
+  if (!sttRuntimePromise) {
+    sttRuntimePromise = import('./stt');
+  }
+  return sttRuntimePromise;
+}
+
+function loadSttStrategyRuntime() {
+  if (!sttStrategyRuntimePromise) {
+    sttStrategyRuntimePromise = import('./SttStrategyRouter');
+  }
+  return sttStrategyRuntimePromise;
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -244,8 +278,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   // ── Subscription registry (leak prevention) ─────────────────────────────
   private readonly _subscriptions = new Map<StateChangeHandler, (...args: unknown[]) => void>();
 
-  private _voiceService: VoiceInputService | null = null;
-  private _wakeWordDetector: WakeWordDetector | null = null;
+  private _voiceService: VoiceInputServiceType | null = null;
+  private _wakeWordDetector: WakeWordDetectorType | null = null;
   private _recordingDurationInterval: ReturnType<typeof setInterval> | null = null;
   // ── Dictation pipeline (SpeechAnnotationPipeline) ───────────────────────
   private _dictationPipeline: SpeechAnnotationPipeline | null = null;
@@ -275,14 +309,20 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
 
   constructor(options: VoiceAgentServiceOptions = {}) {
     super();
+    const runtimeConfig = resolveVoiceAgentRuntimeConfig({
+      ...(options.whisperServerUrl !== undefined && { whisperServerUrl: options.whisperServerUrl }),
+      ...(options.whisperServerModel !== undefined && { whisperServerModel: options.whisperServerModel }),
+      ...(options.commercialProviderKind !== undefined && { commercialProviderKind: options.commercialProviderKind }),
+      ...(options.commercialProviderConfig !== undefined && { commercialProviderConfig: options.commercialProviderConfig }),
+    });
     this._corpusLang = options.corpusLang ?? 'cmn';
     this._langOverride = options.langOverride ?? null;
     this._safeMode = options.initialSafeMode ?? false;
     this._wakeWordEnabled = options.initialWakeWordEnabled ?? false;
-    this._whisperServerUrl = options.whisperServerUrl ?? 'http://localhost:3040';
-    this._whisperServerModel = options.whisperServerModel ?? 'ggml-small-q5_k.bin';
-    this._commercialProviderKind = options.commercialProviderKind ?? 'groq';
-    this._commercialProviderConfig = options.commercialProviderConfig ?? {};
+    this._whisperServerUrl = runtimeConfig.whisperServerUrl;
+    this._whisperServerModel = runtimeConfig.whisperServerModel;
+    this._commercialProviderKind = runtimeConfig.commercialProviderKind;
+    this._commercialProviderConfig = runtimeConfig.commercialProviderConfig;
     this._intentAliasMap = loadVoiceIntentAliasMap();
     this._onExecuteAction = options.onExecuteAction;
     this._onInsertDictation = options.onInsertDictation;
@@ -472,8 +512,9 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       .catch(() => { /* ignore — not available in all environments */ });
   }
 
-  private _ensureVoiceService(): VoiceInputService {
+  private async _ensureVoiceService(): Promise<VoiceInputServiceType> {
     if (!this._voiceService) {
+      const { VoiceInputService } = await loadVoiceInputRuntime();
       this._voiceService = new VoiceInputService();
       this._voiceService.onResult((result) => this._handleSttResult(result));
       this._voiceService.onError((err) => {
@@ -484,12 +525,12 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
         this._setState({ listening, agentState: listening ? 'listening' : 'idle' });
       });
       if ('onVadStateChange' in this._voiceService && typeof this._voiceService.onVadStateChange === 'function') {
-        (this._voiceService as VoiceInputService & { onVadStateChange: (fn: (active: boolean) => void) => void }).onVadStateChange((active) => {
+        (this._voiceService as VoiceInputServiceType & { onVadStateChange: (fn: (active: boolean) => void) => void }).onVadStateChange((active) => {
           this._setState({ speechActive: active });
         });
       }
       if ('onEnergyLevel' in this._voiceService && typeof this._voiceService.onEnergyLevel === 'function') {
-        (this._voiceService as VoiceInputService & { onEnergyLevel: (fn: (rms: number) => void) => void }).onEnergyLevel((rms) => {
+        (this._voiceService as VoiceInputServiceType & { onEnergyLevel: (fn: (rms: number) => void) => void }).onEnergyLevel((rms) => {
           this._setState({ energyLevel: rms });
         });
       }
@@ -507,12 +548,13 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     this._setState({ error: null, pendingConfirm: null, agentState: 'listening' });
     this._session = createInitialSession();
 
-    const svc = this._ensureVoiceService();
+    const svc = await this._ensureVoiceService();
     const lang = this._getEffectiveLang();
 
     // Refresh battery level for next call; use cached value now | 异步刷新电量，当前用缓存值
     this._refreshBatteryLevel();
     const region = await detectRegion();
+    const { chooseSttEngine } = await loadSttStrategyRuntime();
     const runtimeEngine = chooseSttEngine({
       preferred: this._engine,
       online: typeof navigator !== 'undefined' ? navigator.onLine : true,
@@ -536,6 +578,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       startConfig.whisperServerModel = this._whisperServerModel;
     }
     if (runtimeEngine === 'commercial' && this._commercialProviderConfig) {
+      const { createCommercialProvider } = await loadSttRuntime();
       startConfig.commercialFallback = createCommercialProvider(
         this._commercialProviderKind,
         this._commercialProviderConfig,
@@ -671,7 +714,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   // ── Push-to-talk ────────────────────────────────────────────────────────
 
   async startRecording(): Promise<void> {
-    const svc = this._ensureVoiceService();
+    const svc = await this._ensureVoiceService();
     this._setState({ agentState: 'listening' });
     try {
       await svc.startRecording();
@@ -729,7 +772,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   }
 
   async testCommercialProvider(): Promise<{ available: boolean; error?: string }> {
-    return testCommercialProviderFactory(this._commercialProviderKind, this._commercialProviderConfig);
+    const { testCommercialProvider } = await loadSttRuntime();
+    return testCommercialProvider(this._commercialProviderKind, this._commercialProviderConfig);
   }
 
   // ── Mode & safe mode ───────────────────────────────────────────────────
@@ -929,30 +973,33 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
 
   private _startWakeWordDetector(): void {
     if (this._wakeWordDetector) return;
-
-    try {
-      const detector = new WakeWordDetector({
-        energyThreshold: 0.05,
-        speechMs: 400,
-        cooldownMs: 3000,
-        onWake: () => {
-          void this.start('command');
-        },
-        onEnergy: (rms) => {
-          this._setState({ wakeWordEnergyLevel: rms });
-        },
-      });
-      this._wakeWordDetector = detector;
-      detector.start().catch(() => {
-        // Mic unavailable — silently disable
+    void (async () => {
+      try {
+        const { WakeWordDetector } = await loadWakeWordRuntime();
+        if (this._wakeWordDetector) return;
+        const detector = new WakeWordDetector({
+          energyThreshold: 0.05,
+          speechMs: 400,
+          cooldownMs: 3000,
+          onWake: () => {
+            void this.start('command');
+          },
+          onEnergy: (rms) => {
+            this._setState({ wakeWordEnergyLevel: rms });
+          },
+        });
+        this._wakeWordDetector = detector;
+        detector.start().catch(() => {
+          // Mic unavailable — silently disable
+          this._wakeWordEnabled = false;
+          this._emitStateChange();
+        });
+      } catch (err) {
+        console.warn('[VoiceAgentService] wake-word detector setup failed, disabling:', err);
         this._wakeWordEnabled = false;
         this._emitStateChange();
-      });
-    } catch (err) {
-      console.warn('[VoiceAgentService] wake-word detector setup failed, disabling:', err);
-      this._wakeWordEnabled = false;
-      this._emitStateChange();
-    }
+      }
+    })();
   }
 
   private _stopWakeWordDetector(): void {
@@ -1137,6 +1184,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   dispose(): void {
     document.removeEventListener('visibilitychange', this._handleVisibilityChange);
     this._ambientUnsubscribe?.();
+    AmbientObserver.getInstance().stop(); // Release all ambient listeners
     this._voiceService?.dispose();
     this._voiceService?.releaseSharedAnalysisStream();
     this._voiceService = null;

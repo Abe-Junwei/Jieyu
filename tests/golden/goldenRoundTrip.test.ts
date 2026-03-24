@@ -19,11 +19,11 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-import { importFromEaf, exportToEaf } from '../../services/EafService';
-import { importFromTextGrid, exportToTextGrid } from '../../services/TextGridService';
-import { importFromTrs, exportToTrs } from '../../services/TranscriberService';
-import { importFromToolbox, exportToToolbox } from '../../services/ToolboxService';
-import { importFromFlextext, exportToFlextext } from '../../services/FlexService';
+import { importFromEaf, exportToEaf } from '../../src/services/EafService';
+import { importFromTextGrid, exportToTextGrid } from '../../src/services/TextGridService';
+import { importFromTrs, exportToTrs } from '../../src/services/TranscriberService';
+import { importFromToolbox, exportToToolbox } from '../../src/services/ToolboxService';
+import { importFromFlextext, exportToFlextext } from '../../src/services/FlexService';
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -342,6 +342,30 @@ describe('Golden Round-trip: EAF (additional)', () => {
     expect(thaiTier).toBeDefined();
     expect(thaiTier![0]!.text).toBe('คุณเป็นอะไร');
     expect(thaiTier![4]!.text).toBe('ซื้อของป่า');
+  });
+
+  it('mvm-muya-real.eaf — real-style mvm tier keeps language labels and REF alignment', () => {
+    const raw = readGolden('eaf', 'mvm-muya-real.eaf');
+    const imported = importFromEaf(raw);
+
+    expect(imported.utterances).toHaveLength(1);
+    expect(imported.utterances[0]!.transcription).toBe('mu31 nji55');
+    expect(imported.utterances[0]!.startTime).toBeCloseTo(0, 3);
+    expect(imported.utterances[0]!.endTime).toBeCloseTo(2.1, 3);
+    expect(imported.transcriptionTierName).toBe('mvm-fonipa-x-emic');
+    expect(imported.defaultLocale).toBe('mvm-fonipa-x-emic');
+
+    const enTier = imported.translationTiers.get('en');
+    expect(enTier).toBeDefined();
+    expect(enTier).toHaveLength(1);
+    expect(enTier![0]!.text).toBe('Muya sample line');
+    expect(enTier![0]!.startTime).toBeCloseTo(0, 3);
+    expect(enTier![0]!.endTime).toBeCloseTo(2.1, 3);
+
+    // 来自 <LANGUAGE> 的标签映射 | LANG_ID -> LANG_LABEL from <LANGUAGE>
+    expect(imported.languageLabels.get('mvm-fonipa-x-emic')).toBe('Muya (IPA)');
+    expect(imported.languageLabels.get('en')).toBe('English');
+    expect(imported.languageLabels.get('zh-CN')).toBe('Chinese, Mandarin');
   });
 });
 

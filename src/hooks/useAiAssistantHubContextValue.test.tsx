@@ -5,17 +5,36 @@ import {
   pickAiAssistantHubContextValue,
   useAiAssistantHubContextValue,
 } from './useAiAssistantHubContextValue';
-import {
-  DEFAULT_AI_PANEL_CONTEXT_VALUE,
-  type AiPanelContextValue,
-} from '../contexts/AiPanelContext';
+import type { AiChatContextValue } from '../contexts/AiChatContext';
+import type { VoiceAgentContextValue } from '../contexts/VoiceAgentContext';
+import { pickAiChatContextValue } from './useAiChatContextValue';
+import { pickVoiceAgentContextValue } from './useVoiceAgentContextValue';
 
-function makeAiPanelContextValue(overrides: Partial<AiPanelContextValue> = {}): AiPanelContextValue {
+function makeAiChatSource(overrides: Partial<AiChatContextValue> = {}): Partial<AiChatContextValue> {
   return {
-    ...DEFAULT_AI_PANEL_CONTEXT_VALUE,
     selectedUtterance: null,
     selectedRowMeta: null,
     lexemeMatches: [],
+    aiChatEnabled: false,
+    aiToolDecisionLogs: [],
+    observerStage: 'collecting',
+    observerRecommendations: [],
+    ...overrides,
+  };
+}
+
+function makeVoiceSource(overrides: Partial<VoiceAgentContextValue> = {}): Partial<VoiceAgentContextValue> {
+  return {
+    voiceEnabled: false,
+    voiceListening: false,
+    voiceSpeechActive: false,
+    voiceMode: 'command',
+    voiceInterimText: '',
+    voiceFinalText: '',
+    voiceConfidence: 0,
+    voiceError: null,
+    voiceSafeMode: false,
+    voicePendingConfirm: null,
     ...overrides,
   };
 }
@@ -24,7 +43,7 @@ describe('useAiAssistantHubContextValue', () => {
   it('maps ai panel context values for assistant hub consumption', () => {
     const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
     const onVoiceToggle = vi.fn();
-    const source = makeAiPanelContextValue({
+    const chatSource = makeAiChatSource({
       aiChatEnabled: true,
       aiProviderLabel: 'Mock Provider',
       aiMessages: [
@@ -34,15 +53,19 @@ describe('useAiAssistantHubContextValue', () => {
           content: 'hello',
         },
       ],
+      onSendAiMessage,
+    });
+    const voiceSource = makeVoiceSource({
       voiceEnabled: true,
       voiceListening: true,
       voiceMode: 'analysis',
       voiceInterimText: 'interim',
-      onSendAiMessage,
       onVoiceToggle,
     });
 
-    const { result } = renderHook(() => useAiAssistantHubContextValue(source));
+    const { result } = renderHook(() =>
+      useAiAssistantHubContextValue(pickAiChatContextValue(chatSource), pickVoiceAgentContextValue(voiceSource))
+    );
 
     expect(result.current.aiChatEnabled).toBe(true);
     expect(result.current.aiProviderLabel).toBe('Mock Provider');
@@ -56,7 +79,10 @@ describe('useAiAssistantHubContextValue', () => {
   });
 
   it('only exposes the assistant-hub field subset', () => {
-    const mapped = pickAiAssistantHubContextValue(makeAiPanelContextValue());
+    const mapped = pickAiAssistantHubContextValue(
+      pickAiChatContextValue(makeAiChatSource()),
+      pickVoiceAgentContextValue(makeVoiceSource()),
+    );
     const keys = Object.keys(mapped).sort();
     const expected = [
       'aiChatEnabled',
@@ -64,11 +90,14 @@ describe('useAiAssistantHubContextValue', () => {
       'aiConnectionTestMessage',
       'aiConnectionTestStatus',
       'aiContextDebugSnapshot',
+      'aiInteractionMetrics',
       'aiIsStreaming',
       'aiLastError',
       'aiMessages',
       'aiPendingToolCall',
       'aiProviderLabel',
+      'aiSessionMemory',
+      'aiTaskSession',
       'aiToolDecisionLogs',
       'lexemeMatches',
       'observerStage',

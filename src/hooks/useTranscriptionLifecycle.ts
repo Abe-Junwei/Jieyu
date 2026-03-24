@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { SaveState, DbState } from './transcriptionTypes';
-import type { UtteranceDocType, UtteranceTextDocType, TranslationLayerDocType } from '../../db';
+import type { UtteranceDocType, UtteranceTextDocType, TranslationLayerDocType } from '../db';
 import {
   clearRecoverySnapshot,
   saveRecoverySnapshot,

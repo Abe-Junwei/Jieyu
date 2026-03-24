@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LinguisticService } from '../../services/LinguisticService';
-import type { TextDocType, UtteranceDocType } from '../../db';
+import { LinguisticService } from '../services/LinguisticService';
+import type { TextDocType, UtteranceDocType } from '../db';
 
 type DialogUtterance = Pick<UtteranceDocType, 'textId'>;
 

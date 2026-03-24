@@ -7,7 +7,7 @@ import type {
   UserNoteDocType,
   UtteranceDocType,
   UtteranceTextDocType,
-} from '../../db';
+} from '../db';
 
 type ProvenanceInput = Partial<ProvenanceEnvelope> & {
   actorType?: ActorType;

@@ -1,4 +1,4 @@
-import type { TranslationLayerDocType } from '../../db';
+import type { TranslationLayerDocType } from '../db';
 
 export interface LayerLinkRelation {
   transcriptionLayerKey: string;

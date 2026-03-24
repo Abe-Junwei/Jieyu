@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { db as dexieDb } from '../../db';
-import type { UserNoteDocType, NoteTargetType, NoteCategory, MultiLangString } from '../../db';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { db as dexieDb } from '../db';
+import type { UserNoteDocType, NoteTargetType, NoteCategory, MultiLangString } from '../db';
+import { createLogger } from '../observability/logger';
 import { newId } from '../utils/transcriptionFormatters';
 import { normalizeUserNoteDocForStorage } from '../utils/camDataUtils';
+
+const log = createLogger('useNotes');
 
 export interface NoteTarget {
   targetType: NoteTargetType;
@@ -86,8 +89,13 @@ export function useNotes(target: NoteTarget | null) {
         setNotes(results);
         setIsLoading(false);
       }
-    } catch {
+    } catch (error) {
       if (ticket === ticketRef.current) {
+        log.error('Failed to fetch notes', {
+          targetType: target.targetType,
+          targetId: target.targetId,
+          error: error instanceof Error ? error.message : String(error),
+        });
         setIsLoading(false);
       }
     }
@@ -148,29 +156,40 @@ export function useNotes(target: NoteTarget | null) {
 export function useNoteCounts(targetType: NoteTargetType, targetIds: string[], refreshKey = 0) {
   const [counts, setCounts] = useState<Map<string, number>>(new Map());
   const idsKey = targetIds.join(',');
+  const stableTargetIds = useMemo(() => targetIds, [idsKey]);
 
   useEffect(() => {
-    if (targetIds.length === 0) {
+    if (stableTargetIds.length === 0) {
       setCounts(new Map());
       return;
     }
     let cancelled = false;
     (async () => {
-      const map = new Map<string, number>();
-      const results = await dexieDb.user_notes
-        .where('[targetType+targetId]')
-        .anyOf(targetIds.map((id) => [targetType, id]))
-        .toArray();
-      for (const note of results) {
-        map.set(note.targetId, (map.get(note.targetId) ?? 0) + 1);
+      try {
+        const map = new Map<string, number>();
+        const results = await dexieDb.user_notes
+          .where('[targetType+targetId]')
+          .anyOf(stableTargetIds.map((id) => [targetType, id]))
+          .toArray();
+        for (const note of results) {
+          map.set(note.targetId, (map.get(note.targetId) ?? 0) + 1);
+        }
+        if (!cancelled) setCounts(map);
+      } catch (error) {
+        if (!cancelled) {
+          log.error('Failed to fetch note counts', {
+            targetType,
+            targetCount: stableTargetIds.length,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          setCounts(new Map());
+        }
       }
-      if (!cancelled) setCounts(map);
     })();
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetType, idsKey, refreshKey]);
+  }, [targetType, stableTargetIds, refreshKey]);
 
   return counts;
 }

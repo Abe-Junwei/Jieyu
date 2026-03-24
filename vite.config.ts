@@ -41,8 +41,34 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
+        manualChunks(id) {
+          // 仅抽离语音域业务代码，降低主页面 chunk 且避免循环分包 | Extract only voice-domain app code to reduce main chunk without circular chunking
+          if (id.includes('/src/services/VoiceInputService')) {
+            return 'voice-input-runtime';
+          }
+          if (id.includes('/src/services/stt/')) {
+            return 'voice-stt-core';
+          }
+          if (
+            id.includes('/src/hooks/useVoice')
+            || id.includes('/src/components/Voice')
+            || id.includes('/src/services/Voice')
+            || id.includes('/src/services/IntentRouter')
+          ) {
+            return 'voice-core';
+          }
+
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('/react/') || id.includes('/react-dom/')) {
+            return 'react-vendor';
+          }
+          if (id.includes('/pdfjs-dist/')) {
+            return 'pdf-vendor';
+          }
+          if (id.includes('/@xenova/transformers/') || id.includes('/onnxruntime-web/')) {
+            return 'ai-vendor';
+          }
+          return undefined;
         },
       },
     },

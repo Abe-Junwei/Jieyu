@@ -10,9 +10,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { UtteranceDocType, SpeakerDocType } from '../../db';
+import type { UtteranceDocType, SpeakerDocType } from '../db';
 import type { SaveState } from './transcriptionTypes';
-import { LinguisticService } from '../../services/LinguisticService';
+import { LinguisticService } from '../services/LinguisticService';
 import { fireAndForget } from '../utils/fireAndForget';
 
 // ─── Speaker color helpers ─────────────────────────────────────────────────────

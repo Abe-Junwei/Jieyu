@@ -3,7 +3,7 @@
  * RAG footnote annotation utilities: numbered sources, marker parsing, source list rendering
  */
 
-import type { AiMessageCitation } from '../../db';
+import type { AiMessageCitation } from '../db';
 
 // ── 常量 | Constants ──
 

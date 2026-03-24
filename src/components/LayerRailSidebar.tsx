@@ -1,12 +1,13 @@
-import { useState, useCallback, useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef, memo, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import type { TranslationLayerDocType } from '../../db';
+import type { TranslationLayerDocType } from '../db';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
 import { COMMON_LANGUAGES, formatLayerRailLabel } from '../utils/transcriptionFormatters';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { useSpeakerRailContext } from '../contexts/SpeakerRailContext';
+import { LayerRailProvider } from '../contexts/LayerRailContext';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
@@ -264,12 +265,7 @@ export function LayerRailSidebar({
     requestDeleteLayer,
     cancelDeleteLayerConfirm,
     confirmDeleteLayer,
-  } = useLayerDeleteConfirm({
-    deletableLayers,
-    checkLayerHasContent,
-    deleteLayer,
-    deleteLayerWithoutConfirm,
-  });
+  } = useLayerDeleteConfirm({});
 
   const handleLayerContextMenu = (e: React.MouseEvent, layerId: string) => {
     e.preventDefault();
@@ -420,7 +416,7 @@ export function LayerRailSidebar({
           onChange={(e) => speakerCtx.setBatchSpeakerId(e.target.value)}
           disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0}
         >
-          <option value="">清空说话人标签</option>
+          <option value="">删除说话人标签</option>
           {speakerCtx.speakerOptions.map((speaker) => (
             <option key={speaker.id} value={speaker.id}>{speaker.name}</option>
           ))}
@@ -518,9 +514,9 @@ export function LayerRailSidebar({
                       type="button"
                       className="transcription-layer-rail-speaker-mini-btn"
                       onClick={() => speakerCtx.handleClearSpeakerAssignments(option.key)}
-                      title="清空该说话人的标签"
+                      title="删除该说话人的标签"
                     >
-                      清空
+                      删除标签
                     </button>
                     <button
                       type="button"
@@ -548,6 +544,15 @@ export function LayerRailSidebar({
                     >
                       合并
                     </button>
+                    <button
+                      type="button"
+                      className="transcription-layer-rail-speaker-mini-btn transcription-layer-rail-speaker-mini-btn-danger"
+                      onClick={() => speakerCtx.handleDeleteSpeaker(option.key)}
+                      title={option.isEntity ? '删除该说话人实体（危险）' : '仅实体说话人支持删除'}
+                      disabled={!option.isEntity}
+                    >
+                      删除说话人实体
+                    </button>
                   </div>
                 </div>
                 {!isCollapsedGroup && (
@@ -564,48 +569,85 @@ export function LayerRailSidebar({
   );
 
   // ── Layer rail items render ──────────────────────────────────────────────────
+  // Memoized row component to prevent re-renders when parent re-renders
+  const LayerRailItemRow = memo(function LayerRailItemRow({
+    layer,
+    index,
+    focusedLayerRowId,
+    flashLayerRowId,
+    dragState,
+    dropTargetIndex,
+    onFocusLayer,
+    onContextMenu,
+    onMouseDown,
+  }: {
+    layer: TranslationLayerDocType;
+    index: number;
+    focusedLayerRowId: string;
+    flashLayerRowId: string;
+    dragState: { draggedId: string; sourceIndex: number; sourceType: 'transcription' | 'translation' } | null;
+    dropTargetIndex: number | null;
+    onFocusLayer: (id: string) => void;
+    onContextMenu: (e: React.MouseEvent, layerId: string) => void;
+    onMouseDown: (e: React.MouseEvent, layer: TranslationLayerDocType) => void;
+  }) {
+    const layerLabel = formatLayerRailLabel(layer);
+    const isActiveLayer = layer.id === focusedLayerRowId;
+    const isFlashLayer = layer.id === flashLayerRowId;
+    const isDragged = dragState?.draggedId === layer.id;
+    const showDropIndicator = dropTargetIndex === index && !isDragged;
+
+    return (
+      <div key={layer.id} style={{ position: 'relative' }}>
+        {showDropIndicator && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '2px',
+              backgroundColor: 'var(--color-primary, #3b82f6)',
+              zIndex: 1,
+            }}
+          />
+        )}
+        <button
+          type="button"
+          className={`transcription-layer-rail-item ${isActiveLayer ? 'transcription-layer-rail-item-active' : ''} ${isFlashLayer ? 'transcription-layer-rail-item-flash' : ''} ${isDragged ? 'transcription-layer-rail-item-dragging' : ''}`}
+          onClick={() => !dragState && onFocusLayer(layer.id)}
+          onContextMenu={(e) => onContextMenu(e, layer.id)}
+          onMouseDown={(e) => !dragState && onMouseDown(e, layer)}
+          title={layerLabel}
+        >
+          <strong>{layerLabel}</strong>
+        </button>
+      </div>
+    );
+  });
+
   const renderLayerRailItems = () => {
     if (layerRailRows.length === 0) {
       return <span className="transcription-layer-rail-empty">暂无层</span>;
     }
-    return layerRailRows.map((layer, index) => {
-      const layerLabel = formatLayerRailLabel(layer);
-      const isActiveLayer = layer.id === focusedLayerRowId;
-      const isFlashLayer = layer.id === flashLayerRowId;
-      const isDragged = dragState?.draggedId === layer.id;
-      const showDropIndicator = dropTargetIndex === index && !isDragged;
-
-      return (
-        <div key={layer.id} style={{ position: 'relative' }}>
-          {showDropIndicator && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '2px',
-                backgroundColor: 'var(--color-primary, #3b82f6)',
-                zIndex: 1,
-              }}
-            />
-          )}
-          <button
-            type="button"
-            className={`transcription-layer-rail-item ${isActiveLayer ? 'transcription-layer-rail-item-active' : ''} ${isFlashLayer ? 'transcription-layer-rail-item-flash' : ''} ${isDragged ? 'transcription-layer-rail-item-dragging' : ''}`}
-            onClick={() => !dragState && onFocusLayer(layer.id)}
-            onContextMenu={(e) => handleLayerContextMenu(e, layer.id)}
-            onMouseDown={(e) => !dragState && handleDragStart(e, layer)}
-            title={layerLabel}
-          >
-            <strong>{layerLabel}</strong>
-          </button>
-        </div>
-      );
-    });
+    return layerRailRows.map((layer, index) => (
+      <LayerRailItemRow
+        key={layer.id}
+        layer={layer}
+        index={index}
+        focusedLayerRowId={focusedLayerRowId}
+        flashLayerRowId={flashLayerRowId}
+        dragState={dragState}
+        dropTargetIndex={dropTargetIndex}
+        onFocusLayer={onFocusLayer}
+        onContextMenu={handleLayerContextMenu}
+        onMouseDown={handleDragStart}
+      />
+    ));
   };
 
   return (
+    <LayerRailProvider deletableLayers={deletableLayers} checkLayerHasContent={checkLayerHasContent} deleteLayer={deleteLayer} deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}>
     <aside className={`transcription-layer-rail ${isCollapsed ? 'transcription-layer-rail-collapsed' : ''}`} aria-label="文本区层滚动栏">
       {/* Tab 切换栏 | Tab bar */}
       <div className="transcription-layer-rail-tabs" role="tablist">
@@ -853,5 +895,6 @@ export function LayerRailSidebar({
         onConfirm={() => { fireAndForget(confirmDeleteLayer()); }}
       />
     </aside>
+    </LayerRailProvider>
   );
 }

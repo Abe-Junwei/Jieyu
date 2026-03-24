@@ -1,97 +1,35 @@
-import { useRef, useState } from 'react';
-import type {
-  AnchorDocType,
-  LayerLinkDocType,
-  MediaItemDocType,
-  SpeakerDocType,
-  TranslationLayerDocType,
-  UtteranceDocType,
-  UtteranceTextDocType,
-} from '../../db';
 import { useLatest } from './useLatest';
-import type { DbState, SaveState, SnapGuide } from './transcriptionTypes';
+import { useTranscriptionDbState } from './useTranscriptionDbState';
+import { useTranscriptionDocumentState } from './useTranscriptionDocumentState';
+import { useTranscriptionSelectionState } from './useTranscriptionSelectionState';
+import { useTranscriptionUIState } from './useTranscriptionUIState';
 
 export function useTranscriptionState() {
-  const [state, setState] = useState<DbState>({ phase: 'loading' });
-  const [utterances, setUtterances] = useState<UtteranceDocType[]>([]);
-  const [anchors, setAnchors] = useState<AnchorDocType[]>([]);
-  const [layers, setLayers] = useState<TranslationLayerDocType[]>([]);
-  const [translations, setTranslations] = useState<UtteranceTextDocType[]>([]);
-  const [layerLinks, setLayerLinks] = useState<LayerLinkDocType[]>([]);
-  const [mediaItems, setMediaItems] = useState<MediaItemDocType[]>([]);
-  const [speakers, setSpeakers] = useState<SpeakerDocType[]>([]);
-  const [selectedUtteranceId, setSelectedUtteranceId] = useState<string>('');
-  const [selectedUtteranceIds, setSelectedUtteranceIds] = useState<Set<string>>(new Set());
-  const [selectedMediaId, setSelectedMediaId] = useState<string>('');
-  const [selectedLayerId, setSelectedLayerId] = useState<string>('');
+  const dbState = useTranscriptionDbState();
+  const docState = useTranscriptionDocumentState();
+  const selectionState = useTranscriptionSelectionState();
+  const uiState = useTranscriptionUIState();
 
-  const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
-  const [layerCreateMessage, setLayerCreateMessage] = useState('');
-  const [utteranceDrafts, setUtteranceDrafts] = useState<Record<string, string>>({});
-  const [translationDrafts, setTranslationDrafts] = useState<Record<string, string>>({});
-  const [snapGuide, setSnapGuide] = useState<SnapGuide>({ visible: false });
-  const [layerToDeleteId, setLayerToDeleteId] = useState('');
-  const [showLayerManager, setShowLayerManager] = useState(false);
-
-  const autoSaveTimersRef = useRef<Record<string, number>>({});
-  const focusedTranslationDraftKeyRef = useRef<string | null>(null);
-
-  const utterancesRef = useLatest(utterances);
-  const anchorsRef = useLatest(anchors);
-  const translationsRef = useLatest(translations);
-  const layersRef = useLatest(layers);
-  const layerLinksRef = useLatest(layerLinks);
-  const speakersRef = useLatest(speakers);
-  const selectedUtteranceIdRef = useLatest(selectedUtteranceId);
-  const selectedUtteranceIdsRef = useLatest(selectedUtteranceIds);
+  const utterancesRef = useLatest(docState.utterances);
+  const anchorsRef = useLatest(docState.anchors);
+  const translationsRef = useLatest(docState.translations);
+  const layersRef = useLatest(docState.layers);
+  const layerLinksRef = useLatest(docState.layerLinks);
+  const speakersRef = useLatest(docState.speakers);
+  const selectedUtteranceIdRef = useLatest(selectionState.selectedUtteranceId);
+  const selectedUtteranceIdsRef = useLatest(selectionState.selectedUtteranceIds);
 
   return {
-    state,
-    setState,
-    utterances,
-    setUtterances,
-    anchors,
-    setAnchors,
-    layers,
-    setLayers,
-    translations,
-    setTranslations,
-    layerLinks,
-    setLayerLinks,
-    mediaItems,
-    setMediaItems,
-    speakers,
-    setSpeakers,
-    selectedUtteranceId,
-    setSelectedUtteranceId,
-    selectedUtteranceIds,
-    setSelectedUtteranceIds,
-    selectedMediaId,
-    setSelectedMediaId,
-    selectedLayerId,
-    setSelectedLayerId,
-    saveState,
-    setSaveState,
-    layerCreateMessage,
-    setLayerCreateMessage,
-    utteranceDrafts,
-    setUtteranceDrafts,
-    translationDrafts,
-    setTranslationDrafts,
-    snapGuide,
-    setSnapGuide,
-    layerToDeleteId,
-    setLayerToDeleteId,
-    showLayerManager,
-    setShowLayerManager,
-    autoSaveTimersRef,
-    focusedTranslationDraftKeyRef,
+    ...dbState,
+    ...docState,
+    ...selectionState,
+    ...uiState,
     utterancesRef,
     anchorsRef,
     translationsRef,
     layersRef,
     layerLinksRef,
-      speakersRef,
+    speakersRef,
     selectedUtteranceIdRef,
     selectedUtteranceIdsRef,
   };

@@ -1,49 +1,28 @@
 import { createContext, useContext } from 'react';
-import type { AiPanelContextValue } from './AiPanelContext';
+import type { AiChatContextValue } from './AiChatContext';
+import type { VoiceAgentContextValue } from './VoiceAgentContext';
 
-export type AiAssistantHubContextValue = Pick<AiPanelContextValue,
-  | 'selectedUtterance'
-  | 'selectedRowMeta'
-  | 'lexemeMatches'
-  | 'aiChatEnabled'
-  | 'aiProviderLabel'
-  | 'aiChatSettings'
-  | 'aiMessages'
-  | 'aiIsStreaming'
-  | 'aiLastError'
-  | 'aiConnectionTestStatus'
-  | 'aiConnectionTestMessage'
-  | 'aiContextDebugSnapshot'
-  | 'aiPendingToolCall'
-  | 'aiTaskSession'
-  | 'aiInteractionMetrics'
-  | 'aiSessionMemory'
-  | 'aiToolDecisionLogs'
-  | 'onUpdateAiChatSettings'
-  | 'onTestAiConnection'
-  | 'onSendAiMessage'
-  | 'onStopAiMessage'
-  | 'onClearAiMessages'
-  | 'onConfirmPendingToolCall'
-  | 'onCancelPendingToolCall'
-  | 'observerStage'
-  | 'onJumpToCitation'
-  | 'voiceEnabled'
-  | 'voiceListening'
-  | 'voiceSpeechActive'
-  | 'voiceMode'
-  | 'voiceInterimText'
-  | 'voiceFinalText'
-  | 'voiceConfidence'
-  | 'voiceError'
-  | 'voiceSafeMode'
-  | 'voicePendingConfirm'
-  | 'onVoiceToggle'
-  | 'onVoiceSwitchMode'
-  | 'onVoiceConfirm'
-  | 'onVoiceCancel'
-  | 'onVoiceSetSafeMode'
->;
+// Hub = AiChat 全量字段（去掉仅 Observer 面板用的推荐列表）+ Voice 状态与操作回调（去掉语言切换相关）
+// Hub = full AiChat fields (excluding observer-only recommendations) + voice state/callbacks (excluding lang override)
+export type AiAssistantHubContextValue =
+  Omit<AiChatContextValue, 'observerRecommendations'> &
+  Pick<VoiceAgentContextValue,
+    | 'voiceEnabled'
+    | 'voiceListening'
+    | 'voiceSpeechActive'
+    | 'voiceMode'
+    | 'voiceInterimText'
+    | 'voiceFinalText'
+    | 'voiceConfidence'
+    | 'voiceError'
+    | 'voiceSafeMode'
+    | 'voicePendingConfirm'
+    | 'onVoiceToggle'
+    | 'onVoiceSwitchMode'
+    | 'onVoiceConfirm'
+    | 'onVoiceCancel'
+    | 'onVoiceSetSafeMode'
+  >;
 
 export const AiAssistantHubContext = createContext<AiAssistantHubContextValue | null>(null);
 

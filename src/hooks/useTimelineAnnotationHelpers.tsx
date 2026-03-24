@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
-import type { TranslationLayerDocType, UtteranceDocType } from '../../db';
+import type { TranslationLayerDocType, UtteranceDocType } from '../db';
 import { formatTime, getLayerLabelParts } from '../utils/transcriptionFormatters';
 
 type TimelineUtterance = Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime' | 'speaker' | 'speakerId'>;

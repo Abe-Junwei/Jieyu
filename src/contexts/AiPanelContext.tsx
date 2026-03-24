@@ -1,30 +1,19 @@
 import { createContext, useContext, useMemo, useState } from 'react';
-import type { UtteranceDocType } from '../../db';
-import type { AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiTaskSession, PendingAiToolCall, UiChatMessage } from '../hooks/useAiChat';
-import type { AiChatSettings } from '../ai/providers/providerCatalog';
-import type { ProjectStage, Recommendation } from '../ai/ProjectObserver';
+import type { UtteranceDocType } from '../db';
 import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiAnalysisPanel';
-import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
-import type { EmbeddingProviderCreateConfig } from '../ai/embeddings/EmbeddingProvider';
-import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
-
-type ActionableRecommendation = Recommendation & {
-  actionType?: 'jump' | 'batch_pos' | 'risk_review';
-  targetUtteranceId?: string;
-  targetForm?: string;
-  targetPos?: string;
-  targetConfidence?: number;
-};
 
 export type AiPanelContextValue = {
+  // ── Database / session stats ──
   dbName: string;
   utteranceCount: number;
   translationLayerCount: number;
   aiConfidenceAvg: number | null;
+  // ── Selection ──
   selectedUtterance: UtteranceDocType | null;
   selectedRowMeta: { rowNumber: number; start: number; end: number } | null;
   selectedAiWarning: boolean;
   lexemeMatches: Array<{ id: string; lemma: Record<string, string> }>;
+  // ── Lexeme/Token editing callbacks ──
   onOpenWordNote?: (utteranceId: string, wordId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   onOpenMorphemeNote?: (
     utteranceId: string,
@@ -38,109 +27,17 @@ export type AiPanelContextValue = {
     form: string,
     pos: string | null,
   ) => Promise<number> | number;
-  aiChatEnabled?: boolean;
-  aiProviderLabel?: string;
-  aiChatSettings?: AiChatSettings;
-  aiMessages?: UiChatMessage[];
-  aiIsStreaming?: boolean;
-  aiLastError?: string | null;
-  aiConnectionTestStatus?: AiConnectionTestStatus;
-  aiConnectionTestMessage?: string | null;
-  aiContextDebugSnapshot?: AiContextDebugSnapshot | null;
-  aiPendingToolCall?: PendingAiToolCall | null;
-  aiTaskSession?: AiTaskSession | null;
-  aiInteractionMetrics?: AiInteractionMetrics | null;
-  aiSessionMemory?: AiSessionMemory | null;
-  aiToolDecisionLogs?: Array<{
-    id: string;
-    toolName: string;
-    decision: string;
-    requestId?: string;
-    timestamp: string;
-  }>;
-  onUpdateAiChatSettings?: (patch: Partial<AiChatSettings>) => void;
-  onTestAiConnection?: () => Promise<void>;
-  onSendAiMessage?: (text: string) => Promise<void>;
-  onStopAiMessage?: () => void;
-  onClearAiMessages?: () => void;
-  onConfirmPendingToolCall?: () => Promise<void>;
-  onCancelPendingToolCall?: () => Promise<void>;
+  // ── AI Panel mode / mode ──
   aiPanelMode?: AiPanelMode;
   aiCurrentTask?: AiPanelTask;
   aiVisibleCards?: Record<AiPanelCardKey, boolean>;
   selectedTranslationGapCount?: number;
   onJumpToTranslationGap?: () => void;
   onChangeAiPanelMode?: (mode: AiPanelMode) => void;
-  observerStage?: ProjectStage;
-  observerRecommendations?: ActionableRecommendation[];
-  onExecuteRecommendation?: (item: ActionableRecommendation) => void;
-  aiEmbeddingBusy?: boolean;
-  aiEmbeddingProgressLabel?: string | null;
-  aiEmbeddingLastResult?: {
-    taskId: string;
-    total: number;
-    generated: number;
-    skipped: number;
-    modelId: string;
-    modelVersion: string;
-    completedAt: string;
-    elapsedMs?: number;
-    averageBatchMs?: number;
-  } | null;
-  aiEmbeddingTasks?: Array<{
-    id: string;
-    taskType: 'transcribe' | 'gloss' | 'translate' | 'embed' | 'detect_language';
-    status: 'pending' | 'running' | 'done' | 'failed';
-    updatedAt: string;
-    modelId?: string;
-    errorMessage?: string;
-  }>;
-  aiEmbeddingMatches?: Array<{
-    utteranceId: string;
-    score: number;
-    label: string;
-    text: string;
-  }>;
-  aiEmbeddingLastError?: string | null;
-  aiEmbeddingWarning?: string | null;
-  aiEmbeddingBuildStartedAt?: number | null;
-  embeddingProviderKind?: EmbeddingProviderKind;
-  embeddingProviderConfig?: EmbeddingProviderCreateConfig;
-  onSetEmbeddingProviderKind?: (kind: EmbeddingProviderKind) => void;
-  onTestEmbeddingProvider?: (() => Promise<{ available: boolean; error?: string }>) | undefined;
-  onBuildUtteranceEmbeddings?: () => Promise<void>;
-  onBuildNotesEmbeddings?: () => Promise<void>;
-  onBuildPdfEmbeddings?: () => Promise<void>;
-  onFindSimilarUtterances?: () => Promise<void>;
-  onRefreshEmbeddingTasks?: () => Promise<void>;
-  onJumpToEmbeddingMatch?: (utteranceId: string) => void;
-  onJumpToCitation?: (citationType: 'utterance' | 'note' | 'pdf' | 'schema', refId: string, citation?: { snippet?: string }) => Promise<void> | void;
-  onCancelAiTask?: (taskId: string) => Promise<void>;
-  onRetryAiTask?: (taskId: string) => Promise<void>;
-  // ── Voice Agent ──
-  voiceListening?: boolean;
-  voiceSpeechActive?: boolean;
-  voiceMode?: VoiceAgentMode;
-  voiceInterimText?: string;
-  voiceFinalText?: string;
-  voiceConfidence?: number;
-  voiceError?: string | null;
-  voiceSafeMode?: boolean;
-  voicePendingConfirm?: { actionId: string; label: string } | null;
-  voiceCorpusLang?: string;
-  voiceLangOverride?: string | null;
-  voiceEnabled?: boolean;
-  onVoiceToggle?: (mode?: VoiceAgentMode) => void;
-  onVoiceSwitchMode?: (mode: VoiceAgentMode) => void;
-  onVoiceConfirm?: () => void;
-  onVoiceCancel?: () => void;
-  onVoiceSetSafeMode?: (on: boolean) => void;
-  onVoiceSetLangOverride?: (lang: string | null) => void;
 };
 
 export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
   dbName: '',
-  observerStage: 'collecting' as const,
   utteranceCount: 0,
   translationLayerCount: 0,
   aiConfidenceAvg: null,
@@ -148,42 +45,8 @@ export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
   selectedRowMeta: null,
   selectedAiWarning: false,
   lexemeMatches: [],
-  aiChatEnabled: false,
-  aiMessages: [],
-  aiIsStreaming: false,
-  aiLastError: null,
-  aiConnectionTestStatus: 'idle',
-  aiConnectionTestMessage: null,
-  aiPendingToolCall: null,
-  aiTaskSession: null,
-  aiInteractionMetrics: null,
-  aiSessionMemory: null,
-  aiToolDecisionLogs: [],
   aiPanelMode: 'auto',
   selectedTranslationGapCount: 0,
-  observerRecommendations: [],
-  aiEmbeddingBusy: false,
-  aiEmbeddingProgressLabel: null,
-  aiEmbeddingLastResult: null,
-  aiEmbeddingTasks: [],
-  aiEmbeddingMatches: [],
-  aiEmbeddingLastError: null,
-  aiEmbeddingWarning: null,
-  aiEmbeddingBuildStartedAt: null,
-  embeddingProviderKind: 'local',
-  onTestEmbeddingProvider: undefined,
-  voiceListening: false,
-  voiceSpeechActive: false,
-  voiceMode: 'command',
-  voiceInterimText: '',
-  voiceFinalText: '',
-  voiceConfidence: 0,
-  voiceError: null,
-  voiceSafeMode: false,
-  voicePendingConfirm: null,
-  voiceCorpusLang: 'cmn',
-  voiceLangOverride: null,
-  voiceEnabled: false,
 };
 
 export const AiPanelContext = createContext<AiPanelContextValue | null>(null);

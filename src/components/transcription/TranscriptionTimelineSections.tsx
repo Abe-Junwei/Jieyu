@@ -7,7 +7,7 @@ import type {
   RefObject,
 } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
-import type { UtteranceDocType } from '../../../db';
+import type { UtteranceDocType } from '../../db';
 import { VideoPlayer } from '../VideoPlayer';
 import { TimeRuler } from '../TimeRuler';
 import { WaveformOverviewBar } from '../WaveformOverviewBar';
@@ -35,6 +35,7 @@ type VideoPreviewSectionProps = {
   playerWaveformRef: MutableRefObject<HTMLDivElement | null>;
   onSeek: (time: number) => void;
   onPlayRegion: (start: number, end: number, resume?: boolean) => void;
+  waveformOverlay?: ReactNode;
 };
 
 export function VideoPreviewSection({
@@ -57,6 +58,7 @@ export function VideoPreviewSection({
   playerWaveformRef,
   onSeek,
   onPlayRegion,
+  waveformOverlay,
 }: VideoPreviewSectionProps) {
   const renderWaveCanvas = () => (
     <div
@@ -72,12 +74,18 @@ export function VideoPreviewSection({
   );
 
   if (!selectedMediaIsVideo) {
-    return renderWaveCanvas();
+    return (
+      <div className="video-preview-layout-wave">
+        {renderWaveCanvas()}
+        {waveformOverlay}
+      </div>
+    );
   }
 
   const isRightLayout = videoLayoutMode === 'right';
   const isLeftLayout = videoLayoutMode === 'left';
   const isSideLayout = isRightLayout || isLeftLayout;
+  const videoSubSelection = isSideLayout ? null : subSelectionRange;
 
   // 通过 CSS order 实现左/右布局，不重复渲染节点，保证 WaveSurfer DOM 稳定
   // Use CSS order to handle left/right layout without re-mounting nodes
@@ -89,7 +97,10 @@ export function VideoPreviewSection({
 
   return (
     <div className={`video-preview-layout ${layoutClass}`}>
-      <div className="video-preview-layout-wave">{renderWaveCanvas()}</div>
+      <div className="video-preview-layout-wave">
+        {renderWaveCanvas()}
+        {waveformOverlay}
+      </div>
 
       {/* 侧边布局拖拽手柄（左/右均复用，CSS order 决定位置）| Side-layout resize handle, CSS order positions it */}
       {isSideLayout && (
@@ -127,7 +138,7 @@ export function VideoPreviewSection({
               onSeek(time);
             }}
             segmentLoop={segmentLoopPlayback}
-            subSelection={subSelectionRange}
+            subSelection={videoSubSelection}
             videoHeight={isSideLayout ? Math.max(waveformStripHeight - 56, 120) : videoPreviewHeight - 50}
           />
         </div>

@@ -1,9 +1,14 @@
 import { Mic as _Mic } from 'lucide-react';
-import { VoiceAgentWidget } from './VoiceAgentWidget';
+import { Suspense, lazy } from 'react';
 import type { SttEngine, CommercialProviderKind } from '../services/VoiceInputService';
 import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import type { ProviderReachability } from '../services/stt';
 import type { VoicePreset } from '../utils/voicePresets';
+
+const VoiceAgentWidget = lazy(async () => {
+  const module = await import('./VoiceAgentWidget');
+  return { default: module.VoiceAgentWidget };
+});
 
 type VoiceAgentShape = {
   listening: boolean;
@@ -114,48 +119,50 @@ export function VoiceDockSection({
       aria-label="语音智能体控制栏"
       style={dockStyle}
     >
-      <VoiceAgentWidget
-        listening={voiceAgent.listening}
-        speechActive={voiceAgent.speechActive}
-        mode={voiceAgent.mode}
-        interimText={voiceAgent.interimText}
-        finalText={voiceAgent.finalText}
-        confidence={voiceAgent.confidence}
-        error={voiceAgent.error}
-        lastIntent={voiceAgent.lastIntent}
-        pendingConfirm={voiceAgent.pendingConfirm}
-        safeMode={voiceAgent.safeMode}
-        wakeWordEnabled={voiceAgent.wakeWordEnabled}
-        wakeWordEnergyLevel={voiceAgent.wakeWordEnergyLevel}
-        corpusLang={voiceCorpusLang}
-        langOverride={voiceLangOverride}
-        detectedLang={voiceAgent.detectedLang}
-        engine={voiceAgent.engine}
-        isRecording={voiceAgent.isRecording}
-        energyLevel={voiceAgent.energyLevel}
-        recordingDuration={voiceAgent.recordingDuration}
-        session={voiceAgent.session}
-        commercialProviderKind={voiceAgent.commercialProviderKind}
-        commercialProviderConfig={voiceAgent.commercialProviderConfig}
-        onToggle={onBubbleClick}
-        onMicPointerDown={onMicPointerDown}
-        onMicPointerUp={onMicPointerUp}
-        onSwitchMode={voiceAgent.switchMode}
-        onSwitchEngine={onSwitchEngine}
-        onConfirm={voiceAgent.confirmPending}
-        onCancel={voiceAgent.cancelPending}
-        onSetSafeMode={voiceAgent.setSafeMode}
-        onSetWakeWordEnabled={voiceAgent.setWakeWordEnabled}
-        onSetLangOverride={onSetLangOverride}
-        onSetCommercialProviderKind={voiceAgent.setCommercialProviderKind}
-        onCommercialConfigChange={onCommercialConfigChange}
-        onTestCommercialProvider={voiceAgent.testCommercialProvider}
-        agentState={voiceAgent.agentState}
-        targetSummary=""
-        statusSummary=""
-        environmentSummary=""
-        selectionSummary=""
-      />
+      <Suspense fallback={null}>
+        <VoiceAgentWidget
+          listening={voiceAgent.listening}
+          speechActive={voiceAgent.speechActive}
+          mode={voiceAgent.mode}
+          interimText={voiceAgent.interimText}
+          finalText={voiceAgent.finalText}
+          confidence={voiceAgent.confidence}
+          error={voiceAgent.error}
+          lastIntent={voiceAgent.lastIntent}
+          pendingConfirm={voiceAgent.pendingConfirm}
+          safeMode={voiceAgent.safeMode}
+          wakeWordEnabled={voiceAgent.wakeWordEnabled}
+          wakeWordEnergyLevel={voiceAgent.wakeWordEnergyLevel}
+          corpusLang={voiceCorpusLang}
+          langOverride={voiceLangOverride}
+          detectedLang={voiceAgent.detectedLang}
+          engine={voiceAgent.engine}
+          isRecording={voiceAgent.isRecording}
+          energyLevel={voiceAgent.energyLevel}
+          recordingDuration={voiceAgent.recordingDuration}
+          session={voiceAgent.session}
+          commercialProviderKind={voiceAgent.commercialProviderKind}
+          commercialProviderConfig={voiceAgent.commercialProviderConfig}
+          onToggle={onBubbleClick}
+          onMicPointerDown={onMicPointerDown}
+          onMicPointerUp={onMicPointerUp}
+          onSwitchMode={voiceAgent.switchMode}
+          onSwitchEngine={onSwitchEngine}
+          onConfirm={voiceAgent.confirmPending}
+          onCancel={voiceAgent.cancelPending}
+          onSetSafeMode={voiceAgent.setSafeMode}
+          onSetWakeWordEnabled={voiceAgent.setWakeWordEnabled}
+          onSetLangOverride={onSetLangOverride}
+          onSetCommercialProviderKind={voiceAgent.setCommercialProviderKind}
+          onCommercialConfigChange={onCommercialConfigChange}
+          onTestCommercialProvider={voiceAgent.testCommercialProvider}
+          agentState={voiceAgent.agentState}
+          targetSummary=""
+          statusSummary=""
+          environmentSummary=""
+          selectionSummary=""
+        />
+      </Suspense>
     </section>
   );
 }

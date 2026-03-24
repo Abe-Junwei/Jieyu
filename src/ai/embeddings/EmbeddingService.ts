@@ -1,8 +1,9 @@
-import { getDb, type EmbeddingDoc, type EmbeddingSourceType } from '../../../db';
+import { getDb, type EmbeddingDoc, type EmbeddingSourceType } from '../../db';
 import type { EmbeddingProvider } from './EmbeddingProvider';
 import type { EmbeddingRuntimeProgress } from './EmbeddingRuntime';
 import { TaskRunner } from '../tasks/TaskRunner';
 import { getGlobalTaskRunner } from '../tasks/taskRunnerSingleton';
+import { createLogger } from '../../observability/logger';
 import {
   buildPdfEmbeddingSourceId,
   extractPdfDetailsPatch,
@@ -52,6 +53,7 @@ export interface BuildEmbeddingsResult {
 const DEFAULT_MODEL_ID = 'Xenova/multilingual-e5-small';
 const DEFAULT_MODEL_VERSION = '2026-03';
 const DEFAULT_BATCH_SIZE = 8;
+const log = createLogger('EmbeddingService');
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -97,6 +99,8 @@ function chunkArray<T>(input: T[], batchSize: number): T[][] {
 }
 
 export class EmbeddingService {
+  private readonly inFlightBuilds = new Map<string, Promise<BuildEmbeddingsResult>>();
+
   constructor(
     private readonly provider: EmbeddingProvider,
     private readonly taskRunner: TaskRunner = getGlobalTaskRunner(),
@@ -157,8 +161,12 @@ export class EmbeddingService {
               });
             }
           }
-        } catch {
+        } catch (error) {
           // 跳过无法解析的 PDF，避免中断整批任务 | Skip unreadable PDFs to keep batch embedding resilient.
+          log.warn('Failed to extract text from PDF source, skip current media item', {
+            mediaId: media.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
           fragments = [];
         }
       }
@@ -184,22 +192,42 @@ export class EmbeddingService {
     const modelVersion = options?.modelVersion ?? DEFAULT_MODEL_VERSION;
     const batchSize = normalizeBatchSize(options?.batchSize);
     const retries = normalizeRetries(options?.retries);
-    const enqueued = await this.taskRunner.enqueue<BuildEmbeddingsResult>({
-      taskType: 'embed',
-      targetId: 'embeddings',
-      targetType: 'batch',
+    const taskFingerprint = this.buildTaskFingerprint(sources, {
       modelId,
-      maxAttempts: 1,
-      run: async ({ taskId }) => this.executeBuild(taskId, sources, {
-        ...options,
-        modelId,
-        modelVersion,
-        batchSize,
-        retries,
-      }),
+      modelVersion,
+      batchSize,
+      retries,
     });
+    const existing = this.inFlightBuilds.get(taskFingerprint);
+    if (existing) {
+      return existing;
+    }
 
-    return enqueued.result;
+    const running = (async () => {
+      const enqueued = await this.taskRunner.enqueue<BuildEmbeddingsResult>({
+        taskType: 'embed',
+        targetId: 'embeddings',
+        targetType: 'batch',
+        modelId,
+        maxAttempts: 1,
+        run: async ({ taskId }) => this.executeBuild(taskId, sources, {
+          ...options,
+          modelId,
+          modelVersion,
+          batchSize,
+          retries,
+        }),
+      });
+
+      return enqueued.result;
+    })();
+
+    this.inFlightBuilds.set(taskFingerprint, running);
+    try {
+      return await running;
+    } finally {
+      this.inFlightBuilds.delete(taskFingerprint);
+    }
   }
 
   terminate(): void {
@@ -332,5 +360,21 @@ export class EmbeddingService {
       averageBatchMs: batches.length > 0 ? Math.round(batchElapsedSum / batches.length) : 0,
       usingFallback,
     };
+  }
+
+  private buildTaskFingerprint(
+    sources: EmbeddingBuildSource[],
+    options: { modelId: string; modelVersion: string; batchSize: number; retries: number },
+  ): string {
+    const sourceSignature = sources
+      .map((source) => `${source.sourceType}:${source.sourceId}:${fnv1a(normalizeSourceText(source.text))}`)
+      .join('|');
+    return fnv1a([
+      options.modelId,
+      options.modelVersion,
+      String(options.batchSize),
+      String(options.retries),
+      sourceSignature,
+    ].join('::'));
   }
 }

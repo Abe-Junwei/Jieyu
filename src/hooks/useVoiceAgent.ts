@@ -13,8 +13,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { VoiceInputService, testWhisperServerAvailability, type SttEngine, type SttResult, type CommercialProviderKind } from '../services/VoiceInputService';
-import { WakeWordDetector } from '../services/WakeWordDetector';
+import type { VoiceInputService as VoiceInputServiceType, SttEngine, SttResult, CommercialProviderKind } from '../services/VoiceInputService';
+import type { WakeWordDetector as WakeWordDetectorType } from '../services/WakeWordDetector';
 import { saveVoiceSession, loadRecentVoiceSessions } from '../services/VoiceSessionStore';
 import {
   routeIntent,
@@ -35,15 +35,52 @@ import {
 } from '../services/IntentRouter';
 import { refineLlmFallbackIntent } from '../services/VoiceAgentService';
 import { toBcp47 } from '../utils/langMapping';
-import { createCommercialProvider, testCommercialProvider as testCommercialProviderFactory, probeAllCommercialProviders, type CommercialProviderCreateConfig, type ProviderReachability } from '../services/stt';
+import type { CommercialProviderCreateConfig, ProviderReachability } from '../services/stt';
 import type { VoicePreset } from '../utils/voicePresets';
-import { chooseSttEngine } from '../services/SttStrategyRouter';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('useVoiceAgent');
 import { detectRegion } from '../utils/regionDetection';
 import * as Earcon from '../services/EarconService';
 import { unlockAudio } from '../services/EarconService';
 import { useLatest } from './useLatest';
 import { globalContext } from '../services/GlobalContextService';
 import { userBehaviorStore } from '../services/UserBehaviorStore';
+
+// ── Lazy runtime loaders | 运行时懒加载器 ─────────────────────────────────────
+
+let voiceInputRuntimePromise: Promise<typeof import('../services/VoiceInputService')> | null = null;
+let wakeWordRuntimePromise: Promise<typeof import('../services/WakeWordDetector')> | null = null;
+let sttRuntimePromise: Promise<typeof import('../services/stt')> | null = null;
+let sttStrategyRuntimePromise: Promise<typeof import('../services/SttStrategyRouter')> | null = null;
+
+function loadVoiceInputRuntime() {
+  if (!voiceInputRuntimePromise) {
+    voiceInputRuntimePromise = import('../services/VoiceInputService');
+  }
+  return voiceInputRuntimePromise;
+}
+
+function loadWakeWordRuntime() {
+  if (!wakeWordRuntimePromise) {
+    wakeWordRuntimePromise = import('../services/WakeWordDetector');
+  }
+  return wakeWordRuntimePromise;
+}
+
+function loadSttRuntime() {
+  if (!sttRuntimePromise) {
+    sttRuntimePromise = import('../services/stt');
+  }
+  return sttRuntimePromise;
+}
+
+function loadSttStrategyRuntime() {
+  if (!sttStrategyRuntimePromise) {
+    sttStrategyRuntimePromise = import('../services/SttStrategyRouter');
+  }
+  return sttStrategyRuntimePromise;
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -159,8 +196,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const [disambiguationOptions, setDisambiguationOptions] = useState<ActionIntent[]>([]);
 
   // Stable refs
-  const serviceRef = useRef<VoiceInputService | null>(null);
-  const wakeWordDetectorRef = useRef<WakeWordDetector | null>(null);
+  const serviceRef = useRef<VoiceInputServiceType | null>(null);
+  const wakeWordDetectorRef = useRef<WakeWordDetectorType | null>(null);
   const executeActionRef = useLatest(executeAction);
   const sendToAiChatRef = useLatest(sendToAiChat);
   const insertDictationRef = useLatest(insertDictation);
@@ -391,6 +428,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
 
     let svc = serviceRef.current;
     if (!svc) {
+      const { VoiceInputService } = await loadVoiceInputRuntime();
       svc = new VoiceInputService();
       serviceRef.current = svc;
     }
@@ -422,12 +460,17 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
         type BatteryManager = { level: number };
         const battery = await (navigator as unknown as { getBattery(): Promise<BatteryManager> }).getBattery();
         batteryLevel = battery.level;
-      } catch { /* ignore — not available in all environments */ }
+      } catch (error) {
+        log.warn('Battery API probing failed, fallback to default STT strategy context', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     // Detect region and set appropriate fallback chain
     const region = await detectRegion();
 
+    const { chooseSttEngine } = await loadSttStrategyRuntime();
     const runtimeEngine = chooseSttEngine({
       preferred: engineRef.current,
       online: typeof navigator !== 'undefined' ? navigator.onLine : true,
@@ -450,6 +493,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       startConfig.whisperServerModel = whisperServerModel;
     }
     if (runtimeEngine === 'commercial' && commercialProviderConfigRef.current) {
+      const { createCommercialProvider } = await loadSttRuntime();
       startConfig.commercialFallback = createCommercialProvider(
         commercialProviderKindRef.current,
         commercialProviderConfigRef.current,
@@ -606,25 +650,31 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     }
     if (listening) return;
 
-    const detector = new WakeWordDetector({
-      energyThreshold: 0.05,
-      speechMs: 400,
-      cooldownMs: 3000,
-      onWake: () => {
-        start('command');
-      },
-      onEnergy: (rms) => {
-        setWakeWordEnergyLevel(rms);
-      },
-    });
+    let disposed = false;
+    void (async () => {
+      const { WakeWordDetector } = await loadWakeWordRuntime();
+      if (disposed) return;
+      const detector = new WakeWordDetector({
+        energyThreshold: 0.05,
+        speechMs: 400,
+        cooldownMs: 3000,
+        onWake: () => {
+          start('command');
+        },
+        onEnergy: (rms) => {
+          setWakeWordEnergyLevel(rms);
+        },
+      });
 
-    wakeWordDetectorRef.current = detector;
-    detector.start().catch(() => {
-      setWakeWordEnabledState(false);
-    });
+      wakeWordDetectorRef.current = detector;
+      detector.start().catch(() => {
+        setWakeWordEnabledState(false);
+      });
+    })();
 
     return () => {
-      detector.stop();
+      disposed = true;
+      wakeWordDetectorRef.current?.stop();
       wakeWordDetectorRef.current = null;
     };
   }, [wakeWordEnabled, listening, start]);
@@ -700,6 +750,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
 
   const testWhisperLocal = useCallback(async (): Promise<{ available: boolean; error?: string }> => {
     // whisper-local uses whisper-server on port 3040
+    const { testWhisperServerAvailability } = await loadVoiceInputRuntime();
     return testWhisperServerAvailability(
       'http://localhost:3040',
       'ggml-small-q5_k.bin',
@@ -707,7 +758,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   }, []);
 
   const testCommercialProvider = useCallback(async (): Promise<{ available: boolean; error?: string }> => {
-    return testCommercialProviderFactory(commercialProviderKindState, commercialProviderConfigState ?? {});
+    const { testCommercialProvider } = await loadSttRuntime();
+    return testCommercialProvider(commercialProviderKindState, commercialProviderConfigState ?? {});
   }, [commercialProviderKindState, commercialProviderConfigState]);
 
   /**
@@ -732,6 +784,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const [providerStatusMap, setProviderStatusMap] = useState<ProviderReachability[]>([]);
 
   const refreshProviderStatus = useCallback(async () => {
+    const { probeAllCommercialProviders } = await loadSttRuntime();
     const configs: Partial<Record<CommercialProviderKind, CommercialProviderCreateConfig>> = {};
     if (commercialProviderConfigRef.current) {
       configs[commercialProviderKindRef.current] = commercialProviderConfigRef.current;

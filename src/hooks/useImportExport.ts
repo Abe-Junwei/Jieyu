@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { getDb } from '../../db';
+import { getDb } from '../db';
 import { useClickOutside } from './useClickOutside';
 import type {
   AnchorDocType,
@@ -7,25 +7,30 @@ import type {
   TranslationLayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
-} from '../../db';
+} from '../db';
 import type { SaveState } from './useTranscriptionData';
-import { LinguisticService } from '../../services/LinguisticService';
-import { validateLayerTierConsistency } from '../../services/TierBridgeService';
-import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
-import { exportToEaf, importFromEaf, downloadEaf, readFileAsText } from '../../services/EafService';
-import type { EafImportResult } from '../../services/EafService';
-import { exportToTextGrid, importFromTextGrid, downloadTextGrid } from '../../services/TextGridService';
-import type { TextGridImportResult } from '../../services/TextGridService';
-import { exportToTrs, importFromTrs, downloadTrs } from '../../services/TranscriberService';
-import { exportToFlextext, importFromFlextext, downloadFlextext } from '../../services/FlexService';
-import { exportToToolbox, importFromToolbox, downloadToolbox } from '../../services/ToolboxService';
+import { LinguisticService } from '../services/LinguisticService';
+import { validateLayerTierConsistency } from '../services/TierBridgeService';
+import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
+import { exportToEaf, importFromEaf, downloadEaf, readFileAsText } from '../services/EafService';
+import type { EafImportResult } from '../services/EafService';
+import { exportToTextGrid, importFromTextGrid, downloadTextGrid } from '../services/TextGridService';
+import type { TextGridImportResult } from '../services/TextGridService';
+import { exportToTrs, importFromTrs, downloadTrs } from '../services/TranscriberService';
+import { exportToFlextext, importFromFlextext, downloadFlextext } from '../services/FlexService';
+import { exportToToolbox, importFromToolbox, downloadToolbox } from '../services/ToolboxService';
 import { normalizeUtteranceTextDocForStorage } from '../utils/camDataUtils';
-import { downloadJieyuArchive, importJieyuArchiveFile } from '../../services/JymService';
+import { downloadJieyuArchive, importJieyuArchiveFile } from '../services/JymService';
 import { detectLocale, t, tf } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { newId } from '../utils/transcriptionFormatters';
 import { humanizeTierName } from '../utils/transcriptionFormatters';
 import { parseBcp47 } from '../utils/transcriptionFormatters';
+import { createLogger } from '../observability/logger';
+import { toErrorMessage } from '../utils/saveStateError';
+import { reportActionError } from '../utils/actionErrorReporter';
+
+const log = createLogger('useImportExport');
 
 /** 将 EAF 元数据编码进层 key，便于导出时保留外部标识 | Encode EAF metadata in layer key for export-time external fidelity */
 function withEafKeyMeta(baseKey: string, meta?: { tierId?: string; langLabel?: string }): string {
@@ -81,8 +86,8 @@ export function useImportExport(input: UseImportExportInput) {
 
   const fetchUtteranceNotes = useCallback(async (uttIds: string[]) => {
     if (uttIds.length === 0) return [];
-    const { db: dexie } = await import('../../db');
-    return dexie.user_notes
+    const db = await getDb();
+    return db.dexie.user_notes
       .where('[targetType+targetId]')
       .anyOf(uttIds.map((id) => ['utterance', id]))
       .toArray();
@@ -188,9 +193,11 @@ export function useImportExport(input: UseImportExportInput) {
   const handleImportFile = useCallback(async (file: File) => {
     const name = file.name.toLowerCase();
     const isJieyuArchive = name.endsWith('.jym') || name.endsWith('.jyt');
-    const text = isJieyuArchive ? '' : await readFileAsText(file);
+    let text = '';
+    let resolvedTextId: string | null = activeTextId;
 
     try {
+      text = isJieyuArchive ? '' : await readFileAsText(file);
       if (isJieyuArchive) {
         const imported = await importJieyuArchiveFile(file, { strategy: 'replace-all' });
         const totals = Object.values(imported.importResult.collections).reduce(
@@ -255,6 +262,7 @@ export function useImportExport(input: UseImportExportInput) {
       }
 
       const textId = activeTextId ?? (await getActiveTextId());
+      resolvedTextId = textId;
       if (!textId) { setSaveState({ kind: 'error', message: t(locale, 'transcription.importExport.noProject') }); return; }
       let mediaId = selectedUtteranceMedia?.id;
 
@@ -704,10 +712,26 @@ export function useImportExport(input: UseImportExportInput) {
           }),
       });
     } catch (err) {
-      setSaveState({
-        kind: 'error',
-        message: tf(locale, 'transcription.importExport.failed', {
-          message: err instanceof Error ? err.message : String(err),
+      const rawMessage = toErrorMessage(err);
+      log.error('Import file failed', {
+        fileName: file.name,
+        isArchive: isJieyuArchive,
+        resolvedTextId,
+        error: rawMessage,
+      });
+      reportActionError({
+        actionLabel: '导入文件',
+        error: err,
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        conflictNames: [
+          'TranscriptionPersistenceConflictError',
+          'RecoveryApplyConflictError',
+        ],
+        conflictI18nKey: 'transcription.importExport.conflict',
+        fallbackI18nKey: 'transcription.importExport.failed',
+        conflictMessage: t(locale, 'transcription.importExport.conflict'),
+        fallbackMessage: tf(locale, 'transcription.importExport.failed', {
+          message: rawMessage,
         }),
       });
     }

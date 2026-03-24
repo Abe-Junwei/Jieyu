@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
-import type { UserNoteDocType, NoteCategory, MultiLangString } from '../../db';
+import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
 
 const CATEGORIES: { value: NoteCategory; label: string }[] = [
   { value: 'comment', label: '评注' },

@@ -1,4 +1,4 @@
-import { db as appDb } from '../../db';
+import { db as appDb } from '../db';
 import { mapAuditRowToAiToolDecisionLog, type AiToolDecisionLogItem } from './toolDecisionLog';
 
 type AuditSource = 'human' | 'ai' | 'system';

@@ -6,7 +6,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import type { SpeakerDocType } from '../../../db';
+import type { SpeakerDocType } from '../../db';
+import { createLogger } from '../../observability/logger';
 
 const PANEL_MIN_WIDTH = 292;
 const PANEL_MIN_HEIGHT = 160;
@@ -15,6 +16,7 @@ const PANEL_MAX_HEIGHT = 560;
 const PANEL_MARGIN = 8;
 const PANEL_STORAGE_KEY = 'jieyu:speaker-assign-panel-rect';
 const PANEL_DEFAULT_SIZE: PanelSize = { width: 360, height: 178 };
+const log = createLogger('SpeakerAssignPanel');
 
 type PanelPosition = { x: number; y: number };
 type PanelSize = { width: number; height: number };
@@ -56,7 +58,11 @@ export const SpeakerAssignPanel: FC<SpeakerAssignPanelProps> = ({
         x: typeof p.x === 'number' ? p.x : 24,
         y: typeof p.y === 'number' ? p.y : 24,
       };
-    } catch {
+    } catch (error) {
+      log.warn('Failed to restore speaker panel position, fallback to default', {
+        storageKey: PANEL_STORAGE_KEY,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return { x: 24, y: 24 };
     }
   });
@@ -73,13 +79,18 @@ export const SpeakerAssignPanel: FC<SpeakerAssignPanelProps> = ({
         width: typeof p.width === 'number' ? p.width : 360,
         height: typeof p.height === 'number' ? p.height : 178,
       };
-    } catch {
+    } catch (error) {
+      log.warn('Failed to restore speaker panel size, fallback to default', {
+        storageKey: PANEL_STORAGE_KEY,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return PANEL_DEFAULT_SIZE;
     }
   });
 
   const dragRef = useRef<{ startX: number; startY: number; startLeft: number; startTop: number } | null>(null);
   const resizeRef = useRef<{ startX: number; startY: number; startWidth: number; startHeight: number } | null>(null);
+  const hasInitializedLayoutRef = useRef(false);
 
   const clampSizeToViewport = useCallback((candidate: PanelSize): PanelSize => {
     if (typeof window === 'undefined') return candidate;
@@ -116,6 +127,8 @@ export const SpeakerAssignPanel: FC<SpeakerAssignPanelProps> = ({
   }, [clampPositionToViewport, clampSizeToViewport]);
 
   useEffect(() => {
+    if (hasInitializedLayoutRef.current) return;
+    hasInitializedLayoutRef.current = true;
     if (typeof window === 'undefined') return;
     const stored = window.localStorage.getItem(PANEL_STORAGE_KEY);
     if (!stored) {
@@ -127,8 +140,7 @@ export const SpeakerAssignPanel: FC<SpeakerAssignPanelProps> = ({
     setSize(safeSize);
     setPosition((prev) => clampPositionToViewport(prev, safeSize));
     // 仅初始化一次，后续由拖拽/缩放与 window resize 维护约束 | Initialize once; later constraints are maintained by drag/resize and window resize
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [centerPanel, clampPositionToViewport, clampSizeToViewport, size]);
 
   useEffect(() => {
     const onPointerMove = (event: PointerEvent): void => {
@@ -177,8 +189,11 @@ export const SpeakerAssignPanel: FC<SpeakerAssignPanelProps> = ({
         width: size.width,
         height: size.height,
       }));
-    } catch {
-      // 忽略持久化失败 | Ignore persistence errors
+    } catch (error) {
+      log.warn('Failed to persist speaker panel layout', {
+        storageKey: PANEL_STORAGE_KEY,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }, [position.x, position.y, size.height, size.width]);
 
@@ -226,8 +241,11 @@ export const SpeakerAssignPanel: FC<SpeakerAssignPanelProps> = ({
     if (typeof window !== 'undefined') {
       try {
         window.localStorage.removeItem(PANEL_STORAGE_KEY);
-      } catch {
-        // ignore
+      } catch (error) {
+        log.warn('Failed to clear speaker panel persisted layout', {
+          storageKey: PANEL_STORAGE_KEY,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
     centerPanel(PANEL_DEFAULT_SIZE);

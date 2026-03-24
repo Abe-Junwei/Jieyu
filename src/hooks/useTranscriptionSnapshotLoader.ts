@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { getDb } from '../../db';
+import { getDb } from '../db';
 import type {
   AnchorDocType,
   LayerLinkDocType,
@@ -10,7 +10,7 @@ import type {
   UtteranceMorphemeDocType,
   UtteranceTextDocType,
   UtteranceTokenDocType,
-} from '../../db';
+} from '../db';
 import type { DbState } from './transcriptionTypes';
 
 type Params = {

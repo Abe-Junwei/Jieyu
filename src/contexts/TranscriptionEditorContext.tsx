@@ -6,7 +6,7 @@ import {
   type ReactNode,
   type SetStateAction,
 } from 'react';
-import type { TranslationLayerDocType, UtteranceDocType, UtteranceTextDocType } from '../../db';
+import type { TranslationLayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
 
 export type TranscriptionEditorContextValue = {

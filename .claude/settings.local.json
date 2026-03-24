@@ -22,7 +22,12 @@
       "Read(//Users/junwei/Documents/Dev/Jevyu/src/components/**)",
       "Read(//Users/junwei/Dev/Jieyu/src/**)",
       "Bash(ls /Users/junwei/Documents/Dev/Jieyu/*.md)",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Bash(sed -n '523,1984p' ../styles.css)",
+      "Bash(sed -n '1985,3705p' ../styles.css)",
+      "Bash(sed -n '7927,8740p' ../styles.css)",
+      "Bash(rm transcription_part*.tmp)",
+      "Read(//dev/**)"
     ]
   }
 }

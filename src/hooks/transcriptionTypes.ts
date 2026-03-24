@@ -1,3 +1,5 @@
+import type { StructuredErrorMeta } from '../utils/errorProtocol';
+
 export type DbState =
   | { phase: 'loading' }
   | {
@@ -13,7 +15,7 @@ export type SaveState =
   | { kind: 'idle' }
   | { kind: 'saving' }
   | { kind: 'done'; message: string }
-  | { kind: 'error'; message: string };
+  | { kind: 'error'; message: string; errorMeta?: StructuredErrorMeta };
 
 export type LayerCreateInput = {
   languageId: string;

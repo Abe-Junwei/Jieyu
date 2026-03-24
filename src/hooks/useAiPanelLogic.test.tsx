@@ -4,7 +4,7 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import { useAiPanelLogic, taskToPersona, type UseAiPanelLogicInput } from './useAiPanelLogic';
 
 // Prevent real network calls from the debounced lexeme search effect.
-vi.mock('../../services/LinguisticService', () => ({
+vi.mock('../services/LinguisticService', () => ({
   LinguisticService: {
     searchLexemes: vi.fn(async () => []),
   },

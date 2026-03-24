@@ -1,6 +1,6 @@
-import { Fragment, useMemo, useRef } from 'react';
+import { Fragment, useEffect, useMemo, useRef } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
-import type { UtteranceDocType } from '../../db';
+import type { UtteranceDocType } from '../db';
 
 interface TimeRulerProps {
   duration: number;
@@ -34,6 +34,26 @@ export function TimeRuler({
   utterances,
 }: TimeRulerProps) {
   const rulerDragRef = useRef<{ dragging: boolean; startX: number; startScroll: number }>({ dragging: false, startX: 0, startScroll: 0 });
+  const clearDragFlagTimerRef = useRef<number | null>(null);
+  const moveListenerRef = useRef<((ev: MouseEvent) => void) | null>(null);
+  const upListenerRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (moveListenerRef.current) {
+        window.removeEventListener('mousemove', moveListenerRef.current);
+        moveListenerRef.current = null;
+      }
+      if (upListenerRef.current) {
+        window.removeEventListener('mouseup', upListenerRef.current);
+        upListenerRef.current = null;
+      }
+      if (clearDragFlagTimerRef.current !== null) {
+        window.clearTimeout(clearDragFlagTimerRef.current);
+        clearDragFlagTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const dur = duration;
   const { start, end } = rulerView;
@@ -147,8 +167,16 @@ export function TimeRuler({
           const onUp = () => {
             window.removeEventListener('mousemove', onMove);
             window.removeEventListener('mouseup', onUp);
-            setTimeout(() => { rulerDragRef.current.dragging = false; }, 0);
+            if (clearDragFlagTimerRef.current !== null) {
+              window.clearTimeout(clearDragFlagTimerRef.current);
+            }
+            clearDragFlagTimerRef.current = window.setTimeout(() => {
+              rulerDragRef.current.dragging = false;
+              clearDragFlagTimerRef.current = null;
+            }, 0);
           };
+          moveListenerRef.current = onMove;
+          upListenerRef.current = onUp;
           window.addEventListener('mousemove', onMove);
           window.addEventListener('mouseup', onUp);
         }}

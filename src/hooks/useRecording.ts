@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { UtteranceDocType, TranslationLayerDocType } from '../../db';
+import type { UtteranceDocType, TranslationLayerDocType } from '../db';
 import type { SaveState } from './useTranscriptionData';
 
 interface UseRecordingOptions {

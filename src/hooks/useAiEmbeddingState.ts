@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getDb } from '../../db';
+import { getDb } from '../db';
 import { listRecentAiToolDecisionLogs } from '../ai/auditReplay';
 import { buildEmbeddingFallbackWarning, readFallbackReason } from '../ai/embeddings/fallbackWarning';
 

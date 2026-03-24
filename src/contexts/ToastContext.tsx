@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { VoiceAgentMode } from '../services/VoiceAgentService';
+import { detectLocale, isDictKey, t } from '../i18n';
 
 // ── Toast variant & item ────────────────────────────────────────────────────
 
@@ -66,6 +67,42 @@ const SAVE_STATE_MESSAGE: Record<SaveState['kind'], string> = {
   done: '', // filled dynamically
   error: '', // filled dynamically
 };
+
+function normalizeErrorToast(state: Extract<SaveState, { kind: 'error' }>): {
+  message: string;
+  variant: ToastVariant;
+} {
+  const locale = detectLocale();
+  const translatedMessage = (
+    state.errorMeta?.i18nKey !== undefined && isDictKey(state.errorMeta.i18nKey)
+      ? t(locale, state.errorMeta.i18nKey)
+      : undefined
+  );
+  const rawMessage = translatedMessage || state.message || t(locale, 'transcription.toast.saveFailed');
+  const category = state.errorMeta?.category;
+
+  if (category === 'validation') {
+    return {
+      message: rawMessage,
+      variant: 'info',
+    };
+  }
+
+  if (category === 'conflict') {
+    const refreshHint = t(locale, 'transcription.toast.refreshAndRetry');
+    const hasRefreshHint = rawMessage.includes(refreshHint) || rawMessage.includes('刷新') || rawMessage.includes('refresh');
+    const withHint = hasRefreshHint ? rawMessage : `${rawMessage}（${refreshHint}）`;
+    return {
+      message: withHint,
+      variant: 'error',
+    };
+  }
+
+  return {
+    message: rawMessage,
+    variant: 'error',
+  };
+}
 
 // ── Voice agent state → Toast mapping ───────────────────────────────────────
 
@@ -137,14 +174,22 @@ export function ToastProvider({ children }: Props) {
       dismiss();
       return;
     }
-    const variant = SAVE_STATE_VARIANT[state.kind];
+    const defaultVariant = SAVE_STATE_VARIANT[state.kind];
     const baseMessage = SAVE_STATE_MESSAGE[state.kind];
+    const locale = detectLocale();
     const message = state.kind === 'done'
-      ? (state.message || '保存完成')
+      ? (state.message || t(locale, 'transcription.toast.saved'))
       : state.kind === 'error'
-        ? (state.message || '保存失败')
+        ? (state.message || t(locale, 'transcription.toast.saveFailed'))
         : baseMessage;
-    showToast(message, variant);
+
+    if (state.kind === 'error') {
+      const normalized = normalizeErrorToast(state);
+      showToast(normalized.message, normalized.variant);
+      return;
+    }
+
+    showToast(message, defaultVariant);
   }, [dismiss, showToast]);
 
   const showVoiceState = useCallback((

@@ -1,4 +1,4 @@
-import { getDb, type AiTaskDoc } from '../../../db';
+import { getDb, type AiTaskDoc } from '../../db';
 
 export interface TaskRunContext {
   taskId: string;

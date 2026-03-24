@@ -1,4 +1,4 @@
-import type { UserNoteDocType } from '../../db';
+import type { UserNoteDocType } from '../db';
 
 export function extractUtteranceIdFromNote(note: Pick<UserNoteDocType, 'targetType' | 'targetId' | 'parentTargetId'>): string | null {
   if (note.targetType === 'utterance') {

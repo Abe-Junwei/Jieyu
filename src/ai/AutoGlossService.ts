@@ -1,8 +1,8 @@
-import { getDb } from '../../db';
+import { getDb } from '../db';
 import type {
   LexemeDocType, UtteranceTokenDocType, TokenLexemeLinkDocType,
   TokenLexemeLinkRole, Transcription, MultiLangString,
-} from '../../db';
+} from '../db';
 import { TaskRunner } from './tasks/TaskRunner';
 import { getGlobalTaskRunner } from './tasks/taskRunnerSingleton';
 import { LeipzigValidator, type LeipzigWarning as LzWarning } from './LeipzigValidator';

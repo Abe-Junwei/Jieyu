@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { MediaItemDocType } from '../../db';
+import type { MediaItemDocType } from '../db';
 
 type Params = {
   mediaItems: MediaItemDocType[];

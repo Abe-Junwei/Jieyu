@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { db } from '../../../db';
+import { db } from '../../db';
 import { EmbeddingSearchService } from './EmbeddingSearchService';
 import type { EmbeddingProvider } from './EmbeddingProvider';
 

@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { useVoiceAgent } from './useVoiceAgent';
 import { applyVoiceCommercialConfigChange } from '../utils/voiceCommercialConfigSync';
 import type { CommercialProviderKind, SttEngine } from '../services/VoiceInputService';
-import type { TranslationLayerDocType } from '../../db';
+import type { TranslationLayerDocType } from '../db';
 
 interface VoiceMessageLike {
   role?: string;

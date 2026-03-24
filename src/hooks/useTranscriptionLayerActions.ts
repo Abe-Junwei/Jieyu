@@ -1,17 +1,17 @@
 import { useCallback } from 'react';
-import { getDb } from '../../db';
+import { getDb } from '../db';
 import type {
   LayerLinkDocType,
   MediaItemDocType,
   TranslationLayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
-} from '../../db';
-import { LayerTierUnifiedService } from '../../services/LayerTierUnifiedService';
-import { LinguisticService } from '../../services/LinguisticService';
+} from '../db';
+import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
+import { LinguisticService } from '../services/LinguisticService';
 import { newId } from '../utils/transcriptionFormatters';
 import type { LayerCreateInput } from './transcriptionTypes';
-import { canCreateLayer, canDeleteLayer, getMostRecentLayerOfType } from '../../services/LayerConstraintService';
+import { canCreateLayer, canDeleteLayer, getMostRecentLayerOfType } from '../services/LayerConstraintService';
 
 export type TranscriptionLayerActionsParams = {
   layers: TranslationLayerDocType[];

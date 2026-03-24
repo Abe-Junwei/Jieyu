@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import {
-  AnalysisPage,
-  AnnotationPage,
-  LexiconPage,
-  TranscriptionPage,
-  WritingPage,
-} from './pages';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
 import { AiPanelProvider } from './contexts/AiPanelContext';
 import { detectLocale, t } from './i18n';
+
+// 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
+const TranscriptionPage = lazy(() => import('./pages/TranscriptionPage').then(m => ({ default: m.TranscriptionPage })));
+const AnnotationPage = lazy(() => import('./pages/AnnotationPage').then(m => ({ default: m.AnnotationPage })));
+const AnalysisPage = lazy(() => import('./pages/AnalysisPage').then(m => ({ default: m.AnalysisPage })));
+const WritingPage = lazy(() => import('./pages/WritingPage').then(m => ({ default: m.WritingPage })));
+const LexiconPage = lazy(() => import('./pages/LexiconPage').then(m => ({ default: m.LexiconPage })));
 
 type ThemeMode = 'light' | 'dark';
 
@@ -122,17 +123,20 @@ export function App() {
         style={transcriptionMainStyle}
       >
         <AiPanelProvider>
-          <Routes>
-            <Route path="/" element={<Navigate to="/transcription" replace />} />
-            <Route path="/transcription" element={<TranscriptionPage />} />
-            <Route path="/annotation" element={<AnnotationPage />} />
-            <Route path="/analysis" element={<AnalysisPage />} />
-            <Route path="/writing" element={<WritingPage />} />
-            <Route path="/lexicon" element={<LexiconPage />} />
-            <Route path="*" element={<NotFound locale={locale} />} />
-          </Routes>
+          <Suspense fallback={null}>
+            <Routes>
+              <Route path="/" element={<Navigate to="/transcription" replace />} />
+              <Route path="/transcription" element={<TranscriptionPage />} />
+              <Route path="/annotation" element={<AnnotationPage />} />
+              <Route path="/analysis" element={<AnalysisPage />} />
+              <Route path="/writing" element={<WritingPage />} />
+              <Route path="/lexicon" element={<LexiconPage />} />
+              <Route path="*" element={<NotFound locale={locale} />} />
+            </Routes>
+          </Suspense>
         </AiPanelProvider>
       </main>
+      {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
     </div>
     </ErrorBoundary>
   );

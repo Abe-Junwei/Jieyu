@@ -1,11 +1,29 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
+import { createLogger } from '../observability/logger';
 
 interface PdfViewerPanelProps {
   url: string;
   title?: string;
   page?: number | null;
   searchSnippet?: string | undefined;
+}
+
+interface PdfTextItem {
+  str: string;
+  transform: number[];
+  height: number;
+}
+
+const log = createLogger('PdfViewerPanel');
+
+function isPdfTextItem(item: unknown): boolean {
+  if (!item || typeof item !== 'object') return false;
+  const candidate = item as { str?: unknown; transform?: unknown; height?: unknown };
+  if (typeof candidate.str !== 'string') return false;
+  if (!Array.isArray(candidate.transform) || candidate.transform.length < 6) return false;
+  if (candidate.transform.some((value) => typeof value !== 'number')) return false;
+  return typeof candidate.height === 'number';
 }
 
 /**
@@ -77,16 +95,18 @@ export function PdfViewerPanel({
 
         // 渲染文本层用于搜索/选择 | Render text layer for search and selection
         if (textLayerRef.current) {
-          textLayerRef.current.innerHTML = '';
+          textLayerRef.current.textContent = '';
           const textContent = await page.getTextContent();
-          const spans = textContent.items
-            .filter((item): item is any => 'str' in item && typeof item.str === 'string')
-            .map((item: any) => {
+          const textItems = textContent.items.filter(isPdfTextItem) as unknown as PdfTextItem[];
+          const spans = textItems
+            .map((item) => {
               const span = document.createElement('span');
+              const tx = item.transform[4] ?? 0;
+              const ty = item.transform[5] ?? 0;
               span.textContent = item.str;
               span.style.position = 'absolute';
-              span.style.left = `${item.transform[4]}px`;
-              span.style.top = `${viewport.height - item.transform[5]}px`;
+              span.style.left = `${tx}px`;
+              span.style.top = `${viewport.height - ty}px`;
               span.style.fontSize = `${Math.abs(item.height)}px`;
               span.style.fontFamily = 'Arial, sans-serif';
               span.style.whiteSpace = 'nowrap';
@@ -131,19 +151,18 @@ export function PdfViewerPanel({
         for (let i = 1; i <= pdfDocRef.current!.numPages; i++) {
           const page = await pdfDocRef.current!.getPage(i);
           const textContent = await page.getTextContent();
-          const pageText = textContent.items
-            .filter((item): item is any => 'str' in item)
-            .map((item: any) => item.str)
+          const textItems = textContent.items.filter(isPdfTextItem) as unknown as PdfTextItem[];
+          const pageText = textItems
+            .map((item) => item.str)
             .join(' ')
             .toLowerCase();
 
           if (pageText.includes(snippet)) {
             // 在该页面附近页面添加高亮标记 | Mark page for highlighting
-            const words = textContent.items
-              .filter((item): item is any => 'str' in item && typeof item.str === 'string')
-              .filter((item: any) => item.str.toLowerCase().includes(snippet));
+            const words = textItems
+              .filter((item) => item.str.toLowerCase().includes(snippet));
 
-            words.forEach((w: any) => {
+            words.forEach((w) => {
               highlightedTextsRef.current.add(w.str);
             });
 
@@ -154,8 +173,12 @@ export function PdfViewerPanel({
             return;
           }
         }
-      } catch {
-        // 搜索失败时静默处理 | Silently handle search failures
+      } catch (err) {
+        log.warn('Failed to search snippet in PDF document', {
+          currentPage,
+          snippetLength: snippet.length,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     };
 

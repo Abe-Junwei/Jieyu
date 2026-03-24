@@ -1,6 +1,6 @@
 import { useLatest } from './useLatest';
 import { useTranscriptionState } from './useTranscriptionState';
-import { useTranscriptionRecovery } from './useTranscriptionRecovery';
+import { useTranscriptionRecoverySnapshotScheduler } from './useTranscriptionRecovery';
 import { useTranscriptionUndo } from './useTranscriptionUndo';
 import { useTranscriptionActions } from './useTranscriptionActions';
 import { useTranscriptionAnchorActions } from './useTranscriptionAnchorActions';
@@ -86,12 +86,10 @@ export function useTranscriptionData() {
     dirtyRef,
     recoverySave,
     scheduleRecoverySave,
-  } = useTranscriptionRecovery({
+  } = useTranscriptionRecoverySnapshotScheduler({
     utterancesRef,
     translationsRef,
     layersRef,
-    loadSnapshot: async () => {},
-    setSaveState,
   });
 
   const {

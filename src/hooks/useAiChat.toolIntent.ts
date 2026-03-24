@@ -1,0 +1,83 @@
+import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
+import {
+  assessToolActionIntent,
+  buildToolAuditContext,
+  buildToolIntentAuditMetadata,
+  shouldAllowDeicticExecutionIntent,
+} from '../ai/chat/toolCallHelpers';
+import type {
+  AiChatToolCall,
+  AiPromptContext,
+  AiToolDecisionMode,
+  UiChatMessage,
+} from './useAiChat';
+
+interface BuildAndAuditToolIntentParams {
+  assistantMessageId: string;
+  toolCall: AiChatToolCall;
+  userText: string;
+  aiContext: AiPromptContext | null;
+  messageHistory: UiChatMessage[];
+  providerId: string;
+  model: string;
+  toolDecisionMode: AiToolDecisionMode;
+  toolFeedbackStyle: AiToolFeedbackStyle;
+  planner?: Parameters<typeof buildToolAuditContext>[5];
+  writeToolIntentAuditLog: (
+    assistantMessageId: string,
+    callName: AiChatToolCall['name'],
+    assessment: ReturnType<typeof assessToolActionIntent>,
+    requestId?: string,
+    metadata?: ReturnType<typeof buildToolIntentAuditMetadata>,
+  ) => Promise<void>;
+}
+
+/**
+ * 统一执行意图评估与审计写入 | Unified intent assessment and audit logging
+ */
+export async function buildAndAuditToolIntent({
+  assistantMessageId,
+  toolCall,
+  userText,
+  aiContext,
+  messageHistory,
+  providerId,
+  model,
+  toolDecisionMode,
+  toolFeedbackStyle,
+  planner,
+  writeToolIntentAuditLog,
+}: BuildAndAuditToolIntentParams): Promise<{
+  intentAssessment: ReturnType<typeof assessToolActionIntent>;
+  auditContext: ReturnType<typeof buildToolAuditContext>;
+}> {
+  const allowDeicticExecution = shouldAllowDeicticExecutionIntent(
+    userText,
+    toolCall.name,
+    aiContext,
+    messageHistory,
+  );
+  const intentAssessment = assessToolActionIntent(userText, { allowDeicticExecution });
+  const auditContext = buildToolAuditContext(
+    userText,
+    providerId,
+    model,
+    toolDecisionMode,
+    toolFeedbackStyle,
+    planner,
+    intentAssessment,
+  );
+
+  await writeToolIntentAuditLog(
+    assistantMessageId,
+    toolCall.name,
+    intentAssessment,
+    toolCall.requestId,
+    buildToolIntentAuditMetadata(assistantMessageId, toolCall, auditContext),
+  );
+
+  return {
+    intentAssessment,
+    auditContext,
+  };
+}

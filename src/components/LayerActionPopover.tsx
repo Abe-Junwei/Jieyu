@@ -104,6 +104,7 @@ export function LayerActionPopover({
   });
   const dragRef = useRef<{ startX: number; startY: number; startLeft: number; startTop: number } | null>(null);
   const resizeRef = useRef<{ startX: number; startY: number; startWidth: number; startHeight: number } | null>(null);
+  const initializedStorageKeyRef = useRef<string | null>(null);
 
   // Sync deleteLayerId when layerId changes
   useEffect(() => {
@@ -145,6 +146,8 @@ export function LayerActionPopover({
   }, [clampPositionToViewport, clampSizeToViewport]);
 
   useEffect(() => {
+    if (initializedStorageKeyRef.current === storageKey) return;
+    initializedStorageKeyRef.current = storageKey;
     if (typeof window === 'undefined') return;
     const stored = window.localStorage.getItem(storageKey);
     if (!stored) {
@@ -155,9 +158,8 @@ export function LayerActionPopover({
     const safeSize = clampSizeToViewport(size);
     setSize(safeSize);
     setPosition((prev) => clampPositionToViewport(prev, safeSize));
-    // 仅初始化一次，后续由拖拽/缩放与 window resize 维护约束 | Initialize once; later constraints are maintained by drag/resize and window resize
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // 仅对当前 storageKey 初始化一次，后续由拖拽/缩放与 window resize 维护约束 | Init once per storage key; later constraints are maintained by drag/resize and window resize
+  }, [centerPanel, clampPositionToViewport, clampSizeToViewport, size, storageKey]);
 
   useEffect(() => {
     const onPointerMove = (event: PointerEvent): void => {

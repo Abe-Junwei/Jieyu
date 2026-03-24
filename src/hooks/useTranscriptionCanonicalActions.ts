@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { UtteranceDocType } from '../../db';
-import { LinguisticService } from '../../services/LinguisticService';
+import type { UtteranceDocType } from '../db';
+import { LinguisticService } from '../services/LinguisticService';
 import { useTranscriptionTokenActions } from './useTranscriptionTokenActions';
 
 type Params = {

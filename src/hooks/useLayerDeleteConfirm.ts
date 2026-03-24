@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
-import type { TranslationLayerDocType } from '../../db';
+import type { TranslationLayerDocType } from '../db';
 import { formatLayerRailLabel } from '../utils/transcriptionFormatters';
+import { useLayerRailContext } from '../contexts/LayerRailContext';
 
 export type LayerDeleteConfirmState = {
   layerId: string;
@@ -10,18 +11,24 @@ export type LayerDeleteConfirmState = {
 } | null;
 
 type UseLayerDeleteConfirmInput = {
-  deletableLayers: TranslationLayerDocType[];
-  checkLayerHasContent: (layerId: string) => Promise<number>;
-  deleteLayer: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
-  deleteLayerWithoutConfirm: (layerId: string) => Promise<void>;
+  deletableLayers?: TranslationLayerDocType[];
+  checkLayerHasContent?: (layerId: string) => Promise<number>;
+  deleteLayer?: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
+  deleteLayerWithoutConfirm?: (layerId: string) => Promise<void>;
 };
 
 export function useLayerDeleteConfirm({
-  deletableLayers,
-  checkLayerHasContent,
-  deleteLayer,
-  deleteLayerWithoutConfirm,
-}: UseLayerDeleteConfirmInput) {
+  deletableLayers: deletableLayersProp,
+  checkLayerHasContent: checkLayerHasContentProp,
+  deleteLayer: deleteLayerProp,
+  deleteLayerWithoutConfirm: deleteLayerWithoutConfirmProp,
+}: UseLayerDeleteConfirmInput = {}) {
+  // Read from context if props not provided
+  const ctx = useLayerRailContext();
+  const deletableLayers = deletableLayersProp ?? ctx.deletableLayers;
+  const checkLayerHasContent = checkLayerHasContentProp ?? ctx.checkLayerHasContent;
+  const deleteLayer = deleteLayerProp ?? ctx.deleteLayer;
+  const deleteLayerWithoutConfirm = deleteLayerWithoutConfirmProp ?? ctx.deleteLayerWithoutConfirm;
   const [deleteLayerConfirm, setDeleteLayerConfirm] = useState<LayerDeleteConfirmState>(null);
   const [deleteConfirmKeepUtterances, setDeleteConfirmKeepUtterances] = useState(false);
 

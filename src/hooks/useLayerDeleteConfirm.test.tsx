@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { TranslationLayerDocType } from '../../db';
+import type { TranslationLayerDocType } from '../db';
 import { useLayerDeleteConfirm } from './useLayerDeleteConfirm';
 
 const NOW = new Date().toISOString();

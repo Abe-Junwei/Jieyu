@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
-import type { UtteranceDocType, TranslationLayerDocType } from '../../db';
+import type { UtteranceDocType, TranslationLayerDocType } from '../db';
 import { useAiToolCallHandler } from './useAiToolCallHandler';
 
 afterEach(cleanup);

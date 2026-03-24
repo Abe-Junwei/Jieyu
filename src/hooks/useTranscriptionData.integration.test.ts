@@ -5,8 +5,8 @@
 
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { db, type UtteranceDocType } from '../../db';
-import { LinguisticService } from '../../services/LinguisticService';
+import { db, type UtteranceDocType } from '../db';
+import { LinguisticService } from '../services/LinguisticService';
 
 async function clearDatabase(): Promise<void> {
   await Promise.all([

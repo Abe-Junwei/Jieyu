@@ -14,6 +14,9 @@ import type {
   EmbeddingProviderCreateConfig,
   OpenAIEmbeddingResponse,
 } from '../EmbeddingProvider';
+import { createLogger } from '../../../observability/logger';
+
+const log = createLogger('RemoteEmbeddingProvider');
 
 function normalizeBaseUrl(url: string | undefined, fallback: string): string {
   return (url ?? fallback).replace(/\/+$/, '');
@@ -62,7 +65,12 @@ export class RemoteEmbeddingProvider implements EmbeddingProvider {
         body: JSON.stringify({ input: ['health-check'], model: this.modelId }),
       });
       return resp.ok;
-    } catch {
+    } catch (error) {
+      log.warn('Embedding provider availability check failed', {
+        baseUrl: this.baseUrl,
+        modelId: this.modelId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
@@ -89,7 +97,13 @@ export class RemoteEmbeddingProvider implements EmbeddingProvider {
       try {
         const err = await resp.json() as OpenAIEmbeddingResponse;
         msg = err.error?.message ?? msg;
-      } catch { /* ignore */ }
+      } catch (error) {
+        log.warn('Failed to parse embedding error response JSON', {
+          status: resp.status,
+          baseUrl: this.baseUrl,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
       throw new Error(msg);
     }
 

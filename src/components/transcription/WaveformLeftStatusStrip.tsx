@@ -5,7 +5,7 @@
  * Displays zoom%, snap toggle, playback rate, current time, segment duration, and gain slider
  */
 
-import type { FC } from 'react';
+import type { FC, PointerEvent as ReactPointerEvent } from 'react';
 import { detectLocale, t } from '../../i18n';
 import type { VideoLayoutMode } from './TranscriptionTimelineSections';
 
@@ -33,6 +33,9 @@ export interface WaveformLeftStatusStripProps {
   videoLayoutMode: VideoLayoutMode;
   onVideoLayoutModeChange: (mode: VideoLayoutMode) => void;
 
+  // 车道标签宽度拖拽 | Lane label width resize
+  onLaneLabelWidthResize?: (e: ReactPointerEvent<HTMLDivElement>) => void;
+
   formatTime: (seconds: number) => string;
 }
 
@@ -49,6 +52,7 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = ({
   selectedMediaIsVideo,
   videoLayoutMode,
   onVideoLayoutModeChange,
+  onLaneLabelWidthResize,
   formatTime,
 }) => {
   const locale = detectLocale();
@@ -148,6 +152,15 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = ({
             </button>
           </div>
         </div>
+      )}
+      {onLaneLabelWidthResize && (
+        <div
+          className="lane-label-resize-handle"
+          onPointerDown={onLaneLabelWidthResize}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="调整车道标签与状态条宽度"
+        />
       )}
     </div>
   );

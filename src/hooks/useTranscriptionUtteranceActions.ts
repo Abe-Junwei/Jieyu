@@ -1,17 +1,27 @@
 import { useCallback } from 'react';
-import { getDb } from '../../db';
+import { getDb } from '../db';
 import type {
   AnchorDocType,
   MediaItemDocType,
   TranslationLayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
-} from '../../db';
-import { LinguisticService } from '../../services/LinguisticService';
+} from '../db';
+import { LinguisticService } from '../services/LinguisticService';
 import { newId, formatTime } from '../utils/transcriptionFormatters';
 import { shouldPushTimingUndo, type TimingUndoState } from '../utils/selectionUtils';
 import { normalizeUtteranceTextDocForStorage } from '../utils/camDataUtils';
+import { createLogger } from '../observability/logger';
+import { reportActionError } from '../utils/actionErrorReporter';
+import { reportValidationError } from '../utils/validationErrorReporter';
 import type { SaveState, SnapGuide } from './transcriptionTypes';
+
+const log = createLogger('useTranscriptionUtteranceActions');
+
+function formatRollbackFailureMessage(actionLabel: string, error: unknown): string {
+  const message = error instanceof Error ? error.message : '未知错误';
+  return `${actionLabel}失败，已回滚：${message}`;
+}
 
 export type TranscriptionUtteranceActionsParams = {
   defaultTranscriptionLayerId: string | undefined;
@@ -168,7 +178,11 @@ export function useTranscriptionUtteranceActions({
     const db = await getDb();
     const target = await db.collections.utterances.findOne({ selector: { id: utteranceId } }).exec();
     if (!target) {
-      setSaveState({ kind: 'error', message: '未找到目标句子，无法更新时间戳' });
+      reportValidationError({
+        message: '未找到目标句子，无法更新时间戳',
+        i18nKey: 'transcription.error.validation.updateTimingTargetMissing',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
 
@@ -194,7 +208,11 @@ export function useTranscriptionUtteranceActions({
     setSnapGuide({ visible: false });
 
     if (Number.isFinite(upperBound) && upperBound - lowerBound < minSpan) {
-      setSaveState({ kind: 'error', message: '相邻区间过近，无法调整到有效长度。' });
+      reportValidationError({
+        message: '相邻区间过近，无法调整到有效长度。',
+        i18nKey: 'transcription.error.validation.updateTimingNoValidSpan',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       setUtterances((prevRows) => [...prevRows]);
       return;
     }
@@ -244,7 +262,11 @@ export function useTranscriptionUtteranceActions({
 
   const saveTextTranslationForUtterance = useCallback(async (utteranceId: string, value: string, layerId: string) => {
     if (!layerId) {
-      setSaveState({ kind: 'error', message: '请先选择翻译层' });
+      reportValidationError({
+        message: '请先选择翻译层',
+        i18nKey: 'transcription.error.validation.translationLayerRequired',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
 
@@ -341,7 +363,11 @@ export function useTranscriptionUtteranceActions({
   const createUtteranceFromSelection = useCallback(async (start: number, end: number) => {
     const media = selectedUtteranceMedia;
     if (!media) {
-      setSaveState({ kind: 'error', message: '请先导入并选择音频。' });
+      reportValidationError({
+        message: '请先导入并选择音频。',
+        i18nKey: 'transcription.error.validation.mediaRequired',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
 
@@ -372,7 +398,11 @@ export function useTranscriptionUtteranceActions({
     const boundedEnd = Math.min(upperBound, normalizedEnd);
 
     if (!Number.isFinite(boundedEnd) || boundedEnd - boundedStart < minSpan) {
-      setSaveState({ kind: 'error', message: '选区与现有句段重叠，无法创建。请在空白区重新拖拽。' });
+      reportValidationError({
+        message: '选区与现有句段重叠，无法创建。请在空白区重新拖拽。',
+        i18nKey: 'transcription.error.validation.createFromSelectionOverlap',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
 
@@ -410,7 +440,11 @@ export function useTranscriptionUtteranceActions({
   const deleteUtterance = useCallback(async (utteranceId: string) => {
     const target = utterancesRef.current.find((u) => u.id === utteranceId);
     if (!target) {
-      setSaveState({ kind: 'error', message: '未找到目标句段' });
+      reportValidationError({
+        message: '未找到目标句段',
+        i18nKey: 'transcription.error.validation.deleteTargetMissing',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
 
@@ -471,7 +505,11 @@ export function useTranscriptionUtteranceActions({
       .sort((a, b) => a.startTime - b.startTime);
     const idx = sorted.findIndex((u) => u.id === utteranceId);
     if (idx <= 0) {
-      setSaveState({ kind: 'error', message: '没有前一句段可合并' });
+      reportValidationError({
+        message: '没有前一句段可合并',
+        i18nKey: 'transcription.error.validation.mergePreviousUnavailable',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
     const prev = sorted[idx - 1]!;
@@ -510,7 +548,11 @@ export function useTranscriptionUtteranceActions({
       .sort((a, b) => a.startTime - b.startTime);
     const idx = sorted.findIndex((u) => u.id === utteranceId);
     if (idx < 0 || idx >= sorted.length - 1) {
-      setSaveState({ kind: 'error', message: '没有后一句段可合并' });
+      reportValidationError({
+        message: '没有后一句段可合并',
+        i18nKey: 'transcription.error.validation.mergeNextUnavailable',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
     const curr = sorted[idx]!;
@@ -546,12 +588,20 @@ export function useTranscriptionUtteranceActions({
   const splitUtterance = useCallback(async (utteranceId: string, splitTime: number) => {
     const target = utterancesRef.current.find((u) => u.id === utteranceId);
     if (!target) {
-      setSaveState({ kind: 'error', message: '未找到目标句段' });
+      reportValidationError({
+        message: '未找到目标句段',
+        i18nKey: 'transcription.error.validation.splitTargetMissing',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
     const minSpan = 0.05;
     if (splitTime - target.startTime < minSpan || target.endTime - splitTime < minSpan) {
-      setSaveState({ kind: 'error', message: '拆分点过于接近句段边界' });
+      reportValidationError({
+        message: '拆分点过于接近句段边界',
+        i18nKey: 'transcription.error.validation.splitPointTooClose',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
 
@@ -642,7 +692,11 @@ export function useTranscriptionUtteranceActions({
       const startTime = Number((u.startTime + deltaSec).toFixed(3));
       const endTime = Number((u.endTime + deltaSec).toFixed(3));
       if (startTime < 0 || endTime - startTime < minSpan) {
-        setSaveState({ kind: 'error', message: '时间偏移后出现负时间或句段过短，操作已取消。' });
+        reportValidationError({
+          message: '时间偏移后出现负时间或句段过短，操作已取消。',
+          i18nKey: 'transcription.error.validation.offsetInvalidRange',
+          setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
         return;
       }
       transformed.set(u.id, { startTime, endTime });
@@ -656,7 +710,11 @@ export function useTranscriptionUtteranceActions({
       .sort((a, b) => a.startTime - b.startTime);
     for (let i = 1; i < timeline.length; i++) {
       if (timeline[i]!.startTime < timeline[i - 1]!.endTime + gap) {
-        setSaveState({ kind: 'error', message: '时间偏移会造成句段重叠，操作已取消。' });
+        reportValidationError({
+          message: '时间偏移会造成句段重叠，操作已取消。',
+          i18nKey: 'transcription.error.validation.offsetOverlap',
+          setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
         return;
       }
     }
@@ -688,12 +746,25 @@ export function useTranscriptionUtteranceActions({
       if (rollbackUndo) {
         try {
           await rollbackUndo();
-        } catch {
-          // Ignore rollback failure and still surface the original operation error.
+        } catch (rollbackError) {
+          log.warn('Rollback after offsetSelectedTimes failure also failed', {
+            error: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+          });
         }
       }
       const message = error instanceof Error ? error.message : '未知错误';
-      setSaveState({ kind: 'error', message: `批量时间偏移失败，已回滚：${message}` });
+      log.error('offsetSelectedTimes failed', {
+        targetCount: targets.length,
+        deltaSec,
+        error: message,
+      });
+      reportActionError({
+        actionLabel: '批量时间偏移',
+        error,
+        i18nKey: 'transcription.error.action.offsetBatchFailed',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        fallbackMessage: formatRollbackFailureMessage('批量时间偏移', error),
+      });
     }
   }, [pushUndo, rollbackUndo, setSaveState, setUtterances, updateAnchorTime, utterancesOnCurrentMediaRef]);
 
@@ -703,7 +774,11 @@ export function useTranscriptionUtteranceActions({
       .sort((a, b) => a.startTime - b.startTime);
     if (targets.length === 0) return;
     if (!Number.isFinite(factor) || factor <= 0) {
-      setSaveState({ kind: 'error', message: '缩放系数必须大于 0。' });
+      reportValidationError({
+        message: '缩放系数必须大于 0。',
+        i18nKey: 'transcription.error.validation.scaleFactorInvalid',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
 
@@ -717,7 +792,11 @@ export function useTranscriptionUtteranceActions({
       const startTime = Number((pivot + (u.startTime - pivot) * factor).toFixed(3));
       const endTime = Number((pivot + (u.endTime - pivot) * factor).toFixed(3));
       if (startTime < 0 || endTime - startTime < minSpan) {
-        setSaveState({ kind: 'error', message: '缩放后出现负时间或句段过短，操作已取消。' });
+        reportValidationError({
+          message: '缩放后出现负时间或句段过短，操作已取消。',
+          i18nKey: 'transcription.error.validation.scaleInvalidRange',
+          setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
         return;
       }
       transformed.set(u.id, { startTime, endTime });
@@ -731,7 +810,11 @@ export function useTranscriptionUtteranceActions({
       .sort((a, b) => a.startTime - b.startTime);
     for (let i = 1; i < timeline.length; i++) {
       if (timeline[i]!.startTime < timeline[i - 1]!.endTime + gap) {
-        setSaveState({ kind: 'error', message: '时间缩放会造成句段重叠，操作已取消。' });
+        reportValidationError({
+          message: '时间缩放会造成句段重叠，操作已取消。',
+          i18nKey: 'transcription.error.validation.scaleOverlap',
+          setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
         return;
       }
     }
@@ -763,19 +846,37 @@ export function useTranscriptionUtteranceActions({
       if (rollbackUndo) {
         try {
           await rollbackUndo();
-        } catch {
-          // Ignore rollback failure and still surface the original operation error.
+        } catch (rollbackError) {
+          log.warn('Rollback after scaleSelectedTimes failure also failed', {
+            error: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+          });
         }
       }
       const message = error instanceof Error ? error.message : '未知错误';
-      setSaveState({ kind: 'error', message: `批量时间缩放失败，已回滚：${message}` });
+      log.error('scaleSelectedTimes failed', {
+        targetCount: targets.length,
+        factor,
+        ...(anchorTime !== undefined && { anchorTime }),
+        error: message,
+      });
+      reportActionError({
+        actionLabel: '批量时间缩放',
+        error,
+        i18nKey: 'transcription.error.action.scaleBatchFailed',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        fallbackMessage: formatRollbackFailureMessage('批量时间缩放', error),
+      });
     }
   }, [pushUndo, rollbackUndo, setSaveState, setUtterances, updateAnchorTime, utterancesOnCurrentMediaRef]);
 
   const splitByRegex = useCallback(async (ids: Set<string>, pattern: string, flags = '') => {
     const rawPattern = pattern.trim();
     if (!rawPattern) {
-      setSaveState({ kind: 'error', message: '正则表达式不能为空。' });
+      reportValidationError({
+        message: '正则表达式不能为空。',
+        i18nKey: 'transcription.error.validation.regexPatternRequired',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
 
@@ -784,7 +885,11 @@ export function useTranscriptionUtteranceActions({
     try {
       splitter = new RegExp(rawPattern, normalizedFlags);
     } catch {
-      setSaveState({ kind: 'error', message: '正则表达式无效。' });
+      reportValidationError({
+        message: '正则表达式无效。',
+        i18nKey: 'transcription.error.validation.regexPatternInvalid',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
 
@@ -883,7 +988,11 @@ export function useTranscriptionUtteranceActions({
     }
 
     if (updates.length === 0 && inserts.length === 0) {
-      setSaveState({ kind: 'error', message: '没有匹配到可拆分内容（请检查正则和选中文本）。' });
+      reportValidationError({
+        message: '没有匹配到可拆分内容（请检查正则和选中文本）。',
+        i18nKey: 'transcription.error.validation.regexNoSplitCandidates',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
 
@@ -906,12 +1015,26 @@ export function useTranscriptionUtteranceActions({
       if (rollbackUndo) {
         try {
           await rollbackUndo();
-        } catch {
-          // Ignore rollback failure and still surface the original operation error.
+        } catch (rollbackError) {
+          log.warn('Rollback after splitByRegex failure also failed', {
+            error: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+          });
         }
       }
       const message = error instanceof Error ? error.message : '未知错误';
-      setSaveState({ kind: 'error', message: `正则批量拆分失败，已回滚：${message}` });
+      log.error('splitByRegex failed', {
+        targetCount: targets.length,
+        pattern: rawPattern,
+        flags: normalizedFlags,
+        error: message,
+      });
+      reportActionError({
+        actionLabel: '正则批量拆分',
+        error,
+        i18nKey: 'transcription.error.action.regexSplitBatchFailed',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        fallbackMessage: formatRollbackFailureMessage('正则批量拆分', error),
+      });
     }
   }, [createAnchor, getUtteranceTextForLayer, pushUndo, rollbackUndo, setSaveState, setSelectedUtteranceId, setSelectedUtteranceIds, setTranslations, setUtteranceDrafts, setUtterances, translations, utterancesOnCurrentMediaRef]);
 
@@ -920,7 +1043,11 @@ export function useTranscriptionUtteranceActions({
       .filter((u) => ids.has(u.id))
       .sort((a, b) => a.startTime - b.startTime);
     if (sorted.length < 2) {
-      setSaveState({ kind: 'error', message: '至少需要选中 2 个句段才能合并' });
+      reportValidationError({
+        message: '至少需要选中 2 个句段才能合并',
+        i18nKey: 'transcription.error.validation.mergeSelectionRequireAtLeastTwo',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
 
@@ -967,12 +1094,24 @@ export function useTranscriptionUtteranceActions({
       if (rollbackUndo) {
         try {
           await rollbackUndo();
-        } catch {
-          // Ignore rollback failure and still surface the original operation error.
+        } catch (rollbackError) {
+          log.warn('Rollback after mergeSelectedUtterances failure also failed', {
+            error: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+          });
         }
       }
       const message = error instanceof Error ? error.message : '未知错误';
-      setSaveState({ kind: 'error', message: `批量合并失败，已回滚：${message}` });
+      log.error('mergeSelectedUtterances failed', {
+        targetCount: sorted.length,
+        error: message,
+      });
+      reportActionError({
+        actionLabel: '批量合并',
+        error,
+        i18nKey: 'transcription.error.action.mergeSelectionFailed',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        fallbackMessage: formatRollbackFailureMessage('批量合并', error),
+      });
     }
   }, [pruneOrphanAnchors, pushUndo, reassignTranslations, rollbackUndo, setSaveState, setSelectedUtteranceId, setSelectedUtteranceIds, setTranslations, setUtterances, utterancesOnCurrentMediaRef]);
 

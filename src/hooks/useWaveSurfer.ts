@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import { evaluateSegmentTimeUpdateGuard, type SegmentSeekGuard } from '../utils/segmentPlaybackGuard';
+import { createLogger } from '../observability/logger';
+
+const log = createLogger('useWaveSurfer');
 
 type RegionHandle = {
   id: string;
@@ -110,6 +113,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   useEffect(() => {
     const container = waveformRef.current;
     if (!container) return;
+    let disposed = false;
 
     instanceRef.current?.destroy();
     instanceRef.current = null;
@@ -148,10 +152,12 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     ws.load(mediaUrl);
 
     ws.on('ready', () => {
+      if (disposed) return;
       setIsReady(true);
       setDuration(ws.getDuration() || 0);
     });
     ws.on('timeupdate', (time: number) => {
+      if (disposed) return;
       const guardResult = evaluateSegmentTimeUpdateGuard(
         time,
         segmentBoundsRef.current,
@@ -187,9 +193,16 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       setCurrentTime(time);
       cbRef.current.onTimeUpdate?.(time);
     });
-    ws.on('play', () => setIsPlaying(true));
-    ws.on('pause', () => setIsPlaying(false));
+    ws.on('play', () => {
+      if (disposed) return;
+      setIsPlaying(true);
+    });
+    ws.on('pause', () => {
+      if (disposed) return;
+      setIsPlaying(false);
+    });
     ws.on('finish', () => {
+      if (disposed) return;
       segmentBoundsRef.current = null;
       segmentSeekGuardRef.current = null;
       // Restore global rate if segment rate was active
@@ -206,6 +219,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     });
 
     return () => {
+      disposed = true;
       ws.destroy();
       instanceRef.current = null;
       regionsRef.current = null;
@@ -369,7 +383,14 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
             nextHandles.set(r.id, existing);
           } else {
             // Element destroyed or no setOptions — remove + re-add
-            try { existing.remove(); } catch { /* already gone */ }
+            try {
+              existing.remove();
+            } catch (error) {
+              log.warn('Failed to remove stale region handle before re-create', {
+                regionId: r.id,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
             nextHandles.set(r.id, addRegionWithListeners(r));
           }
         } else {
@@ -384,13 +405,29 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     // Remove deleted regions
     prevHandles.forEach((handle, id) => {
       if (!incomingIds.has(id) && id !== '__start_marker__' && id !== '__sub_selection__') {
-        try { handle.remove(); } catch { /* element already destroyed */ }
+        try {
+          handle.remove();
+        } catch (error) {
+          log.warn('Failed to remove deleted region handle', {
+            regionId: id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
     });
 
     // Always rebuild start marker (lightweight, no drag state to preserve)
     const oldMarker = prevHandles.get('__start_marker__') ?? nextHandles.get('__start_marker__');
-    if (oldMarker) try { (oldMarker as unknown as { remove: () => void }).remove(); } catch { /* already gone */ }
+    if (oldMarker) {
+      try {
+        (oldMarker as unknown as { remove: () => void }).remove();
+      } catch (error) {
+        log.warn('Failed to remove previous start marker region', {
+          markerId: '__start_marker__',
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
     nextHandles.delete('__start_marker__');
     if (startMarker != null) {
       const markerHandle = rp.addRegion({
@@ -412,7 +449,14 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     const sub = options.subSelection;
     const prevSub = regionHandlesRef.current.get('__sub_selection__');
     if (prevSub) {
-      try { prevSub.remove(); } catch { /* already gone */ }
+      try {
+        prevSub.remove();
+      } catch (error) {
+        log.warn('Failed to remove previous sub-selection region', {
+          markerId: '__sub_selection__',
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
       regionHandlesRef.current.delete('__sub_selection__');
     }
     if (sub) {

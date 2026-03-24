@@ -1,4 +1,4 @@
-import type { NoteCategory, MultiLangString, TranslationLayerDocType, UserNoteDocType, UtteranceDocType } from '../../db';
+import type { NoteCategory, MultiLangString, TranslationLayerDocType, UserNoteDocType, UtteranceDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';

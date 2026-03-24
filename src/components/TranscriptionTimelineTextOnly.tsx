@@ -1,4 +1,4 @@
-import type { TranslationLayerDocType, UtteranceDocType } from '../../db';
+import type { TranslationLayerDocType, UtteranceDocType } from '../db';
 import { useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
@@ -182,7 +182,7 @@ export function TranscriptionTimelineTextOnly({
             onToggleConnectors={onToggleConnectors ?? (() => {})}
             isCollapsed={isCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
-            onLaneLabelWidthResize={onLaneLabelWidthResize}
+            {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
           />
           {!isCollapsed && <div className="timeline-lane-text-only-track" style={{ width: `${totalSize}px` }}>
           {virtualItems.map((virtualItem) => {
@@ -344,7 +344,7 @@ export function TranscriptionTimelineTextOnly({
             onToggleConnectors={onToggleConnectors ?? (() => {})}
             isCollapsed={isCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
-            onLaneLabelWidthResize={onLaneLabelWidthResize}
+            {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
           />
           {!isCollapsed && <div className="timeline-lane-text-only-track" style={{ width: `${totalSize}px` }}>
           {virtualItems.map((virtualItem) => {

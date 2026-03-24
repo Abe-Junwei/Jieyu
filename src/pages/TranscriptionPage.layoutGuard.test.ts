@@ -14,7 +14,7 @@ describe('Transcription layout guard', () => {
   });
 
   it('keeps stylesheet fixed-anchor selector for transcription main area', () => {
-    const cssPath = path.resolve(process.cwd(), 'src/styles.css');
+    const cssPath = path.resolve(process.cwd(), 'src/styles/global.css');
     const cssCode = fs.readFileSync(cssPath, 'utf8');
 
     const selector = '.app-shell-transcription .app-main-transcription {';
@@ -31,5 +31,24 @@ describe('Transcription layout guard', () => {
     expect(block).toContain('bottom: 0;');
     expect(block).toContain('left: 0;');
     expect(block).toContain('right: 0;');
+  });
+
+  it('keeps speaker management popover centered in the viewport', () => {
+    const cssPath = path.resolve(process.cwd(), 'src/styles/transcription.css');
+    const cssCode = fs.readFileSync(cssPath, 'utf8');
+
+    const selector = '.transcription-layer-rail-action-popover-centered {';
+    const start = cssCode.indexOf(selector);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+
+    const end = cssCode.indexOf('}', start);
+    expect(end).toBeGreaterThan(start);
+
+    const block = cssCode.slice(start, end + 1);
+    expect(block).toContain('position: fixed;');
+    expect(block).toContain('left: 50%;');
+    expect(block).toContain('top: 50%;');
+    expect(block).toContain('transform: translate(-50%, -50%);');
   });
 });

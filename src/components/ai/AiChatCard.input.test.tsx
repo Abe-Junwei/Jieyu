@@ -4,40 +4,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { AiChatCard } from './AiChatCard';
-import { db } from '../../../db';
+import { db } from '../../db';
 import { normalizeAiChatSettings } from '../../ai/providers/providerCatalog';
 import {
   AiAssistantHubContext,
   type AiAssistantHubContextValue,
 } from '../../contexts/AiAssistantHubContext';
+import { DEFAULT_AI_CHAT_CONTEXT_VALUE } from '../../contexts/AiChatContext';
+import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from '../../contexts/VoiceAgentContext';
+import { pickAiAssistantHubContextValue } from '../../hooks/useAiAssistantHubContextValue';
+import { pickAiChatContextValue } from '../../hooks/useAiChatContextValue';
+import { pickVoiceAgentContextValue } from '../../hooks/useVoiceAgentContextValue';
+
+const DEFAULT_HUB_VALUE = pickAiAssistantHubContextValue(
+  pickAiChatContextValue(DEFAULT_AI_CHAT_CONTEXT_VALUE),
+  pickVoiceAgentContextValue(DEFAULT_VOICE_AGENT_CONTEXT_VALUE),
+);
 
 function makeContextValue(overrides: Partial<AiAssistantHubContextValue> = {}): AiAssistantHubContextValue {
-  return {
-    selectedUtterance: null,
-    selectedRowMeta: null,
-    lexemeMatches: [],
-    aiChatEnabled: true,
-    aiProviderLabel: 'Mock Provider',
-    aiMessages: [],
-    aiIsStreaming: false,
-    aiLastError: null,
-    aiConnectionTestStatus: 'idle',
-    aiConnectionTestMessage: null,
-    aiContextDebugSnapshot: null,
-    aiPendingToolCall: null,
-    aiToolDecisionLogs: [],
-    voiceEnabled: false,
-    voiceListening: false,
-    voiceSpeechActive: false,
-    voiceMode: 'command',
-    voiceInterimText: '',
-    voiceFinalText: '',
-    voiceConfidence: 0,
-    voiceError: null,
-    voiceSafeMode: false,
-    voicePendingConfirm: null,
-    ...overrides,
-  };
+  return { ...DEFAULT_HUB_VALUE, aiChatEnabled: true, aiProviderLabel: 'Mock Provider', ...overrides };
 }
 
 async function clearAuditLogs(): Promise<void> {

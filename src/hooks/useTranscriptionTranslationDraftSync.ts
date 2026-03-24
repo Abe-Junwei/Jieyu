@@ -4,7 +4,7 @@ import type {
   TranslationLayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
-} from '../../db';
+} from '../db';
 
 type Params = {
   translationLayers: TranslationLayerDocType[];

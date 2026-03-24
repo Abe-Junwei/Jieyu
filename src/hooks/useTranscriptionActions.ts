@@ -1,4 +1,4 @@
-import { getDb } from '../../db';
+import { getDb } from '../db';
 import type {
   AnchorDocType,
   LayerLinkDocType,
@@ -6,7 +6,7 @@ import type {
   TranslationLayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
-} from '../../db';
+} from '../db';
 import type { TimingUndoState } from '../utils/selectionUtils';
 import type { SaveState, SnapGuide } from './transcriptionTypes';
 import { useTranscriptionLayerActions } from './useTranscriptionLayerActions';

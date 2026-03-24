@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="unspecified"
+    DATE="2025-03-03T20:39:43+08:00" FORMAT="3.0" VERSION="3.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.mpi.nl/tools/elan/EAFv3.0.xsd">
+    <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
+        <MEDIA_DESCRIPTOR
+            MEDIA_URL="file:///Users/junwei/Third_trip_0102B-Grandpa_lytsa_autobiography.wav"
+            MIME_TYPE="audio/x-wav" RELATIVE_MEDIA_URL="./Third_trip_0102B-Grandpa_lytsa_autobiography.wav"/>
+        <PROPERTY NAME="mvm-fonipa-x-emic">Charis SIL-true</PROPERTY>
+        <PROPERTY NAME="en">Charis SIL</PROPERTY>
+        <PROPERTY NAME="zh-CN">思源宋体 CN-true</PROPERTY>
+        <PROPERTY NAME="languages">mvm-fonipa-x-emic en zh-CN</PROPERTY>
+        <PROPERTY NAME="URN">urn:nl-mpi-tools-elan-eaf:c5a9bbd0-9df3-4db1-90b4-ce3c9cd7a516</PROPERTY>
+        <PROPERTY NAME="lastUsedAnnotationId">422</PROPERTY>
+    </HEADER>
+    <TIME_ORDER>
+        <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
+        <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="2100" />
+    </TIME_ORDER>
+    <TIER TIER_ID="mvm-fonipa-x-emic" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="mvm-fonipa-x-emic" PARTICIPANT="spk1">
+        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+                <ANNOTATION_VALUE>mu31 nji55</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>
+    </TIER>
+    <TIER TIER_ID="en" LINGUISTIC_TYPE_REF="translation-lt" PARENT_REF="mvm-fonipa-x-emic" DEFAULT_LOCALE="en">
+        <ANNOTATION>
+            <REF_ANNOTATION ANNOTATION_ID="a2" ANNOTATION_REF="a1">
+                <ANNOTATION_VALUE>Muya sample line</ANNOTATION_VALUE>
+            </REF_ANNOTATION>
+        </ANNOTATION>
+    </TIER>
+    <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false"/>
+    <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="translation-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Association" GRAPHIC_REFERENCES="false"/>
+    <LANGUAGE LANG_ID="mvm-fonipa-x-emic" LANG_LABEL="Muya (IPA)"/>
+    <LANGUAGE LANG_ID="en" LANG_LABEL="English"/>
+    <LANGUAGE LANG_ID="zh-CN" LANG_LABEL="Chinese, Mandarin"/>
+</ANNOTATION_DOCUMENT>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { UtteranceDocType } from '../../db';
+import type { UtteranceDocType } from '../db';
 import { computeLassoOutcome } from '../utils/waveformSelectionUtils';
 import { fireAndForget } from '../utils/fireAndForget';
 import type WaveSurfer from 'wavesurfer.js';

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { normalizeSelection } from '../utils/selectionUtils';
-import type { UtteranceDocType } from '../../db';
+import type { UtteranceDocType } from '../db';
 
 type Params = {
   selectedUtteranceIdRef: React.MutableRefObject<string>;

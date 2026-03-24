@@ -1,4 +1,4 @@
-import type { TranslationLayerDocType } from '../../db';
+import type { TranslationLayerDocType } from '../db';
 
 export const LANGUAGE_NAME_MAP: Record<string, string> = {
   cmn: '普通话',
@@ -14,6 +14,123 @@ export const LANGUAGE_NAME_MAP: Record<string, string> = {
   ara: '阿拉伯语',
 };
 
+/** BCP 47 已知变体标签的人类可读名 | Human-readable names for well-known BCP 47 variant subtags */
+const VARIANT_LABEL_MAP: Record<string, string> = {
+  fonipa: 'IPA',
+  fonupa: 'UPA',
+  fonxsamp: 'X-SAMPA',
+  pinyin: '拼音',
+  wadegile: '威妥玛',
+  jyutping: '粤拼',
+};
+
+/**
+ * 解析 BCP 47 语言标签 | Parse a BCP 47 language tag into constituent subtags.
+ * 例: "mvm-fonipa-x-emc" → { primary: 'mvm', variants: ['fonipa'], privateUse: 'x-emc' }
+ */
+export function parseBcp47(tag: string): {
+  primary: string;
+  script?: string;
+  region?: string;
+  variants: string[];
+  extensions: string[];
+  privateUse?: string;
+  full: string;
+} {
+  const full = tag.trim();
+  if (!full) return { primary: '', variants: [], extensions: [], full: '' };
+
+  // 私用扩展 x-... 在最后 | Private-use extension comes last
+  const xIdx = full.search(/\b(x-)/i);
+  const mainPart = xIdx >= 0 ? full.slice(0, xIdx).replace(/-$/, '') : full;
+  const privateUse = xIdx >= 0 ? full.slice(xIdx) : undefined;
+
+  const subtags = mainPart.split('-');
+  const primary = (subtags[0] ?? '').toLowerCase();
+  let script: string | undefined;
+  let region: string | undefined;
+  const variants: string[] = [];
+  const extensions: string[] = [];
+
+  for (let i = 1; i < subtags.length; i++) {
+    const st = subtags[i]!;
+    if (st.length === 4 && /^[A-Za-z]{4}$/.test(st) && !script) {
+      // 脚本子标签（4 字母） | Script subtag (4 letters)
+      script = st;
+    } else if (st.length === 2 && /^[A-Za-z]{2}$/.test(st) && !region) {
+      // 区域子标签（2 字母） | Region subtag (2 letters)
+      region = st.toUpperCase();
+    } else if (st.length === 3 && /^[0-9]{3}$/.test(st) && !region) {
+      // 区域子标签（3 数字） | Region subtag (3 digits)
+      region = st;
+    } else if (st.length >= 5 || (st.length === 4 && /^[0-9]/.test(st))) {
+      // 变体子标签 | Variant subtag
+      variants.push(st.toLowerCase());
+    } else if (st.length === 1) {
+      // 扩展前缀 | Extension prefix singleton — collect rest until next singleton/end
+      const extParts = [st];
+      while (i + 1 < subtags.length && subtags[i + 1]!.length > 1) {
+        extParts.push(subtags[++i]!);
+      }
+      extensions.push(extParts.join('-'));
+    }
+  }
+
+  return {
+    primary,
+    ...(script ? { script } : {}),
+    ...(region ? { region } : {}),
+    variants,
+    extensions,
+    ...(privateUse ? { privateUse } : {}),
+    full,
+  };
+}
+
+/**
+ * 从 BCP 47 标签生成人类可读的展示名 | Generate a human-readable display name from a BCP 47 tag.
+ * 例: "mvm-fonipa-x-emc" → "mvm (IPA, x-emc)"
+ * 例: "cmn" → "普通话 cmn"
+ */
+export function formatBcp47Label(tag: string): string {
+  const parsed = parseBcp47(tag);
+  if (!parsed.primary) return '未设置语言';
+
+  const baseName = LANGUAGE_NAME_MAP[parsed.primary]
+    ?? COMMON_LANGUAGES.find((l) => l.code === parsed.primary)?.label;
+
+  const extras: string[] = [];
+  for (const v of parsed.variants) {
+    extras.push(VARIANT_LABEL_MAP[v] ?? v);
+  }
+  if (parsed.privateUse) extras.push(parsed.privateUse);
+
+  const base = baseName ? `${baseName} ${parsed.primary}` : parsed.primary;
+  return extras.length > 0 ? `${base} (${extras.join(', ')})` : base;
+}
+
+/**
+ * 判断 tier 名称是否像 BCP 47 标签，如果是则生成人类可读名 | Detect if a tier name looks like a BCP 47 tag and humanize it.
+ * 例: "mvm-fonipa-x-emc" → "mvm (IPA, x-emc)"  (是 BCP 47 → 转换)
+ * 例: "English translation" → "English translation"  (普通名称 → 保持原样)
+ * 例: "default" → "default"  (单词 → 保持原样)
+ */
+export function humanizeTierName(tierName: string): string {
+  const trimmed = tierName.trim();
+  if (!trimmed) return 'Transcription';
+  // 含空格的一定不是 BCP 47 标签 | Contains space → not a BCP 47 tag
+  if (/\s/.test(trimmed)) return trimmed;
+  const parsed = parseBcp47(trimmed);
+  // 主语言子标签 2-3 字母 + 至少有可解析的子标记 → 视为 BCP 47 | Primary is 2-3 letters with subtags → BCP 47
+  const isPrimary = /^[a-z]{2,3}$/.test(parsed.primary);
+  const hasSubtags = parsed.variants.length > 0 || parsed.extensions.length > 0
+    || parsed.script !== undefined || parsed.region !== undefined || parsed.privateUse !== undefined;
+  if (isPrimary && hasSubtags) {
+    return formatBcp47Label(trimmed);
+  }
+  return trimmed;
+}
+
 export function formatTime(seconds: number): string {
   const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   const mm = Math.floor(safe / 60)
@@ -28,12 +145,11 @@ export function normalizeSingleLine(value: string): string {
 }
 
 export function formatLanguageLabel(code?: string): string {
-  const normalized = (code ?? '').trim().toLowerCase();
+  const normalized = (code ?? '').trim();
   if (!normalized) {
     return '未设置语言';
   }
-  const name = LANGUAGE_NAME_MAP[normalized];
-  return name ? `${name} ${normalized}` : normalized;
+  return formatBcp47Label(normalized);
 }
 
 export function formatLayerLanguageLabel(layer: TranslationLayerDocType): string {
@@ -62,9 +178,9 @@ export function formatLayerRailLabel(layer: TranslationLayerDocType): string {
 }
 
 export function getLayerLabelParts(layer: TranslationLayerDocType): { type: string; lang: string } {
-  const code = (layer.languageId ?? '').trim().toLowerCase();
+  const code = (layer.languageId ?? '').trim();
   const typeLabel = layer.layerType === 'translation' ? '翻译' : '转写';
-  const langLabel = COMMON_LANGUAGES.find((l) => l.code === code)?.label ?? code;
+  const langLabel = formatBcp47Label(code) || code;
   const alias = layer.name.zho
     ?? layer.name.zh
     ?? layer.name.cmn

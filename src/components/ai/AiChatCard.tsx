@@ -1,10 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Check, Copy, Settings } from 'lucide-react';
 import {
-  buildAiToolGoldenSnapshot,
   diffAiToolSnapshot,
-  loadAiToolReplayBundle,
-  serializeAiToolGoldenSnapshot,
   type AiToolGoldenSnapshot,
   type AiToolReplayBundle,
   type AiToolSnapshotDiff,
@@ -17,165 +14,21 @@ import {
 } from '../../ai/providers/providerCatalog';
 import type { AiChatProviderKind, AiChatSettings } from '../../ai/providers/providerCatalog';
 import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
-
-interface PromptTemplateItem {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const PROMPT_TEMPLATES_STORAGE_KEY = 'jieyu.ai.promptTemplates.v1';
-
-function loadPromptTemplatesFromStorage(): PromptTemplateItem[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = window.localStorage.getItem(PROMPT_TEMPLATES_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as PromptTemplateItem[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((item) => typeof item?.id === 'string' && typeof item?.title === 'string' && typeof item?.content === 'string')
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  } catch {
-    return [];
-  }
-}
-
-function newTemplateId(): string {
-  return `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function interpolatePromptTemplate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (_, rawKey: string) => {
-    const key = rawKey.toLowerCase();
-    return vars[key] ?? '';
-  });
-}
-
-function formatToolDecision(isZh: boolean, decision: string): string {
-  if (decision === 'confirmed') return isZh ? '已确认执行' : 'Confirmed';
-  if (decision === 'cancelled') return isZh ? '已取消执行' : 'Cancelled';
-  if (decision === 'confirm_failed') return isZh ? '确认后执行失败' : 'Confirm failed';
-  return decision || (isZh ? '未知' : 'Unknown');
-}
-
-function formatToolName(isZh: boolean, toolName: string): string {
-  const zhMap: Record<string, string> = {
-    delete_transcription_segment: '删除句段',
-    split_transcription_segment: '切分句段',
-    delete_layer: '删除层',
-    set_transcription_text: '写入转写',
-    set_translation_text: '写入翻译',
-    clear_translation_segment: '清空翻译',
-    create_transcription_segment: '创建句段',
-  };
-  const enMap: Record<string, string> = {
-    delete_transcription_segment: 'Delete Segment',
-    split_transcription_segment: 'Split Segment',
-    delete_layer: 'Delete Layer',
-    set_transcription_text: 'Set Transcription',
-    set_translation_text: 'Set Translation',
-    clear_translation_segment: 'Clear Translation',
-    create_transcription_segment: 'Create Segment',
-  };
-  const map = isZh ? zhMap : enMap;
-  return map[toolName] ?? toolName;
-}
-
-function compactInternalId(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.length <= 14) return trimmed;
-  return `${trimmed.slice(0, 6)}...${trimmed.slice(-4)}`;
-}
-
-function formatPendingTarget(
-  isZh: boolean,
-  call: { name: string; arguments: Record<string, unknown> },
-): string | null {
-  if (call.name === 'delete_transcription_segment') {
-    const utteranceId = typeof call.arguments.utteranceId === 'string' ? call.arguments.utteranceId.trim() : '';
-    if (!utteranceId) return isZh ? '当前选中句段' : 'Current selected segment';
-    return isZh ? `句段（${compactInternalId(utteranceId)}）` : `Segment (${compactInternalId(utteranceId)})`;
-  }
-
-  if (call.name === 'delete_layer') {
-    const layerId = typeof call.arguments.layerId === 'string' ? call.arguments.layerId.trim() : '';
-    if (layerId) {
-      return isZh ? `层（${compactInternalId(layerId)}）` : `Layer (${compactInternalId(layerId)})`;
-    }
-
-    const layerType = typeof call.arguments.layerType === 'string' ? call.arguments.layerType.trim() : '';
-    const languageQuery = typeof call.arguments.languageQuery === 'string' ? call.arguments.languageQuery.trim() : '';
-    if (!layerType && !languageQuery) return null;
-
-    const layerTypeLabel = layerType === 'translation'
-      ? (isZh ? '翻译层' : 'Translation layer')
-      : layerType === 'transcription'
-        ? (isZh ? '转写层' : 'Transcription layer')
-        : (isZh ? '目标层' : 'Target layer');
-
-    if (!languageQuery) return layerTypeLabel;
-    return isZh ? `${layerTypeLabel}（语言：${languageQuery}）` : `${layerTypeLabel} (language: ${languageQuery})`;
-  }
-
-  return null;
-}
-
-function formatPendingConfirmActionLabel(
-  isZh: boolean,
-  callName: string,
-): string {
-  const isDeleteAction = callName === 'delete_transcription_segment' || callName === 'delete_layer';
-  if (isDeleteAction) return isZh ? '确认删除' : 'Confirm Delete';
-  return isZh ? '确认执行' : 'Confirm Action';
-}
-
-function normalizeImpactPreviewLines(
-  lines: string[],
-  reversible: boolean,
-): string[] {
-  const irreversiblePattern = /(不可逆|irreversible)/i;
-  const reversiblePattern = /(可撤销|可逆|撤销恢复|undo|reversible)/i;
-
-  return lines.filter((line) => {
-    if (reversible) return !irreversiblePattern.test(line);
-    return !reversiblePattern.test(line);
-  });
-}
-
-function sanitizeSnapshotFileName(raw: string): string {
-  return raw.trim().replace(/[^a-z0-9_-]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'snapshot';
-}
-
-function formatReplayableLabel(isZh: boolean, replayable: boolean): string {
-  return replayable
-    ? (isZh ? '可重放' : 'Replayable')
-    : (isZh ? '仅可审计' : 'Audit only');
-}
-
-function formatCitationLabel(
-  isZh: boolean,
-  citation: { type: 'utterance' | 'note' | 'pdf' | 'schema'; label?: string; refId: string },
-): string {
-  const fallback = citation.type === 'utterance'
-    ? (isZh ? '句段参考' : 'Utterance Ref')
-    : citation.type === 'note'
-      ? (isZh ? '笔记参考' : 'Note Ref')
-      : citation.type === 'pdf'
-        ? (isZh ? '文档参考' : 'Document Ref')
-        : (isZh ? '参考' : 'Reference');
-
-  const raw = (citation.label ?? '').trim();
-  if (!raw) return fallback;
-
-  // 兼容旧数据：隐藏内部 ID 前缀（如 utt:xxx / note:xxx / pdf:xxx / utt_xxx）
-  const legacyIdLike = /^(utt:|note:|pdf:|utt_|note_|pdf_)/i;
-  if (legacyIdLike.test(raw)) return fallback;
-
-  return raw;
-}
+import {
+  formatCitationLabel,
+  formatToolDecision,
+} from './aiChatCardUtils';
+import {
+  exportReplayBundleSnapshot,
+  openReplayBundleByRequestId,
+  parseImportedGoldenSnapshot,
+} from './aiChatReplayUtils';
+import { AiChatAlertsPanel } from './AiChatAlertsPanel';
+import { AiChatCandidateChips } from './AiChatCandidateChips';
+import { AiChatMetricsBar } from './AiChatMetricsBar';
+import { AiChatPromptLabModal } from './AiChatPromptLabModal';
+import { AiChatReplayDetailPanel } from './AiChatReplayDetailPanel';
+import { useAiPromptTemplates } from './useAiPromptTemplates';
 
 type AiChatCardProps = {
   embedded?: boolean;
@@ -222,10 +75,6 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const [showProviderConfig, setShowProviderConfig] = useState(false);
   const [showPromptLab, setShowPromptLab] = useState(false);
   const [debugUiShowAll, setDebugUiShowAll] = useState(false);
-  const [promptTemplates, setPromptTemplates] = useState<PromptTemplateItem[]>(() => loadPromptTemplatesFromStorage());
-  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
-  const [templateTitleInput, setTemplateTitleInput] = useState('');
-  const [templateContentInput, setTemplateContentInput] = useState('');
   const [selectedReplayBundle, setSelectedReplayBundle] = useState<AiToolReplayBundle | null>(null);
   const [replayLoadingRequestId, setReplayLoadingRequestId] = useState<string | null>(null);
   const [replayErrorMessage, setReplayErrorMessage] = useState<string | null>(null);
@@ -268,66 +117,23 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     };
   }, [lexemeMatches, observerStage, selectedRowMeta, selectedUtterance]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(PROMPT_TEMPLATES_STORAGE_KEY, JSON.stringify(promptTemplates));
-  }, [promptTemplates]);
-
-  const savePromptTemplate = (): void => {
-    const title = templateTitleInput.trim();
-    const content = templateContentInput.trim();
-    if (!title || !content) return;
-
-    const now = new Date().toISOString();
-    if (editingTemplateId) {
-      setPromptTemplates((prev) => prev
-        .map((item) => (item.id === editingTemplateId
-          ? { ...item, title, content, updatedAt: now }
-          : item
-        ))
-        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
-    } else {
-      const next: PromptTemplateItem = {
-        id: newTemplateId(),
-        title,
-        content,
-        createdAt: now,
-        updatedAt: now,
-      };
-      setPromptTemplates((prev) => [next, ...prev]);
-    }
-
-    setEditingTemplateId(null);
-    setTemplateTitleInput('');
-    setTemplateContentInput('');
-  };
-
-  const editPromptTemplate = (item: PromptTemplateItem): void => {
-    setEditingTemplateId(item.id);
-    setTemplateTitleInput(item.title);
-    setTemplateContentInput(item.content);
-    setShowPromptLab(true);
-  };
-
-  const removePromptTemplate = (id: string): void => {
-    setPromptTemplates((prev) => prev.filter((item) => item.id !== id));
-    if (editingTemplateId === id) {
-      setEditingTemplateId(null);
-      setTemplateTitleInput('');
-      setTemplateContentInput('');
-    }
-  };
-
-  const injectPromptTemplate = (content: string): void => {
-    const rendered = interpolatePromptTemplate(content, promptVars).trim();
-    if (!rendered) return;
-    setChatInput(rendered);
-  };
-
-  const appendPromptVariable = (name: string): void => {
-    const token = `{{${name}}}`;
-    setTemplateContentInput((prev) => `${prev}${prev.endsWith(' ') || prev.length === 0 ? '' : ' '}${token}`);
-  };
+  const {
+    promptTemplates,
+    editingTemplateId,
+    templateTitleInput,
+    templateContentInput,
+    setTemplateTitleInput,
+    setTemplateContentInput,
+    savePromptTemplate,
+    editPromptTemplate,
+    removePromptTemplate,
+    injectPromptTemplate,
+    appendPromptVariable,
+  } = useAiPromptTemplates({
+    promptVars,
+    onInjectRenderedPrompt: setChatInput,
+    onEditTemplate: () => setShowPromptLab(true),
+  });
 
   const providerGroups = useMemo(() => {
     const directKinds: AiChatProviderKind[] = ['deepseek', 'qwen', 'anthropic', 'gemini', 'ollama', 'minimax'];
@@ -425,7 +231,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     }
     return null;
   }, [hasToolPending, isZh]);
-  const [showAlertBar, setShowAlertBar] = useState(alertCount > 0);
+  const [showAlertBar, setShowAlertBar] = useState(() => alertCount > 0);
   const [showDecisionPanel, setShowDecisionPanel] = useState(true);
   const [showReplayDetailPanel, setShowReplayDetailPanel] = useState(false);
   const [dismissedErrorWarning, setDismissedErrorWarning] = useState(false);
@@ -626,56 +432,33 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const openReplayBundle = async (requestId: string): Promise<void> => {
     setReplayLoadingRequestId(requestId);
     setReplayErrorMessage(null);
-    try {
-      const bundle = await loadAiToolReplayBundle(requestId);
-      if (!bundle) {
-        setSelectedReplayBundle(null);
-        setReplayErrorMessage(isZh ? '未找到对应回放数据。' : 'Replay bundle was not found.');
-        return;
-      }
-      setSelectedReplayBundle(bundle);
-      // 若已导入对比快照，自动重算 diff | Auto-recompute diff if a baseline snapshot is loaded
-      if (compareSnapshot) {
-        setSnapshotDiff(diffAiToolSnapshot(compareSnapshot, bundle));
-      }
-    } catch (error) {
-      setSelectedReplayBundle(null);
-      setReplayErrorMessage(error instanceof Error ? error.message : (isZh ? '读取回放失败。' : 'Failed to load replay bundle.'));
-    } finally {
-      setReplayLoadingRequestId(null);
-    }
+    const result = await openReplayBundleByRequestId(requestId, compareSnapshot, isZh);
+    setSelectedReplayBundle(result.bundle);
+    setReplayErrorMessage(result.errorMessage);
+    setSnapshotDiff(result.snapshotDiff);
+    setReplayLoadingRequestId(null);
   };
 
   const exportGoldenSnapshot = async (requestId: string): Promise<void> => {
     setReplayErrorMessage(null);
-    try {
-      const bundle = selectedReplayBundle?.requestId === requestId
-        ? selectedReplayBundle
-        : await loadAiToolReplayBundle(requestId);
-      if (!bundle) {
-        setReplayErrorMessage(isZh ? '导出失败：未找到对应回放数据。' : 'Export failed: replay bundle was not found.');
-        return;
-      }
-      const payload = serializeAiToolGoldenSnapshot(bundle);
-      if (typeof window === 'undefined') return;
-      const blob = new Blob([payload], { type: 'application/json' });
-      const url = window.URL.createObjectURL(blob);
-      const anchor = window.document.createElement('a');
-      anchor.href = url;
-      anchor.download = `ai-tool-golden-${sanitizeSnapshotFileName(bundle.toolName)}-${bundle.requestId}.json`;
-      anchor.click();
-      window.URL.revokeObjectURL(url);
-      setSelectedReplayBundle(bundle);
+    const result = await exportReplayBundleSnapshot(requestId, selectedReplayBundle, isZh);
+    if (result.errorMessage) {
+      setReplayErrorMessage(result.errorMessage);
+      return;
+    }
+
+    if (result.bundle) {
+      setSelectedReplayBundle(result.bundle);
       setExportedSnapshotRequestId(requestId);
-      if (exportedSnapshotTimerRef.current !== null) {
+      if (typeof window !== 'undefined' && exportedSnapshotTimerRef.current !== null) {
         window.clearTimeout(exportedSnapshotTimerRef.current);
       }
-      exportedSnapshotTimerRef.current = window.setTimeout(() => {
-        setExportedSnapshotRequestId((current) => (current === requestId ? null : current));
-        exportedSnapshotTimerRef.current = null;
-      }, 1200);
-    } catch (error) {
-      setReplayErrorMessage(error instanceof Error ? error.message : (isZh ? '导出快照失败。' : 'Failed to export snapshot.'));
+      if (typeof window !== 'undefined') {
+        exportedSnapshotTimerRef.current = window.setTimeout(() => {
+          setExportedSnapshotRequestId((current) => (current === requestId ? null : current));
+          exportedSnapshotTimerRef.current = null;
+        }, 1200);
+      }
     }
   };
 
@@ -684,18 +467,19 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     setReplayErrorMessage(null);
     const reader = new FileReader();
     reader.onload = (e) => {
-      try {
-        const json = JSON.parse(e.target?.result as string) as AiToolGoldenSnapshot;
-        if (json?.schemaVersion !== 1 || typeof json?.requestId !== 'string') {
-          setReplayErrorMessage(isZh ? '快照格式无效，请导入有效的 golden snapshot 文件。' : 'Invalid snapshot format. Please import a valid golden snapshot file.');
-          return;
-        }
-        setCompareSnapshot(json);
-        if (selectedReplayBundle) {
-          setSnapshotDiff(diffAiToolSnapshot(json, selectedReplayBundle));
-        }
-      } catch {
-        setReplayErrorMessage(isZh ? '快照解析失败，文件格式有误。' : 'Failed to parse snapshot file.');
+      const result = parseImportedGoldenSnapshot((e.target?.result as string) ?? '', isZh);
+      if (result.errorMessage) {
+        setReplayErrorMessage(result.errorMessage);
+        return;
+      }
+
+      if (result.snapshot) {
+        setCompareSnapshot(result.snapshot);
+        setSnapshotDiff(
+          selectedReplayBundle
+            ? diffAiToolSnapshot(result.snapshot, selectedReplayBundle)
+            : null,
+        );
       }
     };
     reader.readAsText(file);
@@ -1055,155 +839,36 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
             )}
           </div>
 
-          {errorWarningText && !dismissedErrorWarning && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 8,
-              padding: '6px 8px',
-              borderRadius: 8,
-              border: '1px solid rgba(245, 158, 11, 0.4)',
-              background: 'rgba(255, 251, 235, 0.9)',
-              color: '#92400e',
-              fontSize: 11,
-            }}>
-              <span>{errorWarningText}</span>
-              <button
-                type="button"
-                className="icon-btn"
-                style={{ height: 22, minWidth: 54, fontSize: 10 }}
-                onClick={() => setDismissedErrorWarning(true)}
-              >
-                {isZh ? '清除' : 'Dismiss'}
-              </button>
-            </div>
-          )}
-
-          {/* P1: Unified AlertBar — collapsed single row, expands on click */}
-          {(alertCount > 0 || debugUiShowAll) && (
-            <div style={{ borderTop: '1px solid rgba(148,163,184,0.15)', flexShrink: 0 }}>
-              {/* Alert summary row */}
-              <button
-                type="button"
-                onClick={() => setShowAlertBar((p) => !p)}
-                style={{
-                  width: '100%', background: 'none', border: 'none', padding: '5px 10px',
-                  display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-                  fontSize: 11, color: '#92400e',
-                }}
-              >
-                <span style={{ fontSize: 14 }}>{hasToolPending ? '⚡' : '📋'}</span>
-                <span style={{ flex: 1, textAlign: 'left' }}>
-                  {hasToolPending && ` ${isZh ? '待确认工具调用' : 'Tool call pending'}`}
-                  {debugUiShowAll && !hasToolPending && ` ${isZh ? '演示：告警详情区' : 'Demo: alert details'}`}
-                </span>
-                <span style={{ fontSize: 10, opacity: 0.6 }}>{showAlertBar ? (isZh ? '▲ 收起' : '▲ Hide') : (isZh ? '▼ 展开' : '▼ Expand')}</span>
-              </button>
-
-              {/* Expanded alert detail */}
-              {showAlertBar && (
-                <div style={{ padding: '0 10px 8px', display: 'grid', gap: 6 }}>
-                  {aiPendingToolCall && (
-                    <div style={{ border: '1px solid #f59e0b', background: '#fffbeb', borderRadius: 6, padding: '6px 8px', display: 'grid', gap: 4 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#92400e' }}>{isZh ? '⚡ 删除操作确认' : '⚡ Confirm Destructive Action'}</div>
-                      <div style={{ fontSize: 11 }}>{isZh ? '操作' : 'Action'}: {formatToolName(isZh, aiPendingToolCall.call.name)}</div>
-                      {(() => {
-                        const pendingTarget = formatPendingTarget(isZh, aiPendingToolCall.call);
-                        if (!pendingTarget) return null;
-                        return <div style={{ fontSize: 11 }}>{isZh ? '目标' : 'Target'}: {pendingTarget}</div>;
-                      })()}
-                      {aiPendingToolCall.riskSummary && <div style={{ fontSize: 11, color: '#92400e' }}>{aiPendingToolCall.riskSummary}</div>}
-                      {aiPendingToolCall.previewContract && (
-                        <div style={{ fontSize: 10, color: '#78350f', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <span>{isZh ? '影响' : 'Affects'}: {aiPendingToolCall.previewContract.affectedCount} {isZh ? '项' : 'item(s)'}</span>
-                          {!aiPendingToolCall.previewContract.reversible && <span style={{ color: '#b91c1c' }}>{isZh ? '不可逆' : 'Irreversible'}</span>}
-                          {(aiPendingToolCall.previewContract.cascadeTypes ?? []).length > 0 && (
-                            <span>{isZh ? '级联' : 'Cascade'}: {(aiPendingToolCall.previewContract.cascadeTypes ?? []).join(', ')}</span>
-                          )}
-                        </div>
-                      )}
-                      {normalizeImpactPreviewLines(
-                        aiPendingToolCall.impactPreview ?? [],
-                        aiPendingToolCall.previewContract?.reversible ?? false,
-                      ).length > 0 && (
-                        <ul style={{ margin: 0, paddingLeft: 16, fontSize: 10, color: '#7c2d12' }}>
-                          {normalizeImpactPreviewLines(
-                            aiPendingToolCall.impactPreview ?? [],
-                            aiPendingToolCall.previewContract?.reversible ?? false,
-                          ).slice(0, 3).map((line) => <li key={line}>{line}</li>)}
-                        </ul>
-                      )}
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button type="button" className="icon-btn" style={{ height: 24, minWidth: 92, fontSize: 11 }} disabled={!onConfirmPendingToolCall} onClick={() => void onConfirmPendingToolCall?.()}>{formatPendingConfirmActionLabel(isZh, aiPendingToolCall.call.name)}</button>
-                        <button type="button" className="icon-btn" style={{ height: 24, minWidth: 64, fontSize: 11 }} disabled={!onCancelPendingToolCall} onClick={() => void onCancelPendingToolCall?.()}>{isZh ? '取消' : 'Cancel'}</button>
-                      </div>
-                    </div>
-                  )}
-                  {debugUiShowAll && !aiPendingToolCall && (
-                    <p className="small-text" style={{ margin: 0 }}>{isZh ? '演示模式：这里会显示错误和待确认工具调用详情。' : 'Demo mode: error and pending tool-call details appear here.'}</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          <AiChatAlertsPanel
+            isZh={isZh}
+            errorWarningText={errorWarningText ?? ''}
+            dismissedErrorWarning={dismissedErrorWarning}
+            alertCount={alertCount}
+            debugUiShowAll={debugUiShowAll}
+            showAlertBar={showAlertBar}
+            aiPendingToolCall={aiPendingToolCall}
+            onDismissErrorWarning={() => setDismissedErrorWarning(true)}
+            onToggleAlertBar={() => setShowAlertBar((prev) => !prev)}
+            onConfirmPendingToolCall={onConfirmPendingToolCall}
+            onCancelPendingToolCall={onCancelPendingToolCall}
+          />
 
           {/* 候选快捷回复条 | Candidate quick-reply chips */}
           {((aiTaskSession?.status === 'waiting_clarify' && (aiTaskSession.candidates ?? []).length > 0) || debugUiShowAll) && (
-            <div className="ai-chat-candidate-chips" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 0', flexShrink: 0 }}>
-              {((aiTaskSession?.candidates ?? []).length > 0 ? (aiTaskSession?.candidates ?? []) : [{ key: 'demo-1', label: isZh ? '示例候选 1' : 'Sample candidate 1' }, { key: 'demo-2', label: isZh ? '示例候选 2' : 'Sample candidate 2' }]).map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  className="icon-btn ai-chat-candidate-chip"
-                  style={{ height: 26, fontSize: 11, padding: '0 10px', borderRadius: 13 }}
-                  disabled={!onSendAiMessage || aiIsStreaming || debugUiShowAll}
-                  onClick={() => {
-                    if (debugUiShowAll) return;
-                    void onSendAiMessage?.(c.label);
-                  }}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
+            <AiChatCandidateChips
+              isZh={isZh}
+              aiIsStreaming={Boolean(aiIsStreaming)}
+              debugUiShowAll={debugUiShowAll}
+              candidates={aiTaskSession?.candidates ?? []}
+              onSendAiMessage={onSendAiMessage}
+            />
           )}
 
-          {/* 交互指标迷你仪表盘 | Interaction metrics mini dashboard */}
-          {aiInteractionMetrics && (
-            <div
-              className="ai-chat-metrics-bar"
-              style={{
-                display: 'flex', gap: 8, flexWrap: 'wrap', padding: '3px 0',
-                fontSize: 10, color: '#64748b', flexShrink: 0,
-              }}
-            >
-              <span title={isZh ? '对话轮次' : 'Turns'}>{isZh ? '轮次' : 'Turns'} {aiInteractionMetrics.turnCount}</span>
-              {aiInteractionMetrics.successCount > 0 && (
-                <span style={{ color: '#16a34a' }} title={isZh ? '执行成功' : 'Successes'}>✓ {aiInteractionMetrics.successCount}</span>
-              )}
-              {aiInteractionMetrics.failureCount > 0 && (
-                <span style={{ color: '#dc2626' }} title={isZh ? '执行失败' : 'Failures'}>✗ {aiInteractionMetrics.failureCount}</span>
-              )}
-              {aiInteractionMetrics.clarifyCount > 0 && (
-                <span title={isZh ? '澄清次数' : 'Clarifications'}>{isZh ? '澄清' : 'Clarify'} {aiInteractionMetrics.clarifyCount}</span>
-              )}
-              {aiInteractionMetrics.cancelCount > 0 && (
-                <span title={isZh ? '取消次数' : 'Cancellations'}>{isZh ? '取消' : 'Cancel'} {aiInteractionMetrics.cancelCount}</span>
-              )}
-              {aiInteractionMetrics.explainFallbackCount > 0 && (
-                <span title={isZh ? '解释回退' : 'Explain fallbacks'}>{isZh ? '解释' : 'Explain'} {aiInteractionMetrics.explainFallbackCount}</span>
-              )}
-              {aiInteractionMetrics.recoveryCount > 0 && (
-                <span style={{ color: '#2563eb' }} title={isZh ? '恢复次数' : 'Recoveries'}>{isZh ? '恢复' : 'Recover'} {aiInteractionMetrics.recoveryCount}</span>
-              )}
-              {aiSessionMemory?.lastToolName && (
-                <span style={{ marginLeft: 'auto', fontStyle: 'italic' }} title={isZh ? '上次工具' : 'Last tool'}>
-                  {formatToolName(isZh, aiSessionMemory.lastToolName)}
-                </span>
-              )}
-            </div>
-          )}
+          <AiChatMetricsBar
+            isZh={isZh}
+            aiInteractionMetrics={aiInteractionMetrics}
+            aiSessionMemory={aiSessionMemory}
+          />
 
           {/* Input row */}
           <div style={{ display: 'grid', gap: 6, flexShrink: 0 }}>
@@ -1351,180 +1016,51 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                         <div style={{ fontSize: 10, color: '#b91c1c' }}>{replayErrorMessage}</div>
                       )}
                       {selectedReplayBundle && (
-                        <div style={{ border: '1px solid #cbd5e1', background: '#fff', borderRadius: 6, padding: '8px', display: 'grid', gap: 6 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                            <strong style={{ fontSize: 11 }}>{isZh ? '回放 / 对比' : 'Replay / Compare'}</strong>
-                            <div style={{ display: 'flex', gap: 6 }}>
-                              <button type="button" className="icon-btn" style={{ height: 22, minWidth: 70, fontSize: 10 }} onClick={() => setShowReplayDetailPanel((prev) => !prev)}>{showReplayDetailPanel ? (isZh ? '收起详情' : 'Hide detail') : (isZh ? '展开详情' : 'Show detail')}</button>
-                              <button type="button" className="icon-btn" style={{ height: 22, minWidth: 44, fontSize: 10 }} onClick={() => { setSelectedReplayBundle(null); setCompareSnapshot(null); setSnapshotDiff(null); }}>{isZh ? '关闭' : 'Close'}</button>
-                            </div>
-                          </div>
-                          <div style={{ fontSize: 10, display: 'grid', gap: 2 }}>
-                            <div>{isZh ? '工具' : 'Tool'}: {formatToolName(isZh, selectedReplayBundle.toolName)}</div>
-                            <div>{isZh ? '请求' : 'Request'}: {compactInternalId(selectedReplayBundle.requestId)}</div>
-                            <div>{isZh ? '状态' : 'Status'}: {formatReplayableLabel(isZh, selectedReplayBundle.replayable)}</div>
-                            {selectedReplayBundle.latestDecision && (
-                              <div>{isZh ? '最新决策' : 'Latest decision'}: {formatToolDecision(isZh, selectedReplayBundle.latestDecision.decision)}</div>
-                            )}
-                          </div>
-                          {showReplayDetailPanel && (
-                            <>
-                          {selectedReplayBundle.toolCall?.arguments && (
-                            <div style={{ display: 'grid', gap: 4 }}>
-                              <div style={{ fontSize: 10, fontWeight: 600 }}>{isZh ? '执行参数' : 'Tool arguments'}</div>
-                              <pre style={{ margin: 0, padding: 6, fontSize: 10, lineHeight: 1.4, background: '#f8fafc', borderRadius: 4, overflowX: 'auto' }}>{JSON.stringify(selectedReplayBundle.toolCall.arguments, null, 2)}</pre>
-                            </div>
-                          )}
-                          <div style={{ display: 'grid', gap: 4 }}>
-                            <div style={{ fontSize: 10, fontWeight: 600 }}>{isZh ? '决策轨迹' : 'Decision timeline'}</div>
-                            <div style={{ display: 'grid', gap: 3 }}>
-                              {selectedReplayBundle.decisions.map((decision) => (
-                                <div key={`${decision.timestamp}-${decision.decision}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 10 }}>
-                                  <span>{formatToolDecision(isZh, decision.decision)}{decision.reason ? ` · ${decision.reason}` : ''}</span>
-                                  <em>{new Date(decision.timestamp).toLocaleTimeString()}</em>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          <div style={{ display: 'grid', gap: 4 }}>
-                            <div style={{ fontSize: 10, fontWeight: 600 }}>{isZh ? 'Golden 快照预览' : 'Golden Snapshot Preview'}</div>
-                            <pre style={{ margin: 0, padding: 6, fontSize: 10, lineHeight: 1.4, background: '#f8fafc', borderRadius: 4, overflowX: 'auto', maxHeight: 160, overflowY: 'auto' }}>{JSON.stringify(buildAiToolGoldenSnapshot(selectedReplayBundle), null, 2)}</pre>
-                          </div>
-                          {/* 导入对比区 | Import & compare row */}
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                            <input
-                              type="file"
-                              accept=".json"
-                              style={{ display: 'none' }}
-                              ref={importFileInputRef}
-                              onChange={(e) => {
-                                const file = e.currentTarget.files?.[0];
-                                if (file) importSnapshotForCompare(file);
-                                e.currentTarget.value = '';
-                              }}
-                            />
-                            <button
-                              type="button"
-                              className="icon-btn"
-                              style={{ fontSize: 9, height: 18 }}
-                              onClick={() => importFileInputRef.current?.click()}
-                            >
-                              {isZh ? '导入快照对比' : 'Import & Compare'}
-                            </button>
-                            {compareSnapshot && (
-                              <button
-                                type="button"
-                                className="icon-btn"
-                                style={{ fontSize: 9, height: 18 }}
-                                onClick={() => { setCompareSnapshot(null); setSnapshotDiff(null); }}
-                              >
-                                {isZh ? '清除对比' : 'Clear diff'}
-                              </button>
-                            )}
-                          </div>
-                          {/* diff 结果面板 | Diff result panel */}
-                          {snapshotDiff && compareSnapshot && (
-                            <div style={{ display: 'grid', gap: 4 }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                                <div style={{ fontSize: 10, fontWeight: 600 }}>{isZh ? '快照对比' : 'Snapshot Diff'}</div>
-                                <span style={{ fontSize: 10, fontWeight: 600, color: snapshotDiff.matches ? '#16a34a' : '#d97706' }}>
-                                  {snapshotDiff.matches ? (isZh ? '✓ 一致' : '✓ Matches') : (isZh ? '△ 有差异' : '△ Changed')}
-                                </span>
-                              </div>
-                              <div style={{ fontSize: 9, opacity: 0.6 }}>
-                                {isZh ? `基准: ${compactInternalId(compareSnapshot.requestId)}` : `Baseline: ${compactInternalId(compareSnapshot.requestId)}`}
-                              </div>
-                              <div style={{ display: 'grid', gap: 2 }}>
-                                {snapshotDiff.fields.map((f) => (
-                                  <div key={f.label} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 6, fontSize: 9 }}>
-                                    <span style={{ fontFamily: 'monospace', color: '#64748b' }}>{f.label}</span>
-                                    {f.changed
-                                      ? <span style={{ color: '#b91c1c' }}>{f.baseline} {'\u2192'} {f.live}</span>
-                                      : <span style={{ color: '#16a34a' }}>✓</span>
-                                    }
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                            </>
-                          )}
-                        </div>
+                        <AiChatReplayDetailPanel
+                          isZh={isZh}
+                          selectedReplayBundle={selectedReplayBundle}
+                          showReplayDetailPanel={showReplayDetailPanel}
+                          compareSnapshot={compareSnapshot}
+                          snapshotDiff={snapshotDiff}
+                          importFileInputRef={importFileInputRef}
+                          onToggleDetail={() => setShowReplayDetailPanel((prev) => !prev)}
+                          onClose={() => {
+                            setSelectedReplayBundle(null);
+                            setCompareSnapshot(null);
+                            setSnapshotDiff(null);
+                          }}
+                          onImportSnapshotFile={importSnapshotForCompare}
+                          onClearCompare={() => {
+                            setCompareSnapshot(null);
+                            setSnapshotDiff(null);
+                          }}
+                        />
                       )}
                     </div>
                   </div>
               </div>
           </div>
 
-          {/* P2: PromptLab modal overlay */}
-          {showPromptLab && (
-            <div
-              style={{
-                position: 'absolute', inset: 0, zIndex: 50,
-                background: 'rgba(15,23,42,0.6)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: 16,
-              }}
-              onClick={(e) => { if (e.target === e.currentTarget) setShowPromptLab(false); }}
-            >
-              <div
-                style={{
-                  background: 'var(--color-bg-primary, #fff)', borderRadius: 12,
-                  padding: 16, width: '100%', maxWidth: 480,
-                  display: 'grid', gap: 10, maxHeight: '80vh', overflowY: 'auto',
-                  boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-                }}
-              >
-                {/* Modal header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <strong style={{ fontSize: 13 }}>{isZh ? 'Prompt 实验室' : 'Prompt Lab'}</strong>
-                  <button type="button" className="icon-btn" style={{ height: 26, minWidth: 48, fontSize: 12 }} onClick={() => setShowPromptLab(false)}>{isZh ? '关闭' : 'Close'}</button>
-                </div>
-
-                {/* Template list */}
-                <div style={{ display: 'grid', gap: 6 }}>
-                  {promptTemplates.length === 0 ? (
-                    <p className="small-text" style={{ margin: 0 }}>{isZh ? '暂无模板。可创建并在对话前一键注入。' : 'No template yet.'}</p>
-                  ) : (
-                    promptTemplates.slice(0, 6).map((item) => (
-                      <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 4, alignItems: 'center' }}>
-                        <span className="small-text" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.content}>{item.title}</span>
-                        <button type="button" className="icon-btn" style={{ height: 24, minWidth: 52, fontSize: 11 }} onClick={() => injectPromptTemplate(item.content)}>{isZh ? '注入' : 'Inject'}</button>
-                        <button type="button" className="icon-btn" style={{ height: 24, minWidth: 44, fontSize: 11 }} onClick={() => editPromptTemplate(item)}>{isZh ? '编辑' : 'Edit'}</button>
-                        <button type="button" className="icon-btn" style={{ height: 24, minWidth: 44, fontSize: 11 }} onClick={() => removePromptTemplate(item.id)}>{isZh ? '删除' : 'Del'}</button>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Template editor */}
-                <div style={{ display: 'grid', gap: 6, borderTop: '1px dashed #cbd5e1', paddingTop: 10 }}>
-                  <input
-                    type="text"
-                    value={templateTitleInput}
-                    placeholder={isZh ? '模板名称' : 'Template title'}
-                    onChange={(e) => setTemplateTitleInput(e.currentTarget.value)}
-                    style={{ height: 28, fontSize: 12, padding: '0 8px' }}
-                  />
-                  <textarea
-                    value={templateContentInput}
-                    placeholder={isZh ? '模板内容，支持 {{selected_text}} 等变量' : 'Template body with {{selected_text}} {{current_utterance}}...'}
-                    onChange={(e) => setTemplateContentInput(e.currentTarget.value)}
-                    style={{ minHeight: 80, fontSize: 12, padding: 8, resize: 'vertical' }}
-                  />
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {['selected_text', 'current_utterance', 'lexicon_summary', 'project_stage', 'current_row'].map((token) => (
-                      <button key={token} type="button" className="icon-btn" style={{ height: 22, minWidth: 72, fontSize: 10 }} onClick={() => appendPromptVariable(token)}>{`{{${token}}}`}</button>
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button type="button" className="icon-btn" style={{ height: 26, minWidth: 80, fontSize: 12 }} disabled={templateTitleInput.trim().length === 0 || templateContentInput.trim().length === 0} onClick={savePromptTemplate}>{editingTemplateId ? (isZh ? '更新' : 'Update') : (isZh ? '保存' : 'Save')}</button>
-                    <button type="button" className="icon-btn" style={{ height: 26, minWidth: 100, fontSize: 12 }} disabled={templateContentInput.trim().length === 0} onClick={() => { injectPromptTemplate(templateContentInput); setShowPromptLab(false); }}>{isZh ? '注入并关闭' : 'Inject & close'}</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          <AiChatPromptLabModal
+            isZh={isZh}
+            showPromptLab={showPromptLab}
+            promptTemplates={promptTemplates}
+            editingTemplateId={editingTemplateId}
+            templateTitleInput={templateTitleInput}
+            templateContentInput={templateContentInput}
+            onClose={() => setShowPromptLab(false)}
+            onInjectTemplate={injectPromptTemplate}
+            onEditTemplate={editPromptTemplate}
+            onRemoveTemplate={removePromptTemplate}
+            onTemplateTitleInputChange={setTemplateTitleInput}
+            onTemplateContentInputChange={setTemplateContentInput}
+            onAppendPromptVariable={appendPromptVariable}
+            onSaveTemplate={savePromptTemplate}
+            onInjectAndClose={() => {
+              injectPromptTemplate(templateContentInput);
+              setShowPromptLab(false);
+            }}
+          />
         </>
       )}
     </div>

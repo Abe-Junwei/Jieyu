@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { LinguisticService } from '../../services/LinguisticService';
-import type { UtteranceDocType } from '../../db';
+import { LinguisticService } from '../services/LinguisticService';
+import type { UtteranceDocType } from '../db';
 
 type Params = {
   runWithDbMutex: <T>(task: () => Promise<T>) => Promise<T>;

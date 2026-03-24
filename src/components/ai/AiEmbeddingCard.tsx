@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { detectLocale } from '../../i18n';
-import { useAiPanelContext } from '../../contexts/AiPanelContext';
+import { useEmbeddingContext } from '../../contexts/EmbeddingContext';
 import type { EmbeddingProviderKind } from '../../ai/embeddings/EmbeddingProvider';
 import { Check } from 'lucide-react';
 
@@ -36,7 +36,7 @@ export function AiEmbeddingCard() {
     onJumpToEmbeddingMatch,
     onCancelAiTask,
     onRetryAiTask,
-  } = useAiPanelContext();
+  } = useEmbeddingContext();
 
   const [taskTypeFilter, setTaskTypeFilter] = useState<'all' | 'embed' | 'gloss'>('all');
   const [embeddingAvailability, setEmbeddingAvailability] = useState<'idle' | 'testing' | 'available' | 'unavailable'>('idle');

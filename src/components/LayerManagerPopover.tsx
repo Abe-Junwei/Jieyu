@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AudioLines, Languages, Trash2 } from 'lucide-react';
-import type { TranslationLayerDocType } from '../../db';
+import type { TranslationLayerDocType } from '../db';
 import type { LayerCreateInput } from '../hooks/useTranscriptionData';
 import { COMMON_LANGUAGES } from '../utils/transcriptionFormatters';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -58,7 +58,7 @@ export function LayerManagerPopover({
   message,
 }: LayerManagerPopoverProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const [shouldRenderBubble, setShouldRenderBubble] = useState(isOpen);
+  const [shouldRenderBubble, setShouldRenderBubble] = useState(() => isOpen);
   const [transcriptionForm, setTranscriptionForm] = useState<LayerCreateInput>({
     languageId: '',
   });

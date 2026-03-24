@@ -15,6 +15,18 @@ import {
 import { detectLocale, t } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 
+interface ExportCallbacks {
+  onToggleExportMenu: () => void;
+  onExportEaf: () => void;
+  onExportTextGrid: () => void;
+  onExportTrs: () => void;
+  onExportFlextext: () => void;
+  onExportToolbox: () => void;
+  onExportJyt: () => Promise<void>;
+  onExportJym: () => Promise<void>;
+  onImportFile: (file: File) => void;
+}
+
 interface TranscriptionToolbarActionsProps {
   canUndo: boolean;
   canRedo: boolean;
@@ -27,6 +39,7 @@ interface TranscriptionToolbarActionsProps {
   showExportMenu: boolean;
   importFileRef: RefObject<HTMLInputElement | null>;
   exportMenuRef: RefObject<HTMLDivElement | null>;
+  exportCallbacks: ExportCallbacks;
   onRefresh: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -34,15 +47,6 @@ interface TranscriptionToolbarActionsProps {
   onOpenAudioImport: () => void;
   onDeleteCurrentAudio: () => void;
   onDeleteCurrentProject: () => void;
-  onToggleExportMenu: () => void;
-  onExportEaf: () => void;
-  onExportTextGrid: () => void;
-  onExportTrs: () => void;
-  onExportFlextext: () => void;
-  onExportToolbox: () => void;
-  onExportJyt: () => Promise<void>;
-  onExportJym: () => Promise<void>;
-  onImportFile: (file: File) => void;
   onToggleNotes: () => void;
   onOpenUttOpsMenu: (x: number, y: number) => void;
 }
@@ -61,6 +65,7 @@ export function TranscriptionToolbarActions(props: TranscriptionToolbarActionsPr
     showExportMenu,
     importFileRef,
     exportMenuRef,
+    exportCallbacks,
     onRefresh,
     onUndo,
     onRedo,
@@ -68,6 +73,10 @@ export function TranscriptionToolbarActions(props: TranscriptionToolbarActionsPr
     onOpenAudioImport,
     onDeleteCurrentAudio,
     onDeleteCurrentProject,
+    onToggleNotes,
+    onOpenUttOpsMenu,
+  } = props;
+  const {
     onToggleExportMenu,
     onExportEaf,
     onExportTextGrid,
@@ -77,14 +86,14 @@ export function TranscriptionToolbarActions(props: TranscriptionToolbarActionsPr
     onExportJyt,
     onExportJym,
     onImportFile,
-    onToggleNotes,
-    onOpenUttOpsMenu,
-  } = props;
+  } = exportCallbacks;
 
   return (
     <>
       <div className="transcription-wave-toolbar-action-group">
-        <span className="transcription-wave-toolbar-action-label">编辑</span>
+        <span className="transcription-wave-toolbar-action-label" title="刷新与撤销重做">
+          编辑
+        </span>
         <button className="icon-btn" onClick={onRefresh} title={t(locale, 'transcription.toolbar.refresh')}>
           <RefreshCw size={16} />
         </button>
@@ -96,7 +105,9 @@ export function TranscriptionToolbarActions(props: TranscriptionToolbarActionsPr
         </button>
       </div>
       <div className="transcription-wave-toolbar-action-group">
-        <span className="transcription-wave-toolbar-action-label">项目</span>
+        <span className="transcription-wave-toolbar-action-label" title="项目与音频管理">
+          项目
+        </span>
         <button className="icon-btn" onClick={onOpenProjectSetup} title={t(locale, 'transcription.toolbar.newProject')}>
           <FolderPlus size={16} />
         </button>
@@ -105,7 +116,9 @@ export function TranscriptionToolbarActions(props: TranscriptionToolbarActionsPr
         </button>
       </div>
       <div className="transcription-wave-toolbar-action-group">
-        <span className="transcription-wave-toolbar-action-label">交换</span>
+        <span className="transcription-wave-toolbar-action-label" title="导入与导出">
+          交换
+        </span>
         <span className="transcription-wave-toolbar-menu-wrap">
           <button
             className="icon-btn"
@@ -118,50 +131,49 @@ export function TranscriptionToolbarActions(props: TranscriptionToolbarActionsPr
           {showExportMenu && (
             <div
               ref={exportMenuRef}
+              className="context-menu transcription-toolbar-dropdown-menu"
               style={{
-                position: 'absolute', top: '100%', left: 0, zIndex: 'var(--z-context-menu, 180)',
-                background: '#fff', border: '1px solid #d1d5db', borderRadius: 6,
-                boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: '4px 0',
+                position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 'var(--z-context-menu, 180)',
               }}
             >
               <button
-                style={{ display: 'block', width: '100%', padding: '6px 12px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13 }}
+                className="context-menu-item"
                 onClick={onExportEaf}
               >
                 {t(locale, 'transcription.toolbar.export.eaf')}
               </button>
               <button
-                style={{ display: 'block', width: '100%', padding: '6px 12px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13 }}
+                className="context-menu-item"
                 onClick={onExportTextGrid}
               >
                 {t(locale, 'transcription.toolbar.export.textgrid')}
               </button>
               <button
-                style={{ display: 'block', width: '100%', padding: '6px 12px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13 }}
+                className="context-menu-item"
                 onClick={onExportTrs}
               >
                 {t(locale, 'transcription.toolbar.export.trs')}
               </button>
               <button
-                style={{ display: 'block', width: '100%', padding: '6px 12px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13 }}
+                className="context-menu-item"
                 onClick={onExportFlextext}
               >
                 {t(locale, 'transcription.toolbar.export.flextext')}
               </button>
               <button
-                style={{ display: 'block', width: '100%', padding: '6px 12px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13 }}
+                className="context-menu-item"
                 onClick={onExportToolbox}
               >
                 {t(locale, 'transcription.toolbar.export.toolbox')}
               </button>
               <button
-                style={{ display: 'block', width: '100%', padding: '6px 12px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13 }}
+                className="context-menu-item"
                 onClick={() => { fireAndForget(onExportJyt()); }}
               >
                 {t(locale, 'transcription.toolbar.export.jyt')}
               </button>
               <button
-                style={{ display: 'block', width: '100%', padding: '6px 12px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13 }}
+                className="context-menu-item"
                 onClick={() => { fireAndForget(onExportJym()); }}
               >
                 {t(locale, 'transcription.toolbar.export.jym')}
@@ -189,7 +201,9 @@ export function TranscriptionToolbarActions(props: TranscriptionToolbarActionsPr
         />
       </div>
       <div className="transcription-wave-toolbar-action-group">
-        <span className="transcription-wave-toolbar-action-label">标注</span>
+        <span className="transcription-wave-toolbar-action-label" title="备注与句段操作">
+          标注
+        </span>
         <button
           className={`icon-btn${notePopoverOpen ? ' icon-btn-active' : ''}`}
           title={t(locale, 'transcription.toolbar.notes')}
@@ -213,7 +227,9 @@ export function TranscriptionToolbarActions(props: TranscriptionToolbarActionsPr
         </button>
       </div>
       <div className="transcription-wave-toolbar-action-group transcription-wave-toolbar-action-group-danger">
-        <span className="transcription-wave-toolbar-action-label">危险</span>
+        <span className="transcription-wave-toolbar-action-label" title="删除当前音频或项目">
+          危险
+        </span>
         <button
           className="icon-btn icon-btn-danger"
           title={t(locale, 'transcription.toolbar.deleteCurrentAudio')}

@@ -19,7 +19,7 @@
  * @see https://webservice.bas.uni-muenchen.ac.kr (API documentation)
  */
 
-import type { UtteranceDocType } from '../../db';
+import type { UtteranceDocType } from '../db';
 
 export type WebMaService = 'maus' | 'mausg2' | 'maus1';
 export type WebMaLanguage =

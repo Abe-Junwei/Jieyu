@@ -1,4 +1,4 @@
-import type { MediaItemDocType } from '../../../db';
+import type { MediaItemDocType } from '../../db';
 
 export type PdfTextFragment = {
   text: string;

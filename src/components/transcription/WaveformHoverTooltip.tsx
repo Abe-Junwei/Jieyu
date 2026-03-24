@@ -6,7 +6,7 @@
  */
 
 import type { FC } from 'react';
-import type { UtteranceDocType } from '../../../db';
+import type { UtteranceDocType } from '../../db';
 
 export interface WaveformHoverTooltipProps {
   time: number;

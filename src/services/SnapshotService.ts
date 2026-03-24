@@ -3,7 +3,7 @@ import type {
   UtteranceDocType,
   UtteranceTextDocType,
   TranslationLayerDocType,
-} from '../../db';
+} from '../db';
 
 // ---- Types ----
 

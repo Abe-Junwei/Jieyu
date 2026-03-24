@@ -1,51 +1,38 @@
 import { useMemo } from 'react';
-import type { AiPanelContextValue } from '../contexts/AiPanelContext';
+import type { AiChatContextValue } from '../contexts/AiChatContext';
+import type { VoiceAgentContextValue } from '../contexts/VoiceAgentContext';
 import type { AiAssistantHubContextValue } from '../contexts/AiAssistantHubContext';
 
-export function pickAiAssistantHubContextValue(P: AiPanelContextValue): AiAssistantHubContextValue {
-  // AiAssistantHubContextValue = Pick<AiPanelContextValue, K>，显式映射以确保只暴露必要的 37 个字段 | Explicit mapping to expose only the 37 required fields.
+export function pickAiAssistantHubContextValue(
+  chat: AiChatContextValue,
+  voice: VoiceAgentContextValue,
+): AiAssistantHubContextValue {
+  // 从 chat 中去掉 observerRecommendations，合并所需的 voice 字段
+  // Drop observerRecommendations from chat, merge required voice fields
+  const { observerRecommendations: _omit, ...chatRest } = chat;
   return {
-    selectedUtterance: P.selectedUtterance,
-    selectedRowMeta: P.selectedRowMeta,
-    lexemeMatches: P.lexemeMatches,
-    aiChatEnabled: P.aiChatEnabled,
-    aiProviderLabel: P.aiProviderLabel,
-    aiChatSettings: P.aiChatSettings,
-    aiMessages: P.aiMessages,
-    aiIsStreaming: P.aiIsStreaming,
-    aiLastError: P.aiLastError,
-    aiConnectionTestStatus: P.aiConnectionTestStatus,
-    aiConnectionTestMessage: P.aiConnectionTestMessage,
-    aiContextDebugSnapshot: P.aiContextDebugSnapshot,
-    aiPendingToolCall: P.aiPendingToolCall,
-    aiToolDecisionLogs: P.aiToolDecisionLogs,
-    onUpdateAiChatSettings: P.onUpdateAiChatSettings,
-    onTestAiConnection: P.onTestAiConnection,
-    onSendAiMessage: P.onSendAiMessage,
-    onStopAiMessage: P.onStopAiMessage,
-    onClearAiMessages: P.onClearAiMessages,
-    onConfirmPendingToolCall: P.onConfirmPendingToolCall,
-    onCancelPendingToolCall: P.onCancelPendingToolCall,
-    observerStage: P.observerStage,
-    onJumpToCitation: P.onJumpToCitation,
-    voiceEnabled: P.voiceEnabled,
-    voiceListening: P.voiceListening,
-    voiceSpeechActive: P.voiceSpeechActive,
-    voiceMode: P.voiceMode,
-    voiceInterimText: P.voiceInterimText,
-    voiceFinalText: P.voiceFinalText,
-    voiceConfidence: P.voiceConfidence,
-    voiceError: P.voiceError,
-    voiceSafeMode: P.voiceSafeMode,
-    voicePendingConfirm: P.voicePendingConfirm,
-    onVoiceToggle: P.onVoiceToggle,
-    onVoiceSwitchMode: P.onVoiceSwitchMode,
-    onVoiceConfirm: P.onVoiceConfirm,
-    onVoiceCancel: P.onVoiceCancel,
-    onVoiceSetSafeMode: P.onVoiceSetSafeMode,
-  } as AiAssistantHubContextValue;
+    ...chatRest,
+    voiceEnabled: voice.voiceEnabled,
+    voiceListening: voice.voiceListening,
+    voiceSpeechActive: voice.voiceSpeechActive,
+    voiceMode: voice.voiceMode,
+    voiceInterimText: voice.voiceInterimText,
+    voiceFinalText: voice.voiceFinalText,
+    voiceConfidence: voice.voiceConfidence,
+    voiceError: voice.voiceError,
+    voiceSafeMode: voice.voiceSafeMode,
+    voicePendingConfirm: voice.voicePendingConfirm,
+    onVoiceToggle: voice.onVoiceToggle,
+    onVoiceSwitchMode: voice.onVoiceSwitchMode,
+    onVoiceConfirm: voice.onVoiceConfirm,
+    onVoiceCancel: voice.onVoiceCancel,
+    onVoiceSetSafeMode: voice.onVoiceSetSafeMode,
+  };
 }
 
-export function useAiAssistantHubContextValue(aiPanelContextValue: AiPanelContextValue): AiAssistantHubContextValue {
-  return useMemo(() => pickAiAssistantHubContextValue(aiPanelContextValue), [aiPanelContextValue]);
+export function useAiAssistantHubContextValue(
+  chat: AiChatContextValue,
+  voice: VoiceAgentContextValue,
+): AiAssistantHubContextValue {
+  return useMemo(() => pickAiAssistantHubContextValue(chat, voice), [chat, voice]);
 }

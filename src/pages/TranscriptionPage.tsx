@@ -1,36 +1,25 @@
 import { AiAssistantHubContext } from '../contexts/AiAssistantHubContext';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ChevronLeft,
-  ChevronRight,
   Merge as _Merge,
   Pause as _Pause,
 } from 'lucide-react';
-import { AiAnalysisPanel } from '../components/AiAnalysisPanel';
-import { AiChatCard } from '../components/ai/AiChatCard';
 import type { AiPanelMode, AnalysisBottomTab } from '../components/AiAnalysisPanel';
-import { VoiceAgentWidget } from '../components/VoiceAgentWidget';
-import { AudioImportDialog } from '../components/AudioImportDialog';
-import { BatchOperationPanel } from '../components/BatchOperationPanel';
-import { ProjectSetupDialog } from '../components/ProjectSetupDialog';
-import { SearchReplaceOverlay } from '../components/SearchReplaceOverlay';
-import { WaveformToolbar } from '../components/WaveformToolbar';
-import { ShortcutsPanel } from '../components/ShortcutsPanel';
-import { LayerRailSidebar } from '../components/LayerRailSidebar';
-import { TranscriptionToolbarActions } from '../components/TranscriptionToolbarActions';
+import type { VoiceAgentWidgetProps } from '../components/VoiceAgentWidget';
+import { TranscriptionPageToolbar } from './TranscriptionPage.Toolbar';
+import { TranscriptionPageBatchOps } from './TranscriptionPage.BatchOps';
+import { TranscriptionPageDialogs } from './TranscriptionPage.Dialogs';
+import { TranscriptionPageTimelineContent } from './TranscriptionPage.TimelineContent';
+import { TranscriptionPageLayerRail } from './TranscriptionPage.LayerRail';
+import { TranscriptionPageTimelineTop } from './TranscriptionPage.TimelineTop';
 import { TranscriptionOverlays } from '../components/TranscriptionOverlays';
-import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
-import { TranscriptionTimelineTextOnly } from '../components/TranscriptionTimelineTextOnly';
-import { TranscriptionTimelineMediaLanes } from '../components/TranscriptionTimelineMediaLanes';
 import {
-  TimelineHeaderSection,
   TimelineRailSection,
   TimelineScrollSection,
   VideoPreviewSection,
 } from '../components/transcription/TranscriptionTimelineSections';
 import type { VideoLayoutMode } from '../components/transcription/TranscriptionTimelineSections';
 import { RecoveryBanner } from '../components/RecoveryBanner';
-import { PdfPreviewSection } from '../components/PdfPreviewSection';
 import {
   BottomToolbarSection,
   ObserverStatusSection,
@@ -43,12 +32,11 @@ import {
 import { WaveformHoverTooltip } from '../components/transcription/WaveformHoverTooltip';
 import { WaveformLeftStatusStrip } from '../components/transcription/WaveformLeftStatusStrip';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
-import { SpeakerManagementDialog } from '../components/transcription/SpeakerManagementDialog';
-import { LinguisticService } from '../../services/LinguisticService';
-import { db as appDb, getDb, type JieyuDatabase, type UtteranceDocType } from '../../db';
+import { LinguisticService } from '../services/LinguisticService';
+import { db as appDb, getDb, type JieyuDatabase, type UtteranceDocType } from '../db';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { useAiPanelContextUpdater, AiPanelContext } from '../contexts/AiPanelContext';
-import { ToastProvider, useToast } from '../contexts/ToastContext';
+import { ToastProvider } from '../contexts/ToastContext';
 import { snapToZeroCrossing } from '../services/AudioAnalysisService';
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
 import { useRecording } from '../hooks/useRecording';
@@ -62,13 +50,14 @@ import { useAiChat, type AiChatToolCall, type AiToolRiskCheckResult } from '../h
 import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 import { featureFlags } from '../ai/config/featureFlags';
 import { DEFAULT_VOICE_INTENT_RESOLVER_CONFIG } from '../ai/config/voiceIntentResolver';
-import { resolveVoiceIntentWithLlmUsingConfig } from '../services/VoiceIntentLlmResolver';
 import { useImportExport } from '../hooks/useImportExport';
 import { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { useAiPanelLogic, taskToPersona } from '../hooks/useAiPanelLogic';
 import { useNoteHandlers } from '../hooks/useNoteHandlers';
 import { useTimelineAnnotationHelpers } from '../hooks/useTimelineAnnotationHelpers';
 import { useAiToolCallHandler } from '../hooks/useAiToolCallHandler';
+import { useMediaImport } from '../hooks/useMediaImport';
+import { useTranscriptionUIState } from './TranscriptionPage.UIState';
 import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import { useTimelineResize } from '../hooks/useTimelineResize';
 import { useDialogs } from '../hooks/useDialogs';
@@ -80,11 +69,19 @@ import { usePdfPreview } from '../hooks/usePdfPreview';
 import { useVoiceDock } from '../hooks/useVoiceDock';
 import { useAiEmbeddingState } from '../hooks/useAiEmbeddingState';
 import { useAiAssistantHubContextValue } from '../hooks/useAiAssistantHubContextValue';
-import { useSpeakerManagement, getUtteranceSpeakerKey } from '../hooks/useSpeakerManagement';
+import { useEmbeddingContextValue } from '../hooks/useEmbeddingContextValue';
+import { VoiceAgentProvider } from '../contexts/VoiceAgentContext';
+import { useVoiceAgentContextValue } from '../hooks/useVoiceAgentContextValue';
+import { AiChatProvider } from '../contexts/AiChatContext';
+import { useAiChatContextValue } from '../hooks/useAiChatContextValue';
+import { useSpeakerActions, getUtteranceSpeakerKey } from '../hooks/useSpeakerActions';
 import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/useTimelineLaneHeightResize';
 import type { AiObserverRecommendation } from '../components/transcription/toolbar/ObserverStatus';
 import { detectLocale, t, tf } from '../i18n';
+import { createLogger } from '../observability/logger';
 import { fireAndForget } from '../utils/fireAndForget';
+import { reportActionError } from '../utils/actionErrorReporter';
+import { reportValidationError } from '../utils/validationErrorReporter';
 import { formatLayerRailLabel, formatTime } from '../utils/transcriptionFormatters';
 import { EmbeddingService } from '../ai/embeddings/EmbeddingService';
 import { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
@@ -92,106 +89,17 @@ import { createEmbeddingProvider, testEmbeddingProvider } from '../ai/embeddings
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import { getGlobalTaskRunner } from '../ai/tasks/taskRunnerSingleton';
 import { extractUtteranceIdFromNote, getPdfPageFromHash, isDirectPdfCitationRef, splitPdfCitationRef } from '../utils/citationJumpUtils';
+import { ToastController } from './TranscriptionPage.ToastController';
+import {
+  loadEmbeddingProviderConfig,
+  saveEmbeddingProviderConfig,
+} from './TranscriptionPage.helpers';
 
-// ─── Storage keys ─────────────────────────────────────────────────────────────
+const log = createLogger('TranscriptionPage');
 
-const EMBEDDING_PROVIDER_STORAGE_KEY = 'jieyu.embeddingProvider';
-// ─── Persistence helpers ───────────────────────────────────────────────────────
-
-// ── ToastController — bridges TranscriptionPage state to ToastProvider ─────────────
-
-interface ToastControllerProps {
-  /** Subset of useVoiceAgent return value needed for toast routing */
-  voiceAgent: {
-    agentState: string;
-    mode: string;
-    listening: boolean;
-    isRecording: boolean;
-  };
-  saveState: { kind: string; message?: string };
-  recording: boolean;
-  recordingUtteranceId: string | null;
-  recordingError: string | null;
-  /** i18n function for recording toast message */
-  tf: (key: string, opts?: Record<string, unknown>) => string;
-}
-
-function ToastController({
-  voiceAgent,
-  saveState,
-  recording,
-  recordingUtteranceId,
-  recordingError,
-  tf,
-}: ToastControllerProps) {
-  const { showToast, showSaveState, showVoiceState } = useToast();
-
-  // SaveState changes → toast
-  useEffect(() => {
-    showSaveState(saveState as Parameters<typeof showSaveState>[0]);
-  }, [saveState, showSaveState]);
-
-  // Recording error → error toast
-  useEffect(() => {
-    if (recordingError) {
-      showToast(recordingError, 'error', 0);
-    }
-  }, [recordingError, showToast]);
-
-  // Recording active → persistent recording toast
-  useEffect(() => {
-    if (recording) {
-      showToast(
-        tf('transcription.toast.recording', {
-          id: recordingUtteranceId ?? tf('transcription.toast.recordingUnknownRow'),
-        }),
-        'recording',
-        0,
-      );
-    }
-  }, [recording, recordingUtteranceId, showToast, tf]);
-
-  // Voice agent state → toast
-  useEffect(() => {
-    if (voiceAgent.listening || voiceAgent.agentState !== 'idle') {
-      showVoiceState(
-        voiceAgent.agentState as Parameters<typeof showVoiceState>[0],
-        voiceAgent.listening,
-      );
-    } else {
-      showVoiceState(null);
-    }
-  }, [voiceAgent.agentState, voiceAgent.listening, showVoiceState]);
-
-  // TaskRunner stale task recovery → alert toast
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const count = (e as CustomEvent<{ count: number }>).detail?.count ?? 0;
-      if (count > 0) {
-        showToast(`已自动清理 ${count} 个过期任务`, 'info');
-      }
-    };
-    window.addEventListener('taskrunner:stale-recovered', handler);
-    return () => window.removeEventListener('taskrunner:stale-recovered', handler);
-  }, [showToast]);
-
-  // This component renders nothing — it only manages side-effects via the toast context.
-  return null;
-}
-
-function loadEmbeddingProviderConfig(): { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string } {
-  try {
-    const raw = window.localStorage.getItem(EMBEDDING_PROVIDER_STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string };
-  } catch { /* ignore */ }
-  return { kind: 'local' };
-}
-
-function saveEmbeddingProviderConfig(cfg: { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }): void {
-  try {
-    window.localStorage.setItem(EMBEDDING_PROVIDER_STORAGE_KEY, JSON.stringify(cfg));
-  } catch { /* ignore */ }
-}
+const TranscriptionPageAiSidebar = lazy(async () => import('./TranscriptionPage.AiSidebar').then((module) => ({
+  default: module.TranscriptionPageAiSidebar,
+})));
 
 export function TranscriptionPage() {
   const locale = detectLocale();
@@ -452,68 +360,15 @@ export function TranscriptionPage() {
     saveEmbeddingProviderConfig(embeddingProviderConfig);
   }, [embeddingProviderConfig]);
 
-  // Hidden file input for direct media import
-  const mediaFileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const handleDirectMediaImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const isAudio = file.type.startsWith('audio/');
-    const isVideo = file.type.startsWith('video/');
-    if (!isAudio && !isVideo) {
-      event.target.value = '';
-      return;
-    }
-
-    // Get duration
-    const media = document.createElement(isVideo ? 'video' : 'audio') as HTMLMediaElement;
-    const objectUrl = URL.createObjectURL(file);
-    media.src = objectUrl;
-    const duration = await new Promise<number>((resolve) => {
-      media.addEventListener('loadedmetadata', () => {
-        URL.revokeObjectURL(objectUrl);
-        resolve(Number.isFinite(media.duration) ? media.duration : 0);
-      });
-      media.addEventListener('error', () => {
-        URL.revokeObjectURL(objectUrl);
-        resolve(0);
-      });
-    });
-
-    // Import using the same logic as AudioImportDialog
-    let textId = activeTextId ?? (await getActiveTextId());
-    if (!textId) {
-      const baseName = file.name.replace(/\.[^.]+$/, '');
-      const result = await LinguisticService.createProject({
-        titleZh: baseName,
-        titleEn: baseName,
-        primaryLanguageId: 'und',
-      });
-      textId = result.textId;
-      setActiveTextId(textId);
-    }
-    const blob = new Blob([await file.arrayBuffer()], { type: file.type });
-    const { mediaId } = await LinguisticService.importAudio({
-      textId,
-      audioBlob: blob,
-      filename: file.name,
-      duration,
-    });
-    addMediaItem({
-      id: mediaId,
-      textId,
-      filename: file.name,
-      duration,
-      details: { audioBlob: blob },
-      isOfflineCached: true,
-      createdAt: new Date().toISOString(),
-    } as import('../../db').MediaItemDocType);
-    setSaveState({ kind: 'done', message: tf(locale, 'transcription.action.audioImported', { filename: file.name }) });
-
-    // Reset file input
-    event.target.value = '';
-  };
+  // Media import hook
+  const { mediaFileInputRef, handleDirectMediaImport } = useMediaImport({
+    activeTextId,
+    getActiveTextId,
+    addMediaItem,
+    setSaveState,
+    setActiveTextId,
+    tf: (key: string, opts?: Record<string, unknown>) => tf(locale, key as Parameters<typeof tf>[1], opts as Parameters<typeof tf>[2]),
+  });
 
   const {
     aiEmbeddingBusy,
@@ -723,6 +578,7 @@ export function TranscriptionPage() {
     if (!featureFlags.aiChatEnabled || !aiChat.enabled) {
       return null;
     }
+    const { resolveVoiceIntentWithLlmUsingConfig } = await import('../services/VoiceIntentLlmResolver');
     const resolved = await resolveVoiceIntentWithLlmUsingConfig({
       transcript: text,
       mode,
@@ -752,19 +608,44 @@ export function TranscriptionPage() {
   const [zoomPercent, setZoomPercent] = useState(100);
   const [zoomMode, setZoomMode] = useState<'fit-all' | 'fit-selection' | 'custom'>('fit-all');
   const [isTimelineLaneHeaderCollapsed, setIsTimelineLaneHeaderCollapsed] = useState(false);
+  const [laneLabelWidth, setLaneLabelWidth] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem('jieyu:lane-label-width');
+      if (stored) {
+        const parsed = Math.min(Math.max(Number(stored), 40), 180);
+        if (!isNaN(parsed)) return parsed;
+      }
+    } catch (e) { console.warn('[TranscriptionPage] Failed to read lane-label-width from localStorage, using default', e); }
+    return 64;
+  });
+  // Ref for resize handle closure access — initialized after laneLabelWidth
+  const laneLabelWidthRef = useRef<number>(laneLabelWidth);
+  // Keep ref in sync with state (for resize handle closure access)
+  useEffect(() => { laneLabelWidthRef.current = laneLabelWidth; }, [laneLabelWidth]);
+
   const [showAllLayerConnectors, setShowAllLayerConnectors] = useState(false);
   const [timelineLaneHeights, setTimelineLaneHeights] = useState<Record<string, number>>(() => {
     try {
       const stored = localStorage.getItem('jieyu:lane-heights');
       if (stored) { const parsed: unknown = JSON.parse(stored); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, number>; }
-    } catch {}
+    } catch (error) {
+      log.warn('Failed to read lane heights from localStorage, fallback to default', {
+        storageKey: 'jieyu:lane-heights',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     return {};
   });
   const [waveformHeight, setWaveformHeight] = useState<number>(() => {
     try {
       const stored = localStorage.getItem('jieyu:waveform-height');
       if (stored) return Math.min(Math.max(Number(stored), 80), 400);
-    } catch {}
+    } catch (error) {
+      log.warn('Failed to read waveform height from localStorage, fallback to default', {
+        storageKey: 'jieyu:waveform-height',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     return 180;
   });
   const waveformResizeRef = useRef<{ startY: number; startHeight: number; startAmplitude: number } | null>(null);
@@ -774,7 +655,12 @@ export function TranscriptionPage() {
     try {
       const stored = localStorage.getItem('jieyu:video-preview-height');
       if (stored) return Math.min(Math.max(Number(stored), 120), 600);
-    } catch {}
+    } catch (error) {
+      log.warn('Failed to read video preview height from localStorage, fallback to default', {
+        storageKey: 'jieyu:video-preview-height',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     return 220;
   });
   const videoPreviewResizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
@@ -785,7 +671,12 @@ export function TranscriptionPage() {
     try {
       const stored = localStorage.getItem('jieyu:video-right-panel-width');
       if (stored) return Math.min(Math.max(Number(stored), 260), 720);
-    } catch {}
+    } catch (error) {
+      log.warn('Failed to read video right panel width from localStorage, fallback to default', {
+        storageKey: 'jieyu:video-right-panel-width',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     return 360;
   });
   /** 视频布局模式（上方/右侧/左侧），持久化到 localStorage | Video layout mode (top/right/left), persisted to localStorage */
@@ -793,7 +684,11 @@ export function TranscriptionPage() {
     try {
       const stored = localStorage.getItem('jieyu:video-layout-mode');
       return (stored === 'right' || stored === 'left') ? stored as VideoLayoutMode : 'top';
-    } catch {
+    } catch (error) {
+      log.warn('Failed to read video layout mode from localStorage, fallback to default', {
+        storageKey: 'jieyu:video-layout-mode',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return 'top';
     }
   });
@@ -802,7 +697,12 @@ export function TranscriptionPage() {
     try {
       const stored = localStorage.getItem('jieyu:amplitude-scale');
       if (stored) return Math.min(Math.max(Number(stored), 0.25), 4);
-    } catch {}
+    } catch (error) {
+      log.warn('Failed to read amplitude scale from localStorage, fallback to default', {
+        storageKey: 'jieyu:amplitude-scale',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     return 1;
   });
   /** 播放时自动滚动到当前语段 | Auto-scroll timeline rows to playhead during playback */
@@ -848,10 +748,15 @@ export function TranscriptionPage() {
     return () => { dragCleanupRef.current?.(); };
   }, []);
 
-  // Context menu state
-  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; utteranceId: string; layerId: string; splitTime: number } | null>(null);
-  const [uttOpsMenu, setUttOpsMenu] = useState<{ x: number; y: number } | null>(null);
-  const [showBatchOperationPanel, setShowBatchOperationPanel] = useState(false);
+  // UI state (context menu, batch operations)
+  const {
+    ctxMenu,
+    setCtxMenu,
+    uttOpsMenu,
+    setUttOpsMenu,
+    showBatchOperationPanel,
+    setShowBatchOperationPanel,
+  } = useTranscriptionUIState();
 
   // ---- Notes (extracted hook) ----
   const {
@@ -906,7 +811,11 @@ export function TranscriptionPage() {
     mergeWithPrevious,
     mergeWithNext,
     onMergeTargetMissing: () => {
-      setSaveState({ kind: 'error', message: '请先选择一个句段再执行合并' });
+      reportValidationError({
+        message: '请先选择一个句段再执行合并',
+        i18nKey: 'transcription.error.validation.mergeTargetSelectionRequired',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
     },
     splitUtterance,
     selectAllBefore,
@@ -1508,7 +1417,11 @@ export function TranscriptionPage() {
   // insertDictation: write dictated text to the active translation or transcription layer
   const handleVoiceDictation = useCallback((text: string) => {
     if (!selectedUtterance) {
-      setSaveState({ kind: 'error', message: '请先选择要填充的句段' });
+      reportValidationError({
+        message: '请先选择要填充的句段',
+        i18nKey: 'transcription.error.validation.voiceDictationUtteranceRequired',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
     // Resolve target layer — prefer explicit selection, then default transcription, then first translation
@@ -1520,7 +1433,11 @@ export function TranscriptionPage() {
       targetLayerId = translationLayers[0]?.id;
     }
     if (!targetLayerId) {
-      setSaveState({ kind: 'error', message: '无可用层，请先创建转写或翻译层' });
+      reportValidationError({
+        message: '无可用层，请先创建转写或翻译层',
+        i18nKey: 'transcription.error.validation.voiceDictationLayerRequired',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
     const targetLayer = layers.find((l) => l.id === targetLayerId);
@@ -1536,7 +1453,11 @@ export function TranscriptionPage() {
   // V2: Handle analysis result — write AI analysis text to the current utterance's notes field
   const handleVoiceAnalysisResult = useCallback((utteranceId: string | null, analysisText: string) => {
     if (!utteranceId) {
-      setSaveState({ kind: 'error', message: '请先选择要分析的句段' });
+      reportValidationError({
+        message: '请先选择要分析的句段',
+        i18nKey: 'transcription.error.validation.voiceAnalysisUtteranceRequired',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
       return;
     }
     const trimmed = analysisText.trim();
@@ -1548,7 +1469,11 @@ export function TranscriptionPage() {
       const utterances = await db.collections.utterances.find().exec();
       const target = utterances.find((u) => u.id === utteranceId);
       if (!target) {
-        setSaveState({ kind: 'error', message: '未找到目标句段' });
+        reportValidationError({
+          message: '未找到目标句段',
+          i18nKey: 'transcription.error.validation.voiceAnalysisTargetMissing',
+          setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
         return;
       }
       const doc = target.toJSON() as UtteranceDocType;
@@ -1564,7 +1489,12 @@ export function TranscriptionPage() {
       );
       setSaveState({ kind: 'done', message: 'AI 分析结果已保存到句段备注' });
     }).catch((err: unknown) => {
-      setSaveState({ kind: 'error', message: `保存分析结果失败: ${err instanceof Error ? err.message : String(err)}` });
+      reportActionError({
+        actionLabel: '保存分析结果',
+        error: err,
+        i18nKey: 'transcription.error.action.voiceAnalysisSaveFailed',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
     });
   }, [data.pushUndo, setSaveState, data]);
 
@@ -1623,6 +1553,85 @@ export function TranscriptionPage() {
     onOpenMorphemeNote: handleOpenMorphemeNote,
     onUpdateTokenPos: handleUpdateTokenPos,
     onBatchUpdateTokenPosByForm: handleBatchUpdateTokenPosByForm,
+    aiPanelMode,
+    aiCurrentTask,
+    aiVisibleCards,
+    selectedTranslationGapCount,
+    onJumpToTranslationGap: handleJumpToTranslationGap,
+    onChangeAiPanelMode: setAiPanelMode,
+  }), [
+    state,
+    utterances.length,
+    translationLayers.length,
+    aiConfidenceAvg,
+    selectedUtterance,
+    selectedRowMeta,
+    selectedAiWarning,
+    lexemeMatches,
+    handleOpenWordNote,
+    handleOpenMorphemeNote,
+    handleUpdateTokenPos,
+    handleBatchUpdateTokenPosByForm,
+    aiPanelMode,
+    aiCurrentTask,
+    aiVisibleCards,
+    selectedTranslationGapCount,
+    handleJumpToTranslationGap,
+  ]);
+
+  useEffect(() => {
+    setAiPanelContext(aiPanelContextValue);
+  }, [aiPanelContextValue, setAiPanelContext]);
+
+  const embeddingContextValue = useEmbeddingContextValue({
+    selectedUtterance: selectedUtterance ?? null,
+    aiEmbeddingBusy,
+    aiEmbeddingProgressLabel,
+    aiEmbeddingLastResult,
+    aiEmbeddingTasks,
+    aiEmbeddingMatches,
+    aiEmbeddingLastError,
+    aiEmbeddingWarning,
+    aiEmbeddingBuildStartedAt: null,
+    embeddingProviderKind: embeddingProviderConfig.kind,
+    embeddingProviderConfig,
+    onSetEmbeddingProviderKind: (kind) => {
+      setEmbeddingProviderConfig((prev) => ({ ...prev, kind }));
+    },
+    onTestEmbeddingProvider: handleTestEmbeddingProvider,
+    onBuildUtteranceEmbeddings: handleBuildUtteranceEmbeddings,
+    onBuildNotesEmbeddings: handleBuildNotesEmbeddings,
+    onBuildPdfEmbeddings: handleBuildPdfEmbeddings,
+    onFindSimilarUtterances: handleFindSimilarUtterances,
+    onRefreshEmbeddingTasks: refreshEmbeddingTasks,
+    onJumpToEmbeddingMatch: handleJumpToEmbeddingMatch,
+    onJumpToCitation: handleJumpToCitation,
+    onCancelAiTask: handleCancelAiTask,
+    onRetryAiTask: handleRetryAiTask,
+  });
+  const voiceAgentContextValue = useVoiceAgentContextValue({
+    voiceListening: voiceAgent.listening,
+    voiceSpeechActive: voiceAgent.speechActive,
+    voiceMode: voiceAgent.mode,
+    voiceInterimText: voiceAgent.interimText,
+    voiceFinalText: voiceAgent.finalText,
+    voiceConfidence: voiceAgent.confidence,
+    voiceError: voiceAgent.error,
+    voiceSafeMode: voiceAgent.safeMode,
+    voicePendingConfirm: voiceAgent.pendingConfirm,
+    voiceCorpusLang: effectiveVoiceCorpusLang,
+    voiceLangOverride: voiceCorpusLangOverride,
+    voiceEnabled: featureFlags.voiceAgentEnabled,
+    onVoiceToggle: voiceAgent.toggle,
+    onVoiceSwitchMode: voiceAgent.switchMode,
+    onVoiceConfirm: voiceAgent.confirmPending,
+    onVoiceCancel: voiceAgent.cancelPending,
+    onVoiceSetSafeMode: voiceAgent.setSafeMode,
+  });
+  const aiChatContextValue = useAiChatContextValue({
+    selectedUtterance: selectedUtterance ?? null,
+    selectedRowMeta,
+    lexemeMatches,
     aiChatEnabled: aiChat.enabled,
     aiProviderLabel: aiChat.providerLabel,
     aiChatSettings: aiChat.settings,
@@ -1637,6 +1646,11 @@ export function TranscriptionPage() {
     aiInteractionMetrics: aiChat.metrics,
     aiSessionMemory: aiChat.sessionMemory,
     aiToolDecisionLogs,
+    observerStage: observerResult.stage,
+    observerRecommendations: useMemo(
+      () => actionableObserverRecommendations.map((item) => ({ ...item })),
+      [actionableObserverRecommendations],
+    ),
     onUpdateAiChatSettings: aiChat.updateSettings,
     onTestAiConnection: aiChat.testConnection,
     onSendAiMessage: aiChat.send,
@@ -1644,135 +1658,51 @@ export function TranscriptionPage() {
     onClearAiMessages: aiChat.clear,
     onConfirmPendingToolCall: aiChat.confirmPendingToolCall,
     onCancelPendingToolCall: aiChat.cancelPendingToolCall,
-    aiPanelMode,
-    aiCurrentTask,
-    aiVisibleCards,
-    selectedTranslationGapCount,
-    onJumpToTranslationGap: handleJumpToTranslationGap,
-    onChangeAiPanelMode: setAiPanelMode,
-    observerStage: observerResult.stage,
-    observerRecommendations: actionableObserverRecommendations,
-    onExecuteRecommendation: handleExecuteRecommendation,
-    aiEmbeddingBusy,
-    aiEmbeddingProgressLabel,
-    aiEmbeddingLastResult,
-    aiEmbeddingTasks,
-    aiEmbeddingMatches,
-    aiEmbeddingLastError,
-    aiEmbeddingWarning,
-    embeddingProviderKind: embeddingProviderConfig.kind,
-    embeddingProviderConfig,
-    onSetEmbeddingProviderKind: (kind: EmbeddingProviderKind) => setEmbeddingProviderConfig((prev) => ({ ...prev, kind })),
-    onTestEmbeddingProvider: handleTestEmbeddingProvider,
-    onBuildUtteranceEmbeddings: handleBuildUtteranceEmbeddings,
-    onBuildNotesEmbeddings: handleBuildNotesEmbeddings,
-    onBuildPdfEmbeddings: handleBuildPdfEmbeddings,
-    onFindSimilarUtterances: handleFindSimilarUtterances,
-    onRefreshEmbeddingTasks: refreshEmbeddingTasks,
-    onJumpToEmbeddingMatch: handleJumpToEmbeddingMatch,
     onJumpToCitation: handleJumpToCitation,
-    onCancelAiTask: handleCancelAiTask,
-    onRetryAiTask: handleRetryAiTask,
-    // Voice Agent
-    voiceEnabled: featureFlags.voiceAgentEnabled,
-    voiceListening: voiceAgent.listening,
-    voiceSpeechActive: voiceAgent.speechActive,
-    voiceMode: voiceAgent.mode,
-    voiceInterimText: voiceAgent.interimText,
-    voiceFinalText: voiceAgent.finalText,
-    voiceConfidence: voiceAgent.confidence,
-    voiceError: voiceAgent.error,
-    voiceSafeMode: voiceAgent.safeMode,
-    voicePendingConfirm: voiceAgent.pendingConfirm,
-    voiceCorpusLang: effectiveVoiceCorpusLang,
-    voiceLangOverride: voiceCorpusLangOverride,
-    onVoiceToggle: voiceAgent.toggle,
-    onVoiceSwitchMode: voiceAgent.switchMode,
-    onVoiceConfirm: voiceAgent.confirmPending,
-    onVoiceCancel: voiceAgent.cancelPending,
-    onVoiceSetSafeMode: voiceAgent.setSafeMode,
-    onVoiceSetLangOverride: handleVoiceSetLangOverride,
-  }), [
-    state,
-    utterances.length,
-    translationLayers.length,
-    aiConfidenceAvg,
-    selectedUtterance,
-    selectedRowMeta,
-    selectedAiWarning,
-    lexemeMatches,
-    handleOpenWordNote,
-    handleOpenMorphemeNote,
-    handleUpdateTokenPos,
-    handleBatchUpdateTokenPosByForm,
-    aiChat.enabled,
-    aiChat.providerLabel,
-    aiChat.settings,
-    aiChat.messages,
-    aiChat.isStreaming,
-    aiChat.lastError,
-    aiChat.connectionTestStatus,
-    aiChat.connectionTestMessage,
-    aiChat.contextDebugSnapshot,
-    aiChat.pendingToolCall,
-    aiToolDecisionLogs,
-    aiChat.updateSettings,
-    aiChat.testConnection,
-    aiChat.send,
-    aiChat.stop,
-    aiChat.clear,
-    aiChat.confirmPendingToolCall,
-    aiChat.cancelPendingToolCall,
-    aiPanelMode,
-    aiCurrentTask,
-    aiVisibleCards,
-    selectedTranslationGapCount,
-    handleJumpToTranslationGap,
-    observerResult.stage,
-    actionableObserverRecommendations,
-    handleExecuteRecommendation,
-    aiEmbeddingBusy,
-    aiEmbeddingProgressLabel,
-    aiEmbeddingLastResult,
-    aiEmbeddingTasks,
-    aiEmbeddingMatches,
-    aiEmbeddingLastError,
-    aiEmbeddingWarning,
-    handleTestEmbeddingProvider,
-    handleBuildUtteranceEmbeddings,
-    handleBuildNotesEmbeddings,
-    handleBuildPdfEmbeddings,
-    handleFindSimilarUtterances,
-    refreshEmbeddingTasks,
-    handleJumpToEmbeddingMatch,
-    handleJumpToCitation,
-    handleCancelAiTask,
-    handleRetryAiTask,
-    embeddingProviderConfig,
-    voiceAgent.listening,
-    voiceAgent.speechActive,
-    voiceAgent.mode,
-    voiceAgent.interimText,
-    voiceAgent.finalText,
-    voiceAgent.confidence,
-    voiceAgent.error,
-    voiceAgent.safeMode,
-    voiceAgent.pendingConfirm,
-    effectiveVoiceCorpusLang,
-    voiceCorpusLangOverride,
-    voiceAgent.toggle,
-    voiceAgent.switchMode,
-    voiceAgent.confirmPending,
-    voiceAgent.cancelPending,
-    voiceAgent.setSafeMode,
-    handleVoiceSetLangOverride,
-  ]);
-
-  useEffect(() => {
-    setAiPanelContext(aiPanelContextValue);
-  }, [aiPanelContextValue, setAiPanelContext]);
-
-  const aiAssistantHubContextValue = useAiAssistantHubContextValue(aiPanelContextValue);
+  });
+  const aiAssistantHubContextValue = useAiAssistantHubContextValue(aiChatContextValue, voiceAgentContextValue);
+  const voiceWidgetProps: VoiceAgentWidgetProps = {
+    listening: voiceAgent.listening,
+    speechActive: voiceAgent.speechActive,
+    mode: voiceAgent.mode,
+    interimText: voiceAgent.interimText,
+    finalText: voiceAgent.finalText,
+    confidence: voiceAgent.confidence,
+    error: voiceAgent.error,
+    lastIntent: voiceAgent.lastIntent,
+    pendingConfirm: voiceAgent.pendingConfirm,
+    safeMode: voiceAgent.safeMode,
+    wakeWordEnabled: voiceAgent.wakeWordEnabled,
+    wakeWordEnergyLevel: voiceAgent.wakeWordEnergyLevel,
+    corpusLang: effectiveVoiceCorpusLang,
+    langOverride: voiceCorpusLangOverride,
+    detectedLang: voiceAgent.detectedLang,
+    engine: voiceAgent.engine,
+    isRecording: voiceAgent.isRecording,
+    energyLevel: voiceAgent.energyLevel,
+    agentState: voiceAgent.agentState,
+    recordingDuration: voiceAgent.recordingDuration,
+    session: voiceAgent.session,
+    commercialProviderKind: voiceAgent.commercialProviderKind,
+    commercialProviderConfig: voiceAgent.commercialProviderConfig,
+    targetSummary: voiceTargetSummary,
+    statusSummary: voiceStatusSummary,
+    environmentSummary: voiceEnvironmentSummary,
+    selectionSummary: voiceSelectionSummary,
+    onToggle: handleVoiceAssistantIconClick,
+    onMicPointerDown: handleMicPointerDown,
+    onMicPointerUp: handleMicPointerUp,
+    onSwitchMode: voiceAgent.switchMode,
+    onSwitchEngine: handleVoiceSwitchEngine,
+    onConfirm: voiceAgent.confirmPending,
+    onCancel: voiceAgent.cancelPending,
+    onSetSafeMode: voiceAgent.setSafeMode,
+    onSetWakeWordEnabled: voiceAgent.setWakeWordEnabled,
+    onSetLangOverride: handleVoiceSetLangOverride,
+    onSetCommercialProviderKind: voiceAgent.setCommercialProviderKind,
+    onCommercialConfigChange: handleVoiceCommercialConfigChange,
+    onTestCommercialProvider: voiceAgent.testCommercialProvider,
+  };
 
   const { handleLayerRailResizeStart, handleAiPanelResizeStart } = usePanelResize({
     isLayerRailCollapsed,
@@ -1789,6 +1719,34 @@ export function TranscriptionPage() {
     setHubHeight,
     screenRef,
   });
+
+  const handleLaneLabelWidthResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isTimelineLaneHeaderCollapsed) return;
+
+    const startX = e.clientX;
+    const startWidth = laneLabelWidth;
+    const minWidth = 40;
+    const maxWidth = 180;
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX;
+      const next = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
+      laneLabelWidthRef.current = next;
+      setLaneLabelWidth(next);
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      try {
+        localStorage.setItem('jieyu:lane-label-width', String(laneLabelWidthRef.current));
+      } catch (e) { console.warn('[TranscriptionPage] Failed to save lane-label-width to localStorage', e); }
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }, [isTimelineLaneHeaderCollapsed, laneLabelWidth]);
 
   useEffect(() => {
     if (!autoScrollEnabled) return;
@@ -1838,10 +1796,26 @@ export function TranscriptionPage() {
     if (!selectedUtteranceMedia) return;
     setAudioDeleteConfirm(null);
     fireAndForget((async () => {
-      await LinguisticService.deleteAudio(selectedUtteranceMedia.id);
-      await loadSnapshot();
-      setSelectedUtteranceId('');
-      setSaveState({ kind: 'done', message: t(locale, 'transcription.action.audioDeleted') });
+      try {
+        await LinguisticService.deleteAudio(selectedUtteranceMedia.id);
+        await loadSnapshot();
+        setSelectedUtteranceId('');
+        setSaveState({ kind: 'done', message: t(locale, 'transcription.action.audioDeleted') });
+      } catch (error) {
+        log.error('Failed to delete current audio', {
+          mediaId: selectedUtteranceMedia.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        reportActionError({
+          actionLabel: t(locale, 'transcription.action.confirmDeleteAudio'),
+          error,
+          fallbackI18nKey: 'transcription.action.audioDeleteFailed',
+          setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+          fallbackMessage: tf(locale, 'transcription.action.audioDeleteFailed', {
+            message: error instanceof Error ? error.message : String(error),
+          }),
+        });
+      }
     })());
   }, [loadSnapshot, locale, selectedUtteranceMedia, setSaveState, setSelectedUtteranceId]);
 
@@ -1854,13 +1828,86 @@ export function TranscriptionPage() {
     if (!activeTextId) return;
     setProjectDeleteConfirm(false);
     fireAndForget((async () => {
-      await LinguisticService.deleteProject(activeTextId);
-      setActiveTextId(null);
-      setSelectedUtteranceId('');
-      await loadSnapshot();
-      setSaveState({ kind: 'done', message: t(locale, 'transcription.action.projectDeleted') });
+      try {
+        await LinguisticService.deleteProject(activeTextId);
+        setActiveTextId(null);
+        setSelectedUtteranceId('');
+        await loadSnapshot();
+        setSaveState({ kind: 'done', message: t(locale, 'transcription.action.projectDeleted') });
+      } catch (error) {
+        log.error('Failed to delete current project', {
+          textId: activeTextId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        reportActionError({
+          actionLabel: t(locale, 'transcription.action.confirmDeleteProject'),
+          error,
+          fallbackI18nKey: 'transcription.action.projectDeleteFailed',
+          setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+          fallbackMessage: tf(locale, 'transcription.action.projectDeleteFailed', {
+            message: error instanceof Error ? error.message : String(error),
+          }),
+        });
+      }
     })());
   }, [activeTextId, loadSnapshot, locale, setSaveState, setSelectedUtteranceId]);
+
+  // ── Dialog callbacks for TranscriptionPageDialogs ──
+  const handleProjectSetupSubmit = useCallback(async (input: { titleZh: string; titleEn: string; primaryLanguageId: string }) => {
+    const result = await LinguisticService.createProject(input);
+    setActiveTextId(result.textId);
+    setSaveState({ kind: 'done', message: tfB('transcription.action.projectCreated', { title: input.titleZh }) });
+    setShowAudioImport(true);
+    await loadSnapshot();
+  }, [loadSnapshot, setSaveState]);
+
+  const handleAudioImport = useCallback(async (file: File, duration: number) => {
+    let textId = activeTextId ?? (await getActiveTextId());
+    if (!textId) {
+      const baseName = file.name.replace(/\.[^.]+$/, '');
+      const result = await LinguisticService.createProject({
+        titleZh: baseName,
+        titleEn: baseName,
+        primaryLanguageId: 'und',
+      });
+      textId = result.textId;
+      setActiveTextId(textId);
+    }
+    const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+    const { mediaId } = await LinguisticService.importAudio({
+      textId,
+      audioBlob: blob,
+      filename: file.name,
+      duration,
+    });
+    addMediaItem({
+      id: mediaId,
+      textId,
+      filename: file.name,
+      duration,
+      details: { audioBlob: blob },
+      isOfflineCached: true,
+      createdAt: new Date().toISOString(),
+    } as import('../../db').MediaItemDocType);
+    setSaveState({ kind: 'done', message: tfB('transcription.action.audioImported', { filename: file.name }) });
+  }, [activeTextId, getActiveTextId, addMediaItem, setSaveState]);
+
+  // ── Batch operation callbacks for TranscriptionPageBatchOps ──
+  const handleBatchOffset = useCallback(async (deltaSec: number) => {
+    await offsetSelectedTimes(selectedUtteranceIds, deltaSec);
+  }, [offsetSelectedTimes, selectedUtteranceIds]);
+
+  const handleBatchScale = useCallback(async (factor: number, anchorTime?: number) => {
+    await scaleSelectedTimes(selectedUtteranceIds, factor, anchorTime);
+  }, [scaleSelectedTimes, selectedUtteranceIds]);
+
+  const handleBatchSplitByRegex = useCallback(async (pattern: string, flags?: string) => {
+    await splitByRegex(selectedUtteranceIds, pattern, flags);
+  }, [splitByRegex, selectedUtteranceIds]);
+
+  const handleBatchMerge = useCallback(async () => {
+    await mergeSelectedUtterances(selectedUtteranceIds);
+  }, [mergeSelectedUtterances, selectedUtteranceIds]);
 
   // ── Search / Replace ──
 
@@ -1979,17 +2026,38 @@ export function TranscriptionPage() {
 
   // 持久化层高到 localStorage | Persist lane heights to localStorage
   useEffect(() => {
-    try { localStorage.setItem('jieyu:lane-heights', JSON.stringify(timelineLaneHeights)); } catch {}
+    try {
+      localStorage.setItem('jieyu:lane-heights', JSON.stringify(timelineLaneHeights));
+    } catch (error) {
+      log.warn('Failed to persist lane heights to localStorage', {
+        storageKey: 'jieyu:lane-heights',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }, [timelineLaneHeights]);
 
   // 持久化波形高度到 localStorage | Persist waveform height to localStorage
   useEffect(() => {
-    try { localStorage.setItem('jieyu:waveform-height', String(waveformHeight)); } catch {}
+    try {
+      localStorage.setItem('jieyu:waveform-height', String(waveformHeight));
+    } catch (error) {
+      log.warn('Failed to persist waveform height to localStorage', {
+        storageKey: 'jieyu:waveform-height',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }, [waveformHeight]);
 
   // 持久化增益倍率到 localStorage | Persist amplitude scale to localStorage
   useEffect(() => {
-    try { localStorage.setItem('jieyu:amplitude-scale', String(amplitudeScale)); } catch {}
+    try {
+      localStorage.setItem('jieyu:amplitude-scale', String(amplitudeScale));
+    } catch (error) {
+      log.warn('Failed to persist amplitude scale to localStorage', {
+        storageKey: 'jieyu:amplitude-scale',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }, [amplitudeScale]);
 
   // 波形区域高度拖拽调整 | Waveform area height resize via drag
@@ -2096,19 +2164,35 @@ export function TranscriptionPage() {
   useEffect(() => {
     try {
       localStorage.setItem('jieyu:video-preview-height', String(videoPreviewHeight));
-    } catch {}
+    } catch (error) {
+      log.warn('Failed to persist video preview height to localStorage', {
+        storageKey: 'jieyu:video-preview-height',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }, [videoPreviewHeight]);
 
   useEffect(() => {
     try {
       localStorage.setItem('jieyu:video-layout-mode', videoLayoutMode);
-    } catch {}
+    } catch (error) {
+      log.warn('Failed to persist video layout mode to localStorage', {
+        storageKey: 'jieyu:video-layout-mode',
+        value: videoLayoutMode,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }, [videoLayoutMode]);
 
   useEffect(() => {
     try {
       localStorage.setItem('jieyu:video-right-panel-width', String(videoRightPanelWidth));
-    } catch {}
+    } catch (error) {
+      log.warn('Failed to persist video right panel width to localStorage', {
+        storageKey: 'jieyu:video-right-panel-width',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }, [videoRightPanelWidth]);
 
     const selectedBatchUtterances = useMemo(
@@ -2136,13 +2220,14 @@ export function TranscriptionPage() {
         handleExportSpeakerSegments,
         handleRenameSpeaker,
         handleMergeSpeaker,
+        handleDeleteSpeaker,
         handleAssignSpeakerToSelected,
         handleCreateSpeakerAndAssign,
         closeSpeakerDialog,
         updateSpeakerDialogDraftName,
         updateSpeakerDialogTargetKey,
         confirmSpeakerDialog,
-    } = useSpeakerManagement({
+    } = useSpeakerActions({
         utterances,
         setUtterances,
         speakers,
@@ -2280,8 +2365,11 @@ export function TranscriptionPage() {
                         recoveryDiffSummary={recoveryDiffSummary}
                         onApply={() => {
                             const snap = recoveryDataRef.current;
-                            if (snap) fireAndForget(applyRecovery(snap));
-                            hideRecoveryBanner();
+                            if (!snap) return;
+                            fireAndForget((async () => {
+                              const ok = await applyRecovery(snap);
+                              if (ok) hideRecoveryBanner();
+                            })());
                         }}
                         onDismiss={() => {
                             fireAndForget(dismissRecovery());
@@ -2289,7 +2377,7 @@ export function TranscriptionPage() {
                         }}
                     />
                     <section className="transcription-waveform">
-                        <WaveformToolbar
+                        <TranscriptionPageToolbar
                             filename={selectedUtteranceMedia?.filename ?? t(locale, 'transcription.media.unbound')}
                             isReady={player.isReady}
                             isPlaying={player.isPlaying}
@@ -2301,47 +2389,46 @@ export function TranscriptionPage() {
                             onLoopChange={setGlobalLoopPlayback}
                             onTogglePlayback={handleGlobalPlayPauseAction}
                             onSeek={player.seekBySeconds}
-                          >
-                            <TranscriptionToolbarActions
-                              canUndo={canUndo}
-                              canRedo={canRedo}
-                              undoLabel={undoLabel}
-                              canDeleteAudio={Boolean(selectedUtteranceMedia)}
-                              canDeleteProject={Boolean(activeTextId)}
-                              canToggleNotes={Boolean(selectedUtteranceId || notePopover)}
-                              canOpenUttOpsMenu={Boolean(selectedUtteranceId)}
-                              notePopoverOpen={Boolean(notePopover)}
-                              showExportMenu={showExportMenu}
-                              importFileRef={importFileRef}
-                              exportMenuRef={exportMenuRef}
-                              onRefresh={() => {
-                                void loadSnapshot();
-                              }}
-                              onUndo={() => {
-                                void undo();
-                              }}
-                              onRedo={() => {
-                                void redo();
-                              }}
-                              onOpenProjectSetup={() => setShowProjectSetup(true)}
-                              onOpenAudioImport={() => setShowAudioImport(true)}
-                              onDeleteCurrentAudio={handleDeleteCurrentAudio}
-                              onDeleteCurrentProject={handleDeleteCurrentProject}
-                              onToggleExportMenu={() => setShowExportMenu((value) => !value)}
-                              onExportEaf={handleExportEaf}
-                              onExportTextGrid={handleExportTextGrid}
-                              onExportTrs={handleExportTrs}
-                              onExportFlextext={handleExportFlextext}
-                              onExportToolbox={handleExportToolbox}
-                              onExportJyt={handleExportJyt}
-                              onExportJym={handleExportJym}
-                              onImportFile={(file) => {
+                            canUndo={canUndo}
+                            canRedo={canRedo}
+                            undoLabel={undoLabel}
+                            canDeleteAudio={Boolean(selectedUtteranceMedia)}
+                            canDeleteProject={Boolean(activeTextId)}
+                            canToggleNotes={Boolean(selectedUtteranceId || notePopover)}
+                            canOpenUttOpsMenu={Boolean(selectedUtteranceId)}
+                            notePopoverOpen={Boolean(notePopover)}
+                            showExportMenu={showExportMenu}
+                            importFileRef={importFileRef}
+                            exportMenuRef={exportMenuRef}
+                            onRefresh={() => {
+                              void loadSnapshot();
+                            }}
+                            onUndo={() => {
+                              void undo();
+                            }}
+                            onRedo={() => {
+                              void redo();
+                            }}
+                            onOpenProjectSetup={() => setShowProjectSetup(true)}
+                            onOpenAudioImport={() => setShowAudioImport(true)}
+                            onDeleteCurrentAudio={handleDeleteCurrentAudio}
+                            onDeleteCurrentProject={handleDeleteCurrentProject}
+                            exportCallbacks={{
+                              onToggleExportMenu: () => setShowExportMenu((value) => !value),
+                              onExportEaf: handleExportEaf,
+                              onExportTextGrid: handleExportTextGrid,
+                              onExportTrs: handleExportTrs,
+                              onExportFlextext: handleExportFlextext,
+                              onExportToolbox: handleExportToolbox,
+                              onExportJyt: handleExportJyt,
+                              onExportJym: handleExportJym,
+                              onImportFile: (file) => {
                                 void handleImportFile(file);
-                              }}
-                              onToggleNotes={toggleNotes}
-                              onOpenUttOpsMenu={(x, y) => setUttOpsMenu({ x, y })}
-                            />
-                          </WaveformToolbar>
+                              },
+                            }}
+                            onToggleNotes={toggleNotes}
+                            onOpenUttOpsMenu={(x, y) => setUttOpsMenu({ x, y })}
+                        />
           </section>
 
           {/* Editor workspace: left side for row editing, right side for AI guidance. */}
@@ -2357,7 +2444,7 @@ export function TranscriptionPage() {
           >
             <section
               className={`transcription-list-panel ${isTimelineLaneHeaderCollapsed ? 'transcription-list-panel-lane-header-collapsed' : ''}`}
-              style={{ '--lane-label-width': isTimelineLaneHeaderCollapsed ? '0px' : '64px', '--video-left-panel-width': videoLayoutMode === 'left' ? `${videoRightPanelWidth + 8}px` : '0px' } as React.CSSProperties}
+              style={{ '--lane-label-width': isTimelineLaneHeaderCollapsed ? '0px' : `${laneLabelWidth}px`, '--video-left-panel-width': videoLayoutMode === 'left' ? `${videoRightPanelWidth + 8}px` : '0px' } as React.CSSProperties}
             >
               <WaveformAreaSection
                 containerRef={waveformAreaRef}
@@ -2423,6 +2510,7 @@ export function TranscriptionPage() {
                 selectedMediaIsVideo={selectedMediaIsVideo}
                 videoLayoutMode={videoLayoutMode}
                 onVideoLayoutModeChange={setVideoLayoutMode}
+                onLaneLabelWidthResize={handleLaneLabelWidthResizeStart}
                 formatTime={formatTime}
               />
               <div className="waveform-content-offset">
@@ -2608,99 +2696,94 @@ export function TranscriptionPage() {
               />
               </div>
             </WaveformAreaSection>
-            <TimelineHeaderSection
-              duration={player.duration}
-              utterances={utterancesOnCurrentMedia}
-              rulerView={rulerView ?? null}
-              onSeek={player.seekTo}
-              isReady={player.isReady}
-              currentTime={player.currentTime}
-              zoomPxPerSec={zoomPxPerSec}
-              isLaneHeaderCollapsed={isTimelineLaneHeaderCollapsed}
-              onToggleLaneHeader={() => setIsTimelineLaneHeaderCollapsed((v) => !v)}
-              instanceRef={player.instanceRef}
-              waveCanvasRef={waveCanvasRef}
-              tierContainerRef={tierContainerRef}
+            <TranscriptionPageTimelineTop
+              headerProps={{
+                duration: player.duration,
+                utterances: utterancesOnCurrentMedia,
+                rulerView: rulerView ?? null,
+                onSeek: player.seekTo,
+                isReady: player.isReady,
+                currentTime: player.currentTime,
+                zoomPxPerSec,
+                isLaneHeaderCollapsed: isTimelineLaneHeaderCollapsed,
+                onToggleLaneHeader: () => setIsTimelineLaneHeaderCollapsed((v) => !v),
+                instanceRef: player.instanceRef,
+                waveCanvasRef,
+                tierContainerRef,
+              }}
+              showSearch={showSearch}
+              searchProps={{
+                items: searchableItems,
+                currentLayerId: selectedLayerId || undefined,
+                currentUtteranceId: selectedUtteranceId || undefined,
+                onNavigate: (id) => {
+                  manualSelectTsRef.current = Date.now();
+                  if (player.isPlaying) {
+                    player.stop();
+                  }
+                  selectUtterance(id);
+                },
+                onReplace: handleSearchReplace,
+                onClose: () => setShowSearch(false),
+              }}
             />
-              {showSearch && (
-                <SearchReplaceOverlay
-                  items={searchableItems}
-                  currentLayerId={selectedLayerId || undefined}
-                  currentUtteranceId={selectedUtteranceId || undefined}
-                  onNavigate={(id) => {
-                    manualSelectTsRef.current = Date.now();
-                    if (player.isPlaying) {
-                      player.stop();
-                    }
-                    selectUtterance(id);
-                  }}
-                  onReplace={handleSearchReplace}
-                  onClose={() => setShowSearch(false)}
-                />
-              )}
               <TimelineMainSection
                 containerRef={listMainRef}
                 className={`transcription-list-main ${isLayerRailCollapsed ? 'transcription-list-main-rail-collapsed' : ''} ${isTimelineLaneHeaderCollapsed ? 'transcription-list-main-lane-header-collapsed' : ''}`}
               >
                 <TimelineRailSection>
-                  <LayerRailSidebar
-                    isCollapsed={isLayerRailCollapsed}
-                    layerRailTab={layerRailTab}
-                    onTabChange={setLayerRailTab}
-                    layerRailRows={layerRailRows}
-                    focusedLayerRowId={focusedLayerRowId}
-                    flashLayerRowId={flashLayerRowId}
-                    onFocusLayer={handleFocusLayerRow}
-                    transcriptionLayers={transcriptionLayers}
-                    translationLayers={translationLayers}
-                    layerLinks={layerLinks}
-                    toggleLayerLink={toggleLayerLink}
-                    deletableLayers={deletableLayers}
-                    layerCreateMessage={layerCreateMessage}
-                    layerAction={layerAction}
-                    onReorderLayers={reorderLayers}
-                    speakerFilterOptions={speakerFilterOptions}
-                    activeSpeakerFilterKey={activeSpeakerFilterKey}
-                    onSpeakerFilterChange={setActiveSpeakerFilterKey}
-                    onSelectSpeakerUtterances={handleSelectSpeakerUtterances}
-                    onClearSpeakerAssignments={handleClearSpeakerAssignments}
-                    onExportSpeakerSegments={handleExportSpeakerSegments}
-                    onRenameSpeaker={handleRenameSpeaker}
-                    onMergeSpeaker={handleMergeSpeaker}
-                    speakerOptions={speakerOptions}
-                    selectedUtteranceIds={selectedUtteranceIds}
-                    selectedSpeakerSummary={selectedSpeakerSummary}
-                    speakerSaving={speakerSaving}
-                    speakerDraftName={speakerDraftName}
-                    setSpeakerDraftName={setSpeakerDraftName}
-                    batchSpeakerId={batchSpeakerId}
-                    setBatchSpeakerId={setBatchSpeakerId}
-                    onAssignSpeakerToSelected={handleAssignSpeakerToSelected}
-                    onCreateSpeakerAndAssign={handleCreateSpeakerAndAssign}
+                  <TranscriptionPageLayerRail
+                    speakerManagement={{
+                      speakerOptions,
+                      speakerDraftName,
+                      setSpeakerDraftName,
+                      batchSpeakerId,
+                      setBatchSpeakerId,
+                      speakerSaving,
+                      activeSpeakerFilterKey,
+                      setActiveSpeakerFilterKey,
+                      speakerDialogState,
+                      speakerVisualByUtteranceId,
+                      speakerFilterOptions,
+                      selectedSpeakerSummary,
+                      selectedUtteranceIds,
+                      handleSelectSpeakerUtterances,
+                      handleClearSpeakerAssignments,
+                      handleExportSpeakerSegments,
+                      handleRenameSpeaker,
+                      handleMergeSpeaker,
+                      handleDeleteSpeaker,
+                      handleAssignSpeakerToSelected,
+                      handleCreateSpeakerAndAssign,
+                      closeSpeakerDialog,
+                      updateSpeakerDialogDraftName,
+                      updateSpeakerDialogTargetKey,
+                      confirmSpeakerDialog,
+                    }}
+                    sidebarProps={{
+                      isCollapsed: isLayerRailCollapsed,
+                      layerRailTab,
+                      onTabChange: setLayerRailTab,
+                      layerRailRows,
+                      focusedLayerRowId,
+                      flashLayerRowId,
+                      onFocusLayer: handleFocusLayerRow,
+                      transcriptionLayers,
+                      translationLayers,
+                      layerLinks,
+                      toggleLayerLink,
+                      deletableLayers,
+                      layerCreateMessage,
+                      layerAction,
+                      onReorderLayers: reorderLayers,
+                    }}
+                    isLayerRailCollapsed={isLayerRailCollapsed}
+                    onLayerRailResizeStart={handleLayerRailResizeStart}
+                    onLayerRailToggle={handleLayerRailToggle}
+                    resizeLabel={t(locale, 'transcription.panel.resizeLayerRail')}
+                    expandLabel={t(locale, 'transcription.panel.expandLayerRail')}
+                    collapseLabel={t(locale, 'transcription.panel.collapseLayerRail')}
                   />
-                  <div
-                    className="transcription-layer-rail-resizer"
-                    onPointerDown={handleLayerRailResizeStart}
-                    role="separator"
-                    aria-orientation="vertical"
-                    aria-label={t(locale, 'transcription.panel.resizeLayerRail')}
-                  />
-                  <button
-                    type="button"
-                    className="transcription-layer-rail-toggle"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={handleLayerRailToggle}
-                    aria-label={isLayerRailCollapsed
-                      ? t(locale, 'transcription.panel.expandLayerRail')
-                      : t(locale, 'transcription.panel.collapseLayerRail')}
-                    title={isLayerRailCollapsed
-                      ? t(locale, 'transcription.panel.expandLayerRail')
-                      : t(locale, 'transcription.panel.collapseLayerRail')}
-                  >
-                    {isLayerRailCollapsed
-                      ? <ChevronRight size={14} aria-hidden="true" />
-                      : <ChevronLeft size={14} aria-hidden="true" />}
-                  </button>
                 </TimelineRailSection>
 
                 <TimelineScrollSection
@@ -2717,88 +2800,64 @@ export function TranscriptionPage() {
                   }}
                 >
                   <TranscriptionEditorContext.Provider value={editorContextValue}>
-                  {selectedMediaUrl && player.isReady && player.duration > 0 && layers.length > 0 ? (
-                    <TranscriptionTimelineMediaLanes
-                      playerDuration={player.duration}
-                      zoomPxPerSec={zoomPxPerSec}
-                      lassoRect={lassoRect}
-                      transcriptionLayers={transcriptionLayers}
-                      translationLayers={translationLayers}
-                      timelineRenderUtterances={timelineRenderUtterances}
-                      flashLayerRowId={flashLayerRowId}
-                      focusedLayerRowId={focusedLayerRowId}
-                      defaultTranscriptionLayerId={defaultTranscriptionLayerId}
-                      renderAnnotationItem={renderAnnotationItem}
-                      allLayersOrdered={layerRailRows}
-                      onReorderLayers={reorderLayers}
-                      deletableLayers={deletableLayers}
-                      onFocusLayer={handleFocusLayerRow}
-                      layerLinks={layerLinks}
-                      showConnectors={showAllLayerConnectors}
-                      onToggleConnectors={() => setShowAllLayerConnectors((prev) => !prev)}
-                      laneHeights={timelineLaneHeights}
-                      onLaneHeightChange={handleTimelineLaneHeightChange}
-                    />
-                  ) : layers.length > 0 ? (
-                    <TranscriptionTimelineTextOnly
-                      transcriptionLayers={transcriptionLayers}
-                      translationLayers={translationLayers}
-                      utterancesOnCurrentMedia={filteredUtterancesOnCurrentMedia}
-                      selectedUtteranceId={selectedUtteranceId}
-                      flashLayerRowId={flashLayerRowId}
-                      focusedLayerRowId={focusedLayerRowId}
-                      defaultTranscriptionLayerId={defaultTranscriptionLayerId ?? ''}
-                      scrollContainerRef={tierContainerRef}
-                      handleAnnotationClick={handleAnnotationClick}
-                      allLayersOrdered={layerRailRows}
-                      onReorderLayers={reorderLayers}
-                      deletableLayers={deletableLayers}
-                      onFocusLayer={handleFocusLayerRow}
-                      navigateUtteranceFromInput={navigateUtteranceFromInput}
-                      layerLinks={layerLinks}
-                      showConnectors={showAllLayerConnectors}
-                      onToggleConnectors={() => setShowAllLayerConnectors((prev) => !prev)}
-                      laneHeights={timelineLaneHeights}
-                      onLaneHeightChange={handleTimelineLaneHeightChange}
-                      speakerVisualByUtteranceId={speakerVisualByUtteranceId}
-                    />
-                  ) : (
-                    <div className="timeline-empty-state">
-                      {(() => {
-                        if (layers.length === 0) {
-                          return (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', padding: '48px 24px' }}>
-                              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                                <button
-                                  type="button"
-                                  className="btn"
-                                  onClick={() => layerAction.setLayerActionPanel('create-transcription')}
-                                >
-                                  新建转写层
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn"
-                                  onClick={() => importFileRef.current?.click()}
-                                >
-                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                    <polyline points="17 8 12 3 7 8"/>
-                                    <line x1="12" y1="3" x2="12" y2="15"/>
-                                  </svg>
-                                  {t(locale, 'transcription.timeline.empty.importFile')}
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        }
-                        if (selectedMediaUrl) {
-                          return t(locale, 'transcription.timeline.empty.noUtteranceWithWave');
-                        }
-                        return t(locale, 'transcription.timeline.empty.startWork');
-                      })()}
-                    </div>
-                  )}
+                    <TranscriptionPageTimelineContent
+                      selectedMediaUrl={selectedMediaUrl ?? null}
+                    playerIsReady={player.isReady}
+                    playerDuration={player.duration}
+                    layersCount={layers.length}
+                    mediaLanesProps={{
+                      playerDuration: player.duration,
+                      zoomPxPerSec,
+                      lassoRect,
+                      transcriptionLayers,
+                      translationLayers,
+                      timelineRenderUtterances,
+                      flashLayerRowId,
+                      focusedLayerRowId,
+                      defaultTranscriptionLayerId,
+                      renderAnnotationItem,
+                      allLayersOrdered: layerRailRows,
+                      onReorderLayers: reorderLayers,
+                      deletableLayers,
+                      onFocusLayer: handleFocusLayerRow,
+                      layerLinks,
+                      showConnectors: showAllLayerConnectors,
+                      onToggleConnectors: () => setShowAllLayerConnectors((prev) => !prev),
+                      laneHeights: timelineLaneHeights,
+                      onLaneHeightChange: handleTimelineLaneHeightChange,
+                      onLaneLabelWidthResize: handleLaneLabelWidthResizeStart,
+                    }}
+                    textOnlyProps={{
+                      transcriptionLayers,
+                      translationLayers,
+                      utterancesOnCurrentMedia: filteredUtterancesOnCurrentMedia,
+                      selectedUtteranceId,
+                      flashLayerRowId,
+                      focusedLayerRowId,
+                      defaultTranscriptionLayerId: defaultTranscriptionLayerId ?? '',
+                      scrollContainerRef: tierContainerRef,
+                      handleAnnotationClick,
+                      allLayersOrdered: layerRailRows,
+                      onReorderLayers: reorderLayers,
+                      deletableLayers,
+                      onFocusLayer: handleFocusLayerRow,
+                      navigateUtteranceFromInput,
+                      layerLinks,
+                      showConnectors: showAllLayerConnectors,
+                      onToggleConnectors: () => setShowAllLayerConnectors((prev) => !prev),
+                      laneHeights: timelineLaneHeights,
+                      onLaneHeightChange: handleTimelineLaneHeightChange,
+                      speakerVisualByUtteranceId,
+                      onLaneLabelWidthResize: handleLaneLabelWidthResizeStart,
+                    }}
+                    emptyStateProps={{
+                      locale,
+                      layersCount: layers.length,
+                      hasSelectedMedia: Boolean(selectedMediaUrl),
+                      onCreateTranscriptionLayer: () => layerAction.setLayerActionPanel('create-transcription'),
+                      onOpenImportFile: () => importFileRef.current?.click(),
+                    }}
+                  />
                   </TranscriptionEditorContext.Provider>
                 </TimelineScrollSection>
               </TimelineMainSection>
@@ -2867,6 +2926,8 @@ export function TranscriptionPage() {
             </button>
 
             <AiPanelContext.Provider value={aiPanelContextValue}>
+                <VoiceAgentProvider value={voiceAgentContextValue}>
+                <AiChatProvider value={aiChatContextValue}>
                 <AiAssistantHubContext.Provider value={aiAssistantHubContextValue}>
                   <ToastController
                     voiceAgent={voiceAgent}
@@ -2876,204 +2937,81 @@ export function TranscriptionPage() {
                     recordingError={recordingError}
                     tf={tfB}
                   />
-                  <aside className={`transcription-ai-panel ${isAiPanelCollapsed ? 'transcription-ai-panel-collapsed' : ''}`}>
-                    <div className="transcription-hub-sidebar-tabs" role="tablist">
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={hubSidebarTab === 'assistant'}
-                      className={`transcription-hub-sidebar-tab ${hubSidebarTab === 'assistant' ? 'is-active' : ''}`}
-                      onClick={() => setHubSidebarTab('assistant')}
-                    >
-                      {locale === 'zh-CN' ? '助手' : 'Assistant'}
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={hubSidebarTab === 'analysis'}
-                      className={`transcription-hub-sidebar-tab ${hubSidebarTab === 'analysis' ? 'is-active' : ''}`}
-                      onClick={() => setHubSidebarTab('analysis')}
-                    >
-                      {locale === 'zh-CN' ? 'AI 分析' : 'AI Analysis'}
-                    </button>
-                  </div>
-
-                  {hubSidebarTab === 'assistant' ? (
-                    <div className="transcription-hub-assistant-panel">
-                      <div className="transcription-hub-assistant-chat-section">
-                        <AiChatCard
-                          embedded
-                          voiceDrawer={featureFlags.voiceAgentEnabled ? (
-                            <VoiceAgentWidget
-                              listening={voiceAgent.listening}
-                              speechActive={voiceAgent.speechActive}
-                              mode={voiceAgent.mode}
-                              interimText={voiceAgent.interimText}
-                              finalText={voiceAgent.finalText}
-                              confidence={voiceAgent.confidence}
-                              error={voiceAgent.error}
-                              lastIntent={voiceAgent.lastIntent}
-                              pendingConfirm={voiceAgent.pendingConfirm}
-                              safeMode={voiceAgent.safeMode}
-                              wakeWordEnabled={voiceAgent.wakeWordEnabled}
-                              wakeWordEnergyLevel={voiceAgent.wakeWordEnergyLevel}
-                              corpusLang={effectiveVoiceCorpusLang}
-                              langOverride={voiceCorpusLangOverride}
-                              detectedLang={voiceAgent.detectedLang}
-                              engine={voiceAgent.engine}
-                              isRecording={voiceAgent.isRecording}
-                              energyLevel={voiceAgent.energyLevel}
-                              agentState={voiceAgent.agentState}
-                              recordingDuration={voiceAgent.recordingDuration}
-                              session={voiceAgent.session}
-                              commercialProviderKind={voiceAgent.commercialProviderKind}
-                              commercialProviderConfig={voiceAgent.commercialProviderConfig}
-                              targetSummary={voiceTargetSummary}
-                              statusSummary={voiceStatusSummary}
-                              environmentSummary={voiceEnvironmentSummary}
-                              selectionSummary={voiceSelectionSummary}
-                              onToggle={handleVoiceAssistantIconClick}
-                              onMicPointerDown={handleMicPointerDown}
-                              onMicPointerUp={handleMicPointerUp}
-                              onSwitchMode={voiceAgent.switchMode}
-                              onSwitchEngine={handleVoiceSwitchEngine}
-                              onConfirm={voiceAgent.confirmPending}
-                              onCancel={voiceAgent.cancelPending}
-                              onSetSafeMode={voiceAgent.setSafeMode}
-                              onSetWakeWordEnabled={voiceAgent.setWakeWordEnabled}
-                              onSetLangOverride={handleVoiceSetLangOverride}
-                              onSetCommercialProviderKind={voiceAgent.setCommercialProviderKind}
-                              onCommercialConfigChange={handleVoiceCommercialConfigChange}
-                              onTestCommercialProvider={voiceAgent.testCommercialProvider}
-                            />
-                          ) : undefined}
-                          voiceEntry={featureFlags.voiceAgentEnabled ? {
-                            enabled: true,
-                            expanded: assistantVoiceExpanded,
-                            listening: voiceAgent.listening,
-                            statusText: voiceAgent.listening
-                              ? (locale === 'zh-CN' ? '监听中' : 'Listening')
-                              : (locale === 'zh-CN' ? '待命' : 'Standby'),
-                            onTogglePanel: handleAssistantVoicePanelToggle,
-                          } : undefined}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="transcription-hub-sidebar-panel-body">
-                      <AiAnalysisPanel isCollapsed={false} activeTab={analysisTab} onChangeActiveTab={setAnalysisTab} />
-                    </div>
-                  )}
-                </aside>
+                  {!isAiPanelCollapsed ? (
+                    <Suspense fallback={null}>
+                      <TranscriptionPageAiSidebar
+                        locale={locale}
+                        isAiPanelCollapsed={isAiPanelCollapsed}
+                        hubSidebarTab={hubSidebarTab}
+                        onHubSidebarTabChange={setHubSidebarTab}
+                        featureVoiceAgentEnabled={featureFlags.voiceAgentEnabled}
+                        assistantVoiceExpanded={assistantVoiceExpanded}
+                        onAssistantVoicePanelToggle={handleAssistantVoicePanelToggle}
+                        voiceWidgetProps={voiceWidgetProps}
+                        analysisTab={analysisTab}
+                        onAnalysisTabChange={setAnalysisTab}
+                        embeddingContextValue={embeddingContextValue}
+                      />
+                    </Suspense>
+                  ) : null}
               </AiAssistantHubContext.Provider>
+                </AiChatProvider>
+                </VoiceAgentProvider>
             </AiPanelContext.Provider>
-          <SpeakerManagementDialog
-            state={speakerDialogState}
-            busy={speakerSaving}
-            onClose={closeSpeakerDialog}
-            onConfirm={() => { fireAndForget(confirmSpeakerDialog()); }}
+          <TranscriptionPageDialogs
+            speakerDialogState={speakerDialogState}
+            speakerSaving={speakerSaving}
+            onCloseSpeakerDialog={closeSpeakerDialog}
+            onConfirmSpeakerDialog={confirmSpeakerDialog}
             onDraftNameChange={updateSpeakerDialogDraftName}
             onTargetSpeakerChange={updateSpeakerDialogTargetKey}
-          />
-          </main>
-          </ToastProvider>
-
-          <PdfPreviewSection
+            showProjectSetup={showProjectSetup}
+            onCloseProjectSetup={() => setShowProjectSetup(false)}
+            onSubmitProjectSetup={handleProjectSetupSubmit}
+            showAudioImport={showAudioImport}
+            onCloseAudioImport={() => setShowAudioImport(false)}
+            onImportAudio={handleAudioImport}
+            mediaFileInputRef={mediaFileInputRef}
+            onDirectMediaImport={handleDirectMediaImport}
+            audioDeleteConfirm={audioDeleteConfirm}
+            onCancelAudioDelete={() => setAudioDeleteConfirm(null)}
+            onConfirmAudioDelete={handleConfirmAudioDelete}
+            projectDeleteConfirm={projectDeleteConfirm}
+            onCancelProjectDelete={() => setProjectDeleteConfirm(false)}
+            onConfirmProjectDelete={handleConfirmProjectDelete}
+            showShortcuts={showShortcuts}
+            onCloseShortcuts={() => setShowShortcuts(false)}
+            isFocusMode={isFocusMode}
+            onExitFocusMode={() => setIsFocusMode(false)}
             locale={locale}
             pdfPreview={pdfPreview}
             pdfPreviewDragging={pdfPreviewDragging}
             pdfPreviewPos={pdfPreviewPos}
             pdfPreviewRef={pdfPreviewRef}
-            onDragStart={handlePdfPreviewDragStart}
-            onChangePage={handlePdfPreviewPageChange}
-            onOpenExternal={handlePdfPreviewOpenExternal}
-            onClose={handleClosePdfPreview}
+            onPdfPreviewDragStart={handlePdfPreviewDragStart}
+            onPdfPreviewPageChange={handlePdfPreviewPageChange}
+            onPdfPreviewOpenExternal={handlePdfPreviewOpenExternal}
+            onPdfPreviewClose={handleClosePdfPreview}
           />
+          </main>
+          </ToastProvider>
 
-          <ProjectSetupDialog
-            isOpen={showProjectSetup}
-            onClose={() => setShowProjectSetup(false)}
-            onSubmit={async (input) => {
-              const result = await LinguisticService.createProject(input);
-              setActiveTextId(result.textId);
-              setSaveState({ kind: 'done', message: tf(locale, 'transcription.action.projectCreated', { title: input.titleZh }) });
-              setShowAudioImport(true);
-              await loadSnapshot();
-            }}
+          <TranscriptionPageBatchOps
+            showBatchOperationPanel={showBatchOperationPanel}
+            selectedUtteranceIds={selectedUtteranceIds}
+            selectedBatchUtterances={selectedBatchUtterances}
+            utterancesOnCurrentMedia={utterancesOnCurrentMedia}
+            selectedBatchUtteranceTextById={selectedBatchUtteranceTextById}
+            batchPreviewLayerOptions={batchPreviewLayerOptions}
+            batchPreviewTextByLayerId={batchPreviewTextByLayerId}
+            defaultBatchPreviewLayerId={defaultBatchPreviewLayerId}
+            onBatchClose={() => setShowBatchOperationPanel(false)}
+            onBatchOffset={handleBatchOffset}
+            onBatchScale={handleBatchScale}
+            onBatchSplitByRegex={handleBatchSplitByRegex}
+            onBatchMerge={handleBatchMerge}
+            onBatchJumpToUtterance={setSelectedUtteranceId}
           />
-
-          <AudioImportDialog
-            isOpen={showAudioImport}
-            onClose={() => setShowAudioImport(false)}
-            onImport={async (file, duration) => {
-              let textId = activeTextId ?? (await getActiveTextId());
-              if (!textId) {
-                // 无项目时自动创建默认项目
-                const baseName = file.name.replace(/\.[^.]+$/, '');
-                const result = await LinguisticService.createProject({
-                  titleZh: baseName,
-                  titleEn: baseName,
-                  primaryLanguageId: 'und',
-                });
-                textId = result.textId;
-                setActiveTextId(textId);
-              }
-              const blob = new Blob([await file.arrayBuffer()], { type: file.type });
-              const { mediaId } = await LinguisticService.importAudio({
-                textId,
-                audioBlob: blob,
-                filename: file.name,
-                duration,
-              });
-              addMediaItem({
-                id: mediaId,
-                textId,
-                filename: file.name,
-                duration,
-                details: { audioBlob: blob },
-                isOfflineCached: true,
-                createdAt: new Date().toISOString(),
-              } as import('../../db').MediaItemDocType);
-              setSaveState({ kind: 'done', message: tf(locale, 'transcription.action.audioImported', { filename: file.name }) });
-            }}
-          />
-
-          {/* Hidden file input for direct media import from empty state button */}
-          <input
-            ref={mediaFileInputRef}
-            type="file"
-            accept=".mp3,.wav,.ogg,.webm,.m4a,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv"
-            style={{ display: 'none' }}
-            onChange={handleDirectMediaImport}
-          />
-
-          {showBatchOperationPanel && (
-            <BatchOperationPanel
-              selectedCount={selectedUtteranceIds.size}
-              selectedUtterances={selectedBatchUtterances}
-              allUtterancesOnMedia={utterancesOnCurrentMedia}
-              utteranceTextById={selectedBatchUtteranceTextById}
-              previewLayerOptions={batchPreviewLayerOptions}
-              previewTextByLayerId={batchPreviewTextByLayerId}
-              {...(defaultBatchPreviewLayerId ? { defaultPreviewLayerId: defaultBatchPreviewLayerId } : {})}
-              onClose={() => setShowBatchOperationPanel(false)}
-              onOffset={async (deltaSec) => {
-                await offsetSelectedTimes(selectedUtteranceIds, deltaSec);
-              }}
-              onScale={async (factor, anchorTime) => {
-                await scaleSelectedTimes(selectedUtteranceIds, factor, anchorTime);
-              }}
-              onSplitByRegex={async (pattern, flags) => {
-                await splitByRegex(selectedUtteranceIds, pattern, flags);
-              }}
-              onMerge={async () => {
-                await mergeSelectedUtterances(selectedUtteranceIds);
-              }}
-              onJumpToUtterance={(id) => {
-                setSelectedUtteranceId(id);
-              }}
-            />
-          )}
         </>
       )}
       <TranscriptionOverlays
@@ -3115,32 +3053,6 @@ export function TranscriptionPage() {
         transcriptionLayers={transcriptionLayers}
         translationLayers={translationLayers}
       />
-      {/* 音频删除确认对话框 | Audio delete confirmation dialog */}
-      <ConfirmDeleteDialog
-        open={audioDeleteConfirm !== null}
-        title="删除音频"
-        description={audioDeleteConfirm ? `确定删除音频「${audioDeleteConfirm.filename}」及其所有句段？此操作不可撤销。` : ''}
-        onCancel={() => setAudioDeleteConfirm(null)}
-        onConfirm={handleConfirmAudioDelete}
-      />
-      {/* 项目删除确认对话框 | Project delete confirmation dialog */}
-      <ConfirmDeleteDialog
-        open={projectDeleteConfirm}
-        title="删除项目"
-        description="确定删除当前项目及其所有数据（音频、句段、翻译）？此操作不可撤销。"
-        onCancel={() => setProjectDeleteConfirm(false)}
-        onConfirm={handleConfirmProjectDelete}
-      />
-      {/* 清洁焦点模式退出提示 | Focus mode exit badge */}
-      {isFocusMode && (
-        <div className="focus-mode-badge" onClick={() => setIsFocusMode(false)}>
-          焦点模式 — 点击或 ⌘⇧F 退出
-        </div>
-      )}
-      {/* 快捷键面板 | Keyboard shortcuts panel */}
-      {showShortcuts && (
-        <ShortcutsPanel onClose={() => setShowShortcuts(false)} />
-      )}
     </section>
   );
 }
