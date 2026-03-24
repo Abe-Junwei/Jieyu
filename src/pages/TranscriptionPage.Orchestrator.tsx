@@ -26,7 +26,6 @@ import {
   VideoPreviewSection,
 } from '../components/transcription/TranscriptionTimelineSections';
 import type { VideoLayoutMode } from '../components/transcription/TranscriptionTimelineSections';
-import { RecoveryBanner } from '../components/RecoveryBanner';
 import {
   BottomToolbarSection,
   ObserverStatusSection,
@@ -106,6 +105,10 @@ const log = createLogger('TranscriptionPage');
 
 const TranscriptionPageAiSidebar = lazy(async () => import('./TranscriptionPage.AiSidebar').then((module) => ({
   default: module.TranscriptionPageAiSidebar,
+})));
+
+const RecoveryBanner = lazy(async () => import('../components/RecoveryBanner').then((module) => ({
+  default: module.RecoveryBanner,
 })));
 
 function TranscriptionPageOrchestrator() {
@@ -2371,23 +2374,25 @@ function TranscriptionPageOrchestrator() {
 
       {state.phase === 'ready' && (
         <>
-          <RecoveryBanner
-            locale={locale}
-            recoveryAvailable={recoveryAvailable}
-            recoveryDiffSummary={recoveryDiffSummary}
-            onApply={() => {
-              const snap = recoveryDataRef.current;
-              if (!snap) return;
-              fireAndForget((async () => {
-                const ok = await applyRecovery(snap);
-                if (ok) hideRecoveryBanner();
-              })());
-            }}
-            onDismiss={() => {
-              fireAndForget(dismissRecovery());
-              hideRecoveryBanner();
-            }}
-          />
+          <Suspense fallback={null}>
+            <RecoveryBanner
+              locale={locale}
+              recoveryAvailable={recoveryAvailable}
+              recoveryDiffSummary={recoveryDiffSummary}
+              onApply={() => {
+                const snap = recoveryDataRef.current;
+                if (!snap) return;
+                fireAndForget((async () => {
+                  const ok = await applyRecovery(snap);
+                  if (ok) hideRecoveryBanner();
+                })());
+              }}
+              onDismiss={() => {
+                fireAndForget(dismissRecovery());
+                hideRecoveryBanner();
+              }}
+            />
+          </Suspense>
           <section className="transcription-waveform">
             <TranscriptionPageToolbar
               filename={selectedUtteranceMedia?.filename ?? t(locale, 'transcription.media.unbound')}
