@@ -71,4 +71,25 @@ describe('Transcription layout guard', () => {
     expect(block).toContain('cursor: ew-resize;');
     expect(block).toContain('pointer-events: auto;');
   });
+
+  it('keeps subtrack wrappers non-interactive while annotation items stay interactive', () => {
+    const cssPath = path.resolve(process.cwd(), 'src/styles/transcription.css');
+    const cssCode = fs.readFileSync(cssPath, 'utf8');
+
+    const subtrackSelector = '.timeline-annotation-subtrack {';
+    const subtrackStart = cssCode.indexOf(subtrackSelector);
+    expect(subtrackStart).toBeGreaterThanOrEqual(0);
+    const subtrackEnd = cssCode.indexOf('}', subtrackStart);
+    expect(subtrackEnd).toBeGreaterThan(subtrackStart);
+    const subtrackBlock = cssCode.slice(subtrackStart, subtrackEnd + 1);
+    expect(subtrackBlock).toContain('pointer-events: none;');
+
+    const annotationSelector = '.timeline-annotation {';
+    const annotationStart = cssCode.indexOf(annotationSelector);
+    expect(annotationStart).toBeGreaterThanOrEqual(0);
+    const annotationEnd = cssCode.indexOf('}', annotationStart);
+    expect(annotationEnd).toBeGreaterThan(annotationStart);
+    const annotationBlock = cssCode.slice(annotationStart, annotationEnd + 1);
+    expect(annotationBlock).toContain('pointer-events: auto;');
+  });
 });

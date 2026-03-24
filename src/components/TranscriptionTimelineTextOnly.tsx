@@ -157,7 +157,8 @@ export function TranscriptionTimelineTextOnly({
             '--timeline-lane-content-height': `${Math.max(16, ((isCollapsed ? 14 : (laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)) - 12))}px`,
           } as React.CSSProperties}
           onPointerDown={(e) => {
-            if (isCollapsed) toggleLayerCollapsed(layer.id);
+            if (!isCollapsed) return;
+            toggleLayerCollapsed(layer.id);
             e.preventDefault();
             e.stopPropagation();
           }}
@@ -319,7 +320,8 @@ export function TranscriptionTimelineTextOnly({
             '--timeline-lane-content-height': `${Math.max(16, ((isCollapsed ? 14 : (laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)) - 12))}px`,
           } as React.CSSProperties}
           onPointerDown={(e) => {
-            if (isCollapsed) toggleLayerCollapsed(layer.id);
+            if (!isCollapsed) return;
+            toggleLayerCollapsed(layer.id);
             e.preventDefault();
             e.stopPropagation();
           }}

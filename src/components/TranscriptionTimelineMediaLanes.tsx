@@ -1,5 +1,5 @@
 import type { TranslationLayerDocType, UtteranceDocType } from '../db';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -9,6 +9,7 @@ import { LayerActionPopover } from './LayerActionPopover';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
+import { buildSpeakerLayerLayout } from '../utils/speakerLayerLayout';
 
 type LassoRect = {
   x: number;
@@ -79,7 +80,13 @@ export function TranscriptionTimelineMediaLanes({
 }) {
   const [layerAction, setLayerAction] = useState<{ action: LayerActionType; layerId?: string } | null>(null);
   const [collapsedLayerIds, setCollapsedLayerIds] = useState<Set<string>>(new Set());
+  const [tempExpandedGroupByLayer, setTempExpandedGroupByLayer] = useState<Record<string, string>>({});
+  const tempExpandTimersRef = useRef<Map<string, number>>(new Map());
   const { resizingLayerId, startLaneHeightResize } = useTimelineLaneHeightResize(onLaneHeightChange);
+  const speakerLayerLayout = useMemo(
+    () => buildSpeakerLayerLayout(timelineRenderUtterances),
+    [timelineRenderUtterances],
+  );
 
   const toggleLayerCollapsed = (layerId: string) => {
     setCollapsedLayerIds((prev) => {
@@ -87,7 +94,41 @@ export function TranscriptionTimelineMediaLanes({
       if (next.has(layerId)) next.delete(layerId); else next.add(layerId);
       return next;
     });
+    setTempExpandedGroupByLayer((prev) => {
+      if (!(layerId in prev)) return prev;
+      const { [layerId]: _, ...rest } = prev;
+      return rest;
+    });
+    const timerId = tempExpandTimersRef.current.get(layerId);
+    if (timerId !== undefined) {
+      window.clearTimeout(timerId);
+      tempExpandTimersRef.current.delete(layerId);
+    }
   };
+
+  useEffect(() => () => {
+    for (const timerId of tempExpandTimersRef.current.values()) {
+      window.clearTimeout(timerId);
+    }
+    tempExpandTimersRef.current.clear();
+  }, []);
+
+  const activateTemporaryExpand = useCallback((layerId: string, overlapGroupId: string) => {
+    setTempExpandedGroupByLayer((prev) => ({ ...prev, [layerId]: overlapGroupId }));
+    const oldTimer = tempExpandTimersRef.current.get(layerId);
+    if (oldTimer !== undefined) {
+      window.clearTimeout(oldTimer);
+    }
+    const timerId = window.setTimeout(() => {
+      setTempExpandedGroupByLayer((prev) => {
+        if (!(layerId in prev)) return prev;
+        const { [layerId]: _, ...rest } = prev;
+        return rest;
+      });
+      tempExpandTimersRef.current.delete(layerId);
+    }, 8000);
+    tempExpandTimersRef.current.set(layerId, timerId);
+  }, []);
 
   const {
     utteranceDrafts,
@@ -133,7 +174,8 @@ export function TranscriptionTimelineMediaLanes({
 
   // Stable callback for lane pointer down - avoids creating new function per layer per render
   const handleLanePointerDown = useCallback((layerId: string, isCollapsed: boolean, e: React.PointerEvent<HTMLDivElement>) => {
-    if (isCollapsed) toggleLayerCollapsed(layerId);
+    if (!isCollapsed) return;
+    toggleLayerCollapsed(layerId);
     e.preventDefault();
     e.stopPropagation();
   }, []);
@@ -153,15 +195,29 @@ export function TranscriptionTimelineMediaLanes({
       )}
       {transcriptionLayers.map((layer, idx) => {
         const isCollapsed = collapsedLayerIds.has(layer.id);
+        const activeOverlapGroupId = tempExpandedGroupByLayer[layer.id];
+        const isTemporarilyExpanded = typeof activeOverlapGroupId === 'string';
+        const effectiveCollapsed = isCollapsed && !isTemporarilyExpanded;
+        const baseLaneHeight = laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT;
+        const expandedGroupMeta = activeOverlapGroupId
+          ? speakerLayerLayout.overlapGroups.find((group) => group.id === activeOverlapGroupId)
+          : undefined;
+        const activeSubTrackCount = expandedGroupMeta?.subTrackCount ?? speakerLayerLayout.subTrackCount;
+        const visibleLaneHeight = effectiveCollapsed ? 14 : baseLaneHeight * activeSubTrackCount;
+        const collapsedOverlapMarkers = speakerLayerLayout.overlapGroups.filter((group) => group.speakerCount > 1);
+        const visibleUtterances = !effectiveCollapsed && activeOverlapGroupId
+          ? timelineRenderUtterances.filter((utt) => speakerLayerLayout.placements.get(utt.id)?.overlapGroupId === activeOverlapGroupId)
+          : timelineRenderUtterances;
         return (
         <div
           key={`tl-${layer.id}`}
-          className={`timeline-lane ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${isCollapsed ? 'timeline-lane-collapsed' : ''}`}
+          className={`timeline-lane ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${effectiveCollapsed ? 'timeline-lane-collapsed' : ''} ${!effectiveCollapsed && speakerLayerLayout.subTrackCount > 1 ? 'timeline-lane-speaker-layered' : ''}`}
           style={{
             position: 'relative',
-            '--timeline-lane-height': `${isCollapsed ? 14 : (laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)}px`,
+            '--timeline-lane-height': `${visibleLaneHeight}px`,
+            '--timeline-subtrack-height': `${baseLaneHeight}px`,
           } as React.CSSProperties}
-          onPointerDown={(e) => handleLanePointerDown(layer.id, isCollapsed, e)}
+          onPointerDown={(e) => handleLanePointerDown(layer.id, effectiveCollapsed, e)}
         >
           <TimelineLaneHeader
             layer={layer}
@@ -176,37 +232,66 @@ export function TranscriptionTimelineMediaLanes({
             layerLinks={layerLinks}
             showConnectors={showConnectors}
             onToggleConnectors={onToggleConnectors ?? (() => {})}
-            isCollapsed={isCollapsed}
+            isCollapsed={effectiveCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
           />
-          {!isCollapsed && timelineRenderUtterances.map((utt) => {
+          {isCollapsed && collapsedOverlapMarkers.map((group) => (
+            <button
+              key={`ov-hint-${layer.id}-${group.id}`}
+              type="button"
+              className="timeline-lane-overlap-hint"
+              title="临时展开该重叠时间窗"
+              style={{ left: group.centerTime * zoomPxPerSec }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                activateTemporaryExpand(layer.id, group.id);
+              }}
+            >
+              {group.speakerCount}人
+            </button>
+          ))}
+          {!effectiveCollapsed && visibleUtterances.map((utt) => {
             const sourceText = getUtteranceTextForLayer(utt, layer.id);
             const draftKey = `trc-${layer.id}-${utt.id}`;
             const legacyDraft = layer.id === defaultTranscriptionLayerId ? utteranceDrafts[utt.id] : undefined;
             const draft = utteranceDrafts[draftKey] ?? legacyDraft ?? sourceText;
-            return renderAnnotationItem(utt, layer, draft, {
-              onChange: (e) => {
-                const value = normalizeSingleLine(e.target.value);
-                setUtteranceDrafts((prev) => ({ ...prev, [draftKey]: value }));
-                if (value !== sourceText) {
-                  scheduleAutoSave(`utt-${layer.id}-${utt.id}`, async () => {
-                    await saveUtteranceText(utt.id, value, layer.id);
-                  });
-                }
-              },
-              onBlur: (e) => {
-                const value = normalizeSingleLine(e.target.value);
-                clearAutoSaveTimer(`utt-${layer.id}-${utt.id}`);
-                if (value !== sourceText) {
-                  fireAndForget(saveUtteranceText(utt.id, value, layer.id));
-                }
-              },
-            });
+            const placement = speakerLayerLayout.placements.get(utt.id);
+            const subTrackIndex = placement?.subTrackIndex ?? 0;
+            return (
+              <div
+                key={`trc-sub-${layer.id}-${utt.id}`}
+                className="timeline-annotation-subtrack"
+                style={{
+                  top: subTrackIndex * baseLaneHeight,
+                  height: baseLaneHeight,
+                }}
+              >
+                {renderAnnotationItem(utt, layer, draft, {
+                  onChange: (e) => {
+                    const value = normalizeSingleLine(e.target.value);
+                    setUtteranceDrafts((prev) => ({ ...prev, [draftKey]: value }));
+                    if (value !== sourceText) {
+                      scheduleAutoSave(`utt-${layer.id}-${utt.id}`, async () => {
+                        await saveUtteranceText(utt.id, value, layer.id);
+                      });
+                    }
+                  },
+                  onBlur: (e) => {
+                    const value = normalizeSingleLine(e.target.value);
+                    clearAutoSaveTimer(`utt-${layer.id}-${utt.id}`);
+                    if (value !== sourceText) {
+                      fireAndForget(saveUtteranceText(utt.id, value, layer.id));
+                    }
+                  },
+                })}
+              </div>
+            );
           })}
-          {!isCollapsed && <div
+          {!effectiveCollapsed && <div
             className="timeline-lane-resize-handle"
-            onPointerDown={(event) => startLaneHeightResize(event, layer.id, laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)}
+            onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight)}
             role="separator"
             aria-orientation="horizontal"
           />}
@@ -214,15 +299,29 @@ export function TranscriptionTimelineMediaLanes({
       );})}
       {translationLayers.map((layer, idx) => {
         const isCollapsed = collapsedLayerIds.has(layer.id);
+        const activeOverlapGroupId = tempExpandedGroupByLayer[layer.id];
+        const isTemporarilyExpanded = typeof activeOverlapGroupId === 'string';
+        const effectiveCollapsed = isCollapsed && !isTemporarilyExpanded;
+        const baseLaneHeight = laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT;
+        const expandedGroupMeta = activeOverlapGroupId
+          ? speakerLayerLayout.overlapGroups.find((group) => group.id === activeOverlapGroupId)
+          : undefined;
+        const activeSubTrackCount = expandedGroupMeta?.subTrackCount ?? speakerLayerLayout.subTrackCount;
+        const visibleLaneHeight = effectiveCollapsed ? 14 : baseLaneHeight * activeSubTrackCount;
+        const collapsedOverlapMarkers = speakerLayerLayout.overlapGroups.filter((group) => group.speakerCount > 1);
+        const visibleUtterances = !effectiveCollapsed && activeOverlapGroupId
+          ? timelineRenderUtterances.filter((utt) => speakerLayerLayout.placements.get(utt.id)?.overlapGroupId === activeOverlapGroupId)
+          : timelineRenderUtterances;
         return (
         <div
           key={`tl-${layer.id}`}
-          className={`timeline-lane timeline-lane-translation ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${isCollapsed ? 'timeline-lane-collapsed' : ''}`}
+          className={`timeline-lane timeline-lane-translation ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${effectiveCollapsed ? 'timeline-lane-collapsed' : ''} ${!effectiveCollapsed && speakerLayerLayout.subTrackCount > 1 ? 'timeline-lane-speaker-layered' : ''}`}
           style={{
             position: 'relative',
-            '--timeline-lane-height': `${isCollapsed ? 14 : (laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)}px`,
+            '--timeline-lane-height': `${visibleLaneHeight}px`,
+            '--timeline-subtrack-height': `${baseLaneHeight}px`,
           } as React.CSSProperties}
-          onPointerDown={(e) => handleLanePointerDown(layer.id, isCollapsed, e)}
+          onPointerDown={(e) => handleLanePointerDown(layer.id, effectiveCollapsed, e)}
         >
           <TimelineLaneHeader
             layer={layer}
@@ -237,43 +336,72 @@ export function TranscriptionTimelineMediaLanes({
             layerLinks={layerLinks}
             showConnectors={showConnectors}
             onToggleConnectors={onToggleConnectors ?? (() => {})}
-            isCollapsed={isCollapsed}
+            isCollapsed={effectiveCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
           />
-          {!isCollapsed && timelineRenderUtterances.map((utt) => {
+            {isCollapsed && collapsedOverlapMarkers.map((group) => (
+            <button
+              key={`ov-hint-${layer.id}-${group.id}`}
+              type="button"
+              className="timeline-lane-overlap-hint"
+              title="临时展开该重叠时间窗"
+              style={{ left: group.centerTime * zoomPxPerSec }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                activateTemporaryExpand(layer.id, group.id);
+              }}
+            >
+              {group.speakerCount}人
+            </button>
+          ))}
+          {!effectiveCollapsed && visibleUtterances.map((utt) => {
             const text = translationTextByLayer.get(layer.id)?.get(utt.id)?.text ?? '';
             const draftKey = `${layer.id}-${utt.id}`;
             const draft = translationDrafts[draftKey] ?? text;
-            return renderAnnotationItem(utt, layer, draft, {
-              placeholder: '翻译',
-              onFocus: () => {
-                focusedTranslationDraftKeyRef.current = draftKey;
-              },
-              onChange: (e) => {
-                const value = normalizeSingleLine(e.target.value);
-                setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
-                if (value.trim() && value !== text) {
-                  scheduleAutoSave(`tr-${layer.id}-${utt.id}`, async () => {
-                    await saveTextTranslationForUtterance(utt.id, value, layer.id);
-                  });
-                } else {
-                  clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
-                }
-              },
-              onBlur: (e) => {
-                focusedTranslationDraftKeyRef.current = null;
-                const value = normalizeSingleLine(e.target.value);
-                clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
-                if (value !== text) {
-                  fireAndForget(saveTextTranslationForUtterance(utt.id, value, layer.id));
-                }
-              },
-            });
+            const placement = speakerLayerLayout.placements.get(utt.id);
+            const subTrackIndex = placement?.subTrackIndex ?? 0;
+            return (
+              <div
+                key={`tr-sub-${layer.id}-${utt.id}`}
+                className="timeline-annotation-subtrack"
+                style={{
+                  top: subTrackIndex * baseLaneHeight,
+                  height: baseLaneHeight,
+                }}
+              >
+                {renderAnnotationItem(utt, layer, draft, {
+                  placeholder: '翻译',
+                  onFocus: () => {
+                    focusedTranslationDraftKeyRef.current = draftKey;
+                  },
+                  onChange: (e) => {
+                    const value = normalizeSingleLine(e.target.value);
+                    setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
+                    if (value.trim() && value !== text) {
+                      scheduleAutoSave(`tr-${layer.id}-${utt.id}`, async () => {
+                        await saveTextTranslationForUtterance(utt.id, value, layer.id);
+                      });
+                    } else {
+                      clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
+                    }
+                  },
+                  onBlur: (e) => {
+                    focusedTranslationDraftKeyRef.current = null;
+                    const value = normalizeSingleLine(e.target.value);
+                    clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
+                    if (value !== text) {
+                      fireAndForget(saveTextTranslationForUtterance(utt.id, value, layer.id));
+                    }
+                  },
+                })}
+              </div>
+            );
           })}
-          {!isCollapsed && <div
+          {!effectiveCollapsed && <div
             className="timeline-lane-resize-handle"
-            onPointerDown={(event) => startLaneHeightResize(event, layer.id, laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)}
+            onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight)}
             role="separator"
             aria-orientation="horizontal"
           />}
