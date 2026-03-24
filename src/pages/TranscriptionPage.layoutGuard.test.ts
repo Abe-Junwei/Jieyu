@@ -8,7 +8,7 @@ describe('Transcription layout guard', () => {
     const appCode = fs.readFileSync(appPath, 'utf8');
 
     expect(appCode).toContain("position: 'fixed'");
-    expect(appCode).toContain("top: `${headerHeight}px`");
+    expect(appCode).toContain("top: `${headerHeight + 12}px`");
     expect(appCode).toContain("bottom: 0");
     expect(appCode).toContain("overflow: 'hidden'");
   });

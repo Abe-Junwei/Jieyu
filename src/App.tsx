@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, Search, User } from 'lucide-react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
@@ -68,13 +68,14 @@ export function App() {
     { to: '/lexicon', label: t(locale, 'app.nav.lexicon') },
   ], [locale]);
 
+  // Header is now fixed at top: 12px, so transcription content starts at headerHeight + 12
   const transcriptionMainStyle = isTranscriptionRoute
     ? ({
         '--app-header-height': `${headerHeight}px`,
         position: 'fixed',
         left: 0,
         right: 0,
-        top: `${headerHeight}px`,
+        top: `${headerHeight + 12}px`,
         bottom: 0,
         width: '100%',
         maxWidth: 'none',
@@ -87,36 +88,51 @@ export function App() {
   return (
     <ErrorBoundary>
     <div className={`app-shell ${isTranscriptionRoute ? 'app-shell-transcription' : ''}`}>
-      <header ref={headerRef} className={`app-header ${isTranscriptionRoute ? 'app-header-compact' : ''}`}>
-        <div className="brand-block">
-          <img src="/favicon.svg" alt="" className="brand-icon" aria-hidden="true" />
-          <div>
-            <h1><span>解语</span> Jieyu</h1>
-            <p>{t(locale, 'app.subtitle')}</p>
-          </div>
+      <header ref={headerRef} className="app-header">
+        <div className="header-brand">
+          <img src="/favicon.svg" alt="" className="header-brand-icon" aria-hidden="true" />
+          <p className="header-brand-name"><span>解语</span> Jieyu</p>
         </div>
-        <div className="app-header-actions">
-          <nav className="tab-nav" aria-label="主功能标签页">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  isActive ? 'tab-link tab-link-active' : 'tab-link'
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
+
+        <nav className="header-nav" aria-label="主功能导航">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                isActive ? 'header-nav-link header-nav-link-active' : 'header-nav-link'
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="header-actions">
           <button
             type="button"
-            className="theme-toggle-btn"
+            className="header-action-btn"
+            title="搜索 (⌘K)"
+            aria-label="搜索"
+          >
+            <Search size={15} />
+          </button>
+          <button
+            type="button"
+            className="header-action-btn"
             aria-label={themeMode === 'dark' ? t(locale, 'theme.toggle.light') : t(locale, 'theme.toggle.dark')}
             title={themeMode === 'dark' ? t(locale, 'theme.toggle.light') : t(locale, 'theme.toggle.dark')}
             onClick={() => setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'))}
           >
-            {themeMode === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+            {themeMode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+          <button
+            type="button"
+            className="header-action-btn"
+            title="用户"
+            aria-label="用户"
+          >
+            <User size={15} />
           </button>
         </div>
       </header>
