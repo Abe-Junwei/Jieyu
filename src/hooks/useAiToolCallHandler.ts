@@ -29,7 +29,7 @@ type Params = {
   createNextUtterance: (utt: UtteranceDocType, duration: number) => Promise<void>;
   splitUtterance: (utteranceId: string, splitTime: number) => Promise<void>;
   deleteUtterance: (id: string) => Promise<void>;
-  deleteLayer: (id: string, options?: { skipBrowserConfirm?: boolean }) => Promise<void>;
+  deleteLayer: (id: string, options?: { keepUtterances?: boolean }) => Promise<void>;
   toggleLayerLink: (transcriptionLayerKey: string, tierId: string) => Promise<void>;
   saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
   saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
@@ -371,7 +371,7 @@ const layerAdapter: ToolObjectAdapter = {
         const exists = ctx.transcriptionLayers.some((layer) => layer.id === requestedLayerId)
           || ctx.translationLayers.some((layer) => layer.id === requestedLayerId);
         if (exists) {
-          await ctx.deleteLayer(requestedLayerId, { skipBrowserConfirm: true });
+          await ctx.deleteLayer(requestedLayerId);
           return { ok: true, message: `已删除层：${requestedLayerId}` };
         }
 
@@ -394,7 +394,7 @@ const layerAdapter: ToolObjectAdapter = {
         }
 
         const targetLayer = matched[0]!;
-        await ctx.deleteLayer(targetLayer.id, { skipBrowserConfirm: true });
+        await ctx.deleteLayer(targetLayer.id);
         return { ok: true, message: `已删除层：${targetLayer.id}` };
       }
 
@@ -422,7 +422,7 @@ const layerAdapter: ToolObjectAdapter = {
       }
 
       const targetLayer = matched[0]!;
-      await ctx.deleteLayer(targetLayer.id, { skipBrowserConfirm: true });
+      await ctx.deleteLayer(targetLayer.id);
       return { ok: true, message: `已删除层：${targetLayer.id}` };
     }
 
@@ -444,7 +444,7 @@ const layerAdapter: ToolObjectAdapter = {
         const comp = compensationRef.current.get(call.requestId ?? 'default');
         if (comp && Date.now() - comp.createdAt < COMPENSATION_TTL_MS) {
           compensationRef.current.delete(call.requestId ?? 'default');
-          try { await ctx.deleteLayer(comp.layerId, { skipBrowserConfirm: true }); } catch { /* best effort */ }
+          try { await ctx.deleteLayer(comp.layerId); } catch { /* best effort */ }
           return { ok: false, message: `未找到可用转写层，无法设置链接。已自动回滚刚创建的层（${comp.layerId}）。` };
         }
         return { ok: false, message: '未找到可用转写层，无法设置链接。' };
@@ -454,7 +454,7 @@ const layerAdapter: ToolObjectAdapter = {
         const comp = compensationRef.current.get(call.requestId ?? 'default');
         if (comp && Date.now() - comp.createdAt < COMPENSATION_TTL_MS) {
           compensationRef.current.delete(call.requestId ?? 'default');
-          try { await ctx.deleteLayer(comp.layerId, { skipBrowserConfirm: true }); } catch { /* best effort */ }
+          try { await ctx.deleteLayer(comp.layerId); } catch { /* best effort */ }
           return { ok: false, message: `未找到可用翻译层，无法设置链接。已自动回滚刚创建的层（${comp.layerId}）。` };
         }
         return { ok: false, message: '未找到可用翻译层，无法设置链接。' };
@@ -473,7 +473,7 @@ const layerAdapter: ToolObjectAdapter = {
         const comp = compensationRef.current.get(call.requestId ?? 'default');
         if (comp && Date.now() - comp.createdAt < COMPENSATION_TTL_MS) {
           compensationRef.current.delete(call.requestId ?? 'default');
-          try { await ctx.deleteLayer(comp.layerId, { skipBrowserConfirm: true }); } catch { /* best effort */ }
+          try { await ctx.deleteLayer(comp.layerId); } catch { /* best effort */ }
           const errMsg = linkError instanceof Error ? linkError.message : '链接操作失败';
           return { ok: false, message: `${errMsg}。已自动回滚刚创建的层（${comp.layerId}）。` };
         }

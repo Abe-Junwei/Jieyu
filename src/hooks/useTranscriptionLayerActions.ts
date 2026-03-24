@@ -34,7 +34,6 @@ export type TranscriptionLayerActionsParams = {
 };
 
 type DeleteLayerOptions = {
-  skipBrowserConfirm?: boolean;
   /** 保留关联语段 | Keep associated utterances */
   keepUtterances?: boolean;
 };
@@ -179,8 +178,7 @@ export function useTranscriptionLayerActions({
   /** 检查层是否有文本内容（用于判断是否需要确认） */
   const checkLayerHasContent = useCallback(async (layerId: string): Promise<number> => {
     const db = await getDb();
-    const texts = await db.collections.utterance_texts.find().exec();
-    return texts.filter((t) => (t.toJSON() as { tierId: string }).tierId === layerId).length;
+    return db.dexie.utterance_texts.where('tierId').equals(layerId).count();
   }, []);
 
   /** 执行层的实际删除操作（无确认提示） */
@@ -193,13 +191,15 @@ export function useTranscriptionLayerActions({
     }
 
     const db = await getDb();
-    const allLinkDocs = await db.collections.layer_links.find().exec();
-    const allLinks = allLinkDocs.map((d) => d.toJSON()) as unknown as LayerLinkDocType[];
+    const allLinks = await db.dexie.layer_links.toArray();
     const deleteCheck = canDeleteLayer(layers, allLinks, effectiveLayerId);
+    if (!deleteCheck.allowed) {
+      setLayerCreateMessage(deleteCheck.reason ?? '当前层无法删除。');
+      return;
+    }
 
     const layerLabel = targetLayer.name.zho ?? targetLayer.name.eng ?? targetLayer.key;
     const layerTypeLabel = targetLayer.layerType === 'translation' ? '翻译层' : '转写层';
-    const translationDocs = await db.collections.utterance_texts.find().exec();
     const keepUtterances = options?.keepUtterances ?? false;
 
     try {
@@ -207,9 +207,8 @@ export function useTranscriptionLayerActions({
 
       const affectedUtteranceIds = keepUtterances
         ? []
-        : translationDocs
-            .filter((d) => (d.toJSON() as unknown as { tierId: string }).tierId === effectiveLayerId)
-            .map((d) => (d.toJSON() as unknown as { utteranceId: string }).utteranceId);
+        : (await db.dexie.utterance_texts.where('tierId').equals(effectiveLayerId).toArray())
+            .map((d) => d.utteranceId);
 
       await db.collections.utterance_texts.removeBySelector({ tierId: effectiveLayerId });
 
@@ -239,10 +238,8 @@ export function useTranscriptionLayerActions({
       let removedUtteranceIds = new Set<string>();
       if (!keepUtterances && affectedUtteranceIds.length > 0) {
         const uniqueIds = [...new Set(affectedUtteranceIds)];
-        const remainingTexts = await db.collections.utterance_texts.find().exec();
-        const stillReferencedIds = new Set(remainingTexts.map(
-          (d) => (d.toJSON() as unknown as { utteranceId: string }).utteranceId,
-        ));
+        const remainingTexts = await db.dexie.utterance_texts.where('utteranceId').anyOf(uniqueIds).toArray();
+        const stillReferencedIds = new Set(remainingTexts.map((d) => d.utteranceId));
         const orphanIds = uniqueIds.filter((id) => !stillReferencedIds.has(id));
         if (orphanIds.length > 0) {
           await LinguisticService.removeUtterancesBatch(orphanIds);
@@ -290,53 +287,9 @@ export function useTranscriptionLayerActions({
       return;
     }
 
-    const targetLayer = layers.find((item) => item.id === effectiveLayerId);
-    if (!targetLayer) {
-      setLayerCreateMessage('未找到要删除的层。');
-      return;
-    }
-
-    const db = await getDb();
-    const allLinkDocs = await db.collections.layer_links.find().exec();
-    const allLinks = allLinkDocs.map((d) => d.toJSON()) as unknown as LayerLinkDocType[];
-    const deleteCheck = canDeleteLayer(layers, allLinks, effectiveLayerId);
-    if (!deleteCheck.allowed) {
-      setLayerCreateMessage(deleteCheck.reason!);
-      return;
-    }
-
-    const layerLabel = targetLayer.name.zho ?? targetLayer.name.eng ?? targetLayer.key;
-    const layerTypeLabel = targetLayer.layerType === 'translation' ? '翻译层' : '转写层';
-    const translationDocs = await db.collections.utterance_texts.find().exec();
-    const translationCount = translationDocs.filter(
-      (d) => (d.toJSON() as unknown as { tierId: string }).tierId === effectiveLayerId,
-    ).length;
-
-    const depLines = [
-      translationCount > 0 ? `翻译记录：${translationCount} 条` : '',
-      (deleteCheck.affectedLinkCount ?? 0) > 0 ? `关联链接：${deleteCheck.affectedLinkCount} 条` : '',
-    ].filter(Boolean);
-
-    if (deleteCheck.orphanedTranslationIds && deleteCheck.orphanedTranslationIds.length > 0) {
-      const orphanLabels = deleteCheck.orphanedTranslationIds.map((id) => {
-        const l = layers.find((layer) => layer.id === id);
-        return l ? (l.name.zho ?? l.name.eng ?? l.key) : id;
-      });
-      const relinkTarget = layers.find((l) => l.key === deleteCheck.relinkTargetKey);
-      const relinkLabel = relinkTarget ? (relinkTarget.name.zho ?? relinkTarget.name.eng ?? relinkTarget.key) : deleteCheck.relinkTargetKey;
-      depLines.push(`将自动重链接翻译层 [${orphanLabels.join(', ')}] → ${relinkLabel}`);
-    }
-
-    const depInfo = depLines.length > 0 ? `\n\n关联数据：\n${depLines.join('\n')}` : '';
     const keepUtterances = options?.keepUtterances ?? false;
-    const confirmMsg = keepUtterances
-      ? `确认删除层"${layerLabel}"吗？\n\n类型：${layerTypeLabel}\n键名：${targetLayer.key}${depInfo}\n\n将删除该层下全部文本/录音记录以及关联链接，保留语段。可通过Ctrl+Z撤销。`
-      : `确认删除层"${layerLabel}"吗？\n\n类型：${layerTypeLabel}\n键名：${targetLayer.key}${depInfo}\n\n将同时删除该层下全部文本/录音记录、关联链接以及不再被任何层引用的语段。可通过Ctrl+Z撤销。`;
-    const confirmed = window.confirm(confirmMsg);
-    if (!confirmed) return;
-
     await performLayerDelete(effectiveLayerId, { keepUtterances });
-  }, [layerToDeleteId, layers, performLayerDelete, setLayerCreateMessage]);
+  }, [layerToDeleteId, performLayerDelete, setLayerCreateMessage]);
 
   const toggleLayerLink = useCallback(async (
     transcriptionLayerKey: string,

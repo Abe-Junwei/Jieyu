@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import type { SpeakerDocType, TranslationLayerDocType } from '../../db';
+import type { TranslationLayerDocType } from '../../db';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
 import { COMMON_LANGUAGES, formatLayerRailLabel } from '../utils/transcriptionFormatters';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
+import { useSpeakerRailContext } from '../contexts/SpeakerRailContext';
+import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
 
@@ -25,25 +27,6 @@ interface LayerRailSidebarProps {
   layerCreateMessage: string;
   layerAction: LayerActionResult;
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
-  speakerFilterOptions: Array<{ key: string; name: string; count: number; color?: string; isEntity: boolean }>;
-  activeSpeakerFilterKey: string;
-  onSpeakerFilterChange: (speakerKey: string) => void;
-  onSelectSpeakerUtterances: (speakerKey: string) => void;
-  onClearSpeakerAssignments: (speakerKey: string) => void;
-  onExportSpeakerSegments: (speakerKey: string) => void;
-  onRenameSpeaker: (speakerKey: string) => void;
-  onMergeSpeaker: (sourceSpeakerKey: string) => void;
-  // 新增：说话人管理入口
-  speakerOptions: SpeakerDocType[];
-  selectedUtteranceIds: Set<string>;
-  selectedSpeakerSummary: string;
-  speakerSaving: boolean;
-  speakerDraftName: string;
-  setSpeakerDraftName: React.Dispatch<React.SetStateAction<string>>;
-  batchSpeakerId: string;
-  setBatchSpeakerId: React.Dispatch<React.SetStateAction<string>>;
-  onAssignSpeakerToSelected: () => Promise<void>;
-  onCreateSpeakerAndAssign: () => Promise<void>;
 }
 
 interface LayerRailActionModalProps {
@@ -247,25 +230,10 @@ export function LayerRailSidebar({
   layerCreateMessage,
   layerAction,
   onReorderLayers,
-  speakerFilterOptions,
-  activeSpeakerFilterKey,
-  onSpeakerFilterChange,
-  onSelectSpeakerUtterances,
-  onClearSpeakerAssignments,
-  onExportSpeakerSegments,
-  onRenameSpeaker,
-  onMergeSpeaker,
-  speakerOptions,
-  selectedUtteranceIds,
-  selectedSpeakerSummary,
-  speakerSaving,
-  speakerDraftName,
-  setSpeakerDraftName,
-  batchSpeakerId,
-  setBatchSpeakerId,
-  onAssignSpeakerToSelected,
-  onCreateSpeakerAndAssign,
 }: LayerRailSidebarProps) {
+  // ── Speaker management context ───────────────────────────────────────────────
+  const speakerCtx = useSpeakerRailContext();
+
   const {
     layerActionPanel, setLayerActionPanel, layerActionRootRef,
     quickTranscriptionLangId, setQuickTranscriptionLangId,
@@ -281,6 +249,7 @@ export function LayerRailSidebar({
     handleCreateTranslationFromPanel,
     handleDeleteLayerFromPanel,
     createLayer,
+    deleteLayer,
     deleteLayerWithoutConfirm,
     checkLayerHasContent,
   } = layerAction;
@@ -288,13 +257,19 @@ export function LayerRailSidebar({
   // ── Context menu state ──
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string } | null>(null);
 
-  // ── Delete layer confirmation dialog state ──
-  const [deleteLayerConfirm, setDeleteLayerConfirm] = useState<{
-    layerId: string;
-    layerName: string;
-    layerType: 'transcription' | 'translation';
-    textCount: number;
-  } | null>(null);
+  const {
+    deleteLayerConfirm,
+    deleteConfirmKeepUtterances,
+    setDeleteConfirmKeepUtterances,
+    requestDeleteLayer,
+    cancelDeleteLayerConfirm,
+    confirmDeleteLayer,
+  } = useLayerDeleteConfirm({
+    deletableLayers,
+    checkLayerHasContent,
+    deleteLayer,
+    deleteLayerWithoutConfirm,
+  });
 
   const handleLayerContextMenu = (e: React.MouseEvent, layerId: string) => {
     e.preventDefault();
@@ -417,24 +392,7 @@ export function LayerRailSidebar({
       danger: true,
       disabled: !deletableLayers.some((l) => l.id === contextMenu.layerId),
       onClick: () => {
-        fireAndForget((async () => {
-          const layer = deletableLayers.find((l) => l.id === contextMenu.layerId);
-          if (!layer) return;
-          const textCount = await checkLayerHasContent(contextMenu.layerId!);
-          const layerName = layer.name.zho ?? layer.name.eng ?? layer.key;
-          if (textCount === 0) {
-            // No content - delete directly without confirmation
-            await deleteLayerWithoutConfirm(contextMenu.layerId!);
-          } else {
-            // Has content - show confirmation dialog
-            setDeleteLayerConfirm({
-              layerId: contextMenu.layerId!,
-              layerName,
-              layerType: layer.layerType,
-              textCount,
-            });
-          }
-        })());
+        fireAndForget(requestDeleteLayer(contextMenu.layerId));
       },
     },
   ] : [];
@@ -448,30 +406,30 @@ export function LayerRailSidebar({
       <div className="transcription-layer-rail-speaker-panel-section transcription-layer-rail-speaker-panel-summary">
         <strong className="transcription-layer-rail-speaker-panel-title">说话人管理</strong>
         <div className="transcription-layer-rail-speaker-panel-meta">
-          <span>说话人：{speakerFilterOptions.length}</span>
-          <span>已选句段：{selectedUtteranceIds.size}</span>
+          <span>说话人：{speakerCtx.speakerFilterOptions.length}</span>
+          <span>已选句段：{speakerCtx.selectedUtteranceIds.size}</span>
         </div>
-        <div className="transcription-layer-rail-speaker-panel-summary-text">{selectedSpeakerSummary}</div>
+        <div className="transcription-layer-rail-speaker-panel-summary-text">{speakerCtx.selectedSpeakerSummary}</div>
       </div>
 
       <div className="transcription-layer-rail-speaker-panel-section">
         <strong className="transcription-layer-rail-speaker-panel-subtitle">批量分配</strong>
         <select
           className="input transcription-layer-rail-action-input"
-          value={batchSpeakerId}
-          onChange={(e) => setBatchSpeakerId(e.target.value)}
-          disabled={speakerSaving || selectedUtteranceIds.size === 0}
+          value={speakerCtx.batchSpeakerId}
+          onChange={(e) => speakerCtx.setBatchSpeakerId(e.target.value)}
+          disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0}
         >
           <option value="">清空说话人标签</option>
-          {speakerOptions.map((speaker) => (
+          {speakerCtx.speakerOptions.map((speaker) => (
             <option key={speaker.id} value={speaker.id}>{speaker.name}</option>
           ))}
         </select>
         <div className="transcription-layer-rail-action-row transcription-layer-rail-action-row-fill">
           <button
             className="btn btn-sm"
-            disabled={speakerSaving || selectedUtteranceIds.size === 0}
-            onClick={() => { fireAndForget(onAssignSpeakerToSelected()); }}
+            disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0}
+            onClick={() => { fireAndForget(speakerCtx.handleAssignSpeakerToSelected()); }}
           >
             应用到已选
           </button>
@@ -479,15 +437,15 @@ export function LayerRailSidebar({
         <input
           className="input transcription-layer-rail-action-input"
           placeholder="新说话人名称"
-          value={speakerDraftName}
-          onChange={(e) => setSpeakerDraftName(e.target.value)}
-          disabled={speakerSaving || selectedUtteranceIds.size === 0}
+          value={speakerCtx.speakerDraftName}
+          onChange={(e) => speakerCtx.setSpeakerDraftName(e.target.value)}
+          disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0}
         />
         <div className="transcription-layer-rail-action-row transcription-layer-rail-action-row-fill">
           <button
             className="btn btn-sm"
-            disabled={speakerSaving || selectedUtteranceIds.size === 0 || speakerDraftName.trim().length === 0}
-            onClick={() => { fireAndForget(onCreateSpeakerAndAssign()); }}
+            disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0 || speakerCtx.speakerDraftName.trim().length === 0}
+            onClick={() => { fireAndForget(speakerCtx.handleCreateSpeakerAndAssign()); }}
           >
             新建并分配
           </button>
@@ -498,18 +456,18 @@ export function LayerRailSidebar({
         <div className="transcription-layer-rail-speaker-filter" aria-label="说话人筛选">
           <button
             type="button"
-            className={`transcription-layer-rail-speaker-chip ${activeSpeakerFilterKey === 'all' ? 'transcription-layer-rail-speaker-chip-active' : ''}`}
-            onClick={() => onSpeakerFilterChange('all')}
+            className={`transcription-layer-rail-speaker-chip ${speakerCtx.activeSpeakerFilterKey === 'all' ? 'transcription-layer-rail-speaker-chip-active' : ''}`}
+            onClick={() => speakerCtx.setActiveSpeakerFilterKey('all')}
             title="显示全部说话人"
           >
             全部
           </button>
-          {speakerFilterOptions.map((option) => (
+          {speakerCtx.speakerFilterOptions.map((option) => (
             <button
               key={option.key}
               type="button"
-              className={`transcription-layer-rail-speaker-chip ${activeSpeakerFilterKey === option.key ? 'transcription-layer-rail-speaker-chip-active' : ''}`}
-              onClick={() => onSpeakerFilterChange(option.key)}
+              className={`transcription-layer-rail-speaker-chip ${speakerCtx.activeSpeakerFilterKey === option.key ? 'transcription-layer-rail-speaker-chip-active' : ''}`}
+              onClick={() => speakerCtx.setActiveSpeakerFilterKey(option.key)}
               title={`${option.name}（${option.count}）`}
               style={option.color ? ({ '--speaker-color': option.color } as CSSProperties) : undefined}
             >
@@ -521,9 +479,9 @@ export function LayerRailSidebar({
         </div>
       </div>
 
-      {speakerFilterOptions.length > 0 && (
+      {speakerCtx.speakerFilterOptions.length > 0 && (
         <div className="transcription-layer-rail-speaker-panel-section transcription-layer-rail-speaker-groups" aria-label="说话人组">
-          {speakerFilterOptions.map((option) => {
+          {speakerCtx.speakerFilterOptions.map((option) => {
             const isCollapsedGroup = collapsedSpeakerGroupKeys.has(option.key);
             return (
               <div key={`group-${option.key}`} className="transcription-layer-rail-speaker-group">
@@ -542,8 +500,8 @@ export function LayerRailSidebar({
                   <div className="transcription-layer-rail-speaker-group-actions">
                     <button
                       type="button"
-                      className={`transcription-layer-rail-speaker-mini-btn ${activeSpeakerFilterKey === option.key ? 'transcription-layer-rail-speaker-mini-btn-active' : ''}`}
-                      onClick={() => onSpeakerFilterChange(option.key)}
+                      className={`transcription-layer-rail-speaker-mini-btn ${speakerCtx.activeSpeakerFilterKey === option.key ? 'transcription-layer-rail-speaker-mini-btn-active' : ''}`}
+                      onClick={() => speakerCtx.setActiveSpeakerFilterKey(option.key)}
                       title="只看该说话人"
                     >
                       聚焦
@@ -551,7 +509,7 @@ export function LayerRailSidebar({
                     <button
                       type="button"
                       className="transcription-layer-rail-speaker-mini-btn"
-                      onClick={() => onSelectSpeakerUtterances(option.key)}
+                      onClick={() => speakerCtx.handleSelectSpeakerUtterances(option.key)}
                       title="选中该说话人的全部句段"
                     >
                       选中
@@ -559,7 +517,7 @@ export function LayerRailSidebar({
                     <button
                       type="button"
                       className="transcription-layer-rail-speaker-mini-btn"
-                      onClick={() => onClearSpeakerAssignments(option.key)}
+                      onClick={() => speakerCtx.handleClearSpeakerAssignments(option.key)}
                       title="清空该说话人的标签"
                     >
                       清空
@@ -567,7 +525,7 @@ export function LayerRailSidebar({
                     <button
                       type="button"
                       className="transcription-layer-rail-speaker-mini-btn"
-                      onClick={() => onExportSpeakerSegments(option.key)}
+                      onClick={() => speakerCtx.handleExportSpeakerSegments(option.key)}
                       title="导出该说话人句段清单"
                     >
                       导出
@@ -575,7 +533,7 @@ export function LayerRailSidebar({
                     <button
                       type="button"
                       className="transcription-layer-rail-speaker-mini-btn"
-                      onClick={() => onRenameSpeaker(option.key)}
+                      onClick={() => speakerCtx.handleRenameSpeaker(option.key)}
                       title={option.isEntity ? '重命名该说话人' : '仅实体说话人支持重命名'}
                       disabled={!option.isEntity}
                     >
@@ -584,7 +542,7 @@ export function LayerRailSidebar({
                     <button
                       type="button"
                       className="transcription-layer-rail-speaker-mini-btn"
-                      onClick={() => onMergeSpeaker(option.key)}
+                      onClick={() => speakerCtx.handleMergeSpeaker(option.key)}
                       title={option.isEntity ? '将该说话人合并到其他说话人' : '仅实体说话人支持合并'}
                       disabled={!option.isEntity}
                     >
@@ -604,6 +562,48 @@ export function LayerRailSidebar({
       )}
     </LayerRailActionModal>
   );
+
+  // ── Layer rail items render ──────────────────────────────────────────────────
+  const renderLayerRailItems = () => {
+    if (layerRailRows.length === 0) {
+      return <span className="transcription-layer-rail-empty">暂无层</span>;
+    }
+    return layerRailRows.map((layer, index) => {
+      const layerLabel = formatLayerRailLabel(layer);
+      const isActiveLayer = layer.id === focusedLayerRowId;
+      const isFlashLayer = layer.id === flashLayerRowId;
+      const isDragged = dragState?.draggedId === layer.id;
+      const showDropIndicator = dropTargetIndex === index && !isDragged;
+
+      return (
+        <div key={layer.id} style={{ position: 'relative' }}>
+          {showDropIndicator && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '2px',
+                backgroundColor: 'var(--color-primary, #3b82f6)',
+                zIndex: 1,
+              }}
+            />
+          )}
+          <button
+            type="button"
+            className={`transcription-layer-rail-item ${isActiveLayer ? 'transcription-layer-rail-item-active' : ''} ${isFlashLayer ? 'transcription-layer-rail-item-flash' : ''} ${isDragged ? 'transcription-layer-rail-item-dragging' : ''}`}
+            onClick={() => !dragState && onFocusLayer(layer.id)}
+            onContextMenu={(e) => handleLayerContextMenu(e, layer.id)}
+            onMouseDown={(e) => !dragState && handleDragStart(e, layer)}
+            title={layerLabel}
+          >
+            <strong>{layerLabel}</strong>
+          </button>
+        </div>
+      );
+    });
+  };
 
   return (
     <aside className={`transcription-layer-rail ${isCollapsed ? 'transcription-layer-rail-collapsed' : ''}`} aria-label="文本区层滚动栏">
@@ -637,47 +637,7 @@ export function LayerRailSidebar({
         onMouseUp={dragState ? handleMouseUp : undefined}
         onMouseLeave={dragState ? handleMouseUp : undefined}
       >
-        {(() => {
-          return layerRailRows.length > 0 ? (
-          layerRailRows.map((layer, index) => {
-            const layerLabel = formatLayerRailLabel(layer);
-            const isActiveLayer = layer.id === focusedLayerRowId;
-            const isFlashLayer = layer.id === flashLayerRowId;
-            const isDragged = dragState?.draggedId === layer.id;
-            const showDropIndicator = dropTargetIndex === index && !isDragged;
-
-            return (
-              <div key={layer.id} style={{ position: 'relative' }}>
-                {showDropIndicator && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: '2px',
-                      backgroundColor: 'var(--color-primary, #3b82f6)',
-                      zIndex: 1,
-                    }}
-                  />
-                )}
-                <button
-                  type="button"
-                  className={`transcription-layer-rail-item ${isActiveLayer ? 'transcription-layer-rail-item-active' : ''} ${isFlashLayer ? 'transcription-layer-rail-item-flash' : ''} ${isDragged ? 'transcription-layer-rail-item-dragging' : ''}`}
-                  onClick={() => !dragState && onFocusLayer(layer.id)}
-                  onContextMenu={(e) => handleLayerContextMenu(e, layer.id)}
-                  onMouseDown={(e) => !dragState && handleDragStart(e, layer)}
-                  title={layerLabel}
-                >
-                  <strong>{layerLabel}</strong>
-                </button>
-              </div>
-            );
-          })
-        ) : (
-          <span className="transcription-layer-rail-empty">暂无层</span>
-        );
-      })()}
+        {renderLayerRailItems()}
       </div>
       )}
 
@@ -839,7 +799,7 @@ export function LayerRailSidebar({
             >
               {deletableLayers.map((layer) => (
                 <option key={layer.id} value={layer.id}>
-                  {(layer.name.zho ?? layer.name.zh ?? layer.name.eng ?? layer.name.en ?? layer.key)}
+                  {formatLayerRailLabel(layer)}
                 </option>
               ))}
             </select>
@@ -849,7 +809,7 @@ export function LayerRailSidebar({
                 checked={quickDeleteKeepUtterances}
                 onChange={(e) => setQuickDeleteKeepUtterances(e.target.checked)}
               />
-              保留现有语段
+              保留现有语段区间
             </label>
             <div className="transcription-layer-rail-action-row">
               <button
@@ -887,12 +847,10 @@ export function LayerRailSidebar({
         layerName={deleteLayerConfirm?.layerName ?? ''}
         layerType={deleteLayerConfirm?.layerType ?? 'transcription'}
         textCount={deleteLayerConfirm?.textCount ?? 0}
-        onCancel={() => setDeleteLayerConfirm(null)}
-        onConfirm={() => {
-          if (!deleteLayerConfirm) return;
-          fireAndForget(deleteLayerWithoutConfirm(deleteLayerConfirm.layerId));
-          setDeleteLayerConfirm(null);
-        }}
+        keepUtterances={deleteConfirmKeepUtterances}
+        onKeepUtterancesChange={setDeleteConfirmKeepUtterances}
+        onCancel={cancelDeleteLayerConfirm}
+        onConfirm={() => { fireAndForget(confirmDeleteLayer()); }}
       />
     </aside>
   );

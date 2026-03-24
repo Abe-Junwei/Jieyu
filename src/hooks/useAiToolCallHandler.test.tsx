@@ -316,7 +316,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     });
 
     expect(response?.ok).toBe(true);
-    expect(deleteLayerSpy).toHaveBeenCalledWith('trc-cmn', { skipBrowserConfirm: true });
+    expect(deleteLayerSpy).toHaveBeenCalledWith('trc-cmn');
   });
 
   it('deletes translation layer by layerType + languageQuery when uniquely matched', async () => {
@@ -352,7 +352,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     });
 
     expect(response?.ok).toBe(true);
-    expect(deleteLayerSpy).toHaveBeenCalledWith('trl-jpn', { skipBrowserConfirm: true });
+    expect(deleteLayerSpy).toHaveBeenCalledWith('trl-jpn');
   });
 
   it('rejects delete_layer by layerType + languageQuery when multiple layers match', async () => {

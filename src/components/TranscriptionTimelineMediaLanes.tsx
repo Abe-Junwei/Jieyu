@@ -6,7 +6,9 @@ import { fireAndForget } from '../utils/fireAndForget';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { LayerActionPopover } from './LayerActionPopover';
+import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
+import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 
 type LassoRect = {
   x: number;
@@ -42,6 +44,8 @@ type TranscriptionTimelineMediaLanesProps = {
   onToggleConnectors?: () => void;
   laneHeights: Record<string, number>;
   onLaneHeightChange: (layerId: string, nextHeight: number) => void;
+  // Lane label resize
+  onLaneLabelWidthResize?: (e: React.PointerEvent<HTMLDivElement>) => void;
 };
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
@@ -66,6 +70,7 @@ export function TranscriptionTimelineMediaLanes({
   onToggleConnectors,
   laneHeights,
   onLaneHeightChange,
+  onLaneLabelWidthResize,
 }: Omit<TranscriptionTimelineMediaLanesProps, 'allLayersOrdered'> & {
   allLayersOrdered: TranslationLayerDocType[];
   deletableLayers: TranslationLayerDocType[];
@@ -102,6 +107,20 @@ export function TranscriptionTimelineMediaLanes({
     deleteLayerWithoutConfirm,
     checkLayerHasContent,
   } = useTranscriptionEditorContext();
+
+  const {
+    deleteLayerConfirm,
+    deleteConfirmKeepUtterances,
+    setDeleteConfirmKeepUtterances,
+    requestDeleteLayer,
+    cancelDeleteLayerConfirm,
+    confirmDeleteLayer,
+  } = useLayerDeleteConfirm({
+    deletableLayers,
+    checkLayerHasContent,
+    deleteLayer,
+    deleteLayerWithoutConfirm,
+  });
   return (
     <div className="timeline-content" style={{ width: playerDuration * zoomPxPerSec }}>
       {lassoRect && (
@@ -140,12 +159,19 @@ export function TranscriptionTimelineMediaLanes({
             deletableLayers={deletableLayers}
             onFocusLayer={onFocusLayer}
             renderLaneLabel={renderLaneLabel}
-            onLayerAction={(action, layerId) => setLayerAction({ action, layerId })}
+            onLayerAction={(action, layerId) => {
+              if (action === 'delete' && layerId) {
+                fireAndForget(requestDeleteLayer(layerId));
+                return;
+              }
+              setLayerAction({ action, layerId });
+            }}
             layerLinks={layerLinks}
             showConnectors={showConnectors}
             onToggleConnectors={onToggleConnectors ?? (() => {})}
             isCollapsed={isCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
+            onLaneLabelWidthResize={onLaneLabelWidthResize}
           />
           {!isCollapsed && timelineRenderUtterances.map((utt) => {
             const sourceText = getUtteranceTextForLayer(utt, layer.id);
@@ -204,12 +230,19 @@ export function TranscriptionTimelineMediaLanes({
             deletableLayers={deletableLayers}
             onFocusLayer={onFocusLayer}
             renderLaneLabel={renderLaneLabel}
-            onLayerAction={(action, layerId) => setLayerAction({ action, layerId })}
+            onLayerAction={(action, layerId) => {
+              if (action === 'delete' && layerId) {
+                fireAndForget(requestDeleteLayer(layerId));
+                return;
+              }
+              setLayerAction({ action, layerId });
+            }}
             layerLinks={layerLinks}
             showConnectors={showConnectors}
             onToggleConnectors={onToggleConnectors ?? (() => {})}
             isCollapsed={isCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
+            onLaneLabelWidthResize={onLaneLabelWidthResize}
           />
           {!isCollapsed && timelineRenderUtterances.map((utt) => {
             const text = translationTextByLayer.get(layer.id)?.get(utt.id)?.text ?? '';
@@ -262,6 +295,17 @@ export function TranscriptionTimelineMediaLanes({
           onClose={() => setLayerAction(null)}
         />
       )}
+
+      <DeleteLayerConfirmDialog
+        open={deleteLayerConfirm !== null}
+        layerName={deleteLayerConfirm?.layerName ?? ''}
+        layerType={deleteLayerConfirm?.layerType ?? 'transcription'}
+        textCount={deleteLayerConfirm?.textCount ?? 0}
+        keepUtterances={deleteConfirmKeepUtterances}
+        onKeepUtterancesChange={setDeleteConfirmKeepUtterances}
+        onCancel={cancelDeleteLayerConfirm}
+        onConfirm={() => { fireAndForget(confirmDeleteLayer()); }}
+      />
     </div>
   );
 }

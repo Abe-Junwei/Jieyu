@@ -6,7 +6,9 @@ import { fireAndForget } from '../utils/fireAndForget';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { LayerActionPopover } from './LayerActionPopover';
+import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
+import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 
 type TranscriptionTimelineTextOnlyProps = {
   transcriptionLayers: TranslationLayerDocType[];
@@ -30,6 +32,8 @@ type TranscriptionTimelineTextOnlyProps = {
   laneHeights: Record<string, number>;
   onLaneHeightChange: (layerId: string, nextHeight: number) => void;
   speakerVisualByUtteranceId?: Record<string, { name: string; color: string }>;
+  // Lane label resize
+  onLaneLabelWidthResize?: (e: React.PointerEvent<HTMLDivElement>) => void;
 };
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
@@ -55,6 +59,7 @@ export function TranscriptionTimelineTextOnly({
   laneHeights,
   onLaneHeightChange,
   speakerVisualByUtteranceId = {},
+  onLaneLabelWidthResize,
 }: TranscriptionTimelineTextOnlyProps) {
   const [layerAction, setLayerAction] = useState<{ action: LayerActionType; layerId?: string } | null>(null);
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
@@ -88,6 +93,20 @@ export function TranscriptionTimelineTextOnly({
     deleteLayerWithoutConfirm,
     checkLayerHasContent,
   } = useTranscriptionEditorContext();
+
+  const {
+    deleteLayerConfirm,
+    deleteConfirmKeepUtterances,
+    setDeleteConfirmKeepUtterances,
+    requestDeleteLayer,
+    cancelDeleteLayerConfirm,
+    confirmDeleteLayer,
+  } = useLayerDeleteConfirm({
+    deletableLayers,
+    checkLayerHasContent,
+    deleteLayer,
+    deleteLayerWithoutConfirm,
+  });
 
   const horizontalVirtualizer = useVirtualizer({
     count: utterancesOnCurrentMedia.length,
@@ -151,12 +170,19 @@ export function TranscriptionTimelineTextOnly({
             deletableLayers={deletableLayers}
             onFocusLayer={onFocusLayer}
             renderLaneLabel={renderLaneLabel}
-            onLayerAction={(action, layerId) => setLayerAction({ action, layerId })}
+            onLayerAction={(action, layerId) => {
+              if (action === 'delete' && layerId) {
+                fireAndForget(requestDeleteLayer(layerId));
+                return;
+              }
+              setLayerAction({ action, layerId });
+            }}
             layerLinks={layerLinks}
             showConnectors={showConnectors}
             onToggleConnectors={onToggleConnectors ?? (() => {})}
             isCollapsed={isCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
+            onLaneLabelWidthResize={onLaneLabelWidthResize}
           />
           {!isCollapsed && <div className="timeline-lane-text-only-track" style={{ width: `${totalSize}px` }}>
           {virtualItems.map((virtualItem) => {
@@ -306,12 +332,19 @@ export function TranscriptionTimelineTextOnly({
             deletableLayers={deletableLayers}
             onFocusLayer={onFocusLayer}
             renderLaneLabel={renderLaneLabel}
-            onLayerAction={(action, layerId) => setLayerAction({ action, layerId })}
+            onLayerAction={(action, layerId) => {
+              if (action === 'delete' && layerId) {
+                fireAndForget(requestDeleteLayer(layerId));
+                return;
+              }
+              setLayerAction({ action, layerId });
+            }}
             layerLinks={layerLinks}
             showConnectors={showConnectors}
             onToggleConnectors={onToggleConnectors ?? (() => {})}
             isCollapsed={isCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
+            onLaneLabelWidthResize={onLaneLabelWidthResize}
           />
           {!isCollapsed && <div className="timeline-lane-text-only-track" style={{ width: `${totalSize}px` }}>
           {virtualItems.map((virtualItem) => {
@@ -451,6 +484,17 @@ export function TranscriptionTimelineTextOnly({
           onClose={() => setLayerAction(null)}
         />
       )}
+
+      <DeleteLayerConfirmDialog
+        open={deleteLayerConfirm !== null}
+        layerName={deleteLayerConfirm?.layerName ?? ''}
+        layerType={deleteLayerConfirm?.layerType ?? 'transcription'}
+        textCount={deleteLayerConfirm?.textCount ?? 0}
+        keepUtterances={deleteConfirmKeepUtterances}
+        onKeepUtterancesChange={setDeleteConfirmKeepUtterances}
+        onCancel={cancelDeleteLayerConfirm}
+        onConfirm={() => { fireAndForget(confirmDeleteLayer()); }}
+      />
     </div>
   );
 }
