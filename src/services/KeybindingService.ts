@@ -47,6 +47,8 @@ export const DEFAULT_KEYBINDINGS: KeybindingEntry[] = [
   { id: 'tabPrev',       label: 'Tab 播放上一个', defaultKey: 'shift+tab',    scope: 'waveform', category: 'navigation' },
   { id: 'stepBack',     label: '后退一帧',       defaultKey: ',',            scope: 'waveform', category: 'navigation' },
   { id: 'stepForward',  label: '前进一帧',       defaultKey: '.',            scope: 'waveform', category: 'navigation' },
+  { id: 'reviewNext',   label: '跳到下一个低置信度句段', defaultKey: ']', scope: 'waveform', category: 'navigation' },
+  { id: 'reviewPrev',   label: '跳到上一个低置信度句段', defaultKey: '[', scope: 'waveform', category: 'navigation' },
 
   // Voice agent
   { id: 'toggleVoice',   label: '语音智能体',     defaultKey: 'mod+shift+.',  scope: 'global',   category: 'voice' },

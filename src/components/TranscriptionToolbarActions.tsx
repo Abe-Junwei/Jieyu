@@ -11,6 +11,7 @@ import {
   Trash2,
   Undo2,
   Upload,
+  Zap,
 } from 'lucide-react';
 import { detectLocale, t } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -49,6 +50,10 @@ interface TranscriptionToolbarActionsProps {
   onDeleteCurrentProject: () => void;
   onToggleNotes: () => void;
   onOpenUttOpsMenu: (x: number, y: number) => void;
+  /** VAD 自动分段 | Trigger VAD auto-segmentation */
+  onAutoSegment?: () => void;
+  /** VAD 运行中 | True while VAD is running */
+  autoSegmentBusy?: boolean;
 }
 
 function TranscriptionToolbarActionsInner(props: TranscriptionToolbarActionsProps) {
@@ -212,6 +217,16 @@ function TranscriptionToolbarActionsInner(props: TranscriptionToolbarActionsProp
         >
           <StickyNote size={15} />
         </button>
+        {props.onAutoSegment && (
+          <button
+            className="icon-btn"
+            onClick={props.onAutoSegment}
+            disabled={props.autoSegmentBusy}
+            title={props.autoSegmentBusy ? '自动分段运行中… | Auto-segmenting…' : '一键 VAD 自动分段 | Auto-segment with VAD'}
+          >
+            <Zap size={15} />
+          </button>
+        )}
         <button
           className="icon-btn"
           title={t(locale, 'transcription.toolbar.utteranceOps')}

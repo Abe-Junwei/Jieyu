@@ -76,6 +76,7 @@ describe('SpeakerRailContext', () => {
       handleDeleteSpeaker: () => undefined,
       handleAssignSpeakerToSelected: async () => undefined,
       handleCreateSpeakerAndAssign: async () => undefined,
+      handleCreateSpeakerOnly: async () => undefined,
       closeSpeakerDialog: () => undefined,
       updateSpeakerDialogDraftName: () => undefined,
       updateSpeakerDialogTargetKey: () => undefined,

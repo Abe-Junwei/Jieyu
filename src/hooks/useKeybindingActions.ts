@@ -197,6 +197,39 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
           if (player.isReady) player.playRegion(target.startTime, target.endTime);
         }
       },
+      reviewNext: () => {
+        // 跳到当前句段之后第一个低置信度句段（< 0.75）| Jump to next low-confidence utterance after current
+        const curIdx = selectedUtteranceId
+          ? utterancesOnCurrentMedia.findIndex((u) => u.id === selectedUtteranceId)
+          : -1;
+        const lowList = utterancesOnCurrentMedia
+          .map((u, i) => ({ u, i }))
+          .filter(({ u }) => typeof u.ai_metadata?.confidence === 'number' && u.ai_metadata.confidence < 0.75);
+        const target = lowList.find(({ i }) => i > curIdx);
+        if (target) {
+          manualSelectTsRef.current = Date.now();
+          if (player.isPlaying) player.stop();
+          selectUtterance(target.u.id);
+          if (player.isReady) player.playRegion(target.u.startTime, target.u.endTime);
+        }
+      },
+      reviewPrev: () => {
+        // 跳到当前句段之前最近一个低置信度句段（< 0.75）| Jump to prev low-confidence utterance before current
+        const curIdx = selectedUtteranceId
+          ? utterancesOnCurrentMedia.findIndex((u) => u.id === selectedUtteranceId)
+          : utterancesOnCurrentMedia.length;
+        const lowList = utterancesOnCurrentMedia
+          .map((u, i) => ({ u, i }))
+          .filter(({ u }) => typeof u.ai_metadata?.confidence === 'number' && u.ai_metadata.confidence < 0.75)
+          .filter(({ i }) => i < curIdx);
+        const target = lowList[lowList.length - 1];
+        if (target) {
+          manualSelectTsRef.current = Date.now();
+          if (player.isPlaying) player.stop();
+          selectUtterance(target.u.id);
+          if (player.isReady) player.playRegion(target.u.startTime, target.u.endTime);
+        }
+      },
     };
   }, [handlePlayPauseAction, player, player.isReady, player.isPlaying, selectedMediaUrl, segMarkStart, subSelectionRange, selectedUtteranceId, selectedUtteranceIds, utterancesOnCurrentMedia, createUtteranceFromSelection, runDeleteSelection, runMergePrev, runMergeNext, runSplitAtTime, runSelectBefore, runSelectAfter, selectAllUtterances, selectUtterance, manualSelectTsRef]);
 

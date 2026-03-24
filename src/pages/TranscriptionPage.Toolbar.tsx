@@ -46,6 +46,12 @@ type TranscriptionPageToolbarProps = {
   onDeleteCurrentProject: () => void;
   onToggleNotes: () => void;
   onOpenUttOpsMenu: (x: number, y: number) => void;
+  /** 低置信度句段数量，> 0 时显示徽章 | Count shown as review badge when > 0 */
+  lowConfidenceCount?: number;
+  /** VAD 自动分段回调 | Callback to trigger VAD auto-segmentation */
+  onAutoSegment?: () => void;
+  /** VAD 运行中 | True while VAD is running */
+  autoSegmentBusy?: boolean;
 };
 
 export function TranscriptionPageToolbar({
@@ -81,6 +87,9 @@ export function TranscriptionPageToolbar({
   onDeleteCurrentProject,
   onToggleNotes,
   onOpenUttOpsMenu,
+  lowConfidenceCount,
+  onAutoSegment,
+  autoSegmentBusy,
 }: TranscriptionPageToolbarProps) {
   return (
     <WaveformToolbar
@@ -96,6 +105,14 @@ export function TranscriptionPageToolbar({
       onTogglePlayback={onTogglePlayback}
       onSeek={onSeek}
     >
+      {lowConfidenceCount != null && lowConfidenceCount > 0 && (
+        <span
+          className="toolbar-confidence-badge"
+          title={`${lowConfidenceCount} 个低置信度句段，按 [ / ] 跳转 | ${lowConfidenceCount} low-confidence segments, use [ / ] to navigate`}
+        >
+          ⚠ {lowConfidenceCount}
+        </span>
+      )}
       <TranscriptionToolbarActions
         canUndo={canUndo}
         canRedo={canRedo}
@@ -118,6 +135,8 @@ export function TranscriptionPageToolbar({
         onDeleteCurrentProject={onDeleteCurrentProject}
         onToggleNotes={onToggleNotes}
         onOpenUttOpsMenu={onOpenUttOpsMenu}
+          {...(onAutoSegment ? { onAutoSegment } : {})}
+          {...(autoSegmentBusy != null ? { autoSegmentBusy } : {})}
       />
     </WaveformToolbar>
   );

@@ -28,7 +28,7 @@ export type TranscriptionEditorContextValue = {
     input: LayerCreateInput,
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
-  deleteLayer: (layerId: string) => Promise<void>;
+  deleteLayer: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
   deleteLayerWithoutConfirm: (layerId: string) => Promise<void>;
   checkLayerHasContent: (layerId: string) => Promise<number>;
 };

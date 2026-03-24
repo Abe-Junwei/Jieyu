@@ -77,6 +77,16 @@ function LayerRailActionModal({ ariaLabel, children, onClose, className }: Layer
   const [position, setPosition] = useState(() => centerPosition(clampSize(defaultSize)));
   const dragRef = useRef<{ startX: number; startY: number; startLeft: number; startTop: number } | null>(null);
   const resizeRef = useRef<{ startX: number; startY: number; startWidth: number; startHeight: number } | null>(null);
+  const currentPositionRef = useRef(position);
+  const currentSizeRef = useRef(size);
+
+  useEffect(() => {
+    currentPositionRef.current = position;
+  }, [position]);
+
+  useEffect(() => {
+    currentSizeRef.current = size;
+  }, [size]);
 
   useEffect(() => {
     const safeSize = clampSize(defaultSize);
@@ -91,7 +101,7 @@ function LayerRailActionModal({ ariaLabel, children, onClose, className }: Layer
           x: dragRef.current.startLeft + (event.clientX - dragRef.current.startX),
           y: dragRef.current.startTop + (event.clientY - dragRef.current.startY),
         };
-        setPosition(clampPosition(next, size));
+        setPosition(clampPosition(next, currentSizeRef.current));
       }
 
       if (resizeRef.current) {
@@ -118,7 +128,7 @@ function LayerRailActionModal({ ariaLabel, children, onClose, className }: Layer
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
     };
-  }, [clampPosition, clampSize, size]);
+  }, [clampPosition, clampSize]);
 
   useEffect(() => {
     const onResize = () => {
@@ -137,8 +147,8 @@ function LayerRailActionModal({ ariaLabel, children, onClose, className }: Layer
     dragRef.current = {
       startX: event.clientX,
       startY: event.clientY,
-      startLeft: position.x,
-      startTop: position.y,
+      startLeft: currentPositionRef.current.x,
+      startTop: currentPositionRef.current.y,
     };
     document.body.style.userSelect = 'none';
     document.body.style.cursor = 'move';
@@ -150,8 +160,8 @@ function LayerRailActionModal({ ariaLabel, children, onClose, className }: Layer
     resizeRef.current = {
       startX: event.clientX,
       startY: event.clientY,
-      startWidth: size.width,
-      startHeight: size.height,
+      startWidth: currentSizeRef.current.width,
+      startHeight: currentSizeRef.current.height,
     };
     document.body.style.userSelect = 'none';
     document.body.style.cursor = 'nwse-resize';
@@ -440,13 +450,22 @@ export function LayerRailSidebar({
           placeholder="新说话人名称"
           value={speakerCtx.speakerDraftName}
           onChange={(e) => speakerCtx.setSpeakerDraftName(e.target.value)}
-          disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0}
+          disabled={speakerCtx.speakerSaving}
         />
         <div className="transcription-layer-rail-action-row transcription-layer-rail-action-row-fill">
           <button
             className="btn btn-sm"
+            disabled={speakerCtx.speakerSaving || speakerCtx.speakerDraftName.trim().length === 0}
+            onClick={() => { fireAndForget(speakerCtx.handleCreateSpeakerOnly()); }}
+            title="仅新建说话人，不分配句段"
+          >
+            仅新建
+          </button>
+          <button
+            className="btn btn-sm"
             disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0 || speakerCtx.speakerDraftName.trim().length === 0}
             onClick={() => { fireAndForget(speakerCtx.handleCreateSpeakerAndAssign()); }}
+            title="新建说话人并分配到已选句段"
           >
             新建并分配
           </button>

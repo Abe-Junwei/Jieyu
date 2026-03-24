@@ -676,7 +676,7 @@
   cursor: pointer;
   z-index: calc(var(--z-timeline-sticky) + 5);
   box-shadow: 0 2px 8px rgba(30, 64, 175, 0.14);
-  transition: right var(--rail-motion), background var(--rail-motion), border-color var(--rail-motion), color var(--rail-motion), box-shadow var(--rail-motion);
+  transition: right var(--rail-motion), transform var(--rail-motion), background var(--rail-motion), border-color var(--rail-motion), color var(--rail-motion), box-shadow var(--rail-motion);
   will-change: right;
 }
 
@@ -740,16 +740,6 @@
   gap: 2px;
 }
 
-.transcription-list-main-rail-collapsed .transcription-layer-rail-toggle {
-  left: calc(var(--transcription-rail-width) - 8px);
-  transform: translateY(-50%);
-}
-
-.transcription-workspace-ai-collapsed .transcription-ai-panel-toggle {
-  right: calc(var(--transcription-ai-visible-width) - 8px);
-  transform: translateY(-50%);
-}
-
 .transcription-layer-rail-resizer,
 .transcription-ai-panel-resizer {
   position: absolute;
@@ -786,8 +776,8 @@
 
 .transcription-ai-panel-resizer::before {
   left: auto;
-  right: calc(var(--transcription-ai-visible-width) / 2);
-  transition: right var(--rail-motion), background var(--rail-motion), box-shadow var(--rail-motion);
+  right: 50%;
+  transition: background var(--rail-motion), box-shadow var(--rail-motion);
 }
 
 .transcription-layer-rail-resizer:hover::before,

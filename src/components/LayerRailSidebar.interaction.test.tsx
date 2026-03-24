@@ -84,6 +84,7 @@ function renderSidebar(input?: {
     handleDeleteSpeaker: onDeleteSpeaker,
     handleAssignSpeakerToSelected: vi.fn(async () => undefined),
     handleCreateSpeakerAndAssign: vi.fn(async () => undefined),
+    handleCreateSpeakerOnly: vi.fn(async () => undefined),
     closeSpeakerDialog: vi.fn(),
     updateSpeakerDialogDraftName: vi.fn(),
     updateSpeakerDialogTargetKey: vi.fn(),

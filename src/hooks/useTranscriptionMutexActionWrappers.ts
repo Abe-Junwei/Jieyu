@@ -20,7 +20,7 @@ type Params = {
   splitByRegexRaw: (ids: Set<string>, pattern: string, flags?: string) => Promise<void>;
   mergeSelectedUtterancesRaw: (ids: Set<string>) => Promise<void>;
   createLayerRaw: (layerType: 'transcription' | 'translation', input: LayerCreateInput, modality?: 'text' | 'audio' | 'mixed') => Promise<boolean>;
-  deleteLayerRaw: (targetLayerId?: string) => Promise<void>;
+  deleteLayerRaw: (targetLayerId?: string, options?: { keepUtterances?: boolean }) => Promise<void>;
   toggleLayerLinkRaw: (transcriptionLayerKey: string, tierId: string) => Promise<void>;
 };
 
@@ -121,8 +121,8 @@ export function useTranscriptionMutexActionWrappers({
     runWithDbMutex,
   ]);
 
-  const deleteLayer = useCallback((targetLayerId?: string) => (
-    runWithDbMutex(() => deleteLayerRaw(targetLayerId))
+  const deleteLayer = useCallback((targetLayerId?: string, options?: { keepUtterances?: boolean }) => (
+    runWithDbMutex(() => deleteLayerRaw(targetLayerId, options))
   ), [deleteLayerRaw, runWithDbMutex]);
 
   const toggleLayerLink = useCallback((transcriptionLayerKey: string, tierId: string) => (

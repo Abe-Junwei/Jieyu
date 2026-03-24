@@ -44,6 +44,7 @@ export interface SpeakerRailContextValue {
   handleDeleteSpeaker: (sourceSpeakerKey: string) => void;
   handleAssignSpeakerToSelected: () => Promise<void>;
   handleCreateSpeakerAndAssign: () => Promise<void>;
+  handleCreateSpeakerOnly: () => Promise<void>;
   closeSpeakerDialog: () => void;
   updateSpeakerDialogDraftName: (value: string) => void;
   updateSpeakerDialogTargetKey: (speakerKey: string) => void;
@@ -114,6 +115,7 @@ const fallbackSpeakerRailContext: SpeakerRailContextValue = {
   handleDeleteSpeaker: createMissingProviderAction('handleDeleteSpeaker'),
   handleAssignSpeakerToSelected: createMissingProviderAsyncAction('handleAssignSpeakerToSelected'),
   handleCreateSpeakerAndAssign: createMissingProviderAsyncAction('handleCreateSpeakerAndAssign'),
+  handleCreateSpeakerOnly: createMissingProviderAsyncAction('handleCreateSpeakerOnly'),
   closeSpeakerDialog: createMissingProviderAction('closeSpeakerDialog'),
   updateSpeakerDialogDraftName: createMissingProviderAction('updateSpeakerDialogDraftName'),
   updateSpeakerDialogTargetKey: createMissingProviderAction('updateSpeakerDialogTargetKey'),
@@ -154,6 +156,7 @@ interface SpeakerRailProviderProps {
     | 'handleDeleteSpeaker'
     | 'handleAssignSpeakerToSelected'
     | 'handleCreateSpeakerAndAssign'
+    | 'handleCreateSpeakerOnly'
     | 'closeSpeakerDialog'
     | 'updateSpeakerDialogDraftName'
     | 'updateSpeakerDialogTargetKey'
@@ -188,6 +191,7 @@ export function SpeakerRailProvider({ children, speakerManagement }: SpeakerRail
     handleDeleteSpeaker: speakerManagement.handleDeleteSpeaker,
     handleAssignSpeakerToSelected: speakerManagement.handleAssignSpeakerToSelected,
     handleCreateSpeakerAndAssign: speakerManagement.handleCreateSpeakerAndAssign,
+    handleCreateSpeakerOnly: speakerManagement.handleCreateSpeakerOnly,
     closeSpeakerDialog: speakerManagement.closeSpeakerDialog,
     updateSpeakerDialogDraftName: speakerManagement.updateSpeakerDialogDraftName,
     updateSpeakerDialogTargetKey: speakerManagement.updateSpeakerDialogTargetKey,

@@ -22,6 +22,8 @@ export interface TimelineAnnotationItemProps {
   speakerLabel?: string;
   speakerColor?: string;
   noteCount?: number;
+  /** AI confidence 0.0–1.0；低于阈值时渲染警示色 | AI confidence; triggers warning style below threshold */
+  confidence?: number;
   onClick: (e: MouseEvent) => void;
   onContextMenu: (e: MouseEvent) => void;
   onDoubleClick: () => void;
@@ -48,6 +50,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   speakerLabel,
   speakerColor,
   noteCount,
+  confidence,
   onClick,
   onContextMenu,
   onDoubleClick,
@@ -61,7 +64,15 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
 }: TimelineAnnotationItemProps) {
   return (
     <div
-      className={`timeline-annotation ${isSelected ? 'timeline-annotation-selected' : ''} ${isActive ? 'timeline-annotation-active' : ''} ${isCompact ? 'timeline-annotation-compact' : ''} ${speakerLabel ? 'timeline-annotation-has-speaker' : ''}`}
+      className={[
+        'timeline-annotation',
+        isSelected ? 'timeline-annotation-selected' : '',
+        isActive ? 'timeline-annotation-active' : '',
+        isCompact ? 'timeline-annotation-compact' : '',
+        speakerLabel ? 'timeline-annotation-has-speaker' : '',
+        typeof confidence === 'number' && confidence < 0.5 ? 'timeline-annotation-confidence-low' : '',
+        typeof confidence === 'number' && confidence >= 0.5 && confidence < 0.75 ? 'timeline-annotation-confidence-mid' : '',
+      ].filter(Boolean).join(' ')}
       style={{
         left,
         width,

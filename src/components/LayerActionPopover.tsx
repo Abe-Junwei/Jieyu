@@ -107,11 +107,22 @@ export function LayerActionPopover({
   const dragRef = useRef<{ startX: number; startY: number; startLeft: number; startTop: number } | null>(null);
   const resizeRef = useRef<{ startX: number; startY: number; startWidth: number; startHeight: number } | null>(null);
   const initializedStorageKeyRef = useRef<string | null>(null);
+  const currentPositionRef = useRef<PanelPosition>(position);
+  const currentSizeRef = useRef<PanelSize>(size);
 
   // Sync deleteLayerId when layerId changes
   useEffect(() => {
     if (layerId) setDeleteLayerId(layerId);
   }, [layerId]);
+
+  // Keep currentPositionRef and currentSizeRef in sync with state to avoid stale closures | 保持 ref 与 state 同步，避免闭包过期
+  useEffect(() => {
+    currentPositionRef.current = position;
+  }, [position]);
+
+  useEffect(() => {
+    currentSizeRef.current = size;
+  }, [size]);
 
   const clampSizeToViewport = useCallback((candidate: PanelSize): PanelSize => {
     if (typeof window === 'undefined') return candidate;
@@ -168,14 +179,14 @@ export function LayerActionPopover({
       if (dragRef.current) {
         const nextX = dragRef.current.startLeft + (event.clientX - dragRef.current.startX);
         const nextY = dragRef.current.startTop + (event.clientY - dragRef.current.startY);
-        setPosition(clampPositionToViewport({ x: nextX, y: nextY }, size));
+        setPosition(clampPositionToViewport({ x: nextX, y: nextY }, currentSizeRef.current));  // 使用最新的 size ref | Use latest size ref
         return;
       }
       if (resizeRef.current) {
         const rawWidth = resizeRef.current.startWidth + (event.clientX - resizeRef.current.startX);
         const rawHeight = resizeRef.current.startHeight + (event.clientY - resizeRef.current.startY);
-        const maxWidthByViewport = Math.max(PANEL_MIN_WIDTH, window.innerWidth - position.x - PANEL_MARGIN);
-        const maxHeightByViewport = Math.max(PANEL_MIN_HEIGHT, window.innerHeight - position.y - PANEL_MARGIN);
+        const maxWidthByViewport = Math.max(PANEL_MIN_WIDTH, window.innerWidth - currentPositionRef.current.x - PANEL_MARGIN);  // 使用最新的 position ref | Use latest position ref
+        const maxHeightByViewport = Math.max(PANEL_MIN_HEIGHT, window.innerHeight - currentPositionRef.current.y - PANEL_MARGIN);
         setSize(clampSizeToViewport({
           width: Math.min(rawWidth, Math.min(PANEL_MAX_WIDTH, maxWidthByViewport)),
           height: Math.min(rawHeight, Math.min(PANEL_MAX_HEIGHT, maxHeightByViewport)),
@@ -198,7 +209,7 @@ export function LayerActionPopover({
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
     };
-  }, [clampPositionToViewport, clampSizeToViewport, position.x, position.y, size]);
+  }, [clampPositionToViewport, clampSizeToViewport]);  // 移除 position 和 size 依赖，完全依赖 ref 来避免拖拽中途listener断开 | Remove position/size deps; rely on refs to prevent listener disconnect during drag/resize
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -216,13 +227,13 @@ export function LayerActionPopover({
 
   useEffect(() => {
     const onResize = (): void => {
-      const safeSize = clampSizeToViewport(size);
+      const safeSize = clampSizeToViewport(currentSizeRef.current);  // 使用最新尺寸 ref，避免闭包读到旧值 | Use latest size ref to avoid stale closure
       setSize(safeSize);
       setPosition((prev) => clampPositionToViewport(prev, safeSize));
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [clampPositionToViewport, clampSizeToViewport, size]);
+  }, [clampPositionToViewport, clampSizeToViewport]);
 
   const handleCreate = useCallback(async () => {
     const resolvedLang = langId === '__custom__' ? customLang.trim() : langId;
@@ -277,8 +288,8 @@ export function LayerActionPopover({
     dragRef.current = {
       startX: event.clientX,
       startY: event.clientY,
-      startLeft: position.x,
-      startTop: position.y,
+      startLeft: currentPositionRef.current.x,  // 从 ref 读取最新位置 | Read latest position from ref
+      startTop: currentPositionRef.current.y,
     };
     document.body.style.userSelect = 'none';
     document.body.style.cursor = 'move';
@@ -290,8 +301,8 @@ export function LayerActionPopover({
     resizeRef.current = {
       startX: event.clientX,
       startY: event.clientY,
-      startWidth: size.width,
-      startHeight: size.height,
+      startWidth: currentSizeRef.current.width,  // 从 ref 读取最新尺寸 | Read latest size from ref
+      startHeight: currentSizeRef.current.height,
     };
     document.body.style.userSelect = 'none';
     document.body.style.cursor = 'nwse-resize';

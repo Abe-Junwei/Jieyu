@@ -75,6 +75,7 @@ export interface UseSpeakerActionsReturn {
   handleDeleteSpeaker: (sourceSpeakerKey: string) => void;
   handleAssignSpeakerToSelected: () => Promise<void>;
   handleCreateSpeakerAndAssign: () => Promise<void>;
+  handleCreateSpeakerOnly: () => Promise<void>;
   closeSpeakerDialog: () => void;
   updateSpeakerDialogDraftName: (value: string) => void;
   updateSpeakerDialogTargetKey: (speakerKey: string) => void;
@@ -429,6 +430,27 @@ export function useSpeakerActions({
     }
   }, [applySpeakerLocally, data, selectedUtteranceIds, setSaveState, setSpeakers, speakerDraftName, speakerSaving]);
 
+  const handleCreateSpeakerOnly = useCallback(async () => {
+    const name = speakerDraftName.trim();
+    if (!name || speakerSaving) return;
+    setSpeakerSaving(true);
+    try {
+      const created = await LinguisticService.createSpeaker({ name });
+      setSpeakers((prev) => upsertSpeaker(prev, created));
+      setSpeakerDraftName('');
+      setSaveState({ kind: 'done', message: `已创建说话人"${created.name}"` });
+    } catch (error) {
+      reportActionError({
+        actionLabel: '创建说话人',
+        error,
+        i18nKey: 'transcription.error.action.createSpeakerFailed',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
+    } finally {
+      setSpeakerSaving(false);
+    }
+  }, [setSaveState, setSpeakerDraftName, setSpeakers, speakerDraftName, speakerSaving]);
+
   const closeSpeakerDialog = useCallback(() => {
     if (speakerSaving) return;
     setSpeakerDialogState(null);
@@ -602,6 +624,7 @@ export function useSpeakerActions({
     handleDeleteSpeaker,
     handleAssignSpeakerToSelected,
     handleCreateSpeakerAndAssign,
+    handleCreateSpeakerOnly,
     closeSpeakerDialog,
     updateSpeakerDialogDraftName,
     updateSpeakerDialogTargetKey,

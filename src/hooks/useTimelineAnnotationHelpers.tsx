@@ -3,7 +3,7 @@ import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../com
 import type { TranslationLayerDocType, UtteranceDocType } from '../db';
 import { formatTime, getLayerLabelParts } from '../utils/transcriptionFormatters';
 
-type TimelineUtterance = Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime' | 'speaker' | 'speakerId'>;
+type TimelineUtterance = Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime' | 'speaker' | 'speakerId' | 'ai_metadata'>;
 
 type SpeakerVisual = {
   name: string;
@@ -179,6 +179,7 @@ export function useTimelineAnnotationHelpers({
         draft={draft}
         speakerLabel={speakerVisual?.name ?? ''}
         speakerColor={speakerVisual?.color ?? '#2563eb'}
+        {...(utt.ai_metadata?.confidence != null ? { confidence: utt.ai_metadata.confidence } : {})}
         onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e)}
         onContextMenu={(e) => handleAnnotationContextMenu(utt.id, utt, layer.id, e)}
         onDoubleClick={() => zoomToUtterance(utt.startTime, utt.endTime)}

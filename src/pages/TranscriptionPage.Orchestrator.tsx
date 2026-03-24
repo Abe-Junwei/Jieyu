@@ -7,6 +7,7 @@
 
 import { AiAssistantHubContext } from '../contexts/AiAssistantHubContext';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { detectVadSegments, loadAudioBuffer } from '../services/VadService';
 import {
   Merge as _Merge,
   Pause as _Pause,
@@ -1805,6 +1806,36 @@ function TranscriptionPageOrchestrator() {
   const [audioDeleteConfirm, setAudioDeleteConfirm] = useState<{ filename: string } | null>(null);
   const [projectDeleteConfirm, setProjectDeleteConfirm] = useState<boolean>(false);
 
+  // ── VAD 自动分段 | VAD auto-segmentation ──
+  const [autoSegmentBusy, setAutoSegmentBusy] = useState(false);
+
+  const handleAutoSegment = useCallback(() => {
+    if (!selectedMediaUrl || autoSegmentBusy) return;
+    setAutoSegmentBusy(true);
+    fireAndForget((async () => {
+      try {
+        const audioBuf = await loadAudioBuffer(selectedMediaUrl);
+        const segments = detectVadSegments(audioBuf);
+        // 过滤已被现有句段覆盖的区间 | Skip time ranges already covered by existing utterances
+        const existing = utterancesOnCurrentMedia;
+        const newSegs = segments.filter((seg) => {
+          return !existing.some(
+            (u) => u.startTime < seg.end - 0.05 && u.endTime > seg.start + 0.05,
+          );
+        });
+        for (const seg of newSegs) {
+          await createUtteranceFromSelection(seg.start, seg.end);
+        }
+        setSaveState({ kind: 'done', message: `VAD 完成，新建 ${newSegs.length} 个句段 | VAD complete: ${newSegs.length} new segments` });
+      } catch (err) {
+        log.error('VAD auto-segment failed', { error: err instanceof Error ? err.message : String(err) });
+        setSaveState({ kind: 'error', message: 'VAD 分段失败 | VAD segmentation failed' });
+      } finally {
+        setAutoSegmentBusy(false);
+      }
+    })());
+  }, [selectedMediaUrl, autoSegmentBusy, utterancesOnCurrentMedia, createUtteranceFromSelection]);
+
   const handleDeleteCurrentAudio = useCallback(() => {
     if (!selectedUtteranceMedia) return;
     setAudioDeleteConfirm({ filename: selectedUtteranceMedia.filename });
@@ -2447,6 +2478,8 @@ function TranscriptionPageOrchestrator() {
               onToggleNotes={toggleNotes}
               onOpenUttOpsMenu={(x, y) => setUttOpsMenu({ x, y })}
               lowConfidenceCount={lowConfidenceCount}
+              {...(selectedMediaUrl ? { onAutoSegment: handleAutoSegment } : {})}
+              autoSegmentBusy={autoSegmentBusy}
             />
           </section>
 
