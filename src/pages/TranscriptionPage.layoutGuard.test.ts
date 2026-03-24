@@ -51,4 +51,24 @@ describe('Transcription layout guard', () => {
     expect(block).toContain('top: 50%;');
     expect(block).toContain('transform: translate(-50%, -50%);');
   });
+
+  it('keeps lane-label resize handle interactive styles', () => {
+    const cssPath = path.resolve(process.cwd(), 'src/styles/transcription.css');
+    const cssCode = fs.readFileSync(cssPath, 'utf8');
+
+    const selector = '.lane-label-resize-handle {';
+    const start = cssCode.indexOf(selector);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+
+    const end = cssCode.indexOf('}', start);
+    expect(end).toBeGreaterThan(start);
+
+    const block = cssCode.slice(start, end + 1);
+    expect(block).toContain('position: absolute;');
+    expect(block).toContain('right: 0;');
+    expect(block).toContain('width: 10px;');
+    expect(block).toContain('cursor: ew-resize;');
+    expect(block).toContain('pointer-events: auto;');
+  });
 });

@@ -18,7 +18,7 @@ interface ContextMenuProps {
 
 export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ left: x, top: y });
+  const [position, setPosition] = useState(() => ({ left: x, top: y }));
 
   useLayoutEffect(() => {
     const menu = ref.current;

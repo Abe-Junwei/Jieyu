@@ -2681,21 +2681,6 @@ function TranscriptionPageOrchestrator() {
                         ✦ {tf(locale, 'transcription.wave.markingHint', { start: formatTime(segMarkStart) })}
                       </div>
                     )}
-                    <div
-                      className="waveform-area-resize-handle"
-                      onPointerDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        waveformResizeRef.current = {
-                          startY: e.clientY,
-                          startHeight: waveformHeight,
-                          startAmplitude: amplitudeScale,
-                        };
-                        setIsResizingWaveform(true);
-                      }}
-                      role="separator"
-                      aria-orientation="horizontal"
-                    />
                   </div>
                 </WaveformAreaSection>
                 <TranscriptionPageTimelineTop

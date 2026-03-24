@@ -265,7 +265,12 @@ export function LayerRailSidebar({
     requestDeleteLayer,
     cancelDeleteLayerConfirm,
     confirmDeleteLayer,
-  } = useLayerDeleteConfirm({});
+  } = useLayerDeleteConfirm({
+    deletableLayers,
+    checkLayerHasContent,
+    deleteLayer,
+    deleteLayerWithoutConfirm,
+  });
 
   const handleLayerContextMenu = (e: React.MouseEvent, layerId: string) => {
     e.preventDefault();

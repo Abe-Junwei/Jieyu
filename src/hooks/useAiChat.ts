@@ -359,7 +359,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   // 用户是否在水合完成前手动改过设置 | Whether user patched settings before hydration finished
   const userDirtyRef = useRef(false);
   const clearInFlightRef = useRef(false);
-  const [messages, setMessages] = useState<UiChatMessage[]>([]);
+  const [messages, setMessages] = useState<UiChatMessage[]>(() => []);
   const messagesRef = useLatest(messages);
   const [isStreaming, setIsStreaming] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
@@ -370,11 +370,11 @@ export function useAiChat(options?: UseAiChatOptions) {
   const [connectionTestMessage, setConnectionTestMessage] = useState<string | null>(null);
   const [contextDebugSnapshot, setContextDebugSnapshot] = useState<AiContextDebugSnapshot | null>(null);
   const [pendingToolCall, setPendingToolCall] = useState<PendingAiToolCall | null>(null);
-  const [taskSession, setTaskSession] = useState<AiTaskSession>({
+  const [taskSession, setTaskSession] = useState<AiTaskSession>(() => ({
     id: newMessageId('task'),
     status: 'idle',
     updatedAt: nowIso(),
-  });
+  }));
   const [metrics, setMetrics] = useState<AiInteractionMetrics>({ ...INITIAL_METRICS });
   const metricsRef = useLatest(metrics);
   const sessionMemoryRef = useRef<AiSessionMemory>(loadSessionMemory());

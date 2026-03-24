@@ -39,7 +39,7 @@ export function PdfViewerPanel({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const textLayerRef = useRef<HTMLDivElement | null>(null);
-  const [currentPage, setCurrentPage] = useState(Math.max(1, page ?? 1));
+  const [currentPage, setCurrentPage] = useState(() => Math.max(1, page ?? 1));
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

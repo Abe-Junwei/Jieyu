@@ -27,7 +27,7 @@ export const NotePopover = memo(function NotePopover({
   const [newCategory, setNewCategory] = useState<NoteCategory>('comment');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
-  const [pos, setPos] = useState({ left: x, top: y });
+  const [pos, setPos] = useState(() => ({ left: x, top: y }));
 
   // Clamp to viewport before paint
   useLayoutEffect(() => {

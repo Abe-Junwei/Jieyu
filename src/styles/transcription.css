@@ -701,6 +701,17 @@
   color: #0f766e;
 }
 
+.lane-label-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: ew-resize;
+  pointer-events: auto;
+  z-index: var(--z-toolbar);
+}
+
 /* 波形内容偏移包裹层，起始位与 lane-label 右边缘对齐 | Waveform content offset wrapper aligned with lane-label right edge */
 .waveform-content-offset {
   position: relative;

@@ -48,13 +48,19 @@ const fallbackLayerRailContext: LayerRailContextValue = {
   deleteLayerWithoutConfirm: async () => {},
 };
 
-export function useLayerRailContext(): LayerRailContextValue {
+export function useLayerRailContextOrFallback(options: { warnOnMissing?: boolean } = {}): LayerRailContextValue {
   const ctx = useContext(LayerRailContext);
   if (!ctx) {
-    reportMissingProvider();
+    if (options.warnOnMissing !== false) {
+      reportMissingProvider();
+    }
     return fallbackLayerRailContext;
   }
   return ctx;
+}
+
+export function useLayerRailContext(): LayerRailContextValue {
+  return useLayerRailContextOrFallback({ warnOnMissing: true });
 }
 
 // ── Provider Props ────────────────────────────────────────────────────────────

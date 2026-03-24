@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import type { TranslationLayerDocType } from '../db';
 import { formatLayerRailLabel } from '../utils/transcriptionFormatters';
-import { useLayerRailContext } from '../contexts/LayerRailContext';
+import { useLayerRailContextOrFallback } from '../contexts/LayerRailContext';
 
 export type LayerDeleteConfirmState = {
   layerId: string;
@@ -23,8 +23,13 @@ export function useLayerDeleteConfirm({
   deleteLayer: deleteLayerProp,
   deleteLayerWithoutConfirm: deleteLayerWithoutConfirmProp,
 }: UseLayerDeleteConfirmInput = {}) {
-  // Read from context if props not provided
-  const ctx = useLayerRailContext();
+  const shouldUseContext = (
+    deletableLayersProp === undefined
+    || checkLayerHasContentProp === undefined
+    || deleteLayerProp === undefined
+    || deleteLayerWithoutConfirmProp === undefined
+  );
+  const ctx = useLayerRailContextOrFallback({ warnOnMissing: shouldUseContext });
   const deletableLayers = deletableLayersProp ?? ctx.deletableLayers;
   const checkLayerHasContent = checkLayerHasContentProp ?? ctx.checkLayerHasContent;
   const deleteLayer = deleteLayerProp ?? ctx.deleteLayer;
