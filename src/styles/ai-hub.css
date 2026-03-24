@@ -775,6 +775,7 @@
 .transcription-ai-panel-resizer {
   right: var(--transcription-ai-visible-width);
   transform: translateX(50%);
+  transition: right var(--rail-motion);
 }
 
 .transcription-layer-rail-resizer::before,
