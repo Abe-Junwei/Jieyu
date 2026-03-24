@@ -5,7 +5,7 @@
  * which is the most common variant.
  */
 
-import type { UtteranceDocType, TranslationLayerDocType, UtteranceTextDocType, UserNoteDocType } from '../../db';
+import type { UtteranceDocType, TranslationLayerDocType, UtteranceTextDocType, UserNoteDocType } from '../db';
 
 // ── Types ───────────────────────────────────────────────────
 

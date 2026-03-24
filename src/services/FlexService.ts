@@ -14,7 +14,7 @@ import type {
   UtteranceTextDocType,
   UtteranceTokenDocType,
   UtteranceMorphemeDocType,
-} from '../../db';
+} from '../db';
 
 // ── Types ───────────────────────────────────────────────────
 

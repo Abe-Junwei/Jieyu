@@ -17,7 +17,7 @@ import type {
   UtteranceTextDocType,
   UtteranceTokenDocType,
   UtteranceMorphemeDocType,
-} from '../../db';
+} from '../db';
 
 export interface ToolboxExportInput {
   utterances: UtteranceDocType[];

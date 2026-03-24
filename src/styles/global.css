@@ -14,6 +14,13 @@
   --tab-hover: #0f172a;
   --tab-active: linear-gradient(135deg, #0ea5e9, #10b981);
 
+  /* Header redesign: Scientific Professional */
+  --header-brand-font: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  --header-accent: #0ea5e9;
+  --tab-underline-active: #0ea5e9;
+  --tab-underline-hover: rgba(14, 165, 233, 0.12);
+  --tab-text-muted: var(--text-secondary);
+
   --lane-label-width: 64px;
 
   --z-base: 1;
@@ -56,6 +63,12 @@
   --tab-text: #cbd5e1;
   --tab-hover: #f8fafc;
   --tab-active: linear-gradient(135deg, #0ea5e9, #14b8a6);
+
+  /* Header redesign: Scientific Professional */
+  --header-accent: #38bdf8;
+  --tab-underline-active: #38bdf8;
+  --tab-underline-hover: rgba(56, 189, 248, 0.15);
+  --tab-text-muted: var(--text-secondary);
 }
 
 * {
@@ -88,94 +101,129 @@ body {
   position: sticky;
   top: 0;
   z-index: var(--z-header);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
   background: var(--surface-header);
   border-bottom: 1px solid var(--border-soft);
-  padding: 16px clamp(16px, 4vw, 36px);
+  border-top: 3px solid var(--header-accent);
+  padding: 12px clamp(20px, 4vw, 40px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
 }
+
+.app-header > .brand-block { flex-shrink: 0; }
+.app-header > .app-header-actions { flex: 1; justify-content: flex-end; }
 
 .app-header-compact {
-  padding: 8px 12px;
+  padding: 8px clamp(12px, 3vw, 24px);
 }
 
-.app-header-compact .brand-block h1 {
-  font-size: 1.05rem;
-}
+.app-header-compact .brand-block { gap: 8px; }
+.app-header-compact .brand-block h1 { font-size: 0.95rem; }
+.app-header-compact .brand-block p,
+.app-header-compact .brand-icon { display: none; }
+.app-header-compact .tab-nav { margin-top: 0; gap: 2px; }
+.app-header-compact .tab-link { padding: 6px 10px; font-size: 0.8rem; }
+.app-header-compact .tab-link-active::after { bottom: -8px; }
 
-.app-header-compact .brand-block p {
-  margin-top: 0;
-  font-size: 0.78rem;
-}
-
-.app-header-compact .tab-nav {
-  margin-top: 8px;
-  gap: 6px;
-}
-
-.app-header-compact .tab-link {
-  padding: 4px 10px;
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .brand-block h1 {
   margin: 0;
-  font-size: clamp(1.4rem, 2vw, 1.9rem);
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.brand-block h1 span {
+  font-family: var(--header-brand-font);
+  color: var(--header-accent);
+  font-weight: 500;
 }
 
 .brand-block p {
-  margin: 4px 0 0;
-  color: var(--text-secondary);
-  font-size: 0.95rem;
+  margin: 0;
+  color: var(--tab-text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.01em;
+}
+
+.brand-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
 }
 
 .app-header-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
 }
 
 .tab-nav {
-  margin-top: 14px;
+  margin-top: 0;
   display: flex;
-  gap: 10px;
+  gap: 4px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .tab-link {
-  color: var(--tab-text);
+  position: relative;
+  color: var(--tab-text-muted);
   text-decoration: none;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  padding: 7px 14px;
-  transition: all 0.2s ease;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .tab-link:hover {
-  border-color: #0ea5e9;
-  color: var(--tab-hover);
+  color: var(--text-primary);
+  background-color: var(--tab-underline-hover);
 }
 
 .tab-link-active {
-  background: var(--tab-active);
-  border-color: transparent;
-  color: #ffffff;
+  color: var(--text-primary);
+  background-color: transparent;
+}
+
+.tab-link-active::after {
+  content: '';
+  position: absolute;
+  bottom: -9px;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  background-color: var(--tab-underline-active);
+  border-radius: 2px 2px 0 0;
 }
 
 .theme-toggle-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface-panel);
-  color: var(--text-primary);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--text-secondary);
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .theme-toggle-btn:hover {
-  border-color: #0ea5e9;
+  color: var(--text-primary);
+  background-color: var(--tab-underline-hover);
+  border-color: var(--border-strong);
 }
 
 .app-main {

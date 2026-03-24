@@ -463,7 +463,7 @@ export function useImportExport(input: UseImportExportInput) {
             sortOrder: 0,
             createdAt: now,
             updatedAt: now,
-          } as import('../../db').TranslationLayerDocType);
+          } as import('../db').TranslationLayerDocType);
           await writeImportLayerNameAudit({
             layerId: autoLayerId,
             displayName,
@@ -503,8 +503,8 @@ export function useImportExport(input: UseImportExportInput) {
         });
 
         if (Array.isArray(maybeTokens) && maybeTokens.length > 0) {
-          const tokenRows: import('../../db').UtteranceTokenDocType[] = [];
-          const morphRows: import('../../db').UtteranceMorphemeDocType[] = [];
+          const tokenRows: import('../db').UtteranceTokenDocType[] = [];
+          const morphRows: import('../db').UtteranceMorphemeDocType[] = [];
 
           maybeTokens.forEach((rawToken, tokenIndex) => {
             if (!rawToken || typeof rawToken !== 'object') return;
@@ -647,7 +647,7 @@ export function useImportExport(input: UseImportExportInput) {
             createdAt: now,
             updatedAt: now,
           };
-          await LayerTierUnifiedService.createLayer(newLayer as import('../../db').TranslationLayerDocType);
+          await LayerTierUnifiedService.createLayer(newLayer as import('../db').TranslationLayerDocType);
           await writeImportLayerNameAudit({
             layerId,
             displayName: langLabel,

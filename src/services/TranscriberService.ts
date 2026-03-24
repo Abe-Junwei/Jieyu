@@ -26,7 +26,7 @@
  *   Speaker[@name]                  →  speaker name
  */
 
-import type { UtteranceDocType } from '../../db';
+import type { UtteranceDocType } from '../db';
 
 // ── Types ───────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-import { getDb, type TranslationLayerDocType } from '../../db';
+import { getDb, type TranslationLayerDocType } from '../db';
 import { removeLayerTierBridge, syncLayerToTier } from './TierBridgeService';
 
 /**

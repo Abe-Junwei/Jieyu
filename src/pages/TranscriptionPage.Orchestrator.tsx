@@ -212,6 +212,14 @@ function TranscriptionPageOrchestrator() {
   } = data;
 
   // ---- Recovery banner ----
+
+  // 当前媒体低置信度句段数量（< 0.75）| Count of low-confidence utterances on current media
+  const lowConfidenceCount = useMemo(
+    () => utterancesOnCurrentMedia.filter(
+      (u) => typeof u.ai_metadata?.confidence === 'number' && u.ai_metadata.confidence < 0.75,
+    ).length,
+    [utterancesOnCurrentMedia],
+  );
   const {
     recoveryAvailable,
     recoveryDiffSummary,
@@ -1898,7 +1906,7 @@ function TranscriptionPageOrchestrator() {
       details: { audioBlob: blob },
       isOfflineCached: true,
       createdAt: new Date().toISOString(),
-    } as import('../../db').MediaItemDocType);
+    } as import('../db').MediaItemDocType);
     setSaveState({ kind: 'done', message: tfB('transcription.action.audioImported', { filename: file.name }) });
   }, [activeTextId, getActiveTextId, addMediaItem, setSaveState]);
 
@@ -2234,6 +2242,7 @@ function TranscriptionPageOrchestrator() {
       handleDeleteSpeaker,
       handleAssignSpeakerToSelected,
       handleCreateSpeakerAndAssign,
+      handleCreateSpeakerOnly,
       closeSpeakerDialog,
       updateSpeakerDialogDraftName,
       updateSpeakerDialogTargetKey,
@@ -2437,6 +2446,7 @@ function TranscriptionPageOrchestrator() {
               }}
               onToggleNotes={toggleNotes}
               onOpenUttOpsMenu={(x, y) => setUttOpsMenu({ x, y })}
+              lowConfidenceCount={lowConfidenceCount}
             />
           </section>
 
@@ -2747,6 +2757,7 @@ function TranscriptionPageOrchestrator() {
                         handleDeleteSpeaker,
                         handleAssignSpeakerToSelected,
                         handleCreateSpeakerAndAssign,
+                        handleCreateSpeakerOnly,
                         closeSpeakerDialog,
                         updateSpeakerDialogDraftName,
                         updateSpeakerDialogTargetKey,

@@ -89,8 +89,11 @@ export function App() {
     <div className={`app-shell ${isTranscriptionRoute ? 'app-shell-transcription' : ''}`}>
       <header ref={headerRef} className={`app-header ${isTranscriptionRoute ? 'app-header-compact' : ''}`}>
         <div className="brand-block">
-          <h1>{t(locale, 'app.title')}</h1>
-          <p>{t(locale, 'app.subtitle')}</p>
+          <img src="/favicon.svg" alt="" className="brand-icon" aria-hidden="true" />
+          <div>
+            <h1><span>解语</span> Jieyu</h1>
+            <p>{t(locale, 'app.subtitle')}</p>
+          </div>
         </div>
         <div className="app-header-actions">
           <nav className="tab-nav" aria-label="主功能标签页">
@@ -113,7 +116,7 @@ export function App() {
             title={themeMode === 'dark' ? t(locale, 'theme.toggle.light') : t(locale, 'theme.toggle.dark')}
             onClick={() => setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'))}
           >
-            {themeMode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+            {themeMode === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
           </button>
         </div>
       </header>

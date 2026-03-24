@@ -11,7 +11,7 @@ import {
   getDb,
   type TranslationLayerDocType,
   type TierDefinitionDocType,
-} from '../../db';
+} from '../db';
 
 export interface ConsistencyIssue {
   kind: 'missing-tier' | 'missing-layer' | 'mismatch';

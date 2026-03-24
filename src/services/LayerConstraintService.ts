@@ -11,7 +11,7 @@ import {
   LAYER_SOFT_LIMITS,
   type TranslationLayerDocType,
   type LayerLinkDocType,
-} from '../../db';
+} from '../db';
 
 // ─── 结果类型 | Result types ─────────────────────────────────────────
 

@@ -21,7 +21,7 @@ import {
   type AuditSource,
   type AnchorDocType,
   type SpeakerDocType,
-} from '../../db';
+} from '../db';
 import { newId } from '../../src/utils/transcriptionFormatters';
 import {
   assertReviewProtection,

@@ -273,8 +273,8 @@ describe('Golden Round-trip: Toolbox', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
     }) as const);
 
-    const tokenRows: import('../../db').UtteranceTokenDocType[] = [];
-    const morphRows: import('../../db').UtteranceMorphemeDocType[] = [];
+    const tokenRows: import('../db').UtteranceTokenDocType[] = [];
+    const morphRows: import('../db').UtteranceMorphemeDocType[] = [];
     imported.utterances.forEach((u, ui) => {
       const utteranceId = `u${ui}`;
       (u.tokens ?? []).forEach((t, ti) => {

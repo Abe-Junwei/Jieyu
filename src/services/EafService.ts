@@ -5,7 +5,7 @@
  * This service converts between Jieyu's data model and EAF 3.0.
  */
 
-import type { UtteranceDocType, AnchorDocType, TranslationLayerDocType, UtteranceTextDocType, MediaItemDocType, UserNoteDocType } from '../../db';
+import type { UtteranceDocType, AnchorDocType, TranslationLayerDocType, UtteranceTextDocType, MediaItemDocType, UserNoteDocType } from '../db';
 
 // ── Types ───────────────────────────────────────────────────
 
