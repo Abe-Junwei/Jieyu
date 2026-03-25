@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
-import type { UtteranceDocType, TranslationLayerDocType } from '../db';
+import type { UtteranceDocType, LayerDocType } from '../db';
 import { useAiToolCallHandler } from './useAiToolCallHandler';
 
 afterEach(cleanup);
@@ -22,7 +22,7 @@ function makeUtterance(id: string): UtteranceDocType {
   } as UtteranceDocType;
 }
 
-function makeTranslationLayer(id: string, zhoName: string): TranslationLayerDocType {
+function makeTranslationLayer(id: string, zhoName: string): LayerDocType {
   return {
     id,
     textId: 't1',
@@ -33,7 +33,7 @@ function makeTranslationLayer(id: string, zhoName: string): TranslationLayerDocT
     modality: 'text',
     createdAt: NOW,
     updatedAt: NOW,
-  } as TranslationLayerDocType;
+  } as LayerDocType;
 }
 
 function makeParams(
@@ -296,7 +296,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
       modality: 'text',
       createdAt: NOW,
       updatedAt: NOW,
-    } as TranslationLayerDocType;
+    } as LayerDocType;
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
@@ -331,7 +331,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
       modality: 'text',
       createdAt: NOW,
       updatedAt: NOW,
-    } as TranslationLayerDocType;
+    } as LayerDocType;
     const zhLayer = makeTranslationLayer('trl-zho', '中文翻译层');
 
     const { result } = renderHook(() =>
@@ -367,7 +367,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
       modality: 'text',
       createdAt: NOW,
       updatedAt: NOW,
-    } as TranslationLayerDocType;
+    } as LayerDocType;
     const jpLayer2 = {
       id: 'trl-jpn-2',
       textId: 't1',
@@ -378,7 +378,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
       modality: 'text',
       createdAt: NOW,
       updatedAt: NOW,
-    } as TranslationLayerDocType;
+    } as LayerDocType;
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
@@ -513,7 +513,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
         makeParams({
           transcriptionLayers: [{
             id: 'trc-1', textId: 't1', key: 'trc-key-1', name: { zho: '转写层' }, layerType: 'transcription', languageId: 'zho', modality: 'text', createdAt: NOW, updatedAt: NOW,
-          } as TranslationLayerDocType],
+          } as LayerDocType],
           translationLayers: [makeTranslationLayer('trl-1', '翻译层')],
           toggleLayerLink: toggleSpy,
         }),
@@ -569,7 +569,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
           selectedLayerId: 'trl-1',
           transcriptionLayers: [{
             id: 'trc-1', textId: 't1', key: 'trc-key-1', name: { zho: '转写层' }, layerType: 'transcription', languageId: 'zho', modality: 'text', createdAt: NOW, updatedAt: NOW,
-          } as TranslationLayerDocType],
+          } as LayerDocType],
           translationLayers: [makeTranslationLayer('trl-1', '翻译层')],
           toggleLayerLink: toggleSpy,
         }),

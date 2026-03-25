@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, createEvent, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { TranslationLayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, UtteranceDocType } from '../db';
 import { TranscriptionTimelineMediaLanes } from './TranscriptionTimelineMediaLanes';
 
 const NOW = new Date().toISOString();
@@ -66,7 +66,7 @@ vi.mock('../hooks/useTimelineLaneHeightResize', () => ({
   }),
 }));
 
-function makeLayer(id: string, layerType: 'transcription' | 'translation' = 'transcription'): TranslationLayerDocType {
+function makeLayer(id: string, layerType: 'transcription' | 'translation' = 'transcription'): LayerDocType {
   return {
     id,
     textId: 't1',
@@ -79,7 +79,7 @@ function makeLayer(id: string, layerType: 'transcription' | 'translation' = 'tra
     sortOrder: 0,
     createdAt: NOW,
     updatedAt: NOW,
-  } as TranslationLayerDocType;
+  } as LayerDocType;
 }
 
 function makeUtterance(id: string, startTime: number, endTime: number, speakerId: string): UtteranceDocType {

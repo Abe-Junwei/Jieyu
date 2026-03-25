@@ -54,6 +54,7 @@ describe('buildSegmentationV2BackfillRows', () => {
       },
     ];
 
+    // v22 迁移时数据含 tierId 而非 layerId | v22 migration data has tierId, not layerId
     const utteranceTexts: UtteranceTextDocType[] = [
       {
         id: 'utr_1',
@@ -64,7 +65,7 @@ describe('buildSegmentationV2BackfillRows', () => {
         sourceType: 'human',
         createdAt: NOW,
         updatedAt: NOW,
-      },
+      } as unknown as UtteranceTextDocType,
     ];
 
     const rows = buildSegmentationV2BackfillRows({
@@ -116,6 +117,7 @@ describe('buildSegmentationV2BackfillRows', () => {
       },
     ];
 
+    // v22 迁移时数据含 tierId 而非 layerId | v22 migration data has tierId, not layerId
     const utteranceTexts: UtteranceTextDocType[] = [
       {
         id: 'utr_missing',
@@ -126,7 +128,7 @@ describe('buildSegmentationV2BackfillRows', () => {
         sourceType: 'human',
         createdAt: NOW,
         updatedAt: NOW,
-      },
+      } as unknown as UtteranceTextDocType,
       {
         id: 'utr_2',
         utteranceId: 'utt_2',
@@ -136,7 +138,7 @@ describe('buildSegmentationV2BackfillRows', () => {
         sourceType: 'human',
         createdAt: NOW,
         updatedAt: NOW,
-      },
+      } as unknown as UtteranceTextDocType,
     ];
 
     const rows = buildSegmentationV2BackfillRows({
@@ -221,7 +223,7 @@ describe('buildSegmentationV2BackfillRows', () => {
       {
         id: 'utr_rt_1',
         utteranceId: 'utt_rt_1',
-        tierId: 'tier_rt_trl',
+        layerId: 'tier_rt_trl',
         modality: 'text',
         text: 'hello-1',
         sourceType: 'human',
@@ -231,7 +233,7 @@ describe('buildSegmentationV2BackfillRows', () => {
       {
         id: 'utr_rt_2',
         utteranceId: 'utt_rt_2',
-        tierId: 'tier_rt_trl',
+        layerId: 'tier_rt_trl',
         modality: 'text',
         text: 'hello-2',
         sourceType: 'human',

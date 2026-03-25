@@ -9,13 +9,9 @@
  */
 import {
   LAYER_SOFT_LIMITS,
-  type TranslationLayerDocType,
+  type LayerDocType,
   type LayerLinkDocType,
 } from '../db';
-import {
-  getLayerLinkTargetLayerId,
-  toLayerLinkEdge,
-} from './LayerIdBridgeService';
 
 // ─── 结果类型 | Result types ─────────────────────────────────────────
 
@@ -41,7 +37,7 @@ export interface CanDeleteResult {
 // ─── 创建约束 | Create constraints ───────────────────────────────────
 
 export function canCreateLayer(
-  layers: TranslationLayerDocType[],
+  layers: LayerDocType[],
   layerType: 'transcription' | 'translation',
 ): CanCreateResult {
   // 翻译层需至少一个转写层存在 | Translation layer requires at least one transcription layer
@@ -69,7 +65,7 @@ export function canCreateLayer(
 // ─── 删除约束 | Delete constraints ───────────────────────────────────
 
 export function canDeleteLayer(
-  layers: TranslationLayerDocType[],
+  layers: LayerDocType[],
   layerLinks: LayerLinkDocType[],
   targetLayerId: string,
 ): CanDeleteResult {
@@ -101,12 +97,12 @@ export function canDeleteLayer(
     const linkedTrlIds = new Set(
       layerLinks
         .filter((link) => link.transcriptionLayerKey === target.key)
-        .map((link) => getLayerLinkTargetLayerId(link)),
+        .map((link) => link.layerId),
     );
     const orphanedTranslationIds: string[] = [];
     for (const trlId of linkedTrlIds) {
       const otherLinks = layerLinks.filter(
-        (link) => getLayerLinkTargetLayerId(link) === trlId && link.transcriptionLayerKey !== target.key,
+        (link) => link.layerId === trlId && link.transcriptionLayerKey !== target.key,
       );
       if (otherLinks.length === 0) {
         orphanedTranslationIds.push(trlId);
@@ -130,7 +126,7 @@ export function canDeleteLayer(
 
   // 翻译层：统计受影响链接 | Translation layer: count affected links
   const affectedLinkCount = layerLinks.filter(
-    (link) => getLayerLinkTargetLayerId(link) === targetLayerId,
+    (link) => link.layerId === targetLayerId,
   ).length;
   return { allowed: true, affectedLinkCount };
 }
@@ -143,9 +139,9 @@ export function canDeleteLayer(
  */
 export function getLinkedLayers(
   layerLinks: LayerLinkDocType[],
-  layers: TranslationLayerDocType[],
+  layers: LayerDocType[],
   layerId: string,
-): TranslationLayerDocType[] {
+): LayerDocType[] {
   const target = layers.find((l) => l.id === layerId);
   if (!target) return [];
 
@@ -154,7 +150,7 @@ export function getLinkedLayers(
     const linkedTranslationIds = new Set(
       layerLinks
         .filter((link) => link.transcriptionLayerKey === target.key)
-        .map((link) => getLayerLinkTargetLayerId(link)),
+        .map((link) => link.layerId),
     );
     return layers.filter((l) => linkedTranslationIds.has(l.id));
   }
@@ -162,9 +158,8 @@ export function getLinkedLayers(
   // 翻译层 → 找关联的转写层 | Translation → find linked transcriptions
   const linkedTrcKeys = new Set(
     layerLinks
-      .map((link) => toLayerLinkEdge(link))
-      .filter((edge) => edge.targetLayerId === layerId)
-      .map((edge) => edge.transcriptionLayerKey),
+      .filter((link) => link.layerId === layerId)
+      .map((link) => link.transcriptionLayerKey),
   );
   return layers.filter((l) => linkedTrcKeys.has(l.key));
 }
@@ -174,9 +169,9 @@ export function getLinkedLayers(
  * Get the most recently created layer of the opposite type
  */
 export function getMostRecentLayerOfType(
-  layers: TranslationLayerDocType[],
+  layers: LayerDocType[],
   layerType: 'transcription' | 'translation',
-): TranslationLayerDocType | undefined {
+): LayerDocType | undefined {
   return layers
     .filter((l) => l.layerType === layerType)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];

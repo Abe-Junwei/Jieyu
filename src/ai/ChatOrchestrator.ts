@@ -88,8 +88,8 @@ export class ChatOrchestrator {
     options?: ChatRequestOptions,
   ): AsyncGenerator<ChatChunk, void, unknown> {
     let usedFallback = false;
+    let hasYielded = false;
     try {
-      let hasYielded = false;
       for await (const chunk of primary.chat(messages, options)) {
         // 若首个 chunk 就是错误，尝试降级 | If first chunk is an error, attempt fallback
         if (!hasYielded && chunk.error) {
@@ -108,7 +108,11 @@ export class ChatOrchestrator {
 
     if (usedFallback) {
       // 降级到备用 provider | Fallback to secondary provider
-      yield { delta: '', error: `[降级] 主模型 (${primary.id}) 不可用，切换到备用模型 (${fallback.id})。` };
+      // 若主模型已输出部分内容后中断，提示可能存在重复 | If primary already emitted partial content, warn about potential duplicates
+      const notice = hasYielded
+        ? `\n\n---\n[降级] 主模型 (${primary.id}) 输出中断，以下为备用模型 (${fallback.id}) 重新生成的完整回复，上方内容可忽略。`
+        : `[降级] 主模型 (${primary.id}) 不可用，切换到备用模型 (${fallback.id})。`;
+      yield { delta: '', error: notice };
       try {
         yield* fallback.chat(messages, options);
       } catch (fallbackError) {

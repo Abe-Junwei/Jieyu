@@ -4,7 +4,7 @@ import { useClickOutside } from './useClickOutside';
 import type {
   AnchorDocType,
   MediaItemDocType,
-  TranslationLayerDocType,
+  LayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
@@ -52,7 +52,7 @@ interface UseImportExportInput {
   selectedUtteranceMedia: MediaItemDocType | undefined;
   utterancesOnCurrentMedia: UtteranceDocType[];
   anchors: AnchorDocType[];
-  layers: TranslationLayerDocType[];
+  layers: LayerDocType[];
   translations: UtteranceTextDocType[];
   defaultTranscriptionLayerId: string | undefined;
   loadSnapshot: () => Promise<void>;
@@ -452,6 +452,8 @@ export function useImportExport(input: UseImportExportInput) {
               ...(eafTrcLangLabel ? { langLabel: eafTrcLangLabel } : {}),
             })
             : baseTrcKey;
+          // 从 EAF tierConstraints 获取转写层约束 | Get transcription tier constraint from EAF
+          const eafTrcConstraint = importedTrcName ? eafResult?.tierConstraints?.get(importedTrcName) : undefined;
           await LayerTierUnifiedService.createLayer({
             id: autoLayerId,
             textId,
@@ -462,9 +464,10 @@ export function useImportExport(input: UseImportExportInput) {
             modality: 'text' as const,
             acceptsAudio: false,
             sortOrder: 0,
+            ...(eafTrcConstraint ? { constraint: eafTrcConstraint.constraint } : {}),
             createdAt: now,
             updatedAt: now,
-          } as import('../db').TranslationLayerDocType);
+          } as import('../db').LayerDocType);
           await writeImportLayerNameAudit({
             layerId: autoLayerId,
             displayName,
@@ -566,7 +569,7 @@ export function useImportExport(input: UseImportExportInput) {
           const doc: UtteranceTextDocType = {
             id: newId('utr'),
             utteranceId: id,
-            tierId: effectiveTranscriptionLayerId,
+            layerId: effectiveTranscriptionLayerId,
             modality: 'text' as const,
             text: u.transcription,
             sourceType: 'human' as const,
@@ -641,6 +644,8 @@ export function useImportExport(input: UseImportExportInput) {
               ...(eafTrlLangLabel ? { langLabel: eafTrlLangLabel } : {}),
             })
             : baseKey;
+          // 从 EAF tierConstraints 获取约束信息 | Get constraint info from EAF tierConstraints
+          const eafTierConstraint = eafResult?.tierConstraints?.get(tierName);
           const newLayer = {
             id: layerId,
             textId,
@@ -651,10 +656,11 @@ export function useImportExport(input: UseImportExportInput) {
             modality: 'text' as const,
             acceptsAudio: false,
             sortOrder: tierCount + 1,
+            ...(eafTierConstraint ? { constraint: eafTierConstraint.constraint } : {}),
             createdAt: now,
             updatedAt: now,
           };
-          await LayerTierUnifiedService.createLayer(newLayer as import('../db').TranslationLayerDocType);
+          await LayerTierUnifiedService.createLayer(newLayer as import('../db').LayerDocType);
           await writeImportLayerNameAudit({
             layerId,
             displayName: langLabel,
@@ -668,7 +674,7 @@ export function useImportExport(input: UseImportExportInput) {
             await db.collections.layer_links.insert({
               id: newId('link'),
               transcriptionLayerKey: trc.key,
-              tierId: layerId,
+              layerId: layerId,
               linkType: 'free',
               isPreferred: false,
               createdAt: now,
@@ -686,7 +692,7 @@ export function useImportExport(input: UseImportExportInput) {
             const doc: UtteranceTextDocType = {
               id: newId('utr'),
               utteranceId: match.id,
-              tierId: layerId,
+              layerId: layerId,
               modality: 'text' as const,
               text: ann.text,
               sourceType: 'human' as const,

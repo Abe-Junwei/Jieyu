@@ -17,17 +17,10 @@ const ALLOWED_PATH_SEGMENTS = [
   // 测试文件统一放行 | All test files allowed
   '.test.ts',
   '.test.tsx',
-  // 互操作服务 | Interop services (EAF/TextGrid/Flex/Toolbox)
+  // 互操作服务 | Interop services (EAF)
   '/src/services/EafService.ts',
-  '/src/services/TextGridService.ts',
-  '/src/services/FlexService.ts',
-  '/src/services/ToolboxService.ts',
-  // 桥接服务 | Bridge services
-  '/src/services/LayerSegmentationV2BridgeService',
-  '/src/services/LayerIdBridgeService.ts',
-  // 互操作 hooks | Interop hooks (import/export, snapshot restore)
+  // 互操作 hooks | Interop hooks (import/export)
   '/src/hooks/useImportExport.ts',
-  '/src/hooks/useTranscriptionSnapshotLoader.ts',
 ];
 
 function walk(dir) {
@@ -54,28 +47,8 @@ function isAllowedPath(relPath) {
 }
 
 function classifyOffBoundary(relPath) {
-  if (
-    relPath.startsWith('src/components/')
-    || relPath.startsWith('src/hooks/useAiToolCallHandler')
-    || relPath.startsWith('src/hooks/useTranscriptionMutexActionWrappers')
-    || relPath.startsWith('src/utils/')
-  ) {
+  if (relPath.startsWith('src/utils/')) {
     return 'quick-fix-candidate';
-  }
-
-  if (
-    relPath.startsWith('src/hooks/useTranscriptionLayerActions')
-    || relPath.startsWith('src/hooks/useTranscriptionUtteranceActions')
-    || relPath.startsWith('src/hooks/useTranscriptionDerivedData')
-  ) {
-    return 'bridge-adapter-candidate';
-  }
-
-  if (
-    relPath.startsWith('src/hooks/useImportExport')
-    || relPath.startsWith('src/hooks/useTranscriptionSnapshotLoader')
-  ) {
-    return 'interop-review';
   }
 
   return 'other-off-boundary';

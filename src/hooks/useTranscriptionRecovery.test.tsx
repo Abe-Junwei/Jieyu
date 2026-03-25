@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import type { TranslationLayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 import { useTranscriptionRecoverySnapshotScheduler } from './useTranscriptionRecovery';
 
 const mockSaveRecoverySnapshot = vi.hoisted(() => vi.fn());
@@ -39,7 +39,7 @@ describe('useTranscriptionRecoverySnapshotScheduler', () => {
     const { result } = renderHook(() => useTranscriptionRecoverySnapshotScheduler({
       utterancesRef: { current: [] as UtteranceDocType[] },
       translationsRef: { current: [] as UtteranceTextDocType[] },
-      layersRef: { current: [] as TranslationLayerDocType[] },
+      layersRef: { current: [] as LayerDocType[] },
     }));
 
     expect(result.current.dbNameRef.current).toBeUndefined();
@@ -51,7 +51,7 @@ describe('useTranscriptionRecoverySnapshotScheduler', () => {
   it('should persist snapshot only when dirty=true and dbName exists', async () => {
     const utterances = [makeUtterance('u1')];
     const translations: UtteranceTextDocType[] = [];
-    const layers: TranslationLayerDocType[] = [];
+    const layers: LayerDocType[] = [];
 
     const { result } = renderHook(() => useTranscriptionRecoverySnapshotScheduler({
       utterancesRef: { current: utterances },

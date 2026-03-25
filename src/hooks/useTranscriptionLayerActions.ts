@@ -3,7 +3,7 @@ import { getDb } from '../db';
 import type {
   LayerLinkDocType,
   MediaItemDocType,
-  TranslationLayerDocType,
+  LayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
@@ -14,21 +14,17 @@ import type { LayerCreateInput } from './transcriptionTypes';
 import { canCreateLayer, canDeleteLayer, getMostRecentLayerOfType } from '../services/LayerConstraintService';
 import {
   createLayerLink,
-  getLayerLinkTargetLayerId,
-  LEGACY_LAYER_ID_FIELD,
-  matchesLayerLink,
-  matchesUtteranceTextLayer,
 } from '../services/LayerIdBridgeService';
 
 export type TranscriptionLayerActionsParams = {
-  layers: TranslationLayerDocType[];
+  layers: LayerDocType[];
   layerLinks: LayerLinkDocType[];
   layerToDeleteId: string;
   selectedLayerId: string;
   utterancesRef: React.MutableRefObject<UtteranceDocType[]>;
   pushUndo: (label: string) => void;
   setLayerCreateMessage: React.Dispatch<React.SetStateAction<string>>;
-  setLayers: React.Dispatch<React.SetStateAction<TranslationLayerDocType[]>>;
+  setLayers: React.Dispatch<React.SetStateAction<LayerDocType[]>>;
   setLayerLinks: React.Dispatch<React.SetStateAction<LayerLinkDocType[]>>;
   setLayerToDeleteId: React.Dispatch<React.SetStateAction<string>>;
   setShowLayerManager: React.Dispatch<React.SetStateAction<boolean>>;
@@ -117,7 +113,7 @@ export function useTranscriptionLayerActions({
         setLayerCreateMessage('未找到当前项目上下文，请先进入目标项目后再创建层。');
         return false;
       }
-      const newLayer: TranslationLayerDocType = {
+      const newLayer: LayerDocType = {
         id,
         textId,
         key,
@@ -131,7 +127,7 @@ export function useTranscriptionLayerActions({
         sortOrder: newSortOrder,
         createdAt: now,
         updatedAt: now,
-      } as TranslationLayerDocType;
+      } as LayerDocType;
 
       pushUndo(`创建${typeLabel}层`);
       await LayerTierUnifiedService.createLayer(newLayer);
@@ -180,7 +176,7 @@ export function useTranscriptionLayerActions({
   /** 检查层是否有文本内容（用于判断是否需要确认） */
   const checkLayerHasContent = useCallback(async (layerId: string): Promise<number> => {
     const db = await getDb();
-    return db.dexie.utterance_texts.where(LEGACY_LAYER_ID_FIELD).equals(layerId).count();
+    return db.dexie.utterance_texts.where('layerId').equals(layerId).count();
   }, []);
 
   /** 执行层的实际删除操作（无确认提示） */
@@ -209,10 +205,10 @@ export function useTranscriptionLayerActions({
 
       const affectedUtteranceIds = keepUtterances
         ? []
-        : (await db.dexie.utterance_texts.where(LEGACY_LAYER_ID_FIELD).equals(effectiveLayerId).toArray())
+        : (await db.dexie.utterance_texts.where('layerId').equals(effectiveLayerId).toArray())
             .map((d) => d.utteranceId);
 
-      await db.collections.utterance_texts.removeBySelector({ [LEGACY_LAYER_ID_FIELD]: effectiveLayerId });
+      await db.collections.utterance_texts.removeBySelector({ layerId: effectiveLayerId });
       // 删除路径始终做 v2 级联清理，避免开关切换后的“残留数据回流” | Always clean v2 graph on destructive path to avoid stale data resurfacing after flag toggles.
       // Collect segment IDs before deletion so we can clean up referencing links.
       // Note: sourceLayerId/targetLayerId are optional (undefined) on many existing
@@ -257,7 +253,7 @@ export function useTranscriptionLayerActions({
         }
         await db.collections.layer_links.removeBySelector({ transcriptionLayerKey: targetLayer.key });
       } else {
-        await db.collections.layer_links.removeBySelector({ [LEGACY_LAYER_ID_FIELD]: effectiveLayerId });
+        await db.collections.layer_links.removeBySelector({ layerId: effectiveLayerId });
       }
       await LayerTierUnifiedService.deleteLayer(targetLayer);
 
@@ -278,7 +274,7 @@ export function useTranscriptionLayerActions({
       }
 
       setLayers((prev) => prev.filter((item) => item.id !== effectiveLayerId));
-      setTranslations((prev) => prev.filter((item) => !matchesUtteranceTextLayer(item, effectiveLayerId)));
+      setTranslations((prev) => prev.filter((item) => item.layerId !== effectiveLayerId));
       if (removedUtteranceIds.size > 0) {
         setUtterances((prev) => prev.filter((u) => !removedUtteranceIds.has(u.id)));
       }
@@ -288,7 +284,7 @@ export function useTranscriptionLayerActions({
           ...newAutoLinks,
         ]);
       } else {
-        setLayerLinks((prev) => prev.filter((item) => getLayerLinkTargetLayerId(item) !== effectiveLayerId));
+        setLayerLinks((prev) => prev.filter((item) => item.layerId !== effectiveLayerId));
       }
       setLayerToDeleteId('');
       setShowLayerManager(false);
@@ -323,7 +319,7 @@ export function useTranscriptionLayerActions({
   ) => {
     const db = await getDb();
     const existing = layerLinks.find(
-      (link) => matchesLayerLink(link, transcriptionLayerKey, layerId),
+      (link) => link.transcriptionLayerKey === transcriptionLayerKey && link.layerId === layerId,
     );
 
     if (existing) {
@@ -364,7 +360,7 @@ export function useTranscriptionLayerActions({
     const draggedLayer = layers.find((l) => l.id === draggedLayerId);
     if (!draggedLayer) return;
 
-    let reorderedLayers: TranslationLayerDocType[];
+    let reorderedLayers: LayerDocType[];
 
     if (draggedLayer.layerType === 'transcription') {
       // Can only reorder within transcription section
@@ -381,7 +377,7 @@ export function useTranscriptionLayerActions({
       sorted.splice(clampedTarget, 0, draggedLayer);
 
       // Assign new sortOrder values to transcription layers
-      const updates: Array<{ layer: TranslationLayerDocType; sortOrder: number }> = sorted.map((l, i) => ({
+      const updates: Array<{ layer: LayerDocType; sortOrder: number }> = sorted.map((l, i) => ({
         layer: l,
         sortOrder: i,
       }));
@@ -420,7 +416,7 @@ export function useTranscriptionLayerActions({
       sorted.splice(clampedTarget, 0, draggedLayer);
 
       // Assign new sortOrder values
-      const updates: Array<{ layer: TranslationLayerDocType; sortOrder: number }> = [];
+      const updates: Array<{ layer: LayerDocType; sortOrder: number }> = [];
 
       // Transcription layers keep their relative order
       transcriptionLayers.forEach((l, i) => {
@@ -447,10 +443,12 @@ export function useTranscriptionLayerActions({
     }
 
     // Persist sortOrder updates to database
+    // 一次获取 db，避免循环内重复调用 getDb | Acquire db once to avoid repeated getDb calls in loop
+    const db = await getDb();
     for (const layer of reorderedLayers) {
       const original = layers.find((l) => l.id === layer.id);
       if (original && original.sortOrder !== layer.sortOrder) {
-        await LayerTierUnifiedService.updateLayerSortOrder(layer.id, layer.sortOrder ?? 0);
+        await LayerTierUnifiedService.updateLayerSortOrder(layer.id, layer.sortOrder ?? 0, db);
       }
     }
 

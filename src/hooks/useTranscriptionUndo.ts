@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type MutableRefObject } from 'react';
-import type { LayerLinkDocType, SpeakerDocType, TranslationLayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerLinkDocType, SpeakerDocType, LayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 import { CommandHistory, type ReversibleCommand } from '../services/CommandService';
 import type { SaveState } from './transcriptionTypes';
 import type { TimingUndoState } from '../utils/selectionUtils';
@@ -12,7 +12,7 @@ type UndoEntry = {
   label: string;
   utterances: UtteranceDocType[];
   translations: UtteranceTextDocType[];
-  layers?: TranslationLayerDocType[];
+  layers?: LayerDocType[];
   layerLinks?: LayerLinkDocType[];
   speakers?: SpeakerDocType[];
 };
@@ -20,7 +20,7 @@ type UndoEntry = {
 type Params = {
   utterancesRef: MutableRefObject<UtteranceDocType[]>;
   translationsRef: MutableRefObject<UtteranceTextDocType[]>;
-  layersRef: MutableRefObject<TranslationLayerDocType[]>;
+  layersRef: MutableRefObject<LayerDocType[]>;
   layerLinksRef: MutableRefObject<LayerLinkDocType[]>;
   speakersRef: MutableRefObject<SpeakerDocType[]>;
   dirtyRef: MutableRefObject<boolean>;
@@ -33,7 +33,7 @@ type Params = {
   ) => Promise<void>;
   setUtterances: React.Dispatch<React.SetStateAction<UtteranceDocType[]>>;
   setTranslations: React.Dispatch<React.SetStateAction<UtteranceTextDocType[]>>;
-  setLayers: React.Dispatch<React.SetStateAction<TranslationLayerDocType[]>>;
+  setLayers: React.Dispatch<React.SetStateAction<LayerDocType[]>>;
   setLayerLinks: React.Dispatch<React.SetStateAction<LayerLinkDocType[]>>;
   setSpeakers: React.Dispatch<React.SetStateAction<SpeakerDocType[]>>;
   setSaveState: (s: SaveState) => void;

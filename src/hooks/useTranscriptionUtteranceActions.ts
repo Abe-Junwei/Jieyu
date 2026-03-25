@@ -3,7 +3,7 @@ import { getDb } from '../db';
 import type {
   AnchorDocType,
   MediaItemDocType,
-  TranslationLayerDocType,
+  LayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
@@ -21,8 +21,6 @@ import {
   syncUtteranceTextToSegmentationV2,
 } from '../services/LayerSegmentationV2BridgeService';
 import {
-  getUtteranceTextLayerId,
-  matchesUtteranceTextLayer,
   type UtteranceTextWithoutLayerId,
   withUtteranceTextLayerId,
 } from '../services/LayerIdBridgeService';
@@ -47,7 +45,7 @@ function formatRollbackFailureMessage(actionLabel: string, error: unknown): stri
 
 export type TranscriptionUtteranceActionsParams = {
   defaultTranscriptionLayerId: string | undefined;
-  layerById: Map<string, TranslationLayerDocType>;
+  layerById: Map<string, LayerDocType>;
   selectedUtteranceMedia: MediaItemDocType | undefined;
   selectedUtteranceId: string;
   translations: UtteranceTextDocType[];
@@ -108,7 +106,7 @@ export function useTranscriptionUtteranceActions({
   const saveVoiceTranslation = useCallback(async (
     blob: Blob,
     targetUtterance: UtteranceDocType,
-    targetLayer: TranslationLayerDocType,
+    targetLayer: LayerDocType,
   ) => {
     if (!targetUtterance || !targetLayer) {
       throw new Error('请先选择句子与翻译层');
@@ -167,7 +165,7 @@ export function useTranscriptionUtteranceActions({
         .map((doc) => doc.toJSON() as unknown as UtteranceTextDocType)
         .filter(
           (item) =>
-            matchesUtteranceTextLayer(item, targetLayer.id)
+            item.layerId === targetLayer.id
             && (item.modality === 'text' || item.modality === 'mixed'),
         )
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
@@ -342,7 +340,7 @@ export function useTranscriptionUtteranceActions({
       .map((doc) => doc.toJSON() as unknown as UtteranceTextDocType)
       .filter(
         (item) =>
-          matchesUtteranceTextLayer(item, layerId) &&
+          item.layerId === layerId &&
           (item.modality === 'text' || item.modality === 'mixed'),
       );
 
@@ -549,9 +547,9 @@ export function useTranscriptionUtteranceActions({
     const survivorUtterance = await resolveUtteranceById(db, survivorId);
 
     for (const rt of removedTranslations) {
-      const targetLayerId = getUtteranceTextLayerId(rt);
+      const targetLayerId = rt.layerId;
       const match = survivorTranslations.find(
-        (st) => matchesUtteranceTextLayer(st, targetLayerId) && st.modality === rt.modality,
+        (st) => st.layerId === targetLayerId && st.modality === rt.modality,
       );
       if (match && rt.text) {
         const merged: UtteranceTextDocType = {

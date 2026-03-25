@@ -422,7 +422,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     await db.utterance_texts.put({
       id: 'utxt_kw_1',
       utteranceId: 'utt_kw_1',
-      tierId: 'tier_1',
+      layerId: 'tier_1',
       modality: 'text',
       text: 'hello world from utterance',
       sourceType: 'human',
@@ -485,7 +485,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     await db.utterance_texts.put({
       id: 'utxt_ft_1',
       utteranceId: 'utt_ft_1',
-      tierId: 'tier_1',
+      layerId: 'tier_1',
       modality: 'text',
       text: 'rare morphology pattern for elicitation',
       sourceType: 'human',
@@ -520,7 +520,7 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     await db.utterance_texts.put({
       id: 'utxt_kw_only',
       utteranceId: 'utt_kw_only',
-      tierId: 'tier_1',
+      layerId: 'tier_1',
       modality: 'text',
       text: 'field methods and morphology overview',
       sourceType: 'human',

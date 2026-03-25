@@ -51,7 +51,7 @@ function toLegacyLikeUtteranceText(
   return {
     id: parseTranslationIdFromContentId(content.id),
     utteranceId,
-    tierId: content.layerId,
+    layerId: content.layerId,
     modality: content.modality,
     ...(content.text !== undefined ? { text: content.text } : {}),
     ...(content.translationAudioMediaId ? { translationAudioMediaId: content.translationAudioMediaId } : {}),
@@ -89,7 +89,7 @@ function mergePreferV2(
 
   const byBusinessKey = new Map<string, UtteranceTextDocType>();
   for (const row of idMap.values()) {
-    const key = `${row.utteranceId}::${row.tierId}::${row.modality}`;
+    const key = `${row.utteranceId}::${row.layerId}::${row.modality}`;
     const existing = byBusinessKey.get(key);
     if (!existing || row.updatedAt >= existing.updatedAt) {
       byBusinessKey.set(key, row);
@@ -116,13 +116,14 @@ export async function syncUtteranceTextToSegmentationV2(
   if (!featureFlags.segmentBoundaryV2Enabled) return;
 
   const now = new Date().toISOString();
-  const ids = getSegmentationV2Ids(translation.tierId, utterance.id, translation.id);
+  const ids = getSegmentationV2Ids(translation.layerId, utterance.id, translation.id);
 
   const segmentDoc: LayerSegmentDocType = {
     id: ids.segmentId,
     textId: utterance.textId,
     mediaId: utterance.mediaId && utterance.mediaId.trim().length > 0 ? utterance.mediaId : UNKNOWN_MEDIA_ID,
-    layerId: translation.tierId,
+    layerId: translation.layerId,
+    utteranceId: utterance.id,
     startTime: utterance.startTime,
     endTime: utterance.endTime,
     ...(utterance.startAnchorId ? { startAnchorId: utterance.startAnchorId } : {}),
@@ -141,7 +142,7 @@ export async function syncUtteranceTextToSegmentationV2(
     id: ids.segmentContentId,
     textId: utterance.textId,
     segmentId: ids.segmentId,
-    layerId: translation.tierId,
+    layerId: translation.layerId,
     modality: translation.modality,
     ...(translation.text !== undefined ? { text: translation.text } : {}),
     ...(translation.translationAudioMediaId ? { translationAudioMediaId: translation.translationAudioMediaId } : {}),
@@ -229,10 +230,18 @@ async function listV2UtteranceTextsByUtterance(
   ]);
 
   if (segmentIds.size === 0) {
-    const allSegments = await db.dexie.layer_segments.toArray();
-    for (const segment of allSegments) {
-      if (segment.id.endsWith(`_${utteranceId}`)) {
-        segmentIds.add(segment.id);
+    // v25: 使用 utteranceId 索引查找 segment | Use utteranceId index on layer_segments
+    const indexedSegments = await db.dexie.layer_segments.where('utteranceId').equals(utteranceId).toArray();
+    for (const segment of indexedSegments) {
+      segmentIds.add(segment.id);
+    }
+    // Fallback: ID 后缀匹配（旧数据未回填 utteranceId 字段） | ID suffix match for legacy data
+    if (segmentIds.size === 0) {
+      const allSegments = await db.dexie.layer_segments.toArray();
+      for (const segment of allSegments) {
+        if (segment.id.endsWith(`_${utteranceId}`)) {
+          segmentIds.add(segment.id);
+        }
       }
     }
   }
@@ -273,10 +282,21 @@ export async function removeUtteranceCascadeFromSegmentationV2(
     ...links.map((item) => item.targetSegmentId),
   ]);
 
-  const allSegments = await db.dexie.layer_segments.toArray();
-  for (const segment of allSegments) {
-    if (segment.id.endsWith(`_${utteranceId}`)) {
-      segmentIdsFromLinks.add(segment.id);
+  // 使用 v25 utteranceId 索引查找关联 segment | Use v25 utteranceId index to find associated segments
+  const indexedSegments = await db.dexie.layer_segments.where('utteranceId').equals(utteranceId).toArray();
+  for (const segment of indexedSegments) {
+    segmentIdsFromLinks.add(segment.id);
+  }
+
+  // Fallback: ID 后缀匹配（覆盖旧数据未回填 utteranceId 字段的情况）
+  // Fallback: suffix-match for legacy segments missing backfilled utteranceId field
+  if (indexedSegments.length === 0) {
+    const suffixPattern = `_${utteranceId}`;
+    const allSegments = await db.dexie.layer_segments.toArray();
+    for (const segment of allSegments) {
+      if (segment.id.endsWith(suffixPattern)) {
+        segmentIdsFromLinks.add(segment.id);
+      }
     }
   }
 
@@ -368,8 +388,23 @@ export async function getUtteranceTextsByUtterancesPreferV2(
   const ids = [...new Set(Array.from(utteranceIds).filter((id) => id.trim().length > 0))];
   if (ids.length === 0) return [];
 
-  // 候选集批量路径避免 N+1 查询：先走一次合并读，再按 utteranceId 过滤 | Avoid N+1 on candidate-set path: single merged read, then filter by utteranceId.
-  const mergedRows = await getAllUtteranceTextsPreferV2(db);
-  const idSet = new Set(ids);
-  return mergedRows.filter((row) => idSet.has(row.utteranceId));
+  // 按 utteranceId 索引批量查询，避免全表扫描 | Batch indexed queries per utteranceId, avoiding full table scan
+  const legacyRows = (await db.collections.utterance_texts.findByIndexAnyOf('utteranceId', ids))
+    .map((row) => row.toJSON() as UtteranceTextDocType);
+
+  if (!featureFlags.segmentBoundaryV2Enabled) {
+    return sortByUpdatedAtDesc(legacyRows);
+  }
+
+  const v2Rows: UtteranceTextDocType[] = [];
+  for (const utteranceId of ids) {
+    const batch = await listV2UtteranceTextsByUtterance(db, utteranceId);
+    v2Rows.push(...batch);
+  }
+
+  if (v2Rows.length === 0) {
+    return sortByUpdatedAtDesc(legacyRows);
+  }
+
+  return mergePreferV2(legacyRows, v2Rows);
 }

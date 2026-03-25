@@ -6,7 +6,7 @@ import {
   type ReactNode,
   type SetStateAction,
 } from 'react';
-import type { TranslationLayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
 
 export type TranscriptionEditorContextValue = {
@@ -21,7 +21,7 @@ export type TranscriptionEditorContextValue = {
   saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
   saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
   getUtteranceTextForLayer: (utt: UtteranceDocType, layerId?: string) => string;
-  renderLaneLabel: (layer: TranslationLayerDocType) => ReactNode;
+  renderLaneLabel: (layer: LayerDocType) => ReactNode;
   // Layer management
   createLayer: (
     layerType: 'transcription' | 'translation',

@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type {
-  TranslationLayerDocType,
+  LayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
 
 type Params = {
-  translationLayers: TranslationLayerDocType[];
+  translationLayers: LayerDocType[];
   utterancesOnCurrentMedia: UtteranceDocType[];
   translationTextByLayer: Map<string, Map<string, UtteranceTextDocType>>;
   setTranslationDrafts: Dispatch<SetStateAction<Record<string, string>>>;

@@ -1,4 +1,4 @@
-import type { TranslationLayerDocType } from '../db';
+import type { LayerDocType } from '../db';
 import type { LayerLinkEdge } from '../services/LayerIdBridgeService';
 
 export interface LayerLinkConnectorSegment {
@@ -22,7 +22,7 @@ function pushSegment(
 }
 
 export function buildLayerLinkConnectorLayout(
-  allLayers: TranslationLayerDocType[],
+  allLayers: LayerDocType[],
   layerLinks: LayerLinkEdge[],
 ): LayerLinkConnectorLayout {
   if (allLayers.length === 0 || layerLinks.length === 0) {

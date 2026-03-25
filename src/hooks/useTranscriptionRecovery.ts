@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import type { MutableRefObject } from 'react';
-import type { TranslationLayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 import { saveRecoverySnapshot } from '../services/SnapshotService';
 import { fireAndForget } from '../utils/fireAndForget';
 import { useDebouncedCallback } from './useDebouncedCallback';
@@ -8,7 +8,7 @@ import { useDebouncedCallback } from './useDebouncedCallback';
 type Params = {
   utterancesRef: MutableRefObject<UtteranceDocType[]>;
   translationsRef: MutableRefObject<UtteranceTextDocType[]>;
-  layersRef: MutableRefObject<TranslationLayerDocType[]>;
+  layersRef: MutableRefObject<LayerDocType[]>;
 };
 
 export function useTranscriptionRecoverySnapshotScheduler({

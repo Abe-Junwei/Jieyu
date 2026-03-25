@@ -139,9 +139,17 @@ export async function enrichContextWithRag({
       citations: dedupedSources.map((source) => source.citation),
     };
   } catch (error) {
-    log.warn('RAG context enrichment failed', {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    // 区分可恢复与不可恢复错误 | Distinguish recoverable from non-recoverable errors
+    if (error instanceof TypeError || error instanceof ReferenceError || error instanceof SyntaxError) {
+      log.error('RAG context enrichment hit programming error', {
+        error: error.message,
+        stack: error.stack,
+      });
+    } else {
+      log.warn('RAG context enrichment failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     return { contextBlock, citations: [] };
   }
 }

@@ -30,7 +30,7 @@ vi.mock('../db', () => ({
       utterance_texts: {
         insert: mockInsertUtteranceText,
       },
-      translation_layers: {
+      layers: {
         insert: mockInsertTranslationLayer,
       },
     },
@@ -77,7 +77,7 @@ function makeRecoveryDataWithTranslation(utterances: UtteranceDocType[]): Recove
     translations: [{
       id: 'utr-1',
       utteranceId: utterances[0]?.id ?? 'utt-1',
-      tierId: 'layer-1',
+      layerId: 'layer-1',
       modality: 'text',
       text: 'hello',
       sourceType: 'human',

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
-import type { TranslationLayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, UtteranceDocType } from '../db';
 import { formatTime, getLayerLabelParts } from '../utils/transcriptionFormatters';
 
 type TimelineUtterance = Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime' | 'speaker' | 'speakerId' | 'ai_metadata'>;
@@ -184,7 +184,7 @@ export function useTimelineAnnotationHelpers({
 
   const renderAnnotationItem = useCallback((
     utt: TimelineUtterance,
-    layer: TranslationLayerDocType,
+    layer: LayerDocType,
     draft: string,
     extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>
       & Partial<Pick<TimelineAnnotationItemProps, 'onFocus' | 'placeholder'>>
@@ -239,7 +239,7 @@ export function useTimelineAnnotationHelpers({
     speakerVisualByUtteranceId,
   ]);
 
-  const renderLaneLabel = useCallback((layer: TranslationLayerDocType) => {
+  const renderLaneLabel = useCallback((layer: LayerDocType) => {
     const parts = getLayerLabelParts(layer);
     if (parts.alias) {
       return <>{parts.type}<br />{parts.lang}<br />{parts.alias}</>;

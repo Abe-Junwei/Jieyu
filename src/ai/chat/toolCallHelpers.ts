@@ -23,6 +23,10 @@ import type {
   PreviewContract,
   UiChatMessage,
 } from '../../hooks/useAiChat';
+import {
+  parseToolCallFromTextZod,
+  validateToolArgumentsZod,
+} from './toolCallSchemas';
 
 export type ToolPlannerClarifyReason =
   | 'missing-utterance-target'
@@ -138,94 +142,10 @@ function normalizeToolCallName(rawName: string): AiChatToolName | null {
   return null;
 }
 
-function extractBalancedJsonObjects(rawText: string): string[] {
-  const results: string[] = [];
-  const text = rawText.trim();
-  if (!text.includes('{')) return results;
-
-  for (let start = 0; start < text.length; start += 1) {
-    if (text[start] !== '{') continue;
-
-    let depth = 0;
-    let inString = false;
-    let escaped = false;
-
-    for (let cursor = start; cursor < text.length; cursor += 1) {
-      const ch = text[cursor]!;
-
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-
-      if (ch === '\\') {
-        escaped = true;
-        continue;
-      }
-
-      if (ch === '"') {
-        inString = !inString;
-        continue;
-      }
-
-      if (inString) continue;
-
-      if (ch === '{') {
-        depth += 1;
-      } else if (ch === '}') {
-        depth -= 1;
-        if (depth === 0) {
-          const candidate = text.slice(start, cursor + 1).trim();
-          if (candidate.length > 0) {
-            results.push(candidate);
-          }
-          break;
-        }
-      }
-    }
-  }
-
-  return results;
-}
-
 export function parseToolCallFromText(rawText: string): AiChatToolCall | null {
-  const text = rawText.trim();
-  if (text.length === 0) return null;
-
-  const candidates: string[] = [text, ...extractBalancedJsonObjects(text)];
-  const jsonFenceRegex = /```(?:json)?\s*([\s\S]*?)```/gi;
-  let matched = jsonFenceRegex.exec(text);
-  while (matched) {
-    const candidate = (matched[1] ?? '').trim();
-    if (candidate.length > 0) candidates.push(candidate);
-    matched = jsonFenceRegex.exec(text);
-  }
-
-  for (const candidate of candidates) {
-    try {
-      const parsed = JSON.parse(candidate) as unknown;
-      const holder = (typeof parsed === 'object' && parsed !== null && 'tool_call' in parsed)
-        ? (parsed as { tool_call: unknown }).tool_call
-        : parsed;
-
-      if (!holder || typeof holder !== 'object') continue;
-      const call = holder as { name?: unknown; arguments?: unknown };
-      if (typeof call.name !== 'string') continue;
-      const normalizedName = normalizeToolCallName(call.name);
-      if (!normalizedName) {
-        continue;
-      }
-
-      const args = (call.arguments && typeof call.arguments === 'object')
-        ? call.arguments as Record<string, unknown>
-        : {};
-      return { name: normalizedName, arguments: args };
-    } catch {
-      // 候选可能包含自然语言片段，解析失败属于正常分支 | Candidates may contain natural language; parse failure is expected on non-JSON text
-    }
-  }
-
-  return null;
+  const result = parseToolCallFromTextZod(rawText, normalizeToolCallName);
+  if (!result) return null;
+  return { name: result.name as AiChatToolName, arguments: result.arguments };
 }
 
 export function parseLegacyNarratedToolCall(text: string): AiChatToolCall | null {
@@ -294,6 +214,15 @@ function validateArgId(args: Record<string, unknown>, key: string, required: boo
   const trimmed = value.trim();
   if (trimmed.length === 0) return `${key} 不能为空。`;
   if (trimmed.length > TOOL_ARG_MAX_ID_LENGTH) return `${key} 长度不能超过 ${TOOL_ARG_MAX_ID_LENGTH}。`;
+  return null;
+}
+
+/** 数值参数校验（兼容 Zod number schema） | Numeric arg validator (compatible with Zod number schemas) */
+function validateArgNumeric(args: Record<string, unknown>, key: string, required: boolean): string | null {
+  if (!(key in args)) return required ? `缺少 ${key}。` : null;
+  const value = args[key];
+  const num = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+  if (!Number.isFinite(num)) return `${key} 必须是有效数字。`;
   return null;
 }
 
@@ -520,12 +449,12 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   nav_to_segment: {
     label: '导航到句段',
     contextFill: {},
-    validateArgs: (args) => validateArgId(args, 'segmentIndex', true),
+    validateArgs: (args) => validateArgNumeric(args, 'segmentIndex', true),
   },
   nav_to_time: {
     label: '导航到时间',
     contextFill: {},
-    validateArgs: (args) => validateArgId(args, 'timeSeconds', true),
+    validateArgs: (args) => validateArgNumeric(args, 'timeSeconds', true),
   },
   focus_segment: {
     label: '聚焦句段',
@@ -540,14 +469,14 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   split_at_time: {
     label: '时间点分割',
     contextFill: {},
-    validateArgs: (args) => validateArgId(args, 'timeSeconds', true),
+    validateArgs: (args) => validateArgNumeric(args, 'timeSeconds', true),
   },
   merge_prev: { label: '合并上一个', contextFill: {}, validateArgs: () => null },
   merge_next: { label: '合并下一个', contextFill: {}, validateArgs: () => null },
   auto_segment: {
     label: '自动切分',
     contextFill: {},
-    validateArgs: (args) => validateArgId(args, 'startTime', false),
+    validateArgs: (args) => validateArgNumeric(args, 'startTime', false),
   },
   suggest_segment_improvement: {
     label: '建议改进',
@@ -602,9 +531,6 @@ export function planToolCallTargets(
       if (currentUtteranceId && existing !== currentUtteranceId) {
         nextCall.arguments.utteranceId = currentUtteranceId;
         return currentUtteranceId;
-      }
-      if (!currentUtteranceId) {
-        return existing;
       }
       return existing;
     }
@@ -1007,9 +933,14 @@ export function buildPreviewContract(call: AiChatToolCall): PreviewContract {
 }
 
 export function validateToolCallArguments(call: AiChatToolCall): string | null {
+  // Zod schema is preferred; covers all argument shape + domain rules (ambiguous language, etc.)
+  const zodResult = validateToolArgumentsZod(call.name, call.arguments);
+  if (zodResult !== null) return zodResult;
+
+  // Legacy validator runs second for tools that have both Zod schema + legacy domain logic.
+  // Legacy result takes precedence when present (e.g. deictic split position that depends on runtime context).
   const spec = TOOL_STRATEGY_TABLE[call.name];
-  if (!spec?.validateArgs) return null;
-  return spec.validateArgs(call.arguments);
+  return spec?.validateArgs?.(call.arguments) ?? null;
 }
 
 function toToolActionLabel(callName: AiChatToolName): string {

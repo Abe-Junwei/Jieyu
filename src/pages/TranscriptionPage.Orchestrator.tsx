@@ -68,6 +68,8 @@ import { useTranscriptionUIState } from './TranscriptionPage.UIState';
 import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import { useTimelineResize } from '../hooks/useTimelineResize';
 import { useDialogs } from '../hooks/useDialogs';
+import { useLayerSegments, isIndependentBoundaryLayer } from '../hooks/useLayerSegments';
+import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { usePanelResize } from '../hooks/usePanelResize';
 import { usePanelAutoCollapse } from '../hooks/usePanelAutoCollapse';
 import { usePanelToggles } from '../hooks/usePanelToggles';
@@ -100,6 +102,8 @@ import {
   loadTrackEntityStateMap,
   saveTrackEntityStateMap,
   upsertTrackEntityState,
+  loadTrackEntityStateMapFromDb,
+  saveTrackEntityStateToDb,
 } from '../services/TrackEntityStore';
 import { EmbeddingService } from '../ai/embeddings/EmbeddingService';
 import { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
@@ -224,6 +228,9 @@ function TranscriptionPageOrchestrator() {
     batchUpdateTokenPosByForm,
     updateTokenGloss,
   } = data;
+
+  // 独立边界层 segments 加载 | Load segments for independent-boundary layers
+  const { segmentsByLayer, reloadSegments } = useLayerSegments(translationLayers, selectedUtteranceMedia?.id);
 
   // ---- Recovery banner ----
 
@@ -752,7 +759,7 @@ function TranscriptionPageOrchestrator() {
   const [lockConflictToast, setLockConflictToast] = useState<{ count: number; speakers: string[]; nonce: number } | null>(null);
   const speakerFocusTargetMemoryByMediaRef = useRef<Record<string, string | null>>({});
   const overlapCycleTelemetryRef = useRef(INITIAL_OVERLAP_CYCLE_TELEMETRY);
-  const trackEntityStateByMediaRef = useRef(loadTrackEntityStateMap(typeof window !== 'undefined' ? window.localStorage : undefined));
+  const trackEntityStateByMediaRef = useRef<ReturnType<typeof loadTrackEntityStateMap> | null>(null);
   const trackEntityHydratedKeyRef = useRef<string | null>(null);
   const [segMarkStart, setSegMarkStart] = useState<number | null>(null);
   const [dragPreview, setDragPreview] = useState<{ id: string; start: number; end: number } | null>(null);
@@ -828,6 +835,45 @@ function TranscriptionPageOrchestrator() {
     setSaveState,
   });
 
+  // 路由拆分/合并：独立边界层 → segment 操作，默认 → utterance 操作 | Routed split/merge: independent layers → segment ops, default → utterance ops
+  const splitRouted = useCallback(async (id: string, splitTime: number) => {
+    const layer = layers.find((l) => l.id === selectedLayerId);
+    if (layer && isIndependentBoundaryLayer(layer)) {
+      await LayerSegmentationV2Service.splitSegment(id, splitTime);
+      await reloadSegments();
+      return;
+    }
+    await splitUtterance(id, splitTime);
+  }, [layers, selectedLayerId, reloadSegments, splitUtterance]);
+
+  const mergeWithPreviousRouted = useCallback(async (id: string) => {
+    const layer = layers.find((l) => l.id === selectedLayerId);
+    if (layer && isIndependentBoundaryLayer(layer)) {
+      const segs = segmentsByLayer.get(layer.id);
+      if (!segs) return;
+      const idx = segs.findIndex((s) => s.id === id);
+      if (idx <= 0) return;
+      await LayerSegmentationV2Service.mergeAdjacentSegments(segs[idx - 1]!.id, id);
+      await reloadSegments();
+      return;
+    }
+    await mergeWithPrevious(id);
+  }, [layers, selectedLayerId, segmentsByLayer, reloadSegments, mergeWithPrevious]);
+
+  const mergeWithNextRouted = useCallback(async (id: string) => {
+    const layer = layers.find((l) => l.id === selectedLayerId);
+    if (layer && isIndependentBoundaryLayer(layer)) {
+      const segs = segmentsByLayer.get(layer.id);
+      if (!segs) return;
+      const idx = segs.findIndex((s) => s.id === id);
+      if (idx < 0 || idx >= segs.length - 1) return;
+      await LayerSegmentationV2Service.mergeAdjacentSegments(id, segs[idx + 1]!.id);
+      await reloadSegments();
+      return;
+    }
+    await mergeWithNext(id);
+  }, [layers, selectedLayerId, segmentsByLayer, reloadSegments, mergeWithNext]);
+
   const {
     utteranceHasText: _utteranceHasText,
     runDeleteSelection,
@@ -849,8 +895,8 @@ function TranscriptionPageOrchestrator() {
     deleteUtterance,
     deleteSelectedUtterances,
     mergeSelectedUtterances,
-    mergeWithPrevious,
-    mergeWithNext,
+    mergeWithPrevious: mergeWithPreviousRouted,
+    mergeWithNext: mergeWithNextRouted,
     onMergeTargetMissing: () => {
       reportValidationError({
         message: '请先选择一个句段再执行合并',
@@ -858,7 +904,7 @@ function TranscriptionPageOrchestrator() {
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     },
-    splitUtterance,
+    splitUtterance: splitRouted,
     selectAllBefore,
     selectAllAfter,
   });
@@ -1269,6 +1315,47 @@ function TranscriptionPageOrchestrator() {
     zoomPxPerSec,
   });
 
+  // 路由邻居边界：独立边界层查 segmentsByLayer，默认查 utterances | Routed neighbor bounds: independent layers → segmentsByLayer, default → utterances
+  const getNeighborBoundsRouted = useCallback((itemId: string, mediaId: string | undefined, probeStart: number, layerId?: string) => {
+    if (layerId) {
+      const layer = layers.find((l) => l.id === layerId);
+      if (layer && isIndependentBoundaryLayer(layer)) {
+        const segs = segmentsByLayer.get(layer.id) ?? [];
+        const siblings = segs
+          .filter((s) => s.id !== itemId)
+          .sort((a, b) => a.startTime - b.startTime);
+        const timeline = [...siblings, { id: itemId, startTime: probeStart, endTime: probeStart + 0.1 }].sort(
+          (a, b) => a.startTime - b.startTime,
+        );
+        const idx = timeline.findIndex((s) => s.id === itemId);
+        const prev = idx > 0 ? timeline[idx - 1] : undefined;
+        const next = idx >= 0 && idx < timeline.length - 1 ? timeline[idx + 1] : undefined;
+        return {
+          left: prev ? prev.endTime + 0.02 : 0,
+          right: next ? next.startTime - 0.02 : undefined,
+        };
+      }
+    }
+    return getNeighborBounds(itemId, mediaId, probeStart);
+  }, [layers, segmentsByLayer, getNeighborBounds]);
+
+  // 路由保存：独立边界层写 layer_segments，默认层写 utterances | Routed save: independent layers → layer_segments, default → utterances
+  const saveTimingRouted = useCallback(async (id: string, start: number, end: number, layerId?: string) => {
+    if (layerId) {
+      const layer = layers.find((l) => l.id === layerId);
+      if (layer && isIndependentBoundaryLayer(layer)) {
+        await LayerSegmentationV2Service.updateSegment(id, {
+          startTime: Number(start.toFixed(3)),
+          endTime: Number(end.toFixed(3)),
+          updatedAt: new Date().toISOString(),
+        });
+        await reloadSegments();
+        return;
+      }
+    }
+    await saveUtteranceTiming(id, start, end);
+  }, [layers, reloadSegments, saveUtteranceTiming]);
+
   const { timelineResizeTooltip, startTimelineResizeDrag } = useTimelineResize({
     zoomPxPerSec,
     manualSelectTsRef,
@@ -1278,12 +1365,12 @@ function TranscriptionPageOrchestrator() {
     setFocusedLayerRowId,
     beginTimingGesture,
     endTimingGesture,
-    getNeighborBounds,
+    getNeighborBounds: getNeighborBoundsRouted,
     makeSnapGuide,
     snapEnabled,
     setSnapGuide,
     setDragPreview,
-    saveUtteranceTiming,
+    saveUtteranceTiming: saveTimingRouted,
   });
 
   useEffect(() => {
@@ -2382,6 +2469,29 @@ function TranscriptionPageOrchestrator() {
   const trackEntityMediaId = selectedUtteranceMedia?.id ?? null;
   const trackEntityScopedKey = trackEntityMediaId ? `${trackEntityProjectKey}::${trackEntityMediaId}` : null;
 
+  // ── DB hydration: load track entities from DB when project changes ──────────
+  useEffect(() => {
+    if (!activeTextId) return;
+    let cancelled = false;
+
+    loadTrackEntityStateMapFromDb(activeTextId).then((dbStateMap) => {
+      if (cancelled) return;
+      trackEntityStateByMediaRef.current = dbStateMap;
+
+      // Hydrate UI state from loaded DB map
+      if (trackEntityScopedKey) {
+        const saved = dbStateMap[trackEntityScopedKey] ?? null;
+        setLaneLockMap(saved?.laneLockMap ?? {});
+        setTranscriptionTrackMode(saved?.mode ?? 'single');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTextId]);
+
+  // ── In-memory hydration for media switch (uses already-loaded DB map) ───────
   useEffect(() => {
     if (!trackEntityScopedKey) {
       trackEntityHydratedKeyRef.current = null;
@@ -2389,6 +2499,8 @@ function TranscriptionPageOrchestrator() {
       setTranscriptionTrackMode('single');
       return;
     }
+    // Wait for DB hydration to complete (ref is non-null after DB load)
+    if (trackEntityStateByMediaRef.current === null) return;
     const saved = getTrackEntityState(trackEntityStateByMediaRef.current, trackEntityScopedKey);
     if (!saved) {
       setLaneLockMap({});
@@ -2401,17 +2513,21 @@ function TranscriptionPageOrchestrator() {
     trackEntityHydratedKeyRef.current = trackEntityScopedKey;
   }, [setTranscriptionTrackMode, trackEntityScopedKey]);
 
+  // ── Persist: write to DB (and LocalStorage for backward compat) ────────────
   useEffect(() => {
-    if (!trackEntityScopedKey) return;
-    // 切媒体先水合再持久化，避免旧状态覆盖新媒体配置 | Hydrate first on media switch to avoid stale overwrite.
+    if (!trackEntityScopedKey || !activeTextId) return;
     if (trackEntityHydratedKeyRef.current !== trackEntityScopedKey) return;
-    const next = upsertTrackEntityState(trackEntityStateByMediaRef.current, trackEntityScopedKey, {
-      mode: transcriptionTrackMode,
-      laneLockMap,
-    });
+    const next = upsertTrackEntityState(
+      trackEntityStateByMediaRef.current ?? {},
+      trackEntityScopedKey,
+      { mode: transcriptionTrackMode, laneLockMap },
+    );
     trackEntityStateByMediaRef.current = next;
+    // LocalStorage write (fire-and-forget, backward compat during migration window)
     saveTrackEntityStateMap(next, typeof window !== 'undefined' ? window.localStorage : undefined);
-  }, [laneLockMap, trackEntityScopedKey, transcriptionTrackMode]);
+    // DB write (primary store)
+    void saveTrackEntityStateToDb(activeTextId, trackEntityScopedKey, next[trackEntityScopedKey]!);
+  }, [laneLockMap, trackEntityScopedKey, transcriptionTrackMode, activeTextId]);
 
   useEffect(() => {
     if (transcriptionTrackMode === 'single' && hasOverlappingUtterancesOnCurrentMedia) {
@@ -3232,6 +3348,7 @@ function TranscriptionPageOrchestrator() {
                           ...(resolvedSpeakerFocusTargetKey ? { speakerFocusSpeakerKey: resolvedSpeakerFocusTargetKey } : {}),
                           speakerQuickActions,
                           onLaneLabelWidthResize: handleLaneLabelWidthResizeStart,
+                          segmentsByLayer,
                         }}
                         textOnlyProps={{
                           transcriptionLayers,

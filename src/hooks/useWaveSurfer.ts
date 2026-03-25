@@ -224,6 +224,8 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       instanceRef.current = null;
       regionsRef.current = null;
       regionHandlesRef.current = new Map();
+      regionAbortRef.current.forEach((ac) => ac.abort());
+      regionAbortRef.current = new Map();
     };
   }, [mediaUrl]);
 
@@ -238,6 +240,8 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   // ---- Region rendering ----
   // Keep a map of region handles so we can update colors without clearing.
   const regionHandlesRef = useRef<Map<string, RegionHandle>>(new Map());
+  // AbortController 用于清理 region DOM 元素上的 native listener | AbortController for cleaning up native listeners on region DOM elements
+  const regionAbortRef = useRef<Map<string, AbortController>>(new Map());
   const syncingRegionsRef = useRef(false);
   const activeRegionIdsRef = useRef(activeRegionIds);
   activeRegionIdsRef.current = activeRegionIds;
@@ -297,6 +301,12 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     const incomingIds = new Set<string>();
 
     const addRegionWithListeners = (r: { id: string; start: number; end: number }) => {
+      // 清理旧 region 的 native listener | Clean up native listeners of previous region with same ID
+      regionAbortRef.current.get(r.id)?.abort();
+      const ac = new AbortController();
+      regionAbortRef.current.set(r.id, ac);
+      const sig = ac.signal;
+
       const handle = rp.addRegion({
         id: r.id, start: r.start, end: r.end,
         drag: true, resize: true,
@@ -323,7 +333,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
           const dur = ws.getDuration() || 1;
           const time = Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
           cbRef.current.onRegionAltPointerDown?.(r.id, time, ev.pointerId, ev.clientX);
-        }, { capture: true });
+        }, { capture: true, signal: sig });
       }
       handle.on('click', (...args: unknown[]) => {
         const ev = args[0] as MouseEvent | undefined;
@@ -358,11 +368,11 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
           ev.preventDefault();
           ev.stopPropagation();
           cbRef.current.onRegionContextMenu?.(r.id, ev.clientX, ev.clientY);
-        });
+        }, { signal: sig });
         el.addEventListener('dblclick', (ev: MouseEvent) => {
           ev.stopPropagation();
           cbRef.current.onRegionDblClick?.(r.id, handle.start, handle.end);
-        });
+        }, { signal: sig });
       }
       return handle;
     };
@@ -405,6 +415,8 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     // Remove deleted regions
     prevHandles.forEach((handle, id) => {
       if (!incomingIds.has(id) && id !== '__start_marker__' && id !== '__sub_selection__') {
+        regionAbortRef.current.get(id)?.abort();
+        regionAbortRef.current.delete(id);
         try {
           handle.remove();
         } catch (error) {

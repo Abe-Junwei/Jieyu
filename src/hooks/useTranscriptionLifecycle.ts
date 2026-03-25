@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { SaveState, DbState } from './transcriptionTypes';
-import type { UtteranceDocType, UtteranceTextDocType, TranslationLayerDocType } from '../db';
+import type { UtteranceDocType, UtteranceTextDocType, LayerDocType } from '../db';
 import {
   clearRecoverySnapshot,
   saveRecoverySnapshot,
@@ -15,7 +15,7 @@ type Params = {
   dirtyRef: MutableRefObject<boolean>;
   utterancesRef: MutableRefObject<UtteranceDocType[]>;
   translationsRef: MutableRefObject<UtteranceTextDocType[]>;
-  layersRef: MutableRefObject<TranslationLayerDocType[]>;
+  layersRef: MutableRefObject<LayerDocType[]>;
   autoSaveTimersRef: MutableRefObject<Record<string, number>>;
   recoveryCancel: () => void;
   saveState: SaveState;

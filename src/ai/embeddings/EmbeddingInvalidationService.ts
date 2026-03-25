@@ -1,10 +1,10 @@
-import type { JieyuDatabase, TranslationLayerDocType, UtteranceDocType } from '../../db';
+import type { JieyuDatabase, LayerDocType, UtteranceDocType } from '../../db';
 
 function normalizeEmbeddedDefaultText(text: string | null | undefined): string {
   return (text ?? '').trim();
 }
 
-function sortLayersByDefaultPriority(layers: TranslationLayerDocType[]): TranslationLayerDocType[] {
+function sortLayersByDefaultPriority(layers: LayerDocType[]): LayerDocType[] {
   return [...layers].sort((a, b) => {
     const ao = a.sortOrder ?? 0;
     const bo = b.sortOrder ?? 0;
@@ -47,7 +47,7 @@ export async function resolveDefaultTranscriptionLayerIdForText(
   db: JieyuDatabase,
   textId: string,
 ): Promise<string | undefined> {
-  const layers = (await db.collections.translation_layers.findByIndex('textId', textId))
+  const layers = (await db.collections.layers.findByIndex('textId', textId))
     .map((doc) => doc.toJSON())
     .filter((layer) => layer.layerType === 'transcription');
 

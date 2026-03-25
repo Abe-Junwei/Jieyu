@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { AudioLines, Languages, Trash2 } from 'lucide-react';
-import type { TranslationLayerDocType } from '../db';
+import type { LayerDocType } from '../db';
 import type { LayerCreateInput } from '../hooks/useTranscriptionData';
 import { COMMON_LANGUAGES } from '../utils/transcriptionFormatters';
 import { fireAndForget } from '../utils/fireAndForget';
 
 const BUBBLE_ANIMATION_MS = 180;
 
-function getLayerDisplayName(layer: TranslationLayerDocType): string {
+function getLayerDisplayName(layer: LayerDocType): string {
   return layer.name.zho
     ?? layer.name.zh
     ?? layer.name.cmn
@@ -17,7 +17,7 @@ function getLayerDisplayName(layer: TranslationLayerDocType): string {
     ?? layer.key;
 }
 
-function formatLayerLanguage(layer: TranslationLayerDocType): string {
+function formatLayerLanguage(layer: LayerDocType): string {
   const code = (layer.languageId ?? '').trim().toLowerCase();
   if (!code) {
     return '未设置语言';
@@ -27,7 +27,7 @@ function formatLayerLanguage(layer: TranslationLayerDocType): string {
 }
 
 type LayerManagerPopoverProps = {
-  allLayers: TranslationLayerDocType[];
+  allLayers: LayerDocType[];
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
@@ -35,10 +35,10 @@ type LayerManagerPopoverProps = {
   onCreateTranslationLayer: (
     input: LayerCreateInput & { modality: 'text' | 'audio' | 'mixed' },
   ) => Promise<boolean>;
-  deletableLayers: TranslationLayerDocType[];
+  deletableLayers: LayerDocType[];
   layerToDeleteId: string;
   onLayerToDeleteIdChange: (value: string) => void;
-  layerPendingDelete: TranslationLayerDocType | undefined;
+  layerPendingDelete: LayerDocType | undefined;
   onDeleteLayer: () => void | Promise<void>;
   message: string;
 };

@@ -1,4 +1,4 @@
-import type { TranslationLayerDocType } from '../db';
+import type { LayerDocType } from '../db';
 
 export const LANGUAGE_NAME_MAP: Record<string, string> = {
   cmn: '普通话',
@@ -152,7 +152,7 @@ export function formatLanguageLabel(code?: string): string {
   return formatBcp47Label(normalized);
 }
 
-export function formatLayerLanguageLabel(layer: TranslationLayerDocType): string {
+export function formatLayerLanguageLabel(layer: LayerDocType): string {
   const nameCandidates = [
     layer.name.zho,
     layer.name.zh,
@@ -172,12 +172,12 @@ export function formatLayerLanguageLabel(layer: TranslationLayerDocType): string
   return `${preferredName} (${code})`;
 }
 
-export function formatLayerRailLabel(layer: TranslationLayerDocType): string {
+export function formatLayerRailLabel(layer: LayerDocType): string {
   const { type, lang } = getLayerLabelParts(layer);
   return lang ? `${type} · ${lang}` : type;
 }
 
-export function getLayerLabelParts(layer: TranslationLayerDocType): { type: string; lang: string; alias: string } {
+export function getLayerLabelParts(layer: LayerDocType): { type: string; lang: string; alias: string } {
   const code = (layer.languageId ?? '').trim();
   const typeLabel = layer.layerType === 'translation' ? '翻译' : '转写';
   const langLabel = formatBcp47Label(code) || code;

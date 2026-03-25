@@ -72,7 +72,7 @@ describe('Translation Write Flow - Integration Tests', () => {
 
     // Verify no existing translation
     let docs = await db.utterance_texts
-      .where({ utteranceId, tierId: layerId })
+      .where({ utteranceId, layerId: layerId })
       .toArray();
     expect(docs).toHaveLength(0);
 
@@ -81,7 +81,7 @@ describe('Translation Write Flow - Integration Tests', () => {
     await db.utterance_texts.add({
       id: docId,
       utteranceId,
-      tierId: layerId,
+      layerId: layerId,
       text: translationText,
       modality: 'text',
       sourceType: 'human',
@@ -91,14 +91,14 @@ describe('Translation Write Flow - Integration Tests', () => {
 
     // Verify it was written to correct tier
     docs = await db.utterance_texts
-      .where({ utteranceId, tierId: layerId })
+      .where({ utteranceId, layerId: layerId })
       .toArray();
 
     expect(docs).toHaveLength(1);
     const doc = docs[0]!;
 
     // Critical: verify tier matches the layer ID we provided
-    expect(doc.tierId).toBe(layerId);
+    expect(doc.layerId).toBe(layerId);
     expect(doc.utteranceId).toBe(utteranceId);
     expect(doc.text).toBe(translationText);
   });
@@ -114,7 +114,7 @@ describe('Translation Write Flow - Integration Tests', () => {
     await db.utterance_texts.add({
       id: glossId,
       utteranceId,
-      tierId: glossLayerId,
+      layerId: glossLayerId,
       text: 'gloss text',
       modality: 'text',
       sourceType: 'human',
@@ -127,7 +127,7 @@ describe('Translation Write Flow - Integration Tests', () => {
     await db.utterance_texts.add({
       id: morphId,
       utteranceId,
-      tierId: morphLayerId,
+      layerId: morphLayerId,
       text: 'morph text',
       modality: 'text',
       sourceType: 'human',
@@ -145,16 +145,16 @@ describe('Translation Write Flow - Integration Tests', () => {
 
     const byTier = new Map();
     allDocs.forEach((doc) => {
-      byTier.set(doc.tierId, doc);
+      byTier.set(doc.layerId, doc);
     });
 
     // Verify gloss is in correct tier
     expect(byTier.get(glossLayerId)?.text).toBe('gloss text');
-    expect(byTier.get(glossLayerId)?.tierId).toBe(glossLayerId);
+    expect(byTier.get(glossLayerId)?.layerId).toBe(glossLayerId);
 
     // Verify morph is in correct tier
     expect(byTier.get(morphLayerId)?.text).toBe('morph text');
-    expect(byTier.get(morphLayerId)?.tierId).toBe(morphLayerId);
+    expect(byTier.get(morphLayerId)?.layerId).toBe(morphLayerId);
   });
 
   it('should update existing translation without data loss', async () => {
@@ -167,7 +167,7 @@ describe('Translation Write Flow - Integration Tests', () => {
     await db.utterance_texts.add({
       id: docId,
       utteranceId,
-      tierId: layerId,
+      layerId: layerId,
       text: 'original text',
       modality: 'text',
       sourceType: 'human',
@@ -185,7 +185,7 @@ describe('Translation Write Flow - Integration Tests', () => {
     // Verify update
     const updated = await db.utterance_texts.get(docId);
     expect(updated?.text).toBe('updated text');
-    expect(updated?.tierId).toBe(layerId);
+    expect(updated?.layerId).toBe(layerId);
     expect(updated?.utteranceId).toBe(utteranceId);
     expect(updated?.updatedAt).toBe(newNow);
   });
@@ -200,7 +200,7 @@ describe('Translation Write Flow - Integration Tests', () => {
     await db.utterance_texts.add({
       id: docId,
       utteranceId,
-      tierId: layerId,
+      layerId: layerId,
       text: 'original text',
       modality: 'text',
       sourceType: 'human',
@@ -210,7 +210,7 @@ describe('Translation Write Flow - Integration Tests', () => {
 
     // Verify it exists
     let docs = await db.utterance_texts
-      .where({ utteranceId, tierId: layerId })
+      .where({ utteranceId, layerId: layerId })
       .toArray();
     expect(docs).toHaveLength(1);
 
@@ -219,7 +219,7 @@ describe('Translation Write Flow - Integration Tests', () => {
 
     // Verify it's gone
     docs = await db.utterance_texts
-      .where({ utteranceId, tierId: layerId })
+      .where({ utteranceId, layerId: layerId })
       .toArray();
     expect(docs).toHaveLength(0);
   });

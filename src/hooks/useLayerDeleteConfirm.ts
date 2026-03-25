@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import type { TranslationLayerDocType } from '../db';
+import type { LayerDocType } from '../db';
 import { formatLayerRailLabel } from '../utils/transcriptionFormatters';
 import { useLayerRailContextOrFallback } from '../contexts/LayerRailContext';
 
@@ -11,7 +11,7 @@ export type LayerDeleteConfirmState = {
 } | null;
 
 type UseLayerDeleteConfirmInput = {
-  deletableLayers?: TranslationLayerDocType[];
+  deletableLayers?: LayerDocType[];
   checkLayerHasContent?: (layerId: string) => Promise<number>;
   deleteLayer?: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
   deleteLayerWithoutConfirm?: (layerId: string) => Promise<void>;

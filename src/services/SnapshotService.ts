@@ -2,7 +2,7 @@ import Dexie, { type Table } from 'dexie';
 import type {
   UtteranceDocType,
   UtteranceTextDocType,
-  TranslationLayerDocType,
+  LayerDocType,
 } from '../db';
 
 // ---- Types ----
@@ -22,7 +22,7 @@ export interface RecoveryData {
   timestamp: number;
   utterances: UtteranceDocType[];
   translations: UtteranceTextDocType[];
-  layers: TranslationLayerDocType[];
+  layers: LayerDocType[];
 }
 
 const RECOVERY_SCHEMA_VERSION = 1;
@@ -50,7 +50,7 @@ export async function saveRecoverySnapshot(
   data: {
     utterances: UtteranceDocType[];
     translations: UtteranceTextDocType[];
-    layers: TranslationLayerDocType[];
+    layers: LayerDocType[];
   },
 ): Promise<void> {
   const db = getRecoveryDb();
@@ -75,7 +75,7 @@ export async function getRecoverySnapshot(dbName: string): Promise<RecoveryData 
       timestamp: row.timestamp,
       utterances: JSON.parse(row.utterances) as UtteranceDocType[],
       translations: JSON.parse(row.translations) as UtteranceTextDocType[],
-      layers: JSON.parse(row.layers) as TranslationLayerDocType[],
+      layers: JSON.parse(row.layers) as LayerDocType[],
     };
   } catch (err) {
     console.error('[SnapshotService] Corrupted recovery snapshot, cannot parse:', err);

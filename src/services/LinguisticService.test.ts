@@ -87,7 +87,7 @@ describe('LinguisticService smoke tests', () => {
     await LinguisticService.saveUtteranceText({
       id: 'utr_1',
       utteranceId: 'utt_2',
-      tierId: 'layer_1',
+      layerId: 'layer_1',
       modality: 'text',
       text: 'hello',
       sourceType: 'human',
@@ -378,7 +378,7 @@ describe('LinguisticService smoke tests', () => {
     await LinguisticService.saveUtteranceText({
       id: 'utr_quality_trc',
       utteranceId: 'utt_quality_1',
-      tierId: 'layer_trc_quality',
+      layerId: 'layer_trc_quality',
       modality: 'text',
       text: 'transcribed',
       sourceType: 'human',
@@ -389,7 +389,7 @@ describe('LinguisticService smoke tests', () => {
     await LinguisticService.saveUtteranceText({
       id: 'utr_quality_trl',
       utteranceId: 'utt_quality_1',
-      tierId: 'layer_trl_quality',
+      layerId: 'layer_trl_quality',
       modality: 'text',
       text: 'translated',
       sourceType: 'human',
@@ -583,7 +583,7 @@ describe('LinguisticService smoke tests', () => {
       {
         id: 'utr_batch_1',
         utteranceId: 'utt_batch_1',
-        tierId: 'layer_batch',
+        layerId: 'layer_batch',
         modality: 'text',
         text: 'x',
         sourceType: 'human',
@@ -593,7 +593,7 @@ describe('LinguisticService smoke tests', () => {
       {
         id: 'utr_batch_2',
         utteranceId: 'utt_batch_2',
-        tierId: 'layer_batch',
+        layerId: 'layer_batch',
         modality: 'text',
         text: 'y',
         sourceType: 'human',
@@ -768,6 +768,95 @@ describe('LinguisticService smoke tests', () => {
 
     await expect(LinguisticService.deleteAudio('media_del_audio')).resolves.toBeUndefined();
     expect(await db.token_lexeme_links.where('id').anyOf(['link_del_audio_tok', 'link_del_audio_mor']).count()).toBe(0);
+  });
+
+  // ── Regression guard: utterance_texts layer-field queries ──────
+
+  it('regression: saveUtteranceText round-trips via layer-field index', async () => {
+    await LinguisticService.saveUtterance({
+      id: 'utt_layer_rt',
+      textId: 'text_layer_rt',
+      startTime: 0,
+      endTime: 1,
+      annotationStatus: 'raw',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await LinguisticService.saveUtteranceText({
+      id: 'utr_layer_rt_1',
+      utteranceId: 'utt_layer_rt',
+      layerId: 'layer_trc_rt',
+      modality: 'text',
+      text: 'hello',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await LinguisticService.saveUtteranceText({
+      id: 'utr_layer_rt_2',
+      utteranceId: 'utt_layer_rt',
+      layerId: 'layer_trl_rt',
+      modality: 'text',
+      text: 'world',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    // Query by utteranceId should return both
+    const texts = await LinguisticService.getUtteranceTexts('utt_layer_rt');
+    expect(texts).toHaveLength(2);
+
+    // Direct Dexie compound index query should work
+    const compound = await db.utterance_texts
+      .where('[utteranceId+layerId]')
+      .equals(['utt_layer_rt', 'layer_trc_rt'])
+      .toArray();
+    expect(compound).toHaveLength(1);
+    expect(compound[0]!.text).toBe('hello');
+
+    // Cascade delete via removeUtterance should clean up both texts
+    await LinguisticService.removeUtterance('utt_layer_rt');
+    expect(await db.utterance_texts.where('utteranceId').equals('utt_layer_rt').count()).toBe(0);
+  });
+
+  it('regression: deleteProject cascades utterance_texts via utteranceId query', async () => {
+    await db.texts.put({
+      id: 'text_cascade_ut',
+      title: { eng: 'Cascade Test' },
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await LinguisticService.saveUtterance({
+      id: 'utt_cascade_ut_1',
+      textId: 'text_cascade_ut',
+      startTime: 0,
+      endTime: 1,
+      annotationStatus: 'raw',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await LinguisticService.saveUtteranceText({
+      id: 'utr_cascade_ut_1',
+      utteranceId: 'utt_cascade_ut_1',
+      layerId: 'layer_cascade',
+      modality: 'text',
+      text: 'cascade me',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    expect(await db.utterance_texts.count()).toBeGreaterThan(0);
+
+    await LinguisticService.deleteProject('text_cascade_ut');
+
+    expect(await db.utterance_texts.count()).toBe(0);
+    expect(await db.utterances.count()).toBe(0);
   });
 });
 

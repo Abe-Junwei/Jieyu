@@ -2,7 +2,7 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { SpeakerDocType } from '../db';
-import type { TranslationLayerDocType } from '../db';
+import type { LayerDocType } from '../db';
 import { LayerRailSidebar } from './LayerRailSidebar';
 import { SpeakerRailProvider } from '../contexts/SpeakerRailContext';
 
@@ -97,7 +97,7 @@ function renderSidebar(input?: {
         isCollapsed={false}
         layerRailTab="layers"
         onTabChange={vi.fn()}
-        layerRailRows={[] as TranslationLayerDocType[]}
+        layerRailRows={[] as LayerDocType[]}
         focusedLayerRowId=""
         flashLayerRowId=""
         onFocusLayer={vi.fn()}
@@ -122,7 +122,7 @@ function renderSidebar(input?: {
           isCollapsed={false}
           layerRailTab="layers"
           onTabChange={vi.fn()}
-          layerRailRows={[] as TranslationLayerDocType[]}
+          layerRailRows={[] as LayerDocType[]}
           focusedLayerRowId=""
           flashLayerRowId=""
           onFocusLayer={vi.fn()}

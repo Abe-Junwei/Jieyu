@@ -6,6 +6,7 @@ import {
   type SegmentLinkDocType,
 } from '../db';
 import { cleanupOrphanSegments as cleanupOrphanSegmentsBridge } from './LayerSegmentationV2BridgeService';
+import { newId } from '../utils/transcriptionFormatters';
 
 /**
  * 分层切分 v2 服务：独立边界 + 内容 + 跨层链接 | Segmentation v2 service: independent boundaries + content + cross-layer links
@@ -97,5 +98,65 @@ export class LayerSegmentationV2Service {
     this.ensureEnabled();
     const db = await getDb();
     return cleanupOrphanSegmentsBridge(db, candidateSegmentIds);
+  }
+
+  /**
+   * 拆分 segment：在 splitTime 处将一条 segment 拆分为两条 | Split a segment at splitTime into two segments
+   */
+  static async splitSegment(segmentId: string, splitTime: number): Promise<{ first: LayerSegmentDocType; second: LayerSegmentDocType }> {
+    this.ensureEnabled();
+    const db = await getDb();
+    const existing = await db.dexie.layer_segments.get(segmentId);
+    if (!existing) throw new Error(`Segment ${segmentId} not found`);
+
+    const minSpan = 0.05;
+    const splitFixed = Number(splitTime.toFixed(3));
+    if (splitFixed - existing.startTime < minSpan || existing.endTime - splitFixed < minSpan) {
+      throw new Error('Split point too close to segment boundary');
+    }
+
+    const now = new Date().toISOString();
+    const first: LayerSegmentDocType = {
+      ...existing,
+      endTime: splitFixed,
+      updatedAt: now,
+    };
+    const second: LayerSegmentDocType = {
+      ...existing,
+      id: newId('seg'),
+      textId: newId('stx'),
+      startTime: splitFixed,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.collections.layer_segments.update(segmentId, { endTime: splitFixed, updatedAt: now });
+    await db.collections.layer_segments.insert(second);
+
+    return { first, second };
+  }
+
+  /**
+   * 合并相邻 segment：保留 keepId 的起止较早一端，删除 removeId | Merge two adjacent segments: keep one, remove the other
+   */
+  static async mergeAdjacentSegments(keepId: string, removeId: string): Promise<LayerSegmentDocType> {
+    this.ensureEnabled();
+    const db = await getDb();
+    const keep = await db.dexie.layer_segments.get(keepId);
+    const remove = await db.dexie.layer_segments.get(removeId);
+    if (!keep || !remove) throw new Error('Segment(s) not found for merge');
+
+    const now = new Date().toISOString();
+    const mergedStart = Math.min(keep.startTime, remove.startTime);
+    const mergedEnd = Math.max(keep.endTime, remove.endTime);
+
+    await db.collections.layer_segments.update(keepId, {
+      startTime: mergedStart,
+      endTime: mergedEnd,
+      updatedAt: now,
+    });
+    await this.deleteSegment(removeId);
+
+    return { ...keep, startTime: mergedStart, endTime: mergedEnd, updatedAt: now };
   }
 }

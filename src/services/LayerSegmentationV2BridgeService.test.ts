@@ -38,7 +38,7 @@ describe('LayerSegmentationV2BridgeService', () => {
     const translation: UtteranceTextDocType = {
       id: 'utr_1',
       utteranceId: 'utt_1',
-      tierId: 'layer_trl_en',
+      layerId: 'layer_trl_en',
       modality: 'text',
       text: 'hello',
       sourceType: 'human',
@@ -48,7 +48,7 @@ describe('LayerSegmentationV2BridgeService', () => {
 
     await syncUtteranceTextToSegmentationV2(database, utterance, translation);
 
-    const ids = getSegmentationV2Ids(translation.tierId, utterance.id, translation.id);
+    const ids = getSegmentationV2Ids(translation.layerId, utterance.id, translation.id);
     const segment = await db.layer_segments.get(ids.segmentId);
     const content = await db.layer_segment_contents.get(ids.segmentContentId);
 
@@ -72,7 +72,7 @@ describe('LayerSegmentationV2BridgeService', () => {
     const translation: UtteranceTextDocType = {
       id: 'utr_2',
       utteranceId: 'utt_2',
-      tierId: 'layer_trl_en',
+      layerId: 'layer_trl_en',
       modality: 'text',
       text: 'world',
       sourceType: 'human',
@@ -83,7 +83,7 @@ describe('LayerSegmentationV2BridgeService', () => {
     await syncUtteranceTextToSegmentationV2(database, utterance, translation);
     await removeUtteranceTextFromSegmentationV2(database, translation);
 
-    const ids = getSegmentationV2Ids(translation.tierId, utterance.id, translation.id);
+    const ids = getSegmentationV2Ids(translation.layerId, utterance.id, translation.id);
     expect(await db.layer_segment_contents.get(ids.segmentContentId)).toBeUndefined();
     expect(await db.layer_segments.get(ids.segmentId)).toBeUndefined();
   });
@@ -102,7 +102,7 @@ describe('LayerSegmentationV2BridgeService', () => {
     const translationA: UtteranceTextDocType = {
       id: 'utr_2b_a',
       utteranceId: 'utt_2b',
-      tierId: 'layer_trl_en',
+      layerId: 'layer_trl_en',
       modality: 'text',
       text: 'world-a',
       sourceType: 'human',
@@ -112,7 +112,7 @@ describe('LayerSegmentationV2BridgeService', () => {
     const translationB: UtteranceTextDocType = {
       id: 'utr_2b_b',
       utteranceId: 'utt_2b',
-      tierId: 'layer_trl_en',
+      layerId: 'layer_trl_en',
       modality: 'mixed',
       text: 'world-b',
       sourceType: 'human',
@@ -123,8 +123,8 @@ describe('LayerSegmentationV2BridgeService', () => {
     await syncUtteranceTextToSegmentationV2(database, utterance, translationA);
     await syncUtteranceTextToSegmentationV2(database, utterance, translationB);
 
-    const idsA = getSegmentationV2Ids(translationA.tierId, utterance.id, translationA.id);
-    const idsB = getSegmentationV2Ids(translationB.tierId, utterance.id, translationB.id);
+    const idsA = getSegmentationV2Ids(translationA.layerId, utterance.id, translationA.id);
+    const idsB = getSegmentationV2Ids(translationB.layerId, utterance.id, translationB.id);
     expect(idsA.segmentId).toBe(idsB.segmentId);
 
     await removeUtteranceTextFromSegmentationV2(database, translationA);
@@ -141,7 +141,7 @@ describe('LayerSegmentationV2BridgeService', () => {
     await db.utterance_texts.put({
       id: 'legacy_1',
       utteranceId: 'utt_legacy',
-      tierId: 'layer_legacy',
+      layerId: 'layer_legacy',
       modality: 'text',
       text: 'legacy-text',
       sourceType: 'human',
@@ -160,7 +160,7 @@ describe('LayerSegmentationV2BridgeService', () => {
     await db.utterance_texts.put({
       id: 'legacy_import_1',
       utteranceId: 'utt_import_1',
-      tierId: 'layer_import_1',
+      layerId: 'layer_import_1',
       modality: 'text',
       text: 'imported-legacy-text',
       sourceType: 'human',
@@ -213,7 +213,7 @@ describe('LayerSegmentationV2BridgeService', () => {
     await db.utterance_texts.put({
       id: 'dup_id',
       utteranceId: 'utt_dup',
-      tierId: 'layer_old',
+      layerId: 'layer_old',
       modality: 'text',
       text: 'legacy-dup',
       sourceType: 'human',
@@ -246,7 +246,7 @@ describe('LayerSegmentationV2BridgeService', () => {
     const rows = await getAllUtteranceTextsPreferV2(database);
     const row = rows.find((item) => item.id === 'dup_id');
     expect(row?.text).toBe('v2-dup');
-    expect(row?.tierId).toBe('layer_new');
+    expect(row?.layerId).toBe('layer_new');
   });
 
   it('removes v2 segment graph for utterance cascade delete helper', async () => {

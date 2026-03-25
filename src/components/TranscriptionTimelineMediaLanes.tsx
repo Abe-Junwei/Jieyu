@@ -1,4 +1,4 @@
-import type { LayerLinkDocType, TranslationLayerDocType, UtteranceDocType } from '../db';
+import type { LayerLinkDocType, LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
@@ -8,6 +8,7 @@ import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { LayerActionPopover } from './LayerActionPopover';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
+import { isIndependentBoundaryLayer } from '../hooks/useLayerSegments';
 import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import {
@@ -56,8 +57,8 @@ type TranscriptionTimelineMediaLanesProps = {
   playerDuration: number;
   zoomPxPerSec: number;
   lassoRect: LassoRect | null;
-  transcriptionLayers: TranslationLayerDocType[];
-  translationLayers: TranslationLayerDocType[];
+  transcriptionLayers: LayerDocType[];
+  translationLayers: LayerDocType[];
   timelineRenderUtterances: UtteranceDocType[];
   flashLayerRowId: string;
   focusedLayerRowId: string;
@@ -65,7 +66,7 @@ type TranscriptionTimelineMediaLanesProps = {
   defaultTranscriptionLayerId: string | undefined;
   renderAnnotationItem: (
     utt: UtteranceDocType,
-    layer: TranslationLayerDocType,
+    layer: LayerDocType,
     draft: string,
     extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>
       & Partial<Pick<TimelineAnnotationItemProps, 'onFocus' | 'placeholder'>>
@@ -76,9 +77,9 @@ type TranscriptionTimelineMediaLanesProps = {
       },
   ) => React.ReactNode;
   // TimelineLaneHeader props
-  allLayersOrdered: TranslationLayerDocType[];
+  allLayersOrdered: LayerDocType[];
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
-  deletableLayers: TranslationLayerDocType[];
+  deletableLayers: LayerDocType[];
   onFocusLayer: (layerId: string) => void;
   layerLinks?: LayerLinkDocType[];
   showConnectors?: boolean;
@@ -106,6 +107,8 @@ type TranscriptionTimelineMediaLanesProps = {
   };
   // Lane label resize
   onLaneLabelWidthResize?: (e: React.PointerEvent<HTMLDivElement>) => void;
+  /** 独立边界层的 segment 数据 | Segment data for independent-boundary layers */
+  segmentsByLayer?: Map<string, LayerSegmentDocType[]>;
 };
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
@@ -145,9 +148,10 @@ export function TranscriptionTimelineMediaLanes({
   speakerFocusSpeakerKey,
   speakerQuickActions,
   onLaneLabelWidthResize,
+  segmentsByLayer,
 }: Omit<TranscriptionTimelineMediaLanesProps, 'allLayersOrdered'> & {
-  allLayersOrdered: TranslationLayerDocType[];
-  deletableLayers: TranslationLayerDocType[];
+  allLayersOrdered: LayerDocType[];
+  deletableLayers: LayerDocType[];
   onFocusLayer: (layerId: string) => void;
   layerLinks?: LayerLinkDocType[];
 }) {
@@ -440,6 +444,12 @@ export function TranscriptionTimelineMediaLanes({
         const isCollapsed = collapsedLayerIds.has(layer.id);
         const baseLaneHeight = laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT;
         const visibleLaneHeight = isCollapsed ? 14 : baseLaneHeight;
+        // 独立边界层使用 layer_segments 数据源，否则继承 utterance 边界
+        // Independent-boundary layers use layer_segments, others inherit utterance boundaries
+        const isIndependent = isIndependentBoundaryLayer(layer);
+        const layerSegments = isIndependent ? (segmentsByLayer?.get(layer.id) ?? []) : undefined;
+        const iterationSource: Array<{ id: string; startTime: number; endTime: number }> =
+          layerSegments ?? timelineRenderUtterances;
         return (
         <div
           key={`tl-${layer.id}`}
@@ -467,22 +477,27 @@ export function TranscriptionTimelineMediaLanes({
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
           />
-          {!isCollapsed && timelineRenderUtterances.map((utt) => {
-            const text = translationTextByLayer.get(layer.id)?.get(utt.id)?.text ?? '';
-            const draftKey = `${layer.id}-${utt.id}`;
+          {!isCollapsed && iterationSource.map((item) => {
+            const text = isIndependent
+              ? '' // 独立边界层的文本从 segment_contents 加载（后续扩展） | Text from segment_contents (future extension)
+              : (translationTextByLayer.get(layer.id)?.get(item.id)?.text ?? '');
+            const draftKey = `${layer.id}-${item.id}`;
             const draft = translationDrafts[draftKey] ?? text;
+            // 适配 renderAnnotationItem 所需的 TimelineUtterance 形状
+            // Adapt to TimelineUtterance shape required by renderAnnotationItem
+            const uttCompat = item as UtteranceDocType;
             return (
               <div
-                key={`tr-sub-${layer.id}-${utt.id}`}
+                key={`tr-sub-${layer.id}-${item.id}`}
                 className="timeline-annotation-subtrack"
                 style={{
                   top: 0,
                   height: baseLaneHeight,
                 }}
               >
-                {renderAnnotationItem(utt, layer, draft, {
+                {renderAnnotationItem(uttCompat, layer, draft, {
                   showSpeaker: false,
-                  placeholder: '翻译',
+                  placeholder: isIndependent ? '独立段' : '翻译',
                   onFocus: () => {
                     focusedTranslationDraftKeyRef.current = draftKey;
                   },
@@ -490,19 +505,19 @@ export function TranscriptionTimelineMediaLanes({
                     const value = normalizeSingleLine(e.target.value);
                     setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
                     if (value.trim() && value !== text) {
-                      scheduleAutoSave(`tr-${layer.id}-${utt.id}`, async () => {
-                        await saveTextTranslationForUtterance(utt.id, value, layer.id);
+                      scheduleAutoSave(`tr-${layer.id}-${item.id}`, async () => {
+                        await saveTextTranslationForUtterance(item.id, value, layer.id);
                       });
                     } else {
-                      clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
+                      clearAutoSaveTimer(`tr-${layer.id}-${item.id}`);
                     }
                   },
                   onBlur: (e) => {
                     focusedTranslationDraftKeyRef.current = null;
                     const value = normalizeSingleLine(e.target.value);
-                    clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
+                    clearAutoSaveTimer(`tr-${layer.id}-${item.id}`);
                     if (value !== text) {
-                      fireAndForget(saveTextTranslationForUtterance(utt.id, value, layer.id));
+                      fireAndForget(saveTextTranslationForUtterance(item.id, value, layer.id));
                     }
                   },
                 })}

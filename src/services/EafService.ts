@@ -5,7 +5,7 @@
  * This service converts between Jieyu's data model and EAF 3.0.
  */
 
-import type { UtteranceDocType, AnchorDocType, TranslationLayerDocType, UtteranceTextDocType, MediaItemDocType, UserNoteDocType } from '../db';
+import type { UtteranceDocType, AnchorDocType, LayerDocType, UtteranceTextDocType, MediaItemDocType, UserNoteDocType, LayerConstraint } from '../db';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -13,7 +13,7 @@ export interface EafExportInput {
   mediaItem?: MediaItemDocType;
   utterances: UtteranceDocType[];
   anchors?: AnchorDocType[];
-  layers: TranslationLayerDocType[];
+  layers: LayerDocType[];
   translations: UtteranceTextDocType[];
   userNotes?: UserNoteDocType[];
 }
@@ -48,6 +48,8 @@ export interface EafImportResult {
   transcriptionTierName?: string;
   /** <LANGUAGE> 元素中的语言 ID → 语言标签映射 | LANG_ID → LANG_LABEL from <LANGUAGE> elements */
   languageLabels: Map<string, string>;
+  /** 每个 tier 的 ELAN 约束信息 | Per-tier ELAN constraint info (constraint + parentTierId) */
+  tierConstraints: Map<string, { constraint: LayerConstraint; parentTierId?: string }>;
 }
 
 // ── Export ───────────────────────────────────────────────────
@@ -146,7 +148,7 @@ export function exportToEaf(input: EafExportInput): string {
   const transcriptionAnnotations = sorted.map((utt) => {
     const slots = uttSlotMap.get(utt.id)!;
     const tr = defaultTrcId
-      ? translations.find((t) => t.utteranceId === utt.id && t.tierId === defaultTrcId && t.modality === 'text')
+      ? translations.find((t) => t.utteranceId === utt.id && t.layerId === defaultTrcId && t.modality === 'text')
       : undefined;
     const text = tr?.text ?? utt.transcription?.default ?? '';
     const annotationId = tr?.externalRef ?? `a${annCounter++}`;
@@ -166,7 +168,7 @@ export function exportToEaf(input: EafExportInput): string {
   let hasTranslationLayers = false;
 
   for (const layer of additionalLayers) {
-    const layerTranslations = translations.filter((t) => t.tierId === layer.id && t.modality === 'text');
+    const layerTranslations = translations.filter((t) => t.layerId === layer.id && t.modality === 'text');
     const layerMeta = parseEafMetaFromLayerKey(layer.key);
     const tierName = layerMeta.tierId ?? layer.name?.eng ?? layer.name?.zho ?? layer.key;
     const isTranslation = layer.layerType === 'translation';
@@ -418,6 +420,8 @@ export function importFromEaf(xmlString: string): EafImportResult {
   // 标注 ID → 时间，用于 REF_ANNOTATION 时间解析 | Annotation ID → time for REF_ANNOTATION resolution
   const annotationTimeMap = new Map<string, { startTime: number; endTime: number }>();
   let foundPrimaryTranscription = false;
+  // 每层的约束信息 | Per-tier constraint info
+  const tierConstraints = new Map<string, { constraint: LayerConstraint; parentTierId?: string }>();
 
   tiers.forEach((tier, tierIndex) => {
     const tierId = tier.getAttribute('TIER_ID') ?? `tier_${tierIndex}`;
@@ -433,6 +437,18 @@ export function importFromEaf(xmlString: string): EafImportResult {
     const lingType = typeRef ? linguisticTypes.get(typeRef) : undefined;
     const isTimeAlignable = lingType != null ? lingType.timeAlignable : !parentRef;
     const isIndependentTier = isTimeAlignable && !parentRef;
+
+    // 映射 ELAN CONSTRAINTS → LayerConstraint | Map ELAN CONSTRAINTS → LayerConstraint
+    const eafConstraint = lingType?.constraints;
+    const constraint: LayerConstraint = eafConstraint === 'Symbolic_Association'
+      ? 'symbolic_association'
+      : eafConstraint === 'Time_Subdivision'
+        ? 'time_subdivision'
+        : (isTimeAlignable ? 'none' : 'symbolic_association');
+    tierConstraints.set(tierId, {
+      constraint,
+      ...(parentRef ? { parentTierId: parentRef } : {}),
+    });
 
     if (isIndependentTier) {
       // ── 独立时间对齐层（转写层）| Independent time-aligned tier (transcription) ──
@@ -486,6 +502,7 @@ export function importFromEaf(xmlString: string): EafImportResult {
     participants: [...participantSet],
     ...(transcriptionTierName ? { transcriptionTierName } : {}),
     languageLabels,
+    tierConstraints,
   };
 }
 

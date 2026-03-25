@@ -12,12 +12,12 @@
  */
 
 import { createContext, useContext, useMemo } from 'react';
-import type { TranslationLayerDocType } from '../db';
+import type { LayerDocType } from '../db';
 
 // ── Context Value Type ────────────────────────────────────────────────────────
 
 export interface LayerRailContextValue {
-  deletableLayers: TranslationLayerDocType[];
+  deletableLayers: LayerDocType[];
   checkLayerHasContent: (layerId: string) => Promise<number>;
   deleteLayer: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
   deleteLayerWithoutConfirm: (layerId: string) => Promise<void>;
@@ -67,7 +67,7 @@ export function useLayerRailContext(): LayerRailContextValue {
 
 interface LayerRailProviderProps {
   children: React.ReactNode;
-  deletableLayers: TranslationLayerDocType[];
+  deletableLayers: LayerDocType[];
   checkLayerHasContent: (layerId: string) => Promise<number>;
   deleteLayer: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
   deleteLayerWithoutConfirm: (layerId: string) => Promise<void>;

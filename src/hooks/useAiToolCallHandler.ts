@@ -1,12 +1,11 @@
 import { useCallback, useRef } from 'react';
-import type { LayerLinkDocType, UtteranceDocType, TranslationLayerDocType, MediaItemDocType } from '../db';
+import type { LayerLinkDocType, UtteranceDocType, LayerDocType, MediaItemDocType } from '../db';
 import type { AiChatToolCall, AiChatToolResult } from './useAiChat';
 import { useLatest } from './useLatest';
 import { AutoGlossService } from '../ai/AutoGlossService';
 import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import { loadRecentVoiceSessions } from '../services/VoiceSessionStore';
 import { createLogger } from '../observability/logger';
-import { matchesLayerLink } from '../services/LayerIdBridgeService';
 
 const log = createLogger('useAiToolCallHandler');
 
@@ -22,8 +21,8 @@ type Params = {
   selectedUtterance: UtteranceDocType | undefined;
   selectedUtteranceMedia: MediaItemDocType | undefined;
   selectedLayerId: string;
-  transcriptionLayers: TranslationLayerDocType[];
-  translationLayers: TranslationLayerDocType[];
+  transcriptionLayers: LayerDocType[];
+  translationLayers: LayerDocType[];
   layerLinks: LayerLinkDocType[];
   createLayer: (
     layerType: 'transcription' | 'translation',
@@ -60,10 +59,10 @@ interface ExecutionContext {
   utterances: UtteranceDocType[];
   selectedUtterance: UtteranceDocType | undefined;
   selectedUtteranceMedia: MediaItemDocType | undefined;
-  transcriptionLayers: TranslationLayerDocType[];
-  translationLayers: TranslationLayerDocType[];
+  transcriptionLayers: LayerDocType[];
+  translationLayers: LayerDocType[];
   /** translationLayers 的最新 ref，用于补偿回查 | Latest-ref for post-async layer lookup */
-  translationLayersRef: { readonly current: TranslationLayerDocType[] };
+  translationLayersRef: { readonly current: LayerDocType[] };
   layerLinks: LayerLinkDocType[];
   compensationRef: { current: Map<string, CompensationEntry> };
   COMPENSATION_TTL_MS: number;
@@ -71,9 +70,9 @@ interface ExecutionContext {
   // Pre-bound resolver helpers (already closed over current call + snapshot)
   resolveRequestedUtterance: () => UtteranceDocType | null;
   resolveRequestedTranslationLayerId: () => string;
-  resolveTranscriptionLayerForLink: () => TranslationLayerDocType | null;
-  resolveTranslationLayerForLink: () => TranslationLayerDocType | null;
-  layerMatchesLanguage: (layer: TranslationLayerDocType, languageQuery: string) => boolean;
+  resolveTranscriptionLayerForLink: () => LayerDocType | null;
+  resolveTranslationLayerForLink: () => LayerDocType | null;
+  layerMatchesLanguage: (layer: LayerDocType, languageQuery: string) => boolean;
   parseLayerHintFromOpaqueId: (value: string) => { layerType: 'translation' | 'transcription'; languageQuery: string } | null;
   // 回调 | Callbacks
   createLayer: Params['createLayer'];
@@ -140,7 +139,7 @@ function _parseLayerHintFromOpaqueId(value: string): { layerType: 'translation' 
   return { layerType, languageQuery: code };
 }
 
-function _layerMatchesLanguage(layer: TranslationLayerDocType, languageQuery: string): boolean {
+function _layerMatchesLanguage(layer: LayerDocType, languageQuery: string): boolean {
   const fields = [layer.languageId, layer.key, layer.name.zho, layer.name.eng]
     .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
     .map((value) => _normalizeText(value));
@@ -481,7 +480,7 @@ const layerAdapter: ToolObjectAdapter = {
       }
 
       const exists = ctx.layerLinks.some(
-        (link) => matchesLayerLink(link, trcLayer.key, trlLayer.id),
+        (link) => link.transcriptionLayerKey === trcLayer.key && link.layerId === trlLayer.id,
       );
       const shouldLink = call.name === 'link_translation_layer';
       try {
@@ -864,7 +863,7 @@ export function useAiToolCallHandler({
       return requestedLayerId;
     };
 
-    const resolveTranscriptionLayerForLink = (): TranslationLayerDocType | null => {
+    const resolveTranscriptionLayerForLink = (): LayerDocType | null => {
       const requestedLayerId = String(call.arguments.transcriptionLayerId ?? '').trim();
       if (requestedLayerId) {
         return currentTranscriptionLayers.find((layer) => layer.id === requestedLayerId) ?? null;
@@ -876,7 +875,7 @@ export function useAiToolCallHandler({
       return null;
     };
 
-    const resolveTranslationLayerForLink = (): TranslationLayerDocType | null => {
+    const resolveTranslationLayerForLink = (): LayerDocType | null => {
       const requestedLayerId = String(call.arguments.translationLayerId ?? call.arguments.layerId ?? '').trim();
       if (requestedLayerId) {
         return currentTranslationLayers.find((layer) => layer.id === requestedLayerId) ?? null;

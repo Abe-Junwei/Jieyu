@@ -68,13 +68,17 @@ export async function buildAndAuditToolIntent({
     intentAssessment,
   );
 
-  await writeToolIntentAuditLog(
+  // 审计写入为副作用，不应阻塞主逻辑 | Audit write is a side-effect, should not block main logic
+  writeToolIntentAuditLog(
     assistantMessageId,
     toolCall.name,
     intentAssessment,
     toolCall.requestId,
     buildToolIntentAuditMetadata(assistantMessageId, toolCall, auditContext),
-  );
+  ).catch((error) => {
+    // eslint-disable-next-line no-console
+    console.warn('[toolIntent] audit log write failed', error instanceof Error ? error.message : error);
+  });
 
   return {
     intentAssessment,

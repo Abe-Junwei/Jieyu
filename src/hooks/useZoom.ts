@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 
 interface UseZoomInput {
@@ -30,6 +30,10 @@ export function useZoom(input: UseZoomInput) {
 
   const [rulerView, setRulerView] = useState<{ start: number; end: number } | null>(null);
 
+  // 避免 wheel listener 重绑 | Ref to avoid wheel listener rebinding on every zoom change
+  const zoomPercentRef = useRef(zoomPercent);
+  zoomPercentRef.current = zoomPercent;
+
   // ---- 缩放（锚点保持）—— 接受百分比 ----
   const zoomToPercent = useCallback((
     newPercent: number,
@@ -54,6 +58,9 @@ export function useZoom(input: UseZoomInput) {
       if (tierContainerRef.current) tierContainerRef.current.scrollLeft = target;
     });
   }, [zoomPxPerSec, fitPxPerSec, maxZoomPercent, playerInstanceRef, setZoomPercent, setZoomMode, tierContainerRef]);
+
+  const zoomToPercentRef = useRef(zoomToPercent);
+  zoomToPercentRef.current = zoomToPercent;
 
   // ---- 双击句段：缩放并居中 ----
   const zoomToUtterance = useCallback((startTime: number, endTime: number) => {
@@ -123,7 +130,7 @@ export function useZoom(input: UseZoomInput) {
         const rect = el.getBoundingClientRect();
         const frac = (e.clientX - rect.left) / rect.width;
         const factor = e.deltaY > 0 ? 1 / 1.15 : 1.15;
-        zoomToPercent(zoomPercent * factor, frac);
+        zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
       } else {
         e.preventDefault();
         const target = ws.getScroll() + e.deltaY + e.deltaX;
@@ -133,7 +140,7 @@ export function useZoom(input: UseZoomInput) {
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [zoomPercent, zoomToPercent, selectedMediaUrl, playerIsReady, playerInstanceRef, waveCanvasRef, tierContainerRef]);
+  }, [selectedMediaUrl, playerIsReady, playerInstanceRef, waveCanvasRef, tierContainerRef]);
 
   // ---- Wheel 拦截（tier lanes）：与波形同步 ----
   useEffect(() => {
@@ -147,7 +154,7 @@ export function useZoom(input: UseZoomInput) {
         const rect = el.getBoundingClientRect();
         const frac = (e.clientX - rect.left) / rect.width;
         const factor = e.deltaY > 0 ? 1 / 1.15 : 1.15;
-        zoomToPercent(zoomPercent * factor, frac);
+        zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
       } else {
         e.preventDefault();
         const target = ws.getScroll() + e.deltaY + e.deltaX;
@@ -157,7 +164,7 @@ export function useZoom(input: UseZoomInput) {
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [zoomPercent, zoomToPercent, selectedMediaUrl, playerIsReady, playerInstanceRef, tierContainerRef]);
+  }, [selectedMediaUrl, playerIsReady, playerInstanceRef, tierContainerRef]);
 
   // ---- 播放时视口自动跟随 ----
   useEffect(() => {

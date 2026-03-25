@@ -1,4 +1,6 @@
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
+import type { TrackEntityDocType } from '../db';
+import { getDb } from '../db';
 
 export type TrackEntityState = {
   mode: TranscriptionTrackDisplayMode;
@@ -74,4 +76,80 @@ export function upsertTrackEntityState(
       updatedAt: new Date().toISOString(),
     },
   };
+}
+
+// ─── DB-backed async API (v2, replaces LocalStorage) ──────────────────────────
+
+/**
+ * Load all track entities from DB for a given textId.
+ * Returns a map keyed by mediaId.
+ * Fallback: If no rows found for the textId, queries '__unknown__' (v26 migration placeholder).
+ * 加载给定 textId 的所有 track entities | 回退：如无结果，查询 '__unknown__'（v26 迁移占位符）
+ */
+export async function loadTrackEntityStateMapFromDb(textId: string): Promise<TrackEntityStateMap> {
+  const db = await getDb();
+  let rows = await db.dexie.track_entities.where('textId').equals(textId).toArray();
+  
+  // Fallback to '__unknown__' if no rows found (v26 migration compatibility) | 如无结果则回退到 '__unknown__'（v26 迁移兼容性）
+  if (rows.length === 0) {
+    rows = await db.dexie.track_entities.where('textId').equals('__unknown__').toArray();
+  }
+  
+  const next: TrackEntityStateMap = {};
+  for (const row of rows) {
+    next[row.mediaId] = {
+      mode: row.mode,
+      laneLockMap: row.laneLockMap,
+      updatedAt: row.updatedAt,
+    };
+  }
+  return next;
+}
+
+/**
+ * Persist a single media's track state to DB.
+ * Updates existing row or inserts new one.
+ */
+export async function saveTrackEntityStateToDb(
+  textId: string,
+  mediaId: string,
+  state: TrackEntityState,
+): Promise<void> {
+  const db = await getDb();
+  const id = `track_${mediaId}`;
+  const doc: TrackEntityDocType = {
+    id,
+    textId,
+    mediaId,
+    mode: sanitizeMode(state.mode),
+    laneLockMap: sanitizeLaneLockMap(state.laneLockMap),
+    updatedAt: state.updatedAt,
+  };
+  await db.dexie.track_entities.put(doc);
+}
+
+/**
+ * Bulk-persist a full state map to DB.
+ * Replaces all entries for the given textId.
+ */
+export async function saveTrackEntityStateMapToDb(
+  textId: string,
+  stateMap: TrackEntityStateMap,
+): Promise<void> {
+  const db = await getDb();
+  const now = new Date().toISOString();
+  const docs: TrackEntityDocType[] = Object.entries(stateMap).map(([mediaId, state]) => ({
+    id: `track_${mediaId}`,
+    textId,
+    mediaId,
+    mode: sanitizeMode(state.mode),
+    laneLockMap: sanitizeLaneLockMap(state.laneLockMap),
+    updatedAt: state.updatedAt || now,
+  }));
+  // Delete all existing entries for this textId, then insert new ones
+  const existing = await db.dexie.track_entities.where('textId').equals(textId).primaryKeys();
+  await db.dexie.track_entities.bulkDelete(existing);
+  if (docs.length > 0) {
+    await db.dexie.track_entities.bulkPut(docs);
+  }
 }

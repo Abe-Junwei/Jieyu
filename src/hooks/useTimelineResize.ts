@@ -12,7 +12,10 @@ type TimelineResizeTooltip = {
 
 type ResizeDragState = {
   utteranceId: string;
+  /** segmentId = segv2_${layerId}_${utteranceId}，仅在独立边界层拖拽时有值 */
+  segmentId?: string;
   mediaId: string;
+  layerId?: string;
   edge: 'start' | 'end';
   startClientX: number;
   initialStart: number;
@@ -43,12 +46,12 @@ type UseTimelineResizeParams = {
   setFocusedLayerRowId: (id: string) => void;
   beginTimingGesture: (id: string) => void;
   endTimingGesture: (id: string) => void;
-  getNeighborBounds: (utteranceId: string, mediaId: string | undefined, probeStart: number) => { left: number; right: number | undefined };
+  getNeighborBounds: (utteranceId: string, mediaId: string | undefined, probeStart: number, layerId?: string) => { left: number; right: number | undefined };
   makeSnapGuide: (bounds: { left: number; right: number | undefined }, start: number, end: number) => SnapGuide;
   snapEnabled: boolean;
   setSnapGuide: React.Dispatch<React.SetStateAction<SnapGuide>>;
   setDragPreview: React.Dispatch<React.SetStateAction<{ id: string; start: number; end: number } | null>>;
-  saveUtteranceTiming: (utteranceId: string, start: number, end: number) => Promise<void>;
+  saveUtteranceTiming: (utteranceId: string, start: number, end: number, layerId?: string) => Promise<void>;
 };
 
 export function useTimelineResize({
@@ -96,6 +99,8 @@ export function useTimelineResize({
     timelineResizeDragRef.current = {
       utteranceId: utterance.id,
       mediaId: utterance.mediaId ?? '',
+      ...(layerId !== undefined && { layerId }),
+      ...(layerId !== undefined && { segmentId: `segv2_${layerId}_${utterance.id}` }),
       edge,
       startClientX: event.clientX,
       initialStart: utterance.startTime,
@@ -117,7 +122,7 @@ export function useTimelineResize({
 
       const deltaSec = (ev.clientX - drag.startClientX) / zoomPxPerSec;
       const minSpan = 0.05;
-      const bounds = getNeighborBounds(drag.utteranceId, drag.mediaId, drag.initialStart);
+      const bounds = getNeighborBounds(drag.segmentId ?? drag.utteranceId, drag.mediaId, drag.initialStart, drag.layerId);
       const rightBound = typeof bounds.right === 'number' ? bounds.right : Number.POSITIVE_INFINITY;
       let nextStart = drag.initialStart;
       let nextEnd = drag.initialEnd;
@@ -152,7 +157,7 @@ export function useTimelineResize({
         end: nextEnd,
       });
 
-      const liveBounds = getNeighborBounds(drag.utteranceId, drag.mediaId, nextStart);
+      const liveBounds = getNeighborBounds(drag.segmentId ?? drag.utteranceId, drag.mediaId, nextStart, drag.layerId);
       setSnapGuide(makeSnapGuide(liveBounds, nextStart, nextEnd));
     };
 
@@ -182,9 +187,9 @@ export function useTimelineResize({
       setTimelineResizeTooltip(null);
       endTimingGesture(drag.utteranceId);
 
-      const bounds = getNeighborBounds(drag.utteranceId, drag.mediaId, finalStart);
+      const bounds = getNeighborBounds(drag.segmentId ?? drag.utteranceId, drag.mediaId, finalStart, drag.layerId);
       setSnapGuide(makeSnapGuide(bounds, finalStart, finalEnd));
-      fireAndForget(saveUtteranceTiming(drag.utteranceId, finalStart, finalEnd));
+      fireAndForget(saveUtteranceTiming(drag.segmentId ?? drag.utteranceId, finalStart, finalEnd, drag.layerId));
     };
 
     window.addEventListener('pointermove', onMove);

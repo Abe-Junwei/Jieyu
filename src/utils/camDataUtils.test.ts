@@ -20,7 +20,7 @@ describe('camDataUtils', () => {
     const normalized = normalizeUtteranceTextDocForStorage({
       id: 'utr_1',
       utteranceId: 'utt_1',
-      tierId: 'layer_1',
+      layerId: 'layer_1',
       modality: 'text',
       text: 'hello',
       sourceType: 'human',

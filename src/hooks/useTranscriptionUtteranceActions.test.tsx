@@ -207,7 +207,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     await db.utterance_texts.add({
       id: 'utr-legacy',
       utteranceId: 'utt-1',
-      tierId: 'tr-layer-1',
+      layerId: 'tr-layer-1',
       modality: 'text',
       text: 'old',
       sourceType: 'human',

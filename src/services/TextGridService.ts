@@ -5,13 +5,13 @@
  * which is the most common variant.
  */
 
-import type { UtteranceDocType, TranslationLayerDocType, UtteranceTextDocType, UserNoteDocType } from '../db';
+import type { UtteranceDocType, LayerDocType, UtteranceTextDocType, UserNoteDocType } from '../db';
 
 // ── Types ───────────────────────────────────────────────────
 
 export interface TextGridExportInput {
   utterances: UtteranceDocType[];
-  layers: TranslationLayerDocType[];
+  layers: LayerDocType[];
   translations: UtteranceTextDocType[];
   userNotes?: UserNoteDocType[];
 }
@@ -63,7 +63,7 @@ export function exportToTextGrid(input: TextGridExportInput): string {
   const transcriptionIntervals = buildIntervalsWithGaps(
     sorted.map((u) => {
       const tr = defaultTrcId
-        ? translations.find((t) => t.utteranceId === u.id && t.tierId === defaultTrcId && t.modality === 'text')
+        ? translations.find((t) => t.utteranceId === u.id && t.layerId === defaultTrcId && t.modality === 'text')
         : undefined;
       return {
         xmin: u.startTime,
@@ -82,7 +82,7 @@ export function exportToTextGrid(input: TextGridExportInput): string {
   );
   for (const layer of additionalLayers) {
     const layerTranslations = translations.filter(
-      (t) => t.tierId === layer.id && t.modality === 'text',
+      (t) => t.layerId === layer.id && t.modality === 'text',
     );
     const tierName = layer.name?.eng ?? layer.name?.zho ?? layer.key;
 

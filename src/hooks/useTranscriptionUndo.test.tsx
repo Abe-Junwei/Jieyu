@@ -5,7 +5,7 @@ import type React from 'react';
 import type {
   LayerLinkDocType,
   SpeakerDocType,
-  TranslationLayerDocType,
+  LayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
@@ -73,7 +73,7 @@ function setupHarness(input: {
 }) {
   const utterances = createStateRefHarness<UtteranceDocType[]>(input.utterances);
   const translations = createStateRefHarness<UtteranceTextDocType[]>([]);
-  const layers = createStateRefHarness<TranslationLayerDocType[]>([]);
+  const layers = createStateRefHarness<LayerDocType[]>([]);
   const layerLinks = createStateRefHarness<LayerLinkDocType[]>([]);
   const speakers = createStateRefHarness<SpeakerDocType[]>(input.speakers);
   const dirtyRef = { current: false };

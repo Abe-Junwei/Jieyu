@@ -4,7 +4,7 @@ import type {
   LayerLinkDocType,
   MediaItemDocType,
   SpeakerDocType,
-  TranslationLayerDocType,
+  LayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
@@ -13,7 +13,7 @@ export function useTranscriptionDocumentState() {
   const [utterances, setUtterances] = useState<UtteranceDocType[]>([]);
   const [anchors, setAnchors] = useState<AnchorDocType[]>([]);
   const [translations, setTranslations] = useState<UtteranceTextDocType[]>([]);
-  const [layers, setLayers] = useState<TranslationLayerDocType[]>([]);
+  const [layers, setLayers] = useState<LayerDocType[]>([]);
   const [layerLinks, setLayerLinks] = useState<LayerLinkDocType[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaItemDocType[]>([]);
   const [speakers, setSpeakers] = useState<SpeakerDocType[]>([]);

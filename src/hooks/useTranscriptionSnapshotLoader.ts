@@ -5,7 +5,7 @@ import type {
   LayerLinkDocType,
   MediaItemDocType,
   SpeakerDocType,
-  TranslationLayerDocType,
+  LayerDocType,
   UtteranceDocType,
   UtteranceMorphemeDocType,
   UtteranceTextDocType,
@@ -18,7 +18,7 @@ type Params = {
   dbNameRef: React.MutableRefObject<string | undefined>;
   setAnchors: React.Dispatch<React.SetStateAction<AnchorDocType[]>>;
   setLayerLinks: React.Dispatch<React.SetStateAction<LayerLinkDocType[]>>;
-  setLayers: React.Dispatch<React.SetStateAction<TranslationLayerDocType[]>>;
+  setLayers: React.Dispatch<React.SetStateAction<LayerDocType[]>>;
   setMediaItems: React.Dispatch<React.SetStateAction<MediaItemDocType[]>>;
   setSpeakers: React.Dispatch<React.SetStateAction<SpeakerDocType[]>>;
   setSelectedLayerId: React.Dispatch<React.SetStateAction<string>>;
@@ -57,7 +57,7 @@ export function useTranscriptionSnapshotLoader({
     ] = await Promise.all([
       db.collections.utterances.find().exec(),
       db.collections.anchors.find().exec(),
-      db.collections.translation_layers.find().exec(),
+      db.collections.layers.find().exec(),
       db.collections.media_items.find().exec(),
       db.collections.speakers.find().exec(),
       db.collections.layer_links.find().exec(),
@@ -67,7 +67,7 @@ export function useTranscriptionSnapshotLoader({
 
     const utteranceRowsRaw = utteranceDocs.map((doc) => doc.toJSON() as unknown as UtteranceDocType);
     const anchorRows = anchorDocs.map((doc) => doc.toJSON() as unknown as AnchorDocType);
-    const allLayerRows = layerDocs.map((doc) => doc.toJSON() as unknown as TranslationLayerDocType);
+    const allLayerRows = layerDocs.map((doc) => doc.toJSON() as unknown as LayerDocType);
     const translationRows = await getAllUtteranceTextsPreferV2(db);
     const mediaRows = mediaDocs.map((doc) => doc.toJSON() as unknown as MediaItemDocType);
       const speakerRows = speakerDocs.map((doc) => doc.toJSON() as unknown as SpeakerDocType);
@@ -153,7 +153,7 @@ export function useTranscriptionSnapshotLoader({
           ?? layerRows.find((l) => l.layerType === 'transcription');
         if (defaultTrcLayer) {
           const tr = translationRows.find(
-            (t) => t.utteranceId === row.id && t.tierId === defaultTrcLayer.id,
+            (t) => t.utteranceId === row.id && t.layerId === defaultTrcLayer.id,
           );
           next[row.id] = tr?.text ?? '';
         } else {

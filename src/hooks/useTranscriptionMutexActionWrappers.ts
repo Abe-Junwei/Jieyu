@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
-import type { TranslationLayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, UtteranceDocType } from '../db';
 import type { LayerCreateInput } from './transcriptionTypes';
 
 type Params = {
   runWithDbMutex: <T>(task: () => Promise<T>) => Promise<T>;
-  saveVoiceTranslationRaw: (blob: Blob, targetUtterance: UtteranceDocType, targetLayer: TranslationLayerDocType) => Promise<void>;
+  saveVoiceTranslationRaw: (blob: Blob, targetUtterance: UtteranceDocType, targetLayer: LayerDocType) => Promise<void>;
   saveUtteranceTextRaw: (utteranceId: string, value: string, layerId?: string) => Promise<void>;
   saveUtteranceTimingRaw: (utteranceId: string, startTime: number, endTime: number) => Promise<void>;
   saveTextTranslationForUtteranceRaw: (utteranceId: string, value: string, layerId: string) => Promise<void>;
@@ -48,7 +48,7 @@ export function useTranscriptionMutexActionWrappers({
   const saveVoiceTranslation = useCallback((
     blob: Blob,
     targetUtterance: UtteranceDocType,
-    targetLayer: TranslationLayerDocType,
+    targetLayer: LayerDocType,
   ) => runWithDbMutex(() => saveVoiceTranslationRaw(blob, targetUtterance, targetLayer)), [runWithDbMutex, saveVoiceTranslationRaw]);
 
   const saveUtteranceText = useCallback((utteranceId: string, value: string, layerId?: string) => (

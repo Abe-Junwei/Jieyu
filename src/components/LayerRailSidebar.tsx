@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef, memo, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import type { LayerLinkDocType, TranslationLayerDocType } from '../db';
+import type { LayerLinkDocType, LayerDocType } from '../db';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
 import { COMMON_LANGUAGES, formatLayerRailLabel } from '../utils/transcriptionFormatters';
@@ -9,7 +9,6 @@ import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { useSpeakerRailContext } from '../contexts/SpeakerRailContext';
 import { LayerRailProvider } from '../contexts/LayerRailContext';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
-import { matchesLayerLink } from '../services/LayerIdBridgeService';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
 
@@ -17,15 +16,15 @@ interface LayerRailSidebarProps {
   isCollapsed: boolean;
   layerRailTab: 'layers' | 'links';
   onTabChange: (tab: 'layers' | 'links') => void;
-  layerRailRows: TranslationLayerDocType[];
+  layerRailRows: LayerDocType[];
   focusedLayerRowId: string;
   flashLayerRowId: string;
   onFocusLayer: (id: string) => void;
-  transcriptionLayers: TranslationLayerDocType[];
-  translationLayers: TranslationLayerDocType[];
+  transcriptionLayers: LayerDocType[];
+  translationLayers: LayerDocType[];
   layerLinks: LayerLinkDocType[];
   toggleLayerLink: (transcriptionKey: string, translationId: string) => Promise<void>;
-  deletableLayers: TranslationLayerDocType[];
+  deletableLayers: LayerDocType[];
   layerCreateMessage: string;
   layerAction: LayerActionResult;
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
@@ -308,7 +307,7 @@ export function LayerRailSidebar({
     });
   };
 
-  const handleDragStart = (e: React.MouseEvent, layer: TranslationLayerDocType) => {
+  const handleDragStart = (e: React.MouseEvent, layer: LayerDocType) => {
     // Long press (500ms) to start drag - use timer instead of mousedown/mouseup
     const timer = setTimeout(() => {
       const currentIndex = layerRailRows.findIndex((l) => l.id === layer.id);
@@ -606,7 +605,7 @@ export function LayerRailSidebar({
     onContextMenu,
     onMouseDown,
   }: {
-    layer: TranslationLayerDocType;
+    layer: LayerDocType;
     index: number;
     focusedLayerRowId: string;
     flashLayerRowId: string;
@@ -614,7 +613,7 @@ export function LayerRailSidebar({
     dropTargetIndex: number | null;
     onFocusLayer: (id: string) => void;
     onContextMenu: (e: React.MouseEvent, layerId: string) => void;
-    onMouseDown: (e: React.MouseEvent, layer: TranslationLayerDocType) => void;
+    onMouseDown: (e: React.MouseEvent, layer: LayerDocType) => void;
   }) {
     const layerLabel = formatLayerRailLabel(layer);
     const isActiveLayer = layer.id === focusedLayerRowId;
@@ -722,7 +721,7 @@ export function LayerRailSidebar({
                 {translationLayers.length > 0 ? (
                   translationLayers.map((trl) => {
                     const isLinked = layerLinks.some(
-                      (link) => matchesLayerLink(link, trc.key, trl.id),
+                      (link) => link.transcriptionLayerKey === trc.key && link.layerId === trl.id,
                     );
                     const trlLabel = formatLayerRailLabel(trl);
                     return (

@@ -75,7 +75,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       dexie: {
         utterance_texts: {
           where: (field: string) => {
-            if (field === 'tierId') {
+            if (field === 'layerId') {
               return {
                 equals: () => ({
                   toArray: mockUtteranceTextsWhereTierToArray,
@@ -178,7 +178,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     expect(mockLayerSegmentsDelete).toHaveBeenCalledTimes(1);
     expect(mockSegmentLinksBulkDelete).toHaveBeenCalledWith(['link_source', 'link_target']);
     expect(mockDeleteLayer).toHaveBeenCalledTimes(1);
-    expect(mockRemoveBySelectorUtteranceTexts).toHaveBeenCalledWith({ tierId: 'layer_trl_1' });
+    expect(mockRemoveBySelectorUtteranceTexts).toHaveBeenCalledWith({ layerId: 'layer_trl_1' });
     expect(mockRemoveUtterancesBatch).not.toHaveBeenCalled();
   });
 });

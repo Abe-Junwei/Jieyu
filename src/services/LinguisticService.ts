@@ -10,7 +10,7 @@ import {
   type TokenLexemeLinkDocType,
   type TokenLexemeLinkTargetType,
   type LexemeDocType,
-  type TranslationLayerDocType,
+  type LayerDocType,
   type UtteranceTextDocType,
   type TextDocType,
   type MediaItemDocType,
@@ -593,7 +593,7 @@ export class LinguisticService {
     const [utterancesAll, utteranceTextsAll, layersAll, tokensAll, morphemesAll, userNotesAll, anchorsAll] = await Promise.all([
       db.dexie.utterances.toArray(),
       db.dexie.utterance_texts.toArray(),
-      db.collections.translation_layers.find().exec().then((docs) => docs.map((doc) => doc.toJSON())),
+      db.collections.layers.find().exec().then((docs) => docs.map((doc) => doc.toJSON())),
       db.dexie.utterance_tokens.toArray(),
       db.dexie.utterance_morphemes.toArray(),
       db.dexie.user_notes.toArray(),
@@ -647,7 +647,7 @@ export class LinguisticService {
     for (const row of inScopeUtteranceTexts) {
       const text = row.text?.trim() ?? '';
       if (!text) continue;
-      const layerType = layerTypeById.get(row.tierId);
+      const layerType = layerTypeById.get(row.layerId);
       if (layerType === 'transcription') transcribedUttIds.add(row.utteranceId);
       if (layerType === 'translation') translatedUttIds.add(row.utteranceId);
     }
@@ -1146,26 +1146,26 @@ export class LinguisticService {
   }
 
   static async getTranslationLayers(
-    layerType?: TranslationLayerDocType['layerType'],
+    layerType?: LayerDocType['layerType'],
     textId?: string,
-  ): Promise<TranslationLayerDocType[]> {
+  ): Promise<LayerDocType[]> {
     const db = await getDb();
     if (textId) {
-      const docs = await db.collections.translation_layers.findByIndex('textId', textId);
+      const docs = await db.collections.layers.findByIndex('textId', textId);
       const layers = docs.map((doc) => doc.toJSON());
       return layerType ? layers.filter((l) => l.layerType === layerType) : layers;
     }
     if (layerType) {
-      const docs = await db.collections.translation_layers.findByIndex('layerType', layerType);
+      const docs = await db.collections.layers.findByIndex('layerType', layerType);
       return docs.map((doc) => doc.toJSON());
     }
-    const docs = await db.collections.translation_layers.find().exec();
+    const docs = await db.collections.layers.find().exec();
     return docs.map((doc) => doc.toJSON());
   }
 
-  static async saveTranslationLayer(data: TranslationLayerDocType): Promise<string> {
+  static async saveTranslationLayer(data: LayerDocType): Promise<string> {
     const db = await getDb();
-    const doc = await db.collections.translation_layers.insert(data);
+    const doc = await db.collections.layers.insert(data);
     return doc.primary;
   }
 
@@ -1181,7 +1181,7 @@ export class LinguisticService {
     if (utterance) {
       await syncUtteranceTextToSegmentationV2(db, utterance.toJSON() as UtteranceDocType, data);
     }
-    if (await isDefaultTranscriptionLayerForUtteranceText(db, data.utteranceId, data.tierId)) {
+    if (await isDefaultTranscriptionLayerForUtteranceText(db, data.utteranceId, data.layerId)) {
       await invalidateUtteranceEmbeddings(db, [data.utteranceId]);
     }
     return doc.primary;

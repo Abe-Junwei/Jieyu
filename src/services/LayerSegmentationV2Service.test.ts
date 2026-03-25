@@ -126,4 +126,97 @@ describe('LayerSegmentationV2Service', () => {
     expect(await db.layer_segments.get('seg_live')).toBeTruthy();
     expect(await db.segment_links.get('lnk_orphan')).toBeUndefined();
   });
+
+  // ── splitSegment tests ──
+
+  it('splits a segment at the given time', async () => {
+    const seg = makeSegment({ id: 'seg_split_1', startTime: 1.0, endTime: 3.0 });
+    await LayerSegmentationV2Service.createSegment(seg);
+
+    const { first, second } = await LayerSegmentationV2Service.splitSegment('seg_split_1', 2.0);
+
+    expect(first.startTime).toBe(1.0);
+    expect(first.endTime).toBe(2.0);
+    expect(second.startTime).toBe(2.0);
+    expect(second.endTime).toBe(3.0);
+    expect(second.id).not.toBe('seg_split_1');
+
+    // DB 验证 | Verify DB state
+    const dbFirst = await db.layer_segments.get('seg_split_1');
+    expect(dbFirst?.endTime).toBe(2.0);
+    const allSegs = await db.layer_segments.where('layerId').equals('layer_trc_cmn').toArray();
+    expect(allSegs).toHaveLength(2);
+  });
+
+  it('rejects split point too close to start boundary', async () => {
+    const seg = makeSegment({ id: 'seg_split_close_start', startTime: 1.0, endTime: 3.0 });
+    await LayerSegmentationV2Service.createSegment(seg);
+
+    await expect(
+      LayerSegmentationV2Service.splitSegment('seg_split_close_start', 1.02),
+    ).rejects.toThrow(/too close/);
+  });
+
+  it('rejects split point too close to end boundary', async () => {
+    const seg = makeSegment({ id: 'seg_split_close_end', startTime: 1.0, endTime: 3.0 });
+    await LayerSegmentationV2Service.createSegment(seg);
+
+    await expect(
+      LayerSegmentationV2Service.splitSegment('seg_split_close_end', 2.98),
+    ).rejects.toThrow(/too close/);
+  });
+
+  it('throws when splitting a non-existent segment', async () => {
+    await expect(
+      LayerSegmentationV2Service.splitSegment('seg_nonexistent', 1.5),
+    ).rejects.toThrow(/not found/);
+  });
+
+  // ── mergeAdjacentSegments tests ──
+
+  it('merges two adjacent segments', async () => {
+    const seg1 = makeSegment({ id: 'seg_merge_1', startTime: 1.0, endTime: 2.0 });
+    const seg2 = makeSegment({ id: 'seg_merge_2', startTime: 2.0, endTime: 3.5 });
+    await LayerSegmentationV2Service.createSegment(seg1);
+    await LayerSegmentationV2Service.createSegment(seg2);
+
+    const merged = await LayerSegmentationV2Service.mergeAdjacentSegments('seg_merge_1', 'seg_merge_2');
+
+    expect(merged.id).toBe('seg_merge_1');
+    expect(merged.startTime).toBe(1.0);
+    expect(merged.endTime).toBe(3.5);
+
+    // DB 验证 | Verify DB state
+    const kept = await db.layer_segments.get('seg_merge_1');
+    expect(kept?.startTime).toBe(1.0);
+    expect(kept?.endTime).toBe(3.5);
+    expect(await db.layer_segments.get('seg_merge_2')).toBeUndefined();
+  });
+
+  it('merge cascades deletion of removed segment contents and links', async () => {
+    const seg1 = makeSegment({ id: 'seg_mc_1', startTime: 1.0, endTime: 2.0 });
+    const seg2 = makeSegment({ id: 'seg_mc_2', startTime: 2.0, endTime: 3.0 });
+    await LayerSegmentationV2Service.createSegment(seg1);
+    await LayerSegmentationV2Service.createSegment(seg2);
+    await LayerSegmentationV2Service.upsertSegmentContent(
+      makeContent({ id: 'cnt_mc_2', segmentId: 'seg_mc_2', text: '被合并内容' }),
+    );
+    await LayerSegmentationV2Service.createSegmentLink(
+      makeLink({ id: 'lnk_mc_1', sourceSegmentId: 'seg_mc_2', targetSegmentId: 'seg_mc_1' }),
+    );
+
+    await LayerSegmentationV2Service.mergeAdjacentSegments('seg_mc_1', 'seg_mc_2');
+
+    expect(await db.layer_segment_contents.where('segmentId').equals('seg_mc_2').count()).toBe(0);
+    expect(await db.segment_links.where('sourceSegmentId').equals('seg_mc_2').count()).toBe(0);
+  });
+
+  it('throws when merging with a non-existent segment', async () => {
+    const seg = makeSegment({ id: 'seg_merge_exist', startTime: 1.0, endTime: 2.0 });
+    await LayerSegmentationV2Service.createSegment(seg);
+
+    await expect(
+      LayerSegmentationV2Service.mergeAdjacentSegments('seg_merge_exist', 'seg_ghost'),
+    ).rejects.toThrow(/not found/);
+  });
 });

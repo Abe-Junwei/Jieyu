@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { UtteranceDocType, TranslationLayerDocType } from '../db';
+import type { UtteranceDocType, LayerDocType } from '../db';
 import type { SaveState } from './useTranscriptionData';
 
 interface UseRecordingOptions {
-  saveVoiceTranslation: (blob: Blob, utterance: UtteranceDocType, layer: TranslationLayerDocType) => Promise<void>;
+  saveVoiceTranslation: (blob: Blob, utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>;
   setSaveState: (state: SaveState) => void;
   setSelectedUtteranceId: (id: string) => void;
   manualSelectTsRef: React.MutableRefObject<number>;
@@ -27,7 +27,7 @@ export function useRecording({
   const startRecordingForUtterance = useCallback(
     async (
       utterance: UtteranceDocType,
-      layer: TranslationLayerDocType,
+      layer: LayerDocType,
     ) => {
       const layerSupportsAudio =
         layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);

@@ -1,22 +1,21 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import type { LayerLinkDocType, TranslationLayerDocType } from '../db';
+import type { LayerLinkDocType, LayerDocType } from '../db';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { fireAndForget } from '../utils/fireAndForget';
 import { buildLayerLinkConnectorLayout, getLayerLinkStackWidth } from '../utils/layerLinkConnector';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
-import { toLayerLinkEdge } from '../services/LayerIdBridgeService';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
 interface TimelineLaneHeaderProps {
-  layer: TranslationLayerDocType;
+  layer: LayerDocType;
   layerIndex: number;
-  allLayers: TranslationLayerDocType[];
+  allLayers: LayerDocType[];
   transcriptionLayersCount: number;
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
-  deletableLayers: TranslationLayerDocType[];
+  deletableLayers: LayerDocType[];
   onFocusLayer: (layerId: string) => void;
-  renderLaneLabel: (layer: TranslationLayerDocType) => React.ReactNode;
+  renderLaneLabel: (layer: LayerDocType) => React.ReactNode;
   onLayerAction: (action: LayerActionType, layerId: string) => void;
   layerLinks?: LayerLinkDocType[];
   showConnectors?: boolean;
@@ -64,7 +63,7 @@ export function TimelineLaneHeader({
   trackModeControl,
 }: TimelineLaneHeaderProps) {
   const connectorLayerLinks = useMemo(
-    () => layerLinks.map((link) => toLayerLinkEdge(link)),
+    () => layerLinks.map((link) => ({ transcriptionLayerKey: link.transcriptionLayerKey, targetLayerId: link.layerId })),
     [layerLinks],
   );
   const connectorLayout = useMemo(

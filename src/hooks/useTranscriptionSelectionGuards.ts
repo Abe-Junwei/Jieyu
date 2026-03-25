@@ -1,14 +1,14 @@
 import { useEffect } from 'react';
 import type { MutableRefObject } from 'react';
-import type { TranslationLayerDocType } from '../db';
+import type { LayerDocType } from '../db';
 
 type Params = {
   selectedLayerId: string;
   setSelectedLayerId: (id: string) => void;
-  translationLayers: TranslationLayerDocType[];
+  translationLayers: LayerDocType[];
   layerToDeleteId: string;
   setLayerToDeleteId: (id: string) => void;
-  deletableLayers: TranslationLayerDocType[];
+  deletableLayers: LayerDocType[];
   selectedUtteranceId: string;
   setSelectedUtteranceIds: (ids: Set<string>) => void;
   selectedUtteranceIdsRef: MutableRefObject<Set<string>>;

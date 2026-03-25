@@ -1,6 +1,9 @@
 import { trimTextToMax } from './historyTrim';
 import type { AiPromptContext, AiSystemPersonaKey } from '../../hooks/useAiChat';
 
+// ─── Template constants ────────────────────────────────────────────────────────
+
+/** 系统提示词工具调用部分 */
 const AI_FUNCTION_CALLING_SYSTEM_PROMPT = [
   '你是语音标注工作流助手。',
   '当用户要求执行操作（如创建句段、写入转写、写入翻译）时，必须只返回 JSON。',
@@ -33,6 +36,7 @@ const AI_FUNCTION_CALLING_SYSTEM_PROMPT = [
   '如果用户不是在请求执行动作，则正常自然语言回复。',
 ].join('\n');
 
+/** Persona 定义 */
 const AI_SYSTEM_PERSONAS: Record<AiSystemPersonaKey, string> = {
   transcription: [
     '你当前扮演语音学与转写助手。',
@@ -48,6 +52,42 @@ const AI_SYSTEM_PERSONAS: Record<AiSystemPersonaKey, string> = {
   ].join('\n'),
 };
 
+/** Context block 的格式模板 */
+interface ContextFieldTemplate {
+  key: string;
+  render: (value: unknown) => string | null;
+}
+
+const SHORT_TERM_TEMPLATES: ContextFieldTemplate[] = [
+  { key: 'page', render: (v) => `page=${v}` },
+  { key: 'selectedUtteranceId', render: (v) => `selectedUtteranceId=${v}` },
+  { key: 'selectedUtteranceStartSec', render: (v) => Number.isFinite(v as number) ? `selectedUtteranceStartSec=${(v as number).toFixed(2)}` : null },
+  { key: 'selectedUtteranceEndSec', render: (v) => Number.isFinite(v as number) ? `selectedUtteranceEndSec=${(v as number).toFixed(2)}` : null },
+  { key: 'selectedLayerId', render: (v) => `selectedLayerId=${v}` },
+  { key: 'selectedLayerType', render: (v) => `selectedLayerType=${v}` },
+  { key: 'selectedTranslationLayerId', render: (v) => `selectedTranslationLayerId=${v}` },
+  { key: 'selectedTranscriptionLayerId', render: (v) => `selectedTranscriptionLayerId=${v}` },
+  { key: 'selectionTimeRange', render: (v) => `selectionTimeRange=${v}` },
+  { key: 'audioTimeSec', render: (v) => Number.isFinite(v as number) ? `audioTimeSec=${(v as number).toFixed(2)}` : null },
+  { key: 'selectedText', render: (v) => `selectedText=${v}` },
+  { key: 'recentEdits', render: (v) => `recentEdits=${(v as string[]).join(' | ')}` },
+];
+
+const LONG_TERM_TEMPLATES: ContextFieldTemplate[] = [
+  {
+    key: 'projectStats',
+    render: (v) => {
+      const s = v as { utteranceCount?: number; translationLayerCount?: number; aiConfidenceAvg?: number | null };
+      return `projectStats(utterances=${s.utteranceCount ?? 0}, translationLayers=${s.translationLayerCount ?? 0}, aiConfidenceAvg=${typeof s.aiConfidenceAvg === 'number' ? s.aiConfidenceAvg.toFixed(3) : 'n/a'})`;
+    },
+  },
+  { key: 'observerStage', render: (v) => `observerStage=${v}` },
+  { key: 'topLexemes', render: (v) => `topLexemes=${(v as string[]).join(', ')}` },
+  { key: 'recommendations', render: (v) => `recommendations=${(v as string[]).join(' | ')}` },
+];
+
+// ─── Context block builder ────────────────────────────────────────────────────
+
 export function buildPromptContextBlock(context: AiPromptContext | null | undefined, maxChars: number): string {
   if (!context) return '';
 
@@ -56,28 +96,23 @@ export function buildPromptContextBlock(context: AiPromptContext | null | undefi
   const short = context.shortTerm;
   const long = context.longTerm;
 
-  if (short?.page) shortLines.push(`page=${short.page}`);
-  if (short?.selectedUtteranceId) shortLines.push(`selectedUtteranceId=${short.selectedUtteranceId}`);
-  if (typeof short?.selectedUtteranceStartSec === 'number') shortLines.push(`selectedUtteranceStartSec=${short.selectedUtteranceStartSec.toFixed(2)}`);
-  if (typeof short?.selectedUtteranceEndSec === 'number') shortLines.push(`selectedUtteranceEndSec=${short.selectedUtteranceEndSec.toFixed(2)}`);
-  if (short?.selectedLayerId) shortLines.push(`selectedLayerId=${short.selectedLayerId}`);
-  if (short?.selectedLayerType) shortLines.push(`selectedLayerType=${short.selectedLayerType}`);
-  if (short?.selectedTranslationLayerId) shortLines.push(`selectedTranslationLayerId=${short.selectedTranslationLayerId}`);
-  if (short?.selectedTranscriptionLayerId) shortLines.push(`selectedTranscriptionLayerId=${short.selectedTranscriptionLayerId}`);
-  if (short?.selectionTimeRange) shortLines.push(`selectionTimeRange=${short.selectionTimeRange}`);
-  if (typeof short?.audioTimeSec === 'number') shortLines.push(`audioTimeSec=${short.audioTimeSec.toFixed(2)}`);
-  if (short?.selectedText) shortLines.push(`selectedText=${short.selectedText}`);
-  if (short?.recentEdits?.length) shortLines.push(`recentEdits=${short.recentEdits.join(' | ')}`);
-
-  if (long?.projectStats) {
-    const stats = long.projectStats;
-    longLines.push(
-      `projectStats(utterances=${stats.utteranceCount ?? 0}, translationLayers=${stats.translationLayerCount ?? 0}, aiConfidenceAvg=${typeof stats.aiConfidenceAvg === 'number' ? stats.aiConfidenceAvg.toFixed(3) : 'n/a'})`,
-    );
+  for (const tmpl of SHORT_TERM_TEMPLATES) {
+    if (short === undefined) break;
+    const val = (short as Record<string, unknown>)[tmpl.key];
+    if (val !== undefined) {
+      const rendered = tmpl.render(val);
+      if (rendered !== null) shortLines.push(rendered);
+    }
   }
-  if (long?.observerStage) longLines.push(`observerStage=${long.observerStage}`);
-  if (long?.topLexemes?.length) longLines.push(`topLexemes=${long.topLexemes.join(', ')}`);
-  if (long?.recommendations?.length) longLines.push(`recommendations=${long.recommendations.join(' | ')}`);
+
+  for (const tmpl of LONG_TERM_TEMPLATES) {
+    if (long === undefined) break;
+    const val = (long as Record<string, unknown>)[tmpl.key];
+    if (val !== undefined) {
+      const rendered = tmpl.render(val);
+      if (rendered !== null) longLines.push(rendered);
+    }
+  }
 
   if (shortLines.length === 0 && longLines.length === 0) return '';
 

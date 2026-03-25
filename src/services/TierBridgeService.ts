@@ -16,7 +16,7 @@
  */
 import {
   getDb,
-  type TranslationLayerDocType,
+  type LayerDocType,
   type TierDefinitionDocType,
 } from '../db';
 
@@ -29,7 +29,7 @@ export interface ConsistencyIssue {
 
 const TIER_KEY_PREFIX = 'bridge_';
 
-function tierKeyForLayer(layer: Pick<TranslationLayerDocType, 'key'>): string {
+function tierKeyForLayer(layer: Pick<LayerDocType, 'key'>): string {
   return `${TIER_KEY_PREFIX}${layer.key}`;
 }
 
@@ -38,7 +38,7 @@ function tierKeyForLayer(layer: Pick<TranslationLayerDocType, 'key'>): string {
  * 通过统一桥接入口删除对应 tier，避免上层重复拼接 key 逻辑 | Remove bridge tier via a single canonical boundary
  */
 export async function removeLayerTierBridge(
-  layer: Pick<TranslationLayerDocType, 'textId' | 'key'>,
+  layer: Pick<LayerDocType, 'textId' | 'key'>,
 ): Promise<number> {
   const db = await getDb();
   return db.collections.tier_definitions.removeBySelector({
@@ -52,7 +52,7 @@ export async function removeLayerTierBridge(
  * Creates one if missing; updates name/language if changed.
  */
 export async function syncLayerToTier(
-  layer: TranslationLayerDocType,
+  layer: LayerDocType,
   textId: string,
 ): Promise<TierDefinitionDocType> {
   const db = await getDb();
@@ -120,13 +120,13 @@ export async function syncLayerToTier(
  */
 export async function syncTierToLayer(
   tier: TierDefinitionDocType,
-): Promise<TranslationLayerDocType | null> {
+): Promise<LayerDocType | null> {
   if (!tier.key.startsWith(TIER_KEY_PREFIX)) return null;
 
   const db = await getDb();
   const layerKey = tier.key.slice(TIER_KEY_PREFIX.length);
 
-  const existingDoc = await db.collections.translation_layers
+  const existingDoc = await db.collections.layers
     .findOne({ selector: { textId: tier.textId, key: layerKey } }).exec();
   const existing = existingDoc?.toJSON();
 
@@ -139,14 +139,14 @@ export async function syncTierToLayer(
 
     if (needsUpdate) {
       const now = new Date().toISOString();
-      const updated: TranslationLayerDocType = {
+      const updated: LayerDocType = {
         ...existing,
         textId: tier.textId,
         languageId: tier.languageId ?? existing.languageId,
         name: tier.name,
         updatedAt: now,
       };
-      await db.collections.translation_layers.insert(updated);
+      await db.collections.layers.insert(updated);
       return updated;
     }
     return existing;
@@ -154,7 +154,7 @@ export async function syncTierToLayer(
 
   // Layer doesn't exist — create it
   const layerType = tier.contentType === 'transcription' ? 'transcription' : 'translation';
-  const newLayer: TranslationLayerDocType = {
+  const newLayer: LayerDocType = {
     id: tier.id,
     textId: tier.textId,
     key: layerKey,
@@ -169,7 +169,7 @@ export async function syncTierToLayer(
     createdAt: tier.createdAt,
     updatedAt: tier.updatedAt,
   };
-  await db.collections.translation_layers.insert(newLayer);
+  await db.collections.layers.insert(newLayer);
   return newLayer;
 }
 
@@ -183,7 +183,7 @@ export async function validateLayerTierConsistency(
   const db = await getDb();
   const issues: ConsistencyIssue[] = [];
 
-  const layerDocs = await db.collections.translation_layers.findByIndex('textId', textId);
+  const layerDocs = await db.collections.layers.findByIndex('textId', textId);
   const layers = layerDocs.map((d) => d.toJSON());
 
   const tierDocs = await db.collections.tier_definitions.findByIndex('textId', textId);

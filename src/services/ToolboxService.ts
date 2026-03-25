@@ -13,7 +13,7 @@
 
 import type {
   UtteranceDocType,
-  TranslationLayerDocType,
+  LayerDocType,
   UtteranceTextDocType,
   UtteranceTokenDocType,
   UtteranceMorphemeDocType,
@@ -21,7 +21,7 @@ import type {
 
 export interface ToolboxExportInput {
   utterances: UtteranceDocType[];
-  layers: TranslationLayerDocType[];
+  layers: LayerDocType[];
   translations: UtteranceTextDocType[];
   tokens?: UtteranceTokenDocType[];
   morphemes?: UtteranceMorphemeDocType[];
@@ -248,7 +248,7 @@ export function exportToToolbox(input: ToolboxExportInput): string {
   const transcriptionByUtteranceId = new Map<string, string>();
   if (defaultTranscriptionLayerId) {
     for (const t of translations) {
-      if (t.tierId === defaultTranscriptionLayerId && t.modality === 'text' && typeof t.text === 'string') {
+      if (t.layerId === defaultTranscriptionLayerId && t.modality === 'text' && typeof t.text === 'string') {
         transcriptionByUtteranceId.set(t.utteranceId, t.text);
       }
     }
@@ -264,7 +264,7 @@ export function exportToToolbox(input: ToolboxExportInput): string {
     const utteranceTokens = tokensByUtteranceId.get(u.id) ?? [];
     const markers = buildWordMarkers(utteranceTokens, morphemesByTokenId);
     const ft = firstTranslationLayerId
-      ? translations.find((t) => t.utteranceId === u.id && t.tierId === firstTranslationLayerId && t.modality === 'text')?.text ?? ''
+      ? translations.find((t) => t.utteranceId === u.id && t.layerId === firstTranslationLayerId && t.modality === 'text')?.text ?? ''
       : '';
 
     lines.push(`\\ref ${ref}`);

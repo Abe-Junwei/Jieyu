@@ -1,4 +1,4 @@
-import type { LayerLinkDocType, TranslationLayerDocType, UtteranceDocType } from '../db';
+import type { LayerLinkDocType, LayerDocType, UtteranceDocType } from '../db';
 import { useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
@@ -17,8 +17,8 @@ function normalizeSpeakerFocusKey(value: string | undefined): string {
 }
 
 type TranscriptionTimelineTextOnlyProps = {
-  transcriptionLayers: TranslationLayerDocType[];
-  translationLayers: TranslationLayerDocType[];
+  transcriptionLayers: LayerDocType[];
+  translationLayers: LayerDocType[];
   utterancesOnCurrentMedia: UtteranceDocType[];
   selectedUtteranceId: string;
   flashLayerRowId: string;
@@ -27,9 +27,9 @@ type TranscriptionTimelineTextOnlyProps = {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
   handleAnnotationClick: (uttId: string, uttStartTime: number, layerId: string, e: React.MouseEvent) => void;
   // TimelineLaneHeader props
-  allLayersOrdered: TranslationLayerDocType[];
+  allLayersOrdered: LayerDocType[];
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
-  deletableLayers: TranslationLayerDocType[];
+  deletableLayers: LayerDocType[];
   onFocusLayer: (layerId: string) => void;
   navigateUtteranceFromInput: (e: React.KeyboardEvent<HTMLInputElement>, direction: -1 | 1) => void;
   layerLinks?: LayerLinkDocType[];

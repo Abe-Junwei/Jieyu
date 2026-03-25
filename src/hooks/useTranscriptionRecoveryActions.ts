@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { getDb } from '../db';
-import type { TranslationLayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, UtteranceDocType } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 import {
   clearRecoverySnapshot,
@@ -100,11 +100,11 @@ export function useTranscriptionRecoveryActions({
         for (const l of data.layers) {
           const normalizedTextId = l.textId ?? recoveryTextId;
           if (!normalizedTextId) continue;
-          const normalizedLayer: TranslationLayerDocType = {
+          const normalizedLayer: LayerDocType = {
             ...l,
             textId: normalizedTextId,
           };
-          await db.collections.translation_layers.insert(normalizedLayer);
+          await db.collections.layers.insert(normalizedLayer);
         }
       });
 

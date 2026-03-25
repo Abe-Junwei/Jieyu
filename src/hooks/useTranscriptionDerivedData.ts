@@ -1,14 +1,13 @@
 import { useCallback, useMemo } from 'react';
 import type {
   MediaItemDocType,
-  TranslationLayerDocType,
+  LayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
-import { getUtteranceTextLayerId } from '../services/LayerIdBridgeService';
 
 type Params = {
-  layers: TranslationLayerDocType[];
+  layers: LayerDocType[];
   layerToDeleteId: string;
   selectedUtteranceId: string;
   selectedMediaId: string;
@@ -26,7 +25,7 @@ export function useTranscriptionDerivedData({
   utterances,
   translations,
 }: Params) {
-  const sortLayersByOrder = useCallback((items: TranslationLayerDocType[]) => (
+  const sortLayersByOrder = useCallback((items: LayerDocType[]) => (
     [...items].sort((a, b) => {
       const ao = a.sortOrder ?? 0;
       const bo = b.sortOrder ?? 0;
@@ -115,7 +114,7 @@ export function useTranscriptionDerivedData({
       )
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .forEach((item) => {
-        const layerId = getUtteranceTextLayerId(item);
+        const layerId = item.layerId;
         if (!outer.has(layerId)) {
           outer.set(layerId, new Map());
         }
@@ -129,7 +128,7 @@ export function useTranscriptionDerivedData({
   }, [translations]);
 
   const layerById = useMemo(() => {
-    const map = new Map<string, TranslationLayerDocType>();
+    const map = new Map<string, LayerDocType>();
     layers.forEach((layer) => {
       map.set(layer.id, layer);
     });

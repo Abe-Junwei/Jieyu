@@ -3,7 +3,7 @@ import type {
   AnchorDocType,
   LayerLinkDocType,
   MediaItemDocType,
-  TranslationLayerDocType,
+  LayerDocType,
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
@@ -14,8 +14,8 @@ import { useTranscriptionUtteranceActions } from './useTranscriptionUtteranceAct
 
 type Params = {
   defaultTranscriptionLayerId: string | undefined;
-  layerById: Map<string, TranslationLayerDocType>;
-  layers: TranslationLayerDocType[];
+  layerById: Map<string, LayerDocType>;
+  layers: LayerDocType[];
   layerLinks: LayerLinkDocType[];
   layerToDeleteId: string;
   selectedLayerId: string;
@@ -34,7 +34,7 @@ type Params = {
   pruneOrphanAnchors: (db: Awaited<ReturnType<typeof getDb>>, removedUtteranceIds: Set<string>) => Promise<void>;
   setSaveState: (s: SaveState) => void;
   setLayerCreateMessage: React.Dispatch<React.SetStateAction<string>>;
-  setLayers: React.Dispatch<React.SetStateAction<TranslationLayerDocType[]>>;
+  setLayers: React.Dispatch<React.SetStateAction<LayerDocType[]>>;
   setLayerLinks: React.Dispatch<React.SetStateAction<LayerLinkDocType[]>>;
   setLayerToDeleteId: React.Dispatch<React.SetStateAction<string>>;
   setShowLayerManager: React.Dispatch<React.SetStateAction<boolean>>;

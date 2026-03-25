@@ -10,7 +10,7 @@
 
 import type {
   UtteranceDocType,
-  TranslationLayerDocType,
+  LayerDocType,
   UtteranceTextDocType,
   UtteranceTokenDocType,
   UtteranceMorphemeDocType,
@@ -20,7 +20,7 @@ import type {
 
 export interface FlexExportInput {
   utterances: UtteranceDocType[];
-  layers: TranslationLayerDocType[];
+  layers: LayerDocType[];
   translations: UtteranceTextDocType[];
   tokens?: UtteranceTokenDocType[];
   morphemes?: UtteranceMorphemeDocType[];
@@ -96,7 +96,7 @@ export function exportToFlextext(input: FlexExportInput): string {
   const transcriptionByUtteranceId = new Map<string, string>();
   if (defaultTranscriptionLayerId) {
     for (const t of translations) {
-      if (t.tierId === defaultTranscriptionLayerId && t.modality === 'text' && typeof t.text === 'string') {
+      if (t.layerId === defaultTranscriptionLayerId && t.modality === 'text' && typeof t.text === 'string') {
         transcriptionByUtteranceId.set(t.utteranceId, t.text);
       }
     }
@@ -110,7 +110,7 @@ export function exportToFlextext(input: FlexExportInput): string {
       const phraseId = `p${i + 1}`;
       const txt = transcriptionByUtteranceId.get(u.id) ?? u.transcription?.default ?? '';
       const gls = firstTranslationLayerId
-        ? translations.find((t) => t.utteranceId === u.id && t.tierId === firstTranslationLayerId && t.modality === 'text')?.text ?? ''
+        ? translations.find((t) => t.utteranceId === u.id && t.layerId === firstTranslationLayerId && t.modality === 'text')?.text ?? ''
         : '';
 
       const utteranceTokens = tokensByUtteranceId.get(u.id) ?? [];

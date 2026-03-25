@@ -431,7 +431,15 @@ interface TagDefinitionDocType {
   createdAt: string;
 }
 
-interface TranslationLayerDocType {
+/**
+ * 层间边界约束（对齐 ELAN LINGUISTIC_TYPE.CONSTRAINTS）| Layer boundary constraint (aligned with ELAN LINGUISTIC_TYPE.CONSTRAINTS)
+ * - 'symbolic_association': 继承父层边界 1:1（默认，翻译层） | Inherit parent boundaries 1:1 (default, translation)
+ * - 'none': 完全独立边界，由 layer_segments 存储 | Fully independent boundaries stored in layer_segments
+ * - 'time_subdivision': 在父段时间范围内自由细分（Phase 2）| Free subdivision within parent segment time range (Phase 2)
+ */
+type LayerConstraint = 'symbolic_association' | 'none' | 'time_subdivision';
+
+interface LayerDocType {
   id: string;
   textId: string;
   key: string;
@@ -442,6 +450,10 @@ interface TranslationLayerDocType {
   acceptsAudio?: boolean;
   isDefault?: boolean;
   sortOrder?: number;
+  /** 边界约束类型（默认 'symbolic_association'）| Boundary constraint type (default 'symbolic_association') */
+  constraint?: LayerConstraint;
+  /** 父层 ID（constraint 为 symbolic_association / time_subdivision 时必填）| Parent layer ID (required for symbolic_association / time_subdivision) */
+  parentLayerId?: string;
   accessRights?: 'open' | 'restricted' | 'confidential';
   createdAt: string;
   updatedAt: string;
@@ -450,7 +462,7 @@ interface TranslationLayerDocType {
 interface UtteranceTextDocType {
   id: string;
   utteranceId: string;
-  tierId: string;
+  layerId: string;
   modality: 'text' | 'audio' | 'mixed';
   text?: string;
   translationAudioMediaId?: string;
@@ -472,6 +484,8 @@ interface LayerSegmentDocType {
   textId: string;
   mediaId: string;
   layerId: string;
+  /** 所属 utterance（v25 显式字段，替代 ID 后缀解析） | Owner utterance (v25 explicit field, replaces ID suffix parsing) */
+  utteranceId?: string;
   startTime: number;
   endTime: number;
   startAnchorId?: string;
@@ -519,7 +533,7 @@ interface SegmentLinkDocType {
 interface LayerLinkDocType {
   id: string;
   transcriptionLayerKey: string;
-  tierId: string;
+  layerId: string;
   linkType: 'direct' | 'free' | 'literal' | 'pedagogical';
   isPreferred: boolean;
   createdAt: string;
@@ -627,6 +641,15 @@ interface UserNoteDocType {
   category?: NoteCategory;
   provenance?: ProvenanceEnvelope;
   createdAt: string;
+  updatedAt: string;
+}
+
+interface TrackEntityDocType {
+  id: string;
+  textId: string;
+  mediaId: string;
+  mode: 'single' | 'multi-auto' | 'multi-locked';
+  laneLockMap: Record<string, number>;
   updatedAt: string;
 }
 
@@ -1003,6 +1026,8 @@ const tagDefinitionDocSchema = z.object({
   createdAt: isoDateSchema,
 });
 
+const layerConstraintSchema = z.enum(['symbolic_association', 'none', 'time_subdivision']);
+
 const translationLayerDocSchema = z.object({
   id: z.string().min(1),
   textId: z.string().min(1),
@@ -1014,6 +1039,8 @@ const translationLayerDocSchema = z.object({
   acceptsAudio: z.boolean().optional(),
   isDefault: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
+  constraint: layerConstraintSchema.optional(),
+  parentLayerId: z.string().optional(),
   accessRights: accessRightsSchema.optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
@@ -1022,7 +1049,7 @@ const translationLayerDocSchema = z.object({
 const utteranceTextDocSchema = z.object({
   id: z.string().min(1),
   utteranceId: z.string().min(1),
-  tierId: z.string().min(1),
+  layerId: z.string().min(1),
   modality: z.enum(['text', 'audio', 'mixed']),
   text: z.string().optional(),
   translationAudioMediaId: z.string().optional(),
@@ -1163,7 +1190,7 @@ const auditLogDocSchema = z.object({
 const layerLinkDocSchema = z.object({
   id: z.string().min(1),
   transcriptionLayerKey: z.string().min(1),
-  tierId: z.string().min(1),
+  layerId: z.string().min(1),
   linkType: z.enum(['direct', 'free', 'literal', 'pedagogical']),
   isPreferred: z.boolean(),
   createdAt: isoDateSchema,
@@ -1281,7 +1308,7 @@ function validateTagDefinitionDoc(doc: TagDefinitionDocType): void {
   tagDefinitionDocSchema.parse(doc);
 }
 
-function validateTranslationLayerDoc(doc: TranslationLayerDocType): void {
+function validateLayerDoc(doc: LayerDocType): void {
   translationLayerDocSchema.parse(doc);
 }
 
@@ -1319,6 +1346,21 @@ function validateAuditLogDoc(doc: AuditLogDocType): void {
 
 function validateUserNoteDoc(doc: UserNoteDocType): void {
   userNoteDocSchema.parse(doc);
+}
+
+// ─── Track entity doc (per-media track display state) ─────────────────────────
+
+const trackEntityDocSchema = z.object({
+  id: z.string().min(1),
+  textId: z.string().min(1),
+  mediaId: z.string().min(1),
+  mode: z.enum(['single', 'multi-auto', 'multi-locked']),
+  laneLockMap: z.record(z.string(), z.number().int().min(0)),
+  updatedAt: isoDateSchema,
+});
+
+function validateTrackEntityDoc(doc: TrackEntityDocType): void {
+  trackEntityDocSchema.parse(doc);
 }
 
 class DexieCollectionAdapter<T extends { id: string }> {
@@ -1417,8 +1459,29 @@ function isBridgeLayerTier(tier: TierDefinitionDocType): boolean {
     && (tier.contentType === 'transcription' || tier.contentType === 'translation');
 }
 
-function bridgeTierToLayer(tier: TierDefinitionDocType): TranslationLayerDocType | null {
+/** tier.tierType → LayerConstraint 映射 | Map TierType to LayerConstraint */
+function tierTypeToConstraint(tierType: TierType): LayerConstraint | undefined {
+  switch (tierType) {
+    case 'symbolic-association': return 'symbolic_association';
+    case 'time-subdivision': return 'time_subdivision';
+    case 'time-aligned': return 'none';
+    default: return undefined;
+  }
+}
+
+/** LayerConstraint → TierType 映射 | Map LayerConstraint to TierType */
+function constraintToTierType(constraint: LayerConstraint | undefined): TierType {
+  switch (constraint) {
+    case 'none': return 'time-aligned';
+    case 'time_subdivision': return 'time-subdivision';
+    case 'symbolic_association': return 'symbolic-association';
+    default: return 'time-aligned';
+  }
+}
+
+function bridgeTierToLayer(tier: TierDefinitionDocType): LayerDocType | null {
   if (!isBridgeLayerTier(tier)) return null;
+  const constraint = tierTypeToConstraint(tier.tierType);
   return {
     id: tier.id,
     textId: tier.textId,
@@ -1430,19 +1493,21 @@ function bridgeTierToLayer(tier: TierDefinitionDocType): TranslationLayerDocType
     ...(tier.acceptsAudio !== undefined && { acceptsAudio: tier.acceptsAudio }),
     ...(tier.isDefault !== undefined && { isDefault: tier.isDefault }),
     ...(tier.sortOrder !== undefined && { sortOrder: tier.sortOrder }),
+    ...(constraint !== undefined && { constraint }),
+    ...(tier.parentTierId !== undefined && { parentLayerId: tier.parentTierId }),
     ...(tier.accessRights !== undefined && { accessRights: tier.accessRights }),
     createdAt: tier.createdAt,
     updatedAt: tier.updatedAt,
   };
 }
 
-function layerToBridgeTier(layer: TranslationLayerDocType): TierDefinitionDocType {
+function layerToBridgeTier(layer: LayerDocType): TierDefinitionDocType {
   return {
     id: layer.id,
     textId: layer.textId,
     key: `${BRIDGE_TIER_PREFIX}${layer.key}`,
     name: layer.name,
-    tierType: 'time-aligned',
+    tierType: constraintToTierType(layer.constraint),
     languageId: layer.languageId,
     contentType: layer.layerType,
     modality: layer.modality,
@@ -1450,50 +1515,51 @@ function layerToBridgeTier(layer: TranslationLayerDocType): TierDefinitionDocTyp
     ...(layer.isDefault !== undefined && { isDefault: layer.isDefault }),
     ...(layer.accessRights !== undefined && { accessRights: layer.accessRights }),
     ...(layer.sortOrder !== undefined && { sortOrder: layer.sortOrder }),
+    ...(layer.parentLayerId !== undefined && { parentTierId: layer.parentLayerId }),
     createdAt: layer.createdAt,
     updatedAt: layer.updatedAt,
   };
 }
 
-class TierBackedLayerCollectionAdapter implements CollectionAdapter<TranslationLayerDocType> {
+class TierBackedLayerCollectionAdapter implements CollectionAdapter<LayerDocType> {
   constructor(
     private readonly tierTable: Table<TierDefinitionDocType, string>,
-    private readonly validate?: (doc: TranslationLayerDocType) => void,
+    private readonly validate?: (doc: LayerDocType) => void,
   ) {}
 
-  private async loadLayers(): Promise<TranslationLayerDocType[]> {
+  private async loadLayers(): Promise<LayerDocType[]> {
     const tiers = await this.tierTable.toArray();
     return tiers
       .map((tier) => bridgeTierToLayer(tier))
-      .filter((layer): layer is TranslationLayerDocType => Boolean(layer));
+      .filter((layer): layer is LayerDocType => Boolean(layer));
   }
 
   find() {
     return {
-      exec: async (): Promise<Array<JieyuDoc<TranslationLayerDocType>>> => {
+      exec: async (): Promise<Array<JieyuDoc<LayerDocType>>> => {
         const rows = await this.loadLayers();
         return rows.map((row) => wrapDoc(row));
       },
     };
   }
 
-  findOne(args: { selector: Selector<TranslationLayerDocType> }) {
+  findOne(args: { selector: Selector<LayerDocType> }) {
     return {
-      exec: async (): Promise<JieyuDoc<TranslationLayerDocType> | null> => {
+      exec: async (): Promise<JieyuDoc<LayerDocType> | null> => {
         const rows = await this.loadLayers();
-        const entries = Object.entries(args.selector) as Array<[keyof TranslationLayerDocType, unknown]>;
+        const entries = Object.entries(args.selector) as Array<[keyof LayerDocType, unknown]>;
         const found = rows.find((row) => entries.every(([key, expected]) => row[key] === expected));
         return found ? wrapDoc(found) : null;
       },
     };
   }
 
-  async findByIndex(indexName: string, value: string | number): Promise<Array<JieyuDoc<TranslationLayerDocType>>> {
+  async findByIndex(indexName: string, value: string | number): Promise<Array<JieyuDoc<LayerDocType>>> {
     if (indexName === 'textId') {
       const rows = await this.tierTable.where('textId').equals(String(value)).toArray();
       return rows
         .map((row) => bridgeTierToLayer(row))
-        .filter((row): row is TranslationLayerDocType => Boolean(row))
+        .filter((row): row is LayerDocType => Boolean(row))
         .map((row) => wrapDoc(row));
     }
 
@@ -1503,8 +1569,8 @@ class TierBackedLayerCollectionAdapter implements CollectionAdapter<TranslationL
       .map((row) => wrapDoc(row));
   }
 
-  async findByIndexAnyOf(indexName: string, values: readonly (string | number)[]): Promise<Array<JieyuDoc<TranslationLayerDocType>>> {
-    const collected: TranslationLayerDocType[] = [];
+  async findByIndexAnyOf(indexName: string, values: readonly (string | number)[]): Promise<Array<JieyuDoc<LayerDocType>>> {
+    const collected: LayerDocType[] = [];
     for (const value of values) {
       const docs = await this.findByIndex(indexName, value);
       collected.push(...docs.map((doc) => doc.toJSON()));
@@ -1513,7 +1579,7 @@ class TierBackedLayerCollectionAdapter implements CollectionAdapter<TranslationL
     return [...dedup.values()].map((row) => wrapDoc(row));
   }
 
-  async insert(doc: TranslationLayerDocType): Promise<JieyuDoc<TranslationLayerDocType>> {
+  async insert(doc: LayerDocType): Promise<JieyuDoc<LayerDocType>> {
     if (this.validate) this.validate(doc);
     await this.tierTable.put(layerToBridgeTier(doc));
     return wrapDoc(doc);
@@ -1523,16 +1589,16 @@ class TierBackedLayerCollectionAdapter implements CollectionAdapter<TranslationL
     await this.tierTable.delete(id);
   }
 
-  async bulkInsert(docs: TranslationLayerDocType[]): Promise<void> {
+  async bulkInsert(docs: LayerDocType[]): Promise<void> {
     if (this.validate) {
       for (const doc of docs) this.validate(doc);
     }
     await this.tierTable.bulkPut(docs.map((doc) => layerToBridgeTier(doc)));
   }
 
-  async removeBySelector(selector: Selector<TranslationLayerDocType>): Promise<number> {
+  async removeBySelector(selector: Selector<LayerDocType>): Promise<number> {
     const rows = await this.loadLayers();
-    const entries = Object.entries(selector) as Array<[keyof TranslationLayerDocType, unknown]>;
+    const entries = Object.entries(selector) as Array<[keyof LayerDocType, unknown]>;
     const ids = rows
       .filter((row) => entries.every(([key, expected]) => row[key] === expected))
       .map((row) => row.id);
@@ -1541,7 +1607,7 @@ class TierBackedLayerCollectionAdapter implements CollectionAdapter<TranslationL
     return ids.length;
   }
 
-  async update(id: string, changes: Partial<TranslationLayerDocType>): Promise<void> {
+  async update(id: string, changes: Partial<LayerDocType>): Promise<void> {
     const existingTier = await this.tierTable.get(id);
     if (!existingTier) return;
     // Apply only the fields that exist in TierDefinitionDocType
@@ -1554,6 +1620,8 @@ class TierBackedLayerCollectionAdapter implements CollectionAdapter<TranslationL
       ...(changes.isDefault !== undefined ? { isDefault: changes.isDefault } : {}),
       ...(changes.sortOrder !== undefined ? { sortOrder: changes.sortOrder } : {}),
       ...(changes.accessRights !== undefined ? { accessRights: changes.accessRights } : {}),
+      ...(changes.constraint !== undefined ? { tierType: constraintToTierType(changes.constraint) } : {}),
+      ...(changes.parentLayerId !== undefined ? { parentTierId: changes.parentLayerId } : {}),
       updatedAt: new Date().toISOString(),
     };
     await this.tierTable.put(updatedTier);
@@ -1582,7 +1650,7 @@ type JieyuCollections = {
   abbreviations: CollectionAdapter<AbbreviationDocType>;
   phonemes: CollectionAdapter<PhonemeDocType>;
   tag_definitions: CollectionAdapter<TagDefinitionDocType>;
-  translation_layers: CollectionAdapter<TranslationLayerDocType>;
+  layers: CollectionAdapter<LayerDocType>;
   utterance_texts: CollectionAdapter<UtteranceTextDocType>;
   layer_segments: CollectionAdapter<LayerSegmentDocType>;
   layer_segment_contents: CollectionAdapter<LayerSegmentContentDocType>;
@@ -1592,6 +1660,7 @@ type JieyuCollections = {
   tier_annotations: CollectionAdapter<TierAnnotationDocType>;
   audit_logs: CollectionAdapter<AuditLogDocType>;
   user_notes: CollectionAdapter<UserNoteDocType>;
+  track_entities: CollectionAdapter<TrackEntityDocType>;
 };
 
 type JieyuDatabase = {
@@ -1683,6 +1752,7 @@ function buildSegmentationV2BackfillRows(input: {
       textId: utterance.textId,
       mediaId: utterance.mediaId && utterance.mediaId.trim().length > 0 ? utterance.mediaId : '__unknown_media__',
       layerId,
+      utteranceId: utterance.id,
       startTime: utterance.startTime,
       endTime: utterance.endTime,
       ...(utterance.startAnchorId ? { startAnchorId: utterance.startAnchorId } : {}),
@@ -1706,18 +1776,23 @@ function buildSegmentationV2BackfillRows(input: {
     ensureSegment(utterance, baseLayerId);
   }
 
+  // v22 迁移数据可能仍含 tierId 而非 layerId | v22 migration data may still have tierId instead of layerId
+  const getRowLayerId = (row: UtteranceTextDocType): string =>
+    ((row as unknown as Record<string, unknown>).tierId as string | undefined) ?? row.layerId;
+
   for (const row of utteranceTexts) {
     const utterance = utteranceById.get(row.utteranceId);
     if (!utterance) continue;
 
-    const targetSegment = ensureSegment(utterance, row.tierId);
+    const rowLayerId = getRowLayerId(row);
+    const targetSegment = ensureSegment(utterance, rowLayerId);
     const contentId = buildContentId(row.id);
 
     contentById.set(contentId, {
       id: contentId,
       textId: utterance.textId,
       segmentId: targetSegment.id,
-      layerId: row.tierId,
+      layerId: rowLayerId,
       modality: row.modality,
       ...(row.text !== undefined ? { text: row.text } : {}),
       ...(row.translationAudioMediaId ? { translationAudioMediaId: row.translationAudioMediaId } : {}),
@@ -1730,17 +1805,17 @@ function buildSegmentationV2BackfillRows(input: {
     });
 
     const baseLayerId = transcriptionTierByTextId.get(utterance.textId);
-    if (!baseLayerId || baseLayerId === row.tierId) continue;
+    if (!baseLayerId || baseLayerId === rowLayerId) continue;
 
     const sourceSegmentId = buildSegmentId(baseLayerId, utterance.id);
-    const linkId = buildLinkId(row.tierId, utterance.id);
+    const linkId = buildLinkId(rowLayerId, utterance.id);
     linkById.set(linkId, {
       id: linkId,
       textId: utterance.textId,
       sourceSegmentId,
       targetSegmentId: targetSegment.id,
       sourceLayerId: baseLayerId,
-      targetLayerId: row.tierId,
+      targetLayerId: rowLayerId,
       utteranceId: utterance.id,
       linkType: 'bridge',
       provenance: {
@@ -1792,6 +1867,7 @@ class JieyuDexie extends Dexie {
   tier_annotations!: Table<TierAnnotationDocType, string>;
   audit_logs!: Table<AuditLogDocType, string>;
   user_notes!: Table<UserNoteDocType, string>;
+  track_entities!: Table<TrackEntityDocType, string>;
 
   constructor(name: string) {
     super(name);
@@ -1992,7 +2068,7 @@ class JieyuDexie extends Dexie {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const typedTx = tx as any;
       const layersTable = typedTx.table('translation_layers');
-      const allLayers = (await layersTable.toArray()) as TranslationLayerDocType[];
+      const allLayers = (await layersTable.toArray()) as LayerDocType[];
       if (allLayers.length === 0) return;
 
       // Find textId from utterances or texts
@@ -2023,7 +2099,7 @@ class JieyuDexie extends Dexie {
       const tiersTable = typedTx.table('tier_definitions');
       const annotationsTable = typedTx.table('tier_annotations');
 
-      const layers: TranslationLayerDocType[] = await layersTable.toArray();
+      const layers: LayerDocType[] = await layersTable.toArray();
       if (layers.length === 0) return;
 
       for (const layer of layers) {
@@ -2296,6 +2372,121 @@ class JieyuDexie extends Dexie {
     this.version(23).stores({
       segment_links: 'id, textId, sourceSegmentId, targetSegmentId, sourceLayerId, targetLayerId, [sourceSegmentId+targetSegmentId], linkType, utteranceId',
     });
+
+    // v24: rename utterance_texts.tierId → layerId, layer_links.tierId → layerId
+    // 统一字段命名为 layerId，消除历史 tier/layer 混用 | Unify field naming to layerId, eliminating legacy tier/layer ambiguity
+    this.version(24).stores({
+      utterance_texts: 'id, utteranceId, layerId, [utteranceId+layerId], updatedAt',
+      layer_links: 'id, transcriptionLayerKey, layerId',
+    }).upgrade(async (tx: unknown) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const typedTx = tx as any;
+
+      const utteranceTextsTable = typedTx.table('utterance_texts');
+      await utteranceTextsTable.toCollection().modify((row: Record<string, unknown>) => {
+        if ('tierId' in row) {
+          row.layerId = row.tierId;
+          delete row.tierId;
+        }
+      });
+
+      const layerLinksTable = typedTx.table('layer_links');
+      await layerLinksTable.toCollection().modify((row: Record<string, unknown>) => {
+        if ('tierId' in row) {
+          row.layerId = row.tierId;
+          delete row.tierId;
+        }
+      });
+    });
+
+    // v25: 为 layer_segments 添加 utteranceId 索引，消除 removeUtteranceCascade 全表扫描
+    // Add utteranceId index to layer_segments, eliminating full table scan in removeUtteranceCascade
+    this.version(25).stores({
+      layer_segments: 'id, textId, mediaId, layerId, utteranceId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [textId+layerId]',
+    }).upgrade(async (tx: unknown) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const typedTx = tx as any;
+      const layerSegmentsTable = typedTx.table('layer_segments');
+
+      const prefixes = ['segv2_', 'segv22_'];
+      await layerSegmentsTable.toCollection().modify((row: Record<string, unknown>) => {
+        if (row.utteranceId) return; // 已有则跳过 | Skip if already present
+        const segmentId = row.id as string;
+        const layerId = row.layerId as string;
+        for (const prefix of prefixes) {
+          const expected = `${prefix}${layerId}_`;
+          if (segmentId.startsWith(expected)) {
+            const value = segmentId.slice(expected.length).trim();
+            if (value.length > 0) {
+              row.utteranceId = value;
+              return;
+            }
+          }
+        }
+      });
+    });
+
+    // v26: track_entities — per-media track display state persisted to DB.
+    // Migration: read from LocalStorage (v1 PoC), write to DB, then clear LocalStorage.
+    this.version(26).stores({
+      track_entities: 'id, textId, mediaId, [textId+mediaId]',
+    }).upgrade(async (tx: unknown) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const typedTx = tx as any;
+      const trackEntitiesTable = typedTx.table('track_entities');
+
+      // Read v1 LocalStorage data
+      const STORAGE_KEY = 'jieyu:track-entity-state:v1';
+      let localData: Record<string, unknown> = {};
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) localData = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        // ignore parse errors
+      }
+
+      if (Object.keys(localData).length === 0) return;
+
+      const now = new Date().toISOString();
+      const toInsert: TrackEntityDocType[] = [];
+
+      for (const [mediaId, value] of Object.entries(localData)) {
+        if (!value || typeof value !== 'object') continue;
+        const row = value as Record<string, unknown>;
+
+        // textId is unknown at this level — use '__unknown__' as placeholder;
+        // consumers that have a textId scope will filter accordingly.
+        const textId = '__unknown__';
+        const laneLockMap: Record<string, number> = {};
+        if (row.laneLockMap && typeof row.laneLockMap === 'object') {
+          for (const [k, v] of Object.entries(row.laneLockMap as Record<string, unknown>)) {
+            if (Number.isInteger(v) && (v as number) >= 0) {
+              laneLockMap[k] = v as number;
+            }
+          }
+        }
+
+        const mode = (row.mode === 'multi-auto' || row.mode === 'multi-locked')
+          ? (row.mode as 'single' | 'multi-auto' | 'multi-locked')
+          : 'single';
+
+        toInsert.push({
+          id: `track_${mediaId}`,
+          textId,
+          mediaId,
+          mode,
+          laneLockMap,
+          updatedAt: typeof row.updatedAt === 'string' ? row.updatedAt : now,
+        });
+      }
+
+      if (toInsert.length > 0) {
+        await trackEntitiesTable.bulkPut(toInsert);
+      }
+
+      // Clear LocalStorage after successful migration
+      localStorage.removeItem(STORAGE_KEY);
+    });
   }
 }
 
@@ -2353,9 +2544,9 @@ async function _createDb(): Promise<JieyuDatabase> {
       dexie.tag_definitions,
       validateTagDefinitionDoc,
     ),
-    translation_layers: new TierBackedLayerCollectionAdapter(
+    layers: new TierBackedLayerCollectionAdapter(
       dexie.tier_definitions,
-      validateTranslationLayerDoc,
+      validateLayerDoc,
     ),
     utterance_texts: new DexieCollectionAdapter(
       dexie.utterance_texts,
@@ -2378,6 +2569,7 @@ async function _createDb(): Promise<JieyuDatabase> {
     tier_annotations: new DexieCollectionAdapter(dexie.tier_annotations, validateTierAnnotationDoc),
     audit_logs: new DexieCollectionAdapter(dexie.audit_logs, validateAuditLogDoc),
     user_notes: new DexieCollectionAdapter(dexie.user_notes, validateUserNoteDoc),
+    track_entities: new DexieCollectionAdapter(dexie.track_entities, validateTrackEntityDoc),
   };
 
   return {
@@ -2494,7 +2686,7 @@ const knownCollectionNames = [
   'abbreviations',
   'phonemes',
   'tag_definitions',
-  'translation_layers',
+  'layers',
   'utterance_texts',
   'layer_segments',
   'layer_segment_contents',
@@ -2504,6 +2696,7 @@ const knownCollectionNames = [
   'tier_annotations',
   'audit_logs',
   'user_notes',
+  'track_entities',
 ] as const;
 
 type KnownCollectionName = (typeof knownCollectionNames)[number];
@@ -2539,6 +2732,7 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   tier_annotations: db.tier_annotations,
   audit_logs: db.audit_logs,
   user_notes: db.user_notes,
+  track_entities: db.track_entities,
 };
 
 const validatorByCollection: Record<KnownCollectionName, (value: unknown) => void> = {
@@ -2563,7 +2757,7 @@ const validatorByCollection: Record<KnownCollectionName, (value: unknown) => voi
   abbreviations: (value) => validateAbbreviationDoc(value as AbbreviationDocType),
   phonemes: (value) => validatePhonemeDoc(value as PhonemeDocType),
   tag_definitions: (value) => validateTagDefinitionDoc(value as TagDefinitionDocType),
-  translation_layers: (value) => validateTranslationLayerDoc(value as TranslationLayerDocType),
+  layers: (value) => validateLayerDoc(value as LayerDocType),
   utterance_texts: (value) =>
     validateUtteranceTextDoc(value as UtteranceTextDocType),
   layer_segments: (value) => validateLayerSegmentDoc(value as LayerSegmentDocType),
@@ -2575,6 +2769,7 @@ const validatorByCollection: Record<KnownCollectionName, (value: unknown) => voi
   tier_annotations: (value) => validateTierAnnotationDoc(value as TierAnnotationDocType),
   audit_logs: (value) => validateAuditLogDoc(value as AuditLogDocType),
   user_notes: (value) => validateUserNoteDoc(value as UserNoteDocType),
+  track_entities: (value) => validateTrackEntityDoc(value as TrackEntityDocType),
 };
 
 function ensureImportProvenance<T extends { provenance?: ProvenanceEnvelope; createdAt?: string }>(
@@ -2641,6 +2836,8 @@ function normalizeImportedDoc(collectionName: KnownCollectionName, doc: unknown,
       return ensureImportProvenance(doc as TierAnnotationDocType, fallbackCreatedAt);
     case 'user_notes':
       return ensureImportProvenance(doc as UserNoteDocType, fallbackCreatedAt);
+    case 'track_entities':
+      return doc;
     case 'lexemes':
       return ensureImportProvenance(doc as LexemeDocType, fallbackCreatedAt);
     case 'token_lexeme_links':
@@ -2732,8 +2929,8 @@ export async function importDatabaseFromJson(
     }
 
     const collectionName = name as KnownCollectionName;
-    if (collectionName === 'translation_layers') {
-      const collection = (await getDb()).collections.translation_layers;
+    if (collectionName === 'layers') {
+      const collection = (await getDb()).collections.layers;
       let written = 0;
       let skipped = 0;
 
@@ -2755,7 +2952,7 @@ export async function importDatabaseFromJson(
       }
 
       if (strategy === 'skip-existing') {
-        for (const doc of normalizedDocs as TranslationLayerDocType[]) {
+        for (const doc of normalizedDocs as LayerDocType[]) {
           const existing = await collection.findOne({ selector: { id: doc.id } }).exec();
           if (existing) {
             skipped += 1;
@@ -2765,7 +2962,7 @@ export async function importDatabaseFromJson(
           written += 1;
         }
       } else {
-        for (const doc of normalizedDocs as TranslationLayerDocType[]) {
+        for (const doc of normalizedDocs as LayerDocType[]) {
           await collection.insert(doc);
           written += 1;
         }
@@ -2872,7 +3069,8 @@ export type {
   AbbreviationDocType,
   PhonemeDocType,
   TagDefinitionDocType,
-  TranslationLayerDocType,
+  LayerDocType,
+  LayerConstraint,
   UtteranceTextDocType,
   LayerSegmentDocType,
   LayerSegmentContentDocType,
@@ -2886,6 +3084,7 @@ export type {
   TierContentType,
   AuditLogDocType,
   UserNoteDocType,
+  TrackEntityDocType,
   NoteTargetType,
   NoteCategory,
   AuditAction,

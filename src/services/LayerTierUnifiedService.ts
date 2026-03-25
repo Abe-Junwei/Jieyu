@@ -1,4 +1,4 @@
-import { getDb, type TranslationLayerDocType } from '../db';
+import { getDb, type LayerDocType } from '../db';
 import { removeLayerTierBridge, syncLayerToTier } from './TierBridgeService';
 
 /**
@@ -6,28 +6,30 @@ import { removeLayerTierBridge, syncLayerToTier } from './TierBridgeService';
  * Stage-1 goal: centralize cross-table write paths to prevent drift.
  */
 export class LayerTierUnifiedService {
-  static async createLayer(layer: TranslationLayerDocType): Promise<void> {
+  static async createLayer(layer: LayerDocType): Promise<void> {
     const db = await getDb();
-    await db.collections.translation_layers.insert(layer);
+    await db.collections.layers.insert(layer);
     await syncLayerToTier(layer, layer.textId);
   }
 
-  static async deleteLayer(layer: Pick<TranslationLayerDocType, 'id' | 'textId' | 'key'>): Promise<void> {
+  static async deleteLayer(layer: Pick<LayerDocType, 'id' | 'textId' | 'key'>): Promise<void> {
     const db = await getDb();
-    await db.collections.translation_layers.remove(layer.id);
+    await db.collections.layers.remove(layer.id);
     await removeLayerTierBridge(layer);
+    // 清理关联的 layer_links，防止孤立记录 | Clean up associated layer_links to prevent orphans
+    await db.collections.layer_links.removeBySelector({ layerId: layer.id });
   }
 
-  static async updateLayerSortOrder(layerId: string, sortOrder: number): Promise<void> {
-    const db = await getDb();
-    const layer = await db.collections.translation_layers.findOne({ selector: { id: layerId } }).exec();
+  static async updateLayerSortOrder(layerId: string, sortOrder: number, existingDb?: Awaited<ReturnType<typeof getDb>>): Promise<void> {
+    const db = existingDb ?? await getDb();
+    const layer = await db.collections.layers.findOne({ selector: { id: layerId } }).exec();
     if (!layer) return;
     const updated = {
-      ...layer.toJSON() as TranslationLayerDocType,
+      ...layer.toJSON() as LayerDocType,
       sortOrder,
       updatedAt: new Date().toISOString(),
     };
-    await db.collections.translation_layers.insert(updated);
+    await db.collections.layers.insert(updated);
     await syncLayerToTier(updated, updated.textId);
   }
 }

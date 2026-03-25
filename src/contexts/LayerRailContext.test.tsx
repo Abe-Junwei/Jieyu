@@ -9,7 +9,7 @@ import {
   resetLayerRailContextDiagnosticsForTests,
   useLayerRailContextOrFallback,
 } from './LayerRailContext';
-import type { TranslationLayerDocType } from '../db';
+import type { LayerDocType } from '../db';
 
 let capturedContext: LayerRailContextValue | null = null;
 
@@ -55,7 +55,7 @@ describe('LayerRailContext', () => {
   });
 
   it('returns provider value when LayerRailProvider is present', () => {
-    const mockLayers: TranslationLayerDocType[] = [
+    const mockLayers: LayerDocType[] = [
       {
         id: 'layer-1',
         textId: 'text-1',

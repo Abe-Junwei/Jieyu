@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { TranslationLayerDocType } from '../db';
+import type { LayerDocType } from '../db';
 import { useLayerDeleteConfirm } from './useLayerDeleteConfirm';
 
 const NOW = new Date().toISOString();
 
-function makeLayer(overrides: Partial<TranslationLayerDocType> = {}): TranslationLayerDocType {
+function makeLayer(overrides: Partial<LayerDocType> = {}): LayerDocType {
   return {
     id: 'trc-1',
     textId: 't1',
@@ -20,7 +20,7 @@ function makeLayer(overrides: Partial<TranslationLayerDocType> = {}): Translatio
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
-  } as TranslationLayerDocType;
+  } as LayerDocType;
 }
 
 describe('useLayerDeleteConfirm', () => {

@@ -148,4 +148,28 @@ describe('ChatOrchestrator', () => {
     const { stream } = orchestrator.sendMessage(baseInput);
     await expect(collectChunks(stream)).rejects.toThrow('503');
   });
+
+  it('should warn about duplicate content when primary emitted partial output before failing', async () => {
+    // 主模型输出部分内容后抛错 | Primary emits partial content then throws
+    const primary: LLMProvider = {
+      id: 'primary',
+      label: 'primary',
+      supportsStreaming: true,
+      async *chat() {
+        yield { delta: '部分内容' };
+        throw new Error('connection reset');
+      },
+    };
+    const fallback = makeMockProvider('fallback', [
+      { delta: '完整回复', done: true },
+    ]);
+    const orchestrator = new ChatOrchestrator(primary, fallback);
+    const { stream } = orchestrator.sendMessage(baseInput);
+    const chunks = await collectChunks(stream);
+    const allText = chunks.map((c) => `${c.delta ?? ''}${c.error ?? ''}`).join('');
+    // 应有"输出中断"提示（区别于普通降级提示） | Should include "interrupted" notice (distinct from plain fallback)
+    expect(allText).toContain('输出中断');
+    expect(allText).toContain('上方内容可忽略');
+    expect(allText).toContain('完整回复');
+  });
 });

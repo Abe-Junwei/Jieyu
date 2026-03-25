@@ -1,4 +1,4 @@
-import type { NoteCategory, MultiLangString, TranslationLayerDocType, UserNoteDocType, UtteranceDocType } from '../db';
+import type { NoteCategory, MultiLangString, LayerDocType, UserNoteDocType, UtteranceDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { SpeakerFilterOption } from '../hooks/useSpeakerActions';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
@@ -36,8 +36,8 @@ interface TranscriptionOverlaysProps {
   deleteNote: (id: string) => Promise<void>;
   utterances: UtteranceDocType[];
   getUtteranceTextForLayer: (utt: UtteranceDocType, layerId?: string) => string;
-  transcriptionLayers: TranslationLayerDocType[];
-  translationLayers: TranslationLayerDocType[];
+  transcriptionLayers: LayerDocType[];
+  translationLayers: LayerDocType[];
   speakerOptions?: Array<{ id: string; name: string }>;
   speakerFilterOptions?: SpeakerFilterOption[];
   onAssignSpeakerFromMenu?: (utteranceIds: Iterable<string>, speakerId?: string) => void;

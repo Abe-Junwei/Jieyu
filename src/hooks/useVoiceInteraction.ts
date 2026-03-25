@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { useVoiceAgent } from './useVoiceAgent';
 import { applyVoiceCommercialConfigChange } from '../utils/voiceCommercialConfigSync';
 import type { CommercialProviderKind, SttEngine } from '../services/VoiceInputService';
-import type { TranslationLayerDocType } from '../db';
+import type { LayerDocType } from '../db';
 
 interface VoiceMessageLike {
   role?: string;
@@ -58,9 +58,9 @@ interface UseVoiceInteractionOptions {
   selectedRowMeta: SelectedRowMetaLike | null;
   selectedLayerId: string | null;
   defaultTranscriptionLayerId?: string;
-  translationLayers: TranslationLayerDocType[];
-  layers: TranslationLayerDocType[];
-  formatLayerRailLabel: (layer: TranslationLayerDocType) => string;
+  translationLayers: LayerDocType[];
+  layers: LayerDocType[];
+  formatLayerRailLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   aiChatSend: (text: string) => Promise<unknown>;
   aiIsStreaming: boolean;
