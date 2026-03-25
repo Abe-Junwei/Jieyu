@@ -1,8 +1,10 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import type { TranslationLayerDocType } from '../db';
+import type { LayerLinkDocType, TranslationLayerDocType } from '../db';
+import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { fireAndForget } from '../utils/fireAndForget';
 import { buildLayerLinkConnectorLayout, getLayerLinkStackWidth } from '../utils/layerLinkConnector';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { toLayerLinkEdge } from '../services/LayerIdBridgeService';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -16,12 +18,30 @@ interface TimelineLaneHeaderProps {
   onFocusLayer: (layerId: string) => void;
   renderLaneLabel: (layer: TranslationLayerDocType) => React.ReactNode;
   onLayerAction: (action: LayerActionType, layerId: string) => void;
-  layerLinks?: Array<{ transcriptionLayerKey: string; tierId: string }>;
+  layerLinks?: LayerLinkDocType[];
   showConnectors?: boolean;
   onToggleConnectors?: () => void;
   isCollapsed?: boolean;
   onToggleCollapsed?: () => void;
   onLaneLabelWidthResize?: (e: React.PointerEvent<HTMLDivElement>) => void;
+  speakerQuickActions?: {
+    selectedCount: number;
+    speakerOptions: Array<{ id: string; name: string }>;
+    onAssignToSelection: (speakerId: string) => void;
+    onClearSelection: () => void;
+    onCreateAndAssignToSelection: (name: string) => void;
+  };
+  trackModeControl?: {
+    mode: TranscriptionTrackDisplayMode;
+    onToggle: () => void;
+    onSetMode?: (nextMode: TranscriptionTrackDisplayMode) => void;
+    onLockSelectedToLane?: (laneIndex: number) => void;
+    onUnlockSelected?: () => void;
+    onResetAuto?: () => void;
+    selectedSpeakerNames?: string[];
+    lockedSpeakerCount?: number;
+    lockConflictCount?: number;
+  };
 }
 
 export function TimelineLaneHeader({
@@ -40,8 +60,17 @@ export function TimelineLaneHeader({
   onLayerAction,
   layerLinks: layerLinks = [],
   onLaneLabelWidthResize,
+  speakerQuickActions,
+  trackModeControl,
 }: TimelineLaneHeaderProps) {
-  const connectorLayout = useMemo(() => buildLayerLinkConnectorLayout(allLayers, layerLinks), [allLayers, layerLinks]);
+  const connectorLayerLinks = useMemo(
+    () => layerLinks.map((link) => toLayerLinkEdge(link)),
+    [layerLinks],
+  );
+  const connectorLayout = useMemo(
+    () => buildLayerLinkConnectorLayout(allLayers, connectorLayerLinks),
+    [allLayers, connectorLayerLinks],
+  );
   const rowSegments = connectorLayout.segmentsByLayerId[layer.id] ?? [];
   const hasResolvableConnectorData = connectorLayout.maxColumns > 0;
 
@@ -356,6 +385,110 @@ export function TimelineLaneHeader({
       },
     },
   ];
+
+  if (speakerQuickActions) {
+    const { selectedCount, speakerOptions, onAssignToSelection, onClearSelection, onCreateAndAssignToSelection } = speakerQuickActions;
+    const topSpeakers = speakerOptions.slice(0, 3);
+    contextMenuItems.push({
+      label: selectedCount > 0 ? `清空 ${selectedCount} 个选中句段的说话人` : '清空选中句段说话人',
+      disabled: selectedCount === 0,
+      onClick: () => {
+        onClearSelection();
+      },
+    });
+    for (const speaker of topSpeakers) {
+      contextMenuItems.push({
+        label: selectedCount > 0
+          ? `指派 ${selectedCount} 个选中句段 → ${speaker.name}`
+          : `指派选中句段 → ${speaker.name}`,
+        disabled: selectedCount === 0,
+        onClick: () => {
+          onAssignToSelection(speaker.id);
+        },
+      });
+    }
+    contextMenuItems.push({
+      label: selectedCount > 0 ? '新建说话人并指派到选中句段…' : '新建说话人并指派…',
+      disabled: selectedCount === 0,
+      onClick: () => {
+        const name = window.prompt('请输入新说话人名称');
+        if (!name || name.trim().length === 0) return;
+        onCreateAndAssignToSelection(name.trim());
+      },
+    });
+  }
+
+  if (trackModeControl) {
+    const selectedSpeakerNames = trackModeControl.selectedSpeakerNames ?? [];
+    const selectedSpeakerHint = selectedSpeakerNames.length > 0
+      ? selectedSpeakerNames.join('、')
+      : '当前未选中带说话人的句段';
+    const lockConflictCount = trackModeControl.lockConflictCount ?? 0;
+
+    contextMenuItems.push({
+      label: trackModeControl.mode === 'single' ? '切换为多轨模式（自动）' : '切换为单轨模式',
+      onClick: () => {
+        trackModeControl.onToggle();
+      },
+    });
+
+    if (trackModeControl.onSetMode) {
+      contextMenuItems.push({
+        label: '切换为多轨模式（自动）',
+        disabled: trackModeControl.mode === 'multi-auto',
+        onClick: () => {
+          trackModeControl.onSetMode?.('multi-auto');
+        },
+      });
+      contextMenuItems.push({
+        label: '切换为多轨模式（锁定）',
+        disabled: trackModeControl.mode === 'multi-locked',
+        onClick: () => {
+          trackModeControl.onSetMode?.('multi-locked');
+        },
+      });
+    }
+
+    if (trackModeControl.onLockSelectedToLane) {
+      contextMenuItems.push({
+        label: `锁定选中说话人到轨道…（${selectedSpeakerHint}）`,
+        disabled: selectedSpeakerNames.length === 0,
+        onClick: () => {
+          const laneText = window.prompt('请输入目标轨道序号（从 1 开始）');
+          if (!laneText) return;
+          const laneIndex = Number.parseInt(laneText, 10);
+          if (!Number.isFinite(laneIndex) || laneIndex < 1) return;
+          trackModeControl.onLockSelectedToLane?.(laneIndex - 1);
+        },
+      });
+    }
+
+    if (trackModeControl.onUnlockSelected) {
+      contextMenuItems.push({
+        label: `解锁选中说话人（当前已锁 ${trackModeControl.lockedSpeakerCount ?? 0}）`,
+        disabled: selectedSpeakerNames.length === 0,
+        onClick: () => {
+          trackModeControl.onUnlockSelected?.();
+        },
+      });
+    }
+
+    if (trackModeControl.onResetAuto) {
+      contextMenuItems.push({
+        label: '恢复自动分轨并清空锁定',
+        onClick: () => {
+          trackModeControl.onResetAuto?.();
+        },
+      });
+    }
+
+    if (lockConflictCount > 0) {
+      contextMenuItems.push({
+        label: `锁定冲突 ${lockConflictCount} 项（已回退自动分配）`,
+        disabled: true,
+      });
+    }
+  }
 
   const isDragged = dragState?.draggedId === layer.id;
   const isDropAbove = dropTargetIndex === layerIndex && !isDragged;

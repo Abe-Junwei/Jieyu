@@ -47,6 +47,7 @@ type Params = {
   setUtteranceDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setSelectedUtteranceId: React.Dispatch<React.SetStateAction<string>>;
   setSelectedUtteranceIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  allowOverlapInTranscription?: boolean;
 };
 
 export function useTranscriptionActions({
@@ -84,6 +85,7 @@ export function useTranscriptionActions({
   setUtteranceDrafts,
   setSelectedUtteranceId,
   setSelectedUtteranceIds,
+  allowOverlapInTranscription = false,
 }: Params) {
   const {
     saveVoiceTranslation,
@@ -125,6 +127,7 @@ export function useTranscriptionActions({
     setUtteranceDrafts,
     setSelectedUtteranceId,
     setSelectedUtteranceIds,
+    allowOverlapInTranscription,
   });
 
   const {

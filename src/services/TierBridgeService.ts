@@ -1,6 +1,13 @@
 /**
  * TierBridgeService — bridge between TranslationLayer and TierDefinition.
  *
+ * 边界约束（必须遵守） | Boundary rules (must follow)
+ * 1) 该服务是业务域访问 tier 概念的唯一边界之一。| This service is a primary boundary for tier usage from business domain.
+ * 2) 页面/普通业务逻辑应优先使用 layer，不直接依赖 TierDefinition 细节。| UI and regular business logic should use layer-first and avoid direct TierDefinition semantics.
+ * 3) tier 仅用于互操作与结构校验（EAF/TextGrid/语言学约束）。| tier is reserved for interop and structural validation (EAF/TextGrid/linguistic constraints).
+ * 4) 新增 tier 相关访问路径时，优先在本服务或适配层扩展，不要在调用端散落实现。| Add new tier access paths in this service/adapter, not in scattered callers.
+ * 5) 命名约定：业务域使用 layerId；tierId 仅用于 tier 语义或桥接上下文。| Naming convention: use layerId in business domain; tierId only in tier semantics or bridge context.
+ *
  * Mapping rules:
  *   TranslationLayer(layerType='transcription')
  *     ⟷ TierDefinition(tierType='time-aligned', contentType='transcription')

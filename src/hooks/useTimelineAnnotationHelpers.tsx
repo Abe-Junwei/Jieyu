@@ -24,6 +24,11 @@ type TimelineDragPreview = {
   end: number;
 } | null;
 
+type OverlapCycleItem = {
+  id: string;
+  startTime: number;
+};
+
 type UseTimelineAnnotationHelpersParams = {
   manualSelectTsRef: React.MutableRefObject<number>;
   player: {
@@ -55,6 +60,7 @@ type UseTimelineAnnotationHelpersParams = {
   noteCounts: Map<string, number>;
   handleNoteClick: (utteranceId: string, layerId: string, event: React.MouseEvent) => void;
   speakerVisualByUtteranceId?: Record<string, SpeakerVisual>;
+  onOverlapCycleToast?: (index: number, total: number, utteranceId: string) => void;
 };
 
 export function useTimelineAnnotationHelpers({
@@ -79,12 +85,14 @@ export function useTimelineAnnotationHelpers({
   noteCounts,
   handleNoteClick,
   speakerVisualByUtteranceId = {},
+  onOverlapCycleToast,
 }: UseTimelineAnnotationHelpersParams) {
   const handleAnnotationClick = useCallback((
     uttId: string,
     uttStartTime: number,
     layerId: string,
     e: React.MouseEvent,
+    overlapCycleItems?: OverlapCycleItem[],
   ) => {
     manualSelectTsRef.current = Date.now();
     if (player.isPlaying) player.stop();
@@ -92,6 +100,22 @@ export function useTimelineAnnotationHelpers({
       selectUtteranceRange(selectedUtteranceId, uttId);
     } else if (e.metaKey || e.ctrlKey) {
       toggleUtteranceSelection(uttId);
+    } else if (
+      selectedUtteranceId === uttId
+      && overlapCycleItems
+      && overlapCycleItems.length > 1
+    ) {
+      const index = overlapCycleItems.findIndex((item) => item.id === uttId);
+      const next = overlapCycleItems[(index + 1) % overlapCycleItems.length];
+      if (next) {
+        selectUtterance(next.id);
+        player.seekTo(next.startTime);
+        onOverlapCycleToast?.(
+          Math.max(1, ((index + 1) % overlapCycleItems.length) + 1),
+          overlapCycleItems.length,
+          next.id,
+        );
+      }
     } else {
       selectUtterance(uttId);
       player.seekTo(uttStartTime);
@@ -107,6 +131,7 @@ export function useTimelineAnnotationHelpers({
     selectUtterance,
     setSelectedLayerId,
     onFocusLayerRow,
+    onOverlapCycleToast,
   ]);
 
   const handleAnnotationContextMenu = useCallback((
@@ -162,11 +187,17 @@ export function useTimelineAnnotationHelpers({
     layer: TranslationLayerDocType,
     draft: string,
     extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>
-      & Partial<Pick<TimelineAnnotationItemProps, 'onFocus' | 'placeholder'>>,
+      & Partial<Pick<TimelineAnnotationItemProps, 'onFocus' | 'placeholder'>>
+      & {
+        showSpeaker?: boolean;
+        overlapCycleItems?: OverlapCycleItem[];
+        overlapCycleStatus?: { index: number; total: number };
+      },
   ) => {
+    const { showSpeaker = true, overlapCycleItems, overlapCycleStatus, ...itemExtra } = extra;
     const dpStart = dragPreview?.id === utt.id ? dragPreview.start : utt.startTime;
     const dpEnd = dragPreview?.id === utt.id ? dragPreview.end : utt.endTime;
-    const speakerVisual = speakerVisualByUtteranceId[utt.id];
+    const speakerVisual = showSpeaker ? speakerVisualByUtteranceId[utt.id] : undefined;
     return (
       <TimelineAnnotationItem
         key={utt.id}
@@ -179,8 +210,9 @@ export function useTimelineAnnotationHelpers({
         draft={draft}
         speakerLabel={speakerVisual?.name ?? ''}
         speakerColor={speakerVisual?.color ?? '#2563eb'}
+        {...(overlapCycleStatus ? { overlapCycleIndicator: overlapCycleStatus } : {})}
         {...(utt.ai_metadata?.confidence != null ? { confidence: utt.ai_metadata.confidence } : {})}
-        onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e)}
+        onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e, overlapCycleItems)}
         onContextMenu={(e) => handleAnnotationContextMenu(utt.id, utt, layer.id, e)}
         onDoubleClick={() => zoomToUtterance(utt.startTime, utt.endTime)}
         onResizeStartPointerDown={(e) => startTimelineResizeDrag(e, utt, 'start', layer.id)}
@@ -188,7 +220,7 @@ export function useTimelineAnnotationHelpers({
         onKeyDown={handleAnnotationKeyDown}
         noteCount={noteCounts.get(`${utt.id}::${layer.id}`) ?? 0}
         onNoteClick={(e) => handleNoteClick(utt.id, layer.id, e)}
-        {...extra}
+        {...itemExtra}
       />
     );
   }, [
@@ -209,6 +241,9 @@ export function useTimelineAnnotationHelpers({
 
   const renderLaneLabel = useCallback((layer: TranslationLayerDocType) => {
     const parts = getLayerLabelParts(layer);
+    if (parts.alias) {
+      return <>{parts.type}<br />{parts.lang}<br />{parts.alias}</>;
+    }
     return <>{parts.type}<br />{parts.lang}</>;
   }, []);
 

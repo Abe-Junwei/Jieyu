@@ -177,7 +177,7 @@ export function formatLayerRailLabel(layer: TranslationLayerDocType): string {
   return lang ? `${type} · ${lang}` : type;
 }
 
-export function getLayerLabelParts(layer: TranslationLayerDocType): { type: string; lang: string } {
+export function getLayerLabelParts(layer: TranslationLayerDocType): { type: string; lang: string; alias: string } {
   const code = (layer.languageId ?? '').trim();
   const typeLabel = layer.layerType === 'translation' ? '翻译' : '转写';
   const langLabel = formatBcp47Label(code) || code;
@@ -190,10 +190,10 @@ export function getLayerLabelParts(layer: TranslationLayerDocType): { type: stri
     ?? '';
   const hasAutoPrefix = alias.startsWith('转写') || alias.startsWith('翻译');
   if (hasAutoPrefix || !alias) {
-    return { type: typeLabel, lang: langLabel };
+    return { type: typeLabel, lang: langLabel, alias: '' };
   }
-  // Legacy manually named layers
-  return { type: typeLabel, lang: alias + (langLabel ? `（${langLabel}）` : '') };
+  // Legacy manually named layers — show alias as third line
+  return { type: typeLabel, lang: langLabel, alias };
 }
 
 export const COMMON_LANGUAGES = [

@@ -29,6 +29,7 @@ import { parseBcp47 } from '../utils/transcriptionFormatters';
 import { createLogger } from '../observability/logger';
 import { toErrorMessage } from '../utils/saveStateError';
 import { reportActionError } from '../utils/actionErrorReporter';
+import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationV2BridgeService';
 
 const log = createLogger('useImportExport');
 
@@ -476,7 +477,7 @@ export function useImportExport(input: UseImportExportInput) {
         }
       }
 
-      const insertedUtterances: Array<{ id: string; startTime: number; endTime: number }> = [];
+      const insertedUtterances: Array<{ id: string; startTime: number; endTime: number; utterance: UtteranceDocType }> = [];
       for (const u of parsedUtterances) {
         const id = newId('utt');
         const startTime = Number(u.startTime.toFixed(3));
@@ -490,7 +491,7 @@ export function useImportExport(input: UseImportExportInput) {
         const resolvedSpeakerId = typeof maybeSpeakerId === 'string' && maybeSpeakerId.length > 0
           ? speakerIdMap.get(maybeSpeakerId) ?? maybeSpeakerId
           : undefined;
-        await LinguisticService.saveUtterance({
+        const newUtterance: UtteranceDocType = {
           id,
           textId,
           ...(mediaId ? { mediaId } : {}),
@@ -500,7 +501,8 @@ export function useImportExport(input: UseImportExportInput) {
           ...(resolvedSpeakerId ? { speakerId: resolvedSpeakerId } : {}),
           createdAt: now,
           updatedAt: now,
-        });
+        };
+        await LinguisticService.saveUtterance(newUtterance);
 
         if (Array.isArray(maybeTokens) && maybeTokens.length > 0) {
           const tokenRows: import('../db').UtteranceTokenDocType[] = [];
@@ -558,10 +560,10 @@ export function useImportExport(input: UseImportExportInput) {
             await LinguisticService.saveMorphemesBatch(morphRows);
           }
         }
-        insertedUtterances.push({ id, startTime, endTime });
+        insertedUtterances.push({ id, startTime, endTime, utterance: newUtterance });
 
         if (u.transcription.trim() && effectiveTranscriptionLayerId) {
-          await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage({
+          const doc: UtteranceTextDocType = {
             id: newId('utr'),
             utteranceId: id,
             tierId: effectiveTranscriptionLayerId,
@@ -571,7 +573,12 @@ export function useImportExport(input: UseImportExportInput) {
             ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
             createdAt: now,
             updatedAt: now,
-          }, { actorType: 'importer', method: 'import' }));
+          };
+          await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(
+            doc,
+            { actorType: 'importer', method: 'import' },
+          ));
+          await syncUtteranceTextToSegmentationV2(db, newUtterance, doc);
         }
       }
 
@@ -676,7 +683,7 @@ export function useImportExport(input: UseImportExportInput) {
             (u) => Math.abs(u.startTime - annStart) < 0.05 && Math.abs(u.endTime - annEnd) < 0.05,
           );
           if (match && ann.text.trim()) {
-            await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage({
+            const doc: UtteranceTextDocType = {
               id: newId('utr'),
               utteranceId: match.id,
               tierId: layerId,
@@ -686,7 +693,12 @@ export function useImportExport(input: UseImportExportInput) {
               ...('annotationId' in ann && typeof ann.annotationId === 'string' ? { externalRef: ann.annotationId } : {}),
               createdAt: now,
               updatedAt: now,
-            }, { actorType: 'importer', method: 'import' }));
+            };
+            await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(
+              doc,
+              { actorType: 'importer', method: 'import' },
+            ));
+            await syncUtteranceTextToSegmentationV2(db, match.utterance, doc);
           }
         }
       }

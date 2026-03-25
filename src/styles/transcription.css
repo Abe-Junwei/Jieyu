@@ -616,6 +616,16 @@
   border-bottom: 1px solid #e2e8f0;
 }
 
+/* Hide all scrollbars in WaveSurfer internals while preserving scroll */
+.transcription-waveform-area * {
+  scrollbar-width: none !important;
+  scrollbar-color: transparent transparent !important;
+}
+
+.transcription-waveform-area *::-webkit-scrollbar {
+  display: none !important;
+}
+
 /* 波形区左边界分隔线（与 lane-label + 左侧视频面板右缘对齐） | Waveform left-edge separator aligned with lane-label + optional left-video panel */
 .transcription-waveform-area::before {
   content: '';
@@ -782,6 +792,11 @@
   background: #ffffff;
   transition: filter 120ms ease;
   position: relative;
+  scrollbar-width: none;
+}
+
+.timeline-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .transcription-list-main:not(.transcription-list-main-rail-collapsed) .timeline-scroll {
@@ -812,7 +827,8 @@
 }
 
 .timeline-lane-speaker-layered {
-  overflow: hidden;
+  /* 不能设置任何 overflow（包括 overflow-y:hidden），否则会成为 sticky 的最近滚动容器，导致标题随内容移动 | Avoid any overflow here, otherwise sticky header may scroll with content */
+  overflow: visible;
 }
 
 .timeline-annotation-subtrack {
@@ -821,6 +837,15 @@
   right: 0;
   z-index: var(--z-base);
   pointer-events: none;
+}
+
+.timeline-annotation-subtrack-focus-dim {
+  opacity: 0.34;
+  filter: saturate(0.75);
+}
+
+.timeline-annotation-subtrack-focus-hidden {
+  display: none;
 }
 
 .timeline-lane-resizing {
@@ -1203,6 +1228,21 @@
   border-color: color-mix(in srgb, var(--speaker-color, #2563eb) 70%, #0f172a);
 }
 
+.timeline-annotation-overlap-cycle-badge {
+  position: absolute;
+  top: 3px;
+  right: 6px;
+  padding: 0 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.45);
+  background: rgba(219, 234, 254, 0.92);
+  color: #1e3a8a;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
 .timeline-annotation-selected {
   background: transparent;
   border-color: rgba(26, 115, 232, 0.30);
@@ -1345,6 +1385,14 @@
 
 .timeline-text-item.timeline-text-item-dimmed {
   opacity: 0.44;
+}
+
+.timeline-text-item.timeline-text-item-focus-dim {
+  opacity: 0.38;
+}
+
+.timeline-text-item.timeline-text-item-focus-hidden {
+  display: none;
 }
 
 .timeline-text-item.timeline-text-item-editing {
@@ -2044,6 +2092,73 @@
   font-weight: 700;
   cursor: default;
   white-space: nowrap;
+}
+
+.toolbar-track-mode-badge {
+  padding: 2px 8px;
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  border-radius: 999px;
+  background: rgba(219, 234, 254, 0.7);
+  color: #1e3a8a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.toolbar-lock-conflict-badge {
+  padding: 2px 8px;
+  border: 1px solid rgba(220, 38, 38, 0.42);
+  border-radius: 999px;
+  background: rgba(254, 226, 226, 0.9);
+  color: #991b1b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toolbar-lock-conflict-badge:hover {
+  background: rgba(254, 202, 202, 0.95);
+}
+
+.toolbar-focus-mode-badge {
+  padding: 2px 8px;
+  border: 1px solid rgba(51, 65, 85, 0.28);
+  border-radius: 999px;
+  background: rgba(241, 245, 249, 0.92);
+  color: #334155;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toolbar-focus-mode-badge:hover {
+  background: rgba(226, 232, 240, 0.95);
+}
+
+.toolbar-focus-mode-badge-active {
+  border-color: rgba(2, 132, 199, 0.45);
+  background: rgba(186, 230, 253, 0.7);
+  color: #0c4a6e;
+}
+
+.toolbar-focus-target-select {
+  height: 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: #ffffff;
+  color: #334155;
+  padding: 0 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.toolbar-focus-target-select:focus-visible {
+  outline: none;
+  border-color: rgba(2, 132, 199, 0.5);
+  box-shadow: 0 0 0 2px rgba(186, 230, 253, 0.8);
 }
 
 .play-btn,
@@ -3087,6 +3202,11 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  scrollbar-width: none;
+}
+
+.transcription-list-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .transcription-layer-view {

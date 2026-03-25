@@ -17,8 +17,8 @@ export function TranscriptionPageTimelineEmptyState({
 }: TranscriptionPageTimelineEmptyStateProps) {
   if (layersCount === 0) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', padding: '48px 24px' }}>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+      <div className="timeline-empty-actions-shell">
+        <div className="timeline-empty-actions-row">
           <button
             type="button"
             className="btn"

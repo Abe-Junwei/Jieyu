@@ -7,9 +7,14 @@ import { TranscriptionTimelineTextOnly } from './TranscriptionTimelineTextOnly';
 const NOW = new Date().toISOString();
 
 vi.mock('@tanstack/react-virtual', () => ({
-  useVirtualizer: () => ({
-    getVirtualItems: () => [{ index: 0, start: 0, size: 180, key: 'v0' }],
-    getTotalSize: () => 180,
+  useVirtualizer: ({ count }: { count: number }) => ({
+    getVirtualItems: () => Array.from({ length: count }, (_, index) => ({
+      index,
+      start: index * 180,
+      size: 180,
+      key: `v${index}`,
+    })),
+    getTotalSize: () => count * 180,
   }),
 }));
 
@@ -83,11 +88,12 @@ function makeLayer(id: string): TranslationLayerDocType {
   } as TranslationLayerDocType;
 }
 
-function makeUtterance(id: string): UtteranceDocType {
+function makeUtterance(id: string, speakerId?: string): UtteranceDocType {
   return {
     id,
     textId: 't1',
     mediaId: 'm1',
+    ...(speakerId ? { speakerId } : {}),
     startTime: 0,
     endTime: 1,
     createdAt: NOW,
@@ -127,5 +133,44 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     fireEvent(input, pointerDown);
 
     expect(pointerDown.defaultPrevented).toBe(false);
+  });
+
+  it('hides non-target utterances in focus-hard mode', () => {
+    const layer = makeLayer('trc-1');
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+
+    render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        utterancesOnCurrentMedia={[makeUtterance('u1', 's1'), makeUtterance('u2', 's2')]}
+        selectedUtteranceId=""
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        speakerFocusMode="focus-hard"
+        speakerFocusSpeakerKey="s1"
+        speakerVisualByUtteranceId={{
+          u1: { name: 'S1', color: '#ff0000' },
+          u2: { name: 'S2', color: '#00ff00' },
+        }}
+      />,
+    );
+
+    expect(screen.getAllByRole('textbox').length).toBeGreaterThanOrEqual(2);
+    const dimmed = document.querySelectorAll('.timeline-text-item-focus-dim');
+    expect(dimmed.length).toBe(0);
+    const hidden = document.querySelectorAll('.timeline-text-item-focus-hidden');
+    expect(hidden.length).toBe(1);
   });
 });

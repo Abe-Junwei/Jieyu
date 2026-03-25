@@ -22,6 +22,7 @@ export interface TimelineAnnotationItemProps {
   speakerLabel?: string;
   speakerColor?: string;
   noteCount?: number;
+  overlapCycleIndicator?: { index: number; total: number };
   /** AI confidence 0.0–1.0；低于阈值时渲染警示色 | AI confidence; triggers warning style below threshold */
   confidence?: number;
   onClick: (e: MouseEvent) => void;
@@ -50,6 +51,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   speakerLabel,
   speakerColor,
   noteCount,
+  overlapCycleIndicator,
   confidence,
   onClick,
   onContextMenu,
@@ -97,6 +99,11 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
           title={`说话人：${speakerLabel}`}
         >
           {isCompact ? '●' : speakerLabel}
+        </span>
+      )}
+      {overlapCycleIndicator && overlapCycleIndicator.total > 1 && isActive && (
+        <span className="timeline-annotation-overlap-cycle-badge" title={`重叠候选 ${overlapCycleIndicator.index}/${overlapCycleIndicator.total}，再次点击可轮换`}>
+          {overlapCycleIndicator.index}/{overlapCycleIndicator.total}
         </span>
       )}
       {isActive ? (

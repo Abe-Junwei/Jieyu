@@ -15,6 +15,7 @@ describe('ZoomControls Component', () => {
     zoomPercent: 100,
     snapEnabled: false,
     autoScrollEnabled: true,
+    hoverExpandEnabled: false,
     selectedUtteranceId: 'utterance-1',
     utterancesOnCurrentMedia: [
       { id: 'utterance-1', startTime: 0, endTime: 5 },
@@ -26,6 +27,7 @@ describe('ZoomControls Component', () => {
     onZoomToUtterance: vi.fn(),
     onSnapEnabledChange: vi.fn(),
     onAutoScrollEnabledChange: vi.fn(),
+    onHoverExpandEnabledChange: vi.fn(),
     ...overrides,
   });
 
@@ -43,6 +45,7 @@ describe('ZoomControls Component', () => {
     const onZoomToUtterance = vi.fn();
     const onSnapEnabledChange = vi.fn();
     const onAutoScrollEnabledChange = vi.fn();
+    const onHoverExpandEnabledChange = vi.fn();
 
     const props = createMockProps({
       zoomPercent: 200,
@@ -52,6 +55,7 @@ describe('ZoomControls Component', () => {
       onZoomToUtterance,
       onSnapEnabledChange,
       onAutoScrollEnabledChange,
+      onHoverExpandEnabledChange,
     });
 
     const { container } = render(<ZoomControls {...props} />);

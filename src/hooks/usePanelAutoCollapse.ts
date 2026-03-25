@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 
 type UsePanelAutoCollapseParams = {
+  hoverExpandEnabled: boolean;
   isLayerRailCollapsed: boolean;
   setIsLayerRailCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   listMainRef: React.RefObject<HTMLDivElement | null>;
@@ -9,7 +10,10 @@ type UsePanelAutoCollapseParams = {
   workspaceRef: React.RefObject<HTMLElement | null>;
 };
 
+const EDGE_THRESHOLD_PX = 12;
+
 export function usePanelAutoCollapse({
+  hoverExpandEnabled,
   isLayerRailCollapsed,
   setIsLayerRailCollapsed,
   listMainRef,
@@ -17,6 +21,7 @@ export function usePanelAutoCollapse({
   setIsAiPanelCollapsed,
   workspaceRef,
 }: UsePanelAutoCollapseParams) {
+  // Auto-collapse LayerRail when clicking outside
   useEffect(() => {
     if (isLayerRailCollapsed) return;
 
@@ -49,6 +54,7 @@ export function usePanelAutoCollapse({
     };
   }, [isLayerRailCollapsed, setIsLayerRailCollapsed, listMainRef]);
 
+  // Auto-collapse AI panel when clicking outside
   useEffect(() => {
     if (isAiPanelCollapsed) return;
 
@@ -82,4 +88,49 @@ export function usePanelAutoCollapse({
       document.removeEventListener('pointerdown', onPointerDown);
     };
   }, [isAiPanelCollapsed, setIsAiPanelCollapsed, workspaceRef]);
+
+  // Expand LayerRail on hover near left edge when collapsed
+  useEffect(() => {
+    if (!hoverExpandEnabled) return;
+    if (!isLayerRailCollapsed) return;
+
+    let lastTrigger = 0;
+    const onPointerMove = (event: PointerEvent) => {
+      // Throttle to avoid repeated calls
+      const now = Date.now();
+      if (now - lastTrigger < 200) return;
+
+      if (event.clientX <= EDGE_THRESHOLD_PX) {
+        lastTrigger = now;
+        setIsLayerRailCollapsed(false);
+      }
+    };
+
+    document.addEventListener('pointermove', onPointerMove);
+    return () => {
+      document.removeEventListener('pointermove', onPointerMove);
+    };
+  }, [hoverExpandEnabled, isLayerRailCollapsed, setIsLayerRailCollapsed]);
+
+  // Expand AI panel on hover near right edge when collapsed
+  useEffect(() => {
+    if (!hoverExpandEnabled) return;
+    if (!isAiPanelCollapsed) return;
+
+    let lastTrigger = 0;
+    const onPointerMove = (event: PointerEvent) => {
+      const now = Date.now();
+      if (now - lastTrigger < 200) return;
+
+      if (event.clientX >= window.innerWidth - EDGE_THRESHOLD_PX) {
+        lastTrigger = now;
+        setIsAiPanelCollapsed(false);
+      }
+    };
+
+    document.addEventListener('pointermove', onPointerMove);
+    return () => {
+      document.removeEventListener('pointermove', onPointerMove);
+    };
+  }, [hoverExpandEnabled, isAiPanelCollapsed, setIsAiPanelCollapsed]);
 }

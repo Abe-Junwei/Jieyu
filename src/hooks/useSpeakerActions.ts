@@ -73,6 +73,8 @@ export interface UseSpeakerActionsReturn {
   handleRenameSpeaker: (speakerKey: string) => void;
   handleMergeSpeaker: (sourceSpeakerKey: string) => void;
   handleDeleteSpeaker: (sourceSpeakerKey: string) => void;
+  handleAssignSpeakerToUtterances: (utteranceIds: Iterable<string>, speakerId?: string) => Promise<void>;
+  handleCreateSpeakerAndAssignToUtterances: (name: string, utteranceIds: Iterable<string>) => Promise<void>;
   handleAssignSpeakerToSelected: () => Promise<void>;
   handleCreateSpeakerAndAssign: () => Promise<void>;
   handleCreateSpeakerOnly: () => Promise<void>;
@@ -402,6 +404,35 @@ export function useSpeakerActions({
     }
   }, [applySpeakerLocally, batchSpeakerId, data, selectedUtteranceIds, setSaveState, speakerById, speakerSaving]);
 
+  const handleAssignSpeakerToUtterances = useCallback(async (utteranceIds: Iterable<string>, speakerId?: string) => {
+    const targetIds = Array.from(new Set(utteranceIds)).filter((id) => id.trim().length > 0);
+    if (targetIds.length === 0 || speakerSaving) return;
+
+    setSpeakerSaving(true);
+    try {
+      data.pushUndo('批量指派说话人');
+      const speaker = speakerId ? speakerById.get(speakerId) : undefined;
+      const updated = await LinguisticService.assignSpeakerToUtterances(targetIds, speakerId);
+      applySpeakerLocally(targetIds, speaker);
+      if (speakerId) {
+        setBatchSpeakerId(speakerId);
+      }
+      setSaveState({
+        kind: 'done',
+        message: updated > 0 ? `已更新 ${updated} 条句段的说话人` : '未找到可更新句段',
+      });
+    } catch (error) {
+      reportActionError({
+        actionLabel: '说话人指派',
+        error,
+        i18nKey: 'transcription.error.action.assignSpeakerFailed',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
+    } finally {
+      setSpeakerSaving(false);
+    }
+  }, [applySpeakerLocally, data, setSaveState, speakerById, speakerSaving, setBatchSpeakerId]);
+
   const handleCreateSpeakerAndAssign = useCallback(async () => {
     const name = speakerDraftName.trim();
     if (!name || selectedUtteranceIds.size === 0 || speakerSaving) return;
@@ -429,6 +460,35 @@ export function useSpeakerActions({
       setSpeakerSaving(false);
     }
   }, [applySpeakerLocally, data, selectedUtteranceIds, setSaveState, setSpeakers, speakerDraftName, speakerSaving]);
+
+  const handleCreateSpeakerAndAssignToUtterances = useCallback(async (name: string, utteranceIds: Iterable<string>) => {
+    const targetIds = Array.from(new Set(utteranceIds)).filter((id) => id.trim().length > 0);
+    const trimmedName = name.trim();
+    if (!trimmedName || targetIds.length === 0 || speakerSaving) return;
+
+    setSpeakerSaving(true);
+    let undoPushed = false;
+    try {
+      data.pushUndo('新建并分配说话人');
+      undoPushed = true;
+      const created = await LinguisticService.createSpeaker({ name: trimmedName });
+      const updated = await LinguisticService.assignSpeakerToUtterances(targetIds, created.id);
+      setSpeakers((prev) => upsertSpeaker(prev, created));
+      applySpeakerLocally(targetIds, created);
+      setBatchSpeakerId(created.id);
+      setSaveState({ kind: 'done', message: `已创建说话人"${created.name}"，并应用到 ${updated} 条句段` });
+    } catch (error) {
+      if (undoPushed) await data.undo();
+      reportActionError({
+        actionLabel: '创建说话人',
+        error,
+        i18nKey: 'transcription.error.action.createSpeakerFailed',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
+    } finally {
+      setSpeakerSaving(false);
+    }
+  }, [applySpeakerLocally, data, setBatchSpeakerId, setSaveState, setSpeakers, speakerSaving]);
 
   const handleCreateSpeakerOnly = useCallback(async () => {
     const name = speakerDraftName.trim();
@@ -622,6 +682,8 @@ export function useSpeakerActions({
     handleRenameSpeaker,
     handleMergeSpeaker,
     handleDeleteSpeaker,
+    handleAssignSpeakerToUtterances,
+    handleCreateSpeakerAndAssignToUtterances,
     handleAssignSpeakerToSelected,
     handleCreateSpeakerAndAssign,
     handleCreateSpeakerOnly,

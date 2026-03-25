@@ -12,6 +12,10 @@ import {
   type TranslationLayerDocType,
   type LayerLinkDocType,
 } from '../db';
+import {
+  getLayerLinkTargetLayerId,
+  toLayerLinkEdge,
+} from './LayerIdBridgeService';
 
 // ─── 结果类型 | Result types ─────────────────────────────────────────
 
@@ -97,12 +101,12 @@ export function canDeleteLayer(
     const linkedTrlIds = new Set(
       layerLinks
         .filter((link) => link.transcriptionLayerKey === target.key)
-        .map((link) => link.tierId),
+        .map((link) => getLayerLinkTargetLayerId(link)),
     );
     const orphanedTranslationIds: string[] = [];
     for (const trlId of linkedTrlIds) {
       const otherLinks = layerLinks.filter(
-        (link) => link.tierId === trlId && link.transcriptionLayerKey !== target.key,
+        (link) => getLayerLinkTargetLayerId(link) === trlId && link.transcriptionLayerKey !== target.key,
       );
       if (otherLinks.length === 0) {
         orphanedTranslationIds.push(trlId);
@@ -126,7 +130,7 @@ export function canDeleteLayer(
 
   // 翻译层：统计受影响链接 | Translation layer: count affected links
   const affectedLinkCount = layerLinks.filter(
-    (link) => link.tierId === targetLayerId,
+    (link) => getLayerLinkTargetLayerId(link) === targetLayerId,
   ).length;
   return { allowed: true, affectedLinkCount };
 }
@@ -150,7 +154,7 @@ export function getLinkedLayers(
     const linkedTranslationIds = new Set(
       layerLinks
         .filter((link) => link.transcriptionLayerKey === target.key)
-        .map((link) => link.tierId),
+        .map((link) => getLayerLinkTargetLayerId(link)),
     );
     return layers.filter((l) => linkedTranslationIds.has(l.id));
   }
@@ -158,8 +162,9 @@ export function getLinkedLayers(
   // 翻译层 → 找关联的转写层 | Translation → find linked transcriptions
   const linkedTrcKeys = new Set(
     layerLinks
-      .filter((link) => link.tierId === layerId)
-      .map((link) => link.transcriptionLayerKey),
+      .map((link) => toLayerLinkEdge(link))
+      .filter((edge) => edge.targetLayerId === layerId)
+      .map((edge) => edge.transcriptionLayerKey),
   );
   return layers.filter((l) => linkedTrcKeys.has(l.key));
 }

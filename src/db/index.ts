@@ -465,6 +465,57 @@ interface UtteranceTextDocType {
   updatedAt: string;
 }
 
+type SegmentLinkType = 'equivalent' | 'projection' | 'bridge';
+
+interface LayerSegmentDocType {
+  id: string;
+  textId: string;
+  mediaId: string;
+  layerId: string;
+  startTime: number;
+  endTime: number;
+  startAnchorId?: string;
+  endAnchorId?: string;
+  ordinal?: number;
+  /** 外部引用（如 EAF 的 ALIGNABLE_ANNOTATION_ID） | External reference (e.g. EAF ALIGNABLE_ANNOTATION_ID) */
+  externalRef?: string;
+  provenance?: ProvenanceEnvelope;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface LayerSegmentContentDocType {
+  id: string;
+  textId: string;
+  segmentId: string;
+  layerId: string;
+  modality: 'text' | 'audio' | 'mixed';
+  text?: string;
+  translationAudioMediaId?: string;
+  sourceType: 'human' | 'ai';
+  ai_metadata?: AiMetadata;
+  provenance?: ProvenanceEnvelope;
+  accessRights?: 'open' | 'restricted' | 'confidential';
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface SegmentLinkDocType {
+  id: string;
+  textId: string;
+  sourceSegmentId: string;
+  targetSegmentId: string;
+  sourceLayerId?: string;
+  targetLayerId?: string;
+  /** 历史 utterance 桥接键（迁移期） | Legacy utterance bridge key (migration period) */
+  utteranceId?: string;
+  linkType: SegmentLinkType;
+  confidence?: number;
+  provenance?: ProvenanceEnvelope;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface LayerLinkDocType {
   id: string;
   transcriptionLayerKey: string;
@@ -985,6 +1036,58 @@ const utteranceTextDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
+const layerSegmentDocSchema = z
+  .object({
+    id: z.string().min(1),
+    textId: z.string().min(1),
+    mediaId: z.string().min(1),
+    layerId: z.string().min(1),
+    startTime: z.number().finite(),
+    endTime: z.number().finite(),
+    startAnchorId: z.string().min(1).optional(),
+    endAnchorId: z.string().min(1).optional(),
+    ordinal: z.number().int().min(0).optional(),
+    externalRef: z.string().min(1).optional(),
+    provenance: provenanceSchema.optional(),
+    createdAt: isoDateSchema,
+    updatedAt: isoDateSchema,
+  })
+  .refine((doc) => doc.endTime >= doc.startTime, {
+    message: 'endTime must be >= startTime',
+    path: ['endTime'],
+  });
+
+const layerSegmentContentDocSchema = z.object({
+  id: z.string().min(1),
+  textId: z.string().min(1),
+  segmentId: z.string().min(1),
+  layerId: z.string().min(1),
+  modality: z.enum(['text', 'audio', 'mixed']),
+  text: z.string().optional(),
+  translationAudioMediaId: z.string().min(1).optional(),
+  sourceType: z.enum(['human', 'ai']),
+  ai_metadata: aiMetadataSchema.optional(),
+  provenance: provenanceSchema.optional(),
+  accessRights: accessRightsSchema.optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const segmentLinkDocSchema = z.object({
+  id: z.string().min(1),
+  textId: z.string().min(1),
+  sourceSegmentId: z.string().min(1),
+  targetSegmentId: z.string().min(1),
+  sourceLayerId: z.string().min(1).optional(),
+  targetLayerId: z.string().min(1).optional(),
+  utteranceId: z.string().min(1).optional(),
+  linkType: z.enum(['equivalent', 'projection', 'bridge']),
+  confidence: z.number().min(0).max(1).optional(),
+  provenance: provenanceSchema.optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
 const tierTypeSchema = z.enum(['time-aligned', 'time-subdivision', 'symbolic-subdivision', 'symbolic-association']);
 const tierContentTypeSchema = z.enum(['transcription', 'translation', 'gloss', 'pos', 'note', 'custom']);
 
@@ -1184,6 +1287,18 @@ function validateTranslationLayerDoc(doc: TranslationLayerDocType): void {
 
 function validateUtteranceTextDoc(doc: UtteranceTextDocType): void {
   utteranceTextDocSchema.parse(doc);
+}
+
+function validateLayerSegmentDoc(doc: LayerSegmentDocType): void {
+  layerSegmentDocSchema.parse(doc);
+}
+
+function validateLayerSegmentContentDoc(doc: LayerSegmentContentDocType): void {
+  layerSegmentContentDocSchema.parse(doc);
+}
+
+function validateSegmentLinkDoc(doc: SegmentLinkDocType): void {
+  segmentLinkDocSchema.parse(doc);
 }
 
 function validateLayerLinkDoc(doc: LayerLinkDocType): void {
@@ -1469,6 +1584,9 @@ type JieyuCollections = {
   tag_definitions: CollectionAdapter<TagDefinitionDocType>;
   translation_layers: CollectionAdapter<TranslationLayerDocType>;
   utterance_texts: CollectionAdapter<UtteranceTextDocType>;
+  layer_segments: CollectionAdapter<LayerSegmentDocType>;
+  layer_segment_contents: CollectionAdapter<LayerSegmentContentDocType>;
+  segment_links: CollectionAdapter<SegmentLinkDocType>;
   layer_links: CollectionAdapter<LayerLinkDocType>;
   tier_definitions: CollectionAdapter<TierDefinitionDocType>;
   tier_annotations: CollectionAdapter<TierAnnotationDocType>;
@@ -1498,6 +1616,151 @@ type ImportResult = {
   ignoredCollections: string[];
 };
 
+type SegmentationV2BackfillRows = {
+  segments: LayerSegmentDocType[];
+  contents: LayerSegmentContentDocType[];
+  links: SegmentLinkDocType[];
+};
+
+function buildSegmentationV2BackfillRows(input: {
+  utterances: UtteranceDocType[];
+  utteranceTexts: UtteranceTextDocType[];
+  tiers: TierDefinitionDocType[];
+  nowIso?: string;
+}): SegmentationV2BackfillRows {
+  const { utterances, utteranceTexts, tiers, nowIso } = input;
+  if (utterances.length === 0) {
+    return { segments: [], contents: [], links: [] };
+  }
+
+  const now = nowIso ?? new Date().toISOString();
+  const transcriptionTierByTextId = new Map<string, string>();
+  const tiersByTextId = new Map<string, TierDefinitionDocType[]>();
+
+  for (const tier of tiers) {
+    const bucket = tiersByTextId.get(tier.textId);
+    if (bucket) {
+      bucket.push(tier);
+    } else {
+      tiersByTextId.set(tier.textId, [tier]);
+    }
+  }
+
+  for (const [textId, bucket] of tiersByTextId.entries()) {
+    const candidates = bucket
+      .filter((item) => item.contentType === 'transcription')
+      .sort((a, b) => {
+        const defaultCmp = Number(Boolean(b.isDefault)) - Number(Boolean(a.isDefault));
+        if (defaultCmp !== 0) return defaultCmp;
+        const sortA = typeof a.sortOrder === 'number' ? a.sortOrder : Number.MAX_SAFE_INTEGER;
+        const sortB = typeof b.sortOrder === 'number' ? b.sortOrder : Number.MAX_SAFE_INTEGER;
+        if (sortA !== sortB) return sortA - sortB;
+        return a.id.localeCompare(b.id);
+      });
+    const picked = candidates[0];
+    if (picked) transcriptionTierByTextId.set(textId, picked.id);
+  }
+
+  const buildSegmentId = (layerId: string, utteranceId: string) => `segv22_${layerId}_${utteranceId}`;
+  const buildContentId = (utteranceTextId: string) => utteranceTextId;
+  const buildLinkId = (layerId: string, utteranceId: string) => `seglv22_${layerId}_${utteranceId}`;
+
+  const segmentById = new Map<string, LayerSegmentDocType>();
+  const contentById = new Map<string, LayerSegmentContentDocType>();
+  const linkById = new Map<string, SegmentLinkDocType>();
+  const utteranceById = new Map(utterances.map((item) => [item.id, item]));
+
+  const ensureSegment = (
+    utterance: UtteranceDocType,
+    layerId: string,
+  ): LayerSegmentDocType => {
+    const segmentId = buildSegmentId(layerId, utterance.id);
+    const existing = segmentById.get(segmentId);
+    if (existing) return existing;
+
+    const next: LayerSegmentDocType = {
+      id: segmentId,
+      textId: utterance.textId,
+      mediaId: utterance.mediaId && utterance.mediaId.trim().length > 0 ? utterance.mediaId : '__unknown_media__',
+      layerId,
+      startTime: utterance.startTime,
+      endTime: utterance.endTime,
+      ...(utterance.startAnchorId ? { startAnchorId: utterance.startAnchorId } : {}),
+      ...(utterance.endAnchorId ? { endAnchorId: utterance.endAnchorId } : {}),
+      provenance: {
+        actorType: 'system',
+        method: 'migration',
+        createdAt: now,
+        updatedAt: now,
+      },
+      createdAt: now,
+      updatedAt: now,
+    };
+    segmentById.set(segmentId, next);
+    return next;
+  };
+
+  for (const utterance of utterances) {
+    const baseLayerId = transcriptionTierByTextId.get(utterance.textId);
+    if (!baseLayerId) continue;
+    ensureSegment(utterance, baseLayerId);
+  }
+
+  for (const row of utteranceTexts) {
+    const utterance = utteranceById.get(row.utteranceId);
+    if (!utterance) continue;
+
+    const targetSegment = ensureSegment(utterance, row.tierId);
+    const contentId = buildContentId(row.id);
+
+    contentById.set(contentId, {
+      id: contentId,
+      textId: utterance.textId,
+      segmentId: targetSegment.id,
+      layerId: row.tierId,
+      modality: row.modality,
+      ...(row.text !== undefined ? { text: row.text } : {}),
+      ...(row.translationAudioMediaId ? { translationAudioMediaId: row.translationAudioMediaId } : {}),
+      sourceType: row.sourceType,
+      ...(row.ai_metadata ? { ai_metadata: row.ai_metadata } : {}),
+      ...(row.provenance ? { provenance: row.provenance } : {}),
+      ...(row.accessRights ? { accessRights: row.accessRights } : {}),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    });
+
+    const baseLayerId = transcriptionTierByTextId.get(utterance.textId);
+    if (!baseLayerId || baseLayerId === row.tierId) continue;
+
+    const sourceSegmentId = buildSegmentId(baseLayerId, utterance.id);
+    const linkId = buildLinkId(row.tierId, utterance.id);
+    linkById.set(linkId, {
+      id: linkId,
+      textId: utterance.textId,
+      sourceSegmentId,
+      targetSegmentId: targetSegment.id,
+      sourceLayerId: baseLayerId,
+      targetLayerId: row.tierId,
+      utteranceId: utterance.id,
+      linkType: 'bridge',
+      provenance: {
+        actorType: 'system',
+        method: 'migration',
+        createdAt: now,
+        updatedAt: now,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  return {
+    segments: [...segmentById.values()],
+    contents: [...contentById.values()],
+    links: [...linkById.values()],
+  };
+}
+
 class JieyuDexie extends Dexie {
   texts!: Table<TextDocType, string>;
   media_items!: Table<MediaItemDocType, string>;
@@ -1521,6 +1784,9 @@ class JieyuDexie extends Dexie {
   phonemes!: Table<PhonemeDocType, string>;
   tag_definitions!: Table<TagDefinitionDocType, string>;
   utterance_texts!: Table<UtteranceTextDocType, string>;
+  layer_segments!: Table<LayerSegmentDocType, string>;
+  layer_segment_contents!: Table<LayerSegmentContentDocType, string>;
+  segment_links!: Table<SegmentLinkDocType, string>;
   layer_links!: Table<LayerLinkDocType, string>;
   tier_definitions!: Table<TierDefinitionDocType, string>;
   tier_annotations!: Table<TierAnnotationDocType, string>;
@@ -1987,6 +2253,44 @@ class JieyuDexie extends Dexie {
     this.version(21).stores({
       embeddings: 'id, sourceType, sourceId, [sourceType+model], model, contentHash, createdAt',
     });
+
+    // v22: segmentation-v2 foundation tables (independent per-layer boundaries).
+    this.version(22).stores({
+      layer_segments: 'id, textId, mediaId, layerId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [textId+layerId]',
+      layer_segment_contents: 'id, textId, segmentId, layerId, [segmentId+layerId], [layerId+updatedAt], sourceType, updatedAt',
+      segment_links: 'id, textId, sourceSegmentId, targetSegmentId, [sourceSegmentId+targetSegmentId], linkType, utteranceId',
+    }).upgrade(async (tx: unknown) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const typedTx = tx as any;
+      const utterancesTable = typedTx.table('utterances');
+      const utteranceTextsTable = typedTx.table('utterance_texts');
+      const tierDefinitionsTable = typedTx.table('tier_definitions');
+      const layerSegmentsTable = typedTx.table('layer_segments');
+      const layerSegmentContentsTable = typedTx.table('layer_segment_contents');
+      const segmentLinksTable = typedTx.table('segment_links');
+
+      const utterances: UtteranceDocType[] = await utterancesTable.toArray();
+      if (utterances.length === 0) return;
+
+      const utteranceTexts: UtteranceTextDocType[] = await utteranceTextsTable.toArray();
+      const tiers: TierDefinitionDocType[] = await tierDefinitionsTable.toArray();
+
+      const rows = buildSegmentationV2BackfillRows({
+        utterances,
+        utteranceTexts,
+        tiers,
+      });
+
+      if (rows.segments.length > 0) {
+        await layerSegmentsTable.bulkPut(rows.segments);
+      }
+      if (rows.contents.length > 0) {
+        await layerSegmentContentsTable.bulkPut(rows.contents);
+      }
+      if (rows.links.length > 0) {
+        await segmentLinksTable.bulkPut(rows.links);
+      }
+    });
   }
 }
 
@@ -2051,6 +2355,18 @@ async function _createDb(): Promise<JieyuDatabase> {
     utterance_texts: new DexieCollectionAdapter(
       dexie.utterance_texts,
       validateUtteranceTextDoc,
+    ),
+    layer_segments: new DexieCollectionAdapter(
+      dexie.layer_segments,
+      validateLayerSegmentDoc,
+    ),
+    layer_segment_contents: new DexieCollectionAdapter(
+      dexie.layer_segment_contents,
+      validateLayerSegmentContentDoc,
+    ),
+    segment_links: new DexieCollectionAdapter(
+      dexie.segment_links,
+      validateSegmentLinkDoc,
     ),
     layer_links: new DexieCollectionAdapter(dexie.layer_links, validateLayerLinkDoc),
     tier_definitions: new DexieCollectionAdapter(dexie.tier_definitions, validateTierDefinitionDoc),
@@ -2175,6 +2491,9 @@ const knownCollectionNames = [
   'tag_definitions',
   'translation_layers',
   'utterance_texts',
+  'layer_segments',
+  'layer_segment_contents',
+  'segment_links',
   'layer_links',
   'tier_definitions',
   'tier_annotations',
@@ -2207,6 +2526,9 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   phonemes: db.phonemes,
   tag_definitions: db.tag_definitions,
   utterance_texts: db.utterance_texts,
+  layer_segments: db.layer_segments,
+  layer_segment_contents: db.layer_segment_contents,
+  segment_links: db.segment_links,
   layer_links: db.layer_links,
   tier_definitions: db.tier_definitions,
   tier_annotations: db.tier_annotations,
@@ -2239,6 +2561,10 @@ const validatorByCollection: Record<KnownCollectionName, (value: unknown) => voi
   translation_layers: (value) => validateTranslationLayerDoc(value as TranslationLayerDocType),
   utterance_texts: (value) =>
     validateUtteranceTextDoc(value as UtteranceTextDocType),
+  layer_segments: (value) => validateLayerSegmentDoc(value as LayerSegmentDocType),
+  layer_segment_contents: (value) =>
+    validateLayerSegmentContentDoc(value as LayerSegmentContentDocType),
+  segment_links: (value) => validateSegmentLinkDoc(value as SegmentLinkDocType),
   layer_links: (value) => validateLayerLinkDoc(value as LayerLinkDocType),
   tier_definitions: (value) => validateTierDefinitionDoc(value as TierDefinitionDocType),
   tier_annotations: (value) => validateTierAnnotationDoc(value as TierAnnotationDocType),
@@ -2300,6 +2626,12 @@ function normalizeImportedDoc(collectionName: KnownCollectionName, doc: unknown,
       return ensureImportProvenance(doc as UtteranceMorphemeDocType, fallbackCreatedAt);
     case 'utterance_texts':
       return ensureImportProvenance(doc as UtteranceTextDocType, fallbackCreatedAt);
+    case 'layer_segments':
+      return ensureImportProvenance(doc as LayerSegmentDocType, fallbackCreatedAt);
+    case 'layer_segment_contents':
+      return ensureImportProvenance(doc as LayerSegmentContentDocType, fallbackCreatedAt);
+    case 'segment_links':
+      return ensureImportProvenance(doc as SegmentLinkDocType, fallbackCreatedAt);
     case 'tier_annotations':
       return ensureImportProvenance(doc as TierAnnotationDocType, fallbackCreatedAt);
     case 'user_notes':
@@ -2537,6 +2869,10 @@ export type {
   TagDefinitionDocType,
   TranslationLayerDocType,
   UtteranceTextDocType,
+  LayerSegmentDocType,
+  LayerSegmentContentDocType,
+  SegmentLinkDocType,
+  SegmentLinkType,
   LayerLinkDocType,
   TierDefinitionDocType,
   TierAnnotationDocType,
@@ -2561,3 +2897,4 @@ export type {
 };
 
 export { LAYER_SOFT_LIMITS };
+export { buildSegmentationV2BackfillRows };

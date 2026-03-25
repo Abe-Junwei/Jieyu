@@ -1,6 +1,7 @@
-import type { TranslationLayerDocType, UtteranceDocType } from '../db';
+import type { LayerLinkDocType, TranslationLayerDocType, UtteranceDocType } from '../db';
 import { useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { fireAndForget } from '../utils/fireAndForget';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
@@ -9,6 +10,11 @@ import { LayerActionPopover } from './LayerActionPopover';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
+
+function normalizeSpeakerFocusKey(value: string | undefined): string {
+  const trimmed = (value ?? '').trim();
+  return trimmed.length > 0 ? trimmed : 'unknown-speaker';
+}
 
 type TranscriptionTimelineTextOnlyProps = {
   transcriptionLayers: TranslationLayerDocType[];
@@ -26,12 +32,29 @@ type TranscriptionTimelineTextOnlyProps = {
   deletableLayers: TranslationLayerDocType[];
   onFocusLayer: (layerId: string) => void;
   navigateUtteranceFromInput: (e: React.KeyboardEvent<HTMLInputElement>, direction: -1 | 1) => void;
-  layerLinks?: Array<{ transcriptionLayerKey: string; tierId: string }>;
+  layerLinks?: LayerLinkDocType[];
   showConnectors?: boolean;
   onToggleConnectors?: () => void;
   laneHeights: Record<string, number>;
   onLaneHeightChange: (layerId: string, nextHeight: number) => void;
+  trackDisplayMode?: TranscriptionTrackDisplayMode;
+  onToggleTrackDisplayMode?: () => void;
+  onSetTrackDisplayMode?: (mode: TranscriptionTrackDisplayMode) => void;
+  laneLockMap?: Record<string, number>;
+  onLockSelectedSpeakersToLane?: (laneIndex: number) => void;
+  onUnlockSelectedSpeakers?: () => void;
+  onResetTrackAutoLayout?: () => void;
+  selectedSpeakerNamesForLock?: string[];
+  speakerFocusMode?: SpeakerFocusMode;
+  speakerFocusSpeakerKey?: string;
   speakerVisualByUtteranceId?: Record<string, { name: string; color: string }>;
+  speakerQuickActions?: {
+    selectedCount: number;
+    speakerOptions: Array<{ id: string; name: string }>;
+    onAssignToSelection: (speakerId: string) => void;
+    onClearSelection: () => void;
+    onCreateAndAssignToSelection: (name: string) => void;
+  };
   // Lane label resize
   onLaneLabelWidthResize?: (e: React.PointerEvent<HTMLDivElement>) => void;
 };
@@ -58,7 +81,18 @@ export function TranscriptionTimelineTextOnly({
   onToggleConnectors,
   laneHeights,
   onLaneHeightChange,
+  trackDisplayMode = 'single',
+  onToggleTrackDisplayMode,
+  onSetTrackDisplayMode,
+  laneLockMap,
+  onLockSelectedSpeakersToLane,
+  onUnlockSelectedSpeakers,
+  onResetTrackAutoLayout,
+  selectedSpeakerNamesForLock,
+  speakerFocusMode = 'all',
+  speakerFocusSpeakerKey,
   speakerVisualByUtteranceId = {},
+  speakerQuickActions,
   onLaneLabelWidthResize,
 }: TranscriptionTimelineTextOnlyProps) {
   const [layerAction, setLayerAction] = useState<{ action: LayerActionType; layerId?: string } | null>(null);
@@ -162,6 +196,11 @@ export function TranscriptionTimelineTextOnly({
             e.preventDefault();
             e.stopPropagation();
           }}
+          onClick={(e) => {
+            if (!onToggleTrackDisplayMode) return;
+            if (e.target !== e.currentTarget) return;
+            onToggleTrackDisplayMode();
+          }}
         >
           <TimelineLaneHeader
             layer={layer}
@@ -182,6 +221,19 @@ export function TranscriptionTimelineTextOnly({
             layerLinks={layerLinks}
             showConnectors={showConnectors}
             onToggleConnectors={onToggleConnectors ?? (() => {})}
+            {...(speakerQuickActions && { speakerQuickActions })}
+            {...(onToggleTrackDisplayMode && {
+              trackModeControl: {
+                mode: trackDisplayMode,
+                onToggle: onToggleTrackDisplayMode,
+                ...(onSetTrackDisplayMode ? { onSetMode: onSetTrackDisplayMode } : {}),
+                ...(onLockSelectedSpeakersToLane ? { onLockSelectedToLane: onLockSelectedSpeakersToLane } : {}),
+                ...(onUnlockSelectedSpeakers ? { onUnlockSelected: onUnlockSelectedSpeakers } : {}),
+                ...(onResetTrackAutoLayout ? { onResetAuto: onResetTrackAutoLayout } : {}),
+                ...(selectedSpeakerNamesForLock ? { selectedSpeakerNames: selectedSpeakerNamesForLock } : {}),
+                ...(laneLockMap ? { lockedSpeakerCount: Object.keys(laneLockMap).length } : {}),
+              },
+            })}
             isCollapsed={isCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
@@ -190,6 +242,10 @@ export function TranscriptionTimelineTextOnly({
           {virtualItems.map((virtualItem) => {
             const utt = utterancesOnCurrentMedia[virtualItem.index];
             if (!utt) return null;
+            const utteranceSpeakerKey = normalizeSpeakerFocusKey(utt.speakerId);
+            const focusMatched = speakerFocusMode === 'all' || !speakerFocusSpeakerKey || utteranceSpeakerKey === speakerFocusSpeakerKey;
+            const shouldHideForFocus = speakerFocusMode === 'focus-hard' && !focusMatched;
+            const shouldDimForFocus = speakerFocusMode === 'focus-soft' && !focusMatched;
             const speakerVisual = speakerVisualByUtteranceId[utt.id];
             const sourceText = getUtteranceTextForLayer(utt, layer.id);
             const draftKey = `trc-${layer.id}-${utt.id}`;
@@ -211,7 +267,7 @@ export function TranscriptionTimelineTextOnly({
             return (
               <div
                 key={utt.id}
-                className={`timeline-text-item${utt.id === selectedUtteranceId ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}`}
+                className={`timeline-text-item${utt.id === selectedUtteranceId ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${shouldHideForFocus ? ' timeline-text-item-focus-hidden' : ''}${shouldDimForFocus ? ' timeline-text-item-focus-dim' : ''}`}
                 style={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
@@ -353,7 +409,6 @@ export function TranscriptionTimelineTextOnly({
           {virtualItems.map((virtualItem) => {
             const utt = utterancesOnCurrentMedia[virtualItem.index];
             if (!utt) return null;
-            const speakerVisual = speakerVisualByUtteranceId[utt.id];
             const text = translationTextByLayer.get(layer.id)?.get(utt.id)?.text ?? '';
             const draftKey = `${layer.id}-${utt.id}`;
             const cellKey = `tr-${layer.id}-${utt.id}`;
@@ -373,20 +428,13 @@ export function TranscriptionTimelineTextOnly({
             return (
               <div
                 key={utt.id}
-                className={`timeline-text-item${utt.id === selectedUtteranceId ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}`}
+                className={`timeline-text-item${utt.id === selectedUtteranceId ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}`}
                 style={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
-                  ...(speakerVisual ? ({ '--speaker-color': speakerVisual.color } as React.CSSProperties) : {}),
                 }}
-                title={speakerVisual ? `说话人：${speakerVisual.name}` : undefined}
                 onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e)}
               >
-                {speakerVisual && (
-                  <span className="timeline-text-item-speaker-badge" title={`说话人：${speakerVisual.name}`}>
-                    {speakerVisual.name}
-                  </span>
-                )}
                 {saveStatus === 'error' ? (
                   <button
                     type="button"

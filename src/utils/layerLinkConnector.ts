@@ -1,9 +1,5 @@
 import type { TranslationLayerDocType } from '../db';
-
-export interface LayerLinkRelation {
-  transcriptionLayerKey: string;
-  tierId: string;
-}
+import type { LayerLinkEdge } from '../services/LayerIdBridgeService';
 
 export interface LayerLinkConnectorSegment {
   column: number;
@@ -27,7 +23,7 @@ function pushSegment(
 
 export function buildLayerLinkConnectorLayout(
   allLayers: TranslationLayerDocType[],
-  layerLinks: LayerLinkRelation[],
+  layerLinks: LayerLinkEdge[],
 ): LayerLinkConnectorLayout {
   if (allLayers.length === 0 || layerLinks.length === 0) {
     return { maxColumns: 0, segmentsByLayerId: {} };
@@ -57,7 +53,8 @@ export function buildLayerLinkConnectorLayout(
   for (const link of layerLinks) {
     const parentIndex = parentIndexByKey.get(link.transcriptionLayerKey)
       ?? layerIndexByRef.get(link.transcriptionLayerKey);
-    const childIndex = layerIndexByRef.get(link.tierId);
+    const targetLayerId = link.targetLayerId;
+    const childIndex = layerIndexByRef.get(targetLayerId);
     if (parentIndex === undefined || childIndex === undefined || childIndex <= parentIndex) continue;
     parentTapRowIndices.add(parentIndex);
     childTapRowIndices.add(childIndex);

@@ -195,6 +195,72 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     }));
   });
 
+  it('saveTextTranslationForUtterance should strip legacy speaker linkage fields', async () => {
+    const now = new Date().toISOString();
+    await db.utterance_texts.add({
+      id: 'utr-legacy',
+      utteranceId: 'utt-1',
+      tierId: 'tr-layer-1',
+      modality: 'text',
+      text: 'old',
+      sourceType: 'human',
+      recordedBySpeakerId: 'spk-legacy',
+      createdAt: now,
+      updatedAt: now,
+    } as never);
+
+    const pushUndo = vi.fn();
+    const setSaveState = vi.fn();
+    const setTranslations = vi.fn();
+
+    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+      defaultTranscriptionLayerId: undefined,
+      layerById: new Map([
+        ['tr-layer-1', {
+          id: 'tr-layer-1',
+          textId: 't1',
+          key: 'tr_1',
+          name: { zho: '翻译层1' },
+          layerType: 'translation',
+          languageId: 'en',
+          modality: 'text',
+          createdAt: now,
+          updatedAt: now,
+        }],
+      ]) as never,
+      selectedUtteranceMedia: undefined,
+      selectedUtteranceId: '',
+      translations: [],
+      utterancesRef: { current: [] },
+      utterancesOnCurrentMediaRef: { current: [] },
+      getUtteranceTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, utteranceId: null } },
+      timingUndoRef: { current: null },
+      pushUndo,
+      createAnchor: vi.fn(),
+      updateAnchorTime: vi.fn(),
+      pruneOrphanAnchors: vi.fn(),
+      setSaveState,
+      setSnapGuide: vi.fn(),
+      setMediaItems: vi.fn(),
+      setTranslations,
+      setUtterances: vi.fn(),
+      setUtteranceDrafts: vi.fn(),
+      setSelectedUtteranceId: vi.fn(),
+      setSelectedUtteranceIds: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.saveTextTranslationForUtterance('utt-1', 'updated', 'tr-layer-1');
+    });
+
+    const json = await db.utterance_texts.get('utr-legacy') as Record<string, unknown> | undefined;
+
+    expect(json?.text).toBe('updated');
+    expect(json && 'recordedBySpeakerId' in json).toBe(false);
+    expect(pushUndo).toHaveBeenCalledWith('编辑翻译文本');
+  });
+
   it('offsetSelectedTimes should rollback when persistence fails after pushUndo', async () => {
     const pushUndo = vi.fn();
     const rollbackUndo = vi.fn(async () => undefined);

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Moon, Sun, Search, User } from 'lucide-react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -30,6 +30,7 @@ export function App() {
   const locale = useMemo(() => detectLocale(), []);
   const headerRef = useRef<HTMLElement | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
+  const [isHeaderCompact, setIsHeaderCompact] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     const stored = window.localStorage.getItem('jieyu-theme');
     if (stored === 'light' || stored === 'dark') return stored;
@@ -60,12 +61,37 @@ export function App() {
     };
   }, []);
 
-  const navItems = useMemo(() => [
-    { to: '/transcription', label: t(locale, 'app.nav.transcription') },
-    { to: '/annotation', label: t(locale, 'app.nav.annotation') },
-    { to: '/analysis', label: t(locale, 'app.nav.analysis') },
-    { to: '/writing', label: t(locale, 'app.nav.writing') },
-    { to: '/lexicon', label: t(locale, 'app.nav.lexicon') },
+  useEffect(() => {
+    if (isTranscriptionRoute) {
+      setIsHeaderCompact(false);
+      return;
+    }
+
+    const onScroll = () => {
+      setIsHeaderCompact(window.scrollY > 10);
+    };
+
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isTranscriptionRoute]);
+
+  const navGroups = useMemo(() => [
+    {
+      id: 'workbench',
+      items: [
+        { to: '/transcription', label: t(locale, 'app.nav.transcription') },
+        { to: '/annotation', label: t(locale, 'app.nav.annotation') },
+        { to: '/analysis', label: t(locale, 'app.nav.analysis') },
+      ],
+    },
+    {
+      id: 'knowledge',
+      items: [
+        { to: '/writing', label: t(locale, 'app.nav.writing') },
+        { to: '/lexicon', label: t(locale, 'app.nav.lexicon') },
+      ],
+    },
   ], [locale]);
 
   // Header is now fixed at top: 12px, so transcription content starts at headerHeight + 12
@@ -88,30 +114,39 @@ export function App() {
   return (
     <ErrorBoundary>
     <div className={`app-shell ${isTranscriptionRoute ? 'app-shell-transcription' : ''}`}>
-      <header ref={headerRef} className="app-header">
+      <header ref={headerRef} className={`app-header ${isHeaderCompact ? 'app-header-compact' : ''}`}>
         <div className="header-brand">
           <img src="/favicon.svg" alt="" className="header-brand-icon" aria-hidden="true" />
           <p className="header-brand-name"><span>解语</span> Jieyu</p>
         </div>
 
         <nav className="header-nav" aria-label="主功能导航">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                isActive ? 'header-nav-link header-nav-link-active' : 'header-nav-link'
-              }
-            >
-              {item.label}
-            </NavLink>
+          {navGroups.map((group, groupIndex) => (
+            <Fragment key={group.id}>
+              <div className="header-nav-group">
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      isActive ? 'header-nav-link header-nav-link-active' : 'header-nav-link'
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+              {groupIndex < navGroups.length - 1 ? (
+                <span className="header-nav-separator" aria-hidden="true" />
+              ) : null}
+            </Fragment>
           ))}
         </nav>
 
         <div className="header-actions">
           <button
             type="button"
-            className="header-action-btn"
+            className="header-action-btn header-action-btn-search"
             title="搜索 (⌘K)"
             aria-label="搜索"
           >

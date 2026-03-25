@@ -1,4 +1,5 @@
 import type {
+  ComponentPropsWithoutRef,
   CSSProperties,
   MutableRefObject,
   PointerEventHandler,
@@ -223,7 +224,7 @@ export function TimelineRailSection({ children }: TimelineRailSectionProps) {
   return <>{children}</>;
 }
 
-type TimelineScrollSectionProps = {
+type TimelineScrollSectionProps = Omit<ComponentPropsWithoutRef<'div'>, 'children' | 'ref' | 'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onScroll'> & {
   containerRef: Ref<HTMLDivElement>;
   onPointerDown: PointerEventHandler<HTMLDivElement>;
   onPointerMove: PointerEventHandler<HTMLDivElement>;
@@ -239,6 +240,7 @@ export function TimelineScrollSection({
   onPointerUp,
   onScroll,
   children,
+  ...divProps
 }: TimelineScrollSectionProps) {
   return (
     <div
@@ -248,6 +250,7 @@ export function TimelineScrollSection({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onScroll={onScroll}
+      {...divProps}
     >
       {children}
     </div>

@@ -15,8 +15,29 @@ import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import type { SaveState, SnapGuide } from './transcriptionTypes';
+import {
+  removeUtteranceTextFromSegmentationV2,
+  syncUtteranceTextToSegmentationV2,
+} from '../services/LayerSegmentationV2BridgeService';
+import {
+  getUtteranceTextLayerId,
+  matchesUtteranceTextLayer,
+  type UtteranceTextWithoutLayerId,
+  withUtteranceTextLayerId,
+} from '../services/LayerIdBridgeService';
 
 const log = createLogger('useTranscriptionUtteranceActions');
+
+type LegacySpeakerLinkedUtteranceText = UtteranceTextDocType & {
+  recordedBySpeakerId?: string;
+  speakerId?: string;
+};
+
+function stripSpeakerAssociationFromTranslationText(doc: UtteranceTextDocType): UtteranceTextDocType {
+  // 翻译层数据不应保留说话人关联字段 | Translation rows should not keep speaker-linked fields
+  const { recordedBySpeakerId: _recordedBySpeakerId, speakerId: _speakerId, ...rest } = doc as LegacySpeakerLinkedUtteranceText;
+  return rest as UtteranceTextDocType;
+}
 
 function formatRollbackFailureMessage(actionLabel: string, error: unknown): string {
   const message = error instanceof Error ? error.message : '未知错误';
@@ -47,6 +68,7 @@ export type TranscriptionUtteranceActionsParams = {
   setUtteranceDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setSelectedUtteranceId: React.Dispatch<React.SetStateAction<string>>;
   setSelectedUtteranceIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  allowOverlapInTranscription?: boolean;
 };
 
 export function useTranscriptionUtteranceActions({
@@ -73,7 +95,15 @@ export function useTranscriptionUtteranceActions({
   setUtteranceDrafts,
   setSelectedUtteranceId,
   setSelectedUtteranceIds,
+  allowOverlapInTranscription = false,
 }: TranscriptionUtteranceActionsParams) {
+  const resolveUtteranceById = useCallback(async (db: Awaited<ReturnType<typeof getDb>>, utteranceId: string) => {
+    const local = utterancesRef.current.find((item) => item.id === utteranceId);
+    if (local) return local;
+    const row = await db.collections.utterances.findOne({ selector: { id: utteranceId } }).exec();
+    return (row?.toJSON() as UtteranceDocType | undefined) ?? null;
+  }, [utterancesRef]);
+
   const saveVoiceTranslation = useCallback(async (
     blob: Blob,
     targetUtterance: UtteranceDocType,
@@ -99,16 +129,18 @@ export function useTranscriptionUtteranceActions({
 
     const translationId = newId('utr');
     const newTranslation: UtteranceTextDocType = {
-      id: translationId,
-      utteranceId: targetUtterance.id,
-      tierId: targetLayer.id,
-      modality: 'audio',
-      translationAudioMediaId: mediaId,
-      sourceType: 'human',
-      createdAt: now,
-      updatedAt: now,
+      ...withUtteranceTextLayerId({
+        id: translationId,
+        utteranceId: targetUtterance.id,
+        modality: 'audio',
+        translationAudioMediaId: mediaId,
+        sourceType: 'human',
+        createdAt: now,
+        updatedAt: now,
+      } as UtteranceTextWithoutLayerId, { layerId: targetLayer.id }),
     } as UtteranceTextDocType;
     await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(newTranslation));
+    await syncUtteranceTextToSegmentationV2(db, targetUtterance, newTranslation);
 
     setMediaItems((prev) => [...prev, newMedia]);
     setTranslations((prev) => [...prev, newTranslation]);
@@ -130,7 +162,7 @@ export function useTranscriptionUtteranceActions({
         .map((doc) => doc.toJSON() as unknown as UtteranceTextDocType)
         .filter(
           (item) =>
-            item.tierId === targetLayer.id
+            matchesUtteranceTextLayer(item, targetLayer.id)
             && (item.modality === 'text' || item.modality === 'mixed'),
         )
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
@@ -138,6 +170,7 @@ export function useTranscriptionUtteranceActions({
       if (!normalizedValue) {
         if (existing) {
           await db.collections.utterance_texts.remove(existing.id);
+          await removeUtteranceTextFromSegmentationV2(db, existing);
           setTranslations((prev) => prev.filter((item) => item.id !== existing.id));
         }
       } else if (existing) {
@@ -147,19 +180,28 @@ export function useTranscriptionUtteranceActions({
           updatedAt: now,
         } as UtteranceTextDocType;
         await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(updatedTranslation));
+        const utterance = await resolveUtteranceById(db, utteranceId);
+        if (utterance) {
+          await syncUtteranceTextToSegmentationV2(db, utterance, updatedTranslation);
+        }
         setTranslations((prev) => prev.map((item) => (item.id === existing.id ? updatedTranslation : item)));
       } else {
         const newTranslation: UtteranceTextDocType = {
-          id: newId('utr'),
-          utteranceId,
-          tierId: targetLayer.id,
-          modality: 'text',
-          text: normalizedValue,
-          sourceType: 'human',
-          createdAt: now,
-          updatedAt: now,
+          ...withUtteranceTextLayerId({
+            id: newId('utr'),
+            utteranceId,
+            modality: 'text',
+            text: normalizedValue,
+            sourceType: 'human',
+            createdAt: now,
+            updatedAt: now,
+          } as UtteranceTextWithoutLayerId, { layerId: targetLayer.id }),
         } as UtteranceTextDocType;
         await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(newTranslation));
+        const utterance = await resolveUtteranceById(db, utteranceId);
+        if (utterance) {
+          await syncUtteranceTextToSegmentationV2(db, utterance, newTranslation);
+        }
         setTranslations((prev) => [...prev, newTranslation]);
       }
     }
@@ -172,7 +214,7 @@ export function useTranscriptionUtteranceActions({
     }
 
     setSaveState({ kind: 'done', message: '已更新转写文本' });
-  }, [defaultTranscriptionLayerId, layerById, pushUndo, setSaveState, setTranslations, setUtteranceDrafts]);
+  }, [defaultTranscriptionLayerId, layerById, pushUndo, resolveUtteranceById, setSaveState, setTranslations, setUtteranceDrafts]);
 
   const saveUtteranceTiming = useCallback(async (utteranceId: string, startTime: number, endTime: number) => {
     const db = await getDb();
@@ -202,8 +244,8 @@ export function useTranscriptionUtteranceActions({
     const next = currentIndex >= 0 && currentIndex < timeline.length - 1 ? timeline[currentIndex + 1] : undefined;
 
     const gap = 0.02;
-    const lowerBound = prev ? prev.endTime + gap : 0;
-    const upperBound = next ? next.startTime - gap : Number.POSITIVE_INFINITY;
+    const lowerBound = allowOverlapInTranscription ? 0 : (prev ? prev.endTime + gap : 0);
+    const upperBound = allowOverlapInTranscription ? Number.POSITIVE_INFINITY : (next ? next.startTime - gap : Number.POSITIVE_INFINITY);
 
     setSnapGuide({ visible: false });
 
@@ -258,12 +300,22 @@ export function useTranscriptionUtteranceActions({
       kind: 'done',
       message: `已更新时间区间 ${formatTime(updated.startTime)} - ${formatTime(updated.endTime)}`,
     });
-  }, [pushUndo, setSaveState, setSnapGuide, setUtterances, timingGestureRef, timingUndoRef, updateAnchorTime]);
+  }, [allowOverlapInTranscription, pushUndo, setSaveState, setSnapGuide, setUtterances, timingGestureRef, timingUndoRef, updateAnchorTime]);
 
   const saveTextTranslationForUtterance = useCallback(async (utteranceId: string, value: string, layerId: string) => {
     if (!layerId) {
       reportValidationError({
         message: '请先选择翻译层',
+        i18nKey: 'transcription.error.validation.translationLayerRequired',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
+      return;
+    }
+
+    const targetLayer = layerById.get(layerId);
+    if (!targetLayer || targetLayer.layerType !== 'translation') {
+      reportValidationError({
+        message: '目标层不是翻译层，无法保存翻译文本',
         i18nKey: 'transcription.error.validation.translationLayerRequired',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -280,7 +332,7 @@ export function useTranscriptionUtteranceActions({
       .map((doc) => doc.toJSON() as unknown as UtteranceTextDocType)
       .filter(
         (item) =>
-          item.tierId === layerId &&
+          matchesUtteranceTextLayer(item, layerId) &&
           (item.modality === 'text' || item.modality === 'mixed'),
       );
 
@@ -289,6 +341,7 @@ export function useTranscriptionUtteranceActions({
       if (existing) {
         pushUndo('清空翻译文本');
         await db.collections.utterance_texts.remove(existing.id);
+        await removeUtteranceTextFromSegmentationV2(db, existing);
         setTranslations((prev) => prev.filter((item) => item.id !== existing.id));
         setSaveState({ kind: 'done', message: '已清空翻译文本' });
       }
@@ -299,31 +352,41 @@ export function useTranscriptionUtteranceActions({
     const existing = [...candidates].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
 
     if (existing) {
+      const sanitizedExisting = stripSpeakerAssociationFromTranslationText(existing);
       const updatedTranslation: UtteranceTextDocType = {
-        ...existing,
+        ...sanitizedExisting,
         text: trimmed,
-        modality: existing.modality,
+        modality: sanitizedExisting.modality,
         updatedAt: now,
       } as UtteranceTextDocType;
       await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(updatedTranslation));
+      const utterance = await resolveUtteranceById(db, utteranceId);
+      if (utterance) {
+        await syncUtteranceTextToSegmentationV2(db, utterance, updatedTranslation);
+      }
       setTranslations((prev) => prev.map((item) => (item.id === existing.id ? updatedTranslation : item)));
     } else {
       const newTranslation: UtteranceTextDocType = {
-        id: newId('utr'),
-        utteranceId,
-        tierId: layerId,
-        modality: 'text',
-        text: trimmed,
-        sourceType: 'human',
-        createdAt: now,
-        updatedAt: now,
+        ...withUtteranceTextLayerId({
+          id: newId('utr'),
+          utteranceId,
+          modality: 'text',
+          text: trimmed,
+          sourceType: 'human',
+          createdAt: now,
+          updatedAt: now,
+        } as UtteranceTextWithoutLayerId, { layerId }),
       } as UtteranceTextDocType;
       await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(newTranslation));
+      const utterance = await resolveUtteranceById(db, utteranceId);
+      if (utterance) {
+        await syncUtteranceTextToSegmentationV2(db, utterance, newTranslation);
+      }
       setTranslations((prev) => [...prev, newTranslation]);
     }
 
     setSaveState({ kind: 'done', message: '已更新翻译文本' });
-  }, [pushUndo, setSaveState, setTranslations]);
+  }, [layerById, pushUndo, resolveUtteranceById, setSaveState, setTranslations]);
 
   const createNextUtterance = useCallback(async (base: UtteranceDocType, playerDuration: number) => {
     pushUndo('创建句段');
@@ -388,9 +451,11 @@ export function useTranscriptionUtteranceActions({
         : siblings[insertionIndex - 1];
     const next = insertionIndex < 0 ? undefined : siblings[insertionIndex];
 
-    const lowerBound = Math.max(0, prev ? prev.endTime + gap : 0);
+    const lowerBound = allowOverlapInTranscription ? 0 : Math.max(0, prev ? prev.endTime + gap : 0);
     const mediaDuration = typeof media.duration === 'number' ? media.duration : Number.POSITIVE_INFINITY;
-    const upperFromNext = next ? next.startTime - gap : Number.POSITIVE_INFINITY;
+    const upperFromNext = allowOverlapInTranscription
+      ? Number.POSITIVE_INFINITY
+      : (next ? next.startTime - gap : Number.POSITIVE_INFINITY);
     const upperBound = Math.min(mediaDuration, upperFromNext);
 
     const boundedStart = Math.max(lowerBound, rawStart);
@@ -435,7 +500,7 @@ export function useTranscriptionUtteranceActions({
     setUtteranceDrafts((prev) => ({ ...prev, [createdId]: '' }));
     setSelectedUtteranceId(createdId);
     setSaveState({ kind: 'done', message: `已新建句段 ${formatTime(finalStart)} - ${formatTime(finalEnd)}` });
-  }, [createAnchor, pushUndo, selectedUtteranceMedia, setSaveState, setSelectedUtteranceId, setUtteranceDrafts, setUtterances, utterancesRef]);
+  }, [allowOverlapInTranscription, createAnchor, pushUndo, selectedUtteranceMedia, setSaveState, setSelectedUtteranceId, setUtteranceDrafts, setUtterances, utterancesRef]);
 
   const deleteUtterance = useCallback(async (utteranceId: string) => {
     const target = utterancesRef.current.find((u) => u.id === utteranceId);
@@ -471,10 +536,12 @@ export function useTranscriptionUtteranceActions({
     const survivorTranslations = translations.filter((t) => t.utteranceId === survivorId);
     const newTranslations: UtteranceTextDocType[] = [];
     const updatedTranslations: UtteranceTextDocType[] = [];
+    const survivorUtterance = await resolveUtteranceById(db, survivorId);
 
     for (const rt of removedTranslations) {
+      const targetLayerId = getUtteranceTextLayerId(rt);
       const match = survivorTranslations.find(
-        (st) => st.tierId === rt.tierId && st.modality === rt.modality,
+        (st) => matchesUtteranceTextLayer(st, targetLayerId) && st.modality === rt.modality,
       );
       if (match && rt.text) {
         const merged: UtteranceTextDocType = {
@@ -483,6 +550,9 @@ export function useTranscriptionUtteranceActions({
           updatedAt: now,
         } as UtteranceTextDocType;
         await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(merged));
+        if (survivorUtterance) {
+          await syncUtteranceTextToSegmentationV2(db, survivorUtterance, merged);
+        }
         updatedTranslations.push(merged);
       } else if (!match) {
         const reassigned: UtteranceTextDocType = {
@@ -491,13 +561,16 @@ export function useTranscriptionUtteranceActions({
           updatedAt: now,
         } as UtteranceTextDocType;
         await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(reassigned));
+        if (survivorUtterance) {
+          await syncUtteranceTextToSegmentationV2(db, survivorUtterance, reassigned);
+        }
         newTranslations.push(reassigned);
       }
     }
 
     await LinguisticService.removeUtterance(removedId);
     return { newTranslations, updatedTranslations };
-  }, [translations]);
+  }, [resolveUtteranceById, translations]);
 
   const mergeWithPrevious = useCallback(async (utteranceId: string) => {
     const sorted = utterancesRef.current
@@ -646,6 +719,7 @@ export function useTranscriptionUtteranceActions({
         updatedAt: now,
       } as UtteranceTextDocType;
       await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(copy));
+      await syncUtteranceTextToSegmentationV2(db, secondHalf, copy);
       copiedTranslations.push(copy);
     }
 
@@ -702,20 +776,22 @@ export function useTranscriptionUtteranceActions({
       transformed.set(u.id, { startTime, endTime });
     }
 
-    const timeline = utterancesOnCurrentMediaRef.current
-      .map((u) => {
-        const next = transformed.get(u.id);
-        return next ? { ...u, ...next } : u;
-      })
-      .sort((a, b) => a.startTime - b.startTime);
-    for (let i = 1; i < timeline.length; i++) {
-      if (timeline[i]!.startTime < timeline[i - 1]!.endTime + gap) {
-        reportValidationError({
-          message: '时间偏移会造成句段重叠，操作已取消。',
-          i18nKey: 'transcription.error.validation.offsetOverlap',
-          setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-        });
-        return;
+    if (!allowOverlapInTranscription) {
+      const timeline = utterancesOnCurrentMediaRef.current
+        .map((u) => {
+          const next = transformed.get(u.id);
+          return next ? { ...u, ...next } : u;
+        })
+        .sort((a, b) => a.startTime - b.startTime);
+      for (let i = 1; i < timeline.length; i++) {
+        if (timeline[i]!.startTime < timeline[i - 1]!.endTime + gap) {
+          reportValidationError({
+            message: '时间偏移会造成句段重叠，操作已取消。',
+            i18nKey: 'transcription.error.validation.offsetOverlap',
+            setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+          });
+          return;
+        }
       }
     }
 
@@ -766,7 +842,7 @@ export function useTranscriptionUtteranceActions({
         fallbackMessage: formatRollbackFailureMessage('批量时间偏移', error),
       });
     }
-  }, [pushUndo, rollbackUndo, setSaveState, setUtterances, updateAnchorTime, utterancesOnCurrentMediaRef]);
+  }, [allowOverlapInTranscription, pushUndo, rollbackUndo, setSaveState, setUtterances, updateAnchorTime, utterancesOnCurrentMediaRef]);
 
   const scaleSelectedTimes = useCallback(async (ids: Set<string>, factor: number, anchorTime?: number) => {
     const targets = utterancesOnCurrentMediaRef.current
@@ -802,20 +878,22 @@ export function useTranscriptionUtteranceActions({
       transformed.set(u.id, { startTime, endTime });
     }
 
-    const timeline = utterancesOnCurrentMediaRef.current
-      .map((u) => {
-        const next = transformed.get(u.id);
-        return next ? { ...u, ...next } : u;
-      })
-      .sort((a, b) => a.startTime - b.startTime);
-    for (let i = 1; i < timeline.length; i++) {
-      if (timeline[i]!.startTime < timeline[i - 1]!.endTime + gap) {
-        reportValidationError({
-          message: '时间缩放会造成句段重叠，操作已取消。',
-          i18nKey: 'transcription.error.validation.scaleOverlap',
-          setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-        });
-        return;
+    if (!allowOverlapInTranscription) {
+      const timeline = utterancesOnCurrentMediaRef.current
+        .map((u) => {
+          const next = transformed.get(u.id);
+          return next ? { ...u, ...next } : u;
+        })
+        .sort((a, b) => a.startTime - b.startTime);
+      for (let i = 1; i < timeline.length; i++) {
+        if (timeline[i]!.startTime < timeline[i - 1]!.endTime + gap) {
+          reportValidationError({
+            message: '时间缩放会造成句段重叠，操作已取消。',
+            i18nKey: 'transcription.error.validation.scaleOverlap',
+            setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+          });
+          return;
+        }
       }
     }
 
@@ -867,7 +945,7 @@ export function useTranscriptionUtteranceActions({
         fallbackMessage: formatRollbackFailureMessage('批量时间缩放', error),
       });
     }
-  }, [pushUndo, rollbackUndo, setSaveState, setUtterances, updateAnchorTime, utterancesOnCurrentMediaRef]);
+  }, [allowOverlapInTranscription, pushUndo, rollbackUndo, setSaveState, setUtterances, updateAnchorTime, utterancesOnCurrentMediaRef]);
 
   const splitByRegex = useCallback(async (ids: Set<string>, pattern: string, flags = '') => {
     const rawPattern = pattern.trim();
@@ -983,6 +1061,7 @@ export function useTranscriptionUtteranceActions({
             updatedAt: now,
           } as UtteranceTextDocType;
           await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(copy));
+          await syncUtteranceTextToSegmentationV2(db, nextUtterance, copy);
           copiedTranslations.push(copy);
         }
       }

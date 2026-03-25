@@ -90,6 +90,17 @@ import { fireAndForget } from '../utils/fireAndForget';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import { formatLayerRailLabel, formatTime } from '../utils/transcriptionFormatters';
+import { buildSpeakerLayerLayoutWithOptions } from '../utils/speakerLayerLayout';
+import {
+  INITIAL_OVERLAP_CYCLE_TELEMETRY,
+  updateOverlapCycleTelemetry,
+} from '../utils/overlapCycleTelemetry';
+import {
+  getTrackEntityState,
+  loadTrackEntityStateMap,
+  saveTrackEntityStateMap,
+  upsertTrackEntityState,
+} from '../services/TrackEntityStore';
 import { EmbeddingService } from '../ai/embeddings/EmbeddingService';
 import { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 import { createEmbeddingProvider, testEmbeddingProvider } from '../ai/embeddings/EmbeddingProviderCatalog';
@@ -180,6 +191,8 @@ function TranscriptionPageOrchestrator() {
     selectAllUtterances,
     clearUtteranceSelection,
     setSelectedUtteranceIds: _setSelectedUtteranceIds,
+    transcriptionTrackMode,
+    setTranscriptionTrackMode,
     deleteSelectedUtterances,
     offsetSelectedTimes,
     scaleSelectedTimes,
@@ -731,7 +744,16 @@ function TranscriptionPageOrchestrator() {
   /** 快捷键面板开关 | Keyboard shortcuts panel visibility */
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [snapEnabled, setSnapEnabled] = useState(false);
+  const [hoverExpandEnabled, setHoverExpandEnabled] = useState(true);
   const [hoverTime, setHoverTime] = useState<{ time: number; x: number; y: number } | null>(null);
+  const [speakerFocusMode, setSpeakerFocusMode] = useState<'all' | 'focus-soft' | 'focus-hard'>('all');
+  const [speakerFocusTargetKey, setSpeakerFocusTargetKey] = useState<string | null>(null);
+  const [overlapCycleToast, setOverlapCycleToast] = useState<{ index: number; total: number; nonce: number } | null>(null);
+  const [lockConflictToast, setLockConflictToast] = useState<{ count: number; speakers: string[]; nonce: number } | null>(null);
+  const speakerFocusTargetMemoryByMediaRef = useRef<Record<string, string | null>>({});
+  const overlapCycleTelemetryRef = useRef(INITIAL_OVERLAP_CYCLE_TELEMETRY);
+  const trackEntityStateByMediaRef = useRef(loadTrackEntityStateMap(typeof window !== 'undefined' ? window.localStorage : undefined));
+  const trackEntityHydratedKeyRef = useRef<string | null>(null);
   const [segMarkStart, setSegMarkStart] = useState<number | null>(null);
   const [dragPreview, setDragPreview] = useState<{ id: string; start: number; end: number } | null>(null);
   const skipSeekForIdRef = useRef<string | null>(null);
@@ -1344,6 +1366,7 @@ function TranscriptionPageOrchestrator() {
   }, [layerCreateMessage, layerRailRows, setLayerRailTab]);
 
   usePanelAutoCollapse({
+    hoverExpandEnabled,
     isLayerRailCollapsed,
     setIsLayerRailCollapsed,
     listMainRef,
@@ -1766,6 +1789,17 @@ function TranscriptionPageOrchestrator() {
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
   }, [isTimelineLaneHeaderCollapsed, laneLabelWidth]);
+
+  const handleWaveformResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    waveformResizeRef.current = {
+      startY: e.clientY,
+      startHeight: waveformHeight,
+      startAmplitude: amplitudeScale,
+    };
+    setIsResizingWaveform(true);
+  }, [waveformHeight, amplitudeScale]);
 
   useEffect(() => {
     if (!autoScrollEnabled) return;
@@ -2271,6 +2305,8 @@ function TranscriptionPageOrchestrator() {
       handleRenameSpeaker,
       handleMergeSpeaker,
       handleDeleteSpeaker,
+      handleAssignSpeakerToUtterances,
+      handleCreateSpeakerAndAssignToUtterances,
       handleAssignSpeakerToSelected,
       handleCreateSpeakerAndAssign,
       handleCreateSpeakerOnly,
@@ -2309,6 +2345,286 @@ function TranscriptionPageOrchestrator() {
       return filteredUtterancesOnCurrentMedia.filter((utt) => utt.endTime >= left && utt.startTime <= right);
   }, [filteredUtterancesOnCurrentMedia, rulerView, player.duration]);
 
+  const hasOverlappingUtterancesOnCurrentMedia = useMemo(() => {
+    if (utterancesOnCurrentMedia.length < 2) return false;
+    const sorted = [...utterancesOnCurrentMedia].sort((a, b) => {
+      if (a.startTime !== b.startTime) return a.startTime - b.startTime;
+      if (a.endTime !== b.endTime) return a.endTime - b.endTime;
+      return a.id.localeCompare(b.id);
+    });
+    for (let i = 1; i < sorted.length; i += 1) {
+      if (sorted[i]!.startTime < sorted[i - 1]!.endTime) {
+        return true;
+      }
+    }
+    return false;
+  }, [utterancesOnCurrentMedia]);
+
+  const speakerSortKeyById = useMemo(() => {
+    const sorted = [...utterancesOnCurrentMedia].sort((a, b) => {
+      if (a.startTime !== b.startTime) return a.startTime - b.startTime;
+      if (a.endTime !== b.endTime) return a.endTime - b.endTime;
+      return a.id.localeCompare(b.id);
+    });
+    const next: Record<string, number> = {};
+    let order = 0;
+    for (const utterance of sorted) {
+      const key = getUtteranceSpeakerKey(utterance);
+      if (key in next) continue;
+      next[key] = order;
+      order += 1;
+    }
+    return next;
+  }, [utterancesOnCurrentMedia]);
+
+  const [laneLockMap, setLaneLockMap] = useState<Record<string, number>>({});
+  const trackEntityProjectKey = activeTextId?.trim() || '__no-project__';
+  const trackEntityMediaId = selectedUtteranceMedia?.id ?? null;
+  const trackEntityScopedKey = trackEntityMediaId ? `${trackEntityProjectKey}::${trackEntityMediaId}` : null;
+
+  useEffect(() => {
+    if (!trackEntityScopedKey) {
+      trackEntityHydratedKeyRef.current = null;
+      setLaneLockMap({});
+      setTranscriptionTrackMode('single');
+      return;
+    }
+    const saved = getTrackEntityState(trackEntityStateByMediaRef.current, trackEntityScopedKey);
+    if (!saved) {
+      setLaneLockMap({});
+      setTranscriptionTrackMode('single');
+      trackEntityHydratedKeyRef.current = trackEntityScopedKey;
+      return;
+    }
+    setLaneLockMap(saved.laneLockMap);
+    setTranscriptionTrackMode(saved.mode);
+    trackEntityHydratedKeyRef.current = trackEntityScopedKey;
+  }, [setTranscriptionTrackMode, trackEntityScopedKey]);
+
+  useEffect(() => {
+    if (!trackEntityScopedKey) return;
+    // 切媒体先水合再持久化，避免旧状态覆盖新媒体配置 | Hydrate first on media switch to avoid stale overwrite.
+    if (trackEntityHydratedKeyRef.current !== trackEntityScopedKey) return;
+    const next = upsertTrackEntityState(trackEntityStateByMediaRef.current, trackEntityScopedKey, {
+      mode: transcriptionTrackMode,
+      laneLockMap,
+    });
+    trackEntityStateByMediaRef.current = next;
+    saveTrackEntityStateMap(next, typeof window !== 'undefined' ? window.localStorage : undefined);
+  }, [laneLockMap, trackEntityScopedKey, transcriptionTrackMode]);
+
+  useEffect(() => {
+    if (transcriptionTrackMode === 'single' && hasOverlappingUtterancesOnCurrentMedia) {
+      setTranscriptionTrackMode('multi-auto');
+    }
+  }, [hasOverlappingUtterancesOnCurrentMedia, setTranscriptionTrackMode, transcriptionTrackMode]);
+
+  const speakerLayerLayout = useMemo(() => buildSpeakerLayerLayoutWithOptions(timelineRenderUtterances, {
+    ...(laneLockMap ? { laneLockMap } : {}),
+    ...(speakerSortKeyById ? { speakerSortKeyById } : {}),
+  }), [laneLockMap, speakerSortKeyById, timelineRenderUtterances]);
+
+  const setTrackDisplayMode = useCallback((mode: typeof transcriptionTrackMode) => {
+    setTranscriptionTrackMode(mode);
+  }, [setTranscriptionTrackMode]);
+
+  const handleToggleTrackDisplayMode = useCallback(() => {
+    setTranscriptionTrackMode((prev) => {
+      if (prev === 'single') return 'multi-auto';
+      if (prev === 'multi-auto') return 'single';
+      return 'multi-auto';
+    });
+  }, [setTranscriptionTrackMode]);
+
+    const selectedUtteranceIdsForSpeakerActions = useMemo(
+      () => selectedUtteranceIds.size > 0
+        ? Array.from(selectedUtteranceIds)
+        : (selectedUtteranceId ? [selectedUtteranceId] : []),
+      [selectedUtteranceId, selectedUtteranceIds],
+    );
+
+    const speakerQuickActions = useMemo(() => ({
+      selectedCount: selectedUtteranceIdsForSpeakerActions.length,
+      speakerOptions: speakerOptions.map((speaker) => ({ id: speaker.id, name: speaker.name })),
+      onAssignToSelection: (speakerId: string) => {
+        fireAndForget(handleAssignSpeakerToUtterances(selectedUtteranceIdsForSpeakerActions, speakerId));
+      },
+      onClearSelection: () => {
+        fireAndForget(handleAssignSpeakerToUtterances(selectedUtteranceIdsForSpeakerActions, undefined));
+      },
+      onCreateAndAssignToSelection: (name: string) => {
+        fireAndForget(handleCreateSpeakerAndAssignToUtterances(name, selectedUtteranceIdsForSpeakerActions));
+      },
+    }), [handleAssignSpeakerToUtterances, handleCreateSpeakerAndAssignToUtterances, selectedUtteranceIdsForSpeakerActions, speakerOptions]);
+
+  const speakerNameById = useMemo(() => {
+    const next: Record<string, string> = {};
+    for (const speaker of speakerOptions) {
+      next[speaker.id] = speaker.name;
+    }
+    return next;
+  }, [speakerOptions]);
+
+  const selectedSpeakerIdsForTrackLock = useMemo(() => {
+    const targetIds = selectedUtteranceIdsForSpeakerActions;
+    const utteranceMap = new Map(utterancesOnCurrentMedia.map((utterance) => [utterance.id, utterance]));
+    const unique = new Set<string>();
+    for (const utteranceId of targetIds) {
+      const utterance = utteranceMap.get(utteranceId);
+      if (!utterance) continue;
+      unique.add(getUtteranceSpeakerKey(utterance));
+    }
+    return Array.from(unique);
+  }, [selectedUtteranceIdsForSpeakerActions, utterancesOnCurrentMedia]);
+
+  const selectedSpeakerNamesForTrackLock = useMemo(
+    () => selectedSpeakerIdsForTrackLock.map((id) => speakerNameById[id] ?? id),
+    [selectedSpeakerIdsForTrackLock, speakerNameById],
+  );
+
+  const speakerFocusOptions = useMemo(() => {
+    const idsOnCurrentMedia = new Set(utterancesOnCurrentMedia.map((item) => getUtteranceSpeakerKey(item)));
+    return speakerOptions
+      .filter((speaker) => idsOnCurrentMedia.has(speaker.id))
+      .map((speaker) => ({ key: speaker.id, name: speaker.name }));
+  }, [speakerOptions, utterancesOnCurrentMedia]);
+
+  const speakerFocusOptionKeySet = useMemo(
+    () => new Set(speakerFocusOptions.map((item) => item.key)),
+    [speakerFocusOptions],
+  );
+
+  const speakerFocusMediaKey = selectedUtteranceMedia?.id ?? '__no-media__';
+
+  const setSpeakerFocusTargetForCurrentMedia = useCallback((nextKey: string | null) => {
+    speakerFocusTargetMemoryByMediaRef.current[speakerFocusMediaKey] = nextKey;
+    setSpeakerFocusTargetKey(nextKey);
+  }, [speakerFocusMediaKey]);
+
+  const resolvedSpeakerFocusTargetKey = useMemo(() => {
+    if (speakerFocusTargetKey && speakerFocusTargetKey.trim().length > 0) {
+      return speakerFocusOptionKeySet.has(speakerFocusTargetKey) ? speakerFocusTargetKey : null;
+    }
+    const selected = selectedUtteranceId
+      ? utterancesOnCurrentMedia.find((item) => item.id === selectedUtteranceId)
+      : undefined;
+    if (!selected) return null;
+    const selectedKey = getUtteranceSpeakerKey(selected);
+    return speakerFocusOptionKeySet.has(selectedKey) ? selectedKey : null;
+  }, [selectedUtteranceId, speakerFocusOptionKeySet, speakerFocusTargetKey, utterancesOnCurrentMedia]);
+
+  const resolvedSpeakerFocusTargetName = useMemo(
+    () => resolvedSpeakerFocusTargetKey ? (speakerNameById[resolvedSpeakerFocusTargetKey] ?? resolvedSpeakerFocusTargetKey) : undefined,
+    [resolvedSpeakerFocusTargetKey, speakerNameById],
+  );
+
+  const cycleSpeakerFocusMode = useCallback(() => {
+    setSpeakerFocusMode((prev) => {
+      if (prev === 'all') {
+        if (!resolvedSpeakerFocusTargetKey) {
+          const firstWithSpeaker = utterancesOnCurrentMedia.find((item) => getUtteranceSpeakerKey(item) !== 'unknown-speaker');
+          if (firstWithSpeaker) {
+            setSpeakerFocusTargetForCurrentMedia(getUtteranceSpeakerKey(firstWithSpeaker));
+          }
+        }
+        return 'focus-soft';
+      }
+      if (prev === 'focus-soft') return 'focus-hard';
+      return 'all';
+    });
+  }, [resolvedSpeakerFocusTargetKey, setSpeakerFocusTargetForCurrentMedia, utterancesOnCurrentMedia]);
+
+  const handleSpeakerFocusTargetChange = useCallback((speakerKey: string) => {
+    const normalized = speakerKey.trim();
+    if (normalized.length === 0) {
+      setSpeakerFocusTargetForCurrentMedia(null);
+      setSpeakerFocusMode('all');
+      return;
+    }
+    setSpeakerFocusTargetForCurrentMedia(normalized);
+  }, [setSpeakerFocusTargetForCurrentMedia]);
+
+  useEffect(() => {
+    const saved = speakerFocusTargetMemoryByMediaRef.current[speakerFocusMediaKey];
+    setSpeakerFocusTargetKey(saved ?? null);
+  }, [speakerFocusMediaKey]);
+
+  useEffect(() => {
+    if (!speakerFocusTargetKey || speakerFocusTargetKey.trim().length === 0) return;
+    if (speakerFocusOptionKeySet.has(speakerFocusTargetKey)) return;
+    setSpeakerFocusTargetForCurrentMedia(null);
+  }, [setSpeakerFocusTargetForCurrentMedia, speakerFocusOptionKeySet, speakerFocusTargetKey]);
+
+  useEffect(() => {
+    if (speakerFocusMode === 'all') return;
+    if (resolvedSpeakerFocusTargetKey) return;
+    setSpeakerFocusMode('all');
+  }, [resolvedSpeakerFocusTargetKey, speakerFocusMode]);
+
+  const handleLockSelectedSpeakersToLane = useCallback((laneIndex: number) => {
+    if (!Number.isInteger(laneIndex) || laneIndex < 0) return;
+    if (selectedSpeakerIdsForTrackLock.length === 0) return;
+    setLaneLockMap((prev) => {
+      const next = { ...prev };
+      for (const speakerId of selectedSpeakerIdsForTrackLock) {
+        next[speakerId] = laneIndex;
+      }
+      return next;
+    });
+    setTranscriptionTrackMode('multi-locked');
+  }, [selectedSpeakerIdsForTrackLock, setTranscriptionTrackMode]);
+
+  const handleUnlockSelectedSpeakers = useCallback(() => {
+    if (selectedSpeakerIdsForTrackLock.length === 0) return;
+    setLaneLockMap((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const speakerId of selectedSpeakerIdsForTrackLock) {
+        if (!(speakerId in next)) continue;
+        delete next[speakerId];
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [selectedSpeakerIdsForTrackLock]);
+
+  const handleResetTrackAutoLayout = useCallback(() => {
+    const hadConflict = speakerLayerLayout.lockConflictCount > 0;
+    const conflictSpeakers = speakerLayerLayout.lockConflictSpeakerIds.map((id) => speakerNameById[id] ?? id);
+    setLaneLockMap({});
+    setTranscriptionTrackMode('multi-auto');
+    if (hadConflict) {
+      setLockConflictToast({
+        count: speakerLayerLayout.lockConflictCount,
+        speakers: conflictSpeakers,
+        nonce: Date.now(),
+      });
+    }
+  }, [setTranscriptionTrackMode, speakerLayerLayout.lockConflictCount, speakerLayerLayout.lockConflictSpeakerIds, speakerNameById]);
+
+  const trackModeLabel = useMemo(() => {
+    if (transcriptionTrackMode === 'single') return '单轨';
+    if (transcriptionTrackMode === 'multi-locked') return '多轨·锁定';
+    return '多轨·自动';
+  }, [transcriptionTrackMode]);
+
+  const trackLockDiagnostics = useMemo(() => {
+    const speakerNames = speakerLayerLayout.lockConflictSpeakerIds.map((id) => speakerNameById[id] ?? id);
+    return {
+      count: speakerLayerLayout.lockConflictCount,
+      speakerNames,
+    };
+  }, [speakerLayerLayout.lockConflictCount, speakerLayerLayout.lockConflictSpeakerIds, speakerNameById]);
+
+  const handleOpenLockConflictDetails = useCallback(() => {
+    if (trackLockDiagnostics.count <= 0) return;
+    setLockConflictToast({
+      count: trackLockDiagnostics.count,
+      speakers: trackLockDiagnostics.speakerNames,
+      nonce: Date.now(),
+    });
+  }, [trackLockDiagnostics.count, trackLockDiagnostics.speakerNames]);
+
   const { handleAnnotationClick, renderAnnotationItem, renderLaneLabel } = useTimelineAnnotationHelpers({
       manualSelectTsRef,
       player,
@@ -2331,6 +2647,21 @@ function TranscriptionPageOrchestrator() {
       noteCounts,
       handleNoteClick,
       speakerVisualByUtteranceId,
+      onOverlapCycleToast: (index, total, utteranceId) => {
+        setOverlapCycleToast({ index, total, nonce: Date.now() });
+        const nextTelemetry = updateOverlapCycleTelemetry(overlapCycleTelemetryRef.current, {
+          utteranceId,
+          index,
+          total,
+        });
+        overlapCycleTelemetryRef.current = nextTelemetry;
+        log.info('Overlap cycle telemetry update', {
+          event: 'transcription.overlap_cycle',
+          cycleCount: nextTelemetry.cycleCount,
+          avgStep: nextTelemetry.avgStep,
+          avgCandidateTotal: nextTelemetry.avgCandidateTotal,
+        });
+      },
   });
 
   const selectedBatchUtteranceTextById = useMemo(() => {
@@ -2478,6 +2809,17 @@ function TranscriptionPageOrchestrator() {
               onToggleNotes={toggleNotes}
               onOpenUttOpsMenu={(x, y) => setUttOpsMenu({ x, y })}
               lowConfidenceCount={lowConfidenceCount}
+              trackModeLabel={trackModeLabel}
+              laneLockCount={Object.keys(laneLockMap).length}
+              lockConflictCount={trackLockDiagnostics.count}
+              lockConflictSpeakerNames={trackLockDiagnostics.speakerNames}
+              onOpenLockConflictDetails={handleOpenLockConflictDetails}
+              speakerFocusMode={speakerFocusMode}
+              {...(resolvedSpeakerFocusTargetName ? { speakerFocusTargetName: resolvedSpeakerFocusTargetName } : {})}
+              speakerFocusOptions={speakerFocusOptions}
+              speakerFocusTargetKey={speakerFocusTargetKey ?? ''}
+              onSpeakerFocusTargetKeyChange={handleSpeakerFocusTargetChange}
+              onCycleSpeakerFocusMode={cycleSpeakerFocusMode}
               {...(selectedMediaUrl ? { onAutoSegment: handleAutoSegment } : {})}
               autoSegmentBusy={autoSegmentBusy}
             />
@@ -2547,24 +2889,26 @@ function TranscriptionPageOrchestrator() {
                       formatTime={formatTime}
                     />
                   )}
-                  <WaveformLeftStatusStrip
-                    zoomPercent={zoomPercent}
-                    snapEnabled={snapEnabled}
-                    onSnapToggle={() => setSnapEnabled((v) => !v)}
-                    playbackRate={player.playbackRate}
-                    currentTime={player.currentTime}
-                    selectedUtteranceDuration={selectedUtterance
-                      ? selectedUtterance.endTime - selectedUtterance.startTime
-                      : null}
-                    amplitudeScale={amplitudeScale}
-                    onAmplitudeChange={setAmplitudeScale}
-                    onAmplitudeReset={() => setAmplitudeScale(1)}
-                    selectedMediaIsVideo={selectedMediaIsVideo}
-                    videoLayoutMode={videoLayoutMode}
-                    onVideoLayoutModeChange={setVideoLayoutMode}
-                    onLaneLabelWidthResize={handleLaneLabelWidthResizeStart}
-                    formatTime={formatTime}
-                  />
+{selectedMediaUrl && (
+                    <WaveformLeftStatusStrip
+                      zoomPercent={zoomPercent}
+                      snapEnabled={snapEnabled}
+                      onSnapToggle={() => setSnapEnabled((v) => !v)}
+                      playbackRate={player.playbackRate}
+                      currentTime={player.currentTime}
+                      selectedUtteranceDuration={selectedUtterance
+                        ? selectedUtterance.endTime - selectedUtterance.startTime
+                        : null}
+                      amplitudeScale={amplitudeScale}
+                      onAmplitudeChange={setAmplitudeScale}
+                      onAmplitudeReset={() => setAmplitudeScale(1)}
+                      selectedMediaIsVideo={selectedMediaIsVideo}
+                      videoLayoutMode={videoLayoutMode}
+                      onVideoLayoutModeChange={setVideoLayoutMode}
+                      onLaneLabelWidthResize={handleLaneLabelWidthResizeStart}
+                      formatTime={formatTime}
+                    />
+                  )}
                   <div className="waveform-content-offset">
                     {selectedMediaUrl ? (
                       <>
@@ -2731,6 +3075,17 @@ function TranscriptionPageOrchestrator() {
                     )}
                   </div>
                 </WaveformAreaSection>
+                {selectedMediaUrl ? (
+                  <div
+                    className={`transcription-waveform-resize-handle ${isResizingWaveform ? 'transcription-waveform-resize-handle-resizing' : ''}`}
+                    onPointerDown={handleWaveformResizeStart}
+                    role="separator"
+                    aria-orientation="horizontal"
+                    title="拖动调整波形区高度"
+                  >
+                    <div className="transcription-waveform-resize-dots" />
+                  </div>
+                ) : null}
                 <TranscriptionPageTimelineTop
                   headerProps={{
                     duration: player.duration,
@@ -2814,6 +3169,7 @@ function TranscriptionPageOrchestrator() {
                         onReorderLayers: reorderLayers,
                       }}
                       isLayerRailCollapsed={isLayerRailCollapsed}
+                      hoverExpandEnabled={hoverExpandEnabled}
                       onLayerRailResizeStart={handleLayerRailResizeStart}
                       onLayerRailToggle={handleLayerRailToggle}
                       resizeLabel={t(locale, 'transcription.panel.resizeLayerRail')}
@@ -2850,6 +3206,7 @@ function TranscriptionPageOrchestrator() {
                           timelineRenderUtterances,
                           flashLayerRowId,
                           focusedLayerRowId,
+                          selectedUtteranceId,
                           defaultTranscriptionLayerId,
                           renderAnnotationItem,
                           allLayersOrdered: layerRailRows,
@@ -2861,6 +3218,19 @@ function TranscriptionPageOrchestrator() {
                           onToggleConnectors: () => setShowAllLayerConnectors((prev) => !prev),
                           laneHeights: timelineLaneHeights,
                           onLaneHeightChange: handleTimelineLaneHeightChange,
+                          trackDisplayMode: transcriptionTrackMode,
+                          onToggleTrackDisplayMode: handleToggleTrackDisplayMode,
+                          onSetTrackDisplayMode: setTrackDisplayMode,
+                          laneLockMap,
+                          onLockSelectedSpeakersToLane: handleLockSelectedSpeakersToLane,
+                          onUnlockSelectedSpeakers: handleUnlockSelectedSpeakers,
+                          onResetTrackAutoLayout: handleResetTrackAutoLayout,
+                          selectedSpeakerNamesForLock: selectedSpeakerNamesForTrackLock,
+                          speakerSortKeyById,
+                          speakerLayerLayout,
+                          speakerFocusMode,
+                          ...(resolvedSpeakerFocusTargetKey ? { speakerFocusSpeakerKey: resolvedSpeakerFocusTargetKey } : {}),
+                          speakerQuickActions,
                           onLaneLabelWidthResize: handleLaneLabelWidthResizeStart,
                         }}
                         textOnlyProps={{
@@ -2883,7 +3253,18 @@ function TranscriptionPageOrchestrator() {
                           onToggleConnectors: () => setShowAllLayerConnectors((prev) => !prev),
                           laneHeights: timelineLaneHeights,
                           onLaneHeightChange: handleTimelineLaneHeightChange,
+                          trackDisplayMode: transcriptionTrackMode,
+                          onToggleTrackDisplayMode: handleToggleTrackDisplayMode,
+                          onSetTrackDisplayMode: setTrackDisplayMode,
+                          laneLockMap,
+                          onLockSelectedSpeakersToLane: handleLockSelectedSpeakersToLane,
+                          onUnlockSelectedSpeakers: handleUnlockSelectedSpeakers,
+                          onResetTrackAutoLayout: handleResetTrackAutoLayout,
+                          selectedSpeakerNamesForLock: selectedSpeakerNamesForTrackLock,
+                          speakerFocusMode,
+                          ...(resolvedSpeakerFocusTargetKey ? { speakerFocusSpeakerKey: resolvedSpeakerFocusTargetKey } : {}),
                           speakerVisualByUtteranceId,
+                          speakerQuickActions,
                           onLaneLabelWidthResize: handleLaneLabelWidthResizeStart,
                         }}
                         emptyStateProps={{
@@ -2911,6 +3292,7 @@ function TranscriptionPageOrchestrator() {
                       zoomPercent={zoomPercent}
                       snapEnabled={snapEnabled}
                       autoScrollEnabled={autoScrollEnabled}
+                      hoverExpandEnabled={hoverExpandEnabled}
                       selectedUtteranceId={selectedUtteranceId}
                       utterancesOnCurrentMedia={utterancesOnCurrentMedia}
                       fitPxPerSec={fitPxPerSec}
@@ -2919,6 +3301,7 @@ function TranscriptionPageOrchestrator() {
                       onZoomToUtterance={zoomToUtterance}
                       onSnapEnabledChange={setSnapEnabled}
                       onAutoScrollEnabledChange={setAutoScrollEnabled}
+                      onHoverExpandEnabledChange={setHoverExpandEnabled}
                     />
                     <div className="toolbar-sep" style={{ margin: '0 6px' }} />
                     <ObserverStatusSection
@@ -2938,28 +3321,40 @@ function TranscriptionPageOrchestrator() {
                 </BottomToolbarSection>
               </section>
 
-              <div
-                className="transcription-ai-panel-resizer"
-                onPointerDown={handleAiPanelResizeStart}
-                role="separator"
-                aria-orientation="vertical"
-                aria-label={t(locale, 'transcription.panel.resizeAiPanel')}
-              />
-              <button
-                type="button"
-                className="transcription-ai-panel-toggle"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={handleAiPanelToggle}
-                aria-label={isAiPanelCollapsed
-                  ? t(locale, 'transcription.panel.expandAiPanel')
-                  : t(locale, 'transcription.panel.collapseAiPanel')}
-              >
-                <span className="transcription-panel-toggle-icon" aria-hidden="true">
-                  <span
-                    className={`transcription-panel-toggle-triangle ${isAiPanelCollapsed ? 'transcription-panel-toggle-triangle-left' : 'transcription-panel-toggle-triangle-right'}`}
-                  />
-                </span>
-              </button>
+              <div className="transcription-ai-panel-handle-cluster">
+                <div
+                  className="transcription-ai-panel-hover-zone"
+                  onMouseEnter={() => {
+                    if (isAiPanelCollapsed && hoverExpandEnabled) handleAiPanelToggle();
+                  }}
+                  style={{ display: isAiPanelCollapsed ? undefined : 'none', pointerEvents: hoverExpandEnabled ? 'auto' : 'none' }}
+                />
+                <div
+                  className="transcription-ai-panel-resizer"
+                  onPointerDown={handleAiPanelResizeStart}
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label={t(locale, 'transcription.panel.resizeAiPanel')}
+                />
+                <button
+                  type="button"
+                  className="transcription-ai-panel-toggle"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={handleAiPanelToggle}
+                  onMouseEnter={() => {
+                    if (isAiPanelCollapsed && hoverExpandEnabled) handleAiPanelToggle();
+                  }}
+                  aria-label={isAiPanelCollapsed
+                    ? t(locale, 'transcription.panel.expandAiPanel')
+                    : t(locale, 'transcription.panel.collapseAiPanel')}
+                >
+                  <span className="transcription-panel-toggle-icon" aria-hidden="true">
+                    <span
+                      className={`transcription-panel-toggle-triangle ${isAiPanelCollapsed ? 'transcription-panel-toggle-triangle-left' : 'transcription-panel-toggle-triangle-right'}`}
+                    />
+                  </span>
+                </button>
+              </div>
 
               <AiPanelContext.Provider value={aiPanelContextValue}>
                 <VoiceAgentProvider value={voiceAgentContextValue}>
@@ -2971,25 +3366,25 @@ function TranscriptionPageOrchestrator() {
                         recording={recording}
                         recordingUtteranceId={recordingUtteranceId}
                         recordingError={recordingError}
+                        overlapCycleToast={overlapCycleToast}
+                        lockConflictToast={lockConflictToast}
                         tf={tfB}
                       />
-                      {!isAiPanelCollapsed ? (
-                        <Suspense fallback={null}>
-                          <TranscriptionPageAiSidebar
-                            locale={locale}
-                            isAiPanelCollapsed={isAiPanelCollapsed}
-                            hubSidebarTab={hubSidebarTab}
-                            onHubSidebarTabChange={setHubSidebarTab}
-                            featureVoiceAgentEnabled={featureFlags.voiceAgentEnabled}
-                            assistantVoiceExpanded={assistantVoiceExpanded}
-                            onAssistantVoicePanelToggle={handleAssistantVoicePanelToggle}
-                            voiceWidgetProps={voiceWidgetProps}
-                            analysisTab={analysisTab}
-                            onAnalysisTabChange={setAnalysisTab}
-                            embeddingContextValue={embeddingContextValue}
-                          />
-                        </Suspense>
-                      ) : null}
+                      <Suspense fallback={null}>
+                        <TranscriptionPageAiSidebar
+                          locale={locale}
+                          isAiPanelCollapsed={isAiPanelCollapsed}
+                          hubSidebarTab={hubSidebarTab}
+                          onHubSidebarTabChange={setHubSidebarTab}
+                          featureVoiceAgentEnabled={featureFlags.voiceAgentEnabled}
+                          assistantVoiceExpanded={assistantVoiceExpanded}
+                          onAssistantVoicePanelToggle={handleAssistantVoicePanelToggle}
+                          voiceWidgetProps={voiceWidgetProps}
+                          analysisTab={analysisTab}
+                          onAnalysisTabChange={setAnalysisTab}
+                          embeddingContextValue={embeddingContextValue}
+                        />
+                      </Suspense>
                     </AiAssistantHubContext.Provider>
                   </AiChatProvider>
                 </VoiceAgentProvider>
@@ -3089,6 +3484,14 @@ function TranscriptionPageOrchestrator() {
         getUtteranceTextForLayer={getUtteranceTextForLayer}
         transcriptionLayers={transcriptionLayers}
         translationLayers={translationLayers}
+        speakerOptions={speakerOptions}
+        speakerFilterOptions={speakerFilterOptions}
+        onAssignSpeakerFromMenu={(utteranceIds, speakerId) => {
+          fireAndForget(handleAssignSpeakerToUtterances(utteranceIds, speakerId));
+        }}
+        onCreateSpeakerAndAssignFromMenu={(name, utteranceIds) => {
+          fireAndForget(handleCreateSpeakerAndAssignToUtterances(name, utteranceIds));
+        }}
       />
     </section>
   );

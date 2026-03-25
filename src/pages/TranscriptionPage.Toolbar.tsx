@@ -52,6 +52,28 @@ type TranscriptionPageToolbarProps = {
   onAutoSegment?: () => void;
   /** VAD 运行中 | True while VAD is running */
   autoSegmentBusy?: boolean;
+  /** 轨道模式标签 | Track mode label */
+  trackModeLabel?: string;
+  /** 锁定说话人数 | Locked speaker count */
+  laneLockCount?: number;
+  /** 锁定冲突计数 | Lock conflict count */
+  lockConflictCount?: number;
+  /** 锁定冲突说话人摘要 | Lock conflict speaker names */
+  lockConflictSpeakerNames?: string[];
+  /** 查看锁定冲突详情 | Open lock conflict details */
+  onOpenLockConflictDetails?: () => void;
+  /** 说话人聚焦模式 | Speaker focus mode */
+  speakerFocusMode?: 'all' | 'focus-soft' | 'focus-hard';
+  /** 当前聚焦目标名称 | Current focus target name */
+  speakerFocusTargetName?: string;
+  /** 可选聚焦说话人列表 | Focusable speaker options */
+  speakerFocusOptions?: Array<{ key: string; name: string }>;
+  /** 当前聚焦目标 key；空字符串表示跟随当前选中句段 | Focus target key; empty means follow current selection */
+  speakerFocusTargetKey?: string;
+  /** 选择聚焦目标 | Change focus target */
+  onSpeakerFocusTargetKeyChange?: (speakerKey: string) => void;
+  /** 切换说话人聚焦模式 | Cycle speaker focus mode */
+  onCycleSpeakerFocusMode?: () => void;
 };
 
 export function TranscriptionPageToolbar({
@@ -90,7 +112,24 @@ export function TranscriptionPageToolbar({
   lowConfidenceCount,
   onAutoSegment,
   autoSegmentBusy,
+  trackModeLabel,
+  laneLockCount,
+  lockConflictCount,
+  lockConflictSpeakerNames,
+  onOpenLockConflictDetails,
+  speakerFocusMode,
+  speakerFocusTargetName,
+  speakerFocusOptions,
+  speakerFocusTargetKey,
+  onSpeakerFocusTargetKeyChange,
+  onCycleSpeakerFocusMode,
 }: TranscriptionPageToolbarProps) {
+  const speakerFocusLabel = speakerFocusMode === 'focus-hard'
+    ? `仅${speakerFocusTargetName ?? '目标'}`
+    : speakerFocusMode === 'focus-soft'
+      ? `柔和${speakerFocusTargetName ? `·${speakerFocusTargetName}` : ''}`
+      : '全部';
+
   return (
     <WaveformToolbar
       filename={filename}
@@ -112,6 +151,49 @@ export function TranscriptionPageToolbar({
         >
           ⚠ {lowConfidenceCount}
         </span>
+      )}
+      {trackModeLabel && (
+        <span
+          className="toolbar-track-mode-badge"
+          title={`当前轨道模式：${trackModeLabel} | Current track mode: ${trackModeLabel}`}
+        >
+          轨道：{trackModeLabel}（锁定 {laneLockCount ?? 0}）
+        </span>
+      )}
+      {lockConflictCount != null && lockConflictCount > 0 && (
+        <button
+          type="button"
+          className="toolbar-lock-conflict-badge"
+          onClick={onOpenLockConflictDetails}
+          title={`锁定冲突 ${lockConflictCount} 项：${(lockConflictSpeakerNames ?? []).join('、') || '未知说话人'} | ${lockConflictCount} lock conflicts`}
+        >
+          锁冲突：{lockConflictCount}
+        </button>
+      )}
+      {onCycleSpeakerFocusMode && (
+        <>
+          <button
+            type="button"
+            className={`toolbar-focus-mode-badge${speakerFocusMode && speakerFocusMode !== 'all' ? ' toolbar-focus-mode-badge-active' : ''}`}
+            title={`说话人聚焦：${speakerFocusLabel}（点击切换） | Speaker focus: ${speakerFocusLabel} (click to cycle)`}
+            onClick={onCycleSpeakerFocusMode}
+          >
+            聚焦：{speakerFocusLabel}
+          </button>
+          {onSpeakerFocusTargetKeyChange && (
+            <select
+              className="toolbar-focus-target-select"
+              title="选择聚焦说话人 | Select focus speaker"
+              value={speakerFocusTargetKey ?? ''}
+              onChange={(event) => onSpeakerFocusTargetKeyChange(event.target.value)}
+            >
+              <option value="">跟随当前选中</option>
+              {(speakerFocusOptions ?? []).map((option) => (
+                <option key={option.key} value={option.key}>{option.name}</option>
+              ))}
+            </select>
+          )}
+        </>
       )}
       <TranscriptionToolbarActions
         canUndo={canUndo}

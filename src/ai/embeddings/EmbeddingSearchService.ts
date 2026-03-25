@@ -5,6 +5,11 @@ import MiniSearch from 'minisearch';
 import { splitPdfCitationRef } from '../../utils/citationJumpUtils';
 import { extractPdfSnippet, isPdfMediaItem } from './pdfTextUtils';
 import { resolveFusionWeightsForScenario, type SearchFusionScenario } from './searchFusionProfiles';
+import {
+  getAllUtteranceTextsPreferV2,
+  getUtteranceTextsByUtterancesPreferV2,
+  getUtteranceTextsByUtterancePreferV2,
+} from '../../services/LayerSegmentationV2BridgeService';
 
 export interface SearchSimilarUtterancesOptions {
   modelId?: string;
@@ -346,9 +351,9 @@ export class EmbeddingSearchService {
       if (fusedCandidates.has(sourceKey)) continue;
 
       if (match.sourceType === 'utterance') {
-        const textRows = await db.collections.utterance_texts.findByIndex('utteranceId', match.sourceId);
+        const textRows = await getUtteranceTextsByUtterancePreferV2(db, match.sourceId);
         const texts = textRows
-          .map((row) => row.toJSON().text?.trim() ?? '')
+          .map((row) => row.text?.trim() ?? '')
           .filter((text) => text.length > 0);
         fusedCandidates.set(sourceKey, { match, rawText: texts.join(' ') });
         continue;
@@ -375,14 +380,12 @@ export class EmbeddingSearchService {
     }
 
     if (sourceTypes.includes('utterance')) {
-      // B-02 fix: only load utterance_texts for candidate IDs when candidateSet is provided,
-      // instead of unconditionally loading ALL rows and then filtering in JS.
       const utteranceRows = candidateSet
-        ? await db.collections.utterance_texts.findByIndexAnyOf('utteranceId', [...candidateSet])
-        : await db.collections.utterance_texts.find().exec();
+        ? await getUtteranceTextsByUtterancesPreferV2(db, candidateSet)
+        : await getAllUtteranceTextsPreferV2(db);
       const merged = new Map<string, string[]>();
       for (const row of utteranceRows) {
-        const item = row.toJSON();
+        const item = row;
         const text = item.text?.trim();
         if (!text) continue;
         const list = merged.get(item.utteranceId) ?? [];

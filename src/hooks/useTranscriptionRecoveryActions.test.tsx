@@ -11,12 +11,14 @@ const {
   mockInsertTranslationLayer,
   mockSaveUtterance,
   mockClearRecoverySnapshot,
+  mockSyncUtteranceTextToSegmentationV2,
 } = vi.hoisted(() => ({
   mockFindByIndexAnyOf: vi.fn(),
   mockInsertUtteranceText: vi.fn(),
   mockInsertTranslationLayer: vi.fn(),
   mockSaveUtterance: vi.fn(),
   mockClearRecoverySnapshot: vi.fn(),
+  mockSyncUtteranceTextToSegmentationV2: vi.fn(async () => undefined),
 }));
 
 vi.mock('../db', () => ({
@@ -50,6 +52,10 @@ vi.mock('../services/SnapshotService', async () => {
   };
 });
 
+vi.mock('../services/LayerSegmentationV2BridgeService', () => ({
+  syncUtteranceTextToSegmentationV2: mockSyncUtteranceTextToSegmentationV2,
+}));
+
 function makeUtterance(id: string, updatedAt: string): UtteranceDocType {
   return {
     id,
@@ -63,12 +69,21 @@ function makeUtterance(id: string, updatedAt: string): UtteranceDocType {
   } as UtteranceDocType;
 }
 
-function makeRecoveryData(utterances: UtteranceDocType[]): RecoveryData {
+function makeRecoveryDataWithTranslation(utterances: UtteranceDocType[]): RecoveryData {
   return {
     schemaVersion: 1,
     timestamp: Date.now(),
     utterances,
-    translations: [],
+    translations: [{
+      id: 'utr-1',
+      utteranceId: utterances[0]?.id ?? 'utt-1',
+      tierId: 'layer-1',
+      modality: 'text',
+      text: 'hello',
+      sourceType: 'human',
+      createdAt: '2026-03-23T20:00:00.000Z',
+      updatedAt: '2026-03-23T20:00:00.000Z',
+    }],
     layers: [],
   };
 }
@@ -81,6 +96,7 @@ describe('useTranscriptionRecoveryActions', () => {
     mockInsertTranslationLayer.mockResolvedValue(undefined);
     mockSaveUtterance.mockResolvedValue(undefined);
     mockClearRecoverySnapshot.mockResolvedValue(undefined);
+    mockSyncUtteranceTextToSegmentationV2.mockResolvedValue(undefined);
   });
 
   it('applyRecovery conflict should return false and set friendly saveState error', async () => {
@@ -107,7 +123,7 @@ describe('useTranscriptionRecoveryActions', () => {
 
     let ok = true;
     await act(async () => {
-      ok = await result.current.applyRecovery(makeRecoveryData([currentUtt]));
+      ok = await result.current.applyRecovery(makeRecoveryDataWithTranslation([currentUtt]));
     });
 
     expect(ok).toBe(false);
@@ -144,12 +160,17 @@ describe('useTranscriptionRecoveryActions', () => {
 
     let ok = false;
     await act(async () => {
-      ok = await result.current.applyRecovery(makeRecoveryData([currentUtt]));
+      ok = await result.current.applyRecovery(makeRecoveryDataWithTranslation([currentUtt]));
     });
 
     expect(ok).toBe(true);
     expect(loadSnapshot).toHaveBeenCalledTimes(1);
     expect(setSaveState).toHaveBeenCalledWith({ kind: 'done', message: '已从崩溃恢复数据中还原' });
     expect(mockClearRecoverySnapshot).toHaveBeenCalledWith('jieyudb');
+    expect(mockSyncUtteranceTextToSegmentationV2).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ id: 'utt-1' }),
+      expect.objectContaining({ id: 'utr-1', utteranceId: 'utt-1' }),
+    );
   });
 });

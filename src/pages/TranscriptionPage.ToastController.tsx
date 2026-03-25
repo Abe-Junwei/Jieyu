@@ -19,6 +19,8 @@ interface ToastControllerProps {
   recording: boolean;
   recordingUtteranceId: string | null;
   recordingError: string | null;
+  overlapCycleToast?: { index: number; total: number; nonce: number } | null;
+  lockConflictToast?: { count: number; speakers: string[]; nonce: number } | null;
   /** i18n function for recording toast message */
   tf: (key: string, opts?: Record<string, unknown>) => string;
 }
@@ -29,6 +31,8 @@ export function ToastController({
   recording,
   recordingUtteranceId,
   recordingError,
+  overlapCycleToast,
+  lockConflictToast,
   tf,
 }: ToastControllerProps) {
   const { showToast, showSaveState, showVoiceState } = useToast();
@@ -58,6 +62,19 @@ export function ToastController({
     }
   }, [recording, recordingUtteranceId, showToast, tf]);
 
+  useEffect(() => {
+    if (!overlapCycleToast) return;
+    showToast(`重叠候选 ${overlapCycleToast.index}/${overlapCycleToast.total}`, 'info', 1200);
+  }, [overlapCycleToast, showToast]);
+
+  useEffect(() => {
+    if (!lockConflictToast) return;
+    const speakerText = lockConflictToast.speakers.length > 0
+      ? `：${lockConflictToast.speakers.join('、')}`
+      : '';
+    showToast(`锁定冲突 ${lockConflictToast.count} 项${speakerText}`, 'info', 2200);
+  }, [lockConflictToast, showToast]);
+
   // Voice agent state → toast
   useEffect(() => {
     if (voiceAgent.listening || voiceAgent.agentState !== 'idle') {
@@ -80,7 +97,7 @@ export function ToastController({
     };
     window.addEventListener('taskrunner:stale-recovered', handler);
     return () => window.removeEventListener('taskrunner:stale-recovered', handler);
-  }, [showToast]);
+  }, [showToast, tf]);
 
   // This component renders nothing — it only manages side-effects via the toast context.
   return null;

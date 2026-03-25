@@ -14,6 +14,7 @@ export interface ZoomControlsProps {
   zoomPercent: number;
   snapEnabled: boolean;
   autoScrollEnabled: boolean;
+  hoverExpandEnabled: boolean;
   selectedUtteranceId: string | null;
   utterancesOnCurrentMedia: Array<{ id: string; startTime: number; endTime: number }>;
   fitPxPerSec: number;
@@ -24,12 +25,14 @@ export interface ZoomControlsProps {
   onZoomToUtterance: (startTime: number, endTime: number) => void;
   onSnapEnabledChange: (enabled: boolean) => void;
   onAutoScrollEnabledChange: (enabled: boolean) => void;
+  onHoverExpandEnabledChange: (enabled: boolean) => void;
 }
 
 const ZoomControls: FC<ZoomControlsProps> = ({
   zoomPercent,
   snapEnabled,
   autoScrollEnabled,
+  hoverExpandEnabled,
   selectedUtteranceId,
   utterancesOnCurrentMedia,
   fitPxPerSec,
@@ -38,6 +41,7 @@ const ZoomControls: FC<ZoomControlsProps> = ({
   onZoomToUtterance,
   onSnapEnabledChange,
   onAutoScrollEnabledChange,
+  onHoverExpandEnabledChange,
 }) => {
   const locale = detectLocale();
 
@@ -63,6 +67,10 @@ const ZoomControls: FC<ZoomControlsProps> = ({
   const handleAutoScrollToggle = useCallback(() => {
     onAutoScrollEnabledChange(!autoScrollEnabled);
   }, [autoScrollEnabled, onAutoScrollEnabledChange]);
+
+  const handleHoverExpandToggle = useCallback(() => {
+    onHoverExpandEnabledChange(!hoverExpandEnabled);
+  }, [hoverExpandEnabled, onHoverExpandEnabledChange]);
 
   const handleSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const pos = Number(e.target.value);
@@ -111,6 +119,16 @@ const ZoomControls: FC<ZoomControlsProps> = ({
         aria-label={autoScrollEnabled ? '关闭播放跟随滚动' : '开启播放跟随滚动'}
       >
         <span className="icon-btn-label">AS</span>
+      </button>
+      <div className="toolbar-sep" />
+      <button
+        type="button"
+        className={`icon-btn${hoverExpandEnabled ? ' icon-btn-active' : ''}`}
+        onClick={handleHoverExpandToggle}
+        title={hoverExpandEnabled ? '关闭悬停展开' : '开启悬停展开'}
+        aria-label={hoverExpandEnabled ? '关闭悬停展开' : '开启悬停展开'}
+      >
+        <span className="icon-btn-label">悬</span>
       </button>
       <div className="toolbar-sep" />
       <input

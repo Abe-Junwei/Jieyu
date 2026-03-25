@@ -11,6 +11,7 @@ import type {
   UtteranceTextDocType,
   UtteranceTokenDocType,
 } from '../db';
+import { getAllUtteranceTextsPreferV2 } from '../services/LayerSegmentationV2BridgeService';
 import type { DbState } from './transcriptionTypes';
 
 type Params = {
@@ -48,7 +49,6 @@ export function useTranscriptionSnapshotLoader({
       utteranceDocs,
       anchorDocs,
       layerDocs,
-      translationDocs,
       mediaDocs,
       speakerDocs,
       linkDocs,
@@ -58,7 +58,6 @@ export function useTranscriptionSnapshotLoader({
       db.collections.utterances.find().exec(),
       db.collections.anchors.find().exec(),
       db.collections.translation_layers.find().exec(),
-      db.collections.utterance_texts.find().exec(),
       db.collections.media_items.find().exec(),
       db.collections.speakers.find().exec(),
       db.collections.layer_links.find().exec(),
@@ -69,9 +68,7 @@ export function useTranscriptionSnapshotLoader({
     const utteranceRowsRaw = utteranceDocs.map((doc) => doc.toJSON() as unknown as UtteranceDocType);
     const anchorRows = anchorDocs.map((doc) => doc.toJSON() as unknown as AnchorDocType);
     const allLayerRows = layerDocs.map((doc) => doc.toJSON() as unknown as TranslationLayerDocType);
-    const translationRows = translationDocs.map(
-      (doc) => doc.toJSON() as unknown as UtteranceTextDocType,
-    );
+    const translationRows = await getAllUtteranceTextsPreferV2(db);
     const mediaRows = mediaDocs.map((doc) => doc.toJSON() as unknown as MediaItemDocType);
       const speakerRows = speakerDocs.map((doc) => doc.toJSON() as unknown as SpeakerDocType);
     const linkRows = linkDocs.map((doc) => doc.toJSON() as unknown as LayerLinkDocType);

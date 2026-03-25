@@ -6,6 +6,10 @@ import { LinguisticService } from '../services/LinguisticService';
 import { createAsyncMutex } from '../utils/asyncMutex';
 import { normalizeUtteranceTextDocForStorage } from '../utils/camDataUtils';
 import { createLogger } from '../observability/logger';
+import {
+  removeUtteranceTextFromSegmentationV2,
+  syncUtteranceTextToSegmentationV2,
+} from '../services/LayerSegmentationV2BridgeService';
 
 const log = createLogger('useTranscriptionPersistence');
 
@@ -103,10 +107,20 @@ export function useTranscriptionPersistence({
       const targetTrIds = new Set(targetTranslations.map((t) => t.id));
       // Remove deleted translations
       for (const id of currentTrIds) {
-        if (!targetTrIds.has(id)) await db.collections.utterance_texts.remove(id);
+        if (!targetTrIds.has(id)) {
+          await db.collections.utterance_texts.remove(id);
+          await removeUtteranceTextFromSegmentationV2(db, { id });
+        }
       }
       // Upsert target translations
-      for (const t of targetTranslations) await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(t));
+      const targetUtteranceById = new Map(targetUtterances.map((item) => [item.id, item]));
+      for (const t of targetTranslations) {
+        await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(t));
+        const owner = targetUtteranceById.get(t.utteranceId);
+        if (owner) {
+          await syncUtteranceTextToSegmentationV2(db, owner, t);
+        }
+      }
 
       const currentSpeakerIds = new Set(speakersRef.current.map((s) => s.id));
       const targetSpeakerIds = new Set(targetSpeakers.map((s) => s.id));

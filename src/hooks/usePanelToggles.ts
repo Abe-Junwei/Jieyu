@@ -30,12 +30,12 @@ export function usePanelToggles() {
   const [isHubCollapsed, setIsHubCollapsed] = useState(false);
   const [hubHeight, setHubHeight] = useState(readPersistedHubHeight);
 
-  const handleLayerRailToggle = useCallback((e?: React.MouseEvent<HTMLButtonElement>) => {
+  const handleLayerRailToggle = useCallback((e?: React.SyntheticEvent<HTMLElement>) => {
     e?.stopPropagation();
     setIsLayerRailCollapsed((prev) => !prev);
   }, []);
 
-  const handleAiPanelToggle = useCallback((e?: React.MouseEvent<HTMLButtonElement>) => {
+  const handleAiPanelToggle = useCallback((e?: React.SyntheticEvent<HTMLElement>) => {
     e?.stopPropagation();
     setIsAiPanelCollapsed((prev) => !prev);
   }, []);

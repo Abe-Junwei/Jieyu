@@ -1,5 +1,6 @@
 import type { NoteCategory, MultiLangString, TranslationLayerDocType, UserNoteDocType, UtteranceDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
+import type { SpeakerFilterOption } from '../hooks/useSpeakerActions';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
@@ -37,6 +38,10 @@ interface TranscriptionOverlaysProps {
   getUtteranceTextForLayer: (utt: UtteranceDocType, layerId?: string) => string;
   transcriptionLayers: TranslationLayerDocType[];
   translationLayers: TranslationLayerDocType[];
+  speakerOptions?: Array<{ id: string; name: string }>;
+  speakerFilterOptions?: SpeakerFilterOption[];
+  onAssignSpeakerFromMenu?: (utteranceIds: Iterable<string>, speakerId?: string) => void;
+  onCreateSpeakerAndAssignFromMenu?: (name: string, utteranceIds: Iterable<string>) => void;
 }
 
 export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
@@ -72,7 +77,19 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
     getUtteranceTextForLayer,
     transcriptionLayers,
     translationLayers,
+    speakerOptions = [],
+    speakerFilterOptions = [],
+    onAssignSpeakerFromMenu = () => {},
+    onCreateSpeakerAndAssignFromMenu = () => {},
   } = props;
+
+  const recentSpeakerOptions = speakerFilterOptions
+    .filter((option) => option.isEntity)
+    .sort((left, right) => right.count - left.count)
+    .slice(0, 3)
+    .map((option) => ({ id: option.key, name: option.name }));
+
+  const fullSpeakerOptions = speakerOptions.length > 0 ? speakerOptions : recentSpeakerOptions;
 
   return (
     <>
@@ -84,6 +101,8 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
           items={(() => {
             const id = ctxMenu.utteranceId;
             const multiCount = selectedUtteranceIds.size;
+            const targetIds = multiCount > 1 ? Array.from(selectedUtteranceIds) : [id];
+            const isTranscriptionLayerContext = transcriptionLayers.some((layer) => layer.id === ctxMenu.layerId);
             const items: ContextMenuItem[] = multiCount > 1
               ? [
                   { label: `删除 ${multiCount} 个句段`, shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUtteranceIds); } },
@@ -104,6 +123,40 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
                   { label: '选中此句段及之后所有', shortcut: '⇧End', onClick: () => { runSelectAfter(id); } },
                   { label: '添加备注', shortcut: '⌘⇧N', onClick: () => { onOpenNoteFromMenu(ctxMenu.x, ctxMenu.y, id, ctxMenu.layerId); } },
                 ];
+
+            if (isTranscriptionLayerContext) {
+              const speakerManageItems: ContextMenuItem[] = [];
+              for (const speaker of recentSpeakerOptions) {
+                speakerManageItems.push({
+                  label: `指派说话人（最近）→ ${speaker.name}`,
+                  onClick: () => { onAssignSpeakerFromMenu(targetIds, speaker.id); },
+                });
+              }
+              for (const speaker of fullSpeakerOptions) {
+                if (recentSpeakerOptions.some((recent) => recent.id === speaker.id)) continue;
+                speakerManageItems.push({
+                  label: `指派说话人 → ${speaker.name}`,
+                  onClick: () => { onAssignSpeakerFromMenu(targetIds, speaker.id); },
+                });
+              }
+              speakerManageItems.push({
+                label: '清空说话人',
+                onClick: () => { onAssignSpeakerFromMenu(targetIds, undefined); },
+              });
+              speakerManageItems.push({
+                label: '新建说话人并指派…',
+                onClick: () => {
+                  const name = window.prompt('请输入新说话人名称');
+                  if (!name || name.trim().length === 0) return;
+                  onCreateSpeakerAndAssignFromMenu(name.trim(), targetIds);
+                },
+              });
+
+              items.push({
+                label: '说话人管理',
+                children: speakerManageItems,
+              });
+            }
             return items;
           })()}
         />

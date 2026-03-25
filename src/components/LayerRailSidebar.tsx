@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef, memo, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import type { TranslationLayerDocType } from '../db';
+import type { LayerLinkDocType, TranslationLayerDocType } from '../db';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
 import { COMMON_LANGUAGES, formatLayerRailLabel } from '../utils/transcriptionFormatters';
@@ -9,6 +9,7 @@ import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { useSpeakerRailContext } from '../contexts/SpeakerRailContext';
 import { LayerRailProvider } from '../contexts/LayerRailContext';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
+import { matchesLayerLink } from '../services/LayerIdBridgeService';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
 
@@ -22,7 +23,7 @@ interface LayerRailSidebarProps {
   onFocusLayer: (id: string) => void;
   transcriptionLayers: TranslationLayerDocType[];
   translationLayers: TranslationLayerDocType[];
-  layerLinks: Array<{ transcriptionLayerKey: string; tierId: string }>;
+  layerLinks: LayerLinkDocType[];
   toggleLayerLink: (transcriptionKey: string, translationId: string) => Promise<void>;
   deletableLayers: TranslationLayerDocType[];
   layerCreateMessage: string;
@@ -721,7 +722,7 @@ export function LayerRailSidebar({
                 {translationLayers.length > 0 ? (
                   translationLayers.map((trl) => {
                     const isLinked = layerLinks.some(
-                      (link) => link.transcriptionLayerKey === trc.key && link.tierId === trl.id,
+                      (link) => matchesLayerLink(link, trc.key, trl.id),
                     );
                     const trlLabel = formatLayerRailLabel(trl);
                     return (

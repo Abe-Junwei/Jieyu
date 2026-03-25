@@ -1,11 +1,12 @@
 import { useCallback, useRef } from 'react';
-import type { UtteranceDocType, TranslationLayerDocType, MediaItemDocType } from '../db';
+import type { LayerLinkDocType, UtteranceDocType, TranslationLayerDocType, MediaItemDocType } from '../db';
 import type { AiChatToolCall, AiChatToolResult } from './useAiChat';
 import { useLatest } from './useLatest';
 import { AutoGlossService } from '../ai/AutoGlossService';
 import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import { loadRecentVoiceSessions } from '../services/VoiceSessionStore';
 import { createLogger } from '../observability/logger';
+import { matchesLayerLink } from '../services/LayerIdBridgeService';
 
 const log = createLogger('useAiToolCallHandler');
 
@@ -23,7 +24,7 @@ type Params = {
   selectedLayerId: string;
   transcriptionLayers: TranslationLayerDocType[];
   translationLayers: TranslationLayerDocType[];
-  layerLinks: Array<{ transcriptionLayerKey: string; tierId: string }>;
+  layerLinks: LayerLinkDocType[];
   createLayer: (
     layerType: 'transcription' | 'translation',
     input: { languageId: string; alias?: string },
@@ -33,7 +34,7 @@ type Params = {
   splitUtterance: (utteranceId: string, splitTime: number) => Promise<void>;
   deleteUtterance: (id: string) => Promise<void>;
   deleteLayer: (id: string, options?: { keepUtterances?: boolean }) => Promise<void>;
-  toggleLayerLink: (transcriptionLayerKey: string, tierId: string) => Promise<void>;
+  toggleLayerLink: (transcriptionLayerKey: string, layerId: string) => Promise<void>;
   saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
   saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
   /** 更新单个 token 词性 | Update POS for a single token */
@@ -63,7 +64,7 @@ interface ExecutionContext {
   translationLayers: TranslationLayerDocType[];
   /** translationLayers 的最新 ref，用于补偿回查 | Latest-ref for post-async layer lookup */
   translationLayersRef: { readonly current: TranslationLayerDocType[] };
-  layerLinks: Array<{ transcriptionLayerKey: string; tierId: string }>;
+  layerLinks: LayerLinkDocType[];
   compensationRef: { current: Map<string, CompensationEntry> };
   COMPENSATION_TTL_MS: number;
   // 预绑定的解析工具函数（已捕获当前 call 和快照数据）
@@ -480,7 +481,7 @@ const layerAdapter: ToolObjectAdapter = {
       }
 
       const exists = ctx.layerLinks.some(
-        (link) => link.transcriptionLayerKey === trcLayer.key && link.tierId === trlLayer.id,
+        (link) => matchesLayerLink(link, trcLayer.key, trlLayer.id),
       );
       const shouldLink = call.name === 'link_translation_layer';
       try {

@@ -30,6 +30,11 @@ import {
   normalizeUtteranceDocForStorage,
   normalizeUtteranceTextDocForStorage,
 } from '../../src/utils/camDataUtils';
+import {
+  getUtteranceTextsByUtterancePreferV2,
+  removeUtteranceCascadeFromSegmentationV2,
+  syncUtteranceTextToSegmentationV2,
+} from './LayerSegmentationV2BridgeService';
 
 // ── Constraint violation types ──────────────────────────────
 
@@ -533,15 +538,43 @@ export class LinguisticService {
     const ids = [...new Set(utteranceIds.filter((id) => id.trim().length > 0))];
     if (ids.length === 0) return;
 
-    const tokens = await db.dexie.utterance_tokens.where('utteranceId').anyOf(ids).toArray();
-    const morphemes = await db.dexie.utterance_morphemes.where('utteranceId').anyOf(ids).toArray();
+    const tokens = await (async () => {
+      try {
+        return await db.dexie.utterance_tokens.where('utteranceId').anyOf(ids).toArray();
+      } catch {
+        const all = await db.dexie.utterance_tokens.toArray();
+        const idSet = new Set(ids);
+        return all.filter((row) => idSet.has(row.utteranceId));
+      }
+    })();
+
+    const morphemes = await (async () => {
+      try {
+        return await db.dexie.utterance_morphemes.where('utteranceId').anyOf(ids).toArray();
+      } catch {
+        const all = await db.dexie.utterance_morphemes.toArray();
+        const idSet = new Set(ids);
+        return all.filter((row) => idSet.has(row.utteranceId));
+      }
+    })();
 
     const deleteByTarget = async (targetType: 'utterance' | 'token' | 'morpheme', targetIds: readonly string[]) => {
       if (targetIds.length === 0) return;
-      await db.dexie.user_notes
-        .where('[targetType+targetId]')
-        .anyOf(targetIds.map((targetId) => [targetType, targetId] as [string, string]))
-        .delete();
+      try {
+        await db.dexie.user_notes
+          .where('[targetType+targetId]')
+          .anyOf(targetIds.map((targetId) => [targetType, targetId] as [string, string]))
+          .delete();
+      } catch {
+        const allNotes = await db.dexie.user_notes.toArray();
+        const targetSet = new Set(targetIds);
+        const noteIds = allNotes
+          .filter((note) => note.targetType === targetType && targetSet.has(note.targetId))
+          .map((note) => note.id);
+        if (noteIds.length > 0) {
+          await db.dexie.user_notes.bulkDelete(noteIds);
+        }
+      }
     };
 
     await deleteByTarget('utterance', ids);
@@ -1122,13 +1155,16 @@ export class LinguisticService {
 
   static async getUtteranceTexts(utteranceId: string): Promise<UtteranceTextDocType[]> {
     const db = await getDb();
-    const docs = await db.collections.utterance_texts.findByIndex('utteranceId', utteranceId);
-    return docs.map((doc) => doc.toJSON());
+    return getUtteranceTextsByUtterancePreferV2(db, utteranceId);
   }
 
   static async saveUtteranceText(data: UtteranceTextDocType): Promise<string> {
     const db = await getDb();
     const doc = await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(data));
+    const utterance = await db.collections.utterances.findOne({ selector: { id: data.utteranceId } }).exec();
+    if (utterance) {
+      await syncUtteranceTextToSegmentationV2(db, utterance.toJSON() as UtteranceDocType, data);
+    }
     return doc.primary;
   }
 
@@ -1495,6 +1531,13 @@ export class LinguisticService {
       'rw',
       [
         db.dexie.utterance_texts,
+        db.dexie.layer_segment_contents,
+        db.dexie.layer_segments,
+        db.dexie.segment_links,
+        db.dexie.utterance_tokens,
+        db.dexie.utterance_morphemes,
+        db.dexie.token_lexeme_links,
+        db.dexie.user_notes,
         db.dexie.tier_annotations,
         db.dexie.tier_definitions,
         db.dexie.utterances,
@@ -1515,6 +1558,7 @@ export class LinguisticService {
           const tokenIds = tokens.map((t) => t.id);
           const morphemeIds = (await db.dexie.utterance_morphemes.where('utteranceId').equals(uttId).toArray()).map((m) => m.id);
           await db.dexie.utterance_texts.where('utteranceId').equals(uttId).delete();
+          await removeUtteranceCascadeFromSegmentationV2(db, uttId);
           if (tokenIds.length > 0 || morphemeIds.length > 0) {
             const targets: Array<[string, string]> = [
               ...tokenIds.map((id) => ['token', id] as [string, string]),
@@ -1555,6 +1599,9 @@ export class LinguisticService {
       'rw',
       [
         db.dexie.utterance_texts,
+        db.dexie.layer_segment_contents,
+        db.dexie.layer_segments,
+        db.dexie.segment_links,
         db.dexie.utterance_tokens,
         db.dexie.utterance_morphemes,
         db.dexie.token_lexeme_links,
@@ -1576,6 +1623,7 @@ export class LinguisticService {
           const tokenIds = tokens.map((t) => t.id);
           const morphemeIds = (await db.dexie.utterance_morphemes.where('utteranceId').equals(u.id).toArray()).map((m) => m.id);
           await db.dexie.utterance_texts.where('utteranceId').equals(u.id).delete();
+          await removeUtteranceCascadeFromSegmentationV2(db, u.id);
           if (tokenIds.length > 0 || morphemeIds.length > 0) {
             const targets: Array<[string, string]> = [
               ...tokenIds.map((id) => ['token', id] as [string, string]),
@@ -1603,6 +1651,9 @@ export class LinguisticService {
       'rw',
       [
         db.dexie.utterance_texts,
+        db.dexie.layer_segment_contents,
+        db.dexie.layer_segments,
+        db.dexie.segment_links,
         db.dexie.utterance_tokens,
         db.dexie.utterance_morphemes,
         db.dexie.token_lexeme_links,
@@ -1620,6 +1671,7 @@ export class LinguisticService {
         const morphemeIds = (await db.dexie.utterance_morphemes.where('utteranceId').equals(utteranceId).toArray()).map((m) => m.id);
 
         await db.dexie.utterance_texts.where('utteranceId').equals(utteranceId).delete();
+        await removeUtteranceCascadeFromSegmentationV2(db, utteranceId);
         if (tokenIds.length > 0 || morphemeIds.length > 0) {
           const targets: Array<[string, string]> = [
             ...tokenIds.map((id) => ['token', id] as [string, string]),
@@ -1651,6 +1703,9 @@ export class LinguisticService {
       'rw',
       [
         db.dexie.utterance_texts,
+        db.dexie.layer_segment_contents,
+        db.dexie.layer_segments,
+        db.dexie.segment_links,
         db.dexie.utterance_tokens,
         db.dexie.utterance_morphemes,
         db.dexie.token_lexeme_links,
@@ -1668,6 +1723,7 @@ export class LinguisticService {
           const tokenIds = tokens.map((t) => t.id);
           const morphemeIds = (await db.dexie.utterance_morphemes.where('utteranceId').equals(utteranceId).toArray()).map((m) => m.id);
           await db.dexie.utterance_texts.where('utteranceId').equals(utteranceId).delete();
+          await removeUtteranceCascadeFromSegmentationV2(db, utteranceId);
           if (tokenIds.length > 0 || morphemeIds.length > 0) {
             const targets: Array<[string, string]> = [
               ...tokenIds.map((id) => ['token', id] as [string, string]),

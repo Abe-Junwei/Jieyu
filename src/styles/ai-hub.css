@@ -660,7 +660,7 @@
 .transcription-ai-panel-toggle {
   position: absolute;
   top: 50%;
-  right: var(--transcription-ai-visible-width);
+  right: 0;
   transform: translate(50%, -50%);
   width: 20px;
   height: 38px;
@@ -674,10 +674,10 @@
   justify-content: center;
   gap: 2px;
   cursor: pointer;
-  z-index: calc(var(--z-timeline-sticky) + 5);
+  z-index: calc(var(--z-timeline-sticky) + 8);
   box-shadow: 0 2px 8px rgba(30, 64, 175, 0.14);
-  transition: right var(--rail-motion), transform var(--rail-motion), background var(--rail-motion), border-color var(--rail-motion), color var(--rail-motion), box-shadow var(--rail-motion);
-  will-change: right;
+  transition: transform var(--rail-motion), background var(--rail-motion), border-color var(--rail-motion), color var(--rail-motion), box-shadow var(--rail-motion);
+  will-change: transform;
 }
 
 .transcription-ai-panel-toggle:hover {
@@ -738,6 +738,7 @@
   height: 38px;
   border-radius: 10px;
   gap: 2px;
+  pointer-events: none;
 }
 
 .transcription-layer-rail-resizer,
@@ -747,9 +748,36 @@
   bottom: 0;
   height: auto;
   width: 12px;
-  z-index: calc(var(--z-timeline-sticky) + 6);
+  z-index: calc(var(--z-timeline-sticky) + 5);
   cursor: col-resize;
   touch-action: none;
+}
+
+.transcription-ai-panel-handle-cluster {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: var(--transcription-ai-visible-width);
+  transition: right var(--rail-motion);
+  z-index: calc(var(--z-timeline-sticky) + 6);
+}
+
+.transcription-layer-rail-hover-zone,
+.transcription-ai-panel-hover-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  z-index: calc(var(--z-timeline-sticky) + 4);
+  cursor: pointer;
+}
+
+.transcription-layer-rail-hover-zone {
+  left: 0;
+}
+
+.transcription-ai-panel-hover-zone {
+  right: 0;
 }
 
 :root[data-theme='dark'] .transcription-ai-panel {
@@ -758,14 +786,18 @@
 }
 
 .transcription-layer-rail-resizer {
-  left: var(--transcription-rail-width);
+  left: 0;
   transform: translateX(-50%);
 }
 
 .transcription-ai-panel-resizer {
-  right: var(--transcription-ai-visible-width);
+  right: 0;
   transform: translateX(50%);
-  transition: right var(--rail-motion);
+  pointer-events: auto;
+}
+
+.transcription-ai-panel-toggle {
+  pointer-events: auto;
 }
 
 .transcription-layer-rail-resizer::before {
@@ -1544,7 +1576,7 @@
   }
 
   .transcription-screen {
-    border-radius: 12px;
+    border-radius: 0;
   }
 
   .transcription-waveform {
@@ -2272,6 +2304,14 @@
   margin-left: 24px;
   color: #9ca3af;
   font-size: 11px;
+}
+.context-menu-caret {
+  margin-left: 24px;
+  color: #6b7280;
+  font-size: 12px;
+}
+.context-menu-submenu {
+  min-width: 200px;
 }
 
 /* ── Note Indicator ─────────────────────────── */

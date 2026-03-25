@@ -29,10 +29,14 @@ vi.mock('../contexts/TranscriptionEditorContext', () => ({
   useTranscriptionEditorContext: () => editorContextValue,
 }));
 
-vi.mock('./TimelineLaneHeader', () => ({
-  TimelineLaneHeader: ({ layer, onToggleCollapsed }: { layer: { id: string }; onToggleCollapsed: () => void }) => (
+const timelineLaneHeaderMock = vi.fn(
+  ({ layer, onToggleCollapsed }: { layer: { id: string }; onToggleCollapsed: () => void; trackModeControl?: { lockConflictCount?: number } }) => (
     <button type="button" data-testid={`toggle-${layer.id}`} onClick={onToggleCollapsed}>toggle</button>
   ),
+);
+
+vi.mock('./TimelineLaneHeader', () => ({
+  TimelineLaneHeader: (props: { layer: { id: string }; onToggleCollapsed: () => void; trackModeControl?: { lockConflictCount?: number } }) => timelineLaneHeaderMock(props),
 }));
 
 vi.mock('./LayerActionPopover', () => ({
@@ -62,13 +66,13 @@ vi.mock('../hooks/useTimelineLaneHeightResize', () => ({
   }),
 }));
 
-function makeLayer(id: string): TranslationLayerDocType {
+function makeLayer(id: string, layerType: 'transcription' | 'translation' = 'transcription'): TranslationLayerDocType {
   return {
     id,
     textId: 't1',
     key: `trc_${id}`,
     name: { zho: id },
-    layerType: 'transcription',
+    layerType,
     languageId: 'cmn',
     modality: 'text',
     acceptsAudio: false,
@@ -99,6 +103,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
   afterEach(() => {
     vi.runOnlyPendingTimers();
     vi.useRealTimers();
+    timelineLaneHeaderMock.mockClear();
     cleanup();
   });
 
@@ -130,6 +135,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         onFocusLayer={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
+        trackDisplayMode="multi-auto"
       />,
     );
 
@@ -187,6 +193,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         onFocusLayer={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
+        trackDisplayMode="multi-auto"
       />,
     );
 
@@ -258,5 +265,215 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     fireEvent(input, pointerDown);
 
     expect(pointerDown.defaultPrevented).toBe(false);
+  });
+
+  it('keeps translation lane independent from speaker overlap layout', () => {
+    const trLayer = makeLayer('tr-1', 'translation');
+    const utterances = [
+      makeUtterance('u1', 0, 5, 's1'),
+      makeUtterance('u2', 1, 4, 's2'),
+      makeUtterance('u3', 2, 3, 's3'),
+    ];
+
+    const { container } = render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[]}
+        translationLayers={[trLayer]}
+        timelineRenderUtterances={utterances}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={undefined}
+        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[trLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[trLayer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [trLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId(`toggle-${trLayer.id}`));
+    expect(screen.queryByTestId('ann-u1')).toBeNull();
+    expect(container.querySelectorAll('.timeline-lane-overlap-hint').length).toBe(0);
+
+    fireEvent.click(screen.getByTestId(`toggle-${trLayer.id}`));
+    expect(screen.getByTestId('ann-u1')).toBeTruthy();
+    expect(screen.getByTestId('ann-u2')).toBeTruthy();
+    expect(screen.getByTestId('ann-u3')).toBeTruthy();
+  });
+
+  it('dims non-target speakers in focus-soft mode', () => {
+    const layer = makeLayer('trc-1');
+    const utterances = [
+      makeUtterance('u1', 0, 2, 's1'),
+      makeUtterance('u2', 2, 4, 's2'),
+    ];
+
+    const { container } = render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        timelineRenderUtterances={utterances}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        speakerFocusMode="focus-soft"
+        speakerFocusSpeakerKey="s1"
+      />,
+    );
+
+    expect(screen.getByTestId('ann-u1')).toBeTruthy();
+    expect(screen.getByTestId('ann-u2')).toBeTruthy();
+    expect(container.querySelectorAll('.timeline-annotation-subtrack-focus-dim').length).toBe(1);
+  });
+
+  it('hides non-target speaker in focus-hard mode', () => {
+    const layer = makeLayer('trc-1');
+    const utterances = [
+      makeUtterance('u1', 0, 2, 's1'),
+      makeUtterance('u2', 2, 4, 's2'),
+    ];
+
+    render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        timelineRenderUtterances={utterances}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        speakerFocusMode="focus-hard"
+        speakerFocusSpeakerKey="s1"
+      />,
+    );
+
+    const container = screen.getByTestId('ann-u1').closest('.timeline-content') as HTMLElement;
+    expect(screen.getByTestId('ann-u1')).toBeTruthy();
+    expect(screen.getByTestId('ann-u2')).toBeTruthy();
+    expect(container.querySelectorAll('.timeline-annotation-subtrack-focus-dim').length).toBe(0);
+    expect(container.querySelectorAll('.timeline-annotation-subtrack-focus-hidden').length).toBe(1);
+  });
+
+  it('passes overlap cycle status to annotation renderer for overlapping items', () => {
+    const layer = makeLayer('trc-1');
+    const utterances = [
+      makeUtterance('u1', 0, 3, 's1'),
+      makeUtterance('u2', 1, 4, 's2'),
+      makeUtterance('u3', 5, 6, 's3'),
+    ];
+
+    render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        timelineRenderUtterances={utterances}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        renderAnnotationItem={(utt, _layer, _draft, extra) => {
+          const status = extra.overlapCycleStatus;
+          return <div data-testid={`meta-${utt.id}`}>{status ? `${status.index}/${status.total}` : 'none'}</div>;
+        }}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('meta-u1').textContent).toBe('1/2');
+    expect(screen.getByTestId('meta-u2').textContent).toBe('2/2');
+    expect(screen.getByTestId('meta-u3').textContent).toBe('none');
+  });
+
+  it('surfaces lock conflict count in lane header track mode control', () => {
+    const layer = makeLayer('trc-1');
+    const utterances = [
+      makeUtterance('u1', 0, 4, 's1'),
+      makeUtterance('u2', 1, 3, 's2'),
+    ];
+
+    const { rerender } = render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        timelineRenderUtterances={utterances}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        trackDisplayMode="multi-locked"
+        onToggleTrackDisplayMode={vi.fn()}
+        laneLockMap={{ s2: 0 }}
+      />,
+    );
+
+    const firstProps = timelineLaneHeaderMock.mock.calls[0]?.[0] as { trackModeControl?: { lockConflictCount?: number } } | undefined;
+    expect(firstProps?.trackModeControl?.lockConflictCount).toBe(1);
+
+    rerender(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        timelineRenderUtterances={utterances}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        trackDisplayMode="multi-locked"
+        onToggleTrackDisplayMode={vi.fn()}
+        laneLockMap={{ s2: 1 }}
+      />,
+    );
+
+    const latestProps = timelineLaneHeaderMock.mock.calls[timelineLaneHeaderMock.mock.calls.length - 1]?.[0] as { trackModeControl?: { lockConflictCount?: number } } | undefined;
+    expect(latestProps?.trackModeControl?.lockConflictCount).toBeUndefined();
   });
 });

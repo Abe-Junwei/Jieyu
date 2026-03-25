@@ -12,6 +12,13 @@ import { LinguisticService } from '../services/LinguisticService';
 import { newId } from '../utils/transcriptionFormatters';
 import type { LayerCreateInput } from './transcriptionTypes';
 import { canCreateLayer, canDeleteLayer, getMostRecentLayerOfType } from '../services/LayerConstraintService';
+import {
+  createLayerLink,
+  getLayerLinkTargetLayerId,
+  LEGACY_LAYER_ID_FIELD,
+  matchesLayerLink,
+  matchesUtteranceTextLayer,
+} from '../services/LayerIdBridgeService';
 
 export type TranscriptionLayerActionsParams = {
   layers: TranslationLayerDocType[];
@@ -133,14 +140,12 @@ export function useTranscriptionLayerActions({
       if (layerType === 'translation') {
         const recentTrc = getMostRecentLayerOfType(layers, 'transcription');
         if (recentTrc) {
-          autoLink = {
+          autoLink = createLayerLink({
             id: newId('link'),
             transcriptionLayerKey: recentTrc.key,
-            tierId: id,
-            linkType: 'free',
-            isPreferred: false,
+            targetLayerId: id,
             createdAt: now,
-          };
+          });
           await db.collections.layer_links.insert(autoLink);
         }
       }
@@ -148,20 +153,17 @@ export function useTranscriptionLayerActions({
       if (layerType === 'transcription') {
         const recentTrl = getMostRecentLayerOfType(layers, 'translation');
         if (recentTrl) {
-          autoLink = {
+          autoLink = createLayerLink({
             id: newId('link'),
             transcriptionLayerKey: key,
-            tierId: recentTrl.id,
-            linkType: 'free',
-            isPreferred: false,
+            targetLayerId: recentTrl.id,
             createdAt: now,
-          };
+          });
           await db.collections.layer_links.insert(autoLink);
         }
       }
 
       setSelectedLayerId(id);
-
       setLayers((prev) => [...prev, newLayer]);
       if (autoLink) {
         setLayerLinks((prev) => [...prev, autoLink]);
@@ -178,7 +180,7 @@ export function useTranscriptionLayerActions({
   /** 检查层是否有文本内容（用于判断是否需要确认） */
   const checkLayerHasContent = useCallback(async (layerId: string): Promise<number> => {
     const db = await getDb();
-    return db.dexie.utterance_texts.where('tierId').equals(layerId).count();
+    return db.dexie.utterance_texts.where(LEGACY_LAYER_ID_FIELD).equals(layerId).count();
   }, []);
 
   /** 执行层的实际删除操作（无确认提示） */
@@ -207,31 +209,52 @@ export function useTranscriptionLayerActions({
 
       const affectedUtteranceIds = keepUtterances
         ? []
-        : (await db.dexie.utterance_texts.where('tierId').equals(effectiveLayerId).toArray())
+        : (await db.dexie.utterance_texts.where(LEGACY_LAYER_ID_FIELD).equals(effectiveLayerId).toArray())
             .map((d) => d.utteranceId);
 
-      await db.collections.utterance_texts.removeBySelector({ tierId: effectiveLayerId });
+      await db.collections.utterance_texts.removeBySelector({ [LEGACY_LAYER_ID_FIELD]: effectiveLayerId });
+      // 删除路径始终做 v2 级联清理，避免开关切换后的“残留数据回流” | Always clean v2 graph on destructive path to avoid stale data resurfacing after flag toggles.
+      // Collect segment IDs before deletion so we can clean up referencing links.
+      // Note: sourceLayerId/targetLayerId are optional (undefined) on many existing
+      // segment_links rows, so we must delete by segmentId ownership — not by layerId.
+      const deletedSegmentIds = (await db.dexie.layer_segments
+        .where('layerId')
+        .equals(effectiveLayerId)
+        .primaryKeys()) as string[];
+
+      await db.dexie.layer_segment_contents.where('layerId').equals(effectiveLayerId).delete();
+      await db.dexie.layer_segments.where('layerId').equals(effectiveLayerId).delete();
+
+      if (deletedSegmentIds.length > 0) {
+        const linksToDelete = (await db.dexie.segment_links.toArray())
+          .filter((item) =>
+            deletedSegmentIds.includes(item.sourceSegmentId) ||
+            deletedSegmentIds.includes(item.targetSegmentId),
+          )
+          .map((item) => item.id);
+        if (linksToDelete.length > 0) {
+          await db.dexie.segment_links.bulkDelete(linksToDelete);
+        }
+      }
 
       const newAutoLinks: LayerLinkDocType[] = [];
       if (targetLayer.layerType === 'transcription') {
         if (deleteCheck.orphanedTranslationIds && deleteCheck.relinkTargetKey) {
           const now = new Date().toISOString();
           for (const trlId of deleteCheck.orphanedTranslationIds) {
-            const relink: LayerLinkDocType = {
+            const relink = createLayerLink({
               id: newId('link'),
               transcriptionLayerKey: deleteCheck.relinkTargetKey,
-              tierId: trlId,
-              linkType: 'free',
-              isPreferred: false,
+              targetLayerId: trlId,
               createdAt: now,
-            };
+            });
             await db.collections.layer_links.insert(relink);
             newAutoLinks.push(relink);
           }
         }
         await db.collections.layer_links.removeBySelector({ transcriptionLayerKey: targetLayer.key });
       } else {
-        await db.collections.layer_links.removeBySelector({ tierId: effectiveLayerId });
+        await db.collections.layer_links.removeBySelector({ [LEGACY_LAYER_ID_FIELD]: effectiveLayerId });
       }
       await LayerTierUnifiedService.deleteLayer(targetLayer);
 
@@ -252,7 +275,7 @@ export function useTranscriptionLayerActions({
       }
 
       setLayers((prev) => prev.filter((item) => item.id !== effectiveLayerId));
-      setTranslations((prev) => prev.filter((item) => item.tierId !== effectiveLayerId));
+      setTranslations((prev) => prev.filter((item) => !matchesUtteranceTextLayer(item, effectiveLayerId)));
       if (removedUtteranceIds.size > 0) {
         setUtterances((prev) => prev.filter((u) => !removedUtteranceIds.has(u.id)));
       }
@@ -262,7 +285,7 @@ export function useTranscriptionLayerActions({
           ...newAutoLinks,
         ]);
       } else {
-        setLayerLinks((prev) => prev.filter((item) => item.tierId !== effectiveLayerId));
+        setLayerLinks((prev) => prev.filter((item) => getLayerLinkTargetLayerId(item) !== effectiveLayerId));
       }
       setLayerToDeleteId('');
       setShowLayerManager(false);
@@ -293,12 +316,11 @@ export function useTranscriptionLayerActions({
 
   const toggleLayerLink = useCallback(async (
     transcriptionLayerKey: string,
-    tierId: string,
+    layerId: string,
   ) => {
     const db = await getDb();
     const existing = layerLinks.find(
-      (link) => link.transcriptionLayerKey === transcriptionLayerKey
-        && link.tierId === tierId,
+      (link) => matchesLayerLink(link, transcriptionLayerKey, layerId),
     );
 
     if (existing) {
@@ -308,14 +330,12 @@ export function useTranscriptionLayerActions({
     } else {
       pushUndo('建立层关联');
       const now = new Date().toISOString();
-      const newLink: LayerLinkDocType = {
+      const newLink = createLayerLink({
         id: newId('link'),
         transcriptionLayerKey,
-        tierId,
-        linkType: 'free',
-        isPreferred: false,
+        targetLayerId: layerId,
         createdAt: now,
-      };
+      });
       await db.collections.layer_links.insert(newLink);
       setLayerLinks((prev) => [...prev, newLink]);
     }

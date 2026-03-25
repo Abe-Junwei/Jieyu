@@ -21,7 +21,7 @@ type Params = {
   mergeSelectedUtterancesRaw: (ids: Set<string>) => Promise<void>;
   createLayerRaw: (layerType: 'transcription' | 'translation', input: LayerCreateInput, modality?: 'text' | 'audio' | 'mixed') => Promise<boolean>;
   deleteLayerRaw: (targetLayerId?: string, options?: { keepUtterances?: boolean }) => Promise<void>;
-  toggleLayerLinkRaw: (transcriptionLayerKey: string, tierId: string) => Promise<void>;
+  toggleLayerLinkRaw: (transcriptionLayerKey: string, layerId: string) => Promise<void>;
 };
 
 export function useTranscriptionMutexActionWrappers({
@@ -125,8 +125,8 @@ export function useTranscriptionMutexActionWrappers({
     runWithDbMutex(() => deleteLayerRaw(targetLayerId, options))
   ), [deleteLayerRaw, runWithDbMutex]);
 
-  const toggleLayerLink = useCallback((transcriptionLayerKey: string, tierId: string) => (
-    runWithDbMutex(() => toggleLayerLinkRaw(transcriptionLayerKey, tierId))
+  const toggleLayerLink = useCallback((transcriptionLayerKey: string, layerId: string) => (
+    runWithDbMutex(() => toggleLayerLinkRaw(transcriptionLayerKey, layerId))
   ), [runWithDbMutex, toggleLayerLinkRaw]);
 
   return {

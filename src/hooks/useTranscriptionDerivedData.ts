@@ -5,6 +5,7 @@ import type {
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
+import { getUtteranceTextLayerId } from '../services/LayerIdBridgeService';
 
 type Params = {
   layers: TranslationLayerDocType[];
@@ -114,10 +115,11 @@ export function useTranscriptionDerivedData({
       )
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .forEach((item) => {
-        if (!outer.has(item.tierId)) {
-          outer.set(item.tierId, new Map());
+        const layerId = getUtteranceTextLayerId(item);
+        if (!outer.has(layerId)) {
+          outer.set(layerId, new Map());
         }
-        const inner = outer.get(item.tierId)!;
+        const inner = outer.get(layerId)!;
         if (!inner.has(item.utteranceId)) {
           inner.set(item.utteranceId, item);
         }

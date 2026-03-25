@@ -60,6 +60,8 @@ export function useTranscriptionData() {
     setLayerToDeleteId,
     showLayerManager,
     setShowLayerManager,
+    transcriptionTrackMode,
+    setTranscriptionTrackMode,
     autoSaveTimersRef,
     focusedTranslationDraftKeyRef,
     utterancesRef,
@@ -267,6 +269,7 @@ export function useTranscriptionData() {
     setUtteranceDrafts,
     setSelectedUtteranceId,
     setSelectedUtteranceIds,
+    allowOverlapInTranscription: transcriptionTrackMode !== 'single',
   });
 
   const {
@@ -412,6 +415,8 @@ export function useTranscriptionData() {
     setLayerToDeleteId,
     showLayerManager,
     setShowLayerManager,
+    transcriptionTrackMode,
+    setTranscriptionTrackMode,
   };
 
   const derivedApi = {
