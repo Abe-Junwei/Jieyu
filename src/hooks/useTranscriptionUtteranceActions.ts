@@ -15,6 +15,7 @@ import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import type { SaveState, SnapGuide } from './transcriptionTypes';
+import { invalidateUtteranceEmbeddings } from '../ai/embeddings/EmbeddingInvalidationService';
 import {
   removeUtteranceTextFromSegmentationV2,
   syncUtteranceTextToSegmentationV2,
@@ -150,11 +151,15 @@ export function useTranscriptionUtteranceActions({
   const saveUtteranceText = useCallback(async (utteranceId: string, value: string, layerId?: string) => {
     const resolvedLayerId = layerId ?? defaultTranscriptionLayerId;
     const targetLayer = resolvedLayerId ? layerById.get(resolvedLayerId) : undefined;
+    const isDefaultLayer = !targetLayer
+      || (targetLayer.layerType === 'transcription'
+        && (targetLayer.isDefault === true || targetLayer.id === defaultTranscriptionLayerId));
 
     pushUndo('编辑转写文本');
     const db = await getDb();
     const now = new Date().toISOString();
     const normalizedValue = value.trim();
+    let shouldInvalidateEmbeddings = false;
 
     if (targetLayer) {
       const matchingDocs = await db.collections.utterance_texts.findByIndex('utteranceId', utteranceId);
@@ -172,8 +177,10 @@ export function useTranscriptionUtteranceActions({
           await db.collections.utterance_texts.remove(existing.id);
           await removeUtteranceTextFromSegmentationV2(db, existing);
           setTranslations((prev) => prev.filter((item) => item.id !== existing.id));
+          shouldInvalidateEmbeddings = isDefaultLayer;
         }
       } else if (existing) {
+        const didTextChange = (existing.text ?? '').trim() !== normalizedValue;
         const updatedTranslation: UtteranceTextDocType = {
           ...existing,
           text: normalizedValue,
@@ -185,6 +192,7 @@ export function useTranscriptionUtteranceActions({
           await syncUtteranceTextToSegmentationV2(db, utterance, updatedTranslation);
         }
         setTranslations((prev) => prev.map((item) => (item.id === existing.id ? updatedTranslation : item)));
+        shouldInvalidateEmbeddings = isDefaultLayer && didTextChange;
       } else {
         const newTranslation: UtteranceTextDocType = {
           ...withUtteranceTextLayerId({
@@ -203,12 +211,14 @@ export function useTranscriptionUtteranceActions({
           await syncUtteranceTextToSegmentationV2(db, utterance, newTranslation);
         }
         setTranslations((prev) => [...prev, newTranslation]);
+        shouldInvalidateEmbeddings = isDefaultLayer;
       }
     }
 
-    const isDefaultLayer = !targetLayer
-      || (targetLayer.layerType === 'transcription'
-        && (targetLayer.isDefault === true || targetLayer.id === defaultTranscriptionLayerId));
+    if (shouldInvalidateEmbeddings) {
+      await invalidateUtteranceEmbeddings(db, [utteranceId]);
+    }
+
     if (isDefaultLayer) {
       setUtteranceDrafts((prev) => ({ ...prev, [utteranceId]: value }));
     }

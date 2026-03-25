@@ -39,7 +39,14 @@ function makeUtterance(id: string, startTime: number, endTime: number): Utteranc
 describe('useTranscriptionUtteranceActions - batch operations', () => {
   beforeEach(async () => {
     await db.open();
-    await db.utterance_texts.clear();
+    await Promise.all([
+      db.utterance_texts.clear(),
+      db.embeddings.clear(),
+      db.utterances.clear(),
+      db.layer_segments.clear(),
+      db.layer_segment_contents.clear(),
+      db.segment_links.clear(),
+    ]);
     mockLogWarn.mockReset();
     mockLogError.mockReset();
   });
@@ -259,6 +266,139 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     expect(json?.text).toBe('updated');
     expect(json && 'recordedBySpeakerId' in json).toBe(false);
     expect(pushUndo).toHaveBeenCalledWith('编辑翻译文本');
+  });
+
+  it('saveUtteranceText should invalidate utterance embeddings for the default transcription layer', async () => {
+    const now = new Date().toISOString();
+    const utterance = makeUtterance('utt-default', 0, 1);
+
+    await db.utterances.put(utterance as never);
+    await db.embeddings.put({
+      id: 'utterance::utt-default::model::v1',
+      sourceType: 'utterance',
+      sourceId: 'utt-default',
+      model: 'model',
+      modelVersion: 'v1',
+      contentHash: 'hash',
+      vector: [0.1, 0.2],
+      createdAt: now,
+    });
+
+    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+      defaultTranscriptionLayerId: 'trc-default',
+      layerById: new Map([
+        ['trc-default', {
+          id: 'trc-default',
+          textId: 't1',
+          key: 'trc_default',
+          name: { zho: '默认转写层' },
+          layerType: 'transcription',
+          languageId: 'und',
+          modality: 'text',
+          isDefault: true,
+          createdAt: now,
+          updatedAt: now,
+        }],
+      ]) as never,
+      selectedUtteranceMedia: undefined,
+      selectedUtteranceId: '',
+      translations: [],
+      utterancesRef: { current: [utterance] },
+      utterancesOnCurrentMediaRef: { current: [utterance] },
+      getUtteranceTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, utteranceId: null } },
+      timingUndoRef: { current: null },
+      pushUndo: vi.fn(),
+      createAnchor: vi.fn(),
+      updateAnchorTime: vi.fn(),
+      pruneOrphanAnchors: vi.fn(),
+      setSaveState: vi.fn(),
+      setSnapGuide: vi.fn(),
+      setMediaItems: vi.fn(),
+      setTranslations: vi.fn(),
+      setUtterances: vi.fn(),
+      setUtteranceDrafts: vi.fn(),
+      setSelectedUtteranceId: vi.fn(),
+      setSelectedUtteranceIds: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.saveUtteranceText('utt-default', '新的默认转写', 'trc-default');
+    });
+
+    expect(await db.embeddings.where('sourceId').equals('utt-default').count()).toBe(0);
+  });
+
+  it('saveUtteranceText should keep utterance embeddings for non-default translation layers', async () => {
+    const now = new Date().toISOString();
+    const utterance = makeUtterance('utt-translation', 0, 1);
+
+    await db.utterances.put(utterance as never);
+    await db.embeddings.put({
+      id: 'utterance::utt-translation::model::v1',
+      sourceType: 'utterance',
+      sourceId: 'utt-translation',
+      model: 'model',
+      modelVersion: 'v1',
+      contentHash: 'hash',
+      vector: [0.1, 0.2],
+      createdAt: now,
+    });
+
+    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+      defaultTranscriptionLayerId: 'trc-default',
+      layerById: new Map([
+        ['trc-default', {
+          id: 'trc-default',
+          textId: 't1',
+          key: 'trc_default',
+          name: { zho: '默认转写层' },
+          layerType: 'transcription',
+          languageId: 'und',
+          modality: 'text',
+          isDefault: true,
+          createdAt: now,
+          updatedAt: now,
+        }],
+        ['trl-en', {
+          id: 'trl-en',
+          textId: 't1',
+          key: 'trl_en',
+          name: { zho: '英文翻译层' },
+          layerType: 'translation',
+          languageId: 'en',
+          modality: 'text',
+          createdAt: now,
+          updatedAt: now,
+        }],
+      ]) as never,
+      selectedUtteranceMedia: undefined,
+      selectedUtteranceId: '',
+      translations: [],
+      utterancesRef: { current: [utterance] },
+      utterancesOnCurrentMediaRef: { current: [utterance] },
+      getUtteranceTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, utteranceId: null } },
+      timingUndoRef: { current: null },
+      pushUndo: vi.fn(),
+      createAnchor: vi.fn(),
+      updateAnchorTime: vi.fn(),
+      pruneOrphanAnchors: vi.fn(),
+      setSaveState: vi.fn(),
+      setSnapGuide: vi.fn(),
+      setMediaItems: vi.fn(),
+      setTranslations: vi.fn(),
+      setUtterances: vi.fn(),
+      setUtteranceDrafts: vi.fn(),
+      setSelectedUtteranceId: vi.fn(),
+      setSelectedUtteranceIds: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.saveUtteranceText('utt-translation', 'translation text', 'trl-en');
+    });
+
+    expect(await db.embeddings.where('sourceId').equals('utt-translation').count()).toBe(1);
   });
 
   it('offsetSelectedTimes should rollback when persistence fails after pushUndo', async () => {

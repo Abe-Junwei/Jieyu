@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { featureFlags } from '../ai/config/featureFlags';
 import { useTranscriptionLayerActions } from './useTranscriptionLayerActions';
 
 const {
@@ -13,7 +12,8 @@ const {
   mockLayerSegmentContentsDelete,
   mockLayerSegmentsPrimaryKeys,
   mockLayerSegmentsDelete,
-  mockSegmentLinksToArray,
+  mockSegmentLinksWhereSourcePrimaryKeys,
+  mockSegmentLinksWhereTargetPrimaryKeys,
   mockSegmentLinksBulkDelete,
   mockRemoveBySelectorUtteranceTexts,
   mockRemoveBySelectorLayerLinks,
@@ -26,7 +26,8 @@ const {
   mockLayerSegmentContentsDelete: vi.fn(async () => undefined),
   mockLayerSegmentsPrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
   mockLayerSegmentsDelete: vi.fn(async () => undefined),
-  mockSegmentLinksToArray: vi.fn<() => Promise<Array<{ id: string; sourceSegmentId: string; targetSegmentId: string }>>>(async () => []),
+  mockSegmentLinksWhereSourcePrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
+  mockSegmentLinksWhereTargetPrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
   mockSegmentLinksBulkDelete: vi.fn(async () => undefined),
   mockRemoveBySelectorUtteranceTexts: vi.fn(async () => undefined),
   mockRemoveBySelectorLayerLinks: vi.fn(async () => undefined),
@@ -56,14 +57,10 @@ vi.mock('../services/LinguisticService', () => ({
 describe('useTranscriptionLayerActions v2 cleanup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = true;
 
     mockLayerSegmentsPrimaryKeys.mockResolvedValue(['seg_1', 'seg_2']);
-    mockSegmentLinksToArray.mockResolvedValue([
-      { id: 'link_source', sourceSegmentId: 'seg_1', targetSegmentId: 'seg_x' },
-      { id: 'link_target', sourceSegmentId: 'seg_y', targetSegmentId: 'seg_2' },
-      { id: 'link_other', sourceSegmentId: 'seg_y', targetSegmentId: 'seg_x' },
-    ]);
+    mockSegmentLinksWhereSourcePrimaryKeys.mockResolvedValue(['link_source']);
+    mockSegmentLinksWhereTargetPrimaryKeys.mockResolvedValue(['link_target']);
 
     mockGetDb.mockResolvedValue({
       collections: {
@@ -111,7 +108,23 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
           }),
         },
         segment_links: {
-          toArray: mockSegmentLinksToArray,
+          where: (field: string) => {
+            if (field === 'sourceSegmentId') {
+              return {
+                anyOf: () => ({
+                  primaryKeys: mockSegmentLinksWhereSourcePrimaryKeys,
+                }),
+              };
+            }
+            if (field === 'targetSegmentId') {
+              return {
+                anyOf: () => ({
+                  primaryKeys: mockSegmentLinksWhereTargetPrimaryKeys,
+                }),
+              };
+            }
+            throw new Error(`Unexpected segment_links.where field: ${field}`);
+          },
           bulkDelete: mockSegmentLinksBulkDelete,
         },
         layer_links: {
@@ -121,7 +134,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     });
   });
 
-  it('removes segment_links where source/target layer matches deleted layer', async () => {
+  it('removes segment_links via source/target indexes when deleting a layer', async () => {
     const now = '2026-03-25T00:00:00.000Z';
     const layer = {
       id: 'layer_trl_1',

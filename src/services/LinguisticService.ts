@@ -35,6 +35,11 @@ import {
   removeUtteranceCascadeFromSegmentationV2,
   syncUtteranceTextToSegmentationV2,
 } from './LayerSegmentationV2BridgeService';
+import {
+  hasEmbeddedDefaultTextChanged,
+  invalidateUtteranceEmbeddings,
+  isDefaultTranscriptionLayerForUtteranceText,
+} from '../ai/embeddings/EmbeddingInvalidationService';
 
 // ── Constraint violation types ──────────────────────────────
 
@@ -951,7 +956,11 @@ export class LinguisticService {
   static async saveUtterance(data: UtteranceDocType): Promise<string> {
     const db = await getDb();
     const normalized = normalizeUtteranceDocForStorage(data);
+    const existing = await db.collections.utterances.findOne({ selector: { id: normalized.id } }).exec();
     const doc = await db.collections.utterances.insert(normalized);
+    if (existing && hasEmbeddedDefaultTextChanged(existing.toJSON(), normalized)) {
+      await invalidateUtteranceEmbeddings(db, [normalized.id]);
+    }
     return doc.primary;
   }
 
@@ -964,7 +973,14 @@ export class LinguisticService {
   static async saveUtterancesBatch(items: UtteranceDocType[]): Promise<void> {
     const db = await getDb();
     const normalized = items.map(normalizeUtteranceDocForStorage);
+    const existingRows = await db.dexie.utterances.bulkGet(normalized.map((item) => item.id));
+    const changedUtteranceIds = normalized
+      .filter((item, index) => hasEmbeddedDefaultTextChanged(existingRows[index], item))
+      .map((item) => item.id);
     await db.collections.utterances.bulkInsert(normalized);
+    if (changedUtteranceIds.length > 0) {
+      await invalidateUtteranceEmbeddings(db, changedUtteranceIds);
+    }
   }
 
   static async getTokensByUtteranceId(utteranceId: string): Promise<UtteranceTokenDocType[]> {
@@ -1164,6 +1180,9 @@ export class LinguisticService {
     const utterance = await db.collections.utterances.findOne({ selector: { id: data.utteranceId } }).exec();
     if (utterance) {
       await syncUtteranceTextToSegmentationV2(db, utterance.toJSON() as UtteranceDocType, data);
+    }
+    if (await isDefaultTranscriptionLayerForUtteranceText(db, data.utteranceId, data.tierId)) {
+      await invalidateUtteranceEmbeddings(db, [data.utteranceId]);
     }
     return doc.primary;
   }
@@ -1531,6 +1550,7 @@ export class LinguisticService {
       'rw',
       [
         db.dexie.utterance_texts,
+        db.dexie.embeddings,
         db.dexie.layer_segment_contents,
         db.dexie.layer_segments,
         db.dexie.segment_links,
@@ -1551,6 +1571,7 @@ export class LinguisticService {
         const uttIds = allUtts.map((u) => u.id);
 
         await this.removeNotesForUtteranceIds(db, uttIds);
+        await invalidateUtteranceEmbeddings(db, uttIds);
 
         // Cascade: utterance_texts for these utterances
         for (const uttId of uttIds) {
@@ -1599,6 +1620,7 @@ export class LinguisticService {
       'rw',
       [
         db.dexie.utterance_texts,
+        db.dexie.embeddings,
         db.dexie.layer_segment_contents,
         db.dexie.layer_segments,
         db.dexie.segment_links,
@@ -1616,6 +1638,7 @@ export class LinguisticService {
         const uttIds = utts.map((u) => u.id);
 
         await this.removeNotesForUtteranceIds(db, uttIds);
+        await invalidateUtteranceEmbeddings(db, uttIds);
 
         // Cascade: utterance_texts + canonical token entities
         for (const u of utts) {
@@ -1651,6 +1674,7 @@ export class LinguisticService {
       'rw',
       [
         db.dexie.utterance_texts,
+        db.dexie.embeddings,
         db.dexie.layer_segment_contents,
         db.dexie.layer_segments,
         db.dexie.segment_links,
@@ -1663,6 +1687,7 @@ export class LinguisticService {
       ],
       async () => {
         await this.removeNotesForUtteranceIds(db, [utteranceId]);
+        await invalidateUtteranceEmbeddings(db, [utteranceId]);
 
         // Read utterance to get anchor IDs before deleting
         const utt = await db.dexie.utterances.get(utteranceId);
@@ -1703,6 +1728,7 @@ export class LinguisticService {
       'rw',
       [
         db.dexie.utterance_texts,
+        db.dexie.embeddings,
         db.dexie.layer_segment_contents,
         db.dexie.layer_segments,
         db.dexie.segment_links,
@@ -1717,6 +1743,7 @@ export class LinguisticService {
         const utts = (await db.dexie.utterances.bulkGet(ids)).filter((u): u is NonNullable<typeof u> => Boolean(u));
 
         await this.removeNotesForUtteranceIds(db, ids);
+        await invalidateUtteranceEmbeddings(db, ids);
 
         for (const utteranceId of ids) {
           const tokens = await db.dexie.utterance_tokens.where('utteranceId').equals(utteranceId).toArray();

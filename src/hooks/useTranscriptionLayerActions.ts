@@ -226,12 +226,15 @@ export function useTranscriptionLayerActions({
       await db.dexie.layer_segments.where('layerId').equals(effectiveLayerId).delete();
 
       if (deletedSegmentIds.length > 0) {
-        const linksToDelete = (await db.dexie.segment_links.toArray())
-          .filter((item) =>
-            deletedSegmentIds.includes(item.sourceSegmentId) ||
-            deletedSegmentIds.includes(item.targetSegmentId),
-          )
-          .map((item) => item.id);
+        const sourceLinkIds = (await db.dexie.segment_links
+          .where('sourceSegmentId')
+          .anyOf(deletedSegmentIds)
+          .primaryKeys()) as string[];
+        const targetLinkIds = (await db.dexie.segment_links
+          .where('targetSegmentId')
+          .anyOf(deletedSegmentIds)
+          .primaryKeys()) as string[];
+        const linksToDelete = [...new Set([...sourceLinkIds, ...targetLinkIds])];
         if (linksToDelete.length > 0) {
           await db.dexie.segment_links.bulkDelete(linksToDelete);
         }

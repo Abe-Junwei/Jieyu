@@ -2291,6 +2291,11 @@ class JieyuDexie extends Dexie {
         await segmentLinksTable.bulkPut(rows.links);
       }
     });
+
+    // v23: add layer-level indexes for segment link cleanup and audits.
+    this.version(23).stores({
+      segment_links: 'id, textId, sourceSegmentId, targetSegmentId, sourceLayerId, targetLayerId, [sourceSegmentId+targetSegmentId], linkType, utteranceId',
+    });
   }
 }
 

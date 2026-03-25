@@ -14,19 +14,20 @@ const ALLOWED_FILE_PATHS = new Set([
 ]);
 
 const ALLOWED_PATH_SEGMENTS = [
-  '/src/services/',
-  '/src/db/',
-  '/src/hooks/useTranscriptionLayerActions.test.tsx',
+  // 测试文件统一放行 | All test files allowed
   '.test.ts',
   '.test.tsx',
-  '/src/services/LayerSegmentationV2BridgeService',
+  // 互操作服务 | Interop services (EAF/TextGrid/Flex/Toolbox)
   '/src/services/EafService.ts',
   '/src/services/TextGridService.ts',
   '/src/services/FlexService.ts',
   '/src/services/ToolboxService.ts',
+  // 桥接服务 | Bridge services
+  '/src/services/LayerSegmentationV2BridgeService',
+  '/src/services/LayerIdBridgeService.ts',
+  // 互操作 hooks | Interop hooks (import/export, snapshot restore)
   '/src/hooks/useImportExport.ts',
   '/src/hooks/useTranscriptionSnapshotLoader.ts',
-  '/src/components/TimelineLaneHeader.tsx',
 ];
 
 function walk(dir) {
