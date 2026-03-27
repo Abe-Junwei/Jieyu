@@ -41,6 +41,15 @@ import {
   invalidateUtteranceEmbeddings,
   isDefaultTranscriptionLayerForUtteranceText,
 } from '../ai/embeddings/EmbeddingInvalidationService';
+import {
+  bulkUpsertUtteranceLayerUnits,
+  deleteResidualLayerUnitGraphByMediaId,
+  deleteResidualLayerUnitGraphByTextId,
+  deleteUtteranceLayerUnitCascade,
+  listResidualAwareSegmentsByIds,
+  upsertUtteranceLayerUnit,
+} from './LayerUnitLegacyBridgeService';
+import { LegacyMirrorService } from './LegacyMirrorService';
 
 // ── Constraint violation types ──────────────────────────────
 
@@ -466,7 +475,7 @@ export function validateTierConstraints(
 const TRACKED_FIELDS: Record<string, readonly string[]> = {
   tier_annotations: ['value', 'startTime', 'endTime', 'startAnchorId', 'endAnchorId', 'isVerified', 'parentAnnotationId'],
   tier_definitions: ['parentTierId', 'tierType', 'contentType', 'name'],
-  utterances: ['transcription', 'startTime', 'endTime', 'isVerified'],
+  utterances: ['transcription', 'startTime', 'endTime'],
 };
 
 let auditIdCounter = 0;
@@ -637,11 +646,12 @@ export class LinguisticService {
     const verifiedUttIds = new Set<string>();
 
     for (const utt of inScopeUtterances) {
-      if (utt.isVerified) verifiedUttIds.add(utt.id);
-
       const legacyTr = utt.transcription?.default;
       if (typeof legacyTr === 'string' && legacyTr.trim().length > 0) {
         transcribedUttIds.add(utt.id);
+      }
+      if (utt.annotationStatus === 'verified') {
+        verifiedUttIds.add(utt.id);
       }
     }
 
@@ -951,6 +961,42 @@ export class LinguisticService {
     });
 
     await db.collections.utterances.bulkInsert(updates);
+    await bulkUpsertUtteranceLayerUnits(db, updates);
+    return updates.length;
+  }
+
+  static async assignSpeakerToSegments(
+    segmentIds: Iterable<string>,
+    speakerId?: string,
+  ): Promise<number> {
+    const db = await getDb();
+    const ids = [...new Set(Array.from(segmentIds).map((id) => id.trim()).filter((id) => id.length > 0))];
+    if (ids.length === 0) return 0;
+
+    const selectedSpeakerId = speakerId?.trim();
+    let resolvedSpeakerId: string | undefined;
+    if (selectedSpeakerId) {
+      const speakerDoc = await db.collections.speakers.findOne({ selector: { id: selectedSpeakerId } }).exec();
+      if (!speakerDoc) {
+        throw new Error(`说话人不存在: ${selectedSpeakerId}`);
+      }
+      resolvedSpeakerId = speakerDoc.toJSON().id;
+    }
+
+    const rows = await listResidualAwareSegmentsByIds(db, ids);
+    if (rows.length === 0) return 0;
+
+    const now = new Date().toISOString();
+    const updates = rows.map((row) => {
+      const { speakerId: _oldSpeakerId, ...rest } = row;
+      return {
+        ...rest,
+        ...(resolvedSpeakerId ? { speakerId: resolvedSpeakerId } : {}),
+        updatedAt: now,
+      };
+    });
+
+    await LegacyMirrorService.upsertSegments(db, updates);
     return updates.length;
   }
 
@@ -965,6 +1011,7 @@ export class LinguisticService {
       normalized.startTime,
       normalized.endTime,
     );
+    await upsertUtteranceLayerUnit(db, normalized);
     if (existing && hasEmbeddedDefaultTextChanged(existing.toJSON(), normalized)) {
       await invalidateUtteranceEmbeddings(db, [normalized.id]);
     }
@@ -993,6 +1040,7 @@ export class LinguisticService {
         row.endTime,
       );
     }
+    await bulkUpsertUtteranceLayerUnits(db, normalized);
     if (changedUtteranceIds.length > 0) {
       await invalidateUtteranceEmbeddings(db, changedUtteranceIds);
     }
@@ -1567,6 +1615,9 @@ export class LinguisticService {
         db.dexie.embeddings,
         db.dexie.layer_segment_contents,
         db.dexie.layer_segments,
+        db.dexie.layer_unit_contents,
+        db.dexie.layer_units,
+        db.dexie.unit_relations,
         db.dexie.segment_links,
         db.dexie.utterance_tokens,
         db.dexie.utterance_morphemes,
@@ -1604,6 +1655,8 @@ export class LinguisticService {
           await db.dexie.utterance_morphemes.where('utteranceId').equals(uttId).delete();
         }
 
+        await deleteResidualLayerUnitGraphByTextId(db, textId);
+
         // Cascade: tier_annotations belonging to tier_definitions of this text
         const tierDefs = await db.dexie.tier_definitions.where('textId').equals(textId).toArray();
         for (const td of tierDefs) {
@@ -1635,6 +1688,9 @@ export class LinguisticService {
         db.dexie.embeddings,
         db.dexie.layer_segment_contents,
         db.dexie.layer_segments,
+        db.dexie.layer_unit_contents,
+        db.dexie.layer_units,
+        db.dexie.unit_relations,
         db.dexie.segment_links,
         db.dexie.utterance_tokens,
         db.dexie.utterance_morphemes,
@@ -1669,6 +1725,8 @@ export class LinguisticService {
           await db.dexie.utterance_morphemes.where('utteranceId').equals(u.id).delete();
         }
 
+        await deleteResidualLayerUnitGraphByMediaId(db, mediaId);
+
         if (uttIds.length > 0) {
           await db.dexie.utterances.bulkDelete(uttIds);
         }
@@ -1687,6 +1745,9 @@ export class LinguisticService {
         db.dexie.embeddings,
         db.dexie.layer_segment_contents,
         db.dexie.layer_segments,
+        db.dexie.layer_unit_contents,
+        db.dexie.layer_units,
+        db.dexie.unit_relations,
         db.dexie.segment_links,
         db.dexie.utterance_tokens,
         db.dexie.utterance_morphemes,
@@ -1715,6 +1776,7 @@ export class LinguisticService {
         }
         await db.dexie.utterance_tokens.where('utteranceId').equals(utteranceId).delete();
         await db.dexie.utterance_morphemes.where('utteranceId').equals(utteranceId).delete();
+        await deleteUtteranceLayerUnitCascade(db, [utteranceId]);
         await db.dexie.utterances.delete(utteranceId);
 
         // Cleanup owned anchors
@@ -1739,6 +1801,9 @@ export class LinguisticService {
         db.dexie.embeddings,
         db.dexie.layer_segment_contents,
         db.dexie.layer_segments,
+        db.dexie.layer_unit_contents,
+        db.dexie.layer_units,
+        db.dexie.unit_relations,
         db.dexie.segment_links,
         db.dexie.utterance_tokens,
         db.dexie.utterance_morphemes,
@@ -1768,6 +1833,8 @@ export class LinguisticService {
           await db.dexie.utterance_tokens.where('utteranceId').equals(utteranceId).delete();
           await db.dexie.utterance_morphemes.where('utteranceId').equals(utteranceId).delete();
         }
+
+        await deleteUtteranceLayerUnitCascade(db, ids);
 
         await db.dexie.utterances.bulkDelete(ids);
 

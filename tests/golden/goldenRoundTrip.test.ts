@@ -65,7 +65,6 @@ describe('Golden Round-trip: EAF', () => {
       transcription: { default: u.transcription },
       startTime: u.startTime,
       endTime: u.endTime,
-      isVerified: false,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     }) as const);
@@ -131,7 +130,6 @@ describe('Golden Round-trip: TextGrid', () => {
       transcription: { default: u.transcription },
       startTime: u.startTime,
       endTime: u.endTime,
-      isVerified: false,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     }) as const);
@@ -214,7 +212,6 @@ describe('Golden Round-trip: TRS (Transcriber)', () => {
       startTime: u.startTime,
       endTime: u.endTime,
       ...(u.speakerId !== undefined && { speakerId: u.speakerId }),
-      isVerified: false,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     }) as const);
@@ -397,7 +394,6 @@ describe('Golden Round-trip: TextGrid (additional)', () => {
       transcription: { default: u.transcription },
       startTime: u.startTime,
       endTime: u.endTime,
-      isVerified: false,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     }) as const);

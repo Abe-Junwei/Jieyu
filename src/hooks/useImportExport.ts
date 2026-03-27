@@ -31,6 +31,7 @@ import { toErrorMessage } from '../utils/saveStateError';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
+import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 
 const log = createLogger('useImportExport');
 
@@ -95,45 +96,52 @@ export function useImportExport(input: UseImportExportInput) {
       .toArray();
   }, []);
 
+  const loadSegmentExportDataForLayers = useCallback(async (
+    targetLayers: LayerDocType[],
+    mediaId: string | undefined,
+  ) => {
+    if (!mediaId || targetLayers.length === 0) return {};
+
+    const segMap = new Map<string, import('../db').LayerSegmentDocType[]>();
+    const contentMap = new Map<string, Map<string, import('../db').LayerSegmentContentDocType>>();
+
+    for (const layer of targetLayers) {
+      const orderedSegments = await LayerSegmentQueryService.listSegmentsByLayerMedia(layer.id, mediaId);
+      if (orderedSegments.length === 0) continue;
+      segMap.set(layer.id, orderedSegments);
+
+      const segmentIds = orderedSegments.map((segment) => segment.id);
+      const mergedContents = await LayerSegmentQueryService.listSegmentContentsBySegmentIds(segmentIds, {
+        layerId: layer.id,
+        modality: 'text',
+      });
+
+      const mergedContentMap = new Map<string, import('../db').LayerSegmentContentDocType>();
+      for (const content of mergedContents) {
+        mergedContentMap.set(content.segmentId, content);
+      }
+
+      if (mergedContentMap.size > 0) {
+        contentMap.set(layer.id, mergedContentMap);
+      }
+    }
+
+    return {
+      ...(segMap.size > 0 ? { segmentsByLayer: segMap as Map<string, import('../db').LayerSegmentDocType[]> } : {}),
+      ...(contentMap.size > 0
+        ? { segmentContents: contentMap as Map<string, Map<string, import('../db').LayerSegmentContentDocType>> }
+        : {}),
+    };
+  }, []);
+
   /** 加载所有具有 segment 约束的层的 segment 及内容（TextGrid/FLEx/Toolbox 导出共用）
    *  Load layers with segment constraints (independent_boundary / time_subdivision) — shared by TextGrid/FLEx/Toolbox export */
   const loadSegmentExportData = useCallback(async (mediaId: string | undefined) => {
-    if (!mediaId) return {};
     const segmentLayers = layers.filter(
       (l) => l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision',
     );
-    if (segmentLayers.length === 0) return {};
-    const db = await getDb();
-    const segMap = new Map<string, import('../db').LayerSegmentDocType[]>();
-    for (const layer of segmentLayers) {
-      const segs = await db.dexie.layer_segments
-        .where('[layerId+mediaId]')
-        .equals([layer.id, mediaId])
-        .toArray();
-      if (segs.length > 0) segMap.set(layer.id, segs);
-    }
-    if (segMap.size === 0) return {};
-    const contentMap = new Map<string, Map<string, import('../db').LayerSegmentContentDocType>>();
-    for (const [layerId, segs] of segMap) {
-      const segIds = segs.map((s) => s.id);
-      if (segIds.length === 0) continue;
-      const contents = await db.dexie.layer_segment_contents
-        .where('segmentId')
-        .anyOf(segIds)
-        .toArray();
-      const bySegId = new Map<string, import('../db').LayerSegmentContentDocType>();
-      for (const c of contents) {
-        if (c.layerId === layerId && c.modality === 'text') {
-          bySegId.set(c.segmentId, c);
-        }
-      }
-      if (bySegId.size > 0) contentMap.set(layerId, bySegId);
-    }
-    return {
-      segmentsByLayer: segMap as Map<string, import('../db').LayerSegmentDocType[]>,
-      ...(contentMap.size > 0 ? { segmentContents: contentMap as Map<string, Map<string, import('../db').LayerSegmentContentDocType>> } : {}),
-    };
-  }, [layers, defaultTranscriptionLayerId]);
+    return loadSegmentExportDataForLayers(segmentLayers, mediaId);
+  }, [layers, loadSegmentExportDataForLayers]);
 
   const handleExportEaf = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
@@ -145,43 +153,14 @@ export function useImportExport(input: UseImportExportInput) {
         (l.layerType === 'translation' && (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision'))
         || (l.layerType === 'transcription' && l.constraint === 'independent_boundary'),
     );
-    let layerSegments: Map<string, import('../db').LayerSegmentDocType[]> | undefined;
-    let layerSegmentContents: Map<string, Map<string, import('../db').LayerSegmentContentDocType>> | undefined;
-    if (timeAlignedLayers.length > 0) {
-      const db = await getDb();
-      const mediaId = utterancesOnCurrentMedia[0]?.mediaId;
-      if (mediaId) {
-        const segMap = new Map<string, import('../db').LayerSegmentDocType[]>();
-        for (const tl of timeAlignedLayers) {
-          const segs = await db.dexie.layer_segments
-            .where('[layerId+mediaId]')
-            .equals([tl.id, mediaId])
-            .toArray();
-          if (segs.length > 0) segMap.set(tl.id, segs);
-        }
-        if (segMap.size > 0) {
-          layerSegments = segMap;
-          // 查询 segment 内容（用于独立转写层导出）| Query segment contents for independent transcription export
-          const contentMap = new Map<string, Map<string, import('../db').LayerSegmentContentDocType>>();
-          for (const [layerId, segs] of segMap) {
-            const segIds = segs.map((s) => s.id);
-            if (segIds.length === 0) continue;
-            const contents = await db.dexie.layer_segment_contents
-              .where('segmentId')
-              .anyOf(segIds)
-              .toArray();
-            const bySegId = new Map<string, import('../db').LayerSegmentContentDocType>();
-            for (const c of contents) {
-              if (c.layerId === layerId && c.modality === 'text') {
-                bySegId.set(c.segmentId, c);
-              }
-            }
-            if (bySegId.size > 0) contentMap.set(layerId, bySegId);
-          }
-          if (contentMap.size > 0) layerSegmentContents = contentMap;
-        }
-      }
-    }
+    const db = await getDb();
+    const speakers = await db.dexie.speakers.toArray();
+    const exportData = await loadSegmentExportDataForLayers(timeAlignedLayers, utterancesOnCurrentMedia[0]?.mediaId) as {
+      segmentsByLayer?: Map<string, import('../db').LayerSegmentDocType[]>;
+      segmentContents?: Map<string, Map<string, import('../db').LayerSegmentContentDocType>>;
+    };
+    const layerSegments = exportData.segmentsByLayer;
+    const layerSegmentContents = exportData.segmentContents;
     const xml = exportToEaf({
       ...(selectedUtteranceMedia ? { mediaItem: selectedUtteranceMedia } : {}),
       utterances: utterancesOnCurrentMedia,
@@ -192,6 +171,7 @@ export function useImportExport(input: UseImportExportInput) {
       ...(layerSegments ? { layerSegments } : {}),
       ...(layerSegmentContents ? { layerSegmentContents } : {}),
       ...(defaultTranscriptionLayerId ? { defaultTranscriptionLayerId } : {}),
+      speakers,
     });
     const baseName = selectedUtteranceMedia
       ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
@@ -199,7 +179,7 @@ export function useImportExport(input: UseImportExportInput) {
     downloadEaf(xml, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.eaf') });
     setShowExportMenu(false);
-  }, [defaultTranscriptionLayerId, selectedUtteranceMedia, utterancesOnCurrentMedia, anchors, layers, translations, setSaveState, fetchUtteranceNotes]);
+  }, [defaultTranscriptionLayerId, selectedUtteranceMedia, utterancesOnCurrentMedia, anchors, layers, translations, setSaveState, fetchUtteranceNotes, loadSegmentExportDataForLayers]);
 
   const handleExportTextGrid = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;

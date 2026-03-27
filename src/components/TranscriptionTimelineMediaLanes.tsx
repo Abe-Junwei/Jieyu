@@ -5,6 +5,7 @@ import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/u
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { fireAndForget } from '../utils/fireAndForget';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
+import { getUtteranceSpeakerKey } from '../hooks/speakerManagement/speakerUtils';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { LayerActionPopover } from './LayerActionPopover';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
@@ -40,6 +41,24 @@ function normalizeSpeakerFocusKey(value: string | undefined): string {
   return trimmed.length > 0 ? trimmed : 'unknown-speaker';
 }
 
+function resolveSpeakerFocusKeyFromUtterance(
+  utterance?: Pick<UtteranceDocType, 'speakerId' | 'speaker'>,
+): string {
+  if (!utterance) return 'unknown-speaker';
+  return normalizeSpeakerFocusKey(getUtteranceSpeakerKey(utterance));
+}
+
+function resolveSpeakerFocusKeyFromSegment(
+  segment: Pick<LayerSegmentDocType, 'speakerId' | 'utteranceId'>,
+  utteranceById: ReadonlyMap<string, UtteranceDocType>,
+): string {
+  if (segment.speakerId && segment.speakerId.trim().length > 0) {
+    return normalizeSpeakerFocusKey(segment.speakerId);
+  }
+  const ownerUtterance = segment.utteranceId ? utteranceById.get(segment.utteranceId) : undefined;
+  return resolveSpeakerFocusKeyFromUtterance(ownerUtterance);
+}
+
 
 function prioritizeOverlapCycleItems(
   itemsByUtteranceId: Map<string, Array<{ id: string; startTime: number }>>,
@@ -68,12 +87,12 @@ function toSpeakerLayoutInputFromSegments(
   utteranceById: ReadonlyMap<string, UtteranceDocType>,
 ): UtteranceDocType[] {
   return segments.map((segment) => {
-    const ownerSpeakerId = segment.utteranceId ? utteranceById.get(segment.utteranceId)?.speakerId : undefined;
+    const speakerKey = resolveSpeakerFocusKeyFromSegment(segment, utteranceById);
     return {
       id: segment.id,
       textId: segment.textId,
       mediaId: segment.mediaId,
-      ...(ownerSpeakerId ? { speakerId: ownerSpeakerId } : {}),
+      ...(speakerKey ? { speakerId: speakerKey } : {}),
       startTime: segment.startTime,
       endTime: segment.endTime,
       createdAt: segment.createdAt,
@@ -106,8 +125,7 @@ function buildSegmentSpeakerIdMap(
 ): Map<string, string> {
   const next = new Map<string, string>();
   for (const segment of segments) {
-    const speakerId = segment.utteranceId ? utteranceById.get(segment.utteranceId)?.speakerId : undefined;
-    next.set(segment.id, normalizeSpeakerFocusKey(speakerId));
+    next.set(segment.id, resolveSpeakerFocusKeyFromSegment(segment, utteranceById));
   }
   return next;
 }
@@ -290,9 +308,7 @@ export function TranscriptionTimelineMediaLanes({
     return next;
   }, [speakerLayerLayout.placements, timelineRenderUtterances]);
   const overlapCycleItemsByGroupId = useMemo(() => {
-    const selectedOverlapUtteranceId = selectedTimelineUnit?.kind === 'utterance' || selectedTimelineUnit?.kind === 'segment'
-      ? selectedTimelineUnit.unitId
-      : activeUtteranceUnitId;
+    const selectedOverlapUtteranceId = selectedTimelineUnit?.unitId ?? activeUtteranceUnitId;
     const next = new Map<string, Map<string, Array<{ id: string; startTime: number }>>>();
     for (const [groupId, itemsByUtterance] of speakerLayerLayout.overlapCycleItemsByGroupId.entries()) {
       next.set(groupId, prioritizeOverlapCycleItems(itemsByUtterance, selectedOverlapUtteranceId));
@@ -508,7 +524,7 @@ export function TranscriptionTimelineMediaLanes({
           {!effectiveCollapsed && visibleUtterances.map((utt) => {
             const utteranceSpeakerKey = isIndependent
               ? (segmentSpeakerIdByLayer.get(layer.id)?.get(utt.id) ?? 'unknown-speaker')
-              : normalizeSpeakerFocusKey((utt as UtteranceDocType).speakerId);
+              : resolveSpeakerFocusKeyFromUtterance(utt as UtteranceDocType);
             const focusMatched = speakerFocusMode === 'all' || !speakerFocusSpeakerKey || utteranceSpeakerKey === speakerFocusSpeakerKey;
             const shouldHideForFocus = speakerFocusMode === 'focus-hard' && !focusMatched;
             const shouldDimForFocus = speakerFocusMode === 'focus-soft' && !focusMatched;

@@ -5,7 +5,7 @@ import type {
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
-import type { TimelineUnit } from './transcriptionTypes';
+import { isUtteranceTimelineUnit, type TimelineUnit } from './transcriptionTypes';
 
 type Params = {
   layers: LayerDocType[];
@@ -57,7 +57,7 @@ export function useTranscriptionDerivedData({
     [layerToDeleteId, layers],
   );
 
-  const effectiveSelectedUtteranceId = selectedTimelineUnit?.kind === 'utterance'
+  const effectiveSelectedUtteranceId = isUtteranceTimelineUnit(selectedTimelineUnit)
     ? selectedTimelineUnit.unitId
     : '';
 

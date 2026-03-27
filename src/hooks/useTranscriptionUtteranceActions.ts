@@ -13,7 +13,7 @@ import { shouldPushTimingUndo, type TimingUndoState } from '../utils/selectionUt
 import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
-import type { SaveState, SnapGuide, TimelineUnit } from './transcriptionTypes';
+import { createTimelineUnit, type SaveState, type SnapGuide, type TimelineUnit } from './transcriptionTypes';
 import { invalidateUtteranceEmbeddings } from '../ai/embeddings/EmbeddingInvalidationService';
 import {
   listUtteranceTextsByUtterance,
@@ -98,13 +98,7 @@ export function useTranscriptionUtteranceActions({
 }: TranscriptionUtteranceActionsParams) {
   const selectUtterancePrimary = useCallback((id: string) => {
     setSelectedUtteranceIds(id ? new Set([id]) : new Set());
-    setSelectedTimelineUnit?.(id
-      ? {
-          layerId: defaultTranscriptionLayerId ?? '',
-          unitId: id,
-          kind: 'utterance',
-        }
-      : null);
+    setSelectedTimelineUnit?.(id ? createTimelineUnit(defaultTranscriptionLayerId ?? '', id, 'utterance') : null);
   }, [defaultTranscriptionLayerId, setSelectedTimelineUnit, setSelectedUtteranceIds]);
 
   const clearSelection = useCallback(() => {

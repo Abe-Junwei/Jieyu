@@ -5,7 +5,7 @@
  * This service converts between Jieyu's data model and EAF 3.0.
  */
 
-import type { UtteranceDocType, AnchorDocType, LayerDocType, UtteranceTextDocType, MediaItemDocType, UserNoteDocType, LayerConstraint, LayerSegmentDocType, LayerSegmentContentDocType } from '../db';
+import type { UtteranceDocType, AnchorDocType, LayerDocType, UtteranceTextDocType, MediaItemDocType, UserNoteDocType, LayerConstraint, LayerSegmentDocType, LayerSegmentContentDocType, SpeakerDocType } from '../db';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -22,6 +22,8 @@ export interface EafExportInput {
   layerSegmentContents?: Map<string, Map<string, LayerSegmentContentDocType>>;
   /** 默认转写层 ID（用于区分非默认独立转写层）| Default transcription layer ID */
   defaultTranscriptionLayerId?: string;
+  /** Speaker entities for PARTICIPANT attribute export | 用于导出 PARTICIPANT 属性的说话人实体 */
+  speakers?: SpeakerDocType[];
 }
 
 export interface EafImportResult {
@@ -90,8 +92,56 @@ function parseEafMetaFromLayerKey(layerKey?: string): { tierId?: string; langLab
 }
 
 export function exportToEaf(input: EafExportInput): string {
-  const { mediaItem, utterances, anchors, layers, translations, userNotes, layerSegments, layerSegmentContents } = input;
+  const { mediaItem, utterances, anchors, layers, translations, userNotes, layerSegments, layerSegmentContents, speakers } = input;
   const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
+  const utteranceById = new Map(utterances.map((utterance) => [utterance.id, utterance] as const));
+
+  // Build speaker lookup map for PARTICIPANT export
+  const speakerById = new Map<string, SpeakerDocType>();
+  for (const s of speakers ?? []) speakerById.set(s.id, s);
+
+  // Helper: get the dominant speaker ID from a list of utterance IDs (for tier PARTICIPANT)
+  const getDominantSpeaker = (uttIds: string[]): string | undefined => {
+    const counts = new Map<string, number>();
+    for (const id of uttIds) {
+      const utt = utteranceById.get(id);
+      if (utt?.speakerId) counts.set(utt.speakerId, (counts.get(utt.speakerId) ?? 0) + 1);
+    }
+    if (counts.size === 0) return undefined;
+    let dominant: string | undefined;
+    let maxCount = 0;
+    for (const [sid, count] of counts) {
+      if (count > maxCount) { maxCount = count; dominant = sid; }
+    }
+    return dominant;
+  };
+
+  const resolveSegmentSpeakerId = (segment: LayerSegmentDocType): string | undefined => {
+    const explicitSpeakerId = segment.speakerId?.trim();
+    if (explicitSpeakerId) return explicitSpeakerId;
+    const ownerUtterance = segment.utteranceId ? utteranceById.get(segment.utteranceId) : undefined;
+    const ownerSpeakerId = ownerUtterance?.speakerId?.trim();
+    return ownerSpeakerId && ownerSpeakerId.length > 0 ? ownerSpeakerId : undefined;
+  };
+
+  const getDominantSpeakerFromSegments = (segments: LayerSegmentDocType[]): string | undefined => {
+    const counts = new Map<string, number>();
+    for (const segment of segments) {
+      const speakerId = resolveSegmentSpeakerId(segment);
+      if (!speakerId) continue;
+      counts.set(speakerId, (counts.get(speakerId) ?? 0) + 1);
+    }
+    if (counts.size === 0) return undefined;
+    let dominant: string | undefined;
+    let maxCount = 0;
+    for (const [speakerId, count] of counts) {
+      if (count > maxCount) {
+        maxCount = count;
+        dominant = speakerId;
+      }
+    }
+    return dominant;
+  };
 
   // Build time slots — use shared anchors when available
   let tsCounter = 1;
@@ -293,7 +343,13 @@ export function exportToEaf(input: EafExportInput): string {
             ? 'translation-subdivision-lt'
             : 'translation-lt';
         const timeAlignableAttr = ` LINGUISTIC_TYPE_REF="${linguisticTypeRef}"`;
-        translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}"${timeAlignableAttr}${parentRefAttr} DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}">
+        const participantId = layerSegs && layerSegs.length > 0
+          ? getDominantSpeakerFromSegments(layerSegs)
+          : getDominantSpeaker(layerTranslations.map((t) => t.utteranceId));
+        const participantAttr = participantId && speakerById.get(participantId)
+          ? ` PARTICIPANT="${escapeXml(speakerById.get(participantId)!.name)}"`
+          : '';
+        translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}"${timeAlignableAttr}${parentRefAttr} DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}"${participantAttr}>
 ${annotations.join('\n')}
     </TIER>`);
       }
@@ -327,7 +383,11 @@ ${annotations.join('\n')}
           .filter(Boolean);
 
         if (segAnnotations.length > 0) {
-          translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}">
+          const participantId = getDominantSpeakerFromSegments(layerSegs);
+          const participantAttr = participantId && speakerById.get(participantId)
+            ? ` PARTICIPANT="${escapeXml(speakerById.get(participantId)!.name)}"`
+            : '';
+          translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}"${participantAttr}>
 ${segAnnotations.join('\n')}
     </TIER>`);
         }
@@ -348,7 +408,11 @@ ${segAnnotations.join('\n')}
           .filter(Boolean);
 
         if (annotations.length > 0) {
-          translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}">
+          const participantId = getDominantSpeaker(layerTranslations.map((t) => t.utteranceId));
+          const participantAttr = participantId && speakerById.get(participantId)
+            ? ` PARTICIPANT="${escapeXml(speakerById.get(participantId)!.name)}"`
+            : '';
+          translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}"${participantAttr}>
 ${annotations.join('\n')}
     </TIER>`);
         }
@@ -403,9 +467,15 @@ ${mediaHeader}
     <TIME_ORDER>
 ${timeSlots.map((ts) => `        <TIME_SLOT TIME_SLOT_ID="${ts.id}" TIME_VALUE="${ts.ms}" />`).join('\n')}
     </TIME_ORDER>
-    <TIER TIER_ID="${escapeXml(defaultTierId)}" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="${escapeXml(defaultTrcLocale)}">
+${(() => {
+  const dominantSpeakerId = getDominantSpeaker(sorted.map((u) => u.id));
+  const participantAttr = dominantSpeakerId && speakerById.get(dominantSpeakerId)
+    ? ` PARTICIPANT="${escapeXml(speakerById.get(dominantSpeakerId)!.name)}"`
+    : '';
+  return `    <TIER TIER_ID="${escapeXml(defaultTierId)}" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="${escapeXml(defaultTrcLocale)}"${participantAttr}>
 ${transcriptionAnnotations.join('\n')}
-    </TIER>
+    </TIER>`;
+})()}
 ${translationTierXml.join('\n')}
 ${buildNoteTierXml(sorted, uttSlotMap, userNotes ?? [], annCounter)}
 ${footerLines.join('\n')}

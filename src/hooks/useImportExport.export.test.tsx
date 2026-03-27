@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
+import { featureFlags } from '../ai/config/featureFlags';
 import type { LayerDocType, MediaItemDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 import { useImportExport } from './useImportExport';
 
@@ -61,6 +62,131 @@ vi.mock('../db', async () => {
     getDb: mockGetDb,
   };
 });
+
+const FIXED_NOW = '2026-03-26T00:00:00.000Z';
+
+function makeLegacySegment(layerId: string) {
+  return {
+    id: `seg-${layerId}`,
+    textId: 'text-1',
+    mediaId: 'media-1',
+    layerId,
+    startTime: 0.2,
+    endTime: 0.9,
+    createdAt: FIXED_NOW,
+    updatedAt: FIXED_NOW,
+  };
+}
+
+function makeLayerUnitSegment(layerId: string) {
+  return {
+    id: `seg-${layerId}`,
+    textId: 'text-1',
+    mediaId: 'media-1',
+    layerId,
+    unitType: 'segment',
+    startTime: 0.2,
+    endTime: 0.9,
+    createdAt: FIXED_NOW,
+    updatedAt: FIXED_NOW,
+  };
+}
+
+function makeLayerUnitContent(layerId: string) {
+  return {
+    id: `cnt-${layerId}`,
+    textId: 'text-1',
+    unitId: `seg-${layerId}`,
+    layerId,
+    contentRole: 'primary_text',
+    modality: 'text',
+    text: `layer-unit-${layerId}`,
+    sourceType: 'human',
+    createdAt: FIXED_NOW,
+    updatedAt: FIXED_NOW,
+  };
+}
+
+function buildMockDb(options?: { preferLayerUnits?: boolean }) {
+  const preferLayerUnits = options?.preferLayerUnits === true;
+  const supportedLayerIds = new Set(['trl-ind', 'trl-sub']);
+
+  return {
+    dexie: {
+      user_notes: {
+        where: vi.fn(() => ({
+          anyOf: vi.fn(() => ({
+            toArray: vi.fn(async () => []),
+          })),
+        })),
+      },
+      speakers: {
+        toArray: vi.fn(async () => []),
+      },
+      layer_units: {
+        bulkPut: vi.fn(async () => undefined),
+        where: vi.fn((indexName: string) => {
+          if (indexName !== '[layerId+mediaId]') {
+            throw new Error(`Unexpected index: ${indexName}`);
+          }
+          return {
+            equals: vi.fn(([layerId, mediaId]: [string, string]) => ({
+              toArray: vi.fn(async () => {
+                if (!preferLayerUnits || mediaId !== 'media-1' || !supportedLayerIds.has(layerId)) return [];
+                return [makeLayerUnitSegment(layerId)];
+              }),
+            })),
+          };
+        }),
+      },
+      layer_segments: {
+        where: vi.fn((indexName: string) => {
+          if (indexName !== '[layerId+mediaId]') {
+            throw new Error(`Unexpected index: ${indexName}`);
+          }
+          return {
+            equals: vi.fn(([layerId, mediaId]: [string, string]) => ({
+              toArray: vi.fn(async () => {
+                if (preferLayerUnits || mediaId !== 'media-1' || !supportedLayerIds.has(layerId)) return [];
+                return [makeLegacySegment(layerId)];
+              }),
+            })),
+          };
+        }),
+      },
+      layer_unit_contents: {
+        bulkPut: vi.fn(async () => undefined),
+        where: vi.fn((indexName: string) => {
+          if (indexName !== 'unitId') {
+            throw new Error(`Unexpected index: ${indexName}`);
+          }
+          return {
+            anyOf: vi.fn((unitIds: string[]) => ({
+              toArray: vi.fn(async () => {
+                if (!preferLayerUnits) return [];
+                return unitIds
+                  .filter((unitId) => supportedLayerIds.has(unitId.replace(/^seg-/, '')))
+                  .map((unitId) => makeLayerUnitContent(unitId.replace(/^seg-/, '')));
+              }),
+            })),
+          };
+        }),
+      },
+      layer_segment_contents: {
+        where: vi.fn((indexName: string) => {
+          if (indexName !== 'segmentId') {
+            throw new Error(`Unexpected index: ${indexName}`);
+          }
+          return {
+            anyOf: vi.fn(() => ({
+              toArray: vi.fn(async () => []),
+            })),
+          };
+        }),
+      },
+    },
+  };
+}
 
 function makeInput() {
   const media = {
@@ -155,51 +281,12 @@ function makeInput() {
 describe('useImportExport - export eaf behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetDb.mockResolvedValue({
-      dexie: {
-        user_notes: {
-          where: vi.fn(() => ({
-            anyOf: vi.fn(() => ({
-              toArray: vi.fn(async () => []),
-            })),
-          })),
-        },
-        layer_segments: {
-          where: vi.fn((indexName: string) => {
-            if (indexName !== '[layerId+mediaId]') {
-              throw new Error(`Unexpected index: ${indexName}`);
-            }
-            return {
-              equals: vi.fn(([layerId, mediaId]: [string, string]) => ({
-                toArray: vi.fn(async () => {
-                  if (layerId === 'trl-ind' && mediaId === 'media-1') {
-                    return [{
-                      id: 'seg-1',
-                      textId: 'text-1',
-                      mediaId: 'media-1',
-                      layerId: 'trl-ind',
-                      utteranceId: 'utt-1',
-                      startTime: 0.2,
-                      endTime: 0.9,
-                      createdAt: '2026-03-26T00:00:00.000Z',
-                      updatedAt: '2026-03-26T00:00:00.000Z',
-                    }];
-                  }
-                  return [];
-                }),
-              })),
-            };
-          }),
-        },
-        layer_segment_contents: {
-          where: vi.fn(() => ({
-            anyOf: vi.fn(() => ({
-              toArray: vi.fn(async () => []),
-            })),
-          })),
-        },
-      },
-    });
+    mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
+    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
+  });
+
+  afterEach(() => {
+    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
   });
 
   it('passes layerSegments to exportToEaf for time-aligned translation layers', async () => {
@@ -219,55 +306,48 @@ describe('useImportExport - export eaf behavior', () => {
 
     expect(mockDownloadEaf).toHaveBeenCalledWith('<ANNOTATION_DOCUMENT/>', 'demo');
   });
+
+  it('prefers LayerUnit export data when legacy segment rows are absent', async () => {
+    mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
+    const input = makeInput();
+    const { result } = renderHook(() => useImportExport(input));
+
+    await act(async () => {
+      await result.current.handleExportEaf();
+    });
+
+    const callArg = (mockExportToEaf.mock.calls as any[])[0]?.[0] as unknown as {
+      layerSegments?: Map<string, Array<{ id: string }>>;
+      layerSegmentContents?: Map<string, Map<string, { text?: string }>>;
+    };
+    expect(callArg?.layerSegments?.get('trl-ind')?.[0]?.id).toBe('seg-trl-ind');
+    expect(callArg?.layerSegmentContents?.get('trl-ind')?.get('seg-trl-ind')?.text).toBe('layer-unit-trl-ind');
+  });
+
+  it('still exports EAF segment data from LayerUnit view when legacy mirror writes are disabled', async () => {
+    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = false;
+    mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
+    const input = makeInput();
+    const { result } = renderHook(() => useImportExport(input));
+
+    await act(async () => {
+      await result.current.handleExportEaf();
+    });
+
+    const callArg = (mockExportToEaf.mock.calls as any[])[0]?.[0] as unknown as {
+      layerSegments?: Map<string, Array<{ id: string }>>;
+      layerSegmentContents?: Map<string, Map<string, { text?: string }>>;
+    };
+    expect(callArg?.layerSegments?.get('trl-ind')?.[0]?.id).toBe('seg-trl-ind');
+    expect(callArg?.layerSegmentContents?.get('trl-ind')?.get('seg-trl-ind')?.text).toBe('layer-unit-trl-ind');
+  });
 });
 
 describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // 与 EAF 测试共用同一 DB mock 结构 | Reuse the same DB mock structure as EAF test
-    mockGetDb.mockResolvedValue({
-      dexie: {
-        user_notes: {
-          where: vi.fn(() => ({
-            anyOf: vi.fn(() => ({
-              toArray: vi.fn(async () => []),
-            })),
-          })),
-        },
-        layer_segments: {
-          where: vi.fn((indexName: string) => {
-            if (indexName !== '[layerId+mediaId]') throw new Error(`Unexpected index: ${indexName}`);
-            return {
-              equals: vi.fn(([layerId, mediaId]: [string, string]) => ({
-                toArray: vi.fn(async () => {
-                  // independent_boundary 翻译层有一个 segment | independent_boundary translation layer has one segment
-                  if ((layerId === 'trl-ind' || layerId === 'trl-sub') && mediaId === 'media-1') {
-                    return [{
-                      id: `seg-${layerId}`,
-                      textId: 'text-1',
-                      mediaId: 'media-1',
-                      layerId,
-                      startTime: 0.2,
-                      endTime: 0.9,
-                      createdAt: '2026-03-26T00:00:00.000Z',
-                      updatedAt: '2026-03-26T00:00:00.000Z',
-                    }];
-                  }
-                  return [];
-                }),
-              })),
-            };
-          }),
-        },
-        layer_segment_contents: {
-          where: vi.fn(() => ({
-            anyOf: vi.fn(() => ({
-              toArray: vi.fn(async () => []),
-            })),
-          })),
-        },
-      },
-    });
+    // stop-read 默认关闭后，导出基线应以 LayerUnit 视图为准 | With stop-read off, export baseline should use the LayerUnit view
+    mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
   });
 
   function makeInputWithSegmentLayers() {
@@ -322,6 +402,22 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
     };
     expect(arg?.segmentsByLayer?.has('trl-sub')).toBe(true);
     expect(arg?.segmentsByLayer?.get('trl-sub')?.length).toBe(1);
+  });
+
+  it('TextGrid: 旧表为空时仍从 LayerUnit 导出 segment 与文本内容 | exports segment data from LayerUnit when legacy tables are empty', async () => {
+    mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
+    const { result } = renderHook(() => useImportExport(makeInputWithSegmentLayers()));
+
+    await act(async () => {
+      await result.current.handleExportTextGrid();
+    });
+
+    const arg = (mockExportToTextGrid.mock.calls as any[])[0]?.[0] as unknown as {
+      segmentsByLayer?: Map<string, Array<{ id: string }>>;
+      segmentContents?: Map<string, Map<string, { text?: string }>>;
+    };
+    expect(arg?.segmentsByLayer?.get('trl-ind')?.[0]?.id).toBe('seg-trl-ind');
+    expect(arg?.segmentContents?.get('trl-sub')?.get('seg-trl-sub')?.text).toBe('layer-unit-trl-sub');
   });
 
   it('FLEx: 导出包含 independent_boundary 翻译层的 segment 数据 | includes independent_boundary translation layer segments', async () => {

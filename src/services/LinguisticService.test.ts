@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { featureFlags } from '../ai/config/featureFlags';
 import { db } from '../db';
 import type { TierDefinitionDocType, TierAnnotationDocType } from '../db';
 import { LinguisticService, validateTierConstraints } from './LinguisticService';
@@ -32,6 +33,9 @@ async function clearDatabase(): Promise<void> {
     db.layer_segments.clear(),
     db.layer_segment_contents.clear(),
     db.segment_links.clear(),
+    db.layer_units.clear(),
+    db.layer_unit_contents.clear(),
+    db.unit_relations.clear(),
   ]);
 }
 
@@ -39,6 +43,7 @@ describe('LinguisticService smoke tests', () => {
   beforeEach(async () => {
     await db.open();
     await clearDatabase();
+    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
   });
 
   it('can save utterance and query by media time', async () => {
@@ -49,7 +54,6 @@ describe('LinguisticService smoke tests', () => {
       textId: 'text_1',
       startTime: 2.5,
       endTime: 6.5,
-      isVerified: false,
       createdAt: now,
       updatedAt: now,
     });
@@ -59,6 +63,39 @@ describe('LinguisticService smoke tests', () => {
 
     expect(hit?.id).toBe('utt_1');
     expect(miss).toBeUndefined();
+  });
+
+  it('syncs default transcription utterance into layer_units', async () => {
+    await LinguisticService.saveTranslationLayer({
+      id: 'layer_default_sync',
+      textId: 'text_sync',
+      key: 'trc_default',
+      name: { zho: '默认转写层' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await LinguisticService.saveUtterance({
+      id: 'utt_sync_1',
+      textId: 'text_sync',
+      mediaId: 'media_sync',
+      startTime: 0,
+      endTime: 1,
+      speakerId: 'speaker_sync',
+      annotationStatus: 'raw',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const unit = await db.layer_units.get('utt_sync_1');
+    expect(unit).toBeTruthy();
+    expect(unit?.layerId).toBe('layer_default_sync');
+    expect(unit?.unitType).toBe('utterance');
+    expect(unit?.speakerId).toBe('speaker_sync');
   });
 
   it('enforces time_subdivision child bounds when parent utterance is resized', async () => {
@@ -156,6 +193,56 @@ describe('LinguisticService smoke tests', () => {
     expect(layers[0]!.id).toBe('layer_1');
     expect(records).toHaveLength(1);
     expect(records[0]!.text).toBe('hello');
+  });
+
+  it('can persist utterance text through LayerUnit-only write path when legacy mirror writes are disabled', async () => {
+    const now = new Date().toISOString();
+    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = false;
+
+    await LinguisticService.saveTranslationLayer({
+      id: 'layer_stop_write',
+      textId: 'text_stop_write',
+      key: 'eng_stop_write',
+      name: { eng: 'English Stop Write' },
+      layerType: 'translation',
+      languageId: 'eng',
+      modality: 'text',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await LinguisticService.saveUtterance({
+      id: 'utt_stop_write',
+      textId: 'text_stop_write',
+      startTime: 0,
+      endTime: 1,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await LinguisticService.saveUtteranceText({
+      id: 'utr_stop_write',
+      utteranceId: 'utt_stop_write',
+      layerId: 'layer_stop_write',
+      modality: 'text',
+      text: 'layerunit only text',
+      sourceType: 'human',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const records = await LinguisticService.getUtteranceTexts('utt_stop_write');
+
+    expect(await db.layer_segments.count()).toBe(0);
+    expect(await db.layer_segment_contents.count()).toBe(0);
+    expect(await db.layer_units.get('segv2_layer_stop_write_utt_stop_write')).toBeTruthy();
+    expect(await db.layer_unit_contents.get('utr_stop_write')).toEqual(expect.objectContaining({
+      unitId: 'segv2_layer_stop_write_utt_stop_write',
+      text: 'layerunit only text',
+    }));
+    expect(records).toHaveLength(1);
+    expect(records[0]!.text).toBe('layerunit only text');
   });
 
   it('can read canonical tokens/morphemes via service APIs', async () => {
@@ -349,6 +436,76 @@ describe('LinguisticService smoke tests', () => {
       expect(utterances[0]!.speaker).toBeUndefined();
     });
 
+    it('supports assigning speaker directly to independent segments', async () => {
+      const now = new Date().toISOString();
+
+      await db.layer_segments.put({
+        id: 'seg_spk_assign_1',
+        textId: 'text_spk_assign',
+        mediaId: 'media_spk_assign',
+        layerId: 'layer_independent',
+        startTime: 0,
+        endTime: 1,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const speaker = await LinguisticService.createSpeaker({ name: '独立语段说话人' });
+      const updatedCount = await LinguisticService.assignSpeakerToSegments(['seg_spk_assign_1'], speaker.id);
+      const segment = await db.layer_segments.get('seg_spk_assign_1');
+
+      expect(updatedCount).toBe(1);
+      expect(segment?.speakerId).toBe(speaker.id);
+    });
+
+    it('supports assigning speaker to LayerUnit-only segments', async () => {
+      const now = new Date().toISOString();
+
+      await db.layer_units.put({
+        id: 'seg_spk_assign_unit_1',
+        textId: 'text_spk_assign_unit',
+        mediaId: 'media_spk_assign_unit',
+        layerId: 'layer_independent',
+        unitType: 'segment',
+        startTime: 0,
+        endTime: 1,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const speaker = await LinguisticService.createSpeaker({ name: 'LayerUnit 语段说话人' });
+      const updatedCount = await LinguisticService.assignSpeakerToSegments(['seg_spk_assign_unit_1'], speaker.id);
+      const segment = await db.layer_segments.get('seg_spk_assign_unit_1');
+      const unit = await db.layer_units.get('seg_spk_assign_unit_1');
+
+      expect(updatedCount).toBe(1);
+      expect(segment?.speakerId).toBe(speaker.id);
+      expect(unit?.speakerId).toBe(speaker.id);
+    });
+
+    it('clears segment speaker assignment when assigning undefined speaker id', async () => {
+      const now = new Date().toISOString();
+      const speaker = await LinguisticService.createSpeaker({ name: '待清空独立语段说话人' });
+
+      await db.layer_segments.put({
+        id: 'seg_spk_clear_1',
+        textId: 'text_spk_clear',
+        mediaId: 'media_spk_clear',
+        layerId: 'layer_independent',
+        speakerId: speaker.id,
+        startTime: 0,
+        endTime: 1,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const cleared = await LinguisticService.assignSpeakerToSegments(['seg_spk_clear_1'], undefined);
+      const segment = await db.layer_segments.get('seg_spk_clear_1');
+
+      expect(cleared).toBe(1);
+      expect(segment?.speakerId).toBeUndefined();
+    });
+
   it('supports token/morpheme lexeme links lifecycle', async () => {
     await LinguisticService.saveTokenLexemeLink({
       id: 'link_tok',
@@ -413,7 +570,6 @@ describe('LinguisticService smoke tests', () => {
       startTime: 0,
       endTime: 1,
       annotationStatus: 'verified',
-      isVerified: true,
       createdAt: NOW,
       updatedAt: NOW,
     });

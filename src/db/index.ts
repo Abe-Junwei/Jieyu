@@ -134,8 +134,6 @@ interface UtteranceDocType {
   tags?: Record<string, boolean>;
   ai_metadata?: AiMetadata;
   aiMode?: 'AUTO' | 'SUGGEST';
-  /** @deprecated Prefer `annotationStatus === 'verified'`. Kept for UI compat. */
-  isVerified?: boolean;
   /**
    * Annotation depth status for coverage tracking (F16 稀疏转写).
    * - 'raw'        : audio only, no transcription
@@ -486,6 +484,8 @@ interface LayerSegmentDocType {
   layerId: string;
   /** 所属 utterance（v25 显式字段，替代 ID 后缀解析） | Owner utterance (v25 explicit field, replaces ID suffix parsing) */
   utteranceId?: string;
+  /** 独立 segment 的显式说话人键 | Explicit speaker key for standalone segments */
+  speakerId?: string;
   startTime: number;
   endTime: number;
   startAnchorId?: string;
@@ -532,6 +532,70 @@ interface LayerUtteranceDocType {
   startAnchorId?: string;
   endAnchorId?: string;
   ordinal?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+type LayerUnitType = 'utterance' | 'segment';
+type LayerUnitStatus = 'raw' | 'transcribed' | 'translated' | 'glossed' | 'verified';
+type LayerContentRole = 'primary_text' | 'translation' | 'gloss' | 'note' | 'audio_ref';
+type UnitRelationType = 'aligned_to' | 'derived_from' | 'linked_reference';
+
+/**
+ * 统一层时间单元（终态基座）| Unified layer timeline unit (final-model foundation)
+ */
+interface LayerUnitDocType {
+  id: string;
+  textId: string;
+  mediaId: string;
+  layerId: string;
+  unitType: LayerUnitType;
+  parentUnitId?: string;
+  rootUnitId?: string;
+  startTime: number;
+  endTime: number;
+  startAnchorId?: string;
+  endAnchorId?: string;
+  orderKey?: string;
+  speakerId?: string;
+  status?: LayerUnitStatus;
+  externalRef?: string;
+  provenance?: ProvenanceEnvelope;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 统一层时间单元内容载荷 | Unified layer timeline unit content payload
+ */
+interface LayerUnitContentDocType {
+  id: string;
+  textId: string;
+  unitId: string;
+  layerId: string;
+  contentRole: LayerContentRole;
+  modality: 'text' | 'audio' | 'mixed';
+  text?: string;
+  mediaRefId?: string;
+  sourceType: 'human' | 'ai';
+  ai_metadata?: AiMetadata;
+  provenance?: ProvenanceEnvelope;
+  accessRights?: 'open' | 'restricted' | 'confidential';
+  isVerified?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 统一层单元关系表 | Unified layer unit relation table
+ */
+interface UnitRelationDocType {
+  id: string;
+  textId: string;
+  sourceUnitId: string;
+  targetUnitId: string;
+  relationType: UnitRelationType;
+  provenance?: ProvenanceEnvelope;
   createdAt: string;
   updatedAt: string;
 }
@@ -1077,6 +1141,7 @@ const layerSegmentDocSchema = z
     mediaId: z.string().min(1),
     layerId: z.string().min(1),
     utteranceId: z.string().min(1).optional(),
+    speakerId: z.string().min(1).optional(),
     startTime: z.number().finite(),
     endTime: z.number().finite(),
     startAnchorId: z.string().min(1).optional(),
@@ -1129,6 +1194,66 @@ const layerUtteranceDocSchema = z
     message: 'endTime must be >= startTime',
     path: ['endTime'],
   });
+
+const layerUnitTypeSchema = z.enum(['utterance', 'segment']);
+const layerUnitStatusSchema = z.enum(['raw', 'transcribed', 'translated', 'glossed', 'verified']);
+const layerContentRoleSchema = z.enum(['primary_text', 'translation', 'gloss', 'note', 'audio_ref']);
+const unitRelationTypeSchema = z.enum(['aligned_to', 'derived_from', 'linked_reference']);
+
+const layerUnitDocSchema = z
+  .object({
+    id: z.string().min(1),
+    textId: z.string().min(1),
+    mediaId: z.string().min(1),
+    layerId: z.string().min(1),
+    unitType: layerUnitTypeSchema,
+    parentUnitId: z.string().min(1).optional(),
+    rootUnitId: z.string().min(1).optional(),
+    startTime: z.number().finite(),
+    endTime: z.number().finite(),
+    startAnchorId: z.string().min(1).optional(),
+    endAnchorId: z.string().min(1).optional(),
+    orderKey: z.string().min(1).optional(),
+    speakerId: z.string().min(1).optional(),
+    status: layerUnitStatusSchema.optional(),
+    externalRef: z.string().min(1).optional(),
+    provenance: provenanceSchema.optional(),
+    createdAt: isoDateSchema,
+    updatedAt: isoDateSchema,
+  })
+  .refine((doc) => doc.endTime >= doc.startTime, {
+    message: 'endTime must be >= startTime',
+    path: ['endTime'],
+  });
+
+const layerUnitContentDocSchema = z.object({
+  id: z.string().min(1),
+  textId: z.string().min(1),
+  unitId: z.string().min(1),
+  layerId: z.string().min(1),
+  contentRole: layerContentRoleSchema,
+  modality: z.enum(['text', 'audio', 'mixed']),
+  text: z.string().optional(),
+  mediaRefId: z.string().min(1).optional(),
+  sourceType: z.enum(['human', 'ai']),
+  ai_metadata: aiMetadataSchema.optional(),
+  provenance: provenanceSchema.optional(),
+  accessRights: accessRightsSchema.optional(),
+  isVerified: z.boolean().optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const unitRelationDocSchema = z.object({
+  id: z.string().min(1),
+  textId: z.string().min(1),
+  sourceUnitId: z.string().min(1),
+  targetUnitId: z.string().min(1),
+  relationType: unitRelationTypeSchema,
+  provenance: provenanceSchema.optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
 
 const segmentLinkDocSchema = z.object({
   id: z.string().min(1),
@@ -1352,6 +1477,18 @@ function validateLayerSegmentContentDoc(doc: LayerSegmentContentDocType): void {
 
 function validateLayerUtteranceDoc(doc: LayerUtteranceDocType): void {
   layerUtteranceDocSchema.parse(doc);
+}
+
+function validateLayerUnitDoc(doc: LayerUnitDocType): void {
+  layerUnitDocSchema.parse(doc);
+}
+
+function validateLayerUnitContentDoc(doc: LayerUnitContentDocType): void {
+  layerUnitContentDocSchema.parse(doc);
+}
+
+function validateUnitRelationDoc(doc: UnitRelationDocType): void {
+  unitRelationDocSchema.parse(doc);
 }
 
 function validateSegmentLinkDoc(doc: SegmentLinkDocType): void {
@@ -1747,6 +1884,9 @@ type JieyuCollections = {
   phonemes: CollectionAdapter<PhonemeDocType>;
   tag_definitions: CollectionAdapter<TagDefinitionDocType>;
   layers: CollectionAdapter<LayerDocType>;
+  layer_units: CollectionAdapter<LayerUnitDocType>;
+  layer_unit_contents: CollectionAdapter<LayerUnitContentDocType>;
+  unit_relations: CollectionAdapter<UnitRelationDocType>;
   layer_utterances: CollectionAdapter<LayerUtteranceDocType>;
   layer_segments: CollectionAdapter<LayerSegmentDocType>;
   layer_segment_contents: CollectionAdapter<LayerSegmentContentDocType>;
@@ -2018,6 +2158,9 @@ class JieyuDexie extends Dexie {
   abbreviations!: Table<AbbreviationDocType, string>;
   phonemes!: Table<PhonemeDocType, string>;
   tag_definitions!: Table<TagDefinitionDocType, string>;
+  layer_units!: Table<LayerUnitDocType, string>;
+  layer_unit_contents!: Table<LayerUnitContentDocType, string>;
+  unit_relations!: Table<UnitRelationDocType, string>;
   layer_utterances!: Table<LayerUtteranceDocType, string>;
   layer_segments!: Table<LayerSegmentDocType, string>;
   layer_segment_contents!: Table<LayerSegmentContentDocType, string>;
@@ -2723,6 +2866,7 @@ class JieyuDexie extends Dexie {
           sourceId: seg.id,
           startTime: seg.startTime,
           endTime: seg.endTime,
+          ...(seg.speakerId ? { speakerId: seg.speakerId } : {}),
           ...(seg.startAnchorId ? { startAnchorId: seg.startAnchorId } : {}),
           ...(seg.endAnchorId ? { endAnchorId: seg.endAnchorId } : {}),
           ...(typeof seg.ordinal === 'number' ? { ordinal: seg.ordinal } : {}),
@@ -2809,6 +2953,14 @@ class JieyuDexie extends Dexie {
     this.version(29).stores({
       utterance_texts: null,
     });
+
+    // v30: unified layer unit foundation tables.
+    // 统一层单元基座表：为单实体多轴模型提供正式 schema，暂不回填旧数据。
+    this.version(30).stores({
+      layer_units: 'id, textId, mediaId, layerId, unitType, parentUnitId, rootUnitId, speakerId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [parentUnitId+startTime], [layerId+unitType], [textId+layerId]',
+      layer_unit_contents: 'id, textId, unitId, layerId, contentRole, [unitId+contentRole], [contentRole+updatedAt], sourceType, [layerId+updatedAt], updatedAt',
+      unit_relations: 'id, textId, sourceUnitId, targetUnitId, relationType, [sourceUnitId+relationType], [targetUnitId+relationType]',
+    });
   }
 }
 
@@ -2869,6 +3021,18 @@ async function _createDb(): Promise<JieyuDatabase> {
     layers: new TierBackedLayerCollectionAdapter(
       dexie.tier_definitions,
       validateLayerDoc,
+    ),
+    layer_units: new DexieCollectionAdapter(
+      dexie.layer_units,
+      validateLayerUnitDoc,
+    ),
+    layer_unit_contents: new DexieCollectionAdapter(
+      dexie.layer_unit_contents,
+      validateLayerUnitContentDoc,
+    ),
+    unit_relations: new DexieCollectionAdapter(
+      dexie.unit_relations,
+      validateUnitRelationDoc,
     ),
     layer_utterances: new DexieCollectionAdapter(
       dexie.layer_utterances,
@@ -3009,6 +3173,9 @@ const knownCollectionNames = [
   'phonemes',
   'tag_definitions',
   'layers',
+  'layer_units',
+  'layer_unit_contents',
+  'unit_relations',
   'layer_segments',
   'layer_segment_contents',
   'segment_links',
@@ -3044,6 +3211,9 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   abbreviations: db.abbreviations,
   phonemes: db.phonemes,
   tag_definitions: db.tag_definitions,
+  layer_units: db.layer_units,
+  layer_unit_contents: db.layer_unit_contents,
+  unit_relations: db.unit_relations,
   layer_segments: db.layer_segments,
   layer_segment_contents: db.layer_segment_contents,
   segment_links: db.segment_links,
@@ -3078,6 +3248,9 @@ const validatorByCollection: Record<KnownCollectionName, (value: unknown) => voi
   phonemes: (value) => validatePhonemeDoc(value as PhonemeDocType),
   tag_definitions: (value) => validateTagDefinitionDoc(value as TagDefinitionDocType),
   layers: (value) => validateLayerDoc(value as LayerDocType),
+  layer_units: (value) => validateLayerUnitDoc(value as LayerUnitDocType),
+  layer_unit_contents: (value) => validateLayerUnitContentDoc(value as LayerUnitContentDocType),
+  unit_relations: (value) => validateUnitRelationDoc(value as UnitRelationDocType),
   layer_segments: (value) => validateLayerSegmentDoc(value as LayerSegmentDocType),
   layer_segment_contents: (value) =>
     validateLayerSegmentContentDoc(value as LayerSegmentContentDocType),
@@ -3146,6 +3319,12 @@ function normalizeImportedDoc(collectionName: KnownCollectionName, doc: unknown,
       return ensureImportProvenance(doc as LayerSegmentDocType, fallbackCreatedAt);
     case 'layer_segment_contents':
       return ensureImportProvenance(doc as LayerSegmentContentDocType, fallbackCreatedAt);
+    case 'layer_units':
+      return ensureImportProvenance(doc as LayerUnitDocType, fallbackCreatedAt);
+    case 'layer_unit_contents':
+      return ensureImportProvenance(doc as LayerUnitContentDocType, fallbackCreatedAt);
+    case 'unit_relations':
+      return ensureImportProvenance(doc as UnitRelationDocType, fallbackCreatedAt);
     case 'segment_links':
       return ensureImportProvenance(doc as SegmentLinkDocType, fallbackCreatedAt);
     case 'tier_annotations':
@@ -3395,6 +3574,13 @@ export type {
   LayerDocType,
   LayerConstraint,
   UtteranceTextDocType,
+  LayerUnitDocType,
+  LayerUnitType,
+  LayerUnitStatus,
+  LayerUnitContentDocType,
+  LayerContentRole,
+  UnitRelationDocType,
+  UnitRelationType,
   LayerSegmentDocType,
   LayerSegmentContentDocType,
   SegmentLinkDocType,

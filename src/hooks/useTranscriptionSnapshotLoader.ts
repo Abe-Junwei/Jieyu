@@ -12,7 +12,7 @@ import type {
   UtteranceTokenDocType,
 } from '../db';
 import { listUtteranceTextsFromSegmentation } from '../services/LayerSegmentationTextService';
-import type { DbState, TimelineUnit } from './transcriptionTypes';
+import { createTimelineUnit, type DbState, type TimelineUnit } from './transcriptionTypes';
 
 type Params = {
   dbNameRef: React.MutableRefObject<string | undefined>;
@@ -171,11 +171,7 @@ export function useTranscriptionSnapshotLoader({
       ?? '';
     setSelectedUtteranceIds?.(effectiveSelectedUtteranceId ? new Set([effectiveSelectedUtteranceId]) : new Set());
     setSelectedTimelineUnit?.(effectiveSelectedUtteranceId
-      ? {
-          layerId: initialSelectedLayerId,
-          unitId: effectiveSelectedUtteranceId,
-          kind: 'utterance',
-        }
+      ? createTimelineUnit(initialSelectedLayerId, effectiveSelectedUtteranceId, 'utterance')
       : null);
     setSelectedLayerId((prev) => {
       if (!prev) {

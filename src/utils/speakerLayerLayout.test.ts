@@ -10,7 +10,6 @@ function makeUtterance(id: string, start: number, end: number, speakerId?: strin
     textId: 'text-1',
     startTime: start,
     endTime: end,
-    isVerified: false,
     createdAt: NOW,
     updatedAt: NOW,
     ...(speakerId ? { speakerId } : {}),

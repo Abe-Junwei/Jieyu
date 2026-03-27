@@ -1,7 +1,12 @@
 import { useCallback, useRef } from 'react';
 import { normalizeSelection } from '../utils/selectionUtils';
 import type { UtteranceDocType } from '../db';
-import type { TimelineUnit } from './transcriptionTypes';
+import {
+  createTimelineUnit,
+  isSegmentTimelineUnit,
+  type TimelineUnit,
+  type TimelineUnitKind,
+} from './transcriptionTypes';
 
 type Params = {
   selectedUtteranceUnitIdRef: React.MutableRefObject<string>;
@@ -45,66 +50,69 @@ export function useTranscriptionSelectionActions({
     return null;
   }, [selectedTimelineUnitRef]);
 
-  const setUtteranceSelection = useCallback((primaryId: string, ids: Iterable<string>) => {
-    const next = normalizeSelection(primaryId, ids);
+  const applyUnitSelection = useCallback((input: {
+    primaryId: string;
+    ids: Iterable<string>;
+    rawLayerId: string;
+    source: string;
+    kind: TimelineUnitKind;
+    keepSelectionSet: boolean;
+  }) => {
+    const next = normalizeSelection(input.primaryId, input.ids);
     if (!next.primaryId) {
       clearSelectionState();
       return;
     }
-    const layerId = resolveRequiredLayerId(selectedLayerIdRef.current, 'setUtteranceSelection');
+    const layerId = resolveRequiredLayerId(input.rawLayerId, input.source);
     if (!layerId) {
       clearSelectionState();
       return;
     }
     setSelectedLayerId(layerId);
-    setSelectedUtteranceIds(next.ids);
-    setSelectedTimelineUnit({
-      layerId,
-      unitId: next.primaryId,
+    setSelectedUtteranceIds(input.keepSelectionSet ? next.ids : new Set());
+    setSelectedTimelineUnit(createTimelineUnit(layerId, next.primaryId, input.kind));
+  }, [clearSelectionState, resolveRequiredLayerId, setSelectedLayerId, setSelectedTimelineUnit, setSelectedUtteranceIds]);
+
+  const setUtteranceSelection = useCallback((primaryId: string, ids: Iterable<string>) => {
+    applyUnitSelection({
+      primaryId,
+      ids,
+      rawLayerId: selectedLayerIdRef.current,
+      source: 'setUtteranceSelection',
       kind: 'utterance',
+      keepSelectionSet: true,
     });
-  }, [clearSelectionState, resolveRequiredLayerId, setSelectedLayerId, setSelectedTimelineUnit, setSelectedUtteranceIds, selectedLayerIdRef]);
+  }, [applyUnitSelection, selectedLayerIdRef]);
 
   const selectSegment = useCallback((segmentId: string) => {
     if (!segmentId) {
       clearSelectionState();
       return;
     }
-    const layerId = resolveRequiredLayerId(selectedLayerIdRef.current, 'selectSegment');
-    if (!layerId) {
-      clearSelectionState();
-      return;
-    }
-    setSelectedLayerId(layerId);
-    setSelectedTimelineUnit({
-      layerId,
-      unitId: segmentId,
+    applyUnitSelection({
+      primaryId: segmentId,
+      ids: [segmentId],
+      rawLayerId: selectedLayerIdRef.current,
+      source: 'selectSegment',
       kind: 'segment',
+      keepSelectionSet: false,
     });
-    setSelectedUtteranceIds(new Set());
-  }, [clearSelectionState, resolveRequiredLayerId, setSelectedLayerId, setSelectedTimelineUnit, setSelectedUtteranceIds, selectedLayerIdRef]);
+  }, [applyUnitSelection, clearSelectionState, selectedLayerIdRef]);
 
   const selectTimelineUnit = useCallback((unit: TimelineUnit | null) => {
     if (!unit) {
       clearSelectionState();
       return;
     }
-    const layerId = resolveRequiredLayerId(unit.layerId, 'selectTimelineUnit');
-    if (!layerId) {
-      clearSelectionState();
-      return;
-    }
-    setSelectedLayerId(layerId);
-
-    if (unit.kind === 'segment') {
-      setSelectedTimelineUnit({ ...unit, layerId });
-      setSelectedUtteranceIds(new Set());
-      return;
-    }
-
-    setSelectedTimelineUnit({ ...unit, layerId });
-    setSelectedUtteranceIds(unit.unitId ? new Set([unit.unitId]) : new Set());
-  }, [clearSelectionState, resolveRequiredLayerId, setSelectedLayerId, setSelectedTimelineUnit, setSelectedUtteranceIds]);
+    applyUnitSelection({
+      primaryId: unit.unitId,
+      ids: unit.unitId ? [unit.unitId] : [],
+      rawLayerId: unit.layerId,
+      source: 'selectTimelineUnit',
+      kind: unit.kind,
+      keepSelectionSet: !isSegmentTimelineUnit(unit),
+    });
+  }, [applyUnitSelection, clearSelectionState]);
 
   const selectUtterance = useCallback((id: string) => {
     setUtteranceSelection(id, id ? [id] : []);
@@ -176,20 +184,26 @@ export function useTranscriptionSelectionActions({
         clearSelectionState();
         return;
       }
-      const layerId = resolveRequiredLayerId(selectedLayerIdRef.current, 'toggleSegmentSelection');
-      if (!layerId) { clearSelectionState(); return; }
-      setSelectedLayerId(layerId);
-      setSelectedUtteranceIds(next);
-      setSelectedTimelineUnit({ layerId, unitId: primary, kind: 'segment' });
+      applyUnitSelection({
+        primaryId: primary,
+        ids: next,
+        rawLayerId: selectedLayerIdRef.current,
+        source: 'toggleSegmentSelection',
+        kind: 'segment',
+        keepSelectionSet: true,
+      });
       return;
     }
     next.add(id);
-    const layerId = resolveRequiredLayerId(selectedLayerIdRef.current, 'toggleSegmentSelection');
-    if (!layerId) { clearSelectionState(); return; }
-    setSelectedLayerId(layerId);
-    setSelectedUtteranceIds(next);
-    setSelectedTimelineUnit({ layerId, unitId: id, kind: 'segment' });
-  }, [clearSelectionState, resolveRequiredLayerId, selectedUtteranceIdsRef, selectedUtteranceUnitIdRef, selectedLayerIdRef, setSelectedLayerId, setSelectedTimelineUnit, setSelectedUtteranceIds]);
+    applyUnitSelection({
+      primaryId: id,
+      ids: next,
+      rawLayerId: selectedLayerIdRef.current,
+      source: 'toggleSegmentSelection',
+      kind: 'segment',
+      keepSelectionSet: true,
+    });
+  }, [applyUnitSelection, clearSelectionState, selectedUtteranceIdsRef, selectedUtteranceUnitIdRef, selectedLayerIdRef]);
 
   // 独立层 segment 范围选 | Range-select segments for independent layers
   const selectSegmentRange = useCallback((anchorId: string, targetId: string, orderedItems: Array<{ id: string }>) => {
@@ -199,12 +213,15 @@ export function useTranscriptionSelectionActions({
     const lo = Math.min(anchorIdx, targetIdx);
     const hi = Math.max(anchorIdx, targetIdx);
     const rangeIds = new Set(orderedItems.slice(lo, hi + 1).map((item) => item.id));
-    const layerId = resolveRequiredLayerId(selectedLayerIdRef.current, 'selectSegmentRange');
-    if (!layerId) { clearSelectionState(); return; }
-    setSelectedLayerId(layerId);
-    setSelectedUtteranceIds(rangeIds);
-    setSelectedTimelineUnit({ layerId, unitId: targetId, kind: 'segment' });
-  }, [clearSelectionState, resolveRequiredLayerId, selectedLayerIdRef, setSelectedLayerId, setSelectedTimelineUnit, setSelectedUtteranceIds]);
+    applyUnitSelection({
+      primaryId: targetId,
+      ids: rangeIds,
+      rawLayerId: selectedLayerIdRef.current,
+      source: 'selectSegmentRange',
+      kind: 'segment',
+      keepSelectionSet: true,
+    });
+  }, [applyUnitSelection, selectedLayerIdRef]);
 
   return {
     selectTimelineUnit,

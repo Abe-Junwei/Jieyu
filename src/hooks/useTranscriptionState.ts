@@ -3,6 +3,7 @@ import { useTranscriptionDbState } from './useTranscriptionDbState';
 import { useTranscriptionDocumentState } from './useTranscriptionDocumentState';
 import { useTranscriptionSelectionState } from './useTranscriptionSelectionState';
 import { useTranscriptionUIState } from './useTranscriptionUIState';
+import { isUtteranceTimelineUnit } from './transcriptionTypes';
 
 export function useTranscriptionState() {
   const dbState = useTranscriptionDbState();
@@ -19,7 +20,7 @@ export function useTranscriptionState() {
   const selectedTimelineUnitRef = useLatest(selectionState.selectedTimelineUnit);
   const selectedLayerIdRef = useLatest(selectionState.selectedLayerId);
   const selectedUtteranceUnitIdRef = useLatest(
-    selectionState.selectedTimelineUnit?.kind === 'utterance'
+    isUtteranceTimelineUnit(selectionState.selectedTimelineUnit)
       ? selectionState.selectedTimelineUnit.unitId
       : '',
   );

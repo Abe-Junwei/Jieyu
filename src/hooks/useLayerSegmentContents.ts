@@ -2,7 +2,8 @@
  * 独立边界层 segment 内容加载 hook | Hook for loading segment contents of independent-boundary layers
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getDb, type LayerDocType, type LayerSegmentContentDocType, type LayerSegmentDocType } from '../db';
+import { type LayerDocType, type LayerSegmentContentDocType, type LayerSegmentDocType } from '../db';
+import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { layerUsesOwnSegments } from './useLayerSegments';
 
 type SegmentContentByLayer = Map<string, Map<string, LayerSegmentContentDocType>>;
@@ -37,21 +38,20 @@ export function useLayerSegmentContents(
       return;
     }
 
-    const db = await getDb();
     const next: SegmentContentByLayer = new Map();
 
     for (const layer of independentLayers) {
       const segs = segmentsRef.current.get(layer.id) ?? [];
       if (segs.length === 0) continue;
-      const segmentIds = new Set(segs.map((seg) => seg.id));
-
-      const rows = await db.dexie.layer_segment_contents.where('layerId').equals(layer.id).toArray();
+      const segmentIds = segs.map((seg) => seg.id);
+      const rows = await LayerSegmentQueryService.listSegmentContentsBySegmentIds(segmentIds, {
+        layerId: layer.id,
+      });
       const mapBySegment = new Map<string, LayerSegmentContentDocType>();
 
       for (const row of rows) {
-        if (!segmentIds.has(row.segmentId)) continue;
         const existing = mapBySegment.get(row.segmentId);
-        if (!existing || row.updatedAt > existing.updatedAt) {
+        if (!existing || row.updatedAt >= existing.updatedAt) {
           mapBySegment.set(row.segmentId, row);
         }
       }

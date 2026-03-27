@@ -21,6 +21,10 @@ import {
   createLayerLink,
 } from '../services/LayerIdBridgeService';
 import { listUtteranceTextsByUtterances } from '../services/LayerSegmentationTextService';
+import {
+  deleteLayerSegmentGraphByLayerId,
+} from '../services/LayerUnitLegacyBridgeService';
+import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 
 export type TranscriptionLayerActionsParams = {
   layers: LayerDocType[];
@@ -209,9 +213,7 @@ export function useTranscriptionLayerActions({
 
   /** 检查层是否有文本内容（用于判断是否需要确认） */
   const checkLayerHasContent = useCallback(async (layerId: string): Promise<number> => {
-    const db = await getDb();
-    // Phase 2: V2 单一读路径 | Phase 2: V2 single read path
-    return db.dexie.layer_segment_contents.where('layerId').equals(layerId).count();
+    return LayerSegmentQueryService.countSegmentContentsByLayerId(layerId);
   }, []);
 
   /** 执行层的实际删除操作（无确认提示） */
@@ -248,48 +250,13 @@ export function useTranscriptionLayerActions({
         targetLayer.layerType === 'transcription'
         && layers.filter((item) => item.layerType === 'transcription').length <= 1;
 
-      // Phase 2: 从 V2 layer_segments 获取受影响的 utteranceId | Phase 2: get affected utteranceIds from V2 layer_segments
-      const affectedByLayerTexts = keepUtterances
-        ? []
-        : [...new Set(
-            (await db.dexie.layer_segments.where('layerId').equals(effectiveLayerId).toArray())
-              .map((s) => s.utteranceId)
-              .filter((id): id is string => Boolean(id)),
-          )];
-
       const affectedByProjectScope = (!keepUtterances && isDeletingLastTranscription)
         ? ((await db.dexie.utterances.where('textId').equals(targetLayer.textId).primaryKeys()) as string[])
         : [];
-
-      const affectedUtteranceIds = [...new Set([...affectedByLayerTexts, ...affectedByProjectScope])];
-
-      // V2 cascade handles full cleanup (layer_segments → layer_segment_contents → segment_links)
-      // Phase 1 之后 V1 无新写入，无需额外清理 | No V1 writes after Phase 1; V1 is now read-only archive
-      // Collect segment IDs before deletion so we can clean up referencing links.
-      // Note: sourceLayerId/targetLayerId are optional (undefined) on many existing
-      // segment_links rows, so we must delete by segmentId ownership — not by layerId.
-      const deletedSegmentIds = (await db.dexie.layer_segments
-        .where('layerId')
-        .equals(effectiveLayerId)
-        .primaryKeys()) as string[];
-
-      await db.dexie.layer_segment_contents.where('layerId').equals(effectiveLayerId).delete();
-      await db.dexie.layer_segments.where('layerId').equals(effectiveLayerId).delete();
-
-      if (deletedSegmentIds.length > 0) {
-        const sourceLinkIds = (await db.dexie.segment_links
-          .where('sourceSegmentId')
-          .anyOf(deletedSegmentIds)
-          .primaryKeys()) as string[];
-        const targetLinkIds = (await db.dexie.segment_links
-          .where('targetSegmentId')
-          .anyOf(deletedSegmentIds)
-          .primaryKeys()) as string[];
-        const linksToDelete = [...new Set([...sourceLinkIds, ...targetLinkIds])];
-        if (linksToDelete.length > 0) {
-          await db.dexie.segment_links.bulkDelete(linksToDelete);
-        }
-      }
+      const { affectedUtteranceIds: affectedByLayerTexts } = await deleteLayerSegmentGraphByLayerId(db, effectiveLayerId);
+      const affectedUtteranceIds = !keepUtterances
+        ? [...new Set([...affectedByLayerTexts, ...affectedByProjectScope])]
+        : [];
 
       const newAutoLinks: LayerLinkDocType[] = [];
       if (targetLayer.layerType === 'transcription') {

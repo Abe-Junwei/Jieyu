@@ -5,6 +5,12 @@ import {
   type SegmentLinkDocType,
 } from '../db';
 import { cleanupOrphanSegments as cleanupOrphanSegmentsBridge } from './LayerSegmentationTextService';
+import {
+  buildClonedSegmentGraphForSplit,
+  deleteLayerSegmentGraphBySegmentIds,
+} from './LayerUnitLegacyBridgeService';
+import { LayerSegmentQueryService } from './LayerSegmentQueryService';
+import { LegacyMirrorService } from './LegacyMirrorService';
 import { newId } from '../utils/transcriptionFormatters';
 
 /**
@@ -13,7 +19,9 @@ import { newId } from '../utils/transcriptionFormatters';
 export class LayerSegmentationV2Service {
   static async createSegment(segment: LayerSegmentDocType): Promise<void> {
     const db = await getDb();
-    await db.collections.layer_segments.insert(segment);
+    await db.dexie.transaction('rw', db.dexie.layer_segments, db.dexie.layer_units, async () => {
+      await LegacyMirrorService.insertSegments(db, [segment]);
+    });
   }
 
   /**
@@ -24,9 +32,9 @@ export class LayerSegmentationV2Service {
     content: LayerSegmentContentDocType,
   ): Promise<void> {
     const db = await getDb();
-    await db.dexie.transaction('rw', db.dexie.layer_segments, db.dexie.layer_segment_contents, async () => {
-      await db.collections.layer_segments.insert(segment);
-      await db.collections.layer_segment_contents.insert(content);
+    await db.dexie.transaction('rw', db.dexie.layer_segments, db.dexie.layer_segment_contents, db.dexie.layer_units, db.dexie.layer_unit_contents, async () => {
+      await LegacyMirrorService.insertSegments(db, [segment]);
+      await LegacyMirrorService.insertSegmentContents(db, [content]);
     });
   }
 
@@ -50,9 +58,9 @@ export class LayerSegmentationV2Service {
     }
     const db = await getDb();
     const now = new Date().toISOString();
-    await db.dexie.transaction('rw', db.dexie.layer_segments, db.dexie.segment_links, async () => {
-      await db.collections.layer_segments.insert(clipped);
-      await db.collections.segment_links.insert({
+    await db.dexie.transaction('rw', db.dexie.layer_segments, db.dexie.segment_links, db.dexie.layer_units, db.dexie.unit_relations, async () => {
+      await LegacyMirrorService.insertSegments(db, [clipped]);
+      const link = {
         id: newId('sl'),
         textId: clipped.textId,
         sourceSegmentId: clipped.id,
@@ -60,35 +68,58 @@ export class LayerSegmentationV2Service {
         linkType: 'time_subdivision',
         createdAt: now,
         updatedAt: now,
-      } as SegmentLinkDocType);
+      } as SegmentLinkDocType;
+      await LegacyMirrorService.insertSegmentLinks(db, [link]);
     });
     return clipped;
   }
 
   static async updateSegment(id: string, changes: Partial<LayerSegmentDocType>): Promise<void> {
     const db = await getDb();
-    await db.collections.layer_segments.update(id, changes);
+    const existing = (await LayerSegmentQueryService.listSegmentsByIds([id]))[0];
+
+    await db.dexie.transaction('rw', db.dexie.layer_segments, db.dexie.layer_units, async () => {
+      if (existing) {
+        const nextRow: LayerSegmentDocType = {
+          ...existing,
+          ...changes,
+          id: existing.id,
+        };
+        await LegacyMirrorService.upsertSegments(db, [nextRow]);
+        return;
+      }
+
+      await LegacyMirrorService.updateSegmentPatch(db, id, changes);
+    });
   }
 
   static async listSegmentsByLayerMedia(layerId: string, mediaId: string): Promise<LayerSegmentDocType[]> {
-    const db = await getDb();
-    return db.dexie.layer_segments.where('[layerId+mediaId]').equals([layerId, mediaId]).toArray();
+    return LayerSegmentQueryService.listSegmentsByLayerMedia(layerId, mediaId);
   }
 
   static async upsertSegmentContent(content: LayerSegmentContentDocType): Promise<void> {
     const db = await getDb();
-    await db.collections.layer_segment_contents.insert(content);
+    await db.dexie.transaction('rw', db.dexie.layer_segment_contents, db.dexie.layer_unit_contents, async () => {
+      await LegacyMirrorService.insertSegmentContents(db, [content]);
+    });
+  }
+
+  static async deleteSegmentContent(contentId: string): Promise<void> {
+    const db = await getDb();
+    await db.dexie.transaction('rw', db.dexie.layer_segment_contents, db.dexie.layer_unit_contents, async () => {
+      await LegacyMirrorService.deleteSegmentContentsByIds(db, [contentId]);
+    });
   }
 
   static async listSegmentContents(segmentId: string): Promise<LayerSegmentContentDocType[]> {
-    const db = await getDb();
-    const docs = await db.collections.layer_segment_contents.findByIndex('segmentId', segmentId);
-    return docs.map((row) => row.toJSON());
+    return LayerSegmentQueryService.listSegmentContentsBySegmentIds([segmentId]);
   }
 
   static async createSegmentLink(link: SegmentLinkDocType): Promise<void> {
     const db = await getDb();
-    await db.collections.segment_links.insert(link);
+    await db.dexie.transaction('rw', db.dexie.segment_links, db.dexie.unit_relations, async () => {
+      await LegacyMirrorService.insertSegmentLinks(db, [link]);
+    });
   }
 
   static async deleteSegment(segmentId: string): Promise<void> {
@@ -96,35 +127,16 @@ export class LayerSegmentationV2Service {
 
     await db.dexie.transaction(
       'rw',
-      db.dexie.layer_segments,
-      db.dexie.layer_segment_contents,
-      db.dexie.segment_links,
+      [
+        db.dexie.layer_segments,
+        db.dexie.layer_segment_contents,
+        db.dexie.layer_units,
+        db.dexie.layer_unit_contents,
+        db.dexie.unit_relations,
+        db.dexie.segment_links,
+      ],
       async () => {
-        const contentIds = (await db.dexie.layer_segment_contents
-          .where('segmentId')
-          .equals(segmentId)
-          .primaryKeys()) as string[];
-
-        if (contentIds.length > 0) {
-          await db.dexie.layer_segment_contents.bulkDelete(contentIds);
-        }
-
-        const sourceLinkIds = (await db.dexie.segment_links
-          .where('sourceSegmentId')
-          .equals(segmentId)
-          .primaryKeys()) as string[];
-
-        const targetLinkIds = (await db.dexie.segment_links
-          .where('targetSegmentId')
-          .equals(segmentId)
-          .primaryKeys()) as string[];
-
-        const linkIds = [...new Set([...sourceLinkIds, ...targetLinkIds])];
-        if (linkIds.length > 0) {
-          await db.dexie.segment_links.bulkDelete(linkIds);
-        }
-
-        await db.collections.layer_segments.remove(segmentId);
+        await deleteLayerSegmentGraphBySegmentIds(db, [segmentId]);
       },
     );
   }
@@ -139,7 +151,7 @@ export class LayerSegmentationV2Service {
    */
   static async splitSegment(segmentId: string, splitTime: number): Promise<{ first: LayerSegmentDocType; second: LayerSegmentDocType }> {
     const db = await getDb();
-    const existing = await db.dexie.layer_segments.get(segmentId);
+    const existing = (await LayerSegmentQueryService.listSegmentsByIds([segmentId]))[0];
     if (!existing) throw new Error(`Segment ${segmentId} not found`);
 
     const minSpan = 0.05;
@@ -163,40 +175,31 @@ export class LayerSegmentationV2Service {
       updatedAt: now,
     };
 
-    const existingContents = await db.dexie.layer_segment_contents.where('segmentId').equals(segmentId).toArray();
-    const clonedContents: LayerSegmentContentDocType[] = existingContents.map((content) => ({
-      ...content,
-      id: newId('stx'),
-      segmentId: second.id,
-      createdAt: now,
-      updatedAt: now,
-    }));
-
-    // 克隆 source 方向的 segment_links（如 time_subdivision 父链接）| Clone source-side segment_links (e.g. time_subdivision parent link)
-    const existingLinks = await db.dexie.segment_links.where('sourceSegmentId').equals(segmentId).toArray();
-    const clonedLinks: SegmentLinkDocType[] = existingLinks.map((link) => ({
-      ...link,
-      id: newId('sl'),
-      sourceSegmentId: second.id,
-      createdAt: now,
-      updatedAt: now,
-    }));
+    const { clonedContents, clonedLinks } = await buildClonedSegmentGraphForSplit(
+      db,
+      segmentId,
+      second.id,
+      now,
+    );
 
     await db.dexie.transaction(
       'rw',
-      db.dexie.layer_segments,
-      db.dexie.layer_segment_contents,
-      db.dexie.segment_links,
+      [
+        db.dexie.layer_segments,
+        db.dexie.layer_segment_contents,
+        db.dexie.layer_units,
+        db.dexie.layer_unit_contents,
+        db.dexie.unit_relations,
+        db.dexie.segment_links,
+      ],
       async () => {
-        await db.collections.layer_segments.update(segmentId, { endTime: splitFixed, updatedAt: now });
-        await db.collections.layer_segments.insert(second);
+        await LegacyMirrorService.upsertSegments(db, [first]);
+        await LegacyMirrorService.insertSegments(db, [second]);
         if (clonedContents.length > 0) {
-          await db.dexie.layer_segment_contents.bulkPut(clonedContents);
+          await LegacyMirrorService.upsertSegmentContents(db, clonedContents);
         }
         if (clonedLinks.length > 0) {
-          for (const link of clonedLinks) {
-            await db.collections.segment_links.insert(link);
-          }
+          await LegacyMirrorService.insertSegmentLinks(db, clonedLinks);
         }
       },
     );
@@ -209,17 +212,16 @@ export class LayerSegmentationV2Service {
    */
   static async mergeAdjacentSegments(keepId: string, removeId: string): Promise<LayerSegmentDocType> {
     const db = await getDb();
-    const keep = await db.dexie.layer_segments.get(keepId);
-    const remove = await db.dexie.layer_segments.get(removeId);
+    const segments = await LayerSegmentQueryService.listSegmentsByIds([keepId, removeId]);
+    const segmentById = new Map(segments.map((segment) => [segment.id, segment] as const));
+    const keep = segmentById.get(keepId);
+    const remove = segmentById.get(removeId);
     if (!keep || !remove) throw new Error('Segment(s) not found for merge');
     if (keep.layerId !== remove.layerId || keep.mediaId !== remove.mediaId) {
       throw new Error('Segments must be in the same layer and media to merge');
     }
 
-    const siblings = await db.dexie.layer_segments
-      .where('[layerId+mediaId]')
-      .equals([keep.layerId, keep.mediaId])
-      .toArray();
+    const siblings = await LayerSegmentQueryService.listSegmentsByLayerMedia(keep.layerId, keep.mediaId);
     siblings.sort((a, b) => a.startTime - b.startTime);
     const keepIndex = siblings.findIndex((item) => item.id === keepId);
     const removeIndex = siblings.findIndex((item) => item.id === removeId);
@@ -236,44 +238,30 @@ export class LayerSegmentationV2Service {
     const now = new Date().toISOString();
     const mergedStart = Math.min(keep.startTime, remove.startTime);
     const mergedEnd = Math.max(keep.endTime, remove.endTime);
+    const mergedKeep: LayerSegmentDocType = {
+      ...keep,
+      startTime: mergedStart,
+      endTime: mergedEnd,
+      updatedAt: now,
+    };
 
     // 原子事务：更新保留段 + 级联删除移除段 | Atomic transaction: update kept + cascade-delete removed
     await db.dexie.transaction(
       'rw',
-      db.dexie.layer_segments,
-      db.dexie.layer_segment_contents,
-      db.dexie.segment_links,
+      [
+        db.dexie.layer_segments,
+        db.dexie.layer_segment_contents,
+        db.dexie.layer_units,
+        db.dexie.layer_unit_contents,
+        db.dexie.unit_relations,
+        db.dexie.segment_links,
+      ],
       async () => {
-        await db.collections.layer_segments.update(keepId, {
-          startTime: mergedStart,
-          endTime: mergedEnd,
-          updatedAt: now,
-        });
-
-        // 内联删除（避免嵌套事务）| Inline delete (avoids nested transaction)
-        const contentIds = (await db.dexie.layer_segment_contents
-          .where('segmentId')
-          .equals(removeId)
-          .primaryKeys()) as string[];
-        if (contentIds.length > 0) {
-          await db.dexie.layer_segment_contents.bulkDelete(contentIds);
-        }
-        const sourceLinkIds = (await db.dexie.segment_links
-          .where('sourceSegmentId')
-          .equals(removeId)
-          .primaryKeys()) as string[];
-        const targetLinkIds = (await db.dexie.segment_links
-          .where('targetSegmentId')
-          .equals(removeId)
-          .primaryKeys()) as string[];
-        const linkIds = [...new Set([...sourceLinkIds, ...targetLinkIds])];
-        if (linkIds.length > 0) {
-          await db.dexie.segment_links.bulkDelete(linkIds);
-        }
-        await db.collections.layer_segments.remove(removeId);
+        await LegacyMirrorService.upsertSegments(db, [mergedKeep]);
+        await deleteLayerSegmentGraphBySegmentIds(db, [removeId]);
       },
     );
 
-    return { ...keep, startTime: mergedStart, endTime: mergedEnd, updatedAt: now };
+    return mergedKeep;
   }
 }

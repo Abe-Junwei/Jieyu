@@ -167,9 +167,9 @@ describe('TranscriptionPage structure invariants', () => {
 
     // 选择态应按 independent/utterance 双路径路由
     // Selection state must route by independent/utterance mode.
-    expect(code.includes('const selectedWaveformRegionId = useIndependentWaveformRegions')).toBe(true);
-    expect(code.includes("? (selectedTimelineUnit?.kind === 'segment' && selectedTimelineUnit.layerId === activeLayerIdForEdits")).toBe(true);
-    expect(code.includes(": (selectedTimelineUnit?.kind === 'utterance' && selectedTimelineUnit.layerId === activeLayerIdForEdits")).toBe(true);
+    expect(code.includes('const selectedWaveformRegionId = selectedTimelineUnit?.layerId === activeLayerIdForEdits')).toBe(true);
+    expect(code.includes("? (isSegmentTimelineUnit(selectedTimelineUnit) ? selectedTimelineUnit.unitId : '')")).toBe(true);
+    expect(code.includes(": (isUtteranceTimelineUnit(selectedTimelineUnit) ? selectedTimelineUnit.unitId : '')")).toBe(true);
     expect(code.includes('const waveformActiveRegionIds = useMemo(() => {')).toBe(true);
     expect(code.includes('return selectedWaveformRegionId ? new Set([selectedWaveformRegionId]) : new Set<string>();')).toBe(true);
     expect(code.includes('const waveformPrimaryRegionId = selectedWaveformRegionId;')).toBe(true);
@@ -178,5 +178,25 @@ describe('TranscriptionPage structure invariants', () => {
     // Region update end must update segment on independent layers.
     expect(code.includes('if (useIndependentWaveformRegions && activeWaveformLayer) {')).toBe(true);
     expect(code.includes('await LayerSegmentationV2Service.updateSegment(regionId, {')).toBe(true);
+  });
+
+  it('persists focused speaker metadata on newly created independent segments', () => {
+    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const code = fs.readFileSync(filePath, 'utf8');
+
+    expect(code.includes('...(speakerFocusTargetKey ? { speakerId: speakerFocusTargetKey } : {}),')).toBe(true);
+    expect(code.includes('if (!newSeg.speakerId && overlappingUtt.speakerId) {')).toBe(true);
+    expect(code.includes('newSeg.speakerId = overlappingUtt.speakerId;')).toBe(true);
+  });
+
+  it('routes speaker assignment through segment writes for independent selections', () => {
+    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const code = fs.readFileSync(filePath, 'utf8');
+
+    expect(code.includes('const selectedSegmentIdsForSpeakerActions = useMemo(')).toBe(true);
+    expect(code.includes('const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {')).toBe(true);
+    expect(code.includes('await LinguisticService.assignSpeakerToSegments(targetIds, speakerId);')).toBe(true);
+    expect(code.includes('await LinguisticService.assignSpeakerToSegments(selectedSegmentIdsForSpeakerActions, created.id);')).toBe(true);
+    expect(code.includes('handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,')).toBe(true);
   });
 });

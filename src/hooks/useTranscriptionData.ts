@@ -17,7 +17,14 @@ import { useTranscriptionLifecycle } from './useTranscriptionLifecycle';
 import { useTranscriptionMutexActionWrappers } from './useTranscriptionMutexActionWrappers';
 import { useTranscriptionCanonicalActions } from './useTranscriptionCanonicalActions';
 import { useTranscriptionPersistence } from './useTranscriptionPersistence';
-import type { DbState, LayerCreateInput, SaveState, SnapGuide } from './transcriptionTypes';
+import {
+  isSegmentTimelineUnit,
+  isUtteranceTimelineUnit,
+  type DbState,
+  type LayerCreateInput,
+  type SaveState,
+  type SnapGuide,
+} from './transcriptionTypes';
 export type { DbState, LayerCreateInput, SaveState, SnapGuide };
 
 export function useTranscriptionData() {
@@ -76,10 +83,10 @@ export function useTranscriptionData() {
     selectedLayerIdRef,
   } = useTranscriptionState();
 
-  const activeUtteranceUnitId = selectedTimelineUnit?.kind === 'utterance'
+  const activeUtteranceUnitId = isUtteranceTimelineUnit(selectedTimelineUnit)
     ? selectedTimelineUnit.unitId
     : '';
-  const activeSegmentUnitId = selectedTimelineUnit?.kind === 'segment'
+  const activeSegmentUnitId = isSegmentTimelineUnit(selectedTimelineUnit)
     ? selectedTimelineUnit.unitId
     : '';
 

@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { featureFlags } from '../ai/config/featureFlags';
 import { db, getDb, type UtteranceDocType, type UtteranceTextDocType } from '../db';
 import {
   cleanupOrphanSegments,
@@ -21,7 +22,15 @@ describe('LayerSegmentationTextService', () => {
       db.layer_segments.clear(),
       db.layer_segment_contents.clear(),
       db.segment_links.clear(),
+      db.layer_units.clear(),
+      db.layer_unit_contents.clear(),
+      db.unit_relations.clear(),
     ]);
+    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
+  });
+
+  afterEach(() => {
+    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
   });
 
   it('syncs utterance_text into v2 segment tables', async () => {
@@ -58,6 +67,51 @@ describe('LayerSegmentationTextService', () => {
     expect(content?.text).toBe('hello');
   });
 
+  it('supports utterance_text projection when legacy mirror writes are disabled', async () => {
+    const database = await getDb();
+    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = false;
+
+    const utterance: UtteranceDocType = {
+      id: 'utt_flag_sync_1',
+      textId: 'text_flag_sync',
+      mediaId: 'media_flag_sync',
+      startTime: 3,
+      endTime: 4,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const translation: UtteranceTextDocType = {
+      id: 'utr_flag_sync_1',
+      utteranceId: 'utt_flag_sync_1',
+      layerId: 'layer_trl_flag',
+      modality: 'text',
+      text: 'layerunit-only projection',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+
+    await syncUtteranceTextToSegmentationV2(database, utterance, translation);
+
+    const ids = getSegmentationV2Ids(translation.layerId, utterance.id, translation.id);
+    const rows = await listUtteranceTextsFromSegmentation(database);
+
+    expect(await db.layer_segments.get(ids.segmentId)).toBeUndefined();
+    expect(await db.layer_segment_contents.get(ids.segmentContentId)).toBeUndefined();
+    expect(await db.layer_units.get(ids.segmentId)).toBeTruthy();
+    expect(await db.layer_unit_contents.get(ids.segmentContentId)).toEqual(expect.objectContaining({
+      unitId: ids.segmentId,
+      text: 'layerunit-only projection',
+    }));
+    expect(rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: translation.id,
+        utteranceId: utterance.id,
+        text: 'layerunit-only projection',
+      }),
+    ]));
+  });
+
   it('keeps sync atomic when content write fails', async () => {
     const database = await getDb();
     const utterance: UtteranceDocType = {
@@ -81,14 +135,16 @@ describe('LayerSegmentationTextService', () => {
     };
 
     const ids = getSegmentationV2Ids(translation.layerId, utterance.id, translation.id);
-    const putSpy = vi.spyOn(db.layer_segment_contents, 'put').mockRejectedValueOnce(new Error('force put failure'));
+    const bulkPutSpy = vi.spyOn(db.layer_segment_contents, 'bulkPut').mockRejectedValueOnce(new Error('force put failure'));
 
-    await expect(syncUtteranceTextToSegmentationV2(database, utterance, translation)).rejects.toThrow('force put failure');
+    try {
+      await expect(syncUtteranceTextToSegmentationV2(database, utterance, translation)).rejects.toThrow('force put failure');
 
-    expect(await db.layer_segments.get(ids.segmentId)).toBeUndefined();
-    expect(await db.layer_segment_contents.get(ids.segmentContentId)).toBeUndefined();
-
-    putSpy.mockRestore();
+      expect(await db.layer_segments.get(ids.segmentId)).toBeUndefined();
+      expect(await db.layer_segment_contents.get(ids.segmentContentId)).toBeUndefined();
+    } finally {
+      bulkPutSpy.mockRestore();
+    }
   });
 
   it('validates layer_segments.utteranceId as non-empty string when provided', async () => {
@@ -185,22 +241,25 @@ describe('LayerSegmentationTextService', () => {
   it('returns v2 rows even without legacy rows', async () => {
     const database = await getDb();
 
-    await db.layer_segments.put({
+    await db.layer_units.put({
       id: 'segv2_layerA_utt_v2',
       textId: 'text_1',
       mediaId: 'media_1',
       layerId: 'layerA',
-      utteranceId: 'utt_v2',
+      unitType: 'segment',
+      parentUnitId: 'utt_v2',
+      rootUnitId: 'utt_v2',
       startTime: 0,
       endTime: 1,
       createdAt: NOW,
       updatedAt: NOW,
     });
-    await db.layer_segment_contents.put({
+    await db.layer_unit_contents.put({
       id: 'utr_v2',
       textId: 'text_1',
-      segmentId: 'segv2_layerA_utt_v2',
+      unitId: 'segv2_layerA_utt_v2',
       layerId: 'layerA',
+      contentRole: 'primary_text',
       modality: 'text',
       text: 'v2-text',
       sourceType: 'human',
@@ -215,22 +274,25 @@ describe('LayerSegmentationTextService', () => {
   it('returns canonical v2 row by content id', async () => {
     const database = await getDb();
 
-    await db.layer_segments.put({
+    await db.layer_units.put({
       id: 'segv2_layer_new_utt_dup',
       textId: 'text_1',
       mediaId: 'media_1',
       layerId: 'layer_new',
-      utteranceId: 'utt_dup',
+      unitType: 'segment',
+      parentUnitId: 'utt_dup',
+      rootUnitId: 'utt_dup',
       startTime: 0,
       endTime: 1,
       createdAt: NOW,
       updatedAt: NOW,
     });
-    await db.layer_segment_contents.put({
+    await db.layer_unit_contents.put({
       id: 'dup_id',
       textId: 'text_1',
-      segmentId: 'segv2_layer_new_utt_dup',
+      unitId: 'segv2_layer_new_utt_dup',
       layerId: 'layer_new',
+      contentRole: 'primary_text',
       modality: 'text',
       text: 'v2-dup',
       sourceType: 'human',
@@ -244,16 +306,51 @@ describe('LayerSegmentationTextService', () => {
     expect(row?.layerId).toBe('layer_new');
   });
 
+  it('returns rows from LayerUnit-only segmentation data', async () => {
+    const database = await getDb();
+
+    await db.layer_units.put({
+      id: 'seg_unit_only_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layer_unit',
+      unitType: 'segment',
+      parentUnitId: 'utt_unit_only_1',
+      rootUnitId: 'utt_unit_only_1',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.layer_unit_contents.put({
+      id: 'utr_unit_only_1',
+      textId: 'text_1',
+      unitId: 'seg_unit_only_1',
+      layerId: 'layer_unit',
+      contentRole: 'primary_text',
+      modality: 'text',
+      text: 'layer-unit-text',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const rows = await listUtteranceTextsFromSegmentation(database);
+    expect(rows.some((row) => row.id === 'utr_unit_only_1' && row.utteranceId === 'utt_unit_only_1' && row.text === 'layer-unit-text')).toBe(true);
+  });
+
   it('gets utterance texts for multiple utterances from v2 in one batch', async () => {
     const database = await getDb();
 
-    await db.layer_segments.bulkPut([
+    await db.layer_units.bulkPut([
       {
         id: 'segv2_layerA_utt_a',
         textId: 'text_1',
         mediaId: 'media_1',
         layerId: 'layerA',
-        utteranceId: 'utt_a',
+        unitType: 'segment',
+        parentUnitId: 'utt_a',
+        rootUnitId: 'utt_a',
         startTime: 0,
         endTime: 1,
         createdAt: NOW,
@@ -264,19 +361,22 @@ describe('LayerSegmentationTextService', () => {
         textId: 'text_1',
         mediaId: 'media_1',
         layerId: 'layerA',
-        utteranceId: 'utt_b',
+        unitType: 'segment',
+        parentUnitId: 'utt_b',
+        rootUnitId: 'utt_b',
         startTime: 1,
         endTime: 2,
         createdAt: NOW,
         updatedAt: NOW,
       },
     ]);
-    await db.layer_segment_contents.bulkPut([
+    await db.layer_unit_contents.bulkPut([
       {
         id: 'utr_a',
         textId: 'text_1',
-        segmentId: 'segv2_layerA_utt_a',
+        unitId: 'segv2_layerA_utt_a',
         layerId: 'layerA',
+        contentRole: 'primary_text',
         modality: 'text',
         text: 'alpha',
         sourceType: 'human',
@@ -286,8 +386,9 @@ describe('LayerSegmentationTextService', () => {
       {
         id: 'utr_b',
         textId: 'text_1',
-        segmentId: 'segv2_layerA_utt_b',
+        unitId: 'segv2_layerA_utt_b',
         layerId: 'layerA',
+        contentRole: 'primary_text',
         modality: 'text',
         text: 'beta',
         sourceType: 'human',
@@ -298,6 +399,68 @@ describe('LayerSegmentationTextService', () => {
 
     const rows = await listUtteranceTextsByUtterances(database, ['utt_a', 'utt_b']);
     expect(rows.map((row) => row.text)).toEqual(expect.arrayContaining(['alpha', 'beta']));
+  });
+
+  it('gets utterance texts for multiple utterances from LayerUnit-only rows', async () => {
+    const database = await getDb();
+
+    await db.layer_units.bulkPut([
+      {
+        id: 'seg_unit_batch_a',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: 'layer_unit',
+        unitType: 'segment',
+        parentUnitId: 'utt_unit_a',
+        rootUnitId: 'utt_unit_a',
+        startTime: 0,
+        endTime: 1,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'seg_unit_batch_b',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: 'layer_unit',
+        unitType: 'segment',
+        parentUnitId: 'utt_unit_b',
+        rootUnitId: 'utt_unit_b',
+        startTime: 1,
+        endTime: 2,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+    await db.layer_unit_contents.bulkPut([
+      {
+        id: 'utr_unit_a',
+        textId: 'text_1',
+        unitId: 'seg_unit_batch_a',
+        layerId: 'layer_unit',
+        contentRole: 'primary_text',
+        modality: 'text',
+        text: 'unit-alpha',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'utr_unit_b',
+        textId: 'text_1',
+        unitId: 'seg_unit_batch_b',
+        layerId: 'layer_unit',
+        contentRole: 'primary_text',
+        modality: 'text',
+        text: 'unit-beta',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    const rows = await listUtteranceTextsByUtterances(database, ['utt_unit_a', 'utt_unit_b']);
+    expect(rows.map((row) => row.text)).toEqual(expect.arrayContaining(['unit-alpha', 'unit-beta']));
   });
 
   it('removes v2 segment graph for utterance cascade delete helper', async () => {
@@ -470,6 +633,41 @@ describe('LayerSegmentationTextService', () => {
     expect(await db.layer_segment_contents.get('segcv22_utr_legacy')).toBeUndefined();
   });
 
+  it('removes LayerUnit-only orphan segment when deleting utterance_text', async () => {
+    const database = await getDb();
+
+    await db.layer_units.put({
+      id: 'seg_unit_delete_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layer_unit_delete',
+      unitType: 'segment',
+      parentUnitId: 'utt_unit_delete_1',
+      rootUnitId: 'utt_unit_delete_1',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.layer_unit_contents.put({
+      id: 'utr_unit_delete_1',
+      textId: 'text_1',
+      unitId: 'seg_unit_delete_1',
+      layerId: 'layer_unit_delete',
+      contentRole: 'primary_text',
+      modality: 'text',
+      text: 'unit-delete',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await removeUtteranceTextFromSegmentationV2(database, { id: 'utr_unit_delete_1' });
+
+    expect(await db.layer_unit_contents.get('utr_unit_delete_1')).toBeUndefined();
+    expect(await db.layer_units.get('seg_unit_delete_1')).toBeUndefined();
+  });
+
   it('cleanupOrphanSegments removes orphan segments and dangling links', async () => {
     const database = await getDb();
 
@@ -522,6 +720,84 @@ describe('LayerSegmentationTextService', () => {
     expect(await db.layer_segments.get('seg_orphan')).toBeUndefined();
     expect(await db.layer_segments.get('seg_live')).toBeTruthy();
     expect(await db.segment_links.get('lnk_orphan')).toBeUndefined();
+  });
+
+  it('removes LayerUnit-only child segments when parent utterance is deleted', async () => {
+    const database = await getDb();
+
+    await db.layer_units.put({
+      id: 'seg_unit_cascade_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layer_unit_cascade',
+      unitType: 'segment',
+      parentUnitId: 'utt_unit_cascade_1',
+      rootUnitId: 'utt_unit_cascade_1',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.layer_unit_contents.put({
+      id: 'cnt_unit_cascade_1',
+      textId: 'text_1',
+      unitId: 'seg_unit_cascade_1',
+      layerId: 'layer_unit_cascade',
+      contentRole: 'primary_text',
+      modality: 'text',
+      text: 'unit-cascade',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await removeUtteranceCascadeFromSegmentationV2(database, 'utt_unit_cascade_1');
+
+    expect(await db.layer_unit_contents.get('cnt_unit_cascade_1')).toBeUndefined();
+    expect(await db.layer_units.get('seg_unit_cascade_1')).toBeUndefined();
+  });
+
+  it('removes LayerUnit-only time_subdivision child segments when parent utterance is deleted', async () => {
+    const database = await getDb();
+
+    await db.layer_units.put({
+      id: 'seg_unit_rel_cascade_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layer_unit_rel',
+      unitType: 'segment',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.layer_unit_contents.put({
+      id: 'cnt_unit_rel_cascade_1',
+      textId: 'text_1',
+      unitId: 'seg_unit_rel_cascade_1',
+      layerId: 'layer_unit_rel',
+      contentRole: 'primary_text',
+      modality: 'text',
+      text: 'unit-rel-cascade',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.unit_relations.put({
+      id: 'rel_unit_cascade_1',
+      textId: 'text_1',
+      sourceUnitId: 'seg_unit_rel_cascade_1',
+      targetUnitId: 'utt_unit_rel_parent_1',
+      relationType: 'derived_from',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await removeUtteranceCascadeFromSegmentationV2(database, 'utt_unit_rel_parent_1');
+
+    expect(await db.layer_unit_contents.get('cnt_unit_rel_cascade_1')).toBeUndefined();
+    expect(await db.layer_units.get('seg_unit_rel_cascade_1')).toBeUndefined();
+    expect(await db.unit_relations.get('rel_unit_cascade_1')).toBeUndefined();
   });
 
   it('clips time_subdivision child segments to parent range', async () => {
@@ -612,5 +888,43 @@ describe('LayerSegmentationTextService', () => {
     expect(await db.layer_segments.get('seg_sub_short_1')).toBeUndefined();
     expect(await db.layer_segment_contents.get('cnt_sub_short_1')).toBeUndefined();
     expect(await db.segment_links.get('lnk_sub_short_1')).toBeUndefined();
+  });
+
+  it('clips LayerUnit-only time_subdivision child segments to parent range', async () => {
+    const database = await getDb();
+
+    await db.layer_units.put({
+      id: 'seg_unit_rel_clip_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layer_unit_rel',
+      unitType: 'segment',
+      startTime: 0.8,
+      endTime: 2.3,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.unit_relations.put({
+      id: 'rel_unit_clip_1',
+      textId: 'text_1',
+      sourceUnitId: 'seg_unit_rel_clip_1',
+      targetUnitId: 'utt_unit_rel_parent_clip_1',
+      relationType: 'derived_from',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const result = await enforceTimeSubdivisionParentBounds(
+      database,
+      'utt_unit_rel_parent_clip_1',
+      1.0,
+      2.0,
+    );
+
+    expect(result.clippedCount).toBe(1);
+    expect(result.deletedCount).toBe(0);
+    const seg = await db.layer_units.get('seg_unit_rel_clip_1');
+    expect(seg?.startTime).toBe(1.0);
+    expect(seg?.endTime).toBe(2.0);
   });
 });

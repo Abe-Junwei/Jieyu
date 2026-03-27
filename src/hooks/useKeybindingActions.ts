@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { UtteranceDocType } from '../db';
-import type { TimelineUnit } from './transcriptionTypes';
+import { isUtteranceTimelineUnit, type TimelineUnit } from './transcriptionTypes';
 import { DEFAULT_KEYBINDINGS, getEffectiveKeymap, matchKeyEvent } from '../services/KeybindingService';
 import { fireAndForget } from '../utils/fireAndForget';
 
@@ -98,7 +98,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
   // The individual callbacks are stable via useCallback; we mutate .current in useEffect.
   const waveformActionsRef = useRef<Record<string, (e: KeyboardEvent | React.KeyboardEvent) => void>>({});
   const activeSelectionId = selectedTimelineUnit?.unitId ?? '';
-  const activeUtteranceId = selectedTimelineUnit?.kind === 'utterance'
+  const activeUtteranceId = isUtteranceTimelineUnit(selectedTimelineUnit)
     ? selectedTimelineUnit.unitId
     : '';
 

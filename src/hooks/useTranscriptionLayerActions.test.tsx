@@ -4,33 +4,28 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useTranscriptionLayerActions } from './useTranscriptionLayerActions';
 
 const {
+  mockCountSegmentContentsByLayerId,
   mockGetDb,
   mockCreateLayer,
   mockDeleteLayer,
+  mockDeleteLayerSegmentGraphByLayerId,
   mockRemoveUtterancesBatch,
-  mockLayerSegmentContentsDelete,
-  mockLayerSegmentsPrimaryKeys,
-  mockLayerSegmentsDelete,
   mockLayerSegmentsWhereLayerIdToArray,
-  mockSegmentLinksWhereSourcePrimaryKeys,
-  mockSegmentLinksWhereTargetPrimaryKeys,
-  mockSegmentLinksBulkDelete,
   mockRemoveBySelectorLayerLinks,
   mockLayerLinksToArray,
   mockUtterancesWhereTextIdPrimaryKeys,
   mockListUtteranceTextsByUtterances,
 } = vi.hoisted(() => ({
+  mockCountSegmentContentsByLayerId: vi.fn(async () => 0),
   mockGetDb: vi.fn(),
   mockCreateLayer: vi.fn(async () => undefined),
   mockDeleteLayer: vi.fn(async () => undefined),
+  mockDeleteLayerSegmentGraphByLayerId: vi.fn(async () => ({
+    affectedUtteranceIds: [],
+    deletedSegmentIds: [],
+  })),
   mockRemoveUtterancesBatch: vi.fn(async () => undefined),
-  mockLayerSegmentContentsDelete: vi.fn(async () => undefined),
-  mockLayerSegmentsPrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
-  mockLayerSegmentsDelete: vi.fn(async () => undefined),
   mockLayerSegmentsWhereLayerIdToArray: vi.fn(async () => []),
-  mockSegmentLinksWhereSourcePrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
-  mockSegmentLinksWhereTargetPrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
-  mockSegmentLinksBulkDelete: vi.fn(async () => undefined),
   mockRemoveBySelectorLayerLinks: vi.fn(async () => undefined),
   mockLayerLinksToArray: vi.fn(async () => []),
   mockUtterancesWhereTextIdPrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
@@ -62,13 +57,19 @@ vi.mock('../services/LayerSegmentationTextService', () => ({
   listUtteranceTextsByUtterances: mockListUtteranceTextsByUtterances,
 }));
 
+vi.mock('../services/LayerSegmentQueryService', () => ({
+  LayerSegmentQueryService: {
+    countSegmentContentsByLayerId: mockCountSegmentContentsByLayerId,
+  },
+}));
+
+vi.mock('../services/LayerUnitLegacyBridgeService', () => ({
+  deleteLayerSegmentGraphByLayerId: mockDeleteLayerSegmentGraphByLayerId,
+}));
+
 describe('useTranscriptionLayerActions v2 cleanup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    mockLayerSegmentsPrimaryKeys.mockResolvedValue(['seg_1', 'seg_2']);
-    mockSegmentLinksWhereSourcePrimaryKeys.mockResolvedValue(['link_source']);
-    mockSegmentLinksWhereTargetPrimaryKeys.mockResolvedValue(['link_target']);
 
     mockGetDb.mockResolvedValue({
       collections: {
@@ -78,42 +79,12 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
         },
       },
       dexie: {
-        layer_segment_contents: {
-          where: () => ({
-            equals: () => ({
-              delete: mockLayerSegmentContentsDelete,
-              count: vi.fn(async () => 0),
-            }),
-          }),
-        },
         layer_segments: {
           where: () => ({
             equals: () => ({
-              primaryKeys: mockLayerSegmentsPrimaryKeys,
-              delete: mockLayerSegmentsDelete,
               toArray: mockLayerSegmentsWhereLayerIdToArray,
             }),
           }),
-        },
-        segment_links: {
-          where: (field: string) => {
-            if (field === 'sourceSegmentId') {
-              return {
-                anyOf: () => ({
-                  primaryKeys: mockSegmentLinksWhereSourcePrimaryKeys,
-                }),
-              };
-            }
-            if (field === 'targetSegmentId') {
-              return {
-                anyOf: () => ({
-                  primaryKeys: mockSegmentLinksWhereTargetPrimaryKeys,
-                }),
-              };
-            }
-            throw new Error(`Unexpected segment_links.where field: ${field}`);
-          },
-          bulkDelete: mockSegmentLinksBulkDelete,
         },
         layer_links: {
           toArray: mockLayerLinksToArray,
@@ -174,11 +145,36 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       await result.current.deleteLayer('layer_trl_1', { keepUtterances: true });
     });
 
-    expect(mockLayerSegmentContentsDelete).toHaveBeenCalledTimes(1);
-    expect(mockLayerSegmentsDelete).toHaveBeenCalledTimes(1);
-    expect(mockSegmentLinksBulkDelete).toHaveBeenCalledWith(['link_source', 'link_target']);
+    expect(mockDeleteLayerSegmentGraphByLayerId).toHaveBeenCalledWith(expect.anything(), 'layer_trl_1');
     expect(mockDeleteLayer).toHaveBeenCalledTimes(1);
     expect(mockRemoveUtterancesBatch).not.toHaveBeenCalled();
+  });
+
+  it('delegates layer content counting to the canonical query helper', async () => {
+    mockCountSegmentContentsByLayerId.mockResolvedValueOnce(4);
+
+    const { result } = renderHook(() => useTranscriptionLayerActions({
+      layers: [],
+      layerLinks: [],
+      layerToDeleteId: '',
+      selectedLayerId: '',
+      utterancesRef: { current: [] },
+      pushUndo: vi.fn(),
+      setLayerCreateMessage: vi.fn(),
+      setLayers: vi.fn(),
+      setLayerLinks: vi.fn(),
+      setLayerToDeleteId: vi.fn(),
+      setShowLayerManager: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedMediaId: vi.fn(),
+      setMediaItems: vi.fn(),
+      setSelectedUtteranceIds: vi.fn(),
+      setTranslations: vi.fn(),
+      setUtterances: vi.fn(),
+    }));
+
+    await expect(result.current.checkLayerHasContent('layer_count_1')).resolves.toBe(4);
+    expect(mockCountSegmentContentsByLayerId).toHaveBeenCalledWith('layer_count_1');
   });
 
   it('sets parentLayerId when creating a translation layer', async () => {

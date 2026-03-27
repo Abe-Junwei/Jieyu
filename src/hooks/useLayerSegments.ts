@@ -1,17 +1,18 @@
 /**
  * 独立边界层的 segment 数据加载 hook | Hook for loading segment data of independent-boundary layers
  *
- * 当 layer.constraint === 'independent_boundary' 时，从 layer_segments 表读取该层的独立边界数据，
+ * 当 layer.constraint === 'independent_boundary' 时，从 merged segmentation 视图读取该层的独立边界数据，
  * 供时间轴渲染使用。返回按 startTime 排序的 segment 数组。
- * When layer.constraint === 'independent_boundary', reads independent boundary data from layer_segments table
+ * When layer.constraint === 'independent_boundary', reads independent boundary data from the merged segmentation view
  * for timeline rendering. Returns segments sorted by startTime.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getDb, type LayerDocType, type LayerSegmentDocType } from '../db';
+import { type LayerDocType, type LayerSegmentDocType } from '../db';
+import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 
 /** 层编辑模式 | Layer edit mode
  * utterance: 继承主层 utterance 边界 | Inherits main-layer utterance boundaries
- * independent-segment: 独立边界（layer_segments 自由切分）| Independent boundaries (free segmentation)
+ * independent-segment: 独立边界（通过 merged segment 视图自由切分）| Independent boundaries (free segmentation via merged segment view)
  * time-subdivision: 时间细分（在父层 utterance 范围内切分）| Time subdivision (segment within parent utterance)
  */
 export type LayerEditMode = 'utterance' | 'independent-segment' | 'time-subdivision';
@@ -81,15 +82,10 @@ export function useLayerSegments(
       return;
     }
 
-    const db = await getDb();
     const result = new Map<string, LayerSegmentDocType[]>();
 
     for (const layer of independentLayers) {
-      const segments = await db.dexie.layer_segments
-        .where('[layerId+mediaId]')
-        .equals([layer.id, mediaId])
-        .toArray();
-      segments.sort((a, b) => a.startTime - b.startTime);
+      const segments = await LayerSegmentQueryService.listSegmentsByLayerMedia(layer.id, mediaId);
       result.set(layer.id, segments);
     }
 

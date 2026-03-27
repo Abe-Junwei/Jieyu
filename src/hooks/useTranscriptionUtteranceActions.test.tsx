@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import type { AnchorDocType, UtteranceDocType } from '../db';
 import { db } from '../db';
+import { featureFlags } from '../ai/config/featureFlags';
 import { LinguisticService } from '../services/LinguisticService';
 
 const { mockLogWarn, mockLogError } = vi.hoisted(() => ({
@@ -45,12 +46,17 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       db.layer_segments.clear(),
       db.layer_segment_contents.clear(),
       db.segment_links.clear(),
+      db.layer_units.clear(),
+      db.layer_unit_contents.clear(),
+      db.unit_relations.clear(),
     ]);
+    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
     mockLogWarn.mockReset();
     mockLogError.mockReset();
   });
 
   afterEach(() => {
+    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
     cleanup();
     vi.restoreAllMocks();
   });
@@ -207,23 +213,26 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const utterance = makeUtterance('utt-1', 0, 1);
     await db.utterances.put(utterance as never);
 
-    // Seed V2 entries directly.
-    await db.layer_segments.put({
+    // Seed LayerUnit canonical entries directly.
+    await db.layer_units.put({
       id: 'seg_v2_utt1',
       textId: 't1',
       mediaId: 'media1',
       layerId: 'tr-layer-1',
-      utteranceId: 'utt-1',
+      unitType: 'segment',
+      parentUnitId: 'utt-1',
+      rootUnitId: 'utt-1',
       startTime: 0,
       endTime: 1,
       createdAt: now,
       updatedAt: now,
     } as never);
-    await db.layer_segment_contents.put({
+    await db.layer_unit_contents.put({
       id: 'utr-legacy',   // V2 content ID 与 V1 ID 相同（backfill 策略）
       textId: 't1',
-      segmentId: 'seg_v2_utt1',
+      unitId: 'seg_v2_utt1',
       layerId: 'tr-layer-1',
+      contentRole: 'primary_text',
       modality: 'text',
       text: 'old',
       sourceType: 'human',
@@ -277,7 +286,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     });
 
     // Phase 1+2: 检查 V2 layer_segment_contents 而非 utterance_texts | Check V2 instead of V1
-    const v2Content = await db.layer_segment_contents.get('utr-legacy') as Record<string, unknown> | undefined;
+    const v2Content = await db.layer_unit_contents.get('utr-legacy') as Record<string, unknown> | undefined;
 
     expect(v2Content?.text).toBe('updated');
     expect(v2Content && 'recordedBySpeakerId' in v2Content).toBe(false);
@@ -415,6 +424,84 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     });
 
     expect(await db.embeddings.where('sourceId').equals('utt-translation').count()).toBe(1);
+  });
+
+  it('saveUtteranceText should write translation text through LayerUnit path when legacy mirror writes are disabled', async () => {
+    const now = new Date().toISOString();
+    const utterance = makeUtterance('utt-stop-write', 0, 1);
+    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = false;
+
+    await db.utterances.put(utterance as never);
+
+    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+      defaultTranscriptionLayerId: 'trc-default',
+      layerById: new Map([
+        ['trc-default', {
+          id: 'trc-default',
+          textId: 't1',
+          key: 'trc_default',
+          name: { zho: '默认转写层' },
+          layerType: 'transcription',
+          languageId: 'und',
+          modality: 'text',
+          isDefault: true,
+          createdAt: now,
+          updatedAt: now,
+        }],
+        ['trl-en', {
+          id: 'trl-en',
+          textId: 't1',
+          key: 'trl_en',
+          name: { zho: '英文翻译层' },
+          layerType: 'translation',
+          languageId: 'en',
+          modality: 'text',
+          createdAt: now,
+          updatedAt: now,
+        }],
+      ]) as never,
+      selectedUtteranceMedia: undefined,
+
+      translations: [],
+      utterancesRef: { current: [utterance] },
+      utterancesOnCurrentMediaRef: { current: [utterance] },
+      getUtteranceTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, utteranceId: null } },
+      timingUndoRef: { current: null },
+      pushUndo: vi.fn(),
+      createAnchor: vi.fn(),
+      updateAnchorTime: vi.fn(),
+      pruneOrphanAnchors: vi.fn(),
+      setSaveState: vi.fn(),
+      setSnapGuide: vi.fn(),
+      setMediaItems: vi.fn(),
+      setTranslations: vi.fn(),
+      setUtterances: vi.fn(),
+      setUtteranceDrafts: vi.fn(),
+      activeUtteranceUnitId: '',
+      setSelectedUtteranceIds: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.saveUtteranceText('utt-stop-write', 'translation via layerunit only', 'trl-en');
+    });
+
+    expect(await db.layer_segments.toArray()).toEqual([]);
+    expect(await db.layer_segment_contents.toArray()).toEqual([]);
+    expect(await db.layer_units.toArray()).toEqual([
+      expect.objectContaining({
+        id: 'segv2_trl-en_utt-stop-write',
+        layerId: 'trl-en',
+        unitType: 'segment',
+      }),
+    ]);
+    expect(await db.layer_unit_contents.toArray()).toEqual([
+      expect.objectContaining({
+        unitId: 'segv2_trl-en_utt-stop-write',
+        layerId: 'trl-en',
+        text: 'translation via layerunit only',
+      }),
+    ]);
   });
 
   it('offsetSelectedTimes should rollback when persistence fails after pushUndo', async () => {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { exportToEaf, importFromEaf } from './EafService';
-import type { LayerDocType, LayerSegmentDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerDocType, LayerSegmentDocType, SpeakerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 
 function withEafKeyMeta(baseKey: string, tierId?: string): string {
   if (!tierId) return baseKey;
@@ -55,6 +55,17 @@ function makeTranslation(overrides: Partial<UtteranceTextDocType> & { id: string
     createdAt: now,
     updatedAt: now,
   } as UtteranceTextDocType;
+}
+
+function makeSpeaker(overrides: Partial<SpeakerDocType> & { id: string; name: string }): SpeakerDocType {
+  const now = '2026-03-25T00:00:00.000Z';
+  return {
+    ...overrides,
+    createdAt: now,
+    updatedAt: now,
+    id: overrides.id,
+    name: overrides.name,
+  } as SpeakerDocType;
 }
 
 describe('EAF export behavior for constraint layers', () => {
@@ -186,6 +197,54 @@ describe('EAF export behavior for constraint layers', () => {
 
     const values = Array.from(tier?.querySelectorAll('ANNOTATION_VALUE') ?? []).map((node) => node.textContent ?? '');
     expect(values).toEqual(['part-a', 'part-b']);
+  });
+
+  it('exports PARTICIPANT from explicit segment speakerId on independent transcription tiers', () => {
+    const trc = makeLayer({
+      id: 'trc_independent',
+      layerType: 'transcription',
+      key: 'trc_independent',
+      name: { eng: 'IndependentTranscription', zho: 'IndependentTranscription' },
+      constraint: 'independent_boundary',
+      isDefault: false,
+    });
+    const defaultTrc = makeLayer({ id: 'trc_default', layerType: 'transcription', key: 'trc_default' });
+    const seg: LayerSegmentDocType = {
+      id: 'seg_spk_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: trc.id,
+      speakerId: 'speaker_seg_1',
+      startTime: 0.2,
+      endTime: 0.9,
+      createdAt: '2026-03-25T00:00:00.000Z',
+      updatedAt: '2026-03-25T00:00:00.000Z',
+    };
+    const segmentContents = new Map([[trc.id, new Map([[seg.id, {
+      id: 'seg_content_1',
+      textId: 'text_1',
+      segmentId: seg.id,
+      layerId: trc.id,
+      modality: 'text' as const,
+      text: 'seg-text',
+      sourceType: 'human' as const,
+      createdAt: '2026-03-25T00:00:00.000Z',
+      updatedAt: '2026-03-25T00:00:00.000Z',
+    }]])]]);
+
+    const xml = exportToEaf({
+      utterances: [makeUtterance()],
+      layers: [defaultTrc, trc],
+      translations: [makeTranslation({ id: 'utr_seg_text', layerId: trc.id, utteranceId: 'utt_1', text: 'seg-text' })],
+      layerSegments: new Map([[trc.id, [seg]]]),
+      layerSegmentContents: segmentContents,
+      speakers: [makeSpeaker({ id: 'speaker_seg_1', name: 'Segment Speaker' })],
+    });
+
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const tier = doc.querySelector('TIER[TIER_ID="IndependentTranscription"]');
+    expect(tier).not.toBeNull();
+    expect(tier?.getAttribute('PARTICIPANT')).toBe('Segment Speaker');
   });
 
   it('prefers parentLayerId mapped tier as PARENT_REF during export', () => {

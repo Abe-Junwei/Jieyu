@@ -88,12 +88,13 @@ function makeLayer(id: string): LayerDocType {
   } as LayerDocType;
 }
 
-function makeUtterance(id: string, speakerId?: string): UtteranceDocType {
+function makeUtterance(id: string, speakerId?: string, speaker?: string): UtteranceDocType {
   return {
     id,
     textId: 't1',
     mediaId: 'm1',
     ...(speakerId ? { speakerId } : {}),
+    ...(speaker ? { speaker } : {}),
     startTime: 0,
     endTime: 1,
     createdAt: NOW,
@@ -140,7 +141,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     const scrollEl = document.createElement('div');
     const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
 
-    render(
+    const { container } = render(
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[layer]}
         translationLayers={[]}
@@ -170,7 +171,43 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     expect(screen.getAllByRole('textbox').length).toBeGreaterThanOrEqual(2);
     const dimmed = document.querySelectorAll('.timeline-text-item-focus-dim');
     expect(dimmed.length).toBe(0);
-    const hidden = document.querySelectorAll('.timeline-text-item-focus-hidden');
+    const hidden = container.querySelectorAll('.timeline-text-item-focus-hidden');
+    expect(hidden.length).toBe(1);
+  });
+
+  it('matches legacy name-based speakers in focus-hard mode', () => {
+    const layer = makeLayer('trc-1');
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+
+    const { container } = render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        utterancesOnCurrentMedia={[makeUtterance('u1', undefined, '访客'), makeUtterance('u2', undefined, '旁白')]}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        speakerFocusMode="focus-hard"
+        speakerFocusSpeakerKey="name:访客"
+        speakerVisualByUtteranceId={{
+          u1: { name: '访客', color: '#ff0000' },
+          u2: { name: '旁白', color: '#00ff00' },
+        }}
+      />,
+    );
+
+    const hidden = container.querySelectorAll('.timeline-text-item-focus-hidden');
     expect(hidden.length).toBe(1);
   });
 
@@ -220,5 +257,55 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     );
 
     expect(document.querySelectorAll('.timeline-text-item-active').length).toBe(0);
+  });
+
+  it('uses independent segment speakerId when no owner utterance exists', () => {
+    const layer = {
+      ...makeLayer('trc-independent-speaker'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const segmentsByLayer = new Map([
+      [layer.id, [
+        {
+          id: 'seg_1',
+          textId: 't1',
+          mediaId: 'm1',
+          layerId: layer.id,
+          speakerId: 's1',
+          startTime: 0,
+          endTime: 1,
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ]],
+    ]);
+
+    const { container } = render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        utterancesOnCurrentMedia={[]}
+        segmentsByLayer={segmentsByLayer}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        speakerFocusMode="focus-hard"
+        speakerFocusSpeakerKey="s2"
+      />,
+    );
+
+    expect(container.querySelectorAll('.timeline-text-item-focus-hidden').length).toBe(1);
   });
 });

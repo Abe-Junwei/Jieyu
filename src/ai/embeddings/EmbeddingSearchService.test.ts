@@ -42,8 +42,46 @@ async function clearEmbeddingTables(): Promise<void> {
     db.layer_segments.clear(),
     db.layer_segment_contents.clear(),
     db.segment_links.clear(),
+    db.layer_units.clear(),
+    db.layer_unit_contents.clear(),
+    db.unit_relations.clear(),
     db.user_notes.clear(),
   ]);
+}
+
+async function putCanonicalUtteranceSegmentation(input: {
+  utteranceId: string;
+  segmentId: string;
+  contentId: string;
+  layerId: string;
+  text: string;
+  now: string;
+}): Promise<void> {
+  await db.layer_units.put({
+    id: input.segmentId,
+    textId: 'text_1',
+    mediaId: 'media_1',
+    layerId: input.layerId,
+    unitType: 'segment',
+    parentUnitId: input.utteranceId,
+    rootUnitId: input.utteranceId,
+    startTime: 0,
+    endTime: 1,
+    createdAt: input.now,
+    updatedAt: input.now,
+  });
+  await db.layer_unit_contents.put({
+    id: input.contentId,
+    textId: 'text_1',
+    unitId: input.segmentId,
+    layerId: input.layerId,
+    contentRole: 'primary_text',
+    modality: 'text',
+    text: input.text,
+    sourceType: 'human',
+    createdAt: input.now,
+    updatedAt: input.now,
+  });
 }
 
 describe('EmbeddingSearchService', () => {
@@ -421,27 +459,13 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
       },
     ]);
 
-    await db.layer_segments.put({
-      id: 'segv2_tier_1_utt_kw_1',
-      textId: 'text_1',
-      mediaId: 'media_1',
-      layerId: 'tier_1',
+    await putCanonicalUtteranceSegmentation({
       utteranceId: 'utt_kw_1',
-      startTime: 0,
-      endTime: 1,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await db.layer_segment_contents.put({
-      id: 'utxt_kw_1',
-      textId: 'text_1',
       segmentId: 'segv2_tier_1_utt_kw_1',
+      contentId: 'utxt_kw_1',
       layerId: 'tier_1',
-      modality: 'text',
       text: 'hello world from utterance',
-      sourceType: 'human',
-      createdAt: now,
-      updatedAt: now,
+      now,
     });
 
     await db.user_notes.put({
@@ -496,27 +520,13 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
       },
     ]);
 
-    await db.layer_segments.put({
-      id: 'segv2_tier_1_utt_ft_1',
-      textId: 'text_1',
-      mediaId: 'media_1',
-      layerId: 'tier_1',
+    await putCanonicalUtteranceSegmentation({
       utteranceId: 'utt_ft_1',
-      startTime: 0,
-      endTime: 1,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await db.layer_segment_contents.put({
-      id: 'utxt_ft_1',
-      textId: 'text_1',
       segmentId: 'segv2_tier_1_utt_ft_1',
+      contentId: 'utxt_ft_1',
       layerId: 'tier_1',
-      modality: 'text',
       text: 'rare morphology pattern for elicitation',
-      sourceType: 'human',
-      createdAt: now,
-      updatedAt: now,
+      now,
     });
 
     await db.user_notes.put({
@@ -543,27 +553,13 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
 
   it('hybrid mode recalls lexical candidates when vector candidates are missing', async () => {
     const now = new Date().toISOString();
-    await db.layer_segments.put({
-      id: 'segv2_tier_1_utt_kw_only',
-      textId: 'text_1',
-      mediaId: 'media_1',
-      layerId: 'tier_1',
+    await putCanonicalUtteranceSegmentation({
       utteranceId: 'utt_kw_only',
-      startTime: 0,
-      endTime: 1,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await db.layer_segment_contents.put({
-      id: 'utxt_kw_only',
-      textId: 'text_1',
       segmentId: 'segv2_tier_1_utt_kw_only',
+      contentId: 'utxt_kw_only',
       layerId: 'tier_1',
-      modality: 'text',
       text: 'field methods and morphology overview',
-      sourceType: 'human',
-      createdAt: now,
-      updatedAt: now,
+      now,
     });
 
     const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));

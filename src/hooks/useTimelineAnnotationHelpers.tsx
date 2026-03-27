@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
 import type { LayerDocType, UtteranceDocType } from '../db';
-import type { TimelineUnit } from './transcriptionTypes';
+import { createTimelineUnit, isUtteranceTimelineUnit, type TimelineUnit } from './transcriptionTypes';
 import { formatTime, getLayerLabelParts } from '../utils/transcriptionFormatters';
 
 type TimelineUtterance = Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime' | 'speaker' | 'speakerId' | 'ai_metadata'>;
@@ -106,11 +106,7 @@ export function useTimelineAnnotationHelpers({
     const isIndependentLayer = independentLayerIds.has(layerId);
     if (isIndependentLayer) {
       if (selectTimelineUnit) {
-        selectTimelineUnit({
-          layerId,
-          unitId: uttId,
-          kind: 'segment',
-        });
+        selectTimelineUnit(createTimelineUnit(layerId, uttId, 'segment'));
       } else {
         selectSegment(uttId);
       }
@@ -119,7 +115,7 @@ export function useTimelineAnnotationHelpers({
       onFocusLayerRow(layerId);
       return;
     }
-    const selectedUtteranceUnitId = selectedTimelineUnit?.kind === 'utterance'
+    const selectedUtteranceUnitId = isUtteranceTimelineUnit(selectedTimelineUnit)
       ? selectedTimelineUnit.unitId
       : '';
     if (e.shiftKey && selectedUtteranceUnitId) {
@@ -144,11 +140,7 @@ export function useTimelineAnnotationHelpers({
       }
     } else {
       if (selectTimelineUnit) {
-        selectTimelineUnit({
-          layerId,
-          unitId: uttId,
-          kind: 'utterance',
-        });
+        selectTimelineUnit(createTimelineUnit(layerId, uttId, 'utterance'));
       } else {
         selectUtterance(uttId);
       }
@@ -183,21 +175,13 @@ export function useTimelineAnnotationHelpers({
     if (player.isPlaying) player.stop();
     if (independentLayerIds.has(layerId)) {
       if (selectTimelineUnit) {
-        selectTimelineUnit({
-          layerId,
-          unitId: uttId,
-          kind: 'segment',
-        });
+        selectTimelineUnit(createTimelineUnit(layerId, uttId, 'segment'));
       } else {
         selectSegment(uttId);
       }
     } else {
       if (selectTimelineUnit) {
-        selectTimelineUnit({
-          layerId,
-          unitId: uttId,
-          kind: 'utterance',
-        });
+        selectTimelineUnit(createTimelineUnit(layerId, uttId, 'utterance'));
       } else {
         selectUtterance(uttId);
       }

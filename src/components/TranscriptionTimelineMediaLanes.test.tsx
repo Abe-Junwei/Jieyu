@@ -82,12 +82,13 @@ function makeLayer(id: string, layerType: 'transcription' | 'translation' = 'tra
   } as LayerDocType;
 }
 
-function makeUtterance(id: string, startTime: number, endTime: number, speakerId: string): UtteranceDocType {
+function makeUtterance(id: string, startTime: number, endTime: number, speakerId?: string, speaker?: string): UtteranceDocType {
   return {
     id,
     textId: 't1',
     mediaId: 'm1',
-    speakerId,
+    ...(speakerId ? { speakerId } : {}),
+    ...(speaker ? { speaker } : {}),
     startTime,
     endTime,
     createdAt: NOW,
@@ -375,6 +376,89 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     expect(screen.getByTestId('ann-u1')).toBeTruthy();
     expect(screen.getByTestId('ann-u2')).toBeTruthy();
     expect(container.querySelectorAll('.timeline-annotation-subtrack-focus-dim').length).toBe(0);
+    expect(container.querySelectorAll('.timeline-annotation-subtrack-focus-hidden').length).toBe(1);
+  });
+
+  it('matches legacy name-based speakers in focus-hard mode', () => {
+    const layer = makeLayer('trc-1');
+    const utterances = [
+      makeUtterance('u1', 0, 2, undefined, '访客'),
+      makeUtterance('u2', 2, 4, undefined, '旁白'),
+    ];
+
+    render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        timelineRenderUtterances={utterances}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        speakerFocusMode="focus-hard"
+        speakerFocusSpeakerKey="name:访客"
+      />,
+    );
+
+    const container = screen.getByTestId('ann-u1').closest('.timeline-content') as HTMLElement;
+    expect(container.querySelectorAll('.timeline-annotation-subtrack-focus-hidden').length).toBe(1);
+  });
+
+  it('uses independent segment speakerId when no owner utterance exists', () => {
+    const layer = {
+      ...makeLayer('trc-independent-speaker'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const segmentsByLayer = new Map([
+      [layer.id, [
+        {
+          id: 'seg_1',
+          textId: 't1',
+          mediaId: 'm1',
+          layerId: layer.id,
+          speakerId: 's1',
+          startTime: 0,
+          endTime: 1,
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ]],
+    ]);
+
+    render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        timelineRenderUtterances={[]}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        segmentsByLayer={segmentsByLayer}
+        speakerFocusMode="focus-hard"
+        speakerFocusSpeakerKey="s2"
+      />,
+    );
+
+    const container = screen.getByTestId('ann-seg_1').closest('.timeline-content') as HTMLElement;
     expect(container.querySelectorAll('.timeline-annotation-subtrack-focus-hidden').length).toBe(1);
   });
 

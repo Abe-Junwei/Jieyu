@@ -10,6 +10,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { fireAndForget } from '../utils/fireAndForget';
+import { getUtteranceSpeakerKey } from '../hooks/speakerManagement/speakerUtils';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { LayerActionPopover } from './LayerActionPopover';
@@ -23,6 +24,24 @@ import type { TimelineUnit } from '../hooks/transcriptionTypes';
 function normalizeSpeakerFocusKey(value: string | undefined): string {
   const trimmed = (value ?? '').trim();
   return trimmed.length > 0 ? trimmed : 'unknown-speaker';
+}
+
+function resolveSpeakerFocusKeyFromUtterance(
+  utterance?: Pick<UtteranceDocType, 'speakerId' | 'speaker'>,
+): string {
+  if (!utterance) return 'unknown-speaker';
+  return normalizeSpeakerFocusKey(getUtteranceSpeakerKey(utterance));
+}
+
+function resolveSpeakerFocusKeyFromSegment(
+  segment: Pick<LayerSegmentDocType, 'speakerId' | 'utteranceId'>,
+  utteranceById: ReadonlyMap<string, UtteranceDocType>,
+): string {
+  if (segment.speakerId && segment.speakerId.trim().length > 0) {
+    return normalizeSpeakerFocusKey(segment.speakerId);
+  }
+  const ownerUtterance = segment.utteranceId ? utteranceById.get(segment.utteranceId) : undefined;
+  return resolveSpeakerFocusKeyFromUtterance(ownerUtterance);
 }
 
 const EMPTY_SPEAKER_LAYOUT: SpeakerLayerLayoutResult = {
@@ -40,12 +59,12 @@ function toSpeakerLayoutInputFromSegments(
   utteranceById: ReadonlyMap<string, UtteranceDocType>,
 ): UtteranceDocType[] {
   return segments.map((segment) => {
-    const ownerSpeakerId = segment.utteranceId ? utteranceById.get(segment.utteranceId)?.speakerId : undefined;
+    const speakerKey = resolveSpeakerFocusKeyFromSegment(segment, utteranceById);
     return {
       id: segment.id,
       textId: segment.textId,
       mediaId: segment.mediaId,
-      ...(ownerSpeakerId ? { speakerId: ownerSpeakerId } : {}),
+      ...(speakerKey ? { speakerId: speakerKey } : {}),
       startTime: segment.startTime,
       endTime: segment.endTime,
       createdAt: segment.createdAt,
@@ -60,8 +79,7 @@ function buildSegmentSpeakerIdMap(
 ): Map<string, string> {
   const next = new Map<string, string>();
   for (const segment of segments) {
-    const speakerId = segment.utteranceId ? utteranceById.get(segment.utteranceId)?.speakerId : undefined;
-    next.set(segment.id, normalizeSpeakerFocusKey(speakerId));
+    next.set(segment.id, resolveSpeakerFocusKeyFromSegment(segment, utteranceById));
   }
   return next;
 }
@@ -334,7 +352,7 @@ export function TranscriptionTimelineTextOnly({
             const utt = rawItem as UtteranceDocType;
             const utteranceSpeakerKey = isIndependent
               ? (segmentSpeakerIdByLayer.get(layer.id)?.get(utt.id) ?? 'unknown-speaker')
-              : normalizeSpeakerFocusKey(utt.speakerId);
+              : resolveSpeakerFocusKeyFromUtterance(utt);
             const focusMatched = speakerFocusMode === 'all' || !speakerFocusSpeakerKey || utteranceSpeakerKey === speakerFocusSpeakerKey;
             const shouldHideForFocus = speakerFocusMode === 'focus-hard' && !focusMatched;
             const shouldDimForFocus = speakerFocusMode === 'focus-soft' && !focusMatched;
