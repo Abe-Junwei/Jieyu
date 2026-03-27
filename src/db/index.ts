@@ -434,10 +434,10 @@ interface TagDefinitionDocType {
 /**
  * 层间边界约束（对齐 ELAN LINGUISTIC_TYPE.CONSTRAINTS）| Layer boundary constraint (aligned with ELAN LINGUISTIC_TYPE.CONSTRAINTS)
  * - 'symbolic_association': 继承父层边界 1:1（默认，翻译层） | Inherit parent boundaries 1:1 (default, translation)
- * - 'none': 完全独立边界，由 layer_segments 存储 | Fully independent boundaries stored in layer_segments
+ * - 'independent_boundary': 完全独立边界，由 layer_segments 存储 | Fully independent boundaries stored in layer_segments
  * - 'time_subdivision': 在父段时间范围内自由细分（Phase 2）| Free subdivision within parent segment time range (Phase 2)
  */
-type LayerConstraint = 'symbolic_association' | 'none' | 'time_subdivision';
+type LayerConstraint = 'symbolic_association' | 'independent_boundary' | 'time_subdivision';
 
 interface LayerDocType {
   id: string;
@@ -477,7 +477,7 @@ interface UtteranceTextDocType {
   updatedAt: string;
 }
 
-type SegmentLinkType = 'equivalent' | 'projection' | 'bridge';
+type SegmentLinkType = 'equivalent' | 'projection' | 'bridge' | 'time_subdivision';
 
 interface LayerSegmentDocType {
   id: string;
@@ -510,6 +510,28 @@ interface LayerSegmentContentDocType {
   ai_metadata?: AiMetadata;
   provenance?: ProvenanceEnvelope;
   accessRights?: 'open' | 'restricted' | 'confidential';
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 统一时间单元（方案 B 基座）| Unified timeline unit (Plan B foundation)
+ * - sourceKind='utterance': 来自主轴 utterance 的投影单元 | projected from utterance axis
+ * - sourceKind='segment': 来自层内独立 segment 的单元 | sourced from per-layer segment
+ */
+interface LayerUtteranceDocType {
+  id: string;
+  textId: string;
+  mediaId: string;
+  layerId: string;
+  sourceKind: 'utterance' | 'segment';
+  sourceId: string;
+  startTime: number;
+  endTime: number;
+  speakerId?: string;
+  startAnchorId?: string;
+  endAnchorId?: string;
+  ordinal?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -1026,7 +1048,7 @@ const tagDefinitionDocSchema = z.object({
   createdAt: isoDateSchema,
 });
 
-const layerConstraintSchema = z.enum(['symbolic_association', 'none', 'time_subdivision']);
+const layerConstraintSchema = z.enum(['symbolic_association', 'independent_boundary', 'time_subdivision']);
 
 const translationLayerDocSchema = z.object({
   id: z.string().min(1),
@@ -1069,6 +1091,7 @@ const layerSegmentDocSchema = z
     textId: z.string().min(1),
     mediaId: z.string().min(1),
     layerId: z.string().min(1),
+    utteranceId: z.string().min(1).optional(),
     startTime: z.number().finite(),
     endTime: z.number().finite(),
     startAnchorId: z.string().min(1).optional(),
@@ -1100,6 +1123,28 @@ const layerSegmentContentDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
+const layerUtteranceDocSchema = z
+  .object({
+    id: z.string().min(1),
+    textId: z.string().min(1),
+    mediaId: z.string().min(1),
+    layerId: z.string().min(1),
+    sourceKind: z.enum(['utterance', 'segment']),
+    sourceId: z.string().min(1),
+    startTime: z.number().finite(),
+    endTime: z.number().finite(),
+    speakerId: z.string().min(1).optional(),
+    startAnchorId: z.string().min(1).optional(),
+    endAnchorId: z.string().min(1).optional(),
+    ordinal: z.number().int().min(0).optional(),
+    createdAt: isoDateSchema,
+    updatedAt: isoDateSchema,
+  })
+  .refine((doc) => doc.endTime >= doc.startTime, {
+    message: 'endTime must be >= startTime',
+    path: ['endTime'],
+  });
+
 const segmentLinkDocSchema = z.object({
   id: z.string().min(1),
   textId: z.string().min(1),
@@ -1108,7 +1153,7 @@ const segmentLinkDocSchema = z.object({
   sourceLayerId: z.string().min(1).optional(),
   targetLayerId: z.string().min(1).optional(),
   utteranceId: z.string().min(1).optional(),
-  linkType: z.enum(['equivalent', 'projection', 'bridge']),
+  linkType: z.enum(['equivalent', 'projection', 'bridge', 'time_subdivision']),
   confidence: z.number().min(0).max(1).optional(),
   provenance: provenanceSchema.optional(),
   createdAt: isoDateSchema,
@@ -1324,6 +1369,10 @@ function validateLayerSegmentContentDoc(doc: LayerSegmentContentDocType): void {
   layerSegmentContentDocSchema.parse(doc);
 }
 
+function validateLayerUtteranceDoc(doc: LayerUtteranceDocType): void {
+  layerUtteranceDocSchema.parse(doc);
+}
+
 function validateSegmentLinkDoc(doc: SegmentLinkDocType): void {
   segmentLinkDocSchema.parse(doc);
 }
@@ -1382,6 +1431,15 @@ class DexieCollectionAdapter<T extends { id: string }> {
     return {
       exec: async (): Promise<JieyuDoc<T> | null> => {
         const entries = Object.entries(args.selector) as Array<[keyof T, unknown]>;
+        if (entries.length === 1) {
+          const [key, expected] = entries[0]!;
+          try {
+            const indexed = await this.table.where(String(key)).equals(expected as string | number).first();
+            return indexed ? wrapDoc(indexed) : null;
+          } catch {
+            // Fall through to generic filter path for non-indexed fields.
+          }
+        }
         const found = await this.table
           .filter((row) => entries.every(([key, expected]) => row[key] === expected))
           .first();
@@ -1421,9 +1479,42 @@ class DexieCollectionAdapter<T extends { id: string }> {
 
   async removeBySelector(selector: Selector<T>): Promise<number> {
     const entries = Object.entries(selector) as Array<[keyof T, unknown]>;
-    const keys = (await this.table
-      .filter((row) => entries.every(([key, expected]) => row[key] === expected))
-      .primaryKeys()) as string[];
+    let keys: string[] = [];
+
+    // 优先使用任一可索引字段先收窄候选，再做内存二次过滤 | Narrow candidates via indexed field first, then in-memory refine.
+    const firstIndexedEntry = entries.find(([rawKey, rawExpected]) => {
+      const key = String(rawKey);
+      const expected = rawExpected;
+      const isPrimitive = typeof expected === 'string' || typeof expected === 'number' || typeof expected === 'boolean';
+      const hasIndex = key === 'id' || key in this.table.schema.idxByName;
+      return isPrimitive && hasIndex;
+    });
+
+    if (firstIndexedEntry) {
+      const [rawKey, rawExpected] = firstIndexedEntry;
+      const key = String(rawKey);
+      const expected = rawExpected as string | number;
+      try {
+        const indexedKeys = (await this.table.where(key).equals(expected).primaryKeys()) as string[];
+        if (entries.length === 1) {
+          keys = indexedKeys;
+        } else if (indexedKeys.length > 0) {
+          const indexedRows = await this.table.bulkGet(indexedKeys);
+          keys = indexedRows
+            .filter((row): row is T => Boolean(row))
+            .filter((row) => entries.every(([entryKey, entryExpected]) => row[entryKey] === entryExpected))
+            .map((row) => row.id);
+        }
+      } catch {
+        // 非索引或不支持 equals 的字段，回退 filter 扫描 | Fall back to filter scan for unsupported selectors.
+      }
+    }
+
+    if (keys.length === 0) {
+      keys = (await this.table
+        .filter((row) => entries.every(([key, expected]) => row[key] === expected))
+        .primaryKeys()) as string[];
+    }
 
     if (keys.length === 0) {
       return 0;
@@ -1464,7 +1555,7 @@ function tierTypeToConstraint(tierType: TierType): LayerConstraint | undefined {
   switch (tierType) {
     case 'symbolic-association': return 'symbolic_association';
     case 'time-subdivision': return 'time_subdivision';
-    case 'time-aligned': return 'none';
+    case 'time-aligned': return 'independent_boundary';
     default: return undefined;
   }
 }
@@ -1472,7 +1563,7 @@ function tierTypeToConstraint(tierType: TierType): LayerConstraint | undefined {
 /** LayerConstraint → TierType 映射 | Map LayerConstraint to TierType */
 function constraintToTierType(constraint: LayerConstraint | undefined): TierType {
   switch (constraint) {
-    case 'none': return 'time-aligned';
+    case 'independent_boundary': return 'time-aligned';
     case 'time_subdivision': return 'time-subdivision';
     case 'symbolic_association': return 'symbolic-association';
     default: return 'time-aligned';
@@ -1557,6 +1648,30 @@ class TierBackedLayerCollectionAdapter implements CollectionAdapter<LayerDocType
   async findByIndex(indexName: string, value: string | number): Promise<Array<JieyuDoc<LayerDocType>>> {
     if (indexName === 'textId') {
       const rows = await this.tierTable.where('textId').equals(String(value)).toArray();
+      return rows
+        .map((row) => bridgeTierToLayer(row))
+        .filter((row): row is LayerDocType => Boolean(row))
+        .map((row) => wrapDoc(row));
+    }
+
+    if (indexName === 'key') {
+      const rows = await this.tierTable.where('key').equals(`${BRIDGE_TIER_PREFIX}${String(value)}`).toArray();
+      return rows
+        .map((row) => bridgeTierToLayer(row))
+        .filter((row): row is LayerDocType => Boolean(row))
+        .map((row) => wrapDoc(row));
+    }
+
+    if (indexName === 'parentLayerId') {
+      const rows = await this.tierTable.where('parentTierId').equals(String(value)).toArray();
+      return rows
+        .map((row) => bridgeTierToLayer(row))
+        .filter((row): row is LayerDocType => Boolean(row))
+        .map((row) => wrapDoc(row));
+    }
+
+    if (indexName === 'layerType') {
+      const rows = await this.tierTable.where('contentType').equals(String(value)).toArray();
       return rows
         .map((row) => bridgeTierToLayer(row))
         .filter((row): row is LayerDocType => Boolean(row))
@@ -1652,6 +1767,7 @@ type JieyuCollections = {
   tag_definitions: CollectionAdapter<TagDefinitionDocType>;
   layers: CollectionAdapter<LayerDocType>;
   utterance_texts: CollectionAdapter<UtteranceTextDocType>;
+  layer_utterances: CollectionAdapter<LayerUtteranceDocType>;
   layer_segments: CollectionAdapter<LayerSegmentDocType>;
   layer_segment_contents: CollectionAdapter<LayerSegmentContentDocType>;
   segment_links: CollectionAdapter<SegmentLinkDocType>;
@@ -1689,6 +1805,11 @@ type SegmentationV2BackfillRows = {
   segments: LayerSegmentDocType[];
   contents: LayerSegmentContentDocType[];
   links: SegmentLinkDocType[];
+};
+
+type V28BackfillPlan = {
+  segment: LayerSegmentDocType;
+  content: LayerSegmentContentDocType;
 };
 
 function buildSegmentationV2BackfillRows(input: {
@@ -1836,6 +1957,65 @@ function buildSegmentationV2BackfillRows(input: {
   };
 }
 
+function buildV28BackfillPlanForText(input: {
+  text: UtteranceTextDocType;
+  utterance: UtteranceDocType;
+  nowIso: string;
+  existingContent?: LayerSegmentContentDocType;
+  segmentExists: (segmentId: string) => boolean;
+}): V28BackfillPlan | null {
+  const { text, utterance, nowIso, existingContent, segmentExists } = input;
+  const canonicalSegmentId = `segv2_${text.layerId}_${utterance.id}`;
+
+  if (existingContent && segmentExists(existingContent.segmentId)) {
+    return null;
+  }
+
+  const segment: LayerSegmentDocType = {
+    id: canonicalSegmentId,
+    textId: utterance.textId,
+    mediaId: utterance.mediaId && utterance.mediaId.trim().length > 0 ? utterance.mediaId : '__unknown_media__',
+    layerId: text.layerId,
+    utteranceId: utterance.id,
+    startTime: utterance.startTime,
+    endTime: utterance.endTime,
+    ...(utterance.startAnchorId ? { startAnchorId: utterance.startAnchorId } : {}),
+    ...(utterance.endAnchorId ? { endAnchorId: utterance.endAnchorId } : {}),
+    provenance: { actorType: 'system', method: 'projection', createdAt: nowIso, updatedAt: nowIso },
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  };
+
+  if (existingContent) {
+    return {
+      segment,
+      content: {
+        ...existingContent,
+        segmentId: canonicalSegmentId,
+        updatedAt: nowIso,
+      },
+    };
+  }
+
+  const content: LayerSegmentContentDocType = {
+    id: text.id,
+    textId: utterance.textId,
+    segmentId: canonicalSegmentId,
+    layerId: text.layerId,
+    modality: text.modality,
+    ...(text.text !== undefined ? { text: text.text } : {}),
+    ...(text.translationAudioMediaId ? { translationAudioMediaId: text.translationAudioMediaId } : {}),
+    sourceType: text.sourceType,
+    ...(text.ai_metadata ? { ai_metadata: text.ai_metadata } : {}),
+    ...(text.provenance ? { provenance: text.provenance } : {}),
+    ...(text.accessRights ? { accessRights: text.accessRights } : {}),
+    createdAt: text.createdAt,
+    updatedAt: text.updatedAt,
+  };
+
+  return { segment, content };
+}
+
 class JieyuDexie extends Dexie {
   texts!: Table<TextDocType, string>;
   media_items!: Table<MediaItemDocType, string>;
@@ -1859,6 +2039,7 @@ class JieyuDexie extends Dexie {
   phonemes!: Table<PhonemeDocType, string>;
   tag_definitions!: Table<TagDefinitionDocType, string>;
   utterance_texts!: Table<UtteranceTextDocType, string>;
+  layer_utterances!: Table<LayerUtteranceDocType, string>;
   layer_segments!: Table<LayerSegmentDocType, string>;
   layer_segment_contents!: Table<LayerSegmentContentDocType, string>;
   segment_links!: Table<SegmentLinkDocType, string>;
@@ -2484,8 +2665,165 @@ class JieyuDexie extends Dexie {
         await trackEntitiesTable.bulkPut(toInsert);
       }
 
-      // Clear LocalStorage after successful migration
-      localStorage.removeItem(STORAGE_KEY);
+      // Keep LocalStorage as fallback safety net; cleanup can be done by explicit maintenance task later.
+      // 保留 LocalStorage 作为兜底，避免迁移提交窗口崩溃导致“本地已删、DB未完成”丢失。
+    });
+
+    // v27: Plan B foundation — unified per-layer timeline units.
+    // 统一时间单元基座：先回填默认转写层与独立段层，后续逐步替换业务读写。
+    this.version(27).stores({
+      layer_utterances: 'id, textId, mediaId, layerId, sourceKind, sourceId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [textId+layerId], [layerId+sourceKind+sourceId]',
+    }).upgrade(async (tx: unknown) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const typedTx = tx as any;
+      const utterancesTable = typedTx.table('utterances');
+      const tiersTable = typedTx.table('tier_definitions');
+      const layerSegmentsTable = typedTx.table('layer_segments');
+      const layerUtterancesTable = typedTx.table('layer_utterances');
+
+      const [utterances, tiers, segments] = await Promise.all([
+        utterancesTable.toArray() as Promise<UtteranceDocType[]>,
+        tiersTable.toArray() as Promise<TierDefinitionDocType[]>,
+        layerSegmentsTable.toArray() as Promise<LayerSegmentDocType[]>,
+      ]);
+
+      if (utterances.length === 0 && segments.length === 0) return;
+
+      const defaultTrcByText = new Map<string, TierDefinitionDocType>();
+      const trcByText = new Map<string, TierDefinitionDocType[]>();
+      for (const tier of tiers) {
+        if (tier.contentType !== 'transcription') continue;
+        const bucket = trcByText.get(tier.textId);
+        if (bucket) bucket.push(tier);
+        else trcByText.set(tier.textId, [tier]);
+      }
+      for (const [textId, bucket] of trcByText.entries()) {
+        const sorted = [...bucket].sort((a, b) => {
+          const defaultCmp = Number(Boolean(b.isDefault)) - Number(Boolean(a.isDefault));
+          if (defaultCmp !== 0) return defaultCmp;
+          const sortA = typeof a.sortOrder === 'number' ? a.sortOrder : Number.MAX_SAFE_INTEGER;
+          const sortB = typeof b.sortOrder === 'number' ? b.sortOrder : Number.MAX_SAFE_INTEGER;
+          if (sortA !== sortB) return sortA - sortB;
+          return a.id.localeCompare(b.id);
+        });
+        const picked = sorted[0];
+        if (picked) defaultTrcByText.set(textId, picked);
+      }
+
+      const rowsById = new Map<string, LayerUtteranceDocType>();
+      for (const utt of utterances) {
+        const defaultTrc = defaultTrcByText.get(utt.textId);
+        if (!defaultTrc || !utt.mediaId) continue;
+        const id = `lu_${defaultTrc.id}_utt_${utt.id}`;
+        rowsById.set(id, {
+          id,
+          textId: utt.textId,
+          mediaId: utt.mediaId,
+          layerId: defaultTrc.id,
+          sourceKind: 'utterance',
+          sourceId: utt.id,
+          startTime: utt.startTime,
+          endTime: utt.endTime,
+          ...(utt.speakerId ? { speakerId: utt.speakerId } : {}),
+          ...(utt.startAnchorId ? { startAnchorId: utt.startAnchorId } : {}),
+          ...(utt.endAnchorId ? { endAnchorId: utt.endAnchorId } : {}),
+          ...((utt as any).ordinal !== undefined && typeof (utt as any).ordinal === 'number' ? { ordinal: (utt as any).ordinal } : {}),
+          createdAt: utt.createdAt,
+          updatedAt: utt.updatedAt,
+        });
+      }
+
+      for (const seg of segments) {
+        const id = `lu_${seg.layerId}_seg_${seg.id}`;
+        rowsById.set(id, {
+          id,
+          textId: seg.textId,
+          mediaId: seg.mediaId,
+          layerId: seg.layerId,
+          sourceKind: 'segment',
+          sourceId: seg.id,
+          startTime: seg.startTime,
+          endTime: seg.endTime,
+          ...(seg.startAnchorId ? { startAnchorId: seg.startAnchorId } : {}),
+          ...(seg.endAnchorId ? { endAnchorId: seg.endAnchorId } : {}),
+          ...(typeof seg.ordinal === 'number' ? { ordinal: seg.ordinal } : {}),
+          createdAt: seg.createdAt,
+          updatedAt: seg.updatedAt,
+        });
+      }
+
+      const rows = [...rowsById.values()];
+      if (rows.length > 0) {
+        await layerUtterancesTable.bulkPut(rows);
+      }
+    });
+
+    // v28: Backfill utterance_texts → layer_segment_contents（Phase 0 去双写安全网）
+    // 确保每一条 utterance_texts 行都有对应 V2 条目；v22 迁移的条目用 segv22_ 前缀，
+    // 后续 BridgeService 写入的用 segv2_ 前缀，此处按 content ID 幂等补全。
+    // Ensure every utterance_texts row has a corresponding V2 entry. Idempotent by content ID.
+    this.version(28).stores({}).upgrade(async (tx: unknown) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const typedTx = tx as any;
+      const utteranceTextsTable = typedTx.table('utterance_texts');
+      const utterancesTable     = typedTx.table('utterances');
+      const layerSegmentsTable  = typedTx.table('layer_segments');
+      const layerSegmentContentsTable = typedTx.table('layer_segment_contents');
+
+      const [allTexts, allUtterances, existingContents, existingSegmentIds] = await Promise.all([
+        utteranceTextsTable.toArray() as Promise<UtteranceTextDocType[]>,
+        utterancesTable.toArray()     as Promise<UtteranceDocType[]>,
+        layerSegmentContentsTable.toArray() as Promise<LayerSegmentContentDocType[]>,
+        (layerSegmentsTable.toCollection().primaryKeys()) as Promise<string[]>,
+      ]);
+
+      if (allTexts.length === 0) return;
+
+      const utteranceById = new Map(allUtterances.map((u: UtteranceDocType) => [u.id, u]));
+      const existingContentById = new Map(existingContents.map((c: LayerSegmentContentDocType) => [c.id, c]));
+      const existingSegmentIdSet = new Set(existingSegmentIds);
+      const now = new Date().toISOString();
+
+      const BATCH_SIZE = 200;
+      const segmentBatch: LayerSegmentDocType[] = [];
+      const contentBatch: LayerSegmentContentDocType[] = [];
+
+      for (const text of allTexts) {
+        const utt = utteranceById.get(text.utteranceId);
+        if (!utt) continue; // 孤立 text，跳过 | orphan text, skip
+        const existingContent = existingContentById.get(text.id);
+
+        // 修复分支：若 content 存在但 segment 丢失，重建 canonical segment 并回指 | Repair branch: rebuild canonical segment when content exists but segment is missing
+        const plan = buildV28BackfillPlanForText({
+          text,
+          utterance: utt,
+          nowIso: now,
+          ...(existingContent !== undefined
+            ? { existingContent }
+            : {}),
+          segmentExists: (segmentId) => existingSegmentIdSet.has(segmentId),
+        });
+        if (!plan) continue;
+
+        segmentBatch.push(plan.segment);
+        contentBatch.push(plan.content);
+        existingSegmentIdSet.add(plan.segment.id);
+        existingContentById.set(plan.content.id, plan.content);
+
+        // 分批写入避免 IndexedDB 单事务过大 | Batch write to avoid oversized transactions
+        if (segmentBatch.length >= BATCH_SIZE) {
+          await layerSegmentsTable.bulkPut(segmentBatch);
+          await layerSegmentContentsTable.bulkPut(contentBatch);
+          segmentBatch.length = 0;
+          contentBatch.length = 0;
+        }
+      }
+
+      // 写入剩余 | Flush remaining
+      if (segmentBatch.length > 0) {
+        await layerSegmentsTable.bulkPut(segmentBatch);
+        await layerSegmentContentsTable.bulkPut(contentBatch);
+      }
     });
   }
 }
@@ -2551,6 +2889,10 @@ async function _createDb(): Promise<JieyuDatabase> {
     utterance_texts: new DexieCollectionAdapter(
       dexie.utterance_texts,
       validateUtteranceTextDoc,
+    ),
+    layer_utterances: new DexieCollectionAdapter(
+      dexie.layer_utterances,
+      validateLayerUtteranceDoc,
     ),
     layer_segments: new DexieCollectionAdapter(
       dexie.layer_segments,
@@ -3101,4 +3443,4 @@ export type {
 };
 
 export { LAYER_SOFT_LIMITS };
-export { buildSegmentationV2BackfillRows };
+export { buildSegmentationV2BackfillRows, buildV28BackfillPlanForText };

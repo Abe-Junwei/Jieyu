@@ -17,6 +17,8 @@ import type {
   UtteranceTextDocType,
   UtteranceTokenDocType,
   UtteranceMorphemeDocType,
+  LayerSegmentDocType,
+  LayerSegmentContentDocType,
 } from '../db';
 
 export interface ToolboxExportInput {
@@ -25,6 +27,10 @@ export interface ToolboxExportInput {
   translations: UtteranceTextDocType[];
   tokens?: UtteranceTokenDocType[];
   morphemes?: UtteranceMorphemeDocType[];
+  /** 独立层 segment 数据 | Independent layer segment data */
+  segmentsByLayer?: Map<string, LayerSegmentDocType[]>;
+  /** segment 内容按 layerId → segmentId 索引 | Segment content indexed by layerId → segmentId */
+  segmentContents?: Map<string, Map<string, LayerSegmentContentDocType>>;
 }
 
 export interface ToolboxImportResult {
@@ -220,7 +226,7 @@ function buildWordMarkers(
 }
 
 export function exportToToolbox(input: ToolboxExportInput): string {
-  const { utterances, layers, translations, tokens = [], morphemes = [] } = input;
+  const { utterances, layers, translations, tokens = [], morphemes = [], segmentsByLayer, segmentContents } = input;
   const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
 
   const tokensByUtteranceId = new Map<string, UtteranceTokenDocType[]>();
@@ -277,6 +283,25 @@ export function exportToToolbox(input: ToolboxExportInput): string {
     if (ft) lines.push(`\\ft ${ft}`);
     lines.push('');
   });
+
+  // 附加含 segment 数据的层记录（不分层类型）| Append segment records for any layer present in segmentsByLayer
+  if (segmentsByLayer) {
+    for (const [layerId, segs] of segmentsByLayer) {
+      const layer = layers.find((l) => l.id === layerId);
+      if (!layer) continue;
+      const tierName = layer.name?.eng ?? layer.name?.zho ?? layer.key;
+      const sortedSegs = [...segs].sort((a, b) => a.startTime - b.startTime);
+      const contentMap = segmentContents?.get(layerId);
+      lines.push(`\\_sh v3.0 400  ${tierName}`);
+      for (const seg of sortedSegs) {
+        lines.push(`\\ref ${seg.id}`);
+        lines.push(`\\ts ${seg.startTime.toFixed(3)}`);
+        lines.push(`\\te ${seg.endTime.toFixed(3)}`);
+        lines.push(`\\tx ${contentMap?.get(seg.id)?.text ?? ''}`);
+        lines.push('');
+      }
+    }
+  }
 
   return `${lines.join('\n').trimEnd()}\n`;
 }

@@ -1,6 +1,5 @@
 import 'fake-indexeddb/auto';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { featureFlags } from '../ai/config/featureFlags';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   db,
   type LayerSegmentContentDocType,
@@ -50,16 +49,11 @@ function makeLink(overrides: Partial<SegmentLinkDocType> & { id: string; sourceS
 describe('LayerSegmentationV2Service', () => {
   beforeEach(async () => {
     await db.open();
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = true;
     await Promise.all([
       db.layer_segments.clear(),
       db.layer_segment_contents.clear(),
       db.segment_links.clear(),
     ]);
-  });
-
-  afterEach(() => {
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = false;
   });
 
   it('creates and queries segments with contents', async () => {
@@ -97,14 +91,6 @@ describe('LayerSegmentationV2Service', () => {
     expect(await db.segment_links.where('sourceSegmentId').equals(seg1.id).count()).toBe(0);
     expect(await db.segment_links.where('targetSegmentId').equals(seg1.id).count()).toBe(0);
     expect(await db.layer_segments.get(seg2.id)).toBeTruthy();
-  });
-
-  it('gates operations behind feature flag', async () => {
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = false;
-
-    await expect(
-      LayerSegmentationV2Service.createSegment(makeSegment({ id: 'seg_flag_off' })),
-    ).rejects.toThrow(/segmentBoundaryV2Enabled/);
   });
 
   it('cleans orphan segments via service API', async () => {
@@ -148,6 +134,22 @@ describe('LayerSegmentationV2Service', () => {
     expect(allSegs).toHaveLength(2);
   });
 
+  it('clones segment contents to the second segment when splitting', async () => {
+    const seg = makeSegment({ id: 'seg_split_with_content', startTime: 1.0, endTime: 3.0 });
+    await LayerSegmentationV2Service.createSegment(seg);
+    await LayerSegmentationV2Service.upsertSegmentContent(
+      makeContent({ id: 'cnt_split_src', segmentId: seg.id, text: '原始内容' }),
+    );
+
+    const { second } = await LayerSegmentationV2Service.splitSegment(seg.id, 2.0);
+
+    const firstContents = await db.layer_segment_contents.where('segmentId').equals(seg.id).toArray();
+    const secondContents = await db.layer_segment_contents.where('segmentId').equals(second.id).toArray();
+    expect(firstContents).toHaveLength(1);
+    expect(secondContents).toHaveLength(1);
+    expect(secondContents[0]?.text).toBe('原始内容');
+  });
+
   it('rejects split point too close to start boundary', async () => {
     const seg = makeSegment({ id: 'seg_split_close_start', startTime: 1.0, endTime: 3.0 });
     await LayerSegmentationV2Service.createSegment(seg);
@@ -170,6 +172,30 @@ describe('LayerSegmentationV2Service', () => {
     await expect(
       LayerSegmentationV2Service.splitSegment('seg_nonexistent', 1.5),
     ).rejects.toThrow(/not found/);
+  });
+
+  it('clones source segment_links to the second segment when splitting', async () => {
+    const seg = makeSegment({ id: 'seg_split_link', startTime: 1.0, endTime: 3.0 });
+    await LayerSegmentationV2Service.createSegmentWithParentConstraint(
+      seg, 'utt_parent_split', 1.0, 3.0,
+    );
+    // 原段有一条 time_subdivision link | Original has a time_subdivision link
+    const linksBefore = await db.segment_links.where('sourceSegmentId').equals('seg_split_link').toArray();
+    expect(linksBefore).toHaveLength(1);
+
+    const { second } = await LayerSegmentationV2Service.splitSegment('seg_split_link', 2.0);
+
+    // 第一段保留原 link | First keeps original link
+    const firstLinks = await db.segment_links.where('sourceSegmentId').equals('seg_split_link').toArray();
+    expect(firstLinks).toHaveLength(1);
+    expect(firstLinks[0]!.targetSegmentId).toBe('utt_parent_split');
+
+    // 第二段也获得克隆的 link | Second also gets a cloned link
+    const secondLinks = await db.segment_links.where('sourceSegmentId').equals(second.id).toArray();
+    expect(secondLinks).toHaveLength(1);
+    expect(secondLinks[0]!.targetSegmentId).toBe('utt_parent_split');
+    expect(secondLinks[0]!.linkType).toBe('time_subdivision');
+    expect(secondLinks[0]!.id).not.toBe(firstLinks[0]!.id);
   });
 
   // ── mergeAdjacentSegments tests ──
@@ -218,5 +244,60 @@ describe('LayerSegmentationV2Service', () => {
     await expect(
       LayerSegmentationV2Service.mergeAdjacentSegments('seg_merge_exist', 'seg_ghost'),
     ).rejects.toThrow(/not found/);
+  });
+
+  it('rejects merge for non-adjacent segments', async () => {
+    const seg1 = makeSegment({ id: 'seg_nadj_1', startTime: 1.0, endTime: 2.0 });
+    const seg2 = makeSegment({ id: 'seg_nadj_2', startTime: 2.0, endTime: 3.0 });
+    const seg3 = makeSegment({ id: 'seg_nadj_3', startTime: 3.0, endTime: 4.0 });
+    await LayerSegmentationV2Service.createSegment(seg1);
+    await LayerSegmentationV2Service.createSegment(seg2);
+    await LayerSegmentationV2Service.createSegment(seg3);
+
+    await expect(
+      LayerSegmentationV2Service.mergeAdjacentSegments(seg1.id, seg3.id),
+    ).rejects.toThrow(/adjacent/);
+  });
+
+  // ── createSegmentWithParentConstraint 测试 | Tests ──
+
+  it('creates segment clipped to parent utterance range with segment_link', async () => {
+    const seg = makeSegment({ id: 'seg_pc_1', startTime: 0.5, endTime: 3.5 });
+    const result = await LayerSegmentationV2Service.createSegmentWithParentConstraint(
+      seg, 'utt_parent_1', 1.0, 3.0,
+    );
+    // 裁剪到父 utterance 范围 | Clipped to parent utterance range
+    expect(result.startTime).toBe(1.0);
+    expect(result.endTime).toBe(3.0);
+
+    // 已写入 DB | Written to DB
+    const stored = await db.layer_segments.get('seg_pc_1');
+    expect(stored).toBeTruthy();
+    expect(stored!.startTime).toBe(1.0);
+    expect(stored!.endTime).toBe(3.0);
+
+    // 同时创建了 segment_link | Also created segment_link
+    const links = await db.segment_links.where('sourceSegmentId').equals('seg_pc_1').toArray();
+    expect(links).toHaveLength(1);
+    expect(links[0]!.targetSegmentId).toBe('utt_parent_1');
+    expect(links[0]!.linkType).toBe('time_subdivision');
+  });
+
+  it('keeps segment unchanged when already inside parent range', async () => {
+    const seg = makeSegment({ id: 'seg_pc_2', startTime: 1.5, endTime: 2.5 });
+    const result = await LayerSegmentationV2Service.createSegmentWithParentConstraint(
+      seg, 'utt_parent_2', 1.0, 3.0,
+    );
+    expect(result.startTime).toBe(1.5);
+    expect(result.endTime).toBe(2.5);
+  });
+
+  it('rejects segment too short after clipping to parent', async () => {
+    const seg = makeSegment({ id: 'seg_pc_3', startTime: 2.97, endTime: 3.5 });
+    await expect(
+      LayerSegmentationV2Service.createSegmentWithParentConstraint(
+        seg, 'utt_parent_3', 1.0, 3.0,
+      ),
+    ).rejects.toThrow(/too short/i);
   });
 });

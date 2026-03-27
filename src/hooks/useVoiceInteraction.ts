@@ -53,7 +53,7 @@ interface UseVoiceInteractionOptions {
   handleResolveVoiceIntentWithLlm: NonNullable<Parameters<typeof useVoiceAgent>[0]['resolveIntentWithLlm']>;
   handleVoiceDictation: NonNullable<Parameters<typeof useVoiceAgent>[0]['insertDictation']>;
   onVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => void;
-  selectedUtteranceId: string | null;
+  activeUtteranceUnitId: string | null;
   selectedUtterance: SelectedUtteranceLike | null;
   selectedRowMeta: SelectedRowMetaLike | null;
   selectedLayerId: string | null;
@@ -106,7 +106,7 @@ export function useVoiceInteraction({
   handleResolveVoiceIntentWithLlm,
   handleVoiceDictation,
   onVoiceAnalysisResult,
-  selectedUtteranceId,
+  activeUtteranceUnitId,
   selectedUtterance,
   selectedRowMeta,
   selectedLayerId,
@@ -138,7 +138,7 @@ export function useVoiceInteraction({
     sendToAiChat: (text: string) => {
       // 先注册分析回填，再发送 AI 消息 | Register fill-back callback before sending AI message
       void (async () => {
-        const utteranceId = selectedUtteranceId;
+        const utteranceId = activeUtteranceUnitId;
         voiceAgentRef.current?.setAnalysisFillCallback?.(utteranceId, (analysisText) => {
           onVoiceAnalysisResult(utteranceId, analysisText);
         });
@@ -167,7 +167,9 @@ export function useVoiceInteraction({
       return selectedUtterance ? `${rowLabel} / AI 分析备注` : '未选择句段';
     }
 
-    const targetLayerId = selectedLayerId ?? defaultTranscriptionLayerId ?? translationLayers[0]?.id;
+    // 解析首选层 ID：selectedLayerId 可能是空串，需 trim 后判断 | resolve preferred layer ID with empty-string guard
+    const normalizedSelected = selectedLayerId?.trim();
+    const targetLayerId = normalizedSelected || defaultTranscriptionLayerId || translationLayers[0]?.id;
     const targetLayer = targetLayerId ? layers.find((layer) => layer.id === targetLayerId) : undefined;
     const layerLabel = targetLayer ? formatLayerRailLabel(targetLayer) : '未选择层';
     return `${layerLabel} / ${rowLabel}`;

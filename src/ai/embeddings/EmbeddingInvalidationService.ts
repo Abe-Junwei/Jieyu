@@ -43,6 +43,50 @@ export async function invalidateUtteranceEmbeddings(
   return embeddingIds;
 }
 
+export async function invalidateNoteEmbeddings(
+  db: JieyuDatabase,
+  noteIds: Iterable<string>,
+): Promise<string[]> {
+  const normalizedIds = [...new Set(Array.from(noteIds)
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0))];
+
+  if (normalizedIds.length === 0) return [];
+
+  const rows = await db.dexie.embeddings.where('sourceId').anyOf(normalizedIds).toArray();
+  const embeddingIds = rows
+    .filter((row) => row.sourceType === 'note')
+    .map((row) => row.id);
+
+  if (embeddingIds.length > 0) {
+    await db.dexie.embeddings.bulkDelete(embeddingIds);
+  }
+
+  return embeddingIds;
+}
+
+export async function invalidatePdfEmbeddings(
+  db: JieyuDatabase,
+  pdfIds: Iterable<string>,
+): Promise<string[]> {
+  const normalizedIds = [...new Set(Array.from(pdfIds)
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0))];
+
+  if (normalizedIds.length === 0) return [];
+
+  const rows = await db.dexie.embeddings.where('sourceId').anyOf(normalizedIds).toArray();
+  const embeddingIds = rows
+    .filter((row) => row.sourceType === 'pdf')
+    .map((row) => row.id);
+
+  if (embeddingIds.length > 0) {
+    await db.dexie.embeddings.bulkDelete(embeddingIds);
+  }
+
+  return embeddingIds;
+}
+
 export async function resolveDefaultTranscriptionLayerIdForText(
   db: JieyuDatabase,
   textId: string,

@@ -463,7 +463,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           page: 'transcription',
-          selectedUtteranceId: 'u-current',
+          activeUtteranceUnitId: 'u-current',
         },
       }),
     }));
@@ -495,7 +495,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           page: 'transcription',
-          selectedUtteranceId: 'u-current',
+          activeUtteranceUnitId: 'u-current',
         },
       }),
     }));
@@ -519,13 +519,13 @@ describe('useAiChat abort and recovery', () => {
 
   it('should execute delete after clarification when user selects target and replies 这个', async () => {
     const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '句段已删除。' });
-    let selectedUtteranceId = '';
+    let activeUtteranceUnitId = '';
     const { result } = renderHook(() => useAiChat({
       onToolCall,
       getContext: () => ({
         shortTerm: {
           page: 'transcription',
-          ...(selectedUtteranceId ? { selectedUtteranceId } : {}),
+          ...(activeUtteranceUnitId ? { activeUtteranceUnitId } : {}),
         },
       }),
     }));
@@ -546,7 +546,7 @@ describe('useAiChat abort and recovery', () => {
     const clarifyAssistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(clarifyAssistant?.content).toContain('缺少目标句段');
 
-    selectedUtteranceId = 'u1';
+    activeUtteranceUnitId = 'u1';
 
     await act(async () => {
       await result.current.send('这个');
@@ -1341,7 +1341,7 @@ describe('useAiChat abort and recovery', () => {
       onToolCall,
       getContext: () => ({
         shortTerm: {
-          selectedUtteranceId: 'u1',
+          activeUtteranceUnitId: 'u1',
           selectedUtteranceStartSec: 10,
           selectedUtteranceEndSec: 14,
           audioTimeSec: 12.5,
@@ -1375,7 +1375,7 @@ describe('useAiChat abort and recovery', () => {
       onToolCall,
       getContext: () => ({
         shortTerm: {
-          selectedUtteranceId: 'u1',
+          activeUtteranceUnitId: 'u1',
           selectedUtteranceStartSec: 10,
           selectedUtteranceEndSec: 14,
           audioTimeSec: cursor,
@@ -1603,7 +1603,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           page: 'transcription',
-          selectedUtteranceId: 'u-selected',
+          activeUtteranceUnitId: 'u-selected',
           selectedLayerId: 'trl-selected',
           selectedLayerType: 'translation',
           selectedTranslationLayerId: 'trl-selected',
@@ -1660,7 +1660,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           page: 'transcription',
-          selectedUtteranceId: 'u-selected',
+          activeUtteranceUnitId: 'u-selected',
           selectedLayerId: 'trl-selected',
           selectedLayerType: 'translation',
         },
@@ -1948,7 +1948,7 @@ describe('useAiChat abort and recovery', () => {
       onToolCall,
       getContext: () => ({
         shortTerm: {
-          selectedUtteranceId: 'utt_real_001',
+          activeUtteranceUnitId: 'utt_real_001',
           selectedTranscriptionLayerId: 'layer_trans_1',
         },
       }),
@@ -1979,7 +1979,7 @@ describe('useAiChat abort and recovery', () => {
       onToolCall,
       getContext: () => ({
         shortTerm: {
-          selectedUtteranceId: 'utt_real_001',
+          activeUtteranceUnitId: 'utt_real_001',
           selectedTranslationLayerId: 'layer_trans_real_42',
         },
       }),

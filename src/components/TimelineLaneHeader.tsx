@@ -4,6 +4,7 @@ import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIS
 import { fireAndForget } from '../utils/fireAndForget';
 import { buildLayerLinkConnectorLayout, getLayerLinkStackWidth } from '../utils/layerLinkConnector';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { getTranslationCreateGuard } from '../services/LayerConstraintService';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -70,6 +71,7 @@ export function TimelineLaneHeader({
     () => buildLayerLinkConnectorLayout(allLayers, connectorLayerLinks),
     [allLayers, connectorLayerLinks],
   );
+  const translationCreateGuard = getTranslationCreateGuard(allLayers, {});
   const rowSegments = connectorLayout.segmentsByLayerId[layer.id] ?? [];
   const hasResolvableConnectorData = connectorLayout.maxColumns > 0;
 
@@ -369,6 +371,7 @@ export function TimelineLaneHeader({
     },
     {
       label: '新建翻译层',
+      disabled: !translationCreateGuard.allowed,
       onClick: () => {
         setContextMenu(null);
         onLayerAction('create-translation', layer.id);

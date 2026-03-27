@@ -112,7 +112,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         transcriptionLayers={[layer]}
         translationLayers={[]}
         utterancesOnCurrentMedia={[makeUtterance('u1')]}
-        selectedUtteranceId=""
+        selectedTimelineUnit={null}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={layer.id}
@@ -145,7 +145,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         transcriptionLayers={[layer]}
         translationLayers={[]}
         utterancesOnCurrentMedia={[makeUtterance('u1', 's1'), makeUtterance('u2', 's2')]}
-        selectedUtteranceId=""
+        selectedTimelineUnit={null}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={layer.id}
@@ -172,5 +172,53 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     expect(dimmed.length).toBe(0);
     const hidden = document.querySelectorAll('.timeline-text-item-focus-hidden');
     expect(hidden.length).toBe(1);
+  });
+
+  it('does not use independent segment highlighting in single-axis mode', () => {
+    const layer = {
+      ...makeLayer('trc-independent'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const segmentsByLayer = new Map([
+      [layer.id, [
+        {
+          id: 'seg_1',
+          textId: 't1',
+          mediaId: 'm1',
+          layerId: layer.id,
+          startTime: 0,
+          endTime: 1,
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ]],
+    ]);
+
+    render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        utterancesOnCurrentMedia={[]}
+        segmentsByLayer={segmentsByLayer}
+        selectedTimelineUnit={null}
+
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelectorAll('.timeline-text-item-active').length).toBe(0);
   });
 });

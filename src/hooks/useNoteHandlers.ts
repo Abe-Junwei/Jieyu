@@ -14,7 +14,7 @@ export interface NotePopoverState {
 }
 
 export interface UseNoteHandlersInput {
-  selectedUtteranceId: string | null | undefined;
+  activeUtteranceUnitId: string | null | undefined;
   focusedLayerRowId: string;
   utterances: Array<{ id: string }>;
   transcriptionLayers: Array<{ id: string }>;
@@ -27,7 +27,7 @@ export interface UseNoteHandlersInput {
 
 export function useNoteHandlers(input: UseNoteHandlersInput) {
   const {
-    selectedUtteranceId,
+    activeUtteranceUnitId,
     focusedLayerRowId,
     utterances,
     transcriptionLayers,
@@ -72,10 +72,10 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
   const toggleNotes = useCallback(() => {
     if (notePopover) {
       setNotePopover(null);
-    } else if (selectedUtteranceId) {
-      setNotePopover({ x: window.innerWidth / 2 - 160, y: window.innerHeight / 3, uttId: selectedUtteranceId, layerId: focusedLayerRowId });
+    } else if (activeUtteranceUnitId) {
+      setNotePopover({ x: window.innerWidth / 2 - 160, y: window.innerHeight / 3, uttId: activeUtteranceUnitId, layerId: focusedLayerRowId });
     }
-  }, [selectedUtteranceId, focusedLayerRowId, notePopover]);
+  }, [activeUtteranceUnitId, focusedLayerRowId, notePopover]);
 
   const handleNoteClick = useCallback(
     (uttId: string, layerId: string, e: React.MouseEvent) => {

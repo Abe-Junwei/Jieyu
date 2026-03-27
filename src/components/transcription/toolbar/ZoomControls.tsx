@@ -15,7 +15,7 @@ export interface ZoomControlsProps {
   snapEnabled: boolean;
   autoScrollEnabled: boolean;
   hoverExpandEnabled: boolean;
-  selectedUtteranceId: string | null;
+  activeUtteranceUnitId: string | null;
   utterancesOnCurrentMedia: Array<{ id: string; startTime: number; endTime: number }>;
   fitPxPerSec: number;
   maxZoomPercent: number;
@@ -33,7 +33,7 @@ const ZoomControls: FC<ZoomControlsProps> = ({
   snapEnabled,
   autoScrollEnabled,
   hoverExpandEnabled,
-  selectedUtteranceId,
+  activeUtteranceUnitId,
   utterancesOnCurrentMedia,
   fitPxPerSec,
   maxZoomPercent,
@@ -50,11 +50,11 @@ const ZoomControls: FC<ZoomControlsProps> = ({
   }, [onZoomToPercent]);
 
   const handleFitSelection = useCallback(() => {
-    const sel = utterancesOnCurrentMedia.find((u) => u.id === selectedUtteranceId);
+    const sel = utterancesOnCurrentMedia.find((u) => u.id === activeUtteranceUnitId);
     if (sel) {
       onZoomToUtterance(sel.startTime, sel.endTime);
     }
-  }, [selectedUtteranceId, utterancesOnCurrentMedia, onZoomToUtterance]);
+  }, [activeUtteranceUnitId, utterancesOnCurrentMedia, onZoomToUtterance]);
 
   const handleOneToOne = useCallback(() => {
     onZoomToPercent(Math.round((100 / fitPxPerSec) * 100), 'custom');
@@ -91,7 +91,7 @@ const ZoomControls: FC<ZoomControlsProps> = ({
         className="icon-btn"
         onClick={handleFitSelection}
         title={t(locale, 'transcription.zoom.fitSelection')}
-        disabled={!selectedUtteranceId}
+        disabled={!activeUtteranceUnitId}
       >
         <Focus size={14} />
       </button>

@@ -12,7 +12,7 @@ import type {
   UtteranceTokenDocType,
 } from '../db';
 import { getAllUtteranceTextsPreferV2 } from '../services/LayerSegmentationV2BridgeService';
-import type { DbState } from './transcriptionTypes';
+import type { DbState, TimelineUnit } from './transcriptionTypes';
 
 type Params = {
   dbNameRef: React.MutableRefObject<string | undefined>;
@@ -22,7 +22,8 @@ type Params = {
   setMediaItems: React.Dispatch<React.SetStateAction<MediaItemDocType[]>>;
   setSpeakers: React.Dispatch<React.SetStateAction<SpeakerDocType[]>>;
   setSelectedLayerId: React.Dispatch<React.SetStateAction<string>>;
-  setSelectedUtteranceId: React.Dispatch<React.SetStateAction<string>>;
+  setSelectedUtteranceIds?: React.Dispatch<React.SetStateAction<Set<string>>>;
+  setSelectedTimelineUnit?: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
   setState: React.Dispatch<React.SetStateAction<DbState>>;
   setTranslations: React.Dispatch<React.SetStateAction<UtteranceTextDocType[]>>;
   setUtteranceDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
@@ -37,7 +38,8 @@ export function useTranscriptionSnapshotLoader({
   setMediaItems,
   setSpeakers,
   setSelectedLayerId,
-  setSelectedUtteranceId,
+  setSelectedUtteranceIds,
+  setSelectedTimelineUnit,
   setState,
   setTranslations,
   setUtteranceDrafts,
@@ -163,14 +165,21 @@ export function useTranscriptionSnapshotLoader({
       return next;
     });
 
-    setSelectedUtteranceId((prev) => {
-      if (!prev && utteranceRows[0]) return utteranceRows[0].id;
-      return prev;
-    });
+    const effectiveSelectedUtteranceId = utteranceRows[0]?.id || '';
+    const initialSelectedLayerId = layerRows.find((item) => item.layerType === 'translation')?.id
+      ?? layerRows.find((item) => item.layerType === 'transcription')?.id
+      ?? '';
+    setSelectedUtteranceIds?.(effectiveSelectedUtteranceId ? new Set([effectiveSelectedUtteranceId]) : new Set());
+    setSelectedTimelineUnit?.(effectiveSelectedUtteranceId
+      ? {
+          layerId: initialSelectedLayerId,
+          unitId: effectiveSelectedUtteranceId,
+          kind: 'utterance',
+        }
+      : null);
     setSelectedLayerId((prev) => {
       if (!prev) {
-        const first = layerRows.find((item) => item.layerType === 'translation');
-        if (first) return first.id;
+        if (initialSelectedLayerId) return initialSelectedLayerId;
       }
       return prev;
     });
@@ -191,7 +200,8 @@ export function useTranscriptionSnapshotLoader({
     setMediaItems,
     setSpeakers,
     setSelectedLayerId,
-    setSelectedUtteranceId,
+    setSelectedUtteranceIds,
+    setSelectedTimelineUnit,
     setState,
     setTranslations,
     setUtteranceDrafts,

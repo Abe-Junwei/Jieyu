@@ -5,14 +5,14 @@ import type { SaveState } from './useTranscriptionData';
 interface UseRecordingOptions {
   saveVoiceTranslation: (blob: Blob, utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>;
   setSaveState: (state: SaveState) => void;
-  setSelectedUtteranceId: (id: string) => void;
+  selectUtterance: (id: string) => void;
   manualSelectTsRef: React.MutableRefObject<number>;
 }
 
 export function useRecording({
   saveVoiceTranslation,
   setSaveState,
-  setSelectedUtteranceId,
+  selectUtterance,
   manualSelectTsRef,
 }: UseRecordingOptions) {
   const [recording, setRecording] = useState(false);
@@ -40,7 +40,7 @@ export function useRecording({
         setRecordingError('');
         setSaveState({ kind: 'idle' });
         manualSelectTsRef.current = Date.now();
-        setSelectedUtteranceId(utterance.id);
+        selectUtterance(utterance.id);
         setRecordingUtteranceId(utterance.id);
         setRecordingLayerId(layer.id);
 
@@ -86,7 +86,7 @@ export function useRecording({
         setRecordingError(error instanceof Error ? error.message : '无法启动录音，请检查麦克风权限');
       }
     },
-    [saveVoiceTranslation, setSaveState, setSelectedUtteranceId, manualSelectTsRef],
+    [saveVoiceTranslation, setSaveState, selectUtterance, manualSelectTsRef],
   );
 
   const stopRecording = useCallback(() => {

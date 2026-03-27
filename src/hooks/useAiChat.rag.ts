@@ -64,12 +64,14 @@ export async function enrichContextWithRag({
     }
 
     const db = await getDb();
-    const rawRagResults = await Promise.all(
-      activeMatches.map(async (match): Promise<{
-        contextTag: string;
-        safeSnippet: string;
-        citation: AiMessageCitation;
-      } | null> => {
+    type RagSourceRow = {
+      contextTag: string;
+      safeSnippet: string;
+      citation: AiMessageCitation;
+    } | null;
+
+    const settledResults = await Promise.allSettled(
+      activeMatches.map(async (match): Promise<RagSourceRow> => {
         let snippet = '';
 
         if (match.sourceType === 'note') {
@@ -115,6 +117,15 @@ export async function enrichContextWithRag({
         };
       }),
     );
+
+    const rawRagResults = settledResults
+      .filter((r): r is PromiseFulfilledResult<RagSourceRow> => r.status === 'fulfilled')
+      .map((r) => r.value);
+
+    const rejectedCount = settledResults.filter((r) => r.status === 'rejected').length;
+    if (rejectedCount > 0) {
+      log.warn(`RAG enrichment: ${rejectedCount}/${activeMatches.length} lookups failed, continuing with successful results`);
+    }
 
     const rawRagSources = rawRagResults.filter((row): row is NonNullable<typeof row> =>
       row !== null && ['note', 'utterance', 'pdf'].includes(row.citation.type),

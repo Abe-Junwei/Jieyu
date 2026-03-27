@@ -1,4 +1,10 @@
-import type { LayerLinkDocType, LayerDocType, UtteranceDocType } from '../db';
+import type {
+  LayerLinkDocType,
+  LayerDocType,
+  LayerSegmentContentDocType,
+  LayerSegmentDocType,
+  UtteranceDocType,
+} from '../db';
 import { useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
@@ -8,8 +14,10 @@ import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { LayerActionPopover } from './LayerActionPopover';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
+import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
 import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
+import type { TimelineUnit } from '../hooks/transcriptionTypes';
 
 function normalizeSpeakerFocusKey(value: string | undefined): string {
   const trimmed = (value ?? '').trim();
@@ -20,7 +28,10 @@ type TranscriptionTimelineTextOnlyProps = {
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   utterancesOnCurrentMedia: UtteranceDocType[];
-  selectedUtteranceId: string;
+  segmentsByLayer?: Map<string, LayerSegmentDocType[]>;
+  segmentContentByLayer?: Map<string, Map<string, LayerSegmentContentDocType>>;
+  saveSegmentContentForLayer?: (segmentId: string, layerId: string, value: string) => Promise<void>;
+  selectedTimelineUnit?: TimelineUnit | null;
   flashLayerRowId: string;
   focusedLayerRowId: string;
   defaultTranscriptionLayerId?: string;
@@ -65,7 +76,10 @@ export function TranscriptionTimelineTextOnly({
   transcriptionLayers,
   translationLayers,
   utterancesOnCurrentMedia,
-  selectedUtteranceId,
+  segmentsByLayer,
+  segmentContentByLayer,
+  saveSegmentContentForLayer,
+  selectedTimelineUnit,
   flashLayerRowId,
   focusedLayerRowId,
   defaultTranscriptionLayerId,
@@ -181,6 +195,14 @@ export function TranscriptionTimelineTextOnly({
     <div className={`timeline-content timeline-content-text-only${editingCellKey ? ' timeline-content-editing' : ''}`}>
       {transcriptionLayers.map((layer, idx) => {
         const isCollapsed = collapsedLayerIds.has(layer.id);
+        const isIndependent = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
+        const layerItems: Array<{ id: string; startTime: number }> = isIndependent
+          ? ((segmentsByLayer?.get(layer.id) ?? []) as Array<{ id: string; startTime: number }>)
+          : utterancesOnCurrentMedia;
+        const laneVirtualItems: Array<{ index: number; size: number; start: number }> = isIndependent
+          ? layerItems.map((_, index) => ({ index, size: 180, start: index * 180 }))
+          : virtualItems.map((it) => ({ index: it.index, size: it.size, start: it.start }));
+        const laneTotalSize = isIndependent ? layerItems.length * 180 : totalSize;
         return (
         <div
           key={`tl-${layer.id}`}
@@ -238,16 +260,19 @@ export function TranscriptionTimelineTextOnly({
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
           />
-          {!isCollapsed && <div className="timeline-lane-text-only-track" style={{ width: `${totalSize}px` }}>
-          {virtualItems.map((virtualItem) => {
-            const utt = utterancesOnCurrentMedia[virtualItem.index];
-            if (!utt) return null;
+          {!isCollapsed && <div className="timeline-lane-text-only-track" style={{ width: `${laneTotalSize}px` }}>
+          {laneVirtualItems.map((virtualItem) => {
+            const rawItem = layerItems[virtualItem.index];
+            if (!rawItem) return null;
+            const utt = rawItem as UtteranceDocType;
             const utteranceSpeakerKey = normalizeSpeakerFocusKey(utt.speakerId);
             const focusMatched = speakerFocusMode === 'all' || !speakerFocusSpeakerKey || utteranceSpeakerKey === speakerFocusSpeakerKey;
             const shouldHideForFocus = speakerFocusMode === 'focus-hard' && !focusMatched;
             const shouldDimForFocus = speakerFocusMode === 'focus-soft' && !focusMatched;
-            const speakerVisual = speakerVisualByUtteranceId[utt.id];
-            const sourceText = getUtteranceTextForLayer(utt, layer.id);
+            const speakerVisual = isIndependent ? undefined : speakerVisualByUtteranceId[utt.id];
+            const sourceText = isIndependent
+              ? (segmentContentByLayer?.get(layer.id)?.get(utt.id)?.text ?? '')
+              : getUtteranceTextForLayer(utt, layer.id);
             const draftKey = `trc-${layer.id}-${utt.id}`;
             const cellKey = `text-${layer.id}-${utt.id}`;
             const legacyDraft = layer.id === defaultTranscriptionLayerId ? utteranceDrafts[utt.id] : undefined;
@@ -264,10 +289,12 @@ export function TranscriptionTimelineTextOnly({
                 await saveUtteranceText(utt.id, draft, layer.id);
               }));
             };
+            const isActive = selectedTimelineUnit?.layerId === layer.id
+              && selectedTimelineUnit.unitId === utt.id;
             return (
               <div
                 key={utt.id}
-                className={`timeline-text-item${utt.id === selectedUtteranceId ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${shouldHideForFocus ? ' timeline-text-item-focus-hidden' : ''}${shouldDimForFocus ? ' timeline-text-item-focus-dim' : ''}`}
+                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${shouldHideForFocus ? ' timeline-text-item-focus-hidden' : ''}${shouldDimForFocus ? ' timeline-text-item-focus-dim' : ''}`}
                 style={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
@@ -301,6 +328,7 @@ export function TranscriptionTimelineTextOnly({
                 <input
                   type="text"
                   className="timeline-text-input"
+                  placeholder={isIndependent ? '语段' : undefined}
                   value={draft}
                   onFocus={() => {
                     setEditingCellKey(cellKey);
@@ -309,6 +337,16 @@ export function TranscriptionTimelineTextOnly({
                   onChange={(e) => {
                     const value = normalizeSingleLine(e.target.value);
                     setUtteranceDrafts((prev) => ({ ...prev, [draftKey]: value }));
+                    if (isIndependent) {
+                      if (!saveSegmentContentForLayer) return;
+                      setCellSaveStatus(cellKey, 'dirty');
+                      scheduleAutoSave(`seg-${layer.id}-${utt.id}`, async () => {
+                        await runSaveWithStatus(cellKey, async () => {
+                          await saveSegmentContentForLayer(utt.id, layer.id, value);
+                        });
+                      });
+                      return;
+                    }
                     if (value !== sourceText) {
                       setCellSaveStatus(cellKey, 'dirty');
                       scheduleAutoSave(`utt-${layer.id}-${utt.id}`, async () => {
@@ -342,6 +380,17 @@ export function TranscriptionTimelineTextOnly({
                   onBlur={(e) => {
                     setEditingCellKey((prev) => (prev === cellKey ? null : prev));
                     const value = normalizeSingleLine(e.target.value);
+                    if (isIndependent) {
+                      clearAutoSaveTimer(`seg-${layer.id}-${utt.id}`);
+                      if (value !== sourceText && saveSegmentContentForLayer) {
+                        fireAndForget(runSaveWithStatus(cellKey, async () => {
+                          await saveSegmentContentForLayer(utt.id, layer.id, value);
+                        }));
+                      } else {
+                        setCellSaveStatus(cellKey);
+                      }
+                      return;
+                    }
                     clearAutoSaveTimer(`utt-${layer.id}-${utt.id}`);
                     if (value !== sourceText) {
                       fireAndForget(runSaveWithStatus(cellKey, async () => {
@@ -366,6 +415,14 @@ export function TranscriptionTimelineTextOnly({
       );})}
       {translationLayers.map((layer, idx) => {
         const isCollapsed = collapsedLayerIds.has(layer.id);
+        const isIndependent = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
+        const layerItems: Array<{ id: string; startTime: number }> = isIndependent
+          ? ((segmentsByLayer?.get(layer.id) ?? []) as Array<{ id: string; startTime: number }>)
+          : utterancesOnCurrentMedia;
+        const laneVirtualItems: Array<{ index: number; size: number; start: number }> = isIndependent
+          ? layerItems.map((_, index) => ({ index, size: 180, start: index * 180 }))
+          : virtualItems.map((it) => ({ index: it.index, size: it.size, start: it.start }));
+        const laneTotalSize = isIndependent ? layerItems.length * 180 : totalSize;
         return (
         <div
           key={`tl-${layer.id}`}
@@ -405,11 +462,14 @@ export function TranscriptionTimelineTextOnly({
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
           />
-          {!isCollapsed && <div className="timeline-lane-text-only-track" style={{ width: `${totalSize}px` }}>
-          {virtualItems.map((virtualItem) => {
-            const utt = utterancesOnCurrentMedia[virtualItem.index];
-            if (!utt) return null;
-            const text = translationTextByLayer.get(layer.id)?.get(utt.id)?.text ?? '';
+          {!isCollapsed && <div className="timeline-lane-text-only-track" style={{ width: `${laneTotalSize}px` }}>
+          {laneVirtualItems.map((virtualItem) => {
+            const rawItem = layerItems[virtualItem.index];
+            if (!rawItem) return null;
+            const utt = rawItem as UtteranceDocType;
+            const text = isIndependent
+              ? (segmentContentByLayer?.get(layer.id)?.get(utt.id)?.text ?? '')
+              : (translationTextByLayer.get(layer.id)?.get(utt.id)?.text ?? '');
             const draftKey = `${layer.id}-${utt.id}`;
             const cellKey = `tr-${layer.id}-${utt.id}`;
             const draft = translationDrafts[draftKey] ?? text;
@@ -425,10 +485,12 @@ export function TranscriptionTimelineTextOnly({
                 await saveTextTranslationForUtterance(utt.id, draft, layer.id);
               }));
             };
+            const isActive = selectedTimelineUnit?.layerId === layer.id
+              && selectedTimelineUnit.unitId === utt.id;
             return (
               <div
                 key={utt.id}
-                className={`timeline-text-item${utt.id === selectedUtteranceId ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}`}
+                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}`}
                 style={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
@@ -455,7 +517,7 @@ export function TranscriptionTimelineTextOnly({
                 <input
                   type="text"
                   className="timeline-text-input"
-                  placeholder="翻译"
+                  placeholder={isIndependent ? '语段' : '翻译'}
                   value={draft}
                   onFocus={() => {
                     focusedTranslationDraftKeyRef.current = draftKey;
@@ -465,6 +527,16 @@ export function TranscriptionTimelineTextOnly({
                   onChange={(e) => {
                     const value = normalizeSingleLine(e.target.value);
                     setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
+                    if (isIndependent) {
+                      if (!saveSegmentContentForLayer) return;
+                      setCellSaveStatus(cellKey, 'dirty');
+                      scheduleAutoSave(`seg-${layer.id}-${utt.id}`, async () => {
+                        await runSaveWithStatus(cellKey, async () => {
+                          await saveSegmentContentForLayer(utt.id, layer.id, value);
+                        });
+                      });
+                      return;
+                    }
                     if (value.trim() && value !== text) {
                       setCellSaveStatus(cellKey, 'dirty');
                       scheduleAutoSave(`tr-${layer.id}-${utt.id}`, async () => {
@@ -500,6 +572,17 @@ export function TranscriptionTimelineTextOnly({
                     setEditingCellKey((prev) => (prev === cellKey ? null : prev));
                     focusedTranslationDraftKeyRef.current = null;
                     const value = normalizeSingleLine(e.target.value);
+                    if (isIndependent) {
+                      clearAutoSaveTimer(`seg-${layer.id}-${utt.id}`);
+                      if (value !== text && saveSegmentContentForLayer) {
+                        fireAndForget(runSaveWithStatus(cellKey, async () => {
+                          await saveSegmentContentForLayer(utt.id, layer.id, value);
+                        }));
+                      } else {
+                        setCellSaveStatus(cellKey);
+                      }
+                      return;
+                    }
                     clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
                     if (value !== text) {
                       fireAndForget(runSaveWithStatus(cellKey, async () => {

@@ -3,14 +3,26 @@ import { createPortal } from 'react-dom';
 import type { LayerLinkDocType, LayerDocType } from '../db';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
-import { COMMON_LANGUAGES, formatLayerRailLabel } from '../utils/transcriptionFormatters';
+import { formatLayerRailLabel } from '../utils/transcriptionFormatters';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
+import { LayerActionPopover } from './LayerActionPopover';
 import { useSpeakerRailContext } from '../contexts/SpeakerRailContext';
 import { LayerRailProvider } from '../contexts/LayerRailContext';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
+import {
+  type ExistingLayerConstraintIssue,
+  type ExistingLayerConstraintRepair,
+  repairExistingLayerConstraints,
+  validateExistingLayerConstraints,
+} from '../services/LayerConstraintService';
+import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
+
+function getLayerEffectiveConstraint(layer: LayerDocType): NonNullable<LayerDocType['constraint']> {
+  return layer.constraint ?? (layer.layerType === 'translation' ? 'symbolic_association' : 'independent_boundary');
+}
 
 interface LayerRailSidebarProps {
   isCollapsed: boolean;
@@ -144,6 +156,8 @@ function LayerRailActionModal({ ariaLabel, children, onClose, className }: Layer
   }, [clampPosition, clampSize]);
 
   const handleDragStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
     dragRef.current = {
       startX: event.clientX,
       startY: event.clientY,
@@ -179,7 +193,13 @@ function LayerRailActionModal({ ariaLabel, children, onClose, className }: Layer
   }
 
   return createPortal(
-    <div className="layer-action-popover-backdrop" onClick={onClose} role="presentation">
+    <div
+      className="layer-action-popover-backdrop"
+      onMouseDown={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={onClose}
+      role="presentation"
+    >
       <div
         className={className ?? 'transcription-layer-rail-action-popover transcription-layer-rail-action-popover-centered floating-panel'}
         role="dialog"
@@ -187,6 +207,7 @@ function LayerRailActionModal({ ariaLabel, children, onClose, className }: Layer
         aria-label={ariaLabel}
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
         style={{
           left: `${position.x}px`,
           top: `${position.y}px`,
@@ -247,18 +268,8 @@ export function LayerRailSidebar({
 
   const {
     layerActionPanel, setLayerActionPanel, layerActionRootRef,
-    quickTranscriptionLangId, setQuickTranscriptionLangId,
-    quickTranscriptionCustomLang, setQuickTranscriptionCustomLang,
-    quickTranscriptionAlias, setQuickTranscriptionAlias,
-    quickTranslationLangId, setQuickTranslationLangId,
-    quickTranslationCustomLang, setQuickTranslationCustomLang,
-    quickTranslationAlias, setQuickTranslationAlias,
-    quickTranslationModality, setQuickTranslationModality,
     quickDeleteLayerId, setQuickDeleteLayerId,
     quickDeleteKeepUtterances, setQuickDeleteKeepUtterances,
-    handleCreateTranscriptionFromPanel,
-    handleCreateTranslationFromPanel,
-    handleDeleteLayerFromPanel,
     createLayer,
     deleteLayer,
     deleteLayerWithoutConfirm,
@@ -267,6 +278,23 @@ export function LayerRailSidebar({
 
   // ── Context menu state ──
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string } | null>(null);
+  const [createLayerPopoverAction, setCreateLayerPopoverAction] = useState<{
+    action: 'create-transcription' | 'create-translation';
+    layerId?: string;
+  } | null>(null);
+
+  // 兼容外部入口（如空状态按钮）通过 layerActionPanel 触发创建弹层
+  // Bridge external create requests (e.g. timeline empty-state button) to the unified popover.
+  useEffect(() => {
+    if (layerActionPanel !== 'create-transcription' && layerActionPanel !== 'create-translation') {
+      return;
+    }
+    setCreateLayerPopoverAction({
+      action: layerActionPanel,
+      ...(focusedLayerRowId ? { layerId: focusedLayerRowId } : {}),
+    });
+    setLayerActionPanel(null);
+  }, [focusedLayerRowId, layerActionPanel, setLayerActionPanel]);
 
   const {
     deleteLayerConfirm,
@@ -297,6 +325,93 @@ export function LayerRailSidebar({
   } | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const [collapsedSpeakerGroupKeys, setCollapsedSpeakerGroupKeys] = useState<Set<string>>(new Set());
+  const [constraintRepairBusy, setConstraintRepairBusy] = useState(false);
+  const [constraintRepairMessage, setConstraintRepairMessage] = useState('');
+  const [constraintRepairDetails, setConstraintRepairDetails] = useState<{
+    repairs: ExistingLayerConstraintRepair[];
+    issues: ExistingLayerConstraintIssue[];
+  } | null>(null);
+  const [constraintRepairDetailsCollapsed, setConstraintRepairDetailsCollapsed] = useState(false);
+  const disableCreateTranslationEntry = transcriptionLayers.length === 0;
+  const layerLabelById = useMemo(
+    () => new Map(layerRailRows.map((layer) => [layer.id, formatLayerRailLabel(layer)] as const)),
+    [layerRailRows],
+  );
+  const groupedConstraintRepairDetails = useMemo(() => {
+    if (!constraintRepairDetails) return [] as Array<{
+      layerId: string;
+      label: string;
+      repairs: ExistingLayerConstraintRepair[];
+      issues: ExistingLayerConstraintIssue[];
+    }>;
+    const grouped = new Map<string, {
+      layerId: string;
+      label: string;
+      repairs: ExistingLayerConstraintRepair[];
+      issues: ExistingLayerConstraintIssue[];
+    }>();
+    const ensureGroup = (layerId: string) => {
+      const existing = grouped.get(layerId);
+      if (existing) return existing;
+      const created = {
+        layerId,
+        label: layerLabelById.get(layerId) ?? layerId,
+        repairs: [] as ExistingLayerConstraintRepair[],
+        issues: [] as ExistingLayerConstraintIssue[],
+      };
+      grouped.set(layerId, created);
+      return created;
+    };
+    for (const repair of constraintRepairDetails.repairs) {
+      ensureGroup(repair.layerId).repairs.push(repair);
+    }
+    for (const issue of constraintRepairDetails.issues) {
+      ensureGroup(issue.layerId).issues.push(issue);
+    }
+    return Array.from(grouped.values()).sort((a, b) => a.label.localeCompare(b.label, 'zh-Hans-CN'));
+  }, [constraintRepairDetails, layerLabelById]);
+
+  const handleRepairLayerConstraints = useCallback(async () => {
+    setConstraintRepairBusy(true);
+    setConstraintRepairMessage('');
+    setConstraintRepairDetails(null);
+    setConstraintRepairDetailsCollapsed(false);
+    try {
+      const repaired = repairExistingLayerConstraints(layerRailRows);
+      const layerById = new Map(layerRailRows.map((layer) => [layer.id, layer] as const));
+      const changedLayers = repaired.layers.filter((layer) => {
+        const before = layerById.get(layer.id);
+        if (!before) return false;
+        return getLayerEffectiveConstraint(before) !== getLayerEffectiveConstraint(layer)
+          || (before.parentLayerId ?? '') !== (layer.parentLayerId ?? '');
+      });
+      if (changedLayers.length > 0) {
+        const now = new Date().toISOString();
+        await Promise.all(changedLayers.map((layer) => LayerTierUnifiedService.updateLayer({
+          ...layer,
+          updatedAt: now,
+        })));
+      }
+      const remainingIssues = validateExistingLayerConstraints(repaired.layers);
+      setConstraintRepairDetails({
+        repairs: repaired.repairs,
+        issues: remainingIssues,
+      });
+      if (changedLayers.length === 0 && remainingIssues.length === 0) {
+        setConstraintRepairMessage('层约束检查通过，无需修复。');
+        return;
+      }
+      setConstraintRepairMessage(
+        remainingIssues.length > 0
+          ? `已修复 ${changedLayers.length} 条约束，仍有 ${remainingIssues.length} 条需人工处理。`
+          : `已自动修复 ${changedLayers.length} 条层约束问题。`,
+      );
+    } catch (error) {
+      setConstraintRepairMessage(`约束修复失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setConstraintRepairBusy(false);
+    }
+  }, [layerRailRows]);
 
   const toggleSpeakerGroupCollapsed = (speakerKey: string) => {
     setCollapsedSpeakerGroupKeys((prev) => {
@@ -374,28 +489,18 @@ export function LayerRailSidebar({
     {
       label: '新建转写层',
       onClick: () => {
-        // Use default language for quick create
-        fireAndForget((async () => {
-          const defaultLang = quickTranscriptionLangId || 'und';
-          const alias = quickTranscriptionAlias.trim();
-          await createLayer('transcription', {
-            languageId: defaultLang,
-            ...(alias ? { alias } : {}),
-          });
-        })());
+        setContextMenu(null);
+        setLayerActionPanel(null);
+        setCreateLayerPopoverAction({ action: 'create-transcription', layerId: contextMenu.layerId });
       },
     },
     {
       label: '新建翻译层',
+      disabled: disableCreateTranslationEntry,
       onClick: () => {
-        fireAndForget((async () => {
-          const defaultLang = quickTranslationLangId || 'und';
-          const alias = quickTranslationAlias.trim();
-          await createLayer('translation', {
-            languageId: defaultLang,
-            ...(alias ? { alias } : {}),
-          }, quickTranslationModality);
-        })());
+        setContextMenu(null);
+        setLayerActionPanel(null);
+        setCreateLayerPopoverAction({ action: 'create-translation', layerId: contextMenu.layerId });
       },
     },
     {
@@ -756,15 +861,30 @@ export function LayerRailSidebar({
         </button>
         <button
           type="button"
-          className={`transcription-layer-rail-action-btn ${layerActionPanel === 'create-transcription' ? 'transcription-layer-rail-action-btn-active' : ''}`}
-          onClick={() => setLayerActionPanel((prev) => (prev === 'create-transcription' ? null : 'create-transcription'))}
+          className={`transcription-layer-rail-action-btn ${createLayerPopoverAction?.action === 'create-transcription' ? 'transcription-layer-rail-action-btn-active' : ''}`}
+          onClick={() => {
+            setLayerActionPanel(null);
+            setCreateLayerPopoverAction((prev) => (
+              prev?.action === 'create-transcription'
+                ? null
+                : { action: 'create-transcription', ...(focusedLayerRowId ? { layerId: focusedLayerRowId } : {}) }
+            ));
+          }}
         >
           <strong>新建转写</strong>
         </button>
         <button
           type="button"
-          className={`transcription-layer-rail-action-btn ${layerActionPanel === 'create-translation' ? 'transcription-layer-rail-action-btn-active' : ''}`}
-          onClick={() => setLayerActionPanel((prev) => (prev === 'create-translation' ? null : 'create-translation'))}
+          className={`transcription-layer-rail-action-btn ${createLayerPopoverAction?.action === 'create-translation' ? 'transcription-layer-rail-action-btn-active' : ''}`}
+          disabled={disableCreateTranslationEntry}
+          onClick={() => {
+            setLayerActionPanel(null);
+            setCreateLayerPopoverAction((prev) => (
+              prev?.action === 'create-translation'
+                ? null
+                : { action: 'create-translation', ...(focusedLayerRowId ? { layerId: focusedLayerRowId } : {}) }
+            ));
+          }}
         >
           <strong>新建翻译</strong>
         </button>
@@ -776,85 +896,16 @@ export function LayerRailSidebar({
         >
           <strong>删除</strong>
         </button>
+        <button
+          type="button"
+          className="transcription-layer-rail-action-btn"
+          disabled={constraintRepairBusy || layerRailRows.length === 0}
+          onClick={() => { fireAndForget(handleRepairLayerConstraints()); }}
+        >
+          <strong>{constraintRepairBusy ? '修复中…' : '约束修复'}</strong>
+        </button>
 
         {layerActionPanel === 'speaker-management' && renderSpeakerManagementPopover()}
-
-        {layerActionPanel === 'create-transcription' && (
-          <LayerRailActionModal ariaLabel="新建转写层" onClose={() => setLayerActionPanel(null)}>
-            <select
-              className="input transcription-layer-rail-action-input"
-              value={quickTranscriptionLangId}
-              onChange={(e) => setQuickTranscriptionLangId(e.target.value)}
-            >
-              <option value="">选择语言…</option>
-              {COMMON_LANGUAGES.map((lang) => (
-                <option key={lang.code} value={lang.code}>{lang.label}（{lang.code}）</option>
-              ))}
-              <option value="__custom__">其他（手动输入）</option>
-            </select>
-            {quickTranscriptionLangId === '__custom__' && (
-              <input
-                className="input transcription-layer-rail-action-input"
-                placeholder="ISO 639-3 代码（如 tib）"
-                value={quickTranscriptionCustomLang}
-                onChange={(e) => setQuickTranscriptionCustomLang(e.target.value)}
-              />
-            )}
-            <input
-              className="input transcription-layer-rail-action-input"
-              placeholder="别名（可选）"
-              value={quickTranscriptionAlias}
-              onChange={(e) => setQuickTranscriptionAlias(e.target.value)}
-            />
-            <div className="transcription-layer-rail-action-row">
-              <button className="btn btn-sm" onClick={() => { fireAndForget(handleCreateTranscriptionFromPanel()); }}>创建</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setLayerActionPanel(null)}>取消</button>
-            </div>
-          </LayerRailActionModal>
-        )}
-
-        {layerActionPanel === 'create-translation' && (
-          <LayerRailActionModal ariaLabel="新建翻译层" onClose={() => setLayerActionPanel(null)}>
-            <select
-              className="input transcription-layer-rail-action-input"
-              value={quickTranslationLangId}
-              onChange={(e) => setQuickTranslationLangId(e.target.value)}
-            >
-              <option value="">选择语言…</option>
-              {COMMON_LANGUAGES.map((lang) => (
-                <option key={lang.code} value={lang.code}>{lang.label}（{lang.code}）</option>
-              ))}
-              <option value="__custom__">其他（手动输入）</option>
-            </select>
-            {quickTranslationLangId === '__custom__' && (
-              <input
-                className="input transcription-layer-rail-action-input"
-                placeholder="ISO 639-3 代码（如 tib）"
-                value={quickTranslationCustomLang}
-                onChange={(e) => setQuickTranslationCustomLang(e.target.value)}
-              />
-            )}
-            <input
-              className="input transcription-layer-rail-action-input"
-              placeholder="别名（可选）"
-              value={quickTranslationAlias}
-              onChange={(e) => setQuickTranslationAlias(e.target.value)}
-            />
-            <select
-              className="input transcription-layer-rail-action-input"
-              value={quickTranslationModality}
-              onChange={(e) => setQuickTranslationModality(e.target.value as 'text' | 'audio' | 'mixed')}
-            >
-              <option value="text">文本（纯文字翻译）</option>
-              <option value="audio">语音（口译录音）</option>
-              <option value="mixed">混合（文字 + 录音）</option>
-            </select>
-            <div className="transcription-layer-rail-action-row">
-              <button className="btn btn-sm" onClick={() => { fireAndForget(handleCreateTranslationFromPanel()); }}>创建</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setLayerActionPanel(null)}>取消</button>
-            </div>
-          </LayerRailActionModal>
-        )}
 
         {layerActionPanel === 'delete' && (
           <LayerRailActionModal ariaLabel="删除层" onClose={() => setLayerActionPanel(null)}>
@@ -881,7 +932,12 @@ export function LayerRailSidebar({
               <button
                 className="btn btn-sm btn-danger"
                 disabled={!quickDeleteLayerId}
-                onClick={() => { fireAndForget(handleDeleteLayerFromPanel()); }}
+                onClick={() => {
+                  fireAndForget((async () => {
+                    await requestDeleteLayer(quickDeleteLayerId);
+                    setLayerActionPanel(null);
+                  })());
+                }}
               >
                 删除
               </button>
@@ -895,6 +951,59 @@ export function LayerRailSidebar({
             {layerCreateMessage}
           </p>
         )}
+        {constraintRepairMessage && (
+          <p className="small-text" style={{ margin: 0, fontSize: '0.7rem' }}>
+            {constraintRepairMessage}
+          </p>
+        )}
+        {constraintRepairDetails && (constraintRepairDetails.repairs.length > 0 || constraintRepairDetails.issues.length > 0) && (
+          <div
+            aria-label="约束修复明细"
+            style={{
+              border: '1px solid #e2e8f0',
+              borderRadius: 8,
+              padding: '8px 10px',
+              fontSize: '0.72rem',
+              lineHeight: 1.45,
+              color: '#334155',
+              background: '#f8fafc',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <strong>修复明细</strong>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setConstraintRepairDetailsCollapsed((prev) => !prev)}
+                aria-label={constraintRepairDetailsCollapsed ? '展开修复明细' : '收起修复明细'}
+              >
+                {constraintRepairDetailsCollapsed ? '展开明细' : '收起明细'}
+              </button>
+            </div>
+            {!constraintRepairDetailsCollapsed && groupedConstraintRepairDetails.map((group) => (
+              <div
+                key={`group-${group.layerId}`}
+                style={{
+                  borderTop: '1px dashed #cbd5e1',
+                  paddingTop: 6,
+                  marginTop: 6,
+                }}
+              >
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>{group.label}</div>
+                {group.repairs.map((item, index) => (
+                  <div key={`repair-${item.layerId}-${item.code}-${index}`}>
+                    [已修复 / repaired][{item.code}] {item.message}
+                  </div>
+                ))}
+                {group.issues.map((item, index) => (
+                  <div key={`issue-${item.layerId}-${item.code}-${index}`}>
+                    [待处理 / pending][{item.code}] {item.message}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Context menu for right-click on layer items */}
@@ -907,12 +1016,33 @@ export function LayerRailSidebar({
         />
       )}
 
+      {createLayerPopoverAction && (
+        <LayerActionPopover
+          action={createLayerPopoverAction.action}
+          layerId={createLayerPopoverAction.layerId}
+          deletableLayers={deletableLayers}
+          layerCreateMessage={layerCreateMessage}
+          createLayer={async (layerType, input, modality) => createLayer(layerType, {
+            languageId: input.languageId,
+            ...(input.alias !== undefined ? { alias: input.alias } : {}),
+            ...(input.constraint !== undefined ? { constraint: input.constraint } : {}),
+          }, modality)}
+          deleteLayer={deleteLayer}
+          deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}
+          checkLayerHasContent={checkLayerHasContent}
+          onClose={() => setCreateLayerPopoverAction(null)}
+        />
+      )}
+
       {/* Delete layer confirmation dialog */}
       <DeleteLayerConfirmDialog
         open={deleteLayerConfirm !== null}
         layerName={deleteLayerConfirm?.layerName ?? ''}
         layerType={deleteLayerConfirm?.layerType ?? 'transcription'}
         textCount={deleteLayerConfirm?.textCount ?? 0}
+        {...(deleteLayerConfirm?.warningMessage !== undefined
+          ? { warningMessage: deleteLayerConfirm.warningMessage }
+          : {})}
         keepUtterances={deleteConfirmKeepUtterances}
         onKeepUtterancesChange={setDeleteConfirmKeepUtterances}
         onCancel={cancelDeleteLayerConfirm}

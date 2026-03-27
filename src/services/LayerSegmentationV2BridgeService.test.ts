@@ -1,11 +1,12 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { featureFlags } from '../ai/config/featureFlags';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db, getDb, type UtteranceDocType, type UtteranceTextDocType } from '../db';
 import {
   cleanupOrphanSegments,
+  enforceTimeSubdivisionParentBounds,
   getAllUtteranceTextsPreferV2,
   getSegmentationV2Ids,
+  getUtteranceTextsByUtterancesPreferV2,
   removeUtteranceCascadeFromSegmentationV2,
   removeUtteranceTextFromSegmentationV2,
   syncUtteranceTextToSegmentationV2,
@@ -16,7 +17,6 @@ const NOW = '2026-03-25T00:00:00.000Z';
 describe('LayerSegmentationV2BridgeService', () => {
   beforeEach(async () => {
     await db.open();
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = true;
     await Promise.all([
       db.layer_segments.clear(),
       db.layer_segment_contents.clear(),
@@ -56,6 +56,54 @@ describe('LayerSegmentationV2BridgeService', () => {
     expect(segment?.mediaId).toBe('media_1');
     expect(content?.segmentId).toBe(ids.segmentId);
     expect(content?.text).toBe('hello');
+  });
+
+  it('keeps sync atomic when content write fails', async () => {
+    const database = await getDb();
+    const utterance: UtteranceDocType = {
+      id: 'utt_txn_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      startTime: 1,
+      endTime: 2,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const translation: UtteranceTextDocType = {
+      id: 'utr_txn_1',
+      utteranceId: 'utt_txn_1',
+      layerId: 'layer_trl_en',
+      modality: 'text',
+      text: 'atomic',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+
+    const ids = getSegmentationV2Ids(translation.layerId, utterance.id, translation.id);
+    const putSpy = vi.spyOn(db.layer_segment_contents, 'put').mockRejectedValueOnce(new Error('force put failure'));
+
+    await expect(syncUtteranceTextToSegmentationV2(database, utterance, translation)).rejects.toThrow('force put failure');
+
+    expect(await db.layer_segments.get(ids.segmentId)).toBeUndefined();
+    expect(await db.layer_segment_contents.get(ids.segmentContentId)).toBeUndefined();
+
+    putSpy.mockRestore();
+  });
+
+  it('validates layer_segments.utteranceId as non-empty string when provided', async () => {
+    const database = await getDb();
+    await expect(database.collections.layer_segments.insert({
+      id: 'seg_invalid_uttid',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layer_trl_en',
+      utteranceId: '',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as never)).rejects.toThrow();
   });
 
   it('removes orphan segment when its last synced content is deleted', async () => {
@@ -134,57 +182,15 @@ describe('LayerSegmentationV2BridgeService', () => {
     expect(await db.layer_segments.get(idsA.segmentId)).toBeTruthy();
   });
 
-  it('returns legacy utterance_text rows when flag is disabled', async () => {
+  it('returns v2 rows even without legacy rows', async () => {
     const database = await getDb();
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = false;
-
-    await db.utterance_texts.put({
-      id: 'legacy_1',
-      utteranceId: 'utt_legacy',
-      layerId: 'layer_legacy',
-      modality: 'text',
-      text: 'legacy-text',
-      sourceType: 'human',
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
-
-    const rows = await getAllUtteranceTextsPreferV2(database);
-    expect(rows.some((row) => row.id === 'legacy_1' && row.text === 'legacy-text')).toBe(true);
-  });
-
-  it('keeps imported legacy rows readable after toggling flag off -> on', async () => {
-    const database = await getDb();
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = false;
-
-    await db.utterance_texts.put({
-      id: 'legacy_import_1',
-      utteranceId: 'utt_import_1',
-      layerId: 'layer_import_1',
-      modality: 'text',
-      text: 'imported-legacy-text',
-      sourceType: 'human',
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
-
-    // 模拟“关闭 v2 导入后再开启 v2”路径 | Simulate import with v2 off, then turn v2 on.
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = true;
-
-    const rows = await getAllUtteranceTextsPreferV2(database);
-    expect(rows.some((row) => row.id === 'legacy_import_1' && row.text === 'imported-legacy-text')).toBe(true);
-    expect(await db.layer_segment_contents.count()).toBe(0);
-  });
-
-  it('returns v2 rows when flag is enabled even without legacy rows', async () => {
-    const database = await getDb();
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = true;
 
     await db.layer_segments.put({
       id: 'segv2_layerA_utt_v2',
       textId: 'text_1',
       mediaId: 'media_1',
       layerId: 'layerA',
+      utteranceId: 'utt_v2',
       startTime: 0,
       endTime: 1,
       createdAt: NOW,
@@ -208,7 +214,6 @@ describe('LayerSegmentationV2BridgeService', () => {
 
   it('prefers v2 row when same id exists in legacy table', async () => {
     const database = await getDb();
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = true;
 
     await db.utterance_texts.put({
       id: 'dup_id',
@@ -226,6 +231,7 @@ describe('LayerSegmentationV2BridgeService', () => {
       textId: 'text_1',
       mediaId: 'media_1',
       layerId: 'layer_new',
+      utteranceId: 'utt_dup',
       startTime: 0,
       endTime: 1,
       createdAt: NOW,
@@ -249,15 +255,71 @@ describe('LayerSegmentationV2BridgeService', () => {
     expect(row?.layerId).toBe('layer_new');
   });
 
+  it('gets utterance texts for multiple utterances from v2 in one batch', async () => {
+    const database = await getDb();
+
+    await db.layer_segments.bulkPut([
+      {
+        id: 'segv2_layerA_utt_a',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: 'layerA',
+        utteranceId: 'utt_a',
+        startTime: 0,
+        endTime: 1,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'segv2_layerA_utt_b',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: 'layerA',
+        utteranceId: 'utt_b',
+        startTime: 1,
+        endTime: 2,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+    await db.layer_segment_contents.bulkPut([
+      {
+        id: 'utr_a',
+        textId: 'text_1',
+        segmentId: 'segv2_layerA_utt_a',
+        layerId: 'layerA',
+        modality: 'text',
+        text: 'alpha',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'utr_b',
+        textId: 'text_1',
+        segmentId: 'segv2_layerA_utt_b',
+        layerId: 'layerA',
+        modality: 'text',
+        text: 'beta',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    const rows = await getUtteranceTextsByUtterancesPreferV2(database, ['utt_a', 'utt_b']);
+    expect(rows.map((row) => row.text)).toEqual(expect.arrayContaining(['alpha', 'beta']));
+  });
+
   it('removes v2 segment graph for utterance cascade delete helper', async () => {
     const database = await getDb();
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = true;
 
     await db.layer_segments.put({
       id: 'segv2_layerX_utt_cascade',
       textId: 'text_1',
       mediaId: 'media_1',
       layerId: 'layerX',
+      utteranceId: 'utt_cascade',
       startTime: 0,
       endTime: 1,
       createdAt: NOW,
@@ -294,9 +356,101 @@ describe('LayerSegmentationV2BridgeService', () => {
     expect(await db.segment_links.get('lnk_cascade')).toBeUndefined();
   });
 
+  it('keeps cascade delete atomic when segment delete fails', async () => {
+    const database = await getDb();
+
+    await db.layer_segments.put({
+      id: 'segv2_layerX_utt_txn',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layerX',
+      utteranceId: 'utt_txn',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.layer_segment_contents.put({
+      id: 'cnt_txn',
+      textId: 'text_1',
+      segmentId: 'segv2_layerX_utt_txn',
+      layerId: 'layerX',
+      modality: 'text',
+      text: 'txn',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.segment_links.put({
+      id: 'lnk_txn',
+      textId: 'text_1',
+      sourceSegmentId: 'segv2_layerX_utt_txn',
+      targetSegmentId: 'segv2_layerX_utt_txn',
+      sourceLayerId: 'layerX',
+      targetLayerId: 'layerX',
+      utteranceId: 'utt_txn',
+      linkType: 'bridge',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const segDeleteSpy = vi.spyOn(db.layer_segments, 'bulkDelete').mockRejectedValueOnce(new Error('force cascade failure'));
+
+    await expect(removeUtteranceCascadeFromSegmentationV2(database, 'utt_txn')).rejects.toThrow('force cascade failure');
+
+    // Transaction rollback keeps previous state intact.
+    expect(await db.layer_segment_contents.get('cnt_txn')).toBeTruthy();
+    expect(await db.layer_segments.get('segv2_layerX_utt_txn')).toBeTruthy();
+    expect(await db.segment_links.get('lnk_txn')).toBeTruthy();
+
+    segDeleteSpy.mockRestore();
+  });
+
+  it('removes time_subdivision child segments when parent utterance is deleted', async () => {
+    const database = await getDb();
+
+    await db.layer_segments.put({
+      id: 'seg_child_sub_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layer_sub',
+      startTime: 1,
+      endTime: 2,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.layer_segment_contents.put({
+      id: 'cnt_child_sub_1',
+      textId: 'text_1',
+      segmentId: 'seg_child_sub_1',
+      layerId: 'layer_sub',
+      modality: 'text',
+      text: 'child-sub',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.segment_links.put({
+      id: 'lnk_sub_parent_1',
+      textId: 'text_1',
+      sourceSegmentId: 'seg_child_sub_1',
+      targetSegmentId: 'utt_parent_sub_1',
+      sourceLayerId: 'layer_sub',
+      targetLayerId: 'layer_parent',
+      linkType: 'time_subdivision',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await removeUtteranceCascadeFromSegmentationV2(database, 'utt_parent_sub_1');
+
+    expect(await db.layer_segment_contents.get('cnt_child_sub_1')).toBeUndefined();
+    expect(await db.layer_segments.get('seg_child_sub_1')).toBeUndefined();
+    expect(await db.segment_links.get('lnk_sub_parent_1')).toBeUndefined();
+  });
+
   it('removes legacy prefixed content ids when deleting utterance_text', async () => {
     const database = await getDb();
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = true;
 
     await db.layer_segment_contents.put({
       id: 'segcv2_utr_legacy',
@@ -329,7 +483,6 @@ describe('LayerSegmentationV2BridgeService', () => {
 
   it('cleanupOrphanSegments removes orphan segments and dangling links', async () => {
     const database = await getDb();
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = true;
 
     await db.layer_segments.bulkPut([
       {
@@ -380,5 +533,95 @@ describe('LayerSegmentationV2BridgeService', () => {
     expect(await db.layer_segments.get('seg_orphan')).toBeUndefined();
     expect(await db.layer_segments.get('seg_live')).toBeTruthy();
     expect(await db.segment_links.get('lnk_orphan')).toBeUndefined();
+  });
+
+  it('clips time_subdivision child segments to parent range', async () => {
+    const database = await getDb();
+
+    await db.layer_segments.put({
+      id: 'seg_sub_clip_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layer_sub',
+      startTime: 0.8,
+      endTime: 2.3,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.segment_links.put({
+      id: 'lnk_sub_clip_1',
+      textId: 'text_1',
+      sourceSegmentId: 'seg_sub_clip_1',
+      targetSegmentId: 'utt_parent_clip_1',
+      sourceLayerId: 'layer_sub',
+      targetLayerId: 'layer_parent',
+      linkType: 'time_subdivision',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const result = await enforceTimeSubdivisionParentBounds(
+      database,
+      'utt_parent_clip_1',
+      1.0,
+      2.0,
+    );
+
+    expect(result.clippedCount).toBe(1);
+    expect(result.deletedCount).toBe(0);
+    const seg = await db.layer_segments.get('seg_sub_clip_1');
+    expect(seg?.startTime).toBe(1.0);
+    expect(seg?.endTime).toBe(2.0);
+  });
+
+  it('deletes time_subdivision child segment when clipped span is too short', async () => {
+    const database = await getDb();
+
+    await db.layer_segments.put({
+      id: 'seg_sub_short_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layer_sub',
+      startTime: 1.94,
+      endTime: 2.06,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.layer_segment_contents.put({
+      id: 'cnt_sub_short_1',
+      textId: 'text_1',
+      segmentId: 'seg_sub_short_1',
+      layerId: 'layer_sub',
+      modality: 'text',
+      text: 'short-child',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.segment_links.put({
+      id: 'lnk_sub_short_1',
+      textId: 'text_1',
+      sourceSegmentId: 'seg_sub_short_1',
+      targetSegmentId: 'utt_parent_short_1',
+      sourceLayerId: 'layer_sub',
+      targetLayerId: 'layer_parent',
+      linkType: 'time_subdivision',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const result = await enforceTimeSubdivisionParentBounds(
+      database,
+      'utt_parent_short_1',
+      1.99,
+      2.01,
+      0.05,
+    );
+
+    expect(result.clippedCount).toBe(0);
+    expect(result.deletedCount).toBe(1);
+    expect(await db.layer_segments.get('seg_sub_short_1')).toBeUndefined();
+    expect(await db.layer_segment_contents.get('cnt_sub_short_1')).toBeUndefined();
+    expect(await db.segment_links.get('lnk_sub_short_1')).toBeUndefined();
   });
 });

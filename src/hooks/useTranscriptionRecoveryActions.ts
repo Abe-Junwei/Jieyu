@@ -8,7 +8,6 @@ import {
   type RecoveryData,
 } from '../services/SnapshotService';
 import { fireAndForget } from '../utils/fireAndForget';
-import { normalizeUtteranceTextDocForStorage } from '../utils/camDataUtils';
 import type { SaveState } from './transcriptionTypes';
 import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
@@ -91,7 +90,6 @@ export function useTranscriptionRecoveryActions({
 
         for (const u of data.utterances) await LinguisticService.saveUtterance(u);
         for (const t of data.translations) {
-          await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(t));
           const owner = data.utterances.find((item) => item.id === t.utteranceId);
           if (owner) {
             await syncUtteranceTextToSegmentationV2(db, owner, t);

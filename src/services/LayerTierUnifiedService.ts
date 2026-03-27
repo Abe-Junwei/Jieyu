@@ -12,6 +12,12 @@ export class LayerTierUnifiedService {
     await syncLayerToTier(layer, layer.textId);
   }
 
+  static async updateLayer(layer: LayerDocType): Promise<void> {
+    const db = await getDb();
+    await db.collections.layers.insert(layer);
+    await syncLayerToTier(layer, layer.textId);
+  }
+
   static async deleteLayer(layer: Pick<LayerDocType, 'id' | 'textId' | 'key'>): Promise<void> {
     const db = await getDb();
     await db.collections.layers.remove(layer.id);

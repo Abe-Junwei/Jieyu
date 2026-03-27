@@ -16,7 +16,8 @@ describe('ZoomControls Component', () => {
     snapEnabled: false,
     autoScrollEnabled: true,
     hoverExpandEnabled: false,
-    selectedUtteranceId: 'utterance-1',
+    activeUtteranceUnitId: 'utterance-1',
+
     utterancesOnCurrentMedia: [
       { id: 'utterance-1', startTime: 0, endTime: 5 },
       { id: 'utterance-2', startTime: 5, endTime: 10 },

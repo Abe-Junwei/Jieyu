@@ -429,6 +429,28 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
       createdAt: now,
       updatedAt: now,
     });
+    await db.layer_segments.put({
+      id: 'segv2_tier_1_utt_kw_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'tier_1',
+      utteranceId: 'utt_kw_1',
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.layer_segment_contents.put({
+      id: 'utxt_kw_1',
+      textId: 'text_1',
+      segmentId: 'segv2_tier_1_utt_kw_1',
+      layerId: 'tier_1',
+      modality: 'text',
+      text: 'hello world from utterance',
+      sourceType: 'human',
+      createdAt: now,
+      updatedAt: now,
+    });
 
     await db.user_notes.put({
       id: 'note_kw_1',
@@ -492,6 +514,28 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
       createdAt: now,
       updatedAt: now,
     });
+    await db.layer_segments.put({
+      id: 'segv2_tier_1_utt_ft_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'tier_1',
+      utteranceId: 'utt_ft_1',
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.layer_segment_contents.put({
+      id: 'utxt_ft_1',
+      textId: 'text_1',
+      segmentId: 'segv2_tier_1_utt_ft_1',
+      layerId: 'tier_1',
+      modality: 'text',
+      text: 'rare morphology pattern for elicitation',
+      sourceType: 'human',
+      createdAt: now,
+      updatedAt: now,
+    });
 
     await db.user_notes.put({
       id: 'note_ft_1',
@@ -520,6 +564,28 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
     await db.utterance_texts.put({
       id: 'utxt_kw_only',
       utteranceId: 'utt_kw_only',
+      layerId: 'tier_1',
+      modality: 'text',
+      text: 'field methods and morphology overview',
+      sourceType: 'human',
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.layer_segments.put({
+      id: 'segv2_tier_1_utt_kw_only',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'tier_1',
+      utteranceId: 'utt_kw_only',
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.layer_segment_contents.put({
+      id: 'utxt_kw_only',
+      textId: 'text_1',
+      segmentId: 'segv2_tier_1_utt_kw_only',
       layerId: 'tier_1',
       modality: 'text',
       text: 'field methods and morphology overview',

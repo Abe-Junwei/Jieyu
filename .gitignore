@@ -22,6 +22,7 @@ coverage/
 
 # Local AI agent config
 .claude/
+.mcp.json
 
 # Reference materials (non-code)
 参考/

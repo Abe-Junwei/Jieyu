@@ -39,7 +39,7 @@ export interface UseSpeakerActionsOptions {
   speakers: SpeakerDocType[];
   setSpeakers: SpeakerStateSetter;
   utterancesOnCurrentMedia: UtteranceDocType[];
-  selectedUtteranceId: string | null;
+  activeUtteranceUnitId: string | null;
   selectedUtteranceIds: Set<string>;
   selectedBatchUtterances: UtteranceDocType[];
   isReady: boolean;
@@ -90,7 +90,7 @@ export function useSpeakerActions({
   speakers,
   setSpeakers,
   utterancesOnCurrentMedia,
-  selectedUtteranceId,
+  activeUtteranceUnitId,
   selectedUtteranceIds,
   selectedBatchUtterances,
   isReady,
@@ -220,10 +220,10 @@ export function useSpeakerActions({
       setUtteranceSelection('', []);
       return;
     }
-    const primary = ids.includes(selectedUtteranceId ?? '') ? (selectedUtteranceId ?? ids[0]!) : ids[0]!;
+    const primary = ids.includes(activeUtteranceUnitId ?? '') ? (activeUtteranceUnitId ?? ids[0]!) : ids[0]!;
     setUtteranceSelection(primary, ids);
     setActiveSpeakerFilterKey(speakerKey);
-  }, [getUtteranceIdsForSpeakerKey, selectedUtteranceId, setUtteranceSelection]);
+  }, [activeUtteranceUnitId, getUtteranceIdsForSpeakerKey, setUtteranceSelection]);
 
   const handleClearSpeakerAssignments = useCallback((speakerKey: string) => {
     const target = speakerFilterOptions.find((option) => option.key === speakerKey);

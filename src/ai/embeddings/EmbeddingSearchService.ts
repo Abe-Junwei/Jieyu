@@ -195,15 +195,16 @@ export class EmbeddingSearchService {
     }
 
     const db = await getDb();
-    const embeddingRows = await db.collections.embeddings.findByIndex('sourceType', 'utterance');
+    const embeddingRows = await db.dexie.embeddings
+      .where('[sourceType+model]')
+      .equals(['utterance', modelId])
+      .toArray();
     const candidateSet = options?.candidateSourceIds
       ? new Set(options.candidateSourceIds)
       : null;
 
     const scored: SimilarUtteranceMatch[] = [];
-    for (const row of embeddingRows) {
-      const item = row.toJSON();
-      if (item.model !== modelId) continue;
+    for (const item of embeddingRows) {
       if ((item.modelVersion ?? DEFAULT_MODEL_VERSION) !== modelVersion) continue;
       if (candidateSet && !candidateSet.has(item.sourceId)) continue;
 
@@ -412,9 +413,16 @@ export class EmbeddingSearchService {
     }
 
     if (sourceTypes.includes('note')) {
-      const noteRows = await db.collections.user_notes.find().exec();
-      for (const row of noteRows) {
-        const note = row.toJSON();
+      // When candidateSet is null, scope to only notes that have embeddings (are in base.matches)
+      // to avoid a full table scan of all notes in the DB.
+      const noteIdsFromMatches = base.matches
+        .filter((m) => m.sourceType === 'note')
+        .map((m) => m.sourceId);
+      const uniqueNoteIds = [...new Set(noteIdsFromMatches)];
+      const noteRows = uniqueNoteIds.length > 0
+        ? await db.dexie.user_notes.where('id').anyOf(uniqueNoteIds).toArray()
+        : [];
+      for (const note of noteRows) {
         if (candidateSet && !candidateSet.has(note.id)) continue;
         const sourceKey = `note:${note.id}`;
         if (fusedCandidates.has(sourceKey)) continue;
@@ -436,9 +444,20 @@ export class EmbeddingSearchService {
     }
 
     if (sourceTypes.includes('pdf')) {
-      const mediaRows = await db.collections.media_items.find().exec();
-      for (const row of mediaRows) {
-        const media = row.toJSON();
+      // 优先限定在向量候选集合；若没有向量候选则回退扫描，保证词法召回可用 | Prefer vector candidates; fallback scan when empty to keep lexical recall working.
+      const pdfIdsFromMatches = base.matches
+        .filter((m) => m.sourceType === 'pdf')
+        .map((m) => {
+          const { baseRef } = splitPdfCitationRef(m.sourceId);
+          return baseRef;
+        });
+      const uniquePdfIds = [...new Set(pdfIdsFromMatches)];
+      const mediaRows = uniquePdfIds.length > 0
+        ? await db.dexie.media_items.where('id').anyOf(uniquePdfIds).toArray()
+        : candidateSet
+          ? []
+          : await db.dexie.media_items.toArray();
+      for (const media of mediaRows) {
         if (!isPdfMediaItem(media)) continue;
         if (candidateSet && !candidateSet.has(media.id)) continue;
         const sourceKey = `pdf:${media.id}`;

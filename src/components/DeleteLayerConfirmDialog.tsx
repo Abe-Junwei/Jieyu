@@ -7,6 +7,7 @@ export interface DeleteLayerConfirmDialogProps {
   layerName: string;
   layerType: 'transcription' | 'translation';
   textCount: number;
+  warningMessage?: string;
   keepUtterances?: boolean;
   onKeepUtterancesChange?: (checked: boolean) => void;
   onCancel: () => void;
@@ -18,6 +19,7 @@ export const DeleteLayerConfirmDialog = memo(function DeleteLayerConfirmDialog({
   layerName,
   layerType,
   textCount,
+  warningMessage,
   keepUtterances = false,
   onKeepUtterancesChange,
   onCancel,
@@ -61,6 +63,11 @@ export const DeleteLayerConfirmDialog = memo(function DeleteLayerConfirmDialog({
               </span>
             )}
           </p>
+          {warningMessage && (
+            <p style={{ margin: '12px 0 0 0', color: '#b45309', fontSize: 13, fontWeight: 500 }}>
+              提示：{warningMessage}
+            </p>
+          )}
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b', cursor: 'pointer', marginTop: 12 }}>
             <input
               type="checkbox"
@@ -69,6 +76,9 @@ export const DeleteLayerConfirmDialog = memo(function DeleteLayerConfirmDialog({
             />
             保留现有语段区间
           </label>
+          <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: 12 }}>
+            未勾选时：仅清理不再被任何层引用的语段边界。
+          </p>
         </div>
         <div className="dialog-footer">
           <button className="btn btn-ghost" onClick={onCancel}>取消</button>

@@ -9,7 +9,7 @@ type Params = {
   saveUtteranceTimingRaw: (utteranceId: string, startTime: number, endTime: number) => Promise<void>;
   saveTextTranslationForUtteranceRaw: (utteranceId: string, value: string, layerId: string) => Promise<void>;
   createNextUtteranceRaw: (base: UtteranceDocType, playerDuration: number) => Promise<void>;
-  createUtteranceFromSelectionRaw: (start: number, end: number) => Promise<void>;
+  createUtteranceFromSelectionRaw: (start: number, end: number, options?: { speakerId?: string; focusedLayerId?: string }) => Promise<void>;
   deleteUtteranceRaw: (utteranceId: string) => Promise<void>;
   mergeWithPreviousRaw: (utteranceId: string) => Promise<void>;
   mergeWithNextRaw: (utteranceId: string) => Promise<void>;
@@ -72,8 +72,8 @@ export function useTranscriptionMutexActionWrappers({
     runWithDbMutex(() => createNextUtteranceRaw(base, playerDuration))
   ), [createNextUtteranceRaw, runWithDbMutex]);
 
-  const createUtteranceFromSelection = useCallback((start: number, end: number) => (
-    runWithDbMutex(() => createUtteranceFromSelectionRaw(start, end))
+  const createUtteranceFromSelection = useCallback((start: number, end: number, options?: { speakerId?: string; focusedLayerId?: string }) => (
+    runWithDbMutex(() => createUtteranceFromSelectionRaw(start, end, options))
   ), [createUtteranceFromSelectionRaw, runWithDbMutex]);
 
   const deleteUtterance = useCallback((utteranceId: string) => (

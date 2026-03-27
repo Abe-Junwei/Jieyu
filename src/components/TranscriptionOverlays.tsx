@@ -1,6 +1,7 @@
 import type { NoteCategory, MultiLangString, LayerDocType, UserNoteDocType, UtteranceDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { SpeakerFilterOption } from '../hooks/useSpeakerActions';
+import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
@@ -11,7 +12,7 @@ interface TranscriptionOverlaysProps {
   onCloseCtxMenu: () => void;
   uttOpsMenu: { x: number; y: number } | null;
   onCloseUttOpsMenu: () => void;
-  selectedUtteranceId: string;
+  selectedTimelineUnit?: TimelineUnit | null;
   selectedUtteranceIds: Set<string>;
   runDeleteSelection: (anchorId: string, selectedIds: Set<string>) => void;
   runMergeSelection: (selectedIds: Set<string>) => void;
@@ -38,6 +39,7 @@ interface TranscriptionOverlaysProps {
   getUtteranceTextForLayer: (utt: UtteranceDocType, layerId?: string) => string;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
+  defaultTranscriptionLayerId?: string;
   speakerOptions?: Array<{ id: string; name: string }>;
   speakerFilterOptions?: SpeakerFilterOption[];
   onAssignSpeakerFromMenu?: (utteranceIds: Iterable<string>, speakerId?: string) => void;
@@ -50,7 +52,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
     onCloseCtxMenu,
     uttOpsMenu,
     onCloseUttOpsMenu,
-    selectedUtteranceId,
+    selectedTimelineUnit,
     selectedUtteranceIds,
     runDeleteSelection,
     runMergeSelection,
@@ -77,6 +79,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
     getUtteranceTextForLayer,
     transcriptionLayers,
     translationLayers,
+    defaultTranscriptionLayerId,
     speakerOptions = [],
     speakerFilterOptions = [],
     onAssignSpeakerFromMenu = () => {},
@@ -103,12 +106,18 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             const multiCount = selectedUtteranceIds.size;
             const targetIds = multiCount > 1 ? Array.from(selectedUtteranceIds) : [id];
             const isTranscriptionLayerContext = transcriptionLayers.some((layer) => layer.id === ctxMenu.layerId);
+            const isIndependentLayerContext = [...transcriptionLayers, ...translationLayers]
+                .some((layer) => layer.id === ctxMenu.layerId && layer.constraint === 'independent_boundary' && layer.id !== defaultTranscriptionLayerId);
             const items: ContextMenuItem[] = multiCount > 1
               ? [
                   { label: `删除 ${multiCount} 个句段`, shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUtteranceIds); } },
                   { label: `合并 ${multiCount} 个句段`, onClick: () => { runMergeSelection(selectedUtteranceIds); } },
-                  { label: '选中此句段及之前所有', shortcut: '⇧Home', onClick: () => { runSelectBefore(id); } },
-                  { label: '选中此句段及之后所有', shortcut: '⇧End', onClick: () => { runSelectAfter(id); } },
+                  ...(isIndependentLayerContext
+                    ? []
+                    : [
+                        { label: '选中此句段及之前所有', shortcut: '⇧Home', onClick: () => { runSelectBefore(id); } },
+                        { label: '选中此句段及之后所有', shortcut: '⇧End', onClick: () => { runSelectAfter(id); } },
+                      ]),
                 ]
               : [
                   { label: '删除句段', shortcut: '⌫', danger: true, onClick: () => { runDeleteOne(id); } },
@@ -119,8 +128,12 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
                     shortcut: '⌘⇧S',
                     onClick: () => { runSplitAtTime(id, ctxMenu.splitTime); },
                   },
-                  { label: '选中此句段及之前所有', shortcut: '⇧Home', onClick: () => { runSelectBefore(id); } },
-                  { label: '选中此句段及之后所有', shortcut: '⇧End', onClick: () => { runSelectAfter(id); } },
+                  ...(isIndependentLayerContext
+                    ? []
+                    : [
+                        { label: '选中此句段及之前所有', shortcut: '⇧Home', onClick: () => { runSelectBefore(id); } },
+                        { label: '选中此句段及之后所有', shortcut: '⇧End', onClick: () => { runSelectAfter(id); } },
+                      ]),
                   { label: '添加备注', shortcut: '⌘⇧N', onClick: () => { onOpenNoteFromMenu(ctxMenu.x, ctxMenu.y, id, ctxMenu.layerId); } },
                 ];
 
@@ -161,13 +174,13 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
           })()}
         />
       )}
-      {uttOpsMenu && selectedUtteranceId && (
+      {uttOpsMenu && selectedTimelineUnit?.unitId && (
         <ContextMenu
           x={uttOpsMenu.x}
           y={uttOpsMenu.y}
           onClose={onCloseUttOpsMenu}
           items={(() => {
-            const id = selectedUtteranceId;
+            const id = selectedTimelineUnit.unitId;
             const multiCount = selectedUtteranceIds.size;
             if (multiCount > 1) {
               return [

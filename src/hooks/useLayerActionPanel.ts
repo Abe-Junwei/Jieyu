@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { LayerConstraint } from '../db';
 
 export type LayerActionPanelKind = 'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null;
 
 export interface UseLayerActionPanelInput {
   createLayer: (
     type: 'transcription' | 'translation',
-    config: { languageId: string; alias?: string },
+    config: { languageId: string; alias?: string; constraint?: LayerConstraint },
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
   deleteLayer: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
   deleteLayerWithoutConfirm?: (layerId: string) => Promise<void>;
   checkLayerHasContent?: (layerId: string) => Promise<number>;
-  deletableLayers: Array<{ id: string }>;
+  deletableLayers: Array<{ id: string; layerType?: 'transcription' | 'translation' }>;
   focusedLayerRowId: string;
   isLayerRailCollapsed: boolean;
 }
@@ -34,12 +35,14 @@ export function useLayerActionPanel({
   const [quickTranscriptionLangId, setQuickTranscriptionLangId] = useState('');
   const [quickTranscriptionCustomLang, setQuickTranscriptionCustomLang] = useState('');
   const [quickTranscriptionAlias, setQuickTranscriptionAlias] = useState('');
+  const [quickTranscriptionConstraint, setQuickTranscriptionConstraint] = useState<LayerConstraint>('symbolic_association');
 
   // ── Quick-create translation form ──
   const [quickTranslationLangId, setQuickTranslationLangId] = useState('');
   const [quickTranslationCustomLang, setQuickTranslationCustomLang] = useState('');
   const [quickTranslationAlias, setQuickTranslationAlias] = useState('');
   const [quickTranslationModality, setQuickTranslationModality] = useState<'text' | 'audio' | 'mixed'>('text');
+  const [quickTranslationConstraint, setQuickTranslationConstraint] = useState<LayerConstraint>('symbolic_association');
 
   // ── Quick-delete form ──
   const [quickDeleteLayerId, setQuickDeleteLayerId] = useState('');
@@ -50,17 +53,20 @@ export function useLayerActionPanel({
   const handleCreateTranscriptionFromPanel = useCallback(async () => {
     const languageId = (quickTranscriptionLangId === '__custom__' ? quickTranscriptionCustomLang : quickTranscriptionLangId).trim();
     const alias = quickTranscriptionAlias.trim();
+    const hasExistingTranscriptionLayer = deletableLayers.some((layer) => layer.layerType === 'transcription');
     const success = await createLayer('transcription', {
       languageId,
       ...(alias ? { alias } : {}),
+      ...(hasExistingTranscriptionLayer ? { constraint: quickTranscriptionConstraint } : {}),
     });
     if (success) {
       setLayerActionPanel(null);
       setQuickTranscriptionLangId('');
       setQuickTranscriptionCustomLang('');
       setQuickTranscriptionAlias('');
+      setQuickTranscriptionConstraint('symbolic_association');
     }
-  }, [createLayer, quickTranscriptionAlias, quickTranscriptionCustomLang, quickTranscriptionLangId]);
+  }, [createLayer, deletableLayers, quickTranscriptionAlias, quickTranscriptionConstraint, quickTranscriptionCustomLang, quickTranscriptionLangId]);
 
   const handleCreateTranslationFromPanel = useCallback(async () => {
     const languageId = (quickTranslationLangId === '__custom__' ? quickTranslationCustomLang : quickTranslationLangId).trim();
@@ -68,6 +74,7 @@ export function useLayerActionPanel({
     const success = await createLayer('translation', {
       languageId,
       ...(alias ? { alias } : {}),
+      constraint: quickTranslationConstraint,
     }, quickTranslationModality);
     if (success) {
       setLayerActionPanel(null);
@@ -75,8 +82,11 @@ export function useLayerActionPanel({
       setQuickTranslationCustomLang('');
       setQuickTranslationAlias('');
       setQuickTranslationModality('text');
+      setQuickTranslationConstraint('symbolic_association');
     }
-  }, [createLayer, quickTranslationAlias, quickTranslationCustomLang, quickTranslationLangId, quickTranslationModality]);
+  }, [createLayer, quickTranslationAlias, quickTranslationConstraint, quickTranslationCustomLang, quickTranslationLangId, quickTranslationModality]);
+
+  const canConfigureTranscriptionConstraint = deletableLayers.some((layer) => layer.layerType === 'transcription');
 
   const handleDeleteLayerFromPanel = useCallback(async () => {
     if (!quickDeleteLayerId) return;
@@ -140,6 +150,9 @@ export function useLayerActionPanel({
     setQuickTranscriptionCustomLang,
     quickTranscriptionAlias,
     setQuickTranscriptionAlias,
+    quickTranscriptionConstraint,
+    setQuickTranscriptionConstraint,
+    canConfigureTranscriptionConstraint,
     // Translation form
     quickTranslationLangId,
     setQuickTranslationLangId,
@@ -149,6 +162,8 @@ export function useLayerActionPanel({
     setQuickTranslationAlias,
     quickTranslationModality,
     setQuickTranslationModality,
+    quickTranslationConstraint,
+    setQuickTranslationConstraint,
     // Delete form
     quickDeleteLayerId,
     setQuickDeleteLayerId,

@@ -50,7 +50,7 @@ export interface SpeakerFilterOption {
 export interface UseSpeakerManagementOptions {
   // 外部数据 | External data
   utterancesOnCurrentMedia: UtteranceDocType[];
-  selectedUtteranceId: string | null;
+  activeUtteranceUnitId: string | null;
   selectedUtteranceIds: Set<string>;
   /** 已选语段列表（调用方自行派生，避免重复 filter） | Pre-filtered selected utterances */
   selectedBatchUtterances: UtteranceDocType[];
@@ -100,7 +100,7 @@ export interface UseSpeakerManagementReturn {
 
 export function useSpeakerManagement({
   utterancesOnCurrentMedia,
-  selectedUtteranceId,
+  activeUtteranceUnitId,
   selectedUtteranceIds,
   selectedBatchUtterances,
   isReady,
@@ -223,10 +223,10 @@ export function useSpeakerManagement({
       setUtteranceSelection('', []);
       return;
     }
-    const primary = ids.includes(selectedUtteranceId ?? '') ? (selectedUtteranceId ?? ids[0]!) : ids[0]!;
+    const primary = ids.includes(activeUtteranceUnitId ?? '') ? (activeUtteranceUnitId ?? ids[0]!) : ids[0]!;
     setUtteranceSelection(primary, ids);
     setActiveSpeakerFilterKey(speakerKey);
-  }, [selectedUtteranceId, setUtteranceSelection, utterancesOnCurrentMedia]);
+  }, [activeUtteranceUnitId, setUtteranceSelection, utterancesOnCurrentMedia]);
 
   const handleClearSpeakerAssignments = useCallback((speakerKey: string) => {
     fireAndForget((async () => {

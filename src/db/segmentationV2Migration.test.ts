@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import {
+  buildV28BackfillPlanForText,
   buildSegmentationV2BackfillRows,
   db,
   exportDatabaseAsJson,
@@ -314,5 +315,127 @@ describe('buildSegmentationV2BackfillRows', () => {
 
     const after = pickCollections(await exportDatabaseAsJson());
     expect(after).toEqual(before);
+  });
+});
+
+describe('buildV28BackfillPlanForText', () => {
+  it('creates canonical segv2 rows when content does not exist', () => {
+    const utterance: UtteranceDocType = {
+      id: 'utt_v28_1',
+      textId: 'text_v28',
+      mediaId: 'media_v28',
+      startTime: 1,
+      endTime: 2,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const text: UtteranceTextDocType = {
+      id: 'trl_v28_1',
+      utteranceId: 'utt_v28_1',
+      layerId: 'layer_en',
+      modality: 'text',
+      text: 'hello',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+
+    const plan = buildV28BackfillPlanForText({
+      text,
+      utterance,
+      nowIso: NOW,
+      segmentExists: () => false,
+    });
+
+    expect(plan).not.toBeNull();
+    expect(plan?.segment.id).toBe('segv2_layer_en_utt_v28_1');
+    expect(plan?.content.id).toBe('trl_v28_1');
+    expect(plan?.content.segmentId).toBe('segv2_layer_en_utt_v28_1');
+  });
+
+  it('repairs content whose segment is missing by re-pointing to canonical segv2 segment', () => {
+    const utterance: UtteranceDocType = {
+      id: 'utt_v28_2',
+      textId: 'text_v28',
+      mediaId: 'media_v28',
+      startTime: 1,
+      endTime: 2,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const text: UtteranceTextDocType = {
+      id: 'trl_v28_2',
+      utteranceId: 'utt_v28_2',
+      layerId: 'layer_zh',
+      modality: 'text',
+      text: '你好',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+
+    const plan = buildV28BackfillPlanForText({
+      text,
+      utterance,
+      nowIso: NOW,
+      existingContent: {
+        id: 'trl_v28_2',
+        textId: 'text_v28',
+        segmentId: 'seg_missing_old',
+        layerId: 'layer_zh',
+        modality: 'text',
+        text: '你好',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: '2026-03-20T00:00:00.000Z',
+      },
+      segmentExists: (segmentId) => segmentId === 'segv2_layer_zh_utt_v28_2',
+    });
+
+    expect(plan).not.toBeNull();
+    expect(plan?.content.segmentId).toBe('segv2_layer_zh_utt_v28_2');
+    expect(plan?.content.updatedAt).toBe(NOW);
+  });
+
+  it('skips when existing content already points to an existing segment', () => {
+    const utterance: UtteranceDocType = {
+      id: 'utt_v28_3',
+      textId: 'text_v28',
+      mediaId: 'media_v28',
+      startTime: 1,
+      endTime: 2,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const text: UtteranceTextDocType = {
+      id: 'trl_v28_3',
+      utteranceId: 'utt_v28_3',
+      layerId: 'layer_fr',
+      modality: 'text',
+      text: 'bonjour',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+
+    const plan = buildV28BackfillPlanForText({
+      text,
+      utterance,
+      nowIso: NOW,
+      existingContent: {
+        id: 'trl_v28_3',
+        textId: 'text_v28',
+        segmentId: 'seg_existing',
+        layerId: 'layer_fr',
+        modality: 'text',
+        text: 'bonjour',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      segmentExists: (segmentId) => segmentId === 'seg_existing',
+    });
+
+    expect(plan).toBeNull();
   });
 });

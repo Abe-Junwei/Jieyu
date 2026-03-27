@@ -1,18 +1,46 @@
 /**
  * 独立边界层的 segment 数据加载 hook | Hook for loading segment data of independent-boundary layers
  *
- * 当 layer.constraint === 'none' 时，从 layer_segments 表读取该层的独立边界数据，
+ * 当 layer.constraint === 'independent_boundary' 时，从 layer_segments 表读取该层的独立边界数据，
  * 供时间轴渲染使用。返回按 startTime 排序的 segment 数组。
- * When layer.constraint === 'none', reads independent boundary data from layer_segments table
+ * When layer.constraint === 'independent_boundary', reads independent boundary data from layer_segments table
  * for timeline rendering. Returns segments sorted by startTime.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getDb, type LayerDocType, type LayerSegmentDocType } from '../db';
-import { featureFlags } from '../ai/config/featureFlags';
 
-/** 判断层是否使用独立边界 | Check if a layer uses independent boundaries */
-export function isIndependentBoundaryLayer(layer: LayerDocType): boolean {
-  return featureFlags.segmentBoundaryV2Enabled && layer.constraint === 'none';
+/** 层编辑模式 | Layer edit mode
+ * utterance: 继承主层 utterance 边界 | Inherits main-layer utterance boundaries
+ * independent-segment: 独立边界（layer_segments 自由切分）| Independent boundaries (free segmentation)
+ * time-subdivision: 时间细分（在父层 utterance 范围内切分）| Time subdivision (segment within parent utterance)
+ */
+export type LayerEditMode = 'utterance' | 'independent-segment' | 'time-subdivision';
+
+/** 判断层的编辑模式 | Determine the edit mode for a layer */
+export function getLayerEditMode(
+  layer: LayerDocType | undefined,
+  defaultTranscriptionLayerId?: string,
+): LayerEditMode {
+  if (!layer) return 'utterance';
+  if (layer.constraint === 'time_subdivision') return 'time-subdivision';
+  if (layer.constraint === 'independent_boundary' && layer.id !== defaultTranscriptionLayerId) return 'independent-segment';
+  return 'utterance';
+}
+
+/** 判断层是否使用独立边界 | Check if a layer uses independent boundaries
+ * constraint === 'independent_boundary' 且不是默认转写层 → 独立边界层
+ * constraint === 'independent_boundary' AND not the default transcription layer → independent boundary layer
+ * @deprecated 请使用 getLayerEditMode() 代替 | Use getLayerEditMode() instead
+ */
+export function isIndependentBoundaryLayer(layer: LayerDocType, defaultTranscriptionLayerId?: string): boolean {
+  return layer.constraint === 'independent_boundary'
+    && layer.id !== defaultTranscriptionLayerId;
+}
+
+/** 判断层是否使用自有 segment 数据（独立边界或时间细分）| Check if a layer uses its own segment data */
+export function layerUsesOwnSegments(layer: LayerDocType, defaultTranscriptionLayerId?: string): boolean {
+  const mode = getLayerEditMode(layer, defaultTranscriptionLayerId);
+  return mode === 'independent-segment' || mode === 'time-subdivision';
 }
 
 /**
@@ -24,6 +52,7 @@ export function isIndependentBoundaryLayer(layer: LayerDocType): boolean {
 export function useLayerSegments(
   layers: LayerDocType[],
   mediaId: string | undefined,
+  defaultTranscriptionLayerId: string | undefined,
 ): {
   segmentsByLayer: Map<string, LayerSegmentDocType[]>;
   reloadSegments: () => Promise<void>;
@@ -33,15 +62,17 @@ export function useLayerSegments(
   );
   const layersRef = useRef(layers);
   layersRef.current = layers;
+  const defaultLayerIdRef = useRef(defaultTranscriptionLayerId);
+  defaultLayerIdRef.current = defaultTranscriptionLayerId;
 
   const loadSegments = useCallback(async () => {
-    if (!mediaId || !featureFlags.segmentBoundaryV2Enabled) {
+    if (!mediaId) {
       setSegmentsByLayer(new Map());
       return;
     }
 
     const independentLayers = layersRef.current.filter(
-      (l) => l.constraint === 'none',
+      (l) => layerUsesOwnSegments(l, defaultLayerIdRef.current),
     );
 
     if (independentLayers.length === 0) {
@@ -66,7 +97,7 @@ export function useLayerSegments(
 
   useEffect(() => {
     void loadSegments();
-  }, [loadSegments, layers]);
+  }, [loadSegments, layers, defaultTranscriptionLayerId]);
 
   return { segmentsByLayer, reloadSegments: loadSegments };
 }

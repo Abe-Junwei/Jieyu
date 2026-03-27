@@ -61,7 +61,7 @@ function makeOptions(
     speakers: overrides.speakers ?? [makeSpeaker()],
     setSpeakers: overrides.setSpeakers ?? (vi.fn() as unknown as UseSpeakerActionsOptions['setSpeakers']),
     utterancesOnCurrentMedia: overrides.utterancesOnCurrentMedia ?? utterances,
-    selectedUtteranceId: overrides.selectedUtteranceId ?? utterances[0]?.id ?? null,
+    activeUtteranceUnitId: overrides.activeUtteranceUnitId ?? utterances[0]?.id ?? null,
     selectedUtteranceIds: overrides.selectedUtteranceIds ?? new Set<string>(),
     selectedBatchUtterances: overrides.selectedBatchUtterances ?? [],
     isReady: overrides.isReady ?? false,

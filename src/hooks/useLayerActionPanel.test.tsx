@@ -94,7 +94,11 @@ describe('handleCreateTranslationFromPanel', () => {
       await result.current.handleCreateTranslationFromPanel();
     });
 
-    expect(createLayer).toHaveBeenCalledWith('translation', { languageId: 'eng', alias: 'EN' }, 'audio');
+    expect(createLayer).toHaveBeenCalledWith('translation', {
+      languageId: 'eng',
+      alias: 'EN',
+      constraint: 'symbolic_association',
+    }, 'audio');
     expect(result.current.layerActionPanel).toBeNull();
     expect(result.current.quickTranslationModality).toBe('text'); // resets to default
   });
@@ -111,7 +115,66 @@ describe('handleCreateTranslationFromPanel', () => {
       await result.current.handleCreateTranslationFromPanel();
     });
 
-    expect(createLayer).toHaveBeenCalledWith('translation', { languageId: 'fra' }, 'text');
+    expect(createLayer).toHaveBeenCalledWith('translation', {
+      languageId: 'fra',
+      constraint: 'symbolic_association',
+    }, 'text');
+  });
+
+  it('passes selected translation constraint to createLayer', async () => {
+    const createLayer = vi.fn(async () => true);
+    const { result } = renderHook(() => useLayerActionPanel(makeInput({ createLayer })));
+
+    await act(async () => {
+      result.current.setQuickTranslationLangId('eng');
+      result.current.setQuickTranslationConstraint('independent_boundary');
+    });
+    await act(async () => {
+      await result.current.handleCreateTranslationFromPanel();
+    });
+
+    expect(createLayer).toHaveBeenCalledWith('translation', {
+      languageId: 'eng',
+      constraint: 'independent_boundary',
+    }, 'text');
+  });
+});
+
+describe('transcription constraint behavior', () => {
+  it('omits transcription constraint when creating first transcription layer', async () => {
+    const createLayer = vi.fn(async () => true);
+    const { result } = renderHook(() => useLayerActionPanel(makeInput({ createLayer, deletableLayers: [] })));
+
+    await act(async () => {
+      result.current.setQuickTranscriptionLangId('zho');
+      result.current.setQuickTranscriptionConstraint('independent_boundary');
+    });
+    await act(async () => {
+      await result.current.handleCreateTranscriptionFromPanel();
+    });
+
+    expect(createLayer).toHaveBeenCalledWith('transcription', { languageId: 'zho' });
+  });
+
+  it('passes transcription constraint when there is already a transcription layer', async () => {
+    const createLayer = vi.fn(async () => true);
+    const { result } = renderHook(() => useLayerActionPanel(makeInput({
+      createLayer,
+      deletableLayers: [{ id: 'trc-1', layerType: 'transcription' }],
+    })));
+
+    await act(async () => {
+      result.current.setQuickTranscriptionLangId('eng');
+      result.current.setQuickTranscriptionConstraint('independent_boundary');
+    });
+    await act(async () => {
+      await result.current.handleCreateTranscriptionFromPanel();
+    });
+
+    expect(createLayer).toHaveBeenCalledWith('transcription', {
+      languageId: 'eng',
+      constraint: 'independent_boundary',
+    });
   });
 });
 

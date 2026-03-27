@@ -60,7 +60,7 @@ interface ContextFieldTemplate {
 
 const SHORT_TERM_TEMPLATES: ContextFieldTemplate[] = [
   { key: 'page', render: (v) => `page=${v}` },
-  { key: 'selectedUtteranceId', render: (v) => `selectedUtteranceId=${v}` },
+  { key: 'activeUtteranceUnitId', render: (v) => `activeUtteranceUnitId=${v}` },
   { key: 'selectedUtteranceStartSec', render: (v) => Number.isFinite(v as number) ? `selectedUtteranceStartSec=${(v as number).toFixed(2)}` : null },
   { key: 'selectedUtteranceEndSec', render: (v) => Number.isFinite(v as number) ? `selectedUtteranceEndSec=${(v as number).toFixed(2)}` : null },
   { key: 'selectedLayerId', render: (v) => `selectedLayerId=${v}` },

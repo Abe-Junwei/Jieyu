@@ -8,6 +8,7 @@ export type LayerDeleteConfirmState = {
   layerName: string;
   layerType: 'transcription' | 'translation';
   textCount: number;
+  warningMessage?: string;
 } | null;
 
 type UseLayerDeleteConfirmInput = {
@@ -40,8 +41,18 @@ export function useLayerDeleteConfirm({
   const requestDeleteLayer = useCallback(async (layerId: string) => {
     const layer = deletableLayers.find((item) => item.id === layerId);
     if (!layer) return;
+
+    const transcriptionCount = deletableLayers.filter((item) => item.layerType === 'transcription').length;
+    const translationCount = deletableLayers.filter((item) => item.layerType === 'translation').length;
+    const deletingLastTranscriptionWithTranslations =
+      layer.layerType === 'transcription' && transcriptionCount <= 1 && translationCount > 0;
+
+    const warningMessage = deletingLastTranscriptionWithTranslations
+      ? '当前仅剩一个转写层，删除后将自动级联删除其依赖翻译层，请确认是否继续。'
+      : undefined;
+
     const textCount = await checkLayerHasContent(layerId);
-    if (textCount === 0) {
+    if (textCount === 0 && !warningMessage) {
       await deleteLayerWithoutConfirm(layerId);
       return;
     }
@@ -51,6 +62,7 @@ export function useLayerDeleteConfirm({
       layerName: formatLayerRailLabel(layer),
       layerType: layer.layerType,
       textCount,
+      ...(warningMessage ? { warningMessage } : {}),
     });
   }, [checkLayerHasContent, deleteLayerWithoutConfirm, deletableLayers]);
 

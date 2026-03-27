@@ -22,7 +22,7 @@ describe('useNoteHandlers error reporting', () => {
     });
 
     const { result } = renderHook(() => useNoteHandlers({
-      selectedUtteranceId: 'utt-1',
+      activeUtteranceUnitId: 'utt-1',
       focusedLayerRowId: 'layer-1',
       utterances: [{ id: 'utt-1' }],
       transcriptionLayers: [{ id: 'layer-1' }],
@@ -51,7 +51,7 @@ describe('useNoteHandlers error reporting', () => {
     });
 
     const { result } = renderHook(() => useNoteHandlers({
-      selectedUtteranceId: 'utt-1',
+      activeUtteranceUnitId: 'utt-1',
       focusedLayerRowId: 'layer-1',
       utterances: [{ id: 'utt-1' }],
       transcriptionLayers: [{ id: 'layer-1' }],

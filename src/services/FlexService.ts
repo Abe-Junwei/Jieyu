@@ -14,6 +14,8 @@ import type {
   UtteranceTextDocType,
   UtteranceTokenDocType,
   UtteranceMorphemeDocType,
+  LayerSegmentDocType,
+  LayerSegmentContentDocType,
 } from '../db';
 
 // ── Types ───────────────────────────────────────────────────
@@ -25,6 +27,10 @@ export interface FlexExportInput {
   tokens?: UtteranceTokenDocType[];
   morphemes?: UtteranceMorphemeDocType[];
   languageTag?: string;
+  /** 独立层 segment 数据 | Independent layer segment data */
+  segmentsByLayer?: Map<string, LayerSegmentDocType[]>;
+  /** segment 内容按 layerId → segmentId 索引 | Segment content indexed by layerId → segmentId */
+  segmentContents?: Map<string, Map<string, LayerSegmentContentDocType>>;
 }
 
 export interface FlexImportResult {
@@ -67,7 +73,7 @@ function getText(el: Element | null): string {
 // ── Export ───────────────────────────────────────────────────
 
 export function exportToFlextext(input: FlexExportInput): string {
-  const { utterances, layers, translations, tokens = [], morphemes = [], languageTag = 'und' } = input;
+  const { utterances, layers, translations, tokens = [], morphemes = [], languageTag = 'und', segmentsByLayer, segmentContents } = input;
   const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
 
   const tokensByUtteranceId = new Map<string, UtteranceTokenDocType[]>();
@@ -135,6 +141,26 @@ export function exportToFlextext(input: FlexExportInput): string {
     })
     .join('\n');
 
+  // 所有含 segment 数据的附加层：每层生成一个额外的 interlinear-text | All additional layers with segment data: one extra interlinear-text per layer
+  const additionalIts: string[] = [];
+  if (segmentsByLayer) {
+    for (const layer of layers) {
+      if (layer.id === layers.find((l) => l.layerType === 'transcription' && l.isDefault)?.id) continue;
+      const segs = segmentsByLayer.get(layer.id);
+      if (!segs || segs.length === 0) continue;
+      const contentMap = segmentContents?.get(layer.id);
+      const tierName = layer.name?.eng ?? layer.name?.zho ?? layer.key;
+      const sortedSegs = [...segs].sort((a, b) => a.startTime - b.startTime);
+      const segPhrasesXml = sortedSegs.map((seg, i) => {
+        const txt = contentMap?.get(seg.id)?.text ?? '';
+        return `            <phrase guid="${escapeXml(layer.id)}_p${i + 1}" begin-time-offset="${seg.startTime}" end-time-offset="${seg.endTime}">\n              <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(txt)}</item>\n            </phrase>`;
+      }).join('\n');
+      additionalIts.push(`  <interlinear-text guid="${escapeXml(layer.id)}">\n    <item type="title" lang="en">${escapeXml(tierName)}</item>\n    <paragraphs>\n      <paragraph guid="pg_${escapeXml(layer.id)}">\n        <phrases>\n${segPhrasesXml}\n        </phrases>\n      </paragraph>\n    </paragraphs>\n  </interlinear-text>`);
+    }
+  }
+
+  const additionalItsXml = additionalIts.length > 0 ? `\n${additionalIts.join('\n')}` : '';
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <document version="2">
   <interlinear-text guid="it1">
@@ -146,7 +172,7 @@ ${phraseXml}
         </phrases>
       </paragraph>
     </paragraphs>
-  </interlinear-text>
+  </interlinear-text>${additionalItsXml}
 </document>
 `;
 }

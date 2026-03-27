@@ -8,7 +8,7 @@ import type {
   UtteranceTextDocType,
 } from '../db';
 import type { TimingUndoState } from '../utils/selectionUtils';
-import type { SaveState, SnapGuide } from './transcriptionTypes';
+import type { SaveState, SnapGuide, TimelineUnit } from './transcriptionTypes';
 import { useTranscriptionLayerActions } from './useTranscriptionLayerActions';
 import { useTranscriptionUtteranceActions } from './useTranscriptionUtteranceActions';
 
@@ -20,7 +20,7 @@ type Params = {
   layerToDeleteId: string;
   selectedLayerId: string;
   selectedUtteranceMedia: MediaItemDocType | undefined;
-  selectedUtteranceId: string;
+  activeUtteranceUnitId: string;
   translations: UtteranceTextDocType[];
   utterancesRef: React.MutableRefObject<UtteranceDocType[]>;
   utterancesOnCurrentMediaRef: React.MutableRefObject<UtteranceDocType[]>;
@@ -45,8 +45,8 @@ type Params = {
   setTranslations: React.Dispatch<React.SetStateAction<UtteranceTextDocType[]>>;
   setUtterances: React.Dispatch<React.SetStateAction<UtteranceDocType[]>>;
   setUtteranceDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  setSelectedUtteranceId: React.Dispatch<React.SetStateAction<string>>;
   setSelectedUtteranceIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  setSelectedTimelineUnit?: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
   allowOverlapInTranscription?: boolean;
 };
 
@@ -58,7 +58,7 @@ export function useTranscriptionActions({
   layerToDeleteId,
   selectedLayerId,
   selectedUtteranceMedia,
-  selectedUtteranceId,
+  activeUtteranceUnitId,
   translations,
   utterancesRef,
   utterancesOnCurrentMediaRef,
@@ -83,8 +83,8 @@ export function useTranscriptionActions({
   setTranslations,
   setUtterances,
   setUtteranceDrafts,
-  setSelectedUtteranceId,
   setSelectedUtteranceIds,
+  setSelectedTimelineUnit,
   allowOverlapInTranscription = false,
 }: Params) {
   const {
@@ -107,7 +107,7 @@ export function useTranscriptionActions({
     defaultTranscriptionLayerId,
     layerById,
     selectedUtteranceMedia,
-    selectedUtteranceId,
+    activeUtteranceUnitId,
     translations,
     utterancesRef,
     utterancesOnCurrentMediaRef,
@@ -125,8 +125,8 @@ export function useTranscriptionActions({
     setTranslations,
     setUtterances,
     setUtteranceDrafts,
-    setSelectedUtteranceId,
     setSelectedUtteranceIds,
+    ...(setSelectedTimelineUnit ? { setSelectedTimelineUnit } : {}),
     allowOverlapInTranscription,
   });
 
@@ -153,7 +153,8 @@ export function useTranscriptionActions({
     setSelectedLayerId,
     setSelectedMediaId,
     setMediaItems,
-    setSelectedUtteranceId,
+
+    ...(setSelectedTimelineUnit ? { setSelectedTimelineUnit } : {}),
     setTranslations,
     setUtterances,
   });

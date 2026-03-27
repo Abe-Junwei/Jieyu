@@ -72,7 +72,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUtteranceMedia: undefined,
-      selectedUtteranceId: '',
+      
       translations: [],
       utterancesRef: { current: utterancesState },
       utterancesOnCurrentMediaRef: { current: utterancesState },
@@ -89,7 +89,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      setSelectedUtteranceId: vi.fn(),
+      activeUtteranceUnitId: '',
       setSelectedUtteranceIds: vi.fn(),
     }));
 
@@ -126,7 +126,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUtteranceMedia: undefined,
-      selectedUtteranceId: '',
+      
       translations: [],
       utterancesRef: { current: utterancesState },
       utterancesOnCurrentMediaRef: { current: utterancesState },
@@ -143,7 +143,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      setSelectedUtteranceId: vi.fn(),
+      activeUtteranceUnitId: '',
       setSelectedUtteranceIds: vi.fn(),
     }));
 
@@ -170,7 +170,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUtteranceMedia: undefined,
-      selectedUtteranceId: '',
+      
       translations: [],
       utterancesRef: { current: utterancesState },
       utterancesOnCurrentMediaRef: { current: utterancesState },
@@ -187,7 +187,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
       setUtteranceDrafts: vi.fn(),
-      setSelectedUtteranceId: vi.fn(),
+      activeUtteranceUnitId: '',
       setSelectedUtteranceIds: vi.fn(),
     }));
 
@@ -204,6 +204,11 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
 
   it('saveTextTranslationForUtterance should strip legacy speaker linkage fields', async () => {
     const now = new Date().toISOString();
+    // Seed utterance (needed for V2 sync) | 种子 utterance（V2 sync 需要）
+    const utterance = makeUtterance('utt-1', 0, 1);
+    await db.utterances.put(utterance as never);
+
+    // Phase 0 backfill 状态：V1 + V2 双份数据 | Phase 0 backfill state: V1 + V2 dual data
     await db.utterance_texts.add({
       id: 'utr-legacy',
       utteranceId: 'utt-1',
@@ -212,6 +217,30 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       text: 'old',
       sourceType: 'human',
       recordedBySpeakerId: 'spk-legacy',
+      createdAt: now,
+      updatedAt: now,
+    } as never);
+
+    // V2 entries (Phase 0 backfill ensures these exist) | V2 条目（Phase 0 backfill 确保存在）
+    await db.layer_segments.put({
+      id: 'seg_v2_utt1',
+      textId: 't1',
+      mediaId: 'media1',
+      layerId: 'tr-layer-1',
+      utteranceId: 'utt-1',
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
+    } as never);
+    await db.layer_segment_contents.put({
+      id: 'utr-legacy',   // V2 content ID 与 V1 ID 相同（backfill 策略）
+      textId: 't1',
+      segmentId: 'seg_v2_utt1',
+      layerId: 'tr-layer-1',
+      modality: 'text',
+      text: 'old',
+      sourceType: 'human',
       createdAt: now,
       updatedAt: now,
     } as never);
@@ -236,7 +265,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
         }],
       ]) as never,
       selectedUtteranceMedia: undefined,
-      selectedUtteranceId: '',
+      
       translations: [],
       utterancesRef: { current: [] },
       utterancesOnCurrentMediaRef: { current: [] },
@@ -253,7 +282,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations,
       setUtterances: vi.fn(),
       setUtteranceDrafts: vi.fn(),
-      setSelectedUtteranceId: vi.fn(),
+      activeUtteranceUnitId: '',
       setSelectedUtteranceIds: vi.fn(),
     }));
 
@@ -261,10 +290,11 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       await result.current.saveTextTranslationForUtterance('utt-1', 'updated', 'tr-layer-1');
     });
 
-    const json = await db.utterance_texts.get('utr-legacy') as Record<string, unknown> | undefined;
+    // Phase 1+2: 检查 V2 layer_segment_contents 而非 utterance_texts | Check V2 instead of V1
+    const v2Content = await db.layer_segment_contents.get('utr-legacy') as Record<string, unknown> | undefined;
 
-    expect(json?.text).toBe('updated');
-    expect(json && 'recordedBySpeakerId' in json).toBe(false);
+    expect(v2Content?.text).toBe('updated');
+    expect(v2Content && 'recordedBySpeakerId' in v2Content).toBe(false);
     expect(pushUndo).toHaveBeenCalledWith('编辑翻译文本');
   });
 
@@ -301,7 +331,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
         }],
       ]) as never,
       selectedUtteranceMedia: undefined,
-      selectedUtteranceId: '',
+      
       translations: [],
       utterancesRef: { current: [utterance] },
       utterancesOnCurrentMediaRef: { current: [utterance] },
@@ -318,7 +348,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
       setUtteranceDrafts: vi.fn(),
-      setSelectedUtteranceId: vi.fn(),
+      activeUtteranceUnitId: '',
       setSelectedUtteranceIds: vi.fn(),
     }));
 
@@ -373,7 +403,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
         }],
       ]) as never,
       selectedUtteranceMedia: undefined,
-      selectedUtteranceId: '',
+      
       translations: [],
       utterancesRef: { current: [utterance] },
       utterancesOnCurrentMediaRef: { current: [utterance] },
@@ -390,7 +420,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
       setUtteranceDrafts: vi.fn(),
-      setSelectedUtteranceId: vi.fn(),
+      activeUtteranceUnitId: '',
       setSelectedUtteranceIds: vi.fn(),
     }));
 
@@ -420,7 +450,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUtteranceMedia: undefined,
-      selectedUtteranceId: '',
+      
       translations: [],
       utterancesRef: { current: utterancesState },
       utterancesOnCurrentMediaRef: { current: utterancesState },
@@ -438,7 +468,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      setSelectedUtteranceId: vi.fn(),
+      activeUtteranceUnitId: '',
       setSelectedUtteranceIds: vi.fn(),
     }));
 
@@ -478,7 +508,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUtteranceMedia: undefined,
-      selectedUtteranceId: '',
+      
       translations: [],
       utterancesRef: { current: utterancesState },
       utterancesOnCurrentMediaRef: { current: utterancesState },
@@ -496,7 +526,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      setSelectedUtteranceId: vi.fn(),
+      activeUtteranceUnitId: '',
       setSelectedUtteranceIds: vi.fn(),
     }));
 
@@ -539,7 +569,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUtteranceMedia: undefined,
-      selectedUtteranceId: '',
+      
       translations: [],
       utterancesRef: { current: utterancesState },
       utterancesOnCurrentMediaRef: { current: utterancesState },
@@ -557,7 +587,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      setSelectedUtteranceId: vi.fn(),
+      activeUtteranceUnitId: '',
       setSelectedUtteranceIds: vi.fn(),
     }));
 
@@ -596,7 +626,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUtteranceMedia: undefined,
-      selectedUtteranceId: '',
+      
       translations: [],
       utterancesRef: { current: utterancesState },
       utterancesOnCurrentMediaRef: { current: utterancesState },
@@ -619,7 +649,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      setSelectedUtteranceId: vi.fn(),
+      activeUtteranceUnitId: '',
       setSelectedUtteranceIds: vi.fn(),
     }));
 
@@ -661,7 +691,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUtteranceMedia: undefined,
-      selectedUtteranceId: '',
+      
       translations: [],
       utterancesRef: { current: utterancesState },
       utterancesOnCurrentMediaRef: { current: utterancesState },
@@ -679,7 +709,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      setSelectedUtteranceId: vi.fn(),
+      activeUtteranceUnitId: '',
       setSelectedUtteranceIds: vi.fn(),
     }));
 
@@ -699,5 +729,65 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       kind: 'error',
       message: expect.stringContaining('已回滚'),
     }));
+  });
+
+  it('createUtteranceFromSelection should select created unit with non-empty layerId', async () => {
+    const now = new Date().toISOString();
+    const selectedTimelineUnits: Array<{ layerId: string; unitId: string; kind: 'utterance' | 'segment' } | null> = [];
+    const setSelectedTimelineUnit = vi.fn((next: { layerId: string; unitId: string; kind: 'utterance' | 'segment' } | null) => {
+      selectedTimelineUnits.push(next);
+    });
+
+    const setSelectedUtteranceIds = vi.fn();
+    const setUtterances = vi.fn();
+
+    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+      defaultTranscriptionLayerId: 'trc-default',
+      layerById: new Map(),
+      selectedUtteranceMedia: {
+        id: 'media-1',
+        textId: 'text-1',
+        filename: 'demo.wav',
+        duration: 120,
+        sourceType: 'upload',
+        createdAt: now,
+        updatedAt: now,
+      } as never,
+      translations: [],
+      utterancesRef: { current: [] },
+      utterancesOnCurrentMediaRef: { current: [] },
+      getUtteranceTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, utteranceId: null } },
+      timingUndoRef: { current: null },
+      pushUndo: vi.fn(),
+      createAnchor: vi.fn(async (_db, mediaId, time) => ({
+        id: `a_${time}`,
+        mediaId,
+        time,
+        createdAt: now,
+      } as AnchorDocType)),
+      updateAnchorTime: vi.fn(),
+      pruneOrphanAnchors: vi.fn(),
+      setSaveState: vi.fn(),
+      setSnapGuide: vi.fn(),
+      setMediaItems: vi.fn(),
+      setTranslations: vi.fn(),
+      setUtterances,
+      setUtteranceDrafts: vi.fn(),
+      activeUtteranceUnitId: '',
+      setSelectedUtteranceIds,
+      setSelectedTimelineUnit: setSelectedTimelineUnit as any,
+    }));
+
+    await act(async () => {
+      await result.current.createUtteranceFromSelection(1.0, 2.0);
+    });
+
+    const nonNullSelections = selectedTimelineUnits.filter((item): item is { layerId: string; unitId: string; kind: 'utterance' | 'segment' } => item !== null);
+    expect(nonNullSelections.length).toBeGreaterThan(0);
+    const latest = nonNullSelections[nonNullSelections.length - 1];
+    expect(latest?.kind).toBe('utterance');
+    expect(latest?.layerId).toBe('trc-default');
+    expect(latest?.unitId).toBeTruthy();
   });
 });

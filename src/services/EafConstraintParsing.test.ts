@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
 /**
- * EAF tierConstraints 解析 + isIndependentBoundaryLayer 工具函数测试
- * Tests for EAF tierConstraints parsing and isIndependentBoundaryLayer utility
+ * EAF tierConstraints 解析 + isIndependentBoundaryLayer / getLayerEditMode 工具函数测试
+ * Tests for EAF tierConstraints parsing, isIndependentBoundaryLayer, and getLayerEditMode utilities
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { importFromEaf } from './EafService';
-import { isIndependentBoundaryLayer } from '../hooks/useLayerSegments';
-import { featureFlags } from '../ai/config/featureFlags';
+import { isIndependentBoundaryLayer, getLayerEditMode } from '../hooks/useLayerSegments';
 import type { LayerDocType } from '../db';
 
 // ── EAF tierConstraints parsing ──
@@ -50,10 +49,10 @@ describe('EAF tierConstraints parsing', () => {
   it('maps CONSTRAINTS to LayerConstraint correctly', () => {
     const result = importFromEaf(EAF_WITH_CONSTRAINTS);
 
-    // 独立时间对齐层 → 'none' | Independent time-aligned → 'none'
+    // 独立时间对齐层 → 'independent_boundary' | Independent time-aligned → 'independent_boundary'
     const trc = result.tierConstraints.get('transcription');
     expect(trc).toBeDefined();
-    expect(trc!.constraint).toBe('none');
+    expect(trc!.constraint).toBe('independent_boundary');
     expect(trc!.parentTierId).toBeUndefined();
 
     // Symbolic_Association → 'symbolic_association' | Has PARENT_REF
@@ -69,7 +68,7 @@ describe('EAF tierConstraints parsing', () => {
     expect(phon!.parentTierId).toBe('transcription');
   });
 
-  it('defaults to none for tier without CONSTRAINTS and no PARENT_REF', () => {
+  it('defaults to independent_boundary for tier without CONSTRAINTS and no PARENT_REF', () => {
     const eaf = `<?xml version="1.0" encoding="UTF-8"?>
 <ANNOTATION_DOCUMENT>
   <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
@@ -92,7 +91,7 @@ describe('EAF tierConstraints parsing', () => {
     const result = importFromEaf(eaf);
     const bare = result.tierConstraints.get('bare');
     expect(bare).toBeDefined();
-    expect(bare!.constraint).toBe('none');
+    expect(bare!.constraint).toBe('independent_boundary');
     expect(bare!.parentTierId).toBeUndefined();
   });
 
@@ -140,7 +139,7 @@ describe('EAF tierConstraints parsing', () => {
     // minimal.eaf: single tier "default" with default-lt (TIME_ALIGNABLE=true, no CONSTRAINTS)
     const def = result.tierConstraints.get('default');
     expect(def).toBeDefined();
-    expect(def!.constraint).toBe('none');
+    expect(def!.constraint).toBe('independent_boundary');
   });
 });
 
@@ -163,32 +162,59 @@ function makeLayer(overrides: Partial<LayerDocType>): LayerDocType {
 }
 
 describe('isIndependentBoundaryLayer', () => {
-  afterEach(() => {
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = true;
+  it('returns true when constraint is independent_boundary and not default layer', () => {
+    expect(isIndependentBoundaryLayer(makeLayer({ constraint: 'independent_boundary' }), 'other_layer')).toBe(true);
   });
 
-  it('returns true when flag on and constraint is none', () => {
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = true;
-    expect(isIndependentBoundaryLayer(makeLayer({ constraint: 'none' }))).toBe(true);
+  it('returns false when layer is the default transcription layer', () => {
+    expect(isIndependentBoundaryLayer(makeLayer({ constraint: 'independent_boundary' }), 'layer_1')).toBe(false);
   });
 
-  it('returns false when flag on but constraint is symbolic_association', () => {
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = true;
+  it('returns false when constraint is symbolic_association', () => {
     expect(isIndependentBoundaryLayer(makeLayer({ constraint: 'symbolic_association' }))).toBe(false);
   });
 
-  it('returns false when flag on but constraint is undefined', () => {
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = true;
+  it('returns false when constraint is undefined', () => {
     expect(isIndependentBoundaryLayer(makeLayer({}))).toBe(false);
   });
 
-  it('returns false when flag off even if constraint is none', () => {
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = false;
-    expect(isIndependentBoundaryLayer(makeLayer({ constraint: 'none' }))).toBe(false);
+  it('returns false for time_subdivision constraint', () => {
+    expect(isIndependentBoundaryLayer(makeLayer({ constraint: 'time_subdivision' }))).toBe(false);
   });
 
-  it('returns false for time_subdivision constraint', () => {
-    (featureFlags as { segmentBoundaryV2Enabled: boolean }).segmentBoundaryV2Enabled = true;
-    expect(isIndependentBoundaryLayer(makeLayer({ constraint: 'time_subdivision' }))).toBe(false);
+  it('returns true when no defaultTranscriptionLayerId provided and constraint is independent_boundary', () => {
+    expect(isIndependentBoundaryLayer(makeLayer({ constraint: 'independent_boundary' }))).toBe(true);
+  });
+});
+
+// ── getLayerEditMode ──
+
+describe('getLayerEditMode', () => {
+  it('returns utterance when layer is undefined', () => {
+    expect(getLayerEditMode(undefined, 'other')).toBe('utterance');
+  });
+
+  it('returns independent-segment for constraint=independent_boundary non-default layer', () => {
+    expect(getLayerEditMode(makeLayer({ constraint: 'independent_boundary' }), 'other_layer')).toBe('independent-segment');
+  });
+
+  it('returns utterance for constraint=independent_boundary default transcription layer', () => {
+    expect(getLayerEditMode(makeLayer({ constraint: 'independent_boundary' }), 'layer_1')).toBe('utterance');
+  });
+
+  it('returns time-subdivision for constraint=time_subdivision', () => {
+    expect(getLayerEditMode(makeLayer({ constraint: 'time_subdivision' }), 'other')).toBe('time-subdivision');
+  });
+
+  it('returns utterance for constraint=symbolic_association', () => {
+    expect(getLayerEditMode(makeLayer({ constraint: 'symbolic_association' }), 'other')).toBe('utterance');
+  });
+
+  it('returns utterance for undefined constraint', () => {
+    expect(getLayerEditMode(makeLayer({}), 'other')).toBe('utterance');
+  });
+
+  it('returns independent-segment when no defaultTranscriptionLayerId and constraint is independent_boundary', () => {
+    expect(getLayerEditMode(makeLayer({ constraint: 'independent_boundary' }))).toBe('independent-segment');
   });
 });

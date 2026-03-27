@@ -2,6 +2,7 @@ import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 export interface ContextMenuItem {
+  id?: string;
   label: string;
   shortcut?: string;
   disabled?: boolean;
@@ -107,9 +108,9 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: C
   const node = (
     <>
       <div ref={ref} className="context-menu" style={style} role="menu">
-        {items.map((item) => (
+        {items.map((item, index) => (
           <button
-            key={item.label}
+            key={item.id ?? `${item.label}-${index}`}
             className={`context-menu-item${item.danger ? ' context-menu-danger' : ''}`}
             disabled={item.disabled}
             role="menuitem"
@@ -143,9 +144,9 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: C
           }}
           role="menu"
         >
-          {submenu.items.map((item) => (
+          {submenu.items.map((item, index) => (
             <button
-              key={item.label}
+              key={item.id ?? `${item.label}-${index}`}
               className={`context-menu-item${item.danger ? ' context-menu-danger' : ''}`}
               disabled={item.disabled}
               role="menuitem"

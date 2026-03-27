@@ -12,7 +12,7 @@ type TimelineResizeTooltip = {
 
 type ResizeDragState = {
   utteranceId: string;
-  /** segmentId = segv2_${layerId}_${utteranceId}，仅在独立边界层拖拽时有值 */
+  /** 独立边界层的 segment 真实 DB ID，仅在有 layerId 时有值 | Real segment DB ID for independent-boundary layers */
   segmentId?: string;
   mediaId: string;
   layerId?: string;
@@ -42,6 +42,7 @@ type UseTimelineResizeParams = {
     } | null>;
   };
   selectUtterance: (id: string) => void;
+  selectSegment?: (id: string) => void;
   setSelectedLayerId: (id: string) => void;
   setFocusedLayerRowId: (id: string) => void;
   beginTimingGesture: (id: string) => void;
@@ -52,6 +53,8 @@ type UseTimelineResizeParams = {
   setSnapGuide: React.Dispatch<React.SetStateAction<SnapGuide>>;
   setDragPreview: React.Dispatch<React.SetStateAction<{ id: string; start: number; end: number } | null>>;
   saveUtteranceTiming: (utteranceId: string, start: number, end: number, layerId?: string) => Promise<void>;
+  /** 独立边界层的 segments，按 layerId 分组 | Segments for independent-boundary layers, grouped by layerId */
+  segmentsByLayer?: Map<string, Array<{ id: string; startTime: number; endTime: number }>>;
 };
 
 export function useTimelineResize({
@@ -59,6 +62,7 @@ export function useTimelineResize({
   manualSelectTsRef,
   player,
   selectUtterance,
+  selectSegment,
   setSelectedLayerId,
   setFocusedLayerRowId,
   beginTimingGesture,
@@ -69,6 +73,7 @@ export function useTimelineResize({
   setSnapGuide,
   setDragPreview,
   saveUtteranceTiming,
+  segmentsByLayer,
 }: UseTimelineResizeParams) {
   const [timelineResizeTooltip, setTimelineResizeTooltip] = useState<TimelineResizeTooltip>(null);
   const timelineResizeDragRef = useRef<ResizeDragState>(null);
@@ -88,7 +93,13 @@ export function useTimelineResize({
     if (player.isPlaying) {
       player.stop();
     }
-    selectUtterance(utterance.id);
+    const layerSegments = layerId && segmentsByLayer ? segmentsByLayer.get(layerId) : undefined;
+    const resolvedSegmentId = layerSegments?.find((segment) => segment.id === utterance.id)?.id;
+    if (resolvedSegmentId && selectSegment) {
+      selectSegment(utterance.id);
+    } else {
+      selectUtterance(utterance.id);
+    }
     if (layerId) {
       setSelectedLayerId(layerId);
       setFocusedLayerRowId(layerId);
@@ -100,7 +111,7 @@ export function useTimelineResize({
       utteranceId: utterance.id,
       mediaId: utterance.mediaId ?? '',
       ...(layerId !== undefined && { layerId }),
-      ...(layerId !== undefined && { segmentId: `segv2_${layerId}_${utterance.id}` }),
+      ...(resolvedSegmentId !== undefined && { segmentId: resolvedSegmentId }),
       edge,
       startClientX: event.clientX,
       initialStart: utterance.startTime,
@@ -200,6 +211,7 @@ export function useTimelineResize({
     manualSelectTsRef,
     player,
     selectUtterance,
+    selectSegment,
     setSelectedLayerId,
     setFocusedLayerRowId,
     beginTimingGesture,
@@ -210,6 +222,7 @@ export function useTimelineResize({
     snapEnabled,
     endTimingGesture,
     saveUtteranceTiming,
+    segmentsByLayer,
   ]);
 
   return {

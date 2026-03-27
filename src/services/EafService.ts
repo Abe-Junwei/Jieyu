@@ -5,7 +5,7 @@
  * This service converts between Jieyu's data model and EAF 3.0.
  */
 
-import type { UtteranceDocType, AnchorDocType, LayerDocType, UtteranceTextDocType, MediaItemDocType, UserNoteDocType, LayerConstraint } from '../db';
+import type { UtteranceDocType, AnchorDocType, LayerDocType, UtteranceTextDocType, MediaItemDocType, UserNoteDocType, LayerConstraint, LayerSegmentDocType, LayerSegmentContentDocType } from '../db';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -16,6 +16,12 @@ export interface EafExportInput {
   layers: LayerDocType[];
   translations: UtteranceTextDocType[];
   userNotes?: UserNoteDocType[];
+  /** 独立边界层的 segment 数据（按 layerId 分组）| Segment data for independent-boundary layers, keyed by layerId */
+  layerSegments?: Map<string, LayerSegmentDocType[]>;
+  /** 独立边界层的 segment 内容（按 layerId 分组，内层按 segmentId）| Segment content for independent-boundary layers */
+  layerSegmentContents?: Map<string, Map<string, LayerSegmentContentDocType>>;
+  /** 默认转写层 ID（用于区分非默认独立转写层）| Default transcription layer ID */
+  defaultTranscriptionLayerId?: string;
 }
 
 export interface EafImportResult {
@@ -84,7 +90,7 @@ function parseEafMetaFromLayerKey(layerKey?: string): { tierId?: string; langLab
 }
 
 export function exportToEaf(input: EafExportInput): string {
-  const { mediaItem, utterances, anchors, layers, translations, userNotes } = input;
+  const { mediaItem, utterances, anchors, layers, translations, userNotes, layerSegments, layerSegmentContents, defaultTranscriptionLayerId } = input;
   const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
 
   // Build time slots — use shared anchors when available
@@ -143,6 +149,18 @@ export function exportToEaf(input: EafExportInput): string {
   const defaultTrcMeta = defaultTrcLayer ? parseEafMetaFromLayerKey(defaultTrcLayer.key) : {};
   const defaultTierId = defaultTrcMeta.tierId ?? 'default';
 
+  // 层 ID -> 导出 tier 名称映射（用于 parentLayerId 优先导出）
+  // Layer ID -> exported tier name mapping (for parentLayerId-first export semantics)
+  const tierNameByLayerId = new Map<string, string>();
+  if (defaultTrcLayer) {
+    tierNameByLayerId.set(defaultTrcLayer.id, defaultTierId);
+  }
+  for (const layer of layers) {
+    const layerMeta = parseEafMetaFromLayerKey(layer.key);
+    const tierName = layerMeta.tierId ?? layer.name?.eng ?? layer.name?.zho ?? layer.key;
+    tierNameByLayerId.set(layer.id, tierName);
+  }
+
   // Transcription tier (default)
   const uttAnnotationIdMap = new Map<string, string>(); // uttId → annotationId（用于翻译层 REF_ANNOTATION）
   const transcriptionAnnotations = sorted.map((utt) => {
@@ -165,10 +183,17 @@ export function exportToEaf(input: EafExportInput): string {
     (l) => l.layerType === 'translation' || (l.layerType === 'transcription' && l.id !== defaultTrcId),
   );
   const translationTierXml: string[] = [];
+  const usedConstraintTypes = new Set<string>(); // Track which LINGUISTIC_TYPEs are needed | 跟踪需要哪些 LINGUISTIC_TYPE
   let hasTranslationLayers = false;
 
   for (const layer of additionalLayers) {
     const layerTranslations = translations.filter((t) => t.layerId === layer.id && t.modality === 'text');
+    const layerTranslationsByUtterance = new Map<string, UtteranceTextDocType[]>();
+    for (const row of layerTranslations) {
+      const bucket = layerTranslationsByUtterance.get(row.utteranceId);
+      if (bucket) bucket.push(row);
+      else layerTranslationsByUtterance.set(row.utteranceId, [row]);
+    }
     const layerMeta = parseEafMetaFromLayerKey(layer.key);
     const tierName = layerMeta.tierId ?? layer.name?.eng ?? layer.name?.zho ?? layer.key;
     const isTranslation = layer.layerType === 'translation';
@@ -176,46 +201,158 @@ export function exportToEaf(input: EafExportInput): string {
     if (isTranslation) {
       // 翻译层：使用 REF_ANNOTATION + PARENT_REF | Translation: REF_ANNOTATION + PARENT_REF
       hasTranslationLayers = true;
-      const annotations = sorted
-        .map((utt) => {
-          const tr = layerTranslations.find((t) => t.utteranceId === utt.id);
-          if (!tr?.text) return null;
-          const parentAnnId = uttAnnotationIdMap.get(utt.id);
-          if (!parentAnnId) return null;
-          const annotationId = tr?.externalRef ?? `a${annCounter++}`;
-          return `        <ANNOTATION>
-            <REF_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" ANNOTATION_REF="${escapeXml(parentAnnId)}">
-                <ANNOTATION_VALUE>${escapeXml(tr.text)}</ANNOTATION_VALUE>
-            </REF_ANNOTATION>
-        </ANNOTATION>`;
-        })
-        .filter(Boolean);
-
-      if (annotations.length > 0) {
-        translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}" LINGUISTIC_TYPE_REF="translation-lt" PARENT_REF="${escapeXml(defaultTierId)}" DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}">
-${annotations.join('\n')}
-    </TIER>`);
+      
+      // Determine constraint | 确定约束类型
+      const constraint = layer.constraint ?? 'symbolic_association';
+      if (constraint === 'independent_boundary') {
+        usedConstraintTypes.add('independent');
+      } else if (constraint === 'time_subdivision') {
+        usedConstraintTypes.add('time_subdivision');
+      } else {
+        usedConstraintTypes.add('symbolic_association');
       }
-    } else {
-      // 非默认转写层：使用 ALIGNABLE_ANNOTATION | Non-default transcription: ALIGNABLE_ANNOTATION
+      
+      const useAlignableAnnotation = constraint === 'independent_boundary' || constraint === 'time_subdivision';
+      // Build segment lookup for segment-specific boundaries | 构建 segment 查找（用于独立边界导出）
+      const layerSegs = useAlignableAnnotation ? layerSegments?.get(layer.id) : undefined;
+      const segByUttId = new Map<string, LayerSegmentDocType[]>();
+      if (layerSegs) {
+        for (const seg of layerSegs) {
+          if (!seg.utteranceId) continue;
+          const arr = segByUttId.get(seg.utteranceId);
+          if (arr) arr.push(seg);
+          else segByUttId.set(seg.utteranceId, [seg]);
+        }
+      }
       const annotations = sorted
         .map((utt) => {
-          const tr = layerTranslations.find((t) => t.utteranceId === utt.id);
-          if (!tr?.text) return null;
-          const slots = uttSlotMap.get(utt.id)!;
-          const annotationId = tr?.externalRef ?? `a${annCounter++}`;
-          return `        <ANNOTATION>
+          if (useAlignableAnnotation) {
+            // Use segment boundaries when available. Multi-segment utterances are exported as one annotation per segment.
+            // 优先使用 segment 边界；多 segment 句子按 segment 逐条导出。
+            const segArr = [...(segByUttId.get(utt.id) ?? [])]
+              .sort((a, b) => (a.startTime - b.startTime) || ((a.ordinal ?? 0) - (b.ordinal ?? 0)));
+            const candidates = layerTranslationsByUtterance.get(utt.id) ?? [];
+
+            if (segArr.length > 0) {
+              const segmentAnnotations = segArr
+                .map((seg, idx) => {
+                  const tr = candidates[idx] ?? candidates[0];
+                  if (!tr?.text) return null;
+                  const tsStart = `ts${tsCounter++}`;
+                  const tsEnd = `ts${tsCounter++}`;
+                  timeSlots.push({ id: tsStart, ms: Math.round(seg.startTime * 1000) });
+                  timeSlots.push({ id: tsEnd, ms: Math.round(seg.endTime * 1000) });
+                  const annotationId = tr.externalRef ?? `a${annCounter++}`;
+                  return `        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${tsStart}" TIME_SLOT_REF2="${tsEnd}">
+                <ANNOTATION_VALUE>${escapeXml(tr.text)}</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>`;
+                })
+                .filter((item): item is string => item !== null);
+              if (segmentAnnotations.length === 0) return null;
+              return segmentAnnotations.join('\n');
+            }
+
+            const tr = candidates[0];
+            if (!tr?.text) return null;
+            const annotationId = tr.externalRef ?? `a${annCounter++}`;
+            const slots = uttSlotMap.get(utt.id)!;
+            return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${slots.tsStart}" TIME_SLOT_REF2="${slots.tsEnd}">
                 <ANNOTATION_VALUE>${escapeXml(tr.text)}</ANNOTATION_VALUE>
             </ALIGNABLE_ANNOTATION>
         </ANNOTATION>`;
+          } else {
+            // Symbolic association: use REF_ANNOTATION
+            const tr = layerTranslationsByUtterance.get(utt.id)?.[0];
+            if (!tr?.text) return null;
+            const annotationId = tr.externalRef ?? `a${annCounter++}`;
+            const parentAnnId = uttAnnotationIdMap.get(utt.id);
+            if (!parentAnnId) return null;
+            return `        <ANNOTATION>
+            <REF_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" ANNOTATION_REF="${escapeXml(parentAnnId)}">
+                <ANNOTATION_VALUE>${escapeXml(tr.text)}</ANNOTATION_VALUE>
+            </REF_ANNOTATION>
+        </ANNOTATION>`;
+          }
         })
         .filter(Boolean);
 
       if (annotations.length > 0) {
-        translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}">
+        const shouldIncludeParentRef = constraint !== 'independent_boundary';
+        const parentTierId = layer.parentLayerId
+          ? (tierNameByLayerId.get(layer.parentLayerId) ?? defaultTierId)
+          : defaultTierId;
+        const parentRefAttr = shouldIncludeParentRef
+          ? ` PARENT_REF="${escapeXml(parentTierId)}"`
+          : '';
+        const linguisticTypeRef = constraint === 'independent_boundary'
+          ? 'translation-independent-lt'
+          : constraint === 'time_subdivision'
+            ? 'translation-subdivision-lt'
+            : 'translation-lt';
+        const timeAlignableAttr = ` LINGUISTIC_TYPE_REF="${linguisticTypeRef}"`;
+        translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}"${timeAlignableAttr}${parentRefAttr} DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}">
 ${annotations.join('\n')}
     </TIER>`);
+      }
+    } else {
+      // 非默认转写层 | Non-default transcription layer
+      const isIndependentTrc = layer.layerType === 'transcription'
+        && layer.constraint === 'independent_boundary'
+        && layer.id !== defaultTranscriptionLayerId;
+      const layerSegs = isIndependentTrc ? layerSegments?.get(layer.id) : undefined;
+
+      if (layerSegs && layerSegs.length > 0) {
+        // 独立转写层：用 segment 边界 + segment content 导出 | Independent transcription: export from segment data
+        const contentMap = layerSegmentContents?.get(layer.id);
+        const sortedSegs = [...layerSegs].sort((a, b) => a.startTime - b.startTime);
+        const segAnnotations = sortedSegs
+          .map((seg) => {
+            const content = contentMap?.get(seg.id);
+            const text = content?.text ?? '';
+            if (!text) return null;
+            const startMs = Math.round(seg.startTime * 1000);
+            const endMs = Math.round(seg.endTime * 1000);
+            const tsStartId = `ts${tsCounter++}`;
+            const tsEndId = `ts${tsCounter++}`;
+            timeSlots.push({ id: tsStartId, ms: startMs }, { id: tsEndId, ms: endMs });
+            const annotationId = `a${annCounter++}`;
+            return `        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${tsStartId}" TIME_SLOT_REF2="${tsEndId}">
+                <ANNOTATION_VALUE>${escapeXml(text)}</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>`;
+          })
+          .filter(Boolean);
+
+        if (segAnnotations.length > 0) {
+          translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}">
+${segAnnotations.join('\n')}
+    </TIER>`);
+        }
+      } else {
+        // 普通非默认转写层：用 utterance_texts 导出 | Regular non-default transcription: use utterance_texts
+        const annotations = sorted
+          .map((utt) => {
+            const tr = layerTranslations.find((t) => t.utteranceId === utt.id);
+            if (!tr?.text) return null;
+            const slots = uttSlotMap.get(utt.id)!;
+            const annotationId = tr?.externalRef ?? `a${annCounter++}`;
+            return `        <ANNOTATION>
+            <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${slots.tsStart}" TIME_SLOT_REF2="${slots.tsEnd}">
+                <ANNOTATION_VALUE>${escapeXml(tr.text)}</ANNOTATION_VALUE>
+            </ALIGNABLE_ANNOTATION>
+        </ANNOTATION>`;
+          })
+          .filter(Boolean);
+
+        if (annotations.length > 0) {
+          translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}">
+${annotations.join('\n')}
+    </TIER>`);
+        }
       }
     }
   }
@@ -227,6 +364,22 @@ ${annotations.join('\n')}
     : '    <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds" />';
 
   // 尾部元素：LINGUISTIC_TYPE + LANGUAGE | Footer: type declarations + language declarations
+  const footerLines: string[] = [
+    '    <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />',
+  ];
+  
+  if (hasTranslationLayers) {
+    if (usedConstraintTypes.has('symbolic_association')) {
+      footerLines.push('    <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="translation-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Association" GRAPHIC_REFERENCES="false" />');
+    }
+    if (usedConstraintTypes.has('time_subdivision')) {
+      footerLines.push('    <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="translation-subdivision-lt" TIME_ALIGNABLE="true" CONSTRAINTS="Time_Subdivision" GRAPHIC_REFERENCES="false" />');
+    }
+    if (usedConstraintTypes.has('independent')) {
+      footerLines.push('    <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="translation-independent-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />');
+    }
+  }
+
   const usedLocales = new Set<string>();
   usedLocales.add(defaultTrcLocale);
   const localeLabelById = new Map<string, string>();
@@ -238,12 +391,7 @@ ${annotations.join('\n')}
       if (layerMeta.langLabel) localeLabelById.set(layer.languageId, layerMeta.langLabel);
     }
   }
-  const footerLines: string[] = [
-    '    <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />',
-  ];
-  if (hasTranslationLayers) {
-    footerLines.push('    <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="translation-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Association" GRAPHIC_REFERENCES="false" />');
-  }
+
   for (const loc of usedLocales) {
     const label = localeLabelById.get(loc) ?? loc;
     footerLines.push(`    <LANGUAGE LANG_ID="${escapeXml(loc)}" LANG_LABEL="${escapeXml(label)}" />`);
@@ -444,7 +592,7 @@ export function importFromEaf(xmlString: string): EafImportResult {
       ? 'symbolic_association'
       : eafConstraint === 'Time_Subdivision'
         ? 'time_subdivision'
-        : (isTimeAlignable ? 'none' : 'symbolic_association');
+        : (isTimeAlignable ? 'independent_boundary' : 'symbolic_association');
     tierConstraints.set(tierId, {
       constraint,
       ...(parentRef ? { parentTierId: parentRef } : {}),

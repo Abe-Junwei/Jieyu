@@ -499,7 +499,7 @@ export function planToolCallTargets(
   context: AiPromptContext | null | undefined,
 ): ToolPlannerResult {
   const shortTerm = context?.shortTerm;
-  const currentUtteranceId = getFirstNonEmptyString(shortTerm?.selectedUtteranceId);
+  const currentUtteranceId = getFirstNonEmptyString(shortTerm?.activeUtteranceUnitId);
   const currentUtteranceStartSec = typeof shortTerm?.selectedUtteranceStartSec === 'number' && Number.isFinite(shortTerm.selectedUtteranceStartSec)
     ? shortTerm.selectedUtteranceStartSec
     : undefined;
@@ -682,16 +682,16 @@ export function extractClarifySplitPositionPatch(
   context: AiPromptContext | null | undefined,
 ): Record<string, number | string> | null {
   if (!/^(这里|此处|在这里|在此处|就这里|就此处)$/i.test(userText.trim())) return null;
-  const selectedUtteranceId = getFirstNonEmptyString(context?.shortTerm?.selectedUtteranceId);
+  const activeUtteranceUnitId = getFirstNonEmptyString(context?.shortTerm?.activeUtteranceUnitId);
   const audioTimeSec = context?.shortTerm?.audioTimeSec;
-  if (!selectedUtteranceId) return null;
+  if (!activeUtteranceUnitId) return null;
   if (typeof audioTimeSec !== 'number' || !Number.isFinite(audioTimeSec)) return null;
-  return { utteranceId: selectedUtteranceId, splitTime: audioTimeSec };
+  return { utteranceId: activeUtteranceUnitId, splitTime: audioTimeSec };
 }
 
 function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: AiPromptContext | null | undefined): boolean {
   const short = context?.shortTerm;
-  const selectedUtteranceId = getFirstNonEmptyString(short?.selectedUtteranceId);
+  const activeUtteranceUnitId = getFirstNonEmptyString(short?.activeUtteranceUnitId);
   const selectedLayerId = getFirstNonEmptyString(short?.selectedLayerId);
   const selectedLayerType = short?.selectedLayerType;
   const selectedTranslationLayerId = getFirstNonEmptyString(
@@ -704,10 +704,10 @@ function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: 
   );
 
   if (['create_transcription_segment', 'split_transcription_segment', 'delete_transcription_segment', 'set_transcription_text', 'auto_gloss_utterance', 'set_token_pos', 'set_token_gloss'].includes(callName)) {
-    return selectedUtteranceId.length > 0;
+    return activeUtteranceUnitId.length > 0;
   }
   if (['set_translation_text', 'clear_translation_segment'].includes(callName)) {
-    return selectedUtteranceId.length > 0 && selectedTranslationLayerId.length > 0;
+    return activeUtteranceUnitId.length > 0 && selectedTranslationLayerId.length > 0;
   }
   if (callName === 'delete_layer') {
     return selectedLayerId.length > 0;
@@ -1055,7 +1055,7 @@ export function buildClarifyCandidates(
   sessionMemory?: AiSessionMemory,
 ): AiClarifyCandidate[] {
   const short = context?.shortTerm;
-  const selectedUtteranceId = getFirstNonEmptyString(short?.selectedUtteranceId);
+  const activeUtteranceUnitId = getFirstNonEmptyString(short?.activeUtteranceUnitId);
   const selectedLayerId = getFirstNonEmptyString(short?.selectedLayerId);
   const selectedLayerType = short?.selectedLayerType;
   const selectedTranslationLayerId = getFirstNonEmptyString(
@@ -1068,8 +1068,8 @@ export function buildClarifyCandidates(
   );
 
   const candidates: AiClarifyCandidate[] = [];
-  if (reason === 'missing-utterance-target' && selectedUtteranceId) {
-    candidates.push({ key: '1', label: `当前选中句段（${selectedUtteranceId}）`, argsPatch: { utteranceId: selectedUtteranceId } });
+  if (reason === 'missing-utterance-target' && activeUtteranceUnitId) {
+    candidates.push({ key: '1', label: `当前选中句段（${activeUtteranceUnitId}）`, argsPatch: { utteranceId: activeUtteranceUnitId } });
   }
   if (reason === 'missing-layer-target' && selectedLayerId) {
     candidates.push({ key: '1', label: `当前选中层（${selectedLayerId}）`, argsPatch: { layerId: selectedLayerId } });

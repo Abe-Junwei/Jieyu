@@ -38,8 +38,8 @@ export function useTranscriptionData() {
     setMediaItems,
     speakers,
     setSpeakers,
-    selectedUtteranceId,
-    setSelectedUtteranceId,
+    selectedTimelineUnit,
+    setSelectedTimelineUnit,
     selectedUtteranceIds,
     setSelectedUtteranceIds,
     selectedMediaId,
@@ -70,9 +70,18 @@ export function useTranscriptionData() {
     layersRef,
     layerLinksRef,
       speakersRef,
-    selectedUtteranceIdRef,
+    selectedTimelineUnitRef,
+    selectedUtteranceUnitIdRef,
     selectedUtteranceIdsRef,
+    selectedLayerIdRef,
   } = useTranscriptionState();
+
+  const activeUtteranceUnitId = selectedTimelineUnit?.kind === 'utterance'
+    ? selectedTimelineUnit.unitId
+    : '';
+  const activeSegmentUnitId = selectedTimelineUnit?.kind === 'segment'
+    ? selectedTimelineUnit.unitId
+    : '';
 
   const {
     runWithDbMutex,
@@ -105,6 +114,7 @@ export function useTranscriptionData() {
   });
 
   const {
+    segmentUndoRef,
     timingUndoRef,
     timingGestureRef,
     pushUndo,
@@ -154,7 +164,7 @@ export function useTranscriptionData() {
   } = useTranscriptionDerivedData({
     layers,
     layerToDeleteId,
-    selectedUtteranceId,
+    selectedTimelineUnit,
     selectedMediaId,
     mediaItems,
     utterances,
@@ -191,7 +201,8 @@ export function useTranscriptionData() {
     setMediaItems,
     setSpeakers,
     setSelectedLayerId,
-    setSelectedUtteranceId,
+    setSelectedUtteranceIds,
+    setSelectedTimelineUnit,
     setState,
     setTranslations,
     setUtteranceDrafts,
@@ -242,7 +253,7 @@ export function useTranscriptionData() {
     layerToDeleteId,
     selectedLayerId,
     selectedUtteranceMedia,
-    selectedUtteranceId,
+    activeUtteranceUnitId,
     translations,
     utterancesRef,
     utterancesOnCurrentMediaRef,
@@ -267,8 +278,8 @@ export function useTranscriptionData() {
     setTranslations,
     setUtterances,
     setUtteranceDrafts,
-    setSelectedUtteranceId,
     setSelectedUtteranceIds,
+    setSelectedTimelineUnit,
     allowOverlapInTranscription: transcriptionTrackMode !== 'single',
   });
 
@@ -324,13 +335,10 @@ export function useTranscriptionData() {
   useTranscriptionSelectionGuards({
     selectedLayerId,
     setSelectedLayerId,
-    translationLayers,
+    layers,
     layerToDeleteId,
     setLayerToDeleteId,
     deletableLayers,
-    selectedUtteranceId,
-    setSelectedUtteranceIds,
-    selectedUtteranceIdsRef,
   });
 
   useTranscriptionTranslationDraftSync({
@@ -368,20 +376,27 @@ export function useTranscriptionData() {
   });
 
   const {
+    selectTimelineUnit,
     setUtteranceSelection,
     selectUtterance,
+    selectSegment,
     toggleUtteranceSelection,
     selectUtteranceRange,
     selectAllBefore,
     selectAllAfter,
     selectAllUtterances,
     clearUtteranceSelection,
+    toggleSegmentSelection,
+    selectSegmentRange,
   } = useTranscriptionSelectionActions({
-    selectedUtteranceIdRef,
+    selectedUtteranceUnitIdRef,
     selectedUtteranceIdsRef,
+    selectedLayerIdRef,
+    selectedTimelineUnitRef,
     utterancesOnCurrentMediaRef,
-    setSelectedUtteranceId,
+    setSelectedLayerId,
     setSelectedUtteranceIds,
+    setSelectedTimelineUnit,
   });
 
   const stateApi = {
@@ -393,10 +408,12 @@ export function useTranscriptionData() {
     layerLinks,
     mediaItems,
     speakers,
-    selectedUtteranceId,
-    setSelectedUtteranceId,
+    selectedTimelineUnit,
+    setSelectedTimelineUnit,
+    activeUtteranceUnitId,
     selectedUtteranceIds,
     setSelectedUtteranceIds,
+    activeSegmentUnitId,
     setSelectedMediaId,
     selectedLayerId,
     setSelectedLayerId,
@@ -451,7 +468,9 @@ export function useTranscriptionData() {
     mergeWithPrevious,
     mergeWithNext,
     splitUtterance,
+    selectTimelineUnit,
     selectUtterance,
+    selectSegment,
     setUtteranceSelection,
     toggleUtteranceSelection,
     selectUtteranceRange,
@@ -459,6 +478,8 @@ export function useTranscriptionData() {
     selectAllAfter,
     selectAllUtterances,
     clearUtteranceSelection,
+    toggleSegmentSelection,
+    selectSegmentRange,
     deleteSelectedUtterances,
     offsetSelectedTimes,
     scaleSelectedTimes,
@@ -510,6 +531,7 @@ export function useTranscriptionData() {
     ...recoveryApi,
     ...canonicalApi,
     pushUndo,
+    segmentUndoRef,
     setUtterances,
     setSpeakers,
   };

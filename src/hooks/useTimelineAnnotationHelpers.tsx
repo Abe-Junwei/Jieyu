@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
 import type { LayerDocType, UtteranceDocType } from '../db';
+import type { TimelineUnit } from './transcriptionTypes';
 import { formatTime, getLayerLabelParts } from '../utils/transcriptionFormatters';
 
 type TimelineUtterance = Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime' | 'speaker' | 'speakerId' | 'ai_metadata'>;
@@ -36,10 +37,12 @@ type UseTimelineAnnotationHelpersParams = {
     stop: () => void;
     seekTo: (time: number) => void;
   };
-  selectedUtteranceId: string;
+  selectedTimelineUnit?: TimelineUnit | null;
   selectUtteranceRange: (startId: string, endId: string) => void;
   toggleUtteranceSelection: (id: string) => void;
+  selectTimelineUnit?: (unit: TimelineUnit | null) => void;
   selectUtterance: (id: string) => void;
+  selectSegment: (id: string) => void;
   setSelectedLayerId: (id: string) => void;
   onFocusLayerRow: (id: string) => void;
   tierContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -61,15 +64,18 @@ type UseTimelineAnnotationHelpersParams = {
   handleNoteClick: (utteranceId: string, layerId: string, event: React.MouseEvent) => void;
   speakerVisualByUtteranceId?: Record<string, SpeakerVisual>;
   onOverlapCycleToast?: (index: number, total: number, utteranceId: string) => void;
+  independentLayerIds?: Set<string>;
 };
 
 export function useTimelineAnnotationHelpers({
   manualSelectTsRef,
   player,
-  selectedUtteranceId,
+  selectedTimelineUnit,
   selectUtteranceRange,
   toggleUtteranceSelection,
+  selectTimelineUnit,
   selectUtterance,
+  selectSegment,
   setSelectedLayerId,
   onFocusLayerRow,
   tierContainerRef,
@@ -86,6 +92,7 @@ export function useTimelineAnnotationHelpers({
   handleNoteClick,
   speakerVisualByUtteranceId = {},
   onOverlapCycleToast,
+  independentLayerIds = new Set<string>(),
 }: UseTimelineAnnotationHelpersParams) {
   const handleAnnotationClick = useCallback((
     uttId: string,
@@ -96,12 +103,31 @@ export function useTimelineAnnotationHelpers({
   ) => {
     manualSelectTsRef.current = Date.now();
     if (player.isPlaying) player.stop();
-    if (e.shiftKey && selectedUtteranceId) {
-      selectUtteranceRange(selectedUtteranceId, uttId);
+    const isIndependentLayer = independentLayerIds.has(layerId);
+    if (isIndependentLayer) {
+      if (selectTimelineUnit) {
+        selectTimelineUnit({
+          layerId,
+          unitId: uttId,
+          kind: 'segment',
+        });
+      } else {
+        selectSegment(uttId);
+      }
+      player.seekTo(uttStartTime);
+      setSelectedLayerId(layerId);
+      onFocusLayerRow(layerId);
+      return;
+    }
+    const selectedUtteranceUnitId = selectedTimelineUnit?.kind === 'utterance'
+      ? selectedTimelineUnit.unitId
+      : '';
+    if (e.shiftKey && selectedUtteranceUnitId) {
+      selectUtteranceRange(selectedUtteranceUnitId, uttId);
     } else if (e.metaKey || e.ctrlKey) {
       toggleUtteranceSelection(uttId);
     } else if (
-      selectedUtteranceId === uttId
+      selectedUtteranceUnitId === uttId
       && overlapCycleItems
       && overlapCycleItems.length > 1
     ) {
@@ -117,7 +143,15 @@ export function useTimelineAnnotationHelpers({
         );
       }
     } else {
-      selectUtterance(uttId);
+      if (selectTimelineUnit) {
+        selectTimelineUnit({
+          layerId,
+          unitId: uttId,
+          kind: 'utterance',
+        });
+      } else {
+        selectUtterance(uttId);
+      }
       player.seekTo(uttStartTime);
     }
     setSelectedLayerId(layerId);
@@ -126,9 +160,12 @@ export function useTimelineAnnotationHelpers({
     manualSelectTsRef,
     player,
     selectUtteranceRange,
-    selectedUtteranceId,
+    selectedTimelineUnit,
+    independentLayerIds,
     toggleUtteranceSelection,
     selectUtterance,
+    selectTimelineUnit,
+    selectSegment,
     setSelectedLayerId,
     onFocusLayerRow,
     onOverlapCycleToast,
@@ -144,7 +181,27 @@ export function useTimelineAnnotationHelpers({
     e.stopPropagation();
     manualSelectTsRef.current = Date.now();
     if (player.isPlaying) player.stop();
-    selectUtterance(uttId);
+    if (independentLayerIds.has(layerId)) {
+      if (selectTimelineUnit) {
+        selectTimelineUnit({
+          layerId,
+          unitId: uttId,
+          kind: 'segment',
+        });
+      } else {
+        selectSegment(uttId);
+      }
+    } else {
+      if (selectTimelineUnit) {
+        selectTimelineUnit({
+          layerId,
+          unitId: uttId,
+          kind: 'utterance',
+        });
+      } else {
+        selectUtterance(uttId);
+      }
+    }
     setSelectedLayerId(layerId);
     onFocusLayerRow(layerId);
     const sc = tierContainerRef.current;
@@ -161,7 +218,10 @@ export function useTimelineAnnotationHelpers({
   }, [
     manualSelectTsRef,
     player,
+    independentLayerIds,
+    selectTimelineUnit,
     selectUtterance,
+    selectSegment,
     setSelectedLayerId,
     onFocusLayerRow,
     tierContainerRef,
@@ -204,7 +264,11 @@ export function useTimelineAnnotationHelpers({
         left={dpStart * zoomPxPerSec}
         width={Math.max(4, (dpEnd - dpStart) * zoomPxPerSec)}
         isSelected={selectedUtteranceIds.has(utt.id)}
-        isActive={utt.id === selectedUtteranceId && layer.id === focusedLayerRowId}
+        isActive={
+          layer.id === focusedLayerRowId
+            && selectedTimelineUnit?.layerId === layer.id
+            && selectedTimelineUnit.unitId === utt.id
+        }
         isCompact={(dpEnd - dpStart) * zoomPxPerSec < 36}
         title={`${formatTime(utt.startTime)} – ${formatTime(utt.endTime)}${speakerVisual ? ` | 说话人：${speakerVisual.name}` : ''}`}
         draft={draft}
@@ -227,8 +291,9 @@ export function useTimelineAnnotationHelpers({
     dragPreview,
     zoomPxPerSec,
     selectedUtteranceIds,
-    selectedUtteranceId,
+    selectedTimelineUnit,
     focusedLayerRowId,
+    independentLayerIds,
     handleAnnotationClick,
     handleAnnotationContextMenu,
     zoomToUtterance,

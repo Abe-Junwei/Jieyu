@@ -146,10 +146,14 @@ export async function saveTrackEntityStateMapToDb(
     laneLockMap: sanitizeLaneLockMap(state.laneLockMap),
     updatedAt: state.updatedAt || now,
   }));
-  // Delete all existing entries for this textId, then insert new ones
-  const existing = await db.dexie.track_entities.where('textId').equals(textId).primaryKeys();
-  await db.dexie.track_entities.bulkDelete(existing);
-  if (docs.length > 0) {
-    await db.dexie.track_entities.bulkPut(docs);
-  }
+  await db.dexie.transaction('rw', db.dexie.track_entities, async () => {
+    // Delete all existing entries for this textId, then insert new ones
+    const existing = await db.dexie.track_entities.where('textId').equals(textId).primaryKeys();
+    if (existing.length > 0) {
+      await db.dexie.track_entities.bulkDelete(existing);
+    }
+    if (docs.length > 0) {
+      await db.dexie.track_entities.bulkPut(docs);
+    }
+  });
 }

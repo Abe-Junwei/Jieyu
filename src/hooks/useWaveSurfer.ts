@@ -94,6 +94,8 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   const [duration, setDuration] = useState(0);
   const [playbackRate, _setRate] = useState(1);
   const [volume, _setVol] = useState(0.9);
+  /** 媒体加载失败时的错误信息；null 表示无错误 | Error message when media load fails; null means no error */
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Keep refs in sync so the init effect can apply rate/volume without depending on state.
   const rateRef = useRef(playbackRate);
@@ -122,6 +124,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     setCurrentTime(0);
     setDuration(0);
     setIsPlaying(false);
+    setLoadError(null);
 
     if (!mediaUrl) return;
 
@@ -154,7 +157,15 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     ws.on('ready', () => {
       if (disposed) return;
       setIsReady(true);
+      setLoadError(null);
       setDuration(ws.getDuration() || 0);
+    });
+    // 监听 WaveSurfer 的加载错误事件，将错误暴露给消费方 | Expose media load errors to consumers
+    ws.on('error', (err: Error) => {
+      if (disposed) return;
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn('WaveSurfer load error', { mediaUrl, error: msg });
+      setLoadError(msg);
     });
     ws.on('timeupdate', (time: number) => {
       if (disposed) return;
@@ -287,7 +298,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       unsub();
       disableDragSelection();
     };
-  }, [isReady]);
+  }, [isReady, options.enableEmptyDragCreate]);
 
   useEffect(() => {
     const rp = regionsRef.current;
@@ -656,6 +667,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     instanceRef,
     regionHandlesRef,
     isReady,
+    loadError,
     isPlaying,
     currentTime,
     duration,

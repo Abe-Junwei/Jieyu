@@ -76,6 +76,26 @@ describe('findNearestZeroCrossing', () => {
     const result = findNearestZeroCrossing(buf, 0.003, 5);
     expect(result).toBeCloseTo(0.002, 3); // index 2
   });
+
+  it('ignores noise-floor crossings (both neighbors below noiseFloor)', () => {
+    // 极低振幅噪声使相邻样本均低于 noiseFloor，不应被记为有效过零点
+    // Extremely low-amplitude noise should not register as valid zero crossings
+    // samples: [0.001, -0.001, 0.001, 0.001, 1, -1, 1]
+    // Real crossings at i=4, 5; noise crossings at i=0, 1, 2
+    const buf = makeAudioBuffer([0.001, -0.001, 0.001, 0.001, 1, -1, 1], 1000);
+    // target at sample 2 (0.002s), window covers [0..4]
+    // noise crossings (i=0,1,2) should be skipped; nearest real crossing is i=4
+    const result = findNearestZeroCrossing(buf, 0.002, 5);
+    expect(result).toBeCloseTo(0.004, 3); // real crossing at index 4
+  });
+
+  it('accepts custom noiseFloor of 0 (legacy behaviour — all crossings count)', () => {
+    // noiseFloor=0 restores original behaviour, including noise-floor crossings
+    const buf = makeAudioBuffer([0.001, -0.001, 0.001, 0.001, 1, -1, 1], 1000);
+    const result = findNearestZeroCrossing(buf, 0.002, 5, 0);
+    // crossings at i=0 (dist=2) and i=1 (dist=1): nearest is i=1
+    expect(result).toBeCloseTo(0.001, 3);
+  });
 });
 
 // ── snapToZeroCrossing ───────────────────────────────────────

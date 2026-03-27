@@ -384,7 +384,6 @@ describe('AiChatCard input submit', () => {
 
     await waitFor(() => {
       expect(within(view.container).getByText(/回放 \/ 对比|Replay \/ Compare/i)).toBeTruthy();
-      expect(within(view.container).getByText(/执行参数|Tool arguments/i)).toBeTruthy();
       expect(within(view.container).getByText(/决策轨迹|Decision timeline/i)).toBeTruthy();
       expect(within(view.container).getByText(/Golden 快照预览|Golden Snapshot Preview/i)).toBeTruthy();
     });

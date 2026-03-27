@@ -5,7 +5,7 @@
  * which is the most common variant.
  */
 
-import type { UtteranceDocType, LayerDocType, UtteranceTextDocType, UserNoteDocType } from '../db';
+import type { UtteranceDocType, LayerDocType, UtteranceTextDocType, UserNoteDocType, LayerSegmentDocType, LayerSegmentContentDocType } from '../db';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -14,6 +14,10 @@ export interface TextGridExportInput {
   layers: LayerDocType[];
   translations: UtteranceTextDocType[];
   userNotes?: UserNoteDocType[];
+  /** 独立层 segment 数据（用于独立转写层区间导出）| Independent layer segment data (for independent transcription tier export) */
+  segmentsByLayer?: Map<string, LayerSegmentDocType[]>;
+  /** segment 内容按 layerId → segmentId 索引 | Segment content indexed by layerId → segmentId */
+  segmentContents?: Map<string, Map<string, LayerSegmentContentDocType>>;
 }
 
 export interface TextGridImportResult {
@@ -40,7 +44,7 @@ function escapeTextGridString(s: string): string {
 }
 
 export function exportToTextGrid(input: TextGridExportInput): string {
-  const { utterances, layers, translations, userNotes } = input;
+  const { utterances, layers, translations, userNotes, segmentsByLayer, segmentContents } = input;
   const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
   if (sorted.length === 0) return '';
 
@@ -81,11 +85,27 @@ export function exportToTextGrid(input: TextGridExportInput): string {
     (l) => l.layerType === 'translation' || (l.layerType === 'transcription' && l.id !== defaultTrcId),
   );
   for (const layer of additionalLayers) {
+    const tierName = layer.name?.eng ?? layer.name?.zho ?? layer.key;
+
+    // 若 segmentsByLayer 包含该层，直接用 segment 区间（不分层类型）| Use segment intervals for any layer present in segmentsByLayer
+    const segs = segmentsByLayer?.has(layer.id)
+      ? (segmentsByLayer.get(layer.id) ?? []).slice().sort((a, b) => a.startTime - b.startTime)
+      : null;
+    if (segs && segs.length > 0) {
+      const contentMap = segmentContents?.get(layer.id);
+      const intervals = buildIntervalsWithGaps(
+        segs.map((seg) => ({ xmin: seg.startTime, xmax: seg.endTime, text: contentMap?.get(seg.id)?.text ?? '' })),
+        globalXmin,
+        globalXmax,
+      );
+      tiers.push({ name: tierName, intervals });
+      continue;
+    }
+
+    // 翻译层或无 segment 的层：使用 utterance 对齐翻译 | Translation layer: use utterance-aligned translations
     const layerTranslations = translations.filter(
       (t) => t.layerId === layer.id && t.modality === 'text',
     );
-    const tierName = layer.name?.eng ?? layer.name?.zho ?? layer.key;
-
     const intervals = buildIntervalsWithGaps(
       sorted.map((u) => {
         const tr = layerTranslations.find((t) => t.utteranceId === u.id);

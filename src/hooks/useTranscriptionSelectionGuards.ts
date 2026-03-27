@@ -1,37 +1,31 @@
 import { useEffect } from 'react';
-import type { MutableRefObject } from 'react';
 import type { LayerDocType } from '../db';
 
 type Params = {
   selectedLayerId: string;
   setSelectedLayerId: (id: string) => void;
-  translationLayers: LayerDocType[];
+  layers: LayerDocType[];
   layerToDeleteId: string;
   setLayerToDeleteId: (id: string) => void;
   deletableLayers: LayerDocType[];
-  selectedUtteranceId: string;
-  setSelectedUtteranceIds: (ids: Set<string>) => void;
-  selectedUtteranceIdsRef: MutableRefObject<Set<string>>;
 };
 
 export function useTranscriptionSelectionGuards({
   selectedLayerId,
   setSelectedLayerId,
-  translationLayers,
+  layers,
   layerToDeleteId,
   setLayerToDeleteId,
   deletableLayers,
-  selectedUtteranceId,
-  setSelectedUtteranceIds,
-  selectedUtteranceIdsRef,
 }: Params) {
   useEffect(() => {
     if (!selectedLayerId) return;
-    const exists = translationLayers.some((item) => item.id === selectedLayerId);
+    const exists = layers.some((item) => item.id === selectedLayerId);
     if (!exists) {
-      setSelectedLayerId(translationLayers[0]?.id ?? '');
+      // 回退到任一可用层，避免在独立层场景把 selectedLayerId 清空 | Fallback to any existing layer to avoid clearing selection for independent-layer flows.
+      setSelectedLayerId(layers[0]?.id ?? '');
     }
-  }, [selectedLayerId, setSelectedLayerId, translationLayers]);
+  }, [layers, selectedLayerId, setSelectedLayerId]);
 
   useEffect(() => {
     if (!layerToDeleteId) {
@@ -44,15 +38,4 @@ export function useTranscriptionSelectionGuards({
     }
   }, [deletableLayers, layerToDeleteId, setLayerToDeleteId]);
 
-  // Multi-select sync: when selectedUtteranceId changes via legacy code paths,
-  // reset the set to contain just the primary.
-  useEffect(() => {
-    if (!selectedUtteranceId) {
-      setSelectedUtteranceIds(new Set());
-      return;
-    }
-    if (!selectedUtteranceIdsRef.current.has(selectedUtteranceId)) {
-      setSelectedUtteranceIds(new Set([selectedUtteranceId]));
-    }
-  }, [selectedUtteranceId, selectedUtteranceIdsRef, setSelectedUtteranceIds]);
 }

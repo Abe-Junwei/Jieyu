@@ -50,7 +50,7 @@ function makeOptions(overrides: Partial<UseSpeakerManagementOptions> = {}): UseS
   const utterances = overrides.utterancesOnCurrentMedia ?? [makeUtterance()];
   return {
     utterancesOnCurrentMedia: utterances,
-    selectedUtteranceId: overrides.selectedUtteranceId ?? utterances[0]?.id ?? null,
+    activeUtteranceUnitId: overrides.activeUtteranceUnitId ?? utterances[0]?.id ?? null,
     selectedUtteranceIds: overrides.selectedUtteranceIds ?? new Set<string>(),
     selectedBatchUtterances: overrides.selectedBatchUtterances ?? [],
     isReady: overrides.isReady ?? true,
@@ -95,7 +95,7 @@ describe('useSpeakerManagement', () => {
 
     const { result } = renderHook(() => useSpeakerManagement(makeOptions({
       utterancesOnCurrentMedia: utterances,
-      selectedUtteranceId: 'utt-2',
+      activeUtteranceUnitId: 'utt-2',
       setUtteranceSelection,
       isReady: false,
     })));

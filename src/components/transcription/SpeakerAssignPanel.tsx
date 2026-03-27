@@ -265,6 +265,8 @@ export const SpeakerAssignPanel: FC<SpeakerAssignPanelProps> = ({
     <section
       className="speaker-assign-panel floating-panel"
       aria-label="说话人批量指派面板"
+      onMouseDown={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,

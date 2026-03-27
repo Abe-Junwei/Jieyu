@@ -153,4 +153,30 @@ describe('TranscriptionPage structure invariants', () => {
     expect(code.includes('setSpeakerFocusTargetForCurrentMedia(null);')).toBe(true);
     expect(code.includes("setSpeakerFocusMode('all');")).toBe(true);
   });
+
+  it('keeps waveform region routing for independent-boundary layers', () => {
+    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const code = fs.readFileSync(filePath, 'utf8');
+
+    // 独立层启用时，波形 region 来源应切到 layer_segments
+    // When independent layer is active, waveform regions should come from layer_segments.
+    expect(code.includes('const useIndependentWaveformRegions = Boolean(activeWaveformLayer && layerUsesOwnSegments(activeWaveformLayer, defaultTranscriptionLayerId));')).toBe(true);
+    expect(code.includes('const waveformTimelineItems = useMemo(() => {')).toBe(true);
+    expect(code.includes('const segments = segmentsByLayer.get(activeWaveformLayer.id) ?? [];')).toBe(true);
+    expect(code.includes('const waveformRegions = useMemo(() =>')).toBe(true);
+
+    // 选择态应按 independent/utterance 双路径路由
+    // Selection state must route by independent/utterance mode.
+    expect(code.includes('const selectedWaveformRegionId = useIndependentWaveformRegions')).toBe(true);
+    expect(code.includes("? (selectedTimelineUnit?.kind === 'segment' && selectedTimelineUnit.layerId === activeLayerIdForEdits")).toBe(true);
+    expect(code.includes(": (selectedTimelineUnit?.kind === 'utterance' && selectedTimelineUnit.layerId === activeLayerIdForEdits")).toBe(true);
+    expect(code.includes('const waveformActiveRegionIds = useMemo(() => {')).toBe(true);
+    expect(code.includes('return selectedWaveformRegionId ? new Set([selectedWaveformRegionId]) : new Set<string>();')).toBe(true);
+    expect(code.includes('const waveformPrimaryRegionId = selectedWaveformRegionId;')).toBe(true);
+
+    // 拖拽更新结束应在独立层更新 segment 而非 utterance
+    // Region update end must update segment on independent layers.
+    expect(code.includes('if (useIndependentWaveformRegions && activeWaveformLayer) {')).toBe(true);
+    expect(code.includes('await LayerSegmentationV2Service.updateSegment(regionId, {')).toBe(true);
+  });
 });

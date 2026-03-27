@@ -27,7 +27,9 @@
       "Bash(sed -n '1985,3705p' ../styles.css)",
       "Bash(sed -n '7927,8740p' ../styles.css)",
       "Bash(rm transcription_part*.tmp)",
-      "Read(//dev/**)"
+      "Read(//dev/**)",
+      "Bash(cp -r /Users/junwei/Documents/Dev/OpenSpace/openspace/host_skills/delegate-task/ /Users/junwei/Documents/Dev/Jieyu/.claude/skills/)",
+      "Bash(cp -r /Users/junwei/Documents/Dev/OpenSpace/openspace/host_skills/skill-discovery/ /Users/junwei/Documents/Dev/Jieyu/.claude/skills/)"
     ]
   }
 }

@@ -5,11 +5,12 @@ import type {
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
+import type { TimelineUnit } from './transcriptionTypes';
 
 type Params = {
   layers: LayerDocType[];
   layerToDeleteId: string;
-  selectedUtteranceId: string;
+  selectedTimelineUnit?: TimelineUnit | null;
   selectedMediaId: string;
   mediaItems: MediaItemDocType[];
   utterances: UtteranceDocType[];
@@ -19,7 +20,7 @@ type Params = {
 export function useTranscriptionDerivedData({
   layers,
   layerToDeleteId,
-  selectedUtteranceId,
+  selectedTimelineUnit,
   selectedMediaId,
   mediaItems,
   utterances,
@@ -56,9 +57,13 @@ export function useTranscriptionDerivedData({
     [layerToDeleteId, layers],
   );
 
+  const effectiveSelectedUtteranceId = selectedTimelineUnit?.kind === 'utterance'
+    ? selectedTimelineUnit.unitId
+    : '';
+
   const selectedUtterance = useMemo(
-    () => utterances.find((item) => item.id === selectedUtteranceId),
-    [selectedUtteranceId, utterances],
+    () => utterances.find((item) => item.id === effectiveSelectedUtteranceId),
+    [effectiveSelectedUtteranceId, utterances],
   );
 
   const selectedUtteranceMedia = useMemo(() => {
@@ -152,8 +157,8 @@ export function useTranscriptionDerivedData({
   }, [defaultTranscriptionLayerId, translationTextByLayer]);
 
   const selectedRowMeta = useMemo(() => {
-    if (!selectedUtteranceId) return null;
-    const index = utterancesOnCurrentMedia.findIndex((item) => item.id === selectedUtteranceId);
+    if (!effectiveSelectedUtteranceId) return null;
+    const index = utterancesOnCurrentMedia.findIndex((item) => item.id === effectiveSelectedUtteranceId);
     if (index < 0) return null;
     const row = utterancesOnCurrentMedia[index];
     if (!row) return null;
@@ -162,7 +167,7 @@ export function useTranscriptionDerivedData({
       start: row.startTime,
       end: row.endTime,
     };
-  }, [selectedUtteranceId, utterancesOnCurrentMedia]);
+  }, [effectiveSelectedUtteranceId, utterancesOnCurrentMedia]);
 
   return {
     translationLayers,

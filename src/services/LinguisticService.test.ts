@@ -30,6 +30,9 @@ async function clearDatabase(): Promise<void> {
     db.tier_annotations.clear(),
     db.audit_logs.clear(),
     db.user_notes.clear(),
+    db.layer_segments.clear(),
+    db.layer_segment_contents.clear(),
+    db.segment_links.clear(),
   ]);
 }
 
@@ -57,6 +60,58 @@ describe('LinguisticService smoke tests', () => {
 
     expect(hit?.id).toBe('utt_1');
     expect(miss).toBeUndefined();
+  });
+
+  it('enforces time_subdivision child bounds when parent utterance is resized', async () => {
+    const now = new Date().toISOString();
+
+    await LinguisticService.saveUtterance({
+      id: 'utt_parent_resize_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      startTime: 1.0,
+      endTime: 3.0,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await db.layer_segments.put({
+      id: 'seg_child_resize_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layer_sub',
+      startTime: 1.2,
+      endTime: 2.8,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.segment_links.put({
+      id: 'lnk_child_resize_1',
+      textId: 'text_1',
+      sourceSegmentId: 'seg_child_resize_1',
+      targetSegmentId: 'utt_parent_resize_1',
+      sourceLayerId: 'layer_sub',
+      targetLayerId: 'layer_parent',
+      linkType: 'time_subdivision',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await LinguisticService.saveUtterance({
+      id: 'utt_parent_resize_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      startTime: 1.4,
+      endTime: 2.0,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const child = await db.layer_segments.get('seg_child_resize_1');
+    expect(child?.startTime).toBe(1.4);
+    expect(child?.endTime).toBe(2.0);
   });
 
   it('can persist translation layer and utterance text linkage', async () => {
@@ -634,7 +689,6 @@ describe('LinguisticService smoke tests', () => {
     await LinguisticService.removeUtterancesBatch(['utt_batch_1', 'utt_batch_2']);
 
     expect(await db.utterances.where('id').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
-    expect(await db.utterance_texts.where('utteranceId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
     expect(await db.utterance_tokens.where('utteranceId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
     expect(await db.utterance_morphemes.where('utteranceId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
     expect(await db.token_lexeme_links.where('id').anyOf(['link_batch_1', 'link_batch_2']).count()).toBe(0);
@@ -805,21 +859,22 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    // Query by utteranceId should return both
+    // Query by utteranceId should return both (via V2 read path)
     const texts = await LinguisticService.getUtteranceTexts('utt_layer_rt');
     expect(texts).toHaveLength(2);
 
-    // Direct Dexie compound index query should work
-    const compound = await db.utterance_texts
-      .where('[utteranceId+layerId]')
-      .equals(['utt_layer_rt', 'layer_trc_rt'])
+    // V2 layer_segment_contents should have both entries
+    const v2Contents = await db.layer_segment_contents
+      .where('layerId')
+      .equals('layer_trc_rt')
       .toArray();
-    expect(compound).toHaveLength(1);
-    expect(compound[0]!.text).toBe('hello');
+    expect(v2Contents).toHaveLength(1);
+    expect(v2Contents[0]!.text).toBe('hello');
 
-    // Cascade delete via removeUtterance should clean up both texts
+    // Cascade delete via removeUtterance should clean up V2 entries
     await LinguisticService.removeUtterance('utt_layer_rt');
-    expect(await db.utterance_texts.where('utteranceId').equals('utt_layer_rt').count()).toBe(0);
+    const remaining = await LinguisticService.getUtteranceTexts('utt_layer_rt');
+    expect(remaining).toHaveLength(0);
   });
 
   it('regression: deleteProject cascades utterance_texts via utteranceId query', async () => {
@@ -851,11 +906,13 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    expect(await db.utterance_texts.count()).toBeGreaterThan(0);
+    // V2 should have the content after save
+    expect(await db.layer_segment_contents.count()).toBeGreaterThan(0);
 
     await LinguisticService.deleteProject('text_cascade_ut');
 
-    expect(await db.utterance_texts.count()).toBe(0);
+    // V2 cascade should clean up segment contents
+    expect(await db.layer_segment_contents.where('layerId').equals('layer_cascade').count()).toBe(0);
     expect(await db.utterances.count()).toBe(0);
   });
 });

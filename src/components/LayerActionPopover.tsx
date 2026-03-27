@@ -1,13 +1,17 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
+import type { LayerConstraint, LayerDocType } from '../db';
+import { getLayerCreateGuard } from '../services/LayerConstraintService';
+import { useDraggablePanel } from '../hooks/useDraggablePanel';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
 interface LayerActionPopoverProps {
   action: LayerActionType;
   layerId: string | undefined;
-  deletableLayers: Array<{ id: string; name?: { zho?: string; zh?: string; eng?: string; en?: string }; key: string }>;
+  deletableLayers: LayerDocType[];
+  layerCreateMessage?: string;
   createLayer: (
     layerType: 'transcription' | 'translation',
     input: LayerCreateInput,
@@ -52,10 +56,29 @@ const PANEL_DEFAULT_SIZE: PanelSize = { width: 360, height: 240 };
 type PanelPosition = { x: number; y: number };
 type PanelSize = { width: number; height: number };
 
+function resolveCreateFailureText(message: string | undefined, fallback: string): string {
+  const raw = (message ?? '').trim();
+  const text = raw.replace(/^创建失败[:：]\s*/u, '');
+  if (!text) return fallback;
+  if (text.startsWith('已创建')) return fallback;
+  return text;
+}
+
+function getCreateFallbackMessage(action: LayerActionType): string {
+  if (action === 'create-translation') {
+    return '无法创建翻译层：请先确保存在转写层；同语言翻译层需填写别名，且翻译层不能与转写层同语言。';
+  }
+  if (action === 'create-transcription') {
+    return '无法创建转写层：同语言转写层需填写别名，且转写层不能与翻译层同语言。';
+  }
+  return '操作失败，请稍后重试。';
+}
+
 export function LayerActionPopover({
   action,
   layerId,
   deletableLayers,
+  layerCreateMessage,
   createLayer,
   deleteLayer,
   deleteLayerWithoutConfirm,
@@ -67,185 +90,79 @@ export function LayerActionPopover({
   const [customLang, setCustomLang] = useState('');
   const [alias, setAlias] = useState('');
   const [modality, setModality] = useState<'text' | 'audio' | 'mixed'>('text');
+  const [constraint, setConstraint] = useState<LayerConstraint>('symbolic_association');
   const [deleteLayerId, setDeleteLayerId] = useState(layerId ?? '');
   const [isLoading, setIsLoading] = useState(false);
+  const [createFailureMessage, setCreateFailureMessage] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{ layerId: string; layerName: string; textCount: number } | null>(null);
-  const [position, setPosition] = useState<PanelPosition>(() => {
-    try {
-      if (typeof window === 'undefined') return { x: 24, y: 24 };
-      const stored = window.localStorage.getItem(storageKey);
-      if (!stored) return { x: 24, y: 24 };
-      const parsed: unknown = JSON.parse(stored);
-      if (!parsed || typeof parsed !== 'object') return { x: 24, y: 24 };
-      const p = parsed as { x?: unknown; y?: unknown };
-      return {
-        x: typeof p.x === 'number' ? p.x : 24,
-        y: typeof p.y === 'number' ? p.y : 24,
-      };
-    } catch (err) {
-      console.error('[Jieyu] LayerActionPopover: failed to read position from localStorage, using default', { storageKey, err });
-      return { x: 24, y: 24 };
-    }
+
+  const {
+    position,
+    size,
+    handleDragStart,
+    handleResizeStart,
+    handleRecenter,
+    handleResetPanelLayout,
+  } = useDraggablePanel({
+    storageKey,
+    defaultSize: PANEL_DEFAULT_SIZE,
+    minWidth: PANEL_MIN_WIDTH,
+    minHeight: PANEL_MIN_HEIGHT,
+    maxWidth: PANEL_MAX_WIDTH,
+    maxHeight: PANEL_MAX_HEIGHT,
+    margin: PANEL_MARGIN,
   });
-  const [size, setSize] = useState<PanelSize>(() => {
-    try {
-      if (typeof window === 'undefined') return PANEL_DEFAULT_SIZE;
-      const stored = window.localStorage.getItem(storageKey);
-      if (!stored) return PANEL_DEFAULT_SIZE;
-      const parsed: unknown = JSON.parse(stored);
-      if (!parsed || typeof parsed !== 'object') return PANEL_DEFAULT_SIZE;
-      const p = parsed as { width?: unknown; height?: unknown };
-      return {
-        width: typeof p.width === 'number' ? p.width : 360,
-        height: typeof p.height === 'number' ? p.height : 240,
-      };
-    } catch (err) {
-      console.error('[Jieyu] LayerActionPopover: failed to read size from localStorage, using default', { storageKey, err });
-      return PANEL_DEFAULT_SIZE;
-    }
-  });
-  const dragRef = useRef<{ startX: number; startY: number; startLeft: number; startTop: number } | null>(null);
-  const resizeRef = useRef<{ startX: number; startY: number; startWidth: number; startHeight: number } | null>(null);
-  const initializedStorageKeyRef = useRef<string | null>(null);
-  const currentPositionRef = useRef<PanelPosition>(position);
-  const currentSizeRef = useRef<PanelSize>(size);
 
   // Sync deleteLayerId when layerId changes
   useEffect(() => {
     if (layerId) setDeleteLayerId(layerId);
   }, [layerId]);
 
+  useEffect(() => {
+    setCreateFailureMessage('');
+  }, [action]);
+
   // Keep currentPositionRef and currentSizeRef in sync with state to avoid stale closures | 保持 ref 与 state 同步，避免闭包过期
-  useEffect(() => {
-    currentPositionRef.current = position;
-  }, [position]);
-
-  useEffect(() => {
-    currentSizeRef.current = size;
-  }, [size]);
-
-  const clampSizeToViewport = useCallback((candidate: PanelSize): PanelSize => {
-    if (typeof window === 'undefined') return candidate;
-    return {
-      width: Math.min(
-        Math.max(Math.round(candidate.width), PANEL_MIN_WIDTH),
-        Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, window.innerWidth - PANEL_MARGIN * 2)),
-      ),
-      height: Math.min(
-        Math.max(Math.round(candidate.height), PANEL_MIN_HEIGHT),
-        Math.min(PANEL_MAX_HEIGHT, Math.max(PANEL_MIN_HEIGHT, window.innerHeight - PANEL_MARGIN * 2)),
-      ),
-    };
-  }, []);
-
-  const clampPositionToViewport = useCallback((candidate: PanelPosition, withSize: PanelSize): PanelPosition => {
-    if (typeof window === 'undefined') return candidate;
-    const maxX = Math.max(PANEL_MARGIN, window.innerWidth - withSize.width - PANEL_MARGIN);
-    const maxY = Math.max(PANEL_MARGIN, window.innerHeight - withSize.height - PANEL_MARGIN);
-    return {
-      x: Math.min(Math.max(PANEL_MARGIN, Math.round(candidate.x)), maxX),
-      y: Math.min(Math.max(PANEL_MARGIN, Math.round(candidate.y)), maxY),
-    };
-  }, []);
-
-  const centerPanel = useCallback((withSize: PanelSize): void => {
-    if (typeof window === 'undefined') return;
-    const safeSize = clampSizeToViewport(withSize);
-    setSize(safeSize);
-    setPosition(clampPositionToViewport({
-      x: Math.round((window.innerWidth - safeSize.width) / 2),
-      y: Math.round((window.innerHeight - safeSize.height) / 2),
-    }, safeSize));
-  }, [clampPositionToViewport, clampSizeToViewport]);
-
-  useEffect(() => {
-    if (initializedStorageKeyRef.current === storageKey) return;
-    initializedStorageKeyRef.current = storageKey;
-    if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem(storageKey);
-    if (!stored) {
-      // 首次展示时居中 | Center panel on first appearance
-      centerPanel(size);
-      return;
-    }
-    const safeSize = clampSizeToViewport(size);
-    setSize(safeSize);
-    setPosition((prev) => clampPositionToViewport(prev, safeSize));
-    // 仅对当前 storageKey 初始化一次，后续由拖拽/缩放与 window resize 维护约束 | Init once per storage key; later constraints are maintained by drag/resize and window resize
-  }, [centerPanel, clampPositionToViewport, clampSizeToViewport, size, storageKey]);
-
-  useEffect(() => {
-    const onPointerMove = (event: PointerEvent): void => {
-      if (dragRef.current) {
-        const nextX = dragRef.current.startLeft + (event.clientX - dragRef.current.startX);
-        const nextY = dragRef.current.startTop + (event.clientY - dragRef.current.startY);
-        setPosition(clampPositionToViewport({ x: nextX, y: nextY }, currentSizeRef.current));  // 使用最新的 size ref | Use latest size ref
-        return;
-      }
-      if (resizeRef.current) {
-        const rawWidth = resizeRef.current.startWidth + (event.clientX - resizeRef.current.startX);
-        const rawHeight = resizeRef.current.startHeight + (event.clientY - resizeRef.current.startY);
-        const maxWidthByViewport = Math.max(PANEL_MIN_WIDTH, window.innerWidth - currentPositionRef.current.x - PANEL_MARGIN);  // 使用最新的 position ref | Use latest position ref
-        const maxHeightByViewport = Math.max(PANEL_MIN_HEIGHT, window.innerHeight - currentPositionRef.current.y - PANEL_MARGIN);
-        setSize(clampSizeToViewport({
-          width: Math.min(rawWidth, Math.min(PANEL_MAX_WIDTH, maxWidthByViewport)),
-          height: Math.min(rawHeight, Math.min(PANEL_MAX_HEIGHT, maxHeightByViewport)),
-        }));
-      }
-    };
-
-    const onPointerUp = (): void => {
-      dragRef.current = null;
-      resizeRef.current = null;
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-    };
-
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerUp);
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointercancel', onPointerUp);
-    };
-  }, [clampPositionToViewport, clampSizeToViewport]);  // 移除 position 和 size 依赖，完全依赖 ref 来避免拖拽中途listener断开 | Remove position/size deps; rely on refs to prevent listener disconnect during drag/resize
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(storageKey, JSON.stringify({
-        x: position.x,
-        y: position.y,
-        width: size.width,
-        height: size.height,
-      }));
-    } catch (err) {
-      console.error('[Jieyu] LayerActionPopover: failed to persist panel rect to localStorage', { storageKey, err });
-    }
-  }, [position.x, position.y, size.height, size.width, storageKey]);
-
-  useEffect(() => {
-    const onResize = (): void => {
-      const safeSize = clampSizeToViewport(currentSizeRef.current);  // 使用最新尺寸 ref，避免闭包读到旧值 | Use latest size ref to avoid stale closure
-      setSize(safeSize);
-      setPosition((prev) => clampPositionToViewport(prev, safeSize));
-    };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [clampPositionToViewport, clampSizeToViewport]);
 
   const handleCreate = useCallback(async () => {
     const resolvedLang = langId === '__custom__' ? customLang.trim() : langId;
     if (!resolvedLang) return;
-    setIsLoading(true);
-    await createLayer(action === 'create-transcription' ? 'transcription' : 'translation', {
+    const existingTranscriptionCount = deletableLayers.filter((layer) => layer.layerType === 'transcription').length;
+    const canConfigureTranscriptionConstraint = action === 'create-transcription' && existingTranscriptionCount > 0;
+    const shouldPassConstraint = action === 'create-translation' || canConfigureTranscriptionConstraint;
+    const createLayerType = action === 'create-transcription' ? 'transcription' : 'translation';
+    const hasSupportedParent = existingTranscriptionCount > 0;
+    const immediateGuard = getLayerCreateGuard(deletableLayers, createLayerType, {
       languageId: resolvedLang,
-      ...(alias.trim() ? { alias: alias.trim() } : {}),
-    }, action === 'create-translation' ? modality : undefined);
-    setIsLoading(false);
-    onClose();
-  }, [langId, customLang, alias, modality, action, createLayer, onClose]);
+      alias,
+      ...(shouldPassConstraint ? { constraint } : {}),
+      hasSupportedParent,
+    });
+    setCreateFailureMessage('');
+    setIsLoading(true);
+    try {
+      const success = await createLayer(createLayerType, {
+        languageId: resolvedLang,
+        ...(alias.trim() ? { alias: alias.trim() } : {}),
+        ...(shouldPassConstraint ? { constraint } : {}),
+      }, action === 'create-translation' ? modality : undefined);
+      if (success) {
+        onClose();
+        return;
+      }
+      setCreateFailureMessage(resolveCreateFailureText(
+        immediateGuard.reason ?? layerCreateMessage,
+        getCreateFallbackMessage(action),
+      ));
+    } catch (error) {
+      setCreateFailureMessage(resolveCreateFailureText(
+        error instanceof Error ? error.message : '',
+        getCreateFallbackMessage(action),
+      ));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [langId, customLang, alias, modality, constraint, action, createLayer, deletableLayers, layerCreateMessage, onClose]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteLayerId) return;
@@ -284,56 +201,66 @@ export function LayerActionPopover({
     if (e.key === 'Escape') onClose();
   }, [onClose]);
 
-  const handleDragStart = (event: React.PointerEvent<HTMLDivElement>): void => {
-    dragRef.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      startLeft: currentPositionRef.current.x,  // 从 ref 读取最新位置 | Read latest position from ref
-      startTop: currentPositionRef.current.y,
-    };
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'move';
-  };
-
-  const handleResizeStart = (event: React.PointerEvent<HTMLDivElement>): void => {
-    event.preventDefault();
-    event.stopPropagation();
-    resizeRef.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      startWidth: currentSizeRef.current.width,  // 从 ref 读取最新尺寸 | Read latest size from ref
-      startHeight: currentSizeRef.current.height,
-    };
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'nwse-resize';
-  };
-
-  const handleRecenter = (): void => {
-    // 双击标题栏回到屏幕中间 | Double-click title to recenter panel
-    centerPanel(size);
-  };
-
-  const handleResetPanelLayout = (event: React.MouseEvent<HTMLButtonElement>): void => {
-    event.stopPropagation();
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.removeItem(storageKey);
-      } catch (err) {
-        console.error('[Jieyu] LayerActionPopover: failed to remove panel rect from localStorage', { storageKey, err });
-      }
-    }
-    centerPanel(PANEL_DEFAULT_SIZE);
-  };
-
   const label = action === 'create-transcription'
     ? '新建转写层'
     : action === 'create-translation'
     ? '新建翻译层'
     : '删除层';
 
+  const existingTranscriptionCount = deletableLayers.filter((layer) => layer.layerType === 'transcription').length;
+  const resolvedLangForGuard = (langId === '__custom__' ? customLang : langId).trim();
+  const hasValidLanguage = resolvedLangForGuard.length > 0;
+  const showConstraintSelector = action === 'create-translation'
+    || (action === 'create-transcription' && existingTranscriptionCount > 0);
+  const translationGuard = action === 'create-translation'
+    ? getLayerCreateGuard(deletableLayers, 'translation', {
+      languageId: resolvedLangForGuard,
+      alias,
+      constraint,
+      hasSupportedParent: existingTranscriptionCount > 0,
+    })
+    : { allowed: true };
+  const transcriptionGuard = action === 'create-transcription'
+    ? getLayerCreateGuard(deletableLayers, 'transcription', {
+      languageId: resolvedLangForGuard,
+      alias,
+      ...(showConstraintSelector ? { constraint } : {}),
+      hasSupportedParent: existingTranscriptionCount > 0,
+    })
+    : { allowed: true };
+  const translationCreateDisabledReason = action === 'create-translation'
+    ? (translationGuard.allowed ? '' : (translationGuard.reasonShort ?? '当前无法新建翻译'))
+    : '';
+  const transcriptionCreateDisabledReason = action === 'create-transcription'
+    ? (transcriptionGuard.allowed ? '' : (transcriptionGuard.reasonShort ?? '当前无法新建转写'))
+    : '';
+  const createGuardByConstraint = (candidate: LayerConstraint) => {
+    if (action === 'delete') return { allowed: true };
+    return getLayerCreateGuard(
+      deletableLayers,
+      action === 'create-transcription' ? 'transcription' : 'translation',
+      {
+      languageId: resolvedLangForGuard,
+        alias,
+        constraint: candidate,
+        hasSupportedParent: existingTranscriptionCount > 0,
+      },
+    );
+  };
+  const symbolicConstraintGuard = createGuardByConstraint('symbolic_association');
+  const subdivisionConstraintGuard = createGuardByConstraint('time_subdivision');
+  const independentConstraintGuard = createGuardByConstraint('independent_boundary');
+  const showIndependentConstraintOption = true;
+  const showCreateFailure = action !== 'delete' && createFailureMessage.trim().length > 0;
+  const createLanguageRequiredMessage = action === 'create-translation'
+    ? '请先选择翻译层语言（自定义语言需填写代码）。'
+    : '请先选择转写层语言（自定义语言需填写代码）。';
+
   const popover = (
     <div
       className="layer-action-popover-backdrop"
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
       onClick={onClose}
       onKeyDown={handleKeyDown}
       role="dialog"
@@ -348,6 +275,8 @@ export function LayerActionPopover({
           width: `${size.width}px`,
           minHeight: `${size.height}px`,
         }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
         role="document"
       >
@@ -369,6 +298,26 @@ export function LayerActionPopover({
             ↺
           </button>
         </div>
+
+        {showCreateFailure && (
+          <div
+            role="alert"
+            aria-live="assertive"
+            style={{
+              margin: '8px 12px 0',
+              border: '1px solid #fecaca',
+              background: '#fef2f2',
+              color: '#991b1b',
+              borderRadius: 8,
+              padding: '8px 10px',
+              fontSize: 13,
+              fontWeight: 600,
+              lineHeight: 1.45,
+            }}
+          >
+            创建失败：{createFailureMessage}
+          </div>
+        )}
 
         {action === 'delete' ? (
           <>
@@ -450,20 +399,108 @@ export function LayerActionPopover({
               onChange={(e) => setAlias(e.target.value)}
             />
             {action === 'create-translation' && (
-              <select
-                className="input transcription-layer-rail-action-input"
-                value={modality}
-                onChange={(e) => setModality(e.target.value as 'text' | 'audio' | 'mixed')}
-              >
-                <option value="text">文本（纯文字翻译）</option>
-                <option value="audio">语音（口译录音）</option>
-                <option value="mixed">混合（文字 + 录音）</option>
-              </select>
+              <>
+                <select
+                  className="input transcription-layer-rail-action-input"
+                  value={modality}
+                  onChange={(e) => setModality(e.target.value as 'text' | 'audio' | 'mixed')}
+                >
+                  <option value="text">文本（纯文字翻译）</option>
+                  <option value="audio">语音（口译录音）</option>
+                  <option value="mixed">混合（文字 + 录音）</option>
+                </select>
+                <fieldset style={{ margin: '8px 0', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
+                  <legend style={{ fontSize: 12, fontWeight: 500, color: '#64748b', paddingBottom: 4 }}>层约束类型 | Layer Constraint Type</legend>
+                  <label style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 13 }}>
+                    <input
+                      type="radio"
+                      name="constraint"
+                      value="symbolic_association"
+                      checked={constraint === 'symbolic_association'}
+                      disabled={!symbolicConstraintGuard.allowed}
+                      onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
+                      style={{ marginRight: 6 }}
+                    />
+                    依赖边界（跟随转写层）| Dependent
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 13 }}>
+                    <input
+                      type="radio"
+                      name="constraint"
+                      value="time_subdivision"
+                      checked={constraint === 'time_subdivision'}
+                      disabled={!subdivisionConstraintGuard.allowed}
+                      onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
+                      style={{ marginRight: 6 }}
+                    />
+                    时间细分（父层内自由切分）| Time Subdivision
+                  </label>
+                  {showIndependentConstraintOption && (
+                    <label style={{ display: 'flex', alignItems: 'center', fontSize: 13 }}>
+                      <input
+                        type="radio"
+                        name="constraint"
+                        value="independent_boundary"
+                        checked={constraint === 'independent_boundary'}
+                        disabled={!independentConstraintGuard.allowed}
+                        onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
+                        style={{ marginRight: 6 }}
+                      />
+                      独立边界（自由定义）| Independent
+                    </label>
+                  )}
+                </fieldset>
+              </>
+            )}
+            {action === 'create-transcription' && showConstraintSelector && (
+              <fieldset style={{ margin: '8px 0', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
+                <legend style={{ fontSize: 12, fontWeight: 500, color: '#64748b', paddingBottom: 4 }}>层约束类型 | Layer Constraint Type</legend>
+                <label style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 13 }}>
+                  <input
+                    type="radio"
+                    name="constraint"
+                    value="symbolic_association"
+                    checked={constraint === 'symbolic_association'}
+                    disabled={!symbolicConstraintGuard.allowed}
+                    onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
+                    style={{ marginRight: 6 }}
+                  />
+                  依赖边界（跟随主转写层）| Dependent
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 13 }}>
+                  <input
+                    type="radio"
+                    name="constraint"
+                    value="time_subdivision"
+                    checked={constraint === 'time_subdivision'}
+                    disabled={!subdivisionConstraintGuard.allowed}
+                    onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
+                    style={{ marginRight: 6 }}
+                  />
+                  时间细分（父层内自由切分）| Time Subdivision
+                </label>
+                {showIndependentConstraintOption && (
+                  <label style={{ display: 'flex', alignItems: 'center', fontSize: 13 }}>
+                    <input
+                      type="radio"
+                      name="constraint"
+                      value="independent_boundary"
+                      checked={constraint === 'independent_boundary'}
+                      disabled={!independentConstraintGuard.allowed}
+                      onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
+                      style={{ marginRight: 6 }}
+                    />
+                    独立边界（自由定义）| Independent
+                  </label>
+                )}
+              </fieldset>
             )}
             <div className="transcription-layer-rail-action-row">
               <button
                 className="btn btn-sm"
-                disabled={!langId || isLoading}
+                disabled={action === 'create-translation'
+                  ? (isLoading || !hasValidLanguage || translationCreateDisabledReason.length > 0)
+                  : (isLoading || !hasValidLanguage || transcriptionCreateDisabledReason.length > 0)}
                 onClick={handleCreate}
               >
                 创建
@@ -472,6 +509,15 @@ export function LayerActionPopover({
                 取消
               </button>
             </div>
+            {translationCreateDisabledReason && (
+              <p className="small-text" style={{ marginTop: 6 }}>无法新建翻译：{translationCreateDisabledReason}</p>
+            )}
+            {transcriptionCreateDisabledReason && (
+              <p className="small-text" style={{ marginTop: 6 }}>无法新建转写：{transcriptionCreateDisabledReason}</p>
+            )}
+            {!hasValidLanguage && (
+              <p className="small-text" style={{ marginTop: 6 }}>{createLanguageRequiredMessage}</p>
+            )}
           </>
         )}
         <div className="floating-panel-resize-handle" onPointerDown={handleResizeStart} aria-hidden="true" />

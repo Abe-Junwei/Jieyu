@@ -176,7 +176,7 @@ export type AiSystemPersonaKey = 'transcription' | 'glossing' | 'review';
 
 export interface AiShortTermContext {
   page?: string;
-  selectedUtteranceId?: string;
+  activeUtteranceUnitId?: string;
   selectedUtteranceStartSec?: number;
   selectedUtteranceEndSec?: number;
   selectedLayerId?: string;

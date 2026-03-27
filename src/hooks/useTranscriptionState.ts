@@ -16,7 +16,13 @@ export function useTranscriptionState() {
   const layersRef = useLatest(docState.layers);
   const layerLinksRef = useLatest(docState.layerLinks);
   const speakersRef = useLatest(docState.speakers);
-  const selectedUtteranceIdRef = useLatest(selectionState.selectedUtteranceId);
+  const selectedTimelineUnitRef = useLatest(selectionState.selectedTimelineUnit);
+  const selectedLayerIdRef = useLatest(selectionState.selectedLayerId);
+  const selectedUtteranceUnitIdRef = useLatest(
+    selectionState.selectedTimelineUnit?.kind === 'utterance'
+      ? selectionState.selectedTimelineUnit.unitId
+      : '',
+  );
   const selectedUtteranceIdsRef = useLatest(selectionState.selectedUtteranceIds);
 
   return {
@@ -30,7 +36,9 @@ export function useTranscriptionState() {
     layersRef,
     layerLinksRef,
     speakersRef,
-    selectedUtteranceIdRef,
+    selectedTimelineUnitRef,
+    selectedLayerIdRef,
+    selectedUtteranceUnitIdRef,
     selectedUtteranceIdsRef,
   };
 }

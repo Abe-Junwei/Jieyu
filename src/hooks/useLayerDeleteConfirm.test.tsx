@@ -75,4 +75,27 @@ describe('useLayerDeleteConfirm', () => {
     expect(result.current.deleteLayerConfirm).toBeNull();
     expect(result.current.deleteConfirmKeepUtterances).toBe(false);
   });
+
+  it('opens confirm with warning for deleting last transcription layer while translation exists, even with zero content', async () => {
+    const deleteLayer = vi.fn<(id: string, options?: { keepUtterances?: boolean }) => Promise<void>>().mockResolvedValue();
+    const deleteLayerWithoutConfirm = vi.fn<(id: string) => Promise<void>>().mockResolvedValue();
+
+    const { result } = renderHook(() => useLayerDeleteConfirm({
+      deletableLayers: [
+        makeLayer({ id: 'trc-1', layerType: 'transcription' }),
+        makeLayer({ id: 'trl-1', key: 'trl_eng_001', layerType: 'translation' }),
+      ],
+      checkLayerHasContent: vi.fn(async () => 0),
+      deleteLayer,
+      deleteLayerWithoutConfirm,
+    }));
+
+    await act(async () => {
+      await result.current.requestDeleteLayer('trc-1');
+    });
+
+    expect(deleteLayerWithoutConfirm).not.toHaveBeenCalled();
+    expect(result.current.deleteLayerConfirm?.layerId).toBe('trc-1');
+    expect(result.current.deleteLayerConfirm?.warningMessage).toContain('仅剩一个转写层');
+  });
 });

@@ -4,7 +4,6 @@ import { getDb } from '../db';
 import type { SpeakerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 import { createAsyncMutex } from '../utils/asyncMutex';
-import { normalizeUtteranceTextDocForStorage } from '../utils/camDataUtils';
 import { createLogger } from '../observability/logger';
 import {
   removeUtteranceTextFromSegmentationV2,
@@ -80,9 +79,14 @@ export function useTranscriptionPersistence({
           await assertNoConflict('utterances', utterancesRef.current, async () => (
             db.collections.utterances.findByIndexAnyOf('id', utterancesRef.current.map((row) => row.id))
           ));
-          await assertNoConflict('translations', translationsRef.current, async () => (
-            db.collections.utterance_texts.findByIndexAnyOf('id', translationsRef.current.map((row) => row.id))
-          ));
+          await assertNoConflict('translations', translationsRef.current, async () => {
+            // Phase 2: 从 V2 layer_segment_contents 读取冲突检查数据 | Phase 2: read from V2 for conflict check
+            const ids = translationsRef.current.map((row) => row.id);
+            const contents = await db.dexie.layer_segment_contents.bulkGet(ids);
+            return contents
+              .filter((c): c is NonNullable<typeof c> => Boolean(c))
+              .map((c) => ({ toJSON: () => c as unknown as UtteranceTextDocType }));
+          });
           await assertNoConflict('speakers', speakersRef.current, async () => (
             db.collections.speakers.findByIndexAnyOf('id', speakersRef.current.map((row) => row.id))
           ));
@@ -108,14 +112,12 @@ export function useTranscriptionPersistence({
       // Remove deleted translations
       for (const id of currentTrIds) {
         if (!targetTrIds.has(id)) {
-          await db.collections.utterance_texts.remove(id);
           await removeUtteranceTextFromSegmentationV2(db, { id });
         }
       }
       // Upsert target translations
       const targetUtteranceById = new Map(targetUtterances.map((item) => [item.id, item]));
       for (const t of targetTranslations) {
-        await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(t));
         const owner = targetUtteranceById.get(t.utteranceId);
         if (owner) {
           await syncUtteranceTextToSegmentationV2(db, owner, t);

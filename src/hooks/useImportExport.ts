@@ -12,6 +12,7 @@ import type { SaveState } from './useTranscriptionData';
 import { LinguisticService } from '../services/LinguisticService';
 import { validateLayerTierConsistency } from '../services/TierBridgeService';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
+import { repairExistingLayerConstraints, validateExistingLayerConstraints } from '../services/LayerConstraintService';
 import { exportToEaf, importFromEaf, downloadEaf, readFileAsText } from '../services/EafService';
 import type { EafImportResult } from '../services/EafService';
 import { exportToTextGrid, importFromTextGrid, downloadTextGrid } from '../services/TextGridService';
@@ -19,7 +20,6 @@ import type { TextGridImportResult } from '../services/TextGridService';
 import { exportToTrs, importFromTrs, downloadTrs } from '../services/TranscriberService';
 import { exportToFlextext, importFromFlextext, downloadFlextext } from '../services/FlexService';
 import { exportToToolbox, importFromToolbox, downloadToolbox } from '../services/ToolboxService';
-import { normalizeUtteranceTextDocForStorage } from '../utils/camDataUtils';
 import { downloadJieyuArchive, importJieyuArchiveFile } from '../services/JymService';
 import { detectLocale, t, tf } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -30,6 +30,7 @@ import { createLogger } from '../observability/logger';
 import { toErrorMessage } from '../utils/saveStateError';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationV2BridgeService';
+import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 
 const log = createLogger('useImportExport');
 
@@ -94,9 +95,94 @@ export function useImportExport(input: UseImportExportInput) {
       .toArray();
   }, []);
 
+  /** 加载所有具有 segment 约束的非默认层的 segment 及内容（TextGrid/FLEx/Toolbox 导出共用）
+   *  Load non-default layers with segment constraints (independent_boundary / time_subdivision) — shared by TextGrid/FLEx/Toolbox export */
+  const loadSegmentExportData = useCallback(async (mediaId: string | undefined) => {
+    if (!mediaId) return {};
+    const segmentLayers = layers.filter(
+      (l) => (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision')
+        && l.id !== defaultTranscriptionLayerId,
+    );
+    if (segmentLayers.length === 0) return {};
+    const db = await getDb();
+    const segMap = new Map<string, import('../db').LayerSegmentDocType[]>();
+    for (const layer of segmentLayers) {
+      const segs = await db.dexie.layer_segments
+        .where('[layerId+mediaId]')
+        .equals([layer.id, mediaId])
+        .toArray();
+      if (segs.length > 0) segMap.set(layer.id, segs);
+    }
+    if (segMap.size === 0) return {};
+    const contentMap = new Map<string, Map<string, import('../db').LayerSegmentContentDocType>>();
+    for (const [layerId, segs] of segMap) {
+      const segIds = segs.map((s) => s.id);
+      if (segIds.length === 0) continue;
+      const contents = await db.dexie.layer_segment_contents
+        .where('segmentId')
+        .anyOf(segIds)
+        .toArray();
+      const bySegId = new Map<string, import('../db').LayerSegmentContentDocType>();
+      for (const c of contents) {
+        if (c.layerId === layerId && c.modality === 'text') {
+          bySegId.set(c.segmentId, c);
+        }
+      }
+      if (bySegId.size > 0) contentMap.set(layerId, bySegId);
+    }
+    return {
+      segmentsByLayer: segMap as Map<string, import('../db').LayerSegmentDocType[]>,
+      ...(contentMap.size > 0 ? { segmentContents: contentMap as Map<string, Map<string, import('../db').LayerSegmentContentDocType>> } : {}),
+    };
+  }, [layers, defaultTranscriptionLayerId]);
+
   const handleExportEaf = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
     const userNotes = await fetchUtteranceNotes(utterancesOnCurrentMedia.map((u) => u.id));
+    // Query segments for time-aligned layers (translation + non-default independent transcription)
+    // 查询时间对齐层的 segment 数据（翻译层 + 非默认独立转写层）
+    const timeAlignedLayers = layers.filter(
+      (l) =>
+        (l.layerType === 'translation' && (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision'))
+        || (l.layerType === 'transcription' && l.constraint === 'independent_boundary' && l.id !== defaultTranscriptionLayerId),
+    );
+    let layerSegments: Map<string, import('../db').LayerSegmentDocType[]> | undefined;
+    let layerSegmentContents: Map<string, Map<string, import('../db').LayerSegmentContentDocType>> | undefined;
+    if (timeAlignedLayers.length > 0) {
+      const db = await getDb();
+      const mediaId = utterancesOnCurrentMedia[0]?.mediaId;
+      if (mediaId) {
+        const segMap = new Map<string, import('../db').LayerSegmentDocType[]>();
+        for (const tl of timeAlignedLayers) {
+          const segs = await db.dexie.layer_segments
+            .where('[layerId+mediaId]')
+            .equals([tl.id, mediaId])
+            .toArray();
+          if (segs.length > 0) segMap.set(tl.id, segs);
+        }
+        if (segMap.size > 0) {
+          layerSegments = segMap;
+          // 查询 segment 内容（用于独立转写层导出）| Query segment contents for independent transcription export
+          const contentMap = new Map<string, Map<string, import('../db').LayerSegmentContentDocType>>();
+          for (const [layerId, segs] of segMap) {
+            const segIds = segs.map((s) => s.id);
+            if (segIds.length === 0) continue;
+            const contents = await db.dexie.layer_segment_contents
+              .where('segmentId')
+              .anyOf(segIds)
+              .toArray();
+            const bySegId = new Map<string, import('../db').LayerSegmentContentDocType>();
+            for (const c of contents) {
+              if (c.layerId === layerId && c.modality === 'text') {
+                bySegId.set(c.segmentId, c);
+              }
+            }
+            if (bySegId.size > 0) contentMap.set(layerId, bySegId);
+          }
+          if (contentMap.size > 0) layerSegmentContents = contentMap;
+        }
+      }
+    }
     const xml = exportToEaf({
       ...(selectedUtteranceMedia ? { mediaItem: selectedUtteranceMedia } : {}),
       utterances: utterancesOnCurrentMedia,
@@ -104,6 +190,9 @@ export function useImportExport(input: UseImportExportInput) {
       layers,
       translations,
       userNotes,
+      ...(layerSegments ? { layerSegments } : {}),
+      ...(layerSegmentContents ? { layerSegmentContents } : {}),
+      ...(defaultTranscriptionLayerId ? { defaultTranscriptionLayerId } : {}),
     });
     const baseName = selectedUtteranceMedia
       ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
@@ -111,16 +200,21 @@ export function useImportExport(input: UseImportExportInput) {
     downloadEaf(xml, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.eaf') });
     setShowExportMenu(false);
-  }, [selectedUtteranceMedia, utterancesOnCurrentMedia, anchors, layers, translations, setSaveState, fetchUtteranceNotes]);
+  }, [defaultTranscriptionLayerId, selectedUtteranceMedia, utterancesOnCurrentMedia, anchors, layers, translations, setSaveState, fetchUtteranceNotes]);
 
   const handleExportTextGrid = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
     const userNotes = await fetchUtteranceNotes(utterancesOnCurrentMedia.map((u) => u.id));
+    const exportData = (await loadSegmentExportData(utterancesOnCurrentMedia[0]?.mediaId)) as any;
+    const segmentsByLayer = exportData?.segmentsByLayer;
+    const segmentContents = exportData?.segmentContents;
     const tg = exportToTextGrid({
       utterances: utterancesOnCurrentMedia,
       layers,
       translations,
       userNotes,
+      ...(segmentsByLayer ? { segmentsByLayer } : {}),
+      ...(segmentContents ? { segmentContents } : {}),
     });
     const baseName = selectedUtteranceMedia
       ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
@@ -128,7 +222,7 @@ export function useImportExport(input: UseImportExportInput) {
     downloadTextGrid(tg, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.textgrid') });
     setShowExportMenu(false);
-  }, [selectedUtteranceMedia, utterancesOnCurrentMedia, layers, translations, setSaveState, fetchUtteranceNotes]);
+  }, [selectedUtteranceMedia, utterancesOnCurrentMedia, layers, translations, setSaveState, fetchUtteranceNotes, loadSegmentExportData]);
 
   const handleExportTrs = useCallback(() => {
     if (utterancesOnCurrentMedia.length === 0) return;
@@ -143,12 +237,17 @@ export function useImportExport(input: UseImportExportInput) {
     setShowExportMenu(false);
   }, [selectedUtteranceMedia, utterancesOnCurrentMedia, setSaveState]);
 
-  const handleExportFlextext = useCallback(() => {
+  const handleExportFlextext = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
+    const exportData2 = (await loadSegmentExportData(utterancesOnCurrentMedia[0]?.mediaId)) as any;
+    const segmentsByLayer = exportData2?.segmentsByLayer;
+    const segmentContents = exportData2?.segmentContents;
     const flex = exportToFlextext({
       utterances: utterancesOnCurrentMedia,
       layers,
       translations,
+      ...(segmentsByLayer ? { segmentsByLayer } : {}),
+      ...(segmentContents ? { segmentContents } : {}),
     });
     const baseName = selectedUtteranceMedia
       ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
@@ -156,14 +255,19 @@ export function useImportExport(input: UseImportExportInput) {
     downloadFlextext(flex, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.flextext') });
     setShowExportMenu(false);
-  }, [selectedUtteranceMedia, utterancesOnCurrentMedia, layers, translations, setSaveState]);
+  }, [selectedUtteranceMedia, utterancesOnCurrentMedia, layers, translations, setSaveState, loadSegmentExportData]);
 
-  const handleExportToolbox = useCallback(() => {
+  const handleExportToolbox = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
+    const exportData3 = (await loadSegmentExportData(utterancesOnCurrentMedia[0]?.mediaId)) as any;
+    const segmentsByLayer = exportData3?.segmentsByLayer;
+    const segmentContents = exportData3?.segmentContents;
     const toolbox = exportToToolbox({
       utterances: utterancesOnCurrentMedia,
       layers,
       translations,
+      ...(segmentsByLayer ? { segmentsByLayer } : {}),
+      ...(segmentContents ? { segmentContents } : {}),
     });
     const baseName = selectedUtteranceMedia
       ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
@@ -171,7 +275,7 @@ export function useImportExport(input: UseImportExportInput) {
     downloadToolbox(toolbox, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.toolbox') });
     setShowExportMenu(false);
-  }, [selectedUtteranceMedia, utterancesOnCurrentMedia, layers, translations, setSaveState]);
+  }, [selectedUtteranceMedia, utterancesOnCurrentMedia, layers, translations, setSaveState, loadSegmentExportData]);
 
   const handleExportJyt = useCallback(async () => {
     const baseName = selectedUtteranceMedia
@@ -280,6 +384,7 @@ export function useImportExport(input: UseImportExportInput) {
 
       const db = await getDb();
       const now = new Date().toISOString();
+      const layersAfterImport: LayerDocType[] = [...layers];
 
       // ── 语言名反查：ISO 主码 -> 语言名（来自本地 DB）| Resolve language labels from local DB by ISO primary code ──
       const languageDocs = await db.collections.languages.find().exec();
@@ -411,6 +516,9 @@ export function useImportExport(input: UseImportExportInput) {
         ?? trsResult?.speakers?.[0]?.lang
         ?? 'und';
 
+      // Tier 名称到 layer ID 的映射（用于 parentLayerId） | Mapping from tier name to layer ID (for parentLayerId)
+      const tierNameToLayerId = new Map<string, string>();
+
       if (parsedUtterances.some((u) => u.transcription.trim())) {
         // 按名称在已有转写层中查找 | Search existing transcription layers by name
         const existingTrc = layers.filter((l) => l.layerType === 'transcription');
@@ -454,7 +562,7 @@ export function useImportExport(input: UseImportExportInput) {
             : baseTrcKey;
           // 从 EAF tierConstraints 获取转写层约束 | Get transcription tier constraint from EAF
           const eafTrcConstraint = importedTrcName ? eafResult?.tierConstraints?.get(importedTrcName) : undefined;
-          await LayerTierUnifiedService.createLayer({
+          const autoCreatedLayerDoc: LayerDocType = {
             id: autoLayerId,
             textId,
             key: autoCreatedLayerKey,
@@ -467,7 +575,13 @@ export function useImportExport(input: UseImportExportInput) {
             ...(eafTrcConstraint ? { constraint: eafTrcConstraint.constraint } : {}),
             createdAt: now,
             updatedAt: now,
-          } as import('../db').LayerDocType);
+          };
+          await LayerTierUnifiedService.createLayer(autoCreatedLayerDoc);
+          layersAfterImport.push(autoCreatedLayerDoc);
+          
+          // Add to tier name mapping for potential parent reference by subsequent tiers | 添加到 tier 名称映射（用于后续层的父引用）
+          tierNameToLayerId.set(importedTrcName ?? 'transcription', autoLayerId);
+          
           await writeImportLayerNameAudit({
             layerId: autoLayerId,
             displayName,
@@ -477,6 +591,11 @@ export function useImportExport(input: UseImportExportInput) {
             ...(trcDisplayName.matchedTag ? { matchedTag: trcDisplayName.matchedTag } : {}),
           });
           effectiveTranscriptionLayerId = autoLayerId;
+        }
+
+        // 确保为翻译层父引用映射了 | Ensure mapped for translation layer parent references
+        if (effectiveTranscriptionLayerId && importedTrcName && !tierNameToLayerId.has(importedTrcName)) {
+          tierNameToLayerId.set(importedTrcName, effectiveTranscriptionLayerId);
         }
       }
 
@@ -577,10 +696,6 @@ export function useImportExport(input: UseImportExportInput) {
             createdAt: now,
             updatedAt: now,
           };
-          await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(
-            doc,
-            { actorType: 'importer', method: 'import' },
-          ));
           await syncUtteranceTextToSegmentationV2(db, newUtterance, doc);
         }
       }
@@ -609,9 +724,69 @@ export function useImportExport(input: UseImportExportInput) {
           .filter(([k]) => k.length > 0),
       );
 
+      // 非默认独立转写层索引（按英文名/key）——用于非 EAF 导入时直接恢复 segment 边界
+      // Index for non-default independent transcription layers (by eng name / key) — restores segment boundaries on non-EAF import
+      const existingIndepTrcLayersByName = new Map<string, string>(); // name/key → layerId
+      for (const l of layers) {
+        if (
+          l.layerType === 'transcription'
+          && l.constraint === 'independent_boundary'
+          && l.id !== defaultTranscriptionLayerId
+        ) {
+          const engName = typeof l.name === 'object' && l.name !== null ? (l.name as Record<string, string>).eng ?? '' : '';
+          if (engName) existingIndepTrcLayersByName.set(engName.toLocaleLowerCase('en'), l.id);
+          if (l.key) existingIndepTrcLayersByName.set(l.key.toLocaleLowerCase('en'), l.id);
+        }
+      }
+
       for (const [tierName, annotations] of additionalTiers) {
         if (annotations.length === 0) continue;
         if (existingTrcLayers.length === 0) continue;
+
+        // 优先：若 tier 匹配已有独立转写层，直接写 layer_segments（无需 utterance 时间对齐匹配）
+        // Priority: if tier matches existing independent transcription layer, write layer_segments directly (no utterance time-proximity matching needed)
+        const humanizedTierForLookup = humanizeTierName(tierName).toLocaleLowerCase('en');
+        const indepLayerId =
+          existingIndepTrcLayersByName.get(tierName.toLocaleLowerCase('en'))
+          ?? existingIndepTrcLayersByName.get(humanizedTierForLookup);
+        if (indepLayerId) {
+          const firstUtt = insertedUtterances[0];
+          const importMediaId = firstUtt?.utterance.mediaId;
+          if (firstUtt && importMediaId) {
+            for (const ann of annotations) {
+              if (!ann.text.trim()) continue;
+              const annStart = Number(ann.startTime.toFixed(3));
+              const annEnd = Number(ann.endTime.toFixed(3));
+              if (annEnd - annStart < 0.01) continue;
+              const segNow = new Date().toISOString();
+              const segId = newId('seg');
+              await LayerSegmentationV2Service.createSegmentWithContentAtomic(
+                {
+                  id: segId,
+                  textId: firstUtt.utterance.textId,
+                  mediaId: importMediaId,
+                  layerId: indepLayerId,
+                  startTime: annStart,
+                  endTime: annEnd,
+                  createdAt: segNow,
+                  updatedAt: segNow,
+                },
+                {
+                  id: newId('sc'),
+                  textId: firstUtt.utterance.textId,
+                  segmentId: segId,
+                  layerId: indepLayerId,
+                  modality: 'text',
+                  text: ann.text,
+                  sourceType: 'human',
+                  createdAt: segNow,
+                  updatedAt: segNow,
+                },
+              );
+            }
+          }
+          continue;
+        }
 
         // 从解析结果推断翻译语言 | Infer translation language from parsed result
         const tierLang = eafResult?.tierLocales?.get(tierName)
@@ -646,7 +821,15 @@ export function useImportExport(input: UseImportExportInput) {
             : baseKey;
           // 从 EAF tierConstraints 获取约束信息 | Get constraint info from EAF tierConstraints
           const eafTierConstraint = eafResult?.tierConstraints?.get(tierName);
-          const newLayer = {
+          const parentTierId = eafTierConstraint?.parentTierId;
+          const mappedParentLayerId = parentTierId ? tierNameToLayerId.get(parentTierId) : undefined;
+          const fallbackParentLayerId = eafTierConstraint
+            && eafTierConstraint.constraint !== 'independent_boundary'
+            ? (existingTrcLayers[existingTrcLayers.length - 1]?.id ?? effectiveTranscriptionLayerId)
+            : undefined;
+          const parentLayerId = mappedParentLayerId ?? fallbackParentLayerId;
+          
+          const newLayer: LayerDocType = {
             id: layerId,
             textId,
             key,
@@ -657,10 +840,16 @@ export function useImportExport(input: UseImportExportInput) {
             acceptsAudio: false,
             sortOrder: tierCount + 1,
             ...(eafTierConstraint ? { constraint: eafTierConstraint.constraint } : {}),
+            ...(parentLayerId ? { parentLayerId } : {}),
             createdAt: now,
             updatedAt: now,
           };
-          await LayerTierUnifiedService.createLayer(newLayer as import('../db').LayerDocType);
+          await LayerTierUnifiedService.createLayer(newLayer);
+          layersAfterImport.push(newLayer);
+          
+          // Add to tier name mapping for potential parent reference by subsequent tiers | 添加到 tier 名称映射（用于后续层的父引用）
+          tierNameToLayerId.set(tierName, layerId);
+          
           await writeImportLayerNameAudit({
             layerId,
             displayName: langLabel,
@@ -700,10 +889,6 @@ export function useImportExport(input: UseImportExportInput) {
               createdAt: now,
               updatedAt: now,
             };
-            await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(
-              doc,
-              { actorType: 'importer', method: 'import' },
-            ));
             await syncUtteranceTextToSegmentationV2(db, match.utterance, doc);
           }
         }
@@ -717,17 +902,49 @@ export function useImportExport(input: UseImportExportInput) {
         }),
       );
 
+      const repairedResult = repairExistingLayerConstraints(layersAfterImport);
+      const originalLayerById = new Map(layersAfterImport.map((layer) => [layer.id, layer] as const));
+      const changedLayers = repairedResult.layers.filter((layer) => {
+        const before = originalLayerById.get(layer.id);
+        if (!before) return false;
+        const beforeConstraint = before.constraint ?? (before.layerType === 'translation' ? 'symbolic_association' : 'independent_boundary');
+        const afterConstraint = layer.constraint ?? (layer.layerType === 'translation' ? 'symbolic_association' : 'independent_boundary');
+        return beforeConstraint !== afterConstraint || (before.parentLayerId ?? '') !== (layer.parentLayerId ?? '');
+      });
+      for (const changedLayer of changedLayers) {
+        await LayerTierUnifiedService.updateLayer({
+          ...changedLayer,
+          updatedAt: now,
+        });
+      }
+      const layerConstraintIssues = validateExistingLayerConstraints(repairedResult.layers);
+      if (layerConstraintIssues.length > 0) {
+        console.warn('[Import] 层约束校验发现问题 | Layer constraint validation found issues', layerConstraintIssues);
+      }
       await loadSnapshot();
+      const importDoneMessage = tierCount > 0
+        ? tf(locale, 'transcription.importExport.importDone.segmentsWithLayers', {
+          count: parsedUtterances.length,
+          layers: tierCount,
+        })
+        : tf(locale, 'transcription.importExport.importDone.segments', {
+          count: parsedUtterances.length,
+        });
       setSaveState({
         kind: 'done',
-        message: tierCount > 0
-          ? tf(locale, 'transcription.importExport.importDone.segmentsWithLayers', {
-            count: parsedUtterances.length,
-            layers: tierCount,
-          })
-          : tf(locale, 'transcription.importExport.importDone.segments', {
-            count: parsedUtterances.length,
-          }),
+        message: [
+          importDoneMessage,
+          ...(repairedResult.repairs.length > 0
+            ? [tf(locale, 'transcription.importExport.importDone.constraintRepaired', {
+              count: repairedResult.repairs.length,
+            })]
+            : []),
+          ...(layerConstraintIssues.length > 0
+            ? [tf(locale, 'transcription.importExport.importDone.constraintWarning', {
+              count: layerConstraintIssues.length,
+            })]
+            : []),
+        ].join(' '),
       });
     } catch (err) {
       const rawMessage = toErrorMessage(err);

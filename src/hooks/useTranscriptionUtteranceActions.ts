@@ -10,13 +10,13 @@ import type {
 import { LinguisticService } from '../services/LinguisticService';
 import { newId, formatTime } from '../utils/transcriptionFormatters';
 import { shouldPushTimingUndo, type TimingUndoState } from '../utils/selectionUtils';
-import { normalizeUtteranceTextDocForStorage } from '../utils/camDataUtils';
 import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
-import type { SaveState, SnapGuide } from './transcriptionTypes';
+import type { SaveState, SnapGuide, TimelineUnit } from './transcriptionTypes';
 import { invalidateUtteranceEmbeddings } from '../ai/embeddings/EmbeddingInvalidationService';
 import {
+  getUtteranceTextsByUtterancePreferV2,
   removeUtteranceTextFromSegmentationV2,
   syncUtteranceTextToSegmentationV2,
 } from '../services/LayerSegmentationV2BridgeService';
@@ -47,7 +47,7 @@ export type TranscriptionUtteranceActionsParams = {
   defaultTranscriptionLayerId: string | undefined;
   layerById: Map<string, LayerDocType>;
   selectedUtteranceMedia: MediaItemDocType | undefined;
-  selectedUtteranceId: string;
+  activeUtteranceUnitId: string;
   translations: UtteranceTextDocType[];
   utterancesRef: React.MutableRefObject<UtteranceDocType[]>;
   utterancesOnCurrentMediaRef: React.MutableRefObject<UtteranceDocType[]>;
@@ -65,8 +65,8 @@ export type TranscriptionUtteranceActionsParams = {
   setTranslations: React.Dispatch<React.SetStateAction<UtteranceTextDocType[]>>;
   setUtterances: React.Dispatch<React.SetStateAction<UtteranceDocType[]>>;
   setUtteranceDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  setSelectedUtteranceId: React.Dispatch<React.SetStateAction<string>>;
   setSelectedUtteranceIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  setSelectedTimelineUnit?: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
   allowOverlapInTranscription?: boolean;
 };
 
@@ -74,7 +74,7 @@ export function useTranscriptionUtteranceActions({
   defaultTranscriptionLayerId,
   layerById,
   selectedUtteranceMedia,
-  selectedUtteranceId,
+  activeUtteranceUnitId,
   translations,
   utterancesRef,
   utterancesOnCurrentMediaRef,
@@ -92,10 +92,26 @@ export function useTranscriptionUtteranceActions({
   setTranslations,
   setUtterances,
   setUtteranceDrafts,
-  setSelectedUtteranceId,
   setSelectedUtteranceIds,
+  setSelectedTimelineUnit,
   allowOverlapInTranscription = false,
 }: TranscriptionUtteranceActionsParams) {
+  const selectUtterancePrimary = useCallback((id: string) => {
+    setSelectedUtteranceIds(id ? new Set([id]) : new Set());
+    setSelectedTimelineUnit?.(id
+      ? {
+          layerId: defaultTranscriptionLayerId ?? '',
+          unitId: id,
+          kind: 'utterance',
+        }
+      : null);
+  }, [defaultTranscriptionLayerId, setSelectedTimelineUnit, setSelectedUtteranceIds]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedUtteranceIds(new Set());
+    setSelectedTimelineUnit?.(null);
+  }, [setSelectedTimelineUnit, setSelectedUtteranceIds]);
+
   const resolveUtteranceById = useCallback(async (db: Awaited<ReturnType<typeof getDb>>, utteranceId: string) => {
     const local = utterancesRef.current.find((item) => item.id === utteranceId);
     if (local) return local;
@@ -138,7 +154,6 @@ export function useTranscriptionUtteranceActions({
         updatedAt: now,
       } as UtteranceTextWithoutLayerId, { layerId: targetLayer.id }),
     } as UtteranceTextDocType;
-    await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(newTranslation));
     await syncUtteranceTextToSegmentationV2(db, targetUtterance, newTranslation);
 
     setMediaItems((prev) => [...prev, newMedia]);
@@ -160,9 +175,8 @@ export function useTranscriptionUtteranceActions({
     let shouldInvalidateEmbeddings = false;
 
     if (targetLayer) {
-      const matchingDocs = await db.collections.utterance_texts.findByIndex('utteranceId', utteranceId);
-      const existing = matchingDocs
-        .map((doc) => doc.toJSON() as unknown as UtteranceTextDocType)
+      const allTexts = await getUtteranceTextsByUtterancePreferV2(db, utteranceId);
+      const existing = allTexts
         .filter(
           (item) =>
             item.layerId === targetLayer.id
@@ -172,7 +186,6 @@ export function useTranscriptionUtteranceActions({
 
       if (!normalizedValue) {
         if (existing) {
-          await db.collections.utterance_texts.remove(existing.id);
           await removeUtteranceTextFromSegmentationV2(db, existing);
           setTranslations((prev) => prev.filter((item) => item.id !== existing.id));
           shouldInvalidateEmbeddings = isDefaultLayer;
@@ -184,7 +197,6 @@ export function useTranscriptionUtteranceActions({
           text: normalizedValue,
           updatedAt: now,
         } as UtteranceTextDocType;
-        await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(updatedTranslation));
         const utterance = await resolveUtteranceById(db, utteranceId);
         if (utterance) {
           await syncUtteranceTextToSegmentationV2(db, utterance, updatedTranslation);
@@ -203,7 +215,6 @@ export function useTranscriptionUtteranceActions({
             updatedAt: now,
           } as UtteranceTextWithoutLayerId, { layerId: targetLayer.id }),
         } as UtteranceTextDocType;
-        await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(newTranslation));
         const utterance = await resolveUtteranceById(db, utteranceId);
         if (utterance) {
           await syncUtteranceTextToSegmentationV2(db, utterance, newTranslation);
@@ -335,9 +346,8 @@ export function useTranscriptionUtteranceActions({
     const trimmed = value.trim();
 
     // 按 utteranceId 索引查询，避免全表扫描 | Query by utteranceId index to avoid full table scan
-    const utteranceDocs = await db.collections.utterance_texts.findByIndex('utteranceId', utteranceId);
-    const candidates = utteranceDocs
-      .map((doc) => doc.toJSON() as unknown as UtteranceTextDocType)
+    const allTexts = await getUtteranceTextsByUtterancePreferV2(db, utteranceId);
+    const candidates = allTexts
       .filter(
         (item) =>
           item.layerId === layerId &&
@@ -348,7 +358,6 @@ export function useTranscriptionUtteranceActions({
       const existing = candidates[0];
       if (existing) {
         pushUndo('清空翻译文本');
-        await db.collections.utterance_texts.remove(existing.id);
         await removeUtteranceTextFromSegmentationV2(db, existing);
         setTranslations((prev) => prev.filter((item) => item.id !== existing.id));
         setSaveState({ kind: 'done', message: '已清空翻译文本' });
@@ -367,7 +376,6 @@ export function useTranscriptionUtteranceActions({
         modality: sanitizedExisting.modality,
         updatedAt: now,
       } as UtteranceTextDocType;
-      await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(updatedTranslation));
       const utterance = await resolveUtteranceById(db, utteranceId);
       if (utterance) {
         await syncUtteranceTextToSegmentationV2(db, utterance, updatedTranslation);
@@ -385,7 +393,6 @@ export function useTranscriptionUtteranceActions({
           updatedAt: now,
         } as UtteranceTextWithoutLayerId, { layerId }),
       } as UtteranceTextDocType;
-      await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(newTranslation));
       const utterance = await resolveUtteranceById(db, utteranceId);
       if (utterance) {
         await syncUtteranceTextToSegmentationV2(db, utterance, newTranslation);
@@ -427,11 +434,11 @@ export function useTranscriptionUtteranceActions({
 
     setUtterances((prev) => [...prev, newUtterance]);
     setUtteranceDrafts((prev) => ({ ...prev, [createdId]: '' }));
-    setSelectedUtteranceId(createdId);
+    selectUtterancePrimary(createdId);
     setSaveState({ kind: 'done', message: `已创建新区间 ${formatTime(start)} - ${formatTime(finalEnd)}` });
-  }, [createAnchor, pushUndo, setSaveState, setSelectedUtteranceId, setUtteranceDrafts, setUtterances]);
+  }, [createAnchor, pushUndo, selectUtterancePrimary, setSaveState, setUtteranceDrafts, setUtterances]);
 
-  const createUtteranceFromSelection = useCallback(async (start: number, end: number) => {
+  const createUtteranceFromSelection = useCallback(async (start: number, end: number, options?: { speakerId?: string; focusedLayerId?: string }) => {
     const media = selectedUtteranceMedia;
     if (!media) {
       reportValidationError({
@@ -501,14 +508,33 @@ export function useTranscriptionUtteranceActions({
       annotationStatus: 'raw',
       createdAt: now,
       updatedAt: now,
+      ...(options?.speakerId ? { speakerId: options.speakerId } : {}),
     } as UtteranceDocType;
     await LinguisticService.saveUtterance(newUtterance);
 
+    // 为聚焦转写层自动创建空文本条目（V2 segment content）
+    const targetLayerId = options?.focusedLayerId ?? defaultTranscriptionLayerId;
+    if (targetLayerId) {
+      const emptyText: UtteranceTextDocType = {
+        ...withUtteranceTextLayerId({
+          id: newId('utr'),
+          utteranceId: createdId,
+          modality: 'text',
+          text: '',
+          sourceType: 'human',
+          createdAt: now,
+          updatedAt: now,
+        } as UtteranceTextWithoutLayerId, { layerId: targetLayerId }),
+      } as UtteranceTextDocType;
+      await syncUtteranceTextToSegmentationV2(db, newUtterance, emptyText);
+      setTranslations((prev) => [...prev, emptyText]);
+    }
+
     setUtterances((prev) => [...prev, newUtterance]);
     setUtteranceDrafts((prev) => ({ ...prev, [createdId]: '' }));
-    setSelectedUtteranceId(createdId);
+    selectUtterancePrimary(createdId);
     setSaveState({ kind: 'done', message: `已新建句段 ${formatTime(finalStart)} - ${formatTime(finalEnd)}` });
-  }, [allowOverlapInTranscription, createAnchor, pushUndo, selectedUtteranceMedia, setSaveState, setSelectedUtteranceId, setUtteranceDrafts, setUtterances, utterancesRef]);
+  }, [allowOverlapInTranscription, createAnchor, defaultTranscriptionLayerId, pushUndo, selectedUtteranceMedia, selectUtterancePrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, utterancesRef]);
 
   const deleteUtterance = useCallback(async (utteranceId: string) => {
     const target = utterancesRef.current.find((u) => u.id === utteranceId);
@@ -526,13 +552,13 @@ export function useTranscriptionUtteranceActions({
 
     setUtterances((prev) => prev.filter((u) => u.id !== utteranceId));
     setTranslations((prev) => prev.filter((t) => t.utteranceId !== utteranceId));
-    if (selectedUtteranceId === utteranceId) setSelectedUtteranceId('');
+    if (activeUtteranceUnitId === utteranceId) clearSelection();
 
     const db = await getDb();
     await pruneOrphanAnchors(db, new Set([utteranceId]));
 
     setSaveState({ kind: 'done', message: '已删除句段' });
-  }, [pruneOrphanAnchors, pushUndo, selectedUtteranceId, setSaveState, setSelectedUtteranceId, setTranslations, setUtterances, utterancesRef]);
+  }, [activeUtteranceUnitId, clearSelection, pruneOrphanAnchors, pushUndo, setSaveState, setTranslations, setUtterances, utterancesRef]);
 
   const reassignTranslations = useCallback(async (
     survivorId: string,
@@ -557,7 +583,6 @@ export function useTranscriptionUtteranceActions({
           text: (match.text ?? '') + rt.text,
           updatedAt: now,
         } as UtteranceTextDocType;
-        await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(merged));
         if (survivorUtterance) {
           await syncUtteranceTextToSegmentationV2(db, survivorUtterance, merged);
         }
@@ -568,7 +593,6 @@ export function useTranscriptionUtteranceActions({
           utteranceId: survivorId,
           updatedAt: now,
         } as UtteranceTextDocType;
-        await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(reassigned));
         if (survivorUtterance) {
           await syncUtteranceTextToSegmentationV2(db, survivorUtterance, reassigned);
         }
@@ -618,10 +642,10 @@ export function useTranscriptionUtteranceActions({
         ...newTranslations,
       ];
     });
-    setSelectedUtteranceId(prev.id);
+    selectUtterancePrimary(prev.id);
     await pruneOrphanAnchors(db, new Set([curr.id]));
     setSaveState({ kind: 'done', message: `已向前合并 ${formatTime(updated.startTime)} - ${formatTime(updated.endTime)}` });
-  }, [pruneOrphanAnchors, pushUndo, reassignTranslations, setSaveState, setSelectedUtteranceId, setTranslations, setUtterances, utterancesRef]);
+  }, [pruneOrphanAnchors, pushUndo, reassignTranslations, selectUtterancePrimary, setSaveState, setTranslations, setUtterances, utterancesRef]);
 
   const mergeWithNext = useCallback(async (utteranceId: string) => {
     const sorted = utterancesRef.current
@@ -661,10 +685,10 @@ export function useTranscriptionUtteranceActions({
         ...newTranslations,
       ];
     });
-    setSelectedUtteranceId(curr.id);
+    selectUtterancePrimary(curr.id);
     await pruneOrphanAnchors(db, new Set([next.id]));
     setSaveState({ kind: 'done', message: `已向后合并 ${formatTime(updated.startTime)} - ${formatTime(updated.endTime)}` });
-  }, [pruneOrphanAnchors, pushUndo, reassignTranslations, setSaveState, setSelectedUtteranceId, setTranslations, setUtterances, utterancesRef]);
+  }, [pruneOrphanAnchors, pushUndo, reassignTranslations, selectUtterancePrimary, setSaveState, setTranslations, setUtterances, utterancesRef]);
 
   const splitUtterance = useCallback(async (utteranceId: string, splitTime: number) => {
     const target = utterancesRef.current.find((u) => u.id === utteranceId);
@@ -726,7 +750,6 @@ export function useTranscriptionUtteranceActions({
         createdAt: now,
         updatedAt: now,
       } as UtteranceTextDocType;
-      await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(copy));
       await syncUtteranceTextToSegmentationV2(db, secondHalf, copy);
       copiedTranslations.push(copy);
     }
@@ -737,9 +760,9 @@ export function useTranscriptionUtteranceActions({
     ]);
     setTranslations((prev) => [...prev, ...copiedTranslations]);
     setUtteranceDrafts((prev) => ({ ...prev, [utteranceId]: text, [secondId]: text }));
-    setSelectedUtteranceId(secondId);
+    selectUtterancePrimary(secondId);
     setSaveState({ kind: 'done', message: `已拆分为 ${formatTime(updatedFirst.startTime)}-${formatTime(updatedFirst.endTime)} 和 ${formatTime(secondHalf.startTime)}-${formatTime(secondHalf.endTime)}` });
-  }, [createAnchor, getUtteranceTextForLayer, pushUndo, setSaveState, setSelectedUtteranceId, setTranslations, setUtteranceDrafts, setUtterances, translations, utterancesRef]);
+  }, [createAnchor, getUtteranceTextForLayer, pushUndo, selectUtterancePrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, translations, utterancesRef]);
 
   const deleteSelectedUtterances = useCallback(async (ids: Set<string>) => {
     const targets = utterancesRef.current.filter((u) => ids.has(u.id));
@@ -752,13 +775,12 @@ export function useTranscriptionUtteranceActions({
     const idsToDeleteSet = new Set(idsToDelete);
     setUtterances((prev) => prev.filter((u) => !idsToDeleteSet.has(u.id)));
     setTranslations((prev) => prev.filter((t) => !idsToDeleteSet.has(t.utteranceId)));
-    setSelectedUtteranceId('');
-    setSelectedUtteranceIds(new Set());
+    clearSelection();
 
     const dbInst = await getDb();
     await pruneOrphanAnchors(dbInst, idsToDeleteSet);
     setSaveState({ kind: 'done', message: `已删除 ${targets.length} 个句段` });
-  }, [pruneOrphanAnchors, pushUndo, setSaveState, setSelectedUtteranceId, setSelectedUtteranceIds, setTranslations, setUtterances, utterancesRef]);
+  }, [clearSelection, pruneOrphanAnchors, pushUndo, setSaveState, setTranslations, setUtterances, utterancesRef]);
 
   const offsetSelectedTimes = useCallback(async (ids: Set<string>, deltaSec: number) => {
     const targets = utterancesOnCurrentMediaRef.current
@@ -1068,7 +1090,6 @@ export function useTranscriptionUtteranceActions({
             createdAt: now,
             updatedAt: now,
           } as UtteranceTextDocType;
-          await db.collections.utterance_texts.insert(normalizeUtteranceTextDocForStorage(copy));
           await syncUtteranceTextToSegmentationV2(db, nextUtterance, copy);
           copiedTranslations.push(copy);
         }
@@ -1095,8 +1116,7 @@ export function useTranscriptionUtteranceActions({
       setTranslations((prev) => [...prev, ...copiedTranslations]);
       setUtteranceDrafts((prev) => ({ ...prev, ...nextDraftEntries }));
       if (inserts.length > 0) {
-        setSelectedUtteranceId(inserts[0]!.id);
-        setSelectedUtteranceIds(new Set([inserts[0]!.id]));
+        selectUtterancePrimary(inserts[0]!.id);
       }
       setSaveState({ kind: 'done', message: `已按正则拆分 ${updates.length + inserts.length} 个句段片段。` });
     } catch (error) {
@@ -1124,7 +1144,7 @@ export function useTranscriptionUtteranceActions({
         fallbackMessage: formatRollbackFailureMessage('正则批量拆分', error),
       });
     }
-  }, [createAnchor, getUtteranceTextForLayer, pushUndo, rollbackUndo, setSaveState, setSelectedUtteranceId, setSelectedUtteranceIds, setTranslations, setUtteranceDrafts, setUtterances, translations, utterancesOnCurrentMediaRef]);
+  }, [createAnchor, getUtteranceTextForLayer, pushUndo, rollbackUndo, selectUtterancePrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, translations, utterancesOnCurrentMediaRef]);
 
   const mergeSelectedUtterances = useCallback(async (ids: Set<string>) => {
     const sorted = utterancesOnCurrentMediaRef.current
@@ -1173,8 +1193,7 @@ export function useTranscriptionUtteranceActions({
         ...allUpdatedTranslations,
         ...allNewTranslations,
       ]);
-      setSelectedUtteranceId(first.id);
-      setSelectedUtteranceIds(new Set([first.id]));
+      selectUtterancePrimary(first.id);
 
       await pruneOrphanAnchors(db, removeIds);
       setSaveState({ kind: 'done', message: `已合并 ${sorted.length} 个句段 ${formatTime(updated.startTime)} - ${formatTime(updated.endTime)}` });
@@ -1201,7 +1220,7 @@ export function useTranscriptionUtteranceActions({
         fallbackMessage: formatRollbackFailureMessage('批量合并', error),
       });
     }
-  }, [pruneOrphanAnchors, pushUndo, reassignTranslations, rollbackUndo, setSaveState, setSelectedUtteranceId, setSelectedUtteranceIds, setTranslations, setUtterances, utterancesOnCurrentMediaRef]);
+  }, [pruneOrphanAnchors, pushUndo, reassignTranslations, rollbackUndo, selectUtterancePrimary, setSaveState, setTranslations, setUtterances, utterancesOnCurrentMediaRef]);
 
   return {
     saveVoiceTranslation,
