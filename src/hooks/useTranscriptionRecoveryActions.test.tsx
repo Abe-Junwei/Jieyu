@@ -7,14 +7,12 @@ import { useTranscriptionRecoveryActions } from './useTranscriptionRecoveryActio
 
 const {
   mockFindByIndexAnyOf,
-  mockInsertUtteranceText,
   mockInsertTranslationLayer,
   mockSaveUtterance,
   mockClearRecoverySnapshot,
   mockSyncUtteranceTextToSegmentationV2,
 } = vi.hoisted(() => ({
   mockFindByIndexAnyOf: vi.fn(),
-  mockInsertUtteranceText: vi.fn(),
   mockInsertTranslationLayer: vi.fn(),
   mockSaveUtterance: vi.fn(),
   mockClearRecoverySnapshot: vi.fn(),
@@ -26,9 +24,6 @@ vi.mock('../db', () => ({
     collections: {
       utterances: {
         findByIndexAnyOf: mockFindByIndexAnyOf,
-      },
-      utterance_texts: {
-        insert: mockInsertUtteranceText,
       },
       layers: {
         insert: mockInsertTranslationLayer,
@@ -52,7 +47,7 @@ vi.mock('../services/SnapshotService', async () => {
   };
 });
 
-vi.mock('../services/LayerSegmentationV2BridgeService', () => ({
+vi.mock('../services/LayerSegmentationTextService', () => ({
   syncUtteranceTextToSegmentationV2: mockSyncUtteranceTextToSegmentationV2,
 }));
 
@@ -92,7 +87,6 @@ describe('useTranscriptionRecoveryActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFindByIndexAnyOf.mockResolvedValue([]);
-    mockInsertUtteranceText.mockResolvedValue(undefined);
     mockInsertTranslationLayer.mockResolvedValue(undefined);
     mockSaveUtterance.mockResolvedValue(undefined);
     mockClearRecoverySnapshot.mockResolvedValue(undefined);

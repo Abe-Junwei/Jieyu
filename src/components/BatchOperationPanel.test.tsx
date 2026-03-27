@@ -1,7 +1,24 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BatchOperationPanel } from './BatchOperationPanel';
+
+// Mock ResizeObserver for useDraggablePanel
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+beforeEach(() => {
+  window.ResizeObserver = MockResizeObserver;
+  vi.spyOn(window.localStorage, 'getItem').mockReturnValue(null);
+  vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function makeUtterance(id: string, startTime: number, endTime: number) {
   return { id, startTime, endTime };

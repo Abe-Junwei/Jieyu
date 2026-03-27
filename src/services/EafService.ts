@@ -90,7 +90,7 @@ function parseEafMetaFromLayerKey(layerKey?: string): { tierId?: string; langLab
 }
 
 export function exportToEaf(input: EafExportInput): string {
-  const { mediaItem, utterances, anchors, layers, translations, userNotes, layerSegments, layerSegmentContents, defaultTranscriptionLayerId } = input;
+  const { mediaItem, utterances, anchors, layers, translations, userNotes, layerSegments, layerSegmentContents } = input;
   const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
 
   // Build time slots — use shared anchors when available
@@ -298,10 +298,9 @@ ${annotations.join('\n')}
     </TIER>`);
       }
     } else {
-      // 非默认转写层 | Non-default transcription layer
+      // 转写层（独立边界层优先按 segment 导出）| Transcription layers (independent-boundary layers export by segment first)
       const isIndependentTrc = layer.layerType === 'transcription'
-        && layer.constraint === 'independent_boundary'
-        && layer.id !== defaultTranscriptionLayerId;
+        && layer.constraint === 'independent_boundary';
       const layerSegs = isIndependentTrc ? layerSegments?.get(layer.id) : undefined;
 
       if (layerSegs && layerSegs.length > 0) {
@@ -333,7 +332,7 @@ ${segAnnotations.join('\n')}
     </TIER>`);
         }
       } else {
-        // 普通非默认转写层：用 utterance_texts 导出 | Regular non-default transcription: use utterance_texts
+        // 普通非默认转写层：用当前 layerTranslations（来自 V2 聚合）导出 | Regular non-default transcription: export from V2-derived layerTranslations
         const annotations = sorted
           .map((utt) => {
             const tr = layerTranslations.find((t) => t.utteranceId === utt.id);

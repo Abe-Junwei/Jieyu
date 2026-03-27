@@ -11,7 +11,7 @@ import { fireAndForget } from '../utils/fireAndForget';
 import type { SaveState } from './transcriptionTypes';
 import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
-import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationV2BridgeService';
+import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
 
 const log = createLogger('useTranscriptionRecoveryActions');
 

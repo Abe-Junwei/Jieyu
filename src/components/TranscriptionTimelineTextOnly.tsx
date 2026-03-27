@@ -17,11 +17,53 @@ import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
 import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
+import { buildSpeakerLayerLayoutWithOptions, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 
 function normalizeSpeakerFocusKey(value: string | undefined): string {
   const trimmed = (value ?? '').trim();
   return trimmed.length > 0 ? trimmed : 'unknown-speaker';
+}
+
+const EMPTY_SPEAKER_LAYOUT: SpeakerLayerLayoutResult = {
+  placements: new Map(),
+  subTrackCount: 1,
+  maxConcurrentSpeakerCount: 1,
+  overlapGroups: [],
+  overlapCycleItemsByGroupId: new Map(),
+  lockConflictCount: 0,
+  lockConflictSpeakerIds: [],
+};
+
+function toSpeakerLayoutInputFromSegments(
+  segments: LayerSegmentDocType[],
+  utteranceById: ReadonlyMap<string, UtteranceDocType>,
+): UtteranceDocType[] {
+  return segments.map((segment) => {
+    const ownerSpeakerId = segment.utteranceId ? utteranceById.get(segment.utteranceId)?.speakerId : undefined;
+    return {
+      id: segment.id,
+      textId: segment.textId,
+      mediaId: segment.mediaId,
+      ...(ownerSpeakerId ? { speakerId: ownerSpeakerId } : {}),
+      startTime: segment.startTime,
+      endTime: segment.endTime,
+      createdAt: segment.createdAt,
+      updatedAt: segment.updatedAt,
+    } as UtteranceDocType;
+  });
+}
+
+function buildSegmentSpeakerIdMap(
+  segments: LayerSegmentDocType[],
+  utteranceById: ReadonlyMap<string, UtteranceDocType>,
+): Map<string, string> {
+  const next = new Map<string, string>();
+  for (const segment of segments) {
+    const speakerId = segment.utteranceId ? utteranceById.get(segment.utteranceId)?.speakerId : undefined;
+    next.set(segment.id, normalizeSpeakerFocusKey(speakerId));
+  }
+  return next;
 }
 
 type TranscriptionTimelineTextOnlyProps = {
@@ -166,6 +208,21 @@ export function TranscriptionTimelineTextOnly({
 
   const virtualItems = horizontalVirtualizer.getVirtualItems();
   const totalSize = horizontalVirtualizer.getTotalSize();
+  const utteranceById = new Map(utterancesOnCurrentMedia.map((item) => [item.id, item] as const));
+  const segmentSpeakerLayoutByLayer = new Map<string, SpeakerLayerLayoutResult>();
+  const segmentSpeakerIdByLayer = new Map<string, Map<string, string>>();
+  for (const layer of transcriptionLayers) {
+    if (!layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) continue;
+    const segments = segmentsByLayer?.get(layer.id) ?? [];
+    const segmentAsUtterances = toSpeakerLayoutInputFromSegments(segments, utteranceById);
+    segmentSpeakerLayoutByLayer.set(
+      layer.id,
+      buildSpeakerLayerLayoutWithOptions(segmentAsUtterances, {
+        ...(laneLockMap ? { laneLockMap } : {}),
+      }),
+    );
+    segmentSpeakerIdByLayer.set(layer.id, buildSegmentSpeakerIdMap(segments, utteranceById));
+  }
 
   const setCellSaveStatus = (cellKey: string, status?: 'dirty' | 'saving' | 'error') => {
     setSaveStatusByCellKey((prev) => {
@@ -196,6 +253,10 @@ export function TranscriptionTimelineTextOnly({
       {transcriptionLayers.map((layer, idx) => {
         const isCollapsed = collapsedLayerIds.has(layer.id);
         const isIndependent = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
+        const activeLayout = isIndependent
+          ? (segmentSpeakerLayoutByLayer.get(layer.id) ?? EMPTY_SPEAKER_LAYOUT)
+          : EMPTY_SPEAKER_LAYOUT;
+        const isMultiTrackMode = trackDisplayMode !== 'single';
         const layerItems: Array<{ id: string; startTime: number }> = isIndependent
           ? ((segmentsByLayer?.get(layer.id) ?? []) as Array<{ id: string; startTime: number }>)
           : utterancesOnCurrentMedia;
@@ -203,14 +264,20 @@ export function TranscriptionTimelineTextOnly({
           ? layerItems.map((_, index) => ({ index, size: 180, start: index * 180 }))
           : virtualItems.map((it) => ({ index: it.index, size: it.size, start: it.start }));
         const laneTotalSize = isIndependent ? layerItems.length * 180 : totalSize;
+        const baseLaneHeight = laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT;
+        const subTrackCount = isIndependent && isMultiTrackMode
+          ? activeLayout.subTrackCount
+          : 1;
+        const visibleLaneHeight = isCollapsed ? 14 : baseLaneHeight * subTrackCount;
         return (
         <div
           key={`tl-${layer.id}`}
-          className={`timeline-lane timeline-lane-text-only ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${isCollapsed ? 'timeline-lane-collapsed' : ''}`}
+          className={`timeline-lane timeline-lane-text-only ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${isCollapsed ? 'timeline-lane-collapsed' : ''} ${isIndependent && isMultiTrackMode && activeLayout.subTrackCount > 1 ? 'timeline-lane-speaker-layered' : ''}`}
           style={{
             position: 'relative',
-            '--timeline-lane-height': `${isCollapsed ? 14 : (laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)}px`,
-            '--timeline-lane-content-height': `${Math.max(16, ((isCollapsed ? 14 : (laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)) - 12))}px`,
+            '--timeline-lane-height': `${visibleLaneHeight}px`,
+            '--timeline-lane-content-height': `${Math.max(16, (baseLaneHeight - 12))}px`,
+            '--timeline-subtrack-height': `${baseLaneHeight}px`,
           } as React.CSSProperties}
           onPointerDown={(e) => {
             if (!isCollapsed) return;
@@ -265,7 +332,9 @@ export function TranscriptionTimelineTextOnly({
             const rawItem = layerItems[virtualItem.index];
             if (!rawItem) return null;
             const utt = rawItem as UtteranceDocType;
-            const utteranceSpeakerKey = normalizeSpeakerFocusKey(utt.speakerId);
+            const utteranceSpeakerKey = isIndependent
+              ? (segmentSpeakerIdByLayer.get(layer.id)?.get(utt.id) ?? 'unknown-speaker')
+              : normalizeSpeakerFocusKey(utt.speakerId);
             const focusMatched = speakerFocusMode === 'all' || !speakerFocusSpeakerKey || utteranceSpeakerKey === speakerFocusSpeakerKey;
             const shouldHideForFocus = speakerFocusMode === 'focus-hard' && !focusMatched;
             const shouldDimForFocus = speakerFocusMode === 'focus-soft' && !focusMatched;
@@ -275,8 +344,7 @@ export function TranscriptionTimelineTextOnly({
               : getUtteranceTextForLayer(utt, layer.id);
             const draftKey = `trc-${layer.id}-${utt.id}`;
             const cellKey = `text-${layer.id}-${utt.id}`;
-            const legacyDraft = layer.id === defaultTranscriptionLayerId ? utteranceDrafts[utt.id] : undefined;
-            const draft = utteranceDrafts[draftKey] ?? legacyDraft ?? sourceText;
+            const draft = utteranceDrafts[draftKey] ?? sourceText;
             const isEditing = editingCellKey === cellKey;
             const isDimmed = !!editingCellKey && !isEditing;
             const saveStatus = saveStatusByCellKey[cellKey];
@@ -291,6 +359,9 @@ export function TranscriptionTimelineTextOnly({
             };
             const isActive = selectedTimelineUnit?.layerId === layer.id
               && selectedTimelineUnit.unitId === utt.id;
+            const subTrackIndex = isIndependent && isMultiTrackMode
+              ? (activeLayout.placements.get(utt.id)?.subTrackIndex ?? 0)
+              : 0;
             return (
               <div
                 key={utt.id}
@@ -298,6 +369,7 @@ export function TranscriptionTimelineTextOnly({
                 style={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
+                  ...(isIndependent && isMultiTrackMode ? { top: subTrackIndex * baseLaneHeight, height: baseLaneHeight } : {}),
                   ...(speakerVisual ? ({ '--speaker-color': speakerVisual.color } as React.CSSProperties) : {}),
                 }}
                 title={speakerVisual ? `说话人：${speakerVisual.name}` : undefined}

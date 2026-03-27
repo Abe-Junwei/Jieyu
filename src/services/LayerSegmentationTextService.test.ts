@@ -4,17 +4,17 @@ import { db, getDb, type UtteranceDocType, type UtteranceTextDocType } from '../
 import {
   cleanupOrphanSegments,
   enforceTimeSubdivisionParentBounds,
-  getAllUtteranceTextsPreferV2,
+  listUtteranceTextsFromSegmentation,
   getSegmentationV2Ids,
-  getUtteranceTextsByUtterancesPreferV2,
+  listUtteranceTextsByUtterances,
   removeUtteranceCascadeFromSegmentationV2,
   removeUtteranceTextFromSegmentationV2,
   syncUtteranceTextToSegmentationV2,
-} from './LayerSegmentationV2BridgeService';
+} from './LayerSegmentationTextService';
 
 const NOW = '2026-03-25T00:00:00.000Z';
 
-describe('LayerSegmentationV2BridgeService', () => {
+describe('LayerSegmentationTextService', () => {
   beforeEach(async () => {
     await db.open();
     await Promise.all([
@@ -208,23 +208,12 @@ describe('LayerSegmentationV2BridgeService', () => {
       updatedAt: NOW,
     });
 
-    const rows = await getAllUtteranceTextsPreferV2(database);
+    const rows = await listUtteranceTextsFromSegmentation(database);
     expect(rows.some((row) => row.id === 'utr_v2' && row.utteranceId === 'utt_v2' && row.text === 'v2-text')).toBe(true);
   });
 
-  it('prefers v2 row when same id exists in legacy table', async () => {
+  it('returns canonical v2 row by content id', async () => {
     const database = await getDb();
-
-    await db.utterance_texts.put({
-      id: 'dup_id',
-      utteranceId: 'utt_dup',
-      layerId: 'layer_old',
-      modality: 'text',
-      text: 'legacy-dup',
-      sourceType: 'human',
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
 
     await db.layer_segments.put({
       id: 'segv2_layer_new_utt_dup',
@@ -249,7 +238,7 @@ describe('LayerSegmentationV2BridgeService', () => {
       updatedAt: NOW,
     });
 
-    const rows = await getAllUtteranceTextsPreferV2(database);
+    const rows = await listUtteranceTextsFromSegmentation(database);
     const row = rows.find((item) => item.id === 'dup_id');
     expect(row?.text).toBe('v2-dup');
     expect(row?.layerId).toBe('layer_new');
@@ -307,7 +296,7 @@ describe('LayerSegmentationV2BridgeService', () => {
       },
     ]);
 
-    const rows = await getUtteranceTextsByUtterancesPreferV2(database, ['utt_a', 'utt_b']);
+    const rows = await listUtteranceTextsByUtterances(database, ['utt_a', 'utt_b']);
     expect(rows.map((row) => row.text)).toEqual(expect.arrayContaining(['alpha', 'beta']));
   });
 

@@ -6,7 +6,6 @@ import { LinguisticService } from './LinguisticService';
 async function clearTables(): Promise<void> {
   await Promise.all([
     db.utterances.clear(),
-    db.utterance_texts.clear(),
     db.embeddings.clear(),
     db.layer_segments.clear(),
     db.layer_segment_contents.clear(),

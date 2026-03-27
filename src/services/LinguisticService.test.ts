@@ -24,7 +24,6 @@ async function clearDatabase(): Promise<void> {
     db.abbreviations.clear(),
     db.phonemes.clear(),
     db.tag_definitions.clear(),
-    db.utterance_texts.clear(),
     db.layer_links.clear(),
     db.tier_definitions.clear(),
     db.tier_annotations.clear(),
@@ -634,8 +633,8 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await db.utterance_texts.bulkPut([
-      {
+    await Promise.all([
+      LinguisticService.saveUtteranceText({
         id: 'utr_batch_1',
         utteranceId: 'utt_batch_1',
         layerId: 'layer_batch',
@@ -644,8 +643,8 @@ describe('LinguisticService smoke tests', () => {
         sourceType: 'human',
         createdAt: NOW,
         updatedAt: NOW,
-      },
-      {
+      }),
+      LinguisticService.saveUtteranceText({
         id: 'utr_batch_2',
         utteranceId: 'utt_batch_2',
         layerId: 'layer_batch',
@@ -654,7 +653,7 @@ describe('LinguisticService smoke tests', () => {
         sourceType: 'human',
         createdAt: NOW,
         updatedAt: NOW,
-      },
+      }),
     ]);
 
     await db.user_notes.bulkPut([
@@ -824,7 +823,7 @@ describe('LinguisticService smoke tests', () => {
     expect(await db.token_lexeme_links.where('id').anyOf(['link_del_audio_tok', 'link_del_audio_mor']).count()).toBe(0);
   });
 
-  // ── Regression guard: utterance_texts layer-field queries ──────
+  // ── Regression guard: segmentation text queries ──────
 
   it('regression: saveUtteranceText round-trips via layer-field index', async () => {
     await LinguisticService.saveUtterance({
@@ -877,7 +876,7 @@ describe('LinguisticService smoke tests', () => {
     expect(remaining).toHaveLength(0);
   });
 
-  it('regression: deleteProject cascades utterance_texts via utteranceId query', async () => {
+  it('regression: deleteProject cascades segmentation text content via utteranceId query', async () => {
     await db.texts.put({
       id: 'text_cascade_ut',
       title: { eng: 'Cascade Test' },

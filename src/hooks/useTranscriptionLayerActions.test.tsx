@@ -8,7 +8,6 @@ const {
   mockCreateLayer,
   mockDeleteLayer,
   mockRemoveUtterancesBatch,
-  mockUtteranceTextsWhereUtteranceAnyOfToArray,
   mockLayerSegmentContentsDelete,
   mockLayerSegmentsPrimaryKeys,
   mockLayerSegmentsDelete,
@@ -16,17 +15,15 @@ const {
   mockSegmentLinksWhereSourcePrimaryKeys,
   mockSegmentLinksWhereTargetPrimaryKeys,
   mockSegmentLinksBulkDelete,
-  mockRemoveBySelectorUtteranceTexts,
   mockRemoveBySelectorLayerLinks,
   mockLayerLinksToArray,
   mockUtterancesWhereTextIdPrimaryKeys,
-  mockGetUtteranceTextsByUtterancesPreferV2,
+  mockListUtteranceTextsByUtterances,
 } = vi.hoisted(() => ({
   mockGetDb: vi.fn(),
   mockCreateLayer: vi.fn(async () => undefined),
   mockDeleteLayer: vi.fn(async () => undefined),
   mockRemoveUtterancesBatch: vi.fn(async () => undefined),
-  mockUtteranceTextsWhereUtteranceAnyOfToArray: vi.fn(async () => []),
   mockLayerSegmentContentsDelete: vi.fn(async () => undefined),
   mockLayerSegmentsPrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
   mockLayerSegmentsDelete: vi.fn(async () => undefined),
@@ -34,11 +31,10 @@ const {
   mockSegmentLinksWhereSourcePrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
   mockSegmentLinksWhereTargetPrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
   mockSegmentLinksBulkDelete: vi.fn(async () => undefined),
-  mockRemoveBySelectorUtteranceTexts: vi.fn(async () => undefined),
   mockRemoveBySelectorLayerLinks: vi.fn(async () => undefined),
   mockLayerLinksToArray: vi.fn(async () => []),
   mockUtterancesWhereTextIdPrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
-  mockGetUtteranceTextsByUtterancesPreferV2: vi.fn(async () => []),
+  mockListUtteranceTextsByUtterances: vi.fn(async () => []),
 }));
 
 vi.mock('../db', async () => {
@@ -62,8 +58,8 @@ vi.mock('../services/LinguisticService', () => ({
   },
 }));
 
-vi.mock('../services/LayerSegmentationV2BridgeService', () => ({
-  getUtteranceTextsByUtterancesPreferV2: mockGetUtteranceTextsByUtterancesPreferV2,
+vi.mock('../services/LayerSegmentationTextService', () => ({
+  listUtteranceTextsByUtterances: mockListUtteranceTextsByUtterances,
 }));
 
 describe('useTranscriptionLayerActions v2 cleanup', () => {
@@ -76,34 +72,12 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
 
     mockGetDb.mockResolvedValue({
       collections: {
-        utterance_texts: {
-          removeBySelector: mockRemoveBySelectorUtteranceTexts,
-        },
         layer_links: {
           removeBySelector: mockRemoveBySelectorLayerLinks,
           insert: vi.fn(async () => undefined),
         },
       },
       dexie: {
-        utterance_texts: {
-          where: (field: string) => {
-            if (field === 'layerId') {
-              return {
-                equals: () => ({
-                  toArray: vi.fn(async () => []),
-                }),
-              };
-            }
-            if (field === 'utteranceId') {
-              return {
-                anyOf: () => ({
-                  toArray: mockUtteranceTextsWhereUtteranceAnyOfToArray,
-                }),
-              };
-            }
-            throw new Error(`Unexpected utterance_texts.where field: ${field}`);
-          },
-        },
         layer_segment_contents: {
           where: () => ({
             equals: () => ({
@@ -204,7 +178,6 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     expect(mockLayerSegmentsDelete).toHaveBeenCalledTimes(1);
     expect(mockSegmentLinksBulkDelete).toHaveBeenCalledWith(['link_source', 'link_target']);
     expect(mockDeleteLayer).toHaveBeenCalledTimes(1);
-    expect(mockRemoveBySelectorUtteranceTexts).not.toHaveBeenCalled(); // Phase 2: V1 已无写入，无需清理
     expect(mockRemoveUtterancesBatch).not.toHaveBeenCalled();
   });
 
@@ -437,7 +410,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     mockLayerLinksToArray.mockResolvedValue([]);
     mockLayerSegmentsWhereLayerIdToArray.mockResolvedValue([]);
     mockUtterancesWhereTextIdPrimaryKeys.mockResolvedValue(['utt_100', 'utt_101']);
-    mockGetUtteranceTextsByUtterancesPreferV2.mockResolvedValue([]);
+    mockListUtteranceTextsByUtterances.mockResolvedValue([]);
 
     const { result } = renderHook(() => useTranscriptionLayerActions({
       layers: [trcLayer as never],

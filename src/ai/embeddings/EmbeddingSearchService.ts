@@ -6,10 +6,10 @@ import { splitPdfCitationRef } from '../../utils/citationJumpUtils';
 import { extractPdfSnippet, isPdfMediaItem } from './pdfTextUtils';
 import { resolveFusionWeightsForScenario, type SearchFusionScenario } from './searchFusionProfiles';
 import {
-  getAllUtteranceTextsPreferV2,
-  getUtteranceTextsByUtterancesPreferV2,
-  getUtteranceTextsByUtterancePreferV2,
-} from '../../services/LayerSegmentationV2BridgeService';
+  listUtteranceTextsFromSegmentation,
+  listUtteranceTextsByUtterances,
+  listUtteranceTextsByUtterance,
+} from '../../services/LayerSegmentationTextService';
 
 export interface SearchSimilarUtterancesOptions {
   modelId?: string;
@@ -352,7 +352,7 @@ export class EmbeddingSearchService {
       if (fusedCandidates.has(sourceKey)) continue;
 
       if (match.sourceType === 'utterance') {
-        const textRows = await getUtteranceTextsByUtterancePreferV2(db, match.sourceId);
+        const textRows = await listUtteranceTextsByUtterance(db, match.sourceId);
         const texts = textRows
           .map((row) => row.text?.trim() ?? '')
           .filter((text) => text.length > 0);
@@ -382,8 +382,8 @@ export class EmbeddingSearchService {
 
     if (sourceTypes.includes('utterance')) {
       const utteranceRows = candidateSet
-        ? await getUtteranceTextsByUtterancesPreferV2(db, candidateSet)
-        : await getAllUtteranceTextsPreferV2(db);
+        ? await listUtteranceTextsByUtterances(db, candidateSet)
+        : await listUtteranceTextsFromSegmentation(db);
       const merged = new Map<string, string[]>();
       for (const row of utteranceRows) {
         const item = row;

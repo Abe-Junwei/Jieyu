@@ -40,7 +40,6 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
   beforeEach(async () => {
     await db.open();
     await Promise.all([
-      db.utterance_texts.clear(),
       db.embeddings.clear(),
       db.utterances.clear(),
       db.layer_segments.clear(),
@@ -208,20 +207,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const utterance = makeUtterance('utt-1', 0, 1);
     await db.utterances.put(utterance as never);
 
-    // Phase 0 backfill 状态：V1 + V2 双份数据 | Phase 0 backfill state: V1 + V2 dual data
-    await db.utterance_texts.add({
-      id: 'utr-legacy',
-      utteranceId: 'utt-1',
-      layerId: 'tr-layer-1',
-      modality: 'text',
-      text: 'old',
-      sourceType: 'human',
-      recordedBySpeakerId: 'spk-legacy',
-      createdAt: now,
-      updatedAt: now,
-    } as never);
-
-    // V2 entries (Phase 0 backfill ensures these exist) | V2 条目（Phase 0 backfill 确保存在）
+    // Seed V2 entries directly.
     await db.layer_segments.put({
       id: 'seg_v2_utt1',
       textId: 't1',

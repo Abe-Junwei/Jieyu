@@ -31,11 +31,11 @@ import {
 } from '../../src/utils/camDataUtils';
 import {
   enforceTimeSubdivisionParentBounds,
-  getAllUtteranceTextsPreferV2,
-  getUtteranceTextsByUtterancePreferV2,
+  listUtteranceTextsFromSegmentation,
+  listUtteranceTextsByUtterance,
   removeUtteranceCascadeFromSegmentationV2,
   syncUtteranceTextToSegmentationV2,
-} from './LayerSegmentationV2BridgeService';
+} from './LayerSegmentationTextService';
 import {
   hasEmbeddedDefaultTextChanged,
   invalidateUtteranceEmbeddings,
@@ -593,7 +593,7 @@ export class LinguisticService {
 
     const [utterancesAll, utteranceTextsAll, layersAll, tokensAll, morphemesAll, userNotesAll, anchorsAll] = await Promise.all([
       db.dexie.utterances.toArray(),
-      getAllUtteranceTextsPreferV2(db),
+      listUtteranceTextsFromSegmentation(db),
       db.collections.layers.find().exec().then((docs) => docs.map((doc) => doc.toJSON())),
       db.dexie.utterance_tokens.toArray(),
       db.dexie.utterance_morphemes.toArray(),
@@ -1186,7 +1186,7 @@ export class LinguisticService {
 
   static async getUtteranceTexts(utteranceId: string): Promise<UtteranceTextDocType[]> {
     const db = await getDb();
-    return getUtteranceTextsByUtterancePreferV2(db, utteranceId);
+    return listUtteranceTextsByUtterance(db, utteranceId);
   }
 
   static async saveUtteranceText(data: UtteranceTextDocType): Promise<string> {

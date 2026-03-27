@@ -16,10 +16,10 @@ import { reportValidationError } from '../utils/validationErrorReporter';
 import type { SaveState, SnapGuide, TimelineUnit } from './transcriptionTypes';
 import { invalidateUtteranceEmbeddings } from '../ai/embeddings/EmbeddingInvalidationService';
 import {
-  getUtteranceTextsByUtterancePreferV2,
+  listUtteranceTextsByUtterance,
   removeUtteranceTextFromSegmentationV2,
   syncUtteranceTextToSegmentationV2,
-} from '../services/LayerSegmentationV2BridgeService';
+} from '../services/LayerSegmentationTextService';
 import {
   type UtteranceTextWithoutLayerId,
   withUtteranceTextLayerId,
@@ -175,7 +175,7 @@ export function useTranscriptionUtteranceActions({
     let shouldInvalidateEmbeddings = false;
 
     if (targetLayer) {
-      const allTexts = await getUtteranceTextsByUtterancePreferV2(db, utteranceId);
+      const allTexts = await listUtteranceTextsByUtterance(db, utteranceId);
       const existing = allTexts
         .filter(
           (item) =>
@@ -346,7 +346,7 @@ export function useTranscriptionUtteranceActions({
     const trimmed = value.trim();
 
     // 按 utteranceId 索引查询，避免全表扫描 | Query by utteranceId index to avoid full table scan
-    const allTexts = await getUtteranceTextsByUtterancePreferV2(db, utteranceId);
+    const allTexts = await listUtteranceTextsByUtterance(db, utteranceId);
     const candidates = allTexts
       .filter(
         (item) =>

@@ -153,10 +153,12 @@ export function useDraggablePanel({
     };
 
     const onPointerUp = (): void => {
-      dragRef.current = null;
-      resizeRef.current = null;
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
+      if (dragRef.current || resizeRef.current) {
+        dragRef.current = null;
+        resizeRef.current = null;
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+      }
     };
 
     window.addEventListener('pointermove', onPointerMove);

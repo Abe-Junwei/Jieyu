@@ -25,6 +25,15 @@ type LassoRect = {
 };
 
 const EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID = new Map<string, Array<{ id: string; startTime: number }>>();
+const EMPTY_SPEAKER_LAYOUT: SpeakerLayerLayoutResult = {
+  placements: new Map(),
+  subTrackCount: 1,
+  maxConcurrentSpeakerCount: 1,
+  overlapGroups: [],
+  overlapCycleItemsByGroupId: new Map(),
+  lockConflictCount: 0,
+  lockConflictSpeakerIds: [],
+};
 
 function normalizeSpeakerFocusKey(value: string | undefined): string {
   const trimmed = (value ?? '').trim();
@@ -51,6 +60,55 @@ function prioritizeOverlapCycleItems(
     next.set(utteranceId, reordered);
   }
 
+  return next;
+}
+
+function toSpeakerLayoutInputFromSegments(
+  segments: LayerSegmentDocType[],
+  utteranceById: ReadonlyMap<string, UtteranceDocType>,
+): UtteranceDocType[] {
+  return segments.map((segment) => {
+    const ownerSpeakerId = segment.utteranceId ? utteranceById.get(segment.utteranceId)?.speakerId : undefined;
+    return {
+      id: segment.id,
+      textId: segment.textId,
+      mediaId: segment.mediaId,
+      ...(ownerSpeakerId ? { speakerId: ownerSpeakerId } : {}),
+      startTime: segment.startTime,
+      endTime: segment.endTime,
+      createdAt: segment.createdAt,
+      updatedAt: segment.updatedAt,
+    } as UtteranceDocType;
+  });
+}
+
+function buildSegmentsByOverlapGroup(
+  segments: LayerSegmentDocType[],
+  layout: SpeakerLayerLayoutResult,
+): Map<string, LayerSegmentDocType[]> {
+  const next = new Map<string, LayerSegmentDocType[]>();
+  for (const segment of segments) {
+    const groupId = layout.placements.get(segment.id)?.overlapGroupId;
+    if (!groupId) continue;
+    const bucket = next.get(groupId);
+    if (bucket) {
+      bucket.push(segment);
+    } else {
+      next.set(groupId, [segment]);
+    }
+  }
+  return next;
+}
+
+function buildSegmentSpeakerIdMap(
+  segments: LayerSegmentDocType[],
+  utteranceById: ReadonlyMap<string, UtteranceDocType>,
+): Map<string, string> {
+  const next = new Map<string, string>();
+  for (const segment of segments) {
+    const speakerId = segment.utteranceId ? utteranceById.get(segment.utteranceId)?.speakerId : undefined;
+    next.set(segment.id, normalizeSpeakerFocusKey(speakerId));
+  }
   return next;
 }
 
@@ -177,6 +235,46 @@ export function TranscriptionTimelineMediaLanes({
     [laneLockMap, speakerSortKeyById, timelineRenderUtterances],
   );
   const speakerLayerLayout = incomingSpeakerLayerLayout ?? localSpeakerLayerLayout;
+  const utteranceById = useMemo(
+    () => new Map(timelineRenderUtterances.map((item) => [item.id, item] as const)),
+    [timelineRenderUtterances],
+  );
+  const segmentSpeakerLayoutByLayer = useMemo(() => {
+    const next = new Map<string, SpeakerLayerLayoutResult>();
+    for (const layer of transcriptionLayers) {
+      if (!layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) continue;
+      const segments = segmentsByLayer?.get(layer.id) ?? [];
+      const segmentAsUtterances = toSpeakerLayoutInputFromSegments(segments, utteranceById);
+      next.set(
+        layer.id,
+        buildSpeakerLayerLayoutWithOptions(segmentAsUtterances, {
+          ...(laneLockMap ? { laneLockMap } : {}),
+          ...(speakerSortKeyById ? { speakerSortKeyById } : {}),
+        }),
+      );
+    }
+    return next;
+  }, [defaultTranscriptionLayerId, laneLockMap, segmentsByLayer, speakerSortKeyById, transcriptionLayers, utteranceById]);
+  const segmentSpeakerIdByLayer = useMemo(() => {
+    const next = new Map<string, Map<string, string>>();
+    for (const layer of transcriptionLayers) {
+      if (!layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) continue;
+      const segments = segmentsByLayer?.get(layer.id) ?? [];
+      next.set(layer.id, buildSegmentSpeakerIdMap(segments, utteranceById));
+    }
+    return next;
+  }, [defaultTranscriptionLayerId, segmentsByLayer, transcriptionLayers, utteranceById]);
+  const segmentItemsByOverlapGroupByLayer = useMemo(() => {
+    const next = new Map<string, Map<string, LayerSegmentDocType[]>>();
+    for (const layer of transcriptionLayers) {
+      if (!layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) continue;
+      const layout = segmentSpeakerLayoutByLayer.get(layer.id);
+      if (!layout) continue;
+      const segments = segmentsByLayer?.get(layer.id) ?? [];
+      next.set(layer.id, buildSegmentsByOverlapGroup(segments, layout));
+    }
+    return next;
+  }, [defaultTranscriptionLayerId, segmentSpeakerLayoutByLayer, segmentsByLayer, transcriptionLayers]);
   const utterancesByOverlapGroupId = useMemo(() => {
     const next = new Map<string, UtteranceDocType[]>();
     for (const utt of timelineRenderUtterances) {
@@ -192,7 +290,7 @@ export function TranscriptionTimelineMediaLanes({
     return next;
   }, [speakerLayerLayout.placements, timelineRenderUtterances]);
   const overlapCycleItemsByGroupId = useMemo(() => {
-    const selectedOverlapUtteranceId = selectedTimelineUnit?.kind === 'utterance'
+    const selectedOverlapUtteranceId = selectedTimelineUnit?.kind === 'utterance' || selectedTimelineUnit?.kind === 'segment'
       ? selectedTimelineUnit.unitId
       : activeUtteranceUnitId;
     const next = new Map<string, Map<string, Array<{ id: string; startTime: number }>>>();
@@ -309,34 +407,45 @@ export function TranscriptionTimelineMediaLanes({
       )}
       {transcriptionLayers.map((layer, idx) => {
         const isIndependent = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
-        const isMultiTrackMode = !isIndependent && trackDisplayMode !== 'single';
+        const activeLayerLayout = isIndependent
+          ? (segmentSpeakerLayoutByLayer.get(layer.id) ?? EMPTY_SPEAKER_LAYOUT)
+          : speakerLayerLayout;
+        const isMultiTrackMode = trackDisplayMode !== 'single';
         const isCollapsed = collapsedLayerIds.has(layer.id);
         const activeOverlapGroupId = tempExpandedGroupByLayer[layer.id];
         const isTemporarilyExpanded = typeof activeOverlapGroupId === 'string';
         const effectiveCollapsed = isCollapsed && !(isMultiTrackMode && isTemporarilyExpanded);
         const baseLaneHeight = laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT;
         const expandedGroupMeta = activeOverlapGroupId
-          ? speakerLayerLayout.overlapGroups.find((group) => group.id === activeOverlapGroupId)
+          ? activeLayerLayout.overlapGroups.find((group) => group.id === activeOverlapGroupId)
           : undefined;
         const activeSubTrackCount = isMultiTrackMode
-          ? (expandedGroupMeta?.subTrackCount ?? speakerLayerLayout.subTrackCount)
+          ? (expandedGroupMeta?.subTrackCount ?? activeLayerLayout.subTrackCount)
           : 1;
         const visibleLaneHeight = effectiveCollapsed ? 14 : baseLaneHeight * activeSubTrackCount;
         const collapsedOverlapMarkers = isMultiTrackMode
-          ? speakerLayerLayout.overlapGroups.filter((group) => group.speakerCount > 1)
+          ? activeLayerLayout.overlapGroups.filter((group) => group.speakerCount > 1)
           : [];
         const visibleUtterances = isIndependent
-          ? (segmentsByLayer?.get(layer.id) ?? [])
+          ? (isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
+              ? (segmentItemsByOverlapGroupByLayer.get(layer.id)?.get(activeOverlapGroupId) ?? [])
+              : (segmentsByLayer?.get(layer.id) ?? []))
           : isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
           ? (utterancesByOverlapGroupId.get(activeOverlapGroupId) ?? [])
           : timelineRenderUtterances;
         const overlapCycleItemsByUtteranceId = isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
-          ? (overlapCycleItemsByGroupId.get(activeOverlapGroupId) ?? EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID)
-          : (overlapCycleItemsByGroupId.get('__all__') ?? EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID);
+          ? ((isIndependent
+              ? activeLayerLayout.overlapCycleItemsByGroupId.get(activeOverlapGroupId)
+              : overlapCycleItemsByGroupId.get(activeOverlapGroupId))
+            ?? EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID)
+          : ((isIndependent
+              ? activeLayerLayout.overlapCycleItemsByGroupId.get('__all__')
+              : overlapCycleItemsByGroupId.get('__all__'))
+            ?? EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID);
         return (
         <div
           key={`tl-${layer.id}`}
-          className={`timeline-lane ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${effectiveCollapsed ? 'timeline-lane-collapsed' : ''} ${isMultiTrackMode && !effectiveCollapsed && speakerLayerLayout.subTrackCount > 1 ? 'timeline-lane-speaker-layered' : ''}`}
+          className={`timeline-lane ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${effectiveCollapsed ? 'timeline-lane-collapsed' : ''} ${isMultiTrackMode && !effectiveCollapsed && activeLayerLayout.subTrackCount > 1 ? 'timeline-lane-speaker-layered' : ''}`}
           style={{
             position: 'relative',
             '--timeline-lane-height': `${visibleLaneHeight}px`,
@@ -373,7 +482,7 @@ export function TranscriptionTimelineMediaLanes({
                 ...(onResetTrackAutoLayout ? { onResetAuto: onResetTrackAutoLayout } : {}),
                 ...(selectedSpeakerNamesForLock ? { selectedSpeakerNames: selectedSpeakerNamesForLock } : {}),
                 ...(laneLockMap ? { lockedSpeakerCount: Object.keys(laneLockMap).length } : {}),
-                ...(speakerLayerLayout.lockConflictCount > 0 ? { lockConflictCount: speakerLayerLayout.lockConflictCount } : {}),
+                ...(activeLayerLayout.lockConflictCount > 0 ? { lockConflictCount: activeLayerLayout.lockConflictCount } : {}),
               },
             })}
             isCollapsed={effectiveCollapsed}
@@ -398,7 +507,7 @@ export function TranscriptionTimelineMediaLanes({
           ))}
           {!effectiveCollapsed && visibleUtterances.map((utt) => {
             const utteranceSpeakerKey = isIndependent
-              ? 'unknown-speaker'
+              ? (segmentSpeakerIdByLayer.get(layer.id)?.get(utt.id) ?? 'unknown-speaker')
               : normalizeSpeakerFocusKey((utt as UtteranceDocType).speakerId);
             const focusMatched = speakerFocusMode === 'all' || !speakerFocusSpeakerKey || utteranceSpeakerKey === speakerFocusSpeakerKey;
             const shouldHideForFocus = speakerFocusMode === 'focus-hard' && !focusMatched;
@@ -407,9 +516,8 @@ export function TranscriptionTimelineMediaLanes({
               ? (segmentContentByLayer?.get(layer.id)?.get(utt.id)?.text ?? '')
               : getUtteranceTextForLayer(utt as UtteranceDocType, layer.id);
             const draftKey = `trc-${layer.id}-${utt.id}`;
-            const legacyDraft = layer.id === defaultTranscriptionLayerId ? utteranceDrafts[utt.id] : undefined;
-            const draft = utteranceDrafts[draftKey] ?? legacyDraft ?? sourceText;
-            const placement = isIndependent ? undefined : speakerLayerLayout.placements.get(utt.id);
+            const draft = utteranceDrafts[draftKey] ?? sourceText;
+            const placement = activeLayerLayout.placements.get(utt.id);
             const subTrackIndex = isMultiTrackMode ? (placement?.subTrackIndex ?? 0) : 0;
             const overlapCycleItems = overlapCycleItemsByUtteranceId.get(utt.id);
             const overlapCycleExtra = overlapCycleItems ? { overlapCycleItems } : {};

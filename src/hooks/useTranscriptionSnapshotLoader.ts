@@ -11,7 +11,7 @@ import type {
   UtteranceTextDocType,
   UtteranceTokenDocType,
 } from '../db';
-import { getAllUtteranceTextsPreferV2 } from '../services/LayerSegmentationV2BridgeService';
+import { listUtteranceTextsFromSegmentation } from '../services/LayerSegmentationTextService';
 import type { DbState, TimelineUnit } from './transcriptionTypes';
 
 type Params = {
@@ -70,7 +70,7 @@ export function useTranscriptionSnapshotLoader({
     const utteranceRowsRaw = utteranceDocs.map((doc) => doc.toJSON() as unknown as UtteranceDocType);
     const anchorRows = anchorDocs.map((doc) => doc.toJSON() as unknown as AnchorDocType);
     const allLayerRows = layerDocs.map((doc) => doc.toJSON() as unknown as LayerDocType);
-    const translationRows = await getAllUtteranceTextsPreferV2(db);
+    const translationRows = await listUtteranceTextsFromSegmentation(db);
     const mediaRows = mediaDocs.map((doc) => doc.toJSON() as unknown as MediaItemDocType);
       const speakerRows = speakerDocs.map((doc) => doc.toJSON() as unknown as SpeakerDocType);
     const linkRows = linkDocs.map((doc) => doc.toJSON() as unknown as LayerLinkDocType);

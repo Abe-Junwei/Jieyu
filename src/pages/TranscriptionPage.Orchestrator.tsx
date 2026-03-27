@@ -1232,6 +1232,14 @@ function TranscriptionPageOrchestrator() {
           newSeg, parentUtt.id, parentUtt.startTime, parentUtt.endTime,
         );
       } else {
+        // 独立层：查找重叠的 utterance 并关联，使说话人指派等功能可正常工作
+        // Independent layer: find overlapping utterance and link it so speaker assignment etc. works
+        const overlappingUtt = utterancesOnCurrentMedia.find(
+          (u) => u.startTime <= finalEnd - 0.01 && u.endTime >= finalStart + 0.01,
+        );
+        if (overlappingUtt) {
+          newSeg.utteranceId = overlappingUtt.id;
+        }
         await LayerSegmentationV2Service.createSegment(newSeg);
       }
       await reloadSegments();
@@ -1241,7 +1249,7 @@ function TranscriptionPageOrchestrator() {
       setSaveState({ kind: 'done', message: `已在当前层新建独立段 ${formatTime(finalStart)} - ${formatTime(finalEnd)}` });
       return;
     }
-    const resolvedLayerId = activeLayerIdForEdits || defaultTranscriptionLayerId;
+    const resolvedLayerId = activeLayerIdForEdits;
     await createUtteranceFromSelection(start, end, {
       ...(speakerFocusTargetKey ? { speakerId: speakerFocusTargetKey } : {}),
       ...(resolvedLayerId ? { focusedLayerId: resolvedLayerId } : {}),
@@ -1249,7 +1257,6 @@ function TranscriptionPageOrchestrator() {
   }, [
     activeLayerIdForEdits,
     createUtteranceFromSelection,
-    defaultTranscriptionLayerId,
     layers,
     reloadSegments,
     refreshSegmentUndoSnapshot,
@@ -2143,11 +2150,8 @@ function TranscriptionPageOrchestrator() {
       });
       return;
     }
-    // Resolve target layer — prefer explicit selection, then default transcription, then first translation
+    // Resolve target layer — prefer explicit selection, then first translation
     let targetLayerId: string | undefined = selectedLayerId;
-    if (!targetLayerId) {
-      targetLayerId = defaultTranscriptionLayerId;
-    }
     if (!targetLayerId) {
       targetLayerId = translationLayers[0]?.id;
     }
@@ -2167,7 +2171,7 @@ function TranscriptionPageOrchestrator() {
     } else {
       fireAndForget(saveTextTranslationForUtterance(selectedUtterance.id, text, targetLayerId));
     }
-  }, [selectedTimelineUnit, selectedUtterance, selectedLayerId, defaultTranscriptionLayerId, layers, translationLayers, saveUtteranceText, saveTextTranslationForUtterance, saveSegmentContentForLayer, setSaveState]);
+  }, [selectedTimelineUnit, selectedUtterance, selectedLayerId, layers, translationLayers, saveUtteranceText, saveTextTranslationForUtterance, saveSegmentContentForLayer, setSaveState]);
 
   // V2: Handle analysis result — write AI analysis text to the current utterance's notes field
   const handleVoiceAnalysisResult = useCallback((utteranceId: string | null, analysisText: string) => {
@@ -2956,11 +2960,47 @@ function TranscriptionPageOrchestrator() {
     }
   }, [videoRightPanelWidth]);
 
+  const speakerActionUtteranceIdByUnitId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const utterance of utterancesOnCurrentMedia) {
+      map.set(utterance.id, utterance.id);
+    }
+    for (const segments of segmentsByLayer.values()) {
+      for (const segment of segments) {
+        if (!segment.utteranceId) continue;
+        map.set(segment.id, segment.utteranceId);
+      }
+    }
+    return map;
+  }, [segmentsByLayer, utterancesOnCurrentMedia]);
+
+  const resolveSpeakerActionUtteranceIds = useCallback((ids: Iterable<string>) => {
+    const unique = new Set<string>();
+    for (const rawId of ids) {
+      const id = rawId.trim();
+      if (!id) continue;
+      const resolved = speakerActionUtteranceIdByUnitId.get(id);
+      if (!resolved) continue;
+      unique.add(resolved);
+    }
+    return Array.from(unique);
+  }, [speakerActionUtteranceIdByUnitId]);
+
+  const selectedUtteranceIdsForSpeakerActionsSet = useMemo(() => {
+    if (selectedUtteranceIds.size > 0) {
+      return new Set(resolveSpeakerActionUtteranceIds(selectedUtteranceIds));
+    }
+    if (selectedTimelineUnit?.kind === 'utterance' || selectedTimelineUnit?.kind === 'segment') {
+      return new Set(resolveSpeakerActionUtteranceIds([selectedTimelineUnit.unitId]));
+    }
+    return new Set<string>();
+  }, [resolveSpeakerActionUtteranceIds, selectedTimelineUnit, selectedUtteranceIds]);
+
   const selectedBatchUtterances = useMemo(
       () => utterancesOnCurrentMedia
-          .filter((utt) => selectedUtteranceIds.has(utt.id))
+          .filter((utt) => selectedUtteranceIdsForSpeakerActionsSet.has(utt.id))
           .sort((a, b) => a.startTime - b.startTime),
-      [selectedUtteranceIds, utterancesOnCurrentMedia],
+      [selectedUtteranceIdsForSpeakerActionsSet, utterancesOnCurrentMedia],
   );
 
   const {
@@ -3036,6 +3076,30 @@ function TranscriptionPageOrchestrator() {
     }
     return false;
   }, [utterancesOnCurrentMedia]);
+  const hasOverlappingSegmentsOnActiveLayer = useMemo(() => {
+    const activeLayer = layers.find((item) => item.id === activeLayerIdForEdits);
+    if (!activeLayer || !layerUsesOwnSegments(activeLayer, defaultTranscriptionLayerId)) return false;
+    const segments = segmentsByLayer.get(activeLayer.id) ?? [];
+    if (segments.length < 2) return false;
+    const sorted = [...segments].sort((a, b) => {
+      if (a.startTime !== b.startTime) return a.startTime - b.startTime;
+      if (a.endTime !== b.endTime) return a.endTime - b.endTime;
+      return a.id.localeCompare(b.id);
+    });
+    for (let i = 1; i < sorted.length; i += 1) {
+      if (sorted[i]!.startTime < sorted[i - 1]!.endTime) {
+        return true;
+      }
+    }
+    return false;
+  }, [activeLayerIdForEdits, defaultTranscriptionLayerId, layers, segmentsByLayer]);
+
+  // Handle automatic track mode switching when overlapping segments are created or detected
+  useEffect(() => {
+    if (transcriptionTrackMode === 'single' && (hasOverlappingUtterancesOnCurrentMedia || hasOverlappingSegmentsOnActiveLayer)) {
+      setTranscriptionTrackMode('multi-auto');
+    }
+  }, [hasOverlappingSegmentsOnActiveLayer, hasOverlappingUtterancesOnCurrentMedia, setTranscriptionTrackMode, transcriptionTrackMode]);
 
   const speakerSortKeyById = useMemo(() => {
     const sorted = [...utterancesOnCurrentMedia].sort((a, b) => {
@@ -3119,12 +3183,6 @@ function TranscriptionPageOrchestrator() {
     void saveTrackEntityStateToDb(activeTextId, trackEntityScopedKey, next[trackEntityScopedKey]!);
   }, [laneLockMap, trackEntityScopedKey, transcriptionTrackMode, activeTextId]);
 
-  useEffect(() => {
-    if (transcriptionTrackMode === 'single' && hasOverlappingUtterancesOnCurrentMedia) {
-      setTranscriptionTrackMode('multi-auto');
-    }
-  }, [hasOverlappingUtterancesOnCurrentMedia, setTranscriptionTrackMode, transcriptionTrackMode]);
-
   const speakerLayerLayout = useMemo(() => buildSpeakerLayerLayoutWithOptions(timelineRenderUtterances, {
     ...(laneLockMap ? { laneLockMap } : {}),
     ...(speakerSortKeyById ? { speakerSortKeyById } : {}),
@@ -3142,12 +3200,10 @@ function TranscriptionPageOrchestrator() {
     });
   }, [setTranscriptionTrackMode]);
 
-    const selectedUtteranceIdsForSpeakerActions = useMemo(
-      () => selectedUtteranceIds.size > 0
-        ? Array.from(selectedUtteranceIds)
-        : (selectedTimelineUnit?.kind === 'utterance' ? [selectedTimelineUnit.unitId] : []),
-      [selectedTimelineUnit, selectedUtteranceIds],
-    );
+  const selectedUtteranceIdsForSpeakerActions = useMemo(
+    () => Array.from(selectedUtteranceIdsForSpeakerActionsSet),
+    [selectedUtteranceIdsForSpeakerActionsSet],
+  );
 
     const speakerQuickActions = useMemo(() => ({
       selectedCount: selectedUtteranceIdsForSpeakerActions.length,
@@ -3172,10 +3228,9 @@ function TranscriptionPageOrchestrator() {
   }, [speakerOptions]);
 
   const selectedSpeakerIdsForTrackLock = useMemo(() => {
-    const targetIds = selectedUtteranceIdsForSpeakerActions;
     const utteranceMap = new Map(utterancesOnCurrentMedia.map((utterance) => [utterance.id, utterance]));
     const unique = new Set<string>();
-    for (const utteranceId of targetIds) {
+    for (const utteranceId of selectedUtteranceIdsForSpeakerActions) {
       const utterance = utteranceMap.get(utteranceId);
       if (!utterance) continue;
       unique.add(getUtteranceSpeakerKey(utterance));
@@ -4203,14 +4258,13 @@ function TranscriptionPageOrchestrator() {
         getUtteranceTextForLayer={getUtteranceTextForLayer}
         transcriptionLayers={transcriptionLayers}
         translationLayers={translationLayers}
-        {...(defaultTranscriptionLayerId !== undefined && { defaultTranscriptionLayerId })}
         speakerOptions={speakerOptions}
         speakerFilterOptions={speakerFilterOptions}
         onAssignSpeakerFromMenu={(utteranceIds, speakerId) => {
-          fireAndForget(handleAssignSpeakerToUtterances(utteranceIds, speakerId));
+          fireAndForget(handleAssignSpeakerToUtterances(resolveSpeakerActionUtteranceIds(utteranceIds), speakerId));
         }}
         onCreateSpeakerAndAssignFromMenu={(name, utteranceIds) => {
-          fireAndForget(handleCreateSpeakerAndAssignToUtterances(name, utteranceIds));
+          fireAndForget(handleCreateSpeakerAndAssignToUtterances(name, resolveSpeakerActionUtteranceIds(utteranceIds)));
         }}
       />
     </section>

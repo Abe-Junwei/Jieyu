@@ -19,22 +19,23 @@ export type LayerEditMode = 'utterance' | 'independent-segment' | 'time-subdivis
 /** 判断层的编辑模式 | Determine the edit mode for a layer */
 export function getLayerEditMode(
   layer: LayerDocType | undefined,
-  defaultTranscriptionLayerId?: string,
+  _defaultTranscriptionLayerId?: string,
 ): LayerEditMode {
   if (!layer) return 'utterance';
   if (layer.constraint === 'time_subdivision') return 'time-subdivision';
-  if (layer.constraint === 'independent_boundary' && layer.id !== defaultTranscriptionLayerId) return 'independent-segment';
+  // De-centered model: independent_boundary always uses segment-first editing,
+  // including the previous "default transcription layer".
+  if (layer.constraint === 'independent_boundary') return 'independent-segment';
   return 'utterance';
 }
 
 /** 判断层是否使用独立边界 | Check if a layer uses independent boundaries
- * constraint === 'independent_boundary' 且不是默认转写层 → 独立边界层
- * constraint === 'independent_boundary' AND not the default transcription layer → independent boundary layer
+ * constraint === 'independent_boundary' → 独立边界层
+ * constraint === 'independent_boundary' → independent boundary layer
  * @deprecated 请使用 getLayerEditMode() 代替 | Use getLayerEditMode() instead
  */
-export function isIndependentBoundaryLayer(layer: LayerDocType, defaultTranscriptionLayerId?: string): boolean {
-  return layer.constraint === 'independent_boundary'
-    && layer.id !== defaultTranscriptionLayerId;
+export function isIndependentBoundaryLayer(layer: LayerDocType, _defaultTranscriptionLayerId?: string): boolean {
+  return layer.constraint === 'independent_boundary';
 }
 
 /** 判断层是否使用自有 segment 数据（独立边界或时间细分）| Check if a layer uses its own segment data */

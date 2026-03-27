@@ -29,7 +29,6 @@ class PerfQueryRuntime implements EmbeddingProvider {
 async function clearTables(): Promise<void> {
   await Promise.all([
     db.embeddings.clear(),
-    db.utterance_texts.clear(),
     db.layer_segments.clear(),
     db.layer_segment_contents.clear(),
     db.segment_links.clear(),
@@ -57,9 +56,21 @@ describe('Embedding candidate-set performance baseline', () => {
       createdAt: now,
     }));
 
+    const segments = Array.from({ length: total }, (_, index) => ({
+      id: `segv2_tier_perf_utt_perf_${index + 1}`,
+      textId: 'text_perf',
+      mediaId: 'media_perf',
+      layerId: 'tier_perf',
+      utteranceId: `utt_perf_${index + 1}`,
+      startTime: index,
+      endTime: index + 0.8,
+      createdAt: now,
+      updatedAt: now,
+    }));
     const texts = Array.from({ length: total }, (_, index) => ({
       id: `utr_perf_${index + 1}`,
-      utteranceId: `utt_perf_${index + 1}`,
+      textId: 'text_perf',
+      segmentId: `segv2_tier_perf_utt_perf_${index + 1}`,
       layerId: 'tier_perf',
       modality: 'text' as const,
       text: index % 7 === 0
@@ -71,7 +82,8 @@ describe('Embedding candidate-set performance baseline', () => {
     }));
 
     await db.embeddings.bulkPut(embeddings);
-    await db.utterance_texts.bulkPut(texts);
+    await db.layer_segments.bulkPut(segments);
+    await db.layer_segment_contents.bulkPut(texts);
 
     const candidateIds = Array.from({ length: 1500 }, (_, index) => `utt_perf_${index + 1}`);
     const service = new EmbeddingSearchService(new PerfQueryRuntime());

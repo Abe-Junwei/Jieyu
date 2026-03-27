@@ -51,10 +51,7 @@ const PANEL_MIN_HEIGHT = 180;
 const PANEL_MAX_WIDTH = 760;
 const PANEL_MAX_HEIGHT = 560;
 const PANEL_MARGIN = 8;
-const PANEL_DEFAULT_SIZE: PanelSize = { width: 360, height: 240 };
-
-type PanelPosition = { x: number; y: number };
-type PanelSize = { width: number; height: number };
+const PANEL_DEFAULT_SIZE = { width: 360, height: 240 };
 
 function resolveCreateFailureText(message: string | undefined, fallback: string): string {
   const raw = (message ?? '').trim();

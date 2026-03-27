@@ -166,8 +166,8 @@ describe('isIndependentBoundaryLayer', () => {
     expect(isIndependentBoundaryLayer(makeLayer({ constraint: 'independent_boundary' }), 'other_layer')).toBe(true);
   });
 
-  it('returns false when layer is the default transcription layer', () => {
-    expect(isIndependentBoundaryLayer(makeLayer({ constraint: 'independent_boundary' }), 'layer_1')).toBe(false);
+  it('returns true when layer is the default transcription layer', () => {
+    expect(isIndependentBoundaryLayer(makeLayer({ constraint: 'independent_boundary' }), 'layer_1')).toBe(true);
   });
 
   it('returns false when constraint is symbolic_association', () => {
@@ -198,8 +198,8 @@ describe('getLayerEditMode', () => {
     expect(getLayerEditMode(makeLayer({ constraint: 'independent_boundary' }), 'other_layer')).toBe('independent-segment');
   });
 
-  it('returns utterance for constraint=independent_boundary default transcription layer', () => {
-    expect(getLayerEditMode(makeLayer({ constraint: 'independent_boundary' }), 'layer_1')).toBe('utterance');
+  it('returns independent-segment for constraint=independent_boundary default transcription layer', () => {
+    expect(getLayerEditMode(makeLayer({ constraint: 'independent_boundary' }), 'layer_1')).toBe('independent-segment');
   });
 
   it('returns time-subdivision for constraint=time_subdivision', () => {

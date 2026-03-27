@@ -2,7 +2,7 @@ import Dexie, { type Table } from 'dexie';
 import { z } from 'zod';
 
 const JIEYU_DB_NAME = 'jieyudb';
-const SNAPSHOT_SCHEMA_VERSION = 1;
+const SNAPSHOT_SCHEMA_VERSION = 2;
 
 /**
  * 层数量软上限（UI 警告，非硬限制）
@@ -120,7 +120,7 @@ interface UtteranceDocType {
   id: string;
   textId: string;
   mediaId?: string;
-  /** @deprecated Use utterance_texts table instead. Kept for backward-compat reads. */
+  /** @deprecated Legacy embedded cache, prefer segmentation-based text content. */
   transcription?: Transcription;
   speaker?: string;
   /** FK reference to speakers table (preferred over freetext `speaker` field) */
@@ -459,6 +459,7 @@ interface LayerDocType {
   updatedAt: string;
 }
 
+// Restoring UtteranceTextDocType temporarily as it's still heavily used in the migration logic and React Hooks (as a view model)
 interface UtteranceTextDocType {
   id: string;
   utteranceId: string;
@@ -471,7 +472,6 @@ interface UtteranceTextDocType {
   ai_metadata?: AiMetadata;
   provenance?: ProvenanceEnvelope;
   accessRights?: 'open' | 'restricted' | 'confidential';
-  /** 外部引用（如 EAF 的 ANNOTATION_ID），用于往返一致性 | External reference (e.g. EAF ANNOTATION_ID) for round-trip consistency */
   externalRef?: string;
   createdAt: string;
   updatedAt: string;
@@ -1068,22 +1068,7 @@ const translationLayerDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
-const utteranceTextDocSchema = z.object({
-  id: z.string().min(1),
-  utteranceId: z.string().min(1),
-  layerId: z.string().min(1),
-  modality: z.enum(['text', 'audio', 'mixed']),
-  text: z.string().optional(),
-  translationAudioMediaId: z.string().optional(),
-  recordedBySpeakerId: z.string().optional(),
-  sourceType: z.enum(['human', 'ai']),
-  ai_metadata: aiMetadataSchema.optional(),
-  provenance: provenanceSchema.optional(),
-  accessRights: accessRightsSchema.optional(),
-  externalRef: z.string().optional(),
-  createdAt: isoDateSchema,
-  updatedAt: isoDateSchema,
-});
+// 移除未使用的 utteranceTextDocSchema
 
 const layerSegmentDocSchema = z
   .object({
@@ -1355,10 +1340,6 @@ function validateTagDefinitionDoc(doc: TagDefinitionDocType): void {
 
 function validateLayerDoc(doc: LayerDocType): void {
   translationLayerDocSchema.parse(doc);
-}
-
-function validateUtteranceTextDoc(doc: UtteranceTextDocType): void {
-  utteranceTextDocSchema.parse(doc);
 }
 
 function validateLayerSegmentDoc(doc: LayerSegmentDocType): void {
@@ -1766,7 +1747,6 @@ type JieyuCollections = {
   phonemes: CollectionAdapter<PhonemeDocType>;
   tag_definitions: CollectionAdapter<TagDefinitionDocType>;
   layers: CollectionAdapter<LayerDocType>;
-  utterance_texts: CollectionAdapter<UtteranceTextDocType>;
   layer_utterances: CollectionAdapter<LayerUtteranceDocType>;
   layer_segments: CollectionAdapter<LayerSegmentDocType>;
   layer_segment_contents: CollectionAdapter<LayerSegmentContentDocType>;
@@ -2038,7 +2018,6 @@ class JieyuDexie extends Dexie {
   abbreviations!: Table<AbbreviationDocType, string>;
   phonemes!: Table<PhonemeDocType, string>;
   tag_definitions!: Table<TagDefinitionDocType, string>;
-  utterance_texts!: Table<UtteranceTextDocType, string>;
   layer_utterances!: Table<LayerUtteranceDocType, string>;
   layer_segments!: Table<LayerSegmentDocType, string>;
   layer_segment_contents!: Table<LayerSegmentContentDocType, string>;
@@ -2825,6 +2804,11 @@ class JieyuDexie extends Dexie {
         await layerSegmentContentsTable.bulkPut(contentBatch);
       }
     });
+
+    // v29: V2 single-source-of-truth cutoff — drop legacy utterance_texts table.
+    this.version(29).stores({
+      utterance_texts: null,
+    });
   }
 }
 
@@ -2885,10 +2869,6 @@ async function _createDb(): Promise<JieyuDatabase> {
     layers: new TierBackedLayerCollectionAdapter(
       dexie.tier_definitions,
       validateLayerDoc,
-    ),
-    utterance_texts: new DexieCollectionAdapter(
-      dexie.utterance_texts,
-      validateUtteranceTextDoc,
     ),
     layer_utterances: new DexieCollectionAdapter(
       dexie.layer_utterances,
@@ -3029,7 +3009,6 @@ const knownCollectionNames = [
   'phonemes',
   'tag_definitions',
   'layers',
-  'utterance_texts',
   'layer_segments',
   'layer_segment_contents',
   'segment_links',
@@ -3065,7 +3044,6 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   abbreviations: db.abbreviations,
   phonemes: db.phonemes,
   tag_definitions: db.tag_definitions,
-  utterance_texts: db.utterance_texts,
   layer_segments: db.layer_segments,
   layer_segment_contents: db.layer_segment_contents,
   segment_links: db.segment_links,
@@ -3100,8 +3078,6 @@ const validatorByCollection: Record<KnownCollectionName, (value: unknown) => voi
   phonemes: (value) => validatePhonemeDoc(value as PhonemeDocType),
   tag_definitions: (value) => validateTagDefinitionDoc(value as TagDefinitionDocType),
   layers: (value) => validateLayerDoc(value as LayerDocType),
-  utterance_texts: (value) =>
-    validateUtteranceTextDoc(value as UtteranceTextDocType),
   layer_segments: (value) => validateLayerSegmentDoc(value as LayerSegmentDocType),
   layer_segment_contents: (value) =>
     validateLayerSegmentContentDoc(value as LayerSegmentContentDocType),
@@ -3166,8 +3142,6 @@ function normalizeImportedDoc(collectionName: KnownCollectionName, doc: unknown,
       return ensureImportProvenance(doc as UtteranceTokenDocType, fallbackCreatedAt);
     case 'utterance_morphemes':
       return ensureImportProvenance(doc as UtteranceMorphemeDocType, fallbackCreatedAt);
-    case 'utterance_texts':
-      return ensureImportProvenance(doc as UtteranceTextDocType, fallbackCreatedAt);
     case 'layer_segments':
       return ensureImportProvenance(doc as LayerSegmentDocType, fallbackCreatedAt);
     case 'layer_segment_contents':
@@ -3254,6 +3228,13 @@ export async function importDatabaseFromJson(
     throw new Error(
       `Unsupported snapshot schemaVersion=${snapshot.schemaVersion}, current=${SNAPSHOT_SCHEMA_VERSION}`,
     );
+  }
+
+  if ('utterance_texts' in snapshot.collections) {
+    throw new Error('Legacy collection "utterance_texts" is no longer supported; import a V2 snapshot.');
+  }
+  if (!('layer_segments' in snapshot.collections) || !('layer_segment_contents' in snapshot.collections)) {
+    throw new Error('Invalid V2 snapshot: missing required collections "layer_segments" or "layer_segment_contents".');
   }
 
   const result: ImportResult = {

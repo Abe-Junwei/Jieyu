@@ -5,7 +5,7 @@ import { splitPdfCitationRef } from '../utils/citationJumpUtils';
 import { RAG_CITATION_INSTRUCTION } from '../utils/citationFootnoteUtils';
 import { withTimeout } from './useAiChat.config';
 import { createLogger } from '../observability/logger';
-import { getUtteranceTextsByUtterancePreferV2 } from '../services/LayerSegmentationV2BridgeService';
+import { listUtteranceTextsByUtterance } from '../services/LayerSegmentationTextService';
 
 const log = createLogger('useAiChat.rag');
 
@@ -82,7 +82,7 @@ export async function enrichContextWithRag({
             snippet = (contentByLang['und'] ?? contentByLang['en'] ?? Object.values(contentByLang).find((value) => value.trim()) ?? '').trim();
           }
         } else if (match.sourceType === 'utterance') {
-            const textRows = await getUtteranceTextsByUtterancePreferV2(db, match.sourceId);
+            const textRows = await listUtteranceTextsByUtterance(db, match.sourceId);
             const textWithContent = textRows.find((row) => row.text?.trim());
             snippet = textWithContent?.text?.trim() ?? '';
         } else if (match.sourceType === 'pdf') {

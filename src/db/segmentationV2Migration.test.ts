@@ -169,7 +169,6 @@ describe('buildSegmentationV2BackfillRows', () => {
       db.texts.clear(),
       db.tier_definitions.clear(),
       db.utterances.clear(),
-      db.utterance_texts.clear(),
       db.layer_segments.clear(),
       db.layer_segment_contents.clear(),
       db.segment_links.clear(),
@@ -253,7 +252,6 @@ describe('buildSegmentationV2BackfillRows', () => {
     ]);
     await db.tier_definitions.bulkPut(tiers);
     await db.utterances.bulkPut(utterances);
-    await db.utterance_texts.bulkPut(utteranceTexts);
 
     const backfill = buildSegmentationV2BackfillRows({
       utterances,
@@ -268,7 +266,6 @@ describe('buildSegmentationV2BackfillRows', () => {
     const pickCollections = (snapshot: { collections: Record<string, unknown[]> }) => {
       const keys = [
         'utterances',
-        'utterance_texts',
         'tier_definitions',
         'layer_segments',
         'layer_segment_contents',
@@ -293,19 +290,17 @@ describe('buildSegmentationV2BackfillRows', () => {
       db.texts.clear(),
       db.tier_definitions.clear(),
       db.utterances.clear(),
-      db.utterance_texts.clear(),
       db.layer_segments.clear(),
       db.layer_segment_contents.clear(),
       db.segment_links.clear(),
     ]);
 
     await importDatabaseFromJson({
-      schemaVersion: 1,
+      schemaVersion: 2,
       exportedAt: NOW,
       dbName: database.name,
       collections: {
         utterances: before.utterances,
-        utterance_texts: before.utterance_texts,
         tier_definitions: before.tier_definitions,
         layer_segments: before.layer_segments,
         layer_segment_contents: before.layer_segment_contents,

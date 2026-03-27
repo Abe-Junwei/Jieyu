@@ -29,7 +29,7 @@ import { parseBcp47 } from '../utils/transcriptionFormatters';
 import { createLogger } from '../observability/logger';
 import { toErrorMessage } from '../utils/saveStateError';
 import { reportActionError } from '../utils/actionErrorReporter';
-import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationV2BridgeService';
+import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 
 const log = createLogger('useImportExport');
@@ -95,13 +95,12 @@ export function useImportExport(input: UseImportExportInput) {
       .toArray();
   }, []);
 
-  /** 加载所有具有 segment 约束的非默认层的 segment 及内容（TextGrid/FLEx/Toolbox 导出共用）
-   *  Load non-default layers with segment constraints (independent_boundary / time_subdivision) — shared by TextGrid/FLEx/Toolbox export */
+  /** 加载所有具有 segment 约束的层的 segment 及内容（TextGrid/FLEx/Toolbox 导出共用）
+   *  Load layers with segment constraints (independent_boundary / time_subdivision) — shared by TextGrid/FLEx/Toolbox export */
   const loadSegmentExportData = useCallback(async (mediaId: string | undefined) => {
     if (!mediaId) return {};
     const segmentLayers = layers.filter(
-      (l) => (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision')
-        && l.id !== defaultTranscriptionLayerId,
+      (l) => l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision',
     );
     if (segmentLayers.length === 0) return {};
     const db = await getDb();
@@ -139,12 +138,12 @@ export function useImportExport(input: UseImportExportInput) {
   const handleExportEaf = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
     const userNotes = await fetchUtteranceNotes(utterancesOnCurrentMedia.map((u) => u.id));
-    // Query segments for time-aligned layers (translation + non-default independent transcription)
-    // 查询时间对齐层的 segment 数据（翻译层 + 非默认独立转写层）
+    // Query segments for time-aligned layers (translation + independent transcription)
+    // 查询时间对齐层的 segment 数据（翻译层 + 独立转写层）
     const timeAlignedLayers = layers.filter(
       (l) =>
         (l.layerType === 'translation' && (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision'))
-        || (l.layerType === 'transcription' && l.constraint === 'independent_boundary' && l.id !== defaultTranscriptionLayerId),
+        || (l.layerType === 'transcription' && l.constraint === 'independent_boundary'),
     );
     let layerSegments: Map<string, import('../db').LayerSegmentDocType[]> | undefined;
     let layerSegmentContents: Map<string, Map<string, import('../db').LayerSegmentContentDocType>> | undefined;
@@ -724,14 +723,13 @@ export function useImportExport(input: UseImportExportInput) {
           .filter(([k]) => k.length > 0),
       );
 
-      // 非默认独立转写层索引（按英文名/key）——用于非 EAF 导入时直接恢复 segment 边界
-      // Index for non-default independent transcription layers (by eng name / key) — restores segment boundaries on non-EAF import
+      // 独立转写层索引（按英文名/key）——用于非 EAF 导入时直接恢复 segment 边界
+      // Index for independent transcription layers (by eng name / key) — restores segment boundaries on non-EAF import
       const existingIndepTrcLayersByName = new Map<string, string>(); // name/key → layerId
       for (const l of layers) {
         if (
           l.layerType === 'transcription'
           && l.constraint === 'independent_boundary'
-          && l.id !== defaultTranscriptionLayerId
         ) {
           const engName = typeof l.name === 'object' && l.name !== null ? (l.name as Record<string, string>).eng ?? '' : '';
           if (engName) existingIndepTrcLayersByName.set(engName.toLocaleLowerCase('en'), l.id);

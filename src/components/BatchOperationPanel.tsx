@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { UtteranceDocType } from '../db';
+import { useDraggablePanel } from '../hooks/useDraggablePanel';
 
 type BatchTab = 'offset' | 'scale' | 'split' | 'merge';
 type PreviewScope = 'selected' | 'layer-all';
@@ -122,6 +123,24 @@ export function BatchOperationPanel({
   const [previewScope, setPreviewScope] = useState<PreviewScope>('selected');
   const [previewLayerId, setPreviewLayerId] = useState<string>(defaultPreviewLayerId ?? previewLayerOptions[0]?.id ?? '');
   const isMountedRef = useRef(true);
+
+  const {
+    position,
+    size,
+    handleDragStart,
+    handleResizeStart,
+    handleRecenter,
+    handleResetPanelLayout,
+  } = useDraggablePanel({
+    storageKey: 'jieyu:batch-operation-panel-rect',
+    defaultPosition: { x: 24, y: 80 },
+    defaultSize: { width: 720, height: 480 },
+    minWidth: 400,
+    minHeight: 300,
+    maxWidth: 900,
+    maxHeight: 800,
+    margin: 16,
+  });
 
   useEffect(() => () => {
     isMountedRef.current = false;
@@ -500,18 +519,46 @@ export function BatchOperationPanel({
   );
 
   return (
-    <div style={backdropStyle} onClick={onClose}>
-      <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="layer-action-popover-backdrop" onClick={onClose}>
+      <div 
+        className="floating-panel"
+        style={{
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          width: `${size.width}px`,
+          height: `${size.height}px`,
+          padding: 14,
+          gap: 10,
+        }} 
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div 
+          className="floating-panel-title-row floating-panel-drag-handle" 
+          onPointerDown={handleDragStart}
+          onDoubleClick={handleRecenter}
+          style={{ margin: '-14px -14px 10px', padding: '10px 14px' }}
+        >
           <strong>批量句段操作</strong>
-          <button className="icon-btn" onClick={onClose} title="关闭">✕</button>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <button
+              type="button"
+              className="floating-panel-reset-btn"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={handleResetPanelLayout}
+              aria-label="重置位置与尺寸"
+              title="重置位置与尺寸"
+            >
+              ↺
+            </button>
+            <button className="icon-btn" onClick={onClose} title="关闭" onPointerDown={(e) => e.stopPropagation()}>✕</button>
+          </div>
         </div>
 
         <div style={{ fontSize: 12, color: '#4b5563' }}>
           当前选中：{selectedCount} 个句段
         </div>
 
-        <div style={{ ...sectionStyle, gap: 8 }}>
+        <div className="batch-operation-section" style={{ gap: 8 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <label className="ai-cfg-label">预览范围</label>
             <select
@@ -547,8 +594,8 @@ export function BatchOperationPanel({
           )}
         </div>
 
-        <div style={previewCardStyle}>
-          <div style={previewHeaderStyle}>
+        <div className="batch-operation-preview-card">
+          <div className="batch-operation-preview-header">
             <strong>逐条预览</strong>
             <div style={{ display: 'flex', gap: 8, fontSize: 12, alignItems: 'center' }}>
               <span style={{ color: '#166534' }}>通过 {preview.okCount}</span>
@@ -568,18 +615,18 @@ export function BatchOperationPanel({
           <div style={{ fontSize: 12, color: preview.blockingCount > 0 ? '#991b1b' : '#334155' }}>
             {preview.globalMessage}
           </div>
-          <div style={tableWrapStyle}>
-            <table style={tableStyle}>
+          <div className="batch-operation-table-wrap">
+            <table className="batch-operation-table">
               <thead>
                 <tr>
-                  <th style={thStyle}>#</th>
-                  <th style={thStyle}>句段 ID</th>
-                  <th style={thStyle}>句段内容</th>
-                  <th style={thStyle}>原值</th>
-                  <th style={thStyle}>新值</th>
-                  <th style={thStyle}>说明</th>
-                  <th style={thStyle}>冲突标记</th>
-                  {onJumpToUtterance && <th style={thStyle}>跳转</th>}
+                  <th className="batch-operation-th">#</th>
+                  <th className="batch-operation-th">句段 ID</th>
+                  <th className="batch-operation-th">句段内容</th>
+                  <th className="batch-operation-th">原值</th>
+                  <th className="batch-operation-th">新值</th>
+                  <th className="batch-operation-th">说明</th>
+                  <th className="batch-operation-th">冲突标记</th>
+                  {onJumpToUtterance && <th className="batch-operation-th">跳转</th>}
                 </tr>
               </thead>
               <tbody>
@@ -587,19 +634,19 @@ export function BatchOperationPanel({
                   .filter((row) => !showOnlyConflicts || row.level !== 'ok')
                   .map((row, index) => (
                     <tr key={row.id}>
-                      <td style={tdStyle}>{index + 1}</td>
-                      <td style={tdStyle}>{row.id}</td>
-                      <td style={contentTdStyle} title={activeUtteranceTextById[row.id] ?? ''}>
+                      <td className="batch-operation-td">{index + 1}</td>
+                      <td className="batch-operation-td">{row.id}</td>
+                      <td className="batch-operation-td-content" title={activeUtteranceTextById[row.id] ?? ''}>
                         {(activeUtteranceTextById[row.id] ?? '').trim() || '-'}
                       </td>
-                      <td style={tdStyle}>{row.originalValue}</td>
-                      <td style={tdStyle}>{row.nextValue}</td>
-                      <td style={tdStyle}>{row.detail}</td>
-                      <td style={tdStyle}>
-                        <span style={badgeStyleByLevel[row.level]}>{row.conflict}</span>
+                      <td className="batch-operation-td">{row.originalValue}</td>
+                      <td className="batch-operation-td">{row.nextValue}</td>
+                      <td className="batch-operation-td">{row.detail}</td>
+                      <td className="batch-operation-td">
+                        <span className={`batch-badge batch-badge-${row.level}`}>{row.conflict}</span>
                       </td>
                       {onJumpToUtterance && (
-                        <td style={tdStyle}>
+                        <td className="batch-operation-td">
                           <button
                             className="icon-btn"
                             style={{ fontSize: 11, padding: '1px 6px' }}
@@ -616,7 +663,7 @@ export function BatchOperationPanel({
                   ))}
                 {preview.rows.filter((r) => !showOnlyConflicts || r.level !== 'ok').length === 0 && (
                   <tr>
-                    <td style={tdStyle} colSpan={onJumpToUtterance ? 8 : 7}>暂无可展示的预览行</td>
+                    <td className="batch-operation-td" colSpan={onJumpToUtterance ? 8 : 7}>暂无可展示的预览行</td>
                   </tr>
                 )}
               </tbody>
@@ -632,7 +679,7 @@ export function BatchOperationPanel({
         </div>
 
         {tab === 'offset' && (
-          <div style={sectionStyle}>
+          <div className="batch-operation-section">
             <label className="ai-cfg-label">偏移秒数（可负数）</label>
             <input value={deltaSec} onChange={(e) => setDeltaSec(e.target.value)} className="ai-cfg-input" />
             <button
@@ -650,7 +697,7 @@ export function BatchOperationPanel({
         )}
 
         {tab === 'scale' && (
-          <div style={sectionStyle}>
+          <div className="batch-operation-section">
             <label className="ai-cfg-label">缩放系数（{'>'} 0）</label>
             <input value={scaleFactor} onChange={(e) => setScaleFactor(e.target.value)} className="ai-cfg-input" />
             <label className="ai-cfg-label">锚点时间（可选，秒）</label>
@@ -671,7 +718,7 @@ export function BatchOperationPanel({
         )}
 
         {tab === 'split' && (
-          <div style={sectionStyle}>
+          <div className="batch-operation-section">
             <label className="ai-cfg-label">正则表达式</label>
             <input value={regexPattern} onChange={(e) => setRegexPattern(e.target.value)} className="ai-cfg-input" />
             <label className="ai-cfg-label">Flags（可选，如 i）</label>
@@ -690,7 +737,7 @@ export function BatchOperationPanel({
         )}
 
         {tab === 'merge' && (
-          <div style={sectionStyle}>
+          <div className="batch-operation-section">
             <p style={{ margin: 0, fontSize: 12, color: '#4b5563' }}>
               将选中句段按时间顺序合并为一个句段（允许非连续选择）。
             </p>
@@ -709,115 +756,11 @@ export function BatchOperationPanel({
         <div style={{ fontSize: 12, color: '#6b7280' }}>
           快捷键：Cmd/Ctrl + Shift + B 打开此面板
         </div>
+        
+        <div className="floating-panel-resize-handle" onPointerDown={handleResizeStart} aria-hidden="true" />
       </div>
     </div>
   );
 }
 
-const backdropStyle: CSSProperties = {
-  position: 'fixed',
-  inset: 0,
-  background: 'rgba(15,23,42,.35)',
-  zIndex: 250,
-  display: 'grid',
-  placeItems: 'center',
-};
-
-const panelStyle: CSSProperties = {
-  width: 'min(900px, 96vw)',
-  maxHeight: '92vh',
-  overflow: 'auto',
-  background: '#ffffff',
-  borderRadius: 12,
-  border: '1px solid #d1d5db',
-  boxShadow: '0 20px 45px rgba(0,0,0,.24)',
-  padding: 14,
-  display: 'grid',
-  gap: 10,
-};
-
-const sectionStyle: CSSProperties = {
-  display: 'grid',
-  gap: 6,
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: 10,
-  padding: 10,
-};
-
-const previewCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 8,
-  border: '1px solid #e2e8f0',
-  borderRadius: 10,
-  background: '#f8fafc',
-  padding: 10,
-};
-
-const previewHeaderStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-};
-
-const tableWrapStyle: CSSProperties = {
-  maxHeight: 300,
-  overflow: 'auto',
-  border: '1px solid #cbd5e1',
-  borderRadius: 8,
-  background: '#fff',
-};
-
-const tableStyle: CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  fontSize: 12,
-};
-
-const thStyle: CSSProperties = {
-  textAlign: 'left',
-  padding: '8px 10px',
-  borderBottom: '1px solid #e2e8f0',
-  position: 'sticky',
-  top: 0,
-  background: '#f1f5f9',
-  zIndex: 1,
-};
-
-const tdStyle: CSSProperties = {
-  padding: '8px 10px',
-  borderBottom: '1px solid #f1f5f9',
-  verticalAlign: 'top',
-};
-
-const contentTdStyle: CSSProperties = {
-  ...tdStyle,
-  maxWidth: 260,
-  whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-};
-
-const badgeStyleByLevel: Record<PreviewLevel, CSSProperties> = {
-  ok: {
-    display: 'inline-block',
-    borderRadius: 999,
-    padding: '2px 8px',
-    background: '#dcfce7',
-    color: '#166534',
-  },
-  warning: {
-    display: 'inline-block',
-    borderRadius: 999,
-    padding: '2px 8px',
-    background: '#fef3c7',
-    color: '#92400e',
-  },
-  error: {
-    display: 'inline-block',
-    borderRadius: 999,
-    padding: '2px 8px',
-    background: '#fee2e2',
-    color: '#b91c1c',
-  },
-};
+// Styles have been moved to global.css

@@ -4,7 +4,7 @@ import {
   type LayerSegmentDocType,
   type SegmentLinkDocType,
 } from '../db';
-import { cleanupOrphanSegments as cleanupOrphanSegmentsBridge } from './LayerSegmentationV2BridgeService';
+import { cleanupOrphanSegments as cleanupOrphanSegmentsBridge } from './LayerSegmentationTextService';
 import { newId } from '../utils/transcriptionFormatters';
 
 /**

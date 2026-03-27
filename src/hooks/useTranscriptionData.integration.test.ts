@@ -28,7 +28,9 @@ async function clearDatabase(): Promise<void> {
     db.abbreviations.clear(),
     db.phonemes.clear(),
     db.tag_definitions.clear(),
-    db.utterance_texts.clear(),
+// 移除遗留表操作
+    db.layer_segments.clear(),
+    db.layer_segment_contents.clear(),
     db.layer_links.clear(),
     db.tier_definitions.clear(),
     db.tier_annotations.clear(),
@@ -66,77 +68,120 @@ describe('Translation Write Flow - Integration Tests', () => {
 
   it('should write translation text to correct tier', async () => {
     const utteranceId = testUtterance.id;
+    const mediaId = testUtterance.mediaId;
     const layerId = testLayerId;
     const translationText = 'test gloss translation';
     const now = new Date().toISOString();
 
     // Verify no existing translation
-    let docs = await db.utterance_texts
+    let docs = await db.layer_segments
       .where({ utteranceId, layerId: layerId })
       .toArray();
     expect(docs).toHaveLength(0);
 
     // Write translation
-    const docId = `text-${utteranceId}-${layerId}`;
-    await db.utterance_texts.add({
-      id: docId,
-      utteranceId,
-      layerId: layerId,
-      text: translationText,
+    const textId = `text-${utteranceId}-${layerId}`;
+    const docId = `seg-${utteranceId}-${layerId}`;
+    await db.layer_segment_contents.add({
+      id: textId,
+      textId,
+      segmentId: docId,
+      layerId,
       modality: 'text',
       sourceType: 'human',
+      text: translationText,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.layer_segments.add({
+      id: docId,
+      textId,
+      mediaId: mediaId!,
+      layerId: layerId,
+      utteranceId,
+      startTime: testUtterance.startTime,
+      endTime: testUtterance.endTime,
       createdAt: now,
       updatedAt: now,
     });
 
     // Verify it was written to correct tier
-    docs = await db.utterance_texts
+    docs = await db.layer_segments
       .where({ utteranceId, layerId: layerId })
       .toArray();
 
     expect(docs).toHaveLength(1);
     const doc = docs[0]!;
+    
+    const content = await db.layer_segment_contents.get(doc.textId);
 
     // Critical: verify tier matches the layer ID we provided
     expect(doc.layerId).toBe(layerId);
     expect(doc.utteranceId).toBe(utteranceId);
-    expect(doc.text).toBe(translationText);
+    expect(content!.text).toBe(translationText);
   });
 
   it('should handle multiple translations in different layers for same utterance', async () => {
     const utteranceId = testUtterance.id;
+    const mediaId = testUtterance.mediaId;
     const now = new Date().toISOString();
     const glossLayerId = 'tier_gloss';
     const morphLayerId = 'tier_morph';
 
     // Write gloss translation
-    const glossId = `text-${utteranceId}-gloss`;
-    await db.utterance_texts.add({
-      id: glossId,
-      utteranceId,
+    const glossTextId = `text-${utteranceId}-gloss`;
+    const glossId = `seg-${utteranceId}-gloss`;
+    await db.layer_segment_contents.add({
+      id: glossTextId,
+      textId: glossTextId,
+      segmentId: glossId,
       layerId: glossLayerId,
-      text: 'gloss text',
       modality: 'text',
       sourceType: 'human',
+      text: 'gloss text',
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.layer_segments.add({
+      id: glossId,
+      textId: glossTextId,
+      mediaId: mediaId!,
+      layerId: glossLayerId,
+      utteranceId,
+      startTime: testUtterance.startTime,
+      endTime: testUtterance.endTime,
       createdAt: now,
       updatedAt: now,
     });
 
     // Write morph translation
-    const morphId = `text-${utteranceId}-morph`;
-    await db.utterance_texts.add({
-      id: morphId,
-      utteranceId,
+    const morphTextId = `text-${utteranceId}-morph`;
+    const morphId = `seg-${utteranceId}-morph`;
+    await db.layer_segment_contents.add({
+      id: morphTextId,
+      textId: morphTextId,
+      segmentId: morphId,
       layerId: morphLayerId,
-      text: 'morph text',
       modality: 'text',
       sourceType: 'human',
+      text: 'morph text',
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.layer_segments.add({
+      id: morphId,
+      textId: morphTextId,
+      mediaId: mediaId!,
+      layerId: morphLayerId,
+      utteranceId,
+      startTime: testUtterance.startTime,
+      endTime: testUtterance.endTime,
       createdAt: now,
       updatedAt: now,
     });
 
     // Verify both exist and are in correct tiers
-    const allDocs = await db.utterance_texts
+    const allDocs = await db.layer_segments
       .where('utteranceId')
       .equals(utteranceId)
       .toArray();
@@ -144,9 +189,10 @@ describe('Translation Write Flow - Integration Tests', () => {
     expect(allDocs).toHaveLength(2);
 
     const byTier = new Map();
-    allDocs.forEach((doc) => {
-      byTier.set(doc.layerId, doc);
-    });
+    for (const doc of allDocs) {
+      const content = await db.layer_segment_contents.get(doc.textId);
+      byTier.set(doc.layerId, { ...doc, text: content!.text });
+    }
 
     // Verify gloss is in correct tier
     expect(byTier.get(glossLayerId)?.text).toBe('gloss text');
@@ -159,66 +205,95 @@ describe('Translation Write Flow - Integration Tests', () => {
 
   it('should update existing translation without data loss', async () => {
     const utteranceId = testUtterance.id;
+    const mediaId = testUtterance.mediaId;
     const layerId = testLayerId;
     const now = new Date().toISOString();
-    const docId = `text-${utteranceId}-${layerId}`;
-
-    // Create initial translation
-    await db.utterance_texts.add({
-      id: docId,
-      utteranceId,
-      layerId: layerId,
-      text: 'original text',
+    
+    const textId = `text-${utteranceId}-${layerId}`;
+    const docId = `seg-${utteranceId}-${layerId}`;
+    await db.layer_segment_contents.add({
+      id: textId,
+      textId,
+      segmentId: docId,
+      layerId,
       modality: 'text',
       sourceType: 'human',
+      text: 'original text',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Create initial translation
+    await db.layer_segments.add({
+      id: docId,
+      textId,
+      mediaId: mediaId!,
+      layerId: layerId,
+      utteranceId,
+      startTime: testUtterance.startTime,
+      endTime: testUtterance.endTime,
       createdAt: now,
       updatedAt: now,
     });
 
     // Update it
     const newNow = new Date().toISOString();
-    await db.utterance_texts.update(docId, {
+    await db.layer_segment_contents.update(textId, {
       text: 'updated text',
       updatedAt: newNow,
     });
 
     // Verify update
-    const updated = await db.utterance_texts.get(docId);
-    expect(updated?.text).toBe('updated text');
+    const updated = await db.layer_segments.get(docId);
+    const updatedContent = await db.layer_segment_contents.get(textId);
+    expect(updatedContent?.text).toBe('updated text');
     expect(updated?.layerId).toBe(layerId);
     expect(updated?.utteranceId).toBe(utteranceId);
-    expect(updated?.updatedAt).toBe(newNow);
+    expect(updatedContent?.updatedAt).toBe(newNow);
   });
 
   it('should clear translation text when deleting', async () => {
     const utteranceId = testUtterance.id;
+    const mediaId = testUtterance.mediaId;
     const layerId = testLayerId;
     const now = new Date().toISOString();
-    const docId = `text-${utteranceId}-${layerId}`;
-
-    // Create translation
-    await db.utterance_texts.add({
-      id: docId,
-      utteranceId,
-      layerId: layerId,
-      text: 'original text',
+    const textId = `text-${utteranceId}-${layerId}`;
+    const docId = `seg-${utteranceId}-${layerId}`;
+    await db.layer_segment_contents.add({
+      id: textId,
+      textId,
+      segmentId: docId,
+      layerId,
       modality: 'text',
       sourceType: 'human',
+      text: 'original text',
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.layer_segments.add({
+      id: docId,
+      textId,
+      mediaId: mediaId!,
+      layerId: layerId,
+      utteranceId,
+      startTime: testUtterance.startTime,
+      endTime: testUtterance.endTime,
       createdAt: now,
       updatedAt: now,
     });
 
     // Verify it exists
-    let docs = await db.utterance_texts
+    let docs = await db.layer_segments
       .where({ utteranceId, layerId: layerId })
       .toArray();
     expect(docs).toHaveLength(1);
 
     // Delete it
-    await db.utterance_texts.delete(docId);
+    await db.layer_segments.delete(docId);
+    await db.layer_segment_contents.delete(textId);
 
     // Verify it's gone
-    docs = await db.utterance_texts
+    docs = await db.layer_segments
       .where({ utteranceId, layerId: layerId })
       .toArray();
     expect(docs).toHaveLength(0);

@@ -20,7 +20,7 @@ import {
 import {
   createLayerLink,
 } from '../services/LayerIdBridgeService';
-import { getUtteranceTextsByUtterancesPreferV2 } from '../services/LayerSegmentationV2BridgeService';
+import { listUtteranceTextsByUtterances } from '../services/LayerSegmentationTextService';
 
 export type TranscriptionLayerActionsParams = {
   layers: LayerDocType[];
@@ -315,7 +315,7 @@ export function useTranscriptionLayerActions({
       let removedUtteranceIds = new Set<string>();
       if (!keepUtterances && affectedUtteranceIds.length > 0) {
         const uniqueIds = [...new Set(affectedUtteranceIds)];
-        const remainingTexts = await getUtteranceTextsByUtterancesPreferV2(db, uniqueIds);
+        const remainingTexts = await listUtteranceTextsByUtterances(db, uniqueIds);
         const stillReferencedIds = new Set(remainingTexts.map((d) => d.utteranceId));
         const orphanIds = uniqueIds.filter((id) => !stillReferencedIds.has(id));
         if (orphanIds.length > 0) {

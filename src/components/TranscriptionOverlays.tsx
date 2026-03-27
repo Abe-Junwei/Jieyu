@@ -39,7 +39,6 @@ interface TranscriptionOverlaysProps {
   getUtteranceTextForLayer: (utt: UtteranceDocType, layerId?: string) => string;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
-  defaultTranscriptionLayerId?: string;
   speakerOptions?: Array<{ id: string; name: string }>;
   speakerFilterOptions?: SpeakerFilterOption[];
   onAssignSpeakerFromMenu?: (utteranceIds: Iterable<string>, speakerId?: string) => void;
@@ -79,7 +78,6 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
     getUtteranceTextForLayer,
     transcriptionLayers,
     translationLayers,
-    defaultTranscriptionLayerId,
     speakerOptions = [],
     speakerFilterOptions = [],
     onAssignSpeakerFromMenu = () => {},
@@ -107,7 +105,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             const targetIds = multiCount > 1 ? Array.from(selectedUtteranceIds) : [id];
             const isTranscriptionLayerContext = transcriptionLayers.some((layer) => layer.id === ctxMenu.layerId);
             const isIndependentLayerContext = [...transcriptionLayers, ...translationLayers]
-                .some((layer) => layer.id === ctxMenu.layerId && layer.constraint === 'independent_boundary' && layer.id !== defaultTranscriptionLayerId);
+                .some((layer) => layer.id === ctxMenu.layerId && layer.constraint === 'independent_boundary');
             const items: ContextMenuItem[] = multiCount > 1
               ? [
                   { label: `删除 ${multiCount} 个句段`, shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUtteranceIds); } },

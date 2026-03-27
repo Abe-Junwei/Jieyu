@@ -350,7 +350,7 @@ export async function enforceTimeSubdivisionParentBounds(
   return { clippedCount, deletedCount };
 }
 
-export async function getAllUtteranceTextsPreferV2(db: JieyuDatabase): Promise<UtteranceTextDocType[]> {
+export async function listUtteranceTextsFromSegmentation(db: JieyuDatabase): Promise<UtteranceTextDocType[]> {
   // 通过 utteranceId 索引收窄 segment 集合，避免 layer_segment_contents 全表扫描 | Narrow via utteranceId index to avoid full contents scan.
   const segments = await db.dexie.layer_segments.where('utteranceId').notEqual('').toArray();
   if (segments.length === 0) {
@@ -381,7 +381,7 @@ export async function getAllUtteranceTextsPreferV2(db: JieyuDatabase): Promise<U
   return sortByUpdatedAtDesc(v2Rows);
 }
 
-export async function getUtteranceTextsByUtterancePreferV2(
+export async function listUtteranceTextsByUtterance(
   db: JieyuDatabase,
   utteranceId: string,
 ): Promise<UtteranceTextDocType[]> {
@@ -389,7 +389,7 @@ export async function getUtteranceTextsByUtterancePreferV2(
   return sortByUpdatedAtDesc(v2Rows);
 }
 
-export async function getUtteranceTextsByUtterancesPreferV2(
+export async function listUtteranceTextsByUtterances(
   db: JieyuDatabase,
   utteranceIds: Iterable<string>,
 ): Promise<UtteranceTextDocType[]> {

@@ -89,7 +89,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
     expect(props.runDeleteOne).toHaveBeenCalledWith('seg_1');
   });
 
-  it('keeps select-before/after actions visible when layer is the default transcription layer', async () => {
+  it('hides select-before/after actions for independent-boundary layer context', async () => {
     const props = makeBaseProps();
     props.ctxMenu = {
       x: 120,
@@ -99,12 +99,10 @@ describe('TranscriptionOverlays independent selection routing', () => {
       splitTime: 0.5,
     };
     props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
-    // 默认转写层不视为独立边界层 | Default transcription layer is not treated as independent
-    (props as unknown as Record<string, unknown>).defaultTranscriptionLayerId = 'layer_independent';
 
     render(<TranscriptionOverlays {...props} />);
 
-    expect(screen.queryByText('选中此句段及之前所有')).not.toBeNull();
-    expect(screen.queryByText('选中此句段及之后所有')).not.toBeNull();
+    expect(screen.queryByText('选中此句段及之前所有')).toBeNull();
+    expect(screen.queryByText('选中此句段及之后所有')).toBeNull();
   });
 });

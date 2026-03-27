@@ -378,16 +378,21 @@ export function useSpeakerActions({
   }, [getUtteranceIdsForSpeakerKey, setSaveState, speakerFilterOptions]);
 
   const handleAssignSpeakerToSelected = useCallback(async () => {
-    if (selectedUtteranceIds.size === 0 || speakerSaving) return;
+    if (selectedUtteranceIds.size === 0 && !activeUtteranceUnitId) return;
+    if (speakerSaving) return;
     setSpeakerSaving(true);
     try {
       data.pushUndo('批量指派说话人');
       const speaker = batchSpeakerId ? speakerById.get(batchSpeakerId) : undefined;
+      const targetIds = selectedUtteranceIds.size > 0
+        ? Array.from(selectedUtteranceIds) 
+        : (activeUtteranceUnitId ? [activeUtteranceUnitId] : []);
+      
       const updated = await LinguisticService.assignSpeakerToUtterances(
-        selectedUtteranceIds,
+        targetIds,
         batchSpeakerId || undefined,
       );
-      applySpeakerLocally(selectedUtteranceIds, speaker);
+      applySpeakerLocally(targetIds, speaker);
       setSaveState({
         kind: 'done',
         message: updated > 0 ? `已更新 ${updated} 条句段的说话人` : '未找到可更新句段',
@@ -402,7 +407,7 @@ export function useSpeakerActions({
     } finally {
       setSpeakerSaving(false);
     }
-  }, [applySpeakerLocally, batchSpeakerId, data, selectedUtteranceIds, setSaveState, speakerById, speakerSaving]);
+  }, [activeUtteranceUnitId, applySpeakerLocally, batchSpeakerId, data, selectedUtteranceIds, setSaveState, speakerById, speakerSaving]);
 
   const handleAssignSpeakerToUtterances = useCallback(async (utteranceIds: Iterable<string>, speakerId?: string) => {
     const targetIds = Array.from(new Set(utteranceIds)).filter((id) => id.trim().length > 0);
@@ -435,16 +440,22 @@ export function useSpeakerActions({
 
   const handleCreateSpeakerAndAssign = useCallback(async () => {
     const name = speakerDraftName.trim();
-    if (!name || selectedUtteranceIds.size === 0 || speakerSaving) return;
+    if (!name || speakerSaving) return;
+    if (selectedUtteranceIds.size === 0 && !activeUtteranceUnitId) return;
+
     setSpeakerSaving(true);
     let undoPushed = false;
     try {
       data.pushUndo('新建并分配说话人');
       undoPushed = true;
+      const targetIds = selectedUtteranceIds.size > 0
+        ? Array.from(selectedUtteranceIds) 
+        : (activeUtteranceUnitId ? [activeUtteranceUnitId] : []);
+
       const created = await LinguisticService.createSpeaker({ name });
-      const updated = await LinguisticService.assignSpeakerToUtterances(selectedUtteranceIds, created.id);
+      const updated = await LinguisticService.assignSpeakerToUtterances(targetIds, created.id);
       setSpeakers((prev) => upsertSpeaker(prev, created));
-      applySpeakerLocally(selectedUtteranceIds, created);
+      applySpeakerLocally(targetIds, created);
       setSpeakerDraftName('');
       setBatchSpeakerId(created.id);
       setSaveState({ kind: 'done', message: `已创建说话人"${created.name}"，并应用到 ${updated} 条句段` });
@@ -459,7 +470,7 @@ export function useSpeakerActions({
     } finally {
       setSpeakerSaving(false);
     }
-  }, [applySpeakerLocally, data, selectedUtteranceIds, setSaveState, setSpeakers, speakerDraftName, speakerSaving]);
+  }, [activeUtteranceUnitId, applySpeakerLocally, data, selectedUtteranceIds, setSaveState, setSpeakers, speakerDraftName, speakerSaving]);
 
   const handleCreateSpeakerAndAssignToUtterances = useCallback(async (name: string, utteranceIds: Iterable<string>) => {
     const targetIds = Array.from(new Set(utteranceIds)).filter((id) => id.trim().length > 0);

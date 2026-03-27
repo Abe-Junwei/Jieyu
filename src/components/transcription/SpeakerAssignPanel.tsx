@@ -5,21 +5,17 @@
  * Allows batch-assigning selected utterances to an existing speaker, or creating a new one
  */
 
-import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { type FC } from 'react';
 import type { SpeakerDocType } from '../../db';
-import { createLogger } from '../../observability/logger';
+import { useDraggablePanel } from '../../hooks/useDraggablePanel';
 
 const PANEL_MIN_WIDTH = 292;
-const PANEL_MIN_HEIGHT = 160;
-const PANEL_MAX_WIDTH = 760;
-const PANEL_MAX_HEIGHT = 560;
-const PANEL_MARGIN = 8;
+const PANEL_MIN_HEIGHT = 178;
+const PANEL_MAX_WIDTH = 640;
+const PANEL_MAX_HEIGHT = 480;
+const PANEL_MARGIN = 12;
+const PANEL_DEFAULT_SIZE = { width: 360, height: 178 };
 const PANEL_STORAGE_KEY = 'jieyu:speaker-assign-panel-rect';
-const PANEL_DEFAULT_SIZE: PanelSize = { width: 360, height: 178 };
-const log = createLogger('SpeakerAssignPanel');
-
-type PanelPosition = { x: number; y: number };
-type PanelSize = { width: number; height: number };
 
 export interface SpeakerAssignPanelProps {
   selectedCount: number;
@@ -45,221 +41,23 @@ export const SpeakerAssignPanel: FC<SpeakerAssignPanelProps> = ({
   onAssign,
   onDraftNameChange,
   onCreateAndAssign,
-}) => {
-  const [position, setPosition] = useState<PanelPosition>(() => {
-    try {
-      if (typeof window === 'undefined') return { x: 24, y: 24 };
-      const stored = window.localStorage.getItem(PANEL_STORAGE_KEY);
-      if (!stored) return { x: 24, y: 24 };
-      const parsed: unknown = JSON.parse(stored);
-      if (!parsed || typeof parsed !== 'object') return { x: 24, y: 24 };
-      const p = parsed as { x?: unknown; y?: unknown };
-      return {
-        x: typeof p.x === 'number' ? p.x : 24,
-        y: typeof p.y === 'number' ? p.y : 24,
-      };
-    } catch (error) {
-      log.warn('Failed to restore speaker panel position, fallback to default', {
-        storageKey: PANEL_STORAGE_KEY,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return { x: 24, y: 24 };
-    }
+  }) => {
+  const {
+    position,
+    size,
+    handleDragStart,
+    handleResizeStart,
+    handleRecenter,
+    handleResetPanelLayout,
+  } = useDraggablePanel({
+    storageKey: PANEL_STORAGE_KEY,
+    defaultSize: PANEL_DEFAULT_SIZE,
+    minWidth: PANEL_MIN_WIDTH,
+    minHeight: PANEL_MIN_HEIGHT,
+    maxWidth: PANEL_MAX_WIDTH,
+    maxHeight: PANEL_MAX_HEIGHT,
+    margin: PANEL_MARGIN,
   });
-
-  const [size, setSize] = useState<PanelSize>(() => {
-    try {
-      if (typeof window === 'undefined') return PANEL_DEFAULT_SIZE;
-      const stored = window.localStorage.getItem(PANEL_STORAGE_KEY);
-      if (!stored) return PANEL_DEFAULT_SIZE;
-      const parsed: unknown = JSON.parse(stored);
-      if (!parsed || typeof parsed !== 'object') return PANEL_DEFAULT_SIZE;
-      const p = parsed as { width?: unknown; height?: unknown };
-      return {
-        width: typeof p.width === 'number' ? p.width : 360,
-        height: typeof p.height === 'number' ? p.height : 178,
-      };
-    } catch (error) {
-      log.warn('Failed to restore speaker panel size, fallback to default', {
-        storageKey: PANEL_STORAGE_KEY,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return PANEL_DEFAULT_SIZE;
-    }
-  });
-
-  const dragRef = useRef<{ startX: number; startY: number; startLeft: number; startTop: number } | null>(null);
-  const resizeRef = useRef<{ startX: number; startY: number; startWidth: number; startHeight: number } | null>(null);
-  const hasInitializedLayoutRef = useRef(false);
-  const currentPositionRef = useRef<PanelPosition>(position);
-  const currentSizeRef = useRef<PanelSize>(size);
-
-  useEffect(() => {
-    currentPositionRef.current = position;
-  }, [position]);
-
-  useEffect(() => {
-    currentSizeRef.current = size;
-  }, [size]);
-
-  const clampSizeToViewport = useCallback((candidate: PanelSize): PanelSize => {
-    if (typeof window === 'undefined') return candidate;
-    return {
-      width: Math.min(
-        Math.max(Math.round(candidate.width), PANEL_MIN_WIDTH),
-        Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, window.innerWidth - PANEL_MARGIN * 2)),
-      ),
-      height: Math.min(
-        Math.max(Math.round(candidate.height), PANEL_MIN_HEIGHT),
-        Math.min(PANEL_MAX_HEIGHT, Math.max(PANEL_MIN_HEIGHT, window.innerHeight - PANEL_MARGIN * 2)),
-      ),
-    };
-  }, []);
-
-  const clampPositionToViewport = useCallback((candidate: PanelPosition, withSize: PanelSize): PanelPosition => {
-    if (typeof window === 'undefined') return candidate;
-    const maxX = Math.max(PANEL_MARGIN, window.innerWidth - withSize.width - PANEL_MARGIN);
-    const maxY = Math.max(PANEL_MARGIN, window.innerHeight - withSize.height - PANEL_MARGIN);
-    return {
-      x: Math.min(Math.max(PANEL_MARGIN, Math.round(candidate.x)), maxX),
-      y: Math.min(Math.max(PANEL_MARGIN, Math.round(candidate.y)), maxY),
-    };
-  }, []);
-
-  const centerPanel = useCallback((withSize: PanelSize): void => {
-    if (typeof window === 'undefined') return;
-    const safeSize = clampSizeToViewport(withSize);
-    setSize(safeSize);
-    setPosition(clampPositionToViewport({
-      x: Math.round((window.innerWidth - safeSize.width) / 2),
-      y: Math.round((window.innerHeight - safeSize.height) / 2),
-    }, safeSize));
-  }, [clampPositionToViewport, clampSizeToViewport]);
-
-  useEffect(() => {
-    if (hasInitializedLayoutRef.current) return;
-    hasInitializedLayoutRef.current = true;
-    if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem(PANEL_STORAGE_KEY);
-    if (!stored) {
-      // 首次展示时居中 | Center panel on first appearance
-      centerPanel(size);
-      return;
-    }
-    const safeSize = clampSizeToViewport(size);
-    setSize(safeSize);
-    setPosition((prev) => clampPositionToViewport(prev, safeSize));
-    // 仅初始化一次，后续由拖拽/缩放与 window resize 维护约束 | Initialize once; later constraints are maintained by drag/resize and window resize
-  }, [centerPanel, clampPositionToViewport, clampSizeToViewport, size]);
-
-  useEffect(() => {
-    const onPointerMove = (event: PointerEvent): void => {
-      if (dragRef.current) {
-        const nextX = dragRef.current.startLeft + (event.clientX - dragRef.current.startX);
-        const nextY = dragRef.current.startTop + (event.clientY - dragRef.current.startY);
-        setPosition(clampPositionToViewport({ x: nextX, y: nextY }, currentSizeRef.current));
-        return;
-      }
-
-      if (resizeRef.current) {
-        const rawWidth = resizeRef.current.startWidth + (event.clientX - resizeRef.current.startX);
-        const rawHeight = resizeRef.current.startHeight + (event.clientY - resizeRef.current.startY);
-        const maxWidthByViewport = Math.max(PANEL_MIN_WIDTH, window.innerWidth - currentPositionRef.current.x - PANEL_MARGIN);
-        const maxHeightByViewport = Math.max(PANEL_MIN_HEIGHT, window.innerHeight - currentPositionRef.current.y - PANEL_MARGIN);
-        setSize(clampSizeToViewport({
-          width: Math.min(rawWidth, Math.min(PANEL_MAX_WIDTH, maxWidthByViewport)),
-          height: Math.min(rawHeight, Math.min(PANEL_MAX_HEIGHT, maxHeightByViewport)),
-        }));
-      }
-    };
-
-    const onPointerUp = (): void => {
-      dragRef.current = null;
-      resizeRef.current = null;
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-    };
-
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerUp);
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointercancel', onPointerUp);
-    };
-  }, [clampPositionToViewport, clampSizeToViewport]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({
-        x: position.x,
-        y: position.y,
-        width: size.width,
-        height: size.height,
-      }));
-    } catch (error) {
-      log.warn('Failed to persist speaker panel layout', {
-        storageKey: PANEL_STORAGE_KEY,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }, [position.x, position.y, size.height, size.width]);
-
-  useEffect(() => {
-    const onResize = (): void => {
-      const safeSize = clampSizeToViewport(currentSizeRef.current);
-      setSize(safeSize);
-      setPosition((prev) => clampPositionToViewport(prev, safeSize));
-    };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [clampPositionToViewport, clampSizeToViewport]);
-
-  const handleDragStart = (event: React.PointerEvent<HTMLDivElement>): void => {
-    dragRef.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      startLeft: currentPositionRef.current.x,
-      startTop: currentPositionRef.current.y,
-    };
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'move';
-  };
-
-  const handleRecenter = (): void => {
-    // 双击标题栏回到屏幕中间 | Double-click title to recenter panel
-    centerPanel(size);
-  };
-
-  const handleResizeStart = (event: React.PointerEvent<HTMLDivElement>): void => {
-    event.preventDefault();
-    event.stopPropagation();
-    resizeRef.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      startWidth: currentSizeRef.current.width,
-      startHeight: currentSizeRef.current.height,
-    };
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'nwse-resize';
-  };
-
-  const handleResetPanelLayout = (event: React.MouseEvent<HTMLButtonElement>): void => {
-    event.stopPropagation();
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.removeItem(PANEL_STORAGE_KEY);
-      } catch (error) {
-        log.warn('Failed to clear speaker panel persisted layout', {
-          storageKey: PANEL_STORAGE_KEY,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-    centerPanel(PANEL_DEFAULT_SIZE);
-  };
 
   return (
     <section
@@ -335,7 +133,7 @@ export const SpeakerAssignPanel: FC<SpeakerAssignPanelProps> = ({
           新建并应用
         </button>
       </div>
-      <div className="speaker-assign-resize-handle floating-panel-resize-handle" onPointerDown={handleResizeStart} aria-hidden="true" />
+      <div className="floating-panel-resize-handle" onPointerDown={handleResizeStart} aria-hidden="true" />
     </section>
   );
 };

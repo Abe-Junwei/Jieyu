@@ -8,7 +8,7 @@ import { createLogger } from '../observability/logger';
 import {
   removeUtteranceTextFromSegmentationV2,
   syncUtteranceTextToSegmentationV2,
-} from '../services/LayerSegmentationV2BridgeService';
+} from '../services/LayerSegmentationTextService';
 
 const log = createLogger('useTranscriptionPersistence');
 
