@@ -10,11 +10,17 @@ import type {
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 import { LinguisticService } from '../services/LinguisticService';
 import { newId } from '../utils/transcriptionFormatters';
-import type { LayerCreateInput } from './transcriptionTypes';
-import { canCreateLayer, canDeleteLayer, getMostRecentLayerOfType } from '../services/LayerConstraintService';
+import type { LayerCreateInput, TimelineUnit } from './transcriptionTypes';
+import {
+  canCreateLayer,
+  canDeleteLayer,
+  getLayerCreateGuard,
+  getMostRecentLayerOfType,
+} from '../services/LayerConstraintService';
 import {
   createLayerLink,
 } from '../services/LayerIdBridgeService';
+import { getUtteranceTextsByUtterancesPreferV2 } from '../services/LayerSegmentationV2BridgeService';
 
 export type TranscriptionLayerActionsParams = {
   layers: LayerDocType[];
@@ -31,7 +37,8 @@ export type TranscriptionLayerActionsParams = {
   setSelectedLayerId: React.Dispatch<React.SetStateAction<string>>;
   setSelectedMediaId: React.Dispatch<React.SetStateAction<string>>;
   setMediaItems: React.Dispatch<React.SetStateAction<MediaItemDocType[]>>;
-  setSelectedUtteranceId: React.Dispatch<React.SetStateAction<string>>;
+  setSelectedUtteranceIds?: React.Dispatch<React.SetStateAction<Set<string>>>;
+  setSelectedTimelineUnit?: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
   setTranslations: React.Dispatch<React.SetStateAction<UtteranceTextDocType[]>>;
   setUtterances: React.Dispatch<React.SetStateAction<UtteranceDocType[]>>;
 };
@@ -39,6 +46,15 @@ export type TranscriptionLayerActionsParams = {
 type DeleteLayerOptions = {
   /** 保留关联语段 | Keep associated utterances */
   keepUtterances?: boolean;
+};
+
+type PerformLayerDeleteOptions = DeleteLayerOptions & {
+  /** 静默执行，不更新弹窗与提示文案 | Silent mode: don't update dialog/message state */
+  silent?: boolean;
+  /** 跳过 undo 记录，用于级联子删除 | Skip undo record for cascaded child deletions */
+  skipUndo?: boolean;
+  /** 级联删除的翻译层数量（仅用于最终提示）| Number of cascaded translation deletions (for final message only) */
+  cascadedTranslationCount?: number;
 };
 
 export function useTranscriptionLayerActions({
@@ -56,10 +72,16 @@ export function useTranscriptionLayerActions({
   setSelectedLayerId,
   setSelectedMediaId,
   setMediaItems,
-  setSelectedUtteranceId,
+  setSelectedUtteranceIds,
+  setSelectedTimelineUnit,
   setTranslations,
   setUtterances,
 }: TranscriptionLayerActionsParams) {
+  const clearTimelineSelection = useCallback(() => {
+    setSelectedUtteranceIds?.(new Set());
+    setSelectedTimelineUnit?.(null);
+  }, [setSelectedTimelineUnit, setSelectedUtteranceIds]);
+
   const createLayer = useCallback(async (
     layerType: 'transcription' | 'translation',
     input: LayerCreateInput,
@@ -73,6 +95,28 @@ export function useTranscriptionLayerActions({
       return false;
     }
 
+    const hasExistingTranscriptionLayer = layers.some((layer) => layer.layerType === 'transcription');
+    const resolvedConstraint = input.constraint
+      ?? (layerType === 'transcription' && !hasExistingTranscriptionLayer ? 'independent_boundary' : undefined);
+
+    const inferredParent = layerType === 'translation'
+      ? getMostRecentLayerOfType(layers, 'transcription')
+      : (resolvedConstraint && resolvedConstraint !== 'independent_boundary'
+        ? getMostRecentLayerOfType(layers, 'transcription')
+        : undefined);
+
+    const createGuard = getLayerCreateGuard(layers, layerType, {
+      languageId,
+      alias,
+      ...(resolvedConstraint !== undefined ? { constraint: resolvedConstraint } : {}),
+      ...(inferredParent?.id ? { parentLayerId: inferredParent.id } : {}),
+      hasSupportedParent: Boolean(inferredParent),
+    });
+    if (!createGuard.allowed) {
+      setLayerCreateMessage(createGuard.reason ?? '当前无法创建该层。');
+      return false;
+    }
+
     const constraint = canCreateLayer(layers, layerType);
     if (!constraint.allowed) {
       setLayerCreateMessage(constraint.reason!);
@@ -80,17 +124,6 @@ export function useTranscriptionLayerActions({
     }
     if (constraint.warning) {
       console.warn('[LayerConstraint]', constraint.warning);
-    }
-
-    const existing = layers.find(
-      (l) => l.languageId === languageId && l.layerType === layerType,
-    );
-    if (existing && !alias) {
-      const existingLabel = existing.name.zho ?? existing.name.eng ?? existing.key;
-      setLayerCreateMessage(
-        `该语言已存在同类型层「${existingLabel}」（${existing.key}）。请提供别名以区分。`,
-      );
-      return false;
     }
 
     const suffix = Math.random().toString(36).slice(2, 7);
@@ -125,6 +158,8 @@ export function useTranscriptionLayerActions({
         modality: effectiveModality,
         acceptsAudio: effectiveModality !== 'text',
         sortOrder: newSortOrder,
+        ...(resolvedConstraint !== undefined ? { constraint: resolvedConstraint } : {}),
+        ...(inferredParent ? { parentLayerId: inferredParent.id } : {}),
         createdAt: now,
         updatedAt: now,
       } as LayerDocType;
@@ -134,11 +169,10 @@ export function useTranscriptionLayerActions({
 
       let autoLink: LayerLinkDocType | undefined;
       if (layerType === 'translation') {
-        const recentTrc = getMostRecentLayerOfType(layers, 'transcription');
-        if (recentTrc) {
+        if (inferredParent) {
           autoLink = createLayerLink({
             id: newId('link'),
-            transcriptionLayerKey: recentTrc.key,
+            transcriptionLayerKey: inferredParent.key,
             targetLayerId: id,
             createdAt: now,
           });
@@ -176,15 +210,18 @@ export function useTranscriptionLayerActions({
   /** 检查层是否有文本内容（用于判断是否需要确认） */
   const checkLayerHasContent = useCallback(async (layerId: string): Promise<number> => {
     const db = await getDb();
-    return db.dexie.utterance_texts.where('layerId').equals(layerId).count();
+    // Phase 2: V2 单一读路径 | Phase 2: V2 single read path
+    return db.dexie.layer_segment_contents.where('layerId').equals(layerId).count();
   }, []);
 
   /** 执行层的实际删除操作（无确认提示） */
-  const performLayerDelete = useCallback(async (targetLayerId: string, options?: { keepUtterances?: boolean }) => {
+  const performLayerDelete = useCallback(async (targetLayerId: string, options?: PerformLayerDeleteOptions) => {
     const effectiveLayerId = targetLayerId;
     const targetLayer = layers.find((item) => item.id === effectiveLayerId);
     if (!targetLayer) {
-      setLayerCreateMessage('未找到要删除的层。');
+      if (!options?.silent) {
+        setLayerCreateMessage('未找到要删除的层。');
+      }
       return;
     }
 
@@ -192,7 +229,9 @@ export function useTranscriptionLayerActions({
     const allLinks = await db.dexie.layer_links.toArray();
     const deleteCheck = canDeleteLayer(layers, allLinks, effectiveLayerId);
     if (!deleteCheck.allowed) {
-      setLayerCreateMessage(deleteCheck.reason ?? '当前层无法删除。');
+      if (!options?.silent) {
+        setLayerCreateMessage(deleteCheck.reason ?? '当前层无法删除。');
+      }
       return;
     }
 
@@ -201,15 +240,31 @@ export function useTranscriptionLayerActions({
     const keepUtterances = options?.keepUtterances ?? false;
 
     try {
-      pushUndo(`删除${layerTypeLabel}`);
+      if (!options?.skipUndo) {
+        pushUndo(`删除${layerTypeLabel}`);
+      }
 
-      const affectedUtteranceIds = keepUtterances
+      const isDeletingLastTranscription =
+        targetLayer.layerType === 'transcription'
+        && layers.filter((item) => item.layerType === 'transcription').length <= 1;
+
+      // Phase 2: 从 V2 layer_segments 获取受影响的 utteranceId | Phase 2: get affected utteranceIds from V2 layer_segments
+      const affectedByLayerTexts = keepUtterances
         ? []
-        : (await db.dexie.utterance_texts.where('layerId').equals(effectiveLayerId).toArray())
-            .map((d) => d.utteranceId);
+        : [...new Set(
+            (await db.dexie.layer_segments.where('layerId').equals(effectiveLayerId).toArray())
+              .map((s) => s.utteranceId)
+              .filter((id): id is string => Boolean(id)),
+          )];
 
-      await db.collections.utterance_texts.removeBySelector({ layerId: effectiveLayerId });
-      // 删除路径始终做 v2 级联清理，避免开关切换后的“残留数据回流” | Always clean v2 graph on destructive path to avoid stale data resurfacing after flag toggles.
+      const affectedByProjectScope = (!keepUtterances && isDeletingLastTranscription)
+        ? ((await db.dexie.utterances.where('textId').equals(targetLayer.textId).primaryKeys()) as string[])
+        : [];
+
+      const affectedUtteranceIds = [...new Set([...affectedByLayerTexts, ...affectedByProjectScope])];
+
+      // V2 cascade handles full cleanup (layer_segments → layer_segment_contents → segment_links)
+      // Phase 1 之后 V1 无新写入，无需额外清理 | No V1 writes after Phase 1; V1 is now read-only archive
       // Collect segment IDs before deletion so we can clean up referencing links.
       // Note: sourceLayerId/targetLayerId are optional (undefined) on many existing
       // segment_links rows, so we must delete by segmentId ownership — not by layerId.
@@ -260,7 +315,7 @@ export function useTranscriptionLayerActions({
       let removedUtteranceIds = new Set<string>();
       if (!keepUtterances && affectedUtteranceIds.length > 0) {
         const uniqueIds = [...new Set(affectedUtteranceIds)];
-        const remainingTexts = await db.dexie.utterance_texts.where('utteranceId').anyOf(uniqueIds).toArray();
+        const remainingTexts = await getUtteranceTextsByUtterancesPreferV2(db, uniqueIds);
         const stillReferencedIds = new Set(remainingTexts.map((d) => d.utteranceId));
         const orphanIds = uniqueIds.filter((id) => !stillReferencedIds.has(id));
         if (orphanIds.length > 0) {
@@ -286,14 +341,25 @@ export function useTranscriptionLayerActions({
       } else {
         setLayerLinks((prev) => prev.filter((item) => item.layerId !== effectiveLayerId));
       }
-      setLayerToDeleteId('');
-      setShowLayerManager(false);
-      const removedCount = removedUtteranceIds.size;
-      setLayerCreateMessage(removedCount > 0
-        ? `已删除层：${layerLabel}（同时清除 ${removedCount} 个孤立语段）`
-        : `已删除层：${layerLabel}`);
+      if (!options?.silent) {
+        setLayerToDeleteId('');
+        setShowLayerManager(false);
+        const removedCount = removedUtteranceIds.size;
+        const cascadedCount = options?.cascadedTranslationCount ?? 0;
+        const cascadedNote = cascadedCount > 0
+          ? `（自动级联删除 ${cascadedCount} 个依赖翻译层）`
+          : '';
+        setLayerCreateMessage(removedCount > 0
+          ? `已删除层：${layerLabel}${cascadedNote}（同时清除 ${removedCount} 个孤立语段）`
+          : `已删除层：${layerLabel}${cascadedNote}`);
+      }
     } catch (error) {
-      setLayerCreateMessage(error instanceof Error ? error.message : '删除层失败');
+      if (options?.silent) {
+        throw (error instanceof Error ? error : new Error('删除层失败'));
+      }
+      if (!options?.silent) {
+        setLayerCreateMessage(error instanceof Error ? error.message : '删除层失败');
+      }
     }
   }, [layers, pushUndo, selectedLayerId, setLayerCreateMessage, setLayerLinks, setLayerToDeleteId, setLayers, setSelectedLayerId, setShowLayerManager, setTranslations, setUtterances]);
 
@@ -310,8 +376,50 @@ export function useTranscriptionLayerActions({
     }
 
     const keepUtterances = options?.keepUtterances ?? false;
+    const targetLayer = layers.find((item) => item.id === effectiveLayerId);
+    if (!targetLayer) {
+      setLayerCreateMessage('未找到要删除的层。');
+      return;
+    }
+
+    // 删除最后一个转写层时，自动级联删除其依赖翻译层 | When deleting the last transcription layer, cascade-delete dependent translation layers
+    if (targetLayer.layerType === 'transcription') {
+      const transcriptionLayers = layers.filter((item) => item.layerType === 'transcription');
+      if (transcriptionLayers.length <= 1) {
+        try {
+          const db = await getDb();
+          const allLinks = await db.dexie.layer_links.toArray();
+          const dependentByLink = allLinks
+            .filter((link) => link.transcriptionLayerKey === targetLayer.key)
+            .map((link) => link.layerId);
+          const dependentByParent = layers
+            .filter((layer) => layer.layerType === 'translation' && layer.parentLayerId === targetLayer.id)
+            .map((layer) => layer.id);
+          const dependentTranslationIds = [...new Set([...dependentByLink, ...dependentByParent])]
+            .filter((id) => layers.some((layer) => layer.id === id && layer.layerType === 'translation'));
+
+          for (const dependentTranslationId of dependentTranslationIds) {
+            await performLayerDelete(dependentTranslationId, {
+              keepUtterances,
+              silent: true,
+              skipUndo: true,
+            });
+          }
+
+          await performLayerDelete(effectiveLayerId, {
+            keepUtterances,
+            cascadedTranslationCount: dependentTranslationIds.length,
+          });
+          return;
+        } catch (error) {
+          setLayerCreateMessage(error instanceof Error ? error.message : '删除层失败');
+          return;
+        }
+      }
+    }
+
     await performLayerDelete(effectiveLayerId, { keepUtterances });
-  }, [layerToDeleteId, performLayerDelete, setLayerCreateMessage]);
+  }, [layerToDeleteId, layers, performLayerDelete, setLayerCreateMessage]);
 
   const toggleLayerLink = useCallback(async (
     transcriptionLayerKey: string,
@@ -343,8 +451,8 @@ export function useTranscriptionLayerActions({
   const addMediaItem = useCallback((item: MediaItemDocType) => {
     setMediaItems((prev) => [...prev, item]);
     setSelectedMediaId(item.id);
-    setSelectedUtteranceId('');
-  }, [setMediaItems, setSelectedMediaId, setSelectedUtteranceId]);
+    clearTimelineSelection();
+  }, [clearTimelineSelection, setMediaItems, setSelectedMediaId]);
 
   /**
    * Reorder layers within their own type section (transcription or translation).
