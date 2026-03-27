@@ -18,8 +18,10 @@ interface UseLassoInput {
   playerIsReady: boolean;
   selectedMediaUrl: string | undefined;
   utterancesOnCurrentMedia: UtteranceDocType[];
+  /** Items to select against — utterances for default layer, segments for independent layers */
+  timelineItems: Array<{ id: string; startTime: number; endTime: number }>;
   selectedUtteranceIds: Set<string>;
-  selectedUtteranceId: string;
+  selectedUtteranceUnitId: string;
   zoomPxPerSec: number;
   skipSeekForIdRef: React.MutableRefObject<string | null>;
   clearUtteranceSelection: () => void;
@@ -38,7 +40,8 @@ export function useLasso(input: UseLassoInput) {
     playerInstanceRef, playerIsReady,
     selectedMediaUrl,
     utterancesOnCurrentMedia,
-    selectedUtteranceIds, selectedUtteranceId,
+    timelineItems,
+    selectedUtteranceIds, selectedUtteranceUnitId,
     zoomPxPerSec,
     skipSeekForIdRef,
     clearUtteranceSelection, createUtteranceFromSelection, setUtteranceSelection,
@@ -85,6 +88,8 @@ export function useLasso(input: UseLassoInput) {
   // Sync refs for values used inside effects
   const utterancesOnCurrentMediaRef = useRef(utterancesOnCurrentMedia);
   utterancesOnCurrentMediaRef.current = utterancesOnCurrentMedia;
+  const timelineItemsRef = useRef(timelineItems);
+  timelineItemsRef.current = timelineItems;
   const selectedUtteranceIdsRef = useRef(selectedUtteranceIds);
   selectedUtteranceIdsRef.current = selectedUtteranceIds;
 
@@ -103,7 +108,7 @@ export function useLasso(input: UseLassoInput) {
   // Clear sub-selection when the selected utterance changes
   useEffect(() => {
     setSubSelectionRange(null);
-  }, [selectedUtteranceId]);
+  }, [selectedUtteranceUnitId]);
 
   // ---- Waveform pointer interactions ----
   // Default drag on region = sub-range selection; Alt+drag = move/resize region.
@@ -137,7 +142,8 @@ export function useLasso(input: UseLassoInput) {
       const eps = totalWidth > 0 && dur > 0
         ? Math.min(0.03, Math.max(0.005, 3 / totalWidth * dur))
         : 0.01;
-      return utterancesOnCurrentMediaRef.current.some(
+        // 用当前活跃层条目判断（独立层用 segment，默认层用 utterance）| Use active-layer items (segments for independent layers, utterances for default)
+        return timelineItemsRef.current.some(
         (u) => u.startTime - eps <= time && u.endTime + eps >= time,
       );
     };
@@ -270,7 +276,7 @@ export function useLasso(input: UseLassoInput) {
         const tStart = Math.min(info.anchorTime, currentTime);
         const tEnd = Math.max(info.anchorTime, currentTime);
         const outcome = computeLassoOutcome(
-          utterancesOnCurrentMediaRef.current,
+          timelineItemsRef.current,
           tStart,
           tEnd,
           info.baseIds,
@@ -458,7 +464,7 @@ export function useLasso(input: UseLassoInput) {
       const tStart = left / zoomPxPerSec;
       const tEnd = (left + width) / zoomPxPerSec;
       const outcome = computeLassoOutcome(
-        utterancesOnCurrentMedia,
+        timelineItems,
         tStart,
         tEnd,
         info.baseIds,
@@ -472,7 +478,7 @@ export function useLasso(input: UseLassoInput) {
       }
       scheduleLassoSelectionUpdate(outcome.ids, outcome.primaryId);
     }
-  }, [zoomPxPerSec, utterancesOnCurrentMedia, scheduleLassoSelectionUpdate, tierContainerRef, skipSeekForIdRef]);
+  }, [zoomPxPerSec, timelineItems, scheduleLassoSelectionUpdate, tierContainerRef, skipSeekForIdRef]);
 
   const handleLassoPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const info = lassoRef.current;
