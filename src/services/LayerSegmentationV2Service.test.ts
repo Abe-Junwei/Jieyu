@@ -1,6 +1,5 @@
 import 'fake-indexeddb/auto';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { featureFlags } from '../ai/config/featureFlags';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   db,
   type LayerSegmentContentDocType,
@@ -51,18 +50,10 @@ describe('LayerSegmentationV2Service', () => {
   beforeEach(async () => {
     await db.open();
     await Promise.all([
-      db.layer_segments.clear(),
-      db.layer_segment_contents.clear(),
-      db.segment_links.clear(),
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
     ]);
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
-  });
-
-  afterEach(() => {
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
   });
 
   it('creates and queries segments with contents', async () => {
@@ -96,9 +87,7 @@ describe('LayerSegmentationV2Service', () => {
     expect(unitContent?.text).toBe('同步内容');
   });
 
-  it('supports LayerUnit-only create and update flow when legacy mirror writes are disabled', async () => {
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = false;
-
+  it('supports canonical create and update flow', async () => {
     const segment = makeSegment({ id: 'seg_unit_only_write_1' });
     const content = makeContent({ id: 'cnt_unit_only_write_1', segmentId: 'seg_unit_only_write_1', text: '仅写 LayerUnit' });
 
@@ -112,8 +101,6 @@ describe('LayerSegmentationV2Service', () => {
     const segments = await LayerSegmentationV2Service.listSegmentsByLayerMedia(segment.layerId, segment.mediaId);
     const contents = await LayerSegmentationV2Service.listSegmentContents(segment.id);
 
-    expect(await db.layer_segments.get(segment.id)).toBeUndefined();
-    expect(await db.layer_segment_contents.get(content.id)).toBeUndefined();
     expect(await db.layer_units.get(segment.id)).toEqual(expect.objectContaining({
       startTime: 1.25,
       endTime: 2.25,
@@ -164,17 +151,6 @@ describe('LayerSegmentationV2Service', () => {
   });
 
   it('deletes segment content from legacy and LayerUnit tables', async () => {
-    await db.layer_segment_contents.put({
-      id: 'cnt_delete_1',
-      textId: 'text_1',
-      segmentId: 'seg_delete_1',
-      layerId: 'layer_trc_cmn',
-      modality: 'text',
-      text: 'to-delete',
-      sourceType: 'human',
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
     await db.layer_unit_contents.put({
       id: 'cnt_delete_1',
       textId: 'text_1',
@@ -190,7 +166,6 @@ describe('LayerSegmentationV2Service', () => {
 
     await LayerSegmentationV2Service.deleteSegmentContent('cnt_delete_1');
 
-    expect(await db.layer_segment_contents.get('cnt_delete_1')).toBeUndefined();
     expect(await db.layer_unit_contents.get('cnt_delete_1')).toBeUndefined();
   });
 
@@ -207,11 +182,11 @@ describe('LayerSegmentationV2Service', () => {
 
     await LayerSegmentationV2Service.deleteSegment(seg1.id);
 
-    expect(await db.layer_segments.get(seg1.id)).toBeUndefined();
-    expect(await db.layer_segment_contents.where('segmentId').equals(seg1.id).count()).toBe(0);
-    expect(await db.segment_links.where('sourceSegmentId').equals(seg1.id).count()).toBe(0);
-    expect(await db.segment_links.where('targetSegmentId').equals(seg1.id).count()).toBe(0);
-    expect(await db.layer_segments.get(seg2.id)).toBeTruthy();
+    expect(await db.layer_units.get(seg1.id)).toBeUndefined();
+    expect(await db.layer_unit_contents.where('unitId').equals(seg1.id).count()).toBe(0);
+    expect(await db.unit_relations.where('sourceUnitId').equals(seg1.id).count()).toBe(0);
+    expect(await db.unit_relations.where('targetUnitId').equals(seg1.id).count()).toBe(0);
+    expect(await db.layer_units.get(seg2.id)).toBeTruthy();
   });
 
   it('deletes LayerUnit-only segment and cascades unit contents and links', async () => {
@@ -238,38 +213,76 @@ describe('LayerSegmentationV2Service', () => {
       createdAt: NOW,
       updatedAt: NOW,
     });
-    await db.segment_links.put(makeLink({
+    await db.unit_relations.put({
       id: 'lnk_unit_delete_1',
-      sourceSegmentId: 'seg_unit_delete_1',
-      targetSegmentId: 'utt_parent_delete_1',
-      linkType: 'time_subdivision',
-    }));
+      textId: 'text_1',
+      sourceUnitId: 'seg_unit_delete_1',
+      targetUnitId: 'utt_parent_delete_1',
+      relationType: 'derived_from',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
 
     await LayerSegmentationV2Service.deleteSegment('seg_unit_delete_1');
 
     expect(await db.layer_units.get('seg_unit_delete_1')).toBeUndefined();
     expect(await db.layer_unit_contents.get('cnt_unit_delete_1')).toBeUndefined();
-    expect(await db.segment_links.get('lnk_unit_delete_1')).toBeUndefined();
+    expect(await db.unit_relations.get('lnk_unit_delete_1')).toBeUndefined();
   });
 
   it('cleans orphan segments via service API', async () => {
-    await db.layer_segments.bulkPut([
-      makeSegment({ id: 'seg_orphan' }),
-      makeSegment({ id: 'seg_live' }),
+    await db.layer_units.bulkPut([
+      {
+        id: 'seg_orphan',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: 'layer_trc_cmn',
+        unitType: 'segment',
+        startTime: 1,
+        endTime: 2,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'seg_live',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: 'layer_trc_cmn',
+        unitType: 'segment',
+        startTime: 2,
+        endTime: 3,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
     ]);
-    await db.layer_segment_contents.put(makeContent({ id: 'cnt_live', segmentId: 'seg_live' }));
-    await db.segment_links.put(makeLink({
+    await db.layer_unit_contents.put({
+      id: 'cnt_live',
+      textId: 'text_1',
+      unitId: 'seg_live',
+      layerId: 'layer_trc_cmn',
+      contentRole: 'primary_text',
+      modality: 'text',
+      text: 'live',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.unit_relations.put({
       id: 'lnk_orphan',
-      sourceSegmentId: 'seg_orphan',
-      targetSegmentId: 'seg_live',
-    }));
+      textId: 'text_1',
+      sourceUnitId: 'seg_orphan',
+      targetUnitId: 'seg_live',
+      relationType: 'aligned_to',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
 
     const removed = await LayerSegmentationV2Service.cleanupOrphanSegments(['seg_orphan', 'seg_live']);
 
     expect(removed).toEqual(['seg_orphan']);
-    expect(await db.layer_segments.get('seg_orphan')).toBeUndefined();
-    expect(await db.layer_segments.get('seg_live')).toBeTruthy();
-    expect(await db.segment_links.get('lnk_orphan')).toBeUndefined();
+    expect(await db.layer_units.get('seg_orphan')).toBeUndefined();
+    expect(await db.layer_units.get('seg_live')).toBeTruthy();
+    expect(await db.unit_relations.get('lnk_orphan')).toBeUndefined();
   });
 
   // ── splitSegment tests ──
@@ -287,9 +300,9 @@ describe('LayerSegmentationV2Service', () => {
     expect(second.id).not.toBe('seg_split_1');
 
     // DB 验证 | Verify DB state
-    const dbFirst = await db.layer_segments.get('seg_split_1');
+    const dbFirst = await db.layer_units.get('seg_split_1');
     expect(dbFirst?.endTime).toBe(2.0);
-    const allSegs = await db.layer_segments.where('layerId').equals('layer_trc_cmn').toArray();
+    const allSegs = await db.layer_units.where('layerId').equals('layer_trc_cmn').toArray();
     expect(allSegs).toHaveLength(2);
   });
 
@@ -302,8 +315,8 @@ describe('LayerSegmentationV2Service', () => {
 
     const { second } = await LayerSegmentationV2Service.splitSegment(seg.id, 2.0);
 
-    const firstContents = await db.layer_segment_contents.where('segmentId').equals(seg.id).toArray();
-    const secondContents = await db.layer_segment_contents.where('segmentId').equals(second.id).toArray();
+    const firstContents = await db.layer_unit_contents.where('unitId').equals(seg.id).toArray();
+    const secondContents = await db.layer_unit_contents.where('unitId').equals(second.id).toArray();
     expect(firstContents).toHaveLength(1);
     expect(secondContents).toHaveLength(1);
     expect(secondContents[0]?.text).toBe('原始内容');
@@ -338,7 +351,7 @@ describe('LayerSegmentationV2Service', () => {
 
     expect(first.endTime).toBe(2.0);
     expect(second.startTime).toBe(2.0);
-    expect(await db.layer_segments.get('seg_unit_split_1')).toBeTruthy();
+  expect(await db.layer_units.get('seg_unit_split_1')).toBeTruthy();
     expect(await db.layer_units.get(second.id)).toBeTruthy();
     const secondContents = await db.layer_unit_contents.where('unitId').equals(second.id).toArray();
     expect(secondContents).toHaveLength(1);
@@ -375,21 +388,21 @@ describe('LayerSegmentationV2Service', () => {
       seg, 'utt_parent_split', 1.0, 3.0,
     );
     // 原段有一条 time_subdivision link | Original has a time_subdivision link
-    const linksBefore = await db.segment_links.where('sourceSegmentId').equals('seg_split_link').toArray();
+    const linksBefore = await db.unit_relations.where('sourceUnitId').equals('seg_split_link').toArray();
     expect(linksBefore).toHaveLength(1);
 
     const { second } = await LayerSegmentationV2Service.splitSegment('seg_split_link', 2.0);
 
     // 第一段保留原 link | First keeps original link
-    const firstLinks = await db.segment_links.where('sourceSegmentId').equals('seg_split_link').toArray();
+    const firstLinks = await db.unit_relations.where('sourceUnitId').equals('seg_split_link').toArray();
     expect(firstLinks).toHaveLength(1);
-    expect(firstLinks[0]!.targetSegmentId).toBe('utt_parent_split');
+    expect(firstLinks[0]!.targetUnitId).toBe('utt_parent_split');
 
     // 第二段也获得克隆的 link | Second also gets a cloned link
-    const secondLinks = await db.segment_links.where('sourceSegmentId').equals(second.id).toArray();
+    const secondLinks = await db.unit_relations.where('sourceUnitId').equals(second.id).toArray();
     expect(secondLinks).toHaveLength(1);
-    expect(secondLinks[0]!.targetSegmentId).toBe('utt_parent_split');
-    expect(secondLinks[0]!.linkType).toBe('time_subdivision');
+    expect(secondLinks[0]!.targetUnitId).toBe('utt_parent_split');
+    expect(secondLinks[0]!.relationType).toBe('derived_from');
     expect(secondLinks[0]!.id).not.toBe(firstLinks[0]!.id);
   });
 
@@ -441,10 +454,10 @@ describe('LayerSegmentationV2Service', () => {
     expect(merged.endTime).toBe(3.5);
 
     // DB 验证 | Verify DB state
-    const kept = await db.layer_segments.get('seg_merge_1');
+    const kept = await db.layer_units.get('seg_merge_1');
     expect(kept?.startTime).toBe(1.0);
     expect(kept?.endTime).toBe(3.5);
-    expect(await db.layer_segments.get('seg_merge_2')).toBeUndefined();
+    expect(await db.layer_units.get('seg_merge_2')).toBeUndefined();
   });
 
   it('merges adjacent LayerUnit-only segments', async () => {
@@ -478,10 +491,10 @@ describe('LayerSegmentationV2Service', () => {
     expect(merged.startTime).toBe(1);
     expect(merged.endTime).toBe(3);
     expect(await db.layer_units.get('seg_unit_merge_2')).toBeUndefined();
-    expect(await db.layer_segments.get('seg_unit_merge_1')).toBeTruthy();
+    expect(await db.layer_units.get('seg_unit_merge_1')).toBeTruthy();
   });
 
-  it('updates a LayerUnit-only segment and backfills legacy row', async () => {
+  it('updates a LayerUnit-only segment in canonical storage', async () => {
     await db.layer_units.put({
       id: 'seg_unit_update_1',
       textId: 'text_1',
@@ -500,10 +513,7 @@ describe('LayerSegmentationV2Service', () => {
       updatedAt: '2026-03-24T01:00:00.000Z',
     });
 
-    const legacy = await db.layer_segments.get('seg_unit_update_1');
     const unit = await db.layer_units.get('seg_unit_update_1');
-    expect(legacy?.startTime).toBe(1.25);
-    expect(legacy?.endTime).toBe(2.25);
     expect(unit?.startTime).toBe(1.25);
     expect(unit?.endTime).toBe(2.25);
   });
@@ -522,8 +532,8 @@ describe('LayerSegmentationV2Service', () => {
 
     await LayerSegmentationV2Service.mergeAdjacentSegments('seg_mc_1', 'seg_mc_2');
 
-    expect(await db.layer_segment_contents.where('segmentId').equals('seg_mc_2').count()).toBe(0);
-    expect(await db.segment_links.where('sourceSegmentId').equals('seg_mc_2').count()).toBe(0);
+    expect(await db.layer_unit_contents.where('unitId').equals('seg_mc_2').count()).toBe(0);
+    expect(await db.unit_relations.where('sourceUnitId').equals('seg_mc_2').count()).toBe(0);
   });
 
   it('throws when merging with a non-existent segment', async () => {
@@ -560,16 +570,16 @@ describe('LayerSegmentationV2Service', () => {
     expect(result.endTime).toBe(3.0);
 
     // 已写入 DB | Written to DB
-    const stored = await db.layer_segments.get('seg_pc_1');
+    const stored = await db.layer_units.get('seg_pc_1');
     expect(stored).toBeTruthy();
     expect(stored!.startTime).toBe(1.0);
     expect(stored!.endTime).toBe(3.0);
 
     // 同时创建了 segment_link | Also created segment_link
-    const links = await db.segment_links.where('sourceSegmentId').equals('seg_pc_1').toArray();
+    const links = await db.unit_relations.where('sourceUnitId').equals('seg_pc_1').toArray();
     expect(links).toHaveLength(1);
-    expect(links[0]!.targetSegmentId).toBe('utt_parent_1');
-    expect(links[0]!.linkType).toBe('time_subdivision');
+    expect(links[0]!.targetUnitId).toBe('utt_parent_1');
+    expect(links[0]!.relationType).toBe('derived_from');
   });
 
   it('keeps segment unchanged when already inside parent range', async () => {

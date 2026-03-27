@@ -4,10 +4,8 @@ import { ProjectSetupDialog } from '../components/ProjectSetupDialog';
 import { AudioImportDialog } from '../components/AudioImportDialog';
 import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
 import { ShortcutsPanel } from '../components/ShortcutsPanel';
-import { PdfPreviewSection } from '../components/PdfPreviewSection';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { SpeakerActionDialogState } from '../hooks/speakerManagement/types';
-import type { Locale } from '../i18n';
 
 export type TranscriptionPageDialogsProps = {
   // Speaker dialog
@@ -42,16 +40,6 @@ export type TranscriptionPageDialogsProps = {
   // Focus mode
   isFocusMode: boolean;
   onExitFocusMode: () => void;
-  // PDF preview
-  locale: Locale;
-  pdfPreview: { url: string; title: string; page: number | null; navToken: number; searchSnippet?: string } | null;
-  pdfPreviewDragging: boolean;
-  pdfPreviewPos: { right: number; bottom: number };
-  pdfPreviewRef: RefObject<HTMLElement | null>;
-  onPdfPreviewDragStart: (e: React.PointerEvent<HTMLElement>) => void;
-  onPdfPreviewPageChange: (delta: number) => void;
-  onPdfPreviewOpenExternal: () => void;
-  onPdfPreviewClose: () => void;
 };
 
 export function TranscriptionPageDialogs({
@@ -79,15 +67,6 @@ export function TranscriptionPageDialogs({
   onCloseShortcuts,
   isFocusMode,
   onExitFocusMode,
-  locale,
-  pdfPreview,
-  pdfPreviewDragging,
-  pdfPreviewPos,
-  pdfPreviewRef,
-  onPdfPreviewDragStart,
-  onPdfPreviewPageChange,
-  onPdfPreviewOpenExternal,
-  onPdfPreviewClose,
 }: TranscriptionPageDialogsProps) {
   return (
     <>
@@ -98,18 +77,6 @@ export function TranscriptionPageDialogs({
         onConfirm={() => { fireAndForget(onConfirmSpeakerDialog()); }}
         onDraftNameChange={onDraftNameChange}
         onTargetSpeakerChange={onTargetSpeakerChange}
-      />
-
-      <PdfPreviewSection
-        locale={locale}
-        pdfPreview={pdfPreview}
-        pdfPreviewDragging={pdfPreviewDragging}
-        pdfPreviewPos={pdfPreviewPos}
-        pdfPreviewRef={pdfPreviewRef}
-        onDragStart={onPdfPreviewDragStart}
-        onChangePage={onPdfPreviewPageChange}
-        onOpenExternal={onPdfPreviewOpenExternal}
-        onClose={onPdfPreviewClose}
       />
 
       <ProjectSetupDialog

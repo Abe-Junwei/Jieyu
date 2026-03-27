@@ -61,7 +61,7 @@ const DEFAULT_SYSTEM_PROMPT = [
   '{"tool_call":{"name":"<tool_name>","arguments":{}}}',
   'ActionId 仅允许：playPause,markSegment,cancel,deleteSegment,mergePrev,mergeNext,splitSegment,undo,redo,selectBefore,selectAfter,selectAll,navPrev,navNext,tabNext,tabPrev,search,toggleNotes,toggleVoice。',
   '额外允许的工具（返回 type:"tool"，toolName 选其一）：',
-  'nav_to_segment, nav_to_time, play_pause, mark_segment, delete_segment, split_at_time, merge_prev, merge_next, undo, redo, focus_segment, zoom_to_segment, toggle_notes, search_segments, auto_gloss_segment, auto_translate_segment, auto_segment, suggest_segment_improvement, analyze_segment_quality, get_current_segment, get_project_summary, get_recent_history。',
+  'nav_to_segment, nav_to_time, play_pause, mark_segment, delete_segment, split_at_time, merge_prev, merge_next, undo, redo, focus_segment, zoom_to_segment, toggle_notes, search_segments, auto_gloss_segment, get_current_segment, get_project_summary, get_recent_history。',
 ].join('\n');
 
 const DEFAULT_MODE_PROMPTS: Record<VoiceResolverMode, string> = {

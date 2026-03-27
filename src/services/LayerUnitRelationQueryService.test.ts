@@ -1,6 +1,5 @@
 import 'fake-indexeddb/auto';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { featureFlags } from '../ai/config/featureFlags';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { db, getDb } from '../db';
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
 
@@ -9,29 +8,12 @@ const NOW = '2026-03-27T00:00:00.000Z';
 describe('LayerUnitRelationQueryService', () => {
   beforeEach(async () => {
     await db.open();
-    await Promise.all([
-      db.segment_links.clear(),
-      db.unit_relations.clear(),
-    ]);
-    (featureFlags as { legacySegmentationReadFallbackEnabled: boolean }).legacySegmentationReadFallbackEnabled = true;
+    await db.unit_relations.clear();
   });
 
-  afterEach(() => {
-    (featureFlags as { legacySegmentationReadFallbackEnabled: boolean }).legacySegmentationReadFallbackEnabled = true;
-  });
-
-  it('lists time-subdivision child ids from mixed legacy and LayerUnit relations', async () => {
+  it('lists time-subdivision child ids from canonical relations', async () => {
     const database = await getDb();
 
-    await db.segment_links.put({
-      id: 'lnk_child_legacy_1',
-      textId: 'text_1',
-      sourceSegmentId: 'seg_child_legacy_1',
-      targetSegmentId: 'utt_parent_1',
-      linkType: 'time_subdivision',
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
     await db.unit_relations.put({
       id: 'rel_child_unit_1',
       textId: 'text_1',
@@ -44,7 +26,7 @@ describe('LayerUnitRelationQueryService', () => {
 
     const childIds = await LayerUnitRelationQueryService.listTimeSubdivisionChildUnitIds(['utt_parent_1'], database);
 
-    expect(childIds).toEqual(expect.arrayContaining(['seg_child_legacy_1', 'seg_child_unit_1']));
+    expect(childIds).toEqual(['seg_child_unit_1']);
   });
 
   it('lists parent ids by child ids with relation-type filtering', async () => {
@@ -80,19 +62,8 @@ describe('LayerUnitRelationQueryService', () => {
     expect(parentIds).toEqual(['utt_parent_2']);
   });
 
-  it('ignores legacy-only links when legacy read fallback is disabled', async () => {
+  it('returns canonical children for residual-aware subdivision queries', async () => {
     const database = await getDb();
-    (featureFlags as { legacySegmentationReadFallbackEnabled: boolean }).legacySegmentationReadFallbackEnabled = false;
-
-    await db.segment_links.put({
-      id: 'lnk_child_legacy_ignored',
-      textId: 'text_1',
-      sourceSegmentId: 'seg_child_legacy_ignored',
-      targetSegmentId: 'utt_parent_ignored',
-      linkType: 'time_subdivision',
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
     await db.unit_relations.put({
       id: 'rel_child_unit_enabled',
       textId: 'text_1',
@@ -108,19 +79,8 @@ describe('LayerUnitRelationQueryService', () => {
     expect(childIds).toEqual(['seg_child_unit_enabled']);
   });
 
-  it('keeps legacy-only links visible for residual-aware time-subdivision queries when stop-read is disabled', async () => {
+  it('residual-aware subdivision query matches canonical subdivision query', async () => {
     const database = await getDb();
-    (featureFlags as { legacySegmentationReadFallbackEnabled: boolean }).legacySegmentationReadFallbackEnabled = false;
-
-    await db.segment_links.put({
-      id: 'lnk_child_legacy_residual',
-      textId: 'text_1',
-      sourceSegmentId: 'seg_child_legacy_residual',
-      targetSegmentId: 'utt_parent_residual',
-      linkType: 'time_subdivision',
-      createdAt: NOW,
-      updatedAt: NOW,
-    });
     await db.unit_relations.put({
       id: 'rel_child_unit_residual',
       textId: 'text_1',
@@ -136,6 +96,6 @@ describe('LayerUnitRelationQueryService', () => {
       database,
     );
 
-    expect(childIds).toEqual(expect.arrayContaining(['seg_child_legacy_residual', 'seg_child_unit_residual']));
+    expect(childIds).toEqual(['seg_child_unit_residual']);
   });
 });

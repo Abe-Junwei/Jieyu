@@ -139,3 +139,27 @@ export function getResolvedKeybindings(): Array<KeybindingEntry & { effectiveKey
     effectiveKey: overrides.get(entry.id) ?? entry.defaultKey,
   }));
 }
+
+/** 格式化快捷键组合显示 | Format keyboard combo for display */
+export function formatKeyComboForDisplay(combo: string): string {
+  const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
+  return combo
+    .split('|')[0]!
+    .split('+')
+    .map((part) => {
+      if (part === 'mod') return isMac ? '⌘' : 'Ctrl';
+      if (part === 'shift') return '⇧';
+      if (part === 'alt') return isMac ? '⌥' : 'Alt';
+      if (part === 'space') return '空格';
+      if (part === 'enter') return '↵ Enter';
+      if (part === 'escape') return 'Esc';
+      if (part === 'tab') return '⇥ Tab';
+      if (part === 'delete' || part === 'backspace') return 'Del / ⌫';
+      if (part === 'arrowleft') return '←';
+      if (part === 'arrowright') return '→';
+      if (part === 'home') return 'Home';
+      if (part === 'end') return 'End';
+      return part.toUpperCase();
+    })
+    .join(' + ');
+}

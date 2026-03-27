@@ -721,8 +721,8 @@ export function useImportExport(input: UseImportExportInput) {
         if (annotations.length === 0) continue;
         if (existingTrcLayers.length === 0) continue;
 
-        // 优先：若 tier 匹配已有独立转写层，直接写 layer_segments（无需 utterance 时间对齐匹配）
-        // Priority: if tier matches existing independent transcription layer, write layer_segments directly (no utterance time-proximity matching needed)
+        // 优先：若 tier 匹配已有独立转写层，直接写该层的 canonical segment graph（无需 utterance 时间对齐匹配）
+        // Priority: if tier matches an existing independent transcription layer, write that layer's canonical segment graph directly (no utterance time-proximity matching needed).
         const humanizedTierForLookup = humanizeTierName(tierName).toLocaleLowerCase('en');
         const indepLayerId =
           existingIndepTrcLayersByName.get(tierName.toLocaleLowerCase('en'))

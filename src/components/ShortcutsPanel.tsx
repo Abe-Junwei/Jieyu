@@ -3,34 +3,10 @@
  */
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
-import { DEFAULT_KEYBINDINGS } from '../services/KeybindingService';
+import { DEFAULT_KEYBINDINGS, formatKeyComboForDisplay } from '../services/KeybindingService';
 
 interface ShortcutsPanelProps {
   onClose: () => void;
-}
-
-/** 格式化快捷键组合显示 | Format keyboard combo for display */
-function fmtCombo(combo: string): string {
-  const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
-  return combo
-    .split('|')[0]!  // show first alternative
-    .split('+')
-    .map((part) => {
-      if (part === 'mod') return isMac ? '⌘' : 'Ctrl';
-      if (part === 'shift') return '⇧';
-      if (part === 'alt') return isMac ? '⌥' : 'Alt';
-      if (part === 'space') return '空格';
-      if (part === 'enter') return '↵ Enter';
-      if (part === 'escape') return 'Esc';
-      if (part === 'tab') return '⇥ Tab';
-      if (part === 'delete' || part === 'backspace') return 'Del / ⌫';
-      if (part === 'arrowleft') return '←';
-      if (part === 'arrowright') return '→';
-      if (part === 'home') return 'Home';
-      if (part === 'end') return 'End';
-      return part.toUpperCase();
-    })
-    .join(' + ');
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -88,7 +64,7 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
                   {entries.map((entry) => (
                     <tr key={entry.id}>
                       <td className="shortcuts-panel-key">
-                        <kbd>{fmtCombo(entry.defaultKey)}</kbd>
+                        <kbd>{formatKeyComboForDisplay(entry.defaultKey)}</kbd>
                       </td>
                       <td className="shortcuts-panel-desc">{entry.label}</td>
                       <td className="shortcuts-panel-scope">

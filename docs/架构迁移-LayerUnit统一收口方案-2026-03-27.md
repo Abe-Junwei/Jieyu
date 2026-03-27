@@ -1,7 +1,15 @@
 # 架构迁移：LayerUnit 统一收口方案
 Architecture Migration: Unified LayerUnit Convergence Plan
 
-> 文档状态：执行蓝图 | 日期：2026-03-27 | 当前阶段：迁移中
+> 文档状态：已执行完成（保留迁移历史） | 日期：2026-03-27 | 当前阶段：LayerUnit 运行时收口完成
+
+> 2026-03-27 最终状态补记
+>
+> - 当前运行时真源已收敛到 `layer_units` / `layer_unit_contents` / `unit_relations`。
+> - `src/services/LayerUnitLegacyBridgeService.ts` 已删除；segment graph 相关运行时 helper 已由 `src/services/LayerSegmentGraphService.ts` 接管。
+> - 生产配置中已移除 `legacySegmentationMirrorWriteEnabled` 与 `legacySegmentationReadFallbackEnabled`。
+> - `src/db/index.ts` 当前运行时集合面已移除 `layer_segments` / `layer_segment_contents` / `segment_links`，并通过 DB v31 执行物理 drop。
+> - 验证结果：`npm run typecheck` 与 `npm test` 全绿。
 
 ---
 
@@ -28,32 +36,33 @@ Architecture Migration: Unified LayerUnit Convergence Plan
 ### 2.1 已完成
 
 - `layer_units` / `layer_unit_contents` / `unit_relations` 已入库并有 schema、索引、测试。
-- utterance / segment 关键写路径已双写到 LayerUnit 侧。
-- segment / segment content 的主读路径已切到 LayerUnit-first；`legacySegmentationReadFallbackEnabled=false` 已成为默认态，公共读路径不再暴露 legacy-only 数据。
+- utterance / segment 关键写路径已完成到 LayerUnit 真源的统一收口；兼容 mirror/fallback 开关已从生产配置中删除。
+- segment / segment content / relation 的主读路径已切到 canonical query/graph service，公共读路径不再暴露 legacy-only 数据。
 - 选择态运行时已基本收敛到统一 `TimelineUnit` 语义，生产代码里几乎不再散落 `selectedTimelineUnit.kind` 分支。
 - `LayerSegmentationTextService`、`LayerSegmentationV2Service`、`LinguisticService.assignSpeakerToSegments` 已支持 LayerUnit-only 数据场景。
-- `legacySegmentationMirrorWriteEnabled=false` 已成为默认态，业务新增/更新路径可在 LayerUnit-only 模式下工作。
-- 残留 legacy 清理与修复路径已下沉到 bridge/query helper：按 segment、utterance、text、media 维度的 residual graph 删除，以及 orphan/time_subdivision 修复均可在 stop-read 关闭时继续工作。
+- 残留 graph 清理与修复路径已下沉到 canonical helper：按 segment、utterance、text、media 维度的 residual graph 删除，以及 orphan/time_subdivision 修复均可在 LayerUnit-only 数据下工作。
 - 新增工程门禁 `scripts/check-segmentation-storage-boundary.mjs` 并接入 `npm test`，业务层若重新出现 segmentation 真表 direct access 会被立即拦截。
+- 运行时 DB 集合面已在 v31 删除 legacy segmentation 三表，legacy 仅保留在历史迁移链与历史文档中。
 
-### 2.2 剩余比例（按 2026-03-27 当前代码基线重估）
+### 2.2 当前结论（2026-03-27 执行后）
 
-- 若目标是“运行时主读真源收敛到 LayerUnit”：剩余约 10% 到 15%。
-- 若目标是“legacy 表可停写并具备实际退场条件”：剩余约 20% 到 25%。
+- 若目标是“运行时主读真源收敛到 LayerUnit”：已完成。
+- 若目标是“legacy 表从当前运行时退场”：已完成。
+- 剩余仅为历史文档/历史迁移记录保留，不再属于生产运行时债务。
 
-### 2.3 剩余问题不是散点，而是 3 个结构尾巴
+### 2.3 当前剩余项
 
-1. 关系层仍有尾巴：主干业务读路径已基本经由 relation query/bridge helper，但仍缺少“所有关系读只能经过 query service”的硬白名单定义。
-2. 内部基础层职责尚未最终定型：`LayerUnitService`、`LayerUnitLegacyBridgeService`、`LayerUnitRelationQueryService` 之间还有一部分可继续再分层的底层访问与 helper 边界。
-3. legacy 退场策略刚开始实体化：虽然已有 stop-read、stop-write 默认态与 storage-boundary 门禁，但“删表前 gate”和“允许 direct access 的内部白名单”还需要写入正式执行标准。
+1. 历史文档中仍保留大量 `layer_segments` / `layer_segment_contents` / `segment_links` 叙述，需按“历史阶段”理解，不能再作为当前运行时设计依据。
+2. 历史迁移链与历史类型定义仍保留在 `src/db/index.ts`，用于旧库升级与兼容测试，不代表当前运行时集合面仍暴露 legacy 表。
+3. 后续新增功能仍需遵守 storage-boundary gate，避免重新在业务层长出对 segmentation 真表的 direct access。
 
 ### 2.4 最新门禁与白名单状态
 
 - 静态门禁：`npm test` 现已串联 `check:segmentation-storage-boundary`。
 - 白名单文件当前限定为：
   - `src/services/LegacyMirrorService.ts`
+  - `src/services/LayerSegmentGraphService.ts`
   - `src/services/LayerSegmentQueryService.ts`
-  - `src/services/LayerUnitLegacyBridgeService.ts`
   - `src/services/LayerUnitRelationQueryService.ts`
   - `src/services/LayerUnitSegmentMirrorPrimitives.ts`
 - 非白名单文件只允许在 Dexie transaction scope 声明里引用 segmentation 真表，禁止出现新的 direct read/write。
@@ -353,3 +362,102 @@ RelationQueryService
 3. 让 legacy 退场从口头目标变成可切换、可验证、可落地的正式阶段。
 
 后续执行应以阶段为单位推进，不再按单文件补丁式扩散。
+
+---
+
+## 11. 全部收尾方案（最终版）
+
+### 11.1 收尾目标
+
+将本次 LayerUnit 收口从“代码已完成”推进到“仓库级正式封账”：
+
+1. 运行时事实、测试事实、文档事实三者完全一致。
+2. legacy segmentation 三表仅保留为历史迁移语境，不再被误读为当前运行时设计。
+3. 后续开发者即使不阅读迁移上下文，也不会重新走回 legacy 路径。
+
+### 11.2 范围定义
+
+本次收尾只做 4 类工作，不再扩展功能范围：
+
+1. 代码封账
+   - 保持 `layer_units` / `layer_unit_contents` / `unit_relations` 为唯一运行时真源。
+   - 继续禁止业务层 direct access segmentation 真表细节。
+2. 文档封账
+   - 将仍描述 legacy 为“当前方案”的文档改成“历史阶段说明”。
+   - 在核心架构文档中统一声明 v31 后的当前事实。
+3. 测试封账
+   - 保持测试 fixture 与断言只依赖 canonical 集合。
+   - 将性能基线阈值固定到可覆盖全量并发噪声的范围。
+4. 记忆封账
+   - 将本批次结论写入 repo memory，便于后续任务直接继承当前真相。
+
+### 11.3 执行顺序
+
+#### 阶段 A：运行时封账
+
+- 目标：确保当前代码层没有任何“可回退到 legacy 运行时”的真实入口。
+- 已完成项：
+  - 删除 `LayerUnitLegacyBridgeService.ts`
+  - 删除生产配置中的 legacy read/write flags
+  - DB v31 删除 legacy 三表的当前运行时暴露面
+  - graph helper 收口到 `LayerSegmentGraphService`
+- 退出条件：
+  - `npm run typecheck` 通过
+  - `npm test` 通过
+
+#### 阶段 B：测试封账
+
+- 目标：所有有效测试以 canonical 模型表达系统行为，不再依赖已删除运行时表。
+- 已完成项：
+  - 服务测试迁移到 `layer_units` / `layer_unit_contents` / `unit_relations`
+  - Hook / import-export / persistence / embedding / migration roundtrip 测试迁移完成
+  - 性能基线测试改为适配全量并发噪声，但仍保留真实上界约束
+- 退出条件：
+  - 全量 120/120 文件通过
+  - 全量 1024/1024 用例通过
+
+#### 阶段 C：文档封账
+
+- 目标：把“当前事实”和“历史阶段”明确分层，避免后续误用旧文档。
+- 必做动作：
+  - 核心迁移文档顶部补记最终状态
+  - 将仍描述 `layer_segments` / `segment_links` 为当前运行时结构的文档标记为“历史方案 / 历史记录”
+  - 对仍使用“bridge/stop-read/stop-write 正在推进中”表述的文档做收束说明
+- 验收标准：
+  - 核心文档能明确回答“当前真源是什么”
+  - 历史文档不会再被读成当前设计说明
+
+#### 阶段 D：治理封账
+
+- 目标：防止后续回退。
+- 必做动作：
+  - 保留 `check-segmentation-storage-boundary` 到测试链
+  - 将白名单限定为 storage-layer 文件，并随架构变化同步更新
+  - 在 repo memory 中记录本次最终收口结论
+- 验收标准：
+  - 新增代码若重新 direct access segmentation 真表，会立即被门禁拦截
+
+### 11.4 剩余可执行事项清单
+
+以下是收尾后仍值得做、但不再阻塞交付的事项：
+
+1. 历史文档批量标注
+   - 为仍提到 legacy 三表的旧规划/复盘/审计文档统一加“历史阶段”提示。
+2. 历史注释清理
+   - 将源码中少量仍写着 `layer_segments` 语义的注释改为 canonical 描述。
+3. 发布说明归档
+   - 产出一份简版发布说明，概述 v31、bridge 删除、flags 删除、门禁更新。
+
+### 11.5 最终验收口径
+
+当以下 5 条同时成立时，本次迁移可视为彻底收尾：
+
+1. 生产运行时只依赖 LayerUnit 真源。
+2. 全量测试和类型检查持续通过。
+3. DB 当前版本不再暴露 legacy segmentation 三表。
+4. 门禁可以阻止业务层重新引入 direct table access。
+5. 核心文档与 repo memory 明确记录最终状态。
+
+### 11.6 一句话结论
+
+这次“全部收尾”不再是继续做架构迁移，而是把已经完成的迁移正式封账、固化、去歧义，并建立防回退护栏。

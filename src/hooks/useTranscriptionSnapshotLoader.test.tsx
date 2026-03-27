@@ -26,9 +26,9 @@ async function clearDatabase(): Promise<void> {
     db.layer_links.clear(),
     db.utterance_tokens.clear(),
     db.utterance_morphemes.clear(),
-    db.layer_segments.clear(),
-    db.layer_segment_contents.clear(),
-    db.segment_links.clear(),
+    db.layer_units.clear(),
+    db.layer_unit_contents.clear(),
+    db.unit_relations.clear(),
   ]);
 }
 

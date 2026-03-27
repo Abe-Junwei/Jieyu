@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import type { AnchorDocType, UtteranceDocType } from '../db';
 import { db } from '../db';
-import { featureFlags } from '../ai/config/featureFlags';
 import { LinguisticService } from '../services/LinguisticService';
 
 const { mockLogWarn, mockLogError } = vi.hoisted(() => ({
@@ -43,20 +42,15 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     await Promise.all([
       db.embeddings.clear(),
       db.utterances.clear(),
-      db.layer_segments.clear(),
-      db.layer_segment_contents.clear(),
-      db.segment_links.clear(),
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
     ]);
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
     mockLogWarn.mockReset();
     mockLogError.mockReset();
   });
 
   afterEach(() => {
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
     cleanup();
     vi.restoreAllMocks();
   });
@@ -426,10 +420,9 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     expect(await db.embeddings.where('sourceId').equals('utt-translation').count()).toBe(1);
   });
 
-  it('saveUtteranceText should write translation text through LayerUnit path when legacy mirror writes are disabled', async () => {
+  it('saveUtteranceText should write translation text through canonical LayerUnit path', async () => {
     const now = new Date().toISOString();
     const utterance = makeUtterance('utt-stop-write', 0, 1);
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = false;
 
     await db.utterances.put(utterance as never);
 
@@ -486,8 +479,6 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       await result.current.saveUtteranceText('utt-stop-write', 'translation via layerunit only', 'trl-en');
     });
 
-    expect(await db.layer_segments.toArray()).toEqual([]);
-    expect(await db.layer_segment_contents.toArray()).toEqual([]);
     expect(await db.layer_units.toArray()).toEqual([
       expect.objectContaining({
         id: 'segv2_trl-en_utt-stop-write',

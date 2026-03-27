@@ -5,7 +5,6 @@
  * Renders all sub-components in the correct layout positions.
  */
 
-import { AiAssistantHubContext } from '../contexts/AiAssistantHubContext';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { detectVadSegments, loadAudioBuffer } from '../services/VadService';
 import {
@@ -13,7 +12,6 @@ import {
   Pause as _Pause,
 } from 'lucide-react';
 import type { AiPanelMode, AnalysisBottomTab } from '../components/AiAnalysisPanel';
-import type { VoiceAgentWidgetProps } from '../components/VoiceAgentWidget';
 import { TranscriptionPageToolbar } from './TranscriptionPage.Toolbar';
 import { TranscriptionPageBatchOps } from './TranscriptionPage.BatchOps';
 import { TranscriptionPageDialogs } from './TranscriptionPage.Dialogs';
@@ -55,7 +53,6 @@ import { useZoom } from '../hooks/useZoom';
 import { useKeybindingActions } from '../hooks/useKeybindingActions';
 import { useJKLShuttle } from '../hooks/useJKLShuttle';
 import { useAiChat, type AiChatToolCall, type AiToolRiskCheckResult } from '../hooks/useAiChat';
-import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 import { featureFlags } from '../ai/config/featureFlags';
 import { DEFAULT_VOICE_INTENT_RESOLVER_CONFIG } from '../ai/config/voiceIntentResolver';
 import { useImportExport } from '../hooks/useImportExport';
@@ -67,6 +64,10 @@ import { useAiToolCallHandler } from '../hooks/useAiToolCallHandler';
 import { useMediaImport } from '../hooks/useMediaImport';
 import { useTranscriptionUIState } from './TranscriptionPage.UIState';
 import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
+import {
+  APP_SHELL_OPEN_SEARCH_EVENT,
+  type AppShellOpenSearchDetail,
+} from '../utils/appShellEvents';
 import { useTimelineResize } from '../hooks/useTimelineResize';
 import { useDialogs } from '../hooks/useDialogs';
 import { useLayerSegments, getLayerEditMode, layerUsesOwnSegments } from '../hooks/useLayerSegments';
@@ -76,14 +77,6 @@ import { usePanelResize } from '../hooks/usePanelResize';
 import { usePanelAutoCollapse } from '../hooks/usePanelAutoCollapse';
 import { usePanelToggles } from '../hooks/usePanelToggles';
 import { useRecoveryBanner } from '../hooks/useRecoveryBanner';
-import { usePdfPreview } from '../hooks/usePdfPreview';
-import { useVoiceDock } from '../hooks/useVoiceDock';
-import { useAiEmbeddingState } from '../hooks/useAiEmbeddingState';
-import { useAiAssistantHubContextValue } from '../hooks/useAiAssistantHubContextValue';
-import { useEmbeddingContextValue } from '../hooks/useEmbeddingContextValue';
-import { VoiceAgentProvider } from '../contexts/VoiceAgentContext';
-import { useVoiceAgentContextValue } from '../hooks/useVoiceAgentContextValue';
-import { AiChatProvider } from '../contexts/AiChatContext';
 import { useAiChatContextValue } from '../hooks/useAiChatContextValue';
 import { useSpeakerActions, getUtteranceSpeakerKey } from '../hooks/useSpeakerActions';
 import {
@@ -112,21 +105,17 @@ import {
   loadTrackEntityStateMapFromDb,
   saveTrackEntityStateToDb,
 } from '../services/TrackEntityStore';
-import { EmbeddingService } from '../ai/embeddings/EmbeddingService';
 import {
   type LayerSegmentGraphSnapshot,
   restoreLayerSegmentGraphSnapshot,
   snapshotLayerSegmentGraphByLayerIds,
-} from '../services/LayerUnitLegacyBridgeService';
-import { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
-import { createEmbeddingProvider, testEmbeddingProvider } from '../ai/embeddings/EmbeddingProviderCatalog';
+} from '../services/LayerSegmentGraphService';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
-import { getGlobalTaskRunner } from '../ai/tasks/taskRunnerSingleton';
+import { createDeferredEmbeddingSearchService } from '../ai/embeddings/DeferredEmbeddingSearchService';
+import { listRecentAiToolDecisionLogs } from '../ai/auditReplay';
 import { extractUtteranceIdFromNote, getPdfPageFromHash, isDirectPdfCitationRef, splitPdfCitationRef } from '../utils/citationJumpUtils';
-import { ToastController } from './TranscriptionPage.ToastController';
 import {
   loadEmbeddingProviderConfig,
-  saveEmbeddingProviderConfig,
 } from './TranscriptionPage.helpers';
 
 const log = createLogger('TranscriptionPage');
@@ -139,7 +128,19 @@ const RecoveryBanner = lazy(async () => import('../components/RecoveryBanner').t
   default: module.RecoveryBanner,
 })));
 
-function TranscriptionPageOrchestrator() {
+const TranscriptionPagePdfRuntime = lazy(async () => import('./TranscriptionPage.PdfRuntime').then((module) => ({
+  default: module.TranscriptionPagePdfRuntime,
+})));
+
+interface TranscriptionPageOrchestratorProps {
+  appSearchRequest?: AppShellOpenSearchDetail | null;
+  onConsumeAppSearchRequest?: () => void;
+}
+
+function TranscriptionPageOrchestrator({
+  appSearchRequest,
+  onConsumeAppSearchRequest,
+}: TranscriptionPageOrchestratorProps) {
   const locale = detectLocale();
   /** Pre-bound tf for components that need (key, params) without locale */
   const tfB = (key: string, opts?: Record<string, unknown>) => tf(locale, key as Parameters<typeof tf>[1], opts as Parameters<typeof tf>[2]);
@@ -359,47 +360,28 @@ function TranscriptionPageOrchestrator() {
   // ---- Page-only UI state ----
   const [focusedLayerRowId, setFocusedLayerRowId] = useState<string>('');
   const [flashLayerRowId, setFlashLayerRowId] = useState<string>('');
-  const {
-    pdfPreview,
-    setPdfPreview,
-    pdfPreviewPos,
-    pdfPreviewDragging,
-    pdfPreviewRef,
-    openPdfPreview,
-    handlePdfPreviewPageChange,
-    handlePdfPreviewOpenExternal,
-    handlePdfPreviewDragStart,
-  } = usePdfPreview();
-  const pdfCitationObjectUrlRef = useRef<string | null>(null);
+  const [pdfPreviewRequest, setPdfPreviewRequest] = useState<import('./TranscriptionPage.PdfRuntime').PdfPreviewOpenRequest | null>(null);
+  const pdfPreviewRequestNonceRef = useRef(0);
 
-  const cleanupPdfCitationObjectUrl = useCallback(() => {
-    const current = pdfCitationObjectUrlRef.current;
-    if (!current) return;
-    URL.revokeObjectURL(current);
-    pdfCitationObjectUrlRef.current = null;
+  const openPdfPreviewRequest = useCallback((input: {
+    title: string;
+    page: number | null;
+    sourceUrl?: string;
+    sourceBlob?: Blob;
+    hashSuffix?: string;
+    searchSnippet?: string;
+  }) => {
+    pdfPreviewRequestNonceRef.current += 1;
+    setPdfPreviewRequest({
+      nonce: pdfPreviewRequestNonceRef.current,
+      title: input.title,
+      page: input.page,
+      ...(input.sourceUrl ? { sourceUrl: input.sourceUrl } : {}),
+      ...(input.sourceBlob ? { sourceBlob: input.sourceBlob } : {}),
+      ...(input.hashSuffix ? { hashSuffix: input.hashSuffix } : {}),
+      ...(input.searchSnippet ? { searchSnippet: input.searchSnippet } : {}),
+    });
   }, []);
-
-  const handleClosePdfPreview = useCallback(() => {
-    setPdfPreview(null);
-    cleanupPdfCitationObjectUrl();
-  }, [cleanupPdfCitationObjectUrl, setPdfPreview]);
-
-  const openPdfPreviewWithManagedObjectUrl = useCallback((
-    sourceUrl: string,
-    title: string,
-    page: number | null,
-    hashSuffix = '',
-    searchSnippet?: string,
-  ) => {
-    if (!sourceUrl.startsWith('blob:')) {
-      cleanupPdfCitationObjectUrl();
-    }
-    openPdfPreview(sourceUrl, title, page, hashSuffix, searchSnippet);
-  }, [cleanupPdfCitationObjectUrl, openPdfPreview]);
-
-  useEffect(() => () => {
-    cleanupPdfCitationObjectUrl();
-  }, [cleanupPdfCitationObjectUrl]);
 
   const handleFocusLayerRow = useCallback((id: string) => {
     setFocusedLayerRowId(id);
@@ -445,21 +427,27 @@ function TranscriptionPageOrchestrator() {
     getActiveTextId,
     getActiveTextPrimaryLanguageId,
   } = useDialogs(utterances);
+  const [searchOverlayRequest, setSearchOverlayRequest] = useState<AppShellOpenSearchDetail | null>(null);
 
-  const {
-    effectiveVoiceCorpusLang,
-    voiceCorpusLangOverride,
-    handleVoiceSetLangOverride,
-    handleCommercialConfigChange,
-    commercialProviderKind,
-    setCommercialProviderKind,
-    commercialProviderConfig,
-    setCommercialProviderConfig,
-    localWhisperConfig,
-  } = useVoiceDock({
-    activeTextPrimaryLanguageId,
-    getActiveTextPrimaryLanguageId,
-  });
+  const openSearchFromRequest = useCallback((detail: AppShellOpenSearchDetail = {}) => {
+    setSearchOverlayRequest(detail);
+    setShowSearch(true);
+  }, [setShowSearch]);
+
+  useEffect(() => {
+    if (!appSearchRequest) return;
+    openSearchFromRequest(appSearchRequest);
+    onConsumeAppSearchRequest?.();
+  }, [appSearchRequest, onConsumeAppSearchRequest, openSearchFromRequest]);
+
+  useEffect(() => {
+    const handleOpenSearch = (event: Event) => {
+      const detail = (event as CustomEvent<AppShellOpenSearchDetail>).detail ?? {};
+      openSearchFromRequest(detail);
+    };
+    window.addEventListener(APP_SHELL_OPEN_SEARCH_EVENT, handleOpenSearch as EventListener);
+    return () => window.removeEventListener(APP_SHELL_OPEN_SEARCH_EVENT, handleOpenSearch as EventListener);
+  }, [openSearchFromRequest]);
 
   const createLayerWithActiveContext = useCallback(async (
     ...args: Parameters<typeof createLayer>
@@ -501,15 +489,23 @@ function TranscriptionPageOrchestrator() {
   const aiLexemeSummaryRef = useRef<string[]>([]);
   const aiAudioTimeRef = useRef(0);
   const [embeddingProviderConfig, setEmbeddingProviderConfig] = useState<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>(() => loadEmbeddingProviderConfig());
-  const embeddingProvider = useMemo(() => createEmbeddingProvider(embeddingProviderConfig), [embeddingProviderConfig]);
-  const taskRunner = useMemo(() => getGlobalTaskRunner(), []);
-  const embeddingService = useMemo(() => new EmbeddingService(embeddingProvider, taskRunner), [embeddingProvider, taskRunner]);
-  const embeddingSearchService = useMemo(() => new EmbeddingSearchService(embeddingProvider), [embeddingProvider]);
+  const embeddingSearchService = useMemo(
+    () => createDeferredEmbeddingSearchService(() => embeddingProviderConfig),
+    [embeddingProviderConfig],
+  );
+  const [aiToolDecisionLogs, setAiToolDecisionLogs] = useState<Array<{
+    id: string;
+    toolName: string;
+    decision: string;
+    requestId?: string;
+    timestamp: string;
+  }>>([]);
+  const [aiSidebarError, setAiSidebarError] = useState<string | null>(null);
 
-  // Persist embedding provider config to localStorage when it changes
-  useEffect(() => {
-    saveEmbeddingProviderConfig(embeddingProviderConfig);
-  }, [embeddingProviderConfig]);
+  const refreshAiToolDecisionLogs = useCallback(async () => {
+    const normalized = await listRecentAiToolDecisionLogs(6);
+    setAiToolDecisionLogs(normalized);
+  }, []);
 
   // Media import hook
   const { mediaFileInputRef, handleDirectMediaImport } = useMediaImport({
@@ -521,42 +517,13 @@ function TranscriptionPageOrchestrator() {
     tf: (key: string, opts?: Record<string, unknown>) => tf(locale, key as Parameters<typeof tf>[1], opts as Parameters<typeof tf>[2]),
   });
 
-  const {
-    aiEmbeddingBusy,
-    aiEmbeddingProgressLabel,
-    aiEmbeddingLastResult,
-    aiEmbeddingTasks,
-    aiEmbeddingMatches,
-    aiEmbeddingLastError,
-    aiEmbeddingWarning,
-    aiToolDecisionLogs,
-    setAiEmbeddingLastError,
-    refreshEmbeddingTasks,
-    refreshAiToolDecisionLogs,
-    handleCancelAiTask,
-    handleRetryAiTask,
-    handleBuildUtteranceEmbeddings,
-    handleBuildNotesEmbeddings,
-    handleBuildPdfEmbeddings,
-    handleFindSimilarUtterances,
-  } = useAiEmbeddingState({
-    locale,
-    taskRunner,
-    embeddingService,
-    embeddingSearchService,
-    selectedUtterance,
-    utterancesOnCurrentMedia,
-    getUtteranceTextForLayer,
-    formatTime,
-  });
-
-  useEffect(() => {
-    if (state.phase !== 'ready') return;
-    fireAndForget(refreshEmbeddingTasks());
-  }, [refreshEmbeddingTasks, state.phase]);
-
   // Pre-declare executeActionRef before useAiToolCallHandler; populated after useKeybindingActions.
   const executeActionRef = useRef<((actionId: string) => void) | undefined>(undefined);
+  const openSearchRef = useRef<typeof openSearchFromRequest | undefined>(undefined);
+  const seekToTimeRef = useRef<((timeSeconds: number) => void) | undefined>(undefined);
+  const splitAtTimeRef = useRef<((timeSeconds: number) => boolean) | undefined>(undefined);
+  const zoomToSegmentRef = useRef<((segmentId: string, zoomLevel?: number) => boolean) | undefined>(undefined);
+  openSearchRef.current = openSearchFromRequest;
 
   const handleAiToolCall = useAiToolCallHandler({
     utterances,
@@ -580,6 +547,10 @@ function TranscriptionPageOrchestrator() {
     ...(executeActionRef.current ? { executeAction: executeActionRef.current } : {}),
     getSegments: () => utterancesOnCurrentMedia,
     navigateTo: selectUtterance,
+    openSearch: (detail) => openSearchRef.current?.(detail),
+    seekToTime: (timeSeconds) => seekToTimeRef.current?.(timeSeconds),
+    splitAtTime: (timeSeconds) => splitAtTimeRef.current?.(timeSeconds) ?? false,
+    zoomToSegment: (segmentId, zoomLevel) => zoomToSegmentRef.current?.(segmentId, zoomLevel) ?? false,
   });
 
   const buildAiPromptContext = useCallback(() => {
@@ -749,10 +720,6 @@ function TranscriptionPageOrchestrator() {
     }
     throw new Error(resolved.message);
   }, [aiChat.enabled, aiChat.settings, voiceIntentResolverConfig]);
-
-  const handleTestEmbeddingProvider = useCallback(async (): Promise<{ available: boolean; error?: string }> => {
-    return testEmbeddingProvider(embeddingProviderConfig);
-  }, [embeddingProviderConfig]);
 
   useEffect(() => {
     fireAndForget(refreshAiToolDecisionLogs());
@@ -1600,7 +1567,7 @@ function TranscriptionPageOrchestrator() {
     if (citationType === 'note') {
       const note = await appDb.user_notes.get(refId);
       if (!note) {
-        setAiEmbeddingLastError(locale === 'zh-CN' ? '未找到引用的笔记。' : 'Referenced note was not found.');
+        setAiSidebarError(locale === 'zh-CN' ? '未找到引用的笔记。' : 'Referenced note was not found.');
         return;
       }
 
@@ -1628,7 +1595,7 @@ function TranscriptionPageOrchestrator() {
     if (citationType === 'schema') {
       const targetLayer = layerRailRows.find((item) => item.id === refId || item.key === refId);
       if (!targetLayer) {
-        setAiEmbeddingLastError(locale === 'zh-CN'
+        setAiSidebarError(locale === 'zh-CN'
           ? '未找到引用的层定义。'
           : 'Referenced layer schema was not found.');
         return;
@@ -1651,23 +1618,28 @@ function TranscriptionPageOrchestrator() {
       // 优先直接打开 URL 形式引用 | Prefer direct URL-like PDF citations.
       if (isDirectPdfCitationRef(refId)) {
         const snippet = citationRef?.snippet?.trim();
-        openPdfPreviewWithManagedObjectUrl(baseRef || refId.trim(), displayTitle, page, hashSuffix, snippet);
+        openPdfPreviewRequest({
+          title: displayTitle,
+          page,
+          sourceUrl: baseRef || refId.trim(),
+          ...(hashSuffix ? { hashSuffix } : {}),
+          ...(snippet ? { searchSnippet: snippet } : {}),
+        });
         return;
       }
 
-      const resolveMediaLink = (media: { url?: string; details?: Record<string, unknown> } | undefined): string | null => {
+      const resolveMediaLink = (
+        media: { url?: string; details?: Record<string, unknown> } | undefined,
+      ): { sourceUrl?: string; sourceBlob?: Blob } | null => {
         if (!media) return null;
-        if (typeof media.url === 'string' && media.url.trim()) return media.url;
+        if (typeof media.url === 'string' && media.url.trim()) return { sourceUrl: media.url };
         const details = media.details;
         if (!details) return null;
         const detailUrl = details.url;
-        if (typeof detailUrl === 'string' && detailUrl.trim()) return detailUrl;
+        if (typeof detailUrl === 'string' && detailUrl.trim()) return { sourceUrl: detailUrl };
         const pdfBlob = details.pdfBlob;
         if (pdfBlob instanceof Blob) {
-          cleanupPdfCitationObjectUrl();
-          const url = URL.createObjectURL(pdfBlob);
-          pdfCitationObjectUrlRef.current = url;
-          return url;
+          return { sourceBlob: pdfBlob };
         }
         return null;
       };
@@ -1688,7 +1660,14 @@ function TranscriptionPageOrchestrator() {
       const mediaLink = resolveMediaLink(media);
       if (mediaLink) {
         const snippet = citationRef?.snippet?.trim();
-        openPdfPreviewWithManagedObjectUrl(mediaLink, media?.filename || displayTitle, page, hashSuffix, snippet);
+        openPdfPreviewRequest({
+          title: media?.filename || displayTitle,
+          page,
+          ...(mediaLink.sourceUrl ? { sourceUrl: mediaLink.sourceUrl } : {}),
+          ...(mediaLink.sourceBlob ? { sourceBlob: mediaLink.sourceBlob } : {}),
+          ...(hashSuffix ? { hashSuffix } : {}),
+          ...(snippet ? { searchSnippet: snippet } : {}),
+        });
         return;
       }
 
@@ -1720,13 +1699,13 @@ function TranscriptionPageOrchestrator() {
         return;
       }
 
-      setAiEmbeddingLastError(locale === 'zh-CN'
+      setAiSidebarError(locale === 'zh-CN'
         ? '未找到可打开的 PDF 引用目标。'
         : 'No openable PDF citation target was found.');
       return;
     }
 
-    setAiEmbeddingLastError(locale === 'zh-CN'
+    setAiSidebarError(locale === 'zh-CN'
       ? `当前暂不支持跳转到 ${citationType} 引用。`
       : `Jump for ${citationType} citation is not supported yet.`);
   }, [
@@ -1739,9 +1718,8 @@ function TranscriptionPageOrchestrator() {
     setIsLayerRailCollapsed,
     setLayerRailTab,
     setNotePopover,
-    openPdfPreviewWithManagedObjectUrl,
     setSelectedLayerId,
-    cleanupPdfCitationObjectUrl,
+    openPdfPreviewRequest,
   ]);
 
   // 同步 duration 到 ref（供下次渲染的 zoom 计算使用）
@@ -1828,6 +1806,34 @@ function TranscriptionPageOrchestrator() {
     zoomPxPerSec,
   });
 
+  seekToTimeRef.current = (timeSeconds) => {
+    player.seekTo(timeSeconds);
+  };
+
+  splitAtTimeRef.current = (timeSeconds) => {
+    const target = utterancesOnCurrentMedia.find((item) => item.startTime < timeSeconds && item.endTime > timeSeconds);
+    if (!target) return false;
+    runSplitAtTime(target.id, timeSeconds);
+    return true;
+  };
+
+  zoomToSegmentRef.current = (segmentId, zoomLevel) => {
+    const target = utterancesOnCurrentMedia.find((item) => item.id === segmentId);
+    if (!target) return false;
+    manualSelectTsRef.current = Date.now();
+    if (player.isPlaying) {
+      player.stop();
+    }
+    selectUtterance(segmentId);
+    player.seekTo(target.startTime);
+    if (typeof zoomLevel === 'number' && Number.isFinite(zoomLevel)) {
+      zoomToPercent(Math.max(100, Math.min(800, zoomLevel * 100)), 0.5, 'custom');
+    } else {
+      zoomToUtterance(target.startTime, target.endTime);
+    }
+    return true;
+  };
+
   // 路由邻居边界：独立边界层查 segmentsByLayer，默认查 utterances | Routed neighbor bounds: independent layers → segmentsByLayer, default → utterances
   const getNeighborBoundsRouted = useCallback((itemId: string, mediaId: string | undefined, probeStart: number, layerId?: string) => {
     if (layerId) {
@@ -1861,7 +1867,7 @@ function TranscriptionPageOrchestrator() {
     return getNeighborBounds(itemId, mediaId, probeStart);
   }, [layers, segmentsByLayer, getNeighborBounds, defaultTranscriptionLayerId, utterancesOnCurrentMedia]);
 
-  // 路由保存：独立边界层写 layer_segments，默认层写 utterances | Routed save: independent layers → layer_segments, default → utterances
+  // 路由保存：独立边界层写该层 canonical segment graph，默认层写 utterances | Routed save: independent layers → canonical segment graph, default → utterances
   const saveTimingRouted = useCallback(async (id: string, start: number, end: number, layerId?: string) => {
     if (layerId) {
       const layer = layers.find((l) => l.id === layerId);
@@ -2194,48 +2200,6 @@ function TranscriptionPageOrchestrator() {
     });
   }, [data.pushUndo, setSaveState, data]);
 
-  const {
-    voiceAgent,
-    assistantVoiceExpanded,
-    voiceTargetSummary,
-    voiceStatusSummary,
-    voiceEnvironmentSummary,
-    voiceSelectionSummary,
-    handleVoiceCommercialConfigChange,
-    handleVoiceAssistantIconClick,
-    handleVoiceSwitchEngine,
-    handleMicPointerDown,
-    handleMicPointerUp,
-    handleAssistantVoicePanelToggle,
-  } = useVoiceInteraction({
-    effectiveVoiceCorpusLang,
-    voiceCorpusLangOverride,
-    executeAction,
-    handleResolveVoiceIntentWithLlm,
-    handleVoiceDictation,
-    onVoiceAnalysisResult: handleVoiceAnalysisResult,
-    activeUtteranceUnitId: selectedTimelineUtteranceId || null,
-    selectedUtterance: selectedUtterance ?? null,
-    selectedRowMeta,
-    selectedLayerId,
-    ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
-    translationLayers,
-    layers,
-    formatLayerRailLabel,
-    formatTime,
-    aiChatSend: aiChat.send,
-    aiIsStreaming: aiChat.isStreaming,
-    aiMessages: aiChat.messages,
-    localWhisperConfig,
-    commercialProviderKind,
-    commercialProviderConfig,
-    onCommercialConfigChange: handleCommercialConfigChange,
-    setCommercialProviderKind,
-    setCommercialProviderConfig,
-    featureVoiceEnabled: featureFlags.voiceAgentEnabled,
-    toggleVoiceRef,
-  });
-
   const aiPanelContextValue = useMemo(() => ({
     dbName: state.phase === 'ready' ? state.dbName : '',
     utteranceCount: state.phase === 'ready' ? state.utteranceCount : utterances.length,
@@ -2279,51 +2243,6 @@ function TranscriptionPageOrchestrator() {
     setAiPanelContext(aiPanelContextValue);
   }, [aiPanelContextValue, setAiPanelContext]);
 
-  const embeddingContextValue = useEmbeddingContextValue({
-    selectedUtterance: selectedUtterance ?? null,
-    aiEmbeddingBusy,
-    aiEmbeddingProgressLabel,
-    aiEmbeddingLastResult,
-    aiEmbeddingTasks,
-    aiEmbeddingMatches,
-    aiEmbeddingLastError,
-    aiEmbeddingWarning,
-    aiEmbeddingBuildStartedAt: null,
-    embeddingProviderKind: embeddingProviderConfig.kind,
-    embeddingProviderConfig,
-    onSetEmbeddingProviderKind: (kind) => {
-      setEmbeddingProviderConfig((prev) => ({ ...prev, kind }));
-    },
-    onTestEmbeddingProvider: handleTestEmbeddingProvider,
-    onBuildUtteranceEmbeddings: handleBuildUtteranceEmbeddings,
-    onBuildNotesEmbeddings: handleBuildNotesEmbeddings,
-    onBuildPdfEmbeddings: handleBuildPdfEmbeddings,
-    onFindSimilarUtterances: handleFindSimilarUtterances,
-    onRefreshEmbeddingTasks: refreshEmbeddingTasks,
-    onJumpToEmbeddingMatch: handleJumpToEmbeddingMatch,
-    onJumpToCitation: handleJumpToCitation,
-    onCancelAiTask: handleCancelAiTask,
-    onRetryAiTask: handleRetryAiTask,
-  });
-  const voiceAgentContextValue = useVoiceAgentContextValue({
-    voiceListening: voiceAgent.listening,
-    voiceSpeechActive: voiceAgent.speechActive,
-    voiceMode: voiceAgent.mode,
-    voiceInterimText: voiceAgent.interimText,
-    voiceFinalText: voiceAgent.finalText,
-    voiceConfidence: voiceAgent.confidence,
-    voiceError: voiceAgent.error,
-    voiceSafeMode: voiceAgent.safeMode,
-    voicePendingConfirm: voiceAgent.pendingConfirm,
-    voiceCorpusLang: effectiveVoiceCorpusLang,
-    voiceLangOverride: voiceCorpusLangOverride,
-    voiceEnabled: featureFlags.voiceAgentEnabled,
-    onVoiceToggle: voiceAgent.toggle,
-    onVoiceSwitchMode: voiceAgent.switchMode,
-    onVoiceConfirm: voiceAgent.confirmPending,
-    onVoiceCancel: voiceAgent.cancelPending,
-    onVoiceSetSafeMode: voiceAgent.setSafeMode,
-  });
   const aiChatContextValue = useAiChatContextValue({
     selectedUtterance: selectedUtterance ?? null,
     selectedRowMeta,
@@ -2356,49 +2275,6 @@ function TranscriptionPageOrchestrator() {
     onCancelPendingToolCall: aiChat.cancelPendingToolCall,
     onJumpToCitation: handleJumpToCitation,
   });
-  const aiAssistantHubContextValue = useAiAssistantHubContextValue(aiChatContextValue, voiceAgentContextValue);
-  const voiceWidgetProps: VoiceAgentWidgetProps = {
-    listening: voiceAgent.listening,
-    speechActive: voiceAgent.speechActive,
-    mode: voiceAgent.mode,
-    interimText: voiceAgent.interimText,
-    finalText: voiceAgent.finalText,
-    confidence: voiceAgent.confidence,
-    error: voiceAgent.error,
-    lastIntent: voiceAgent.lastIntent,
-    pendingConfirm: voiceAgent.pendingConfirm,
-    safeMode: voiceAgent.safeMode,
-    wakeWordEnabled: voiceAgent.wakeWordEnabled,
-    wakeWordEnergyLevel: voiceAgent.wakeWordEnergyLevel,
-    corpusLang: effectiveVoiceCorpusLang,
-    langOverride: voiceCorpusLangOverride,
-    detectedLang: voiceAgent.detectedLang,
-    engine: voiceAgent.engine,
-    isRecording: voiceAgent.isRecording,
-    energyLevel: voiceAgent.energyLevel,
-    agentState: voiceAgent.agentState,
-    recordingDuration: voiceAgent.recordingDuration,
-    session: voiceAgent.session,
-    commercialProviderKind: voiceAgent.commercialProviderKind,
-    commercialProviderConfig: voiceAgent.commercialProviderConfig,
-    targetSummary: voiceTargetSummary,
-    statusSummary: voiceStatusSummary,
-    environmentSummary: voiceEnvironmentSummary,
-    selectionSummary: voiceSelectionSummary,
-    onToggle: handleVoiceAssistantIconClick,
-    onMicPointerDown: handleMicPointerDown,
-    onMicPointerUp: handleMicPointerUp,
-    onSwitchMode: voiceAgent.switchMode,
-    onSwitchEngine: handleVoiceSwitchEngine,
-    onConfirm: voiceAgent.confirmPending,
-    onCancel: voiceAgent.cancelPending,
-    onSetSafeMode: voiceAgent.setSafeMode,
-    onSetWakeWordEnabled: voiceAgent.setWakeWordEnabled,
-    onSetLangOverride: handleVoiceSetLangOverride,
-    onSetCommercialProviderKind: voiceAgent.setCommercialProviderKind,
-    onCommercialConfigChange: handleVoiceCommercialConfigChange,
-    onTestCommercialProvider: voiceAgent.testCommercialProvider,
-  };
 
   const { handleLayerRailResizeStart, handleAiPanelResizeStart } = usePanelResize({
     isLayerRailCollapsed,
@@ -2649,17 +2525,17 @@ function TranscriptionPageOrchestrator() {
   // ── Search / Replace ──
 
   const searchableItems = useMemo(() => {
-    const items: Array<{ utteranceId: string; layerId?: string; text: string }> = [];
+    const items: Array<{ utteranceId: string; layerId?: string; layerKind?: 'transcription' | 'translation' | 'gloss'; text: string }> = [];
 
     if (transcriptionLayers.length === 0) {
       for (const utt of utterancesOnCurrentMedia) {
-        items.push({ utteranceId: utt.id, text: getUtteranceTextForLayer(utt) });
+        items.push({ utteranceId: utt.id, layerKind: 'transcription', text: getUtteranceTextForLayer(utt) });
       }
     } else {
       for (const layer of transcriptionLayers) {
         for (const utt of utterancesOnCurrentMedia) {
           const text = getUtteranceTextForLayer(utt, layer.id);
-          if (text) items.push({ utteranceId: utt.id, layerId: layer.id, text });
+          if (text) items.push({ utteranceId: utt.id, layerId: layer.id, layerKind: 'transcription', text });
         }
       }
     }
@@ -2669,7 +2545,7 @@ function TranscriptionPageOrchestrator() {
       if (!layerMap) continue;
       for (const utt of utterancesOnCurrentMedia) {
         const tr = layerMap.get(utt.id);
-        if (tr?.text) items.push({ utteranceId: utt.id, layerId: layer.id, text: tr.text });
+        if (tr?.text) items.push({ utteranceId: utt.id, layerId: layer.id, layerKind: 'translation', text: tr.text });
       }
     }
     return items;
@@ -4039,6 +3915,9 @@ function TranscriptionPageOrchestrator() {
                     items: searchableItems,
                     currentLayerId: selectedLayerId || undefined,
                     currentUtteranceId: selectedTimelineUtteranceId || undefined,
+                    ...(searchOverlayRequest?.query !== undefined ? { initialQuery: searchOverlayRequest.query } : {}),
+                    ...(searchOverlayRequest?.scope !== undefined ? { initialScope: searchOverlayRequest.scope } : {}),
+                    ...(searchOverlayRequest?.layerKinds !== undefined ? { initialLayerKinds: searchOverlayRequest.layerKinds } : {}),
                     onNavigate: (id) => {
                       manualSelectTsRef.current = Date.now();
                       if (player.isPlaying) {
@@ -4047,7 +3926,10 @@ function TranscriptionPageOrchestrator() {
                       selectUtterance(id);
                     },
                     onReplace: handleSearchReplace,
-                    onClose: () => setShowSearch(false),
+                    onClose: () => {
+                      setShowSearch(false);
+                      setSearchOverlayRequest(null);
+                    },
                   }}
                 />
                 <TimelineMainSection
@@ -4311,37 +4193,55 @@ function TranscriptionPageOrchestrator() {
               </div>
 
               <AiPanelContext.Provider value={aiPanelContextValue}>
-                <VoiceAgentProvider value={voiceAgentContextValue}>
-                  <AiChatProvider value={aiChatContextValue}>
-                    <AiAssistantHubContext.Provider value={aiAssistantHubContextValue}>
-                      <ToastController
-                        voiceAgent={voiceAgent}
-                        saveState={saveState}
-                        recording={recording}
-                        recordingUtteranceId={recordingUtteranceId}
-                        recordingError={recordingError}
-                        overlapCycleToast={overlapCycleToast}
-                        lockConflictToast={lockConflictToast}
-                        tf={tfB}
-                      />
-                      <Suspense fallback={null}>
-                        <TranscriptionPageAiSidebar
-                          locale={locale}
-                          isAiPanelCollapsed={isAiPanelCollapsed}
-                          hubSidebarTab={hubSidebarTab}
-                          onHubSidebarTabChange={setHubSidebarTab}
-                          featureVoiceAgentEnabled={featureFlags.voiceAgentEnabled}
-                          assistantVoiceExpanded={assistantVoiceExpanded}
-                          onAssistantVoicePanelToggle={handleAssistantVoicePanelToggle}
-                          voiceWidgetProps={voiceWidgetProps}
-                          analysisTab={analysisTab}
-                          onAnalysisTabChange={setAnalysisTab}
-                          embeddingContextValue={embeddingContextValue}
-                        />
-                      </Suspense>
-                    </AiAssistantHubContext.Provider>
-                  </AiChatProvider>
-                </VoiceAgentProvider>
+                <Suspense fallback={null}>
+                  <TranscriptionPageAiSidebar
+                    locale={locale}
+                    isAiPanelCollapsed={isAiPanelCollapsed}
+                    hubSidebarTab={hubSidebarTab}
+                    onHubSidebarTabChange={setHubSidebarTab}
+                    aiChatContextValue={aiChatContextValue}
+                    analysisTab={analysisTab}
+                    onAnalysisTabChange={setAnalysisTab}
+                    assistantRuntimeProps={{
+                      saveState,
+                      recording,
+                      recordingUtteranceId,
+                      recordingError,
+                      overlapCycleToast,
+                      lockConflictToast,
+                      tf: tfB,
+                      activeTextPrimaryLanguageId,
+                      getActiveTextPrimaryLanguageId,
+                      executeAction,
+                      handleResolveVoiceIntentWithLlm,
+                      handleVoiceDictation,
+                      handleVoiceAnalysisResult,
+                      activeUtteranceUnitId: selectedTimelineUtteranceId || null,
+                      selectedUtterance: selectedUtterance ?? null,
+                      selectedRowMeta,
+                      selectedLayerId,
+                      ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
+                      translationLayers,
+                      layers,
+                      formatLayerRailLabel,
+                      formatTime,
+                      onRegisterToggleVoice: (handler) => {
+                        toggleVoiceRef.current = handler;
+                      },
+                    }}
+                    analysisRuntimeProps={{
+                      selectedUtterance: selectedUtterance ?? null,
+                      utterancesOnCurrentMedia,
+                      getUtteranceTextForLayer,
+                      formatTime,
+                      onJumpToCitation: handleJumpToCitation,
+                      onJumpToEmbeddingMatch: handleJumpToEmbeddingMatch,
+                      embeddingProviderConfig,
+                      onEmbeddingProviderConfigChange: setEmbeddingProviderConfig,
+                      externalErrorMessage: aiSidebarError,
+                    }}
+                  />
+                </Suspense>
               </AiPanelContext.Provider>
 
               <TranscriptionPageDialogs
@@ -4369,16 +4269,14 @@ function TranscriptionPageOrchestrator() {
                 onCloseShortcuts={() => setShowShortcuts(false)}
                 isFocusMode={isFocusMode}
                 onExitFocusMode={() => setIsFocusMode(false)}
-                locale={locale}
-                pdfPreview={pdfPreview}
-                pdfPreviewDragging={pdfPreviewDragging}
-                pdfPreviewPos={pdfPreviewPos}
-                pdfPreviewRef={pdfPreviewRef}
-                onPdfPreviewDragStart={handlePdfPreviewDragStart}
-                onPdfPreviewPageChange={handlePdfPreviewPageChange}
-                onPdfPreviewOpenExternal={handlePdfPreviewOpenExternal}
-                onPdfPreviewClose={handleClosePdfPreview}
               />
+              <Suspense fallback={null}>
+                <TranscriptionPagePdfRuntime
+                  locale={locale}
+                  request={pdfPreviewRequest}
+                  onCloseRequest={() => setPdfPreviewRequest(null)}
+                />
+              </Suspense>
             </main>
           </ToastProvider>
 

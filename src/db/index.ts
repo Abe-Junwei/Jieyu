@@ -432,7 +432,7 @@ interface TagDefinitionDocType {
 /**
  * 层间边界约束（对齐 ELAN LINGUISTIC_TYPE.CONSTRAINTS）| Layer boundary constraint (aligned with ELAN LINGUISTIC_TYPE.CONSTRAINTS)
  * - 'symbolic_association': 继承父层边界 1:1（默认，翻译层） | Inherit parent boundaries 1:1 (default, translation)
- * - 'independent_boundary': 完全独立边界，由 layer_segments 存储 | Fully independent boundaries stored in layer_segments
+ * - 'independent_boundary': 完全独立边界，由当前 canonical segment graph（LayerUnit 真源）承载 | Fully independent boundaries are stored in the canonical segment graph backed by LayerUnit.
  * - 'time_subdivision': 在父段时间范围内自由细分（Phase 2）| Free subdivision within parent segment time range (Phase 2)
  */
 type LayerConstraint = 'symbolic_association' | 'independent_boundary' | 'time_subdivision';
@@ -1134,45 +1134,6 @@ const translationLayerDocSchema = z.object({
 
 // 移除未使用的 utteranceTextDocSchema
 
-const layerSegmentDocSchema = z
-  .object({
-    id: z.string().min(1),
-    textId: z.string().min(1),
-    mediaId: z.string().min(1),
-    layerId: z.string().min(1),
-    utteranceId: z.string().min(1).optional(),
-    speakerId: z.string().min(1).optional(),
-    startTime: z.number().finite(),
-    endTime: z.number().finite(),
-    startAnchorId: z.string().min(1).optional(),
-    endAnchorId: z.string().min(1).optional(),
-    ordinal: z.number().int().min(0).optional(),
-    externalRef: z.string().min(1).optional(),
-    provenance: provenanceSchema.optional(),
-    createdAt: isoDateSchema,
-    updatedAt: isoDateSchema,
-  })
-  .refine((doc) => doc.endTime >= doc.startTime, {
-    message: 'endTime must be >= startTime',
-    path: ['endTime'],
-  });
-
-const layerSegmentContentDocSchema = z.object({
-  id: z.string().min(1),
-  textId: z.string().min(1),
-  segmentId: z.string().min(1),
-  layerId: z.string().min(1),
-  modality: z.enum(['text', 'audio', 'mixed']),
-  text: z.string().optional(),
-  translationAudioMediaId: z.string().min(1).optional(),
-  sourceType: z.enum(['human', 'ai']),
-  ai_metadata: aiMetadataSchema.optional(),
-  provenance: provenanceSchema.optional(),
-  accessRights: accessRightsSchema.optional(),
-  createdAt: isoDateSchema,
-  updatedAt: isoDateSchema,
-});
-
 const layerUtteranceDocSchema = z
   .object({
     id: z.string().min(1),
@@ -1250,21 +1211,6 @@ const unitRelationDocSchema = z.object({
   sourceUnitId: z.string().min(1),
   targetUnitId: z.string().min(1),
   relationType: unitRelationTypeSchema,
-  provenance: provenanceSchema.optional(),
-  createdAt: isoDateSchema,
-  updatedAt: isoDateSchema,
-});
-
-const segmentLinkDocSchema = z.object({
-  id: z.string().min(1),
-  textId: z.string().min(1),
-  sourceSegmentId: z.string().min(1),
-  targetSegmentId: z.string().min(1),
-  sourceLayerId: z.string().min(1).optional(),
-  targetLayerId: z.string().min(1).optional(),
-  utteranceId: z.string().min(1).optional(),
-  linkType: z.enum(['equivalent', 'projection', 'bridge', 'time_subdivision']),
-  confidence: z.number().min(0).max(1).optional(),
   provenance: provenanceSchema.optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
@@ -1467,14 +1413,6 @@ function validateLayerDoc(doc: LayerDocType): void {
   translationLayerDocSchema.parse(doc);
 }
 
-function validateLayerSegmentDoc(doc: LayerSegmentDocType): void {
-  layerSegmentDocSchema.parse(doc);
-}
-
-function validateLayerSegmentContentDoc(doc: LayerSegmentContentDocType): void {
-  layerSegmentContentDocSchema.parse(doc);
-}
-
 function validateLayerUtteranceDoc(doc: LayerUtteranceDocType): void {
   layerUtteranceDocSchema.parse(doc);
 }
@@ -1489,10 +1427,6 @@ function validateLayerUnitContentDoc(doc: LayerUnitContentDocType): void {
 
 function validateUnitRelationDoc(doc: UnitRelationDocType): void {
   unitRelationDocSchema.parse(doc);
-}
-
-function validateSegmentLinkDoc(doc: SegmentLinkDocType): void {
-  segmentLinkDocSchema.parse(doc);
 }
 
 function validateLayerLinkDoc(doc: LayerLinkDocType): void {
@@ -1888,9 +1822,6 @@ type JieyuCollections = {
   layer_unit_contents: CollectionAdapter<LayerUnitContentDocType>;
   unit_relations: CollectionAdapter<UnitRelationDocType>;
   layer_utterances: CollectionAdapter<LayerUtteranceDocType>;
-  layer_segments: CollectionAdapter<LayerSegmentDocType>;
-  layer_segment_contents: CollectionAdapter<LayerSegmentContentDocType>;
-  segment_links: CollectionAdapter<SegmentLinkDocType>;
   layer_links: CollectionAdapter<LayerLinkDocType>;
   tier_definitions: CollectionAdapter<TierDefinitionDocType>;
   tier_annotations: CollectionAdapter<TierAnnotationDocType>;
@@ -2162,9 +2093,6 @@ class JieyuDexie extends Dexie {
   layer_unit_contents!: Table<LayerUnitContentDocType, string>;
   unit_relations!: Table<UnitRelationDocType, string>;
   layer_utterances!: Table<LayerUtteranceDocType, string>;
-  layer_segments!: Table<LayerSegmentDocType, string>;
-  layer_segment_contents!: Table<LayerSegmentContentDocType, string>;
-  segment_links!: Table<SegmentLinkDocType, string>;
   layer_links!: Table<LayerLinkDocType, string>;
   tier_definitions!: Table<TierDefinitionDocType, string>;
   tier_annotations!: Table<TierAnnotationDocType, string>;
@@ -2961,6 +2889,14 @@ class JieyuDexie extends Dexie {
       layer_unit_contents: 'id, textId, unitId, layerId, contentRole, [unitId+contentRole], [contentRole+updatedAt], sourceType, [layerId+updatedAt], updatedAt',
       unit_relations: 'id, textId, sourceUnitId, targetUnitId, relationType, [sourceUnitId+relationType], [targetUnitId+relationType]',
     });
+
+    // v31: retire legacy segmentation tables after LayerUnit convergence.
+    // LayerUnit 已成为唯一真源，物理移除 legacy segmentation 真表。
+    this.version(31).stores({
+      layer_segments: null,
+      layer_segment_contents: null,
+      segment_links: null,
+    });
   }
 }
 
@@ -3037,18 +2973,6 @@ async function _createDb(): Promise<JieyuDatabase> {
     layer_utterances: new DexieCollectionAdapter(
       dexie.layer_utterances,
       validateLayerUtteranceDoc,
-    ),
-    layer_segments: new DexieCollectionAdapter(
-      dexie.layer_segments,
-      validateLayerSegmentDoc,
-    ),
-    layer_segment_contents: new DexieCollectionAdapter(
-      dexie.layer_segment_contents,
-      validateLayerSegmentContentDoc,
-    ),
-    segment_links: new DexieCollectionAdapter(
-      dexie.segment_links,
-      validateSegmentLinkDoc,
     ),
     layer_links: new DexieCollectionAdapter(dexie.layer_links, validateLayerLinkDoc),
     tier_definitions: new DexieCollectionAdapter(dexie.tier_definitions, validateTierDefinitionDoc),
@@ -3176,9 +3100,6 @@ const knownCollectionNames = [
   'layer_units',
   'layer_unit_contents',
   'unit_relations',
-  'layer_segments',
-  'layer_segment_contents',
-  'segment_links',
   'layer_links',
   'tier_definitions',
   'tier_annotations',
@@ -3214,9 +3135,6 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   layer_units: db.layer_units,
   layer_unit_contents: db.layer_unit_contents,
   unit_relations: db.unit_relations,
-  layer_segments: db.layer_segments,
-  layer_segment_contents: db.layer_segment_contents,
-  segment_links: db.segment_links,
   layer_links: db.layer_links,
   tier_definitions: db.tier_definitions,
   tier_annotations: db.tier_annotations,
@@ -3251,10 +3169,6 @@ const validatorByCollection: Record<KnownCollectionName, (value: unknown) => voi
   layer_units: (value) => validateLayerUnitDoc(value as LayerUnitDocType),
   layer_unit_contents: (value) => validateLayerUnitContentDoc(value as LayerUnitContentDocType),
   unit_relations: (value) => validateUnitRelationDoc(value as UnitRelationDocType),
-  layer_segments: (value) => validateLayerSegmentDoc(value as LayerSegmentDocType),
-  layer_segment_contents: (value) =>
-    validateLayerSegmentContentDoc(value as LayerSegmentContentDocType),
-  segment_links: (value) => validateSegmentLinkDoc(value as SegmentLinkDocType),
   layer_links: (value) => validateLayerLinkDoc(value as LayerLinkDocType),
   tier_definitions: (value) => validateTierDefinitionDoc(value as TierDefinitionDocType),
   tier_annotations: (value) => validateTierAnnotationDoc(value as TierAnnotationDocType),
@@ -3315,18 +3229,12 @@ function normalizeImportedDoc(collectionName: KnownCollectionName, doc: unknown,
       return ensureImportProvenance(doc as UtteranceTokenDocType, fallbackCreatedAt);
     case 'utterance_morphemes':
       return ensureImportProvenance(doc as UtteranceMorphemeDocType, fallbackCreatedAt);
-    case 'layer_segments':
-      return ensureImportProvenance(doc as LayerSegmentDocType, fallbackCreatedAt);
-    case 'layer_segment_contents':
-      return ensureImportProvenance(doc as LayerSegmentContentDocType, fallbackCreatedAt);
     case 'layer_units':
       return ensureImportProvenance(doc as LayerUnitDocType, fallbackCreatedAt);
     case 'layer_unit_contents':
       return ensureImportProvenance(doc as LayerUnitContentDocType, fallbackCreatedAt);
     case 'unit_relations':
       return ensureImportProvenance(doc as UnitRelationDocType, fallbackCreatedAt);
-    case 'segment_links':
-      return ensureImportProvenance(doc as SegmentLinkDocType, fallbackCreatedAt);
     case 'tier_annotations':
       return ensureImportProvenance(doc as TierAnnotationDocType, fallbackCreatedAt);
     case 'user_notes':
@@ -3410,10 +3318,10 @@ export async function importDatabaseFromJson(
   }
 
   if ('utterance_texts' in snapshot.collections) {
-    throw new Error('Legacy collection "utterance_texts" is no longer supported; import a V2 snapshot.');
+    throw new Error('Legacy collection "utterance_texts" is no longer supported; import a LayerUnit snapshot.');
   }
-  if (!('layer_segments' in snapshot.collections) || !('layer_segment_contents' in snapshot.collections)) {
-    throw new Error('Invalid V2 snapshot: missing required collections "layer_segments" or "layer_segment_contents".');
+  if (!('layer_units' in snapshot.collections) || !('layer_unit_contents' in snapshot.collections)) {
+    throw new Error('Invalid LayerUnit snapshot: missing required collections "layer_units" or "layer_unit_contents".');
   }
 
   const result: ImportResult = {

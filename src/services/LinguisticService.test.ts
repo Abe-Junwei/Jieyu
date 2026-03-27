@@ -1,6 +1,5 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { featureFlags } from '../ai/config/featureFlags';
 import { db } from '../db';
 import type { TierDefinitionDocType, TierAnnotationDocType } from '../db';
 import { LinguisticService, validateTierConstraints } from './LinguisticService';
@@ -30,9 +29,6 @@ async function clearDatabase(): Promise<void> {
     db.tier_annotations.clear(),
     db.audit_logs.clear(),
     db.user_notes.clear(),
-    db.layer_segments.clear(),
-    db.layer_segment_contents.clear(),
-    db.segment_links.clear(),
     db.layer_units.clear(),
     db.layer_unit_contents.clear(),
     db.unit_relations.clear(),
@@ -43,7 +39,6 @@ describe('LinguisticService smoke tests', () => {
   beforeEach(async () => {
     await db.open();
     await clearDatabase();
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
   });
 
   it('can save utterance and query by media time', async () => {
@@ -112,24 +107,23 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await db.layer_segments.put({
+    await db.layer_units.put({
       id: 'seg_child_resize_1',
       textId: 'text_1',
       mediaId: 'media_1',
       layerId: 'layer_sub',
+      unitType: 'segment',
       startTime: 1.2,
       endTime: 2.8,
       createdAt: now,
       updatedAt: now,
     });
-    await db.segment_links.put({
+    await db.unit_relations.put({
       id: 'lnk_child_resize_1',
       textId: 'text_1',
-      sourceSegmentId: 'seg_child_resize_1',
-      targetSegmentId: 'utt_parent_resize_1',
-      sourceLayerId: 'layer_sub',
-      targetLayerId: 'layer_parent',
-      linkType: 'time_subdivision',
+      sourceUnitId: 'seg_child_resize_1',
+      targetUnitId: 'utt_parent_resize_1',
+      relationType: 'derived_from',
       createdAt: now,
       updatedAt: now,
     });
@@ -145,7 +139,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const child = await db.layer_segments.get('seg_child_resize_1');
+    const child = await db.layer_units.get('seg_child_resize_1');
     expect(child?.startTime).toBe(1.4);
     expect(child?.endTime).toBe(2.0);
   });
@@ -195,9 +189,8 @@ describe('LinguisticService smoke tests', () => {
     expect(records[0]!.text).toBe('hello');
   });
 
-  it('can persist utterance text through LayerUnit-only write path when legacy mirror writes are disabled', async () => {
+  it('can persist utterance text through canonical LayerUnit write path', async () => {
     const now = new Date().toISOString();
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = false;
 
     await LinguisticService.saveTranslationLayer({
       id: 'layer_stop_write',
@@ -234,8 +227,6 @@ describe('LinguisticService smoke tests', () => {
 
     const records = await LinguisticService.getUtteranceTexts('utt_stop_write');
 
-    expect(await db.layer_segments.count()).toBe(0);
-    expect(await db.layer_segment_contents.count()).toBe(0);
     expect(await db.layer_units.get('segv2_layer_stop_write_utt_stop_write')).toBeTruthy();
     expect(await db.layer_unit_contents.get('utr_stop_write')).toEqual(expect.objectContaining({
       unitId: 'segv2_layer_stop_write_utt_stop_write',
@@ -439,11 +430,12 @@ describe('LinguisticService smoke tests', () => {
     it('supports assigning speaker directly to independent segments', async () => {
       const now = new Date().toISOString();
 
-      await db.layer_segments.put({
+      await db.layer_units.put({
         id: 'seg_spk_assign_1',
         textId: 'text_spk_assign',
         mediaId: 'media_spk_assign',
         layerId: 'layer_independent',
+        unitType: 'segment',
         startTime: 0,
         endTime: 1,
         createdAt: now,
@@ -452,7 +444,7 @@ describe('LinguisticService smoke tests', () => {
 
       const speaker = await LinguisticService.createSpeaker({ name: '独立语段说话人' });
       const updatedCount = await LinguisticService.assignSpeakerToSegments(['seg_spk_assign_1'], speaker.id);
-      const segment = await db.layer_segments.get('seg_spk_assign_1');
+  const segment = await db.layer_units.get('seg_spk_assign_1');
 
       expect(updatedCount).toBe(1);
       expect(segment?.speakerId).toBe(speaker.id);
@@ -475,11 +467,9 @@ describe('LinguisticService smoke tests', () => {
 
       const speaker = await LinguisticService.createSpeaker({ name: 'LayerUnit 语段说话人' });
       const updatedCount = await LinguisticService.assignSpeakerToSegments(['seg_spk_assign_unit_1'], speaker.id);
-      const segment = await db.layer_segments.get('seg_spk_assign_unit_1');
       const unit = await db.layer_units.get('seg_spk_assign_unit_1');
 
       expect(updatedCount).toBe(1);
-      expect(segment?.speakerId).toBe(speaker.id);
       expect(unit?.speakerId).toBe(speaker.id);
     });
 
@@ -487,11 +477,12 @@ describe('LinguisticService smoke tests', () => {
       const now = new Date().toISOString();
       const speaker = await LinguisticService.createSpeaker({ name: '待清空独立语段说话人' });
 
-      await db.layer_segments.put({
+      await db.layer_units.put({
         id: 'seg_spk_clear_1',
         textId: 'text_spk_clear',
         mediaId: 'media_spk_clear',
         layerId: 'layer_independent',
+        unitType: 'segment',
         speakerId: speaker.id,
         startTime: 0,
         endTime: 1,
@@ -500,7 +491,7 @@ describe('LinguisticService smoke tests', () => {
       });
 
       const cleared = await LinguisticService.assignSpeakerToSegments(['seg_spk_clear_1'], undefined);
-      const segment = await db.layer_segments.get('seg_spk_clear_1');
+      const segment = await db.layer_units.get('seg_spk_clear_1');
 
       expect(cleared).toBe(1);
       expect(segment?.speakerId).toBeUndefined();
@@ -1018,8 +1009,8 @@ describe('LinguisticService smoke tests', () => {
     const texts = await LinguisticService.getUtteranceTexts('utt_layer_rt');
     expect(texts).toHaveLength(2);
 
-    // V2 layer_segment_contents should have both entries
-    const v2Contents = await db.layer_segment_contents
+    // Canonical layer_unit_contents should have both entries
+    const v2Contents = await db.layer_unit_contents
       .where('layerId')
       .equals('layer_trc_rt')
       .toArray();
@@ -1061,13 +1052,13 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    // V2 should have the content after save
-    expect(await db.layer_segment_contents.count()).toBeGreaterThan(0);
+    // Canonical graph should have the content after save
+    expect(await db.layer_unit_contents.count()).toBeGreaterThan(0);
 
     await LinguisticService.deleteProject('text_cascade_ut');
 
-    // V2 cascade should clean up segment contents
-    expect(await db.layer_segment_contents.where('layerId').equals('layer_cascade').count()).toBe(0);
+    // Canonical cascade should clean up segment contents
+    expect(await db.layer_unit_contents.where('layerId').equals('layer_cascade').count()).toBe(0);
     expect(await db.utterances.count()).toBe(0);
   });
 });

@@ -8,11 +8,9 @@ import {
 import {
   deleteLayerSegmentGraphBySegmentIds,
   deleteLayerSegmentGraphByUtteranceIds,
-  deleteLegacySegmentLinksBySegmentIds,
-  findResidualOrphanSegmentIds,
-  listMergedLegacySegmentContentsByIds,
-  listResidualAwareSegmentsByIds,
-} from './LayerUnitLegacyBridgeService';
+  findOrphanSegmentIds,
+  listSegmentContentsByIds,
+} from './LayerSegmentGraphService';
 import { LegacyMirrorService } from './LegacyMirrorService';
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
@@ -135,7 +133,7 @@ export async function syncUtteranceTextToSegmentationV2(
   };
 
   // 事务保护：删旧 content + 写 segment + 写 content 必须原子执行 | Transaction: stale delete + segment upsert + content upsert must be atomic
-  await db.dexie.transaction('rw', db.dexie.layer_segments, db.dexie.layer_segment_contents, db.dexie.layer_units, db.dexie.layer_unit_contents, async () => {
+  await db.dexie.transaction('rw', db.dexie.layer_units, db.dexie.layer_unit_contents, async () => {
     const staleContentIds = getSegmentContentCandidateIds(translation.id)
       .filter((id) => id !== ids.segmentContentId);
     if (staleContentIds.length > 0) {
@@ -152,7 +150,7 @@ export async function removeUtteranceTextFromSegmentationV2(
   translation: Pick<UtteranceTextDocType, 'id'>,
 ): Promise<void> {
   const candidateContentIds = getSegmentContentCandidateIds(translation.id);
-  const affectedContents = await listMergedLegacySegmentContentsByIds(db, candidateContentIds);
+  const affectedContents = await listSegmentContentsByIds(db, candidateContentIds);
   const affectedSegmentIds = Array.from(new Set(
     affectedContents.map((item) => item.segmentId),
   ));
@@ -165,7 +163,7 @@ export async function cleanupOrphanSegments(
   db: JieyuDatabase,
   candidateSegmentIds?: Iterable<string>,
 ): Promise<string[]> {
-  const orphanSegmentIds = await findResidualOrphanSegmentIds(
+  const orphanSegmentIds = await findOrphanSegmentIds(
     db,
     candidateSegmentIds ? uniqueIds(candidateSegmentIds) : undefined,
   );
@@ -173,7 +171,6 @@ export async function cleanupOrphanSegments(
   if (orphanSegmentIds.length === 0) return [];
 
   await LegacyMirrorService.deleteSegmentsByIds(db, orphanSegmentIds);
-  await deleteLegacySegmentLinksBySegmentIds(db, orphanSegmentIds);
 
   return orphanSegmentIds;
 }
@@ -208,9 +205,6 @@ export async function removeUtteranceCascadeFromSegmentationV2(
 ): Promise<void> {
   // 事务保护：级联删除 content → segment → links 必须原子执行 | Transaction: cascade delete must be atomic
   await db.dexie.transaction('rw', [
-    db.dexie.layer_segment_contents,
-    db.dexie.layer_segments,
-    db.dexie.segment_links,
     db.dexie.layer_unit_contents,
     db.dexie.layer_units,
     db.dexie.unit_relations,
@@ -242,7 +236,7 @@ export async function enforceTimeSubdivisionParentBounds(
   }
 
   const segmentById = new Map(
-    (await listResidualAwareSegmentsByIds(db, childSegmentIds)).map((segment) => [segment.id, segment] as const),
+    (await LayerSegmentQueryService.listSegmentsByIds(childSegmentIds)).map((segment) => [segment.id, segment] as const),
   );
 
   let clippedCount = 0;
@@ -259,9 +253,6 @@ export async function enforceTimeSubdivisionParentBounds(
       await db.dexie.transaction(
         'rw',
         [
-          db.dexie.layer_segments,
-          db.dexie.layer_segment_contents,
-          db.dexie.segment_links,
           db.dexie.layer_unit_contents,
           db.dexie.layer_units,
           db.dexie.unit_relations,

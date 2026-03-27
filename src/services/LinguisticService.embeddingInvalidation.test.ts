@@ -7,9 +7,9 @@ async function clearTables(): Promise<void> {
   await Promise.all([
     db.utterances.clear(),
     db.embeddings.clear(),
-    db.layer_segments.clear(),
-    db.layer_segment_contents.clear(),
-    db.segment_links.clear(),
+    db.layer_units.clear(),
+    db.layer_unit_contents.clear(),
+    db.unit_relations.clear(),
     db.tier_definitions.clear(),
   ]);
 }

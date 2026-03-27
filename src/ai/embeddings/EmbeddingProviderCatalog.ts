@@ -16,8 +16,71 @@ import type {
   EmbeddingProviderDefinition,
   EmbeddingProviderKind,
 } from './EmbeddingProvider';
-import { LocalEmbeddingProvider } from './providers/LocalEmbeddingProvider';
-import { RemoteEmbeddingProvider } from './providers/RemoteEmbeddingProvider';
+
+const DEFAULT_LOCAL_MODEL = 'Xenova/multilingual-e5-small';
+
+class LazyEmbeddingProvider implements EmbeddingProvider {
+  private providerPromise: Promise<EmbeddingProvider> | null = null;
+
+  constructor(
+    readonly kind: EmbeddingProviderKind,
+    readonly label: string,
+    readonly modelId: string,
+    private readonly loadProvider: () => Promise<EmbeddingProvider>,
+  ) {}
+
+  private async getProvider(): Promise<EmbeddingProvider> {
+    this.providerPromise ??= this.loadProvider();
+    return this.providerPromise;
+  }
+
+  async embed(texts: string[]): Promise<number[][]> {
+    return (await this.getProvider()).embed(texts);
+  }
+
+  async isAvailable(): Promise<boolean> {
+    return (await this.getProvider()).isAvailable();
+  }
+
+  async preload(options?: { onProgress?: (progress: { usingFallback?: boolean }) => void }): Promise<void> {
+    const provider = await this.getProvider();
+    await provider.preload?.(options);
+  }
+
+  terminate(): void {
+    if (!this.providerPromise) return;
+    void this.providerPromise.then((provider) => provider.terminate());
+  }
+}
+
+function createLazyLocalProvider(config: EmbeddingProviderCreateConfig): EmbeddingProvider {
+  return new LazyEmbeddingProvider(
+    'local',
+    'Xenova E5 Small (本地)',
+    config.model || DEFAULT_LOCAL_MODEL,
+    async () => {
+      const module = await import('./providers/LocalEmbeddingProvider');
+      return new module.LocalEmbeddingProvider(config);
+    },
+  );
+}
+
+function createLazyRemoteProvider(
+  kind: 'openai-compatible' | 'minimax',
+  config: EmbeddingProviderCreateConfig,
+): EmbeddingProvider {
+  const fallbackModel = kind === 'minimax' ? 'embo-01' : 'text-embedding-3-small';
+  const label = kind === 'minimax' ? 'MiniMax Embedding (付费)' : 'OpenAI Compatible Embedding (付费)';
+  return new LazyEmbeddingProvider(
+    kind,
+    label,
+    config.model || fallbackModel,
+    async () => {
+      const module = await import('./providers/RemoteEmbeddingProvider');
+      return new module.RemoteEmbeddingProvider(kind, config);
+    },
+  );
+}
 
 const PROVIDERS: Record<EmbeddingProviderKind, EmbeddingProviderDefinition> = {
   local: {
@@ -34,7 +97,7 @@ const PROVIDERS: Record<EmbeddingProviderKind, EmbeddingProviderDefinition> = {
         required: false,
       },
     ],
-    create: (cfg): EmbeddingProvider => new LocalEmbeddingProvider(cfg),
+    create: (cfg): EmbeddingProvider => createLazyLocalProvider(cfg),
   },
   'openai-compatible': {
     kind: 'openai-compatible',
@@ -46,8 +109,7 @@ const PROVIDERS: Record<EmbeddingProviderKind, EmbeddingProviderDefinition> = {
       { key: 'model', label: 'Model', type: 'text', placeholder: 'text-embedding-3-small', required: false },
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...', required: true },
     ],
-    create: (cfg): EmbeddingProvider =>
-      new RemoteEmbeddingProvider('openai-compatible', cfg),
+    create: (cfg): EmbeddingProvider => createLazyRemoteProvider('openai-compatible', cfg),
   },
   minimax: {
     kind: 'minimax',
@@ -59,8 +121,7 @@ const PROVIDERS: Record<EmbeddingProviderKind, EmbeddingProviderDefinition> = {
       { key: 'model', label: 'Model', type: 'text', placeholder: 'embo-01（留空默认）', required: false },
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'eyJ...', required: true },
     ],
-    create: (cfg): EmbeddingProvider =>
-      new RemoteEmbeddingProvider('minimax', cfg),
+    create: (cfg): EmbeddingProvider => createLazyRemoteProvider('minimax', cfg),
   },
 };
 

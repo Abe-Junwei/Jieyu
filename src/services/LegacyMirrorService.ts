@@ -4,7 +4,6 @@ import type {
   LayerSegmentDocType,
   SegmentLinkDocType,
 } from '../db';
-import { featureFlags } from '../ai/config/featureFlags';
 import {
   bulkDeleteLayerUnitContentsByIds,
   bulkUpsertSegmentLayerUnitContents,
@@ -25,76 +24,49 @@ import {
 export class LegacyMirrorService {
   static async insertSegments(db: JieyuDatabase, segments: readonly LayerSegmentDocType[]): Promise<void> {
     if (segments.length === 0) return;
-    if (featureFlags.legacySegmentationMirrorWriteEnabled) {
-      for (const segment of segments) {
-        await db.collections.layer_segments.insert(segment);
-      }
-    }
     await bulkUpsertSegmentLayerUnits(db, segments);
   }
 
   static async upsertSegments(db: JieyuDatabase, segments: readonly LayerSegmentDocType[]): Promise<void> {
     if (segments.length === 0) return;
-    if (featureFlags.legacySegmentationMirrorWriteEnabled) {
-      await db.dexie.layer_segments.bulkPut([...segments]);
-    }
     await bulkUpsertSegmentLayerUnits(db, segments);
   }
 
   static async insertSegmentContents(db: JieyuDatabase, contents: readonly LayerSegmentContentDocType[]): Promise<void> {
     if (contents.length === 0) return;
-    if (featureFlags.legacySegmentationMirrorWriteEnabled) {
-      for (const content of contents) {
-        await db.collections.layer_segment_contents.insert(content);
-      }
-    }
     await bulkUpsertSegmentLayerUnitContents(db, contents);
   }
 
   static async upsertSegmentContents(db: JieyuDatabase, contents: readonly LayerSegmentContentDocType[]): Promise<void> {
     if (contents.length === 0) return;
-    if (featureFlags.legacySegmentationMirrorWriteEnabled) {
-      await db.dexie.layer_segment_contents.bulkPut([...contents]);
-    }
     await bulkUpsertSegmentLayerUnitContents(db, contents);
   }
 
   static async insertSegmentLinks(db: JieyuDatabase, links: readonly SegmentLinkDocType[]): Promise<void> {
     if (links.length === 0) return;
-    if (featureFlags.legacySegmentationMirrorWriteEnabled) {
-      for (const link of links) {
-        await db.collections.segment_links.insert(link);
-      }
-    }
     await Promise.all(links.map((link) => upsertSegmentLinkUnitRelation(db, link)));
   }
 
   static async upsertSegmentLinks(db: JieyuDatabase, links: readonly SegmentLinkDocType[]): Promise<void> {
     if (links.length === 0) return;
-    if (featureFlags.legacySegmentationMirrorWriteEnabled) {
-      await db.dexie.segment_links.bulkPut([...links]);
-    }
     await Promise.all(links.map((link) => upsertSegmentLinkUnitRelation(db, link)));
   }
 
   static async deleteSegmentContentsByIds(db: JieyuDatabase, contentIds: readonly string[]): Promise<void> {
     const ids = [...new Set(contentIds.filter((id) => id.trim().length > 0))];
     if (ids.length === 0) return;
-    await db.dexie.layer_segment_contents.bulkDelete(ids);
     await bulkDeleteLayerUnitContentsByIds(db, ids);
   }
 
   static async deleteSegmentLinksByIds(db: JieyuDatabase, linkIds: readonly string[]): Promise<void> {
     const ids = [...new Set(linkIds.filter((id) => id.trim().length > 0))];
     if (ids.length === 0) return;
-    await db.dexie.segment_links.bulkDelete(ids);
     await db.dexie.unit_relations.bulkDelete(ids);
   }
 
   static async deleteSegmentsByIds(db: JieyuDatabase, segmentIds: readonly string[]): Promise<void> {
     const ids = [...new Set(segmentIds.filter((id) => id.trim().length > 0))];
     if (ids.length === 0) return;
-    await db.dexie.layer_segments.bulkDelete(ids);
     await deleteSegmentLayerUnitCascade(db, ids);
   }
 
@@ -103,9 +75,6 @@ export class LegacyMirrorService {
     segmentId: string,
     changes: Partial<LayerSegmentDocType>,
   ): Promise<void> {
-    if (featureFlags.legacySegmentationMirrorWriteEnabled) {
-      await db.collections.layer_segments.update(segmentId, changes);
-    }
     await db.dexie.layer_units.update(segmentId, {
       ...(changes.textId !== undefined ? { textId: changes.textId } : {}),
       ...(changes.layerId !== undefined ? { layerId: changes.layerId } : {}),

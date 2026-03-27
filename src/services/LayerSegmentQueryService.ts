@@ -43,6 +43,12 @@ function filterLegacySegmentContents(
 }
 
 export class LayerSegmentQueryService {
+  static async listSegmentsByLayerId(layerId: string): Promise<LayerSegmentDocType[]> {
+    const db = await getDb();
+    const unitRows = await db.dexie.layer_units.where('layerId').equals(layerId).toArray();
+    return toLegacySegments(unitRows);
+  }
+
   static async listSegmentsByLayerMedia(layerId: string, mediaId: string): Promise<LayerSegmentDocType[]> {
     const db = await getDb();
     const unitRows = await db.dexie.layer_units.where('[layerId+mediaId]').equals([layerId, mediaId]).toArray();

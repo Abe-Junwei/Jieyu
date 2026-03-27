@@ -1,8 +1,18 @@
-/**
- * TranscriptionPage
- *
- * NOTE: This file is kept for backward compatibility with any direct imports.
- * All hooks, state, and sub-components have been moved to TranscriptionPage.Orchestrator.tsx.
- * This file now simply re-exports from the Orchestrator.
- */
-export { TranscriptionPage } from './TranscriptionPage.Orchestrator';
+import { Suspense, lazy } from 'react';
+
+interface TranscriptionPageProps {
+  appSearchRequest?: import('../utils/appShellEvents').AppShellOpenSearchDetail | null;
+  onConsumeAppSearchRequest?: () => void;
+}
+
+const TranscriptionPageOrchestrator = lazy(async () => import('./TranscriptionPage.Orchestrator').then((module) => ({
+	default: module.TranscriptionPage,
+})));
+
+export function TranscriptionPage(props: TranscriptionPageProps) {
+	return (
+		<Suspense fallback={null}>
+			<TranscriptionPageOrchestrator {...props} />
+		</Suspense>
+	);
+}

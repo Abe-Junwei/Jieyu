@@ -46,10 +46,10 @@ import {
   deleteResidualLayerUnitGraphByMediaId,
   deleteResidualLayerUnitGraphByTextId,
   deleteUtteranceLayerUnitCascade,
-  listResidualAwareSegmentsByIds,
   upsertUtteranceLayerUnit,
-} from './LayerUnitLegacyBridgeService';
+} from './LayerSegmentGraphService';
 import { LegacyMirrorService } from './LegacyMirrorService';
+import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 
 // ── Constraint violation types ──────────────────────────────
 
@@ -983,7 +983,7 @@ export class LinguisticService {
       resolvedSpeakerId = speakerDoc.toJSON().id;
     }
 
-    const rows = await listResidualAwareSegmentsByIds(db, ids);
+    const rows = await LayerSegmentQueryService.listSegmentsByIds(ids);
     if (rows.length === 0) return 0;
 
     const now = new Date().toISOString();
@@ -1613,12 +1613,9 @@ export class LinguisticService {
       'rw',
       [
         db.dexie.embeddings,
-        db.dexie.layer_segment_contents,
-        db.dexie.layer_segments,
         db.dexie.layer_unit_contents,
         db.dexie.layer_units,
         db.dexie.unit_relations,
-        db.dexie.segment_links,
         db.dexie.utterance_tokens,
         db.dexie.utterance_morphemes,
         db.dexie.token_lexeme_links,
@@ -1686,12 +1683,9 @@ export class LinguisticService {
       'rw',
       [
         db.dexie.embeddings,
-        db.dexie.layer_segment_contents,
-        db.dexie.layer_segments,
         db.dexie.layer_unit_contents,
         db.dexie.layer_units,
         db.dexie.unit_relations,
-        db.dexie.segment_links,
         db.dexie.utterance_tokens,
         db.dexie.utterance_morphemes,
         db.dexie.token_lexeme_links,
@@ -1743,12 +1737,9 @@ export class LinguisticService {
       'rw',
       [
         db.dexie.embeddings,
-        db.dexie.layer_segment_contents,
-        db.dexie.layer_segments,
         db.dexie.layer_unit_contents,
         db.dexie.layer_units,
         db.dexie.unit_relations,
-        db.dexie.segment_links,
         db.dexie.utterance_tokens,
         db.dexie.utterance_morphemes,
         db.dexie.token_lexeme_links,
@@ -1799,12 +1790,9 @@ export class LinguisticService {
       'rw',
       [
         db.dexie.embeddings,
-        db.dexie.layer_segment_contents,
-        db.dexie.layer_segments,
         db.dexie.layer_unit_contents,
         db.dexie.layer_units,
         db.dexie.unit_relations,
-        db.dexie.segment_links,
         db.dexie.utterance_tokens,
         db.dexie.utterance_morphemes,
         db.dexie.token_lexeme_links,

@@ -1,6 +1,5 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { featureFlags } from '../ai/config/featureFlags';
 import { db, getDb, type LayerSegmentContentDocType, type LayerSegmentDocType, type SegmentLinkDocType } from '../db';
 import { LegacyMirrorService } from './LegacyMirrorService';
 
@@ -10,23 +9,18 @@ describe('LegacyMirrorService', () => {
   beforeEach(async () => {
     await db.open();
     await Promise.all([
-      db.layer_segments.clear(),
-      db.layer_segment_contents.clear(),
-      db.segment_links.clear(),
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
     ]);
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
   });
 
   afterEach(() => {
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
+    // noop
   });
 
-  it('can skip legacy segmentation insert and update writes while keeping LayerUnit rows current', async () => {
+  it('writes segment graph into LayerUnit canonical tables', async () => {
     const database = await getDb();
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = false;
 
     const segment: LayerSegmentDocType = {
       id: 'seg_flag_1',
@@ -67,10 +61,6 @@ describe('LegacyMirrorService', () => {
       endTime: 0.9,
       updatedAt: '2026-03-27T00:01:00.000Z',
     });
-
-    expect(await db.layer_segments.get(segment.id)).toBeUndefined();
-    expect(await db.layer_segment_contents.get(content.id)).toBeUndefined();
-    expect(await db.segment_links.get(link.id)).toBeUndefined();
 
     const unit = await db.layer_units.get(segment.id);
     const unitContent = await db.layer_unit_contents.get(content.id);

@@ -2,6 +2,11 @@
 
 > 2026-07 · 基于代码审计后修正的轻量方案  
 > 原则：**保留现有 ELAN 数据模型不变，修复操作路径 + 收敛散落判断 + 开放 time_subdivision**
+>
+> 历史说明（2026-03-27 封账补记）
+>
+> - 本文档基于 legacy segmentation 阶段建模。
+> - 当前运行时已改为 LayerUnit 真源，文中 `layer_segments` / `layer_segment_contents` / `segment_links` 相关描述应视为历史设计背景。
 
 ---
 

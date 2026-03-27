@@ -169,9 +169,9 @@ describe('buildSegmentationV2BackfillRows', () => {
       db.texts.clear(),
       db.tier_definitions.clear(),
       db.utterances.clear(),
-      db.layer_segments.clear(),
-      db.layer_segment_contents.clear(),
-      db.segment_links.clear(),
+      db.layer_units.clear(),
+      db.layer_unit_contents.clear(),
+      db.unit_relations.clear(),
     ]);
 
     const utterances: UtteranceDocType[] = [
@@ -219,29 +219,6 @@ describe('buildSegmentationV2BackfillRows', () => {
       },
     ];
 
-    const utteranceTexts: UtteranceTextDocType[] = [
-      {
-        id: 'utr_rt_1',
-        utteranceId: 'utt_rt_1',
-        layerId: 'tier_rt_trl',
-        modality: 'text',
-        text: 'hello-1',
-        sourceType: 'human',
-        createdAt: NOW,
-        updatedAt: NOW,
-      },
-      {
-        id: 'utr_rt_2',
-        utteranceId: 'utt_rt_2',
-        layerId: 'tier_rt_trl',
-        modality: 'text',
-        text: 'hello-2',
-        sourceType: 'human',
-        createdAt: NOW,
-        updatedAt: NOW,
-      },
-    ];
-
     await db.texts.bulkPut([
       {
         id: 'text_rt_1',
@@ -253,23 +230,89 @@ describe('buildSegmentationV2BackfillRows', () => {
     await db.tier_definitions.bulkPut(tiers);
     await db.utterances.bulkPut(utterances);
 
-    const backfill = buildSegmentationV2BackfillRows({
-      utterances,
-      utteranceTexts,
-      tiers,
-      nowIso: NOW,
-    });
-    await db.layer_segments.bulkPut(backfill.segments);
-    await db.layer_segment_contents.bulkPut(backfill.contents);
-    await db.segment_links.bulkPut(backfill.links);
+    await db.layer_units.bulkPut([
+      {
+        id: 'seg_rt_trl_1',
+        textId: 'text_rt_1',
+        mediaId: 'media_rt_1',
+        layerId: 'tier_rt_trl',
+        unitType: 'segment',
+        parentUnitId: 'utt_rt_1',
+        rootUnitId: 'utt_rt_1',
+        startTime: 0,
+        endTime: 1,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'seg_rt_trl_2',
+        textId: 'text_rt_1',
+        mediaId: 'media_rt_1',
+        layerId: 'tier_rt_trl',
+        unitType: 'segment',
+        parentUnitId: 'utt_rt_2',
+        rootUnitId: 'utt_rt_2',
+        startTime: 1,
+        endTime: 2,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+    await db.layer_unit_contents.bulkPut([
+      {
+        id: 'utr_rt_1',
+        textId: 'text_rt_1',
+        unitId: 'seg_rt_trl_1',
+        layerId: 'tier_rt_trl',
+        contentRole: 'primary_text',
+        modality: 'text',
+        text: 'hello-1',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'utr_rt_2',
+        textId: 'text_rt_1',
+        unitId: 'seg_rt_trl_2',
+        layerId: 'tier_rt_trl',
+        contentRole: 'primary_text',
+        modality: 'text',
+        text: 'hello-2',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+    await db.unit_relations.bulkPut([
+      {
+        id: 'rel_rt_1',
+        textId: 'text_rt_1',
+        sourceUnitId: 'seg_rt_trl_1',
+        targetUnitId: 'utt_rt_1',
+        relationType: 'derived_from',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'rel_rt_2',
+        textId: 'text_rt_1',
+        sourceUnitId: 'seg_rt_trl_2',
+        targetUnitId: 'utt_rt_2',
+        relationType: 'derived_from',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
 
     const pickCollections = (snapshot: { collections: Record<string, unknown[]> }) => {
       const keys = [
+        'texts',
         'utterances',
         'tier_definitions',
-        'layer_segments',
-        'layer_segment_contents',
-        'segment_links',
+        'layer_units',
+        'layer_unit_contents',
+        'unit_relations',
       ];
       const stripVolatileFields = (row: unknown): unknown => {
         if (!row || typeof row !== 'object') return row;
@@ -290,9 +333,9 @@ describe('buildSegmentationV2BackfillRows', () => {
       db.texts.clear(),
       db.tier_definitions.clear(),
       db.utterances.clear(),
-      db.layer_segments.clear(),
-      db.layer_segment_contents.clear(),
-      db.segment_links.clear(),
+      db.layer_units.clear(),
+      db.layer_unit_contents.clear(),
+      db.unit_relations.clear(),
     ]);
 
     await importDatabaseFromJson({
@@ -300,11 +343,12 @@ describe('buildSegmentationV2BackfillRows', () => {
       exportedAt: NOW,
       dbName: database.name,
       collections: {
+        texts: before.texts,
         utterances: before.utterances,
         tier_definitions: before.tier_definitions,
-        layer_segments: before.layer_segments,
-        layer_segment_contents: before.layer_segment_contents,
-        segment_links: before.segment_links,
+        layer_units: before.layer_units,
+        layer_unit_contents: before.layer_unit_contents,
+        unit_relations: before.unit_relations,
       },
     }, { strategy: 'replace-all' });
 

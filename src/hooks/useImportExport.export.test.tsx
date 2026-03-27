@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { featureFlags } from '../ai/config/featureFlags';
 import type { LayerDocType, MediaItemDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 import { useImportExport } from './useImportExport';
 
@@ -282,11 +281,9 @@ describe('useImportExport - export eaf behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
   });
 
   afterEach(() => {
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
   });
 
   it('passes layerSegments to exportToEaf for time-aligned translation layers', async () => {
@@ -324,8 +321,7 @@ describe('useImportExport - export eaf behavior', () => {
     expect(callArg?.layerSegmentContents?.get('trl-ind')?.get('seg-trl-ind')?.text).toBe('layer-unit-trl-ind');
   });
 
-  it('still exports EAF segment data from LayerUnit view when legacy mirror writes are disabled', async () => {
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = false;
+  it('exports EAF segment data from the canonical LayerUnit view', async () => {
     mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
     const input = makeInput();
     const { result } = renderHook(() => useImportExport(input));

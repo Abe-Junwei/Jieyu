@@ -6,6 +6,7 @@ import { AutoGlossService } from '../ai/AutoGlossService';
 import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import { loadRecentVoiceSessions } from '../services/VoiceSessionStore';
 import { createLogger } from '../observability/logger';
+import type { AppShellSearchScope } from '../utils/appShellEvents';
 
 const log = createLogger('useAiToolCallHandler');
 
@@ -48,6 +49,14 @@ type Params = {
   getSegments?: () => UtteranceDocType[];
   /** 导航到指定句段（用于 nav_to_segment）| Navigate to a segment by ID */
   navigateTo?: (segmentId: string) => void;
+  /** 打开搜索并预填查询 | Open search with prefilled query */
+  openSearch?: (detail: { query: string; scope?: AppShellSearchScope; layerKinds?: Array<'transcription' | 'translation' | 'gloss'> }) => void;
+  /** 跳转到绝对时间 | Seek to absolute time */
+  seekToTime?: (timeSeconds: number) => void;
+  /** 在绝对时间点分割句段 | Split segment at absolute time */
+  splitAtTime?: (timeSeconds: number) => boolean;
+  /** 缩放并定位句段 | Zoom and focus a segment */
+  zoomToSegment?: (segmentId: string, zoomLevel?: number) => boolean;
 };
 
 /**
@@ -89,6 +98,10 @@ interface ExecutionContext {
   executeAction: ((actionId: string) => void) | undefined;
   getSegments?: () => UtteranceDocType[];
   navigateTo?: (segmentId: string) => void;
+  openSearch?: Params['openSearch'];
+  seekToTime?: Params['seekToTime'];
+  splitAtTime?: Params['splitAtTime'];
+  zoomToSegment?: Params['zoomToSegment'];
 }
 
 /**
@@ -658,8 +671,26 @@ const voiceAdapter: ToolObjectAdapter = {
       return { ok: true, message: '已重做。' };
     }
     if (call.name === 'search_segments') {
+      const query = String(call.arguments.query ?? '').trim();
+      const rawLayers = Array.isArray(call.arguments.layers)
+        ? call.arguments.layers.filter((item): item is 'transcription' | 'translation' | 'gloss' => (
+          item === 'transcription' || item === 'translation' || item === 'gloss'
+        ))
+        : [];
+      if (!query) {
+        return { ok: false, message: 'search_segments 需要 query 参数。' };
+      }
+      if (ctx.openSearch) {
+        ctx.openSearch({ query, scope: 'global', ...(rawLayers.length > 0 ? { layerKinds: rawLayers } : {}) });
+        return {
+          ok: true,
+          message: rawLayers.length > 0
+            ? `已打开搜索并预填关键词“${query}”（范围：${rawLayers.join(' / ')}）。`
+            : `已打开搜索并预填关键词“${query}”。`,
+        };
+      }
       ctx.executeAction?.('search');
-      return { ok: true, message: '已打开搜索。' };
+      return { ok: true, message: `已打开搜索，请手动输入“${query}”。` };
     }
     if (call.name === 'toggle_notes') {
       ctx.executeAction?.('toggleNotes');
@@ -702,12 +733,17 @@ const voiceAdapter: ToolObjectAdapter = {
     if (call.name === 'nav_to_time') {
       const t = Number(call.arguments.timeSeconds);
       if (!Number.isFinite(t) || t < 0) return { ok: false, message: 'nav_to_time 需要有效的 timeSeconds（秒）。' };
-      return { ok: false, message: `跳转至 ${t} 秒需要音频播放支持。` };
+      if (!ctx.seekToTime) return { ok: false, message: `跳转至 ${t} 秒需要音频播放支持。` };
+      ctx.seekToTime(t);
+      return { ok: true, message: `已跳转到 ${t.toFixed(2)} 秒。` };
     }
     if (call.name === 'split_at_time') {
       const t = Number(call.arguments.timeSeconds);
       if (!Number.isFinite(t) || t < 0) return { ok: false, message: 'split_at_time 需要有效的 timeSeconds。' };
-      return { ok: false, message: `在 ${t} 秒处分割需要音频播放支持，请使用"分割"命令。` };
+      if (!ctx.splitAtTime) return { ok: false, message: `在 ${t} 秒处分割需要音频播放支持，请使用"分割"命令。` };
+      const ok = ctx.splitAtTime(t);
+      if (!ok) return { ok: false, message: `未找到覆盖 ${t.toFixed(2)} 秒的句段，无法执行分割。` };
+      return { ok: true, message: `已在 ${t.toFixed(2)} 秒处分割句段。` };
     }
     if (call.name === 'merge_prev') {
       ctx.executeAction?.('mergePrev');
@@ -728,9 +764,20 @@ const voiceAdapter: ToolObjectAdapter = {
     }
     if (call.name === 'zoom_to_segment') {
       const segId = String(call.arguments.segmentId ?? '').trim();
+      const zoomLevel = typeof call.arguments.zoomLevel === 'number' ? call.arguments.zoomLevel : undefined;
       if (!segId) return { ok: false, message: 'zoom_to_segment 需要 segmentId 参数。' };
       const found = ctx.utterances.find((u) => u.id === segId);
       if (!found) return { ok: false, message: `未找到句段：${segId}` };
+      if (ctx.zoomToSegment) {
+        const ok = ctx.zoomToSegment(segId, zoomLevel);
+        if (!ok) return { ok: false, message: `未能缩放到句段：${segId}` };
+        return {
+          ok: true,
+          message: typeof zoomLevel === 'number'
+            ? `已定位并缩放到句段 ${segId}（级别 ${zoomLevel}）。`
+            : `已定位并缩放到句段 ${segId}。`,
+        };
+      }
       ctx.navigateTo?.(segId);
       return { ok: true, message: `已跳转至句段 ${segId}，请使用鼠标滚轮或缩放控制调整缩放级别。` };
     }
@@ -826,6 +873,10 @@ export function useAiToolCallHandler({
   executeAction,
   getSegments,
   navigateTo,
+  openSearch,
+  seekToTime,
+  splitAtTime,
+  zoomToSegment,
 }: Params): (call: AiChatToolCall) => Promise<AiChatToolResult> {
   const utterancesRef = useLatest(utterances);
   const selectedUtteranceRef = useLatest(selectedUtterance);
@@ -851,7 +902,7 @@ export function useAiToolCallHandler({
     // 预绑定解析函数（已捕获当前 call + 快照数据）
     // Pre-bind resolver helpers (closed over current call + snapshot)
     const resolveRequestedUtterance = (): UtteranceDocType | null => {
-      const requestedId = String(call.arguments.utteranceId ?? '').trim();
+      const requestedId = String(call.arguments.utteranceId ?? call.arguments.segmentId ?? '').trim();
       if (requestedId.length === 0) return null;
       return currentUtterances.find((item) => item.id === requestedId) ?? null;
     };
@@ -914,6 +965,10 @@ export function useAiToolCallHandler({
       executeAction,
       getSegments: getSegments!,
       navigateTo: navigateTo!,
+      openSearch,
+      seekToTime,
+      splitAtTime,
+      zoomToSegment,
     };
 
     const adapter = ADAPTER_MAP[call.name];
@@ -936,6 +991,10 @@ export function useAiToolCallHandler({
     executeAction,
     getSegments,
     navigateTo,
+    openSearch,
+    seekToTime,
+    splitAtTime,
+    zoomToSegment,
     utterancesRef,
     selectedUtteranceRef,
     selectedUtteranceMediaRef,

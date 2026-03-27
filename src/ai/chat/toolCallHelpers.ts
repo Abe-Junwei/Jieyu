@@ -432,19 +432,19 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   play_pause: { label: '播放/暂停', contextFill: {}, validateArgs: () => null },
   undo: { label: '撤销', contextFill: {}, validateArgs: () => null },
   redo: { label: '重做', contextFill: {}, validateArgs: () => null },
-  search_segments: { label: '搜索句段', contextFill: {}, validateArgs: () => null },
+  search_segments: { label: '搜索句段', contextFill: {}, validateArgs: (args) => validateArgText({ text: args.query }) },
   toggle_notes: { label: '切换备注', contextFill: {}, validateArgs: () => null },
   mark_segment: { label: '标记句段', contextFill: {}, validateArgs: () => null },
   delete_segment: { label: '删除句段', contextFill: {}, validateArgs: () => null },
   auto_gloss_segment: {
     label: '自动标注',
     contextFill: { utteranceId: true },
-    validateArgs: (args) => validateArgId(args, 'utteranceId', false),
+    validateArgs: (args) => validateArgId(args, 'segmentId', false) ?? validateArgId(args, 'utteranceId', false),
   },
   auto_translate_segment: {
     label: '自动翻译',
     contextFill: { utteranceId: true },
-    validateArgs: (args) => validateArgId(args, 'utteranceId', false),
+    validateArgs: (args) => validateArgId(args, 'segmentId', false) ?? validateArgId(args, 'utteranceId', false),
   },
   nav_to_segment: {
     label: '导航到句段',
@@ -526,16 +526,26 @@ export function planToolCallTargets(
   };
 
   const ensureUtteranceId = (): string => {
+    const existingSegmentId = getFirstNonEmptyString(nextCall.arguments.segmentId);
+    if (existingSegmentId) {
+      return existingSegmentId;
+    }
     const existing = getFirstNonEmptyString(nextCall.arguments.utteranceId);
     if (existing) {
       if (currentUtteranceId && existing !== currentUtteranceId) {
         nextCall.arguments.utteranceId = currentUtteranceId;
+        if (call.name === 'auto_gloss_segment' || call.name === 'auto_translate_segment') {
+          nextCall.arguments.segmentId = currentUtteranceId;
+        }
         return currentUtteranceId;
       }
       return existing;
     }
     if (currentUtteranceId) {
       nextCall.arguments.utteranceId = currentUtteranceId;
+      if (call.name === 'auto_gloss_segment' || call.name === 'auto_translate_segment') {
+        nextCall.arguments.segmentId = currentUtteranceId;
+      }
       return currentUtteranceId;
     }
     return '';

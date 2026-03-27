@@ -2,7 +2,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { featureFlags } from '../ai/config/featureFlags';
 import { db } from '../db';
 import type { LayerDocType } from '../db';
 import { useImportExport } from './useImportExport';
@@ -51,9 +50,6 @@ describe('useImportExport - import success under stop-write', () => {
       db.texts.clear(),
       db.tier_definitions.clear(),
       db.utterances.clear(),
-      db.layer_segments.clear(),
-      db.layer_segment_contents.clear(),
-      db.segment_links.clear(),
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
@@ -61,16 +57,12 @@ describe('useImportExport - import success under stop-write', () => {
       db.speakers.clear(),
     ]);
     vi.clearAllMocks();
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
   });
 
   afterEach(() => {
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = true;
   });
 
-  it('imports transcription text through LayerUnit-only write path when legacy mirror writes are disabled', async () => {
-    (featureFlags as { legacySegmentationMirrorWriteEnabled: boolean }).legacySegmentationMirrorWriteEnabled = false;
-
+  it('imports transcription text through canonical LayerUnit write path', async () => {
     const defaultLayer: LayerDocType = {
       id: 'trc-default-import',
       textId: 'text-import',
@@ -118,8 +110,6 @@ describe('useImportExport - import success under stop-write', () => {
     });
 
     expect(await db.utterances.count()).toBe(1);
-    expect(await db.layer_segments.count()).toBe(0);
-    expect(await db.layer_segment_contents.count()).toBe(0);
     expect(await db.layer_units.where('unitType').equals('segment').count()).toBe(1);
     expect(await db.layer_unit_contents.count()).toBe(1);
     expect(await db.layer_unit_contents.toArray()).toEqual([

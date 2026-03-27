@@ -1,10 +1,13 @@
-import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Moon, Sun, Search, User } from 'lucide-react';
-import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Keyboard, Moon, Search, Sun } from 'lucide-react';
+import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
+import { ShortcutsPanel } from './components/ShortcutsPanel';
 import { AiPanelProvider } from './contexts/AiPanelContext';
 import { detectLocale, t } from './i18n';
+import { formatKeyComboForDisplay, getEffectiveKeymap } from './services/KeybindingService';
+import type { AppShellOpenSearchDetail } from './utils/appShellEvents';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const TranscriptionPage = lazy(() => import('./pages/TranscriptionPage').then(m => ({ default: m.TranscriptionPage })));
@@ -26,11 +29,14 @@ function NotFound({ locale }: { locale: ReturnType<typeof detectLocale> }) {
 
 export function App() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isTranscriptionRoute = location.pathname.startsWith('/transcription');
   const locale = useMemo(() => detectLocale(), []);
   const headerRef = useRef<HTMLElement | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
   const [isHeaderCompact, setIsHeaderCompact] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [pendingSearchRequest, setPendingSearchRequest] = useState<AppShellOpenSearchDetail | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     const stored = window.localStorage.getItem('jieyu-theme');
     if (stored === 'light' || stored === 'dark') return stored;
@@ -81,18 +87,21 @@ export function App() {
       id: 'workbench',
       items: [
         { to: '/transcription', label: t(locale, 'app.nav.transcription') },
-        { to: '/annotation', label: t(locale, 'app.nav.annotation') },
-        { to: '/analysis', label: t(locale, 'app.nav.analysis') },
-      ],
-    },
-    {
-      id: 'knowledge',
-      items: [
-        { to: '/writing', label: t(locale, 'app.nav.writing') },
-        { to: '/lexicon', label: t(locale, 'app.nav.lexicon') },
       ],
     },
   ], [locale]);
+
+  const searchShortcutLabel = useMemo(() => {
+    const combo = getEffectiveKeymap().get('search') ?? 'mod+f';
+    return formatKeyComboForDisplay(combo);
+  }, []);
+
+  const handleOpenSearch = useCallback(() => {
+    setPendingSearchRequest({});
+    if (!isTranscriptionRoute) {
+      navigate('/transcription');
+    }
+  }, [isTranscriptionRoute, navigate]);
 
   // Header is now fixed at top: 12px, so transcription content starts at headerHeight + 12
   const transcriptionMainStyle = isTranscriptionRoute
@@ -141,14 +150,16 @@ export function App() {
               ) : null}
             </Fragment>
           ))}
+          <span className="header-nav-status">其余工作台规划中</span>
         </nav>
 
         <div className="header-actions">
           <button
             type="button"
             className="header-action-btn header-action-btn-search"
-            title="搜索 (⌘K)"
+            title={`搜索 (${searchShortcutLabel})`}
             aria-label="搜索"
+            onClick={handleOpenSearch}
           >
             <Search size={15} />
           </button>
@@ -164,10 +175,11 @@ export function App() {
           <button
             type="button"
             className="header-action-btn"
-            title="用户"
-            aria-label="用户"
+            title="快捷键"
+            aria-label="快捷键"
+            onClick={() => setShowShortcuts(true)}
           >
-            <User size={15} />
+            <Keyboard size={15} />
           </button>
         </div>
       </header>
@@ -180,7 +192,15 @@ export function App() {
           <Suspense fallback={null}>
             <Routes>
               <Route path="/" element={<Navigate to="/transcription" replace />} />
-              <Route path="/transcription" element={<TranscriptionPage />} />
+              <Route
+                path="/transcription"
+                element={(
+                  <TranscriptionPage
+                    appSearchRequest={pendingSearchRequest}
+                    onConsumeAppSearchRequest={() => setPendingSearchRequest(null)}
+                  />
+                )}
+              />
               <Route path="/annotation" element={<AnnotationPage />} />
               <Route path="/analysis" element={<AnalysisPage />} />
               <Route path="/writing" element={<WritingPage />} />
@@ -190,6 +210,7 @@ export function App() {
           </Suspense>
         </AiPanelProvider>
       </main>
+      {showShortcuts ? <ShortcutsPanel onClose={() => setShowShortcuts(false)} /> : null}
       {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
     </div>
     </ErrorBoundary>

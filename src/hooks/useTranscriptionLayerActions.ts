@@ -23,7 +23,7 @@ import {
 import { listUtteranceTextsByUtterances } from '../services/LayerSegmentationTextService';
 import {
   deleteLayerSegmentGraphByLayerId,
-} from '../services/LayerUnitLegacyBridgeService';
+} from '../services/LayerSegmentGraphService';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 
 export type TranscriptionLayerActionsParams = {

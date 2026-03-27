@@ -1,39 +1,31 @@
 import { lazy, Suspense } from 'react';
-import { AiChatCard } from '../components/ai/AiChatCard';
-import type { VoiceAgentWidgetProps } from '../components/VoiceAgentWidget';
 import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
-import { EmbeddingProvider, type EmbeddingContextValue } from '../contexts/EmbeddingContext';
+import type { AiChatContextValue } from '../contexts/AiChatContext';
+import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.AssistantRuntime';
+import type {
+  TranscriptionPageAnalysisRuntimeProps,
+} from './TranscriptionPage.AnalysisRuntime';
 
-const AiAnalysisPanel = lazy(async () => import('../components/AiAnalysisPanel').then((module) => ({
-  default: module.AiAnalysisPanel,
+const AssistantRuntime = lazy(async () => import('./TranscriptionPage.AssistantRuntime').then((module) => ({
+  default: module.TranscriptionPageAssistantRuntime,
 })));
 
-const VoiceAgentWidget = lazy(async () => import('../components/VoiceAgentWidget').then((module) => ({
-  default: module.VoiceAgentWidget,
+const AnalysisRuntime = lazy(async () => import('./TranscriptionPage.AnalysisRuntime').then((module) => ({
+  default: module.TranscriptionPageAnalysisRuntime,
 })));
 
 type HubSidebarTab = 'assistant' | 'analysis';
-
-type AiChatVoiceEntry = {
-  enabled: boolean;
-  expanded: boolean;
-  listening: boolean;
-  statusText: string;
-  onTogglePanel: () => void;
-};
 
 interface TranscriptionPageAiSidebarProps {
   locale: string;
   isAiPanelCollapsed: boolean;
   hubSidebarTab: HubSidebarTab;
   onHubSidebarTabChange: (tab: HubSidebarTab) => void;
-  featureVoiceAgentEnabled: boolean;
-  assistantVoiceExpanded: boolean;
-  onAssistantVoicePanelToggle: () => void;
-  voiceWidgetProps: VoiceAgentWidgetProps;
+  aiChatContextValue: AiChatContextValue;
   analysisTab: AnalysisBottomTab;
   onAnalysisTabChange: (tab: AnalysisBottomTab) => void;
-  embeddingContextValue: EmbeddingContextValue;
+  assistantRuntimeProps: Omit<TranscriptionPageAssistantRuntimeProps, 'locale' | 'aiChatContextValue'>;
+  analysisRuntimeProps: Omit<TranscriptionPageAnalysisRuntimeProps, 'locale' | 'analysisTab' | 'onAnalysisTabChange'>;
 }
 
 export function TranscriptionPageAiSidebar({
@@ -41,26 +33,12 @@ export function TranscriptionPageAiSidebar({
   isAiPanelCollapsed,
   hubSidebarTab,
   onHubSidebarTabChange,
-  featureVoiceAgentEnabled,
-  assistantVoiceExpanded,
-  onAssistantVoicePanelToggle,
-  voiceWidgetProps,
+  aiChatContextValue,
   analysisTab,
   onAnalysisTabChange,
-  embeddingContextValue,
+  assistantRuntimeProps,
+  analysisRuntimeProps,
 }: TranscriptionPageAiSidebarProps) {
-  const voiceEntry: AiChatVoiceEntry | undefined = featureVoiceAgentEnabled
-    ? ({
-      enabled: true,
-      expanded: assistantVoiceExpanded,
-      listening: voiceWidgetProps.listening,
-      statusText: voiceWidgetProps.listening
-        ? (locale === 'zh-CN' ? '监听中' : 'Listening')
-        : (locale === 'zh-CN' ? '待命' : 'Standby'),
-      onTogglePanel: onAssistantVoicePanelToggle,
-    } satisfies AiChatVoiceEntry)
-    : undefined;
-
   return (
     <aside className={`transcription-ai-panel ${isAiPanelCollapsed ? 'transcription-ai-panel-collapsed' : ''}`}>
       <div className="transcription-hub-sidebar-tabs" role="tablist">
@@ -85,29 +63,22 @@ export function TranscriptionPageAiSidebar({
       </div>
 
       {hubSidebarTab === 'assistant' ? (
-        <div className="transcription-hub-assistant-panel">
-          <div className="transcription-hub-assistant-chat-section">
-            <AiChatCard
-              embedded
-              voiceDrawer={featureVoiceAgentEnabled && assistantVoiceExpanded
-                ? (
-                    <Suspense fallback={null}>
-                      <VoiceAgentWidget {...voiceWidgetProps} />
-                    </Suspense>
-                  )
-                : undefined}
-              voiceEntry={voiceEntry}
-            />
-          </div>
-        </div>
+        <Suspense fallback={null}>
+          <AssistantRuntime
+            locale={locale}
+            aiChatContextValue={aiChatContextValue}
+            {...assistantRuntimeProps}
+          />
+        </Suspense>
       ) : (
-        <div className="transcription-hub-sidebar-panel-body">
-          <EmbeddingProvider value={embeddingContextValue}>
-            <Suspense fallback={null}>
-              <AiAnalysisPanel isCollapsed={false} activeTab={analysisTab} onChangeActiveTab={onAnalysisTabChange} />
-            </Suspense>
-          </EmbeddingProvider>
-        </div>
+        <Suspense fallback={null}>
+          <AnalysisRuntime
+            locale={locale}
+            analysisTab={analysisTab}
+            onAnalysisTabChange={onAnalysisTabChange}
+            {...analysisRuntimeProps}
+          />
+        </Suspense>
       )}
     </aside>
   );

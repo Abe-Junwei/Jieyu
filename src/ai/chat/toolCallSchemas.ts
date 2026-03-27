@@ -146,6 +146,19 @@ const NAV_TARGET_SCHEMA = z.object({ segmentIndex: z.number().int().nonnegative(
 const TIME_TARGET_SCHEMA = z.object({ timeSeconds: z.number().finite().nonnegative() });
 const SEGMENT_TARGET_SCHEMA = z.object({ segmentId: IdString });
 const START_TIME_SCHEMA = z.object({ startTime: z.number().finite().nonnegative().optional() });
+const SEARCH_SEGMENTS_SCHEMA = z.object({
+  query: TextString,
+  layers: z.array(z.enum(['transcription', 'translation', 'gloss'])).optional(),
+});
+const OPTIONAL_SEGMENT_TARGET_SCHEMA = z.object({ segmentId: IdString.optional() });
+const SEGMENT_OR_UTTERANCE_TARGET_SCHEMA = z.object({
+  segmentId: IdString.optional(),
+  utteranceId: IdString.optional(),
+}).superRefine((args, ctx) => {
+  if (!args.segmentId && !args.utteranceId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '需要 segmentId 或 utteranceId。' });
+  }
+});
 
 // ─── Schema map ──────────────────────────────────────────────────────────────
 
@@ -167,22 +180,22 @@ export const toolArgumentSchemas = {
   play_pause: NoArgs,
   undo: NoArgs,
   redo: NoArgs,
-  search_segments: NoArgs,
+  search_segments: SEARCH_SEGMENTS_SCHEMA,
   toggle_notes: NoArgs,
-  mark_segment: NoArgs,
-  delete_segment: NoArgs,
-  auto_gloss_segment: z.object({ utteranceId: IdString.optional() }),
-  auto_translate_segment: z.object({ utteranceId: IdString.optional() }),
+  mark_segment: OPTIONAL_SEGMENT_TARGET_SCHEMA,
+  delete_segment: OPTIONAL_SEGMENT_TARGET_SCHEMA,
+  auto_gloss_segment: SEGMENT_OR_UTTERANCE_TARGET_SCHEMA,
+  auto_translate_segment: SEGMENT_OR_UTTERANCE_TARGET_SCHEMA,
   nav_to_segment: NAV_TARGET_SCHEMA,
   nav_to_time: TIME_TARGET_SCHEMA,
   focus_segment: SEGMENT_TARGET_SCHEMA,
-  zoom_to_segment: SEGMENT_TARGET_SCHEMA,
+  zoom_to_segment: z.object({ segmentId: IdString, zoomLevel: z.number().int().min(1).max(20).optional() }),
   split_at_time: TIME_TARGET_SCHEMA,
-  merge_prev: NoArgs,
-  merge_next: NoArgs,
+  merge_prev: OPTIONAL_SEGMENT_TARGET_SCHEMA,
+  merge_next: OPTIONAL_SEGMENT_TARGET_SCHEMA,
   auto_segment: START_TIME_SCHEMA,
-  suggest_segment_improvement: z.object({ utteranceId: IdString.optional() }),
-  analyze_segment_quality: z.object({ utteranceId: IdString.optional() }),
+  suggest_segment_improvement: SEGMENT_OR_UTTERANCE_TARGET_SCHEMA,
+  analyze_segment_quality: SEGMENT_OR_UTTERANCE_TARGET_SCHEMA,
   get_current_segment: NoArgs,
   get_project_summary: NoArgs,
   get_recent_history: NoArgs,

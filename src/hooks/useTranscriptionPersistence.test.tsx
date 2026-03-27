@@ -27,9 +27,6 @@ describe('useTranscriptionPersistence', () => {
     await Promise.all([
       db.utterances.clear(),
       db.speakers.clear(),
-      db.layer_segments.clear(),
-      db.layer_segment_contents.clear(),
-      db.segment_links.clear(),
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
@@ -91,7 +88,6 @@ describe('useTranscriptionPersistence', () => {
 
     await result.current.syncToDb([utterance], [translation], [], { conflictGuard: true });
 
-    expect(await db.layer_segment_contents.get('utr_sync_1')).toBeUndefined();
     expect(await db.layer_unit_contents.get('utr_sync_1')).toEqual(expect.objectContaining({
       unitId: 'segv2_layer_sync_utt_sync_1',
       text: 'layer-unit-only',

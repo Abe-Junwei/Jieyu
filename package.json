@@ -12,7 +12,11 @@
     "check:tier-boundary-imports": "node scripts/check-tier-boundary-imports.mjs",
     "report:tierid-diffusion": "node scripts/report-tierid-diffusion.mjs",
     "check:tierid-diffusion": "node scripts/report-tierid-diffusion.mjs --strict --max-off-boundary=0",
+    "audit:prod": "npm audit --omit=dev",
+    "audit:prod:json": "npm audit --omit=dev --json",
     "test": "npm run check:messages-imports && npm run check:segmentation-storage-boundary && npm run check:tier-boundary-imports && npm run check:tierid-diffusion && vitest run",
+    "profile:build-assets": "node scripts/profile-build-assets.mjs",
+    "build:profile": "npm run build && npm run profile:build-assets",
     "perf:ai": "vitest run src/ai/perf/AiPerformanceBaseline.test.tsx --reporter=verbose",
     "perf:track": "vitest run src/perf/TrackLayoutPerformanceBaseline.test.ts --reporter=verbose",
     "perf:embedding-candidates": "vitest run src/ai/perf/EmbeddingCandidateSetPerformanceBaseline.test.ts --reporter=verbose"
@@ -22,6 +26,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@sentry/react": "^10.46.0",
     "@tanstack/react-virtual": "^3.13.23",
     "@xenova/transformers": "^2.17.2",
     "dexie": "^4.3.0",

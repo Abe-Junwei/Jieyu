@@ -62,6 +62,9 @@ export default defineConfig({
           }
 
           if (!id.includes('node_modules')) return undefined;
+          if (id.includes('/@sentry/')) {
+            return 'sentry-vendor';
+          }
           if (id.includes('/react/') || id.includes('/react-dom/')) {
             return 'react-vendor';
           }

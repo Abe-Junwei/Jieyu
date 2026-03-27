@@ -588,4 +588,88 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     expect(response?.message).toContain('缺少 translationLayerId/layerId');
     expect(toggleSpy).not.toHaveBeenCalled();
   });
+
+  it('opens search with prefilled query and layer kinds for search_segments', async () => {
+    const openSearch = vi.fn();
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          openSearch,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'search_segments',
+        arguments: { query: 'hello', layers: ['translation'] },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(openSearch).toHaveBeenCalledWith({ query: 'hello', scope: 'global', layerKinds: ['translation'] });
+  });
+
+  it('seeks to absolute time for nav_to_time when runtime callback exists', async () => {
+    const seekToTime = vi.fn();
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          seekToTime,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({ name: 'nav_to_time', arguments: { timeSeconds: 12.5 } });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(seekToTime).toHaveBeenCalledWith(12.5);
+  });
+
+  it('splits at absolute time for split_at_time when runtime callback exists', async () => {
+    const splitAtTime = vi.fn<(timeSeconds: number) => boolean>().mockReturnValue(true);
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          splitAtTime,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({ name: 'split_at_time', arguments: { timeSeconds: 3.2 } });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(splitAtTime).toHaveBeenCalledWith(3.2);
+  });
+
+  it('honors zoomLevel when zoom_to_segment is backed by runtime callback', async () => {
+    const zoomToSegment = vi.fn<(segmentId: string, zoomLevel?: number) => boolean>().mockReturnValue(true);
+    const utterance = makeUtterance('u-zoom');
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [utterance],
+          zoomToSegment,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'zoom_to_segment',
+        arguments: { segmentId: 'u-zoom', zoomLevel: 6 },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(zoomToSegment).toHaveBeenCalledWith('u-zoom', 6);
+  });
 });

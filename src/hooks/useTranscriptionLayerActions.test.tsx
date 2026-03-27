@@ -63,7 +63,7 @@ vi.mock('../services/LayerSegmentQueryService', () => ({
   },
 }));
 
-vi.mock('../services/LayerUnitLegacyBridgeService', () => ({
+vi.mock('../services/LayerSegmentGraphService', () => ({
   deleteLayerSegmentGraphByLayerId: mockDeleteLayerSegmentGraphByLayerId,
 }));
 

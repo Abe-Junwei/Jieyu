@@ -602,8 +602,8 @@ export function TranscriptionTimelineMediaLanes({
         const isCollapsed = collapsedLayerIds.has(layer.id);
         const baseLaneHeight = laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT;
         const visibleLaneHeight = isCollapsed ? 14 : baseLaneHeight;
-        // 独立边界层使用 layer_segments 数据源，否则继承 utterance 边界
-        // Independent-boundary layers use layer_segments, others inherit utterance boundaries
+        // 独立边界层使用按 layer 聚合的 canonical segment graph，否则继承 utterance 边界
+        // Independent-boundary layers use the canonical per-layer segment graph; other layers inherit utterance boundaries.
         const isIndependent = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
         const layerSegments = isIndependent ? (segmentsByLayer?.get(layer.id) ?? []) : undefined;
         const iterationSource: Array<{ id: string; startTime: number; endTime: number }> =

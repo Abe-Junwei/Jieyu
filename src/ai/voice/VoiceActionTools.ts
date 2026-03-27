@@ -268,48 +268,6 @@ export const VOICE_ACTION_TOOL_DEFINITIONS: VoiceActionToolDef[] = [
       required: [],
     },
   },
-  {
-    name: 'auto_translate_segment',
-    description: '对当前句段或指定句段运行自动翻译。用于"翻译这句"等指令。',
-    parameters: {
-      properties: {
-        segmentId: { type: 'string', description: '句段 ID，不传则使用当前选中句段' },
-        targetLang: { type: 'string', description: '目标语言（ BCP-47），不传则使用默认翻译层语言' },
-      },
-      required: [],
-    },
-  },
-  {
-    name: 'auto_segment',
-    description: '对一段音频范围运行自动切分。用于"重新切分"等指令。',
-    parameters: {
-      properties: {
-        startTime: { type: 'number', description: '起始时间（秒）' },
-        endTime: { type: 'number', description: '结束时间（秒）' },
-      },
-      required: [],
-    },
-  },
-  {
-    name: 'suggest_segment_improvement',
-    description: '请求 AI 对指定句段的转写/翻译/标注提出改进建议。',
-    parameters: {
-      properties: {
-        segmentId: { type: 'string', description: '句段 ID' },
-        type: { type: 'string', enum: ['transcription', 'translation', 'gloss', 'all'], description: '改进类型' },
-      },
-      required: ['segmentId', 'type'],
-    },
-  },
-  {
-    name: 'analyze_segment_quality',
-    description: '对指定句段进行质量分析（ SNR、清晰度、是否困难句段）。',
-    parameters: {
-      properties: { segmentId: { type: 'string', description: '句段 ID' } },
-      required: ['segmentId'],
-    },
-  },
-
   // ── Context query ───────────────────────────────────────────────────────────
   {
     name: 'get_current_segment',

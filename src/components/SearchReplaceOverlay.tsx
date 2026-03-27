@@ -4,14 +4,19 @@ import {
   buildReplacePlan,
   findSearchMatches,
   type SearchMatch,
+  type SearchableItem,
   type SearchReplaceOptions,
 } from '../utils/searchReplaceUtils';
+import type { AppShellSearchScope } from '../utils/appShellEvents';
 
 interface SearchReplaceOverlayProps {
-  /** All searchable items: { id, text, layerId? } */
-  items: Array<{ utteranceId: string; layerId?: string; text: string }>;
+  /** All searchable items: { id, text, layerId?, layerKind? } */
+  items: SearchableItem[];
   currentLayerId?: string | undefined;
   currentUtteranceId?: string | undefined;
+  initialQuery?: string;
+  initialScope?: AppShellSearchScope;
+  initialLayerKinds?: Array<'transcription' | 'translation' | 'gloss'>;
   onNavigate: (utteranceId: string) => void;
   onReplace: (utteranceId: string, layerId: string | undefined, oldText: string, newText: string) => void;
   onClose: () => void;
@@ -23,16 +28,20 @@ export function SearchReplaceOverlay({
   items,
   currentLayerId,
   currentUtteranceId,
+  initialQuery,
+  initialScope,
+  initialLayerKinds,
   onNavigate,
   onReplace,
   onClose,
 }: SearchReplaceOverlayProps) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery ?? '');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [replaceText, setReplaceText] = useState('');
   const [showReplace, setShowReplace] = useState(false);
   const [showReplacePreview, setShowReplacePreview] = useState(false);
-  const [scope, setScope] = useState<SearchScope>('current-layer');
+  const [scope, setScope] = useState<SearchScope>(initialScope ?? 'current-layer');
+  const [layerKinds, setLayerKinds] = useState<Array<'transcription' | 'translation' | 'gloss'>>(initialLayerKinds ?? []);
   const [options, setOptions] = useState<SearchReplaceOptions>({
     caseSensitive: false,
     wholeWord: false,
@@ -44,6 +53,23 @@ export function SearchReplaceOverlay({
   useEffect(() => {
     searchRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (initialQuery === undefined) return;
+    setQuery(initialQuery);
+    setDebouncedQuery(initialQuery);
+    setCurrentIndex(0);
+  }, [initialQuery]);
+
+  useEffect(() => {
+    if (!initialScope) return;
+    setScope(initialScope);
+  }, [initialScope]);
+
+  useEffect(() => {
+    if (!initialLayerKinds) return;
+    setLayerKinds(initialLayerKinds);
+  }, [initialLayerKinds]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -62,6 +88,11 @@ export function SearchReplaceOverlay({
     return items;
   }, [scope, currentUtteranceId, currentLayerId, items]);
 
+  const filteredItems = useMemo(() => {
+    if (layerKinds.length === 0) return scopedItems;
+    return scopedItems.filter((item) => item.layerKind && layerKinds.includes(item.layerKind));
+  }, [layerKinds, scopedItems]);
+
   const patternAnalysis = useMemo(
     () => analyzeSearchPattern(debouncedQuery, options),
     [debouncedQuery, options],
@@ -69,13 +100,13 @@ export function SearchReplaceOverlay({
 
   // Compute matches with debounce + memo for large corpora.
   const matches: SearchMatch[] = useMemo(
-    () => patternAnalysis.pattern ? findSearchMatches(scopedItems, debouncedQuery, options) : [],
-    [scopedItems, debouncedQuery, options, patternAnalysis.pattern],
+    () => patternAnalysis.pattern ? findSearchMatches(filteredItems, debouncedQuery, options) : [],
+    [filteredItems, debouncedQuery, options, patternAnalysis.pattern],
   );
 
   const replacePlan = useMemo(
-    () => buildReplacePlan(scopedItems, debouncedQuery, replaceText, options),
-    [scopedItems, debouncedQuery, replaceText, options],
+    () => buildReplacePlan(filteredItems, debouncedQuery, replaceText, options),
+    [filteredItems, debouncedQuery, replaceText, options],
   );
 
   // Clamp index
@@ -122,75 +153,61 @@ export function SearchReplaceOverlay({
   );
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 200,
-        background: '#fff',
-        border: '1px solid #d1d5db',
-        borderRadius: 12,
-        boxShadow: '0 12px 28px rgba(0,0,0,.18)',
-        padding: '12px 14px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-        minWidth: 520,
-        maxWidth: 'min(88vw, 760px)',
-        fontSize: 14,
-      }}
-      onKeyDown={handleKeyDown}
-    >
+    <div className="search-replace-overlay-backdrop" role="presentation" onMouseDown={onClose}>
+      <div
+        className="search-replace-overlay"
+        onKeyDown={handleKeyDown}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
       {/* Search row */}
-      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+      <div className="search-replace-row">
         <input
           ref={searchRef}
           type="text"
           placeholder="搜索…"
           value={query}
           onChange={(e) => { setQuery(e.target.value); setCurrentIndex(0); }}
-          style={{
-            flex: 1,
-            padding: '8px 10px',
-            border: '1px solid #d1d5db',
-            borderRadius: 8,
-            fontSize: 14,
-            outline: 'none',
-          }}
+          className="search-replace-input"
         />
-        <span style={{ whiteSpace: 'nowrap', color: '#6b7280', fontSize: 12, minWidth: 50, textAlign: 'center' }}>
+        <span className="search-replace-count">
           {matches.length > 0 ? `${safeIndex + 1}/${matches.length}` : debouncedQuery ? '无结果' : ''}
         </span>
-        <button onClick={goPrev} disabled={matches.length === 0} style={btnStyle} title="上一个 (Shift+Enter)">▲</button>
-        <button onClick={goNext} disabled={matches.length === 0} style={btnStyle} title="下一个 (Enter)">▼</button>
-        <button onClick={() => setShowReplace((v) => !v)} style={btnStyle} title="替换">⇄</button>
-        <button onClick={onClose} style={btnStyle} title="关闭 (Esc)">✕</button>
+        <button onClick={goPrev} disabled={matches.length === 0} className="search-replace-btn" title="上一个 (Shift+Enter)">▲</button>
+        <button onClick={goNext} disabled={matches.length === 0} className="search-replace-btn" title="下一个 (Enter)">▼</button>
+        <button onClick={() => setShowReplace((v) => !v)} className="search-replace-btn" title="替换">⇄</button>
+        <button onClick={onClose} className="search-replace-btn" title="关闭 (Esc)">✕</button>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center', color: '#4b5563', fontSize: 12 }}>
+      <div className="search-replace-toolbar">
         <select
           value={scope}
           onChange={(e) => {
             setScope(e.target.value as SearchScope);
             setCurrentIndex(0);
           }}
-          style={{
-            border: '1px solid #d1d5db',
-            borderRadius: 4,
-            padding: '2px 6px',
-            fontSize: 12,
-            color: '#374151',
-            background: '#fff',
-          }}
+          className="search-replace-select"
           title="搜索范围"
         >
           <option value="current-layer">当前层</option>
           <option value="current-utterance">当前句段</option>
           <option value="global">全局</option>
         </select>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+        <select
+          value={layerKinds.length === 1 ? layerKinds[0] : 'all'}
+          onChange={(e) => {
+            const next = e.target.value;
+            setLayerKinds(next === 'all' ? [] : [next as 'transcription' | 'translation' | 'gloss']);
+            setCurrentIndex(0);
+          }}
+          className="search-replace-select"
+          title="搜索内容类型"
+        >
+          <option value="all">全部内容</option>
+          <option value="transcription">仅转写</option>
+          <option value="translation">仅翻译</option>
+          <option value="gloss">仅 gloss</option>
+        </select>
+        <label className="search-replace-toggle">
           <input
             type="checkbox"
             checked={options.caseSensitive}
@@ -198,7 +215,7 @@ export function SearchReplaceOverlay({
           />
           区分大小写
         </label>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+        <label className="search-replace-toggle">
           <input
             type="checkbox"
             checked={options.wholeWord}
@@ -206,7 +223,7 @@ export function SearchReplaceOverlay({
           />
           全词匹配
         </label>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+        <label className="search-replace-toggle">
           <input
             type="checkbox"
             checked={options.regexMode}
@@ -217,29 +234,13 @@ export function SearchReplaceOverlay({
       </div>
 
       {(patternAnalysis.error || patternAnalysis.warning) && (
-        <div style={{
-          border: '1px solid #fecaca',
-          background: '#fff1f2',
-          borderRadius: 6,
-          padding: '5px 8px',
-          fontSize: 12,
-          color: '#9f1239',
-          lineHeight: 1.45,
-        }}>
+        <div className="search-replace-alert">
           {patternAnalysis.error ?? patternAnalysis.warning}
         </div>
       )}
 
       {currentMatch && (
-        <div style={{
-          border: '1px solid #e2e8f0',
-          background: '#f8fafc',
-          borderRadius: 6,
-          padding: '6px 8px',
-          fontSize: 12,
-          color: '#334155',
-          lineHeight: 1.5,
-        }}>
+        <div className="search-replace-preview">
           {(() => {
             const contextSize = 16;
             const previewStart = Math.max(0, currentMatch.matchStart - contextSize);
@@ -252,7 +253,7 @@ export function SearchReplaceOverlay({
             return (
               <span>
                 <span>{prefix}{before}</span>
-                <mark style={{ background: '#fde68a', color: '#92400e', padding: '0 1px' }}>{hit}</mark>
+                <mark className="search-replace-mark">{hit}</mark>
                 <span>{after}{suffix}</span>
               </span>
             );
@@ -262,26 +263,19 @@ export function SearchReplaceOverlay({
 
       {/* Replace row */}
       {showReplace && (
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <div className="search-replace-row">
           <input
             type="text"
             placeholder="替换为…"
             value={replaceText}
             onChange={(e) => setReplaceText(e.target.value)}
-            style={{
-              flex: 1,
-              padding: '4px 8px',
-              border: '1px solid #d1d5db',
-              borderRadius: 4,
-              fontSize: 13,
-              outline: 'none',
-            }}
+            className="search-replace-input search-replace-input-compact"
           />
-          <button onClick={handleReplaceCurrent} disabled={!currentMatch} style={btnStyle} title="替换当前">替换</button>
+          <button onClick={handleReplaceCurrent} disabled={!currentMatch} className="search-replace-btn" title="替换当前">替换</button>
           <button
             onClick={() => setShowReplacePreview((v) => !v)}
             disabled={replacePlan.length === 0}
-            style={btnStyle}
+            className="search-replace-btn"
             title="预览全部替换"
           >
             预览
@@ -290,41 +284,23 @@ export function SearchReplaceOverlay({
       )}
 
       {showReplace && showReplacePreview && (
-        <div style={{
-          border: '1px solid #cbd5e1',
-          background: '#f8fafc',
-          borderRadius: 6,
-          padding: '8px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-        }}>
-          <div style={{ fontSize: 12, color: '#334155', fontWeight: 600 }}>
+        <div className="search-replace-plan">
+          <div className="search-replace-plan-title">
             将替换 {replacePlan.length} 条记录
           </div>
           {replacePlan.slice(0, 3).map((item, idx) => (
-            <div key={`${item.utteranceId}-${item.layerId ?? 'default'}-${idx}`} style={{ fontSize: 12, color: '#475569', lineHeight: 1.45 }}>
+            <div key={`${item.utteranceId}-${item.layerId ?? 'default'}-${idx}`} className="search-replace-plan-item">
               <div>原文: {item.oldText.slice(0, 36)}{item.oldText.length > 36 ? '…' : ''}</div>
               <div>新文: {item.newText.slice(0, 36)}{item.newText.length > 36 ? '…' : ''}</div>
             </div>
           ))}
-          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowReplacePreview(false)} style={btnStyle} title="取消预览">取消</button>
-            <button onClick={handleReplaceAll} style={btnStyle} title="确认全部替换">确认替换</button>
+          <div className="search-replace-plan-actions">
+            <button onClick={() => setShowReplacePreview(false)} className="search-replace-btn" title="取消预览">取消</button>
+            <button onClick={handleReplaceAll} className="search-replace-btn" title="确认全部替换">确认替换</button>
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
-
-const btnStyle: React.CSSProperties = {
-  background: 'none',
-  border: '1px solid #d1d5db',
-  borderRadius: 4,
-  padding: '2px 6px',
-  cursor: 'pointer',
-  fontSize: 12,
-  lineHeight: 1.2,
-  color: '#374151',
-};

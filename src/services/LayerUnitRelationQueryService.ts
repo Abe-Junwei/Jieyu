@@ -1,41 +1,8 @@
 import {
   getDb,
   type JieyuDatabase,
-  type SegmentLinkDocType,
   type UnitRelationDocType,
 } from '../db';
-import { featureFlags } from '../ai/config/featureFlags';
-import {
-  collectStaleRowsByIdAndUpdatedAt,
-  mergeRowsByIdPreferNewest,
-} from './LayerUnitLegacyProjection';
-import { upsertSegmentLinkUnitRelation } from './LayerUnitSegmentMirrorPrimitives';
-
-function mapSegmentLinkToUnitRelation(link: SegmentLinkDocType): UnitRelationDocType {
-  return {
-    id: link.id,
-    textId: link.textId,
-    sourceUnitId: link.sourceSegmentId,
-    targetUnitId: link.targetSegmentId,
-    relationType: link.linkType === 'time_subdivision' ? 'derived_from' : 'aligned_to',
-    ...(link.provenance ? { provenance: link.provenance } : {}),
-    createdAt: link.createdAt,
-    updatedAt: link.updatedAt,
-  };
-}
-
-async function backfillMissingLegacyLinks(
-  legacyRows: SegmentLinkDocType[],
-  unitRows: UnitRelationDocType[],
-): Promise<void> {
-  if (legacyRows.length === 0) return;
-
-  const db = await getDb();
-  const staleLegacyLinks = collectStaleRowsByIdAndUpdatedAt(legacyRows, unitRows);
-  if (staleLegacyLinks.length === 0) return;
-
-  await Promise.all(staleLegacyLinks.map((link) => upsertSegmentLinkUnitRelation(db, link)));
-}
 
 export class LayerUnitRelationQueryService {
   static async listRelationsBySourceUnitIds(
@@ -47,15 +14,7 @@ export class LayerUnitRelationQueryService {
     if (ids.length === 0) return [];
 
     const db = database ?? await getDb();
-    const unitRows = await db.dexie.unit_relations.where('sourceUnitId').anyOf(ids).toArray();
-    const legacyRows = featureFlags.legacySegmentationReadFallbackEnabled
-      ? await db.dexie.segment_links.where('sourceSegmentId').anyOf(ids).toArray()
-      : [];
-    if (featureFlags.legacySegmentationReadFallbackEnabled) {
-      await backfillMissingLegacyLinks(legacyRows, unitRows);
-    }
-
-    return mergeRowsByIdPreferNewest(legacyRows.map(mapSegmentLinkToUnitRelation), unitRows)
+    return (await db.dexie.unit_relations.where('sourceUnitId').anyOf(ids).toArray())
       .filter((row) => !options?.relationType || row.relationType === options.relationType);
   }
 
@@ -68,15 +27,7 @@ export class LayerUnitRelationQueryService {
     if (ids.length === 0) return [];
 
     const db = database ?? await getDb();
-    const unitRows = await db.dexie.unit_relations.where('targetUnitId').anyOf(ids).toArray();
-    const legacyRows = featureFlags.legacySegmentationReadFallbackEnabled
-      ? await db.dexie.segment_links.where('targetSegmentId').anyOf(ids).toArray()
-      : [];
-    if (featureFlags.legacySegmentationReadFallbackEnabled) {
-      await backfillMissingLegacyLinks(legacyRows, unitRows);
-    }
-
-    return mergeRowsByIdPreferNewest(legacyRows.map(mapSegmentLinkToUnitRelation), unitRows)
+    return (await db.dexie.unit_relations.where('targetUnitId').anyOf(ids).toArray())
       .filter((row) => !options?.relationType || row.relationType === options.relationType);
   }
 
@@ -104,21 +55,7 @@ export class LayerUnitRelationQueryService {
     parentUnitIds: readonly string[],
     database?: JieyuDatabase,
   ): Promise<string[]> {
-    const ids = [...new Set(parentUnitIds.filter((id) => id.trim().length > 0))];
-    if (ids.length === 0) return [];
-
-    const db = database ?? await getDb();
-    const [canonicalChildIds, legacyRows] = await Promise.all([
-      this.listTimeSubdivisionChildUnitIds(ids, db),
-      db.dexie.segment_links.where('targetSegmentId').anyOf(ids).toArray(),
-    ]);
-
-    return [...new Set([
-      ...canonicalChildIds,
-      ...legacyRows
-        .filter((row) => row.linkType === 'time_subdivision')
-        .map((row) => row.sourceSegmentId),
-    ])];
+    return this.listTimeSubdivisionChildUnitIds(parentUnitIds, database);
   }
 
   static async listParentUnitIdsByChildUnitIds(

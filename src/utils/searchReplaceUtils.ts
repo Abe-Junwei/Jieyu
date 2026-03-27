@@ -1,6 +1,7 @@
 export interface SearchableItem {
   utteranceId: string;
   layerId?: string;
+  layerKind?: 'transcription' | 'translation' | 'gloss';
   text: string;
 }
 
