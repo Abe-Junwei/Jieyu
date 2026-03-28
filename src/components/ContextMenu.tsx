@@ -1,12 +1,16 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 export interface ContextMenuItem {
   id?: string;
   label: string;
+  icon?: ReactNode;
+  meta?: string;
   shortcut?: string;
   disabled?: boolean;
   danger?: boolean;
+  variant?: 'default' | 'category';
+  separatorBefore?: boolean;
   onClick?: () => void;
   children?: ContextMenuItem[];
 }
@@ -80,6 +84,15 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: C
     });
   };
 
+  const toggleSubmenuForItem = (item: ContextMenuItem, target: HTMLElement) => {
+    if (!item.children || item.children.length === 0) return;
+    if (submenu?.items === item.children) {
+      setSubmenu(null);
+      return;
+    }
+    openSubmenuForItem(item, target);
+  };
+
   useEffect(() => {
     const handler = (e: MouseEvent | KeyboardEvent) => {
       if (e instanceof KeyboardEvent && e.key === 'Escape') { onClose(); return; }
@@ -111,11 +124,18 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: C
         {items.map((item, index) => (
           <button
             key={item.id ?? `${item.label}-${index}`}
-            className={`context-menu-item${item.danger ? ' context-menu-danger' : ''}`}
+            className={[
+              'context-menu-item',
+              item.danger ? 'context-menu-danger' : '',
+              item.variant === 'category' ? 'context-menu-item-category' : '',
+              item.separatorBefore ? 'context-menu-item-separator-before' : '',
+            ].filter(Boolean).join(' ')}
             disabled={item.disabled}
             role="menuitem"
             aria-haspopup={item.children && item.children.length > 0 ? 'menu' : undefined}
+            aria-expanded={item.children && item.children.length > 0 ? submenu?.items === item.children : undefined}
             onMouseEnter={(e) => openSubmenuForItem(item, e.currentTarget)}
+            onFocus={(e) => openSubmenuForItem(item, e.currentTarget)}
             onClick={() => {
               if (item.children && item.children.length > 0) {
                 return;
@@ -123,11 +143,23 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: C
               item.onClick?.();
               onClose();
             }}
+            onMouseDown={(e) => {
+              if (item.children && item.children.length > 0) {
+                e.preventDefault();
+                toggleSubmenuForItem(item, e.currentTarget);
+              }
+            }}
           >
-            <span>{item.label}</span>
-            {item.children && item.children.length > 0
-              ? <span className="context-menu-caret">›</span>
-              : item.shortcut && <span className="context-menu-shortcut">{item.shortcut}</span>}
+            <span className="context-menu-item-main">
+              {item.icon ? <span className="context-menu-item-icon" aria-hidden="true">{item.icon}</span> : null}
+              <span>{item.label}</span>
+            </span>
+            <span className="context-menu-item-trailing">
+              {item.meta ? <span className="context-menu-item-meta">{item.meta}</span> : null}
+              {item.children && item.children.length > 0
+                ? <span className="context-menu-caret">›</span>
+                : item.shortcut && <span className="context-menu-shortcut">{item.shortcut}</span>}
+            </span>
           </button>
         ))}
       </div>
@@ -147,7 +179,12 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: C
           {submenu.items.map((item, index) => (
             <button
               key={item.id ?? `${item.label}-${index}`}
-              className={`context-menu-item${item.danger ? ' context-menu-danger' : ''}`}
+              className={[
+                'context-menu-item',
+                item.danger ? 'context-menu-danger' : '',
+                item.variant === 'category' ? 'context-menu-item-category' : '',
+                item.separatorBefore ? 'context-menu-item-separator-before' : '',
+              ].filter(Boolean).join(' ')}
               disabled={item.disabled}
               role="menuitem"
               onClick={() => {
@@ -155,8 +192,14 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: C
                 onClose();
               }}
             >
-              <span>{item.label}</span>
-              {item.shortcut && <span className="context-menu-shortcut">{item.shortcut}</span>}
+              <span className="context-menu-item-main">
+                {item.icon ? <span className="context-menu-item-icon" aria-hidden="true">{item.icon}</span> : null}
+                <span>{item.label}</span>
+              </span>
+              <span className="context-menu-item-trailing">
+                {item.meta ? <span className="context-menu-item-meta">{item.meta}</span> : null}
+                {item.shortcut ? <span className="context-menu-shortcut">{item.shortcut}</span> : null}
+              </span>
             </button>
           ))}
         </div>

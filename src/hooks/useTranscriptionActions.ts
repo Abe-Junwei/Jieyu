@@ -146,6 +146,7 @@ export function useTranscriptionActions({
     utterancesRef,
     pushUndo,
     setLayerCreateMessage,
+    setSaveState,
     setLayers,
     setLayerLinks,
     setLayerToDeleteId,

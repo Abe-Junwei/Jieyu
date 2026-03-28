@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createEvent, fireEvent, render, screen, cleanup } from '@testing-library/react';
+import { createEvent, fireEvent, render, screen, cleanup, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, UtteranceDocType } from '../db';
 import { TranscriptionTimelineTextOnly } from './TranscriptionTimelineTextOnly';
@@ -294,12 +294,108 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       />,
     );
 
-    const textboxes = screen.getAllByRole('textbox') as HTMLInputElement[];
+    const translationLane = screen.getByTestId(`header-${translationLayer.id}`).closest('.timeline-lane-translation');
+    expect(translationLane).toBeTruthy();
+    const textboxes = within(translationLane as HTMLElement).getAllByRole('textbox') as HTMLInputElement[];
     expect(textboxes).toHaveLength(2);
     expect(textboxes[0]?.value).toBe('bonjour');
     expect(textboxes[1]?.value).toBe('salut');
 
     editorContextValue.translationTextByLayer = new Map();
+  });
+
+  it('renders newly added parent segments immediately in a dependent transcription row after rerender', () => {
+    const parentLayer = {
+      ...makeLayer('trc-parent-live'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const childLayer = {
+      ...makeLayer('trc-child-live'),
+      constraint: 'symbolic_association',
+      parentLayerId: parentLayer.id,
+    } as LayerDocType;
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+
+    const initialSegments = new Map([
+      [parentLayer.id, [
+        { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+      ]],
+    ]);
+    const initialContents = new Map([
+      [childLayer.id, new Map([
+        ['seg-1', { id: 'segc-1', textId: 't1', segmentId: 'seg-1', layerId: childLayer.id, modality: 'text', text: 'child one', sourceType: 'human', createdAt: NOW, updatedAt: NOW }],
+      ])],
+    ]);
+
+    const { rerender } = render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[parentLayer, childLayer]}
+        translationLayers={[]}
+        utterancesOnCurrentMedia={[makeUtterance('u-main')]}
+        segmentsByLayer={initialSegments}
+        segmentContentByLayer={initialContents}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={parentLayer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[parentLayer, childLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[parentLayer, childLayer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [parentLayer.id]: 44, [childLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    let childLane = screen.getByTestId(`header-${childLayer.id}`).closest('.timeline-lane-text-only');
+    expect(childLane).toBeTruthy();
+    let textboxes = within(childLane as HTMLElement).getAllByRole('textbox') as HTMLInputElement[];
+    expect(textboxes).toHaveLength(1);
+    expect(textboxes[0]?.value).toBe('child one');
+
+    rerender(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[parentLayer, childLayer]}
+        translationLayers={[]}
+        utterancesOnCurrentMedia={[makeUtterance('u-main')]}
+        segmentsByLayer={new Map([
+          [parentLayer.id, [
+            { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+            { id: 'seg-2', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 1, endTime: 2, createdAt: NOW, updatedAt: NOW },
+          ]],
+        ])}
+        segmentContentByLayer={new Map([
+          [childLayer.id, new Map([
+            ['seg-1', { id: 'segc-1', textId: 't1', segmentId: 'seg-1', layerId: childLayer.id, modality: 'text', text: 'child one', sourceType: 'human', createdAt: NOW, updatedAt: NOW }],
+            ['seg-2', { id: 'segc-2', textId: 't1', segmentId: 'seg-2', layerId: childLayer.id, modality: 'text', text: 'child two', sourceType: 'human', createdAt: NOW, updatedAt: NOW }],
+          ])],
+        ])}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={parentLayer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[parentLayer, childLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[parentLayer, childLayer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [parentLayer.id]: 44, [childLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    childLane = screen.getByTestId(`header-${childLayer.id}`).closest('.timeline-lane-text-only');
+    expect(childLane).toBeTruthy();
+    textboxes = within(childLane as HTMLElement).getAllByRole('textbox') as HTMLInputElement[];
+    expect(textboxes).toHaveLength(2);
+    expect(textboxes[0]?.value).toBe('child one');
+    expect(textboxes[1]?.value).toBe('child two');
   });
 
   it('does not prevent default pointerdown on text input when lane is expanded', () => {

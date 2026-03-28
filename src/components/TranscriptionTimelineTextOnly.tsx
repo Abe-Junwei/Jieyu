@@ -15,7 +15,7 @@ import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { LayerActionPopover } from './LayerActionPopover';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
-import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
+import { layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import { buildSpeakerLayerLayoutWithOptions, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
@@ -86,26 +86,19 @@ function buildSegmentSpeakerIdMap(
   return next;
 }
 
-function getDependentTranslationLayerItems(
+function getSegmentTimelineItems(
   layer: LayerDocType,
   layerById: ReadonlyMap<string, LayerDocType>,
   segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]> | undefined,
   utterancesOnCurrentMedia: UtteranceDocType[],
   defaultTranscriptionLayerId?: string,
 ): Array<{ id: string; startTime: number }> {
-  if (layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) {
-    return (segmentsByLayer?.get(layer.id) ?? []) as Array<{ id: string; startTime: number }>;
-  }
-
-  const parentLayerId = layer.parentLayerId?.trim() ?? '';
-  if (!parentLayerId) return utterancesOnCurrentMedia;
-
-  const parentLayer = layerById.get(parentLayerId);
-  if (!parentLayer || !layerUsesOwnSegments(parentLayer, defaultTranscriptionLayerId)) {
+  const sourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId);
+  if (!sourceLayer) {
     return utterancesOnCurrentMedia;
   }
 
-  return (segmentsByLayer?.get(parentLayer.id) ?? []) as Array<{ id: string; startTime: number }>;
+  return (segmentsByLayer?.get(sourceLayer.id) ?? []) as Array<{ id: string; startTime: number }>;
 }
 
 type TranscriptionTimelineTextOnlyProps = {
@@ -184,7 +177,7 @@ export function TranscriptionTimelineTextOnly({
   onFocusLayer,
   navigateUtteranceFromInput,
   layerLinks = [],
-  showConnectors = false,
+  showConnectors = true,
   onToggleConnectors,
   laneHeights,
   onLaneHeightChange,
@@ -270,20 +263,21 @@ export function TranscriptionTimelineTextOnly({
   const segmentSpeakerLayoutByLayer = new Map<string, SpeakerLayerLayoutResult>();
   const segmentSpeakerIdByLayer = new Map<string, Map<string, string>>();
   for (const layer of transcriptionLayers) {
-    if (!layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) continue;
-    const segments = (segmentsByLayer?.get(layer.id) ?? []).filter((segment) => (
+    const sourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId);
+    if (!sourceLayer) continue;
+    const segments = (segmentsByLayer?.get(sourceLayer.id) ?? []).filter((segment) => (
       activeSpeakerFilterKey === 'all'
         || resolveSpeakerFocusKeyFromSegment(segment, utteranceById) === normalizeSpeakerFocusKey(activeSpeakerFilterKey)
     ));
     const segmentAsUtterances = toSpeakerLayoutInputFromSegments(segments, utteranceById);
     segmentSpeakerLayoutByLayer.set(
-      layer.id,
+      sourceLayer.id,
       buildSpeakerLayerLayoutWithOptions(segmentAsUtterances, {
         trackMode: trackDisplayMode,
         ...(laneLockMap ? { laneLockMap } : {}),
       }),
     );
-    segmentSpeakerIdByLayer.set(layer.id, buildSegmentSpeakerIdMap(segments, utteranceById));
+    segmentSpeakerIdByLayer.set(sourceLayer.id, buildSegmentSpeakerIdMap(segments, utteranceById));
   }
 
   const setCellSaveStatus = (cellKey: string, status?: 'dirty' | 'saving' | 'error') => {
@@ -315,23 +309,25 @@ export function TranscriptionTimelineTextOnly({
       {allLayersOrdered.map((layer, idx) => {
         if (layer.layerType === 'transcription') {
         const isCollapsed = collapsedLayerIds.has(layer.id);
-        const isIndependent = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
-        const activeLayout = isIndependent
-          ? (segmentSpeakerLayoutByLayer.get(layer.id) ?? EMPTY_SPEAKER_LAYOUT)
+        const segmentSourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId);
+        const usesSegmentTimeline = Boolean(segmentSourceLayer);
+        const segmentSourceLayerId = segmentSourceLayer?.id ?? '';
+        const activeLayout = usesSegmentTimeline
+          ? (segmentSpeakerLayoutByLayer.get(segmentSourceLayerId) ?? EMPTY_SPEAKER_LAYOUT)
           : speakerLayerLayout;
         const isMultiTrackMode = trackDisplayMode !== 'single';
-        const layerItems: Array<{ id: string; startTime: number }> = isIndependent
-          ? (((segmentsByLayer?.get(layer.id) ?? []).filter((segment) => (
+        const layerItems: Array<{ id: string; startTime: number }> = usesSegmentTimeline
+          ? (((segmentsByLayer?.get(segmentSourceLayerId) ?? []).filter((segment) => (
               activeSpeakerFilterKey === 'all'
                 || resolveSpeakerFocusKeyFromSegment(segment, utteranceById) === normalizeSpeakerFocusKey(activeSpeakerFilterKey)
             ))) as Array<{ id: string; startTime: number }>)
           : utterancesOnCurrentMedia;
-        const laneVirtualItems: Array<{ index: number; size: number; start: number }> = isIndependent
+        const laneVirtualItems: Array<{ index: number; size: number; start: number }> = usesSegmentTimeline
           ? layerItems.map((_, index) => ({ index, size: 180, start: index * 180 }))
           : virtualItems.map((it) => ({ index: it.index, size: it.size, start: it.start }));
-        const laneTotalSize = isIndependent ? layerItems.length * 180 : totalSize;
+        const laneTotalSize = usesSegmentTimeline ? layerItems.length * 180 : totalSize;
         const baseLaneHeight = laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT;
-        const subTrackCount = isIndependent && isMultiTrackMode
+        const subTrackCount = usesSegmentTimeline && isMultiTrackMode
           ? activeLayout.subTrackCount
           : 1;
         const visibleLaneHeight = isCollapsed ? 14 : baseLaneHeight * subTrackCount;
@@ -341,7 +337,7 @@ export function TranscriptionTimelineTextOnly({
         return (
         <div
           key={`tl-${layer.id}`}
-          className={`timeline-lane timeline-lane-text-only ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${isCollapsed ? 'timeline-lane-collapsed' : ''} ${isIndependent && isMultiTrackMode && activeLayout.subTrackCount > 1 ? 'timeline-lane-speaker-layered' : ''}`}
+          className={`timeline-lane timeline-lane-text-only ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${isCollapsed ? 'timeline-lane-collapsed' : ''} ${usesSegmentTimeline && isMultiTrackMode && activeLayout.subTrackCount > 1 ? 'timeline-lane-speaker-layered' : ''}`}
           style={{
             position: 'relative',
             '--timeline-lane-height': `${visibleLaneHeight}px`,
@@ -401,14 +397,14 @@ export function TranscriptionTimelineTextOnly({
             const rawItem = layerItems[virtualItem.index];
             if (!rawItem) return null;
             const utt = rawItem as UtteranceDocType;
-            const utteranceSpeakerKey = isIndependent
-              ? (segmentSpeakerIdByLayer.get(layer.id)?.get(utt.id) ?? 'unknown-speaker')
+            const utteranceSpeakerKey = usesSegmentTimeline
+              ? (segmentSpeakerIdByLayer.get(segmentSourceLayerId)?.get(utt.id) ?? 'unknown-speaker')
               : resolveSpeakerFocusKeyFromUtterance(utt);
             const focusMatched = speakerFocusMode === 'all' || !speakerFocusSpeakerKey || utteranceSpeakerKey === speakerFocusSpeakerKey;
             const shouldHideForFocus = speakerFocusMode === 'focus-hard' && !focusMatched;
             const shouldDimForFocus = speakerFocusMode === 'focus-soft' && !focusMatched;
             const speakerVisual = speakerVisualByUtteranceId[utt.id];
-            const sourceText = isIndependent
+            const sourceText = usesSegmentTimeline
               ? (segmentContentByLayer?.get(layer.id)?.get(utt.id)?.text ?? '')
               : getUtteranceTextForLayer(utt, layer.id);
             const draftKey = `trc-${layer.id}-${utt.id}`;
@@ -428,7 +424,7 @@ export function TranscriptionTimelineTextOnly({
             };
             const isActive = selectedTimelineUnit?.layerId === layer.id
               && selectedTimelineUnit.unitId === utt.id;
-            const subTrackIndex = isIndependent && isMultiTrackMode
+            const subTrackIndex = usesSegmentTimeline && isMultiTrackMode
               ? (activeLayout.placements.get(utt.id)?.subTrackIndex ?? 0)
               : 0;
             return (
@@ -438,7 +434,7 @@ export function TranscriptionTimelineTextOnly({
                 style={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
-                  ...(isIndependent && isMultiTrackMode ? { top: subTrackIndex * baseLaneHeight, height: baseLaneHeight } : {}),
+                  ...(usesSegmentTimeline && isMultiTrackMode ? { top: subTrackIndex * baseLaneHeight, height: baseLaneHeight } : {}),
                   ...(speakerVisual ? ({ '--speaker-color': speakerVisual.color } as React.CSSProperties) : {}),
                 }}
                 title={speakerVisual ? `说话人：${speakerVisual.name}` : undefined}
@@ -469,7 +465,7 @@ export function TranscriptionTimelineTextOnly({
                 <input
                   type="text"
                   className="timeline-text-input"
-                  placeholder={isIndependent ? '语段' : undefined}
+                  placeholder={usesSegmentTimeline ? '语段' : undefined}
                   value={draft}
                   onFocus={() => {
                     setEditingCellKey(cellKey);
@@ -478,7 +474,7 @@ export function TranscriptionTimelineTextOnly({
                   onChange={(e) => {
                     const value = normalizeSingleLine(e.target.value);
                     setUtteranceDrafts((prev) => ({ ...prev, [draftKey]: value }));
-                    if (isIndependent) {
+                    if (usesSegmentTimeline) {
                       if (!saveSegmentContentForLayer) return;
                       setCellSaveStatus(cellKey, 'dirty');
                       scheduleAutoSave(`seg-${layer.id}-${utt.id}`, async () => {
@@ -521,7 +517,7 @@ export function TranscriptionTimelineTextOnly({
                   onBlur={(e) => {
                     setEditingCellKey((prev) => (prev === cellKey ? null : prev));
                     const value = normalizeSingleLine(e.target.value);
-                    if (isIndependent) {
+                    if (usesSegmentTimeline) {
                       clearAutoSaveTimer(`seg-${layer.id}-${utt.id}`);
                       if (value !== sourceText && saveSegmentContentForLayer) {
                         fireAndForget(runSaveWithStatus(cellKey, async () => {
@@ -557,15 +553,15 @@ export function TranscriptionTimelineTextOnly({
         }
 
         const isCollapsed = collapsedLayerIds.has(layer.id);
-        const isIndependent = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
-        const layerItems = getDependentTranslationLayerItems(
+        const usesOwnSegments = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
+        const layerItems = getSegmentTimelineItems(
           layer,
           layerById,
           segmentsByLayer,
           utterancesOnCurrentMedia,
           defaultTranscriptionLayerId,
         );
-        const usesSegmentTimeline = isIndependent || layerItems !== utterancesOnCurrentMedia;
+        const usesSegmentTimeline = layerItems !== utterancesOnCurrentMedia;
         const laneVirtualItems: Array<{ index: number; size: number; start: number }> = usesSegmentTimeline
           ? layerItems.map((_, index) => ({ index, size: 180, start: index * 180 }))
           : virtualItems.map((it) => ({ index: it.index, size: it.size, start: it.start }));
@@ -613,7 +609,7 @@ export function TranscriptionTimelineTextOnly({
             const rawItem = layerItems[virtualItem.index];
             if (!rawItem) return null;
             const utt = rawItem as UtteranceDocType;
-            const text = isIndependent
+            const text = usesOwnSegments
               ? (segmentContentByLayer?.get(layer.id)?.get(utt.id)?.text ?? '')
               : (translationTextByLayer.get(layer.id)?.get(utt.id)?.text ?? '');
             const draftKey = `${layer.id}-${utt.id}`;
@@ -663,7 +659,7 @@ export function TranscriptionTimelineTextOnly({
                 <input
                   type="text"
                   className="timeline-text-input"
-                  placeholder={isIndependent ? '语段' : '翻译'}
+                  placeholder={usesOwnSegments ? '语段' : '翻译'}
                   value={draft}
                   onFocus={() => {
                     focusedTranslationDraftKeyRef.current = draftKey;
@@ -673,7 +669,7 @@ export function TranscriptionTimelineTextOnly({
                   onChange={(e) => {
                     const value = normalizeSingleLine(e.target.value);
                     setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
-                    if (isIndependent) {
+                    if (usesOwnSegments) {
                       if (!saveSegmentContentForLayer) return;
                       setCellSaveStatus(cellKey, 'dirty');
                       scheduleAutoSave(`seg-${layer.id}-${utt.id}`, async () => {
@@ -718,7 +714,7 @@ export function TranscriptionTimelineTextOnly({
                     setEditingCellKey((prev) => (prev === cellKey ? null : prev));
                     focusedTranslationDraftKeyRef.current = null;
                     const value = normalizeSingleLine(e.target.value);
-                    if (isIndependent) {
+                    if (usesOwnSegments) {
                       clearAutoSaveTimer(`seg-${layer.id}-${utt.id}`);
                       if (value !== text && saveSegmentContentForLayer) {
                         fireAndForget(runSaveWithStatus(cellKey, async () => {

@@ -560,12 +560,13 @@
   }
 }
 
-/* ─── Elan 风格层级连接线 | Elan-style layer hierarchy connector ─── */
+/* ─── Bundle 层级连接线 | Bundle hierarchy connector ─── */
 
 /*
-  设计语义（单总线 | Single shared bus）：
-  - bus：所有存在链接关系的层共享一根纵向主线
-  - tap：只要该层参与了链接，就从右侧伸一根横线接到主线
+  设计语义（Bundle trunk + child elbow | Bundle trunk + child elbow）：
+  - root：Bundle 根层只画一段向下 trunk
+  - child-middle：中间子层画贯穿 trunk，并接一段横向 elbow
+  - child-end：最后一个子层画向上收口的 trunk，并接一段横向 elbow
 */
 
 .lane-link-stack {
@@ -580,7 +581,7 @@
 
 .lane-link-connector {
   position: absolute;
-  right: calc(var(--lane-link-column, 0) * 8px);
+  right: 2px;
   top: 0;
   bottom: 0;
   width: 0;
@@ -598,10 +599,12 @@
   --lane-link-color: rgba(100, 116, 139, 0.54);
   --lane-link-color-active: rgba(71, 85, 105, 0.78);
   --lane-link-stroke: 1px;
+  --lane-link-marker-size: 7px;
+  --lane-link-root-elbow: 14px;
 }
 
-/* 单总线起点：从中线开始向下 | Bus start: from midpoint downward */
-.lane-link-connector--bus-start::before {
+/* 根层：从中线向下延伸 bundle 主干 | Root row: extend bundle trunk downward from midpoint */
+.lane-link-connector--bundle-root::before {
   content: '';
   position: absolute;
   right: 0;
@@ -611,8 +614,40 @@
   background: var(--lane-link-color);
 }
 
-/* 单总线中段：整行贯穿 | Bus middle: full-height vertical line */
-.lane-link-connector--bus-middle::before {
+.lane-link-connector-root-marker {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: var(--lane-link-root-elbow);
+  height: 8px;
+  transform: translateY(-50%);
+}
+
+.lane-link-connector-root-marker::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: calc(50% - (var(--lane-link-stroke) / 2));
+  width: calc(var(--lane-link-root-elbow) - 4px);
+  height: var(--lane-link-stroke);
+  background: var(--lane-link-color);
+  opacity: 0.88;
+}
+
+.lane-link-connector-root-marker::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: calc(50% - (var(--lane-link-marker-size) / 2));
+  width: 5px;
+  height: 5px;
+  background: var(--lane-link-color);
+  border-radius: 999px;
+  opacity: 0.82;
+}
+
+/* 中间子层：主干整行贯穿 | Middle child row: full-height trunk */
+.lane-link-connector--bundle-child-middle::before {
   content: '';
   position: absolute;
   right: 0;
@@ -622,8 +657,8 @@
   background: var(--lane-link-color);
 }
 
-/* 单总线终点：到中线结束 | Bus end: upward to midpoint */
-.lane-link-connector--bus-end::before {
+/* 末尾子层：主干在中线收口 | Last child row: trunk closes at midpoint */
+.lane-link-connector--bundle-child-end::before {
   content: '';
   position: absolute;
   right: 0;
@@ -633,53 +668,59 @@
   background: var(--lane-link-color);
 }
 
-/* 极端情况下仅一行：只显示中线短竖段 | Single-row bus: short centered trunk */
-.lane-link-connector--bus-single::before {
+/* 子层横向折线 | Child elbow connector */
+.lane-link-connector--bundle-child-middle::after,
+.lane-link-connector--bundle-child-end::after {
   content: '';
   position: absolute;
   right: 0;
-  top: calc(50% - 6px);
-  height: 12px;
-  width: var(--lane-link-stroke);
-  background: var(--lane-link-color);
+  top: calc(50% - 4px);
+  width: 12px;
+  height: 8px;
+  background: linear-gradient(var(--lane-link-color), var(--lane-link-color));
+  background-repeat: no-repeat;
+  background-size: 10px var(--lane-link-stroke);
+  background-position: right center;
+  opacity: 0.86;
 }
 
-/* 参与链接的层：从主线左侧伸一根横线 | Linked lane: horizontal tap extending left from the shared bus */
-.lane-link-connector--tap::after {
-  content: '';
+.lane-link-connector-child-marker {
   position: absolute;
   right: 0;
-  top: calc(50% - 0.5px);
-  width: 8px;
-  height: var(--lane-link-stroke);
-  background: var(--lane-link-color);
+  top: 50%;
+  width: var(--lane-link-root-elbow);
+  height: 8px;
+  transform: translateY(-50%);
 }
 
-/* 子层：横线左端加一个小圆点，强化“挂接到父层”的语义 | Child lane: add a small dot at the left end of the tap */
-.lane-link-connector--tap-child::before {
+.lane-link-connector-child-marker::after {
   content: '';
   position: absolute;
-  right: 7px;
-  top: calc(50% - 2.5px);
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
+  left: 0;
+  top: calc(50% - (var(--lane-link-marker-size) / 2));
+  width: var(--lane-link-marker-size);
+  height: var(--lane-link-marker-size);
   background: var(--lane-link-color);
+  clip-path: polygon(0 50%, 100% 0, 100% 100%);
+  opacity: 0.76;
 }
 
 /* rail 里横向折线略短，避免过于顶到文字 | Slightly shorter elbows inside the rail */
-.timeline-lane-label .lane-link-connector--tap::after {
-  width: 7px;
-}
-
-.timeline-lane-label .lane-link-connector--tap-child::before {
-  right: 6px;
+.timeline-lane-label .lane-link-connector--bundle-child-middle::after,
+.timeline-lane-label .lane-link-connector--bundle-child-end::after {
+  width: 11px;
 }
 
 .timeline-lane-label:hover .lane-link-connector::before,
 .timeline-lane-label:hover .lane-link-connector::after,
+.timeline-lane-label:hover .lane-link-connector-root-marker::before,
+.timeline-lane-label:hover .lane-link-connector-root-marker::after,
+.timeline-lane-label:hover .lane-link-connector-child-marker::after,
 .timeline-lane-label:focus-within .lane-link-connector::before,
-.timeline-lane-label:focus-within .lane-link-connector::after {
+.timeline-lane-label:focus-within .lane-link-connector::after,
+.timeline-lane-label:focus-within .lane-link-connector-root-marker::before,
+.timeline-lane-label:focus-within .lane-link-connector-root-marker::after,
+.timeline-lane-label:focus-within .lane-link-connector-child-marker::after {
   background: var(--lane-link-color-active);
 }
 

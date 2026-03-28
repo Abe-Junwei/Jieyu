@@ -1,4 +1,5 @@
 import type { LayerDocType } from '../db';
+import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 
 export type LayerOrderingMessageLevel = 'info' | 'warning' | 'error';
 
@@ -96,6 +97,17 @@ function resolveTargetBundleIndex(bundles: LayerBundle[], targetIndex: number): 
   const flattened = bundles.flatMap((bundle) => flattenBundle(bundle));
   if (targetIndex <= 0) return validBundleIndexes[0] ?? null;
 
+  const targetLayer = flattened[Math.min(targetIndex, flattened.length - 1)];
+  if (targetLayer) {
+    const targetBundleIndex = findBundleIndexContainingLayer(bundles, targetLayer.id);
+    if (targetBundleIndex >= 0) {
+      const targetBundle = bundles[targetBundleIndex];
+      if (targetBundle && isIndependentTranscriptionRoot(targetBundle.root)) {
+        return targetBundleIndex;
+      }
+    }
+  }
+
   for (let cursor = Math.min(targetIndex - 1, flattened.length - 1); cursor >= 0; cursor -= 1) {
     const candidateLayer = flattened[cursor];
     if (!candidateLayer) continue;
@@ -108,6 +120,36 @@ function resolveTargetBundleIndex(bundles: LayerBundle[], targetIndex: number): 
   }
 
   return validBundleIndexes[0] ?? null;
+}
+
+function getLayerLabel(layer: LayerDocType): string {
+  return layer.name.zho ?? layer.name.eng ?? layer.key;
+}
+
+function describeLayer(layer: LayerDocType): string {
+  const { type, lang, alias } = getLayerLabelParts(layer);
+  if (alias) {
+    return `${type}「${alias}」 (${lang})`;
+  }
+  return `${type}（${lang}）`;
+}
+
+function getBundleRanges(bundles: LayerBundle[]): Array<{ start: number; end: number }> {
+  let cursor = 0;
+  return bundles.map((bundle) => {
+    const start = cursor;
+    cursor += flattenBundle(bundle).length;
+    return { start, end: cursor };
+  });
+}
+
+function findBundleIndexAtPosition(bundles: LayerBundle[], position: number): number | null {
+  if (bundles.length === 0) return null;
+  const ranges = getBundleRanges(bundles);
+  const totalLength = ranges.at(-1)?.end ?? 0;
+  if (totalLength <= 0) return null;
+  const clamped = Math.max(0, Math.min(position, totalLength - 1));
+  return ranges.findIndex((range) => clamped >= range.start && clamped < range.end);
 }
 
 function getBundleStartIndex(bundles: LayerBundle[], bundleIndex: number): number {
@@ -192,6 +234,25 @@ export function flattenLayerBundles(bundles: LayerBundle[]): LayerDocType[] {
   return bundles.flatMap((bundle) => flattenBundle(bundle));
 }
 
+export function resolveLayerDragGroup(layers: LayerDocType[], draggedLayerId: string): string[] {
+  const bundles = buildLayerBundles(layers);
+  const sourceBundleIndex = findBundleIndexContainingLayer(bundles, draggedLayerId);
+  if (sourceBundleIndex < 0) {
+    return [draggedLayerId];
+  }
+
+  const sourceBundle = bundles[sourceBundleIndex]!;
+  const draggedIsIndependentRoot = sourceBundle.root.id === draggedLayerId
+    && !sourceBundle.detached
+    && isIndependentTranscriptionRoot(sourceBundle.root);
+
+  if (!draggedIsIndependentRoot) {
+    return [draggedLayerId];
+  }
+
+  return flattenBundle(sourceBundle).map((layer) => layer.id);
+}
+
 export function computeCanonicalLayerOrder(layers: LayerDocType[]): LayerDocType[] {
   return canonicalizeFromBundles(buildLayerBundles(layers));
 }
@@ -242,6 +303,7 @@ export function resolveLayerDrop(
 ): ResolveLayerDropResult {
   const bundles = buildLayerBundles(layers);
   const flattened = flattenLayerBundles(bundles);
+  const layerById = new Map(layers.map((layer) => [layer.id, layer] as const));
   const currentIndex = flattened.findIndex((layer) => layer.id === draggedLayerId);
   if (currentIndex < 0) {
     return { layers, changed: false };
@@ -262,8 +324,24 @@ export function resolveLayerDrop(
     : normalizedTargetIndex;
 
   if (draggedIsIndependentRoot) {
+    const sourceRange = getBundleRanges(bundles)[sourceBundleIndex]!;
     const remainingBundles = bundles.filter((_, index) => index !== sourceBundleIndex).map(cloneBundle);
-    const insertIndex = resolveBundleInsertIndex(remainingBundles, adjustedTargetIndex);
+    let insertIndex = resolveBundleInsertIndex(remainingBundles, adjustedTargetIndex);
+
+    if (!(normalizedTargetIndex > sourceRange.start && normalizedTargetIndex < sourceRange.end)) {
+      if (normalizedTargetIndex >= sourceRange.end) {
+        if (normalizedTargetIndex >= flattened.length) {
+          insertIndex = remainingBundles.length;
+        } else {
+          const targetBundleIndex = findBundleIndexAtPosition(bundles, normalizedTargetIndex);
+          insertIndex = targetBundleIndex == null ? remainingBundles.length : targetBundleIndex;
+        }
+      } else {
+        const targetBundleIndex = findBundleIndexAtPosition(bundles, Math.max(0, normalizedTargetIndex));
+        insertIndex = targetBundleIndex == null ? 0 : targetBundleIndex;
+      }
+    }
+
     const nextBundles = [...remainingBundles];
     nextBundles.splice(insertIndex, 0, sourceBundle);
     const nextLayers = canonicalizeFromBundles(nextBundles);
@@ -291,7 +369,7 @@ export function resolveLayerDrop(
     return {
       layers,
       changed: false,
-      message: '无法放置到该位置：目标区域没有合法的独立转写层。',
+      message: `无法放置${describeLayer(draggedLayer)}：目标区域没有合法的独立转写层。`,
       messageLevel: 'error',
     };
   }
@@ -317,12 +395,15 @@ export function resolveLayerDrop(
   }
 
   const nextLayers = canonicalizeFromBundles(filteredBundles);
+  const previousParent = draggedLayer.parentLayerId ? layerById.get(draggedLayer.parentLayerId) : undefined;
   return {
     layers: nextLayers,
     changed: reparented || !sameFlattenedIds(nextLayers, flattened),
     ...(reparented
       ? {
-          message: `已将该${draggedLayer.layerType === 'translation' ? '翻译' : '转写'}层改为依赖「${targetBundle.root.name.zho ?? targetBundle.root.name.eng ?? targetBundle.root.key}」。`,
+          message: previousParent
+            ? `已将${describeLayer(draggedLayer)}从 ${describeLayer(previousParent)} 改为依赖 ${describeLayer(targetBundle.root)}。`
+            : `已将${describeLayer(draggedLayer)}改为依赖 ${describeLayer(targetBundle.root)}。`,
           messageLevel: 'warning' as const,
         }
       : {}),

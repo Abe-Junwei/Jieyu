@@ -7,6 +7,7 @@ import {
   type MouseEvent,
   type PointerEvent,
 } from 'react';
+import { NoteDocumentIcon } from './NoteDocumentIcon';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -124,18 +125,13 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
       ) : (
         <span>{draft || '\u00A0'}</span>
       )}
-      {noteCount != null && noteCount > 0 && (
-        <svg
-          className="timeline-annotation-note-icon"
+      {noteCount != null && noteCount > 0 && onNoteClick && (
+        <NoteDocumentIcon
+          className="timeline-annotation-note-icon timeline-annotation-note-icon-active"
           onClick={(e) => { e.stopPropagation(); onNoteClick?.(e); }}
-          viewBox="0 0 16 16"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <title>{`${noteCount} 条备注`}</title>
-          <path d="M4.5 1.5h5l3 3v8a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-          <path d="M6.5 7h3M6.5 9.5h3" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-        </svg>
+          ariaLabel={`${noteCount} 条备注`}
+          title={`${noteCount} 条备注`}
+        />
       )}
     </div>
   );

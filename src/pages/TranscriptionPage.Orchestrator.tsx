@@ -37,6 +37,7 @@ import {
 import { WaveformHoverTooltip } from '../components/transcription/WaveformHoverTooltip';
 import { WaveformLeftStatusStrip } from '../components/transcription/WaveformLeftStatusStrip';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
+import { NoteDocumentIcon } from '../components/NoteDocumentIcon';
 import { TrackFocusToolbarControls } from '../components/transcription/toolbar/TrackFocusToolbarControls';
 import { LinguisticService } from '../services/LinguisticService';
 import { getDb, type JieyuDatabase, type LayerSegmentContentDocType, type LayerSegmentDocType, type UtteranceDocType } from '../db';
@@ -70,7 +71,7 @@ import {
 } from '../utils/appShellEvents';
 import { useTimelineResize } from '../hooks/useTimelineResize';
 import { useDialogs } from '../hooks/useDialogs';
-import { useLayerSegments, getLayerEditMode, layerUsesOwnSegments } from '../hooks/useLayerSegments';
+import { useLayerSegments, getLayerEditMode, layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 import { useLayerSegmentContents } from '../hooks/useLayerSegmentContents';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { usePanelResize } from '../hooks/usePanelResize';
@@ -100,6 +101,7 @@ import { fireAndForget } from '../utils/fireAndForget';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import { formatLayerRailLabel, formatTime, newId } from '../utils/transcriptionFormatters';
+import { buildLayerLinkConnectorLayout } from '../utils/layerLinkConnector';
 import { buildSpeakerLayerLayoutWithOptions, buildStableSpeakerLaneMap } from '../utils/speakerLayerLayout';
 import {
   INITIAL_OVERLAP_CYCLE_TELEMETRY,
@@ -276,10 +278,28 @@ function TranscriptionPageOrchestrator({
     segmentsByLayer,
     defaultTranscriptionLayerId,
   );
+  const layerById = useMemo(() => new Map(layers.map((layer) => [layer.id, layer] as const)), [layers]);
 
   const independentLayerIds = useMemo(() => new Set(
     layers.filter((layer) => layerUsesOwnSegments(layer, defaultTranscriptionLayerId)).map((layer) => layer.id),
   ), [layers, defaultTranscriptionLayerId]);
+  const noteTimelineUnitIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const utterance of utterances) {
+      ids.add(utterance.id);
+    }
+    for (const segments of segmentsByLayer.values()) {
+      for (const segment of segments) {
+        ids.add(segment.id);
+      }
+    }
+    return [...ids];
+  }, [segmentsByLayer, utterances]);
+  const segmentTimelineLayerIds = useMemo(() => new Set(
+    layers
+      .filter((layer) => Boolean(resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId)))
+      .map((layer) => layer.id),
+  ), [defaultTranscriptionLayerId, layerById, layers]);
 
   const segmentUndoSnapshotRef = useRef<LayerSegmentGraphSnapshot>({
     segments: [],
@@ -319,8 +339,10 @@ function TranscriptionPageOrchestrator({
   };
 
   const saveSegmentContentForLayer = useCallback(async (segmentId: string, layerId: string, value: string) => {
-    const layer = layers.find((item) => item.id === layerId);
+    const layer = layerById.get(layerId);
     if (!layer) return;
+    const sourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId);
+    if (!sourceLayer) return;
     const now = new Date().toISOString();
     const trimmed = value.trim();
     const existing = segmentContentByLayer.get(layerId)?.get(segmentId);
@@ -333,7 +355,7 @@ function TranscriptionPageOrchestrator({
       return;
     }
 
-    const segment = (segmentsByLayer.get(layerId) ?? []).find((item) => item.id === segmentId);
+    const segment = (segmentsByLayer.get(sourceLayer.id) ?? []).find((item) => item.id === segmentId);
     if (!segment) return;
     const next: LayerSegmentContentDocType = {
       id: existing?.id ?? `segc_${layerId}_${segmentId}`,
@@ -349,7 +371,7 @@ function TranscriptionPageOrchestrator({
     await LayerSegmentationV2Service.upsertSegmentContent(next);
     await reloadSegmentContents();
     await refreshSegmentUndoSnapshot();
-  }, [layers, refreshSegmentUndoSnapshot, reloadSegmentContents, segmentContentByLayer, segmentsByLayer]);
+  }, [defaultTranscriptionLayerId, layerById, refreshSegmentUndoSnapshot, reloadSegmentContents, resolveSegmentTimelineSourceLayer, segmentContentByLayer, segmentsByLayer]);
 
   // ---- Recovery banner ----
 
@@ -376,6 +398,8 @@ function TranscriptionPageOrchestrator({
   // ---- Page-only UI state ----
   const [focusedLayerRowId, setFocusedLayerRowId] = useState<string>('');
   const [flashLayerRowId, setFlashLayerRowId] = useState<string>('');
+  const [showAllLayerConnectors, setShowAllLayerConnectors] = useState(true);
+  const [layerConnectorVisibilityTouched, setLayerConnectorVisibilityTouched] = useState(false);
   const [pdfPreviewRequest, setPdfPreviewRequest] = useState<import('./TranscriptionPage.PdfRuntime').PdfPreviewOpenRequest | null>(null);
   const pdfPreviewRequestNonceRef = useRef(0);
 
@@ -406,6 +430,27 @@ function TranscriptionPageOrchestrator({
       setFlashLayerRowId('');
     }
   }, [flashLayerRowId, setSelectedLayerId]);
+
+  const hasAnyLayerConnectors = useMemo(
+    () => buildLayerLinkConnectorLayout(orderedLayers, layerLinks).maxColumns > 0,
+    [layerLinks, orderedLayers],
+  );
+
+  useEffect(() => {
+    if (!hasAnyLayerConnectors) {
+      setShowAllLayerConnectors(false);
+      return;
+    }
+    if (!layerConnectorVisibilityTouched) {
+      setShowAllLayerConnectors(true);
+    }
+  }, [hasAnyLayerConnectors, layerConnectorVisibilityTouched]);
+
+  const handleToggleAllLayerConnectors = useCallback(() => {
+    if (!hasAnyLayerConnectors) return;
+    setLayerConnectorVisibilityTouched(true);
+    setShowAllLayerConnectors((prev) => !prev);
+  }, [hasAnyLayerConnectors]);
 
   const {
     isLayerRailCollapsed,
@@ -733,7 +778,6 @@ function TranscriptionPageOrchestrator({
   // Keep ref in sync with state (for resize handle closure access)
   useEffect(() => { laneLabelWidthRef.current = laneLabelWidth; }, [laneLabelWidth]);
 
-  const [showAllLayerConnectors, setShowAllLayerConnectors] = useState(false);
   const [timelineLaneHeights, setTimelineLaneHeights] = useState<Record<string, number>>(() => {
     try {
       const stored = localStorage.getItem('jieyu:lane-heights');
@@ -889,6 +933,7 @@ function TranscriptionPageOrchestrator({
     uttNoteCounts,
     toggleNotes,
     handleNoteClick,
+    resolveNoteIndicatorTarget,
     handleOpenWordNote,
     handleOpenMorphemeNote,
     handleUpdateTokenPos,
@@ -898,6 +943,7 @@ function TranscriptionPageOrchestrator({
     activeUtteranceUnitId: selectedTimelineUtteranceId,
     focusedLayerRowId,
     utterances,
+    timelineUnitIds: noteTimelineUnitIds,
     transcriptionLayers,
     translationLayers,
     updateTokenPos,
@@ -908,11 +954,21 @@ function TranscriptionPageOrchestrator({
 
   // 路由拆分/合并：独立边界层 → segment 操作，默认 → utterance 操作 | Routed split/merge: independent layers → segment ops, default → utterance ops
   const activeLayerIdForEdits = selectedLayerId || focusedLayerRowId;
+  const resolveSegmentRoutingForLayer = useCallback((layerId?: string) => {
+    const layer = layerId ? layerById.get(layerId) : undefined;
+    const segmentSourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId);
+    return {
+      layer,
+      segmentSourceLayer,
+      sourceLayerId: segmentSourceLayer?.id ?? '',
+      usesSegmentTimeline: Boolean(segmentSourceLayer),
+      editMode: getLayerEditMode(segmentSourceLayer ?? layer, defaultTranscriptionLayerId),
+    };
+  }, [defaultTranscriptionLayerId, layerById]);
 
   const splitRouted = useCallback(async (id: string, splitTime: number) => {
-    const layer = layers.find((l) => l.id === activeLayerIdForEdits);
-    const editMode = getLayerEditMode(layer, defaultTranscriptionLayerId);
-    switch (editMode) {
+    const routing = resolveSegmentRoutingForLayer(activeLayerIdForEdits);
+    switch (routing.editMode) {
       case 'independent-segment':
       case 'time-subdivision': {
         pushUndo('拆分句段');
@@ -927,24 +983,22 @@ function TranscriptionPageOrchestrator({
         await splitUtterance(id, splitTime);
         return;
     }
-  }, [activeLayerIdForEdits, defaultTranscriptionLayerId, layers, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, selectTimelineUnit, splitUtterance]);
+  }, [activeLayerIdForEdits, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, splitUtterance]);
 
   const mergeWithPreviousRouted = useCallback(async (id: string) => {
-    const layer = layers.find((l) => l.id === activeLayerIdForEdits);
-    const editMode = getLayerEditMode(layer, defaultTranscriptionLayerId);
-    switch (editMode) {
+    const routing = resolveSegmentRoutingForLayer(activeLayerIdForEdits);
+    switch (routing.editMode) {
       case 'independent-segment':
       case 'time-subdivision': {
-        // getLayerEditMode(undefined) → 'utterance', 不会进此分支，但 TS 无法推断 | TS can't infer layer is defined here
-        if (!layer) return;
-        const segs = segmentsByLayer.get(layer.id);
+        if (!routing.segmentSourceLayer) return;
+        const segs = segmentsByLayer.get(routing.sourceLayerId);
         if (!segs) return;
         const idx = segs.findIndex((s) => s.id === id);
         if (idx <= 0) return;
         const prevSeg = segs[idx - 1]!;
         const curSeg = segs[idx]!;
         // 时间细分层：验证合并后不超出父 utterance 范围 | Time-subdivision: validate merged bounds stay within parent
-        if (editMode === 'time-subdivision') {
+        if (routing.editMode === 'time-subdivision') {
           const parentUtt = utterancesOnCurrentMedia.find(
             (u) => u.startTime <= curSeg.startTime + 0.01 && u.endTime >= curSeg.endTime - 0.01,
           );
@@ -976,24 +1030,22 @@ function TranscriptionPageOrchestrator({
         await mergeWithPrevious(id);
         return;
     }
-  }, [activeLayerIdForEdits, defaultTranscriptionLayerId, layers, segmentsByLayer, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, mergeWithPrevious, setSaveState, utterancesOnCurrentMedia]);
+  }, [activeLayerIdForEdits, segmentsByLayer, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, mergeWithPrevious, resolveSegmentRoutingForLayer, setSaveState, utterancesOnCurrentMedia]);
 
   const mergeWithNextRouted = useCallback(async (id: string) => {
-    const layer = layers.find((l) => l.id === activeLayerIdForEdits);
-    const editMode = getLayerEditMode(layer, defaultTranscriptionLayerId);
-    switch (editMode) {
+    const routing = resolveSegmentRoutingForLayer(activeLayerIdForEdits);
+    switch (routing.editMode) {
       case 'independent-segment':
       case 'time-subdivision': {
-        // getLayerEditMode(undefined) → 'utterance', 不会进此分支，但 TS 无法推断 | TS can't infer layer is defined here
-        if (!layer) return;
-        const segs = segmentsByLayer.get(layer.id);
+        if (!routing.segmentSourceLayer) return;
+        const segs = segmentsByLayer.get(routing.sourceLayerId);
         if (!segs) return;
         const idx = segs.findIndex((s) => s.id === id);
         if (idx < 0 || idx >= segs.length - 1) return;
         const curSeg = segs[idx]!;
         const nextSeg = segs[idx + 1]!;
         // 时间细分层：验证合并后不超出父 utterance 范围 | Time-subdivision: validate merged bounds stay within parent
-        if (editMode === 'time-subdivision') {
+        if (routing.editMode === 'time-subdivision') {
           const parentUtt = utterancesOnCurrentMedia.find(
             (u) => u.startTime <= curSeg.startTime + 0.01 && u.endTime >= curSeg.endTime - 0.01,
           );
@@ -1025,12 +1077,11 @@ function TranscriptionPageOrchestrator({
         await mergeWithNext(id);
         return;
     }
-  }, [activeLayerIdForEdits, defaultTranscriptionLayerId, layers, segmentsByLayer, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, mergeWithNext, setSaveState, utterancesOnCurrentMedia]);
+  }, [activeLayerIdForEdits, segmentsByLayer, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, mergeWithNext, resolveSegmentRoutingForLayer, setSaveState, utterancesOnCurrentMedia]);
 
   const deleteUtteranceRouted = useCallback(async (id: string) => {
-    const layer = layers.find((l) => l.id === activeLayerIdForEdits);
-    const editMode = getLayerEditMode(layer, defaultTranscriptionLayerId);
-    switch (editMode) {
+    const routing = resolveSegmentRoutingForLayer(activeLayerIdForEdits);
+    switch (routing.editMode) {
       case 'independent-segment':
       case 'time-subdivision':
         pushUndo('删除句段');
@@ -1050,12 +1101,11 @@ function TranscriptionPageOrchestrator({
         await deleteUtterance(id);
         return;
     }
-  }, [activeLayerIdForEdits, defaultTranscriptionLayerId, deleteUtterance, layers, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, selectTimelineUnit, setSaveState]);
+  }, [activeLayerIdForEdits, deleteUtterance, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState]);
 
   const deleteSelectedUtterancesRouted = useCallback(async (ids: Set<string>) => {
-    const layer = layers.find((l) => l.id === activeLayerIdForEdits);
-    const editMode = getLayerEditMode(layer, defaultTranscriptionLayerId);
-    switch (editMode) {
+    const routing = resolveSegmentRoutingForLayer(activeLayerIdForEdits);
+    switch (routing.editMode) {
       case 'independent-segment':
       case 'time-subdivision': {
         if (ids.size === 0) return;
@@ -1082,14 +1132,13 @@ function TranscriptionPageOrchestrator({
         await deleteSelectedUtterances(ids);
         return;
     }
-  }, [activeLayerIdForEdits, defaultTranscriptionLayerId, deleteSelectedUtterances, layers, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, selectTimelineUnit, setSaveState]);
+  }, [activeLayerIdForEdits, deleteSelectedUtterances, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState]);
 
   // 统一建段入口路由：独立边界/时间细分 → segment 操作，默认 → utterance 操作
   // Unified create routing: independent-segment/time-subdivision → segment ops, utterance → utterance ops
   const createUtteranceFromSelectionRouted = useCallback(async (start: number, end: number) => {
-    const layer = layers.find((l) => l.id === activeLayerIdForEdits);
-    const editMode = getLayerEditMode(layer, defaultTranscriptionLayerId);
-    if (editMode === 'independent-segment' || editMode === 'time-subdivision') {
+    const routing = resolveSegmentRoutingForLayer(activeLayerIdForEdits);
+    if (routing.editMode === 'independent-segment' || routing.editMode === 'time-subdivision') {
       if (!selectedUtteranceMedia) {
         setSaveState({ kind: 'error', message: '请先导入并选择音频。' });
         return;
@@ -1098,11 +1147,11 @@ function TranscriptionPageOrchestrator({
       const gap = 0.02;
       const rawStart = Math.max(0, Math.min(start, end));
       const rawEnd = Math.max(start, end);
-      if (!layer) {
+      if (!routing.layer || !routing.segmentSourceLayer) {
         console.error('未找到目标转写层');
         return;
       }
-      const layerSegments = segmentsByLayer.get(layer.id);
+      const layerSegments = segmentsByLayer.get(routing.sourceLayerId);
       const siblings = [...(layerSegments ?? [])].sort((a, b) => a.startTime - b.startTime);
       const insertionIndex = siblings.findIndex((item) => item.startTime > rawStart);
       const prev = insertionIndex < 0
@@ -1130,14 +1179,14 @@ function TranscriptionPageOrchestrator({
         id: newId('seg'),
         textId: selectedUtteranceMedia.textId,
         mediaId: selectedUtteranceMedia.id,
-        layerId: layer.id,
+        layerId: routing.sourceLayerId,
         startTime: finalStart,
         endTime: finalEnd,
         ...(speakerFocusTargetKey ? { speakerId: speakerFocusTargetKey } : {}),
         createdAt: now,
         updatedAt: now,
       };
-      if (editMode === 'time-subdivision') {
+      if (routing.editMode === 'time-subdivision') {
         // 时间细分：查找父 utterance 并裁剪 | Time subdivision: find parent utterance and clip
         const parentUtt = utterancesOnCurrentMedia.find(
           (u) => u.startTime <= finalStart + 0.01 && u.endTime >= finalEnd - 0.01,
@@ -1171,8 +1220,9 @@ function TranscriptionPageOrchestrator({
       }
       await reloadSegments();
       await refreshSegmentUndoSnapshot();
+      await reloadSegmentContents();
       // 自动选中新建段 | Auto-select newly created segment
-      selectTimelineUnit(createTimelineUnit(layer.id, newSeg.id, 'segment'));
+      selectTimelineUnit(createTimelineUnit(activeLayerIdForEdits, newSeg.id, 'segment'));
       setSaveState({ kind: 'done', message: `已在当前层新建独立段 ${formatTime(finalStart)} - ${formatTime(finalEnd)}` });
       return;
     }
@@ -1184,9 +1234,10 @@ function TranscriptionPageOrchestrator({
   }, [
     activeLayerIdForEdits,
     createUtteranceFromSelection,
-    layers,
+    reloadSegmentContents,
     reloadSegments,
     refreshSegmentUndoSnapshot,
+    resolveSegmentRoutingForLayer,
     segmentsByLayer,
     selectedUtteranceMedia,
     setSaveState,
@@ -1237,14 +1288,18 @@ function TranscriptionPageOrchestrator({
     () => layers.find((item) => item.id === activeLayerIdForEdits),
     [activeLayerIdForEdits, layers],
   );
-  const useIndependentWaveformRegions = Boolean(activeWaveformLayer && layerUsesOwnSegments(activeWaveformLayer, defaultTranscriptionLayerId));
+  const activeWaveformSegmentSourceLayer = useMemo(
+    () => resolveSegmentTimelineSourceLayer(activeWaveformLayer, layerById, defaultTranscriptionLayerId),
+    [activeWaveformLayer, defaultTranscriptionLayerId, layerById],
+  );
+  const useSegmentWaveformRegions = Boolean(activeWaveformSegmentSourceLayer);
   const waveformTimelineItems = useMemo(() => {
-    if (useIndependentWaveformRegions && activeWaveformLayer) {
-      const segments = segmentsByLayer.get(activeWaveformLayer.id) ?? [];
+    if (useSegmentWaveformRegions && activeWaveformSegmentSourceLayer) {
+      const segments = segmentsByLayer.get(activeWaveformSegmentSourceLayer.id) ?? [];
       return [...segments].sort((a, b) => a.startTime - b.startTime);
     }
     return utterancesOnCurrentMedia;
-  }, [activeWaveformLayer, segmentsByLayer, useIndependentWaveformRegions, utterancesOnCurrentMedia]);
+  }, [activeWaveformSegmentSourceLayer, segmentsByLayer, useSegmentWaveformRegions, utterancesOnCurrentMedia]);
   const waveformRegions = useMemo(() =>
     waveformTimelineItems.map((item) => ({
       id: item.id,
@@ -1254,19 +1309,19 @@ function TranscriptionPageOrchestrator({
     [waveformTimelineItems],
   );
   const selectedWaveformRegionId = selectedTimelineUnit?.layerId === activeLayerIdForEdits
-    ? (useIndependentWaveformRegions
+    ? (useSegmentWaveformRegions
       ? (isSegmentTimelineUnit(selectedTimelineUnit) ? selectedTimelineUnit.unitId : '')
       : (isUtteranceTimelineUnit(selectedTimelineUnit) ? selectedTimelineUnit.unitId : ''))
     : '';
   const waveformActiveRegionIds = useMemo(() => {
-    if (useIndependentWaveformRegions) {
+    if (useSegmentWaveformRegions) {
       // Lasso 多选时 segment ID 存入 selectedUtteranceIds（非空则优先使用）
       // Single-click uses selectSegment → clears selectedUtteranceIds; lasso populates it | Single-click clears it, lasso fills it
       if (selectedUtteranceIds.size > 0) return selectedUtteranceIds;
       return selectedWaveformRegionId ? new Set([selectedWaveformRegionId]) : new Set<string>();
     }
     return selectedUtteranceIds;
-  }, [selectedUtteranceIds, selectedWaveformRegionId, useIndependentWaveformRegions]);
+  }, [selectedUtteranceIds, selectedWaveformRegionId, useSegmentWaveformRegions]);
   const waveformPrimaryRegionId = selectedWaveformRegionId;
 
   // --- 百分比 → px/s 换算 ---
@@ -1299,7 +1354,7 @@ function TranscriptionPageOrchestrator({
     globalLoop: globalLoopPlayback,
     segmentPlaybackRate,
     autoScrollDuringPlayback: !shouldDisableAutoScroll,
-    enableEmptyDragCreate: useIndependentWaveformRegions,
+    enableEmptyDragCreate: useSegmentWaveformRegions,
     zoomLevel: zoomPxPerSec,
     startMarker: segMarkStart ?? undefined,
     subSelection: subSelectionRange,
@@ -1318,7 +1373,7 @@ function TranscriptionPageOrchestrator({
       setSubSelectionRange(null);
       manualSelectTsRef.current = Date.now();
       player.seekTo(clickTime);
-      if (useIndependentWaveformRegions) {
+      if (useSegmentWaveformRegions) {
         if (event.shiftKey) {
           // 范围选 segment | Range-select segments
           const anchor = isSegmentTimelineUnit(selectedTimelineUnit)
@@ -1358,7 +1413,7 @@ function TranscriptionPageOrchestrator({
       setDragPreview({ id: regionId, start, end });
       const item = waveformTimelineItems.find((u) => u.id === regionId);
       if (item) {
-        const bounds = useIndependentWaveformRegions && activeWaveformLayer
+        const bounds = useSegmentWaveformRegions
           ? {
             left: (() => {
               const siblings = waveformTimelineItems.filter((s) => s.id !== regionId);
@@ -1377,7 +1432,7 @@ function TranscriptionPageOrchestrator({
           }
           : getNeighborBounds(item.id, item.mediaId, start);
         // 时间细分层：叠加父 utterance 范围限制 | Time-subdivision: overlay parent utterance bounds
-        if (activeWaveformLayer && getLayerEditMode(activeWaveformLayer, defaultTranscriptionLayerId) === 'time-subdivision') {
+        if (activeWaveformSegmentSourceLayer && getLayerEditMode(activeWaveformSegmentSourceLayer, defaultTranscriptionLayerId) === 'time-subdivision') {
           const parentUtt = utterancesOnCurrentMedia.find(
             (u) => u.startTime <= bounds.left + 0.01 && u.endTime >= (bounds.right ?? Infinity) - 0.01,
           );
@@ -1393,7 +1448,7 @@ function TranscriptionPageOrchestrator({
       endTimingGesture(regionId);
       setDragPreview(null);
       manualSelectTsRef.current = Date.now();
-      if (useIndependentWaveformRegions) {
+      if (useSegmentWaveformRegions) {
         selectTimelineUnit(createTimelineUnit(activeLayerIdForEdits, regionId, 'segment'));
       } else {
         selectTimelineUnit(createTimelineUnit(activeLayerIdForEdits, regionId, 'utterance'));
@@ -1412,7 +1467,7 @@ function TranscriptionPageOrchestrator({
       }
       const item = waveformTimelineItems.find((u) => u.id === regionId);
       if (item) {
-        const bounds = useIndependentWaveformRegions && activeWaveformLayer
+        const bounds = useSegmentWaveformRegions
           ? {
             left: (() => {
               const siblings = waveformTimelineItems.filter((s) => s.id !== regionId);
@@ -1431,7 +1486,7 @@ function TranscriptionPageOrchestrator({
           }
           : getNeighborBounds(item.id, item.mediaId, finalStart);
         // 时间细分层：叠加父 utterance 范围限制 | Time-subdivision: overlay parent utterance bounds
-        if (activeWaveformLayer && getLayerEditMode(activeWaveformLayer, defaultTranscriptionLayerId) === 'time-subdivision') {
+        if (activeWaveformSegmentSourceLayer && getLayerEditMode(activeWaveformSegmentSourceLayer, defaultTranscriptionLayerId) === 'time-subdivision') {
           const parentUtt = utterancesOnCurrentMedia.find(
             (u) => u.startTime <= bounds.left + 0.01 && u.endTime >= (bounds.right ?? Infinity) - 0.01,
           );
@@ -1444,7 +1499,7 @@ function TranscriptionPageOrchestrator({
       }
       let subdivisionClampedInRegionUpdate = false;
       // 时间细分层：保存前裁剪至父 utterance 范围 | Time-subdivision: clamp to parent before save
-      if (activeWaveformLayer && getLayerEditMode(activeWaveformLayer, defaultTranscriptionLayerId) === 'time-subdivision') {
+      if (activeWaveformSegmentSourceLayer && getLayerEditMode(activeWaveformSegmentSourceLayer, defaultTranscriptionLayerId) === 'time-subdivision') {
         const beforeClampStart = finalStart;
         const beforeClampEnd = finalEnd;
         const parentUtt = utterancesOnCurrentMedia.find(
@@ -1465,7 +1520,7 @@ function TranscriptionPageOrchestrator({
           finalEnd = clampedEnd;
         }
       }
-      if (useIndependentWaveformRegions && activeWaveformLayer) {
+      if (useSegmentWaveformRegions && activeWaveformSegmentSourceLayer) {
         fireAndForget((async () => {
           await LayerSegmentationV2Service.updateSegment(regionId, {
             startTime: Number(finalStart.toFixed(3)),
@@ -1490,7 +1545,7 @@ function TranscriptionPageOrchestrator({
       }
       const shouldPreserveMultiSelection = selectedUtteranceIds.has(regionId) && selectedUtteranceIds.size > 1;
       if (!shouldPreserveMultiSelection) {
-        if (useIndependentWaveformRegions) {
+        if (useSegmentWaveformRegions) {
           selectTimelineUnit({ layerId: activeLayerIdForEdits, unitId: regionId, kind: 'segment' });
         } else {
           selectTimelineUnit({ layerId: activeLayerIdForEdits, unitId: regionId, kind: 'utterance' });
@@ -1515,7 +1570,7 @@ function TranscriptionPageOrchestrator({
         y,
         utteranceId: regionId,
         layerId: activeLayerIdForEdits,
-        unitKind: useIndependentWaveformRegions ? 'segment' : 'utterance',
+        unitKind: useSegmentWaveformRegions ? 'segment' : 'utterance',
         splitTime,
       });
     },
@@ -1540,7 +1595,7 @@ function TranscriptionPageOrchestrator({
         selectTimelineUnit({
           layerId: activeLayerIdForEdits,
           unitId: hit.id,
-          kind: useIndependentWaveformRegions ? 'segment' : 'utterance',
+          kind: useSegmentWaveformRegions ? 'segment' : 'utterance',
         });
       }
     },
@@ -1619,16 +1674,22 @@ function TranscriptionPageOrchestrator({
     if (!player.isReady) return [];
     const ws = player.instanceRef.current;
     if (!ws) return [];
-    const result: { uttId: string; leftPx: number; widthPx: number; count: number }[] = [];
-    for (const utt of utterancesOnCurrentMedia) {
-      const count = uttNoteCounts.get(utt.id) ?? 0;
-      if (count <= 0) continue;
-      const leftPx = utt.startTime * zoomPxPerSec - waveformScrollLeft;
-      const widthPx = (utt.endTime - utt.startTime) * zoomPxPerSec;
-      result.push({ uttId: utt.id, leftPx, widthPx, count });
+    const result: { uttId: string; leftPx: number; widthPx: number; count: number; layerId?: string }[] = [];
+    for (const item of waveformTimelineItems) {
+      const noteIndicator = resolveNoteIndicatorTarget(item.id, activeLayerIdForEdits || undefined);
+      if (!noteIndicator) continue;
+      const leftPx = item.startTime * zoomPxPerSec - waveformScrollLeft;
+      const widthPx = (item.endTime - item.startTime) * zoomPxPerSec;
+      result.push({
+        uttId: item.id,
+        leftPx,
+        widthPx,
+        count: noteIndicator.count,
+        ...(noteIndicator.layerId ? { layerId: noteIndicator.layerId } : {}),
+      });
     }
     return result;
-  }, [player.isReady, utterancesOnCurrentMedia, uttNoteCounts, zoomPxPerSec, waveformScrollLeft]);
+  }, [activeLayerIdForEdits, player.isReady, resolveNoteIndicatorTarget, waveformScrollLeft, waveformTimelineItems, zoomPxPerSec]);
 
   // ---- Lasso / sub-selection (from hook) ----
   const {
@@ -1647,7 +1708,7 @@ function TranscriptionPageOrchestrator({
     utterancesOnCurrentMedia,
     timelineItems: waveformTimelineItems,
     selectedUtteranceIds,
-    selectedUtteranceUnitId: selectedTimelineUtteranceId,
+    selectedUtteranceUnitId: selectedWaveformRegionId,
     zoomPxPerSec,
     skipSeekForIdRef,
     clearUtteranceSelection,
@@ -1682,20 +1743,20 @@ function TranscriptionPageOrchestrator({
   };
 
   splitAtTimeRef.current = (timeSeconds) => {
-    const target = utterancesOnCurrentMedia.find((item) => item.startTime < timeSeconds && item.endTime > timeSeconds);
+    const target = waveformTimelineItems.find((item) => item.startTime < timeSeconds && item.endTime > timeSeconds);
     if (!target) return false;
     runSplitAtTime(target.id, timeSeconds);
     return true;
   };
 
   zoomToSegmentRef.current = (segmentId, zoomLevel) => {
-    const target = utterancesOnCurrentMedia.find((item) => item.id === segmentId);
+    const target = waveformTimelineItems.find((item) => item.id === segmentId);
     if (!target) return false;
     manualSelectTsRef.current = Date.now();
     if (player.isPlaying) {
       player.stop();
     }
-    selectUtterance(segmentId);
+    selectTimelineUnit(createTimelineUnit(activeLayerIdForEdits, segmentId, useSegmentWaveformRegions ? 'segment' : 'utterance'));
     player.seekTo(target.startTime);
     if (typeof zoomLevel === 'number' && Number.isFinite(zoomLevel)) {
       zoomToPercent(Math.max(100, Math.min(800, zoomLevel * 100)), 0.5, 'custom');
@@ -1708,9 +1769,9 @@ function TranscriptionPageOrchestrator({
   // 路由邻居边界：独立边界层查 segmentsByLayer，默认查 utterances | Routed neighbor bounds: independent layers → segmentsByLayer, default → utterances
   const getNeighborBoundsRouted = useCallback((itemId: string, mediaId: string | undefined, probeStart: number, layerId?: string) => {
     if (layerId) {
-      const layer = layers.find((l) => l.id === layerId);
-      if (layer && layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) {
-        const segs = segmentsByLayer.get(layer.id) ?? [];
+      const routing = resolveSegmentRoutingForLayer(layerId);
+      if (routing.segmentSourceLayer) {
+        const segs = segmentsByLayer.get(routing.sourceLayerId) ?? [];
         const siblings = segs
           .filter((s) => s.id !== itemId)
           .sort((a, b) => a.startTime - b.startTime);
@@ -1723,7 +1784,7 @@ function TranscriptionPageOrchestrator({
         let left = prev ? prev.endTime + 0.02 : 0;
         let right: number | undefined = next ? next.startTime - 0.02 : undefined;
         // 时间细分层：额外限制在父 utterance 范围内 | Time-subdivision: also clamp to parent utterance bounds
-        if (getLayerEditMode(layer, defaultTranscriptionLayerId) === 'time-subdivision') {
+        if (routing.editMode === 'time-subdivision') {
           const parentUtt = utterancesOnCurrentMedia.find(
             (u) => u.startTime <= probeStart + 0.01 && u.endTime >= probeStart - 0.01,
           );
@@ -1736,17 +1797,17 @@ function TranscriptionPageOrchestrator({
       }
     }
     return getNeighborBounds(itemId, mediaId, probeStart);
-  }, [layers, segmentsByLayer, getNeighborBounds, defaultTranscriptionLayerId, utterancesOnCurrentMedia]);
+  }, [getNeighborBounds, resolveSegmentRoutingForLayer, segmentsByLayer, utterancesOnCurrentMedia]);
 
   // 路由保存：独立边界层写该层 canonical segment graph，默认层写 utterances | Routed save: independent layers → canonical segment graph, default → utterances
   const saveTimingRouted = useCallback(async (id: string, start: number, end: number, layerId?: string) => {
     if (layerId) {
-      const layer = layers.find((l) => l.id === layerId);
-      if (layer && layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) {
+      const routing = resolveSegmentRoutingForLayer(layerId);
+      if (routing.segmentSourceLayer) {
         let finalStart = start;
         let finalEnd = end;
         let subdivisionClampedInResize = false;
-        if (getLayerEditMode(layer, defaultTranscriptionLayerId) === 'time-subdivision') {
+        if (routing.editMode === 'time-subdivision') {
           const parentUtt = utterancesOnCurrentMedia.find(
             (u) => u.startTime <= finalStart + 0.01 && u.endTime >= finalEnd - 0.01,
           );
@@ -1772,7 +1833,7 @@ function TranscriptionPageOrchestrator({
       }
     }
     await saveUtteranceTiming(id, start, end);
-  }, [layers, defaultTranscriptionLayerId, utterancesOnCurrentMedia, reloadSegments, saveUtteranceTiming, setSaveState]);
+  }, [reloadSegments, resolveSegmentRoutingForLayer, saveUtteranceTiming, setSaveState, utterancesOnCurrentMedia]);
 
   const { timelineResizeTooltip, startTimelineResizeDrag } = useTimelineResize({
     zoomPxPerSec,
@@ -3851,7 +3912,6 @@ function TranscriptionPageOrchestrator({
       speakerNames,
     };
   }, [speakerLayerLayout.lockConflictCount, speakerLayerLayout.lockConflictSpeakerIds, speakerNameById]);
-
   const handleOpenLockConflictDetails = useCallback(() => {
     if (trackLockDiagnostics.count <= 0) return;
     setLockConflictToast({
@@ -3882,10 +3942,10 @@ function TranscriptionPageOrchestrator({
       focusedLayerRowId,
       zoomToUtterance,
       startTimelineResizeDrag,
-      noteCounts,
       handleNoteClick,
+      resolveNoteIndicatorTarget,
       speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
-      independentLayerIds,
+      independentLayerIds: segmentTimelineLayerIds,
       onOverlapCycleToast: (index, total, utteranceId) => {
         setOverlapCycleToast({ index, total, nonce: Date.now() });
         const nextTelemetry = updateOverlapCycleTelemetry(overlapCycleTelemetryRef.current, {
@@ -4193,7 +4253,7 @@ function TranscriptionPageOrchestrator({
                                   )}
                                 </div>
                               ) : null}
-                              {waveformNoteIndicators.map(({ uttId, leftPx, widthPx }) => (
+                              {waveformNoteIndicators.map(({ uttId, leftPx, widthPx, count, layerId }) => (
                                 <div
                                   key={`note-${uttId}`}
                                   style={{
@@ -4205,13 +4265,14 @@ function TranscriptionPageOrchestrator({
                                   onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setNotePopover({ x: e.clientX, y: e.clientY, uttId, layerId: '' });
+                                    setNotePopover({ x: e.clientX, y: e.clientY, uttId, ...(layerId ? { layerId } : {}) });
                                   }}
                                 >
-                                  <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: 16, height: 16, color: '#93c5fd' }}>
-                                    <path d="M4.5 1.5h5l3 3v8a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-                                    <path d="M6.5 7h3M6.5 9.5h3" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-                                  </svg>
+                                  <NoteDocumentIcon
+                                    ariaLabel={`${count} 条备注`}
+                                    title={`${count} 条备注`}
+                                    style={{ width: 16, height: 16, color: '#93c5fd', opacity: 0.92 }}
+                                  />
                                 </div>
                               ))}
                               {snapGuide.visible && player.duration > 0 && rulerView && (() => {
@@ -4456,7 +4517,7 @@ function TranscriptionPageOrchestrator({
                           onFocusLayer: handleFocusLayerRow,
                           layerLinks,
                           showConnectors: showAllLayerConnectors,
-                          onToggleConnectors: () => setShowAllLayerConnectors((prev) => !prev),
+                          onToggleConnectors: handleToggleAllLayerConnectors,
                           laneHeights: timelineLaneHeights,
                           onLaneHeightChange: handleTimelineLaneHeightChange,
                           trackDisplayMode: transcriptionTrackMode,
@@ -4498,7 +4559,7 @@ function TranscriptionPageOrchestrator({
                           navigateUtteranceFromInput,
                           layerLinks,
                           showConnectors: showAllLayerConnectors,
-                          onToggleConnectors: () => setShowAllLayerConnectors((prev) => !prev),
+                          onToggleConnectors: handleToggleAllLayerConnectors,
                           laneHeights: timelineLaneHeights,
                           onLaneHeightChange: handleTimelineLaneHeightChange,
                           trackDisplayMode: transcriptionTrackMode,

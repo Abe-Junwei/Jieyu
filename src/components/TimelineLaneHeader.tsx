@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { LayerLinkDocType, LayerDocType } from '../db';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
+import { buildLayerBundles, resolveLayerDragGroup } from '../services/LayerOrderingService';
+import { resolveVerticalReorderTargetIndex, type VerticalDragDirection } from '../utils/dragReorder';
 import { fireAndForget } from '../utils/fireAndForget';
 import { buildLayerLinkConnectorLayout, getLayerLinkConnectorColors, getLayerLinkStackWidth } from '../utils/layerLinkConnector';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
@@ -47,6 +49,21 @@ interface LaneLockDialogState {
   selectedSpeakerHint: string;
 }
 
+function formatTrackModeMenuLabel(mode: TranscriptionTrackDisplayMode): string {
+  switch (mode) {
+    case 'single':
+      return '单轨';
+    case 'multi-auto':
+      return '多轨·自动';
+    case 'multi-locked':
+      return '多轨·锁定';
+    case 'multi-speaker-fixed':
+      return '多轨·一人一轨';
+    default:
+      return mode;
+  }
+}
+
 export function TimelineLaneHeader({
   layer,
   layerIndex,
@@ -76,6 +93,28 @@ export function TimelineLaneHeader({
   const canOpenTranslationCreate = allLayers.some((item) => item.layerType === 'transcription');
   const rowSegments = connectorLayout.segmentsByLayerId[layer.id] ?? [];
   const hasResolvableConnectorData = connectorLayout.maxColumns > 0;
+  const effectiveShowConnectors = showConnectors && hasResolvableConnectorData;
+  const { bundleBoundaryIndexes, bundleRootIds, bundleRanges } = useMemo(() => {
+    const boundaries = new Set<number>([0, allLayers.length]);
+    const rootIds = new Set<string>();
+    const ranges: Array<{ rootId: string; start: number; end: number }> = [];
+    let cursor = 0;
+    for (const bundle of buildLayerBundles(allLayers)) {
+      const start = cursor;
+      boundaries.add(cursor);
+      if (!bundle.detached) {
+        rootIds.add(bundle.root.id);
+      }
+      cursor += 1 + bundle.transcriptionDependents.length + bundle.translationDependents.length;
+      boundaries.add(cursor);
+      ranges.push({ rootId: bundle.root.id, start, end: cursor });
+    }
+    return {
+      bundleBoundaryIndexes: [...boundaries].sort((left, right) => left - right),
+      bundleRootIds: rootIds,
+      bundleRanges: ranges,
+    };
+  }, [allLayers]);
 
   // ── Context menu state ──
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -86,7 +125,9 @@ export function TimelineLaneHeader({
   // ── Drag-and-drop state ──
   const [dragState, setDragState] = useState<{
     draggedId: string;
+    draggedLayerIds: string[];
     sourceIndex: number;
+    sourceSpan: number;
     sourceType: 'transcription' | 'translation';
   } | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
@@ -99,6 +140,28 @@ export function TimelineLaneHeader({
   const dragVisualRafRef = useRef<number | null>(null);
   const dragVisualCurrentOffsetRef = useRef(0);
   const dragVisualTargetOffsetRef = useRef(0);
+  const draggedLaneRowsRef = useRef<HTMLElement[]>([]);
+  const dragLastClientYRef = useRef<number | null>(null);
+  const dragDirectionRef = useRef<VerticalDragDirection>('none');
+
+  const resolveDraggedLaneRows = useCallback((sourceIndex: number, sourceSpan: number): HTMLElement[] => {
+    const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
+    if (!container) return [];
+    const lanes = Array.from(container.querySelectorAll<HTMLElement>('.timeline-lane'));
+    return lanes.slice(sourceIndex, sourceIndex + sourceSpan);
+  }, []);
+
+  const updateDragDirection = useCallback((clientY: number) => {
+    const previous = dragLastClientYRef.current;
+    if (previous !== null) {
+      if (clientY > previous + 1) {
+        dragDirectionRef.current = 'down';
+      } else if (clientY < previous - 1) {
+        dragDirectionRef.current = 'up';
+      }
+    }
+    dragLastClientYRef.current = clientY;
+  }, []);
 
   const clearSiblingShiftVisual = useCallback(() => {
     const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
@@ -110,7 +173,33 @@ export function TimelineLaneHeader({
     });
   }, []);
 
-  const updateSiblingShiftVisual = useCallback((sourceIndex: number, dropIndex: number) => {
+  const clearBundleBoundaryHighlightVisual = useCallback(() => {
+    const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
+    if (!container) return;
+    const lanes = container.querySelectorAll<HTMLElement>('.timeline-lane');
+    lanes.forEach((lane) => {
+      lane.classList.remove('timeline-lane-boundary-highlight-top');
+      lane.classList.remove('timeline-lane-boundary-highlight-bottom');
+      lane.classList.remove('timeline-lane-bundle-target');
+    });
+  }, []);
+
+  const resolveTargetBundleRange = useCallback((draggedId: string, dropIndex: number) => {
+    if (!bundleRootIds.has(draggedId)) return null;
+    if (!bundleBoundaryIndexes.includes(dropIndex)) return null;
+
+    const clampedProbeIndex = Math.max(0, Math.min(dropIndex, allLayers.length - 1));
+    const targetRange = bundleRanges.find((range) => clampedProbeIndex >= range.start && clampedProbeIndex < range.end);
+    if (!targetRange || targetRange.rootId === draggedId) return null;
+    return targetRange;
+  }, [allLayers.length, bundleBoundaryIndexes, bundleRanges, bundleRootIds]);
+
+  const getDraggedLaneBlockHeight = useCallback((lanes: HTMLElement[]): number => {
+    if (lanes.length === 0) return 54;
+    return lanes.reduce((total, lane) => total + lane.getBoundingClientRect().height, 0);
+  }, []);
+
+  const updateSiblingShiftVisual = useCallback((sourceIndex: number, sourceSpan: number, dropIndex: number) => {
     const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
     if (!container) return;
 
@@ -120,16 +209,16 @@ export function TimelineLaneHeader({
     if (lanes.length === 0) return;
 
     const insertionIndex = Math.max(0, Math.min(dropIndex, lanes.length));
-    if (insertionIndex === sourceIndex || insertionIndex === sourceIndex + 1) return;
+    if (insertionIndex === sourceIndex || (insertionIndex > sourceIndex && insertionIndex <= sourceIndex + sourceSpan)) return;
 
-    const laneHeight = laneRowRef.current?.getBoundingClientRect().height ?? 54;
+    const dragBlockHeight = getDraggedLaneBlockHeight(lanes.slice(sourceIndex, sourceIndex + sourceSpan));
 
     if (insertionIndex > sourceIndex) {
-      for (let i = sourceIndex + 1; i < insertionIndex; i++) {
+      for (let i = sourceIndex + sourceSpan; i < insertionIndex; i++) {
         const lane = lanes[i];
         if (!lane) continue;
         lane.classList.add('timeline-lane-row-shift');
-        lane.style.setProperty('--timeline-lane-shift-offset', `${-laneHeight}px`);
+        lane.style.setProperty('--timeline-lane-shift-offset', `${-dragBlockHeight}px`);
       }
       return;
     }
@@ -138,9 +227,34 @@ export function TimelineLaneHeader({
       const lane = lanes[i];
       if (!lane) continue;
       lane.classList.add('timeline-lane-row-shift');
-      lane.style.setProperty('--timeline-lane-shift-offset', `${laneHeight}px`);
+      lane.style.setProperty('--timeline-lane-shift-offset', `${dragBlockHeight}px`);
     }
-  }, [clearSiblingShiftVisual]);
+  }, [clearSiblingShiftVisual, getDraggedLaneBlockHeight]);
+
+  const updateBundleBoundaryHighlightVisual = useCallback((draggedId: string, sourceIndex: number, dropIndex: number) => {
+    clearBundleBoundaryHighlightVisual();
+
+    if (!bundleRootIds.has(draggedId)) return;
+    if (!bundleBoundaryIndexes.includes(dropIndex)) return;
+    if (dropIndex === sourceIndex) return;
+
+    const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
+    if (!container) return;
+    const lanes = Array.from(container.querySelectorAll<HTMLElement>('.timeline-lane'));
+    if (lanes.length === 0) return;
+
+    if (dropIndex >= lanes.length) {
+      lanes[lanes.length - 1]?.classList.add('timeline-lane-boundary-highlight-bottom');
+    } else {
+      lanes[dropIndex]?.classList.add('timeline-lane-boundary-highlight-top');
+    }
+
+    const targetRange = resolveTargetBundleRange(draggedId, dropIndex);
+    if (!targetRange) return;
+    for (let index = targetRange.start; index < targetRange.end; index += 1) {
+      lanes[index]?.classList.add('timeline-lane-bundle-target');
+    }
+  }, [bundleBoundaryIndexes, bundleRootIds, clearBundleBoundaryHighlightVisual, resolveTargetBundleRange]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -156,10 +270,11 @@ export function TimelineLaneHeader({
     }
     dragVisualCurrentOffsetRef.current = 0;
     dragVisualTargetOffsetRef.current = 0;
-    const lane = laneRowRef.current;
-    if (!lane) return;
-    lane.classList.remove('timeline-lane-row-dragging');
-    lane.style.removeProperty('--timeline-lane-drag-offset');
+    draggedLaneRowsRef.current.forEach((lane) => {
+      lane.classList.remove('timeline-lane-row-dragging');
+      lane.style.removeProperty('--timeline-lane-drag-offset');
+    });
+    draggedLaneRowsRef.current = [];
   }, []);
 
   const closeLaneLockDialog = useCallback(() => {
@@ -189,19 +304,21 @@ export function TimelineLaneHeader({
     if (dragVisualRafRef.current !== null) return;
 
     const animate = () => {
-      const lane = laneRowRef.current;
-      if (!lane) {
+      const lanes = draggedLaneRowsRef.current;
+      if (lanes.length === 0) {
         dragVisualRafRef.current = null;
         return;
       }
 
       const target = dragVisualTargetOffsetRef.current;
       const current = dragVisualCurrentOffsetRef.current;
-      const next = current + (target - current) * 0.28;
+      const next = current + (target - current) * 0.22;
 
       dragVisualCurrentOffsetRef.current = next;
-      lane.classList.add('timeline-lane-row-dragging');
-      lane.style.setProperty('--timeline-lane-drag-offset', `${next}px`);
+      lanes.forEach((lane) => {
+        lane.classList.add('timeline-lane-row-dragging');
+        lane.style.setProperty('--timeline-lane-drag-offset', `${next}px`);
+      });
 
       const diff = Math.abs(target - next);
       if (!dragStateRef.current && diff < 0.2) {
@@ -231,26 +348,35 @@ export function TimelineLaneHeader({
     const laneLabels = container.querySelectorAll<HTMLElement>('.timeline-lane-header');
     if (laneLabels.length === 0) return null;
 
-    let targetIndex = -1;
-    for (let i = 0; i < laneLabels.length; i++) {
-      const rect = laneLabels[i]!.getBoundingClientRect();
-      const midY = rect.top + rect.height / 2;
-      if (clientY < midY) {
-        targetIndex = i;
-        break;
-      }
-      targetIndex = i + 1;
-    }
+    const activeDrag = dragStateRef.current;
+
+    let targetIndex = resolveVerticalReorderTargetIndex(
+      Array.from(laneLabels, (lane) => lane.getBoundingClientRect()),
+      clientY,
+      dragDirectionRef.current,
+      {
+        ...(activeDrag && bundleRootIds.has(activeDrag.draggedId)
+          ? { allowedBoundaryIndexes: bundleBoundaryIndexes }
+          : {}),
+      },
+    );
+    if (targetIndex === null) return null;
 
     if (targetIndex > allLayers.length) targetIndex = allLayers.length;
 
+    if (activeDrag && targetIndex > activeDrag.sourceIndex && targetIndex < activeDrag.sourceIndex + activeDrag.sourceSpan) {
+      return activeDrag.sourceIndex;
+    }
+
     return targetIndex;
-  }, [allLayers.length]);
+  }, [allLayers.length, bundleBoundaryIndexes, bundleRootIds]);
 
   // Long press (500ms) to start drag
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left mouse button
     dragStartClientYRef.current = e.clientY;
+    dragLastClientYRef.current = e.clientY;
+    dragDirectionRef.current = 'none';
     laneRowRef.current = headerRef.current?.closest<HTMLElement>('.timeline-lane') ?? null;
     if (dragTimerRef.current) {
       clearTimeout(dragTimerRef.current);
@@ -258,6 +384,8 @@ export function TimelineLaneHeader({
     }
 
     const idx = allLayers.findIndex((l) => l.id === layer.id);
+    const draggedLayerIds = resolveLayerDragGroup(allLayers, layer.id);
+    const sourceSpan = draggedLayerIds.length;
 
     const cancelPendingDragStart = () => {
       if (dragTimerRef.current) {
@@ -265,23 +393,30 @@ export function TimelineLaneHeader({
         dragTimerRef.current = null;
       }
       dragStartClientYRef.current = null;
+      dragLastClientYRef.current = null;
+      dragDirectionRef.current = 'none';
       laneRowRef.current = null;
       document.removeEventListener('mouseup', cancelPendingDragStart);
     };
 
     dragTimerRef.current = setTimeout(() => {
       dragTimerRef.current = null;
+      draggedLaneRowsRef.current = resolveDraggedLaneRows(idx, sourceSpan);
+      laneRowRef.current = draggedLaneRowsRef.current[0] ?? laneRowRef.current;
       setDragState({
         draggedId: layer.id,
+        draggedLayerIds,
         sourceIndex: idx,
+        sourceSpan,
         sourceType: layer.layerType,
       });
       setDropTargetIndex(idx);
+      updateBundleBoundaryHighlightVisual(layer.id, idx, idx);
       updateLaneDragVisual(e.clientY);
       document.removeEventListener('mouseup', cancelPendingDragStart);
     }, 500);
     document.addEventListener('mouseup', cancelPendingDragStart);
-  }, [allLayers, layer.id, layer.layerType, updateLaneDragVisual]);
+  }, [allLayers, layer.id, layer.layerType, resolveDraggedLaneRows, updateBundleBoundaryHighlightVisual, updateLaneDragVisual]);
 
   useEffect(() => {
     dragStateRef.current = dragState;
@@ -294,13 +429,18 @@ export function TimelineLaneHeader({
   const commitDragReorder = useCallback((clientY?: number) => {
     const activeDrag = dragStateRef.current;
     if (typeof clientY === 'number') {
+      updateDragDirection(clientY);
       updateLaneDragVisual(clientY);
     }
     if (!activeDrag) {
       clearLaneDragVisual();
       clearSiblingShiftVisual();
+      clearBundleBoundaryHighlightVisual();
       dragStartClientYRef.current = null;
+      dragLastClientYRef.current = null;
+      dragDirectionRef.current = 'none';
       laneRowRef.current = null;
+      draggedLaneRowsRef.current = [];
       setDragState(null);
       setDropTargetIndex(null);
       return;
@@ -319,21 +459,27 @@ export function TimelineLaneHeader({
 
     clearLaneDragVisual();
     clearSiblingShiftVisual();
+    clearBundleBoundaryHighlightVisual();
     dragStartClientYRef.current = null;
+    dragLastClientYRef.current = null;
+    dragDirectionRef.current = 'none';
     laneRowRef.current = null;
+    draggedLaneRowsRef.current = [];
     setDragState(null);
     setDropTargetIndex(null);
-  }, [clearLaneDragVisual, clearSiblingShiftVisual, onReorderLayers, resolveDropTargetIndex, updateLaneDragVisual]);
+  }, [clearBundleBoundaryHighlightVisual, clearLaneDragVisual, clearSiblingShiftVisual, onReorderLayers, resolveDropTargetIndex, updateLaneDragVisual]);
 
   useEffect(() => {
     if (!dragState) return;
 
     const handleDocumentMouseMove = (e: MouseEvent) => {
+      updateDragDirection(e.clientY);
       updateLaneDragVisual(e.clientY);
       const next = resolveDropTargetIndex(e.clientY);
       if (next !== null) {
         setDropTargetIndex(next);
-        updateSiblingShiftVisual(dragState.sourceIndex, next);
+        updateSiblingShiftVisual(dragState.sourceIndex, dragState.sourceSpan, next);
+        updateBundleBoundaryHighlightVisual(dragState.draggedId, dragState.sourceIndex, next);
       }
     };
 
@@ -347,45 +493,49 @@ export function TimelineLaneHeader({
     return () => {
       clearLaneDragVisual();
       clearSiblingShiftVisual();
+      clearBundleBoundaryHighlightVisual();
       document.removeEventListener('mousemove', handleDocumentMouseMove);
       document.removeEventListener('mouseup', handleDocumentMouseUp);
     };
-  }, [clearLaneDragVisual, clearSiblingShiftVisual, commitDragReorder, dragState, resolveDropTargetIndex, updateLaneDragVisual, updateSiblingShiftVisual]);
+  }, [clearBundleBoundaryHighlightVisual, clearLaneDragVisual, clearSiblingShiftVisual, commitDragReorder, dragState, resolveDropTargetIndex, updateDragDirection, updateBundleBoundaryHighlightVisual, updateLaneDragVisual, updateSiblingShiftVisual]);
 
   useEffect(() => () => {
     clearLaneDragVisual();
     clearSiblingShiftVisual();
+    clearBundleBoundaryHighlightVisual();
     dragStartClientYRef.current = null;
+    dragLastClientYRef.current = null;
+    dragDirectionRef.current = 'none';
     laneRowRef.current = null;
+    draggedLaneRowsRef.current = [];
     if (dragTimerRef.current) {
       clearTimeout(dragTimerRef.current);
       dragTimerRef.current = null;
     }
-  }, [clearLaneDragVisual, clearSiblingShiftVisual]);
+  }, [clearBundleBoundaryHighlightVisual, clearLaneDragVisual, clearSiblingShiftVisual]);
 
-  // Context menu items
-  const contextMenuItems: ContextMenuItem[] = [
+  const viewMenuItems: ContextMenuItem[] = [
     {
       label: isCollapsed ? '展开该层' : '折叠该层',
       onClick: () => {
-        setContextMenu(null);
         onToggleCollapsed?.();
       },
     },
     {
-      label: showConnectors
+      label: effectiveShowConnectors
         ? '隐藏层级关系'
         : (hasResolvableConnectorData ? '显示层级关系' : '显示层级关系（暂无可用链接）'),
       disabled: !hasResolvableConnectorData,
       onClick: () => {
-        setContextMenu(null);
         onToggleConnectors?.();
       },
     },
+  ];
+
+  const layerOperationMenuItems: ContextMenuItem[] = [
     {
       label: '新建转写层',
       onClick: () => {
-        setContextMenu(null);
         onLayerAction('create-transcription', layer.id);
       },
     },
@@ -393,7 +543,6 @@ export function TimelineLaneHeader({
       label: '新建翻译层',
       disabled: !canOpenTranslationCreate,
       onClick: () => {
-        setContextMenu(null);
         onLayerAction('create-translation', layer.id);
       },
     },
@@ -402,24 +551,34 @@ export function TimelineLaneHeader({
       danger: true,
       disabled: !deletableLayers.some((l) => l.id === layer.id),
       onClick: () => {
-        setContextMenu(null);
         onLayerAction('delete', layer.id);
       },
+    },
+  ];
+
+  const contextMenuItems: ContextMenuItem[] = [
+    ...layerOperationMenuItems,
+    {
+      label: '视图',
+      meta: `${isCollapsed ? '折叠' : '展开'} · ${effectiveShowConnectors ? '连线' : '无线'}`,
+      variant: 'category',
+      separatorBefore: true,
+      children: viewMenuItems,
     },
   ];
 
   if (speakerQuickActions) {
     const { selectedCount, speakerOptions, onAssignToSelection, onClearSelection, onOpenCreateAndAssignPanel } = speakerQuickActions;
     const topSpeakers = speakerOptions.slice(0, 3);
-    contextMenuItems.push({
+    const speakerMenuItems: ContextMenuItem[] = [{
       label: selectedCount > 0 ? `清空 ${selectedCount} 个选中句段的说话人` : '清空选中句段说话人',
       disabled: selectedCount === 0,
       onClick: () => {
         onClearSelection();
       },
-    });
+    }];
     for (const speaker of topSpeakers) {
-      contextMenuItems.push({
+      speakerMenuItems.push({
         label: selectedCount > 0
           ? `指派 ${selectedCount} 个选中句段 → ${speaker.name}`
           : `指派选中句段 → ${speaker.name}`,
@@ -429,12 +588,18 @@ export function TimelineLaneHeader({
         },
       });
     }
-    contextMenuItems.push({
+    speakerMenuItems.push({
       label: selectedCount > 0 ? '新建说话人并指派到选中句段…' : '新建说话人并指派…',
       disabled: selectedCount === 0,
       onClick: () => {
         onOpenCreateAndAssignPanel();
       },
+    });
+    contextMenuItems.push({
+      label: '说话人',
+      meta: selectedCount > 0 ? `已选 ${selectedCount}` : '未选',
+      variant: 'category',
+      children: speakerMenuItems,
     });
   }
 
@@ -446,30 +611,39 @@ export function TimelineLaneHeader({
     const lockConflictCount = trackModeControl.lockConflictCount ?? 0;
     const hasExistingLaneLocks = (trackModeControl.lockedSpeakerCount ?? 0) > 0;
 
-    contextMenuItems.push({
-      label: trackModeControl.mode === 'single' ? '切换为多轨模式（自动）' : '切换为单轨模式',
-      onClick: () => {
-        trackModeControl.onToggle();
+    const trackMenuItems: ContextMenuItem[] = [
+      {
+        label: `当前模式：${formatTrackModeMenuLabel(trackModeControl.mode)}`,
+        disabled: true,
       },
-    });
+    ];
+
+    if (!trackModeControl.onSetMode) {
+      trackMenuItems.push({
+        label: trackModeControl.mode === 'single' ? '切换到多轨模式（自动）' : '切换到单轨模式',
+        onClick: () => {
+          trackModeControl.onToggle();
+        },
+      });
+    }
 
     if (trackModeControl.onSetMode) {
-      contextMenuItems.push({
-        label: '切换为多轨模式（自动）',
+      trackMenuItems.push({
+        label: '切换到多轨模式（自动）',
         disabled: trackModeControl.mode === 'multi-auto',
         onClick: () => {
           trackModeControl.onSetMode?.('multi-auto');
         },
       });
-      contextMenuItems.push({
-        label: hasExistingLaneLocks ? '切换为多轨模式（锁定）' : '切换为多轨模式（锁定，需先锁定说话人）',
+      trackMenuItems.push({
+        label: hasExistingLaneLocks ? '切换到多轨模式（锁定）' : '切换到多轨模式（锁定，需先锁定说话人）',
         disabled: trackModeControl.mode === 'multi-locked' || !hasExistingLaneLocks,
         onClick: () => {
           trackModeControl.onSetMode?.('multi-locked');
         },
       });
-      contextMenuItems.push({
-        label: '切换为多轨模式（一人一轨）',
+      trackMenuItems.push({
+        label: '切换到多轨模式（一人一轨）',
         disabled: trackModeControl.mode === 'multi-speaker-fixed',
         onClick: () => {
           trackModeControl.onSetMode?.('multi-speaker-fixed');
@@ -478,18 +652,17 @@ export function TimelineLaneHeader({
     }
 
     if (trackModeControl.mode !== 'multi-speaker-fixed' && trackModeControl.onLockSelectedToLane) {
-      contextMenuItems.push({
+      trackMenuItems.push({
         label: `锁定选中说话人到轨道…（${selectedSpeakerHint}）`,
         disabled: selectedSpeakerNames.length === 0,
         onClick: () => {
-          setContextMenu(null);
           openLaneLockDialog(selectedSpeakerHint, 0);
         },
       });
     }
 
     if (trackModeControl.mode !== 'multi-speaker-fixed' && trackModeControl.onUnlockSelected) {
-      contextMenuItems.push({
+      trackMenuItems.push({
         label: `解锁选中说话人（当前已锁 ${trackModeControl.lockedSpeakerCount ?? 0}）`,
         disabled: selectedSpeakerNames.length === 0,
         onClick: () => {
@@ -499,7 +672,7 @@ export function TimelineLaneHeader({
     }
 
     if (trackModeControl.onResetAuto) {
-      contextMenuItems.push({
+      trackMenuItems.push({
         label: trackModeControl.mode === 'multi-speaker-fixed' ? '恢复自动分轨并清空轨道映射' : '恢复自动分轨并清空锁定',
         onClick: () => {
           trackModeControl.onResetAuto?.();
@@ -508,18 +681,30 @@ export function TimelineLaneHeader({
     }
 
     if (lockConflictCount > 0) {
-      contextMenuItems.push({
+      trackMenuItems.push({
         label: trackModeControl.mode === 'multi-speaker-fixed'
           ? `一人一轨冲突 ${lockConflictCount} 项（请修正切分或说话人标注）`
           : `锁定冲突 ${lockConflictCount} 项（已回退自动分配）`,
         disabled: true,
       });
     }
+
+    contextMenuItems.push({
+      label: '轨道',
+      meta: formatTrackModeMenuLabel(trackModeControl.mode),
+      variant: 'category',
+      children: trackMenuItems,
+    });
   }
 
-  const isDragged = dragState?.draggedId === layer.id;
-  const isDropAbove = dropTargetIndex === layerIndex && !isDragged;
-  const isDropBelow = dropTargetIndex === layerIndex + 1 && !isDragged;
+  const isDragged = dragState?.draggedLayerIds.includes(layer.id) ?? false;
+  const isDropInsideDraggedBlock = dragState
+    ? dropTargetIndex !== null
+      && dropTargetIndex > dragState.sourceIndex
+      && dropTargetIndex < dragState.sourceIndex + dragState.sourceSpan
+    : false;
+  const isDropAbove = !isDropInsideDraggedBlock && dropTargetIndex === layerIndex && !isDragged;
+  const isDropBelow = !isDropInsideDraggedBlock && dropTargetIndex === layerIndex + 1 && !isDragged;
 
   return (
     <div style={{ position: 'relative', display: 'contents' }}>
@@ -565,7 +750,7 @@ export function TimelineLaneHeader({
         }}
       >
         {/* 连接线容器 | Connector stack */}
-        {!isCollapsed && showConnectors && hasResolvableConnectorData && rowSegments.length > 0 && (() => {
+        {!isCollapsed && effectiveShowConnectors && rowSegments.length > 0 && (() => {
           const connectorStackWidth = getLayerLinkStackWidth(connectorLayout.maxColumns);
           return (
             <span className="lane-link-stack" aria-hidden="true" style={{ width: connectorStackWidth }}>
@@ -577,19 +762,19 @@ export function TimelineLaneHeader({
                   key={`${segment.column}-${segment.role}-${segment.colorIndex}`}
                   className={[
                     'lane-link-connector',
-                    segment.role === 'bus-start' ? 'lane-link-connector--bus-start' : '',
-                    segment.role === 'bus-middle' ? 'lane-link-connector--bus-middle' : '',
-                    segment.role === 'bus-end' ? 'lane-link-connector--bus-end' : '',
-                    segment.role === 'bus-single' ? 'lane-link-connector--bus-single' : '',
-                    segment.role === 'tap-parent' ? 'lane-link-connector--tap' : '',
-                    segment.role === 'tap-child' ? 'lane-link-connector--tap lane-link-connector--tap-child' : '',
+                    segment.role === 'bundle-root' ? 'lane-link-connector--bundle-root' : '',
+                    segment.role === 'bundle-child-middle' ? 'lane-link-connector--bundle-child-middle' : '',
+                    segment.role === 'bundle-child-end' ? 'lane-link-connector--bundle-child-end' : '',
                   ].filter(Boolean).join(' ')}
                   style={{
                     '--lane-link-column': segment.column,
                     '--lane-link-color': colors.base,
                     '--lane-link-color-active': colors.active,
                   } as React.CSSProperties}
-                />
+                >
+                  {segment.role === 'bundle-root' ? <span className="lane-link-connector-root-marker" /> : null}
+                  {segment.role !== 'bundle-root' ? <span className="lane-link-connector-child-marker" /> : null}
+                </span>
                   );
                 })()
               ))}

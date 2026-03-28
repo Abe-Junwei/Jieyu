@@ -64,7 +64,7 @@ export function ToastController({
 
   useEffect(() => {
     if (!overlapCycleToast) return;
-    showToast(`重叠候选 ${overlapCycleToast.index}/${overlapCycleToast.total}`, 'info', 1200);
+    showToast(`重叠候选 ${overlapCycleToast.index}/${overlapCycleToast.total}`, 'info', 2000);
   }, [overlapCycleToast, showToast]);
 
   useEffect(() => {
@@ -72,7 +72,7 @@ export function ToastController({
     const speakerText = lockConflictToast.speakers.length > 0
       ? `：${lockConflictToast.speakers.join('、')}`
       : '';
-    showToast(`锁定冲突 ${lockConflictToast.count} 项${speakerText}`, 'info', 2200);
+    showToast(`锁定冲突 ${lockConflictToast.count} 项${speakerText}`, 'info', 2000);
   }, [lockConflictToast, showToast]);
 
   // Voice agent state → toast

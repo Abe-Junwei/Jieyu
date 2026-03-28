@@ -17,6 +17,7 @@ export interface UseNoteHandlersInput {
   activeUtteranceUnitId: string | null | undefined;
   focusedLayerRowId: string;
   utterances: Array<{ id: string }>;
+  timelineUnitIds: string[];
   transcriptionLayers: Array<{ id: string }>;
   translationLayers: Array<{ id: string }>;
   updateTokenPos: (tokenId: string, pos: string | null) => Promise<void>;
@@ -30,6 +31,7 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
     activeUtteranceUnitId,
     focusedLayerRowId,
     utterances,
+    timelineUnitIds,
     transcriptionLayers,
     translationLayers,
     updateTokenPos,
@@ -53,16 +55,20 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
 
   const { notes: currentNotes, addNote, updateNote, deleteNote, version: noteVersion } = useNotes(noteTarget);
 
+  const allLayerIds = useMemo(
+    () => [...transcriptionLayers, ...translationLayers].map((layer) => layer.id),
+    [transcriptionLayers, translationLayers],
+  );
+
   const noteCountKeys = useMemo(() => {
     const keys: string[] = [];
-    const allLayers = [...transcriptionLayers, ...translationLayers];
-    for (const u of utterances) {
-      for (const l of allLayers) {
-        keys.push(`${u.id}::${l.id}`);
+    for (const unitId of timelineUnitIds) {
+      for (const layerId of allLayerIds) {
+        keys.push(`${unitId}::${layerId}`);
       }
     }
     return keys;
-  }, [utterances, transcriptionLayers, translationLayers]);
+  }, [allLayerIds, timelineUnitIds]);
 
   const noteCounts = useNoteCounts('tier_annotation', noteCountKeys, noteVersion);
 
@@ -78,11 +84,27 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
   }, [activeUtteranceUnitId, focusedLayerRowId, notePopover]);
 
   const handleNoteClick = useCallback(
-    (uttId: string, layerId: string, e: React.MouseEvent) => {
-      setNotePopover({ x: e.clientX, y: e.clientY, uttId, layerId });
+    (uttId: string, layerId: string | undefined, e: React.MouseEvent) => {
+      setNotePopover({ x: e.clientX, y: e.clientY, uttId, ...(layerId ? { layerId } : {}) });
     },
     [],
   );
+
+  const resolveNoteIndicatorTarget = useCallback((unitId: string, layerId?: string) => {
+    if (layerId) {
+      const layerScopedCount = noteCounts.get(`${unitId}::${layerId}`) ?? 0;
+      if (layerScopedCount > 0) {
+        return { count: layerScopedCount, layerId };
+      }
+    }
+
+    const utteranceScopedCount = uttNoteCounts.get(unitId) ?? 0;
+    if (utteranceScopedCount > 0) {
+      return { count: utteranceScopedCount };
+    }
+
+    return null;
+  }, [noteCounts, uttNoteCounts]);
 
   const toCanonicalTokenId = useCallback((utteranceId: string, wordId: string): string => {
     if (wordId.includes('::')) return wordId;
@@ -228,6 +250,7 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
     uttNoteCounts,
     toggleNotes,
     handleNoteClick,
+    resolveNoteIndicatorTarget,
     handleOpenWordNote,
     handleOpenMorphemeNote,
     handleUpdateTokenPos,

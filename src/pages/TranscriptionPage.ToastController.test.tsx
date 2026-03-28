@@ -46,7 +46,7 @@ describe('ToastController overlap cycle toast', () => {
       />,
     );
 
-    expect(showToast).not.toHaveBeenCalledWith('重叠候选 2/4', 'info', 1200);
+    expect(showToast).not.toHaveBeenCalledWith('重叠候选 2/4', 'info', 2000);
 
     rerender(
       <ToastController
@@ -55,7 +55,7 @@ describe('ToastController overlap cycle toast', () => {
       />,
     );
 
-    expect(showToast).toHaveBeenCalledWith('重叠候选 2/4', 'info', 1200);
+    expect(showToast).toHaveBeenCalledWith('重叠候选 2/4', 'info', 2000);
   });
 
   it('does not show overlap cycle toast when payload is absent', () => {
@@ -79,6 +79,6 @@ describe('ToastController overlap cycle toast', () => {
       />,
     );
 
-    expect(showToast).toHaveBeenCalledWith('锁定冲突 2 项：甲、乙', 'info', 2200);
+    expect(showToast).toHaveBeenCalledWith('锁定冲突 2 项：甲、乙', 'info', 2000);
   });
 });

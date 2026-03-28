@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type LayerDocType, type LayerSegmentContentDocType, type LayerSegmentDocType } from '../db';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
-import { layerUsesOwnSegments } from './useLayerSegments';
+import { resolveSegmentTimelineSourceLayer } from './useLayerSegments';
 
 type SegmentContentByLayer = Map<string, Map<string, LayerSegmentContentDocType>>;
 
@@ -32,16 +32,23 @@ export function useLayerSegmentContents(
       return;
     }
 
-    const independentLayers = layersRef.current.filter((layer) => layerUsesOwnSegments(layer, defaultLayerIdRef.current));
-    if (independentLayers.length === 0) {
+    const layerById = new Map(layersRef.current.map((layer) => [layer.id, layer] as const));
+    const segmentBackedLayers = layersRef.current
+      .map((layer) => ({
+        layer,
+        sourceLayer: resolveSegmentTimelineSourceLayer(layer, layerById, defaultLayerIdRef.current),
+      }))
+      .filter((item): item is { layer: LayerDocType; sourceLayer: LayerDocType } => Boolean(item.sourceLayer));
+
+    if (segmentBackedLayers.length === 0) {
       setSegmentContentByLayer(new Map());
       return;
     }
 
     const next: SegmentContentByLayer = new Map();
 
-    for (const layer of independentLayers) {
-      const segs = segmentsRef.current.get(layer.id) ?? [];
+    for (const { layer, sourceLayer } of segmentBackedLayers) {
+      const segs = segmentsRef.current.get(sourceLayer.id) ?? [];
       if (segs.length === 0) continue;
       const segmentIds = segs.map((seg) => seg.id);
       const rows = await LayerSegmentQueryService.listSegmentContentsBySegmentIds(segmentIds, {

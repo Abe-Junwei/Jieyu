@@ -22,19 +22,37 @@ function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: '
 }
 
 describe('layerLinkConnector', () => {
-  it('builds colored connector columns per bundle from structural parent relations', () => {
+  it('builds connector columns strictly from bundle structure', () => {
     const rootA = makeLayer({ id: 'trc-a', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 0 });
-    const childA = makeLayer({ id: 'trl-a', layerType: 'translation', parentLayerId: rootA.id, sortOrder: 1 });
-    const rootB = makeLayer({ id: 'trc-b', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 2 });
-    const childB = makeLayer({ id: 'trl-b', layerType: 'translation', parentLayerId: rootB.id, sortOrder: 3 });
+    const childA1 = makeLayer({ id: 'trc-a-child', layerType: 'transcription', constraint: 'symbolic_association', parentLayerId: rootA.id, sortOrder: 1 });
+    const childA2 = makeLayer({ id: 'trl-a', layerType: 'translation', parentLayerId: rootA.id, sortOrder: 2 });
+    const rootB = makeLayer({ id: 'trc-b', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 3 });
+    const childB = makeLayer({ id: 'trl-b', layerType: 'translation', parentLayerId: rootB.id, sortOrder: 4 });
 
-    const layout = buildLayerLinkConnectorLayout([rootA, childA, rootB, childB], []);
+    const layout = buildLayerLinkConnectorLayout([rootA, childA1, childA2, rootB, childB], []);
 
     expect(layout.maxColumns).toBe(2);
-    expect(layout.segmentsByLayerId[rootA.id]?.some((segment) => segment.colorIndex === 0)).toBe(true);
-    expect(layout.segmentsByLayerId[childA.id]?.some((segment) => segment.colorIndex === 0)).toBe(true);
-    expect(layout.segmentsByLayerId[rootB.id]?.some((segment) => segment.colorIndex === 1)).toBe(true);
-    expect(layout.segmentsByLayerId[childB.id]?.some((segment) => segment.colorIndex === 1)).toBe(true);
+    expect(layout.segmentsByLayerId[rootA.id]).toEqual([{ column: 0, colorIndex: 0, role: 'bundle-root' }]);
+    expect(layout.segmentsByLayerId[childA1.id]).toEqual([{ column: 0, colorIndex: 0, role: 'bundle-child-middle' }]);
+    expect(layout.segmentsByLayerId[childA2.id]).toEqual([{ column: 0, colorIndex: 0, role: 'bundle-child-end' }]);
+    expect(layout.segmentsByLayerId[rootB.id]).toEqual([{ column: 1, colorIndex: 1, role: 'bundle-root' }]);
+    expect(layout.segmentsByLayerId[childB.id]).toEqual([{ column: 1, colorIndex: 1, role: 'bundle-child-end' }]);
+  });
+
+  it('ignores semantic layer links and skips bundles without dependents', () => {
+    const rootA = makeLayer({ id: 'trc-a', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 0 });
+    const rootB = makeLayer({ id: 'trc-b', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 1 });
+    const childB = makeLayer({ id: 'trl-b', layerType: 'translation', parentLayerId: rootB.id, sortOrder: 2 });
+
+    const layout = buildLayerLinkConnectorLayout(
+      [rootA, rootB, childB],
+      [{ transcriptionLayerKey: rootA.id, targetLayerId: childB.id }],
+    );
+
+    expect(layout.maxColumns).toBe(1);
+    expect(layout.segmentsByLayerId[rootA.id]).toBeUndefined();
+    expect(layout.segmentsByLayerId[rootB.id]).toEqual([{ column: 0, colorIndex: 0, role: 'bundle-root' }]);
+    expect(layout.segmentsByLayerId[childB.id]).toEqual([{ column: 0, colorIndex: 0, role: 'bundle-child-end' }]);
   });
 
   it('keeps palette stable when resolving connector colors', () => {

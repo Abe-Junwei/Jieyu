@@ -20,6 +20,7 @@ export interface ToastItem {
   message: string;
   variant: ToastVariant;
   autoDismissMs?: number;
+  exiting?: boolean;
 }
 
 export interface ToastContextValue {
@@ -45,8 +46,9 @@ export function useToast(): ToastContextValue {
 
 // ── Auto-dismiss delays ──────────────────────────────────────────────────────
 
-const DISMISS_DELAY_MS = 3500;
-const DISMISS_ERROR_MS = 5000;
+const DISMISS_DELAY_MS = 2000;
+const DISMISS_ERROR_MS = 2000;
+const DISMISS_FADE_OUT_MS = 260;
 
 function nextId(): string {
   return `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -132,28 +134,38 @@ interface Props {
 
 export function ToastProvider({ children }: Props) {
   const [current, setCurrent] = useState<ToastItem | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const removeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearTimers = useCallback(() => {
+    if (dismissTimerRef.current !== null) {
+      clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
+    if (removeTimerRef.current !== null) {
+      clearTimeout(removeTimerRef.current);
+      removeTimerRef.current = null;
+    }
+  }, []);
 
   const dismiss = useCallback(() => {
-    if (timerRef.current !== null) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    setCurrent(null);
-  }, []);
+    clearTimers();
+    setCurrent((prev) => (prev ? { ...prev, exiting: true } : prev));
+    removeTimerRef.current = setTimeout(() => {
+      setCurrent(null);
+      removeTimerRef.current = null;
+    }, DISMISS_FADE_OUT_MS);
+  }, [clearTimers]);
 
   const showToast = useCallback((
     message: string,
     variant: ToastVariant = 'info',
     autoDismissMs: number | undefined = undefined,
   ) => {
-    if (timerRef.current !== null) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
+    clearTimers();
 
     // Auto-dismiss defaults
-    const delay = autoDismissMs ?? (
+    const totalDelay = autoDismissMs ?? (
       variant === 'error' ? DISMISS_ERROR_MS :
       variant === 'recording' || variant === 'listening' || variant === 'routing' ||
         variant === 'executing' || variant === 'ai-thinking'
@@ -161,13 +173,13 @@ export function ToastProvider({ children }: Props) {
         : DISMISS_DELAY_MS
     );
 
-    const item: ToastItem = { id: nextId(), message, variant };
+    const item: ToastItem = { id: nextId(), message, variant, exiting: false };
     setCurrent(item);
 
-    if (delay > 0) {
-      timerRef.current = setTimeout(dismiss, delay);
+    if (totalDelay > 0) {
+      dismissTimerRef.current = setTimeout(dismiss, Math.max(totalDelay - DISMISS_FADE_OUT_MS, 0));
     }
-  }, [dismiss]);
+  }, [clearTimers, dismiss]);
 
   const showSaveState = useCallback((state: SaveState) => {
     if (state.kind === 'idle') {
@@ -215,7 +227,7 @@ export function ToastProvider({ children }: Props) {
       {current && (
         <div className="transcription-toast-container" role="status" aria-live="polite">
           <div
-            className={`transcription-toast toast-${current.variant}`}
+            className={`transcription-toast toast-${current.variant} ${current.exiting ? 'transcription-toast-exiting' : ''}`}
             onClick={dismiss}
             title="点击关闭"
           >

@@ -5,6 +5,7 @@ import {
   computeCanonicalLayerOrder,
   flattenLayerBundles,
   repairLayerOrder,
+  resolveLayerDragGroup,
   resolveLayerDrop,
   validateLayerOrder,
 } from './LayerOrderingService';
@@ -66,6 +67,31 @@ describe('LayerOrderingService', () => {
     expect(resolved.layers.map((layer) => layer.id)).toEqual(['trc-b', 'trl-b', 'trc-a', 'trl-a']);
   });
 
+  it('moves an upper bundle downward when dropped onto the next bundle start', () => {
+    const rootA = makeLayer({ id: 'trc-a', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 0 });
+    const childA = makeLayer({ id: 'trl-a', layerType: 'translation', parentLayerId: rootA.id, sortOrder: 1 });
+    const rootB = makeLayer({ id: 'trc-b', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 2 });
+    const childB = makeLayer({ id: 'trl-b', layerType: 'translation', parentLayerId: rootB.id, sortOrder: 3 });
+
+    const resolved = resolveLayerDrop([rootA, childA, rootB, childB], rootA.id, 2);
+
+    expect(resolved.changed).toBe(true);
+    expect(resolved.layers.map((layer) => layer.id)).toEqual(['trc-b', 'trl-b', 'trc-a', 'trl-a']);
+  });
+
+  it('resolves a root drag group as the whole bundle', () => {
+    const rootA = makeLayer({ id: 'trc-a', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 0 });
+    const childTrcA = makeLayer({ id: 'trc-a-child', layerType: 'transcription', constraint: 'symbolic_association', parentLayerId: rootA.id, sortOrder: 1 });
+    const childTrlA = makeLayer({ id: 'trl-a', layerType: 'translation', parentLayerId: rootA.id, sortOrder: 2 });
+
+    expect(resolveLayerDragGroup([rootA, childTrcA, childTrlA], rootA.id)).toEqual([
+      rootA.id,
+      childTrcA.id,
+      childTrlA.id,
+    ]);
+    expect(resolveLayerDragGroup([rootA, childTrcA, childTrlA], childTrlA.id)).toEqual([childTrlA.id]);
+  });
+
   it('reparents a dependent translation layer when dropped into another root bundle', () => {
     const rootA = makeLayer({ id: 'trc-a', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 0 });
     const rootB = makeLayer({ id: 'trc-b', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 1 });
@@ -77,7 +103,21 @@ describe('LayerOrderingService', () => {
     expect(resolved.changed).toBe(true);
     expect(moved?.parentLayerId).toBe(rootB.id);
     expect(resolved.layers.map((layer) => layer.id)).toEqual(['trc-a', 'trc-b', 'trl-a']);
-    expect(resolved.message).toContain('已将该翻译层改为依赖');
+    expect(resolved.message).toContain('翻译「trl-a」');
+    expect(resolved.message).toContain('英语 eng');
+    expect(resolved.message).toContain('依赖 转写「trc-b」');
+  });
+
+  it('allows dragging a higher dependent layer downward onto the next root bundle', () => {
+    const rootA = makeLayer({ id: 'trc-a', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 0 });
+    const translation = makeLayer({ id: 'trl-a', layerType: 'translation', parentLayerId: rootA.id, sortOrder: 1 });
+    const rootB = makeLayer({ id: 'trc-b', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 2 });
+
+    const resolved = resolveLayerDrop([rootA, translation, rootB], translation.id, 2);
+
+    expect(resolved.changed).toBe(true);
+    expect(resolved.layers.map((layer) => layer.id)).toEqual(['trc-a', 'trc-b', 'trl-a']);
+    expect(resolved.layers.find((layer) => layer.id === translation.id)?.parentLayerId).toBe(rootB.id);
   });
 
   it('validates non-canonical bundle order', () => {

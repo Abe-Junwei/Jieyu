@@ -43,6 +43,30 @@ function formatRollbackFailureMessage(actionLabel: string, error: unknown): stri
   return `${actionLabel}失败，已回滚：${message}`;
 }
 
+function resolveProjectionLayerIdsForNewUtterance(
+  layerById: ReadonlyMap<string, LayerDocType>,
+  defaultTranscriptionLayerId: string | undefined,
+  focusedLayerId: string | undefined,
+): string[] {
+  const targetLayerId = focusedLayerId ?? defaultTranscriptionLayerId;
+  if (!targetLayerId) return [];
+
+  const resolved = new Set<string>([targetLayerId]);
+  const targetLayer = layerById.get(targetLayerId);
+  if (!targetLayer) return [...resolved];
+
+  // 依赖转写层新建句段时，同时补父独立转写层的 canonical segment 投影 | When creating from a dependent transcription layer, also project to the parent independent transcription layer.
+  if (targetLayer.layerType === 'transcription' && targetLayer.constraint === 'symbolic_association') {
+    const parentLayerId = targetLayer.parentLayerId?.trim() ?? '';
+    const parentLayer = parentLayerId ? layerById.get(parentLayerId) : undefined;
+    if (parentLayer && parentLayer.layerType === 'transcription' && parentLayer.constraint === 'independent_boundary') {
+      resolved.add(parentLayer.id);
+    }
+  }
+
+  return [...resolved];
+}
+
 export type TranscriptionUtteranceActionsParams = {
   defaultTranscriptionLayerId: string | undefined;
   layerById: Map<string, LayerDocType>;
@@ -506,22 +530,30 @@ export function useTranscriptionUtteranceActions({
     } as UtteranceDocType;
     await LinguisticService.saveUtterance(newUtterance);
 
-    // 为聚焦转写层自动创建空文本条目（V2 segment content）
-    const targetLayerId = options?.focusedLayerId ?? defaultTranscriptionLayerId;
-    if (targetLayerId) {
-      const emptyText: UtteranceTextDocType = {
-        ...withUtteranceTextLayerId({
-          id: newId('utr'),
-          utteranceId: createdId,
-          modality: 'text',
-          text: '',
-          sourceType: 'human',
-          createdAt: now,
-          updatedAt: now,
-        } as UtteranceTextWithoutLayerId, { layerId: targetLayerId }),
-      } as UtteranceTextDocType;
-      await syncUtteranceTextToSegmentationV2(db, newUtterance, emptyText);
-      setTranslations((prev) => [...prev, emptyText]);
+    // 为当前层补内容投影；若当前层是依赖转写层，同时补父独立转写层投影 | Project content for the current layer; if it is a dependent transcription layer, also project to the parent independent transcription layer.
+    const projectionLayerIds = resolveProjectionLayerIdsForNewUtterance(
+      layerById,
+      defaultTranscriptionLayerId,
+      options?.focusedLayerId,
+    );
+    if (projectionLayerIds.length > 0) {
+      const projectedTexts: UtteranceTextDocType[] = [];
+      for (const projectionLayerId of projectionLayerIds) {
+        const emptyText: UtteranceTextDocType = {
+          ...withUtteranceTextLayerId({
+            id: newId('utr'),
+            utteranceId: createdId,
+            modality: 'text',
+            text: '',
+            sourceType: 'human',
+            createdAt: now,
+            updatedAt: now,
+          } as UtteranceTextWithoutLayerId, { layerId: projectionLayerId }),
+        } as UtteranceTextDocType;
+        await syncUtteranceTextToSegmentationV2(db, newUtterance, emptyText);
+        projectedTexts.push(emptyText);
+      }
+      setTranslations((prev) => [...prev, ...projectedTexts]);
     }
 
     setUtterances((prev) => [...prev, newUtterance]);

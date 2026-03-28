@@ -996,9 +996,172 @@ describe('LayerRailSidebar speaker actions interaction', () => {
     });
 
     fireEvent.mouseMove(overview!, { clientY: 100 });
-    fireEvent.mouseUp(overview!);
+    fireEvent.mouseUp(document, { clientY: 100 });
 
     expect(onReorderLayers).toHaveBeenCalledWith('layer_trc_1', 3);
+  });
+
+  it('drags a root bundle together with its dependent rows in the rail preview', async () => {
+    vi.useFakeTimers();
+
+    const now = '2026-03-25T00:00:00.000Z';
+    const root = {
+      id: 'layer_trc_root',
+      textId: 'text_1',
+      key: 'trc_zho_root',
+      name: { zho: '转写根层' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const child = {
+      id: 'layer_trl_child',
+      textId: 'text_1',
+      key: 'trl_eng_child',
+      name: { zho: '依赖翻译层' },
+      layerType: 'translation',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      parentLayerId: root.id,
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const otherRoot = {
+      id: 'layer_trc_other',
+      textId: 'text_1',
+      key: 'trc_jpn_other',
+      name: { zho: '另一根层' },
+      layerType: 'transcription',
+      languageId: 'jpn',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 2,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+
+    const view = renderSidebarForCreateContextMenuFlow({
+      layerRows: [root, child, otherRoot],
+      transcriptionLayers: [root, otherRoot],
+      translationLayers: [child],
+      onReorderLayers: vi.fn(async () => undefined),
+    });
+
+    const rowButtons = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-layer-rail-item'));
+    const rowWrappers = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-layer-rail-item-row'));
+    expect(rowButtons).toHaveLength(3);
+    expect(rowWrappers).toHaveLength(3);
+    mockLayerRowRect(rowButtons[0]!, 0);
+    mockLayerRowRect(rowButtons[1]!, 20);
+    mockLayerRowRect(rowButtons[2]!, 40);
+    mockLayerRowRect(rowWrappers[0]!, 0);
+    mockLayerRowRect(rowWrappers[1]!, 20);
+    mockLayerRowRect(rowWrappers[2]!, 40);
+
+    const overview = view.container.querySelector('.transcription-layer-rail-overview') as HTMLElement | null;
+    expect(overview).toBeTruthy();
+
+    fireEvent.mouseDown(rowButtons[0]!, { clientY: 10 });
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+
+    fireEvent.mouseMove(overview!, { clientY: 70 });
+
+    expect(rowWrappers[0]!.classList.contains('transcription-layer-rail-item-row-dragging')).toBe(true);
+    expect(rowWrappers[1]!.classList.contains('transcription-layer-rail-item-row-dragging')).toBe(true);
+  });
+
+  it('snaps a root bundle drag to the next bundle boundary index and highlights the target bundle', async () => {
+    vi.useFakeTimers();
+
+    const now = '2026-03-25T00:00:00.000Z';
+    const root = {
+      id: 'layer_trc_root',
+      textId: 'text_1',
+      key: 'trc_zho_root',
+      name: { zho: '转写根层' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const child = {
+      id: 'layer_trl_child',
+      textId: 'text_1',
+      key: 'trl_eng_child',
+      name: { zho: '依赖翻译层' },
+      layerType: 'translation',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      parentLayerId: root.id,
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const otherRoot = {
+      id: 'layer_trc_other',
+      textId: 'text_1',
+      key: 'trc_jpn_other',
+      name: { zho: '另一根层' },
+      layerType: 'transcription',
+      languageId: 'jpn',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 2,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+
+    const onReorderLayers = vi.fn(async () => undefined);
+    const view = renderSidebarForCreateContextMenuFlow({
+      layerRows: [root, child, otherRoot],
+      transcriptionLayers: [root, otherRoot],
+      translationLayers: [child],
+      onReorderLayers,
+    });
+
+    const rowButtons = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-layer-rail-item'));
+    const rowWrappers = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-layer-rail-item-row'));
+    expect(rowButtons).toHaveLength(3);
+    expect(rowWrappers).toHaveLength(3);
+    mockLayerRowRect(rowButtons[0]!, 0);
+    mockLayerRowRect(rowButtons[1]!, 20);
+    mockLayerRowRect(rowButtons[2]!, 40);
+    mockLayerRowRect(rowWrappers[0]!, 0);
+    mockLayerRowRect(rowWrappers[1]!, 20);
+    mockLayerRowRect(rowWrappers[2]!, 40);
+
+    fireEvent.mouseDown(rowButtons[0]!, { clientY: 10 });
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+
+    const overview = view.container.querySelector('.transcription-layer-rail-overview') as HTMLElement | null;
+    expect(overview).toBeTruthy();
+
+    fireEvent.mouseMove(overview!, { clientY: 42 });
+    await act(async () => {});
+
+    const updatedRowWrappers = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-layer-rail-item-row'));
+    expect(updatedRowWrappers[2]!.classList.contains('transcription-layer-rail-item-row-bundle-target')).toBe(true);
+    fireEvent.mouseUp(document, { clientY: 42 });
+
+    expect(onReorderLayers).toHaveBeenCalledWith('layer_trc_root', 3);
   });
 
   it('shows repair detail panel after constraint repair action', async () => {

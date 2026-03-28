@@ -46,6 +46,41 @@ export function layerUsesOwnSegments(layer: LayerDocType, defaultTranscriptionLa
 }
 
 /**
+ * 解析层在时间轴上应复用的 segment 来源层 | Resolve the segment source layer reused by this lane on the timeline
+ */
+export function resolveSegmentTimelineSourceLayer(
+  layer: LayerDocType | undefined,
+  layerById: ReadonlyMap<string, LayerDocType>,
+  defaultTranscriptionLayerId?: string,
+): LayerDocType | undefined {
+  if (!layer) return undefined;
+  if (layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) {
+    return layer;
+  }
+
+  const parentLayerId = layer.parentLayerId?.trim() ?? '';
+  if (!parentLayerId) return undefined;
+
+  const parentLayer = layerById.get(parentLayerId);
+  if (!parentLayer) return undefined;
+
+  return layerUsesOwnSegments(parentLayer, defaultTranscriptionLayerId)
+    ? parentLayer
+    : undefined;
+}
+
+/**
+ * 判断层是否在时间轴上使用 segment 边界 | Check whether a layer uses segment-backed timeline boundaries
+ */
+export function layerUsesSegmentTimeline(
+  layer: LayerDocType | undefined,
+  layerById: ReadonlyMap<string, LayerDocType>,
+  defaultTranscriptionLayerId?: string,
+): boolean {
+  return Boolean(resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId));
+}
+
+/**
  * 为多个独立边界层批量加载 segments | Batch-load segments for multiple independent-boundary layers
  *
  * 返回 Map<layerId, LayerSegmentDocType[]>，每个数组按 startTime 升序排列。

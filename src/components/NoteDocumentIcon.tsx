@@ -1,0 +1,34 @@
+import type { CSSProperties, MouseEventHandler } from 'react';
+
+interface NoteDocumentIconProps {
+  className?: string;
+  title?: string;
+  ariaLabel?: string;
+  style?: CSSProperties;
+  onClick?: MouseEventHandler<SVGSVGElement>;
+}
+
+export function NoteDocumentIcon({
+  className,
+  title,
+  ariaLabel,
+  style,
+  onClick,
+}: NoteDocumentIconProps) {
+  return (
+    <svg
+      className={className}
+      onClick={onClick}
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label={ariaLabel}
+      style={style}
+    >
+      {title ? <title>{title}</title> : null}
+      <path d="M4.5 1.5h5l3 3v8a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M6.5 7h3M6.5 9.5h3" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+    </svg>
+  );
+}

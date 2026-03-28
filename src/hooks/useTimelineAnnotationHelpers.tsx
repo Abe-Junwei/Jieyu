@@ -61,8 +61,8 @@ type UseTimelineAnnotationHelpersParams = {
     edge: 'start' | 'end',
     layerId: string,
   ) => void;
-  noteCounts: Map<string, number>;
-  handleNoteClick: (utteranceId: string, layerId: string, event: React.MouseEvent) => void;
+  handleNoteClick: (utteranceId: string, layerId: string | undefined, event: React.MouseEvent) => void;
+  resolveNoteIndicatorTarget: (unitId: string, layerId?: string) => { count: number; layerId?: string } | null;
   speakerVisualByUtteranceId?: Record<string, SpeakerVisual>;
   onOverlapCycleToast?: (index: number, total: number, utteranceId: string) => void;
   independentLayerIds?: Set<string>;
@@ -89,8 +89,8 @@ export function useTimelineAnnotationHelpers({
   focusedLayerRowId,
   zoomToUtterance,
   startTimelineResizeDrag,
-  noteCounts,
   handleNoteClick,
+  resolveNoteIndicatorTarget,
   speakerVisualByUtteranceId = {},
   onOverlapCycleToast,
   independentLayerIds = new Set<string>(),
@@ -255,6 +255,7 @@ export function useTimelineAnnotationHelpers({
     const dpStart = dragPreview?.id === utt.id ? dragPreview.start : utt.startTime;
     const dpEnd = dragPreview?.id === utt.id ? dragPreview.end : utt.endTime;
     const speakerVisual = showSpeaker ? speakerVisualByUtteranceId[utt.id] : undefined;
+    const noteIndicator = resolveNoteIndicatorTarget(utt.id, layer.id);
     return (
       <TimelineAnnotationItem
         key={utt.id}
@@ -279,8 +280,8 @@ export function useTimelineAnnotationHelpers({
         onResizeStartPointerDown={(e) => startTimelineResizeDrag(e, utt, 'start', layer.id)}
         onResizeEndPointerDown={(e) => startTimelineResizeDrag(e, utt, 'end', layer.id)}
         onKeyDown={handleAnnotationKeyDown}
-        noteCount={noteCounts.get(`${utt.id}::${layer.id}`) ?? 0}
-        onNoteClick={(e) => handleNoteClick(utt.id, layer.id, e)}
+        noteCount={noteIndicator?.count ?? 0}
+        onNoteClick={noteIndicator ? ((e) => handleNoteClick(utt.id, noteIndicator.layerId, e)) : undefined}
         {...itemExtra}
       />
     );
@@ -296,8 +297,8 @@ export function useTimelineAnnotationHelpers({
     zoomToUtterance,
     startTimelineResizeDrag,
     handleAnnotationKeyDown,
-    noteCounts,
     handleNoteClick,
+    resolveNoteIndicatorTarget,
     speakerVisualByUtteranceId,
   ]);
 

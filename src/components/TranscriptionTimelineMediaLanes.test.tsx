@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, createEvent, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, UtteranceDocType } from '../db';
 import { TranscriptionTimelineMediaLanes } from './TranscriptionTimelineMediaLanes';
@@ -376,9 +376,87 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
       />,
     );
 
-    expect(screen.getByTestId('ann-seg-1')).toBeTruthy();
-    expect(screen.getByTestId('ann-seg-2')).toBeTruthy();
+    const translationLane = screen.getByTestId(`toggle-${translationLayer.id}`).closest('.timeline-lane-translation');
+    expect(translationLane).toBeTruthy();
+    expect(within(translationLane as HTMLElement).getByTestId('ann-seg-1')).toBeTruthy();
+    expect(within(translationLane as HTMLElement).getByTestId('ann-seg-2')).toBeTruthy();
     expect(screen.queryByTestId('ann-u-main')).toBeNull();
+  });
+
+  it('renders newly added parent segments immediately in a dependent transcription lane after rerender', () => {
+    const parentLayer = {
+      ...makeLayer('trc-parent-live'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const childLayer = {
+      ...makeLayer('trc-child-live'),
+      constraint: 'symbolic_association',
+      parentLayerId: parentLayer.id,
+    } as LayerDocType;
+
+    const { rerender } = render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[parentLayer, childLayer]}
+        translationLayers={[]}
+        timelineRenderUtterances={[makeUtterance('u-main', 0, 2, 's1')]}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={parentLayer.id}
+        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[parentLayer, childLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[parentLayer, childLayer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [parentLayer.id]: 44, [childLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        segmentsByLayer={new Map([
+          [parentLayer.id, [
+            { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+          ]],
+        ])}
+      />,
+    );
+
+    let childLane = screen.getByTestId(`toggle-${childLayer.id}`).closest('.timeline-lane');
+    expect(childLane).toBeTruthy();
+    expect(within(childLane as HTMLElement).getByTestId('ann-seg-1')).toBeTruthy();
+    expect(within(childLane as HTMLElement).queryByTestId('ann-seg-2')).toBeNull();
+
+    rerender(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[parentLayer, childLayer]}
+        translationLayers={[]}
+        timelineRenderUtterances={[makeUtterance('u-main', 0, 2, 's1')]}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={parentLayer.id}
+        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[parentLayer, childLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[parentLayer, childLayer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [parentLayer.id]: 44, [childLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        segmentsByLayer={new Map([
+          [parentLayer.id, [
+            { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+            { id: 'seg-2', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 1, endTime: 2, createdAt: NOW, updatedAt: NOW },
+          ]],
+        ])}
+      />,
+    );
+
+    childLane = screen.getByTestId(`toggle-${childLayer.id}`).closest('.timeline-lane');
+    expect(childLane).toBeTruthy();
+    expect(within(childLane as HTMLElement).getByTestId('ann-seg-1')).toBeTruthy();
+    expect(within(childLane as HTMLElement).getByTestId('ann-seg-2')).toBeTruthy();
+    expect(within(childLane as HTMLElement).queryByTestId('ann-u-main')).toBeNull();
   });
 
   it('dims non-target speakers in focus-soft mode', () => {

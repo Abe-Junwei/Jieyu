@@ -10,7 +10,7 @@ import type {
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 import { LinguisticService } from '../services/LinguisticService';
 import { newId } from '../utils/transcriptionFormatters';
-import type { LayerCreateInput, TimelineUnit } from './transcriptionTypes';
+import type { LayerCreateInput, SaveState, TimelineUnit } from './transcriptionTypes';
 import {
   canCreateLayer,
   canDeleteLayer,
@@ -39,6 +39,7 @@ export type TranscriptionLayerActionsParams = {
   utterancesRef: React.MutableRefObject<UtteranceDocType[]>;
   pushUndo: (label: string) => void;
   setLayerCreateMessage: React.Dispatch<React.SetStateAction<string>>;
+  setSaveState?: React.Dispatch<React.SetStateAction<SaveState>>;
   setLayers: React.Dispatch<React.SetStateAction<LayerDocType[]>>;
   setLayerLinks: React.Dispatch<React.SetStateAction<LayerLinkDocType[]>>;
   setLayerToDeleteId: React.Dispatch<React.SetStateAction<string>>;
@@ -74,6 +75,7 @@ export function useTranscriptionLayerActions({
   utterancesRef,
   pushUndo,
   setLayerCreateMessage,
+  setSaveState,
   setLayers,
   setLayerLinks,
   setLayerToDeleteId,
@@ -530,6 +532,9 @@ export function useTranscriptionLayerActions({
     if (!resolved.changed) {
       if (resolved.message) {
         setLayerCreateMessage(resolved.message);
+        if (resolved.messageLevel === 'error') {
+          setSaveState?.({ kind: 'error', message: resolved.message });
+        }
       }
       return;
     }
@@ -543,11 +548,17 @@ export function useTranscriptionLayerActions({
       }
       if (resolved.message) {
         setLayerCreateMessage(resolved.message);
+        setSaveState?.({
+          kind: resolved.messageLevel === 'error' ? 'error' : 'done',
+          message: resolved.message,
+        });
       }
     } catch (error) {
-      setLayerCreateMessage(error instanceof Error ? error.message : '层级重排失败');
+      const message = error instanceof Error ? error.message : '层级重排失败';
+      setLayerCreateMessage(message);
+      setSaveState?.({ kind: 'error', message });
     }
-  }, [layers, persistLayerState, setLayerCreateMessage, setLayerLinks, setLayers, syncTranslationParentLinks]);
+  }, [layers, persistLayerState, setLayerCreateMessage, setLayerLinks, setLayers, setSaveState, syncTranslationParentLinks]);
 
   return {
     createLayer,

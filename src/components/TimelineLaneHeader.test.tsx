@@ -38,7 +38,7 @@ function renderHeader(trackModeControl?: {
   onLayerAction?: (action: 'create-transcription' | 'create-translation' | 'delete', layerId: string) => void;
 }) {
   const layer = options?.layer ?? makeLayer('layer-1');
-  render(
+  return render(
     <TimelineLaneHeader
       layer={layer}
       layerIndex={0}
@@ -54,11 +54,31 @@ function renderHeader(trackModeControl?: {
   );
 }
 
+async function findMenuButton(label: string): Promise<HTMLButtonElement> {
+  const textNode = await screen.findByText(label);
+  const button = textNode.closest('button');
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error(`Menu button not found for label: ${label}`);
+  }
+  return button;
+}
+
 afterEach(() => {
   cleanup();
 });
 
 describe('TimelineLaneHeader track mode menu', () => {
+  it('groups the layer header context menu into second-level categories', async () => {
+    renderHeader();
+
+    fireEvent.contextMenu(screen.getByText('Layer 1'));
+
+    expect(await findMenuButton('新建转写层')).toBeTruthy();
+    expect(await findMenuButton('新建翻译层')).toBeTruthy();
+    expect(await findMenuButton('删除当前层')).toBeTruthy();
+    expect(await findMenuButton('视图')).toBeTruthy();
+  });
+
   it('disables switching to locked multi-track mode when no lane locks exist', async () => {
     renderHeader({
       mode: 'multi-auto',
@@ -70,9 +90,10 @@ describe('TimelineLaneHeader track mode menu', () => {
     });
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));
+    fireEvent.mouseDown(await findMenuButton('轨道'));
 
-    const lockedModeItem = await screen.findByRole('menuitem', { name: '切换为多轨模式（锁定，需先锁定说话人）' });
-    expect((lockedModeItem as HTMLButtonElement).disabled).toBe(true);
+    const lockedModeItem = await findMenuButton('切换到多轨模式（锁定，需先锁定说话人）');
+    expect(lockedModeItem.disabled).toBe(true);
   });
 
   it('opens a custom lane-lock dialog and applies the selected lane', async () => {
@@ -88,7 +109,8 @@ describe('TimelineLaneHeader track mode menu', () => {
     });
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));
-    fireEvent.click(await screen.findByRole('menuitem', { name: '锁定选中说话人到轨道…（Alice、Bob）' }));
+  fireEvent.mouseDown(await findMenuButton('轨道'));
+  fireEvent.click(await findMenuButton('锁定选中说话人到轨道…（Alice、Bob）'));
 
     expect(await screen.findByRole('dialog', { name: '锁定说话人到轨道' })).toBeTruthy();
 
@@ -128,10 +150,78 @@ describe('TimelineLaneHeader track mode menu', () => {
     });
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));
-    const createItem = await screen.findByRole('menuitem', { name: '新建翻译层' });
-    expect((createItem as HTMLButtonElement).disabled).toBe(false);
+    const createItem = await findMenuButton('新建翻译层');
+    expect(createItem.disabled).toBe(false);
 
     fireEvent.click(createItem);
     expect(onLayerAction).toHaveBeenCalledWith('create-translation', translationLayer.id);
+  });
+
+  it('shows connectors by default and updates availability when layers change', async () => {
+    const root = {
+      ...makeLayer('root-layer'),
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+    } as LayerDocType;
+    const child = {
+      ...makeLayer('child-layer'),
+      layerType: 'translation',
+      key: 'trl_eng_1',
+      languageId: 'eng',
+      parentLayerId: root.id,
+      sortOrder: 1,
+    } as LayerDocType;
+
+    const view = renderHeader(undefined, {
+      layer: root,
+      allLayers: [root, child],
+    });
+
+    expect(view.container.querySelector('.lane-link-connector')).toBeTruthy();
+
+    fireEvent.contextMenu(screen.getByText('Layer 1'));
+    fireEvent.mouseDown(await findMenuButton('视图'));
+    let toggleItem = await findMenuButton('隐藏层级关系');
+    expect(toggleItem.disabled).toBe(false);
+
+    view.rerender(
+      <TimelineLaneHeader
+        layer={root}
+        layerIndex={0}
+        allLayers={[root]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[root]}
+        onFocusLayer={vi.fn()}
+        renderLaneLabel={() => <span>Layer 1</span>}
+        onLayerAction={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+      />,
+    );
+
+    expect(view.container.querySelector('.lane-link-connector')).toBeFalsy();
+    fireEvent.contextMenu(screen.getByText('Layer 1'));
+    fireEvent.mouseDown(await findMenuButton('视图'));
+    toggleItem = await findMenuButton('显示层级关系（暂无可用链接）');
+    expect(toggleItem.disabled).toBe(true);
+
+    view.rerender(
+      <TimelineLaneHeader
+        layer={root}
+        layerIndex={0}
+        allLayers={[root, child]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[root, child]}
+        onFocusLayer={vi.fn()}
+        renderLaneLabel={() => <span>Layer 1</span>}
+        onLayerAction={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+      />,
+    );
+
+    expect(view.container.querySelector('.lane-link-connector')).toBeTruthy();
+    fireEvent.contextMenu(screen.getByText('Layer 1'));
+    fireEvent.mouseDown(await findMenuButton('视图'));
+    toggleItem = await findMenuButton('隐藏层级关系');
+    expect(toggleItem.disabled).toBe(false);
   });
 });

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { LayerLinkDocType, LayerDocType } from '../db';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
+import { resolveVerticalReorderTargetIndex, type VerticalDragDirection } from '../utils/dragReorder';
 import { formatLayerRailLabel } from '../utils/transcriptionFormatters';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
@@ -17,9 +18,11 @@ import {
   validateExistingLayerConstraints,
 } from '../services/LayerConstraintService';
 import {
+  buildLayerBundles,
   type LayerOrderIssue,
   type LayerOrderRepair,
   repairLayerOrder,
+  resolveLayerDragGroup,
   validateLayerOrder,
 } from '../services/LayerOrderingService';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
@@ -329,7 +332,9 @@ export function LayerRailSidebar({
   // ── Drag-and-drop state ──
   const [dragState, setDragState] = useState<{
     draggedId: string;
+    draggedLayerIds: string[];
     sourceIndex: number;
+    sourceSpan: number;
     sourceType: 'transcription' | 'translation';
   } | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
@@ -343,6 +348,34 @@ export function LayerRailSidebar({
     orderIssues: LayerOrderIssue[];
   } | null>(null);
   const [constraintRepairDetailsCollapsed, setConstraintRepairDetailsCollapsed] = useState(false);
+  const layerRailOverviewRef = useRef<HTMLDivElement | null>(null);
+  const dragStateRef = useRef<typeof dragState>(null);
+  const dropTargetIndexRef = useRef<number | null>(null);
+  const draggedRailRowsRef = useRef<HTMLElement[]>([]);
+  const dragStartClientYRef = useRef<number | null>(null);
+  const dragLastClientYRef = useRef<number | null>(null);
+  const dragDirectionRef = useRef<VerticalDragDirection>('none');
+  const { bundleBoundaryIndexes, bundleRootIds, bundleRanges } = useMemo(() => {
+    const boundaries = new Set<number>([0, layerRailRows.length]);
+    const rootIds = new Set<string>();
+    const ranges: Array<{ rootId: string; start: number; end: number }> = [];
+    let cursor = 0;
+    for (const bundle of buildLayerBundles(layerRailRows)) {
+      const start = cursor;
+      boundaries.add(cursor);
+      if (!bundle.detached) {
+        rootIds.add(bundle.root.id);
+      }
+      cursor += 1 + bundle.transcriptionDependents.length + bundle.translationDependents.length;
+      boundaries.add(cursor);
+      ranges.push({ rootId: bundle.root.id, start, end: cursor });
+    }
+    return {
+      bundleBoundaryIndexes: [...boundaries].sort((left, right) => left - right),
+      bundleRootIds: rootIds,
+      bundleRanges: ranges,
+    };
+  }, [layerRailRows]);
   const disableCreateTranslationEntry = transcriptionLayers.length === 0;
   const layerLabelById = useMemo(
     () => new Map(layerRailRows.map((layer) => [layer.id, formatLayerRailLabel(layer)] as const)),
@@ -393,6 +426,112 @@ export function LayerRailSidebar({
     }
     return Array.from(grouped.values()).sort((a, b) => a.label.localeCompare(b.label, 'zh-Hans-CN'));
   }, [constraintRepairDetails, layerLabelById]);
+
+  const clearRailShiftVisual = useCallback(() => {
+    const overview = layerRailOverviewRef.current;
+    if (!overview) return;
+    overview.querySelectorAll<HTMLElement>('.transcription-layer-rail-item-row').forEach((row) => {
+      row.classList.remove('transcription-layer-rail-item-row-shift');
+      row.style.removeProperty('--transcription-layer-rail-shift-offset');
+    });
+  }, []);
+
+  const clearRailBoundaryHighlightVisual = useCallback(() => {
+    const overview = layerRailOverviewRef.current;
+    if (!overview) return;
+    overview.querySelectorAll<HTMLElement>('.transcription-layer-rail-item-row').forEach((row) => {
+      row.classList.remove('transcription-layer-rail-item-row-boundary-highlight-top');
+      row.classList.remove('transcription-layer-rail-item-row-boundary-highlight-bottom');
+    });
+  }, []);
+
+  const clearRailDragVisual = useCallback(() => {
+    draggedRailRowsRef.current.forEach((row) => {
+      row.classList.remove('transcription-layer-rail-item-row-dragging');
+      row.style.removeProperty('--transcription-layer-rail-drag-offset');
+    });
+    draggedRailRowsRef.current = [];
+  }, []);
+
+  const getRailRows = useCallback((): HTMLElement[] => {
+    const overview = layerRailOverviewRef.current;
+    if (!overview) return [];
+    return Array.from(overview.querySelectorAll<HTMLElement>('.transcription-layer-rail-item-row'));
+  }, []);
+
+  const getDraggedRailBlockHeight = useCallback((rows: HTMLElement[]): number => {
+    if (rows.length === 0) return 28;
+    return rows.reduce((total, row) => total + row.getBoundingClientRect().height, 0);
+  }, []);
+
+  const updateRailDragVisual = useCallback((clientY: number) => {
+    const startY = dragStartClientYRef.current;
+    if (startY === null) return;
+    const deltaY = clientY - startY;
+    draggedRailRowsRef.current.forEach((row) => {
+      row.classList.add('transcription-layer-rail-item-row-dragging');
+      row.style.setProperty('--transcription-layer-rail-drag-offset', `${deltaY}px`);
+    });
+  }, []);
+
+  const updateRailDragDirection = useCallback((clientY: number) => {
+    const previous = dragLastClientYRef.current;
+    if (previous !== null) {
+      if (clientY > previous + 1) {
+        dragDirectionRef.current = 'down';
+      } else if (clientY < previous - 1) {
+        dragDirectionRef.current = 'up';
+      }
+    }
+    dragLastClientYRef.current = clientY;
+  }, []);
+
+  const updateRailShiftVisual = useCallback((sourceIndex: number, sourceSpan: number, dropIndex: number) => {
+    const rows = getRailRows();
+    if (rows.length === 0) return;
+
+    clearRailShiftVisual();
+
+    const insertionIndex = Math.max(0, Math.min(dropIndex, rows.length));
+    if (insertionIndex === sourceIndex || (insertionIndex > sourceIndex && insertionIndex <= sourceIndex + sourceSpan)) return;
+
+    const dragBlockHeight = getDraggedRailBlockHeight(rows.slice(sourceIndex, sourceIndex + sourceSpan));
+
+    if (insertionIndex > sourceIndex) {
+      for (let i = sourceIndex + sourceSpan; i < insertionIndex; i += 1) {
+        const row = rows[i];
+        if (!row) continue;
+        row.classList.add('transcription-layer-rail-item-row-shift');
+        row.style.setProperty('--transcription-layer-rail-shift-offset', `${-dragBlockHeight}px`);
+      }
+      return;
+    }
+
+    for (let i = insertionIndex; i < sourceIndex; i += 1) {
+      const row = rows[i];
+      if (!row) continue;
+      row.classList.add('transcription-layer-rail-item-row-shift');
+      row.style.setProperty('--transcription-layer-rail-shift-offset', `${dragBlockHeight}px`);
+    }
+  }, [clearRailShiftVisual, getDraggedRailBlockHeight, getRailRows]);
+
+  const updateRailBoundaryHighlightVisual = useCallback((draggedId: string, sourceIndex: number, dropIndex: number) => {
+    clearRailBoundaryHighlightVisual();
+
+    if (!bundleRootIds.has(draggedId)) return;
+    if (!bundleBoundaryIndexes.includes(dropIndex)) return;
+    if (dropIndex === sourceIndex) return;
+
+    const rows = getRailRows();
+    if (rows.length === 0) return;
+
+    if (dropIndex >= rows.length) {
+      rows[rows.length - 1]?.classList.add('transcription-layer-rail-item-row-boundary-highlight-bottom');
+      return;
+    }
+
+    rows[dropIndex]?.classList.add('transcription-layer-rail-item-row-boundary-highlight-top');
+  }, [bundleBoundaryIndexes, bundleRootIds, clearRailBoundaryHighlightVisual, getRailRows]);
 
   const handleRepairLayerConstraints = useCallback(async () => {
     setConstraintRepairBusy(true);
@@ -457,56 +596,148 @@ export function LayerRailSidebar({
     });
   };
 
+  useEffect(() => {
+    dragStateRef.current = dragState;
+  }, [dragState]);
+
+  useEffect(() => {
+    dropTargetIndexRef.current = dropTargetIndex;
+  }, [dropTargetIndex]);
+
+  const resolveRailDropTargetIndex = useCallback((clientY: number): number | null => {
+    const overview = layerRailOverviewRef.current;
+    if (!overview) return null;
+
+    const activeDrag = dragStateRef.current;
+    if (!activeDrag) return null;
+
+    const items = Array.from(overview.querySelectorAll<HTMLElement>('.transcription-layer-rail-item'));
+    let targetIndex = resolveVerticalReorderTargetIndex(
+      items.map((item) => item.getBoundingClientRect()),
+      clientY,
+      dragDirectionRef.current,
+      {
+        ...(bundleRootIds.has(activeDrag.draggedId)
+          ? { allowedBoundaryIndexes: bundleBoundaryIndexes }
+          : {}),
+      },
+    );
+    if (targetIndex === null) return null;
+
+    if (targetIndex > layerRailRows.length) targetIndex = layerRailRows.length;
+
+    if (targetIndex > activeDrag.sourceIndex && targetIndex < activeDrag.sourceIndex + activeDrag.sourceSpan) {
+      targetIndex = activeDrag.sourceIndex;
+    }
+
+    return targetIndex;
+  }, [bundleBoundaryIndexes, bundleRootIds, layerRailRows.length]);
+
+  const resolveTargetBundleRange = useCallback((draggedId: string, dropIndex: number) => {
+    if (!bundleRootIds.has(draggedId)) return null;
+    if (!bundleBoundaryIndexes.includes(dropIndex)) return null;
+
+    const clampedProbeIndex = Math.max(0, Math.min(dropIndex, layerRailRows.length - 1));
+    const targetRange = bundleRanges.find((range) => clampedProbeIndex >= range.start && clampedProbeIndex < range.end);
+    if (!targetRange || targetRange.rootId === draggedId) return null;
+    return targetRange;
+  }, [bundleBoundaryIndexes, bundleRanges, bundleRootIds, layerRailRows.length]);
+
+  const commitRailDragReorder = useCallback((clientY?: number) => {
+    const activeDrag = dragStateRef.current;
+    if (typeof clientY === 'number') {
+      updateRailDragDirection(clientY);
+      updateRailDragVisual(clientY);
+    }
+
+    const resolvedTarget = typeof clientY === 'number'
+      ? resolveRailDropTargetIndex(clientY)
+      : null;
+    const finalTarget = resolvedTarget ?? dropTargetIndexRef.current;
+
+    if (activeDrag && finalTarget !== null && finalTarget !== activeDrag.sourceIndex) {
+      fireAndForget(onReorderLayers(activeDrag.draggedId, finalTarget));
+    }
+
+    clearRailDragVisual();
+    clearRailShiftVisual();
+    clearRailBoundaryHighlightVisual();
+    dragStartClientYRef.current = null;
+    dragLastClientYRef.current = null;
+    dragDirectionRef.current = 'none';
+    setDragState(null);
+    setDropTargetIndex(null);
+  }, [clearRailBoundaryHighlightVisual, clearRailDragVisual, clearRailShiftVisual, onReorderLayers, resolveRailDropTargetIndex, updateRailDragDirection, updateRailDragVisual]);
+
   const handleDragStart = (e: React.MouseEvent, layer: LayerDocType) => {
     // Long press (500ms) to start drag - use timer instead of mousedown/mouseup
     const timer = setTimeout(() => {
       const currentIndex = layerRailRows.findIndex((l) => l.id === layer.id);
+      const draggedLayerIds = resolveLayerDragGroup(layerRailRows, layer.id);
+      const sourceSpan = draggedLayerIds.length;
+      draggedRailRowsRef.current = getRailRows().slice(currentIndex, currentIndex + sourceSpan);
+      dragStartClientYRef.current = e.clientY;
+      dragLastClientYRef.current = e.clientY;
+      dragDirectionRef.current = 'none';
       setDragState({
         draggedId: layer.id,
+        draggedLayerIds,
         sourceIndex: currentIndex,
+        sourceSpan,
         sourceType: layer.layerType,
       });
+      setDropTargetIndex(currentIndex);
+      updateRailBoundaryHighlightVisual(layer.id, currentIndex, currentIndex);
     }, 500);
 
     const cleanup = () => clearTimeout(timer);
     const handleMouseUp = () => {
       cleanup();
+      dragLastClientYRef.current = null;
+      dragDirectionRef.current = 'none';
       document.removeEventListener('mouseup', handleMouseUp);
     };
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!dragState) return;
+  useEffect(() => {
+    if (!dragState) return undefined;
 
-    // Find which layer item the mouse is over
-    const overview = (e.currentTarget as HTMLElement).closest('.transcription-layer-rail-overview');
-    if (!overview) return;
-
-    const items = Array.from(overview.querySelectorAll<HTMLElement>('.transcription-layer-rail-item'));
-    let targetIndex = -1;
-    for (let i = 0; i < items.length; i++) {
-      const rect = items[i]!.getBoundingClientRect();
-      const midY = rect.top + rect.height / 2;
-      if (e.clientY < midY) {
-        targetIndex = i;
-        break;
+    const handleDocumentMouseMove = (event: MouseEvent) => {
+      updateRailDragDirection(event.clientY);
+      updateRailDragVisual(event.clientY);
+      const next = resolveRailDropTargetIndex(event.clientY);
+      if (next !== null) {
+        setDropTargetIndex(next);
+        updateRailShiftVisual(dragState.sourceIndex, dragState.sourceSpan, next);
+        updateRailBoundaryHighlightVisual(dragState.draggedId, dragState.sourceIndex, next);
       }
-      targetIndex = i + 1;
-    }
+    };
 
-    if (targetIndex > layerRailRows.length) targetIndex = layerRailRows.length;
+    const handleDocumentMouseUp = (event: MouseEvent) => {
+      commitRailDragReorder(event.clientY);
+    };
 
-    setDropTargetIndex(targetIndex);
-  };
+    document.addEventListener('mousemove', handleDocumentMouseMove);
+    document.addEventListener('mouseup', handleDocumentMouseUp);
 
-  const handleMouseUp = () => {
-    if (dragState && dropTargetIndex !== null && dropTargetIndex !== dragState.sourceIndex) {
-      fireAndForget(onReorderLayers(dragState.draggedId, dropTargetIndex));
-    }
-    setDragState(null);
-    setDropTargetIndex(null);
-  };
+    return () => {
+      clearRailDragVisual();
+      clearRailShiftVisual();
+      clearRailBoundaryHighlightVisual();
+      document.removeEventListener('mousemove', handleDocumentMouseMove);
+      document.removeEventListener('mouseup', handleDocumentMouseUp);
+    };
+  }, [clearRailBoundaryHighlightVisual, clearRailDragVisual, clearRailShiftVisual, commitRailDragReorder, dragState, resolveRailDropTargetIndex, updateRailBoundaryHighlightVisual, updateRailDragDirection, updateRailDragVisual, updateRailShiftVisual]);
+
+  useEffect(() => () => {
+    clearRailDragVisual();
+    clearRailShiftVisual();
+    clearRailBoundaryHighlightVisual();
+    dragStartClientYRef.current = null;
+    dragLastClientYRef.current = null;
+    dragDirectionRef.current = 'none';
+  }, [clearRailBoundaryHighlightVisual, clearRailDragVisual, clearRailShiftVisual]);
 
   const contextMenuItems: ContextMenuItem[] = contextMenu ? [
     {
@@ -841,6 +1072,8 @@ export function LayerRailSidebar({
     flashLayerRowId,
     dragState,
     dropTargetIndex,
+    boundaryHighlight,
+    bundleTargetHighlighted,
     onFocusLayer,
     onContextMenu,
     onMouseDown,
@@ -849,8 +1082,10 @@ export function LayerRailSidebar({
     index: number;
     focusedLayerRowId: string;
     flashLayerRowId: string;
-    dragState: { draggedId: string; sourceIndex: number; sourceType: 'transcription' | 'translation' } | null;
+    dragState: { draggedId: string; draggedLayerIds: string[]; sourceIndex: number; sourceSpan: number; sourceType: 'transcription' | 'translation' } | null;
     dropTargetIndex: number | null;
+    boundaryHighlight: 'top' | 'bottom' | null;
+    bundleTargetHighlighted: boolean;
     onFocusLayer: (id: string) => void;
     onContextMenu: (e: React.MouseEvent, layerId: string) => void;
     onMouseDown: (e: React.MouseEvent, layer: LayerDocType) => void;
@@ -858,11 +1093,20 @@ export function LayerRailSidebar({
     const layerLabel = formatLayerRailLabel(layer);
     const isActiveLayer = layer.id === focusedLayerRowId;
     const isFlashLayer = layer.id === flashLayerRowId;
-    const isDragged = dragState?.draggedId === layer.id;
+    const isDragged = dragState?.draggedLayerIds.includes(layer.id) ?? false;
     const showDropIndicator = dropTargetIndex === index && !isDragged;
 
     return (
-      <div key={layer.id} style={{ position: 'relative' }}>
+      <div
+        key={layer.id}
+        className={[
+          'transcription-layer-rail-item-row',
+          boundaryHighlight === 'top' ? 'transcription-layer-rail-item-row-boundary-highlight-top' : '',
+          boundaryHighlight === 'bottom' ? 'transcription-layer-rail-item-row-boundary-highlight-bottom' : '',
+          bundleTargetHighlighted ? 'transcription-layer-rail-item-row-bundle-target' : '',
+        ].filter(Boolean).join(' ')}
+        style={{ position: 'relative' }}
+      >
         {showDropIndicator && (
           <div
             style={{
@@ -894,6 +1138,14 @@ export function LayerRailSidebar({
     if (layerRailRows.length === 0) {
       return <span className="transcription-layer-rail-empty">暂无层</span>;
     }
+    const targetBundleRange = dragState && dropTargetIndex !== null
+      ? resolveTargetBundleRange(dragState.draggedId, dropTargetIndex)
+      : null;
+    const bundleBoundaryHighlight = dragState && dropTargetIndex !== null && bundleRootIds.has(dragState.draggedId) && bundleBoundaryIndexes.includes(dropTargetIndex) && dropTargetIndex !== dragState.sourceIndex
+      ? (dropTargetIndex >= layerRailRows.length
+          ? { index: layerRailRows.length - 1, position: 'bottom' as const }
+          : { index: dropTargetIndex, position: 'top' as const })
+      : null;
     return layerRailRows.map((layer, index) => (
       <LayerRailItemRow
         key={layer.id}
@@ -903,6 +1155,8 @@ export function LayerRailSidebar({
         flashLayerRowId={flashLayerRowId}
         dragState={dragState}
         dropTargetIndex={dropTargetIndex}
+        boundaryHighlight={bundleBoundaryHighlight?.index === index ? bundleBoundaryHighlight.position : null}
+        bundleTargetHighlighted={Boolean(targetBundleRange && index >= targetBundleRange.start && index < targetBundleRange.end)}
         onFocusLayer={onFocusLayer}
         onContextMenu={handleLayerContextMenu}
         onMouseDown={handleDragStart}
@@ -938,10 +1192,8 @@ export function LayerRailSidebar({
       {/* 层列表视图 | Layer list view */}
       {layerRailTab === 'layers' && (
       <div
+        ref={layerRailOverviewRef}
         className="transcription-layer-rail-overview"
-        onMouseMove={dragState ? handleMouseMove : undefined}
-        onMouseUp={dragState ? handleMouseUp : undefined}
-        onMouseLeave={dragState ? handleMouseUp : undefined}
       >
         {renderLayerRailItems()}
       </div>

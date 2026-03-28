@@ -650,6 +650,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     const setLayers = vi.fn();
     const setLayerLinks = vi.fn();
     const setLayerCreateMessage = vi.fn();
+    const setSaveState = vi.fn();
     const { result } = renderHook(() => useTranscriptionLayerActions({
       layers: [rootA as never, rootB as never, translation as never],
       layerLinks: [structuralLink as never, retainedLink as never],
@@ -658,6 +659,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
       pushUndo: vi.fn(),
       setLayerCreateMessage,
+      setSaveState,
       setLayers,
       setLayerLinks,
       setLayerToDeleteId: vi.fn(),
@@ -684,7 +686,11 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       transcriptionLayerKey: 'trc_b',
       layerId: 'layer_trl_a',
     }));
-    expect(setLayerCreateMessage).toHaveBeenCalledWith(expect.stringContaining('已将该翻译层改为依赖'));
+    expect(setLayerCreateMessage).toHaveBeenCalledWith(expect.stringContaining('已将翻译'));
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'done',
+      message: expect.stringContaining('依赖 转写'),
+    }));
 
     const reordered = setLayers.mock.calls.at(-1)?.[0] as LayerDocType[] | undefined;
     expect(reordered?.find((layer) => layer.id === 'layer_trl_a')?.parentLayerId).toBe('layer_trc_b');

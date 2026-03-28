@@ -1,10 +1,10 @@
 import type { LayerDocType } from '../db';
-import type { LayerLinkEdge } from '../services/LayerIdBridgeService';
+import { buildLayerBundles } from '../services/LayerOrderingService';
 
 export interface LayerLinkConnectorSegment {
   column: number;
   colorIndex: number;
-  role: 'bus-start' | 'bus-middle' | 'bus-end' | 'bus-single' | 'tap-parent' | 'tap-child';
+  role: 'bundle-root' | 'bundle-child-middle' | 'bundle-child-end';
 }
 
 export interface LayerLinkConnectorLayout {
@@ -53,133 +53,36 @@ function resolveBundleRootId(layer: LayerDocType, layerById: ReadonlyMap<string,
 
 export function buildLayerLinkConnectorLayout(
   allLayers: LayerDocType[],
-  layerLinks: LayerLinkEdge[],
+  _layerLinks: ReadonlyArray<unknown>,
 ): LayerLinkConnectorLayout {
-  if (allLayers.length === 0 || layerLinks.length === 0) {
-    return { maxColumns: 0, segmentsByLayerId: {} };
-  }
-
-  // 兼容历史数据：链接里可能存的是 layer.id 或 layer.key | Backward compatibility: links may store either layer.id or layer.key.
-  const layerIndexByRef = new Map<string, number>();
-  allLayers.forEach((layer, index) => {
-    layerIndexByRef.set(layer.id, index);
-    if (layer.key) {
-      layerIndexByRef.set(layer.key, index);
-    }
-  });
-  const layerByRef = new Map<string, LayerDocType>();
-  allLayers.forEach((layer) => {
-    layerByRef.set(layer.id, layer);
-    if (layer.key) layerByRef.set(layer.key, layer);
-  });
-
-  type ConnectorEdge = {
-    bundleRootId: string;
-    parentIndex: number;
-    childIndex: number;
-  };
-
-  const seenEdges = new Set<string>();
-  const edges: ConnectorEdge[] = [];
-
-  for (const layer of allLayers) {
-    if (!layer.parentLayerId) continue;
-    const parentLayer = layerByRef.get(layer.parentLayerId);
-    const parentIndex = parentLayer ? layerIndexByRef.get(parentLayer.id) : undefined;
-    const childIndex = layerIndexByRef.get(layer.id);
-    if (!parentLayer || parentIndex === undefined || childIndex === undefined || parentIndex === childIndex) continue;
-    const bundleRootId = resolveBundleRootId(parentLayer, layerByRef);
-    const edgeKey = `${parentLayer.id}->${layer.id}`;
-    if (seenEdges.has(edgeKey)) continue;
-    seenEdges.add(edgeKey);
-    edges.push({
-      bundleRootId,
-      parentIndex,
-      childIndex,
-    });
-  }
-
-  for (const link of layerLinks) {
-    const parentLayer = layerByRef.get(link.transcriptionLayerKey);
-    const targetLayer = layerByRef.get(link.targetLayerId);
-    const parentIndex = parentLayer ? layerIndexByRef.get(parentLayer.id) : undefined;
-    const childIndex = targetLayer ? layerIndexByRef.get(targetLayer.id) : undefined;
-    if (!parentLayer || !targetLayer || parentIndex === undefined || childIndex === undefined || parentIndex === childIndex) continue;
-    const bundleRootId = resolveBundleRootId(parentLayer, layerByRef);
-    const edgeKey = `${parentLayer.id}->${targetLayer.id}`;
-    if (seenEdges.has(edgeKey)) continue;
-    seenEdges.add(edgeKey);
-    edges.push({
-      bundleRootId,
-      parentIndex,
-      childIndex,
-    });
-  }
-
-  if (edges.length === 0) {
+  if (allLayers.length === 0) {
     return { maxColumns: 0, segmentsByLayerId: {} };
   }
 
   const segmentsByLayerId: Record<string, LayerLinkConnectorSegment[]> = {};
-  const edgesByBundle = new Map<string, ConnectorEdge[]>();
-  for (const edge of edges) {
-    const bucket = edgesByBundle.get(edge.bundleRootId);
-    if (bucket) bucket.push(edge);
-    else edgesByBundle.set(edge.bundleRootId, [edge]);
-  }
-
-  const orderedBundles = Array.from(edgesByBundle.entries())
-    .map(([bundleRootId, bundleEdges]) => ({
-      bundleRootId,
-      bundleEdges,
-      minRowIndex: Math.min(...bundleEdges.flatMap((edge) => [edge.parentIndex, edge.childIndex])),
-      maxRowIndex: Math.max(...bundleEdges.flatMap((edge) => [edge.parentIndex, edge.childIndex])),
+  const orderedBundles = buildLayerBundles(allLayers)
+    .filter((bundle) => !bundle.detached)
+    .map((bundle) => ({
+      root: bundle.root,
+      dependents: [...bundle.transcriptionDependents, ...bundle.translationDependents],
     }))
-    .sort((left, right) => left.minRowIndex - right.minRowIndex || left.bundleRootId.localeCompare(right.bundleRootId));
+    .filter((bundle) => bundle.dependents.length > 0);
 
   orderedBundles.forEach((bundle, colorIndex) => {
     const column = colorIndex;
-    const parentTapRowIndices = new Set<number>();
-    const childTapRowIndices = new Set<number>();
-
-    for (const edge of bundle.bundleEdges) {
-      parentTapRowIndices.add(edge.parentIndex);
-      childTapRowIndices.add(edge.childIndex);
-    }
-
-    for (let rowIndex = bundle.minRowIndex; rowIndex <= bundle.maxRowIndex; rowIndex += 1) {
-      const layer = allLayers[rowIndex];
-      if (!layer) continue;
-      pushSegment(segmentsByLayerId, layer.id, {
-        column,
-        colorIndex,
-        role: rowIndex === bundle.minRowIndex && rowIndex === bundle.maxRowIndex
-          ? 'bus-single'
-          : rowIndex === bundle.minRowIndex
-            ? 'bus-start'
-            : rowIndex === bundle.maxRowIndex
-              ? 'bus-end'
-              : 'bus-middle',
-      });
-    }
-
-    parentTapRowIndices.forEach((rowIndex) => {
-      const layer = allLayers[rowIndex];
-      if (!layer) return;
-      pushSegment(segmentsByLayerId, layer.id, {
-        column,
-        colorIndex,
-        role: 'tap-parent',
-      });
+    pushSegment(segmentsByLayerId, bundle.root.id, {
+      column,
+      colorIndex,
+      role: 'bundle-root',
     });
 
-    childTapRowIndices.forEach((rowIndex) => {
-      const layer = allLayers[rowIndex];
-      if (!layer) return;
+    bundle.dependents.forEach((layer, dependentIndex) => {
       pushSegment(segmentsByLayerId, layer.id, {
         column,
         colorIndex,
-        role: 'tap-child',
+        role: dependentIndex === bundle.dependents.length - 1
+          ? 'bundle-child-end'
+          : 'bundle-child-middle',
       });
     });
   });
@@ -192,5 +95,5 @@ export function buildLayerLinkConnectorLayout(
 
 export function getLayerLinkStackWidth(maxColumns: number): number {
   if (maxColumns <= 0) return 0;
-  return 12 + ((maxColumns - 1) * 8);
+  return 18;
 }

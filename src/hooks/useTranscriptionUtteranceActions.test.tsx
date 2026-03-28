@@ -2,9 +2,10 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
-import type { AnchorDocType, UtteranceDocType } from '../db';
+import type { AnchorDocType, LayerDocType, UtteranceDocType } from '../db';
 import { db } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
+import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 
 const { mockLogWarn, mockLogError } = vi.hoisted(() => ({
   mockLogWarn: vi.fn(),
@@ -36,12 +37,31 @@ function makeUtterance(id: string, startTime: number, endTime: number): Utteranc
   } as UtteranceDocType;
 }
 
+function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: 'transcription' | 'translation' }): LayerDocType {
+  const now = new Date().toISOString();
+  return {
+    id: overrides.id,
+    textId: 't1',
+    key: overrides.id,
+    name: { zho: overrides.id, eng: overrides.id },
+    layerType: overrides.layerType,
+    languageId: overrides.layerType === 'translation' ? 'eng' : 'cmn',
+    modality: 'text',
+    acceptsAudio: false,
+    sortOrder: 0,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  } as LayerDocType;
+}
+
 describe('useTranscriptionUtteranceActions - batch operations', () => {
   beforeEach(async () => {
     await db.open();
     await Promise.all([
       db.embeddings.clear(),
       db.utterances.clear(),
+      db.tier_definitions.clear(),
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
@@ -853,5 +873,80 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     expect(latest?.kind).toBe('utterance');
     expect(latest?.layerId).toBe('trc-default');
     expect(latest?.unitId).toBeTruthy();
+  });
+
+  it('projects a new utterance to both dependent transcription layer and its parent root', async () => {
+    const now = new Date().toISOString();
+    const rootLayer = makeLayer({
+      id: 'trc-root',
+      layerType: 'transcription',
+      constraint: 'independent_boundary',
+      isDefault: true,
+      sortOrder: 0,
+    });
+    const dependentLayer = makeLayer({
+      id: 'trc-dependent',
+      layerType: 'transcription',
+      constraint: 'symbolic_association',
+      parentLayerId: rootLayer.id,
+      sortOrder: 1,
+    });
+    await db.tier_definitions.bulkPut([rootLayer as never, dependentLayer as never]);
+
+    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+      defaultTranscriptionLayerId: rootLayer.id,
+      layerById: new Map([
+        [rootLayer.id, rootLayer],
+        [dependentLayer.id, dependentLayer],
+      ]),
+      selectedUtteranceMedia: {
+        id: 'media-1',
+        textId: 't1',
+        filename: 'demo.wav',
+        duration: 120,
+        sourceType: 'upload',
+        createdAt: now,
+        updatedAt: now,
+      } as never,
+      translations: [],
+      utterancesRef: { current: [] },
+      utterancesOnCurrentMediaRef: { current: [] },
+      getUtteranceTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, utteranceId: null } },
+      timingUndoRef: { current: null },
+      pushUndo: vi.fn(),
+      createAnchor: vi.fn(async (_db, mediaId, time) => ({
+        id: `a_${time}`,
+        mediaId,
+        time,
+        createdAt: now,
+      } as AnchorDocType)),
+      updateAnchorTime: vi.fn(),
+      pruneOrphanAnchors: vi.fn(),
+      setSaveState: vi.fn(),
+      setSnapGuide: vi.fn(),
+      setMediaItems: vi.fn(),
+      setTranslations: vi.fn(),
+      setUtterances: vi.fn(),
+      setUtteranceDrafts: vi.fn(),
+      activeUtteranceUnitId: '',
+      setSelectedUtteranceIds: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.createUtteranceFromSelection(1, 2, { focusedLayerId: dependentLayer.id });
+    });
+
+    const createdUtterances = await db.utterances.toArray();
+    expect(createdUtterances).toHaveLength(1);
+    const createdUtterance = createdUtterances[0]!;
+
+    const rootSegments = await LayerSegmentQueryService.listSegmentsByLayerId(rootLayer.id);
+    const dependentSegments = await LayerSegmentQueryService.listSegmentsByLayerId(dependentLayer.id);
+
+    expect(rootSegments).toHaveLength(1);
+    expect(dependentSegments).toHaveLength(1);
+    expect(rootSegments[0]?.utteranceId).toBe(createdUtterance.id);
+    expect(dependentSegments[0]?.utteranceId).toBe(createdUtterance.id);
   });
 });

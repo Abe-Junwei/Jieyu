@@ -3,6 +3,10 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useNoteHandlers } from './useNoteHandlers';
 
+const { mockUseNoteCounts } = vi.hoisted(() => ({
+  mockUseNoteCounts: vi.fn(),
+}));
+
 vi.mock('./useNotes', () => ({
   useNotes: () => ({
     notes: [],
@@ -11,11 +15,40 @@ vi.mock('./useNotes', () => ({
     deleteNote: vi.fn(),
     version: 0,
   }),
-  useNoteCounts: () => ({}),
+  useNoteCounts: (...args: unknown[]) => mockUseNoteCounts(...args),
 }));
 
 describe('useNoteHandlers error reporting', () => {
+  it('resolves note indicator targets for segment-layer notes and utterance notes', () => {
+    mockUseNoteCounts.mockImplementation((targetType: string) => {
+      if (targetType === 'tier_annotation') {
+        return new Map([['seg-1::layer-1', 2]]);
+      }
+      if (targetType === 'utterance') {
+        return new Map([['utt-1', 1]]);
+      }
+      return new Map();
+    });
+
+    const { result } = renderHook(() => useNoteHandlers({
+      activeUtteranceUnitId: 'utt-1',
+      focusedLayerRowId: 'layer-1',
+      utterances: [{ id: 'utt-1' }],
+      timelineUnitIds: ['utt-1', 'seg-1'],
+      transcriptionLayers: [{ id: 'layer-1' }],
+      translationLayers: [],
+      updateTokenPos: vi.fn(),
+      batchUpdateTokenPosByForm: vi.fn(async () => 0),
+      selectUtterance: vi.fn(),
+      setSaveState: vi.fn(),
+    }));
+
+    expect(result.current.resolveNoteIndicatorTarget('seg-1', 'layer-1')).toEqual({ count: 2, layerId: 'layer-1' });
+    expect(result.current.resolveNoteIndicatorTarget('utt-1', 'layer-1')).toEqual({ count: 1 });
+  });
+
   it('maps conflict-like POS save error to conflict-aware message', async () => {
+    mockUseNoteCounts.mockImplementation(() => new Map());
     const setSaveState = vi.fn();
     const updateTokenPos = vi.fn(async () => {
       throw new Error('row changed externally');
@@ -25,6 +58,7 @@ describe('useNoteHandlers error reporting', () => {
       activeUtteranceUnitId: 'utt-1',
       focusedLayerRowId: 'layer-1',
       utterances: [{ id: 'utt-1' }],
+      timelineUnitIds: ['utt-1'],
       transcriptionLayers: [{ id: 'layer-1' }],
       translationLayers: [],
       updateTokenPos,
@@ -45,6 +79,7 @@ describe('useNoteHandlers error reporting', () => {
   });
 
   it('keeps original fallback message for non-conflict POS save error', async () => {
+    mockUseNoteCounts.mockImplementation(() => new Map());
     const setSaveState = vi.fn();
     const updateTokenPos = vi.fn(async () => {
       throw new Error('boom');
@@ -54,6 +89,7 @@ describe('useNoteHandlers error reporting', () => {
       activeUtteranceUnitId: 'utt-1',
       focusedLayerRowId: 'layer-1',
       utterances: [{ id: 'utt-1' }],
+      timelineUnitIds: ['utt-1'],
       transcriptionLayers: [{ id: 'layer-1' }],
       translationLayers: [],
       updateTokenPos,
