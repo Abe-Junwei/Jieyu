@@ -7,6 +7,9 @@ type SpeakerManagement = ComponentProps<typeof SpeakerRailProvider>['speakerMana
 
 interface TranscriptionPageLayerRailProps {
   speakerManagement: SpeakerManagement;
+  selectedUtteranceIds: Set<string>;
+  handleAssignSpeakerToSelectedRouted: () => Promise<void>;
+  handleClearSpeakerOnSelectedRouted: () => Promise<void>;
   sidebarProps: LayerRailSidebarProps;
   isLayerRailCollapsed: boolean;
   hoverExpandEnabled: boolean;
@@ -19,6 +22,9 @@ interface TranscriptionPageLayerRailProps {
 
 export function TranscriptionPageLayerRail({
   speakerManagement,
+  selectedUtteranceIds,
+  handleAssignSpeakerToSelectedRouted,
+  handleClearSpeakerOnSelectedRouted,
   sidebarProps,
   isLayerRailCollapsed,
   hoverExpandEnabled,
@@ -30,7 +36,12 @@ export function TranscriptionPageLayerRail({
 }: TranscriptionPageLayerRailProps) {
   return (
     <>
-      <SpeakerRailProvider speakerManagement={speakerManagement}>
+      <SpeakerRailProvider
+        speakerManagement={speakerManagement}
+        selectedUtteranceIds={selectedUtteranceIds}
+        handleAssignSpeakerToSelectedRouted={handleAssignSpeakerToSelectedRouted}
+        handleClearSpeakerOnSelectedRouted={handleClearSpeakerOnSelectedRouted}
+      >
         <LayerRailSidebar {...sidebarProps} />
       </SpeakerRailProvider>
       <div className="transcription-layer-rail-handle-cluster">

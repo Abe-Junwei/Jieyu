@@ -16,7 +16,12 @@ import {
   canDeleteLayer,
   getLayerCreateGuard,
   getMostRecentLayerOfType,
+  listIndependentBoundaryTranscriptionLayers,
 } from '../services/LayerConstraintService';
+import {
+  computeCanonicalLayerOrder,
+  resolveLayerDrop,
+} from '../services/LayerOrderingService';
 import {
   createLayerLink,
 } from '../services/LayerIdBridgeService';
@@ -81,6 +86,99 @@ export function useTranscriptionLayerActions({
   setTranslations,
   setUtterances,
 }: TranscriptionLayerActionsParams) {
+  const syncTranslationParentLinks = useCallback(async (
+    previousLayers: LayerDocType[],
+    nextLayers: LayerDocType[],
+  ): Promise<LayerLinkDocType[] | null> => {
+    const previousById = new Map(previousLayers.map((layer) => [layer.id, layer] as const));
+    const nextById = new Map(nextLayers.map((layer) => [layer.id, layer] as const));
+    let nextLayerLinks = [...layerLinks];
+    let changed = false;
+
+    const reparentedTranslations = nextLayers.filter((layer) => {
+      if (layer.layerType !== 'translation') return false;
+      const previous = previousById.get(layer.id);
+      if (!previous) return false;
+      return (previous.parentLayerId ?? '') !== (layer.parentLayerId ?? '');
+    });
+
+    if (reparentedTranslations.length === 0) {
+      return null;
+    }
+
+    const db = await getDb();
+    const now = new Date().toISOString();
+
+    for (const layer of reparentedTranslations) {
+      const previous = previousById.get(layer.id);
+      if (!previous) continue;
+
+      const previousParent = previous.parentLayerId ? previousById.get(previous.parentLayerId) : undefined;
+      const nextParent = layer.parentLayerId ? nextById.get(layer.parentLayerId) : undefined;
+      const previousParentKey = previousParent?.key;
+      const nextParentKey = nextParent?.key;
+
+      if (previousParentKey) {
+        const removableLinks = nextLayerLinks.filter(
+          (link) => link.layerId === layer.id && link.transcriptionLayerKey === previousParentKey,
+        );
+        if (removableLinks.length > 0) {
+          await Promise.all(removableLinks.map((link) => db.collections.layer_links.remove(link.id)));
+          const removableIds = new Set(removableLinks.map((link) => link.id));
+          nextLayerLinks = nextLayerLinks.filter((link) => !removableIds.has(link.id));
+          changed = true;
+        }
+      }
+
+      if (!nextParentKey) {
+        continue;
+      }
+
+      const alreadyLinked = nextLayerLinks.some(
+        (link) => link.layerId === layer.id && link.transcriptionLayerKey === nextParentKey,
+      );
+      if (alreadyLinked) {
+        continue;
+      }
+
+      const newLink = createLayerLink({
+        id: newId('link'),
+        transcriptionLayerKey: nextParentKey,
+        targetLayerId: layer.id,
+        createdAt: now,
+      });
+      await db.collections.layer_links.insert(newLink);
+      nextLayerLinks = [...nextLayerLinks, newLink];
+      changed = true;
+    }
+
+    return changed ? nextLayerLinks : null;
+  }, [layerLinks]);
+
+  const persistLayerState = useCallback(async (previousLayers: LayerDocType[], nextLayers: LayerDocType[]) => {
+    const previousById = new Map(previousLayers.map((layer) => [layer.id, layer] as const));
+    const db = await getDb();
+
+    for (const layer of nextLayers) {
+      const previous = previousById.get(layer.id);
+      if (!previous) continue;
+
+      const parentChanged = (previous.parentLayerId ?? '') !== (layer.parentLayerId ?? '');
+      const sortChanged = (previous.sortOrder ?? 0) !== (layer.sortOrder ?? 0);
+      if (!parentChanged && !sortChanged) continue;
+
+      if (parentChanged) {
+        await LayerTierUnifiedService.updateLayer({
+          ...layer,
+          updatedAt: new Date().toISOString(),
+        });
+        continue;
+      }
+
+      await LayerTierUnifiedService.updateLayerSortOrder(layer.id, layer.sortOrder ?? 0, db);
+    }
+  }, []);
+
   const clearTimelineSelection = useCallback(() => {
     setSelectedUtteranceIds?.(new Set());
     setSelectedTimelineUnit?.(null);
@@ -93,6 +191,7 @@ export function useTranscriptionLayerActions({
   ): Promise<boolean> => {
     const languageId = input.languageId.trim();
     const alias = (input.alias ?? '').trim();
+    const requestedParentLayerId = input.parentLayerId?.trim();
 
     if (!languageId) {
       setLayerCreateMessage('请选择语言。');
@@ -102,19 +201,22 @@ export function useTranscriptionLayerActions({
     const hasExistingTranscriptionLayer = layers.some((layer) => layer.layerType === 'transcription');
     const resolvedConstraint = input.constraint
       ?? (layerType === 'transcription' && !hasExistingTranscriptionLayer ? 'independent_boundary' : undefined);
-
-    const inferredParent = layerType === 'translation'
-      ? getMostRecentLayerOfType(layers, 'transcription')
-      : (resolvedConstraint && resolvedConstraint !== 'independent_boundary'
-        ? getMostRecentLayerOfType(layers, 'transcription')
-        : undefined);
+    const independentParentCandidates = listIndependentBoundaryTranscriptionLayers(layers);
+    const resolvedParent = resolvedConstraint !== 'independent_boundary'
+      ? (requestedParentLayerId
+        ? independentParentCandidates.find((layer) => layer.id === requestedParentLayerId)
+        : independentParentCandidates.length === 1
+          ? independentParentCandidates[0]
+          : undefined)
+      : undefined;
+    const resolvedParentLayerId = resolvedParent?.id ?? requestedParentLayerId;
 
     const createGuard = getLayerCreateGuard(layers, layerType, {
       languageId,
       alias,
       ...(resolvedConstraint !== undefined ? { constraint: resolvedConstraint } : {}),
-      ...(inferredParent?.id ? { parentLayerId: inferredParent.id } : {}),
-      hasSupportedParent: Boolean(inferredParent),
+      ...(resolvedParentLayerId ? { parentLayerId: resolvedParentLayerId } : {}),
+      hasSupportedParent: independentParentCandidates.length > 0,
     });
     if (!createGuard.allowed) {
       setLayerCreateMessage(createGuard.reason ?? '当前无法创建该层。');
@@ -136,7 +238,6 @@ export function useTranscriptionLayerActions({
     const typeLabel = layerType === 'transcription' ? '转写' : '翻译';
     const autoName = alias ? `${typeLabel} · ${alias}` : typeLabel;
 
-    // Compute sortOrder: append to end of appropriate section
     const existingOfType = layers.filter((l) => l.layerType === layerType);
     const maxSortOrder = existingOfType.reduce((max, l) => Math.max(max, l.sortOrder ?? 0), -1);
     const newSortOrder = maxSortOrder + 1;
@@ -163,7 +264,7 @@ export function useTranscriptionLayerActions({
         acceptsAudio: effectiveModality !== 'text',
         sortOrder: newSortOrder,
         ...(resolvedConstraint !== undefined ? { constraint: resolvedConstraint } : {}),
-        ...(inferredParent ? { parentLayerId: inferredParent.id } : {}),
+        ...(resolvedParentLayerId ? { parentLayerId: resolvedParentLayerId } : {}),
         createdAt: now,
         updatedAt: now,
       } as LayerDocType;
@@ -173,10 +274,10 @@ export function useTranscriptionLayerActions({
 
       let autoLink: LayerLinkDocType | undefined;
       if (layerType === 'translation') {
-        if (inferredParent) {
+        if (resolvedParent) {
           autoLink = createLayerLink({
             id: newId('link'),
-            transcriptionLayerKey: inferredParent.key,
+            transcriptionLayerKey: resolvedParent.key,
             targetLayerId: id,
             createdAt: now,
           });
@@ -197,8 +298,11 @@ export function useTranscriptionLayerActions({
         }
       }
 
+      const nextLayers = computeCanonicalLayerOrder([...layers, newLayer]);
+      await persistLayerState([...layers, newLayer], nextLayers);
+
       setSelectedLayerId(id);
-      setLayers((prev) => [...prev, newLayer]);
+      setLayers(nextLayers);
       if (autoLink) {
         setLayerLinks((prev) => [...prev, autoLink]);
       }
@@ -209,7 +313,7 @@ export function useTranscriptionLayerActions({
       setLayerCreateMessage(error instanceof Error ? error.message : '创建层失败');
       return false;
     }
-  }, [layers, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers, setSelectedLayerId, utterancesRef]);
+  }, [layers, persistLayerState, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers, setSelectedLayerId, utterancesRef]);
 
   /** 检查层是否有文本内容（用于判断是否需要确认） */
   const checkLayerHasContent = useCallback(async (layerId: string): Promise<number> => {
@@ -421,115 +525,29 @@ export function useTranscriptionLayerActions({
     clearTimelineSelection();
   }, [clearTimelineSelection, setMediaItems, setSelectedMediaId]);
 
-  /**
-   * Reorder layers within their own type section (transcription or translation).
-   * Translation layers cannot move above transcription layers.
-   */
   const reorderLayers = useCallback(async (draggedLayerId: string, targetIndex: number) => {
-    // Current order: transcription layers first, then translation layers
-    const transcriptionLayers = layers.filter((l) => l.layerType === 'transcription');
-    const translationLayers = layers.filter((l) => l.layerType === 'translation');
-
-    const trcCount = transcriptionLayers.length;
-
-    const draggedLayer = layers.find((l) => l.id === draggedLayerId);
-    if (!draggedLayer) return;
-
-    let reorderedLayers: LayerDocType[];
-
-    if (draggedLayer.layerType === 'transcription') {
-      // Can only reorder within transcription section
-      const sorted = [...transcriptionLayers].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-      const currentIndex = sorted.findIndex((l) => l.id === draggedLayerId);
-      if (currentIndex === -1) return;
-
-      // Clamp target to valid range
-      const clampedTarget = Math.max(0, Math.min(targetIndex, trcCount - 1));
-      if (clampedTarget === currentIndex) return;
-
-      // Reorder in memory
-      sorted.splice(currentIndex, 1);
-      sorted.splice(clampedTarget, 0, draggedLayer);
-
-      // Assign new sortOrder values to transcription layers
-      const updates: Array<{ layer: LayerDocType; sortOrder: number }> = sorted.map((l, i) => ({
-        layer: l,
-        sortOrder: i,
-      }));
-
-      // Translation layers keep their relative order (and their sortOrder offset)
-      translationLayers.forEach((l, i) => {
-        updates.push({ layer: l, sortOrder: trcCount + i });
-      });
-
-      // Build new layers array
-      const trcSortMap = new Map(updates.slice(0, trcCount).map((u) => [u.layer.id, u.sortOrder]));
-      const trlSortMap = new Map(updates.slice(trcCount).map((u) => [u.layer.id, u.sortOrder]));
-
-      reorderedLayers = layers.map((l) => {
-        if (trcSortMap.has(l.id)) {
-          return { ...l, sortOrder: trcSortMap.get(l.id)! };
-        }
-        if (trlSortMap.has(l.id)) {
-          return { ...l, sortOrder: trlSortMap.get(l.id)! };
-        }
-        return l;
-      });
-    } else {
-      // Translation layer - can only reorder within translation section
-      const sorted = [...translationLayers].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-      const currentIndex = sorted.findIndex((l) => l.id === draggedLayerId);
-      if (currentIndex === -1) return;
-
-      const trlCount = translationLayers.length;
-      // Clamp target to valid range within translation section
-      const clampedTarget = Math.max(0, Math.min(targetIndex, trlCount - 1));
-      if (clampedTarget === currentIndex) return;
-
-      // Reorder in memory
-      sorted.splice(currentIndex, 1);
-      sorted.splice(clampedTarget, 0, draggedLayer);
-
-      // Assign new sortOrder values
-      const updates: Array<{ layer: LayerDocType; sortOrder: number }> = [];
-
-      // Transcription layers keep their relative order
-      transcriptionLayers.forEach((l, i) => {
-        updates.push({ layer: l, sortOrder: i });
-      });
-
-      // Translation layers reordered
-      sorted.forEach((l, i) => {
-        updates.push({ layer: l, sortOrder: trcCount + i });
-      });
-
-      const trcSortMap = new Map(updates.slice(0, trcCount).map((u) => [u.layer.id, u.sortOrder]));
-      const trlSortMap = new Map(updates.slice(trcCount).map((u) => [u.layer.id, u.sortOrder]));
-
-      reorderedLayers = layers.map((l) => {
-        if (trcSortMap.has(l.id)) {
-          return { ...l, sortOrder: trcSortMap.get(l.id)! };
-        }
-        if (trlSortMap.has(l.id)) {
-          return { ...l, sortOrder: trlSortMap.get(l.id)! };
-        }
-        return l;
-      });
-    }
-
-    // Persist sortOrder updates to database
-    // 一次获取 db，避免循环内重复调用 getDb | Acquire db once to avoid repeated getDb calls in loop
-    const db = await getDb();
-    for (const layer of reorderedLayers) {
-      const original = layers.find((l) => l.id === layer.id);
-      if (original && original.sortOrder !== layer.sortOrder) {
-        await LayerTierUnifiedService.updateLayerSortOrder(layer.id, layer.sortOrder ?? 0, db);
+    const resolved = resolveLayerDrop(layers, draggedLayerId, targetIndex);
+    if (!resolved.changed) {
+      if (resolved.message) {
+        setLayerCreateMessage(resolved.message);
       }
+      return;
     }
 
-    // Update state
-    setLayers(reorderedLayers);
-  }, [layers, setLayers]);
+    try {
+      await persistLayerState(layers, resolved.layers);
+      const nextLayerLinks = await syncTranslationParentLinks(layers, resolved.layers);
+      setLayers(resolved.layers);
+      if (nextLayerLinks) {
+        setLayerLinks(nextLayerLinks);
+      }
+      if (resolved.message) {
+        setLayerCreateMessage(resolved.message);
+      }
+    } catch (error) {
+      setLayerCreateMessage(error instanceof Error ? error.message : '层级重排失败');
+    }
+  }, [layers, persistLayerState, setLayerCreateMessage, setLayerLinks, setLayers, syncTranslationParentLinks]);
 
   return {
     createLayer,

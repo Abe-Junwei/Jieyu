@@ -38,8 +38,8 @@ describe('useSpeakerDerivedState', () => {
     const { result } = renderHook(() => useSpeakerDerivedState(utterances, selected, speakers));
 
     expect(result.current.speakerVisualByUtteranceId['utt-1']?.name).toBe('Alice');
-    expect(result.current.speakerVisualByUtteranceId['utt-2']?.name).toBe('访客');
-    expect(result.current.speakerFilterOptions.length).toBe(2);
+    expect(result.current.speakerVisualByUtteranceId['utt-2']).toBeUndefined();
+    expect(result.current.speakerFilterOptions.length).toBe(1);
     expect(result.current.selectedSpeakerSummary).toBe('当前统一说话人：Alice');
   });
 
@@ -58,7 +58,7 @@ describe('useSpeakerDerivedState', () => {
     expect(result.current.selectedSpeakerSummary).toBe('当前统一说话人：Alice');
 
     rerender({ selectedBatchUtterances: utterances });
-    expect(result.current.selectedSpeakerSummary).toBe('当前包含 2 位说话人');
+    expect(result.current.selectedSpeakerSummary).toBe('当前统一说话人：Alice');
 
     rerender({ selectedBatchUtterances: [] });
     expect(result.current.selectedSpeakerSummary).toBe('未选择句段');

@@ -1,4 +1,5 @@
 import { Suspense, lazy } from 'react';
+import '../styles/transcription.css';
 
 interface TranscriptionPageProps {
   appSearchRequest?: import('../utils/appShellEvents').AppShellOpenSearchDetail | null;

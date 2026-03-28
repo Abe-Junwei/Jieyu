@@ -108,7 +108,7 @@ function makeLayerUnitContent(layerId: string) {
 
 function buildMockDb(options?: { preferLayerUnits?: boolean }) {
   const preferLayerUnits = options?.preferLayerUnits === true;
-  const supportedLayerIds = new Set(['trl-ind', 'trl-sub']);
+  const supportedLayerIds = new Set(['trl-ind', 'trl-sub', 'trc-sub']);
 
   return {
     dexie: {
@@ -250,6 +250,21 @@ function makeInput() {
     updatedAt: '2026-03-26T00:00:00.000Z',
   } as LayerDocType;
 
+  const subdivisionTrc = {
+    id: 'trc-sub',
+    textId: 'text-1',
+    key: 'trc_sub',
+    name: { zho: '细分转写', eng: 'Subdivision Transcription' },
+    layerType: 'transcription',
+    languageId: 'zho',
+    modality: 'text',
+    acceptsAudio: false,
+    constraint: 'time_subdivision',
+    parentLayerId: 'trc-1',
+    createdAt: '2026-03-26T00:00:00.000Z',
+    updatedAt: '2026-03-26T00:00:00.000Z',
+  } as LayerDocType;
+
   const translations: UtteranceTextDocType[] = [
     {
       id: 'utr-1',
@@ -269,7 +284,7 @@ function makeInput() {
     selectedUtteranceMedia: media,
     utterancesOnCurrentMedia: [utterance],
     anchors: [],
-    layers: [trc, independentTrl, symbolicTrl],
+    layers: [trc, independentTrl, symbolicTrl, subdivisionTrc],
     translations,
     defaultTranscriptionLayerId: 'trc-1',
     loadSnapshot: vi.fn(async () => undefined),
@@ -299,6 +314,8 @@ describe('useImportExport - export eaf behavior', () => {
     expect(callArg?.layerSegments).toBeInstanceOf(Map);
     expect(callArg?.layerSegments?.has('trl-ind')).toBe(true);
     expect(callArg?.layerSegments?.get('trl-ind')?.length).toBe(1);
+    expect(callArg?.layerSegments?.has('trc-sub')).toBe(true);
+    expect(callArg?.layerSegments?.get('trc-sub')?.length).toBe(1);
     expect(callArg?.layerSegments?.has('trl-sym')).toBe(false);
 
     expect(mockDownloadEaf).toHaveBeenCalledWith('<ANNOTATION_DOCUMENT/>', 'demo');
@@ -319,6 +336,7 @@ describe('useImportExport - export eaf behavior', () => {
     };
     expect(callArg?.layerSegments?.get('trl-ind')?.[0]?.id).toBe('seg-trl-ind');
     expect(callArg?.layerSegmentContents?.get('trl-ind')?.get('seg-trl-ind')?.text).toBe('layer-unit-trl-ind');
+    expect(callArg?.layerSegmentContents?.get('trc-sub')?.get('seg-trc-sub')?.text).toBe('layer-unit-trc-sub');
   });
 
   it('exports EAF segment data from the canonical LayerUnit view', async () => {

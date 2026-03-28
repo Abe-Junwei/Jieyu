@@ -7,6 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "check:css": "node scripts/check-css.cjs",
     "check:messages-imports": "node scripts/check-message-imports.mjs",
     "check:segmentation-storage-boundary": "node scripts/check-segmentation-storage-boundary.mjs",
     "check:tier-boundary-imports": "node scripts/check-tier-boundary-imports.mjs",
@@ -15,8 +16,10 @@
     "audit:prod": "npm audit --omit=dev",
     "audit:prod:json": "npm audit --omit=dev --json",
     "test": "npm run check:messages-imports && npm run check:segmentation-storage-boundary && npm run check:tier-boundary-imports && npm run check:tierid-diffusion && vitest run",
+    "check:build-budgets": "node scripts/check-build-budgets.mjs",
     "profile:build-assets": "node scripts/profile-build-assets.mjs",
     "build:profile": "npm run build && npm run profile:build-assets",
+    "build:guard": "npm run build && npm run profile:build-assets && npm run check:build-budgets && npm run audit:prod",
     "perf:ai": "vitest run src/ai/perf/AiPerformanceBaseline.test.tsx --reporter=verbose",
     "perf:track": "vitest run src/perf/TrackLayoutPerformanceBaseline.test.ts --reporter=verbose",
     "perf:embedding-candidates": "vitest run src/ai/perf/EmbeddingCandidateSetPerformanceBaseline.test.ts --reporter=verbose"

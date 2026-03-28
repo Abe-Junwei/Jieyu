@@ -110,9 +110,13 @@ describe('SpeakerActionDialog', () => {
 
     fireEvent.change(screen.getByLabelText('删除策略'), { target: { value: 'speaker-2' } });
 
+    const dialog = screen.getByRole('dialog', { name: '删除说话人实体' });
+    const overlay = dialog.parentElement;
+
     expect(screen.getByText('删除说话人实体“来源说话人”后，将影响 4 条句段。')).toBeTruthy();
     expect(screen.getByText('风险提示：若选择删除说话人标签，相关句段将失去说话人归属。建议优先迁移到其他说话人。')).toBeTruthy();
     expect(onTargetSpeakerChange).toHaveBeenCalledWith('speaker-2');
     expect(screen.getByRole('button', { name: '确认删除说话人实体' })).toBeTruthy();
+    expect(overlay?.classList.contains('dialog-overlay-topmost')).toBe(true);
   });
 });

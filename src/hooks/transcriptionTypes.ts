@@ -57,6 +57,8 @@ export type LayerCreateInput = {
   textId?: string | undefined;
   /** 边界约束类型 | Boundary constraint type */
   constraint?: LayerConstraint;
+  /** 依赖父层 ID（依赖边界时可选，多个独立层时必填）| Parent layer id for dependent constraints */
+  parentLayerId?: string | undefined;
 };
 
 export type SnapGuide = {

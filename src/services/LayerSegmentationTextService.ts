@@ -102,6 +102,7 @@ export async function syncUtteranceTextToSegmentationV2(
     mediaId: utterance.mediaId && utterance.mediaId.trim().length > 0 ? utterance.mediaId : UNKNOWN_MEDIA_ID,
     layerId: translation.layerId,
     utteranceId: utterance.id,
+    ...(utterance.speakerId ? { speakerId: utterance.speakerId } : {}),
     startTime: utterance.startTime,
     endTime: utterance.endTime,
     ...(utterance.startAnchorId ? { startAnchorId: utterance.startAnchorId } : {}),

@@ -58,6 +58,10 @@ export function useLayerSegments(
 ): {
   segmentsByLayer: Map<string, LayerSegmentDocType[]>;
   reloadSegments: () => Promise<void>;
+  updateSegmentsLocally: (
+    segmentIds: Iterable<string>,
+    updater: (segment: LayerSegmentDocType) => LayerSegmentDocType,
+  ) => void;
 } {
   const [segmentsByLayer, setSegmentsByLayer] = useState<Map<string, LayerSegmentDocType[]>>(
     () => new Map(),
@@ -96,5 +100,28 @@ export function useLayerSegments(
     void loadSegments();
   }, [loadSegments, layers, defaultTranscriptionLayerId]);
 
-  return { segmentsByLayer, reloadSegments: loadSegments };
+  const updateSegmentsLocally = useCallback((segmentIds: Iterable<string>, updater: (segment: LayerSegmentDocType) => LayerSegmentDocType) => {
+    const targetIds = new Set(Array.from(segmentIds).map((id) => id.trim()).filter((id) => id.length > 0));
+    if (targetIds.size === 0) return;
+
+    setSegmentsByLayer((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const [layerId, segments] of prev) {
+        let layerChanged = false;
+        const nextSegments = segments.map((segment) => {
+          if (!targetIds.has(segment.id)) return segment;
+          const updated = updater(segment);
+          if (updated !== segment) layerChanged = true;
+          return updated;
+        });
+        if (!layerChanged) continue;
+        changed = true;
+        next.set(layerId, nextSegments);
+      }
+      return changed ? next : prev;
+    });
+  }, []);
+
+  return { segmentsByLayer, reloadSegments: loadSegments, updateSegmentsLocally };
 }

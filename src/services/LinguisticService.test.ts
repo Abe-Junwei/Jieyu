@@ -404,6 +404,32 @@ describe('LinguisticService smoke tests', () => {
       expect(utterances.every((u) => u.speaker === '目标说话人')).toBe(true);
     });
 
+    it('merges speaker and migrates independent segments to target speaker', async () => {
+      const now = new Date().toISOString();
+
+      await db.layer_units.put({
+        id: 'seg_spk_merge_1',
+        textId: 'text_spk_merge_seg',
+        mediaId: 'media_spk_merge_seg',
+        layerId: 'layer_independent',
+        unitType: 'segment',
+        startTime: 0,
+        endTime: 1,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const source = await LinguisticService.createSpeaker({ name: '来源语段说话人' });
+      const target = await LinguisticService.createSpeaker({ name: '目标语段说话人' });
+      await LinguisticService.assignSpeakerToSegments(['seg_spk_merge_1'], source.id);
+
+      const moved = await LinguisticService.mergeSpeakers(source.id, target.id);
+      const segment = await db.layer_units.get('seg_spk_merge_1');
+
+      expect(moved).toBe(1);
+      expect(segment?.speakerId).toBe(target.id);
+    });
+
     it('clears speaker assignment when assigning undefined speaker id', async () => {
       const now = new Date().toISOString();
 
@@ -495,6 +521,84 @@ describe('LinguisticService smoke tests', () => {
 
       expect(cleared).toBe(1);
       expect(segment?.speakerId).toBeUndefined();
+    });
+
+    it('deletes speaker with clear strategy and clears independent segment references', async () => {
+      const now = new Date().toISOString();
+      const speaker = await LinguisticService.createSpeaker({ name: '待删除独立语段说话人' });
+
+      await db.layer_units.put({
+        id: 'seg_spk_delete_1',
+        textId: 'text_spk_delete',
+        mediaId: 'media_spk_delete',
+        layerId: 'layer_independent',
+        unitType: 'segment',
+        speakerId: speaker.id,
+        startTime: 0,
+        endTime: 1,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const cleared = await LinguisticService.deleteSpeaker(speaker.id, { strategy: 'clear' });
+      const segment = await db.layer_units.get('seg_spk_delete_1');
+
+      expect(cleared).toBe(1);
+      expect(segment?.speakerId).toBeUndefined();
+    });
+
+    it('rejects deleting speaker when independent segments still reference it', async () => {
+      const now = new Date().toISOString();
+      const speaker = await LinguisticService.createSpeaker({ name: '被引用语段说话人' });
+
+      await db.layer_units.put({
+        id: 'seg_spk_delete_reject_1',
+        textId: 'text_spk_delete_reject',
+        mediaId: 'media_spk_delete_reject',
+        layerId: 'layer_independent',
+        unitType: 'segment',
+        speakerId: speaker.id,
+        startTime: 0,
+        endTime: 1,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await expect(LinguisticService.deleteSpeaker(speaker.id)).rejects.toThrow('说话人仍被 1 条句段引用');
+    });
+
+    it('reports combined utterance and segment speaker reference stats', async () => {
+      const now = new Date().toISOString();
+      await LinguisticService.saveUtterance({
+        id: 'utt_stats_1',
+        textId: 'text_stats',
+        mediaId: 'media_stats',
+        startTime: 0,
+        endTime: 1,
+        annotationStatus: 'raw',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await db.layer_units.put({
+        id: 'seg_stats_1',
+        textId: 'text_stats',
+        mediaId: 'media_stats',
+        layerId: 'layer_independent',
+        unitType: 'segment',
+        startTime: 2,
+        endTime: 3,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const speaker = await LinguisticService.createSpeaker({ name: '统计说话人' });
+      await LinguisticService.assignSpeakerToUtterances(['utt_stats_1'], speaker.id);
+      await LinguisticService.assignSpeakerToSegments(['seg_stats_1'], speaker.id);
+
+      const stats = await LinguisticService.getSpeakerReferenceStats();
+
+      expect(stats[speaker.id]).toEqual({ utteranceCount: 1, segmentCount: 1, totalCount: 2 });
     });
 
   it('supports token/morpheme lexeme links lifecycle', async () => {

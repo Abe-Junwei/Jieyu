@@ -16,12 +16,22 @@ import {
   repairExistingLayerConstraints,
   validateExistingLayerConstraints,
 } from '../services/LayerConstraintService';
+import {
+  type LayerOrderIssue,
+  type LayerOrderRepair,
+  repairLayerOrder,
+  validateLayerOrder,
+} from '../services/LayerOrderingService';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
 
 function getLayerEffectiveConstraint(layer: LayerDocType): NonNullable<LayerDocType['constraint']> {
   return layer.constraint ?? (layer.layerType === 'translation' ? 'symbolic_association' : 'independent_boundary');
+}
+
+function normalizeSpeakerName(value: string): string {
+  return value.trim().toLocaleLowerCase('zh-Hans-CN');
 }
 
 interface LayerRailSidebarProps {
@@ -291,10 +301,9 @@ export function LayerRailSidebar({
     }
     setCreateLayerPopoverAction({
       action: layerActionPanel,
-      ...(focusedLayerRowId ? { layerId: focusedLayerRowId } : {}),
     });
     setLayerActionPanel(null);
-  }, [focusedLayerRowId, layerActionPanel, setLayerActionPanel]);
+  }, [layerActionPanel, setLayerActionPanel]);
 
   const {
     deleteLayerConfirm,
@@ -330,6 +339,8 @@ export function LayerRailSidebar({
   const [constraintRepairDetails, setConstraintRepairDetails] = useState<{
     repairs: ExistingLayerConstraintRepair[];
     issues: ExistingLayerConstraintIssue[];
+    orderRepairs: LayerOrderRepair[];
+    orderIssues: LayerOrderIssue[];
   } | null>(null);
   const [constraintRepairDetailsCollapsed, setConstraintRepairDetailsCollapsed] = useState(false);
   const disableCreateTranslationEntry = transcriptionLayers.length === 0;
@@ -343,12 +354,16 @@ export function LayerRailSidebar({
       label: string;
       repairs: ExistingLayerConstraintRepair[];
       issues: ExistingLayerConstraintIssue[];
+      orderRepairs: LayerOrderRepair[];
+      orderIssues: LayerOrderIssue[];
     }>;
     const grouped = new Map<string, {
       layerId: string;
       label: string;
       repairs: ExistingLayerConstraintRepair[];
       issues: ExistingLayerConstraintIssue[];
+      orderRepairs: LayerOrderRepair[];
+      orderIssues: LayerOrderIssue[];
     }>();
     const ensureGroup = (layerId: string) => {
       const existing = grouped.get(layerId);
@@ -358,6 +373,8 @@ export function LayerRailSidebar({
         label: layerLabelById.get(layerId) ?? layerId,
         repairs: [] as ExistingLayerConstraintRepair[],
         issues: [] as ExistingLayerConstraintIssue[],
+        orderRepairs: [] as LayerOrderRepair[],
+        orderIssues: [] as LayerOrderIssue[],
       };
       grouped.set(layerId, created);
       return created;
@@ -368,6 +385,12 @@ export function LayerRailSidebar({
     for (const issue of constraintRepairDetails.issues) {
       ensureGroup(issue.layerId).issues.push(issue);
     }
+    for (const repair of constraintRepairDetails.orderRepairs) {
+      ensureGroup(repair.layerId).orderRepairs.push(repair);
+    }
+    for (const issue of constraintRepairDetails.orderIssues) {
+      ensureGroup(issue.layerId).orderIssues.push(issue);
+    }
     return Array.from(grouped.values()).sort((a, b) => a.label.localeCompare(b.label, 'zh-Hans-CN'));
   }, [constraintRepairDetails, layerLabelById]);
 
@@ -377,13 +400,19 @@ export function LayerRailSidebar({
     setConstraintRepairDetails(null);
     setConstraintRepairDetailsCollapsed(false);
     try {
-      const repaired = repairExistingLayerConstraints(layerRailRows);
+      const constraintRepaired = repairExistingLayerConstraints(layerRailRows);
+      const orderRepaired = repairLayerOrder(constraintRepaired.layers);
       const layerById = new Map(layerRailRows.map((layer) => [layer.id, layer] as const));
-      const changedLayers = repaired.layers.filter((layer) => {
+      const changedLayers = orderRepaired.layers.filter((layer) => {
         const before = layerById.get(layer.id);
         if (!before) return false;
         return getLayerEffectiveConstraint(before) !== getLayerEffectiveConstraint(layer)
           || (before.parentLayerId ?? '') !== (layer.parentLayerId ?? '');
+      });
+      const changedSortLayers = orderRepaired.layers.filter((layer) => {
+        const before = layerById.get(layer.id);
+        if (!before) return false;
+        return (before.sortOrder ?? 0) !== (layer.sortOrder ?? 0);
       });
       if (changedLayers.length > 0) {
         const now = new Date().toISOString();
@@ -392,19 +421,25 @@ export function LayerRailSidebar({
           updatedAt: now,
         })));
       }
-      const remainingIssues = validateExistingLayerConstraints(repaired.layers);
+      if (changedSortLayers.length > 0) {
+        await Promise.all(changedSortLayers.map((layer) => LayerTierUnifiedService.updateLayerSortOrder(layer.id, layer.sortOrder ?? 0)));
+      }
+      const remainingIssues = validateExistingLayerConstraints(orderRepaired.layers);
+      const remainingOrderIssues = validateLayerOrder(orderRepaired.layers);
       setConstraintRepairDetails({
-        repairs: repaired.repairs,
+        repairs: constraintRepaired.repairs,
         issues: remainingIssues,
+        orderRepairs: orderRepaired.repairs,
+        orderIssues: remainingOrderIssues,
       });
-      if (changedLayers.length === 0 && remainingIssues.length === 0) {
+      if (changedLayers.length === 0 && changedSortLayers.length === 0 && remainingIssues.length === 0 && remainingOrderIssues.length === 0) {
         setConstraintRepairMessage('层约束检查通过，无需修复。');
         return;
       }
       setConstraintRepairMessage(
-        remainingIssues.length > 0
-          ? `已修复 ${changedLayers.length} 条约束，仍有 ${remainingIssues.length} 条需人工处理。`
-          : `已自动修复 ${changedLayers.length} 条层约束问题。`,
+        (remainingIssues.length > 0 || remainingOrderIssues.length > 0)
+          ? `已修复 ${changedLayers.length} 条结构约束、${changedSortLayers.length} 条顺序问题，仍有 ${remainingIssues.length + remainingOrderIssues.length} 条需人工处理。`
+          : `已自动修复 ${changedLayers.length} 条结构约束、${changedSortLayers.length} 条顺序问题。`,
       );
     } catch (error) {
       setConstraintRepairMessage(`约束修复失败：${error instanceof Error ? error.message : String(error)}`);
@@ -460,26 +495,14 @@ export function LayerRailSidebar({
       targetIndex = i + 1;
     }
 
-    // Enforce constraint: translation layers can't go above transcription layers
-    const transcriptionCount = transcriptionLayers.length;
-    if (dragState.sourceType === 'transcription') {
-      // Transcription layer can only drop within transcription section
-      targetIndex = Math.min(targetIndex, transcriptionCount);
-    } else {
-      // Translation layer can only drop within translation section
-      targetIndex = Math.max(transcriptionCount, targetIndex);
-      if (targetIndex > layerRailRows.length) targetIndex = layerRailRows.length;
-    }
+    if (targetIndex > layerRailRows.length) targetIndex = layerRailRows.length;
 
     setDropTargetIndex(targetIndex);
   };
 
   const handleMouseUp = () => {
     if (dragState && dropTargetIndex !== null && dropTargetIndex !== dragState.sourceIndex) {
-      const reorderTargetIndex = dragState.sourceType === 'translation'
-        ? Math.max(0, dropTargetIndex - transcriptionLayers.length)
-        : dropTargetIndex;
-      fireAndForget(onReorderLayers(dragState.draggedId, reorderTargetIndex));
+      fireAndForget(onReorderLayers(dragState.draggedId, dropTargetIndex));
     }
     setDragState(null);
     setDropTargetIndex(null);
@@ -513,6 +536,87 @@ export function LayerRailSidebar({
     },
   ] : [];
 
+  const speakerFilterOptionByKey = useMemo(
+    () => new Map(speakerCtx.speakerFilterOptions.map((option) => [option.key, option] as const)),
+    [speakerCtx.speakerFilterOptions],
+  );
+
+  const speakerManagementRows = useMemo(() => (
+    speakerCtx.speakerOptions.map((speaker) => {
+      const activeOption = speakerFilterOptionByKey.get(speaker.id);
+      const projectStats = speakerCtx.speakerReferenceStatsReady
+        ? (speakerCtx.speakerReferenceStats[speaker.id] ?? {
+          utteranceCount: 0,
+          segmentCount: 0,
+          totalCount: 0,
+        })
+        : {
+        utteranceCount: 0,
+        segmentCount: 0,
+        totalCount: 0,
+        };
+      return {
+        key: speaker.id,
+        name: speaker.name,
+        count: activeOption?.count ?? 0,
+        projectCount: projectStats.totalCount,
+        utteranceCount: projectStats.utteranceCount,
+        segmentCount: projectStats.segmentCount,
+        isUnused: speakerCtx.speakerReferenceStatsReady && projectStats.totalCount === 0,
+        ...(activeOption?.color ? { color: activeOption.color } : {}),
+      };
+    })
+  ), [speakerCtx.speakerOptions, speakerCtx.speakerReferenceStats, speakerCtx.speakerReferenceStatsReady, speakerFilterOptionByKey]);
+
+  const unusedSpeakerCount = useMemo(
+    () => speakerManagementRows.filter((row) => row.isUnused).length,
+    [speakerManagementRows],
+  );
+
+  const projectReferencedSpeakerCount = useMemo(
+    () => speakerManagementRows.filter((row) => row.projectCount > 0).length,
+    [speakerManagementRows],
+  );
+
+  const duplicateSpeakerGroupCount = useMemo(() => {
+    const groups = new Map<string, number>();
+    for (const speaker of speakerCtx.speakerOptions) {
+      const key = normalizeSpeakerName(speaker.name);
+      if (!key) continue;
+      groups.set(key, (groups.get(key) ?? 0) + 1);
+    }
+    return Array.from(groups.values()).filter((count) => count > 1).length;
+  }, [speakerCtx.speakerOptions]);
+
+  const duplicateSpeakerCountById = useMemo(() => {
+    const groups = new Map<string, string[]>();
+    for (const speaker of speakerCtx.speakerOptions) {
+      const key = normalizeSpeakerName(speaker.name);
+      if (!key) continue;
+      const list = groups.get(key) ?? [];
+      list.push(speaker.id);
+      groups.set(key, list);
+    }
+
+    const next = new Map<string, number>();
+    for (const ids of groups.values()) {
+      if (ids.length <= 1) continue;
+      for (const id of ids) next.set(id, ids.length);
+    }
+    return next;
+  }, [speakerCtx.speakerOptions]);
+
+  const closeSpeakerManagementPanel = useCallback(() => {
+    setLayerActionPanel(null);
+  }, [setLayerActionPanel]);
+
+  const runSpeakerPanelActionAndClose = useCallback((action: () => void | Promise<void>) => {
+    fireAndForget((async () => {
+      await action();
+      closeSpeakerManagementPanel();
+    })());
+  }, [closeSpeakerManagementPanel]);
+
   const renderSpeakerManagementPopover = () => (
     <LayerRailActionModal
       ariaLabel="说话人管理"
@@ -522,10 +626,26 @@ export function LayerRailSidebar({
       <div className="transcription-layer-rail-speaker-panel-section transcription-layer-rail-speaker-panel-summary">
         <strong className="transcription-layer-rail-speaker-panel-title">说话人管理</strong>
         <div className="transcription-layer-rail-speaker-panel-meta">
-          <span>说话人：{speakerCtx.speakerFilterOptions.length}</span>
+          <span>说话人实体：{speakerCtx.speakerOptions.length}</span>
+          <span>当前范围已引用：{speakerCtx.speakerFilterOptions.length}</span>
+          <span>{speakerCtx.speakerReferenceStatsReady ? `全项目已引用：${projectReferencedSpeakerCount}` : '全项目已引用：统计中…'}</span>
+          <span>{speakerCtx.speakerReferenceStatsReady ? `未引用实体：${unusedSpeakerCount}` : '未引用实体：统计中…'}</span>
+          <span>同名组：{duplicateSpeakerGroupCount}</span>
           <span>已选句段：{speakerCtx.selectedUtteranceIds.size}</span>
         </div>
         <div className="transcription-layer-rail-speaker-panel-summary-text">{speakerCtx.selectedSpeakerSummary}</div>
+        {speakerCtx.speakerReferenceStatsReady && unusedSpeakerCount > 0 && (
+          <div className="transcription-layer-rail-action-row transcription-layer-rail-action-row-fill">
+            <button
+              className="btn btn-sm"
+              disabled={speakerCtx.speakerSaving}
+              onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleDeleteUnusedSpeakers); }}
+              title="批量删除全项目未引用的说话人实体"
+            >
+              清理未引用实体（{unusedSpeakerCount}）
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="transcription-layer-rail-speaker-panel-section">
@@ -536,7 +656,7 @@ export function LayerRailSidebar({
           onChange={(e) => speakerCtx.setBatchSpeakerId(e.target.value)}
           disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0}
         >
-          <option value="">删除说话人标签</option>
+          <option value="">选择目标说话人</option>
           {speakerCtx.speakerOptions.map((speaker) => (
             <option key={speaker.id} value={speaker.id}>{speaker.name}</option>
           ))}
@@ -544,10 +664,18 @@ export function LayerRailSidebar({
         <div className="transcription-layer-rail-action-row transcription-layer-rail-action-row-fill">
           <button
             className="btn btn-sm"
-            disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0}
-            onClick={() => { fireAndForget(speakerCtx.handleAssignSpeakerToSelected()); }}
+            disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0 || speakerCtx.batchSpeakerId.trim().length === 0}
+            onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleAssignSpeakerToSelectedRouted); }}
           >
-            应用到已选
+            应用说话人
+          </button>
+          <button
+            className="btn btn-sm btn-danger"
+            disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0}
+            onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleClearSpeakerOnSelectedRouted); }}
+            title="清空当前选中语段的说话人标签"
+          >
+            清空已选说话人
           </button>
         </div>
         <input
@@ -561,7 +689,7 @@ export function LayerRailSidebar({
           <button
             className="btn btn-sm"
             disabled={speakerCtx.speakerSaving || speakerCtx.speakerDraftName.trim().length === 0}
-            onClick={() => { fireAndForget(speakerCtx.handleCreateSpeakerOnly()); }}
+            onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleCreateSpeakerOnly); }}
             title="仅新建说话人，不分配句段"
           >
             仅新建
@@ -569,7 +697,7 @@ export function LayerRailSidebar({
           <button
             className="btn btn-sm"
             disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0 || speakerCtx.speakerDraftName.trim().length === 0}
-            onClick={() => { fireAndForget(speakerCtx.handleCreateSpeakerAndAssign()); }}
+            onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleCreateSpeakerAndAssign); }}
             title="新建说话人并分配到已选句段"
           >
             新建并分配
@@ -604,10 +732,12 @@ export function LayerRailSidebar({
         </div>
       </div>
 
-      {speakerCtx.speakerFilterOptions.length > 0 && (
+      {speakerManagementRows.length > 0 && (
         <div className="transcription-layer-rail-speaker-panel-section transcription-layer-rail-speaker-groups" aria-label="说话人组">
-          {speakerCtx.speakerFilterOptions.map((option) => {
+          {speakerManagementRows.map((option) => {
             const isCollapsedGroup = collapsedSpeakerGroupKeys.has(option.key);
+            const hasAssignmentsInScope = option.count > 0;
+            const duplicateCount = duplicateSpeakerCountById.get(option.key) ?? 0;
             return (
               <div key={`group-${option.key}`} className="transcription-layer-rail-speaker-group">
                 <div className="transcription-layer-rail-speaker-group-head" style={option.color ? ({ '--speaker-color': option.color } as CSSProperties) : undefined}>
@@ -626,59 +756,60 @@ export function LayerRailSidebar({
                     <button
                       type="button"
                       className={`transcription-layer-rail-speaker-mini-btn ${speakerCtx.activeSpeakerFilterKey === option.key ? 'transcription-layer-rail-speaker-mini-btn-active' : ''}`}
-                      onClick={() => speakerCtx.setActiveSpeakerFilterKey(option.key)}
+                      onClick={() => { speakerCtx.setActiveSpeakerFilterKey(option.key); closeSpeakerManagementPanel(); }}
                       title="只看该说话人"
+                      disabled={!hasAssignmentsInScope}
                     >
                       聚焦
                     </button>
                     <button
                       type="button"
                       className="transcription-layer-rail-speaker-mini-btn"
-                      onClick={() => speakerCtx.handleSelectSpeakerUtterances(option.key)}
+                      onClick={() => { speakerCtx.handleSelectSpeakerUtterances(option.key); closeSpeakerManagementPanel(); }}
                       title="选中该说话人的全部句段"
+                      disabled={!hasAssignmentsInScope}
                     >
                       选中
                     </button>
                     <button
                       type="button"
                       className="transcription-layer-rail-speaker-mini-btn"
-                      onClick={() => speakerCtx.handleClearSpeakerAssignments(option.key)}
+                      onClick={() => { speakerCtx.handleClearSpeakerAssignments(option.key); closeSpeakerManagementPanel(); }}
                       title="删除该说话人的标签"
+                      disabled={!hasAssignmentsInScope}
                     >
                       删除标签
                     </button>
                     <button
                       type="button"
                       className="transcription-layer-rail-speaker-mini-btn"
-                      onClick={() => speakerCtx.handleExportSpeakerSegments(option.key)}
+                      onClick={() => { speakerCtx.handleExportSpeakerSegments(option.key); closeSpeakerManagementPanel(); }}
                       title="导出该说话人句段清单"
+                      disabled={!hasAssignmentsInScope}
                     >
                       导出
                     </button>
                     <button
                       type="button"
                       className="transcription-layer-rail-speaker-mini-btn"
-                      onClick={() => speakerCtx.handleRenameSpeaker(option.key)}
-                      title={option.isEntity ? '重命名该说话人' : '仅实体说话人支持重命名'}
-                      disabled={!option.isEntity}
+                      onClick={() => { speakerCtx.handleRenameSpeaker(option.key); closeSpeakerManagementPanel(); }}
+                      title="重命名该说话人"
                     >
                       改名
                     </button>
                     <button
                       type="button"
                       className="transcription-layer-rail-speaker-mini-btn"
-                      onClick={() => speakerCtx.handleMergeSpeaker(option.key)}
-                      title={option.isEntity ? '将该说话人合并到其他说话人' : '仅实体说话人支持合并'}
-                      disabled={!option.isEntity}
+                      onClick={() => { speakerCtx.handleMergeSpeaker(option.key); closeSpeakerManagementPanel(); }}
+                      title="将该说话人合并到其他说话人"
                     >
                       合并
                     </button>
                     <button
                       type="button"
                       className="transcription-layer-rail-speaker-mini-btn transcription-layer-rail-speaker-mini-btn-danger"
-                      onClick={() => speakerCtx.handleDeleteSpeaker(option.key)}
-                      title={option.isEntity ? '删除该说话人实体（危险）' : '仅实体说话人支持删除'}
-                      disabled={!option.isEntity}
+                      onClick={() => { speakerCtx.handleDeleteSpeaker(option.key); closeSpeakerManagementPanel(); }}
+                      title="删除该说话人实体（危险）"
                     >
                       删除说话人实体
                     </button>
@@ -686,7 +817,11 @@ export function LayerRailSidebar({
                 </div>
                 {!isCollapsedGroup && (
                   <div className="transcription-layer-rail-speaker-group-body">
-                    <span>句段数：{option.count}</span>
+                    <div>{hasAssignmentsInScope ? `当前范围句段数：${option.count}` : '当前范围未引用'}</div>
+                    <div>{speakerCtx.speakerReferenceStatsReady ? `全项目引用：${option.projectCount}` : '全项目引用：统计中…'}</div>
+                    <div>{speakerCtx.speakerReferenceStatsReady ? `主轴句段：${option.utteranceCount} / 独立语段：${option.segmentCount}` : '主轴句段 / 独立语段：统计中…'}</div>
+                    {option.isUnused && <div>该实体当前未被引用，可安全清理</div>}
+                    {duplicateCount > 1 && <div>检测到同名实体组：{duplicateCount} 个，建议合并清理</div>}
                   </div>
                 )}
               </div>
@@ -867,7 +1002,7 @@ export function LayerRailSidebar({
             setCreateLayerPopoverAction((prev) => (
               prev?.action === 'create-transcription'
                 ? null
-                : { action: 'create-transcription', ...(focusedLayerRowId ? { layerId: focusedLayerRowId } : {}) }
+                : { action: 'create-transcription' }
             ));
           }}
         >
@@ -882,7 +1017,7 @@ export function LayerRailSidebar({
             setCreateLayerPopoverAction((prev) => (
               prev?.action === 'create-translation'
                 ? null
-                : { action: 'create-translation', ...(focusedLayerRowId ? { layerId: focusedLayerRowId } : {}) }
+                : { action: 'create-translation' }
             ));
           }}
         >
@@ -956,7 +1091,12 @@ export function LayerRailSidebar({
             {constraintRepairMessage}
           </p>
         )}
-        {constraintRepairDetails && (constraintRepairDetails.repairs.length > 0 || constraintRepairDetails.issues.length > 0) && (
+        {constraintRepairDetails && (
+          constraintRepairDetails.repairs.length > 0
+          || constraintRepairDetails.issues.length > 0
+          || constraintRepairDetails.orderRepairs.length > 0
+          || constraintRepairDetails.orderIssues.length > 0
+        ) && (
           <div
             aria-label="约束修复明细"
             style={{
@@ -1000,6 +1140,16 @@ export function LayerRailSidebar({
                     [待处理 / pending][{item.code}] {item.message}
                   </div>
                 ))}
+                {group.orderRepairs.map((item, index) => (
+                  <div key={`order-repair-${item.layerId}-${item.code}-${index}`}>
+                    [顺序已修复 / order repaired][{item.code}] {item.message}
+                  </div>
+                ))}
+                {group.orderIssues.map((item, index) => (
+                  <div key={`order-issue-${item.layerId}-${item.code}-${index}`}>
+                    [顺序待处理 / order pending][{item.code}] {item.message}
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -1026,6 +1176,7 @@ export function LayerRailSidebar({
             languageId: input.languageId,
             ...(input.alias !== undefined ? { alias: input.alias } : {}),
             ...(input.constraint !== undefined ? { constraint: input.constraint } : {}),
+            ...(input.parentLayerId !== undefined ? { parentLayerId: input.parentLayerId } : {}),
           }, modality)}
           deleteLayer={deleteLayer}
           deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}

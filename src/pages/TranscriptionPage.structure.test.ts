@@ -189,6 +189,34 @@ describe('TranscriptionPage structure invariants', () => {
     expect(code.includes('newSeg.speakerId = overlappingUtt.speakerId;')).toBe(true);
   });
 
+  it('binds time-subdivision segments back to their parent utterance', () => {
+    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const code = fs.readFileSync(filePath, 'utf8');
+
+    expect(code.includes('newSeg.utteranceId = parentUtt.id;')).toBe(true);
+    expect(code.includes('createSegmentWithParentConstraint(')).toBe(true);
+  });
+
+  it('pushes undo for segment creation only after creation guards pass', () => {
+    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const code = fs.readFileSync(filePath, 'utf8');
+
+    const timeSubdivisionPushUndoIndex = code.indexOf("pushUndo('新建句段');");
+    const independentPushUndoIndex = code.lastIndexOf("pushUndo('新建句段');");
+    const parentGuardIndex = code.indexOf("if (!parentUtt) {");
+
+    expect(timeSubdivisionPushUndoIndex).toBeGreaterThan(parentGuardIndex);
+    expect(independentPushUndoIndex).toBeGreaterThan(parentGuardIndex);
+  });
+
+  it('allows creating independent segments without preselecting speaker', () => {
+    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const code = fs.readFileSync(filePath, 'utf8');
+
+    expect(code.includes('当前独立层新建语段需要先选择说话人')).toBe(false);
+    expect(code.includes('await LayerSegmentationV2Service.createSegment(newSeg);')).toBe(true);
+  });
+
   it('routes speaker assignment through segment writes for independent selections', () => {
     const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
     const code = fs.readFileSync(filePath, 'utf8');
@@ -196,7 +224,37 @@ describe('TranscriptionPage structure invariants', () => {
     expect(code.includes('const selectedSegmentIdsForSpeakerActions = useMemo(')).toBe(true);
     expect(code.includes('const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {')).toBe(true);
     expect(code.includes('await LinguisticService.assignSpeakerToSegments(targetIds, speakerId);')).toBe(true);
-    expect(code.includes('await LinguisticService.assignSpeakerToSegments(selectedSegmentIdsForSpeakerActions, created.id);')).toBe(true);
+    expect(code.includes('const createSpeakerAndAssignToSegments = useCallback(async (name: string, segmentIds: Iterable<string>) => {')).toBe(true);
+    expect(code.includes('fireAndForget(handleAssignSpeakerToSegments(Array.from(unitIds), speakerId));')).toBe(true);
+    expect(code.includes('onOpenSpeakerManagementPanelFromMenu={() => openSpeakerManagementPanel()}')).toBe(true);
     expect(code.includes('handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,')).toBe(true);
+  });
+
+  it('keeps mixed segment and utterance speaker routing intact', () => {
+    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const code = fs.readFileSync(filePath, 'utf8');
+
+    expect(code.includes('const selectedStandaloneUtteranceIdsForSpeakerActions = useMemo(')).toBe(true);
+    expect(code.includes('selectedSegmentIdsForSpeakerActions.length + selectedStandaloneUtteranceIdsForSpeakerActions.length')).toBe(true);
+    expect(code.includes("selectedStandaloneUtteranceIdsForSpeakerActions.length > 0 ? 'mixed' : 'segment'")).toBe(true);
+    expect(code.includes('const applySpeakerToMixedSelection = useCallback(async (speakerId?: string) => {')).toBe(true);
+    expect(code.includes('await applySpeakerToMixedSelection(batchSpeakerId || undefined);')).toBe(true);
+  });
+
+  it('does not render the removed floating speaker assign panel', () => {
+    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const code = fs.readFileSync(filePath, 'utf8');
+
+    expect(code.includes("import { SpeakerAssignPanel } from '../components/transcription/SpeakerAssignPanel';")).toBe(false);
+    expect(code.includes('<SpeakerAssignPanel')).toBe(false);
+  });
+
+  it('limits segment speaker management actions to explicit segment speaker labels', () => {
+    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const code = fs.readFileSync(filePath, 'utf8');
+
+    expect(code.includes("const resolveExplicitSpeakerKeyForSegment = useCallback(")).toBe(true);
+    expect(code.includes("speakerKey: resolveExplicitSpeakerKeyForSegment(segment),")).toBe(true);
+    expect(code.includes(".filter((segment) => resolveExplicitSpeakerKeyForSegment(segment) === speakerKey)")).toBe(true);
   });
 });

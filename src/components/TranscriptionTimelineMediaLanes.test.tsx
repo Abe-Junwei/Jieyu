@@ -108,6 +108,37 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     cleanup();
   });
 
+  it('renders lanes in the same order as allLayersOrdered even when a translation layer is above a transcription layer', () => {
+    const transcriptionLayer = makeLayer('trc-base');
+    const translationLayer = makeLayer('trl-top', 'translation');
+
+    render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[transcriptionLayer]}
+        translationLayers={[translationLayer]}
+        timelineRenderUtterances={[makeUtterance('u1', 0, 1, 's1')]}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={transcriptionLayer.id}
+        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[translationLayer, transcriptionLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[translationLayer, transcriptionLayer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [translationLayer.id]: 44, [transcriptionLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    expect(timelineLaneHeaderMock.mock.calls.map((call) => call[0].layer.id)).toEqual([
+      translationLayer.id,
+      transcriptionLayer.id,
+    ]);
+  });
+
   it('expands only the clicked overlap window and auto-collapses after timeout', () => {
     const layer = makeLayer('trc-1');
     const utterances = [
@@ -307,6 +338,49 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     expect(screen.getByTestId('ann-u3')).toBeTruthy();
   });
 
+  it('renders dependent translation lanes from parent transcription segments', () => {
+    const parentLayer = {
+      ...makeLayer('trc-parent'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const translationLayer = {
+      ...makeLayer('trl-1', 'translation'),
+      key: 'trl_fra_1',
+      parentLayerId: parentLayer.id,
+    } as LayerDocType;
+
+    render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[]}
+        translationLayers={[translationLayer]}
+        timelineRenderUtterances={[makeUtterance('u-main', 0, 2, 's1')]}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={parentLayer.id}
+        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[parentLayer, translationLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[parentLayer, translationLayer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [translationLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        segmentsByLayer={new Map([
+          [parentLayer.id, [
+            { id: 'seg-1', textId: 't1', mediaId: 'm1', startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+            { id: 'seg-2', textId: 't1', mediaId: 'm1', startTime: 1, endTime: 2, createdAt: NOW, updatedAt: NOW },
+          ]],
+        ])}
+      />,
+    );
+
+    expect(screen.getByTestId('ann-seg-1')).toBeTruthy();
+    expect(screen.getByTestId('ann-seg-2')).toBeTruthy();
+    expect(screen.queryByTestId('ann-u-main')).toBeNull();
+  });
+
   it('dims non-target speakers in focus-soft mode', () => {
     const layer = makeLayer('trc-1');
     const utterances = [
@@ -376,40 +450,6 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     expect(screen.getByTestId('ann-u1')).toBeTruthy();
     expect(screen.getByTestId('ann-u2')).toBeTruthy();
     expect(container.querySelectorAll('.timeline-annotation-subtrack-focus-dim').length).toBe(0);
-    expect(container.querySelectorAll('.timeline-annotation-subtrack-focus-hidden').length).toBe(1);
-  });
-
-  it('matches legacy name-based speakers in focus-hard mode', () => {
-    const layer = makeLayer('trc-1');
-    const utterances = [
-      makeUtterance('u1', 0, 2, undefined, '访客'),
-      makeUtterance('u2', 2, 4, undefined, '旁白'),
-    ];
-
-    render(
-      <TranscriptionTimelineMediaLanes
-        playerDuration={20}
-        zoomPxPerSec={100}
-        lassoRect={null}
-        transcriptionLayers={[layer]}
-        translationLayers={[]}
-        timelineRenderUtterances={utterances}
-        flashLayerRowId=""
-        focusedLayerRowId=""
-        defaultTranscriptionLayerId={layer.id}
-        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
-        allLayersOrdered={[layer]}
-        onReorderLayers={vi.fn(async () => undefined)}
-        deletableLayers={[layer]}
-        onFocusLayer={vi.fn()}
-        laneHeights={{ [layer.id]: 44 }}
-        onLaneHeightChange={vi.fn()}
-        speakerFocusMode="focus-hard"
-        speakerFocusSpeakerKey="name:访客"
-      />,
-    );
-
-    const container = screen.getByTestId('ann-u1').closest('.timeline-content') as HTMLElement;
     expect(container.querySelectorAll('.timeline-annotation-subtrack-focus-hidden').length).toBe(1);
   });
 

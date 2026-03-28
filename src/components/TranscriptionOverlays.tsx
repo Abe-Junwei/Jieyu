@@ -1,14 +1,14 @@
 import type { NoteCategory, MultiLangString, LayerDocType, UserNoteDocType, UtteranceDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { SpeakerFilterOption } from '../hooks/useSpeakerActions';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import type { TimelineUnit, TimelineUnitKind } from '../hooks/transcriptionTypes';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { NotePopover } from './NotePopover';
 
 interface TranscriptionOverlaysProps {
-  ctxMenu: { x: number; y: number; utteranceId: string; layerId: string; splitTime: number } | null;
+  ctxMenu: { x: number; y: number; utteranceId: string; layerId: string; unitKind: TimelineUnitKind; splitTime: number } | null;
   onCloseCtxMenu: () => void;
   uttOpsMenu: { x: number; y: number } | null;
   onCloseUttOpsMenu: () => void;
@@ -41,8 +41,8 @@ interface TranscriptionOverlaysProps {
   translationLayers: LayerDocType[];
   speakerOptions?: Array<{ id: string; name: string }>;
   speakerFilterOptions?: SpeakerFilterOption[];
-  onAssignSpeakerFromMenu?: (utteranceIds: Iterable<string>, speakerId?: string) => void;
-  onCreateSpeakerAndAssignFromMenu?: (name: string, utteranceIds: Iterable<string>) => void;
+  onAssignSpeakerFromMenu?: (unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => void;
+  onOpenSpeakerManagementPanelFromMenu?: () => void;
 }
 
 export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
@@ -81,11 +81,10 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
     speakerOptions = [],
     speakerFilterOptions = [],
     onAssignSpeakerFromMenu = () => {},
-    onCreateSpeakerAndAssignFromMenu = () => {},
+    onOpenSpeakerManagementPanelFromMenu = () => {},
   } = props;
 
   const recentSpeakerOptions = speakerFilterOptions
-    .filter((option) => option.isEntity)
     .sort((left, right) => right.count - left.count)
     .slice(0, 3)
     .map((option) => ({ id: option.key, name: option.name }));
@@ -103,6 +102,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             const id = ctxMenu.utteranceId;
             const multiCount = selectedUtteranceIds.size;
             const targetIds = multiCount > 1 ? Array.from(selectedUtteranceIds) : [id];
+            const targetKind = ctxMenu.unitKind;
             const isTranscriptionLayerContext = transcriptionLayers.some((layer) => layer.id === ctxMenu.layerId);
             const isIndependentLayerContext = [...transcriptionLayers, ...translationLayers]
                 .some((layer) => layer.id === ctxMenu.layerId && layer.constraint === 'independent_boundary');
@@ -140,26 +140,24 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
               for (const speaker of recentSpeakerOptions) {
                 speakerManageItems.push({
                   label: `指派说话人（最近）→ ${speaker.name}`,
-                  onClick: () => { onAssignSpeakerFromMenu(targetIds, speaker.id); },
+                  onClick: () => { onAssignSpeakerFromMenu(targetIds, targetKind, speaker.id); },
                 });
               }
               for (const speaker of fullSpeakerOptions) {
                 if (recentSpeakerOptions.some((recent) => recent.id === speaker.id)) continue;
                 speakerManageItems.push({
                   label: `指派说话人 → ${speaker.name}`,
-                  onClick: () => { onAssignSpeakerFromMenu(targetIds, speaker.id); },
+                  onClick: () => { onAssignSpeakerFromMenu(targetIds, targetKind, speaker.id); },
                 });
               }
               speakerManageItems.push({
                 label: '清空说话人',
-                onClick: () => { onAssignSpeakerFromMenu(targetIds, undefined); },
+                onClick: () => { onAssignSpeakerFromMenu(targetIds, targetKind, undefined); },
               });
               speakerManageItems.push({
                 label: '新建说话人并指派…',
                 onClick: () => {
-                  const name = window.prompt('请输入新说话人名称');
-                  if (!name || name.trim().length === 0) return;
-                  onCreateSpeakerAndAssignFromMenu(name.trim(), targetIds);
+                  onOpenSpeakerManagementPanelFromMenu();
                 },
               });
 

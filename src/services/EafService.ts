@@ -99,6 +99,21 @@ export function exportToEaf(input: EafExportInput): string {
   // Build speaker lookup map for PARTICIPANT export
   const speakerById = new Map<string, SpeakerDocType>();
   for (const s of speakers ?? []) speakerById.set(s.id, s);
+  const speakerByNormalizedName = new Map<string, SpeakerDocType>();
+  for (const speaker of speakers ?? []) {
+    const normalized = speaker.name.trim().toLocaleLowerCase('zh-Hans-CN');
+    if (normalized) speakerByNormalizedName.set(normalized, speaker);
+  }
+
+  const resolveSpeakerDisplayName = (speakerKey: string | undefined): string | undefined => {
+    const trimmed = speakerKey?.trim();
+    if (!trimmed) return undefined;
+    const byId = speakerById.get(trimmed);
+    if (byId) return byId.name;
+    const byName = speakerByNormalizedName.get(trimmed.toLocaleLowerCase('zh-Hans-CN'));
+    if (byName) return byName.name;
+    return trimmed;
+  };
 
   // Helper: get the dominant speaker ID from a list of utterance IDs (for tier PARTICIPANT)
   const getDominantSpeaker = (uttIds: string[]): string | undefined => {
@@ -234,7 +249,6 @@ export function exportToEaf(input: EafExportInput): string {
   );
   const translationTierXml: string[] = [];
   const usedConstraintTypes = new Set<string>(); // Track which LINGUISTIC_TYPEs are needed | 跟踪需要哪些 LINGUISTIC_TYPE
-  let hasTranslationLayers = false;
 
   for (const layer of additionalLayers) {
     const layerTranslations = translations.filter((t) => t.layerId === layer.id && t.modality === 'text');
@@ -250,8 +264,7 @@ export function exportToEaf(input: EafExportInput): string {
 
     if (isTranslation) {
       // 翻译层：使用 REF_ANNOTATION + PARENT_REF | Translation: REF_ANNOTATION + PARENT_REF
-      hasTranslationLayers = true;
-      
+
       // Determine constraint | 确定约束类型
       const constraint = layer.constraint ?? 'symbolic_association';
       if (constraint === 'independent_boundary') {
@@ -346,21 +359,27 @@ export function exportToEaf(input: EafExportInput): string {
         const participantId = layerSegs && layerSegs.length > 0
           ? getDominantSpeakerFromSegments(layerSegs)
           : getDominantSpeaker(layerTranslations.map((t) => t.utteranceId));
-        const participantAttr = participantId && speakerById.get(participantId)
-          ? ` PARTICIPANT="${escapeXml(speakerById.get(participantId)!.name)}"`
+        const participantName = resolveSpeakerDisplayName(participantId);
+        const participantAttr = participantName
+          ? ` PARTICIPANT="${escapeXml(participantName)}"`
           : '';
         translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}"${timeAlignableAttr}${parentRefAttr} DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}"${participantAttr}>
 ${annotations.join('\n')}
     </TIER>`);
       }
     } else {
-      // 转写层（独立边界层优先按 segment 导出）| Transcription layers (independent-boundary layers export by segment first)
+      // 转写层（独立边界/时间细分层优先按 segment 导出）| Segment-backed transcription layers export from segment graph first
       const isIndependentTrc = layer.layerType === 'transcription'
         && layer.constraint === 'independent_boundary';
-      const layerSegs = isIndependentTrc ? layerSegments?.get(layer.id) : undefined;
+      const isTimeSubdivisionTrc = layer.layerType === 'transcription'
+        && layer.constraint === 'time_subdivision';
+      const layerSegs = (isIndependentTrc || isTimeSubdivisionTrc) ? layerSegments?.get(layer.id) : undefined;
 
       if (layerSegs && layerSegs.length > 0) {
-        // 独立转写层：用 segment 边界 + segment content 导出 | Independent transcription: export from segment data
+        if (isTimeSubdivisionTrc) {
+          usedConstraintTypes.add('time_subdivision');
+        }
+        // 独立/时间细分转写层：用 segment 边界 + segment content 导出 | Export transcription tiers from segment data
         const contentMap = layerSegmentContents?.get(layer.id);
         const sortedSegs = [...layerSegs].sort((a, b) => a.startTime - b.startTime);
         const segAnnotations = sortedSegs
@@ -384,10 +403,15 @@ ${annotations.join('\n')}
 
         if (segAnnotations.length > 0) {
           const participantId = getDominantSpeakerFromSegments(layerSegs);
-          const participantAttr = participantId && speakerById.get(participantId)
-            ? ` PARTICIPANT="${escapeXml(speakerById.get(participantId)!.name)}"`
+          const participantName = resolveSpeakerDisplayName(participantId);
+          const participantAttr = participantName
+            ? ` PARTICIPANT="${escapeXml(participantName)}"`
             : '';
-          translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}"${participantAttr}>
+          const parentRefAttr = isTimeSubdivisionTrc && layer.parentLayerId
+            ? ` PARENT_REF="${escapeXml(tierNameByLayerId.get(layer.parentLayerId) ?? defaultTierId)}"`
+            : '';
+          const linguisticTypeRef = isTimeSubdivisionTrc ? 'translation-subdivision-lt' : 'default-lt';
+          translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}" LINGUISTIC_TYPE_REF="${linguisticTypeRef}"${parentRefAttr} DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}"${participantAttr}>
 ${segAnnotations.join('\n')}
     </TIER>`);
         }
@@ -408,9 +432,14 @@ ${segAnnotations.join('\n')}
           .filter(Boolean);
 
         if (annotations.length > 0) {
-          const participantId = getDominantSpeaker(layerTranslations.map((t) => t.utteranceId));
-          const participantAttr = participantId && speakerById.get(participantId)
-            ? ` PARTICIPANT="${escapeXml(speakerById.get(participantId)!.name)}"`
+          const annotationUtteranceIds = sorted.flatMap((utt) => {
+            const tr = layerTranslations.find((t) => t.utteranceId === utt.id);
+            return tr?.text ? [utt.id] : [];
+          });
+          const participantId = getDominantSpeaker(annotationUtteranceIds);
+          const participantName = resolveSpeakerDisplayName(participantId);
+          const participantAttr = participantName
+            ? ` PARTICIPANT="${escapeXml(participantName)}"`
             : '';
           translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}"${participantAttr}>
 ${annotations.join('\n')}
@@ -431,7 +460,7 @@ ${annotations.join('\n')}
     '    <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />',
   ];
   
-  if (hasTranslationLayers) {
+  if (usedConstraintTypes.size > 0) {
     if (usedConstraintTypes.has('symbolic_association')) {
       footerLines.push('    <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="translation-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Association" GRAPHIC_REFERENCES="false" />');
     }
@@ -469,8 +498,9 @@ ${timeSlots.map((ts) => `        <TIME_SLOT TIME_SLOT_ID="${ts.id}" TIME_VALUE="
     </TIME_ORDER>
 ${(() => {
   const dominantSpeakerId = getDominantSpeaker(sorted.map((u) => u.id));
-  const participantAttr = dominantSpeakerId && speakerById.get(dominantSpeakerId)
-    ? ` PARTICIPANT="${escapeXml(speakerById.get(dominantSpeakerId)!.name)}"`
+  const participantName = resolveSpeakerDisplayName(dominantSpeakerId);
+  const participantAttr = participantName
+    ? ` PARTICIPANT="${escapeXml(participantName)}"`
     : '';
   return `    <TIER TIER_ID="${escapeXml(defaultTierId)}" LINGUISTIC_TYPE_REF="default-lt" DEFAULT_LOCALE="${escapeXml(defaultTrcLocale)}"${participantAttr}>
 ${transcriptionAnnotations.join('\n')}
@@ -684,7 +714,6 @@ export function importFromEaf(xmlString: string): EafImportResult {
           startTime: a.startTime,
           endTime: a.endTime,
           transcription: a.text,
-          ...(participant ? { speakerId: participant } : {}),
           ...(a.annotationId ? { annotationId: a.annotationId } : {}),
         }));
       } else {

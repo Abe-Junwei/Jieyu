@@ -130,6 +130,28 @@ function buildSegmentSpeakerIdMap(
   return next;
 }
 
+function getDependentTranslationIterationSource(
+  layer: LayerDocType,
+  layerById: ReadonlyMap<string, LayerDocType>,
+  segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]> | undefined,
+  timelineRenderUtterances: UtteranceDocType[],
+  defaultTranscriptionLayerId?: string,
+): Array<{ id: string; startTime: number; endTime: number }> {
+  if (layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) {
+    return (segmentsByLayer?.get(layer.id) ?? []) as Array<{ id: string; startTime: number; endTime: number }>;
+  }
+
+  const parentLayerId = layer.parentLayerId?.trim() ?? '';
+  if (!parentLayerId) return timelineRenderUtterances;
+
+  const parentLayer = layerById.get(parentLayerId);
+  if (!parentLayer || !layerUsesOwnSegments(parentLayer, defaultTranscriptionLayerId)) {
+    return timelineRenderUtterances;
+  }
+
+  return (segmentsByLayer?.get(parentLayer.id) ?? []) as Array<{ id: string; startTime: number; endTime: number }>;
+}
+
 type TranscriptionTimelineMediaLanesProps = {
   playerDuration: number;
   zoomPxPerSec: number;
@@ -176,12 +198,13 @@ type TranscriptionTimelineMediaLanesProps = {
   speakerLayerLayout?: SpeakerLayerLayoutResult;
   speakerFocusMode?: SpeakerFocusMode;
   speakerFocusSpeakerKey?: string;
+  activeSpeakerFilterKey?: string;
   speakerQuickActions?: {
     selectedCount: number;
     speakerOptions: Array<{ id: string; name: string }>;
     onAssignToSelection: (speakerId: string) => void;
     onClearSelection: () => void;
-    onCreateAndAssignToSelection: (name: string) => void;
+    onOpenCreateAndAssignPanel: () => void;
   };
   // Lane label resize
   onLaneLabelWidthResize?: (e: React.PointerEvent<HTMLDivElement>) => void;
@@ -229,6 +252,7 @@ export function TranscriptionTimelineMediaLanes({
   speakerLayerLayout: incomingSpeakerLayerLayout,
   speakerFocusMode = 'all',
   speakerFocusSpeakerKey,
+  activeSpeakerFilterKey = 'all',
   speakerQuickActions,
   onLaneLabelWidthResize,
   segmentsByLayer,
@@ -247,52 +271,67 @@ export function TranscriptionTimelineMediaLanes({
   const { resizingLayerId, startLaneHeightResize } = useTimelineLaneHeightResize(onLaneHeightChange);
   const localSpeakerLayerLayout = useMemo(
     () => buildSpeakerLayerLayoutWithOptions(timelineRenderUtterances, {
+      trackMode: trackDisplayMode,
       ...(laneLockMap ? { laneLockMap } : {}),
       ...(speakerSortKeyById ? { speakerSortKeyById } : {}),
     }),
-    [laneLockMap, speakerSortKeyById, timelineRenderUtterances],
+    [laneLockMap, speakerSortKeyById, timelineRenderUtterances, trackDisplayMode],
   );
   const speakerLayerLayout = incomingSpeakerLayerLayout ?? localSpeakerLayerLayout;
   const utteranceById = useMemo(
     () => new Map(timelineRenderUtterances.map((item) => [item.id, item] as const)),
     [timelineRenderUtterances],
   );
+  const layerById = useMemo(
+    () => new Map(allLayersOrdered.map((layer) => [layer.id, layer] as const)),
+    [allLayersOrdered],
+  );
   const segmentSpeakerLayoutByLayer = useMemo(() => {
     const next = new Map<string, SpeakerLayerLayoutResult>();
     for (const layer of transcriptionLayers) {
       if (!layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) continue;
-      const segments = segmentsByLayer?.get(layer.id) ?? [];
+      const segments = (segmentsByLayer?.get(layer.id) ?? []).filter((segment) => (
+        activeSpeakerFilterKey === 'all'
+          || resolveSpeakerFocusKeyFromSegment(segment, utteranceById) === normalizeSpeakerFocusKey(activeSpeakerFilterKey)
+      ));
       const segmentAsUtterances = toSpeakerLayoutInputFromSegments(segments, utteranceById);
       next.set(
         layer.id,
         buildSpeakerLayerLayoutWithOptions(segmentAsUtterances, {
+          trackMode: trackDisplayMode,
           ...(laneLockMap ? { laneLockMap } : {}),
           ...(speakerSortKeyById ? { speakerSortKeyById } : {}),
         }),
       );
     }
     return next;
-  }, [defaultTranscriptionLayerId, laneLockMap, segmentsByLayer, speakerSortKeyById, transcriptionLayers, utteranceById]);
+  }, [activeSpeakerFilterKey, defaultTranscriptionLayerId, laneLockMap, segmentsByLayer, speakerSortKeyById, trackDisplayMode, transcriptionLayers, utteranceById]);
   const segmentSpeakerIdByLayer = useMemo(() => {
     const next = new Map<string, Map<string, string>>();
     for (const layer of transcriptionLayers) {
       if (!layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) continue;
-      const segments = segmentsByLayer?.get(layer.id) ?? [];
+      const segments = (segmentsByLayer?.get(layer.id) ?? []).filter((segment) => (
+        activeSpeakerFilterKey === 'all'
+          || resolveSpeakerFocusKeyFromSegment(segment, utteranceById) === normalizeSpeakerFocusKey(activeSpeakerFilterKey)
+      ));
       next.set(layer.id, buildSegmentSpeakerIdMap(segments, utteranceById));
     }
     return next;
-  }, [defaultTranscriptionLayerId, segmentsByLayer, transcriptionLayers, utteranceById]);
+  }, [activeSpeakerFilterKey, defaultTranscriptionLayerId, segmentsByLayer, transcriptionLayers, utteranceById]);
   const segmentItemsByOverlapGroupByLayer = useMemo(() => {
     const next = new Map<string, Map<string, LayerSegmentDocType[]>>();
     for (const layer of transcriptionLayers) {
       if (!layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) continue;
       const layout = segmentSpeakerLayoutByLayer.get(layer.id);
       if (!layout) continue;
-      const segments = segmentsByLayer?.get(layer.id) ?? [];
+      const segments = (segmentsByLayer?.get(layer.id) ?? []).filter((segment) => (
+        activeSpeakerFilterKey === 'all'
+          || resolveSpeakerFocusKeyFromSegment(segment, utteranceById) === normalizeSpeakerFocusKey(activeSpeakerFilterKey)
+      ));
       next.set(layer.id, buildSegmentsByOverlapGroup(segments, layout));
     }
     return next;
-  }, [defaultTranscriptionLayerId, segmentSpeakerLayoutByLayer, segmentsByLayer, transcriptionLayers]);
+  }, [activeSpeakerFilterKey, defaultTranscriptionLayerId, segmentSpeakerLayoutByLayer, segmentsByLayer, transcriptionLayers, utteranceById]);
   const utterancesByOverlapGroupId = useMemo(() => {
     const next = new Map<string, UtteranceDocType[]>();
     for (const utt of timelineRenderUtterances) {
@@ -421,7 +460,8 @@ export function TranscriptionTimelineMediaLanes({
           }}
         />
       )}
-      {transcriptionLayers.map((layer, idx) => {
+      {allLayersOrdered.map((layer, idx) => {
+        if (layer.layerType === 'transcription') {
         const isIndependent = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
         const activeLayerLayout = isIndependent
           ? (segmentSpeakerLayoutByLayer.get(layer.id) ?? EMPTY_SPEAKER_LAYOUT)
@@ -445,7 +485,10 @@ export function TranscriptionTimelineMediaLanes({
         const visibleUtterances = isIndependent
           ? (isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
               ? (segmentItemsByOverlapGroupByLayer.get(layer.id)?.get(activeOverlapGroupId) ?? [])
-              : (segmentsByLayer?.get(layer.id) ?? []))
+              : ((segmentsByLayer?.get(layer.id) ?? []).filter((segment) => (
+                  activeSpeakerFilterKey === 'all'
+                    || resolveSpeakerFocusKeyFromSegment(segment, utteranceById) === normalizeSpeakerFocusKey(activeSpeakerFilterKey)
+                ))))
           : isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
           ? (utterancesByOverlapGroupId.get(activeOverlapGroupId) ?? [])
           : timelineRenderUtterances;
@@ -478,7 +521,6 @@ export function TranscriptionTimelineMediaLanes({
             layer={layer}
             layerIndex={idx}
             allLayers={allLayersOrdered}
-            transcriptionLayersCount={transcriptionLayers.length}
             onReorderLayers={onReorderLayers}
             deletableLayers={deletableLayers}
             onFocusLayer={onFocusLayer}
@@ -597,17 +639,22 @@ export function TranscriptionTimelineMediaLanes({
             aria-orientation="horizontal"
           />}
         </div>
-      );})}
-      {translationLayers.map((layer, idx) => {
+      );
+        }
+
         const isCollapsed = collapsedLayerIds.has(layer.id);
         const baseLaneHeight = laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT;
         const visibleLaneHeight = isCollapsed ? 14 : baseLaneHeight;
         // 独立边界层使用按 layer 聚合的 canonical segment graph，否则继承 utterance 边界
         // Independent-boundary layers use the canonical per-layer segment graph; other layers inherit utterance boundaries.
         const isIndependent = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
-        const layerSegments = isIndependent ? (segmentsByLayer?.get(layer.id) ?? []) : undefined;
-        const iterationSource: Array<{ id: string; startTime: number; endTime: number }> =
-          layerSegments ?? timelineRenderUtterances;
+        const iterationSource = getDependentTranslationIterationSource(
+          layer,
+          layerById,
+          segmentsByLayer,
+          timelineRenderUtterances,
+          defaultTranscriptionLayerId,
+        );
         return (
         <div
           key={`tl-${layer.id}`}
@@ -620,9 +667,8 @@ export function TranscriptionTimelineMediaLanes({
         >
           <TimelineLaneHeader
             layer={layer}
-            layerIndex={transcriptionLayers.length + idx}
+            layerIndex={idx}
             allLayers={allLayersOrdered}
-            transcriptionLayersCount={transcriptionLayers.length}
             onReorderLayers={onReorderLayers}
             deletableLayers={deletableLayers}
             onFocusLayer={onFocusLayer}

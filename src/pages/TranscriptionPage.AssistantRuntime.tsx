@@ -1,11 +1,11 @@
-import { Suspense, lazy, useEffect, useMemo, useRef } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AiAssistantHubContext } from '../contexts/AiAssistantHubContext';
-import { VoiceAgentProvider } from '../contexts/VoiceAgentContext';
+import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE, VoiceAgentProvider } from '../contexts/VoiceAgentContext';
 import { AiChatProvider, type AiChatContextValue } from '../contexts/AiChatContext';
-import { useAiAssistantHubContextValue } from '../hooks/useAiAssistantHubContextValue';
+import { pickAiAssistantHubContextValue, useAiAssistantHubContextValue } from '../hooks/useAiAssistantHubContextValue';
 import { useVoiceDock } from '../hooks/useVoiceDock';
 import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
-import { useVoiceAgentContextValue } from '../hooks/useVoiceAgentContextValue';
+import { pickVoiceAgentContextValue, useVoiceAgentContextValue } from '../hooks/useVoiceAgentContextValue';
 import { ToastController } from './TranscriptionPage.ToastController';
 import { featureFlags } from '../ai/config/featureFlags';
 import type { LayerDocType, UtteranceDocType } from '../db';
@@ -53,7 +53,88 @@ export interface TranscriptionPageAssistantRuntimeProps {
   onRegisterToggleVoice: (handler?: () => void) => void;
 }
 
-export function TranscriptionPageAssistantRuntime({
+interface AssistantVoiceRuntimeProps extends Omit<TranscriptionPageAssistantRuntimeProps, 'aiChatContextValue' | 'locale'> {
+  locale: string;
+  aiChatContextValue: AiChatContextValue;
+  openPanelOnMount: boolean;
+  startListeningOnMount: boolean;
+  onInitialVoiceRequestHandled: () => void;
+}
+
+interface AssistantRuntimeFrameProps {
+  aiChatContextValue: AiChatContextValue;
+  aiAssistantHubContextValue: ReturnType<typeof pickAiAssistantHubContextValue>;
+  voiceAgentContextValue: ReturnType<typeof pickVoiceAgentContextValue>;
+  saveState: SaveState;
+  recording: boolean;
+  recordingUtteranceId: string | null;
+  recordingError: string | null;
+  overlapCycleToast?: { index: number; total: number; nonce: number } | null;
+  lockConflictToast?: { count: number; speakers: string[]; nonce: number } | null;
+  tf: (key: string, opts?: Record<string, unknown>) => string;
+  toastVoiceAgent: {
+    agentState: string;
+    mode: string;
+    listening: boolean;
+    isRecording: boolean;
+  };
+  voiceDrawer?: ReactNode;
+  voiceEntry?: {
+    enabled: boolean;
+    expanded: boolean;
+    listening: boolean;
+    statusText?: string;
+    onTogglePanel: () => void;
+  } | undefined;
+}
+
+function AssistantRuntimeFrame({
+  aiChatContextValue,
+  aiAssistantHubContextValue,
+  voiceAgentContextValue,
+  saveState,
+  recording,
+  recordingUtteranceId,
+  recordingError,
+  overlapCycleToast,
+  lockConflictToast,
+  tf,
+  toastVoiceAgent,
+  voiceDrawer,
+  voiceEntry,
+}: AssistantRuntimeFrameProps) {
+  return (
+    <VoiceAgentProvider value={voiceAgentContextValue}>
+      <AiChatProvider value={aiChatContextValue}>
+        <AiAssistantHubContext.Provider value={aiAssistantHubContextValue}>
+          <ToastController
+            voiceAgent={toastVoiceAgent}
+            saveState={saveState}
+            recording={recording}
+            recordingUtteranceId={recordingUtteranceId}
+            recordingError={recordingError}
+            {...(overlapCycleToast !== undefined ? { overlapCycleToast } : {})}
+            {...(lockConflictToast !== undefined ? { lockConflictToast } : {})}
+            tf={tf}
+          />
+          <div className="transcription-hub-assistant-panel">
+            <div className="transcription-hub-assistant-chat-section">
+              <Suspense fallback={null}>
+                <AiChatCard
+                  embedded
+                  voiceDrawer={voiceDrawer}
+                  voiceEntry={voiceEntry}
+                />
+              </Suspense>
+            </div>
+          </div>
+        </AiAssistantHubContext.Provider>
+      </AiChatProvider>
+    </VoiceAgentProvider>
+  );
+}
+
+function AssistantVoiceRuntime({
   locale,
   aiChatContextValue,
   saveState,
@@ -79,7 +160,10 @@ export function TranscriptionPageAssistantRuntime({
   formatLayerRailLabel,
   formatTime,
   onRegisterToggleVoice,
-}: TranscriptionPageAssistantRuntimeProps) {
+  openPanelOnMount,
+  startListeningOnMount,
+  onInitialVoiceRequestHandled,
+}: AssistantVoiceRuntimeProps) {
   const {
     effectiveVoiceCorpusLang,
     voiceCorpusLangOverride,
@@ -142,6 +226,17 @@ export function TranscriptionPageAssistantRuntime({
     onRegisterToggleVoice(featureFlags.voiceAgentEnabled ? voiceAgent.toggle : undefined);
     return () => onRegisterToggleVoice(undefined);
   }, [onRegisterToggleVoice, voiceAgent.toggle]);
+
+  useEffect(() => {
+    if (!openPanelOnMount && !startListeningOnMount) return;
+    if (openPanelOnMount) {
+      handleAssistantVoicePanelToggle();
+    }
+    if (startListeningOnMount) {
+      voiceAgent.toggle();
+    }
+    onInitialVoiceRequestHandled();
+  }, [handleAssistantVoicePanelToggle, onInitialVoiceRequestHandled, openPanelOnMount, startListeningOnMount, voiceAgent]);
 
   const voiceAgentContextValue = useVoiceAgentContextValue({
     voiceListening: voiceAgent.listening,
@@ -228,32 +323,151 @@ export function TranscriptionPageAssistantRuntime({
     : undefined;
 
   return (
-    <VoiceAgentProvider value={voiceAgentContextValue}>
-      <AiChatProvider value={aiChatContextValue}>
-        <AiAssistantHubContext.Provider value={aiAssistantHubContextValue}>
-          <ToastController
-            voiceAgent={voiceAgent}
-            saveState={saveState}
-            recording={recording}
-            recordingUtteranceId={recordingUtteranceId}
-            recordingError={recordingError}
-            {...(overlapCycleToast !== undefined ? { overlapCycleToast } : {})}
-            {...(lockConflictToast !== undefined ? { lockConflictToast } : {})}
-            tf={tf}
-          />
-          <div className="transcription-hub-assistant-panel">
-            <div className="transcription-hub-assistant-chat-section">
-              <Suspense fallback={null}>
-                <AiChatCard
-                  embedded
-                  voiceDrawer={voiceDrawer}
-                  voiceEntry={voiceEntry}
-                />
-              </Suspense>
-            </div>
-          </div>
-        </AiAssistantHubContext.Provider>
-      </AiChatProvider>
-    </VoiceAgentProvider>
+    <AssistantRuntimeFrame
+      aiChatContextValue={aiChatContextValue}
+      aiAssistantHubContextValue={aiAssistantHubContextValue}
+      voiceAgentContextValue={voiceAgentContextValue}
+      saveState={saveState}
+      recording={recording}
+      recordingUtteranceId={recordingUtteranceId}
+      recordingError={recordingError}
+      {...(overlapCycleToast !== undefined ? { overlapCycleToast } : {})}
+      {...(lockConflictToast !== undefined ? { lockConflictToast } : {})}
+      tf={tf}
+      toastVoiceAgent={voiceAgent}
+      voiceDrawer={voiceDrawer}
+      voiceEntry={voiceEntry}
+    />
+  );
+}
+
+export function TranscriptionPageAssistantRuntime({
+  locale,
+  aiChatContextValue,
+  saveState,
+  recording,
+  recordingUtteranceId,
+  recordingError,
+  overlapCycleToast,
+  lockConflictToast,
+  tf,
+  activeTextPrimaryLanguageId,
+  getActiveTextPrimaryLanguageId,
+  executeAction,
+  handleResolveVoiceIntentWithLlm,
+  handleVoiceDictation,
+  handleVoiceAnalysisResult,
+  activeUtteranceUnitId,
+  selectedUtterance,
+  selectedRowMeta,
+  selectedLayerId,
+  defaultTranscriptionLayerId,
+  translationLayers,
+  layers,
+  formatLayerRailLabel,
+  formatTime,
+  onRegisterToggleVoice,
+}: TranscriptionPageAssistantRuntimeProps) {
+  const [voiceRuntimeRequested, setVoiceRuntimeRequested] = useState(false);
+  const [openVoicePanelOnMount, setOpenVoicePanelOnMount] = useState(false);
+  const [startVoiceListeningOnMount, setStartVoiceListeningOnMount] = useState(false);
+
+  const handleActivateVoicePanel = useCallback(() => {
+    setVoiceRuntimeRequested(true);
+    setOpenVoicePanelOnMount(true);
+  }, []);
+
+  const handleActivateVoiceListening = useCallback(() => {
+    setVoiceRuntimeRequested(true);
+    setStartVoiceListeningOnMount(true);
+  }, []);
+
+  useEffect(() => {
+    onRegisterToggleVoice(featureFlags.voiceAgentEnabled ? handleActivateVoiceListening : undefined);
+    return () => onRegisterToggleVoice(undefined);
+  }, [handleActivateVoiceListening, onRegisterToggleVoice]);
+
+  const dormantVoiceAgentContextValue = useMemo(() => pickVoiceAgentContextValue({
+    ...DEFAULT_VOICE_AGENT_CONTEXT_VALUE,
+    voiceEnabled: featureFlags.voiceAgentEnabled,
+    onVoiceToggle: featureFlags.voiceAgentEnabled ? handleActivateVoiceListening : undefined,
+  }), [handleActivateVoiceListening]);
+
+  const dormantAssistantHubContextValue = useMemo(
+    () => pickAiAssistantHubContextValue(aiChatContextValue, dormantVoiceAgentContextValue),
+    [aiChatContextValue, dormantVoiceAgentContextValue],
+  );
+
+  const dormantVoiceEntry = useMemo(() => {
+    if (!featureFlags.voiceAgentEnabled) return undefined;
+    return {
+      enabled: true,
+      expanded: false,
+      listening: false,
+      statusText: locale === 'zh-CN' ? '点击启用语音' : 'Enable voice',
+      onTogglePanel: handleActivateVoicePanel,
+    };
+  }, [handleActivateVoicePanel, locale]);
+
+  const handleInitialVoiceRequestHandled = useCallback(() => {
+    setOpenVoicePanelOnMount(false);
+    setStartVoiceListeningOnMount(false);
+  }, []);
+
+  if (featureFlags.voiceAgentEnabled && voiceRuntimeRequested) {
+    return (
+      <AssistantVoiceRuntime
+        locale={locale}
+        aiChatContextValue={aiChatContextValue}
+        saveState={saveState}
+        recording={recording}
+        recordingUtteranceId={recordingUtteranceId}
+        recordingError={recordingError}
+        {...(overlapCycleToast !== undefined ? { overlapCycleToast } : {})}
+        {...(lockConflictToast !== undefined ? { lockConflictToast } : {})}
+        tf={tf}
+        {...(activeTextPrimaryLanguageId !== undefined ? { activeTextPrimaryLanguageId } : {})}
+        getActiveTextPrimaryLanguageId={getActiveTextPrimaryLanguageId}
+        executeAction={executeAction}
+        handleResolveVoiceIntentWithLlm={handleResolveVoiceIntentWithLlm}
+        handleVoiceDictation={handleVoiceDictation}
+        handleVoiceAnalysisResult={handleVoiceAnalysisResult}
+        activeUtteranceUnitId={activeUtteranceUnitId}
+        selectedUtterance={selectedUtterance}
+        selectedRowMeta={selectedRowMeta}
+        selectedLayerId={selectedLayerId}
+        {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
+        translationLayers={translationLayers}
+        layers={layers}
+        formatLayerRailLabel={formatLayerRailLabel}
+        formatTime={formatTime}
+        onRegisterToggleVoice={onRegisterToggleVoice}
+        openPanelOnMount={openVoicePanelOnMount}
+        startListeningOnMount={startVoiceListeningOnMount}
+        onInitialVoiceRequestHandled={handleInitialVoiceRequestHandled}
+      />
+    );
+  }
+
+  return (
+    <AssistantRuntimeFrame
+      aiChatContextValue={aiChatContextValue}
+      aiAssistantHubContextValue={dormantAssistantHubContextValue}
+      voiceAgentContextValue={dormantVoiceAgentContextValue}
+      saveState={saveState}
+      recording={recording}
+      recordingUtteranceId={recordingUtteranceId}
+      recordingError={recordingError}
+      {...(overlapCycleToast !== undefined ? { overlapCycleToast } : {})}
+      {...(lockConflictToast !== undefined ? { lockConflictToast } : {})}
+      tf={tf}
+      toastVoiceAgent={{
+        agentState: 'idle',
+        mode: 'command',
+        listening: false,
+        isRecording: false,
+      }}
+      voiceEntry={dormantVoiceEntry}
+    />
   );
 }

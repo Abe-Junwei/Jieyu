@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import '../styles/ai-hub.css';
 import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
 import type { AiChatContextValue } from '../contexts/AiChatContext';
 import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.AssistantRuntime';

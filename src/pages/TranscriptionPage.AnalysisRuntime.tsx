@@ -2,15 +2,14 @@ import { useEffect, useMemo } from 'react';
 import { EmbeddingProvider } from '../contexts/EmbeddingContext';
 import { useAiEmbeddingState } from '../hooks/useAiEmbeddingState';
 import { useEmbeddingContextValue } from '../hooks/useEmbeddingContextValue';
-import { EmbeddingService } from '../ai/embeddings/EmbeddingService';
-import { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
-import { createEmbeddingProvider, testEmbeddingProvider } from '../ai/embeddings/EmbeddingProviderCatalog';
+import { testEmbeddingProvider } from '../ai/embeddings/EmbeddingProviderCatalog';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import { getGlobalTaskRunner } from '../ai/tasks/taskRunnerSingleton';
 import { saveEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { AiAnalysisPanel, type AnalysisBottomTab } from '../components/AiAnalysisPanel';
 import type { UtteranceDocType } from '../db';
 import { fireAndForget } from '../utils/fireAndForget';
+import { createDeferredEmbeddingRuntime } from '../ai/embeddings/DeferredEmbeddingRuntime';
 
 export interface TranscriptionPageEmbeddingProviderConfig {
   kind: EmbeddingProviderKind;
@@ -52,10 +51,11 @@ export function TranscriptionPageAnalysisRuntime({
   onEmbeddingProviderConfigChange,
   externalErrorMessage,
 }: TranscriptionPageAnalysisRuntimeProps) {
-  const embeddingProvider = useMemo(() => createEmbeddingProvider(embeddingProviderConfig), [embeddingProviderConfig]);
   const taskRunner = useMemo(() => getGlobalTaskRunner(), []);
-  const embeddingService = useMemo(() => new EmbeddingService(embeddingProvider, taskRunner), [embeddingProvider, taskRunner]);
-  const embeddingSearchService = useMemo(() => new EmbeddingSearchService(embeddingProvider), [embeddingProvider]);
+  const deferredEmbeddingRuntime = useMemo(
+    () => createDeferredEmbeddingRuntime(() => embeddingProviderConfig, taskRunner),
+    [embeddingProviderConfig, taskRunner],
+  );
 
   useEffect(() => {
     saveEmbeddingProviderConfig(embeddingProviderConfig);
@@ -79,8 +79,8 @@ export function TranscriptionPageAnalysisRuntime({
   } = useAiEmbeddingState({
     locale,
     taskRunner,
-    embeddingService,
-    embeddingSearchService,
+    embeddingService: deferredEmbeddingRuntime.embeddingService,
+    embeddingSearchService: deferredEmbeddingRuntime.embeddingSearchService,
     selectedUtterance,
     utterancesOnCurrentMedia,
     getUtteranceTextForLayer,

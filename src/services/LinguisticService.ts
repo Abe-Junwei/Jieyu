@@ -765,6 +765,46 @@ export class LinguisticService {
       });
   }
 
+  static async getSpeakerReferenceStats(): Promise<Record<string, { utteranceCount: number; segmentCount: number; totalCount: number }>> {
+    const db = await getDb();
+    const [utteranceDocs, segments] = await Promise.all([
+      db.collections.utterances.find().exec(),
+      LayerSegmentQueryService.listAllSegments(),
+    ]);
+
+    const stats = new Map<string, { utteranceCount: number; segmentCount: number; totalCount: number }>();
+
+    const ensure = (speakerId: string) => {
+      const normalizedId = speakerId.trim();
+      if (!normalizedId) return null;
+      const existing = stats.get(normalizedId);
+      if (existing) return existing;
+      const next = { utteranceCount: 0, segmentCount: 0, totalCount: 0 };
+      stats.set(normalizedId, next);
+      return next;
+    };
+
+    for (const doc of utteranceDocs) {
+      const speakerId = doc.toJSON().speakerId?.trim();
+      if (!speakerId) continue;
+      const target = ensure(speakerId);
+      if (!target) continue;
+      target.utteranceCount += 1;
+      target.totalCount += 1;
+    }
+
+    for (const segment of segments) {
+      const speakerId = segment.speakerId?.trim();
+      if (!speakerId) continue;
+      const target = ensure(speakerId);
+      if (!target) continue;
+      target.segmentCount += 1;
+      target.totalCount += 1;
+    }
+
+    return Object.fromEntries(stats.entries());
+  }
+
   static async createSpeaker(input: {
     name: string;
     pseudonym?: string;
@@ -853,6 +893,8 @@ export class LinguisticService {
     const target = targetDoc.toJSON();
     const now = new Date().toISOString();
     const utterances = await db.collections.utterances.findByIndex('speakerId', sourceId);
+    const segments = (await LayerSegmentQueryService.listAllSegments())
+      .filter((segment) => segment.speakerId?.trim() === sourceId);
 
     if (utterances.length > 0) {
       const normalized = utterances.map((doc) => {
@@ -867,8 +909,17 @@ export class LinguisticService {
       await db.collections.utterances.bulkInsert(normalized);
     }
 
+    if (segments.length > 0) {
+      const normalizedSegments = segments.map((segment) => ({
+        ...segment,
+        speakerId: target.id,
+        updatedAt: now,
+      }));
+      await LegacyMirrorService.upsertSegments(db, normalizedSegments);
+    }
+
     await db.collections.speakers.remove(sourceId);
-    return utterances.length;
+    return utterances.length + segments.length;
   }
 
   static async deleteSpeaker(
@@ -888,7 +939,9 @@ export class LinguisticService {
 
     const utteranceDocs = await db.collections.utterances.findByIndex('speakerId', id);
     const utterances = utteranceDocs.map((doc) => doc.toJSON());
-    const affectedCount = utterances.length;
+    const segments = (await LayerSegmentQueryService.listAllSegments())
+      .filter((segment) => segment.speakerId?.trim() === id);
+    const affectedCount = utterances.length + segments.length;
 
     if (affectedCount > 0 && strategy === 'reject') {
       throw new Error(`说话人仍被 ${affectedCount} 条句段引用`);
@@ -910,7 +963,18 @@ export class LinguisticService {
         speaker: target.name,
         updatedAt: now,
       }));
-      await db.collections.utterances.bulkInsert(normalized);
+      if (normalized.length > 0) {
+        await db.collections.utterances.bulkInsert(normalized);
+      }
+
+      if (segments.length > 0) {
+        const normalizedSegments = segments.map((segment) => ({
+          ...segment,
+          speakerId: target.id,
+          updatedAt: now,
+        }));
+        await LegacyMirrorService.upsertSegments(db, normalizedSegments);
+      }
     }
 
     if (affectedCount > 0 && strategy === 'clear') {
@@ -921,7 +985,20 @@ export class LinguisticService {
           updatedAt: now,
         });
       });
-      await db.collections.utterances.bulkInsert(normalized);
+      if (normalized.length > 0) {
+        await db.collections.utterances.bulkInsert(normalized);
+      }
+
+      if (segments.length > 0) {
+        const normalizedSegments = segments.map((segment) => {
+          const { speakerId: _oldSpeakerId, ...rest } = segment;
+          return {
+            ...rest,
+            updatedAt: now,
+          };
+        });
+        await LegacyMirrorService.upsertSegments(db, normalizedSegments);
+      }
     }
 
     await db.collections.speakers.remove(id);

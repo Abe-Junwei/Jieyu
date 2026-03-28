@@ -3,6 +3,7 @@ import { getDb } from '../db';
 import { useClickOutside } from './useClickOutside';
 import type {
   AnchorDocType,
+  LayerSegmentDocType,
   MediaItemDocType,
   LayerDocType,
   UtteranceDocType,
@@ -75,6 +76,30 @@ export function useImportExport(input: UseImportExportInput) {
     loadSnapshot,
     setSaveState,
   } = input;
+
+  const normalizeSpeakerLookupKey = useCallback((value: string | undefined) => {
+    return value?.trim().toLocaleLowerCase('zh-Hans-CN') ?? '';
+  }, []);
+
+  const resolveRelevantExportSpeakerIds = useCallback((
+    currentUtterances: UtteranceDocType[],
+    layerSegments?: Map<string, LayerSegmentDocType[]>,
+  ) => {
+    const ids = new Set<string>();
+    for (const utterance of currentUtterances) {
+      const speakerId = utterance.speakerId?.trim();
+      if (speakerId) ids.add(speakerId);
+    }
+    if (layerSegments) {
+      for (const segments of layerSegments.values()) {
+        for (const segment of segments) {
+          const speakerId = segment.speakerId?.trim();
+          if (speakerId) ids.add(speakerId);
+        }
+      }
+    }
+    return ids;
+  }, []);
 
   const importFileRef = useRef<HTMLInputElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -151,16 +176,19 @@ export function useImportExport(input: UseImportExportInput) {
     const timeAlignedLayers = layers.filter(
       (l) =>
         (l.layerType === 'translation' && (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision'))
-        || (l.layerType === 'transcription' && l.constraint === 'independent_boundary'),
+        || (l.layerType === 'transcription' && (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision')),
     );
-    const db = await getDb();
-    const speakers = await db.dexie.speakers.toArray();
     const exportData = await loadSegmentExportDataForLayers(timeAlignedLayers, utterancesOnCurrentMedia[0]?.mediaId) as {
       segmentsByLayer?: Map<string, import('../db').LayerSegmentDocType[]>;
       segmentContents?: Map<string, Map<string, import('../db').LayerSegmentContentDocType>>;
     };
     const layerSegments = exportData.segmentsByLayer;
     const layerSegmentContents = exportData.segmentContents;
+    const db = await getDb();
+    const relevantSpeakerIds = resolveRelevantExportSpeakerIds(utterancesOnCurrentMedia, layerSegments);
+    const speakers = relevantSpeakerIds.size === 0
+      ? []
+      : (await db.dexie.speakers.toArray()).filter((speaker) => relevantSpeakerIds.has(speaker.id));
     const xml = exportToEaf({
       ...(selectedUtteranceMedia ? { mediaItem: selectedUtteranceMedia } : {}),
       utterances: utterancesOnCurrentMedia,
@@ -179,7 +207,7 @@ export function useImportExport(input: UseImportExportInput) {
     downloadEaf(xml, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.eaf') });
     setShowExportMenu(false);
-  }, [defaultTranscriptionLayerId, selectedUtteranceMedia, utterancesOnCurrentMedia, anchors, layers, translations, setSaveState, fetchUtteranceNotes, loadSegmentExportDataForLayers]);
+  }, [defaultTranscriptionLayerId, selectedUtteranceMedia, utterancesOnCurrentMedia, anchors, layers, translations, setSaveState, fetchUtteranceNotes, loadSegmentExportDataForLayers, resolveRelevantExportSpeakerIds]);
 
   const handleExportTextGrid = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
@@ -453,22 +481,25 @@ export function useImportExport(input: UseImportExportInput) {
       }
 
       // ── 创建说话人记录并建立 ID 映射（按名称去重）| Create speaker records with name-based dedup ──
-      const speakerIdMap = new Map<string, string>(); // 原始标识 → DB speaker.id
+      const speakerIdMap = new Map<string, string>(); // normalized key → DB speaker.id
       const existingSpeakers = await LinguisticService.getSpeakers();
       const speakerByName = new Map(
-        existingSpeakers.map((s) => [s.name.toLocaleLowerCase('zh-Hans-CN'), s] as const),
+        existingSpeakers.map((s) => [normalizeSpeakerLookupKey(s.name), s] as const),
       );
 
       async function resolveOrCreateSpeaker(rawKey: string, displayName: string): Promise<string> {
-        const normalized = displayName.trim().toLocaleLowerCase('zh-Hans-CN');
+        const normalized = normalizeSpeakerLookupKey(displayName);
+        const normalizedRawKey = normalizeSpeakerLookupKey(rawKey);
         const existing = speakerByName.get(normalized);
         if (existing) {
-          speakerIdMap.set(rawKey, existing.id);
+          if (normalizedRawKey) speakerIdMap.set(normalizedRawKey, existing.id);
+          if (normalized) speakerIdMap.set(normalized, existing.id);
           return existing.id;
         }
         const speaker = await LinguisticService.createSpeaker({ name: displayName.trim() });
         speakerByName.set(normalized, speaker);
-        speakerIdMap.set(rawKey, speaker.id);
+        if (normalizedRawKey) speakerIdMap.set(normalizedRawKey, speaker.id);
+        if (normalized) speakerIdMap.set(normalized, speaker.id);
         return speaker.id;
       }
 
@@ -588,9 +619,12 @@ export function useImportExport(input: UseImportExportInput) {
         const maybeAnnotationId = ('annotationId' in u && typeof (u as { annotationId?: string }).annotationId === 'string')
         ? (u as { annotationId: string }).annotationId
         : undefined;
+        const normalizedSpeakerKey = typeof maybeSpeakerId === 'string'
+          ? normalizeSpeakerLookupKey(maybeSpeakerId)
+          : '';
         // 将原始说话人标识映射为 DB ID | Resolve raw speaker label to DB speaker ID
         const resolvedSpeakerId = typeof maybeSpeakerId === 'string' && maybeSpeakerId.length > 0
-          ? speakerIdMap.get(maybeSpeakerId) ?? maybeSpeakerId
+          ? speakerIdMap.get(normalizedSpeakerKey) ?? maybeSpeakerId.trim()
           : undefined;
         const newUtterance: UtteranceDocType = {
           id,
@@ -680,6 +714,7 @@ export function useImportExport(input: UseImportExportInput) {
       }
 
       let tierCount = 0;
+      let skippedIndependentTierSegmentCount = 0;
       // 包含自动创建的转写层 | Include auto-created transcription layer
       const existingTrcLayers = [
         ...layers.filter((l) => l.layerType === 'transcription'),
@@ -729,39 +764,47 @@ export function useImportExport(input: UseImportExportInput) {
           ?? existingIndepTrcLayersByName.get(humanizedTierForLookup);
         if (indepLayerId) {
           const firstUtt = insertedUtterances[0];
-          const importMediaId = firstUtt?.utterance.mediaId;
-          if (firstUtt && importMediaId) {
-            for (const ann of annotations) {
-              if (!ann.text.trim()) continue;
-              const annStart = Number(ann.startTime.toFixed(3));
-              const annEnd = Number(ann.endTime.toFixed(3));
-              if (annEnd - annStart < 0.01) continue;
-              const segNow = new Date().toISOString();
-              const segId = newId('seg');
-              await LayerSegmentationV2Service.createSegmentWithContentAtomic(
-                {
-                  id: segId,
-                  textId: firstUtt.utterance.textId,
-                  mediaId: importMediaId,
-                  layerId: indepLayerId,
-                  startTime: annStart,
-                  endTime: annEnd,
-                  createdAt: segNow,
-                  updatedAt: segNow,
-                },
-                {
-                  id: newId('sc'),
-                  textId: firstUtt.utterance.textId,
-                  segmentId: segId,
-                  layerId: indepLayerId,
-                  modality: 'text',
-                  text: ann.text,
-                  sourceType: 'human',
-                  createdAt: segNow,
-                  updatedAt: segNow,
-                },
-              );
-            }
+          const importMediaId = mediaId ?? firstUtt?.utterance.mediaId;
+          const importTextId = firstUtt?.utterance.textId ?? textId;
+          if (!importMediaId) {
+            skippedIndependentTierSegmentCount += annotations.filter((ann) => ann.text.trim()).length;
+            console.warn('[Import] 跳过独立转写层导入：缺少媒体，无法恢复 segment', {
+              tierName,
+              layerId: indepLayerId,
+              annotationCount: annotations.length,
+            });
+            continue;
+          }
+          for (const ann of annotations) {
+            if (!ann.text.trim()) continue;
+            const annStart = Number(ann.startTime.toFixed(3));
+            const annEnd = Number(ann.endTime.toFixed(3));
+            if (annEnd - annStart < 0.01) continue;
+            const segNow = new Date().toISOString();
+            const segId = newId('seg');
+            await LayerSegmentationV2Service.createSegmentWithContentAtomic(
+              {
+                id: segId,
+                textId: importTextId,
+                mediaId: importMediaId,
+                layerId: indepLayerId,
+                startTime: annStart,
+                endTime: annEnd,
+                createdAt: segNow,
+                updatedAt: segNow,
+              },
+              {
+                id: newId('sc'),
+                textId: importTextId,
+                segmentId: segId,
+                layerId: indepLayerId,
+                modality: 'text',
+                text: ann.text,
+                sourceType: 'human',
+                createdAt: segNow,
+                updatedAt: segNow,
+              },
+            );
           }
           continue;
         }
@@ -912,6 +955,11 @@ export function useImportExport(input: UseImportExportInput) {
         kind: 'done',
         message: [
           importDoneMessage,
+          ...(skippedIndependentTierSegmentCount > 0
+            ? [tf(locale, 'transcription.importExport.importDone.independentSegmentsSkippedNoMedia', {
+              count: skippedIndependentTierSegmentCount,
+            })]
+            : []),
           ...(repairedResult.repairs.length > 0
             ? [tf(locale, 'transcription.importExport.importDone.constraintRepaired', {
               count: repairedResult.repairs.length,
@@ -948,7 +996,7 @@ export function useImportExport(input: UseImportExportInput) {
         }),
       });
     }
-  }, [activeTextId, getActiveTextId, selectedUtteranceMedia, loadSnapshot, locale, setSaveState, defaultTranscriptionLayerId, layers]);
+  }, [activeTextId, getActiveTextId, selectedUtteranceMedia, loadSnapshot, locale, setSaveState, defaultTranscriptionLayerId, layers, normalizeSpeakerLookupKey]);
 
   return {
     importFileRef,

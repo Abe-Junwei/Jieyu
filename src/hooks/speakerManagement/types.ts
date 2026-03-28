@@ -12,7 +12,12 @@ export interface SpeakerFilterOption {
   name: string;
   count: number;
   color?: string;
-  isEntity: boolean;
+}
+
+export interface SpeakerReferenceStats {
+  utteranceCount: number;
+  segmentCount: number;
+  totalCount: number;
 }
 
 export type SpeakerActionDialogState =

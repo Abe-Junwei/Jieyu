@@ -9,9 +9,36 @@ import {
   buildClonedSegmentGraphForSplit,
   deleteLayerSegmentGraphBySegmentIds,
 } from './LayerSegmentGraphService';
+import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import { LegacyMirrorService } from './LegacyMirrorService';
+import { enforceTimeSubdivisionParentBounds } from './LayerSegmentationTextService';
 import { newId } from '../utils/transcriptionFormatters';
+
+async function assertGenericSegmentCreateAllowed(db: Awaited<ReturnType<typeof getDb>>, segment: LayerSegmentDocType): Promise<void> {
+  const layerDoc = await db.collections.layers.findOne({ selector: { id: segment.layerId } }).exec();
+  const layer = layerDoc?.toJSON();
+  if (!layer) return;
+  if (layer.constraint === 'time_subdivision') {
+    throw new Error('time_subdivision segments must be created with parent constraint');
+  }
+}
+
+async function enforceParentBoundsForSegments(db: Awaited<ReturnType<typeof getDb>>, segmentIds: readonly string[]): Promise<void> {
+  const ids = [...new Set(segmentIds.map((id) => id.trim()).filter((id) => id.length > 0))];
+  if (ids.length === 0) return;
+  const parentIds = await LayerUnitRelationQueryService.listParentUnitIdsByChildUnitIds(
+    ids,
+    { relationType: 'derived_from' },
+    db,
+  );
+  if (parentIds.length === 0) return;
+  const parents = await db.dexie.utterances.bulkGet(parentIds);
+  for (const parent of parents) {
+    if (!parent) continue;
+    await enforceTimeSubdivisionParentBounds(db, parent.id, parent.startTime, parent.endTime);
+  }
+}
 
 /**
  * 分层切分 v2 服务：独立边界 + 内容 + 跨层链接 | Segmentation v2 service: independent boundaries + content + cross-layer links
@@ -19,6 +46,7 @@ import { newId } from '../utils/transcriptionFormatters';
 export class LayerSegmentationV2Service {
   static async createSegment(segment: LayerSegmentDocType): Promise<void> {
     const db = await getDb();
+    await assertGenericSegmentCreateAllowed(db, segment);
     await db.dexie.transaction('rw', db.dexie.layer_units, async () => {
       await LegacyMirrorService.insertSegments(db, [segment]);
     });
@@ -32,6 +60,7 @@ export class LayerSegmentationV2Service {
     content: LayerSegmentContentDocType,
   ): Promise<void> {
     const db = await getDb();
+    await assertGenericSegmentCreateAllowed(db, segment);
     await db.dexie.transaction('rw', db.dexie.layer_units, db.dexie.layer_unit_contents, async () => {
       await LegacyMirrorService.insertSegments(db, [segment]);
       await LegacyMirrorService.insertSegmentContents(db, [content]);
@@ -50,6 +79,7 @@ export class LayerSegmentationV2Service {
   ): Promise<LayerSegmentDocType> {
     const clipped: LayerSegmentDocType = {
       ...segment,
+      utteranceId: parentUtteranceId,
       startTime: Number(Math.max(segment.startTime, parentStart).toFixed(3)),
       endTime: Number(Math.min(segment.endTime, parentEnd).toFixed(3)),
     };
@@ -198,7 +228,14 @@ export class LayerSegmentationV2Service {
       },
     );
 
-    return { first, second };
+    await enforceParentBoundsForSegments(db, [first.id, second.id]);
+
+    const [firstNext, secondNext] = await LayerSegmentQueryService.listSegmentsByIds([first.id, second.id]);
+
+    return {
+      first: firstNext ?? first,
+      second: secondNext ?? second,
+    };
   }
 
   /**
@@ -253,6 +290,10 @@ export class LayerSegmentationV2Service {
       },
     );
 
-    return mergedKeep;
+    await enforceParentBoundsForSegments(db, [mergedKeep.id]);
+
+    const mergedNext = (await LayerSegmentQueryService.listSegmentsByIds([mergedKeep.id]))[0];
+
+    return mergedNext ?? mergedKeep;
   }
 }

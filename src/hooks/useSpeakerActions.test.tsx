@@ -13,6 +13,7 @@ vi.mock('../services/LinguisticService', () => ({
     mergeSpeakers: vi.fn(),
     deleteSpeaker: vi.fn(),
     assignSpeakerToUtterances: vi.fn(),
+    getSpeakerReferenceStats: vi.fn(async () => ({})),
   },
 }));
 
@@ -100,6 +101,7 @@ function renderSpeakerActions(options: Partial<UseSpeakerActionsOptions> = {}) {
 describe('useSpeakerActions dialog flows', () => {
   beforeEach(() => {
     vi.mocked(LinguisticService.getSpeakers).mockResolvedValue([]);
+    vi.mocked(LinguisticService.getSpeakerReferenceStats).mockResolvedValue({});
   });
 
   it('renames a speaker through dialog flow and updates local state', async () => {
@@ -138,6 +140,23 @@ describe('useSpeakerActions dialog flows', () => {
     expect(result.current.utterancesState[0]?.speaker).toBe('新名字');
     expect(result.current.speakerDialogState).toBeNull();
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
+  });
+
+  it('opens rename dialog for speaker entities even when current filter list is empty', () => {
+    const { result } = renderSpeakerActions({
+      speakers: [makeSpeaker({ id: 'speaker-1', name: '旧名字' })],
+      speakerFilterOptionsOverride: [],
+    });
+
+    act(() => {
+      result.current.handleRenameSpeaker('speaker-1');
+    });
+
+    expect(result.current.speakerDialogState).toEqual(expect.objectContaining({
+      mode: 'rename',
+      speakerKey: 'speaker-1',
+      draftName: '旧名字',
+    }));
   });
 
   it('merges a speaker through dialog flow and migrates utterances locally', async () => {
@@ -293,31 +312,122 @@ describe('useSpeakerActions dialog flows', () => {
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
   });
 
-  it('normalizes legacy speaker names into speaker entities when ready', async () => {
-    const createdSpeaker = makeSpeaker({ id: 'speaker-legacy', name: '历史说话人' });
+  it('opens delete dialog for orphan speaker entities not present in current filter list', () => {
+    const { result } = renderSpeakerActions({
+      speakers: [
+        makeSpeaker({ id: 'speaker-1', name: '来源说话人' }),
+        makeSpeaker({ id: 'speaker-2', name: '目标说话人' }),
+      ],
+      speakerFilterOptionsOverride: [],
+    });
+
+    act(() => {
+      result.current.handleDeleteSpeaker('speaker-1');
+    });
+
+    expect(result.current.speakerDialogState).toEqual(expect.objectContaining({
+      mode: 'delete',
+      sourceSpeakerKey: 'speaker-1',
+      replacementSpeakerKey: 'speaker-2',
+      affectedCount: 0,
+    }));
+  });
+
+  it('reuses existing speaker entity when create-only hits a duplicate name', async () => {
     const setSaveState = vi.fn();
-    vi.mocked(LinguisticService.createSpeaker).mockResolvedValue(createdSpeaker);
-    vi.mocked(LinguisticService.assignSpeakerToUtterances).mockResolvedValue(1);
-    vi.mocked(LinguisticService.getSpeakers).mockResolvedValue([]);
 
     const { result } = renderSpeakerActions({
-      utterances: [makeUtterance({ id: 'utt-legacy', speaker: '历史说话人' })],
-      speakers: [],
-      isReady: true,
+      speakers: [makeSpeaker({ id: 'speaker-1', name: 'Alice' })],
       setSaveState,
     });
 
-    await waitFor(() => {
-      expect(LinguisticService.createSpeaker).toHaveBeenCalledWith({ name: '历史说话人' });
+    act(() => {
+      result.current.setSpeakerDraftName(' alice ');
+    });
+
+    await act(async () => {
+      await result.current.handleCreateSpeakerOnly();
+    });
+
+    expect(LinguisticService.createSpeaker).not.toHaveBeenCalled();
+    expect(result.current.batchSpeakerId).toBe('speaker-1');
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'done',
+      message: '已复用现有说话人"Alice"',
+    }));
+  });
+
+  it('reuses existing speaker entity when create-and-assign hits a duplicate name', async () => {
+    const setSaveState = vi.fn();
+    vi.mocked(LinguisticService.assignSpeakerToUtterances).mockResolvedValue(1);
+
+    const { result } = renderSpeakerActions({
+      utterances: [makeUtterance({ id: 'utt-1' })],
+      speakers: [makeSpeaker({ id: 'speaker-1', name: 'Alice' })],
+      selectedUtteranceIds: new Set(['utt-1']),
+      setSaveState,
+      data: {
+        pushUndo: vi.fn(),
+        undo: vi.fn(async () => {}),
+      },
+    });
+
+    act(() => {
+      result.current.setSpeakerDraftName('Alice');
+    });
+
+    await act(async () => {
+      await result.current.handleCreateSpeakerAndAssign();
+    });
+
+    expect(LinguisticService.createSpeaker).not.toHaveBeenCalled();
+    expect(LinguisticService.assignSpeakerToUtterances).toHaveBeenCalledWith(['utt-1'], 'speaker-1');
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'done',
+      message: '已复用现有说话人"Alice"，并应用到 1 条句段',
+    }));
+  });
+
+  it('cleans unused speaker entities from local state', async () => {
+    const setSaveState = vi.fn();
+    const pushUndo = vi.fn();
+    vi.mocked(LinguisticService.getSpeakers).mockResolvedValueOnce([
+      makeSpeaker({ id: 'speaker-1', name: 'Orphan' }),
+      makeSpeaker({ id: 'speaker-2', name: 'Used' }),
+    ]);
+    vi.mocked(LinguisticService.getSpeakerReferenceStats).mockResolvedValueOnce({
+      'speaker-2': { utteranceCount: 1, segmentCount: 0, totalCount: 1 },
+    });
+    vi.mocked(LinguisticService.deleteSpeaker).mockResolvedValue(0);
+
+    const { result } = renderSpeakerActions({
+      speakers: [
+        makeSpeaker({ id: 'speaker-1', name: 'Orphan' }),
+        makeSpeaker({ id: 'speaker-2', name: 'Used' }),
+      ],
+      isReady: true,
+      setSaveState,
+      data: {
+        pushUndo,
+        undo: vi.fn(async () => {}),
+      },
     });
 
     await waitFor(() => {
-      expect(result.current.utterancesState[0]?.speakerId).toBe('speaker-legacy');
+      expect(result.current.speakerReferenceStatsReady).toBe(true);
     });
 
-    expect(result.current.speakersState[0]?.id).toBe('speaker-legacy');
-    expect(LinguisticService.assignSpeakerToUtterances).toHaveBeenCalledWith(['utt-legacy'], 'speaker-legacy');
-    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
+    await act(async () => {
+      await result.current.handleDeleteUnusedSpeakers();
+    });
+
+    expect(pushUndo).toHaveBeenCalledWith('清理未引用说话人实体');
+    expect(LinguisticService.deleteSpeaker).toHaveBeenCalledWith('speaker-1');
+    expect(result.current.speakersState.map((speaker) => speaker.id)).toEqual(['speaker-2']);
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'done',
+      message: '已清理 1 个未引用说话人实体',
+    }));
   });
 
   it('maps conflict-like assign error to conflict-aware message', async () => {

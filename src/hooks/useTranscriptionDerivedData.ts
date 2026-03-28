@@ -45,10 +45,12 @@ export function useTranscriptionDerivedData({
     [layers, sortLayersByOrder],
   );
 
-  const layerRailRows = useMemo(
+  const orderedLayers = useMemo(
     () => [...layers].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
     [layers],
   );
+
+  const layerRailRows = orderedLayers;
 
   const deletableLayers = layers;
 
@@ -170,6 +172,7 @@ export function useTranscriptionDerivedData({
   }, [effectiveSelectedUtteranceId, utterancesOnCurrentMedia]);
 
   return {
+    orderedLayers,
     translationLayers,
     transcriptionLayers,
     layerRailRows,

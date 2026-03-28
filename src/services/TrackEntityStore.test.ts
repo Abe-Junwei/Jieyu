@@ -72,4 +72,13 @@ describe('TrackEntityStore', () => {
     expect(stateB?.mode).toBe('multi-auto');
     expect(stateB?.laneLockMap).toEqual({ s2: 0 });
   });
+
+  it('keeps the fixed-speaker multi-track mode through sanitize and storage', () => {
+    const stateMap = upsertTrackEntityState({}, 'm-fixed', {
+      mode: 'multi-speaker-fixed',
+      laneLockMap: { s1: 0, s2: 1 },
+    });
+
+    expect(getTrackEntityState(stateMap, 'm-fixed')?.mode).toBe('multi-speaker-fixed');
+  });
 });

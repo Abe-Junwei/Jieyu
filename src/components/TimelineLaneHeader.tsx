@@ -2,9 +2,8 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import type { LayerLinkDocType, LayerDocType } from '../db';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { fireAndForget } from '../utils/fireAndForget';
-import { buildLayerLinkConnectorLayout, getLayerLinkStackWidth } from '../utils/layerLinkConnector';
+import { buildLayerLinkConnectorLayout, getLayerLinkConnectorColors, getLayerLinkStackWidth } from '../utils/layerLinkConnector';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
-import { getTranslationCreateGuard } from '../services/LayerConstraintService';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -12,7 +11,6 @@ interface TimelineLaneHeaderProps {
   layer: LayerDocType;
   layerIndex: number;
   allLayers: LayerDocType[];
-  transcriptionLayersCount: number;
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
   deletableLayers: LayerDocType[];
   onFocusLayer: (layerId: string) => void;
@@ -29,7 +27,7 @@ interface TimelineLaneHeaderProps {
     speakerOptions: Array<{ id: string; name: string }>;
     onAssignToSelection: (speakerId: string) => void;
     onClearSelection: () => void;
-    onCreateAndAssignToSelection: (name: string) => void;
+    onOpenCreateAndAssignPanel: () => void;
   };
   trackModeControl?: {
     mode: TranscriptionTrackDisplayMode;
@@ -44,11 +42,15 @@ interface TimelineLaneHeaderProps {
   };
 }
 
+interface LaneLockDialogState {
+  initialLaneIndex: number;
+  selectedSpeakerHint: string;
+}
+
 export function TimelineLaneHeader({
   layer,
   layerIndex,
   allLayers,
-  transcriptionLayersCount,
   onReorderLayers,
   deletableLayers,
   onFocusLayer,
@@ -71,12 +73,15 @@ export function TimelineLaneHeader({
     () => buildLayerLinkConnectorLayout(allLayers, connectorLayerLinks),
     [allLayers, connectorLayerLinks],
   );
-  const translationCreateGuard = getTranslationCreateGuard(allLayers, {});
+  const canOpenTranslationCreate = allLayers.some((item) => item.layerType === 'transcription');
   const rowSegments = connectorLayout.segmentsByLayerId[layer.id] ?? [];
   const hasResolvableConnectorData = connectorLayout.maxColumns > 0;
 
   // ── Context menu state ──
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [laneLockDialog, setLaneLockDialog] = useState<LaneLockDialogState | null>(null);
+  const [laneLockValue, setLaneLockValue] = useState('1');
+  const [laneLockError, setLaneLockError] = useState('');
 
   // ── Drag-and-drop state ──
   const [dragState, setDragState] = useState<{
@@ -157,6 +162,29 @@ export function TimelineLaneHeader({
     lane.style.removeProperty('--timeline-lane-drag-offset');
   }, []);
 
+  const closeLaneLockDialog = useCallback(() => {
+    setLaneLockDialog(null);
+    setLaneLockValue('1');
+    setLaneLockError('');
+  }, []);
+
+  const openLaneLockDialog = useCallback((selectedSpeakerHint: string, initialLaneIndex: number) => {
+    setLaneLockDialog({ selectedSpeakerHint, initialLaneIndex });
+    setLaneLockValue(String(initialLaneIndex + 1));
+    setLaneLockError('');
+  }, []);
+
+  const confirmLaneLockDialog = useCallback(() => {
+    if (!trackModeControl?.onLockSelectedToLane) return;
+    const laneIndex = Number.parseInt(laneLockValue.trim(), 10);
+    if (!Number.isFinite(laneIndex) || laneIndex < 1) {
+      setLaneLockError('请输入大于等于 1 的轨道序号');
+      return;
+    }
+    trackModeControl.onLockSelectedToLane(laneIndex - 1);
+    closeLaneLockDialog();
+  }, [closeLaneLockDialog, laneLockValue, trackModeControl]);
+
   const startLaneDragVisualAnimation = useCallback(() => {
     if (dragVisualRafRef.current !== null) return;
 
@@ -196,7 +224,7 @@ export function TimelineLaneHeader({
     startLaneDragVisualAnimation();
   }, [startLaneDragVisualAnimation]);
 
-  const resolveDropTargetIndex = useCallback((clientY: number, sourceType: 'transcription' | 'translation'): number | null => {
+  const resolveDropTargetIndex = useCallback((clientY: number): number | null => {
     const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
     if (!container) return null;
 
@@ -214,15 +242,10 @@ export function TimelineLaneHeader({
       targetIndex = i + 1;
     }
 
-    if (sourceType === 'transcription') {
-      targetIndex = Math.min(targetIndex, transcriptionLayersCount);
-    } else {
-      targetIndex = Math.max(transcriptionLayersCount, targetIndex);
-      if (targetIndex > allLayers.length) targetIndex = allLayers.length;
-    }
+    if (targetIndex > allLayers.length) targetIndex = allLayers.length;
 
     return targetIndex;
-  }, [allLayers.length, transcriptionLayersCount]);
+  }, [allLayers.length]);
 
   // Long press (500ms) to start drag
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -284,16 +307,13 @@ export function TimelineLaneHeader({
     }
 
     const resolvedTarget = typeof clientY === 'number'
-      ? resolveDropTargetIndex(clientY, activeDrag.sourceType)
+      ? resolveDropTargetIndex(clientY)
       : null;
     const finalTarget = resolvedTarget ?? dropTargetIndexRef.current;
 
     if (finalTarget !== null) {
-      const reorderTargetIndex = activeDrag.sourceType === 'translation'
-        ? Math.max(0, finalTarget - transcriptionLayersCount)
-        : finalTarget;
-      if (reorderTargetIndex !== activeDrag.sourceIndex) {
-        fireAndForget(onReorderLayers(activeDrag.draggedId, reorderTargetIndex));
+      if (finalTarget !== activeDrag.sourceIndex) {
+        fireAndForget(onReorderLayers(activeDrag.draggedId, finalTarget));
       }
     }
 
@@ -310,7 +330,7 @@ export function TimelineLaneHeader({
 
     const handleDocumentMouseMove = (e: MouseEvent) => {
       updateLaneDragVisual(e.clientY);
-      const next = resolveDropTargetIndex(e.clientY, dragState.sourceType);
+      const next = resolveDropTargetIndex(e.clientY);
       if (next !== null) {
         setDropTargetIndex(next);
         updateSiblingShiftVisual(dragState.sourceIndex, next);
@@ -371,7 +391,7 @@ export function TimelineLaneHeader({
     },
     {
       label: '新建翻译层',
-      disabled: !translationCreateGuard.allowed,
+      disabled: !canOpenTranslationCreate,
       onClick: () => {
         setContextMenu(null);
         onLayerAction('create-translation', layer.id);
@@ -389,7 +409,7 @@ export function TimelineLaneHeader({
   ];
 
   if (speakerQuickActions) {
-    const { selectedCount, speakerOptions, onAssignToSelection, onClearSelection, onCreateAndAssignToSelection } = speakerQuickActions;
+    const { selectedCount, speakerOptions, onAssignToSelection, onClearSelection, onOpenCreateAndAssignPanel } = speakerQuickActions;
     const topSpeakers = speakerOptions.slice(0, 3);
     contextMenuItems.push({
       label: selectedCount > 0 ? `清空 ${selectedCount} 个选中句段的说话人` : '清空选中句段说话人',
@@ -413,9 +433,7 @@ export function TimelineLaneHeader({
       label: selectedCount > 0 ? '新建说话人并指派到选中句段…' : '新建说话人并指派…',
       disabled: selectedCount === 0,
       onClick: () => {
-        const name = window.prompt('请输入新说话人名称');
-        if (!name || name.trim().length === 0) return;
-        onCreateAndAssignToSelection(name.trim());
+        onOpenCreateAndAssignPanel();
       },
     });
   }
@@ -426,6 +444,7 @@ export function TimelineLaneHeader({
       ? selectedSpeakerNames.join('、')
       : '当前未选中带说话人的句段';
     const lockConflictCount = trackModeControl.lockConflictCount ?? 0;
+    const hasExistingLaneLocks = (trackModeControl.lockedSpeakerCount ?? 0) > 0;
 
     contextMenuItems.push({
       label: trackModeControl.mode === 'single' ? '切换为多轨模式（自动）' : '切换为单轨模式',
@@ -443,29 +462,33 @@ export function TimelineLaneHeader({
         },
       });
       contextMenuItems.push({
-        label: '切换为多轨模式（锁定）',
-        disabled: trackModeControl.mode === 'multi-locked',
+        label: hasExistingLaneLocks ? '切换为多轨模式（锁定）' : '切换为多轨模式（锁定，需先锁定说话人）',
+        disabled: trackModeControl.mode === 'multi-locked' || !hasExistingLaneLocks,
         onClick: () => {
           trackModeControl.onSetMode?.('multi-locked');
         },
       });
-    }
-
-    if (trackModeControl.onLockSelectedToLane) {
       contextMenuItems.push({
-        label: `锁定选中说话人到轨道…（${selectedSpeakerHint}）`,
-        disabled: selectedSpeakerNames.length === 0,
+        label: '切换为多轨模式（一人一轨）',
+        disabled: trackModeControl.mode === 'multi-speaker-fixed',
         onClick: () => {
-          const laneText = window.prompt('请输入目标轨道序号（从 1 开始）');
-          if (!laneText) return;
-          const laneIndex = Number.parseInt(laneText, 10);
-          if (!Number.isFinite(laneIndex) || laneIndex < 1) return;
-          trackModeControl.onLockSelectedToLane?.(laneIndex - 1);
+          trackModeControl.onSetMode?.('multi-speaker-fixed');
         },
       });
     }
 
-    if (trackModeControl.onUnlockSelected) {
+    if (trackModeControl.mode !== 'multi-speaker-fixed' && trackModeControl.onLockSelectedToLane) {
+      contextMenuItems.push({
+        label: `锁定选中说话人到轨道…（${selectedSpeakerHint}）`,
+        disabled: selectedSpeakerNames.length === 0,
+        onClick: () => {
+          setContextMenu(null);
+          openLaneLockDialog(selectedSpeakerHint, 0);
+        },
+      });
+    }
+
+    if (trackModeControl.mode !== 'multi-speaker-fixed' && trackModeControl.onUnlockSelected) {
       contextMenuItems.push({
         label: `解锁选中说话人（当前已锁 ${trackModeControl.lockedSpeakerCount ?? 0}）`,
         disabled: selectedSpeakerNames.length === 0,
@@ -477,7 +500,7 @@ export function TimelineLaneHeader({
 
     if (trackModeControl.onResetAuto) {
       contextMenuItems.push({
-        label: '恢复自动分轨并清空锁定',
+        label: trackModeControl.mode === 'multi-speaker-fixed' ? '恢复自动分轨并清空轨道映射' : '恢复自动分轨并清空锁定',
         onClick: () => {
           trackModeControl.onResetAuto?.();
         },
@@ -486,7 +509,9 @@ export function TimelineLaneHeader({
 
     if (lockConflictCount > 0) {
       contextMenuItems.push({
-        label: `锁定冲突 ${lockConflictCount} 项（已回退自动分配）`,
+        label: trackModeControl.mode === 'multi-speaker-fixed'
+          ? `一人一轨冲突 ${lockConflictCount} 项（请修正切分或说话人标注）`
+          : `锁定冲突 ${lockConflictCount} 项（已回退自动分配）`,
         disabled: true,
       });
     }
@@ -545,8 +570,11 @@ export function TimelineLaneHeader({
           return (
             <span className="lane-link-stack" aria-hidden="true" style={{ width: connectorStackWidth }}>
               {rowSegments.map((segment) => (
+                (() => {
+                  const colors = getLayerLinkConnectorColors(segment.colorIndex);
+                  return (
                 <span
-                  key={`${segment.column}-${segment.role}`}
+                  key={`${segment.column}-${segment.role}-${segment.colorIndex}`}
                   className={[
                     'lane-link-connector',
                     segment.role === 'bus-start' ? 'lane-link-connector--bus-start' : '',
@@ -556,8 +584,14 @@ export function TimelineLaneHeader({
                     segment.role === 'tap-parent' ? 'lane-link-connector--tap' : '',
                     segment.role === 'tap-child' ? 'lane-link-connector--tap lane-link-connector--tap-child' : '',
                   ].filter(Boolean).join(' ')}
-                  style={{ '--lane-link-column': segment.column } as React.CSSProperties}
+                  style={{
+                    '--lane-link-column': segment.column,
+                    '--lane-link-color': colors.base,
+                    '--lane-link-color-active': colors.active,
+                  } as React.CSSProperties}
                 />
+                  );
+                })()
               ))}
             </span>
           );
@@ -583,6 +617,75 @@ export function TimelineLaneHeader({
           items={contextMenuItems}
           onClose={() => setContextMenu(null)}
         />
+      )}
+
+      {laneLockDialog && (
+        <div
+          className="layer-action-popover-backdrop"
+          onClick={closeLaneLockDialog}
+          onMouseDown={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+          role="presentation"
+        >
+          <div
+            className="transcription-layer-rail-action-popover transcription-layer-rail-action-popover-centered floating-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="锁定说话人到轨道"
+            onClick={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+            style={{ width: 360, maxWidth: 'calc(100vw - 32px)', height: 'auto' }}
+          >
+            <div className="transcription-layer-rail-action-popover-title floating-panel-title-row">
+              <span>锁定说话人到轨道</span>
+              <button
+                type="button"
+                className="floating-panel-reset-btn"
+                onClick={closeLaneLockDialog}
+                aria-label="关闭锁定轨道面板"
+                title="关闭"
+              >
+                ×
+              </button>
+            </div>
+            <div className="transcription-layer-rail-action-popover-body">
+              <div className="speaker-rail-batch-panel">
+                <p className="speaker-rail-summary">选中说话人：{laneLockDialog.selectedSpeakerHint}</p>
+                <label className="speaker-rail-form-field">
+                  <span>目标轨道序号</span>
+                  <input
+                    autoFocus
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={laneLockValue}
+                    onChange={(event) => {
+                      setLaneLockValue(event.target.value);
+                      if (laneLockError) setLaneLockError('');
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        confirmLaneLockDialog();
+                      }
+                      if (event.key === 'Escape') {
+                        event.preventDefault();
+                        closeLaneLockDialog();
+                      }
+                    }}
+                  />
+                </label>
+                <p className="speaker-rail-form-hint">输入从 1 开始的轨道编号，确认后会同时进入多轨锁定模式。</p>
+                {laneLockError && <p className="speaker-rail-form-error">{laneLockError}</p>}
+                <div className="speaker-rail-actions">
+                  <button type="button" className="btn btn-sm" onClick={closeLaneLockDialog}>取消</button>
+                  <button type="button" className="btn btn-sm btn-primary" onClick={confirmLaneLockDialog}>确认锁定</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

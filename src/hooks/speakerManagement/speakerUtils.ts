@@ -9,6 +9,11 @@ const SPEAKER_TRACK_COLORS = [
   '#2563eb', '#0f766e', '#c2410c', '#7c3aed', '#be123c', '#15803d', '#b45309', '#0891b2',
 ] as const;
 
+type SpeakerKeyAssignment = {
+  unitId: string;
+  speakerKey: string;
+};
+
 function hashSpeakerKey(value: string): number {
   let hash = 0;
   for (let index = 0; index < value.length; index += 1) {
@@ -26,8 +31,7 @@ export function getUtteranceSpeakerKey(
 ): string {
   const speakerId = utterance.speakerId?.trim();
   if (speakerId) return speakerId;
-  const speakerName = normalizeSpeakerName(utterance.speaker);
-  return speakerName ? `name:${speakerName}` : '';
+  return '';
 }
 
 export function sortSpeakersByName(speakers: SpeakerDocType[]): SpeakerDocType[] {
@@ -44,6 +48,15 @@ export function upsertSpeaker(speakers: SpeakerDocType[], nextSpeaker: SpeakerDo
   return sortSpeakersByName(next);
 }
 
+export function getSpeakerDisplayNameByKey(
+  speakerKey: string,
+  speakerById: Map<string, SpeakerDocType>,
+): string {
+  const normalizedKey = speakerKey.trim();
+  if (!normalizedKey || normalizedKey === 'unknown-speaker') return '未命名说话人';
+  return speakerById.get(normalizedKey)?.name ?? normalizedKey;
+}
+
 export function getSpeakerDisplayName(
   utterance: Pick<UtteranceDocType, 'speakerId' | 'speaker'>,
   speakerById: Map<string, SpeakerDocType>,
@@ -55,34 +68,34 @@ export function getSpeakerDisplayName(
   return normalizeSpeakerName(utterance.speaker) || '未命名说话人';
 }
 
-export function buildSpeakerVisualMap(
-  utterances: UtteranceDocType[],
+export function buildSpeakerVisualMapFromKeys(
+  assignments: SpeakerKeyAssignment[],
   speakerOptions: SpeakerDocType[],
 ): Record<string, SpeakerVisual> {
   const speakerById = new Map(speakerOptions.map((speaker) => [speaker.id, speaker] as const));
   const nextMap: Record<string, SpeakerVisual> = {};
-  for (const utterance of utterances) {
-    const speakerKey = getUtteranceSpeakerKey(utterance);
-    if (!speakerKey) continue;
+  for (const assignment of assignments) {
+    const speakerKey = assignment.speakerKey.trim();
+    if (!speakerKey || speakerKey === 'unknown-speaker') continue;
     const color = SPEAKER_TRACK_COLORS[hashSpeakerKey(speakerKey) % SPEAKER_TRACK_COLORS.length]
       ?? SPEAKER_TRACK_COLORS[0];
-    nextMap[utterance.id] = {
-      name: getSpeakerDisplayName(utterance, speakerById),
+    nextMap[assignment.unitId] = {
+      name: getSpeakerDisplayNameByKey(speakerKey, speakerById),
       color,
     };
   }
   return nextMap;
 }
 
-export function buildSpeakerFilterOptions(
-  utterances: UtteranceDocType[],
-  speakerVisualByUtteranceId: Record<string, SpeakerVisual>,
+export function buildSpeakerFilterOptionsFromKeys(
+  assignments: SpeakerKeyAssignment[],
+  speakerVisualByUnitId: Record<string, SpeakerVisual>,
 ): SpeakerFilterOption[] {
   const counter = new Map<string, SpeakerFilterOption>();
-  for (const utterance of utterances) {
-    const key = getUtteranceSpeakerKey(utterance);
-    if (!key) continue;
-    const speakerVisual = speakerVisualByUtteranceId[utterance.id];
+  for (const assignment of assignments) {
+    const key = assignment.speakerKey.trim();
+    if (!key || key === 'unknown-speaker') continue;
+    const speakerVisual = speakerVisualByUnitId[assignment.unitId];
     const existing = counter.get(key);
     if (existing) {
       existing.count += 1;
@@ -92,12 +105,37 @@ export function buildSpeakerFilterOptions(
       key,
       name: speakerVisual?.name ?? '未标注说话人',
       count: 1,
-      isEntity: !key.startsWith('name:'),
       ...(speakerVisual?.color ? { color: speakerVisual.color } : {}),
     });
   }
   return Array.from(counter.values()).sort(
     (left, right) => right.count - left.count || left.name.localeCompare(right.name, 'zh-Hans-CN'),
+  );
+}
+
+export function buildSpeakerVisualMap(
+  utterances: UtteranceDocType[],
+  speakerOptions: SpeakerDocType[],
+): Record<string, SpeakerVisual> {
+  return buildSpeakerVisualMapFromKeys(
+    utterances.map((utterance) => ({
+      unitId: utterance.id,
+      speakerKey: getUtteranceSpeakerKey(utterance),
+    })),
+    speakerOptions,
+  );
+}
+
+export function buildSpeakerFilterOptions(
+  utterances: UtteranceDocType[],
+  speakerVisualByUtteranceId: Record<string, SpeakerVisual>,
+): SpeakerFilterOption[] {
+  return buildSpeakerFilterOptionsFromKeys(
+    utterances.map((utterance) => ({
+      unitId: utterance.id,
+      speakerKey: getUtteranceSpeakerKey(utterance),
+    })),
+    speakerVisualByUtteranceId,
   );
 }
 

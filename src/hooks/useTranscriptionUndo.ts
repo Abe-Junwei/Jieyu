@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import type { LayerLinkDocType, SpeakerDocType, LayerDocType, UtteranceDocType, UtteranceTextDocType, LayerSegmentDocType, LayerSegmentContentDocType, SegmentLinkDocType } from '../db';
 import { CommandHistory, type ReversibleCommand } from '../services/CommandService';
 import type { SaveState } from './transcriptionTypes';
@@ -303,10 +303,10 @@ export function useTranscriptionUndo({
     }
     }, [layerLinksRef, layersRef, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, syncToDb, translationsRef, utterancesRef]);
 
-  const canUndo = undoStackRef.current.length > 0;
-  const canRedo = redoStackRef.current.length > 0;
-  const undoLabel = undoStackRef.current[undoStackRef.current.length - 1]?.label ?? '';
-  const undoHistory = undoStackRef.current.slice(-15).map((item) => item.label).reverse();
+  const canUndo = useMemo(() => undoStackRef.current.length > 0, [_undoRedoVersion]);
+  const canRedo = useMemo(() => redoStackRef.current.length > 0, [_undoRedoVersion]);
+  const undoLabel = useMemo(() => undoStackRef.current[undoStackRef.current.length - 1]?.label ?? '', [_undoRedoVersion]);
+  const undoHistory = useMemo(() => undoStackRef.current.slice(-15).map((item) => item.label).reverse(), [_undoRedoVersion]);
 
   return {
     segmentUndoRef,

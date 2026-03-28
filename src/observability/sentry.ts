@@ -18,6 +18,9 @@ export interface ResolvedSentryBootstrapConfig {
   sendDefaultPii: boolean;
 }
 
+type SentryInitOptions = Parameters<typeof import('@sentry/react').init>[0];
+type SentryBeforeSend = NonNullable<SentryInitOptions['beforeSend']>;
+
 function normalizeSampleRate(rawValue: string | undefined): number {
   const parsed = Number(rawValue ?? '0');
   if (!Number.isFinite(parsed)) return 0;
@@ -48,6 +51,12 @@ export async function initSentryForReleaseStage(): Promise<void> {
   }
 
   const Sentry = await import('@sentry/react');
+  const beforeSend: SentryBeforeSend = (event) => {
+    if ('user' in event) {
+      delete event.user;
+    }
+    return event;
+  };
 
   Sentry.init({
     dsn: config.dsn,
@@ -57,15 +66,6 @@ export async function initSentryForReleaseStage(): Promise<void> {
     tracesSampleRate: config.tracesSampleRate,
     ...(config.release ? { release: config.release } : {}),
     sendDefaultPii: config.sendDefaultPii,
-    ...(config.sendDefaultPii
-      ? {}
-      : {
-          beforeSend: (event: Parameters<NonNullable<typeof Sentry.init extends (options: infer T) => unknown ? T['beforeSend'] : never>>[0]) => {
-            if ('user' in event) {
-              delete event.user;
-            }
-            return event;
-          },
-        }),
+    ...(config.sendDefaultPii ? {} : { beforeSend }),
   });
 }

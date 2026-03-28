@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getDb } from '../db';
 import { listRecentAiToolDecisionLogs } from '../ai/auditReplay';
 import { buildEmbeddingFallbackWarning, readFallbackReason } from '../ai/embeddings/fallbackWarning';
+import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 
 type TaskRunnerLike = {
   cancel: (taskId: string) => boolean;
@@ -49,13 +50,10 @@ type EmbeddingServiceLike = {
   }>;
 };
 
-type EmbeddingSearchServiceLike = {
-  terminate: () => void;
-  searchSimilarUtterances: (
-    queryText: string,
-    options: { topK: number; candidateSourceIds: string[] },
-  ) => Promise<{ matches: Array<{ sourceId: string; score: number }> }>;
-};
+type EmbeddingSearchServiceLike = Pick<
+  EmbeddingSearchService,
+  'terminate' | 'searchSimilarUtterances' | 'searchMultiSource' | 'searchMultiSourceHybrid'
+>;
 
 type UtteranceLike = {
   id: string;

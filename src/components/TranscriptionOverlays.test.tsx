@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import type { LayerDocType, UtteranceDocType } from '../db';
 import { TranscriptionOverlays } from './TranscriptionOverlays';
@@ -71,9 +71,13 @@ function makeBaseProps(): ComponentProps<typeof TranscriptionOverlays> {
     speakerOptions: [],
     speakerFilterOptions: [],
     onAssignSpeakerFromMenu: vi.fn(),
-    onCreateSpeakerAndAssignFromMenu: vi.fn(),
+    onOpenSpeakerManagementPanelFromMenu: vi.fn(),
   };
 }
+
+afterEach(() => {
+  cleanup();
+});
 
 describe('TranscriptionOverlays independent selection routing', () => {
   it('opens utt ops menu with selectedTimelineUnit and deletes the segment target', async () => {
@@ -96,6 +100,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
       y: 120,
       utteranceId: 'seg_1',
       layerId: 'layer_independent',
+      unitKind: 'segment',
       splitTime: 0.5,
     };
     props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
@@ -104,5 +109,131 @@ describe('TranscriptionOverlays independent selection routing', () => {
 
     expect(screen.queryByText('选中此句段及之前所有')).toBeNull();
     expect(screen.queryByText('选中此句段及之后所有')).toBeNull();
+  });
+
+  it('routes speaker assignment menu actions with segment kind for independent layer context', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      utteranceId: 'seg_1',
+      layerId: 'layer_independent',
+      unitKind: 'segment',
+      splitTime: 0.5,
+    };
+    props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
+    props.speakerOptions = [{ id: 'spk_1', name: 'Alice' }];
+
+    render(<TranscriptionOverlays {...props} />);
+
+    const speakerManageItems = await screen.findAllByRole('menuitem', { name: /说话人管理/ });
+    fireEvent.mouseEnter(speakerManageItems[speakerManageItems.length - 1]!);
+
+    const assignSpeakerItems = await screen.findAllByRole('menuitem', { name: /指派说话人 → Alice/ });
+    fireEvent.click(assignSpeakerItems[assignSpeakerItems.length - 1]!);
+
+    expect(props.onAssignSpeakerFromMenu).toHaveBeenCalledWith(['seg_1'], 'segment', 'spk_1');
+  });
+
+  it('keeps batch speaker assignment targets when context menu opens on a selected item', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      utteranceId: 'seg_2',
+      layerId: 'layer_independent',
+      unitKind: 'segment',
+      splitTime: 0.5,
+    };
+    props.selectedTimelineUnit = { layerId: 'layer_independent', unitId: 'seg_1', kind: 'segment' };
+    props.selectedUtteranceIds = new Set(['seg_1', 'seg_2']);
+    props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
+    props.speakerOptions = [{ id: 'spk_1', name: 'Alice' }];
+
+    render(<TranscriptionOverlays {...props} />);
+
+    const speakerManageItems = await screen.findAllByRole('menuitem', { name: /说话人管理/ });
+    fireEvent.mouseEnter(speakerManageItems[speakerManageItems.length - 1]!);
+
+    const assignSpeakerItems = await screen.findAllByRole('menuitem', { name: /指派说话人 → Alice/ });
+    fireEvent.click(assignSpeakerItems[assignSpeakerItems.length - 1]!);
+
+    expect(props.onAssignSpeakerFromMenu).toHaveBeenCalledWith(['seg_1', 'seg_2'], 'segment', 'spk_1');
+  });
+
+  it('keeps batch clear-speaker targets when context menu opens on a selected item', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      utteranceId: 'seg_2',
+      layerId: 'layer_independent',
+      unitKind: 'segment',
+      splitTime: 0.5,
+    };
+    props.selectedTimelineUnit = { layerId: 'layer_independent', unitId: 'seg_1', kind: 'segment' };
+    props.selectedUtteranceIds = new Set(['seg_1', 'seg_2']);
+    props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
+    props.speakerOptions = [{ id: 'spk_1', name: 'Alice' }];
+
+    render(<TranscriptionOverlays {...props} />);
+
+    const speakerManageItems = await screen.findAllByRole('menuitem', { name: /说话人管理/ });
+    fireEvent.mouseEnter(speakerManageItems[speakerManageItems.length - 1]!);
+
+    const clearItems = await screen.findAllByRole('menuitem', { name: '清空说话人' });
+    fireEvent.click(clearItems[clearItems.length - 1]!);
+
+    expect(props.onAssignSpeakerFromMenu).toHaveBeenCalledWith(['seg_1', 'seg_2'], 'segment', undefined);
+  });
+
+  it('uses the current context-menu unit kind for batch speaker actions', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      utteranceId: 'seg_2',
+      layerId: 'layer_independent',
+      unitKind: 'segment',
+      splitTime: 0.5,
+    };
+    props.selectedTimelineUnit = { layerId: 'layer_default', unitId: 'utt_1', kind: 'utterance' };
+    props.selectedUtteranceIds = new Set(['seg_1', 'seg_2']);
+    props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
+    props.speakerOptions = [{ id: 'spk_1', name: 'Alice' }];
+
+    render(<TranscriptionOverlays {...props} />);
+
+    const speakerManageItems = await screen.findAllByRole('menuitem', { name: /说话人管理/ });
+    fireEvent.mouseEnter(speakerManageItems[speakerManageItems.length - 1]!);
+
+    const clearItems = await screen.findAllByRole('menuitem', { name: '清空说话人' });
+    fireEvent.click(clearItems[clearItems.length - 1]!);
+
+    expect(props.onAssignSpeakerFromMenu).toHaveBeenCalledWith(['seg_1', 'seg_2'], 'segment', undefined);
+  });
+
+  it('opens speaker management panel instead of prompting for a speaker name', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      utteranceId: 'seg_1',
+      layerId: 'layer_independent',
+      unitKind: 'segment',
+      splitTime: 0.5,
+    };
+    props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
+    props.speakerOptions = [{ id: 'spk_1', name: 'Alice' }];
+
+    render(<TranscriptionOverlays {...props} />);
+
+    const speakerManageItems = await screen.findAllByRole('menuitem', { name: /说话人管理/ });
+    fireEvent.mouseEnter(speakerManageItems[speakerManageItems.length - 1]!);
+
+    const createItems = await screen.findAllByRole('menuitem', { name: '新建说话人并指派…' });
+    fireEvent.click(createItems[createItems.length - 1]!);
+
+    expect(props.onOpenSpeakerManagementPanelFromMenu).toHaveBeenCalledTimes(1);
   });
 });

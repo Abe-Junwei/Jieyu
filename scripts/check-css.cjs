@@ -1,45 +1,98 @@
 const fs = require('fs');
-const css = fs.readFileSync('src/styles.css', 'utf8');
-let depth = 0, lineNum = 0;
-const lines = css.split('\n');
-for (const line of lines) {
-  lineNum++;
-  for (const ch of line) {
-    if (ch === '{') depth++;
-    else if (ch === '}') depth--;
-  }
-}
-console.log('Final brace depth:', depth, '(should be 0)');
+const path = require('path');
 
-// Find imbalance region by scanning in chunks
-let d2 = 0;
-lineNum = 0;
-for (const line of lines) {
-  lineNum++;
-  for (const ch of line) {
-    if (ch === '{') d2++;
-    else if (ch === '}') d2--;
+const stylesDir = path.join(process.cwd(), 'src', 'styles');
+
+function listCssFiles(dirPath) {
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const nextPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listCssFiles(nextPath));
+      continue;
+    }
+    if (entry.isFile() && nextPath.endsWith('.css')) {
+      files.push(nextPath);
+    }
   }
-  if (d2 < 0) {
-    console.log('Depth went negative at line:', lineNum, '->', line.trim());
-    d2 = 0;
-  }
+  return files.sort();
 }
 
-// Show where unclosed blocks are (depth keeps rising)
-d2 = 0;
-let maxDepth = 0, maxLine = 0;
-const highDepthLines = [];
-lineNum = 0;
-for (const line of lines) {
-  lineNum++;
-  for (const ch of line) {
-    if (ch === '{') d2++;
-    else if (ch === '}') d2--;
+function analyzeCssFile(filePath) {
+  const css = fs.readFileSync(filePath, 'utf8');
+  const lines = css.split('\n');
+  let depth = 0;
+  let maxDepth = 0;
+  let maxLine = 0;
+  const negatives = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    for (const ch of line) {
+      if (ch === '{') depth += 1;
+      else if (ch === '}') depth -= 1;
+    }
+    if (depth < 0) {
+      negatives.push({
+        lineNum: index + 1,
+        line: line.trim(),
+      });
+      depth = 0;
+    }
+    if (depth > maxDepth) {
+      maxDepth = depth;
+      maxLine = index + 1;
+    }
   }
-  if (d2 > maxDepth) { maxDepth = d2; maxLine = lineNum; }
-  if (d2 > 2) highDepthLines.push({ lineNum, depth: d2, line: line.trim().substring(0, 80) });
+
+  return {
+    filePath,
+    finalDepth: depth,
+    maxDepth,
+    maxLine,
+    negatives,
+  };
 }
-console.log('Max depth:', maxDepth, 'at line:', maxLine);
-// Show first 20 high-depth lines
-highDepthLines.slice(0, 20).forEach(x => console.log(`  L${x.lineNum} depth=${x.depth}: ${x.line}`));
+
+function main() {
+  if (!fs.existsSync(stylesDir)) {
+    console.error(`[check-css] styles directory not found: ${stylesDir}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const cssFiles = listCssFiles(stylesDir);
+  if (cssFiles.length === 0) {
+    console.log('[check-css] No CSS files found under src/styles');
+    return;
+  }
+
+  const failures = [];
+  console.log(`[check-css] Checking ${cssFiles.length} CSS files under src/styles`);
+
+  for (const filePath of cssFiles) {
+    const result = analyzeCssFile(filePath);
+    const relativePath = path.relative(process.cwd(), result.filePath);
+    if (result.finalDepth === 0 && result.negatives.length === 0) {
+      console.log(`[OK] ${relativePath} (maxDepth=${result.maxDepth} @ L${result.maxLine || 1})`);
+      continue;
+    }
+
+    failures.push(result);
+    console.error(`[FAIL] ${relativePath} (finalDepth=${result.finalDepth}, maxDepth=${result.maxDepth} @ L${result.maxLine || 1})`);
+    for (const negative of result.negatives.slice(0, 5)) {
+      console.error(`  negative depth at L${negative.lineNum}: ${negative.line}`);
+    }
+  }
+
+  if (failures.length > 0) {
+    console.error(`[check-css] ${failures.length} file(s) failed brace balance check`);
+    process.exitCode = 1;
+    return;
+  }
+
+  console.log('[check-css] All CSS files passed brace balance check');
+}
+
+main();

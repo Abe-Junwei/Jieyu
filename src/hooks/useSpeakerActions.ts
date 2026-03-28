@@ -2,23 +2,26 @@
  * useSpeakerActions | 说话人管理 Hook
  *
  * 收口说话人相关状态、派生数据与操作回调，
- * 并将旧的自由文本 speaker 标签逐步规范为 speakerId 驱动。
+ * 统一使用实体 speakerId 驱动。
  *
  * Consolidates speaker-related state, derived data, and action callbacks,
- * while progressively normalizing legacy freetext speaker labels into
- * speakerId-backed entities.
+ * using materialized speakerId as the single source of truth.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import type { UtteranceDocType, SpeakerDocType } from '../db';
 import type { SaveState } from './transcriptionTypes';
 import { LinguisticService } from '../services/LinguisticService';
 import { fireAndForget } from '../utils/fireAndForget';
-import type { SpeakerActionDialogState, SpeakerFilterOption, SpeakerVisual } from './speakerManagement/types';
+import type {
+  SpeakerActionDialogState,
+  SpeakerFilterOption,
+  SpeakerReferenceStats,
+  SpeakerVisual,
+} from './speakerManagement/types';
 import {
   applySpeakerAssignmentToUtterances,
   getUtteranceSpeakerKey,
-  normalizeSpeakerName,
   renameSpeakerInUtterances,
   sortSpeakersByName,
   upsertSpeaker,
@@ -32,6 +35,10 @@ export type { SpeakerFilterOption } from './speakerManagement/types';
 
 type SpeakerStateSetter = Dispatch<SetStateAction<SpeakerDocType[]>>;
 type UtteranceStateSetter = Dispatch<SetStateAction<UtteranceDocType[]>>;
+
+function normalizeSpeakerLookupName(value: string): string {
+  return value.trim().toLocaleLowerCase('zh-Hans-CN');
+}
 
 export interface UseSpeakerActionsOptions {
   utterances: UtteranceDocType[];
@@ -51,6 +58,8 @@ export interface UseSpeakerActionsOptions {
   setSaveState: (state: SaveState) => void;
   getUtteranceTextForLayer: (utterance: UtteranceDocType) => string | null | undefined;
   formatTime: (seconds: number) => string;
+  syncBatchSpeakerId?: boolean;
+  speakerFilterOptionsOverride?: SpeakerFilterOption[];
 }
 
 export interface UseSpeakerActionsReturn {
@@ -65,14 +74,18 @@ export interface UseSpeakerActionsReturn {
   speakerDialogState: SpeakerActionDialogState | null;
   speakerVisualByUtteranceId: Record<string, SpeakerVisual>;
   speakerFilterOptions: SpeakerFilterOption[];
+  speakerReferenceStats: Record<string, SpeakerReferenceStats>;
+  speakerReferenceStatsReady: boolean;
   selectedSpeakerSummary: string;
   refreshSpeakers: () => Promise<void>;
+  refreshSpeakerReferenceStats: () => Promise<void>;
   handleSelectSpeakerUtterances: (speakerKey: string) => void;
   handleClearSpeakerAssignments: (speakerKey: string) => void;
   handleExportSpeakerSegments: (speakerKey: string) => void;
   handleRenameSpeaker: (speakerKey: string) => void;
   handleMergeSpeaker: (sourceSpeakerKey: string) => void;
   handleDeleteSpeaker: (sourceSpeakerKey: string) => void;
+  handleDeleteUnusedSpeakers: () => Promise<void>;
   handleAssignSpeakerToUtterances: (utteranceIds: Iterable<string>, speakerId?: string) => Promise<void>;
   handleCreateSpeakerAndAssignToUtterances: (name: string, utteranceIds: Iterable<string>) => Promise<void>;
   handleAssignSpeakerToSelected: () => Promise<void>;
@@ -99,13 +112,16 @@ export function useSpeakerActions({
   setSaveState,
   getUtteranceTextForLayer,
   formatTime,
+  syncBatchSpeakerId = true,
+  speakerFilterOptionsOverride,
 }: UseSpeakerActionsOptions): UseSpeakerActionsReturn {
   const [speakerDraftName, setSpeakerDraftName] = useState('');
   const [batchSpeakerId, setBatchSpeakerId] = useState('');
   const [speakerSaving, setSpeakerSaving] = useState(false);
   const [activeSpeakerFilterKey, setActiveSpeakerFilterKey] = useState('all');
   const [speakerDialogState, setSpeakerDialogState] = useState<SpeakerActionDialogState | null>(null);
-  const legacyNormalizationRef = useRef(false);
+  const [speakerReferenceStats, setSpeakerReferenceStats] = useState<Record<string, SpeakerReferenceStats>>({});
+  const [speakerReferenceStatsReady, setSpeakerReferenceStatsReady] = useState(false);
 
   const speakerOptions = speakers;
   const speakerById = useMemo(
@@ -115,14 +131,31 @@ export function useSpeakerActions({
 
   const {
     speakerVisualByUtteranceId,
-    speakerFilterOptions,
+    speakerFilterOptions: derivedSpeakerFilterOptions,
     selectedSpeakerSummary,
   } = useSpeakerDerivedState(utterancesOnCurrentMedia, selectedBatchUtterances, speakerOptions);
+
+  const speakerFilterOptions = speakerFilterOptionsOverride ?? derivedSpeakerFilterOptions;
+  const unusedSpeakerIds = useMemo(() => speakerOptions
+    .filter((speaker) => speakerReferenceStatsReady && (speakerReferenceStats[speaker.id]?.totalCount ?? 0) === 0)
+    .map((speaker) => speaker.id), [speakerOptions, speakerReferenceStats, speakerReferenceStatsReady]);
 
   const refreshSpeakers = useCallback(async () => {
     const nextSpeakers = await LinguisticService.getSpeakers();
     setSpeakers(nextSpeakers);
   }, [setSpeakers]);
+
+  const refreshSpeakerReferenceStats = useCallback(async () => {
+    const nextStats = await LinguisticService.getSpeakerReferenceStats();
+    setSpeakerReferenceStats(nextStats);
+    setSpeakerReferenceStatsReady(true);
+  }, []);
+
+  const findExistingSpeakerByName = useCallback((rawName: string) => {
+    const normalizedName = normalizeSpeakerLookupName(rawName);
+    if (!normalizedName) return undefined;
+    return speakerOptions.find((speaker) => normalizeSpeakerLookupName(speaker.name) === normalizedName);
+  }, [speakerOptions]);
 
   const getUtteranceIdsForSpeakerKey = useCallback((speakerKey: string) => (
     utterancesOnCurrentMedia
@@ -137,7 +170,8 @@ export function useSpeakerActions({
   useEffect(() => {
     if (!isReady) return;
     fireAndForget(refreshSpeakers());
-  }, [isReady, refreshSpeakers]);
+    fireAndForget(refreshSpeakerReferenceStats());
+  }, [isReady, refreshSpeakerReferenceStats, refreshSpeakers]);
 
   useEffect(() => {
     if (activeSpeakerFilterKey === 'all') return;
@@ -146,6 +180,7 @@ export function useSpeakerActions({
   }, [activeSpeakerFilterKey, speakerFilterOptions]);
 
   useEffect(() => {
+    if (!syncBatchSpeakerId) return;
     if (selectedBatchUtterances.length === 0) {
       setBatchSpeakerId('');
       return;
@@ -157,62 +192,7 @@ export function useSpeakerActions({
     }
     const allSame = selectedBatchUtterances.every((utterance) => utterance.speakerId === firstSpeakerId);
     setBatchSpeakerId(allSame ? firstSpeakerId : '');
-  }, [selectedBatchUtterances]);
-
-  useEffect(() => {
-    if (!isReady || legacyNormalizationRef.current) return;
-    const legacyGroups = new Map<string, string[]>();
-    for (const utterance of utterances) {
-      if (utterance.speakerId) continue;
-      const speakerName = normalizeSpeakerName(utterance.speaker);
-      if (!speakerName) continue;
-      const ids = legacyGroups.get(speakerName) ?? [];
-      ids.push(utterance.id);
-      legacyGroups.set(speakerName, ids);
-    }
-    if (legacyGroups.size === 0) return;
-
-    fireAndForget((async () => {
-      legacyNormalizationRef.current = true;
-      try {
-        let nextSpeakers = [...speakerOptions];
-        const speakerByNormalizedName = new Map(
-          nextSpeakers.map((speaker) => [normalizeSpeakerName(speaker.name).toLocaleLowerCase('zh-Hans-CN'), speaker] as const),
-        );
-        const assignments: Array<{ utteranceIds: string[]; speaker: SpeakerDocType }> = [];
-        let normalizedCount = 0;
-
-        for (const [speakerName, utteranceIds] of legacyGroups) {
-          const normalizedName = speakerName.toLocaleLowerCase('zh-Hans-CN');
-          let speaker = speakerByNormalizedName.get(normalizedName);
-          if (!speaker) {
-            speaker = await LinguisticService.createSpeaker({ name: speakerName });
-            nextSpeakers = upsertSpeaker(nextSpeakers, speaker);
-            speakerByNormalizedName.set(normalizedName, speaker);
-          }
-          await LinguisticService.assignSpeakerToUtterances(utteranceIds, speaker.id);
-          assignments.push({ utteranceIds, speaker });
-          normalizedCount += utteranceIds.length;
-        }
-
-        setSpeakers(sortSpeakersByName(nextSpeakers));
-        setUtterances((prev) => assignments.reduce(
-          (current, assignment) => applySpeakerAssignmentToUtterances(current, assignment.utteranceIds, assignment.speaker),
-          prev,
-        ));
-        setSaveState({ kind: 'done', message: `已规范化 ${normalizedCount} 条历史说话人标签` });
-      } catch (error) {
-        reportActionError({
-          actionLabel: '规范化历史说话人',
-          error,
-          i18nKey: 'transcription.error.action.normalizeLegacySpeakerFailed',
-          setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-        });
-      } finally {
-        legacyNormalizationRef.current = false;
-      }
-    })());
-  }, [isReady, setSaveState, setSpeakers, setUtterances, speakerOptions, utterances]);
+  }, [selectedBatchUtterances, syncBatchSpeakerId]);
 
   const handleSelectSpeakerUtterances = useCallback((speakerKey: string) => {
     const ids = getUtteranceIdsForSpeakerKey(speakerKey);
@@ -287,15 +267,8 @@ export function useSpeakerActions({
   }, [formatTime, getUtteranceTextForLayer, setSaveState, speakerFilterOptions, utterancesOnCurrentMedia]);
 
   const handleRenameSpeaker = useCallback((speakerKey: string) => {
-    if (speakerKey.startsWith('name:')) {
-      reportValidationError({
-        message: '该说话人尚未实体化，暂不支持重命名',
-        i18nKey: 'transcription.error.validation.renameSpeakerVirtualEntity',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-      });
-      return;
-    }
-    const current = speakerFilterOptions.find((item) => item.key === speakerKey);
+      const normalizedKey = speakerKey.trim();
+      const current = normalizedKey ? speakerById.get(normalizedKey) : undefined;
     if (!current) {
       reportValidationError({
         message: '未找到说话人',
@@ -306,24 +279,26 @@ export function useSpeakerActions({
     }
     setSpeakerDialogState({
       mode: 'rename',
-      speakerKey,
+      speakerKey: normalizedKey,
       speakerName: current.name,
       draftName: current.name,
     });
-  }, [setSaveState, speakerFilterOptions]);
+  }, [setSaveState, speakerById]);
 
   const handleMergeSpeaker = useCallback((sourceSpeakerKey: string) => {
-    if (sourceSpeakerKey.startsWith('name:')) {
+    const normalizedKey = sourceSpeakerKey.trim();
+    const source = normalizedKey ? speakerById.get(normalizedKey) : undefined;
+    if (!source) {
       reportValidationError({
-        message: '该说话人尚未实体化，暂不支持合并',
-        i18nKey: 'transcription.error.validation.mergeSpeakerVirtualEntity',
+        message: '未找到说话人',
+        i18nKey: 'transcription.error.validation.renameSpeakerNotFound',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
       return;
     }
-    const candidates = speakerFilterOptions
-      .filter((item) => item.isEntity && item.key !== sourceSpeakerKey)
-      .map((item) => ({ key: item.key, name: item.name }));
+    const candidates = speakerOptions
+      .filter((speaker) => speaker.id !== normalizedKey)
+      .map((speaker) => ({ key: speaker.id, name: speaker.name }));
     if (candidates.length === 0) {
       reportValidationError({
         message: '没有可合并的目标说话人',
@@ -332,27 +307,18 @@ export function useSpeakerActions({
       });
       return;
     }
-    const source = speakerFilterOptions.find((item) => item.key === sourceSpeakerKey);
     setSpeakerDialogState({
       mode: 'merge',
-      sourceSpeakerKey,
-      sourceSpeakerName: source?.name ?? '来源说话人',
+      sourceSpeakerKey: normalizedKey,
+      sourceSpeakerName: source.name,
       targetSpeakerKey: candidates[0]!.key,
       candidates,
     });
-  }, [setSaveState, speakerFilterOptions]);
+  }, [setSaveState, speakerById, speakerOptions]);
 
   const handleDeleteSpeaker = useCallback((sourceSpeakerKey: string) => {
-    if (sourceSpeakerKey.startsWith('name:')) {
-      reportValidationError({
-        message: '该说话人尚未实体化，暂不支持删除',
-        i18nKey: 'transcription.error.validation.deleteSpeakerEntityVirtual',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-      });
-      return;
-    }
-
-    const source = speakerFilterOptions.find((item) => item.key === sourceSpeakerKey);
+    const normalizedKey = sourceSpeakerKey.trim();
+    const source = normalizedKey ? speakerById.get(normalizedKey) : undefined;
     if (!source) {
       reportValidationError({
         message: '未找到说话人',
@@ -362,20 +328,19 @@ export function useSpeakerActions({
       return;
     }
 
-    const candidates = speakerFilterOptions
-      .filter((item) => item.isEntity && item.key !== sourceSpeakerKey)
-      .map((item) => ({ key: item.key, name: item.name }));
+    const candidates = speakerOptions
+      .filter((speaker) => speaker.id !== normalizedKey)
+      .map((speaker) => ({ key: speaker.id, name: speaker.name }));
 
-    const utteranceIds = getUtteranceIdsForSpeakerKey(sourceSpeakerKey);
     setSpeakerDialogState({
       mode: 'delete',
-      sourceSpeakerKey,
+      sourceSpeakerKey: normalizedKey,
       sourceSpeakerName: source.name,
       replacementSpeakerKey: candidates[0]?.key ?? '',
       candidates,
-      affectedCount: utteranceIds.length,
+      affectedCount: speakerReferenceStats[normalizedKey]?.totalCount ?? 0,
     });
-  }, [getUtteranceIdsForSpeakerKey, setSaveState, speakerFilterOptions]);
+  }, [setSaveState, speakerById, speakerOptions, speakerReferenceStats]);
 
   const handleAssignSpeakerToSelected = useCallback(async () => {
     if (selectedUtteranceIds.size === 0 && !activeUtteranceUnitId) return;
@@ -393,6 +358,8 @@ export function useSpeakerActions({
         batchSpeakerId || undefined,
       );
       applySpeakerLocally(targetIds, speaker);
+      setBatchSpeakerId(batchSpeakerId || '');
+      await refreshSpeakerReferenceStats();
       setSaveState({
         kind: 'done',
         message: updated > 0 ? `已更新 ${updated} 条句段的说话人` : '未找到可更新句段',
@@ -407,7 +374,7 @@ export function useSpeakerActions({
     } finally {
       setSpeakerSaving(false);
     }
-  }, [activeUtteranceUnitId, applySpeakerLocally, batchSpeakerId, data, selectedUtteranceIds, setSaveState, speakerById, speakerSaving]);
+  }, [activeUtteranceUnitId, applySpeakerLocally, batchSpeakerId, data, refreshSpeakerReferenceStats, selectedUtteranceIds, setBatchSpeakerId, setSaveState, speakerById, speakerSaving]);
 
   const handleAssignSpeakerToUtterances = useCallback(async (utteranceIds: Iterable<string>, speakerId?: string) => {
     const targetIds = Array.from(new Set(utteranceIds)).filter((id) => id.trim().length > 0);
@@ -422,6 +389,7 @@ export function useSpeakerActions({
       if (speakerId) {
         setBatchSpeakerId(speakerId);
       }
+      await refreshSpeakerReferenceStats();
       setSaveState({
         kind: 'done',
         message: updated > 0 ? `已更新 ${updated} 条句段的说话人` : '未找到可更新句段',
@@ -436,7 +404,7 @@ export function useSpeakerActions({
     } finally {
       setSpeakerSaving(false);
     }
-  }, [applySpeakerLocally, data, setSaveState, speakerById, speakerSaving, setBatchSpeakerId]);
+  }, [applySpeakerLocally, data, refreshSpeakerReferenceStats, setSaveState, speakerById, speakerSaving, setBatchSpeakerId]);
 
   const handleCreateSpeakerAndAssign = useCallback(async () => {
     const name = speakerDraftName.trim();
@@ -446,19 +414,28 @@ export function useSpeakerActions({
     setSpeakerSaving(true);
     let undoPushed = false;
     try {
-      data.pushUndo('新建并分配说话人');
+      const existing = findExistingSpeakerByName(name);
+      data.pushUndo(existing ? '复用说话人并分配' : '新建并分配说话人');
       undoPushed = true;
       const targetIds = selectedUtteranceIds.size > 0
         ? Array.from(selectedUtteranceIds) 
         : (activeUtteranceUnitId ? [activeUtteranceUnitId] : []);
 
-      const created = await LinguisticService.createSpeaker({ name });
-      const updated = await LinguisticService.assignSpeakerToUtterances(targetIds, created.id);
-      setSpeakers((prev) => upsertSpeaker(prev, created));
-      applySpeakerLocally(targetIds, created);
+      const targetSpeaker = existing ?? await LinguisticService.createSpeaker({ name });
+      const updated = await LinguisticService.assignSpeakerToUtterances(targetIds, targetSpeaker.id);
+      if (!existing) {
+        setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
+      }
+      applySpeakerLocally(targetIds, targetSpeaker);
       setSpeakerDraftName('');
-      setBatchSpeakerId(created.id);
-      setSaveState({ kind: 'done', message: `已创建说话人"${created.name}"，并应用到 ${updated} 条句段` });
+      setBatchSpeakerId(targetSpeaker.id);
+      await refreshSpeakerReferenceStats();
+      setSaveState({
+        kind: 'done',
+        message: existing
+          ? `已复用现有说话人"${targetSpeaker.name}"，并应用到 ${updated} 条句段`
+          : `已创建说话人"${targetSpeaker.name}"，并应用到 ${updated} 条句段`,
+      });
     } catch (error) {
       if (undoPushed) await data.undo();
       reportActionError({
@@ -470,7 +447,7 @@ export function useSpeakerActions({
     } finally {
       setSpeakerSaving(false);
     }
-  }, [activeUtteranceUnitId, applySpeakerLocally, data, selectedUtteranceIds, setSaveState, setSpeakers, speakerDraftName, speakerSaving]);
+  }, [activeUtteranceUnitId, applySpeakerLocally, data, findExistingSpeakerByName, refreshSpeakerReferenceStats, selectedUtteranceIds, setSaveState, setSpeakers, speakerDraftName, speakerSaving]);
 
   const handleCreateSpeakerAndAssignToUtterances = useCallback(async (name: string, utteranceIds: Iterable<string>) => {
     const targetIds = Array.from(new Set(utteranceIds)).filter((id) => id.trim().length > 0);
@@ -480,14 +457,23 @@ export function useSpeakerActions({
     setSpeakerSaving(true);
     let undoPushed = false;
     try {
-      data.pushUndo('新建并分配说话人');
+      const existing = findExistingSpeakerByName(trimmedName);
+      data.pushUndo(existing ? '复用说话人并分配' : '新建并分配说话人');
       undoPushed = true;
-      const created = await LinguisticService.createSpeaker({ name: trimmedName });
-      const updated = await LinguisticService.assignSpeakerToUtterances(targetIds, created.id);
-      setSpeakers((prev) => upsertSpeaker(prev, created));
-      applySpeakerLocally(targetIds, created);
-      setBatchSpeakerId(created.id);
-      setSaveState({ kind: 'done', message: `已创建说话人"${created.name}"，并应用到 ${updated} 条句段` });
+      const targetSpeaker = existing ?? await LinguisticService.createSpeaker({ name: trimmedName });
+      const updated = await LinguisticService.assignSpeakerToUtterances(targetIds, targetSpeaker.id);
+      if (!existing) {
+        setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
+      }
+      applySpeakerLocally(targetIds, targetSpeaker);
+      setBatchSpeakerId(targetSpeaker.id);
+      await refreshSpeakerReferenceStats();
+      setSaveState({
+        kind: 'done',
+        message: existing
+          ? `已复用现有说话人"${targetSpeaker.name}"，并应用到 ${updated} 条句段`
+          : `已创建说话人"${targetSpeaker.name}"，并应用到 ${updated} 条句段`,
+      });
     } catch (error) {
       if (undoPushed) await data.undo();
       reportActionError({
@@ -499,16 +485,24 @@ export function useSpeakerActions({
     } finally {
       setSpeakerSaving(false);
     }
-  }, [applySpeakerLocally, data, setBatchSpeakerId, setSaveState, setSpeakers, speakerSaving]);
+  }, [applySpeakerLocally, data, findExistingSpeakerByName, refreshSpeakerReferenceStats, setBatchSpeakerId, setSaveState, setSpeakers, speakerSaving]);
 
   const handleCreateSpeakerOnly = useCallback(async () => {
     const name = speakerDraftName.trim();
     if (!name || speakerSaving) return;
     setSpeakerSaving(true);
     try {
+      const existing = findExistingSpeakerByName(name);
+      if (existing) {
+        setSpeakerDraftName('');
+        setBatchSpeakerId(existing.id);
+        setSaveState({ kind: 'done', message: `已复用现有说话人"${existing.name}"` });
+        return;
+      }
       const created = await LinguisticService.createSpeaker({ name });
       setSpeakers((prev) => upsertSpeaker(prev, created));
       setSpeakerDraftName('');
+      await refreshSpeakerReferenceStats();
       setSaveState({ kind: 'done', message: `已创建说话人"${created.name}"` });
     } catch (error) {
       reportActionError({
@@ -520,7 +514,35 @@ export function useSpeakerActions({
     } finally {
       setSpeakerSaving(false);
     }
-  }, [setSaveState, setSpeakerDraftName, setSpeakers, speakerDraftName, speakerSaving]);
+  }, [findExistingSpeakerByName, refreshSpeakerReferenceStats, setBatchSpeakerId, setSaveState, setSpeakerDraftName, setSpeakers, speakerDraftName, speakerSaving]);
+
+  const handleDeleteUnusedSpeakers = useCallback(async () => {
+    if (unusedSpeakerIds.length === 0 || speakerSaving) return;
+
+    setSpeakerSaving(true);
+    let undoPushed = false;
+    try {
+      data.pushUndo('清理未引用说话人实体');
+      undoPushed = true;
+      await Promise.all(unusedSpeakerIds.map((speakerId) => LinguisticService.deleteSpeaker(speakerId)));
+      setSpeakers((prev) => sortSpeakersByName(prev.filter((speaker) => !unusedSpeakerIds.includes(speaker.id))));
+      if (unusedSpeakerIds.includes(activeSpeakerFilterKey)) {
+        setActiveSpeakerFilterKey('all');
+      }
+      await refreshSpeakerReferenceStats();
+      setSaveState({ kind: 'done', message: `已清理 ${unusedSpeakerIds.length} 个未引用说话人实体` });
+    } catch (error) {
+      if (undoPushed) await data.undo();
+      reportActionError({
+        actionLabel: '清理未引用说话人',
+        error,
+        i18nKey: 'transcription.error.action.speakerDialogOperationFailed',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
+    } finally {
+      setSpeakerSaving(false);
+    }
+  }, [activeSpeakerFilterKey, data, refreshSpeakerReferenceStats, setSaveState, setSpeakers, speakerSaving, unusedSpeakerIds]);
 
   const closeSpeakerDialog = useCallback(() => {
     if (speakerSaving) return;
@@ -565,6 +587,7 @@ export function useSpeakerActions({
         undoPushed = true;
         const cleared = await LinguisticService.assignSpeakerToUtterances(utteranceIds, undefined);
         applySpeakerLocally(utteranceIds, undefined);
+        await refreshSpeakerReferenceStats();
         setActiveSpeakerFilterKey('all');
         setSaveState({ kind: 'done', message: `已清空 ${cleared} 条句段的说话人标签` });
       }
@@ -609,6 +632,7 @@ export function useSpeakerActions({
             ? { ...utterance, speakerId: targetSpeaker.id, speaker: targetSpeaker.name }
             : utterance
         )));
+        await refreshSpeakerReferenceStats();
         setActiveSpeakerFilterKey(targetSpeaker.id);
         setSaveState({ kind: 'done', message: `已合并，迁移 ${moved} 条句段到"${targetSpeaker.name}"` });
       }
@@ -638,6 +662,7 @@ export function useSpeakerActions({
               ? { ...utterance, speakerId: replacementSpeaker.id, speaker: replacementSpeaker.name }
               : utterance
           )));
+          await refreshSpeakerReferenceStats();
           setActiveSpeakerFilterKey(replacementSpeaker.id);
           setSaveState({ kind: 'done', message: `已删除说话人实体，并迁移 ${moved} 条句段到"${replacementSpeaker.name}"` });
         } else {
@@ -652,6 +677,7 @@ export function useSpeakerActions({
             const { speaker: _speaker, speakerId: _speakerId, ...rest } = utterance;
             return rest;
           }));
+          await refreshSpeakerReferenceStats();
           if (activeSpeakerFilterKey === speakerDialogState.sourceSpeakerKey) {
             setActiveSpeakerFilterKey('all');
           }
@@ -671,7 +697,7 @@ export function useSpeakerActions({
     } finally {
       setSpeakerSaving(false);
     }
-  }, [activeSpeakerFilterKey, applySpeakerLocally, data, getUtteranceIdsForSpeakerKey, setSaveState, setSpeakers, setUtterances, speakerById, speakerDialogState, speakerSaving]);
+  }, [activeSpeakerFilterKey, applySpeakerLocally, data, getUtteranceIdsForSpeakerKey, refreshSpeakerReferenceStats, setSaveState, setSpeakers, setUtterances, speakerById, speakerDialogState, speakerSaving]);
 
   return {
     speakerOptions,
@@ -685,14 +711,18 @@ export function useSpeakerActions({
     speakerDialogState,
     speakerVisualByUtteranceId,
     speakerFilterOptions,
+    speakerReferenceStats,
+    speakerReferenceStatsReady,
     selectedSpeakerSummary,
     refreshSpeakers,
+    refreshSpeakerReferenceStats,
     handleSelectSpeakerUtterances,
     handleClearSpeakerAssignments,
     handleExportSpeakerSegments,
     handleRenameSpeaker,
     handleMergeSpeaker,
     handleDeleteSpeaker,
+    handleDeleteUnusedSpeakers,
     handleAssignSpeakerToUtterances,
     handleCreateSpeakerAndAssignToUtterances,
     handleAssignSpeakerToSelected,

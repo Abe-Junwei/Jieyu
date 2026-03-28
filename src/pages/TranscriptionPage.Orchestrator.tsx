@@ -37,9 +37,9 @@ import {
 import { WaveformHoverTooltip } from '../components/transcription/WaveformHoverTooltip';
 import { WaveformLeftStatusStrip } from '../components/transcription/WaveformLeftStatusStrip';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
-import { SpeakerAssignPanel } from '../components/transcription/SpeakerAssignPanel';
+import { TrackFocusToolbarControls } from '../components/transcription/toolbar/TrackFocusToolbarControls';
 import { LinguisticService } from '../services/LinguisticService';
-import { db as appDb, getDb, type JieyuDatabase, type LayerSegmentContentDocType, type LayerSegmentDocType, type UtteranceDocType } from '../db';
+import { getDb, type JieyuDatabase, type LayerSegmentContentDocType, type LayerSegmentDocType, type UtteranceDocType } from '../db';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { useAiPanelContextUpdater, AiPanelContext } from '../contexts/AiPanelContext';
 import { ToastProvider } from '../contexts/ToastContext';
@@ -79,6 +79,14 @@ import { usePanelToggles } from '../hooks/usePanelToggles';
 import { useRecoveryBanner } from '../hooks/useRecoveryBanner';
 import { useAiChatContextValue } from '../hooks/useAiChatContextValue';
 import { useSpeakerActions, getUtteranceSpeakerKey } from '../hooks/useSpeakerActions';
+import type { SpeakerActionDialogState } from '../hooks/speakerManagement/types';
+import {
+  applySpeakerAssignmentToUtterances,
+  buildSpeakerFilterOptionsFromKeys,
+  buildSpeakerVisualMapFromKeys,
+  getSpeakerDisplayNameByKey,
+  upsertSpeaker,
+} from '../hooks/speakerManagement/speakerUtils';
 import {
   createTimelineUnit,
   isSegmentTimelineUnit,
@@ -92,7 +100,7 @@ import { fireAndForget } from '../utils/fireAndForget';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import { formatLayerRailLabel, formatTime, newId } from '../utils/transcriptionFormatters';
-import { buildSpeakerLayerLayoutWithOptions } from '../utils/speakerLayerLayout';
+import { buildSpeakerLayerLayoutWithOptions, buildStableSpeakerLaneMap } from '../utils/speakerLayerLayout';
 import {
   INITIAL_OVERLAP_CYCLE_TELEMETRY,
   updateOverlapCycleTelemetry,
@@ -113,10 +121,17 @@ import {
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import { createDeferredEmbeddingSearchService } from '../ai/embeddings/DeferredEmbeddingSearchService';
 import { listRecentAiToolDecisionLogs } from '../ai/auditReplay';
-import { extractUtteranceIdFromNote, getPdfPageFromHash, isDirectPdfCitationRef, splitPdfCitationRef } from '../utils/citationJumpUtils';
 import {
   loadEmbeddingProviderConfig,
 } from './TranscriptionPage.helpers';
+import { buildTranscriptionAiPromptContext } from './TranscriptionPage.aiPromptContext';
+import { handleTranscriptionCitationJump } from './TranscriptionPage.citationJump';
+import {
+  createAnalysisRuntimeProps,
+  createAssistantRuntimeProps,
+  createPdfPreviewOpenRequest,
+  createPdfRuntimeProps,
+} from './TranscriptionPage.runtimeProps';
 
 const log = createLogger('TranscriptionPage');
 
@@ -175,6 +190,7 @@ function TranscriptionPageOrchestrator({
     focusedTranslationDraftKeyRef,
     snapGuide,
     setSnapGuide,
+    orderedLayers,
     translationLayers,
     transcriptionLayers,
     defaultTranscriptionLayerId,
@@ -253,7 +269,7 @@ function TranscriptionPageOrchestrator({
     : '';
 
   // 独立边界层 segments 加载 | Load segments for independent-boundary layers
-  const { segmentsByLayer, reloadSegments } = useLayerSegments(layers, selectedUtteranceMedia?.id, defaultTranscriptionLayerId);
+  const { segmentsByLayer, reloadSegments, updateSegmentsLocally } = useLayerSegments(layers, selectedUtteranceMedia?.id, defaultTranscriptionLayerId);
   const { segmentContentByLayer, reloadSegmentContents } = useLayerSegmentContents(
     layers,
     selectedUtteranceMedia?.id,
@@ -372,7 +388,7 @@ function TranscriptionPageOrchestrator({
     searchSnippet?: string;
   }) => {
     pdfPreviewRequestNonceRef.current += 1;
-    setPdfPreviewRequest({
+    setPdfPreviewRequest(createPdfPreviewOpenRequest({
       nonce: pdfPreviewRequestNonceRef.current,
       title: input.title,
       page: input.page,
@@ -380,7 +396,7 @@ function TranscriptionPageOrchestrator({
       ...(input.sourceBlob ? { sourceBlob: input.sourceBlob } : {}),
       ...(input.hashSuffix ? { hashSuffix: input.hashSuffix } : {}),
       ...(input.searchSnippet ? { searchSnippet: input.searchSnippet } : {}),
-    });
+    }));
   }, []);
 
   const handleFocusLayerRow = useCallback((id: string) => {
@@ -554,54 +570,24 @@ function TranscriptionPageOrchestrator({
   });
 
   const buildAiPromptContext = useCallback(() => {
-    // 独立段选中时从 segmentContentByLayer 取文本 | For segment selection, read text from segmentContentByLayer
-    const selectedSegmentForCtx = isSegmentTimelineUnit(selectedTimelineUnit)
-      ? segmentsByLayer.get(selectedTimelineUnit.layerId)?.find((s) => s.id === selectedTimelineUnit.unitId)
-      : undefined;
-    const selectedText = selectedUtterance
-      ? getUtteranceTextForLayer(selectedUtterance)
-      : (segmentContentByLayer.get(selectedTimelineUnit?.layerId ?? '')?.get(selectedTimelineUnit?.unitId ?? '')?.text ?? '');
-    const selectedUnitForTime = selectedUtterance ?? selectedSegmentForCtx;
-    const selectionTimeRange = selectedUnitForTime
-      ? `${formatTime(selectedUnitForTime.startTime)}-${formatTime(selectedUnitForTime.endTime)}`
-      : undefined;
-    const selectedLayer = layers.find((layer) => layer.id === selectedLayerId) ?? null;
-    const selectedLayerType: 'transcription' | 'translation' | undefined = selectedLayer
-      ? (selectedLayer.layerType === 'translation' ? 'translation' : 'transcription')
-      : undefined;
-    const selectedTranslationLayerId = selectedLayerType === 'translation'
-      ? selectedLayer?.id
-      : undefined;
-    const selectedTranscriptionLayerId = selectedLayerType === 'transcription'
-      ? selectedLayer?.id
-      : undefined;
-
-    return {
-      shortTerm: {
-        page: 'transcription',
-        ...(selectedUtterance?.id ? { activeUtteranceUnitId: selectedUtterance.id } : {}),
-        ...(isSegmentTimelineUnit(selectedTimelineUnit) ? { activeSegmentUnitId: selectedTimelineUnit.unitId } : {}),
-        ...(selectedUnitForTime ? { selectedUtteranceStartSec: selectedUnitForTime.startTime, selectedUtteranceEndSec: selectedUnitForTime.endTime } : {}),
-        ...(selectedLayer?.id ? { selectedLayerId: selectedLayer.id } : {}),
-        ...(selectedLayerType ? { selectedLayerType } : {}),
-        ...(selectedTranslationLayerId ? { selectedTranslationLayerId } : {}),
-        ...(selectedTranscriptionLayerId ? { selectedTranscriptionLayerId } : {}),
-        selectedText,
-        ...(selectionTimeRange ? { selectionTimeRange } : {}),
-        audioTimeSec: aiAudioTimeRef.current,
-        recentEdits: undoHistory.slice(0, 5).map((item) => String(item)),
-      },
-      longTerm: {
-        projectStats: {
-          utteranceCount: state.phase === 'ready' ? state.utteranceCount : utterances.length,
-          translationLayerCount: state.phase === 'ready' ? state.translationLayerCount : translationLayers.length,
-          aiConfidenceAvg,
-        },
-        observerStage: aiObserverStageRef.current,
-        topLexemes: aiLexemeSummaryRef.current,
-        recommendations: aiRecommendationRef.current,
-      },
-    };
+    return buildTranscriptionAiPromptContext({
+      selectedTimelineUnit,
+      selectedUtterance: selectedUtterance ?? null,
+      selectedLayerId,
+      layers,
+      segmentsByLayer,
+      segmentContentByLayer,
+      getUtteranceTextForLayer,
+      formatTime,
+      utteranceCount: state.phase === 'ready' ? state.utteranceCount : utterances.length,
+      translationLayerCount: state.phase === 'ready' ? state.translationLayerCount : translationLayers.length,
+      aiConfidenceAvg,
+      observerStage: aiObserverStageRef.current,
+      topLexemes: aiLexemeSummaryRef.current,
+      recommendations: aiRecommendationRef.current,
+      audioTimeSec: aiAudioTimeRef.current,
+      recentEdits: undoHistory.slice(0, 5).map((item) => String(item)),
+    });
   }, [aiConfidenceAvg, formatTime, getUtteranceTextForLayer, layers, segmentContentByLayer, segmentsByLayer, selectedLayerId, selectedTimelineUnit, selectedUtterance, state, undoHistory, utterances.length]);
 
   const handleAiToolRiskCheck = useCallback((call: AiChatToolCall): AiToolRiskCheckResult | null => {
@@ -1140,7 +1126,6 @@ function TranscriptionPageOrchestrator({
       const finalStart = Number(boundedStart.toFixed(3));
       const finalEnd = Number(boundedEnd.toFixed(3));
       const now = new Date().toISOString();
-      pushUndo('新建句段');
       const newSeg: LayerSegmentDocType = {
         id: newId('seg'),
         textId: selectedUtteranceMedia.textId,
@@ -1161,6 +1146,11 @@ function TranscriptionPageOrchestrator({
           setSaveState({ kind: 'error', message: '所选区间未落在任何句段范围内，无法在时间细分层创建。' });
           return;
         }
+        newSeg.utteranceId = parentUtt.id;
+        if (!newSeg.speakerId && parentUtt.speakerId) {
+          newSeg.speakerId = parentUtt.speakerId;
+        }
+        pushUndo('新建句段');
         await LayerSegmentationV2Service.createSegmentWithParentConstraint(
           newSeg, parentUtt.id, parentUtt.startTime, parentUtt.endTime,
         );
@@ -1176,6 +1166,7 @@ function TranscriptionPageOrchestrator({
             newSeg.speakerId = overlappingUtt.speakerId;
           }
         }
+        pushUndo('新建句段');
         await LayerSegmentationV2Service.createSegment(newSeg);
       }
       await reloadSegments();
@@ -1497,10 +1488,13 @@ function TranscriptionPageOrchestrator({
       if (player.isPlaying) {
         player.stop();
       }
-      if (useIndependentWaveformRegions) {
-        selectTimelineUnit({ layerId: activeLayerIdForEdits, unitId: regionId, kind: 'segment' });
-      } else {
-        selectTimelineUnit({ layerId: activeLayerIdForEdits, unitId: regionId, kind: 'utterance' });
+      const shouldPreserveMultiSelection = selectedUtteranceIds.has(regionId) && selectedUtteranceIds.size > 1;
+      if (!shouldPreserveMultiSelection) {
+        if (useIndependentWaveformRegions) {
+          selectTimelineUnit({ layerId: activeLayerIdForEdits, unitId: regionId, kind: 'segment' });
+        } else {
+          selectTimelineUnit({ layerId: activeLayerIdForEdits, unitId: regionId, kind: 'utterance' });
+        }
       }
       // Convert click clientX → waveform time
       const ws = player.instanceRef.current;
@@ -1516,7 +1510,14 @@ function TranscriptionPageOrchestrator({
           splitTime = Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
         }
       }
-      setCtxMenu({ x, y, utteranceId: regionId, layerId: activeLayerIdForEdits, splitTime });
+      setCtxMenu({
+        x,
+        y,
+        utteranceId: regionId,
+        layerId: activeLayerIdForEdits,
+        unitKind: useIndependentWaveformRegions ? 'segment' : 'utterance',
+        splitTime,
+      });
     },
     onTimeUpdate: (time) => {
       if (Date.now() - manualSelectTsRef.current < 600) return;
@@ -1559,155 +1560,25 @@ function TranscriptionPageOrchestrator({
     refId: string,
     citationRef?: { snippet?: string },
   ) => {
-    if (!refId) return;
-    if (citationType === 'utterance') {
-      handleJumpToEmbeddingMatch(refId);
-      return;
-    }
-    if (citationType === 'note') {
-      const note = await appDb.user_notes.get(refId);
-      if (!note) {
-        setAiSidebarError(locale === 'zh-CN' ? '未找到引用的笔记。' : 'Referenced note was not found.');
-        return;
-      }
-
-      const utteranceId = extractUtteranceIdFromNote(note);
-
-      if (utteranceId) {
-        handleJumpToEmbeddingMatch(utteranceId);
-      }
-
-      // 打开笔记弹层，至少展示该笔记所附着的目标 | Open note popover near top-right as a visible landing.
-      setNotePopover({
-        x: Math.max(40, window.innerWidth - 360),
-        y: 100,
-        uttId: utteranceId ?? selectedTimelineUtteranceId,
-        noteTarget: {
-          targetType: note.targetType,
-          targetId: note.targetId,
-          ...(note.parentTargetId ? { parentTargetId: note.parentTargetId } : {}),
-          ...(typeof note.targetIndex === 'number' ? { targetIndex: note.targetIndex } : {}),
-        },
-      });
-      return;
-    }
-
-    if (citationType === 'schema') {
-      const targetLayer = layerRailRows.find((item) => item.id === refId || item.key === refId);
-      if (!targetLayer) {
-        setAiSidebarError(locale === 'zh-CN'
-          ? '未找到引用的层定义。'
-          : 'Referenced layer schema was not found.');
-        return;
-      }
-
-      // 聚焦到层面板并高亮目标层，作为 schema 引用的落点。 | Focus layer rail and highlight target layer as schema citation landing.
-      setIsLayerRailCollapsed(false);
-      setLayerRailTab('layers');
-      setSelectedLayerId(targetLayer.id);
-      setFocusedLayerRowId(targetLayer.id);
-      setFlashLayerRowId(targetLayer.id);
-      return;
-    }
-
-    if (citationType === 'pdf') {
-      const { baseRef, hashSuffix } = splitPdfCitationRef(refId);
-      const page = getPdfPageFromHash(hashSuffix);
-      const displayTitle = baseRef.split('/').pop() || baseRef || 'PDF';
-
-      // 优先直接打开 URL 形式引用 | Prefer direct URL-like PDF citations.
-      if (isDirectPdfCitationRef(refId)) {
-        const snippet = citationRef?.snippet?.trim();
-        openPdfPreviewRequest({
-          title: displayTitle,
-          page,
-          sourceUrl: baseRef || refId.trim(),
-          ...(hashSuffix ? { hashSuffix } : {}),
-          ...(snippet ? { searchSnippet: snippet } : {}),
-        });
-        return;
-      }
-
-      const resolveMediaLink = (
-        media: { url?: string; details?: Record<string, unknown> } | undefined,
-      ): { sourceUrl?: string; sourceBlob?: Blob } | null => {
-        if (!media) return null;
-        if (typeof media.url === 'string' && media.url.trim()) return { sourceUrl: media.url };
-        const details = media.details;
-        if (!details) return null;
-        const detailUrl = details.url;
-        if (typeof detailUrl === 'string' && detailUrl.trim()) return { sourceUrl: detailUrl };
-        const pdfBlob = details.pdfBlob;
-        if (pdfBlob instanceof Blob) {
-          return { sourceBlob: pdfBlob };
-        }
-        return null;
-      };
-
-      // 支持 refId=media_id 或 filename 的文档定位 | Resolve PDF citation by media id or filename.
-      let media = await appDb.media_items.get(baseRef);
-      if (!media) {
-        const allMedia = await appDb.media_items.toArray();
-        media = allMedia.find((item) => {
-          const details = item.details as Record<string, unknown> | undefined;
-          const mime = typeof details?.mimeType === 'string' ? details.mimeType.toLowerCase() : '';
-          const isPdf = item.filename.toLowerCase().endsWith('.pdf') || mime.includes('pdf');
-          if (!isPdf) return false;
-          return item.filename === baseRef || item.id === baseRef;
-        });
-      }
-
-      const mediaLink = resolveMediaLink(media);
-      if (mediaLink) {
-        const snippet = citationRef?.snippet?.trim();
-        openPdfPreviewRequest({
-          title: media?.filename || displayTitle,
-          page,
-          ...(mediaLink.sourceUrl ? { sourceUrl: mediaLink.sourceUrl } : {}),
-          ...(mediaLink.sourceBlob ? { sourceBlob: mediaLink.sourceBlob } : {}),
-          ...(hashSuffix ? { hashSuffix } : {}),
-          ...(snippet ? { searchSnippet: snippet } : {}),
-        });
-        return;
-      }
-
-      // 若无文档链接，再退化到 note 落点定位。 | Fall back to note landing when no direct PDF link is available.
-      let note = await appDb.user_notes.get(refId);
-      if (!note) {
-        const related = (await appDb.user_notes.toArray()).find((item) => item.targetId === refId || item.targetId === baseRef);
-        note = related;
-      }
-
-      if (note) {
-        const utteranceId = extractUtteranceIdFromNote(note);
-
-        if (utteranceId) {
-          handleJumpToEmbeddingMatch(utteranceId);
-        }
-
-        setNotePopover({
-          x: Math.max(40, window.innerWidth - 360),
-          y: 100,
-          uttId: utteranceId ?? selectedTimelineUtteranceId,
-          noteTarget: {
-            targetType: note.targetType,
-            targetId: note.targetId,
-            ...(note.parentTargetId ? { parentTargetId: note.parentTargetId } : {}),
-            ...(typeof note.targetIndex === 'number' ? { targetIndex: note.targetIndex } : {}),
-          },
-        });
-        return;
-      }
-
-      setAiSidebarError(locale === 'zh-CN'
-        ? '未找到可打开的 PDF 引用目标。'
-        : 'No openable PDF citation target was found.');
-      return;
-    }
-
-    setAiSidebarError(locale === 'zh-CN'
-      ? `当前暂不支持跳转到 ${citationType} 引用。`
-      : `Jump for ${citationType} citation is not supported yet.`);
+    await handleTranscriptionCitationJump({
+      locale,
+      citationType,
+      refId,
+      ...(citationRef ? { citationRef } : {}),
+      layerRailRows,
+      selectedTimelineUtteranceId,
+      onJumpToEmbeddingMatch: handleJumpToEmbeddingMatch,
+      onSetNotePopover: setNotePopover,
+      onSetSidebarError: setAiSidebarError,
+      onRevealSchemaLayer: (layerId) => {
+        setIsLayerRailCollapsed(false);
+        setLayerRailTab('layers');
+        setSelectedLayerId(layerId);
+        setFocusedLayerRowId(layerId);
+        setFlashLayerRowId(layerId);
+      },
+      onOpenPdfPreviewRequest: openPdfPreviewRequest,
+    });
   }, [
     handleJumpToEmbeddingMatch,
     layerRailRows,
@@ -2198,7 +2069,7 @@ function TranscriptionPageOrchestrator({
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     });
-  }, [data.pushUndo, setSaveState, data]);
+  }, [data.pushUndo, data.setUtterances, setSaveState]);
 
   const aiPanelContextValue = useMemo(() => ({
     dbName: state.phase === 'ready' ? state.dbName : '',
@@ -2275,6 +2146,87 @@ function TranscriptionPageOrchestrator({
     onCancelPendingToolCall: aiChat.cancelPendingToolCall,
     onJumpToCitation: handleJumpToCitation,
   });
+
+  const assistantRuntimeProps = useMemo(() => createAssistantRuntimeProps({
+    saveState,
+    recording,
+    recordingUtteranceId,
+    recordingError,
+    overlapCycleToast,
+    lockConflictToast,
+    tf: tfB,
+    activeTextPrimaryLanguageId,
+    getActiveTextPrimaryLanguageId,
+    executeAction,
+    handleResolveVoiceIntentWithLlm,
+    handleVoiceDictation,
+    handleVoiceAnalysisResult,
+    selectedTimelineUtteranceId,
+    selectedUtterance: selectedUtterance ?? null,
+    selectedRowMeta,
+    selectedLayerId,
+    ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
+    translationLayers,
+    layers,
+    formatLayerRailLabel,
+    formatTime,
+    onRegisterToggleVoice: (handler) => {
+      toggleVoiceRef.current = handler;
+    },
+  }), [
+    activeTextPrimaryLanguageId,
+    defaultTranscriptionLayerId,
+    executeAction,
+    formatTime,
+    getActiveTextPrimaryLanguageId,
+    handleResolveVoiceIntentWithLlm,
+    handleVoiceAnalysisResult,
+    handleVoiceDictation,
+    layers,
+    lockConflictToast,
+    overlapCycleToast,
+    recording,
+    recordingError,
+    recordingUtteranceId,
+    saveState,
+    selectedLayerId,
+    selectedRowMeta,
+    selectedTimelineUtteranceId,
+    selectedUtterance,
+    tfB,
+    translationLayers,
+  ]);
+
+  const analysisRuntimeProps = useMemo(() => createAnalysisRuntimeProps({
+    selectedUtterance: selectedUtterance ?? null,
+    utterancesOnCurrentMedia,
+    getUtteranceTextForLayer,
+    formatTime,
+    onJumpToCitation: handleJumpToCitation,
+    onJumpToEmbeddingMatch: handleJumpToEmbeddingMatch,
+    embeddingProviderConfig,
+    onEmbeddingProviderConfigChange: setEmbeddingProviderConfig,
+    externalErrorMessage: aiSidebarError,
+  }), [
+    aiSidebarError,
+    embeddingProviderConfig,
+    formatTime,
+    getUtteranceTextForLayer,
+    handleJumpToCitation,
+    handleJumpToEmbeddingMatch,
+    selectedUtterance,
+    utterancesOnCurrentMedia,
+  ]);
+
+  const handleClosePdfPreviewRequest = useCallback(() => {
+    setPdfPreviewRequest(null);
+  }, []);
+
+  const pdfRuntimeProps = useMemo(() => createPdfRuntimeProps({
+    locale,
+    request: pdfPreviewRequest,
+    onCloseRequest: handleClosePdfPreviewRequest,
+  }), [handleClosePdfPreviewRequest, locale, pdfPreviewRequest]);
 
   const { handleLayerRailResizeStart, handleAiPanelResizeStart } = usePanelResize({
     isLayerRailCollapsed,
@@ -2838,12 +2790,71 @@ function TranscriptionPageOrchestrator({
     [utterancesOnCurrentMedia],
   );
 
-  const resolveSpeakerKeyForSegment = useCallback((segment: LayerSegmentDocType) => {
+  const resolveSpeakerAssignmentKeyForSegment = useCallback((segment: LayerSegmentDocType) => {
     const explicitSpeakerId = segment.speakerId?.trim();
     if (explicitSpeakerId) return explicitSpeakerId;
     const ownerUtterance = segment.utteranceId ? utteranceByIdOnCurrentMedia.get(segment.utteranceId) : undefined;
-    return ownerUtterance ? getUtteranceSpeakerKey(ownerUtterance) : 'unknown-speaker';
+    return ownerUtterance ? getUtteranceSpeakerKey(ownerUtterance) : '';
   }, [utteranceByIdOnCurrentMedia]);
+
+  const resolveSpeakerKeyForSegment = useCallback((segment: LayerSegmentDocType) => {
+    const speakerKey = resolveSpeakerAssignmentKeyForSegment(segment);
+    return speakerKey || 'unknown-speaker';
+  }, [resolveSpeakerAssignmentKeyForSegment]);
+
+  const resolveExplicitSpeakerKeyForSegment = useCallback(
+    (segment: LayerSegmentDocType) => segment.speakerId?.trim() ?? '',
+    [],
+  );
+
+  const utteranceSpeakerAssignmentsOnCurrentMedia = useMemo(() => (
+    utterancesOnCurrentMedia.map((utterance) => ({
+      unitId: utterance.id,
+      speakerKey: getUtteranceSpeakerKey(utterance),
+    }))
+  ), [utterancesOnCurrentMedia]);
+
+  const segmentSpeakerAssignmentsOnCurrentMedia = useMemo(() => {
+    const next: Array<{ unitId: string; speakerKey: string }> = [];
+    for (const segments of segmentsByLayer.values()) {
+      for (const segment of segments) {
+        const speakerKey = resolveSpeakerAssignmentKeyForSegment(segment);
+        if (!speakerKey) continue;
+        next.push({ unitId: segment.id, speakerKey });
+      }
+    }
+    return next;
+  }, [resolveSpeakerAssignmentKeyForSegment, segmentsByLayer]);
+
+  const speakerVisualByTimelineUnitId = useMemo(() => ({
+    ...buildSpeakerVisualMapFromKeys(utteranceSpeakerAssignmentsOnCurrentMedia, speakers),
+    ...buildSpeakerVisualMapFromKeys(segmentSpeakerAssignmentsOnCurrentMedia, speakers),
+  }), [segmentSpeakerAssignmentsOnCurrentMedia, speakers, utteranceSpeakerAssignmentsOnCurrentMedia]);
+
+  const activeSpeakerManagementLayer = useMemo(() => {
+    if (!selectedLayerId) return null;
+    const layer = layers.find((item) => item.id === selectedLayerId);
+    if (!layer || layer.layerType !== 'transcription') return null;
+    return layerUsesOwnSegments(layer, defaultTranscriptionLayerId) ? layer : null;
+  }, [defaultTranscriptionLayerId, layers, selectedLayerId]);
+
+  const speakerAssignmentsForActions = useMemo(() => {
+    if (activeSpeakerManagementLayer) {
+      return (segmentsByLayer.get(activeSpeakerManagementLayer.id) ?? [])
+        .map((segment) => ({
+          unitId: segment.id,
+          speakerKey: resolveExplicitSpeakerKeyForSegment(segment),
+        }))
+        .filter((item) => item.speakerKey.length > 0);
+    }
+
+    return utteranceSpeakerAssignmentsOnCurrentMedia.filter((item) => item.speakerKey.length > 0);
+  }, [activeSpeakerManagementLayer, resolveExplicitSpeakerKeyForSegment, segmentsByLayer, utteranceSpeakerAssignmentsOnCurrentMedia]);
+
+  const speakerFilterOptionsForActions = useMemo(
+    () => buildSpeakerFilterOptionsFromKeys(speakerAssignmentsForActions, speakerVisualByTimelineUnitId),
+    [speakerAssignmentsForActions, speakerVisualByTimelineUnitId],
+  );
 
   const selectedUnitIdsForSpeakerActions = useMemo(() => {
     if (selectedUtteranceIds.size > 0) {
@@ -2896,6 +2907,11 @@ function TranscriptionPageOrchestrator({
       [selectedUtteranceIdsForSpeakerActionsSet, utterancesOnCurrentMedia],
   );
 
+  const selectedSpeakerUnitIdsForActionsSet = useMemo(
+    () => new Set(selectedUnitIdsForSpeakerActions),
+    [selectedUnitIdsForSpeakerActions],
+  );
+
   const {
       speakerOptions,
       speakerDraftName,
@@ -2905,9 +2921,9 @@ function TranscriptionPageOrchestrator({
       speakerSaving,
       activeSpeakerFilterKey,
       setActiveSpeakerFilterKey,
-      speakerDialogState,
-      speakerVisualByUtteranceId,
-      speakerFilterOptions,
+      speakerDialogState: baseSpeakerDialogState,
+      speakerReferenceStats,
+      speakerReferenceStatsReady,
       selectedSpeakerSummary,
       handleSelectSpeakerUtterances,
       handleClearSpeakerAssignments,
@@ -2915,16 +2931,18 @@ function TranscriptionPageOrchestrator({
       handleRenameSpeaker,
       handleMergeSpeaker,
       handleDeleteSpeaker,
+      handleDeleteUnusedSpeakers,
       handleAssignSpeakerToUtterances,
       handleCreateSpeakerAndAssignToUtterances,
       handleAssignSpeakerToSelected,
       handleCreateSpeakerAndAssign,
       handleCreateSpeakerOnly,
       refreshSpeakers,
-      closeSpeakerDialog,
-      updateSpeakerDialogDraftName,
-      updateSpeakerDialogTargetKey,
-      confirmSpeakerDialog,
+      refreshSpeakerReferenceStats,
+        closeSpeakerDialog: closeSpeakerDialogBase,
+        updateSpeakerDialogDraftName: updateSpeakerDialogDraftNameBase,
+        updateSpeakerDialogTargetKey: updateSpeakerDialogTargetKeyBase,
+        confirmSpeakerDialog: confirmSpeakerDialogBase,
   } = useSpeakerActions({
       utterances,
       setUtterances,
@@ -2940,6 +2958,8 @@ function TranscriptionPageOrchestrator({
       setSaveState,
       getUtteranceTextForLayer,
       formatTime,
+      syncBatchSpeakerId: false,
+      speakerFilterOptionsOverride: speakerFilterOptionsForActions,
   });
 
   const filteredUtterancesOnCurrentMedia = useMemo(() => {
@@ -3012,6 +3032,21 @@ function TranscriptionPageOrchestrator({
     return next;
   }, [utterancesOnCurrentMedia]);
 
+  const currentSpeakerIdsForTrackMode = useMemo(() => {
+    const next = new Set<string>();
+    for (const utterance of utterancesOnCurrentMedia) {
+      const speakerKey = getUtteranceSpeakerKey(utterance);
+      if (!speakerKey) continue;
+      next.add(speakerKey);
+    }
+    for (const assignment of segmentSpeakerAssignmentsOnCurrentMedia) {
+      const speakerKey = assignment.speakerKey.trim();
+      if (!speakerKey || speakerKey === 'unknown-speaker') continue;
+      next.add(speakerKey);
+    }
+    return Array.from(next);
+  }, [segmentSpeakerAssignmentsOnCurrentMedia, utterancesOnCurrentMedia]);
+
   const [laneLockMap, setLaneLockMap] = useState<Record<string, number>>({});
   const trackEntityProjectKey = activeTextId?.trim() || '__no-project__';
   const trackEntityMediaId = selectedUtteranceMedia?.id ?? null;
@@ -3062,25 +3097,41 @@ function TranscriptionPageOrchestrator({
   }, [setTranscriptionTrackMode, trackEntityScopedKey]);
 
   // ── Persist: write to DB (and LocalStorage for backward compat) ────────────
+  const effectiveLaneLockMap = useMemo(() => {
+    if (transcriptionTrackMode !== 'multi-speaker-fixed') return laneLockMap;
+    return buildStableSpeakerLaneMap(currentSpeakerIdsForTrackMode, laneLockMap, speakerSortKeyById);
+  }, [currentSpeakerIdsForTrackMode, laneLockMap, speakerSortKeyById, transcriptionTrackMode]);
+
+  useEffect(() => {
+    if (transcriptionTrackMode !== 'multi-speaker-fixed') return;
+    const prevKeys = Object.keys(laneLockMap);
+    const nextKeys = Object.keys(effectiveLaneLockMap);
+    if (prevKeys.length === nextKeys.length && prevKeys.every((key) => laneLockMap[key] === effectiveLaneLockMap[key])) {
+      return;
+    }
+    setLaneLockMap(effectiveLaneLockMap);
+  }, [effectiveLaneLockMap, laneLockMap, transcriptionTrackMode]);
+
   useEffect(() => {
     if (!trackEntityScopedKey || !activeTextId) return;
     if (trackEntityHydratedKeyRef.current !== trackEntityScopedKey) return;
     const next = upsertTrackEntityState(
       trackEntityStateByMediaRef.current ?? {},
       trackEntityScopedKey,
-      { mode: transcriptionTrackMode, laneLockMap },
+      { mode: transcriptionTrackMode, laneLockMap: effectiveLaneLockMap },
     );
     trackEntityStateByMediaRef.current = next;
     // LocalStorage write (fire-and-forget, backward compat during migration window)
     saveTrackEntityStateMap(next, typeof window !== 'undefined' ? window.localStorage : undefined);
     // DB write (primary store)
     void saveTrackEntityStateToDb(activeTextId, trackEntityScopedKey, next[trackEntityScopedKey]!);
-  }, [laneLockMap, trackEntityScopedKey, transcriptionTrackMode, activeTextId]);
+  }, [effectiveLaneLockMap, trackEntityScopedKey, transcriptionTrackMode, activeTextId]);
 
   const speakerLayerLayout = useMemo(() => buildSpeakerLayerLayoutWithOptions(timelineRenderUtterances, {
-    ...(laneLockMap ? { laneLockMap } : {}),
+    trackMode: transcriptionTrackMode,
+    ...(effectiveLaneLockMap ? { laneLockMap: effectiveLaneLockMap } : {}),
     ...(speakerSortKeyById ? { speakerSortKeyById } : {}),
-  }), [laneLockMap, speakerSortKeyById, timelineRenderUtterances]);
+  }), [effectiveLaneLockMap, speakerSortKeyById, timelineRenderUtterances, transcriptionTrackMode]);
 
   const setTrackDisplayMode = useCallback((mode: typeof transcriptionTrackMode) => {
     setTranscriptionTrackMode(mode);
@@ -3089,14 +3140,23 @@ function TranscriptionPageOrchestrator({
   const handleToggleTrackDisplayMode = useCallback(() => {
     setTranscriptionTrackMode((prev) => {
       if (prev === 'single') return 'multi-auto';
-      if (prev === 'multi-auto') return 'single';
-      return 'multi-auto';
+      return 'single';
     });
   }, [setTranscriptionTrackMode]);
 
   const selectedUtteranceIdsForSpeakerActions = useMemo(
     () => Array.from(selectedUtteranceIdsForSpeakerActionsSet),
     [selectedUtteranceIdsForSpeakerActionsSet],
+  );
+  const selectedStandaloneUtteranceIdsForSpeakerActions = useMemo(
+    () => resolveSpeakerActionUtteranceIds(
+      selectedUnitIdsForSpeakerActions.filter((id) => !segmentByIdForSpeakerActions.has(id)),
+    ),
+    [resolveSpeakerActionUtteranceIds, segmentByIdForSpeakerActions, selectedUnitIdsForSpeakerActions],
+  );
+  const speakerByIdMap = useMemo(
+    () => new Map(speakerOptions.map((speaker) => [speaker.id, speaker] as const)),
+    [speakerOptions],
   );
   const speakerNameById = useMemo(() => {
     const next: Record<string, string> = {};
@@ -3105,56 +3165,115 @@ function TranscriptionPageOrchestrator({
     }
     return next;
   }, [speakerOptions]);
-  const selectedSpeakerActionCount = selectedSegmentIdsForSpeakerActions.length > 0
-    ? selectedSegmentIdsForSpeakerActions.length
-    : selectedUnitIdsForSpeakerActions.length;
+  const findExistingSpeakerEntityByName = useCallback((rawName: string) => {
+    const normalizedName = rawName.trim().toLocaleLowerCase('zh-Hans-CN');
+    if (!normalizedName) return undefined;
+    return speakerOptions.find((speaker) => speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName);
+  }, [speakerOptions]);
+  const selectedSpeakerActionCount = selectedSegmentIdsForSpeakerActions.length + selectedStandaloneUtteranceIdsForSpeakerActions.length;
+  const speakerAssignSelectionKind: 'segment' | 'utterance' | 'mixed' = selectedSegmentIdsForSpeakerActions.length > 0
+    ? (selectedStandaloneUtteranceIdsForSpeakerActions.length > 0 ? 'mixed' : 'segment')
+    : 'utterance';
 
   const selectedSpeakerSummaryForActions = useMemo(() => {
-    if (selectedBatchSegmentsForSpeakerActions.length === 0) return selectedSpeakerSummary;
-    const assignedKeys = selectedBatchSegmentsForSpeakerActions
-      .map(resolveSpeakerKeyForSegment)
-      .filter((key) => key !== 'unknown-speaker');
-    if (assignedKeys.length === 0) return '已选语段均未标注说话人';
+    if (selectedBatchSegmentsForSpeakerActions.length === 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length === 0) {
+      return selectedSpeakerSummary;
+    }
+    const totalSelectedCount = selectedBatchSegmentsForSpeakerActions.length + selectedStandaloneUtteranceIdsForSpeakerActions.length;
+    const assignedKeys = [
+      ...selectedBatchSegmentsForSpeakerActions
+        .map(resolveSpeakerKeyForSegment)
+        .filter((key) => key !== 'unknown-speaker'),
+      ...selectedStandaloneUtteranceIdsForSpeakerActions
+        .map((utteranceId) => utterancesOnCurrentMedia.find((utterance) => utterance.id === utteranceId))
+        .filter((utterance): utterance is UtteranceDocType => Boolean(utterance))
+        .map((utterance) => getUtteranceSpeakerKey(utterance))
+        .filter((key) => key.length > 0),
+    ];
+    if (assignedKeys.length === 0) return '已选项均未标注说话人';
     const uniqueKeys = new Set(assignedKeys);
+    if (assignedKeys.length < totalSelectedCount) {
+      if (uniqueKeys.size === 1) {
+        const firstKey = assignedKeys[0]!;
+        return `当前包含未标注项；已标注说话人：${getSpeakerDisplayNameByKey(firstKey, speakerByIdMap)}`;
+      }
+      return `当前包含 ${uniqueKeys.size} 位说话人和未标注项`;
+    }
     if (uniqueKeys.size === 1) {
       const firstKey = assignedKeys[0]!;
-      return `当前统一说话人：${speakerNameById[firstKey] ?? firstKey}`;
+      return `当前统一说话人：${getSpeakerDisplayNameByKey(firstKey, speakerByIdMap)}`;
     }
     return `当前包含 ${uniqueKeys.size} 位说话人`;
-  }, [resolveSpeakerKeyForSegment, selectedBatchSegmentsForSpeakerActions, selectedSpeakerSummary, speakerNameById]);
+  }, [resolveSpeakerKeyForSegment, selectedBatchSegmentsForSpeakerActions, selectedSpeakerSummary, selectedStandaloneUtteranceIdsForSpeakerActions, speakerByIdMap, utterancesOnCurrentMedia]);
 
-  const shouldShowSpeakerAssignPanel = selectedSpeakerActionCount > 0;
+  const [segmentSpeakerDialogState, setSegmentSpeakerDialogState] = useState<SpeakerActionDialogState | null>(null);
+  const [segmentSpeakerDialogBusy, setSegmentSpeakerDialogBusy] = useState(false);
+  const speakerSavingRouted = speakerSaving || segmentSpeakerDialogBusy;
+
+  const getSegmentIdsForSpeakerKey = useCallback((speakerKey: string) => {
+    if (!activeSpeakerManagementLayer) return [];
+    return (segmentsByLayer.get(activeSpeakerManagementLayer.id) ?? [])
+      .filter((segment) => resolveExplicitSpeakerKeyForSegment(segment) === speakerKey)
+      .map((segment) => segment.id);
+  }, [activeSpeakerManagementLayer, resolveExplicitSpeakerKeyForSegment, segmentsByLayer]);
+
+  const speakerFilterOptionByKeyForActions = useMemo(
+    () => new Map(speakerFilterOptionsForActions.map((option) => [option.key, option] as const)),
+    [speakerFilterOptionsForActions],
+  );
 
   useEffect(() => {
-    if (selectedBatchSegmentsForSpeakerActions.length === 0) return;
-    const explicitKeys = selectedBatchSegmentsForSpeakerActions
-      .map((segment) => segment.speakerId?.trim() ?? '')
-      .filter((key) => key.length > 0);
-    if (explicitKeys.length !== selectedBatchSegmentsForSpeakerActions.length) {
+    if (selectedBatchSegmentsForSpeakerActions.length > 0) {
+      const explicitKeys = selectedBatchSegmentsForSpeakerActions
+        .map((segment) => segment.speakerId?.trim() ?? '')
+        .filter((key) => key.length > 0);
+      if (explicitKeys.length !== selectedBatchSegmentsForSpeakerActions.length) {
+        setBatchSpeakerId('');
+        return;
+      }
+      const [firstKey] = explicitKeys;
+      if (!firstKey) {
+        setBatchSpeakerId('');
+        return;
+      }
+      const allSame = explicitKeys.every((key) => key === firstKey);
+      setBatchSpeakerId(allSame ? firstKey : '');
+      return;
+    }
+
+    if (selectedBatchUtterances.length === 0) {
       setBatchSpeakerId('');
       return;
     }
-    const [firstKey] = explicitKeys;
-    if (!firstKey) {
+    const firstSpeakerId = selectedBatchUtterances[0]?.speakerId?.trim() ?? '';
+    if (!firstSpeakerId) {
       setBatchSpeakerId('');
       return;
     }
-    const allSame = explicitKeys.every((key) => key === firstKey);
-    setBatchSpeakerId(allSame ? firstKey : '');
-  }, [selectedBatchSegmentsForSpeakerActions, setBatchSpeakerId]);
+    const allSame = selectedBatchUtterances.every((utterance) => (utterance.speakerId?.trim() ?? '') === firstSpeakerId);
+    setBatchSpeakerId(allSame ? firstSpeakerId : '');
+  }, [selectedBatchSegmentsForSpeakerActions, selectedBatchUtterances, setBatchSpeakerId]);
 
   const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {
     const targetIds = Array.from(new Set(Array.from(segmentIds).map((id) => id.trim()).filter((id) => id.length > 0)));
-    if (targetIds.length === 0 || speakerSaving) return;
+    if (targetIds.length === 0 || speakerSavingRouted) return;
 
     try {
       data.pushUndo('批量指派说话人');
       const updated = await LinguisticService.assignSpeakerToSegments(targetIds, speakerId);
-      if (speakerId) {
-        setBatchSpeakerId(speakerId);
-      }
+      const now = new Date().toISOString();
+      updateSegmentsLocally(targetIds, (segment) => {
+        if (speakerId) {
+          return { ...segment, speakerId, updatedAt: now };
+        }
+        const cleared = { ...segment, updatedAt: now };
+        delete cleared.speakerId;
+        return cleared;
+      });
+      setBatchSpeakerId(speakerId ?? '');
       await reloadSegments();
       await refreshSegmentUndoSnapshot();
+      await refreshSpeakerReferenceStats();
       setSaveState({
         kind: 'done',
         message: updated > 0 ? `已更新 ${updated} 条语段的说话人` : '未找到可更新语段',
@@ -3167,37 +3286,31 @@ function TranscriptionPageOrchestrator({
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     }
-  }, [data, refreshSegmentUndoSnapshot, reloadSegments, setBatchSpeakerId, setSaveState, speakerSaving]);
+  }, [data, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, reloadSegments, setBatchSpeakerId, setSaveState, speakerSavingRouted, updateSegmentsLocally]);
 
-  const handleAssignSpeakerToSelectedRouted = useCallback(async () => {
-    if (selectedSegmentIdsForSpeakerActions.length > 0) {
-      await handleAssignSpeakerToSegments(selectedSegmentIdsForSpeakerActions, batchSpeakerId || undefined);
-      return;
-    }
-    await handleAssignSpeakerToSelected();
-  }, [batchSpeakerId, handleAssignSpeakerToSelected, handleAssignSpeakerToSegments, selectedSegmentIdsForSpeakerActions]);
-
-  const handleCreateSpeakerAndAssignRouted = useCallback(async () => {
-    if (selectedSegmentIdsForSpeakerActions.length === 0) {
-      await handleCreateSpeakerAndAssign();
-      return;
-    }
-    const name = speakerDraftName.trim();
-    if (!name || speakerSaving) return;
+  const createSpeakerAndAssignToSegments = useCallback(async (name: string, segmentIds: Iterable<string>) => {
+    const trimmedName = name.trim();
+    const targetIds = Array.from(new Set(Array.from(segmentIds).map((id) => id.trim()).filter((id) => id.length > 0)));
+    if (!trimmedName || targetIds.length === 0 || speakerSavingRouted) return;
 
     let undoPushed = false;
     try {
-      data.pushUndo('新建并分配说话人');
+      const existing = findExistingSpeakerEntityByName(trimmedName);
+      data.pushUndo(existing ? '复用说话人并分配' : '新建并分配说话人');
       undoPushed = true;
-      const created = await LinguisticService.createSpeaker({ name });
-      await LinguisticService.assignSpeakerToSegments(selectedSegmentIdsForSpeakerActions, created.id);
+      const targetSpeaker = existing ?? await LinguisticService.createSpeaker({ name: trimmedName });
+      await LinguisticService.assignSpeakerToSegments(targetIds, targetSpeaker.id);
+      const now = new Date().toISOString();
+      updateSegmentsLocally(targetIds, (segment) => ({ ...segment, speakerId: targetSpeaker.id, updatedAt: now }));
       setSpeakerDraftName('');
-      setBatchSpeakerId(created.id);
-      await Promise.all([refreshSpeakers(), reloadSegments()]);
+      setBatchSpeakerId(targetSpeaker.id);
+      await Promise.all([refreshSpeakers(), refreshSpeakerReferenceStats(), reloadSegments()]);
       await refreshSegmentUndoSnapshot();
       setSaveState({
         kind: 'done',
-        message: `已创建说话人"${created.name}"，并应用到 ${selectedSegmentIdsForSpeakerActions.length} 条语段`,
+        message: existing
+          ? `已复用现有说话人"${targetSpeaker.name}"，并应用到 ${targetIds.length} 条语段`
+          : `已创建说话人"${targetSpeaker.name}"，并应用到 ${targetIds.length} 条语段`,
       });
     } catch (error) {
       if (undoPushed) await data.undo();
@@ -3208,65 +3321,358 @@ function TranscriptionPageOrchestrator({
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     }
-  }, [data, handleCreateSpeakerAndAssign, refreshSegmentUndoSnapshot, refreshSpeakers, reloadSegments, selectedSegmentIdsForSpeakerActions, setBatchSpeakerId, setSaveState, setSpeakerDraftName, speakerDraftName, speakerSaving]);
+  }, [data, findExistingSpeakerEntityByName, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, refreshSpeakers, reloadSegments, setBatchSpeakerId, setSaveState, setSpeakerDraftName, speakerSavingRouted, updateSegmentsLocally]);
+
+  const applySpeakerToMixedSelection = useCallback(async (speakerId?: string) => {
+    const targetSegmentIds = selectedSegmentIdsForSpeakerActions;
+    const targetUtteranceIds = selectedStandaloneUtteranceIdsForSpeakerActions;
+    if ((targetSegmentIds.length === 0 && targetUtteranceIds.length === 0) || speakerSavingRouted) return;
+
+    const normalizedSpeakerId = speakerId?.trim();
+    const speaker = normalizedSpeakerId ? speakerByIdMap.get(normalizedSpeakerId) : undefined;
+    let undoPushed = false;
+    try {
+      data.pushUndo('批量指派说话人');
+      undoPushed = true;
+      const [updatedSegments, updatedUtterances] = await Promise.all([
+        targetSegmentIds.length > 0
+          ? LinguisticService.assignSpeakerToSegments(targetSegmentIds, normalizedSpeakerId)
+          : Promise.resolve(0),
+        targetUtteranceIds.length > 0
+          ? LinguisticService.assignSpeakerToUtterances(targetUtteranceIds, normalizedSpeakerId)
+          : Promise.resolve(0),
+      ]);
+      const now = new Date().toISOString();
+      if (targetSegmentIds.length > 0) {
+        updateSegmentsLocally(targetSegmentIds, (segment) => {
+          if (normalizedSpeakerId) {
+            return { ...segment, speakerId: normalizedSpeakerId, updatedAt: now };
+          }
+          const cleared = { ...segment, updatedAt: now };
+          delete cleared.speakerId;
+          return cleared;
+        });
+      }
+      if (targetUtteranceIds.length > 0) {
+        setUtterances((prev) => applySpeakerAssignmentToUtterances(prev, targetUtteranceIds, speaker));
+      }
+      setBatchSpeakerId(normalizedSpeakerId ?? '');
+      await reloadSegments();
+      await refreshSegmentUndoSnapshot();
+      await refreshSpeakerReferenceStats();
+      const totalUpdated = updatedSegments + updatedUtterances;
+      setSaveState({
+        kind: 'done',
+        message: totalUpdated > 0 ? `已更新 ${totalUpdated} 条选中项的说话人` : '未找到可更新项',
+      });
+    } catch (error) {
+      if (undoPushed) await data.undo();
+      reportActionError({
+        actionLabel: '说话人指派',
+        error,
+        i18nKey: 'transcription.error.action.assignSpeakerFailed',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
+    }
+  }, [data, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, reloadSegments, selectedSegmentIdsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, setBatchSpeakerId, setSaveState, setUtterances, speakerByIdMap, speakerSavingRouted, updateSegmentsLocally]);
+
+  const createSpeakerAndAssignToMixedSelection = useCallback(async (name: string) => {
+    const trimmedName = name.trim();
+    const targetSegmentIds = selectedSegmentIdsForSpeakerActions;
+    const targetUtteranceIds = selectedStandaloneUtteranceIdsForSpeakerActions;
+    if (!trimmedName || (targetSegmentIds.length === 0 && targetUtteranceIds.length === 0) || speakerSavingRouted) return;
+
+    let undoPushed = false;
+    try {
+      const existing = findExistingSpeakerEntityByName(trimmedName);
+      data.pushUndo(existing ? '复用说话人并分配' : '新建并分配说话人');
+      undoPushed = true;
+      const targetSpeaker = existing ?? await LinguisticService.createSpeaker({ name: trimmedName });
+      const [updatedSegments, updatedUtterances] = await Promise.all([
+        targetSegmentIds.length > 0
+          ? LinguisticService.assignSpeakerToSegments(targetSegmentIds, targetSpeaker.id)
+          : Promise.resolve(0),
+        targetUtteranceIds.length > 0
+          ? LinguisticService.assignSpeakerToUtterances(targetUtteranceIds, targetSpeaker.id)
+          : Promise.resolve(0),
+      ]);
+      const now = new Date().toISOString();
+      if (targetSegmentIds.length > 0) {
+        updateSegmentsLocally(targetSegmentIds, (segment) => ({ ...segment, speakerId: targetSpeaker.id, updatedAt: now }));
+      }
+      if (targetUtteranceIds.length > 0) {
+        setUtterances((prev) => applySpeakerAssignmentToUtterances(prev, targetUtteranceIds, targetSpeaker));
+      }
+      if (!existing) {
+        setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
+      }
+      setSpeakerDraftName('');
+      setBatchSpeakerId(targetSpeaker.id);
+      await Promise.all([refreshSpeakers(), refreshSpeakerReferenceStats(), reloadSegments()]);
+      await refreshSegmentUndoSnapshot();
+      setSaveState({
+        kind: 'done',
+        message: existing
+          ? `已复用现有说话人"${targetSpeaker.name}"，并应用到 ${updatedSegments + updatedUtterances} 条选中项`
+          : `已创建说话人"${targetSpeaker.name}"，并应用到 ${updatedSegments + updatedUtterances} 条选中项`,
+      });
+    } catch (error) {
+      if (undoPushed) await data.undo();
+      reportActionError({
+        actionLabel: '创建说话人',
+        error,
+        i18nKey: 'transcription.error.action.createSpeakerFailed',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
+    }
+  }, [data, findExistingSpeakerEntityByName, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, refreshSpeakers, reloadSegments, selectedSegmentIdsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, setBatchSpeakerId, setSaveState, setSpeakerDraftName, setSpeakers, setUtterances, speakerSavingRouted, updateSegmentsLocally]);
+
+  const handleSelectSpeakerUnitsRouted = useCallback((speakerKey: string) => {
+    if (!activeSpeakerManagementLayer) {
+      handleSelectSpeakerUtterances(speakerKey);
+      return;
+    }
+
+    const ids = getSegmentIdsForSpeakerKey(speakerKey);
+    if (ids.length === 0) {
+      selectTimelineUnit(null);
+      _setSelectedUtteranceIds(new Set());
+      return;
+    }
+
+    const primary = selectedTimelineUnit?.kind === 'segment' && ids.includes(selectedTimelineUnit.unitId)
+      ? selectedTimelineUnit.unitId
+      : ids[0]!;
+    selectTimelineUnit(createTimelineUnit(activeSpeakerManagementLayer.id, primary, 'segment'));
+    _setSelectedUtteranceIds(new Set(ids));
+    setActiveSpeakerFilterKey(speakerKey);
+  }, [activeSpeakerManagementLayer, _setSelectedUtteranceIds, getSegmentIdsForSpeakerKey, handleSelectSpeakerUtterances, selectTimelineUnit, selectedTimelineUnit, setActiveSpeakerFilterKey]);
+
+  const handleClearSpeakerAssignmentsRouted = useCallback((speakerKey: string) => {
+    if (!activeSpeakerManagementLayer) {
+      handleClearSpeakerAssignments(speakerKey);
+      return;
+    }
+
+    const target = speakerFilterOptionByKeyForActions.get(speakerKey);
+    const ids = getSegmentIdsForSpeakerKey(speakerKey);
+    if (ids.length === 0) {
+      reportValidationError({
+        message: '未找到可清空的语段',
+        i18nKey: 'transcription.error.validation.clearSpeakerNoTarget',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
+      return;
+    }
+
+    setSegmentSpeakerDialogState({
+      mode: 'clear',
+      speakerKey,
+      speakerName: target?.name ?? '未命名说话人',
+      affectedCount: ids.length,
+    });
+  }, [activeSpeakerManagementLayer, getSegmentIdsForSpeakerKey, handleClearSpeakerAssignments, setSaveState, speakerFilterOptionByKeyForActions]);
+
+  const handleExportSpeakerSegmentsRouted = useCallback((speakerKey: string) => {
+    if (!activeSpeakerManagementLayer) {
+      handleExportSpeakerSegments(speakerKey);
+      return;
+    }
+
+    const target = speakerFilterOptionByKeyForActions.get(speakerKey);
+    const speakerName = target?.name ?? 'speaker';
+    const rows = (segmentsByLayer.get(activeSpeakerManagementLayer.id) ?? [])
+      .filter((segment) => resolveExplicitSpeakerKeyForSegment(segment) === speakerKey)
+      .sort((left, right) => left.startTime - right.startTime)
+      .map((segment, index) => {
+        const text = segmentContentByLayer.get(activeSpeakerManagementLayer.id)?.get(segment.id)?.text ?? '';
+        return `${index + 1}. [${formatTime(segment.startTime)} - ${formatTime(segment.endTime)}] ${text}`;
+      });
+
+    if (rows.length === 0) {
+      reportValidationError({
+        message: '该说话人暂无可导出的语段',
+        i18nKey: 'transcription.error.validation.exportSpeakerNoSegments',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      reportValidationError({
+        message: '当前环境不支持导出',
+        i18nKey: 'transcription.error.validation.exportSpeakerUnsupportedEnv',
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+      });
+      return;
+    }
+
+    const content = [`说话人: ${speakerName}`, `语段数量: ${rows.length}`, '', ...rows].join('\n');
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `speaker-${speakerName.replace(/\s+/g, '-')}-${Date.now()}.txt`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    setSaveState({ kind: 'done', message: `已导出 ${rows.length} 条语段` });
+  }, [activeSpeakerManagementLayer, formatTime, handleExportSpeakerSegments, resolveExplicitSpeakerKeyForSegment, segmentContentByLayer, segmentsByLayer, setSaveState, speakerFilterOptionByKeyForActions]);
+
+  const speakerDialogStateRouted = segmentSpeakerDialogState ?? baseSpeakerDialogState;
+
+  const closeSpeakerDialogRouted = useCallback(() => {
+    if (segmentSpeakerDialogState) {
+      if (segmentSpeakerDialogBusy) return;
+      setSegmentSpeakerDialogState(null);
+      return;
+    }
+    closeSpeakerDialogBase();
+  }, [closeSpeakerDialogBase, segmentSpeakerDialogBusy, segmentSpeakerDialogState]);
+
+  const updateSpeakerDialogDraftNameRouted = useCallback((value: string) => {
+    if (segmentSpeakerDialogState) return;
+    updateSpeakerDialogDraftNameBase(value);
+  }, [segmentSpeakerDialogState, updateSpeakerDialogDraftNameBase]);
+
+  const updateSpeakerDialogTargetKeyRouted = useCallback((speakerKey: string) => {
+    if (segmentSpeakerDialogState) return;
+    updateSpeakerDialogTargetKeyBase(speakerKey);
+  }, [segmentSpeakerDialogState, updateSpeakerDialogTargetKeyBase]);
+
+  const confirmSpeakerDialogRouted = useCallback(async () => {
+    if (segmentSpeakerDialogState?.mode === 'clear') {
+      const ids = getSegmentIdsForSpeakerKey(segmentSpeakerDialogState.speakerKey);
+      if (ids.length === 0) {
+        reportValidationError({
+          message: '未找到可清空的语段',
+          i18nKey: 'transcription.error.validation.clearSpeakerNoTarget',
+          setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+        setSegmentSpeakerDialogState(null);
+        return;
+      }
+
+      setSegmentSpeakerDialogBusy(true);
+      let undoPushed = false;
+      try {
+        data.pushUndo('删除说话人标签');
+        undoPushed = true;
+        const cleared = await LinguisticService.assignSpeakerToSegments(ids, undefined);
+        const now = new Date().toISOString();
+        updateSegmentsLocally(ids, (segment) => {
+          const next = { ...segment, updatedAt: now };
+          delete next.speakerId;
+          return next;
+        });
+        await reloadSegments();
+        await refreshSegmentUndoSnapshot();
+        await refreshSpeakerReferenceStats();
+        setActiveSpeakerFilterKey('all');
+        setSaveState({ kind: 'done', message: `已清空 ${cleared} 条语段的说话人标签` });
+        setSegmentSpeakerDialogState(null);
+      } catch (error) {
+        if (undoPushed) await data.undo();
+        reportActionError({
+          actionLabel: '说话人操作',
+          error,
+          i18nKey: 'transcription.error.action.speakerDialogOperationFailed',
+          setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+      } finally {
+        setSegmentSpeakerDialogBusy(false);
+      }
+      return;
+    }
+
+    await confirmSpeakerDialogBase();
+    await reloadSegments();
+    await refreshSegmentUndoSnapshot();
+    await refreshSpeakerReferenceStats();
+  }, [confirmSpeakerDialogBase, data, getSegmentIdsForSpeakerKey, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, reloadSegments, segmentSpeakerDialogState, setActiveSpeakerFilterKey, setSaveState, updateSegmentsLocally]);
+
+  const handleAssignSpeakerToSelectedRouted = useCallback(async () => {
+    if (selectedSegmentIdsForSpeakerActions.length > 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length > 0) {
+      await applySpeakerToMixedSelection(batchSpeakerId || undefined);
+      return;
+    }
+    if (selectedSegmentIdsForSpeakerActions.length > 0) {
+      await handleAssignSpeakerToSegments(selectedSegmentIdsForSpeakerActions, batchSpeakerId || undefined);
+      return;
+    }
+    await handleAssignSpeakerToSelected();
+  }, [applySpeakerToMixedSelection, batchSpeakerId, handleAssignSpeakerToSelected, handleAssignSpeakerToSegments, selectedSegmentIdsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions]);
+
+  const handleClearSpeakerOnSelectedRouted = useCallback(async () => {
+    if (selectedSegmentIdsForSpeakerActions.length > 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length > 0) {
+      await applySpeakerToMixedSelection(undefined);
+      return;
+    }
+    if (selectedSegmentIdsForSpeakerActions.length > 0) {
+      await handleAssignSpeakerToSegments(selectedSegmentIdsForSpeakerActions, undefined);
+      return;
+    }
+    await handleAssignSpeakerToUtterances(selectedUtteranceIdsForSpeakerActions, undefined);
+  }, [applySpeakerToMixedSelection, handleAssignSpeakerToSegments, handleAssignSpeakerToUtterances, selectedSegmentIdsForSpeakerActions, selectedUtteranceIdsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions]);
+
+  const handleCreateSpeakerAndAssignRouted = useCallback(async () => {
+    if (selectedSegmentIdsForSpeakerActions.length > 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length > 0) {
+      await createSpeakerAndAssignToMixedSelection(speakerDraftName);
+      return;
+    }
+    if (selectedSegmentIdsForSpeakerActions.length === 0) {
+      await handleCreateSpeakerAndAssign();
+      return;
+    }
+    await createSpeakerAndAssignToSegments(speakerDraftName, selectedSegmentIdsForSpeakerActions);
+  }, [createSpeakerAndAssignToMixedSelection, createSpeakerAndAssignToSegments, handleCreateSpeakerAndAssign, selectedSegmentIdsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, speakerDraftName]);
+
+  const openSpeakerManagementPanel = useCallback((draftName = '') => {
+    setLayerRailTab('layers');
+    setIsLayerRailCollapsed(false);
+    setSpeakerDraftName(draftName);
+    layerAction.setLayerActionPanel('speaker-management');
+  }, [layerAction, setIsLayerRailCollapsed, setLayerRailTab, setSpeakerDraftName]);
+
+  const assignSpeakerFromCurrentSelection = useCallback((speakerId?: string) => {
+    if (selectedSegmentIdsForSpeakerActions.length > 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length > 0) {
+      fireAndForget(applySpeakerToMixedSelection(speakerId));
+      return true;
+    }
+    if (selectedSegmentIdsForSpeakerActions.length > 0) {
+      fireAndForget(handleAssignSpeakerToSegments(selectedSegmentIdsForSpeakerActions, speakerId));
+      return true;
+    }
+    if (selectedUtteranceIdsForSpeakerActions.length > 0) {
+      fireAndForget(handleAssignSpeakerToUtterances(selectedUtteranceIdsForSpeakerActions, speakerId));
+      return true;
+    }
+    return false;
+  }, [applySpeakerToMixedSelection, handleAssignSpeakerToSegments, handleAssignSpeakerToUtterances, selectedSegmentIdsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, selectedUtteranceIdsForSpeakerActions]);
 
     const speakerQuickActions = useMemo(() => ({
       selectedCount: selectedSpeakerActionCount,
       speakerOptions: speakerOptions.map((speaker) => ({ id: speaker.id, name: speaker.name })),
       onAssignToSelection: (speakerId: string) => {
-        if (selectedSegmentIdsForSpeakerActions.length > 0) {
-          fireAndForget(handleAssignSpeakerToSegments(selectedSegmentIdsForSpeakerActions, speakerId));
-          return;
-        }
-        fireAndForget(handleAssignSpeakerToUtterances(selectedUtteranceIdsForSpeakerActions, speakerId));
+        assignSpeakerFromCurrentSelection(speakerId);
       },
       onClearSelection: () => {
-        if (selectedSegmentIdsForSpeakerActions.length > 0) {
-          fireAndForget(handleAssignSpeakerToSegments(selectedSegmentIdsForSpeakerActions, undefined));
-          return;
-        }
-        fireAndForget(handleAssignSpeakerToUtterances(selectedUtteranceIdsForSpeakerActions, undefined));
+        assignSpeakerFromCurrentSelection(undefined);
       },
-      onCreateAndAssignToSelection: (name: string) => {
-        if (selectedSegmentIdsForSpeakerActions.length > 0) {
-          setSpeakerDraftName(name);
-          fireAndForget((async () => {
-            const trimmedName = name.trim();
-            if (!trimmedName) return;
-            let undoPushed = false;
-            try {
-              data.pushUndo('新建并分配说话人');
-              undoPushed = true;
-              const created = await LinguisticService.createSpeaker({ name: trimmedName });
-              await LinguisticService.assignSpeakerToSegments(selectedSegmentIdsForSpeakerActions, created.id);
-              setBatchSpeakerId(created.id);
-              await Promise.all([refreshSpeakers(), reloadSegments()]);
-              await refreshSegmentUndoSnapshot();
-              setSaveState({
-                kind: 'done',
-                message: `已创建说话人"${created.name}"，并应用到 ${selectedSegmentIdsForSpeakerActions.length} 条语段`,
-              });
-            } catch (error) {
-              if (undoPushed) await data.undo();
-              reportActionError({
-                actionLabel: '创建说话人',
-                error,
-                i18nKey: 'transcription.error.action.createSpeakerFailed',
-                setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-              });
-            }
-          })());
-          return;
-        }
-        fireAndForget(handleCreateSpeakerAndAssignToUtterances(name, selectedUtteranceIdsForSpeakerActions));
+      onOpenCreateAndAssignPanel: () => {
+        if (selectedSpeakerActionCount === 0) return;
+        openSpeakerManagementPanel();
       },
-    }), [data, handleAssignSpeakerToSegments, handleAssignSpeakerToUtterances, handleCreateSpeakerAndAssignToUtterances, refreshSegmentUndoSnapshot, refreshSpeakers, reloadSegments, selectedSegmentIdsForSpeakerActions, selectedSpeakerActionCount, selectedUtteranceIdsForSpeakerActions, setBatchSpeakerId, setSaveState, setSpeakerDraftName, speakerOptions]);
+    }), [assignSpeakerFromCurrentSelection, openSpeakerManagementPanel, selectedSpeakerActionCount, speakerOptions]);
 
   const selectedSpeakerIdsForTrackLock = useMemo(() => {
     if (selectedBatchSegmentsForSpeakerActions.length > 0) {
       const unique = new Set<string>();
       for (const segment of selectedBatchSegmentsForSpeakerActions) {
-        unique.add(resolveSpeakerKeyForSegment(segment));
+        const speakerKey = resolveSpeakerKeyForSegment(segment);
+        if (speakerKey === 'unknown-speaker') continue;
+        unique.add(speakerKey);
       }
       return Array.from(unique);
     }
@@ -3275,22 +3681,32 @@ function TranscriptionPageOrchestrator({
     for (const utteranceId of selectedUtteranceIdsForSpeakerActions) {
       const utterance = utteranceMap.get(utteranceId);
       if (!utterance) continue;
-      unique.add(getUtteranceSpeakerKey(utterance));
+      const speakerKey = getUtteranceSpeakerKey(utterance);
+      if (!speakerKey) continue;
+      unique.add(speakerKey);
     }
     return Array.from(unique);
   }, [resolveSpeakerKeyForSegment, selectedBatchSegmentsForSpeakerActions, selectedUtteranceIdsForSpeakerActions, utterancesOnCurrentMedia]);
 
   const selectedSpeakerNamesForTrackLock = useMemo(
-    () => selectedSpeakerIdsForTrackLock.map((id) => speakerNameById[id] ?? id),
-    [selectedSpeakerIdsForTrackLock, speakerNameById],
+    () => selectedSpeakerIdsForTrackLock.map((id) => getSpeakerDisplayNameByKey(id, speakerByIdMap)),
+    [selectedSpeakerIdsForTrackLock, speakerByIdMap],
   );
 
   const speakerFocusOptions = useMemo(() => {
-    const idsOnCurrentMedia = new Set(utterancesOnCurrentMedia.map((item) => getUtteranceSpeakerKey(item)));
+    const idsOnCurrentMedia = new Set<string>();
+    for (const item of utterancesOnCurrentMedia) {
+      const speakerKey = getUtteranceSpeakerKey(item);
+      if (!speakerKey) continue;
+      idsOnCurrentMedia.add(speakerKey);
+    }
+    for (const assignment of segmentSpeakerAssignmentsOnCurrentMedia) {
+      idsOnCurrentMedia.add(assignment.speakerKey);
+    }
     return speakerOptions
       .filter((speaker) => idsOnCurrentMedia.has(speaker.id))
       .map((speaker) => ({ key: speaker.id, name: speaker.name }));
-  }, [speakerOptions, utterancesOnCurrentMedia]);
+  }, [segmentSpeakerAssignmentsOnCurrentMedia, speakerOptions, utterancesOnCurrentMedia]);
 
   const speakerFocusOptionKeySet = useMemo(
     () => new Set(speakerFocusOptions.map((item) => item.key)),
@@ -3308,37 +3724,45 @@ function TranscriptionPageOrchestrator({
     if (speakerFocusTargetKey && speakerFocusTargetKey.trim().length > 0) {
       return speakerFocusOptionKeySet.has(speakerFocusTargetKey) ? speakerFocusTargetKey : null;
     }
-    const selectedUtteranceUnitId = isUtteranceTimelineUnit(selectedTimelineUnit)
-      ? selectedTimelineUnit.unitId
-      : '';
-    const selected = selectedUtteranceUnitId
-      ? utterancesOnCurrentMedia.find((item) => item.id === selectedUtteranceUnitId)
-      : undefined;
-    if (!selected) return null;
-    const selectedKey = getUtteranceSpeakerKey(selected);
+    if (isSegmentTimelineUnit(selectedTimelineUnit)) {
+      const selectedSegment = segmentByIdForSpeakerActions.get(selectedTimelineUnit.unitId);
+      if (!selectedSegment) return null;
+      const selectedKey = resolveSpeakerKeyForSegment(selectedSegment);
+      return speakerFocusOptionKeySet.has(selectedKey) ? selectedKey : null;
+    }
+    if (!selectedUtterance) return null;
+    const selectedKey = getUtteranceSpeakerKey(selectedUtterance);
     return speakerFocusOptionKeySet.has(selectedKey) ? selectedKey : null;
-  }, [selectedTimelineUnit, speakerFocusOptionKeySet, speakerFocusTargetKey, utterancesOnCurrentMedia]);
+  }, [resolveSpeakerKeyForSegment, segmentByIdForSpeakerActions, selectedTimelineUnit, selectedUtterance, speakerFocusOptionKeySet, speakerFocusTargetKey]);
 
   const resolvedSpeakerFocusTargetName = useMemo(
-    () => resolvedSpeakerFocusTargetKey ? (speakerNameById[resolvedSpeakerFocusTargetKey] ?? resolvedSpeakerFocusTargetKey) : undefined,
-    [resolvedSpeakerFocusTargetKey, speakerNameById],
+    () => resolvedSpeakerFocusTargetKey ? getSpeakerDisplayNameByKey(resolvedSpeakerFocusTargetKey, speakerByIdMap) : undefined,
+    [resolvedSpeakerFocusTargetKey, speakerByIdMap],
   );
+
+  const firstSpeakerFocusTargetKey = useMemo(() => {
+    for (const item of utterancesOnCurrentMedia) {
+      const speakerKey = getUtteranceSpeakerKey(item);
+      if (speakerFocusOptionKeySet.has(speakerKey)) return speakerKey;
+    }
+    for (const assignment of segmentSpeakerAssignmentsOnCurrentMedia) {
+      if (speakerFocusOptionKeySet.has(assignment.speakerKey)) return assignment.speakerKey;
+    }
+    return null;
+  }, [segmentSpeakerAssignmentsOnCurrentMedia, speakerFocusOptionKeySet, utterancesOnCurrentMedia]);
 
   const cycleSpeakerFocusMode = useCallback(() => {
     setSpeakerFocusMode((prev) => {
       if (prev === 'all') {
-        if (!resolvedSpeakerFocusTargetKey) {
-          const firstWithSpeaker = utterancesOnCurrentMedia.find((item) => getUtteranceSpeakerKey(item) !== 'unknown-speaker');
-          if (firstWithSpeaker) {
-            setSpeakerFocusTargetForCurrentMedia(getUtteranceSpeakerKey(firstWithSpeaker));
-          }
+        if (!resolvedSpeakerFocusTargetKey && firstSpeakerFocusTargetKey) {
+          setSpeakerFocusTargetForCurrentMedia(firstSpeakerFocusTargetKey);
         }
         return 'focus-soft';
       }
       if (prev === 'focus-soft') return 'focus-hard';
       return 'all';
     });
-  }, [resolvedSpeakerFocusTargetKey, setSpeakerFocusTargetForCurrentMedia, utterancesOnCurrentMedia]);
+  }, [firstSpeakerFocusTargetKey, resolvedSpeakerFocusTargetKey, setSpeakerFocusTargetForCurrentMedia]);
 
   const handleSpeakerFocusTargetChange = useCallback((speakerKey: string) => {
     const normalized = speakerKey.trim();
@@ -3410,9 +3834,15 @@ function TranscriptionPageOrchestrator({
 
   const trackModeLabel = useMemo(() => {
     if (transcriptionTrackMode === 'single') return '单轨';
+    if (transcriptionTrackMode === 'multi-speaker-fixed') return '多轨·一人一轨';
     if (transcriptionTrackMode === 'multi-locked') return '多轨·锁定';
     return '多轨·自动';
   }, [transcriptionTrackMode]);
+
+  const trackConflictLabel = useMemo(
+    () => transcriptionTrackMode === 'multi-speaker-fixed' ? '一人一轨冲突' : '锁定冲突',
+    [transcriptionTrackMode],
+  );
 
   const trackLockDiagnostics = useMemo(() => {
     const speakerNames = speakerLayerLayout.lockConflictSpeakerIds.map((id) => speakerNameById[id] ?? id);
@@ -3454,7 +3884,7 @@ function TranscriptionPageOrchestrator({
       startTimelineResizeDrag,
       noteCounts,
       handleNoteClick,
-      speakerVisualByUtteranceId,
+      speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
       independentLayerIds,
       onOverlapCycleToast: (index, total, utteranceId) => {
         setOverlapCycleToast({ index, total, nonce: Date.now() });
@@ -3618,17 +4048,6 @@ function TranscriptionPageOrchestrator({
               onToggleNotes={toggleNotes}
               onOpenUttOpsMenu={(x, y) => setUttOpsMenu({ x, y })}
               lowConfidenceCount={lowConfidenceCount}
-              trackModeLabel={trackModeLabel}
-              laneLockCount={Object.keys(laneLockMap).length}
-              lockConflictCount={trackLockDiagnostics.count}
-              lockConflictSpeakerNames={trackLockDiagnostics.speakerNames}
-              onOpenLockConflictDetails={handleOpenLockConflictDetails}
-              speakerFocusMode={speakerFocusMode}
-              {...(resolvedSpeakerFocusTargetName ? { speakerFocusTargetName: resolvedSpeakerFocusTargetName } : {})}
-              speakerFocusOptions={speakerFocusOptions}
-              speakerFocusTargetKey={speakerFocusTargetKey ?? ''}
-              onSpeakerFocusTargetKeyChange={handleSpeakerFocusTargetChange}
-              onCycleSpeakerFocusMode={cycleSpeakerFocusMode}
               {...(selectedMediaUrl ? { onAutoSegment: handleAutoSegment } : {})}
               autoSegmentBusy={autoSegmentBusy}
             />
@@ -3944,33 +4363,39 @@ function TranscriptionPageOrchestrator({
                         setSpeakerDraftName,
                         batchSpeakerId,
                         setBatchSpeakerId,
-                        speakerSaving,
+                        speakerSaving: speakerSavingRouted,
                         activeSpeakerFilterKey,
                         setActiveSpeakerFilterKey,
-                        speakerDialogState,
-                        speakerVisualByUtteranceId,
-                        speakerFilterOptions,
+                        speakerDialogState: speakerDialogStateRouted,
+                        speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
+                        speakerFilterOptions: speakerFilterOptionsForActions,
+                        speakerReferenceStats,
+                        speakerReferenceStatsReady,
                         selectedSpeakerSummary: selectedSpeakerSummaryForActions,
-                        selectedUtteranceIds,
-                        handleSelectSpeakerUtterances,
-                        handleClearSpeakerAssignments,
-                        handleExportSpeakerSegments,
+                        handleSelectSpeakerUtterances: handleSelectSpeakerUnitsRouted,
+                        handleClearSpeakerAssignments: handleClearSpeakerAssignmentsRouted,
+                        handleExportSpeakerSegments: handleExportSpeakerSegmentsRouted,
                         handleRenameSpeaker,
                         handleMergeSpeaker,
                         handleDeleteSpeaker,
+                        handleDeleteUnusedSpeakers,
                         handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,
+                        handleClearSpeakerOnSelectedRouted,
                         handleCreateSpeakerAndAssign: handleCreateSpeakerAndAssignRouted,
                         handleCreateSpeakerOnly,
-                        closeSpeakerDialog,
-                        updateSpeakerDialogDraftName,
-                        updateSpeakerDialogTargetKey,
-                        confirmSpeakerDialog,
+                        closeSpeakerDialog: closeSpeakerDialogRouted,
+                        updateSpeakerDialogDraftName: updateSpeakerDialogDraftNameRouted,
+                        updateSpeakerDialogTargetKey: updateSpeakerDialogTargetKeyRouted,
+                        confirmSpeakerDialog: confirmSpeakerDialogRouted,
                       }}
+                      selectedUtteranceIds={selectedSpeakerUnitIdsForActionsSet}
+                      handleAssignSpeakerToSelectedRouted={handleAssignSpeakerToSelectedRouted}
+                      handleClearSpeakerOnSelectedRouted={handleClearSpeakerOnSelectedRouted}
                       sidebarProps={{
                         isCollapsed: isLayerRailCollapsed,
                         layerRailTab,
                         onTabChange: setLayerRailTab,
-                        layerRailRows,
+                        layerRailRows: orderedLayers,
                         focusedLayerRowId,
                         flashLayerRowId,
                         onFocusLayer: handleFocusLayerRow,
@@ -4025,7 +4450,7 @@ function TranscriptionPageOrchestrator({
                           selectedTimelineUnit,
                           defaultTranscriptionLayerId,
                           renderAnnotationItem,
-                          allLayersOrdered: layerRailRows,
+                          allLayersOrdered: orderedLayers,
                           onReorderLayers: reorderLayers,
                           deletableLayers,
                           onFocusLayer: handleFocusLayerRow,
@@ -4037,7 +4462,7 @@ function TranscriptionPageOrchestrator({
                           trackDisplayMode: transcriptionTrackMode,
                           onToggleTrackDisplayMode: handleToggleTrackDisplayMode,
                           onSetTrackDisplayMode: setTrackDisplayMode,
-                          laneLockMap,
+                          laneLockMap: effectiveLaneLockMap,
                           onLockSelectedSpeakersToLane: handleLockSelectedSpeakersToLane,
                           onUnlockSelectedSpeakers: handleUnlockSelectedSpeakers,
                           onResetTrackAutoLayout: handleResetTrackAutoLayout,
@@ -4046,6 +4471,7 @@ function TranscriptionPageOrchestrator({
                           speakerLayerLayout,
                           speakerFocusMode,
                           ...(resolvedSpeakerFocusTargetKey ? { speakerFocusSpeakerKey: resolvedSpeakerFocusTargetKey } : {}),
+                          activeSpeakerFilterKey,
                           speakerQuickActions,
                           onLaneLabelWidthResize: handleLaneLabelWidthResizeStart,
                           segmentsByLayer,
@@ -4065,7 +4491,7 @@ function TranscriptionPageOrchestrator({
                           defaultTranscriptionLayerId: defaultTranscriptionLayerId ?? '',
                           scrollContainerRef: tierContainerRef,
                           handleAnnotationClick,
-                          allLayersOrdered: layerRailRows,
+                          allLayersOrdered: orderedLayers,
                           onReorderLayers: reorderLayers,
                           deletableLayers,
                           onFocusLayer: handleFocusLayerRow,
@@ -4078,14 +4504,17 @@ function TranscriptionPageOrchestrator({
                           trackDisplayMode: transcriptionTrackMode,
                           onToggleTrackDisplayMode: handleToggleTrackDisplayMode,
                           onSetTrackDisplayMode: setTrackDisplayMode,
-                          laneLockMap,
+                          laneLockMap: effectiveLaneLockMap,
                           onLockSelectedSpeakersToLane: handleLockSelectedSpeakersToLane,
                           onUnlockSelectedSpeakers: handleUnlockSelectedSpeakers,
                           onResetTrackAutoLayout: handleResetTrackAutoLayout,
                           selectedSpeakerNamesForLock: selectedSpeakerNamesForTrackLock,
+                          speakerLayerLayout,
+                          activeUtteranceUnitId: selectedTimelineUtteranceId,
                           speakerFocusMode,
                           ...(resolvedSpeakerFocusTargetKey ? { speakerFocusSpeakerKey: resolvedSpeakerFocusTargetKey } : {}),
-                          speakerVisualByUtteranceId,
+                          activeSpeakerFilterKey,
+                          speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
                           speakerQuickActions,
                           onLaneLabelWidthResize: handleLaneLabelWidthResizeStart,
                         }}
@@ -4100,20 +4529,6 @@ function TranscriptionPageOrchestrator({
                     </TranscriptionEditorContext.Provider>
                   </TimelineScrollSection>
                 </TimelineMainSection>
-                {shouldShowSpeakerAssignPanel && (
-                  <SpeakerAssignPanel
-                    selectedCount={selectedSpeakerActionCount}
-                    summary={selectedSpeakerSummaryForActions}
-                    batchSpeakerId={batchSpeakerId}
-                    speakerOptions={speakerOptions}
-                    speakerDraftName={speakerDraftName}
-                    speakerSaving={speakerSaving}
-                    onBatchSpeakerIdChange={setBatchSpeakerId}
-                    onAssign={() => { fireAndForget(handleAssignSpeakerToSelectedRouted()); }}
-                    onDraftNameChange={setSpeakerDraftName}
-                    onCreateAndAssign={() => { fireAndForget(handleCreateSpeakerAndAssignRouted()); }}
-                  />
-                )}
                 {timelineResizeTooltip && (
                   <div
                     className="timeline-resize-tooltip"
@@ -4138,6 +4553,21 @@ function TranscriptionPageOrchestrator({
                       onSnapEnabledChange={setSnapEnabled}
                       onAutoScrollEnabledChange={setAutoScrollEnabled}
                       onHoverExpandEnabledChange={setHoverExpandEnabled}
+                    />
+                    <div className="toolbar-sep" style={{ margin: '0 6px' }} />
+                    <TrackFocusToolbarControls
+                      trackModeLabel={trackModeLabel}
+                      laneLockCount={Object.keys(effectiveLaneLockMap).length}
+                      lockConflictCount={trackLockDiagnostics.count}
+                      lockConflictSpeakerNames={trackLockDiagnostics.speakerNames}
+                      trackConflictLabel={trackConflictLabel}
+                      onOpenLockConflictDetails={handleOpenLockConflictDetails}
+                      speakerFocusMode={speakerFocusMode}
+                      {...(resolvedSpeakerFocusTargetName ? { speakerFocusTargetName: resolvedSpeakerFocusTargetName } : {})}
+                      speakerFocusOptions={speakerFocusOptions}
+                      speakerFocusTargetKey={speakerFocusTargetKey ?? ''}
+                      onSpeakerFocusTargetKeyChange={handleSpeakerFocusTargetChange}
+                      onCycleSpeakerFocusMode={cycleSpeakerFocusMode}
                     />
                     <div className="toolbar-sep" style={{ margin: '0 6px' }} />
                     <ObserverStatusSection
@@ -4202,55 +4632,19 @@ function TranscriptionPageOrchestrator({
                     aiChatContextValue={aiChatContextValue}
                     analysisTab={analysisTab}
                     onAnalysisTabChange={setAnalysisTab}
-                    assistantRuntimeProps={{
-                      saveState,
-                      recording,
-                      recordingUtteranceId,
-                      recordingError,
-                      overlapCycleToast,
-                      lockConflictToast,
-                      tf: tfB,
-                      activeTextPrimaryLanguageId,
-                      getActiveTextPrimaryLanguageId,
-                      executeAction,
-                      handleResolveVoiceIntentWithLlm,
-                      handleVoiceDictation,
-                      handleVoiceAnalysisResult,
-                      activeUtteranceUnitId: selectedTimelineUtteranceId || null,
-                      selectedUtterance: selectedUtterance ?? null,
-                      selectedRowMeta,
-                      selectedLayerId,
-                      ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
-                      translationLayers,
-                      layers,
-                      formatLayerRailLabel,
-                      formatTime,
-                      onRegisterToggleVoice: (handler) => {
-                        toggleVoiceRef.current = handler;
-                      },
-                    }}
-                    analysisRuntimeProps={{
-                      selectedUtterance: selectedUtterance ?? null,
-                      utterancesOnCurrentMedia,
-                      getUtteranceTextForLayer,
-                      formatTime,
-                      onJumpToCitation: handleJumpToCitation,
-                      onJumpToEmbeddingMatch: handleJumpToEmbeddingMatch,
-                      embeddingProviderConfig,
-                      onEmbeddingProviderConfigChange: setEmbeddingProviderConfig,
-                      externalErrorMessage: aiSidebarError,
-                    }}
+                    assistantRuntimeProps={assistantRuntimeProps}
+                    analysisRuntimeProps={analysisRuntimeProps}
                   />
                 </Suspense>
               </AiPanelContext.Provider>
 
               <TranscriptionPageDialogs
-                speakerDialogState={speakerDialogState}
-                speakerSaving={speakerSaving}
-                onCloseSpeakerDialog={closeSpeakerDialog}
-                onConfirmSpeakerDialog={confirmSpeakerDialog}
-                onDraftNameChange={updateSpeakerDialogDraftName}
-                onTargetSpeakerChange={updateSpeakerDialogTargetKey}
+                speakerDialogState={speakerDialogStateRouted}
+                speakerSaving={speakerSavingRouted}
+                onCloseSpeakerDialog={closeSpeakerDialogRouted}
+                onConfirmSpeakerDialog={confirmSpeakerDialogRouted}
+                onDraftNameChange={updateSpeakerDialogDraftNameRouted}
+                onTargetSpeakerChange={updateSpeakerDialogTargetKeyRouted}
                 showProjectSetup={showProjectSetup}
                 onCloseProjectSetup={() => setShowProjectSetup(false)}
                 onSubmitProjectSetup={handleProjectSetupSubmit}
@@ -4271,11 +4665,7 @@ function TranscriptionPageOrchestrator({
                 onExitFocusMode={() => setIsFocusMode(false)}
               />
               <Suspense fallback={null}>
-                <TranscriptionPagePdfRuntime
-                  locale={locale}
-                  request={pdfPreviewRequest}
-                  onCloseRequest={() => setPdfPreviewRequest(null)}
-                />
+                <TranscriptionPagePdfRuntime {...pdfRuntimeProps} />
               </Suspense>
             </main>
           </ToastProvider>
@@ -4337,13 +4727,15 @@ function TranscriptionPageOrchestrator({
         transcriptionLayers={transcriptionLayers}
         translationLayers={translationLayers}
         speakerOptions={speakerOptions}
-        speakerFilterOptions={speakerFilterOptions}
-        onAssignSpeakerFromMenu={(utteranceIds, speakerId) => {
-          fireAndForget(handleAssignSpeakerToUtterances(resolveSpeakerActionUtteranceIds(utteranceIds), speakerId));
+        speakerFilterOptions={speakerFilterOptionsForActions}
+        onAssignSpeakerFromMenu={(unitIds, kind, speakerId) => {
+          if (kind === 'segment') {
+            fireAndForget(handleAssignSpeakerToSegments(Array.from(unitIds), speakerId));
+            return;
+          }
+          fireAndForget(handleAssignSpeakerToUtterances(resolveSpeakerActionUtteranceIds(unitIds), speakerId));
         }}
-        onCreateSpeakerAndAssignFromMenu={(name, utteranceIds) => {
-          fireAndForget(handleCreateSpeakerAndAssignToUtterances(name, resolveSpeakerActionUtteranceIds(utteranceIds)));
-        }}
+        onOpenSpeakerManagementPanelFromMenu={() => openSpeakerManagementPanel()}
       />
     </section>
   );

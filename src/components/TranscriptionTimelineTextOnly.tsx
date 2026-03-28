@@ -5,7 +5,7 @@ import type {
   LayerSegmentDocType,
   UtteranceDocType,
 } from '../db';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
@@ -19,7 +19,9 @@ import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
 import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import { buildSpeakerLayerLayoutWithOptions, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import { isUtteranceTimelineUnit, type TimelineUnit } from '../hooks/transcriptionTypes';
+
+const EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID = new Map<string, Array<{ id: string; startTime: number }>>();
 
 function normalizeSpeakerFocusKey(value: string | undefined): string {
   const trimmed = (value ?? '').trim();
@@ -84,6 +86,28 @@ function buildSegmentSpeakerIdMap(
   return next;
 }
 
+function getDependentTranslationLayerItems(
+  layer: LayerDocType,
+  layerById: ReadonlyMap<string, LayerDocType>,
+  segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]> | undefined,
+  utterancesOnCurrentMedia: UtteranceDocType[],
+  defaultTranscriptionLayerId?: string,
+): Array<{ id: string; startTime: number }> {
+  if (layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) {
+    return (segmentsByLayer?.get(layer.id) ?? []) as Array<{ id: string; startTime: number }>;
+  }
+
+  const parentLayerId = layer.parentLayerId?.trim() ?? '';
+  if (!parentLayerId) return utterancesOnCurrentMedia;
+
+  const parentLayer = layerById.get(parentLayerId);
+  if (!parentLayer || !layerUsesOwnSegments(parentLayer, defaultTranscriptionLayerId)) {
+    return utterancesOnCurrentMedia;
+  }
+
+  return (segmentsByLayer?.get(parentLayer.id) ?? []) as Array<{ id: string; startTime: number }>;
+}
+
 type TranscriptionTimelineTextOnlyProps = {
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
@@ -96,7 +120,13 @@ type TranscriptionTimelineTextOnlyProps = {
   focusedLayerRowId: string;
   defaultTranscriptionLayerId?: string;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
-  handleAnnotationClick: (uttId: string, uttStartTime: number, layerId: string, e: React.MouseEvent) => void;
+  handleAnnotationClick: (
+    uttId: string,
+    uttStartTime: number,
+    layerId: string,
+    e: React.MouseEvent,
+    overlapCycleItems?: Array<{ id: string; startTime: number }>,
+  ) => void;
   // TimelineLaneHeader props
   allLayersOrdered: LayerDocType[];
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
@@ -116,15 +146,18 @@ type TranscriptionTimelineTextOnlyProps = {
   onUnlockSelectedSpeakers?: () => void;
   onResetTrackAutoLayout?: () => void;
   selectedSpeakerNamesForLock?: string[];
+  speakerLayerLayout?: SpeakerLayerLayoutResult;
+  activeUtteranceUnitId?: string;
   speakerFocusMode?: SpeakerFocusMode;
   speakerFocusSpeakerKey?: string;
+  activeSpeakerFilterKey?: string;
   speakerVisualByUtteranceId?: Record<string, { name: string; color: string }>;
   speakerQuickActions?: {
     selectedCount: number;
     speakerOptions: Array<{ id: string; name: string }>;
     onAssignToSelection: (speakerId: string) => void;
     onClearSelection: () => void;
-    onCreateAndAssignToSelection: (name: string) => void;
+    onOpenCreateAndAssignPanel: () => void;
   };
   // Lane label resize
   onLaneLabelWidthResize?: (e: React.PointerEvent<HTMLDivElement>) => void;
@@ -163,8 +196,11 @@ export function TranscriptionTimelineTextOnly({
   onUnlockSelectedSpeakers,
   onResetTrackAutoLayout,
   selectedSpeakerNamesForLock,
+  speakerLayerLayout = EMPTY_SPEAKER_LAYOUT,
+  activeUtteranceUnitId,
   speakerFocusMode = 'all',
   speakerFocusSpeakerKey,
+  activeSpeakerFilterKey = 'all',
   speakerVisualByUtteranceId = {},
   speakerQuickActions,
   onLaneLabelWidthResize,
@@ -227,15 +263,23 @@ export function TranscriptionTimelineTextOnly({
   const virtualItems = horizontalVirtualizer.getVirtualItems();
   const totalSize = horizontalVirtualizer.getTotalSize();
   const utteranceById = new Map(utterancesOnCurrentMedia.map((item) => [item.id, item] as const));
+  const layerById = useMemo(
+    () => new Map(allLayersOrdered.map((layer) => [layer.id, layer] as const)),
+    [allLayersOrdered],
+  );
   const segmentSpeakerLayoutByLayer = new Map<string, SpeakerLayerLayoutResult>();
   const segmentSpeakerIdByLayer = new Map<string, Map<string, string>>();
   for (const layer of transcriptionLayers) {
     if (!layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) continue;
-    const segments = segmentsByLayer?.get(layer.id) ?? [];
+    const segments = (segmentsByLayer?.get(layer.id) ?? []).filter((segment) => (
+      activeSpeakerFilterKey === 'all'
+        || resolveSpeakerFocusKeyFromSegment(segment, utteranceById) === normalizeSpeakerFocusKey(activeSpeakerFilterKey)
+    ));
     const segmentAsUtterances = toSpeakerLayoutInputFromSegments(segments, utteranceById);
     segmentSpeakerLayoutByLayer.set(
       layer.id,
       buildSpeakerLayerLayoutWithOptions(segmentAsUtterances, {
+        trackMode: trackDisplayMode,
         ...(laneLockMap ? { laneLockMap } : {}),
       }),
     );
@@ -268,15 +312,19 @@ export function TranscriptionTimelineTextOnly({
 
   return (
     <div className={`timeline-content timeline-content-text-only${editingCellKey ? ' timeline-content-editing' : ''}`}>
-      {transcriptionLayers.map((layer, idx) => {
+      {allLayersOrdered.map((layer, idx) => {
+        if (layer.layerType === 'transcription') {
         const isCollapsed = collapsedLayerIds.has(layer.id);
         const isIndependent = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
         const activeLayout = isIndependent
           ? (segmentSpeakerLayoutByLayer.get(layer.id) ?? EMPTY_SPEAKER_LAYOUT)
-          : EMPTY_SPEAKER_LAYOUT;
+          : speakerLayerLayout;
         const isMultiTrackMode = trackDisplayMode !== 'single';
         const layerItems: Array<{ id: string; startTime: number }> = isIndependent
-          ? ((segmentsByLayer?.get(layer.id) ?? []) as Array<{ id: string; startTime: number }>)
+          ? (((segmentsByLayer?.get(layer.id) ?? []).filter((segment) => (
+              activeSpeakerFilterKey === 'all'
+                || resolveSpeakerFocusKeyFromSegment(segment, utteranceById) === normalizeSpeakerFocusKey(activeSpeakerFilterKey)
+            ))) as Array<{ id: string; startTime: number }>)
           : utterancesOnCurrentMedia;
         const laneVirtualItems: Array<{ index: number; size: number; start: number }> = isIndependent
           ? layerItems.map((_, index) => ({ index, size: 180, start: index * 180 }))
@@ -287,6 +335,9 @@ export function TranscriptionTimelineTextOnly({
           ? activeLayout.subTrackCount
           : 1;
         const visibleLaneHeight = isCollapsed ? 14 : baseLaneHeight * subTrackCount;
+        const overlapCycleItemsByUtteranceId = isMultiTrackMode
+          ? (activeLayout.overlapCycleItemsByGroupId.get('__all__') ?? EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID)
+          : EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID;
         return (
         <div
           key={`tl-${layer.id}`}
@@ -313,7 +364,6 @@ export function TranscriptionTimelineTextOnly({
             layer={layer}
             layerIndex={idx}
             allLayers={allLayersOrdered}
-            transcriptionLayersCount={transcriptionLayers.length}
             onReorderLayers={onReorderLayers}
             deletableLayers={deletableLayers}
             onFocusLayer={onFocusLayer}
@@ -339,6 +389,7 @@ export function TranscriptionTimelineTextOnly({
                 ...(onResetTrackAutoLayout ? { onResetAuto: onResetTrackAutoLayout } : {}),
                 ...(selectedSpeakerNamesForLock ? { selectedSpeakerNames: selectedSpeakerNamesForLock } : {}),
                 ...(laneLockMap ? { lockedSpeakerCount: Object.keys(laneLockMap).length } : {}),
+                ...(activeLayout.lockConflictCount > 0 ? { lockConflictCount: activeLayout.lockConflictCount } : {}),
               },
             })}
             isCollapsed={isCollapsed}
@@ -356,7 +407,7 @@ export function TranscriptionTimelineTextOnly({
             const focusMatched = speakerFocusMode === 'all' || !speakerFocusSpeakerKey || utteranceSpeakerKey === speakerFocusSpeakerKey;
             const shouldHideForFocus = speakerFocusMode === 'focus-hard' && !focusMatched;
             const shouldDimForFocus = speakerFocusMode === 'focus-soft' && !focusMatched;
-            const speakerVisual = isIndependent ? undefined : speakerVisualByUtteranceId[utt.id];
+            const speakerVisual = speakerVisualByUtteranceId[utt.id];
             const sourceText = isIndependent
               ? (segmentContentByLayer?.get(layer.id)?.get(utt.id)?.text ?? '')
               : getUtteranceTextForLayer(utt, layer.id);
@@ -391,7 +442,7 @@ export function TranscriptionTimelineTextOnly({
                   ...(speakerVisual ? ({ '--speaker-color': speakerVisual.color } as React.CSSProperties) : {}),
                 }}
                 title={speakerVisual ? `说话人：${speakerVisual.name}` : undefined}
-                onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e)}
+                  onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e, overlapCycleItemsByUtteranceId.get(utt.id))}
               >
                 {speakerVisual && (
                   <span className="timeline-text-item-speaker-badge" title={`说话人：${speakerVisual.name}`}>
@@ -502,17 +553,23 @@ export function TranscriptionTimelineTextOnly({
             aria-orientation="horizontal"
           />}
         </div>
-      );})}
-      {translationLayers.map((layer, idx) => {
+      );
+        }
+
         const isCollapsed = collapsedLayerIds.has(layer.id);
         const isIndependent = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
-        const layerItems: Array<{ id: string; startTime: number }> = isIndependent
-          ? ((segmentsByLayer?.get(layer.id) ?? []) as Array<{ id: string; startTime: number }>)
-          : utterancesOnCurrentMedia;
-        const laneVirtualItems: Array<{ index: number; size: number; start: number }> = isIndependent
+        const layerItems = getDependentTranslationLayerItems(
+          layer,
+          layerById,
+          segmentsByLayer,
+          utterancesOnCurrentMedia,
+          defaultTranscriptionLayerId,
+        );
+        const usesSegmentTimeline = isIndependent || layerItems !== utterancesOnCurrentMedia;
+        const laneVirtualItems: Array<{ index: number; size: number; start: number }> = usesSegmentTimeline
           ? layerItems.map((_, index) => ({ index, size: 180, start: index * 180 }))
           : virtualItems.map((it) => ({ index: it.index, size: it.size, start: it.start }));
-        const laneTotalSize = isIndependent ? layerItems.length * 180 : totalSize;
+        const laneTotalSize = usesSegmentTimeline ? layerItems.length * 180 : totalSize;
         return (
         <div
           key={`tl-${layer.id}`}
@@ -531,9 +588,8 @@ export function TranscriptionTimelineTextOnly({
         >
           <TimelineLaneHeader
             layer={layer}
-            layerIndex={transcriptionLayers.length + idx}
+            layerIndex={idx}
             allLayers={allLayersOrdered}
-            transcriptionLayersCount={transcriptionLayers.length}
             onReorderLayers={onReorderLayers}
             deletableLayers={deletableLayers}
             onFocusLayer={onFocusLayer}

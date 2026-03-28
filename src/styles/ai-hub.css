@@ -1125,16 +1125,17 @@
 }
 
 .ai-chat-provider-select {
-  height: 24px;
-  max-width: 62px;
-  min-width: 0;
-  flex: 0 1 62px;
+  width: auto;
+  max-width: none;
+  min-width: 20ch;
+  flex: 0 0 auto;
   font-size: 10px;
   border-radius: 6px;
   border: 1px solid #e2e8f0;
   background: #f8fafc;
   color: #334155;
-  padding: 0 2px;
+  padding: 4px 34px 4px 8px;
+  line-height: 1.2;
   outline: none;
   transition: border-color 0.15s;
 }
@@ -1147,6 +1148,28 @@
 .ai-chat-provider-select:focus {
   border-color: #93c5fd;
   background: #fff;
+}
+
+.ai-chat-provider-select,
+select.ai-cfg-input,
+.dialog-field select,
+.voice-agent-lang-select,
+.voice-agent-engine-select {
+  -webkit-appearance: none;
+  appearance: none;
+  field-sizing: content;
+  width: fit-content;
+  inline-size: fit-content;
+  max-width: 100%;
+  height: auto;
+  line-height: 1.25;
+  padding-right: 34px;
+  background-image:
+    linear-gradient(180deg, rgba(148, 163, 184, 0.26), rgba(148, 163, 184, 0.12)),
+    var(--select-caret-icon);
+  background-repeat: no-repeat;
+  background-position: calc(100% - 26px) 50%, calc(100% - 10px) 50%;
+  background-size: 1px 14px, 10px 10px;
 }
 
 .ai-chat-input {
@@ -1295,9 +1318,9 @@
 
 /* AI 配置面板：输入框与选择框 | AI config panel: input & select */
 .ai-cfg-input {
-  height: 26px;
+  min-height: calc(1lh + 12px);
   font-size: 12px;
-  padding: 0 6px;
+  padding: 6px 8px;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   background: #f8fafc;
@@ -1729,131 +1752,6 @@
   box-shadow: none;
 }
 
-.transcription-pdf-preview-panel {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  width: min(46vw, 640px);
-  height: min(72vh, 760px);
-  min-width: 340px;
-  min-height: 260px;
-  max-width: 92vw;
-  max-height: 86vh;
-  background: #fff;
-  border: 1px solid #dbe5f1;
-  border-radius: 12px;
-  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.2);
-  overflow: hidden;
-  resize: both;
-  z-index: 420;
-}
-
-.transcription-pdf-preview-panel.is-dragging {
-  box-shadow: 0 20px 54px rgba(15, 23, 42, 0.3);
-}
-
-.transcription-pdf-preview-header {
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0 12px;
-  border-bottom: 1px solid #e6eef8;
-  background: #f8fbff;
-  cursor: grab;
-  user-select: none;
-}
-
-.transcription-pdf-preview-panel.is-dragging .transcription-pdf-preview-header {
-  cursor: grabbing;
-}
-
-.transcription-pdf-preview-title {
-  font-size: 13px;
-  line-height: 1;
-  color: #0f172a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-}
-
-.transcription-pdf-preview-page-tag {
-  font-size: 11px;
-  line-height: 1;
-  color: #1d4ed8;
-  background: #dbeafe;
-  border: 1px solid #bfdbfe;
-  border-radius: 999px;
-  padding: 4px 8px;
-  white-space: nowrap;
-}
-
-.transcription-pdf-preview-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.transcription-pdf-preview-nav {
-  border: 1px solid #d7e3f2;
-  background: #ffffff;
-  color: #1f2937;
-  border-radius: 999px;
-  padding: 4px 9px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.transcription-pdf-preview-nav:hover:not(:disabled) {
-  background: #eff6ff;
-  border-color: #c9dcf5;
-}
-
-.transcription-pdf-preview-nav:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.transcription-pdf-preview-close {
-  border: 1px solid #d7e3f2;
-  background: #ffffff;
-  color: #1f2937;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.transcription-pdf-preview-close:hover {
-  background: #eff6ff;
-  border-color: #c9dcf5;
-}
-
-.transcription-pdf-preview-frame {
-  width: 100%;
-  height: calc(100% - 42px);
-  border: none;
-  background: #fff;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-@media (max-width: 960px) {
-  .transcription-pdf-preview-panel {
-    right: 8px !important;
-    bottom: 8px !important;
-    width: min(96vw, 640px);
-    height: min(68vh, 640px);
-    min-width: min(96vw, 340px);
-  }
-}
-
 .transcription-toast {
   padding: 8px 18px;
   border-radius: 999px;
@@ -1940,6 +1838,10 @@
   z-index: var(--z-modal);
 }
 
+.dialog-overlay-topmost {
+  z-index: 10020;
+}
+
 .dialog-card {
   background: var(--bg-primary, #fff);
   border-radius: 12px;
@@ -2001,6 +1903,8 @@
   font-size: 0.88rem;
   background: var(--bg-primary, #fff);
   color: var(--text-primary, #111827);
+  height: auto;
+  line-height: 1.25;
   outline: none;
   transition: border-color 0.15s;
 }
@@ -3592,27 +3496,31 @@
 }
 
 .voice-agent-lang-select {
-  height: 34px;
+  width: fit-content;
+  inline-size: fit-content;
+  min-width: 12ch;
   border-radius: 8px;
   border: 1px solid var(--border-soft);
   background: var(--surface-panel);
   color: var(--text-primary);
-  padding: 0 10px;
+  padding: 6px 34px 6px 10px;
   font-size: 12px;
   cursor: pointer;
-  width: 100%;
+  max-width: 100%;
 }
 
 .voice-agent-engine-select {
-  height: 34px;
+  width: fit-content;
+  inline-size: fit-content;
+  min-width: 12ch;
   border-radius: 8px;
   border: 1px solid var(--border-soft);
   background: var(--surface-panel);
   color: var(--text-primary);
-  padding: 0 10px;
+  padding: 6px 34px 6px 10px;
   font-size: 12px;
   cursor: pointer;
-  width: 100%;
+  max-width: 100%;
 }
 
 .voice-agent-insights-panel {

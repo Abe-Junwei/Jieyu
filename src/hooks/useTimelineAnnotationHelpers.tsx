@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
 import type { LayerDocType, UtteranceDocType } from '../db';
-import { createTimelineUnit, isUtteranceTimelineUnit, type TimelineUnit } from './transcriptionTypes';
+import { createTimelineUnit, isUtteranceTimelineUnit, type TimelineUnit, type TimelineUnitKind } from './transcriptionTypes';
 import { formatTime, getLayerLabelParts } from '../utils/transcriptionFormatters';
 
 type TimelineUtterance = Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime' | 'speaker' | 'speakerId' | 'ai_metadata'>;
@@ -16,6 +16,7 @@ type CtxMenuState = {
   y: number;
   utteranceId: string;
   layerId: string;
+  unitKind: TimelineUnitKind;
   splitTime: number;
 } | null;
 
@@ -173,17 +174,21 @@ export function useTimelineAnnotationHelpers({
     e.stopPropagation();
     manualSelectTsRef.current = Date.now();
     if (player.isPlaying) player.stop();
-    if (independentLayerIds.has(layerId)) {
-      if (selectTimelineUnit) {
-        selectTimelineUnit(createTimelineUnit(layerId, uttId, 'segment'));
+    const isIndependentLayer = independentLayerIds.has(layerId);
+    const shouldPreserveMultiSelection = selectedUtteranceIds.has(uttId) && selectedUtteranceIds.size > 1;
+    if (!shouldPreserveMultiSelection) {
+      if (isIndependentLayer) {
+        if (selectTimelineUnit) {
+          selectTimelineUnit(createTimelineUnit(layerId, uttId, 'segment'));
+        } else {
+          selectSegment(uttId);
+        }
       } else {
-        selectSegment(uttId);
-      }
-    } else {
-      if (selectTimelineUnit) {
-        selectTimelineUnit(createTimelineUnit(layerId, uttId, 'utterance'));
-      } else {
-        selectUtterance(uttId);
+        if (selectTimelineUnit) {
+          selectTimelineUnit(createTimelineUnit(layerId, uttId, 'utterance'));
+        } else {
+          selectUtterance(uttId);
+        }
       }
     }
     setSelectedLayerId(layerId);
@@ -198,11 +203,19 @@ export function useTimelineAnnotationHelpers({
     const min = utt.startTime + 0.001;
     const max = utt.endTime - 0.001;
     splitTime = Math.max(min, Math.min(max, splitTime));
-    setCtxMenu({ x: e.clientX, y: e.clientY, utteranceId: uttId, layerId, splitTime });
+    setCtxMenu({
+      x: e.clientX,
+      y: e.clientY,
+      utteranceId: uttId,
+      layerId,
+      unitKind: isIndependentLayer ? 'segment' : 'utterance',
+      splitTime,
+    });
   }, [
     manualSelectTsRef,
     player,
     independentLayerIds,
+    selectedUtteranceIds,
     selectTimelineUnit,
     selectUtterance,
     selectSegment,

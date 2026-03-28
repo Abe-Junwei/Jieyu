@@ -59,6 +59,7 @@ export type TranslationCreateBlockReason =
   | 'duplicate-same-type-without-alias'
   | 'cross-type-same-language'
   | 'invalid-constraint-for-root-transcription'
+  | 'invalid-translation-constraint'
   | 'constraint-parent-required'
   | 'constraint-runtime-not-supported';
 
@@ -99,6 +100,9 @@ export function validateExistingLayerConstraints(
   };
 
   const transcriptionLayers = layers.filter((layer) => layer.layerType === 'transcription');
+  const independentTranscriptionLayerIds = new Set(
+    listIndependentBoundaryTranscriptionLayers(layers).map((layer) => layer.id),
+  );
   const rootTranscription = transcriptionLayers
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
 
@@ -139,11 +143,11 @@ export function validateExistingLayerConstraints(
         });
         continue;
       }
-      if (parent.layerType !== 'transcription') {
+      if (parent.layerType !== 'transcription' || !independentTranscriptionLayerIds.has(parent.id)) {
         issues.push({
           layerId: layer.id,
           code: 'invalid-parent-layer-type',
-          message: `层 ${layer.key} 的父层必须是转写层。`,
+          message: `层 ${layer.key} 的父层必须是独立转写层。`,
         });
       }
     }
@@ -162,6 +166,16 @@ export function validateExistingLayerConstraints(
 
 function getEffectiveConstraint(layer: LayerDocType): NonNullable<LayerDocType['constraint']> {
   return layer.constraint ?? (layer.layerType === 'translation' ? 'symbolic_association' : 'independent_boundary');
+}
+
+export function listIndependentBoundaryTranscriptionLayers(layers: LayerDocType[]): LayerDocType[] {
+  return layers
+    .filter((layer) => layer.layerType === 'transcription' && getEffectiveConstraint(layer) === 'independent_boundary')
+    .sort((a, b) => {
+      const sortOrderDiff = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+      if (sortOrderDiff !== 0) return sortOrderDiff;
+      return a.createdAt.localeCompare(b.createdAt);
+    });
 }
 
 function hasSameConstraint(a: LayerDocType, b: LayerDocType): boolean {
@@ -185,7 +199,8 @@ export function repairExistingLayerConstraints(
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
 
   const findFallbackParent = (currentId: string): LayerDocType | undefined => {
-    return transcriptionLayers.find((candidate) => candidate.id !== currentId);
+    return listIndependentBoundaryTranscriptionLayers(clonedLayers)
+      .find((candidate) => candidate.id !== currentId);
   };
 
   const pushRepair = (layerId: string, code: ExistingLayerConstraintIssueCode, message: string): void => {
@@ -205,7 +220,7 @@ export function repairExistingLayerConstraints(
 
     if (constraint === 'symbolic_association' || constraint === 'time_subdivision') {
       const parent = layer.parentLayerId ? layerById.get(layer.parentLayerId) : undefined;
-      if (!parent || parent.layerType !== 'transcription' || parent.id === layer.id) {
+      if (!parent || parent.id === layer.id || !listIndependentBoundaryTranscriptionLayers(clonedLayers).some((candidate) => candidate.id === parent.id)) {
         const fallbackParent = findFallbackParent(layer.id);
         if (fallbackParent) {
           layer.parentLayerId = fallbackParent.id;
@@ -295,6 +310,9 @@ export function getLayerCreateGuard(
 ): TranslationCreateGuardResult {
   const effectiveConstraint = input.constraint
     ?? (layerType === 'translation' ? 'symbolic_association' : 'independent_boundary');
+  const dependentParentCandidates = listIndependentBoundaryTranscriptionLayers(layers);
+  const normalizedParentLayerId = (input.parentLayerId ?? '').trim();
+  const hasExplicitParent = normalizedParentLayerId.length > 0;
   const runtimeCapabilities: ConstraintRuntimeCapabilities = {
     ...DEFAULT_CONSTRAINT_RUNTIME_CAPABILITIES,
     ...(input.runtimeCapabilities ?? {}),
@@ -302,7 +320,16 @@ export function getLayerCreateGuard(
 
   const hasTranscription = layers.some((l) => l.layerType === 'transcription');
   const inferredHasParent = input.hasSupportedParent
-    ?? (layerType === 'translation' ? hasTranscription : hasTranscription);
+    ?? dependentParentCandidates.length > 0;
+
+  if (layerType === 'translation' && effectiveConstraint === 'independent_boundary') {
+    return {
+      allowed: false,
+      reasonCode: 'invalid-translation-constraint',
+      reason: '翻译层不支持独立边界，请改用依赖边界并选择转写父层。',
+      reasonShort: '翻译层仅支持依赖边界',
+    };
+  }
 
   if (!runtimeCapabilities[effectiveConstraint]) {
     return {
@@ -327,8 +354,30 @@ export function getLayerCreateGuard(
   }
 
   if ((effectiveConstraint === 'symbolic_association' || effectiveConstraint === 'time_subdivision')
+    && dependentParentCandidates.length > 1
+    && !hasExplicitParent) {
+    return {
+      allowed: false,
+      reasonCode: 'constraint-parent-required',
+      reason: '存在多个独立转写层，请先选择要依赖的边界层。',
+      reasonShort: '请选择依赖层',
+    };
+  }
+
+  if ((effectiveConstraint === 'symbolic_association' || effectiveConstraint === 'time_subdivision')
+    && hasExplicitParent
+    && !dependentParentCandidates.some((layer) => layer.id === normalizedParentLayerId)) {
+    return {
+      allowed: false,
+      reasonCode: 'constraint-parent-required',
+      reason: '请选择有效的独立转写层作为依赖边界。',
+      reasonShort: '请选择有效依赖层',
+    };
+  }
+
+  if ((effectiveConstraint === 'symbolic_association' || effectiveConstraint === 'time_subdivision')
     && !inferredHasParent
-    && !(input.parentLayerId && input.parentLayerId.trim().length > 0)) {
+    && !hasExplicitParent) {
     return {
       allowed: false,
       reasonCode: 'constraint-parent-required',

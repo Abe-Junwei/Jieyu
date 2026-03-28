@@ -2,6 +2,8 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   db,
+  getDb,
+  type LayerDocType,
   type LayerSegmentContentDocType,
   type LayerSegmentDocType,
   type SegmentLinkDocType,
@@ -46,10 +48,28 @@ function makeLink(overrides: Partial<SegmentLinkDocType> & { id: string; sourceS
   };
 }
 
+function makeLayer(overrides: Partial<LayerDocType> & { id: string }): LayerDocType {
+  return {
+    ...overrides,
+    textId: 'text_1',
+    key: `${overrides.id}_key`,
+    name: { eng: overrides.id, zho: overrides.id },
+    layerType: 'translation',
+    languageId: 'eng',
+    modality: 'text',
+    acceptsAudio: false,
+    createdAt: NOW,
+    updatedAt: NOW,
+    id: overrides.id,
+  } as LayerDocType;
+}
+
 describe('LayerSegmentationV2Service', () => {
   beforeEach(async () => {
     await db.open();
     await Promise.all([
+      db.tier_definitions.clear(),
+      db.utterances.clear(),
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
@@ -382,6 +402,45 @@ describe('LayerSegmentationV2Service', () => {
     ).rejects.toThrow(/not found/);
   });
 
+  it('re-clamps split time_subdivision children to parent utterance bounds', async () => {
+    await db.utterances.put({
+      id: 'utt_parent_split_clamp',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      startTime: 1,
+      endTime: 3,
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as never);
+    await db.layer_units.put({
+      id: 'seg_split_clamp',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layer_trc_cmn',
+      unitType: 'segment',
+      startTime: 0.5,
+      endTime: 3.5,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.unit_relations.put({
+      id: 'rel_split_clamp',
+      textId: 'text_1',
+      sourceUnitId: 'seg_split_clamp',
+      targetUnitId: 'utt_parent_split_clamp',
+      relationType: 'derived_from',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const { first, second } = await LayerSegmentationV2Service.splitSegment('seg_split_clamp', 2.0);
+
+    expect(first.startTime).toBe(1);
+    expect(first.endTime).toBe(2);
+    expect(second.startTime).toBe(2);
+    expect(second.endTime).toBe(3);
+  });
+
   it('clones source segment_links to the second segment when splitting', async () => {
     const seg = makeSegment({ id: 'seg_split_link', startTime: 1.0, endTime: 3.0 });
     await LayerSegmentationV2Service.createSegmentWithParentConstraint(
@@ -558,6 +617,67 @@ describe('LayerSegmentationV2Service', () => {
     ).rejects.toThrow(/adjacent/);
   });
 
+  it('re-clamps merged time_subdivision children to parent utterance bounds', async () => {
+    await db.utterances.put({
+      id: 'utt_parent_merge_clamp',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      startTime: 1,
+      endTime: 3,
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as never);
+    await db.layer_units.bulkPut([
+      {
+        id: 'seg_merge_clamp_1',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: 'layer_trc_cmn',
+        unitType: 'segment',
+        startTime: 0.5,
+        endTime: 2,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'seg_merge_clamp_2',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: 'layer_trc_cmn',
+        unitType: 'segment',
+        startTime: 2,
+        endTime: 3.5,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+    await db.unit_relations.bulkPut([
+      {
+        id: 'rel_merge_clamp_1',
+        textId: 'text_1',
+        sourceUnitId: 'seg_merge_clamp_1',
+        targetUnitId: 'utt_parent_merge_clamp',
+        relationType: 'derived_from',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'rel_merge_clamp_2',
+        textId: 'text_1',
+        sourceUnitId: 'seg_merge_clamp_2',
+        targetUnitId: 'utt_parent_merge_clamp',
+        relationType: 'derived_from',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    const merged = await LayerSegmentationV2Service.mergeAdjacentSegments('seg_merge_clamp_1', 'seg_merge_clamp_2');
+
+    expect(merged.startTime).toBe(1);
+    expect(merged.endTime).toBe(3);
+  });
+
   // ── createSegmentWithParentConstraint 测试 | Tests ──
 
   it('creates segment clipped to parent utterance range with segment_link', async () => {
@@ -568,12 +688,14 @@ describe('LayerSegmentationV2Service', () => {
     // 裁剪到父 utterance 范围 | Clipped to parent utterance range
     expect(result.startTime).toBe(1.0);
     expect(result.endTime).toBe(3.0);
+    expect(result.utteranceId).toBe('utt_parent_1');
 
     // 已写入 DB | Written to DB
     const stored = await db.layer_units.get('seg_pc_1');
     expect(stored).toBeTruthy();
     expect(stored!.startTime).toBe(1.0);
     expect(stored!.endTime).toBe(3.0);
+    expect(stored!.parentUnitId).toBe('utt_parent_1');
 
     // 同时创建了 segment_link | Also created segment_link
     const links = await db.unit_relations.where('sourceUnitId').equals('seg_pc_1').toArray();
@@ -598,5 +720,34 @@ describe('LayerSegmentationV2Service', () => {
         seg, 'utt_parent_3', 1.0, 3.0,
       ),
     ).rejects.toThrow(/too short/i);
+  });
+
+  it('rejects generic createSegment on time_subdivision layers', async () => {
+    const database = await getDb();
+    await database.collections.layers.insert(makeLayer({
+      id: 'layer_subdivision_guard',
+      constraint: 'time_subdivision',
+      parentLayerId: 'trc_default',
+    }));
+
+    await expect(
+      LayerSegmentationV2Service.createSegment(makeSegment({ id: 'seg_guard_1', layerId: 'layer_subdivision_guard' })),
+    ).rejects.toThrow(/parent constraint/i);
+  });
+
+  it('rejects generic createSegmentWithContentAtomic on time_subdivision layers', async () => {
+    const database = await getDb();
+    await database.collections.layers.insert(makeLayer({
+      id: 'layer_subdivision_guard_atomic',
+      constraint: 'time_subdivision',
+      parentLayerId: 'trc_default',
+    }));
+
+    await expect(
+      LayerSegmentationV2Service.createSegmentWithContentAtomic(
+        makeSegment({ id: 'seg_guard_atomic', layerId: 'layer_subdivision_guard_atomic' }),
+        makeContent({ id: 'cnt_guard_atomic', segmentId: 'seg_guard_atomic', layerId: 'layer_subdivision_guard_atomic' }),
+      ),
+    ).rejects.toThrow(/parent constraint/i);
   });
 });

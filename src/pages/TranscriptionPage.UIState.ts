@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
 
 // ── Context Menu Types ─────────────────────────────────────────────────────────
 
@@ -12,6 +13,7 @@ export interface ContextMenuState {
   y: number;
   utteranceId: string;
   layerId: string;
+  unitKind: TimelineUnitKind;
   splitTime: number;
 }
 

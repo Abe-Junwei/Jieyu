@@ -3,6 +3,7 @@ import type { LayerLinkEdge } from '../services/LayerIdBridgeService';
 
 export interface LayerLinkConnectorSegment {
   column: number;
+  colorIndex: number;
   role: 'bus-start' | 'bus-middle' | 'bus-end' | 'bus-single' | 'tap-parent' | 'tap-child';
 }
 
@@ -17,8 +18,37 @@ function pushSegment(
   segment: LayerLinkConnectorSegment,
 ): void {
   const existing = segmentsByLayerId[layerId] ?? [];
+  if (existing.some((item) => item.column === segment.column && item.role === segment.role && item.colorIndex === segment.colorIndex)) {
+    return;
+  }
   existing.push(segment);
   segmentsByLayerId[layerId] = existing;
+}
+
+const CONNECTOR_COLOR_PALETTE = [
+  { base: 'rgba(14, 116, 144, 0.62)', active: 'rgba(8, 145, 178, 0.88)' },
+  { base: 'rgba(21, 128, 61, 0.62)', active: 'rgba(22, 163, 74, 0.88)' },
+  { base: 'rgba(180, 83, 9, 0.62)', active: 'rgba(217, 119, 6, 0.88)' },
+  { base: 'rgba(109, 40, 217, 0.62)', active: 'rgba(124, 58, 237, 0.88)' },
+  { base: 'rgba(190, 24, 93, 0.62)', active: 'rgba(219, 39, 119, 0.88)' },
+  { base: 'rgba(55, 65, 81, 0.62)', active: 'rgba(31, 41, 55, 0.88)' },
+] as const;
+
+export function getLayerLinkConnectorColors(colorIndex: number): { base: string; active: string } {
+  return CONNECTOR_COLOR_PALETTE[colorIndex % CONNECTOR_COLOR_PALETTE.length] ?? CONNECTOR_COLOR_PALETTE[0];
+}
+
+function resolveBundleRootId(layer: LayerDocType, layerById: ReadonlyMap<string, LayerDocType>): string {
+  let current: LayerDocType | undefined = layer;
+  const visited = new Set<string>();
+  while (current?.parentLayerId) {
+    if (visited.has(current.id)) break;
+    visited.add(current.id);
+    const parent = layerById.get(current.parentLayerId);
+    if (!parent) break;
+    current = parent;
+  }
+  return current?.id ?? layer.id;
 }
 
 export function buildLayerLinkConnectorLayout(
@@ -37,72 +67,125 @@ export function buildLayerLinkConnectorLayout(
       layerIndexByRef.set(layer.key, index);
     }
   });
-  const parentIndexByKey = new Map<string, number>();
-  
-  allLayers.forEach((layer, index) => {
-    if (layer.layerType === 'transcription') {
-      parentIndexByKey.set(layer.key, index);
-    }
+  const layerByRef = new Map<string, LayerDocType>();
+  allLayers.forEach((layer) => {
+    layerByRef.set(layer.id, layer);
+    if (layer.key) layerByRef.set(layer.key, layer);
   });
 
-  const parentTapRowIndices = new Set<number>();
-  const childTapRowIndices = new Set<number>();
-  let minRowIndex = Number.POSITIVE_INFINITY;
-  let maxRowIndex = Number.NEGATIVE_INFINITY;
+  type ConnectorEdge = {
+    bundleRootId: string;
+    parentIndex: number;
+    childIndex: number;
+  };
 
-  for (const link of layerLinks) {
-    const parentIndex = parentIndexByKey.get(link.transcriptionLayerKey)
-      ?? layerIndexByRef.get(link.transcriptionLayerKey);
-    const targetLayerId = link.targetLayerId;
-    const childIndex = layerIndexByRef.get(targetLayerId);
-    if (parentIndex === undefined || childIndex === undefined || childIndex <= parentIndex) continue;
-    parentTapRowIndices.add(parentIndex);
-    childTapRowIndices.add(childIndex);
-    if (parentIndex < minRowIndex) minRowIndex = parentIndex;
-    if (childIndex > maxRowIndex) maxRowIndex = childIndex;
+  const seenEdges = new Set<string>();
+  const edges: ConnectorEdge[] = [];
+
+  for (const layer of allLayers) {
+    if (!layer.parentLayerId) continue;
+    const parentLayer = layerByRef.get(layer.parentLayerId);
+    const parentIndex = parentLayer ? layerIndexByRef.get(parentLayer.id) : undefined;
+    const childIndex = layerIndexByRef.get(layer.id);
+    if (!parentLayer || parentIndex === undefined || childIndex === undefined || parentIndex === childIndex) continue;
+    const bundleRootId = resolveBundleRootId(parentLayer, layerByRef);
+    const edgeKey = `${parentLayer.id}->${layer.id}`;
+    if (seenEdges.has(edgeKey)) continue;
+    seenEdges.add(edgeKey);
+    edges.push({
+      bundleRootId,
+      parentIndex,
+      childIndex,
+    });
   }
 
-  if (!Number.isFinite(minRowIndex) || !Number.isFinite(maxRowIndex) || (parentTapRowIndices.size === 0 && childTapRowIndices.size === 0)) {
+  for (const link of layerLinks) {
+    const parentLayer = layerByRef.get(link.transcriptionLayerKey);
+    const targetLayer = layerByRef.get(link.targetLayerId);
+    const parentIndex = parentLayer ? layerIndexByRef.get(parentLayer.id) : undefined;
+    const childIndex = targetLayer ? layerIndexByRef.get(targetLayer.id) : undefined;
+    if (!parentLayer || !targetLayer || parentIndex === undefined || childIndex === undefined || parentIndex === childIndex) continue;
+    const bundleRootId = resolveBundleRootId(parentLayer, layerByRef);
+    const edgeKey = `${parentLayer.id}->${targetLayer.id}`;
+    if (seenEdges.has(edgeKey)) continue;
+    seenEdges.add(edgeKey);
+    edges.push({
+      bundleRootId,
+      parentIndex,
+      childIndex,
+    });
+  }
+
+  if (edges.length === 0) {
     return { maxColumns: 0, segmentsByLayerId: {} };
   }
 
   const segmentsByLayerId: Record<string, LayerLinkConnectorSegment[]> = {};
-
-  for (let rowIndex = minRowIndex; rowIndex <= maxRowIndex; rowIndex += 1) {
-    const layer = allLayers[rowIndex];
-    if (!layer) continue;
-    pushSegment(segmentsByLayerId, layer.id, {
-      column: 0,
-      role: rowIndex === minRowIndex && rowIndex === maxRowIndex
-        ? 'bus-single'
-        : rowIndex === minRowIndex
-          ? 'bus-start'
-          : rowIndex === maxRowIndex
-            ? 'bus-end'
-            : 'bus-middle',
-    });
+  const edgesByBundle = new Map<string, ConnectorEdge[]>();
+  for (const edge of edges) {
+    const bucket = edgesByBundle.get(edge.bundleRootId);
+    if (bucket) bucket.push(edge);
+    else edgesByBundle.set(edge.bundleRootId, [edge]);
   }
 
-  parentTapRowIndices.forEach((rowIndex) => {
-    const layer = allLayers[rowIndex];
-    if (!layer) return;
-    pushSegment(segmentsByLayerId, layer.id, {
-      column: 0,
-      role: 'tap-parent',
-    });
-  });
+  const orderedBundles = Array.from(edgesByBundle.entries())
+    .map(([bundleRootId, bundleEdges]) => ({
+      bundleRootId,
+      bundleEdges,
+      minRowIndex: Math.min(...bundleEdges.flatMap((edge) => [edge.parentIndex, edge.childIndex])),
+      maxRowIndex: Math.max(...bundleEdges.flatMap((edge) => [edge.parentIndex, edge.childIndex])),
+    }))
+    .sort((left, right) => left.minRowIndex - right.minRowIndex || left.bundleRootId.localeCompare(right.bundleRootId));
 
-  childTapRowIndices.forEach((rowIndex) => {
-    const layer = allLayers[rowIndex];
-    if (!layer) return;
-    pushSegment(segmentsByLayerId, layer.id, {
-      column: 0,
-      role: 'tap-child',
+  orderedBundles.forEach((bundle, colorIndex) => {
+    const column = colorIndex;
+    const parentTapRowIndices = new Set<number>();
+    const childTapRowIndices = new Set<number>();
+
+    for (const edge of bundle.bundleEdges) {
+      parentTapRowIndices.add(edge.parentIndex);
+      childTapRowIndices.add(edge.childIndex);
+    }
+
+    for (let rowIndex = bundle.minRowIndex; rowIndex <= bundle.maxRowIndex; rowIndex += 1) {
+      const layer = allLayers[rowIndex];
+      if (!layer) continue;
+      pushSegment(segmentsByLayerId, layer.id, {
+        column,
+        colorIndex,
+        role: rowIndex === bundle.minRowIndex && rowIndex === bundle.maxRowIndex
+          ? 'bus-single'
+          : rowIndex === bundle.minRowIndex
+            ? 'bus-start'
+            : rowIndex === bundle.maxRowIndex
+              ? 'bus-end'
+              : 'bus-middle',
+      });
+    }
+
+    parentTapRowIndices.forEach((rowIndex) => {
+      const layer = allLayers[rowIndex];
+      if (!layer) return;
+      pushSegment(segmentsByLayerId, layer.id, {
+        column,
+        colorIndex,
+        role: 'tap-parent',
+      });
+    });
+
+    childTapRowIndices.forEach((rowIndex) => {
+      const layer = allLayers[rowIndex];
+      if (!layer) return;
+      pushSegment(segmentsByLayerId, layer.id, {
+        column,
+        colorIndex,
+        role: 'tap-child',
+      });
     });
   });
 
   return {
-    maxColumns: 1,
+    maxColumns: orderedBundles.length,
     segmentsByLayerId,
   };
 }

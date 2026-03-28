@@ -6,7 +6,7 @@ export type LayerActionPanelKind = 'speaker-management' | 'create-transcription'
 export interface UseLayerActionPanelInput {
   createLayer: (
     type: 'transcription' | 'translation',
-    config: { languageId: string; alias?: string; constraint?: LayerConstraint },
+    config: { languageId: string; alias?: string; constraint?: LayerConstraint; parentLayerId?: string },
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
   deleteLayer: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;

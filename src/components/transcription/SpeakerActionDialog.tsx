@@ -1,4 +1,5 @@
 import { memo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { SpeakerActionDialogState } from '../../hooks/speakerManagement/types';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 
@@ -23,6 +24,7 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
   useFocusTrap(dialogRef, state !== null, onClose);
 
   if (!state) return null;
+  if (typeof document === 'undefined') return null;
 
   const isRename = state.mode === 'rename';
   const isMerge = state.mode === 'merge';
@@ -40,8 +42,8 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
         ? '删除说话人实体'
         : '删除说话人标签';
 
-  return (
-    <div className="dialog-overlay" onClick={onClose} role="presentation">
+  return createPortal(
+    <div className="dialog-overlay dialog-overlay-topmost" onClick={onClose} role="presentation">
       <div
         ref={dialogRef}
         className="dialog-card"
@@ -49,6 +51,7 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
         aria-modal="true"
         aria-labelledby="speaker-dialog-title"
         onClick={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="dialog-header">
           <h3 id="speaker-dialog-title">{dialogTitle}</h3>
@@ -141,6 +144,7 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 });

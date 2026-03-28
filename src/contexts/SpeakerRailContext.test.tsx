@@ -46,7 +46,7 @@ describe('SpeakerRailContext', () => {
 
     expect(capturedContext).toBeTruthy();
     expect(() => capturedContext!.handleRenameSpeaker('spk-1')).toThrow(
-      /Attempted action: handleRenameSpeaker/,
+      /attempt: handleRenameSpeaker/,
     );
 
     expect(entries).toHaveLength(1);
@@ -66,6 +66,8 @@ describe('SpeakerRailContext', () => {
       speakerDialogState: null,
       speakerVisualByUtteranceId: {},
       speakerFilterOptions: [],
+      speakerReferenceStats: {},
+      speakerReferenceStatsReady: true,
       selectedSpeakerSummary: 'Alice',
       selectedUtteranceIds: new Set<string>(),
       handleSelectSpeakerUtterances: () => undefined,
@@ -74,7 +76,9 @@ describe('SpeakerRailContext', () => {
       handleRenameSpeaker: () => undefined,
       handleMergeSpeaker: () => undefined,
       handleDeleteSpeaker: () => undefined,
+      handleDeleteUnusedSpeakers: async () => undefined,
       handleAssignSpeakerToSelected: async () => undefined,
+      handleClearSpeakerOnSelectedRouted: async () => undefined,
       handleCreateSpeakerAndAssign: async () => undefined,
       handleCreateSpeakerOnly: async () => undefined,
       closeSpeakerDialog: () => undefined,
@@ -84,7 +88,12 @@ describe('SpeakerRailContext', () => {
     };
 
     const { getByText } = render(
-      <SpeakerRailProvider speakerManagement={speakerManagement}>
+      <SpeakerRailProvider
+        speakerManagement={speakerManagement}
+        selectedUtteranceIds={new Set<string>()}
+        handleAssignSpeakerToSelectedRouted={async () => undefined}
+        handleClearSpeakerOnSelectedRouted={async () => undefined}
+      >
         <ProviderProbe />
       </SpeakerRailProvider>,
     );

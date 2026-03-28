@@ -58,6 +58,37 @@ describe('LayerSegmentationTextService', () => {
     expect(content?.text).toBe('hello');
   });
 
+  it('projects utterance speakerId into synced segments', async () => {
+    const database = await getDb();
+    const utterance: UtteranceDocType = {
+      id: 'utt_speaker_sync',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      speakerId: 'speaker_sync_1',
+      startTime: 1,
+      endTime: 2,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const translation: UtteranceTextDocType = {
+      id: 'utr_speaker_sync',
+      utteranceId: 'utt_speaker_sync',
+      layerId: 'layer_trl_en',
+      modality: 'text',
+      text: 'hello',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+
+    await syncUtteranceTextToSegmentationV2(database, utterance, translation);
+
+    const ids = getSegmentationV2Ids(translation.layerId, utterance.id, translation.id);
+    const segment = await db.layer_units.get(ids.segmentId);
+
+    expect(segment?.speakerId).toBe('speaker_sync_1');
+  });
+
   it('supports utterance_text projection through canonical graph', async () => {
     const database = await getDb();
 

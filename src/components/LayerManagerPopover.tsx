@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { AudioLines, Languages, Trash2 } from 'lucide-react';
 import type { LayerConstraint, LayerDocType } from '../db';
 import type { LayerCreateInput } from '../hooks/useTranscriptionData';
-import { COMMON_LANGUAGES } from '../utils/transcriptionFormatters';
+import { COMMON_LANGUAGES, getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { fireAndForget } from '../utils/fireAndForget';
-import { getLayerCreateGuard } from '../services/LayerConstraintService';
+import {
+  getLayerCreateGuard,
+  listIndependentBoundaryTranscriptionLayers,
+} from '../services/LayerConstraintService';
 
 const BUBBLE_ANIMATION_MS = 180;
 
@@ -17,9 +20,9 @@ function resolveCreateFailureText(message: string, fallback: string): string {
 
 function getCreateFallbackMessage(layerType: 'transcription' | 'translation'): string {
   if (layerType === 'translation') {
-    return '无法创建翻译层：请先确保存在转写层；同语言翻译层需填写别名，且翻译层不能与转写层同语言。';
+    return '无法创建翻译层：请检查依赖层、目标语言与别名设置。';
   }
-  return '无法创建转写层：同语言转写层需填写别名，且转写层不能与翻译层同语言。';
+  return '无法创建转写层：请检查边界模式、目标语言与别名设置。';
 }
 
 function getLayerDisplayName(layer: LayerDocType): string {
@@ -39,6 +42,11 @@ function formatLayerLanguage(layer: LayerDocType): string {
   }
   const matched = COMMON_LANGUAGES.find((item) => item.code === code);
   return matched ? `${matched.label} ${code}` : code;
+}
+
+function formatParentLayerOptionLabel(layer: LayerDocType): string {
+  const { type, lang, alias } = getLayerLabelParts(layer);
+  return alias ? `${type} · ${lang} · ${alias}` : `${type} · ${lang}`;
 }
 
 type LayerManagerPopoverProps = {
@@ -85,6 +93,8 @@ export function LayerManagerPopover({
   const [translationModality, setTranslationModality] = useState<'text' | 'audio' | 'mixed'>('text');
   const [transcriptionConstraint, setTranscriptionConstraint] = useState<LayerConstraint>('symbolic_association');
   const [translationConstraint, setTranslationConstraint] = useState<LayerConstraint>('symbolic_association');
+  const [transcriptionParentLayerId, setTranscriptionParentLayerId] = useState('');
+  const [translationParentLayerId, setTranslationParentLayerId] = useState('');
   const [transcriptionCreateError, setTranscriptionCreateError] = useState('');
   const [translationCreateError, setTranslationCreateError] = useState('');
 
@@ -97,7 +107,14 @@ export function LayerManagerPopover({
   const transcriptionLayerCount = allLayers.filter((layer) => layer.layerType === 'transcription').length;
   const translationLayerCount = allLayers.filter((layer) => layer.layerType === 'translation').length;
   const canConfigureTranscriptionConstraint = transcriptionLayerCount > 0;
-  const showIndependentConstraintOption = true;
+  const independentParentLayers = listIndependentBoundaryTranscriptionLayers(allLayers);
+  const autoTranslationParentLayer = independentParentLayers.length === 1 ? independentParentLayers[0] : undefined;
+  const needsTranscriptionParent = canConfigureTranscriptionConstraint && transcriptionConstraint === 'symbolic_association';
+  const autoTranscriptionParentLayer = needsTranscriptionParent && independentParentLayers.length === 1 ? independentParentLayers[0] : undefined;
+  const resolvedTranslationParentLayerId = autoTranslationParentLayer?.id ?? translationParentLayerId;
+  const resolvedTranscriptionParentLayerId = needsTranscriptionParent
+    ? (autoTranscriptionParentLayer?.id ?? transcriptionParentLayerId)
+    : '';
   const resolvedTranslationLang = (translationForm.languageId === '__custom__' ? translationCustomLang : translationForm.languageId).trim();
   const hasValidTranslationLanguage = resolvedTranslationLang.length > 0;
   const translationAliasTrimmed = (translationForm.alias ?? '').trim();
@@ -107,8 +124,9 @@ export function LayerManagerPopover({
   const translationGuard = getLayerCreateGuard(allLayers, 'translation', {
     languageId: resolvedTranslationLang,
     ...(translationAliasTrimmed !== '' ? { alias: translationAliasTrimmed } : {}),
-    constraint: translationConstraint,
-    hasSupportedParent: transcriptionLayerCount > 0,
+    constraint: 'symbolic_association',
+    ...(resolvedTranslationParentLayerId ? { parentLayerId: resolvedTranslationParentLayerId } : {}),
+    hasSupportedParent: independentParentLayers.length > 0,
   });
   const translationCreateDisabledReason = translationGuard.allowed
     ? ''
@@ -117,7 +135,8 @@ export function LayerManagerPopover({
     languageId: resolvedTranscriptionLang,
     ...(transcriptionAliasTrimmed !== '' ? { alias: transcriptionAliasTrimmed } : {}),
     ...(canConfigureTranscriptionConstraint ? { constraint: transcriptionConstraint } : {}),
-    hasSupportedParent: transcriptionLayerCount > 0,
+    ...(resolvedTranscriptionParentLayerId ? { parentLayerId: resolvedTranscriptionParentLayerId } : {}),
+    hasSupportedParent: independentParentLayers.length > 0,
   });
   const transcriptionCreateDisabledReason = transcriptionGuard.allowed
     ? ''
@@ -126,38 +145,49 @@ export function LayerManagerPopover({
     languageId: resolvedTranscriptionLang,
     ...(transcriptionAliasTrimmed !== '' ? { alias: transcriptionAliasTrimmed } : {}),
     constraint: 'symbolic_association',
-    hasSupportedParent: transcriptionLayerCount > 0,
-  });
-  const transcriptionSubdivisionGuard = getLayerCreateGuard(allLayers, 'transcription', {
-    languageId: resolvedTranscriptionLang,
-    ...(transcriptionAliasTrimmed !== '' ? { alias: transcriptionAliasTrimmed } : {}),
-    constraint: 'time_subdivision',
-    hasSupportedParent: transcriptionLayerCount > 0,
+    ...(resolvedTranscriptionParentLayerId
+      ? { parentLayerId: resolvedTranscriptionParentLayerId }
+      : independentParentLayers[0]?.id
+        ? { parentLayerId: independentParentLayers[0].id }
+        : {}),
+    hasSupportedParent: independentParentLayers.length > 0,
   });
   const transcriptionIndependentGuard = getLayerCreateGuard(allLayers, 'transcription', {
     languageId: resolvedTranscriptionLang,
     ...(transcriptionAliasTrimmed !== '' ? { alias: transcriptionAliasTrimmed } : {}),
     constraint: 'independent_boundary',
-    hasSupportedParent: transcriptionLayerCount > 0,
+    hasSupportedParent: independentParentLayers.length > 0,
   });
-  const translationSymbolicGuard = getLayerCreateGuard(allLayers, 'translation', {
-    languageId: resolvedTranslationLang,
-    ...(translationAliasTrimmed !== '' ? { alias: translationAliasTrimmed } : {}),
-    constraint: 'symbolic_association',
-    hasSupportedParent: transcriptionLayerCount > 0,
-  });
-  const translationSubdivisionGuard = getLayerCreateGuard(allLayers, 'translation', {
-    languageId: resolvedTranslationLang,
-    ...(translationAliasTrimmed !== '' ? { alias: translationAliasTrimmed } : {}),
-    constraint: 'time_subdivision',
-    hasSupportedParent: transcriptionLayerCount > 0,
-  });
-  const translationIndependentGuard = getLayerCreateGuard(allLayers, 'translation', {
-    languageId: resolvedTranslationLang,
-    ...(translationAliasTrimmed !== '' ? { alias: translationAliasTrimmed } : {}),
-    constraint: 'independent_boundary',
-    hasSupportedParent: transcriptionLayerCount > 0,
-  });
+
+  useEffect(() => {
+    if (autoTranslationParentLayer) {
+      if (translationParentLayerId !== autoTranslationParentLayer.id) {
+        setTranslationParentLayerId(autoTranslationParentLayer.id);
+      }
+      return;
+    }
+    if (translationParentLayerId && independentParentLayers.some((layer) => layer.id === translationParentLayerId)) {
+      return;
+    }
+    if (translationParentLayerId) setTranslationParentLayerId('');
+  }, [autoTranslationParentLayer, independentParentLayers, translationParentLayerId]);
+
+  useEffect(() => {
+    if (!needsTranscriptionParent) {
+      if (transcriptionParentLayerId) setTranscriptionParentLayerId('');
+      return;
+    }
+    if (autoTranscriptionParentLayer) {
+      if (transcriptionParentLayerId !== autoTranscriptionParentLayer.id) {
+        setTranscriptionParentLayerId(autoTranscriptionParentLayer.id);
+      }
+      return;
+    }
+    if (transcriptionParentLayerId && independentParentLayers.some((layer) => layer.id === transcriptionParentLayerId)) {
+      return;
+    }
+    if (transcriptionParentLayerId) setTranscriptionParentLayerId('');
+  }, [autoTranscriptionParentLayer, independentParentLayers, needsTranscriptionParent, transcriptionParentLayerId]);
 
   const handleCreateTranscription = async () => {
     const langId = transcriptionForm.languageId === '__custom__' ? transcriptionCustomLang.trim() : transcriptionForm.languageId;
@@ -166,18 +196,21 @@ export function LayerManagerPopover({
       languageId: langId,
       ...(alias !== '' ? { alias } : {}),
       ...(canConfigureTranscriptionConstraint ? { constraint: transcriptionConstraint } : {}),
-      hasSupportedParent: transcriptionLayerCount > 0,
+      ...(resolvedTranscriptionParentLayerId ? { parentLayerId: resolvedTranscriptionParentLayerId } : {}),
+      hasSupportedParent: independentParentLayers.length > 0,
     });
     setTranscriptionCreateError('');
     const success = await onCreateTranscriptionLayer({
       languageId: langId,
       alias: transcriptionForm.alias,
       ...(canConfigureTranscriptionConstraint ? { constraint: transcriptionConstraint } : {}),
+      ...(resolvedTranscriptionParentLayerId ? { parentLayerId: resolvedTranscriptionParentLayerId } : {}),
     });
     if (success) {
       setTranscriptionForm({ languageId: '' });
       setTranscriptionCustomLang('');
       setTranscriptionConstraint('symbolic_association');
+      setTranscriptionParentLayerId('');
       return;
     }
     setTranscriptionCreateError(resolveCreateFailureText(
@@ -192,14 +225,16 @@ export function LayerManagerPopover({
     const immediateGuard = getLayerCreateGuard(allLayers, 'translation', {
       languageId: langId,
       ...(alias !== '' ? { alias } : {}),
-      constraint: translationConstraint,
-      hasSupportedParent: transcriptionLayerCount > 0,
+      constraint: 'symbolic_association',
+      ...(resolvedTranslationParentLayerId ? { parentLayerId: resolvedTranslationParentLayerId } : {}),
+      hasSupportedParent: independentParentLayers.length > 0,
     });
     setTranslationCreateError('');
     const success = await onCreateTranslationLayer({
       languageId: langId,
       alias: translationForm.alias,
-      constraint: translationConstraint,
+      constraint: 'symbolic_association',
+      ...(resolvedTranslationParentLayerId ? { parentLayerId: resolvedTranslationParentLayerId } : {}),
       modality: translationModality,
     });
     if (success) {
@@ -207,6 +242,7 @@ export function LayerManagerPopover({
       setTranslationCustomLang('');
       setTranslationModality('text');
       setTranslationConstraint('symbolic_association');
+      setTranslationParentLayerId('');
       return;
     }
     setTranslationCreateError(resolveCreateFailureText(
@@ -337,19 +373,6 @@ export function LayerManagerPopover({
                         />
                         依赖边界（跟随主转写层）| Dependent
                       </label>
-                      <label style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 13 }}>
-                        <input
-                          type="radio"
-                          name="manager-transcription-constraint"
-                          value="time_subdivision"
-                          checked={transcriptionConstraint === 'time_subdivision'}
-                          disabled={!transcriptionSubdivisionGuard.allowed}
-                          onChange={(event) => setTranscriptionConstraint(event.target.value as LayerConstraint)}
-                          style={{ marginRight: 6 }}
-                        />
-                        时间细分（父层内自由切分）| Time Subdivision
-                      </label>
-                      {showIndependentConstraintOption && (
                         <label style={{ display: 'flex', alignItems: 'center', fontSize: 13 }}>
                           <input
                             type="radio"
@@ -362,9 +385,23 @@ export function LayerManagerPopover({
                           />
                           独立边界（自由定义）| Independent
                         </label>
-                      )}
                     </fieldset>
                   )}
+                    {needsTranscriptionParent && independentParentLayers.length > 1 && (
+                      <select
+                        className="input layer-parent-select"
+                        value={transcriptionParentLayerId}
+                        onChange={(event) => setTranscriptionParentLayerId(event.target.value)}
+                      >
+                        <option value="">选择依赖边界层…</option>
+                        {independentParentLayers.map((layer) => (
+                          <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
+                        ))}
+                      </select>
+                    )}
+                    {needsTranscriptionParent && autoTranscriptionParentLayer && (
+                      <p className="layer-parent-auto-note">已自动关联到「{formatParentLayerOptionLabel(autoTranscriptionParentLayer)}」。</p>
+                    )}
                 </div>
                 <div className="action-row">
                   <button
@@ -375,11 +412,19 @@ export function LayerManagerPopover({
                     创建转写层
                   </button>
                 </div>
-                {transcriptionCreateDisabledReason && (
-                  <p className="small-text">无法新建转写：{transcriptionCreateDisabledReason}</p>
-                )}
-                {!hasValidTranscriptionLanguage && (
-                  <p className="small-text">请先选择转写层语言（自定义语言需填写代码）。</p>
+                {(transcriptionCreateDisabledReason || !hasValidTranscriptionLanguage) && (
+                  <div className="layer-create-feedback-stack">
+                    {transcriptionCreateDisabledReason && (
+                      <p className="layer-create-feedback layer-create-feedback-error">
+                        当前限制：无法新建转写。{transcriptionCreateDisabledReason}
+                      </p>
+                    )}
+                    {!hasValidTranscriptionLanguage && (
+                      <p className="layer-create-feedback layer-create-feedback-info">
+                        必填项：请先选择转写层语言（自定义语言需填写代码）。
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -446,47 +491,24 @@ export function LayerManagerPopover({
                       </option>
                     ))}
                   </select>
-                  <fieldset style={{ margin: '8px 0', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
-                    <legend style={{ fontSize: 12, fontWeight: 500, color: '#64748b', paddingBottom: 4 }}>层约束类型 | Layer Constraint Type</legend>
-                    <label style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 13 }}>
-                      <input
-                        type="radio"
-                        name="manager-translation-constraint"
-                        value="symbolic_association"
-                        checked={translationConstraint === 'symbolic_association'}
-                        disabled={!translationSymbolicGuard.allowed}
-                        onChange={(event) => setTranslationConstraint(event.target.value as LayerConstraint)}
-                        style={{ marginRight: 6 }}
-                      />
-                      依赖边界（跟随转写层）| Dependent
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 13 }}>
-                      <input
-                        type="radio"
-                        name="manager-translation-constraint"
-                        value="time_subdivision"
-                        checked={translationConstraint === 'time_subdivision'}
-                        disabled={!translationSubdivisionGuard.allowed}
-                        onChange={(event) => setTranslationConstraint(event.target.value as LayerConstraint)}
-                        style={{ marginRight: 6 }}
-                      />
-                      时间细分（父层内自由切分）| Time Subdivision
-                    </label>
-                    {showIndependentConstraintOption && (
-                      <label style={{ display: 'flex', alignItems: 'center', fontSize: 13 }}>
-                        <input
-                          type="radio"
-                          name="manager-translation-constraint"
-                          value="independent_boundary"
-                          checked={translationConstraint === 'independent_boundary'}
-                          disabled={!translationIndependentGuard.allowed}
-                          onChange={(event) => setTranslationConstraint(event.target.value as LayerConstraint)}
-                          style={{ marginRight: 6 }}
-                        />
-                        独立边界（自由定义）| Independent
-                      </label>
-                    )}
-                  </fieldset>
+                  <div className="layer-parent-guidance-note">
+                    边界来源：翻译层会沿用所选转写层的边界范围。
+                  </div>
+                  {independentParentLayers.length > 1 && (
+                    <select
+                      className="input layer-parent-select"
+                      value={translationParentLayerId}
+                      onChange={(event) => setTranslationParentLayerId(event.target.value)}
+                    >
+                      <option value="">选择依赖边界层…</option>
+                      {independentParentLayers.map((layer) => (
+                        <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
+                      ))}
+                    </select>
+                  )}
+                  {autoTranslationParentLayer && (
+                    <p className="layer-parent-auto-note">已自动关联到「{formatParentLayerOptionLabel(autoTranslationParentLayer)}」。</p>
+                  )}
                 </div>
                 <div className="action-row">
                   <button
@@ -497,11 +519,19 @@ export function LayerManagerPopover({
                     创建翻译层
                   </button>
                 </div>
-                {translationCreateDisabledReason && (
-                  <p className="small-text">无法新建翻译：{translationCreateDisabledReason}</p>
-                )}
-                {!hasValidTranslationLanguage && (
-                  <p className="small-text">请先选择翻译层语言（自定义语言需填写代码）。</p>
+                {(translationCreateDisabledReason || !hasValidTranslationLanguage) && (
+                  <div className="layer-create-feedback-stack">
+                    {translationCreateDisabledReason && (
+                      <p className="layer-create-feedback layer-create-feedback-error">
+                        当前限制：无法新建翻译。{translationCreateDisabledReason}
+                      </p>
+                    )}
+                    {!hasValidTranslationLanguage && (
+                      <p className="layer-create-feedback layer-create-feedback-info">
+                        必填项：请先选择翻译层语言（自定义语言需填写代码）。
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 

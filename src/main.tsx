@@ -4,8 +4,6 @@ import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { initSentryForReleaseStage } from './observability/sentry';
 import './styles/global.css';
-import './styles/transcription.css';
-import './styles/ai-hub.css';
 import './styles/shared.css';
 
 void initSentryForReleaseStage();

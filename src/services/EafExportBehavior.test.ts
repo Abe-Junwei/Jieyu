@@ -303,4 +303,72 @@ describe('EAF export behavior for constraint layers', () => {
     expect(subConstraint?.constraint).toBe('time_subdivision');
     expect(subConstraint?.parentTierId).toBe('TRC_MAIN');
   });
+
+  it('exports PARTICIPANT when speakerId is a free string instead of a speaker entity id', () => {
+    const utterance = {
+      ...makeUtterance(),
+      speakerId: 'John',
+    } as UtteranceDocType;
+    const trc = makeLayer({ id: 'trc_default', layerType: 'transcription', key: 'trc_default' });
+
+    const xml = exportToEaf({
+      utterances: [utterance],
+      layers: [trc],
+      translations: [],
+      speakers: [makeSpeaker({ id: 'speaker_john', name: 'John' })],
+    });
+
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const tier = doc.querySelector('TIER[TIER_ID="default"]');
+    expect(tier?.getAttribute('PARTICIPANT')).toBe('John');
+  });
+
+  it('exports transcription time_subdivision tiers from segment graph with parent ref', () => {
+    const defaultTrc = makeLayer({ id: 'trc_default', layerType: 'transcription', key: withEafKeyMeta('trc_default', 'TRC_DEFAULT') });
+    const subTrc = makeLayer({
+      id: 'trc_sub',
+      layerType: 'transcription',
+      key: withEafKeyMeta('trc_sub', 'TRC_SUB'),
+      name: { eng: 'TRC_SUB', zho: 'TRC_SUB' },
+      constraint: 'time_subdivision',
+      parentLayerId: defaultTrc.id,
+      sortOrder: 1,
+      isDefault: false,
+    });
+    const seg: LayerSegmentDocType = {
+      id: 'seg_trc_sub',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: subTrc.id,
+      startTime: 0.2,
+      endTime: 0.8,
+      createdAt: '2026-03-25T00:00:00.000Z',
+      updatedAt: '2026-03-25T00:00:00.000Z',
+    };
+
+    const xml = exportToEaf({
+      utterances: [makeUtterance()],
+      layers: [defaultTrc, subTrc],
+      translations: [makeTranslation({ id: 'utr_default', layerId: defaultTrc.id, utteranceId: 'utt_1', text: 'main-text' })],
+      layerSegments: new Map([[subTrc.id, [seg]]]),
+      layerSegmentContents: new Map([[subTrc.id, new Map([[seg.id, {
+        id: 'cnt_trc_sub',
+        textId: 'text_1',
+        segmentId: seg.id,
+        layerId: subTrc.id,
+        modality: 'text' as const,
+        text: 'sub-text',
+        sourceType: 'human' as const,
+        createdAt: '2026-03-25T00:00:00.000Z',
+        updatedAt: '2026-03-25T00:00:00.000Z',
+      }]])]]),
+    });
+
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const tier = doc.querySelector('TIER[TIER_ID="TRC_SUB"]');
+    expect(tier).not.toBeNull();
+    expect(tier?.getAttribute('PARENT_REF')).toBe('TRC_DEFAULT');
+    expect(tier?.getAttribute('LINGUISTIC_TYPE_REF')).toBe('translation-subdivision-lt');
+    expect(tier?.querySelector('ANNOTATION_VALUE')?.textContent).toBe('sub-text');
+  });
 });

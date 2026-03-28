@@ -8,6 +8,10 @@ const {
   mockGetDb,
   mockCreateLayer,
   mockDeleteLayer,
+  mockInsertLayerLink,
+  mockRemoveLayerLink,
+  mockUpdateLayer,
+  mockUpdateLayerSortOrder,
   mockDeleteLayerSegmentGraphByLayerId,
   mockRemoveUtterancesBatch,
   mockLayerSegmentsWhereLayerIdToArray,
@@ -20,6 +24,10 @@ const {
   mockGetDb: vi.fn(),
   mockCreateLayer: vi.fn(async () => undefined),
   mockDeleteLayer: vi.fn(async () => undefined),
+  mockInsertLayerLink: vi.fn(async () => undefined),
+  mockRemoveLayerLink: vi.fn(async () => undefined),
+  mockUpdateLayer: vi.fn(async () => undefined),
+  mockUpdateLayerSortOrder: vi.fn(async () => undefined),
   mockDeleteLayerSegmentGraphByLayerId: vi.fn(async () => ({
     affectedUtteranceIds: [],
     deletedSegmentIds: [],
@@ -44,6 +52,8 @@ vi.mock('../services/LayerTierUnifiedService', () => ({
   LayerTierUnifiedService: {
     createLayer: mockCreateLayer,
     deleteLayer: mockDeleteLayer,
+    updateLayer: mockUpdateLayer,
+    updateLayerSortOrder: mockUpdateLayerSortOrder,
   },
 }));
 
@@ -74,8 +84,9 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     mockGetDb.mockResolvedValue({
       collections: {
         layer_links: {
+          remove: mockRemoveLayerLink,
           removeBySelector: mockRemoveBySelectorLayerLinks,
-          insert: vi.fn(async () => undefined),
+          insert: mockInsertLayerLink,
         },
       },
       dexie: {
@@ -226,7 +237,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     expect(created?.parentLayerId).toBe('layer_trc_1');
   });
 
-  it('passes through translation constraints that are runtime-enabled', async () => {
+  it('passes through supported translation constraints that remain enabled', async () => {
     const now = '2026-03-25T00:00:00.000Z';
     const trcLayer = {
       id: 'layer_trc_c',
@@ -262,16 +273,12 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setUtterances: vi.fn(),
     }));
 
-    const constraints = ['symbolic_association', 'independent_boundary'] as const;
+    const constraints = ['symbolic_association', 'time_subdivision'] as const;
     for (const constraint of constraints) {
       await act(async () => {
         await result.current.createLayer('translation', { languageId: `lng_${constraint}`, textId: 'text_1', constraint }, 'text');
       });
     }
-
-    await act(async () => {
-      await result.current.createLayer('translation', { languageId: 'lng_sub', textId: 'text_1', constraint: 'time_subdivision' }, 'text');
-    });
 
     const createCalls = mockCreateLayer.mock.calls as unknown[][];
     const createdConstraints = createCalls
@@ -279,7 +286,132 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       .map((doc) => doc.constraint)
       .filter((value): value is string => typeof value === 'string');
 
-    expect(createdConstraints).toEqual(expect.arrayContaining(['symbolic_association', 'independent_boundary', 'time_subdivision']));
+    expect(createdConstraints).toEqual(expect.arrayContaining(['symbolic_association', 'time_subdivision']));
+  });
+
+  it('blocks translation independent_boundary creation in the action layer', async () => {
+    const now = '2026-03-25T00:00:00.000Z';
+    const trcLayer = {
+      id: 'layer_trc_ind',
+      textId: 'text_1',
+      key: 'trc_base',
+      name: { zho: '转写基底层' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const setLayerCreateMessage = vi.fn();
+    const { result } = renderHook(() => useTranscriptionLayerActions({
+      layers: [trcLayer as never],
+      layerLinks: [],
+      layerToDeleteId: '',
+      selectedLayerId: trcLayer.id,
+      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      pushUndo: vi.fn(),
+      setLayerCreateMessage,
+      setLayers: vi.fn(),
+      setLayerLinks: vi.fn(),
+      setLayerToDeleteId: vi.fn(),
+      setShowLayerManager: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedMediaId: vi.fn(),
+      setMediaItems: vi.fn(),
+      setSelectedUtteranceIds: vi.fn(),
+      setTranslations: vi.fn(),
+      setUtterances: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.createLayer('translation', {
+        languageId: 'eng',
+        textId: 'text_1',
+        constraint: 'independent_boundary',
+      }, 'text');
+    });
+
+    expect(mockCreateLayer).not.toHaveBeenCalled();
+    expect(setLayerCreateMessage).toHaveBeenCalledWith(expect.stringContaining('翻译层不支持独立边界'));
+  });
+
+  it('requires explicit parent selection when multiple independent transcription parents exist', async () => {
+    const now = '2026-03-25T00:00:00.000Z';
+    const parentA = {
+      id: 'layer_trc_a',
+      textId: 'text_1',
+      key: 'trc_a',
+      name: { zho: '转写层A' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const parentB = {
+      id: 'layer_trc_b',
+      textId: 'text_1',
+      key: 'trc_b',
+      name: { zho: '转写层B' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const setLayerCreateMessage = vi.fn();
+    const { result } = renderHook(() => useTranscriptionLayerActions({
+      layers: [parentA as never, parentB as never],
+      layerLinks: [],
+      layerToDeleteId: '',
+      selectedLayerId: parentA.id,
+      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      pushUndo: vi.fn(),
+      setLayerCreateMessage,
+      setLayers: vi.fn(),
+      setLayerLinks: vi.fn(),
+      setLayerToDeleteId: vi.fn(),
+      setShowLayerManager: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedMediaId: vi.fn(),
+      setMediaItems: vi.fn(),
+      setSelectedUtteranceIds: vi.fn(),
+      setTranslations: vi.fn(),
+      setUtterances: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.createLayer('translation', { languageId: 'fra', textId: 'text_1' }, 'text');
+    });
+
+    expect(mockCreateLayer).not.toHaveBeenCalled();
+    expect(setLayerCreateMessage.mock.calls.at(-1)?.[0]).toContain('请先选择要依赖的边界层');
+
+    await act(async () => {
+      await result.current.createLayer('translation', {
+        languageId: 'fra',
+        textId: 'text_1',
+        parentLayerId: 'layer_trc_b',
+      }, 'text');
+    });
+
+    const createCalls = mockCreateLayer.mock.calls as unknown[][];
+    const lastCallIndex = createCalls.length - 1;
+    const created = (lastCallIndex >= 0
+      ? createCalls[lastCallIndex]?.[0]
+      : undefined) as { parentLayerId?: string } | undefined;
+    expect(created?.parentLayerId).toBe('layer_trc_b');
   });
 
   it('creates first transcription layer with explicit independent_boundary constraint', async () => {
@@ -313,6 +445,255 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       ? createCalls[lastCallIndex]?.[0]
       : undefined) as { constraint?: string } | undefined;
     expect(created?.constraint).toBe('independent_boundary');
+  });
+
+  it('canonicalizes sort order after creating a dependent translation layer', async () => {
+    const now = '2026-03-25T00:00:00.000Z';
+    const rootA = {
+      id: 'layer_trc_a',
+      textId: 'text_1',
+      key: 'trc_a',
+      name: { zho: '转写层A' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const rootB = {
+      id: 'layer_trc_b',
+      textId: 'text_1',
+      key: 'trc_b',
+      name: { zho: '转写层B' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const { result } = renderHook(() => useTranscriptionLayerActions({
+      layers: [rootA as never, rootB as never],
+      layerLinks: [],
+      layerToDeleteId: '',
+      selectedLayerId: rootB.id,
+      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      pushUndo: vi.fn(),
+      setLayerCreateMessage: vi.fn(),
+      setLayers: vi.fn(),
+      setLayerLinks: vi.fn(),
+      setLayerToDeleteId: vi.fn(),
+      setShowLayerManager: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedMediaId: vi.fn(),
+      setMediaItems: vi.fn(),
+      setSelectedUtteranceIds: vi.fn(),
+      setTranslations: vi.fn(),
+      setUtterances: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.createLayer('translation', {
+        languageId: 'fra',
+        textId: 'text_1',
+        parentLayerId: rootA.id,
+      }, 'text');
+    });
+
+    expect(mockUpdateLayerSortOrder).toHaveBeenCalledWith(expect.any(String), 1, expect.anything());
+  });
+
+  it('moves an independent root together with its bundle when reordered', async () => {
+    const now = '2026-03-25T00:00:00.000Z';
+    const rootA = {
+      id: 'layer_trc_a',
+      textId: 'text_1',
+      key: 'trc_a',
+      name: { zho: '转写层A' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const translationA = {
+      id: 'layer_trl_a',
+      textId: 'text_1',
+      key: 'trl_a',
+      name: { zho: '翻译层A' },
+      layerType: 'translation',
+      languageId: 'fra',
+      modality: 'text',
+      acceptsAudio: false,
+      parentLayerId: rootA.id,
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const rootB = {
+      id: 'layer_trc_b',
+      textId: 'text_1',
+      key: 'trc_b',
+      name: { zho: '转写层B' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 2,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const setLayers = vi.fn();
+    const { result } = renderHook(() => useTranscriptionLayerActions({
+      layers: [rootA as never, translationA as never, rootB as never],
+      layerLinks: [],
+      layerToDeleteId: '',
+      selectedLayerId: rootA.id,
+      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      pushUndo: vi.fn(),
+      setLayerCreateMessage: vi.fn(),
+      setLayers,
+      setLayerLinks: vi.fn(),
+      setLayerToDeleteId: vi.fn(),
+      setShowLayerManager: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedMediaId: vi.fn(),
+      setMediaItems: vi.fn(),
+      setSelectedUtteranceIds: vi.fn(),
+      setTranslations: vi.fn(),
+      setUtterances: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.reorderLayers(rootA.id, 3);
+    });
+
+    const reordered = setLayers.mock.calls.at(-1)?.[0] as LayerDocType[] | undefined;
+    expect(reordered?.map((layer) => layer.id)).toEqual(['layer_trc_b', 'layer_trc_a', 'layer_trl_a']);
+    expect(mockUpdateLayerSortOrder).toHaveBeenCalledWith('layer_trc_b', 0, expect.anything());
+    expect(mockUpdateLayerSortOrder).toHaveBeenCalledWith('layer_trc_a', 1, expect.anything());
+    expect(mockUpdateLayerSortOrder).toHaveBeenCalledWith('layer_trl_a', 2, expect.anything());
+  });
+
+  it('reparents a dependent translation layer when moved into another root bundle', async () => {
+    const now = '2026-03-25T00:00:00.000Z';
+    const rootA = {
+      id: 'layer_trc_a',
+      textId: 'text_1',
+      key: 'trc_a',
+      name: { zho: '转写层A' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const rootB = {
+      id: 'layer_trc_b',
+      textId: 'text_1',
+      key: 'trc_b',
+      name: { zho: '转写层B' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const translation = {
+      id: 'layer_trl_a',
+      textId: 'text_1',
+      key: 'trl_a',
+      name: { zho: '翻译层A' },
+      layerType: 'translation',
+      languageId: 'fra',
+      modality: 'text',
+      acceptsAudio: false,
+      parentLayerId: rootA.id,
+      sortOrder: 2,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const retainedLink = {
+      id: 'link_extra',
+      transcriptionLayerKey: 'trc_shared',
+      layerId: 'layer_trl_a',
+      linkType: 'free',
+      isPreferred: false,
+      createdAt: now,
+    };
+    const structuralLink = {
+      id: 'link_old_parent',
+      transcriptionLayerKey: 'trc_a',
+      layerId: 'layer_trl_a',
+      linkType: 'free',
+      isPreferred: false,
+      createdAt: now,
+    };
+
+    const setLayers = vi.fn();
+    const setLayerLinks = vi.fn();
+    const setLayerCreateMessage = vi.fn();
+    const { result } = renderHook(() => useTranscriptionLayerActions({
+      layers: [rootA as never, rootB as never, translation as never],
+      layerLinks: [structuralLink as never, retainedLink as never],
+      layerToDeleteId: '',
+      selectedLayerId: translation.id,
+      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      pushUndo: vi.fn(),
+      setLayerCreateMessage,
+      setLayers,
+      setLayerLinks,
+      setLayerToDeleteId: vi.fn(),
+      setShowLayerManager: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedMediaId: vi.fn(),
+      setMediaItems: vi.fn(),
+      setSelectedUtteranceIds: vi.fn(),
+      setTranslations: vi.fn(),
+      setUtterances: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.reorderLayers(translation.id, 3);
+    });
+
+    expect(mockUpdateLayer).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'layer_trl_a',
+      parentLayerId: 'layer_trc_b',
+      sortOrder: 2,
+    }));
+    expect(mockRemoveLayerLink).toHaveBeenCalledWith('link_old_parent');
+    expect(mockInsertLayerLink).toHaveBeenCalledWith(expect.objectContaining({
+      transcriptionLayerKey: 'trc_b',
+      layerId: 'layer_trl_a',
+    }));
+    expect(setLayerCreateMessage).toHaveBeenCalledWith(expect.stringContaining('已将该翻译层改为依赖'));
+
+    const reordered = setLayers.mock.calls.at(-1)?.[0] as LayerDocType[] | undefined;
+    expect(reordered?.find((layer) => layer.id === 'layer_trl_a')?.parentLayerId).toBe('layer_trc_b');
+    const linkedLayers = setLayerLinks.mock.calls.at(-1)?.[0] as Array<{ transcriptionLayerKey: string; layerId: string }> | undefined;
+    expect(linkedLayers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ transcriptionLayerKey: 'trc_shared', layerId: 'layer_trl_a' }),
+      expect.objectContaining({ transcriptionLayerKey: 'trc_b', layerId: 'layer_trl_a' }),
+    ]));
+    expect(linkedLayers?.some((link) => link.transcriptionLayerKey === 'trc_a')).toBe(false);
   });
 
   it('cascade-deletes dependent translation layers when deleting the last transcription layer', async () => {

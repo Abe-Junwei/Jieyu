@@ -3,6 +3,10 @@ import type { EmbeddingProviderCreateConfig } from './EmbeddingProvider';
 
 type SearchArgs = Parameters<EmbeddingSearchService['searchSimilarUtterances']>;
 type SearchResult = ReturnType<EmbeddingSearchService['searchSimilarUtterances']>;
+type MultiSourceArgs = Parameters<EmbeddingSearchService['searchMultiSource']>;
+type MultiSourceResult = ReturnType<EmbeddingSearchService['searchMultiSource']>;
+type MultiSourceHybridArgs = Parameters<EmbeddingSearchService['searchMultiSourceHybrid']>;
+type MultiSourceHybridResult = ReturnType<EmbeddingSearchService['searchMultiSourceHybrid']>;
 
 class DeferredEmbeddingSearchService {
   private servicePromise: Promise<EmbeddingSearchService> | null = null;
@@ -33,6 +37,16 @@ class DeferredEmbeddingSearchService {
   async searchSimilarUtterances(...args: SearchArgs): SearchResult {
     const service = await this.getService();
     return service.searchSimilarUtterances(...args);
+  }
+
+  async searchMultiSource(...args: MultiSourceArgs): MultiSourceResult {
+    const service = await this.getService();
+    return service.searchMultiSource(...args);
+  }
+
+  async searchMultiSourceHybrid(...args: MultiSourceHybridArgs): MultiSourceHybridResult {
+    const service = await this.getService();
+    return service.searchMultiSourceHybrid(...args);
   }
 }
 

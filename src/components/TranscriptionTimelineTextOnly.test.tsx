@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { createEvent, fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { createEvent, fireEvent, render, screen, cleanup } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, UtteranceDocType } from '../db';
 import { TranscriptionTimelineTextOnly } from './TranscriptionTimelineTextOnly';
+import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 
 const NOW = new Date().toISOString();
 
@@ -41,9 +42,16 @@ vi.mock('../contexts/TranscriptionEditorContext', () => ({
   useTranscriptionEditorContext: () => editorContextValue,
 }));
 
+const timelineLaneHeaderMock = vi.fn(({ layer }: { layer: { id: string } }) => <div data-testid={`header-${layer.id}`} />);
+
 vi.mock('./TimelineLaneHeader', () => ({
-  TimelineLaneHeader: ({ layer }: { layer: { id: string } }) => <div data-testid={`header-${layer.id}`} />, 
+  TimelineLaneHeader: (props: { layer: { id: string }; trackModeControl?: { lockConflictCount?: number } }) => timelineLaneHeaderMock(props),
 }));
+
+afterEach(() => {
+  timelineLaneHeaderMock.mockClear();
+  cleanup();
+});
 
 vi.mock('./LayerActionPopover', () => ({
   LayerActionPopover: () => null,
@@ -103,6 +111,197 @@ function makeUtterance(id: string, speakerId?: string, speaker?: string): Uttera
 }
 
 describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
+  it('renders lanes in the same order as allLayersOrdered even when a translation layer is above a transcription layer', () => {
+    const transcriptionLayer = makeLayer('trc-base');
+    const translationLayer = {
+      ...makeLayer('trl-top'),
+      layerType: 'translation',
+      key: 'trl_fra_top',
+    } as LayerDocType;
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+
+    render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[transcriptionLayer]}
+        translationLayers={[translationLayer]}
+        utterancesOnCurrentMedia={[makeUtterance('u1', 's1')]}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={transcriptionLayer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[translationLayer, transcriptionLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[translationLayer, transcriptionLayer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [translationLayer.id]: 44, [transcriptionLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    expect(timelineLaneHeaderMock.mock.calls.map((call) => call[0].layer.id)).toEqual([
+      translationLayer.id,
+      transcriptionLayer.id,
+    ]);
+  });
+
+  it('passes lock conflict count to the lane header in text-only multi-track mode', () => {
+    const layer = makeLayer('trc-conflict');
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const speakerLayerLayout: SpeakerLayerLayoutResult = {
+      placements: new Map(),
+      subTrackCount: 2,
+      maxConcurrentSpeakerCount: 2,
+      overlapGroups: [],
+      overlapCycleItemsByGroupId: new Map(),
+      lockConflictCount: 2,
+      lockConflictSpeakerIds: ['s2'],
+    };
+
+    render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        utterancesOnCurrentMedia={[makeUtterance('u1', 's1'), makeUtterance('u2', 's2')]}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        trackDisplayMode="multi-locked"
+        onToggleTrackDisplayMode={vi.fn()}
+        laneLockMap={{ s1: 0 }}
+        speakerLayerLayout={speakerLayerLayout}
+      />,
+    );
+
+    const firstProps = timelineLaneHeaderMock.mock.calls[0]?.[0] as { trackModeControl?: { lockConflictCount?: number } } | undefined;
+    expect(firstProps?.trackModeControl?.lockConflictCount).toBe(2);
+  });
+
+  it('forwards overlap cycle items when clicking text-only utterances in multi-track mode', () => {
+    const layer = makeLayer('trc-overlap');
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const handleAnnotationClick = vi.fn();
+    const overlapCycleItemsByUtteranceId = new Map<string, Array<{ id: string; startTime: number }>>([
+      ['u1', [{ id: 'u1', startTime: 0 }, { id: 'u2', startTime: 1 }]],
+      ['u2', [{ id: 'u2', startTime: 1 }, { id: 'u1', startTime: 0 }]],
+    ]);
+    const speakerLayerLayout: SpeakerLayerLayoutResult = {
+      placements: new Map(),
+      subTrackCount: 2,
+      maxConcurrentSpeakerCount: 2,
+      overlapGroups: [],
+      overlapCycleItemsByGroupId: new Map([['__all__', overlapCycleItemsByUtteranceId]]),
+      lockConflictCount: 0,
+      lockConflictSpeakerIds: [],
+    };
+
+    render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        utterancesOnCurrentMedia={[makeUtterance('u1', 's1'), makeUtterance('u2', 's2')]}
+        selectedTimelineUnit={{ layerId: layer.id, unitId: 'u1', kind: 'utterance' }}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={handleAnnotationClick}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        trackDisplayMode="multi-auto"
+        onToggleTrackDisplayMode={vi.fn()}
+        speakerLayerLayout={speakerLayerLayout}
+        activeUtteranceUnitId="u1"
+      />,
+    );
+
+    fireEvent.click(screen.getAllByRole('textbox')[0]!.closest('.timeline-text-item')!);
+
+    expect(handleAnnotationClick).toHaveBeenCalledWith(
+      'u1',
+      0,
+      layer.id,
+      expect.any(Object),
+      [{ id: 'u1', startTime: 0 }, { id: 'u2', startTime: 1 }],
+    );
+  });
+
+  it('renders dependent translation rows from the parent transcription segments', () => {
+    const parentLayer = {
+      ...makeLayer('trc-parent'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const translationLayer = {
+      ...makeLayer('trl-dependent'),
+      layerType: 'translation',
+      key: 'trl_fra_1',
+      parentLayerId: parentLayer.id,
+    } as LayerDocType;
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+
+    editorContextValue.translationTextByLayer = new Map([
+      [translationLayer.id, new Map([
+        ['seg-1', { id: 'txt-1', utteranceId: 'seg-1', layerId: translationLayer.id, text: 'bonjour', modality: 'text', createdAt: NOW, updatedAt: NOW }],
+        ['seg-2', { id: 'txt-2', utteranceId: 'seg-2', layerId: translationLayer.id, text: 'salut', modality: 'text', createdAt: NOW, updatedAt: NOW }],
+      ])],
+    ]);
+
+    render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[]}
+        translationLayers={[translationLayer]}
+        utterancesOnCurrentMedia={[makeUtterance('u-main')]}
+        segmentsByLayer={new Map([
+          [parentLayer.id, [
+            { id: 'seg-1', textId: 't1', mediaId: 'm1', startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+            { id: 'seg-2', textId: 't1', mediaId: 'm1', startTime: 1, endTime: 2, createdAt: NOW, updatedAt: NOW },
+          ]],
+        ])}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={parentLayer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[parentLayer, translationLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[parentLayer, translationLayer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [translationLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    const textboxes = screen.getAllByRole('textbox') as HTMLInputElement[];
+    expect(textboxes).toHaveLength(2);
+    expect(textboxes[0]?.value).toBe('bonjour');
+    expect(textboxes[1]?.value).toBe('salut');
+
+    editorContextValue.translationTextByLayer = new Map();
+  });
+
   it('does not prevent default pointerdown on text input when lane is expanded', () => {
     const layer = makeLayer('trc-1');
     const scrollEl = document.createElement('div');
@@ -171,42 +370,6 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     expect(screen.getAllByRole('textbox').length).toBeGreaterThanOrEqual(2);
     const dimmed = document.querySelectorAll('.timeline-text-item-focus-dim');
     expect(dimmed.length).toBe(0);
-    const hidden = container.querySelectorAll('.timeline-text-item-focus-hidden');
-    expect(hidden.length).toBe(1);
-  });
-
-  it('matches legacy name-based speakers in focus-hard mode', () => {
-    const layer = makeLayer('trc-1');
-    const scrollEl = document.createElement('div');
-    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
-
-    const { container } = render(
-      <TranscriptionTimelineTextOnly
-        transcriptionLayers={[layer]}
-        translationLayers={[]}
-        utterancesOnCurrentMedia={[makeUtterance('u1', undefined, '访客'), makeUtterance('u2', undefined, '旁白')]}
-        selectedTimelineUnit={null}
-        flashLayerRowId=""
-        focusedLayerRowId=""
-        defaultTranscriptionLayerId={layer.id}
-        scrollContainerRef={scrollRef}
-        handleAnnotationClick={vi.fn()}
-        allLayersOrdered={[layer]}
-        onReorderLayers={vi.fn(async () => undefined)}
-        deletableLayers={[layer]}
-        onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
-        laneHeights={{ [layer.id]: 44 }}
-        onLaneHeightChange={vi.fn()}
-        speakerFocusMode="focus-hard"
-        speakerFocusSpeakerKey="name:访客"
-        speakerVisualByUtteranceId={{
-          u1: { name: '访客', color: '#ff0000' },
-          u2: { name: '旁白', color: '#00ff00' },
-        }}
-      />,
-    );
-
     const hidden = container.querySelectorAll('.timeline-text-item-focus-hidden');
     expect(hidden.length).toBe(1);
   });
@@ -307,5 +470,56 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     );
 
     expect(container.querySelectorAll('.timeline-text-item-focus-hidden').length).toBe(1);
+  });
+
+  it('shows speaker badge for independent segments when unit visuals include segment ids', () => {
+    const layer = {
+      ...makeLayer('trc-independent-speaker-badge'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const segmentsByLayer = new Map([
+      [layer.id, [
+        {
+          id: 'seg_badge_1',
+          textId: 't1',
+          mediaId: 'm1',
+          layerId: layer.id,
+          speakerId: 's1',
+          startTime: 0,
+          endTime: 1,
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ]],
+    ]);
+
+    render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        utterancesOnCurrentMedia={[]}
+        segmentsByLayer={segmentsByLayer}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        speakerVisualByUtteranceId={{
+          seg_badge_1: { name: 'Alice', color: '#ff0000' },
+        }}
+      />,
+    );
+
+    expect(screen.getByText('Alice')).toBeTruthy();
   });
 });

@@ -514,28 +514,6 @@ interface LayerSegmentContentDocType {
   updatedAt: string;
 }
 
-/**
- * 统一时间单元（方案 B 基座）| Unified timeline unit (Plan B foundation)
- * - sourceKind='utterance': 来自主轴 utterance 的投影单元 | projected from utterance axis
- * - sourceKind='segment': 来自层内独立 segment 的单元 | sourced from per-layer segment
- */
-interface LayerUtteranceDocType {
-  id: string;
-  textId: string;
-  mediaId: string;
-  layerId: string;
-  sourceKind: 'utterance' | 'segment';
-  sourceId: string;
-  startTime: number;
-  endTime: number;
-  speakerId?: string;
-  startAnchorId?: string;
-  endAnchorId?: string;
-  ordinal?: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
 type LayerUnitType = 'utterance' | 'segment';
 type LayerUnitStatus = 'raw' | 'transcribed' | 'translated' | 'glossed' | 'verified';
 type LayerContentRole = 'primary_text' | 'translation' | 'gloss' | 'note' | 'audio_ref';
@@ -734,7 +712,7 @@ interface TrackEntityDocType {
   id: string;
   textId: string;
   mediaId: string;
-  mode: 'single' | 'multi-auto' | 'multi-locked';
+  mode: 'single' | 'multi-auto' | 'multi-locked' | 'multi-speaker-fixed';
   laneLockMap: Record<string, number>;
   updatedAt: string;
 }
@@ -1134,28 +1112,6 @@ const translationLayerDocSchema = z.object({
 
 // 移除未使用的 utteranceTextDocSchema
 
-const layerUtteranceDocSchema = z
-  .object({
-    id: z.string().min(1),
-    textId: z.string().min(1),
-    mediaId: z.string().min(1),
-    layerId: z.string().min(1),
-    sourceKind: z.enum(['utterance', 'segment']),
-    sourceId: z.string().min(1),
-    startTime: z.number().finite(),
-    endTime: z.number().finite(),
-    speakerId: z.string().min(1).optional(),
-    startAnchorId: z.string().min(1).optional(),
-    endAnchorId: z.string().min(1).optional(),
-    ordinal: z.number().int().min(0).optional(),
-    createdAt: isoDateSchema,
-    updatedAt: isoDateSchema,
-  })
-  .refine((doc) => doc.endTime >= doc.startTime, {
-    message: 'endTime must be >= startTime',
-    path: ['endTime'],
-  });
-
 const layerUnitTypeSchema = z.enum(['utterance', 'segment']);
 const layerUnitStatusSchema = z.enum(['raw', 'transcribed', 'translated', 'glossed', 'verified']);
 const layerContentRoleSchema = z.enum(['primary_text', 'translation', 'gloss', 'note', 'audio_ref']);
@@ -1413,10 +1369,6 @@ function validateLayerDoc(doc: LayerDocType): void {
   translationLayerDocSchema.parse(doc);
 }
 
-function validateLayerUtteranceDoc(doc: LayerUtteranceDocType): void {
-  layerUtteranceDocSchema.parse(doc);
-}
-
 function validateLayerUnitDoc(doc: LayerUnitDocType): void {
   layerUnitDocSchema.parse(doc);
 }
@@ -1455,7 +1407,7 @@ const trackEntityDocSchema = z.object({
   id: z.string().min(1),
   textId: z.string().min(1),
   mediaId: z.string().min(1),
-  mode: z.enum(['single', 'multi-auto', 'multi-locked']),
+  mode: z.enum(['single', 'multi-auto', 'multi-locked', 'multi-speaker-fixed']),
   laneLockMap: z.record(z.string(), z.number().int().min(0)),
   updatedAt: isoDateSchema,
 });
@@ -1821,7 +1773,6 @@ type JieyuCollections = {
   layer_units: CollectionAdapter<LayerUnitDocType>;
   layer_unit_contents: CollectionAdapter<LayerUnitContentDocType>;
   unit_relations: CollectionAdapter<UnitRelationDocType>;
-  layer_utterances: CollectionAdapter<LayerUtteranceDocType>;
   layer_links: CollectionAdapter<LayerLinkDocType>;
   tier_definitions: CollectionAdapter<TierDefinitionDocType>;
   tier_annotations: CollectionAdapter<TierAnnotationDocType>;
@@ -2092,7 +2043,6 @@ class JieyuDexie extends Dexie {
   layer_units!: Table<LayerUnitDocType, string>;
   layer_unit_contents!: Table<LayerUnitContentDocType, string>;
   unit_relations!: Table<UnitRelationDocType, string>;
-  layer_utterances!: Table<LayerUtteranceDocType, string>;
   layer_links!: Table<LayerLinkDocType, string>;
   tier_definitions!: Table<TierDefinitionDocType, string>;
   tier_annotations!: Table<TierAnnotationDocType, string>;
@@ -2697,8 +2647,8 @@ class JieyuDexie extends Dexie {
           }
         }
 
-        const mode = (row.mode === 'multi-auto' || row.mode === 'multi-locked')
-          ? (row.mode as 'single' | 'multi-auto' | 'multi-locked')
+        const mode = (row.mode === 'multi-auto' || row.mode === 'multi-locked' || row.mode === 'multi-speaker-fixed')
+          ? (row.mode as 'single' | 'multi-auto' | 'multi-locked' | 'multi-speaker-fixed')
           : 'single';
 
         toInsert.push({
@@ -2760,7 +2710,24 @@ class JieyuDexie extends Dexie {
         if (picked) defaultTrcByText.set(textId, picked);
       }
 
-      const rowsById = new Map<string, LayerUtteranceDocType>();
+      type LayerUtteranceMigrationRow = {
+        id: string;
+        textId: string;
+        mediaId: string;
+        layerId: string;
+        sourceKind: 'utterance' | 'segment';
+        sourceId: string;
+        startTime: number;
+        endTime: number;
+        speakerId?: string;
+        startAnchorId?: string;
+        endAnchorId?: string;
+        ordinal?: number;
+        createdAt: string;
+        updatedAt: string;
+      };
+
+      const rowsById = new Map<string, LayerUtteranceMigrationRow>();
       for (const utt of utterances) {
         const defaultTrc = defaultTrcByText.get(utt.textId);
         if (!defaultTrc || !utt.mediaId) continue;
@@ -2897,6 +2864,12 @@ class JieyuDexie extends Dexie {
       layer_segment_contents: null,
       segment_links: null,
     });
+
+    // v32: remove abandoned layer_utterances table.
+    // 删除未落地消费者的 layer_utterances 死表，避免继续悬空存在。
+    this.version(32).stores({
+      layer_utterances: null,
+    });
   }
 }
 
@@ -2969,10 +2942,6 @@ async function _createDb(): Promise<JieyuDatabase> {
     unit_relations: new DexieCollectionAdapter(
       dexie.unit_relations,
       validateUnitRelationDoc,
-    ),
-    layer_utterances: new DexieCollectionAdapter(
-      dexie.layer_utterances,
-      validateLayerUtteranceDoc,
     ),
     layer_links: new DexieCollectionAdapter(dexie.layer_links, validateLayerLinkDoc),
     tier_definitions: new DexieCollectionAdapter(dexie.tier_definitions, validateTierDefinitionDoc),

@@ -4,7 +4,10 @@ import {
   applySpeakerAssignmentToUtterances,
   buildSelectedSpeakerSummary,
   buildSpeakerFilterOptions,
+  buildSpeakerFilterOptionsFromKeys,
   buildSpeakerVisualMap,
+  buildSpeakerVisualMapFromKeys,
+  getSpeakerDisplayNameByKey,
   getUtteranceSpeakerKey,
   normalizeSpeakerName,
   renameSpeakerInUtterances,
@@ -42,7 +45,7 @@ describe('speakerUtils', () => {
 
   it('builds utterance speaker key from speakerId first and falls back to speaker name', () => {
     expect(getUtteranceSpeakerKey({ speakerId: 'spk-1', speaker: 'Alice' } as UtteranceDocType)).toBe('spk-1');
-    expect(getUtteranceSpeakerKey({ speakerId: '', speaker: ' 访客 ' } as UtteranceDocType)).toBe('name:访客');
+    expect(getUtteranceSpeakerKey({ speakerId: '', speaker: ' 访客 ' } as UtteranceDocType)).toBe('');
     expect(getUtteranceSpeakerKey({ speakerId: '', speaker: '  ' } as UtteranceDocType)).toBe('');
   });
 
@@ -69,13 +72,37 @@ describe('speakerUtils', () => {
 
     const visualMap = buildSpeakerVisualMap(utterances, speakers);
     expect(visualMap['utt-1']?.name).toBe('Alice');
-    expect(visualMap['utt-3']?.name).toBe('访客');
+    expect(visualMap['utt-3']).toBeUndefined();
     expect(visualMap['utt-1']?.color).toBeTruthy();
 
     const filterOptions = buildSpeakerFilterOptions(utterances, visualMap);
     expect(filterOptions[0]?.key).toBe('spk-1');
     expect(filterOptions[0]?.count).toBe(2);
-    expect(filterOptions.find((item) => item.key === 'name:访客')?.isEntity).toBe(false);
+    expect(filterOptions).toHaveLength(1);
+  });
+
+  it('builds speaker visuals and filter options from generic unit assignments', () => {
+    const speakers = [makeSpeaker({ id: 'spk-1', name: 'Alice' })];
+    const assignments = [
+      { unitId: 'seg-1', speakerKey: 'spk-1' },
+      { unitId: 'seg-2', speakerKey: 'spk-1' },
+      { unitId: 'seg-4', speakerKey: 'unknown-speaker' },
+    ];
+
+    const visualMap = buildSpeakerVisualMapFromKeys(assignments, speakers);
+    expect(visualMap['seg-1']?.name).toBe('Alice');
+    expect(visualMap['seg-4']).toBeUndefined();
+
+    const filterOptions = buildSpeakerFilterOptionsFromKeys(assignments, visualMap);
+    expect(filterOptions[0]?.key).toBe('spk-1');
+    expect(filterOptions[0]?.count).toBe(2);
+  });
+
+  it('resolves speaker display names from entity keys and unknown speaker', () => {
+    const speakerById = new Map<string, SpeakerDocType>([['spk-1', makeSpeaker({ id: 'spk-1', name: 'Alice' })]]);
+
+    expect(getSpeakerDisplayNameByKey('spk-1', speakerById)).toBe('Alice');
+    expect(getSpeakerDisplayNameByKey('unknown-speaker', speakerById)).toBe('未命名说话人');
   });
 
   it('builds selected speaker summary for empty/none/single/multiple speaker selections', () => {
@@ -90,7 +117,7 @@ describe('speakerUtils', () => {
     expect(buildSelectedSpeakerSummary([
       makeUtterance({ speakerId: 'spk-1', speaker: 'Alice' }),
       makeUtterance({ speaker: '访客' }),
-    ], speakerOptions)).toBe('当前包含 2 位说话人');
+    ], speakerOptions)).toBe('当前统一说话人：Alice');
   });
 
   it('applies speaker assignment and supports clearing assignment', () => {

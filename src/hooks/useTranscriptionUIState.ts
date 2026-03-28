@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 
-export type TranscriptionTrackDisplayMode = 'single' | 'multi-auto' | 'multi-locked';
+export type TranscriptionTrackDisplayMode = 'single' | 'multi-auto' | 'multi-locked' | 'multi-speaker-fixed';
 export type SpeakerFocusMode = 'all' | 'focus-soft' | 'focus-hard';
 
 export function useTranscriptionUIState() {

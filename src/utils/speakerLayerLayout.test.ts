@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { UtteranceDocType } from '../db';
-import { buildSpeakerLayerLayout, buildSpeakerLayerLayoutWithOptions } from './speakerLayerLayout';
+import { buildSpeakerLayerLayout, buildSpeakerLayerLayoutWithOptions, buildStableSpeakerLaneMap } from './speakerLayerLayout';
 
 const NOW = '2026-03-24T00:00:00.000Z';
 
@@ -116,5 +116,46 @@ describe('buildSpeakerLayerLayout', () => {
 
     expect(result.placements.get('u2')?.subTrackIndex).toBe(0);
     expect(result.placements.get('u1')?.subTrackIndex).toBe(1);
+  });
+
+  it('builds a stable contiguous speaker lane map for fixed speaker lanes', () => {
+    const laneMap = buildStableSpeakerLaneMap(['spk-b', 'spk-a', 'spk-c'], { 'spk-c': 5, 'spk-a': 2 }, { 'spk-b': 0, 'spk-a': 1, 'spk-c': 2 });
+
+    expect(laneMap).toEqual({ 'spk-a': 0, 'spk-c': 1, 'spk-b': 2 });
+  });
+
+  it('keeps one speaker on one fixed lane and marks self-overlap as conflict', () => {
+    const input: UtteranceDocType[] = [
+      makeUtterance('u1', 0, 4, 'spk-a'),
+      makeUtterance('u2', 1, 3, 'spk-a'),
+      makeUtterance('u3', 1, 3, 'spk-b'),
+    ];
+
+    const result = buildSpeakerLayerLayoutWithOptions(input, {
+      trackMode: 'multi-speaker-fixed',
+      laneLockMap: { 'spk-a': 3 },
+    });
+
+    expect(result.placements.get('u1')?.subTrackIndex).toBe(0);
+    expect(result.placements.get('u2')?.subTrackIndex).toBe(0);
+    expect(result.placements.get('u3')?.subTrackIndex).toBe(1);
+    expect(result.lockConflictCount).toBe(1);
+    expect(result.lockConflictSpeakerIds).toContain('spk-a');
+  });
+
+  it('places unassigned utterances in a separate overflow pool in fixed speaker mode', () => {
+    const input: UtteranceDocType[] = [
+      makeUtterance('u1', 0, 4, 'spk-a'),
+      makeUtterance('u2', 1, 3),
+      makeUtterance('u3', 1.5, 2.5),
+    ];
+
+    const result = buildSpeakerLayerLayoutWithOptions(input, {
+      trackMode: 'multi-speaker-fixed',
+    });
+
+    expect(result.placements.get('u1')?.subTrackIndex).toBe(0);
+    expect(result.placements.get('u2')?.subTrackIndex).toBe(1);
+    expect(result.placements.get('u3')?.subTrackIndex).toBe(2);
   });
 });

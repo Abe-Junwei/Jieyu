@@ -23,7 +23,7 @@ function sanitizeLaneLockMap(input: unknown): Record<string, number> {
 }
 
 function sanitizeMode(value: unknown): TranscriptionTrackDisplayMode {
-  if (value === 'multi-auto' || value === 'multi-locked' || value === 'single') return value;
+  if (value === 'multi-auto' || value === 'multi-locked' || value === 'multi-speaker-fixed' || value === 'single') return value;
   return 'single';
 }
 

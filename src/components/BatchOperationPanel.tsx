@@ -566,7 +566,6 @@ export function BatchOperationPanel({
               value={previewScope}
               onChange={(e) => setPreviewScope(e.target.value as PreviewScope)}
               className="ai-cfg-input"
-              style={{ minWidth: 170 }}
             >
               <option value="selected">仅已选句段</option>
               <option value="layer-all">特定层全部句段</option>
@@ -579,7 +578,6 @@ export function BatchOperationPanel({
               onChange={(e) => setPreviewLayerId(e.target.value)}
               disabled={previewLayerOptions.length === 0}
               className="ai-cfg-input"
-              style={{ minWidth: 220 }}
             >
               {previewLayerOptions.length === 0 && <option value="">当前层</option>}
               {previewLayerOptions.map((layer) => (

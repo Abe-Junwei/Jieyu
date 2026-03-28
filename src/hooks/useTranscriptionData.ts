@@ -153,6 +153,7 @@ export function useTranscriptionData() {
 
   // Derived data ---------------------------------------------------------
   const {
+    orderedLayers,
     translationLayers,
     transcriptionLayers,
     layerRailRows,
@@ -444,6 +445,7 @@ export function useTranscriptionData() {
   };
 
   const derivedApi = {
+    orderedLayers,
     translationLayers,
     transcriptionLayers,
     defaultTranscriptionLayerId,
