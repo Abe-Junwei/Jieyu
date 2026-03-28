@@ -18,6 +18,7 @@ interface UseKeybindingActionsInput {
   subSelectionRange: { start: number; end: number } | null;
   setSubSelectionRange: React.Dispatch<React.SetStateAction<{ start: number; end: number } | null>>;
   selectedUtterance: UtteranceDocType | undefined;
+  selectedPlayableRange?: { startTime: number; endTime: number } | null;
   selectedTimelineUnit?: TimelineUnit | null;
   selectedUtteranceIds: Set<string>;
   selectedMediaUrl: string | undefined;
@@ -55,7 +56,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
   const {
     player,
     subSelectionRange, setSubSelectionRange,
-    selectedUtterance, selectedTimelineUnit, selectedUtteranceIds,
+    selectedUtterance, selectedPlayableRange, selectedTimelineUnit, selectedUtteranceIds,
     selectedMediaUrl,
     segMarkStart, setSegMarkStart,
     segmentLoopPlayback, setSegmentLoopPlayback,
@@ -79,12 +80,14 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
       player.stop();
     } else if (subSelectionRange) {
       player.playRegion(subSelectionRange.start, subSelectionRange.end, true);
+    } else if (selectedPlayableRange) {
+      player.playRegion(selectedPlayableRange.startTime, selectedPlayableRange.endTime, true);
     } else if (selectedUtterance) {
       player.playRegion(selectedUtterance.startTime, selectedUtterance.endTime, true);
     } else {
       player.togglePlayback();
     }
-  }, [player, subSelectionRange, selectedUtterance]);
+  }, [player, selectedPlayableRange, subSelectionRange, selectedUtterance]);
 
   // Top toolbar play button controls global timeline playback.
   const handleGlobalPlayPauseAction = useCallback(() => {

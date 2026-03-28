@@ -68,4 +68,60 @@ describe('useKeybindingActions segment routing', () => {
     expect(runMergeNext).toHaveBeenCalledWith('seg_42');
     expect(runSplitAtTime).toHaveBeenCalledWith('seg_42', 1.25);
   });
+
+  it('plays the selected segment range when no utterance is selected', () => {
+    const playRegion = vi.fn();
+
+    const { result } = renderHook(() => {
+      const waveformAreaRef = useRef<HTMLDivElement | null>(null);
+      return useKeybindingActions({
+        player: {
+          isReady: true,
+          isPlaying: false,
+          playbackRate: 1,
+          instanceRef: { current: { getCurrentTime: () => 1.25 } as unknown as import('wavesurfer.js').default },
+          stop: vi.fn(),
+          playRegion,
+          togglePlayback: vi.fn(),
+          seekBySeconds: vi.fn(),
+        },
+        subSelectionRange: null,
+        setSubSelectionRange: vi.fn(),
+        selectedUtterance: undefined,
+        selectedPlayableRange: { startTime: 3, endTime: 4.5 },
+        selectedTimelineUnit: { layerId: 'layer-1', unitId: 'seg_42', kind: 'segment' as const },
+        selectedUtteranceIds: new Set<string>(),
+        selectedMediaUrl: 'blob:test',
+        segMarkStart: null,
+        setSegMarkStart: vi.fn(),
+        segmentLoopPlayback: false,
+        setSegmentLoopPlayback: vi.fn(),
+        utterancesOnCurrentMedia: [],
+        markingModeRef: { current: false },
+        skipSeekForIdRef: { current: null },
+        creatingSegmentRef: { current: false },
+        manualSelectTsRef: { current: 0 },
+        waveformAreaRef,
+        createUtteranceFromSelection: vi.fn(async () => undefined),
+        selectUtterance: vi.fn(),
+        selectAllUtterances: vi.fn(),
+        runDeleteSelection: vi.fn(),
+        runMergePrev: vi.fn(),
+        runMergeNext: vi.fn(),
+        runSplitAtTime: vi.fn(),
+        runSelectBefore: vi.fn(),
+        runSelectAfter: vi.fn(),
+        undo: vi.fn(async () => undefined),
+        redo: vi.fn(async () => undefined),
+        setShowSearch: vi.fn(),
+        toggleNotes: vi.fn(),
+      });
+    });
+
+    act(() => {
+      result.current.executeAction('playPause');
+    });
+
+    expect(playRegion).toHaveBeenCalledWith(3, 4.5, true);
+  });
 });

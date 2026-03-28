@@ -52,16 +52,6 @@ function getCreateFallbackMessage(action: LayerActionType): string {
   return '操作失败，请稍后重试。';
 }
 
-function getLayerDisplayName(layer: LayerDocType): string {
-  return layer.name.zho
-    ?? layer.name.zh
-    ?? layer.name.cmn
-    ?? layer.name.eng
-    ?? layer.name.en
-    ?? Object.values(layer.name).find((value) => Boolean(value?.trim()))
-    ?? layer.key;
-}
-
 function formatParentLayerOptionLabel(layer: LayerDocType): string {
   const { type, lang, alias } = getLayerLabelParts(layer);
   return alias ? `${type} · ${lang} · ${alias}` : `${type} · ${lang}`;

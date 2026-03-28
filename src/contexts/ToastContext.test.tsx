@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, fireEvent, act } from '@testing-library/react';
 import { ToastProvider, useToast, type ToastVariant } from './ToastContext';
 
+const TOAST_FADE_OUT_MS = 260;
+
 // ── Test component that uses the toast context ──────────────────────────────────
 
 function TestConsumer({
@@ -63,11 +65,13 @@ describe('ToastContext', () => {
     });
 
     it('dismisses on click', () => {
+      vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
       renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
       act(() => { ctx!.showToast('click me', 'info'); });
       // Click the inner toast div (which has onClick={dismiss}), not the container
       act(() => { fireEvent.click(screen.getByText('click me')); });
+      act(() => { vi.advanceTimersByTime(TOAST_FADE_OUT_MS); });
       expect(screen.queryByRole('status')).toBeNull();
     });
 
@@ -86,9 +90,9 @@ describe('ToastContext', () => {
       let ctx: ReturnType<typeof useToast>;
       renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
       act(() => { ctx!.showToast('error', 'error'); });
-      act(() => { vi.advanceTimersByTime(4999); });
+      act(() => { vi.advanceTimersByTime(1739); });
       expect(screen.queryByRole('status')).not.toBeNull(); // not yet
-      act(() => { vi.advanceTimersByTime(2); });
+      act(() => { vi.advanceTimersByTime(TOAST_FADE_OUT_MS + 1); });
       expect(screen.queryByRole('status')).toBeNull();
     });
 
@@ -154,11 +158,13 @@ describe('ToastContext', () => {
     });
 
     it('dismisses on idle saveState', () => {
+      vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
       renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
       act(() => { ctx!.showToast('some toast', 'info'); });
       expect(screen.getByRole('status').textContent).toBe('some toast');
       act(() => { ctx!.showSaveState({ kind: 'idle' }); });
+      act(() => { vi.advanceTimersByTime(TOAST_FADE_OUT_MS); });
       expect(screen.queryByRole('status')).toBeNull();
     });
 
@@ -284,10 +290,12 @@ describe('ToastContext', () => {
     });
 
     it('dismisses toast when mode is null', () => {
+      vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
       renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
       act(() => { ctx!.showToast('some toast', 'info'); });
       act(() => { ctx!.showVoiceState(null); });
+      act(() => { vi.advanceTimersByTime(TOAST_FADE_OUT_MS); });
       expect(screen.queryByRole('status')).toBeNull();
     });
 
@@ -301,11 +309,13 @@ describe('ToastContext', () => {
 
   describe('dismiss', () => {
     it('dismisses the current toast immediately', () => {
+      vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
       renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
       act(() => { ctx!.showToast('to dismiss', 'info'); });
       expect(screen.getByRole('status').textContent).toBe('to dismiss');
       act(() => { ctx!.dismiss(); });
+      act(() => { vi.advanceTimersByTime(TOAST_FADE_OUT_MS); });
       expect(screen.queryByRole('status')).toBeNull();
     });
 

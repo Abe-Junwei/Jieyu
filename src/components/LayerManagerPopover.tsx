@@ -92,7 +92,6 @@ export function LayerManagerPopover({
   const [translationCustomLang, setTranslationCustomLang] = useState('');
   const [translationModality, setTranslationModality] = useState<'text' | 'audio' | 'mixed'>('text');
   const [transcriptionConstraint, setTranscriptionConstraint] = useState<LayerConstraint>('symbolic_association');
-  const [translationConstraint, setTranslationConstraint] = useState<LayerConstraint>('symbolic_association');
   const [transcriptionParentLayerId, setTranscriptionParentLayerId] = useState('');
   const [translationParentLayerId, setTranslationParentLayerId] = useState('');
   const [transcriptionCreateError, setTranscriptionCreateError] = useState('');
@@ -241,7 +240,6 @@ export function LayerManagerPopover({
       setTranslationForm({ languageId: '' });
       setTranslationCustomLang('');
       setTranslationModality('text');
-      setTranslationConstraint('symbolic_association');
       setTranslationParentLayerId('');
       return;
     }

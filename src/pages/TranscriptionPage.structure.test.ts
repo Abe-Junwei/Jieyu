@@ -109,7 +109,7 @@ describe('TranscriptionPage structure invariants', () => {
     // 媒体维度记忆映射存在 | Media-scoped memory map exists
     expect(code.includes('speakerFocusTargetMemoryByMediaRef')).toBe(true);
     // 以媒体 id 作为记忆键 | Uses media id as memory key
-    expect(code.includes("const speakerFocusMediaKey = selectedUtteranceMedia?.id ?? '__no-media__';")).toBe(true);
+    expect(code.includes("const speakerFocusMediaKey = selectedTimelineMedia?.id ?? '__no-media__';")).toBe(true);
     // 切换媒体时恢复记忆 | Restores memory on media switch
     expect(code.includes('const saved = speakerFocusTargetMemoryByMediaRef.current[speakerFocusMediaKey];')).toBe(true);
     expect(code.includes('setSpeakerFocusTargetKey(saved ?? null);')).toBe(true);
@@ -135,7 +135,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(code.includes('trackEntityStateByMediaRef')).toBe(true);
     expect(code.includes('trackEntityHydratedKeyRef')).toBe(true);
     expect(code.includes('const trackEntityProjectKey = activeTextId?.trim() ||')).toBe(true);
-    expect(code.includes("const trackEntityMediaId = selectedUtteranceMedia?.id ?? null;")).toBe(true);
+    expect(code.includes("const trackEntityMediaId = selectedTimelineMedia?.id ?? null;")).toBe(true);
     expect(code.includes('const trackEntityScopedKey = trackEntityMediaId ? `${trackEntityProjectKey}::${trackEntityMediaId}` : null;')).toBe(true);
     expect(code.includes('const trackEntityScopedKey = trackEntityMediaId ?')).toBe(true);
     expect(code.includes('if (!trackEntityScopedKey) {')).toBe(true);
@@ -158,26 +158,34 @@ describe('TranscriptionPage structure invariants', () => {
     const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
     const code = fs.readFileSync(filePath, 'utf8');
 
+    expect(code.includes('const activeLayerIdForEdits = selectedLayerId')).toBe(true);
+    expect(code.includes('|| focusedLayerRowId')).toBe(true);
+    expect(code.includes('|| selectedTimelineUnit?.layerId')).toBe(true);
+    expect(code.includes('|| defaultTranscriptionLayerId')).toBe(true);
+
     // 独立层启用时，波形 region 来源应切到 layer_segments
     // When independent layer is active, waveform regions should come from layer_segments.
-    expect(code.includes('const useIndependentWaveformRegions = Boolean(activeWaveformLayer && layerUsesOwnSegments(activeWaveformLayer, defaultTranscriptionLayerId));')).toBe(true);
+    expect(code.includes('const useSegmentWaveformRegions = Boolean(activeWaveformSegmentSourceLayer);')).toBe(true);
     expect(code.includes('const waveformTimelineItems = useMemo(() => {')).toBe(true);
-    expect(code.includes('const segments = segmentsByLayer.get(activeWaveformLayer.id) ?? [];')).toBe(true);
+    expect(code.includes('const segments = segmentsByLayer.get(activeWaveformSegmentSourceLayer.id) ?? [];')).toBe(true);
     expect(code.includes('const waveformRegions = useMemo(() =>')).toBe(true);
 
     // 选择态应按 independent/utterance 双路径路由
     // Selection state must route by independent/utterance mode.
-    expect(code.includes('const selectedWaveformRegionId = selectedTimelineUnit?.layerId === activeLayerIdForEdits')).toBe(true);
-    expect(code.includes("? (isSegmentTimelineUnit(selectedTimelineUnit) ? selectedTimelineUnit.unitId : '')")).toBe(true);
-    expect(code.includes(": (isUtteranceTimelineUnit(selectedTimelineUnit) ? selectedTimelineUnit.unitId : '')")).toBe(true);
+    expect(code.includes('const selectedWaveformRegionId = useMemo(() => {')).toBe(true);
+    expect(code.includes('const kindMatchesWaveform = useSegmentWaveformRegions')).toBe(true);
+    expect(code.includes('return waveformTimelineItems.some((item) => item.id === selectedTimelineUnit.unitId)')).toBe(true);
     expect(code.includes('const waveformActiveRegionIds = useMemo(() => {')).toBe(true);
     expect(code.includes('return selectedWaveformRegionId ? new Set([selectedWaveformRegionId]) : new Set<string>();')).toBe(true);
     expect(code.includes('const waveformPrimaryRegionId = selectedWaveformRegionId;')).toBe(true);
+    expect(code.includes('const selectedWaveformTimelineItem = useMemo(() => {')).toBe(true);
+    expect(code.includes('return waveformTimelineItems.find((item) => item.id === selectedWaveformRegionId) ?? null;')).toBe(true);
 
     // 拖拽更新结束应在独立层更新 segment 而非 utterance
     // Region update end must update segment on independent layers.
-    expect(code.includes('if (useIndependentWaveformRegions && activeWaveformLayer) {')).toBe(true);
+    expect(code.includes('if (useSegmentWaveformRegions && activeWaveformSegmentSourceLayer) {')).toBe(true);
     expect(code.includes('await LayerSegmentationV2Service.updateSegment(regionId, {')).toBe(true);
+    expect(code.includes('!selectedMediaIsVideo && selectedWaveformTimelineItem && player.isReady')).toBe(true);
   });
 
   it('persists focused speaker metadata on newly created independent segments', () => {
@@ -236,8 +244,8 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(code.includes('const selectedStandaloneUtteranceIdsForSpeakerActions = useMemo(')).toBe(true);
     expect(code.includes('selectedSegmentIdsForSpeakerActions.length + selectedStandaloneUtteranceIdsForSpeakerActions.length')).toBe(true);
-    expect(code.includes("selectedStandaloneUtteranceIdsForSpeakerActions.length > 0 ? 'mixed' : 'segment'")).toBe(true);
     expect(code.includes('const applySpeakerToMixedSelection = useCallback(async (speakerId?: string) => {')).toBe(true);
+    expect(code.includes('if (selectedSegmentIdsForSpeakerActions.length > 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length > 0) {')).toBe(true);
     expect(code.includes('await applySpeakerToMixedSelection(batchSpeakerId || undefined);')).toBe(true);
   });
 

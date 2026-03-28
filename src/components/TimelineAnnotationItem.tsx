@@ -6,6 +6,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
+  type ReactNode,
 } from 'react';
 import { NoteDocumentIcon } from './NoteDocumentIcon';
 
@@ -26,6 +27,9 @@ export interface TimelineAnnotationItemProps {
   overlapCycleIndicator?: { index: number; total: number };
   /** AI confidence 0.0–1.0；低于阈值时渲染警示色 | AI confidence; triggers warning style below threshold */
   confidence?: number;
+  content?: ReactNode;
+  tools?: ReactNode;
+  hasTrailingTools?: boolean;
   onClick: (e: MouseEvent) => void;
   onContextMenu: (e: MouseEvent) => void;
   onDoubleClick: () => void;
@@ -54,6 +58,9 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   noteCount,
   overlapCycleIndicator,
   confidence,
+  content,
+  tools,
+  hasTrailingTools,
   onClick,
   onContextMenu,
   onDoubleClick,
@@ -73,6 +80,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         isActive ? 'timeline-annotation-active' : '',
         isCompact ? 'timeline-annotation-compact' : '',
         speakerLabel ? 'timeline-annotation-has-speaker' : '',
+        hasTrailingTools ? 'timeline-annotation-has-tools' : '',
         typeof confidence === 'number' && confidence < 0.5 ? 'timeline-annotation-confidence-low' : '',
         typeof confidence === 'number' && confidence >= 0.5 && confidence < 0.75 ? 'timeline-annotation-confidence-mid' : '',
       ].filter(Boolean).join(' ')}
@@ -107,7 +115,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
           {overlapCycleIndicator.index}/{overlapCycleIndicator.total}
         </span>
       )}
-      {isActive ? (
+      {content ? content : isActive ? (
         <input
           className="timeline-annotation-input"
           value={draft}
@@ -125,6 +133,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
       ) : (
         <span>{draft || '\u00A0'}</span>
       )}
+      {tools ? <div className="timeline-annotation-tools">{tools}</div> : null}
       {noteCount != null && noteCount > 0 && onNoteClick && (
         <NoteDocumentIcon
           className="timeline-annotation-note-icon timeline-annotation-note-icon-active"

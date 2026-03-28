@@ -3,7 +3,9 @@ import type {
   LayerDocType,
   LayerSegmentContentDocType,
   LayerSegmentDocType,
+  MediaItemDocType,
   UtteranceDocType,
+  UtteranceTextDocType,
 } from '../db';
 import { useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -19,7 +21,8 @@ import { layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hook
 import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import { buildSpeakerLayerLayoutWithOptions, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
-import { isUtteranceTimelineUnit, type TimelineUnit } from '../hooks/transcriptionTypes';
+import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 
 const EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID = new Map<string, Array<{ id: string; startTime: number }>>();
 
@@ -154,6 +157,14 @@ type TranscriptionTimelineTextOnlyProps = {
   };
   // Lane label resize
   onLaneLabelWidthResize?: (e: React.PointerEvent<HTMLDivElement>) => void;
+  translationAudioByLayer?: Map<string, Map<string, UtteranceTextDocType>>;
+  mediaItems?: MediaItemDocType[];
+  recording?: boolean;
+  recordingUtteranceId?: string | null;
+  recordingLayerId?: string | null;
+  startRecordingForUtterance?: (utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>;
+  stopRecording?: () => void;
+  deleteVoiceTranslation?: (utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>;
 };
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
@@ -197,6 +208,14 @@ export function TranscriptionTimelineTextOnly({
   speakerVisualByUtteranceId = {},
   speakerQuickActions,
   onLaneLabelWidthResize,
+  translationAudioByLayer,
+  mediaItems = [],
+  recording = false,
+  recordingUtteranceId = null,
+  recordingLayerId = null,
+  startRecordingForUtterance,
+  stopRecording,
+  deleteVoiceTranslation,
 }: TranscriptionTimelineTextOnlyProps) {
   const [layerAction, setLayerAction] = useState<{ action: LayerActionType; layerId?: string } | null>(null);
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
@@ -259,6 +278,10 @@ export function TranscriptionTimelineTextOnly({
   const layerById = useMemo(
     () => new Map(allLayersOrdered.map((layer) => [layer.id, layer] as const)),
     [allLayersOrdered],
+  );
+  const mediaItemById = useMemo(
+    () => new Map(mediaItems.map((item) => [item.id, item] as const)),
+    [mediaItems],
   );
   const segmentSpeakerLayoutByLayer = new Map<string, SpeakerLayerLayoutResult>();
   const segmentSpeakerIdByLayer = new Map<string, Map<string, string>>();
@@ -612,12 +635,33 @@ export function TranscriptionTimelineTextOnly({
             const text = usesOwnSegments
               ? (segmentContentByLayer?.get(layer.id)?.get(utt.id)?.text ?? '')
               : (translationTextByLayer.get(layer.id)?.get(utt.id)?.text ?? '');
+            const audioTranslation = translationAudioByLayer?.get(layer.id)?.get(utt.id);
+            const audioMedia = audioTranslation?.translationAudioMediaId
+              ? mediaItemById.get(audioTranslation.translationAudioMediaId)
+              : undefined;
+            const layerSupportsAudio = !usesOwnSegments
+              && (layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio));
+            const isAudioOnlyLayer = layer.modality === 'audio';
+            const showAudioTools = layerSupportsAudio && layer.modality === 'mixed';
+            const isCurrentRecording = recording && recordingUtteranceId === utt.id && recordingLayerId === layer.id;
+            const audioActionDisabled = recording && !isCurrentRecording;
             const draftKey = `${layer.id}-${utt.id}`;
             const cellKey = `tr-${layer.id}-${utt.id}`;
             const draft = translationDrafts[draftKey] ?? text;
             const isEditing = editingCellKey === cellKey;
             const isDimmed = !!editingCellKey && !isEditing;
             const saveStatus = saveStatusByCellKey[cellKey];
+            const audioControls = layerSupportsAudio ? (
+              <TimelineTranslationAudioControls
+                isRecording={isCurrentRecording}
+                disabled={audioActionDisabled}
+                compact={!isAudioOnlyLayer}
+                {...(audioMedia ? { mediaItem: audioMedia } : {})}
+                onStartRecording={() => startRecordingForUtterance?.(utt, layer)}
+                {...(stopRecording ? { onStopRecording: stopRecording } : {})}
+                {...(audioMedia && deleteVoiceTranslation ? { onDeleteRecording: () => deleteVoiceTranslation(utt, layer) } : {})}
+              />
+            ) : undefined;
             const retrySave = () => {
               if (draft === text) {
                 setCellSaveStatus(cellKey);
@@ -632,14 +676,14 @@ export function TranscriptionTimelineTextOnly({
             return (
               <div
                 key={utt.id}
-                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}`}
+                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${showAudioTools ? ' timeline-text-item-has-tools' : ''}${isAudioOnlyLayer ? ' timeline-text-item-audio-only' : ''}`}
                 style={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
                 }}
                 onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e)}
               >
-                {saveStatus === 'error' ? (
+                {!isAudioOnlyLayer && saveStatus === 'error' ? (
                   <button
                     type="button"
                     className="timeline-text-item-status-dot timeline-text-item-status-dot-error timeline-text-item-status-dot-action"
@@ -650,91 +694,95 @@ export function TranscriptionTimelineTextOnly({
                       retrySave();
                     }}
                   />
-                ) : saveStatus ? (
+                ) : !isAudioOnlyLayer && saveStatus ? (
                   <span
                     className={`timeline-text-item-status-dot timeline-text-item-status-dot-${saveStatus}`}
                     title={saveStatus === 'saving' ? '正在保存…' : '未保存'}
                   />
                 ) : null}
-                <input
-                  type="text"
-                  className="timeline-text-input"
-                  placeholder={usesOwnSegments ? '语段' : '翻译'}
-                  value={draft}
-                  onFocus={() => {
-                    focusedTranslationDraftKeyRef.current = draftKey;
-                    setEditingCellKey(cellKey);
-                    onFocusLayer(layer.id);
-                  }}
-                  onChange={(e) => {
-                    const value = normalizeSingleLine(e.target.value);
-                    setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
-                    if (usesOwnSegments) {
-                      if (!saveSegmentContentForLayer) return;
-                      setCellSaveStatus(cellKey, 'dirty');
-                      scheduleAutoSave(`seg-${layer.id}-${utt.id}`, async () => {
-                        await runSaveWithStatus(cellKey, async () => {
-                          await saveSegmentContentForLayer(utt.id, layer.id, value);
+                {showAudioTools && audioControls ? <div className="timeline-text-item-tools">{audioControls}</div> : null}
+                {isAudioOnlyLayer && audioControls ? (
+                  <div className="timeline-translation-audio-card timeline-translation-audio-card-text">{audioControls}</div>
+                ) : (
+                  <input
+                    type="text"
+                    className="timeline-text-input"
+                    placeholder={usesOwnSegments ? '语段' : '翻译'}
+                    value={draft}
+                    onFocus={() => {
+                      focusedTranslationDraftKeyRef.current = draftKey;
+                      setEditingCellKey(cellKey);
+                      onFocusLayer(layer.id);
+                    }}
+                    onChange={(e) => {
+                      const value = normalizeSingleLine(e.target.value);
+                      setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
+                      if (usesOwnSegments) {
+                        if (!saveSegmentContentForLayer) return;
+                        setCellSaveStatus(cellKey, 'dirty');
+                        scheduleAutoSave(`seg-${layer.id}-${utt.id}`, async () => {
+                          await runSaveWithStatus(cellKey, async () => {
+                            await saveSegmentContentForLayer(utt.id, layer.id, value);
+                          });
                         });
-                      });
-                      return;
-                    }
-                    if (value.trim() && value !== text) {
-                      setCellSaveStatus(cellKey, 'dirty');
-                      scheduleAutoSave(`tr-${layer.id}-${utt.id}`, async () => {
-                        await runSaveWithStatus(cellKey, async () => {
-                          await saveTextTranslationForUtterance(utt.id, value, layer.id);
+                        return;
+                      }
+                      if (value.trim() && value !== text) {
+                        setCellSaveStatus(cellKey, 'dirty');
+                        scheduleAutoSave(`tr-${layer.id}-${utt.id}`, async () => {
+                          await runSaveWithStatus(cellKey, async () => {
+                            await saveTextTranslationForUtterance(utt.id, value, layer.id);
+                          });
                         });
-                      });
-                    } else {
+                      } else {
+                        clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
+                        setCellSaveStatus(cellKey);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.nativeEvent.isComposing) return;
+                      if (e.key === 'Tab') {
+                        navigateUtteranceFromInput(e, e.shiftKey ? -1 : 1);
+                        return;
+                      }
+                      if (e.key === 'Enter') {
+                        navigateUtteranceFromInput(e, e.shiftKey ? -1 : 1);
+                        return;
+                      }
+                      if (e.key === 'Escape') {
+                        e.preventDefault();
+                        clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
+                        setTranslationDrafts((prev) => ({ ...prev, [draftKey]: text }));
+                        setCellSaveStatus(cellKey);
+                        focusedTranslationDraftKeyRef.current = null;
+                        e.currentTarget.blur();
+                      }
+                    }}
+                    onBlur={(e) => {
+                      setEditingCellKey((prev) => (prev === cellKey ? null : prev));
+                      const value = normalizeSingleLine(e.target.value);
+                      if (usesOwnSegments) {
+                        clearAutoSaveTimer(`seg-${layer.id}-${utt.id}`);
+                        if (value !== text && saveSegmentContentForLayer) {
+                          fireAndForget(runSaveWithStatus(cellKey, async () => {
+                            await saveSegmentContentForLayer(utt.id, layer.id, value);
+                          }));
+                        } else {
+                          setCellSaveStatus(cellKey);
+                        }
+                        return;
+                      }
                       clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
-                      setCellSaveStatus(cellKey);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.nativeEvent.isComposing) return;
-                    if (e.key === 'Tab') {
-                      navigateUtteranceFromInput(e, e.shiftKey ? -1 : 1);
-                      return;
-                    }
-                    if (e.key === 'Enter') {
-                      navigateUtteranceFromInput(e, e.shiftKey ? -1 : 1);
-                      return;
-                    }
-                    if (e.key === 'Escape') {
-                      e.preventDefault();
-                      clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
-                      setTranslationDrafts((prev) => ({ ...prev, [draftKey]: text }));
-                      setCellSaveStatus(cellKey);
-                      focusedTranslationDraftKeyRef.current = null;
-                      e.currentTarget.blur();
-                    }
-                  }}
-                  onBlur={(e) => {
-                    setEditingCellKey((prev) => (prev === cellKey ? null : prev));
-                    focusedTranslationDraftKeyRef.current = null;
-                    const value = normalizeSingleLine(e.target.value);
-                    if (usesOwnSegments) {
-                      clearAutoSaveTimer(`seg-${layer.id}-${utt.id}`);
-                      if (value !== text && saveSegmentContentForLayer) {
+                      if (value !== text) {
                         fireAndForget(runSaveWithStatus(cellKey, async () => {
-                          await saveSegmentContentForLayer(utt.id, layer.id, value);
+                          await saveTextTranslationForUtterance(utt.id, value, layer.id);
                         }));
                       } else {
                         setCellSaveStatus(cellKey);
                       }
-                      return;
-                    }
-                    clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
-                    if (value !== text) {
-                      fireAndForget(runSaveWithStatus(cellKey, async () => {
-                        await saveTextTranslationForUtterance(utt.id, value, layer.id);
-                      }));
-                    } else {
-                      setCellSaveStatus(cellKey);
-                    }
-                  }}
-                />
+                    }}
+                  />
+                )}
               </div>
             );
           })}

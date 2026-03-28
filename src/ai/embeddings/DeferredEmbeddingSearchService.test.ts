@@ -21,11 +21,13 @@ vi.mock('./EmbeddingProviderCatalog', () => ({
 }));
 
 vi.mock('./EmbeddingSearchService', () => ({
-  EmbeddingSearchService: mockEmbeddingSearchServiceCtor.mockImplementation(class MockEmbeddingSearchService {
-    terminate = mockTerminate;
-    searchSimilarUtterances = mockSearchSimilarUtterances;
-    searchMultiSource = mockSearchMultiSource;
-    searchMultiSourceHybrid = mockSearchMultiSourceHybrid;
+  EmbeddingSearchService: mockEmbeddingSearchServiceCtor.mockImplementation(function MockEmbeddingSearchService() {
+    return {
+      terminate: mockTerminate,
+      searchSimilarUtterances: mockSearchSimilarUtterances,
+      searchMultiSource: mockSearchMultiSource,
+      searchMultiSourceHybrid: mockSearchMultiSourceHybrid,
+    };
   }),
 }));
 
@@ -46,7 +48,7 @@ describe('createDeferredEmbeddingSearchService', () => {
     const expected = { query: 'hello', matches: [{ sourceId: 'u1', score: 0.9 }] };
     mockSearchMultiSourceHybrid.mockResolvedValue(expected);
 
-    const service = createDeferredEmbeddingSearchService(() => ({ kind: 'transformers' }));
+    const service = createDeferredEmbeddingSearchService(() => ({ kind: 'local' }));
     const result = await service.searchMultiSourceHybrid('hello', ['utterance', 'note'], { topK: 5 });
 
     expect(result).toEqual(expected);
@@ -59,7 +61,7 @@ describe('createDeferredEmbeddingSearchService', () => {
     mockSearchSimilarUtterances.mockResolvedValue({ query: 'a', matches: [] });
     mockSearchMultiSource.mockResolvedValue({ query: 'b', matches: [] });
 
-    const service = createDeferredEmbeddingSearchService(() => ({ kind: 'transformers' }));
+    const service = createDeferredEmbeddingSearchService(() => ({ kind: 'local' }));
 
     await service.searchSimilarUtterances('a', { topK: 3 });
     await service.searchMultiSource('b', ['utterance'], { topK: 4 });

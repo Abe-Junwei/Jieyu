@@ -1,4 +1,12 @@
-import type { LayerLinkDocType, LayerDocType, LayerSegmentContentDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type {
+  LayerLinkDocType,
+  LayerDocType,
+  LayerSegmentContentDocType,
+  LayerSegmentDocType,
+  MediaItemDocType,
+  UtteranceDocType,
+  UtteranceTextDocType,
+} from '../db';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
@@ -17,6 +25,7 @@ import {
   type SpeakerLayerLayoutResult,
 } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 
 type LassoRect = {
   x: number;
@@ -167,6 +176,9 @@ type TranscriptionTimelineMediaLanesProps = {
         showSpeaker?: boolean;
         overlapCycleItems?: Array<{ id: string; startTime: number }>;
         overlapCycleStatus?: { index: number; total: number };
+        content?: React.ReactNode;
+        tools?: React.ReactNode;
+        hasTrailingTools?: boolean;
       },
   ) => React.ReactNode;
   // TimelineLaneHeader props
@@ -207,6 +219,14 @@ type TranscriptionTimelineMediaLanesProps = {
   segmentContentByLayer?: Map<string, Map<string, LayerSegmentContentDocType>>;
   /** 保存独立边界层 segment 内容 | Save segment content for independent-boundary layers */
   saveSegmentContentForLayer?: (segmentId: string, layerId: string, value: string) => Promise<void>;
+  translationAudioByLayer?: Map<string, Map<string, UtteranceTextDocType>>;
+  mediaItems?: MediaItemDocType[];
+  recording?: boolean;
+  recordingUtteranceId?: string | null;
+  recordingLayerId?: string | null;
+  startRecordingForUtterance?: (utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>;
+  stopRecording?: () => void;
+  deleteVoiceTranslation?: (utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>;
 };
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
@@ -251,6 +271,14 @@ export function TranscriptionTimelineMediaLanes({
   segmentsByLayer,
   segmentContentByLayer,
   saveSegmentContentForLayer,
+  translationAudioByLayer,
+  mediaItems = [],
+  recording = false,
+  recordingUtteranceId = null,
+  recordingLayerId = null,
+  startRecordingForUtterance,
+  stopRecording,
+  deleteVoiceTranslation,
 }: Omit<TranscriptionTimelineMediaLanesProps, 'allLayersOrdered'> & {
   allLayersOrdered: LayerDocType[];
   deletableLayers: LayerDocType[];
@@ -278,6 +306,10 @@ export function TranscriptionTimelineMediaLanes({
   const layerById = useMemo(
     () => new Map(allLayersOrdered.map((layer) => [layer.id, layer] as const)),
     [allLayersOrdered],
+  );
+  const mediaItemById = useMemo(
+    () => new Map(mediaItems.map((item) => [item.id, item] as const)),
+    [mediaItems],
   );
   const segmentSpeakerLayoutByLayer = useMemo(() => {
     const next = new Map<string, SpeakerLayerLayoutResult>();
@@ -683,11 +715,32 @@ export function TranscriptionTimelineMediaLanes({
             const text = usesOwnSegments
               ? (segmentContentByLayer?.get(layer.id)?.get(item.id)?.text ?? '')
               : (translationTextByLayer.get(layer.id)?.get(item.id)?.text ?? '');
+            const audioTranslation = translationAudioByLayer?.get(layer.id)?.get(item.id);
+            const audioMedia = audioTranslation?.translationAudioMediaId
+              ? mediaItemById.get(audioTranslation.translationAudioMediaId)
+              : undefined;
+            const layerSupportsAudio = !usesOwnSegments
+              && (layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio));
+            const isAudioOnlyLayer = layer.modality === 'audio';
+            const showAudioTools = layerSupportsAudio && layer.modality === 'mixed';
+            const isCurrentRecording = recording && recordingUtteranceId === item.id && recordingLayerId === layer.id;
+            const audioActionDisabled = recording && !isCurrentRecording;
             const draftKey = `${layer.id}-${item.id}`;
             const draft = translationDrafts[draftKey] ?? text;
             // 适配 renderAnnotationItem 所需的 TimelineUtterance 形状
             // Adapt to TimelineUtterance shape required by renderAnnotationItem
             const uttCompat = item as UtteranceDocType;
+            const audioControls = layerSupportsAudio ? (
+              <TimelineTranslationAudioControls
+                isRecording={isCurrentRecording}
+                disabled={audioActionDisabled}
+                compact={!isAudioOnlyLayer}
+                {...(audioMedia ? { mediaItem: audioMedia } : {})}
+                onStartRecording={() => startRecordingForUtterance?.(uttCompat, layer)}
+                {...(stopRecording ? { onStopRecording: stopRecording } : {})}
+                {...(audioMedia && deleteVoiceTranslation ? { onDeleteRecording: () => deleteVoiceTranslation(uttCompat, layer) } : {})}
+              />
+            ) : undefined;
             return (
               <div
                 key={`tr-sub-${layer.id}-${item.id}`}
@@ -697,9 +750,15 @@ export function TranscriptionTimelineMediaLanes({
                   height: baseLaneHeight,
                 }}
               >
-                {renderAnnotationItem(uttCompat, layer, draft, {
+                {isAudioOnlyLayer && audioControls ? renderAnnotationItem(uttCompat, layer, '', {
+                  showSpeaker: false,
+                  content: <div className="timeline-translation-audio-card">{audioControls}</div>,
+                  onChange: () => undefined,
+                  onBlur: () => undefined,
+                }) : renderAnnotationItem(uttCompat, layer, draft, {
                   showSpeaker: false,
                   placeholder: usesOwnSegments ? '语段' : '翻译',
+                  ...(audioControls ? { tools: audioControls, hasTrailingTools: showAudioTools } : {}),
                   onFocus: () => {
                     focusedTranslationDraftKeyRef.current = draftKey;
                   },

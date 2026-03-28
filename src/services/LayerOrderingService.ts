@@ -122,10 +122,6 @@ function resolveTargetBundleIndex(bundles: LayerBundle[], targetIndex: number): 
   return validBundleIndexes[0] ?? null;
 }
 
-function getLayerLabel(layer: LayerDocType): string {
-  return layer.name.zho ?? layer.name.eng ?? layer.key;
-}
-
 function describeLayer(layer: LayerDocType): string {
   const { type, lang, alias } = getLayerLabelParts(layer);
   if (alias) {
@@ -146,7 +142,7 @@ function getBundleRanges(bundles: LayerBundle[]): Array<{ start: number; end: nu
 function findBundleIndexAtPosition(bundles: LayerBundle[], position: number): number | null {
   if (bundles.length === 0) return null;
   const ranges = getBundleRanges(bundles);
-  const totalLength = ranges.at(-1)?.end ?? 0;
+  const totalLength = ranges[ranges.length - 1]?.end ?? 0;
   if (totalLength <= 0) return null;
   const clamped = Math.max(0, Math.min(position, totalLength - 1));
   return ranges.findIndex((range) => clamped >= range.start && clamped < range.end);

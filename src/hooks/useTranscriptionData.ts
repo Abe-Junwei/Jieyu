@@ -232,6 +232,7 @@ export function useTranscriptionData() {
   // Action implementations -----------------------------------------------
   const {
     saveVoiceTranslation: saveVoiceTranslationRaw,
+    deleteVoiceTranslation: deleteVoiceTranslationRaw,
     saveUtteranceText: saveUtteranceTextRaw,
     saveUtteranceTiming: saveUtteranceTimingRaw,
     saveTextTranslationForUtterance: saveTextTranslationForUtteranceRaw,
@@ -293,6 +294,7 @@ export function useTranscriptionData() {
 
   const {
     saveVoiceTranslation,
+    deleteVoiceTranslation,
     saveUtteranceText,
     saveUtteranceTiming,
     saveTextTranslationForUtterance,
@@ -313,6 +315,7 @@ export function useTranscriptionData() {
   } = useTranscriptionMutexActionWrappers({
     runWithDbMutex,
     saveVoiceTranslationRaw,
+    deleteVoiceTranslationRaw,
     saveUtteranceTextRaw,
     saveUtteranceTimingRaw,
     saveTextTranslationForUtteranceRaw,
@@ -468,6 +471,7 @@ export function useTranscriptionData() {
     loadSnapshot,
     addMediaItem,
     saveVoiceTranslation,
+    deleteVoiceTranslation,
     saveUtteranceText,
     saveUtteranceTiming,
     saveTextTranslationForUtterance,

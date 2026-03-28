@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
-import type { AnchorDocType, LayerDocType, UtteranceDocType } from '../db';
+import type { AnchorDocType, LayerDocType, MediaItemDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 import { db } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
@@ -39,19 +39,20 @@ function makeUtterance(id: string, startTime: number, endTime: number): Utteranc
 
 function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: 'transcription' | 'translation' }): LayerDocType {
   const now = new Date().toISOString();
+  const { id, layerType, ...rest } = overrides;
   return {
-    id: overrides.id,
+    ...rest,
+    id,
     textId: 't1',
-    key: overrides.id,
-    name: { zho: overrides.id, eng: overrides.id },
-    layerType: overrides.layerType,
-    languageId: overrides.layerType === 'translation' ? 'eng' : 'cmn',
+    key: id,
+    name: { zho: id, eng: id },
+    layerType,
+    languageId: layerType === 'translation' ? 'eng' : 'cmn',
     modality: 'text',
     acceptsAudio: false,
     sortOrder: 0,
     createdAt: now,
     updatedAt: now,
-    ...overrides,
   } as LayerDocType;
 }
 
@@ -438,6 +439,69 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     });
 
     expect(await db.embeddings.where('sourceId').equals('utt-translation').count()).toBe(1);
+  });
+
+  it('deleteVoiceTranslation should remove saved audio translation and media item', async () => {
+    const utterance = makeUtterance('utt-audio-delete', 0, 1);
+    const translationLayer = makeLayer({
+      id: 'trl-audio-delete',
+      layerType: 'translation',
+      modality: 'audio',
+      acceptsAudio: true,
+    });
+
+    await db.utterances.put(utterance as never);
+
+    let translationsState: UtteranceTextDocType[] = [];
+    let mediaItemsState: MediaItemDocType[] = [];
+    const setTranslations = vi.fn((updater: UtteranceTextDocType[] | ((prev: UtteranceTextDocType[]) => UtteranceTextDocType[])) => {
+      translationsState = typeof updater === 'function' ? updater(translationsState) : updater;
+    });
+    const setMediaItems = vi.fn((updater: MediaItemDocType[] | ((prev: MediaItemDocType[]) => MediaItemDocType[])) => {
+      mediaItemsState = typeof updater === 'function' ? updater(mediaItemsState) : updater;
+    });
+    const setSaveState = vi.fn();
+
+    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+      defaultTranscriptionLayerId: undefined,
+      layerById: new Map([[translationLayer.id, translationLayer]]),
+      selectedUtteranceMedia: undefined,
+      translations: [],
+      utterancesRef: { current: [utterance] },
+      utterancesOnCurrentMediaRef: { current: [utterance] },
+      getUtteranceTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, utteranceId: null } },
+      timingUndoRef: { current: null },
+      pushUndo: vi.fn(),
+      createAnchor: vi.fn(),
+      updateAnchorTime: vi.fn(),
+      pruneOrphanAnchors: vi.fn(),
+      setSaveState,
+      setSnapGuide: vi.fn(),
+      setMediaItems,
+      setTranslations,
+      setUtterances: vi.fn(),
+      setUtteranceDrafts: vi.fn(),
+      activeUtteranceUnitId: '',
+      setSelectedUtteranceIds: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.saveVoiceTranslation(new Blob(['audio'], { type: 'audio/webm' }), utterance, translationLayer);
+    });
+
+    expect(translationsState).toHaveLength(1);
+    expect(mediaItemsState).toHaveLength(1);
+
+    await act(async () => {
+      await result.current.deleteVoiceTranslation(utterance, translationLayer);
+    });
+
+    expect(translationsState).toHaveLength(0);
+    expect(mediaItemsState).toHaveLength(0);
+    expect(await db.media_items.count()).toBe(0);
+    expect(await db.layer_unit_contents.where('layerId').equals(translationLayer.id).count()).toBe(0);
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done', message: '录音翻译已删除' }));
   });
 
   it('saveUtteranceText should write translation text through canonical LayerUnit path', async () => {

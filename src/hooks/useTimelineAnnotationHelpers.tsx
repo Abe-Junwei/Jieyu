@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, type MouseEvent, type ReactNode } from 'react';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
 import type { LayerDocType, UtteranceDocType } from '../db';
 import { createTimelineUnit, isUtteranceTimelineUnit, type TimelineUnit, type TimelineUnitKind } from './transcriptionTypes';
@@ -249,9 +249,20 @@ export function useTimelineAnnotationHelpers({
         showSpeaker?: boolean;
         overlapCycleItems?: OverlapCycleItem[];
         overlapCycleStatus?: { index: number; total: number };
+        content?: ReactNode;
+        tools?: ReactNode;
+        hasTrailingTools?: boolean;
       },
   ) => {
-    const { showSpeaker = true, overlapCycleItems, overlapCycleStatus, ...itemExtra } = extra;
+    const {
+      showSpeaker = true,
+      overlapCycleItems,
+      overlapCycleStatus,
+      content,
+      tools,
+      hasTrailingTools,
+      ...itemExtra
+    } = extra;
     const dpStart = dragPreview?.id === utt.id ? dragPreview.start : utt.startTime;
     const dpEnd = dragPreview?.id === utt.id ? dragPreview.end : utt.endTime;
     const speakerVisual = showSpeaker ? speakerVisualByUtteranceId[utt.id] : undefined;
@@ -274,6 +285,9 @@ export function useTimelineAnnotationHelpers({
         speakerColor={speakerVisual?.color ?? '#2563eb'}
         {...(overlapCycleStatus ? { overlapCycleIndicator: overlapCycleStatus } : {})}
         {...(utt.ai_metadata?.confidence != null ? { confidence: utt.ai_metadata.confidence } : {})}
+        {...(content ? { content } : {})}
+        {...(tools ? { tools } : {})}
+        {...(hasTrailingTools ? { hasTrailingTools } : {})}
         onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e, overlapCycleItems)}
         onContextMenu={(e) => handleAnnotationContextMenu(utt.id, utt, layer.id, e)}
         onDoubleClick={() => zoomToUtterance(utt.startTime, utt.endTime)}
@@ -281,7 +295,7 @@ export function useTimelineAnnotationHelpers({
         onResizeEndPointerDown={(e) => startTimelineResizeDrag(e, utt, 'end', layer.id)}
         onKeyDown={handleAnnotationKeyDown}
         noteCount={noteIndicator?.count ?? 0}
-        onNoteClick={noteIndicator ? ((e) => handleNoteClick(utt.id, noteIndicator.layerId, e)) : undefined}
+        {...(noteIndicator ? { onNoteClick: (e: MouseEvent) => handleNoteClick(utt.id, noteIndicator.layerId, e) } : {})}
         {...itemExtra}
       />
     );

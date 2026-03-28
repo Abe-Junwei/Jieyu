@@ -282,8 +282,9 @@ function renderSidebarForCreateContextMenuFlow(input: {
   translationLayers: LayerDocType[];
   layerCreateMessage?: string;
   createLayer?: ReturnType<typeof vi.fn>;
-  onReorderLayers?: ReturnType<typeof vi.fn>;
+  onReorderLayers?: (draggedLayerId: string, targetIndex: number) => Promise<void>;
 }) {
+  const onReorderLayers = input.onReorderLayers ?? (async (_draggedLayerId: string, _targetIndex: number) => undefined);
   const speakerManagement = {
     speakerOptions: [] as SpeakerDocType[],
     speakerDraftName: '',
@@ -352,7 +353,7 @@ function renderSidebarForCreateContextMenuFlow(input: {
         deletableLayers={input.layerRows}
         layerCreateMessage={input.layerCreateMessage ?? ''}
         layerAction={layerAction as never}
-        onReorderLayers={input.onReorderLayers ?? vi.fn(async () => undefined)}
+        onReorderLayers={onReorderLayers}
       />
     </SpeakerRailProvider>,
   );

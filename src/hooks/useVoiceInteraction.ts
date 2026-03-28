@@ -157,6 +157,7 @@ export function useVoiceInteraction({
   voiceAgentRef.current = voiceAgent;
 
   const voiceTargetSummary = useMemo(() => {
+    const hasSelection = Boolean(selectedRowMeta || selectedUtterance);
     const rowLabel = selectedRowMeta ? `第 ${selectedRowMeta.rowNumber} 句` : (selectedUtterance ? '当前句段' : '未选择句段');
 
     if (voiceAgent.mode === 'command') {
@@ -164,7 +165,7 @@ export function useVoiceInteraction({
     }
 
     if (voiceAgent.mode === 'analysis') {
-      return selectedUtterance ? `${rowLabel} / AI 分析备注` : '未选择句段';
+      return hasSelection ? `${rowLabel} / AI 分析备注` : '未选择句段';
     }
 
     // 解析首选层 ID：selectedLayerId 可能是空串，需 trim 后判断 | resolve preferred layer ID with empty-string guard

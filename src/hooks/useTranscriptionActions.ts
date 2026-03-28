@@ -32,7 +32,7 @@ type Params = {
   createAnchor: (db: Awaited<ReturnType<typeof getDb>>, mediaId: string, time: number) => Promise<AnchorDocType>;
   updateAnchorTime: (db: Awaited<ReturnType<typeof getDb>>, anchorId: string, newTime: number) => Promise<void>;
   pruneOrphanAnchors: (db: Awaited<ReturnType<typeof getDb>>, removedUtteranceIds: Set<string>) => Promise<void>;
-  setSaveState: (s: SaveState) => void;
+  setSaveState: React.Dispatch<React.SetStateAction<SaveState>>;
   setLayerCreateMessage: React.Dispatch<React.SetStateAction<string>>;
   setLayers: React.Dispatch<React.SetStateAction<LayerDocType[]>>;
   setLayerLinks: React.Dispatch<React.SetStateAction<LayerLinkDocType[]>>;
@@ -89,6 +89,7 @@ export function useTranscriptionActions({
 }: Params) {
   const {
     saveVoiceTranslation,
+    deleteVoiceTranslation,
     saveUtteranceText,
     saveUtteranceTiming,
     saveTextTranslationForUtterance,
@@ -162,6 +163,7 @@ export function useTranscriptionActions({
 
   return {
     saveVoiceTranslation,
+    deleteVoiceTranslation,
     saveUtteranceText,
     saveUtteranceTiming,
     saveTextTranslationForUtterance,

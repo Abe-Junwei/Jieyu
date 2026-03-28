@@ -105,6 +105,8 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     vi.runOnlyPendingTimers();
     vi.useRealTimers();
     timelineLaneHeaderMock.mockClear();
+    editorContextValue.translationTextByLayer = new Map();
+    editorContextValue.translationDrafts = {};
     cleanup();
   });
 
@@ -369,8 +371,8 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         onLaneHeightChange={vi.fn()}
         segmentsByLayer={new Map([
           [parentLayer.id, [
-            { id: 'seg-1', textId: 't1', mediaId: 'm1', startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
-            { id: 'seg-2', textId: 't1', mediaId: 'm1', startTime: 1, endTime: 2, createdAt: NOW, updatedAt: NOW },
+            { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+            { id: 'seg-2', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 1, endTime: 2, createdAt: NOW, updatedAt: NOW },
           ]],
         ])}
       />,
@@ -677,5 +679,53 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
 
     const latestProps = timelineLaneHeaderMock.mock.calls[timelineLaneHeaderMock.mock.calls.length - 1]?.[0] as { trackModeControl?: { lockConflictCount?: number } } | undefined;
     expect(latestProps?.trackModeControl?.lockConflictCount).toBeUndefined();
+  });
+
+  it('renders recording controls for audio translation rows and starts recording', () => {
+    const transcriptionLayer = makeLayer('trc-base');
+    const translationLayer = {
+      ...makeLayer('trl-audio', 'translation'),
+      key: 'trl_audio',
+      modality: 'audio',
+      acceptsAudio: true,
+    } as LayerDocType;
+    const utterance = makeUtterance('u1', 0, 1, 's1');
+    const startRecordingForUtterance = vi.fn(async () => undefined);
+
+    render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[transcriptionLayer]}
+        translationLayers={[translationLayer]}
+        timelineRenderUtterances={[utterance]}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={transcriptionLayer.id}
+        renderAnnotationItem={(_utt, _layer, _draft, extra) => {
+          const audioExtra = extra as typeof extra & { content?: React.ReactNode; tools?: React.ReactNode };
+          return <div>{audioExtra.content}{audioExtra.tools}</div>;
+        }}
+        allLayersOrdered={[translationLayer, transcriptionLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[translationLayer, transcriptionLayer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [translationLayer.id]: 44, [transcriptionLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        translationAudioByLayer={new Map([[translationLayer.id, new Map()]])}
+        mediaItems={[]}
+        startRecordingForUtterance={startRecordingForUtterance}
+        stopRecording={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '开始录音翻译' }));
+
+    expect(startRecordingForUtterance).toHaveBeenCalledWith(
+      expect.objectContaining({ id: utterance.id }),
+      expect.objectContaining({ id: translationLayer.id }),
+    );
+    expect(screen.getByText('未录音')).toBeTruthy();
   });
 });

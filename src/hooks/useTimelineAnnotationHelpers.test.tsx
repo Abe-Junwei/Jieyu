@@ -59,8 +59,8 @@ describe('useTimelineAnnotationHelpers', () => {
       focusedLayerRowId: 'layer-seg',
       zoomToUtterance: vi.fn(),
       startTimelineResizeDrag: vi.fn(),
-      noteCounts: new Map(),
       handleNoteClick: vi.fn(),
+      resolveNoteIndicatorTarget: vi.fn(() => null),
       independentLayerIds: new Set(['layer-seg']),
     }));
 

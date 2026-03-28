@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { LayerDocType } from '../db';
 import { useTranscriptionLayerActions } from './useTranscriptionLayerActions';
 
 const {
@@ -396,7 +397,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     });
 
     expect(mockCreateLayer).not.toHaveBeenCalled();
-    expect(setLayerCreateMessage.mock.calls.at(-1)?.[0]).toContain('请先选择要依赖的边界层');
+    expect(setLayerCreateMessage.mock.calls[setLayerCreateMessage.mock.calls.length - 1]?.[0]).toContain('请先选择要依赖的边界层');
 
     await act(async () => {
       await result.current.createLayer('translation', {
@@ -579,7 +580,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       await result.current.reorderLayers(rootA.id, 3);
     });
 
-    const reordered = setLayers.mock.calls.at(-1)?.[0] as LayerDocType[] | undefined;
+    const reordered = setLayers.mock.calls[setLayers.mock.calls.length - 1]?.[0] as LayerDocType[] | undefined;
     expect(reordered?.map((layer) => layer.id)).toEqual(['layer_trc_b', 'layer_trc_a', 'layer_trl_a']);
     expect(mockUpdateLayerSortOrder).toHaveBeenCalledWith('layer_trc_b', 0, expect.anything());
     expect(mockUpdateLayerSortOrder).toHaveBeenCalledWith('layer_trc_a', 1, expect.anything());
@@ -692,9 +693,9 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       message: expect.stringContaining('依赖 转写'),
     }));
 
-    const reordered = setLayers.mock.calls.at(-1)?.[0] as LayerDocType[] | undefined;
+    const reordered = setLayers.mock.calls[setLayers.mock.calls.length - 1]?.[0] as LayerDocType[] | undefined;
     expect(reordered?.find((layer) => layer.id === 'layer_trl_a')?.parentLayerId).toBe('layer_trc_b');
-    const linkedLayers = setLayerLinks.mock.calls.at(-1)?.[0] as Array<{ transcriptionLayerKey: string; layerId: string }> | undefined;
+    const linkedLayers = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as Array<{ transcriptionLayerKey: string; layerId: string }> | undefined;
     expect(linkedLayers).toEqual(expect.arrayContaining([
       expect.objectContaining({ transcriptionLayerKey: 'trc_shared', layerId: 'layer_trl_a' }),
       expect.objectContaining({ transcriptionLayerKey: 'trc_b', layerId: 'layer_trl_a' }),

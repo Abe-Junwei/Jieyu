@@ -38,19 +38,6 @@ export function getLayerLinkConnectorColors(colorIndex: number): { base: string;
   return CONNECTOR_COLOR_PALETTE[colorIndex % CONNECTOR_COLOR_PALETTE.length] ?? CONNECTOR_COLOR_PALETTE[0];
 }
 
-function resolveBundleRootId(layer: LayerDocType, layerById: ReadonlyMap<string, LayerDocType>): string {
-  let current: LayerDocType | undefined = layer;
-  const visited = new Set<string>();
-  while (current?.parentLayerId) {
-    if (visited.has(current.id)) break;
-    visited.add(current.id);
-    const parent = layerById.get(current.parentLayerId);
-    if (!parent) break;
-    current = parent;
-  }
-  return current?.id ?? layer.id;
-}
-
 export function buildLayerLinkConnectorLayout(
   allLayers: LayerDocType[],
   _layerLinks: ReadonlyArray<unknown>,

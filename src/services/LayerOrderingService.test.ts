@@ -12,19 +12,20 @@ import {
 
 function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: 'transcription' | 'translation' }): LayerDocType {
   const now = '2026-03-28T00:00:00.000Z';
+  const { id, layerType, ...rest } = overrides;
   return {
-    id: overrides.id,
+    ...rest,
+    id,
     textId: 'text-1',
-    key: overrides.id,
-    name: { zho: overrides.id },
-    layerType: overrides.layerType,
-    languageId: overrides.layerType === 'translation' ? 'eng' : 'zho',
+    key: id,
+    name: { zho: id },
+    layerType,
+    languageId: layerType === 'translation' ? 'eng' : 'zho',
     modality: 'text',
     acceptsAudio: false,
     sortOrder: 0,
     createdAt: now,
     updatedAt: now,
-    ...overrides,
   } as LayerDocType;
 }
 

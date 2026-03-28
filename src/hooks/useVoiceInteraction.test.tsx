@@ -86,4 +86,62 @@ describe('useVoiceInteraction', () => {
 
     expect(result.current.voiceTargetSummary).toContain('L:trc-default');
   });
+
+  it('treats selectedRowMeta as a valid analysis target even when selectedUtterance is null', () => {
+    const trcDefault = makeLayer('trc-default', 'transcription');
+
+    mockUseVoiceAgent.mockReturnValue({
+      mode: 'analysis',
+      agentState: 'idle',
+      listening: false,
+      engine: 'web-speech',
+      detectedLang: null,
+      notifyAiStreamStarted: vi.fn(),
+      notifyAiStreamFinished: vi.fn(),
+      testWhisperLocal: vi.fn(async () => ({ available: true })),
+      setExternalError: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      toggle: vi.fn(),
+      switchEngine: vi.fn(),
+      startRecording: vi.fn(async () => undefined),
+      stopRecording: vi.fn(async () => undefined),
+      isRecording: false,
+      pendingConfirm: null,
+      error: null,
+    });
+
+    const { result } = renderHook(() => useVoiceInteraction({
+      effectiveVoiceCorpusLang: 'zho',
+      voiceCorpusLangOverride: '__auto__',
+      executeAction: vi.fn(async () => undefined),
+      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+      handleVoiceDictation: vi.fn(),
+      onVoiceAnalysisResult: vi.fn(),
+      activeUtteranceUnitId: 'utt-1',
+      selectedUtterance: null,
+      selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
+      selectedLayerId: trcDefault.id,
+      defaultTranscriptionLayerId: trcDefault.id,
+      translationLayers: [],
+      layers: [trcDefault],
+      formatLayerRailLabel: (layer) => `L:${layer.id}`,
+      formatTime: (seconds) => seconds.toFixed(2),
+      aiChatSend: vi.fn(async () => undefined),
+      aiIsStreaming: false,
+      aiMessages: [],
+      localWhisperConfig: {},
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      onCommercialConfigChange: vi.fn(),
+      setCommercialProviderKind: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      featureVoiceEnabled: true,
+      toggleVoiceRef: { current: undefined },
+    }));
+
+    expect(result.current.voiceTargetSummary).toContain('第 3 句 / AI 分析备注');
+    expect(result.current.voiceSelectionSummary).toBe('12.00 - 15.00');
+  });
 });

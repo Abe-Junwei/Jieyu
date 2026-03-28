@@ -40,7 +40,14 @@ import { RegionActionOverlay } from '../components/transcription/RegionActionOve
 import { NoteDocumentIcon } from '../components/NoteDocumentIcon';
 import { TrackFocusToolbarControls } from '../components/transcription/toolbar/TrackFocusToolbarControls';
 import { LinguisticService } from '../services/LinguisticService';
-import { getDb, type JieyuDatabase, type LayerSegmentContentDocType, type LayerSegmentDocType, type UtteranceDocType } from '../db';
+import {
+  getDb,
+  type JieyuDatabase,
+  type LayerSegmentContentDocType,
+  type LayerSegmentDocType,
+  type UtteranceDocType,
+  type UtteranceTextDocType,
+} from '../db';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { useAiPanelContextUpdater, AiPanelContext } from '../contexts/AiPanelContext';
 import { ToastProvider } from '../contexts/ToastContext';
@@ -206,10 +213,10 @@ function TranscriptionPageOrchestrator({
     aiConfidenceAvg,
     translationTextByLayer,
     getUtteranceTextForLayer,
-    selectedRowMeta,
     loadSnapshot,
     addMediaItem,
     saveVoiceTranslation,
+    deleteVoiceTranslation,
     saveUtteranceText,
     saveUtteranceTiming,
     saveTextTranslationForUtterance,
@@ -279,6 +286,62 @@ function TranscriptionPageOrchestrator({
     defaultTranscriptionLayerId,
   );
   const layerById = useMemo(() => new Map(layers.map((layer) => [layer.id, layer] as const)), [layers]);
+  const mediaItemById = useMemo(() => new Map(_mediaItems.map((item) => [item.id, item] as const)), [_mediaItems]);
+  const selectedTimelineSegment = useMemo(
+    () => (isSegmentTimelineUnit(selectedTimelineUnit)
+      ? (segmentsByLayer.get(selectedTimelineUnit.layerId)?.find((segment) => segment.id === selectedTimelineUnit.unitId) ?? null)
+      : null),
+    [segmentsByLayer, selectedTimelineUnit],
+  );
+  const selectedTimelineOwnerUtterance = useMemo(() => {
+    if (selectedUtterance) return selectedUtterance;
+    if (!selectedTimelineSegment) return null;
+
+    const explicitOwnerId = selectedTimelineSegment.utteranceId?.trim();
+    if (explicitOwnerId) {
+      return utterances.find((item) => item.id === explicitOwnerId) ?? null;
+    }
+
+    return utterances.find((item) => {
+      if (selectedTimelineSegment.mediaId && item.mediaId !== selectedTimelineSegment.mediaId) {
+        return false;
+      }
+      return item.startTime <= selectedTimelineSegment.endTime - 0.01
+        && item.endTime >= selectedTimelineSegment.startTime + 0.01;
+    }) ?? null;
+  }, [selectedTimelineSegment, selectedUtterance, utterances]);
+  const selectedTimelineMedia = useMemo(() => {
+    if (selectedUtteranceMedia) return selectedUtteranceMedia;
+    const mediaId = selectedTimelineSegment?.mediaId ?? selectedTimelineOwnerUtterance?.mediaId ?? '';
+    return mediaId ? mediaItemById.get(mediaId) : undefined;
+  }, [mediaItemById, selectedTimelineOwnerUtterance?.mediaId, selectedTimelineSegment?.mediaId, selectedUtteranceMedia]);
+  const selectedTimelineUnitForTime = selectedTimelineSegment ?? selectedTimelineOwnerUtterance ?? null;
+  const selectedTimelineRowMeta = useMemo(() => {
+    if (!selectedTimelineOwnerUtterance) return null;
+
+    const rowIndex = utterancesOnCurrentMedia.findIndex((item) => item.id === selectedTimelineOwnerUtterance.id);
+    if (rowIndex >= 0) {
+      const row = utterancesOnCurrentMedia[rowIndex];
+      if (!row) return null;
+      return {
+        rowNumber: rowIndex + 1,
+        start: row.startTime,
+        end: row.endTime,
+      };
+    }
+
+    const sameMediaRows = [...utterances]
+      .filter((item) => item.mediaId === selectedTimelineOwnerUtterance.mediaId)
+      .sort((a, b) => a.startTime - b.startTime);
+    const fallbackIndex = sameMediaRows.findIndex((item) => item.id === selectedTimelineOwnerUtterance.id);
+    const fallbackRow = fallbackIndex >= 0 ? sameMediaRows[fallbackIndex] : undefined;
+    if (!fallbackRow) return null;
+    return {
+      rowNumber: fallbackIndex + 1,
+      start: fallbackRow.startTime,
+      end: fallbackRow.endTime,
+    };
+  }, [selectedTimelineOwnerUtterance, utterances, utterancesOnCurrentMedia]);
 
   const independentLayerIds = useMemo(() => new Set(
     layers.filter((layer) => layerUsesOwnSegments(layer, defaultTranscriptionLayerId)).map((layer) => layer.id),
@@ -588,8 +651,8 @@ function TranscriptionPageOrchestrator({
 
   const handleAiToolCall = useAiToolCallHandler({
     utterances,
-    selectedUtterance,
-    selectedUtteranceMedia,
+    selectedUtterance: selectedTimelineOwnerUtterance ?? undefined,
+    selectedUtteranceMedia: selectedTimelineMedia,
     selectedLayerId,
     transcriptionLayers,
     translationLayers,
@@ -691,13 +754,16 @@ function TranscriptionPageOrchestrator({
     const transcriptionPreview = transcriptionText.length > 0
       ? (transcriptionText.length > 18 ? `${transcriptionText.slice(0, 18)}...` : transcriptionText)
       : '（无转写文本）';
-    const translationLayerCountWithText = translations.filter((item) => {
+    const translationLayerCountWithContent = translations.filter((item) => {
       if (item.utteranceId !== utteranceId) return false;
+      if (typeof item.translationAudioMediaId === 'string' && item.translationAudioMediaId.trim().length > 0) {
+        return true;
+      }
       if (!(item.modality === 'text' || item.modality === 'mixed')) return false;
       return typeof item.text === 'string' && item.text.trim().length > 0;
     }).length;
 
-    const hasAnyContent = transcriptionText.length > 0 || translationLayerCountWithText > 0;
+    const hasAnyContent = transcriptionText.length > 0 || translationLayerCountWithContent > 0;
     if (!hasAnyContent) {
       return { requiresConfirmation: false };
     }
@@ -707,7 +773,7 @@ function TranscriptionPageOrchestrator({
       riskSummary: `将删除第 ${rowIndex} 条句段（${timeRange}）`,
       impactPreview: [
         `内容预览：${transcriptionPreview}`,
-        `关联影响：${translationLayerCountWithText} 个翻译层包含文本，删除后会失去关联`,
+        `关联影响：${translationLayerCountWithContent} 个翻译层包含内容，删除后会失去关联`,
         '可通过撤销（Undo）恢复',
       ],
     };
@@ -929,8 +995,6 @@ function TranscriptionPageOrchestrator({
     addNote,
     updateNote,
     deleteNote,
-    noteCounts,
-    uttNoteCounts,
     toggleNotes,
     handleNoteClick,
     resolveNoteIndicatorTarget,
@@ -953,7 +1017,12 @@ function TranscriptionPageOrchestrator({
   });
 
   // 路由拆分/合并：独立边界层 → segment 操作，默认 → utterance 操作 | Routed split/merge: independent layers → segment ops, default → utterance ops
-  const activeLayerIdForEdits = selectedLayerId || focusedLayerRowId;
+  const activeLayerIdForEdits = selectedLayerId
+    || focusedLayerRowId
+    || selectedTimelineUnit?.layerId
+    || defaultTranscriptionLayerId
+    || transcriptionLayers[0]?.id
+    || '';
   const resolveSegmentRoutingForLayer = useCallback((layerId?: string) => {
     const layer = layerId ? layerById.get(layerId) : undefined;
     const segmentSourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId);
@@ -1139,7 +1208,7 @@ function TranscriptionPageOrchestrator({
   const createUtteranceFromSelectionRouted = useCallback(async (start: number, end: number) => {
     const routing = resolveSegmentRoutingForLayer(activeLayerIdForEdits);
     if (routing.editMode === 'independent-segment' || routing.editMode === 'time-subdivision') {
-      if (!selectedUtteranceMedia) {
+      if (!selectedTimelineMedia) {
         setSaveState({ kind: 'error', message: '请先导入并选择音频。' });
         return;
       }
@@ -1161,8 +1230,8 @@ function TranscriptionPageOrchestrator({
           : siblings[insertionIndex - 1];
       const next = insertionIndex < 0 ? undefined : siblings[insertionIndex];
       const lowerBound = Math.max(0, prev ? prev.endTime + gap : 0);
-      const mediaDuration = typeof selectedUtteranceMedia.duration === 'number'
-        ? selectedUtteranceMedia.duration
+      const mediaDuration = typeof selectedTimelineMedia.duration === 'number'
+        ? selectedTimelineMedia.duration
         : Number.POSITIVE_INFINITY;
       const upperBound = Math.min(mediaDuration, next ? next.startTime - gap : Number.POSITIVE_INFINITY);
       const boundedStart = Math.max(lowerBound, rawStart);
@@ -1177,8 +1246,8 @@ function TranscriptionPageOrchestrator({
       const now = new Date().toISOString();
       const newSeg: LayerSegmentDocType = {
         id: newId('seg'),
-        textId: selectedUtteranceMedia.textId,
-        mediaId: selectedUtteranceMedia.id,
+        textId: selectedTimelineMedia.textId,
+        mediaId: selectedTimelineMedia.id,
         layerId: routing.sourceLayerId,
         startTime: finalStart,
         endTime: finalEnd,
@@ -1239,7 +1308,7 @@ function TranscriptionPageOrchestrator({
     refreshSegmentUndoSnapshot,
     resolveSegmentRoutingForLayer,
     segmentsByLayer,
-    selectedUtteranceMedia,
+    selectedTimelineMedia,
     setSaveState,
     selectTimelineUnit,
     speakerFocusTargetKey,
@@ -1308,11 +1377,16 @@ function TranscriptionPageOrchestrator({
     })),
     [waveformTimelineItems],
   );
-  const selectedWaveformRegionId = selectedTimelineUnit?.layerId === activeLayerIdForEdits
-    ? (useSegmentWaveformRegions
-      ? (isSegmentTimelineUnit(selectedTimelineUnit) ? selectedTimelineUnit.unitId : '')
-      : (isUtteranceTimelineUnit(selectedTimelineUnit) ? selectedTimelineUnit.unitId : ''))
-    : '';
+  const selectedWaveformRegionId = useMemo(() => {
+    if (!selectedTimelineUnit?.unitId) return '';
+    const kindMatchesWaveform = useSegmentWaveformRegions
+      ? isSegmentTimelineUnit(selectedTimelineUnit)
+      : isUtteranceTimelineUnit(selectedTimelineUnit);
+    if (!kindMatchesWaveform) return '';
+    return waveformTimelineItems.some((item) => item.id === selectedTimelineUnit.unitId)
+      ? selectedTimelineUnit.unitId
+      : '';
+  }, [selectedTimelineUnit, useSegmentWaveformRegions, waveformTimelineItems]);
   const waveformActiveRegionIds = useMemo(() => {
     if (useSegmentWaveformRegions) {
       // Lasso 多选时 segment ID 存入 selectedUtteranceIds（非空则优先使用）
@@ -1323,6 +1397,10 @@ function TranscriptionPageOrchestrator({
     return selectedUtteranceIds;
   }, [selectedUtteranceIds, selectedWaveformRegionId, useSegmentWaveformRegions]);
   const waveformPrimaryRegionId = selectedWaveformRegionId;
+  const selectedWaveformTimelineItem = useMemo(() => {
+    if (!selectedWaveformRegionId) return null;
+    return waveformTimelineItems.find((item) => item.id === selectedWaveformRegionId) ?? null;
+  }, [selectedWaveformRegionId, waveformTimelineItems]);
 
   // --- 百分比 → px/s 换算 ---
   // 用 ref 追踪 duration 使得计算可以在 useWaveSurfer 调用前进行
@@ -1331,7 +1409,7 @@ function TranscriptionPageOrchestrator({
 
   // Refs for waveform lasso effect (avoid effect dependency churn)
   const zoomPxPerSecRef = useRef(0);
-  const previousSelectedUtteranceIdRef = useRef(isUtteranceTimelineUnit(selectedTimelineUnit) ? selectedTimelineUnit.unitId : '');
+  const previousSelectedTimelineUnitIdRef = useRef(selectedTimelineUnit?.unitId ?? '');
   const safeDur = lastDurationRef.current;
   const fitPxPerSec = safeDur > 0 ? containerWidth / safeDur : 40;
   const zoomPxPerSec = fitPxPerSec * (zoomPercent / 100);
@@ -1878,7 +1956,7 @@ function TranscriptionPageOrchestrator({
     handleJumpToTranslationGap,
   } = useAiPanelLogic({
     utterances,
-    selectedUtterance,
+    selectedUtterance: selectedTimelineOwnerUtterance ?? undefined,
     selectedUtteranceText,
     translationLayers,
     translationDrafts,
@@ -1965,17 +2043,15 @@ function TranscriptionPageOrchestrator({
   // Any target switch clears segment-loop mode, so the next play is manual non-loop by default.
   // Also reset segment playback rate to 1x for the new segment.
   useEffect(() => {
-    const currentSelectedUtteranceId = isUtteranceTimelineUnit(selectedTimelineUnit)
-      ? selectedTimelineUnit.unitId
-      : '';
-    const prev = previousSelectedUtteranceIdRef.current;
-    if (prev !== currentSelectedUtteranceId && segmentLoopPlayback) {
+    const currentSelectedTimelineUnitId = selectedTimelineUnit?.unitId ?? '';
+    const prev = previousSelectedTimelineUnitIdRef.current;
+    if (prev !== currentSelectedTimelineUnitId && segmentLoopPlayback) {
       setSegmentLoopPlayback(false);
     }
-    if (prev !== currentSelectedUtteranceId) {
+    if (prev !== currentSelectedTimelineUnitId) {
       setSegmentPlaybackRate(1);
     }
-    previousSelectedUtteranceIdRef.current = currentSelectedUtteranceId;
+    previousSelectedTimelineUnitIdRef.current = currentSelectedTimelineUnitId;
   }, [selectedTimelineUnit, segmentLoopPlayback]);
 
   // Seek waveform to selected utterance's start.
@@ -1984,7 +2060,7 @@ function TranscriptionPageOrchestrator({
   const isPlayingRef = useRef(player.isPlaying);
   isPlayingRef.current = player.isPlaying;
   useEffect(() => {
-    if (!selectedUtterance || !player.isReady) return;
+    if (!selectedTimelineUnitForTime || !player.isReady) return;
     if (skipSeekForIdRef.current) {
       skipSeekForIdRef.current = null;
       return;
@@ -1992,8 +2068,8 @@ function TranscriptionPageOrchestrator({
     // Don't yank the cursor while audio is playing (e.g. during
     // Enter-based continuous segment creation).
     if (isPlayingRef.current) return;
-    player.seekTo(selectedUtterance.startTime);
-  }, [selectedUtterance?.id, player.isReady, player.seekTo]);
+    player.seekTo(selectedTimelineUnitForTime.startTime);
+  }, [player.isReady, player.seekTo, selectedTimelineUnitForTime]);
 
   // ---- Keybinding system (from hook) ----
   // toggleVoice is wired via ref to break the forward-declaration cycle.
@@ -2008,7 +2084,8 @@ function TranscriptionPageOrchestrator({
     player,
     subSelectionRange,
     setSubSelectionRange,
-    selectedUtterance,
+    selectedUtterance: selectedTimelineOwnerUtterance ?? undefined,
+    selectedPlayableRange: selectedTimelineUnitForTime,
     selectedTimelineUnit,
     selectedUtteranceIds,
     selectedMediaUrl,
@@ -2137,8 +2214,8 @@ function TranscriptionPageOrchestrator({
     utteranceCount: state.phase === 'ready' ? state.utteranceCount : utterances.length,
     translationLayerCount: state.phase === 'ready' ? state.translationLayerCount : translationLayers.length,
     aiConfidenceAvg,
-    selectedUtterance: selectedUtterance ?? null,
-    selectedRowMeta,
+    selectedUtterance: selectedTimelineOwnerUtterance ?? null,
+    selectedRowMeta: selectedTimelineRowMeta,
     selectedAiWarning,
     lexemeMatches,
     onOpenWordNote: handleOpenWordNote,
@@ -2156,8 +2233,8 @@ function TranscriptionPageOrchestrator({
     utterances.length,
     translationLayers.length,
     aiConfidenceAvg,
-    selectedUtterance,
-    selectedRowMeta,
+    selectedTimelineOwnerUtterance,
+    selectedTimelineRowMeta,
     selectedAiWarning,
     lexemeMatches,
     handleOpenWordNote,
@@ -2176,8 +2253,8 @@ function TranscriptionPageOrchestrator({
   }, [aiPanelContextValue, setAiPanelContext]);
 
   const aiChatContextValue = useAiChatContextValue({
-    selectedUtterance: selectedUtterance ?? null,
-    selectedRowMeta,
+    selectedUtterance: selectedTimelineOwnerUtterance ?? null,
+    selectedRowMeta: selectedTimelineRowMeta,
     lexemeMatches,
     aiChatEnabled: aiChat.enabled,
     aiProviderLabel: aiChat.providerLabel,
@@ -2222,9 +2299,9 @@ function TranscriptionPageOrchestrator({
     handleResolveVoiceIntentWithLlm,
     handleVoiceDictation,
     handleVoiceAnalysisResult,
-    selectedTimelineUtteranceId,
-    selectedUtterance: selectedUtterance ?? null,
-    selectedRowMeta,
+    selectedTimelineUtteranceId: selectedTimelineOwnerUtterance?.id ?? null,
+    selectedUtterance: selectedTimelineOwnerUtterance ?? null,
+    selectedRowMeta: selectedTimelineRowMeta,
     selectedLayerId,
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     translationLayers,
@@ -2251,15 +2328,14 @@ function TranscriptionPageOrchestrator({
     recordingUtteranceId,
     saveState,
     selectedLayerId,
-    selectedRowMeta,
-    selectedTimelineUtteranceId,
-    selectedUtterance,
+    selectedTimelineOwnerUtterance,
+    selectedTimelineRowMeta,
     tfB,
     translationLayers,
   ]);
 
   const analysisRuntimeProps = useMemo(() => createAnalysisRuntimeProps({
-    selectedUtterance: selectedUtterance ?? null,
+    selectedUtterance: selectedTimelineOwnerUtterance ?? null,
     utterancesOnCurrentMedia,
     getUtteranceTextForLayer,
     formatTime,
@@ -2275,7 +2351,7 @@ function TranscriptionPageOrchestrator({
     getUtteranceTextForLayer,
     handleJumpToCitation,
     handleJumpToEmbeddingMatch,
-    selectedUtterance,
+    selectedTimelineOwnerUtterance,
     utterancesOnCurrentMedia,
   ]);
 
@@ -2346,10 +2422,10 @@ function TranscriptionPageOrchestrator({
 
   useEffect(() => {
     if (!autoScrollEnabled) return;
-    if (!selectedUtterance) return;
-    const row = utteranceRowRef.current[selectedUtterance.id];
+    if (!selectedTimelineOwnerUtterance) return;
+    const row = utteranceRowRef.current[selectedTimelineOwnerUtterance.id];
     row?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [autoScrollEnabled, selectedUtterance?.id]);
+  }, [autoScrollEnabled, selectedTimelineOwnerUtterance?.id]);
 
   // ── Import / Export (extracted hook) ──
 
@@ -2369,7 +2445,7 @@ function TranscriptionPageOrchestrator({
   } = useImportExport({
     activeTextId,
     getActiveTextId,
-    selectedUtteranceMedia,
+    selectedUtteranceMedia: selectedTimelineMedia,
     utterancesOnCurrentMedia,
     anchors,
     layers,
@@ -2414,22 +2490,22 @@ function TranscriptionPageOrchestrator({
   }, [selectedMediaUrl, autoSegmentBusy, utterancesOnCurrentMedia, createUtteranceFromSelectionRouted]);
 
   const handleDeleteCurrentAudio = useCallback(() => {
-    if (!selectedUtteranceMedia) return;
-    setAudioDeleteConfirm({ filename: selectedUtteranceMedia.filename });
-  }, [selectedUtteranceMedia]);
+    if (!selectedTimelineMedia) return;
+    setAudioDeleteConfirm({ filename: selectedTimelineMedia.filename });
+  }, [selectedTimelineMedia]);
 
   const handleConfirmAudioDelete = useCallback(() => {
-    if (!selectedUtteranceMedia) return;
+    if (!selectedTimelineMedia) return;
     setAudioDeleteConfirm(null);
     fireAndForget((async () => {
       try {
-        await LinguisticService.deleteAudio(selectedUtteranceMedia.id);
+        await LinguisticService.deleteAudio(selectedTimelineMedia.id);
         await loadSnapshot();
         selectTimelineUnit(null);
         setSaveState({ kind: 'done', message: t(locale, 'transcription.action.audioDeleted') });
       } catch (error) {
         log.error('Failed to delete current audio', {
-          mediaId: selectedUtteranceMedia.id,
+          mediaId: selectedTimelineMedia.id,
           error: error instanceof Error ? error.message : String(error),
         });
         reportActionError({
@@ -2443,7 +2519,7 @@ function TranscriptionPageOrchestrator({
         });
       }
     })());
-  }, [loadSnapshot, locale, selectedUtteranceMedia, selectTimelineUnit, setSaveState]);
+  }, [loadSnapshot, locale, selectedTimelineMedia, selectTimelineUnit, setSaveState]);
 
   const handleDeleteCurrentProject = useCallback(() => {
     if (!activeTextId) return;
@@ -2563,6 +2639,25 @@ function TranscriptionPageOrchestrator({
     }
     return items;
   }, [getUtteranceTextForLayer, transcriptionLayers, translationLayers, translationTextByLayer, utterancesOnCurrentMedia]);
+
+  const translationAudioByLayer = useMemo(() => {
+    const outer = new Map<string, Map<string, UtteranceTextDocType>>();
+
+    translations
+      .filter((item) => typeof item.translationAudioMediaId === 'string' && item.translationAudioMediaId.trim().length > 0)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .forEach((item) => {
+        if (!outer.has(item.layerId)) {
+          outer.set(item.layerId, new Map());
+        }
+        const inner = outer.get(item.layerId)!;
+        if (!inner.has(item.utteranceId)) {
+          inner.set(item.utteranceId, item);
+        }
+      });
+
+    return outer;
+  }, [translations]);
 
   const handleSearchReplace = useCallback(
     (utteranceId: string, layerId: string | undefined, _oldText: string, newText: string) => {
@@ -2994,7 +3089,6 @@ function TranscriptionPageOrchestrator({
       handleDeleteSpeaker,
       handleDeleteUnusedSpeakers,
       handleAssignSpeakerToUtterances,
-      handleCreateSpeakerAndAssignToUtterances,
       handleAssignSpeakerToSelected,
       handleCreateSpeakerAndAssign,
       handleCreateSpeakerOnly,
@@ -3110,7 +3204,7 @@ function TranscriptionPageOrchestrator({
 
   const [laneLockMap, setLaneLockMap] = useState<Record<string, number>>({});
   const trackEntityProjectKey = activeTextId?.trim() || '__no-project__';
-  const trackEntityMediaId = selectedUtteranceMedia?.id ?? null;
+  const trackEntityMediaId = selectedTimelineMedia?.id ?? null;
   const trackEntityScopedKey = trackEntityMediaId ? `${trackEntityProjectKey}::${trackEntityMediaId}` : null;
 
   // ── DB hydration: load track entities from DB when project changes ──────────
@@ -3232,10 +3326,6 @@ function TranscriptionPageOrchestrator({
     return speakerOptions.find((speaker) => speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName);
   }, [speakerOptions]);
   const selectedSpeakerActionCount = selectedSegmentIdsForSpeakerActions.length + selectedStandaloneUtteranceIdsForSpeakerActions.length;
-  const speakerAssignSelectionKind: 'segment' | 'utterance' | 'mixed' = selectedSegmentIdsForSpeakerActions.length > 0
-    ? (selectedStandaloneUtteranceIdsForSpeakerActions.length > 0 ? 'mixed' : 'segment')
-    : 'utterance';
-
   const selectedSpeakerSummaryForActions = useMemo(() => {
     if (selectedBatchSegmentsForSpeakerActions.length === 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length === 0) {
       return selectedSpeakerSummary;
@@ -3774,7 +3864,7 @@ function TranscriptionPageOrchestrator({
     [speakerFocusOptions],
   );
 
-  const speakerFocusMediaKey = selectedUtteranceMedia?.id ?? '__no-media__';
+  const speakerFocusMediaKey = selectedTimelineMedia?.id ?? '__no-media__';
 
   const setSpeakerFocusTargetForCurrentMedia = useCallback((nextKey: string | null) => {
     speakerFocusTargetMemoryByMediaRef.current[speakerFocusMediaKey] = nextKey;
@@ -4065,7 +4155,7 @@ function TranscriptionPageOrchestrator({
           </Suspense>
           <section className="transcription-waveform">
             <TranscriptionPageToolbar
-              filename={selectedUtteranceMedia?.filename ?? t(locale, 'transcription.media.unbound')}
+              filename={selectedTimelineMedia?.filename ?? t(locale, 'transcription.media.unbound')}
               isReady={player.isReady}
               isPlaying={player.isPlaying}
               playbackRate={player.playbackRate}
@@ -4079,7 +4169,7 @@ function TranscriptionPageOrchestrator({
               canUndo={canUndo}
               canRedo={canRedo}
               undoLabel={undoLabel}
-              canDeleteAudio={Boolean(selectedUtteranceMedia)}
+              canDeleteAudio={Boolean(selectedTimelineMedia)}
               canDeleteProject={Boolean(activeTextId)}
               canToggleNotes={Boolean((isUtteranceTimelineUnit(selectedTimelineUnit) && selectedTimelineUnit.unitId) || notePopover)}
               canOpenUttOpsMenu={Boolean(selectedTimelineUnit?.unitId)}
@@ -4184,8 +4274,8 @@ function TranscriptionPageOrchestrator({
                       onSnapToggle={() => setSnapEnabled((v) => !v)}
                       playbackRate={player.playbackRate}
                       currentTime={player.currentTime}
-                      selectedUtteranceDuration={selectedUtterance
-                        ? selectedUtterance.endTime - selectedUtterance.startTime
+                      selectedUtteranceDuration={selectedTimelineUnitForTime
+                        ? selectedTimelineUnitForTime.endTime - selectedTimelineUnitForTime.startTime
                         : null}
                       amplitudeScale={amplitudeScale}
                       onAmplitudeChange={setAmplitudeScale}
@@ -4302,10 +4392,10 @@ function TranscriptionPageOrchestrator({
                             </>
                           )}
                         />
-                        {!selectedMediaIsVideo && selectedUtterance && player.isReady && (
+                        {!selectedMediaIsVideo && selectedWaveformTimelineItem && player.isReady && (
                           <RegionActionOverlay
-                            utteranceStartTime={selectedUtterance.startTime}
-                            utteranceEndTime={selectedUtterance.endTime}
+                            utteranceStartTime={selectedWaveformTimelineItem.startTime}
+                            utteranceEndTime={selectedWaveformTimelineItem.endTime}
                             zoomPxPerSec={zoomPxPerSec}
                             scrollLeft={waveformScrollLeft}
                             waveAreaWidth={player.instanceRef.current?.getWidth() ?? 9999}
@@ -4323,7 +4413,10 @@ function TranscriptionPageOrchestrator({
                                 player.stop();
                               } else {
                                 setSegmentLoopPlayback(true);
-                                const s = subSelectionRange ?? { start: selectedUtterance.startTime, end: selectedUtterance.endTime };
+                                const s = subSelectionRange ?? {
+                                  start: selectedWaveformTimelineItem.startTime,
+                                  end: selectedWaveformTimelineItem.endTime,
+                                };
                                 player.playRegion(s.start, s.end, true);
                               }
                             }}
@@ -4331,7 +4424,10 @@ function TranscriptionPageOrchestrator({
                               if (player.isPlaying) {
                                 player.stop();
                               } else {
-                                const s = subSelectionRange ?? { start: selectedUtterance.startTime, end: selectedUtterance.endTime };
+                                const s = subSelectionRange ?? {
+                                  start: selectedWaveformTimelineItem.startTime,
+                                  end: selectedWaveformTimelineItem.endTime,
+                                };
                                 player.playRegion(s.start, s.end, true);
                               }
                             }}
@@ -4441,7 +4537,6 @@ function TranscriptionPageOrchestrator({
                         handleDeleteSpeaker,
                         handleDeleteUnusedSpeakers,
                         handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,
-                        handleClearSpeakerOnSelectedRouted,
                         handleCreateSpeakerAndAssign: handleCreateSpeakerAndAssignRouted,
                         handleCreateSpeakerOnly,
                         closeSpeakerDialog: closeSpeakerDialogRouted,
@@ -4538,6 +4633,14 @@ function TranscriptionPageOrchestrator({
                           segmentsByLayer,
                           segmentContentByLayer,
                           saveSegmentContentForLayer,
+                          translationAudioByLayer,
+                          mediaItems: _mediaItems,
+                          recording,
+                          recordingUtteranceId,
+                          recordingLayerId: _recordingLayerId,
+                          startRecordingForUtterance: _startRecordingForUtterance,
+                          stopRecording: _stopRecording,
+                          deleteVoiceTranslation,
                         }}
                         textOnlyProps={{
                           transcriptionLayers,
@@ -4578,6 +4681,14 @@ function TranscriptionPageOrchestrator({
                           speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
                           speakerQuickActions,
                           onLaneLabelWidthResize: handleLaneLabelWidthResizeStart,
+                          translationAudioByLayer,
+                          mediaItems: _mediaItems,
+                          recording,
+                          recordingUtteranceId,
+                          recordingLayerId: _recordingLayerId,
+                          startRecordingForUtterance: _startRecordingForUtterance,
+                          stopRecording: _stopRecording,
+                          deleteVoiceTranslation,
                         }}
                         emptyStateProps={{
                           locale,

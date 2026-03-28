@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createEvent, fireEvent, render, screen, cleanup, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerSegmentContentDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import { TranscriptionTimelineTextOnly } from './TranscriptionTimelineTextOnly';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 
@@ -50,6 +50,8 @@ vi.mock('./TimelineLaneHeader', () => ({
 
 afterEach(() => {
   timelineLaneHeaderMock.mockClear();
+  editorContextValue.translationTextByLayer = new Map();
+  editorContextValue.translationDrafts = {};
   cleanup();
 });
 
@@ -274,8 +276,8 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         utterancesOnCurrentMedia={[makeUtterance('u-main')]}
         segmentsByLayer={new Map([
           [parentLayer.id, [
-            { id: 'seg-1', textId: 't1', mediaId: 'm1', startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
-            { id: 'seg-2', textId: 't1', mediaId: 'm1', startTime: 1, endTime: 2, createdAt: NOW, updatedAt: NOW },
+            { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+            { id: 'seg-2', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 1, endTime: 2, createdAt: NOW, updatedAt: NOW },
           ]],
         ])}
         selectedTimelineUnit={null}
@@ -317,14 +319,14 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     const scrollEl = document.createElement('div');
     const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
 
-    const initialSegments = new Map([
+    const initialSegments = new Map<string, LayerSegmentDocType[]>([
       [parentLayer.id, [
         { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
       ]],
     ]);
-    const initialContents = new Map([
+    const initialContents = new Map<string, Map<string, LayerSegmentContentDocType>>([
       [childLayer.id, new Map([
-        ['seg-1', { id: 'segc-1', textId: 't1', segmentId: 'seg-1', layerId: childLayer.id, modality: 'text', text: 'child one', sourceType: 'human', createdAt: NOW, updatedAt: NOW }],
+        ['seg-1', { id: 'segc-1', textId: 't1', segmentId: 'seg-1', layerId: childLayer.id, modality: 'text', text: 'child one', sourceType: 'human', createdAt: NOW, updatedAt: NOW } as LayerSegmentContentDocType],
       ])],
     ]);
 
@@ -617,5 +619,69 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     );
 
     expect(screen.getByText('Alice')).toBeTruthy();
+  });
+
+  it('keeps text input and renders recording controls for mixed translation rows', () => {
+    const transcriptionLayer = makeLayer('trc-base');
+    const translationLayer = {
+      ...makeLayer('trl-mixed'),
+      layerType: 'translation',
+      key: 'trl_mixed',
+      modality: 'mixed',
+      acceptsAudio: true,
+    } as LayerDocType;
+    const utterance = makeUtterance('u1', 's1');
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const startRecordingForUtterance = vi.fn(async () => undefined);
+
+    editorContextValue.translationTextByLayer = new Map([
+      [translationLayer.id, new Map([
+        [utterance.id, {
+          id: 'utr-mixed',
+          utteranceId: utterance.id,
+          layerId: translationLayer.id,
+          modality: 'mixed',
+          text: 'bonjour',
+          sourceType: 'human',
+          createdAt: NOW,
+          updatedAt: NOW,
+        }],
+      ])],
+    ]);
+
+    render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[transcriptionLayer]}
+        translationLayers={[translationLayer]}
+        utterancesOnCurrentMedia={[utterance]}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={transcriptionLayer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[translationLayer, transcriptionLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[translationLayer, transcriptionLayer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [translationLayer.id]: 44, [transcriptionLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        translationAudioByLayer={new Map([[translationLayer.id, new Map()]])}
+        mediaItems={[]}
+        startRecordingForUtterance={startRecordingForUtterance}
+        stopRecording={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByDisplayValue('bonjour')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '开始录音翻译' }));
+
+    expect(startRecordingForUtterance).toHaveBeenCalledWith(
+      expect.objectContaining({ id: utterance.id }),
+      expect.objectContaining({ id: translationLayer.id }),
+    );
   });
 });
