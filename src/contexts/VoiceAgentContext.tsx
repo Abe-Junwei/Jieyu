@@ -6,7 +6,7 @@
  */
 
 import { createContext, useContext } from 'react';
-import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
+import type { VoiceAgentMode, VoicePendingConfirm } from '../hooks/useVoiceAgent';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ export interface VoiceAgentContextValue {
   voiceConfidence: number;
   voiceError: string | null;
   voiceSafeMode: boolean;
-  voicePendingConfirm: { actionId: string; label: string } | null;
+  voicePendingConfirm: VoicePendingConfirm | null;
   voiceCorpusLang: string;
   voiceLangOverride: string | null;
   voiceEnabled: boolean;

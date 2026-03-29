@@ -8,13 +8,13 @@
 
 import { memo, useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { Brain, Check, ChevronDown, History, Mic, MicOff, SlidersHorizontal, X } from 'lucide-react';
-import { getConfidenceColor, type VoiceAgentMode, type VoiceAgentState } from '../hooks/useVoiceAgent';
+import { getConfidenceColor, type VoiceAgentMode, type VoiceAgentState, type VoicePendingConfirm } from '../hooks/useVoiceAgent';
 import { SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import type { SttEngine } from '../services/VoiceInputService';
 import { commercialProviderDefinitions } from '../services/stt';
 import type { CommercialProviderKind } from '../services/VoiceInputService';
-import type { VoiceSession } from '../services/IntentRouter';
-import { getActionLabel, loadVoiceAliasLearningLog, clearVoiceAliasLearningLog, type VoiceIntent, type VoiceAliasLearningLogEntry } from '../services/IntentRouter';
+import type { ActionIntent, VoiceIntent, VoiceSession } from '../services/IntentRouter';
+import { getActionLabel, loadVoiceAliasLearningLog, clearVoiceAliasLearningLog, type VoiceAliasLearningLogEntry } from '../services/voiceIntentUi';
 
 // ── Types ──
 
@@ -28,7 +28,8 @@ export interface VoiceAgentWidgetProps {
   error: string | null;
   /** Most recently routed intent — used for ARIA live announcements. */
   lastIntent: VoiceIntent | null;
-  pendingConfirm: { actionId: string; label: string } | null;
+  pendingConfirm: VoicePendingConfirm | null;
+  disambiguationOptions: ActionIntent[];
   safeMode: boolean;
   /** Whether wake-word detection is enabled. */
   wakeWordEnabled: boolean;
@@ -65,6 +66,8 @@ export interface VoiceAgentWidgetProps {
   onMicPointerUp?: () => void;
   onSwitchMode: (mode: VoiceAgentMode) => void;
   onSwitchEngine: (engine: SttEngine) => void;
+  onSelectDisambiguation: (actionId: ActionIntent['actionId']) => void;
+  onDismissDisambiguation: () => void;
   onConfirm: () => void;
   onCancel: () => void;
   onSetSafeMode: (on: boolean) => void;
@@ -139,6 +142,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
     error,
     lastIntent,
     pendingConfirm,
+    disambiguationOptions,
     safeMode,
     wakeWordEnabled,
     wakeWordEnergyLevel,
@@ -162,6 +166,8 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
     onMicPointerUp,
     onSwitchMode,
     onSwitchEngine,
+    onSelectDisambiguation,
+    onDismissDisambiguation,
     onConfirm,
     onCancel,
     onSetSafeMode,
@@ -425,15 +431,47 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
           </div>
         </div>
 
-        {(pendingConfirm || error) && (
+        {(disambiguationOptions.length > 0 || pendingConfirm || error) && (
           <div className="voice-agent-notice-stack">
+            {disambiguationOptions.length > 0 && (
+              <div className="voice-agent-confirm voice-agent-disambiguation" role="alertdialog" aria-label="语音消歧候选">
+                <div className="voice-agent-confirm-copy">
+                  <span className="voice-agent-confirm-label">检测到低置信度指令，请选择更准确的操作</span>
+                  <span className="voice-agent-confirm-fuzzy">需要消歧</span>
+                </div>
+                <div className="voice-agent-disambiguation-options">
+                  {disambiguationOptions.map((option) => (
+                    <button
+                      key={option.actionId}
+                      type="button"
+                      className="voice-agent-disambiguation-option"
+                      onClick={() => onSelectDisambiguation(option.actionId)}
+                    >
+                      <span>{getActionLabel(option.actionId)}</span>
+                      <span className="voice-agent-disambiguation-score">{Math.round(option.confidence * 100)}%</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="voice-agent-confirm-actions">
+                  <button
+                    type="button"
+                    className="voice-agent-confirm-btn voice-agent-confirm-no"
+                    onClick={onDismissDisambiguation}
+                    aria-label="取消消歧"
+                  >
+                    <X size={17} />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {pendingConfirm && (
               <div className="voice-agent-confirm" role="alertdialog" aria-label="语音操作确认">
                 <div className="voice-agent-confirm-copy">
                   <span className="voice-agent-confirm-label">
-                    确认执行「{pendingConfirm.label.replace(/^\[模糊\]\s*/, '')}」？
+                    确认执行「{pendingConfirm.label}」？
                   </span>
-                  {pendingConfirm.label.startsWith('[模糊]') && (
+                  {pendingConfirm.fromFuzzy && (
                     <span className="voice-agent-confirm-fuzzy">模糊匹配</span>
                   )}
                 </div>

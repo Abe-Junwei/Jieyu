@@ -15,25 +15,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { VoiceInputService as VoiceInputServiceType, SttEngine, SttResult, CommercialProviderKind } from '../services/VoiceInputService';
 import type { WakeWordDetector as WakeWordDetectorType } from '../services/WakeWordDetector';
-import { saveVoiceSession, loadRecentVoiceSessions } from '../services/VoiceSessionStore';
-import {
-  routeIntent,
-  collectAlternativeIntents,
-  LOW_CONFIDENCE_THRESHOLD,
-  isDestructiveAction,
-  shouldConfirmFuzzyAction,
-  getActionLabel,
-  createVoiceSession,
-  loadVoiceIntentAliasMap,
-  learnVoiceIntentAlias,
-  bumpAliasUsage,
-  type ActionId,
-  type ActionIntent,
-  type VoiceIntent,
-  type VoiceSession,
-  type VoiceSessionEntry,
+import { getActionLabel } from '../services/voiceIntentUi';
+import type {
+  ActionId,
+  ActionIntent,
+  VoiceIntent,
+  VoiceSession,
+  VoiceSessionEntry,
 } from '../services/IntentRouter';
-import { refineLlmFallbackIntent } from '../services/voiceIntentRefine';
 import { toBcp47 } from '../utils/langMapping';
 import type { CommercialProviderCreateConfig, ProviderReachability } from '../services/stt';
 import type { VoicePreset } from '../utils/voicePresets';
@@ -53,6 +42,12 @@ let voiceInputRuntimePromise: Promise<typeof import('../services/VoiceInputServi
 let wakeWordRuntimePromise: Promise<typeof import('../services/WakeWordDetector')> | null = null;
 let sttRuntimePromise: Promise<typeof import('../services/stt')> | null = null;
 let sttStrategyRuntimePromise: Promise<typeof import('../services/SttStrategyRouter')> | null = null;
+let intentRouterRuntime: typeof import('../services/IntentRouter') | null = null;
+let intentRouterRuntimePromise: Promise<typeof import('../services/IntentRouter')> | null = null;
+let voiceIntentRefineRuntime: typeof import('../services/voiceIntentRefine') | null = null;
+let voiceIntentRefineRuntimePromise: Promise<typeof import('../services/voiceIntentRefine')> | null = null;
+let voiceSessionStoreRuntime: typeof import('../services/VoiceSessionStore') | null = null;
+let voiceSessionStoreRuntimePromise: Promise<typeof import('../services/VoiceSessionStore')> | null = null;
 
 function loadVoiceInputRuntime() {
   if (!voiceInputRuntimePromise) {
@@ -82,9 +77,63 @@ function loadSttStrategyRuntime() {
   return sttStrategyRuntimePromise;
 }
 
+function loadIntentRouterRuntime() {
+  if (intentRouterRuntime) {
+    return Promise.resolve(intentRouterRuntime);
+  }
+  if (!intentRouterRuntimePromise) {
+    intentRouterRuntimePromise = import('../services/IntentRouter').then((runtime) => {
+      intentRouterRuntime = runtime;
+      return runtime;
+    });
+  }
+  return intentRouterRuntimePromise;
+}
+
+function loadVoiceIntentRefineRuntime() {
+  if (voiceIntentRefineRuntime) {
+    return Promise.resolve(voiceIntentRefineRuntime);
+  }
+  if (!voiceIntentRefineRuntimePromise) {
+    voiceIntentRefineRuntimePromise = import('../services/voiceIntentRefine').then((runtime) => {
+      voiceIntentRefineRuntime = runtime;
+      return runtime;
+    });
+  }
+  return voiceIntentRefineRuntimePromise;
+}
+
+function loadVoiceSessionStoreRuntime() {
+  if (voiceSessionStoreRuntime) {
+    return Promise.resolve(voiceSessionStoreRuntime);
+  }
+  if (!voiceSessionStoreRuntimePromise) {
+    voiceSessionStoreRuntimePromise = import('../services/VoiceSessionStore').then((runtime) => {
+      voiceSessionStoreRuntime = runtime;
+      return runtime;
+    });
+  }
+  return voiceSessionStoreRuntimePromise;
+}
+
+function createVoiceSessionState(): VoiceSession {
+  return {
+    id: crypto.randomUUID(),
+    startedAt: Date.now(),
+    entries: [],
+    mode: 'command',
+  };
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type VoiceAgentMode = 'command' | 'dictation' | 'analysis';
+
+export interface VoicePendingConfirm {
+  actionId: ActionId;
+  label: string;
+  fromFuzzy?: boolean;
+}
 
 export interface VoiceAgentState {
   listening: boolean;
@@ -96,7 +145,7 @@ export interface VoiceAgentState {
   lastIntent: VoiceIntent | null;
   error: string | null;
   safeMode: boolean;
-  pendingConfirm: { actionId: ActionId; label: string; fromFuzzy?: boolean } | null;
+  pendingConfirm: VoicePendingConfirm | null;
   session: VoiceSession;
   engine: SttEngine;
   isRecording: boolean;
@@ -181,8 +230,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const [safeMode, setSafeMode] = useState(initialSafeMode);
   const [energyLevel, setEnergyLevel] = useState(0);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [pendingConfirm, setPendingConfirm] = useState<{ actionId: ActionId; label: string; fromFuzzy?: boolean } | null>(null);
-  const [session, setSession] = useState<VoiceSession>(createVoiceSession);
+  const [pendingConfirm, setPendingConfirm] = useState<VoicePendingConfirm | null>(null);
+  const [session, setSession] = useState<VoiceSession>(createVoiceSessionState);
   const [engine, setEngine] = useState<SttEngine>('web-speech');
   const [isRecording, setIsRecording] = useState(false);
   const [commercialProviderKindState, setCommercialProviderKindState] = useState<CommercialProviderKind>(commercialProviderKind);
@@ -213,7 +262,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const energyLevelRef = useRef(0);
   const recordingDurationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingAiResponseCountRef = useRef(0);
-  const aliasMapRef = useRef<Record<string, ActionId>>(loadVoiceIntentAliasMap());
+  const aliasMapRef = useRef<Record<string, ActionId>>({});
   /** Tracks the target utterance ID for the active analysis session (set before sendToAiChat in analysis mode). */
   const analysisTargetUtteranceIdRef = useRef<string | null>(null);
   /** Internal simplified callback: called with the AI response text when the stream completes in analysis mode. */
@@ -238,15 +287,22 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     setAgentState('idle');
   }, []);
 
+  const clearInteractionPrompts = useCallback(() => {
+    setPendingConfirm(null);
+    setDisambiguationOptions([]);
+  }, []);
+
   // Load most recent session from IndexedDB on mount
   useEffect(() => {
-    loadRecentVoiceSessions(1).then(([recent]) => {
-      if (recent && recent.entries.length > 0) {
-        setSession(recent);
-      }
-    }).catch(() => {
-      // IndexedDB unavailable — silently skip
-    });
+    void loadVoiceSessionStoreRuntime().then(({ loadRecentVoiceSessions }) => loadRecentVoiceSessions(1))
+      .then(([recent]) => {
+        if (recent && recent.entries.length > 0) {
+          setSession(recent);
+        }
+      })
+      .catch(() => {
+        // IndexedDB unavailable — silently skip
+      });
   }, []);
 
   // ── Handle result from VoiceInputService ─────────────────────────────────
@@ -271,7 +327,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     setAgentState('routing');
 
     const currentMode = modeRef.current;
-    let intent = routeIntent(result.text, currentMode, {
+    const intentRouter = intentRouterRuntime ?? await loadIntentRouterRuntime();
+    let intent = intentRouter.routeIntent(result.text, currentMode, {
       sttConfidence: result.confidence,
       detectedLang: result.lang,
       aliasMap: aliasMapRef.current,
@@ -287,6 +344,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
           session: sessionRef.current,
         });
         if (fallbackIntent) {
+          const { refineLlmFallbackIntent } = voiceIntentRefineRuntime ?? await loadVoiceIntentRefineRuntime();
           intent = refineLlmFallbackIntent(fallbackIntent, result);
           llmResolvedAction = intent.type === 'action';
         } else {
@@ -300,14 +358,14 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     }
 
     if (llmResolvedAction && intent.type === 'action') {
-      const learned = learnVoiceIntentAlias(result.text, intent.actionId);
+      const learned = intentRouter.learnVoiceIntentAlias(result.text, intent.actionId);
       if (learned.applied) {
         aliasMapRef.current = learned.aliasMap;
       }
     }
     // Bump usage stats for alias-matched intents | 命中别名时更新使用统计
     if (!llmResolvedAction && intent.type === 'action' && intent.fromAlias) {
-      bumpAliasUsage(result.text);
+      intentRouter.bumpAliasUsage(result.text);
     }
     setLastIntent(intent);
 
@@ -315,9 +373,9 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     if (
       intent.type === 'action'
       && intent.fromFuzzy
-      && intent.confidence < LOW_CONFIDENCE_THRESHOLD
+      && intent.confidence < intentRouter.LOW_CONFIDENCE_THRESHOLD
     ) {
-      const alternatives = collectAlternativeIntents(
+      const alternatives = intentRouter.collectAlternativeIntents(
         result.text,
         intent.actionId,
         result.confidence,
@@ -345,13 +403,14 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     switch (intent.type) {
       case 'action': {
         const needsConfirm =
-          (intent.fromFuzzy && shouldConfirmFuzzyAction(intent.actionId))
-          || (safeModeRef.current && isDestructiveAction(intent.actionId));
+          (intent.fromFuzzy && intentRouter.shouldConfirmFuzzyAction(intent.actionId))
+          || (safeModeRef.current && intentRouter.isDestructiveAction(intent.actionId));
         if (needsConfirm) {
-          const label = intent.fromFuzzy
-            ? `[模糊] ${getActionLabel(intent.actionId)}`
-            : getActionLabel(intent.actionId);
-          setPendingConfirm({ actionId: intent.actionId, label });
+          setPendingConfirm({
+            actionId: intent.actionId,
+            label: getActionLabel(intent.actionId),
+            ...(intent.fromFuzzy !== undefined ? { fromFuzzy: intent.fromFuzzy } : {}),
+          });
           Earcon.playTick();
           setAgentState('idle');
         } else {
@@ -421,10 +480,20 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     })();
     if (targetMode) setMode(targetMode);
     setError(null);
-    setPendingConfirm(null);
-    setSession(createVoiceSession());
+    clearInteractionPrompts();
+    setSession(createVoiceSessionState());
     pendingAiResponseCountRef.current = 0;
     setAgentState('listening');
+
+    try {
+      const [intentRouter] = await Promise.all([
+        loadIntentRouterRuntime(),
+        loadVoiceIntentRefineRuntime(),
+      ]);
+      aliasMapRef.current = intentRouter.loadVoiceIntentAliasMap();
+    } catch {
+      aliasMapRef.current = {};
+    }
 
     let svc = serviceRef.current;
     if (!svc) {
@@ -511,20 +580,21 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     }
     void unlockAudio();
     Earcon.playActivate();
-  }, [listening, langOverrideRef, handleSttResult, engineRef, whisperServerUrl, whisperServerModel, commercialProviderKindRef, commercialProviderConfigRef]);
+  }, [clearInteractionPrompts, listening, langOverrideRef, handleSttResult, engineRef, whisperServerUrl, whisperServerModel, commercialProviderKindRef, commercialProviderConfigRef]);
 
   const stop = useCallback(async () => {
     serviceRef.current?.stop();
     setListening(false);
     setSpeechActive(false);
     setInterimText('');
-    setPendingConfirm(null);
+    clearInteractionPrompts();
     pendingAiResponseCountRef.current = 0;
     setAgentState('idle');
 
     const currentSession = sessionRef.current;
     if (currentSession.entries.length > 0) {
       try {
+        const { saveVoiceSession } = await loadVoiceSessionStoreRuntime();
         await saveVoiceSession(currentSession);
       } catch (err) {
         // IndexedDB unavailable — best effort save only | IndexedDB 不可用，保存会话仅尽力而为
@@ -533,7 +603,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     }
 
     Earcon.playDeactivate();
-  }, []);
+  }, [clearInteractionPrompts]);
 
   // ── Push-to-talk (whisper-local) ─────────────────────────────────────────
 
@@ -594,7 +664,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const confirmPending = useCallback(() => {
     if (!pendingConfirm) return;
     executeActionRef.current(pendingConfirm.actionId);
-    setPendingConfirm(null);
+    clearInteractionPrompts();
     Earcon.playSuccess();
     globalContext.markSessionStart();
     userBehaviorStore.recordAction({
@@ -602,36 +672,51 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       durationMs: 0,
       sessionId: sessionRef.current.id,
     });
-  }, [pendingConfirm, executeActionRef, sessionRef]);
+  }, [clearInteractionPrompts, pendingConfirm, executeActionRef, sessionRef]);
 
   const cancelPending = useCallback(() => {
-    setPendingConfirm(null);
+    clearInteractionPrompts();
     Earcon.playTick();
-  }, []);
+  }, [clearInteractionPrompts]);
 
   // ── Disambiguation selection | 消歧选择 ──────────────────────────────────
   const selectDisambiguation = useCallback((actionId: ActionId) => {
-    setDisambiguationOptions([]);
-    executeActionRef.current(actionId);
-    Earcon.playSuccess();
-    globalContext.markSessionStart();
-    userBehaviorStore.recordAction({
-      actionId,
-      durationMs: 0,
-      sessionId: sessionRef.current.id,
-    });
-  }, [executeActionRef, sessionRef]);
+    void (async () => {
+      setDisambiguationOptions([]);
+      const intentRouter = intentRouterRuntime ?? await loadIntentRouterRuntime();
+      const needsConfirm = intentRouter.shouldConfirmFuzzyAction(actionId)
+        || (safeModeRef.current && intentRouter.isDestructiveAction(actionId));
+      if (needsConfirm) {
+        setPendingConfirm({ actionId, label: getActionLabel(actionId), fromFuzzy: true });
+        Earcon.playTick();
+        setAgentState('idle');
+        return;
+      }
+
+      setPendingConfirm(null);
+      executeActionRef.current(actionId);
+      Earcon.playSuccess();
+      globalContext.markSessionStart();
+      userBehaviorStore.recordAction({
+        actionId,
+        durationMs: 0,
+        sessionId: sessionRef.current.id,
+      });
+      setAgentState('idle');
+    })();
+  }, [executeActionRef, safeModeRef, sessionRef]);
 
   const dismissDisambiguation = useCallback(() => {
     setDisambiguationOptions([]);
+    setPendingConfirm(null);
   }, []);
 
   // ── Mode switching ────────────────────────────────────────────────────────
   const switchMode = useCallback((newMode: VoiceAgentMode) => {
     setMode(newMode);
-    setPendingConfirm(null);
+    clearInteractionPrompts();
     setInterimText('');
-  }, []);
+  }, [clearInteractionPrompts]);
 
   // ── Language sync: keep VoiceInputService._config.lang in sync with UI override ──
   // Use langOverrideRef to read the current value without causing re-renders

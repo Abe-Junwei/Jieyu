@@ -102,6 +102,11 @@ class DeferredEmbeddingSearchRuntime {
     return service.searchSimilarUtterances(...args);
   }
 
+  async searchMultiSource(...args: Parameters<EmbeddingSearchService['searchMultiSource']>): ReturnType<EmbeddingSearchService['searchMultiSource']> {
+    const service = await this.runtime.getEmbeddingSearchService();
+    return service.searchMultiSource(...args);
+  }
+
   async searchMultiSourceHybrid(...args: Parameters<EmbeddingSearchService['searchMultiSourceHybrid']>): ReturnType<EmbeddingSearchService['searchMultiSourceHybrid']> {
     const service = await this.runtime.getEmbeddingSearchService();
     return service.searchMultiSourceHybrid(...args);
@@ -112,12 +117,12 @@ export function createDeferredEmbeddingRuntime(
   getConfig: () => EmbeddingProviderCreateConfig,
   taskRunner: TaskRunner,
 ): {
-  embeddingService: EmbeddingService;
-  embeddingSearchService: EmbeddingSearchService;
+  embeddingService: DeferredEmbeddingService;
+  embeddingSearchService: DeferredEmbeddingSearchRuntime;
 } {
   const runtime = new DeferredEmbeddingRuntime(getConfig, taskRunner);
   return {
-    embeddingService: new DeferredEmbeddingService(runtime) as unknown as EmbeddingService,
-    embeddingSearchService: new DeferredEmbeddingSearchRuntime(runtime) as unknown as EmbeddingSearchService,
+    embeddingService: new DeferredEmbeddingService(runtime),
+    embeddingSearchService: new DeferredEmbeddingSearchRuntime(runtime),
   };
 }

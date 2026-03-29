@@ -46,6 +46,7 @@ describe('useVoiceInteraction', () => {
       startRecording: vi.fn(async () => undefined),
       stopRecording: vi.fn(async () => undefined),
       isRecording: false,
+      disambiguationOptions: [],
       pendingConfirm: null,
       error: null,
     });
@@ -108,6 +109,7 @@ describe('useVoiceInteraction', () => {
       startRecording: vi.fn(async () => undefined),
       stopRecording: vi.fn(async () => undefined),
       isRecording: false,
+      disambiguationOptions: [],
       pendingConfirm: null,
       error: null,
     });

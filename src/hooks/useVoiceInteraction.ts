@@ -317,11 +317,19 @@ export function useVoiceInteraction({
     setAssistantVoiceExpanded((value) => !value);
   }, []);
 
+  const disambiguationOptionCount = voiceAgent.disambiguationOptions?.length ?? 0;
+
   useEffect(() => {
-    if (voiceAgent.listening || voiceAgent.isRecording || Boolean(voiceAgent.pendingConfirm) || Boolean(voiceAgent.error)) {
+    if (
+      voiceAgent.listening
+      || voiceAgent.isRecording
+      || Boolean(voiceAgent.pendingConfirm)
+      || disambiguationOptionCount > 0
+      || Boolean(voiceAgent.error)
+    ) {
       setAssistantVoiceExpanded(true);
     }
-  }, [voiceAgent.error, voiceAgent.isRecording, voiceAgent.listening, voiceAgent.pendingConfirm]);
+  }, [disambiguationOptionCount, voiceAgent.error, voiceAgent.isRecording, voiceAgent.listening, voiceAgent.pendingConfirm]);
 
   return {
     voiceAgent,

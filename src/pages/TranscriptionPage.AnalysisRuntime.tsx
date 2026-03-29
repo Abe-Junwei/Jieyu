@@ -1,8 +1,7 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { EmbeddingProvider } from '../contexts/EmbeddingContext';
 import { useAiEmbeddingState } from '../hooks/useAiEmbeddingState';
 import { useEmbeddingContextValue } from '../hooks/useEmbeddingContextValue';
-import { testEmbeddingProvider } from '../ai/embeddings/EmbeddingProviderCatalog';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import { getGlobalTaskRunner } from '../ai/tasks/taskRunnerSingleton';
 import { saveEmbeddingProviderConfig } from './TranscriptionPage.helpers';
@@ -51,6 +50,7 @@ export function TranscriptionPageAnalysisRuntime({
   onEmbeddingProviderConfigChange,
   externalErrorMessage,
 }: TranscriptionPageAnalysisRuntimeProps) {
+  const embeddingTasksHydratedRef = useRef(false);
   const taskRunner = useMemo(() => getGlobalTaskRunner(), []);
   const deferredEmbeddingRuntime = useMemo(
     () => createDeferredEmbeddingRuntime(() => embeddingProviderConfig, taskRunner),
@@ -78,6 +78,7 @@ export function TranscriptionPageAnalysisRuntime({
     handleFindSimilarUtterances,
   } = useAiEmbeddingState({
     locale,
+    enabled: analysisTab === 'embedding',
     taskRunner,
     embeddingService: deferredEmbeddingRuntime.embeddingService,
     embeddingSearchService: deferredEmbeddingRuntime.embeddingSearchService,
@@ -88,10 +89,20 @@ export function TranscriptionPageAnalysisRuntime({
   });
 
   useEffect(() => {
+    if (analysisTab !== 'embedding' || embeddingTasksHydratedRef.current) {
+      return;
+    }
+    embeddingTasksHydratedRef.current = true;
     fireAndForget(refreshEmbeddingTasks());
-  }, [refreshEmbeddingTasks]);
+  }, [analysisTab, refreshEmbeddingTasks]);
 
-  const handleTestEmbeddingProvider = useMemo(() => async () => testEmbeddingProvider(embeddingProviderConfig), [embeddingProviderConfig]);
+  const handleTestEmbeddingProvider = useMemo(
+    () => async () => {
+      const { testEmbeddingProvider } = await import('../ai/embeddings/EmbeddingProviderCatalog');
+      return testEmbeddingProvider(embeddingProviderConfig);
+    },
+    [embeddingProviderConfig],
+  );
 
   const embeddingContextValue = useEmbeddingContextValue({
     selectedUtterance,

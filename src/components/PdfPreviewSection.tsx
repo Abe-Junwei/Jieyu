@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 
 const PdfViewerPanel = lazy(async () => import('./PdfViewerPanel').then((module) => ({ default: module.PdfViewerPanel })));
 
@@ -33,6 +33,12 @@ export function PdfPreviewSection({
   onOpenExternal,
   onClose,
 }: Props) {
+  const [useEnhancedPreview, setUseEnhancedPreview] = useState(false);
+
+  useEffect(() => {
+    setUseEnhancedPreview(false);
+  }, [pdfPreview?.navToken, pdfPreview?.searchSnippet]);
+
   if (!pdfPreview) return null;
 
   return (
@@ -58,6 +64,11 @@ export function PdfPreviewSection({
           <button type="button" className="transcription-pdf-preview-nav" onClick={() => onChangePage(1)}>
             {locale === 'zh-CN' ? '下一页' : 'Next'}
           </button>
+          {pdfPreview.searchSnippet && !useEnhancedPreview && (
+            <button type="button" className="transcription-pdf-preview-nav" onClick={() => setUseEnhancedPreview(true)}>
+              {locale === 'zh-CN' ? '增强高亮' : 'Enhanced Highlight'}
+            </button>
+          )}
           <button type="button" className="transcription-pdf-preview-nav" onClick={onOpenExternal}>
             {locale === 'zh-CN' ? '新窗口打开' : 'Open'}
           </button>
@@ -67,19 +78,31 @@ export function PdfPreviewSection({
         </div>
       </header>
       <div className="transcription-pdf-preview-frame">
-        <Suspense
-          fallback={
-            <div className="transcription-pdf-preview-loading" role="status" aria-live="polite">
-              {locale === 'zh-CN' ? 'PDF 加载中...' : 'Loading PDF...'}
-            </div>
-          }
-        >
-          {pdfPreview.searchSnippet ? (
-            <PdfViewerPanel key={pdfPreview.navToken} url={pdfPreview.url} title={pdfPreview.title} page={pdfPreview.page} searchSnippet={pdfPreview.searchSnippet} />
-          ) : (
-            <PdfViewerPanel key={pdfPreview.navToken} url={pdfPreview.url} title={pdfPreview.title} page={pdfPreview.page} />
-          )}
-        </Suspense>
+        {pdfPreview.searchSnippet && useEnhancedPreview ? (
+          <Suspense
+            fallback={
+              <div className="transcription-pdf-preview-loading" role="status" aria-live="polite">
+                {locale === 'zh-CN' ? 'PDF 加载中...' : 'Loading PDF...'}
+              </div>
+            }
+          >
+            <PdfViewerPanel
+              key={pdfPreview.navToken}
+              url={pdfPreview.url}
+              title={pdfPreview.title}
+              page={pdfPreview.page}
+              searchSnippet={pdfPreview.searchSnippet}
+            />
+          </Suspense>
+        ) : (
+          <iframe
+            key={pdfPreview.navToken}
+            src={pdfPreview.url}
+            title={pdfPreview.title}
+            className="transcription-pdf-preview-iframe"
+            style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
+          />
+        )}
       </div>
     </section>
   );

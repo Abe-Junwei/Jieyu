@@ -17,6 +17,7 @@ import type {
   SpeakerActionDialogState,
   SpeakerFilterOption,
   SpeakerReferenceStats,
+  SpeakerScope,
   SpeakerVisual,
 } from './speakerManagement/types';
 import {
@@ -59,6 +60,7 @@ export interface UseSpeakerActionsOptions {
   getUtteranceTextForLayer: (utterance: UtteranceDocType) => string | null | undefined;
   formatTime: (seconds: number) => string;
   syncBatchSpeakerId?: boolean;
+  speakerScopeOverride?: Partial<SpeakerScope>;
   speakerFilterOptionsOverride?: SpeakerFilterOption[];
 }
 
@@ -113,6 +115,7 @@ export function useSpeakerActions({
   getUtteranceTextForLayer,
   formatTime,
   syncBatchSpeakerId = true,
+  speakerScopeOverride,
   speakerFilterOptionsOverride,
 }: UseSpeakerActionsOptions): UseSpeakerActionsReturn {
   const [speakerDraftName, setSpeakerDraftName] = useState('');
@@ -130,12 +133,14 @@ export function useSpeakerActions({
   );
 
   const {
-    speakerVisualByUtteranceId,
+    speakerVisualByUtteranceId: derivedSpeakerVisualByUtteranceId,
     speakerFilterOptions: derivedSpeakerFilterOptions,
-    selectedSpeakerSummary,
+    selectedSpeakerSummary: derivedSelectedSpeakerSummary,
   } = useSpeakerDerivedState(utterancesOnCurrentMedia, selectedBatchUtterances, speakerOptions);
 
-  const speakerFilterOptions = speakerFilterOptionsOverride ?? derivedSpeakerFilterOptions;
+  const speakerVisualByUtteranceId = speakerScopeOverride?.speakerVisualByUtteranceId ?? derivedSpeakerVisualByUtteranceId;
+  const speakerFilterOptions = speakerScopeOverride?.speakerFilterOptions ?? speakerFilterOptionsOverride ?? derivedSpeakerFilterOptions;
+  const selectedSpeakerSummary = speakerScopeOverride?.selectedSpeakerSummary ?? derivedSelectedSpeakerSummary;
   const unusedSpeakerIds = useMemo(() => speakerOptions
     .filter((speaker) => speakerReferenceStatsReady && (speakerReferenceStats[speaker.id]?.totalCount ?? 0) === 0)
     .map((speaker) => speaker.id), [speakerOptions, speakerReferenceStats, speakerReferenceStatsReady]);

@@ -7,6 +7,7 @@ import {
   useVoiceAgentContext,
   DEFAULT_VOICE_AGENT_CONTEXT_VALUE,
 } from './VoiceAgentContext';
+import type { VoiceAgentContextValue } from './VoiceAgentContext';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 
 function ProviderProbe({ testId }: { testId: string }) {
@@ -111,9 +112,9 @@ describe('VoiceAgentContext', () => {
   });
 
   it('renders with pending confirm state', () => {
-    const customValue = {
+    const customValue: VoiceAgentContextValue = {
       ...DEFAULT_VOICE_AGENT_CONTEXT_VALUE,
-      voicePendingConfirm: { actionId: 'delete-layer', label: '确认删除' },
+      voicePendingConfirm: { actionId: 'deleteSegment', label: '确认删除', fromFuzzy: true },
     };
 
     render(
@@ -122,7 +123,7 @@ describe('VoiceAgentContext', () => {
       </VoiceAgentProvider>,
     );
 
-    expect(customValue.voicePendingConfirm).toEqual({ actionId: 'delete-layer', label: '确认删除' });
+    expect(customValue.voicePendingConfirm).toEqual({ actionId: 'deleteSegment', label: '确认删除', fromFuzzy: true });
   });
 
   it('renders with lang override', () => {

@@ -54,8 +54,9 @@ describe('AiAssistantHubCard', () => {
       <AiAssistantHubContext.Provider
         value={makeContextValue({
           voicePendingConfirm: {
-            actionId: 'delete',
-            label: '[模糊] 删除当前句段',
+            actionId: 'deleteSegment',
+            label: '删除当前句段',
+            fromFuzzy: true,
           },
           onVoiceConfirm,
           onVoiceCancel,

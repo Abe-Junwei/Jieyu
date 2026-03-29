@@ -103,6 +103,24 @@ const makeExecuteAction = () => vi.fn<(actionId: ActionId) => void>();
 // ── Tests ──
 
 describe('useVoiceAgent', () => {
+  const simulateFinalSttResult = async (payload: {
+    text: string;
+    confidence?: number;
+    lang?: string;
+    engine?: string;
+  }) => {
+    await act(async () => {
+      lastMockVoiceService?.simulateResult({
+        text: payload.text,
+        lang: payload.lang ?? 'zh-CN',
+        isFinal: true,
+        confidence: payload.confidence ?? 0.9,
+        engine: payload.engine ?? 'web-speech',
+      });
+      await Promise.resolve();
+    });
+  };
+
   describe('initial state', () => {
     it('starts not listening', () => {
       const { result } = renderHook(() =>
@@ -226,6 +244,21 @@ describe('useVoiceAgent', () => {
       );
       await act(async () => { result.current.switchMode('dictation'); });
       expect(result.current.interimText).toBe('');
+    });
+
+    it('switchMode() clears stale disambiguation options', async () => {
+      const { result } = renderHook(() =>
+        useVoiceAgent({ executeAction: makeExecuteAction() }),
+      );
+
+      await act(async () => { await result.current.start('command'); });
+      await simulateFinalSttResult({ text: '播放下一个', confidence: 0.5 });
+
+      expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+
+      await act(async () => { result.current.switchMode('analysis'); });
+
+      expect(result.current.disambiguationOptions).toEqual([]);
     });
   });
 
@@ -507,6 +540,75 @@ describe('useVoiceAgent', () => {
 
       expect(result.current.pendingConfirm).toBeNull();
       expect(executeAction).not.toHaveBeenCalled();
+    });
+
+    it('confirmPending clears stale disambiguation options together with pendingConfirm', async () => {
+      const executeAction = makeExecuteAction();
+
+      const { result } = renderHook(() =>
+        useVoiceAgent({ executeAction, initialSafeMode: true }),
+      );
+
+      await act(async () => { await result.current.start('command'); });
+      await simulateFinalSttResult({ text: '删除一下重做', confidence: 0.5 });
+
+      expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
+      expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+
+      await act(async () => { result.current.confirmPending(); });
+
+      expect(result.current.pendingConfirm).toBeNull();
+      expect(result.current.disambiguationOptions).toEqual([]);
+      expect(executeAction).toHaveBeenCalledWith('deleteSegment');
+    });
+
+    it('cancelPending clears stale disambiguation options together with pendingConfirm', async () => {
+      const { result } = renderHook(() =>
+        useVoiceAgent({ executeAction: makeExecuteAction(), initialSafeMode: true }),
+      );
+
+      await act(async () => { await result.current.start('command'); });
+      await simulateFinalSttResult({ text: '删除一下重做', confidence: 0.5 });
+
+      expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
+      expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+
+      await act(async () => { result.current.cancelPending(); });
+
+      expect(result.current.pendingConfirm).toBeNull();
+      expect(result.current.disambiguationOptions).toEqual([]);
+    });
+  });
+
+  describe('disambiguation lifecycle', () => {
+    it('stop() clears stale disambiguation options', async () => {
+      const { result } = renderHook(() =>
+        useVoiceAgent({ executeAction: makeExecuteAction() }),
+      );
+
+      await act(async () => { await result.current.start('command'); });
+      await simulateFinalSttResult({ text: '播放下一个', confidence: 0.5 });
+
+      expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+
+      await act(async () => { await result.current.stop(); });
+
+      expect(result.current.disambiguationOptions).toEqual([]);
+    });
+
+    it('start() clears stale disambiguation options from the previous session', async () => {
+      const { result } = renderHook(() =>
+        useVoiceAgent({ executeAction: makeExecuteAction() }),
+      );
+
+      await act(async () => { await result.current.start('command'); });
+      await simulateFinalSttResult({ text: '播放下一个', confidence: 0.5 });
+      expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+
+      await act(async () => { await result.current.stop(); });
+      await act(async () => { await result.current.start('analysis'); });
+
+      expect(result.current.disambiguationOptions).toEqual([]);
     });
   });
 

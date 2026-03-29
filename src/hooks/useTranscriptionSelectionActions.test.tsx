@@ -116,6 +116,43 @@ describe('useTranscriptionSelectionActions', () => {
     expect(setSelectedUtteranceIds).toHaveBeenCalledWith(new Set(['utt-2']));
   });
 
+  it('falls back to defaultTranscriptionLayerId when both selectedLayerId and selectedTimelineUnit are empty', () => {
+    const setSelectedTimelineUnit = vi.fn();
+    const setSelectedUtteranceIds = vi.fn();
+    const setSelectedLayerId = vi.fn();
+
+    const { result } = renderHook(() => {
+      const selectedUtteranceUnitIdRef = useRef('');
+      const selectedUtteranceIdsRef = useRef(new Set<string>());
+      const selectedLayerIdRef = useRef('');
+      const selectedTimelineUnitRef = useRef(null);
+      const utterancesOnCurrentMediaRef = useRef([]);
+      return useTranscriptionSelectionActions({
+        selectedUtteranceUnitIdRef,
+        selectedUtteranceIdsRef,
+        selectedLayerIdRef,
+        selectedTimelineUnitRef,
+        utterancesOnCurrentMediaRef,
+        defaultTranscriptionLayerId: 'layer-default',
+        setSelectedLayerId,
+        setSelectedUtteranceIds,
+        setSelectedTimelineUnit,
+      });
+    });
+
+    act(() => {
+      result.current.selectUtterance('utt-2');
+    });
+
+    expect(setSelectedLayerId).toHaveBeenCalledWith('layer-default');
+    expect(setSelectedTimelineUnit).toHaveBeenCalledWith({
+      layerId: 'layer-default',
+      unitId: 'utt-2',
+      kind: 'utterance',
+    });
+    expect(setSelectedUtteranceIds).toHaveBeenCalledWith(new Set(['utt-2']));
+  });
+
   it('logs missing layerId only once per source to avoid console spam', () => {
     const setSelectedTimelineUnit = vi.fn();
     const setSelectedUtteranceIds = vi.fn();

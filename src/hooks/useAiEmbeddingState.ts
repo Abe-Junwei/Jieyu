@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getDb } from '../db';
-import { listRecentAiToolDecisionLogs } from '../ai/auditReplay';
 import { buildEmbeddingFallbackWarning, readFallbackReason } from '../ai/embeddings/fallbackWarning';
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 
@@ -63,6 +62,7 @@ type UtteranceLike = {
 
 type UseAiEmbeddingStateParams = {
   locale: string;
+  enabled?: boolean;
   taskRunner: TaskRunnerLike;
   embeddingService: EmbeddingServiceLike;
   embeddingSearchService: EmbeddingSearchServiceLike;
@@ -74,6 +74,7 @@ type UseAiEmbeddingStateParams = {
 
 export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
   locale,
+  enabled = true,
   taskRunner,
   embeddingService,
   embeddingSearchService,
@@ -115,13 +116,6 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
   }>>([]);
   const [aiEmbeddingLastError, setAiEmbeddingLastError] = useState<string | null>(null);
   const [aiEmbeddingWarning, setAiEmbeddingWarning] = useState<string | null>(null);
-  const [aiToolDecisionLogs, setAiToolDecisionLogs] = useState<Array<{
-    id: string;
-    toolName: string;
-    decision: string;
-    requestId?: string;
-    timestamp: string;
-  }>>([]);
   const isMountedRef = useRef(true);
   const activeRequestIdRef = useRef(0);
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
@@ -213,6 +207,14 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
   }, [requestRefreshEmbeddingTasks]);
 
   useEffect(() => {
+    if (!enabled) {
+      if (refreshTimerRef.current !== null) {
+        window.clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+      return;
+    }
+
     const runVisibleRefresh = () => {
       if (document.visibilityState === 'visible') {
         void requestRefreshEmbeddingTasks(false);
@@ -227,12 +229,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
       document.removeEventListener('visibilitychange', runVisibleRefresh);
       window.clearInterval(intervalId);
     };
-  }, [requestRefreshEmbeddingTasks]);
-
-  const refreshAiToolDecisionLogs = useCallback(async () => {
-    const normalized = await listRecentAiToolDecisionLogs(6);
-    setAiToolDecisionLogs(normalized);
-  }, []);
+  }, [enabled, requestRefreshEmbeddingTasks]);
 
   const handleCancelAiTask = useCallback(async (taskId: string) => {
     const ok = taskRunner.cancel(taskId);
@@ -460,10 +457,8 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
     aiEmbeddingMatches,
     aiEmbeddingLastError,
     aiEmbeddingWarning,
-    aiToolDecisionLogs,
     setAiEmbeddingLastError,
     refreshEmbeddingTasks,
-    refreshAiToolDecisionLogs,
     handleCancelAiTask,
     handleRetryAiTask,
     handleBuildUtteranceEmbeddings,

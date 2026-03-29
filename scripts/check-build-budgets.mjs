@@ -1,16 +1,9 @@
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { buildBudgets } from './build-budget-config.mjs';
 
 const workspaceRoot = process.cwd();
 const assetsDir = path.join(workspaceRoot, 'dist', 'assets');
-
-const budgets = [
-  { label: 'TranscriptionPage.Orchestrator', pattern: /^TranscriptionPage\.Orchestrator-.*\.js$/, maxBytes: 860 * 1024 },
-  { label: 'voice-core', pattern: /^voice-core-.*\.js$/, maxBytes: 760 * 1024 },
-  { label: 'pdf-vendor', pattern: /^pdf-vendor-.*\.js$/, maxBytes: 900 * 1024 },
-  { label: 'transformers', pattern: /^transformers-.*\.js$/, maxBytes: 860 * 1024 },
-  { label: 'index.css', pattern: /^index-.*\.css$/, maxBytes: 48 * 1024 },
-];
 
 function formatKiB(bytes) {
   return `${(bytes / 1024).toFixed(2)} kB`;
@@ -31,7 +24,7 @@ async function main() {
 
   console.log('[build-budget] Checking critical bundle budgets');
 
-  for (const budget of budgets) {
+  for (const budget of buildBudgets) {
     const matched = assets.find((asset) => budget.pattern.test(asset.name));
     if (!matched) {
       console.log(`- ${budget.label}: skipped (asset not found)`);

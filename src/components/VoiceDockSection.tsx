@@ -1,9 +1,10 @@
 import { Mic as _Mic } from 'lucide-react';
 import { Suspense, lazy } from 'react';
 import type { SttEngine, CommercialProviderKind } from '../services/VoiceInputService';
-import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
+import type { ActionIntent, VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import type { ProviderReachability } from '../services/stt';
 import type { VoicePreset } from '../utils/voicePresets';
+import type { VoicePendingConfirm } from '../hooks/useVoiceAgent';
 
 const VoiceAgentWidget = lazy(async () => {
   const module = await import('./VoiceAgentWidget');
@@ -19,7 +20,8 @@ type VoiceAgentShape = {
   confidence: number;
   error: string | null;
   lastIntent: VoiceIntent | null;
-  pendingConfirm: { actionId: string; label: string } | null;
+  pendingConfirm: VoicePendingConfirm | null;
+  disambiguationOptions: ActionIntent[];
   safeMode: boolean;
   wakeWordEnabled: boolean;
   wakeWordEnergyLevel: number;
@@ -43,6 +45,8 @@ type VoiceAgentShape = {
   providerStatusMap: ProviderReachability[];
   refreshProviderStatus: () => Promise<void>;
   selectPreset: (preset: VoicePreset) => void;
+  selectDisambiguation: (actionId: ActionIntent['actionId']) => void;
+  dismissDisambiguation: () => void;
 };
 
 type Props = {
@@ -130,6 +134,7 @@ export function VoiceDockSection({
           error={voiceAgent.error}
           lastIntent={voiceAgent.lastIntent}
           pendingConfirm={voiceAgent.pendingConfirm}
+          disambiguationOptions={voiceAgent.disambiguationOptions}
           safeMode={voiceAgent.safeMode}
           wakeWordEnabled={voiceAgent.wakeWordEnabled}
           wakeWordEnergyLevel={voiceAgent.wakeWordEnergyLevel}
@@ -148,6 +153,8 @@ export function VoiceDockSection({
           onMicPointerUp={onMicPointerUp}
           onSwitchMode={voiceAgent.switchMode}
           onSwitchEngine={onSwitchEngine}
+          onSelectDisambiguation={voiceAgent.selectDisambiguation}
+          onDismissDisambiguation={voiceAgent.dismissDisambiguation}
           onConfirm={voiceAgent.confirmPending}
           onCancel={voiceAgent.cancelPending}
           onSetSafeMode={voiceAgent.setSafeMode}

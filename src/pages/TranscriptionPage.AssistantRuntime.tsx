@@ -286,6 +286,7 @@ function AssistantVoiceRuntime({
             error={voiceAgent.error}
             lastIntent={voiceAgent.lastIntent}
             pendingConfirm={voiceAgent.pendingConfirm}
+            disambiguationOptions={voiceAgent.disambiguationOptions}
             safeMode={voiceAgent.safeMode}
             wakeWordEnabled={voiceAgent.wakeWordEnabled}
             wakeWordEnergyLevel={voiceAgent.wakeWordEnergyLevel}
@@ -309,6 +310,8 @@ function AssistantVoiceRuntime({
             onMicPointerUp={handleMicPointerUp}
             onSwitchMode={voiceAgent.switchMode}
             onSwitchEngine={handleVoiceSwitchEngine}
+            onSelectDisambiguation={voiceAgent.selectDisambiguation}
+            onDismissDisambiguation={voiceAgent.dismissDisambiguation}
             onConfirm={voiceAgent.confirmPending}
             onCancel={voiceAgent.cancelPending}
             onSetSafeMode={voiceAgent.setSafeMode}

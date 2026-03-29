@@ -14,6 +14,7 @@ type Params = {
   selectedLayerIdRef: React.MutableRefObject<string>;
   selectedTimelineUnitRef: React.MutableRefObject<TimelineUnit | null>;
   utterancesOnCurrentMediaRef: React.MutableRefObject<UtteranceDocType[]>;
+  defaultTranscriptionLayerId?: string;
   setSelectedLayerId: React.Dispatch<React.SetStateAction<string>>;
   setSelectedUtteranceIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   setSelectedTimelineUnit: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
@@ -25,6 +26,7 @@ export function useTranscriptionSelectionActions({
   selectedLayerIdRef,
   selectedTimelineUnitRef,
   utterancesOnCurrentMediaRef,
+  defaultTranscriptionLayerId,
   setSelectedLayerId,
   setSelectedUtteranceIds,
   setSelectedTimelineUnit,
@@ -43,12 +45,16 @@ export function useTranscriptionSelectionActions({
     if (fallbackLayerId.length > 0) {
       return fallbackLayerId;
     }
+    const defaultLayerId = defaultTranscriptionLayerId?.trim() ?? '';
+    if (defaultLayerId.length > 0) {
+      return defaultLayerId;
+    }
     if (!missingLayerIdLoggedSourcesRef.current.has(source)) {
       missingLayerIdLoggedSourcesRef.current.add(source);
       console.error(`[useTranscriptionSelectionActions] Missing layerId in ${source}`);
     }
     return null;
-  }, [selectedTimelineUnitRef]);
+  }, [defaultTranscriptionLayerId, selectedTimelineUnitRef]);
 
   const applyUnitSelection = useCallback((input: {
     primaryId: string;

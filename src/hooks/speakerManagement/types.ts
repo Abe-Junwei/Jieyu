@@ -20,6 +20,12 @@ export interface SpeakerReferenceStats {
   totalCount: number;
 }
 
+export interface SpeakerScope {
+  speakerVisualByUtteranceId: Record<string, SpeakerVisual>;
+  speakerFilterOptions: SpeakerFilterOption[];
+  selectedSpeakerSummary: string;
+}
+
 export type SpeakerActionDialogState =
   | {
       mode: 'rename';

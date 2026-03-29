@@ -39,7 +39,19 @@ export default defineConfig({
   },
   build: {
     sourcemap: false,
+    chunkSizeWarningLimit: 900,
     rollupOptions: {
+      onwarn(warning, defaultHandler) {
+        // onnxruntime-web 内部使用 eval，属于上游实现细节；此处只精确忽略该已知第三方告警 | onnxruntime-web uses eval internally; suppress only this known vendor warning
+        if (
+          warning.code === 'EVAL'
+          && typeof warning.id === 'string'
+          && warning.id.includes('/onnxruntime-web/')
+        ) {
+          return;
+        }
+        defaultHandler(warning);
+      },
       output: {
         manualChunks(id) {
           // 仅抽离语音域业务代码，降低主页面 chunk 且避免循环分包 | Extract only voice-domain app code to reduce main chunk without circular chunking
@@ -52,13 +64,31 @@ export default defineConfig({
           if (id.includes('/src/services/stt/')) {
             return 'voice-stt-core';
           }
+          // 已有 lazy 边界的语音 UI / runtime 不应被粗粒度 voice-core 吞并 | Preserve existing lazy boundaries for voice UI and runtime wiring
+          if (id.includes('/src/components/VoiceAgentWidget')) {
+            return 'voice-widget';
+          }
+          if (id.includes('/src/hooks/useVoiceAgent.ts')) {
+            return 'voice-agent-core';
+          }
           if (
-            id.includes('/src/hooks/useVoice')
-            || id.includes('/src/components/Voice')
-            || id.includes('/src/services/Voice')
-            || id.includes('/src/services/IntentRouter')
+            id.includes('/src/services/IntentRouter.ts')
+            || id.includes('/src/services/voiceIntentRefine.ts')
+            || id.includes('/src/services/VoiceIntentLlmResolver.ts')
           ) {
-            return 'voice-core';
+            return 'voice-intent-runtime';
+          }
+          if (id.includes('/src/services/VoiceSessionStore.ts')) {
+            return 'voice-session-runtime';
+          }
+          if (
+            id.includes('/src/hooks/useVoiceDock.ts')
+            || id.includes('/src/hooks/useVoiceInteraction.ts')
+            || id.includes('/src/services/EarconService.ts')
+            || id.includes('/src/services/WakeWordDetector.ts')
+            || id.includes('/src/services/voiceIntentUi.ts')
+          ) {
+            return 'voice-agent-core';
           }
 
           if (!id.includes('node_modules')) return undefined;
@@ -71,8 +101,11 @@ export default defineConfig({
           if (id.includes('/pdfjs-dist/')) {
             return 'pdf-vendor';
           }
-          if (id.includes('/@xenova/transformers/') || id.includes('/onnxruntime-web/')) {
-            return 'ai-vendor';
+          if (id.includes('/onnxruntime-web/')) {
+            return 'onnxruntime-vendor';
+          }
+          if (id.includes('/@xenova/transformers/')) {
+            return 'transformers-vendor';
           }
           return undefined;
         },

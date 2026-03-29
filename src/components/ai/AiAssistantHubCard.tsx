@@ -126,7 +126,10 @@ export function AiAssistantHubCard() {
 
             {voicePendingConfirm && (
               <div className="transcription-ai-assistant-confirm" role="status" aria-live="polite">
-                <span>{isZh ? '待确认：' : 'Pending:'} {voicePendingConfirm.label.replace(/^\[模糊\]\s*/, '')}</span>
+                <span>{isZh ? '待确认：' : 'Pending:'} {voicePendingConfirm.label}</span>
+                {voicePendingConfirm.fromFuzzy && (
+                  <span>{isZh ? '模糊匹配' : 'Fuzzy Match'}</span>
+                )}
                 <button type="button" className="icon-btn" onClick={() => onVoiceConfirm?.()} aria-label={isZh ? '确认' : 'Confirm'}>
                   <Check size={13} />
                 </button>
