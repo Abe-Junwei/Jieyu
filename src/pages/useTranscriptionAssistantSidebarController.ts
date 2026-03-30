@@ -1,16 +1,59 @@
 import { useMemo } from 'react';
+import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
 import { useAiChatContextValue, type AiChatContextSource } from '../hooks/useAiChatContextValue';
 import type { AiChatContextValue } from '../contexts/AiChatContext';
+import type {
+  TranscriptionPageAnalysisPanelProps,
+  TranscriptionPageAnalysisRuntimeProps,
+  TranscriptionPageAssistantRuntimeProps,
+} from './TranscriptionPage.runtimeContracts';
 import {
   useTranscriptionRuntimeProps,
   type UseTranscriptionRuntimePropsInput,
 } from './useTranscriptionRuntimeProps';
 
 type AssistantSidebarObserverRecommendation = AiChatContextValue['observerRecommendations'][number];
+type AssistantSidebarObserverRecommendationInput = {
+  id: string;
+  priority: number;
+  title: string;
+  detail: string;
+  actionLabel?: string;
+  actionType?: AssistantSidebarObserverRecommendation['actionType'] | undefined;
+  targetUtteranceId?: string | undefined;
+  targetForm?: string | undefined;
+  targetPos?: string | undefined;
+  targetConfidence?: number | undefined;
+};
+
+function normalizeAssistantSidebarObserverRecommendation(
+  item: AssistantSidebarObserverRecommendationInput,
+): AssistantSidebarObserverRecommendation {
+  const {
+    actionType,
+    targetUtteranceId,
+    targetForm,
+    targetPos,
+    targetConfidence,
+    ...rest
+  } = item;
+
+  return {
+    ...rest,
+    ...(actionType !== undefined ? { actionType } : {}),
+    ...(targetUtteranceId !== undefined ? { targetUtteranceId } : {}),
+    ...(targetForm !== undefined ? { targetForm } : {}),
+    ...(targetPos !== undefined ? { targetPos } : {}),
+    ...(targetConfidence !== undefined ? { targetConfidence } : {}),
+  };
+}
 
 interface UseTranscriptionAssistantSidebarControllerInput {
+  locale: string;
+  analysisTab: AnalysisBottomTab;
+  onAnalysisTabChange: (tab: AnalysisBottomTab) => void;
   aiChatContextInput: Omit<AiChatContextSource, 'observerRecommendations'> & {
-    observerRecommendations?: AssistantSidebarObserverRecommendation[];
+    observerRecommendations?: AssistantSidebarObserverRecommendationInput[];
   };
   runtimePropsInput: UseTranscriptionRuntimePropsInput;
 }
@@ -19,7 +62,7 @@ export function useTranscriptionAssistantSidebarController(
   input: UseTranscriptionAssistantSidebarControllerInput,
 ) {
   const observerRecommendations = useMemo(
-    () => (input.aiChatContextInput.observerRecommendations ?? []).map((item) => ({ ...item })),
+    () => (input.aiChatContextInput.observerRecommendations ?? []).map(normalizeAssistantSidebarObserverRecommendation),
     [input.aiChatContextInput.observerRecommendations],
   );
 
@@ -29,9 +72,24 @@ export function useTranscriptionAssistantSidebarController(
   });
 
   const runtimeProps = useTranscriptionRuntimeProps(input.runtimePropsInput);
+  const assistantRuntimeProps = useMemo<TranscriptionPageAssistantRuntimeProps>(() => ({
+    locale: input.locale,
+    aiChatContextValue,
+    ...runtimeProps.assistantRuntimeProps,
+  }), [aiChatContextValue, input.locale, runtimeProps.assistantRuntimeProps]);
+  const analysisPanelProps = useMemo<TranscriptionPageAnalysisPanelProps>(() => ({
+    locale: input.locale,
+    analysisTab: input.analysisTab,
+    onAnalysisTabChange: input.onAnalysisTabChange,
+  }), [input.analysisTab, input.locale, input.onAnalysisTabChange]);
+  const analysisRuntimeProps = useMemo<TranscriptionPageAnalysisRuntimeProps>(() => ({
+    ...runtimeProps.analysisRuntimeProps,
+    panel: analysisPanelProps,
+  }), [analysisPanelProps, runtimeProps.analysisRuntimeProps]);
 
   return {
-    aiChatContextValue,
-    ...runtimeProps,
+    assistantRuntimeProps,
+    analysisRuntimeProps,
+    pdfRuntimeProps: runtimeProps.pdfRuntimeProps,
   };
 }

@@ -80,7 +80,7 @@ export function AiChatPromptLabModal({
           {promptTemplates.length === 0 ? (
             <p className="small-text" style={{ margin: 0 }}>{isZh ? '暂无模板。可创建并在对话前一键注入。' : 'No template yet.'}</p>
           ) : (
-            promptTemplates.slice(0, 6).map((item) => (
+            promptTemplates.map((item) => (
               <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 4, alignItems: 'center' }}>
                 <span className="small-text" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.content}>{item.title}</span>
                 <button type="button" className="icon-btn" style={{ height: 24, minWidth: 52, fontSize: 11 }} onClick={() => onInjectTemplate(item.content)}>{isZh ? '注入' : 'Inject'}</button>

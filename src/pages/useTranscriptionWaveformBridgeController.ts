@@ -31,7 +31,7 @@ interface WaveformNoteIndicator {
   layerId?: string;
 }
 
-interface WaveformInteractionHandlerRefs {
+export interface WaveformInteractionHandlerRefs {
   handleWaveformRegionAltPointerDownRef: MutableRefObject<((regionId: string, time: number, pointerId: number, clientX: number) => void) | undefined>;
   handleWaveformRegionClickRef: MutableRefObject<((regionId: string, clickTime: number, event: MouseEvent) => void) | undefined>;
   handleWaveformRegionDoubleClickRef: MutableRefObject<((regionId: string, start: number, end: number) => void) | undefined>;
@@ -131,6 +131,7 @@ interface UseTranscriptionWaveformBridgeControllerResult {
 export function useTranscriptionWaveformBridgeController(
   input: UseTranscriptionWaveformBridgeControllerInput,
 ): UseTranscriptionWaveformBridgeControllerResult {
+  const { setZoomPercent, setAmplitudeScale } = input;
   const waveformAreaRef = useRef<HTMLDivElement | null>(null);
   const waveCanvasRef = useRef<HTMLDivElement | null>(null);
   const [waveformFocused, setWaveformFocused] = useState(false);
@@ -352,16 +353,16 @@ export function useTranscriptionWaveformBridgeController(
       event.preventDefault();
       event.stopPropagation();
       const delta = event.deltaY > 0 ? -10 : 10;
-      input.setZoomPercent((prev) => Math.min(800, Math.max(10, prev + delta)));
+      setZoomPercent((prev) => Math.min(800, Math.max(10, prev + delta)));
       return;
     }
     if (event.altKey) {
       event.preventDefault();
       event.stopPropagation();
       const delta = event.deltaY > 0 ? -0.1 : 0.1;
-      input.setAmplitudeScale((prev) => Math.min(4, Math.max(0.25, prev + delta)));
+      setAmplitudeScale((prev) => Math.min(4, Math.max(0.25, prev + delta)));
     }
-  }, [input]);
+  }, [setAmplitudeScale, setZoomPercent]);
 
   const handleTimelineScroll = useCallback((event: ReactUIEvent<HTMLDivElement>) => {
     const ws = player.instanceRef.current;

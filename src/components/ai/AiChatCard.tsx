@@ -912,6 +912,26 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                 </button>
               </div>
             </div>
+            {quickPromptTemplates.length > 0 && (
+              <div style={{ display: 'grid', gap: 4 }}>
+                <span className="small-text" style={{ color: '#475569' }}>
+                  {isZh ? 'RAG 快捷场景' : 'RAG Quick Scenarios'}
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {quickPromptTemplates.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="icon-btn ai-chat-action-btn ai-chat-action-btn-quiet"
+                      style={{ minWidth: 0, paddingInline: 10, height: 26, fontSize: 11 }}
+                      onClick={() => injectPromptTemplate(item.content)}
+                    >
+                      {item.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {(transientBlockedReason || inputBlockedReason) && (
               <p className="small-text" style={{ margin: 0, color: '#92400e' }}>{transientBlockedReason ?? inputBlockedReason}</p>
             )}

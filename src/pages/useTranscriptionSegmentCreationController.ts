@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 import type {
-  LayerDocType,
   LayerSegmentDocType,
   MediaItemDocType,
   UtteranceDocType,
@@ -8,16 +7,8 @@ import type {
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { formatTime, newId } from '../utils/transcriptionFormatters';
+import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
-
-type SegmentEditMode = 'utterance' | 'independent-segment' | 'time-subdivision';
-
-interface SegmentRoutingResult {
-  layer: LayerDocType | undefined;
-  segmentSourceLayer: LayerDocType | undefined;
-  sourceLayerId: string;
-  editMode: SegmentEditMode;
-}
 
 interface CreateUtteranceOptions {
   speakerId?: string;

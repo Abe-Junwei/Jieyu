@@ -1,11 +1,9 @@
 import { lazy, Suspense } from 'react';
 import '../styles/ai-hub.css';
-import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
-import type { AiChatContextValue } from '../contexts/AiChatContext';
-import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.AssistantRuntime';
 import type {
   TranscriptionPageAnalysisRuntimeProps,
-} from './TranscriptionPage.AnalysisRuntime';
+  TranscriptionPageAssistantRuntimeProps,
+} from './TranscriptionPage.runtimeContracts';
 import type { TranscriptionAssistantStatusSummary } from './transcriptionAssistantStatusSummary';
 
 const AssistantRuntime = lazy(async () => import('./TranscriptionPage.AssistantRuntime').then((module) => ({
@@ -23,11 +21,8 @@ export interface TranscriptionPageAiSidebarProps {
   isAiPanelCollapsed: boolean;
   hubSidebarTab: HubSidebarTab;
   onHubSidebarTabChange: (tab: HubSidebarTab) => void;
-  aiChatContextValue: AiChatContextValue;
-  analysisTab: AnalysisBottomTab;
-  onAnalysisTabChange: (tab: AnalysisBottomTab) => void;
-  assistantRuntimeProps: Omit<TranscriptionPageAssistantRuntimeProps, 'locale' | 'aiChatContextValue'>;
-  analysisRuntimeProps: Omit<TranscriptionPageAnalysisRuntimeProps, 'locale' | 'analysisTab' | 'onAnalysisTabChange'>;
+  assistantRuntimeProps: TranscriptionPageAssistantRuntimeProps;
+  analysisRuntimeProps: TranscriptionPageAnalysisRuntimeProps;
   assistantAttentionCount?: number;
   assistantStatusSummary: TranscriptionAssistantStatusSummary;
 }
@@ -37,9 +32,6 @@ export function TranscriptionPageAiSidebar({
   isAiPanelCollapsed,
   hubSidebarTab,
   onHubSidebarTabChange,
-  aiChatContextValue,
-  analysisTab,
-  onAnalysisTabChange,
   assistantRuntimeProps,
   analysisRuntimeProps,
   assistantAttentionCount = 0,
@@ -85,20 +77,11 @@ export function TranscriptionPageAiSidebar({
 
       {hubSidebarTab === 'assistant' ? (
         <Suspense fallback={null}>
-          <AssistantRuntime
-            locale={locale}
-            aiChatContextValue={aiChatContextValue}
-            {...assistantRuntimeProps}
-          />
+          <AssistantRuntime {...assistantRuntimeProps} />
         </Suspense>
       ) : (
         <Suspense fallback={null}>
-          <AnalysisRuntime
-            locale={locale}
-            analysisTab={analysisTab}
-            onAnalysisTabChange={onAnalysisTabChange}
-            {...analysisRuntimeProps}
-          />
+          <AnalysisRuntime {...analysisRuntimeProps} />
         </Suspense>
       )}
     </aside>

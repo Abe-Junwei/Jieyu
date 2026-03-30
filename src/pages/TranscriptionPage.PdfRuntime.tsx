@@ -2,29 +2,13 @@ import '../styles/pdf-preview.css';
 import { useCallback, useEffect, useRef } from 'react';
 import { PdfPreviewSection } from '../components/PdfPreviewSection';
 import { usePdfPreview } from '../hooks/usePdfPreview';
-import type { Locale } from '../i18n';
-
-export interface PdfPreviewOpenRequest {
-  nonce: number;
-  title: string;
-  page: number | null;
-  sourceUrl?: string;
-  sourceBlob?: Blob;
-  hashSuffix?: string;
-  searchSnippet?: string;
-}
-
-interface TranscriptionPagePdfRuntimeProps {
-  locale: Locale;
-  request: PdfPreviewOpenRequest | null;
-  onCloseRequest?: () => void;
-}
+import type { TranscriptionPagePdfRuntimeProps } from './TranscriptionPage.runtimeContracts';
 
 export function TranscriptionPagePdfRuntime({
   locale,
-  request,
-  onCloseRequest,
+  previewRequest,
 }: TranscriptionPagePdfRuntimeProps) {
+  const { request, onCloseRequest } = previewRequest;
   const {
     pdfPreview,
     setPdfPreview,

@@ -15,7 +15,7 @@ interface SegmentContentLike {
   text?: string;
 }
 
-interface BuildTranscriptionSelectionSnapshotInput {
+export interface BuildTranscriptionSelectionSnapshotInput {
   selectedTimelineUnit: TimelineUnit | null;
   selectedTimelineSegment: LayerSegmentDocType | null;
   selectedTimelineOwnerUtterance: UtteranceDocType | null;

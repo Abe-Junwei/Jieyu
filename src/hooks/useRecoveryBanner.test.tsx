@@ -52,4 +52,46 @@ describe('useRecoveryBanner', () => {
     expect(result.current.recoveryAvailable).toBe(false);
     expect(checkRecovery).toHaveBeenCalledTimes(1);
   });
+
+  it('hides banner after successful apply and forwards dismiss callback', async () => {
+    const snapshot = {
+      utterances: [{ id: 'u1' }],
+      translations: [],
+      layers: [],
+    };
+    const checkRecovery = vi.fn(async () => snapshot);
+    const applyRecovery = vi.fn(async () => true);
+    const dismissRecovery = vi.fn(async () => {});
+
+    const { result } = renderHook(() => useRecoveryBanner({
+      phase: 'ready',
+      utterancesLength: 0,
+      translationsLength: 0,
+      layersLength: 0,
+      checkRecovery,
+      applyRecovery,
+      dismissRecovery,
+    }));
+
+    await waitFor(() => {
+      expect(result.current.recoveryAvailable).toBe(true);
+    });
+
+    act(() => {
+      result.current.applyRecoveryBanner();
+    });
+
+    await waitFor(() => {
+      expect(applyRecovery).toHaveBeenCalledWith(snapshot);
+      expect(result.current.recoveryAvailable).toBe(false);
+    });
+
+    act(() => {
+      result.current.dismissRecoveryBanner();
+    });
+
+    await waitFor(() => {
+      expect(dismissRecovery).toHaveBeenCalledTimes(1);
+    });
+  });
 });

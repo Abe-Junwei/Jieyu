@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  resolveTranscriptionTargetLayerId,
   resolveTranscriptionSelectionAnchor,
   resolveTranscriptionUnitKind,
   resolveTranscriptionUnitTarget,
@@ -20,6 +21,32 @@ describe('transcriptionUnitTargetResolver', () => {
       preferredKind: 'utterance',
       independentLayerIds: new Set(['layer-seg']),
     })).toBe('utterance');
+  });
+
+  it('resolves edit layer fallback in selected -> focused -> unit -> default -> first order', () => {
+    expect(resolveTranscriptionTargetLayerId({
+      selectedLayerId: 'layer-selected',
+      focusedLayerId: 'layer-focused',
+      selectedTimelineUnitLayerId: 'layer-unit',
+      defaultTranscriptionLayerId: 'layer-default',
+      firstTranscriptionLayerId: 'layer-first',
+    })).toBe('layer-selected');
+
+    expect(resolveTranscriptionTargetLayerId({
+      selectedLayerId: '  ',
+      focusedLayerId: 'layer-focused',
+      selectedTimelineUnitLayerId: 'layer-unit',
+      defaultTranscriptionLayerId: 'layer-default',
+      firstTranscriptionLayerId: 'layer-first',
+    })).toBe('layer-focused');
+
+    expect(resolveTranscriptionTargetLayerId({
+      selectedLayerId: '',
+      focusedLayerId: '',
+      selectedTimelineUnitLayerId: ' layer-unit ',
+      defaultTranscriptionLayerId: 'layer-default',
+      firstTranscriptionLayerId: 'layer-first',
+    })).toBe('layer-unit');
   });
 
   it('creates timeline unit targets with resolved kind', () => {

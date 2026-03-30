@@ -15,48 +15,9 @@
 
 import { memo, useState } from 'react';
 import { ChevronDown, ChevronRight, Brain, User, Layers, AlertTriangle } from 'lucide-react';
+import type { GroundingContextData } from '../../services/VoiceAgentGroundingContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface GroundingContextData {
-  /** 当前句段 */
-  currentSegment: {
-    id: string;
-    index: number;
-    text: string;
-    translation: string | null;
-    gloss: string | null;
-    isMarked: boolean;
-    durationSeconds: number;
-  } | null;
-  /** 选中的句段 ID 列表 */
-  selectedSegmentIds: string[];
-  /** 总句段数 */
-  totalSegments: number;
-  /** 用户画像摘要 */
-  userProfile: {
-    preferredMode: string;
-    mostUsedAction: string | null;
-    fatigueScore: number; // 0-1
-    confirmationPreference: 'always' | 'destructive-only' | 'never';
-  };
-  /** 当前任务阶段 */
-  currentPhase: string;
-  /** 困难句段列表（分数 ≥ 0.65） */
-  attentionHotspots: Array<{ segmentId: string; index: number; score: number }>;
-  /** RAG 检索结果 */
-  relevantCorpus: Array<{
-    segmentId: string;
-    text: string;
-    translation: string | null;
-    score: number;
-    source: 'transcription' | 'translation' | 'gloss' | 'document';
-  }>;
-  /** AI 采纳率（近期） */
-  aiAdoptionRate: number | null; // 0-1, null = 无数据
-  /** 上下文构建时间 */
-  contextBuiltAt: number;
-}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 

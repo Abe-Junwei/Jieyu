@@ -45,6 +45,11 @@ import { unlockAudio } from './EarconService';
 import { globalContext } from './GlobalContextService';
 import { userBehaviorStore } from './UserBehaviorStore';
 import { refineLlmFallbackIntent } from './voiceIntentRefine';
+import {
+  buildVoiceAgentGroundingContext,
+  type GroundingContextData,
+  type VoiceAgentGroundingUiContext,
+} from './VoiceAgentGroundingContext';
 import { createLogger } from '../observability/logger';
 
 const log = createLogger('VoiceAgentService');
@@ -88,38 +93,7 @@ function loadSttStrategyRuntime() {
 
 export type VoiceAgentMode = 'command' | 'dictation' | 'analysis';
 
-// ── Grounding Context (Stage 2) ───────────────────────────────────────────────
-
-export interface GroundingContextData {
-  currentSegment: {
-    id: string;
-    index: number;
-    text: string;
-    translation: string | null;
-    gloss: string | null;
-    isMarked: boolean;
-    durationSeconds: number;
-  } | null;
-  selectedSegmentIds: string[];
-  totalSegments: number;
-  userProfile: {
-    preferredMode: string;
-    mostUsedAction: string | null;
-    fatigueScore: number;
-    confirmationPreference: 'always' | 'destructive-only' | 'never';
-  };
-  currentPhase: string;
-  attentionHotspots: Array<{ segmentId: string; index: number; score: number }>;
-  relevantCorpus: Array<{
-    segmentId: string;
-    text: string;
-    translation: string | null;
-    score: number;
-    source: 'transcription' | 'translation' | 'gloss' | 'document';
-  }>;
-  aiAdoptionRate: number | null;
-  contextBuiltAt: number;
-}
+export type { GroundingContextData } from './VoiceAgentGroundingContext';
 
 export interface VoiceAgentServiceState {
   listening: boolean;
@@ -388,12 +362,6 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   get listening() { return this._listening; }
   get mode() { return this._mode; }
   get agentState() { return this._agentState; }
-  get lastIntent() { return this._lastIntent; }
-  get pendingConfirm() { return this._pendingConfirm; }
-  get session() { return this._session; }
-  get error() { return this._error; }
-  get wakeWordEnabled() { return this._wakeWordEnabled; }
-  get safeMode() { return this._safeMode; }
   get engine() { return this._engine; }
   get detectedLang() { return this._detectedLang; }
 
@@ -424,13 +392,10 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     if (partial.wakeWordEnergyLevel !== undefined) this._wakeWordEnergyLevel = partial.wakeWordEnergyLevel;
     if (partial.detectedLang !== undefined) this._detectedLang = partial.detectedLang;
     if (partial.agentState !== undefined) this._agentState = partial.agentState;
-    // groundingContext is derived — read via _buildGroundingContext(), not assigned here
     this._emitStateChange();
   }
 
   private _emitStateChange(): void {
-    // Build and cache the full state object to avoid repeated allocations
-    // and expensive _buildGroundingContext() calls on every .state access.
     this._stateCache = {
       listening: this._listening,
       speechActive: this._speechActive,
@@ -458,11 +423,6 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     this.emit('stateChange', this._stateCache);
   }
 
-  /**
-   * Subscribe to state changes.
-   * Prefer this over raw `on('stateChange', ...)` — returns a cleanup function
-   * that removes the exact same handler reference, preventing listener leaks.
-   */
   onStateChange(handler: StateChangeHandler): () => void {
     const bound = (...args: unknown[]) => {
       const state = args[0] as VoiceAgentServiceState;
@@ -473,10 +433,6 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     return () => this.removeStateListener(handler);
   }
 
-  /**
-   * Remove a state change listener by its original handler reference.
-   * No-op if the handler was never subscribed.
-   */
   removeStateListener(handler: StateChangeHandler): void {
     const bound = this._subscriptions.get(handler);
     if (bound) {
@@ -484,8 +440,6 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       this._subscriptions.delete(handler);
     }
   }
-
-  // ── VoiceInputService lifecycle ─────────────────────────────────────────
 
   private _getEffectiveLang(): string {
     const override = this._langOverride;
@@ -946,6 +900,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       }
       case 'dictation': {
         this._onInsertDictation?.(intent.text ?? result.text);
+        this._setState({ agentState: 'idle' });
         break;
       }
       case 'slot-fill': {
@@ -1072,12 +1027,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
    * Update UI-layer context used for building grounding context.
    * Call this whenever the active segment or selection changes.
    */
-  setUiContext(context: {
-    currentSegmentId?: string | null;
-    selectedSegmentIds?: string[];
-    currentPhase?: string;
-    attentionHotspots?: Array<{ segmentId: string; index: number; score: number }>;
-  }): void {
+  setUiContext(context: Partial<VoiceAgentGroundingUiContext>): void {
     if (context.currentSegmentId !== undefined) this._currentSegmentId = context.currentSegmentId ?? null;
     if (context.selectedSegmentIds !== undefined) this._selectedSegmentIds = context.selectedSegmentIds;
     if (context.currentPhase !== undefined) this._currentPhase = context.currentPhase;
@@ -1086,90 +1036,17 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   }
 
   private _buildGroundingContext(): GroundingContextData {
-    const corpus = globalContext.getCorpusContext();
-    const profile = globalContext.getBehaviorProfile();
-
-    // Find current segment
-    let currentSegment: GroundingContextData['currentSegment'] = null;
-    if (this._currentSegmentId && corpus) {
-      const seg = corpus.segments.find((s) => s.id === this._currentSegmentId);
-      if (seg) {
-        const segIndex = corpus.segments.indexOf(seg) + 1;
-        const duration = seg.audioTimeRange ? seg.audioTimeRange[1] - seg.audioTimeRange[0] : 0;
-        currentSegment = {
-          id: seg.id,
-          index: segIndex,
-          text: seg.text,
-          translation: seg.translation,
-          gloss: seg.glossTiers ? Object.values(seg.glossTiers).join(' / ') : null,
-          isMarked: false,
-          durationSeconds: duration,
-        };
-      }
-    }
-
-    // Compute most used action
-    let mostUsedAction: string | null = null;
-    if (profile.actionFrequencies) {
-      const entries = Object.entries(profile.actionFrequencies);
-      if (entries.length > 0) {
-        entries.sort((a, b) => b[1] - a[1]);
-        const topEntry = entries[0];
-        if (topEntry) mostUsedAction = getActionLabel(topEntry[0] as ActionId);
-      }
-    }
-
-    // Map confirmation threshold (normalize 'destructive' → 'destructive-only')
-    const rawThreshold = profile.preferences?.confirmationThreshold;
-    const confirmationPreference: GroundingContextData['userProfile']['confirmationPreference'] =
-      rawThreshold === 'always' ? 'always' :
-      rawThreshold === 'never' ? 'never' :
-      'destructive-only';
-
-    // Build user profile section
-    const userProfile: GroundingContextData['userProfile'] = {
-      preferredMode: profile.preferences?.preferredMode ?? 'command',
-      mostUsedAction,
-      fatigueScore: profile.fatigue?.score ?? 0,
-      confirmationPreference,
-    };
-
-    // Relevant corpus: search for current segment text if available
-    let relevantCorpus: GroundingContextData['relevantCorpus'] = [];
-    if (currentSegment && corpus) {
-      // Find similar segments (simple keyword overlap for now)
-      const keywords = currentSegment.text.split(/\s+/).filter((w) => w.length > 2);
-      relevantCorpus = corpus.segments
-        .filter((s) => s.id !== currentSegment!.id && keywords.some((kw) => s.text.includes(kw)))
-        .slice(0, 5)
-        .map((s) => ({
-          segmentId: s.id,
-          text: s.text,
-          translation: s.translation,
-          score: keywords.filter((kw) => s.text.includes(kw)).length / keywords.length,
-          source: s.translation ? 'translation' : 'transcription',
-        }));
-    }
-
-    // AI adoption rate: compute from recent session
-    let aiAdoptionRate: number | null = null;
-    const recentEntries = this._session.entries.slice(-20);
-    const aiActions = recentEntries.filter((e) => e.intent.type === 'chat' || e.intent.type === 'tool');
-    if (aiActions.length > 0) {
-      aiAdoptionRate = aiActions.length / Math.max(recentEntries.length, 1);
-    }
-
-    return {
-      currentSegment,
-      selectedSegmentIds: this._selectedSegmentIds,
-      totalSegments: corpus?.segments.length ?? 0,
-      userProfile,
-      currentPhase: this._currentPhase,
-      attentionHotspots: this._attentionHotspots,
-      relevantCorpus,
-      aiAdoptionRate,
-      contextBuiltAt: Date.now(),
-    };
+    return buildVoiceAgentGroundingContext({
+      corpus: globalContext.getCorpusContext(),
+      profile: globalContext.getBehaviorProfile(),
+      session: this._session,
+      uiContext: {
+        currentSegmentId: this._currentSegmentId,
+        selectedSegmentIds: this._selectedSegmentIds,
+        currentPhase: this._currentPhase,
+        attentionHotspots: this._attentionHotspots,
+      },
+    });
   }
 
   // ── Cleanup ────────────────────────────────────────────────────────────

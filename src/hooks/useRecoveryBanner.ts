@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fireAndForget } from '../utils/fireAndForget';
 
 type UseRecoveryBannerParams = {
@@ -23,7 +23,13 @@ export function useRecoveryBanner<TSnapshot extends {
   translationsLength,
   layersLength,
   checkRecovery,
-}: Omit<UseRecoveryBannerParams, 'checkRecovery'> & { checkRecovery: () => Promise<TSnapshot> }) {
+  applyRecovery,
+  dismissRecovery,
+}: Omit<UseRecoveryBannerParams, 'checkRecovery'> & {
+  checkRecovery: () => Promise<TSnapshot>;
+  applyRecovery?: (snapshot: NonNullable<TSnapshot>) => Promise<boolean>;
+  dismissRecovery?: () => Promise<void>;
+}) {
   const [recoveryAvailable, setRecoveryAvailable] = useState(false);
   const [recoveryDiffSummary, setRecoveryDiffSummary] = useState<{ utterances: number; translations: number; layers: number } | null>(null);
   const recoveryDataRef = useRef<TSnapshot>(null as TSnapshot);
@@ -69,10 +75,30 @@ export function useRecoveryBanner<TSnapshot extends {
     setRecoveryAvailable(false);
   };
 
+  const applyRecoveryBanner = useCallback((): void => {
+    if (!applyRecovery) return;
+    const snap = recoveryDataRef.current;
+    if (!snap) return;
+
+    fireAndForget((async () => {
+      const ok = await applyRecovery(snap as NonNullable<TSnapshot>);
+      if (ok) hideRecoveryBanner();
+    })());
+  }, [applyRecovery]);
+
+  const dismissRecoveryBanner = useCallback((): void => {
+    if (dismissRecovery) {
+      fireAndForget(dismissRecovery());
+    }
+    hideRecoveryBanner();
+  }, [dismissRecovery]);
+
   return {
     recoveryAvailable,
     recoveryDiffSummary,
     recoveryDataRef,
     hideRecoveryBanner,
+    applyRecoveryBanner,
+    dismissRecoveryBanner,
   };
 }

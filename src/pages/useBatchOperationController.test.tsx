@@ -69,6 +69,43 @@ describe('useBatchOperationController', () => {
     expect(offsetSelectedTimes).toHaveBeenCalledWith(result.current.selectedUtteranceIdsForSpeakerActionsSet, 1.5);
   });
 
+  it('closes batch action failures into saveState error after partial mapping feedback', async () => {
+    const setSaveState = vi.fn();
+    const offsetSelectedTimes = vi.fn(async () => {
+      throw new Error('disk full');
+    });
+
+    const { result } = renderHook(() => useBatchOperationController({
+      selectedUtteranceIds: new Set(['seg-a', 'missing']),
+      selectedTimelineUnit: null,
+      unitToUtteranceId: new Map([['seg-a', 'utt-1']]),
+      utterancesOnCurrentMedia: [makeUtterance('utt-1', 1, 2)],
+      setSaveState,
+      offsetSelectedTimes,
+      scaleSelectedTimes: vi.fn(async () => undefined),
+      splitByRegex: vi.fn(async () => undefined),
+      mergeSelectedUtterances: vi.fn(async () => undefined),
+    }));
+
+    await act(async () => {
+      await expect(result.current.handleBatchOffset(1.5)).resolves.toBeUndefined();
+    });
+
+    expect(setSaveState).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      kind: 'done',
+      message: expect.stringContaining('已忽略 1 个不可映射选中项'),
+    }));
+    expect(setSaveState).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      kind: 'error',
+      message: '批量时间偏移失败：disk full',
+      errorMeta: expect.objectContaining({
+        category: 'action',
+        action: '批量时间偏移',
+        detail: 'disk full',
+      }),
+    }));
+  });
+
   it('surfaces explicit error when selection exists but maps to no editable utterances', async () => {
     const setSaveState = vi.fn();
     const mergeSelectedUtterances = vi.fn(async () => undefined);

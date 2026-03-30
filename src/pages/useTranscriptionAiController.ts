@@ -17,6 +17,8 @@ import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 
+const TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX = '刷新 AI 工具审计日志失败：';
+
 interface UseTranscriptionAiControllerInput {
   utterances: UtteranceDocType[];
   selectedUtterance: UtteranceDocType | null;
@@ -87,6 +89,15 @@ interface UseTranscriptionAiControllerResult {
 export function useTranscriptionAiController(
   input: UseTranscriptionAiControllerInput,
 ): UseTranscriptionAiControllerResult {
+  const {
+    utterances,
+    transcriptionLayers,
+    translationLayers,
+    formatTime,
+    getUtteranceTextForLayer,
+    translationTextByLayer,
+    handleExecuteRecommendation,
+  } = input;
   const [aiPanelMode, setAiPanelMode] = useState<AiPanelMode>('auto');
   const aiDerivedPersonaRef = useRef<'transcription' | 'glossing' | 'review'>('transcription');
   const aiObserverStageRef = useRef<string>('');
@@ -102,8 +113,14 @@ export function useTranscriptionAiController(
   const [aiSidebarError, setAiSidebarError] = useState<string | null>(null);
 
   const refreshAiToolDecisionLogs = useCallback(async () => {
-    const normalized = await listRecentAiToolDecisionLogs(6);
-    setAiToolDecisionLogs(normalized);
+    try {
+      const normalized = await listRecentAiToolDecisionLogs(6);
+      setAiToolDecisionLogs(normalized);
+      setAiSidebarError((prev) => (prev?.startsWith(TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX) ? null : prev));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setAiSidebarError(`${TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX}${message}`);
+    }
   }, []);
 
   const handleAiToolCall = useAiToolCallHandler({
@@ -144,14 +161,14 @@ export function useTranscriptionAiController(
     recommendations: aiRecommendationRef.current,
     audioTimeSec: aiAudioTimeRef.current,
     recentEdits: input.undoHistory.slice(0, 5).map((item) => String(item)),
-  }), [input]);
+  }), [input.aiConfidenceAvg, input.selectionSnapshot, input.translationLayerCount, input.undoHistory, input.utteranceCount]);
 
   const handleAiToolRiskCheck = useCallback((call: AiChatToolCall): AiToolRiskCheckResult | null => {
     if (call.name === 'delete_layer') {
       const layerId = String(call.arguments.layerId ?? '').trim();
       if (layerId) {
-        const exists = input.transcriptionLayers.some((layer) => layer.id === layerId)
-          || input.translationLayers.some((layer) => layer.id === layerId);
+        const exists = transcriptionLayers.some((layer) => layer.id === layerId)
+          || translationLayers.some((layer) => layer.id === layerId);
         if (!exists) {
           return { requiresConfirmation: false, riskSummary: `未找到目标层：${layerId}`, impactPreview: [] };
         }
@@ -159,8 +176,8 @@ export function useTranscriptionAiController(
         const layerType = String(call.arguments.layerType ?? '').trim().toLowerCase();
         const languageQuery = String(call.arguments.languageQuery ?? '').trim();
         if (layerType && languageQuery) {
-          const pool = layerType === 'translation' ? input.translationLayers
-            : layerType === 'transcription' ? input.transcriptionLayers : [];
+          const pool = layerType === 'translation' ? translationLayers
+            : layerType === 'transcription' ? transcriptionLayers : [];
           const code = resolveLanguageQuery(languageQuery);
           const matchTokens = [languageQuery.toLowerCase(), ...(code ? [code] : [])];
           const entry = code ? SUPPORTED_VOICE_LANGS.flatMap((group) => group.langs).find((lang) => lang.code === code) : undefined;
@@ -187,18 +204,18 @@ export function useTranscriptionAiController(
     const utteranceId = String(call.arguments.utteranceId ?? '').trim();
     if (!utteranceId) return null;
 
-    const targetUtterance = input.utterances.find((item) => item.id === utteranceId);
+    const targetUtterance = utterances.find((item) => item.id === utteranceId);
     if (!targetUtterance) return null;
 
-    const sortedByTime = [...input.utterances].sort((a, b) => a.startTime - b.startTime);
+    const sortedByTime = [...utterances].sort((a, b) => a.startTime - b.startTime);
     const rowIndex = Math.max(0, sortedByTime.findIndex((item) => item.id === utteranceId)) + 1;
-    const timeRange = `${input.formatTime(targetUtterance.startTime)}-${input.formatTime(targetUtterance.endTime)}`;
+    const timeRange = `${formatTime(targetUtterance.startTime)}-${formatTime(targetUtterance.endTime)}`;
 
-    const transcriptionText = input.getUtteranceTextForLayer(targetUtterance).trim();
+    const transcriptionText = getUtteranceTextForLayer(targetUtterance).trim();
     const transcriptionPreview = transcriptionText.length > 0
       ? (transcriptionText.length > 18 ? `${transcriptionText.slice(0, 18)}...` : transcriptionText)
       : '（无转写文本）';
-    const translationLayerCountWithContent = Array.from(input.translationTextByLayer.values()).reduce((count, layerMap) => {
+    const translationLayerCountWithContent = Array.from(translationTextByLayer.values()).reduce((count, layerMap) => {
       const item = layerMap.get(utteranceId);
       return item?.text?.trim() ? count + 1 : count;
     }, 0);
@@ -217,7 +234,7 @@ export function useTranscriptionAiController(
         '可通过撤销（Undo）恢复',
       ],
     };
-  }, [input]);
+  }, [formatTime, getUtteranceTextForLayer, transcriptionLayers, translationLayers, translationTextByLayer, utterances]);
 
   const aiChat = useAiChat({
     onToolCall: handleAiToolCall,
@@ -274,8 +291,8 @@ export function useTranscriptionAiController(
   const handleExecuteObserverRecommendation = useCallback((item: AiObserverRecommendation) => {
     const match = actionableObserverRecommendations.find((candidate) => candidate.id === item.id);
     if (!match) return;
-    fireAndForget(Promise.resolve(input.handleExecuteRecommendation(match)));
-  }, [actionableObserverRecommendations, input]);
+    fireAndForget(Promise.resolve(handleExecuteRecommendation(match)));
+  }, [actionableObserverRecommendations, handleExecuteRecommendation]);
 
   return {
     aiPanelMode,

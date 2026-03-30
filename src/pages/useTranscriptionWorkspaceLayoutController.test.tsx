@@ -91,4 +91,30 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
       expect(localStorage.getItem('jieyu:lane-heights')).toBe(JSON.stringify({ 'layer-a': 144 }));
     });
   });
+
+  it('clears document resize styles on unmount during active resize', async () => {
+    const { result, unmount } = renderHook(() => useTranscriptionWorkspaceLayoutController({
+      layers: [makeLayer('layer-a')],
+      selectedTimelineOwnerUtteranceId: undefined,
+      utteranceRowRef: makeUtteranceRowRef(),
+    }));
+
+    act(() => {
+      result.current.handleVideoPreviewResizeStart({
+        clientY: 120,
+        preventDefault: vi.fn(),
+        stopPropagation: vi.fn(),
+      } as unknown as Parameters<typeof result.current.handleVideoPreviewResizeStart>[0]);
+    });
+
+    await waitFor(() => {
+      expect(document.body.style.userSelect).toBe('none');
+      expect(document.body.style.cursor).toBe('ns-resize');
+    });
+
+    unmount();
+
+    expect(document.body.style.userSelect).toBe('');
+    expect(document.body.style.cursor).toBe('');
+  });
 });

@@ -2,6 +2,8 @@ import {
   createTimelineUnit,
   isSegmentTimelineUnit,
   isUtteranceTimelineUnit,
+  resolveTimelineLayerIdFallback,
+  type TimelineLayerFallbackInput,
   type TimelineUnit,
   type TimelineUnitKind,
 } from '../hooks/transcriptionTypes';
@@ -20,6 +22,10 @@ interface ResolveTranscriptionSelectionAnchorInput {
   expectedKind: TimelineUnitKind;
   fallbackUnitId: string;
   selectedTimelineUnit: TimelineUnit | null | undefined;
+}
+
+export function resolveTranscriptionTargetLayerId(input: TimelineLayerFallbackInput): string {
+  return resolveTimelineLayerIdFallback(input);
 }
 
 export function resolveTranscriptionUnitKind(input: ResolveTranscriptionUnitKindInput): TimelineUnitKind {

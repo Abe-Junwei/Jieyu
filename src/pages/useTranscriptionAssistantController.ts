@@ -75,6 +75,7 @@ interface UseTranscriptionAssistantControllerResult {
 export function useTranscriptionAssistantController(
   input: UseTranscriptionAssistantControllerInput,
 ): UseTranscriptionAssistantControllerResult {
+  const { pushUndo, setUtterances, setSaveState } = input;
   const aiPanelContextValue = useMemo<AiPanelContextValue>(() => ({
     dbName: input.state.phase === 'ready' ? input.state.dbName ?? '' : '',
     utteranceCount: input.state.phase === 'ready'
@@ -229,7 +230,7 @@ export function useTranscriptionAssistantController(
       reportValidationError({
         message,
         i18nKey: 'transcription.error.validation.voiceAnalysisUtteranceRequired',
-        setErrorState: ({ message: nextMessage, meta }) => input.setSaveState({ kind: 'error', message: nextMessage, errorMeta: meta }),
+        setErrorState: ({ message: nextMessage, meta }) => setSaveState({ kind: 'error', message: nextMessage, errorMeta: meta }),
       });
       return { ok: false, message };
     }
@@ -249,12 +250,12 @@ export function useTranscriptionAssistantController(
         reportValidationError({
           message,
           i18nKey: 'transcription.error.validation.voiceAnalysisTargetMissing',
-          setErrorState: ({ message: nextMessage, meta }) => input.setSaveState({ kind: 'error', message: nextMessage, errorMeta: meta }),
+          setErrorState: ({ message: nextMessage, meta }) => setSaveState({ kind: 'error', message: nextMessage, errorMeta: meta }),
         });
         return { ok: false, message };
       }
 
-      input.pushUndo('AI 分析填充');
+      pushUndo('AI 分析填充');
       const now = new Date().toISOString();
       const doc = target.toJSON() as UtteranceDocType;
       const existingNotes = doc.notes ?? {};
@@ -264,23 +265,23 @@ export function useTranscriptionAssistantController(
         updatedAt: now,
       };
       await db.collections.utterances.insert(updated);
-      input.setUtterances((prev) => prev.map((item) => (item.id === utteranceId ? updated : item)));
+      setUtterances((prev) => prev.map((item) => (item.id === utteranceId ? updated : item)));
       const message = 'AI 分析结果已保存到句段备注';
-      input.setSaveState({ kind: 'done', message });
+      setSaveState({ kind: 'done', message });
       return { ok: true, message };
     } catch (error) {
       reportActionError({
         actionLabel: '保存分析结果',
         error,
         i18nKey: 'transcription.error.action.voiceAnalysisSaveFailed',
-        setErrorState: ({ message, meta }) => input.setSaveState({ kind: 'error', message, errorMeta: meta }),
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
       return {
         ok: false,
         message: error instanceof Error ? error.message : '保存分析结果失败',
       };
     }
-  }, [input]);
+  }, [pushUndo, setSaveState, setUtterances]);
 
   return {
     aiPanelContextValue,

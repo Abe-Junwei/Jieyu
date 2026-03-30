@@ -39,7 +39,7 @@ interface UseSpeakerFocusControllerInput {
   speakerByIdMap: Map<string, SpeakerDocType>;
 }
 
-interface SpeakerFocusOption {
+export interface SpeakerFocusOption {
   key: string;
   name: string;
 }

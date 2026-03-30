@@ -4,10 +4,13 @@ import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { Locale } from '../i18n';
-import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.AssistantRuntime';
-import type { TranscriptionPageAnalysisRuntimeProps } from './TranscriptionPage.AnalysisRuntime';
-import type { TranscriptionPageEmbeddingProviderConfig } from './TranscriptionPage.AnalysisRuntime';
-import type { PdfPreviewOpenRequest } from './TranscriptionPage.PdfRuntime';
+import type {
+  PdfPreviewOpenRequest,
+  TranscriptionPageAnalysisRuntimeProps,
+  TranscriptionPageAssistantRuntimeProps,
+  TranscriptionPageEmbeddingProviderConfig,
+  TranscriptionPagePdfRuntimeProps,
+} from './TranscriptionPage.runtimeContracts';
 import {
   createAnalysisRuntimeProps,
   createAssistantRuntimeProps,
@@ -71,65 +74,125 @@ interface UseTranscriptionRuntimePropsInput {
 export type { UseTranscriptionRuntimePropsInput };
 
 type UseTranscriptionAssistantRuntimeProps = Omit<TranscriptionPageAssistantRuntimeProps, 'locale' | 'aiChatContextValue'>;
-type UseTranscriptionAnalysisRuntimeProps = Omit<TranscriptionPageAnalysisRuntimeProps, 'locale' | 'analysisTab' | 'onAnalysisTabChange'>;
+type UseTranscriptionAnalysisRuntimeProps = Omit<TranscriptionPageAnalysisRuntimeProps, 'panel'>;
 
 interface UseTranscriptionRuntimePropsResult {
   assistantRuntimeProps: UseTranscriptionAssistantRuntimeProps;
   analysisRuntimeProps: UseTranscriptionAnalysisRuntimeProps;
-  pdfRuntimeProps: {
-    locale: Locale;
-    request: PdfPreviewOpenRequest | null;
-    onCloseRequest?: () => void;
-  };
+  pdfRuntimeProps: TranscriptionPagePdfRuntimeProps;
 }
 
 export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimePropsInput): UseTranscriptionRuntimePropsResult {
+  const {
+    saveState,
+    recording,
+    recordingUtteranceId,
+    recordingError,
+    overlapCycleToast,
+    lockConflictToast,
+    tfB,
+    activeTextPrimaryLanguageId,
+    getActiveTextPrimaryLanguageId,
+    executeAction,
+    handleResolveVoiceIntentWithLlm,
+    handleVoiceDictation,
+    handleVoiceAnalysisResult,
+    selectionSnapshot,
+    defaultTranscriptionLayerId,
+    translationLayers,
+    layers,
+    formatLayerRailLabel,
+    formatTime,
+    toggleVoiceRef,
+    utterancesOnCurrentMedia,
+    getUtteranceTextForLayer,
+    handleJumpToCitation,
+    handleJumpToEmbeddingMatch,
+    embeddingProviderConfig,
+    setEmbeddingProviderConfig,
+    aiSidebarError,
+    locale,
+    pdfPreviewRequest,
+    setPdfPreviewRequest,
+  } = input;
+
   const handleClosePdfPreviewRequest = useCallback(() => {
-    input.setPdfPreviewRequest(null);
-  }, [input]);
+    setPdfPreviewRequest(null);
+  }, [setPdfPreviewRequest]);
 
   const assistantRuntimeProps = useMemo(() => createAssistantRuntimeProps({
-    saveState: input.saveState,
-    recording: input.recording,
-    recordingUtteranceId: input.recordingUtteranceId,
-    recordingError: input.recordingError,
-    ...(input.overlapCycleToast !== undefined ? { overlapCycleToast: input.overlapCycleToast } : {}),
-    ...(input.lockConflictToast !== undefined ? { lockConflictToast: input.lockConflictToast } : {}),
-    tf: input.tfB,
-    ...(input.activeTextPrimaryLanguageId !== undefined ? { activeTextPrimaryLanguageId: input.activeTextPrimaryLanguageId } : {}),
-    getActiveTextPrimaryLanguageId: input.getActiveTextPrimaryLanguageId,
-    executeAction: input.executeAction,
-    handleResolveVoiceIntentWithLlm: input.handleResolveVoiceIntentWithLlm,
-    handleVoiceDictation: input.handleVoiceDictation,
-    handleVoiceAnalysisResult: input.handleVoiceAnalysisResult,
-    selection: input.selectionSnapshot,
-    ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
-    translationLayers: input.translationLayers,
-    layers: input.layers,
-    formatLayerRailLabel: input.formatLayerRailLabel,
-    formatTime: input.formatTime,
+    saveState,
+    recording,
+    recordingUtteranceId,
+    recordingError,
+    ...(overlapCycleToast !== undefined ? { overlapCycleToast } : {}),
+    ...(lockConflictToast !== undefined ? { lockConflictToast } : {}),
+    tf: tfB,
+    ...(activeTextPrimaryLanguageId !== undefined ? { activeTextPrimaryLanguageId } : {}),
+    getActiveTextPrimaryLanguageId,
+    executeAction,
+    handleResolveVoiceIntentWithLlm,
+    handleVoiceDictation,
+    handleVoiceAnalysisResult,
+    selection: selectionSnapshot,
+    ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
+    translationLayers,
+    layers,
+    formatLayerRailLabel,
+    formatTime,
     onRegisterToggleVoice: (handler) => {
-      input.toggleVoiceRef.current = handler;
+      toggleVoiceRef.current = handler;
     },
-  }), [input]);
+  }), [
+    activeTextPrimaryLanguageId,
+    defaultTranscriptionLayerId,
+    executeAction,
+    formatLayerRailLabel,
+    formatTime,
+    getActiveTextPrimaryLanguageId,
+    handleResolveVoiceIntentWithLlm,
+    handleVoiceAnalysisResult,
+    handleVoiceDictation,
+    layers,
+    lockConflictToast,
+    overlapCycleToast,
+    recording,
+    recordingError,
+    recordingUtteranceId,
+    saveState,
+    selectionSnapshot,
+    tfB,
+    toggleVoiceRef,
+    translationLayers,
+  ]);
 
   const analysisRuntimeProps = useMemo(() => createAnalysisRuntimeProps({
-    selectedUtterance: input.selectionSnapshot.selectedUtterance,
-    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
-    getUtteranceTextForLayer: input.getUtteranceTextForLayer,
-    formatTime: input.formatTime,
-    onJumpToCitation: input.handleJumpToCitation,
-    onJumpToEmbeddingMatch: input.handleJumpToEmbeddingMatch,
-    embeddingProviderConfig: input.embeddingProviderConfig,
-    onEmbeddingProviderConfigChange: input.setEmbeddingProviderConfig,
-    externalErrorMessage: input.aiSidebarError,
-  }), [input]);
+    selectedUtterance: selectionSnapshot.selectedUtterance,
+    utterancesOnCurrentMedia,
+    getUtteranceTextForLayer,
+    formatTime,
+    onJumpToCitation: handleJumpToCitation,
+    onJumpToEmbeddingMatch: handleJumpToEmbeddingMatch,
+    embeddingProviderConfig,
+    onEmbeddingProviderConfigChange: setEmbeddingProviderConfig,
+    externalErrorMessage: aiSidebarError,
+  }), [
+    aiSidebarError,
+    embeddingProviderConfig,
+    formatTime,
+    getUtteranceTextForLayer,
+    handleJumpToCitation,
+    handleJumpToEmbeddingMatch,
+    selectionSnapshot.selectedUtterance,
+    setEmbeddingProviderConfig,
+    utterancesOnCurrentMedia,
+  ]);
 
   const pdfRuntimeProps = useMemo(() => createPdfRuntimeProps({
-    locale: input.locale,
-    request: input.pdfPreviewRequest,
+    locale,
+    request: pdfPreviewRequest,
     onCloseRequest: handleClosePdfPreviewRequest,
-  }), [handleClosePdfPreviewRequest, input.locale, input.pdfPreviewRequest]);
+  }), [handleClosePdfPreviewRequest, locale, pdfPreviewRequest]);
 
   return {
     assistantRuntimeProps,

@@ -31,54 +31,56 @@ export function useTrackEntityStateController(
   const [laneLockMap, setLaneLockMap] = useState<Record<string, number>>({});
   const trackEntityStateByMediaRef = useRef<TrackEntityStateMap | null>(null);
   const trackEntityHydratedKeyRef = useRef<string | null>(null);
+  const { activeTextId, selectedTimelineMediaId, setTranscriptionTrackMode } = input;
 
-  const trackEntityProjectKey = input.activeTextId?.trim() || '__no-project__';
-  const trackEntityScopedKey = input.selectedTimelineMediaId ? `${trackEntityProjectKey}::${input.selectedTimelineMediaId}` : null;
+  const trackEntityProjectKey = activeTextId?.trim() || '__no-project__';
+  const trackEntityScopedKey = selectedTimelineMediaId ? `${trackEntityProjectKey}::${selectedTimelineMediaId}` : null;
 
   useEffect(() => {
-    if (!input.activeTextId) return;
+    if (!activeTextId) return;
     let cancelled = false;
 
-    loadTrackEntityStateMapFromDb(input.activeTextId).then((dbStateMap) => {
+    loadTrackEntityStateMapFromDb(activeTextId).then((dbStateMap) => {
       if (cancelled) return;
       trackEntityStateByMediaRef.current = dbStateMap;
       if (trackEntityScopedKey) {
         const saved = dbStateMap[trackEntityScopedKey] ?? null;
         setLaneLockMap(saved?.laneLockMap ?? {});
-        input.setTranscriptionTrackMode(saved?.mode ?? 'single');
+        setTranscriptionTrackMode(saved?.mode ?? 'single');
+        trackEntityHydratedKeyRef.current = trackEntityScopedKey;
       }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [input.activeTextId, input, trackEntityScopedKey]);
+  }, [activeTextId, setTranscriptionTrackMode, trackEntityScopedKey]);
 
   useEffect(() => {
     if (!trackEntityScopedKey) {
       trackEntityHydratedKeyRef.current = null;
       setLaneLockMap({});
-      input.setTranscriptionTrackMode('single');
+      setTranscriptionTrackMode('single');
       return;
     }
     if (trackEntityStateByMediaRef.current === null) return;
     const saved = getTrackEntityState(trackEntityStateByMediaRef.current, trackEntityScopedKey);
     if (!saved) {
       setLaneLockMap({});
-      input.setTranscriptionTrackMode('single');
+      setTranscriptionTrackMode('single');
       trackEntityHydratedKeyRef.current = trackEntityScopedKey;
       return;
     }
     setLaneLockMap(saved.laneLockMap);
-    input.setTranscriptionTrackMode(saved.mode);
+    setTranscriptionTrackMode(saved.mode);
     trackEntityHydratedKeyRef.current = trackEntityScopedKey;
-  }, [input, trackEntityScopedKey]);
+  }, [setTranscriptionTrackMode, trackEntityScopedKey]);
 
   return {
     laneLockMap,
     setLaneLockMap,
     persistenceContext: {
-      activeTextId: input.activeTextId,
+      activeTextId,
       trackEntityScopedKey,
       trackEntityStateByMediaRef,
       trackEntityHydratedKeyRef,

@@ -61,75 +61,96 @@ interface UseTranscriptionProjectMediaControllerResult {
 export function useTranscriptionProjectMediaController(
   input: UseTranscriptionProjectMediaControllerInput,
 ): UseTranscriptionProjectMediaControllerResult {
+  const {
+    activeTextId,
+    getActiveTextId,
+    setActiveTextId,
+    setShowAudioImport,
+    addMediaItem,
+    setSaveState,
+    selectedMediaUrl,
+    selectedTimelineMedia,
+    utterancesOnCurrentMedia,
+    createUtteranceFromSelectionRouted,
+    loadSnapshot,
+    selectTimelineUnit,
+    locale,
+    tfB,
+    transcriptionLayers,
+    translationLayers,
+    translationTextByLayer,
+    getUtteranceTextForLayer,
+  } = input;
+
   const [audioDeleteConfirm, setAudioDeleteConfirm] = useState<{ filename: string } | null>(null);
   const [projectDeleteConfirm, setProjectDeleteConfirm] = useState(false);
   const [autoSegmentBusy, setAutoSegmentBusy] = useState(false);
 
   const { mediaFileInputRef, handleDirectMediaImport } = useMediaImport({
-    activeTextId: input.activeTextId,
-    getActiveTextId: input.getActiveTextId,
-    addMediaItem: input.addMediaItem,
-    setSaveState: input.setSaveState,
-    setActiveTextId: (id) => input.setActiveTextId(id),
-    tf: input.tfB,
+    activeTextId,
+    getActiveTextId,
+    addMediaItem,
+    setSaveState,
+    setActiveTextId: (id) => setActiveTextId(id),
+    tf: tfB,
   });
 
   const handleAutoSegment = useCallback(() => {
-    const mediaUrl = input.selectedMediaUrl;
+    const mediaUrl = selectedMediaUrl;
     if (!mediaUrl || autoSegmentBusy) return;
     setAutoSegmentBusy(true);
     fireAndForget((async () => {
       try {
         const audioBuf = await loadAudioBuffer(mediaUrl);
         const segments = detectVadSegments(audioBuf);
-        const newSegs = segments.filter((seg) => !input.utterancesOnCurrentMedia.some(
+        const newSegs = segments.filter((seg) => !utterancesOnCurrentMedia.some(
           (utterance) => utterance.startTime < seg.end - 0.05 && utterance.endTime > seg.start + 0.05,
         ));
         for (const seg of newSegs) {
-          await input.createUtteranceFromSelectionRouted(seg.start, seg.end);
+          await createUtteranceFromSelectionRouted(seg.start, seg.end);
         }
-        input.setSaveState({ kind: 'done', message: `VAD 完成，新建 ${newSegs.length} 个句段 | VAD complete: ${newSegs.length} new segments` });
+        setSaveState({ kind: 'done', message: `VAD 完成，新建 ${newSegs.length} 个句段 | VAD complete: ${newSegs.length} new segments` });
       } catch (error) {
         log.error('VAD auto-segment failed', { error: error instanceof Error ? error.message : String(error) });
-        input.setSaveState({ kind: 'error', message: 'VAD 分段失败 | VAD segmentation failed' });
+        setSaveState({ kind: 'error', message: 'VAD 分段失败 | VAD segmentation failed' });
       } finally {
         setAutoSegmentBusy(false);
       }
     })());
-  }, [autoSegmentBusy, input]);
+  }, [autoSegmentBusy, createUtteranceFromSelectionRouted, selectedMediaUrl, setSaveState, utterancesOnCurrentMedia]);
 
   const handleDeleteCurrentAudio = useCallback(() => {
-    if (!input.selectedTimelineMedia) return;
-    setAudioDeleteConfirm({ filename: input.selectedTimelineMedia.filename });
-  }, [input.selectedTimelineMedia]);
+    if (!selectedTimelineMedia) return;
+    setAudioDeleteConfirm({ filename: selectedTimelineMedia.filename });
+  }, [selectedTimelineMedia]);
 
   const handleConfirmAudioDelete = useCallback(() => {
-    const media = input.selectedTimelineMedia;
+    const media = selectedTimelineMedia;
     if (!media) return;
     setAudioDeleteConfirm(null);
     fireAndForget((async () => {
       try {
         await LinguisticService.deleteAudio(media.id);
-        await input.loadSnapshot();
-        input.selectTimelineUnit(null);
-        input.setSaveState({ kind: 'done', message: t(input.locale, 'transcription.action.audioDeleted') });
+        await loadSnapshot();
+        selectTimelineUnit(null);
+        setSaveState({ kind: 'done', message: t(locale, 'transcription.action.audioDeleted') });
       } catch (error) {
         log.error('Failed to delete current audio', {
           mediaId: media.id,
           error: error instanceof Error ? error.message : String(error),
         });
         reportActionError({
-          actionLabel: t(input.locale, 'transcription.action.confirmDeleteAudio'),
+          actionLabel: t(locale, 'transcription.action.confirmDeleteAudio'),
           error,
           fallbackI18nKey: 'transcription.action.audioDeleteFailed',
-          setErrorState: ({ message, meta }) => input.setSaveState({ kind: 'error', message, errorMeta: meta }),
-          fallbackMessage: input.tfB('transcription.action.audioDeleteFailed', {
+          setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+          fallbackMessage: tfB('transcription.action.audioDeleteFailed', {
             message: error instanceof Error ? error.message : String(error),
           }),
         });
       }
     })());
-  }, [input]);
+  }, [loadSnapshot, locale, selectTimelineUnit, selectedTimelineMedia, setSaveState, tfB]);
 
   const handleDeleteCurrentProject = useCallback(() => {
     if (!input.activeTextId) return;
@@ -137,44 +158,44 @@ export function useTranscriptionProjectMediaController(
   }, [input.activeTextId]);
 
   const handleConfirmProjectDelete = useCallback(() => {
-    const activeTextId = input.activeTextId;
-    if (!activeTextId) return;
+    const currentActiveTextId = activeTextId;
+    if (!currentActiveTextId) return;
     setProjectDeleteConfirm(false);
     fireAndForget((async () => {
       try {
-        await LinguisticService.deleteProject(activeTextId);
-        input.setActiveTextId(null);
-        input.selectTimelineUnit(null);
-        await input.loadSnapshot();
-        input.setSaveState({ kind: 'done', message: t(input.locale, 'transcription.action.projectDeleted') });
+        await LinguisticService.deleteProject(currentActiveTextId);
+        setActiveTextId(null);
+        selectTimelineUnit(null);
+        await loadSnapshot();
+        setSaveState({ kind: 'done', message: t(locale, 'transcription.action.projectDeleted') });
       } catch (error) {
         log.error('Failed to delete current project', {
-          textId: activeTextId,
+          textId: currentActiveTextId,
           error: error instanceof Error ? error.message : String(error),
         });
         reportActionError({
-          actionLabel: t(input.locale, 'transcription.action.confirmDeleteProject'),
+          actionLabel: t(locale, 'transcription.action.confirmDeleteProject'),
           error,
           fallbackI18nKey: 'transcription.action.projectDeleteFailed',
-          setErrorState: ({ message, meta }) => input.setSaveState({ kind: 'error', message, errorMeta: meta }),
-          fallbackMessage: input.tfB('transcription.action.projectDeleteFailed', {
+          setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+          fallbackMessage: tfB('transcription.action.projectDeleteFailed', {
             message: error instanceof Error ? error.message : String(error),
           }),
         });
       }
     })());
-  }, [input]);
+  }, [activeTextId, loadSnapshot, locale, selectTimelineUnit, setActiveTextId, setSaveState, tfB]);
 
   const handleProjectSetupSubmit = useCallback(async (projectInput: { titleZh: string; titleEn: string; primaryLanguageId: string }) => {
     const result = await LinguisticService.createProject(projectInput);
-    input.setActiveTextId(result.textId);
-    input.setSaveState({ kind: 'done', message: input.tfB('transcription.action.projectCreated', { title: projectInput.titleZh }) });
-    input.setShowAudioImport(true);
-    await input.loadSnapshot();
-  }, [input]);
+    setActiveTextId(result.textId);
+    setSaveState({ kind: 'done', message: tfB('transcription.action.projectCreated', { title: projectInput.titleZh }) });
+    setShowAudioImport(true);
+    await loadSnapshot();
+  }, [loadSnapshot, setActiveTextId, setSaveState, setShowAudioImport, tfB]);
 
   const handleAudioImport = useCallback(async (file: File, duration: number) => {
-    let textId = input.activeTextId ?? (await input.getActiveTextId());
+    let textId = activeTextId ?? (await getActiveTextId());
     if (!textId) {
       const baseName = file.name.replace(/\.[^.]+$/, '');
       const result = await LinguisticService.createProject({
@@ -183,7 +204,7 @@ export function useTranscriptionProjectMediaController(
         primaryLanguageId: 'und',
       });
       textId = result.textId;
-      input.setActiveTextId(textId);
+      setActiveTextId(textId);
     }
     const blob = new Blob([await file.arrayBuffer()], { type: file.type });
     const { mediaId } = await LinguisticService.importAudio({
@@ -192,7 +213,7 @@ export function useTranscriptionProjectMediaController(
       filename: file.name,
       duration,
     });
-    input.addMediaItem({
+    addMediaItem({
       id: mediaId,
       textId,
       filename: file.name,
@@ -201,35 +222,35 @@ export function useTranscriptionProjectMediaController(
       isOfflineCached: true,
       createdAt: new Date().toISOString(),
     } as MediaItemDocType);
-    input.setSaveState({ kind: 'done', message: input.tfB('transcription.action.audioImported', { filename: file.name }) });
-  }, [input]);
+    setSaveState({ kind: 'done', message: tfB('transcription.action.audioImported', { filename: file.name }) });
+  }, [activeTextId, addMediaItem, getActiveTextId, setActiveTextId, setSaveState, tfB]);
 
   const searchableItems = useMemo<SearchableItem[]>(() => {
     const items: SearchableItem[] = [];
 
-    if (input.transcriptionLayers.length === 0) {
-      for (const utterance of input.utterancesOnCurrentMedia) {
-        items.push({ utteranceId: utterance.id, layerKind: 'transcription', text: input.getUtteranceTextForLayer(utterance) });
+    if (transcriptionLayers.length === 0) {
+      for (const utterance of utterancesOnCurrentMedia) {
+        items.push({ utteranceId: utterance.id, layerKind: 'transcription', text: getUtteranceTextForLayer(utterance) });
       }
     } else {
-      for (const layer of input.transcriptionLayers) {
-        for (const utterance of input.utterancesOnCurrentMedia) {
-          const text = input.getUtteranceTextForLayer(utterance, layer.id);
+      for (const layer of transcriptionLayers) {
+        for (const utterance of utterancesOnCurrentMedia) {
+          const text = getUtteranceTextForLayer(utterance, layer.id);
           if (text) items.push({ utteranceId: utterance.id, layerId: layer.id, layerKind: 'transcription', text });
         }
       }
     }
 
-    for (const layer of input.translationLayers) {
-      const layerMap = input.translationTextByLayer.get(layer.id);
+    for (const layer of translationLayers) {
+      const layerMap = translationTextByLayer.get(layer.id);
       if (!layerMap) continue;
-      for (const utterance of input.utterancesOnCurrentMedia) {
+      for (const utterance of utterancesOnCurrentMedia) {
         const translation = layerMap.get(utterance.id);
         if (translation?.text) items.push({ utteranceId: utterance.id, layerId: layer.id, layerKind: 'translation', text: translation.text });
       }
     }
     return items;
-  }, [input]);
+  }, [getUtteranceTextForLayer, transcriptionLayers, translationLayers, translationTextByLayer, utterancesOnCurrentMedia]);
 
   return {
     mediaFileInputRef,

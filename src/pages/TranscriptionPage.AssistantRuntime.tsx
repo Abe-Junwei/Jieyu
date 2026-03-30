@@ -8,11 +8,11 @@ import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 import { pickVoiceAgentContextValue, useVoiceAgentContextValue } from '../hooks/useVoiceAgentContextValue';
 import { ToastController } from './TranscriptionPage.ToastController';
 import { featureFlags } from '../ai/config/featureFlags';
-import type { LayerDocType, UtteranceDocType } from '../db';
-import type { SaveState } from '../hooks/transcriptionTypes';
-import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
-import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
-import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
+import type {
+  TranscriptionPageAssistantRuntimeFrameProps,
+  TranscriptionPageAssistantRuntimeProps,
+  TranscriptionPageAssistantRuntimeVoiceProps,
+} from './TranscriptionPage.runtimeContracts';
 
 const VoiceAgentWidget = lazy(async () => import('../components/VoiceAgentWidget').then((module) => ({
   default: module.VoiceAgentWidget,
@@ -22,63 +22,21 @@ const AiChatCard = lazy(async () => import('../components/ai/AiChatCard').then((
   default: module.AiChatCard,
 })));
 
-export interface TranscriptionPageAssistantRuntimeProps {
+interface AssistantVoiceRuntimeProps {
   locale: string;
   aiChatContextValue: AiChatContextValue;
-  saveState: SaveState;
-  recording: boolean;
-  recordingUtteranceId: string | null;
-  recordingError: string | null;
-  overlapCycleToast?: { index: number; total: number; nonce: number } | null;
-  lockConflictToast?: { count: number; speakers: string[]; nonce: number } | null;
-  tf: (key: string, opts?: Record<string, unknown>) => string;
-  activeTextPrimaryLanguageId?: string | null;
-  getActiveTextPrimaryLanguageId: () => Promise<string | null>;
-  executeAction: (actionId: string, params?: { segmentIndex?: number }) => void;
-  handleResolveVoiceIntentWithLlm: (input: {
-    text: string;
-    mode: VoiceAgentMode;
-    session: VoiceSession;
-  }) => Promise<VoiceIntent | null>;
-  handleVoiceDictation: (text: string) => void;
-  handleVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => void;
-  selection: TranscriptionPageAssistantRuntimeSelection;
-  defaultTranscriptionLayerId?: string;
-  translationLayers: LayerDocType[];
-  layers: LayerDocType[];
-  formatLayerRailLabel: (layer: LayerDocType) => string;
-  formatTime: (seconds: number) => string;
-  onRegisterToggleVoice: (handler?: () => void) => void;
-}
-
-export interface TranscriptionPageAssistantRuntimeSelection {
-  activeUtteranceUnitId: string | null;
-  selectedUtterance: UtteranceDocType | null;
-  selectedRowMeta: { rowNumber: number; start: number; end: number } | null;
-  selectedLayerId: string | null;
-  selectedUnitKind: TimelineUnitKind | null;
-  selectedTimeRangeLabel?: string;
-}
-
-interface AssistantVoiceRuntimeProps extends Omit<TranscriptionPageAssistantRuntimeProps, 'aiChatContextValue' | 'locale'> {
-  locale: string;
-  aiChatContextValue: AiChatContextValue;
+  frame: TranscriptionPageAssistantRuntimeFrameProps;
+  voice: TranscriptionPageAssistantRuntimeVoiceProps;
   openPanelOnMount: boolean;
   startListeningOnMount: boolean;
   onInitialVoiceRequestHandled: () => void;
 }
 
-interface AssistantRuntimeFrameProps {
+interface AssistantRuntimeHostProps {
   aiChatContextValue: AiChatContextValue;
   aiAssistantHubContextValue: ReturnType<typeof pickAiAssistantHubContextValue>;
   voiceAgentContextValue: ReturnType<typeof pickVoiceAgentContextValue>;
-  saveState: SaveState;
-  recording: boolean;
-  recordingUtteranceId: string | null;
-  recordingError: string | null;
-  overlapCycleToast?: { index: number; total: number; nonce: number } | null;
-  lockConflictToast?: { count: number; speakers: string[]; nonce: number } | null;
-  tf: (key: string, opts?: Record<string, unknown>) => string;
+  frame: TranscriptionPageAssistantRuntimeFrameProps;
   toastVoiceAgent: {
     agentState: string;
     mode: string;
@@ -99,30 +57,24 @@ function AssistantRuntimeFrame({
   aiChatContextValue,
   aiAssistantHubContextValue,
   voiceAgentContextValue,
-  saveState,
-  recording,
-  recordingUtteranceId,
-  recordingError,
-  overlapCycleToast,
-  lockConflictToast,
-  tf,
+  frame,
   toastVoiceAgent,
   voiceDrawer,
   voiceEntry,
-}: AssistantRuntimeFrameProps) {
+}: AssistantRuntimeHostProps) {
   return (
     <VoiceAgentProvider value={voiceAgentContextValue}>
       <AiChatProvider value={aiChatContextValue}>
         <AiAssistantHubContext.Provider value={aiAssistantHubContextValue}>
           <ToastController
             voiceAgent={toastVoiceAgent}
-            saveState={saveState}
-            recording={recording}
-            recordingUtteranceId={recordingUtteranceId}
-            recordingError={recordingError}
-            {...(overlapCycleToast !== undefined ? { overlapCycleToast } : {})}
-            {...(lockConflictToast !== undefined ? { lockConflictToast } : {})}
-            tf={tf}
+            saveState={frame.saveState}
+            recording={frame.recording}
+            recordingUtteranceId={frame.recordingUtteranceId}
+            recordingError={frame.recordingError}
+            {...(frame.overlapCycleToast !== undefined ? { overlapCycleToast: frame.overlapCycleToast } : {})}
+            {...(frame.lockConflictToast !== undefined ? { lockConflictToast: frame.lockConflictToast } : {})}
+            tf={frame.tf}
           />
           <div className="transcription-hub-assistant-panel">
             <div className="transcription-hub-assistant-chat-section">
@@ -144,26 +96,8 @@ function AssistantRuntimeFrame({
 function AssistantVoiceRuntime({
   locale,
   aiChatContextValue,
-  saveState,
-  recording,
-  recordingUtteranceId,
-  recordingError,
-  overlapCycleToast,
-  lockConflictToast,
-  tf,
-  activeTextPrimaryLanguageId,
-  getActiveTextPrimaryLanguageId,
-  executeAction,
-  handleResolveVoiceIntentWithLlm,
-  handleVoiceDictation,
-  handleVoiceAnalysisResult,
-  selection,
-  defaultTranscriptionLayerId,
-  translationLayers,
-  layers,
-  formatLayerRailLabel,
-  formatTime,
-  onRegisterToggleVoice,
+  frame,
+  voice,
   openPanelOnMount,
   startListeningOnMount,
   onInitialVoiceRequestHandled,
@@ -179,8 +113,8 @@ function AssistantVoiceRuntime({
     setCommercialProviderConfig,
     localWhisperConfig,
   } = useVoiceDock({
-    ...(activeTextPrimaryLanguageId !== undefined ? { activeTextPrimaryLanguageId } : {}),
-    getActiveTextPrimaryLanguageId,
+    ...(voice.context.activeTextPrimaryLanguageId !== undefined ? { activeTextPrimaryLanguageId: voice.context.activeTextPrimaryLanguageId } : {}),
+    getActiveTextPrimaryLanguageId: voice.context.getActiveTextPrimaryLanguageId,
   });
 
   const toggleVoiceRef = useRef<(() => void) | undefined>(undefined);
@@ -200,16 +134,16 @@ function AssistantVoiceRuntime({
   } = useVoiceInteraction({
     effectiveVoiceCorpusLang,
     voiceCorpusLangOverride,
-    executeAction,
-    handleResolveVoiceIntentWithLlm,
-    handleVoiceDictation,
-    onVoiceAnalysisResult: handleVoiceAnalysisResult,
-    selection,
-    ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
-    translationLayers,
-    layers,
-    formatLayerRailLabel,
-    formatTime,
+    executeAction: voice.actions.intent.executeAction,
+    handleResolveVoiceIntentWithLlm: voice.actions.intent.handleResolveVoiceIntentWithLlm,
+    handleVoiceDictation: voice.actions.writeback.handleVoiceDictation,
+    onVoiceAnalysisResult: voice.actions.writeback.handleVoiceAnalysisResult,
+    selection: voice.target.selection,
+    ...(voice.target.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: voice.target.defaultTranscriptionLayerId } : {}),
+    translationLayers: voice.target.translationLayers,
+    layers: voice.target.layers,
+    formatLayerRailLabel: voice.target.formatLayerRailLabel,
+    formatTime: voice.target.formatTime,
     aiChatSend: async (text: string) => aiChatContextValue.onSendAiMessage?.(text),
     aiIsStreaming: aiChatContextValue.aiIsStreaming ?? false,
     aiMessages: aiChatContextValue.aiMessages ?? [],
@@ -224,9 +158,9 @@ function AssistantVoiceRuntime({
   });
 
   useEffect(() => {
-    onRegisterToggleVoice(featureFlags.voiceAgentEnabled ? voiceAgent.toggle : undefined);
-    return () => onRegisterToggleVoice(undefined);
-  }, [onRegisterToggleVoice, voiceAgent.toggle]);
+    voice.actions.lifecycle.onRegisterToggleVoice(featureFlags.voiceAgentEnabled ? voiceAgent.toggle : undefined);
+    return () => voice.actions.lifecycle.onRegisterToggleVoice(undefined);
+  }, [voice.actions.lifecycle, voiceAgent.toggle]);
 
   useEffect(() => {
     if (!openPanelOnMount && !startListeningOnMount) return;
@@ -331,13 +265,7 @@ function AssistantVoiceRuntime({
       aiChatContextValue={aiChatContextValue}
       aiAssistantHubContextValue={aiAssistantHubContextValue}
       voiceAgentContextValue={voiceAgentContextValue}
-      saveState={saveState}
-      recording={recording}
-      recordingUtteranceId={recordingUtteranceId}
-      recordingError={recordingError}
-      {...(overlapCycleToast !== undefined ? { overlapCycleToast } : {})}
-      {...(lockConflictToast !== undefined ? { lockConflictToast } : {})}
-      tf={tf}
+      frame={frame}
       toastVoiceAgent={voiceAgent}
       voiceDrawer={voiceDrawer}
       voiceEntry={voiceEntry}
@@ -348,26 +276,8 @@ function AssistantVoiceRuntime({
 export function TranscriptionPageAssistantRuntime({
   locale,
   aiChatContextValue,
-  saveState,
-  recording,
-  recordingUtteranceId,
-  recordingError,
-  overlapCycleToast,
-  lockConflictToast,
-  tf,
-  activeTextPrimaryLanguageId,
-  getActiveTextPrimaryLanguageId,
-  executeAction,
-  handleResolveVoiceIntentWithLlm,
-  handleVoiceDictation,
-  handleVoiceAnalysisResult,
-  selection,
-  defaultTranscriptionLayerId,
-  translationLayers,
-  layers,
-  formatLayerRailLabel,
-  formatTime,
-  onRegisterToggleVoice,
+  frame,
+  voice,
 }: TranscriptionPageAssistantRuntimeProps) {
   const [voiceRuntimeRequested, setVoiceRuntimeRequested] = useState(false);
   const [openVoicePanelOnMount, setOpenVoicePanelOnMount] = useState(false);
@@ -384,9 +294,9 @@ export function TranscriptionPageAssistantRuntime({
   }, []);
 
   useEffect(() => {
-    onRegisterToggleVoice(featureFlags.voiceAgentEnabled ? handleActivateVoiceListening : undefined);
-    return () => onRegisterToggleVoice(undefined);
-  }, [handleActivateVoiceListening, onRegisterToggleVoice]);
+    voice.actions.lifecycle.onRegisterToggleVoice(featureFlags.voiceAgentEnabled ? handleActivateVoiceListening : undefined);
+    return () => voice.actions.lifecycle.onRegisterToggleVoice(undefined);
+  }, [handleActivateVoiceListening, voice.actions.lifecycle]);
 
   const dormantVoiceAgentContextValue = useMemo(() => pickVoiceAgentContextValue({
     ...DEFAULT_VOICE_AGENT_CONTEXT_VALUE,
@@ -420,26 +330,8 @@ export function TranscriptionPageAssistantRuntime({
       <AssistantVoiceRuntime
         locale={locale}
         aiChatContextValue={aiChatContextValue}
-        saveState={saveState}
-        recording={recording}
-        recordingUtteranceId={recordingUtteranceId}
-        recordingError={recordingError}
-        {...(overlapCycleToast !== undefined ? { overlapCycleToast } : {})}
-        {...(lockConflictToast !== undefined ? { lockConflictToast } : {})}
-        tf={tf}
-        {...(activeTextPrimaryLanguageId !== undefined ? { activeTextPrimaryLanguageId } : {})}
-        getActiveTextPrimaryLanguageId={getActiveTextPrimaryLanguageId}
-        executeAction={executeAction}
-        handleResolveVoiceIntentWithLlm={handleResolveVoiceIntentWithLlm}
-        handleVoiceDictation={handleVoiceDictation}
-        handleVoiceAnalysisResult={handleVoiceAnalysisResult}
-        selection={selection}
-        {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
-        translationLayers={translationLayers}
-        layers={layers}
-        formatLayerRailLabel={formatLayerRailLabel}
-        formatTime={formatTime}
-        onRegisterToggleVoice={onRegisterToggleVoice}
+        frame={frame}
+        voice={voice}
         openPanelOnMount={openVoicePanelOnMount}
         startListeningOnMount={startVoiceListeningOnMount}
         onInitialVoiceRequestHandled={handleInitialVoiceRequestHandled}
@@ -452,13 +344,7 @@ export function TranscriptionPageAssistantRuntime({
       aiChatContextValue={aiChatContextValue}
       aiAssistantHubContextValue={dormantAssistantHubContextValue}
       voiceAgentContextValue={dormantVoiceAgentContextValue}
-      saveState={saveState}
-      recording={recording}
-      recordingUtteranceId={recordingUtteranceId}
-      recordingError={recordingError}
-      {...(overlapCycleToast !== undefined ? { overlapCycleToast } : {})}
-      {...(lockConflictToast !== undefined ? { lockConflictToast } : {})}
-      tf={tf}
+      frame={frame}
       toastVoiceAgent={{
         agentState: 'idle',
         mode: 'command',

@@ -99,6 +99,11 @@ function readStoredVideoLayoutMode(): VideoLayoutMode {
   }
 }
 
+function resetDocumentResizeStyles(): void {
+  document.body.style.userSelect = '';
+  document.body.style.cursor = '';
+}
+
 export function useTranscriptionWorkspaceLayoutController(
   input: UseTranscriptionWorkspaceLayoutControllerInput,
 ): UseTranscriptionWorkspaceLayoutControllerResult {
@@ -263,8 +268,7 @@ export function useTranscriptionWorkspaceLayoutController(
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', stop);
       window.removeEventListener('pointercancel', stop);
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
+      resetDocumentResizeStyles();
     };
   }, [isResizingVideoPreview]);
 
@@ -304,10 +308,15 @@ export function useTranscriptionWorkspaceLayoutController(
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', stop);
       window.removeEventListener('pointercancel', stop);
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
+      resetDocumentResizeStyles();
     };
   }, [isResizingVideoRightPanel]);
+
+  useEffect(() => () => {
+    videoPreviewResizeRef.current = null;
+    videoRightPanelResizeRef.current = null;
+    resetDocumentResizeStyles();
+  }, []);
 
   useEffect(() => {
     if (videoLayoutMode === 'right' || videoLayoutMode === 'left') return;
@@ -357,9 +366,9 @@ export function useTranscriptionWorkspaceLayoutController(
     setIsFocusMode(false);
   }, []);
 
-  const toggleSnapEnabled = useCallback(() => {
+  const toggleSnapEnabled = () => {
     setSnapEnabled((prev) => !prev);
-  }, []);
+  };
 
   return {
     zoomPercent,

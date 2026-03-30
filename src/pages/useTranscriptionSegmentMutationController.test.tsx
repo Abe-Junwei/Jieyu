@@ -120,6 +120,58 @@ describe('useTranscriptionSegmentMutationController', () => {
     expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-seg', unitId: 'seg-right', kind: 'segment' });
   });
 
+  it('surfaces structured error when segment split fails', async () => {
+    mockSplitSegment.mockRejectedValueOnce(new Error('split failed'));
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const reloadSegments = vi.fn(async () => undefined);
+    const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
+    const selectTimelineUnit = vi.fn();
+    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
+      setSaveState,
+      reloadSegments,
+      refreshSegmentUndoSnapshot,
+      selectTimelineUnit,
+    })));
+
+    await act(async () => {
+      await result.current.splitRouted('seg-2', 1.5);
+    });
+
+    expect(reloadSegments).not.toHaveBeenCalled();
+    expect(refreshSegmentUndoSnapshot).not.toHaveBeenCalled();
+    expect(selectTimelineUnit).not.toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'error',
+      message: '拆分句段失败：split failed',
+      errorMeta: expect.objectContaining({
+        category: 'action',
+        action: '拆分句段',
+        detail: 'split failed',
+      }),
+    }));
+  });
+
+  it('uses explicit layer override when overlay action targets another segment layer', async () => {
+    const resolveSegmentRoutingForLayer = vi.fn((layerId?: string) => ({
+      layer: makeLayer(layerId ?? 'layer-seg', 'independent_boundary'),
+      segmentSourceLayer: makeLayer(layerId ?? 'layer-seg', 'independent_boundary'),
+      sourceLayerId: layerId ?? 'layer-seg',
+      editMode: 'independent-segment' as const,
+    }));
+    const selectTimelineUnit = vi.fn();
+    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
+      resolveSegmentRoutingForLayer,
+      selectTimelineUnit,
+    })));
+
+    await act(async () => {
+      await result.current.splitRouted('seg-foreign', 1.5, 'layer-foreign');
+    });
+
+    expect(resolveSegmentRoutingForLayer).toHaveBeenCalledWith('layer-foreign');
+    expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-foreign', unitId: 'seg-right', kind: 'segment' });
+  });
+
   it('blocks time-subdivision merge when merged range exceeds parent utterance', async () => {
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const pushUndo = vi.fn();
@@ -167,7 +219,15 @@ describe('useTranscriptionSegmentMutationController', () => {
     expect(mockDeleteSegment).toHaveBeenNthCalledWith(1, 'seg-1');
     expect(mockDeleteSegment).toHaveBeenNthCalledWith(2, 'seg-2');
     expect(reloadSegments).toHaveBeenCalledTimes(1);
-    expect(setSaveState).toHaveBeenCalledWith({ kind: 'error', message: 'delete failed' });
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'error',
+      message: '批量删除句段失败：delete failed',
+      errorMeta: expect.objectContaining({
+        category: 'action',
+        action: '批量删除句段',
+        detail: 'delete failed',
+      }),
+    }));
   });
 
   it('falls back to utterance mutations when current layer does not use segment timeline', async () => {

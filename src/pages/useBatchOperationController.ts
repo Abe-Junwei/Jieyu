@@ -1,9 +1,8 @@
 import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
 import type { UtteranceDocType } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
-import {
-  resolveUtteranceSelectionMapping,
-} from './selectionIdResolvers';
+import { reportActionError } from '../utils/actionErrorReporter';
+import { resolveUtteranceSelectionMapping } from './selectionIdResolvers';
 
 type BatchOperationSelectionAction = (targetIds: Set<string>) => Promise<void>;
 
@@ -75,26 +74,35 @@ export function useBatchOperationController({
     return null;
   }, [batchUtteranceSelectionMapping.unmappedSourceCount, hasBatchSelectionSource, selectedUtteranceIdsForSpeakerActionsSet, setSaveState]);
 
-  const runMappedBatchAction = useCallback(async (action: BatchOperationSelectionAction) => {
+  const runMappedBatchAction = useCallback(async (actionLabel: string, i18nKey: string, action: BatchOperationSelectionAction) => {
     const targetIds = resolveBatchUtteranceTargetIds();
     if (!targetIds) return;
-    await action(targetIds);
-  }, [resolveBatchUtteranceTargetIds]);
+    try {
+      await action(targetIds);
+    } catch (error) {
+      const { message, meta } = reportActionError({ actionLabel, error, i18nKey: i18nKey });
+      setSaveState({
+        kind: 'error',
+        message,
+        ...(meta ? { errorMeta: meta } : {}),
+      });
+    }
+  }, [resolveBatchUtteranceTargetIds, setSaveState]);
 
   const handleBatchOffset = useCallback(async (deltaSec: number) => {
-    await runMappedBatchAction((targetIds) => offsetSelectedTimes(targetIds, deltaSec));
+    await runMappedBatchAction('批量时间偏移', 'transcription.error.action.offsetBatchFailed', (targetIds) => offsetSelectedTimes(targetIds, deltaSec));
   }, [offsetSelectedTimes, runMappedBatchAction]);
 
   const handleBatchScale = useCallback(async (factor: number, anchorTime?: number) => {
-    await runMappedBatchAction((targetIds) => scaleSelectedTimes(targetIds, factor, anchorTime));
+    await runMappedBatchAction('批量时间缩放', 'transcription.error.action.scaleBatchFailed', (targetIds) => scaleSelectedTimes(targetIds, factor, anchorTime));
   }, [runMappedBatchAction, scaleSelectedTimes]);
 
   const handleBatchSplitByRegex = useCallback(async (pattern: string, flags?: string) => {
-    await runMappedBatchAction((targetIds) => splitByRegex(targetIds, pattern, flags));
+    await runMappedBatchAction('正则批量拆分', 'transcription.error.action.regexSplitBatchFailed', (targetIds) => splitByRegex(targetIds, pattern, flags));
   }, [runMappedBatchAction, splitByRegex]);
 
   const handleBatchMerge = useCallback(async () => {
-    await runMappedBatchAction((targetIds) => mergeSelectedUtterances(targetIds));
+    await runMappedBatchAction('批量合并句段', 'transcription.error.action.mergeSelectionFailed', (targetIds) => mergeSelectedUtterances(targetIds));
   }, [mergeSelectedUtterances, runMappedBatchAction]);
 
   return {

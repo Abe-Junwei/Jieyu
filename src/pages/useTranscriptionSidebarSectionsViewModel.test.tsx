@@ -11,13 +11,19 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     isAiPanelCollapsed: false,
     hubSidebarTab: 'analysis',
     setHubSidebarTab: vi.fn(),
-    aiChatContextValue: {
-      aiPendingToolCall: null,
-    } as HookInput['aiChatContextValue'],
-    analysisTab: 'embedding',
-    setAnalysisTab: vi.fn(),
-    assistantRuntimeProps: {} as HookInput['assistantRuntimeProps'],
-    analysisRuntimeProps: {} as HookInput['analysisRuntimeProps'],
+    assistantRuntimeProps: {
+      locale: 'zh-CN',
+      aiChatContextValue: {
+        aiPendingToolCall: null,
+      },
+    } as unknown as HookInput['assistantRuntimeProps'],
+    analysisRuntimeProps: {
+      panel: {
+        locale: 'zh-CN',
+        analysisTab: 'embedding',
+        onAnalysisTabChange: vi.fn(),
+      },
+    } as unknown as HookInput['analysisRuntimeProps'],
     selectedAiWarning: false,
     selectedTranslationGapCount: 0,
     aiSidebarError: null,
@@ -63,12 +69,15 @@ describe('useTranscriptionSidebarSectionsViewModel', () => {
     const setHubSidebarTab = vi.fn();
     renderHook(() => useTranscriptionSidebarSectionsViewModel(createBaseInput({
       setHubSidebarTab,
-      aiChatContextValue: {
-        aiPendingToolCall: {
-          assistantMessageId: 'msg-1',
-          call: { id: 'call-1', name: 'delete_transcription_segment', arguments: {} },
+      assistantRuntimeProps: {
+        locale: 'zh-CN',
+        aiChatContextValue: {
+          aiPendingToolCall: {
+            assistantMessageId: 'msg-1',
+            call: { id: 'call-1', name: 'delete_transcription_segment', arguments: {} },
+          },
         },
-      } as unknown as HookInput['aiChatContextValue'],
+      } as unknown as HookInput['assistantRuntimeProps'],
     })));
 
     await waitFor(() => {
@@ -78,17 +87,20 @@ describe('useTranscriptionSidebarSectionsViewModel', () => {
 
   it('builds assistant status summary from current sidebar signals', () => {
     const { result } = renderHook(() => useTranscriptionSidebarSectionsViewModel(createBaseInput({
-      aiChatContextValue: {
-        aiPendingToolCall: null,
-        aiTaskSession: {
-          id: 'task-1',
-          status: 'waiting_confirm',
-          toolName: 'set_translation_text',
-          updatedAt: '2026-03-30T00:00:00.000Z',
+      assistantRuntimeProps: {
+        locale: 'zh-CN',
+        aiChatContextValue: {
+          aiPendingToolCall: null,
+          aiTaskSession: {
+            id: 'task-1',
+            status: 'waiting_confirm',
+            toolName: 'set_translation_text',
+            updatedAt: '2026-03-30T00:00:00.000Z',
+          },
+          aiInteractionMetrics: null,
+          aiToolDecisionLogs: [],
         },
-        aiInteractionMetrics: null,
-        aiToolDecisionLogs: [],
-      } as unknown as HookInput['aiChatContextValue'],
+      } as unknown as HookInput['assistantRuntimeProps'],
       selectedTranslationGapCount: 2,
     })));
 

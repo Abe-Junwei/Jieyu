@@ -79,6 +79,6 @@ describe('handleTranscriptionCitationJump', () => {
       onOpenPdfPreviewRequest: vi.fn(),
     });
 
-    expect(onSetSidebarError).toHaveBeenCalledWith(expect.stringContaining('文献管理'));
+    expect(onSetSidebarError).toHaveBeenCalledWith(expect.stringContaining('补充来源 URL'));
   });
 });

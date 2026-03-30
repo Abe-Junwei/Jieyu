@@ -3,16 +3,33 @@ import type { SaveState } from '../hooks/transcriptionTypes';
 import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { Locale } from '../i18n';
-import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.AssistantRuntime';
 import type {
+  TranscriptionPageAssistantRuntimeFrameProps,
+  TranscriptionPageAssistantRuntimeProps,
+  TranscriptionPageAssistantRuntimeVoiceActionProps,
+  TranscriptionPageAssistantRuntimeVoiceContextProps,
+  TranscriptionPageAssistantRuntimeVoiceIntentProps,
+  TranscriptionPageAssistantRuntimeVoiceLifecycleProps,
+  TranscriptionPageAssistantRuntimeVoiceProps,
+  TranscriptionPageAssistantRuntimeVoiceTargetProps,
+  TranscriptionPageAssistantRuntimeVoiceWritebackProps,
+  TranscriptionPageAnalysisEmbeddingProps,
+  TranscriptionPageAnalysisEmbeddingNavigationProps,
+  TranscriptionPageAnalysisEmbeddingProviderActionProps,
+  TranscriptionPageAnalysisEmbeddingProviderConfigProps,
+  TranscriptionPageAnalysisEmbeddingProviderProps,
+  TranscriptionPageAnalysisEmbeddingSourceProps,
   TranscriptionPageAnalysisRuntimeProps,
   TranscriptionPageEmbeddingProviderConfig,
-} from './TranscriptionPage.AnalysisRuntime';
-import type { PdfPreviewOpenRequest } from './TranscriptionPage.PdfRuntime';
+  PdfPreviewOpenRequest,
+  TranscriptionPagePdfRuntimeProps,
+  TranscriptionPagePdfRuntimeRequestProps,
+} from './TranscriptionPage.runtimeContracts';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 
 type AssistantRuntimeProps = Omit<TranscriptionPageAssistantRuntimeProps, 'locale' | 'aiChatContextValue'>;
-type AnalysisRuntimeProps = Omit<TranscriptionPageAnalysisRuntimeProps, 'locale' | 'analysisTab' | 'onAnalysisTabChange'>;
+type AnalysisRuntimeProps = Omit<TranscriptionPageAnalysisRuntimeProps, 'panel'>;
+type PdfRuntimeProps = TranscriptionPagePdfRuntimeProps;
 
 interface CreateAssistantRuntimePropsInput {
   saveState: SaveState;
@@ -46,7 +63,7 @@ interface CreateAnalysisRuntimePropsInput {
   utterancesOnCurrentMedia: UtteranceDocType[];
   getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
   formatTime: (seconds: number) => string;
-  onJumpToCitation: TranscriptionPageAnalysisRuntimeProps['onJumpToCitation'];
+  onJumpToCitation: TranscriptionPageAnalysisEmbeddingNavigationProps['onJumpToCitation'];
   onJumpToEmbeddingMatch: (utteranceId: string) => void;
   embeddingProviderConfig: TranscriptionPageEmbeddingProviderConfig;
   onEmbeddingProviderConfigChange: (config: TranscriptionPageEmbeddingProviderConfig) => void;
@@ -70,7 +87,7 @@ interface CreatePdfPreviewOpenRequestInput {
 }
 
 export function createAssistantRuntimeProps(input: CreateAssistantRuntimePropsInput): AssistantRuntimeProps {
-  return {
+  const frame: TranscriptionPageAssistantRuntimeFrameProps = {
     saveState: input.saveState,
     recording: input.recording,
     recordingUtteranceId: input.recordingUtteranceId,
@@ -78,12 +95,34 @@ export function createAssistantRuntimeProps(input: CreateAssistantRuntimePropsIn
     ...(input.overlapCycleToast !== undefined ? { overlapCycleToast: input.overlapCycleToast } : {}),
     ...(input.lockConflictToast !== undefined ? { lockConflictToast: input.lockConflictToast } : {}),
     tf: input.tf,
+  };
+
+  const voiceContext: TranscriptionPageAssistantRuntimeVoiceContextProps = {
     ...(input.activeTextPrimaryLanguageId !== undefined ? { activeTextPrimaryLanguageId: input.activeTextPrimaryLanguageId } : {}),
     getActiveTextPrimaryLanguageId: input.getActiveTextPrimaryLanguageId,
+  };
+
+  const voiceIntent: TranscriptionPageAssistantRuntimeVoiceIntentProps = {
     executeAction: input.executeAction,
     handleResolveVoiceIntentWithLlm: input.handleResolveVoiceIntentWithLlm,
+  };
+
+  const voiceWriteback: TranscriptionPageAssistantRuntimeVoiceWritebackProps = {
     handleVoiceDictation: input.handleVoiceDictation,
     handleVoiceAnalysisResult: input.handleVoiceAnalysisResult,
+  };
+
+  const voiceLifecycle: TranscriptionPageAssistantRuntimeVoiceLifecycleProps = {
+    onRegisterToggleVoice: input.onRegisterToggleVoice,
+  };
+
+  const voiceActions: TranscriptionPageAssistantRuntimeVoiceActionProps = {
+    intent: voiceIntent,
+    writeback: voiceWriteback,
+    lifecycle: voiceLifecycle,
+  };
+
+  const voiceTarget: TranscriptionPageAssistantRuntimeVoiceTargetProps = {
     selection: {
       activeUtteranceUnitId: input.selection.activeUtteranceUnitId,
       selectedUtterance: input.selection.selectedUtterance,
@@ -97,29 +136,67 @@ export function createAssistantRuntimeProps(input: CreateAssistantRuntimePropsIn
     layers: input.layers,
     formatLayerRailLabel: input.formatLayerRailLabel,
     formatTime: input.formatTime,
-    onRegisterToggleVoice: input.onRegisterToggleVoice,
+  };
+
+  const voice: TranscriptionPageAssistantRuntimeVoiceProps = {
+    context: voiceContext,
+    actions: voiceActions,
+    target: voiceTarget,
+  };
+
+  return {
+    frame,
+    voice,
   };
 }
 
 export function createAnalysisRuntimeProps(input: CreateAnalysisRuntimePropsInput): AnalysisRuntimeProps {
-  return {
+  const source: TranscriptionPageAnalysisEmbeddingSourceProps = {
     selectedUtterance: input.selectedUtterance ?? null,
     utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
     getUtteranceTextForLayer: input.getUtteranceTextForLayer,
     formatTime: input.formatTime,
+    externalErrorMessage: input.externalErrorMessage,
+  };
+
+  const navigation: TranscriptionPageAnalysisEmbeddingNavigationProps = {
     onJumpToCitation: input.onJumpToCitation,
     onJumpToEmbeddingMatch: input.onJumpToEmbeddingMatch,
+  };
+
+  const providerConfig: TranscriptionPageAnalysisEmbeddingProviderConfigProps = {
     embeddingProviderConfig: input.embeddingProviderConfig,
+  };
+
+  const providerActions: TranscriptionPageAnalysisEmbeddingProviderActionProps = {
     onEmbeddingProviderConfigChange: input.onEmbeddingProviderConfigChange,
-    externalErrorMessage: input.externalErrorMessage,
+  };
+
+  const provider: TranscriptionPageAnalysisEmbeddingProviderProps = {
+    config: providerConfig,
+    actions: providerActions,
+  };
+
+  const embedding: TranscriptionPageAnalysisEmbeddingProps = {
+    source,
+    navigation,
+    provider,
+  };
+
+  return {
+    embedding,
   };
 }
 
-export function createPdfRuntimeProps(input: CreatePdfRuntimePropsInput): CreatePdfRuntimePropsInput {
-  return {
-    locale: input.locale,
+export function createPdfRuntimeProps(input: CreatePdfRuntimePropsInput): PdfRuntimeProps {
+  const previewRequest: TranscriptionPagePdfRuntimeRequestProps = {
     request: input.request,
     ...(input.onCloseRequest ? { onCloseRequest: input.onCloseRequest } : {}),
+  };
+
+  return {
+    locale: input.locale,
+    previewRequest,
   };
 }
 

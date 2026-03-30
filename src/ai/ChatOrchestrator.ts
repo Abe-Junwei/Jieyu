@@ -89,11 +89,13 @@ export class ChatOrchestrator {
   ): AsyncGenerator<ChatChunk, void, unknown> {
     let usedFallback = false;
     let hasYielded = false;
+    let fallbackError: unknown = null;
     try {
       for await (const chunk of primary.chat(messages, options)) {
         // 若首个 chunk 就是错误，尝试降级 | If first chunk is an error, attempt fallback
         if (!hasYielded && chunk.error) {
           usedFallback = true;
+          fallbackError = chunk.error;
           break;
         }
         hasYielded = true;
@@ -104,14 +106,18 @@ export class ChatOrchestrator {
       // B-17 fix: attempt fallback for ALL errors, not just retryable ones.
       // Non-retryable errors (401/403/format) from primary may still succeed on fallback.
       usedFallback = true;
+      fallbackError = error;
     }
 
     if (usedFallback) {
       // 降级到备用 provider | Fallback to secondary provider
       // 若主模型已输出部分内容后中断，提示可能存在重复 | If primary already emitted partial content, warn about potential duplicates
+      const retryable = isRetryableStreamError(fallbackError);
       const notice = hasYielded
         ? `\n\n---\n[降级] 主模型 (${primary.id}) 输出中断，以下为备用模型 (${fallback.id}) 重新生成的完整回复，上方内容可忽略。`
-        : `[降级] 主模型 (${primary.id}) 不可用，切换到备用模型 (${fallback.id})。`;
+        : retryable
+          ? `[降级] 主模型 (${primary.id}) 暂时不可用，切换到备用模型 (${fallback.id})。`
+          : `[降级] 主模型 (${primary.id}) 返回错误，切换到备用模型 (${fallback.id})。`;
       yield { delta: '', error: notice };
       try {
         yield* fallback.chat(messages, options);

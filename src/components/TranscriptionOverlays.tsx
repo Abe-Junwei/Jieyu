@@ -14,14 +14,14 @@ interface TranscriptionOverlaysProps {
   onCloseUttOpsMenu: () => void;
   selectedTimelineUnit?: TimelineUnit | null;
   selectedUtteranceIds: Set<string>;
-  runDeleteSelection: (anchorId: string, selectedIds: Set<string>) => void;
-  runMergeSelection: (selectedIds: Set<string>) => void;
+  runDeleteSelection: (anchorId: string, selectedIds: Set<string>, unitKind: TimelineUnitKind, layerId: string) => void;
+  runMergeSelection: (selectedIds: Set<string>, unitKind: TimelineUnitKind, layerId: string) => void;
   runSelectBefore: (id: string) => void;
   runSelectAfter: (id: string) => void;
-  runDeleteOne: (id: string) => void;
-  runMergePrev: (id: string) => void;
-  runMergeNext: (id: string) => void;
-  runSplitAtTime: (id: string, splitTime: number) => void;
+  runDeleteOne: (id: string, unitKind: TimelineUnitKind, layerId: string) => void;
+  runMergePrev: (id: string, unitKind: TimelineUnitKind, layerId: string) => void;
+  runMergeNext: (id: string, unitKind: TimelineUnitKind, layerId: string) => void;
+  runSplitAtTime: (id: string, splitTime: number, unitKind: TimelineUnitKind, layerId: string) => void;
   getCurrentTime: () => number;
   onOpenNoteFromMenu: (x: number, y: number, uttId: string, layerId?: string) => void;
   deleteConfirmState: { totalCount: number; textCount: number; emptyCount: number } | null;
@@ -107,8 +107,10 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             const isTranscriptionLayerContext = transcriptionLayers.some((layer) => layer.id === ctxMenu.layerId);
             const items: ContextMenuItem[] = multiCount > 1
               ? [
-                  { label: `删除 ${multiCount} 个句段`, shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUtteranceIds); } },
-                  { label: `合并 ${multiCount} 个句段`, onClick: () => { runMergeSelection(selectedUtteranceIds); } },
+                  { label: `删除 ${multiCount} 个句段`, shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUtteranceIds, targetKind, ctxMenu.layerId); } },
+                  ...(isSegmentUnitContext
+                    ? []
+                    : [{ label: `合并 ${multiCount} 个句段`, onClick: () => { runMergeSelection(selectedUtteranceIds, targetKind, ctxMenu.layerId); } }]),
                   ...(isSegmentUnitContext
                     ? []
                     : [
@@ -117,13 +119,13 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
                       ]),
                 ]
               : [
-                  { label: '删除句段', shortcut: '⌫', danger: true, onClick: () => { runDeleteOne(id); } },
-                  { label: '向前合并', shortcut: '⌘⇧M', onClick: () => { runMergePrev(id); } },
-                  { label: '向后合并', shortcut: '⌘M', onClick: () => { runMergeNext(id); } },
+                  { label: '删除句段', shortcut: '⌫', danger: true, onClick: () => { runDeleteOne(id, targetKind, ctxMenu.layerId); } },
+                  { label: '向前合并', shortcut: '⌘⇧M', onClick: () => { runMergePrev(id, targetKind, ctxMenu.layerId); } },
+                  { label: '向后合并', shortcut: '⌘M', onClick: () => { runMergeNext(id, targetKind, ctxMenu.layerId); } },
                   {
                     label: '从当前位置拆分句段',
                     shortcut: '⌘⇧S',
-                    onClick: () => { runSplitAtTime(id, ctxMenu.splitTime); },
+                    onClick: () => { runSplitAtTime(id, ctxMenu.splitTime, targetKind, ctxMenu.layerId); },
                   },
                   ...(isSegmentUnitContext
                     ? []
@@ -177,17 +179,21 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
           items={(() => {
             const id = selectedTimelineUnit.unitId;
             const multiCount = selectedUtteranceIds.size;
+            const targetKind = selectedTimelineUnit.kind;
+            const targetLayerId = selectedTimelineUnit.layerId;
             if (multiCount > 1) {
               return [
-                { label: `删除 ${multiCount} 个句段`, shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUtteranceIds); } },
-                { label: `合并 ${multiCount} 个句段`, onClick: () => { runMergeSelection(selectedUtteranceIds); } },
+                { label: `删除 ${multiCount} 个句段`, shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUtteranceIds, targetKind, targetLayerId); } },
+                ...(targetKind === 'segment'
+                  ? []
+                  : [{ label: `合并 ${multiCount} 个句段`, onClick: () => { runMergeSelection(selectedUtteranceIds, targetKind, targetLayerId); } }]),
               ];
             }
             return [
-              { label: '删除句段', shortcut: '⌫', danger: true, onClick: () => { runDeleteOne(id); } },
-              { label: '向前合并', shortcut: '⌘⇧M', onClick: () => { runMergePrev(id); } },
-              { label: '向后合并', shortcut: '⌘M', onClick: () => { runMergeNext(id); } },
-              { label: '拆分句段', shortcut: '⌘⇧S', onClick: () => { runSplitAtTime(id, getCurrentTime()); } },
+              { label: '删除句段', shortcut: '⌫', danger: true, onClick: () => { runDeleteOne(id, targetKind, targetLayerId); } },
+              { label: '向前合并', shortcut: '⌘⇧M', onClick: () => { runMergePrev(id, targetKind, targetLayerId); } },
+              { label: '向后合并', shortcut: '⌘M', onClick: () => { runMergeNext(id, targetKind, targetLayerId); } },
+              { label: '拆分句段', shortcut: '⌘⇧S', onClick: () => { runSplitAtTime(id, getCurrentTime(), targetKind, targetLayerId); } },
             ];
           })()}
         />

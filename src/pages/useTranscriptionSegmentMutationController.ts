@@ -1,17 +1,10 @@
 import { useCallback } from 'react';
-import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerSegmentDocType, UtteranceDocType } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
+import { reportActionError } from '../utils/actionErrorReporter';
+import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
-
-type SegmentEditMode = 'utterance' | 'independent-segment' | 'time-subdivision';
-
-interface SegmentRoutingResult {
-  layer: LayerDocType | undefined;
-  segmentSourceLayer: LayerDocType | undefined;
-  sourceLayerId: string;
-  editMode: SegmentEditMode;
-}
 
 interface UseTranscriptionSegmentMutationControllerInput {
   activeLayerIdForEdits: string;
@@ -31,87 +24,117 @@ interface UseTranscriptionSegmentMutationControllerInput {
 }
 
 interface UseTranscriptionSegmentMutationControllerResult {
-  splitRouted: (id: string, splitTime: number) => Promise<void>;
-  mergeWithPreviousRouted: (id: string) => Promise<void>;
-  mergeWithNextRouted: (id: string) => Promise<void>;
-  deleteUtteranceRouted: (id: string) => Promise<void>;
-  deleteSelectedUtterancesRouted: (ids: Set<string>) => Promise<void>;
+  splitRouted: (id: string, splitTime: number, layerIdOverride?: string) => Promise<void>;
+  mergeWithPreviousRouted: (id: string, layerIdOverride?: string) => Promise<void>;
+  mergeWithNextRouted: (id: string, layerIdOverride?: string) => Promise<void>;
+  deleteUtteranceRouted: (id: string, layerIdOverride?: string) => Promise<void>;
+  deleteSelectedUtterancesRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
+}
+
+function setSegmentMutationActionError(
+  setSaveState: (state: SaveState) => void,
+  actionLabel: string,
+  i18nKey: string,
+  error: unknown,
+): void {
+  const { message, meta } = reportActionError({ actionLabel, error, i18nKey: i18nKey });
+  setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) });
 }
 
 export function useTranscriptionSegmentMutationController(
   input: UseTranscriptionSegmentMutationControllerInput,
 ): UseTranscriptionSegmentMutationControllerResult {
-  const createSegmentTarget = (unitId: string) => resolveTranscriptionUnitTarget({
-    layerId: input.activeLayerIdForEdits,
+  const {
+    activeLayerIdForEdits,
+    resolveSegmentRoutingForLayer,
+    pushUndo,
+    reloadSegments,
+    refreshSegmentUndoSnapshot,
+    selectTimelineUnit,
+    segmentsByLayer,
+    utterancesOnCurrentMedia,
+    setSaveState,
+    splitUtterance,
+    mergeWithPrevious,
+    mergeWithNext,
+    deleteUtterance,
+    deleteSelectedUtterances,
+  } = input;
+  const createSegmentTarget = (unitId: string, layerIdOverride?: string) => resolveTranscriptionUnitTarget({
+    layerId: layerIdOverride ?? activeLayerIdForEdits,
     unitId,
     preferredKind: 'segment',
   });
 
-  const splitRouted = useCallback(async (id: string, splitTime: number) => {
-    const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
+  const splitRouted = useCallback(async (id: string, splitTime: number, layerIdOverride?: string) => {
+    const targetLayerId = layerIdOverride ?? activeLayerIdForEdits;
+    const routing = resolveSegmentRoutingForLayer(targetLayerId);
     switch (routing.editMode) {
       case 'independent-segment':
       case 'time-subdivision': {
-        input.pushUndo('拆分句段');
-        const splitResult = await LayerSegmentationV2Service.splitSegment(id, splitTime);
-        await input.reloadSegments();
-        await input.refreshSegmentUndoSnapshot();
-        input.selectTimelineUnit(createSegmentTarget(splitResult.second.id));
+        pushUndo('拆分句段');
+        try {
+          const splitResult = await LayerSegmentationV2Service.splitSegment(id, splitTime);
+          await reloadSegments();
+          await refreshSegmentUndoSnapshot();
+          selectTimelineUnit(createSegmentTarget(splitResult.second.id, targetLayerId));
+        } catch (error) {
+          setSegmentMutationActionError(setSaveState, '拆分句段', 'transcription.error.action.segmentSplitFailed', error);
+        }
         return;
       }
       case 'utterance':
-        await input.splitUtterance(id, splitTime);
+        await splitUtterance(id, splitTime);
         return;
     }
-  }, [createSegmentTarget, input]);
+  }, [activeLayerIdForEdits, createSegmentTarget, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState, splitUtterance]);
 
-  const mergeWithPreviousRouted = useCallback(async (id: string) => {
-    const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
+  const mergeWithPreviousRouted = useCallback(async (id: string, layerIdOverride?: string) => {
+    const targetLayerId = layerIdOverride ?? activeLayerIdForEdits;
+    const routing = resolveSegmentRoutingForLayer(targetLayerId);
     switch (routing.editMode) {
       case 'independent-segment':
       case 'time-subdivision': {
         if (!routing.segmentSourceLayer) return;
-        const segments = input.segmentsByLayer.get(routing.sourceLayerId);
+        const segments = segmentsByLayer.get(routing.sourceLayerId);
         if (!segments) return;
         const index = segments.findIndex((segment) => segment.id === id);
         if (index <= 0) return;
         const prevSeg = segments[index - 1]!;
         const curSeg = segments[index]!;
         if (routing.editMode === 'time-subdivision') {
-          const parentUtt = input.utterancesOnCurrentMedia.find(
+          const parentUtt = utterancesOnCurrentMedia.find(
             (utterance) => utterance.startTime <= curSeg.startTime + 0.01 && utterance.endTime >= curSeg.endTime - 0.01,
           );
           if (parentUtt) {
             const mergedStart = prevSeg.startTime;
             const mergedEnd = curSeg.endTime;
             if (mergedStart < parentUtt.startTime - 0.001 || mergedEnd > parentUtt.endTime + 0.001) {
-              input.setSaveState({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
+              setSaveState({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
               return;
             }
           }
         }
-        input.pushUndo('向前合并句段');
+        pushUndo('向前合并句段');
         try {
           await LayerSegmentationV2Service.mergeAdjacentSegments(prevSeg.id, id);
-          await input.reloadSegments();
-          await input.refreshSegmentUndoSnapshot();
-          input.selectTimelineUnit(createSegmentTarget(prevSeg.id));
+          await reloadSegments();
+          await refreshSegmentUndoSnapshot();
+          selectTimelineUnit(createSegmentTarget(prevSeg.id, targetLayerId));
         } catch (error) {
-          input.setSaveState({
-            kind: 'error',
-            message: error instanceof Error ? error.message : '合并句段失败，请稍后重试。',
-          });
+          setSegmentMutationActionError(setSaveState, '向前合并句段', 'transcription.error.action.segmentMergeFailed', error);
         }
         return;
       }
       case 'utterance':
-        await input.mergeWithPrevious(id);
+        await mergeWithPrevious(id);
         return;
     }
-  }, [createSegmentTarget, input]);
+  }, [activeLayerIdForEdits, createSegmentTarget, mergeWithPrevious, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, segmentsByLayer, selectTimelineUnit, setSaveState, utterancesOnCurrentMedia]);
 
-  const mergeWithNextRouted = useCallback(async (id: string) => {
-    const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
+  const mergeWithNextRouted = useCallback(async (id: string, layerIdOverride?: string) => {
+    const targetLayerId = layerIdOverride ?? input.activeLayerIdForEdits;
+    const routing = input.resolveSegmentRoutingForLayer(targetLayerId);
     switch (routing.editMode) {
       case 'independent-segment':
       case 'time-subdivision': {
@@ -135,78 +158,69 @@ export function useTranscriptionSegmentMutationController(
             }
           }
         }
-        input.pushUndo('向后合并句段');
+        pushUndo('向后合并句段');
         try {
           await LayerSegmentationV2Service.mergeAdjacentSegments(id, nextSeg.id);
-          await input.reloadSegments();
-          await input.refreshSegmentUndoSnapshot();
-          input.selectTimelineUnit(createSegmentTarget(id));
+          await reloadSegments();
+          await refreshSegmentUndoSnapshot();
+          selectTimelineUnit(createSegmentTarget(id, targetLayerId));
         } catch (error) {
-          input.setSaveState({
-            kind: 'error',
-            message: error instanceof Error ? error.message : '合并句段失败，请稍后重试。',
-          });
+          setSegmentMutationActionError(setSaveState, '向后合并句段', 'transcription.error.action.segmentMergeFailed', error);
         }
         return;
       }
       case 'utterance':
-        await input.mergeWithNext(id);
+        await mergeWithNext(id);
         return;
     }
-  }, [createSegmentTarget, input]);
+  }, [activeLayerIdForEdits, createSegmentTarget, mergeWithNext, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, segmentsByLayer, selectTimelineUnit, setSaveState, utterancesOnCurrentMedia]);
 
-  const deleteUtteranceRouted = useCallback(async (id: string) => {
-    const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
+  const deleteUtteranceRouted = useCallback(async (id: string, layerIdOverride?: string) => {
+    const routing = resolveSegmentRoutingForLayer(layerIdOverride ?? activeLayerIdForEdits);
     switch (routing.editMode) {
       case 'independent-segment':
       case 'time-subdivision':
-        input.pushUndo('删除句段');
+        pushUndo('删除句段');
         try {
           await LayerSegmentationV2Service.deleteSegment(id);
-          await input.reloadSegments();
-          await input.refreshSegmentUndoSnapshot();
-          input.selectTimelineUnit(null);
+          await reloadSegments();
+          await refreshSegmentUndoSnapshot();
+          selectTimelineUnit(null);
         } catch (error) {
-          input.setSaveState({
-            kind: 'error',
-            message: error instanceof Error ? error.message : '删除句段失败，请稍后重试。',
-          });
+          setSegmentMutationActionError(setSaveState, '删除句段', 'transcription.error.action.segmentDeleteFailed', error);
         }
         return;
       case 'utterance':
-        await input.deleteUtterance(id);
+        await deleteUtterance(id);
         return;
     }
-  }, [input]);
+  }, [activeLayerIdForEdits, deleteUtterance, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState]);
 
-  const deleteSelectedUtterancesRouted = useCallback(async (ids: Set<string>) => {
-    const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
+  const deleteSelectedUtterancesRouted = useCallback(async (ids: Set<string>, layerIdOverride?: string) => {
+    const routing = resolveSegmentRoutingForLayer(layerIdOverride ?? activeLayerIdForEdits);
     switch (routing.editMode) {
       case 'independent-segment':
       case 'time-subdivision': {
         if (ids.size === 0) return;
         try {
-          input.pushUndo(`删除 ${ids.size} 个句段`);
+          pushUndo(`删除 ${ids.size} 个句段`);
           for (const id of ids) {
             await LayerSegmentationV2Service.deleteSegment(id);
           }
-          await input.reloadSegments();
-          await input.refreshSegmentUndoSnapshot();
-          input.selectTimelineUnit(null);
+          await reloadSegments();
+          await refreshSegmentUndoSnapshot();
+          selectTimelineUnit(null);
         } catch (error) {
-          await input.reloadSegments();
-          input.setSaveState({
-            kind: 'error',
-            message: error instanceof Error ? error.message : '批量删除句段失败，请稍后重试。',
-          });
+          await reloadSegments();
+          setSegmentMutationActionError(setSaveState, '批量删除句段', 'transcription.error.action.segmentBatchDeleteFailed', error);
         }
         return;
       }
       case 'utterance':
-        await input.deleteSelectedUtterances(ids);
+        await deleteSelectedUtterances(ids);
         return;
     }
-  }, [input]);
+  }, [activeLayerIdForEdits, deleteSelectedUtterances, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState]);
 
   return {
     splitRouted,

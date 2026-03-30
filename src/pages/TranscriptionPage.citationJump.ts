@@ -193,8 +193,8 @@ export async function handleTranscriptionCitationJump({
 
     onSetSidebarError(
       locale === 'zh-CN'
-        ? '未找到可打开的 PDF 引用目标。可在文献管理中补充来源 URL 或 PDF 附件。'
-        : 'No openable PDF citation target was found. Add a source URL or PDF attachment in bibliography management.',
+        ? '未找到可打开的 PDF 引用目标。请先补充来源 URL 或 PDF 附件后重试。'
+        : 'No openable PDF citation target was found. Add a source URL or PDF attachment and try again.',
     );
     return;
   }

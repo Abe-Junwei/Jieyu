@@ -158,6 +158,31 @@ describe('AiChatCard input submit', () => {
     expect(sendButton.disabled).toBe(false);
   });
 
+  it('renders RAG quick scenario shortcuts and injects the selected-text template into input', () => {
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          selectedUtterance: {
+            id: 'utt-quick-1',
+            startTime: 1.25,
+            endTime: 3.5,
+            transcription: { default: '这是一条待分析句子' },
+          } as unknown as AiAssistantHubContextValue['selectedUtterance'],
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    expect(within(view.container).getByText(/RAG 快捷场景|RAG Quick Scenarios/i)).toBeTruthy();
+
+    fireEvent.click(within(view.container).getByRole('button', { name: 'RAG 问答模板' }));
+
+    const input = within(view.container).getByRole('textbox') as HTMLInputElement;
+    expect(input.value).toContain('[RAG_SCENARIO:qa]');
+    expect(input.value).toContain('问题：这是一条待分析句子');
+  });
+
   it('renders citation action buttons in fixed priority order', () => {
     const view = render(
       <AiAssistantHubContext.Provider

@@ -73,6 +73,38 @@ describe('useWaveformSelectionController', () => {
     expect(result.current.selectedWaveformTimelineItem?.id).toBe('seg-2');
   });
 
+  it('reuses parent segment timeline for dependent segment-backed layers while preserving dependent selection', () => {
+    const independentLayer = makeLayer('layer-seg', 'independent_boundary');
+    const dependentLayer = {
+      ...makeLayer('layer-dependent'),
+      parentLayerId: 'layer-seg',
+    } as LayerDocType;
+    const selectedTimelineUnit: TimelineUnit = { layerId: 'layer-dependent', unitId: 'seg-2', kind: 'segment' };
+
+    const { result } = renderHook(() => useWaveformSelectionController({
+      activeLayerIdForEdits: 'layer-dependent',
+      layers: [independentLayer, dependentLayer],
+      layerById: new Map([
+        ['layer-seg', independentLayer],
+        ['layer-dependent', dependentLayer],
+      ]),
+      defaultTranscriptionLayerId: 'layer-seg',
+      segmentsByLayer: new Map([['layer-seg', [
+        makeSegment('seg-2', 'layer-seg', 1, 2),
+        makeSegment('seg-1', 'layer-seg', 0, 1),
+      ]]]),
+      utterancesOnCurrentMedia: [makeUtterance('utt-1', 10, 11)],
+      selectedTimelineUnit,
+      selectedUtteranceIds: new Set(['seg-2']),
+    }));
+
+    expect(result.current.activeWaveformSegmentSourceLayer?.id).toBe('layer-seg');
+    expect(result.current.useSegmentWaveformRegions).toBe(true);
+    expect(result.current.waveformTimelineItems.map((item) => item.id)).toEqual(['seg-1', 'seg-2']);
+    expect(result.current.selectedWaveformRegionId).toBe('seg-2');
+    expect(result.current.selectedWaveformTimelineItem?.id).toBe('seg-2');
+  });
+
   it('keeps utterance waveform mode when timeline selection kind does not match', () => {
     const selectedTimelineUnit: TimelineUnit = { layerId: 'layer-main', unitId: 'seg-1', kind: 'segment' };
     const utterances = [makeUtterance('utt-1', 0, 1), makeUtterance('utt-2', 1, 2)];

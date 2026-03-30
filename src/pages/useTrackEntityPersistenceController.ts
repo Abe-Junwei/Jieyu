@@ -21,16 +21,25 @@ interface UseTrackEntityPersistenceControllerInput {
 export function useTrackEntityPersistenceController(
   input: UseTrackEntityPersistenceControllerInput,
 ): void {
+  const {
+    activeTextId,
+    trackEntityScopedKey,
+    trackEntityStateByMediaRef,
+    trackEntityHydratedKeyRef,
+    transcriptionTrackMode,
+    effectiveLaneLockMap,
+  } = input;
+
   useEffect(() => {
-    if (!input.trackEntityScopedKey || !input.activeTextId) return;
-    if (input.trackEntityHydratedKeyRef.current !== input.trackEntityScopedKey) return;
+    if (!trackEntityScopedKey || !activeTextId) return;
+    if (trackEntityHydratedKeyRef.current !== trackEntityScopedKey) return;
     const next = upsertTrackEntityState(
-      input.trackEntityStateByMediaRef.current ?? {},
-      input.trackEntityScopedKey,
-      { mode: input.transcriptionTrackMode, laneLockMap: input.effectiveLaneLockMap },
+      trackEntityStateByMediaRef.current ?? {},
+      trackEntityScopedKey,
+      { mode: transcriptionTrackMode, laneLockMap: effectiveLaneLockMap },
     );
-    input.trackEntityStateByMediaRef.current = next;
+    trackEntityStateByMediaRef.current = next;
     saveTrackEntityStateMap(next, typeof window !== 'undefined' ? window.localStorage : undefined);
-    void saveTrackEntityStateToDb(input.activeTextId, input.trackEntityScopedKey, next[input.trackEntityScopedKey]!);
-  }, [input]);
+    void saveTrackEntityStateToDb(activeTextId, trackEntityScopedKey, next[trackEntityScopedKey]!);
+  }, [activeTextId, effectiveLaneLockMap, trackEntityHydratedKeyRef, trackEntityScopedKey, trackEntityStateByMediaRef, transcriptionTrackMode]);
 }

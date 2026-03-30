@@ -359,6 +359,7 @@ describe('useVoiceAgent', () => {
 
       expect(insertDictation).toHaveBeenCalledWith('这是要听写的内容');
       expect(executeAction).not.toHaveBeenCalled();
+      expect(result.current.agentState).toBe('idle');
     });
 
     it('calls sendToAiChat when chat intent is received in analysis mode', async () => {

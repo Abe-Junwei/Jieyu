@@ -9,7 +9,7 @@ import { APP_SHELL_OPEN_SEARCH_EVENT, type AppShellOpenSearchDetail } from '../u
 import { buildLayerLinkConnectorLayout } from '../utils/layerLinkConnector';
 import { LinguisticService } from '../services/LinguisticService';
 import { createPdfPreviewOpenRequest } from './TranscriptionPage.runtimeProps';
-import type { PdfPreviewOpenRequest } from './TranscriptionPage.PdfRuntime';
+import type { PdfPreviewOpenRequest } from './TranscriptionPage.runtimeContracts';
 
 interface DialogUtteranceLike {
   textId: string;
@@ -96,6 +96,7 @@ interface UseTranscriptionShellControllerResult {
 export function useTranscriptionShellController(
   input: UseTranscriptionShellControllerInput,
 ): UseTranscriptionShellControllerResult {
+  const { layerCreateMessage, setLayerCreateMessage } = input;
   const [focusedLayerRowId, setFocusedLayerRowId] = useState<string>('');
   const [flashLayerRowId, setFlashLayerRowId] = useState<string>('');
   const [showAllLayerConnectors, setShowAllLayerConnectors] = useState(true);
@@ -272,15 +273,15 @@ export function useTranscriptionShellController(
   }, [input.layerCreateMessage, input.orderedLayers, setLayerRailTab]);
 
   useEffect(() => {
-    if (!input.layerCreateMessage) {
+    if (!layerCreateMessage) {
       handledLayerCreateMessageRef.current = '';
       return;
     }
     const timer = window.setTimeout(() => {
-      input.setLayerCreateMessage('');
+      setLayerCreateMessage('');
     }, 3200);
     return () => window.clearTimeout(timer);
-  }, [input]);
+  }, [layerCreateMessage, setLayerCreateMessage]);
 
   return {
     focusedLayerRowId,

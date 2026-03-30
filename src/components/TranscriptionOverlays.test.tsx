@@ -90,7 +90,25 @@ describe('TranscriptionOverlays independent selection routing', () => {
     const deleteItem = await screen.findByRole('menuitem', { name: /删除句段/ });
     fireEvent.click(deleteItem);
 
-    expect(props.runDeleteOne).toHaveBeenCalledWith('seg_1');
+    expect(props.runDeleteOne).toHaveBeenCalledWith('seg_1', 'segment', 'layer_default');
+  });
+
+  it('hides batch merge action for multi-selected segment context', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      unitId: 'seg_2',
+      layerId: 'layer_independent',
+      unitKind: 'segment',
+      splitTime: 0.5,
+    };
+    props.selectedUtteranceIds = new Set(['seg_1', 'seg_2']);
+    props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect(screen.queryByText('合并 2 个句段')).toBeNull();
   });
 
   it('hides select-before/after actions for independent-boundary layer context', async () => {

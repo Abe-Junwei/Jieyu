@@ -231,6 +231,29 @@ describe('useTranscriptionTimelineInteractionController', () => {
     }));
   });
 
+  it('keeps dependent layer id when opening waveform context menu in segment-backed mode', () => {
+    const selectTimelineUnit = vi.fn();
+    const setCtxMenu = vi.fn();
+
+    const { result } = renderHook(() => useTranscriptionTimelineInteractionController(createBaseInput({
+      activeLayerIdForEdits: 'layer-dependent',
+      useSegmentWaveformRegions: true,
+      selectTimelineUnit,
+      setCtxMenu,
+    })));
+
+    act(() => {
+      result.current.handleWaveformRegionContextMenu('seg-2', 80, 16);
+    });
+
+    expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-dependent', unitId: 'seg-2', kind: 'segment' });
+    expect(setCtxMenu).toHaveBeenCalledWith(expect.objectContaining({
+      unitId: 'seg-2',
+      layerId: 'layer-dependent',
+      unitKind: 'segment',
+    }));
+  });
+
   it('routes waveform click, double-click and create through selection and creation handlers', async () => {
     const stop = vi.fn();
     const seekTo = vi.fn();
