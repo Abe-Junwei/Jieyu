@@ -3,18 +3,18 @@ import { TranscriptionTimelineTextOnly } from '../components/TranscriptionTimeli
 import { TranscriptionTimelineMediaLanes } from '../components/TranscriptionTimelineMediaLanes';
 import { TranscriptionPageTimelineEmptyState } from './TranscriptionPage.TimelineEmptyState';
 
-type TimelineMediaLanesProps = ComponentProps<typeof TranscriptionTimelineMediaLanes>;
-type TimelineTextOnlyProps = ComponentProps<typeof TranscriptionTimelineTextOnly>;
-type TimelineEmptyStateProps = ComponentProps<typeof TranscriptionPageTimelineEmptyState>;
+export type TranscriptionPageTimelineMediaLanesProps = ComponentProps<typeof TranscriptionTimelineMediaLanes>;
+export type TranscriptionPageTimelineTextOnlyProps = ComponentProps<typeof TranscriptionTimelineTextOnly>;
+export type TranscriptionPageTimelineEmptyStateProps = ComponentProps<typeof TranscriptionPageTimelineEmptyState>;
 
-interface TranscriptionPageTimelineContentProps {
+export interface TranscriptionPageTimelineContentProps {
   selectedMediaUrl: string | null;
   playerIsReady: boolean;
   playerDuration: number;
   layersCount: number;
-  mediaLanesProps: TimelineMediaLanesProps;
-  textOnlyProps: TimelineTextOnlyProps;
-  emptyStateProps: TimelineEmptyStateProps;
+  mediaLanesProps: TranscriptionPageTimelineMediaLanesProps;
+  textOnlyProps: TranscriptionPageTimelineTextOnlyProps;
+  emptyStateProps: TranscriptionPageTimelineEmptyStateProps;
 }
 
 export function TranscriptionPageTimelineContent({

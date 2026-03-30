@@ -2,11 +2,14 @@ import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction 
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import { createTimelineUnit, isSegmentTimelineUnit, isUtteranceTimelineUnit } from '../hooks/transcriptionTypes';
 import type { SnapGuide } from '../hooks/useTranscriptionData';
 import { handleTranscriptionCitationJump } from './TranscriptionPage.citationJump';
 import { snapToZeroCrossing } from '../services/AudioAnalysisService';
 import { fireAndForget } from '../utils/fireAndForget';
+import {
+  resolveTranscriptionSelectionAnchor,
+  resolveTranscriptionUnitTarget,
+} from './transcriptionUnitTargetResolver';
 
 type ContextMenuUnitKind = 'segment' | 'utterance';
 
@@ -34,7 +37,7 @@ interface PlayerLike {
 interface ContextMenuStateLike {
   x: number;
   y: number;
-  utteranceId: string;
+  unitId: string;
   layerId: string;
   unitKind: ContextMenuUnitKind;
   splitTime: number;
@@ -137,6 +140,11 @@ export function useTranscriptionTimelineInteractionController(
   input: UseTranscriptionTimelineInteractionControllerInput,
 ): UseTranscriptionTimelineInteractionControllerResult {
   const waveformLayerId = input.useSegmentWaveformRegions ? input.activeLayerIdForEdits : undefined;
+  const resolveWaveformUnitTarget = (unitId: string) => resolveTranscriptionUnitTarget({
+    layerId: input.activeLayerIdForEdits,
+    unitId,
+    preferredKind: input.useSegmentWaveformRegions ? 'segment' : 'utterance',
+  });
 
   const handleSearchReplace = useCallback((utteranceId: string, layerId: string | undefined, _oldText: string, newText: string) => {
     if (layerId) {
@@ -190,15 +198,12 @@ export function useTranscriptionTimelineInteractionController(
   const handleZoomToSegmentRequest = useCallback((segmentId: string, zoomLevel?: number) => {
     const target = input.waveformTimelineItems.find((item) => item.id === segmentId);
     if (!target) return false;
+    const nextTarget = resolveWaveformUnitTarget(segmentId);
     input.manualSelectTsRef.current = Date.now();
     if (input.player.isPlaying) {
       input.player.stop();
     }
-    input.selectTimelineUnit(createTimelineUnit(
-      input.activeLayerIdForEdits,
-      segmentId,
-      input.useSegmentWaveformRegions ? 'segment' : 'utterance',
-    ));
+    input.selectTimelineUnit(nextTarget);
     input.player.seekTo(target.startTime);
     if (typeof zoomLevel === 'number' && Number.isFinite(zoomLevel)) {
       input.zoomToPercent(Math.max(100, Math.min(800, zoomLevel * 100)), 0.5, 'custom');
@@ -278,13 +283,10 @@ export function useTranscriptionTimelineInteractionController(
     if (input.player.isPlaying) {
       input.player.stop();
     }
+    const nextTarget = resolveWaveformUnitTarget(regionId);
     const shouldPreserveMultiSelection = input.selectedUtteranceIds.has(regionId) && input.selectedUtteranceIds.size > 1;
     if (!shouldPreserveMultiSelection) {
-      input.selectTimelineUnit({
-        layerId: input.activeLayerIdForEdits,
-        unitId: regionId,
-        kind: input.useSegmentWaveformRegions ? 'segment' : 'utterance',
-      });
+      input.selectTimelineUnit(nextTarget);
     }
 
     const ws = input.player.instanceRef.current;
@@ -304,9 +306,9 @@ export function useTranscriptionTimelineInteractionController(
     input.setCtxMenu({
       x,
       y,
-      utteranceId: regionId,
-      layerId: input.activeLayerIdForEdits,
-      unitKind: input.useSegmentWaveformRegions ? 'segment' : 'utterance',
+      unitId: regionId,
+      layerId: nextTarget.layerId,
+      unitKind: nextTarget.kind,
       splitTime,
     });
   }, [input.activeLayerIdForEdits, input.player, input.selectTimelineUnit, input.selectedUtteranceIds, input.setCtxMenu, input.useSegmentWaveformRegions]);
@@ -323,11 +325,14 @@ export function useTranscriptionTimelineInteractionController(
     input.setSubSelectionRange(null);
     input.manualSelectTsRef.current = Date.now();
     input.player.seekTo(clickTime);
-    if (input.useSegmentWaveformRegions) {
+    const nextTarget = resolveWaveformUnitTarget(regionId);
+    if (nextTarget.kind === 'segment') {
       if (event.shiftKey) {
-        const anchor = isSegmentTimelineUnit(input.selectedTimelineUnit)
-          ? input.selectedTimelineUnit.unitId
-          : regionId;
+        const anchor = resolveTranscriptionSelectionAnchor({
+          expectedKind: 'segment',
+          fallbackUnitId: regionId,
+          selectedTimelineUnit: input.selectedTimelineUnit,
+        });
         input.selectSegmentRange(anchor, regionId, input.waveformTimelineItems);
         return;
       }
@@ -335,13 +340,15 @@ export function useTranscriptionTimelineInteractionController(
         input.toggleSegmentSelection(regionId);
         return;
       }
-      input.selectTimelineUnit(createTimelineUnit(input.activeLayerIdForEdits, regionId, 'segment'));
+      input.selectTimelineUnit(nextTarget);
       return;
     }
     if (event.shiftKey) {
-      const anchor = isUtteranceTimelineUnit(input.selectedTimelineUnit)
-        ? input.selectedTimelineUnit.unitId
-        : regionId;
+      const anchor = resolveTranscriptionSelectionAnchor({
+        expectedKind: 'utterance',
+        fallbackUnitId: regionId,
+        selectedTimelineUnit: input.selectedTimelineUnit,
+      });
       input.selectUtteranceRange(anchor, regionId);
       return;
     }
@@ -349,7 +356,7 @@ export function useTranscriptionTimelineInteractionController(
       input.toggleUtteranceSelection(regionId);
       return;
     }
-    input.selectTimelineUnit(createTimelineUnit(input.activeLayerIdForEdits, regionId, 'utterance'));
+    input.selectTimelineUnit(nextTarget);
   }, [input.activeLayerIdForEdits, input.manualSelectTsRef, input.player, input.selectSegmentRange, input.selectTimelineUnit, input.selectUtteranceRange, input.selectedTimelineUnit, input.setSubSelectionRange, input.toggleSegmentSelection, input.toggleUtteranceSelection, input.useSegmentWaveformRegions, input.waveformTimelineItems]);
 
   const handleWaveformRegionDoubleClick = useCallback((_regionId: string, start: number, end: number) => {
@@ -376,11 +383,7 @@ export function useTranscriptionTimelineInteractionController(
     input.endTimingGesture(regionId);
     input.setDragPreview(null);
     input.manualSelectTsRef.current = Date.now();
-    input.selectTimelineUnit(createTimelineUnit(
-      input.activeLayerIdForEdits,
-      regionId,
-      input.useSegmentWaveformRegions ? 'segment' : 'utterance',
-    ));
+    input.selectTimelineUnit(resolveWaveformUnitTarget(regionId));
 
     let finalStart = start;
     let finalEnd = end;
@@ -439,7 +442,7 @@ export function useTranscriptionTimelineInteractionController(
     }
 
     fireAndForget(saveTimingRouted(regionId, finalStart, finalEnd, waveformLayerId));
-  }, [getNeighborBoundsRouted, input.activeLayerIdForEdits, input.endTimingGesture, input.makeSnapGuide, input.manualSelectTsRef, input.player.instanceRef, input.reloadSegments, input.resolveSegmentRoutingForLayer, input.selectTimelineUnit, input.setDragPreview, input.setSaveState, input.setSnapGuide, input.snapEnabled, input.useSegmentWaveformRegions, input.utterancesOnCurrentMedia, input.waveformTimelineItems, saveTimingRouted, waveformLayerId]);
+  }, [getNeighborBoundsRouted, input.activeLayerIdForEdits, input.endTimingGesture, input.makeSnapGuide, input.manualSelectTsRef, input.player.instanceRef, input.reloadSegments, input.resolveSegmentRoutingForLayer, input.selectTimelineUnit, input.setDragPreview, input.setSaveState, input.setSnapGuide, input.snapEnabled, input.utterancesOnCurrentMedia, input.useSegmentWaveformRegions, input.waveformTimelineItems, saveTimingRouted, waveformLayerId]);
 
   const handleWaveformTimeUpdate = useCallback((time: number) => {
     if (Date.now() - input.manualSelectTsRef.current < 600) return;
@@ -463,11 +466,7 @@ export function useTranscriptionTimelineInteractionController(
       }
     }
     if (!hit || hit.id === input.selectedWaveformRegionId) return;
-    input.selectTimelineUnit({
-      layerId: input.activeLayerIdForEdits,
-      unitId: hit.id,
-      kind: input.useSegmentWaveformRegions ? 'segment' : 'utterance',
-    });
+    input.selectTimelineUnit(resolveWaveformUnitTarget(hit.id));
   }, [input.activeLayerIdForEdits, input.creatingSegmentRef, input.manualSelectTsRef, input.markingModeRef, input.selectTimelineUnit, input.selectedWaveformRegionId, input.useSegmentWaveformRegions, input.waveformTimelineItems]);
 
   return {

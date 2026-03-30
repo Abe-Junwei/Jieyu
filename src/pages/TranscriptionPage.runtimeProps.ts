@@ -9,6 +9,7 @@ import type {
   TranscriptionPageEmbeddingProviderConfig,
 } from './TranscriptionPage.AnalysisRuntime';
 import type { PdfPreviewOpenRequest } from './TranscriptionPage.PdfRuntime';
+import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 
 type AssistantRuntimeProps = Omit<TranscriptionPageAssistantRuntimeProps, 'locale' | 'aiChatContextValue'>;
 type AnalysisRuntimeProps = Omit<TranscriptionPageAnalysisRuntimeProps, 'locale' | 'analysisTab' | 'onAnalysisTabChange'>;
@@ -31,10 +32,7 @@ interface CreateAssistantRuntimePropsInput {
   }) => Promise<VoiceIntent | null>;
   handleVoiceDictation: (text: string) => void;
   handleVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => void;
-  selectedTimelineUtteranceId: string | null;
-  selectedUtterance: UtteranceDocType | null | undefined;
-  selectedRowMeta: { rowNumber: number; start: number; end: number } | null;
-  selectedLayerId: string | null;
+  selection: TranscriptionSelectionSnapshot;
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
@@ -86,10 +84,14 @@ export function createAssistantRuntimeProps(input: CreateAssistantRuntimePropsIn
     handleResolveVoiceIntentWithLlm: input.handleResolveVoiceIntentWithLlm,
     handleVoiceDictation: input.handleVoiceDictation,
     handleVoiceAnalysisResult: input.handleVoiceAnalysisResult,
-    activeUtteranceUnitId: input.selectedTimelineUtteranceId || null,
-    selectedUtterance: input.selectedUtterance ?? null,
-    selectedRowMeta: input.selectedRowMeta,
-    selectedLayerId: input.selectedLayerId,
+    selection: {
+      activeUtteranceUnitId: input.selection.activeUtteranceUnitId,
+      selectedUtterance: input.selection.selectedUtterance,
+      selectedRowMeta: input.selection.selectedRowMeta,
+      selectedLayerId: input.selection.selectedLayerId,
+      selectedUnitKind: input.selection.selectedUnitKind,
+      ...(input.selection.selectedTimeRangeLabel ? { selectedTimeRangeLabel: input.selection.selectedTimeRangeLabel } : {}),
+    },
     ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
     translationLayers: input.translationLayers,
     layers: input.layers,

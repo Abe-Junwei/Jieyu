@@ -134,19 +134,30 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps media-scoped track entity persistence integration', () => {
-    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
-    const code = fs.readFileSync(filePath, 'utf8');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const stateHookPath = path.resolve(process.cwd(), 'src/pages/useTrackEntityStateController.ts');
+    const stateHookCode = fs.readFileSync(stateHookPath, 'utf8');
+    const persistenceHookPath = path.resolve(process.cwd(), 'src/pages/useTrackEntityPersistenceController.ts');
+    const persistenceHookCode = fs.readFileSync(persistenceHookPath, 'utf8');
 
-    expect(code.includes('trackEntityStateByMediaRef')).toBe(true);
-    expect(code.includes('trackEntityHydratedKeyRef')).toBe(true);
-    expect(code.includes('const trackEntityProjectKey = activeTextId?.trim() ||')).toBe(true);
-    expect(code.includes("const trackEntityMediaId = selectedTimelineMedia?.id ?? null;")).toBe(true);
-    expect(code.includes('const trackEntityScopedKey = trackEntityMediaId ? `${trackEntityProjectKey}::${trackEntityMediaId}` : null;')).toBe(true);
-    expect(code.includes('const trackEntityScopedKey = trackEntityMediaId ?')).toBe(true);
-    expect(code.includes('if (!trackEntityScopedKey) {')).toBe(true);
-    expect(code.includes('const saved = getTrackEntityState(trackEntityStateByMediaRef.current, trackEntityScopedKey);')).toBe(true);
-    expect(code.includes('if (trackEntityHydratedKeyRef.current !== trackEntityScopedKey) return;')).toBe(true);
-    expect(code.includes('saveTrackEntityStateMap(next')).toBe(true);
+    expect(orchestratorCode.includes("import { useTrackEntityStateController } from './useTrackEntityStateController';")).toBe(true);
+    expect(orchestratorCode.includes("import { useTrackEntityPersistenceController } from './useTrackEntityPersistenceController';")).toBe(true);
+    expect(orchestratorCode.includes('} = useTrackEntityStateController({')).toBe(true);
+    expect(orchestratorCode.includes('useTrackEntityPersistenceController({')).toBe(true);
+    expect(orchestratorCode.includes('trackEntityPersistenceContext.trackEntityStateByMediaRef')).toBe(true);
+    expect(orchestratorCode.includes('trackEntityPersistenceContext.trackEntityHydratedKeyRef')).toBe(true);
+
+    expect(stateHookCode.includes("const trackEntityProjectKey = input.activeTextId?.trim() || '__no-project__';")).toBe(true);
+    expect(stateHookCode.includes('const trackEntityScopedKey = input.selectedTimelineMediaId ? `${trackEntityProjectKey}::${input.selectedTimelineMediaId}` : null;')).toBe(true);
+    expect(stateHookCode.includes('trackEntityStateByMediaRef.current = dbStateMap;')).toBe(true);
+    expect(stateHookCode.includes('const saved = getTrackEntityState(trackEntityStateByMediaRef.current, trackEntityScopedKey);')).toBe(true);
+    expect(stateHookCode.includes('trackEntityHydratedKeyRef.current = trackEntityScopedKey;')).toBe(true);
+
+    expect(persistenceHookCode.includes('if (input.trackEntityHydratedKeyRef.current !== input.trackEntityScopedKey) return;')).toBe(true);
+    expect(persistenceHookCode.includes('const next = upsertTrackEntityState(')).toBe(true);
+    expect(persistenceHookCode.includes('saveTrackEntityStateMap(next')).toBe(true);
+    expect(persistenceHookCode.includes('saveTrackEntityStateToDb(input.activeTextId, input.trackEntityScopedKey, next[input.trackEntityScopedKey]!)')).toBe(true);
   });
 
   it('clears explicit focus target safely by forcing mode back to all', () => {
@@ -159,18 +170,41 @@ describe('TranscriptionPage structure invariants', () => {
     expect(code.includes("setSpeakerFocusMode('all');")).toBe(true);
   });
 
+  it('keeps assistant sidebar assembly outside orchestrator inline glue', () => {
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const controllerPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionAssistantSidebarController.ts');
+    const controllerCode = fs.readFileSync(controllerPath, 'utf8');
+    const summaryPath = path.resolve(process.cwd(), 'src/pages/transcriptionAssistantStatusSummary.ts');
+    const summaryCode = fs.readFileSync(summaryPath, 'utf8');
+
+    expect(orchestratorCode.includes("import { useTranscriptionAssistantSidebarController } from './useTranscriptionAssistantSidebarController';")).toBe(true);
+    expect(orchestratorCode.includes('} = useTranscriptionAssistantSidebarController({')).toBe(true);
+    expect(orchestratorCode.includes("import { useAiChatContextValue } from '../hooks/useAiChatContextValue';")).toBe(false);
+    expect(orchestratorCode.includes("import { useTranscriptionRuntimeProps } from './useTranscriptionRuntimeProps';")).toBe(false);
+
+    expect(controllerCode.includes('const aiChatContextValue = useAiChatContextValue({')).toBe(true);
+    expect(controllerCode.includes('const runtimeProps = useTranscriptionRuntimeProps(input.runtimePropsInput);')).toBe(true);
+    expect(summaryCode.includes('export function buildTranscriptionAssistantStatusSummary(')).toBe(true);
+  });
+
   it('keeps waveform region routing for independent-boundary layers', () => {
     const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
     const code = fs.readFileSync(filePath, 'utf8');
+    const waveformBridgeHookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionWaveformBridgeController.ts');
+    const waveformBridgeHookCode = fs.readFileSync(waveformBridgeHookPath, 'utf8');
 
-    expect(code.includes('const activeLayerIdForEdits = resolveTimelineLayerIdFallback({')).toBe(true);
-    expect(code.includes('selectedLayerId,')).toBe(true);
-    expect(code.includes('focusedLayerId: focusedLayerRowId,')).toBe(true);
-    expect(code.includes('selectedTimelineUnitLayerId: selectedTimelineUnit?.layerId,')).toBe(true);
-    expect(code.includes('defaultTranscriptionLayerId,')).toBe(true);
-    expect(code.includes('firstTranscriptionLayerId: transcriptionLayers[0]?.id,')).toBe(true);
-    expect(code.includes('currentLayerId: activeLayerIdForEdits || undefined,')).toBe(true);
+    const segmentBridgeHookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSegmentBridgeController.ts');
+    const segmentBridgeHookCode = fs.readFileSync(segmentBridgeHookPath, 'utf8');
 
+    expect(code.includes("import { useTranscriptionSegmentBridgeController } from './useTranscriptionSegmentBridgeController';")).toBe(true);
+    expect(code.includes('} = useTranscriptionSegmentBridgeController({')).toBe(true);
+    expect(segmentBridgeHookCode.includes('const activeLayerIdForEdits = useMemo(() => resolveTimelineLayerIdFallback({')).toBe(true);
+    expect(segmentBridgeHookCode.includes('selectedLayerId: input.selectedLayerId,')).toBe(true);
+    expect(segmentBridgeHookCode.includes('focusedLayerId: input.focusedLayerId,')).toBe(true);
+    expect(segmentBridgeHookCode.includes('selectedTimelineUnitLayerId: input.selectedTimelineUnit?.layerId,')).toBe(true);
+    expect(segmentBridgeHookCode.includes('defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,')).toBe(true);
+    expect(segmentBridgeHookCode.includes('firstTranscriptionLayerId: input.firstTranscriptionLayerId,')).toBe(true);
     const hookPath = path.resolve(process.cwd(), 'src/pages/useWaveformSelectionController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
     const interactionHookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionTimelineInteractionController.ts');
@@ -178,8 +212,14 @@ describe('TranscriptionPage structure invariants', () => {
 
     // 独立层启用时，波形 region 来源应切到 layer_segments
     // When independent layer is active, waveform regions should come from layer_segments.
-    expect(code.includes("import { useWaveformSelectionController } from './useWaveformSelectionController';")).toBe(true);
-    expect(code.includes('} = useWaveformSelectionController({')).toBe(true);
+    expect(code.includes("import { useTranscriptionWaveformBridgeController } from './useTranscriptionWaveformBridgeController';")).toBe(true);
+    expect(code.includes('} = useTranscriptionWaveformBridgeController({')).toBe(true);
+    expect(code.includes("import { useWaveformSelectionController } from './useWaveformSelectionController';")).toBe(false);
+    expect(waveformBridgeHookCode.includes("import { useWaveformSelectionController } from './useWaveformSelectionController';")).toBe(true);
+    expect(waveformBridgeHookCode.includes('} = useWaveformSelectionController({')).toBe(true);
+    expect(waveformBridgeHookCode.includes('const player = useWaveSurfer({')).toBe(true);
+    expect(waveformBridgeHookCode.includes('} = useLasso({')).toBe(true);
+    expect(waveformBridgeHookCode.includes('const { rulerView, zoomToPercent, zoomToUtterance } = useZoom({')).toBe(true);
     expect(hookCode.includes('const useSegmentWaveformRegions = Boolean(activeWaveformSegmentSourceLayer);')).toBe(true);
     expect(hookCode.includes('const waveformTimelineItems = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const segments = segmentsByLayer.get(activeWaveformSegmentSourceLayer.id) ?? [];')).toBe(true);
@@ -199,7 +239,7 @@ describe('TranscriptionPage structure invariants', () => {
     // 拖拽更新结束应在独立层更新 segment 而非 utterance
     // Region update end must update segment on independent layers.
     expect(code.includes("import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';")).toBe(true);
-    expect(code.includes('handleWaveformRegionUpdateEndRef.current = handleWaveformRegionUpdateEnd;')).toBe(true);
+    expect(code.includes('waveformInteractionHandlerRefs.handleWaveformRegionUpdateEndRef.current = handleWaveformRegionUpdateEnd;')).toBe(true);
     expect(interactionHookCode.includes('await LayerSegmentationV2Service.updateSegment(regionId, {')).toBe(true);
     expect(code.includes('!selectedMediaIsVideo && selectedWaveformTimelineItem && player.isReady')).toBe(true);
 
@@ -207,6 +247,23 @@ describe('TranscriptionPage structure invariants', () => {
     // Batch mapping/error surfacing now lives in a dedicated controller hook.
     expect(code.includes("import { useBatchOperationController } from './useBatchOperationController';")).toBe(true);
     expect(code.includes('} = useBatchOperationController({')).toBe(true);
+  });
+
+  it('keeps workspace layout state behind a dedicated controller boundary', () => {
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionWorkspaceLayoutController.ts');
+    const hookCode = fs.readFileSync(hookPath, 'utf8');
+
+    expect(orchestratorCode.includes("import { useTranscriptionWorkspaceLayoutController } from './useTranscriptionWorkspaceLayoutController';")).toBe(true);
+    expect(orchestratorCode.includes('} = useTranscriptionWorkspaceLayoutController({')).toBe(true);
+
+    expect(hookCode.includes("const [laneLabelWidth, setLaneLabelWidth] = useState<number>(() => readStoredClampedNumber('jieyu:lane-label-width', 40, 180, 64));")).toBe(true);
+    expect(hookCode.includes('const handleLaneLabelWidthResizeStart = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {')).toBe(true);
+    expect(hookCode.includes("const [videoLayoutMode, setVideoLayoutMode] = useState<VideoLayoutMode>(() => readStoredVideoLayoutMode());")).toBe(true);
+    expect(hookCode.includes('const handleVideoRightPanelResizeStart = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {')).toBe(true);
+    expect(hookCode.includes("if (hasMod && event.shiftKey && !event.altKey && event.key.toLowerCase() === 'f') {")).toBe(true);
+    expect(hookCode.includes("localStorage.setItem('jieyu:lane-heights', JSON.stringify(timelineLaneHeights));")).toBe(true);
   });
 
   it('persists focused speaker metadata on newly created independent segments', () => {
@@ -289,8 +346,13 @@ describe('TranscriptionPage structure invariants', () => {
 
     // 允许仅剩的 segment content 写路径暂时留在页面层；segment graph mutation 必须留在 dedicated controllers。
     // Allow the remaining segment content write path for now; segment graph mutations must stay in dedicated controllers.
-    expect(orchestratorCode.includes('LayerSegmentationV2Service.deleteSegmentContent(')).toBe(true);
-    expect(orchestratorCode.includes('LayerSegmentationV2Service.upsertSegmentContent(')).toBe(true);
+    const bridgeHookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSegmentBridgeController.ts');
+    const bridgeHookCode = fs.readFileSync(bridgeHookPath, 'utf8');
+
+    expect(orchestratorCode.includes('LayerSegmentationV2Service.deleteSegmentContent(')).toBe(false);
+    expect(orchestratorCode.includes('LayerSegmentationV2Service.upsertSegmentContent(')).toBe(false);
+    expect(bridgeHookCode.includes('LayerSegmentationV2Service.deleteSegmentContent(')).toBe(true);
+    expect(bridgeHookCode.includes('LayerSegmentationV2Service.upsertSegmentContent(')).toBe(true);
 
     expect(orchestratorCode.includes('LayerSegmentationV2Service.createSegment(')).toBe(false);
     expect(orchestratorCode.includes('LayerSegmentationV2Service.createSegmentWithParentConstraint(')).toBe(false);
@@ -306,8 +368,8 @@ describe('TranscriptionPage structure invariants', () => {
     const lineCount = orchestratorCode.split('\n').length;
     const useCallbackCount = (orchestratorCode.match(/const\s+\w+\s*=\s*useCallback\(/g) ?? []).length;
 
-    expect(lineCount).toBeLessThanOrEqual(3400);
-    expect(useCallbackCount).toBeLessThanOrEqual(22);
+    expect(lineCount).toBeLessThanOrEqual(2600);
+    expect(useCallbackCount).toBeLessThanOrEqual(8);
   });
 
   it('routes speaker assignment through segment writes for independent selections', () => {
@@ -378,12 +440,62 @@ describe('TranscriptionPage structure invariants', () => {
   it('keeps runtime props composition extracted into dedicated hook', () => {
     const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
     const code = fs.readFileSync(filePath, 'utf8');
+    const sidebarControllerPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionAssistantSidebarController.ts');
+    const sidebarControllerCode = fs.readFileSync(sidebarControllerPath, 'utf8');
+    const selectionSnapshotPath = path.resolve(process.cwd(), 'src/pages/transcriptionSelectionSnapshot.ts');
+    const selectionSnapshotCode = fs.readFileSync(selectionSnapshotPath, 'utf8');
 
-    expect(code.includes("import { useTranscriptionRuntimeProps } from './useTranscriptionRuntimeProps';")).toBe(true);
-    expect(code.includes('} = useTranscriptionRuntimeProps({')).toBe(true);
+    expect(code.includes("import { useTranscriptionAssistantSidebarController } from './useTranscriptionAssistantSidebarController';")).toBe(true);
+    expect(code.includes("import { buildTranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';")).toBe(true);
+    expect(code.includes('const selectionSnapshot = useMemo(() => buildTranscriptionSelectionSnapshot({')).toBe(true);
+    expect(code.includes('} = useTranscriptionAssistantSidebarController({')).toBe(true);
     expect(code.includes('createAssistantRuntimeProps({')).toBe(false);
     expect(code.includes('createAnalysisRuntimeProps({')).toBe(false);
     expect(code.includes('createPdfRuntimeProps({')).toBe(false);
+    expect(sidebarControllerCode.includes('const runtimeProps = useTranscriptionRuntimeProps(input.runtimePropsInput);')).toBe(true);
+    expect(selectionSnapshotCode.includes('export function buildTranscriptionSelectionSnapshot(')).toBe(true);
+  });
+
+  it('keeps section view-model assembly extracted from orchestrator JSX', () => {
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSectionViewModels.ts');
+    const hookCode = fs.readFileSync(hookPath, 'utf8');
+    const sidebarHookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSidebarSectionsViewModel.ts');
+    const sidebarHookCode = fs.readFileSync(sidebarHookPath, 'utf8');
+    const timelineContentHookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionTimelineContentViewModel.ts');
+    const timelineContentHookCode = fs.readFileSync(timelineContentHookPath, 'utf8');
+
+    expect(orchestratorCode.includes("import { useTranscriptionSectionViewModels } from './useTranscriptionSectionViewModels';")).toBe(true);
+    expect(orchestratorCode.includes("sidebarSectionsInput: {")).toBe(true);
+    expect(orchestratorCode.includes("import { useTranscriptionTimelineContentViewModel } from './useTranscriptionTimelineContentViewModel';")).toBe(true);
+    expect(orchestratorCode.includes('const timelineContentViewModel = useTranscriptionTimelineContentViewModel({')).toBe(true);
+    expect(orchestratorCode.includes('} = useTranscriptionSectionViewModels({')).toBe(true);
+    expect(orchestratorCode.includes('<TranscriptionPageToolbar {...toolbarProps} />')).toBe(true);
+    expect(orchestratorCode.includes('<TranscriptionPageTimelineTop {...timelineTopProps} />')).toBe(true);
+    expect(orchestratorCode.includes('<TranscriptionPageTimelineContent {...timelineContentProps} />')).toBe(true);
+    expect(orchestratorCode.includes('<TranscriptionPageAiSidebar {...aiSidebarProps} />')).toBe(true);
+    expect(orchestratorCode.includes('<TranscriptionPageDialogs {...dialogsProps} />')).toBe(true);
+    expect(orchestratorCode.includes('headerProps={{')).toBe(false);
+    expect(orchestratorCode.includes('mediaLanesProps: {')).toBe(false);
+    expect(orchestratorCode.includes('textOnlyProps: {')).toBe(false);
+    expect(orchestratorCode.includes('speakerDialogState={speakerDialogStateRouted}')).toBe(false);
+
+    expect(hookCode.includes('const toolbarProps = useMemo<TranscriptionPageToolbarProps>(() => ({')).toBe(true);
+    expect(hookCode.includes('const timelineTopProps = useMemo<TranscriptionPageTimelineTopProps>(() => ({')).toBe(true);
+    expect(hookCode.includes('const timelineContentProps = useMemo<TranscriptionPageTimelineContentProps>(() => input.timelineContentProps')).toBe(true);
+  expect(hookCode.includes("import {\n  useTranscriptionSidebarSectionsViewModel,")).toBe(true);
+  expect(hookCode.includes('const { aiSidebarProps, dialogsProps } = useTranscriptionSidebarSectionsViewModel(input.sidebarSectionsInput);')).toBe(true);
+
+  expect(sidebarHookCode.includes('const aiSidebarProps = useMemo<TranscriptionPageAiSidebarProps>(() => ({')).toBe(true);
+  expect(sidebarHookCode.includes('countAssistantAttentionSignals({')).toBe(true);
+  expect(sidebarHookCode.includes("input.setHubSidebarTab('assistant');")).toBe(true);
+  expect(sidebarHookCode.includes('const dialogsProps = useMemo<TranscriptionPageDialogsProps>(() => ({')).toBe(true);
+
+    expect(timelineContentHookCode.includes('const mediaLanesProps = useMemo<TranscriptionPageTimelineMediaLanesProps>(() => ({')).toBe(true);
+    expect(timelineContentHookCode.includes('const textOnlyProps = useMemo<TranscriptionPageTimelineTextOnlyProps>(() => input.textOnlyPropsInput')).toBe(true);
+    expect(timelineContentHookCode.includes('const emptyStateProps = useMemo<TranscriptionPageTimelineEmptyStateProps>(() => ({')).toBe(true);
+    expect(timelineContentHookCode.includes('return useMemo<TranscriptionPageTimelineContentProps>(() => ({')).toBe(true);
   });
 
   it('keeps assistant callbacks and AI panel context extracted into dedicated hook', () => {
@@ -528,8 +640,13 @@ describe('TranscriptionPage structure invariants', () => {
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionAssistantController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
 
-    expect(orchestratorCode.includes("import { resolveNextUtteranceIdForDictation } from './voiceDictationFlow';")).toBe(true);
-    expect(orchestratorCode.includes('const nextUtteranceIdForVoiceDictation = useMemo(() => {')).toBe(true);
+    const selectionHookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSelectionContextController.ts');
+    const selectionHookCode = fs.readFileSync(selectionHookPath, 'utf8');
+
+    expect(orchestratorCode.includes("import { useTranscriptionSelectionContextController } from './useTranscriptionSelectionContextController';")).toBe(true);
+    expect(orchestratorCode.includes('nextUtteranceIdForVoiceDictation,')).toBe(true);
+    expect(selectionHookCode.includes("import { resolveNextUtteranceIdForDictation } from './voiceDictationFlow';")).toBe(true);
+    expect(selectionHookCode.includes('const nextUtteranceIdForVoiceDictation = useMemo(() => resolveNextUtteranceIdForDictation({')).toBe(true);
     expect(hookCode.includes('const persistAndAdvance = async (persist: () => Promise<void>) => {')).toBe(true);
     expect(hookCode.includes('if (!input.nextUtteranceIdForVoiceDictation) return;')).toBe(true);
     expect(hookCode.includes('input.selectUtterance(input.nextUtteranceIdForVoiceDictation);')).toBe(true);

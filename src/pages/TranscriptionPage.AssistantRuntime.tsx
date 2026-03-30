@@ -12,6 +12,7 @@ import type { LayerDocType, UtteranceDocType } from '../db';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
+import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
 
 const VoiceAgentWidget = lazy(async () => import('../components/VoiceAgentWidget').then((module) => ({
   default: module.VoiceAgentWidget,
@@ -41,16 +42,22 @@ export interface TranscriptionPageAssistantRuntimeProps {
   }) => Promise<VoiceIntent | null>;
   handleVoiceDictation: (text: string) => void;
   handleVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => void;
-  activeUtteranceUnitId: string | null;
-  selectedUtterance: UtteranceDocType | null;
-  selectedRowMeta: { rowNumber: number; start: number; end: number } | null;
-  selectedLayerId: string | null;
+  selection: TranscriptionPageAssistantRuntimeSelection;
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
   formatLayerRailLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   onRegisterToggleVoice: (handler?: () => void) => void;
+}
+
+export interface TranscriptionPageAssistantRuntimeSelection {
+  activeUtteranceUnitId: string | null;
+  selectedUtterance: UtteranceDocType | null;
+  selectedRowMeta: { rowNumber: number; start: number; end: number } | null;
+  selectedLayerId: string | null;
+  selectedUnitKind: TimelineUnitKind | null;
+  selectedTimeRangeLabel?: string;
 }
 
 interface AssistantVoiceRuntimeProps extends Omit<TranscriptionPageAssistantRuntimeProps, 'aiChatContextValue' | 'locale'> {
@@ -150,10 +157,7 @@ function AssistantVoiceRuntime({
   handleResolveVoiceIntentWithLlm,
   handleVoiceDictation,
   handleVoiceAnalysisResult,
-  activeUtteranceUnitId,
-  selectedUtterance,
-  selectedRowMeta,
-  selectedLayerId,
+  selection,
   defaultTranscriptionLayerId,
   translationLayers,
   layers,
@@ -200,10 +204,7 @@ function AssistantVoiceRuntime({
     handleResolveVoiceIntentWithLlm,
     handleVoiceDictation,
     onVoiceAnalysisResult: handleVoiceAnalysisResult,
-    activeUtteranceUnitId,
-    selectedUtterance,
-    selectedRowMeta,
-    selectedLayerId,
+    selection,
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     translationLayers,
     layers,
@@ -360,10 +361,7 @@ export function TranscriptionPageAssistantRuntime({
   handleResolveVoiceIntentWithLlm,
   handleVoiceDictation,
   handleVoiceAnalysisResult,
-  activeUtteranceUnitId,
-  selectedUtterance,
-  selectedRowMeta,
-  selectedLayerId,
+  selection,
   defaultTranscriptionLayerId,
   translationLayers,
   layers,
@@ -435,10 +433,7 @@ export function TranscriptionPageAssistantRuntime({
         handleResolveVoiceIntentWithLlm={handleResolveVoiceIntentWithLlm}
         handleVoiceDictation={handleVoiceDictation}
         handleVoiceAnalysisResult={handleVoiceAnalysisResult}
-        activeUtteranceUnitId={activeUtteranceUnitId}
-        selectedUtterance={selectedUtterance}
-        selectedRowMeta={selectedRowMeta}
-        selectedLayerId={selectedLayerId}
+        selection={selection}
         {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
         translationLayers={translationLayers}
         layers={layers}

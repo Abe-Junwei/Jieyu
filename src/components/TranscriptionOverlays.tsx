@@ -8,7 +8,7 @@ import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { NotePopover } from './NotePopover';
 
 interface TranscriptionOverlaysProps {
-  ctxMenu: { x: number; y: number; utteranceId: string; layerId: string; unitKind: TimelineUnitKind; splitTime: number } | null;
+  ctxMenu: { x: number; y: number; unitId: string; layerId: string; unitKind: TimelineUnitKind; splitTime: number } | null;
   onCloseCtxMenu: () => void;
   uttOpsMenu: { x: number; y: number } | null;
   onCloseUttOpsMenu: () => void;
@@ -99,7 +99,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
           y={ctxMenu.y}
           onClose={onCloseCtxMenu}
           items={(() => {
-            const id = ctxMenu.utteranceId;
+            const id = ctxMenu.unitId;
             const multiCount = selectedUtteranceIds.size;
             const targetIds = multiCount > 1 ? Array.from(selectedUtteranceIds) : [id];
             const targetKind = ctxMenu.unitKind;

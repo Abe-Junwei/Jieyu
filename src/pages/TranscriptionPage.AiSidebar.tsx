@@ -6,6 +6,7 @@ import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage
 import type {
   TranscriptionPageAnalysisRuntimeProps,
 } from './TranscriptionPage.AnalysisRuntime';
+import type { TranscriptionAssistantStatusSummary } from './transcriptionAssistantStatusSummary';
 
 const AssistantRuntime = lazy(async () => import('./TranscriptionPage.AssistantRuntime').then((module) => ({
   default: module.TranscriptionPageAssistantRuntime,
@@ -17,7 +18,7 @@ const AnalysisRuntime = lazy(async () => import('./TranscriptionPage.AnalysisRun
 
 type HubSidebarTab = 'assistant' | 'analysis';
 
-interface TranscriptionPageAiSidebarProps {
+export interface TranscriptionPageAiSidebarProps {
   locale: string;
   isAiPanelCollapsed: boolean;
   hubSidebarTab: HubSidebarTab;
@@ -27,6 +28,8 @@ interface TranscriptionPageAiSidebarProps {
   onAnalysisTabChange: (tab: AnalysisBottomTab) => void;
   assistantRuntimeProps: Omit<TranscriptionPageAssistantRuntimeProps, 'locale' | 'aiChatContextValue'>;
   analysisRuntimeProps: Omit<TranscriptionPageAnalysisRuntimeProps, 'locale' | 'analysisTab' | 'onAnalysisTabChange'>;
+  assistantAttentionCount?: number;
+  assistantStatusSummary: TranscriptionAssistantStatusSummary;
 }
 
 export function TranscriptionPageAiSidebar({
@@ -39,6 +42,8 @@ export function TranscriptionPageAiSidebar({
   onAnalysisTabChange,
   assistantRuntimeProps,
   analysisRuntimeProps,
+  assistantAttentionCount = 0,
+  assistantStatusSummary,
 }: TranscriptionPageAiSidebarProps) {
   return (
     <aside className={`transcription-ai-panel ${isAiPanelCollapsed ? 'transcription-ai-panel-collapsed' : ''}`}>
@@ -51,6 +56,7 @@ export function TranscriptionPageAiSidebar({
           onClick={() => onHubSidebarTabChange('assistant')}
         >
           {locale === 'zh-CN' ? '助手' : 'Assistant'}
+          {assistantAttentionCount > 0 && <span className="transcription-ai-tab-badge">{assistantAttentionCount}</span>}
         </button>
         <button
           type="button"
@@ -61,6 +67,20 @@ export function TranscriptionPageAiSidebar({
         >
           {locale === 'zh-CN' ? 'AI 分析' : 'AI Analysis'}
         </button>
+      </div>
+
+      <div className={`transcription-ai-status-strip is-${assistantStatusSummary.tone}`}>
+        <div className="transcription-ai-status-copy">
+          <strong>{assistantStatusSummary.headline}</strong>
+          <span>{assistantStatusSummary.detail}</span>
+        </div>
+        {assistantStatusSummary.chips.length > 0 && (
+          <div className="transcription-ai-status-chips">
+            {assistantStatusSummary.chips.map((chip) => (
+              <span key={chip} className="transcription-ai-status-chip">{chip}</span>
+            ))}
+          </div>
+        )}
       </div>
 
       {hubSidebarTab === 'assistant' ? (

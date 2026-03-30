@@ -2,7 +2,7 @@ import type { RefObject } from 'react';
 import { WaveformToolbar } from '../components/WaveformToolbar';
 import { TranscriptionToolbarActions } from '../components/TranscriptionToolbarActions';
 
-type TranscriptionPageToolbarProps = {
+export type TranscriptionPageToolbarProps = {
   filename: string;
   isReady: boolean;
   isPlaying: boolean;

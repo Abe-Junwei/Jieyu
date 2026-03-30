@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
-import { createTimelineUnit } from '../hooks/transcriptionTypes';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
+import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 
 type SegmentEditMode = 'utterance' | 'independent-segment' | 'time-subdivision';
 
@@ -41,6 +41,12 @@ interface UseTranscriptionSegmentMutationControllerResult {
 export function useTranscriptionSegmentMutationController(
   input: UseTranscriptionSegmentMutationControllerInput,
 ): UseTranscriptionSegmentMutationControllerResult {
+  const createSegmentTarget = (unitId: string) => resolveTranscriptionUnitTarget({
+    layerId: input.activeLayerIdForEdits,
+    unitId,
+    preferredKind: 'segment',
+  });
+
   const splitRouted = useCallback(async (id: string, splitTime: number) => {
     const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
     switch (routing.editMode) {
@@ -50,14 +56,14 @@ export function useTranscriptionSegmentMutationController(
         const splitResult = await LayerSegmentationV2Service.splitSegment(id, splitTime);
         await input.reloadSegments();
         await input.refreshSegmentUndoSnapshot();
-        input.selectTimelineUnit(createTimelineUnit(input.activeLayerIdForEdits, splitResult.second.id, 'segment'));
+        input.selectTimelineUnit(createSegmentTarget(splitResult.second.id));
         return;
       }
       case 'utterance':
         await input.splitUtterance(id, splitTime);
         return;
     }
-  }, [input]);
+  }, [createSegmentTarget, input]);
 
   const mergeWithPreviousRouted = useCallback(async (id: string) => {
     const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
@@ -89,7 +95,7 @@ export function useTranscriptionSegmentMutationController(
           await LayerSegmentationV2Service.mergeAdjacentSegments(prevSeg.id, id);
           await input.reloadSegments();
           await input.refreshSegmentUndoSnapshot();
-          input.selectTimelineUnit(createTimelineUnit(input.activeLayerIdForEdits, prevSeg.id, 'segment'));
+          input.selectTimelineUnit(createSegmentTarget(prevSeg.id));
         } catch (error) {
           input.setSaveState({
             kind: 'error',
@@ -102,7 +108,7 @@ export function useTranscriptionSegmentMutationController(
         await input.mergeWithPrevious(id);
         return;
     }
-  }, [input]);
+  }, [createSegmentTarget, input]);
 
   const mergeWithNextRouted = useCallback(async (id: string) => {
     const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
@@ -134,7 +140,7 @@ export function useTranscriptionSegmentMutationController(
           await LayerSegmentationV2Service.mergeAdjacentSegments(id, nextSeg.id);
           await input.reloadSegments();
           await input.refreshSegmentUndoSnapshot();
-          input.selectTimelineUnit(createTimelineUnit(input.activeLayerIdForEdits, id, 'segment'));
+          input.selectTimelineUnit(createSegmentTarget(id));
         } catch (error) {
           input.setSaveState({
             kind: 'error',
@@ -147,7 +153,7 @@ export function useTranscriptionSegmentMutationController(
         await input.mergeWithNext(id);
         return;
     }
-  }, [input]);
+  }, [createSegmentTarget, input]);
 
   const deleteUtteranceRouted = useCallback(async (id: string) => {
     const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);

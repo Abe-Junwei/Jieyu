@@ -1,8 +1,12 @@
 import { useCallback, type MouseEvent, type ReactNode } from 'react';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
 import type { LayerDocType, UtteranceDocType } from '../db';
-import { createTimelineUnit, isUtteranceTimelineUnit, type TimelineUnit, type TimelineUnitKind } from './transcriptionTypes';
+import { type TimelineUnit, type TimelineUnitKind } from './transcriptionTypes';
 import { formatTime, getLayerLabelParts } from '../utils/transcriptionFormatters';
+import {
+  resolveTranscriptionSelectionAnchor,
+  resolveTranscriptionUnitTarget,
+} from '../pages/transcriptionUnitTargetResolver';
 
 type TimelineUtterance = Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime' | 'speaker' | 'speakerId' | 'ai_metadata'>;
 
@@ -14,7 +18,7 @@ type SpeakerVisual = {
 type CtxMenuState = {
   x: number;
   y: number;
-  utteranceId: string;
+  unitId: string;
   layerId: string;
   unitKind: TimelineUnitKind;
   splitTime: number;
@@ -104,10 +108,15 @@ export function useTimelineAnnotationHelpers({
   ) => {
     manualSelectTsRef.current = Date.now();
     if (player.isPlaying) player.stop();
-    const isIndependentLayer = independentLayerIds.has(layerId);
-    if (isIndependentLayer) {
+    const targetUnit = resolveTranscriptionUnitTarget({
+      layerId,
+      unitId: uttId,
+      preferredKind: 'utterance',
+      independentLayerIds,
+    });
+    if (targetUnit.kind === 'segment') {
       if (selectTimelineUnit) {
-        selectTimelineUnit(createTimelineUnit(layerId, uttId, 'segment'));
+        selectTimelineUnit(targetUnit);
       } else {
         selectSegment(uttId);
       }
@@ -116,9 +125,11 @@ export function useTimelineAnnotationHelpers({
       onFocusLayerRow(layerId);
       return;
     }
-    const selectedUtteranceUnitId = isUtteranceTimelineUnit(selectedTimelineUnit)
-      ? selectedTimelineUnit.unitId
-      : '';
+    const selectedUtteranceUnitId = resolveTranscriptionSelectionAnchor({
+      expectedKind: 'utterance',
+      fallbackUnitId: '',
+      selectedTimelineUnit,
+    });
     if (e.shiftKey && selectedUtteranceUnitId) {
       selectUtteranceRange(selectedUtteranceUnitId, uttId);
     } else if (e.metaKey || e.ctrlKey) {
@@ -141,7 +152,7 @@ export function useTimelineAnnotationHelpers({
       }
     } else {
       if (selectTimelineUnit) {
-        selectTimelineUnit(createTimelineUnit(layerId, uttId, 'utterance'));
+        selectTimelineUnit(targetUnit);
       } else {
         selectUtterance(uttId);
       }
@@ -154,7 +165,6 @@ export function useTimelineAnnotationHelpers({
     player,
     selectUtteranceRange,
     selectedTimelineUnit,
-    independentLayerIds,
     toggleUtteranceSelection,
     selectUtterance,
     selectTimelineUnit,
@@ -174,18 +184,23 @@ export function useTimelineAnnotationHelpers({
     e.stopPropagation();
     manualSelectTsRef.current = Date.now();
     if (player.isPlaying) player.stop();
-    const isIndependentLayer = independentLayerIds.has(layerId);
+    const targetUnit = resolveTranscriptionUnitTarget({
+      layerId,
+      unitId: uttId,
+      preferredKind: 'utterance',
+      independentLayerIds,
+    });
     const shouldPreserveMultiSelection = selectedUtteranceIds.has(uttId) && selectedUtteranceIds.size > 1;
     if (!shouldPreserveMultiSelection) {
-      if (isIndependentLayer) {
+      if (targetUnit.kind === 'segment') {
         if (selectTimelineUnit) {
-          selectTimelineUnit(createTimelineUnit(layerId, uttId, 'segment'));
+          selectTimelineUnit(targetUnit);
         } else {
           selectSegment(uttId);
         }
       } else {
         if (selectTimelineUnit) {
-          selectTimelineUnit(createTimelineUnit(layerId, uttId, 'utterance'));
+          selectTimelineUnit(targetUnit);
         } else {
           selectUtterance(uttId);
         }
@@ -206,15 +221,14 @@ export function useTimelineAnnotationHelpers({
     setCtxMenu({
       x: e.clientX,
       y: e.clientY,
-      utteranceId: uttId,
-      layerId,
-      unitKind: isIndependentLayer ? 'segment' : 'utterance',
+      unitId: uttId,
+      layerId: targetUnit.layerId,
+      unitKind: targetUnit.kind,
       splitTime,
     });
   }, [
     manualSelectTsRef,
     player,
-    independentLayerIds,
     selectedUtteranceIds,
     selectTimelineUnit,
     selectUtterance,

@@ -6,9 +6,9 @@ import type {
   UtteranceDocType,
 } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
-import { createTimelineUnit } from '../hooks/transcriptionTypes';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { formatTime, newId } from '../utils/transcriptionFormatters';
+import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 
 type SegmentEditMode = 'utterance' | 'independent-segment' | 'time-subdivision';
 
@@ -51,6 +51,12 @@ interface UseTranscriptionSegmentCreationControllerResult {
 export function useTranscriptionSegmentCreationController(
   input: UseTranscriptionSegmentCreationControllerInput,
 ): UseTranscriptionSegmentCreationControllerResult {
+  const createSegmentTarget = (unitId: string) => resolveTranscriptionUnitTarget({
+    layerId: input.activeLayerIdForEdits,
+    unitId,
+    preferredKind: 'segment',
+  });
+
   const createUtteranceFromSelectionRouted = useCallback(async (start: number, end: number) => {
     const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
     if (routing.editMode === 'independent-segment' || routing.editMode === 'time-subdivision') {
@@ -139,7 +145,7 @@ export function useTranscriptionSegmentCreationController(
       await input.reloadSegments();
       await input.refreshSegmentUndoSnapshot();
       await input.reloadSegmentContents();
-      input.selectTimelineUnit(createTimelineUnit(input.activeLayerIdForEdits, newSeg.id, 'segment'));
+      input.selectTimelineUnit(createSegmentTarget(newSeg.id));
       input.setSaveState({
         kind: 'done',
         message: `已在当前层新建独立段 ${formatTime(finalStart)} - ${formatTime(finalEnd)}`,
@@ -151,7 +157,7 @@ export function useTranscriptionSegmentCreationController(
       ...(input.speakerFocusTargetKey ? { speakerId: input.speakerFocusTargetKey } : {}),
       ...(resolvedLayerId ? { focusedLayerId: resolvedLayerId } : {}),
     });
-  }, [input]);
+  }, [createSegmentTarget, input]);
 
   return { createUtteranceFromSelectionRouted };
 }

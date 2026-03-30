@@ -1,26 +1,8 @@
-import type { LayerDocType, UtteranceDocType } from '../db';
 import type { AiPromptContext } from '../hooks/useAiChat';
-import { isSegmentTimelineUnit, type TimelineUnit } from '../hooks/transcriptionTypes';
-
-interface TimeRangeUnitLike {
-  id: string;
-  startTime: number;
-  endTime: number;
-}
-
-interface SegmentContentLike {
-  text?: string;
-}
+import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 
 interface BuildTranscriptionAiPromptContextParams {
-  selectedTimelineUnit: TimelineUnit | null;
-  selectedUtterance: UtteranceDocType | null;
-  selectedLayerId: string | null;
-  layers: LayerDocType[];
-  segmentsByLayer: Map<string, TimeRangeUnitLike[]>;
-  segmentContentByLayer: Map<string, Map<string, SegmentContentLike>>;
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
-  formatTime: (seconds: number) => string;
+  selectionSnapshot: TranscriptionSelectionSnapshot;
   utteranceCount: number;
   translationLayerCount: number;
   aiConfidenceAvg: number | null;
@@ -32,14 +14,7 @@ interface BuildTranscriptionAiPromptContextParams {
 }
 
 export function buildTranscriptionAiPromptContext({
-  selectedTimelineUnit,
-  selectedUtterance,
-  selectedLayerId,
-  layers,
-  segmentsByLayer,
-  segmentContentByLayer,
-  getUtteranceTextForLayer,
-  formatTime,
+  selectionSnapshot,
   utteranceCount,
   translationLayerCount,
   aiConfidenceAvg,
@@ -49,41 +24,25 @@ export function buildTranscriptionAiPromptContext({
   audioTimeSec,
   recentEdits,
 }: BuildTranscriptionAiPromptContextParams): AiPromptContext {
-  const selectedSegmentForContext = isSegmentTimelineUnit(selectedTimelineUnit)
-    ? segmentsByLayer.get(selectedTimelineUnit.layerId)?.find((segment) => segment.id === selectedTimelineUnit.unitId)
-    : undefined;
-  const selectedText = selectedUtterance
-    ? getUtteranceTextForLayer(selectedUtterance)
-    : (segmentContentByLayer.get(selectedTimelineUnit?.layerId ?? '')?.get(selectedTimelineUnit?.unitId ?? '')?.text ?? '');
-  const selectedUnitForTime = selectedUtterance ?? selectedSegmentForContext;
-  const selectionTimeRange = selectedUnitForTime
-    ? `${formatTime(selectedUnitForTime.startTime)}-${formatTime(selectedUnitForTime.endTime)}`
-    : undefined;
-  const selectedLayer = layers.find((layer) => layer.id === selectedLayerId) ?? null;
-  const selectedLayerType: 'transcription' | 'translation' | undefined = selectedLayer
-    ? (selectedLayer.layerType === 'translation' ? 'translation' : 'transcription')
-    : undefined;
-  const selectedTranslationLayerId = selectedLayerType === 'translation'
-    ? selectedLayer?.id
-    : undefined;
-  const selectedTranscriptionLayerId = selectedLayerType === 'transcription'
-    ? selectedLayer?.id
-    : undefined;
-
   return {
     shortTerm: {
       page: 'transcription',
-      ...(selectedUtterance?.id ? { activeUtteranceUnitId: selectedUtterance.id } : {}),
-      ...(isSegmentTimelineUnit(selectedTimelineUnit) ? { activeSegmentUnitId: selectedTimelineUnit.unitId } : {}),
-      ...(selectedUnitForTime
-        ? { selectedUtteranceStartSec: selectedUnitForTime.startTime, selectedUtteranceEndSec: selectedUnitForTime.endTime }
+      ...(selectionSnapshot.activeUtteranceUnitId ? { activeUtteranceUnitId: selectionSnapshot.activeUtteranceUnitId } : {}),
+      ...(selectionSnapshot.selectedUnitKind === 'segment' && selectionSnapshot.timelineUnit
+        ? { activeSegmentUnitId: selectionSnapshot.timelineUnit.unitId }
         : {}),
-      ...(selectedLayer?.id ? { selectedLayerId: selectedLayer.id } : {}),
-      ...(selectedLayerType ? { selectedLayerType } : {}),
-      ...(selectedTranslationLayerId ? { selectedTranslationLayerId } : {}),
-      ...(selectedTranscriptionLayerId ? { selectedTranscriptionLayerId } : {}),
-      selectedText,
-      ...(selectionTimeRange ? { selectionTimeRange } : {}),
+      ...(selectionSnapshot.selectedUnitStartSec !== undefined && selectionSnapshot.selectedUnitEndSec !== undefined
+        ? {
+            selectedUtteranceStartSec: selectionSnapshot.selectedUnitStartSec,
+            selectedUtteranceEndSec: selectionSnapshot.selectedUnitEndSec,
+          }
+        : {}),
+      ...(selectionSnapshot.selectedLayerId ? { selectedLayerId: selectionSnapshot.selectedLayerId } : {}),
+      ...(selectionSnapshot.selectedLayerType ? { selectedLayerType: selectionSnapshot.selectedLayerType } : {}),
+      ...(selectionSnapshot.selectedTranslationLayerId ? { selectedTranslationLayerId: selectionSnapshot.selectedTranslationLayerId } : {}),
+      ...(selectionSnapshot.selectedTranscriptionLayerId ? { selectedTranscriptionLayerId: selectionSnapshot.selectedTranscriptionLayerId } : {}),
+      selectedText: selectionSnapshot.selectedText,
+      ...(selectionSnapshot.selectedTimeRangeLabel ? { selectionTimeRange: selectionSnapshot.selectedTimeRangeLabel } : {}),
       ...(audioTimeSec !== undefined ? { audioTimeSec } : {}),
       recentEdits,
     },

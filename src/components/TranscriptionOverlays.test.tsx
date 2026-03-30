@@ -98,7 +98,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
     props.ctxMenu = {
       x: 120,
       y: 120,
-      utteranceId: 'seg_1',
+      unitId: 'seg_1',
       layerId: 'layer_independent',
       unitKind: 'segment',
       splitTime: 0.5,
@@ -116,7 +116,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
     props.ctxMenu = {
       x: 120,
       y: 120,
-      utteranceId: 'seg_dep_1',
+      unitId: 'seg_dep_1',
       layerId: 'layer_dependent',
       unitKind: 'segment',
       splitTime: 0.5,
@@ -134,7 +134,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
     props.ctxMenu = {
       x: 120,
       y: 120,
-      utteranceId: 'seg_1',
+      unitId: 'seg_1',
       layerId: 'layer_independent',
       unitKind: 'segment',
       splitTime: 0.5,
@@ -158,7 +158,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
     props.ctxMenu = {
       x: 120,
       y: 120,
-      utteranceId: 'seg_2',
+      unitId: 'seg_2',
       layerId: 'layer_independent',
       unitKind: 'segment',
       splitTime: 0.5,
@@ -184,7 +184,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
     props.ctxMenu = {
       x: 120,
       y: 120,
-      utteranceId: 'seg_2',
+      unitId: 'seg_2',
       layerId: 'layer_independent',
       unitKind: 'segment',
       splitTime: 0.5,
@@ -210,7 +210,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
     props.ctxMenu = {
       x: 120,
       y: 120,
-      utteranceId: 'seg_2',
+      unitId: 'seg_2',
       layerId: 'layer_independent',
       unitKind: 'segment',
       splitTime: 0.5,
@@ -236,7 +236,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
     props.ctxMenu = {
       x: 120,
       y: 120,
-      utteranceId: 'seg_1',
+      unitId: 'seg_1',
       layerId: 'layer_independent',
       unitKind: 'segment',
       splitTime: 0.5,

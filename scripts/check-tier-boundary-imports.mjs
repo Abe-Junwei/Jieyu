@@ -11,6 +11,7 @@ const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
 const ALLOWED_IMPORT_FILES = new Set([
   'src/db/index.ts',
   'src/services/TierBridgeService.ts',
+  'src/services/LinguisticService.constraints.ts',
   'src/services/LinguisticService.ts',
 ]);
 

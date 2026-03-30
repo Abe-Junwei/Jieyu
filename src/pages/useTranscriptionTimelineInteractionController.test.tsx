@@ -224,7 +224,7 @@ describe('useTranscriptionTimelineInteractionController', () => {
     expect(stop).toHaveBeenCalled();
     expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-main', unitId: 'seg-1', kind: 'segment' });
     expect(setCtxMenu).toHaveBeenCalledWith(expect.objectContaining({
-      utteranceId: 'seg-1',
+      unitId: 'seg-1',
       layerId: 'layer-main',
       unitKind: 'segment',
       splitTime: 10,

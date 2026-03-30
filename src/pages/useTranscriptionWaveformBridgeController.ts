@@ -1,0 +1,498 @@
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type MouseEvent as ReactMouseEvent,
+  type MutableRefObject,
+  type SetStateAction,
+  type UIEvent as ReactUIEvent,
+  type WheelEvent as ReactWheelEvent,
+} from 'react';
+import { useLasso, type SubSelectDrag } from '../hooks/useLasso';
+import { useWaveSurfer } from '../hooks/useWaveSurfer';
+import { useZoom } from '../hooks/useZoom';
+import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import { useWaveformSelectionController } from './useWaveformSelectionController';
+
+interface TimeRangeLike {
+  startTime: number;
+  endTime: number;
+}
+
+interface WaveformNoteIndicator {
+  uttId: string;
+  leftPx: number;
+  widthPx: number;
+  count: number;
+  layerId?: string;
+}
+
+interface WaveformInteractionHandlerRefs {
+  handleWaveformRegionAltPointerDownRef: MutableRefObject<((regionId: string, time: number, pointerId: number, clientX: number) => void) | undefined>;
+  handleWaveformRegionClickRef: MutableRefObject<((regionId: string, clickTime: number, event: MouseEvent) => void) | undefined>;
+  handleWaveformRegionDoubleClickRef: MutableRefObject<((regionId: string, start: number, end: number) => void) | undefined>;
+  handleWaveformRegionCreateRef: MutableRefObject<((start: number, end: number) => void) | undefined>;
+  handleWaveformRegionContextMenuRef: MutableRefObject<((regionId: string, x: number, y: number) => void) | undefined>;
+  handleWaveformRegionUpdateRef: MutableRefObject<((regionId: string, start: number, end: number) => void) | undefined>;
+  handleWaveformRegionUpdateEndRef: MutableRefObject<((regionId: string, start: number, end: number) => void) | undefined>;
+  handleWaveformTimeUpdateRef: MutableRefObject<((time: number) => void) | undefined>;
+}
+
+interface UseTranscriptionWaveformBridgeControllerInput {
+  activeLayerIdForEdits: string;
+  layers: LayerDocType[];
+  layerById: ReadonlyMap<string, LayerDocType>;
+  defaultTranscriptionLayerId?: string;
+  segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]>;
+  utterancesOnCurrentMedia: UtteranceDocType[];
+  selectedTimelineUnit: TimelineUnit | null;
+  selectedTimelineUnitForTime: TimeRangeLike | null;
+  selectedUtteranceIds: Set<string>;
+  selectedMediaUrl: string | undefined;
+  waveformHeight: number;
+  amplitudeScale: number;
+  setAmplitudeScale: Dispatch<SetStateAction<number>>;
+  zoomPercent: number;
+  setZoomPercent: Dispatch<SetStateAction<number>>;
+  zoomMode: 'fit-all' | 'fit-selection' | 'custom';
+  setZoomMode: Dispatch<SetStateAction<'fit-all' | 'fit-selection' | 'custom'>>;
+  clearUtteranceSelection: () => void;
+  createUtteranceFromSelection: (start: number, end: number) => Promise<void>;
+  setUtteranceSelection: (primaryId: string, ids: Set<string>) => void;
+  resolveNoteIndicatorTarget: (unitId: string, layerId?: string) => { count: number; layerId?: string } | null;
+  tierContainerRef: MutableRefObject<HTMLDivElement | null>;
+}
+
+interface UseTranscriptionWaveformBridgeControllerResult {
+  waveformAreaRef: MutableRefObject<HTMLDivElement | null>;
+  waveCanvasRef: MutableRefObject<HTMLDivElement | null>;
+  player: ReturnType<typeof useWaveSurfer>;
+  useSegmentWaveformRegions: boolean;
+  waveformTimelineItems: Array<LayerSegmentDocType | UtteranceDocType>;
+  waveformRegions: Array<{ id: string; start: number; end: number }>;
+  selectedWaveformRegionId: string;
+  waveformActiveRegionIds: Set<string>;
+  waveformPrimaryRegionId: string;
+  selectedWaveformTimelineItem: LayerSegmentDocType | UtteranceDocType | null;
+  waveformFocused: boolean;
+  segmentLoopPlayback: boolean;
+  setSegmentLoopPlayback: Dispatch<SetStateAction<boolean>>;
+  globalLoopPlayback: boolean;
+  setGlobalLoopPlayback: Dispatch<SetStateAction<boolean>>;
+  segmentPlaybackRate: number;
+  segMarkStart: number | null;
+  setSegMarkStart: Dispatch<SetStateAction<number | null>>;
+  dragPreview: { id: string; start: number; end: number } | null;
+  setDragPreview: Dispatch<SetStateAction<{ id: string; start: number; end: number } | null>>;
+  skipSeekForIdRef: MutableRefObject<string | null>;
+  creatingSegmentRef: MutableRefObject<boolean>;
+  markingModeRef: MutableRefObject<boolean>;
+  subSelectionRange: { start: number; end: number } | null;
+  setSubSelectionRange: Dispatch<SetStateAction<{ start: number; end: number } | null>>;
+  subSelectDragRef: MutableRefObject<SubSelectDrag | null>;
+  waveLassoRect: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    mode: 'select' | 'create';
+    hitCount: number;
+  } | null;
+  waveLassoHintCount: number;
+  lassoRect: { x: number; y: number; w: number; h: number } | null;
+  handleLassoPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
+  handleLassoPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
+  handleLassoPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
+  fitPxPerSec: number;
+  zoomPxPerSec: number;
+  maxZoomPercent: number;
+  rulerView: { start: number; end: number } | null;
+  zoomToPercent: (percent: number, centerRatio?: number, mode?: 'fit-all' | 'fit-selection' | 'custom') => void;
+  zoomToUtterance: (startTime: number, endTime: number) => void;
+  hoverTime: { time: number; x: number; y: number } | null;
+  handleWaveformAreaFocus: () => void;
+  handleWaveformAreaBlur: () => void;
+  handleWaveformAreaMouseMove: (event: ReactMouseEvent<HTMLDivElement>) => void;
+  handleWaveformAreaMouseLeave: () => void;
+  handleWaveformAreaWheel: (event: ReactWheelEvent<HTMLDivElement>) => void;
+  waveformScrollLeft: number;
+  handleTimelineScroll: (event: ReactUIEvent<HTMLDivElement>) => void;
+  waveformNoteIndicators: WaveformNoteIndicator[];
+  handleSegmentPlaybackRateChange: (rate: number) => void;
+  handleToggleSelectedWaveformLoop: () => void;
+  handleToggleSelectedWaveformPlay: () => void;
+  waveformInteractionHandlerRefs: WaveformInteractionHandlerRefs;
+}
+
+export function useTranscriptionWaveformBridgeController(
+  input: UseTranscriptionWaveformBridgeControllerInput,
+): UseTranscriptionWaveformBridgeControllerResult {
+  const waveformAreaRef = useRef<HTMLDivElement | null>(null);
+  const waveCanvasRef = useRef<HTMLDivElement | null>(null);
+  const [waveformFocused, setWaveformFocused] = useState(false);
+  const [segmentLoopPlayback, setSegmentLoopPlayback] = useState(false);
+  const [globalLoopPlayback, setGlobalLoopPlayback] = useState(false);
+  const [segmentPlaybackRate, setSegmentPlaybackRate] = useState(1);
+  const [hoverTime, setHoverTime] = useState<{ time: number; x: number; y: number } | null>(null);
+  const [segMarkStart, setSegMarkStart] = useState<number | null>(null);
+  const [dragPreview, setDragPreview] = useState<{ id: string; start: number; end: number } | null>(null);
+  const [subSelectionRange, setSubSelectionRange] = useState<{ start: number; end: number } | null>(null);
+  const [waveformScrollLeft, setWaveformScrollLeft] = useState(0);
+  const subSelectDragRef = useRef<SubSelectDrag | null>(null);
+  const skipSeekForIdRef = useRef<string | null>(null);
+  const creatingSegmentRef = useRef(false);
+  const markingModeRef = useRef(false);
+  const previousSelectedTimelineUnitIdRef = useRef(input.selectedTimelineUnit?.unitId ?? '');
+  const lastDurationRef = useRef(0);
+  const zoomPxPerSecRef = useRef(0);
+  const handleWaveformRegionAltPointerDownRef = useRef<((regionId: string, time: number, pointerId: number, clientX: number) => void) | undefined>(undefined);
+  const handleWaveformRegionClickRef = useRef<((regionId: string, clickTime: number, event: MouseEvent) => void) | undefined>(undefined);
+  const handleWaveformRegionDoubleClickRef = useRef<((regionId: string, start: number, end: number) => void) | undefined>(undefined);
+  const handleWaveformRegionCreateRef = useRef<((start: number, end: number) => void) | undefined>(undefined);
+  const handleWaveformRegionContextMenuRef = useRef<((regionId: string, x: number, y: number) => void) | undefined>(undefined);
+  const handleWaveformRegionUpdateRef = useRef<((regionId: string, start: number, end: number) => void) | undefined>(undefined);
+  const handleWaveformRegionUpdateEndRef = useRef<((regionId: string, start: number, end: number) => void) | undefined>(undefined);
+  const handleWaveformTimeUpdateRef = useRef<((time: number) => void) | undefined>(undefined);
+
+  const {
+    useSegmentWaveformRegions,
+    waveformTimelineItems,
+    waveformRegions,
+    selectedWaveformRegionId,
+    waveformActiveRegionIds,
+    waveformPrimaryRegionId,
+    selectedWaveformTimelineItem,
+  } = useWaveformSelectionController({
+    activeLayerIdForEdits: input.activeLayerIdForEdits,
+    layers: input.layers,
+    layerById: input.layerById,
+    ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
+    segmentsByLayer: input.segmentsByLayer,
+    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
+    selectedTimelineUnit: input.selectedTimelineUnit,
+    selectedUtteranceIds: input.selectedUtteranceIds,
+  });
+
+  const containerWidth = waveCanvasRef.current?.clientWidth || 800;
+  const safeDur = lastDurationRef.current;
+  const fitPxPerSec = safeDur > 0 ? containerWidth / safeDur : 40;
+  const zoomPxPerSec = fitPxPerSec * (input.zoomPercent / 100);
+  zoomPxPerSecRef.current = zoomPxPerSec;
+  const maxZoomPercent = Math.max(200, Math.ceil((2000 / fitPxPerSec) * 100));
+  const isFitZoomMode = input.zoomMode === 'fit-all' || input.zoomMode === 'fit-selection';
+  const shouldDisableAutoScroll = segmentLoopPlayback && isFitZoomMode;
+
+  const player = useWaveSurfer({
+    mediaUrl: input.selectedMediaUrl,
+    regions: waveformRegions,
+    activeRegionIds: waveformActiveRegionIds,
+    primaryRegionId: waveformPrimaryRegionId,
+    waveformFocused,
+    segmentLoop: segmentLoopPlayback,
+    globalLoop: globalLoopPlayback,
+    segmentPlaybackRate,
+    autoScrollDuringPlayback: !shouldDisableAutoScroll,
+    enableEmptyDragCreate: useSegmentWaveformRegions,
+    zoomLevel: zoomPxPerSec,
+    startMarker: segMarkStart ?? undefined,
+    subSelection: subSelectionRange,
+    waveformHeight: input.waveformHeight,
+    amplitudeScale: input.amplitudeScale,
+    onRegionAltPointerDown: (regionId, time, pointerId, clientX) => {
+      handleWaveformRegionAltPointerDownRef.current?.(regionId, time, pointerId, clientX);
+    },
+    onRegionClick: (regionId, clickTime, event) => {
+      handleWaveformRegionClickRef.current?.(regionId, clickTime, event);
+    },
+    onRegionDblClick: (regionId, start, end) => {
+      handleWaveformRegionDoubleClickRef.current?.(regionId, start, end);
+    },
+    onRegionUpdate: (regionId, start, end) => {
+      handleWaveformRegionUpdateRef.current?.(regionId, start, end);
+    },
+    onRegionUpdateEnd: (regionId, start, end) => {
+      handleWaveformRegionUpdateEndRef.current?.(regionId, start, end);
+    },
+    onRegionCreate: (start, end) => {
+      handleWaveformRegionCreateRef.current?.(start, end);
+    },
+    onRegionContextMenu: (regionId, x, y) => {
+      handleWaveformRegionContextMenuRef.current?.(regionId, x, y);
+    },
+    onTimeUpdate: (time) => {
+      handleWaveformTimeUpdateRef.current?.(time);
+    },
+  });
+
+  useEffect(() => {
+    if (player.duration > 0 && player.duration !== lastDurationRef.current) {
+      lastDurationRef.current = player.duration;
+    }
+  }, [player.duration]);
+
+  useEffect(() => {
+    if (!player.isReady) return;
+    const ws = player.instanceRef.current;
+    if (!ws) return;
+    const onScroll = () => setWaveformScrollLeft(ws.getScroll());
+    ws.on('scroll', onScroll);
+    return () => { ws.un('scroll', onScroll); };
+  }, [player.isReady, player.instanceRef]);
+
+  const waveformNoteIndicators = useMemo(() => {
+    if (!player.isReady) return [];
+    const ws = player.instanceRef.current;
+    if (!ws) return [];
+    const result: WaveformNoteIndicator[] = [];
+    for (const item of waveformTimelineItems) {
+      const noteIndicator = input.resolveNoteIndicatorTarget(item.id, input.activeLayerIdForEdits || undefined);
+      if (!noteIndicator) continue;
+      const leftPx = item.startTime * zoomPxPerSec - waveformScrollLeft;
+      const widthPx = (item.endTime - item.startTime) * zoomPxPerSec;
+      result.push({
+        uttId: item.id,
+        leftPx,
+        widthPx,
+        count: noteIndicator.count,
+        ...(noteIndicator.layerId ? { layerId: noteIndicator.layerId } : {}),
+      });
+    }
+    return result;
+  }, [input.activeLayerIdForEdits, input.resolveNoteIndicatorTarget, player.instanceRef, player.isReady, waveformScrollLeft, waveformTimelineItems, zoomPxPerSec]);
+
+  const {
+    waveLassoRect,
+    waveLassoHintCount,
+    lassoRect,
+    handleLassoPointerDown,
+    handleLassoPointerMove,
+    handleLassoPointerUp,
+  } = useLasso({
+    waveCanvasRef,
+    tierContainerRef: input.tierContainerRef,
+    playerInstanceRef: player.instanceRef,
+    playerIsReady: player.isReady,
+    selectedMediaUrl: input.selectedMediaUrl,
+    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
+    timelineItems: waveformTimelineItems,
+    selectedUtteranceIds: input.selectedUtteranceIds,
+    selectedUtteranceUnitId: selectedWaveformRegionId,
+    zoomPxPerSec,
+    skipSeekForIdRef,
+    clearUtteranceSelection: input.clearUtteranceSelection,
+    createUtteranceFromSelection: input.createUtteranceFromSelection,
+    setUtteranceSelection: input.setUtteranceSelection,
+    playerSeekTo: player.seekTo,
+    subSelectionRange,
+    setSubSelectionRange,
+    subSelectDragRef,
+  });
+
+  const { rulerView, zoomToPercent, zoomToUtterance } = useZoom({
+    waveCanvasRef,
+    tierContainerRef: input.tierContainerRef,
+    playerInstanceRef: player.instanceRef,
+    playerIsReady: player.isReady,
+    playerDuration: player.duration,
+    playerCurrentTime: player.currentTime,
+    playerIsPlaying: player.isPlaying,
+    selectedMediaUrl: input.selectedMediaUrl,
+    zoomPercent: input.zoomPercent,
+    setZoomPercent: input.setZoomPercent,
+    setZoomMode: input.setZoomMode,
+    fitPxPerSec,
+    maxZoomPercent,
+    zoomPxPerSec,
+  });
+
+  const handleWaveformAreaFocus = useCallback(() => {
+    setWaveformFocused(true);
+  }, []);
+
+  const handleWaveformAreaBlur = useCallback(() => {
+    setWaveformFocused(false);
+  }, []);
+
+  const handleWaveformAreaMouseMove = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    const el = waveCanvasRef.current;
+    if (!el || !player.isReady) {
+      setHoverTime(null);
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    if (
+      event.clientX < rect.left
+      || event.clientX > rect.right
+      || event.clientY < rect.top
+      || event.clientY > rect.bottom + 30
+    ) {
+      setHoverTime(null);
+      return;
+    }
+    const ws = player.instanceRef.current;
+    const scrollLeft = ws ? ws.getScroll() : 0;
+    const time = (scrollLeft + (event.clientX - rect.left)) / zoomPxPerSec;
+    setHoverTime({
+      time: Math.max(0, Math.min(time, player.duration)),
+      x: event.clientX,
+      y: rect.top - 4,
+    });
+  }, [player.duration, player.instanceRef, player.isReady, zoomPxPerSec]);
+
+  const handleWaveformAreaMouseLeave = useCallback(() => {
+    setHoverTime(null);
+  }, []);
+
+  const handleWaveformAreaWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
+    if (event.ctrlKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      const delta = event.deltaY > 0 ? -10 : 10;
+      input.setZoomPercent((prev) => Math.min(800, Math.max(10, prev + delta)));
+      return;
+    }
+    if (event.altKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      const delta = event.deltaY > 0 ? -0.1 : 0.1;
+      input.setAmplitudeScale((prev) => Math.min(4, Math.max(0.25, prev + delta)));
+    }
+  }, [input]);
+
+  const handleTimelineScroll = useCallback((event: ReactUIEvent<HTMLDivElement>) => {
+    const ws = player.instanceRef.current;
+    if (ws) {
+      ws.setScroll(event.currentTarget.scrollLeft);
+    }
+    setWaveformScrollLeft(event.currentTarget.scrollLeft);
+  }, [player.instanceRef]);
+
+  useEffect(() => {
+    const currentSelectedTimelineUnitId = input.selectedTimelineUnit?.unitId ?? '';
+    const prev = previousSelectedTimelineUnitIdRef.current;
+    if (prev !== currentSelectedTimelineUnitId && segmentLoopPlayback) {
+      setSegmentLoopPlayback(false);
+    }
+    if (prev !== currentSelectedTimelineUnitId) {
+      setSegmentPlaybackRate(1);
+    }
+    previousSelectedTimelineUnitIdRef.current = currentSelectedTimelineUnitId;
+  }, [input.selectedTimelineUnit, segmentLoopPlayback]);
+
+  const isPlayingRef = useRef(player.isPlaying);
+  isPlayingRef.current = player.isPlaying;
+  useEffect(() => {
+    if (!input.selectedTimelineUnitForTime || !player.isReady) return;
+    if (skipSeekForIdRef.current) {
+      skipSeekForIdRef.current = null;
+      return;
+    }
+    if (isPlayingRef.current) return;
+    player.seekTo(input.selectedTimelineUnitForTime.startTime);
+  }, [input.selectedTimelineUnitForTime, player.isReady, player.seekTo]);
+
+  const resolveSelectedPlaybackRange = useCallback(() => {
+    if (!selectedWaveformTimelineItem) return null;
+    return subSelectionRange ?? {
+      start: selectedWaveformTimelineItem.startTime,
+      end: selectedWaveformTimelineItem.endTime,
+    };
+  }, [selectedWaveformTimelineItem, subSelectionRange]);
+
+  const handleSegmentPlaybackRateChange = useCallback((rate: number) => {
+    setSegmentPlaybackRate(rate);
+    const ws = player.instanceRef.current;
+    if (ws && player.isPlaying) {
+      ws.setPlaybackRate(rate);
+    }
+  }, [player.instanceRef, player.isPlaying]);
+
+  const handleToggleSelectedWaveformLoop = useCallback(() => {
+    if (segmentLoopPlayback) {
+      setSegmentLoopPlayback(false);
+      player.stop();
+      return;
+    }
+    const range = resolveSelectedPlaybackRange();
+    if (!range) return;
+    setSegmentLoopPlayback(true);
+    player.playRegion(range.start, range.end, true);
+  }, [player, resolveSelectedPlaybackRange, segmentLoopPlayback]);
+
+  const handleToggleSelectedWaveformPlay = useCallback(() => {
+    if (player.isPlaying) {
+      player.stop();
+      return;
+    }
+    const range = resolveSelectedPlaybackRange();
+    if (!range) return;
+    player.playRegion(range.start, range.end, true);
+  }, [player, resolveSelectedPlaybackRange]);
+
+  return {
+    waveformAreaRef,
+    waveCanvasRef,
+    player,
+    useSegmentWaveformRegions,
+    waveformTimelineItems,
+    waveformRegions,
+    selectedWaveformRegionId,
+    waveformActiveRegionIds,
+    waveformPrimaryRegionId,
+    selectedWaveformTimelineItem,
+    waveformFocused,
+    segmentLoopPlayback,
+    setSegmentLoopPlayback,
+    globalLoopPlayback,
+    setGlobalLoopPlayback,
+    segmentPlaybackRate,
+    segMarkStart,
+    setSegMarkStart,
+    dragPreview,
+    setDragPreview,
+    skipSeekForIdRef,
+    creatingSegmentRef,
+    markingModeRef,
+    subSelectionRange,
+    setSubSelectionRange,
+    subSelectDragRef,
+    waveLassoRect,
+    waveLassoHintCount,
+    lassoRect,
+    handleLassoPointerDown,
+    handleLassoPointerMove,
+    handleLassoPointerUp,
+    fitPxPerSec,
+    zoomPxPerSec,
+    maxZoomPercent,
+    rulerView,
+    zoomToPercent,
+    zoomToUtterance,
+    hoverTime,
+    handleWaveformAreaFocus,
+    handleWaveformAreaBlur,
+    handleWaveformAreaMouseMove,
+    handleWaveformAreaMouseLeave,
+    handleWaveformAreaWheel,
+    waveformScrollLeft,
+    handleTimelineScroll,
+    waveformNoteIndicators,
+    handleSegmentPlaybackRateChange,
+    handleToggleSelectedWaveformLoop,
+    handleToggleSelectedWaveformPlay,
+    waveformInteractionHandlerRefs: {
+      handleWaveformRegionAltPointerDownRef,
+      handleWaveformRegionClickRef,
+      handleWaveformRegionDoubleClickRef,
+      handleWaveformRegionCreateRef,
+      handleWaveformRegionContextMenuRef,
+      handleWaveformRegionUpdateRef,
+      handleWaveformRegionUpdateEndRef,
+      handleWaveformTimeUpdateRef,
+    },
+  };
+}

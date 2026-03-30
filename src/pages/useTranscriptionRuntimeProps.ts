@@ -13,12 +13,7 @@ import {
   createAssistantRuntimeProps,
   createPdfRuntimeProps,
 } from './TranscriptionPage.runtimeProps';
-
-interface SelectedRowMetaLike {
-  rowNumber: number;
-  start: number;
-  end: number;
-}
+import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 
 interface OverlapCycleToastLike {
   index: number;
@@ -50,9 +45,7 @@ interface UseTranscriptionRuntimePropsInput {
   }) => Promise<VoiceIntent | null>;
   handleVoiceDictation: (text: string) => void;
   handleVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => void;
-  selectedTimelineOwnerUtterance: UtteranceDocType | null;
-  selectedTimelineRowMeta: SelectedRowMetaLike | null;
-  selectedLayerId: string | null;
+  selectionSnapshot: TranscriptionSelectionSnapshot;
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
@@ -74,6 +67,8 @@ interface UseTranscriptionRuntimePropsInput {
   pdfPreviewRequest: PdfPreviewOpenRequest | null;
   setPdfPreviewRequest: Dispatch<SetStateAction<PdfPreviewOpenRequest | null>>;
 }
+
+export type { UseTranscriptionRuntimePropsInput };
 
 type UseTranscriptionAssistantRuntimeProps = Omit<TranscriptionPageAssistantRuntimeProps, 'locale' | 'aiChatContextValue'>;
 type UseTranscriptionAnalysisRuntimeProps = Omit<TranscriptionPageAnalysisRuntimeProps, 'locale' | 'analysisTab' | 'onAnalysisTabChange'>;
@@ -107,10 +102,7 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
     handleResolveVoiceIntentWithLlm: input.handleResolveVoiceIntentWithLlm,
     handleVoiceDictation: input.handleVoiceDictation,
     handleVoiceAnalysisResult: input.handleVoiceAnalysisResult,
-    selectedTimelineUtteranceId: input.selectedTimelineOwnerUtterance?.id ?? null,
-    selectedUtterance: input.selectedTimelineOwnerUtterance ?? null,
-    selectedRowMeta: input.selectedTimelineRowMeta,
-    selectedLayerId: input.selectedLayerId,
+    selection: input.selectionSnapshot,
     ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
     translationLayers: input.translationLayers,
     layers: input.layers,
@@ -122,7 +114,7 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
   }), [input]);
 
   const analysisRuntimeProps = useMemo(() => createAnalysisRuntimeProps({
-    selectedUtterance: input.selectedTimelineOwnerUtterance ?? null,
+    selectedUtterance: input.selectionSnapshot.selectedUtterance,
     utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
     getUtteranceTextForLayer: input.getUtteranceTextForLayer,
     formatTime: input.formatTime,

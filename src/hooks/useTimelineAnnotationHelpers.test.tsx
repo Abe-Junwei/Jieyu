@@ -84,7 +84,7 @@ describe('useTimelineAnnotationHelpers', () => {
     expect(setCtxMenu).toHaveBeenCalledWith({
       x: 0,
       y: 0,
-      utteranceId: 'seg-2',
+      unitId: 'seg-2',
       layerId: 'layer-seg',
       unitKind: 'segment',
       splitTime: 1.001,
@@ -137,7 +137,7 @@ describe('useTimelineAnnotationHelpers', () => {
     fireEvent.contextMenu(screen.getByTitle('00:01.0 – 00:02.0'));
 
     expect(setCtxMenu).toHaveBeenCalledWith(expect.objectContaining({
-      utteranceId: 'seg-1',
+      unitId: 'seg-1',
       layerId: 'layer-dependent',
       unitKind: 'segment',
     }));

@@ -7,7 +7,6 @@ import type {
   UtteranceDocType,
 } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
-import { createTimelineUnit } from '../hooks/transcriptionTypes';
 import type { SpeakerActionDialogState, SpeakerFilterOption } from '../hooks/speakerManagement/types';
 import {
   applySpeakerAssignmentToUtterances,
@@ -18,6 +17,7 @@ import { LinguisticService } from '../services/LinguisticService';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
+import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 
 type SegmentUpdater = (segment: LayerSegmentDocType) => LayerSegmentDocType;
 
@@ -443,7 +443,11 @@ export function useSpeakerActionRoutingController({
     const primary = selectedTimelineUnit?.kind === 'segment' && ids.includes(selectedTimelineUnit.unitId)
       ? selectedTimelineUnit.unitId
       : ids[0]!;
-    selectTimelineUnit(createTimelineUnit(activeSpeakerManagementLayer.id, primary, 'segment'));
+    selectTimelineUnit(resolveTranscriptionUnitTarget({
+      layerId: activeSpeakerManagementLayer.id,
+      unitId: primary,
+      preferredKind: 'segment',
+    }));
     setSelectedUtteranceIds(new Set(ids));
     setActiveSpeakerFilterKey(speakerKey);
   }, [activeSpeakerManagementLayer, getSegmentIdsForSpeakerKey, handleSelectSpeakerUtterances, selectTimelineUnit, selectedTimelineUnit, setActiveSpeakerFilterKey, setSelectedUtteranceIds]);

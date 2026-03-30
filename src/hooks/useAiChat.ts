@@ -32,7 +32,7 @@ import {
   resolveAiToolDecisionMode,
   toNaturalToolCancelled,
 } from '../ai/chat/toolCallHelpers';
-import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
+import type { AiMessageCitation } from '../db';
 import { featureFlags } from '../ai/config/featureFlags';
 import { createAssistantStream } from './useAiChat.streamFactory';
 import { normalizeAiProviderError } from '../ai/providers/errorUtils';
@@ -66,6 +66,23 @@ import type { ChatMessage } from '../ai/providers/LLMProvider';
 import type {
   AiChatToolCall,
   AiChatToolName,
+  AiConnectionTestStatus,
+  AiContextDebugSnapshot,
+  AiInteractionMetrics,
+  AiSessionMemory,
+  AiTaskSession,
+  AiToolDecisionMode,
+  PendingAiToolCall,
+  UiChatMessage,
+  UseAiChatOptions,
+} from './useAiChat.types';
+export type {
+  AiChatProviderKind,
+  AiChatSettings,
+} from '../ai/providers/providerCatalog';
+export type {
+  AiChatToolCall,
+  AiChatToolName,
   AiChatToolResult,
   AiClarifyCandidate,
   AiConnectionTestStatus,
@@ -82,10 +99,6 @@ import type {
   UiChatMessage,
   UseAiChatOptions,
 } from './useAiChat.types';
-export type {
-  AiChatProviderKind,
-  AiChatSettings,
-} from '../ai/providers/providerCatalog';
 
 type ToolPlannerClarifyReason =
   | 'missing-utterance-target'
@@ -143,40 +156,6 @@ interface ToolDecisionAuditMetadata {
   /** 工具执行耗时（ms），仅在 executed=true 时有值 | Tool execution duration, only when executed=true */
   durationMs?: number;
 }
-
-interface UseAiChatOptions {
-  onToolCall?: (call: AiChatToolCall) => Promise<AiChatToolResult> | AiChatToolResult;
-  onToolRiskCheck?: (call: AiChatToolCall) => Promise<AiToolRiskCheckResult | null | undefined> | AiToolRiskCheckResult | null | undefined;
-  /** Called when an assistant message completes streaming (after all content is received). */
-  onMessageComplete?: (assistantMessageId: string, content: string) => void;
-  systemPersonaKey?: AiSystemPersonaKey;
-  getContext?: () => AiPromptContext | null;
-  maxContextChars?: number;
-  historyCharBudget?: number;
-  allowDestructiveToolCalls?: boolean;
-  streamPersistIntervalMs?: number;
-  firstChunkTimeoutMs?: number;
-  autoProbeIntervalMs?: number;
-  embeddingSearchService?: EmbeddingSearchService;
-}
-export type {
-  AiChatToolCall,
-  AiChatToolName,
-  AiChatToolResult,
-  AiClarifyCandidate,
-  AiConnectionTestStatus,
-  AiContextDebugSnapshot,
-  AiInteractionMetrics,
-  AiPromptContext,
-  AiSessionMemory,
-  AiSystemPersonaKey,
-  AiTaskSession,
-  AiToolDecisionMode,
-  AiToolRiskCheckResult,
-  PendingAiToolCall,
-  PreviewContract,
-  UiChatMessage,
-} from './useAiChat.types';
 
 export function useAiChat(options?: UseAiChatOptions) {
   const onToolCall = options?.onToolCall;

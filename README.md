@@ -69,6 +69,8 @@ npm test
 
 ## 开发工作流（Hook 结构纪律）
 
+项目级 AI/Agent 约束见根目录 `copilot-instructions.md`；其原则与本节保持一致，并进一步明确“编排层强制分离，不等于一律抽 custom hook”。
+
 为避免再次出现 mega-hook，新增以下默认规则（从现在起执行）：
 
 1. 复杂度阈值
@@ -97,7 +99,18 @@ npm test
 	- `npm test`
 - 不通过不得合并。
 
-6. 代码评审重点
+6. 热点预警
+- 新增或修改功能后，若涉及页面 / hook / service / component / context 结构变化，需额外关注 `npm test` 中 `check:architecture-guard` 的 hotspot warning。
+- 可单独执行：`npm run report:architecture-hotspots`
+- 若文件进入 hotspot 区（默认达到硬上限的 85%），应在同一 PR 内优先拆分或登记回收计划，不再继续堆功能。
+
+7. CI 与 PR 约束
+- GitHub Actions workflow 见 `.github/workflows/ci.yml`，默认执行 `typecheck`、`test`、`build:guard` 与 architecture hotspot report。
+- PR 模板见 `.github/pull_request_template.md`，要求填写结构落位、hotspot 命中情况与回收计划。
+- hotspot 台账见 [docs/execution/架构热点台账.md](docs/execution/%E6%9E%B6%E6%9E%84%E7%83%AD%E7%82%B9%E5%8F%B0%E8%B4%A6.md)，进入预警区的文件必须在同一 PR 中拆分或登记。
+- 远端分支保护建议配置见 [docs/execution/GitHub分支保护配置清单.md](docs/execution/GitHub%E5%88%86%E6%94%AF%E4%BF%9D%E6%8A%A4%E9%85%8D%E7%BD%AE%E6%B8%85%E5%8D%95.md)。
+
+8. 代码评审重点
 - 是否出现 orchestrator 以外的业务逻辑集中。
 - 是否有跨层依赖倒置（例如 effect 直接操作持久化细节）。
 - 返回对象是否按 `state/derived/actions` 分组组装，便于阅读与维护。

@@ -5,7 +5,7 @@ import { TimelineHeaderSection } from '../components/transcription/Transcription
 type TimelineHeaderProps = ComponentProps<typeof TimelineHeaderSection>;
 type SearchOverlayProps = ComponentProps<typeof SearchReplaceOverlay>;
 
-interface TranscriptionPageTimelineTopProps {
+export interface TranscriptionPageTimelineTopProps {
   headerProps: TimelineHeaderProps;
   showSearch: boolean;
   searchProps: SearchOverlayProps;

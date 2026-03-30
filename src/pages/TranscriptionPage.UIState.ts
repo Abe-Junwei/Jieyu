@@ -11,7 +11,7 @@ import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
 export interface ContextMenuState {
   x: number;
   y: number;
-  utteranceId: string;
+  unitId: string;
   layerId: string;
   unitKind: TimelineUnitKind;
   splitTime: number;

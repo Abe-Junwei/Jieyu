@@ -62,6 +62,18 @@ export function AiEmbeddingCard() {
     return list.filter((task) => task.taskType === taskTypeFilter);
   }, [aiEmbeddingTasks, taskTypeFilter]);
 
+  const taskSummary = useMemo(() => {
+    return (aiEmbeddingTasks ?? []).reduce((summary, task) => {
+      summary[task.status] += 1;
+      return summary;
+    }, {
+      pending: 0,
+      running: 0,
+      done: 0,
+      failed: 0,
+    });
+  }, [aiEmbeddingTasks]);
+
   return (
     <div className="transcription-ai-card">
       <div className="transcription-ai-card-head">
@@ -118,6 +130,14 @@ export function AiEmbeddingCard() {
       )}
       {aiEmbeddingLastError && <p className="inspector-warning" style={{ marginBottom: 6 }}>{aiEmbeddingLastError}</p>}
       {aiEmbeddingWarning && <p style={{ marginBottom: 6, fontSize: 11, color: '#92400e', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 6, padding: '4px 6px' }}>{aiEmbeddingWarning}</p>}
+      {(taskSummary.pending > 0 || taskSummary.running > 0 || taskSummary.failed > 0 || taskSummary.done > 0) && (
+        <div className="ai-card-row ai-card-row-gap-sm ai-card-margin-bottom-sm">
+          {taskSummary.pending > 0 && <span className="transcription-ai-tag">{isZh ? `排队 ${taskSummary.pending}` : `Queued ${taskSummary.pending}`}</span>}
+          {taskSummary.running > 0 && <span className="transcription-ai-tag">{isZh ? `运行 ${taskSummary.running}` : `Running ${taskSummary.running}`}</span>}
+          {taskSummary.failed > 0 && <span className="transcription-ai-tag" style={{ color: '#b91c1c', borderColor: 'rgba(185,28,28,0.2)', background: '#fef2f2' }}>{isZh ? `失败 ${taskSummary.failed}` : `Failed ${taskSummary.failed}`}</span>}
+          {taskSummary.done > 0 && <span className="transcription-ai-tag">{isZh ? `完成 ${taskSummary.done}` : `Done ${taskSummary.done}`}</span>}
+        </div>
+      )}
 
       <div className="ai-card-grid-gap">
         <div className="ai-card-row ai-card-row-space">
@@ -137,6 +157,13 @@ export function AiEmbeddingCard() {
                 <span className="ai-text-11">{`${task.taskType.toUpperCase()} · ${task.status.toUpperCase()}`}</span>
                 <em>{new Date(task.updatedAt).toLocaleTimeString()}</em>
               </div>
+              {(task.modelId || task.errorMessage) && (
+                <div className="ai-text-muted-11">
+                  {task.modelId ? `${isZh ? '模型' : 'Model'}: ${task.modelId}` : ''}
+                  {task.modelId && task.errorMessage ? ' · ' : ''}
+                  {task.errorMessage ? `${isZh ? '错误' : 'Error'}: ${task.errorMessage}` : ''}
+                </div>
+              )}
               <div className="ai-card-row ai-card-row-gap-sm">
                 {(task.status === 'pending' || task.status === 'running') && <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" disabled={!onCancelAiTask} onClick={() => void onCancelAiTask?.(task.id)}>{isZh ? '取消' : 'Cancel'}</button>}
                 {task.status === 'failed' && <button type="button" className="icon-btn ai-btn-xs ai-btn-min-refresh" disabled={!onRetryAiTask} onClick={() => void onRetryAiTask?.(task.id)}>{isZh ? '重试' : 'Retry'}</button>}

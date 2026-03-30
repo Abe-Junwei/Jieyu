@@ -33,6 +33,15 @@ interface SelectedUtteranceLike {
   endTime: number;
 }
 
+interface VoiceSelectionLike {
+  activeUtteranceUnitId: string | null;
+  selectedUtterance: SelectedUtteranceLike | null;
+  selectedRowMeta: SelectedRowMetaLike | null;
+  selectedLayerId: string | null;
+  selectedUnitKind: 'utterance' | 'segment' | null;
+  selectedTimeRangeLabel?: string;
+}
+
 interface LocalWhisperConfigLike {
   baseUrl?: string;
   model?: string;
@@ -56,10 +65,7 @@ interface UseVoiceInteractionOptions {
     utteranceId: string | null,
     analysisText: string,
   ) => Promise<{ ok: boolean; message?: string } | void> | { ok: boolean; message?: string } | void;
-  activeUtteranceUnitId: string | null;
-  selectedUtterance: SelectedUtteranceLike | null;
-  selectedRowMeta: SelectedRowMetaLike | null;
-  selectedLayerId: string | null;
+  selection: VoiceSelectionLike;
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
@@ -109,10 +115,7 @@ export function useVoiceInteraction({
   handleResolveVoiceIntentWithLlm,
   handleVoiceDictation,
   onVoiceAnalysisResult,
-  activeUtteranceUnitId,
-  selectedUtterance,
-  selectedRowMeta,
-  selectedLayerId,
+  selection,
   defaultTranscriptionLayerId,
   translationLayers,
   layers,
@@ -145,7 +148,7 @@ export function useVoiceInteraction({
     sendToAiChat: (text: string) => {
       // 先注册分析回填，再发送 AI 消息 | Register fill-back callback before sending AI message
       void (async () => {
-        const utteranceId = activeUtteranceUnitId;
+        const utteranceId = selection.activeUtteranceUnitId;
         voiceAgentRef.current?.setAnalysisFillCallback?.(utteranceId, (analysisText) => {
           void (async () => {
             const result = await onVoiceAnalysisResult(utteranceId, analysisText);
@@ -175,8 +178,12 @@ export function useVoiceInteraction({
   voiceAgentRef.current = voiceAgent;
 
   const voiceTargetSummary = useMemo(() => {
-    const hasSelection = Boolean(selectedRowMeta || selectedUtterance);
-    const rowLabel = selectedRowMeta ? `第 ${selectedRowMeta.rowNumber} 句` : (selectedUtterance ? '当前句段' : '未选择句段');
+    const hasSelection = Boolean(selection.selectedRowMeta || selection.selectedUtterance);
+    const rowLabel = selection.selectedUnitKind === 'segment'
+      ? '当前独立段'
+      : selection.selectedRowMeta
+        ? `第 ${selection.selectedRowMeta.rowNumber} 句`
+        : (selection.selectedUtterance ? '当前句段' : '未选择句段');
 
     if (voiceAgent.mode === 'command') {
       return '当前页面操作';
@@ -187,7 +194,7 @@ export function useVoiceInteraction({
     }
 
     // 解析首选层 ID：selectedLayerId 可能是空串，需 trim 后判断 | resolve preferred layer ID with empty-string guard
-    const normalizedSelected = selectedLayerId?.trim();
+  const normalizedSelected = selection.selectedLayerId?.trim();
     const targetLayerId = normalizedSelected || defaultTranscriptionLayerId || translationLayers[0]?.id;
     const targetLayer = targetLayerId ? layers.find((layer) => layer.id === targetLayerId) : undefined;
     const layerLabel = targetLayer ? formatLayerRailLabel(targetLayer) : '未选择层';
@@ -196,9 +203,7 @@ export function useVoiceInteraction({
     defaultTranscriptionLayerId,
     formatLayerRailLabel,
     layers,
-    selectedLayerId,
-    selectedRowMeta,
-    selectedUtterance,
+    selection,
     translationLayers,
     voiceAgent.mode,
   ]);
@@ -255,14 +260,17 @@ export function useVoiceInteraction({
   }, [effectiveVoiceCorpusLang, voiceCorpusLangOverride, voiceAgent.detectedLang, voiceAgent.engine]);
 
   const voiceSelectionSummary = useMemo(() => {
-    if (selectedRowMeta) {
-      return `${formatTime(selectedRowMeta.start)} - ${formatTime(selectedRowMeta.end)}`;
+    if (selection.selectedTimeRangeLabel) {
+      return selection.selectedTimeRangeLabel;
     }
-    if (selectedUtterance) {
-      return `${formatTime(selectedUtterance.startTime)} - ${formatTime(selectedUtterance.endTime)}`;
+    if (selection.selectedRowMeta) {
+      return `${formatTime(selection.selectedRowMeta.start)} - ${formatTime(selection.selectedRowMeta.end)}`;
+    }
+    if (selection.selectedUtterance) {
+      return `${formatTime(selection.selectedUtterance.startTime)} - ${formatTime(selection.selectedUtterance.endTime)}`;
     }
     return '未定位句段';
-  }, [formatTime, selectedRowMeta, selectedUtterance]);
+  }, [formatTime, selection]);
 
   const prevAiStreamingRef = useRef(false);
 
