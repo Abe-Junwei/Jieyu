@@ -52,7 +52,10 @@ interface UseVoiceInteractionOptions {
   executeAction: Parameters<typeof useVoiceAgent>[0]['executeAction'];
   handleResolveVoiceIntentWithLlm: NonNullable<Parameters<typeof useVoiceAgent>[0]['resolveIntentWithLlm']>;
   handleVoiceDictation: NonNullable<Parameters<typeof useVoiceAgent>[0]['insertDictation']>;
-  onVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => void;
+  onVoiceAnalysisResult: (
+    utteranceId: string | null,
+    analysisText: string,
+  ) => Promise<{ ok: boolean; message?: string } | void> | { ok: boolean; message?: string } | void;
   activeUtteranceUnitId: string | null;
   selectedUtterance: SelectedUtteranceLike | null;
   selectedRowMeta: SelectedRowMetaLike | null;
@@ -128,6 +131,10 @@ export function useVoiceInteraction({
   toggleVoiceRef,
 }: UseVoiceInteractionOptions): UseVoiceInteractionReturn {
   const [assistantVoiceExpanded, setAssistantVoiceExpanded] = useState(false);
+  const [analysisWritebackFeedback, setAnalysisWritebackFeedback] = useState<{
+    kind: 'done' | 'error';
+    message: string;
+  } | null>(null);
 
   const voiceAgentRef = useRef<ReturnType<typeof useVoiceAgent> | null>(null);
 
@@ -140,7 +147,18 @@ export function useVoiceInteraction({
       void (async () => {
         const utteranceId = activeUtteranceUnitId;
         voiceAgentRef.current?.setAnalysisFillCallback?.(utteranceId, (analysisText) => {
-          onVoiceAnalysisResult(utteranceId, analysisText);
+          void (async () => {
+            const result = await onVoiceAnalysisResult(utteranceId, analysisText);
+            if (!result) {
+              voiceAgentRef.current?.setExternalError(null);
+              setAnalysisWritebackFeedback({ kind: 'done', message: 'AI 分析结果已写回。' });
+              return;
+            }
+            const ok = result.ok !== false;
+            const normalizedMessage = result.message?.trim() || (ok ? 'AI 分析结果已写回。' : 'AI 分析写回失败。');
+            setAnalysisWritebackFeedback({ kind: ok ? 'done' : 'error', message: normalizedMessage });
+            voiceAgentRef.current?.setExternalError(ok ? null : normalizedMessage);
+          })();
         });
         await aiChatSend(text);
       })();
@@ -199,9 +217,27 @@ export function useVoiceInteraction({
         return '正在等待 AI 处理结果。';
       case 'idle':
       default:
+        if (voiceAgent.mode === 'analysis' && analysisWritebackFeedback) {
+          return analysisWritebackFeedback.message;
+        }
         return voiceAgent.listening ? '语音通道已开启，等待下一句输入。' : '就绪，点击麦克风开始语音交互。';
     }
-  }, [voiceAgent.agentState, voiceAgent.listening, voiceAgent.mode]);
+  }, [analysisWritebackFeedback, voiceAgent.agentState, voiceAgent.listening, voiceAgent.mode]);
+
+  useEffect(() => {
+    if (voiceAgent.mode !== 'analysis' && analysisWritebackFeedback) {
+      setAnalysisWritebackFeedback(null);
+    }
+  }, [analysisWritebackFeedback, voiceAgent.mode]);
+
+  useEffect(() => {
+    if (!analysisWritebackFeedback) return;
+    if (typeof window === 'undefined') return;
+    const timerId = window.setTimeout(() => {
+      setAnalysisWritebackFeedback(null);
+    }, 4500);
+    return () => window.clearTimeout(timerId);
+  }, [analysisWritebackFeedback]);
 
   const voiceEnvironmentSummary = useMemo(() => {
     const currentLanguage = voiceCorpusLangOverride === '__auto__'

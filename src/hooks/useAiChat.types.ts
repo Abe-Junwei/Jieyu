@@ -4,6 +4,8 @@
  */
 
 import type { AiMessageCitation } from '../db';
+import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
+import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { VoiceActionToolName } from '../ai/voice/VoiceActionTools';
 
 // ── Core Types ─────────────────────────────────────────────────────────────────
@@ -79,7 +81,7 @@ export interface AiSessionMemory {
 
 // ── Tool Types ──────────────────────────────────────────────────────────────────
 
-type ToolPlannerClarifyReason =
+export type ToolPlannerClarifyReason =
   | 'missing-utterance-target'
   | 'missing-split-position'
   | 'missing-translation-layer-target'
@@ -87,20 +89,29 @@ type ToolPlannerClarifyReason =
   | 'missing-layer-target'
   | 'missing-language-target';
 
-interface ToolAuditContext {
+type ToolPlannerDecision = 'resolved' | 'clarify';
+
+interface ToolIntentAssessment {
+  decision: 'execute' | 'clarify' | 'ignore' | 'cancel';
+  score: number;
+  hasExecutionCue: boolean;
+  hasActionVerb: boolean;
+  hasActionTarget: boolean;
+  hasExplicitId: boolean;
+  hasMetaQuestion: boolean;
+  hasTechnicalDiscussion: boolean;
+}
+
+export interface ToolAuditContext {
   userText: string;
   providerId: string;
   model: string;
   toolDecisionMode: AiToolDecisionMode;
-  toolFeedbackStyle: string; // AiToolFeedbackStyle
+  toolFeedbackStyle: AiToolFeedbackStyle;
   plannerDecision?: ToolPlannerDecision;
   plannerReason?: ToolPlannerClarifyReason;
   intentAssessment?: ToolIntentAssessment;
 }
-
-// Internal types kept for reference (not directly used in public API):
-// interface ToolIntentAuditMetadata { ... }
-// interface ToolDecisionAuditMetadata { ... }
 
 export type AiChatToolName =
   | 'create_transcription_segment'
@@ -216,25 +227,9 @@ export interface AiContextDebugSnapshot {
   contextPreview: string;
 }
 
-// ── Internal Planner Types ─────────────────────────────────────────────────────
-
-type ToolIntentDecision = 'execute' | 'clarify' | 'cancel' | 'ignore';
-
-interface ToolPlannerDecision {
-  decision: 'execute' | 'clarify';
-  reason: ToolPlannerClarifyReason;
-}
-
-interface ToolIntentAssessment {
-  decision: ToolIntentDecision;
-  confidence: number;
-  allowDeicticExecution: boolean;
-  hasExplicitTarget: boolean;
-}
-
 // ── Options Type ───────────────────────────────────────────────────────────────
 
-interface UseAiChatOptions {
+export interface UseAiChatOptions {
   onToolCall?: (call: AiChatToolCall) => Promise<AiChatToolResult> | AiChatToolResult;
   onToolRiskCheck?: (call: AiChatToolCall) => Promise<AiToolRiskCheckResult | null | undefined> | AiToolRiskCheckResult | null | undefined;
   /** Called when an assistant message completes streaming (after all content is received). */
@@ -247,8 +242,5 @@ interface UseAiChatOptions {
   streamPersistIntervalMs?: number;
   firstChunkTimeoutMs?: number;
   autoProbeIntervalMs?: number;
-  embeddingSearchService?: unknown; // EmbeddingSearchService
+  embeddingSearchService?: EmbeddingSearchService;
 }
-
-// Re-export for internal use
-export type { UseAiChatOptions };

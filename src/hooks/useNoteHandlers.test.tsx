@@ -108,4 +108,37 @@ describe('useNoteHandlers error reporting', () => {
       errorMeta: expect.objectContaining({ category: 'action', action: 'POS 保存' }),
     }));
   });
+
+  it('executes batch_pos recommendation and keeps selection/save-state in sync', async () => {
+    mockUseNoteCounts.mockImplementation(() => new Map());
+    const setSaveState = vi.fn();
+    const selectUtterance = vi.fn();
+    const batchUpdateTokenPosByForm = vi.fn(async () => 3);
+
+    const { result } = renderHook(() => useNoteHandlers({
+      activeUtteranceUnitId: 'utt-1',
+      focusedLayerRowId: 'layer-1',
+      utterances: [{ id: 'utt-1' }],
+      timelineUnitIds: ['utt-1'],
+      transcriptionLayers: [{ id: 'layer-1' }],
+      translationLayers: [],
+      updateTokenPos: vi.fn(),
+      batchUpdateTokenPosByForm,
+      selectUtterance,
+      setSaveState,
+    }));
+
+    await act(async () => {
+      await result.current.handleExecuteRecommendation({
+        actionType: 'batch_pos',
+        targetUtteranceId: 'utt-1',
+        targetForm: 'walk',
+        targetPos: 'VERB',
+      } as Parameters<typeof result.current.handleExecuteRecommendation>[0]);
+    });
+
+    expect(batchUpdateTokenPosByForm).toHaveBeenCalledWith('utt-1', 'walk', 'VERB');
+    expect(selectUtterance).toHaveBeenCalledWith('utt-1');
+    expect(setSaveState).toHaveBeenCalledWith({ kind: 'done', message: '已批量赋值 3 个 token（walk → VERB）' });
+  });
 });

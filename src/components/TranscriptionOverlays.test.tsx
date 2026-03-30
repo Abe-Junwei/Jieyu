@@ -111,6 +111,24 @@ describe('TranscriptionOverlays independent selection routing', () => {
     expect(screen.queryByText('选中此句段及之后所有')).toBeNull();
   });
 
+  it('hides select-before/after actions for dependent segment-backed context', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      utteranceId: 'seg_dep_1',
+      layerId: 'layer_dependent',
+      unitKind: 'segment',
+      splitTime: 0.5,
+    };
+    props.transcriptionLayers = [makeLayer('layer_dependent', 'symbolic_association')];
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect(screen.queryByText('选中此句段及之前所有')).toBeNull();
+    expect(screen.queryByText('选中此句段及之后所有')).toBeNull();
+  });
+
   it('routes speaker assignment menu actions with segment kind for independent layer context', async () => {
     const props = makeBaseProps();
     props.ctxMenu = {

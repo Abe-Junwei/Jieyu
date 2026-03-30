@@ -14,6 +14,7 @@ interface UseAiPromptTemplatesOptions {
 }
 
 interface UseAiPromptTemplatesReturn {
+  quickPromptTemplates: PromptTemplateItem[];
   promptTemplates: PromptTemplateItem[];
   editingTemplateId: string | null;
   templateTitleInput: string;
@@ -26,6 +27,30 @@ interface UseAiPromptTemplatesReturn {
   injectPromptTemplate: (content: string) => void;
   appendPromptVariable: (name: string) => void;
 }
+
+const RAG_QUICK_PROMPT_TEMPLATES: PromptTemplateItem[] = [
+  {
+    id: 'rag-qa-template',
+    title: 'RAG 问答模板',
+    content: '[RAG_SCENARIO:qa]\n【问答模板】请基于检索上下文回答问题，并标注关键依据。\n问题：{{selected_text}}',
+    createdAt: '2026-03-29T00:00:00.000Z',
+    updatedAt: '2026-03-29T00:00:00.000Z',
+  },
+  {
+    id: 'rag-review-template',
+    title: 'RAG 审校模板',
+    content: '[RAG_SCENARIO:review]\n【审校模板】请对当前内容做审校，指出不一致、歧义和可改进点。\n目标：{{current_utterance}}',
+    createdAt: '2026-03-29T00:00:00.000Z',
+    updatedAt: '2026-03-29T00:00:00.000Z',
+  },
+  {
+    id: 'rag-terminology-template',
+    title: 'RAG 术语查证模板',
+    content: '[RAG_SCENARIO:terminology]\n【术语查证模板】请检索术语定义、上下文用例与对译建议。\n术语：{{selected_text}}',
+    createdAt: '2026-03-29T00:00:00.000Z',
+    updatedAt: '2026-03-29T00:00:00.000Z',
+  },
+];
 
 export function useAiPromptTemplates({
   promptVars,
@@ -99,6 +124,7 @@ export function useAiPromptTemplates({
   };
 
   return {
+    quickPromptTemplates: RAG_QUICK_PROMPT_TEMPLATES,
     promptTemplates,
     editingTemplateId,
     templateTitleInput,

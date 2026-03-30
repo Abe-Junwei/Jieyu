@@ -406,6 +406,7 @@ export function useTranscriptionData() {
     selectedTimelineUnitRef,
     utterancesOnCurrentMediaRef,
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
+    ...(transcriptionLayers[0]?.id !== undefined ? { fallbackLayerId: transcriptionLayers[0].id } : {}),
     setSelectedLayerId,
     setSelectedUtteranceIds,
     setSelectedTimelineUnit,

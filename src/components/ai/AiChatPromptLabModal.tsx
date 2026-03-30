@@ -3,6 +3,7 @@ import type { PromptTemplateItem } from './aiChatCardUtils';
 interface AiChatPromptLabModalProps {
   isZh: boolean;
   showPromptLab: boolean;
+  quickPromptTemplates: PromptTemplateItem[];
   promptTemplates: PromptTemplateItem[];
   editingTemplateId: string | null;
   templateTitleInput: string;
@@ -21,6 +22,7 @@ interface AiChatPromptLabModalProps {
 export function AiChatPromptLabModal({
   isZh,
   showPromptLab,
+  quickPromptTemplates,
   promptTemplates,
   editingTemplateId,
   templateTitleInput,
@@ -59,6 +61,20 @@ export function AiChatPromptLabModal({
           <strong style={{ fontSize: 13 }}>{isZh ? 'Prompt 实验室' : 'Prompt Lab'}</strong>
           <button type="button" className="icon-btn" style={{ height: 26, minWidth: 48, fontSize: 12 }} onClick={onClose}>{isZh ? '关闭' : 'Close'}</button>
         </div>
+
+        {quickPromptTemplates.length > 0 && (
+          <div style={{ display: 'grid', gap: 6, borderTop: '1px dashed #cbd5e1', paddingTop: 10 }}>
+            <strong style={{ fontSize: 12 }}>{isZh ? 'RAG 快速模板' : 'RAG Quick Templates'}</strong>
+            {quickPromptTemplates.map((item) => (
+              <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6, alignItems: 'center' }}>
+                <span className="small-text" title={item.content}>{item.title}</span>
+                <button type="button" className="icon-btn" style={{ height: 24, minWidth: 76, fontSize: 11 }} onClick={() => onInjectTemplate(item.content)}>
+                  {isZh ? '注入模板' : 'Inject'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div style={{ display: 'grid', gap: 6 }}>
           {promptTemplates.length === 0 ? (

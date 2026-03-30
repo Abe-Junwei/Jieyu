@@ -90,4 +90,56 @@ describe('useTimelineAnnotationHelpers', () => {
       splitTime: 1.001,
     });
   });
+
+  it('routes dependent segment-backed lane context menu with segment unit kind', () => {
+    const setCtxMenu = vi.fn();
+
+    const { result } = renderHook(() => useTimelineAnnotationHelpers({
+      manualSelectTsRef: { current: 0 },
+      player: {
+        isPlaying: false,
+        stop: vi.fn(),
+        seekTo: vi.fn(),
+      },
+      selectedTimelineUnit: { layerId: 'layer-dependent', unitId: 'seg-1', kind: 'segment' },
+      selectUtteranceRange: vi.fn(),
+      toggleUtteranceSelection: vi.fn(),
+      selectTimelineUnit: vi.fn(),
+      selectUtterance: vi.fn(),
+      selectSegment: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      onFocusLayerRow: vi.fn(),
+      tierContainerRef: { current: null },
+      zoomPxPerSec: 100,
+      setCtxMenu,
+      navigateUtteranceFromInput: vi.fn(),
+      waveformAreaRef: { current: null },
+      dragPreview: null,
+      selectedUtteranceIds: new Set(['seg-1']),
+      focusedLayerRowId: 'layer-dependent',
+      zoomToUtterance: vi.fn(),
+      startTimelineResizeDrag: vi.fn(),
+      handleNoteClick: vi.fn(),
+      resolveNoteIndicatorTarget: vi.fn(() => null),
+      independentLayerIds: new Set(['layer-dependent']),
+    }));
+
+    render(result.current.renderAnnotationItem(
+      { id: 'seg-1', startTime: 1, endTime: 2 },
+      makeLayer('layer-dependent'),
+      'segment-dependent',
+      {
+        onChange: vi.fn(),
+        onBlur: vi.fn(),
+      },
+    ));
+
+    fireEvent.contextMenu(screen.getByTitle('00:01.0 – 00:02.0'));
+
+    expect(setCtxMenu).toHaveBeenCalledWith(expect.objectContaining({
+      utteranceId: 'seg-1',
+      layerId: 'layer-dependent',
+      unitKind: 'segment',
+    }));
+  });
 });

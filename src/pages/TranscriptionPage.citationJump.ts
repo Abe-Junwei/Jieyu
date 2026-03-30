@@ -156,6 +156,27 @@ export async function handleTranscriptionCitationJump({
       return;
     }
 
+    let source = await appDb.bibliographic_sources.get(baseRef);
+    if (!source && baseRef !== refId) {
+      source = await appDb.bibliographic_sources.get(refId);
+    }
+    if (!source) {
+      const allSources = await appDb.bibliographic_sources.toArray();
+      source = allSources.find((item) => item.citationKey === baseRef || item.citationKey === refId || item.id === refId);
+    }
+    const sourceUrl = source?.url?.trim();
+    if (source && sourceUrl) {
+      const snippet = citationRef?.snippet?.trim();
+      onOpenPdfPreviewRequest({
+        title: source.title || source.citationKey || displayTitle,
+        page,
+        sourceUrl,
+        ...(hashSuffix ? { hashSuffix } : {}),
+        ...(snippet ? { searchSnippet: snippet } : {}),
+      });
+      return;
+    }
+
     let note = await appDb.user_notes.get(refId);
     if (!note) {
       note = (await appDb.user_notes.toArray()).find((item) => item.targetId === refId || item.targetId === baseRef);
@@ -170,7 +191,11 @@ export async function handleTranscriptionCitationJump({
       return;
     }
 
-    onSetSidebarError(locale === 'zh-CN' ? '未找到可打开的 PDF 引用目标。' : 'No openable PDF citation target was found.');
+    onSetSidebarError(
+      locale === 'zh-CN'
+        ? '未找到可打开的 PDF 引用目标。可在文献管理中补充来源 URL 或 PDF 附件。'
+        : 'No openable PDF citation target was found. Add a source URL or PDF attachment in bibliography management.',
+    );
     return;
   }
 

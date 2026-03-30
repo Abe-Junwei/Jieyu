@@ -1,0 +1,263 @@
+function pageControllerRule(name, limits = {}) {
+  return {
+    file: `src/pages/${name}.ts`,
+    requiredRegexes: [new RegExp(`export function ${name}\\(`)],
+    ...limits,
+  };
+}
+
+function hookRule(name, limits = {}) {
+  return {
+    file: `src/hooks/${name}.ts`,
+    requiredRegexes: [new RegExp(`export function ${name}\\(`)],
+    ...limits,
+  };
+}
+
+function patternRule(matchRegex, limits = {}) {
+  return {
+    matchRegex,
+    ...limits,
+  };
+}
+
+export const architectureGuardRules = [
+  {
+    file: 'src/pages/TranscriptionPage.Orchestrator.tsx',
+    maxLines: 3300,
+    maxUseCallbackDecls: 22,
+    maxUseMemoDecls: 17,
+    maxUseEffects: 30,
+    maxRegexMatchCounts: [
+      {
+        label: 'direct ../services imports',
+        pattern: /^import .* from '\.\.\/services\//gm,
+        max: 3,
+      },
+      {
+        label: 'LinguisticService direct calls',
+        pattern: /LinguisticService\./g,
+        max: 6,
+      },
+      {
+        label: 'LayerSegmentationV2Service direct content writes',
+        pattern: /LayerSegmentationV2Service\.(deleteSegmentContent|upsertSegmentContent)\(/g,
+        max: 2,
+      },
+      {
+        label: 'LayerSegmentGraphService direct helper calls',
+        pattern: /(snapshotLayerSegmentGraphByLayerIds|restoreLayerSegmentGraphSnapshot)\(/g,
+        max: 2,
+      },
+    ],
+    requiredRegexes: [
+      /useSpeakerFocusController\(\{/, 
+      /useWaveformRuntimeController\(\)/,
+      /useBatchOperationController\(\{/, 
+      /useSpeakerActionScopeController\(\{/, 
+      /useSpeakerActionRoutingController\(\{/, 
+      /useTranscriptionAssistantController\(\{/, 
+      /useTranscriptionSegmentCreationController\(\{/, 
+      /useTranscriptionSegmentMutationController\(\{/, 
+      /useTranscriptionTimelineController\(\{/, 
+      /useTranscriptionTimelineInteractionController\(\{/, 
+      /useTrackDisplayController\(\{/, 
+      /useWaveformSelectionController\(\{/, 
+    ],
+    forbiddenLiterals: [
+      'LayerSegmentationV2Service.createSegment(',
+      'LayerSegmentationV2Service.createSegmentWithParentConstraint(',
+      'LayerSegmentationV2Service.splitSegment(',
+      'LayerSegmentationV2Service.mergeAdjacentSegments(',
+      'LayerSegmentationV2Service.deleteSegment(',
+      'LayerSegmentationV2Service.updateSegment(',
+    ],
+  },
+  hookRule('useVoiceAgent', {
+    maxLines: 930,
+    maxUseCallbackDecls: 27,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 4,
+  }),
+  hookRule('useTranscriptionData', {
+    maxLines: 570,
+    maxUseCallbackDecls: 0,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 0,
+  }),
+  pageControllerRule('useBatchOperationController', {
+    maxLines: 120,
+    maxUseCallbackDecls: 6,
+    maxUseMemoDecls: 2,
+    maxUseEffects: 0,
+  }),
+  pageControllerRule('useSpeakerActionRoutingController', {
+    maxLines: 730,
+    maxUseCallbackDecls: 17,
+    maxUseMemoDecls: 8,
+    maxUseEffects: 1,
+  }),
+  pageControllerRule('useSpeakerActionScopeController', {
+    maxLines: 210,
+    maxUseCallbackDecls: 4,
+    maxUseMemoDecls: 13,
+    maxUseEffects: 0,
+  }),
+  pageControllerRule('useSpeakerFocusController', {
+    maxLines: 210,
+    maxUseCallbackDecls: 3,
+    maxUseMemoDecls: 5,
+    maxUseEffects: 3,
+  }),
+  pageControllerRule('useTrackDisplayController', {
+    maxLines: 275,
+    maxUseCallbackDecls: 6,
+    maxUseMemoDecls: 9,
+    maxUseEffects: 2,
+  }),
+  pageControllerRule('useTranscriptionAssistantController', {
+    maxLines: 305,
+    maxUseCallbackDecls: 3,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 1,
+  }),
+  pageControllerRule('useTranscriptionSegmentCreationController', {
+    maxLines: 170,
+    maxUseCallbackDecls: 1,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 0,
+  }),
+  pageControllerRule('useTranscriptionSegmentMutationController', {
+    maxLines: 225,
+    maxUseCallbackDecls: 5,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 0,
+  }),
+  pageControllerRule('useTranscriptionTimelineController', {
+    maxLines: 195,
+    maxUseCallbackDecls: 0,
+    maxUseMemoDecls: 7,
+    maxUseEffects: 0,
+  }),
+  pageControllerRule('useTranscriptionTimelineInteractionController', {
+    maxLines: 500,
+    maxUseCallbackDecls: 15,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 0,
+  }),
+  pageControllerRule('useWaveformRuntimeController', {
+    maxLines: 130,
+    maxUseCallbackDecls: 1,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 3,
+  }),
+  pageControllerRule('useWaveformSelectionController', {
+    maxLines: 125,
+    maxUseCallbackDecls: 0,
+    maxUseMemoDecls: 7,
+    maxUseEffects: 0,
+  }),
+  {
+    file: 'src/services/VoiceAgentService.ts',
+    maxLines: 1250,
+    requiredRegexes: [
+      /export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEventMap>/,
+      /export function getVoiceAgentService\(\): VoiceAgentService \| null \{/,
+      /export function createVoiceAgentService\(options: VoiceAgentServiceOptions = \{\}\): VoiceAgentService \{/,
+    ],
+  },
+  {
+    file: 'src/services/GlobalContextService.ts',
+    maxLines: 390,
+    maxUseCallbackDecls: 1,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 2,
+  },
+  patternRule(/^src\/pages\/use.*Controller\.ts$/, {
+    excludeFiles: [
+      'src/pages/useBatchOperationController.ts',
+      'src/pages/useSpeakerActionRoutingController.ts',
+      'src/pages/useSpeakerActionScopeController.ts',
+      'src/pages/useSpeakerFocusController.ts',
+      'src/pages/useTrackDisplayController.ts',
+      'src/pages/useTranscriptionAssistantController.ts',
+      'src/pages/useTranscriptionSegmentCreationController.ts',
+      'src/pages/useTranscriptionSegmentMutationController.ts',
+      'src/pages/useTranscriptionTimelineController.ts',
+      'src/pages/useTranscriptionTimelineInteractionController.ts',
+      'src/pages/useWaveformRuntimeController.ts',
+      'src/pages/useWaveformSelectionController.ts',
+    ],
+    maxLines: 800,
+    maxUseCallbackDecls: 20,
+    maxUseMemoDecls: 15,
+    maxUseEffects: 5,
+    warnAtRatio: 0.85,
+    requiredRegexes: [/export function use[A-Za-z0-9]+Controller\(/],
+  }),
+  patternRule(/^src\/hooks\/use.*\.(ts|tsx)$/, {
+    excludeFiles: [
+      'src/hooks/useVoiceAgent.ts',
+      'src/hooks/useTranscriptionData.ts',
+    ],
+    excludeRegexes: [/\.test\./, /\.structure\./],
+    maxLines: 1500,
+    maxUseCallbackDecls: 25,
+    maxUseMemoDecls: 15,
+    maxUseEffects: 15,
+    warnAtRatio: 0.85,
+  }),
+  patternRule(/^src\/services\/.*Service\.ts$/, {
+    excludeFiles: [
+      'src/services/VoiceAgentService.ts',
+      'src/services/GlobalContextService.ts',
+    ],
+    maxLines: 2000,
+    maxUseCallbackDecls: 0,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 0,
+    warnAtRatio: 0.85,
+    forbiddenRegexes: [
+      /from ['\"]react['\"]/, 
+      /\buseState\(/,
+      /\buseEffect\(/,
+      /\buseCallback\(/,
+      /\buseMemo\(/,
+      /\buseRef\(/,
+    ],
+  }),
+  patternRule(/^src\/pages\/(?!use).*\.(ts|tsx)$/, {
+    excludeFiles: ['src/pages/TranscriptionPage.Orchestrator.tsx'],
+    excludeRegexes: [/\.test\./, /\.structure\./],
+    maxLines: 800,
+    maxUseCallbackDecls: 8,
+    maxUseMemoDecls: 8,
+    maxUseEffects: 10,
+    warnAtRatio: 0.85,
+  }),
+  patternRule(/^src\/pages\/use.*\.(ts|tsx)$/, {
+    excludeRegexes: [/Controller\.ts$/, /\.test\./, /\.structure\./],
+    maxLines: 300,
+    maxUseCallbackDecls: 6,
+    maxUseMemoDecls: 6,
+    maxUseEffects: 4,
+    warnAtRatio: 0.85,
+    requiredRegexes: [/export function use[A-Za-z0-9]+\(/],
+  }),
+  patternRule(/^src\/components\/.*\.(ts|tsx)$/, {
+    excludeRegexes: [/\.test\./, /\.structure\./],
+    maxLines: 2000,
+    maxUseCallbackDecls: 25,
+    maxUseMemoDecls: 25,
+    maxUseEffects: 20,
+    warnAtRatio: 0.85,
+  }),
+  patternRule(/^src\/contexts\/.*\.(ts|tsx)$/, {
+    excludeRegexes: [/\.test\./, /\.structure\./],
+    maxLines: 800,
+    maxUseCallbackDecls: 10,
+    maxUseMemoDecls: 10,
+    maxUseEffects: 10,
+    warnAtRatio: 0.85,
+  }),
+];

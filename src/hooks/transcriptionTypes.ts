@@ -26,6 +26,31 @@ export type TimelineUnit = {
   kind: TimelineUnitKind;
 };
 
+export type TimelineLayerFallbackInput = {
+  selectedLayerId?: string | null | undefined;
+  focusedLayerId?: string | null | undefined;
+  selectedTimelineUnitLayerId?: string | null | undefined;
+  defaultTranscriptionLayerId?: string | null | undefined;
+  firstTranscriptionLayerId?: string | null | undefined;
+};
+
+export function resolveTimelineLayerIdFallback(input: TimelineLayerFallbackInput): string {
+  const candidates = [
+    input.selectedLayerId,
+    input.focusedLayerId,
+    input.selectedTimelineUnitLayerId,
+    input.defaultTranscriptionLayerId,
+    input.firstTranscriptionLayerId,
+  ];
+  for (const candidate of candidates) {
+    const normalized = candidate?.trim() ?? '';
+    if (normalized.length > 0) {
+      return normalized;
+    }
+  }
+  return '';
+}
+
 export function createTimelineUnit(
   layerId: string,
   unitId: string,

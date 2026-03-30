@@ -3,6 +3,7 @@ import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchSer
 import { extractPdfSnippet } from '../ai/embeddings/pdfTextUtils';
 import { splitPdfCitationRef } from '../utils/citationJumpUtils';
 import { RAG_CITATION_INSTRUCTION } from '../utils/citationFootnoteUtils';
+import { isSearchFusionScenario, type SearchFusionScenario } from '../ai/embeddings/searchFusionProfiles';
 import { withTimeout } from './useAiChat.config';
 import { createLogger } from '../observability/logger';
 import { listUtteranceTextsByUtterance } from '../services/LayerSegmentationTextService';
@@ -21,6 +22,49 @@ interface EnrichContextWithRagParams {
   ragContextTimeoutMs: number;
 }
 
+const RAG_SCENARIO_TOKEN_RE = /\[RAG_SCENARIO:(qa|review|terminology|balanced)\]/i;
+
+export function resolveRagFusionScenarioInput(userText: string): {
+  scenario: SearchFusionScenario;
+  queryText: string;
+} {
+  const normalized = userText.trim();
+  const tokenMatch = normalized.match(RAG_SCENARIO_TOKEN_RE);
+  if (tokenMatch) {
+    const candidate = tokenMatch[1]?.toLowerCase() ?? '';
+    const scenario = isSearchFusionScenario(candidate) ? candidate : 'qa';
+    const queryText = normalized.replace(RAG_SCENARIO_TOKEN_RE, '').trim();
+    return {
+      scenario,
+      queryText: queryText || normalized,
+    };
+  }
+
+  if (/^【审校模板】/.test(normalized)) {
+    return {
+      scenario: 'review',
+      queryText: normalized.replace(/^【审校模板】/, '').trim() || normalized,
+    };
+  }
+  if (/^【术语查证模板】/.test(normalized)) {
+    return {
+      scenario: 'terminology',
+      queryText: normalized.replace(/^【术语查证模板】/, '').trim() || normalized,
+    };
+  }
+  if (/^【问答模板】/.test(normalized)) {
+    return {
+      scenario: 'qa',
+      queryText: normalized.replace(/^【问答模板】/, '').trim() || normalized,
+    };
+  }
+
+  return {
+    scenario: 'qa',
+    queryText: normalized,
+  };
+}
+
 export async function enrichContextWithRag({
   embeddingSearchService,
   userText,
@@ -32,11 +76,12 @@ export async function enrichContextWithRag({
   }
 
   try {
+    const { scenario, queryText } = resolveRagFusionScenarioInput(userText);
     const ragResult = await withTimeout(
       embeddingSearchService.searchMultiSourceHybrid(
-        userText,
+        queryText,
         ['utterance', 'note', 'pdf'],
-        { topK: 5, fusionScenario: 'qa' },
+        { topK: 5, fusionScenario: scenario },
       ),
       ragContextTimeoutMs,
       `RAG context timed out after ${ragContextTimeoutMs}ms`,
@@ -46,9 +91,9 @@ export async function enrichContextWithRag({
     if (activeMatches.length === 0) {
       const fallbackResult = await withTimeout(
         embeddingSearchService.searchMultiSourceHybrid(
-          userText,
+          queryText,
           ['utterance', 'note', 'pdf'],
-          { topK: 5, fusionScenario: 'qa', minScore: 0.1 },
+          { topK: 5, fusionScenario: scenario, minScore: 0.1 },
         ),
         ragContextTimeoutMs,
         `RAG fallback timed out after ${ragContextTimeoutMs}ms`,
@@ -58,7 +103,8 @@ export async function enrichContextWithRag({
 
     if (activeMatches.length === 0) {
       log.debug('RAG no matches, proceeding without context augmentation', {
-        queryPreview: userText.slice(0, 80),
+        queryPreview: queryText.slice(0, 80),
+        scenario,
       });
       return { contextBlock, citations: [] };
     }

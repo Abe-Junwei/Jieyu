@@ -45,7 +45,7 @@ describe('useTranscriptionSelectionActions', () => {
     expect(setSelectedUtteranceIds).toHaveBeenCalledWith(new Set(['utt-1']));
   });
 
-  it('clears selection when selectTimelineUnit receives an empty layerId', () => {
+  it('falls back to selectedLayerId when selectTimelineUnit receives an empty layerId', () => {
     const setSelectedTimelineUnit = vi.fn();
     const setSelectedUtteranceIds = vi.fn();
     const setSelectedLayerId = vi.fn();
@@ -76,7 +76,12 @@ describe('useTranscriptionSelectionActions', () => {
       });
     });
 
-    expect(setSelectedTimelineUnit).toHaveBeenCalledWith(null);
+    expect(setSelectedLayerId).toHaveBeenCalledWith('layer-default');
+    expect(setSelectedTimelineUnit).toHaveBeenCalledWith({
+      layerId: 'layer-default',
+      unitId: 'seg-1',
+      kind: 'segment',
+    });
     expect(setSelectedUtteranceIds).toHaveBeenCalledWith(new Set());
   });
 
@@ -147,6 +152,43 @@ describe('useTranscriptionSelectionActions', () => {
     expect(setSelectedLayerId).toHaveBeenCalledWith('layer-default');
     expect(setSelectedTimelineUnit).toHaveBeenCalledWith({
       layerId: 'layer-default',
+      unitId: 'utt-2',
+      kind: 'utterance',
+    });
+    expect(setSelectedUtteranceIds).toHaveBeenCalledWith(new Set(['utt-2']));
+  });
+
+  it('falls back to fallbackLayerId when selected/default layers are unavailable', () => {
+    const setSelectedTimelineUnit = vi.fn();
+    const setSelectedUtteranceIds = vi.fn();
+    const setSelectedLayerId = vi.fn();
+
+    const { result } = renderHook(() => {
+      const selectedUtteranceUnitIdRef = useRef('');
+      const selectedUtteranceIdsRef = useRef(new Set<string>());
+      const selectedLayerIdRef = useRef('');
+      const selectedTimelineUnitRef = useRef(null);
+      const utterancesOnCurrentMediaRef = useRef([]);
+      return useTranscriptionSelectionActions({
+        selectedUtteranceUnitIdRef,
+        selectedUtteranceIdsRef,
+        selectedLayerIdRef,
+        selectedTimelineUnitRef,
+        utterancesOnCurrentMediaRef,
+        fallbackLayerId: 'layer-first',
+        setSelectedLayerId,
+        setSelectedUtteranceIds,
+        setSelectedTimelineUnit,
+      });
+    });
+
+    act(() => {
+      result.current.selectUtterance('utt-2');
+    });
+
+    expect(setSelectedLayerId).toHaveBeenCalledWith('layer-first');
+    expect(setSelectedTimelineUnit).toHaveBeenCalledWith({
+      layerId: 'layer-first',
       unitId: 'utt-2',
       kind: 'utterance',
     });

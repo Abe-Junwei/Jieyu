@@ -4,6 +4,7 @@ import type { UtteranceDocType } from '../db';
 import {
   createTimelineUnit,
   isSegmentTimelineUnit,
+  resolveTimelineLayerIdFallback,
   type TimelineUnit,
   type TimelineUnitKind,
 } from './transcriptionTypes';
@@ -15,6 +16,7 @@ type Params = {
   selectedTimelineUnitRef: React.MutableRefObject<TimelineUnit | null>;
   utterancesOnCurrentMediaRef: React.MutableRefObject<UtteranceDocType[]>;
   defaultTranscriptionLayerId?: string;
+  fallbackLayerId?: string;
   setSelectedLayerId: React.Dispatch<React.SetStateAction<string>>;
   setSelectedUtteranceIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   setSelectedTimelineUnit: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
@@ -27,6 +29,7 @@ export function useTranscriptionSelectionActions({
   selectedTimelineUnitRef,
   utterancesOnCurrentMediaRef,
   defaultTranscriptionLayerId,
+  fallbackLayerId,
   setSelectedLayerId,
   setSelectedUtteranceIds,
   setSelectedTimelineUnit,
@@ -39,22 +42,20 @@ export function useTranscriptionSelectionActions({
   }, [setSelectedTimelineUnit, setSelectedUtteranceIds]);
 
   const resolveRequiredLayerId = useCallback((rawLayerId: string, source: string): string | null => {
-    const layerId = rawLayerId.trim();
+    const layerId = resolveTimelineLayerIdFallback({
+      selectedLayerId: rawLayerId,
+      focusedLayerId: selectedLayerIdRef.current,
+      selectedTimelineUnitLayerId: selectedTimelineUnitRef.current?.layerId,
+      defaultTranscriptionLayerId,
+      firstTranscriptionLayerId: fallbackLayerId,
+    });
     if (layerId.length > 0) return layerId;
-    const fallbackLayerId = selectedTimelineUnitRef.current?.layerId?.trim() ?? '';
-    if (fallbackLayerId.length > 0) {
-      return fallbackLayerId;
-    }
-    const defaultLayerId = defaultTranscriptionLayerId?.trim() ?? '';
-    if (defaultLayerId.length > 0) {
-      return defaultLayerId;
-    }
     if (!missingLayerIdLoggedSourcesRef.current.has(source)) {
       missingLayerIdLoggedSourcesRef.current.add(source);
       console.error(`[useTranscriptionSelectionActions] Missing layerId in ${source}`);
     }
     return null;
-  }, [defaultTranscriptionLayerId, selectedTimelineUnitRef]);
+  }, [defaultTranscriptionLayerId, fallbackLayerId, selectedLayerIdRef, selectedTimelineUnitRef]);
 
   const applyUnitSelection = useCallback((input: {
     primaryId: string;

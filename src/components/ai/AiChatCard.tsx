@@ -118,6 +118,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   }, [lexemeMatches, observerStage, selectedRowMeta, selectedUtterance]);
 
   const {
+    quickPromptTemplates,
     promptTemplates,
     editingTemplateId,
     templateTitleInput,
@@ -1044,6 +1045,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
           <AiChatPromptLabModal
             isZh={isZh}
             showPromptLab={showPromptLab}
+            quickPromptTemplates={quickPromptTemplates}
             promptTemplates={promptTemplates}
             editingTemplateId={editingTemplateId}
             templateTitleInput={templateTitleInput}

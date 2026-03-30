@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { renderHook } from '@testing-library/react';
+import { act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType } from '../db';
 import { useVoiceInteraction } from './useVoiceInteraction';
@@ -145,5 +146,85 @@ describe('useVoiceInteraction', () => {
 
     expect(result.current.voiceTargetSummary).toContain('第 3 句 / AI 分析备注');
     expect(result.current.voiceSelectionSummary).toBe('12.00 - 15.00');
+  });
+
+  it('surfaces analysis writeback failure in voice status and external error', async () => {
+    const setExternalError = vi.fn();
+    const setAnalysisFillCallback = vi.fn((utteranceId: string | null, callback: (content: string) => void) => {
+      expect(utteranceId).toBe('utt-1');
+      callback('分析结果文本');
+    });
+
+    mockUseVoiceAgent.mockReturnValue({
+      mode: 'analysis',
+      agentState: 'idle',
+      listening: false,
+      engine: 'web-speech',
+      detectedLang: null,
+      notifyAiStreamStarted: vi.fn(),
+      notifyAiStreamFinished: vi.fn(),
+      testWhisperLocal: vi.fn(async () => ({ available: true })),
+      setExternalError,
+      setCommercialProviderConfig: vi.fn(),
+      setAnalysisFillCallback,
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      toggle: vi.fn(),
+      switchEngine: vi.fn(),
+      startRecording: vi.fn(async () => undefined),
+      stopRecording: vi.fn(async () => undefined),
+      isRecording: false,
+      disambiguationOptions: [],
+      pendingConfirm: null,
+      error: null,
+    });
+
+    const onVoiceAnalysisResult = vi.fn(async () => ({ ok: false, message: '分析写回失败：目标不可用' }));
+    const aiChatSend = vi.fn(async () => undefined);
+
+    const { result } = renderHook(() => useVoiceInteraction({
+      effectiveVoiceCorpusLang: 'zho',
+      voiceCorpusLangOverride: '__auto__',
+      executeAction: vi.fn(async () => undefined),
+      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+      handleVoiceDictation: vi.fn(),
+      onVoiceAnalysisResult,
+      activeUtteranceUnitId: 'utt-1',
+      selectedUtterance: { id: 'utt-1', startTime: 12, endTime: 15 },
+      selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
+      selectedLayerId: 'trc-default',
+      defaultTranscriptionLayerId: 'trc-default',
+      translationLayers: [],
+      layers: [makeLayer('trc-default', 'transcription')],
+      formatLayerRailLabel: (layer) => `L:${layer.id}`,
+      formatTime: (seconds) => seconds.toFixed(2),
+      aiChatSend,
+      aiIsStreaming: false,
+      aiMessages: [],
+      localWhisperConfig: {},
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      onCommercialConfigChange: vi.fn(),
+      setCommercialProviderKind: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      featureVoiceEnabled: true,
+      toggleVoiceRef: { current: undefined },
+    }));
+
+    const latestCall = mockUseVoiceAgent.mock.calls[mockUseVoiceAgent.mock.calls.length - 1];
+    const useVoiceAgentOptions = latestCall?.[0] as {
+      sendToAiChat?: (text: string) => void;
+    };
+
+    await act(async () => {
+      useVoiceAgentOptions.sendToAiChat?.('请分析这句');
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(aiChatSend).toHaveBeenCalledWith('请分析这句');
+    expect(onVoiceAnalysisResult).toHaveBeenCalledWith('utt-1', '分析结果文本');
+    expect(setExternalError).toHaveBeenCalledWith('分析写回失败：目标不可用');
+    expect(result.current.voiceStatusSummary).toContain('分析写回失败：目标不可用');
   });
 });

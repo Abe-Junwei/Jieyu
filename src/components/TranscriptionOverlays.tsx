@@ -103,14 +103,13 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             const multiCount = selectedUtteranceIds.size;
             const targetIds = multiCount > 1 ? Array.from(selectedUtteranceIds) : [id];
             const targetKind = ctxMenu.unitKind;
+            const isSegmentUnitContext = targetKind === 'segment';
             const isTranscriptionLayerContext = transcriptionLayers.some((layer) => layer.id === ctxMenu.layerId);
-            const isIndependentLayerContext = [...transcriptionLayers, ...translationLayers]
-                .some((layer) => layer.id === ctxMenu.layerId && layer.constraint === 'independent_boundary');
             const items: ContextMenuItem[] = multiCount > 1
               ? [
                   { label: `删除 ${multiCount} 个句段`, shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUtteranceIds); } },
                   { label: `合并 ${multiCount} 个句段`, onClick: () => { runMergeSelection(selectedUtteranceIds); } },
-                  ...(isIndependentLayerContext
+                  ...(isSegmentUnitContext
                     ? []
                     : [
                         { label: '选中此句段及之前所有', shortcut: '⇧Home', onClick: () => { runSelectBefore(id); } },
@@ -126,7 +125,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
                     shortcut: '⌘⇧S',
                     onClick: () => { runSplitAtTime(id, ctxMenu.splitTime); },
                   },
-                  ...(isIndependentLayerContext
+                  ...(isSegmentUnitContext
                     ? []
                     : [
                         { label: '选中此句段及之前所有', shortcut: '⇧Home', onClick: () => { runSelectBefore(id); } },

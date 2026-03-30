@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLatest } from './useLatest';
 import {
   DEFAULT_FIRST_CHUNK_TIMEOUT_MS,
+  INITIAL_METRICS,
   normalizeAutoProbeIntervalMs,
   normalizeFirstChunkTimeoutMs,
   normalizeRagContextTimeoutMs,
@@ -15,7 +16,7 @@ import { resolveClarifyFastPathCall } from './useAiChat.clarify';
 import { buildContextDebugSnapshot, logContextDebugSnapshot } from './useAiChat.debug';
 import { executeConfirmedToolCall } from './useAiChat.confirmExecution';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
-import { getDb, type AiMessageCitation } from '../db';
+import { getDb } from '../db';
 import { enrichContextWithRag } from './useAiChat.rag';
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import { trimHistoryByChars } from '../ai/chat/historyTrim';
@@ -34,7 +35,6 @@ import {
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 import { featureFlags } from '../ai/config/featureFlags';
 import { createAssistantStream } from './useAiChat.streamFactory';
-import type { VoiceActionToolName } from '../ai/voice/VoiceActionTools';
 import { normalizeAiProviderError } from '../ai/providers/errorUtils';
 import { buildAiToolRequestId } from '../ai/toolRequestId';
 import {
@@ -63,89 +63,29 @@ import {
 } from '../ai/config/aiChatSettingsStorage';
 import type { AiChatSettings, AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { ChatMessage } from '../ai/providers/LLMProvider';
+import type {
+  AiChatToolCall,
+  AiChatToolName,
+  AiChatToolResult,
+  AiClarifyCandidate,
+  AiConnectionTestStatus,
+  AiContextDebugSnapshot,
+  AiInteractionMetrics,
+  AiPromptContext,
+  AiSessionMemory,
+  AiSystemPersonaKey,
+  AiTaskSession,
+  AiToolDecisionMode,
+  AiToolRiskCheckResult,
+  PendingAiToolCall,
+  PreviewContract,
+  UiChatMessage,
+  UseAiChatOptions,
+} from './useAiChat.types';
 export type {
   AiChatProviderKind,
   AiChatSettings,
 } from '../ai/providers/providerCatalog';
-
-export interface UiChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  status?: 'streaming' | 'done' | 'error' | 'aborted';
-  error?: string;
-  citations?: AiMessageCitation[];
-  generationSource?: 'llm' | 'local';
-  generationModel?: string;
-  /** 推理内容（reasoning_content），如 DeepSeek 的思考过程 */
-  reasoningContent?: string;
-  /** 思考中状态：provider正在处理但尚未发出任何内容delta。
-   * 用于非reasoning_content型provider（Anthropic/Gemini/Ollama）的UX反馈。
-   * 有reasoningContent时不显示thinking状态。 */
-  thinking?: boolean;
-}
-
-export type AiConnectionTestStatus = 'idle' | 'testing' | 'success' | 'error';
-export type AiToolDecisionMode = 'enabled' | 'gray' | 'rollback';
-
-export interface AiClarifyCandidate {
-  key: string;
-  label: string;
-  argsPatch: Record<string, unknown>;
-}
-
-export interface AiTaskSession {
-  id: string;
-  status: 'idle' | 'waiting_clarify' | 'waiting_confirm' | 'executing' | 'explaining';
-  toolName?: AiChatToolName;
-  clarifyReason?: ToolPlannerClarifyReason;
-  candidates?: AiClarifyCandidate[];
-  updatedAt: string;
-}
-
-/**
- * 交互指标统计 | Interaction metrics counters
- * 供 UI 仪表盘和 CI 护栏消费。
- */
-export interface AiInteractionMetrics {
-  /** 用户发送总轮次 | Total user turns */
-  turnCount: number;
-  /** 执行成功次数 | Successful tool executions */
-  successCount: number;
-  /** 执行失败次数 | Failed tool executions */
-  failureCount: number;
-  /** 目标澄清次数 | Target clarification rounds */
-  clarifyCount: number;
-  /** 意图不明确而回退为解释的次数 | Intent ambiguous fallbacks */
-  explainFallbackCount: number;
-  /** 用户取消确认次数 | User-cancelled confirmations */
-  cancelCount: number;
-  /** 失败后恢复（重试成功）次数 | Recovery-after-failure count */
-  recoveryCount: number;
-}
-
-const INITIAL_METRICS: AiInteractionMetrics = {
-  turnCount: 0,
-  successCount: 0,
-  failureCount: 0,
-  clarifyCount: 0,
-  explainFallbackCount: 0,
-  cancelCount: 0,
-  recoveryCount: 0,
-};
-
-/**
- * 会话级短期偏好记忆 | Session-scoped short-term preference memory
- * 在一次对话中累积用户偏好，用于候选排序 & 默认值预填。
- */
-export interface AiSessionMemory {
-  /** 最近一次成功使用的语言代码 | Last language code used successfully */
-  lastLanguage?: string;
-  /** 最近一次执行的工具名 | Last tool name executed */
-  lastToolName?: AiChatToolName;
-  /** 最近一次选中的层 ID | Last layer ID selected */
-  lastLayerId?: string;
-}
 
 type ToolPlannerClarifyReason =
   | 'missing-utterance-target'
@@ -204,74 +144,6 @@ interface ToolDecisionAuditMetadata {
   durationMs?: number;
 }
 
-export type AiChatToolName =
-  | 'create_transcription_segment'
-  | 'split_transcription_segment'
-  | 'delete_transcription_segment'
-  | 'clear_translation_segment'
-  | 'set_transcription_text'
-  | 'set_translation_text'
-  | 'create_transcription_layer'
-  | 'create_translation_layer'
-  | 'delete_layer'
-  | 'link_translation_layer'
-  | 'unlink_translation_layer'
-  | 'auto_gloss_utterance'
-  | 'set_token_pos'
-  | 'set_token_gloss'
-  | VoiceActionToolName;
-
-/**
- * 工具调用结构，支持幂等性指纹 | Tool call structure with idempotency fingerprint
- */
-export interface AiChatToolCall {
-  name: AiChatToolName;
-  arguments: Record<string, unknown>;
-  /** 幂等性指纹，自动生成 | Idempotency fingerprint, auto-generated */
-  requestId?: string;
-}
-
-export interface AiChatToolResult {
-  ok: boolean;
-  message: string;
-}
-
-/**
- * 待确认高风险工具调用，带幂等指纹 | Pending high-risk tool call with idempotency fingerprint
- */
-export interface PendingAiToolCall {
-  call: AiChatToolCall;
-  assistantMessageId: string;
-  riskSummary?: string;
-  impactPreview?: string[];
-  /** 结构化预演合同 | Structured preview of affected entities */
-  previewContract?: PreviewContract;
-  /** 幂等性指纹，便于回放/去重 | Idempotency fingerprint for replay/dedup */
-  requestId?: string;
-  auditContext?: ToolAuditContext;
-}
-
-/**
- * 执行预演合同 | Execution preview contract
- * 为高风险操作提供受影响实体的结构化描述，供 UI 展示预览。
- */
-export interface PreviewContract {
-  /** 受影响实体数量 | Number of entities that will be affected */
-  affectedCount: number;
-  /** 受影响实体 ID 列表（截取前 5 条）| Affected entity IDs (first 5) */
-  affectedIds: string[];
-  /** 操作是否可撤销 | Whether the operation is reversible */
-  reversible: boolean;
-  /** 级联影响的其他实体类型 | Other entity types affected by cascading */
-  cascadeTypes?: string[];
-}
-
-export interface AiToolRiskCheckResult {
-  requiresConfirmation: boolean;
-  riskSummary?: string;
-  impactPreview?: string[];
-}
-
 interface UseAiChatOptions {
   onToolCall?: (call: AiChatToolCall) => Promise<AiChatToolResult> | AiChatToolResult;
   onToolRiskCheck?: (call: AiChatToolCall) => Promise<AiToolRiskCheckResult | null | undefined> | AiToolRiskCheckResult | null | undefined;
@@ -287,51 +159,24 @@ interface UseAiChatOptions {
   autoProbeIntervalMs?: number;
   embeddingSearchService?: EmbeddingSearchService;
 }
-
-
-export type AiSystemPersonaKey = 'transcription' | 'glossing' | 'review';
-
-export interface AiShortTermContext {
-  page?: string;
-  activeUtteranceUnitId?: string;
-  selectedUtteranceStartSec?: number;
-  selectedUtteranceEndSec?: number;
-  selectedLayerId?: string;
-  selectedLayerType?: 'transcription' | 'translation';
-  selectedTranslationLayerId?: string;
-  selectedTranscriptionLayerId?: string;
-  selectedText?: string;
-  selectionTimeRange?: string;
-  audioTimeSec?: number;
-  recentEdits?: string[];
-}
-
-export interface AiLongTermContext {
-  projectStats?: {
-    utteranceCount?: number;
-    translationLayerCount?: number;
-    aiConfidenceAvg?: number | null;
-  };
-  observerStage?: string;
-  topLexemes?: string[];
-  recommendations?: string[];
-}
-
-export interface AiPromptContext {
-  shortTerm?: AiShortTermContext;
-  longTerm?: AiLongTermContext;
-}
-
-export interface AiContextDebugSnapshot {
-  enabled: boolean;
-  persona: AiSystemPersonaKey;
-  historyChars: number;
-  historyCount: number;
-  contextChars: number;
-  historyCharBudget: number;
-  maxContextChars: number;
-  contextPreview: string;
-}
+export type {
+  AiChatToolCall,
+  AiChatToolName,
+  AiChatToolResult,
+  AiClarifyCandidate,
+  AiConnectionTestStatus,
+  AiContextDebugSnapshot,
+  AiInteractionMetrics,
+  AiPromptContext,
+  AiSessionMemory,
+  AiSystemPersonaKey,
+  AiTaskSession,
+  AiToolDecisionMode,
+  AiToolRiskCheckResult,
+  PendingAiToolCall,
+  PreviewContract,
+  UiChatMessage,
+} from './useAiChat.types';
 
 export function useAiChat(options?: UseAiChatOptions) {
   const onToolCall = options?.onToolCall;
