@@ -2,7 +2,7 @@ import Dexie, { type Table } from 'dexie';
 import { z } from 'zod';
 
 const JIEYU_DB_NAME = 'jieyudb';
-const SNAPSHOT_SCHEMA_VERSION = 2;
+const SNAPSHOT_SCHEMA_VERSION = 3;
 
 /**
  * 层数量软上限（UI 警告，非硬限制）
@@ -348,10 +348,80 @@ interface OrthographyDocType {
   type?: 'phonemic' | 'phonetic' | 'practical' | 'historical' | 'other';
   /** BCP 47 script subtag (e.g. 'Latn', 'Thai', 'Deva') */
   scriptTag?: string;
+  /** BCP 47 locale / region / variant hints | BCP 47 locale / region / variant hints */
+  localeTag?: string;
+  regionTag?: string;
+  variantTag?: string;
+  /** Primary writing direction | 主要书写方向 */
+  direction?: 'ltr' | 'rtl' | 'ttb' | 'btt';
+  /** CLDR/SLDR-style exemplar characters | 参考 CLDR/SLDR 的示例字符集 */
+  exemplarCharacters?: {
+    main?: string[];
+    auxiliary?: string[];
+    numbers?: string[];
+    punctuation?: string[];
+    index?: string[];
+  };
+  /** Text normalization preferences | 文本正规化偏好 */
+  normalization?: {
+    form?: 'NFC' | 'NFD' | 'NFKC' | 'NFKD';
+    caseSensitive?: boolean;
+    stripDefaultIgnorables?: boolean;
+  };
+  /** Sorting / collation hints | 排序/比较规则提示 */
+  collation?: {
+    base?: string;
+    customRules?: string;
+  };
+  /** Preferred font stacks and rendering hints | 字体栈与渲染提示 */
+  fontPreferences?: {
+    primary?: string[];
+    fallback?: string[];
+    mono?: string[];
+    lineHeightScale?: number;
+    sizeAdjust?: number;
+  };
+  /** Input method hints | 输入法/键盘提示 */
+  inputHints?: {
+    keyboardLayout?: string;
+    imeId?: string;
+    deadKeys?: string[];
+  };
+  /** bidi rendering hints | 双向文字渲染提示 */
+  bidiPolicy?: {
+    isolateInlineRuns?: boolean;
+    preferDirAttribute?: boolean;
+  };
   /** Transliteration / conversion rule definitions (F30 预留) */
   conversionRules?: Record<string, unknown>;
   notes?: MultiLangString;
   createdAt: string;
+  updatedAt?: string;
+}
+
+type OrthographyTransformEngine = 'table-map' | 'icu-rule' | 'manual';
+
+interface OrthographyTransformDocType {
+  id: string;
+  sourceOrthographyId: string;
+  targetOrthographyId: string;
+  name?: MultiLangString;
+  engine: OrthographyTransformEngine;
+  rules: {
+    mappings?: Array<{ from: string; to: string }>;
+    ruleText?: string;
+    normalizeInput?: 'NFC' | 'NFD' | 'NFKC' | 'NFKD';
+    normalizeOutput?: 'NFC' | 'NFD' | 'NFKC' | 'NFKD';
+    caseSensitive?: boolean;
+  };
+  sampleInput?: string;
+  sampleOutput?: string;
+  sampleCases?: Array<{ input: string; expectedOutput?: string }>;
+  isReversible?: boolean;
+  status?: 'draft' | 'active' | 'deprecated';
+  notes?: MultiLangString;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface LocationDocType {
@@ -437,6 +507,15 @@ interface TagDefinitionDocType {
  */
 type LayerConstraint = 'symbolic_association' | 'independent_boundary' | 'time_subdivision';
 
+/** 层级显示样式设置 | Layer-level display style settings */
+interface LayerDisplaySettings {
+  fontFamily?: string;
+  fontSize?: number;
+  bold?: boolean;
+  italic?: boolean;
+  color?: string;
+}
+
 interface LayerDocType {
   id: string;
   textId: string;
@@ -444,6 +523,8 @@ interface LayerDocType {
   name: MultiLangString;
   layerType: 'transcription' | 'translation';
   languageId: string;
+  /** 绑定的正字法 ID；为空时回退到 languageId → script 推断 | Bound orthography id; falls back to languageId → script inference when absent */
+  orthographyId?: string;
   modality: 'text' | 'audio' | 'mixed';
   acceptsAudio?: boolean;
   isDefault?: boolean;
@@ -452,6 +533,8 @@ interface LayerDocType {
   constraint?: LayerConstraint;
   /** 父层 ID（constraint 为 symbolic_association / time_subdivision 时必填）| Parent layer ID (required for symbolic_association / time_subdivision) */
   parentLayerId?: string;
+  /** 层级显示样式 | Display style configuration */
+  displaySettings?: LayerDisplaySettings;
   accessRights?: 'open' | 'restricted' | 'confidential';
   createdAt: string;
   updatedAt: string;
@@ -1003,6 +1086,70 @@ const speakerDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
+const orthographyDirectionSchema = z.enum(['ltr', 'rtl', 'ttb', 'btt']);
+const orthographyExemplarCharactersSchema = z.object({
+  main: z.array(z.string()).optional(),
+  auxiliary: z.array(z.string()).optional(),
+  numbers: z.array(z.string()).optional(),
+  punctuation: z.array(z.string()).optional(),
+  index: z.array(z.string()).optional(),
+}).optional();
+const orthographyNormalizationSchema = z.object({
+  form: z.enum(['NFC', 'NFD', 'NFKC', 'NFKD']).optional(),
+  caseSensitive: z.boolean().optional(),
+  stripDefaultIgnorables: z.boolean().optional(),
+}).optional();
+const orthographyCollationSchema = z.object({
+  base: z.string().optional(),
+  customRules: z.string().optional(),
+}).optional();
+const orthographyFontPreferencesSchema = z.object({
+  primary: z.array(z.string()).optional(),
+  fallback: z.array(z.string()).optional(),
+  mono: z.array(z.string()).optional(),
+  lineHeightScale: z.number().positive().optional(),
+  sizeAdjust: z.number().positive().optional(),
+}).optional();
+const orthographyInputHintsSchema = z.object({
+  keyboardLayout: z.string().optional(),
+  imeId: z.string().optional(),
+  deadKeys: z.array(z.string()).optional(),
+}).optional();
+const orthographyBidiPolicySchema = z.object({
+  isolateInlineRuns: z.boolean().optional(),
+  preferDirAttribute: z.boolean().optional(),
+}).optional();
+const orthographyTransformEngineSchema = z.enum(['table-map', 'icu-rule', 'manual']);
+const orthographyTransformRulesSchema = z.object({
+  mappings: z.array(z.object({
+    from: z.string(),
+    to: z.string(),
+  })).optional(),
+  ruleText: z.string().optional(),
+  normalizeInput: z.enum(['NFC', 'NFD', 'NFKC', 'NFKD']).optional(),
+  normalizeOutput: z.enum(['NFC', 'NFD', 'NFKC', 'NFKD']).optional(),
+  caseSensitive: z.boolean().optional(),
+});
+const orthographyTransformDocSchema = z.object({
+  id: z.string().min(1),
+  sourceOrthographyId: z.string().min(1),
+  targetOrthographyId: z.string().min(1),
+  name: multiLangStringSchema.optional(),
+  engine: orthographyTransformEngineSchema,
+  rules: orthographyTransformRulesSchema,
+  sampleInput: z.string().optional(),
+  sampleOutput: z.string().optional(),
+  sampleCases: z.array(z.object({
+    input: z.string(),
+    expectedOutput: z.string().optional(),
+  })).optional(),
+  isReversible: z.boolean().optional(),
+  status: z.enum(['draft', 'active', 'deprecated']).optional(),
+  notes: multiLangStringSchema.optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
 const orthographyDocSchema = z.object({
   id: z.string().min(1),
   name: multiLangStringSchema,
@@ -1010,9 +1157,20 @@ const orthographyDocSchema = z.object({
   languageId: z.string().optional(),
   type: z.enum(['phonemic', 'phonetic', 'practical', 'historical', 'other']).optional(),
   scriptTag: z.string().optional(),
+  localeTag: z.string().optional(),
+  regionTag: z.string().optional(),
+  variantTag: z.string().optional(),
+  direction: orthographyDirectionSchema.optional(),
+  exemplarCharacters: orthographyExemplarCharactersSchema,
+  normalization: orthographyNormalizationSchema,
+  collation: orthographyCollationSchema,
+  fontPreferences: orthographyFontPreferencesSchema,
+  inputHints: orthographyInputHintsSchema,
+  bidiPolicy: orthographyBidiPolicySchema,
   conversionRules: z.record(z.string(), z.unknown()).optional(),
   notes: multiLangStringSchema.optional(),
   createdAt: isoDateSchema,
+  updatedAt: isoDateSchema.optional(),
 });
 
 const locationDocSchema = z.object({
@@ -1092,6 +1250,14 @@ const tagDefinitionDocSchema = z.object({
 
 const layerConstraintSchema = z.enum(['symbolic_association', 'independent_boundary', 'time_subdivision']);
 
+const layerDisplaySettingsSchema = z.object({
+  fontFamily: z.string().optional(),
+  fontSize: z.number().positive().optional(),
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  color: z.string().optional(),
+}).optional();
+
 const translationLayerDocSchema = z.object({
   id: z.string().min(1),
   textId: z.string().min(1),
@@ -1099,12 +1265,14 @@ const translationLayerDocSchema = z.object({
   name: multiLangStringSchema,
   layerType: z.enum(['transcription', 'translation']),
   languageId: z.string().min(1),
+  orthographyId: z.string().min(1).optional(),
   modality: z.enum(['text', 'audio', 'mixed']),
   acceptsAudio: z.boolean().optional(),
   isDefault: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
   constraint: layerConstraintSchema.optional(),
   parentLayerId: z.string().optional(),
+  displaySettings: layerDisplaySettingsSchema,
   accessRights: accessRightsSchema.optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
@@ -1339,6 +1507,10 @@ function validateSpeakerDoc(doc: SpeakerDocType): void {
 
 function validateOrthographyDoc(doc: OrthographyDocType): void {
   orthographyDocSchema.parse(doc);
+}
+
+function validateOrthographyTransformDoc(doc: OrthographyTransformDocType): void {
+  orthographyTransformDocSchema.parse(doc);
 }
 
 function validateLocationDoc(doc: LocationDocType): void {
@@ -1763,6 +1935,7 @@ type JieyuCollections = {
   languages: CollectionAdapter<LanguageDocType>;
   speakers: CollectionAdapter<SpeakerDocType>;
   orthographies: CollectionAdapter<OrthographyDocType>;
+  orthography_transforms: CollectionAdapter<OrthographyTransformDocType>;
   locations: CollectionAdapter<LocationDocType>;
   bibliographic_sources: CollectionAdapter<BibliographicSourceDocType>;
   grammar_docs: CollectionAdapter<GrammarDocDocType>;
@@ -2034,6 +2207,7 @@ class JieyuDexie extends Dexie {
   languages!: Table<LanguageDocType, string>;
   speakers!: Table<SpeakerDocType, string>;
   orthographies!: Table<OrthographyDocType, string>;
+  orthography_transforms!: Table<OrthographyTransformDocType, string>;
   locations!: Table<LocationDocType, string>;
   bibliographic_sources!: Table<BibliographicSourceDocType, string>;
   grammar_docs!: Table<GrammarDocDocType, string>;
@@ -2870,6 +3044,12 @@ class JieyuDexie extends Dexie {
     this.version(32).stores({
       layer_utterances: null,
     });
+
+    // v33: orthography transform registry.
+    // 正字法转换注册表：为 source->target 转换规则、样例与状态提供独立存储。
+    this.version(33).stores({
+      orthography_transforms: 'id, sourceOrthographyId, targetOrthographyId, [sourceOrthographyId+targetOrthographyId], engine, status, updatedAt',
+    });
   }
 }
 
@@ -2915,6 +3095,7 @@ async function _createDb(): Promise<JieyuDatabase> {
     languages: new DexieCollectionAdapter(dexie.languages, validateLanguageDoc),
     speakers: new DexieCollectionAdapter(dexie.speakers, validateSpeakerDoc),
     orthographies: new DexieCollectionAdapter(dexie.orthographies, validateOrthographyDoc),
+    orthography_transforms: new DexieCollectionAdapter(dexie.orthography_transforms, validateOrthographyTransformDoc),
     locations: new DexieCollectionAdapter(dexie.locations, validateLocationDoc),
     bibliographic_sources: new DexieCollectionAdapter(
       dexie.bibliographic_sources,
@@ -3059,6 +3240,7 @@ const knownCollectionNames = [
   'languages',
   'speakers',
   'orthographies',
+  'orthography_transforms',
   'locations',
   'bibliographic_sources',
   'grammar_docs',
@@ -3095,6 +3277,7 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   languages: db.languages,
   speakers: db.speakers,
   orthographies: db.orthographies,
+  orthography_transforms: db.orthography_transforms,
   locations: db.locations,
   bibliographic_sources: db.bibliographic_sources,
   grammar_docs: db.grammar_docs,
@@ -3128,6 +3311,7 @@ const validatorByCollection: Record<KnownCollectionName, (value: unknown) => voi
   languages: (value) => validateLanguageDoc(value as LanguageDocType),
   speakers: (value) => validateSpeakerDoc(value as SpeakerDocType),
   orthographies: (value) => validateOrthographyDoc(value as OrthographyDocType),
+  orthography_transforms: (value) => validateOrthographyTransformDoc(value as OrthographyTransformDocType),
   locations: (value) => validateLocationDoc(value as LocationDocType),
   bibliographic_sources: (value) => validateBibliographicSourceDoc(value as BibliographicSourceDocType),
   grammar_docs: (value) => validateGrammarDoc(value as GrammarDocDocType),
@@ -3442,6 +3626,7 @@ export type {
   LanguageDocType,
   SpeakerDocType,
   OrthographyDocType,
+  OrthographyTransformDocType,
   LocationDocType,
   BibliographicSourceDocType,
   GrammarDocDocType,
@@ -3449,6 +3634,7 @@ export type {
   PhonemeDocType,
   TagDefinitionDocType,
   LayerDocType,
+  LayerDisplaySettings,
   LayerConstraint,
   UtteranceTextDocType,
   LayerUnitDocType,

@@ -198,6 +198,34 @@ describe('useTranscriptionSegmentMutationController', () => {
     expect(setSaveState).toHaveBeenCalledWith({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
   });
 
+  it('allows independent-segment merge even when linked utterance would not fully contain merged range', async () => {
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const pushUndo = vi.fn();
+    const reloadSegments = vi.fn(async () => undefined);
+    const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
+    const selectTimelineUnit = vi.fn();
+    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
+      segmentsByLayer: new Map([['layer-seg', [makeSegment('seg-1', 'layer-seg', 1, 2), makeSegment('seg-2', 'layer-seg', 2, 3)]]]),
+      utterancesOnCurrentMedia: [makeUtterance('utt-1', 1.5, 3.0)],
+      setSaveState,
+      pushUndo,
+      reloadSegments,
+      refreshSegmentUndoSnapshot,
+      selectTimelineUnit,
+    })));
+
+    await act(async () => {
+      await result.current.mergeWithPreviousRouted('seg-2');
+    });
+
+    expect(pushUndo).toHaveBeenCalledWith('向前合并句段');
+    expect(mockMergeAdjacentSegments).toHaveBeenCalledWith('seg-1', 'seg-2');
+    expect(reloadSegments).toHaveBeenCalled();
+    expect(refreshSegmentUndoSnapshot).toHaveBeenCalled();
+    expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' });
+    expect(setSaveState).not.toHaveBeenCalledWith({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
+  });
+
   it('reloads segments and surfaces error when batch segment delete fails', async () => {
     mockDeleteSegment.mockImplementationOnce(async () => undefined).mockImplementationOnce(async () => {
       throw new Error('delete failed');

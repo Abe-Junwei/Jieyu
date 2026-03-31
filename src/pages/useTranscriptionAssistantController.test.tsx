@@ -7,6 +7,14 @@ import type { AiPanelContextValue } from '../contexts/AiPanelContext';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import { useTranscriptionAssistantController } from './useTranscriptionAssistantController';
 
+const { mockTransformTextForLayerTarget } = vi.hoisted(() => ({
+  mockTransformTextForLayerTarget: vi.fn(async ({ text }: { text: string }) => text),
+}));
+
+vi.mock('../utils/orthographyRuntime', () => ({
+  transformTextForLayerTarget: mockTransformTextForLayerTarget,
+}));
+
 function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcription'): LayerDocType {
   return {
     id,
@@ -88,6 +96,40 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
 }
 
 describe('useTranscriptionAssistantController', () => {
+  it('transforms dictation text before writing to a fallback translation layer', async () => {
+    mockTransformTextForLayerTarget.mockResolvedValueOnce('xf:translated text');
+    const saveTextTranslationForUtterance = vi.fn(async () => undefined);
+    const selectUtterance = vi.fn();
+    const { result } = renderHook(() => useTranscriptionAssistantController(createBaseInput({
+      selectedLayerId: null,
+      layers: [
+        { ...makeLayer('layer-main'), orthographyId: 'orth-source' } as LayerDocType,
+        { ...makeLayer('layer-tr', 'translation'), orthographyId: 'orth-target' } as LayerDocType,
+      ],
+      saveTextTranslationForUtterance,
+      selectUtterance,
+    })));
+
+    act(() => {
+      result.current.handleVoiceDictation('translated text');
+    });
+
+    await waitFor(() => {
+      expect(mockTransformTextForLayerTarget).toHaveBeenCalledWith({
+        text: 'translated text',
+        layers: expect.arrayContaining([
+          expect.objectContaining({ id: 'layer-main', orthographyId: 'orth-source' }),
+          expect.objectContaining({ id: 'layer-tr', orthographyId: 'orth-target' }),
+        ]),
+        targetLayerId: 'layer-tr',
+        selectedLayerId: null,
+        fallbackSourceOrthographyId: 'orth-source',
+      });
+      expect(saveTextTranslationForUtterance).toHaveBeenCalledWith('utt-1', 'xf:translated text', 'layer-tr');
+      expect(selectUtterance).toHaveBeenCalledWith('utt-2');
+    });
+  });
+
   it('publishes AI panel context with derived ready-state stats', async () => {
     const setAiPanelContext = vi.fn() as unknown as Dispatch<SetStateAction<AiPanelContextValue>>;
 
@@ -103,12 +145,18 @@ describe('useTranscriptionAssistantController', () => {
     });
   });
 
-  it('writes dictation directly to segment content for segment-backed selection', async () => {
+  it('writes dictation to segment content with fallback orthography transform for segment-backed selection', async () => {
     const saveSegmentContentForLayer = vi.fn(async () => undefined);
     const saveUtteranceText = vi.fn(async () => undefined);
     const selectedTimelineUnit: TimelineUnit = { layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' };
+    mockTransformTextForLayerTarget.mockResolvedValueOnce('xf:segment text');
     const { result } = renderHook(() => useTranscriptionAssistantController(createBaseInput({
+      selectedLayerId: null,
       selectedTimelineUnit,
+      layers: [
+        { ...makeLayer('layer-main'), orthographyId: 'orth-source' } as LayerDocType,
+        { ...makeLayer('layer-seg', 'translation'), orthographyId: 'orth-target' } as LayerDocType,
+      ],
       saveSegmentContentForLayer,
       saveUtteranceText,
     })));
@@ -118,7 +166,17 @@ describe('useTranscriptionAssistantController', () => {
     });
 
     await waitFor(() => {
-      expect(saveSegmentContentForLayer).toHaveBeenCalledWith('seg-1', 'layer-seg', 'segment text');
+      expect(mockTransformTextForLayerTarget).toHaveBeenCalledWith({
+        text: 'segment text',
+        layers: expect.arrayContaining([
+          expect.objectContaining({ id: 'layer-main', orthographyId: 'orth-source' }),
+          expect.objectContaining({ id: 'layer-seg', orthographyId: 'orth-target' }),
+        ]),
+        targetLayerId: 'layer-seg',
+        selectedLayerId: null,
+        fallbackSourceOrthographyId: 'orth-source',
+      });
+      expect(saveSegmentContentForLayer).toHaveBeenCalledWith('seg-1', 'layer-seg', 'xf:segment text');
     });
     expect(saveUtteranceText).not.toHaveBeenCalled();
   });

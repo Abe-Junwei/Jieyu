@@ -26,7 +26,9 @@
  *   Speaker[@name]                  →  speaker name
  */
 
-import type { UtteranceDocType } from '../db';
+import type { LayerDocType, OrthographyDocType, UtteranceDocType } from '../db';
+import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
+import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -40,6 +42,8 @@ export interface TrsSpeaker {
 export interface TrsExportInput {
   utterances: UtteranceDocType[];
   speakers?: TrsSpeaker[];
+  orthographies?: OrthographyDocType[];
+  transcriptionLayer?: LayerDocType;
   /** Programme title written into <Trans program="..."> */
   programTitle?: string;
 }
@@ -78,8 +82,11 @@ function formatTime(seconds: number): string {
 // ── Export ───────────────────────────────────────────────────
 
 export function exportToTrs(input: TrsExportInput): string {
-  const { utterances, speakers = [], programTitle = 'Jieyu Export' } = input;
+  const { utterances, speakers = [], orthographies, transcriptionLayer, programTitle = 'Jieyu Export' } = input;
   const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
+  const transcriptionRenderPolicy = transcriptionLayer?.languageId
+    ? resolveOrthographyRenderPolicy(transcriptionLayer.languageId, orthographies, transcriptionLayer.orthographyId)
+    : undefined;
 
   // Collect distinct speaker IDs referenced by utterances
   const speakerIds = new Set(sorted.map((u) => u.speakerId).filter(Boolean) as string[]);
@@ -134,7 +141,7 @@ export function exportToTrs(input: TrsExportInput): string {
         : '';
       const segments = turn.utterances
         .map((u) => {
-          const text = u.transcription?.default ?? '';
+          const text = wrapPlainTextWithBidiIsolation(u.transcription?.default ?? '', transcriptionRenderPolicy);
           return `          <Sync time="${formatTime(u.startTime)}"/>\n          ${escapeXml(text)}`;
         })
         .join('\n');
@@ -210,7 +217,7 @@ export function importFromTrs(xmlString: string): TrsImportResult {
 
     if (syncIndices.length === 0) {
       // No Sync elements — treat entire Turn text as one segment
-      const text = collectText(childNodes).trim();
+      const text = stripPlainTextBidiIsolation(collectText(childNodes).trim());
       if (text) {
         const startTime = parseFloat(turn.getAttribute('startTime') ?? '0');
         utterances.push({ startTime, endTime: turnEnd, transcription: text, ...(speakerId !== undefined && { speakerId }), ...(topic !== undefined && { topic }) });
@@ -234,7 +241,7 @@ export function importFromTrs(xmlString: string): TrsImportResult {
       // Collect text nodes between this Sync and the next Sync (or end of Turn)
       const sliceEnd = nextSyncIdx ?? childNodes.length;
       const textNodes = childNodes.slice(syncIdx + 1, sliceEnd);
-      const text = collectText(textNodes).trim();
+      const text = stripPlainTextBidiIsolation(collectText(textNodes).trim());
 
       // Skip zero-duration or empty segments
       if (endTime <= startTime || !text) continue;

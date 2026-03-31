@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveRagFusionScenarioInput } from './useAiChat.rag';
+import { normalizeRagCitationSnippet, resolveRagFusionScenarioInput } from './useAiChat.rag';
 
 describe('useAiChat.rag scenario resolver', () => {
   it('defaults to qa scenario for regular user text', () => {
@@ -21,5 +21,9 @@ describe('useAiChat.rag scenario resolver', () => {
 
     expect(result.scenario).toBe('terminology');
     expect(result.queryText).toBe('这个术语在语料中如何使用？');
+  });
+
+  it('normalizes rag citation snippets for plain-text reuse', () => {
+    expect(normalizeRagCitationSnippet('\u2067مرحبا\u2069\n  بالعالم')).toBe('مرحبا بالعالم');
   });
 });

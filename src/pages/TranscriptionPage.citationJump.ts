@@ -1,6 +1,7 @@
 import { db as appDb, type LayerDocType, type UserNoteDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import { extractUtteranceIdFromNote, getPdfPageFromHash, isDirectPdfCitationRef, splitPdfCitationRef } from '../utils/citationJumpUtils';
+import { normalizeCitationSnippetPlainText } from '../utils/citationFootnoteUtils';
 
 type CitationType = 'utterance' | 'note' | 'pdf' | 'schema';
 
@@ -119,7 +120,7 @@ export async function handleTranscriptionCitationJump({
     const displayTitle = baseRef.split('/').pop() || baseRef || 'PDF';
 
     if (isDirectPdfCitationRef(refId)) {
-      const snippet = citationRef?.snippet?.trim();
+      const snippet = normalizeCitationSnippetPlainText(citationRef?.snippet ?? '');
       onOpenPdfPreviewRequest({
         title: displayTitle,
         page,
@@ -144,7 +145,7 @@ export async function handleTranscriptionCitationJump({
 
     const mediaLink = resolveMediaLink(media);
     if (mediaLink) {
-      const snippet = citationRef?.snippet?.trim();
+      const snippet = normalizeCitationSnippetPlainText(citationRef?.snippet ?? '');
       onOpenPdfPreviewRequest({
         title: media?.filename || displayTitle,
         page,
@@ -166,7 +167,7 @@ export async function handleTranscriptionCitationJump({
     }
     const sourceUrl = source?.url?.trim();
     if (source && sourceUrl) {
-      const snippet = citationRef?.snippet?.trim();
+      const snippet = normalizeCitationSnippetPlainText(citationRef?.snippet ?? '');
       onOpenPdfPreviewRequest({
         title: source.title || source.citationKey || displayTitle,
         page,

@@ -1,11 +1,13 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import type { LayerLinkDocType, LayerDocType } from '../db';
+import type { LayerLinkDocType, LayerDocType, LayerDisplaySettings, OrthographyDocType } from '../db';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { buildLayerBundles, resolveLayerDragGroup } from '../services/LayerOrderingService';
 import { resolveVerticalReorderTargetIndex, type VerticalDragDirection } from '../utils/dragReorder';
 import { fireAndForget } from '../utils/fireAndForget';
+import { buildLayerDropIntent, type LayerDropIntent } from '../utils/layerDragDropModel';
 import { buildLayerLinkConnectorLayout, getLayerLinkConnectorColors, getLayerLinkStackWidth } from '../utils/layerLinkConnector';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { buildLayerStyleMenuItems } from './LayerStyleSubmenu';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -41,6 +43,13 @@ interface TimelineLaneHeaderProps {
     selectedSpeakerNames?: string[];
     lockedSpeakerCount?: number;
     lockConflictCount?: number;
+  };
+  /** 显示样式菜单所需 | Display style submenu dependencies */
+  displayStyleControl?: {
+    orthographies: OrthographyDocType[];
+    onUpdate: (layerId: string, patch: Partial<LayerDisplaySettings>) => void;
+    onReset: (layerId: string) => void;
+    localFonts?: Parameters<typeof buildLayerStyleMenuItems>[7];
   };
 }
 
@@ -81,6 +90,7 @@ export function TimelineLaneHeader({
   onLaneLabelWidthResize,
   speakerQuickActions,
   trackModeControl,
+  displayStyleControl,
 }: TimelineLaneHeaderProps) {
   const connectorLayerLinks = useMemo(
     () => layerLinks.map((link) => ({ transcriptionLayerKey: link.transcriptionLayerKey, targetLayerId: link.layerId })),
@@ -135,6 +145,7 @@ export function TimelineLaneHeader({
   const headerRef = useRef<HTMLSpanElement | null>(null);
   const dragStateRef = useRef<typeof dragState>(null);
   const dropTargetIndexRef = useRef<number | null>(null);
+  const dropIntentRef = useRef<LayerDropIntent | null>(null);
   const laneRowRef = useRef<HTMLElement | null>(null);
   const dragStartClientYRef = useRef<number | null>(null);
   const dragVisualRafRef = useRef<number | null>(null);
@@ -371,9 +382,53 @@ export function TimelineLaneHeader({
     return targetIndex;
   }, [allLayers.length, bundleBoundaryIndexes, bundleRootIds]);
 
+  const resolveDropTargetIndexForActiveDrag = useCallback((
+    clientY: number,
+    activeDrag: { draggedId: string; sourceIndex: number; sourceSpan: number },
+  ): LayerDropIntent | null => {
+    const baseTargetIndex = resolveDropTargetIndex(clientY);
+    if (baseTargetIndex === null) return null;
+
+    const container = headerRef.current?.closest<HTMLElement>('.timeline-content');
+    if (!container) {
+      return buildLayerDropIntent({
+        draggedId: activeDrag.draggedId,
+        sourceIndex: activeDrag.sourceIndex,
+        sourceSpan: activeDrag.sourceSpan,
+        baseTargetIndex,
+        rowCount: allLayers.length,
+        bundleRanges,
+        isRootBundleDrag: bundleRootIds.has(activeDrag.draggedId),
+      });
+    }
+    const lanes = Array.from(container.querySelectorAll<HTMLElement>('.timeline-lane'));
+    if (lanes.length === 0) {
+      return buildLayerDropIntent({
+        draggedId: activeDrag.draggedId,
+        sourceIndex: activeDrag.sourceIndex,
+        sourceSpan: activeDrag.sourceSpan,
+        baseTargetIndex,
+        rowCount: allLayers.length,
+        bundleRanges,
+        isRootBundleDrag: bundleRootIds.has(activeDrag.draggedId),
+      });
+    }
+
+    return buildLayerDropIntent({
+      draggedId: activeDrag.draggedId,
+      sourceIndex: activeDrag.sourceIndex,
+      sourceSpan: activeDrag.sourceSpan,
+      baseTargetIndex,
+      rowCount: lanes.length,
+      bundleRanges,
+      isRootBundleDrag: bundleRootIds.has(activeDrag.draggedId),
+    });
+  }, [allLayers.length, bundleRanges, bundleRootIds, resolveDropTargetIndex]);
+
   // Long press (500ms) to start drag
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left mouse button
+    dropIntentRef.current = null;
     dragStartClientYRef.current = e.clientY;
     dragLastClientYRef.current = e.clientY;
     dragDirectionRef.current = 'none';
@@ -395,6 +450,7 @@ export function TimelineLaneHeader({
       dragStartClientYRef.current = null;
       dragLastClientYRef.current = null;
       dragDirectionRef.current = 'none';
+      dropIntentRef.current = null;
       laneRowRef.current = null;
       document.removeEventListener('mouseup', cancelPendingDragStart);
     };
@@ -411,6 +467,8 @@ export function TimelineLaneHeader({
         sourceType: layer.layerType,
       });
       setDropTargetIndex(idx);
+      dropTargetIndexRef.current = idx;
+      dropIntentRef.current = null;
       updateBundleBoundaryHighlightVisual(layer.id, idx, idx);
       updateLaneDragVisual(e.clientY);
       document.removeEventListener('mouseup', cancelPendingDragStart);
@@ -428,10 +486,6 @@ export function TimelineLaneHeader({
 
   const commitDragReorder = useCallback((clientY?: number) => {
     const activeDrag = dragStateRef.current;
-    if (typeof clientY === 'number') {
-      updateDragDirection(clientY);
-      updateLaneDragVisual(clientY);
-    }
     if (!activeDrag) {
       clearLaneDragVisual();
       clearSiblingShiftVisual();
@@ -439,6 +493,7 @@ export function TimelineLaneHeader({
       dragStartClientYRef.current = null;
       dragLastClientYRef.current = null;
       dragDirectionRef.current = 'none';
+      dropIntentRef.current = null;
       laneRowRef.current = null;
       draggedLaneRowsRef.current = [];
       setDragState(null);
@@ -446,10 +501,11 @@ export function TimelineLaneHeader({
       return;
     }
 
-    const resolvedTarget = typeof clientY === 'number'
-      ? resolveDropTargetIndex(clientY)
-      : null;
-    const finalTarget = resolvedTarget ?? dropTargetIndexRef.current;
+    const previewIntent = dropIntentRef.current;
+    const previewTarget = previewIntent?.previewIndex ?? dropTargetIndexRef.current;
+    // 采用 over-target 提交语义：放手时不重算命中，直接提交最后一次预览。
+    // Use over-target commit semantics: do not recompute on mouseup, commit the last preview target.
+    const finalTarget = previewTarget;
 
     if (finalTarget !== null) {
       if (finalTarget !== activeDrag.sourceIndex) {
@@ -463,11 +519,12 @@ export function TimelineLaneHeader({
     dragStartClientYRef.current = null;
     dragLastClientYRef.current = null;
     dragDirectionRef.current = 'none';
+    dropIntentRef.current = null;
     laneRowRef.current = null;
     draggedLaneRowsRef.current = [];
     setDragState(null);
     setDropTargetIndex(null);
-  }, [clearBundleBoundaryHighlightVisual, clearLaneDragVisual, clearSiblingShiftVisual, onReorderLayers, resolveDropTargetIndex, updateLaneDragVisual]);
+  }, [clearBundleBoundaryHighlightVisual, clearLaneDragVisual, clearSiblingShiftVisual, onReorderLayers]);
 
   useEffect(() => {
     if (!dragState) return;
@@ -475,8 +532,11 @@ export function TimelineLaneHeader({
     const handleDocumentMouseMove = (e: MouseEvent) => {
       updateDragDirection(e.clientY);
       updateLaneDragVisual(e.clientY);
-      const next = resolveDropTargetIndex(e.clientY);
-      if (next !== null) {
+      const nextIntent = resolveDropTargetIndexForActiveDrag(e.clientY, dragState);
+      if (nextIntent !== null) {
+        dropIntentRef.current = nextIntent;
+        const next = nextIntent.previewIndex;
+        dropTargetIndexRef.current = next;
         setDropTargetIndex(next);
         updateSiblingShiftVisual(dragState.sourceIndex, dragState.sourceSpan, next);
         updateBundleBoundaryHighlightVisual(dragState.draggedId, dragState.sourceIndex, next);
@@ -494,10 +554,11 @@ export function TimelineLaneHeader({
       clearLaneDragVisual();
       clearSiblingShiftVisual();
       clearBundleBoundaryHighlightVisual();
+      dropIntentRef.current = null;
       document.removeEventListener('mousemove', handleDocumentMouseMove);
       document.removeEventListener('mouseup', handleDocumentMouseUp);
     };
-  }, [clearBundleBoundaryHighlightVisual, clearLaneDragVisual, clearSiblingShiftVisual, commitDragReorder, dragState, resolveDropTargetIndex, updateDragDirection, updateBundleBoundaryHighlightVisual, updateLaneDragVisual, updateSiblingShiftVisual]);
+  }, [clearBundleBoundaryHighlightVisual, clearLaneDragVisual, clearSiblingShiftVisual, commitDragReorder, dragState, resolveDropTargetIndexForActiveDrag, updateDragDirection, updateBundleBoundaryHighlightVisual, updateLaneDragVisual, updateSiblingShiftVisual]);
 
   useEffect(() => () => {
     clearLaneDragVisual();
@@ -506,6 +567,7 @@ export function TimelineLaneHeader({
     dragStartClientYRef.current = null;
     dragLastClientYRef.current = null;
     dragDirectionRef.current = 'none';
+    dropIntentRef.current = null;
     laneRowRef.current = null;
     draggedLaneRowsRef.current = [];
     if (dragTimerRef.current) {
@@ -566,6 +628,25 @@ export function TimelineLaneHeader({
       children: viewMenuItems,
     },
   ];
+
+  // 显示样式子菜单 | Display style submenu
+  if (displayStyleControl) {
+    const styleItems = buildLayerStyleMenuItems(
+      layer.displaySettings,
+      layer.id,
+      layer.languageId,
+      layer.orthographyId,
+      displayStyleControl.orthographies,
+      (patch) => displayStyleControl.onUpdate(layer.id, patch),
+      () => displayStyleControl.onReset(layer.id),
+      displayStyleControl.localFonts,
+    );
+    contextMenuItems.push({
+      label: '显示样式',
+      variant: 'category',
+      children: styleItems,
+    });
+  }
 
   if (speakerQuickActions) {
     const { selectedCount, speakerOptions, onAssignToSelection, onClearSelection, onOpenCreateAndAssignPanel } = speakerQuickActions;

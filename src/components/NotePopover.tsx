@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
 
@@ -12,7 +12,7 @@ interface NotePopoverProps {
   x: number;
   y: number;
   notes: UserNoteDocType[];
-  targetLabel: string;
+  targetLabel: ReactNode;
   onClose: () => void;
   onAdd: (content: MultiLangString, category?: NoteCategory) => Promise<void>;
   onUpdate: (id: string, updates: { content?: MultiLangString; category?: NoteCategory }) => Promise<void>;
@@ -69,7 +69,8 @@ export const NotePopover = memo(function NotePopover({
     if (!trimmed) return;
     await onAdd({ default: trimmed }, newCategory);
     setNewContent('');
-  }, [newContent, newCategory, onAdd]);
+    onClose();
+  }, [newCategory, newContent, onAdd, onClose]);
 
   const handleAddKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {

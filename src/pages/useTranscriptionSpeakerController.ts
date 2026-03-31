@@ -61,7 +61,6 @@ interface UseTranscriptionSpeakerControllerInput {
   reloadSegments: () => Promise<void>;
   refreshSegmentUndoSnapshot: () => Promise<void>;
   updateSegmentsLocally: (segmentIds: Iterable<string>, updater: SegmentUpdater) => void;
-  setLayerRailTab: Dispatch<SetStateAction<'layers' | 'links'>>;
   setIsLayerRailCollapsed: Dispatch<SetStateAction<boolean>>;
   layerAction: {
     setLayerActionPanel: (panel: LayerActionPanelKind) => void;
@@ -69,6 +68,11 @@ interface UseTranscriptionSpeakerControllerInput {
 }
 
 export function useTranscriptionSpeakerController(input: UseTranscriptionSpeakerControllerInput) {
+  const {
+    resolveSpeakerActionUtteranceIds,
+    setIsLayerRailCollapsed,
+    layerAction,
+  } = input;
   const {
     speakerOptions,
     speakerDraftName,
@@ -134,11 +138,10 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
   }, [speakerOptions]);
 
   const handleOpenSpeakerManagementPanel = useCallback((draftName = '') => {
-    input.setLayerRailTab('layers');
-    input.setIsLayerRailCollapsed(false);
+    setIsLayerRailCollapsed(false);
     setSpeakerDraftName(draftName);
-    input.layerAction.setLayerActionPanel('speaker-management');
-  }, [input, setSpeakerDraftName]);
+    layerAction.setLayerActionPanel('speaker-management');
+  }, [layerAction, setIsLayerRailCollapsed, setSpeakerDraftName]);
 
   const {
     speakerSavingRouted,
@@ -239,8 +242,8 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
       fireAndForget(handleAssignSpeakerToSegments(Array.from(unitIds), speakerId));
       return;
     }
-    fireAndForget(handleAssignSpeakerToUtterances(input.resolveSpeakerActionUtteranceIds(unitIds), speakerId));
-  }, [handleAssignSpeakerToSegments, handleAssignSpeakerToUtterances, input]);
+    fireAndForget(handleAssignSpeakerToUtterances(resolveSpeakerActionUtteranceIds(unitIds), speakerId));
+  }, [handleAssignSpeakerToSegments, handleAssignSpeakerToUtterances, resolveSpeakerActionUtteranceIds]);
 
   return {
     speakerOptions,

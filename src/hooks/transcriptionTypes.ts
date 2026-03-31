@@ -78,6 +78,7 @@ import type { LayerConstraint } from '../db';
 
 export type LayerCreateInput = {
   languageId: string;
+  orthographyId?: string | undefined;
   alias?: string | undefined;
   textId?: string | undefined;
   /** 边界约束类型 | Boundary constraint type */

@@ -55,6 +55,7 @@ function makeParams(
     toggleLayerLink: vi.fn(),
     saveUtteranceText: vi.fn(),
     saveTextTranslationForUtterance: vi.fn(),
+    transformTextForLayerWrite: vi.fn(async ({ text }) => text),
     executeAction: vi.fn(),
     getSegments: vi.fn(() => []),
     navigateTo: vi.fn(),
@@ -671,5 +672,91 @@ describe('useAiToolCallHandler — strict target requirements', () => {
 
     expect(response?.ok).toBe(true);
     expect(zoomToSegment).toHaveBeenCalledWith('u-zoom', 6);
+  });
+
+  it('transforms translation text before writeback when source/target layers differ', async () => {
+    const utterance = makeUtterance('u1');
+    const targetLayer = {
+      ...makeTranslationLayer('trl-eng', '英语'),
+      orthographyId: 'orth-target',
+    } as LayerDocType;
+    const transformSpy = vi.fn(async ({ text }: { text: string }) => `xf:${text}`);
+    const saveSpy = vi.fn<(u: string, t: string, l: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [utterance],
+          selectedUtterance: utterance,
+          selectedLayerId: 'trc-source',
+          transcriptionLayers: [{
+            id: 'trc-source',
+            textId: 't1',
+            key: 'trc-source',
+            name: { zho: '源转写层' },
+            layerType: 'transcription',
+            languageId: 'zho',
+            orthographyId: 'orth-source',
+            modality: 'text',
+            createdAt: NOW,
+            updatedAt: NOW,
+          } as LayerDocType],
+          translationLayers: [targetLayer],
+          saveTextTranslationForUtterance: saveSpy,
+          transformTextForLayerWrite: transformSpy,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current({
+        name: 'set_translation_text',
+        arguments: { utteranceId: 'u1', layerId: 'trl-eng', text: 'abc' },
+      });
+    });
+
+    expect(transformSpy).toHaveBeenCalledWith({ text: 'abc', targetLayerId: 'trl-eng', selectedLayerId: 'trc-source' });
+    expect(saveSpy).toHaveBeenCalledWith('u1', 'xf:abc', 'trl-eng');
+  });
+
+  it('writes transformed transcription text into the selected transcription layer', async () => {
+    const utterance = makeUtterance('u1');
+    const saveSpy = vi.fn<(u: string, t: string, l?: string) => Promise<void>>().mockResolvedValue(undefined);
+    const transformSpy = vi.fn(async ({ text }: { text: string }) => `xf:${text}`);
+    const selectedLayer = {
+      id: 'trc-alt',
+      textId: 't1',
+      key: 'trc-alt',
+      name: { zho: '备用转写层' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      orthographyId: 'orth-alt',
+      modality: 'text',
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as LayerDocType;
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [utterance],
+          selectedUtterance: utterance,
+          selectedLayerId: 'trc-alt',
+          transcriptionLayers: [selectedLayer],
+          saveUtteranceText: saveSpy,
+          transformTextForLayerWrite: transformSpy,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current({
+        name: 'set_transcription_text',
+        arguments: { utteranceId: 'u1', text: 'source text' },
+      });
+    });
+
+    expect(transformSpy).toHaveBeenCalledWith({ text: 'source text', targetLayerId: 'trc-alt', selectedLayerId: 'trc-alt' });
+    expect(saveSpy).toHaveBeenCalledWith('u1', 'xf:source text', 'trc-alt');
   });
 });

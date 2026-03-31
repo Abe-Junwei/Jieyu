@@ -1,9 +1,11 @@
 import type {
   LayerLinkDocType,
   LayerDocType,
+  LayerDisplaySettings,
   LayerSegmentContentDocType,
   LayerSegmentDocType,
   MediaItemDocType,
+  OrthographyDocType,
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
@@ -20,6 +22,11 @@ import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
+import {
+  BASE_FONT_SIZE,
+  computeFontSizeFromRenderPolicy,
+  resolveOrthographyRenderPolicy,
+} from '../utils/layerDisplayStyle';
 import {
   buildSpeakerLayerLayoutWithOptions,
   type SpeakerLayerLayoutResult,
@@ -67,7 +74,6 @@ function resolveSpeakerFocusKeyFromSegment(
   const ownerUtterance = segment.utteranceId ? utteranceById.get(segment.utteranceId) : undefined;
   return resolveSpeakerFocusKeyFromUtterance(ownerUtterance);
 }
-
 
 function prioritizeOverlapCycleItems(
   itemsByUtteranceId: Map<string, Array<{ id: string; startTime: number }>>,
@@ -227,6 +233,13 @@ type TranscriptionTimelineMediaLanesProps = {
   startRecordingForUtterance?: (utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>;
   stopRecording?: () => void;
   deleteVoiceTranslation?: (utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>;
+  /** 层显示样式控制 | Layer display style control */
+  displayStyleControl?: {
+    orthographies: OrthographyDocType[];
+    onUpdate: (layerId: string, patch: Partial<LayerDisplaySettings>) => void;
+    onReset: (layerId: string) => void;
+    localFonts?: Parameters<typeof import('./LayerStyleSubmenu').buildLayerStyleMenuItems>[7];
+  };
 };
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
@@ -279,6 +292,7 @@ export function TranscriptionTimelineMediaLanes({
   startRecordingForUtterance,
   stopRecording,
   deleteVoiceTranslation,
+  displayStyleControl,
 }: Omit<TranscriptionTimelineMediaLanesProps, 'allLayersOrdered'> & {
   allLayersOrdered: LayerDocType[];
   deletableLayers: LayerDocType[];
@@ -287,9 +301,45 @@ export function TranscriptionTimelineMediaLanes({
 }) {
   const [layerAction, setLayerAction] = useState<{ action: LayerActionType; layerId?: string } | null>(null);
   const [collapsedLayerIds, setCollapsedLayerIds] = useState<Set<string>>(new Set());
+  const [previewFontSizeByLayerId, setPreviewFontSizeByLayerId] = useState<Record<string, number>>({});
   const [tempExpandedGroupByLayer, setTempExpandedGroupByLayer] = useState<Record<string, string>>({});
   const tempExpandTimersRef = useRef<Map<string, number>>(new Map());
-  const { resizingLayerId, startLaneHeightResize } = useTimelineLaneHeightResize(onLaneHeightChange);
+
+  const handleResizePreview = useCallback((layerId: string, previewHeight: number) => {
+    if (!displayStyleControl) return;
+    const layer = allLayersOrdered.find((candidate) => candidate.id === layerId);
+    if (!layer) return;
+    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, displayStyleControl.orthographies, layer.orthographyId);
+    const previewFontSize = computeFontSizeFromRenderPolicy(previewHeight, renderPolicy);
+    setPreviewFontSizeByLayerId((prev) => (
+      prev[layerId] === previewFontSize ? prev : { ...prev, [layerId]: previewFontSize }
+    ));
+  }, [allLayersOrdered, displayStyleControl]);
+
+  // 拖拽结束时反推字号 | Sync font size from lane height on resize end
+  const handleResizeEnd = useCallback((layerId: string, finalHeight: number) => {
+    setPreviewFontSizeByLayerId((prev) => {
+      if (!(layerId in prev)) return prev;
+      const next = { ...prev };
+      delete next[layerId];
+      return next;
+    });
+    if (!displayStyleControl) return;
+    const layer = allLayersOrdered.find((l) => l.id === layerId);
+    if (!layer) return;
+    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, displayStyleControl.orthographies, layer.orthographyId);
+    const newFontSize = computeFontSizeFromRenderPolicy(finalHeight, renderPolicy);
+    const oldFontSize = layer.displaySettings?.fontSize ?? BASE_FONT_SIZE;
+    if (Math.abs(newFontSize - oldFontSize) > 0.1) {
+      displayStyleControl.onUpdate(layerId, { fontSize: newFontSize });
+    }
+  }, [allLayersOrdered, displayStyleControl]);
+
+  const { resizingLayerId, startLaneHeightResize } = useTimelineLaneHeightResize(
+    onLaneHeightChange,
+    handleResizeEnd,
+    handleResizePreview,
+  );
   const localSpeakerLayerLayout = useMemo(
     () => buildSpeakerLayerLayoutWithOptions(timelineRenderUtterances, {
       trackMode: trackDisplayMode,
@@ -509,6 +559,16 @@ export function TranscriptionTimelineMediaLanes({
           ? (expandedGroupMeta?.subTrackCount ?? activeLayerLayout.subTrackCount)
           : 1;
         const visibleLaneHeight = effectiveCollapsed ? 14 : baseLaneHeight * activeSubTrackCount;
+        const previewFontSize = previewFontSizeByLayerId[layer.id];
+        const layerForDisplay = previewFontSize == null
+          ? layer
+          : {
+              ...layer,
+              displaySettings: {
+                ...layer.displaySettings,
+                fontSize: previewFontSize,
+              },
+            };
         const collapsedOverlapMarkers = isMultiTrackMode
           ? activeLayerLayout.overlapGroups.filter((group) => group.speakerCount > 1)
           : [];
@@ -576,6 +636,7 @@ export function TranscriptionTimelineMediaLanes({
             isCollapsed={effectiveCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
+            {...(displayStyleControl && { displayStyleControl })}
           />
           {isMultiTrackMode && isCollapsed && collapsedOverlapMarkers.map((group) => (
             <button
@@ -624,7 +685,7 @@ export function TranscriptionTimelineMediaLanes({
                   height: baseLaneHeight,
                 }}
               >
-                {renderAnnotationItem(utt, layer, draft, {
+                {renderAnnotationItem(utt, layerForDisplay, draft, {
                   ...overlapCycleExtra,
                   ...(overlapCycleStatus ? { overlapCycleStatus } : {}),
                   ...(usesSegmentTimeline ? { placeholder: '语段' } : {}),
@@ -678,6 +739,16 @@ export function TranscriptionTimelineMediaLanes({
         // 独立边界层使用按 layer 聚合的 canonical segment graph，否则继承 utterance 边界
         // Independent-boundary layers use the canonical per-layer segment graph; other layers inherit utterance boundaries.
         const usesOwnSegments = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
+        const previewFontSize = previewFontSizeByLayerId[layer.id];
+        const layerForDisplay = previewFontSize == null
+          ? layer
+          : {
+              ...layer,
+              displaySettings: {
+                ...layer.displaySettings,
+                fontSize: previewFontSize,
+              },
+            };
         const iterationSource = getSegmentTimelineIterationSource(
           layer,
           layerById,
@@ -710,6 +781,7 @@ export function TranscriptionTimelineMediaLanes({
             isCollapsed={isCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
+            {...(displayStyleControl && { displayStyleControl })}
           />
           {!isCollapsed && iterationSource.map((item) => {
             const text = usesOwnSegments
@@ -750,12 +822,12 @@ export function TranscriptionTimelineMediaLanes({
                   height: baseLaneHeight,
                 }}
               >
-                {isAudioOnlyLayer && audioControls ? renderAnnotationItem(uttCompat, layer, '', {
+                {isAudioOnlyLayer && audioControls ? renderAnnotationItem(uttCompat, layerForDisplay, '', {
                   showSpeaker: false,
                   content: <div className="timeline-translation-audio-card">{audioControls}</div>,
                   onChange: () => undefined,
                   onBlur: () => undefined,
-                }) : renderAnnotationItem(uttCompat, layer, draft, {
+                }) : renderAnnotationItem(uttCompat, layerForDisplay, draft, {
                   showSpeaker: false,
                   placeholder: usesOwnSegments ? '语段' : '翻译',
                   ...(audioControls ? { tools: audioControls, hasTrailingTools: showAudioTools } : {}),

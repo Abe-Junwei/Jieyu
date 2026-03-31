@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * useLocalStorage - Hook for syncing state with window.localStorage
@@ -22,7 +22,10 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
     }
   });
   const storedValueRef = useRef(storedValue);
-  storedValueRef.current = storedValue;
+
+  useLayoutEffect(() => {
+    storedValueRef.current = storedValue;
+  }, [storedValue]);
 
   // Return a wrapped version of useState's setter function that ...
   // ... persists the new value to localStorage.

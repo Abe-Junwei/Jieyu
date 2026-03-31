@@ -1,3 +1,4 @@
+import type { OrthographyDocType } from '../db';
 import { useMemo, type RefObject } from 'react';
 import type { UtteranceDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
@@ -72,6 +73,7 @@ interface UseTranscriptionSectionViewModelsInput {
   tierContainerRef: RefObject<HTMLDivElement | null>;
   showSearch: boolean;
   searchableItems: TranscriptionPageTimelineTopProps['searchProps']['items'];
+  orthographies: OrthographyDocType[];
   activeLayerIdForEdits: string;
   selectedTimelineUtteranceId: string;
   searchOverlayRequest: AppShellOpenSearchDetail | null;
@@ -142,6 +144,7 @@ export function useTranscriptionSectionViewModels(
     tierContainerRef,
     showSearch,
     searchableItems,
+    orthographies,
     activeLayerIdForEdits,
     selectedTimelineUtteranceId,
     searchOverlayRequest,
@@ -154,97 +157,65 @@ export function useTranscriptionSectionViewModels(
     sidebarSectionsInput,
   } = input;
 
-  const toolbarProps = useMemo<TranscriptionPageToolbarProps>(() => {
-    const lowConfidenceCount = utterancesOnCurrentMedia.filter(
-      (utterance) => typeof utterance.ai_metadata?.confidence === 'number' && utterance.ai_metadata.confidence < 0.75,
-    ).length;
+  const lowConfidenceCount = useMemo(() => utterancesOnCurrentMedia.filter(
+    (utterance) => typeof utterance.ai_metadata?.confidence === 'number' && utterance.ai_metadata.confidence < 0.75,
+  ).length, [utterancesOnCurrentMedia]);
 
-    return {
-      filename: selectedTimelineMediaFilename ?? (locale === 'zh-CN' ? '未绑定媒体' : 'Unbound media'),
-      isReady: player.isReady,
-      isPlaying: player.isPlaying,
-      playbackRate: player.playbackRate,
-      onPlaybackRateChange: player.setPlaybackRate,
-      volume: player.volume,
-      onVolumeChange: player.setVolume,
-      loop: globalLoopPlayback,
-      onLoopChange: setGlobalLoopPlayback,
-      onTogglePlayback: handleGlobalPlayPauseAction,
-      onSeek: player.seekBySeconds,
-      canUndo,
-      canRedo,
-      undoLabel,
-      canDeleteAudio: hasSelectedTimelineMedia,
-      canDeleteProject: hasActiveTextId,
-      canToggleNotes: Boolean((selectedTimelineUnit?.kind === 'utterance' && selectedTimelineUnit.unitId) || notePopoverOpen),
-      canOpenUttOpsMenu: Boolean(selectedTimelineUnit?.unitId),
-      notePopoverOpen,
-      showExportMenu,
-      importFileRef,
-      exportMenuRef,
-      onRefresh: () => { void loadSnapshot(); },
-      onUndo: () => { void undo(); },
-      onRedo: () => { void redo(); },
-      onOpenProjectSetup: () => setShowProjectSetup(true),
-      onOpenAudioImport: () => setShowAudioImport(true),
-      onDeleteCurrentAudio: handleDeleteCurrentAudio,
-      onDeleteCurrentProject: handleDeleteCurrentProject,
-      exportCallbacks: {
-        onToggleExportMenu: () => setShowExportMenu((value) => !value),
-        onExportEaf: handleExportEaf,
-        onExportTextGrid: handleExportTextGrid,
-        onExportTrs: handleExportTrs,
-        onExportFlextext: handleExportFlextext,
-        onExportToolbox: handleExportToolbox,
-        onExportJyt: handleExportJyt,
-        onExportJym: handleExportJym,
-        onImportFile: (file) => { void handleImportFile(file); },
-      },
-      onToggleNotes: toggleNotes,
-      onOpenUttOpsMenu: (x, y) => setUttOpsMenu({ x, y }),
-      lowConfidenceCount,
-      ...(selectedMediaUrl ? { onAutoSegment: handleAutoSegment } : {}),
-      autoSegmentBusy,
-    };
-  }, [
-    autoSegmentBusy,
-    canRedo,
+  const exportCallbacks = useMemo(() => ({
+    onToggleExportMenu: () => setShowExportMenu((value) => !value),
+    onExportEaf: handleExportEaf,
+    onExportTextGrid: handleExportTextGrid,
+    onExportTrs: handleExportTrs,
+    onExportFlextext: handleExportFlextext,
+    onExportToolbox: handleExportToolbox,
+    onExportJyt: handleExportJyt,
+    onExportJym: handleExportJym,
+    onImportFile: (file) => { void handleImportFile(file); },
+  }), [handleExportEaf, handleExportFlextext, handleExportJym, handleExportJyt, handleExportTextGrid, handleExportToolbox, handleExportTrs, handleImportFile, setShowExportMenu]);
+
+  const toolbarProps = useMemo<TranscriptionPageToolbarProps>(() => ({
+    filename: selectedTimelineMediaFilename ?? (locale === 'zh-CN' ? '未绑定媒体' : 'Unbound media'),
+    isReady: player.isReady,
+    isPlaying: player.isPlaying,
+    playbackRate: player.playbackRate,
+    onPlaybackRateChange: player.setPlaybackRate,
+    volume: player.volume,
+    onVolumeChange: player.setVolume,
+    loop: globalLoopPlayback,
+    onLoopChange: setGlobalLoopPlayback,
+    onTogglePlayback: handleGlobalPlayPauseAction,
+    onSeek: player.seekBySeconds,
     canUndo,
-    exportMenuRef,
-    globalLoopPlayback,
-    handleAutoSegment,
-    handleDeleteCurrentAudio,
-    handleDeleteCurrentProject,
-    handleExportEaf,
-    handleExportFlextext,
-    handleExportJym,
-    handleExportJyt,
-    handleExportTextGrid,
-    handleExportToolbox,
-    handleExportTrs,
-    handleGlobalPlayPauseAction,
-    handleImportFile,
-    hasActiveTextId,
-    hasSelectedTimelineMedia,
-    importFileRef,
-    loadSnapshot,
-    locale,
-    notePopoverOpen,
-    player,
-    redo,
-    selectedMediaUrl,
-    selectedTimelineMediaFilename,
-    selectedTimelineUnit,
-    setGlobalLoopPlayback,
-    setShowAudioImport,
-    setShowExportMenu,
-    setShowProjectSetup,
-    setUttOpsMenu,
-    showExportMenu,
-    toggleNotes,
-    undo,
+    canRedo,
     undoLabel,
-    utterancesOnCurrentMedia,
+    canDeleteAudio: hasSelectedTimelineMedia,
+    canDeleteProject: hasActiveTextId,
+    canToggleNotes: Boolean((selectedTimelineUnit?.kind === 'utterance' && selectedTimelineUnit.unitId) || notePopoverOpen),
+    canOpenUttOpsMenu: Boolean(selectedTimelineUnit?.unitId),
+    notePopoverOpen,
+    showExportMenu,
+    importFileRef,
+    exportMenuRef,
+    onRefresh: () => { void loadSnapshot(); },
+    onUndo: () => { void undo(); },
+    onRedo: () => { void redo(); },
+    onOpenProjectSetup: () => setShowProjectSetup(true),
+    onOpenAudioImport: () => setShowAudioImport(true),
+    onDeleteCurrentAudio: handleDeleteCurrentAudio,
+    onDeleteCurrentProject: handleDeleteCurrentProject,
+    exportCallbacks,
+    onToggleNotes: toggleNotes,
+    onOpenUttOpsMenu: (x, y) => setUttOpsMenu({ x, y }),
+    lowConfidenceCount,
+    ...(selectedMediaUrl ? { onAutoSegment: handleAutoSegment } : {}),
+    autoSegmentBusy,
+  }), [
+    autoSegmentBusy, canRedo, canUndo, exportCallbacks, exportMenuRef, globalLoopPlayback,
+    handleAutoSegment, handleDeleteCurrentAudio, handleDeleteCurrentProject, hasActiveTextId,
+    hasSelectedTimelineMedia, importFileRef, loadSnapshot, locale, lowConfidenceCount,
+    notePopoverOpen, player, redo, selectedMediaUrl, selectedTimelineMediaFilename,
+    selectedTimelineUnit, setGlobalLoopPlayback, setShowAudioImport, setShowProjectSetup,
+    setUttOpsMenu, showExportMenu, toggleNotes, undo, undoLabel,
   ]);
 
   const timelineTopProps = useMemo<TranscriptionPageTimelineTopProps>(() => ({
@@ -265,23 +236,19 @@ export function useTranscriptionSectionViewModels(
     showSearch,
     searchProps: {
       items: searchableItems,
+      orthographies,
       currentLayerId: activeLayerIdForEdits || undefined,
       currentUtteranceId: selectedTimelineUtteranceId || undefined,
-      ...(searchOverlayRequest?.query !== undefined ? { initialQuery: searchOverlayRequest.query } : {}),
-      ...(searchOverlayRequest?.scope !== undefined ? { initialScope: searchOverlayRequest.scope } : {}),
-      ...(searchOverlayRequest?.layerKinds !== undefined ? { initialLayerKinds: searchOverlayRequest.layerKinds } : {}),
+      ...(searchOverlayRequest?.query !== undefined && { initialQuery: searchOverlayRequest.query }),
+      ...(searchOverlayRequest?.scope !== undefined && { initialScope: searchOverlayRequest.scope }),
+      ...(searchOverlayRequest?.layerKinds !== undefined && { initialLayerKinds: searchOverlayRequest.layerKinds }),
       onNavigate: (id) => {
         manualSelectTsRef.current = Date.now();
-        if (player.isPlaying) {
-          player.stop();
-        }
+        if (player.isPlaying) player.stop();
         selectUtterance(id);
       },
       onReplace: handleSearchReplace,
-      onClose: () => {
-        setShowSearch(false);
-        setSearchOverlayRequest(null);
-      },
+      onClose: () => { setShowSearch(false); setSearchOverlayRequest(null); },
     },
   }), [
     activeLayerIdForEdits,
@@ -292,6 +259,7 @@ export function useTranscriptionSectionViewModels(
     rulerView,
     searchOverlayRequest,
     searchableItems,
+    orthographies,
     selectUtterance,
     selectedTimelineUtteranceId,
     setSearchOverlayRequest,
@@ -304,13 +272,12 @@ export function useTranscriptionSectionViewModels(
     zoomPxPerSec,
   ]);
 
-  const timelineContentPropsView = useMemo<TranscriptionPageTimelineContentProps>(() => timelineContentProps, [timelineContentProps]);
   const { aiSidebarProps, dialogsProps } = useTranscriptionSidebarSectionsViewModel(sidebarSectionsInput);
 
   return {
     toolbarProps,
     timelineTopProps,
-    timelineContentProps: timelineContentPropsView,
+    timelineContentProps,
     aiSidebarProps,
     dialogsProps,
   };

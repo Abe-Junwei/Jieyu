@@ -4,9 +4,11 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+  buildCopyableAssistantPlainText,
   buildNumberedRagLines,
   extractCitationIndices,
   buildSourceListFooter,
+  normalizeCitationSnippetPlainText,
   splitCitationMarkers,
   RAG_CITATION_INSTRUCTION,
   type NumberedRagSource,
@@ -100,6 +102,37 @@ describe('buildSourceListFooter', () => {
     expect(result).toContain('[1] 句段');
     expect(result).toContain('[2] 笔记');
     expect(result).toContain('[3] 文档');
+  });
+
+  it('strips bidi isolation controls and normalizes whitespace in snippets', () => {
+    const result = buildSourceListFooter(
+      [{ type: 'utterance', refId: 'u1', label: '句段参考', snippet: '\u2067مرحبا\u2069\n  بالعالم' }],
+      'zh-CN',
+    );
+
+    expect(result).toContain('[1] 句段参考: مرحبا بالعالم');
+    expect(result).not.toContain('\u2067');
+    expect(result).not.toContain('\u2069');
+  });
+});
+
+describe('normalizeCitationSnippetPlainText', () => {
+  it('strips directional isolation controls and collapses whitespace', () => {
+    expect(normalizeCitationSnippetPlainText('\u2067abc\u2069\n  def\tghi')).toBe('abc def ghi');
+  });
+});
+
+describe('buildCopyableAssistantPlainText', () => {
+  it('appends normalized source footer to assistant content', () => {
+    const result = buildCopyableAssistantPlainText({
+      content: '回答正文',
+      citations: [{ type: 'pdf', refId: 'p1', label: '文档参考', snippet: '\u2067مرحبا\u2069\n  بالعالم' }],
+      locale: 'zh-CN',
+    });
+
+    expect(result).toContain('回答正文');
+    expect(result).toContain('来源:');
+    expect(result).toContain('[1] 文档参考: مرحبا بالعالم');
   });
 });
 

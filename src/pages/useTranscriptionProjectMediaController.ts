@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { MediaItemDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerDocType, MediaItemDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import { useMediaImport } from '../hooks/useMediaImport';
 import type { Locale } from '../i18n';
@@ -9,6 +9,7 @@ import { LinguisticService } from '../services/LinguisticService';
 import { detectVadSegments, loadAudioBuffer } from '../services/VadService';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { fireAndForget } from '../utils/fireAndForget';
+import type { SearchableItem } from '../utils/searchReplaceUtils';
 
 const log = createLogger('useTranscriptionProjectMediaController');
 
@@ -28,16 +29,10 @@ interface UseTranscriptionProjectMediaControllerInput {
   locale: Locale;
   tfB: (key: string, opts?: Record<string, unknown>) => string;
   transcriptionLayers: Array<{ id: string }>;
-  translationLayers: Array<{ id: string }>;
+  transcriptionLayers: Array<Pick<LayerDocType, 'id' | 'languageId' | 'orthographyId'>>;
+  translationLayers: Array<Pick<LayerDocType, 'id' | 'languageId' | 'orthographyId'>>;
   translationTextByLayer: ReadonlyMap<string, Map<string, UtteranceTextDocType>>;
   getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
-}
-
-interface SearchableItem {
-  utteranceId: string;
-  layerId?: string;
-  layerKind?: 'transcription' | 'translation' | 'gloss';
-  text: string;
 }
 
 interface UseTranscriptionProjectMediaControllerResult {
@@ -51,7 +46,7 @@ interface UseTranscriptionProjectMediaControllerResult {
   handleConfirmAudioDelete: () => void;
   handleDeleteCurrentProject: () => void;
   handleConfirmProjectDelete: () => void;
-  handleProjectSetupSubmit: (input: { titleZh: string; titleEn: string; primaryLanguageId: string }) => Promise<void>;
+  handleProjectSetupSubmit: (input: { titleZh: string; titleEn: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
   handleAudioImport: (file: File, duration: number) => Promise<void>;
   searchableItems: SearchableItem[];
   setAudioDeleteConfirm: React.Dispatch<React.SetStateAction<{ filename: string } | null>>;
@@ -186,7 +181,7 @@ export function useTranscriptionProjectMediaController(
     })());
   }, [activeTextId, loadSnapshot, locale, selectTimelineUnit, setActiveTextId, setSaveState, tfB]);
 
-  const handleProjectSetupSubmit = useCallback(async (projectInput: { titleZh: string; titleEn: string; primaryLanguageId: string }) => {
+  const handleProjectSetupSubmit = useCallback(async (projectInput: { titleZh: string; titleEn: string; primaryLanguageId: string; primaryOrthographyId?: string }) => {
     const result = await LinguisticService.createProject(projectInput);
     setActiveTextId(result.textId);
     setSaveState({ kind: 'done', message: tfB('transcription.action.projectCreated', { title: projectInput.titleZh }) });
@@ -236,7 +231,16 @@ export function useTranscriptionProjectMediaController(
       for (const layer of transcriptionLayers) {
         for (const utterance of utterancesOnCurrentMedia) {
           const text = getUtteranceTextForLayer(utterance, layer.id);
-          if (text) items.push({ utteranceId: utterance.id, layerId: layer.id, layerKind: 'transcription', text });
+          if (text) {
+            items.push({
+              utteranceId: utterance.id,
+              layerId: layer.id,
+              layerKind: 'transcription',
+              ...(layer.languageId ? { languageId: layer.languageId } : {}),
+              ...(layer.orthographyId ? { orthographyId: layer.orthographyId } : {}),
+              text,
+            });
+          }
         }
       }
     }
@@ -246,7 +250,16 @@ export function useTranscriptionProjectMediaController(
       if (!layerMap) continue;
       for (const utterance of utterancesOnCurrentMedia) {
         const translation = layerMap.get(utterance.id);
-        if (translation?.text) items.push({ utteranceId: utterance.id, layerId: layer.id, layerKind: 'translation', text: translation.text });
+        if (translation?.text) {
+          items.push({
+            utteranceId: utterance.id,
+            layerId: layer.id,
+            layerKind: 'translation',
+            ...(layer.languageId ? { languageId: layer.languageId } : {}),
+            ...(layer.orthographyId ? { orthographyId: layer.orthographyId } : {}),
+            text: translation.text,
+          });
+        }
       }
     }
     return items;

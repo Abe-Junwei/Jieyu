@@ -6,6 +6,7 @@ import type { SaveState, TimelineUnitKind } from '../hooks/transcriptionTypes';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { Locale } from '../i18n';
 import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
+import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 
 export interface TranscriptionPageAssistantRuntimeFrameProps {
   saveState: SaveState;
@@ -60,6 +61,7 @@ export interface TranscriptionPageAssistantRuntimeVoiceTargetProps {
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
+  dictationPreviewTextProps?: OrthographyPreviewTextProps;
   formatLayerRailLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
 }

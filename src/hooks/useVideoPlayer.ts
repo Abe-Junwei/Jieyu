@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLatest } from './useLatest';
 
 export interface UseVideoPlayerOptions {
   /** URL of video to load. */
@@ -22,8 +23,7 @@ export interface UseVideoPlayerOptions {
 }
 
 export function useVideoPlayer(options: UseVideoPlayerOptions) {
-  const cbRef = useRef(options);
-  cbRef.current = options;
+  const cbRef = useLatest(options);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [isReady, setIsReady] = useState(false);
@@ -47,27 +47,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
   const setVolume = useCallback((v: number) => {
     _setVol(v);
     volRef.current = v;
-  }, []);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-
-      if (e.code === 'Space') {
-        e.preventDefault();
-        togglePlayback();
-      } else if (e.code === 'ArrowLeft') {
-        e.preventDefault();
-        seekBySeconds(-5);
-      } else if (e.code === 'ArrowRight') {
-        e.preventDefault();
-        seekBySeconds(5);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
   const togglePlayback = useCallback(() => {
@@ -113,6 +92,27 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     if (!video || !isFinite(time)) return;
     video.currentTime = Math.max(0, Math.min(time, video.duration || 0));
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlayback();
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        seekBySeconds(-5);
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        seekBySeconds(5);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [seekBySeconds, togglePlayback]);
 
   // Video event listeners
   useEffect(() => {

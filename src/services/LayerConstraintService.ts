@@ -476,7 +476,6 @@ export function canCreateLayer(
 
 export function canDeleteLayer(
   layers: LayerDocType[],
-  layerLinks: LayerLinkDocType[],
   targetLayerId: string,
 ): CanDeleteResult {
   const target = layers.find((l) => l.id === targetLayerId);
@@ -485,36 +484,21 @@ export function canDeleteLayer(
   }
 
   if (target.layerType === 'transcription') {
-    const transcriptionLayers = layers.filter((l) => l.layerType === 'transcription');
-
-    // 统计受影响链接（按 transcriptionLayerKey）
-    const affectedLinkCount = layerLinks.filter(
-      (link) => link.transcriptionLayerKey === target.key,
-    ).length;
-
-    // 检测孤立翻译层：只链接到被删转写层的翻译层
-    // Detect orphaned translations: those linked ONLY to the target transcription
-    const linkedTrlIds = new Set(
-      layerLinks
-        .filter((link) => link.transcriptionLayerKey === target.key)
-        .map((link) => link.layerId),
+    const transcriptionLayers = listIndependentBoundaryTranscriptionLayers(layers);
+    const dependentTranslations = layers.filter(
+      (layer) => layer.layerType === 'translation' && layer.parentLayerId === target.id,
     );
-    const orphanedTranslationIds: string[] = [];
-    for (const trlId of linkedTrlIds) {
-      const otherLinks = layerLinks.filter(
-        (link) => link.layerId === trlId && link.transcriptionLayerKey !== target.key,
-      );
-      if (otherLinks.length === 0) {
-        orphanedTranslationIds.push(trlId);
-      }
-    }
+    const orphanedTranslationIds = dependentTranslations.map((layer) => layer.id);
 
     // 最近的剩余转写层（重链目标）| Most recent remaining transcription layer (re-link target)
     const remainingTrc = transcriptionLayers
       .filter((l) => l.id !== targetLayerId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 
-    const result: CanDeleteResult = { allowed: true, affectedLinkCount };
+    const result: CanDeleteResult = {
+      allowed: true,
+      affectedLinkCount: dependentTranslations.length,
+    };
     if (orphanedTranslationIds.length > 0) {
       result.orphanedTranslationIds = orphanedTranslationIds;
       if (remainingTrc) {
@@ -524,11 +508,9 @@ export function canDeleteLayer(
     return result;
   }
 
-  // 翻译层：统计受影响链接 | Translation layer: count affected links
-  const affectedLinkCount = layerLinks.filter(
-    (link) => link.layerId === targetLayerId,
-  ).length;
-  return { allowed: true, affectedLinkCount };
+  // 翻译层：父层为主模型，不需要 link 统计
+  // Translation uses parent-layer relation as canonical model.
+  return { allowed: true, affectedLinkCount: 0 };
 }
 
 // ─── 链接查询 | Link queries ─────────────────────────────────────────
@@ -538,7 +520,7 @@ export function canDeleteLayer(
  * Get all linked layer IDs for a given layer
  */
 export function getLinkedLayers(
-  layerLinks: LayerLinkDocType[],
+  _layerLinks: LayerLinkDocType[],
   layers: LayerDocType[],
   layerId: string,
 ): LayerDocType[] {
@@ -546,22 +528,15 @@ export function getLinkedLayers(
   if (!target) return [];
 
   if (target.layerType === 'transcription') {
-    // 转写层 → 找关联的翻译层 | Transcription → find linked translations
-    const linkedTranslationIds = new Set(
-      layerLinks
-        .filter((link) => link.transcriptionLayerKey === target.key)
-        .map((link) => link.layerId),
-    );
-    return layers.filter((l) => linkedTranslationIds.has(l.id));
+    // 转写层 → 关联到其父层为当前层的翻译层
+    // Transcription -> translations whose parentLayerId points to this layer.
+    return layers.filter((layer) => layer.layerType === 'translation' && layer.parentLayerId === target.id);
   }
 
-  // 翻译层 → 找关联的转写层 | Translation → find linked transcriptions
-  const linkedTrcKeys = new Set(
-    layerLinks
-      .filter((link) => link.layerId === layerId)
-      .map((link) => link.transcriptionLayerKey),
-  );
-  return layers.filter((l) => linkedTrcKeys.has(l.key));
+  // 翻译层 → 找父转写层 | Translation -> resolve parent transcription.
+  if (!target.parentLayerId) return [];
+  const parent = layers.find((layer) => layer.id === target.parentLayerId && layer.layerType === 'transcription');
+  return parent ? [parent] : [];
 }
 
 /**

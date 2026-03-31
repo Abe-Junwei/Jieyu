@@ -40,6 +40,10 @@ export interface TimelineAnnotationItemProps {
   onBlur: (e: FocusEvent<HTMLInputElement>) => void;
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
   onNoteClick?: (e: MouseEvent) => void;
+  /** 层级显示样式 | Layer display style overrides */
+  layerStyle?: CSSProperties;
+  /** 内容方向 | Text direction */
+  contentDirection?: 'ltr' | 'rtl';
 }
 
 // ── Component ────────────────────────────────────────────────
@@ -71,6 +75,8 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   onBlur,
   onKeyDown,
   onNoteClick,
+  layerStyle,
+  contentDirection,
 }: TimelineAnnotationItemProps) {
   return (
     <div
@@ -88,7 +94,9 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         left,
         width,
         ...(speakerColor ? ({ '--speaker-color': speakerColor } as CSSProperties) : {}),
+        ...layerStyle,
       }}
+      dir={contentDirection}
       onClick={onClick}
       onContextMenu={onContextMenu}
       title={title}
@@ -121,10 +129,10 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
           value={draft}
           autoFocus
           placeholder={placeholder}
+          dir={contentDirection}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
-          onContextMenu={(e) => e.stopPropagation()}
           onChange={onChange}
           onFocus={onFocus}
           onBlur={onBlur}

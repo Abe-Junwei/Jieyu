@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { UtteranceDocType } from '../db';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
+import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 
 type BatchTab = 'offset' | 'scale' | 'split' | 'merge';
 type PreviewScope = 'selected' | 'layer-all';
@@ -33,6 +34,7 @@ interface BatchOperationPanelProps {
   utteranceTextById: Record<string, string>;
   previewLayerOptions?: Array<{ id: string; label: string }>;
   previewTextByLayerId?: Record<string, Record<string, string>>;
+  previewTextPropsByLayerId?: Record<string, OrthographyPreviewTextProps>;
   defaultPreviewLayerId?: string;
   onClose: () => void;
   onOffset: (deltaSec: number) => Promise<void>;
@@ -104,6 +106,7 @@ export function BatchOperationPanel({
   utteranceTextById,
   previewLayerOptions = [],
   previewTextByLayerId,
+  previewTextPropsByLayerId,
   defaultPreviewLayerId,
   onClose,
   onOffset,
@@ -190,6 +193,16 @@ export function BatchOperationPanel({
     }
     return utteranceTextById;
   }, [previewLayerId, previewTextByLayerId, utteranceTextById]);
+
+  const activePreviewTextProps = useMemo(() => {
+    if (previewLayerId && previewTextPropsByLayerId?.[previewLayerId]) {
+      return previewTextPropsByLayerId[previewLayerId]!;
+    }
+    if (defaultPreviewLayerId && previewTextPropsByLayerId?.[defaultPreviewLayerId]) {
+      return previewTextPropsByLayerId[defaultPreviewLayerId]!;
+    }
+    return undefined;
+  }, [defaultPreviewLayerId, previewLayerId, previewTextPropsByLayerId]);
 
   const preview = useMemo<PreviewResult>(() => {
     if (previewTargets.length === 0) {
@@ -635,7 +648,13 @@ export function BatchOperationPanel({
                       <td className="batch-operation-td">{index + 1}</td>
                       <td className="batch-operation-td">{row.id}</td>
                       <td className="batch-operation-td-content" title={activeUtteranceTextById[row.id] ?? ''}>
-                        {(activeUtteranceTextById[row.id] ?? '').trim() || '-'}
+                        {((activeUtteranceTextById[row.id] ?? '').trim() || '-') === '-'
+                          ? '-'
+                          : (
+                            <span dir={activePreviewTextProps?.dir} style={activePreviewTextProps?.style}>
+                              {(activeUtteranceTextById[row.id] ?? '').trim()}
+                            </span>
+                          )}
                       </td>
                       <td className="batch-operation-td">{row.originalValue}</td>
                       <td className="batch-operation-td">{row.nextValue}</td>

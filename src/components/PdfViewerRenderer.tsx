@@ -107,7 +107,7 @@ export function PdfViewerRenderer({
             span.style.left = `${tx}px`;
             span.style.top = `${viewport.height - ty}px`;
             span.style.fontSize = `${Math.abs(item.height)}px`;
-            span.style.fontFamily = 'Arial, sans-serif';
+            span.style.fontFamily = 'var(--font-base)';
             span.style.whiteSpace = 'nowrap';
             span.style.pointerEvents = 'auto';
             span.style.cursor = 'text';

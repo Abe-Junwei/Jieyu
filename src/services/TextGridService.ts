@@ -5,7 +5,10 @@
  * which is the most common variant.
  */
 
-import type { UtteranceDocType, LayerDocType, UtteranceTextDocType, UserNoteDocType, LayerSegmentDocType, LayerSegmentContentDocType } from '../db';
+import type { UtteranceDocType, LayerDocType, UtteranceTextDocType, UserNoteDocType, LayerSegmentDocType, LayerSegmentContentDocType, OrthographyDocType } from '../db';
+import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
+import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
+import { buildOrthographyInteropMetadata, parseOrthographyInteropMetadata, type OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -13,6 +16,7 @@ export interface TextGridExportInput {
   utterances: UtteranceDocType[];
   layers: LayerDocType[];
   translations: UtteranceTextDocType[];
+  orthographies?: OrthographyDocType[];
   userNotes?: UserNoteDocType[];
   /** 独立层 segment 数据（用于独立转写层区间导出）| Independent layer segment data (for independent transcription tier export) */
   segmentsByLayer?: Map<string, LayerSegmentDocType[]>;
@@ -35,6 +39,29 @@ export interface TextGridImportResult {
   }>>;
   /** Name of the first IntervalTier | 首层名称 */
   transcriptionTierName?: string;
+  /** Jieyu 自定义 tier 身份元数据 | Jieyu custom tier identity metadata */
+  tierMetadata: Map<string, OrthographyInteropMetadata>;
+}
+
+const TEXTGRID_TIER_META_MARKER = '__jieyu_meta_';
+
+function encodeTierNameWithMetadata(name: string, metadata?: OrthographyInteropMetadata): string {
+  if (!metadata || Object.keys(metadata).length === 0) return name;
+  return `${name}${TEXTGRID_TIER_META_MARKER}${encodeURIComponent(JSON.stringify(metadata))}`;
+}
+
+function decodeTierNameWithMetadata(name: string): { name: string; metadata?: OrthographyInteropMetadata } {
+  const markerIndex = name.indexOf(TEXTGRID_TIER_META_MARKER);
+  if (markerIndex < 0) return { name };
+  const baseName = name.slice(0, markerIndex) || name;
+  const encoded = name.slice(markerIndex + TEXTGRID_TIER_META_MARKER.length);
+  if (!encoded) return { name: baseName };
+  try {
+    const metadata = parseOrthographyInteropMetadata(JSON.parse(decodeURIComponent(encoded)));
+    return metadata ? { name: baseName, metadata } : { name: baseName };
+  } catch {
+    return { name: baseName };
+  }
 }
 
 // ── Export ───────────────────────────────────────────────────
@@ -44,7 +71,7 @@ function escapeTextGridString(s: string): string {
 }
 
 export function exportToTextGrid(input: TextGridExportInput): string {
-  const { utterances, layers, translations, userNotes, segmentsByLayer, segmentContents } = input;
+  const { utterances, layers, translations, orthographies, userNotes, segmentsByLayer, segmentContents } = input;
   const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
   if (sorted.length === 0) return '';
 
@@ -58,10 +85,16 @@ export function exportToTextGrid(input: TextGridExportInput): string {
   }
 
   const tiers: TierEntry[] = [];
+  const wrapLayerText = (text: string, layer?: LayerDocType) => {
+    if (!layer?.languageId) return text;
+    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
+    return wrapPlainTextWithBidiIsolation(text, renderPolicy);
+  };
 
   // Determine default transcription layer
   const transcriptionLayers = layers.filter((l) => l.layerType === 'transcription');
-  const defaultTrcId = transcriptionLayers.find((l) => l.isDefault)?.id ?? transcriptionLayers[0]?.id;
+  const defaultTrcLayer = transcriptionLayers.find((l) => l.isDefault) ?? transcriptionLayers[0];
+  const defaultTrcId = defaultTrcLayer?.id;
 
   // Transcription tier
   const transcriptionIntervals = buildIntervalsWithGaps(
@@ -72,20 +105,26 @@ export function exportToTextGrid(input: TextGridExportInput): string {
       return {
         xmin: u.startTime,
         xmax: u.endTime,
-        text: tr?.text ?? u.transcription?.default ?? '',
+        text: wrapLayerText(tr?.text ?? u.transcription?.default ?? '', defaultTrcLayer),
       };
     }),
     globalXmin,
     globalXmax,
   );
-  tiers.push({ name: 'transcription', intervals: transcriptionIntervals });
+  tiers.push({
+    name: encodeTierNameWithMetadata('transcription', buildOrthographyInteropMetadata(defaultTrcLayer, orthographies)),
+    intervals: transcriptionIntervals,
+  });
 
   // Additional tiers: non-default transcription layers + translation layers
   const additionalLayers = layers.filter(
     (l) => l.layerType === 'translation' || (l.layerType === 'transcription' && l.id !== defaultTrcId),
   );
   for (const layer of additionalLayers) {
-    const tierName = layer.name?.eng ?? layer.name?.zho ?? layer.key;
+    const tierName = encodeTierNameWithMetadata(
+      layer.name?.eng ?? layer.name?.zho ?? layer.key,
+      buildOrthographyInteropMetadata(layer, orthographies),
+    );
 
     // 若 segmentsByLayer 包含该层，直接用 segment 区间（不分层类型）| Use segment intervals for any layer present in segmentsByLayer
     const segs = segmentsByLayer?.has(layer.id)
@@ -94,7 +133,7 @@ export function exportToTextGrid(input: TextGridExportInput): string {
     if (segs && segs.length > 0) {
       const contentMap = segmentContents?.get(layer.id);
       const intervals = buildIntervalsWithGaps(
-        segs.map((seg) => ({ xmin: seg.startTime, xmax: seg.endTime, text: contentMap?.get(seg.id)?.text ?? '' })),
+        segs.map((seg) => ({ xmin: seg.startTime, xmax: seg.endTime, text: wrapLayerText(contentMap?.get(seg.id)?.text ?? '', layer) })),
         globalXmin,
         globalXmax,
       );
@@ -109,7 +148,7 @@ export function exportToTextGrid(input: TextGridExportInput): string {
     const intervals = buildIntervalsWithGaps(
       sorted.map((u) => {
         const tr = layerTranslations.find((t) => t.utteranceId === u.id);
-        return { xmin: u.startTime, xmax: u.endTime, text: tr?.text ?? '' };
+        return { xmin: u.startTime, xmax: u.endTime, text: wrapLayerText(tr?.text ?? '', layer) };
       }),
       globalXmin,
       globalXmax,
@@ -135,7 +174,7 @@ export function exportToTextGrid(input: TextGridExportInput): string {
               return prefix + (n.content['default'] ?? Object.values(n.content)[0] ?? '');
             }).join(' | ')
           : '';
-        return { xmin: u.startTime, xmax: u.endTime, text };
+        return { xmin: u.startTime, xmax: u.endTime, text: stripPlainTextBidiIsolation(text) };
       }),
       globalXmin,
       globalXmax,
@@ -250,11 +289,15 @@ export function importFromTextGrid(text: string): TextGridImportResult {
   }
 
   const parsedTiers: ParsedTier[] = [];
+  const tierMetadata = new Map<string, OrthographyInteropMetadata>();
 
   for (let t = 0; t < tierCount; t++) {
     nextLine(); // item [n]:
     const tierClass = readQuotedString('class');
-    const tierName = readQuotedString('name');
+    const rawTierName = readQuotedString('name');
+    const decodedTierName = decodeTierNameWithMetadata(rawTierName);
+    const tierName = decodedTierName.name;
+    if (decodedTierName.metadata) tierMetadata.set(tierName, decodedTierName.metadata);
     readNumber('xmin');
     readNumber('xmax');
 
@@ -269,7 +312,7 @@ export function importFromTextGrid(text: string): TextGridImportResult {
         nextLine(); // intervals [n]:
         const xmin = readNumber('xmin');
         const xmax = readNumber('xmax');
-        const ivText = readQuotedString('text');
+        const ivText = stripPlainTextBidiIsolation(readQuotedString('text'));
         intervals.push({ xmin, xmax, text: ivText });
       }
 
@@ -325,6 +368,7 @@ export function importFromTextGrid(text: string): TextGridImportResult {
     utterances,
     additionalTiers,
     ...(transcriptionTierName ? { transcriptionTierName } : {}),
+    tierMetadata,
   };
 }
 

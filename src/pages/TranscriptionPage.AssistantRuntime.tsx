@@ -236,6 +236,7 @@ function AssistantVoiceRuntime({
             session={voiceAgent.session}
             commercialProviderKind={voiceAgent.commercialProviderKind}
             commercialProviderConfig={voiceAgent.commercialProviderConfig}
+            dictationPreviewTextProps={voice.target.dictationPreviewTextProps}
             targetSummary={voiceTargetSummary}
             statusSummary={voiceStatusSummary}
             environmentSummary={voiceEnvironmentSummary}

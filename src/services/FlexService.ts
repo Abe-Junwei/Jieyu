@@ -16,7 +16,10 @@ import type {
   UtteranceMorphemeDocType,
   LayerSegmentDocType,
   LayerSegmentContentDocType,
+  OrthographyDocType,
 } from '../db';
+import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
+import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -24,6 +27,7 @@ export interface FlexExportInput {
   utterances: UtteranceDocType[];
   layers: LayerDocType[];
   translations: UtteranceTextDocType[];
+  orthographies?: OrthographyDocType[];
   tokens?: UtteranceTokenDocType[];
   morphemes?: UtteranceMorphemeDocType[];
   languageTag?: string;
@@ -73,8 +77,16 @@ function getText(el: Element | null): string {
 // ── Export ───────────────────────────────────────────────────
 
 export function exportToFlextext(input: FlexExportInput): string {
-  const { utterances, layers, translations, tokens = [], morphemes = [], languageTag = 'und', segmentsByLayer, segmentContents } = input;
+  const { utterances, layers, translations, orthographies, tokens = [], morphemes = [], languageTag = 'und', segmentsByLayer, segmentContents } = input;
   const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
+  const defaultTranscriptionLayer = layers.find((l) => l.layerType === 'transcription' && l.isDefault)
+    ?? layers.find((l) => l.layerType === 'transcription');
+  const firstTranslationLayer = layers.find((l) => l.layerType === 'translation');
+  const wrapLayerText = (text: string, layer?: LayerDocType) => {
+    if (!layer?.languageId) return text;
+    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
+    return wrapPlainTextWithBidiIsolation(text, renderPolicy);
+  };
 
   const tokensByUtteranceId = new Map<string, UtteranceTokenDocType[]>();
   for (const token of tokens) {
@@ -96,8 +108,7 @@ export function exportToFlextext(input: FlexExportInput): string {
     list.sort((a, b) => a.morphemeIndex - b.morphemeIndex);
   }
 
-  const defaultTranscriptionLayerId = layers.find((l) => l.layerType === 'transcription' && l.isDefault)?.id
-    ?? layers.find((l) => l.layerType === 'transcription')?.id;
+  const defaultTranscriptionLayerId = defaultTranscriptionLayer?.id;
 
   const transcriptionByUtteranceId = new Map<string, string>();
   if (defaultTranscriptionLayerId) {
@@ -109,15 +120,16 @@ export function exportToFlextext(input: FlexExportInput): string {
   }
 
   // Pick first translation layer as phrase-level gls export target
-  const firstTranslationLayerId = layers.find((l) => l.layerType === 'translation')?.id;
+  const firstTranslationLayerId = firstTranslationLayer?.id;
 
   const phraseXml = sorted
     .map((u, i) => {
       const phraseId = `p${i + 1}`;
-      const txt = transcriptionByUtteranceId.get(u.id) ?? u.transcription?.default ?? '';
+      const txt = wrapLayerText(transcriptionByUtteranceId.get(u.id) ?? u.transcription?.default ?? '', defaultTranscriptionLayer);
       const gls = firstTranslationLayerId
         ? translations.find((t) => t.utteranceId === u.id && t.layerId === firstTranslationLayerId && t.modality === 'text')?.text ?? ''
         : '';
+      const wrappedGls = wrapLayerText(gls, firstTranslationLayer);
 
       const utteranceTokens = tokensByUtteranceId.get(u.id) ?? [];
       const wordsXml = utteranceTokens.length > 0
@@ -137,7 +149,7 @@ export function exportToFlextext(input: FlexExportInput): string {
           }).join('\n')}\n              </words>`
         : '';
 
-      return `            <phrase guid="${phraseId}" begin-time-offset="${u.startTime}" end-time-offset="${u.endTime}">\n              <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(txt)}</item>${gls ? `\n              <item type="gls" lang="en">${escapeXml(gls)}</item>` : ''}${wordsXml}\n            </phrase>`;
+      return `            <phrase guid="${phraseId}" begin-time-offset="${u.startTime}" end-time-offset="${u.endTime}">\n              <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(txt)}</item>${wrappedGls ? `\n              <item type="gls" lang="en">${escapeXml(wrappedGls)}</item>` : ''}${wordsXml}\n            </phrase>`;
     })
     .join('\n');
 
@@ -152,7 +164,7 @@ export function exportToFlextext(input: FlexExportInput): string {
       const tierName = layer.name?.eng ?? layer.name?.zho ?? layer.key;
       const sortedSegs = [...segs].sort((a, b) => a.startTime - b.startTime);
       const segPhrasesXml = sortedSegs.map((seg, i) => {
-        const txt = contentMap?.get(seg.id)?.text ?? '';
+        const txt = wrapLayerText(contentMap?.get(seg.id)?.text ?? '', layer);
         return `            <phrase guid="${escapeXml(layer.id)}_p${i + 1}" begin-time-offset="${seg.startTime}" end-time-offset="${seg.endTime}">\n              <item type="txt" lang="${escapeXml(languageTag)}">${escapeXml(txt)}</item>\n            </phrase>`;
       }).join('\n');
       additionalIts.push(`  <interlinear-text guid="${escapeXml(layer.id)}">\n    <item type="title" lang="en">${escapeXml(tierName)}</item>\n    <paragraphs>\n      <paragraph guid="pg_${escapeXml(layer.id)}">\n        <phrases>\n${segPhrasesXml}\n        </phrases>\n      </paragraph>\n    </paragraphs>\n  </interlinear-text>`);
@@ -213,8 +225,8 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
       if (lang) glossLanguage = lang;
     }
 
-    const transcription = getText(txtItem ?? null);
-    const phraseGloss = getText(glsItem ?? null);
+    const transcription = stripPlainTextBidiIsolation(getText(txtItem ?? null));
+    const phraseGloss = stripPlainTextBidiIsolation(getText(glsItem ?? null));
     if (phraseGloss) phraseGlosses.set(phraseId, phraseGloss);
 
     const words: Array<{
@@ -233,8 +245,8 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
       const wordGlsItem = Array.from(wordItems).find((el) => el.getAttribute('type') === 'gls');
       const wordPsItem = Array.from(wordItems).find((el) => el.getAttribute('type') === 'ps');
 
-      const wordText = getText(wordTxtItem ?? null);
-      const wordGloss = getText(wordGlsItem ?? null);
+      const wordText = stripPlainTextBidiIsolation(getText(wordTxtItem ?? null));
+      const wordGloss = stripPlainTextBidiIsolation(getText(wordGlsItem ?? null));
       const wordPos = getText(wordPsItem ?? null);
 
       const morphemes = Array.from(wordEl.querySelectorAll(':scope > morphemes > morph')).map((morphEl) => {
@@ -242,8 +254,8 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
         const morphTxtItem = Array.from(morphItems).find((el) => el.getAttribute('type') === 'txt');
         const morphGlsItem = Array.from(morphItems).find((el) => el.getAttribute('type') === 'gls');
         const morphPsItem = Array.from(morphItems).find((el) => el.getAttribute('type') === 'ps');
-        const mTxt = getText(morphTxtItem ?? null);
-        const mGls = getText(morphGlsItem ?? null);
+        const mTxt = stripPlainTextBidiIsolation(getText(morphTxtItem ?? null));
+        const mGls = stripPlainTextBidiIsolation(getText(morphGlsItem ?? null));
         const mPos = getText(morphPsItem ?? null);
         return {
           form: { default: mTxt },

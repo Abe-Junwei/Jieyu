@@ -127,3 +127,19 @@ export function normalizeUserNoteDocForStorage(
     provenance: doc.provenance ?? defaultProvenance,
   };
 }
+
+// ── Unicode NFC 归一化 | Unicode NFC normalization ───────────
+
+/**
+ * 存储前归一化：NFC + 去除零宽字符 | Normalize for storage: NFC + strip zero-width chars
+ */
+export function normalizeTextForStorage(text: string): string {
+  return text.normalize('NFC').replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+}
+
+/**
+ * 搜索前归一化：NFC + 折叠变体选择符 | Normalize for search: NFC + fold variation selectors
+ */
+export function normalizeTextForSearch(text: string): string {
+  return text.normalize('NFC').replace(/[\uFE00-\uFE0F\u200B-\u200D\uFEFF]/g, '');
+}

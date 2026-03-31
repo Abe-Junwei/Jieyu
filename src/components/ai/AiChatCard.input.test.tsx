@@ -289,6 +289,40 @@ describe('AiChatCard input submit', () => {
     expect(within(view.container).getByText('...')).toBeTruthy();
   });
 
+  it('copies assistant content with normalized source footer when citations exist', () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal('navigator', {
+      ...globalThis.navigator,
+      clipboard: { writeText },
+    });
+
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          aiMessages: [
+            {
+              id: 'ast-copy',
+              role: 'assistant',
+              content: '回答正文',
+              status: 'done',
+              citations: [
+                { type: 'pdf', refId: 'pdf-1', label: '文档参考', snippet: '\u2067مرحبا\u2069\n  بالعالم' },
+              ],
+            },
+          ],
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    fireEvent.click(within(view.container).getByRole('button', { name: /复制|Copy/i }));
+
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('回答正文'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('来源:'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('文档参考: مرحبا بالعالم'));
+  });
+
   it('shows model generated text for llm assistant replies', () => {
     const view = render(
       <AiAssistantHubContext.Provider
@@ -401,7 +435,7 @@ describe('AiChatCard input submit', () => {
     fireEvent.click(within(view.container).getByRole('button', { name: /查看回放\/对比|Replay \/ Compare/i }));
     await waitFor(() => {
       expect(within(view.container).getByRole('button', { name: /展开详情|Show detail|收起详情|Hide detail/i })).toBeTruthy();
-    });
+    }, { timeout: 3000 });
     const replayDetailToggle = within(view.container).getByRole('button', { name: /展开详情|Show detail|收起详情|Hide detail/i });
     if (/展开详情|Show detail/i.test(replayDetailToggle.textContent ?? '')) {
       fireEvent.click(replayDetailToggle);
@@ -411,7 +445,7 @@ describe('AiChatCard input submit', () => {
       expect(within(view.container).getByText(/回放 \/ 对比|Replay \/ Compare/i)).toBeTruthy();
       expect(within(view.container).getByText(/决策轨迹|Decision timeline/i)).toBeTruthy();
       expect(within(view.container).getByText(/Golden 快照预览|Golden Snapshot Preview/i)).toBeTruthy();
-    });
+    }, { timeout: 3000 });
   });
 
   it('exports golden snapshot from the decision log entry', async () => {

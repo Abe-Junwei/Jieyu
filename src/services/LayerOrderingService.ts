@@ -360,7 +360,26 @@ export function resolveLayerDrop(
     return bundle.root.id !== draggedLayerId;
   });
 
-  const targetBundleIndex = resolveTargetBundleIndex(filteredBundles, adjustedTargetIndex);
+  const isMovingDownward = normalizedTargetIndex > currentIndex;
+  const bundleProbeOrderedIndex = (() => {
+    if (!isMovingDownward) return normalizedTargetIndex;
+    if (normalizedTargetIndex > currentIndex + 1) return normalizedTargetIndex - 1;
+    return normalizedTargetIndex;
+  })();
+  const clampedBundleProbeOrderedIndex = Math.max(
+    0,
+    Math.min(bundleProbeOrderedIndex, Math.max(flattened.length - 1, 0)),
+  );
+  const bundleAnchorLayer = flattened[clampedBundleProbeOrderedIndex];
+  const bundleAnchorRootId = bundleAnchorLayer
+    ? (isIndependentTranscriptionRoot(bundleAnchorLayer) ? bundleAnchorLayer.id : bundleAnchorLayer.parentLayerId)
+    : undefined;
+  const anchorBundleIndex = bundleAnchorRootId
+    ? filteredBundles.findIndex((bundle) => bundle.root.id === bundleAnchorRootId)
+    : -1;
+  const targetBundleIndex = anchorBundleIndex >= 0
+    ? anchorBundleIndex
+    : resolveTargetBundleIndex(filteredBundles, adjustedTargetIndex);
   if (targetBundleIndex == null) {
     return {
       layers,

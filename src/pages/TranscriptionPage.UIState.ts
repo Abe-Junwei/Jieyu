@@ -15,6 +15,7 @@ export interface ContextMenuState {
   layerId: string;
   unitKind: TimelineUnitKind;
   splitTime: number;
+  source?: 'timeline' | 'waveform';
 }
 
 export interface UttOpsMenuState {

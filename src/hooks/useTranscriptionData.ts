@@ -549,5 +549,6 @@ export function useTranscriptionData() {
     segmentUndoRef,
     setUtterances,
     setSpeakers,
+    setLayers,
   };
 }

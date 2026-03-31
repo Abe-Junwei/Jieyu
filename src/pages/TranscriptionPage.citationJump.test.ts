@@ -56,6 +56,30 @@ describe('handleTranscriptionCitationJump', () => {
     expect(onSetSidebarError).not.toHaveBeenCalled();
   });
 
+  it('normalizes pdf citation snippet before passing searchSnippet to preview request', async () => {
+    const onOpenPdfPreviewRequest = vi.fn();
+
+    await handleTranscriptionCitationJump({
+      locale: 'zh-CN',
+      citationType: 'pdf',
+      refId: 'https://example.com/source.pdf#page=2',
+      citationRef: { snippet: '\u2067مرحبا\u2069\n  بالعالم' },
+      layerRailRows: [],
+      selectedTimelineUtteranceId: null,
+      onJumpToEmbeddingMatch: vi.fn(),
+      onSetNotePopover: vi.fn(),
+      onSetSidebarError: vi.fn(),
+      onRevealSchemaLayer: vi.fn(),
+      onOpenPdfPreviewRequest,
+    });
+
+    expect(onOpenPdfPreviewRequest).toHaveBeenCalledWith(expect.objectContaining({
+      page: 2,
+      sourceUrl: 'https://example.com/source.pdf',
+      searchSnippet: 'مرحبا بالعالم',
+    }));
+  });
+
   it('shows bibliography guidance when pdf citation target cannot be resolved', async () => {
     mockDb.media_items.get.mockResolvedValueOnce(undefined);
     mockDb.media_items.toArray.mockResolvedValueOnce([]);

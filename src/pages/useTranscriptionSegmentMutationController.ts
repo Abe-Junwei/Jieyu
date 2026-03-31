@@ -106,13 +106,9 @@ export function useTranscriptionSegmentMutationController(
           const parentUtt = utterancesOnCurrentMedia.find(
             (utterance) => utterance.startTime <= curSeg.startTime + 0.01 && utterance.endTime >= curSeg.endTime - 0.01,
           );
-          if (parentUtt) {
-            const mergedStart = prevSeg.startTime;
-            const mergedEnd = curSeg.endTime;
-            if (mergedStart < parentUtt.startTime - 0.001 || mergedEnd > parentUtt.endTime + 0.001) {
-              setSaveState({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
-              return;
-            }
+          if (parentUtt && (prevSeg.startTime < parentUtt.startTime - 0.001 || curSeg.endTime > parentUtt.endTime + 0.001)) {
+            setSaveState({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
+            return;
           }
         }
         pushUndo('向前合并句段');
@@ -149,13 +145,9 @@ export function useTranscriptionSegmentMutationController(
           const parentUtt = input.utterancesOnCurrentMedia.find(
             (utterance) => utterance.startTime <= curSeg.startTime + 0.01 && utterance.endTime >= curSeg.endTime - 0.01,
           );
-          if (parentUtt) {
-            const mergedStart = curSeg.startTime;
-            const mergedEnd = nextSeg.endTime;
-            if (mergedStart < parentUtt.startTime - 0.001 || mergedEnd > parentUtt.endTime + 0.001) {
-              input.setSaveState({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
-              return;
-            }
+          if (parentUtt && (curSeg.startTime < parentUtt.startTime - 0.001 || nextSeg.endTime > parentUtt.endTime + 0.001)) {
+            input.setSaveState({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
+            return;
           }
         }
         pushUndo('向后合并句段');

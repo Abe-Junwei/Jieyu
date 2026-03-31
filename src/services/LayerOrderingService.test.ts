@@ -121,6 +121,19 @@ describe('LayerOrderingService', () => {
     expect(resolved.layers.find((layer) => layer.id === translation.id)?.parentLayerId).toBe(rootB.id);
   });
 
+  it('keeps downward dependent drop at next root when target index lands on following bundle boundary', () => {
+    const rootA = makeLayer({ id: 'trc-a', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 0 });
+    const translation = makeLayer({ id: 'trl-a', layerType: 'translation', parentLayerId: rootA.id, sortOrder: 1 });
+    const rootB = makeLayer({ id: 'trc-b', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 2 });
+    const rootC = makeLayer({ id: 'trc-c', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 3 });
+
+    const resolved = resolveLayerDrop([rootA, translation, rootB, rootC], translation.id, 3);
+
+    expect(resolved.changed).toBe(true);
+    expect(resolved.layers.find((layer) => layer.id === translation.id)?.parentLayerId).toBe(rootB.id);
+    expect(resolved.layers.map((layer) => layer.id)).toEqual(['trc-a', 'trc-b', 'trl-a', 'trc-c']);
+  });
+
   it('validates non-canonical bundle order', () => {
     const rootA = makeLayer({ id: 'trc-a', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 0 });
     const rootB = makeLayer({ id: 'trc-b', layerType: 'transcription', constraint: 'independent_boundary', sortOrder: 1 });

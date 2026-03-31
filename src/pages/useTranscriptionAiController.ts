@@ -16,6 +16,7 @@ import { buildTranscriptionAiPromptContext } from './TranscriptionPage.aiPromptC
 import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
+import { transformTextForLayerTarget } from '../utils/orthographyRuntime';
 
 const TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX = '刷新 AI 工具审计日志失败：';
 
@@ -99,7 +100,7 @@ export function useTranscriptionAiController(
     handleExecuteRecommendation,
   } = input;
   const [aiPanelMode, setAiPanelMode] = useState<AiPanelMode>('auto');
-  const aiDerivedPersonaRef = useRef<'transcription' | 'glossing' | 'review'>('transcription');
+  const [aiDerivedPersona, setAiDerivedPersona] = useState<'transcription' | 'glossing' | 'review'>('transcription');
   const aiObserverStageRef = useRef<string>('');
   const aiRecommendationRef = useRef<string[]>([]);
   const aiLexemeSummaryRef = useRef<string[]>([]);
@@ -149,6 +150,19 @@ export function useTranscriptionAiController(
     seekToTime: (timeSeconds) => input.seekToTimeRef.current?.(timeSeconds),
     splitAtTime: (timeSeconds) => input.splitAtTimeRef.current?.(timeSeconds) ?? false,
     zoomToSegment: (segmentId, zoomLevel) => input.zoomToSegmentRef.current?.(segmentId, zoomLevel) ?? false,
+    transformTextForLayerWrite: ({ text, targetLayerId, selectedLayerId }) => {
+      const effectiveSelectedLayerId = (selectedLayerId ?? input.selectedLayerId).trim();
+      const fallbackSourceOrthographyId = effectiveSelectedLayerId
+        ? undefined
+        : input.layers.find((layer) => layer.layerType === 'transcription')?.orthographyId;
+      return transformTextForLayerTarget({
+        text,
+        layers: input.layers,
+        targetLayerId,
+        selectedLayerId: effectiveSelectedLayerId,
+        ...(fallbackSourceOrthographyId !== undefined ? { fallbackSourceOrthographyId } : {}),
+      });
+    },
   });
 
   const buildAiPromptContext = useCallback(() => buildTranscriptionAiPromptContext({
@@ -239,7 +253,7 @@ export function useTranscriptionAiController(
   const aiChat = useAiChat({
     onToolCall: handleAiToolCall,
     onToolRiskCheck: handleAiToolRiskCheck,
-    systemPersonaKey: aiDerivedPersonaRef.current,
+    systemPersonaKey: aiDerivedPersona,
     getContext: buildAiPromptContext,
     maxContextChars: 2400,
     historyCharBudget: 6000,
@@ -272,7 +286,10 @@ export function useTranscriptionAiController(
     setSaveState: input.setSaveState,
   });
 
-  aiDerivedPersonaRef.current = taskToPersona(aiCurrentTask);
+  useEffect(() => {
+    const nextPersona = taskToPersona(aiCurrentTask);
+    setAiDerivedPersona((prev) => (prev === nextPersona ? prev : nextPersona));
+  }, [aiCurrentTask]);
 
   useEffect(() => {
     aiAudioTimeRef.current = input.playerCurrentTime;

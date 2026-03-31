@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { OrthographyDocType } from '../db';
 import {
   analyzeSearchPattern,
   buildReplacePlan,
@@ -8,10 +9,12 @@ import {
   type SearchReplaceOptions,
 } from '../utils/searchReplaceUtils';
 import type { AppShellSearchScope } from '../utils/appShellEvents';
+import { buildOrthographyPreviewTextProps, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 
 interface SearchReplaceOverlayProps {
   /** All searchable items: { id, text, layerId?, layerKind? } */
   items: SearchableItem[];
+  orthographies?: OrthographyDocType[];
   currentLayerId?: string | undefined;
   currentUtteranceId?: string | undefined;
   initialQuery?: string;
@@ -26,6 +29,7 @@ type SearchScope = 'current-layer' | 'current-utterance' | 'global';
 
 export function SearchReplaceOverlay({
   items,
+  orthographies,
   currentLayerId,
   currentUtteranceId,
   initialQuery,
@@ -112,11 +116,19 @@ export function SearchReplaceOverlay({
   // Clamp index
   const safeIndex = matches.length > 0 ? ((currentIndex % matches.length) + matches.length) % matches.length : -1;
   const currentMatch = safeIndex >= 0 ? matches[safeIndex] : null;
+  const currentMatchRenderPolicy = useMemo(() => {
+    if (!currentMatch?.languageId) return undefined;
+    return resolveOrthographyRenderPolicy(currentMatch.languageId, orthographies, currentMatch.orthographyId);
+  }, [currentMatch?.languageId, currentMatch?.orthographyId, orthographies]);
+  const currentMatchPreviewProps = useMemo(
+    () => buildOrthographyPreviewTextProps(currentMatchRenderPolicy),
+    [currentMatchRenderPolicy],
+  );
 
   // Navigate to current match
   useEffect(() => {
     if (currentMatch) onNavigate(currentMatch.utteranceId);
-  }, [currentMatch?.utteranceId, currentMatch?.matchStart]);
+  }, [currentMatch?.utteranceId, onNavigate]);
 
   const goNext = useCallback(() => setCurrentIndex((i) => i + 1), []);
   const goPrev = useCallback(() => setCurrentIndex((i) => i - 1), []);
@@ -240,7 +252,12 @@ export function SearchReplaceOverlay({
       )}
 
       {currentMatch && (
-        <div className="search-replace-preview">
+        <div
+          className="search-replace-preview"
+          data-testid="search-replace-preview"
+          dir={currentMatchPreviewProps.dir}
+          style={currentMatchPreviewProps.style}
+        >
           {(() => {
             const contextSize = 16;
             const previewStart = Math.max(0, currentMatch.matchStart - contextSize);

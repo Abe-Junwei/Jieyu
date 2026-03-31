@@ -272,4 +272,46 @@ describe('TranscriptionOverlays independent selection routing', () => {
 
     expect(props.onOpenSpeakerManagementPanelFromMenu).toHaveBeenCalledTimes(1);
   });
+
+  it('renders note popover utterance preview with orthography-aware direction and style', () => {
+    const props = makeBaseProps();
+    props.notePopover = { x: 120, y: 80, uttId: 'utt_1', layerId: 'layer_ar' };
+    props.getUtteranceTextForLayer = vi.fn(() => 'مرحبا (123)');
+    props.transcriptionLayers = [{
+      ...makeLayer('layer_ar'),
+      languageId: 'ara',
+      orthographyId: 'ortho-ar',
+      displaySettings: { fontFamily: 'Scheherazade New' },
+      isDefault: true,
+    } as LayerDocType];
+    props.displayStyleControl = {
+      orthographies: [{
+        id: 'ortho-ar',
+        languageId: 'ara',
+        name: { zho: '阿拉伯语正字法', eng: 'Arabic Orthography' },
+        scriptTag: 'Arab',
+        direction: 'rtl',
+        bidiPolicy: {
+          isolateInlineRuns: true,
+          preferDirAttribute: true,
+        },
+        fontPreferences: {
+          primary: ['Scheherazade New'],
+        },
+        createdAt: NOW,
+      }],
+      onUpdate: vi.fn(),
+      onReset: vi.fn(),
+    };
+
+    const { container } = render(<TranscriptionOverlays {...props} />);
+
+    const title = container.querySelector('.note-popover-title');
+    const preview = screen.getByText('مرحبا (123)');
+    expect(title?.textContent).toContain('转写');
+    expect(preview.getAttribute('dir')).toBe('rtl');
+    expect((preview as HTMLElement).style.direction).toBe('rtl');
+    expect((preview as HTMLElement).style.unicodeBidi).toBe('isolate');
+    expect((preview as HTMLElement).style.fontFamily).toContain('Scheherazade New');
+  });
 });

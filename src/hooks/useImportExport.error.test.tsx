@@ -4,20 +4,17 @@ import { act, renderHook } from '@testing-library/react';
 import { detectLocale, t } from '../i18n';
 import { useImportExport } from './useImportExport';
 
-const mockReadFileAsText = vi.hoisted(() => vi.fn());
+const mockIngestTextFile = vi.hoisted(() => vi.fn());
 const mockImportJieyuArchiveFile = vi.hoisted(() => vi.fn());
+const mockUseOrthographies = vi.hoisted(() => vi.fn(() => []));
 
 vi.mock('./useClickOutside', () => ({
   useClickOutside: vi.fn(),
 }));
 
-vi.mock('../services/EafService', async () => {
-  const actual = await vi.importActual('../services/EafService');
-  return {
-    ...actual,
-    readFileAsText: mockReadFileAsText,
-  };
-});
+vi.mock('../utils/textIngestion', () => ({
+  ingestTextFile: mockIngestTextFile,
+}));
 
 vi.mock('../services/JymService', async () => {
   const actual = await vi.importActual('../services/JymService');
@@ -26,6 +23,10 @@ vi.mock('../services/JymService', async () => {
     importJieyuArchiveFile: mockImportJieyuArchiveFile,
   };
 });
+
+vi.mock('./useOrthographies', () => ({
+  useOrthographies: mockUseOrthographies,
+}));
 
 function createInput() {
   return {
@@ -46,11 +47,12 @@ describe('useImportExport - import error handling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockImportJieyuArchiveFile.mockReset();
+    mockUseOrthographies.mockReturnValue([]);
   });
 
   it('should surface read-file error via import failed message', async () => {
     const input = createInput();
-    mockReadFileAsText.mockRejectedValueOnce(new Error('boom read'));
+    mockIngestTextFile.mockRejectedValueOnce(new Error('boom read'));
 
     const { result } = renderHook(() => useImportExport(input));
 
@@ -74,7 +76,7 @@ describe('useImportExport - import error handling', () => {
     const input = createInput();
     const conflict = new Error('row changed externally');
     conflict.name = 'TranscriptionPersistenceConflictError';
-    mockReadFileAsText.mockRejectedValueOnce(conflict);
+    mockIngestTextFile.mockRejectedValueOnce(conflict);
 
     const { result } = renderHook(() => useImportExport(input));
 

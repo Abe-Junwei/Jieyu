@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import { fireAndForget } from '../utils/fireAndForget';
+import { OrthographyBuilderPanel } from './OrthographyBuilderPanel';
+import { OrthographyTransformManager } from './OrthographyTransformManager';
+import {
+  formatOrthographyOptionLabel,
+  ORTHOGRAPHY_CREATE_SENTINEL,
+  useOrthographyPicker,
+} from '../hooks/useOrthographyPicker';
 
 const LANGUAGE_SUGGESTIONS = [
   { code: 'cmn', label: '普通话 Mandarin' },
@@ -18,7 +24,7 @@ const LANGUAGE_SUGGESTIONS = [
 type ProjectSetupDialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (input: { titleZh: string; titleEn: string; primaryLanguageId: string }) => Promise<void>;
+  onSubmit: (input: { titleZh: string; titleEn: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
 };
 
 export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDialogProps) {
@@ -26,17 +32,21 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
   const [titleEn, setTitleEn] = useState('');
   const [languageId, setLanguageId] = useState('');
   const [customLang, setCustomLang] = useState('');
+  const [orthographyId, setOrthographyId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const effectiveLang = languageId === '__custom' ? customLang.trim() : languageId;
-  const canSubmit = titleZh.trim() && effectiveLang && !submitting;
+  const orthographyPicker = useOrthographyPicker(effectiveLang, orthographyId, setOrthographyId);
+  const selectedOrthography = orthographyPicker.orthographies.find((item) => item.id === orthographyId);
+  const canSubmit = titleZh.trim() && effectiveLang && !submitting && !orthographyPicker.isCreating;
 
   const reset = () => {
     setTitleZh('');
     setTitleEn('');
     setLanguageId('');
     setCustomLang('');
+    setOrthographyId('');
     setError('');
     setSubmitting(false);
   };
@@ -55,6 +65,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
         titleZh: titleZh.trim(),
         titleEn: titleEn.trim(),
         primaryLanguageId: effectiveLang,
+        ...(orthographyId ? { primaryOrthographyId: orthographyId } : {}),
       });
       handleClose();
     } catch (err) {
@@ -128,6 +139,43 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
             </label>
           )}
 
+          {effectiveLang && (
+            <div className="dialog-field">
+              <span>正字法 / 书写系统</span>
+              <select
+                className="input"
+                value={orthographyPicker.isCreating ? ORTHOGRAPHY_CREATE_SENTINEL : orthographyId}
+                onChange={(e) => orthographyPicker.handleSelectionChange(e.target.value)}
+              >
+                {orthographyPicker.orthographies.length === 0 && <option value="">沿用默认脚本推断</option>}
+                {orthographyPicker.orthographies.map((orthography) => (
+                  <option key={orthography.id} value={orthography.id}>
+                    {formatOrthographyOptionLabel(orthography)}
+                  </option>
+                ))}
+                <option value={ORTHOGRAPHY_CREATE_SENTINEL}>+ 新建正字法…</option>
+              </select>
+
+              {orthographyPicker.orthographies.length === 0 && !orthographyPicker.isCreating && (
+                <p className="dialog-hint">当前语言暂无正字法记录，可直接新建或沿用默认脚本推断。</p>
+              )}
+
+              {orthographyPicker.isCreating && (
+                <OrthographyBuilderPanel
+                  picker={orthographyPicker}
+                  languageOptions={LANGUAGE_SUGGESTIONS}
+                />
+              )}
+
+              {!orthographyPicker.isCreating && selectedOrthography && (
+                <OrthographyTransformManager
+                  targetOrthography={selectedOrthography}
+                  languageOptions={LANGUAGE_SUGGESTIONS}
+                />
+              )}
+            </div>
+          )}
+
           {error && <p className="error">{error}</p>}
         </div>
 
@@ -138,7 +186,9 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
           <button
             className="btn"
             disabled={!canSubmit}
-            onClick={() => fireAndForget(handleSubmit())}
+            onClick={() => {
+              void handleSubmit();
+            }}
           >
             {submitting ? '创建中...' : '创建项目'}
           </button>

@@ -12,6 +12,7 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from 'react';
 import { useLasso, type SubSelectDrag } from '../hooks/useLasso';
+import { useLatest } from '../hooks/useLatest';
 import { useWaveSurfer } from '../hooks/useWaveSurfer';
 import { useZoom } from '../hooks/useZoom';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
@@ -63,7 +64,7 @@ interface UseTranscriptionWaveformBridgeControllerInput {
   clearUtteranceSelection: () => void;
   createUtteranceFromSelection: (start: number, end: number) => Promise<void>;
   setUtteranceSelection: (primaryId: string, ids: Set<string>) => void;
-  resolveNoteIndicatorTarget: (unitId: string, layerId?: string) => { count: number; layerId?: string } | null;
+  resolveNoteIndicatorTarget: (unitId: string, layerId?: string, scope?: 'timeline' | 'waveform') => { count: number; layerId?: string } | null;
   tierContainerRef: MutableRefObject<HTMLDivElement | null>;
 }
 
@@ -149,7 +150,6 @@ export function useTranscriptionWaveformBridgeController(
   const markingModeRef = useRef(false);
   const previousSelectedTimelineUnitIdRef = useRef(input.selectedTimelineUnit?.unitId ?? '');
   const lastDurationRef = useRef(0);
-  const zoomPxPerSecRef = useRef(0);
   const handleWaveformRegionAltPointerDownRef = useRef<((regionId: string, time: number, pointerId: number, clientX: number) => void) | undefined>(undefined);
   const handleWaveformRegionClickRef = useRef<((regionId: string, clickTime: number, event: MouseEvent) => void) | undefined>(undefined);
   const handleWaveformRegionDoubleClickRef = useRef<((regionId: string, start: number, end: number) => void) | undefined>(undefined);
@@ -182,7 +182,6 @@ export function useTranscriptionWaveformBridgeController(
   const safeDur = lastDurationRef.current;
   const fitPxPerSec = safeDur > 0 ? containerWidth / safeDur : 40;
   const zoomPxPerSec = fitPxPerSec * (input.zoomPercent / 100);
-  zoomPxPerSecRef.current = zoomPxPerSec;
   const maxZoomPercent = Math.max(200, Math.ceil((2000 / fitPxPerSec) * 100));
   const isFitZoomMode = input.zoomMode === 'fit-all' || input.zoomMode === 'fit-selection';
   const shouldDisableAutoScroll = segmentLoopPlayback && isFitZoomMode;
@@ -250,7 +249,7 @@ export function useTranscriptionWaveformBridgeController(
     if (!ws) return [];
     const result: WaveformNoteIndicator[] = [];
     for (const item of waveformTimelineItems) {
-      const noteIndicator = input.resolveNoteIndicatorTarget(item.id, input.activeLayerIdForEdits || undefined);
+      const noteIndicator = input.resolveNoteIndicatorTarget(item.id, input.activeLayerIdForEdits || undefined, 'waveform');
       if (!noteIndicator) continue;
       const leftPx = item.startTime * zoomPxPerSec - waveformScrollLeft;
       const widthPx = (item.endTime - item.startTime) * zoomPxPerSec;
@@ -382,10 +381,9 @@ export function useTranscriptionWaveformBridgeController(
       setSegmentPlaybackRate(1);
     }
     previousSelectedTimelineUnitIdRef.current = currentSelectedTimelineUnitId;
-  }, [input.selectedTimelineUnit, segmentLoopPlayback]);
+  }, [input.selectedTimelineUnit?.unitId, segmentLoopPlayback]);
 
-  const isPlayingRef = useRef(player.isPlaying);
-  isPlayingRef.current = player.isPlaying;
+  const isPlayingRef = useLatest(player.isPlaying);
   useEffect(() => {
     if (!input.selectedTimelineUnitForTime || !player.isReady) return;
     if (skipSeekForIdRef.current) {

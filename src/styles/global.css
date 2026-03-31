@@ -1,5 +1,7 @@
 :root {
-  --font-base: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  --font-base: "Noto Sans SC", "Noto Sans", "Noto Sans Arabic", "Noto Sans Devanagari", "Noto Sans Thai", "Noto Sans Tibetan", sans-serif;
+  --font-ipa: "Charis SIL", "Doulos SIL", "Gentium Plus", "Andika", "Noto Sans", serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
   --text-primary: #1f2937;
   --text-secondary: #475569;
   --surface-bg:
@@ -48,7 +50,7 @@
   --z-hub-sidebar: 1100;
   --select-caret-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.25 5 6.25 8 3.25' fill='none' stroke='%2394a3b8' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 
-  font-family: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  font-family: var(--font-base);
   color: var(--text-primary);
   background: var(--surface-bg);
   line-height: 1.5;

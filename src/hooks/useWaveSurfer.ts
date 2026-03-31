@@ -3,6 +3,7 @@ import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import { evaluateSegmentTimeUpdateGuard, type SegmentSeekGuard } from '../utils/segmentPlaybackGuard';
 import { createLogger } from '../observability/logger';
+import { useLatest } from './useLatest';
 
 const log = createLogger('useWaveSurfer');
 
@@ -75,8 +76,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   const { mediaUrl, regions, activeRegionIds, primaryRegionId, startMarker, waveformFocused } = options;
 
   // Mirror callbacks in a ref so the heavy init effect doesn't re-run when they change.
-  const cbRef = useRef(options);
-  cbRef.current = options;
+  const cbRef = useLatest(options);
 
   const waveformRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<WaveSurfer | null>(null);
@@ -254,10 +254,8 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   // AbortController 用于清理 region DOM 元素上的 native listener | AbortController for cleaning up native listeners on region DOM elements
   const regionAbortRef = useRef<Map<string, AbortController>>(new Map());
   const syncingRegionsRef = useRef(false);
-  const activeRegionIdsRef = useRef(activeRegionIds);
-  activeRegionIdsRef.current = activeRegionIds;
-  const primaryRegionIdRef = useRef(primaryRegionId);
-  primaryRegionIdRef.current = primaryRegionId;
+  const activeRegionIdsRef = useLatest(activeRegionIds);
+  const primaryRegionIdRef = useLatest(primaryRegionId);
   const draggingRegionRef = useRef<string | null>(null);
 
   // Enable drag-selection region creation and notify external handler.

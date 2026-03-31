@@ -41,6 +41,7 @@ interface ContextMenuStateLike {
   layerId: string;
   unitKind: ContextMenuUnitKind;
   splitTime: number;
+  source?: 'timeline' | 'waveform';
 }
 
 interface PdfPreviewOpenRequestInput {
@@ -310,6 +311,7 @@ export function useTranscriptionTimelineInteractionController(
       layerId: nextTarget.layerId,
       unitKind: nextTarget.kind,
       splitTime,
+      source: 'waveform',
     });
   }, [input.activeLayerIdForEdits, input.player, input.selectTimelineUnit, input.selectedUtteranceIds, input.setCtxMenu, input.useSegmentWaveformRegions]);
 

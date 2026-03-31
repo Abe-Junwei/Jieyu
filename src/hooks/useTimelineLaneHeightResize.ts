@@ -16,9 +16,16 @@ function clampTimelineLaneHeight(value: number): number {
 
 export function useTimelineLaneHeightResize(
   onLaneHeightChange: (layerId: string, nextHeight: number) => void,
+  onResizeEnd?: (layerId: string, finalHeight: number) => void,
+  onResizePreview?: (layerId: string, previewHeight: number) => void,
 ) {
   const [resizingLayerId, setResizingLayerId] = useState<string | null>(null);
   const resizeStateRef = useRef<ResizeState | null>(null);
+  const lastHeightRef = useRef(DEFAULT_TIMELINE_LANE_HEIGHT);
+  const onResizeEndRef = useRef(onResizeEnd);
+  const onResizePreviewRef = useRef(onResizePreview);
+  useEffect(() => { onResizeEndRef.current = onResizeEnd; });
+  useEffect(() => { onResizePreviewRef.current = onResizePreview; });
 
   const startLaneHeightResize = useCallback((
     event: ReactPointerEvent<HTMLDivElement>,
@@ -34,7 +41,9 @@ export function useTimelineLaneHeightResize(
       startY: event.clientY,
       startHeight: initialHeight,
     };
+    lastHeightRef.current = initialHeight;
     onLaneHeightChange(layerId, initialHeight);
+    onResizePreviewRef.current?.(layerId, initialHeight);
     setResizingLayerId(layerId);
   }, [onLaneHeightChange]);
 
@@ -45,10 +54,18 @@ export function useTimelineLaneHeightResize(
       const drag = resizeStateRef.current;
       if (!drag) return;
       const delta = event.clientY - drag.startY;
-      onLaneHeightChange(drag.layerId, clampTimelineLaneHeight(drag.startHeight + delta));
+      const clamped = clampTimelineLaneHeight(drag.startHeight + delta);
+      lastHeightRef.current = clamped;
+      onLaneHeightChange(drag.layerId, clamped);
+      onResizePreviewRef.current?.(drag.layerId, clamped);
     };
 
     const stopResize = (): void => {
+      const drag = resizeStateRef.current;
+      if (drag) {
+        // 触发 resize 结束回调（用于字号联动） | Fire resize-end callback (for font-size sync)
+        onResizeEndRef.current?.(drag.layerId, lastHeightRef.current);
+      }
       resizeStateRef.current = null;
       setResizingLayerId(null);
     };

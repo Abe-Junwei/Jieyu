@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
+import { useLatest } from './useLatest';
 
 interface UseZoomInput {
   waveCanvasRef: React.RefObject<HTMLDivElement | null>;
@@ -31,8 +32,7 @@ export function useZoom(input: UseZoomInput) {
   const [rulerView, setRulerView] = useState<{ start: number; end: number } | null>(null);
 
   // 避免 wheel listener 重绑 | Ref to avoid wheel listener rebinding on every zoom change
-  const zoomPercentRef = useRef(zoomPercent);
-  zoomPercentRef.current = zoomPercent;
+  const zoomPercentRef = useLatest(zoomPercent);
 
   // ---- 缩放（锚点保持）—— 接受百分比 ----
   const zoomToPercent = useCallback((
@@ -59,8 +59,7 @@ export function useZoom(input: UseZoomInput) {
     });
   }, [zoomPxPerSec, fitPxPerSec, maxZoomPercent, playerInstanceRef, setZoomPercent, setZoomMode, tierContainerRef]);
 
-  const zoomToPercentRef = useRef(zoomToPercent);
-  zoomToPercentRef.current = zoomToPercent;
+  const zoomToPercentRef = useLatest(zoomToPercent);
 
   // ---- 双击句段：缩放并居中 ----
   const zoomToUtterance = useCallback((startTime: number, endTime: number) => {

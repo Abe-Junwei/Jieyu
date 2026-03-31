@@ -18,6 +18,7 @@ async function clearDatabase(): Promise<void> {
     db.languages.clear(),
     db.speakers.clear(),
     db.orthographies.clear(),
+    db.orthography_transforms.clear(),
     db.locations.clear(),
     db.bibliographic_sources.clear(),
     db.grammar_docs.clear(),
@@ -39,6 +40,288 @@ describe('LinguisticService smoke tests', () => {
   beforeEach(async () => {
     await db.open();
     await clearDatabase();
+  });
+
+  it('can create an orthography for the target language', async () => {
+    const created = await LinguisticService.createOrthography({
+      languageId: 'cmn',
+      name: { zho: '普通话 IPA', eng: 'Mandarin IPA' },
+      abbreviation: 'IPA',
+      scriptTag: 'Latn',
+      type: 'phonetic',
+      direction: 'ltr',
+      fontPreferences: {
+        primary: ['Charis SIL'],
+        fallback: ['Noto Sans'],
+        lineHeightScale: 1.1,
+      },
+      bidiPolicy: {
+        isolateInlineRuns: false,
+        preferDirAttribute: true,
+      },
+    });
+
+    const saved = await db.orthographies.get(created.id);
+    expect(saved?.languageId).toBe('cmn');
+    expect(saved?.name.zho).toBe('普通话 IPA');
+    expect(saved?.abbreviation).toBe('IPA');
+    expect(saved?.type).toBe('phonetic');
+    expect(saved?.direction).toBe('ltr');
+    expect(saved?.fontPreferences?.primary).toEqual(['Charis SIL']);
+    expect(saved?.bidiPolicy?.preferDirAttribute).toBe(true);
+    expect(saved?.updatedAt).toBeTruthy();
+  });
+
+  it('can clone an orthography into another language as a new record', async () => {
+    await db.orthographies.put({
+      id: 'orth_source_1',
+      name: { eng: 'English Practical' },
+      languageId: 'eng',
+      abbreviation: 'ENG-PRAC',
+      scriptTag: 'Latn',
+      type: 'practical',
+      direction: 'ltr',
+      fontPreferences: {
+        primary: ['Andika'],
+        fallback: ['Noto Sans'],
+      },
+      bidiPolicy: {
+        isolateInlineRuns: false,
+        preferDirAttribute: true,
+      },
+      conversionRules: { romanized: true },
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const cloned = await LinguisticService.cloneOrthographyToLanguage({
+      sourceOrthographyId: 'orth_source_1',
+      targetLanguageId: 'cmn',
+      name: { zho: '普通话拉丁化', eng: 'Mandarin Latinized' },
+      abbreviation: 'CMN-LATN',
+    });
+
+    const saved = await db.orthographies.get(cloned.id);
+    expect(cloned.id).not.toBe('orth_source_1');
+    expect(saved?.languageId).toBe('cmn');
+    expect(saved?.name.zho).toBe('普通话拉丁化');
+    expect(saved?.abbreviation).toBe('CMN-LATN');
+    expect(saved?.scriptTag).toBe('Latn');
+    expect(saved?.direction).toBe('ltr');
+    expect(saved?.fontPreferences?.primary).toEqual(['Andika']);
+    expect(saved?.bidiPolicy?.preferDirAttribute).toBe(true);
+    expect(saved?.conversionRules).toEqual({ romanized: true });
+  });
+
+  it('can create and query orthography transforms', async () => {
+    await db.orthographies.bulkPut([
+      {
+        id: 'orth_source_transform',
+        name: { eng: 'Source Orthography' },
+        languageId: 'eng',
+        scriptTag: 'Latn',
+        type: 'practical',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'orth_target_transform',
+        name: { eng: 'Target Orthography' },
+        languageId: 'eng',
+        scriptTag: 'Latn',
+        type: 'practical',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    const created = await LinguisticService.createOrthographyTransform({
+      sourceOrthographyId: 'orth_source_transform',
+      targetOrthographyId: 'orth_target_transform',
+      engine: 'table-map',
+      rules: {
+        mappings: [
+          { from: 'aa', to: 'a' },
+          { from: 'sh', to: 's' },
+        ],
+      },
+      sampleInput: 'shaam',
+      sampleOutput: 'sam',
+      sampleCases: [
+        { input: 'shaam', expectedOutput: 'sam' },
+        { input: 'sh', expectedOutput: 's' },
+      ],
+      isReversible: true,
+      status: 'active',
+    });
+
+    const listed = await LinguisticService.listOrthographyTransforms({
+      sourceOrthographyId: 'orth_source_transform',
+    });
+
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.id).toBe(created.id);
+    expect(listed[0]?.sampleOutput).toBe('sam');
+    expect(listed[0]?.sampleCases).toEqual([
+      { input: 'shaam', expectedOutput: 'sam' },
+      { input: 'sh', expectedOutput: 's' },
+    ]);
+    expect(listed[0]?.isReversible).toBe(true);
+    expect(LinguisticService.previewOrthographyTransform({
+      engine: 'table-map',
+      rules: { mappings: [{ from: 'sh', to: 's' }] },
+      text: 'sha',
+    })).toBe('sa');
+  });
+
+  it('prefers active orthography transforms for runtime application', async () => {
+    await db.orthographies.bulkPut([
+      {
+        id: 'orth_runtime_source',
+        name: { eng: 'Runtime Source' },
+        languageId: 'eng',
+        scriptTag: 'Latn',
+        type: 'practical',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'orth_runtime_target',
+        name: { eng: 'Runtime Target' },
+        languageId: 'eng',
+        scriptTag: 'Latn',
+        type: 'practical',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+    await db.orthography_transforms.bulkPut([
+      {
+        id: 'orthxfm_runtime_draft',
+        sourceOrthographyId: 'orth_runtime_source',
+        targetOrthographyId: 'orth_runtime_target',
+        engine: 'table-map',
+        rules: {
+          mappings: [{ from: 'sh', to: 'x' }],
+        },
+        status: 'draft',
+        createdAt: '2026-03-31T00:00:00.000Z',
+        updatedAt: '2026-03-31T00:00:00.000Z',
+      },
+      {
+        id: 'orthxfm_runtime_active',
+        sourceOrthographyId: 'orth_runtime_source',
+        targetOrthographyId: 'orth_runtime_target',
+        engine: 'table-map',
+        rules: {
+          mappings: [{ from: 'sh', to: 's' }],
+        },
+        status: 'active',
+        createdAt: '2026-03-30T00:00:00.000Z',
+        updatedAt: '2026-03-30T00:00:00.000Z',
+      },
+      {
+        id: 'orthxfm_runtime_deprecated',
+        sourceOrthographyId: 'orth_runtime_source',
+        targetOrthographyId: 'orth_runtime_target',
+        engine: 'table-map',
+        rules: {
+          mappings: [{ from: 'sh', to: 'z' }],
+        },
+        status: 'deprecated',
+        createdAt: '2026-03-29T00:00:00.000Z',
+        updatedAt: '2026-03-29T00:00:00.000Z',
+      },
+    ]);
+
+    const selected = await LinguisticService.getActiveOrthographyTransform({
+      sourceOrthographyId: 'orth_runtime_source',
+      targetOrthographyId: 'orth_runtime_target',
+    });
+    const applied = await LinguisticService.applyOrthographyTransform({
+      sourceOrthographyId: 'orth_runtime_source',
+      targetOrthographyId: 'orth_runtime_target',
+      text: 'shaam',
+    });
+
+    expect(selected?.id).toBe('orthxfm_runtime_active');
+    expect(applied).toEqual({
+      text: 'saam',
+      transformId: 'orthxfm_runtime_active',
+    });
+  });
+
+  it('can update, reorder, and delete orthography transforms', async () => {
+    await db.orthographies.bulkPut([
+      {
+        id: 'orth_manage_source',
+        name: { eng: 'Manage Source' },
+        languageId: 'eng',
+        scriptTag: 'Latn',
+        type: 'practical',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'orth_manage_target',
+        name: { eng: 'Manage Target' },
+        languageId: 'cmn',
+        scriptTag: 'Latn',
+        type: 'practical',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    await db.orthography_transforms.bulkPut([
+      {
+        id: 'orthxfm_manage_draft',
+        sourceOrthographyId: 'orth_manage_source',
+        targetOrthographyId: 'orth_manage_target',
+        engine: 'table-map',
+        rules: { mappings: [{ from: 'aa', to: 'a' }] },
+        status: 'draft',
+        createdAt: '2026-03-30T00:00:00.000Z',
+        updatedAt: '2026-03-30T00:00:00.000Z',
+      },
+      {
+        id: 'orthxfm_manage_old_active',
+        sourceOrthographyId: 'orth_manage_source',
+        targetOrthographyId: 'orth_manage_target',
+        engine: 'table-map',
+        rules: { mappings: [{ from: 'sh', to: 's' }] },
+        status: 'active',
+        createdAt: '2026-03-29T00:00:00.000Z',
+        updatedAt: '2026-03-29T00:00:00.000Z',
+      },
+    ]);
+
+    const updated = await LinguisticService.updateOrthographyTransform({
+      id: 'orthxfm_manage_draft',
+      name: { zho: '导入映射' },
+      status: 'active',
+      sampleInput: 'shaam',
+      sampleOutput: 'sam',
+      sampleCases: [{ input: 'sh', expectedOutput: 's' }],
+      isReversible: true,
+      rules: { mappings: [{ from: 'sh', to: 's' }, { from: 'aa', to: 'a' }] },
+    });
+
+    expect(updated.status).toBe('active');
+    expect(updated.name?.zho).toBe('导入映射');
+    expect(updated.sampleOutput).toBe('sam');
+    expect(updated.isReversible).toBe(true);
+
+    const listed = await LinguisticService.listOrthographyTransforms({
+      targetOrthographyId: 'orth_manage_target',
+    });
+    expect(listed.map((item) => item.id)).toEqual([
+      'orthxfm_manage_draft',
+      'orthxfm_manage_old_active',
+    ]);
+
+    await LinguisticService.deleteOrthographyTransform('orthxfm_manage_old_active');
+    expect(await db.orthography_transforms.get('orthxfm_manage_old_active')).toBeUndefined();
   });
 
   it('can save utterance and query by media time', async () => {

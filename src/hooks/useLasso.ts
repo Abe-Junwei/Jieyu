@@ -3,6 +3,7 @@ import type { UtteranceDocType } from '../db';
 import { computeLassoOutcome } from '../utils/waveformSelectionUtils';
 import { fireAndForget } from '../utils/fireAndForget';
 import type WaveSurfer from 'wavesurfer.js';
+import { useLatest } from './useLatest';
 
 export type SubSelectDrag = {
   active: boolean;
@@ -39,7 +40,6 @@ export function useLasso(input: UseLassoInput) {
     waveCanvasRef, tierContainerRef,
     playerInstanceRef, playerIsReady,
     selectedMediaUrl,
-    utterancesOnCurrentMedia,
     timelineItems,
     selectedUtteranceIds, selectedUtteranceUnitId,
     zoomPxPerSec,
@@ -86,12 +86,8 @@ export function useLasso(input: UseLassoInput) {
   const lassoSelectionRafRef = useRef<number | null>(null);
 
   // Sync refs for values used inside effects
-  const utterancesOnCurrentMediaRef = useRef(utterancesOnCurrentMedia);
-  utterancesOnCurrentMediaRef.current = utterancesOnCurrentMedia;
-  const timelineItemsRef = useRef(timelineItems);
-  timelineItemsRef.current = timelineItems;
-  const selectedUtteranceIdsRef = useRef(selectedUtteranceIds);
-  selectedUtteranceIdsRef.current = selectedUtteranceIds;
+  const timelineItemsRef = useLatest(timelineItems);
+  const selectedUtteranceIdsRef = useLatest(selectedUtteranceIds);
 
   const scheduleLassoSelectionUpdate = useCallback((ids: Set<string>, primaryId: string) => {
     pendingLassoSelectionRef.current = { ids, primaryId };

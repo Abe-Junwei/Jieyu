@@ -4,6 +4,7 @@ import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { Locale } from '../i18n';
+import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import type {
   PdfPreviewOpenRequest,
   TranscriptionPageAnalysisRuntimeProps,
@@ -52,6 +53,7 @@ interface UseTranscriptionRuntimePropsInput {
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
+  dictationPreviewTextProps?: OrthographyPreviewTextProps;
   formatLayerRailLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   toggleVoiceRef: MutableRefObject<(() => void) | undefined>;
@@ -101,6 +103,7 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
     defaultTranscriptionLayerId,
     translationLayers,
     layers,
+    dictationPreviewTextProps,
     formatLayerRailLabel,
     formatTime,
     toggleVoiceRef,
@@ -138,6 +141,7 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     translationLayers,
     layers,
+    ...(dictationPreviewTextProps !== undefined ? { dictationPreviewTextProps } : {}),
     formatLayerRailLabel,
     formatTime,
     onRegisterToggleVoice: (handler) => {
@@ -146,6 +150,7 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
   }), [
     activeTextPrimaryLanguageId,
     defaultTranscriptionLayerId,
+    dictationPreviewTextProps,
     executeAction,
     formatLayerRailLabel,
     formatTime,

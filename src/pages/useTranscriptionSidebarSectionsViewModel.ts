@@ -25,7 +25,7 @@ export interface UseTranscriptionSidebarSectionsViewModelInput {
   updateSpeakerDialogTargetKey: (key: string) => void;
   showProjectSetup: boolean;
   setShowProjectSetup: (value: boolean) => void;
-  handleProjectSetupSubmit: (input: { titleZh: string; titleEn: string; primaryLanguageId: string }) => Promise<void>;
+  handleProjectSetupSubmit: (input: { titleZh: string; titleEn: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
   showAudioImport: boolean;
   setShowAudioImport: (value: boolean) => void;
   handleAudioImport: (file: File, duration: number) => Promise<void>;

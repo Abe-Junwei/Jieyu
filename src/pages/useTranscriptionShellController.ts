@@ -55,8 +55,6 @@ interface UseTranscriptionShellControllerResult {
   }) => void;
   isLayerRailCollapsed: boolean;
   setIsLayerRailCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
-  layerRailTab: 'layers' | 'links';
-  setLayerRailTab: React.Dispatch<React.SetStateAction<'layers' | 'links'>>;
   isAiPanelCollapsed: boolean;
   setIsAiPanelCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   layerRailWidth: number;
@@ -96,7 +94,7 @@ interface UseTranscriptionShellControllerResult {
 export function useTranscriptionShellController(
   input: UseTranscriptionShellControllerInput,
 ): UseTranscriptionShellControllerResult {
-  const { layerCreateMessage, setLayerCreateMessage } = input;
+  const { layerCreateMessage, setLayerCreateMessage, setSelectedLayerId, createLayer } = input;
   const [focusedLayerRowId, setFocusedLayerRowId] = useState<string>('');
   const [flashLayerRowId, setFlashLayerRowId] = useState<string>('');
   const [showAllLayerConnectors, setShowAllLayerConnectors] = useState(true);
@@ -132,11 +130,11 @@ export function useTranscriptionShellController(
 
   const handleFocusLayerRow = useCallback((id: string) => {
     setFocusedLayerRowId(id);
-    input.setSelectedLayerId(id);
+    setSelectedLayerId(id);
     if (flashLayerRowId && flashLayerRowId !== id) {
       setFlashLayerRowId('');
     }
-  }, [flashLayerRowId, input]);
+  }, [flashLayerRowId, setSelectedLayerId]);
 
   useEffect(() => {
     if (!hasAnyLayerConnectors) {
@@ -157,8 +155,6 @@ export function useTranscriptionShellController(
   const {
     isLayerRailCollapsed,
     setIsLayerRailCollapsed,
-    layerRailTab,
-    setLayerRailTab,
     isAiPanelCollapsed,
     setIsAiPanelCollapsed,
     layerRailWidth,
@@ -220,15 +216,16 @@ export function useTranscriptionShellController(
         titleZh: '未命名项目',
         titleEn: 'Untitled Project',
         primaryLanguageId: config.languageId?.trim() || 'und',
+        ...(config.orthographyId?.trim() ? { primaryOrthographyId: config.orthographyId.trim() } : {}),
       });
       resolvedTextId = result.textId;
       setActiveTextId(resolvedTextId);
     }
-    return input.createLayer(layerType, {
+    return createLayer(layerType, {
       ...config,
       ...(resolvedTextId ? { textId: resolvedTextId } : {}),
     }, modality);
-  }, [activeTextId, getActiveTextId, input, setActiveTextId]);
+  }, [activeTextId, createLayer, getActiveTextId, setActiveTextId]);
 
   const layerAction = useLayerActionPanel({
     createLayer: createLayerWithActiveContext,
@@ -267,10 +264,9 @@ export function useTranscriptionShellController(
     })[0];
     if (!latestCreatedLayer) return;
     handledLayerCreateMessageRef.current = input.layerCreateMessage;
-    setLayerRailTab((prev) => (prev === 'layers' ? prev : 'layers'));
     setFocusedLayerRowId((prev) => (prev === latestCreatedLayer.id ? prev : latestCreatedLayer.id));
     setFlashLayerRowId((prev) => (prev === latestCreatedLayer.id ? prev : latestCreatedLayer.id));
-  }, [input.layerCreateMessage, input.orderedLayers, setLayerRailTab]);
+  }, [input.layerCreateMessage, input.orderedLayers]);
 
   useEffect(() => {
     if (!layerCreateMessage) {
@@ -295,8 +291,6 @@ export function useTranscriptionShellController(
     openPdfPreviewRequest,
     isLayerRailCollapsed,
     setIsLayerRailCollapsed,
-    layerRailTab,
-    setLayerRailTab,
     isAiPanelCollapsed,
     setIsAiPanelCollapsed,
     layerRailWidth,

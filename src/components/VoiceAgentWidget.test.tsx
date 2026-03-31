@@ -78,4 +78,60 @@ describe('VoiceAgentWidget', () => {
     expect(onSelectDisambiguation).toHaveBeenCalledWith('deleteSegment');
     expect(onDismissDisambiguation).toHaveBeenCalledTimes(1);
   });
+
+  it('applies dictation preview props to active session text and dictation history entries only', () => {
+    render(
+      <VoiceAgentWidget
+        {...makeProps({
+          mode: 'dictation',
+          finalText: 'مرحبا بالعالم',
+          dictationPreviewTextProps: {
+            dir: 'rtl',
+            style: {
+              direction: 'rtl',
+              unicodeBidi: 'isolate',
+              fontFamily: 'Noto Sans Arabic',
+            },
+          },
+          session: {
+            id: 'session-1',
+            startedAt: Date.now(),
+            mode: 'dictation',
+            entries: [
+              {
+                timestamp: Date.now(),
+                sttText: 'مرحبا',
+                confidence: 0.92,
+                intent: { type: 'dictation', text: 'مرحبا' },
+              },
+              {
+                timestamp: Date.now() + 1,
+                sttText: '删除',
+                confidence: 0.51,
+                intent: { type: 'action', actionId: 'deleteSegment', raw: '删除', confidence: 0.51, fromFuzzy: false },
+              },
+            ],
+          },
+        })}
+      />,
+    );
+
+    const sessionBodyText = screen.getByText('مرحبا بالعالم');
+    expect(sessionBodyText.getAttribute('dir')).toBe('rtl');
+    expect(sessionBodyText.style.direction).toBe('rtl');
+    expect(sessionBodyText.style.unicodeBidi).toBe('isolate');
+    expect(sessionBodyText.style.fontFamily).toContain('Noto Sans Arabic');
+
+    fireEvent.click(screen.getAllByRole('button', { name: /记录/i }).at(-1)!);
+
+    const dictationHistoryText = screen.getByText('مرحبا');
+    expect(dictationHistoryText.getAttribute('dir')).toBe('rtl');
+    expect(dictationHistoryText.style.direction).toBe('rtl');
+    expect(dictationHistoryText.style.unicodeBidi).toBe('isolate');
+    expect(dictationHistoryText.style.fontFamily).toContain('Noto Sans Arabic');
+
+    const actionHistoryText = screen.getByText('删除');
+    expect(actionHistoryText.getAttribute('dir')).toBeNull();
+    expect(actionHistoryText.getAttribute('style')).toBeNull();
+  });
 });

@@ -36,6 +36,7 @@ function renderHeader(trackModeControl?: {
   layer?: LayerDocType;
   allLayers?: LayerDocType[];
   onLayerAction?: (action: 'create-transcription' | 'create-translation' | 'delete', layerId: string) => void;
+  displayStyleControl?: Parameters<typeof TimelineLaneHeader>[0]['displayStyleControl'];
 }) {
   const layer = options?.layer ?? makeLayer('layer-1');
   return render(
@@ -49,6 +50,7 @@ function renderHeader(trackModeControl?: {
       renderLaneLabel={() => <span>Layer 1</span>}
       onLayerAction={options?.onLayerAction ?? vi.fn()}
       onToggleCollapsed={vi.fn()}
+      {...(options?.displayStyleControl ? { displayStyleControl: options.displayStyleControl } : {})}
       {...(trackModeControl ? { trackModeControl } : {})}
     />,
   );
@@ -59,6 +61,14 @@ async function findMenuButton(label: string): Promise<HTMLButtonElement> {
   const button = textNode.closest('button');
   if (!(button instanceof HTMLButtonElement)) {
     throw new Error(`Menu button not found for label: ${label}`);
+  }
+  return button;
+}
+
+async function findMenuButtonByPattern(pattern: RegExp): Promise<HTMLButtonElement> {
+  const button = await screen.findByRole('menuitem', { name: pattern });
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error(`Menu button not found for pattern: ${pattern.source}`);
   }
   return button;
 }
@@ -90,7 +100,7 @@ describe('TimelineLaneHeader track mode menu', () => {
     });
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));
-    fireEvent.mouseDown(await findMenuButton('轨道'));
+    fireEvent.mouseEnter(await findMenuButton('轨道'));
 
     const lockedModeItem = await findMenuButton('切换到多轨模式（锁定，需先锁定说话人）');
     expect(lockedModeItem.disabled).toBe(true);
@@ -109,7 +119,7 @@ describe('TimelineLaneHeader track mode menu', () => {
     });
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));
-  fireEvent.mouseDown(await findMenuButton('轨道'));
+  fireEvent.mouseEnter(await findMenuButton('轨道'));
   fireEvent.click(await findMenuButton('锁定选中说话人到轨道…（Alice、Bob）'));
 
     expect(await screen.findByRole('dialog', { name: '锁定说话人到轨道' })).toBeTruthy();
@@ -180,7 +190,7 @@ describe('TimelineLaneHeader track mode menu', () => {
     expect(view.container.querySelector('.lane-link-connector')).toBeTruthy();
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));
-    fireEvent.mouseDown(await findMenuButton('视图'));
+    fireEvent.mouseEnter(await findMenuButton('视图'));
     let toggleItem = await findMenuButton('隐藏层级关系');
     expect(toggleItem.disabled).toBe(false);
 
@@ -200,7 +210,7 @@ describe('TimelineLaneHeader track mode menu', () => {
 
     expect(view.container.querySelector('.lane-link-connector')).toBeFalsy();
     fireEvent.contextMenu(screen.getByText('Layer 1'));
-    fireEvent.mouseDown(await findMenuButton('视图'));
+    fireEvent.mouseEnter(await findMenuButton('视图'));
     toggleItem = await findMenuButton('显示层级关系（暂无可用链接）');
     expect(toggleItem.disabled).toBe(true);
 
@@ -220,8 +230,57 @@ describe('TimelineLaneHeader track mode menu', () => {
 
     expect(view.container.querySelector('.lane-link-connector')).toBeTruthy();
     fireEvent.contextMenu(screen.getByText('Layer 1'));
-    fireEvent.mouseDown(await findMenuButton('视图'));
+    fireEvent.mouseEnter(await findMenuButton('视图'));
     toggleItem = await findMenuButton('隐藏层级关系');
     expect(toggleItem.disabled).toBe(false);
+  });
+  it('routes font selection through display style submenu update', async () => {
+    const onUpdate = vi.fn();
+
+    renderHeader(undefined, {
+      displayStyleControl: {
+        orthographies: [{
+          id: 'ortho-1',
+          name: { zho: '汉字' },
+          languageId: 'cmn',
+          scriptTag: 'Hans',
+          createdAt: NOW,
+        }],
+        onUpdate,
+        onReset: vi.fn(),
+      },
+    });
+
+    fireEvent.contextMenu(screen.getByText('Layer 1'));
+    fireEvent.mouseEnter(await findMenuButtonByPattern(/^显示样式/));
+    fireEvent.mouseEnter(await findMenuButtonByPattern(/^字体/));
+    fireEvent.click(await findMenuButtonByPattern(/Noto Sans SC/));
+
+    expect(onUpdate).toHaveBeenCalledWith('layer-1', { fontFamily: 'Noto Sans SC' });
+  });
+
+  it('routes font size selection through display style submenu update', async () => {
+    const onUpdate = vi.fn();
+
+    renderHeader(undefined, {
+      displayStyleControl: {
+        orthographies: [{
+          id: 'ortho-1',
+          name: { zho: '汉字' },
+          languageId: 'cmn',
+          scriptTag: 'Hans',
+          createdAt: NOW,
+        }],
+        onUpdate,
+        onReset: vi.fn(),
+      },
+    });
+
+    fireEvent.contextMenu(screen.getByText('Layer 1'));
+    fireEvent.mouseEnter(await findMenuButtonByPattern(/^显示样式/));
+    fireEvent.mouseEnter(await findMenuButtonByPattern(/^字号/));
+    fireEvent.click(await findMenuButtonByPattern(/15px/));
+
+    expect(onUpdate).toHaveBeenCalledWith('layer-1', { fontSize: 15 });
   });
 });

@@ -248,6 +248,46 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     );
   });
 
+  it('reuses shared annotation context menu handler on right click in text-only inputs', () => {
+    const layer = makeLayer('trc-context');
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const handleAnnotationContextMenu = vi.fn();
+
+    render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        utterancesOnCurrentMedia={[makeUtterance('u1', 's1')]}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        handleAnnotationContextMenu={handleAnnotationContextMenu}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    const input = screen.getAllByRole('textbox')[0];
+    expect(input).toBeTruthy();
+    fireEvent.contextMenu(input as HTMLElement);
+
+    expect(handleAnnotationContextMenu).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ id: 'u1', startTime: 0, endTime: 1 }),
+      layer.id,
+      expect.any(Object),
+    );
+  });
+
   it('renders dependent translation rows from the parent transcription segments', () => {
     const parentLayer = {
       ...makeLayer('trc-parent'),

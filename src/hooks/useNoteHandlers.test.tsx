@@ -47,6 +47,38 @@ describe('useNoteHandlers error reporting', () => {
     expect(result.current.resolveNoteIndicatorTarget('utt-1', 'layer-1')).toEqual({ count: 1 });
   });
 
+  it('isolates waveform note indicators from timeline note indicators', () => {
+    mockUseNoteCounts.mockImplementation((targetType: string) => {
+      if (targetType === 'tier_annotation') {
+        return new Map([
+          ['seg-1::layer-1', 2],
+          ['seg-1::layer-1::@waveform', 1],
+        ]);
+      }
+      if (targetType === 'utterance') {
+        return new Map([['seg-1', 5]]);
+      }
+      return new Map();
+    });
+
+    const { result } = renderHook(() => useNoteHandlers({
+      activeUtteranceUnitId: 'utt-1',
+      focusedLayerRowId: 'layer-1',
+      utterances: [{ id: 'utt-1' }],
+      timelineUnitIds: ['utt-1', 'seg-1'],
+      transcriptionLayers: [{ id: 'layer-1' }],
+      translationLayers: [],
+      updateTokenPos: vi.fn(),
+      batchUpdateTokenPosByForm: vi.fn(async () => 0),
+      selectUtterance: vi.fn(),
+      setSaveState: vi.fn(),
+    }));
+
+    expect(result.current.resolveNoteIndicatorTarget('seg-1', 'layer-1', 'timeline')).toEqual({ count: 2, layerId: 'layer-1' });
+    expect(result.current.resolveNoteIndicatorTarget('seg-1', 'layer-1', 'waveform')).toEqual({ count: 1, layerId: 'layer-1' });
+    expect(result.current.resolveNoteIndicatorTarget('seg-1', 'layer-1')).toEqual({ count: 2, layerId: 'layer-1' });
+  });
+
   it('maps conflict-like POS save error to conflict-aware message', async () => {
     mockUseNoteCounts.mockImplementation(() => new Map());
     const setSaveState = vi.fn();

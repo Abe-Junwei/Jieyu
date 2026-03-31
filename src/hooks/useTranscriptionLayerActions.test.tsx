@@ -683,6 +683,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       sortOrder: 2,
     }));
     expect(mockRemoveLayerLink).toHaveBeenCalledWith('link_old_parent');
+    expect(mockRemoveLayerLink).toHaveBeenCalledWith('link_extra');
     expect(mockInsertLayerLink).toHaveBeenCalledWith(expect.objectContaining({
       transcriptionLayerKey: 'trc_b',
       layerId: 'layer_trl_a',
@@ -696,11 +697,114 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     const reordered = setLayers.mock.calls[setLayers.mock.calls.length - 1]?.[0] as LayerDocType[] | undefined;
     expect(reordered?.find((layer) => layer.id === 'layer_trl_a')?.parentLayerId).toBe('layer_trc_b');
     const linkedLayers = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as Array<{ transcriptionLayerKey: string; layerId: string }> | undefined;
-    expect(linkedLayers).toEqual(expect.arrayContaining([
-      expect.objectContaining({ transcriptionLayerKey: 'trc_shared', layerId: 'layer_trl_a' }),
+    expect(linkedLayers).toEqual([
       expect.objectContaining({ transcriptionLayerKey: 'trc_b', layerId: 'layer_trl_a' }),
-    ]));
+    ]);
+    expect(linkedLayers?.some((link) => link.transcriptionLayerKey === 'trc_shared')).toBe(false);
     expect(linkedLayers?.some((link) => link.transcriptionLayerKey === 'trc_a')).toBe(false);
+  });
+
+  it('re-canonicalizes sort order after toggling translation parent', async () => {
+    const now = '2026-03-25T00:00:00.000Z';
+    const rootA = {
+      id: 'layer_trc_a',
+      textId: 'text_1',
+      key: 'trc_a',
+      name: { zho: '转写层A' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const translationA = {
+      id: 'layer_trl_a',
+      textId: 'text_1',
+      key: 'trl_a',
+      name: { zho: '翻译层A' },
+      layerType: 'translation',
+      languageId: 'fra',
+      modality: 'text',
+      acceptsAudio: false,
+      parentLayerId: rootA.id,
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const rootB = {
+      id: 'layer_trc_b',
+      textId: 'text_1',
+      key: 'trc_b',
+      name: { zho: '转写层B' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 2,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const translationB = {
+      id: 'layer_trl_b',
+      textId: 'text_1',
+      key: 'trl_b',
+      name: { zho: '翻译层B' },
+      layerType: 'translation',
+      languageId: 'spa',
+      modality: 'text',
+      acceptsAudio: false,
+      parentLayerId: rootB.id,
+      sortOrder: 3,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const setLayers = vi.fn();
+    const setLayerLinks = vi.fn();
+    const { result } = renderHook(() => useTranscriptionLayerActions({
+      layers: [rootA as never, translationA as never, rootB as never, translationB as never],
+      layerLinks: [],
+      layerToDeleteId: '',
+      selectedLayerId: translationA.id,
+      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      pushUndo: vi.fn(),
+      setLayerCreateMessage: vi.fn(),
+      setLayers,
+      setLayerLinks,
+      setLayerToDeleteId: vi.fn(),
+      setShowLayerManager: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedMediaId: vi.fn(),
+      setMediaItems: vi.fn(),
+      setSelectedUtteranceIds: vi.fn(),
+      setTranslations: vi.fn(),
+      setUtterances: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.toggleLayerLink('trc_b', translationA.id);
+    });
+
+    expect(mockUpdateLayer).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'layer_trl_a',
+      parentLayerId: 'layer_trc_b',
+      sortOrder: 2,
+    }));
+    expect(mockUpdateLayerSortOrder).toHaveBeenCalledWith('layer_trc_b', 1, expect.anything());
+
+    const nextLayers = setLayers.mock.calls[setLayers.mock.calls.length - 1]?.[0] as LayerDocType[] | undefined;
+    expect(nextLayers?.map((layer) => layer.id)).toEqual(['layer_trc_a', 'layer_trc_b', 'layer_trl_a', 'layer_trl_b']);
+    expect(nextLayers?.map((layer) => layer.sortOrder)).toEqual([0, 1, 2, 3]);
+
+    const setLayerLinksUpdater = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as ((prev: Array<{ transcriptionLayerKey: string; layerId: string }>) => Array<{ transcriptionLayerKey: string; layerId: string }>) | undefined;
+    const linkedLayers = setLayerLinksUpdater ? setLayerLinksUpdater([]) : undefined;
+    expect(linkedLayers).toEqual([
+      expect.objectContaining({ transcriptionLayerKey: 'trc_b', layerId: 'layer_trl_a' }),
+    ]);
   });
 
   it('cascade-deletes dependent translation layers when deleting the last transcription layer', async () => {

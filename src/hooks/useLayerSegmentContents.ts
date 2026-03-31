@@ -1,9 +1,10 @@
 /**
  * 独立边界层 segment 内容加载 hook | Hook for loading segment contents of independent-boundary layers
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { type LayerDocType, type LayerSegmentContentDocType, type LayerSegmentDocType } from '../db';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
+import { useLatest } from './useLatest';
 import { resolveSegmentTimelineSourceLayer } from './useLayerSegments';
 
 type SegmentContentByLayer = Map<string, Map<string, LayerSegmentContentDocType>>;
@@ -18,13 +19,9 @@ export function useLayerSegmentContents(
   reloadSegmentContents: () => Promise<void>;
 } {
   const [segmentContentByLayer, setSegmentContentByLayer] = useState<SegmentContentByLayer>(() => new Map());
-  const layersRef = useRef(layers);
-  const segmentsRef = useRef(segmentsByLayer);
-  layersRef.current = layers;
-  segmentsRef.current = segmentsByLayer;
-
-  const defaultLayerIdRef = useRef(defaultTranscriptionLayerId);
-  defaultLayerIdRef.current = defaultTranscriptionLayerId;
+  const layersRef = useLatest(layers);
+  const segmentsRef = useLatest(segmentsByLayer);
+  const defaultLayerIdRef = useLatest(defaultTranscriptionLayerId);
 
   const loadSegmentContents = useCallback(async () => {
     if (!mediaId) {

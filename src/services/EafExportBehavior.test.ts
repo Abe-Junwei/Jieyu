@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { exportToEaf, importFromEaf } from './EafService';
-import type { LayerDocType, LayerSegmentDocType, SpeakerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerDocType, LayerSegmentDocType, OrthographyDocType, SpeakerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 
-function withEafKeyMeta(baseKey: string, tierId?: string): string {
-  if (!tierId) return baseKey;
-  const payload = JSON.stringify({ tierId });
+function withEafKeyMeta(baseKey: string, meta?: string | { tierId?: string; langLabel?: string }): string {
+  if (!meta) return baseKey;
+  const payload = JSON.stringify(typeof meta === 'string' ? { tierId: meta } : meta);
   return `${baseKey}__eafmeta_${encodeURIComponent(payload)}`;
 }
 
@@ -18,7 +18,7 @@ function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: '
     key: overrides.key,
     name: overrides.name ?? { eng: overrides.key, zho: overrides.key },
     layerType: overrides.layerType,
-    languageId: 'en',
+    languageId: overrides.languageId ?? 'en',
     modality: 'text',
     acceptsAudio: false,
     sortOrder: 0,
@@ -66,6 +66,18 @@ function makeSpeaker(overrides: Partial<SpeakerDocType> & { id: string; name: st
     id: overrides.id,
     name: overrides.name,
   } as SpeakerDocType;
+}
+
+function makeOrthography(overrides: Partial<OrthographyDocType> & { id: string; languageId: string }): OrthographyDocType {
+  const now = '2026-03-25T00:00:00.000Z';
+  return {
+    id: overrides.id,
+    languageId: overrides.languageId,
+    name: overrides.name ?? { eng: overrides.id, zho: overrides.id },
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  } as OrthographyDocType;
 }
 
 describe('EAF export behavior for constraint layers', () => {
@@ -302,6 +314,84 @@ describe('EAF export behavior for constraint layers', () => {
     const subConstraint = imported.tierConstraints.get('TRL_SUB');
     expect(subConstraint?.constraint).toBe('time_subdivision');
     expect(subConstraint?.parentTierId).toBe('TRC_MAIN');
+  });
+
+  it('exports and re-imports tier orthography identity through header properties', () => {
+    const trc = makeLayer({
+      id: 'trc_default',
+      layerType: 'transcription',
+      key: withEafKeyMeta('trc_default', 'TRC_MAIN'),
+      languageId: 'ara',
+      orthographyId: 'ortho-ar',
+    });
+    const trl = makeLayer({
+      id: 'trl_child',
+      layerType: 'translation',
+      key: withEafKeyMeta('trl_child', 'TRL_CHILD'),
+      languageId: 'eng',
+      orthographyId: 'ortho-eng',
+    });
+
+    const xml = exportToEaf({
+      utterances: [makeUtterance()],
+      layers: [trc, trl],
+      orthographies: [
+        makeOrthography({ id: 'ortho-ar', languageId: 'ara', scriptTag: 'Arab', regionTag: 'EG', variantTag: 'fonipa' }),
+        makeOrthography({ id: 'ortho-eng', languageId: 'eng', scriptTag: 'Latn' }),
+      ],
+      translations: [
+        makeTranslation({ id: 'utr_main', layerId: trc.id, utteranceId: 'utt_1', text: 'مرحبا' }),
+        makeTranslation({ id: 'utr_child', layerId: trl.id, utteranceId: 'utt_1', text: 'hello' }),
+      ],
+    });
+
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const headerProperties = Array.from(doc.querySelectorAll('HEADER > PROPERTY')).reduce<Record<string, string>>((acc, property) => {
+      const name = property.getAttribute('NAME');
+      if (name) acc[name] = property.textContent ?? '';
+      return acc;
+    }, {});
+    expect(headerProperties['jieyu:layer-meta:TRC_MAIN']).toContain('"orthographyId":"ortho-ar"');
+    expect(headerProperties['jieyu:layer-meta:TRC_MAIN']).toContain('"scriptTag":"Arab"');
+    expect(headerProperties['jieyu:layer-meta:TRC_MAIN']).toContain('"regionTag":"EG"');
+    expect(headerProperties['jieyu:layer-meta:TRC_MAIN']).toContain('"variantTag":"fonipa"');
+    expect(headerProperties['jieyu:layer-meta:TRL_CHILD']).toContain('"orthographyId":"ortho-eng"');
+
+    const imported = importFromEaf(xml);
+    expect(imported.tierMetadata.get('TRC_MAIN')?.orthographyId).toBe('ortho-ar');
+    expect(imported.tierMetadata.get('TRC_MAIN')?.scriptTag).toBe('Arab');
+    expect(imported.tierMetadata.get('TRC_MAIN')?.regionTag).toBe('EG');
+    expect(imported.tierMetadata.get('TRC_MAIN')?.variantTag).toBe('fonipa');
+    expect(imported.tierMetadata.get('TRL_CHILD')?.orthographyId).toBe('ortho-eng');
+    expect(imported.tierMetadata.get('TRL_CHILD')?.languageId).toBe('eng');
+  });
+
+  it('drops unknown tier metadata fields during EAF import downgrade', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT>
+  <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
+    <PROPERTY NAME="jieyu:layer-meta:default">{"languageId":"ara","orthographyId":"ortho-ar","scriptTag":"Arab","unknownField":"drop-me","transformId":"xf-1"}</PROPERTY>
+  </HEADER>
+  <TIME_ORDER>
+    <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0"/>
+    <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="1000"/>
+  </TIME_ORDER>
+  <TIER TIER_ID="default">
+    <ANNOTATION>
+      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+        <ANNOTATION_VALUE>مرحبا</ANNOTATION_VALUE>
+      </ALIGNABLE_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+</ANNOTATION_DOCUMENT>`;
+
+    const imported = importFromEaf(xml);
+    expect(imported.tierMetadata.get('default')).toEqual({
+      languageId: 'ara',
+      orthographyId: 'ortho-ar',
+      scriptTag: 'Arab',
+      transformId: 'xf-1',
+    });
   });
 
   it('exports PARTICIPANT when speakerId is a free string instead of a speaker entity id', () => {

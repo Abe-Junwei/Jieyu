@@ -5,7 +5,9 @@
  * This service converts between Jieyu's data model and EAF 3.0.
  */
 
-import type { UtteranceDocType, AnchorDocType, LayerDocType, UtteranceTextDocType, MediaItemDocType, UserNoteDocType, LayerConstraint, LayerSegmentDocType, LayerSegmentContentDocType, SpeakerDocType } from '../db';
+import type { UtteranceDocType, AnchorDocType, LayerDocType, UtteranceTextDocType, MediaItemDocType, UserNoteDocType, LayerConstraint, LayerSegmentDocType, LayerSegmentContentDocType, SpeakerDocType, OrthographyDocType } from '../db';
+import { ingestTextFile } from '../utils/textIngestion';
+import { buildOrthographyInteropMetadata, parseOrthographyInteropMetadata, type OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -14,6 +16,7 @@ export interface EafExportInput {
   utterances: UtteranceDocType[];
   anchors?: AnchorDocType[];
   layers: LayerDocType[];
+  orthographies?: OrthographyDocType[];
   translations: UtteranceTextDocType[];
   userNotes?: UserNoteDocType[];
   /** 独立边界层的 segment 数据（按 layerId 分组）| Segment data for independent-boundary layers, keyed by layerId */
@@ -58,7 +61,11 @@ export interface EafImportResult {
   languageLabels: Map<string, string>;
   /** 每个 tier 的 ELAN 约束信息 | Per-tier ELAN constraint info (constraint + parentTierId) */
   tierConstraints: Map<string, { constraint: LayerConstraint; parentTierId?: string }>;
+  /** Jieyu 自定义 tier 身份元数据 | Jieyu custom tier identity metadata */
+  tierMetadata: Map<string, OrthographyInteropMetadata>;
 }
+
+const JIEYU_LAYER_META_PREFIX = 'jieyu:layer-meta:';
 
 // ── Export ───────────────────────────────────────────────────
 
@@ -92,7 +99,7 @@ function parseEafMetaFromLayerKey(layerKey?: string): { tierId?: string; langLab
 }
 
 export function exportToEaf(input: EafExportInput): string {
-  const { mediaItem, utterances, anchors, layers, translations, userNotes, layerSegments, layerSegmentContents, speakers } = input;
+  const { mediaItem, utterances, anchors, layers, orthographies, translations, userNotes, layerSegments, layerSegmentContents, speakers } = input;
   const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
   const utteranceById = new Map(utterances.map((utterance) => [utterance.id, utterance] as const));
 
@@ -213,6 +220,12 @@ export function exportToEaf(input: EafExportInput): string {
   const defaultTrcLocale = defaultTrcLayer?.languageId ?? 'en';
   const defaultTrcMeta = defaultTrcLayer ? parseEafMetaFromLayerKey(defaultTrcLayer.key) : {};
   const defaultTierId = defaultTrcMeta.tierId ?? 'default';
+  const tierIdentityMetadata = new Map<string, OrthographyInteropMetadata>();
+  const registerTierIdentityMetadata = (tierId: string, layer?: LayerDocType) => {
+    const metadata = buildOrthographyInteropMetadata(layer, orthographies);
+    if (metadata) tierIdentityMetadata.set(tierId, metadata);
+  };
+  registerTierIdentityMetadata(defaultTierId, defaultTrcLayer);
 
   // 层 ID -> 导出 tier 名称映射（用于 parentLayerId 优先导出）
   // Layer ID -> exported tier name mapping (for parentLayerId-first export semantics)
@@ -224,6 +237,7 @@ export function exportToEaf(input: EafExportInput): string {
     const layerMeta = parseEafMetaFromLayerKey(layer.key);
     const tierName = layerMeta.tierId ?? layer.name?.eng ?? layer.name?.zho ?? layer.key;
     tierNameByLayerId.set(layer.id, tierName);
+    registerTierIdentityMetadata(tierName, layer);
   }
 
   // Transcription tier (default)
@@ -449,9 +463,16 @@ ${annotations.join('\n')}
     }
   }
 
-  const mediaHeader = mediaItem
+  const headerLines: string[] = [];
+  if (mediaItem) {
+    headerLines.push(`        <MEDIA_DESCRIPTOR MEDIA_URL="${escapeXml(mediaItem.url ?? mediaItem.filename)}" MIME_TYPE="audio/x-wav" RELATIVE_MEDIA_URL="./${escapeXml(mediaItem.filename)}" />`);
+  }
+  for (const [tierId, metadata] of tierIdentityMetadata) {
+    headerLines.push(`        <PROPERTY NAME="${escapeXml(`${JIEYU_LAYER_META_PREFIX}${tierId}`)}">${escapeXml(JSON.stringify(metadata))}</PROPERTY>`);
+  }
+  const mediaHeader = headerLines.length > 0
     ? `    <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
-        <MEDIA_DESCRIPTOR MEDIA_URL="${escapeXml(mediaItem.url ?? mediaItem.filename)}" MIME_TYPE="audio/x-wav" RELATIVE_MEDIA_URL="./${escapeXml(mediaItem.filename)}" />
+${headerLines.join('\n')}
     </HEADER>`
     : '    <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds" />';
 
@@ -655,6 +676,19 @@ export function importFromEaf(xmlString: string): EafImportResult {
     const val = el.getAttribute('TIME_VALUE');
     if (id && val) timeSlotMap.set(id, parseInt(val, 10));
   });
+  const tierMetadata = new Map<string, OrthographyInteropMetadata>();
+  doc.querySelectorAll('HEADER > PROPERTY').forEach((property) => {
+    const name = property.getAttribute('NAME') ?? '';
+    if (!name.startsWith(JIEYU_LAYER_META_PREFIX)) return;
+    const tierId = name.slice(JIEYU_LAYER_META_PREFIX.length).trim();
+    if (!tierId) return;
+    try {
+      const metadata = parseOrthographyInteropMetadata(JSON.parse(property.textContent ?? ''));
+      if (metadata) tierMetadata.set(tierId, metadata);
+    } catch (error) {
+      console.warn('[Jieyu] EafService: failed to parse tier metadata property', { name, error });
+    }
+  });
 
   // ── 层解析 | Parse tiers ──
   const tiers = doc.querySelectorAll('TIER');
@@ -749,6 +783,7 @@ export function importFromEaf(xmlString: string): EafImportResult {
     ...(transcriptionTierName ? { transcriptionTierName } : {}),
     languageLabels,
     tierConstraints,
+    tierMetadata,
   };
 }
 
@@ -764,11 +799,10 @@ export function downloadEaf(content: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-export function readFileAsText(file: File, encoding = 'utf-8'): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error(`文件读取失败: ${reader.error?.message ?? 'unknown'}`));
-    reader.readAsText(file, encoding);
-  });
+/**
+ * @deprecated 使用 ingestTextFile 替代 | Use ingestTextFile instead
+ */
+export async function readFileAsText(file: File, _encoding = 'utf-8'): Promise<string> {
+  const result = await ingestTextFile(file, { xmlMode: true });
+  return result.text;
 }

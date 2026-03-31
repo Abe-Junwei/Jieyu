@@ -1,5 +1,6 @@
 import type { UtteranceDocType } from '../db';
 import { BatchOperationPanel } from '../components/BatchOperationPanel';
+import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 
 type TranscriptionPageBatchOpsProps = {
   showBatchOperationPanel: boolean;
@@ -9,6 +10,7 @@ type TranscriptionPageBatchOpsProps = {
   selectedBatchUtteranceTextById: Record<string, string>;
   batchPreviewLayerOptions: Array<{ id: string; label: string }>;
   batchPreviewTextByLayerId: Record<string, Record<string, string>> | null;
+  batchPreviewTextPropsByLayerId?: Record<string, OrthographyPreviewTextProps>;
   defaultBatchPreviewLayerId: string | undefined;
   onBatchClose: () => void;
   onBatchOffset: (deltaSec: number) => Promise<void>;
@@ -26,6 +28,7 @@ export function TranscriptionPageBatchOps({
   selectedBatchUtteranceTextById,
   batchPreviewLayerOptions,
   batchPreviewTextByLayerId,
+  batchPreviewTextPropsByLayerId,
   defaultBatchPreviewLayerId,
   onBatchClose,
   onBatchOffset,
@@ -43,6 +46,7 @@ export function TranscriptionPageBatchOps({
       utteranceTextById={selectedBatchUtteranceTextById}
       previewLayerOptions={batchPreviewLayerOptions}
       {...(batchPreviewTextByLayerId ? { previewTextByLayerId: batchPreviewTextByLayerId } : {})}
+      {...(batchPreviewTextPropsByLayerId ? { previewTextPropsByLayerId: batchPreviewTextPropsByLayerId } : {})}
       {...(defaultBatchPreviewLayerId ? { defaultPreviewLayerId: defaultBatchPreviewLayerId } : {})}
       onClose={onBatchClose}
       onOffset={onBatchOffset}

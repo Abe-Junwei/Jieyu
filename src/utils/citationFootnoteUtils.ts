@@ -4,6 +4,7 @@
  */
 
 import type { AiMessageCitation } from '../db';
+import { stripPlainTextBidiIsolation } from './bidiPlainText';
 
 // ── 常量 | Constants ──
 
@@ -24,6 +25,24 @@ export interface NumberedRagSource {
   contextTag: string;
   /** 摘要 | Snippet */
   snippet: string;
+}
+
+/**
+ * 归一化引用摘要为纯文本输出/搜索友好形式
+ * Normalize citation snippets for plain-text output and search
+ */
+export function normalizeCitationSnippetPlainText(snippet: string): string {
+  return stripPlainTextBidiIsolation(snippet).replace(/\s+/g, ' ').trim();
+}
+
+export function buildCopyableAssistantPlainText(input: {
+  content: string;
+  citations: AiMessageCitation[];
+  locale: string;
+}): string {
+  const content = input.content.trim();
+  const footer = buildSourceListFooter(input.citations, input.locale);
+  return `${content}${footer}`.trim();
 }
 
 /**
@@ -86,7 +105,7 @@ export function buildSourceListFooter(
   const header = isZh ? '来源' : 'Sources';
   const lines = citations.map((c, i) => {
     const label = c.label ?? c.type;
-    const snippet = (c.snippet ?? '').slice(0, 100).replace(/\n/g, ' ');
+    const snippet = normalizeCitationSnippetPlainText(c.snippet ?? '').slice(0, 100);
     return `[${i + 1}] ${label}: ${snippet}${snippet.length >= 100 ? '…' : ''}`;
   });
   return `\n\n---\n${header}:\n${lines.join('\n')}`;

@@ -1,8 +1,9 @@
 import { useCallback, type MouseEvent, type ReactNode } from 'react';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, OrthographyDocType, UtteranceDocType } from '../db';
 import { type TimelineUnit, type TimelineUnitKind } from './transcriptionTypes';
 import { formatTime, getLayerLabelParts } from '../utils/transcriptionFormatters';
+import { layerDisplaySettingsToStyle, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import {
   resolveTranscriptionSelectionAnchor,
   resolveTranscriptionUnitTarget,
@@ -70,6 +71,7 @@ type UseTimelineAnnotationHelpersParams = {
   speakerVisualByUtteranceId?: Record<string, SpeakerVisual>;
   onOverlapCycleToast?: (index: number, total: number, utteranceId: string) => void;
   independentLayerIds?: Set<string>;
+  orthographies?: OrthographyDocType[];
 };
 
 export function useTimelineAnnotationHelpers({
@@ -98,6 +100,7 @@ export function useTimelineAnnotationHelpers({
   speakerVisualByUtteranceId = {},
   onOverlapCycleToast,
   independentLayerIds = new Set<string>(),
+  orthographies = [],
 }: UseTimelineAnnotationHelpersParams) {
   const handleAnnotationClick = useCallback((
     uttId: string,
@@ -225,6 +228,7 @@ export function useTimelineAnnotationHelpers({
       layerId: targetUnit.layerId,
       unitKind: targetUnit.kind,
       splitTime,
+      source: 'timeline',
     });
   }, [
     manualSelectTsRef,
@@ -281,6 +285,7 @@ export function useTimelineAnnotationHelpers({
     const dpEnd = dragPreview?.id === utt.id ? dragPreview.end : utt.endTime;
     const speakerVisual = showSpeaker ? speakerVisualByUtteranceId[utt.id] : undefined;
     const noteIndicator = resolveNoteIndicatorTarget(utt.id, layer.id);
+    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
     return (
       <TimelineAnnotationItem
         key={utt.id}
@@ -310,6 +315,8 @@ export function useTimelineAnnotationHelpers({
         onKeyDown={handleAnnotationKeyDown}
         noteCount={noteIndicator?.count ?? 0}
         {...(noteIndicator ? { onNoteClick: (e: MouseEvent) => handleNoteClick(utt.id, noteIndicator.layerId, e) } : {})}
+        layerStyle={layerDisplaySettingsToStyle(layer.displaySettings, renderPolicy)}
+        contentDirection={renderPolicy.preferDirAttribute ? renderPolicy.textDirection : undefined}
         {...itemExtra}
       />
     );
@@ -326,6 +333,7 @@ export function useTimelineAnnotationHelpers({
     startTimelineResizeDrag,
     handleAnnotationKeyDown,
     handleNoteClick,
+    orthographies,
     resolveNoteIndicatorTarget,
     speakerVisualByUtteranceId,
   ]);
@@ -340,6 +348,7 @@ export function useTimelineAnnotationHelpers({
 
   return {
     handleAnnotationClick,
+    handleAnnotationContextMenu,
     renderAnnotationItem,
     renderLaneLabel,
   };

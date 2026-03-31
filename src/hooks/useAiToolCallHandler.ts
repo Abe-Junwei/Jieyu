@@ -57,6 +57,12 @@ type Params = {
   splitAtTime?: (timeSeconds: number) => boolean;
   /** 缩放并定位句段 | Zoom and focus a segment */
   zoomToSegment?: (segmentId: string, zoomLevel?: number) => boolean;
+  /** 依据 source/target layer orthography 变换 AI 写回文本 | Transform AI writeback text using source/target layer orthography */
+  transformTextForLayerWrite?: (input: {
+    text: string;
+    targetLayerId?: string;
+    selectedLayerId?: string;
+  }) => Promise<string>;
 };
 
 /**
@@ -68,6 +74,7 @@ interface ExecutionContext {
   utterances: UtteranceDocType[];
   selectedUtterance: UtteranceDocType | undefined;
   selectedUtteranceMedia: MediaItemDocType | undefined;
+  selectedLayerId: string;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   /** translationLayers 的最新 ref，用于补偿回查 | Latest-ref for post-async layer lookup */
@@ -102,6 +109,7 @@ interface ExecutionContext {
   seekToTime?: Params['seekToTime'];
   splitAtTime?: Params['splitAtTime'];
   zoomToSegment?: Params['zoomToSegment'];
+  transformTextForLayerWrite?: Params['transformTextForLayerWrite'];
 }
 
 /**
@@ -249,7 +257,13 @@ const segmentAdapter: ToolObjectAdapter = {
       if (!targetUtterance) {
         return { ok: false, message: `未找到目标句段：${requestedId}` };
       }
-      await ctx.saveUtteranceText(targetUtterance.id, text);
+      const targetLayerId = ctx.transcriptionLayers.some((layer) => layer.id === ctx.selectedLayerId)
+        ? ctx.selectedLayerId
+        : undefined;
+      const transformedText = ctx.transformTextForLayerWrite
+        ? await ctx.transformTextForLayerWrite({ text, targetLayerId, selectedLayerId: ctx.selectedLayerId })
+        : text;
+      await ctx.saveUtteranceText(targetUtterance.id, transformedText, targetLayerId);
       return { ok: true, message: '转写文本已写入。' };
     }
 
@@ -274,7 +288,10 @@ const segmentAdapter: ToolObjectAdapter = {
       if (!targetLayerId) {
         return { ok: false, message: `未找到目标翻译层：${requestedLayerId}` };
       }
-      await ctx.saveTextTranslationForUtterance(targetUtterance.id, text, targetLayerId);
+      const transformedText = ctx.transformTextForLayerWrite
+        ? await ctx.transformTextForLayerWrite({ text, targetLayerId, selectedLayerId: ctx.selectedLayerId })
+        : text;
+      await ctx.saveTextTranslationForUtterance(targetUtterance.id, transformedText, targetLayerId);
       return { ok: true, message: '翻译文本已写入。' };
     }
 
@@ -492,10 +509,47 @@ const layerAdapter: ToolObjectAdapter = {
         return { ok: false, message: '未找到可用翻译层，无法设置链接。' };
       }
 
-      const exists = ctx.layerLinks.some(
-        (link) => link.transcriptionLayerKey === trcLayer.key && link.layerId === trlLayer.id,
-      );
+      const exists = trlLayer.parentLayerId === trcLayer.id;
       const shouldLink = call.name === 'link_translation_layer';
+
+      if (!shouldLink && exists) {
+        const fallbackParent = ctx.transcriptionLayers.find(
+          (layer) => layer.id !== trcLayer.id && (layer.constraint ?? 'independent_boundary') === 'independent_boundary',
+        );
+        if (!fallbackParent) {
+          return {
+            ok: false,
+            message: '无法解除关联：当前翻译层至少需要一个依赖转写层，请先指定新的转写层。',
+          };
+        }
+        try {
+          await ctx.toggleLayerLink(fallbackParent.key, trlLayer.id);
+        } catch (linkError) {
+          const comp = compensationRef.current.get(call.requestId ?? 'default');
+          if (comp && Date.now() - comp.createdAt < COMPENSATION_TTL_MS) {
+            compensationRef.current.delete(call.requestId ?? 'default');
+            try {
+              await ctx.deleteLayer(comp.layerId);
+            } catch (error) {
+              log.warn('Compensation rollback failed after relink fallback error', {
+                requestId: call.requestId ?? 'default',
+                layerId: comp.layerId,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+            const errMsg = linkError instanceof Error ? linkError.message : '解除关联失败';
+            return { ok: false, message: `${errMsg}。已自动回滚刚创建的层（${comp.layerId}）。` };
+          }
+          throw linkError;
+        }
+
+        compensationRef.current.delete(call.requestId ?? 'default');
+        return {
+          ok: true,
+          message: `已解除关联：${trcLayer.name.zho ?? trcLayer.name.eng ?? trcLayer.key} -> ${trlLayer.name.zho ?? trlLayer.name.eng ?? trlLayer.key}，并改绑到 ${fallbackParent.name.zho ?? fallbackParent.name.eng ?? fallbackParent.key}`,
+        };
+      }
+
       try {
         if (exists !== shouldLink) {
           await ctx.toggleLayerLink(trcLayer.key, trlLayer.id);
@@ -877,6 +931,7 @@ export function useAiToolCallHandler({
   seekToTime,
   splitAtTime,
   zoomToSegment,
+  transformTextForLayerWrite,
 }: Params): (call: AiChatToolCall) => Promise<AiChatToolResult> {
   const utterancesRef = useLatest(utterances);
   const selectedUtteranceRef = useLatest(selectedUtterance);
@@ -939,6 +994,7 @@ export function useAiToolCallHandler({
       utterances: currentUtterances,
       selectedUtterance: currentSelectedUtterance,
       selectedUtteranceMedia: currentSelectedUtteranceMedia,
+      selectedLayerId: selectedLayerIdRef.current,
       transcriptionLayers: currentTranscriptionLayers,
       translationLayers: currentTranslationLayers,
       translationLayersRef,
@@ -969,6 +1025,7 @@ export function useAiToolCallHandler({
       seekToTime,
       splitAtTime,
       zoomToSegment,
+      transformTextForLayerWrite,
     };
 
     const adapter = ADAPTER_MAP[call.name];
@@ -995,6 +1052,7 @@ export function useAiToolCallHandler({
     seekToTime,
     splitAtTime,
     zoomToSegment,
+    transformTextForLayerWrite,
     utterancesRef,
     selectedUtteranceRef,
     selectedUtteranceMediaRef,

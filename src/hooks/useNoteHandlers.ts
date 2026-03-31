@@ -10,6 +10,7 @@ export interface NotePopoverState {
   y: number;
   uttId: string;
   layerId?: string;
+  scope?: 'timeline' | 'waveform';
   noteTarget?: NoteTarget;
 }
 
@@ -42,15 +43,21 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
 
   const [notePopover, setNotePopover] = useState<NotePopoverState | null>(null);
 
+  const resolveTierAnnotationTargetId = useCallback((uttId: string, layerId: string, scope: 'timeline' | 'waveform') => {
+    if (scope === 'waveform') return `${uttId}::${layerId}::@waveform`;
+    return `${uttId}::${layerId}`;
+  }, []);
+
   const noteTarget = useMemo<NoteTarget | null>(
     () => {
       if (!notePopover) return null;
       if (notePopover.noteTarget) return notePopover.noteTarget;
+      const scope = notePopover.scope ?? 'timeline';
       return notePopover.layerId
-        ? { targetType: 'tier_annotation', targetId: `${notePopover.uttId}::${notePopover.layerId}` }
+        ? { targetType: 'tier_annotation', targetId: resolveTierAnnotationTargetId(notePopover.uttId, notePopover.layerId, scope) }
         : { targetType: 'utterance', targetId: notePopover.uttId };
     },
-    [notePopover],
+    [notePopover, resolveTierAnnotationTargetId],
   );
 
   const { notes: currentNotes, addNote, updateNote, deleteNote, version: noteVersion } = useNotes(noteTarget);
@@ -64,11 +71,12 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
     const keys: string[] = [];
     for (const unitId of timelineUnitIds) {
       for (const layerId of allLayerIds) {
-        keys.push(`${unitId}::${layerId}`);
+        keys.push(resolveTierAnnotationTargetId(unitId, layerId, 'timeline'));
+        keys.push(resolveTierAnnotationTargetId(unitId, layerId, 'waveform'));
       }
     }
     return keys;
-  }, [allLayerIds, timelineUnitIds]);
+  }, [allLayerIds, resolveTierAnnotationTargetId, timelineUnitIds]);
 
   const noteCounts = useNoteCounts('tier_annotation', noteCountKeys, noteVersion);
 
@@ -79,23 +87,27 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
     if (notePopover) {
       setNotePopover(null);
     } else if (activeUtteranceUnitId) {
-      setNotePopover({ x: window.innerWidth / 2 - 160, y: window.innerHeight / 3, uttId: activeUtteranceUnitId, layerId: focusedLayerRowId });
+      setNotePopover({ x: window.innerWidth / 2 - 160, y: window.innerHeight / 3, uttId: activeUtteranceUnitId, layerId: focusedLayerRowId, scope: 'timeline' });
     }
   }, [activeUtteranceUnitId, focusedLayerRowId, notePopover]);
 
   const handleNoteClick = useCallback(
     (uttId: string, layerId: string | undefined, e: React.MouseEvent) => {
-      setNotePopover({ x: e.clientX, y: e.clientY, uttId, ...(layerId ? { layerId } : {}) });
+      setNotePopover({ x: e.clientX, y: e.clientY, uttId, ...(layerId ? { layerId } : {}), scope: 'timeline' });
     },
     [],
   );
 
-  const resolveNoteIndicatorTarget = useCallback((unitId: string, layerId?: string) => {
+  const resolveNoteIndicatorTarget = useCallback((unitId: string, layerId?: string, scope: 'timeline' | 'waveform' = 'timeline') => {
     if (layerId) {
-      const layerScopedCount = noteCounts.get(`${unitId}::${layerId}`) ?? 0;
+      const layerScopedCount = noteCounts.get(resolveTierAnnotationTargetId(unitId, layerId, scope)) ?? 0;
       if (layerScopedCount > 0) {
         return { count: layerScopedCount, layerId };
       }
+    }
+
+    if (scope === 'waveform') {
+      return null;
     }
 
     const utteranceScopedCount = uttNoteCounts.get(unitId) ?? 0;
@@ -104,7 +116,7 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
     }
 
     return null;
-  }, [noteCounts, uttNoteCounts]);
+  }, [noteCounts, resolveTierAnnotationTargetId, uttNoteCounts]);
 
   const toCanonicalTokenId = useCallback((utteranceId: string, wordId: string): string => {
     if (wordId.includes('::')) return wordId;

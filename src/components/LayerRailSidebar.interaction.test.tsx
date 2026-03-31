@@ -8,6 +8,10 @@ import { LayerRailSidebar } from './LayerRailSidebar';
 import { SpeakerRailProvider } from '../contexts/SpeakerRailContext';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 
+vi.mock('../hooks/useOrthographies', () => ({
+  useOrthographies: () => [],
+}));
+
 function createLayerActionStub() {
   return {
     layerActionPanel: null,
@@ -117,15 +121,11 @@ function renderSidebar(input?: {
     >
       <LayerRailSidebar
         isCollapsed={false}
-        layerRailTab="layers"
-        onTabChange={vi.fn()}
         layerRailRows={[] as LayerDocType[]}
         focusedLayerRowId=""
         flashLayerRowId=""
         onFocusLayer={vi.fn()}
         transcriptionLayers={[]}
-        translationLayers={[]}
-        layerLinks={[]}
         toggleLayerLink={vi.fn(async () => undefined)}
         deletableLayers={[]}
         layerCreateMessage=""
@@ -147,15 +147,11 @@ function renderSidebar(input?: {
       >
         <LayerRailSidebar
           isCollapsed={false}
-          layerRailTab="layers"
-          onTabChange={vi.fn()}
           layerRailRows={[] as LayerDocType[]}
           focusedLayerRowId=""
           flashLayerRowId=""
           onFocusLayer={vi.fn()}
           transcriptionLayers={[]}
-          translationLayers={[]}
-          layerLinks={[]}
           toggleLayerLink={vi.fn(async () => undefined)}
           deletableLayers={[]}
           layerCreateMessage=""
@@ -257,15 +253,11 @@ function renderSidebarForDeleteFlow(input: {
     >
       <LayerRailSidebar
         isCollapsed={false}
-        layerRailTab="layers"
-        onTabChange={vi.fn()}
         layerRailRows={input.deletableLayers}
         focusedLayerRowId={input.deletableLayers[0]?.id ?? ''}
         flashLayerRowId=""
         onFocusLayer={vi.fn()}
         transcriptionLayers={input.deletableLayers.filter((l) => l.layerType === 'transcription')}
-        translationLayers={input.deletableLayers.filter((l) => l.layerType === 'translation')}
-        layerLinks={[]}
         toggleLayerLink={vi.fn(async () => undefined)}
         deletableLayers={input.deletableLayers}
         layerCreateMessage=""
@@ -282,9 +274,12 @@ function renderSidebarForCreateContextMenuFlow(input: {
   translationLayers: LayerDocType[];
   layerCreateMessage?: string;
   createLayer?: ReturnType<typeof vi.fn>;
+  toggleLayerLink?: ReturnType<typeof vi.fn>;
   onReorderLayers?: (draggedLayerId: string, targetIndex: number) => Promise<void>;
+  focusedLayerRowId?: string;
 }) {
   const onReorderLayers = input.onReorderLayers ?? (async (_draggedLayerId: string, _targetIndex: number) => undefined);
+  const toggleLayerLink = input.toggleLayerLink ?? vi.fn<(transcriptionKey: string, translationId: string) => Promise<void>>(async () => undefined);
   const speakerManagement = {
     speakerOptions: [] as SpeakerDocType[],
     speakerDraftName: '',
@@ -340,16 +335,12 @@ function renderSidebarForCreateContextMenuFlow(input: {
     >
       <LayerRailSidebar
         isCollapsed={false}
-        layerRailTab="layers"
-        onTabChange={vi.fn()}
         layerRailRows={input.layerRows}
-        focusedLayerRowId={input.layerRows[0]?.id ?? ''}
+        focusedLayerRowId={input.focusedLayerRowId ?? input.layerRows[0]?.id ?? ''}
         flashLayerRowId=""
         onFocusLayer={vi.fn()}
         transcriptionLayers={input.transcriptionLayers}
-        translationLayers={input.translationLayers}
-        layerLinks={[]}
-        toggleLayerLink={vi.fn(async () => undefined)}
+        toggleLayerLink={toggleLayerLink}
         deletableLayers={input.layerRows}
         layerCreateMessage={input.layerCreateMessage ?? ''}
         layerAction={layerAction as never}
@@ -376,6 +367,15 @@ function mockLayerRowRect(element: HTMLElement, top: number, height = 20) {
   });
 }
 
+async function clickMoreAction(actionName: string) {
+  fireEvent.click(screen.getByRole('button', { name: /更多/ }));
+  fireEvent.click(await screen.findByRole('button', { name: actionName }));
+}
+
+async function clickCreateAction(actionName: string) {
+  fireEvent.click(screen.getByRole('button', { name: actionName }));
+}
+
 describe('LayerRailSidebar speaker actions interaction', () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -383,10 +383,10 @@ describe('LayerRailSidebar speaker actions interaction', () => {
     vi.restoreAllMocks();
   });
 
-  it('should call speaker callbacks when clicking 改名/合并/删除说话人实体', () => {
+  it('should call speaker callbacks when clicking 改名/合并/删除说话人实体', async () => {
     const { onRenameSpeaker, onMergeSpeaker, onDeleteSpeaker, rerender } = renderSidebar();
 
-    fireEvent.click(screen.getByRole('button', { name: '说话人管理' }));
+    await clickMoreAction('说话人管理');
     rerender();
 
     fireEvent.click(screen.getByRole('button', { name: '改名' }));
@@ -398,7 +398,7 @@ describe('LayerRailSidebar speaker actions interaction', () => {
     expect(onDeleteSpeaker).toHaveBeenCalledWith('spk-1');
   });
 
-  it('shows orphan speaker entities even when current filter list is empty', () => {
+  it('shows orphan speaker entities even when current filter list is empty', async () => {
     const { rerender } = renderSidebar({
       speakerFilterOptions: [],
       speakerReferenceStats: {
@@ -406,7 +406,7 @@ describe('LayerRailSidebar speaker actions interaction', () => {
       },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '说话人管理' }));
+    await clickMoreAction('说话人管理');
     rerender([]);
 
     expect(screen.getByText('说话人实体：1')).toBeTruthy();
@@ -417,14 +417,14 @@ describe('LayerRailSidebar speaker actions interaction', () => {
     expect(screen.getByTitle('删除该说话人实体（危险）')).toBeTruthy();
   });
 
-  it('shows project-wide speaker counts and cleanup action for unused entities', () => {
+  it('shows project-wide speaker counts and cleanup action for unused entities', async () => {
     const { rerender } = renderSidebar({
       speakerReferenceStats: {
         'spk-1': { utteranceCount: 2, segmentCount: 3, totalCount: 5 },
       },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '说话人管理' }));
+    await clickMoreAction('说话人管理');
     rerender();
 
     expect(screen.getByText('全项目已引用：1')).toBeTruthy();
@@ -432,7 +432,7 @@ describe('LayerRailSidebar speaker actions interaction', () => {
     expect(screen.getByText('主轴句段：2 / 独立语段：3')).toBeTruthy();
   });
 
-  it('calls cleanup action for unused speaker entities', () => {
+  it('calls cleanup action for unused speaker entities', async () => {
     const orphanCase = renderSidebar({
       speakerFilterOptions: [],
       speakerReferenceStats: {
@@ -440,14 +440,14 @@ describe('LayerRailSidebar speaker actions interaction', () => {
       },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '说话人管理' }));
+    await clickMoreAction('说话人管理');
     orphanCase.rerender([]);
     fireEvent.click(screen.getByRole('button', { name: '清理未引用实体（1）' }));
 
     expect(orphanCase.onDeleteUnusedSpeakers).toHaveBeenCalled();
   });
 
-  it('separates applying a target speaker from clearing selected speakers', () => {
+  it('separates applying a target speaker from clearing selected speakers', async () => {
     const onAssignSpeakerToSelectedRouted = vi.fn(async () => undefined);
     const onClearSpeakerOnSelectedRouted = vi.fn(async () => undefined);
 
@@ -499,15 +499,11 @@ describe('LayerRailSidebar speaker actions interaction', () => {
         >
           <LayerRailSidebar
             isCollapsed={false}
-            layerRailTab="layers"
-            onTabChange={vi.fn()}
             layerRailRows={[] as LayerDocType[]}
             focusedLayerRowId=""
             flashLayerRowId=""
             onFocusLayer={vi.fn()}
             transcriptionLayers={[]}
-            translationLayers={[]}
-            layerLinks={[]}
             toggleLayerLink={vi.fn(async () => undefined)}
             deletableLayers={[]}
             layerCreateMessage=""
@@ -520,24 +516,24 @@ describe('LayerRailSidebar speaker actions interaction', () => {
 
     render(<StatefulSidebarHost />);
 
-    fireEvent.click(screen.getByRole('button', { name: '说话人管理' }));
+    await clickMoreAction('说话人管理');
     expect(screen.getByRole('button', { name: '清空已选说话人' }).className).toContain('btn-danger');
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'spk-1' } });
     fireEvent.click(screen.getByRole('button', { name: '应用说话人' }));
 
     expect(onAssignSpeakerToSelectedRouted).toHaveBeenCalled();
 
-    return waitFor(() => {
+    await waitFor(() => {
       expect(screen.queryByRole('button', { name: '应用说话人' })).toBeNull();
-    }).then(() => {
-      fireEvent.click(screen.getByRole('button', { name: '说话人管理' }));
-      fireEvent.click(screen.getByRole('button', { name: '清空已选说话人' }));
+    });
 
-      expect(onClearSpeakerOnSelectedRouted).toHaveBeenCalled();
+    await clickMoreAction('说话人管理');
+    fireEvent.click(screen.getByRole('button', { name: '清空已选说话人' }));
 
-      return waitFor(() => {
-        expect(screen.queryByRole('button', { name: '清空已选说话人' })).toBeNull();
-      });
+    expect(onClearSpeakerOnSelectedRouted).toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: '清空已选说话人' })).toBeNull();
     });
   });
 
@@ -589,15 +585,11 @@ describe('LayerRailSidebar speaker actions interaction', () => {
         >
           <LayerRailSidebar
             isCollapsed={false}
-            layerRailTab="layers"
-            onTabChange={vi.fn()}
             layerRailRows={[] as LayerDocType[]}
             focusedLayerRowId=""
             flashLayerRowId=""
             onFocusLayer={vi.fn()}
             transcriptionLayers={[]}
-            translationLayers={[]}
-            layerLinks={[]}
             toggleLayerLink={vi.fn(async () => undefined)}
             deletableLayers={[]}
             layerCreateMessage=""
@@ -610,7 +602,7 @@ describe('LayerRailSidebar speaker actions interaction', () => {
 
     render(<StatefulGroupActionHost />);
 
-    fireEvent.click(screen.getByRole('button', { name: '说话人管理' }));
+    await clickMoreAction('说话人管理');
     fireEvent.click(screen.getByRole('button', { name: '选中' }));
 
     await waitFor(() => {
@@ -704,7 +696,7 @@ describe('LayerRailSidebar speaker actions interaction', () => {
       translationLayers: [trlLayer],
     });
 
-    const layerButton = screen.getByRole('button', { name: /^转写/ });
+    const layerButton = screen.getByRole('button', { name: /中文/ });
     fireEvent.contextMenu(layerButton);
     fireEvent.click(await screen.findByRole('menuitem', { name: '新建转写层' }));
     const transcriptionDialog = await screen.findByRole('dialog', { name: '新建转写层' });
@@ -713,7 +705,7 @@ describe('LayerRailSidebar speaker actions interaction', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '取消' }));
 
-    fireEvent.contextMenu(screen.getByRole('button', { name: /^转写/ }));
+    fireEvent.contextMenu(screen.getByRole('button', { name: /中文/ }));
     fireEvent.click(await screen.findByRole('menuitem', { name: '新建翻译层' }));
     const translationDialog = await screen.findByRole('dialog', { name: '新建翻译层' });
     expect(translationDialog).toBeTruthy();
@@ -758,7 +750,7 @@ describe('LayerRailSidebar speaker actions interaction', () => {
       translationLayers: [],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '新建转写' }));
+    await clickCreateAction('新建转写层');
     const dialog = await screen.findByRole('dialog', { name: '新建转写层' });
     const independentRadio = within(dialog).getByRole('radio', { name: /独立边界/ }) as HTMLInputElement;
     const dependentRadio = within(dialog).getByRole('radio', { name: /依赖边界/ }) as HTMLInputElement;
@@ -811,9 +803,13 @@ describe('LayerRailSidebar speaker actions interaction', () => {
       createLayer,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '新建翻译' }));
+    await clickCreateAction('新建翻译层');
     const dialog = await screen.findByRole('dialog', { name: '新建翻译层' });
     const selects = within(dialog).getAllByRole('combobox');
+    const parentSelect = selects.find((select) => (
+      Array.from((select as HTMLSelectElement).options).some((option) => option.value === 'layer_trc_2')
+    ));
+    expect(parentSelect).toBeTruthy();
 
     fireEvent.change(selects[0]!, { target: { value: 'fra' } });
     fireEvent.click(within(dialog).getByRole('button', { name: '创建' }));
@@ -821,10 +817,12 @@ describe('LayerRailSidebar speaker actions interaction', () => {
     expect(createLayer).not.toHaveBeenCalled();
     expect(within(dialog).getByText(/当前限制：无法新建翻译。请选择依赖层/)).toBeTruthy();
 
-    fireEvent.change(selects[2]!, { target: { value: 'layer_trc_2' } });
+    fireEvent.change(parentSelect as HTMLSelectElement, { target: { value: 'layer_trc_2' } });
     await waitFor(() => {
-      const latestSelects = within(dialog).getAllByRole('combobox');
-      expect((latestSelects[2] as HTMLSelectElement | undefined)?.value).toBe('layer_trc_2');
+      const latestParentSelect = within(dialog)
+        .getAllByRole('combobox')
+        .find((select) => Array.from((select as HTMLSelectElement).options).some((option) => option.value === 'layer_trc_2')) as HTMLSelectElement | undefined;
+      expect(latestParentSelect?.value).toBe('layer_trc_2');
     });
     expect(createLayer).not.toHaveBeenCalled();
   });
@@ -868,7 +866,7 @@ describe('LayerRailSidebar speaker actions interaction', () => {
       createLayer,
     });
 
-    fireEvent.contextMenu(screen.getByRole('button', { name: /转写 · 日语 jpn/ }));
+    fireEvent.contextMenu(screen.getByTitle('转写 · 日语 jpn'));
     fireEvent.click(await screen.findByRole('menuitem', { name: '新建翻译层' }));
 
     const dialog = await screen.findByRole('dialog', { name: '新建翻译层' });
@@ -887,6 +885,72 @@ describe('LayerRailSidebar speaker actions interaction', () => {
         }),
         'text',
       );
+    });
+  });
+
+  it('edits translation parent relation from the current layer inspector', async () => {
+    const now = '2026-03-25T00:00:00.000Z';
+    const trcLayerA = {
+      id: 'layer_trc_1',
+      textId: 'text_1',
+      key: 'trc_zh_1',
+      name: { zho: '转写层甲' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const trcLayerB = {
+      id: 'layer_trc_2',
+      textId: 'text_1',
+      key: 'trc_eng_1',
+      name: { zho: '转写层乙' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const trlLayer = {
+      id: 'layer_trl_1',
+      textId: 'text_1',
+      key: 'trl_fra_1',
+      name: { zho: '翻译层丙' },
+      layerType: 'translation',
+      languageId: 'fra',
+      modality: 'text',
+      acceptsAudio: false,
+      parentLayerId: trcLayerA.id,
+      sortOrder: 2,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+
+    const toggleLayerLink = vi.fn(async () => undefined);
+
+    const view = renderSidebarForCreateContextMenuFlow({
+      layerRows: [trcLayerA, trcLayerB, trlLayer],
+      transcriptionLayers: [trcLayerA, trcLayerB],
+      translationLayers: [trlLayer],
+      toggleLayerLink,
+      focusedLayerRowId: trlLayer.id,
+    });
+
+    const inspector = within(screen.getByLabelText('当前层详情'));
+    expect(view.container.querySelectorAll('.transcription-layer-rail-item-row')).toHaveLength(3);
+    const relationSelect = inspector.getByRole('combobox', { name: '依赖转写层' }) as HTMLSelectElement;
+
+    fireEvent.change(relationSelect, { target: { value: 'trc_eng_1' } });
+
+    await waitFor(() => {
+      expect(toggleLayerLink).toHaveBeenCalledWith('trc_eng_1', 'layer_trl_1');
     });
   });
 
@@ -915,7 +979,7 @@ describe('LayerRailSidebar speaker actions interaction', () => {
       layerCreateMessage: '请选择语言。',
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '新建转写' }));
+    await clickCreateAction('新建转写层');
     const dialog = await screen.findByRole('dialog', { name: '新建转写层' });
 
     fireEvent.change(within(dialog).getByRole('combobox'), { target: { value: 'eng' } });
@@ -983,10 +1047,15 @@ describe('LayerRailSidebar speaker actions interaction', () => {
     });
 
     const rowButtons = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-layer-rail-item'));
+    const rowWrappers = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-layer-rail-item-row'));
     expect(rowButtons).toHaveLength(3);
+    expect(rowWrappers).toHaveLength(3);
     mockLayerRowRect(rowButtons[0]!, 0);
     mockLayerRowRect(rowButtons[1]!, 20);
     mockLayerRowRect(rowButtons[2]!, 40);
+    mockLayerRowRect(rowWrappers[0]!, 0);
+    mockLayerRowRect(rowWrappers[1]!, 20);
+    mockLayerRowRect(rowWrappers[2]!, 40);
 
     const overview = view.container.querySelector('.transcription-layer-rail-overview') as HTMLElement | null;
     expect(overview).toBeTruthy();
@@ -1000,6 +1069,199 @@ describe('LayerRailSidebar speaker actions interaction', () => {
     fireEvent.mouseUp(document, { clientY: 100 });
 
     expect(onReorderLayers).toHaveBeenCalledWith('layer_trc_1', 3);
+  });
+
+  it('commits the last preview drop target even when mouseup snaps near the source row', async () => {
+    vi.useFakeTimers();
+
+    const now = '2026-03-25T00:00:00.000Z';
+    const rootA = {
+      id: 'layer_trc_1',
+      textId: 'text_1',
+      key: 'trc_zh_1',
+      name: { zho: '转写层甲' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const rootB = {
+      id: 'layer_trc_2',
+      textId: 'text_1',
+      key: 'trc_jpn_1',
+      name: { zho: '转写层乙' },
+      layerType: 'transcription',
+      languageId: 'jpn',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const translation = {
+      id: 'layer_trl_1',
+      textId: 'text_1',
+      key: 'trl_fra_1',
+      name: { zho: '翻译层丙' },
+      layerType: 'translation',
+      languageId: 'fra',
+      modality: 'text',
+      acceptsAudio: false,
+      parentLayerId: 'layer_trc_2',
+      sortOrder: 2,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const onReorderLayers = vi.fn(async () => undefined);
+
+    const view = renderSidebarForCreateContextMenuFlow({
+      layerRows: [rootA, rootB, translation],
+      transcriptionLayers: [rootA, rootB],
+      translationLayers: [translation],
+      onReorderLayers,
+    });
+
+    const rowButtons = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-layer-rail-item'));
+    const rowWrappers = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-layer-rail-item-row'));
+    expect(rowButtons).toHaveLength(3);
+    expect(rowWrappers).toHaveLength(3);
+    mockLayerRowRect(rowButtons[0]!, 0);
+    mockLayerRowRect(rowButtons[1]!, 20);
+    mockLayerRowRect(rowButtons[2]!, 40);
+    mockLayerRowRect(rowWrappers[0]!, 0);
+    mockLayerRowRect(rowWrappers[1]!, 20);
+    mockLayerRowRect(rowWrappers[2]!, 40);
+
+    const overview = view.container.querySelector('.transcription-layer-rail-overview') as HTMLElement | null;
+    expect(overview).toBeTruthy();
+
+    fireEvent.mouseDown(rowButtons[0]!);
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+
+    // 先移动到底部，形成明确的目标落点（index=3）。
+    fireEvent.mouseMove(overview!, { clientY: 100 });
+    // 抬手位置回到源行附近，不能覆盖掉最后一次预览落点。
+    fireEvent.mouseUp(document, { clientY: 2 });
+
+    expect(onReorderLayers).toHaveBeenCalledWith('layer_trc_1', 3);
+  });
+
+  it('reparents dependent drag when dropping below target root row', async () => {
+    vi.useFakeTimers();
+
+    const now = '2026-03-25T00:00:00.000Z';
+    const rootA = {
+      id: 'layer_trc_1',
+      textId: 'text_1',
+      key: 'trc_zh_1',
+      name: { zho: '转写层甲' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const translationA = {
+      id: 'layer_trl_1',
+      textId: 'text_1',
+      key: 'trl_fra_1',
+      name: { zho: '翻译层甲' },
+      layerType: 'translation',
+      languageId: 'fra',
+      modality: 'text',
+      acceptsAudio: false,
+      parentLayerId: rootA.id,
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const rootB = {
+      id: 'layer_trc_2',
+      textId: 'text_1',
+      key: 'trc_jpn_1',
+      name: { zho: '转写层乙' },
+      layerType: 'transcription',
+      languageId: 'jpn',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 2,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const rootC = {
+      id: 'layer_trc_3',
+      textId: 'text_1',
+      key: 'trc_eng_1',
+      name: { zho: '转写层丙' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 3,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const onReorderLayers = vi.fn(async () => undefined);
+
+    const view = renderSidebarForCreateContextMenuFlow({
+      layerRows: [rootA, translationA, rootB, rootC],
+      transcriptionLayers: [rootA, rootB, rootC],
+      translationLayers: [translationA],
+      onReorderLayers,
+    });
+
+    const rowButtons = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-layer-rail-item'));
+    const rowWrappers = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-layer-rail-item-row'));
+    expect(rowButtons).toHaveLength(4);
+    expect(rowWrappers).toHaveLength(4);
+    mockLayerRowRect(rowButtons[0]!, 0);
+    mockLayerRowRect(rowButtons[1]!, 20);
+    mockLayerRowRect(rowButtons[2]!, 40);
+    mockLayerRowRect(rowButtons[3]!, 60);
+    mockLayerRowRect(rowWrappers[0]!, 0);
+    mockLayerRowRect(rowWrappers[1]!, 20);
+    mockLayerRowRect(rowWrappers[2]!, 40);
+    mockLayerRowRect(rowWrappers[3]!, 60);
+
+    const overview = view.container.querySelector('.transcription-layer-rail-overview') as HTMLElement | null;
+    expect(overview).toBeTruthy();
+
+    fireEvent.mouseDown(rowButtons[1]!, { clientY: 28 });
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+
+    const activeRowButtons = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-layer-rail-item'));
+    const activeRowWrappers = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-layer-rail-item-row'));
+    expect(activeRowButtons).toHaveLength(4);
+    expect(activeRowWrappers).toHaveLength(4);
+    mockLayerRowRect(activeRowButtons[0]!, 0);
+    mockLayerRowRect(activeRowButtons[1]!, 20);
+    mockLayerRowRect(activeRowButtons[2]!, 40);
+    mockLayerRowRect(activeRowButtons[3]!, 60);
+    mockLayerRowRect(activeRowWrappers[0]!, 0);
+    mockLayerRowRect(activeRowWrappers[1]!, 20);
+    mockLayerRowRect(activeRowWrappers[2]!, 40);
+    mockLayerRowRect(activeRowWrappers[3]!, 60);
+
+    // 光标放在目标根层 rootB 的下半区（过去这里会偏向下一根层）。
+    fireEvent.mouseMove(overview!, { clientY: 55 });
+    fireEvent.mouseUp(document, { clientY: 55 });
+
+    // UI 提交边界落点，实际父层归位由 resolveLayerDrop 在服务层收敛。
+    expect(onReorderLayers).toHaveBeenCalledWith('layer_trl_1', 3);
   });
 
   it('drags a root bundle together with its dependent rows in the rail preview', async () => {
@@ -1203,7 +1465,7 @@ describe('LayerRailSidebar speaker actions interaction', () => {
       translationLayers: [trlLayer],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '约束修复' }));
+    await clickMoreAction('约束修复');
 
     await waitFor(() => {
       expect(updateLayerSpy).toHaveBeenCalled();

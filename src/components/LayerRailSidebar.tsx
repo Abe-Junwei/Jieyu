@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useMemo, useRef, memo, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import type { LayerLinkDocType, LayerDocType } from '../db';
+import type { LayerDocType } from '../db';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
 import { resolveVerticalReorderTargetIndex, type VerticalDragDirection } from '../utils/dragReorder';
-import { formatLayerRailLabel } from '../utils/transcriptionFormatters';
+import { buildLayerDropIntent, type LayerDropIntent } from '../utils/layerDragDropModel';
+import { formatLayerRailLabel, getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { LayerActionPopover } from './LayerActionPopover';
@@ -14,6 +15,7 @@ import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import {
   type ExistingLayerConstraintIssue,
   type ExistingLayerConstraintRepair,
+  listIndependentBoundaryTranscriptionLayers,
   repairExistingLayerConstraints,
   validateExistingLayerConstraints,
 } from '../services/LayerConstraintService';
@@ -29,6 +31,8 @@ import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
 
+type RailActionMenuKind = 'create' | 'more' | null;
+
 function getLayerEffectiveConstraint(layer: LayerDocType): NonNullable<LayerDocType['constraint']> {
   return layer.constraint ?? (layer.layerType === 'translation' ? 'symbolic_association' : 'independent_boundary');
 }
@@ -37,17 +41,26 @@ function normalizeSpeakerName(value: string): string {
   return value.trim().toLocaleLowerCase('zh-Hans-CN');
 }
 
+function formatConstraintLabel(layer: LayerDocType): string {
+  const constraint = getLayerEffectiveConstraint(layer);
+  switch (constraint) {
+    case 'independent_boundary':
+      return '独立边界';
+    case 'time_subdivision':
+      return '时间细分';
+    case 'symbolic_association':
+    default:
+      return '符号关联';
+  }
+}
+
 interface LayerRailSidebarProps {
   isCollapsed: boolean;
-  layerRailTab: 'layers' | 'links';
-  onTabChange: (tab: 'layers' | 'links') => void;
   layerRailRows: LayerDocType[];
   focusedLayerRowId: string;
   flashLayerRowId: string;
   onFocusLayer: (id: string) => void;
   transcriptionLayers: LayerDocType[];
-  translationLayers: LayerDocType[];
-  layerLinks: LayerLinkDocType[];
   toggleLayerLink: (transcriptionKey: string, translationId: string) => Promise<void>;
   deletableLayers: LayerDocType[];
   layerCreateMessage: string;
@@ -261,15 +274,11 @@ function LayerRailActionModal({ ariaLabel, children, onClose, className }: Layer
 
 export function LayerRailSidebar({
   isCollapsed,
-  layerRailTab,
-  onTabChange,
   layerRailRows,
   focusedLayerRowId,
   flashLayerRowId,
   onFocusLayer,
   transcriptionLayers,
-  translationLayers,
-  layerLinks,
   toggleLayerLink,
   deletableLayers,
   layerCreateMessage,
@@ -295,6 +304,7 @@ export function LayerRailSidebar({
     action: 'create-transcription' | 'create-translation';
     layerId?: string;
   } | null>(null);
+  const [railActionMenu, setRailActionMenu] = useState<RailActionMenuKind>(null);
 
   // 兼容外部入口（如空状态按钮）通过 layerActionPanel 触发创建弹层
   // Bridge external create requests (e.g. timeline empty-state button) to the unified popover.
@@ -305,8 +315,38 @@ export function LayerRailSidebar({
     setCreateLayerPopoverAction({
       action: layerActionPanel,
     });
+    setRailActionMenu(null);
     setLayerActionPanel(null);
   }, [layerActionPanel, setLayerActionPanel]);
+
+  useEffect(() => {
+    if (!createLayerPopoverAction && layerActionPanel === null) return;
+    setRailActionMenu(null);
+  }, [createLayerPopoverAction, layerActionPanel]);
+
+  useEffect(() => {
+    if (railActionMenu === null) return undefined;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const root = layerActionRootRef.current;
+      if (!root) return;
+      if (root.contains(event.target as Node)) return;
+      setRailActionMenu(null);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setRailActionMenu(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [layerActionRootRef, railActionMenu]);
 
   const {
     deleteLayerConfirm,
@@ -328,6 +368,22 @@ export function LayerRailSidebar({
     setContextMenu({ x: e.clientX, y: e.clientY, layerId });
     onFocusLayer(layerId);
   };
+
+  const openCreateLayerPopover = useCallback((action: 'create-transcription' | 'create-translation', layerId?: string) => {
+    setRailActionMenu(null);
+    setLayerActionPanel(null);
+    setCreateLayerPopoverAction({ action, ...(layerId ? { layerId } : {}) });
+  }, [setLayerActionPanel]);
+
+  const openDeletePanelForLayer = useCallback((layerId: string) => {
+    setRailActionMenu(null);
+    setQuickDeleteLayerId(layerId);
+    setLayerActionPanel('delete');
+  }, [setLayerActionPanel, setQuickDeleteLayerId]);
+
+  const handleChangeLayerParent = useCallback((transcriptionKey: string, translationId: string) => {
+    fireAndForget(toggleLayerLink(transcriptionKey, translationId));
+  }, [toggleLayerLink]);
 
   // ── Drag-and-drop state ──
   const [dragState, setDragState] = useState<{
@@ -351,6 +407,7 @@ export function LayerRailSidebar({
   const layerRailOverviewRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<typeof dragState>(null);
   const dropTargetIndexRef = useRef<number | null>(null);
+  const dropIntentRef = useRef<LayerDropIntent | null>(null);
   const draggedRailRowsRef = useRef<HTMLElement[]>([]);
   const dragStartClientYRef = useRef<number | null>(null);
   const dragLastClientYRef = useRef<number | null>(null);
@@ -377,10 +434,32 @@ export function LayerRailSidebar({
     };
   }, [layerRailRows]);
   const disableCreateTranslationEntry = transcriptionLayers.length === 0;
+  const focusedLayer = useMemo(
+    () => layerRailRows.find((layer) => layer.id === focusedLayerRowId) ?? null,
+    [focusedLayerRowId, layerRailRows],
+  );
+  const independentRootLayers = useMemo(
+    () => listIndependentBoundaryTranscriptionLayers(layerRailRows),
+    [layerRailRows],
+  );
+  const layerKeyById = useMemo(
+    () => new Map(layerRailRows.map((layer) => [layer.id, layer.key] as const)),
+    [layerRailRows],
+  );
   const layerLabelById = useMemo(
     () => new Map(layerRailRows.map((layer) => [layer.id, formatLayerRailLabel(layer)] as const)),
     [layerRailRows],
   );
+  const focusedLayerParentKey = useMemo(() => {
+    if (!focusedLayer?.parentLayerId) return '';
+    return layerKeyById.get(focusedLayer.parentLayerId) ?? '';
+  }, [focusedLayer, layerKeyById]);
+  const focusedLayerParentLabel = useMemo(() => {
+    if (!focusedLayer?.parentLayerId) return '';
+    return layerLabelById.get(focusedLayer.parentLayerId) ?? '';
+  }, [focusedLayer, layerLabelById]);
+  const canEditFocusedLayerParent = focusedLayer?.layerType === 'translation'
+    && independentRootLayers.length > 0;
   const groupedConstraintRepairDetails = useMemo(() => {
     if (!constraintRepairDetails) return [] as Array<{
       layerId: string;
@@ -611,7 +690,7 @@ export function LayerRailSidebar({
     const activeDrag = dragStateRef.current;
     if (!activeDrag) return null;
 
-    const items = Array.from(overview.querySelectorAll<HTMLElement>('.transcription-layer-rail-item'));
+    const items = Array.from(overview.querySelectorAll<HTMLElement>('.transcription-layer-rail-item-row'));
     let targetIndex = resolveVerticalReorderTargetIndex(
       items.map((item) => item.getBoundingClientRect()),
       clientY,
@@ -633,6 +712,49 @@ export function LayerRailSidebar({
     return targetIndex;
   }, [bundleBoundaryIndexes, bundleRootIds, layerRailRows.length]);
 
+  const resolveRailDropTargetIndexForActiveDrag = useCallback((
+    clientY: number,
+    activeDrag: { draggedId: string; sourceIndex: number; sourceSpan: number },
+  ): LayerDropIntent | null => {
+    const baseTargetIndex = resolveRailDropTargetIndex(clientY);
+    if (baseTargetIndex === null) return null;
+
+    const overview = layerRailOverviewRef.current;
+    if (!overview) {
+      return buildLayerDropIntent({
+        draggedId: activeDrag.draggedId,
+        sourceIndex: activeDrag.sourceIndex,
+        sourceSpan: activeDrag.sourceSpan,
+        baseTargetIndex,
+        rowCount: layerRailRows.length,
+        bundleRanges,
+        isRootBundleDrag: bundleRootIds.has(activeDrag.draggedId),
+      });
+    }
+    const rows = Array.from(overview.querySelectorAll<HTMLElement>('.transcription-layer-rail-item-row'));
+    if (rows.length === 0) {
+      return buildLayerDropIntent({
+        draggedId: activeDrag.draggedId,
+        sourceIndex: activeDrag.sourceIndex,
+        sourceSpan: activeDrag.sourceSpan,
+        baseTargetIndex,
+        rowCount: layerRailRows.length,
+        bundleRanges,
+        isRootBundleDrag: bundleRootIds.has(activeDrag.draggedId),
+      });
+    }
+
+    return buildLayerDropIntent({
+      draggedId: activeDrag.draggedId,
+      sourceIndex: activeDrag.sourceIndex,
+      sourceSpan: activeDrag.sourceSpan,
+      baseTargetIndex,
+      rowCount: rows.length,
+      bundleRanges,
+      isRootBundleDrag: bundleRootIds.has(activeDrag.draggedId),
+    });
+  }, [bundleRanges, bundleRootIds, layerRailRows, resolveRailDropTargetIndex]);
+
   const resolveTargetBundleRange = useCallback((draggedId: string, dropIndex: number) => {
     if (!bundleRootIds.has(draggedId)) return null;
     if (!bundleBoundaryIndexes.includes(dropIndex)) return null;
@@ -650,10 +772,18 @@ export function LayerRailSidebar({
       updateRailDragVisual(clientY);
     }
 
-    const resolvedTarget = typeof clientY === 'number'
-      ? resolveRailDropTargetIndex(clientY)
+    const resolvedIntent = (typeof clientY === 'number' && activeDrag)
+      ? resolveRailDropTargetIndexForActiveDrag(clientY, activeDrag)
       : null;
-    const finalTarget = resolvedTarget ?? dropTargetIndexRef.current;
+    const resolvedTarget = resolvedIntent?.previewIndex ?? null;
+    const previewTarget = dropIntentRef.current?.previewIndex ?? dropTargetIndexRef.current;
+    let finalTarget = resolvedTarget ?? previewTarget;
+    if (activeDrag && resolvedTarget !== null && previewTarget !== null) {
+      // Keep the last preview target when mouseup jitters back to source row.
+      if (resolvedTarget === activeDrag.sourceIndex && previewTarget !== activeDrag.sourceIndex) {
+        finalTarget = previewTarget;
+      }
+    }
 
     if (activeDrag && finalTarget !== null && finalTarget !== activeDrag.sourceIndex) {
       fireAndForget(onReorderLayers(activeDrag.draggedId, finalTarget));
@@ -665,13 +795,28 @@ export function LayerRailSidebar({
     dragStartClientYRef.current = null;
     dragLastClientYRef.current = null;
     dragDirectionRef.current = 'none';
+    dropIntentRef.current = null;
     setDragState(null);
     setDropTargetIndex(null);
-  }, [clearRailBoundaryHighlightVisual, clearRailDragVisual, clearRailShiftVisual, onReorderLayers, resolveRailDropTargetIndex, updateRailDragDirection, updateRailDragVisual]);
+  }, [clearRailBoundaryHighlightVisual, clearRailDragVisual, clearRailShiftVisual, onReorderLayers, resolveRailDropTargetIndexForActiveDrag, updateRailDragDirection, updateRailDragVisual]);
 
   const handleDragStart = (e: React.MouseEvent, layer: LayerDocType) => {
-    // Long press (500ms) to start drag - use timer instead of mousedown/mouseup
-    const timer = setTimeout(() => {
+    // 长按 200ms 启动拖拽 | Long press (200ms) to start drag
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    dropIntentRef.current = null;
+    const cancelPendingDragStart = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      dragLastClientYRef.current = null;
+      dragDirectionRef.current = 'none';
+      dropIntentRef.current = null;
+      document.removeEventListener('mouseup', cancelPendingDragStart);
+    };
+
+    timer = setTimeout(() => {
+      timer = null;
       const currentIndex = layerRailRows.findIndex((l) => l.id === layer.id);
       const draggedLayerIds = resolveLayerDragGroup(layerRailRows, layer.id);
       const sourceSpan = draggedLayerIds.length;
@@ -679,6 +824,9 @@ export function LayerRailSidebar({
       dragStartClientYRef.current = e.clientY;
       dragLastClientYRef.current = e.clientY;
       dragDirectionRef.current = 'none';
+      // 全局 grabbing 光标 | Global grabbing cursor
+      document.body.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
       setDragState({
         draggedId: layer.id,
         draggedLayerIds,
@@ -687,17 +835,13 @@ export function LayerRailSidebar({
         sourceType: layer.layerType,
       });
       setDropTargetIndex(currentIndex);
+      dropTargetIndexRef.current = currentIndex;
+      dropIntentRef.current = null;
       updateRailBoundaryHighlightVisual(layer.id, currentIndex, currentIndex);
-    }, 500);
+      document.removeEventListener('mouseup', cancelPendingDragStart);
+    }, 200);
 
-    const cleanup = () => clearTimeout(timer);
-    const handleMouseUp = () => {
-      cleanup();
-      dragLastClientYRef.current = null;
-      dragDirectionRef.current = 'none';
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('mouseup', cancelPendingDragStart);
   };
 
   useEffect(() => {
@@ -706,8 +850,11 @@ export function LayerRailSidebar({
     const handleDocumentMouseMove = (event: MouseEvent) => {
       updateRailDragDirection(event.clientY);
       updateRailDragVisual(event.clientY);
-      const next = resolveRailDropTargetIndex(event.clientY);
-      if (next !== null) {
+      const nextIntent = resolveRailDropTargetIndexForActiveDrag(event.clientY, dragState);
+      if (nextIntent !== null) {
+        dropIntentRef.current = nextIntent;
+        const next = nextIntent.previewIndex;
+        dropTargetIndexRef.current = next;
         setDropTargetIndex(next);
         updateRailShiftVisual(dragState.sourceIndex, dragState.sourceSpan, next);
         updateRailBoundaryHighlightVisual(dragState.draggedId, dragState.sourceIndex, next);
@@ -725,18 +872,22 @@ export function LayerRailSidebar({
       clearRailDragVisual();
       clearRailShiftVisual();
       clearRailBoundaryHighlightVisual();
+      dropIntentRef.current = null;
       document.removeEventListener('mousemove', handleDocumentMouseMove);
       document.removeEventListener('mouseup', handleDocumentMouseUp);
     };
-  }, [clearRailBoundaryHighlightVisual, clearRailDragVisual, clearRailShiftVisual, commitRailDragReorder, dragState, resolveRailDropTargetIndex, updateRailBoundaryHighlightVisual, updateRailDragDirection, updateRailDragVisual, updateRailShiftVisual]);
+  }, [clearRailBoundaryHighlightVisual, clearRailDragVisual, clearRailShiftVisual, commitRailDragReorder, dragState, resolveRailDropTargetIndexForActiveDrag, updateRailBoundaryHighlightVisual, updateRailDragDirection, updateRailDragVisual, updateRailShiftVisual]);
 
   useEffect(() => () => {
     clearRailDragVisual();
     clearRailShiftVisual();
     clearRailBoundaryHighlightVisual();
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
     dragStartClientYRef.current = null;
     dragLastClientYRef.current = null;
     dragDirectionRef.current = 'none';
+    dropIntentRef.current = null;
   }, [clearRailBoundaryHighlightVisual, clearRailDragVisual, clearRailShiftVisual]);
 
   const contextMenuItems: ContextMenuItem[] = contextMenu ? [
@@ -744,8 +895,7 @@ export function LayerRailSidebar({
       label: '新建转写层',
       onClick: () => {
         setContextMenu(null);
-        setLayerActionPanel(null);
-        setCreateLayerPopoverAction({ action: 'create-transcription', layerId: contextMenu.layerId });
+        openCreateLayerPopover('create-transcription', contextMenu.layerId);
       },
     },
     {
@@ -753,8 +903,7 @@ export function LayerRailSidebar({
       disabled: disableCreateTranslationEntry,
       onClick: () => {
         setContextMenu(null);
-        setLayerActionPanel(null);
-        setCreateLayerPopoverAction({ action: 'create-translation', layerId: contextMenu.layerId });
+        openCreateLayerPopover('create-translation', contextMenu.layerId);
       },
     },
     {
@@ -1074,9 +1223,11 @@ export function LayerRailSidebar({
     dropTargetIndex,
     boundaryHighlight,
     bundleTargetHighlighted,
+    parentLabel,
     onFocusLayer,
     onContextMenu,
     onMouseDown,
+    onKeyboardReorder,
   }: {
     layer: LayerDocType;
     index: number;
@@ -1086,15 +1237,20 @@ export function LayerRailSidebar({
     dropTargetIndex: number | null;
     boundaryHighlight: 'top' | 'bottom' | null;
     bundleTargetHighlighted: boolean;
+    parentLabel: string;
     onFocusLayer: (id: string) => void;
     onContextMenu: (e: React.MouseEvent, layerId: string) => void;
     onMouseDown: (e: React.MouseEvent, layer: LayerDocType) => void;
+    onKeyboardReorder: (layerId: string, currentIndex: number, direction: 'up' | 'down') => void;
   }) {
     const layerLabel = formatLayerRailLabel(layer);
+    const labelParts = getLayerLabelParts(layer);
     const isActiveLayer = layer.id === focusedLayerRowId;
     const isFlashLayer = layer.id === flashLayerRowId;
     const isDragged = dragState?.draggedLayerIds.includes(layer.id) ?? false;
     const showDropIndicator = dropTargetIndex === index && !isDragged;
+    const isTranslationLayer = layer.layerType === 'translation';
+    const hasDependency = Boolean(parentLabel);
 
     return (
       <div
@@ -1108,35 +1264,53 @@ export function LayerRailSidebar({
         style={{ position: 'relative' }}
       >
         {showDropIndicator && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '2px',
-              backgroundColor: 'var(--color-primary, #3b82f6)',
-              zIndex: 1,
-            }}
-          />
+          <div className="transcription-layer-rail-drop-indicator" />
         )}
         <button
           type="button"
-          className={`transcription-layer-rail-item ${isActiveLayer ? 'transcription-layer-rail-item-active' : ''} ${isFlashLayer ? 'transcription-layer-rail-item-flash' : ''} ${isDragged ? 'transcription-layer-rail-item-dragging' : ''}`}
+          className={`transcription-layer-rail-item ${isActiveLayer ? 'transcription-layer-rail-item-active' : ''} ${isFlashLayer ? 'transcription-layer-rail-item-flash' : ''} ${isDragged ? 'transcription-layer-rail-item-dragging' : ''} ${isTranslationLayer ? 'transcription-layer-rail-item-translation' : 'transcription-layer-rail-item-transcription'} ${hasDependency ? 'transcription-layer-rail-item-dependent' : ''}`}
           onClick={() => !dragState && onFocusLayer(layer.id)}
           onContextMenu={(e) => onContextMenu(e, layer.id)}
           onMouseDown={(e) => !dragState && onMouseDown(e, layer)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+              e.preventDefault();
+              onKeyboardReorder(layer.id, index, e.key === 'ArrowUp' ? 'up' : 'down');
+            }
+          }}
           title={layerLabel}
+          aria-roledescription="可拖拽层"
         >
-          <strong>{layerLabel}</strong>
+          <span className="transcription-layer-rail-item-drag-handle" aria-hidden="true">⠇</span>
+          <span className="transcription-layer-rail-item-chip" aria-hidden="true">
+            {isTranslationLayer ? '译' : '写'}
+          </span>
+          <span className="transcription-layer-rail-item-label">
+            <strong className="transcription-layer-rail-item-type">{labelParts.lang}</strong>
+            {labelParts.alias ? <span className="transcription-layer-rail-item-alias">{labelParts.alias}</span> : null}
+          </span>
         </button>
       </div>
     );
   });
 
+  // 键盘拖拽：Arrow Up/Down 直接提交重排 | Keyboard reorder: commit on each arrow press
+  const handleKeyboardReorder = useCallback((layerId: string, currentIndex: number, direction: 'up' | 'down') => {
+    if (dragState) return; // 鼠标拖拽进行中时忽略键盘 | Ignore while mouse drag is active
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= layerRailRows.length) return;
+    fireAndForget(onReorderLayers(layerId, targetIndex));
+  }, [dragState, layerRailRows.length, onReorderLayers]);
+
   const renderLayerRailItems = () => {
     if (layerRailRows.length === 0) {
-      return <span className="transcription-layer-rail-empty">暂无层</span>;
+      return (
+        <div className="transcription-layer-rail-empty">
+          <span className="transcription-layer-rail-empty-icon">📂</span>
+          <span>暂无层，点击下方按钮新建</span>
+          <span className="transcription-layer-rail-empty-hint">↓</span>
+        </div>
+      );
     }
     const targetBundleRange = dragState && dropTargetIndex !== null
       ? resolveTargetBundleRange(dragState.draggedId, dropTargetIndex)
@@ -1157,140 +1331,161 @@ export function LayerRailSidebar({
         dropTargetIndex={dropTargetIndex}
         boundaryHighlight={bundleBoundaryHighlight?.index === index ? bundleBoundaryHighlight.position : null}
         bundleTargetHighlighted={Boolean(targetBundleRange && index >= targetBundleRange.start && index < targetBundleRange.end)}
+        parentLabel={layer.parentLayerId ? (layerLabelById.get(layer.parentLayerId) ?? '') : ''}
         onFocusLayer={onFocusLayer}
         onContextMenu={handleLayerContextMenu}
         onMouseDown={handleDragStart}
+        onKeyboardReorder={handleKeyboardReorder}
       />
     ));
+  };
+
+  const renderFocusedLayerInspector = () => {
+    if (!focusedLayer) {
+      return (
+        <section className="transcription-layer-rail-inspector" aria-label="当前层详情">
+          <div className="transcription-layer-rail-inspector-empty">请选择一个层查看详情。</div>
+        </section>
+      );
+    }
+
+    const labelParts = getLayerLabelParts(focusedLayer);
+    const canDeleteFocusedLayer = deletableLayers.some((layer) => layer.id === focusedLayer.id);
+    const hasValidFocusedParent = Boolean(focusedLayerParentKey)
+      && independentRootLayers.some((candidateLayer) => candidateLayer.key === focusedLayerParentKey);
+
+    return (
+      <section className="transcription-layer-rail-inspector" aria-label="当前层详情">
+        <div className="transcription-layer-rail-inspector-header">
+          <span className="transcription-layer-rail-inspector-chip" data-layer-type={focusedLayer.layerType}>
+            {focusedLayer.layerType === 'translation' ? '译' : '写'}
+          </span>
+          <span className="transcription-layer-rail-inspector-title">{formatLayerRailLabel(focusedLayer)}</span>
+          <button
+            type="button"
+            className="transcription-layer-rail-inspector-del-btn"
+            disabled={!canDeleteFocusedLayer}
+            onClick={() => openDeletePanelForLayer(focusedLayer.id)}
+            title="删除当前层"
+            aria-label="删除当前层"
+          >
+            ✕
+          </button>
+        </div>
+        <dl className="transcription-layer-rail-inspector-props">
+          <div><dt>语言</dt><dd>{labelParts.lang}</dd></div>
+          <div><dt>约束</dt><dd>{formatConstraintLabel(focusedLayer)}</dd></div>
+          {labelParts.alias ? <div><dt>别名</dt><dd>{labelParts.alias}</dd></div> : null}
+          {canEditFocusedLayerParent ? (
+            <div>
+              <dt>依赖转写层</dt>
+              <dd>
+                <select
+                  aria-label="依赖转写层"
+                  className="transcription-layer-rail-inspector-select"
+                  value={hasValidFocusedParent ? focusedLayerParentKey : ''}
+                  onChange={(event) => {
+                    const nextParentKey = event.target.value;
+                    if (!nextParentKey) return;
+                    handleChangeLayerParent(nextParentKey, focusedLayer.id);
+                  }}
+                >
+                  <option value="" disabled>
+                    请选择
+                  </option>
+                  {independentRootLayers.map((trc) => (
+                    <option key={`focused-${focusedLayer.id}-${trc.id}`} value={trc.key}>
+                      {formatLayerRailLabel(trc)}
+                    </option>
+                  ))}
+                </select>
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+        {focusedLayer.layerType === 'translation' && independentRootLayers.length === 0 ? (
+          <div className="transcription-layer-rail-inspector-note">暂无可用的独立转写层可供绑定。</div>
+        ) : null}
+      </section>
+    );
   };
 
   return (
     <LayerRailProvider deletableLayers={deletableLayers} checkLayerHasContent={checkLayerHasContent} deleteLayer={deleteLayer} deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}>
     <aside className={`transcription-layer-rail ${isCollapsed ? 'transcription-layer-rail-collapsed' : ''}`} aria-label="文本区层滚动栏">
-      {/* Tab 切换栏 | Tab bar */}
-      <div className="transcription-layer-rail-tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={layerRailTab === 'layers'}
-          className={`transcription-layer-rail-tab ${layerRailTab === 'layers' ? 'transcription-layer-rail-tab-active' : ''}`}
-          onClick={() => onTabChange('layers')}
-        >
-          层列表
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={layerRailTab === 'links'}
-          className={`transcription-layer-rail-tab ${layerRailTab === 'links' ? 'transcription-layer-rail-tab-active' : ''}`}
-          onClick={() => onTabChange('links')}
-        >
-          链接
-        </button>
-      </div>
-
-      {/* 层列表视图 | Layer list view */}
-      {layerRailTab === 'layers' && (
       <div
         ref={layerRailOverviewRef}
         className="transcription-layer-rail-overview"
       >
         {renderLayerRailItems()}
+        {renderFocusedLayerInspector()}
       </div>
-      )}
-
-      {/* 链接关系视图 | Links view */}
-      {layerRailTab === 'links' && (
-      <div className="transcription-layer-rail-overview transcription-layer-rail-links">
-        {transcriptionLayers.length > 0 ? (
-          transcriptionLayers.map((trc) => {
-            const trcLabel = formatLayerRailLabel(trc);
-            return (
-              <div key={trc.id} className="transcription-layer-rail-link-group">
-                <div className="transcription-layer-rail-link-header" title={trc.key}>
-                  <strong>{trcLabel}</strong>
-                </div>
-                {translationLayers.length > 0 ? (
-                  translationLayers.map((trl) => {
-                    const isLinked = layerLinks.some(
-                      (link) => link.transcriptionLayerKey === trc.key && link.layerId === trl.id,
-                    );
-                    const trlLabel = formatLayerRailLabel(trl);
-                    return (
-                      <label key={trl.id} className="transcription-layer-rail-link-item" title={trl.key}>
-                        <input
-                          type="checkbox"
-                          checked={isLinked}
-                          onChange={() => { fireAndForget(toggleLayerLink(trc.key, trl.id)); }}
-                        />
-                        <span>{trlLabel}</span>
-                      </label>
-                    );
-                  })
-                ) : (
-                  <span className="transcription-layer-rail-empty">暂无翻译层</span>
-                )}
-              </div>
-            );
-          })
-        ) : (
-          <span className="transcription-layer-rail-empty">暂无转写层</span>
-        )}
-      </div>
-      )}
       <div className="transcription-layer-rail-actions" aria-label="层管理快捷操作" ref={layerActionRootRef}>
         <button
           type="button"
-          className={`transcription-layer-rail-action-btn ${layerActionPanel === 'speaker-management' ? 'transcription-layer-rail-action-btn-active' : ''}`}
-          onClick={() => setLayerActionPanel((prev) => (prev === 'speaker-management' ? null : 'speaker-management'))}
-        >
-          <strong>说话人管理</strong>
-        </button>
-        <button
-          type="button"
-          className={`transcription-layer-rail-action-btn ${createLayerPopoverAction?.action === 'create-transcription' ? 'transcription-layer-rail-action-btn-active' : ''}`}
+          className="transcription-layer-rail-action-btn"
           onClick={() => {
-            setLayerActionPanel(null);
-            setCreateLayerPopoverAction((prev) => (
-              prev?.action === 'create-transcription'
-                ? null
-                : { action: 'create-transcription' }
-            ));
+            setRailActionMenu(null);
+            openCreateLayerPopover('create-transcription');
           }}
         >
-          <strong>新建转写</strong>
-        </button>
-        <button
-          type="button"
-          className={`transcription-layer-rail-action-btn ${createLayerPopoverAction?.action === 'create-translation' ? 'transcription-layer-rail-action-btn-active' : ''}`}
-          disabled={disableCreateTranslationEntry}
-          onClick={() => {
-            setLayerActionPanel(null);
-            setCreateLayerPopoverAction((prev) => (
-              prev?.action === 'create-translation'
-                ? null
-                : { action: 'create-translation' }
-            ));
-          }}
-        >
-          <strong>新建翻译</strong>
-        </button>
-        <button
-          type="button"
-          className={`transcription-layer-rail-action-btn transcription-layer-rail-action-btn-danger ${layerActionPanel === 'delete' ? 'transcription-layer-rail-action-btn-active' : ''}`}
-          disabled={!focusedLayerRowId || deletableLayers.length === 0}
-          onClick={() => setLayerActionPanel((prev) => (prev === 'delete' ? null : 'delete'))}
-        >
-          <strong>删除</strong>
+          <span className="transcription-layer-rail-action-icon" aria-hidden="true">✏️</span><strong>新建转写层</strong>
         </button>
         <button
           type="button"
           className="transcription-layer-rail-action-btn"
-          disabled={constraintRepairBusy || layerRailRows.length === 0}
-          onClick={() => { fireAndForget(handleRepairLayerConstraints()); }}
+          disabled={disableCreateTranslationEntry}
+          onClick={() => {
+            setRailActionMenu(null);
+            openCreateLayerPopover('create-translation');
+          }}
         >
-          <strong>{constraintRepairBusy ? '修复中…' : '约束修复'}</strong>
+          <span className="transcription-layer-rail-action-icon" aria-hidden="true">🌐</span><strong>新建翻译层</strong>
         </button>
+        <button
+          type="button"
+          className={`transcription-layer-rail-action-btn ${railActionMenu === 'more' || layerActionPanel === 'speaker-management' || layerActionPanel === 'delete' ? 'transcription-layer-rail-action-btn-active' : ''}`}
+          onClick={() => setRailActionMenu((prev) => (prev === 'more' ? null : 'more'))}
+        >
+          <span className="transcription-layer-rail-action-icon" aria-hidden="true">⋯</span><strong>更多</strong>
+        </button>
+
+        {railActionMenu === 'more' && (
+          <div className="transcription-layer-rail-action-popover" role="group" aria-label="更多操作">
+            <button
+              type="button"
+              className="transcription-layer-rail-action-btn"
+              onClick={() => {
+                setRailActionMenu(null);
+                setLayerActionPanel((prev) => (prev === 'speaker-management' ? null : 'speaker-management'));
+              }}
+            >
+              <span className="transcription-layer-rail-action-icon" aria-hidden="true">👥</span><strong>说话人管理</strong>
+            </button>
+            <button
+              type="button"
+              className="transcription-layer-rail-action-btn transcription-layer-rail-action-btn-danger"
+              disabled={!focusedLayer}
+              onClick={() => {
+                if (!focusedLayer) return;
+                openDeletePanelForLayer(focusedLayer.id);
+              }}
+            >
+              <span className="transcription-layer-rail-action-icon" aria-hidden="true">🗑️</span><strong>删除当前层</strong>
+            </button>
+            <button
+              type="button"
+              className="transcription-layer-rail-action-btn"
+              disabled={constraintRepairBusy || layerRailRows.length === 0}
+              onClick={() => {
+                setRailActionMenu(null);
+                fireAndForget(handleRepairLayerConstraints());
+              }}
+            >
+              <span className="transcription-layer-rail-action-icon" aria-hidden="true">🔧</span><strong>{constraintRepairBusy ? '修复中…' : '约束修复'}</strong>
+            </button>
+          </div>
+        )}
 
         {layerActionPanel === 'speaker-management' && renderSpeakerManagementPopover()}
 

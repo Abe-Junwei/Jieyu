@@ -155,4 +155,43 @@ describe('BatchOperationPanel preview table', () => {
     expect(onJump).toHaveBeenCalledWith('u1');
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('applies orthography-aware preview dir and style to batch preview content', () => {
+    render(
+      <BatchOperationPanel
+        selectedCount={1}
+        selectedUtterances={[makeUtterance('u1', 0, 1)]}
+        allUtterancesOnMedia={[makeUtterance('u1', 0, 1)]}
+        utteranceTextById={{ u1: 'مرحبا (123)' }}
+        previewLayerOptions={[{ id: 'layer_ar', label: '阿拉伯转写' }]}
+        previewTextByLayerId={{
+          layer_ar: {
+            u1: 'مرحبا (123)',
+          },
+        }}
+        previewTextPropsByLayerId={{
+          layer_ar: {
+            dir: 'rtl',
+            style: {
+              direction: 'rtl',
+              unicodeBidi: 'isolate',
+              fontFamily: 'Scheherazade New',
+            },
+          },
+        }}
+        defaultPreviewLayerId="layer_ar"
+        onClose={vi.fn()}
+        onOffset={vi.fn().mockResolvedValue(undefined)}
+        onScale={vi.fn().mockResolvedValue(undefined)}
+        onSplitByRegex={vi.fn().mockResolvedValue(undefined)}
+        onMerge={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    const preview = screen.getByText('مرحبا (123)');
+    expect(preview.getAttribute('dir')).toBe('rtl');
+    expect((preview as HTMLElement).style.direction).toBe('rtl');
+    expect((preview as HTMLElement).style.unicodeBidi).toBe('isolate');
+    expect((preview as HTMLElement).style.fontFamily).toContain('Scheherazade New');
+  });
 });

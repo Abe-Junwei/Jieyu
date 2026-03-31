@@ -23,7 +23,6 @@ function readPersistedHubHeight(): number {
 
 export function usePanelToggles() {
   const [isLayerRailCollapsed, setIsLayerRailCollapsed] = useState(false);
-  const [layerRailTab, setLayerRailTab] = useState<'layers' | 'links'>('layers');
   const [isAiPanelCollapsed, setIsAiPanelCollapsed] = useState(false);
   const [layerRailWidth, setLayerRailWidth] = useState(112);
   const [aiPanelWidth, setAiPanelWidth] = useState(320);
@@ -64,8 +63,6 @@ export function usePanelToggles() {
   return {
     isLayerRailCollapsed,
     setIsLayerRailCollapsed,
-    layerRailTab,
-    setLayerRailTab,
     isAiPanelCollapsed,
     setIsAiPanelCollapsed,
     layerRailWidth,

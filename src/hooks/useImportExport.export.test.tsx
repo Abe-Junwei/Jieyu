@@ -13,6 +13,8 @@ const mockDownloadFlextext = vi.hoisted(() => vi.fn());
 const mockExportToToolbox = vi.hoisted(() => vi.fn(() => '\\_sh v3.0'));
 const mockDownloadToolbox = vi.hoisted(() => vi.fn());
 const mockGetDb = vi.hoisted(() => vi.fn());
+const mockUseOrthographies = vi.hoisted(() => vi.fn(() => []));
+const mockApplyOrthographyTransformIfNeeded = vi.hoisted(() => vi.fn(async ({ text }: { text: string }) => ({ text: `xf:${text}` })));
 
 vi.mock('./useClickOutside', () => ({
   useClickOutside: vi.fn(),
@@ -61,6 +63,14 @@ vi.mock('../db', async () => {
     getDb: mockGetDb,
   };
 });
+
+vi.mock('./useOrthographies', () => ({
+  useOrthographies: mockUseOrthographies,
+}));
+
+vi.mock('../utils/orthographyRuntime', () => ({
+  applyOrthographyTransformIfNeeded: mockApplyOrthographyTransformIfNeeded,
+}));
 
 const FIXED_NOW = '2026-03-26T00:00:00.000Z';
 
@@ -121,6 +131,9 @@ function buildMockDb(options?: { preferLayerUnits?: boolean }) {
       },
       speakers: {
         toArray: vi.fn(async () => []),
+      },
+      texts: {
+        get: vi.fn(async () => ({ metadata: { primaryOrthographyId: 'orth-project' } })),
       },
       layer_units: {
         bulkPut: vi.fn(async () => undefined),
@@ -214,6 +227,7 @@ function makeInput() {
     name: { zho: '转写' },
     layerType: 'transcription',
     languageId: 'zho',
+    orthographyId: 'orth-layer',
     modality: 'text',
     acceptsAudio: false,
     isDefault: true,
@@ -296,6 +310,8 @@ describe('useImportExport - export eaf behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
+    mockUseOrthographies.mockReturnValue([]);
+    mockApplyOrthographyTransformIfNeeded.mockImplementation(async ({ text }: { text: string }) => ({ text: `xf:${text}` }));
   });
 
   afterEach(() => {
@@ -362,6 +378,7 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
     vi.clearAllMocks();
     // stop-read 默认关闭后，导出基线应以 LayerUnit 视图为准 | With stop-read off, export baseline should use the LayerUnit view
     mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
+    mockUseOrthographies.mockReturnValue([]);
   });
 
   function makeInputWithSegmentLayers() {
@@ -432,6 +449,30 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
     };
     expect(arg?.segmentsByLayer?.get('trl-ind')?.[0]?.id).toBe('seg-trl-ind');
     expect(arg?.segmentContents?.get('trl-sub')?.get('seg-trl-sub')?.text).toBe('layer-unit-trl-sub');
+  });
+
+  it('transforms legacy default transcription fallback before plain-text export', async () => {
+    const input = makeInputWithSegmentLayers();
+    input.translations = input.translations.filter((item) => item.layerId !== 'trc-1');
+    input.utterancesOnCurrentMedia = [{
+      ...input.utterancesOnCurrentMedia[0]!,
+      transcription: { default: 'legacy raw' },
+    } as UtteranceDocType];
+    const { result } = renderHook(() => useImportExport(input));
+
+    await act(async () => {
+      await result.current.handleExportTextGrid();
+    });
+
+    const arg = (mockExportToTextGrid.mock.calls as any[])[0]?.[0] as unknown as {
+      utterances?: Array<{ transcription?: { default?: string } }>;
+    };
+    expect(mockApplyOrthographyTransformIfNeeded).toHaveBeenCalledWith({
+      text: 'legacy raw',
+      sourceOrthographyId: 'orth-project',
+      targetOrthographyId: 'orth-layer',
+    });
+    expect(arg?.utterances?.[0]?.transcription?.default).toBe('xf:legacy raw');
   });
 
   it('FLEx: 导出包含 independent_boundary 翻译层的 segment 数据 | includes independent_boundary translation layer segments', async () => {

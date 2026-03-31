@@ -1,4 +1,5 @@
-import type { NoteCategory, MultiLangString, LayerDocType, UserNoteDocType, UtteranceDocType } from '../db';
+import type { ReactNode } from 'react';
+import type { NoteCategory, MultiLangString, LayerDocType, LayerDisplaySettings, OrthographyDocType, UserNoteDocType, UtteranceDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { SpeakerFilterOption } from '../hooks/useSpeakerActions';
 import type { TimelineUnit, TimelineUnitKind } from '../hooks/transcriptionTypes';
@@ -6,9 +7,11 @@ import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { NotePopover } from './NotePopover';
+import { buildLayerStyleMenuItems } from './LayerStyleSubmenu';
+import { buildOrthographyPreviewTextProps, resolveOrthographyRenderPolicy, type LocalFontEntry } from '../utils/layerDisplayStyle';
 
 interface TranscriptionOverlaysProps {
-  ctxMenu: { x: number; y: number; unitId: string; layerId: string; unitKind: TimelineUnitKind; splitTime: number } | null;
+  ctxMenu: { x: number; y: number; unitId: string; layerId: string; unitKind: TimelineUnitKind; splitTime: number; source?: 'timeline' | 'waveform' } | null;
   onCloseCtxMenu: () => void;
   uttOpsMenu: { x: number; y: number } | null;
   onCloseUttOpsMenu: () => void;
@@ -23,7 +26,7 @@ interface TranscriptionOverlaysProps {
   runMergeNext: (id: string, unitKind: TimelineUnitKind, layerId: string) => void;
   runSplitAtTime: (id: string, splitTime: number, unitKind: TimelineUnitKind, layerId: string) => void;
   getCurrentTime: () => number;
-  onOpenNoteFromMenu: (x: number, y: number, uttId: string, layerId?: string) => void;
+  onOpenNoteFromMenu: (x: number, y: number, uttId: string, layerId?: string, scope?: 'timeline' | 'waveform') => void;
   deleteConfirmState: { totalCount: number; textCount: number; emptyCount: number } | null;
   muteDeleteConfirmInSession: boolean;
   setMuteDeleteConfirmInSession: (value: boolean) => void;
@@ -43,6 +46,17 @@ interface TranscriptionOverlaysProps {
   speakerFilterOptions?: SpeakerFilterOption[];
   onAssignSpeakerFromMenu?: (unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => void;
   onOpenSpeakerManagementPanelFromMenu?: () => void;
+  /** 层显示样式控制 | Layer display style control for context menu */
+  displayStyleControl?: {
+    orthographies: OrthographyDocType[];
+    onUpdate: (layerId: string, patch: Partial<LayerDisplaySettings>) => void;
+    onReset: (layerId: string) => void;
+    localFonts?: {
+      fonts: LocalFontEntry[];
+      status: 'idle' | 'loading' | 'loaded' | 'denied' | 'unsupported';
+      load: () => Promise<void>;
+    };
+  };
 }
 
 export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
@@ -82,6 +96,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
     speakerFilterOptions = [],
     onAssignSpeakerFromMenu = () => {},
     onOpenSpeakerManagementPanelFromMenu = () => {},
+    displayStyleControl,
   } = props;
 
   const recentSpeakerOptions = speakerFilterOptions
@@ -90,6 +105,49 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
     .map((option) => ({ id: option.key, name: option.name }));
 
   const fullSpeakerOptions = speakerOptions.length > 0 ? speakerOptions : recentSpeakerOptions;
+  const allTextLayers = [...transcriptionLayers, ...translationLayers];
+  const defaultPreviewLayer = transcriptionLayers.find((layer) => layer.isDefault) ?? transcriptionLayers[0];
+
+  const buildNotePopoverTargetLabel = (): ReactNode => {
+    if (!notePopover) return '备注';
+
+    const utt = utterances.find((u) => u.id === notePopover.uttId);
+    const previewLayer = notePopover.layerId
+      ? allTextLayers.find((layer) => layer.id === notePopover.layerId)
+      : defaultPreviewLayer;
+    const uttText = (utt ? getUtteranceTextForLayer(utt, previewLayer?.id) : '').slice(0, 20);
+    const fallbackLabel = '备注';
+
+    const prefix = (() => {
+      if (!notePopover.layerId) return '句段';
+      const layerLabel = previewLayer ? getLayerLabelParts(previewLayer) : null;
+      return layerLabel ? `${layerLabel.type} ${layerLabel.lang}` : '';
+    })();
+
+    if (!uttText) {
+      return prefix ? `${prefix} — ${fallbackLabel}` : fallbackLabel;
+    }
+
+    if (!previewLayer?.languageId || !displayStyleControl) {
+      return prefix ? `${prefix} — ${uttText}` : uttText;
+    }
+
+    const renderPolicy = resolveOrthographyRenderPolicy(
+      previewLayer.languageId,
+      displayStyleControl.orthographies,
+      previewLayer.orthographyId,
+    );
+    const previewTextProps = buildOrthographyPreviewTextProps(renderPolicy, previewLayer.displaySettings);
+
+    return (
+      <>
+        {prefix ? <span>{prefix} — </span> : null}
+        <span dir={previewTextProps.dir} style={previewTextProps.style}>
+          {uttText}
+        </span>
+      </>
+    );
+  };
 
   return (
     <>
@@ -133,7 +191,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
                         { label: '选中此句段及之前所有', shortcut: '⇧Home', onClick: () => { runSelectBefore(id); } },
                         { label: '选中此句段及之后所有', shortcut: '⇧End', onClick: () => { runSelectAfter(id); } },
                       ]),
-                  { label: '添加备注', shortcut: '⌘⇧N', onClick: () => { onOpenNoteFromMenu(ctxMenu.x, ctxMenu.y, id, ctxMenu.layerId); } },
+                  { label: '添加备注', shortcut: '⌘⇧N', onClick: () => { onOpenNoteFromMenu(ctxMenu.x, ctxMenu.y, id, ctxMenu.layerId, ctxMenu.source ?? 'timeline'); } },
                 ];
 
             if (isTranscriptionLayerContext) {
@@ -166,6 +224,28 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
                 label: '说话人管理',
                 children: speakerManageItems,
               });
+            }
+
+            // 本层显示样式子菜单 | Layer display style submenu
+            if (displayStyleControl) {
+              const ctxLayer = [...transcriptionLayers, ...translationLayers].find((l) => l.id === ctxMenu.layerId);
+              if (ctxLayer) {
+                const styleMenuItems = buildLayerStyleMenuItems(
+                  ctxLayer.displaySettings,
+                  ctxLayer.id,
+                  ctxLayer.languageId,
+                  ctxLayer.orthographyId,
+                  displayStyleControl.orthographies,
+                  (patch) => displayStyleControl.onUpdate(ctxMenu.layerId, patch),
+                  () => displayStyleControl.onReset(ctxMenu.layerId),
+                  displayStyleControl.localFonts,
+                );
+                items.push({
+                  label: '本层显示样式',
+                  separatorBefore: true,
+                  children: styleMenuItems,
+                });
+              }
             }
             return items;
           })()}
@@ -213,17 +293,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
           x={notePopover.x}
           y={notePopover.y}
           notes={currentNotes}
-          targetLabel={(() => {
-            const utt = utterances.find((u) => u.id === notePopover.uttId);
-            const uttText = (utt ? getUtteranceTextForLayer(utt) : '').slice(0, 20);
-            if (!notePopover.layerId) {
-              return `句段 — ${uttText || '备注'}`;
-            }
-            const layer = [...transcriptionLayers, ...translationLayers].find((l) => l.id === notePopover.layerId);
-            const layerLabel = layer ? getLayerLabelParts(layer) : null;
-            const prefix = layerLabel ? `${layerLabel.type} ${layerLabel.lang}` : '';
-            return prefix ? `${prefix} — ${uttText || '备注'}` : uttText || '备注';
-          })()}
+          targetLabel={buildNotePopoverTargetLabel()}
           onClose={onCloseNotePopover}
           onAdd={addNote}
           onUpdate={updateNote}

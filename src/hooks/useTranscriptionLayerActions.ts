@@ -15,7 +15,6 @@ import {
   canCreateLayer,
   canDeleteLayer,
   getLayerCreateGuard,
-  getMostRecentLayerOfType,
   listIndependentBoundaryTranscriptionLayers,
 } from '../services/LayerConstraintService';
 import {
@@ -115,21 +114,15 @@ export function useTranscriptionLayerActions({
       const previous = previousById.get(layer.id);
       if (!previous) continue;
 
-      const previousParent = previous.parentLayerId ? previousById.get(previous.parentLayerId) : undefined;
       const nextParent = layer.parentLayerId ? nextById.get(layer.parentLayerId) : undefined;
-      const previousParentKey = previousParent?.key;
       const nextParentKey = nextParent?.key;
 
-      if (previousParentKey) {
-        const removableLinks = nextLayerLinks.filter(
-          (link) => link.layerId === layer.id && link.transcriptionLayerKey === previousParentKey,
-        );
-        if (removableLinks.length > 0) {
-          await Promise.all(removableLinks.map((link) => db.collections.layer_links.remove(link.id)));
-          const removableIds = new Set(removableLinks.map((link) => link.id));
-          nextLayerLinks = nextLayerLinks.filter((link) => !removableIds.has(link.id));
-          changed = true;
-        }
+      const removableLinks = nextLayerLinks.filter((link) => link.layerId === layer.id);
+      if (removableLinks.length > 0) {
+        await Promise.all(removableLinks.map((link) => db.collections.layer_links.remove(link.id)));
+        const removableIds = new Set(removableLinks.map((link) => link.id));
+        nextLayerLinks = nextLayerLinks.filter((link) => !removableIds.has(link.id));
+        changed = true;
       }
 
       if (!nextParentKey) {
@@ -192,6 +185,7 @@ export function useTranscriptionLayerActions({
     modality?: 'text' | 'audio' | 'mixed',
   ): Promise<boolean> => {
     const languageId = input.languageId.trim();
+    const orthographyId = input.orthographyId?.trim();
     const alias = (input.alias ?? '').trim();
     const requestedParentLayerId = input.parentLayerId?.trim();
 
@@ -262,6 +256,7 @@ export function useTranscriptionLayerActions({
         },
         layerType,
         languageId,
+        ...(orthographyId ? { orthographyId } : {}),
         modality: effectiveModality,
         acceptsAudio: effectiveModality !== 'text',
         sortOrder: newSortOrder,
@@ -281,19 +276,6 @@ export function useTranscriptionLayerActions({
             id: newId('link'),
             transcriptionLayerKey: resolvedParent.key,
             targetLayerId: id,
-            createdAt: now,
-          });
-          await db.collections.layer_links.insert(autoLink);
-        }
-      }
-
-      if (layerType === 'transcription') {
-        const recentTrl = getMostRecentLayerOfType(layers, 'translation');
-        if (recentTrl) {
-          autoLink = createLayerLink({
-            id: newId('link'),
-            transcriptionLayerKey: key,
-            targetLayerId: recentTrl.id,
             createdAt: now,
           });
           await db.collections.layer_links.insert(autoLink);
@@ -334,8 +316,7 @@ export function useTranscriptionLayerActions({
     }
 
     const db = await getDb();
-    const allLinks = await db.dexie.layer_links.toArray();
-    const deleteCheck = canDeleteLayer(layers, allLinks, effectiveLayerId);
+    const deleteCheck = canDeleteLayer(layers, effectiveLayerId);
     if (!deleteCheck.allowed) {
       if (!options?.silent) {
         setLayerCreateMessage(deleteCheck.reason ?? '当前层无法删除。');
@@ -364,11 +345,36 @@ export function useTranscriptionLayerActions({
         ? [...new Set([...affectedByLayerTexts, ...affectedByProjectScope])]
         : [];
 
-      const newAutoLinks: LayerLinkDocType[] = [];
+      const reparentedLayerById = new Map<string, LayerDocType>();
+      let nextLayerLinks = [...layerLinks];
       if (targetLayer.layerType === 'transcription') {
         if (deleteCheck.orphanedTranslationIds && deleteCheck.relinkTargetKey) {
           const now = new Date().toISOString();
+          const relinkTargetLayer = layers.find(
+            (layer) => layer.layerType === 'transcription' && layer.key === deleteCheck.relinkTargetKey,
+          );
           for (const trlId of deleteCheck.orphanedTranslationIds) {
+            const translationLayer = layers.find(
+              (layer) => layer.id === trlId && layer.layerType === 'translation',
+            );
+            if (!translationLayer || !relinkTargetLayer) continue;
+
+            const updatedTranslation: LayerDocType = {
+              ...translationLayer,
+              constraint: 'symbolic_association',
+              parentLayerId: relinkTargetLayer.id,
+              updatedAt: now,
+            };
+            await LayerTierUnifiedService.updateLayer(updatedTranslation);
+            reparentedLayerById.set(updatedTranslation.id, updatedTranslation);
+
+            const removableLinks = nextLayerLinks.filter((link) => link.layerId === trlId);
+            if (removableLinks.length > 0) {
+              await Promise.all(removableLinks.map((link) => db.collections.layer_links.remove(link.id)));
+              const removableIds = new Set(removableLinks.map((link) => link.id));
+              nextLayerLinks = nextLayerLinks.filter((link) => !removableIds.has(link.id));
+            }
+
             const relink = createLayerLink({
               id: newId('link'),
               transcriptionLayerKey: deleteCheck.relinkTargetKey,
@@ -376,12 +382,14 @@ export function useTranscriptionLayerActions({
               createdAt: now,
             });
             await db.collections.layer_links.insert(relink);
-            newAutoLinks.push(relink);
+            nextLayerLinks = [...nextLayerLinks, relink];
           }
         }
         await db.collections.layer_links.removeBySelector({ transcriptionLayerKey: targetLayer.key });
+        nextLayerLinks = nextLayerLinks.filter((link) => link.transcriptionLayerKey !== targetLayer.key);
       } else {
         await db.collections.layer_links.removeBySelector({ layerId: effectiveLayerId });
+        nextLayerLinks = nextLayerLinks.filter((link) => link.layerId !== effectiveLayerId);
       }
       await LayerTierUnifiedService.deleteLayer(targetLayer);
 
@@ -401,19 +409,14 @@ export function useTranscriptionLayerActions({
         setSelectedLayerId('');
       }
 
-      setLayers((prev) => prev.filter((item) => item.id !== effectiveLayerId));
+      setLayers((prev) => prev
+        .filter((item) => item.id !== effectiveLayerId)
+        .map((item) => reparentedLayerById.get(item.id) ?? item));
       setTranslations((prev) => prev.filter((item) => item.layerId !== effectiveLayerId));
       if (removedUtteranceIds.size > 0) {
         setUtterances((prev) => prev.filter((u) => !removedUtteranceIds.has(u.id)));
       }
-      if (targetLayer.layerType === 'transcription') {
-        setLayerLinks((prev) => [
-          ...prev.filter((item) => item.transcriptionLayerKey !== targetLayer.key),
-          ...newAutoLinks,
-        ]);
-      } else {
-        setLayerLinks((prev) => prev.filter((item) => item.layerId !== effectiveLayerId));
-      }
+      setLayerLinks(nextLayerLinks);
       if (!options?.silent) {
         setLayerToDeleteId('');
         setShowLayerManager(false);
@@ -434,7 +437,7 @@ export function useTranscriptionLayerActions({
         setLayerCreateMessage(error instanceof Error ? error.message : '删除层失败');
       }
     }
-  }, [layers, pushUndo, selectedLayerId, setLayerCreateMessage, setLayerLinks, setLayerToDeleteId, setLayers, setSelectedLayerId, setShowLayerManager, setTranslations, setUtterances]);
+  }, [layerLinks, layers, pushUndo, selectedLayerId, setLayerCreateMessage, setLayerLinks, setLayerToDeleteId, setLayers, setSelectedLayerId, setShowLayerManager, setTranslations, setUtterances]);
 
   /** 删除层，不弹出浏览器确认（用于已通过自定义确认对话框的用户） */
   const deleteLayerWithoutConfirm = useCallback(async (targetLayerId: string) => {
@@ -460,16 +463,9 @@ export function useTranscriptionLayerActions({
       const transcriptionLayers = layers.filter((item) => item.layerType === 'transcription');
       if (transcriptionLayers.length <= 1) {
         try {
-          const db = await getDb();
-          const allLinks = await db.dexie.layer_links.toArray();
-          const dependentByLink = allLinks
-            .filter((link) => link.transcriptionLayerKey === targetLayer.key)
-            .map((link) => link.layerId);
-          const dependentByParent = layers
+          const dependentTranslationIds = layers
             .filter((layer) => layer.layerType === 'translation' && layer.parentLayerId === targetLayer.id)
             .map((layer) => layer.id);
-          const dependentTranslationIds = [...new Set([...dependentByLink, ...dependentByParent])]
-            .filter((id) => layers.some((layer) => layer.id === id && layer.layerType === 'translation'));
 
           for (const dependentTranslationId of dependentTranslationIds) {
             await performLayerDelete(dependentTranslationId, {
@@ -498,28 +494,70 @@ export function useTranscriptionLayerActions({
     transcriptionLayerKey: string,
     layerId: string,
   ) => {
-    const db = await getDb();
-    const existing = layerLinks.find(
-      (link) => link.transcriptionLayerKey === transcriptionLayerKey && link.layerId === layerId,
-    );
-
-    if (existing) {
-      pushUndo('取消层关联');
-      await db.collections.layer_links.remove(existing.id);
-      setLayerLinks((prev) => prev.filter((item) => item.id !== existing.id));
-    } else {
-      pushUndo('建立层关联');
-      const now = new Date().toISOString();
-      const newLink = createLayerLink({
-        id: newId('link'),
-        transcriptionLayerKey,
-        targetLayerId: layerId,
-        createdAt: now,
-      });
-      await db.collections.layer_links.insert(newLink);
-      setLayerLinks((prev) => [...prev, newLink]);
+    const targetParent = listIndependentBoundaryTranscriptionLayers(layers)
+      .find((layer) => layer.key === transcriptionLayerKey);
+    if (!targetParent) {
+      setLayerCreateMessage('请选择有效的独立转写层作为依赖目标。');
+      return;
     }
-  }, [layerLinks, pushUndo, setLayerLinks]);
+
+    const translationLayer = layers.find(
+      (layer) => layer.id === layerId && layer.layerType === 'translation',
+    );
+    if (!translationLayer) {
+      setLayerCreateMessage('未找到要调整依赖的翻译层。');
+      return;
+    }
+
+    if (translationLayer.parentLayerId === targetParent.id) {
+      return;
+    }
+
+    pushUndo('调整层依赖');
+    const now = new Date().toISOString();
+    const updatedTranslationBase: LayerDocType = {
+      ...translationLayer,
+      constraint: 'symbolic_association',
+      parentLayerId: targetParent.id,
+      updatedAt: now,
+    };
+    const nextLayers = computeCanonicalLayerOrder(layers.map((layer) => (
+      layer.id === layerId ? updatedTranslationBase : layer
+    )));
+    const updatedTranslation = nextLayers.find((layer) => layer.id === layerId) ?? updatedTranslationBase;
+    const previousById = new Map(layers.map((layer) => [layer.id, layer] as const));
+
+    const db = await getDb();
+    await LayerTierUnifiedService.updateLayer(updatedTranslation);
+    const changedSortLayers = nextLayers.filter((layer) => {
+      if (layer.id === updatedTranslation.id) return false;
+      const previous = previousById.get(layer.id);
+      if (!previous) return false;
+      return (previous.sortOrder ?? 0) !== (layer.sortOrder ?? 0);
+    });
+    if (changedSortLayers.length > 0) {
+      await Promise.all(changedSortLayers.map((layer) => LayerTierUnifiedService.updateLayerSortOrder(layer.id, layer.sortOrder ?? 0, db)));
+    }
+
+    const removableLinks = layerLinks.filter((link) => link.layerId === layerId);
+    if (removableLinks.length > 0) {
+      await Promise.all(removableLinks.map((link) => db.collections.layer_links.remove(link.id)));
+    }
+
+    const newLink = createLayerLink({
+      id: newId('link'),
+      transcriptionLayerKey: targetParent.key,
+      targetLayerId: layerId,
+      createdAt: now,
+    });
+    await db.collections.layer_links.insert(newLink);
+
+    setLayers(nextLayers);
+    setLayerLinks((prev) => [
+      ...prev.filter((link) => link.layerId !== layerId),
+      newLink,
+    ]);
+  }, [layerLinks, layers, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers]);
 
   const addMediaItem = useCallback((item: MediaItemDocType) => {
     setMediaItems((prev) => [...prev, item]);

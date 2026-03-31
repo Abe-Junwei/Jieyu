@@ -6,9 +6,10 @@
  * When layer.constraint === 'independent_boundary', reads independent boundary data from the merged segmentation view
  * for timeline rendering. Returns segments sorted by startTime.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { type LayerDocType, type LayerSegmentDocType } from '../db';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
+import { useLatest } from './useLatest';
 
 /** 层编辑模式 | Layer edit mode
  * utterance: 继承主层 utterance 边界 | Inherits main-layer utterance boundaries
@@ -101,10 +102,8 @@ export function useLayerSegments(
   const [segmentsByLayer, setSegmentsByLayer] = useState<Map<string, LayerSegmentDocType[]>>(
     () => new Map(),
   );
-  const layersRef = useRef(layers);
-  layersRef.current = layers;
-  const defaultLayerIdRef = useRef(defaultTranscriptionLayerId);
-  defaultLayerIdRef.current = defaultTranscriptionLayerId;
+  const layersRef = useLatest(layers);
+  const defaultLayerIdRef = useLatest(defaultTranscriptionLayerId);
 
   const loadSegments = useCallback(async () => {
     if (!mediaId) {

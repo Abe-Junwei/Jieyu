@@ -2,6 +2,8 @@ export interface SearchableItem {
   utteranceId: string;
   layerId?: string;
   layerKind?: 'transcription' | 'translation' | 'gloss';
+  languageId?: string;
+  orthographyId?: string;
   text: string;
 }
 
@@ -27,6 +29,8 @@ export interface ReplacePlanItem {
 export interface SearchMatch {
   utteranceId: string;
   layerId: string | undefined;
+  languageId?: string;
+  orthographyId?: string;
   text: string;
   matchStart: number;
   matchEnd: number;
@@ -98,6 +102,8 @@ export function findSearchMatches(
         matches.push({
           utteranceId: item.utteranceId,
           layerId: item.layerId ?? undefined,
+          ...(item.languageId ? { languageId: item.languageId } : {}),
+          ...(item.orthographyId ? { orthographyId: item.orthographyId } : {}),
           text: source,
           matchStart: found.index,
           matchEnd: found.index + full.length,

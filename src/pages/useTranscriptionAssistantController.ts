@@ -11,7 +11,7 @@ import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
-
+import { transformTextForLayerTarget } from '../utils/orthographyRuntime';
 interface SelectedRowMetaLike {
   rowNumber: number;
   start: number;
@@ -24,7 +24,6 @@ interface ReadyStateLike {
   utteranceCount?: number;
   translationLayerCount?: number;
 }
-
 interface UseTranscriptionAssistantControllerInput {
   state: ReadyStateLike;
   utterancesLength: number;
@@ -71,7 +70,6 @@ interface UseTranscriptionAssistantControllerResult {
   handleVoiceDictation: (text: string) => void;
   handleVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => Promise<{ ok: boolean; message: string }>;
 }
-
 export function useTranscriptionAssistantController(
   input: UseTranscriptionAssistantControllerInput,
 ): UseTranscriptionAssistantControllerResult {
@@ -153,22 +151,25 @@ export function useTranscriptionAssistantController(
     if (resolved.ok) {
       return resolved.intent;
     }
-
     throw new Error(resolved.message);
   }, [input.aiChatEnabled, input.aiChatSettings]);
 
   const handleVoiceDictation = useCallback((text: string) => {
     if (isSegmentTimelineUnit(input.selectedTimelineUnit)) {
-      fireAndForget(input.saveSegmentContentForLayer(
-        input.selectedTimelineUnit.unitId,
-        input.selectedTimelineUnit.layerId,
-        text,
-      ));
+      fireAndForget((async () => {
+        const fallbackSourceOrthographyId = input.selectedLayerId ? undefined : input.layers.find((layer) => layer.layerType === 'transcription')?.orthographyId;
+        const transformedText = await transformTextForLayerTarget({
+          text,
+          layers: input.layers,
+          targetLayerId: input.selectedTimelineUnit.layerId,
+          selectedLayerId: input.selectedLayerId,
+          ...(fallbackSourceOrthographyId !== undefined ? { fallbackSourceOrthographyId } : {}),
+        });
+        await input.saveSegmentContentForLayer(input.selectedTimelineUnit.unitId, input.selectedTimelineUnit.layerId, transformedText);
+      })());
       return;
     }
-
     const targetUtterance = input.selectedTimelineOwnerUtterance;
-
     if (!targetUtterance) {
       reportValidationError({
         message: '请先选择要填充的句段',
@@ -177,7 +178,6 @@ export function useTranscriptionAssistantController(
       });
       return;
     }
-
     let targetLayerId: string | undefined = input.selectedLayerId ?? undefined;
     if (!targetLayerId) {
       targetLayerId = input.translationLayers[0]?.id;
@@ -190,25 +190,38 @@ export function useTranscriptionAssistantController(
       });
       return;
     }
-
     const targetLayer = input.layers.find((layer) => layer.id === targetLayerId);
     if (!targetLayer) return;
-
+    const fallbackSourceOrthographyId = input.selectedLayerId
+      ? undefined
+      : input.layers.find((layer) => layer.layerType === 'transcription')?.orthographyId;
     const persistAndAdvance = async (persist: () => Promise<void>) => {
       await persist();
       if (!input.nextUtteranceIdForVoiceDictation) return;
       input.selectUtterance(input.nextUtteranceIdForVoiceDictation);
     };
-
     if (targetLayer.layerType === 'transcription') {
       fireAndForget(persistAndAdvance(async () => {
-        await input.saveUtteranceText(targetUtterance.id, text, targetLayerId);
+        const transformedText = await transformTextForLayerTarget({
+          text,
+          layers: input.layers,
+          targetLayerId,
+          selectedLayerId: input.selectedLayerId,
+          ...(fallbackSourceOrthographyId !== undefined ? { fallbackSourceOrthographyId } : {}),
+        });
+        await input.saveUtteranceText(targetUtterance.id, transformedText, targetLayerId);
       }));
       return;
     }
-
     fireAndForget(persistAndAdvance(async () => {
-      await input.saveTextTranslationForUtterance(targetUtterance.id, text, targetLayerId!);
+      const transformedText = await transformTextForLayerTarget({
+        text,
+        layers: input.layers,
+        targetLayerId,
+        selectedLayerId: input.selectedLayerId,
+        ...(fallbackSourceOrthographyId !== undefined ? { fallbackSourceOrthographyId } : {}),
+      });
+      await input.saveTextTranslationForUtterance(targetUtterance.id, transformedText, targetLayerId!);
     }));
   }, [
     input.layers,
@@ -240,7 +253,6 @@ export function useTranscriptionAssistantController(
       const message = '分析结果为空，未写回句段备注';
       return { ok: false, message };
     }
-
     try {
       const db = await getDb();
       const utterances = await db.collections.utterances.find().exec();
@@ -254,7 +266,6 @@ export function useTranscriptionAssistantController(
         });
         return { ok: false, message };
       }
-
       pushUndo('AI 分析填充');
       const now = new Date().toISOString();
       const doc = target.toJSON() as UtteranceDocType;
@@ -282,7 +293,6 @@ export function useTranscriptionAssistantController(
       };
     }
   }, [pushUndo, setSaveState, setUtterances]);
-
   return {
     aiPanelContextValue,
     handleResolveVoiceIntentWithLlm,

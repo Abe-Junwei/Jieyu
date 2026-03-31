@@ -5,7 +5,7 @@
  * Shows timestamp at hover position and previews the utterance text via binary search
  */
 
-import type { FC } from 'react';
+import type { CSSProperties, FC } from 'react';
 import type { UtteranceDocType } from '../../db';
 
 export interface WaveformHoverTooltipProps {
@@ -15,6 +15,8 @@ export interface WaveformHoverTooltipProps {
   utterances: UtteranceDocType[];
   getUtteranceTextForLayer: (utterance: UtteranceDocType) => string | null | undefined;
   formatTime: (seconds: number) => string;
+  previewDir?: 'ltr' | 'rtl';
+  previewStyle?: CSSProperties;
 }
 
 export const WaveformHoverTooltip: FC<WaveformHoverTooltipProps> = ({
@@ -24,6 +26,8 @@ export const WaveformHoverTooltip: FC<WaveformHoverTooltipProps> = ({
   utterances,
   getUtteranceTextForLayer,
   formatTime,
+  previewDir,
+  previewStyle,
 }) => {
   // 二分查找当前时间命中的语段 | Binary search for utterance at hover time
   let lo = 0, hi = utterances.length - 1;
@@ -48,7 +52,11 @@ export const WaveformHoverTooltip: FC<WaveformHoverTooltipProps> = ({
   return (
     <div className="waveform-hover-tooltip" style={{ left: x, top: y }}>
       {formatTime(time)}
-      {textPreview && <span className="waveform-hover-tooltip-text">{textPreview}</span>}
+      {textPreview && (
+        <span className="waveform-hover-tooltip-text" dir={previewDir} style={previewStyle}>
+          {textPreview}
+        </span>
+      )}
     </div>
   );
 };

@@ -1,13 +1,15 @@
 import type {
   LayerLinkDocType,
   LayerDocType,
+  LayerDisplaySettings,
   LayerSegmentContentDocType,
   LayerSegmentDocType,
   MediaItemDocType,
+  OrthographyDocType,
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
@@ -20,6 +22,12 @@ import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
+import {
+  BASE_FONT_SIZE,
+  computeFontSizeFromRenderPolicy,
+  layerDisplaySettingsToStyle,
+  resolveOrthographyRenderPolicy,
+} from '../utils/layerDisplayStyle';
 import { buildSpeakerLayerLayoutWithOptions, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
@@ -123,6 +131,12 @@ type TranscriptionTimelineTextOnlyProps = {
     e: React.MouseEvent,
     overlapCycleItems?: Array<{ id: string; startTime: number }>,
   ) => void;
+  handleAnnotationContextMenu?: (
+    uttId: string,
+    utt: Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime' | 'speaker' | 'speakerId' | 'ai_metadata'>,
+    layerId: string,
+    e: React.MouseEvent,
+  ) => void;
   // TimelineLaneHeader props
   allLayersOrdered: LayerDocType[];
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
@@ -165,6 +179,13 @@ type TranscriptionTimelineTextOnlyProps = {
   startRecordingForUtterance?: (utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>;
   stopRecording?: () => void;
   deleteVoiceTranslation?: (utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>;
+  /** 层显示样式控制 | Layer display style control */
+  displayStyleControl?: {
+    orthographies: OrthographyDocType[];
+    onUpdate: (layerId: string, patch: Partial<LayerDisplaySettings>) => void;
+    onReset: (layerId: string) => void;
+    localFonts?: Parameters<typeof import('./LayerStyleSubmenu').buildLayerStyleMenuItems>[7];
+  };
 };
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
@@ -182,6 +203,7 @@ export function TranscriptionTimelineTextOnly({
   defaultTranscriptionLayerId,
   scrollContainerRef,
   handleAnnotationClick,
+  handleAnnotationContextMenu,
   allLayersOrdered,
   onReorderLayers,
   deletableLayers,
@@ -216,12 +238,49 @@ export function TranscriptionTimelineTextOnly({
   startRecordingForUtterance,
   stopRecording,
   deleteVoiceTranslation,
+  displayStyleControl,
 }: TranscriptionTimelineTextOnlyProps) {
   const [layerAction, setLayerAction] = useState<{ action: LayerActionType; layerId?: string } | null>(null);
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
   const [saveStatusByCellKey, setSaveStatusByCellKey] = useState<Record<string, 'dirty' | 'saving' | 'error'>>({});
   const [collapsedLayerIds, setCollapsedLayerIds] = useState<Set<string>>(new Set());
-  const { resizingLayerId, startLaneHeightResize } = useTimelineLaneHeightResize(onLaneHeightChange);
+  const [previewFontSizeByLayerId, setPreviewFontSizeByLayerId] = useState<Record<string, number>>({});
+
+  const handleResizePreview = useCallback((layerId: string, previewHeight: number) => {
+    if (!displayStyleControl) return;
+    const layer = allLayersOrdered.find((candidate) => candidate.id === layerId);
+    if (!layer) return;
+    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, displayStyleControl.orthographies, layer.orthographyId);
+    const previewFontSize = computeFontSizeFromRenderPolicy(previewHeight, renderPolicy);
+    setPreviewFontSizeByLayerId((prev) => (
+      prev[layerId] === previewFontSize ? prev : { ...prev, [layerId]: previewFontSize }
+    ));
+  }, [allLayersOrdered, displayStyleControl]);
+
+  // 拖拽结束时反推字号 | Sync font size from lane height on resize end
+  const handleResizeEnd = useCallback((layerId: string, finalHeight: number) => {
+    setPreviewFontSizeByLayerId((prev) => {
+      if (!(layerId in prev)) return prev;
+      const next = { ...prev };
+      delete next[layerId];
+      return next;
+    });
+    if (!displayStyleControl) return;
+    const layer = allLayersOrdered.find((l) => l.id === layerId);
+    if (!layer) return;
+    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, displayStyleControl.orthographies, layer.orthographyId);
+    const newFontSize = computeFontSizeFromRenderPolicy(finalHeight, renderPolicy);
+    const oldFontSize = layer.displaySettings?.fontSize ?? BASE_FONT_SIZE;
+    if (Math.abs(newFontSize - oldFontSize) > 0.1) {
+      displayStyleControl.onUpdate(layerId, { fontSize: newFontSize });
+    }
+  }, [allLayersOrdered, displayStyleControl]);
+
+  const { resizingLayerId, startLaneHeightResize } = useTimelineLaneHeightResize(
+    onLaneHeightChange,
+    handleResizeEnd,
+    handleResizePreview,
+  );
 
   const toggleLayerCollapsed = (layerId: string) => {
     setCollapsedLayerIds((prev) => {
@@ -354,6 +413,16 @@ export function TranscriptionTimelineTextOnly({
           ? activeLayout.subTrackCount
           : 1;
         const visibleLaneHeight = isCollapsed ? 14 : baseLaneHeight * subTrackCount;
+        const previewFontSize = previewFontSizeByLayerId[layer.id];
+        const displaySettingsForRender = previewFontSize == null
+          ? layer.displaySettings
+          : {
+              ...layer.displaySettings,
+              fontSize: previewFontSize,
+            };
+        const renderPolicy = displayStyleControl
+          ? resolveOrthographyRenderPolicy(layer.languageId, displayStyleControl.orthographies, layer.orthographyId)
+          : undefined;
         const overlapCycleItemsByUtteranceId = isMultiTrackMode
           ? (activeLayout.overlapCycleItemsByGroupId.get('__all__') ?? EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID)
           : EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID;
@@ -414,6 +483,7 @@ export function TranscriptionTimelineTextOnly({
             isCollapsed={isCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
+            {...(displayStyleControl && { displayStyleControl })}
           />
           {!isCollapsed && <div className="timeline-lane-text-only-track" style={{ width: `${laneTotalSize}px` }}>
           {laneVirtualItems.map((virtualItem) => {
@@ -459,9 +529,12 @@ export function TranscriptionTimelineTextOnly({
                   transform: `translateX(${virtualItem.start}px)`,
                   ...(usesSegmentTimeline && isMultiTrackMode ? { top: subTrackIndex * baseLaneHeight, height: baseLaneHeight } : {}),
                   ...(speakerVisual ? ({ '--speaker-color': speakerVisual.color } as React.CSSProperties) : {}),
+                  ...layerDisplaySettingsToStyle(displaySettingsForRender, renderPolicy),
                 }}
+                dir={renderPolicy?.preferDirAttribute ? renderPolicy.textDirection : undefined}
                 title={speakerVisual ? `说话人：${speakerVisual.name}` : undefined}
-                  onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e, overlapCycleItemsByUtteranceId.get(utt.id))}
+                onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e, overlapCycleItemsByUtteranceId.get(utt.id))}
+                onContextMenu={(e) => handleAnnotationContextMenu?.(utt.id, utt, layer.id, e)}
               >
                 {speakerVisual && (
                   <span className="timeline-text-item-speaker-badge" title={`说话人：${speakerVisual.name}`}>
@@ -490,6 +563,8 @@ export function TranscriptionTimelineTextOnly({
                   className="timeline-text-input"
                   placeholder={usesSegmentTimeline ? '语段' : undefined}
                   value={draft}
+                  dir={renderPolicy?.preferDirAttribute ? renderPolicy.textDirection : undefined}
+                  onContextMenu={(e) => handleAnnotationContextMenu?.(utt.id, utt, layer.id, e)}
                   onFocus={() => {
                     setEditingCellKey(cellKey);
                     onFocusLayer(layer.id);
@@ -589,6 +664,16 @@ export function TranscriptionTimelineTextOnly({
           ? layerItems.map((_, index) => ({ index, size: 180, start: index * 180 }))
           : virtualItems.map((it) => ({ index: it.index, size: it.size, start: it.start }));
         const laneTotalSize = usesSegmentTimeline ? layerItems.length * 180 : totalSize;
+        const previewFontSize = previewFontSizeByLayerId[layer.id];
+        const displaySettingsForRender = previewFontSize == null
+          ? layer.displaySettings
+          : {
+              ...layer.displaySettings,
+              fontSize: previewFontSize,
+            };
+        const renderPolicy = displayStyleControl
+          ? resolveOrthographyRenderPolicy(layer.languageId, displayStyleControl.orthographies, layer.orthographyId)
+          : undefined;
         return (
         <div
           key={`tl-${layer.id}`}
@@ -626,6 +711,7 @@ export function TranscriptionTimelineTextOnly({
             isCollapsed={isCollapsed}
             onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
+            {...(displayStyleControl && { displayStyleControl })}
           />
           {!isCollapsed && <div className="timeline-lane-text-only-track" style={{ width: `${laneTotalSize}px` }}>
           {laneVirtualItems.map((virtualItem) => {
@@ -680,8 +766,11 @@ export function TranscriptionTimelineTextOnly({
                 style={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
+                  ...layerDisplaySettingsToStyle(displaySettingsForRender, renderPolicy),
                 }}
+                dir={renderPolicy?.preferDirAttribute ? renderPolicy.textDirection : undefined}
                 onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e)}
+                onContextMenu={(e) => handleAnnotationContextMenu?.(utt.id, utt, layer.id, e)}
               >
                 {!isAudioOnlyLayer && saveStatus === 'error' ? (
                   <button
@@ -709,6 +798,8 @@ export function TranscriptionTimelineTextOnly({
                     className="timeline-text-input"
                     placeholder={usesOwnSegments ? '语段' : '翻译'}
                     value={draft}
+                    dir={renderPolicy?.preferDirAttribute ? renderPolicy.textDirection : undefined}
+                    onContextMenu={(e) => handleAnnotationContextMenu?.(utt.id, utt, layer.id, e)}
                     onFocus={() => {
                       focusedTranslationDraftKeyRef.current = draftKey;
                       setEditingCellKey(cellKey);

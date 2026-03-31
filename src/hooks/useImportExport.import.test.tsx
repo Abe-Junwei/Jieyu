@@ -7,6 +7,7 @@ import type { LayerDocType } from '../db';
 import { useImportExport } from './useImportExport';
 
 const mockReadFileAsText = vi.hoisted(() => vi.fn());
+const mockIngestTextFile = vi.hoisted(() => vi.fn());
 const mockImportFromTextGrid = vi.hoisted(() => vi.fn());
 const mockValidateLayerTierConsistency = vi.hoisted(() => vi.fn(async () => []));
 const mockRepairExistingLayerConstraints = vi.hoisted(() => vi.fn((layers: LayerDocType[]) => ({ layers, repairs: [] })));
@@ -23,6 +24,10 @@ vi.mock('../services/EafService', async () => {
     readFileAsText: mockReadFileAsText,
   };
 });
+
+vi.mock('../utils/textIngestion', () => ({
+  ingestTextFile: mockIngestTextFile,
+}));
 
 vi.mock('../services/TextGridService', async () => {
   const actual = await vi.importActual('../services/TextGridService');
@@ -49,6 +54,8 @@ describe('useImportExport - import success under stop-write', () => {
     await Promise.all([
       db.texts.clear(),
       db.media_items.clear(),
+      db.orthographies.clear(),
+      db.orthography_transforms.clear(),
       db.tier_definitions.clear(),
       db.layer_links.clear(),
       db.utterances.clear(),
@@ -79,7 +86,7 @@ describe('useImportExport - import success under stop-write', () => {
     };
     await db.tier_definitions.put(defaultLayer as never);
 
-    mockReadFileAsText.mockResolvedValueOnce('dummy textgrid');
+    mockIngestTextFile.mockResolvedValueOnce({ text: 'dummy textgrid', detectedEncoding: 'utf-8', confidence: 'high' as const });
     mockImportFromTextGrid.mockReturnValueOnce({
       utterances: [
         {
@@ -126,6 +133,199 @@ describe('useImportExport - import success under stop-write', () => {
     }));
   });
 
+  it('applies active orthography transform before saving imported transcription text', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-default-transform-import',
+      textId: 'text-import',
+      key: 'trc_default_transform_import',
+      name: { zho: '默认转写层', eng: 'Default Transcription' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      orthographyId: 'orth_target_import',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await db.tier_definitions.put(defaultLayer as never);
+    await db.orthographies.bulkPut([
+      {
+        id: 'orth_source_import',
+        languageId: 'eng',
+        name: { eng: 'Source Import' },
+        scriptTag: 'Latn',
+        type: 'practical',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'orth_target_import',
+        languageId: 'eng',
+        name: { eng: 'Target Import' },
+        scriptTag: 'Latn',
+        type: 'practical',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ] as never[]);
+    await db.orthography_transforms.put({
+      id: 'orthxfm_import_trc',
+      sourceOrthographyId: 'orth_source_import',
+      targetOrthographyId: 'orth_target_import',
+      engine: 'table-map',
+      rules: {
+        mappings: [{ from: 'sh', to: 's' }],
+      },
+      status: 'active',
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as never);
+
+    mockIngestTextFile.mockResolvedValueOnce({ text: 'dummy textgrid', detectedEncoding: 'utf-8', confidence: 'high' as const });
+    mockImportFromTextGrid.mockReturnValueOnce({
+      utterances: [
+        {
+          startTime: 0,
+          endTime: 1,
+          transcription: 'shaam',
+        },
+      ],
+      additionalTiers: new Map(),
+      transcriptionTierName: 'Surface',
+      tierMetadata: new Map([
+        ['Surface', { orthographyId: 'orth_source_import' }],
+      ]),
+    });
+
+    const { result } = renderHook(() => useImportExport({
+      activeTextId: 'text-import',
+      getActiveTextId: vi.fn(async () => 'text-import'),
+      selectedUtteranceMedia: undefined,
+      utterancesOnCurrentMedia: [],
+      anchors: [],
+      layers: [defaultLayer],
+      translations: [],
+      defaultTranscriptionLayerId: defaultLayer.id,
+      loadSnapshot: vi.fn(async () => undefined),
+      setSaveState: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.handleImportFile(new File(['x'], 'demo.textgrid', { type: 'text/plain' }));
+    });
+
+    const contents = await db.layer_unit_contents.where('layerId').equals(defaultLayer.id).toArray();
+    expect(contents).toEqual([
+      expect.objectContaining({
+        layerId: defaultLayer.id,
+        text: 'saam',
+      }),
+    ]);
+  });
+
+  it('applies active orthography transform before saving imported translation text', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-default-transform-translation',
+      textId: 'text-import',
+      key: 'trc_default_transform_translation',
+      name: { zho: '默认转写层', eng: 'Default Transcription' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const translationLayer: LayerDocType = {
+      id: 'trl-existing-transform-layer',
+      textId: 'text-import',
+      key: 'trl_existing_transform_layer',
+      name: { zho: '注释层', eng: 'Gloss' },
+      layerType: 'translation',
+      languageId: 'eng',
+      orthographyId: 'orth_target_translation',
+      modality: 'text',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await db.tier_definitions.bulkPut([defaultLayer as never, translationLayer as never]);
+    await db.orthographies.bulkPut([
+      {
+        id: 'orth_source_translation',
+        languageId: 'eng',
+        name: { eng: 'Source Translation' },
+        scriptTag: 'Latn',
+        type: 'practical',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'orth_target_translation',
+        languageId: 'eng',
+        name: { eng: 'Target Translation' },
+        scriptTag: 'Latn',
+        type: 'practical',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ] as never[]);
+    await db.orthography_transforms.put({
+      id: 'orthxfm_import_translation',
+      sourceOrthographyId: 'orth_source_translation',
+      targetOrthographyId: 'orth_target_translation',
+      engine: 'table-map',
+      rules: {
+        mappings: [{ from: 'sh', to: 's' }],
+      },
+      status: 'active',
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as never);
+
+    mockIngestTextFile.mockResolvedValueOnce({ text: 'dummy textgrid', detectedEncoding: 'utf-8', confidence: 'high' as const });
+    mockImportFromTextGrid.mockReturnValueOnce({
+      utterances: [
+        {
+          startTime: 0,
+          endTime: 1,
+          transcription: 'source utterance',
+        },
+      ],
+      additionalTiers: new Map([
+        ['Gloss', [{ startTime: 0, endTime: 1, text: 'shaam' }]],
+      ]),
+      transcriptionTierName: undefined,
+      tierMetadata: new Map([
+        ['Gloss', { orthographyId: 'orth_source_translation', languageId: 'eng' }],
+      ]),
+    });
+
+    const { result } = renderHook(() => useImportExport({
+      activeTextId: 'text-import',
+      getActiveTextId: vi.fn(async () => 'text-import'),
+      selectedUtteranceMedia: undefined,
+      utterancesOnCurrentMedia: [],
+      anchors: [],
+      layers: [defaultLayer, translationLayer],
+      translations: [],
+      defaultTranscriptionLayerId: defaultLayer.id,
+      loadSnapshot: vi.fn(async () => undefined),
+      setSaveState: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.handleImportFile(new File(['x'], 'gloss.textgrid', { type: 'text/plain' }));
+    });
+
+    const contents = await db.layer_unit_contents.where('layerId').equals(translationLayer.id).toArray();
+    expect(contents).toEqual([
+      expect.objectContaining({
+        layerId: translationLayer.id,
+        text: 'saam',
+      }),
+    ]);
+  });
+
   it('does not assign utterance speaker from tier participant automatically', async () => {
     const defaultLayer: LayerDocType = {
       id: 'trc-default-speaker-import',
@@ -147,7 +347,7 @@ describe('useImportExport - import success under stop-write', () => {
       updatedAt: NOW,
     } as never);
 
-    mockReadFileAsText.mockResolvedValueOnce(`<?xml version="1.0" encoding="UTF-8"?>
+    mockIngestTextFile.mockResolvedValueOnce({ text: `<?xml version="1.0" encoding="UTF-8"?>
 <ANNOTATION_DOCUMENT AUTHOR="Jieyu" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">
   <TIME_ORDER>
     <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
@@ -161,7 +361,7 @@ describe('useImportExport - import success under stop-write', () => {
     </ANNOTATION>
   </TIER>
   <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
-</ANNOTATION_DOCUMENT>`);
+</ANNOTATION_DOCUMENT>`, detectedEncoding: 'utf-8', confidence: 'high' as const });
 
     const { result } = renderHook(() => useImportExport({
       activeTextId: 'text-import',
@@ -219,7 +419,7 @@ describe('useImportExport - import success under stop-write', () => {
       createdAt: NOW,
     } as never);
 
-    mockReadFileAsText.mockResolvedValueOnce(`<?xml version="1.0" encoding="UTF-8"?>
+    mockIngestTextFile.mockResolvedValueOnce({ text: `<?xml version="1.0" encoding="UTF-8"?>
 <ANNOTATION_DOCUMENT AUTHOR="Jieyu" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">
   <TIME_ORDER>
     <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="1000" />
@@ -234,7 +434,7 @@ describe('useImportExport - import success under stop-write', () => {
     </ANNOTATION>
   </TIER>
   <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
-</ANNOTATION_DOCUMENT>`);
+</ANNOTATION_DOCUMENT>`, detectedEncoding: 'utf-8', confidence: 'high' as const });
 
     const selectedUtteranceMedia = {
       id: 'media-import',
@@ -296,7 +496,7 @@ describe('useImportExport - import success under stop-write', () => {
     };
     await db.tier_definitions.bulkPut([defaultLayer as never, independentLayer as never]);
 
-    mockReadFileAsText.mockResolvedValueOnce(`<?xml version="1.0" encoding="UTF-8"?>
+    mockIngestTextFile.mockResolvedValueOnce({ text: `<?xml version="1.0" encoding="UTF-8"?>
 <ANNOTATION_DOCUMENT AUTHOR="Jieyu" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">
   <TIME_ORDER>
     <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="1000" />
@@ -311,7 +511,7 @@ describe('useImportExport - import success under stop-write', () => {
     </ANNOTATION>
   </TIER>
   <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
-</ANNOTATION_DOCUMENT>`);
+</ANNOTATION_DOCUMENT>`, detectedEncoding: 'utf-8', confidence: 'high' as const });
 
     const setSaveState = vi.fn();
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

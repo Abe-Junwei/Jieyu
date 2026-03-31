@@ -10,6 +10,7 @@ import { memo, useCallback, useEffect, useRef, useState, type CSSProperties, typ
 import { Brain, Check, ChevronDown, History, Mic, MicOff, SlidersHorizontal, X } from 'lucide-react';
 import { getConfidenceColor, type VoiceAgentMode, type VoiceAgentState, type VoicePendingConfirm } from '../hooks/useVoiceAgent';
 import { SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
+import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import type { SttEngine } from '../services/VoiceInputService';
 import { commercialProviderDefinitions } from '../services/stt';
 import type { CommercialProviderKind } from '../services/VoiceInputService';
@@ -53,6 +54,8 @@ export interface VoiceAgentWidgetProps {
   commercialProviderKind: CommercialProviderKind;
   /** Commercial provider config (full object) */
   commercialProviderConfig: { apiKey?: string; baseUrl?: string; model?: string; appId?: string; accessToken?: string };
+  /** 听写预览文本样式 | Preview text props for dictation snippets */
+  dictationPreviewTextProps?: OrthographyPreviewTextProps;
   /** 当前语音写入/作用目标摘要 | Current target summary for voice actions */
   targetSummary: string;
   /** 当前状态摘要 | Current status summary */
@@ -157,6 +160,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
     session,
     commercialProviderKind,
     commercialProviderConfig,
+    dictationPreviewTextProps,
     targetSummary,
     statusSummary,
     environmentSummary,
@@ -265,6 +269,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
   const sessionHint = listening ? MODE_HINTS[mode].active : MODE_HINTS[mode].idle;
   const sessionText = displayText || sessionHint;
   const isSessionEmpty = displayText.length === 0;
+  const sessionTextPreviewProps = mode === 'dictation' && !isSessionEmpty ? dictationPreviewTextProps : undefined;
   const sessionTargetLabel = mode === 'dictation'
     ? '写入到'
     : mode === 'analysis'
@@ -412,7 +417,13 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
           </div>
 
           <div className={`voice-agent-session-body ${interimText ? 'voice-agent-interim' : 'voice-agent-final'} ${isSessionEmpty ? 'is-placeholder' : ''}`}>
-            {sessionText}
+            <span
+              className="voice-agent-session-body-text"
+              {...(sessionTextPreviewProps?.dir ? { dir: sessionTextPreviewProps.dir } : {})}
+              {...(sessionTextPreviewProps?.style ? { style: sessionTextPreviewProps.style } : {})}
+            >
+              {sessionText}
+            </span>
           </div>
 
           <div className="voice-agent-session-grid">
@@ -726,7 +737,12 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                           <span className={`voice-agent-history-type voice-agent-history-type-${entry.intent.type}`}>
                             {entry.intent.type === 'action' && entry.intent.actionId ? getActionLabel(entry.intent.actionId) : entry.intent.type}
                           </span>
-                          <span className="voice-agent-history-text" title={entry.sttText}>
+                          <span
+                            className="voice-agent-history-text"
+                            title={entry.sttText}
+                            {...(entry.intent.type === 'dictation' && dictationPreviewTextProps?.dir ? { dir: dictationPreviewTextProps.dir } : {})}
+                            {...(entry.intent.type === 'dictation' && dictationPreviewTextProps?.style ? { style: dictationPreviewTextProps.style } : {})}
+                          >
                             {entry.sttText.length > 24 ? `${entry.sttText.slice(0, 24)}…` : entry.sttText}
                           </span>
                           {entry.confidence > 0 && (

@@ -60,6 +60,7 @@ export function useTranscriptionSegmentBridgeController(
     contents: [],
     links: [],
   });
+  const segmentUndoSnapshotRequestIdRef = useRef(0);
 
   const resolveSegmentRoutingForLayer = useCallback((layerId?: string): SegmentTimelineRoutingResult => {
     const layer = layerId ? input.layerById.get(layerId) : undefined;
@@ -74,16 +75,26 @@ export function useTranscriptionSegmentBridgeController(
   }, [input.defaultTranscriptionLayerId, input.layerById]);
 
   const refreshSegmentUndoSnapshot = useCallback(async () => {
+    const requestId = segmentUndoSnapshotRequestIdRef.current + 1;
+    segmentUndoSnapshotRequestIdRef.current = requestId;
     if (input.independentLayerIds.size === 0) {
-      segmentUndoSnapshotRef.current = { segments: [], contents: [], links: [] };
+      if (segmentUndoSnapshotRequestIdRef.current === requestId) {
+        segmentUndoSnapshotRef.current = { segments: [], contents: [], links: [] };
+      }
       return;
     }
     const db = await getDb();
-    segmentUndoSnapshotRef.current = await snapshotLayerSegmentGraphByLayerIds(db, [...input.independentLayerIds]);
+    const snapshot = await snapshotLayerSegmentGraphByLayerIds(db, [...input.independentLayerIds]);
+    if (segmentUndoSnapshotRequestIdRef.current !== requestId) return;
+    segmentUndoSnapshotRef.current = snapshot;
   }, [input.independentLayerIds]);
 
   useEffect(() => {
     fireAndForget(refreshSegmentUndoSnapshot());
+
+    return () => {
+      segmentUndoSnapshotRequestIdRef.current += 1;
+    };
   }, [refreshSegmentUndoSnapshot]);
 
   useEffect(() => {

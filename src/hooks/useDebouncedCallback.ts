@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import { useLatest } from './useLatest';
 
 /**
  * Returns a debounced version of the callback.
@@ -9,10 +10,7 @@ export function useDebouncedCallback<T extends (...args: never[]) => void>(
   delayMs: number,
 ): { run: (...args: Parameters<T>) => void; cancel: () => void; flush: () => void } {
   const timerRef = useRef<number | undefined>(undefined);
-  const callbackRef = useRef(callback);
-  useLayoutEffect(() => {
-    callbackRef.current = callback;
-  });
+  const callbackRef = useLatest(callback);
   const argsRef = useRef<Parameters<T> | null>(null);
 
   const cancel = useCallback(() => {

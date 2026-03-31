@@ -99,7 +99,6 @@ export function useTranscriptionSegmentCreationController(
         updatedAt: now,
       };
       if (routing.editMode === 'time-subdivision') {
-        // 时间细分：查找父 utterance 并裁剪 | Time subdivision: find parent utterance and clip
         const parentUtt = input.utterancesOnCurrentMedia.find(
           (utterance) => utterance.startTime <= finalStart + 0.01 && utterance.endTime >= finalEnd - 0.01,
         );
@@ -119,8 +118,6 @@ export function useTranscriptionSegmentCreationController(
           parentUtt.endTime,
         );
       } else {
-        // 独立层：查找重叠的 utterance 并关联，使说话人指派等功能可正常工作
-        // Independent layer: find overlapping utterance and link it so speaker assignment etc. works
         const overlappingUtt = input.utterancesOnCurrentMedia.find(
           (utterance) => utterance.startTime <= finalEnd - 0.01 && utterance.endTime >= finalStart + 0.01,
         );
@@ -143,12 +140,11 @@ export function useTranscriptionSegmentCreationController(
       });
       return;
     }
-    const resolvedLayerId = input.activeLayerIdForEdits;
     await input.createUtteranceFromSelection(start, end, {
       ...(input.speakerFocusTargetKey ? { speakerId: input.speakerFocusTargetKey } : {}),
-      ...(resolvedLayerId ? { focusedLayerId: resolvedLayerId } : {}),
+      ...(input.activeLayerIdForEdits ? { focusedLayerId: input.activeLayerIdForEdits } : {}),
     });
-  }, [createSegmentTarget, input]);
+  }, [input]);
 
   return { createUtteranceFromSelectionRouted };
 }

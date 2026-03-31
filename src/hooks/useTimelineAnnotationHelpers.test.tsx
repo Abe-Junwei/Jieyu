@@ -88,6 +88,7 @@ describe('useTimelineAnnotationHelpers', () => {
       layerId: 'layer-seg',
       unitKind: 'segment',
       splitTime: 1.001,
+      source: 'timeline',
     });
   });
 
@@ -140,6 +141,59 @@ describe('useTimelineAnnotationHelpers', () => {
       unitId: 'seg-1',
       layerId: 'layer-dependent',
       unitKind: 'segment',
+    }));
+  });
+
+  it('opens shared context menu when right-clicking active annotation input', () => {
+    const setCtxMenu = vi.fn();
+
+    const { result } = renderHook(() => useTimelineAnnotationHelpers({
+      manualSelectTsRef: { current: 0 },
+      player: {
+        isPlaying: false,
+        stop: vi.fn(),
+        seekTo: vi.fn(),
+      },
+      selectedTimelineUnit: { layerId: 'layer-input', unitId: 'utt-1', kind: 'utterance' },
+      selectUtteranceRange: vi.fn(),
+      toggleUtteranceSelection: vi.fn(),
+      selectTimelineUnit: vi.fn(),
+      selectUtterance: vi.fn(),
+      selectSegment: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      onFocusLayerRow: vi.fn(),
+      tierContainerRef: { current: null },
+      zoomPxPerSec: 100,
+      setCtxMenu,
+      navigateUtteranceFromInput: vi.fn(),
+      waveformAreaRef: { current: null },
+      dragPreview: null,
+      selectedUtteranceIds: new Set(['utt-1']),
+      focusedLayerRowId: 'layer-input',
+      zoomToUtterance: vi.fn(),
+      startTimelineResizeDrag: vi.fn(),
+      handleNoteClick: vi.fn(),
+      resolveNoteIndicatorTarget: vi.fn(() => null),
+      independentLayerIds: new Set(),
+    }));
+
+    render(result.current.renderAnnotationItem(
+      { id: 'utt-1', startTime: 1, endTime: 2 },
+      makeLayer('layer-input'),
+      'draft text',
+      {
+        onChange: vi.fn(),
+        onBlur: vi.fn(),
+      },
+    ));
+
+    fireEvent.contextMenu(screen.getByRole('textbox'));
+
+    expect(setCtxMenu).toHaveBeenCalledWith(expect.objectContaining({
+      unitId: 'utt-1',
+      layerId: 'layer-input',
+      unitKind: 'utterance',
+      source: 'timeline',
     }));
   });
 });

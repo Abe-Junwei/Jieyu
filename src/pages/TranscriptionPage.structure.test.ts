@@ -323,8 +323,8 @@ describe('TranscriptionPage structure invariants', () => {
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSegmentCreationController.ts');
     const code = fs.readFileSync(hookPath, 'utf8');
 
-    const timeSubdivisionPushUndoIndex = code.indexOf("input.pushUndo('新建句段');");
-    const independentPushUndoIndex = code.lastIndexOf("input.pushUndo('新建句段');");
+    const timeSubdivisionPushUndoIndex = code.indexOf("pushUndo('新建句段');");
+    const independentPushUndoIndex = code.lastIndexOf("pushUndo('新建句段');");
     const parentGuardIndex = code.indexOf("if (!parentUtt) {");
 
     expect(timeSubdivisionPushUndoIndex).toBeGreaterThan(parentGuardIndex);
@@ -455,7 +455,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(speakerControllerCode.includes('const handleAssignSpeakerFromMenu = useCallback((unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => {')).toBe(true);
     expect(speakerControllerCode.includes("if (kind === 'segment') {")).toBe(true);
     expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToSegments(Array.from(unitIds), speakerId));')).toBe(true);
-    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToUtterances(input.resolveSpeakerActionUtteranceIds(unitIds), speakerId));')).toBe(true);
+    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToUtterances(resolveSpeakerActionUtteranceIds(unitIds), speakerId));')).toBe(true);
 
     expect(routingHookCode.includes('const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {')).toBe(true);
     expect(routingHookCode.includes('await LinguisticService.assignSpeakerToSegments(targetIds, speakerId);')).toBe(true);
@@ -560,12 +560,12 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('textOnlyProps: {')).toBe(false);
     expect(orchestratorCode.includes('speakerDialogState={speakerDialogStateRouted}')).toBe(false);
 
-    expect(hookCode.includes('const toolbarProps = useMemo<TranscriptionPageToolbarProps>(() => {')).toBe(true);
-    expect(hookCode.includes('const lowConfidenceCount = utterancesOnCurrentMedia.filter(')).toBe(true);
+    expect(hookCode.includes('const toolbarProps = useMemo<TranscriptionPageToolbarProps>(() => ({')).toBe(true);
+    expect(hookCode.includes('const lowConfidenceCount = useMemo(() => utterancesOnCurrentMedia.filter(')).toBe(true);
     expect(hookCode.includes('const timelineTopProps = useMemo<TranscriptionPageTimelineTopProps>(() => ({')).toBe(true);
-    expect(hookCode.includes('const timelineContentPropsView = useMemo<TranscriptionPageTimelineContentProps>(() => timelineContentProps, [timelineContentProps]);')).toBe(true);
-  expect(hookCode.includes("import {\n  useTranscriptionSidebarSectionsViewModel,")).toBe(true);
-  expect(hookCode.includes('const { aiSidebarProps, dialogsProps } = useTranscriptionSidebarSectionsViewModel(sidebarSectionsInput);')).toBe(true);
+    expect(hookCode.includes('return {\n    toolbarProps,\n    timelineTopProps,\n    timelineContentProps,\n    aiSidebarProps,\n    dialogsProps,\n  };')).toBe(true);
+    expect(hookCode.includes("import {\n  useTranscriptionSidebarSectionsViewModel,")).toBe(true);
+    expect(hookCode.includes('const { aiSidebarProps, dialogsProps } = useTranscriptionSidebarSectionsViewModel(sidebarSectionsInput);')).toBe(true);
 
   expect(sidebarHookCode.includes('const aiSidebarProps = useMemo<TranscriptionPageAiSidebarProps>(() => ({')).toBe(true);
   expect(sidebarHookCode.includes('assistantRuntimeProps.aiChatContextValue.aiPendingToolCall')).toBe(true);

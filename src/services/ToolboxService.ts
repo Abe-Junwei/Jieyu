@@ -19,12 +19,16 @@ import type {
   UtteranceMorphemeDocType,
   LayerSegmentDocType,
   LayerSegmentContentDocType,
+  OrthographyDocType,
 } from '../db';
+import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
+import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
 
 export interface ToolboxExportInput {
   utterances: UtteranceDocType[];
   layers: LayerDocType[];
   translations: UtteranceTextDocType[];
+  orthographies?: OrthographyDocType[];
   tokens?: UtteranceTokenDocType[];
   morphemes?: UtteranceMorphemeDocType[];
   /** 独立层 segment 数据 | Independent layer segment data */
@@ -171,7 +175,7 @@ export function importFromToolbox(content: string): ToolboxImportResult {
   rawRecords.forEach((rec, i) => {
     const startTime = parseTime(rec.ts, i);
     const endTime = parseTime(rec.te, startTime + 1);
-    const transcription = (rec.tx ?? '').trim();
+    const transcription = stripPlainTextBidiIsolation((rec.tx ?? '').trim());
 
     if (!transcription) return;
 
@@ -183,7 +187,7 @@ export function importFromToolbox(content: string): ToolboxImportResult {
       ...(tokens.length > 0 ? { tokens } : {}),
     });
 
-    const ft = (rec.ft ?? '').trim();
+    const ft = stripPlainTextBidiIsolation((rec.ft ?? '').trim());
     if (ft) {
       freeTranslations.push({ startTime, endTime, text: ft });
     }
@@ -226,8 +230,16 @@ function buildWordMarkers(
 }
 
 export function exportToToolbox(input: ToolboxExportInput): string {
-  const { utterances, layers, translations, tokens = [], morphemes = [], segmentsByLayer, segmentContents } = input;
+  const { utterances, layers, translations, orthographies, tokens = [], morphemes = [], segmentsByLayer, segmentContents } = input;
   const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
+  const defaultTranscriptionLayer = layers.find((l) => l.layerType === 'transcription' && l.isDefault)
+    ?? layers.find((l) => l.layerType === 'transcription');
+  const firstTranslationLayer = layers.find((l) => l.layerType === 'translation');
+  const wrapLayerText = (text: string, layer?: LayerDocType) => {
+    if (!layer?.languageId) return text;
+    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
+    return wrapPlainTextWithBidiIsolation(text, renderPolicy);
+  };
 
   const tokensByUtteranceId = new Map<string, UtteranceTokenDocType[]>();
   for (const token of tokens) {
@@ -266,12 +278,13 @@ export function exportToToolbox(input: ToolboxExportInput): string {
 
   sorted.forEach((u, i) => {
     const ref = u.id || `r${i + 1}`;
-    const tx = transcriptionByUtteranceId.get(u.id) ?? u.transcription?.default ?? '';
+    const tx = wrapLayerText(transcriptionByUtteranceId.get(u.id) ?? u.transcription?.default ?? '', defaultTranscriptionLayer);
     const utteranceTokens = tokensByUtteranceId.get(u.id) ?? [];
     const markers = buildWordMarkers(utteranceTokens, morphemesByTokenId);
     const ft = firstTranslationLayerId
       ? translations.find((t) => t.utteranceId === u.id && t.layerId === firstTranslationLayerId && t.modality === 'text')?.text ?? ''
       : '';
+    const wrappedFt = wrapLayerText(ft, firstTranslationLayer);
 
     lines.push(`\\ref ${ref}`);
     lines.push(`\\ts ${u.startTime.toFixed(3)}`);
@@ -280,7 +293,7 @@ export function exportToToolbox(input: ToolboxExportInput): string {
     if (markers.mb) lines.push(`\\mb ${markers.mb}`);
     if (markers.ge) lines.push(`\\ge ${markers.ge}`);
     if (markers.ps) lines.push(`\\ps ${markers.ps}`);
-    if (ft) lines.push(`\\ft ${ft}`);
+    if (wrappedFt) lines.push(`\\ft ${wrappedFt}`);
     lines.push('');
   });
 
@@ -297,7 +310,7 @@ export function exportToToolbox(input: ToolboxExportInput): string {
         lines.push(`\\ref ${seg.id}`);
         lines.push(`\\ts ${seg.startTime.toFixed(3)}`);
         lines.push(`\\te ${seg.endTime.toFixed(3)}`);
-        lines.push(`\\tx ${contentMap?.get(seg.id)?.text ?? ''}`);
+        lines.push(`\\tx ${wrapLayerText(contentMap?.get(seg.id)?.text ?? '', layer)}`);
         lines.push('');
       }
     }

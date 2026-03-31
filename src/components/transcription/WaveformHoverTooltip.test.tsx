@@ -186,4 +186,22 @@ describe('WaveformHoverTooltip', () => {
       expect.objectContaining({ id: 'utt-1' }),
     );
   });
+
+  it('applies orthography-aware preview dir and style to the text fragment only', () => {
+    const { container } = render(
+      <WaveformHoverTooltip
+        {...defaultProps}
+        previewDir="rtl"
+        previewStyle={{ direction: 'rtl', unicodeBidi: 'isolate', fontFamily: 'Scheherazade New' }}
+      />,
+    );
+
+    const tooltip = container.querySelector('.waveform-hover-tooltip');
+    const preview = container.querySelector('.waveform-hover-tooltip-text');
+    expect(tooltip?.getAttribute('dir')).toBeNull();
+    expect(preview?.getAttribute('dir')).toBe('rtl');
+    expect((preview as HTMLElement).style.direction).toBe('rtl');
+    expect((preview as HTMLElement).style.unicodeBidi).toBe('isolate');
+    expect((preview as HTMLElement).style.fontFamily).toContain('Scheherazade New');
+  });
 });

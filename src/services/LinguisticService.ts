@@ -19,9 +19,13 @@ import {
   type AuditLogDocType,
   type AuditSource,
   type AnchorDocType,
+  type MultiLangString,
+  type OrthographyDocType,
+  type OrthographyTransformDocType,
   type SpeakerDocType,
 } from '../db';
 import { newId } from '../../src/utils/transcriptionFormatters';
+import { previewOrthographyTransform } from '../utils/orthographyTransforms';
 import {
   assertReviewProtection,
   assertStableId,
@@ -64,6 +68,12 @@ export {
   type TierSaveResult,
   validateTierConstraints,
 } from './LinguisticService.constraints';
+
+export type {
+  MultiLangString,
+  OrthographyDocType,
+  OrthographyTransformDocType,
+} from '../db';
 
 // ── Audit log infrastructure ──────────────────────────────────
 
@@ -1237,6 +1247,7 @@ export class LinguisticService {
     titleZh: string;
     titleEn: string;
     primaryLanguageId: string;
+    primaryOrthographyId?: string;
   }): Promise<{ textId: string }> {
     const db = await getDb();
     const now = new Date().toISOString();
@@ -1245,12 +1256,346 @@ export class LinguisticService {
     await db.collections.texts.insert({
       id: textId,
       title: { zho: input.titleZh, eng: input.titleEn },
-      metadata: { primaryLanguageId: input.primaryLanguageId },
+      metadata: {
+        primaryLanguageId: input.primaryLanguageId,
+        ...(input.primaryOrthographyId ? { primaryOrthographyId: input.primaryOrthographyId } : {}),
+      },
       createdAt: now,
       updatedAt: now,
     } as TextDocType);
 
     return { textId };
+  }
+
+  static async createOrthography(input: {
+    languageId: string;
+    name: MultiLangString;
+    abbreviation?: string;
+    type?: OrthographyDocType['type'];
+    scriptTag?: string;
+    localeTag?: string;
+    regionTag?: string;
+    variantTag?: string;
+    direction?: OrthographyDocType['direction'];
+    exemplarCharacters?: OrthographyDocType['exemplarCharacters'];
+    normalization?: OrthographyDocType['normalization'];
+    collation?: OrthographyDocType['collation'];
+    fontPreferences?: OrthographyDocType['fontPreferences'];
+    inputHints?: OrthographyDocType['inputHints'];
+    bidiPolicy?: OrthographyDocType['bidiPolicy'];
+    conversionRules?: Record<string, unknown>;
+    notes?: MultiLangString;
+  }): Promise<OrthographyDocType> {
+    const db = await getDb();
+    const now = new Date().toISOString();
+    const orthography: OrthographyDocType = {
+      id: newId('orth'),
+      name: input.name,
+      languageId: input.languageId,
+      ...(input.abbreviation ? { abbreviation: input.abbreviation } : {}),
+      ...(input.type ? { type: input.type } : {}),
+      ...(input.scriptTag ? { scriptTag: input.scriptTag } : {}),
+      ...(input.localeTag ? { localeTag: input.localeTag } : {}),
+      ...(input.regionTag ? { regionTag: input.regionTag } : {}),
+      ...(input.variantTag ? { variantTag: input.variantTag } : {}),
+      ...(input.direction ? { direction: input.direction } : {}),
+      ...(input.exemplarCharacters ? { exemplarCharacters: input.exemplarCharacters } : {}),
+      ...(input.normalization ? { normalization: input.normalization } : {}),
+      ...(input.collation ? { collation: input.collation } : {}),
+      ...(input.fontPreferences ? { fontPreferences: input.fontPreferences } : {}),
+      ...(input.inputHints ? { inputHints: input.inputHints } : {}),
+      ...(input.bidiPolicy ? { bidiPolicy: input.bidiPolicy } : {}),
+      ...(input.conversionRules ? { conversionRules: input.conversionRules } : {}),
+      ...(input.notes ? { notes: input.notes } : {}),
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.collections.orthographies.insert(orthography);
+    return orthography;
+  }
+
+  static async cloneOrthographyToLanguage(input: {
+    sourceOrthographyId: string;
+    targetLanguageId: string;
+    name?: MultiLangString;
+    abbreviation?: string;
+    type?: OrthographyDocType['type'];
+    scriptTag?: string;
+    localeTag?: string;
+    regionTag?: string;
+    variantTag?: string;
+    direction?: OrthographyDocType['direction'];
+    exemplarCharacters?: OrthographyDocType['exemplarCharacters'];
+    normalization?: OrthographyDocType['normalization'];
+    collation?: OrthographyDocType['collation'];
+    fontPreferences?: OrthographyDocType['fontPreferences'];
+    inputHints?: OrthographyDocType['inputHints'];
+    bidiPolicy?: OrthographyDocType['bidiPolicy'];
+    conversionRules?: Record<string, unknown>;
+    notes?: MultiLangString;
+  }): Promise<OrthographyDocType> {
+    const db = await getDb();
+    const sourceDoc = await db.collections.orthographies.findOne({
+      selector: { id: input.sourceOrthographyId },
+    }).exec();
+    const source = sourceDoc?.toJSON();
+    if (!source) {
+      throw new Error('源正字法不存在');
+    }
+
+    return LinguisticService.createOrthography({
+      languageId: input.targetLanguageId,
+      name: input.name ?? source.name,
+      ...((input.abbreviation ?? source.abbreviation) !== undefined
+        ? { abbreviation: input.abbreviation ?? source.abbreviation }
+        : {}),
+      ...((input.type ?? source.type) !== undefined ? { type: input.type ?? source.type } : {}),
+      ...((input.scriptTag ?? source.scriptTag) !== undefined
+        ? { scriptTag: input.scriptTag ?? source.scriptTag }
+        : {}),
+      ...((input.localeTag ?? source.localeTag) !== undefined
+        ? { localeTag: input.localeTag ?? source.localeTag }
+        : {}),
+      ...((input.regionTag ?? source.regionTag) !== undefined
+        ? { regionTag: input.regionTag ?? source.regionTag }
+        : {}),
+      ...((input.variantTag ?? source.variantTag) !== undefined
+        ? { variantTag: input.variantTag ?? source.variantTag }
+        : {}),
+      ...((input.direction ?? source.direction) !== undefined
+        ? { direction: input.direction ?? source.direction }
+        : {}),
+      ...((input.exemplarCharacters ?? source.exemplarCharacters) !== undefined
+        ? { exemplarCharacters: input.exemplarCharacters ?? source.exemplarCharacters }
+        : {}),
+      ...((input.normalization ?? source.normalization) !== undefined
+        ? { normalization: input.normalization ?? source.normalization }
+        : {}),
+      ...((input.collation ?? source.collation) !== undefined
+        ? { collation: input.collation ?? source.collation }
+        : {}),
+      ...((input.fontPreferences ?? source.fontPreferences) !== undefined
+        ? { fontPreferences: input.fontPreferences ?? source.fontPreferences }
+        : {}),
+      ...((input.inputHints ?? source.inputHints) !== undefined
+        ? { inputHints: input.inputHints ?? source.inputHints }
+        : {}),
+      ...((input.bidiPolicy ?? source.bidiPolicy) !== undefined
+        ? { bidiPolicy: input.bidiPolicy ?? source.bidiPolicy }
+        : {}),
+      ...((input.conversionRules ?? source.conversionRules) !== undefined
+        ? { conversionRules: input.conversionRules ?? source.conversionRules }
+        : {}),
+      ...((input.notes ?? source.notes) !== undefined ? { notes: input.notes ?? source.notes } : {}),
+    });
+  }
+
+  static async createOrthographyTransform(input: {
+    sourceOrthographyId: string;
+    targetOrthographyId: string;
+    engine: OrthographyTransformDocType['engine'];
+    rules: OrthographyTransformDocType['rules'];
+    name?: MultiLangString;
+    sampleInput?: string;
+    sampleOutput?: string;
+    sampleCases?: OrthographyTransformDocType['sampleCases'];
+    isReversible?: boolean;
+    status?: OrthographyTransformDocType['status'];
+    notes?: MultiLangString;
+  }): Promise<OrthographyTransformDocType> {
+    const db = await getDb();
+    const now = new Date().toISOString();
+    const transform: OrthographyTransformDocType = {
+      id: newId('orthxfm'),
+      sourceOrthographyId: input.sourceOrthographyId,
+      targetOrthographyId: input.targetOrthographyId,
+      engine: input.engine,
+      rules: input.rules,
+      ...(input.name ? { name: input.name } : {}),
+      ...(input.sampleInput ? { sampleInput: input.sampleInput } : {}),
+      ...(input.sampleOutput ? { sampleOutput: input.sampleOutput } : {}),
+      ...(input.sampleCases ? { sampleCases: input.sampleCases } : {}),
+      ...(input.isReversible !== undefined ? { isReversible: input.isReversible } : {}),
+      ...(input.status ? { status: input.status } : {}),
+      ...(input.notes ? { notes: input.notes } : {}),
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.collections.orthography_transforms.insert(transform);
+    return transform;
+  }
+
+  static async listOrthographyTransforms(selector: {
+    sourceOrthographyId?: string;
+    targetOrthographyId?: string;
+  } = {}): Promise<OrthographyTransformDocType[]> {
+    const db = await getDb();
+    const docs = await db.collections.orthography_transforms.find().exec();
+    const rankStatus = (status: OrthographyTransformDocType['status']): number => {
+      if (status === 'active') return 0;
+      if (status === 'draft' || status === undefined) return 1;
+      return 2;
+    };
+    return docs
+      .map((doc) => doc.toJSON())
+      .filter((doc) => {
+        if (selector.sourceOrthographyId && doc.sourceOrthographyId !== selector.sourceOrthographyId) {
+          return false;
+        }
+        if (selector.targetOrthographyId && doc.targetOrthographyId !== selector.targetOrthographyId) {
+          return false;
+        }
+        return true;
+      })
+      .sort((left, right) => {
+        const rankDiff = rankStatus(left.status) - rankStatus(right.status);
+        if (rankDiff !== 0) return rankDiff;
+        return (right.updatedAt || right.createdAt).localeCompare(left.updatedAt || left.createdAt);
+      });
+  }
+
+  static async updateOrthographyTransform(input: {
+    id: string;
+    sourceOrthographyId?: string;
+    targetOrthographyId?: string;
+    name?: MultiLangString | null;
+    engine?: OrthographyTransformDocType['engine'];
+    rules?: OrthographyTransformDocType['rules'];
+    sampleInput?: string | null;
+    sampleOutput?: string | null;
+    sampleCases?: OrthographyTransformDocType['sampleCases'] | null;
+    isReversible?: boolean | null;
+    status?: OrthographyTransformDocType['status'] | null;
+    notes?: MultiLangString | null;
+  }): Promise<OrthographyTransformDocType> {
+    const db = await getDb();
+    const existing = await db.dexie.orthography_transforms.get(input.id);
+    if (!existing) {
+      throw new Error('正字法变换不存在');
+    }
+
+    const next: OrthographyTransformDocType = {
+      ...existing,
+      ...(input.sourceOrthographyId ? { sourceOrthographyId: input.sourceOrthographyId } : {}),
+      ...(input.targetOrthographyId ? { targetOrthographyId: input.targetOrthographyId } : {}),
+      ...(input.engine ? { engine: input.engine } : {}),
+      ...(input.rules ? { rules: input.rules } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (input.name === null) {
+      delete next.name;
+    } else if (input.name !== undefined) {
+      next.name = input.name;
+    }
+
+    if (input.sampleInput === null) {
+      delete next.sampleInput;
+    } else if (input.sampleInput !== undefined) {
+      next.sampleInput = input.sampleInput;
+    }
+
+    if (input.sampleOutput === null) {
+      delete next.sampleOutput;
+    } else if (input.sampleOutput !== undefined) {
+      next.sampleOutput = input.sampleOutput;
+    }
+
+    if (input.sampleCases === null) {
+      delete next.sampleCases;
+    } else if (input.sampleCases !== undefined) {
+      next.sampleCases = input.sampleCases;
+    }
+
+    if (input.isReversible === null) {
+      delete next.isReversible;
+    } else if (input.isReversible !== undefined) {
+      next.isReversible = input.isReversible;
+    }
+
+    if (input.status === null) {
+      delete next.status;
+    } else if (input.status !== undefined) {
+      next.status = input.status;
+    }
+
+    if (input.notes === null) {
+      delete next.notes;
+    } else if (input.notes !== undefined) {
+      next.notes = input.notes;
+    }
+
+    await db.collections.orthography_transforms.insert(next);
+    return next;
+  }
+
+  static async deleteOrthographyTransform(id: string): Promise<void> {
+    const db = await getDb();
+    await db.collections.orthography_transforms.remove(id);
+  }
+
+  static async getActiveOrthographyTransform(input: {
+    sourceOrthographyId: string;
+    targetOrthographyId: string;
+  }): Promise<OrthographyTransformDocType | null> {
+    const db = await getDb();
+    const candidates = await db.dexie.orthography_transforms
+      .where('[sourceOrthographyId+targetOrthographyId]')
+      .equals([input.sourceOrthographyId, input.targetOrthographyId])
+      .toArray();
+
+    const rankStatus = (status: OrthographyTransformDocType['status']): number => {
+      if (status === 'active') return 0;
+      if (status === 'draft' || status === undefined) return 1;
+      return 2;
+    };
+
+    const preferred = candidates
+      .filter((doc) => doc.status !== 'deprecated')
+      .sort((left, right) => {
+        const rankDiff = rankStatus(left.status) - rankStatus(right.status);
+        if (rankDiff !== 0) return rankDiff;
+        return (right.updatedAt || right.createdAt).localeCompare(left.updatedAt || left.createdAt);
+      })[0];
+
+    return preferred ?? null;
+  }
+
+  static async applyOrthographyTransform(input: {
+    sourceOrthographyId: string;
+    targetOrthographyId: string;
+    text: string;
+  }): Promise<{ text: string; transformId?: string }> {
+    if (!input.text || input.sourceOrthographyId === input.targetOrthographyId) {
+      return { text: input.text };
+    }
+
+    const transform = await LinguisticService.getActiveOrthographyTransform({
+      sourceOrthographyId: input.sourceOrthographyId,
+      targetOrthographyId: input.targetOrthographyId,
+    });
+    if (!transform) {
+      return { text: input.text };
+    }
+
+    return {
+      text: previewOrthographyTransform({
+        engine: transform.engine,
+        rules: transform.rules,
+        text: input.text,
+      }),
+      transformId: transform.id,
+    };
+  }
+
+  static previewOrthographyTransform(input: {
+    engine: OrthographyTransformDocType['engine'];
+    rules: OrthographyTransformDocType['rules'];
+    text: string;
+  }): string {
+    return previewOrthographyTransform(input);
   }
 
   // ── Audio import ───────────────────────────────────────────

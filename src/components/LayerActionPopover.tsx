@@ -8,6 +8,13 @@ import {
 } from '../services/LayerConstraintService';
 import { COMMON_LANGUAGES, getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
+import { OrthographyBuilderPanel } from './OrthographyBuilderPanel';
+import { OrthographyTransformManager } from './OrthographyTransformManager';
+import {
+  formatOrthographyOptionLabel,
+  ORTHOGRAPHY_CREATE_SENTINEL,
+  useOrthographyPicker,
+} from '../hooks/useOrthographyPicker';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -71,6 +78,7 @@ export function LayerActionPopover({
   const storageKey = `jieyu:layer-action-popover-rect:${action}`;
   const [langId, setLangId] = useState('');
   const [customLang, setCustomLang] = useState('');
+  const [orthographyId, setOrthographyId] = useState('');
   const [alias, setAlias] = useState('');
   const [modality, setModality] = useState<'text' | 'audio' | 'mixed'>('text');
   const [constraint, setConstraint] = useState<LayerConstraint>('symbolic_association');
@@ -116,6 +124,15 @@ export function LayerActionPopover({
     }
     return '';
   }, [deletableLayers, independentParentLayers, layerId]);
+  const resolvedLanguageId = useMemo(
+    () => (langId === '__custom__' ? customLang.trim() : langId),
+    [customLang, langId],
+  );
+  const orthographyPicker = useOrthographyPicker(resolvedLanguageId, orthographyId, setOrthographyId);
+  const selectedOrthography = useMemo(
+    () => orthographyPicker.orthographies.find((item) => item.id === orthographyId),
+    [orthographyId, orthographyPicker.orthographies],
+  );
 
   useEffect(() => {
     setCreateFailureMessage('');
@@ -152,7 +169,7 @@ export function LayerActionPopover({
   }, [autoParentLayer, independentParentLayers, needsDependentParent, selectedParentLayerId]);
 
   const handleCreate = useCallback(async () => {
-    const resolvedLang = langId === '__custom__' ? customLang.trim() : langId;
+    const resolvedLang = resolvedLanguageId;
     if (!resolvedLang) return;
     const existingTranscriptionCount = deletableLayers.filter((layer) => layer.layerType === 'transcription').length;
     const canConfigureTranscriptionConstraint = action === 'create-transcription' && existingTranscriptionCount > 0;
@@ -173,6 +190,7 @@ export function LayerActionPopover({
     try {
       const success = await createLayer(createLayerType, {
         languageId: resolvedLang,
+        ...(orthographyId ? { orthographyId } : {}),
         ...(alias.trim() ? { alias: alias.trim() } : {}),
         ...(resolvedConstraint ? { constraint: resolvedConstraint } : {}),
         ...(resolvedCreateParentLayerId ? { parentLayerId: resolvedCreateParentLayerId } : {}),
@@ -193,7 +211,7 @@ export function LayerActionPopover({
     } finally {
       setIsLoading(false);
     }
-  }, [langId, customLang, alias, modality, constraint, action, createLayer, deletableLayers, independentParentLayers.length, layerCreateMessage, onClose, resolvedCreateParentLayerId]);
+  }, [resolvedLanguageId, orthographyId, alias, modality, constraint, action, createLayer, deletableLayers, independentParentLayers.length, layerCreateMessage, onClose, resolvedCreateParentLayerId]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteLayerId) return;
@@ -239,7 +257,7 @@ export function LayerActionPopover({
     : '删除层';
 
   const existingTranscriptionCount = deletableLayers.filter((layer) => layer.layerType === 'transcription').length;
-  const resolvedLangForGuard = (langId === '__custom__' ? customLang : langId).trim();
+  const resolvedLangForGuard = resolvedLanguageId.trim();
   const hasValidLanguage = resolvedLangForGuard.length > 0;
   const showConstraintSelector = action === 'create-transcription' && existingTranscriptionCount > 0;
   const translationGuard = action === 'create-translation'
@@ -426,6 +444,44 @@ export function LayerActionPopover({
                 onChange={(e) => setCustomLang(e.target.value)}
               />
             )}
+            {resolvedLanguageId && (
+              <>
+                <select
+                  className="input transcription-layer-rail-action-input"
+                  value={orthographyPicker.isCreating ? ORTHOGRAPHY_CREATE_SENTINEL : orthographyId}
+                  onChange={(e) => orthographyPicker.handleSelectionChange(e.target.value)}
+                >
+                  {orthographyPicker.orthographies.length === 0 && <option value="">沿用默认脚本推断</option>}
+                  {orthographyPicker.orthographies.map((orthography) => (
+                    <option key={orthography.id} value={orthography.id}>
+                      {formatOrthographyOptionLabel(orthography)}
+                    </option>
+                  ))}
+                  <option value={ORTHOGRAPHY_CREATE_SENTINEL}>+ 新建正字法…</option>
+                </select>
+                {orthographyPicker.orthographies.length === 0 && !orthographyPicker.isCreating && (
+                  <div className="layer-parent-guidance-note">
+                    当前语言暂无正字法记录，可直接新建或沿用默认脚本推断。
+                  </div>
+                )}
+                {orthographyPicker.isCreating && (
+                  <OrthographyBuilderPanel
+                    picker={orthographyPicker}
+                    languageOptions={COMMON_LANGUAGES}
+                    compact
+                    sourceLanguagePlaceholder="选择来源语言…"
+                    sourceLanguageCodePlaceholder="来源语言 ISO 639-3 代码（如 eng）"
+                  />
+                )}
+                {!orthographyPicker.isCreating && selectedOrthography && (
+                  <OrthographyTransformManager
+                    targetOrthography={selectedOrthography}
+                    languageOptions={COMMON_LANGUAGES}
+                    compact
+                  />
+                )}
+              </>
+            )}
             <input
               className="input transcription-layer-rail-action-input"
               placeholder="别名（可选）"
@@ -515,8 +571,8 @@ export function LayerActionPopover({
               <button
                 className="btn btn-sm"
                 disabled={action === 'create-translation'
-                  ? (isLoading || !hasValidLanguage || translationCreateDisabledReason.length > 0)
-                  : (isLoading || !hasValidLanguage || transcriptionCreateDisabledReason.length > 0)}
+                  ? (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || translationCreateDisabledReason.length > 0)
+                  : (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || transcriptionCreateDisabledReason.length > 0)}
                 onClick={handleCreate}
               >
                 创建

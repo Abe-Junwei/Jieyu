@@ -2,7 +2,7 @@ import { type AiMessageCitation, getDb } from '../db';
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 import { extractPdfSnippet } from '../ai/embeddings/pdfTextUtils';
 import { splitPdfCitationRef } from '../utils/citationJumpUtils';
-import { RAG_CITATION_INSTRUCTION } from '../utils/citationFootnoteUtils';
+import { normalizeCitationSnippetPlainText, RAG_CITATION_INSTRUCTION } from '../utils/citationFootnoteUtils';
 import { isSearchFusionScenario, type SearchFusionScenario } from '../ai/embeddings/searchFusionProfiles';
 import { withTimeout } from './useAiChat.config';
 import { createLogger } from '../observability/logger';
@@ -63,6 +63,10 @@ export function resolveRagFusionScenarioInput(userText: string): {
     scenario: 'qa',
     queryText: normalized,
   };
+}
+
+export function normalizeRagCitationSnippet(snippet: string): string {
+  return normalizeCitationSnippetPlainText(snippet).slice(0, 300);
 }
 
 export async function enrichContextWithRag({
@@ -139,7 +143,8 @@ export async function enrichContextWithRag({
           snippet = extractPdfSnippet(details, 300);
         }
 
-        if (!snippet) return null;
+        const normalizedSnippet = normalizeRagCitationSnippet(snippet);
+        if (!normalizedSnippet) return null;
 
         const label = match.sourceType === 'note'
           ? '笔记参考'
@@ -147,7 +152,7 @@ export async function enrichContextWithRag({
         const contextTag = match.sourceType === 'note'
           ? 'NOTE_CONTEXT'
           : (match.sourceType === 'utterance' ? 'UTTERANCE_CONTEXT' : 'PDF_CONTEXT');
-        const safeSnippet = snippet.slice(0, 300).replace(/[\[\]]/g, (char) => (char === '[' ? '【' : '】'));
+        const safeSnippet = normalizedSnippet.replace(/[\[\]]/g, (char) => (char === '[' ? '【' : '】'));
         const validCitationTypes: Array<'note' | 'utterance' | 'pdf' | 'schema'> = ['note', 'utterance', 'pdf', 'schema'];
         if (!validCitationTypes.includes(match.sourceType as typeof validCitationTypes[number])) return null;
 
@@ -158,7 +163,7 @@ export async function enrichContextWithRag({
             type: match.sourceType as 'note' | 'utterance' | 'pdf' | 'schema',
             refId: match.sourceId,
             label,
-            snippet: snippet.slice(0, 300),
+            snippet: normalizedSnippet,
           },
         };
       }),

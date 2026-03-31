@@ -18,7 +18,7 @@ export type TranscriptionPageDialogsProps = {
   // Project setup
   showProjectSetup: boolean;
   onCloseProjectSetup: () => void;
-  onSubmitProjectSetup: (input: { titleZh: string; titleEn: string; primaryLanguageId: string }) => Promise<void>;
+  onSubmitProjectSetup: (input: { titleZh: string; titleEn: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
   // Audio import
   showAudioImport: boolean;
   onCloseAudioImport: () => void;

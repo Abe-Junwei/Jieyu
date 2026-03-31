@@ -6,7 +6,7 @@ import {
   type AiToolReplayBundle,
   type AiToolSnapshotDiff,
 } from '../../ai/auditReplay';
-import { splitCitationMarkers } from '../../utils/citationFootnoteUtils';
+import { buildCopyableAssistantPlainText, splitCitationMarkers } from '../../utils/citationFootnoteUtils';
 import { detectLocale, t } from '../../i18n';
 import {
   aiChatProviderDefinitions,
@@ -676,7 +676,11 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                         };
                         return rank(a.type) - rank(b.type);
                       });
-                  const copyableAssistantContent = (assistantMsg?.content ?? '').trim();
+                  const copyableAssistantContent = buildCopyableAssistantPlainText({
+                    content: assistantMsg?.content ?? '',
+                    citations: orderedCitations,
+                    locale,
+                  });
                   const hasCopyableAssistantContent = copyableAssistantContent.length > 0;
                   const showAiGeneratedText = assistantMsg?.generationSource === 'llm' && assistantMsg?.status === 'done';
                   const generatedModelName = (assistantMsg?.generationModel ?? '').trim();
