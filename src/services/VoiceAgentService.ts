@@ -137,6 +137,8 @@ export interface VoiceAgentServiceOptions {
   onExecuteAction?: (actionId: ActionId, params?: { segmentIndex?: number }) => void;
   /** Called for dictation text insertion */
   onInsertDictation?: (text: string) => void;
+  /** Default transform hook for SpeechAnnotationPipeline fills */
+  onTransformDictationPipelineFill?: (input: { layer: AnnotationLayer; text: string; segmentId: string }) => Promise<string>;
   /** Called for AI chat / analysis mode */
   onSendToAiChat?: (text: string) => void;
   /** Called when a VoiceActionTool intent is resolved — routes to useAiToolCallHandler */
@@ -232,6 +234,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   private readonly _whisperServerModel: string;
   private readonly _onExecuteAction: ((actionId: ActionId, params?: { segmentIndex?: number }) => void) | undefined;
   private readonly _onInsertDictation: ((text: string) => void) | undefined;
+  private readonly _onTransformDictationPipelineFill: ((input: { layer: AnnotationLayer; text: string; segmentId: string }) => Promise<string>) | undefined;
   private readonly _onSendToAiChat: ((text: string) => void) | undefined;
   private readonly _onToolCall: ((call: { name: string; arguments: Record<string, unknown> }) => Promise<{ ok: boolean; message: string }>) | undefined;
   private readonly _resolveIntentWithLlm: ((input: {
@@ -293,6 +296,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     this._intentAliasMap = loadVoiceIntentAliasMap();
     this._onExecuteAction = options.onExecuteAction;
     this._onInsertDictation = options.onInsertDictation;
+    this._onTransformDictationPipelineFill = options.onTransformDictationPipelineFill;
     this._onSendToAiChat = options.onSendToAiChat;
     this._onToolCall = options.onToolCall;
     this._resolveIntentWithLlm = options.resolveIntentWithLlm;
@@ -606,7 +610,14 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       this._dictationPipeline.stop();
     }
 
-    this._dictationPipeline = new SpeechAnnotationPipeline(callbacks, {
+    const effectiveCallbacks = callbacks.transformTextForFill || !this._onTransformDictationPipelineFill
+      ? callbacks
+      : {
+          ...callbacks,
+          transformTextForFill: this._onTransformDictationPipelineFill,
+        };
+
+    this._dictationPipeline = new SpeechAnnotationPipeline(effectiveCallbacks, {
       ...config,
       autoAdvance: config?.autoAdvance ?? true,
       silenceConfirmDelayMs: config?.silenceConfirmDelayMs ?? 600,

@@ -7,6 +7,7 @@ import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { Locale } from '../i18n';
 import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
+import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 
 export interface TranscriptionPageAssistantRuntimeFrameProps {
   saveState: SaveState;
@@ -62,6 +63,10 @@ export interface TranscriptionPageAssistantRuntimeVoiceTargetProps {
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
   dictationPreviewTextProps?: OrthographyPreviewTextProps;
+  dictationPipeline?: {
+    callbacks: DictationPipelineCallbacks;
+    config?: QuickDictationConfig;
+  };
   formatLayerRailLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
 }

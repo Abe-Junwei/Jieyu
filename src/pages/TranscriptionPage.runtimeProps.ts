@@ -4,6 +4,7 @@ import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { Locale } from '../i18n';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
+import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import type {
   TranscriptionPageAssistantRuntimeFrameProps,
   TranscriptionPageAssistantRuntimeProps,
@@ -55,6 +56,10 @@ interface CreateAssistantRuntimePropsInput {
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
   dictationPreviewTextProps?: OrthographyPreviewTextProps;
+  dictationPipeline?: {
+    callbacks: DictationPipelineCallbacks;
+    config?: QuickDictationConfig;
+  };
   formatLayerRailLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   onRegisterToggleVoice: (handler?: () => void) => void;
@@ -137,6 +142,7 @@ export function createAssistantRuntimeProps(input: CreateAssistantRuntimePropsIn
     translationLayers: input.translationLayers,
     layers: input.layers,
     ...(input.dictationPreviewTextProps !== undefined ? { dictationPreviewTextProps: input.dictationPreviewTextProps } : {}),
+    ...(input.dictationPipeline !== undefined ? { dictationPipeline: input.dictationPipeline } : {}),
     formatLayerRailLabel: input.formatLayerRailLabel,
     formatTime: input.formatTime,
   };

@@ -93,6 +93,61 @@ describe('useVoiceInteraction', () => {
     expect(result.current.voiceTargetSummary).toContain('L:trc-default');
   });
 
+  it('passes continuous dictation pipeline wiring through to useVoiceAgent when provided', () => {
+    const trcDefault = makeLayer('trc-default', 'transcription');
+    const dictationPipeline = {
+      callbacks: {
+        getSegments: vi.fn(() => []),
+        getCurrentSegmentId: vi.fn(() => null),
+        fillSegment: vi.fn(async () => undefined),
+        restoreSegment: vi.fn(async () => undefined),
+        navigateTo: vi.fn(),
+        navigateToNextUnannotated: vi.fn(() => null),
+      },
+      config: {
+        targetLayer: 'transcription' as const,
+        autoAdvance: true,
+      },
+    };
+
+    renderHook(() => useVoiceInteraction({
+      effectiveVoiceCorpusLang: 'zho',
+      voiceCorpusLangOverride: '__auto__',
+      executeAction: vi.fn(async () => undefined),
+      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+      handleVoiceDictation: vi.fn(),
+      dictationPipeline,
+      onVoiceAnalysisResult: vi.fn(),
+      selection: {
+        activeUtteranceUnitId: 'utt-1',
+        selectedUtterance: { id: 'utt-1', startTime: 0, endTime: 1 },
+        selectedRowMeta: null,
+        selectedLayerId: trcDefault.id,
+        selectedUnitKind: 'utterance',
+        selectedTimeRangeLabel: '0.00 - 1.00',
+      },
+      defaultTranscriptionLayerId: trcDefault.id,
+      translationLayers: [],
+      layers: [trcDefault],
+      formatLayerRailLabel: (layer) => `L:${layer.id}`,
+      formatTime: (seconds) => seconds.toFixed(2),
+      aiChatSend: vi.fn(async () => undefined),
+      aiIsStreaming: false,
+      aiMessages: [],
+      localWhisperConfig: {},
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      onCommercialConfigChange: vi.fn(),
+      setCommercialProviderKind: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      featureVoiceEnabled: true,
+      toggleVoiceRef: { current: undefined },
+    }));
+
+    const latestCall = mockUseVoiceAgent.mock.calls[mockUseVoiceAgent.mock.calls.length - 1];
+    expect(latestCall?.[0]).toEqual(expect.objectContaining({ dictationPipeline }));
+  });
+
   it('treats selectedRowMeta as a valid analysis target even when selectedUtterance is null', () => {
     const trcDefault = makeLayer('trc-default', 'transcription');
 

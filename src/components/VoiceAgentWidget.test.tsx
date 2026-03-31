@@ -102,7 +102,7 @@ describe('VoiceAgentWidget', () => {
                 timestamp: Date.now(),
                 sttText: 'مرحبا',
                 confidence: 0.92,
-                intent: { type: 'dictation', text: 'مرحبا' },
+                intent: { type: 'dictation', text: 'مرحبا', raw: 'مرحبا' },
               },
               {
                 timestamp: Date.now() + 1,
@@ -122,7 +122,8 @@ describe('VoiceAgentWidget', () => {
     expect(sessionBodyText.style.unicodeBidi).toBe('isolate');
     expect(sessionBodyText.style.fontFamily).toContain('Noto Sans Arabic');
 
-    fireEvent.click(screen.getAllByRole('button', { name: /记录/i }).at(-1)!);
+    const historyButtons = screen.getAllByRole('button', { name: /记录/i });
+    fireEvent.click(historyButtons[historyButtons.length - 1]!);
 
     const dictationHistoryText = screen.getByText('مرحبا');
     expect(dictationHistoryText.getAttribute('dir')).toBe('rtl');

@@ -981,6 +981,7 @@ function TranscriptionPageOrchestrator({
     aiPanelContextValue,
     handleResolveVoiceIntentWithLlm,
     handleVoiceDictation,
+    voiceDictationPipeline,
     handleVoiceAnalysisResult,
   } = useTranscriptionAssistantController({
     state,
@@ -1005,8 +1006,11 @@ function TranscriptionPageOrchestrator({
     selectedTimelineUnit,
     saveSegmentContentForLayer,
     selectedLayerId,
+    ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     translationLayers,
     layers,
+    utterancesOnCurrentMedia,
+    getUtteranceTextForLayer,
     saveUtteranceText,
     saveTextTranslationForUtterance,
     setSaveState,
@@ -1155,7 +1159,8 @@ function TranscriptionPageOrchestrator({
       ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
       translationLayers,
       layers,
-      voiceDictationPreviewTextProps,
+      ...(voiceDictationPreviewTextProps !== undefined ? { dictationPreviewTextProps: voiceDictationPreviewTextProps } : {}),
+      ...(voiceDictationPipeline !== undefined ? { dictationPipeline: voiceDictationPipeline } : {}),
       formatLayerRailLabel,
       formatTime,
       toggleVoiceRef,
@@ -1781,6 +1786,7 @@ function TranscriptionPageOrchestrator({
               style={{
                 '--transcription-ai-width': `${aiPanelWidth}px`,
                 '--transcription-ai-visible-width': `${isAiPanelCollapsed ? 0 : aiPanelWidth}px`,
+                '--transcription-side-pane-width': `${isLayerRailCollapsed ? 0 : layerRailWidth}px`,
                 '--transcription-rail-width': `${isLayerRailCollapsed ? 0 : layerRailWidth}px`,
               } as React.CSSProperties}
             >
@@ -1808,8 +1814,8 @@ function TranscriptionPageOrchestrator({
                       utterances={utterancesOnCurrentMedia}
                       getUtteranceTextForLayer={getUtteranceTextForLayer}
                       formatTime={formatTime}
-                      previewDir={waveformHoverPreviewProps.dir}
-                      previewStyle={waveformHoverPreviewProps.style}
+                      {...(waveformHoverPreviewProps.dir !== undefined ? { previewDir: waveformHoverPreviewProps.dir } : {})}
+                      {...(waveformHoverPreviewProps.style !== undefined ? { previewStyle: waveformHoverPreviewProps.style } : {})}
                     />
                   )}
 {selectedMediaUrl && (

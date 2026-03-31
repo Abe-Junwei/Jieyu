@@ -627,7 +627,9 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('const handleVoiceAnalysisResult = useCallback(async (utteranceId: string | null, analysisText: string) => {')).toBe(false);
     expect(orchestratorCode.includes('const aiPanelContextValue = useMemo(() => ({')).toBe(false);
 
-    expect(hookCode.includes('const aiPanelContextValue = useMemo<AiPanelContextValue>(() => ({')).toBe(true);
+    expect(hookCode.includes("import { buildTranscriptionAssistantContextValue } from './transcriptionAssistantContextValue';")).toBe(true);
+    expect(hookCode.includes('const aiPanelContextValue = useMemo<AiPanelContextValue>(() => buildTranscriptionAssistantContextValue(input), [')).toBe(true);
+    expect(hookCode.includes('const aiPanelContextValue = useMemo<AiPanelContextValue>(() => ({')).toBe(false);
     expect(hookCode.includes('const handleResolveVoiceIntentWithLlm = useCallback(async ({')).toBe(true);
     expect(hookCode.includes('const handleVoiceDictation = useCallback((text: string) => {')).toBe(true);
     expect(hookCode.includes('const persistAndAdvance = async (persist: () => Promise<void>) => {')).toBe(true);

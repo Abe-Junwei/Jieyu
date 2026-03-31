@@ -11,7 +11,10 @@ import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
-import { transformTextForLayerTarget } from '../utils/orthographyRuntime';
+import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
+import { createVoiceDictationPipeline, persistVoiceDictationToUtterance, resolveVoiceDictationTarget, transformVoiceDictationText } from './voiceDictationRuntime';
+import { buildTranscriptionAssistantContextValue } from './transcriptionAssistantContextValue';
+
 interface SelectedRowMetaLike {
   rowNumber: number;
   start: number;
@@ -47,8 +50,11 @@ interface UseTranscriptionAssistantControllerInput {
   selectedTimelineUnit: TimelineUnit | null;
   saveSegmentContentForLayer: (segmentId: string, layerId: string, value: string) => Promise<void>;
   selectedLayerId: string | null;
+  defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
+  utterancesOnCurrentMedia: UtteranceDocType[];
+  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
   saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
   saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
   setSaveState: (state: SaveState) => void;
@@ -68,36 +74,15 @@ interface UseTranscriptionAssistantControllerResult {
     session: VoiceSession;
   }) => Promise<VoiceIntent | null>;
   handleVoiceDictation: (text: string) => void;
+  voiceDictationPipeline?: {
+    callbacks: DictationPipelineCallbacks;
+    config?: QuickDictationConfig;
+  };
   handleVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => Promise<{ ok: boolean; message: string }>;
 }
-export function useTranscriptionAssistantController(
-  input: UseTranscriptionAssistantControllerInput,
-): UseTranscriptionAssistantControllerResult {
+export function useTranscriptionAssistantController(input: UseTranscriptionAssistantControllerInput): UseTranscriptionAssistantControllerResult {
   const { pushUndo, setUtterances, setSaveState } = input;
-  const aiPanelContextValue = useMemo<AiPanelContextValue>(() => ({
-    dbName: input.state.phase === 'ready' ? input.state.dbName ?? '' : '',
-    utteranceCount: input.state.phase === 'ready'
-      ? input.state.utteranceCount ?? input.utterancesLength
-      : input.utterancesLength,
-    translationLayerCount: input.state.phase === 'ready'
-      ? input.state.translationLayerCount ?? input.translationLayersLength
-      : input.translationLayersLength,
-    aiConfidenceAvg: input.aiConfidenceAvg,
-    selectedUtterance: input.selectedTimelineOwnerUtterance,
-    selectedRowMeta: input.selectedTimelineRowMeta,
-    selectedAiWarning: input.selectedAiWarning,
-    lexemeMatches: input.lexemeMatches,
-    aiPanelMode: input.aiPanelMode,
-    selectedTranslationGapCount: input.selectedTranslationGapCount,
-    onJumpToTranslationGap: input.handleJumpToTranslationGap,
-    onChangeAiPanelMode: input.setAiPanelMode,
-    ...(input.handleOpenWordNote ? { onOpenWordNote: input.handleOpenWordNote } : {}),
-    ...(input.handleOpenMorphemeNote ? { onOpenMorphemeNote: input.handleOpenMorphemeNote } : {}),
-    ...(input.handleUpdateTokenPos ? { onUpdateTokenPos: input.handleUpdateTokenPos } : {}),
-    ...(input.handleBatchUpdateTokenPosByForm ? { onBatchUpdateTokenPosByForm: input.handleBatchUpdateTokenPosByForm } : {}),
-    ...(input.aiCurrentTask ? { aiCurrentTask: input.aiCurrentTask } : {}),
-    ...(input.aiVisibleCards ? { aiVisibleCards: input.aiVisibleCards } : {}),
-  }), [
+  const aiPanelContextValue = useMemo<AiPanelContextValue>(() => buildTranscriptionAssistantContextValue(input), [
     input.aiConfidenceAvg,
     input.aiCurrentTask,
     input.aiPanelMode,
@@ -137,7 +122,6 @@ export function useTranscriptionAssistantController(
     if (!featureFlags.aiChatEnabled || !input.aiChatEnabled) {
       return null;
     }
-
     const { resolveVoiceIntentWithLlmUsingConfig } = await import('../services/VoiceIntentLlmResolver');
     const resolved = await resolveVoiceIntentWithLlmUsingConfig({
       transcript: text,
@@ -156,16 +140,15 @@ export function useTranscriptionAssistantController(
 
   const handleVoiceDictation = useCallback((text: string) => {
     if (isSegmentTimelineUnit(input.selectedTimelineUnit)) {
+      const selectedTimelineUnit = input.selectedTimelineUnit;
       fireAndForget((async () => {
-        const fallbackSourceOrthographyId = input.selectedLayerId ? undefined : input.layers.find((layer) => layer.layerType === 'transcription')?.orthographyId;
-        const transformedText = await transformTextForLayerTarget({
+        const transformedText = await transformVoiceDictationText({
           text,
-          layers: input.layers,
-          targetLayerId: input.selectedTimelineUnit.layerId,
+          targetLayerId: selectedTimelineUnit.layerId,
           selectedLayerId: input.selectedLayerId,
-          ...(fallbackSourceOrthographyId !== undefined ? { fallbackSourceOrthographyId } : {}),
+          layers: input.layers,
         });
-        await input.saveSegmentContentForLayer(input.selectedTimelineUnit.unitId, input.selectedTimelineUnit.layerId, transformedText);
+        await input.saveSegmentContentForLayer(selectedTimelineUnit.unitId, selectedTimelineUnit.layerId, transformedText);
       })());
       return;
     }
@@ -178,11 +161,13 @@ export function useTranscriptionAssistantController(
       });
       return;
     }
-    let targetLayerId: string | undefined = input.selectedLayerId ?? undefined;
-    if (!targetLayerId) {
-      targetLayerId = input.translationLayers[0]?.id;
-    }
-    if (!targetLayerId) {
+    const resolvedTarget = resolveVoiceDictationTarget({
+      selectedLayerId: input.selectedLayerId,
+      defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,
+      translationLayers: input.translationLayers,
+      layers: input.layers,
+    });
+    if (!resolvedTarget) {
       reportValidationError({
         message: '无可用层，请先创建转写或翻译层',
         i18nKey: 'transcription.error.validation.voiceDictationLayerRequired',
@@ -190,41 +175,27 @@ export function useTranscriptionAssistantController(
       });
       return;
     }
-    const targetLayer = input.layers.find((layer) => layer.id === targetLayerId);
-    if (!targetLayer) return;
-    const fallbackSourceOrthographyId = input.selectedLayerId
-      ? undefined
-      : input.layers.find((layer) => layer.layerType === 'transcription')?.orthographyId;
+    const { targetLayerId, targetLayer } = resolvedTarget;
     const persistAndAdvance = async (persist: () => Promise<void>) => {
       await persist();
       if (!input.nextUtteranceIdForVoiceDictation) return;
       input.selectUtterance(input.nextUtteranceIdForVoiceDictation);
     };
-    if (targetLayer.layerType === 'transcription') {
-      fireAndForget(persistAndAdvance(async () => {
-        const transformedText = await transformTextForLayerTarget({
-          text,
-          layers: input.layers,
-          targetLayerId,
-          selectedLayerId: input.selectedLayerId,
-          ...(fallbackSourceOrthographyId !== undefined ? { fallbackSourceOrthographyId } : {}),
-        });
-        await input.saveUtteranceText(targetUtterance.id, transformedText, targetLayerId);
-      }));
-      return;
-    }
     fireAndForget(persistAndAdvance(async () => {
-      const transformedText = await transformTextForLayerTarget({
+      await persistVoiceDictationToUtterance({
+        utteranceId: targetUtterance.id,
         text,
-        layers: input.layers,
         targetLayerId,
+        targetLayer,
         selectedLayerId: input.selectedLayerId,
-        ...(fallbackSourceOrthographyId !== undefined ? { fallbackSourceOrthographyId } : {}),
+        layers: input.layers,
+        saveUtteranceText: input.saveUtteranceText,
+        saveTextTranslationForUtterance: input.saveTextTranslationForUtterance,
       });
-      await input.saveTextTranslationForUtterance(targetUtterance.id, transformedText, targetLayerId!);
     }));
   }, [
     input.layers,
+    input.defaultTranscriptionLayerId,
     input.nextUtteranceIdForVoiceDictation,
     input.saveSegmentContentForLayer,
     input.saveTextTranslationForUtterance,
@@ -237,6 +208,34 @@ export function useTranscriptionAssistantController(
     input.translationLayers,
   ]);
 
+  const voiceDictationPipeline = useMemo<UseTranscriptionAssistantControllerResult['voiceDictationPipeline']>(() => {
+    if (isSegmentTimelineUnit(input.selectedTimelineUnit)) return undefined;
+    return createVoiceDictationPipeline({
+      selectedLayerId: input.selectedLayerId,
+      defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,
+      translationLayers: input.translationLayers,
+      layers: input.layers,
+      selectedTimelineOwnerUtterance: input.selectedTimelineOwnerUtterance,
+      utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
+      getUtteranceTextForLayer: input.getUtteranceTextForLayer,
+      selectUtterance: input.selectUtterance,
+      saveUtteranceText: input.saveUtteranceText,
+      saveTextTranslationForUtterance: input.saveTextTranslationForUtterance,
+    });
+  }, [
+    input.defaultTranscriptionLayerId,
+    input.getUtteranceTextForLayer,
+    input.layers,
+    input.saveTextTranslationForUtterance,
+    input.saveUtteranceText,
+    input.selectUtterance,
+    input.selectedLayerId,
+    input.selectedTimelineOwnerUtterance,
+    input.selectedTimelineUnit,
+    input.translationLayers,
+    input.utterancesOnCurrentMedia,
+  ]);
+
   const handleVoiceAnalysisResult = useCallback(async (utteranceId: string | null, analysisText: string) => {
     if (!utteranceId) {
       const message = '请先选择要分析的句段';
@@ -247,7 +246,6 @@ export function useTranscriptionAssistantController(
       });
       return { ok: false, message };
     }
-
     const trimmed = analysisText.trim();
     if (!trimmed) {
       const message = '分析结果为空，未写回句段备注';
@@ -293,10 +291,12 @@ export function useTranscriptionAssistantController(
       };
     }
   }, [pushUndo, setSaveState, setUtterances]);
+
   return {
     aiPanelContextValue,
     handleResolveVoiceIntentWithLlm,
     handleVoiceDictation,
+    ...(voiceDictationPipeline !== undefined ? { voiceDictationPipeline } : {}),
     handleVoiceAnalysisResult,
   };
 }

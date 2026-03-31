@@ -74,6 +74,8 @@ export interface DictationPipelineCallbacks {
   getSegments: () => DictationSegment[];
   /** 获取当前选中的句段 ID */
   getCurrentSegmentId: () => string | null;
+  /** 写回前按目标层做文本变换 | Transform text for target layer before fill */
+  transformTextForFill?: (input: { layer: AnnotationLayer; text: string; segmentId: string }) => Promise<string>;
   /** 填充文本到句段 */
   fillSegment: (segmentId: string, layer: AnnotationLayer, text: string) => Promise<void>;
   /** 恢复句段文本（用于撤销） */
@@ -298,7 +300,14 @@ export class SpeechAnnotationPipeline {
       : (this._config.targetLayer === 'translation' ? segment.existingTranslation : null);
 
     try {
-      await this._callbacks.fillSegment(segment.segmentId, this._config.targetLayer, text);
+      const transformedText = this._callbacks.transformTextForFill
+        ? await this._callbacks.transformTextForFill({
+          layer: this._config.targetLayer,
+          text,
+          segmentId: segment.segmentId,
+        })
+        : text;
+      await this._callbacks.fillSegment(segment.segmentId, this._config.targetLayer, transformedText);
       this._filledHistory.push({
         segmentId: segment.segmentId,
         layer: this._config.targetLayer,
@@ -306,15 +315,15 @@ export class SpeechAnnotationPipeline {
       });
 
       if (this._config.targetLayer === 'transcription') {
-        segment.existingText = text;
+        segment.existingText = transformedText;
       } else if (this._config.targetLayer === 'translation') {
-        segment.existingTranslation = text;
+        segment.existingTranslation = transformedText;
       }
 
       this._callbacks.playEarcon?.('success');
       this._state = {
         ...this._state,
-        confirmedText: text,
+        confirmedText: transformedText,
         interimText: '',
         filledCount: this._state.filledCount + 1,
         progress: { ...this._state.progress, done: this._state.filledCount + 1 },

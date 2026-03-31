@@ -142,6 +142,7 @@ function AssistantVoiceRuntime({
     ...(voice.target.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: voice.target.defaultTranscriptionLayerId } : {}),
     translationLayers: voice.target.translationLayers,
     layers: voice.target.layers,
+    ...(voice.target.dictationPipeline !== undefined ? { dictationPipeline: voice.target.dictationPipeline } : {}),
     formatLayerRailLabel: voice.target.formatLayerRailLabel,
     formatTime: voice.target.formatTime,
     aiChatSend: async (text: string) => aiChatContextValue.onSendAiMessage?.(text),
@@ -236,7 +237,7 @@ function AssistantVoiceRuntime({
             session={voiceAgent.session}
             commercialProviderKind={voiceAgent.commercialProviderKind}
             commercialProviderConfig={voiceAgent.commercialProviderConfig}
-            dictationPreviewTextProps={voice.target.dictationPreviewTextProps}
+            {...(voice.target.dictationPreviewTextProps !== undefined ? { dictationPreviewTextProps: voice.target.dictationPreviewTextProps } : {})}
             targetSummary={voiceTargetSummary}
             statusSummary={voiceStatusSummary}
             environmentSummary={voiceEnvironmentSummary}

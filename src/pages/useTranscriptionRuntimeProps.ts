@@ -5,6 +5,7 @@ import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { Locale } from '../i18n';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
+import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import type {
   PdfPreviewOpenRequest,
   TranscriptionPageAnalysisRuntimeProps,
@@ -54,6 +55,10 @@ interface UseTranscriptionRuntimePropsInput {
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
   dictationPreviewTextProps?: OrthographyPreviewTextProps;
+  dictationPipeline?: {
+    callbacks: DictationPipelineCallbacks;
+    config?: QuickDictationConfig;
+  };
   formatLayerRailLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   toggleVoiceRef: MutableRefObject<(() => void) | undefined>;
@@ -142,6 +147,7 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
     translationLayers,
     layers,
     ...(dictationPreviewTextProps !== undefined ? { dictationPreviewTextProps } : {}),
+    ...(input.dictationPipeline !== undefined ? { dictationPipeline: input.dictationPipeline } : {}),
     formatLayerRailLabel,
     formatTime,
     onRegisterToggleVoice: (handler) => {
@@ -151,6 +157,7 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
     activeTextPrimaryLanguageId,
     defaultTranscriptionLayerId,
     dictationPreviewTextProps,
+    input.dictationPipeline,
     executeAction,
     formatLayerRailLabel,
     formatTime,

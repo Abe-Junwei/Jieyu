@@ -1,16 +1,4 @@
-/**
- * useVoiceAgent — 语音智能体核心 hook
- *
- * 三模式状态机 (command / dictation / analysis)，
- * 集成 VoiceInputService + IntentRouter + EarconService + 按键执行。
- *
- * 内部封装 VoiceAgentService，保留完整的 React 生命周期管理。
- * 外部可通过 `serviceInstance` 选项注入共享的 VoiceAgentService 实例，
- * 实现跨页面状态同步（Stage 1 目标）。
- *
- * @see 解语-语音智能体架构设计方案 §4.5
- * @see 解语-语音智能体架构设计方案 v2.5 §阶段1
- */
+/** useVoiceAgent — 语音智能体核心 hook */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { VoiceInputService as VoiceInputServiceType, SttEngine, SttResult, CommercialProviderKind } from '../services/VoiceInputService';
@@ -27,14 +15,17 @@ import { toBcp47 } from '../utils/langMapping';
 import type { CommercialProviderCreateConfig, ProviderReachability } from '../services/stt';
 import type { VoicePreset } from '../utils/voicePresets';
 import { createLogger } from '../observability/logger';
-
-const log = createLogger('useVoiceAgent');
 import { detectRegion } from '../utils/regionDetection';
 import * as Earcon from '../services/EarconService';
 import { unlockAudio } from '../services/EarconService';
 import { useLatest } from './useLatest';
 import { globalContext } from '../services/GlobalContextService';
 import { userBehaviorStore } from '../services/UserBehaviorStore';
+import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
+import { useVoiceAgentDictationPipeline } from './useVoiceAgentDictationPipeline';
+import { useVoiceAgentProviderControls } from './useVoiceAgentProviderControls';
+
+const log = createLogger('useVoiceAgent');
 
 // ── Lazy runtime loaders | 运行时懒加载器 ─────────────────────────────────────
 
@@ -173,6 +164,11 @@ export interface UseVoiceAgentOptions {
   sendToAiChat?: (text: string) => void;
   /** Insert dictated text into the active field */
   insertDictation?: (text: string) => void;
+  /** Continuous dictation pipeline callbacks for utterance-by-utterance fill */
+  dictationPipeline?: {
+    callbacks: DictationPipelineCallbacks;
+    config?: QuickDictationConfig;
+  };
   /** Initial safe mode state */
   initialSafeMode?: boolean;
   /** Optional LLM intent resolver for unmatched command-mode transcripts */
@@ -193,15 +189,11 @@ export interface UseVoiceAgentOptions {
   initialWakeWordEnabled?: boolean;
 }
 
-// ── Confidence color thresholds ──────────────────────────────────────────────
-
 export function getConfidenceColor(confidence: number): string {
   if (confidence >= 0.85) return 'var(--voice-confidence-high, #22c55e)';
   if (confidence >= 0.6) return 'var(--voice-confidence-mid, #eab308)';
   return 'var(--voice-confidence-low, #ef4444)';
 }
-// ── Hook ────────────────────────────────────────────────────────────────────
-
 export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const {
     corpusLang = 'cmn',
@@ -209,6 +201,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     executeAction,
     sendToAiChat,
     insertDictation,
+    dictationPipeline,
     initialSafeMode = false,
     resolveIntentWithLlm,
     whisperServerUrl = 'http://localhost:3040',
@@ -218,7 +211,6 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     initialWakeWordEnabled = false,
   } = options;
 
-  // State
   const [listening, setListening] = useState(false);
   const [speechActive, setSpeechActive] = useState(false);
   const [mode, setMode] = useState<VoiceAgentMode>('command');
@@ -244,7 +236,6 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   /** 消歧备选列表 | Low-confidence fuzzy alternatives for disambiguation */
   const [disambiguationOptions, setDisambiguationOptions] = useState<ActionIntent[]>([]);
 
-  // Stable refs
   const serviceRef = useRef<VoiceInputServiceType | null>(null);
   const wakeWordDetectorRef = useRef<WakeWordDetectorType | null>(null);
   const executeActionRef = useLatest(executeAction);
@@ -258,16 +249,12 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const commercialProviderKindRef = useLatest(commercialProviderKindState);
   const commercialProviderConfigRef = useLatest(commercialProviderConfigState);
   const langOverrideRef = useLatest(langOverride);
-  // whisperServerUrl and whisperServerModel are used for the 'whisper-local' engine (whisper-server on port 3040)
   const energyLevelRef = useRef(0);
   const recordingDurationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingAiResponseCountRef = useRef(0);
   const aliasMapRef = useRef<Record<string, ActionId>>({});
-  /** Tracks the target utterance ID for the active analysis session (set before sendToAiChat in analysis mode). */
   const analysisTargetUtteranceIdRef = useRef<string | null>(null);
-  /** Internal simplified callback: called with the AI response text when the stream completes in analysis mode. */
   const analysisFillCallbackRef = useRef<((text: string) => void) | null>(null);
-  // 存储监听器取消函数，防止 start/stop 多次后叠加 | Store listener unsubscribes to prevent accumulation on toggle
   const svcUnsubscribesRef = useRef<Array<() => void>>([]);
 
   const queueAiThinking = useCallback(() => {
@@ -292,7 +279,20 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     setDisambiguationOptions([]);
   }, []);
 
-  // Load most recent session from IndexedDB on mount
+  const {
+    handlePipelineResult,
+    startDictationPipeline,
+    stopDictationPipeline,
+  } = useVoiceAgentDictationPipeline({
+    ...(dictationPipeline !== undefined ? { dictationPipeline } : {}),
+    setDetectedLang,
+    setError,
+    setInterimText,
+    setFinalText,
+    setConfidence,
+    setAgentState: () => setAgentState('idle'),
+  });
+
   useEffect(() => {
     void loadVoiceSessionStoreRuntime().then(({ loadRecentVoiceSessions }) => loadRecentVoiceSessions(1))
       .then(([recent]) => {
@@ -305,8 +305,11 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       });
   }, []);
 
-  // ── Handle result from VoiceInputService ─────────────────────────────────
   const handleSttResult = useCallback(async (result: SttResult) => {
+    if (handlePipelineResult(result)) {
+      return;
+    }
+
     if (result.lang) {
       setDetectedLang(result.lang);
     }
@@ -363,13 +366,11 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
         aliasMapRef.current = learned.aliasMap;
       }
     }
-    // Bump usage stats for alias-matched intents | 命中别名时更新使用统计
     if (!llmResolvedAction && intent.type === 'action' && intent.fromAlias) {
       intentRouter.bumpAliasUsage(result.text);
     }
     setLastIntent(intent);
 
-    // 低信心度模糊匹配时采集消歧备选 | Collect disambiguation alternatives on low-confidence fuzzy matches
     if (
       intent.type === 'action'
       && intent.fromFuzzy
@@ -385,7 +386,6 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       setDisambiguationOptions([]);
     }
 
-    // Record to session
     const entry: VoiceSessionEntry = {
       timestamp: Date.now(),
       intent,
@@ -397,7 +397,6 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       entries: [...prev.entries, entry],
     }));
 
-    // Dispatch by intent type
     setAgentState(llmFallbackFailed ? 'idle' : 'executing');
 
     switch (intent.type) {
@@ -433,9 +432,9 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
           break;
         }
         setError(null);
+        Earcon.playSuccess();
         queueAiThinking();
         sendToAiChatRef.current(`[语音指令] ${intent.raw}`);
-        Earcon.playSuccess();
         break;
       }
       case 'dictation': {
@@ -466,11 +465,12 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
         break;
       }
     }
-  }, [modeRef, safeModeRef, executeActionRef, sendToAiChatRef, insertDictationRef, resolveIntentWithLlmRef, sessionRef, queueAiThinking]);
+  }, [modeRef, safeModeRef, executeActionRef, sendToAiChatRef, insertDictationRef, resolveIntentWithLlmRef, sessionRef, queueAiThinking, handlePipelineResult]);
 
-  // ── Start / Stop ───────────────────────────────────────────────────────────
   const start = useCallback(async (targetMode?: VoiceAgentMode) => {
     if (listening) return;
+
+    const nextMode = targetMode ?? modeRef.current;
 
     const effectiveLang = (() => {
       const override = langOverrideRef.current;
@@ -502,7 +502,6 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       serviceRef.current = svc;
     }
 
-    // 清除旧监听器防止叠加 | Remove previous listeners to prevent accumulation
     for (const unsub of svcUnsubscribesRef.current) unsub();
     svcUnsubscribesRef.current = [];
 
@@ -522,7 +521,6 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       }));
     }
 
-    // Battery Status API hookup | 接入电量状态 API
     let batteryLevel: number | undefined;
     if (typeof navigator !== 'undefined' && 'getBattery' in navigator) {
       try {
@@ -536,7 +534,6 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       }
     }
 
-    // Detect region and set appropriate fallback chain
     const region = await detectRegion();
 
     const { chooseSttEngine } = await loadSttStrategyRuntime();
@@ -556,7 +553,6 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       region,
       maxAlternatives: 3,
     };
-    // whisper-local uses whisper-server (port 3040)
     if (runtimeEngine === 'whisper-local') {
       startConfig.whisperServerUrl = whisperServerUrl;
       startConfig.whisperServerModel = whisperServerModel;
@@ -578,11 +574,17 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       Earcon.playError();
       return;
     }
+    if (nextMode === 'dictation' && dictationPipeline) {
+      startDictationPipeline();
+    } else {
+      stopDictationPipeline();
+    }
     void unlockAudio();
     Earcon.playActivate();
-  }, [clearInteractionPrompts, listening, langOverrideRef, handleSttResult, engineRef, whisperServerUrl, whisperServerModel, commercialProviderKindRef, commercialProviderConfigRef]);
+  }, [clearInteractionPrompts, listening, langOverrideRef, handleSttResult, engineRef, whisperServerUrl, whisperServerModel, commercialProviderKindRef, commercialProviderConfigRef, modeRef, dictationPipeline, startDictationPipeline, stopDictationPipeline]);
 
   const stop = useCallback(async () => {
+    stopDictationPipeline();
     serviceRef.current?.stop();
     setListening(false);
     setSpeechActive(false);
@@ -603,9 +605,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     }
 
     Earcon.playDeactivate();
-  }, [clearInteractionPrompts]);
-
-  // ── Push-to-talk (whisper-local) ─────────────────────────────────────────
+  }, [clearInteractionPrompts, stopDictationPipeline]);
 
   const startRecording = useCallback(async () => {
     const svc = serviceRef.current;
@@ -641,11 +641,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     await svc.stopRecording();
   }, []);
 
-  // ── Engine switching ──────────────────────────────────────────────────────
-
   const switchEngine = useCallback((newEngine: SttEngine) => {
     setEngine(newEngine);
-    // 持久化引擎偏好 | Persist engine preference
     globalContext.updatePreference('preferredEngine', newEngine);
     if (listening) {
       serviceRef.current?.switchEngine(newEngine);
@@ -660,7 +657,6 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     }
   }, [listening, start, stop]);
 
-  // ── Safe mode confirmation ────────────────────────────────────────────────
   const confirmPending = useCallback(() => {
     if (!pendingConfirm) return;
     executeActionRef.current(pendingConfirm.actionId);
@@ -679,7 +675,6 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     Earcon.playTick();
   }, [clearInteractionPrompts]);
 
-  // ── Disambiguation selection | 消歧选择 ──────────────────────────────────
   const selectDisambiguation = useCallback((actionId: ActionId) => {
     void (async () => {
       setDisambiguationOptions([]);
@@ -711,22 +706,25 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     setPendingConfirm(null);
   }, []);
 
-  // ── Mode switching ────────────────────────────────────────────────────────
   const switchMode = useCallback((newMode: VoiceAgentMode) => {
+    if (newMode === 'dictation') {
+      if (listening && dictationPipeline) {
+        startDictationPipeline();
+      }
+    } else {
+      stopDictationPipeline();
+    }
     setMode(newMode);
     clearInteractionPrompts();
     setInterimText('');
-  }, [clearInteractionPrompts]);
+  }, [clearInteractionPrompts, dictationPipeline, listening, startDictationPipeline, stopDictationPipeline]);
 
-  // ── Language sync: keep VoiceInputService._config.lang in sync with UI override ──
-  // Use langOverrideRef to read the current value without causing re-renders
   useEffect(() => {
     const override = langOverride;
     const effective = override === '__auto__' ? '' : (override ? toBcp47(override) : toBcp47(corpusLang));
     serviceRef.current?.setLang(effective);
   }, [langOverride, corpusLang, listening]);
 
-  // ── Wake-word detector lifecycle ──────────────────────────────────────────
   useEffect(() => {
     if (!wakeWordEnabled) {
       wakeWordDetectorRef.current?.stop();
@@ -764,19 +762,18 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     };
   }, [wakeWordEnabled, listening, start]);
 
-  // ── Cleanup ────────────────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
       for (const unsub of svcUnsubscribesRef.current) unsub();
       svcUnsubscribesRef.current = [];
+      stopDictationPipeline();
       serviceRef.current?.dispose();
       serviceRef.current = null;
       wakeWordDetectorRef.current?.stop();
       wakeWordDetectorRef.current = null;
     };
-  }, []);
+  }, [stopDictationPipeline]);
 
-  // ── Return value ──────────────────────────────────────────────────────────
   const state: VoiceAgentState = {
     listening,
     speechActive,
@@ -824,7 +821,6 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
 
   const notifyAiStreamFinished = useCallback((finalContent?: string) => {
     clearAiThinking();
-    // V2: Invoke the analysis fill callback if present (set by setAnalysisFillCallback before sendToAiChat in analysis mode).
     const cb = analysisFillCallbackRef.current;
     if (cb && finalContent !== undefined) {
       cb(finalContent);
@@ -834,7 +830,6 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   }, [clearAiThinking]);
 
   const testWhisperLocal = useCallback(async (): Promise<{ available: boolean; error?: string }> => {
-    // whisper-local uses whisper-server on port 3040
     const { testWhisperServerAvailability } = await loadVoiceInputRuntime();
     return testWhisperServerAvailability(
       'http://localhost:3040',
@@ -842,20 +837,6 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     );
   }, []);
 
-  const testCommercialProvider = useCallback(async (): Promise<{ available: boolean; error?: string }> => {
-    const { testCommercialProvider } = await loadSttRuntime();
-    return testCommercialProvider(commercialProviderKindState, commercialProviderConfigState ?? {});
-  }, [commercialProviderKindState, commercialProviderConfigState]);
-
-  /**
-   * Register a callback to receive the AI response text when the current
-   * AI chat stream completes (after notifyAiStreamFinished).
-   * This is used by analysis mode to capture the AI's response and write
-   * it back to the utterance layer.
-   *
-   * @param utteranceId - Target utterance ID (from current selection). Pass null if no utterance selected.
-   * @param callback - Called with the AI's final response text. Pass null to clear/deregister.
-   */
   const setAnalysisFillCallback = useCallback((
     utteranceId: string | null,
     callback: ((content: string) => void) | null,
@@ -864,26 +845,20 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     analysisFillCallbackRef.current = callback;
   }, []);
 
-  // ── Preset selection & provider probing | 预设选择与可用性探测 ─────────────
-
-  const [providerStatusMap, setProviderStatusMap] = useState<ProviderReachability[]>([]);
-
-  const refreshProviderStatus = useCallback(async () => {
-    const { probeAllCommercialProviders } = await loadSttRuntime();
-    const configs: Partial<Record<CommercialProviderKind, CommercialProviderCreateConfig>> = {};
-    if (commercialProviderConfigRef.current) {
-      configs[commercialProviderKindRef.current] = commercialProviderConfigRef.current;
-    }
-    const results = await probeAllCommercialProviders(configs);
-    setProviderStatusMap(results);
-  }, [commercialProviderKindRef, commercialProviderConfigRef]);
-
-  const selectPreset = useCallback((preset: VoicePreset) => {
-    switchEngine(preset.engine);
-    if (preset.commercialKind) {
-      setCommercialProviderKind(preset.commercialKind);
-    }
-  }, [switchEngine, setCommercialProviderKind]);
+  const {
+    providerStatusMap,
+    refreshProviderStatus,
+    selectPreset,
+    testCommercialProvider,
+  } = useVoiceAgentProviderControls({
+    loadSttRuntime,
+    commercialProviderKindState,
+    commercialProviderConfigState,
+    commercialProviderKindRef,
+    commercialProviderConfigRef,
+    switchEngine,
+    setCommercialProviderKind,
+  });
 
   return {
     ...state,

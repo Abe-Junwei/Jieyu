@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { act, cleanup, renderHook } from '@testing-library/react';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { useVoiceAgent } from './useVoiceAgent';
 import {
   clearVoiceAliasLearningLog,
@@ -18,69 +18,93 @@ vi.mock('../utils/regionDetection', () => ({
 
 // ── Mock VoiceInputService ──
 
-let lastMockVoiceService: {
-  simulateResult: (r: unknown) => void;
-  simulateError: (e: string) => void;
-  simulateVadState: (s: boolean) => void;
-} | null = null;
-let mockStartError: Error | null = null;
+const voiceInputServiceMockState = vi.hoisted(() => {
+  type MockVoiceService = {
+    simulateResult: (r: unknown) => Promise<void>;
+    simulateError: (e: string) => void;
+    simulateVadState: (s: boolean) => void;
+    getResultListenerCount: () => number;
+  };
 
-vi.mock('../services/VoiceInputService', () => {
-  class MockVoiceInputService {
-    private resultListeners: Array<(r: unknown) => void> = [];
-    private errorListeners: Array<(e: string) => void> = [];
-    private stateListeners: Array<(l: boolean) => void> = [];
-    private vadListeners: Array<(s: boolean) => void> = [];
+  let lastMockVoiceService: MockVoiceService | null = null;
+  let mockStartError: Error | null = null;
 
-    constructor() {
-      lastMockVoiceService = this;
+  const createVoiceInputServiceMockModule = () => {
+    class MockVoiceInputService {
+      private resultListeners: Array<(r: unknown) => void> = [];
+      private errorListeners: Array<(e: string) => void> = [];
+      private stateListeners: Array<(l: boolean) => void> = [];
+      private vadListeners: Array<(s: boolean) => void> = [];
+
+      constructor() {
+        lastMockVoiceService = this;
+      }
+
+      onResult(fn: (r: unknown) => void) {
+        this.resultListeners.push(fn);
+        return () => { this.resultListeners = this.resultListeners.filter((l) => l !== fn); };
+      }
+      onError(fn: (e: string) => void) {
+        this.errorListeners.push(fn);
+        return () => { this.errorListeners = this.errorListeners.filter((l) => l !== fn); };
+      }
+      onStateChange(fn: (l: boolean) => void) {
+        this.stateListeners.push(fn);
+        return () => { this.stateListeners = this.stateListeners.filter((l) => l !== fn); };
+      }
+      onVadStateChange(fn: (s: boolean) => void) {
+        this.vadListeners.push(fn);
+        return () => { this.vadListeners = this.vadListeners.filter((l) => l !== fn); };
+      }
+
+      async start() {
+        if (mockStartError) throw mockStartError;
+        for (const fn of this.stateListeners) fn(true);
+      }
+      stop() { for (const fn of this.stateListeners) fn(false); }
+      setLang() {}
+      dispose() { this.stop(); }
+
+      async simulateResult(result: unknown) {
+        await Promise.all(this.resultListeners.map(async (fn) => {
+          await fn(result);
+        }));
+      }
+
+      simulateError(error: string) {
+        for (const fn of this.errorListeners) fn(error);
+      }
+
+      simulateVadState(speaking: boolean) {
+        for (const fn of this.vadListeners) fn(speaking);
+      }
+
+      getResultListenerCount() {
+        return this.resultListeners.length;
+      }
     }
 
-    onResult(fn: (r: unknown) => void) {
-      this.resultListeners.push(fn);
-      return () => { this.resultListeners = this.resultListeners.filter((l) => l !== fn); };
-    }
-    onError(fn: (e: string) => void) {
-      this.errorListeners.push(fn);
-      return () => { this.errorListeners = this.errorListeners.filter((l) => l !== fn); };
-    }
-    onStateChange(fn: (l: boolean) => void) {
-      this.stateListeners.push(fn);
-      return () => { this.stateListeners = this.stateListeners.filter((l) => l !== fn); };
-    }
-    onVadStateChange(fn: (s: boolean) => void) {
-      this.vadListeners.push(fn);
-      return () => { this.vadListeners = this.vadListeners.filter((l) => l !== fn); };
-    }
-
-    async start() {
-      if (mockStartError) throw mockStartError;
-      for (const fn of this.stateListeners) fn(true);
-    }
-    stop()  { for (const fn of this.stateListeners) fn(false); }
-    setLang() {}
-    dispose() { this.stop(); }
-
-    simulateResult(result: unknown) {
-      for (const fn of this.resultListeners) fn(result);
-    }
-
-    simulateError(error: string) {
-      for (const fn of this.errorListeners) fn(error);
-    }
-
-    simulateVadState(speaking: boolean) {
-      for (const fn of this.vadListeners) fn(speaking);
-    }
-  }
+    return {
+      VoiceInputService: MockVoiceInputService,
+      isWebSpeechSupported: () => true,
+    };
+  };
 
   return {
-    VoiceInputService: MockVoiceInputService,
-    isWebSpeechSupported: () => true,
+    createVoiceInputServiceMockModule,
+    getLastMockVoiceService: () => lastMockVoiceService,
+    setMockStartError: (error: Error | null) => {
+      mockStartError = error;
+    },
+    reset: () => {
+      lastMockVoiceService = null;
+      mockStartError = null;
+    },
   };
 });
 
-// ── Mock EarconService ──
+vi.mock('../services/VoiceInputService', voiceInputServiceMockState.createVoiceInputServiceMockModule);
+vi.mock('../services/VoiceInputService.ts', voiceInputServiceMockState.createVoiceInputServiceMockModule);
 
 vi.mock('../services/EarconService', () => ({
   playActivate:   vi.fn(),
@@ -93,7 +117,7 @@ vi.mock('../services/EarconService', () => ({
 
 afterEach(() => {
   cleanup();
-  mockStartError = null;
+  voiceInputServiceMockState.reset();
   clearVoiceAliasLearningLog();
   saveVoiceIntentAliasMap({});
 });
@@ -103,22 +127,31 @@ const makeExecuteAction = () => vi.fn<(actionId: ActionId) => void>();
 // ── Tests ──
 
 describe('useVoiceAgent', () => {
+  const dispatchSttResult = async (payload: {
+    text: string;
+    confidence?: number;
+    lang?: string;
+    engine?: string;
+    isFinal?: boolean;
+  }) => {
+    await act(async () => {
+      await voiceInputServiceMockState.getLastMockVoiceService()?.simulateResult({
+        text: payload.text,
+        lang: payload.lang ?? 'zh-CN',
+        isFinal: payload.isFinal ?? true,
+        confidence: payload.confidence ?? 0.9,
+        engine: payload.engine ?? 'web-speech',
+      });
+    });
+  };
+
   const simulateFinalSttResult = async (payload: {
     text: string;
     confidence?: number;
     lang?: string;
     engine?: string;
   }) => {
-    await act(async () => {
-      lastMockVoiceService?.simulateResult({
-        text: payload.text,
-        lang: payload.lang ?? 'zh-CN',
-        isFinal: true,
-        confidence: payload.confidence ?? 0.9,
-        engine: payload.engine ?? 'web-speech',
-      });
-      await Promise.resolve();
-    });
+    await dispatchSttResult(payload);
   };
 
   describe('initial state', () => {
@@ -188,7 +221,7 @@ describe('useVoiceAgent', () => {
     });
 
     it('sets error and stays idle when start() fails', async () => {
-      mockStartError = new Error('mic denied');
+      voiceInputServiceMockState.setMockStartError(new Error('mic denied'));
       const { result } = renderHook(() =>
         useVoiceAgent({ executeAction: makeExecuteAction() }),
       );
@@ -214,7 +247,7 @@ describe('useVoiceAgent', () => {
       const { result } = renderHook(() =>
         useVoiceAgent({ executeAction: makeExecuteAction() }),
       );
-      await act(async () => { result.current.start(); });
+      await act(async () => { await result.current.start(); });
       await act(async () => { result.current.toggle(); });
       expect(result.current.listening).toBe(false);
     });
@@ -233,7 +266,7 @@ describe('useVoiceAgent', () => {
       const { result } = renderHook(() =>
         useVoiceAgent({ executeAction: makeExecuteAction() }),
       );
-      await act(async () => { result.current.start('analysis'); });
+      await act(async () => { await result.current.start('analysis'); });
       expect(result.current.mode).toBe('analysis');
       expect(result.current.listening).toBe(true);
     });
@@ -254,11 +287,55 @@ describe('useVoiceAgent', () => {
       await act(async () => { await result.current.start('command'); });
       await simulateFinalSttResult({ text: '播放下一个', confidence: 0.5 });
 
-      expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+      await waitFor(() => {
+        expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+      });
 
       await act(async () => { result.current.switchMode('analysis'); });
 
       expect(result.current.disambiguationOptions).toEqual([]);
+    });
+
+    it('routes dictation STT results into the continuous pipeline when callbacks are provided', async () => {
+      const fillSegment = vi.fn(async () => undefined);
+      const navigateTo = vi.fn();
+      const { result } = renderHook(() =>
+        useVoiceAgent({
+          executeAction: makeExecuteAction(),
+          dictationPipeline: {
+            callbacks: {
+              getSegments: () => [{
+                segmentId: 'utt-1',
+                index: 0,
+                startTime: 0,
+                endTime: 1,
+                existingText: null,
+                existingTranslation: null,
+                existingGloss: null,
+              }],
+              getCurrentSegmentId: () => 'utt-1',
+              fillSegment,
+              restoreSegment: vi.fn(async () => undefined),
+              navigateTo,
+              navigateToNextUnannotated: vi.fn(() => null),
+            },
+            config: {
+              targetLayer: 'transcription',
+              autoAdvance: false,
+              silenceConfirmDelayMs: 0,
+            },
+          },
+        }),
+      );
+
+      await act(async () => { await result.current.start('dictation'); });
+      expect(navigateTo).toHaveBeenCalledWith('utt-1');
+
+      await simulateFinalSttResult({ text: '连续听写文本' });
+
+      await waitFor(() => {
+        expect(fillSegment).toHaveBeenCalledWith('utt-1', 'transcription', '连续听写文本');
+      });
     });
   });
 
@@ -300,10 +377,10 @@ describe('useVoiceAgent', () => {
       const { result } = renderHook(() =>
         useVoiceAgent({ executeAction: makeExecuteAction() }),
       );
-      await act(async () => { result.current.start(); });
+      await act(async () => { await result.current.start(); });
       const id1 = result.current.session.id;
       await act(async () => { result.current.stop(); });
-      await act(async () => { result.current.start(); });
+      await act(async () => { await result.current.start(); });
       const id2 = result.current.session.id;
       expect(id1).not.toBe(id2);
     });
@@ -312,7 +389,7 @@ describe('useVoiceAgent', () => {
       const { result } = renderHook(() =>
         useVoiceAgent({ executeAction: makeExecuteAction() }),
       );
-      await act(async () => { result.current.start(); });
+      await act(async () => { await result.current.start(); });
       expect(result.current.session.entries).toHaveLength(0);
     });
 
@@ -330,7 +407,7 @@ describe('useVoiceAgent', () => {
       const { result, unmount } = renderHook(() =>
         useVoiceAgent({ executeAction: makeExecuteAction() }),
       );
-      await act(async () => { result.current.start(); });
+      await act(async () => { await result.current.start(); });
       expect(() => unmount()).not.toThrow();
     });
   });
@@ -344,22 +421,15 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction, insertDictation }),
       );
 
-      await act(async () => { result.current.start('dictation'); });
+      await act(async () => { await result.current.start('dictation'); });
 
-      await act(async () => {
-        lastMockVoiceService?.simulateResult({
-          text: '这是要听写的内容',
-          lang: 'zh-CN',
-          isFinal: true,
-          confidence: 0.9,
-          engine: 'web-speech',
-        });
-        await Promise.resolve();
+      await dispatchSttResult({ text: '这是要听写的内容' });
+
+      await waitFor(() => {
+        expect(insertDictation).toHaveBeenCalledWith('这是要听写的内容');
+        expect(executeAction).not.toHaveBeenCalled();
+        expect(result.current.agentState).toBe('idle');
       });
-
-      expect(insertDictation).toHaveBeenCalledWith('这是要听写的内容');
-      expect(executeAction).not.toHaveBeenCalled();
-      expect(result.current.agentState).toBe('idle');
     });
 
     it('calls sendToAiChat when chat intent is received in analysis mode', async () => {
@@ -370,20 +440,13 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction, sendToAiChat }),
       );
 
-      await act(async () => { result.current.start('analysis'); });
+      await act(async () => { await result.current.start('analysis'); });
 
-      await act(async () => {
-        lastMockVoiceService?.simulateResult({
-          text: '分析一下这个句子的结构',
-          lang: 'zh-CN',
-          isFinal: true,
-          confidence: 0.88,
-          engine: 'web-speech',
-        });
-        await Promise.resolve();
+      await dispatchSttResult({ text: '分析一下这个句子的结构', confidence: 0.88 });
+
+      await waitFor(() => {
+        expect(sendToAiChat).toHaveBeenCalledWith('分析一下这个句子的结构');
       });
-
-      expect(sendToAiChat).toHaveBeenCalledWith('分析一下这个句子的结构');
     });
 
     it('calls executeAction with playPause for matched playback command', async () => {
@@ -394,20 +457,13 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction, sendToAiChat }),
       );
 
-      await act(async () => { result.current.start('command'); });
+      await act(async () => { await result.current.start('command'); });
 
-      await act(async () => {
-        lastMockVoiceService?.simulateResult({
-          text: '播放',
-          lang: 'zh-CN',
-          isFinal: true,
-          confidence: 0.95,
-          engine: 'web-speech',
-        });
-        await Promise.resolve();
+      await dispatchSttResult({ text: '播放', confidence: 0.95 });
+
+      await waitFor(() => {
+        expect(executeAction).toHaveBeenCalledWith('playPause');
       });
-
-      expect(executeAction).toHaveBeenCalledWith('playPause');
     });
 
     it('does not call executeAction for chat intents in command mode', async () => {
@@ -418,21 +474,14 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction, sendToAiChat }),
       );
 
-      await act(async () => { result.current.start('command'); });
+      await act(async () => { await result.current.start('command'); });
 
-      await act(async () => {
-        lastMockVoiceService?.simulateResult({
-          text: '今天天气怎么样',
-          lang: 'zh-CN',
-          isFinal: true,
-          confidence: 0.8,
-          engine: 'web-speech',
-        });
-        await Promise.resolve();
+      await dispatchSttResult({ text: '今天天气怎么样', confidence: 0.8 });
+
+      await waitFor(() => {
+        expect(executeAction).not.toHaveBeenCalled();
+        expect(sendToAiChat).toHaveBeenCalledWith('今天天气怎么样');
       });
-
-      expect(executeAction).not.toHaveBeenCalled();
-      expect(sendToAiChat).toHaveBeenCalledWith('今天天气怎么样');
     });
   });
 
@@ -444,22 +493,15 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction, initialSafeMode: true }),
       );
 
-      await act(async () => { result.current.start('command'); });
+      await act(async () => { await result.current.start('command'); });
 
-      await act(async () => {
-        lastMockVoiceService?.simulateResult({
-          text: '删除',
-          lang: 'zh-CN',
-          isFinal: true,
-          confidence: 0.95,
-          engine: 'web-speech',
-        });
-        await Promise.resolve();
+      await dispatchSttResult({ text: '删除', confidence: 0.95 });
+
+      await waitFor(() => {
+        expect(result.current.pendingConfirm).not.toBeNull();
+        expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
+        expect(executeAction).not.toHaveBeenCalled();
       });
-
-      expect(result.current.pendingConfirm).not.toBeNull();
-      expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
-      expect(executeAction).not.toHaveBeenCalled();
     });
 
     it('calls executeAction immediately for non-destructive actions even with safeMode on', async () => {
@@ -469,21 +511,14 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction, initialSafeMode: true }),
       );
 
-      await act(async () => { result.current.start('command'); });
+      await act(async () => { await result.current.start('command'); });
 
-      await act(async () => {
-        lastMockVoiceService?.simulateResult({
-          text: '播放',
-          lang: 'zh-CN',
-          isFinal: true,
-          confidence: 0.95,
-          engine: 'web-speech',
-        });
-        await Promise.resolve();
+      await dispatchSttResult({ text: '播放', confidence: 0.95 });
+
+      await waitFor(() => {
+        expect(result.current.pendingConfirm).toBeNull();
+        expect(executeAction).toHaveBeenCalledWith('playPause');
       });
-
-      expect(result.current.pendingConfirm).toBeNull();
-      expect(executeAction).toHaveBeenCalledWith('playPause');
     });
 
     it('confirmPending executes the pending action', async () => {
@@ -493,21 +528,14 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction, initialSafeMode: true }),
       );
 
-      await act(async () => { result.current.start('command'); });
+      await act(async () => { await result.current.start('command'); });
 
       // Trigger a destructive action to set pendingConfirm
-      await act(async () => {
-        lastMockVoiceService?.simulateResult({
-          text: '删除',
-          lang: 'zh-CN',
-          isFinal: true,
-          confidence: 0.95,
-          engine: 'web-speech',
-        });
-        await Promise.resolve();
-      });
+      await dispatchSttResult({ text: '删除', confidence: 0.95 });
 
-      expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
+      await waitFor(() => {
+        expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
+      });
 
       await act(async () => { result.current.confirmPending(); });
 
@@ -524,18 +552,11 @@ describe('useVoiceAgent', () => {
 
       await act(async () => { result.current.start('command'); });
 
-      await act(async () => {
-        lastMockVoiceService?.simulateResult({
-          text: '删除',
-          lang: 'zh-CN',
-          isFinal: true,
-          confidence: 0.95,
-          engine: 'web-speech',
-        });
-        await Promise.resolve();
-      });
+      await dispatchSttResult({ text: '删除', confidence: 0.95 });
 
-      expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
+      await waitFor(() => {
+        expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
+      });
 
       await act(async () => { result.current.cancelPending(); });
 
@@ -553,8 +574,10 @@ describe('useVoiceAgent', () => {
       await act(async () => { await result.current.start('command'); });
       await simulateFinalSttResult({ text: '删除一下重做', confidence: 0.5 });
 
-      expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
-      expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+      await waitFor(() => {
+        expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
+        expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+      });
 
       await act(async () => { result.current.confirmPending(); });
 
@@ -571,8 +594,10 @@ describe('useVoiceAgent', () => {
       await act(async () => { await result.current.start('command'); });
       await simulateFinalSttResult({ text: '删除一下重做', confidence: 0.5 });
 
-      expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
-      expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+      await waitFor(() => {
+        expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
+        expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+      });
 
       await act(async () => { result.current.cancelPending(); });
 
@@ -590,7 +615,9 @@ describe('useVoiceAgent', () => {
       await act(async () => { await result.current.start('command'); });
       await simulateFinalSttResult({ text: '播放下一个', confidence: 0.5 });
 
-      expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+      await waitFor(() => {
+        expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+      });
 
       await act(async () => { await result.current.stop(); });
 
@@ -604,7 +631,9 @@ describe('useVoiceAgent', () => {
 
       await act(async () => { await result.current.start('command'); });
       await simulateFinalSttResult({ text: '播放下一个', confidence: 0.5 });
-      expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+      await waitFor(() => {
+        expect(result.current.disambiguationOptions.length).toBeGreaterThan(0);
+      });
 
       await act(async () => { await result.current.stop(); });
       await act(async () => { await result.current.start('analysis'); });
@@ -620,7 +649,7 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction }),
       );
 
-      await act(async () => { result.current.start(); });
+      await act(async () => { await result.current.start(); });
 
       // Simulate VAD state change (from VoiceInputService mock)
       // The mock doesn't expose onVadStateChange, so we verify initial state is false
@@ -641,20 +670,13 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction, resolveIntentWithLlm }),
       );
 
-      await act(async () => { result.current.start('command'); });
+      await act(async () => { await result.current.start('command'); });
 
-      await act(async () => {
-        lastMockVoiceService?.simulateResult({
-          text: '执行复杂的多步操作序列',
-          lang: 'zh-CN',
-          isFinal: true,
-          confidence: 0.92,
-          engine: 'web-speech',
-        });
-        await Promise.resolve();
+      await dispatchSttResult({ text: '执行复杂的多步操作序列', confidence: 0.92 });
+
+      await waitFor(() => {
+        expect(resolveIntentWithLlm).toHaveBeenCalledTimes(1);
       });
-
-      expect(resolveIntentWithLlm).toHaveBeenCalledTimes(1);
     });
 
     it('does not call resolveIntentWithLlm for already matched command', async () => {
@@ -663,18 +685,9 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction: makeExecuteAction(), resolveIntentWithLlm }),
       );
 
-      await act(async () => { result.current.start('command'); });
+      await act(async () => { await result.current.start('command'); });
 
-      await act(async () => {
-        lastMockVoiceService?.simulateResult({
-          text: '播放',
-          lang: 'zh-CN',
-          isFinal: true,
-          confidence: 0.95,
-          engine: 'web-speech',
-        });
-        await Promise.resolve();
-      });
+      await dispatchSttResult({ text: '播放', confidence: 0.95 });
 
       expect(resolveIntentWithLlm).not.toHaveBeenCalled();
     });
@@ -692,34 +705,17 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction, resolveIntentWithLlm }),
       );
 
-      await act(async () => { result.current.start('command'); });
+      await act(async () => { await result.current.start('command'); });
 
-      await act(async () => {
-        lastMockVoiceService?.simulateResult({
-          text: '开始一下',
-          lang: 'zh-CN',
-          isFinal: true,
-          confidence: 0.9,
-          engine: 'web-speech',
-        });
-        await Promise.resolve();
+      await dispatchSttResult({ text: '开始一下', confidence: 0.9 });
+      await dispatchSttResult({ text: '开始一下', confidence: 0.9 });
+
+      await waitFor(() => {
+        expect(resolveIntentWithLlm).toHaveBeenCalledTimes(1);
+        expect(executeAction).toHaveBeenCalledTimes(2);
+        expect(executeAction).toHaveBeenNthCalledWith(1, 'playPause');
+        expect(executeAction).toHaveBeenNthCalledWith(2, 'playPause');
       });
-
-      await act(async () => {
-        lastMockVoiceService?.simulateResult({
-          text: '开始一下',
-          lang: 'zh-CN',
-          isFinal: true,
-          confidence: 0.9,
-          engine: 'web-speech',
-        });
-        await Promise.resolve();
-      });
-
-      expect(resolveIntentWithLlm).toHaveBeenCalledTimes(1);
-      expect(executeAction).toHaveBeenCalledTimes(2);
-      expect(executeAction).toHaveBeenNthCalledWith(1, 'playPause');
-      expect(executeAction).toHaveBeenNthCalledWith(2, 'playPause');
     });
 
     it('records alias learning log entries for fallback decisions', async () => {
@@ -734,25 +730,18 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction: makeExecuteAction(), resolveIntentWithLlm }),
       );
 
-      await act(async () => { result.current.start('command'); });
+      await act(async () => { await result.current.start('command'); });
 
-      await act(async () => {
-        lastMockVoiceService?.simulateResult({
-          text: '开始一下',
-          lang: 'zh-CN',
-          isFinal: true,
-          confidence: 0.9,
-          engine: 'web-speech',
+      await dispatchSttResult({ text: '开始一下', confidence: 0.9 });
+
+      await waitFor(() => {
+        const log = loadVoiceAliasLearningLog();
+        expect(log.length).toBeGreaterThan(0);
+        expect(log[log.length - 1]).toMatchObject({
+          phrase: '开始一下',
+          actionId: 'playPause',
+          reason: 'updated',
         });
-        await Promise.resolve();
-      });
-
-      const log = loadVoiceAliasLearningLog();
-      expect(log.length).toBeGreaterThan(0);
-      expect(log[log.length - 1]).toMatchObject({
-        phrase: '开始一下',
-        actionId: 'playPause',
-        reason: 'updated',
       });
     });
     it('requires confirmation for destructive actions returned by LLM fallback', async () => {
@@ -768,26 +757,19 @@ describe('useVoiceAgent', () => {
         useVoiceAgent({ executeAction, resolveIntentWithLlm }),
       );
 
-      await act(async () => { result.current.start('command'); });
+      await act(async () => { await result.current.start('command'); });
 
-      await act(async () => {
-        lastMockVoiceService?.simulateResult({
-          text: '把这个去掉吧',
-          lang: 'zh-CN',
-          isFinal: true,
-          confidence: 0.82,
-          engine: 'web-speech',
-        });
-        await Promise.resolve();
+      await dispatchSttResult({ text: '把这个去掉吧', confidence: 0.82 });
+
+      await waitFor(() => {
+        expect(resolveIntentWithLlm).toHaveBeenCalledTimes(1);
+        expect(result.current.lastIntent?.type).toBe('action');
+        if (result.current.lastIntent?.type === 'action') {
+          expect(result.current.lastIntent.fromFuzzy).toBe(true);
+        }
+        expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
+        expect(executeAction).not.toHaveBeenCalled();
       });
-
-      expect(resolveIntentWithLlm).toHaveBeenCalledTimes(1);
-      expect(result.current.lastIntent?.type).toBe('action');
-      if (result.current.lastIntent?.type === 'action') {
-        expect(result.current.lastIntent.fromFuzzy).toBe(true);
-      }
-      expect(result.current.pendingConfirm?.actionId).toBe('deleteSegment');
-      expect(executeAction).not.toHaveBeenCalled();
     });
   });
 });

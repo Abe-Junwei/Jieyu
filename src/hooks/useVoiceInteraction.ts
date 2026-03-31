@@ -14,6 +14,7 @@ import { useVoiceAgent } from './useVoiceAgent';
 import { applyVoiceCommercialConfigChange } from '../utils/voiceCommercialConfigSync';
 import type { CommercialProviderKind, SttEngine } from '../services/VoiceInputService';
 import type { LayerDocType } from '../db';
+import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 
 interface VoiceMessageLike {
   role?: string;
@@ -61,6 +62,10 @@ interface UseVoiceInteractionOptions {
   executeAction: Parameters<typeof useVoiceAgent>[0]['executeAction'];
   handleResolveVoiceIntentWithLlm: NonNullable<Parameters<typeof useVoiceAgent>[0]['resolveIntentWithLlm']>;
   handleVoiceDictation: NonNullable<Parameters<typeof useVoiceAgent>[0]['insertDictation']>;
+  dictationPipeline?: {
+    callbacks: DictationPipelineCallbacks;
+    config?: QuickDictationConfig;
+  };
   onVoiceAnalysisResult: (
     utteranceId: string | null,
     analysisText: string,
@@ -114,6 +119,7 @@ export function useVoiceInteraction({
   executeAction,
   handleResolveVoiceIntentWithLlm,
   handleVoiceDictation,
+  dictationPipeline,
   onVoiceAnalysisResult,
   selection,
   defaultTranscriptionLayerId,
@@ -168,6 +174,7 @@ export function useVoiceInteraction({
     },
     resolveIntentWithLlm: handleResolveVoiceIntentWithLlm,
     insertDictation: handleVoiceDictation,
+    ...(dictationPipeline !== undefined ? { dictationPipeline } : {}),
     ...(localWhisperConfig.baseUrl ? { whisperServerUrl: localWhisperConfig.baseUrl } : {}),
     ...(localWhisperConfig.model ? { whisperServerModel: localWhisperConfig.model } : {}),
     commercialProviderKind,
