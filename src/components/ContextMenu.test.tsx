@@ -71,7 +71,8 @@ describe('ContextMenu', () => {
       />,
     );
 
-    fireEvent.mouseEnter(screen.getAllByRole('menuitem', { name: /^字体/ }).at(-1)!);
+    const fontMenuItems1 = screen.getAllByRole('menuitem', { name: /^字体/ });
+    fireEvent.mouseEnter(fontMenuItems1[fontMenuItems1.length - 1]!);
     const input = screen.getByRole('searchbox');
     fireEvent.change(input, { target: { value: 'fang' } });
 
@@ -103,7 +104,8 @@ describe('ContextMenu', () => {
       />,
     );
 
-    fireEvent.mouseEnter(screen.getAllByRole('menuitem', { name: /^字体/ }).at(-1)!);
+    const fontMenuItems2 = screen.getAllByRole('menuitem', { name: /^字体/ });
+    fireEvent.mouseEnter(fontMenuItems2[fontMenuItems2.length - 1]!);
     fireEvent.click(screen.getByRole('menuitem', { name: '显示所有本地字体' }));
 
     expect(onToggle).toHaveBeenCalledTimes(1);
@@ -130,7 +132,8 @@ describe('ContextMenu', () => {
       />,
     );
 
-    fireEvent.mouseEnter(screen.getAllByRole('menuitem', { name: /^字体/ }).at(-1)!);
+    const fontMenuItems3 = screen.getAllByRole('menuitem', { name: /^字体/ });
+    fireEvent.mouseEnter(fontMenuItems3[fontMenuItems3.length - 1]!);
     expect(screen.getByRole('menuitem', { name: '初始字体' })).toBeTruthy();
 
     rerender(

@@ -1,9 +1,12 @@
 import { useCallback } from 'react';
 
 type UsePanelResizeParams = {
-  isLayerRailCollapsed: boolean;
-  layerRailWidth: number;
-  setLayerRailWidth: React.Dispatch<React.SetStateAction<number>>;
+  isLayerRailCollapsed?: boolean;
+  layerRailWidth?: number;
+  setLayerRailWidth?: React.Dispatch<React.SetStateAction<number>>;
+  isSidePaneCollapsed?: boolean;
+  sidePaneWidth?: number;
+  setSidePaneWidth?: React.Dispatch<React.SetStateAction<number>>;
   listMainRef: React.RefObject<HTMLDivElement | null>;
   isAiPanelCollapsed: boolean;
   aiPanelWidth: number;
@@ -20,6 +23,9 @@ export function usePanelResize({
   isLayerRailCollapsed,
   layerRailWidth,
   setLayerRailWidth,
+  isSidePaneCollapsed,
+  sidePaneWidth,
+  setSidePaneWidth,
   listMainRef,
   isAiPanelCollapsed,
   aiPanelWidth,
@@ -31,24 +37,29 @@ export function usePanelResize({
   setHubHeight,
   screenRef,
 }: UsePanelResizeParams) {
+  const effectiveIsSidePaneCollapsed = isSidePaneCollapsed ?? isLayerRailCollapsed ?? false;
+  const effectiveSidePaneWidth = sidePaneWidth ?? layerRailWidth ?? 112;
+  const effectiveSetSidePaneWidth = setSidePaneWidth ?? setLayerRailWidth;
+
   const handleLayerRailResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    if (isLayerRailCollapsed) return;
+    if (effectiveIsSidePaneCollapsed) return;
+    if (!effectiveSetSidePaneWidth) return;
 
     const root = listMainRef.current;
     if (!root) return;
 
     const rect = root.getBoundingClientRect();
     const startX = event.clientX;
-    const startWidth = layerRailWidth;
+    const startWidth = effectiveSidePaneWidth;
     const minWidth = 84;
     const maxWidth = Math.min(280, rect.width * 0.45);
 
     const onMove = (ev: PointerEvent) => {
       const dx = ev.clientX - startX;
       const nextWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
-      setLayerRailWidth(nextWidth);
+      effectiveSetSidePaneWidth(nextWidth);
     };
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
@@ -59,7 +70,7 @@ export function usePanelResize({
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     dragCleanupRef.current = onUp;
-  }, [isLayerRailCollapsed, listMainRef, layerRailWidth, setLayerRailWidth, dragCleanupRef]);
+  }, [effectiveIsSidePaneCollapsed, effectiveSidePaneWidth, effectiveSetSidePaneWidth, listMainRef, dragCleanupRef]);
 
   const handleAiPanelResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -123,6 +134,7 @@ export function usePanelResize({
 
   return {
     handleLayerRailResizeStart,
+    handleSidePaneResizeStart: handleLayerRailResizeStart,
     handleAiPanelResizeStart,
     handleHubResizeStart,
   };

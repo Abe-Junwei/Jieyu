@@ -138,7 +138,7 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: C
           changed = true;
           return;
         }
-        const panel = submenuRefs.current[index];
+        const panel = submenuRefs.current[index] ?? null;
         const position = computeSubmenuPosition(submenu.anchorEl, panel);
         if (position.left !== submenu.left || position.top !== submenu.top) {
           changed = true;
@@ -157,7 +157,7 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: C
       setSubmenus((prev) => prev.slice(0, depth));
       return;
     }
-    const position = computeSubmenuPosition(target, submenuRefs.current[depth]);
+    const position = computeSubmenuPosition(target, submenuRefs.current[depth] ?? null);
 
     setSubmenus((prev) => {
       const next = prev.slice(0, depth);

@@ -7,10 +7,10 @@ describe('Transcription layout guard', () => {
     const appPath = path.resolve(process.cwd(), 'src/App.tsx');
     const appCode = fs.readFileSync(appPath, 'utf8');
 
-    expect(appCode).toContain("position: 'fixed'");
-    expect(appCode).toContain("top: `${headerHeight + 12}px`");
-    expect(appCode).toContain("bottom: 0");
-    expect(appCode).toContain("overflow: 'hidden'");
+    expect(appCode).toContain("const isTranscriptionRoute = location.pathname.startsWith('/transcription');");
+    expect(appCode).toContain("app-shell-transcription");
+    expect(appCode).toContain("app-main-transcription");
+    expect(appCode).toContain('id="app-side-pane-body-slot"');
   });
 
   it('keeps stylesheet fixed-anchor selector for transcription main area', () => {
@@ -27,10 +27,10 @@ describe('Transcription layout guard', () => {
 
     const block = cssCode.slice(start, end + 1);
     expect(block).toContain('position: fixed;');
-    expect(block).toContain('top: var(--app-header-height, 0px);');
-    expect(block).toContain('bottom: 0;');
-    expect(block).toContain('left: 0;');
-    expect(block).toContain('right: 0;');
+    expect(block).toContain('top: 12px;');
+    expect(block).toContain('bottom: 12px;');
+    expect(block).toContain('left: var(--shell-left-offset);');
+    expect(block).toContain('right: 16px;');
   });
 
   it('keeps speaker management popover centered in the viewport', () => {

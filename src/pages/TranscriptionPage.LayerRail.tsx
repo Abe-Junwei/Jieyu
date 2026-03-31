@@ -44,9 +44,13 @@ export function TranscriptionPageLayerRail({
       >
         <LayerRailSidebar {...sidebarProps} />
       </SpeakerRailProvider>
-      <div className="transcription-layer-rail-handle-cluster">
+      <div
+        className="transcription-layer-rail-handle-cluster transcription-side-pane-handle-cluster"
+        data-layer-pane-interactive="true"
+      >
         <div
           className="transcription-layer-rail-hover-zone"
+          data-layer-pane-interactive="true"
           onMouseEnter={() => {
             if (isLayerRailCollapsed && hoverExpandEnabled) onLayerRailToggle();
           }}
@@ -54,6 +58,7 @@ export function TranscriptionPageLayerRail({
         />
         <div
           className="transcription-layer-rail-resizer"
+          data-layer-pane-interactive="true"
           onPointerDown={onLayerRailResizeStart}
           role="separator"
           aria-orientation="vertical"
@@ -62,6 +67,7 @@ export function TranscriptionPageLayerRail({
         <button
           type="button"
           className="transcription-layer-rail-toggle"
+          data-layer-pane-interactive="true"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={onLayerRailToggle}
           onMouseEnter={() => {

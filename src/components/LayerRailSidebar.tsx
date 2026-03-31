@@ -348,6 +348,11 @@ export function LayerRailSidebar({
     };
   }, [layerActionRootRef, railActionMenu]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    setSidePaneBodyHost(document.getElementById('app-side-pane-body-slot'));
+  }, []);
+
   const {
     deleteLayerConfirm,
     deleteConfirmKeepUtterances,
@@ -404,6 +409,7 @@ export function LayerRailSidebar({
     orderIssues: LayerOrderIssue[];
   } | null>(null);
   const [constraintRepairDetailsCollapsed, setConstraintRepairDetailsCollapsed] = useState(false);
+  const [sidePaneBodyHost, setSidePaneBodyHost] = useState<HTMLElement | null>(null);
   const layerRailOverviewRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<typeof dragState>(null);
   const dropTargetIndexRef = useRef<number | null>(null);
@@ -454,10 +460,6 @@ export function LayerRailSidebar({
     if (!focusedLayer?.parentLayerId) return '';
     return layerKeyById.get(focusedLayer.parentLayerId) ?? '';
   }, [focusedLayer, layerKeyById]);
-  const focusedLayerParentLabel = useMemo(() => {
-    if (!focusedLayer?.parentLayerId) return '';
-    return layerLabelById.get(focusedLayer.parentLayerId) ?? '';
-  }, [focusedLayer, layerLabelById]);
   const canEditFocusedLayerParent = focusedLayer?.layerType === 'translation'
     && independentRootLayers.length > 0;
   const groupedConstraintRepairDetails = useMemo(() => {
@@ -1410,198 +1412,258 @@ export function LayerRailSidebar({
     );
   };
 
-  return (
-    <LayerRailProvider deletableLayers={deletableLayers} checkLayerHasContent={checkLayerHasContent} deleteLayer={deleteLayer} deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}>
-    <aside className={`transcription-layer-rail ${isCollapsed ? 'transcription-layer-rail-collapsed' : ''}`} aria-label="文本区层滚动栏">
-      <div
-        ref={layerRailOverviewRef}
-        className="transcription-layer-rail-overview"
-      >
-        {renderLayerRailItems()}
-        {renderFocusedLayerInspector()}
-      </div>
-      <div className="transcription-layer-rail-actions" aria-label="层管理快捷操作" ref={layerActionRootRef}>
-        <button
-          type="button"
-          className="transcription-layer-rail-action-btn"
-          onClick={() => {
-            setRailActionMenu(null);
-            openCreateLayerPopover('create-transcription');
-          }}
-        >
-          <span className="transcription-layer-rail-action-icon" aria-hidden="true">✏️</span><strong>新建转写层</strong>
-        </button>
-        <button
-          type="button"
-          className="transcription-layer-rail-action-btn"
-          disabled={disableCreateTranslationEntry}
-          onClick={() => {
-            setRailActionMenu(null);
-            openCreateLayerPopover('create-translation');
-          }}
-        >
-          <span className="transcription-layer-rail-action-icon" aria-hidden="true">🌐</span><strong>新建翻译层</strong>
-        </button>
-        <button
-          type="button"
-          className={`transcription-layer-rail-action-btn ${railActionMenu === 'more' || layerActionPanel === 'speaker-management' || layerActionPanel === 'delete' ? 'transcription-layer-rail-action-btn-active' : ''}`}
-          onClick={() => setRailActionMenu((prev) => (prev === 'more' ? null : 'more'))}
-        >
-          <span className="transcription-layer-rail-action-icon" aria-hidden="true">⋯</span><strong>更多</strong>
-        </button>
-
-        {railActionMenu === 'more' && (
-          <div className="transcription-layer-rail-action-popover" role="group" aria-label="更多操作">
-            <button
-              type="button"
-              className="transcription-layer-rail-action-btn"
-              onClick={() => {
-                setRailActionMenu(null);
-                setLayerActionPanel((prev) => (prev === 'speaker-management' ? null : 'speaker-management'));
-              }}
-            >
-              <span className="transcription-layer-rail-action-icon" aria-hidden="true">👥</span><strong>说话人管理</strong>
-            </button>
-            <button
-              type="button"
-              className="transcription-layer-rail-action-btn transcription-layer-rail-action-btn-danger"
-              disabled={!focusedLayer}
-              onClick={() => {
-                if (!focusedLayer) return;
-                openDeletePanelForLayer(focusedLayer.id);
-              }}
-            >
-              <span className="transcription-layer-rail-action-icon" aria-hidden="true">🗑️</span><strong>删除当前层</strong>
-            </button>
-            <button
-              type="button"
-              className="transcription-layer-rail-action-btn"
-              disabled={constraintRepairBusy || layerRailRows.length === 0}
-              onClick={() => {
-                setRailActionMenu(null);
-                fireAndForget(handleRepairLayerConstraints());
-              }}
-            >
-              <span className="transcription-layer-rail-action-icon" aria-hidden="true">🔧</span><strong>{constraintRepairBusy ? '修复中…' : '约束修复'}</strong>
-            </button>
-          </div>
-        )}
-
-        {layerActionPanel === 'speaker-management' && renderSpeakerManagementPopover()}
-
-        {layerActionPanel === 'delete' && (
-          <LayerRailActionModal ariaLabel="删除层" onClose={() => setLayerActionPanel(null)}>
-            <select
-              className="input transcription-layer-rail-action-input"
-              value={quickDeleteLayerId}
-              onChange={(e) => setQuickDeleteLayerId(e.target.value)}
-            >
-              {deletableLayers.map((layer) => (
-                <option key={layer.id} value={layer.id}>
-                  {formatLayerRailLabel(layer)}
-                </option>
-              ))}
-            </select>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={quickDeleteKeepUtterances}
-                onChange={(e) => setQuickDeleteKeepUtterances(e.target.checked)}
-              />
-              保留现有语段区间
-            </label>
-            <div className="transcription-layer-rail-action-row">
-              <button
-                className="btn btn-sm btn-danger"
-                disabled={!quickDeleteLayerId}
-                onClick={() => {
-                  fireAndForget((async () => {
-                    await requestDeleteLayer(quickDeleteLayerId);
-                    setLayerActionPanel(null);
-                  })());
-                }}
-              >
-                删除
-              </button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setLayerActionPanel(null)}>取消</button>
+  const layerRailOverviewNode = (
+    <div
+      ref={layerRailOverviewRef}
+      className={`transcription-layer-rail-overview ${sidePaneBodyHost ? 'transcription-layer-rail-overview-portaled' : ''}`}
+      data-layer-pane-interactive="true"
+    >
+      {sidePaneBodyHost ? (
+        <>
+          <section className="app-side-pane-group app-side-pane-layer-group" aria-label="层列表">
+            <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
+              <span className="app-side-pane-section-title">层列表</span>
             </div>
-          </LayerRailActionModal>
-        )}
+            <div className="app-side-pane-nav app-side-pane-layer-list">
+              {renderLayerRailItems()}
+            </div>
+          </section>
+          <section className="app-side-pane-group app-side-pane-layer-group" aria-label="当前层详情卡片">
+            <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
+              <span className="app-side-pane-section-title">当前层详情</span>
+            </div>
+            <div className="app-side-pane-nav app-side-pane-layer-inspector-wrap">
+              {renderFocusedLayerInspector()}
+            </div>
+          </section>
+        </>
+      ) : (
+        <>
+          {renderLayerRailItems()}
+          {renderFocusedLayerInspector()}
+        </>
+      )}
+    </div>
+  );
 
-        {layerCreateMessage && (
-          <p className="small-text" style={{ margin: 0, fontSize: '0.7rem' }}>
-            {layerCreateMessage}
-          </p>
-        )}
-        {constraintRepairMessage && (
-          <p className="small-text" style={{ margin: 0, fontSize: '0.7rem' }}>
-            {constraintRepairMessage}
-          </p>
-        )}
-        {constraintRepairDetails && (
-          constraintRepairDetails.repairs.length > 0
-          || constraintRepairDetails.issues.length > 0
-          || constraintRepairDetails.orderRepairs.length > 0
-          || constraintRepairDetails.orderIssues.length > 0
-        ) && (
-          <div
-            aria-label="约束修复明细"
-            style={{
-              border: '1px solid #e2e8f0',
-              borderRadius: 8,
-              padding: '8px 10px',
-              fontSize: '0.72rem',
-              lineHeight: 1.45,
-              color: '#334155',
-              background: '#f8fafc',
+  const layerRailActionsNode = (
+    <div
+      className={`transcription-layer-rail-actions ${sidePaneBodyHost ? 'transcription-layer-rail-actions-portaled' : ''}`}
+      aria-label="层管理快捷操作"
+      ref={layerActionRootRef}
+      data-layer-pane-interactive="true"
+    >
+      <button
+        type="button"
+        className="transcription-layer-rail-action-btn"
+        onClick={() => {
+          setRailActionMenu(null);
+          openCreateLayerPopover('create-transcription');
+        }}
+      >
+        <span className="transcription-layer-rail-action-icon" aria-hidden="true">✏️</span><strong>新建转写层</strong>
+      </button>
+      <button
+        type="button"
+        className="transcription-layer-rail-action-btn"
+        disabled={disableCreateTranslationEntry}
+        onClick={() => {
+          setRailActionMenu(null);
+          openCreateLayerPopover('create-translation');
+        }}
+      >
+        <span className="transcription-layer-rail-action-icon" aria-hidden="true">🌐</span><strong>新建翻译层</strong>
+      </button>
+      <button
+        type="button"
+        className={`transcription-layer-rail-action-btn ${railActionMenu === 'more' || layerActionPanel === 'speaker-management' || layerActionPanel === 'delete' ? 'transcription-layer-rail-action-btn-active' : ''}`}
+        onClick={() => setRailActionMenu((prev) => (prev === 'more' ? null : 'more'))}
+      >
+        <span className="transcription-layer-rail-action-icon" aria-hidden="true">⋯</span><strong>更多</strong>
+      </button>
+
+      {railActionMenu === 'more' && (
+        <div className="transcription-layer-rail-action-popover" role="group" aria-label="更多操作">
+          <button
+            type="button"
+            className="transcription-layer-rail-action-btn"
+            onClick={() => {
+              setRailActionMenu(null);
+              setLayerActionPanel((prev) => (prev === 'speaker-management' ? null : 'speaker-management'));
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <strong>修复明细</strong>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => setConstraintRepairDetailsCollapsed((prev) => !prev)}
-                aria-label={constraintRepairDetailsCollapsed ? '展开修复明细' : '收起修复明细'}
-              >
-                {constraintRepairDetailsCollapsed ? '展开明细' : '收起明细'}
-              </button>
-            </div>
-            {!constraintRepairDetailsCollapsed && groupedConstraintRepairDetails.map((group) => (
-              <div
-                key={`group-${group.layerId}`}
-                style={{
-                  borderTop: '1px dashed #cbd5e1',
-                  paddingTop: 6,
-                  marginTop: 6,
-                }}
-              >
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>{group.label}</div>
-                {group.repairs.map((item, index) => (
-                  <div key={`repair-${item.layerId}-${item.code}-${index}`}>
-                    [已修复 / repaired][{item.code}] {item.message}
-                  </div>
-                ))}
-                {group.issues.map((item, index) => (
-                  <div key={`issue-${item.layerId}-${item.code}-${index}`}>
-                    [待处理 / pending][{item.code}] {item.message}
-                  </div>
-                ))}
-                {group.orderRepairs.map((item, index) => (
-                  <div key={`order-repair-${item.layerId}-${item.code}-${index}`}>
-                    [顺序已修复 / order repaired][{item.code}] {item.message}
-                  </div>
-                ))}
-                {group.orderIssues.map((item, index) => (
-                  <div key={`order-issue-${item.layerId}-${item.code}-${index}`}>
-                    [顺序待处理 / order pending][{item.code}] {item.message}
-                  </div>
-                ))}
-              </div>
+            <span className="transcription-layer-rail-action-icon" aria-hidden="true">👥</span><strong>说话人管理</strong>
+          </button>
+          <button
+            type="button"
+            className="transcription-layer-rail-action-btn transcription-layer-rail-action-btn-danger"
+            disabled={!focusedLayer}
+            onClick={() => {
+              if (!focusedLayer) return;
+              openDeletePanelForLayer(focusedLayer.id);
+            }}
+          >
+            <span className="transcription-layer-rail-action-icon" aria-hidden="true">🗑️</span><strong>删除当前层</strong>
+          </button>
+          <button
+            type="button"
+            className="transcription-layer-rail-action-btn"
+            disabled={constraintRepairBusy || layerRailRows.length === 0}
+            onClick={() => {
+              setRailActionMenu(null);
+              fireAndForget(handleRepairLayerConstraints());
+            }}
+          >
+            <span className="transcription-layer-rail-action-icon" aria-hidden="true">🔧</span><strong>{constraintRepairBusy ? '修复中…' : '约束修复'}</strong>
+          </button>
+        </div>
+      )}
+
+      {layerActionPanel === 'speaker-management' && renderSpeakerManagementPopover()}
+
+      {layerActionPanel === 'delete' && (
+        <LayerRailActionModal ariaLabel="删除层" onClose={() => setLayerActionPanel(null)}>
+          <select
+            className="input transcription-layer-rail-action-input"
+            value={quickDeleteLayerId}
+            onChange={(e) => setQuickDeleteLayerId(e.target.value)}
+          >
+            {deletableLayers.map((layer) => (
+              <option key={layer.id} value={layer.id}>
+                {formatLayerRailLabel(layer)}
+              </option>
             ))}
+          </select>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={quickDeleteKeepUtterances}
+              onChange={(e) => setQuickDeleteKeepUtterances(e.target.checked)}
+            />
+            保留现有语段区间
+          </label>
+          <div className="transcription-layer-rail-action-row">
+            <button
+              className="btn btn-sm btn-danger"
+              disabled={!quickDeleteLayerId}
+              onClick={() => {
+                fireAndForget((async () => {
+                  await requestDeleteLayer(quickDeleteLayerId);
+                  setLayerActionPanel(null);
+                })());
+              }}
+            >
+              删除
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setLayerActionPanel(null)}>取消</button>
           </div>
-        )}
-      </div>
+        </LayerRailActionModal>
+      )}
+
+      {layerCreateMessage && (
+        <p className="small-text" style={{ margin: 0, fontSize: '0.7rem' }}>
+          {layerCreateMessage}
+        </p>
+      )}
+      {constraintRepairMessage && (
+        <p className="small-text" style={{ margin: 0, fontSize: '0.7rem' }}>
+          {constraintRepairMessage}
+        </p>
+      )}
+      {constraintRepairDetails && (
+        constraintRepairDetails.repairs.length > 0
+        || constraintRepairDetails.issues.length > 0
+        || constraintRepairDetails.orderRepairs.length > 0
+        || constraintRepairDetails.orderIssues.length > 0
+      ) && (
+        <div
+          aria-label="约束修复明细"
+          style={{
+            border: '1px solid #e2e8f0',
+            borderRadius: 8,
+            padding: '8px 10px',
+            fontSize: '0.72rem',
+            lineHeight: 1.45,
+            color: '#334155',
+            background: '#f8fafc',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <strong>修复明细</strong>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setConstraintRepairDetailsCollapsed((prev) => !prev)}
+              aria-label={constraintRepairDetailsCollapsed ? '展开修复明细' : '收起修复明细'}
+            >
+              {constraintRepairDetailsCollapsed ? '展开明细' : '收起明细'}
+            </button>
+          </div>
+          {!constraintRepairDetailsCollapsed && groupedConstraintRepairDetails.map((group) => (
+            <div
+              key={`group-${group.layerId}`}
+              style={{
+                borderTop: '1px dashed #cbd5e1',
+                paddingTop: 6,
+                marginTop: 6,
+              }}
+            >
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>{group.label}</div>
+              {group.repairs.map((item, index) => (
+                <div key={`repair-${item.layerId}-${item.code}-${index}`}>
+                  [已修复 / repaired][{item.code}] {item.message}
+                </div>
+              ))}
+              {group.issues.map((item, index) => (
+                <div key={`issue-${item.layerId}-${item.code}-${index}`}>
+                  [待处理 / pending][{item.code}] {item.message}
+                </div>
+              ))}
+              {group.orderRepairs.map((item, index) => (
+                <div key={`order-repair-${item.layerId}-${item.code}-${index}`}>
+                  [顺序已修复 / order repaired][{item.code}] {item.message}
+                </div>
+              ))}
+              {group.orderIssues.map((item, index) => (
+                <div key={`order-issue-${item.layerId}-${item.code}-${index}`}>
+                  [顺序待处理 / order pending][{item.code}] {item.message}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const layerRailPortaledNode = (
+    <div className="transcription-layer-rail-portaled-stack" data-layer-pane-interactive="true">
+      {layerRailOverviewNode}
+      <section className="app-side-pane-group app-side-pane-layer-group app-side-pane-layer-actions-group" aria-label="层管理快捷操作卡片">
+        <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
+          <span className="app-side-pane-section-title">层管理快捷操作</span>
+        </div>
+        <div className="app-side-pane-nav app-side-pane-layer-actions-wrap">
+          {layerRailActionsNode}
+        </div>
+      </section>
+    </div>
+  );
+
+  const layerRailInlineFallbackNode = (
+    <div
+      className={`transcription-layer-rail ${isCollapsed ? 'transcription-layer-rail-collapsed' : ''}`}
+      aria-label="文本区层滚动栏"
+      data-layer-pane-interactive="true"
+    >
+      {layerRailOverviewNode}
+      {layerRailActionsNode}
+    </div>
+  );
+
+  return (
+    <LayerRailProvider deletableLayers={deletableLayers} checkLayerHasContent={checkLayerHasContent} deleteLayer={deleteLayer} deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}>
+      {sidePaneBodyHost ? createPortal(layerRailPortaledNode, sidePaneBodyHost) : layerRailInlineFallbackNode}
 
       {/* Context menu for right-click on layer items */}
       {contextMenu && (
@@ -1646,7 +1708,6 @@ export function LayerRailSidebar({
         onCancel={cancelDeleteLayerConfirm}
         onConfirm={() => { fireAndForget(confirmDeleteLayer()); }}
       />
-    </aside>
     </LayerRailProvider>
   );
 }

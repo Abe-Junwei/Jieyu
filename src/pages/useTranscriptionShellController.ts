@@ -55,13 +55,18 @@ interface UseTranscriptionShellControllerResult {
   }) => void;
   isLayerRailCollapsed: boolean;
   setIsLayerRailCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  isSidePaneCollapsed: boolean;
+  setIsSidePaneCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   isAiPanelCollapsed: boolean;
   setIsAiPanelCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   layerRailWidth: number;
   setLayerRailWidth: React.Dispatch<React.SetStateAction<number>>;
+  sidePaneWidth: number;
+  setSidePaneWidth: React.Dispatch<React.SetStateAction<number>>;
   aiPanelWidth: number;
   setAiPanelWidth: React.Dispatch<React.SetStateAction<number>>;
   handleLayerRailToggle: (e?: React.SyntheticEvent<HTMLElement>) => void;
+  handleSidePaneToggle: (e?: React.SyntheticEvent<HTMLElement>) => void;
   handleAiPanelToggle: (e?: React.SyntheticEvent<HTMLElement>) => void;
   isHubCollapsed: boolean;
   hubHeight: number;
@@ -155,13 +160,18 @@ export function useTranscriptionShellController(
   const {
     isLayerRailCollapsed,
     setIsLayerRailCollapsed,
+    isSidePaneCollapsed,
+    setIsSidePaneCollapsed,
     isAiPanelCollapsed,
     setIsAiPanelCollapsed,
     layerRailWidth,
     setLayerRailWidth,
+    sidePaneWidth,
+    setSidePaneWidth,
     aiPanelWidth,
     setAiPanelWidth,
     handleLayerRailToggle,
+    handleSidePaneToggle,
     handleAiPanelToggle,
     isHubCollapsed,
     hubHeight,
@@ -291,13 +301,18 @@ export function useTranscriptionShellController(
     openPdfPreviewRequest,
     isLayerRailCollapsed,
     setIsLayerRailCollapsed,
+    isSidePaneCollapsed,
+    setIsSidePaneCollapsed,
     isAiPanelCollapsed,
     setIsAiPanelCollapsed,
     layerRailWidth,
     setLayerRailWidth,
+    sidePaneWidth,
+    setSidePaneWidth,
     aiPanelWidth,
     setAiPanelWidth,
     handleLayerRailToggle,
+    handleSidePaneToggle,
     handleAiPanelToggle,
     isHubCollapsed,
     hubHeight,

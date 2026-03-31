@@ -274,12 +274,13 @@ function renderSidebarForCreateContextMenuFlow(input: {
   translationLayers: LayerDocType[];
   layerCreateMessage?: string;
   createLayer?: ReturnType<typeof vi.fn>;
-  toggleLayerLink?: ReturnType<typeof vi.fn>;
+  toggleLayerLink?: (transcriptionKey: string, translationId: string) => Promise<void>;
   onReorderLayers?: (draggedLayerId: string, targetIndex: number) => Promise<void>;
   focusedLayerRowId?: string;
 }) {
   const onReorderLayers = input.onReorderLayers ?? (async (_draggedLayerId: string, _targetIndex: number) => undefined);
-  const toggleLayerLink = input.toggleLayerLink ?? vi.fn<(transcriptionKey: string, translationId: string) => Promise<void>>(async () => undefined);
+  const toggleLayerLink: (transcriptionKey: string, translationId: string) => Promise<void> = input.toggleLayerLink
+    ?? vi.fn<(transcriptionKey: string, translationId: string) => Promise<void>>(async () => undefined);
   const speakerManagement = {
     speakerOptions: [] as SpeakerDocType[],
     speakerDraftName: '',

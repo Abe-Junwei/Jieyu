@@ -1,4 +1,5 @@
-import { memo, type ReactNode } from 'react';
+import { memo, useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { FastForward, Pause, Play, Repeat, Rewind, Volume2, Waves } from 'lucide-react';
 
 interface WaveformToolbarProps {
@@ -30,6 +31,29 @@ export const WaveformToolbar = memo(function WaveformToolbar({
   onSeek,
   children,
 }: WaveformToolbarProps) {
+  const [leftRailBottomHost, setLeftRailBottomHost] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setLeftRailBottomHost(document.getElementById('left-rail-bottom-slot'));
+  }, []);
+
+  const rightControls = (
+    <div className={`transcription-wave-toolbar-right${leftRailBottomHost ? ' transcription-wave-toolbar-right-portaled' : ''}`}>
+      <label className="player-control volume-control compact-volume">
+        <Volume2 size={15} />
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={volume}
+          onChange={(event) => onVolumeChange(Number(event.target.value))}
+        />
+      </label>
+      {children}
+    </div>
+  );
+
   return (
     <div className="transcription-wave-toolbar">
       <div className="transcription-wave-toolbar-left">
@@ -68,20 +92,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           <Repeat size={15} />
         </button>
       </div>
-      <div className="transcription-wave-toolbar-right">
-        <label className="player-control volume-control compact-volume">
-          <Volume2 size={15} />
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={volume}
-            onChange={(event) => onVolumeChange(Number(event.target.value))}
-          />
-        </label>
-        {children}
-      </div>
+      {leftRailBottomHost ? createPortal(rightControls, leftRailBottomHost) : rightControls}
     </div>
   );
 });

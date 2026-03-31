@@ -43,6 +43,13 @@ export function usePanelToggles() {
     setIsHubCollapsed((prev) => !prev);
   }, []);
 
+  // 侧栏语义别名（兼容旧 layer rail 命名）| Side-pane semantic aliases with legacy layer-rail compatibility
+  const isSidePaneCollapsed = isLayerRailCollapsed;
+  const setIsSidePaneCollapsed = setIsLayerRailCollapsed;
+  const sidePaneWidth = layerRailWidth;
+  const setSidePaneWidth = setLayerRailWidth;
+  const handleSidePaneToggle = handleLayerRailToggle;
+
   // 持久化高度 | Persist hub height
   const setHubHeightPersisted: typeof setHubHeight = useCallback((action) => {
     setHubHeight((prev) => {
@@ -63,13 +70,18 @@ export function usePanelToggles() {
   return {
     isLayerRailCollapsed,
     setIsLayerRailCollapsed,
+    isSidePaneCollapsed,
+    setIsSidePaneCollapsed,
     isAiPanelCollapsed,
     setIsAiPanelCollapsed,
     layerRailWidth,
     setLayerRailWidth,
+    sidePaneWidth,
+    setSidePaneWidth,
     aiPanelWidth,
     setAiPanelWidth,
     handleLayerRailToggle,
+    handleSidePaneToggle,
     handleAiPanelToggle,
     isHubCollapsed,
     setIsHubCollapsed,

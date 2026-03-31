@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 
 type UsePanelAutoCollapseParams = {
   hoverExpandEnabled: boolean;
-  isLayerRailCollapsed: boolean;
-  setIsLayerRailCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  isLayerRailCollapsed?: boolean;
+  setIsLayerRailCollapsed?: React.Dispatch<React.SetStateAction<boolean>>;
+  isSidePaneCollapsed?: boolean;
+  setIsSidePaneCollapsed?: React.Dispatch<React.SetStateAction<boolean>>;
   listMainRef: React.RefObject<HTMLDivElement | null>;
   isAiPanelCollapsed: boolean;
   setIsAiPanelCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
@@ -11,19 +13,35 @@ type UsePanelAutoCollapseParams = {
 };
 
 const EDGE_THRESHOLD_PX = 12;
+const LAYER_RAIL_INTERACTION_SELECTOR = [
+  '[data-layer-pane-interactive="true"]',
+  '#app-side-pane-body-slot',
+  '.app-side-pane',
+  '.app-side-pane-collapse-toggle',
+].join(', ');
+
+function isLayerRailInteractionTarget(target: Element): boolean {
+  return Boolean(target.closest(LAYER_RAIL_INTERACTION_SELECTOR));
+}
 
 export function usePanelAutoCollapse({
   hoverExpandEnabled,
   isLayerRailCollapsed,
   setIsLayerRailCollapsed,
+  isSidePaneCollapsed,
+  setIsSidePaneCollapsed,
   listMainRef,
   isAiPanelCollapsed,
   setIsAiPanelCollapsed,
   workspaceRef,
 }: UsePanelAutoCollapseParams) {
+  const effectiveIsSidePaneCollapsed = isSidePaneCollapsed ?? isLayerRailCollapsed ?? false;
+  const effectiveSetIsSidePaneCollapsed = setIsSidePaneCollapsed ?? setIsLayerRailCollapsed;
+
   // Auto-collapse LayerRail when clicking outside
   useEffect(() => {
-    if (isLayerRailCollapsed) return;
+    if (effectiveIsSidePaneCollapsed) return;
+    if (!effectiveSetIsSidePaneCollapsed) return;
 
     const onPointerDown = (event: PointerEvent) => {
       const root = listMainRef.current;
@@ -34,9 +52,7 @@ export function usePanelAutoCollapse({
       if (!root.contains(target)) return;
 
       if (
-        target.closest('.transcription-layer-rail') ||
-        target.closest('.transcription-layer-rail-toggle') ||
-        target.closest('.transcription-layer-rail-resizer') ||
+        isLayerRailInteractionTarget(target) ||
         target.closest('.timeline-annotation') ||
         target.closest('.timeline-annotation-input') ||
         target.closest('.timeline-lane-label') ||
@@ -45,14 +61,14 @@ export function usePanelAutoCollapse({
         return;
       }
 
-      setIsLayerRailCollapsed(true);
+        effectiveSetIsSidePaneCollapsed(true);
     };
 
     document.addEventListener('pointerdown', onPointerDown);
     return () => {
       document.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [isLayerRailCollapsed, setIsLayerRailCollapsed, listMainRef]);
+  }, [effectiveIsSidePaneCollapsed, effectiveSetIsSidePaneCollapsed, listMainRef]);
 
   // Auto-collapse AI panel when clicking outside
   useEffect(() => {
@@ -73,8 +89,7 @@ export function usePanelAutoCollapse({
         target.closest('.timeline-annotation') ||
         target.closest('.timeline-annotation-input') ||
         target.closest('.timeline-lane-label') ||
-        target.closest('.transcription-layer-rail') ||
-        target.closest('.transcription-layer-rail-toggle') ||
+        isLayerRailInteractionTarget(target) ||
         target.closest('button, input, textarea, select, a, [role="button"]')
       ) {
         return;
@@ -92,7 +107,8 @@ export function usePanelAutoCollapse({
   // Expand LayerRail on hover near left edge when collapsed
   useEffect(() => {
     if (!hoverExpandEnabled) return;
-    if (!isLayerRailCollapsed) return;
+    if (!effectiveIsSidePaneCollapsed) return;
+    if (!effectiveSetIsSidePaneCollapsed) return;
 
     let lastTrigger = 0;
     const onPointerMove = (event: PointerEvent) => {
@@ -102,7 +118,7 @@ export function usePanelAutoCollapse({
 
       if (event.clientX <= EDGE_THRESHOLD_PX) {
         lastTrigger = now;
-        setIsLayerRailCollapsed(false);
+          effectiveSetIsSidePaneCollapsed(false);
       }
     };
 
@@ -110,7 +126,7 @@ export function usePanelAutoCollapse({
     return () => {
       document.removeEventListener('pointermove', onPointerMove);
     };
-  }, [hoverExpandEnabled, isLayerRailCollapsed, setIsLayerRailCollapsed]);
+  }, [hoverExpandEnabled, effectiveIsSidePaneCollapsed, effectiveSetIsSidePaneCollapsed]);
 
   // Expand AI panel on hover near right edge when collapsed
   useEffect(() => {

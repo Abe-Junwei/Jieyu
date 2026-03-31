@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from './App';
@@ -47,20 +47,19 @@ beforeEach(() => {
 });
 
 describe('App shell', () => {
-  it('forwards shell search requests into the transcription route', async () => {
+  it('removes shell search/theme/shortcut controls', async () => {
     render(
       <MemoryRouter initialEntries={['/analysis']}>
         <App />
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '搜索' }));
-
-    const page = await screen.findByTestId('transcription-page');
-    expect(page.textContent).toBe('search:');
+    expect(screen.queryByRole('button', { name: '搜索' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /切换.*模式/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: '快捷键' })).toBeNull();
   });
 
-  it('keeps only the transcription workbench in primary navigation', () => {
+  it('renders the current multi-workbench shell navigation', () => {
     render(
       <MemoryRouter initialEntries={['/transcription']}>
         <App />
@@ -69,7 +68,9 @@ describe('App shell', () => {
 
     const transcriptionLinks = screen.getAllByRole('link', { name: /Transcription|转写/ });
     expect(transcriptionLinks.length).toBeGreaterThan(0);
-    expect(screen.queryByRole('link', { name: '标注' })).toBeNull();
-    expect(screen.queryByRole('link', { name: '分析' })).toBeNull();
+    expect(screen.getAllByRole('link', { name: /Annotation|标注/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /Analysis|分析/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('功能面板内容区').length).toBeGreaterThan(0);
+    expect(screen.queryByText('核心工作区')).toBeNull();
   });
 });

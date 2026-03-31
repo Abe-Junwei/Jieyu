@@ -1,13 +1,10 @@
-import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, Moon, Search, Sun } from 'lucide-react';
-import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { AudioLines, BookOpenText, ChartColumn, Tags, WholeWord, type LucideIcon } from 'lucide-react';
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
-import { ShortcutsPanel } from './components/ShortcutsPanel';
 import { AiPanelProvider } from './contexts/AiPanelContext';
 import { detectLocale, t } from './i18n';
-import { formatKeyComboForDisplay, getEffectiveKeymap } from './services/KeybindingService';
-import type { AppShellOpenSearchDetail } from './utils/appShellEvents';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const TranscriptionPage = lazy(() => import('./pages/TranscriptionPage').then(m => ({ default: m.TranscriptionPage })));
@@ -17,6 +14,19 @@ const WritingPage = lazy(() => import('./pages/WritingPage').then(m => ({ defaul
 const LexiconPage = lazy(() => import('./pages/LexiconPage').then(m => ({ default: m.LexiconPage })));
 
 type ThemeMode = 'light' | 'dark';
+
+type NavItem = {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  summary: string;
+};
+
+type NavGroup = {
+  id: string;
+  title: string;
+  items: NavItem[];
+};
 
 function NotFound({ locale }: { locale: ReturnType<typeof detectLocale> }) {
   return (
@@ -29,15 +39,9 @@ function NotFound({ locale }: { locale: ReturnType<typeof detectLocale> }) {
 
 export function App() {
   const location = useLocation();
-  const navigate = useNavigate();
   const isTranscriptionRoute = location.pathname.startsWith('/transcription');
   const locale = useMemo(() => detectLocale(), []);
-  const headerRef = useRef<HTMLElement | null>(null);
-  const [headerHeight, setHeaderHeight] = useState(0);
-  const [isHeaderCompact, setIsHeaderCompact] = useState(false);
-  const [showShortcuts, setShowShortcuts] = useState(false);
-  const [pendingSearchRequest, setPendingSearchRequest] = useState<AppShellOpenSearchDetail | null>(null);
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+  const [themeMode] = useState<ThemeMode>(() => {
     const stored = window.localStorage.getItem('jieyu-theme');
     if (stored === 'light' || stored === 'dark') return stored;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -48,145 +52,114 @@ export function App() {
     window.localStorage.setItem('jieyu-theme', themeMode);
   }, [themeMode]);
 
-  useEffect(() => {
-    const header = headerRef.current;
-    if (!header) return;
-
-    const updateHeaderHeight = () => {
-      setHeaderHeight(header.getBoundingClientRect().height);
-    };
-
-    updateHeaderHeight();
-    const observer = new ResizeObserver(updateHeaderHeight);
-    observer.observe(header);
-    window.addEventListener('resize', updateHeaderHeight);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', updateHeaderHeight);
-    };
-  }, []);
+  const [isSidePaneCollapsed, setIsSidePaneCollapsed] = useState<boolean>(() => (
+    window.localStorage.getItem('jieyu-side-pane-collapsed') === '1'
+  ));
 
   useEffect(() => {
-    if (isTranscriptionRoute) {
-      setIsHeaderCompact(false);
-      return;
-    }
+    window.localStorage.setItem('jieyu-side-pane-collapsed', isSidePaneCollapsed ? '1' : '0');
+  }, [isSidePaneCollapsed]);
 
-    const onScroll = () => {
-      setIsHeaderCompact(window.scrollY > 10);
-    };
-
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [isTranscriptionRoute]);
-
-  const navGroups = useMemo(() => [
+  const navGroups = useMemo<NavGroup[]>(() => [
     {
-      id: 'workbench',
+      id: 'workspace-core',
+      title: '核心工作区',
       items: [
-        { to: '/transcription', label: t(locale, 'app.nav.transcription') },
+        {
+          to: '/transcription',
+          label: t(locale, 'app.nav.transcription'),
+          icon: AudioLines,
+          summary: '语音转写、切分、时间轴编辑',
+        },
+        {
+          to: '/annotation',
+          label: t(locale, 'app.nav.annotation'),
+          icon: Tags,
+          summary: '语义标注、实体与结构标签',
+        },
+        {
+          to: '/analysis',
+          label: t(locale, 'app.nav.analysis'),
+          icon: ChartColumn,
+          summary: '统计分析、质量评估与洞察',
+        },
+      ],
+    },
+    {
+      id: 'workspace-language',
+      title: '语言资产',
+      items: [
+        {
+          to: '/writing',
+          label: t(locale, 'app.nav.writing'),
+          icon: WholeWord,
+          summary: '释义撰写、文本润色与输出',
+        },
+        {
+          to: '/lexicon',
+          label: t(locale, 'app.nav.lexicon'),
+          icon: BookOpenText,
+          summary: '词典管理、词条规范与维护',
+        },
       ],
     },
   ], [locale]);
 
-  const searchShortcutLabel = useMemo(() => {
-    const combo = getEffectiveKeymap().get('search') ?? 'mod+f';
-    return formatKeyComboForDisplay(combo);
-  }, []);
+  const navItems = useMemo(() => navGroups.flatMap((group) => group.items), [navGroups]);
 
-  const handleOpenSearch = useCallback(() => {
-    setPendingSearchRequest({});
-    if (!isTranscriptionRoute) {
-      navigate('/transcription');
-    }
-  }, [isTranscriptionRoute, navigate]);
-
-  // Header is now fixed at top: 12px, so transcription content starts at headerHeight + 12
-  const transcriptionMainStyle = isTranscriptionRoute
-    ? ({
-        '--app-header-height': `${headerHeight}px`,
-        position: 'fixed',
-        left: 0,
-        right: 0,
-        top: `${headerHeight + 12}px`,
-        bottom: 0,
-        width: '100%',
-        maxWidth: 'none',
-        margin: 0,
-        display: 'flex',
-        overflow: 'hidden',
-      } as React.CSSProperties)
-    : undefined;
+  const activeNavItem = useMemo(() => (
+    navItems.find((item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`))
+    ?? navItems[0]
+  ), [location.pathname, navItems]);
 
   return (
     <ErrorBoundary>
-    <div className={`app-shell ${isTranscriptionRoute ? 'app-shell-transcription' : ''}`}>
-      <header ref={headerRef} className={`app-header ${isHeaderCompact ? 'app-header-compact' : ''}`}>
-        <div className="header-brand">
-          <img src="/favicon.svg" alt="" className="header-brand-icon" aria-hidden="true" />
-          <p className="header-brand-name"><span>解语</span> Jieyu</p>
+    <div className={`app-shell ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}>
+      <aside className="app-left-rail" aria-label="功能区切换">
+        <div className="app-left-rail-group">
+          {navItems.map((item) => {
+            const ItemIcon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  isActive ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'
+                }
+                title={item.label}
+                aria-label={item.label}
+              >
+                <ItemIcon size={17} aria-hidden="true" />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>
+        <div id="left-rail-bottom-slot" className="app-left-rail-bottom-slot" aria-label="转写快捷操作区" />
+      </aside>
+
+      <aside className={`app-side-pane ${isSidePaneCollapsed ? 'app-side-pane-collapsed' : ''}`} aria-label="功能面板">
+        <div className="app-side-pane-header">
+          <p className="app-side-pane-title">{activeNavItem?.label ?? '工作台'}</p>
+          <p className="app-side-pane-subtitle">{activeNavItem?.summary ?? '统一工作台入口'}</p>
         </div>
 
-        <nav className="header-nav" aria-label="主功能导航">
-          {navGroups.map((group, groupIndex) => (
-            <Fragment key={group.id}>
-              <div className="header-nav-group">
-                {group.items.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) =>
-                      isActive ? 'header-nav-link header-nav-link-active' : 'header-nav-link'
-                    }
-                  >
-                    {item.label}
-                  </NavLink>
-                ))}
-              </div>
-              {groupIndex < navGroups.length - 1 ? (
-                <span className="header-nav-separator" aria-hidden="true" />
-              ) : null}
-            </Fragment>
-          ))}
-          <span className="header-nav-status">其余工作台规划中</span>
-        </nav>
-
-        <div className="header-actions">
-          <button
-            type="button"
-            className="header-action-btn header-action-btn-search"
-            title={`搜索 (${searchShortcutLabel})`}
-            aria-label="搜索"
-            onClick={handleOpenSearch}
-          >
-            <Search size={15} />
-          </button>
-          <button
-            type="button"
-            className="header-action-btn"
-            aria-label={themeMode === 'dark' ? t(locale, 'theme.toggle.light') : t(locale, 'theme.toggle.dark')}
-            title={themeMode === 'dark' ? t(locale, 'theme.toggle.light') : t(locale, 'theme.toggle.dark')}
-            onClick={() => setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-          >
-            {themeMode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
-          <button
-            type="button"
-            className="header-action-btn"
-            title="快捷键"
-            aria-label="快捷键"
-            onClick={() => setShowShortcuts(true)}
-          >
-            <Keyboard size={15} />
-          </button>
+        <div className="app-side-pane-body">
+          <div id="app-side-pane-body-slot" className="app-side-pane-body-slot" aria-label="功能面板内容区" />
         </div>
-      </header>
+      </aside>
+      <button
+        type="button"
+        className="app-side-pane-collapse-toggle"
+        onClick={() => setIsSidePaneCollapsed((prev) => !prev)}
+        aria-label={isSidePaneCollapsed ? '展开功能面板' : '折叠功能面板'}
+        title={isSidePaneCollapsed ? '展开功能面板' : '折叠功能面板'}
+      >
+        <span aria-hidden="true">{isSidePaneCollapsed ? '›' : '‹'}</span>
+      </button>
 
       <main
         className={`app-main ${isTranscriptionRoute ? 'app-main-transcription' : ''}`}
-        style={transcriptionMainStyle}
       >
         <AiPanelProvider>
           <Suspense fallback={null}>
@@ -194,12 +167,7 @@ export function App() {
               <Route path="/" element={<Navigate to="/transcription" replace />} />
               <Route
                 path="/transcription"
-                element={(
-                  <TranscriptionPage
-                    appSearchRequest={pendingSearchRequest}
-                    onConsumeAppSearchRequest={() => setPendingSearchRequest(null)}
-                  />
-                )}
+                element={<TranscriptionPage />}
               />
               <Route path="/annotation" element={<AnnotationPage />} />
               <Route path="/analysis" element={<AnalysisPage />} />
@@ -210,7 +178,6 @@ export function App() {
           </Suspense>
         </AiPanelProvider>
       </main>
-      {showShortcuts ? <ShortcutsPanel onClose={() => setShowShortcuts(false)} /> : null}
       {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
     </div>
     </ErrorBoundary>
