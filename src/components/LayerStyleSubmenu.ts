@@ -69,8 +69,8 @@ export function buildLayerStyleMenuItems(
     ...fontPresets.map((preset) => ({
       label: preset.key,
       meta: describePresetFontCoverage(preset.key, renderPolicy, localFonts?.getCoverage?.(preset.key, renderPolicy)),
-      selectionState: currentFont === preset.key ? 'selected' : 'unselected',
-      selectionVariant: 'check',
+      selectionState: currentFont === preset.key ? 'selected' as const : 'unselected' as const,
+      selectionVariant: 'check' as const,
       onClick: () => {
         void localFonts?.ensureCoverage?.(preset.key, renderPolicy);
         onUpdate({ fontFamily: preset.key });
@@ -132,8 +132,8 @@ export function buildLayerStyleMenuItems(
         fontMenuItems.push({
           label: formatLocalFontLabel(lf, languageId, orthographies, orthographyId),
           meta: describeLocalFontCoverage(lf, renderPolicy, localFonts.getCoverage?.(lf.family, renderPolicy)),
-          selectionState: currentFont === lf.family ? 'selected' : 'unselected',
-          selectionVariant: 'check',
+          selectionState: currentFont === lf.family ? 'selected' as const : 'unselected' as const,
+          selectionVariant: 'check' as const,
           ...(isFirst ? { separatorBefore: true } : {}),
           onClick: () => {
             void localFonts.ensureCoverage?.(lf.family, renderPolicy);

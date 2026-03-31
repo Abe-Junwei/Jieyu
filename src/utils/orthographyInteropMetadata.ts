@@ -34,13 +34,19 @@ export function buildOrthographyInteropMetadata(
 export function parseOrthographyInteropMetadata(raw: unknown): OrthographyInteropMetadata | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const parsed = raw as Record<string, unknown>;
+  const languageId = normalizeInteropString(parsed.languageId);
+  const orthographyId = normalizeInteropString(parsed.orthographyId);
+  const scriptTag = normalizeInteropString(parsed.scriptTag);
+  const regionTag = normalizeInteropString(parsed.regionTag);
+  const variantTag = normalizeInteropString(parsed.variantTag);
+  const transformId = normalizeInteropString(parsed.transformId);
   const metadata: OrthographyInteropMetadata = {
-    ...(normalizeInteropString(parsed.languageId) ? { languageId: normalizeInteropString(parsed.languageId) } : {}),
-    ...(normalizeInteropString(parsed.orthographyId) ? { orthographyId: normalizeInteropString(parsed.orthographyId) } : {}),
-    ...(normalizeInteropString(parsed.scriptTag) ? { scriptTag: normalizeInteropString(parsed.scriptTag) } : {}),
-    ...(normalizeInteropString(parsed.regionTag) ? { regionTag: normalizeInteropString(parsed.regionTag) } : {}),
-    ...(normalizeInteropString(parsed.variantTag) ? { variantTag: normalizeInteropString(parsed.variantTag) } : {}),
-    ...(normalizeInteropString(parsed.transformId) ? { transformId: normalizeInteropString(parsed.transformId) } : {}),
+    ...(languageId ? { languageId } : {}),
+    ...(orthographyId ? { orthographyId } : {}),
+    ...(scriptTag ? { scriptTag } : {}),
+    ...(regionTag ? { regionTag } : {}),
+    ...(variantTag ? { variantTag } : {}),
+    ...(transformId ? { transformId } : {}),
   };
   return Object.keys(metadata).length > 0 ? metadata : undefined;
 }

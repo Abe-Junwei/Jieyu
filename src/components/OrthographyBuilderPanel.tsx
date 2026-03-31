@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { formatOrthographyOptionLabel, type UseOrthographyPickerResult } from '../hooks/useOrthographyPicker';
 import {
+  describeFontVerificationStatus,
   getCachedFontCoverageVerification,
   verifyFontCoverage,
   type FontCoverageVerification,
@@ -79,14 +80,12 @@ export function OrthographyBuilderPanel({
     };
   }, [picker.draftRenderPolicy]);
 
-  const fontVerificationLabel = fontVerification?.status === 'verified'
-    ? '已验证'
-    : fontVerification?.status === 'missing-glyphs'
-    ? '缺字'
-    : fontVerification?.status === 'unsupported'
-    ? '浏览器不支持'
-    : fontVerification?.status === 'unchecked'
-    ? '未校验'
+  const fontVerificationLabel = picker.draftRenderPolicy
+    ? describeFontVerificationStatus(
+      picker.draftRenderPolicy.defaultFontKey,
+      picker.draftRenderPolicy,
+      fontVerification,
+    )
     : null;
 
   return (

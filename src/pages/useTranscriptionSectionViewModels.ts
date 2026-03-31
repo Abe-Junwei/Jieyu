@@ -170,7 +170,7 @@ export function useTranscriptionSectionViewModels(
     onExportToolbox: handleExportToolbox,
     onExportJyt: handleExportJyt,
     onExportJym: handleExportJym,
-    onImportFile: (file) => { void handleImportFile(file); },
+    onImportFile: (file: File) => { void handleImportFile(file); },
   }), [handleExportEaf, handleExportFlextext, handleExportJym, handleExportJyt, handleExportTextGrid, handleExportToolbox, handleExportTrs, handleImportFile, setShowExportMenu]);
 
   const toolbarProps = useMemo<TranscriptionPageToolbarProps>(() => ({

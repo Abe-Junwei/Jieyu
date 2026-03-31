@@ -247,7 +247,7 @@ export function OrthographyTransformManager({
           id: editingTransformId,
           sourceOrthographyId,
           targetOrthographyId: targetOrthography.id,
-          name,
+          ...(name !== undefined ? { name } : {}),
           engine: draftTransformEngine,
           rules: transformDraftRules,
           sampleInput: sampleInput || null,

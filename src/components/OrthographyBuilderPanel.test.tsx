@@ -19,8 +19,8 @@ beforeEach(() => {
 });
 
 function createRenderPolicy(overrides?: Partial<OrthographyRenderPolicy>): OrthographyRenderPolicy {
+  const { orthography, ...restOverrides } = overrides ?? {};
   return {
-    orthography: undefined,
     scriptTag: 'Arab',
     direction: 'rtl',
     textDirection: 'rtl',
@@ -39,7 +39,8 @@ function createRenderPolicy(overrides?: Partial<OrthographyRenderPolicy>): Ortho
     lineHeightScale: 1.3,
     isolateInlineRuns: true,
     preferDirAttribute: true,
-    ...overrides,
+    ...(orthography !== undefined ? { orthography } : {}),
+    ...restOverrides,
   };
 }
 
@@ -208,6 +209,27 @@ describe('OrthographyBuilderPanel', () => {
 
     await waitFor(() => {
       expect(screen.getByText('默认字体验证：Missing Arabic · 缺字')).toBeTruthy();
+    });
+  });
+
+  it('shows shaping-risk for verified custom complex-script fonts in draft preview', async () => {
+    render(
+      <OrthographyBuilderPanel
+        picker={createPicker({
+          draftPrimaryFonts: 'Experimental Arabic',
+          draftRenderPolicy: createRenderPolicy({
+            defaultFontKey: 'Experimental Arabic',
+            defaultFontCss: '"Experimental Arabic", "Noto Sans Arabic", serif',
+            preferredFontKeys: ['Experimental Arabic'],
+            resolvedFontKeys: ['Experimental Arabic', 'Noto Sans Arabic', '系统默认'],
+          }),
+        })}
+        languageOptions={[]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('默认字体验证：Experimental Arabic · 高风险')).toBeTruthy();
     });
   });
 });

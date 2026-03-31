@@ -27,7 +27,7 @@ export interface LocalFontState {
 }
 
 export interface FontCoverageVerification {
-  status: 'verified' | 'missing-glyphs' | 'unchecked' | 'unsupported';
+  status: 'verified' | 'missing-glyphs' | 'shaping-risk' | 'unchecked' | 'unsupported';
   checkedAt?: string;
   sampleText: string;
   source: 'cache' | 'runtime' | 'none';
@@ -67,6 +67,11 @@ const STRICT_RUNTIME_FALLBACK_SCRIPTS = new Set([
   'Hans', 'Hant', 'Jpan', 'Kore', 'Arab', 'Deva', 'Thai', 'Tibt',
   'Beng', 'Taml', 'Mymr', 'Ethi', 'Khmr', 'Guru', 'Mlym', 'Telu',
   'Knda', 'Sinh', 'Laoo', 'Geor', 'Hebr',
+]);
+
+const SHAPING_RISK_SCRIPTS = new Set([
+  'Arab', 'Deva', 'Thai', 'Tibt', 'Beng', 'Taml', 'Mymr', 'Ethi',
+  'Khmr', 'Guru', 'Mlym', 'Telu', 'Knda', 'Sinh', 'Laoo',
 ]);
 
 function dedupeNonEmptyStrings(values: readonly string[]): string[] {
@@ -122,15 +127,15 @@ const SCRIPT_FONT_PROBE_TEXT: Record<string, string> = {
   Hant: '你好語言學',
   Jpan: 'かなカナ日本語',
   Kore: '한글언어학',
-  Arab: 'ابتثجحخ',
-  Deva: 'अआइईकखगघ',
-  Thai: 'ภาษาไทย',
-  Tibt: 'ཀཁགངཨོ',
+  Arab: 'ابتثجحخ ١٢٣ ، ؛ ؟ لِلّٰهِ',
+  Deva: 'अआइईकखगघ क्ष त्र ज्ञ कि कु के कं',
+  Thai: 'ภาษาไทย เกิ้ก ก้า น้ำ',
+  Tibt: 'ཀཁགངཨོ རྒྱལ སྐད',
   Beng: 'বাংলা ভাষা',
   Taml: 'தமிழ்மொழி',
-  Mymr: 'မြန်မာစာ',
+  Mymr: 'မြန်မာစာ ကွေး ကြွော ါ့',
   Ethi: 'አበገደ',
-  Khmr: 'ភាសាខ្មែរ',
+  Khmr: 'ភាសាខ្មែរ ក្រោះ កាំ',
   Guru: 'ਪੰਜਾਬੀ',
   Mlym: 'മലയാളം',
   Telu: 'తెలుగు',
@@ -141,11 +146,11 @@ const SCRIPT_FONT_PROBE_TEXT: Record<string, string> = {
   Hebr: 'עברית',
 };
 
-const FONT_COVERAGE_CACHE_STORAGE_KEY = 'jieyu:font-coverage-cache:v1';
+const FONT_COVERAGE_CACHE_STORAGE_KEY = 'jieyu:font-coverage-cache:v2';
 const FONT_COVERAGE_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
 type StoredFontCoverageVerification = {
-  status: Extract<FontCoverageVerification['status'], 'verified' | 'missing-glyphs'>;
+  status: Extract<FontCoverageVerification['status'], 'verified' | 'missing-glyphs' | 'shaping-risk'>;
   checkedAt: string;
   sampleText: string;
 };
@@ -191,13 +196,29 @@ export function clearFontCoverageVerificationCache(): void {
 
 export function buildFontCoverageProbeText(renderPolicy: OrthographyRenderPolicy): string {
   const exemplarText = collectOrthographyExemplarCharacters(renderPolicy.orthography).join(' ');
+  const strictScriptProbe = renderPolicy.ipaMode
+    ? SCRIPT_FONT_PROBE_TEXT.Latn
+    : SCRIPT_FONT_PROBE_TEXT[renderPolicy.scriptTag];
   if (exemplarText.trim().length > 0) {
+    if (strictScriptProbe && SHAPING_RISK_SCRIPTS.has(renderPolicy.scriptTag)) {
+      return normalizeProbeText(`${exemplarText} ${strictScriptProbe}`);
+    }
     return normalizeProbeText(exemplarText);
   }
-  const fallbackProbe = renderPolicy.ipaMode
-    ? SCRIPT_FONT_PROBE_TEXT.Latn
-    : (SCRIPT_FONT_PROBE_TEXT[renderPolicy.scriptTag] ?? SCRIPT_FONT_PROBE_TEXT.Latn);
+  const fallbackProbe = strictScriptProbe ?? SCRIPT_FONT_PROBE_TEXT.Latn ?? '';
   return normalizeProbeText(fallbackProbe);
+}
+
+function resolveFontCoverageStatus(
+  fontFamily: string,
+  renderPolicy: OrthographyRenderPolicy,
+  verified: boolean,
+): Extract<FontCoverageVerification['status'], 'verified' | 'missing-glyphs' | 'shaping-risk'> {
+  if (!verified) return 'missing-glyphs';
+  if (SHAPING_RISK_SCRIPTS.has(renderPolicy.scriptTag) && !isKnownFontPresetKey(fontFamily)) {
+    return 'shaping-risk';
+  }
+  return 'verified';
 }
 
 export function getFontCoverageVerificationCacheKey(
@@ -258,17 +279,20 @@ export async function verifyFontCoverage(
   }
 
   const verified = document.fonts.check(shorthand, sampleText);
+  const verificationStatus = resolveFontCoverageStatus(fontFamily, renderPolicy, verified);
   const result: FontCoverageVerification = {
-    status: verified ? 'verified' : 'missing-glyphs',
+    status: verificationStatus,
     checkedAt: new Date().toISOString(),
     sampleText,
     source: 'runtime',
   };
-  fontCoverageCache[getFontCoverageVerificationCacheKey(fontFamily, renderPolicy)] = {
-    status: result.status,
-    checkedAt: result.checkedAt,
-    sampleText,
-  };
+  if (result.checkedAt) {
+    fontCoverageCache[getFontCoverageVerificationCacheKey(fontFamily, renderPolicy)] = {
+      status: verificationStatus,
+      checkedAt: result.checkedAt,
+      sampleText,
+    };
+  }
   persistFontCoverageCache();
   return result;
 }
@@ -687,6 +711,13 @@ function resolveFontCss(fontKey: string): string {
   return `"${fontKey}", sans-serif`;
 }
 
+function isKnownFontPresetKey(fontKey: string): boolean {
+  for (const presets of Object.values(SCRIPT_FONT_MAP)) {
+    if (presets.some((preset) => preset.key === fontKey)) return true;
+  }
+  return UNIVERSAL_FONTS.some((preset) => preset.key === fontKey);
+}
+
 function dedupeFontKeys(fontKeys: readonly string[]): string[] {
   return dedupeNonEmptyStrings(fontKeys);
 }
@@ -741,7 +772,7 @@ export function resolveOrthographyRenderPolicy(
   const direction = resolveDirectionForLanguage(languageId, orthographies, preferredOrthographyId);
   const lineHeightScale = orthography?.fontPreferences?.lineHeightScale ?? getScriptLineHeightFactor(scriptTag);
   return {
-    orthography,
+    ...(orthography !== undefined ? { orthography } : {}),
     scriptTag,
     direction,
     textDirection: direction === 'rtl' ? 'rtl' : 'ltr',
@@ -770,8 +801,38 @@ export function describePresetFontCoverage(
     ? '回退'
     : (renderPolicy.coverageSummary.confidence === 'sample-backed' ? '推荐' : '脚本推荐');
   if (verification?.status === 'verified') return `${baseLabel} · 已验证`;
+  if (verification?.status === 'shaping-risk') return `${baseLabel} · 高风险`;
   if (verification?.status === 'missing-glyphs') return `${baseLabel} · 缺字`;
   return baseLabel;
+}
+
+export function describeFontVerificationStatus(
+  fontKey: string,
+  renderPolicy: OrthographyRenderPolicy,
+  verification?: FontCoverageVerification | null,
+): string | null {
+  if (!verification) return null;
+  if (verification.status === 'missing-glyphs') return '缺字';
+  if (verification.status === 'shaping-risk') return '高风险';
+  if (verification.status === 'unsupported') return '浏览器不支持';
+  if (verification.status === 'unchecked') return '未校验';
+  if (verification.status !== 'verified') return null;
+  if (SHAPING_RISK_SCRIPTS.has(renderPolicy.scriptTag) && !isKnownFontPresetKey(fontKey)) {
+    return '高风险';
+  }
+  return '已验证';
+}
+
+function isShapingRiskLocalFont(
+  font: LocalFontEntry,
+  renderPolicy: OrthographyRenderPolicy,
+  verification?: FontCoverageVerification,
+): boolean {
+  if (verification?.status === 'shaping-risk') return true;
+  if (verification?.status !== 'verified') return false;
+  if (!SHAPING_RISK_SCRIPTS.has(renderPolicy.scriptTag)) return false;
+  if (!isLocalFontCompatibleWithScript(font, renderPolicy.scriptTag)) return false;
+  return true;
 }
 
 export function describeLocalFontCoverage(
@@ -784,8 +845,11 @@ export function describeLocalFontCoverage(
     : renderPolicy.fallbackFontKeys.includes(font.family)
     ? '回退'
     : (isLocalFontCompatibleWithScript(font, renderPolicy.scriptTag) ? '脚本匹配' : '风险高');
-  if (verification?.status === 'verified') return `${baseLabel} · 已验证`;
+  if (verification?.status === 'verified' && !isShapingRiskLocalFont(font, renderPolicy, verification)) {
+    return `${baseLabel} · 已验证`;
+  }
   if (verification?.status === 'missing-glyphs') return `${baseLabel} · 缺字`;
+  if (isShapingRiskLocalFont(font, renderPolicy, verification)) return `${baseLabel} · 高风险`;
   return baseLabel;
 }
 
@@ -822,7 +886,7 @@ export function buildOrthographyPreviewTextProps(
   settings?: LayerDisplaySettings,
 ): OrthographyPreviewTextProps {
   return {
-    dir: renderPolicy?.preferDirAttribute ? renderPolicy.textDirection : undefined,
+    ...(renderPolicy?.preferDirAttribute ? { dir: renderPolicy.textDirection } : {}),
     style: layerDisplaySettingsToStyle(settings, renderPolicy),
   };
 }

@@ -53,13 +53,14 @@ function makeTranslation(overrides: Partial<UtteranceTextDocType> & { id: string
 
 function makeOrthography(overrides: Partial<OrthographyDocType> & { id: string; languageId: string }): OrthographyDocType {
   const now = '2026-03-31T00:00:00.000Z';
+  const { id, languageId, ...restOverrides } = overrides;
   return {
-    id: overrides.id,
-    languageId: overrides.languageId,
-    name: overrides.name ?? { eng: overrides.id, zho: overrides.id },
+    id,
+    languageId,
+    name: overrides.name ?? { eng: id, zho: id },
     createdAt: now,
     updatedAt: now,
-    ...overrides,
+    ...restOverrides,
   } as OrthographyDocType;
 }
 

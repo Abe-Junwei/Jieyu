@@ -317,7 +317,7 @@ export function useImportExport(input: UseImportExportInput) {
     const trs = exportToTrs({
       utterances: exportUtterances,
       orthographies,
-      transcriptionLayer,
+      ...(transcriptionLayer !== undefined ? { transcriptionLayer } : {}),
     });
     const baseName = selectedUtteranceMedia
       ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
@@ -510,7 +510,7 @@ export function useImportExport(input: UseImportExportInput) {
         }
         return (await applyOrthographyTransformIfNeeded({
           text: inputData.text,
-          sourceOrthographyId: inputData.sourceOrthographyId,
+          ...(inputData.sourceOrthographyId !== undefined ? { sourceOrthographyId: inputData.sourceOrthographyId } : {}),
           targetOrthographyId,
         })).text;
       }
@@ -830,7 +830,7 @@ export function useImportExport(input: UseImportExportInput) {
         if (u.transcription.trim() && effectiveTranscriptionLayerId) {
           const transformedTranscription = await transformImportedText({
             text: u.transcription,
-            sourceOrthographyId: importedTranscriptionMeta?.orthographyId,
+            ...(importedTranscriptionMeta?.orthographyId !== undefined ? { sourceOrthographyId: importedTranscriptionMeta.orthographyId } : {}),
             targetLayerId: effectiveTranscriptionLayerId,
           });
           const doc: UtteranceTextDocType = {
@@ -918,7 +918,7 @@ export function useImportExport(input: UseImportExportInput) {
             if (annEnd - annStart < 0.01) continue;
             const transformedAnnText = await transformImportedText({
               text: ann.text,
-              sourceOrthographyId: tierIdentityMeta?.orthographyId,
+              ...(tierIdentityMeta?.orthographyId !== undefined ? { sourceOrthographyId: tierIdentityMeta.orthographyId } : {}),
               targetLayerId: indepLayerId,
             });
             const segNow = new Date().toISOString();
@@ -1044,7 +1044,7 @@ export function useImportExport(input: UseImportExportInput) {
           if (match && ann.text.trim()) {
             const transformedAnnText = await transformImportedText({
               text: ann.text,
-              sourceOrthographyId: tierIdentityMeta?.orthographyId,
+              ...(tierIdentityMeta?.orthographyId !== undefined ? { sourceOrthographyId: tierIdentityMeta.orthographyId } : {}),
               targetLayerId: layerId,
             });
             const doc: UtteranceTextDocType = {

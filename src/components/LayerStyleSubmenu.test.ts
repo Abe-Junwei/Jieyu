@@ -91,6 +91,80 @@ describe('buildLayerStyleMenuItems local fonts', () => {
     expect(fontMenu?.children?.find((item) => item.label.includes('苹方-简 (PingFang SC)'))?.meta).toBe('脚本匹配 · 缺字');
   });
 
+  it('downgrades verified local Arabic fonts to shaping-risk instead of treating them as verified', () => {
+    const items = buildLayerStyleMenuItems(
+      undefined,
+      'layer-ara',
+      'ara',
+      'ortho-ara',
+      [{
+        id: 'ortho-ara',
+        languageId: 'ara',
+        name: { zho: '阿拉伯语' },
+        scriptTag: 'Arab',
+        exemplarCharacters: {
+          main: ['ا', 'ب', 'ت'],
+        },
+        createdAt: NOW,
+      }],
+      vi.fn(),
+      vi.fn(),
+      {
+        status: 'loaded',
+        load: async () => undefined,
+        getCoverage: (fontFamily) => fontFamily === 'Amiri'
+          ? { status: 'verified', sampleText: 'ابت', source: 'cache' }
+          : undefined,
+        fonts: [
+          {
+            family: 'Amiri',
+            fullNames: ['Amiri Regular'],
+            postscriptNames: ['Amiri-Regular'],
+          },
+        ],
+      },
+    );
+
+    const fontMenu = items.find((item) => item.label === '字体');
+    expect(fontMenu?.children?.find((item) => item.label.includes('Amiri'))?.meta).toBe('脚本匹配 · 高风险');
+  });
+
+  it('keeps unverified complex-script local fonts as script-matched until verification completes', () => {
+    const items = buildLayerStyleMenuItems(
+      undefined,
+      'layer-ara',
+      'ara',
+      'ortho-ara',
+      [{
+        id: 'ortho-ara',
+        languageId: 'ara',
+        name: { zho: '阿拉伯语' },
+        scriptTag: 'Arab',
+        exemplarCharacters: {
+          main: ['ا', 'ب', 'ت'],
+        },
+        createdAt: NOW,
+      }],
+      vi.fn(),
+      vi.fn(),
+      {
+        status: 'loaded',
+        load: async () => undefined,
+        getCoverage: () => undefined,
+        fonts: [
+          {
+            family: 'Amiri',
+            fullNames: ['Amiri Regular'],
+            postscriptNames: ['Amiri-Regular'],
+          },
+        ],
+      },
+    );
+
+    const fontMenu = items.find((item) => item.label === '字体');
+    expect(fontMenu?.children?.find((item) => item.label.includes('Amiri'))?.meta).toBe('脚本匹配');
+  });
+
   it('shows an empty-state hint when no local fonts match the current language', () => {
     const items = buildLayerStyleMenuItems(
       undefined,

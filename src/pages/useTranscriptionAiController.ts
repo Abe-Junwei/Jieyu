@@ -158,7 +158,7 @@ export function useTranscriptionAiController(
       return transformTextForLayerTarget({
         text,
         layers: input.layers,
-        targetLayerId,
+        ...(targetLayerId !== undefined ? { targetLayerId } : {}),
         selectedLayerId: effectiveSelectedLayerId,
         ...(fallbackSourceOrthographyId !== undefined ? { fallbackSourceOrthographyId } : {}),
       });

@@ -261,7 +261,11 @@ const segmentAdapter: ToolObjectAdapter = {
         ? ctx.selectedLayerId
         : undefined;
       const transformedText = ctx.transformTextForLayerWrite
-        ? await ctx.transformTextForLayerWrite({ text, targetLayerId, selectedLayerId: ctx.selectedLayerId })
+        ? await ctx.transformTextForLayerWrite({
+            text,
+            ...(targetLayerId !== undefined ? { targetLayerId } : {}),
+            selectedLayerId: ctx.selectedLayerId,
+          })
         : text;
       await ctx.saveUtteranceText(targetUtterance.id, transformedText, targetLayerId);
       return { ok: true, message: '转写文本已写入。' };
@@ -289,7 +293,11 @@ const segmentAdapter: ToolObjectAdapter = {
         return { ok: false, message: `未找到目标翻译层：${requestedLayerId}` };
       }
       const transformedText = ctx.transformTextForLayerWrite
-        ? await ctx.transformTextForLayerWrite({ text, targetLayerId, selectedLayerId: ctx.selectedLayerId })
+        ? await ctx.transformTextForLayerWrite({
+            text,
+            targetLayerId,
+            selectedLayerId: ctx.selectedLayerId,
+          })
         : text;
       await ctx.saveTextTranslationForUtterance(targetUtterance.id, transformedText, targetLayerId);
       return { ok: true, message: '翻译文本已写入。' };

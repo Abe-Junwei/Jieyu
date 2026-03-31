@@ -208,6 +208,24 @@ describe('layerDisplayStyle orthography resolution', () => {
     expect(cached?.status).toBe('verified');
   });
 
+  it('marks verified custom Arabic fonts as shaping-risk and caches that status', async () => {
+    const renderPolicy = resolveOrthographyRenderPolicy('ara', [{
+      id: 'ortho-ara',
+      languageId: 'ara',
+      name: { zho: '阿拉伯语' },
+      scriptTag: 'Arab',
+      exemplarCharacters: { main: ['ا', 'ب', 'ت'] },
+      createdAt: NOW,
+    }], 'ortho-ara');
+
+    const result = await verifyFontCoverage('Experimental Arabic', renderPolicy);
+    const cached = getCachedFontCoverageVerification('Experimental Arabic', renderPolicy);
+
+    expect(result.status).toBe('shaping-risk');
+    expect(result.sampleText).toContain('١٢٣');
+    expect(cached?.status).toBe('shaping-risk');
+  });
+
   it('verifies and caches Devanagari missing-glyph state', async () => {
     const renderPolicy = resolveOrthographyRenderPolicy('hin', [{
       id: 'ortho-hin',

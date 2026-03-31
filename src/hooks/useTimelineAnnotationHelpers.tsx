@@ -228,7 +228,6 @@ export function useTimelineAnnotationHelpers({
       layerId: targetUnit.layerId,
       unitKind: targetUnit.kind,
       splitTime,
-      source: 'timeline',
     });
   }, [
     manualSelectTsRef,
@@ -316,7 +315,7 @@ export function useTimelineAnnotationHelpers({
         noteCount={noteIndicator?.count ?? 0}
         {...(noteIndicator ? { onNoteClick: (e: MouseEvent) => handleNoteClick(utt.id, noteIndicator.layerId, e) } : {})}
         layerStyle={layerDisplaySettingsToStyle(layer.displaySettings, renderPolicy)}
-        contentDirection={renderPolicy.preferDirAttribute ? renderPolicy.textDirection : undefined}
+        {...(renderPolicy.preferDirAttribute ? { contentDirection: renderPolicy.textDirection } : {})}
         {...itemExtra}
       />
     );

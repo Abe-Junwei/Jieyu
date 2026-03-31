@@ -48,18 +48,19 @@ vi.mock('./TranscriptionPage.helpers', () => ({
 }));
 
 function makeLayer(overrides: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'key' | 'layerType' | 'languageId'>): LayerDocType {
+  const { id, key, layerType, languageId, ...restOverrides } = overrides;
   return {
-    id: overrides.id,
+    id,
     textId: 'text-1',
-    key: overrides.key,
-    name: overrides.name ?? { zho: overrides.key, eng: overrides.key },
-    layerType: overrides.layerType,
-    languageId: overrides.languageId,
+    key,
+    name: overrides.name ?? { zho: key, eng: key },
+    layerType,
+    languageId,
     modality: 'text',
     acceptsAudio: false,
     createdAt: '2026-03-31T00:00:00.000Z',
     updatedAt: '2026-03-31T00:00:00.000Z',
-    ...overrides,
+    ...restOverrides,
   } as LayerDocType;
 }
 
@@ -123,9 +124,16 @@ describe('useTranscriptionAiController', () => {
       utterances: [utterance],
       selectedUtterance: utterance,
       selectedTimelineOwnerUtterance: utterance,
-      selectedTimelineMedia: undefined,
       selectedLayerId: '',
-      selectionSnapshot: { selectedText: '' },
+      selectionSnapshot: {
+        timelineUnit: null,
+        selectedUnitKind: null,
+        activeUtteranceUnitId: utterance.id,
+        selectedUtterance: utterance,
+        selectedRowMeta: null,
+        selectedLayerId: null,
+        selectedText: '',
+      },
       layers: [transcriptionLayer, translationLayer],
       transcriptionLayers: [transcriptionLayer],
       translationLayers: [translationLayer],

@@ -88,7 +88,6 @@ describe('useTimelineAnnotationHelpers', () => {
       layerId: 'layer-seg',
       unitKind: 'segment',
       splitTime: 1.001,
-      source: 'timeline',
     });
   });
 
@@ -193,7 +192,9 @@ describe('useTimelineAnnotationHelpers', () => {
       unitId: 'utt-1',
       layerId: 'layer-input',
       unitKind: 'utterance',
-      source: 'timeline',
+      splitTime: 1.001,
+      x: 0,
+      y: 0,
     }));
   });
 });

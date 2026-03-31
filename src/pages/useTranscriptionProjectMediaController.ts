@@ -28,7 +28,6 @@ interface UseTranscriptionProjectMediaControllerInput {
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
   locale: Locale;
   tfB: (key: string, opts?: Record<string, unknown>) => string;
-  transcriptionLayers: Array<{ id: string }>;
   transcriptionLayers: Array<Pick<LayerDocType, 'id' | 'languageId' | 'orthographyId'>>;
   translationLayers: Array<Pick<LayerDocType, 'id' | 'languageId' | 'orthographyId'>>;
   translationTextByLayer: ReadonlyMap<string, Map<string, UtteranceTextDocType>>;

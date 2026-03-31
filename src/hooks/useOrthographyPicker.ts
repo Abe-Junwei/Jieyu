@@ -301,10 +301,10 @@ export function useOrthographyPicker(
     return buildOrthographyPreviewSampleText(draftRenderPolicy.scriptTag, draftRenderPolicy.coverageSummary.exemplarSample);
   }, [draftRenderPolicy]);
   const draftRenderWarnings = useMemo(() => buildDraftRenderWarnings({
-    draftRenderPolicy,
     draftPrimaryFonts,
     draftFallbackFonts,
     draftBidiIsolate,
+    ...(draftRenderPolicy !== undefined ? { draftRenderPolicy } : {}),
   }), [draftBidiIsolate, draftFallbackFonts, draftPrimaryFonts, draftRenderPolicy]);
   const requiresRenderWarningConfirmation = draftRenderWarnings.length > 0 && !renderWarningsAcknowledged;
 
