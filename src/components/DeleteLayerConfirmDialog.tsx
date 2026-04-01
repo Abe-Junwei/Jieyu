@@ -1,6 +1,7 @@
 import { memo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { t, tf, useLocale } from '../i18n';
 
 export interface DeleteLayerConfirmDialogProps {
   open: boolean;
@@ -26,11 +27,14 @@ export const DeleteLayerConfirmDialog = memo(function DeleteLayerConfirmDialog({
   onConfirm,
 }: DeleteLayerConfirmDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const locale = useLocale();
   useFocusTrap(dialogRef, open, onCancel);
 
   if (!open) return null;
 
-  const layerTypeLabel = layerType === 'translation' ? '翻译层' : '转写层';
+  const layerTypeLabel = layerType === 'translation'
+    ? t(locale, 'transcription.dialog.deleteLayerTypeTranslation')
+    : t(locale, 'transcription.dialog.deleteLayerTypeTranscription');
 
   const dialog = (
     <div className="dialog-overlay" onClick={onCancel} role="presentation">
@@ -43,46 +47,46 @@ export const DeleteLayerConfirmDialog = memo(function DeleteLayerConfirmDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="dialog-header">
-          <h3 id="delete-layer-title">删除层</h3>
+          <h3 id="delete-layer-title">{t(locale, 'transcription.dialog.deleteLayerTitle')}</h3>
         </div>
         <div className="dialog-body">
-          <p style={{ margin: '0 0 16px 0', color: '#ef4444', fontSize: 14, fontWeight: 500 }}>
-            警告：此操作不可撤销
+          <p style={{ margin: '0 0 16px 0', color: 'var(--state-danger-solid)', fontSize: 14, fontWeight: 500 }}>
+            {t(locale, 'transcription.dialog.deleteLayerIrreversibleWarning')}
           </p>
-          <p style={{ margin: '0 0 8px 0', color: '#334155', fontSize: 14 }}>
-            确定要删除层「{layerName}」吗？
+          <p style={{ margin: '0 0 8px 0', color: 'var(--text-primary)', fontSize: 14 }}>
+            {tf(locale, 'transcription.dialog.deleteLayerConfirm', { layerName })}
           </p>
-          <p style={{ margin: 0, color: '#64748b', fontSize: 13 }}>
-            类型：{layerTypeLabel}
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 13 }}>
+            {tf(locale, 'transcription.dialog.deleteLayerType', { layerType: layerTypeLabel })}
             <br />
-            文本记录：{textCount} 条
+            {tf(locale, 'transcription.dialog.deleteLayerTextCount', { count: textCount })}
             {textCount > 0 && (
-              <span style={{ color: '#ef4444' }}>
+              <span style={{ color: 'var(--state-danger-solid)' }}>
                 <br />
-                删除后将无法恢复这些文本内容。
+                {t(locale, 'transcription.dialog.deleteLayerTextDestructiveHint')}
               </span>
             )}
           </p>
           {warningMessage && (
-            <p style={{ margin: '12px 0 0 0', color: '#b45309', fontSize: 13, fontWeight: 500 }}>
-              提示：{warningMessage}
+            <p style={{ margin: '12px 0 0 0', color: 'var(--state-warning-text)', fontSize: 13, fontWeight: 500 }}>
+              {t(locale, 'transcription.dialog.deleteLayerWarningPrefix')} {warningMessage}
             </p>
           )}
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b', cursor: 'pointer', marginTop: 12 }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer', marginTop: 12 }}>
             <input
               type="checkbox"
               checked={keepUtterances}
               onChange={(e) => onKeepUtterancesChange?.(e.target.checked)}
             />
-            保留现有语段区间
+            {t(locale, 'transcription.dialog.deleteLayerKeepUtterances')}
           </label>
-          <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: 12 }}>
-            未勾选时：仅清理不再被任何层引用的语段边界。
+          <p style={{ margin: '8px 0 0 0', color: 'var(--text-secondary)', fontSize: 12 }}>
+            {t(locale, 'transcription.dialog.deleteLayerKeepUtterancesHint')}
           </p>
         </div>
         <div className="dialog-footer">
-          <button className="btn btn-ghost" onClick={onCancel}>取消</button>
-          <button className="btn btn-danger" onClick={onConfirm}>确认删除</button>
+          <button className="btn btn-ghost" onClick={onCancel}>{t(locale, 'transcription.dialog.cancel')}</button>
+          <button className="btn btn-danger" onClick={onConfirm}>{t(locale, 'transcription.dialog.deleteLayerConfirmButton')}</button>
         </div>
       </div>
     </div>

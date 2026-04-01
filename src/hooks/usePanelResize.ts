@@ -1,141 +1,140 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
-type UsePanelResizeParams = {
-  isLayerRailCollapsed?: boolean;
-  layerRailWidth?: number;
-  setLayerRailWidth?: React.Dispatch<React.SetStateAction<number>>;
-  isSidePaneCollapsed?: boolean;
-  sidePaneWidth?: number;
-  setSidePaneWidth?: React.Dispatch<React.SetStateAction<number>>;
-  listMainRef: React.RefObject<HTMLDivElement | null>;
-  isAiPanelCollapsed: boolean;
-  aiPanelWidth: number;
-  setAiPanelWidth: React.Dispatch<React.SetStateAction<number>>;
-  workspaceRef: React.RefObject<HTMLElement | null>;
+type HorizontalPanelResizeConfig = {
+  isCollapsed: boolean;
+  width: number;
+  setWidth: React.Dispatch<React.SetStateAction<number>>;
+  boundaryRef: React.RefObject<HTMLElement | null>;
   dragCleanupRef: React.MutableRefObject<(() => void) | null>;
+  side: 'left' | 'right';
+  minWidth?: number;
+  maxWidth?: number;
+  maxWidthRatio?: number;
+};
+
+type VerticalPanelResizeConfig = {
   isHubCollapsed: boolean;
   hubHeight: number;
   setHubHeight: React.Dispatch<React.SetStateAction<number>>;
   screenRef: React.RefObject<HTMLElement | null>;
+  dragCleanupRef: React.MutableRefObject<(() => void) | null>;
 };
 
+type UsePanelResizeParams = {
+  aiPanel?: HorizontalPanelResizeConfig;
+  sidePane?: HorizontalPanelResizeConfig;
+  hub?: VerticalPanelResizeConfig;
+};
+
+function startHorizontalResize(
+  event: React.PointerEvent<HTMLDivElement>,
+  config: HorizontalPanelResizeConfig | undefined,
+) {
+  if (!config) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  if (config.isCollapsed) return;
+
+  const root = config.boundaryRef.current;
+  if (!root) return;
+
+  const rect = root.getBoundingClientRect();
+  const startX = event.clientX;
+  const startWidth = config.width;
+  const minWidth = config.minWidth ?? 240;
+  const widthCapFromRatio = rect.width * (config.maxWidthRatio ?? 0.6);
+  const maxWidth = Math.max(minWidth, Math.min(config.maxWidth ?? 560, widthCapFromRatio));
+
+  const onMove = (moveEvent: PointerEvent) => {
+    const dx = moveEvent.clientX - startX;
+    const rawNextWidth = config.side === 'left' ? startWidth + dx : startWidth - dx;
+    const nextWidth = Math.max(minWidth, Math.min(maxWidth, rawNextWidth));
+    config.setWidth(nextWidth);
+  };
+  const onUp = () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    config.dragCleanupRef.current = null;
+  };
+
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  config.dragCleanupRef.current = onUp;
+}
+
 export function usePanelResize({
-  isLayerRailCollapsed,
-  layerRailWidth,
-  setLayerRailWidth,
-  isSidePaneCollapsed,
-  sidePaneWidth,
-  setSidePaneWidth,
-  listMainRef,
-  isAiPanelCollapsed,
-  aiPanelWidth,
-  setAiPanelWidth,
-  workspaceRef,
-  dragCleanupRef,
-  isHubCollapsed,
-  hubHeight,
-  setHubHeight,
-  screenRef,
+  aiPanel,
+  sidePane,
+  hub,
 }: UsePanelResizeParams) {
-  const effectiveIsSidePaneCollapsed = isSidePaneCollapsed ?? isLayerRailCollapsed ?? false;
-  const effectiveSidePaneWidth = sidePaneWidth ?? layerRailWidth ?? 112;
-  const effectiveSetSidePaneWidth = setSidePaneWidth ?? setLayerRailWidth;
+  // 使用 ref 捕获最新 config，避免内联对象导致 useCallback 每帧重建 | Use refs to capture latest config so useCallback stays stable
+  const aiPanelRef = useRef(aiPanel);
+  aiPanelRef.current = aiPanel;
+  const sidePaneRef = useRef(sidePane);
+  sidePaneRef.current = sidePane;
+  const hubRef = useRef(hub);
+  hubRef.current = hub;
 
-  const handleLayerRailResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (effectiveIsSidePaneCollapsed) return;
-    if (!effectiveSetSidePaneWidth) return;
-
-    const root = listMainRef.current;
-    if (!root) return;
-
-    const rect = root.getBoundingClientRect();
-    const startX = event.clientX;
-    const startWidth = effectiveSidePaneWidth;
-    const minWidth = 84;
-    const maxWidth = Math.min(280, rect.width * 0.45);
-
-    const onMove = (ev: PointerEvent) => {
-      const dx = ev.clientX - startX;
-      const nextWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
-      effectiveSetSidePaneWidth(nextWidth);
-    };
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      dragCleanupRef.current = null;
-    };
-
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    dragCleanupRef.current = onUp;
-  }, [effectiveIsSidePaneCollapsed, effectiveSidePaneWidth, effectiveSetSidePaneWidth, listMainRef, dragCleanupRef]);
+  useEffect(() => () => {
+    const cleanupRefs = [
+      aiPanelRef.current?.dragCleanupRef,
+      sidePaneRef.current?.dragCleanupRef,
+      hubRef.current?.dragCleanupRef,
+    ];
+    const seen = new Set<(() => void) | null>();
+    for (const cleanupRef of cleanupRefs) {
+      const cleanup = cleanupRef?.current ?? null;
+      if (!cleanup || seen.has(cleanup)) continue;
+      seen.add(cleanup);
+      cleanup();
+    }
+  }, []);
 
   const handleAiPanelResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (isAiPanelCollapsed) return;
+    startHorizontalResize(event, aiPanelRef.current);
+  }, []);
 
-    const root = workspaceRef.current;
-    if (!root) return;
-
-    const rect = root.getBoundingClientRect();
-    const startX = event.clientX;
-    const startWidth = aiPanelWidth;
-    const minWidth = 240;
-    const maxWidth = Math.min(560, rect.width * 0.6);
-
-    const onMove = (ev: PointerEvent) => {
-      const dx = ev.clientX - startX;
-      const nextWidth = Math.max(minWidth, Math.min(maxWidth, startWidth - dx));
-      setAiPanelWidth(nextWidth);
-    };
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      dragCleanupRef.current = null;
-    };
-
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    dragCleanupRef.current = onUp;
-  }, [isAiPanelCollapsed, workspaceRef, aiPanelWidth, setAiPanelWidth, dragCleanupRef]);
+  const handleSidePaneResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    startHorizontalResize(event, sidePaneRef.current);
+  }, []);
 
   const handleHubResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const hubConfig = hubRef.current;
+    if (!hubConfig) return;
+
     event.preventDefault();
     event.stopPropagation();
-    if (isHubCollapsed) return;
+    if (hubConfig.isHubCollapsed) return;
 
-    const root = screenRef.current;
+    const root = hubConfig.screenRef.current;
     if (!root) return;
 
     const rootRect = root.getBoundingClientRect();
     const startY = event.clientY;
-    const startHeight = hubHeight;
+    const startHeight = hubConfig.hubHeight;
     const minHeight = 120;
     const maxHeight = Math.min(800, rootRect.height * 0.6);
 
-    const onMove = (ev: PointerEvent) => {
-      const dy = startY - ev.clientY;
+    const onMove = (moveEvent: PointerEvent) => {
+      const dy = startY - moveEvent.clientY;
       const nextHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + dy));
-      setHubHeight(nextHeight);
+      hubConfig.setHubHeight(nextHeight);
     };
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      dragCleanupRef.current = null;
+      hubConfig.dragCleanupRef.current = null;
     };
 
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-    dragCleanupRef.current = onUp;
-  }, [isHubCollapsed, screenRef, hubHeight, setHubHeight, dragCleanupRef]);
+    hubConfig.dragCleanupRef.current = onUp;
+  }, []);
 
   return {
-    handleLayerRailResizeStart,
-    handleSidePaneResizeStart: handleLayerRailResizeStart,
     handleAiPanelResizeStart,
+    handleSidePaneResizeStart,
     handleHubResizeStart,
   };
 }

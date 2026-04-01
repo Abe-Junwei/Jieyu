@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type React from 'react';
 import type {
@@ -9,6 +9,7 @@ import type {
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
+import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useTranscriptionUndo } from './useTranscriptionUndo';
 
 type StateRefHarness<T> = {
@@ -108,6 +109,14 @@ function setupHarness(input: {
 }
 
 describe('useTranscriptionUndo - speaker snapshot coverage', () => {
+  beforeEach(() => {
+    window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, 'zh-CN');
+  });
+
+  afterEach(() => {
+    window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
+  });
+
   it('rename speaker: undo/redo should restore both speaker collection and utterance speaker fields', async () => {
     const initialSpeaker = makeSpeaker('spk-1', 'Alice');
     const renamedSpeaker = makeSpeaker('spk-1', 'Alice Renamed');
@@ -137,6 +146,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
       expect.arrayContaining([expect.objectContaining({ id: 'spk-1', name: 'Alice' })]),
       expect.objectContaining({ conflictGuard: true }),
     );
+    expect(harness.setSaveState).toHaveBeenLastCalledWith({ kind: 'done', message: '已撤销: 重命名说话人' });
 
     await act(async () => {
       await harness.hook.result.current.redo();
@@ -151,6 +161,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
       expect.arrayContaining([expect.objectContaining({ id: 'spk-1', name: 'Alice Renamed' })]),
       expect.objectContaining({ conflictGuard: true }),
     );
+    expect(harness.setSaveState).toHaveBeenLastCalledWith({ kind: 'done', message: '已重做: 重命名说话人' });
   });
 
   it('merge speakers: undo/redo should recover merged/deleted speaker set and assignments', async () => {

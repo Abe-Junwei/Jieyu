@@ -12,8 +12,7 @@ import type {
   VoiceSessionEntry,
 } from '../services/IntentRouter';
 import { toBcp47 } from '../utils/langMapping';
-import type { CommercialProviderCreateConfig, ProviderReachability } from '../services/stt';
-import type { VoicePreset } from '../utils/voicePresets';
+import type { CommercialProviderCreateConfig } from '../services/stt';
 import { createLogger } from '../observability/logger';
 import { detectRegion } from '../utils/regionDetection';
 import * as Earcon from '../services/EarconService';
@@ -24,6 +23,7 @@ import { userBehaviorStore } from '../services/UserBehaviorStore';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import { useVoiceAgentDictationPipeline } from './useVoiceAgentDictationPipeline';
 import { useVoiceAgentProviderControls } from './useVoiceAgentProviderControls';
+import { t, tf, useLocale } from '../i18n';
 
 const log = createLogger('useVoiceAgent');
 
@@ -190,11 +190,12 @@ export interface UseVoiceAgentOptions {
 }
 
 export function getConfidenceColor(confidence: number): string {
-  if (confidence >= 0.85) return 'var(--voice-confidence-high, #22c55e)';
-  if (confidence >= 0.6) return 'var(--voice-confidence-mid, #eab308)';
-  return 'var(--voice-confidence-low, #ef4444)';
+  if (confidence >= 0.85) return 'var(--voice-confidence-high, var(--state-success-solid))';
+  if (confidence >= 0.6) return 'var(--voice-confidence-mid, var(--state-warning-solid))';
+  return 'var(--voice-confidence-low, var(--state-danger-solid))';
 }
 export function useVoiceAgent(options: UseVoiceAgentOptions) {
+  const locale = useLocale();
   const {
     corpusLang = 'cmn',
     langOverride,
@@ -352,11 +353,11 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
           llmResolvedAction = intent.type === 'action';
         } else {
           llmFallbackFailed = true;
-          setError('无法识别该指令，请重试或切换到"分析"模式直接发送文本');
+          setError(t(locale, 'transcription.voice.error.commandUnrecognized'));
         }
       } catch (err) {
         llmFallbackFailed = true;
-        setError(err instanceof Error ? err.message : 'LLM intent解析失败，请检查 API 配置');
+        setError(err instanceof Error ? err.message : t(locale, 'transcription.voice.error.intentResolveFailed'));
       }
     }
 
@@ -407,7 +408,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
         if (needsConfirm) {
           setPendingConfirm({
             actionId: intent.actionId,
-            label: getActionLabel(intent.actionId),
+            label: getActionLabel(intent.actionId, locale),
             ...(intent.fromFuzzy !== undefined ? { fromFuzzy: intent.fromFuzzy } : {}),
           });
           Earcon.playTick();
@@ -434,7 +435,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
         setError(null);
         Earcon.playSuccess();
         queueAiThinking();
-        sendToAiChatRef.current(`[语音指令] ${intent.raw}`);
+        sendToAiChatRef.current(tf(locale, 'transcription.voice.chatPrefix.command', { text: intent.raw }));
         break;
       }
       case 'dictation': {
@@ -450,7 +451,10 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
         }
         setError(null);
         queueAiThinking();
-        sendToAiChatRef.current(`[槽位填充] ${intent.slotName}: ${intent.value}`);
+        sendToAiChatRef.current(tf(locale, 'transcription.voice.chatPrefix.slotFill', {
+          slotName: intent.slotName,
+          value: intent.value,
+        }));
         break;
       }
       case 'chat': {
@@ -570,10 +574,13 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       setListening(false);
       setSpeechActive(false);
       setAgentState('idle');
-      setError(err instanceof Error ? err.message : '语音启动失败');
+      setError(err instanceof Error ? err.message : t(locale, 'transcription.voice.error.startFailed'));
       Earcon.playError();
       return;
     }
+
+    setAgentState(runtimeEngine === 'web-speech' ? 'listening' : 'idle');
+
     if (nextMode === 'dictation' && dictationPipeline) {
       startDictationPipeline();
     } else {
@@ -625,9 +632,9 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       setIsRecording(false);
       setAgentState('idle');
       Earcon.playError();
-      setError(err instanceof Error ? err.message : '录音启动失败');
+      setError(err instanceof Error ? err.message : t(locale, 'transcription.voice.error.recordingStartFailed'));
     }
-  }, []);
+  }, [locale]);
 
   const stopRecording = useCallback(async () => {
     const svc = serviceRef.current;
@@ -646,6 +653,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     globalContext.updatePreference('preferredEngine', newEngine);
     if (listening) {
       serviceRef.current?.switchEngine(newEngine);
+      setAgentState(newEngine === 'web-speech' ? 'listening' : 'idle');
     }
   }, [listening]);
 
@@ -682,7 +690,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       const needsConfirm = intentRouter.shouldConfirmFuzzyAction(actionId)
         || (safeModeRef.current && intentRouter.isDestructiveAction(actionId));
       if (needsConfirm) {
-        setPendingConfirm({ actionId, label: getActionLabel(actionId), fromFuzzy: true });
+        setPendingConfirm({ actionId, label: getActionLabel(actionId, locale), fromFuzzy: true });
         Earcon.playTick();
         setAgentState('idle');
         return;
@@ -699,7 +707,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       });
       setAgentState('idle');
     })();
-  }, [executeActionRef, safeModeRef, sessionRef]);
+  }, [executeActionRef, locale, safeModeRef, sessionRef]);
 
   const dismissDisambiguation = useCallback(() => {
     setDisambiguationOptions([]);
@@ -853,11 +861,11 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   } = useVoiceAgentProviderControls({
     loadSttRuntime,
     commercialProviderKindState,
-    commercialProviderConfigState,
     commercialProviderKindRef,
     commercialProviderConfigRef,
     switchEngine,
     setCommercialProviderKind,
+    ...(commercialProviderConfigState !== undefined ? { commercialProviderConfigState } : {}),
   });
 
   return {

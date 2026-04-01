@@ -29,7 +29,29 @@
       "Bash(rm transcription_part*.tmp)",
       "Read(//dev/**)",
       "Bash(cp -r /Users/junwei/Documents/Dev/OpenSpace/openspace/host_skills/delegate-task/ /Users/junwei/Documents/Dev/Jieyu/.claude/skills/)",
-      "Bash(cp -r /Users/junwei/Documents/Dev/OpenSpace/openspace/host_skills/skill-discovery/ /Users/junwei/Documents/Dev/Jieyu/.claude/skills/)"
+      "Bash(cp -r /Users/junwei/Documents/Dev/OpenSpace/openspace/host_skills/skill-discovery/ /Users/junwei/Documents/Dev/Jieyu/.claude/skills/)",
+      "Bash(/usr/local/bin/npm --version)",
+      "Read(//usr/local/lib/node_modules/npm/bin/**)",
+      "Bash(PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.local/bin:$HOME/go/bin:$PATH /usr/local/bin/env node --version)",
+      "Bash(/usr/bin/env node:*)",
+      "Bash(/usr/local/bin/node --version)",
+      "Bash(/usr/local/bin/node /Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/node_modules/npm/bin/npm-cli.js --version)",
+      "Bash(/usr/local/bin/node -e \"console.log\\(process.execPath\\)\")",
+      "Bash(/usr/local/bin/node -e \"const {execSync} = require\\(''child_process''\\); console.log\\(execSync\\(''which npm''\\).toString\\(\\)\\)\")",
+      "Bash(/usr/local/bin/node -e \":*)",
+      "Bash(/usr/local/bin/node /usr/local/bin/npm --version)",
+      "Bash(/usr/local/bin/node /usr/local/bin/npm --prefix /Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu run dev -- --host)",
+      "Bash(/usr/local/bin/node /Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/node_modules/vite/bin/vite.js --host)",
+      "Bash(/bin/ls \"/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/pages/\")",
+      "Bash(/bin/ls \"/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/src/styles/\")",
+      "Bash(/usr/bin/open -j -a Pencil)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(/usr/bin/pgrep -l Pencil)",
+      "Bash(/usr/bin/pgrep -l \"pencil\")",
+      "Bash(/usr/bin/ps aux:*)",
+      "Bash(/usr/bin/grep -i pencil)",
+      "Bash(/usr/bin/head -5)",
+      "Bash(/usr/bin/open \"pencil://mcp/status\")"
     ]
   }
 }

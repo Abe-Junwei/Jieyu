@@ -14,7 +14,6 @@ export interface UseLayerActionPanelInput {
   checkLayerHasContent?: (layerId: string) => Promise<number>;
   deletableLayers: Array<{ id: string; layerType?: 'transcription' | 'translation' }>;
   focusedLayerRowId: string;
-  isLayerRailCollapsed: boolean;
 }
 
 export function useLayerActionPanel({
@@ -24,7 +23,6 @@ export function useLayerActionPanel({
   checkLayerHasContent,
   deletableLayers,
   focusedLayerRowId,
-  isLayerRailCollapsed,
 }: UseLayerActionPanelInput) {
   const _deleteLayerWithoutConfirm = deleteLayerWithoutConfirm ?? (async () => {});
   const _checkLayerHasContent = checkLayerHasContent ?? (async () => 0);
@@ -110,11 +108,6 @@ export function useLayerActionPanel({
       : undefined;
     setQuickDeleteLayerId(focused?.id ?? deletableLayers[0]!.id);
   }, [deletableLayers, focusedLayerRowId, quickDeleteLayerId]);
-
-  // Close panel when layer rail collapses.
-  useEffect(() => {
-    if (isLayerRailCollapsed) setLayerActionPanel(null);
-  }, [isLayerRailCollapsed]);
 
   // Click-outside & Escape dismiss.
   useEffect(() => {

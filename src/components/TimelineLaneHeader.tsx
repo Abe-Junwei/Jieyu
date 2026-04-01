@@ -6,8 +6,11 @@ import { resolveVerticalReorderTargetIndex, type VerticalDragDirection } from '.
 import { fireAndForget } from '../utils/fireAndForget';
 import { buildLayerDropIntent, type LayerDropIntent } from '../utils/layerDragDropModel';
 import { buildLayerLinkConnectorLayout, getLayerLinkConnectorColors, getLayerLinkStackWidth } from '../utils/layerLinkConnector';
+import { useLocale } from '../i18n';
+import { getTimelineLaneHeaderMessages } from '../i18n/timelineLaneHeaderMessages';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { buildLayerStyleMenuItems } from './LayerStyleSubmenu';
+import { decodeEscapedUnicode } from '../utils/decodeEscapedUnicode';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -44,7 +47,7 @@ interface TimelineLaneHeaderProps {
     lockedSpeakerCount?: number;
     lockConflictCount?: number;
   };
-  /** 显示样式菜单所需 | Display style submenu dependencies */
+  /** \\u663e\\u793a\\u6837\\u5f0f\\u83dc\\u5355\\u6240\\u9700 | Display style submenu dependencies */
   displayStyleControl?: {
     orthographies: OrthographyDocType[];
     onUpdate: (layerId: string, patch: Partial<LayerDisplaySettings>) => void;
@@ -61,13 +64,13 @@ interface LaneLockDialogState {
 function formatTrackModeMenuLabel(mode: TranscriptionTrackDisplayMode): string {
   switch (mode) {
     case 'single':
-      return '单轨';
+      return decodeEscapedUnicode('\\u5355\\u8f68');
     case 'multi-auto':
-      return '多轨·自动';
+      return decodeEscapedUnicode('\\u591a\\u8f68·\\u81ea\\u52a8');
     case 'multi-locked':
-      return '多轨·锁定';
+      return decodeEscapedUnicode('\\u591a\\u8f68·\\u9501\\u5b9a');
     case 'multi-speaker-fixed':
-      return '多轨·一人一轨';
+      return decodeEscapedUnicode('\\u591a\\u8f68·\\u4e00\\u4eba\\u4e00\\u8f68');
     default:
       return mode;
   }
@@ -92,6 +95,8 @@ export function TimelineLaneHeader({
   trackModeControl,
   displayStyleControl,
 }: TimelineLaneHeaderProps) {
+  const locale = useLocale();
+  const messages = getTimelineLaneHeaderMessages(locale);
   const connectorLayerLinks = useMemo(
     () => layerLinks.map((link) => ({ transcriptionLayerKey: link.transcriptionLayerKey, targetLayerId: link.layerId })),
     [layerLinks],
@@ -304,12 +309,12 @@ export function TimelineLaneHeader({
     if (!trackModeControl?.onLockSelectedToLane) return;
     const laneIndex = Number.parseInt(laneLockValue.trim(), 10);
     if (!Number.isFinite(laneIndex) || laneIndex < 1) {
-      setLaneLockError('请输入大于等于 1 的轨道序号');
+      setLaneLockError(messages.laneLockErrorMin);
       return;
     }
     trackModeControl.onLockSelectedToLane(laneIndex - 1);
     closeLaneLockDialog();
-  }, [closeLaneLockDialog, laneLockValue, trackModeControl]);
+  }, [closeLaneLockDialog, laneLockValue, messages.laneLockErrorMin, trackModeControl]);
 
   const startLaneDragVisualAnimation = useCallback(() => {
     if (dragVisualRafRef.current !== null) return;
@@ -503,7 +508,7 @@ export function TimelineLaneHeader({
 
     const previewIntent = dropIntentRef.current;
     const previewTarget = previewIntent?.previewIndex ?? dropTargetIndexRef.current;
-    // 采用 over-target 提交语义：放手时不重算命中，直接提交最后一次预览。
+    // \\u91c7\\u7528 over-target \\u63d0\\u4ea4\\u8bed\\u4e49：\\u653e\\u624b\\u65f6\\u4e0d\\u91cd\\u7b97\\u547d\\u4e2d，\\u76f4\\u63a5\\u63d0\\u4ea4\\u6700\\u540e\\u4e00\\u6b21\\u9884\\u89c8。
     // Use over-target commit semantics: do not recompute on mouseup, commit the last preview target.
     const finalTarget = previewTarget;
 
@@ -578,15 +583,15 @@ export function TimelineLaneHeader({
 
   const viewMenuItems: ContextMenuItem[] = [
     {
-      label: isCollapsed ? '展开该层' : '折叠该层',
+      label: isCollapsed ? decodeEscapedUnicode('\\u5c55\\u5f00\\u8be5\\u5c42') : decodeEscapedUnicode('\\u6298\\u53e0\\u8be5\\u5c42'),
       onClick: () => {
         onToggleCollapsed?.();
       },
     },
     {
       label: effectiveShowConnectors
-        ? '隐藏层级关系'
-        : (hasResolvableConnectorData ? '显示层级关系' : '显示层级关系（暂无可用链接）'),
+        ? decodeEscapedUnicode('\\u9690\\u85cf\\u5c42\\u7ea7\\u5173\\u7cfb')
+        : (hasResolvableConnectorData ? decodeEscapedUnicode('\\u663e\\u793a\\u5c42\\u7ea7\\u5173\\u7cfb') : decodeEscapedUnicode('\\u663e\\u793a\\u5c42\\u7ea7\\u5173\\u7cfb（\\u6682\\u65e0\\u53ef\\u7528\\u94fe\\u63a5）')),
       disabled: !hasResolvableConnectorData,
       onClick: () => {
         onToggleConnectors?.();
@@ -596,20 +601,20 @@ export function TimelineLaneHeader({
 
   const layerOperationMenuItems: ContextMenuItem[] = [
     {
-      label: '新建转写层',
+      label: decodeEscapedUnicode('\\u65b0\\u5efa\\u8f6c\\u5199\\u5c42'),
       onClick: () => {
         onLayerAction('create-transcription', layer.id);
       },
     },
     {
-      label: '新建翻译层',
+      label: decodeEscapedUnicode('\\u65b0\\u5efa\\u7ffb\\u8bd1\\u5c42'),
       disabled: !canOpenTranslationCreate,
       onClick: () => {
         onLayerAction('create-translation', layer.id);
       },
     },
     {
-      label: '删除当前层',
+      label: decodeEscapedUnicode('\\u5220\\u9664\\u5f53\\u524d\\u5c42'),
       danger: true,
       disabled: !deletableLayers.some((l) => l.id === layer.id),
       onClick: () => {
@@ -621,15 +626,15 @@ export function TimelineLaneHeader({
   const contextMenuItems: ContextMenuItem[] = [
     ...layerOperationMenuItems,
     {
-      label: '视图',
-      meta: `${isCollapsed ? '折叠' : '展开'} · ${effectiveShowConnectors ? '连线' : '无线'}`,
+      label: decodeEscapedUnicode('\\u89c6\\u56fe'),
+      meta: `${isCollapsed ? decodeEscapedUnicode('\\u6298\\u53e0') : decodeEscapedUnicode('\\u5c55\\u5f00')} · ${effectiveShowConnectors ? decodeEscapedUnicode('\\u8fde\\u7ebf') : decodeEscapedUnicode('\\u65e0\\u7ebf')}`,
       variant: 'category',
       separatorBefore: true,
       children: viewMenuItems,
     },
   ];
 
-  // 显示样式子菜单 | Display style submenu
+  // \\u663e\\u793a\\u6837\\u5f0f\\u5b50\\u83dc\\u5355 | Display style submenu
   if (displayStyleControl) {
     const styleItems = buildLayerStyleMenuItems(
       layer.displaySettings,
@@ -640,9 +645,10 @@ export function TimelineLaneHeader({
       (patch) => displayStyleControl.onUpdate(layer.id, patch),
       () => displayStyleControl.onReset(layer.id),
       displayStyleControl.localFonts,
+      locale,
     );
     contextMenuItems.push({
-      label: '显示样式',
+      label: decodeEscapedUnicode('\\u663e\\u793a\\u6837\\u5f0f'),
       variant: 'category',
       children: styleItems,
     });
@@ -652,7 +658,7 @@ export function TimelineLaneHeader({
     const { selectedCount, speakerOptions, onAssignToSelection, onClearSelection, onOpenCreateAndAssignPanel } = speakerQuickActions;
     const topSpeakers = speakerOptions.slice(0, 3);
     const speakerMenuItems: ContextMenuItem[] = [{
-      label: selectedCount > 0 ? `清空 ${selectedCount} 个选中句段的说话人` : '清空选中句段说话人',
+      label: selectedCount > 0 ? decodeEscapedUnicode(`\\u6e05\\u7a7a ${selectedCount} \\u4e2a\\u9009\\u4e2d\\u53e5\\u6bb5\\u7684\\u8bf4\\u8bdd\\u4eba`) : decodeEscapedUnicode('\\u6e05\\u7a7a\\u9009\\u4e2d\\u53e5\\u6bb5\\u8bf4\\u8bdd\\u4eba'),
       disabled: selectedCount === 0,
       onClick: () => {
         onClearSelection();
@@ -661,8 +667,8 @@ export function TimelineLaneHeader({
     for (const speaker of topSpeakers) {
       speakerMenuItems.push({
         label: selectedCount > 0
-          ? `指派 ${selectedCount} 个选中句段 → ${speaker.name}`
-          : `指派选中句段 → ${speaker.name}`,
+          ? decodeEscapedUnicode(`\\u6307\\u6d3e ${selectedCount} \\u4e2a\\u9009\\u4e2d\\u53e5\\u6bb5 → ${speaker.name}`)
+          : decodeEscapedUnicode(`\\u6307\\u6d3e\\u9009\\u4e2d\\u53e5\\u6bb5 → ${speaker.name}`),
         disabled: selectedCount === 0,
         onClick: () => {
           onAssignToSelection(speaker.id);
@@ -670,15 +676,15 @@ export function TimelineLaneHeader({
       });
     }
     speakerMenuItems.push({
-      label: selectedCount > 0 ? '新建说话人并指派到选中句段…' : '新建说话人并指派…',
+      label: selectedCount > 0 ? decodeEscapedUnicode('\\u65b0\\u5efa\\u8bf4\\u8bdd\\u4eba\\u5e76\\u6307\\u6d3e\\u5230\\u9009\\u4e2d\\u53e5\\u6bb5…') : decodeEscapedUnicode('\\u65b0\\u5efa\\u8bf4\\u8bdd\\u4eba\\u5e76\\u6307\\u6d3e…'),
       disabled: selectedCount === 0,
       onClick: () => {
         onOpenCreateAndAssignPanel();
       },
     });
     contextMenuItems.push({
-      label: '说话人',
-      meta: selectedCount > 0 ? `已选 ${selectedCount}` : '未选',
+      label: decodeEscapedUnicode('\\u8bf4\\u8bdd\\u4eba'),
+      meta: selectedCount > 0 ? decodeEscapedUnicode(`\\u5df2\\u9009 ${selectedCount}`) : decodeEscapedUnicode('\\u672a\\u9009'),
       variant: 'category',
       children: speakerMenuItems,
     });
@@ -688,20 +694,20 @@ export function TimelineLaneHeader({
     const selectedSpeakerNames = trackModeControl.selectedSpeakerNames ?? [];
     const selectedSpeakerHint = selectedSpeakerNames.length > 0
       ? selectedSpeakerNames.join('、')
-      : '当前未选中带说话人的句段';
+      : decodeEscapedUnicode('\\u5f53\\u524d\\u672a\\u9009\\u4e2d\\u5e26\\u8bf4\\u8bdd\\u4eba\\u7684\\u53e5\\u6bb5');
     const lockConflictCount = trackModeControl.lockConflictCount ?? 0;
     const hasExistingLaneLocks = (trackModeControl.lockedSpeakerCount ?? 0) > 0;
 
     const trackMenuItems: ContextMenuItem[] = [
       {
-        label: `当前模式：${formatTrackModeMenuLabel(trackModeControl.mode)}`,
+        label: decodeEscapedUnicode(`\\u5f53\\u524d\\u6a21\\u5f0f：${formatTrackModeMenuLabel(trackModeControl.mode)}`),
         disabled: true,
       },
     ];
 
     if (!trackModeControl.onSetMode) {
       trackMenuItems.push({
-        label: trackModeControl.mode === 'single' ? '切换到多轨模式（自动）' : '切换到单轨模式',
+        label: trackModeControl.mode === 'single' ? decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u81ea\\u52a8）') : decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u5355\\u8f68\\u6a21\\u5f0f'),
         onClick: () => {
           trackModeControl.onToggle();
         },
@@ -710,21 +716,21 @@ export function TimelineLaneHeader({
 
     if (trackModeControl.onSetMode) {
       trackMenuItems.push({
-        label: '切换到多轨模式（自动）',
+        label: decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u81ea\\u52a8）'),
         disabled: trackModeControl.mode === 'multi-auto',
         onClick: () => {
           trackModeControl.onSetMode?.('multi-auto');
         },
       });
       trackMenuItems.push({
-        label: hasExistingLaneLocks ? '切换到多轨模式（锁定）' : '切换到多轨模式（锁定，需先锁定说话人）',
+        label: hasExistingLaneLocks ? decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u9501\\u5b9a）') : decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u9501\\u5b9a，\\u9700\\u5148\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba）'),
         disabled: trackModeControl.mode === 'multi-locked' || !hasExistingLaneLocks,
         onClick: () => {
           trackModeControl.onSetMode?.('multi-locked');
         },
       });
       trackMenuItems.push({
-        label: '切换到多轨模式（一人一轨）',
+        label: decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u4e00\\u4eba\\u4e00\\u8f68）'),
         disabled: trackModeControl.mode === 'multi-speaker-fixed',
         onClick: () => {
           trackModeControl.onSetMode?.('multi-speaker-fixed');
@@ -734,7 +740,7 @@ export function TimelineLaneHeader({
 
     if (trackModeControl.mode !== 'multi-speaker-fixed' && trackModeControl.onLockSelectedToLane) {
       trackMenuItems.push({
-        label: `锁定选中说话人到轨道…（${selectedSpeakerHint}）`,
+        label: decodeEscapedUnicode(`\\u9501\\u5b9a\\u9009\\u4e2d\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053…（${selectedSpeakerHint}）`),
         disabled: selectedSpeakerNames.length === 0,
         onClick: () => {
           openLaneLockDialog(selectedSpeakerHint, 0);
@@ -744,7 +750,7 @@ export function TimelineLaneHeader({
 
     if (trackModeControl.mode !== 'multi-speaker-fixed' && trackModeControl.onUnlockSelected) {
       trackMenuItems.push({
-        label: `解锁选中说话人（当前已锁 ${trackModeControl.lockedSpeakerCount ?? 0}）`,
+        label: decodeEscapedUnicode(`\\u89e3\\u9501\\u9009\\u4e2d\\u8bf4\\u8bdd\\u4eba（\\u5f53\\u524d\\u5df2\\u9501 ${trackModeControl.lockedSpeakerCount ?? 0}）`),
         disabled: selectedSpeakerNames.length === 0,
         onClick: () => {
           trackModeControl.onUnlockSelected?.();
@@ -754,7 +760,7 @@ export function TimelineLaneHeader({
 
     if (trackModeControl.onResetAuto) {
       trackMenuItems.push({
-        label: trackModeControl.mode === 'multi-speaker-fixed' ? '恢复自动分轨并清空轨道映射' : '恢复自动分轨并清空锁定',
+        label: trackModeControl.mode === 'multi-speaker-fixed' ? decodeEscapedUnicode('\\u6062\\u590d\\u81ea\\u52a8\\u5206\\u8f68\\u5e76\\u6e05\\u7a7a\\u8f68\\u9053\\u6620\\u5c04') : decodeEscapedUnicode('\\u6062\\u590d\\u81ea\\u52a8\\u5206\\u8f68\\u5e76\\u6e05\\u7a7a\\u9501\\u5b9a'),
         onClick: () => {
           trackModeControl.onResetAuto?.();
         },
@@ -764,14 +770,14 @@ export function TimelineLaneHeader({
     if (lockConflictCount > 0) {
       trackMenuItems.push({
         label: trackModeControl.mode === 'multi-speaker-fixed'
-          ? `一人一轨冲突 ${lockConflictCount} 项（请修正切分或说话人标注）`
-          : `锁定冲突 ${lockConflictCount} 项（已回退自动分配）`,
+          ? decodeEscapedUnicode(`\\u4e00\\u4eba\\u4e00\\u8f68\\u51b2\\u7a81 ${lockConflictCount} \\u9879（\\u8bf7\\u4fee\\u6b63\\u5207\\u5206\\u6216\\u8bf4\\u8bdd\\u4eba\\u6807\\u6ce8）`)
+          : decodeEscapedUnicode(`\\u9501\\u5b9a\\u51b2\\u7a81 ${lockConflictCount} \\u9879（\\u5df2\\u56de\\u9000\\u81ea\\u52a8\\u5206\\u914d）`),
         disabled: true,
       });
     }
 
     contextMenuItems.push({
-      label: '轨道',
+      label: decodeEscapedUnicode('\\u8f68\\u9053'),
       meta: formatTrackModeMenuLabel(trackModeControl.mode),
       variant: 'category',
       children: trackMenuItems,
@@ -798,7 +804,7 @@ export function TimelineLaneHeader({
             left: 0,
             right: 0,
             height: '2px',
-            backgroundColor: 'var(--color-primary, #3b82f6)',
+            backgroundColor: 'var(--color-primary, var(--state-info-solid))',
             zIndex: 10,
           }}
         />
@@ -811,7 +817,7 @@ export function TimelineLaneHeader({
             left: 0,
             right: 0,
             height: '2px',
-            backgroundColor: 'var(--color-primary, #3b82f6)',
+            backgroundColor: 'var(--color-primary, var(--state-info-solid))',
             zIndex: 10,
           }}
         />
@@ -830,7 +836,7 @@ export function TimelineLaneHeader({
           onFocusLayer(layer.id);
         }}
       >
-        {/* 连接线容器 | Connector stack */}
+        {/* \\u8fde\\u63a5\\u7ebf\\u5bb9\\u5668 | Connector stack */}
         {!isCollapsed && effectiveShowConnectors && rowSegments.length > 0 && (() => {
           const connectorStackWidth = getLayerLinkStackWidth(connectorLayout.maxColumns);
           return (
@@ -894,32 +900,32 @@ export function TimelineLaneHeader({
           role="presentation"
         >
           <div
-            className="transcription-layer-rail-action-popover transcription-layer-rail-action-popover-centered floating-panel"
+            className="transcription-side-pane-action-popover transcription-side-pane-action-popover-centered floating-panel"
             role="dialog"
             aria-modal="true"
-            aria-label="锁定说话人到轨道"
+            aria-label={decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
             style={{ width: 360, maxWidth: 'calc(100vw - 32px)', height: 'auto' }}
           >
-            <div className="transcription-layer-rail-action-popover-title floating-panel-title-row">
-              <span>锁定说话人到轨道</span>
+            <div className="transcription-side-pane-action-popover-title floating-panel-title-row">
+              <span>{decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}</span>
               <button
                 type="button"
                 className="floating-panel-reset-btn"
                 onClick={closeLaneLockDialog}
-                aria-label="关闭锁定轨道面板"
-                title="关闭"
+                aria-label={decodeEscapedUnicode('\\u5173\\u95ed\\u9501\\u5b9a\\u8f68\\u9053\\u9762\\u677f')}
+                title={decodeEscapedUnicode('\\u5173\\u95ed')}
               >
                 ×
               </button>
             </div>
-            <div className="transcription-layer-rail-action-popover-body">
+            <div className="transcription-side-pane-action-popover-body">
               <div className="speaker-rail-batch-panel">
-                <p className="speaker-rail-summary">选中说话人：{laneLockDialog.selectedSpeakerHint}</p>
+                <p className="speaker-rail-summary">{decodeEscapedUnicode('\\u9009\\u4e2d\\u8bf4\\u8bdd\\u4eba：')}{laneLockDialog.selectedSpeakerHint}</p>
                 <label className="speaker-rail-form-field">
-                  <span>目标轨道序号</span>
+                  <span>{decodeEscapedUnicode('\\u76ee\\u6807\\u8f68\\u9053\\u5e8f\\u53f7')}</span>
                   <input
                     autoFocus
                     type="number"
@@ -942,11 +948,11 @@ export function TimelineLaneHeader({
                     }}
                   />
                 </label>
-                <p className="speaker-rail-form-hint">输入从 1 开始的轨道编号，确认后会同时进入多轨锁定模式。</p>
+                <p className="speaker-rail-form-hint">{decodeEscapedUnicode('\\u8f93\\u5165\\u4ece 1 \\u5f00\\u59cb\\u7684\\u8f68\\u9053\\u7f16\\u53f7，\\u786e\\u8ba4\\u540e\\u4f1a\\u540c\\u65f6\\u8fdb\\u5165\\u591a\\u8f68\\u9501\\u5b9a\\u6a21\\u5f0f。')}</p>
                 {laneLockError && <p className="speaker-rail-form-error">{laneLockError}</p>}
                 <div className="speaker-rail-actions">
-                  <button type="button" className="btn btn-sm" onClick={closeLaneLockDialog}>取消</button>
-                  <button type="button" className="btn btn-sm btn-primary" onClick={confirmLaneLockDialog}>确认锁定</button>
+                  <button type="button" className="btn btn-sm" onClick={closeLaneLockDialog}>{decodeEscapedUnicode('\\u53d6\\u6d88')}</button>
+                  <button type="button" className="btn btn-sm btn-primary" onClick={confirmLaneLockDialog}>{decodeEscapedUnicode('\\u786e\\u8ba4\\u9501\\u5b9a')}</button>
                 </div>
               </div>
             </div>

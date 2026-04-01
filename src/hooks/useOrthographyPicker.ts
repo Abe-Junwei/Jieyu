@@ -42,7 +42,7 @@ function buildOrthographyNameMap(input: {
 
   if (!name.zho && !name.eng) {
     const languageLabel = resolveLanguageLabel(input.languageId);
-    const resolved = fallback || abbreviation || `${languageLabel} 正字法`;
+    const resolved = fallback || abbreviation || `${languageLabel} \u6b63\u5b57\u6cd5`;
     name.zho = resolved;
     name.eng = fallback || abbreviation || `${input.languageId.toUpperCase()} orthography`;
   }
@@ -122,7 +122,7 @@ export function formatOrthographyOptionLabel(orthography: {
     ?? orthography.name?.eng
     ?? orthography.name?.en
     ?? orthography.abbreviation
-    ?? '未命名正字法';
+    ?? '\u672a\u547d\u540d\u6b63\u5b57\u6cd5';
   const extras = [orthography.scriptTag, orthography.type].filter(Boolean).join(' · ');
   return extras ? `${name} · ${extras}` : name;
 }
@@ -144,9 +144,9 @@ function buildOrthographyPreviewSampleText(scriptTag: string, exemplarSample: st
     case 'Arab': return 'ابجد ١٢٣';
     case 'Hebr': return 'אבגד 123';
     case 'Deva': return 'कखग १२३';
-    case 'Hans': return '示例文本 123';
-    case 'Hant': return '示例文本 123';
-    case 'Jpan': return 'かな漢字 123';
+    case 'Hans': return '\u793a\u4f8b\u6587\u672c 123';
+    case 'Hant': return '\u793a\u4f8b\u6587\u672c 123';
+    case 'Jpan': return '\u304b\u306a\u6f22\u5b57 123';
     case 'Kore': return '한글 예시 123';
     case 'Tibt': return 'བོད་ཡིག ༡༢༣';
     default: return 'Aa Bb 123';
@@ -165,11 +165,11 @@ function buildDraftRenderWarnings(input: {
 
   const hasCustomFontPreference = input.draftPrimaryFonts.trim().length > 0 || input.draftFallbackFonts.trim().length > 0;
   if (hasCustomFontPreference && input.draftRenderPolicy?.coverageSummary.confidence === 'script-only') {
-    warnings.push('已指定首选或回退字体，但未配置示例字符，当前无法判断真实覆盖率。');
+    warnings.push('\u5df2\u6307\u5b9a\u9996\u9009\u6216\u56de\u9000\u5b57\u4f53\uff0c\u4f46\u672a\u914d\u7f6e\u793a\u4f8b\u5b57\u7b26\uff0c\u5f53\u524d\u65e0\u6cd5\u5224\u65ad\u771f\u5b9e\u8986\u76d6\u7387\u3002');
   }
 
   if (input.draftRenderPolicy?.textDirection === 'rtl' && !input.draftBidiIsolate) {
-    warnings.push('RTL 正字法通常建议开启“行内双向文本启用隔离”，以降低混排串扰风险。');
+    warnings.push('RTL \u6b63\u5b57\u6cd5\u901a\u5e38\u5efa\u8bae\u5f00\u542f\u201c\u884c\u5185\u53cc\u5411\u6587\u672c\u542f\u7528\u9694\u79bb\u201d\uff0c\u4ee5\u964d\u4f4e\u6df7\u6392\u4e32\u6270\u98ce\u9669\u3002');
   }
 
   return Array.from(new Set(warnings));
@@ -274,7 +274,7 @@ export function useOrthographyPicker(
         nameZh: draftNameZh,
         nameEn: draftNameEn,
         abbreviation: draftAbbreviation,
-        fallback: '预览正字法',
+        fallback: '\u9884\u89c8\u6b63\u5b57\u6cd5',
       }),
       ...(trimmedScriptTag ? { scriptTag: trimmedScriptTag } : {}),
       direction: draftDirection,
@@ -481,7 +481,7 @@ export function useOrthographyPicker(
     if (!languageId) return undefined;
     const resolvedSourceOrthographyId = sourceOrthographyId || sourceOrthographies[0]?.id || '';
     if ((createMode === 'copy-current' || createMode === 'derive-other') && !resolvedSourceOrthographyId) {
-      setError('请先选择来源正字法');
+      setError('\u8bf7\u5148\u9009\u62e9\u6765\u6e90\u6b63\u5b57\u6cd5');
       return undefined;
     }
     if (draftRenderWarnings.length > 0 && !renderWarningsAcknowledged) {
@@ -519,11 +519,11 @@ export function useOrthographyPicker(
         : [];
       const transformSampleCaseFailures = transformSampleCaseResults.filter((sampleCase) => sampleCase.matchesExpectation === false);
       if (transformEnabled && canConfigureTransform && transformValidationIssues.length > 0) {
-        setError(transformValidationIssues[0] ?? '变换规则校验失败');
+        setError(transformValidationIssues[0] ?? '\u53d8\u6362\u89c4\u5219\u6821\u9a8c\u5931\u8d25');
         return undefined;
       }
       if (transformEnabled && canConfigureTransform && transformSampleCaseFailures.length > 0) {
-        setError(`样例用例校验失败，共 ${transformSampleCaseFailures.length} 条未通过。`);
+        setError(`\u6837\u4f8b\u7528\u4f8b\u6821\u9a8c\u5931\u8d25\uff0c\u5171 ${transformSampleCaseFailures.length} \u6761\u672a\u901a\u8fc7\u3002`);
         return undefined;
       }
       const conversionRules = transformRules
@@ -597,7 +597,7 @@ export function useOrthographyPicker(
       setIsCreating(false);
       return created;
     } catch (creationError) {
-      setError(creationError instanceof Error ? creationError.message : '正字法创建失败');
+      setError(creationError instanceof Error ? creationError.message : '\u6b63\u5b57\u6cd5\u521b\u5efa\u5931\u8d25');
       return undefined;
     } finally {
       setSubmitting(false);

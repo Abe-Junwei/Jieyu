@@ -1,14 +1,19 @@
 import { FeatureAvailabilityPanel } from '../components/FeatureAvailabilityPanel';
+import { t, useLocale } from '../i18n';
 
 export function WritingPage() {
+  const locale = useLocale();
+
   return (
     <FeatureAvailabilityPanel
-      title="写作工作台未开放"
-      summary="参考语法章节编排与语料引文写作仍处于规划中，当前不再以可用页面对外暴露。"
+      title={t(locale, 'workspace.writing.unavailable.title')}
+      summary={t(locale, 'workspace.writing.unavailable.summary')}
+      sidePaneTitle={t(locale, 'workspace.writing.unavailable.sidePaneTitle')}
+      sidePaneSubtitle={t(locale, 'workspace.writing.unavailable.sidePaneSubtitle')}
       scope={[
-        '章节组织与提纲管理',
-        '语料引文插入与回链',
-        '写作模板与导出流程',
+        t(locale, 'workspace.writing.unavailable.scope.outline'),
+        t(locale, 'workspace.writing.unavailable.scope.citation'),
+        t(locale, 'workspace.writing.unavailable.scope.template'),
       ]}
     />
   );

@@ -33,10 +33,10 @@ export function DevErrorAggregationPanel() {
         maxWidth: 520,
         maxHeight: 260,
         overflow: 'auto',
-        background: 'rgba(10, 10, 10, 0.86)',
-        color: '#f5f5f5',
+        background: 'color-mix(in srgb, var(--surface-overlay) 86%, transparent)',
+        color: 'var(--surface-panel)',
         borderRadius: 8,
-        border: '1px solid rgba(255,255,255,0.16)',
+        border: '1px solid color-mix(in srgb, var(--surface-panel) 16%, transparent)',
         padding: '6px 8px',
         fontSize: 12,
       }}

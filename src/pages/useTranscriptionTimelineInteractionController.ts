@@ -6,6 +6,7 @@ import type { SnapGuide } from '../hooks/useTranscriptionData';
 import { handleTranscriptionCitationJump } from './TranscriptionPage.citationJump';
 import { snapToZeroCrossing } from '../services/AudioAnalysisService';
 import { fireAndForget } from '../utils/fireAndForget';
+import { t } from '../i18n';
 import {
   resolveTranscriptionSelectionAnchor,
   resolveTranscriptionUnitTarget,
@@ -69,7 +70,7 @@ interface UseTranscriptionTimelineInteractionControllerInput {
   manualSelectTsRef: MutableRefObject<number>;
   player: PlayerLike;
   locale: string;
-  layerRailRows: LayerDocType[];
+  sidePaneRows: LayerDocType[];
   selectedTimelineUtteranceId: string;
   onSetNotePopover: (state: { x: number; y: number; uttId: string; layerId?: string } | null) => void;
   onSetSidebarError: (value: string | null) => void;
@@ -140,6 +141,7 @@ interface UseTranscriptionTimelineInteractionControllerResult {
 export function useTranscriptionTimelineInteractionController(
   input: UseTranscriptionTimelineInteractionControllerInput,
 ): UseTranscriptionTimelineInteractionControllerResult {
+  const uiLocale = input.locale as Parameters<typeof t>[0];
   const waveformLayerId = input.useSegmentWaveformRegions ? input.activeLayerIdForEdits : undefined;
   const resolveWaveformUnitTarget = (unitId: string) => resolveTranscriptionUnitTarget({
     layerId: input.activeLayerIdForEdits,
@@ -179,7 +181,7 @@ export function useTranscriptionTimelineInteractionController(
       citationType,
       refId,
       ...(citationRef ? { citationRef } : {}),
-      layerRailRows: input.layerRailRows,
+      sidePaneRows: input.sidePaneRows,
       selectedTimelineUtteranceId: input.selectedTimelineUtteranceId,
       onJumpToEmbeddingMatch: handleJumpToEmbeddingMatch,
       onSetNotePopover: input.onSetNotePopover,
@@ -187,7 +189,7 @@ export function useTranscriptionTimelineInteractionController(
       onRevealSchemaLayer: input.onRevealSchemaLayer,
       onOpenPdfPreviewRequest: input.onOpenPdfPreviewRequest,
     });
-  }, [handleJumpToEmbeddingMatch, input.layerRailRows, input.locale, input.onOpenPdfPreviewRequest, input.onRevealSchemaLayer, input.onSetNotePopover, input.onSetSidebarError, input.selectedTimelineUtteranceId]);
+  }, [handleJumpToEmbeddingMatch, input.sidePaneRows, input.locale, input.onOpenPdfPreviewRequest, input.onRevealSchemaLayer, input.onSetNotePopover, input.onSetSidebarError, input.selectedTimelineUtteranceId]);
 
   const handleSplitAtTimeRequest = useCallback((timeSeconds: number) => {
     const target = input.waveformTimelineItems.find((item) => item.startTime < timeSeconds && item.endTime > timeSeconds);
@@ -272,7 +274,7 @@ export function useTranscriptionTimelineInteractionController(
         });
         await input.reloadSegments();
         if (subdivisionClampedInResize) {
-          input.setSaveState({ kind: 'done', message: '已按父句段边界自动修正时间细分区间。' });
+          input.setSaveState({ kind: 'done', message: t(uiLocale, 'transcription.timeline.timeSubdivisionClampAdjusted') });
         }
         return;
       }
@@ -419,7 +421,7 @@ export function useTranscriptionTimelineInteractionController(
         subdivisionClampedInRegionUpdate = Math.abs(clampedStart - beforeClampStart) > 0.0005
           || Math.abs(clampedEnd - beforeClampEnd) > 0.0005;
         if (beforeClampStart < parentUtterance.startTime - 0.0005 || beforeClampEnd > parentUtterance.endTime + 0.0005) {
-          input.setSaveState({ kind: 'error', message: '无法将时间细分区间拖动到父句段范围之外。' });
+          input.setSaveState({ kind: 'error', message: t(uiLocale, 'transcription.timeline.timeSubdivisionClampExceeded') });
           input.setSnapGuide({ visible: false });
           return;
         }
@@ -437,7 +439,7 @@ export function useTranscriptionTimelineInteractionController(
         });
         await input.reloadSegments();
         if (subdivisionClampedInRegionUpdate) {
-          input.setSaveState({ kind: 'done', message: '已按父句段边界自动修正时间细分区间。' });
+          input.setSaveState({ kind: 'done', message: t(uiLocale, 'transcription.timeline.timeSubdivisionClampAdjusted') });
         }
       })());
       return;

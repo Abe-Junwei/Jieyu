@@ -27,10 +27,13 @@ import {
 import { WaveformHoverTooltip } from '../components/transcription/WaveformHoverTooltip';
 import { WaveformLeftStatusStrip } from '../components/transcription/WaveformLeftStatusStrip';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
+import { LeftRailProjectHub } from '../components/transcription/LeftRailProjectHub';
 import { NoteDocumentIcon } from '../components/NoteDocumentIcon';
 import { TrackFocusToolbarControls } from '../components/transcription/toolbar/TrackFocusToolbarControls';
+import { SidePaneSidebar } from '../components/SidePaneSidebar';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { useAiPanelContextUpdater, AiPanelContext } from '../contexts/AiPanelContext';
+import { SpeakerRailProvider } from '../contexts/SpeakerRailContext';
 import { ToastProvider } from '../contexts/ToastContext';
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
 import { useRecording } from '../hooks/useRecording';
@@ -54,11 +57,11 @@ import { getUtteranceSpeakerKey } from '../hooks/useSpeakerActions';
 import {
   isUtteranceTimelineUnit,
 } from '../hooks/transcriptionTypes';
-import { detectLocale, t, tf } from '../i18n';
+import { t, tf, useLocale } from '../i18n';
 import { createLogger } from '../observability/logger';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportValidationError } from '../utils/validationErrorReporter';
-import { formatLayerRailLabel, formatTime } from '../utils/transcriptionFormatters';
+import { formatSidePaneLayerLabel, formatTime } from '../utils/transcriptionFormatters';
 import {
   INITIAL_OVERLAP_CYCLE_TELEMETRY,
   updateOverlapCycleTelemetry,
@@ -101,6 +104,7 @@ import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/useTimelineLaneHeightResi
 import type { LayerDisplaySettings } from '../db';
 
 const log = createLogger('TranscriptionPage');
+const SYSTEM_DEFAULT_FONT_KEY = '\u7cfb\u7edf\u9ed8\u8ba4';
 
 const TranscriptionPageAiSidebar = lazy(async () => import('./TranscriptionPage.AiSidebar').then((module) => ({
   default: module.TranscriptionPageAiSidebar,
@@ -120,10 +124,6 @@ const TranscriptionPageDialogs = lazy(async () => import('./TranscriptionPage.Di
 
 const TranscriptionPageTimelineContent = lazy(async () => import('./TranscriptionPage.TimelineContent').then((module) => ({
   default: module.TranscriptionPageTimelineContent,
-})));
-
-const TranscriptionPageLayerRail = lazy(async () => import('./TranscriptionPage.LayerRail').then((module) => ({
-  default: module.TranscriptionPageLayerRail,
 })));
 
 const TranscriptionPageTimelineTop = lazy(async () => import('./TranscriptionPage.TimelineTop').then((module) => ({
@@ -151,7 +151,7 @@ function TranscriptionPageOrchestrator({
   appSearchRequest,
   onConsumeAppSearchRequest,
 }: TranscriptionPageOrchestratorProps) {
-  const locale = detectLocale();
+  const locale = useLocale();
   /** Pre-bound tf for components that need (key, params) without locale */
   const tfB = (key: string, opts?: Record<string, unknown>) => tf(locale, key as Parameters<typeof tf>[1], opts as Parameters<typeof tf>[2]);
   // ---- Data layer (from hook) ----
@@ -189,7 +189,7 @@ function TranscriptionPageOrchestrator({
     translationLayers,
     transcriptionLayers,
     defaultTranscriptionLayerId,
-    layerRailRows,
+    sidePaneRows,
     deletableLayers,
     selectedUtterance,
     selectedUtteranceMedia,
@@ -281,15 +281,10 @@ function TranscriptionPageOrchestrator({
     pdfPreviewRequest,
     setPdfPreviewRequest,
     openPdfPreviewRequest,
-    isLayerRailCollapsed,
-    setIsLayerRailCollapsed,
     isAiPanelCollapsed,
     setIsAiPanelCollapsed,
-    layerRailWidth,
-    setLayerRailWidth,
     aiPanelWidth,
     setAiPanelWidth,
-    handleLayerRailToggle,
     handleAiPanelToggle,
     isHubCollapsed,
     hubHeight,
@@ -562,7 +557,7 @@ function TranscriptionPageOrchestrator({
         ...(layer.displaySettings?.fontFamily ? [layer.displaySettings.fontFamily] : []),
       ]);
       for (const fontFamily of fontCandidates) {
-        if (!fontFamily || fontFamily === '系统默认') continue;
+        if (!fontFamily || fontFamily === SYSTEM_DEFAULT_FONT_KEY) continue;
         const verifyKey = `${fontFamily}\u0000${renderPolicy.scriptTag}\u0000${renderPolicy.coverageSummary.exemplarSample}\u0000${renderPolicy.coverageSummary.exemplarCharacterCount}`;
         if (seen.has(verifyKey)) continue;
         seen.add(verifyKey);
@@ -597,11 +592,42 @@ function TranscriptionPageOrchestrator({
   const listMainRef = useRef<HTMLDivElement | null>(null);
   const workspaceRef = useRef<HTMLElement | null>(null);
   const screenRef = useRef<HTMLElement | null>(null);
+  const waveformSectionRef = useRef<HTMLElement | null>(null);
   const dragCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     return () => { dragCleanupRef.current?.(); };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (state.phase !== 'ready') return;
+
+    const waveformSection = waveformSectionRef.current;
+    const shell = screenRef.current?.closest('.app-shell');
+    if (!waveformSection || !(shell instanceof HTMLElement)) return;
+
+    const syncWorkspaceTop = () => {
+      const nextTop = Math.max(0, Math.round(waveformSection.getBoundingClientRect().height));
+      shell.style.setProperty('--transcription-workspace-top', `${nextTop}px`);
+    };
+
+    syncWorkspaceTop();
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => syncWorkspaceTop());
+      observer.observe(waveformSection);
+    }
+
+    window.addEventListener('resize', syncWorkspaceTop);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', syncWorkspaceTop);
+      shell.style.removeProperty('--transcription-workspace-top');
+    };
+  }, [state.phase]);
 
   // UI state (context menu, batch operations)
   const {
@@ -706,7 +732,7 @@ function TranscriptionPageOrchestrator({
     mergeWithNext: mergeWithNextRouted,
     onMergeTargetMissing: () => {
       reportValidationError({
-        message: '请先选择一个句段再执行合并',
+        message: t(locale, 'transcription.error.validation.mergeTargetSelectionRequired'),
         i18nKey: 'transcription.error.validation.mergeTargetSelectionRequired',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -911,12 +937,11 @@ function TranscriptionPageOrchestrator({
     manualSelectTsRef,
     player,
     locale,
-    layerRailRows,
+    sidePaneRows,
     selectedTimelineUtteranceId,
     onSetNotePopover: setNotePopover,
     onSetSidebarError: setAiSidebarError,
     onRevealSchemaLayer: (layerId) => {
-      setIsLayerRailCollapsed(false);
       setSelectedLayerId(layerId);
       setFocusedLayerRowId(layerId);
       setFlashLayerRowId(layerId);
@@ -1024,12 +1049,24 @@ function TranscriptionPageOrchestrator({
 
   usePanelAutoCollapse({
     hoverExpandEnabled,
-    isLayerRailCollapsed,
-    setIsLayerRailCollapsed,
-    listMainRef,
-    isAiPanelCollapsed,
-    setIsAiPanelCollapsed,
-    workspaceRef,
+    isCollapsed: isAiPanelCollapsed,
+    setIsCollapsed: setIsAiPanelCollapsed,
+    boundaryRef: workspaceRef,
+    panelSelector: '.transcription-ai-panel',
+    toggleSelector: '.transcription-ai-panel-toggle',
+    resizerSelector: '.transcription-ai-panel-resizer',
+    hoverZoneSelector: '.transcription-ai-panel-hover-zone',
+    ignoreSelectors: [
+      '.timeline-annotation',
+      '.timeline-annotation-input',
+      '.timeline-lane-label',
+      '#app-side-pane-body-slot',
+      '.app-side-pane',
+      '.app-side-pane-collapse-toggle',
+      '.app-side-pane-handle-cluster',
+    ],
+    ignoreInteractiveElements: true,
+    hoverExpandEdge: 'right',
   });
 
   // ---- Keybinding system (from hook) ----
@@ -1161,7 +1198,7 @@ function TranscriptionPageOrchestrator({
       layers,
       ...(voiceDictationPreviewTextProps !== undefined ? { dictationPreviewTextProps: voiceDictationPreviewTextProps } : {}),
       ...(voiceDictationPipeline !== undefined ? { dictationPipeline: voiceDictationPipeline } : {}),
-      formatLayerRailLabel,
+      formatSidePaneLayerLabel,
       formatTime,
       toggleVoiceRef,
       utterancesOnCurrentMedia,
@@ -1177,20 +1214,25 @@ function TranscriptionPageOrchestrator({
     },
   });
 
-  const { handleLayerRailResizeStart, handleAiPanelResizeStart } = usePanelResize({
-    isLayerRailCollapsed,
-    layerRailWidth,
-    setLayerRailWidth,
-    listMainRef,
-    isAiPanelCollapsed,
-    aiPanelWidth,
-    setAiPanelWidth,
-    workspaceRef,
-    dragCleanupRef,
-    isHubCollapsed,
-    hubHeight,
-    setHubHeight,
-    screenRef,
+  const { handleAiPanelResizeStart } = usePanelResize({
+    aiPanel: {
+      isCollapsed: isAiPanelCollapsed,
+      width: aiPanelWidth,
+      setWidth: setAiPanelWidth,
+      boundaryRef: workspaceRef,
+      dragCleanupRef,
+      side: 'right',
+      minWidth: 240,
+      maxWidth: 560,
+      maxWidthRatio: 0.6,
+    },
+    hub: {
+      isHubCollapsed,
+      hubHeight,
+      setHubHeight,
+      screenRef,
+      dragCleanupRef,
+    },
   });
 
   // ── Import / Export (extracted hook) ──
@@ -1207,6 +1249,8 @@ function TranscriptionPageOrchestrator({
     handleExportToolbox,
     handleExportJyt,
     handleExportJym,
+    previewProjectArchiveImport,
+    importProjectArchive,
     handleImportFile,
   } = useImportExport({
     activeTextId,
@@ -1403,7 +1447,6 @@ function TranscriptionPageOrchestrator({
     reloadSegments,
     refreshSegmentUndoSnapshot,
     updateSegmentsLocally,
-    setIsLayerRailCollapsed,
     layerAction,
   });
 
@@ -1772,11 +1815,32 @@ function TranscriptionPageOrchestrator({
               onDismiss={dismissRecoveryBanner}
             />
           </Suspense>
-          <section className="transcription-waveform">
+          <section className="transcription-waveform" ref={waveformSectionRef}>
             <Suspense fallback={null}>
               <TranscriptionPageToolbar {...toolbarProps} />
             </Suspense>
           </section>
+          <LeftRailProjectHub
+            currentProjectLabel={toolbarProps.filename}
+            canDeleteProject={Boolean(activeTextId)}
+            canDeleteAudio={Boolean(selectedTimelineMedia)}
+            onOpenProjectSetup={() => setShowProjectSetup(true)}
+            onOpenAudioImport={() => setShowAudioImport(true)}
+            onDeleteCurrentProject={handleDeleteCurrentProject}
+            onDeleteCurrentAudio={handleDeleteCurrentAudio}
+            onImportAnnotationFile={(file) => {
+              void handleImportFile(file);
+            }}
+            onPreviewProjectArchiveImport={previewProjectArchiveImport}
+            onImportProjectArchive={importProjectArchive}
+            onExportEaf={handleExportEaf}
+            onExportTextGrid={handleExportTextGrid}
+            onExportTrs={handleExportTrs}
+            onExportFlextext={handleExportFlextext}
+            onExportToolbox={handleExportToolbox}
+            onExportJyt={handleExportJyt}
+            onExportJym={handleExportJym}
+          />
 
           {/* Editor workspace: left side for row editing, right side for AI guidance. */}
           <ToastProvider>
@@ -1786,8 +1850,6 @@ function TranscriptionPageOrchestrator({
               style={{
                 '--transcription-ai-width': `${aiPanelWidth}px`,
                 '--transcription-ai-visible-width': `${isAiPanelCollapsed ? 0 : aiPanelWidth}px`,
-                '--transcription-side-pane-width': `${isLayerRailCollapsed ? 0 : layerRailWidth}px`,
-                '--transcription-rail-width': `${isLayerRailCollapsed ? 0 : layerRailWidth}px`,
               } as React.CSSProperties}
             >
               <section
@@ -1896,9 +1958,9 @@ function TranscriptionPageOrchestrator({
                                   }}
                                 >
                                   <NoteDocumentIcon
-                                    ariaLabel={`${count} 条备注`}
-                                    title={`${count} 条备注`}
-                                    style={{ width: 16, height: 16, color: '#93c5fd', opacity: 0.92 }}
+                                    ariaLabel={tf(locale, 'transcription.notes.count', { count })}
+                                    title={tf(locale, 'transcription.notes.count', { count })}
+                                    style={{ width: 16, height: 16, color: 'var(--state-info-border)', opacity: 0.92 }}
                                   />
                                 </div>
                               ))}
@@ -1977,7 +2039,7 @@ function TranscriptionPageOrchestrator({
                     onPointerDown={handleWaveformResizeStart}
                     role="separator"
                     aria-orientation="horizontal"
-                    title="拖动调整波形区高度"
+                    title={t(locale, 'transcription.wave.resizeHeight')}
                   >
                     <div className="transcription-waveform-resize-dots" />
                   </div>
@@ -1987,66 +2049,57 @@ function TranscriptionPageOrchestrator({
                 </Suspense>
                 <TimelineMainSection
                   containerRef={listMainRef}
-                  className={`transcription-list-main ${isLayerRailCollapsed ? 'transcription-list-main-rail-collapsed' : ''} ${isTimelineLaneHeaderCollapsed ? 'transcription-list-main-lane-header-collapsed' : ''}`}
+                  className={`transcription-list-main ${isTimelineLaneHeaderCollapsed ? 'transcription-list-main-lane-header-collapsed' : ''}`}
                 >
                   <TimelineRailSection>
-                    <Suspense fallback={null}>
-                      <TranscriptionPageLayerRail
-                        speakerManagement={{
-                          speakerOptions,
-                          speakerDraftName,
-                          setSpeakerDraftName,
-                          batchSpeakerId,
-                          setBatchSpeakerId,
-                          speakerSaving: speakerSavingRouted,
-                          activeSpeakerFilterKey,
-                          setActiveSpeakerFilterKey,
-                          speakerDialogState: speakerDialogStateRouted,
-                          speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
-                          speakerFilterOptions: speakerFilterOptionsForActions,
-                          speakerReferenceStats,
-                          speakerReferenceStatsReady,
-                          selectedSpeakerSummary: selectedSpeakerSummaryForActions,
-                          handleSelectSpeakerUtterances: handleSelectSpeakerUnitsRouted,
-                          handleClearSpeakerAssignments: handleClearSpeakerAssignmentsRouted,
-                          handleExportSpeakerSegments: handleExportSpeakerSegmentsRouted,
-                          handleRenameSpeaker,
-                          handleMergeSpeaker,
-                          handleDeleteSpeaker,
-                          handleDeleteUnusedSpeakers,
-                          handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,
-                          handleCreateSpeakerAndAssign: handleCreateSpeakerAndAssignRouted,
-                          handleCreateSpeakerOnly,
-                          closeSpeakerDialog: closeSpeakerDialogRouted,
-                          updateSpeakerDialogDraftName: updateSpeakerDialogDraftNameRouted,
-                          updateSpeakerDialogTargetKey: updateSpeakerDialogTargetKeyRouted,
-                          confirmSpeakerDialog: confirmSpeakerDialogRouted,
-                        }}
-                        selectedUtteranceIds={selectedSpeakerUnitIdsForActionsSet}
-                        handleAssignSpeakerToSelectedRouted={handleAssignSpeakerToSelectedRouted}
-                        handleClearSpeakerOnSelectedRouted={handleClearSpeakerOnSelectedRouted}
-                        sidebarProps={{
-                          isCollapsed: isLayerRailCollapsed,
-                          layerRailRows: orderedLayers,
-                          focusedLayerRowId,
-                          flashLayerRowId,
-                          onFocusLayer: handleFocusLayerRow,
-                          transcriptionLayers,
-                          toggleLayerLink,
-                          deletableLayers,
-                          layerCreateMessage,
-                          layerAction,
-                          onReorderLayers: reorderLayers,
-                        }}
-                        isLayerRailCollapsed={isLayerRailCollapsed}
-                        hoverExpandEnabled={hoverExpandEnabled}
-                        onLayerRailResizeStart={handleLayerRailResizeStart}
-                        onLayerRailToggle={handleLayerRailToggle}
-                        resizeLabel={t(locale, 'transcription.panel.resizeLayerRail')}
-                        expandLabel={t(locale, 'transcription.panel.expandLayerRail')}
-                        collapseLabel={t(locale, 'transcription.panel.collapseLayerRail')}
+                    <SpeakerRailProvider
+                      speakerManagement={{
+                        speakerOptions,
+                        speakerDraftName,
+                        setSpeakerDraftName,
+                        batchSpeakerId,
+                        setBatchSpeakerId,
+                        speakerSaving: speakerSavingRouted,
+                        activeSpeakerFilterKey,
+                        setActiveSpeakerFilterKey,
+                        speakerDialogState: speakerDialogStateRouted,
+                        speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
+                        speakerFilterOptions: speakerFilterOptionsForActions,
+                        speakerReferenceStats,
+                        speakerReferenceStatsReady,
+                        selectedSpeakerSummary: selectedSpeakerSummaryForActions,
+                        handleSelectSpeakerUtterances: handleSelectSpeakerUnitsRouted,
+                        handleClearSpeakerAssignments: handleClearSpeakerAssignmentsRouted,
+                        handleExportSpeakerSegments: handleExportSpeakerSegmentsRouted,
+                        handleRenameSpeaker,
+                        handleMergeSpeaker,
+                        handleDeleteSpeaker,
+                        handleDeleteUnusedSpeakers,
+                        handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,
+                        handleCreateSpeakerAndAssign: handleCreateSpeakerAndAssignRouted,
+                        handleCreateSpeakerOnly,
+                        closeSpeakerDialog: closeSpeakerDialogRouted,
+                        updateSpeakerDialogDraftName: updateSpeakerDialogDraftNameRouted,
+                        updateSpeakerDialogTargetKey: updateSpeakerDialogTargetKeyRouted,
+                        confirmSpeakerDialog: confirmSpeakerDialogRouted,
+                      }}
+                      selectedUtteranceIds={selectedSpeakerUnitIdsForActionsSet}
+                      handleAssignSpeakerToSelectedRouted={handleAssignSpeakerToSelectedRouted}
+                      handleClearSpeakerOnSelectedRouted={handleClearSpeakerOnSelectedRouted}
+                    >
+                      <SidePaneSidebar
+                        sidePaneRows={orderedLayers}
+                        focusedLayerRowId={focusedLayerRowId}
+                        flashLayerRowId={flashLayerRowId}
+                        onFocusLayer={handleFocusLayerRow}
+                        transcriptionLayers={transcriptionLayers}
+                        toggleLayerLink={toggleLayerLink}
+                        deletableLayers={deletableLayers}
+                        layerCreateMessage={layerCreateMessage}
+                        layerAction={layerAction}
+                        onReorderLayers={reorderLayers}
                       />
-                    </Suspense>
+                    </SpeakerRailProvider>
                   </TimelineRailSection>
 
                   <TimelineScrollSection
@@ -2112,11 +2165,13 @@ function TranscriptionPageOrchestrator({
                   </ToolbarLeftSection>
                   <ToolbarRightSection
                     canUndo={canUndo}
+                    canRedo={canRedo}
                     undoLabel={undoLabel}
                     undoHistory={undoHistory}
                     isHistoryVisible={showUndoHistory}
                     onToggleHistoryVisible={setShowUndoHistory}
                     onJumpToHistoryIndex={(idx) => fireAndForget(undoToHistoryIndex(idx))}
+                    onRedo={() => { fireAndForget(redo()); }}
                   />
                 </BottomToolbarSection>
               </section>
@@ -2149,9 +2204,7 @@ function TranscriptionPageOrchestrator({
                     : t(locale, 'transcription.panel.collapseAiPanel')}
                 >
                   <span className="transcription-panel-toggle-icon" aria-hidden="true">
-                    <span
-                      className={`transcription-panel-toggle-triangle ${isAiPanelCollapsed ? 'transcription-panel-toggle-triangle-left' : 'transcription-panel-toggle-triangle-right'}`}
-                    />
+                    {isAiPanelCollapsed ? '‹' : '›'}
                   </span>
                 </button>
               </div>

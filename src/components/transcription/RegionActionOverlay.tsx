@@ -7,7 +7,7 @@
 
 import type { FC } from 'react';
 import { Play, Repeat, Square } from 'lucide-react';
-import { detectLocale, t, tf } from '../../i18n';
+import { t, tf, useLocale } from '../../i18n';
 
 export interface RegionActionOverlayProps {
   // 语段几何坐标（秒） | Region geometry (seconds)
@@ -51,7 +51,7 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
 
   const showSpeedSlider = widthPx >= 160;
   const showLoopBtn = widthPx >= 72;
-  const locale = detectLocale();
+  const locale = useLocale();
 
   return (
     <div

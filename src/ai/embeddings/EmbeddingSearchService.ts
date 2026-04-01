@@ -8,7 +8,6 @@ import { resolveFusionWeightsForScenario, type SearchFusionScenario } from './se
 import {
   listUtteranceTextsFromSegmentation,
   listUtteranceTextsByUtterances,
-  listUtteranceTextsByUtterance,
 } from '../../services/LayerSegmentationTextService';
 
 export interface SearchSimilarUtterancesOptions {
@@ -36,6 +35,7 @@ export interface SimilarUtteranceMatch {
 export interface SearchSimilarUtterancesResult {
   query: string;
   matches: SimilarUtteranceMatch[];
+  warningCode?: 'query-embedding-unavailable';
 }
 
 const DEFAULT_MODEL_ID = 'Xenova/multilingual-e5-small';
@@ -191,7 +191,7 @@ export class EmbeddingSearchService {
 
     const [queryVector] = await this.provider.embed([normalizedQuery]);
     if (!queryVector || queryVector.length === 0) {
-      return { query: normalizedQuery, matches: [] };
+      return { query: normalizedQuery, matches: [], warningCode: 'query-embedding-unavailable' };
     }
 
     const db = await getDb();
@@ -253,7 +253,7 @@ export class EmbeddingSearchService {
 
     const [queryVector] = await this.provider.embed([normalizedQuery]);
     if (!queryVector || queryVector.length === 0) {
-      return { query: normalizedQuery, matches: [] };
+      return { query: normalizedQuery, matches: [], warningCode: 'query-embedding-unavailable' };
     }
 
     const db = await getDb();
@@ -328,6 +328,7 @@ export class EmbeddingSearchService {
       return {
         query: base.query,
         matches: base.matches.slice(0, topK),
+        ...(base.warningCode ? { warningCode: base.warningCode } : {}),
       };
     }
 
@@ -336,6 +337,7 @@ export class EmbeddingSearchService {
       return {
         query: base.query,
         matches: base.matches.slice(0, topK),
+        ...(base.warningCode ? { warningCode: base.warningCode } : {}),
       };
     }
 
@@ -346,34 +348,74 @@ export class EmbeddingSearchService {
       ? new Set(options.candidateSourceIds)
       : null;
 
+    const matchedUtteranceIds = [...new Set(
+      base.matches
+        .filter((match) => match.sourceType === 'utterance')
+        .map((match) => match.sourceId),
+    )];
+    const matchedNoteIds = [...new Set(
+      base.matches
+        .filter((match) => match.sourceType === 'note')
+        .map((match) => match.sourceId),
+    )];
+    const matchedPdfBaseRefs = [...new Set(
+      base.matches
+        .filter((match) => match.sourceType === 'pdf')
+        .map((match) => splitPdfCitationRef(match.sourceId).baseRef),
+    )];
+
+    const utteranceTextMap = new Map<string, string>();
+    if (matchedUtteranceIds.length > 0) {
+      const rows = await listUtteranceTextsByUtterances(db, new Set(matchedUtteranceIds));
+      const merged = new Map<string, string[]>();
+      for (const row of rows) {
+        const text = row.text?.trim();
+        if (!text) continue;
+        const list = merged.get(row.utteranceId) ?? [];
+        list.push(text);
+        merged.set(row.utteranceId, list);
+      }
+      for (const [utteranceId, chunks] of merged.entries()) {
+        utteranceTextMap.set(utteranceId, chunks.join(' '));
+      }
+    }
+
+    const noteTextMap = new Map<string, string>();
+    if (matchedNoteIds.length > 0) {
+      const noteRows = await db.dexie.user_notes.where('id').anyOf(matchedNoteIds).toArray();
+      for (const note of noteRows) {
+        const content = note.content as Record<string, string> | undefined;
+        noteTextMap.set(note.id, extractNoteText(content).trim());
+      }
+    }
+
+    const pdfTextMap = new Map<string, string>();
+    if (matchedPdfBaseRefs.length > 0) {
+      const mediaRows = await db.dexie.media_items.where('id').anyOf(matchedPdfBaseRefs).toArray();
+      for (const media of mediaRows) {
+        const details = media.details as Record<string, unknown> | undefined;
+        pdfTextMap.set(media.id, extractPdfSnippet(details, 1000));
+      }
+    }
+
     const fusedCandidates = new Map<string, { match: SimilarUtteranceMatch; rawText: string }>();
     for (const match of base.matches) {
       const sourceKey = `${match.sourceType}:${match.sourceId}`;
       if (fusedCandidates.has(sourceKey)) continue;
 
       if (match.sourceType === 'utterance') {
-        const textRows = await listUtteranceTextsByUtterance(db, match.sourceId);
-        const texts = textRows
-          .map((row) => row.text?.trim() ?? '')
-          .filter((text) => text.length > 0);
-        fusedCandidates.set(sourceKey, { match, rawText: texts.join(' ') });
+        fusedCandidates.set(sourceKey, { match, rawText: utteranceTextMap.get(match.sourceId) ?? '' });
         continue;
       }
 
       if (match.sourceType === 'note') {
-        const noteRows = await db.collections.user_notes.findByIndex('id', match.sourceId);
-        const note = noteRows[0]?.toJSON();
-        const content = note?.content as Record<string, string> | undefined;
-        fusedCandidates.set(sourceKey, { match, rawText: extractNoteText(content).trim() });
+        fusedCandidates.set(sourceKey, { match, rawText: noteTextMap.get(match.sourceId) ?? '' });
         continue;
       }
 
       if (match.sourceType === 'pdf') {
         const { baseRef } = splitPdfCitationRef(match.sourceId);
-        const mediaRows = await db.collections.media_items.findByIndex('id', baseRef);
-        const media = mediaRows[0]?.toJSON();
-        const details = media?.details as Record<string, unknown> | undefined;
-        fusedCandidates.set(sourceKey, { match, rawText: extractPdfSnippet(details, 1000) });
+        fusedCandidates.set(sourceKey, { match, rawText: pdfTextMap.get(baseRef) ?? '' });
         continue;
       }
 
@@ -498,6 +540,7 @@ export class EmbeddingSearchService {
     return {
       query: base.query,
       matches: reranked,
+      ...(base.warningCode ? { warningCode: base.warningCode } : {}),
     };
   }
 

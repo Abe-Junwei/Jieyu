@@ -60,7 +60,7 @@ interface CreateAssistantRuntimePropsInput {
     callbacks: DictationPipelineCallbacks;
     config?: QuickDictationConfig;
   };
-  formatLayerRailLabel: (layer: LayerDocType) => string;
+  formatSidePaneLayerLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   onRegisterToggleVoice: (handler?: () => void) => void;
 }
@@ -143,7 +143,7 @@ export function createAssistantRuntimeProps(input: CreateAssistantRuntimePropsIn
     layers: input.layers,
     ...(input.dictationPreviewTextProps !== undefined ? { dictationPreviewTextProps: input.dictationPreviewTextProps } : {}),
     ...(input.dictationPipeline !== undefined ? { dictationPipeline: input.dictationPipeline } : {}),
-    formatLayerRailLabel: input.formatLayerRailLabel,
+    formatSidePaneLayerLabel: input.formatSidePaneLayerLabel,
     formatTime: input.formatTime,
   };
 

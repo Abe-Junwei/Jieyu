@@ -1,18 +1,68 @@
 /**
- * Speaker utilities | 说话人工具函数
+ * Speaker utilities | \u8bf4\u8bdd\u4eba\u5de5\u5177\u51fd\u6570
  */
 
 import type { SpeakerDocType, UtteranceDocType } from '../../db';
 import type { SpeakerFilterOption, SpeakerVisual } from './types';
 
 const SPEAKER_TRACK_COLORS = [
-  '#2563eb', '#0f766e', '#c2410c', '#7c3aed', '#be123c', '#15803d', '#b45309', '#0891b2',
+  'var(--state-info-solid)',
+  'var(--state-success-text)',
+  'var(--state-warning-text)',
+  'color-mix(in srgb, var(--state-info-solid) 72%, var(--state-danger-solid))',
+  'var(--state-danger-solid)',
+  'var(--state-success-solid)',
+  'var(--state-warning-solid)',
+  'color-mix(in srgb, var(--state-info-solid) 82%, var(--state-success-solid))',
 ] as const;
 
 type SpeakerKeyAssignment = {
   unitId: string;
   speakerKey: string;
 };
+
+export interface SpeakerDisplayLabels {
+  unnamedSpeaker: string;
+  unassignedSpeaker: string;
+}
+
+export interface SpeakerSelectionSummaryLabels extends SpeakerDisplayLabels {
+  noSelectionUtterances: string;
+  noneAssignedUtterances: string;
+  singleSpeakerSummary: (speakerName: string) => string;
+  multipleSpeakersSummary: (count: number) => string;
+}
+
+const DEFAULT_SPEAKER_DISPLAY_LABELS: SpeakerDisplayLabels = {
+  unnamedSpeaker: '\u672a\u547d\u540d\u8bf4\u8bdd\u4eba',
+  unassignedSpeaker: '\u672a\u6807\u6ce8',
+};
+
+const DEFAULT_SPEAKER_SELECTION_SUMMARY_LABELS: SpeakerSelectionSummaryLabels = {
+  ...DEFAULT_SPEAKER_DISPLAY_LABELS,
+  noSelectionUtterances: '\u672a\u9009\u62e9\u53e5\u6bb5',
+  noneAssignedUtterances: '\u5f53\u524d\u53e5\u6bb5\u5747\u672a\u6807\u6ce8\u8bf4\u8bdd\u4eba',
+  singleSpeakerSummary: (speakerName) => `\u5f53\u524d\u7edf\u4e00\u8bf4\u8bdd\u4eba：${speakerName}`,
+  multipleSpeakersSummary: (count) => `\u5f53\u524d\u6d89\u53ca ${count} \u4f4d\u8bf4\u8bdd\u4eba`,
+};
+
+function resolveSpeakerDisplayLabels(
+  labels?: Partial<SpeakerDisplayLabels>,
+): SpeakerDisplayLabels {
+  return {
+    ...DEFAULT_SPEAKER_DISPLAY_LABELS,
+    ...labels,
+  };
+}
+
+function resolveSpeakerSelectionSummaryLabels(
+  labels?: Partial<SpeakerSelectionSummaryLabels>,
+): SpeakerSelectionSummaryLabels {
+  return {
+    ...DEFAULT_SPEAKER_SELECTION_SUMMARY_LABELS,
+    ...labels,
+  };
+}
 
 function hashSpeakerKey(value: string): number {
   let hash = 0;
@@ -50,27 +100,35 @@ export function upsertSpeaker(speakers: SpeakerDocType[], nextSpeaker: SpeakerDo
 
 export function getSpeakerDisplayNameByKey(
   speakerKey: string,
-  speakerById: Map<string, SpeakerDocType>,
+  speakerById: ReadonlyMap<string, SpeakerDocType>,
+  labels?: Partial<SpeakerDisplayLabels>,
 ): string {
   const normalizedKey = speakerKey.trim();
-  if (!normalizedKey || normalizedKey === 'unknown-speaker') return '未命名说话人';
+  if (!normalizedKey || normalizedKey === 'unknown-speaker') {
+    return resolveSpeakerDisplayLabels(labels).unnamedSpeaker;
+  }
   return speakerById.get(normalizedKey)?.name ?? normalizedKey;
 }
 
 export function getSpeakerDisplayName(
   utterance: Pick<UtteranceDocType, 'speakerId' | 'speaker'>,
-  speakerById: Map<string, SpeakerDocType>,
+  speakerById: ReadonlyMap<string, SpeakerDocType>,
+  labels?: Partial<SpeakerDisplayLabels>,
 ): string {
+  const resolvedLabels = resolveSpeakerDisplayLabels(labels);
   const speakerId = utterance.speakerId?.trim();
   if (speakerId) {
-    return speakerById.get(speakerId)?.name ?? normalizeSpeakerName(utterance.speaker) ?? speakerId;
+    const mappedName = speakerById.get(speakerId)?.name;
+    const legacyName = normalizeSpeakerName(utterance.speaker);
+    return mappedName || legacyName || speakerId;
   }
-  return normalizeSpeakerName(utterance.speaker) || '未命名说话人';
+  return normalizeSpeakerName(utterance.speaker) || resolvedLabels.unnamedSpeaker;
 }
 
 export function buildSpeakerVisualMapFromKeys(
   assignments: SpeakerKeyAssignment[],
   speakerOptions: SpeakerDocType[],
+  labels?: Partial<SpeakerDisplayLabels>,
 ): Record<string, SpeakerVisual> {
   const speakerById = new Map(speakerOptions.map((speaker) => [speaker.id, speaker] as const));
   const nextMap: Record<string, SpeakerVisual> = {};
@@ -80,7 +138,7 @@ export function buildSpeakerVisualMapFromKeys(
     const color = SPEAKER_TRACK_COLORS[hashSpeakerKey(speakerKey) % SPEAKER_TRACK_COLORS.length]
       ?? SPEAKER_TRACK_COLORS[0];
     nextMap[assignment.unitId] = {
-      name: getSpeakerDisplayNameByKey(speakerKey, speakerById),
+      name: getSpeakerDisplayNameByKey(speakerKey, speakerById, labels),
       color,
     };
   }
@@ -90,7 +148,9 @@ export function buildSpeakerVisualMapFromKeys(
 export function buildSpeakerFilterOptionsFromKeys(
   assignments: SpeakerKeyAssignment[],
   speakerVisualByUnitId: Record<string, SpeakerVisual>,
+  labels?: Partial<SpeakerDisplayLabels>,
 ): SpeakerFilterOption[] {
+  const resolvedLabels = resolveSpeakerDisplayLabels(labels);
   const counter = new Map<string, SpeakerFilterOption>();
   for (const assignment of assignments) {
     const key = assignment.speakerKey.trim();
@@ -103,7 +163,7 @@ export function buildSpeakerFilterOptionsFromKeys(
     }
     counter.set(key, {
       key,
-      name: speakerVisual?.name ?? '未标注说话人',
+      name: speakerVisual?.name ?? resolvedLabels.unassignedSpeaker,
       count: 1,
       ...(speakerVisual?.color ? { color: speakerVisual.color } : {}),
     });
@@ -116,6 +176,7 @@ export function buildSpeakerFilterOptionsFromKeys(
 export function buildSpeakerVisualMap(
   utterances: UtteranceDocType[],
   speakerOptions: SpeakerDocType[],
+  labels?: Partial<SpeakerDisplayLabels>,
 ): Record<string, SpeakerVisual> {
   return buildSpeakerVisualMapFromKeys(
     utterances.map((utterance) => ({
@@ -123,12 +184,14 @@ export function buildSpeakerVisualMap(
       speakerKey: getUtteranceSpeakerKey(utterance),
     })),
     speakerOptions,
+    labels,
   );
 }
 
 export function buildSpeakerFilterOptions(
   utterances: UtteranceDocType[],
   speakerVisualByUtteranceId: Record<string, SpeakerVisual>,
+  labels?: Partial<SpeakerDisplayLabels>,
 ): SpeakerFilterOption[] {
   return buildSpeakerFilterOptionsFromKeys(
     utterances.map((utterance) => ({
@@ -136,24 +199,29 @@ export function buildSpeakerFilterOptions(
       speakerKey: getUtteranceSpeakerKey(utterance),
     })),
     speakerVisualByUtteranceId,
+    labels,
   );
 }
 
 export function buildSelectedSpeakerSummary(
   selectedBatchUtterances: UtteranceDocType[],
   speakerOptions: SpeakerDocType[],
+  labels?: Partial<SpeakerSelectionSummaryLabels>,
 ): string {
-  if (selectedBatchUtterances.length === 0) return '未选择句段';
+  const resolvedLabels = resolveSpeakerSelectionSummaryLabels(labels);
+  if (selectedBatchUtterances.length === 0) {
+    return resolvedLabels.noSelectionUtterances;
+  }
   const speakerById = new Map(speakerOptions.map((speaker) => [speaker.id, speaker] as const));
   const assigned = selectedBatchUtterances.filter((utterance) => getUtteranceSpeakerKey(utterance));
-  if (assigned.length === 0) return '已选句段均未标注说话人';
+  if (assigned.length === 0) return resolvedLabels.noneAssignedUtterances;
   const keys = new Set(assigned.map((utterance) => getUtteranceSpeakerKey(utterance)));
   if (keys.size === 1) {
     const first = assigned[0];
-    if (!first) return '已选句段均未标注说话人';
-    return `当前统一说话人：${getSpeakerDisplayName(first, speakerById)}`;
+    if (!first) return resolvedLabels.noneAssignedUtterances;
+    return resolvedLabels.singleSpeakerSummary(getSpeakerDisplayName(first, speakerById, resolvedLabels));
   }
-  return `当前包含 ${keys.size} 位说话人`;
+  return resolvedLabels.multipleSpeakersSummary(keys.size);
 }
 
 export function applySpeakerAssignmentToUtterances(

@@ -7,6 +7,7 @@
  */
 import { useCallback, useEffect, useRef } from 'react';
 import type { UtteranceDocType } from '../db';
+import { t, useLocale } from '../i18n';
 
 interface WaveformOverviewBarProps {
   duration: number;
@@ -24,8 +25,17 @@ export function WaveformOverviewBar({
   onSeek,
   isReady,
 }: WaveformOverviewBarProps) {
+  const locale = useLocale();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDraggingRef = useRef(false);
+
+  const readThemeColor = useCallback((token: string, fallbackToken?: string) => {
+    const styles = getComputedStyle(document.documentElement);
+    const value = styles.getPropertyValue(token).trim();
+    if (value) return value;
+    if (fallbackToken) return styles.getPropertyValue(fallbackToken).trim() || 'transparent';
+    return 'transparent';
+  }, []);
 
   /** 绘制鸟瞰图 | Render the overview onto the canvas */
   const draw = useCallback(() => {
@@ -44,11 +54,11 @@ export function WaveformOverviewBar({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // 背景 | Background
-    ctx.fillStyle = '#e8edf3';
+    ctx.fillStyle = readThemeColor('--surface-elevated', '--surface-panel');
     ctx.fillRect(0, 0, W, H);
 
     // 语段色块 | Utterance segments
-    ctx.fillStyle = '#3b82f6';
+    ctx.fillStyle = readThemeColor('--state-info-solid', '--header-accent');
     ctx.globalAlpha = 0.55;
     for (const utt of utterances) {
       const start = Math.max(0, Math.min(duration, utt.startTime));
@@ -63,13 +73,15 @@ export function WaveformOverviewBar({
     if (rulerView) {
       const vx = (rulerView.start / duration) * W;
       const vw = Math.max(4, ((rulerView.end - rulerView.start) / duration) * W);
-      ctx.fillStyle = 'rgba(220, 38, 38, 0.10)';
+      ctx.fillStyle = readThemeColor('--state-danger-solid', '--header-accent');
+      ctx.globalAlpha = 0.10;
       ctx.fillRect(vx, 0, vw, H);
-      ctx.strokeStyle = '#dc2626';
+      ctx.globalAlpha = 1.0;
+      ctx.strokeStyle = readThemeColor('--state-danger-solid', '--header-accent');
       ctx.lineWidth = 1.5;
       ctx.strokeRect(vx + 0.75, 0.75, vw - 1.5, H - 1.5);
     }
-  }, [duration, utterances, rulerView]);
+  }, [duration, readThemeColor, utterances, rulerView]);
 
   /** 绑定 ResizeObserver，使 canvas 跟随容器宽度 | Bind ResizeObserver to follow container width */
   useEffect(() => {
@@ -103,7 +115,7 @@ export function WaveformOverviewBar({
   if (!isReady || duration <= 0) return null;
 
   return (
-    <div className="waveform-overview-bar" title="鸟瞰导航：点击或拖动定位 | Minimap: click or drag to seek">
+    <div className="waveform-overview-bar" title={t(locale, 'transcription.wave.overviewTooltip')}>
       <canvas
         ref={canvasRef}
         className="waveform-overview-canvas"

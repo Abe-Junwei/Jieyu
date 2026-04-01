@@ -25,8 +25,37 @@ import {
   type UtteranceTextWithoutLayerId,
   withUtteranceTextLayerId,
 } from '../services/LayerIdBridgeService';
+import { type Locale, t, tf, useLocale } from '../i18n';
 
 const log = createLogger('useTranscriptionUtteranceActions');
+
+const UNDO_LABEL_KEYS = {
+  editUtteranceText: 'transcription.utteranceAction.undo.editText',
+  updateTiming: 'transcription.utteranceAction.undo.updateTiming',
+  clearTranslationText: 'transcription.utteranceAction.undo.clearTranslation',
+  editTranslationText: 'transcription.utteranceAction.undo.editTranslation',
+  createNextUtterance: 'transcription.utteranceAction.undo.createNext',
+  createFromSelection: 'transcription.utteranceAction.undo.createFromSelection',
+  deleteUtterance: 'transcription.utteranceAction.undo.delete',
+  mergeWithPrevious: 'transcription.utteranceAction.undo.mergePrevious',
+  mergeWithNext: 'transcription.utteranceAction.undo.mergeNext',
+  splitUtterance: 'transcription.utteranceAction.undo.split',
+  deleteSelectedUtterances: 'transcription.utteranceAction.undo.deleteSelection',
+  offsetSelectedTimes: 'transcription.utteranceAction.undo.offsetSelection',
+  scaleSelectedTimes: 'transcription.utteranceAction.undo.scaleSelection',
+  splitByRegex: 'transcription.utteranceAction.undo.regexSplitSelection',
+  mergeSelectedUtterances: 'transcription.utteranceAction.undo.mergeSelection',
+} as const;
+
+type UndoLabelKey = keyof typeof UNDO_LABEL_KEYS;
+
+function getUndoLabel(locale: Locale, key: UndoLabelKey): string {
+  return t(locale, UNDO_LABEL_KEYS[key]);
+}
+
+function resolveErrorDetail(locale: Locale, error: unknown): string {
+  return error instanceof Error ? error.message : t(locale, 'transcription.error.common.unknown');
+}
 
 type LegacySpeakerLinkedUtteranceText = UtteranceTextDocType & {
   recordedBySpeakerId?: string;
@@ -39,9 +68,11 @@ function stripSpeakerAssociationFromTranslationText(doc: UtteranceTextDocType): 
   return rest as UtteranceTextDocType;
 }
 
-function formatRollbackFailureMessage(actionLabel: string, error: unknown): string {
-  const message = error instanceof Error ? error.message : '未知错误';
-  return `${actionLabel}失败，已回滚：${message}`;
+function formatRollbackFailureMessage(locale: Locale, actionKey: UndoLabelKey, error: unknown): string {
+  return tf(locale, 'transcription.error.action.rollbackAfterFailure', {
+    action: getUndoLabel(locale, actionKey),
+    message: resolveErrorDetail(locale, error),
+  });
 }
 
 function resolveProjectionLayerIdsForNewUtterance(
@@ -121,6 +152,8 @@ export function useTranscriptionUtteranceActions({
   setSelectedTimelineUnit,
   allowOverlapInTranscription = false,
 }: TranscriptionUtteranceActionsParams) {
+  const locale = useLocale();
+
   const selectUtterancePrimary = useCallback((id: string) => {
     setSelectedUtteranceIds(id ? new Set([id]) : new Set());
     setSelectedTimelineUnit?.(id ? createTimelineUnit(defaultTranscriptionLayerId ?? '', id, 'utterance') : null);
@@ -152,7 +185,7 @@ export function useTranscriptionUtteranceActions({
       || (targetLayer.layerType === 'transcription'
         && (targetLayer.isDefault === true || targetLayer.id === defaultTranscriptionLayerId));
 
-    pushUndo('编辑转写文本');
+    pushUndo(getUndoLabel(locale, 'editUtteranceText'));
     const db = await getDb();
     const now = new Date().toISOString();
     const normalizedValue = value.trim();
@@ -216,15 +249,15 @@ export function useTranscriptionUtteranceActions({
       setUtteranceDrafts((prev) => ({ ...prev, [utteranceId]: value }));
     }
 
-    setSaveState({ kind: 'done', message: '已更新转写文本' });
-  }, [defaultTranscriptionLayerId, layerById, pushUndo, resolveUtteranceById, setSaveState, setTranslations, setUtteranceDrafts]);
+    setSaveState({ kind: 'done', message: t(locale, 'transcription.utteranceAction.done.textUpdated') });
+  }, [defaultTranscriptionLayerId, layerById, locale, pushUndo, resolveUtteranceById, setSaveState, setTranslations, setUtteranceDrafts]);
 
   const saveUtteranceTiming = useCallback(async (utteranceId: string, startTime: number, endTime: number) => {
     const db = await getDb();
     const target = await db.collections.utterances.findOne({ selector: { id: utteranceId } }).exec();
     if (!target) {
       reportValidationError({
-        message: '未找到目标句子，无法更新时间戳',
+        message: t(locale, 'transcription.error.validation.updateTimingTargetMissing'),
         i18nKey: 'transcription.error.validation.updateTimingTargetMissing',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -254,7 +287,7 @@ export function useTranscriptionUtteranceActions({
 
     if (Number.isFinite(upperBound) && upperBound - lowerBound < minSpan) {
       reportValidationError({
-        message: '相邻区间过近，无法调整到有效长度。',
+        message: t(locale, 'transcription.error.validation.updateTimingNoValidSpan'),
         i18nKey: 'transcription.error.validation.updateTimingNoValidSpan',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -278,7 +311,7 @@ export function useTranscriptionUtteranceActions({
       );
       timingUndoRef.current = undoDecision.next;
       if (undoDecision.shouldPush) {
-        pushUndo('调整时间区间');
+        pushUndo(getUndoLabel(locale, 'updateTiming'));
       }
     }
 
@@ -301,14 +334,17 @@ export function useTranscriptionUtteranceActions({
     setUtterances((prev) => prev.map((item) => (item.id === utteranceId ? updated : item)));
     setSaveState({
       kind: 'done',
-      message: `已更新时间区间 ${formatTime(updated.startTime)} - ${formatTime(updated.endTime)}`,
+      message: tf(locale, 'transcription.utteranceAction.done.timingUpdated', {
+        start: formatTime(updated.startTime),
+        end: formatTime(updated.endTime),
+      }),
     });
-  }, [allowOverlapInTranscription, pushUndo, setSaveState, setSnapGuide, setUtterances, timingGestureRef, timingUndoRef, updateAnchorTime]);
+  }, [allowOverlapInTranscription, locale, pushUndo, setSaveState, setSnapGuide, setUtterances, timingGestureRef, timingUndoRef, updateAnchorTime]);
 
   const saveTextTranslationForUtterance = useCallback(async (utteranceId: string, value: string, layerId: string) => {
     if (!layerId) {
       reportValidationError({
-        message: '请先选择翻译层',
+        message: t(locale, 'transcription.error.validation.translationLayerRequired'),
         i18nKey: 'transcription.error.validation.translationLayerRequired',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -318,8 +354,8 @@ export function useTranscriptionUtteranceActions({
     const targetLayer = layerById.get(layerId);
     if (!targetLayer || targetLayer.layerType !== 'translation') {
       reportValidationError({
-        message: '目标层不是翻译层，无法保存翻译文本',
-        i18nKey: 'transcription.error.validation.translationLayerRequired',
+        message: t(locale, 'transcription.error.validation.translationLayerInvalid'),
+        i18nKey: 'transcription.error.validation.translationLayerInvalid',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
       return;
@@ -341,15 +377,15 @@ export function useTranscriptionUtteranceActions({
     if (!trimmed) {
       const existing = candidates[0];
       if (existing) {
-        pushUndo('清空翻译文本');
+        pushUndo(getUndoLabel(locale, 'clearTranslationText'));
         await removeUtteranceTextFromSegmentationV2(db, existing);
         setTranslations((prev) => prev.filter((item) => item.id !== existing.id));
-        setSaveState({ kind: 'done', message: '已清空翻译文本' });
+        setSaveState({ kind: 'done', message: t(locale, 'transcription.utteranceAction.done.translationCleared') });
       }
       return;
     }
 
-    pushUndo('编辑翻译文本');
+    pushUndo(getUndoLabel(locale, 'editTranslationText'));
     const existing = [...candidates].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
 
     if (existing) {
@@ -384,11 +420,11 @@ export function useTranscriptionUtteranceActions({
       setTranslations((prev) => [...prev, newTranslation]);
     }
 
-    setSaveState({ kind: 'done', message: '已更新翻译文本' });
-  }, [layerById, pushUndo, resolveUtteranceById, setSaveState, setTranslations]);
+    setSaveState({ kind: 'done', message: t(locale, 'transcription.utteranceAction.done.translationUpdated') });
+  }, [layerById, locale, pushUndo, resolveUtteranceById, setSaveState, setTranslations]);
 
   const createNextUtterance = useCallback(async (base: UtteranceDocType, playerDuration: number) => {
-    pushUndo('创建句段');
+    pushUndo(getUndoLabel(locale, 'createNextUtterance'));
     const db = await getDb();
     const now = new Date().toISOString();
 
@@ -419,14 +455,20 @@ export function useTranscriptionUtteranceActions({
     setUtterances((prev) => [...prev, newUtterance]);
     setUtteranceDrafts((prev) => ({ ...prev, [createdId]: '' }));
     selectUtterancePrimary(createdId);
-    setSaveState({ kind: 'done', message: `已创建新区间 ${formatTime(start)} - ${formatTime(finalEnd)}` });
-  }, [createAnchor, pushUndo, selectUtterancePrimary, setSaveState, setUtteranceDrafts, setUtterances]);
+    setSaveState({
+      kind: 'done',
+      message: tf(locale, 'transcription.utteranceAction.done.createNext', {
+        start: formatTime(start),
+        end: formatTime(finalEnd),
+      }),
+    });
+  }, [createAnchor, locale, pushUndo, selectUtterancePrimary, setSaveState, setUtteranceDrafts, setUtterances]);
 
   const createUtteranceFromSelection = useCallback(async (start: number, end: number, options?: { speakerId?: string; focusedLayerId?: string }) => {
     const media = selectedUtteranceMedia;
     if (!media) {
       reportValidationError({
-        message: '请先导入并选择音频。',
+        message: t(locale, 'transcription.error.validation.mediaRequired'),
         i18nKey: 'transcription.error.validation.mediaRequired',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -463,14 +505,14 @@ export function useTranscriptionUtteranceActions({
 
     if (!Number.isFinite(boundedEnd) || boundedEnd - boundedStart < minSpan) {
       reportValidationError({
-        message: '选区与现有句段重叠，无法创建。请在空白区重新拖拽。',
+        message: t(locale, 'transcription.error.validation.createFromSelectionOverlap'),
         i18nKey: 'transcription.error.validation.createFromSelectionOverlap',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
       return;
     }
 
-    pushUndo('从选区创建句段');
+    pushUndo(getUndoLabel(locale, 'createFromSelection'));
 
     const db = await getDb();
     const now = new Date().toISOString();
@@ -525,21 +567,27 @@ export function useTranscriptionUtteranceActions({
     setUtterances((prev) => [...prev, newUtterance]);
     setUtteranceDrafts((prev) => ({ ...prev, [createdId]: '' }));
     selectUtterancePrimary(createdId);
-    setSaveState({ kind: 'done', message: `已新建句段 ${formatTime(finalStart)} - ${formatTime(finalEnd)}` });
-  }, [allowOverlapInTranscription, createAnchor, defaultTranscriptionLayerId, pushUndo, selectedUtteranceMedia, selectUtterancePrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, utterancesRef]);
+    setSaveState({
+      kind: 'done',
+      message: tf(locale, 'transcription.utteranceAction.done.createFromSelection', {
+        start: formatTime(finalStart),
+        end: formatTime(finalEnd),
+      }),
+    });
+  }, [allowOverlapInTranscription, createAnchor, defaultTranscriptionLayerId, locale, pushUndo, selectedUtteranceMedia, selectUtterancePrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, utterancesRef]);
 
   const deleteUtterance = useCallback(async (utteranceId: string) => {
     const target = utterancesRef.current.find((u) => u.id === utteranceId);
     if (!target) {
       reportValidationError({
-        message: '未找到目标句段',
+        message: t(locale, 'transcription.error.validation.deleteTargetMissing'),
         i18nKey: 'transcription.error.validation.deleteTargetMissing',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
       return;
     }
 
-    pushUndo('删除句段');
+    pushUndo(getUndoLabel(locale, 'deleteUtterance'));
     await LinguisticService.removeUtterance(utteranceId);
 
     setUtterances((prev) => prev.filter((u) => u.id !== utteranceId));
@@ -549,8 +597,8 @@ export function useTranscriptionUtteranceActions({
     const db = await getDb();
     await pruneOrphanAnchors(db, new Set([utteranceId]));
 
-    setSaveState({ kind: 'done', message: '已删除句段' });
-  }, [activeUtteranceUnitId, clearSelection, pruneOrphanAnchors, pushUndo, setSaveState, setTranslations, setUtterances, utterancesRef]);
+    setSaveState({ kind: 'done', message: t(locale, 'transcription.utteranceAction.done.deleted') });
+  }, [activeUtteranceUnitId, clearSelection, locale, pruneOrphanAnchors, pushUndo, setSaveState, setTranslations, setUtterances, utterancesRef]);
 
   const reassignTranslations = useCallback(async (
     survivorId: string,
@@ -603,7 +651,7 @@ export function useTranscriptionUtteranceActions({
     const idx = sorted.findIndex((u) => u.id === utteranceId);
     if (idx <= 0) {
       reportValidationError({
-        message: '没有前一句段可合并',
+        message: t(locale, 'transcription.error.validation.mergePreviousUnavailable'),
         i18nKey: 'transcription.error.validation.mergePreviousUnavailable',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -612,7 +660,7 @@ export function useTranscriptionUtteranceActions({
     const prev = sorted[idx - 1]!;
     const curr = sorted[idx]!;
 
-    pushUndo('向前合并句段');
+    pushUndo(getUndoLabel(locale, 'mergeWithPrevious'));
     const db = await getDb();
     const now = new Date().toISOString();
     const updated: UtteranceDocType = {
@@ -636,8 +684,14 @@ export function useTranscriptionUtteranceActions({
     });
     selectUtterancePrimary(prev.id);
     await pruneOrphanAnchors(db, new Set([curr.id]));
-    setSaveState({ kind: 'done', message: `已向前合并 ${formatTime(updated.startTime)} - ${formatTime(updated.endTime)}` });
-  }, [pruneOrphanAnchors, pushUndo, reassignTranslations, selectUtterancePrimary, setSaveState, setTranslations, setUtterances, utterancesRef]);
+    setSaveState({
+      kind: 'done',
+      message: tf(locale, 'transcription.utteranceAction.done.mergePrevious', {
+        start: formatTime(updated.startTime),
+        end: formatTime(updated.endTime),
+      }),
+    });
+  }, [locale, pruneOrphanAnchors, pushUndo, reassignTranslations, selectUtterancePrimary, setSaveState, setTranslations, setUtterances, utterancesRef]);
 
   const mergeWithNext = useCallback(async (utteranceId: string) => {
     const sorted = utterancesRef.current
@@ -646,7 +700,7 @@ export function useTranscriptionUtteranceActions({
     const idx = sorted.findIndex((u) => u.id === utteranceId);
     if (idx < 0 || idx >= sorted.length - 1) {
       reportValidationError({
-        message: '没有后一句段可合并',
+        message: t(locale, 'transcription.error.validation.mergeNextUnavailable'),
         i18nKey: 'transcription.error.validation.mergeNextUnavailable',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -655,7 +709,7 @@ export function useTranscriptionUtteranceActions({
     const curr = sorted[idx]!;
     const next = sorted[idx + 1]!;
 
-    pushUndo('向后合并句段');
+    pushUndo(getUndoLabel(locale, 'mergeWithNext'));
     const db = await getDb();
     const now = new Date().toISOString();
     const updated: UtteranceDocType = {
@@ -679,14 +733,20 @@ export function useTranscriptionUtteranceActions({
     });
     selectUtterancePrimary(curr.id);
     await pruneOrphanAnchors(db, new Set([next.id]));
-    setSaveState({ kind: 'done', message: `已向后合并 ${formatTime(updated.startTime)} - ${formatTime(updated.endTime)}` });
-  }, [pruneOrphanAnchors, pushUndo, reassignTranslations, selectUtterancePrimary, setSaveState, setTranslations, setUtterances, utterancesRef]);
+    setSaveState({
+      kind: 'done',
+      message: tf(locale, 'transcription.utteranceAction.done.mergeNext', {
+        start: formatTime(updated.startTime),
+        end: formatTime(updated.endTime),
+      }),
+    });
+  }, [locale, pruneOrphanAnchors, pushUndo, reassignTranslations, selectUtterancePrimary, setSaveState, setTranslations, setUtterances, utterancesRef]);
 
   const splitUtterance = useCallback(async (utteranceId: string, splitTime: number) => {
     const target = utterancesRef.current.find((u) => u.id === utteranceId);
     if (!target) {
       reportValidationError({
-        message: '未找到目标句段',
+        message: t(locale, 'transcription.error.validation.splitTargetMissing'),
         i18nKey: 'transcription.error.validation.splitTargetMissing',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -695,14 +755,14 @@ export function useTranscriptionUtteranceActions({
     const minSpan = 0.05;
     if (splitTime - target.startTime < minSpan || target.endTime - splitTime < minSpan) {
       reportValidationError({
-        message: '拆分点过于接近句段边界',
+        message: t(locale, 'transcription.error.validation.splitPointTooClose'),
         i18nKey: 'transcription.error.validation.splitPointTooClose',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
       return;
     }
 
-    pushUndo('拆分句段');
+    pushUndo(getUndoLabel(locale, 'splitUtterance'));
     const db = await getDb();
     const now = new Date().toISOString();
     const text = getUtteranceTextForLayer(target);
@@ -753,14 +813,20 @@ export function useTranscriptionUtteranceActions({
     setTranslations((prev) => [...prev, ...copiedTranslations]);
     setUtteranceDrafts((prev) => ({ ...prev, [utteranceId]: text, [secondId]: text }));
     selectUtterancePrimary(secondId);
-    setSaveState({ kind: 'done', message: `已拆分为 ${formatTime(updatedFirst.startTime)}-${formatTime(updatedFirst.endTime)} 和 ${formatTime(secondHalf.startTime)}-${formatTime(secondHalf.endTime)}` });
-  }, [createAnchor, getUtteranceTextForLayer, pushUndo, selectUtterancePrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, translations, utterancesRef]);
+    setSaveState({
+      kind: 'done',
+      message: tf(locale, 'transcription.utteranceAction.done.split', {
+        firstRange: `${formatTime(updatedFirst.startTime)}-${formatTime(updatedFirst.endTime)}`,
+        secondRange: `${formatTime(secondHalf.startTime)}-${formatTime(secondHalf.endTime)}`,
+      }),
+    });
+  }, [createAnchor, getUtteranceTextForLayer, locale, pushUndo, selectUtterancePrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, translations, utterancesRef]);
 
   const deleteSelectedUtterances = useCallback(async (ids: Set<string>) => {
     const targets = utterancesRef.current.filter((u) => ids.has(u.id));
     if (targets.length === 0) return;
 
-    pushUndo('批量删除句段');
+    pushUndo(getUndoLabel(locale, 'deleteSelectedUtterances'));
     const idsToDelete = targets.map((u) => u.id);
     await LinguisticService.removeUtterancesBatch(idsToDelete);
 
@@ -771,8 +837,11 @@ export function useTranscriptionUtteranceActions({
 
     const dbInst = await getDb();
     await pruneOrphanAnchors(dbInst, idsToDeleteSet);
-    setSaveState({ kind: 'done', message: `已删除 ${targets.length} 个句段` });
-  }, [clearSelection, pruneOrphanAnchors, pushUndo, setSaveState, setTranslations, setUtterances, utterancesRef]);
+    setSaveState({
+      kind: 'done',
+      message: tf(locale, 'transcription.utteranceAction.done.deleteSelection', { count: targets.length }),
+    });
+  }, [clearSelection, locale, pruneOrphanAnchors, pushUndo, setSaveState, setTranslations, setUtterances, utterancesRef]);
 
   const offsetSelectedTimes = useCallback(async (ids: Set<string>, deltaSec: number) => {
     const targets = utterancesOnCurrentMediaRef.current
@@ -789,7 +858,7 @@ export function useTranscriptionUtteranceActions({
       const endTime = Number((u.endTime + deltaSec).toFixed(3));
       if (startTime < 0 || endTime - startTime < minSpan) {
         reportValidationError({
-          message: '时间偏移后出现负时间或句段过短，操作已取消。',
+          message: t(locale, 'transcription.error.validation.offsetInvalidRange'),
           i18nKey: 'transcription.error.validation.offsetInvalidRange',
           setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
         });
@@ -808,7 +877,7 @@ export function useTranscriptionUtteranceActions({
       for (let i = 1; i < timeline.length; i++) {
         if (timeline[i]!.startTime < timeline[i - 1]!.endTime + gap) {
           reportValidationError({
-            message: '时间偏移会造成句段重叠，操作已取消。',
+            message: t(locale, 'transcription.error.validation.offsetOverlap'),
             i18nKey: 'transcription.error.validation.offsetOverlap',
             setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
           });
@@ -817,7 +886,7 @@ export function useTranscriptionUtteranceActions({
       }
     }
 
-    pushUndo('批量时间偏移');
+    pushUndo(getUndoLabel(locale, 'offsetSelectedTimes'));
     try {
       const db = await getDb();
       const now = new Date().toISOString();
@@ -839,7 +908,13 @@ export function useTranscriptionUtteranceActions({
 
       const byId = new Map(updatedRows.map((row) => [row.id, row]));
       setUtterances((prev) => prev.map((u) => byId.get(u.id) ?? u));
-      setSaveState({ kind: 'done', message: `已偏移 ${updatedRows.length} 个句段（${deltaSec >= 0 ? '+' : ''}${deltaSec.toFixed(3)}s）` });
+      setSaveState({
+        kind: 'done',
+        message: tf(locale, 'transcription.utteranceAction.done.offsetSelection', {
+          count: updatedRows.length,
+          delta: `${deltaSec >= 0 ? '+' : ''}${deltaSec.toFixed(3)}s`,
+        }),
+      });
     } catch (error) {
       if (rollbackUndo) {
         try {
@@ -850,21 +925,21 @@ export function useTranscriptionUtteranceActions({
           });
         }
       }
-      const message = error instanceof Error ? error.message : '未知错误';
+      const message = resolveErrorDetail(locale, error);
       log.error('offsetSelectedTimes failed', {
         targetCount: targets.length,
         deltaSec,
         error: message,
       });
       reportActionError({
-        actionLabel: '批量时间偏移',
+        actionLabel: getUndoLabel(locale, 'offsetSelectedTimes'),
         error,
         i18nKey: 'transcription.error.action.offsetBatchFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-        fallbackMessage: formatRollbackFailureMessage('批量时间偏移', error),
+        fallbackMessage: formatRollbackFailureMessage(locale, 'offsetSelectedTimes', error),
       });
     }
-  }, [allowOverlapInTranscription, pushUndo, rollbackUndo, setSaveState, setUtterances, updateAnchorTime, utterancesOnCurrentMediaRef]);
+  }, [allowOverlapInTranscription, locale, pushUndo, rollbackUndo, setSaveState, setUtterances, updateAnchorTime, utterancesOnCurrentMediaRef]);
 
   const scaleSelectedTimes = useCallback(async (ids: Set<string>, factor: number, anchorTime?: number) => {
     const targets = utterancesOnCurrentMediaRef.current
@@ -873,7 +948,7 @@ export function useTranscriptionUtteranceActions({
     if (targets.length === 0) return;
     if (!Number.isFinite(factor) || factor <= 0) {
       reportValidationError({
-        message: '缩放系数必须大于 0。',
+        message: t(locale, 'transcription.error.validation.scaleFactorInvalid'),
         i18nKey: 'transcription.error.validation.scaleFactorInvalid',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -891,7 +966,7 @@ export function useTranscriptionUtteranceActions({
       const endTime = Number((pivot + (u.endTime - pivot) * factor).toFixed(3));
       if (startTime < 0 || endTime - startTime < minSpan) {
         reportValidationError({
-          message: '缩放后出现负时间或句段过短，操作已取消。',
+          message: t(locale, 'transcription.error.validation.scaleInvalidRange'),
           i18nKey: 'transcription.error.validation.scaleInvalidRange',
           setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
         });
@@ -910,7 +985,7 @@ export function useTranscriptionUtteranceActions({
       for (let i = 1; i < timeline.length; i++) {
         if (timeline[i]!.startTime < timeline[i - 1]!.endTime + gap) {
           reportValidationError({
-            message: '时间缩放会造成句段重叠，操作已取消。',
+            message: t(locale, 'transcription.error.validation.scaleOverlap'),
             i18nKey: 'transcription.error.validation.scaleOverlap',
             setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
           });
@@ -919,7 +994,7 @@ export function useTranscriptionUtteranceActions({
       }
     }
 
-    pushUndo('批量时间缩放');
+    pushUndo(getUndoLabel(locale, 'scaleSelectedTimes'));
     try {
       const db = await getDb();
       const now = new Date().toISOString();
@@ -941,7 +1016,13 @@ export function useTranscriptionUtteranceActions({
 
       const byId = new Map(updatedRows.map((row) => [row.id, row]));
       setUtterances((prev) => prev.map((u) => byId.get(u.id) ?? u));
-      setSaveState({ kind: 'done', message: `已缩放 ${updatedRows.length} 个句段（x${factor.toFixed(3)}）` });
+      setSaveState({
+        kind: 'done',
+        message: tf(locale, 'transcription.utteranceAction.done.scaleSelection', {
+          count: updatedRows.length,
+          factor: `x${factor.toFixed(3)}`,
+        }),
+      });
     } catch (error) {
       if (rollbackUndo) {
         try {
@@ -952,7 +1033,7 @@ export function useTranscriptionUtteranceActions({
           });
         }
       }
-      const message = error instanceof Error ? error.message : '未知错误';
+      const message = resolveErrorDetail(locale, error);
       log.error('scaleSelectedTimes failed', {
         targetCount: targets.length,
         factor,
@@ -960,20 +1041,20 @@ export function useTranscriptionUtteranceActions({
         error: message,
       });
       reportActionError({
-        actionLabel: '批量时间缩放',
+        actionLabel: getUndoLabel(locale, 'scaleSelectedTimes'),
         error,
         i18nKey: 'transcription.error.action.scaleBatchFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-        fallbackMessage: formatRollbackFailureMessage('批量时间缩放', error),
+        fallbackMessage: formatRollbackFailureMessage(locale, 'scaleSelectedTimes', error),
       });
     }
-  }, [allowOverlapInTranscription, pushUndo, rollbackUndo, setSaveState, setUtterances, updateAnchorTime, utterancesOnCurrentMediaRef]);
+  }, [allowOverlapInTranscription, locale, pushUndo, rollbackUndo, setSaveState, setUtterances, updateAnchorTime, utterancesOnCurrentMediaRef]);
 
   const splitByRegex = useCallback(async (ids: Set<string>, pattern: string, flags = '') => {
     const rawPattern = pattern.trim();
     if (!rawPattern) {
       reportValidationError({
-        message: '正则表达式不能为空。',
+        message: t(locale, 'transcription.error.validation.regexPatternRequired'),
         i18nKey: 'transcription.error.validation.regexPatternRequired',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -987,7 +1068,7 @@ export function useTranscriptionUtteranceActions({
     } catch (err) {
       console.error('[Jieyu] useTranscriptionUtteranceActions: regex compilation failed', { rawPattern, flags, err });
       reportValidationError({
-        message: '正则表达式无效。',
+        message: t(locale, 'transcription.error.validation.regexPatternInvalid'),
         i18nKey: 'transcription.error.validation.regexPatternInvalid',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -1090,14 +1171,14 @@ export function useTranscriptionUtteranceActions({
 
     if (updates.length === 0 && inserts.length === 0) {
       reportValidationError({
-        message: '没有匹配到可拆分内容（请检查正则和选中文本）。',
+        message: t(locale, 'transcription.error.validation.regexNoSplitCandidates'),
         i18nKey: 'transcription.error.validation.regexNoSplitCandidates',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
       return;
     }
 
-    pushUndo('正则批量拆分句段');
+    pushUndo(getUndoLabel(locale, 'splitByRegex'));
     try {
       await LinguisticService.saveUtterancesBatch([...updates, ...inserts]);
       const updateMap = new Map(updates.map((u) => [u.id, u]));
@@ -1110,7 +1191,12 @@ export function useTranscriptionUtteranceActions({
       if (inserts.length > 0) {
         selectUtterancePrimary(inserts[0]!.id);
       }
-      setSaveState({ kind: 'done', message: `已按正则拆分 ${updates.length + inserts.length} 个句段片段。` });
+      setSaveState({
+        kind: 'done',
+        message: tf(locale, 'transcription.utteranceAction.done.regexSplitSelection', {
+          count: updates.length + inserts.length,
+        }),
+      });
     } catch (error) {
       if (rollbackUndo) {
         try {
@@ -1121,7 +1207,7 @@ export function useTranscriptionUtteranceActions({
           });
         }
       }
-      const message = error instanceof Error ? error.message : '未知错误';
+      const message = resolveErrorDetail(locale, error);
       log.error('splitByRegex failed', {
         targetCount: targets.length,
         pattern: rawPattern,
@@ -1129,14 +1215,14 @@ export function useTranscriptionUtteranceActions({
         error: message,
       });
       reportActionError({
-        actionLabel: '正则批量拆分',
+        actionLabel: getUndoLabel(locale, 'splitByRegex'),
         error,
         i18nKey: 'transcription.error.action.regexSplitBatchFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-        fallbackMessage: formatRollbackFailureMessage('正则批量拆分', error),
+        fallbackMessage: formatRollbackFailureMessage(locale, 'splitByRegex', error),
       });
     }
-  }, [createAnchor, getUtteranceTextForLayer, pushUndo, rollbackUndo, selectUtterancePrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, translations, utterancesOnCurrentMediaRef]);
+  }, [createAnchor, getUtteranceTextForLayer, locale, pushUndo, rollbackUndo, selectUtterancePrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, translations, utterancesOnCurrentMediaRef]);
 
   const mergeSelectedUtterances = useCallback(async (ids: Set<string>) => {
     const sorted = utterancesOnCurrentMediaRef.current
@@ -1144,14 +1230,14 @@ export function useTranscriptionUtteranceActions({
       .sort((a, b) => a.startTime - b.startTime);
     if (sorted.length < 2) {
       reportValidationError({
-        message: '至少需要选中 2 个句段才能合并',
+        message: t(locale, 'transcription.error.validation.mergeSelectionRequireAtLeastTwo'),
         i18nKey: 'transcription.error.validation.mergeSelectionRequireAtLeastTwo',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
       return;
     }
 
-    pushUndo('批量合并句段');
+    pushUndo(getUndoLabel(locale, 'mergeSelectedUtterances'));
     try {
       const db = await getDb();
       const now = new Date().toISOString();
@@ -1188,7 +1274,14 @@ export function useTranscriptionUtteranceActions({
       selectUtterancePrimary(first.id);
 
       await pruneOrphanAnchors(db, removeIds);
-      setSaveState({ kind: 'done', message: `已合并 ${sorted.length} 个句段 ${formatTime(updated.startTime)} - ${formatTime(updated.endTime)}` });
+      setSaveState({
+        kind: 'done',
+        message: tf(locale, 'transcription.utteranceAction.done.mergeSelection', {
+          count: sorted.length,
+          start: formatTime(updated.startTime),
+          end: formatTime(updated.endTime),
+        }),
+      });
     } catch (error) {
       if (rollbackUndo) {
         try {
@@ -1199,20 +1292,20 @@ export function useTranscriptionUtteranceActions({
           });
         }
       }
-      const message = error instanceof Error ? error.message : '未知错误';
+      const message = resolveErrorDetail(locale, error);
       log.error('mergeSelectedUtterances failed', {
         targetCount: sorted.length,
         error: message,
       });
       reportActionError({
-        actionLabel: '批量合并',
+        actionLabel: getUndoLabel(locale, 'mergeSelectedUtterances'),
         error,
         i18nKey: 'transcription.error.action.mergeSelectionFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-        fallbackMessage: formatRollbackFailureMessage('批量合并', error),
+        fallbackMessage: formatRollbackFailureMessage(locale, 'mergeSelectedUtterances', error),
       });
     }
-  }, [pruneOrphanAnchors, pushUndo, reassignTranslations, rollbackUndo, selectUtterancePrimary, setSaveState, setTranslations, setUtterances, utterancesOnCurrentMediaRef]);
+  }, [locale, pruneOrphanAnchors, pushUndo, reassignTranslations, rollbackUndo, selectUtterancePrimary, setSaveState, setTranslations, setUtterances, utterancesOnCurrentMediaRef]);
 
   return {
     saveVoiceTranslation,

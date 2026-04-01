@@ -11,6 +11,7 @@ import type {
 } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import type { SpeakerActionDialogState, SpeakerFilterOption } from '../hooks/speakerManagement/types';
+import { isDictKey, t as translate, tf as formatMessage } from '../i18n';
 import { LinguisticService } from '../services/LinguisticService';
 import { useSpeakerActionRoutingController } from './useSpeakerActionRoutingController';
 
@@ -73,6 +74,14 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
   const segment = makeSegment('seg-1', 'layer-seg', 0, 1, 'spk-a');
   const utterance = makeUtterance('utt-1', 0, 1, 'spk-a');
   const speakerFilterOptionsForActions: SpeakerFilterOption[] = [{ key: 'spk-a', name: 'Alice', count: 1 }];
+  const t = overrides.t ?? ((key: string) => (isDictKey(key) ? translate('zh-CN', key) : key));
+  const tf = overrides.tf ?? (
+    (key: string, params?: Record<string, string | number>) => (
+      isDictKey(key)
+        ? formatMessage('zh-CN', key, params ?? {})
+        : key
+    )
+  );
 
   return {
     activeSpeakerManagementLayer: layer,
@@ -117,6 +126,8 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     selectTimelineUnit: vi.fn(),
     setSelectedUtteranceIds: vi.fn() as unknown as Dispatch<SetStateAction<Set<string>>>,
     formatTime: (seconds) => seconds.toFixed(2),
+    t,
+    tf,
     pushUndo: vi.fn(),
     undo: vi.fn(async () => undefined),
     reloadSegments: vi.fn(async () => undefined),
@@ -271,7 +282,7 @@ describe('useSpeakerActionRoutingController', () => {
     expect(assignSpeakerToUtterances).toHaveBeenCalledWith(['utt-1'], undefined);
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'done',
-      message: '已更新 2 条选中项的说话人',
+      message: '已应用说话人到 2 项选中内容',
     }));
 
     assignSpeakerToSegments.mockRestore();
@@ -315,7 +326,7 @@ describe('useSpeakerActionRoutingController', () => {
     expect(refreshSpeakers).toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'done',
-      message: '已创建说话人"Bob"，并应用到 2 条选中项',
+      message: '已新建说话人"Bob"，并应用到 2 项选中内容',
     }));
 
     createSpeaker.mockRestore();

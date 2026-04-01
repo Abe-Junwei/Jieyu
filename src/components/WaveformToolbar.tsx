@@ -1,6 +1,6 @@
-import { memo, useEffect, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import { FastForward, Pause, Play, Repeat, Rewind, Volume2, Waves } from 'lucide-react';
+import { Children, memo, type ReactNode } from 'react';
+import { FastForward, Pause, Play, Repeat, Rewind, Volume2, Zap } from 'lucide-react';
+import { t, useLocale } from '../i18n';
 
 interface WaveformToolbarProps {
   filename: string;
@@ -14,6 +14,10 @@ interface WaveformToolbarProps {
   onLoopChange: (loop: boolean) => void;
   onTogglePlayback: () => void;
   onSeek: (delta: number) => void;
+  onAutoSegment?: () => void;
+  autoSegmentBusy?: boolean;
+  autoSegmentRunTitle?: string;
+  autoSegmentRunningTitle?: string;
   children?: ReactNode;
 }
 
@@ -29,47 +33,36 @@ export const WaveformToolbar = memo(function WaveformToolbar({
   onLoopChange,
   onTogglePlayback,
   onSeek,
+  onAutoSegment,
+  autoSegmentBusy,
+  autoSegmentRunTitle,
+  autoSegmentRunningTitle,
   children,
 }: WaveformToolbarProps) {
-  const [leftRailBottomHost, setLeftRailBottomHost] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    setLeftRailBottomHost(document.getElementById('left-rail-bottom-slot'));
-  }, []);
-
-  const rightControls = (
-    <div className={`transcription-wave-toolbar-right${leftRailBottomHost ? ' transcription-wave-toolbar-right-portaled' : ''}`}>
-      <label className="player-control volume-control compact-volume">
-        <Volume2 size={15} />
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.05}
-          value={volume}
-          onChange={(event) => onVolumeChange(Number(event.target.value))}
-        />
-      </label>
-      {children}
-    </div>
-  );
+  const locale = useLocale();
+  const hasRightControls = Children.toArray(children).length > 0;
 
   return (
     <div className="transcription-wave-toolbar">
       <div className="transcription-wave-toolbar-left">
-        <div className="transcription-file-brand">
-          <span className="transcription-file-icon"><Waves size={14} /></span>
-          <strong>{filename}</strong>
+        <div className="transcription-wave-toolbar-meta">
+          <div className="transcription-file-brand">
+            <strong>{filename}</strong>
+          </div>
         </div>
-        <span className="transcription-sync-chip">Synced</span>
-        <span className="transcription-toolbar-sep" />
-        <button className="icon-btn" onClick={() => onSeek(-10)} title="后退 10 秒">
+        <button className="icon-btn" onClick={() => onSeek(-10)} title={t(locale, 'transcription.wave.toolbar.rewind10')}>
           <Rewind size={16} />
         </button>
-        <button className="play-btn" onClick={onTogglePlayback} disabled={!isReady} aria-label={isPlaying ? '暂停' : '播放'} title={isPlaying ? '暂停' : '播放'}>
+        <button
+          className="play-btn"
+          onClick={onTogglePlayback}
+          disabled={!isReady}
+          aria-label={isPlaying ? t(locale, 'transcription.wave.toolbar.pause') : t(locale, 'transcription.wave.toolbar.play')}
+          title={isPlaying ? t(locale, 'transcription.wave.toolbar.pause') : t(locale, 'transcription.wave.toolbar.play')}
+        >
           {isPlaying ? <Pause size={18} /> : <Play size={18} />}
         </button>
-        <button className="icon-btn" onClick={() => onSeek(10)} title="前进 10 秒">
+        <button className="icon-btn" onClick={() => onSeek(10)} title={t(locale, 'transcription.wave.toolbar.forward10')}>
           <FastForward size={16} />
         </button>
         <select
@@ -87,12 +80,41 @@ export const WaveformToolbar = memo(function WaveformToolbar({
         <button
           className={`icon-btn ${loop ? 'icon-btn-active' : ''}`}
           onClick={() => onLoopChange(!loop)}
-          title={loop ? '关闭全局循环播放' : '开启全局循环播放'}
+          title={loop ? t(locale, 'transcription.wave.toolbar.globalLoopOff') : t(locale, 'transcription.wave.toolbar.globalLoopOn')}
         >
           <Repeat size={15} />
         </button>
+        <label className="player-control volume-control compact-volume transcription-wave-toolbar-volume">
+          <Volume2 size={15} />
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={volume}
+            onChange={(event) => onVolumeChange(Number(event.target.value))}
+          />
+        </label>
+        {onAutoSegment && (
+          <>
+            <span className="transcription-toolbar-sep transcription-wave-toolbar-vad-sep" aria-hidden="true" />
+            <button
+              className="icon-btn transcription-wave-toolbar-vad-btn"
+              onClick={onAutoSegment}
+              disabled={autoSegmentBusy}
+              title={autoSegmentBusy ? autoSegmentRunningTitle : autoSegmentRunTitle}
+              aria-label={autoSegmentBusy ? autoSegmentRunningTitle : autoSegmentRunTitle}
+            >
+              <Zap size={15} />
+            </button>
+          </>
+        )}
       </div>
-      {leftRailBottomHost ? createPortal(rightControls, leftRailBottomHost) : rightControls}
+      {hasRightControls ? (
+        <div className="transcription-wave-toolbar-right">
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 });

@@ -1,16 +1,8 @@
 /**
- * GroundingContext — AI 决策上下文面板
+ * GroundingContext - AI decision context panel.
  *
- * 显示 AI 做出决策时所依赖的上下文信息，
- * 提升 AI 决策透明度，让用户了解"AI 为什么这样做"。
- *
- * 显示内容：
- *  - 当前句段信息（文本、翻译、标注状态）
- *  - 用户画像摘要（操作习惯、当前阶段）
- *  - 任务上下文（当前阶段、注意力热点）
- *  - 相关语料（RAG 检索结果）
- *
- * @see 解语-语音智能体架构设计方案 v2.5 §阶段2
+ * Shows the context used by the AI when making decisions so users can
+ * understand why the AI chose a given action.
  */
 
 import { memo, useState } from 'react';
@@ -22,20 +14,20 @@ import type { GroundingContextData } from '../../services/VoiceAgentGroundingCon
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function FatigueBadge({ score }: { score: number }) {
-  if (score < 0.3) return <span className="gc-fatigue gc-fatigue-low">轻松</span>;
-  if (score < 0.6) return <span className="gc-fatigue gc-fatigue-mid">一般</span>;
-  if (score < 0.8) return <span className="gc-fatigue gc-fatigue-high">疲劳</span>;
-  return <span className="gc-fatigue gc-fatigue-critical">过劳</span>;
+  if (score < 0.3) return <span className="gc-fatigue gc-fatigue-low">{'\u8f7b\u677e'}</span>;
+  if (score < 0.6) return <span className="gc-fatigue gc-fatigue-mid">{'\u4e00\u822c'}</span>;
+  if (score < 0.8) return <span className="gc-fatigue gc-fatigue-high">{'\u75b2\u52b3'}</span>;
+  return <span className="gc-fatigue gc-fatigue-critical">{'\u8fc7\u52b3'}</span>;
 }
 
 function PhaseTag({ phase }: { phase: string }) {
   const map: Record<string, string> = {
-    importing: '导入',
-    transcribing: '转写',
-    annotating: '标注',
-    translating: '翻译',
-    reviewing: '审校',
-    exporting: '导出',
+    importing: '\u5bfc\u5165',
+    transcribing: '\u8f6c\u5199',
+    annotating: '\u6807\u6ce8',
+    translating: '\u7ffb\u8bd1',
+    reviewing: '\u5ba1\u6821',
+    exporting: '\u5bfc\u51fa',
   };
   return <span className="gc-phase-tag">{map[phase] ?? phase}</span>;
 }
@@ -47,8 +39,8 @@ const SegmentCard = memo(function SegmentCard({ seg }: { seg: NonNullable<Ground
     <div className="gc-card gc-segment-card">
       <div className="gc-card-header">
         <Layers size={12} />
-        <span>当前句段 #{seg.index}</span>
-        {seg.isMarked && <span className="gc-marked-badge">已标记</span>}
+        <span>{`\u5f53\u524d\u53e5\u6bb5 #${seg.index}`}</span>
+        {seg.isMarked && <span className="gc-marked-badge">{'\u5df2\u6807\u8bb0'}</span>}
       </div>
       <div className="gc-segment-text" title={seg.text}>
         {seg.text.length > 80 ? `${seg.text.slice(0, 80)}…` : seg.text}
@@ -76,29 +68,29 @@ const UserProfileCard = memo(function UserProfileCard({ profile }: { profile: Gr
     <div className="gc-card gc-profile-card">
       <div className="gc-card-header">
         <User size={12} />
-        <span>用户画像</span>
+        <span>{'\u7528\u6237\u753b\u50cf'}</span>
         <FatigueBadge score={profile.fatigueScore} />
       </div>
       <div className="gc-profile-row">
-        <span className="gc-profile-label">常用模式</span>
-        <span className="gc-profile-value">{profile.preferredMode === 'command' ? '指令' : profile.preferredMode === 'dictation' ? '听写' : '分析'}</span>
+        <span className="gc-profile-label">{'\u5e38\u7528\u6a21\u5f0f'}</span>
+        <span className="gc-profile-value">{profile.preferredMode === 'command' ? '\u6307\u4ee4' : profile.preferredMode === 'dictation' ? '\u542c\u5199' : '\u5206\u6790'}</span>
       </div>
       {profile.mostUsedAction && (
         <div className="gc-profile-row">
-          <span className="gc-profile-label">高频操作</span>
+          <span className="gc-profile-label">{'\u9ad8\u9891\u64cd\u4f5c'}</span>
           <span className="gc-profile-value">{profile.mostUsedAction}</span>
         </div>
       )}
       <div className="gc-profile-row">
-        <span className="gc-profile-label">确认偏好</span>
+        <span className="gc-profile-label">{'\u786e\u8ba4\u504f\u597d'}</span>
         <span className="gc-profile-value">
-          {profile.confirmationPreference === 'always' ? '始终确认' : profile.confirmationPreference === 'destructive-only' ? '仅危险操作' : '无需确认'}
+          {profile.confirmationPreference === 'always' ? '\u59cb\u7ec8\u786e\u8ba4' : profile.confirmationPreference === 'destructive-only' ? '\u4ec5\u5371\u9669\u64cd\u4f5c' : '\u65e0\u9700\u786e\u8ba4'}
         </span>
       </div>
       {profile.fatigueScore > 0.6 && (
         <div className="gc-profile-warning">
           <AlertTriangle size={11} />
-          <span>疲劳度较高，AI 将减少打扰性建议</span>
+          <span>{'\u75b2\u52b3\u5ea6\u8f83\u9ad8\uff0cAI \u5c06\u51cf\u5c11\u6253\u6270\u6027\u5efa\u8bae'}</span>
         </div>
       )}
     </div>
@@ -111,7 +103,7 @@ const HotspotsCard = memo(function HotspotsCard({ hotspots }: { hotspots: Ground
     <div className="gc-card gc-hotspots-card">
       <div className="gc-card-header">
         <AlertTriangle size={12} />
-        <span>注意力热点</span>
+        <span>{'\u6ce8\u610f\u529b\u70ed\u70b9'}</span>
         <span className="gc-badge-count">{hotspots.length}</span>
       </div>
       <div className="gc-hotspots-list">
@@ -135,14 +127,14 @@ const CorpusCard = memo(function CorpusCard({ corpus }: { corpus: GroundingConte
     <div className="gc-card gc-corpus-card">
       <div className="gc-card-header">
         <Brain size={12} />
-        <span>相关语料</span>
+        <span>{'\u76f8\u5173\u8bed\u6599'}</span>
         <span className="gc-badge-count">{corpus.length}</span>
       </div>
       <div className="gc-corpus-list">
         {corpus.slice(0, 4).map((c, i) => (
           <div key={`${c.segmentId}-${i}`} className="gc-corpus-item">
             <div className="gc-corpus-source-badge" data-source={c.source}>
-              {c.source === 'document' ? '文档' : c.source === 'transcription' ? '转写' : c.source === 'translation' ? '翻译' : '标注'}
+              {c.source === 'document' ? '\u6587\u6863' : c.source === 'transcription' ? '\u8f6c\u5199' : c.source === 'translation' ? '\u7ffb\u8bd1' : '\u6807\u6ce8'}
             </div>
             <div className="gc-corpus-text" title={c.text}>
               {c.text.length > 60 ? `${c.text.slice(0, 60)}…` : c.text}
@@ -152,7 +144,7 @@ const CorpusCard = memo(function CorpusCard({ corpus }: { corpus: GroundingConte
                 → {c.translation.length > 40 ? `${c.translation.slice(0, 40)}…` : c.translation}
               </div>
             )}
-            <div className="gc-corpus-score">相关度 {Math.round(c.score * 100)}%</div>
+            <div className="gc-corpus-score">{`\u76f8\u5173\u5ea6 ${Math.round(c.score * 100)}%`}</div>
           </div>
         ))}
       </div>
@@ -178,14 +170,14 @@ export const GroundingContext = memo(function GroundingContext({
       <div className="grounding-context grounding-context-empty">
         <button type="button" className="gc-toggle" onClick={onToggle} aria-expanded={visible}>
           <Brain size={13} />
-          <span>AI 上下文</span>
+          <span>{'AI \u4e0a\u4e0b\u6587'}</span>
         </button>
       </div>
     );
   }
 
   const ageMs = Date.now() - data.contextBuiltAt;
-  const ageLabel = ageMs < 5000 ? '刚刚' : ageMs < 60000 ? `${Math.floor(ageMs / 1000)}s前` : `${Math.floor(ageMs / 60000)}m前`;
+  const ageLabel = ageMs < 5000 ? '\u521a\u521a' : ageMs < 60000 ? `${Math.floor(ageMs / 1000)}s\u524d` : `${Math.floor(ageMs / 60000)}m\u524d`;
 
   return (
     <div className={`grounding-context ${visible ? 'grounding-context-visible' : ''}`}>
@@ -194,12 +186,12 @@ export const GroundingContext = memo(function GroundingContext({
         className="gc-toggle"
         onClick={onToggle}
         aria-expanded={visible}
-        title="显示/隐藏 AI 决策上下文"
+        title={'\u663e\u793a/\u9690\u85cf AI \u51b3\u7b56\u4e0a\u4e0b\u6587'}
       >
         <Brain size={13} />
-        <span>AI 上下文</span>
+        <span>{'AI \u4e0a\u4e0b\u6587'}</span>
         {data.aiAdoptionRate !== null && (
-          <span className="gc-adoption-rate" title="AI 采纳率">
+          <span className="gc-adoption-rate" title={'AI \u91c7\u7eb3\u7387'}>
             {(data.aiAdoptionRate * 100).toFixed(0)}%
           </span>
         )}
@@ -216,17 +208,17 @@ export const GroundingContext = memo(function GroundingContext({
             >
               {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
             </button>
-            <span className="gc-panel-title">AI 决策上下文</span>
-            <span className="gc-panel-age">更新于 {ageLabel}</span>
+            <span className="gc-panel-title">{'AI \u51b3\u7b56\u4e0a\u4e0b\u6587'}</span>
+            <span className="gc-panel-age">{`\u66f4\u65b0\u4e8e ${ageLabel}`}</span>
           </div>
 
           {expanded && (
             <div className="gc-panel-body">
               <div className="gc-phase-row">
                 <PhaseTag phase={data.currentPhase} />
-                <span className="gc-total-segments">{data.totalSegments} 句段</span>
+                <span className="gc-total-segments">{`${data.totalSegments} \u53e5\u6bb5`}</span>
                 {data.selectedSegmentIds.length > 0 && (
-                  <span className="gc-selected-count">{data.selectedSegmentIds.length} 已选</span>
+                  <span className="gc-selected-count">{`${data.selectedSegmentIds.length} \u5df2\u9009`}</span>
                 )}
               </div>
 

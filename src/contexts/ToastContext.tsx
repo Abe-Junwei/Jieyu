@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { VoiceAgentMode } from '../services/VoiceAgentService';
-import { detectLocale, isDictKey, t } from '../i18n';
+import { isDictKey, t, useLocale, type Locale } from '../i18n';
 
 // ── Toast variant & item ────────────────────────────────────────────────────
 
@@ -63,18 +63,10 @@ const SAVE_STATE_VARIANT: Record<SaveState['kind'], ToastVariant> = {
   error: 'error',
 };
 
-const SAVE_STATE_MESSAGE: Record<SaveState['kind'], string> = {
-  idle: '',
-  saving: '保存中…',
-  done: '', // filled dynamically
-  error: '', // filled dynamically
-};
-
-function normalizeErrorToast(state: Extract<SaveState, { kind: 'error' }>): {
+function normalizeErrorToast(locale: Locale, state: Extract<SaveState, { kind: 'error' }>): {
   message: string;
   variant: ToastVariant;
 } {
-  const locale = detectLocale();
   const translatedMessage = (
     state.errorMeta?.i18nKey !== undefined && isDictKey(state.errorMeta.i18nKey)
       ? t(locale, state.errorMeta.i18nKey)
@@ -92,8 +84,14 @@ function normalizeErrorToast(state: Extract<SaveState, { kind: 'error' }>): {
 
   if (category === 'conflict') {
     const refreshHint = t(locale, 'transcription.toast.refreshAndRetry');
-    const hasRefreshHint = rawMessage.includes(refreshHint) || rawMessage.includes('刷新') || rawMessage.includes('refresh');
-    const withHint = hasRefreshHint ? rawMessage : `${rawMessage}（${refreshHint}）`;
+    const normalizedRaw = rawMessage.toLowerCase().replace(/\s+/g, '');
+    const normalizedHint = refreshHint.toLowerCase().replace(/\s+/g, '');
+    const relaxedHint = normalizedHint.length > 2 ? normalizedHint.slice(2) : normalizedHint;
+    const hasRefreshHint = normalizedRaw.includes(normalizedHint)
+      || normalizedRaw.includes('refresh')
+      || normalizedRaw.includes(relaxedHint);
+    const suffix = locale === 'zh-CN' ? `（${refreshHint}）` : ` (${refreshHint})`;
+    const withHint = hasRefreshHint ? rawMessage : `${rawMessage}${suffix}`;
     return {
       message: withHint,
       variant: 'error',
@@ -114,17 +112,12 @@ const VOICE_MODE_VARIANT: Record<Exclude<VoiceAgentMode, 'idle'>, ToastVariant> 
   analysis: 'listening',
 };
 
-const VOICE_MODE_MESSAGE: Record<Exclude<VoiceAgentMode, 'idle'>, string> = {
-  command: '🎤 等待语音指令…',
-  dictation: '🎤 听写模式 — 说话即写入',
-  analysis: '🎤 分析模式 — 说话即分析',
-};
-
-const VOICE_LISTENING_MESSAGE: Record<Exclude<VoiceAgentMode, 'idle'>, string> = {
-  command: '🎤 正在听…',
-  dictation: '🎤 正在听写…',
-  analysis: '🎤 正在分析…',
-};
+function getVoiceToastMessage(locale: Locale, mode: Exclude<VoiceAgentMode, 'idle'>, isListening: boolean): string {
+  const key = isListening
+    ? (`transcription.toast.voice.${mode}Listening` as const)
+    : (`transcription.toast.voice.${mode}Waiting` as const);
+  return t(locale, key);
+}
 
 // ── ToastProvider ─────────────────────────────────────────────────────────────
 
@@ -133,6 +126,7 @@ interface Props {
 }
 
 export function ToastProvider({ children }: Props) {
+  const locale = useLocale();
   const [current, setCurrent] = useState<ToastItem | null>(null);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const removeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -187,16 +181,14 @@ export function ToastProvider({ children }: Props) {
       return;
     }
     const defaultVariant = SAVE_STATE_VARIANT[state.kind];
-    const baseMessage = SAVE_STATE_MESSAGE[state.kind];
-    const locale = detectLocale();
     const message = state.kind === 'done'
       ? (state.message || t(locale, 'transcription.toast.saved'))
       : state.kind === 'error'
         ? (state.message || t(locale, 'transcription.toast.saveFailed'))
-        : baseMessage;
+        : t(locale, 'transcription.toast.saving');
 
     if (state.kind === 'error') {
-      const normalized = normalizeErrorToast(state);
+      const normalized = normalizeErrorToast(locale, state);
       showToast(normalized.message, normalized.variant);
       return;
     }
@@ -213,11 +205,9 @@ export function ToastProvider({ children }: Props) {
       return;
     }
     const variant = VOICE_MODE_VARIANT[mode];
-    const message = isListening
-      ? VOICE_LISTENING_MESSAGE[mode]
-      : VOICE_MODE_MESSAGE[mode];
+    const message = getVoiceToastMessage(locale, mode, isListening);
     showToast(message, variant, 0); // persist while in voice mode
-  }, [dismiss, showToast]);
+  }, [dismiss, locale, showToast]);
 
   const value: ToastContextValue = { showToast, showSaveState, showVoiceState, dismiss };
 
@@ -229,7 +219,7 @@ export function ToastProvider({ children }: Props) {
           <div
             className={`transcription-toast toast-${current.variant} ${current.exiting ? 'transcription-toast-exiting' : ''}`}
             onClick={dismiss}
-            title="点击关闭"
+            title={t(locale, 'transcription.toast.dismiss')}
           >
             {current.message}
           </div>

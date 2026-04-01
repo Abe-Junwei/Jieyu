@@ -1,32 +1,32 @@
 import type { LayerDocType } from '../db';
 
 export const LANGUAGE_NAME_MAP: Record<string, string> = {
-  cmn: '普通话',
-  zho: '中文',
-  yue: '粤语',
-  eng: '英语',
-  jpn: '日语',
-  kor: '韩语',
-  fra: '法语',
-  deu: '德语',
-  spa: '西班牙语',
-  rus: '俄语',
-  ara: '阿拉伯语',
+  cmn: '\u666e\u901a\u8bdd',
+  zho: '\u4e2d\u6587',
+  yue: '\u7ca4\u8bed',
+  eng: '\u82f1\u8bed',
+  jpn: '\u65e5\u8bed',
+  kor: '\u97e9\u8bed',
+  fra: '\u6cd5\u8bed',
+  deu: '\u5fb7\u8bed',
+  spa: '\u897f\u73ed\u7259\u8bed',
+  rus: '\u4fc4\u8bed',
+  ara: '\u963f\u62c9\u4f2f\u8bed',
 };
 
-/** BCP 47 已知变体标签的人类可读名 | Human-readable names for well-known BCP 47 variant subtags */
+/** BCP 47 \u5df2\u77e5\u53d8\u4f53\u6807\u7b7e\u7684\u4eba\u7c7b\u53ef\u8bfb\u540d | Human-readable names for well-known BCP 47 variant subtags */
 const VARIANT_LABEL_MAP: Record<string, string> = {
   fonipa: 'IPA',
   fonupa: 'UPA',
   fonxsamp: 'X-SAMPA',
-  pinyin: '拼音',
-  wadegile: '威妥玛',
-  jyutping: '粤拼',
+  pinyin: '\u62fc\u97f3',
+  wadegile: '\u5a01\u59a5\u739b',
+  jyutping: '\u7ca4\u62fc',
 };
 
 /**
- * 解析 BCP 47 语言标签 | Parse a BCP 47 language tag into constituent subtags.
- * 例: "mvm-fonipa-x-emc" → { primary: 'mvm', variants: ['fonipa'], privateUse: 'x-emc' }
+ * \u89e3\u6790 BCP 47 \u8bed\u8a00\u6807\u7b7e | Parse a BCP 47 language tag into constituent subtags.
+ * \u4f8b: "mvm-fonipa-x-emc" → { primary: 'mvm', variants: ['fonipa'], privateUse: 'x-emc' }
  */
 export function parseBcp47(tag: string): {
   primary: string;
@@ -40,7 +40,7 @@ export function parseBcp47(tag: string): {
   const full = tag.trim();
   if (!full) return { primary: '', variants: [], extensions: [], full: '' };
 
-  // 私用扩展 x-... 在最后 | Private-use extension comes last
+  // \u79c1\u7528\u6269\u5c55 x-... \u5728\u6700\u540e | Private-use extension comes last
   const xIdx = full.search(/\b(x-)/i);
   const mainPart = xIdx >= 0 ? full.slice(0, xIdx).replace(/-$/, '') : full;
   const privateUse = xIdx >= 0 ? full.slice(xIdx) : undefined;
@@ -55,19 +55,19 @@ export function parseBcp47(tag: string): {
   for (let i = 1; i < subtags.length; i++) {
     const st = subtags[i]!;
     if (st.length === 4 && /^[A-Za-z]{4}$/.test(st) && !script) {
-      // 脚本子标签（4 字母） | Script subtag (4 letters)
+      // \u811a\u672c\u5b50\u6807\u7b7e（4 \u5b57\u6bcd） | Script subtag (4 letters)
       script = st;
     } else if (st.length === 2 && /^[A-Za-z]{2}$/.test(st) && !region) {
-      // 区域子标签（2 字母） | Region subtag (2 letters)
+      // \u533a\u57df\u5b50\u6807\u7b7e（2 \u5b57\u6bcd） | Region subtag (2 letters)
       region = st.toUpperCase();
     } else if (st.length === 3 && /^[0-9]{3}$/.test(st) && !region) {
-      // 区域子标签（3 数字） | Region subtag (3 digits)
+      // \u533a\u57df\u5b50\u6807\u7b7e（3 \u6570\u5b57） | Region subtag (3 digits)
       region = st;
     } else if (st.length >= 5 || (st.length === 4 && /^[0-9]/.test(st))) {
-      // 变体子标签 | Variant subtag
+      // \u53d8\u4f53\u5b50\u6807\u7b7e | Variant subtag
       variants.push(st.toLowerCase());
     } else if (st.length === 1) {
-      // 扩展前缀 | Extension prefix singleton — collect rest until next singleton/end
+      // \u6269\u5c55\u524d\u7f00 | Extension prefix singleton — collect rest until next singleton/end
       const extParts = [st];
       while (i + 1 < subtags.length && subtags[i + 1]!.length > 1) {
         extParts.push(subtags[++i]!);
@@ -88,13 +88,13 @@ export function parseBcp47(tag: string): {
 }
 
 /**
- * 从 BCP 47 标签生成人类可读的展示名 | Generate a human-readable display name from a BCP 47 tag.
- * 例: "mvm-fonipa-x-emc" → "mvm (IPA, x-emc)"
- * 例: "cmn" → "普通话 cmn"
+ * \u4ece BCP 47 \u6807\u7b7e\u751f\u6210\u4eba\u7c7b\u53ef\u8bfb\u7684\u5c55\u793a\u540d | Generate a human-readable display name from a BCP 47 tag.
+ * \u4f8b: "mvm-fonipa-x-emc" → "mvm (IPA, x-emc)"
+ * \u4f8b: "cmn" → "\u666e\u901a\u8bdd cmn"
  */
 export function formatBcp47Label(tag: string): string {
   const parsed = parseBcp47(tag);
-  if (!parsed.primary) return '未设置语言';
+  if (!parsed.primary) return '\u672a\u8bbe\u7f6e\u8bed\u8a00';
 
   const baseName = LANGUAGE_NAME_MAP[parsed.primary]
     ?? COMMON_LANGUAGES.find((l) => l.code === parsed.primary)?.label;
@@ -110,18 +110,18 @@ export function formatBcp47Label(tag: string): string {
 }
 
 /**
- * 判断 tier 名称是否像 BCP 47 标签，如果是则生成人类可读名 | Detect if a tier name looks like a BCP 47 tag and humanize it.
- * 例: "mvm-fonipa-x-emc" → "mvm (IPA, x-emc)"  (是 BCP 47 → 转换)
- * 例: "English translation" → "English translation"  (普通名称 → 保持原样)
- * 例: "default" → "default"  (单词 → 保持原样)
+ * \u5224\u65ad tier \u540d\u79f0\u662f\u5426\u50cf BCP 47 \u6807\u7b7e，\u5982\u679c\u662f\u5219\u751f\u6210\u4eba\u7c7b\u53ef\u8bfb\u540d | Detect if a tier name looks like a BCP 47 tag and humanize it.
+ * \u4f8b: "mvm-fonipa-x-emc" → "mvm (IPA, x-emc)"  (\u662f BCP 47 → \u8f6c\u6362)
+ * \u4f8b: "English translation" → "English translation"  (\u666e\u901a\u540d\u79f0 → \u4fdd\u6301\u539f\u6837)
+ * \u4f8b: "default" → "default"  (\u5355\u8bcd → \u4fdd\u6301\u539f\u6837)
  */
 export function humanizeTierName(tierName: string): string {
   const trimmed = tierName.trim();
   if (!trimmed) return 'Transcription';
-  // 含空格的一定不是 BCP 47 标签 | Contains space → not a BCP 47 tag
+  // \u542b\u7a7a\u683c\u7684\u4e00\u5b9a\u4e0d\u662f BCP 47 \u6807\u7b7e | Contains space → not a BCP 47 tag
   if (/\s/.test(trimmed)) return trimmed;
   const parsed = parseBcp47(trimmed);
-  // 主语言子标签 2-3 字母 + 至少有可解析的子标记 → 视为 BCP 47 | Primary is 2-3 letters with subtags → BCP 47
+  // \u4e3b\u8bed\u8a00\u5b50\u6807\u7b7e 2-3 \u5b57\u6bcd + \u81f3\u5c11\u6709\u53ef\u89e3\u6790\u7684\u5b50\u6807\u8bb0 → \u89c6\u4e3a BCP 47 | Primary is 2-3 letters with subtags → BCP 47
   const isPrimary = /^[a-z]{2,3}$/.test(parsed.primary);
   const hasSubtags = parsed.variants.length > 0 || parsed.extensions.length > 0
     || parsed.script !== undefined || parsed.region !== undefined || parsed.privateUse !== undefined;
@@ -147,7 +147,7 @@ export function normalizeSingleLine(value: string): string {
 export function formatLanguageLabel(code?: string): string {
   const normalized = (code ?? '').trim();
   if (!normalized) {
-    return '未设置语言';
+    return '\u672a\u8bbe\u7f6e\u8bed\u8a00';
   }
   return formatBcp47Label(normalized);
 }
@@ -172,14 +172,14 @@ export function formatLayerLanguageLabel(layer: LayerDocType): string {
   return `${preferredName} (${code})`;
 }
 
-export function formatLayerRailLabel(layer: LayerDocType): string {
+export function formatSidePaneLayerLabel(layer: LayerDocType): string {
   const { type, lang } = getLayerLabelParts(layer);
   return lang ? `${type} · ${lang}` : type;
 }
 
 export function getLayerLabelParts(layer: LayerDocType): { type: string; lang: string; alias: string } {
   const code = (layer.languageId ?? '').trim();
-  const typeLabel = layer.layerType === 'translation' ? '翻译' : '转写';
+  const typeLabel = layer.layerType === 'translation' ? '\u7ffb\u8bd1' : '\u8f6c\u5199';
   const langLabel = formatBcp47Label(code) || code;
   const alias = layer.name.zho
     ?? layer.name.zh
@@ -188,7 +188,7 @@ export function getLayerLabelParts(layer: LayerDocType): { type: string; lang: s
     ?? layer.name.en
     ?? Object.values(layer.name).find((value) => typeof value === 'string' && value.trim().length > 0)
     ?? '';
-  const hasAutoPrefix = alias.startsWith('转写') || alias.startsWith('翻译');
+  const hasAutoPrefix = alias.startsWith('\u8f6c\u5199') || alias.startsWith('\u7ffb\u8bd1');
   if (hasAutoPrefix || !alias) {
     return { type: typeLabel, lang: langLabel, alias: '' };
   }
@@ -197,14 +197,14 @@ export function getLayerLabelParts(layer: LayerDocType): { type: string; lang: s
 }
 
 export const COMMON_LANGUAGES = [
-  { code: 'cmn', label: '普通话' },
-  { code: 'zho', label: '中文' },
-  { code: 'yue', label: '粤语' },
-  { code: 'wuu', label: '吴语' },
-  { code: 'nan', label: '闽南语' },
-  { code: 'hak', label: '客家话' },
+  { code: 'cmn', label: '\u666e\u901a\u8bdd' },
+  { code: 'zho', label: '\u4e2d\u6587' },
+  { code: 'yue', label: '\u7ca4\u8bed' },
+  { code: 'wuu', label: '\u5434\u8bed' },
+  { code: 'nan', label: '\u95fd\u5357\u8bed' },
+  { code: 'hak', label: '\u5ba2\u5bb6\u8bdd' },
   { code: 'eng', label: 'English' },
-  { code: 'jpn', label: '日本語' },
+  { code: 'jpn', label: '\u65e5\u672c\u8a9e' },
   { code: 'kor', label: '한국어' },
   { code: 'fra', label: 'Français' },
   { code: 'deu', label: 'Deutsch' },

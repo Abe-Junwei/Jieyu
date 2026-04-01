@@ -1,20 +1,18 @@
 /**
- * VoiceActionTools — LLM 可调用的 UI 控制工具 schema
+ * VoiceActionTools - tool schemas for LLM-driven UI control.
  *
- * 定义 Voice Agent 通过 AI 调用 UI 操作的工具接口。
- * 与 IntentRouter 的正则规则不同：VoiceActionTools 是 LLM 在意图解析后，
- * 当需要执行更复杂的 UI 操作（如调用 AI 自动标注、批量导航）时使用的结构化工具。
+ * Defines the tool interface used by the Voice Agent to invoke UI actions via AI.
+ * Unlike IntentRouter regex rules, these tools are used after intent resolution
+ * when the model needs to trigger more complex structured actions.
  *
- * 工具通过 VoiceAgentService.executeTool() 分发到对应的 handler。
- *
- * @see 解语-语音智能体架构设计方案 v2.5 §阶段2
+ * Tools are dispatched through VoiceAgentService.executeTool().
  */
 
 import type { ActionId } from '../../services/IntentRouter';
 
 // ── Tool Names ───────────────────────────────────────────────────────────────
 
-/** LLM 可调用的 Voice Action Tool 名称 */
+/** Voice Action Tool names callable by the LLM. */
 export type VoiceActionToolName =
   // ── Navigation ──────────────────────────────────────────────────────────
   | 'nav_to_segment'
@@ -48,62 +46,62 @@ export type VoiceActionToolName =
 // ── Tool Parameter Schemas ────────────────────────────────────────────────────
 
 export interface NavToSegmentParams {
-  /** 目标句段序号（从 1 开始） */
+  /** Target segment index, starting from 1. */
   segmentIndex: number;
 }
 
 export interface NavToTimeParams {
-  /** 目标时间点（秒） */
+  /** Target playback position in seconds. */
   timeSeconds: number;
 }
 
 export interface SplitAtTimeParams {
-  /** 分割时间点（秒） */
+  /** Split position in seconds. */
   timeSeconds: number;
 }
 
 export interface FocusSegmentParams {
-  /** 句段 ID */
+  /** Segment ID. */
   segmentId: string;
 }
 
 export interface ZoomToSegmentParams {
-  /** 句段 ID */
+  /** Segment ID. */
   segmentId: string;
-  /** 缩放级别（1-20），默认 4 */
+  /** Zoom level from 1 to 20. Default is 4. */
   zoomLevel?: number;
 }
 
 export interface SearchSegmentsParams {
-  /** 搜索关键词 */
+  /** Search query. */
   query: string;
-  /** 搜索层（transcription/translation/gloss），默认全部 */
+  /** Layers to search. Defaults to all supported text layers. */
   layers?: Array<'transcription' | 'translation' | 'gloss'>;
 }
 
 export interface AutoGlossSegmentParams {
-  /** 句段 ID，不传则使用当前句段 */
+  /** Segment ID. Uses the current segment when omitted. */
   segmentId?: string;
-  /** 标注语言（ISO 639-3），默认根据语料库推断 */
+  /** Target gloss language (ISO 639-3). Auto-detected when omitted. */
   targetLang?: string;
 }
 
 export interface AutoTranslateSegmentParams {
-  /** 句段 ID，不传则使用当前句段 */
+  /** Segment ID. Uses the current segment when omitted. */
   segmentId?: string;
-  /** 目标语言（ BCP-47），默认翻译层语言 */
+  /** Target language (BCP-47). Defaults to the translation layer language. */
   targetLang?: string;
 }
 
 export interface SuggestSegmentImprovementParams {
-  /** 句段 ID */
+  /** Segment ID. */
   segmentId: string;
-  /** 改进类型 */
+  /** Improvement category. */
   type: 'transcription' | 'translation' | 'gloss' | 'all';
 }
 
 export interface AnalyzeSegmentQualityParams {
-  /** 句段 ID */
+  /** Segment ID. */
   segmentId: string;
 }
 
@@ -145,64 +143,64 @@ export const VOICE_ACTION_TOOL_DEFINITIONS: VoiceActionToolDef[] = [
   // ── Navigation ─────────────────────────────────────────────────────────────
   {
     name: 'nav_to_segment',
-    description: '导航到指定序号的句段并选中它。用于"跳到第5句"等指令。',
+    description: '\u5bfc\u822a\u5230\u6307\u5b9a\u5e8f\u53f7\u7684\u53e5\u6bb5\u5e76\u9009\u4e2d\u5b83\u3002\u7528\u4e8e"\u8df3\u5230\u7b2c5\u53e5"\u7b49\u6307\u4ee4\u3002',
     parameters: {
-      properties: { segmentIndex: { type: 'integer', description: '目标句段序号，从 1 开始', minimum: 1 } },
+      properties: { segmentIndex: { type: 'integer', description: '\u76ee\u6807\u53e5\u6bb5\u5e8f\u53f7\uff0c\u4ece 1 \u5f00\u59cb', minimum: 1 } },
       required: ['segmentIndex'],
     },
   },
   {
     name: 'nav_to_time',
-    description: '将播放头跳转到指定时间点（秒）。用于"跳到30秒"等指令。',
+    description: '\u5c06\u64ad\u653e\u5934\u8df3\u8f6c\u5230\u6307\u5b9a\u65f6\u95f4\u70b9\uff08\u79d2\uff09\u3002\u7528\u4e8e"\u8df3\u523030\u79d2"\u7b49\u6307\u4ee4\u3002',
     parameters: {
-      properties: { timeSeconds: { type: 'number', description: '目标时间点，单位秒', minimum: 0 } },
+      properties: { timeSeconds: { type: 'number', description: '\u76ee\u6807\u65f6\u95f4\u70b9\uff0c\u5355\u4f4d\u79d2', minimum: 0 } },
       required: ['timeSeconds'],
     },
   },
   {
     name: 'play_pause',
-    description: '切换播放/暂停状态。无需参数。',
+    description: '\u5207\u6362\u64ad\u653e/\u6682\u505c\u72b6\u6001\u3002\u65e0\u9700\u53c2\u6570\u3002',
     parameters: { properties: {}, required: [] },
   },
 
   // ── Segment editing ─────────────────────────────────────────────────────────
   {
     name: 'mark_segment',
-    description: '对当前句段或指定句段进行标记（mark）。用于"标记这句"等指令。',
+    description: '\u5bf9\u5f53\u524d\u53e5\u6bb5\u6216\u6307\u5b9a\u53e5\u6bb5\u8fdb\u884c\u6807\u8bb0\uff08mark\uff09\u3002\u7528\u4e8e"\u6807\u8bb0\u8fd9\u53e5"\u7b49\u6307\u4ee4\u3002',
     parameters: {
-      properties: { segmentId: { type: 'string', description: '句段 ID，不传则使用当前选中句段' } },
+      properties: { segmentId: { type: 'string', description: '\u53e5\u6bb5 ID\uff0c\u4e0d\u4f20\u5219\u4f7f\u7528\u5f53\u524d\u9009\u4e2d\u53e5\u6bb5' } },
       required: [],
     },
   },
   {
     name: 'delete_segment',
-    description: '删除当前句段或指定句段。谨慎使用。',
+    description: '\u5220\u9664\u5f53\u524d\u53e5\u6bb5\u6216\u6307\u5b9a\u53e5\u6bb5\u3002\u8c28\u614e\u4f7f\u7528\u3002',
     parameters: {
-      properties: { segmentId: { type: 'string', description: '句段 ID，不传则使用当前选中句段' } },
+      properties: { segmentId: { type: 'string', description: '\u53e5\u6bb5 ID\uff0c\u4e0d\u4f20\u5219\u4f7f\u7528\u5f53\u524d\u9009\u4e2d\u53e5\u6bb5' } },
       required: [],
     },
   },
   {
     name: 'split_at_time',
-    description: '在指定时间点分割句段。用于"在30秒处分割"等指令。',
+    description: '\u5728\u6307\u5b9a\u65f6\u95f4\u70b9\u5206\u5272\u53e5\u6bb5\u3002\u7528\u4e8e"\u572830\u79d2\u5904\u5206\u5272"\u7b49\u6307\u4ee4\u3002',
     parameters: {
-      properties: { timeSeconds: { type: 'number', description: '分割时间点，单位秒', minimum: 0 } },
+      properties: { timeSeconds: { type: 'number', description: '\u5206\u5272\u65f6\u95f4\u70b9\uff0c\u5355\u4f4d\u79d2', minimum: 0 } },
       required: ['timeSeconds'],
     },
   },
   {
     name: 'merge_prev',
-    description: '将当前句段与上一个句段合并。',
+    description: '\u5c06\u5f53\u524d\u53e5\u6bb5\u4e0e\u4e0a\u4e00\u4e2a\u53e5\u6bb5\u5408\u5e76\u3002',
     parameters: {
-      properties: { segmentId: { type: 'string', description: '句段 ID，不传则使用当前选中句段' } },
+      properties: { segmentId: { type: 'string', description: '\u53e5\u6bb5 ID\uff0c\u4e0d\u4f20\u5219\u4f7f\u7528\u5f53\u524d\u9009\u4e2d\u53e5\u6bb5' } },
       required: [],
     },
   },
   {
     name: 'merge_next',
-    description: '将当前句段与下一个句段合并。',
+    description: '\u5c06\u5f53\u524d\u53e5\u6bb5\u4e0e\u4e0b\u4e00\u4e2a\u53e5\u6bb5\u5408\u5e76\u3002',
     parameters: {
-      properties: { segmentId: { type: 'string', description: '句段 ID，不传则使用当前选中句段' } },
+      properties: { segmentId: { type: 'string', description: '\u53e5\u6bb5 ID\uff0c\u4e0d\u4f20\u5219\u4f7f\u7528\u5f53\u524d\u9009\u4e2d\u53e5\u6bb5' } },
       required: [],
     },
   },
@@ -210,47 +208,47 @@ export const VOICE_ACTION_TOOL_DEFINITIONS: VoiceActionToolDef[] = [
   // ── Undo / redo ────────────────────────────────────────────────────────────
   {
     name: 'undo',
-    description: '撤销上一次编辑操作。无需参数。',
+    description: '\u64a4\u9500\u4e0a\u4e00\u6b21\u7f16\u8f91\u64cd\u4f5c\u3002\u65e0\u9700\u53c2\u6570\u3002',
     parameters: { properties: {}, required: [] },
   },
   {
     name: 'redo',
-    description: '重做上一次撤销的操作。无需参数。',
+    description: '\u91cd\u505a\u4e0a\u4e00\u6b21\u64a4\u9500\u7684\u64cd\u4f5c\u3002\u65e0\u9700\u53c2\u6570\u3002',
     parameters: { properties: {}, required: [] },
   },
 
   // ── View ────────────────────────────────────────────────────────────────────
   {
     name: 'focus_segment',
-    description: '将视口滚动到并聚焦指定句段，使其可见但不改变选中状态。',
+    description: '\u5c06\u89c6\u53e3\u6eda\u52a8\u5230\u5e76\u805a\u7126\u6307\u5b9a\u53e5\u6bb5\uff0c\u4f7f\u5176\u53ef\u89c1\u4f46\u4e0d\u6539\u53d8\u9009\u4e2d\u72b6\u6001\u3002',
     parameters: {
-      properties: { segmentId: { type: 'string', description: '句段 ID' } },
+      properties: { segmentId: { type: 'string', description: '\u53e5\u6bb5 ID' } },
       required: ['segmentId'],
     },
   },
   {
     name: 'zoom_to_segment',
-    description: '缩放波形到指定句段的时间范围。用于仔细查看某段音频。',
+    description: '\u7f29\u653e\u6ce2\u5f62\u5230\u6307\u5b9a\u53e5\u6bb5\u7684\u65f6\u95f4\u8303\u56f4\u3002\u7528\u4e8e\u4ed4\u7ec6\u67e5\u770b\u67d0\u6bb5\u97f3\u9891\u3002',
     parameters: {
       properties: {
-        segmentId: { type: 'string', description: '句段 ID' },
-        zoomLevel: { type: 'integer', description: '缩放级别 1-20，默认 4', minimum: 1, maximum: 20 },
+        segmentId: { type: 'string', description: '\u53e5\u6bb5 ID' },
+        zoomLevel: { type: 'integer', description: '\u7f29\u653e\u7ea7\u522b 1-20\uff0c\u9ed8\u8ba4 4', minimum: 1, maximum: 20 },
       },
       required: ['segmentId'],
     },
   },
   {
     name: 'toggle_notes',
-    description: '打开或关闭备注面板。无需参数。',
+    description: '\u6253\u5f00\u6216\u5173\u95ed\u5907\u6ce8\u9762\u677f\u3002\u65e0\u9700\u53c2\u6570\u3002',
     parameters: { properties: {}, required: [] },
   },
   {
     name: 'search_segments',
-    description: '在句段中搜索关键词。用于"搜索"相关指令。',
+    description: '\u5728\u53e5\u6bb5\u4e2d\u641c\u7d22\u5173\u952e\u8bcd\u3002\u7528\u4e8e"\u641c\u7d22"\u76f8\u5173\u6307\u4ee4\u3002',
     parameters: {
       properties: {
-        query: { type: 'string', description: '搜索关键词' },
-        layers: { type: 'array', items: { type: 'string', enum: ['transcription', 'translation', 'gloss'] }, description: '搜索层，默认全部' },
+        query: { type: 'string', description: '\u641c\u7d22\u5173\u952e\u8bcd' },
+        layers: { type: 'array', items: { type: 'string', enum: ['transcription', 'translation', 'gloss'] }, description: '\u641c\u7d22\u5c42\uff0c\u9ed8\u8ba4\u5168\u90e8' },
       },
       required: ['query'],
     },
@@ -259,11 +257,11 @@ export const VOICE_ACTION_TOOL_DEFINITIONS: VoiceActionToolDef[] = [
   // ── AI assistance ────────────────────────────────────────────────────────────
   {
     name: 'auto_gloss_segment',
-    description: '对当前句段或指定句段运行自动标注（auto-gloss）。用于"自动标注这句"等指令。',
+    description: '\u5bf9\u5f53\u524d\u53e5\u6bb5\u6216\u6307\u5b9a\u53e5\u6bb5\u8fd0\u884c\u81ea\u52a8\u6807\u6ce8\uff08auto-gloss\uff09\u3002\u7528\u4e8e"\u81ea\u52a8\u6807\u6ce8\u8fd9\u53e5"\u7b49\u6307\u4ee4\u3002',
     parameters: {
       properties: {
-        segmentId: { type: 'string', description: '句段 ID，不传则使用当前选中句段' },
-        targetLang: { type: 'string', description: '目标标注语言（ISO 639-3），不传则自动推断' },
+        segmentId: { type: 'string', description: '\u53e5\u6bb5 ID\uff0c\u4e0d\u4f20\u5219\u4f7f\u7528\u5f53\u524d\u9009\u4e2d\u53e5\u6bb5' },
+        targetLang: { type: 'string', description: '\u76ee\u6807\u6807\u6ce8\u8bed\u8a00\uff08ISO 639-3\uff09\uff0c\u4e0d\u4f20\u5219\u81ea\u52a8\u63a8\u65ad' },
       },
       required: [],
     },
@@ -271,17 +269,17 @@ export const VOICE_ACTION_TOOL_DEFINITIONS: VoiceActionToolDef[] = [
   // ── Context query ───────────────────────────────────────────────────────────
   {
     name: 'get_current_segment',
-    description: '获取当前句段的详细信息（ID、文本、翻译、标注状态）。用于确认操作目标。',
+    description: '\u83b7\u53d6\u5f53\u524d\u53e5\u6bb5\u7684\u8be6\u7ec6\u4fe1\u606f\uff08ID\u3001\u6587\u672c\u3001\u7ffb\u8bd1\u3001\u6807\u6ce8\u72b6\u6001\uff09\u3002\u7528\u4e8e\u786e\u8ba4\u64cd\u4f5c\u76ee\u6807\u3002',
     parameters: { properties: {}, required: [] },
   },
   {
     name: 'get_project_summary',
-    description: '获取当前项目摘要（句段总数、完成率、当前阶段、用户画像提示）。',
+    description: '\u83b7\u53d6\u5f53\u524d\u9879\u76ee\u6458\u8981\uff08\u53e5\u6bb5\u603b\u6570\u3001\u5b8c\u6210\u7387\u3001\u5f53\u524d\u9636\u6bb5\u3001\u7528\u6237\u753b\u50cf\u63d0\u793a\uff09\u3002',
     parameters: { properties: {}, required: [] },
   },
   {
     name: 'get_recent_history',
-    description: '获取最近的语音命令历史（最近 8 条），用于理解用户意图趋势。',
+    description: '\u83b7\u53d6\u6700\u8fd1\u7684\u8bed\u97f3\u547d\u4ee4\u5386\u53f2\uff08\u6700\u8fd1 8 \u6761\uff09\uff0c\u7528\u4e8e\u7406\u89e3\u7528\u6237\u610f\u56fe\u8d8b\u52bf\u3002',
     parameters: { properties: {}, required: [] },
   },
 ];

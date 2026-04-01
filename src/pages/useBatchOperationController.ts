@@ -1,6 +1,7 @@
 import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
 import type { UtteranceDocType } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
+import { t, tf, useLocale } from '../i18n';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { resolveUtteranceSelectionMapping } from './selectionIdResolvers';
 
@@ -38,6 +39,8 @@ export function useBatchOperationController({
   splitByRegex,
   mergeSelectedUtterances,
 }: UseBatchOperationControllerInput): UseBatchOperationControllerResult {
+  const locale = useLocale();
+
   const batchUtteranceSelectionMapping = useMemo(() => {
     return resolveUtteranceSelectionMapping({
       selectedUtteranceIds,
@@ -62,47 +65,58 @@ export function useBatchOperationController({
       if (batchUtteranceSelectionMapping.unmappedSourceCount > 0) {
         setSaveState({
           kind: 'done',
-          message: `已忽略 ${batchUtteranceSelectionMapping.unmappedSourceCount} 个不可映射选中项，将对 ${selectedUtteranceIdsForSpeakerActionsSet.size} 个句段执行批量操作。`,
+          message: tf(locale, 'transcription.batchOperation.mappingIgnored', {
+            ignored: batchUtteranceSelectionMapping.unmappedSourceCount,
+            count: selectedUtteranceIdsForSpeakerActionsSet.size,
+          }),
         });
       }
       return selectedUtteranceIdsForSpeakerActionsSet;
     }
     setSaveState({
       kind: 'error',
-      message: '当前选中的语段无法映射到可编辑句段，请先选择可编辑句段后再试。',
+      message: t(locale, 'transcription.batchOperation.mappingUnavailable'),
     });
     return null;
-  }, [batchUtteranceSelectionMapping.unmappedSourceCount, hasBatchSelectionSource, selectedUtteranceIdsForSpeakerActionsSet, setSaveState]);
+  }, [batchUtteranceSelectionMapping.unmappedSourceCount, hasBatchSelectionSource, locale, selectedUtteranceIdsForSpeakerActionsSet, setSaveState]);
 
-  const runMappedBatchAction = useCallback(async (actionLabel: string, i18nKey: string, action: BatchOperationSelectionAction) => {
+  const runMappedBatchAction = useCallback(async (
+    actionLabelKey: Parameters<typeof t>[1],
+    i18nKey: Parameters<typeof t>[1],
+    action: BatchOperationSelectionAction,
+  ) => {
     const targetIds = resolveBatchUtteranceTargetIds();
     if (!targetIds) return;
     try {
       await action(targetIds);
     } catch (error) {
-      const { message, meta } = reportActionError({ actionLabel, error, i18nKey: i18nKey });
+      const { message, meta } = reportActionError({
+        actionLabel: t(locale, actionLabelKey),
+        error,
+        i18nKey,
+      });
       setSaveState({
         kind: 'error',
         message,
         ...(meta ? { errorMeta: meta } : {}),
       });
     }
-  }, [resolveBatchUtteranceTargetIds, setSaveState]);
+  }, [locale, resolveBatchUtteranceTargetIds, setSaveState]);
 
   const handleBatchOffset = useCallback(async (deltaSec: number) => {
-    await runMappedBatchAction('批量时间偏移', 'transcription.error.action.offsetBatchFailed', (targetIds) => offsetSelectedTimes(targetIds, deltaSec));
+    await runMappedBatchAction('transcription.utteranceAction.undo.offsetSelection', 'transcription.error.action.offsetBatchFailed', (targetIds) => offsetSelectedTimes(targetIds, deltaSec));
   }, [offsetSelectedTimes, runMappedBatchAction]);
 
   const handleBatchScale = useCallback(async (factor: number, anchorTime?: number) => {
-    await runMappedBatchAction('批量时间缩放', 'transcription.error.action.scaleBatchFailed', (targetIds) => scaleSelectedTimes(targetIds, factor, anchorTime));
+    await runMappedBatchAction('transcription.utteranceAction.undo.scaleSelection', 'transcription.error.action.scaleBatchFailed', (targetIds) => scaleSelectedTimes(targetIds, factor, anchorTime));
   }, [runMappedBatchAction, scaleSelectedTimes]);
 
   const handleBatchSplitByRegex = useCallback(async (pattern: string, flags?: string) => {
-    await runMappedBatchAction('正则批量拆分', 'transcription.error.action.regexSplitBatchFailed', (targetIds) => splitByRegex(targetIds, pattern, flags));
+    await runMappedBatchAction('transcription.utteranceAction.undo.regexSplitSelection', 'transcription.error.action.regexSplitBatchFailed', (targetIds) => splitByRegex(targetIds, pattern, flags));
   }, [runMappedBatchAction, splitByRegex]);
 
   const handleBatchMerge = useCallback(async () => {
-    await runMappedBatchAction('批量合并句段', 'transcription.error.action.mergeSelectionFailed', (targetIds) => mergeSelectedUtterances(targetIds));
+    await runMappedBatchAction('transcription.utteranceAction.undo.mergeSelection', 'transcription.error.action.mergeSelectionFailed', (targetIds) => mergeSelectedUtterances(targetIds));
   }, [mergeSelectedUtterances, runMappedBatchAction]);
 
   return {

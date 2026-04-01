@@ -1,4 +1,5 @@
 import type { AiChatContextValue } from '../contexts/AiChatContext';
+import { normalizeLocale, t, tf } from '../i18n';
 
 type AssistantStatusTone = 'idle' | 'active' | 'warning' | 'error';
 
@@ -17,30 +18,26 @@ interface BuildTranscriptionAssistantStatusSummaryInput {
   aiSidebarError: string | null;
 }
 
-function isZh(locale: string): boolean {
-  return locale === 'zh-CN';
-}
-
-function formatToolName(toolName: string | undefined, zh: boolean): string {
-  if (!toolName) return zh ? '未指定工具' : 'Unknown tool';
+function formatToolName(toolName: string | undefined, locale: 'zh-CN' | 'en-US'): string {
+  if (!toolName) return t(locale, 'transcription.assistant.toolUnknown');
   return toolName
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function formatTaskStatus(status: string | undefined, zh: boolean): string {
+function formatTaskStatus(status: string | undefined, locale: 'zh-CN' | 'en-US'): string {
   switch (status) {
     case 'waiting_clarify':
-      return zh ? '等待澄清' : 'Waiting for clarification';
+      return t(locale, 'transcription.assistant.taskStatus.waitingClarify');
     case 'waiting_confirm':
-      return zh ? '等待确认' : 'Waiting for confirmation';
+      return t(locale, 'transcription.assistant.taskStatus.waitingConfirm');
     case 'executing':
-      return zh ? '执行中' : 'Executing';
+      return t(locale, 'transcription.assistant.taskStatus.executing');
     case 'explaining':
-      return zh ? '解释中' : 'Explaining';
+      return t(locale, 'transcription.assistant.taskStatus.explaining');
     case 'idle':
     default:
-      return zh ? '空闲' : 'Idle';
+      return t(locale, 'transcription.assistant.taskStatus.idle');
   }
 }
 
@@ -52,7 +49,7 @@ function pushChip(chips: string[], value: string | null | undefined) {
 export function buildTranscriptionAssistantStatusSummary(
   input: BuildTranscriptionAssistantStatusSummaryInput,
 ): TranscriptionAssistantStatusSummary {
-  const zh = isZh(input.locale);
+  const locale = normalizeLocale(input.locale) ?? 'zh-CN';
   const pendingToolCall = input.aiChatContextValue.aiPendingToolCall;
   const taskSession = input.aiChatContextValue.aiTaskSession;
   const metrics = input.aiChatContextValue.aiInteractionMetrics;
@@ -61,76 +58,102 @@ export function buildTranscriptionAssistantStatusSummary(
   const chips: string[] = [];
 
   if (pendingToolCall) {
-    pushChip(chips, `${zh ? '工具' : 'Tool'}: ${formatToolName(pendingToolCall.call.name, zh)}`);
+    pushChip(chips, tf(locale, 'transcription.assistant.chip.tool', {
+      tool: formatToolName(pendingToolCall.call.name, locale),
+    }));
     pushChip(chips, pendingToolCall.previewContract
-      ? `${zh ? '影响' : 'Affects'} ${pendingToolCall.previewContract.affectedCount}`
+      ? tf(locale, 'transcription.assistant.chip.affects', {
+        count: pendingToolCall.previewContract.affectedCount,
+      })
       : null);
     pushChip(chips, input.selectedTranslationGapCount > 0
-      ? `${zh ? '待补翻译' : 'Gaps'} ${input.selectedTranslationGapCount}`
+      ? tf(locale, 'transcription.assistant.chip.gaps', { count: input.selectedTranslationGapCount })
       : null);
     return {
       tone: 'warning',
-      headline: zh ? '待确认操作' : 'Pending confirmation',
-      detail: pendingToolCall.riskSummary?.trim() || `${formatToolName(pendingToolCall.call.name, zh)} ${zh ? '等待用户确认。' : 'is waiting for confirmation.'}`,
+      headline: t(locale, 'transcription.assistant.headline.pendingConfirmation'),
+      detail: pendingToolCall.riskSummary?.trim() || tf(locale, 'transcription.assistant.detail.pendingConfirmation', {
+        tool: formatToolName(pendingToolCall.call.name, locale),
+      }),
       chips,
     };
   }
 
   if (sidebarError) {
-    pushChip(chips, decisionLogs.length > 0 ? `${zh ? '决策日志' : 'Decisions'} ${decisionLogs.length}` : null);
-    pushChip(chips, input.selectedAiWarning ? (zh ? '当前选中待复核' : 'Selection needs review') : null);
+    pushChip(chips, decisionLogs.length > 0
+      ? tf(locale, 'transcription.assistant.chip.decisions', { count: decisionLogs.length })
+      : null);
+    pushChip(chips, input.selectedAiWarning ? t(locale, 'transcription.assistant.chip.selectionNeedsReview') : null);
     return {
       tone: 'error',
-      headline: zh ? '助手异常' : 'Assistant issue',
+      headline: t(locale, 'transcription.assistant.headline.issue'),
       detail: sidebarError,
       chips,
     };
   }
 
   if (taskSession && taskSession.status !== 'idle') {
-    pushChip(chips, `${zh ? '任务' : 'Task'}: ${formatTaskStatus(taskSession.status, zh)}`);
-    pushChip(chips, taskSession.toolName ? `${zh ? '工具' : 'Tool'}: ${formatToolName(taskSession.toolName, zh)}` : null);
-    pushChip(chips, (taskSession.candidates?.length ?? 0) > 0 ? `${zh ? '候选' : 'Options'} ${taskSession.candidates?.length ?? 0}` : null);
-    pushChip(chips, input.selectedTranslationGapCount > 0 ? `${zh ? '待补翻译' : 'Gaps'} ${input.selectedTranslationGapCount}` : null);
+    pushChip(chips, tf(locale, 'transcription.assistant.chip.task', {
+      status: formatTaskStatus(taskSession.status, locale),
+    }));
+    pushChip(chips, taskSession.toolName
+      ? tf(locale, 'transcription.assistant.chip.tool', { tool: formatToolName(taskSession.toolName, locale) })
+      : null);
+    pushChip(chips, (taskSession.candidates?.length ?? 0) > 0
+      ? tf(locale, 'transcription.assistant.chip.options', { count: taskSession.candidates?.length ?? 0 })
+      : null);
+    pushChip(chips, input.selectedTranslationGapCount > 0
+      ? tf(locale, 'transcription.assistant.chip.gaps', { count: input.selectedTranslationGapCount })
+      : null);
     return {
       tone: taskSession.status === 'executing' || taskSession.status === 'explaining' ? 'active' : 'warning',
-      headline: zh ? '任务进行中' : 'Task in progress',
-      detail: `${formatTaskStatus(taskSession.status, zh)}${taskSession.toolName ? ` · ${formatToolName(taskSession.toolName, zh)}` : ''}`,
+      headline: t(locale, 'transcription.assistant.headline.taskInProgress'),
+      detail: `${formatTaskStatus(taskSession.status, locale)}${taskSession.toolName ? ` · ${formatToolName(taskSession.toolName, locale)}` : ''}`,
       chips,
     };
   }
 
   if (input.selectedAiWarning || input.selectedTranslationGapCount > 0) {
-    pushChip(chips, input.selectedAiWarning ? (zh ? '当前选中待复核' : 'Selection needs review') : null);
-    pushChip(chips, input.selectedTranslationGapCount > 0 ? `${zh ? '待补翻译' : 'Gaps'} ${input.selectedTranslationGapCount}` : null);
-    pushChip(chips, decisionLogs.length > 0 ? `${zh ? '决策日志' : 'Decisions'} ${decisionLogs.length}` : null);
+    pushChip(chips, input.selectedAiWarning ? t(locale, 'transcription.assistant.chip.selectionNeedsReview') : null);
+    pushChip(chips, input.selectedTranslationGapCount > 0
+      ? tf(locale, 'transcription.assistant.chip.gaps', { count: input.selectedTranslationGapCount })
+      : null);
+    pushChip(chips, decisionLogs.length > 0
+      ? tf(locale, 'transcription.assistant.chip.decisions', { count: decisionLogs.length })
+      : null);
     return {
       tone: 'warning',
-      headline: zh ? '建议优先处理当前选中' : 'Selection needs attention',
+      headline: t(locale, 'transcription.assistant.headline.selectionNeedsAttention'),
       detail: input.selectedTranslationGapCount > 0
-        ? (zh ? '当前选中仍有翻译缺口，可先补齐再继续后续操作。' : 'The current selection still has translation gaps to fill.')
-        : (zh ? '当前选中存在 AI 风险信号，建议先复核。' : 'The current selection has AI risk signals and should be reviewed first.'),
+        ? t(locale, 'transcription.assistant.detail.selectionHasGaps')
+        : t(locale, 'transcription.assistant.detail.selectionHasRisk'),
       chips,
     };
   }
 
   if (metrics && (metrics.turnCount > 0 || decisionLogs.length > 0)) {
-    pushChip(chips, `${zh ? '轮次' : 'Turns'} ${metrics.turnCount}`);
-    pushChip(chips, metrics.successCount > 0 ? `${zh ? '成功' : 'Success'} ${metrics.successCount}` : null);
-    pushChip(chips, metrics.failureCount > 0 ? `${zh ? '失败' : 'Failure'} ${metrics.failureCount}` : null);
-    pushChip(chips, decisionLogs.length > 0 ? `${zh ? '决策日志' : 'Decisions'} ${decisionLogs.length}` : null);
+    pushChip(chips, tf(locale, 'transcription.assistant.chip.turns', { count: metrics.turnCount }));
+    pushChip(chips, metrics.successCount > 0
+      ? tf(locale, 'transcription.assistant.chip.success', { count: metrics.successCount })
+      : null);
+    pushChip(chips, metrics.failureCount > 0
+      ? tf(locale, 'transcription.assistant.chip.failure', { count: metrics.failureCount })
+      : null);
+    pushChip(chips, decisionLogs.length > 0
+      ? tf(locale, 'transcription.assistant.chip.decisions', { count: decisionLogs.length })
+      : null);
     return {
       tone: 'active',
-      headline: zh ? '助手已接管主流程' : 'Assistant is active',
-      detail: zh ? '任务、决策与结果写回已进入可追踪状态。' : 'Task flow, decisions, and write-back are being tracked.',
+      headline: t(locale, 'transcription.assistant.headline.active'),
+      detail: t(locale, 'transcription.assistant.detail.active'),
       chips,
     };
   }
 
   return {
     tone: 'idle',
-    headline: zh ? '助手待命' : 'Assistant ready',
-    detail: zh ? '可以直接发起 AI、语音或检索主流程。' : 'AI, voice, and retrieval flows are ready to use.',
+    headline: t(locale, 'transcription.assistant.headline.ready'),
+    detail: t(locale, 'transcription.assistant.detail.ready'),
     chips: [],
   };
 }

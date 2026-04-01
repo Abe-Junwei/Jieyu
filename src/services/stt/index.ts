@@ -77,7 +77,7 @@ const PROVIDERS: Record<CommercialProviderKind, CommercialProviderDefinition> = 
   gemini: {
     kind: 'gemini',
     label: 'Gemini 2.0 Flash',
-    description: 'Google 多模态模型，支持音频输入。需 API Key（$0.003/分钟音频）。',
+    description: 'Google \u591a\u6a21\u6001\u6a21\u578b\uff0c\u652f\u6301\u97f3\u9891\u8f93\u5165\u3002\u9700 API Key\uff08$0.003/\u5206\u949f\u97f3\u9891\uff09\u3002',
     capability: 'cloud-api',
     billing: 'metered',
     create: (cfg): CommercialSttProvider =>
@@ -86,7 +86,7 @@ const PROVIDERS: Record<CommercialProviderKind, CommercialProviderDefinition> = 
   'openai-audio': {
     kind: 'openai-audio',
     label: 'OpenAI Audio (Whisper)',
-    description: 'OpenAI Whisper API。需 API Key，按用量计费。',
+    description: 'OpenAI Whisper API\u3002\u9700 API Key\uff0c\u6309\u7528\u91cf\u8ba1\u8d39\u3002',
     capability: 'cloud-api',
     billing: 'metered',
     create: (cfg): CommercialSttProvider =>
@@ -94,8 +94,8 @@ const PROVIDERS: Record<CommercialProviderKind, CommercialProviderDefinition> = 
   },
   groq: {
     kind: 'groq',
-    label: 'Groq Whisper (免费 tier)',
-    description: 'Groq Cloud 免费 Whisper，14,400秒/月。需 Groq API Key（gsk_开头）。',
+    label: 'Groq Whisper (\u514d\u8d39 tier)',
+    description: 'Groq Cloud \u514d\u8d39 Whisper\uff0c14,400\u79d2/\u6708\u3002\u9700 Groq API Key\uff08gsk_\u5f00\u5934\uff09\u3002',
     capability: 'cloud-api',
     billing: 'free',
     create: (cfg): CommercialSttProvider =>
@@ -103,8 +103,8 @@ const PROVIDERS: Record<CommercialProviderKind, CommercialProviderDefinition> = 
   },
   'custom-http': {
     kind: 'custom-http',
-    label: '自定义 HTTP（OpenAI兼容）',
-    description: '接入任意 OpenAI-compatible 音频转写接口（OneAPI、vLLM 等）。',
+    label: '\u81ea\u5b9a\u4e49 HTTP\uff08OpenAI\u517c\u5bb9\uff09',
+    description: '\u63a5\u5165\u4efb\u610f OpenAI-compatible \u97f3\u9891\u8f6c\u5199\u63a5\u53e3\uff08OneAPI\u3001vLLM \u7b49\uff09\u3002',
     capability: 'cloud-api',
     billing: 'self-hosted',
     create: (cfg): CommercialSttProvider =>
@@ -112,8 +112,8 @@ const PROVIDERS: Record<CommercialProviderKind, CommercialProviderDefinition> = 
   },
   minimax: {
     kind: 'minimax',
-    label: 'MiniMax ASR (免费 1000分钟/月)',
-    description: 'MiniMax AI 语音转写，OpenAI兼容接口，免费额度充足。需 API Key。',
+    label: 'MiniMax ASR (\u514d\u8d39 1000\u5206\u949f/\u6708)',
+    description: 'MiniMax AI \u8bed\u97f3\u8f6c\u5199\uff0cOpenAI\u517c\u5bb9\u63a5\u53e3\uff0c\u514d\u8d39\u989d\u5ea6\u5145\u8db3\u3002\u9700 API Key\u3002',
     capability: 'cloud-api',
     billing: 'free',
     create: (cfg): CommercialSttProvider =>
@@ -121,8 +121,8 @@ const PROVIDERS: Record<CommercialProviderKind, CommercialProviderDefinition> = 
   },
   volcengine: {
     kind: 'volcengine',
-    label: '火山引擎 ASR (字节跳动)',
-    description: '字节跳动火山引擎语音识别。需 App ID + Access Token（免费注册）。',
+    label: '\u706b\u5c71\u5f15\u64ce ASR (\u5b57\u8282\u8df3\u52a8)',
+    description: '\u5b57\u8282\u8df3\u52a8\u706b\u5c71\u5f15\u64ce\u8bed\u97f3\u8bc6\u522b\u3002\u9700 App ID + Access Token\uff08\u514d\u8d39\u6ce8\u518c\uff09\u3002',
     capability: 'cloud-api',
     billing: 'metered',
     create: (cfg): CommercialSttProvider =>
@@ -187,7 +187,7 @@ export async function probeAllCommercialProviders(
       try {
         const t0 = Date.now();
         const provider = createCommercialProvider(def.kind, config);
-        // 用 Promise.race 实现真正的超时中断 | Race against timeout for real cancellation
+        // Use Promise.race to enforce real timeout cancellation.
         const available = await Promise.race([
           provider.isAvailable(),
           new Promise<never>((_, reject) =>

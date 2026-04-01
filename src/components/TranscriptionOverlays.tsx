@@ -3,6 +3,8 @@ import type { NoteCategory, MultiLangString, LayerDocType, LayerDisplaySettings,
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { SpeakerFilterOption } from '../hooks/useSpeakerActions';
 import type { TimelineUnit, TimelineUnitKind } from '../hooks/transcriptionTypes';
+import { useOptionalLocale } from '../i18n';
+import { getTranscriptionOverlaysMessages } from '../i18n/transcriptionOverlaysMessages';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
@@ -60,6 +62,8 @@ interface TranscriptionOverlaysProps {
 }
 
 export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
+  const locale = useOptionalLocale() ?? 'zh-CN';
+  const messages = getTranscriptionOverlaysMessages(locale);
   const {
     ctxMenu,
     onCloseCtxMenu,
@@ -109,17 +113,17 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
   const defaultPreviewLayer = transcriptionLayers.find((layer) => layer.isDefault) ?? transcriptionLayers[0];
 
   const buildNotePopoverTargetLabel = (): ReactNode => {
-    if (!notePopover) return '备注';
+    if (!notePopover) return messages.note;
 
     const utt = utterances.find((u) => u.id === notePopover.uttId);
     const previewLayer = notePopover.layerId
       ? allTextLayers.find((layer) => layer.id === notePopover.layerId)
       : defaultPreviewLayer;
     const uttText = (utt ? getUtteranceTextForLayer(utt, previewLayer?.id) : '').slice(0, 20);
-    const fallbackLabel = '备注';
+    const fallbackLabel = messages.note;
 
     const prefix = (() => {
-      if (!notePopover.layerId) return '句段';
+      if (!notePopover.layerId) return messages.segment;
       const layerLabel = previewLayer ? getLayerLabelParts(previewLayer) : null;
       return layerLabel ? `${layerLabel.type} ${layerLabel.lang}` : '';
     })();
@@ -165,63 +169,63 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             const isTranscriptionLayerContext = transcriptionLayers.some((layer) => layer.id === ctxMenu.layerId);
             const items: ContextMenuItem[] = multiCount > 1
               ? [
-                  { label: `删除 ${multiCount} 个句段`, shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUtteranceIds, targetKind, ctxMenu.layerId); } },
+                  { label: messages.deleteSegments(multiCount), shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUtteranceIds, targetKind, ctxMenu.layerId); } },
                   ...(isSegmentUnitContext
                     ? []
-                    : [{ label: `合并 ${multiCount} 个句段`, onClick: () => { runMergeSelection(selectedUtteranceIds, targetKind, ctxMenu.layerId); } }]),
+                    : [{ label: messages.mergeSegments(multiCount), onClick: () => { runMergeSelection(selectedUtteranceIds, targetKind, ctxMenu.layerId); } }]),
                   ...(isSegmentUnitContext
                     ? []
                     : [
-                        { label: '选中此句段及之前所有', shortcut: '⇧Home', onClick: () => { runSelectBefore(id); } },
-                        { label: '选中此句段及之后所有', shortcut: '⇧End', onClick: () => { runSelectAfter(id); } },
+                        { label: messages.selectBeforeAll, shortcut: '⇧Home', onClick: () => { runSelectBefore(id); } },
+                        { label: messages.selectAfterAll, shortcut: '⇧End', onClick: () => { runSelectAfter(id); } },
                       ]),
                 ]
               : [
-                  { label: '删除句段', shortcut: '⌫', danger: true, onClick: () => { runDeleteOne(id, targetKind, ctxMenu.layerId); } },
-                  { label: '向前合并', shortcut: '⌘⇧M', onClick: () => { runMergePrev(id, targetKind, ctxMenu.layerId); } },
-                  { label: '向后合并', shortcut: '⌘M', onClick: () => { runMergeNext(id, targetKind, ctxMenu.layerId); } },
+                  { label: messages.deleteSegment, shortcut: '⌫', danger: true, onClick: () => { runDeleteOne(id, targetKind, ctxMenu.layerId); } },
+                  { label: messages.mergePrevious, shortcut: '⌘⇧M', onClick: () => { runMergePrev(id, targetKind, ctxMenu.layerId); } },
+                  { label: messages.mergeNext, shortcut: '⌘M', onClick: () => { runMergeNext(id, targetKind, ctxMenu.layerId); } },
                   {
-                    label: '从当前位置拆分句段',
+                    label: messages.splitFromCurrent,
                     shortcut: '⌘⇧S',
                     onClick: () => { runSplitAtTime(id, ctxMenu.splitTime, targetKind, ctxMenu.layerId); },
                   },
                   ...(isSegmentUnitContext
                     ? []
                     : [
-                        { label: '选中此句段及之前所有', shortcut: '⇧Home', onClick: () => { runSelectBefore(id); } },
-                        { label: '选中此句段及之后所有', shortcut: '⇧End', onClick: () => { runSelectAfter(id); } },
+                        { label: messages.selectBeforeAll, shortcut: '⇧Home', onClick: () => { runSelectBefore(id); } },
+                        { label: messages.selectAfterAll, shortcut: '⇧End', onClick: () => { runSelectAfter(id); } },
                       ]),
-                  { label: '添加备注', shortcut: '⌘⇧N', onClick: () => { onOpenNoteFromMenu(ctxMenu.x, ctxMenu.y, id, ctxMenu.layerId, ctxMenu.source ?? 'timeline'); } },
+                  { label: messages.addNote, shortcut: '⌘⇧N', onClick: () => { onOpenNoteFromMenu(ctxMenu.x, ctxMenu.y, id, ctxMenu.layerId, ctxMenu.source ?? 'timeline'); } },
                 ];
 
             if (isTranscriptionLayerContext) {
               const speakerManageItems: ContextMenuItem[] = [];
               for (const speaker of recentSpeakerOptions) {
                 speakerManageItems.push({
-                  label: `指派说话人（最近）→ ${speaker.name}`,
+                  label: messages.assignSpeakerRecent(speaker.name),
                   onClick: () => { onAssignSpeakerFromMenu(targetIds, targetKind, speaker.id); },
                 });
               }
               for (const speaker of fullSpeakerOptions) {
                 if (recentSpeakerOptions.some((recent) => recent.id === speaker.id)) continue;
                 speakerManageItems.push({
-                  label: `指派说话人 → ${speaker.name}`,
+                  label: messages.assignSpeaker(speaker.name),
                   onClick: () => { onAssignSpeakerFromMenu(targetIds, targetKind, speaker.id); },
                 });
               }
               speakerManageItems.push({
-                label: '清空说话人',
+                label: messages.clearSpeaker,
                 onClick: () => { onAssignSpeakerFromMenu(targetIds, targetKind, undefined); },
               });
               speakerManageItems.push({
-                label: '新建说话人并指派…',
+                label: messages.createSpeakerAndAssign,
                 onClick: () => {
                   onOpenSpeakerManagementPanelFromMenu();
                 },
               });
 
               items.push({
-                label: '说话人管理',
+                label: messages.speakerManagement,
                 children: speakerManageItems,
               });
             }
@@ -239,9 +243,10 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
                   (patch) => displayStyleControl.onUpdate(ctxMenu.layerId, patch),
                   () => displayStyleControl.onReset(ctxMenu.layerId),
                   displayStyleControl.localFonts,
+                  locale,
                 );
                 items.push({
-                  label: '本层显示样式',
+                  label: messages.layerDisplayStyle,
                   separatorBefore: true,
                   children: styleMenuItems,
                 });
@@ -263,17 +268,17 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             const targetLayerId = selectedTimelineUnit.layerId;
             if (multiCount > 1) {
               return [
-                { label: `删除 ${multiCount} 个句段`, shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUtteranceIds, targetKind, targetLayerId); } },
+                { label: messages.deleteSegments(multiCount), shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUtteranceIds, targetKind, targetLayerId); } },
                 ...(targetKind === 'segment'
                   ? []
-                  : [{ label: `合并 ${multiCount} 个句段`, onClick: () => { runMergeSelection(selectedUtteranceIds, targetKind, targetLayerId); } }]),
+                  : [{ label: messages.mergeSegments(multiCount), onClick: () => { runMergeSelection(selectedUtteranceIds, targetKind, targetLayerId); } }]),
               ];
             }
             return [
-              { label: '删除句段', shortcut: '⌫', danger: true, onClick: () => { runDeleteOne(id, targetKind, targetLayerId); } },
-              { label: '向前合并', shortcut: '⌘⇧M', onClick: () => { runMergePrev(id, targetKind, targetLayerId); } },
-              { label: '向后合并', shortcut: '⌘M', onClick: () => { runMergeNext(id, targetKind, targetLayerId); } },
-              { label: '拆分句段', shortcut: '⌘⇧S', onClick: () => { runSplitAtTime(id, getCurrentTime(), targetKind, targetLayerId); } },
+              { label: messages.deleteSegment, shortcut: '⌫', danger: true, onClick: () => { runDeleteOne(id, targetKind, targetLayerId); } },
+              { label: messages.mergePrevious, shortcut: '⌘⇧M', onClick: () => { runMergePrev(id, targetKind, targetLayerId); } },
+              { label: messages.mergeNext, shortcut: '⌘M', onClick: () => { runMergeNext(id, targetKind, targetLayerId); } },
+              { label: messages.splitSegment, shortcut: '⌘⇧S', onClick: () => { runSplitAtTime(id, getCurrentTime(), targetKind, targetLayerId); } },
             ];
           })()}
         />

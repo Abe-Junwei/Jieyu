@@ -47,32 +47,32 @@ export function PdfPreviewSection({
         pdfPreviewRef.current = node;
       }}
       className={`transcription-pdf-preview-panel ${pdfPreviewDragging ? 'is-dragging' : ''}`}
-      aria-label={locale === 'zh-CN' ? 'PDF 预览面板' : 'PDF preview panel'}
+      aria-label={locale === 'zh-CN' ? 'PDF \u9884\u89c8\u9762\u677f' : 'PDF preview panel'}
       style={{ right: `${pdfPreviewPos.right}px`, bottom: `${pdfPreviewPos.bottom}px` }}
     >
       <header className="transcription-pdf-preview-header" onPointerDown={onDragStart}>
         <strong className="transcription-pdf-preview-title" title={pdfPreview.title}>{pdfPreview.title}</strong>
         {pdfPreview.page && (
           <span className="transcription-pdf-preview-page-tag">
-            {locale === 'zh-CN' ? `第 ${pdfPreview.page} 页` : `Page ${pdfPreview.page}`}
+            {locale === 'zh-CN' ? `\u7b2c ${pdfPreview.page} \u9875` : `Page ${pdfPreview.page}`}
           </span>
         )}
         <div className="transcription-pdf-preview-actions">
           <button type="button" className="transcription-pdf-preview-nav" onClick={() => onChangePage(-1)} disabled={(pdfPreview.page ?? 1) <= 1}>
-            {locale === 'zh-CN' ? '上一页' : 'Prev'}
+            {locale === 'zh-CN' ? '\u4e0a\u4e00\u9875' : 'Prev'}
           </button>
           <button type="button" className="transcription-pdf-preview-nav" onClick={() => onChangePage(1)}>
-            {locale === 'zh-CN' ? '下一页' : 'Next'}
+            {locale === 'zh-CN' ? '\u4e0b\u4e00\u9875' : 'Next'}
           </button>
           {pdfPreview.searchSnippet && !useEnhancedPreview && (
             <button type="button" className="transcription-pdf-preview-nav" onClick={() => setUseEnhancedPreview(true)}>
-              {locale === 'zh-CN' ? '增强高亮' : 'Enhanced Highlight'}
+              {locale === 'zh-CN' ? '\u589e\u5f3a\u9ad8\u4eae' : 'Enhanced Highlight'}
             </button>
           )}
           <button type="button" className="transcription-pdf-preview-nav" onClick={onOpenExternal}>
-            {locale === 'zh-CN' ? '新窗口打开' : 'Open'}
+            {locale === 'zh-CN' ? '\u65b0\u7a97\u53e3\u6253\u5f00' : 'Open'}
           </button>
-          <button type="button" className="transcription-pdf-preview-close" onClick={onClose} aria-label={locale === 'zh-CN' ? '关闭 PDF 预览' : 'Close PDF preview'}>
+          <button type="button" className="transcription-pdf-preview-close" onClick={onClose} aria-label={locale === 'zh-CN' ? '\u5173\u95ed PDF \u9884\u89c8' : 'Close PDF preview'}>
             ×
           </button>
         </div>
@@ -82,7 +82,7 @@ export function PdfPreviewSection({
           <Suspense
             fallback={
               <div className="transcription-pdf-preview-loading" role="status" aria-live="polite">
-                {locale === 'zh-CN' ? 'PDF 加载中...' : 'Loading PDF...'}
+                {locale === 'zh-CN' ? 'PDF \u52a0\u8f7d\u4e2d...' : 'Loading PDF...'}
               </div>
             }
           >
@@ -100,7 +100,7 @@ export function PdfPreviewSection({
             src={pdfPreview.url}
             title={pdfPreview.title}
             className="transcription-pdf-preview-iframe"
-            style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
+            style={{ width: '100%', height: '100%', border: 'none', background: 'var(--surface-panel)' }}
           />
         )}
       </div>

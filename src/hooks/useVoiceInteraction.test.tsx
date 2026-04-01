@@ -75,7 +75,7 @@ describe('useVoiceInteraction', () => {
       defaultTranscriptionLayerId: trcDefault.id,
       translationLayers: [trl],
       layers: [trcDefault, trl],
-      formatLayerRailLabel: (layer) => `L:${layer.id}`,
+      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
       formatTime: (seconds) => seconds.toFixed(2),
       aiChatSend: vi.fn(async () => undefined),
       aiIsStreaming: false,
@@ -129,7 +129,7 @@ describe('useVoiceInteraction', () => {
       defaultTranscriptionLayerId: trcDefault.id,
       translationLayers: [],
       layers: [trcDefault],
-      formatLayerRailLabel: (layer) => `L:${layer.id}`,
+      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
       formatTime: (seconds) => seconds.toFixed(2),
       aiChatSend: vi.fn(async () => undefined),
       aiIsStreaming: false,
@@ -192,7 +192,7 @@ describe('useVoiceInteraction', () => {
       defaultTranscriptionLayerId: trcDefault.id,
       translationLayers: [],
       layers: [trcDefault],
-      formatLayerRailLabel: (layer) => `L:${layer.id}`,
+      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
       formatTime: (seconds) => seconds.toFixed(2),
       aiChatSend: vi.fn(async () => undefined),
       aiIsStreaming: false,
@@ -263,7 +263,7 @@ describe('useVoiceInteraction', () => {
       defaultTranscriptionLayerId: 'trc-default',
       translationLayers: [],
       layers: [makeLayer('trc-default', 'transcription')],
-      formatLayerRailLabel: (layer) => `L:${layer.id}`,
+      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
       formatTime: (seconds) => seconds.toFixed(2),
       aiChatSend,
       aiIsStreaming: false,
@@ -293,5 +293,218 @@ describe('useVoiceInteraction', () => {
     expect(onVoiceAnalysisResult).toHaveBeenCalledWith('utt-1', '分析结果文本');
     expect(setExternalError).toHaveBeenCalledWith('分析写回失败：目标不可用');
     expect(result.current.voiceStatusSummary).toContain('分析写回失败：目标不可用');
+  });
+
+  it('surfaces ai chat send failures and clears deferred analysis callback', async () => {
+    const setExternalError = vi.fn();
+    const setAnalysisFillCallback = vi.fn();
+
+    mockUseVoiceAgent.mockReturnValue({
+      mode: 'analysis',
+      agentState: 'idle',
+      listening: false,
+      engine: 'web-speech',
+      detectedLang: null,
+      notifyAiStreamStarted: vi.fn(),
+      notifyAiStreamFinished: vi.fn(),
+      testWhisperLocal: vi.fn(async () => ({ available: true })),
+      setExternalError,
+      setCommercialProviderConfig: vi.fn(),
+      setAnalysisFillCallback,
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      toggle: vi.fn(),
+      switchEngine: vi.fn(),
+      startRecording: vi.fn(async () => undefined),
+      stopRecording: vi.fn(async () => undefined),
+      isRecording: false,
+      disambiguationOptions: [],
+      pendingConfirm: null,
+      error: null,
+    });
+
+    const aiChatSend = vi.fn(async () => {
+      throw new Error('AI 请求失败');
+    });
+
+    renderHook(() => useVoiceInteraction({
+      effectiveVoiceCorpusLang: 'zho',
+      voiceCorpusLangOverride: '__auto__',
+      executeAction: vi.fn(async () => undefined),
+      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+      handleVoiceDictation: vi.fn(),
+      onVoiceAnalysisResult: vi.fn(),
+      selection: {
+        activeUtteranceUnitId: 'utt-1',
+        selectedUtterance: { id: 'utt-1', startTime: 12, endTime: 15 },
+        selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
+        selectedLayerId: 'trc-default',
+        selectedUnitKind: 'utterance',
+        selectedTimeRangeLabel: '12.00 - 15.00',
+      },
+      defaultTranscriptionLayerId: 'trc-default',
+      translationLayers: [],
+      layers: [makeLayer('trc-default', 'transcription')],
+      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+      formatTime: (seconds) => seconds.toFixed(2),
+      aiChatSend,
+      aiIsStreaming: false,
+      aiMessages: [],
+      localWhisperConfig: {},
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      onCommercialConfigChange: vi.fn(),
+      setCommercialProviderKind: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      featureVoiceEnabled: true,
+      toggleVoiceRef: { current: undefined },
+    }));
+
+    const latestCall = mockUseVoiceAgent.mock.calls[mockUseVoiceAgent.mock.calls.length - 1];
+    const useVoiceAgentOptions = latestCall?.[0] as {
+      sendToAiChat?: (text: string) => void;
+    };
+
+    await act(async () => {
+      useVoiceAgentOptions.sendToAiChat?.('请分析这句');
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(aiChatSend).toHaveBeenCalledWith('请分析这句');
+    expect(setExternalError).toHaveBeenCalledWith('AI 请求失败');
+    expect(setAnalysisFillCallback).toHaveBeenNthCalledWith(1, 'utt-1', expect.any(Function));
+    expect(setAnalysisFillCallback).toHaveBeenNthCalledWith(2, null, null);
+  });
+
+  it('surfaces whisper stopRecording failures instead of dropping them', async () => {
+    const setExternalError = vi.fn();
+    const stopRecording = vi.fn(async () => {
+      throw new Error('停止录音失败');
+    });
+
+    mockUseVoiceAgent.mockReturnValue({
+      mode: 'dictation',
+      agentState: 'idle',
+      listening: true,
+      engine: 'whisper-local',
+      detectedLang: null,
+      notifyAiStreamStarted: vi.fn(),
+      notifyAiStreamFinished: vi.fn(),
+      testWhisperLocal: vi.fn(async () => ({ available: true })),
+      setExternalError,
+      setCommercialProviderConfig: vi.fn(),
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      toggle: vi.fn(),
+      switchEngine: vi.fn(),
+      startRecording: vi.fn(async () => undefined),
+      stopRecording,
+      isRecording: false,
+      disambiguationOptions: [],
+      pendingConfirm: null,
+      error: null,
+    });
+
+    const { result } = renderHook(() => useVoiceInteraction({
+      effectiveVoiceCorpusLang: 'zho',
+      voiceCorpusLangOverride: '__auto__',
+      executeAction: vi.fn(async () => undefined),
+      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+      handleVoiceDictation: vi.fn(),
+      onVoiceAnalysisResult: vi.fn(),
+      selection: {
+        activeUtteranceUnitId: 'utt-1',
+        selectedUtterance: { id: 'utt-1', startTime: 0, endTime: 1 },
+        selectedRowMeta: null,
+        selectedLayerId: 'trc-default',
+        selectedUnitKind: 'utterance',
+        selectedTimeRangeLabel: '0.00 - 1.00',
+      },
+      defaultTranscriptionLayerId: 'trc-default',
+      translationLayers: [],
+      layers: [makeLayer('trc-default', 'transcription')],
+      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+      formatTime: (seconds) => seconds.toFixed(2),
+      aiChatSend: vi.fn(async () => undefined),
+      aiIsStreaming: false,
+      aiMessages: [],
+      localWhisperConfig: {},
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      onCommercialConfigChange: vi.fn(),
+      setCommercialProviderKind: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      featureVoiceEnabled: true,
+      toggleVoiceRef: { current: undefined },
+    }));
+
+    await act(async () => {
+      result.current.handleMicPointerUp();
+      await Promise.resolve();
+    });
+
+    expect(stopRecording).toHaveBeenCalled();
+    expect(setExternalError).toHaveBeenCalledWith('停止录音失败');
+  });
+
+  it('shows push-to-talk standby copy for whisper-local before recording starts', () => {
+    mockUseVoiceAgent.mockReturnValue({
+      mode: 'dictation',
+      agentState: 'idle',
+      listening: true,
+      engine: 'whisper-local',
+      detectedLang: null,
+      notifyAiStreamStarted: vi.fn(),
+      notifyAiStreamFinished: vi.fn(),
+      testWhisperLocal: vi.fn(async () => ({ available: true })),
+      setExternalError: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      toggle: vi.fn(),
+      switchEngine: vi.fn(),
+      startRecording: vi.fn(async () => undefined),
+      stopRecording: vi.fn(async () => undefined),
+      isRecording: false,
+      disambiguationOptions: [],
+      pendingConfirm: null,
+      error: null,
+    });
+
+    const { result } = renderHook(() => useVoiceInteraction({
+      effectiveVoiceCorpusLang: 'zho',
+      voiceCorpusLangOverride: '__auto__',
+      executeAction: vi.fn(async () => undefined),
+      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+      handleVoiceDictation: vi.fn(),
+      onVoiceAnalysisResult: vi.fn(),
+      selection: {
+        activeUtteranceUnitId: 'utt-1',
+        selectedUtterance: { id: 'utt-1', startTime: 0, endTime: 1 },
+        selectedRowMeta: null,
+        selectedLayerId: 'trc-default',
+        selectedUnitKind: 'utterance',
+        selectedTimeRangeLabel: '0.00 - 1.00',
+      },
+      defaultTranscriptionLayerId: 'trc-default',
+      translationLayers: [],
+      layers: [makeLayer('trc-default', 'transcription')],
+      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+      formatTime: (seconds) => seconds.toFixed(2),
+      aiChatSend: vi.fn(async () => undefined),
+      aiIsStreaming: false,
+      aiMessages: [],
+      localWhisperConfig: {},
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      onCommercialConfigChange: vi.fn(),
+      setCommercialProviderKind: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      featureVoiceEnabled: true,
+      toggleVoiceRef: { current: undefined },
+    }));
+
+    expect(result.current.voiceStatusSummary).toContain('按住麦克风开始录音');
   });
 });

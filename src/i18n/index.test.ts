@@ -1,6 +1,16 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { DICT_KEYS, detectLocale, dictionaries, t, tf } from './index';
+import {
+  DICT_KEYS,
+  LOCALE_PREFERENCE_STORAGE_KEY,
+  clearStoredLocalePreference,
+  detectLocale,
+  dictionaries,
+  getStoredLocalePreference,
+  setStoredLocalePreference,
+  t,
+  tf,
+} from './index';
 
 describe('i18n key governance', () => {
   it('keeps keys in lower-case dot notation', () => {
@@ -20,6 +30,19 @@ describe('i18n key governance', () => {
 });
 
 describe('i18n runtime behavior', () => {
+  it('prefers explicit stored locale over navigator language', () => {
+    const getter = vi.spyOn(navigator, 'language', 'get');
+    getter.mockReturnValue('en-GB');
+
+    setStoredLocalePreference('zh-CN');
+    expect(getStoredLocalePreference()).toBe('zh-CN');
+    expect(detectLocale()).toBe('zh-CN');
+
+    clearStoredLocalePreference();
+    expect(window.localStorage.getItem(LOCALE_PREFERENCE_STORAGE_KEY)).toBeNull();
+    getter.mockRestore();
+  });
+
   it('detectLocale returns zh-CN for zh locales and en-US otherwise', () => {
     const getter = vi.spyOn(navigator, 'language', 'get');
 
@@ -32,9 +55,22 @@ describe('i18n runtime behavior', () => {
     getter.mockRestore();
   });
 
+  it('falls back to navigator when stored locale is invalid', () => {
+    const getter = vi.spyOn(navigator, 'language', 'get');
+    getter.mockReturnValue('en-GB');
+    window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, 'fr-FR');
+
+    expect(getStoredLocalePreference()).toBeNull();
+    expect(detectLocale()).toBe('en-US');
+
+    getter.mockRestore();
+  });
+
   it('returns translated text via t', () => {
     expect(t('zh-CN', 'transcription.toolbar.refresh')).toBe('刷新数据');
     expect(t('en-US', 'transcription.toolbar.refresh')).toBe('Refresh data');
+    expect(t('zh-CN', 'transcription.toolbar.group.edit')).toBe('编辑');
+    expect(t('en-US', 'transcription.toolbar.group.danger')).toBe('Danger');
   });
 
   it('interpolates placeholders via tf', () => {

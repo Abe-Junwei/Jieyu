@@ -7,6 +7,7 @@ import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMappin
 import { loadRecentVoiceSessions } from '../services/VoiceSessionStore';
 import { createLogger } from '../observability/logger';
 import type { AppShellSearchScope } from '../utils/appShellEvents';
+import { t, tf, useLocale, type Locale } from '../i18n';
 
 const log = createLogger('useAiToolCallHandler');
 
@@ -71,6 +72,7 @@ type Params = {
  */
 interface ExecutionContext {
   call: AiChatToolCall;
+  locale: Locale;
   utterances: UtteranceDocType[];
   selectedUtterance: UtteranceDocType | undefined;
   selectedUtteranceMedia: MediaItemDocType | undefined;
@@ -168,6 +170,27 @@ function _layerMatchesLanguage(layer: LayerDocType, languageQuery: string): bool
   return tokens.some((token) => fields.some((field) => field.includes(token) || token.includes(field)));
 }
 
+function _formatVoiceLayerKinds(layerKinds: Array<'transcription' | 'translation' | 'gloss'>, locale: Locale): string {
+  const keyByLayerKind = {
+    transcription: 'transcription.aiTool.layerKind.transcription',
+    translation: 'transcription.aiTool.layerKind.translation',
+    gloss: 'transcription.aiTool.layerKind.gloss',
+  } as const;
+  return layerKinds.map((kind) => t(locale, keyByLayerKind[kind])).join(' / ');
+}
+
+function _formatVoiceHistoryActorLabel(intentType: string, locale: Locale): string {
+  return intentType === 'chat'
+    ? t(locale, 'transcription.aiTool.voice.historyActorUser')
+    : t(locale, 'transcription.aiTool.voice.historyActorAssistant');
+}
+
+function _formatLayerTypeLabel(layerType: 'transcription' | 'translation', locale: Locale): string {
+  return layerType === 'translation'
+    ? t(locale, 'transcription.aiTool.layer.typeTranslation')
+    : t(locale, 'transcription.aiTool.layer.typeTranscription');
+}
+
 // ─────────────────────────────────────────────────────────────
 //  句段对象适配器 | Segment object adapter
 // ─────────────────────────────────────────────────────────────
@@ -182,41 +205,41 @@ const segmentAdapter: ToolObjectAdapter = {
     'clear_translation_segment',
   ],
   async execute(ctx) {
-    const { call } = ctx;
+    const { call, locale } = ctx;
 
     if (call.name === 'create_transcription_segment') {
       const requestedId = String(call.arguments.utteranceId ?? '').trim();
       if (requestedId.length === 0) {
-        return { ok: false, message: '缺少 utteranceId，新建句段必须显式指定目标句段。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.createMissingUtteranceId') };
       }
       const baseUtterance = ctx.resolveRequestedUtterance();
       if (!baseUtterance) {
-        return { ok: false, message: `未找到目标句段：${requestedId}` };
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { utteranceId: requestedId }) };
       }
       const mediaDuration = typeof ctx.selectedUtteranceMedia?.duration === 'number'
         ? ctx.selectedUtteranceMedia.duration
         : baseUtterance.endTime + 2;
       await ctx.createNextUtterance(baseUtterance, mediaDuration);
-      return { ok: true, message: '已在当前句段后创建新区间。' };
+      return { ok: true, message: t(locale, 'transcription.aiTool.segment.createDone') };
     }
 
     if (call.name === 'split_transcription_segment') {
       const requestedId = String(call.arguments.utteranceId ?? '').trim();
       if (requestedId.length === 0) {
-        return { ok: false, message: '缺少 utteranceId，切分句段必须显式指定目标句段。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.splitMissingUtteranceId') };
       }
       const targetUtterance = ctx.resolveRequestedUtterance();
       if (!targetUtterance) {
-        return { ok: false, message: `未找到目标句段：${requestedId}` };
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { utteranceId: requestedId }) };
       }
       const start = Number(targetUtterance.startTime);
       const end = Number(targetUtterance.endTime);
       if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
-        return { ok: false, message: '目标句段时间范围无效，无法切分。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.splitInvalidRange') };
       }
       const providedSplitTime = call.arguments.splitTime;
       if (typeof providedSplitTime !== 'number' || !Number.isFinite(providedSplitTime)) {
-        return { ok: false, message: '缺少 splitTime，切分句段前请先定位切分点。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.splitMissingTime') };
       }
       const splitTime = providedSplitTime;
       // 约束切分点位于句段内部，并给两侧保留最小时长 | Keep split point strictly inside with minimum span on each side.
@@ -224,38 +247,41 @@ const segmentAdapter: ToolObjectAdapter = {
       if (splitTime <= start + minSpan || splitTime >= end - minSpan) {
         return {
           ok: false,
-          message: `切分点不在可用范围内（${(start + minSpan).toFixed(2)}s - ${(end - minSpan).toFixed(2)}s）。`,
+          message: tf(locale, 'transcription.aiTool.segment.splitOutOfRange', {
+            minTime: (start + minSpan).toFixed(2),
+            maxTime: (end - minSpan).toFixed(2),
+          }),
         };
       }
       await ctx.splitUtterance(targetUtterance.id, splitTime);
-      return { ok: true, message: `已在 ${splitTime.toFixed(2)}s 处切分当前句段。` };
+      return { ok: true, message: tf(locale, 'transcription.aiTool.segment.splitDone', { splitTime: splitTime.toFixed(2) }) };
     }
 
     if (call.name === 'delete_transcription_segment') {
       const requestedId = String(call.arguments.utteranceId ?? '').trim();
       if (requestedId.length === 0) {
-        return { ok: false, message: '缺少 utteranceId，删除句段必须显式指定目标句段。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.deleteMissingUtteranceId') };
       }
       const targetUtterance = ctx.resolveRequestedUtterance();
       if (!targetUtterance) {
-        return { ok: false, message: `未找到目标句段：${requestedId}` };
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { utteranceId: requestedId }) };
       }
       await ctx.deleteUtterance(targetUtterance.id);
-      return { ok: true, message: '句段已删除。' };
+      return { ok: true, message: t(locale, 'transcription.aiTool.segment.deleteDone') };
     }
 
     if (call.name === 'set_transcription_text') {
       const text = String(call.arguments.text ?? '').trim();
       if (text.length === 0) {
-        return { ok: false, message: '缺少 text 参数，无法写入转写文本。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranscriptionMissingText') };
       }
       const requestedId = String(call.arguments.utteranceId ?? '').trim();
       if (requestedId.length === 0) {
-        return { ok: false, message: '缺少 utteranceId，写入转写文本必须显式指定目标句段。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranscriptionMissingUtteranceId') };
       }
       const targetUtterance = ctx.resolveRequestedUtterance();
       if (!targetUtterance) {
-        return { ok: false, message: `未找到目标句段：${requestedId}` };
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { utteranceId: requestedId }) };
       }
       const targetLayerId = ctx.transcriptionLayers.some((layer) => layer.id === ctx.selectedLayerId)
         ? ctx.selectedLayerId
@@ -268,29 +294,29 @@ const segmentAdapter: ToolObjectAdapter = {
           })
         : text;
       await ctx.saveUtteranceText(targetUtterance.id, transformedText, targetLayerId);
-      return { ok: true, message: '转写文本已写入。' };
+      return { ok: true, message: t(locale, 'transcription.aiTool.segment.setTranscriptionDone') };
     }
 
     if (call.name === 'set_translation_text') {
       const text = String(call.arguments.text ?? '').trim();
       if (text.length === 0) {
-        return { ok: false, message: '缺少 text 参数，无法写入翻译文本。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranslationMissingText') };
       }
       const requestedUtteranceId = String(call.arguments.utteranceId ?? '').trim();
       if (requestedUtteranceId.length === 0) {
-        return { ok: false, message: '缺少 utteranceId，写入翻译文本必须显式指定目标句段。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranslationMissingUtteranceId') };
       }
       const targetUtterance = ctx.resolveRequestedUtterance();
       if (!targetUtterance) {
-        return { ok: false, message: `未找到目标句段：${requestedUtteranceId}` };
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { utteranceId: requestedUtteranceId }) };
       }
       const requestedLayerId = String(call.arguments.layerId ?? '').trim();
       if (requestedLayerId.length === 0) {
-        return { ok: false, message: '缺少 layerId，写入翻译文本必须显式指定目标翻译层。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranslationMissingLayerId') };
       }
       const targetLayerId = ctx.resolveRequestedTranslationLayerId();
       if (!targetLayerId) {
-        return { ok: false, message: `未找到目标翻译层：${requestedLayerId}` };
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.translationLayerNotFound', { layerId: requestedLayerId }) };
       }
       const transformedText = ctx.transformTextForLayerWrite
         ? await ctx.transformTextForLayerWrite({
@@ -300,36 +326,42 @@ const segmentAdapter: ToolObjectAdapter = {
           })
         : text;
       await ctx.saveTextTranslationForUtterance(targetUtterance.id, transformedText, targetLayerId);
-      return { ok: true, message: '翻译文本已写入。' };
+      return { ok: true, message: t(locale, 'transcription.aiTool.segment.setTranslationDone') };
     }
 
     if (call.name === 'clear_translation_segment') {
       const requestedUtteranceId = String(call.arguments.utteranceId ?? '').trim();
       if (requestedUtteranceId.length === 0) {
-        return { ok: false, message: '缺少 utteranceId，清空翻译必须显式指定目标句段。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.clearTranslationMissingUtteranceId') };
       }
       const targetUtterance = ctx.resolveRequestedUtterance();
       if (!targetUtterance) {
-        return { ok: false, message: `未找到目标句段：${requestedUtteranceId}` };
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { utteranceId: requestedUtteranceId }) };
       }
       const requestedLayerId = String(call.arguments.layerId ?? '').trim();
       if (requestedLayerId.length === 0) {
-        return { ok: false, message: '缺少 layerId，清空翻译必须显式指定目标翻译层。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.clearTranslationMissingLayerId') };
       }
       const targetLayerId = ctx.resolveRequestedTranslationLayerId();
       if (!targetLayerId) {
-        return { ok: false, message: `未找到目标翻译层：${requestedLayerId}` };
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.translationLayerNotFound', { layerId: requestedLayerId }) };
       }
       const targetLayer = ctx.translationLayers.find((layer) => layer.id === targetLayerId);
       if (!targetLayer) {
-        return { ok: false, message: `未找到目标翻译层：${targetLayerId}` };
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.translationLayerNotFound', { layerId: targetLayerId }) };
       }
       await ctx.saveTextTranslationForUtterance(targetUtterance.id, '', targetLayerId);
       const layerLabel = targetLayer.name.zho ?? targetLayer.name.eng ?? targetLayer.key;
-      return { ok: true, message: `已清空句段 ${targetUtterance.id} 在层 ${layerLabel} 的翻译文本。` };
+      return {
+        ok: true,
+        message: tf(locale, 'transcription.aiTool.segment.clearTranslationDone', {
+          utteranceId: targetUtterance.id,
+          layerLabel,
+        }),
+      };
     }
 
-    return { ok: false, message: `segmentAdapter: 未处理的工具调用：${call.name}` };
+    return { ok: false, message: tf(locale, 'transcription.aiTool.segment.unsupportedTool', { toolName: call.name }) };
   },
 };
 
@@ -346,18 +378,18 @@ const layerAdapter: ToolObjectAdapter = {
     'unlink_translation_layer',
   ],
   async execute(ctx) {
-    const { call, compensationRef, COMPENSATION_TTL_MS } = ctx;
+    const { call, compensationRef, COMPENSATION_TTL_MS, locale } = ctx;
 
     if (call.name === 'create_transcription_layer') {
       const rawLang = String(call.arguments.languageId ?? call.arguments.languageQuery ?? '').trim();
       if (!rawLang) {
-        return { ok: false, message: '缺少 languageId，无法创建转写层。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.layer.createTranscriptionMissingLanguageId') };
       }
       // 统一规范化：人类可读名 → ISO 639-3 代码；无法识别时返回澄清，避免盲目创建。
       // Normalize to ISO 639-3; if unresolved, return clarify signal instead of blind create.
       const languageId = resolveLanguageQuery(rawLang);
       if (!languageId) {
-        return { ok: false, message: `无法识别语言：${rawLang}。请提供有效语言名称或 ISO 639-3 代码。` };
+        return { ok: false, message: tf(locale, 'transcription.aiTool.layer.languageUnrecognized', { rawLang }) };
       }
       const alias = String(call.arguments.alias ?? '').trim();
       const ok = await ctx.createLayer('transcription', {
@@ -366,20 +398,25 @@ const layerAdapter: ToolObjectAdapter = {
       });
       return {
         ok,
-        message: ok ? `已创建转写层（${languageId}${alias ? ` / ${alias}` : ''}）。` : '创建转写层失败，请检查语言或别名是否冲突。',
+        message: ok
+          ? tf(locale, 'transcription.aiTool.layer.createTranscriptionDone', {
+            languageId,
+            aliasSuffix: alias ? ` / ${alias}` : '',
+          })
+          : t(locale, 'transcription.aiTool.layer.createTranscriptionFailed'),
       };
     }
 
     if (call.name === 'create_translation_layer') {
       const rawLang = String(call.arguments.languageId ?? call.arguments.languageQuery ?? '').trim();
       if (!rawLang) {
-        return { ok: false, message: '缺少 languageId，无法创建翻译层。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.layer.createTranslationMissingLanguageId') };
       }
       // 统一规范化：人类可读名 → ISO 639-3 代码；无法识别时返回澄清，避免盲目创建。
       // Normalize to ISO 639-3; if unresolved, return clarify signal instead of blind create.
       const languageId = resolveLanguageQuery(rawLang);
       if (!languageId) {
-        return { ok: false, message: `无法识别语言：${rawLang}。请提供有效语言名称或 ISO 639-3 代码。` };
+        return { ok: false, message: tf(locale, 'transcription.aiTool.layer.languageUnrecognized', { rawLang }) };
       }
       const alias = String(call.arguments.alias ?? '').trim();
       const modalityRaw = String(call.arguments.modality ?? 'text').trim().toLowerCase();
@@ -401,8 +438,12 @@ const layerAdapter: ToolObjectAdapter = {
       return {
         ok,
         message: ok
-          ? `已创建翻译层（${languageId}${alias ? ` / ${alias}` : ''}，${modality}）。`
-          : '创建翻译层失败，请检查语言或别名是否冲突。',
+          ? tf(locale, 'transcription.aiTool.layer.createTranslationDone', {
+            languageId,
+            aliasSuffix: alias ? ` / ${alias}` : '',
+            modality,
+          })
+          : t(locale, 'transcription.aiTool.layer.createTranslationFailed'),
       };
     }
 
@@ -413,14 +454,14 @@ const layerAdapter: ToolObjectAdapter = {
           || ctx.translationLayers.some((layer) => layer.id === requestedLayerId);
         if (exists) {
           await ctx.deleteLayer(requestedLayerId);
-          return { ok: true, message: `已删除层：${requestedLayerId}` };
+          return { ok: true, message: tf(locale, 'transcription.aiTool.layer.deleteDone', { layerId: requestedLayerId }) };
         }
 
         // 兼容语义化 layerId（例如 transcription_layer_mandarin）
         // Fallback for semantic layer IDs (e.g. transcription_layer_mandarin).
         const hint = ctx.parseLayerHintFromOpaqueId(requestedLayerId);
         if (!hint) {
-          return { ok: false, message: `未找到目标层：${requestedLayerId}` };
+          return { ok: false, message: tf(locale, 'transcription.aiTool.layer.targetNotFound', { layerId: requestedLayerId }) };
         }
 
         const pool = hint.layerType === 'translation'
@@ -428,21 +469,32 @@ const layerAdapter: ToolObjectAdapter = {
           : ctx.transcriptionLayers;
         const matched = pool.filter((layer) => ctx.layerMatchesLanguage(layer, hint.languageQuery));
         if (matched.length === 0) {
-          return { ok: false, message: `未找到匹配"${hint.languageQuery}"的${hint.layerType === 'translation' ? '翻译' : '转写'}层。` };
+          return {
+            ok: false,
+            message: tf(locale, 'transcription.aiTool.layer.noMatchByLanguage', {
+              languageQuery: hint.languageQuery,
+              layerType: _formatLayerTypeLabel(hint.layerType, locale),
+            }),
+          };
         }
         if (matched.length > 1) {
-          return { ok: false, message: `匹配到多个${hint.layerType === 'translation' ? '翻译' : '转写'}层，请改用 layerId 精确指定。` };
+          return {
+            ok: false,
+            message: tf(locale, 'transcription.aiTool.layer.multipleMatchByLanguage', {
+              layerType: _formatLayerTypeLabel(hint.layerType, locale),
+            }),
+          };
         }
 
         const targetLayer = matched[0]!;
         await ctx.deleteLayer(targetLayer.id);
-        return { ok: true, message: `已删除层：${targetLayer.id}` };
+        return { ok: true, message: tf(locale, 'transcription.aiTool.layer.deleteDone', { layerId: targetLayer.id }) };
       }
 
       const layerType = String(call.arguments.layerType ?? '').trim().toLowerCase();
       const languageQuery = String(call.arguments.languageQuery ?? '').trim();
       if (!layerType || !languageQuery) {
-        return { ok: false, message: '缺少 layerId，删除层必须显式指定 layerId，或提供 layerType + languageQuery。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.layer.deleteMissingTarget') };
       }
 
       const pool = layerType === 'translation'
@@ -451,32 +503,48 @@ const layerAdapter: ToolObjectAdapter = {
           ? ctx.transcriptionLayers
           : [];
       if (pool.length === 0) {
-        return { ok: false, message: `未找到可删除的${layerType === 'translation' ? '翻译' : '转写'}层。` };
+        return {
+          ok: false,
+          message: tf(locale, 'transcription.aiTool.layer.noAvailableByType', {
+            layerType: _formatLayerTypeLabel(layerType === 'translation' ? 'translation' : 'transcription', locale),
+          }),
+        };
       }
 
       const matched = pool.filter((layer) => ctx.layerMatchesLanguage(layer, languageQuery));
       if (matched.length === 0) {
-        return { ok: false, message: `未找到匹配"${languageQuery}"的${layerType === 'translation' ? '翻译' : '转写'}层。` };
+        return {
+          ok: false,
+          message: tf(locale, 'transcription.aiTool.layer.noMatchByLanguage', {
+            languageQuery,
+            layerType: _formatLayerTypeLabel(layerType === 'translation' ? 'translation' : 'transcription', locale),
+          }),
+        };
       }
       if (matched.length > 1) {
-        return { ok: false, message: `匹配到多个${layerType === 'translation' ? '翻译' : '转写'}层，请改用 layerId 精确指定。` };
+        return {
+          ok: false,
+          message: tf(locale, 'transcription.aiTool.layer.multipleMatchByLanguage', {
+            layerType: _formatLayerTypeLabel(layerType === 'translation' ? 'translation' : 'transcription', locale),
+          }),
+        };
       }
 
       const targetLayer = matched[0]!;
       await ctx.deleteLayer(targetLayer.id);
-      return { ok: true, message: `已删除层：${targetLayer.id}` };
+      return { ok: true, message: tf(locale, 'transcription.aiTool.layer.deleteDone', { layerId: targetLayer.id }) };
     }
 
     if (call.name === 'link_translation_layer' || call.name === 'unlink_translation_layer') {
       const requestedTranscriptionLayerId = String(call.arguments.transcriptionLayerId ?? '').trim();
       const requestedTranscriptionLayerKey = String(call.arguments.transcriptionLayerKey ?? '').trim();
       if (!requestedTranscriptionLayerId && !requestedTranscriptionLayerKey) {
-        return { ok: false, message: '缺少 transcriptionLayerId/transcriptionLayerKey，必须显式指定目标转写层。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.layer.linkMissingTranscriptionTarget') };
       }
 
       const requestedTranslationLayerId = String(call.arguments.translationLayerId ?? call.arguments.layerId ?? '').trim();
       if (!requestedTranslationLayerId) {
-        return { ok: false, message: '缺少 translationLayerId/layerId，必须显式指定目标翻译层。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.layer.linkMissingTranslationTarget') };
       }
 
       const trcLayer = ctx.resolveTranscriptionLayerForLink();
@@ -494,9 +562,9 @@ const layerAdapter: ToolObjectAdapter = {
               error: error instanceof Error ? error.message : String(error),
             });
           }
-          return { ok: false, message: `未找到可用转写层，无法设置链接。已自动回滚刚创建的层（${comp.layerId}）。` };
+          return { ok: false, message: tf(locale, 'transcription.aiTool.layer.linkMissingTranscriptionRollback', { layerId: comp.layerId }) };
         }
-        return { ok: false, message: '未找到可用转写层，无法设置链接。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.layer.linkMissingTranscription') };
       }
       const trlLayer = ctx.resolveTranslationLayerForLink();
       if (!trlLayer) {
@@ -512,9 +580,9 @@ const layerAdapter: ToolObjectAdapter = {
               error: error instanceof Error ? error.message : String(error),
             });
           }
-          return { ok: false, message: `未找到可用翻译层，无法设置链接。已自动回滚刚创建的层（${comp.layerId}）。` };
+          return { ok: false, message: tf(locale, 'transcription.aiTool.layer.linkMissingTranslationRollback', { layerId: comp.layerId }) };
         }
-        return { ok: false, message: '未找到可用翻译层，无法设置链接。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.layer.linkMissingTranslation') };
       }
 
       const exists = trlLayer.parentLayerId === trcLayer.id;
@@ -527,7 +595,7 @@ const layerAdapter: ToolObjectAdapter = {
         if (!fallbackParent) {
           return {
             ok: false,
-            message: '无法解除关联：当前翻译层至少需要一个依赖转写层，请先指定新的转写层。',
+            message: t(locale, 'transcription.aiTool.layer.unlinkRequiresFallbackParent'),
           };
         }
         try {
@@ -545,8 +613,8 @@ const layerAdapter: ToolObjectAdapter = {
                 error: error instanceof Error ? error.message : String(error),
               });
             }
-            const errMsg = linkError instanceof Error ? linkError.message : '解除关联失败';
-            return { ok: false, message: `${errMsg}。已自动回滚刚创建的层（${comp.layerId}）。` };
+            const errMsg = linkError instanceof Error ? linkError.message : t(locale, 'transcription.aiTool.layer.unlinkFailed');
+            return { ok: false, message: tf(locale, 'transcription.aiTool.layer.linkRollbackAfterError', { errMsg, layerId: comp.layerId }) };
           }
           throw linkError;
         }
@@ -554,7 +622,11 @@ const layerAdapter: ToolObjectAdapter = {
         compensationRef.current.delete(call.requestId ?? 'default');
         return {
           ok: true,
-          message: `已解除关联：${trcLayer.name.zho ?? trcLayer.name.eng ?? trcLayer.key} -> ${trlLayer.name.zho ?? trlLayer.name.eng ?? trlLayer.key}，并改绑到 ${fallbackParent.name.zho ?? fallbackParent.name.eng ?? fallbackParent.key}`,
+          message: tf(locale, 'transcription.aiTool.layer.unlinkDoneWithFallback', {
+            transcriptionLayer: trcLayer.name.zho ?? trcLayer.name.eng ?? trcLayer.key,
+            translationLayer: trlLayer.name.zho ?? trlLayer.name.eng ?? trlLayer.key,
+            fallbackLayer: fallbackParent.name.zho ?? fallbackParent.name.eng ?? fallbackParent.key,
+          }),
         };
       }
 
@@ -576,8 +648,8 @@ const layerAdapter: ToolObjectAdapter = {
               error: error instanceof Error ? error.message : String(error),
             });
           }
-          const errMsg = linkError instanceof Error ? linkError.message : '链接操作失败';
-          return { ok: false, message: `${errMsg}。已自动回滚刚创建的层（${comp.layerId}）。` };
+          const errMsg = linkError instanceof Error ? linkError.message : t(locale, 'transcription.aiTool.layer.linkFailed');
+          return { ok: false, message: tf(locale, 'transcription.aiTool.layer.linkRollbackAfterError', { errMsg, layerId: comp.layerId }) };
         }
         throw linkError;
       }
@@ -589,12 +661,12 @@ const layerAdapter: ToolObjectAdapter = {
       return {
         ok: true,
         message: shouldLink
-          ? `已链接：${trcLabel} -> ${trlLabel}`
-          : `已取消链接：${trcLabel} -> ${trlLabel}`,
+          ? tf(locale, 'transcription.aiTool.layer.linkDone', { transcriptionLayer: trcLabel, translationLayer: trlLabel })
+          : tf(locale, 'transcription.aiTool.layer.unlinkDone', { transcriptionLayer: trcLabel, translationLayer: trlLabel }),
       };
     }
 
-    return { ok: false, message: `layerAdapter: 未处理的工具调用：${call.name}` };
+    return { ok: false, message: tf(locale, 'transcription.aiTool.layer.unsupportedTool', { toolName: call.name }) };
   },
 };
 
@@ -605,26 +677,39 @@ const layerAdapter: ToolObjectAdapter = {
 const glossAdapter: ToolObjectAdapter = {
   handles: ['auto_gloss_utterance'],
   async execute(ctx) {
-    const { call } = ctx;
+    const { call, locale } = ctx;
     const requestedId = String(call.arguments.utteranceId ?? '').trim();
     if (requestedId.length === 0) {
-      return { ok: false, message: '缺少 utteranceId，自动标注必须显式指定目标句段。' };
+      return { ok: false, message: t(locale, 'transcription.aiTool.gloss.missingUtteranceId') };
     }
     const targetUtterance = ctx.resolveRequestedUtterance();
     if (!targetUtterance) {
-      return { ok: false, message: `未找到目标句段：${requestedId}` };
+      return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { utteranceId: requestedId }) };
     }
     const service = new AutoGlossService();
     const result = await service.glossUtterance(targetUtterance.id);
     if (result.matched.length === 0) {
-      return { ok: true, message: `共 ${result.total} 个 token，未匹配到词库中的条目（已有 gloss 的跳过 ${result.skipped} 个）。` };
+      return {
+        ok: true,
+        message: tf(locale, 'transcription.aiTool.gloss.noMatches', {
+          total: result.total,
+          skipped: result.skipped,
+        }),
+      };
     }
     const labels = result.matched.map((m) => {
       const form = Object.values(m.tokenForm)[0] ?? '';
       const gloss = Object.values(m.gloss)[0] ?? '';
       return `${form}→${gloss}`;
     }).join('、');
-    return { ok: true, message: `已自动标注 ${result.matched.length}/${result.total} 个 token：${labels}` };
+    return {
+      ok: true,
+      message: tf(locale, 'transcription.aiTool.gloss.done', {
+        matched: result.matched.length,
+        total: result.total,
+        labels,
+      }),
+    };
   },
 };
 
@@ -635,7 +720,7 @@ const glossAdapter: ToolObjectAdapter = {
 const tokenAdapter: ToolObjectAdapter = {
   handles: ['set_token_pos', 'set_token_gloss'],
   async execute(ctx) {
-    const { call } = ctx;
+    const { call, locale } = ctx;
 
     if (call.name === 'set_token_pos') {
       // 优先按 tokenId 精确更新；fallback 为 utteranceId + form 批量更新
@@ -646,23 +731,36 @@ const tokenAdapter: ToolObjectAdapter = {
 
       if (tokenId.length > 0) {
         if (!ctx.updateTokenPos) {
-          return { ok: false, message: 'updateTokenPos 回调未注入，无法更新词性。' };
+          return { ok: false, message: t(locale, 'transcription.aiTool.token.setPosCallbackMissing') };
         }
         await ctx.updateTokenPos(tokenId, pos);
-        return { ok: true, message: `已将 token（${tokenId}）词性设为：${pos ?? '（清除）'}。` };
+        return {
+          ok: true,
+          message: tf(locale, 'transcription.aiTool.token.setPosDone', {
+            tokenId,
+            pos: pos ?? t(locale, 'transcription.aiTool.token.clearedValue'),
+          }),
+        };
       }
 
       // 按 form 批量更新 | Batch update by form within an utterance
       const utteranceId = String(call.arguments.utteranceId ?? '').trim();
       const form = String(call.arguments.form ?? '').trim();
       if (!utteranceId || !form) {
-        return { ok: false, message: '缺少 tokenId（或 utteranceId + form），无法设置词性。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.token.setPosMissingTarget') };
       }
       if (!ctx.batchUpdateTokenPosByForm) {
-        return { ok: false, message: 'batchUpdateTokenPosByForm 回调未注入，无法批量更新词性。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.token.batchSetPosCallbackMissing') };
       }
       const updated = await ctx.batchUpdateTokenPosByForm(utteranceId, form, pos);
-      return { ok: true, message: `已将 ${updated} 个"${form}" token 的词性设为：${pos ?? '（清除）'}。` };
+      return {
+        ok: true,
+        message: tf(locale, 'transcription.aiTool.token.batchSetPosDone', {
+          updated,
+          form,
+          pos: pos ?? t(locale, 'transcription.aiTool.token.clearedValue'),
+        }),
+      };
     }
 
     if (call.name === 'set_token_gloss') {
@@ -672,16 +770,23 @@ const tokenAdapter: ToolObjectAdapter = {
       const lang = String(call.arguments.lang ?? 'eng').trim() || 'eng';
 
       if (!tokenId) {
-        return { ok: false, message: '缺少 tokenId，无法设置 gloss。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.token.setGlossMissingTokenId') };
       }
       if (!ctx.updateTokenGloss) {
-        return { ok: false, message: 'updateTokenGloss 回调未注入，无法更新 gloss。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.token.setGlossCallbackMissing') };
       }
       await ctx.updateTokenGloss(tokenId, gloss, lang);
-      return { ok: true, message: `已将 token（${tokenId}）的 gloss [${lang}] 设为：${gloss ?? '（清除）'}。` };
+      return {
+        ok: true,
+        message: tf(locale, 'transcription.aiTool.token.setGlossDone', {
+          tokenId,
+          lang,
+          gloss: gloss ?? t(locale, 'transcription.aiTool.token.clearedValue'),
+        }),
+      };
     }
 
-    return { ok: false, message: `tokenAdapter: 未处理的工具调用：${call.name}` };
+    return { ok: false, message: tf(locale, 'transcription.aiTool.token.unsupportedTool', { toolName: call.name }) };
   },
 };
 
@@ -717,20 +822,27 @@ const voiceAdapter: ToolObjectAdapter = {
     'get_recent_history',
   ],
   async execute(ctx) {
-    const { call } = ctx;
+    const { call, locale } = ctx;
+    const executeMappedAction = (
+      action: Parameters<NonNullable<typeof ctx.executeAction>>[0],
+      successMessage: string,
+    ) => {
+      if (!ctx.executeAction) {
+        return { ok: false as const, message: t(locale, 'transcription.aiTool.voice.actionUnsupported') };
+      }
+      ctx.executeAction(action);
+      return { ok: true as const, message: successMessage };
+    };
 
     // ── ActionId-mapped tools (delegate to executeAction) ──────────────────
     if (call.name === 'play_pause') {
-      ctx.executeAction?.('playPause');
-      return { ok: true, message: '已切换播放状态。' };
+      return executeMappedAction('playPause', t(locale, 'transcription.aiTool.voice.playPauseDone'));
     }
     if (call.name === 'undo') {
-      ctx.executeAction?.('undo');
-      return { ok: true, message: '已撤销。' };
+      return executeMappedAction('undo', t(locale, 'transcription.aiTool.voice.undoDone'));
     }
     if (call.name === 'redo') {
-      ctx.executeAction?.('redo');
-      return { ok: true, message: '已重做。' };
+      return executeMappedAction('redo', t(locale, 'transcription.aiTool.voice.redoDone'));
     }
     if (call.name === 'search_segments') {
       const query = String(call.arguments.query ?? '').trim();
@@ -740,31 +852,34 @@ const voiceAdapter: ToolObjectAdapter = {
         ))
         : [];
       if (!query) {
-        return { ok: false, message: 'search_segments 需要 query 参数。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.voice.searchQueryRequired') };
       }
       if (ctx.openSearch) {
         ctx.openSearch({ query, scope: 'global', ...(rawLayers.length > 0 ? { layerKinds: rawLayers } : {}) });
         return {
           ok: true,
           message: rawLayers.length > 0
-            ? `已打开搜索并预填关键词“${query}”（范围：${rawLayers.join(' / ')}）。`
-            : `已打开搜索并预填关键词“${query}”。`,
+            ? tf(locale, 'transcription.aiTool.voice.searchOpenedWithScope', {
+              query,
+              scope: _formatVoiceLayerKinds(rawLayers, locale),
+            })
+            : tf(locale, 'transcription.aiTool.voice.searchOpened', { query }),
         };
       }
-      ctx.executeAction?.('search');
-      return { ok: true, message: `已打开搜索，请手动输入“${query}”。` };
+      if (!ctx.executeAction) {
+        return { ok: false, message: tf(locale, 'transcription.aiTool.voice.searchUnsupportedManual', { query }) };
+      }
+      ctx.executeAction('search');
+      return { ok: true, message: tf(locale, 'transcription.aiTool.voice.searchManual', { query }) };
     }
     if (call.name === 'toggle_notes') {
-      ctx.executeAction?.('toggleNotes');
-      return { ok: true, message: '已切换备注面板。' };
+      return executeMappedAction('toggleNotes', t(locale, 'transcription.aiTool.voice.toggleNotesDone'));
     }
     if (call.name === 'mark_segment') {
-      ctx.executeAction?.('markSegment');
-      return { ok: true, message: '已标记当前句段。' };
+      return executeMappedAction('markSegment', t(locale, 'transcription.aiTool.voice.markSegmentDone'));
     }
     if (call.name === 'delete_segment') {
-      ctx.executeAction?.('deleteSegment');
-      return { ok: true, message: '已删除当前句段。' };
+      return executeMappedAction('deleteSegment', t(locale, 'transcription.aiTool.voice.deleteSegmentDone'));
     }
 
     // ── Auto-annotation delegation (reuse existing adapter logic) ──────────
@@ -773,124 +888,153 @@ const voiceAdapter: ToolObjectAdapter = {
     if (call.name === 'auto_gloss_segment') {
       const glossAdapterInst = ADAPTER_MAP['auto_gloss_utterance'];
       if (glossAdapterInst) return glossAdapterInst.execute(ctx);
-      return { ok: false, message: '自动标注功能暂不可用。' };
+      return { ok: false, message: t(locale, 'transcription.aiTool.voice.autoGlossUnavailable') };
     }
     if (call.name === 'auto_translate_segment') {
       // auto_translate_segment is not yet implemented in the tool adapter registry.
       // Return a clear message so the user knows the feature is pending.
-      return { ok: false, message: '自动翻译工具暂未实现，请通过语音"翻译这句"手动触发。' };
+      return { ok: false, message: t(locale, 'transcription.aiTool.voice.autoTranslateUnavailable') };
     }
 
     // ── Navigation / view tools (require runtime segment context) ───────────
     if (call.name === 'nav_to_segment') {
       const idx = Number(call.arguments.segmentIndex);
-      if (!Number.isFinite(idx) || idx < 1) return { ok: false, message: 'nav_to_segment 需要有效的 segmentIndex（从 1 开始）。' };
+      if (!Number.isFinite(idx) || idx < 1) return { ok: false, message: t(locale, 'transcription.aiTool.voice.navSegmentInvalidIndex') };
       const segments = ctx.getSegments?.();
-      if (!segments || segments.length === 0) return { ok: false, message: '当前没有可导航的句段。' };
+      if (!segments || segments.length === 0) return { ok: false, message: t(locale, 'transcription.aiTool.voice.navSegmentEmpty') };
       const target = segments[idx - 1];
-      if (!target) return { ok: false, message: `第 ${idx} 句不存在，当前共有 ${segments.length} 句。` };
-      ctx.navigateTo?.(target.id);
-      return { ok: true, message: `已跳转第 ${idx} 句（共 ${segments.length} 句）。` };
+      if (!target) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.navSegmentOutOfRange', { index: idx, total: segments.length }) };
+      if (!ctx.navigateTo) return { ok: false, message: t(locale, 'transcription.aiTool.voice.navigateUnsupported') };
+      ctx.navigateTo(target.id);
+      return { ok: true, message: tf(locale, 'transcription.aiTool.voice.navSegmentDone', { index: idx, total: segments.length }) };
     }
     if (call.name === 'nav_to_time') {
-      const t = Number(call.arguments.timeSeconds);
-      if (!Number.isFinite(t) || t < 0) return { ok: false, message: 'nav_to_time 需要有效的 timeSeconds（秒）。' };
-      if (!ctx.seekToTime) return { ok: false, message: `跳转至 ${t} 秒需要音频播放支持。` };
-      ctx.seekToTime(t);
-      return { ok: true, message: `已跳转到 ${t.toFixed(2)} 秒。` };
+      const timeSeconds = Number(call.arguments.timeSeconds);
+      if (!Number.isFinite(timeSeconds) || timeSeconds < 0) return { ok: false, message: t(locale, 'transcription.aiTool.voice.navTimeInvalid') };
+      if (!ctx.seekToTime) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.navTimeUnsupported', { timeSeconds }) };
+      ctx.seekToTime(timeSeconds);
+      return { ok: true, message: tf(locale, 'transcription.aiTool.voice.navTimeDone', { timeSeconds: timeSeconds.toFixed(2) }) };
     }
     if (call.name === 'split_at_time') {
-      const t = Number(call.arguments.timeSeconds);
-      if (!Number.isFinite(t) || t < 0) return { ok: false, message: 'split_at_time 需要有效的 timeSeconds。' };
-      if (!ctx.splitAtTime) return { ok: false, message: `在 ${t} 秒处分割需要音频播放支持，请使用"分割"命令。` };
-      const ok = ctx.splitAtTime(t);
-      if (!ok) return { ok: false, message: `未找到覆盖 ${t.toFixed(2)} 秒的句段，无法执行分割。` };
-      return { ok: true, message: `已在 ${t.toFixed(2)} 秒处分割句段。` };
+      const timeSeconds = Number(call.arguments.timeSeconds);
+      if (!Number.isFinite(timeSeconds) || timeSeconds < 0) return { ok: false, message: t(locale, 'transcription.aiTool.voice.splitAtTimeInvalid') };
+      if (!ctx.splitAtTime) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.splitAtTimeUnsupported', { timeSeconds }) };
+      const ok = ctx.splitAtTime(timeSeconds);
+      if (!ok) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.splitAtTimeNoSegment', { timeSeconds: timeSeconds.toFixed(2) }) };
+      return { ok: true, message: tf(locale, 'transcription.aiTool.voice.splitAtTimeDone', { timeSeconds: timeSeconds.toFixed(2) }) };
     }
     if (call.name === 'merge_prev') {
-      ctx.executeAction?.('mergePrev');
-      return { ok: true, message: '已合并上一个句段。' };
+      return executeMappedAction('mergePrev', t(locale, 'transcription.aiTool.voice.mergePrevDone'));
     }
     if (call.name === 'merge_next') {
-      ctx.executeAction?.('mergeNext');
-      return { ok: true, message: '已合并下一个句段。' };
+      return executeMappedAction('mergeNext', t(locale, 'transcription.aiTool.voice.mergeNextDone'));
     }
     // ── View tools ──────────────────────────────────────────────────────────────
     if (call.name === 'focus_segment') {
       const segId = String(call.arguments.segmentId ?? '').trim();
-      if (!segId) return { ok: false, message: 'focus_segment 需要 segmentId 参数。' };
+      if (!segId) return { ok: false, message: t(locale, 'transcription.aiTool.voice.focusSegmentMissingId') };
       const found = ctx.utterances.find((u) => u.id === segId);
-      if (!found) return { ok: false, message: `未找到句段：${segId}` };
-      ctx.navigateTo?.(segId);
-      return { ok: true, message: `已定位到句段 ${segId}（${found.startTime.toFixed(2)}s–${found.endTime.toFixed(2)}s）。` };
+      if (!found) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.segmentNotFound', { segmentId: segId }) };
+      if (!ctx.navigateTo) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.focusSegmentUnsupported', { segmentId: segId }) };
+      ctx.navigateTo(segId);
+      return {
+        ok: true,
+        message: tf(locale, 'transcription.aiTool.voice.focusSegmentDone', {
+          segmentId: segId,
+          startTime: found.startTime.toFixed(2),
+          endTime: found.endTime.toFixed(2),
+        }),
+      };
     }
     if (call.name === 'zoom_to_segment') {
       const segId = String(call.arguments.segmentId ?? '').trim();
       const zoomLevel = typeof call.arguments.zoomLevel === 'number' ? call.arguments.zoomLevel : undefined;
-      if (!segId) return { ok: false, message: 'zoom_to_segment 需要 segmentId 参数。' };
+      if (!segId) return { ok: false, message: t(locale, 'transcription.aiTool.voice.zoomSegmentMissingId') };
       const found = ctx.utterances.find((u) => u.id === segId);
-      if (!found) return { ok: false, message: `未找到句段：${segId}` };
+      if (!found) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.segmentNotFound', { segmentId: segId }) };
       if (ctx.zoomToSegment) {
         const ok = ctx.zoomToSegment(segId, zoomLevel);
-        if (!ok) return { ok: false, message: `未能缩放到句段：${segId}` };
+        if (!ok) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.zoomSegmentFailed', { segmentId: segId }) };
         return {
           ok: true,
           message: typeof zoomLevel === 'number'
-            ? `已定位并缩放到句段 ${segId}（级别 ${zoomLevel}）。`
-            : `已定位并缩放到句段 ${segId}。`,
+            ? tf(locale, 'transcription.aiTool.voice.zoomSegmentDoneWithLevel', { segmentId: segId, zoomLevel })
+            : tf(locale, 'transcription.aiTool.voice.zoomSegmentDone', { segmentId: segId }),
         };
       }
-      ctx.navigateTo?.(segId);
-      return { ok: true, message: `已跳转至句段 ${segId}，请使用鼠标滚轮或缩放控制调整缩放级别。` };
+      if (!ctx.navigateTo) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.zoomSegmentNavigateFallbackUnsupported', { segmentId: segId }) };
+      ctx.navigateTo(segId);
+      return { ok: true, message: tf(locale, 'transcription.aiTool.voice.zoomSegmentNavigateFallbackDone', { segmentId: segId }) };
     }
 
     // ── Context query tools ─────────────────────────────────────────────────────
     if (call.name === 'get_current_segment') {
       const utt = ctx.selectedUtterance;
-      if (!utt) return { ok: false, message: '当前没有选中的句段。' };
+      if (!utt) return { ok: false, message: t(locale, 'transcription.aiTool.voice.currentSegmentNone') };
       const dur = (utt.endTime - utt.startTime).toFixed(2);
       const status = utt.annotationStatus ?? 'raw';
-      const speaker = utt.speaker ? `，说话人：${utt.speaker}` : '';
+      const speaker = utt.speaker
+        ? tf(locale, 'transcription.aiTool.voice.currentSegmentSpeakerSuffix', { speaker: utt.speaker })
+        : '';
       return {
         ok: true,
-        message: `当前句段 [${utt.id}] ${utt.startTime.toFixed(2)}s–${utt.endTime.toFixed(2)}s（${dur}s），标注状态：${status}${speaker}。`,
+        message: tf(locale, 'transcription.aiTool.voice.currentSegmentDone', {
+          segmentId: utt.id,
+          startTime: utt.startTime.toFixed(2),
+          endTime: utt.endTime.toFixed(2),
+          duration: dur,
+          status,
+          speakerSuffix: speaker,
+        }),
       };
     }
     if (call.name === 'get_recent_history') {
       try {
         const sessions = await loadRecentVoiceSessions(8);
-        if (sessions.length === 0) return { ok: true, message: '暂无语音命令历史。' };
+        if (sessions.length === 0) return { ok: true, message: t(locale, 'transcription.aiTool.voice.historyNone') };
         const lines = sessions.flatMap((s) => s.entries.slice(-2)).slice(-8);
-        if (lines.length === 0) return { ok: true, message: '最近无语音命令记录。' };
+        if (lines.length === 0) return { ok: true, message: t(locale, 'transcription.aiTool.voice.historyEmpty') };
         const entries = lines.map((e, i) => {
-          const label = e.intent.type === 'chat' ? '用户' : '智能体';
-          return `${i + 1}. ${label}：${e.sttText.slice(0, 50)}`;
+          const label = _formatVoiceHistoryActorLabel(e.intent.type, locale);
+          return tf(locale, 'transcription.aiTool.voice.historyEntry', {
+            index: i + 1,
+            actor: label,
+            text: e.sttText.slice(0, 50),
+          });
         }).join('\n');
-        return { ok: true, message: `最近命令：\n${entries}` };
+        return { ok: true, message: tf(locale, 'transcription.aiTool.voice.historyDone', { entries }) };
       } catch (err) {
         console.error('[Jieyu] useAiToolCallHandler: failed to read voice command history', err);
-        return { ok: false, message: '读取命令历史失败。' };
+        return { ok: false, message: t(locale, 'transcription.aiTool.voice.historyReadFailed') };
       }
     }
     if (call.name === 'get_project_summary') {
       const total = ctx.utterances.length;
       const done = ctx.utterances.filter((u) => u.annotationStatus && u.annotationStatus !== 'raw').length;
       const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-      return { ok: true, message: `项目共 ${total} 句，已标注 ${done} 句（${pct}%），当前选中 ${ctx.selectedUtterance ? '1' : '0'} 句。` };
+      return {
+        ok: true,
+        message: tf(locale, 'transcription.aiTool.voice.projectSummaryDone', {
+          total,
+          done,
+          pct,
+          selected: ctx.selectedUtterance ? 1 : 0,
+        }),
+      };
     }
 
     // ── AI-assisted tools (not yet implemented — suggest voice chat instead) ────
     if (call.name === 'auto_segment') {
-      return { ok: false, message: '自动切分功能尚不可用，请使用"标记句段"或手动分割。' };
+      return { ok: false, message: t(locale, 'transcription.aiTool.voice.autoSegmentUnavailable') };
     }
     if (call.name === 'suggest_segment_improvement') {
-      return { ok: false, message: '改进建议请通过 AI 助手面板（右上角）发送"改进第X句"获取。' };
+      return { ok: false, message: t(locale, 'transcription.aiTool.voice.suggestSegmentImprovementUnavailable') };
     }
     if (call.name === 'analyze_segment_quality') {
-      return { ok: false, message: '质量分析请通过 AI 助手面板（右上角）发送"分析第X句质量"获取。' };
+      return { ok: false, message: t(locale, 'transcription.aiTool.voice.analyzeSegmentQualityUnavailable') };
     }
 
-    return { ok: false, message: `未知语音工具：${call.name}` };
+    return { ok: false, message: tf(locale, 'transcription.aiTool.voice.unknownTool', { toolName: call.name }) };
   },
 };
 
@@ -941,6 +1085,7 @@ export function useAiToolCallHandler({
   zoomToSegment,
   transformTextForLayerWrite,
 }: Params): (call: AiChatToolCall) => Promise<AiChatToolResult> {
+  const locale = useLocale();
   const utterancesRef = useLatest(utterances);
   const selectedUtteranceRef = useLatest(selectedUtterance);
   const selectedUtteranceMediaRef = useLatest(selectedUtteranceMedia);
@@ -999,6 +1144,7 @@ export function useAiToolCallHandler({
 
     const ctx: ExecutionContext = {
       call,
+      locale,
       utterances: currentUtterances,
       selectedUtterance: currentSelectedUtterance,
       selectedUtteranceMedia: currentSelectedUtteranceMedia,
@@ -1038,10 +1184,11 @@ export function useAiToolCallHandler({
 
     const adapter = ADAPTER_MAP[call.name];
     if (!adapter) {
-      return { ok: false, message: `暂不支持的工具调用：${call.name}` };
+      return { ok: false, message: tf(locale, 'transcription.aiTool.unsupportedTool', { toolName: call.name }) };
     }
     return adapter.execute(ctx);
   }, [
+    locale,
     createLayer,
     createNextUtterance,
     splitUtterance,

@@ -2,29 +2,29 @@ import { memo } from 'react';
 
 type ConfirmDeleteDialogProps = {
   open: boolean;
-  /** 删除类型标题，如"删除音频"、"删除项目" */
+  /** \u5220\u9664\u7c7b\u578b\u6807\u9898，\u5982"\u5220\u9664\u97f3\u9891"、"\u5220\u9664\u9879\u76ee" */
   title?: string;
-  /** 删除描述（当使用新接口时） */
+  /** \u5220\u9664\u63cf\u8ff0（\u5f53\u4f7f\u7528\u65b0\u63a5\u53e3\u65f6） */
   description?: string;
-  /** 要删除的项目数量（用于显示，与旧接口兼容） */
+  /** \u8981\u5220\u9664\u7684\u9879\u76ee\u6570\u91cf（\u7528\u4e8e\u663e\u793a，\u4e0e\u65e7\u63a5\u53e3\u517c\u5bb9） */
   itemCount?: number;
-  /** 显示确认信息时是否显示"本次会话不再提示"选项（与旧接口兼容） */
+  /** \u663e\u793a\u786e\u8ba4\u4fe1\u606f\u65f6\u662f\u5426\u663e\u793a"\u672c\u6b21\u4f1a\u8bdd\u4e0d\u518d\u63d0\u793a"\u9009\u9879（\u4e0e\u65e7\u63a5\u53e3\u517c\u5bb9） */
   showMuteOption?: boolean;
   muteInSession?: boolean;
   onMuteChange?: (value: boolean) => void;
   onCancel: () => void;
   onConfirm: () => void;
-  /** 旧接口兼容：总数量 */
+  /** \u65e7\u63a5\u53e3\u517c\u5bb9：\u603b\u6570\u91cf */
   totalCount?: number;
-  /** 旧接口兼容：含文本数量 */
+  /** \u65e7\u63a5\u53e3\u517c\u5bb9：\u542b\u6587\u672c\u6570\u91cf */
   textCount?: number;
-  /** 旧接口兼容：空白数量 */
+  /** \u65e7\u63a5\u53e3\u517c\u5bb9：\u7a7a\u767d\u6570\u91cf */
   emptyCount?: number;
 };
 
 export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
   open,
-  title = '确认删除',
+  title = '\u786e\u8ba4\u5220\u9664',
   description,
   itemCount,
   showMuteOption = false,
@@ -38,20 +38,20 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
 }: ConfirmDeleteDialogProps) {
   if (!open) return null;
 
-  // 旧接口兼容：如果传入了 totalCount，说明是句段删除
+  // \u65e7\u63a5\u53e3\u517c\u5bb9：\u5982\u679c\u4f20\u5165\u4e86 totalCount，\u8bf4\u660e\u662f\u53e5\u6bb5\u5220\u9664
   const isSegmentDelete = totalCount !== undefined;
 
   const displayDescription = description ?? (
     isSegmentDelete
       ? (totalCount > 1
-        ? `将删除 ${totalCount} 个句段（含文本 ${textCount} 个，空白 ${emptyCount} 个）。`
-        : '当前句段包含文本内容，删除后无法恢复。')
+        ? `\u5c06\u5220\u9664 ${totalCount} \u4e2a\u53e5\u6bb5（\u542b\u6587\u672c ${textCount} \u4e2a，\u7a7a\u767d ${emptyCount} \u4e2a）。`
+        : '\u5f53\u524d\u53e5\u6bb5\u5305\u542b\u6587\u672c\u5185\u5bb9，\u5220\u9664\u540e\u65e0\u6cd5\u6062\u590d。')
       : (itemCount !== undefined
-        ? `将删除 ${itemCount} 个项目，删除后无法恢复。`
-        : '此操作删除后无法恢复。')
+        ? `\u5c06\u5220\u9664 ${itemCount} \u4e2a\u9879\u76ee，\u5220\u9664\u540e\u65e0\u6cd5\u6062\u590d。`
+        : '\u6b64\u64cd\u4f5c\u5220\u9664\u540e\u65e0\u6cd5\u6062\u590d。')
   );
 
-  const displayTitle = isSegmentDelete ? '确认删除' : title;
+  const displayTitle = isSegmentDelete ? '\u786e\u8ba4\u5220\u9664' : title;
 
   return (
     <div className="dialog-overlay" onClick={onCancel}>
@@ -60,23 +60,23 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
           <h3>{displayTitle}</h3>
         </div>
         <div className="dialog-body">
-          <p style={{ margin: 0, color: '#334155', fontSize: 14 }}>
+          <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: 14 }}>
             {displayDescription}
           </p>
           {showMuteOption && (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#475569', marginTop: 12 }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-secondary)', marginTop: 12 }}>
               <input
                 type="checkbox"
                 checked={muteInSession}
                 onChange={(e) => onMuteChange?.(e.target.checked)}
               />
-              本次会话后续删除含文本句段时不再提示
+              \u672c\u6b21\u4f1a\u8bdd\u540e\u7eed\u5220\u9664\u542b\u6587\u672c\u53e5\u6bb5\u65f6\u4e0d\u518d\u63d0\u793a
             </label>
           )}
         </div>
         <div className="dialog-footer">
-          <button className="btn btn-ghost" onClick={onCancel}>取消</button>
-          <button className="btn btn-danger" onClick={onConfirm}>确认删除</button>
+          <button className="btn btn-ghost" onClick={onCancel}>\u53d6\u6d88</button>
+          <button className="btn btn-danger" onClick={onConfirm}>\u786e\u8ba4\u5220\u9664</button>
         </div>
       </div>
     </div>

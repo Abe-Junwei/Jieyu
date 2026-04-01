@@ -3,6 +3,7 @@ import { getDb } from '../db';
 import { useClickOutside } from './useClickOutside';
 import type {
   AnchorDocType,
+  ImportConflictStrategy,
   LayerSegmentDocType,
   MediaItemDocType,
   LayerDocType,
@@ -22,8 +23,13 @@ import type { TextGridImportResult } from '../services/TextGridService';
 import { exportToTrs, importFromTrs, downloadTrs } from '../services/TranscriberService';
 import { exportToFlextext, importFromFlextext, downloadFlextext } from '../services/FlexService';
 import { exportToToolbox, importFromToolbox, downloadToolbox } from '../services/ToolboxService';
-import { downloadJieyuArchive, importJieyuArchiveFile } from '../services/JymService';
-import { detectLocale, t, tf } from '../i18n';
+import {
+  downloadJieyuArchive,
+  importJieyuArchiveFile,
+  previewJieyuArchiveFile,
+  type JieyuArchiveImportPreview,
+} from '../services/JymService';
+import { t, tf, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { newId } from '../utils/transcriptionFormatters';
 import { humanizeTierName } from '../utils/transcriptionFormatters';
@@ -66,7 +72,7 @@ interface UseImportExportInput {
 }
 
 export function useImportExport(input: UseImportExportInput) {
-  const locale = detectLocale();
+  const locale = useLocale();
   const {
     activeTextId,
     getActiveTextId,
@@ -395,39 +401,77 @@ export function useImportExport(input: UseImportExportInput) {
     setShowExportMenu(false);
   }, [selectedUtteranceMedia, setSaveState]);
 
+  const previewProjectArchiveImport = useCallback(async (file: File): Promise<JieyuArchiveImportPreview> => {
+    return previewJieyuArchiveFile(file);
+  }, []);
+
+  const importProjectArchive = useCallback(async (
+    file: File,
+    strategy: ImportConflictStrategy,
+  ): Promise<boolean> => {
+    let resolvedTextId: string | null = activeTextId;
+
+    try {
+      const imported = await importJieyuArchiveFile(file, { strategy });
+      const totals = Object.values(imported.importResult.collections).reduce(
+        (acc, c) => ({
+          written: acc.written + (c?.written ?? 0),
+          skipped: acc.skipped + (c?.skipped ?? 0),
+        }),
+        { written: 0, skipped: 0 },
+      );
+      await loadSnapshot();
+      setSaveState({
+        kind: 'done',
+        message: tf(locale, 'transcription.importExport.importDone.archive', {
+          kind: imported.kind.toUpperCase(),
+          written: totals.written,
+          skipped: totals.skipped,
+        }),
+      });
+      return true;
+    } catch (err) {
+      const rawMessage = toErrorMessage(err);
+      log.error('Import archive failed', {
+        fileName: file.name,
+        strategy,
+        resolvedTextId,
+        error: rawMessage,
+      });
+      reportActionError({
+        actionLabel: t(locale, 'transcription.importExport.actionLabelImportFile'),
+        error: err,
+        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
+        conflictNames: [
+          'TranscriptionPersistenceConflictError',
+          'RecoveryApplyConflictError',
+        ],
+        conflictI18nKey: 'transcription.importExport.conflict',
+        fallbackI18nKey: 'transcription.importExport.failed',
+        conflictMessage: t(locale, 'transcription.importExport.conflict'),
+        fallbackMessage: tf(locale, 'transcription.importExport.failed', {
+          message: rawMessage,
+        }),
+      });
+      return false;
+    }
+  }, [activeTextId, loadSnapshot, locale, setSaveState]);
+
   const handleImportFile = useCallback(async (file: File) => {
     const name = file.name.toLowerCase();
     const isJieyuArchive = name.endsWith('.jym') || name.endsWith('.jyt');
+    if (isJieyuArchive) {
+      await importProjectArchive(file, 'replace-all');
+      return;
+    }
     let text = '';
     let resolvedTextId: string | null = activeTextId;
 
     try {
-      if (!isJieyuArchive) {
-        const xmlExts = ['.eaf', '.trs', '.flextext'];
-        const isXml = xmlExts.some(ext => name.endsWith(ext));
-        const ingested = await ingestTextFile(file, { xmlMode: isXml });
-        text = ingested.text;
-      }
-      if (isJieyuArchive) {
-        const imported = await importJieyuArchiveFile(file, { strategy: 'replace-all' });
-        const totals = Object.values(imported.importResult.collections).reduce(
-          (acc, c) => ({
-            written: acc.written + (c?.written ?? 0),
-            skipped: acc.skipped + (c?.skipped ?? 0),
-          }),
-          { written: 0, skipped: 0 },
-        );
-        await loadSnapshot();
-        setSaveState({
-          kind: 'done',
-          message: tf(locale, 'transcription.importExport.importDone.archive', {
-            kind: imported.kind.toUpperCase(),
-            written: totals.written,
-            skipped: totals.skipped,
-          }),
-        });
-        return;
-      }
+      const xmlExts = ['.eaf', '.trs', '.flextext'];
+      const isXml = xmlExts.some(ext => name.endsWith(ext));
+      const ingested = await ingestTextFile(file, { xmlMode: isXml });
+      text = ingested.text;
 
       let eafResult: EafImportResult | null = null;
       let tgResult: TextGridImportResult | null = null;
@@ -598,7 +642,7 @@ export function useImportExport(input: UseImportExportInput) {
             }),
           });
         } catch (auditErr) {
-          console.warn('[Import] 语言名来源审计写入失败 | Failed to write language-name audit log', auditErr);
+            console.warn('[Import] Failed to write language-name audit log', auditErr);
         }
       }
 
@@ -859,7 +903,7 @@ export function useImportExport(input: UseImportExportInput) {
       ];
 
       if (additionalTiers.size > 0 && existingTrcLayers.length === 0) {
-        console.warn('[Import] 跳过翻译层导入：无转写层存在');
+        console.warn('[Import] Skipped translation tier import: no transcription layer exists');
       }
 
       // 已有翻译层索引（按 eng name 去重） | Index existing translation layers by eng name
@@ -904,7 +948,7 @@ export function useImportExport(input: UseImportExportInput) {
           const importTextId = firstUtt?.utterance.textId ?? textId;
           if (!importMediaId) {
             skippedIndependentTierSegmentCount += annotations.filter((ann) => ann.text.trim()).length;
-            console.warn('[Import] 跳过独立转写层导入：缺少媒体，无法恢复 segment', {
+            console.warn('[Import] Skipped independent transcription tier import: missing media, cannot restore segments', {
               tierName,
               layerId: indepLayerId,
               annotationCount: annotations.length,
@@ -1088,7 +1132,7 @@ export function useImportExport(input: UseImportExportInput) {
       }
       const layerConstraintIssues = validateExistingLayerConstraints(repairedResult.layers);
       if (layerConstraintIssues.length > 0) {
-        console.warn('[Import] 层约束校验发现问题 | Layer constraint validation found issues', layerConstraintIssues);
+        console.warn('[Import] Layer constraint validation found issues', layerConstraintIssues);
       }
       await loadSnapshot();
       const importDoneMessage = tierCount > 0
@@ -1129,7 +1173,7 @@ export function useImportExport(input: UseImportExportInput) {
         error: rawMessage,
       });
       reportActionError({
-        actionLabel: '导入文件',
+        actionLabel: t(locale, 'transcription.importExport.actionLabelImportFile'),
         error: err,
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
         conflictNames: [
@@ -1144,7 +1188,7 @@ export function useImportExport(input: UseImportExportInput) {
         }),
       });
     }
-  }, [activeTextId, getActiveTextId, selectedUtteranceMedia, loadSnapshot, locale, setSaveState, defaultTranscriptionLayerId, layers, normalizeSpeakerLookupKey]);
+  }, [activeTextId, defaultTranscriptionLayerId, getActiveTextId, importProjectArchive, layers, locale, normalizeSpeakerLookupKey, selectedUtteranceMedia, setSaveState]);
 
   return {
     importFileRef,
@@ -1158,6 +1202,8 @@ export function useImportExport(input: UseImportExportInput) {
     handleExportToolbox,
     handleExportJyt,
     handleExportJym,
+    previewProjectArchiveImport,
+    importProjectArchive,
     handleImportFile,
   };
 }

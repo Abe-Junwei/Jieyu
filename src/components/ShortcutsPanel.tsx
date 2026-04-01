@@ -1,5 +1,5 @@
 /**
- * 键盘快捷键速查面板 | Keyboard shortcuts reference panel
+ * Keyboard shortcuts reference panel.
  */
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
@@ -10,17 +10,17 @@ interface ShortcutsPanelProps {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  playback: '播放控制 | Playback',
-  editing: '编辑操作 | Editing',
-  navigation: '导航 | Navigation',
-  view: '视图 | View',
-  voice: '语音智能体 | Voice Agent',
+  playback: '\u64ad\u653e\u63a7\u5236 | Playback',
+  editing: '\u7f16\u8f91\u64cd\u4f5c | Editing',
+  navigation: '\u5bfc\u822a | Navigation',
+  view: '\u89c6\u56fe | View',
+  voice: '\u8bed\u97f3\u667a\u80fd\u4f53 | Voice Agent',
 };
 
 const CATEGORY_ORDER = ['playback', 'editing', 'navigation', 'view', 'voice'] as const;
 
 export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
-  // ESC 关闭 | Close on Escape
+  // Close on Escape.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.preventDefault(); onClose(); }
@@ -41,16 +41,16 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
       aria-modal="true"
-      aria-label="键盘快捷键"
+      aria-label={'\u952e\u76d8\u5feb\u6377\u952e'}
     >
       <div className="shortcuts-panel">
         <div className="shortcuts-panel-header">
-          <span className="shortcuts-panel-title">⌨ 键盘快捷键</span>
+          <span className="shortcuts-panel-title">{'\u2328 \u952e\u76d8\u5feb\u6377\u952e'}</span>
           <button
             type="button"
             className="shortcuts-panel-close icon-btn"
             onClick={onClose}
-            aria-label="关闭快捷键面板"
+            aria-label={'\u5173\u95ed\u5feb\u6377\u952e\u9762\u677f'}
           >
             <X size={16} />
           </button>
@@ -68,7 +68,7 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
                       </td>
                       <td className="shortcuts-panel-desc">{entry.label}</td>
                       <td className="shortcuts-panel-scope">
-                        {entry.scope === 'waveform' ? '波形区' : '全局'}
+                        {entry.scope === 'waveform' ? '\u6ce2\u5f62\u533a' : '\u5168\u5c40'}
                       </td>
                     </tr>
                   ))}

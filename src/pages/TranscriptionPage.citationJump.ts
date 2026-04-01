@@ -1,5 +1,6 @@
 import { db as appDb, type LayerDocType, type UserNoteDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
+import { normalizeLocale, t, tf } from '../i18n';
 import { extractUtteranceIdFromNote, getPdfPageFromHash, isDirectPdfCitationRef, splitPdfCitationRef } from '../utils/citationJumpUtils';
 import { normalizeCitationSnippetPlainText } from '../utils/citationFootnoteUtils';
 
@@ -23,7 +24,7 @@ interface HandleTranscriptionCitationJumpOptions {
   citationType: CitationType;
   refId: string;
   citationRef?: CitationRefLike;
-  layerRailRows: LayerDocType[];
+  sidePaneRows: LayerDocType[];
   selectedTimelineUtteranceId: string | null;
   onJumpToEmbeddingMatch: (utteranceId: string) => void;
   onSetNotePopover: (popover: NotePopoverState) => void;
@@ -73,7 +74,7 @@ export async function handleTranscriptionCitationJump({
   citationType,
   refId,
   citationRef,
-  layerRailRows,
+  sidePaneRows,
   selectedTimelineUtteranceId,
   onJumpToEmbeddingMatch,
   onSetNotePopover,
@@ -81,6 +82,8 @@ export async function handleTranscriptionCitationJump({
   onRevealSchemaLayer,
   onOpenPdfPreviewRequest,
 }: HandleTranscriptionCitationJumpOptions): Promise<void> {
+  const uiLocale = normalizeLocale(locale) ?? 'zh-CN';
+
   if (!refId) return;
 
   if (citationType === 'utterance') {
@@ -91,7 +94,7 @@ export async function handleTranscriptionCitationJump({
   if (citationType === 'note') {
     const note = await appDb.user_notes.get(refId);
     if (!note) {
-      onSetSidebarError(locale === 'zh-CN' ? '未找到引用的笔记。' : 'Referenced note was not found.');
+      onSetSidebarError(t(uiLocale, 'transcription.citation.noteNotFound'));
       return;
     }
 
@@ -104,9 +107,9 @@ export async function handleTranscriptionCitationJump({
   }
 
   if (citationType === 'schema') {
-    const targetLayer = layerRailRows.find((item) => item.id === refId || item.key === refId);
+    const targetLayer = sidePaneRows.find((item) => item.id === refId || item.key === refId);
     if (!targetLayer) {
-      onSetSidebarError(locale === 'zh-CN' ? '未找到引用的层定义。' : 'Referenced layer schema was not found.');
+      onSetSidebarError(t(uiLocale, 'transcription.citation.schemaNotFound'));
       return;
     }
 
@@ -193,14 +196,10 @@ export async function handleTranscriptionCitationJump({
     }
 
     onSetSidebarError(
-      locale === 'zh-CN'
-        ? '未找到可打开的 PDF 引用目标。请先补充来源 URL 或 PDF 附件后重试。'
-        : 'No openable PDF citation target was found. Add a source URL or PDF attachment and try again.',
+      t(uiLocale, 'transcription.citation.pdfTargetNotFound'),
     );
     return;
   }
 
-  onSetSidebarError(locale === 'zh-CN'
-    ? `当前暂不支持跳转到 ${citationType} 引用。`
-    : `Jump for ${citationType} citation is not supported yet.`);
+  onSetSidebarError(tf(uiLocale, 'transcription.citation.unsupportedType', { type: citationType }));
 }

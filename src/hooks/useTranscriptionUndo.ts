@@ -5,6 +5,7 @@ import type { SaveState } from './transcriptionTypes';
 import type { TimingUndoState } from '../utils/selectionUtils';
 import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
+import { type Locale, t, tf, useLocale } from '../i18n';
 
 const log = createLogger('useTranscriptionUndo');
 
@@ -42,6 +43,10 @@ type Params = {
   setSaveState: (s: SaveState) => void;
 };
 
+function getHistoryActionLabel(locale: Locale, action: 'undo' | 'redo'): string {
+  return t(locale, action === 'undo' ? 'transcription.toolbar.undo' : 'transcription.toolbar.redo');
+}
+
 /** 独立边界层 segment 快照/恢复回调 | Segment snapshot/restore callbacks for independent boundary layers */
 export type SegmentUndoCallbacks = {
   snapshotLayerSegments: () => { segments: LayerSegmentDocType[]; contents: LayerSegmentContentDocType[]; links: SegmentLinkDocType[] };
@@ -64,6 +69,7 @@ export function useTranscriptionUndo({
   setSpeakers,
   setSaveState,
 }: Params) {
+  const locale = useLocale();
   const MAX_UNDO = 50;
   const undoStackRef = useRef<UndoEntry[]>([]);
   const redoStackRef = useRef<UndoEntry[]>([]);
@@ -96,8 +102,8 @@ export function useTranscriptionUndo({
     const current = timingGestureRef.current;
     if (current.active && current.utteranceId === utteranceId) return;
     timingGestureRef.current = { active: true, utteranceId };
-    pushUndo('调整时间区间');
-  }, [pushUndo]);
+    pushUndo(t(locale, 'transcription.utteranceAction.undo.updateTiming'));
+  }, [locale, pushUndo]);
 
   const endTimingGesture = useCallback((utteranceId?: string) => {
     const current = timingGestureRef.current;
@@ -157,7 +163,7 @@ export function useTranscriptionUndo({
       setSpeakers(entry.speakers ?? []);
       await commandHistoryRef.current.undo();
       setUndoRedoVersion((v) => v + 1);
-      setSaveState({ kind: 'done', message: `已撤销: ${entry.label}` });
+      setSaveState({ kind: 'done', message: tf(locale, 'transcription.undo.done', { label: entry.label }) });
     } catch (error) {
       // 回滚栈状态，避免“UI看起来已撤销但数据库未回写成功” | Rollback stack mutation when persistence failed.
       redoStackRef.current.pop();
@@ -167,15 +173,15 @@ export function useTranscriptionUndo({
         error: error instanceof Error ? error.message : String(error),
       });
       reportActionError({
-        actionLabel: '撤销',
+        actionLabel: getHistoryActionLabel(locale, 'undo'),
         error,
         conflictNames: ['TranscriptionPersistenceConflictError'],
-          conflictI18nKey: 'transcription.error.conflict.undo',
-          fallbackI18nKey: 'transcription.error.action.undoFailed',
+        conflictI18nKey: 'transcription.error.conflict.undo',
+        fallbackI18nKey: 'transcription.error.action.undoFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     }
-    }, [layerLinksRef, layersRef, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, syncToDb, translationsRef, utterancesRef]);
+  }, [layerLinksRef, layersRef, locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, syncToDb, translationsRef, utterancesRef]);
 
   const undoToHistoryIndex = useCallback(async (historyIndex: number) => {
     const previousUndoStack = [...undoStackRef.current];
@@ -236,7 +242,10 @@ export function useTranscriptionUndo({
       setUndoRedoVersion((v) => v + 1);
 
       const steps = stack.length - targetStackIndex;
-      setSaveState({ kind: 'done', message: `已撤销 ${steps} 步: ${targetEntry.label}` });
+      setSaveState({
+        kind: 'done',
+        message: tf(locale, 'transcription.undo.doneMultiple', { count: steps, label: targetEntry.label }),
+      });
     } catch (error) {
       // 回滚栈状态，避免批量撤销失败后历史栈损坏 | Roll back stacks when batch undo persistence fails.
       undoStackRef.current = previousUndoStack;
@@ -247,15 +256,15 @@ export function useTranscriptionUndo({
         error: error instanceof Error ? error.message : String(error),
       });
       reportActionError({
-        actionLabel: '撤销',
+        actionLabel: getHistoryActionLabel(locale, 'undo'),
         error,
         conflictNames: ['TranscriptionPersistenceConflictError'],
-          conflictI18nKey: 'transcription.error.conflict.undo',
-          fallbackI18nKey: 'transcription.error.action.undoFailed',
+        conflictI18nKey: 'transcription.error.conflict.undo',
+        fallbackI18nKey: 'transcription.error.action.undoFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     }
-  }, [layerLinksRef, layersRef, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, syncToDb, translationsRef, utterancesRef]);
+  }, [layerLinksRef, layersRef, locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, syncToDb, translationsRef, utterancesRef]);
 
   const redo = useCallback(async () => {
     const entry = redoStackRef.current.pop();
@@ -283,7 +292,7 @@ export function useTranscriptionUndo({
       setSpeakers(entry.speakers ?? []);
       await commandHistoryRef.current.redo();
       setUndoRedoVersion((v) => v + 1);
-      setSaveState({ kind: 'done', message: `已重做: ${entry.label}` });
+      setSaveState({ kind: 'done', message: tf(locale, 'transcription.redo.done', { label: entry.label }) });
     } catch (error) {
       // 回滚栈状态，避免“UI看起来已重做但数据库未回写成功” | Rollback stack mutation when persistence failed.
       undoStackRef.current.pop();
@@ -293,15 +302,15 @@ export function useTranscriptionUndo({
         error: error instanceof Error ? error.message : String(error),
       });
       reportActionError({
-        actionLabel: '重做',
+        actionLabel: getHistoryActionLabel(locale, 'redo'),
         error,
         conflictNames: ['TranscriptionPersistenceConflictError'],
-          conflictI18nKey: 'transcription.error.conflict.redo',
-          fallbackI18nKey: 'transcription.error.action.redoFailed',
+        conflictI18nKey: 'transcription.error.conflict.redo',
+        fallbackI18nKey: 'transcription.error.action.redoFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     }
-    }, [layerLinksRef, layersRef, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, syncToDb, translationsRef, utterancesRef]);
+  }, [layerLinksRef, layersRef, locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, syncToDb, translationsRef, utterancesRef]);
 
   const canUndo = useMemo(() => undoStackRef.current.length > 0, [_undoRedoVersion]);
   const canRedo = useMemo(() => redoStackRef.current.length > 0, [_undoRedoVersion]);

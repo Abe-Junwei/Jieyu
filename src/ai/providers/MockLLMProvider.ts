@@ -14,7 +14,7 @@ function extractCommandText(source: string): string | undefined {
   const quoted = source.match(/["“](.+?)["”]/);
   if (quoted?.[1]) return quoted[1].trim();
 
-  const markers = ['内容为', '文本为', '翻译为', '译为', '为：', '为:', '：', ':'];
+  const markers = ['\u5185\u5bb9\u4e3a', '\u6587\u672c\u4e3a', '\u7ffb\u8bd1\u4e3a', '\u8bd1\u4e3a', '\u4e3a\uff1a', '\u4e3a:', '\uff1a', ':'];
   for (const marker of markers) {
     const idx = source.lastIndexOf(marker);
     if (idx >= 0) {
@@ -29,10 +29,10 @@ function extractCommandText(source: string): string | undefined {
 function buildMockFunctionCallingReply(source: string): string {
   const normalized = source.trim();
   const text = extractCommandText(normalized);
-  const langMatch = normalized.match(/(?:语言|language)\s*(?:是|为|=|:|：)?\s*([a-z]{2,3})/i);
+  const langMatch = normalized.match(/(?:\u8bed\u8a00|language)\s*(?:\u662f|\u4e3a|=|:|\uff1a)?\s*([a-z]{2,3})/i);
   const languageId = langMatch?.[1]?.toLowerCase();
 
-  if (/(创建|新建|建立).*(转写行|句段|语段)/.test(normalized)) {
+  if (/(?:\u521b\u5efa|\u65b0\u5efa|\u5efa\u7acb).*(?:\u8f6c\u5199\u884c|\u53e5\u6bb5|\u8bed\u6bb5)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'create_transcription_segment',
@@ -41,71 +41,71 @@ function buildMockFunctionCallingReply(source: string): string {
     });
   }
 
-  // 带语言限定词时（如"日本语转写行"、"中文翻译层"）→ 删除整层 | with language qualifier → delete entire layer
-  if (/(删除|移除).*(日|中|英|法|德|韩|俄|西|葡|阿|藏|维|蒙|粤|闽|语|文).*(转写|翻译)/.test(normalized)) {
+  // With a language qualifier, delete the whole layer instead of a single segment.
+  if (/(?:\u5220\u9664|\u79fb\u9664).*(?:\u65e5|\u4e2d|\u82f1|\u6cd5|\u5fb7|\u97e9|\u4fc4|\u897f|\u8461|\u963f|\u85cf|\u7ef4|\u8499|\u7ca4|\u95fd|\u8bed|\u6587).*(?:\u8f6c\u5199|\u7ffb\u8bd1)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'delete_layer',
         arguments: {},
       },
     });
-  } else if (/(删除|移除).*(转写行|句段|语段)/.test(normalized)) {
+  } else if (/(?:\u5220\u9664|\u79fb\u9664).*(?:\u8f6c\u5199\u884c|\u53e5\u6bb5|\u8bed\u6bb5)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'delete_transcription_segment',
         arguments: {},
       },
     });
-  } else if (/(清空|删除|移除).*(翻译行|译文|翻译内容|翻译文本)/.test(normalized)) {
+  } else if (/(?:\u6e05\u7a7a|\u5220\u9664|\u79fb\u9664).*(?:\u7ffb\u8bd1\u884c|\u8bd1\u6587|\u7ffb\u8bd1\u5185\u5bb9|\u7ffb\u8bd1\u6587\u672c)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'clear_translation_segment',
         arguments: {},
       },
     });
-  } else if (/(创建|新建|建立).*(转写层)/.test(normalized)) {
+  } else if (/(?:\u521b\u5efa|\u65b0\u5efa|\u5efa\u7acb).*(?:\u8f6c\u5199\u5c42)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'create_transcription_layer',
         arguments: languageId ? { languageId } : {},
       },
     });
-  } else if (/(创建|新建|建立).*(翻译层)/.test(normalized)) {
+  } else if (/(?:\u521b\u5efa|\u65b0\u5efa|\u5efa\u7acb).*(?:\u7ffb\u8bd1\u5c42)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'create_translation_layer',
         arguments: languageId ? { languageId } : {},
       },
     });
-  } else if (/(删除|移除).*(层)/.test(normalized)) {
+  } else if (/(?:\u5220\u9664|\u79fb\u9664).*(?:\u5c42)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'delete_layer',
         arguments: {},
       },
     });
-  } else if (/(链接|关联|连接).*(层)/.test(normalized)) {
+  } else if (/(?:\u94fe\u63a5|\u5173\u8054|\u8fde\u63a5).*(?:\u5c42)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'link_translation_layer',
         arguments: {},
       },
     });
-  } else if (/(取消链接|取消关联|断开).*(层)/.test(normalized)) {
+  } else if (/(?:\u53d6\u6d88\u94fe\u63a5|\u53d6\u6d88\u5173\u8054|\u65ad\u5f00).*(?:\u5c42)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {
         name: 'unlink_translation_layer',
         arguments: {},
       },
     });
-  } else if (/(转写|写入转写|设置转写)/.test(normalized) && text) {
+  } else if (/(?:\u8f6c\u5199|\u5199\u5165\u8f6c\u5199|\u8bbe\u7f6e\u8f6c\u5199)/.test(normalized) && text) {
     return JSON.stringify({
       tool_call: {
         name: 'set_transcription_text',
         arguments: { text },
       },
     });
-  } else if (/(翻译|译文|写入翻译|设置翻译)/.test(normalized) && text) {
+  } else if (/(?:\u7ffb\u8bd1|\u8bd1\u6587|\u5199\u5165\u7ffb\u8bd1|\u8bbe\u7f6e\u7ffb\u8bd1)/.test(normalized) && text) {
     return JSON.stringify({
       tool_call: {
         name: 'set_translation_text',
@@ -142,11 +142,11 @@ export class MockLLMProvider implements LLMProvider {
   ): AsyncGenerator<ChatChunk, void, unknown> {
     const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
     const model = options?.model ?? 'mock-1';
-    const source = lastUserMessage?.content?.trim() || '（空输入）';
+    const source = lastUserMessage?.content?.trim() || '\uff08\u7a7a\u8f93\u5165\uff09';
     const functionCallReply = buildMockFunctionCallingReply(source);
     const full = functionCallReply.length > 0
       ? functionCallReply
-      : `${this.prefix}(${model}) 已收到：${source}`;
+      : `${this.prefix}(${model}) \u5df2\u6536\u5230\uff1a${source}`;
     const units = full.split('');
 
     for (const unit of units) {

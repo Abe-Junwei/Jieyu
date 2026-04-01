@@ -1,12 +1,8 @@
 import { memo, useCallback, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
-
-const CATEGORIES: { value: NoteCategory; label: string }[] = [
-  { value: 'comment', label: '评注' },
-  { value: 'question', label: '疑问' },
-  { value: 'todo', label: '待办' },
-];
+import { useOptionalLocale } from '../i18n';
+import { getNotePanelMessages } from '../i18n/notePanelMessages';
 
 interface NotePanelProps {
   isOpen: boolean;
@@ -27,6 +23,13 @@ export const NotePanel = memo(function NotePanel({
   onUpdate,
   onDelete,
 }: NotePanelProps) {
+  const locale = useOptionalLocale() ?? 'zh-CN';
+  const messages = getNotePanelMessages(locale);
+  const categories: { value: NoteCategory; label: string }[] = [
+    { value: 'comment', label: messages.categoryComment },
+    { value: 'question', label: messages.categoryQuestion },
+    { value: 'todo', label: messages.categoryTodo },
+  ];
   const [newContent, setNewContent] = useState('');
   const [newCategory, setNewCategory] = useState<NoteCategory | ''>('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -84,19 +87,19 @@ export const NotePanel = memo(function NotePanel({
   return (
     <div className="note-panel">
       <div className="note-panel-header">
-        <h3 className="note-panel-title">备注 — {targetLabel}</h3>
-        <button type="button" className="note-panel-close" onClick={onClose} aria-label="关闭备注面板">
+        <h3 className="note-panel-title">{messages.panelTitle(targetLabel)}</h3>
+        <button type="button" className="note-panel-close" onClick={onClose} aria-label={messages.closePanel}>
           <X size={16} />
         </button>
       </div>
 
       <div className="note-panel-list">
-        {notes.length === 0 && <p className="note-panel-empty">暂无备注</p>}
+        {notes.length === 0 && <p className="note-panel-empty">{messages.empty}</p>}
         {notes.map((note) => (
           <div key={note.id} className="note-panel-item">
             {note.category && (
               <span className={`note-panel-category note-panel-category-${note.category}`}>
-                {CATEGORIES.find((c) => c.value === note.category)?.label ?? note.category}
+                {categories.find((c) => c.value === note.category)?.label ?? note.category}
               </span>
             )}
             {editingId === note.id ? (
@@ -110,10 +113,10 @@ export const NotePanel = memo(function NotePanel({
                 />
                 <div className="note-panel-edit-actions">
                   <button type="button" className="note-panel-btn note-panel-btn-save" onClick={() => handleEditSave(note.id)}>
-                    保存
+                    {messages.save}
                   </button>
                   <button type="button" className="note-panel-btn note-panel-btn-cancel" onClick={() => setEditingId(null)}>
-                    取消
+                    {messages.cancel}
                   </button>
                 </div>
               </div>
@@ -124,8 +127,8 @@ export const NotePanel = memo(function NotePanel({
                   type="button"
                   className="note-panel-delete"
                   onClick={() => onDelete(note.id)}
-                  title="删除备注"
-                  aria-label="删除备注"
+                  title={messages.deleteNote}
+                  aria-label={messages.deleteNote}
                 >
                   <Trash2 size={12} />
                 </button>
@@ -138,7 +141,7 @@ export const NotePanel = memo(function NotePanel({
       <div className="note-panel-add">
         <textarea
           className="note-panel-textarea"
-          placeholder="输入新备注…（Ctrl+Enter 提交）"
+          placeholder={messages.newNotePlaceholder}
           value={newContent}
           onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNewContent(e.target.value)}
           onKeyDown={handleAddKeyDown}
@@ -149,15 +152,15 @@ export const NotePanel = memo(function NotePanel({
             value={newCategory}
             onChange={(e: ChangeEvent<HTMLSelectElement>) => setNewCategory(e.target.value as NoteCategory | '')}
           >
-            <option value="">无分类</option>
-            {CATEGORIES.map((c) => (
+            <option value="">{messages.noCategory}</option>
+            {categories.map((c) => (
               <option key={c.value} value={c.value}>
                 {c.label}
               </option>
             ))}
           </select>
           <button type="button" className="note-panel-btn note-panel-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
-            <Plus size={14} /> 添加
+            <Plus size={14} /> {messages.add}
           </button>
         </div>
       </div>

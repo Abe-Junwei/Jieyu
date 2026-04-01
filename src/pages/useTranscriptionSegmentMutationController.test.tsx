@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import type { SaveState } from '../hooks/transcriptionTypes';
+import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useTranscriptionSegmentMutationController } from './useTranscriptionSegmentMutationController';
 
 const {
@@ -92,9 +93,14 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
 
 describe('useTranscriptionSegmentMutationController', () => {
   beforeEach(() => {
+    window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, 'zh-CN');
     mockSplitSegment.mockClear();
     mockMergeAdjacentSegments.mockClear();
     mockDeleteSegment.mockClear();
+  });
+
+  afterEach(() => {
+    window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
   });
 
   it('routes segment split through LayerSegmentationV2Service and selects the right segment', async () => {
@@ -243,7 +249,7 @@ describe('useTranscriptionSegmentMutationController', () => {
       await result.current.deleteSelectedUtterancesRouted(new Set(['seg-1', 'seg-2']));
     });
 
-    expect(pushUndo).toHaveBeenCalledWith('删除 2 个句段');
+    expect(pushUndo).toHaveBeenCalledWith('批量删除句段');
     expect(mockDeleteSegment).toHaveBeenNthCalledWith(1, 'seg-1');
     expect(mockDeleteSegment).toHaveBeenNthCalledWith(2, 'seg-2');
     expect(reloadSegments).toHaveBeenCalledTimes(1);

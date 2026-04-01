@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { Check, Copy, Settings } from 'lucide-react';
+import { ArrowUp, Check, Copy, Settings } from 'lucide-react';
 import {
   diffAiToolSnapshot,
   type AiToolGoldenSnapshot,
@@ -7,7 +7,7 @@ import {
   type AiToolSnapshotDiff,
 } from '../../ai/auditReplay';
 import { buildCopyableAssistantPlainText, splitCitationMarkers } from '../../utils/citationFootnoteUtils';
-import { detectLocale, t } from '../../i18n';
+import { t, useLocale } from '../../i18n';
 import {
   aiChatProviderDefinitions,
   getAiChatProviderDefinition,
@@ -25,10 +25,10 @@ import {
 } from './aiChatReplayUtils';
 import { AiChatAlertsPanel } from './AiChatAlertsPanel';
 import { AiChatCandidateChips } from './AiChatCandidateChips';
-import { AiChatMetricsBar } from './AiChatMetricsBar';
 import { AiChatPromptLabModal } from './AiChatPromptLabModal';
 import { AiChatReplayDetailPanel } from './AiChatReplayDetailPanel';
 import { useAiPromptTemplates } from './useAiPromptTemplates';
+import { decodeEscapedUnicode, escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
 
 type AiChatCardProps = {
   embedded?: boolean;
@@ -43,7 +43,7 @@ type AiChatCardProps = {
 };
 
 export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChatCardProps = {}) {
-  const locale = detectLocale();
+  const locale = useLocale();
   const {
     selectedUtterance,
     selectedRowMeta,
@@ -57,8 +57,6 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     aiConnectionTestMessage,
     aiPendingToolCall,
     aiTaskSession,
-    aiInteractionMetrics,
-    aiSessionMemory,
     aiToolDecisionLogs,
     onUpdateAiChatSettings,
     onTestAiConnection,
@@ -74,14 +72,14 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const [chatInput, setChatInput] = useState('');
   const [showProviderConfig, setShowProviderConfig] = useState(false);
   const [showPromptLab, setShowPromptLab] = useState(false);
-  const [debugUiShowAll, setDebugUiShowAll] = useState(false);
+  const [showRagQuickScenarios, setShowRagQuickScenarios] = useState(false);
   const [selectedReplayBundle, setSelectedReplayBundle] = useState<AiToolReplayBundle | null>(null);
   const [replayLoadingRequestId, setReplayLoadingRequestId] = useState<string | null>(null);
   const [replayErrorMessage, setReplayErrorMessage] = useState<string | null>(null);
   const [exportedSnapshotRequestId, setExportedSnapshotRequestId] = useState<string | null>(null);
   const [compareSnapshot, setCompareSnapshot] = useState<AiToolGoldenSnapshot | null>(null);
   const [snapshotDiff, setSnapshotDiff] = useState<AiToolSnapshotDiff | null>(null);
-  // 展开的推理内容消息 ID 集合 | Set of message IDs with expanded reasoning content
+  // \\u5c55\\u5f00\\u7684\\u63a8\\u7406\\u5185\\u5bb9\\u6d88\\u606f ID \\u96c6\\u5408 | Set of message IDs with expanded reasoning content
   const [expandedReasoningIds, setExpandedReasoningIds] = useState<Set<string>>(new Set());
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -90,7 +88,6 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     : getAiChatProviderDefinition('mock');
 
   const isZh = locale === 'zh-CN';
-  const canShowUiDemoToggle = import.meta.env.DEV;
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const hasApiKeyField = useMemo(() => activeProviderDefinition.fields.some((field) => field.key === 'apiKey'), [activeProviderDefinition.fields]);
 
@@ -147,19 +144,19 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
       .filter((provider): provider is NonNullable<typeof provider> => Boolean(provider));
 
     return [
-      { label: '官方直连', items: pick(directKinds) },
-      { label: '兼容模式', items: pick(compatibleKinds) },
-      { label: '本地/自定义', items: pick(localKinds) },
+      { label: decodeEscapedUnicode('\\u5b98\\u65b9\\u76f4\\u8fde'), items: pick(directKinds) },
+      { label: decodeEscapedUnicode('\\u517c\\u5bb9\\u6a21\\u5f0f'), items: pick(compatibleKinds) },
+      { label: decodeEscapedUnicode('\\u672c\\u5730/\\u81ea\\u5b9a\\u4e49'), items: pick(localKinds) },
     ].filter((group) => group.items.length > 0);
   }, []);
 
   const providerStatusLabel = useMemo(() => {
     const kind = aiChatSettings?.providerKind ?? 'mock';
-    if (kind === 'mock') return isZh ? '模拟' : 'Mock';
-    if (kind === 'ollama') return isZh ? '本地' : 'Local';
-    if (aiConnectionTestStatus === 'success') return isZh ? '已连接' : 'Connected';
-    if (aiConnectionTestStatus === 'error') return isZh ? '异常' : 'Error';
-    return isZh ? '未验证' : 'Unverified';
+    if (kind === 'mock') return isZh ? decodeEscapedUnicode('\\u6a21\\u62df') : 'Mock';
+    if (kind === 'ollama') return isZh ? decodeEscapedUnicode('\\u672c\\u5730') : 'Local';
+    if (aiConnectionTestStatus === 'success') return isZh ? decodeEscapedUnicode('\\u5df2\\u8fde\\u63a5') : 'Connected';
+    if (aiConnectionTestStatus === 'error') return isZh ? decodeEscapedUnicode('\\u5f02\\u5e38') : 'Error';
+    return isZh ? decodeEscapedUnicode('\\u672a\\u9a8c\\u8bc1') : 'Unverified';
   }, [aiChatSettings?.providerKind, aiConnectionTestStatus, isZh]);
 
   const providerStatusTone = useMemo(() => {
@@ -171,7 +168,6 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   }, [aiChatSettings?.providerKind, aiConnectionTestStatus]);
 
   const chatTitle = useMemo(() => t(locale, 'ai.chat.title').replace(/\s*[（(]MVP[）)]\s*/gi, ''), [locale]);
-
   const messages = aiMessages ?? [];
   const turns = useMemo(() => {
     const newestTurns: Array<{ assistant?: typeof messages[number]; user?: typeof messages[number] }> = [];
@@ -201,7 +197,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     if (messages.length === 0) return;
     const viewport = messageViewportRef.current;
     if (!viewport) return;
-    // 消息按时间正序展示，保持视口锚定在底部 | Messages are shown in chronological order, keep viewport anchored at the bottom.
+    // \\u6d88\\u606f\\u6309\\u65f6\\u95f4\\u6b63\\u5e8f\\u5c55\\u793a，\\u4fdd\\u6301\\u89c6\\u53e3\\u951a\\u5b9a\\u5728\\u5e95\\u90e8 | Messages are shown in chronological order, keep viewport anchored at the bottom.
     if (typeof window === 'undefined') {
       viewport.scrollTop = viewport.scrollHeight;
       return;
@@ -221,14 +217,14 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const errorWarningText = useMemo(() => {
     const raw = (aiLastError ?? '').trim();
     if (!raw) return null;
-    const isLayerMismatch = /未找到匹配.?当前.?的转写层|no matching\s+"?current"?\s+transcription\s+layer/i.test(raw);
+    const isLayerMismatch = escapedUnicodeRegExp('\\u672a\\u627e\\u5230\\u5339\\u914d.?\\u5f53\\u524d.?\\u7684\\u8f6c\\u5199\\u5c42|no matching\\s+"?current"?\\s+transcription\\s+layer', 'i').test(raw);
     return isLayerMismatch
-      ? (isZh ? '⚠ 未找到匹配“当前”的转写层' : '⚠ No matching "current" transcription layer found')
+      ? (isZh ? decodeEscapedUnicode('⚠ \\u672a\\u627e\\u5230\\u5339\\u914d“\\u5f53\\u524d”\\u7684\\u8f6c\\u5199\\u5c42') : '⚠ No matching "current" transcription layer found')
       : (isZh ? `⚠ ${raw}` : `⚠ ${raw}`);
   }, [aiLastError, isZh]);
   const inputBlockedReason = useMemo(() => {
     if (hasToolPending) {
-      return isZh ? '存在待确认的高风险操作，请先确认或取消。' : 'A high-risk action is pending. Confirm or cancel it first.';
+      return isZh ? decodeEscapedUnicode('\\u5b58\\u5728\\u5f85\\u786e\\u8ba4\\u7684\\u9ad8\\u98ce\\u9669\\u64cd\\u4f5c，\\u8bf7\\u5148\\u786e\\u8ba4\\u6216\\u53d6\\u6d88。') : 'A high-risk action is pending. Confirm or cancel it first.';
     }
     return null;
   }, [hasToolPending, isZh]);
@@ -244,6 +240,8 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const copiedMessageTimerRef = useRef<number | null>(null);
   const blockedHintTimerRef = useRef<number | null>(null);
   const exportedSnapshotTimerRef = useRef<number | null>(null);
+  const ragQuickMenuRef = useRef<HTMLDivElement | null>(null);
+  const decisionPanelBodyRef = useRef<HTMLDivElement | null>(null);
   const [transientBlockedReason, setTransientBlockedReason] = useState<string | null>(null);
   const prevAlertCountRef = useRef(alertCount);
   const prevHasDecisionLogsRef = useRef(hasDecisionLogs);
@@ -298,10 +296,10 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     if (!showDecisionPanel || typeof window === 'undefined') return;
     event.preventDefault();
     const { preferred } = resolveDecisionPanelHeightBounds();
-    const initial = clampDecisionPanelHeight(decisionPanelMaxHeight ?? preferred);
+    const measuredHeight = decisionPanelBodyRef.current?.getBoundingClientRect().height ?? 0;
+    const initial = clampDecisionPanelHeight(measuredHeight > 0 ? measuredHeight : (decisionPanelMaxHeight ?? preferred));
     decisionResizeStartYRef.current = event.clientY;
     decisionResizeStartHeightRef.current = initial;
-    setDecisionPanelMaxHeight(initial);
     setIsDecisionPanelResizing(true);
   };
 
@@ -310,7 +308,10 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     : undefined;
 
   const decisionPanelInlineStyle: CSSProperties | undefined = decisionPanelMaxHeight !== null
-    ? ({ ['--ai-decision-panel-max-height' as string]: `${decisionPanelMaxHeight}px` } as CSSProperties)
+    ? ({
+      ['--ai-decision-panel-max-height' as string]: `${decisionPanelMaxHeight}px`,
+      ['--ai-decision-panel-body-height' as string]: `${decisionPanelMaxHeight}px`,
+    } as CSSProperties)
     : undefined;
 
   useEffect(() => {
@@ -362,6 +363,30 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
       blockedHintTimerRef.current = null;
     }
   }, [aiIsStreaming]);
+
+  useEffect(() => {
+    if (!showRagQuickScenarios || typeof window === 'undefined') return;
+
+    const handlePointerDown = (event: PointerEvent): void => {
+      if (!ragQuickMenuRef.current?.contains(event.target as Node)) {
+        setShowRagQuickScenarios(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        setShowRagQuickScenarios(false);
+      }
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showRagQuickScenarios]);
 
   useEffect(() => {
     if (!isVoiceDrawerResizing || typeof window === 'undefined') return;
@@ -463,7 +488,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     }
   };
 
-  // 从本地文件导入 golden snapshot 并与当前 replay bundle 对比 | Import a local golden snapshot and diff it against the current bundle
+  // \\u4ece\\u672c\\u5730\\u6587\\u4ef6\\u5bfc\\u5165 golden snapshot \\u5e76\\u4e0e\\u5f53\\u524d replay bundle \\u5bf9\\u6bd4 | Import a local golden snapshot and diff it against the current bundle
   const importSnapshotForCompare = (file: File): void => {
     setReplayErrorMessage(null);
     const reader = new FileReader();
@@ -490,16 +515,16 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     const text = chatInput.trim();
     if (!text) return;
     if (!onSendAiMessage) {
-      showTransientBlockedReason(isZh ? 'AI 对话尚未就绪，请稍后重试。' : 'AI chat is not ready yet. Please try again shortly.');
+      showTransientBlockedReason(isZh ? decodeEscapedUnicode('AI \\u5bf9\\u8bdd\\u5c1a\\u672a\\u5c31\\u7eea，\\u8bf7\\u7a0d\\u540e\\u91cd\\u8bd5。') : 'AI chat is not ready yet. Please try again shortly.');
       return;
     }
     if (aiIsStreaming) {
-      showTransientBlockedReason(isZh ? '上一条回复仍在生成中，停止后可继续发送。' : 'Previous reply is still streaming. Stop it before sending.');
+      showTransientBlockedReason(isZh ? decodeEscapedUnicode('\\u4e0a\\u4e00\\u6761\\u56de\\u590d\\u4ecd\\u5728\\u751f\\u6210\\u4e2d，\\u505c\\u6b62\\u540e\\u53ef\\u7ee7\\u7eed\\u53d1\\u9001。') : 'Previous reply is still streaming. Stop it before sending.');
       return;
     }
     if (hasToolPending) {
       setShowAlertBar(true);
-      showTransientBlockedReason(inputBlockedReason ?? (isZh ? '存在待确认操作，请先处理后再发送。' : 'A pending action must be handled before sending.'));
+      showTransientBlockedReason(inputBlockedReason ?? (isZh ? decodeEscapedUnicode('\\u5b58\\u5728\\u5f85\\u786e\\u8ba4\\u64cd\\u4f5c，\\u8bf7\\u5148\\u5904\\u7406\\u540e\\u518d\\u53d1\\u9001。') : 'A pending action must be handled before sending.'));
       return;
     }
     void onSendAiMessage(text);
@@ -508,79 +533,72 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
 
   return (
     <div className={`transcription-ai-card ${embedded ? 'transcription-ai-card-embedded' : ''}`}>
-      {/* P0: Header with embedded provider controls */}
-      <div className="transcription-ai-card-head ai-chat-head-row">
-        <div className="ai-chat-head-title-group">
-          <span>{chatTitle}</span>
-          <div className="transcription-ai-mode-switch" role="group" aria-label={isZh ? '工具反馈风格' : 'Tool feedback style'}>
+      {/* P0: Header — redesigned as a chat-area header */}
+      <div className="ai-chat-header">
+        <div className="ai-chat-header-left">
+          <div className="ai-chat-header-info">
+            <div className="ai-chat-header-title-row">
+              <span className="ai-chat-header-title">{chatTitle}</span>
+            </div>
+          </div>
+          <div className="ai-chat-header-tools">
+            <div className="transcription-ai-mode-switch" role="group" aria-label={isZh ? decodeEscapedUnicode('\\u5de5\\u5177\\u53cd\\u9988\\u98ce\\u683c') : 'Tool feedback style'}>
+              <button
+                type="button"
+                className={`transcription-ai-mode-btn ${(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'detailed' ? 'is-active' : ''}`}
+                disabled={(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'detailed'}
+                aria-pressed={(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'detailed'}
+                onClick={() => onUpdateAiChatSettings?.({ toolFeedbackStyle: 'detailed' })}
+              >
+                {isZh ? decodeEscapedUnicode('\\u8be6\\u7ec6') : 'Detailed'}
+              </button>
+              <button
+                type="button"
+                className={`transcription-ai-mode-btn ${(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'concise' ? 'is-active' : ''}`}
+                disabled={(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'concise'}
+                aria-pressed={(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'concise'}
+                onClick={() => onUpdateAiChatSettings?.({ toolFeedbackStyle: 'concise' })}
+              >
+                {isZh ? decodeEscapedUnicode('\\u7b80\\u6d01') : 'Concise'}
+              </button>
+            </div>
+            <span
+              className={`ai-chat-provider-status-dot ai-chat-provider-status-dot-${providerStatusTone} ai-chat-provider-status-dot-inline`}
+              role="status"
+              aria-label={providerStatusLabel}
+              title={`${activeProviderDefinition.label} · ${providerStatusLabel}`}
+            />
+            <select
+              className="ai-chat-provider-select"
+              value={aiChatSettings?.providerKind ?? 'mock'}
+              onChange={(e) => onUpdateAiChatSettings?.({
+                providerKind: e.currentTarget.value as AiChatSettings['providerKind'],
+              })}
+            >
+              {providerGroups.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.items.map((provider) => (
+                    <option key={provider.kind} value={provider.kind}>{provider.label}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
             <button
               type="button"
-              className={`transcription-ai-mode-btn ${(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'detailed' ? 'is-active' : ''}`}
-              disabled={(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'detailed'}
-              aria-pressed={(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'detailed'}
-              onClick={() => onUpdateAiChatSettings?.({ toolFeedbackStyle: 'detailed' })}
+              className="icon-btn ai-chat-header-config-btn"
+              aria-label={showProviderConfig ? (isZh ? decodeEscapedUnicode('\\u6536\\u8d77\\u914d\\u7f6e') : 'Hide provider config') : (isZh ? decodeEscapedUnicode('\\u6253\\u5f00\\u914d\\u7f6e') : 'Open provider config')}
+              title={showProviderConfig ? (isZh ? decodeEscapedUnicode('\\u6536\\u8d77\\u914d\\u7f6e') : 'Hide provider config') : (isZh ? decodeEscapedUnicode('\\u6253\\u5f00\\u914d\\u7f6e') : 'Open provider config')}
+              onClick={() => setShowProviderConfig((prev) => !prev)}
             >
-              {isZh ? '详细' : 'Detailed'}
-            </button>
-            <button
-              type="button"
-              className={`transcription-ai-mode-btn ${(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'concise' ? 'is-active' : ''}`}
-              disabled={(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'concise'}
-              aria-pressed={(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'concise'}
-              onClick={() => onUpdateAiChatSettings?.({ toolFeedbackStyle: 'concise' })}
-            >
-              {isZh ? '简洁' : 'Concise'}
+              <Settings size={14} strokeWidth={2} />
             </button>
           </div>
-        </div>
-        <div className="ai-chat-head-controls">
-          <span
-            className={`ai-chat-provider-status-dot ai-chat-provider-status-dot-${providerStatusTone}`}
-            role="status"
-            aria-label={providerStatusLabel}
-            title={`${activeProviderDefinition.label} · ${providerStatusLabel}`}
-          />
-          <select
-            className="ai-chat-provider-select"
-            value={aiChatSettings?.providerKind ?? 'mock'}
-            onChange={(e) => onUpdateAiChatSettings?.({
-              providerKind: e.currentTarget.value as AiChatSettings['providerKind'],
-            })}
-          >
-            {providerGroups.map((group) => (
-              <optgroup key={group.label} label={group.label}>
-                {group.items.map((provider) => (
-                  <option key={provider.kind} value={provider.kind}>{provider.label}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="icon-btn ai-chat-head-config-btn"
-            aria-label={showProviderConfig ? (isZh ? '收起配置' : 'Hide provider config') : (isZh ? '打开配置' : 'Open provider config')}
-            title={showProviderConfig ? (isZh ? '收起配置' : 'Hide provider config') : (isZh ? '打开配置' : 'Open provider config')}
-            onClick={() => setShowProviderConfig((prev) => !prev)}
-          >
-            <Settings size={14} strokeWidth={2} />
-          </button>
-          {canShowUiDemoToggle && (
-            <button
-              type="button"
-              className={`icon-btn ai-chat-head-demo-btn${debugUiShowAll ? ' ai-chat-head-demo-btn-active' : ''}`}
-              aria-pressed={debugUiShowAll}
-              onClick={() => setDebugUiShowAll((prev) => !prev)}
-              title={isZh ? '演示模式：显示条件区' : 'Demo mode: show conditional sections'}
-            >
-              {isZh ? '演示' : 'Demo'}
-            </button>
-          )}
         </div>
       </div>
 
       {/* P0: Provider config panel (collapsible below header) */}
       {aiChatSettings && showProviderConfig && (
-        <div style={{ borderBottom: '1px dashed #cbd5e1', padding: '6px 10px 8px', display: 'grid', gap: 6 }}>
+        <div style={{ borderBottom: '1px dashed var(--border-soft)', padding: '6px 10px 8px', display: 'grid', gap: 6 }}>
           {activeProviderDefinition.fields.map((field) => (
             <div key={field.key} style={{ display: 'grid', gridTemplateColumns: '72px 1fr', gap: 6, alignItems: 'center' }}>
               <span className="ai-cfg-label">{field.label}</span>
@@ -616,7 +634,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               {aiConnectionTestStatus === 'testing'
                 ? t(locale, 'ai.chat.testing')
                 : aiConnectionTestStatus === 'success'
-                  ? <><Check size={12} strokeWidth={2.5} style={{ marginRight: 2, verticalAlign: -1 }} />{isZh ? '已连接' : 'Connected'}</>
+                  ? <><Check size={12} strokeWidth={2.5} style={{ marginRight: 2, verticalAlign: -1 }} />{isZh ? decodeEscapedUnicode('\\u5df2\\u8fde\\u63a5') : 'Connected'}</>
                   : t(locale, 'ai.chat.testConnection')}
             </button>
             {hasApiKeyField && (
@@ -626,7 +644,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                 style={{ height: 26, minWidth: 96, fontSize: 12 }}
                 onClick={() => onUpdateAiChatSettings?.({ apiKey: '' })}
               >
-                {isZh ? '清空当前 Key' : 'Clear Current Key'}
+                {isZh ? decodeEscapedUnicode('\\u6e05\\u7a7a\\u5f53\\u524d Key') : 'Clear Current Key'}
               </button>
             )}
           </div>
@@ -653,18 +671,18 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
 
                   const assistantContent = assistantMsg
                     ? ((assistantMsg.status === 'streaming' && /\{[\s\S]*"tool_call"\s*:\s*\{/.test(assistantMsg.content || ''))
-                      ? (isZh ? '正在解析工具调用…' : 'Parsing tool call...')
+                      ? (isZh ? decodeEscapedUnicode('\\u6b63\\u5728\\u89e3\\u6790\\u5de5\\u5177\\u8c03\\u7528…') : 'Parsing tool call...')
                       : (assistantMsg.content || (assistantMsg.status === 'streaming'
-                        ? (assistantMsg.thinking ? (isZh ? '正在思考...' : 'Thinking...') : '...')
-                        : (assistantMsg.status === 'aborted' ? '⏹ 已中断' : ''))))
+                        ? (assistantMsg.thinking ? (isZh ? decodeEscapedUnicode('\\u6b63\\u5728\\u601d\\u8003...') : 'Thinking...') : '...')
+                        : (assistantMsg.status === 'aborted' ? decodeEscapedUnicode('⏹ \\u5df2\\u4e2d\\u65ad') : ''))))
                     : '';
                   const reasoningContent = assistantMsg?.reasoningContent;
                   const hasReasoning = typeof reasoningContent === 'string' && reasoningContent.length > 0;
                   const isReasoningExpanded = hasReasoning && expandedReasoningIds.has(assistantMsg?.id ?? '');
-                  // 原始引用保持注入顺序，用于 [N] 标记解析 | Raw citations keep injection order for [N] marker resolution
+                  // \\u539f\\u59cb\\u5f15\\u7528\\u4fdd\\u6301\\u6ce8\\u5165\\u987a\\u5e8f，\\u7528\\u4e8e [N] \\u6807\\u8bb0\\u89e3\\u6790 | Raw citations keep injection order for [N] marker resolution
                   const rawCitations = assistantMsg?.citations ?? [];
                   const hasInlineMarkers = rawCitations.length > 0 && /\[\d+\]/.test(assistantContent);
-                  // 有行内标记时保持注入顺序；否则按类型排序兼容旧消息 | Injection order when markers exist; type-sorted for legacy
+                  // \\u6709\\u884c\\u5185\\u6807\\u8bb0\\u65f6\\u4fdd\\u6301\\u6ce8\\u5165\\u987a\\u5e8f；\\u5426\\u5219\\u6309\\u7c7b\\u578b\\u6392\\u5e8f\\u517c\\u5bb9\\u65e7\\u6d88\\u606f | Injection order when markers exist; type-sorted for legacy
                   const orderedCitations = hasInlineMarkers
                     ? rawCitations
                     : [...rawCitations].sort((a, b) => {
@@ -685,10 +703,10 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                   const showAiGeneratedText = assistantMsg?.generationSource === 'llm' && assistantMsg?.status === 'done';
                   const generatedModelName = (assistantMsg?.generationModel ?? '').trim();
                   const generatedLabel = generatedModelName.length > 0
-                    ? (isZh ? `${generatedModelName} 生成` : `${generatedModelName} Generated`)
-                    : (isZh ? 'AI 生成' : 'AI Generated');
+                    ? (isZh ? decodeEscapedUnicode(`${generatedModelName} \\u751f\\u6210`) : `${generatedModelName} Generated`)
+                    : (isZh ? decodeEscapedUnicode('AI \\u751f\\u6210') : 'AI Generated');
                   const userContent = userMsg
-                    ? (userMsg.content || (userMsg.status === 'streaming' ? '...' : (userMsg.status === 'aborted' ? '⏹ 已中断' : '')))
+                    ? (userMsg.content || (userMsg.status === 'streaming' ? '...' : (userMsg.status === 'aborted' ? decodeEscapedUnicode('⏹ \\u5df2\\u4e2d\\u65ad') : '')))
                     : '';
 
                   return (
@@ -699,40 +717,65 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                     >
                       {userMsg && (
                         <div className="ai-chat-message-bubble ai-chat-message-user">
-                          <span className="ai-chat-message-content">{userContent}</span>
+                          <div className="ai-chat-message-surface">
+                            <span className="ai-chat-message-content">{userContent}</span>
+                          </div>
                         </div>
                       )}
 
                       {assistantMsg && (
                         <div className="ai-chat-message-bubble ai-chat-message-assistant">
-                          <span className="ai-chat-message-content">
-                            {hasInlineMarkers
-                              ? splitCitationMarkers(assistantContent, rawCitations.length).map((seg, i) =>
-                                  seg.type === 'text'
-                                    ? <Fragment key={i}>{seg.value}</Fragment>
-                                    : (
-                                      <sup
-                                        key={i}
-                                        className="ai-citation-marker"
-                                        role="button"
-                                        tabIndex={0}
-                                        onClick={() => {
-                                          const c = rawCitations[seg.index! - 1];
-                                          if (c && onJumpToCitation) void onJumpToCitation(c.type, c.refId, c);
-                                        }}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter' || e.key === ' ') {
+                          <div className="ai-chat-message-surface">
+                            <span className="ai-chat-message-content">
+                              {hasInlineMarkers
+                                ? splitCitationMarkers(assistantContent, rawCitations.length).map((seg, i) =>
+                                    seg.type === 'text'
+                                      ? <Fragment key={i}>{seg.value}</Fragment>
+                                      : (
+                                        <sup
+                                          key={i}
+                                          className="ai-citation-marker"
+                                          role="button"
+                                          tabIndex={0}
+                                          onClick={() => {
                                             const c = rawCitations[seg.index! - 1];
                                             if (c && onJumpToCitation) void onJumpToCitation(c.type, c.refId, c);
-                                          }
-                                        }}
-                                      >
-                                        {seg.value}
-                                      </sup>
-                                    ),
-                                )
-                              : assistantContent}
-                          </span>
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                              const c = rawCitations[seg.index! - 1];
+                                              if (c && onJumpToCitation) void onJumpToCitation(c.type, c.refId, c);
+                                            }
+                                          }}
+                                        >
+                                          {seg.value}
+                                        </sup>
+                                      ),
+                                  )
+                                : assistantContent}
+                            </span>
+                            {/* \\u53ef\\u6298\\u53e0\\u7684\\u63a8\\u7406\\u8fc7\\u7a0b | Collapsible reasoning content */}
+                            {hasReasoning && isReasoningExpanded && (
+                              <div
+                                className="ai-chat-reasoning-block"
+                                style={{
+                                  marginTop: 6,
+                                  padding: '4px 8px',
+                                  background: 'color-mix(in srgb, var(--text-secondary) 8%, transparent)',
+                                  borderRadius: 4,
+                                  fontSize: 11,
+                                  color: 'var(--text-secondary)',
+                                  lineHeight: 1.5,
+                                  fontStyle: 'italic',
+                                }}
+                              >
+                                <div style={{ fontWeight: 600, marginBottom: 2, fontStyle: 'normal' }}>
+                                  {isZh ? decodeEscapedUnicode('💭 \\u63a8\\u7406\\u8fc7\\u7a0b') : '💭 Reasoning'}
+                                </div>
+                                <div>{reasoningContent}</div>
+                              </div>
+                            )}
+                          </div>
                           {(hasCopyableAssistantContent || orderedCitations.length > 0 || hasReasoning || showAiGeneratedText) && (
                             <div className="ai-chat-message-actions">
                               {hasCopyableAssistantContent && (
@@ -740,11 +783,11 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                   type="button"
                                   className="icon-btn ai-chat-message-copy-btn"
                                   title={copiedMessageId === assistantMsg.id
-                                    ? (isZh ? '已复制' : 'Copied')
-                                    : (isZh ? '复制' : 'Copy')}
+                                    ? (isZh ? decodeEscapedUnicode('\\u5df2\\u590d\\u5236') : 'Copied')
+                                    : (isZh ? decodeEscapedUnicode('\\u590d\\u5236') : 'Copy')}
                                   aria-label={copiedMessageId === assistantMsg.id
-                                    ? (isZh ? '已复制' : 'Copied')
-                                    : (isZh ? '复制' : 'Copy')}
+                                    ? (isZh ? decodeEscapedUnicode('\\u5df2\\u590d\\u5236') : 'Copied')
+                                    : (isZh ? decodeEscapedUnicode('\\u590d\\u5236') : 'Copy')}
                                   onClick={() => {
                                     if (typeof navigator === 'undefined' || !navigator.clipboard) return;
                                     void navigator.clipboard.writeText(copyableAssistantContent);
@@ -780,8 +823,8 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                   }}
                                 >
                                   {isReasoningExpanded
-                                    ? (isZh ? '▲ 隐藏推理' : '▲ Hide reasoning')
-                                    : (isZh ? '▼ 查看推理' : '▼ Show reasoning')}
+                                    ? (isZh ? decodeEscapedUnicode('▲ \\u9690\\u85cf\\u63a8\\u7406') : '▲ Hide reasoning')
+                                    : (isZh ? decodeEscapedUnicode('▼ \\u67e5\\u770b\\u63a8\\u7406') : '▼ Show reasoning')}
                                 </button>
                               )}
                               {orderedCitations.map((citation, ci) => (
@@ -801,27 +844,6 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                   {generatedLabel}
                                 </span>
                               )}
-                            </div>
-                          )}
-                          {/* 可折叠的推理过程 | Collapsible reasoning content */}
-                          {hasReasoning && isReasoningExpanded && (
-                            <div
-                              className="ai-chat-reasoning-block"
-                              style={{
-                                marginTop: 6,
-                                padding: '4px 8px',
-                                background: 'rgba(148,163,184,0.08)',
-                                borderRadius: 4,
-                                fontSize: 11,
-                                color: '#64748b',
-                                lineHeight: 1.5,
-                                fontStyle: 'italic',
-                              }}
-                            >
-                              <div style={{ fontWeight: 600, marginBottom: 2, fontStyle: 'normal' }}>
-                                {isZh ? '💭 推理过程' : '💭 Reasoning'}
-                              </div>
-                              <div>{reasoningContent}</div>
                             </div>
                           )}
                         </div>
@@ -849,7 +871,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
             errorWarningText={errorWarningText ?? ''}
             dismissedErrorWarning={dismissedErrorWarning}
             alertCount={alertCount}
-            debugUiShowAll={debugUiShowAll}
+            debugUiShowAll={false}
             showAlertBar={showAlertBar}
             aiPendingToolCall={aiPendingToolCall}
             onDismissErrorWarning={() => setDismissedErrorWarning(true)}
@@ -858,87 +880,134 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
             onCancelPendingToolCall={onCancelPendingToolCall}
           />
 
-          {/* 候选快捷回复条 | Candidate quick-reply chips */}
-          {((aiTaskSession?.status === 'waiting_clarify' && (aiTaskSession.candidates ?? []).length > 0) || debugUiShowAll) && (
+          {/* \\u5019\\u9009\\u5feb\\u6377\\u56de\\u590d\\u6761 | Candidate quick-reply chips */}
+          {aiTaskSession?.status === 'waiting_clarify' && (aiTaskSession.candidates ?? []).length > 0 && (
             <AiChatCandidateChips
               isZh={isZh}
               aiIsStreaming={Boolean(aiIsStreaming)}
-              debugUiShowAll={debugUiShowAll}
+              debugUiShowAll={false}
               candidates={aiTaskSession?.candidates ?? []}
               onSendAiMessage={onSendAiMessage}
             />
           )}
 
-          <AiChatMetricsBar
-            isZh={isZh}
-            aiInteractionMetrics={aiInteractionMetrics}
-            aiSessionMemory={aiSessionMemory}
-          />
-
           {/* Input row */}
-          <div style={{ display: 'grid', gap: 6, flexShrink: 0 }}>
-            <input
-              className="ai-chat-input"
+          <div className="ai-chat-composer">
+            {quickPromptTemplates.length > 0 && (
+              <div className="ai-chat-composer-shortcuts">
+                {quickPromptTemplates.slice(0, 3).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="icon-btn ai-chat-composer-shortcut"
+                    onClick={() => injectPromptTemplate(item.content)}
+                  >
+                    {item.title}
+                  </button>
+                ))}
+                {quickPromptTemplates.length > 3 && (
+                  <div ref={ragQuickMenuRef} className="ai-chat-rag-quick-menu-wrap">
+                    <button
+                      type="button"
+                      className="icon-btn ai-chat-composer-shortcut ai-chat-composer-shortcut-muted"
+                      aria-expanded={showRagQuickScenarios}
+                      aria-haspopup="true"
+                      onClick={() => setShowRagQuickScenarios((prev) => !prev)}
+                    >
+                      {isZh ? decodeEscapedUnicode('\\u66f4\\u591a') : 'More'}
+                    </button>
+                    {showRagQuickScenarios && (
+                      <div className="ai-chat-rag-quick-menu" role="dialog" aria-label={isZh ? decodeEscapedUnicode('RAG \\u5feb\\u6377\\u573a\\u666f') : 'RAG Quick Scenarios'}>
+                        {quickPromptTemplates.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className="icon-btn ai-chat-action-btn ai-chat-action-btn-quiet ai-chat-rag-quick-menu-btn"
+                            onClick={() => {
+                              injectPromptTemplate(item.content);
+                              setShowRagQuickScenarios(false);
+                            }}
+                          >
+                            {item.title}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="ai-chat-composer-row">
+              <input
+                className="ai-chat-input ai-chat-input-composer"
               type="text"
               value={chatInput}
               placeholder={t(locale, 'ai.chat.inputPlaceholder')}
               onChange={(e) => setChatInput(e.currentTarget.value)}
               onKeyDown={(e) => {
                 const native = e.nativeEvent as KeyboardEvent;
-                // 输入法组合期间回车用于选词，不应触发发送 | Enter should not submit while IME composition is active.
+                // \\u8f93\\u5165\\u6cd5\\u7ec4\\u5408\\u671f\\u95f4\\u56de\\u8f66\\u7528\\u4e8e\\u9009\\u8bcd，\\u4e0d\\u5e94\\u89e6\\u53d1\\u53d1\\u9001 | Enter should not submit while IME composition is active.
                 if (native.isComposing || native.keyCode === 229) return;
                 if (e.key !== 'Enter' || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
                 e.preventDefault();
                 submitChatInput();
               }}
-            />
-            <div className="ai-chat-action-row">
-              <div className="ai-chat-action-group-primary">
-                <button
-                  type="button"
-                  className={`icon-btn ai-chat-action-btn ai-chat-action-btn-primary${aiIsStreaming ? ' ai-chat-action-btn-primary-stop' : ''}`}
-                  aria-label={aiIsStreaming ? (isZh ? '停止生成' : 'Stop generating') : t(locale, 'ai.chat.send')}
-                  disabled={aiIsStreaming ? !onStopAiMessage : (!onSendAiMessage || hasToolPending)}
-                  onClick={() => {
-                    if (aiIsStreaming) {
-                      onStopAiMessage?.();
-                      return;
-                    }
-                    submitChatInput();
+              />
+              <button
+                type="button"
+                className={`icon-btn ai-chat-composer-send-btn${aiIsStreaming ? ' is-streaming' : ''}`}
+                aria-label={aiIsStreaming ? (isZh ? decodeEscapedUnicode('\\u505c\\u6b62\\u751f\\u6210') : 'Stop generating') : t(locale, 'ai.chat.send')}
+                disabled={aiIsStreaming ? !onStopAiMessage : (!onSendAiMessage || hasToolPending)}
+                onClick={() => {
+                  if (aiIsStreaming) {
+                    onStopAiMessage?.();
+                    return;
+                  }
+                  submitChatInput();
+                }}
+              >
+                {aiIsStreaming ? (isZh ? decodeEscapedUnicode('\\u505c\\u6b62') : 'Stop') : <ArrowUp size={16} strokeWidth={2} />}
+              </button>
+            </div>
+            {(transientBlockedReason || inputBlockedReason) && (
+              <p className="small-text" style={{ margin: 0, color: 'var(--state-warning-text)' }}>{transientBlockedReason ?? inputBlockedReason}</p>
+            )}
+
+            <div className={`ai-chat-prompt-lab-panel ${showPromptLab ? 'is-open' : 'is-closed'}${promptTemplates.length === 0 ? ' is-empty' : ''}`}>
+              <button
+                type="button"
+                className="ai-chat-prompt-lab-panel-head"
+                onClick={() => setShowPromptLab((prev) => !prev)}
+                aria-expanded={showPromptLab}
+              >
+                <span className="ai-chat-prompt-lab-panel-title">
+                  {isZh ? decodeEscapedUnicode('Prompt \\u5b9e\\u9a8c\\u5ba4') : 'Prompt Lab'}
+                  <span className="ai-chat-decision-panel-bracket">{isZh ? ' · ' : ' · '}</span>
+                  <span className="ai-chat-decision-panel-count">{promptTemplates.length}{isZh ? decodeEscapedUnicode(' \\u9879') : ''}</span>
+                </span>
+                <span className="ai-chat-fold-caret" aria-hidden="true">▾</span>
+              </button>
+              <div className="ai-chat-prompt-lab-panel-body" aria-hidden={!showPromptLab}>
+                <AiChatPromptLabModal
+                  isZh={isZh}
+                  showPromptLab={showPromptLab}
+                  promptTemplates={promptTemplates}
+                  editingTemplateId={editingTemplateId}
+                  templateTitleInput={templateTitleInput}
+                  templateContentInput={templateContentInput}
+                  onInjectTemplate={injectPromptTemplate}
+                  onEditTemplate={editPromptTemplate}
+                  onRemoveTemplate={removePromptTemplate}
+                  onTemplateTitleInputChange={setTemplateTitleInput}
+                  onTemplateContentInputChange={setTemplateContentInput}
+                  onAppendPromptVariable={appendPromptVariable}
+                  onSaveTemplate={savePromptTemplate}
+                  onInjectAndClose={() => {
+                    injectPromptTemplate(templateContentInput);
                   }}
-                >
-                  {aiIsStreaming ? (isZh ? '停止生成' : 'Stop generating') : t(locale, 'ai.chat.send')}
-                </button>
-              </div>
-              <div className="ai-chat-action-group-secondary">
-                <button type="button" className="icon-btn ai-chat-action-btn ai-chat-action-btn-quiet ai-chat-action-btn-wide" onClick={() => setShowPromptLab(true)}>
-                  {isZh ? 'Prompt 实验室' : 'Prompt Lab'}
-                </button>
+                />
               </div>
             </div>
-            {quickPromptTemplates.length > 0 && (
-              <div style={{ display: 'grid', gap: 4 }}>
-                <span className="small-text" style={{ color: '#475569' }}>
-                  {isZh ? 'RAG 快捷场景' : 'RAG Quick Scenarios'}
-                </span>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {quickPromptTemplates.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className="icon-btn ai-chat-action-btn ai-chat-action-btn-quiet"
-                      style={{ minWidth: 0, paddingInline: 10, height: 26, fontSize: 11 }}
-                      onClick={() => injectPromptTemplate(item.content)}
-                    >
-                      {item.title}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {(transientBlockedReason || inputBlockedReason) && (
-              <p className="small-text" style={{ margin: 0, color: '#92400e' }}>{transientBlockedReason ?? inputBlockedReason}</p>
-            )}
             {canUseVoiceEntry && voiceEntry && (
               <div
                 className={`ai-chat-voice-drawer ${voiceEntry.expanded ? 'is-open' : 'is-closed'}${isVoiceDrawerResizing ? ' is-resizing' : ''}`}
@@ -951,7 +1020,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                     onClick={voiceEntry.onTogglePanel}
                     aria-expanded={voiceEntry.expanded}
                   >
-                    <span className="ai-chat-voice-drawer-title">{isZh ? '语音输入' : 'Voice Input'}</span>
+                    <span className="ai-chat-voice-drawer-title">{isZh ? decodeEscapedUnicode('\\u8bed\\u97f3\\u8f93\\u5165') : 'Voice Input'}</span>
                     <span className="ai-chat-fold-caret" aria-hidden="true">▾</span>
                   </button>
                   <div className="ai-chat-voice-drawer-body" aria-hidden={!voiceEntry.expanded}>
@@ -960,11 +1029,11 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                         className="ai-chat-voice-drawer-resizer"
                         role="separator"
                         aria-orientation="horizontal"
-                        aria-label={isZh ? '拖动调整语音面板高度' : 'Drag to resize voice panel height'}
+                        aria-label={isZh ? decodeEscapedUnicode('\\u62d6\\u52a8\\u8c03\\u6574\\u8bed\\u97f3\\u9762\\u677f\\u9ad8\\u5ea6') : 'Drag to resize voice panel height'}
                         onPointerDown={startVoiceDrawerResize}
                       />
                     )}
-                    {voiceDrawer ?? <p className="ai-chat-fold-empty">{isZh ? '语音面板暂不可用' : 'Voice panel is temporarily unavailable'}</p>}
+                    {voiceDrawer ?? <p className="ai-chat-fold-empty">{isZh ? decodeEscapedUnicode('\\u8bed\\u97f3\\u9762\\u677f\\u6682\\u4e0d\\u53ef\\u7528') : 'Voice panel is temporarily unavailable'}</p>}
                   </div>
                 </div>
               </div>
@@ -981,24 +1050,28 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                   aria-expanded={showDecisionPanel}
                 >
                   <span className="ai-chat-decision-panel-title">
-                    {isZh ? 'AI 决策' : 'AI Decisions'}
+                    {isZh ? decodeEscapedUnicode('AI \\u51b3\\u7b56') : 'AI Decisions'}
                     <span className="ai-chat-decision-panel-bracket">{isZh ? ' · ' : ' · '}</span>
-                    <span className="ai-chat-decision-panel-count">{aiToolDecisionLogs?.length ?? 0}{isZh ? ' 条' : ''}</span>
+                    <span className="ai-chat-decision-panel-count">{aiToolDecisionLogs?.length ?? 0}{isZh ? decodeEscapedUnicode(' \\u6761') : ''}</span>
                   </span>
                   <span className="ai-chat-fold-caret" aria-hidden="true">▾</span>
                 </button>
-                  <div className="ai-chat-decision-panel-body" aria-hidden={!showDecisionPanel}>
+                  <div
+                    ref={decisionPanelBodyRef}
+                    className="ai-chat-decision-panel-body"
+                    aria-hidden={!showDecisionPanel}
+                  >
                     {showDecisionPanel && (
                       <div
                         className="ai-chat-decision-panel-resizer"
                         role="separator"
                         aria-orientation="horizontal"
-                        aria-label={isZh ? '拖动调整 AI 决策区高度' : 'Drag to resize AI decision panel height'}
+                        aria-label={isZh ? decodeEscapedUnicode('\\u62d6\\u52a8\\u8c03\\u6574 AI \\u51b3\\u7b56\\u533a\\u9ad8\\u5ea6') : 'Drag to resize AI decision panel height'}
                         onPointerDown={startDecisionPanelResize}
                       />
                     )}
                     {!hasDecisionLogs && (
-                      <p className="ai-chat-fold-empty">{isZh ? '暂无决策记录' : 'No decisions yet'}</p>
+                      <p className="ai-chat-fold-empty">{isZh ? decodeEscapedUnicode('\\u6682\\u65e0\\u51b3\\u7b56\\u8bb0\\u5f55') : 'No decisions yet'}</p>
                     )}
                     <div style={{ display: 'grid', gap: 6 }}>
                       {(aiToolDecisionLogs ?? []).map((item) => {
@@ -1008,7 +1081,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                         return (
                           <div key={item.id} className="ai-chat-decision-item" style={{ display: 'grid', gap: 4, fontSize: 10 }}>
                             <div className="ai-chat-decision-item-meta">
-                              <span className="ai-chat-decision-item-main">{item.toolName || (isZh ? '未知工具' : 'unknown')} · {formatToolDecision(isZh, item.decision)}</span>
+                              <span className="ai-chat-decision-item-main">{item.toolName || (isZh ? decodeEscapedUnicode('\\u672a\\u77e5\\u5de5\\u5177') : 'unknown')} · {formatToolDecision(isZh, item.decision)}</span>
                               <em className="ai-chat-decision-item-time">{new Date(item.timestamp).toLocaleTimeString()}</em>
                             </div>
                             {canReplay && (
@@ -1020,7 +1093,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                   disabled={isLoading}
                                   onClick={() => void openReplayBundle(item.requestId!)}
                                 >
-                                  {isLoading ? (isZh ? '读取中...' : 'Loading...') : (isSelected ? (isZh ? '已打开回放' : 'Replay Opened') : (isZh ? '查看回放/对比' : 'Replay / Compare'))}
+                                  {isLoading ? (isZh ? decodeEscapedUnicode('\\u8bfb\\u53d6\\u4e2d...') : 'Loading...') : (isSelected ? (isZh ? decodeEscapedUnicode('\\u5df2\\u6253\\u5f00\\u56de\\u653e') : 'Replay Opened') : (isZh ? decodeEscapedUnicode('\\u67e5\\u770b\\u56de\\u653e/\\u5bf9\\u6bd4') : 'Replay / Compare'))}
                                 </button>
                                 <button
                                   type="button"
@@ -1029,8 +1102,8 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                   onClick={() => void exportGoldenSnapshot(item.requestId!)}
                                 >
                                   {exportedSnapshotRequestId === item.requestId
-                                    ? (isZh ? '已导出快照' : 'Snapshot Exported')
-                                    : (isZh ? '导出快照' : 'Export Snapshot')}
+                                    ? (isZh ? decodeEscapedUnicode('\\u5df2\\u5bfc\\u51fa\\u5feb\\u7167') : 'Snapshot Exported')
+                                    : (isZh ? decodeEscapedUnicode('\\u5bfc\\u51fa\\u5feb\\u7167') : 'Export Snapshot')}
                                 </button>
                               </div>
                             )}
@@ -1038,7 +1111,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                         );
                       })}
                       {replayErrorMessage && (
-                        <div style={{ fontSize: 10, color: '#b91c1c' }}>{replayErrorMessage}</div>
+                        <div style={{ fontSize: 10, color: 'var(--state-danger-text)' }}>{replayErrorMessage}</div>
                       )}
                       {selectedReplayBundle && (
                         <AiChatReplayDetailPanel
@@ -1066,27 +1139,6 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               </div>
           </div>
 
-          <AiChatPromptLabModal
-            isZh={isZh}
-            showPromptLab={showPromptLab}
-            quickPromptTemplates={quickPromptTemplates}
-            promptTemplates={promptTemplates}
-            editingTemplateId={editingTemplateId}
-            templateTitleInput={templateTitleInput}
-            templateContentInput={templateContentInput}
-            onClose={() => setShowPromptLab(false)}
-            onInjectTemplate={injectPromptTemplate}
-            onEditTemplate={editPromptTemplate}
-            onRemoveTemplate={removePromptTemplate}
-            onTemplateTitleInputChange={setTemplateTitleInput}
-            onTemplateContentInputChange={setTemplateContentInput}
-            onAppendPromptVariable={appendPromptVariable}
-            onSaveTemplate={savePromptTemplate}
-            onInjectAndClose={() => {
-              injectPromptTemplate(templateContentInput);
-              setShowPromptLab(false);
-            }}
-          />
         </>
       )}
     </div>

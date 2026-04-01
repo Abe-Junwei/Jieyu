@@ -7,7 +7,7 @@
 
 import { type FC, useCallback } from 'react';
 import { Maximize2, Focus } from 'lucide-react';
-import { detectLocale, t, tf } from '../../../i18n';
+import { t, tf, useLocale } from '../../../i18n';
 
 export interface ZoomControlsProps {
   // 状态 | State
@@ -43,7 +43,7 @@ const ZoomControls: FC<ZoomControlsProps> = ({
   onAutoScrollEnabledChange,
   onHoverExpandEnabledChange,
 }) => {
-  const locale = detectLocale();
+  const locale = useLocale();
 
   const handleFitAll = useCallback(() => {
     onZoomToPercent(100, 'fit-all');
@@ -98,7 +98,7 @@ const ZoomControls: FC<ZoomControlsProps> = ({
       <button
         className="icon-btn"
         onClick={handleOneToOne}
-        title="1:1 (100px/s)"
+        title={t(locale, 'transcription.zoom.oneToOne')}
       >
         <span className="icon-btn-label">1:1</span>
       </button>
@@ -115,8 +115,8 @@ const ZoomControls: FC<ZoomControlsProps> = ({
         type="button"
         className={`icon-btn${autoScrollEnabled ? ' icon-btn-active' : ''}`}
         onClick={handleAutoScrollToggle}
-        title={autoScrollEnabled ? '关闭播放跟随滚动' : '开启播放跟随滚动'}
-        aria-label={autoScrollEnabled ? '关闭播放跟随滚动' : '开启播放跟随滚动'}
+        title={autoScrollEnabled ? t(locale, 'transcription.zoom.autoScrollOff') : t(locale, 'transcription.zoom.autoScrollOn')}
+        aria-label={autoScrollEnabled ? t(locale, 'transcription.zoom.autoScrollOff') : t(locale, 'transcription.zoom.autoScrollOn')}
       >
         <span className="icon-btn-label">AS</span>
       </button>
@@ -125,10 +125,10 @@ const ZoomControls: FC<ZoomControlsProps> = ({
         type="button"
         className={`icon-btn${hoverExpandEnabled ? ' icon-btn-active' : ''}`}
         onClick={handleHoverExpandToggle}
-        title={hoverExpandEnabled ? '关闭悬停展开' : '开启悬停展开'}
-        aria-label={hoverExpandEnabled ? '关闭悬停展开' : '开启悬停展开'}
+        title={hoverExpandEnabled ? t(locale, 'transcription.zoom.hoverExpandOff') : t(locale, 'transcription.zoom.hoverExpandOn')}
+        aria-label={hoverExpandEnabled ? t(locale, 'transcription.zoom.hoverExpandOff') : t(locale, 'transcription.zoom.hoverExpandOn')}
       >
-        <span className="icon-btn-label">悬</span>
+        <span className="icon-btn-label">{t(locale, 'transcription.zoom.hoverShort')}</span>
       </button>
       <div className="toolbar-sep" />
       <input
@@ -140,7 +140,7 @@ const ZoomControls: FC<ZoomControlsProps> = ({
         value={Math.round(Math.log(zoomPercent / 100) / Math.log(maxZoomPercent / 100) * 1000)}
         onChange={handleSliderChange}
         title={tf(locale, 'transcription.zoom.scale', { percent: zoomPercent })}
-        aria-label={`缩放 ${Math.round(zoomPercent)}%`}
+        aria-label={tf(locale, 'transcription.zoom.scaleAria', { percent: Math.round(zoomPercent) })}
       />
       <span className="waveform-zoom-value">{zoomPercent}%</span>
     </>

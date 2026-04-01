@@ -26,12 +26,30 @@ function pushSegment(
 }
 
 const CONNECTOR_COLOR_PALETTE = [
-  { base: 'rgba(14, 116, 144, 0.62)', active: 'rgba(8, 145, 178, 0.88)' },
-  { base: 'rgba(21, 128, 61, 0.62)', active: 'rgba(22, 163, 74, 0.88)' },
-  { base: 'rgba(180, 83, 9, 0.62)', active: 'rgba(217, 119, 6, 0.88)' },
-  { base: 'rgba(109, 40, 217, 0.62)', active: 'rgba(124, 58, 237, 0.88)' },
-  { base: 'rgba(190, 24, 93, 0.62)', active: 'rgba(219, 39, 119, 0.88)' },
-  { base: 'rgba(55, 65, 81, 0.62)', active: 'rgba(31, 41, 55, 0.88)' },
+  {
+    base: 'color-mix(in srgb, var(--state-info-solid) 62%, transparent)',
+    active: 'color-mix(in srgb, var(--state-info-solid) 88%, transparent)',
+  },
+  {
+    base: 'color-mix(in srgb, var(--state-success-solid) 62%, transparent)',
+    active: 'color-mix(in srgb, var(--state-success-solid) 88%, transparent)',
+  },
+  {
+    base: 'color-mix(in srgb, var(--state-warning-text) 62%, transparent)',
+    active: 'color-mix(in srgb, var(--state-warning-text) 88%, transparent)',
+  },
+  {
+    base: 'color-mix(in srgb, var(--state-info-solid) 52%, var(--state-danger-solid) 10%)',
+    active: 'color-mix(in srgb, var(--state-info-solid) 74%, var(--state-danger-solid) 14%)',
+  },
+  {
+    base: 'color-mix(in srgb, var(--state-danger-solid) 62%, transparent)',
+    active: 'color-mix(in srgb, var(--state-danger-solid) 88%, transparent)',
+  },
+  {
+    base: 'color-mix(in srgb, var(--text-secondary) 62%, transparent)',
+    active: 'color-mix(in srgb, var(--text-primary) 88%, transparent)',
+  },
 ] as const;
 
 export function getLayerLinkConnectorColors(colorIndex: number): { base: string; active: string } {

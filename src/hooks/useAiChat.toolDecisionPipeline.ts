@@ -13,6 +13,7 @@ import {
   formatDuplicateRequestIgnoredError,
 } from '../ai/messages';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
+import type { Locale } from '../i18n';
 import { buildAndAuditToolIntent } from './useAiChat.toolIntent';
 import { resolveToolIntentOutcome } from './useAiChat.intentResolution';
 import { handleInvalidToolArguments } from './useAiChat.argsValidation';
@@ -38,6 +39,7 @@ interface ResolveToolDecisionPipelineParams {
   messageHistory: UiChatMessage[];
   providerId: string;
   model: string;
+  locale: Locale;
   toolDecisionMode: AiToolDecisionMode;
   toolFeedbackStyle: AiToolFeedbackStyle;
   planner?: Parameters<typeof buildToolAuditContext>[5];
@@ -88,6 +90,7 @@ export async function resolveToolDecisionPipeline({
   messageHistory,
   providerId,
   model,
+  locale,
   toolDecisionMode,
   toolFeedbackStyle,
   planner,
@@ -117,7 +120,7 @@ export async function resolveToolDecisionPipeline({
   );
 
   if (toolDecisionMode === 'rollback') {
-    const finalContent = toNaturalToolRollbackSkipped(toolCall.name, toolFeedbackStyle);
+    const finalContent = toNaturalToolRollbackSkipped(locale, toolCall.name, toolFeedbackStyle);
     await writeToolDecisionAuditLog(
       assistantMessageId,
       `auto:${toolCall.name}`,
@@ -159,6 +162,7 @@ export async function resolveToolDecisionPipeline({
     ...(planner?.reason ? { plannerReason: planner.reason } : {}),
     toolCallName: toolCall.name,
     userText,
+    locale,
     toolFeedbackStyle,
     aiContext,
     sessionMemory,
@@ -182,6 +186,7 @@ export async function resolveToolDecisionPipeline({
         assistantMessageId,
         toolCall,
         argsValidationError,
+        locale,
         toolFeedbackStyle,
         source: 'system',
         decision: 'gray_failed',
@@ -196,7 +201,7 @@ export async function resolveToolDecisionPipeline({
       };
     }
 
-    const finalContent = toNaturalToolGraySkipped(toolCall.name, toolFeedbackStyle);
+    const finalContent = toNaturalToolGraySkipped(locale, toolCall.name, toolFeedbackStyle);
     await writeToolDecisionAuditLog(
       assistantMessageId,
       `auto:${toolCall.name}`,
@@ -220,7 +225,7 @@ export async function resolveToolDecisionPipeline({
 
   if (await hasPersistedExecutionForRequest(toolCall.requestId ?? '')) {
     const finalErrorMessage = formatDuplicateRequestIgnoredError();
-    const finalContent = toNaturalToolFailure(toolCall.name, formatDuplicateRequestIgnoredDetail(), toolFeedbackStyle);
+    const finalContent = toNaturalToolFailure(locale, toolCall.name, formatDuplicateRequestIgnoredDetail(), toolFeedbackStyle);
     await writeToolDecisionAuditLog(
       assistantMessageId,
       `auto:${toolCall.name}`,
@@ -251,6 +256,7 @@ export async function resolveToolDecisionPipeline({
       assistantMessageId,
       toolCall,
       argsValidationError,
+      locale,
       toolFeedbackStyle,
       source: 'ai',
       decision: 'auto_failed',
@@ -266,10 +272,11 @@ export async function resolveToolDecisionPipeline({
   }
 
   const gateOutcome = await resolveDestructiveGate({
-    assistantMessageId,
-    toolCall,
-    auditContext,
-    toolFeedbackStyle,
+      assistantMessageId,
+      toolCall,
+      auditContext,
+      locale,
+      toolFeedbackStyle,
     allowDestructiveToolCalls,
     ...(onToolRiskCheck ? { onToolRiskCheck } : {}),
     writeToolDecisionAuditLog,
@@ -297,10 +304,11 @@ export async function resolveToolDecisionPipeline({
   }
 
   const autoExecution = await executeAutoToolCall({
-    assistantMessageId,
-    toolCall,
-    auditContext,
-    toolFeedbackStyle,
+      assistantMessageId,
+      toolCall,
+      auditContext,
+      locale,
+      toolFeedbackStyle,
     ...(onToolCall ? { onToolCall } : {}),
     writeToolDecisionAuditLog,
     setTaskSession,

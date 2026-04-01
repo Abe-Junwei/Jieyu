@@ -234,7 +234,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
   const handleCancelAiTask = useCallback(async (taskId: string) => {
     const ok = taskRunner.cancel(taskId);
     if (!ok) {
-      setAiEmbeddingLastError(locale === 'zh-CN' ? '任务不可取消（可能已完成）。' : 'Task cannot be cancelled (may have finished).');
+      setAiEmbeddingLastError(locale === 'zh-CN' ? '\u4efb\u52a1\u4e0d\u53ef\u53d6\u6d88（\u53ef\u80fd\u5df2\u5b8c\u6210）。' : 'Task cannot be cancelled (may have finished).');
     }
     await refreshEmbeddingTasks();
   }, [locale, refreshEmbeddingTasks, taskRunner]);
@@ -242,10 +242,10 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
   const handleRetryAiTask = useCallback(async (taskId: string) => {
     const nextTaskId = await taskRunner.retry(taskId);
     if (!nextTaskId) {
-      setAiEmbeddingLastError(locale === 'zh-CN' ? '该任务暂不支持重试。' : 'Retry is not available for this task.');
+      setAiEmbeddingLastError(locale === 'zh-CN' ? '\u8be5\u4efb\u52a1\u6682\u4e0d\u652f\u6301\u91cd\u8bd5。' : 'Retry is not available for this task.');
       return;
     }
-    setAiEmbeddingProgressLabel(locale === 'zh-CN' ? `已重新排队: ${nextTaskId}` : `Re-queued: ${nextTaskId}`);
+    setAiEmbeddingProgressLabel(locale === 'zh-CN' ? `\u5df2\u91cd\u65b0\u6392\u961f: ${nextTaskId}` : `Re-queued: ${nextTaskId}`);
     await refreshEmbeddingTasks();
   }, [locale, refreshEmbeddingTasks, taskRunner]);
 
@@ -261,7 +261,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
 
     if (sources.length === 0) {
       if (isRequestActive(requestId)) {
-        setAiEmbeddingLastError(locale === 'zh-CN' ? '当前媒体没有可向量化文本。' : 'No text to embed for current media.');
+        setAiEmbeddingLastError(locale === 'zh-CN' ? '\u5f53\u524d\u5a92\u4f53\u6ca1\u6709\u53ef\u5411\u91cf\u5316\u6587\u672c。' : 'No text to embed for current media.');
       }
       return;
     }
@@ -270,7 +270,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
       setAiEmbeddingBusy(true);
       setAiEmbeddingLastError(null);
       setAiEmbeddingWarning(null);
-      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '准备 embedding 任务...' : 'Preparing embedding task...');
+      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '\u51c6\u5907 embedding \u4efb\u52a1...' : 'Preparing embedding task...');
     }
     try {
       const result = await embeddingService.buildEmbeddings(sources, {
@@ -281,10 +281,10 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
             setAiEmbeddingWarning(buildEmbeddingFallbackWarning(locale, fallbackReason));
           }
           if (progress.stage === 'done') {
-            setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'embedding 构建完成。' : 'Embedding build completed.');
+            setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'embedding \u6784\u5efa\u5b8c\u6210。' : 'Embedding build completed.');
             return;
           }
-          const prefix = locale === 'zh-CN' ? '构建中' : 'Running';
+          const prefix = locale === 'zh-CN' ? '\u6784\u5efa\u4e2d' : 'Running';
           setAiEmbeddingProgressLabel(`${prefix}: ${progress.processed}/${progress.total}`);
         },
       });
@@ -298,7 +298,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
       if (!isRequestActive(requestId)) return;
       const message = error instanceof Error ? error.message : 'Embedding build failed';
       setAiEmbeddingLastError(message);
-      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'embedding 构建失败。' : 'Embedding build failed.');
+      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'embedding \u6784\u5efa\u5931\u8d25。' : 'Embedding build failed.');
       await refreshEmbeddingTasks();
     } finally {
       if (isRequestActive(requestId)) {
@@ -313,7 +313,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
       setAiEmbeddingBusy(true);
       setAiEmbeddingLastError(null);
       setAiEmbeddingWarning(null);
-      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '准备笔记 embedding 任务...' : 'Preparing notes embedding task...');
+      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '\u51c6\u5907\u7b14\u8bb0 embedding \u4efb\u52a1...' : 'Preparing notes embedding task...');
     }
     try {
       const result = await embeddingService.buildNotesEmbeddings({
@@ -324,10 +324,10 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
             setAiEmbeddingWarning(buildEmbeddingFallbackWarning(locale, fallbackReason));
           }
           if (progress.stage === 'done') {
-            setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '笔记 embedding 完成。' : 'Notes embedding completed.');
+            setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '\u7b14\u8bb0 embedding \u5b8c\u6210。' : 'Notes embedding completed.');
             return;
           }
-          const prefix = locale === 'zh-CN' ? '向量化笔记' : 'Embedding notes';
+          const prefix = locale === 'zh-CN' ? '\u5411\u91cf\u5316\u7b14\u8bb0' : 'Embedding notes';
           setAiEmbeddingProgressLabel(`${prefix}: ${progress.processed}/${progress.total}`);
         },
       });
@@ -338,7 +338,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
       if (!isRequestActive(requestId)) return;
       const message = error instanceof Error ? error.message : 'Notes embedding failed';
       setAiEmbeddingLastError(message);
-      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '笔记 embedding 失败。' : 'Notes embedding failed.');
+      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '\u7b14\u8bb0 embedding \u5931\u8d25。' : 'Notes embedding failed.');
       await refreshEmbeddingTasks();
     } finally {
       if (isRequestActive(requestId)) {
@@ -353,7 +353,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
       setAiEmbeddingBusy(true);
       setAiEmbeddingLastError(null);
       setAiEmbeddingWarning(null);
-      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '准备 PDF embedding 任务...' : 'Preparing PDF embedding task...');
+      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '\u51c6\u5907 PDF embedding \u4efb\u52a1...' : 'Preparing PDF embedding task...');
     }
     try {
       const result = await embeddingService.buildPdfEmbeddings({
@@ -364,10 +364,10 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
             setAiEmbeddingWarning(buildEmbeddingFallbackWarning(locale, fallbackReason));
           }
           if (progress.stage === 'done') {
-            setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'PDF embedding 完成。' : 'PDF embedding completed.');
+            setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'PDF embedding \u5b8c\u6210。' : 'PDF embedding completed.');
             return;
           }
-          const prefix = locale === 'zh-CN' ? '向量化 PDF' : 'Embedding PDF';
+          const prefix = locale === 'zh-CN' ? '\u5411\u91cf\u5316 PDF' : 'Embedding PDF';
           setAiEmbeddingProgressLabel(`${prefix}: ${progress.processed}/${progress.total}`);
         },
       });
@@ -378,7 +378,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
       if (!isRequestActive(requestId)) return;
       const message = error instanceof Error ? error.message : 'PDF embedding failed';
       setAiEmbeddingLastError(message);
-      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'PDF embedding 失败。' : 'PDF embedding failed.');
+      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? 'PDF embedding \u5931\u8d25。' : 'PDF embedding failed.');
       await refreshEmbeddingTasks();
     } finally {
       if (isRequestActive(requestId)) {
@@ -391,7 +391,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
     const requestId = beginRequest();
     if (!selectedUtterance) {
       if (isRequestActive(requestId)) {
-        setAiEmbeddingLastError(locale === 'zh-CN' ? '请先选择一条语句。' : 'Select an utterance first.');
+        setAiEmbeddingLastError(locale === 'zh-CN' ? '\u8bf7\u5148\u9009\u62e9\u4e00\u6761\u8bed\u53e5。' : 'Select an utterance first.');
       }
       return;
     }
@@ -399,7 +399,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
     const queryText = getUtteranceTextForLayer(selectedUtterance).trim();
     if (!queryText) {
       if (isRequestActive(requestId)) {
-        setAiEmbeddingLastError(locale === 'zh-CN' ? '当前语句为空，无法检索。' : 'Current utterance is empty.');
+        setAiEmbeddingLastError(locale === 'zh-CN' ? '\u5f53\u524d\u8bed\u53e5\u4e3a\u7a7a，\u65e0\u6cd5\u68c0\u7d22。' : 'Current utterance is empty.');
       }
       return;
     }
@@ -408,7 +408,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
       setAiEmbeddingBusy(true);
       setAiEmbeddingLastError(null);
       setAiEmbeddingWarning(null);
-      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '检索相似语句中...' : 'Searching similar utterances...');
+      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '\u68c0\u7d22\u76f8\u4f3c\u8bed\u53e5\u4e2d...' : 'Searching similar utterances...');
     }
     try {
       const rowLabelById = new Map<string, string>(
@@ -427,6 +427,12 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
       });
       if (!isRequestActive(requestId)) return;
 
+      if (result.warningCode === 'query-embedding-unavailable') {
+        setAiEmbeddingWarning(locale === 'zh-CN'
+          ? '\u5f53\u524d\u68c0\u7d22\u672a\u751f\u6210\u53ef\u7528 embedding，\u5df2\u8df3\u8fc7\u76f8\u4f3c\u8bed\u53e5\u53ec\u56de。'
+          : 'No usable embedding was generated for this query, so similar-utterance retrieval was skipped.');
+      }
+
       const mapped = result.matches
         .filter((item) => item.sourceId !== selectedUtterance.id)
         .map((item) => ({
@@ -436,12 +442,18 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
           text: textById.get(item.sourceId) ?? '',
         }));
       setAiEmbeddingMatches(mapped);
-      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? `检索完成：${mapped.length} 条` : `Search done: ${mapped.length} items`);
+      if (result.warningCode === 'query-embedding-unavailable' && mapped.length === 0) {
+        setAiEmbeddingProgressLabel(locale === 'zh-CN'
+          ? '\u672a\u751f\u6210\u53ef\u7528 embedding，\u65e0\u6cd5\u5b8c\u6210\u76f8\u4f3c\u8bed\u53e5\u68c0\u7d22。'
+          : 'No usable embedding was generated, so similar-utterance retrieval could not run.');
+      } else {
+        setAiEmbeddingProgressLabel(locale === 'zh-CN' ? `\u68c0\u7d22\u5b8c\u6210：${mapped.length} \u6761` : `Search done: ${mapped.length} items`);
+      }
     } catch (error) {
       if (!isRequestActive(requestId)) return;
       const message = error instanceof Error ? error.message : 'Similarity search failed';
       setAiEmbeddingLastError(message);
-      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '检索失败。' : 'Search failed.');
+      setAiEmbeddingProgressLabel(locale === 'zh-CN' ? '\u68c0\u7d22\u5931\u8d25。' : 'Search failed.');
     } finally {
       if (isRequestActive(requestId)) {
         setAiEmbeddingBusy(false);

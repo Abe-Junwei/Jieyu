@@ -214,7 +214,7 @@ export function useLasso(input: UseLassoInput) {
           div.style.position = 'absolute';
           div.style.top = '0';
           div.style.height = '100%';
-          div.style.backgroundColor = 'rgba(34, 197, 94, 0.30)';
+          div.style.backgroundColor = 'color-mix(in srgb, var(--state-success-solid) 30%, transparent)';
           div.style.pointerEvents = 'none';
           div.style.zIndex = '5';
           sc.style.position = 'relative';

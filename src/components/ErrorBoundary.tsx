@@ -29,14 +29,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, { error: Error 
       return (
         <section className="panel" style={{ padding: '2rem' }}>
           <h2>应用出错</h2>
-          <p style={{ color: '#6b7280', fontSize: 14 }}>{error.message}</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{error.message}</p>
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <button className="btn" onClick={this.reset}>
               重试
             </button>
             <button
               className="btn"
-              style={{ background: '#e5e7eb', color: '#374151' }}
+              style={{ background: 'var(--border-soft)', color: 'var(--text-primary)' }}
               onClick={() => window.location.reload()}
             >
               重载页面

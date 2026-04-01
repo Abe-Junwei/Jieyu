@@ -6,7 +6,7 @@
  */
 
 import type { FC, PointerEvent as ReactPointerEvent } from 'react';
-import { detectLocale, t } from '../../i18n';
+import { t, tf, useLocale } from '../../i18n';
 import type { VideoLayoutMode } from './TranscriptionTimelineSections';
 
 export interface WaveformLeftStatusStripProps {
@@ -55,15 +55,15 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = ({
   onLaneLabelWidthResize,
   formatTime,
 }) => {
-  const locale = detectLocale();
+  const locale = useLocale();
   return (
     <div className="waveform-left-status-strip">
       <div className="waveform-left-status-item">
-        <span className="waveform-left-status-label">缩放</span>
+        <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.zoom')}</span>
         <span className="waveform-left-status-value">{Math.round(zoomPercent)}%</span>
       </div>
       <div className="waveform-left-status-item">
-        <span className="waveform-left-status-label">吸附</span>
+        <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.snap')}</span>
         <button
           type="button"
           className={`waveform-left-status-toggle ${snapEnabled ? 'waveform-left-status-toggle-on' : ''}`}
@@ -72,21 +72,21 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = ({
             onSnapToggle();
           }}
           title={snapEnabled ? t(locale, 'transcription.zoom.snapOn') : t(locale, 'transcription.zoom.snapOff')}
-          aria-label={snapEnabled ? '关闭吸附' : '开启吸附'}
+          aria-label={snapEnabled ? t(locale, 'transcription.statusStrip.snapDisable') : t(locale, 'transcription.statusStrip.snapEnable')}
         >
-          {snapEnabled ? '开' : '关'}
+          {snapEnabled ? t(locale, 'transcription.statusStrip.snapOnShort') : t(locale, 'transcription.statusStrip.snapOffShort')}
         </button>
       </div>
       <div className="waveform-left-status-item">
-        <span className="waveform-left-status-label">倍速</span>
+        <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.speed')}</span>
         <span className="waveform-left-status-value">{playbackRate.toFixed(2)}x</span>
       </div>
       <div className="waveform-left-status-item">
-        <span className="waveform-left-status-label">当前</span>
+        <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.current')}</span>
         <span className="waveform-left-status-value">{formatTime(currentTime)}</span>
       </div>
       <div className="waveform-left-status-item">
-        <span className="waveform-left-status-label">选段</span>
+        <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.selection')}</span>
         <span className="waveform-left-status-value">
           {selectedUtteranceDuration !== null
             ? formatTime(Math.max(0, selectedUtteranceDuration))
@@ -94,7 +94,7 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = ({
         </span>
       </div>
       <div className="waveform-left-status-item waveform-left-status-item-gain">
-        <span className="waveform-left-status-label">增益</span>
+        <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.gain')}</span>
         <input
           type="range"
           className="waveform-gain-slider"
@@ -103,20 +103,20 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = ({
           step={0.05}
           value={amplitudeScale}
           onChange={(e) => onAmplitudeChange(Number(e.target.value))}
-          title={`波形增益 ${amplitudeScale.toFixed(1)}x`}
-          aria-label={`波形增益 ${amplitudeScale.toFixed(1)}x`}
+          title={tf(locale, 'transcription.statusStrip.gainValue', { value: amplitudeScale.toFixed(1) })}
+          aria-label={tf(locale, 'transcription.statusStrip.gainValue', { value: amplitudeScale.toFixed(1) })}
         />
         <button
           type="button"
           className="waveform-left-status-value waveform-gain-reset"
           onClick={(ev) => { ev.stopPropagation(); onAmplitudeReset(); }}
-          title="重置增益为 1x"
+          title={t(locale, 'transcription.statusStrip.gainReset')}
         >{amplitudeScale.toFixed(1)}x</button>
       </div>
       {selectedMediaIsVideo && (
         <div className="waveform-left-status-item waveform-left-status-item-layout">
-          <span className="waveform-left-status-label">布局</span>
-          <div className="waveform-layout-toggle" role="group" aria-label="视频布局模式">
+          <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.layout')}</span>
+          <div className="waveform-layout-toggle" role="group" aria-label={t(locale, 'transcription.statusStrip.videoLayoutMode')}>
             <button
               type="button"
               className={`waveform-layout-toggle-btn ${videoLayoutMode === 'top' ? 'active' : ''}`}
@@ -124,9 +124,9 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = ({
                 e.stopPropagation();
                 onVideoLayoutModeChange('top');
               }}
-              title="上视频下波形"
+              title={t(locale, 'transcription.statusStrip.layoutTopTitle')}
             >
-              上
+              {t(locale, 'transcription.statusStrip.layoutTopShort')}
             </button>
             <button
               type="button"
@@ -135,9 +135,9 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = ({
                 e.stopPropagation();
                 onVideoLayoutModeChange('right');
               }}
-              title="右侧视频面板"
+              title={t(locale, 'transcription.statusStrip.layoutRightTitle')}
             >
-              右
+              {t(locale, 'transcription.statusStrip.layoutRightShort')}
             </button>
             <button
               type="button"
@@ -146,9 +146,9 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = ({
                 e.stopPropagation();
                 onVideoLayoutModeChange('left');
               }}
-              title="左侧视频面板"
+              title={t(locale, 'transcription.statusStrip.layoutLeftTitle')}
             >
-              左
+              {t(locale, 'transcription.statusStrip.layoutLeftShort')}
             </button>
           </div>
         </div>
@@ -159,7 +159,7 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = ({
           onPointerDown={onLaneLabelWidthResize}
           role="separator"
           aria-orientation="vertical"
-          aria-label="调整车道标签与状态条宽度"
+          aria-label={t(locale, 'transcription.statusStrip.resizeLaneLabel')}
         />
       )}
     </div>

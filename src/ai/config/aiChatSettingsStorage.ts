@@ -11,6 +11,14 @@ interface AiChatSecureEnvelopeV1 {
   cipher: string;
 }
 
+function redactAiChatSettingsForPlainStorage(settings: AiChatSettings): AiChatSettings {
+  return {
+    ...settings,
+    apiKey: '',
+    apiKeysByProvider: {},
+  };
+}
+
 function byteArrayToBase64(bytes: Uint8Array): string {
   let binary = '';
   for (const byte of bytes) {
@@ -111,7 +119,9 @@ export async function persistAiChatSettings(settings: AiChatSettings): Promise<v
   if (typeof window === 'undefined') return;
   const canUseCrypto = !!window.crypto?.subtle;
   if (!canUseCrypto) {
-    window.localStorage.setItem(AI_CHAT_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    const redacted = redactAiChatSettingsForPlainStorage(settings);
+    window.localStorage.setItem(AI_CHAT_SETTINGS_STORAGE_KEY, JSON.stringify(redacted));
+    window.localStorage.removeItem(AI_CHAT_SETTINGS_SECURE_STORAGE_KEY);
     return;
   }
 

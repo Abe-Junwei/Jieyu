@@ -50,22 +50,38 @@ function benchmarkLayoutMs(utterances: UtteranceDocType[]): number {
   return performance.now() - start;
 }
 
+function benchmarkLayoutMedianMs(utterances: UtteranceDocType[], runs = 3): { medianMs: number; samples: number[] } {
+  benchmarkLayoutMs(utterances);
+
+  const samples = Array.from({ length: runs }, () => benchmarkLayoutMs(utterances));
+  const sorted = [...samples].sort((left, right) => left - right);
+  const medianMs = sorted[Math.floor(sorted.length / 2)] ?? samples[0] ?? 0;
+
+  return { medianMs, samples };
+}
+
 describe('Track layout performance baseline', () => {
   it('keeps 2k utterance layout under baseline budget', () => {
     const utterances = buildSyntheticUtterances(2000, 24);
-    const elapsedMs = benchmarkLayoutMs(utterances);
+    const { medianMs, samples } = benchmarkLayoutMedianMs(utterances);
 
-    expect(elapsedMs).toBeLessThan(120);
+    expect(medianMs).toBeLessThan(120);
     // eslint-disable-next-line no-console
-    console.info('[Track Perf Baseline][2k]', { elapsedMs: Number(elapsedMs.toFixed(3)) });
+    console.info('[Track Perf Baseline][2k]', {
+      medianMs: Number(medianMs.toFixed(3)),
+      samples: samples.map((value) => Number(value.toFixed(3))),
+    });
   });
 
   it('keeps 5k utterance layout under baseline budget', () => {
     const utterances = buildSyntheticUtterances(5000, 32);
-    const elapsedMs = benchmarkLayoutMs(utterances);
+    const { medianMs, samples } = benchmarkLayoutMedianMs(utterances);
 
-    expect(elapsedMs).toBeLessThan(260);
+    expect(medianMs).toBeLessThan(260);
     // eslint-disable-next-line no-console
-    console.info('[Track Perf Baseline][5k]', { elapsedMs: Number(elapsedMs.toFixed(3)) });
+    console.info('[Track Perf Baseline][5k]', {
+      medianMs: Number(medianMs.toFixed(3)),
+      samples: samples.map((value) => Number(value.toFixed(3))),
+    });
   });
 });

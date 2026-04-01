@@ -90,6 +90,7 @@ describe('buildVoiceAgentGroundingContext', () => {
       corpus: makeCorpus(),
       profile: makeProfile(),
       session: makeSession(),
+      locale: 'zh-CN',
       uiContext: {
         currentSegmentId: 'seg-1',
         selectedSegmentIds: ['seg-1'],

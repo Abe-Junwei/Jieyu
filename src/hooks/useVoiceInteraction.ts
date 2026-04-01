@@ -1,8 +1,8 @@
 /**
- * useVoiceInteraction | 语音交互编排 Hook
+ * useVoiceInteraction | \u8bed\u97f3\u4ea4\u4e92\u7f16\u6392 Hook
  *
- * 聚合 useVoiceAgent 的页面级接线：摘要文案、AI 流状态桥接、
- * 语音入口交互（切换/按住录音）、商业引擎配置同步与助手面板展开逻辑。
+ * \u805a\u5408 useVoiceAgent \u7684\u9875\u9762\u7ea7\u63a5\u7ebf：\u6458\u8981\u6587\u6848、AI \u6d41\u72b6\u6001\u6865\u63a5、
+ * \u8bed\u97f3\u5165\u53e3\u4ea4\u4e92（\u5207\u6362/\u6309\u4f4f\u5f55\u97f3）、\u5546\u4e1a\u5f15\u64ce\u914d\u7f6e\u540c\u6b65\u4e0e\u52a9\u624b\u9762\u677f\u5c55\u5f00\u903b\u8f91。
  *
  * Aggregates page-level wiring around useVoiceAgent: summaries,
  * AI stream bridge, voice entry handlers (toggle/press-to-talk),
@@ -74,7 +74,7 @@ interface UseVoiceInteractionOptions {
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
-  formatLayerRailLabel: (layer: LayerDocType) => string;
+  formatSidePaneLayerLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   aiChatSend: (text: string) => Promise<unknown>;
   aiIsStreaming: boolean;
@@ -101,6 +101,7 @@ interface UseVoiceInteractionReturn {
   handleVoiceSwitchEngine: (engine: SttEngine) => void;
   handleMicPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => void;
   handleMicPointerUp: () => void;
+  handleAssistantVoicePanelOpen: () => void;
   handleAssistantVoicePanelToggle: () => void;
 }
 
@@ -125,7 +126,7 @@ export function useVoiceInteraction({
   defaultTranscriptionLayerId,
   translationLayers,
   layers,
-  formatLayerRailLabel,
+  formatSidePaneLayerLabel,
   formatTime,
   aiChatSend,
   aiIsStreaming,
@@ -147,30 +148,53 @@ export function useVoiceInteraction({
 
   const voiceAgentRef = useRef<ReturnType<typeof useVoiceAgent> | null>(null);
 
+  const normalizeVoiceTaskError = useCallback((error: unknown, fallbackMessage: string): string => {
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message;
+    }
+    return fallbackMessage;
+  }, []);
+
+  const runVoiceTask = useCallback((
+    task: () => Promise<void>,
+    fallbackMessage: string,
+    onError?: (message: string) => void,
+  ) => {
+    void task().catch((error) => {
+      const message = normalizeVoiceTaskError(error, fallbackMessage);
+      voiceAgentRef.current?.setExternalError?.(message);
+      onError?.(message);
+    });
+  }, [normalizeVoiceTaskError]);
+
   const voiceAgentOptions: Parameters<typeof useVoiceAgent>[0] = {
     corpusLang: effectiveVoiceCorpusLang,
     langOverride: voiceCorpusLangOverride,
     executeAction,
     sendToAiChat: (text: string) => {
-      // 先注册分析回填，再发送 AI 消息 | Register fill-back callback before sending AI message
-      void (async () => {
+      runVoiceTask(async () => {
         const utteranceId = selection.activeUtteranceUnitId;
         voiceAgentRef.current?.setAnalysisFillCallback?.(utteranceId, (analysisText) => {
-          void (async () => {
+          runVoiceTask(async () => {
             const result = await onVoiceAnalysisResult(utteranceId, analysisText);
             if (!result) {
               voiceAgentRef.current?.setExternalError(null);
-              setAnalysisWritebackFeedback({ kind: 'done', message: 'AI 分析结果已写回。' });
+              setAnalysisWritebackFeedback({ kind: 'done', message: 'AI \u5206\u6790\u7ed3\u679c\u5df2\u5199\u56de。' });
               return;
             }
             const ok = result.ok !== false;
-            const normalizedMessage = result.message?.trim() || (ok ? 'AI 分析结果已写回。' : 'AI 分析写回失败。');
+            const normalizedMessage = result.message?.trim() || (ok ? 'AI \u5206\u6790\u7ed3\u679c\u5df2\u5199\u56de。' : 'AI \u5206\u6790\u5199\u56de\u5931\u8d25。');
             setAnalysisWritebackFeedback({ kind: ok ? 'done' : 'error', message: normalizedMessage });
             voiceAgentRef.current?.setExternalError(ok ? null : normalizedMessage);
-          })();
+          }, 'AI \u5206\u6790\u5199\u56de\u5931\u8d25。', (message) => {
+            setAnalysisWritebackFeedback({ kind: 'error', message });
+          });
         });
         await aiChatSend(text);
-      })();
+      }, '\u53d1\u9001\u5230 AI \u5931\u8d25。', (message) => {
+        voiceAgentRef.current?.setAnalysisFillCallback?.(null, null);
+        setAnalysisWritebackFeedback({ kind: 'error', message });
+      });
     },
     resolveIntentWithLlm: handleResolveVoiceIntentWithLlm,
     insertDictation: handleVoiceDictation,
@@ -187,54 +211,67 @@ export function useVoiceInteraction({
   const voiceTargetSummary = useMemo(() => {
     const hasSelection = Boolean(selection.selectedRowMeta || selection.selectedUtterance);
     const rowLabel = selection.selectedUnitKind === 'segment'
-      ? '当前独立段'
+      ? '\u5f53\u524d\u72ec\u7acb\u6bb5'
       : selection.selectedRowMeta
-        ? `第 ${selection.selectedRowMeta.rowNumber} 句`
-        : (selection.selectedUtterance ? '当前句段' : '未选择句段');
+        ? `\u7b2c ${selection.selectedRowMeta.rowNumber} \u53e5`
+        : (selection.selectedUtterance ? '\u5f53\u524d\u53e5\u6bb5' : '\u672a\u9009\u62e9\u53e5\u6bb5');
 
     if (voiceAgent.mode === 'command') {
-      return '当前页面操作';
+      return '\u5f53\u524d\u9875\u9762\u64cd\u4f5c';
     }
 
     if (voiceAgent.mode === 'analysis') {
-      return hasSelection ? `${rowLabel} / AI 分析备注` : '未选择句段';
+      return hasSelection ? `${rowLabel} / AI \u5206\u6790\u5907\u6ce8` : '\u672a\u9009\u62e9\u53e5\u6bb5';
     }
 
-    // 解析首选层 ID：selectedLayerId 可能是空串，需 trim 后判断 | resolve preferred layer ID with empty-string guard
-  const normalizedSelected = selection.selectedLayerId?.trim();
+    // \u89e3\u6790\u9996\u9009\u5c42 ID：selectedLayerId \u53ef\u80fd\u662f\u7a7a\u4e32，\u9700 trim \u540e\u5224\u65ad | resolve preferred layer ID with empty-string guard
+    const normalizedSelected = selection.selectedLayerId?.trim();
     const targetLayerId = normalizedSelected || defaultTranscriptionLayerId || translationLayers[0]?.id;
     const targetLayer = targetLayerId ? layers.find((layer) => layer.id === targetLayerId) : undefined;
-    const layerLabel = targetLayer ? formatLayerRailLabel(targetLayer) : '未选择层';
+    const layerLabel = targetLayer ? formatSidePaneLayerLabel(targetLayer) : '\u672a\u9009\u62e9\u5c42';
     return `${layerLabel} / ${rowLabel}`;
   }, [
     defaultTranscriptionLayerId,
-    formatLayerRailLabel,
+    formatSidePaneLayerLabel,
     layers,
     selection,
     translationLayers,
     voiceAgent.mode,
   ]);
 
+  const pushToTalkReady = useMemo(() => (
+    voiceAgent.listening
+    && !voiceAgent.isRecording
+    && voiceAgent.agentState === 'idle'
+    && (voiceAgent.engine === 'whisper-local' || voiceAgent.engine === 'commercial')
+  ), [voiceAgent.agentState, voiceAgent.engine, voiceAgent.isRecording, voiceAgent.listening]);
+
   const voiceStatusSummary = useMemo(() => {
+    if (voiceAgent.error) {
+      return voiceAgent.error;
+    }
     switch (voiceAgent.agentState) {
       case 'listening':
-        return voiceAgent.mode === 'dictation' ? '正在听写，请直接说出要写入的内容。' : '正在监听，请开始说话。';
+        return voiceAgent.mode === 'dictation' ? '\u6b63\u5728\u542c\u5199，\u8bf7\u76f4\u63a5\u8bf4\u51fa\u8981\u5199\u5165\u7684\u5185\u5bb9。' : '\u6b63\u5728\u76d1\u542c，\u8bf7\u5f00\u59cb\u8bf4\u8bdd。';
       case 'routing':
-        return '已识别语音，正在判断意图。';
+        return '\u5df2\u8bc6\u522b\u8bed\u97f3，\u6b63\u5728\u5224\u65ad\u610f\u56fe。';
       case 'executing':
-        if (voiceAgent.mode === 'dictation') return '正在将识别结果写入文本框。';
-        if (voiceAgent.mode === 'analysis') return '正在准备发送到 AI 分析。';
-        return '正在执行语音操作。';
+        if (voiceAgent.mode === 'dictation') return '\u6b63\u5728\u5c06\u8bc6\u522b\u7ed3\u679c\u5199\u5165\u6587\u672c\u6846。';
+        if (voiceAgent.mode === 'analysis') return '\u6b63\u5728\u51c6\u5907\u53d1\u9001\u5230 AI \u5206\u6790。';
+        return '\u6b63\u5728\u6267\u884c\u8bed\u97f3\u64cd\u4f5c。';
       case 'ai-thinking':
-        return '正在等待 AI 处理结果。';
+        return '\u6b63\u5728\u7b49\u5f85 AI \u5904\u7406\u7ed3\u679c。';
       case 'idle':
       default:
         if (voiceAgent.mode === 'analysis' && analysisWritebackFeedback) {
           return analysisWritebackFeedback.message;
         }
-        return voiceAgent.listening ? '语音通道已开启，等待下一句输入。' : '就绪，点击麦克风开始语音交互。';
+        if (pushToTalkReady) {
+          return '\u8bed\u97f3\u901a\u9053\u5df2\u5c31\u7eea，\u6309\u4f4f\u9ea6\u514b\u98ce\u5f00\u59cb\u5f55\u97f3。';
+        }
+        return voiceAgent.listening ? '\u8bed\u97f3\u901a\u9053\u5df2\u5f00\u542f，\u7b49\u5f85\u4e0b\u4e00\u53e5\u8f93\u5165。' : '\u5c31\u7eea，\u70b9\u51fb\u9ea6\u514b\u98ce\u5f00\u59cb\u8bed\u97f3\u4ea4\u4e92。';
     }
-  }, [analysisWritebackFeedback, voiceAgent.agentState, voiceAgent.listening, voiceAgent.mode]);
+  }, [analysisWritebackFeedback, pushToTalkReady, voiceAgent.agentState, voiceAgent.error, voiceAgent.listening, voiceAgent.mode]);
 
   useEffect(() => {
     if (voiceAgent.mode !== 'analysis' && analysisWritebackFeedback) {
@@ -253,15 +290,15 @@ export function useVoiceInteraction({
 
   const voiceEnvironmentSummary = useMemo(() => {
     const currentLanguage = voiceCorpusLangOverride === '__auto__'
-      ? '自动检测'
+      ? '\u81ea\u52a8\u68c0\u6d4b'
       : formatLanguageLabel(voiceCorpusLangOverride ?? effectiveVoiceCorpusLang);
     const currentEngine = voiceAgent.engine === 'web-speech'
       ? 'Web Speech'
       : voiceAgent.engine === 'whisper-local'
         ? 'Ollama Whisper'
-        : '商业模型';
+        : '\u5546\u4e1a\u6a21\u578b';
     const detectedLanguage = voiceCorpusLangOverride === '__auto__' && voiceAgent.detectedLang
-      ? ` · 已识别 ${formatLanguageLabel(voiceAgent.detectedLang)}`
+      ? ` · \u5df2\u8bc6\u522b ${formatLanguageLabel(voiceAgent.detectedLang)}`
       : '';
     return `${currentLanguage} · ${currentEngine}${detectedLanguage}`;
   }, [effectiveVoiceCorpusLang, voiceCorpusLangOverride, voiceAgent.detectedLang, voiceAgent.engine]);
@@ -276,7 +313,7 @@ export function useVoiceInteraction({
     if (selection.selectedUtterance) {
       return `${formatTime(selection.selectedUtterance.startTime)} - ${formatTime(selection.selectedUtterance.endTime)}`;
     }
-    return '未定位句段';
+    return '\u672a\u5b9a\u4f4d\u53e5\u6bb5';
   }, [formatTime, selection]);
 
   const prevAiStreamingRef = useRef(false);
@@ -300,7 +337,7 @@ export function useVoiceInteraction({
   const ensureWhisperLocalReady = useCallback(async (): Promise<boolean> => {
     const result = await voiceAgent.testWhisperLocal();
     if (!result.available) {
-      voiceAgent.setExternalError(result.error ?? '本地 Whisper 不可用');
+      voiceAgent.setExternalError(result.error ?? '\u672c\u5730 Whisper \u4e0d\u53ef\u7528');
       return false;
     }
     voiceAgent.setExternalError(null);
@@ -324,7 +361,7 @@ export function useVoiceInteraction({
   }, [featureVoiceEnabled, toggleVoiceRef, voiceAgent.toggle]);
 
   const handleVoiceAssistantIconClick = useCallback(() => {
-    void (async () => {
+    runVoiceTask(async () => {
       if (voiceAgent.listening) {
         voiceAgent.toggle();
         return;
@@ -334,38 +371,44 @@ export function useVoiceInteraction({
         if (!ready) return;
       }
       voiceAgent.toggle();
-    })();
-  }, [ensureWhisperLocalReady, voiceAgent]);
+    }, '\u8bed\u97f3\u5207\u6362\u5931\u8d25。');
+  }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent]);
 
   const handleVoiceSwitchEngine = useCallback((engine: SttEngine) => {
-    void (async () => {
+    runVoiceTask(async () => {
       if (engine === 'whisper-local') {
         const ready = await ensureWhisperLocalReady();
         if (!ready) return;
       }
       voiceAgent.switchEngine(engine);
-    })();
-  }, [ensureWhisperLocalReady, voiceAgent]);
+    }, '\u8bed\u97f3\u5f15\u64ce\u5207\u6362\u5931\u8d25。');
+  }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent]);
 
   const handleMicPointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
     void event;
     if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
-      void (async () => {
+      runVoiceTask(async () => {
         const ready = await ensureWhisperLocalReady();
         if (!ready) return;
-        void voiceAgent.startRecording();
-      })();
+        await voiceAgent.startRecording();
+      }, '\u5f55\u97f3\u542f\u52a8\u5931\u8d25。');
     }
-  }, [ensureWhisperLocalReady, voiceAgent]);
+  }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent]);
 
   const handleMicPointerUp = useCallback(() => {
     if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
-      void voiceAgent.stopRecording();
+      runVoiceTask(async () => {
+        await voiceAgent.stopRecording();
+      }, '\u5f55\u97f3\u505c\u6b62\u5931\u8d25。');
     }
-  }, [voiceAgent.engine, voiceAgent.listening, voiceAgent.stopRecording]);
+  }, [runVoiceTask, voiceAgent]);
 
   const handleAssistantVoicePanelToggle = useCallback(() => {
     setAssistantVoiceExpanded((value) => !value);
+  }, []);
+
+  const handleAssistantVoicePanelOpen = useCallback(() => {
+    setAssistantVoiceExpanded(true);
   }, []);
 
   const disambiguationOptionCount = voiceAgent.disambiguationOptions?.length ?? 0;
@@ -394,6 +437,7 @@ export function useVoiceInteraction({
     handleVoiceSwitchEngine,
     handleMicPointerDown,
     handleMicPointerUp,
+    handleAssistantVoicePanelOpen,
     handleAssistantVoicePanelToggle,
   };
 }

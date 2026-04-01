@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useOptionalLocale } from '../i18n';
+import { getNoteHandlersMessages } from '../i18n/noteHandlersMessages';
 import { useNotes, useNoteCounts, type NoteTarget } from './useNotes';
 import type { ActionableRecommendation } from './useAiPanelLogic';
 import type { SaveState } from './useTranscriptionData';
@@ -28,6 +30,8 @@ export interface UseNoteHandlersInput {
 }
 
 export function useNoteHandlers(input: UseNoteHandlersInput) {
+  const locale = useOptionalLocale() ?? 'zh-CN';
+  const messages = getNoteHandlersMessages(locale);
   const {
     activeUtteranceUnitId,
     focusedLayerRowId,
@@ -169,17 +173,17 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
   const handleUpdateTokenPos = useCallback(async (tokenId: string, pos: string | null) => {
     try {
       await updateTokenPos(tokenId, pos);
-      setSaveState({ kind: 'done', message: `POS 已${pos && pos.trim() ? '更新' : '清空'}` });
+      setSaveState({ kind: 'done', message: pos && pos.trim() ? messages.posUpdated : messages.posCleared });
     } catch (error) {
       reportActionError({
-        actionLabel: 'POS 保存',
+        actionLabel: messages.actionPosSave,
         error,
         i18nKey: 'transcription.error.action.posSaveFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-        fallbackMessage: error instanceof Error ? error.message : 'POS 保存失败',
+        fallbackMessage: error instanceof Error ? error.message : messages.posSaveFailed,
       });
     }
-  }, [setSaveState, updateTokenPos]);
+  }, [messages, setSaveState, updateTokenPos]);
 
   const handleBatchUpdateTokenPosByForm = useCallback(async (
     utteranceId: string,
@@ -190,31 +194,31 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
       const updated = await batchUpdateTokenPosByForm(utteranceId, form, pos);
       if (updated <= 0) {
         reportValidationError({
-          message: `未找到词形「${form}」`,
+          message: messages.posFormNotFound(form),
           i18nKey: 'transcription.error.validation.posFormNotFound',
           setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
         });
       } else {
-        setSaveState({ kind: 'done', message: `已更新 ${updated} 个 token 的 POS` });
+        setSaveState({ kind: 'done', message: messages.posBatchSaved(updated) });
       }
       return updated;
     } catch (error) {
       reportActionError({
-        actionLabel: '批量 POS 保存',
+        actionLabel: messages.actionPosBatchSave,
         error,
         i18nKey: 'transcription.error.action.posBatchSaveFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-        fallbackMessage: error instanceof Error ? error.message : '批量 POS 保存失败',
+        fallbackMessage: error instanceof Error ? error.message : messages.posBatchSaveFailed,
       });
       return 0;
     }
-  }, [batchUpdateTokenPosByForm, setSaveState]);
+  }, [batchUpdateTokenPosByForm, messages, setSaveState]);
 
   const handleExecuteRecommendation = useCallback(async (item: ActionableRecommendation) => {
     if (item.actionType === 'batch_pos') {
       if (!item.targetUtteranceId || !item.targetForm || !item.targetPos) {
         reportValidationError({
-          message: '当前没有可执行的批量 POS 候选',
+          message: messages.posBatchCandidateMissing,
           i18nKey: 'transcription.error.validation.posBatchCandidateMissing',
           setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
         });
@@ -224,14 +228,14 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
       const updated = await handleBatchUpdateTokenPosByForm(item.targetUtteranceId, item.targetForm, item.targetPos);
       if (updated > 0) {
         selectUtterance(item.targetUtteranceId);
-        setSaveState({ kind: 'done', message: `已批量赋值 ${updated} 个 token（${item.targetForm} → ${item.targetPos}）` });
+        setSaveState({ kind: 'done', message: messages.recommendationBatchApplied(updated, item.targetForm, item.targetPos) });
       }
       return;
     }
 
     if (!item.targetUtteranceId) {
       reportValidationError({
-        message: '当前没有可执行的目标语段',
+        message: messages.recommendationTargetMissing,
         i18nKey: 'transcription.error.validation.recommendationTargetMissing',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -241,14 +245,14 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
     selectUtterance(item.targetUtteranceId);
     if (item.actionType === 'risk_review') {
       const confidenceText = typeof item.targetConfidence === 'number'
-        ? `（置信度 ${(item.targetConfidence * 100).toFixed(1)}%）`
+        ? messages.confidenceSuffix(item.targetConfidence)
         : '';
-      setSaveState({ kind: 'done', message: `已跳转到风险复核语段${confidenceText}` });
+      setSaveState({ kind: 'done', message: messages.riskReviewJumped(confidenceText) });
       return;
     }
 
-    setSaveState({ kind: 'done', message: '已跳转到建议处理语段' });
-  }, [handleBatchUpdateTokenPosByForm, selectUtterance, setSaveState]);
+    setSaveState({ kind: 'done', message: messages.recommendationJumped });
+  }, [handleBatchUpdateTokenPosByForm, messages, selectUtterance, setSaveState]);
 
   return {
     notePopover,

@@ -8,12 +8,14 @@ import {
   toNaturalToolPending,
 } from '../ai/chat/toolCallHelpers';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
+import type { Locale } from '../i18n';
 import type { AiChatToolCall, AiTaskSession, AiToolRiskCheckResult, PendingAiToolCall } from './useAiChat';
 
 interface ResolveDestructiveGateParams {
   assistantMessageId: string;
   toolCall: AiChatToolCall;
   auditContext: Parameters<typeof buildToolDecisionAuditMetadata>[2];
+  locale: Locale;
   toolFeedbackStyle: AiToolFeedbackStyle;
   allowDestructiveToolCalls: boolean;
   onToolRiskCheck?: ((call: AiChatToolCall) => Promise<AiToolRiskCheckResult | null | undefined> | AiToolRiskCheckResult | null | undefined) | null | undefined;
@@ -43,6 +45,7 @@ export async function resolveDestructiveGate({
   assistantMessageId,
   toolCall,
   auditContext,
+  locale,
   toolFeedbackStyle,
   allowDestructiveToolCalls,
   onToolRiskCheck,
@@ -61,7 +64,7 @@ export async function resolveDestructiveGate({
 
   if (destructiveBlocked && riskCheck?.riskSummary && isAmbiguousTargetRiskSummary(riskCheck.riskSummary)) {
     const finalErrorMessage = riskCheck.riskSummary;
-    const finalContent = toNaturalToolFailure(toolCall.name, finalErrorMessage, toolFeedbackStyle);
+    const finalContent = toNaturalToolFailure(locale, toolCall.name, finalErrorMessage, toolFeedbackStyle);
     bumpFailureMetric();
     setTaskSession({
       id: taskSessionId,
@@ -95,7 +98,7 @@ export async function resolveDestructiveGate({
   const shouldRequireConfirmation = destructiveBlocked && (riskCheck?.requiresConfirmation ?? true);
   if (shouldRequireConfirmation) {
     const impact = describeAndBuildPending(toolCall);
-    const finalContent = toNaturalToolPending(toolCall.name, toolFeedbackStyle);
+    const finalContent = toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle);
     setTaskSession({
       id: taskSessionId,
       status: 'waiting_confirm',

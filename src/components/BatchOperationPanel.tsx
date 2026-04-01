@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { UtteranceDocType } from '../db';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
+import { useLocale } from '../i18n';
+import { getBatchOperationPanelMessages } from '../i18n/batchOperationPanelMessages';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 
 type BatchTab = 'offset' | 'scale' | 'split' | 'merge';
@@ -59,6 +61,7 @@ function buildOverlapConflicts(
   allUtterancesOnMedia: PreviewUtterance[],
   transformed: Map<string, { startTime: number; endTime: number }>,
   selectedIds: Set<string>,
+  overlapLabel: string,
 ): Map<string, string> {
   const conflicts = new Map<string, string>();
   const timeline = allUtterancesOnMedia
@@ -76,10 +79,10 @@ function buildOverlapConflicts(
     const current = timeline[i]!;
     if (current.startTime < prev.endTime + GAP) {
       if (selectedIds.has(prev.id)) {
-        conflicts.set(prev.id, '与相邻句段重叠');
+        conflicts.set(prev.id, overlapLabel);
       }
       if (selectedIds.has(current.id)) {
-        conflicts.set(current.id, '与相邻句段重叠');
+        conflicts.set(current.id, overlapLabel);
       }
     }
   }
@@ -115,6 +118,8 @@ export function BatchOperationPanel({
   onMerge,
   onJumpToUtterance,
 }: BatchOperationPanelProps) {
+  const locale = useLocale();
+  const messages = getBatchOperationPanelMessages(locale);
   const [tab, setTab] = useState<BatchTab>('offset');
   const [deltaSec, setDeltaSec] = useState('0.200');
   const [scaleFactor, setScaleFactor] = useState('1.100');
@@ -211,7 +216,7 @@ export function BatchOperationPanel({
         blockingCount: 0,
         warningCount: 0,
         okCount: 0,
-        globalMessage: '未选择句段，无法预览。',
+        globalMessage: messages.previewNoSelection,
       };
     }
 
@@ -223,7 +228,7 @@ export function BatchOperationPanel({
           blockingCount: 1,
           warningCount: 0,
           okCount: 0,
-          globalMessage: '偏移秒数不是有效数字。',
+          globalMessage: messages.invalidOffsetNumber,
         };
       }
       const transformed = new Map<string, { startTime: number; endTime: number }>();
@@ -236,9 +241,9 @@ export function BatchOperationPanel({
             id: u.id,
             originalValue: formatRange(u.startTime, u.endTime),
             nextValue: formatRange(nextStart, nextEnd),
-            detail: `偏移 ${delta >= 0 ? '+' : ''}${delta.toFixed(3)}s`,
+            detail: messages.offsetDetail(delta),
             level: 'error',
-            conflict: '出现负时间',
+            conflict: messages.conflictNegativeTime,
           };
         }
         if (nextEnd - nextStart < MIN_SPAN) {
@@ -246,18 +251,18 @@ export function BatchOperationPanel({
             id: u.id,
             originalValue: formatRange(u.startTime, u.endTime),
             nextValue: formatRange(nextStart, nextEnd),
-            detail: `偏移 ${delta >= 0 ? '+' : ''}${delta.toFixed(3)}s`,
+            detail: messages.offsetDetail(delta),
             level: 'error',
-            conflict: '句段时长过短',
+            conflict: messages.conflictDurationTooShort,
           };
         }
         return {
           id: u.id,
           originalValue: formatRange(u.startTime, u.endTime),
           nextValue: formatRange(nextStart, nextEnd),
-          detail: `偏移 ${delta >= 0 ? '+' : ''}${delta.toFixed(3)}s`,
+          detail: messages.offsetDetail(delta),
           level: 'ok',
-          conflict: '无',
+          conflict: messages.conflictNone,
         };
       });
 
@@ -265,6 +270,7 @@ export function BatchOperationPanel({
         allUtterancesOnMedia,
         transformed,
         new Set(previewTargets.map((u) => u.id)),
+        messages.overlapAdjacent,
       );
       for (const row of rows) {
         if (row.level === 'error') continue;
@@ -279,7 +285,7 @@ export function BatchOperationPanel({
       return {
         rows,
         ...stats,
-        globalMessage: stats.blockingCount > 0 ? '存在阻断冲突，执行会失败。' : '预览通过，可执行。',
+        globalMessage: stats.blockingCount > 0 ? messages.globalBlocking : messages.globalPreviewPass,
       };
     }
 
@@ -291,7 +297,7 @@ export function BatchOperationPanel({
           blockingCount: 1,
           warningCount: 0,
           okCount: 0,
-          globalMessage: '缩放系数必须大于 0。',
+          globalMessage: messages.invalidScaleFactor,
         };
       }
       const parsedAnchor = anchorTime.trim() ? Number(anchorTime) : undefined;
@@ -301,7 +307,7 @@ export function BatchOperationPanel({
           blockingCount: 1,
           warningCount: 0,
           okCount: 0,
-          globalMessage: '锚点时间不是有效数字。',
+          globalMessage: messages.invalidAnchorTime,
         };
       }
 
@@ -319,9 +325,9 @@ export function BatchOperationPanel({
             id: u.id,
             originalValue: formatRange(u.startTime, u.endTime),
             nextValue: formatRange(nextStart, nextEnd),
-            detail: `系数 x${factor.toFixed(3)}，锚点 ${pivot.toFixed(3)}s`,
+            detail: messages.scaleDetail(factor, pivot),
             level: 'error',
-            conflict: '出现负时间',
+            conflict: messages.conflictNegativeTime,
           };
         }
         if (nextEnd - nextStart < MIN_SPAN) {
@@ -329,18 +335,18 @@ export function BatchOperationPanel({
             id: u.id,
             originalValue: formatRange(u.startTime, u.endTime),
             nextValue: formatRange(nextStart, nextEnd),
-            detail: `系数 x${factor.toFixed(3)}，锚点 ${pivot.toFixed(3)}s`,
+            detail: messages.scaleDetail(factor, pivot),
             level: 'error',
-            conflict: '句段时长过短',
+            conflict: messages.conflictDurationTooShort,
           };
         }
         return {
           id: u.id,
           originalValue: formatRange(u.startTime, u.endTime),
           nextValue: formatRange(nextStart, nextEnd),
-          detail: `系数 x${factor.toFixed(3)}，锚点 ${pivot.toFixed(3)}s`,
+          detail: messages.scaleDetail(factor, pivot),
           level: 'ok',
-          conflict: '无',
+          conflict: messages.conflictNone,
         };
       });
 
@@ -348,6 +354,7 @@ export function BatchOperationPanel({
         allUtterancesOnMedia,
         transformed,
         new Set(previewTargets.map((u) => u.id)),
+        messages.overlapAdjacent,
       );
       for (const row of rows) {
         if (row.level === 'error') continue;
@@ -362,7 +369,7 @@ export function BatchOperationPanel({
       return {
         rows,
         ...stats,
-        globalMessage: stats.blockingCount > 0 ? '存在阻断冲突，执行会失败。' : '预览通过，可执行。',
+        globalMessage: stats.blockingCount > 0 ? messages.globalBlocking : messages.globalPreviewPass,
       };
     }
 
@@ -374,7 +381,7 @@ export function BatchOperationPanel({
           blockingCount: 1,
           warningCount: 0,
           okCount: 0,
-          globalMessage: '正则表达式不能为空。',
+          globalMessage: messages.regexRequired,
         };
       }
 
@@ -389,7 +396,7 @@ export function BatchOperationPanel({
           blockingCount: 1,
           warningCount: 0,
           okCount: 0,
-          globalMessage: '正则表达式无效。',
+          globalMessage: messages.regexInvalid,
         };
       }
 
@@ -400,9 +407,9 @@ export function BatchOperationPanel({
             id: u.id,
             originalValue: formatRange(u.startTime, u.endTime),
             nextValue: '-',
-            detail: '原文本为空',
+            detail: messages.sourceTextEmpty,
             level: 'warning',
-            conflict: '会被跳过',
+            conflict: messages.skipped,
           };
         }
 
@@ -416,9 +423,9 @@ export function BatchOperationPanel({
             id: u.id,
             originalValue: formatRange(u.startTime, u.endTime),
             nextValue: '-',
-            detail: `匹配后仅 ${segments.length} 段`,
+            detail: messages.matchedSegments(segments.length),
             level: 'warning',
-            conflict: '会被跳过',
+            conflict: messages.skipped,
           };
         }
 
@@ -443,9 +450,9 @@ export function BatchOperationPanel({
             id: u.id,
             originalValue: formatRange(u.startTime, u.endTime),
             nextValue: '-',
-            detail: `${segments.length} 段，但分片过短`,
+            detail: messages.segmentedTooShort(segments.length),
             level: 'warning',
-            conflict: '会被跳过',
+            conflict: messages.skipped,
           };
         }
 
@@ -453,16 +460,16 @@ export function BatchOperationPanel({
           .slice(0, 2)
           .map((b) => formatRange(b.start, b.end))
           .join(' | ');
-        const truncatedHint = bounds.length > 2 ? ` ... 共 ${bounds.length} 段` : '';
+        const truncatedHint = bounds.length > 2 ? messages.totalSegments(bounds.length) : '';
         const textHint = segments.slice(0, 2).join(' / ');
 
         return {
           id: u.id,
           originalValue: formatRange(u.startTime, u.endTime),
           nextValue: `${nextValue}${truncatedHint}`,
-          detail: `文本: ${textHint}${segments.length > 2 ? ' ...' : ''}`,
+          detail: messages.textDetail(textHint, segments.length > 2),
           level: 'ok',
-          conflict: '无',
+          conflict: messages.conflictNone,
         };
       });
 
@@ -470,7 +477,7 @@ export function BatchOperationPanel({
       return {
         rows,
         ...stats,
-        globalMessage: stats.okCount > 0 ? '已生成拆分预览。' : '没有可拆分条目。',
+        globalMessage: stats.okCount > 0 ? messages.splitPreviewReady : messages.splitPreviewEmpty,
       };
     }
 
@@ -482,9 +489,9 @@ export function BatchOperationPanel({
           id: u.id,
           originalValue: formatRange(u.startTime, u.endTime),
           nextValue: '-',
-          detail: '至少选中 2 条',
+          detail: messages.needAtLeastTwo,
           level: 'error',
-          conflict: '数量不足',
+          conflict: messages.insufficientCount,
         };
       }
       if (index === 0) {
@@ -492,18 +499,18 @@ export function BatchOperationPanel({
           id: u.id,
           originalValue: formatRange(u.startTime, u.endTime),
           nextValue: formatRange(first.startTime, last.endTime),
-          detail: '保留并扩展到选区末尾',
+          detail: messages.keepAndExtend,
           level: 'ok',
-          conflict: '无',
+          conflict: messages.conflictNone,
         };
       }
       return {
         id: u.id,
         originalValue: formatRange(u.startTime, u.endTime),
-        nextValue: `并入 ${first.id}`,
-        detail: '该句段会被删除并迁移译文',
+        nextValue: messages.mergeInto(first.id),
+        detail: messages.mergeDeleteAndMove,
         level: 'ok',
-        conflict: '无',
+        conflict: messages.conflictNone,
       };
     });
 
@@ -511,7 +518,7 @@ export function BatchOperationPanel({
     return {
       rows,
       ...stats,
-      globalMessage: stats.blockingCount > 0 ? '合并条件不满足。' : '预览通过，可执行。',
+      globalMessage: stats.blockingCount > 0 ? messages.mergeConditionNotMet : messages.globalPreviewPass,
     };
   }, [
     allUtterancesOnMedia,
@@ -522,6 +529,7 @@ export function BatchOperationPanel({
     scaleFactor,
     previewTargets,
     activeUtteranceTextById,
+    messages,
     sortedSelected,
     tab,
   ]);
@@ -551,79 +559,79 @@ export function BatchOperationPanel({
           onDoubleClick={handleRecenter}
           style={{ margin: '-14px -14px 10px', padding: '10px 14px' }}
         >
-          <strong>批量句段操作</strong>
+          <strong>{messages.panelTitle}</strong>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             <button
               type="button"
               className="floating-panel-reset-btn"
               onPointerDown={(event) => event.stopPropagation()}
               onClick={handleResetPanelLayout}
-              aria-label="重置位置与尺寸"
-              title="重置位置与尺寸"
+              aria-label={messages.resetLayout}
+              title={messages.resetLayout}
             >
               ↺
             </button>
-            <button className="icon-btn" onClick={onClose} title="关闭" onPointerDown={(e) => e.stopPropagation()}>✕</button>
+            <button className="icon-btn" onClick={onClose} title={messages.close} onPointerDown={(e) => e.stopPropagation()}>✕</button>
           </div>
         </div>
 
-        <div style={{ fontSize: 12, color: '#4b5563' }}>
-          当前选中：{selectedCount} 个句段
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+          {messages.selectedCount(selectedCount)}
         </div>
 
         <div className="batch-operation-section" style={{ gap: 8 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <label className="ai-cfg-label">预览范围</label>
+            <label className="ai-cfg-label">{messages.previewScopeLabel}</label>
             <select
-              aria-label="预览范围"
+              aria-label={messages.previewScopeAria}
               value={previewScope}
               onChange={(e) => setPreviewScope(e.target.value as PreviewScope)}
               className="ai-cfg-input"
             >
-              <option value="selected">仅已选句段</option>
-              <option value="layer-all">特定层全部句段</option>
+              <option value="selected">{messages.previewScopeSelected}</option>
+              <option value="layer-all">{messages.previewScopeLayerAll}</option>
             </select>
 
-            <label className="ai-cfg-label">预览层</label>
+            <label className="ai-cfg-label">{messages.previewLayerLabel}</label>
             <select
-              aria-label="预览层"
+              aria-label={messages.previewLayerAria}
               value={previewLayerId}
               onChange={(e) => setPreviewLayerId(e.target.value)}
               disabled={previewLayerOptions.length === 0}
               className="ai-cfg-input"
             >
-              {previewLayerOptions.length === 0 && <option value="">当前层</option>}
+              {previewLayerOptions.length === 0 && <option value="">{messages.previewCurrentLayer}</option>}
               {previewLayerOptions.map((layer) => (
                 <option key={layer.id} value={layer.id}>{layer.label}</option>
               ))}
             </select>
           </div>
           {previewScope === 'layer-all' && (
-            <div style={{ fontSize: 12, color: '#475569' }}>
-              已切换为层级全量预览（{previewTargets.length} 条）。执行仍只作用于当前选中句段。
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+              {messages.layerAllHint(previewTargets.length)}
             </div>
           )}
         </div>
 
         <div className="batch-operation-preview-card">
           <div className="batch-operation-preview-header">
-            <strong>逐条预览</strong>
+            <strong>{messages.rowPreviewTitle}</strong>
             <div style={{ display: 'flex', gap: 8, fontSize: 12, alignItems: 'center' }}>
-              <span style={{ color: '#166534' }}>通过 {preview.okCount}</span>
-              <span style={{ color: '#92400e' }}>警告 {preview.warningCount}</span>
-              <span style={{ color: '#b91c1c' }}>阻断 {preview.blockingCount}</span>
+              <span style={{ color: 'var(--state-success-text)' }}>{messages.passCount(preview.okCount)}</span>
+              <span style={{ color: 'var(--state-warning-text)' }}>{messages.warnCount(preview.warningCount)}</span>
+              <span style={{ color: 'var(--state-danger-text)' }}>{messages.blockCount(preview.blockingCount)}</span>
               {(showOnlyConflicts || preview.warningCount > 0 || preview.blockingCount > 0) && (
                 <button
                   className="icon-btn"
                   onClick={() => setShowOnlyConflicts((v) => !v)}
                   style={{ fontSize: 11, padding: '1px 6px' }}
                 >
-                  {showOnlyConflicts ? '显示全部' : '只看冲突'}
+                  {showOnlyConflicts ? messages.showAll : messages.showConflictsOnly}
                 </button>
               )}
             </div>
           </div>
-          <div style={{ fontSize: 12, color: preview.blockingCount > 0 ? '#991b1b' : '#334155' }}>
+          <div style={{ fontSize: 12, color: preview.blockingCount > 0 ? 'var(--state-danger-text)' : 'var(--text-primary)' }}>
             {preview.globalMessage}
           </div>
           <div className="batch-operation-table-wrap">
@@ -631,13 +639,13 @@ export function BatchOperationPanel({
               <thead>
                 <tr>
                   <th className="batch-operation-th">#</th>
-                  <th className="batch-operation-th">句段 ID</th>
-                  <th className="batch-operation-th">句段内容</th>
-                  <th className="batch-operation-th">原值</th>
-                  <th className="batch-operation-th">新值</th>
-                  <th className="batch-operation-th">说明</th>
-                  <th className="batch-operation-th">冲突标记</th>
-                  {onJumpToUtterance && <th className="batch-operation-th">跳转</th>}
+                  <th className="batch-operation-th">{messages.tableSegmentId}</th>
+                  <th className="batch-operation-th">{messages.tableSegmentText}</th>
+                  <th className="batch-operation-th">{messages.tableOriginal}</th>
+                  <th className="batch-operation-th">{messages.tableNext}</th>
+                  <th className="batch-operation-th">{messages.tableDetail}</th>
+                  <th className="batch-operation-th">{messages.tableConflict}</th>
+                  {onJumpToUtterance && <th className="batch-operation-th">{messages.tableJump}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -672,7 +680,7 @@ export function BatchOperationPanel({
                               onClose();
                             }}
                           >
-                            跳转
+                            {messages.jump}
                           </button>
                         </td>
                       )}
@@ -680,7 +688,7 @@ export function BatchOperationPanel({
                   ))}
                 {preview.rows.filter((r) => !showOnlyConflicts || r.level !== 'ok').length === 0 && (
                   <tr>
-                    <td className="batch-operation-td" colSpan={onJumpToUtterance ? 8 : 7}>暂无可展示的预览行</td>
+                    <td className="batch-operation-td" colSpan={onJumpToUtterance ? 8 : 7}>{messages.noRows}</td>
                   </tr>
                 )}
               </tbody>
@@ -689,15 +697,15 @@ export function BatchOperationPanel({
         </div>
 
         <div style={{ display: 'flex', gap: 6 }}>
-          <button className={`icon-btn ${tab === 'offset' ? 'icon-btn-active' : ''}`} onClick={() => setTab('offset')}>时间偏移</button>
-          <button className={`icon-btn ${tab === 'scale' ? 'icon-btn-active' : ''}`} onClick={() => setTab('scale')}>时间缩放</button>
-          <button className={`icon-btn ${tab === 'split' ? 'icon-btn-active' : ''}`} onClick={() => setTab('split')}>正则拆分</button>
-          <button className={`icon-btn ${tab === 'merge' ? 'icon-btn-active' : ''}`} onClick={() => setTab('merge')}>批量合并</button>
+          <button className={`icon-btn ${tab === 'offset' ? 'icon-btn-active' : ''}`} onClick={() => setTab('offset')}>{messages.tabOffset}</button>
+          <button className={`icon-btn ${tab === 'scale' ? 'icon-btn-active' : ''}`} onClick={() => setTab('scale')}>{messages.tabScale}</button>
+          <button className={`icon-btn ${tab === 'split' ? 'icon-btn-active' : ''}`} onClick={() => setTab('split')}>{messages.tabSplit}</button>
+          <button className={`icon-btn ${tab === 'merge' ? 'icon-btn-active' : ''}`} onClick={() => setTab('merge')}>{messages.tabMerge}</button>
         </div>
 
         {tab === 'offset' && (
           <div className="batch-operation-section">
-            <label className="ai-cfg-label">偏移秒数（可负数）</label>
+            <label className="ai-cfg-label">{messages.offsetSeconds}</label>
             <input value={deltaSec} onChange={(e) => setDeltaSec(e.target.value)} className="ai-cfg-input" />
             <button
               className="icon-btn"
@@ -708,17 +716,17 @@ export function BatchOperationPanel({
                 runAction(onOffset(value));
               }}
             >
-              执行偏移
+              {messages.runOffset}
             </button>
           </div>
         )}
 
         {tab === 'scale' && (
           <div className="batch-operation-section">
-            <label className="ai-cfg-label">缩放系数（{'>'} 0）</label>
+            <label className="ai-cfg-label">{messages.scaleFactor}</label>
             <input value={scaleFactor} onChange={(e) => setScaleFactor(e.target.value)} className="ai-cfg-input" />
-            <label className="ai-cfg-label">锚点时间（可选，秒）</label>
-            <input value={anchorTime} onChange={(e) => setAnchorTime(e.target.value)} className="ai-cfg-input" placeholder="默认取第一个选中句段起点" />
+            <label className="ai-cfg-label">{messages.anchorTime}</label>
+            <input value={anchorTime} onChange={(e) => setAnchorTime(e.target.value)} className="ai-cfg-input" placeholder={messages.anchorPlaceholder} />
             <button
               className="icon-btn"
               disabled={!canSubmit}
@@ -729,16 +737,16 @@ export function BatchOperationPanel({
                 runAction(onScale(factor, Number.isFinite(anchor ?? Number.NaN) ? anchor : undefined));
               }}
             >
-              执行缩放
+              {messages.runScale}
             </button>
           </div>
         )}
 
         {tab === 'split' && (
           <div className="batch-operation-section">
-            <label className="ai-cfg-label">正则表达式</label>
+            <label className="ai-cfg-label">{messages.regexPattern}</label>
             <input value={regexPattern} onChange={(e) => setRegexPattern(e.target.value)} className="ai-cfg-input" />
-            <label className="ai-cfg-label">Flags（可选，如 i）</label>
+            <label className="ai-cfg-label">{messages.regexFlags}</label>
             <input value={regexFlags} onChange={(e) => setRegexFlags(e.target.value)} className="ai-cfg-input" />
             <button
               className="icon-btn"
@@ -748,15 +756,15 @@ export function BatchOperationPanel({
                 runAction(onSplitByRegex(regexPattern, regexFlags));
               }}
             >
-              执行拆分
+              {messages.runSplit}
             </button>
           </div>
         )}
 
         {tab === 'merge' && (
           <div className="batch-operation-section">
-            <p style={{ margin: 0, fontSize: 12, color: '#4b5563' }}>
-              将选中句段按时间顺序合并为一个句段（允许非连续选择）。
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>
+              {messages.mergeHint}
             </p>
             <button
               className="icon-btn"
@@ -765,13 +773,13 @@ export function BatchOperationPanel({
                 runAction(onMerge());
               }}
             >
-              执行合并
+              {messages.runMerge}
             </button>
           </div>
         )}
 
-        <div style={{ fontSize: 12, color: '#6b7280' }}>
-          快捷键：Cmd/Ctrl + Shift + B 打开此面板
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+          {messages.shortcutHint}
         </div>
         
         <div className="floating-panel-resize-handle" onPointerDown={handleResizeStart} aria-hidden="true" />

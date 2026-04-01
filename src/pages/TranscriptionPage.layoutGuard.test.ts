@@ -3,19 +3,36 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('Transcription layout guard', () => {
-  it('keeps fixed viewport main layout styles for transcription route', () => {
+  it('keeps shell body layout styles for transcription route', () => {
     const appPath = path.resolve(process.cwd(), 'src/App.tsx');
     const appCode = fs.readFileSync(appPath, 'utf8');
 
     expect(appCode).toContain("const isTranscriptionRoute = location.pathname.startsWith('/transcription');");
     expect(appCode).toContain("app-shell-transcription");
+    expect(appCode).toContain("app-shell-body");
     expect(appCode).toContain("app-main-transcription");
     expect(appCode).toContain('id="app-side-pane-body-slot"');
+    expect(appCode).toContain('app-side-pane-handle-cluster');
+    expect(appCode).toContain('className="app-side-pane-hover-zone"');
+    expect(appCode).toContain("isSidePaneCollapsed ? '0px' : `${sidePaneWidth}px`");
+    expect(appCode).toContain("hoverExpandEdge: 'left'");
   });
 
-  it('keeps stylesheet fixed-anchor selector for transcription main area', () => {
+  it('keeps stylesheet shell-body selector for rail-reserved transcription main area', () => {
     const cssPath = path.resolve(process.cwd(), 'src/styles/global.css');
     const cssCode = fs.readFileSync(cssPath, 'utf8');
+
+    const bodySelector = '.app-shell-body {';
+    const bodyStart = cssCode.indexOf(bodySelector);
+
+    expect(bodyStart).toBeGreaterThanOrEqual(0);
+
+    const bodyEnd = cssCode.indexOf('}', bodyStart);
+    expect(bodyEnd).toBeGreaterThan(bodyStart);
+
+    const bodyBlock = cssCode.slice(bodyStart, bodyEnd + 1);
+    expect(bodyBlock).toContain('display: grid;');
+    expect(bodyBlock).toContain('grid-template-columns: var(--left-rail-width) minmax(0, 1fr);');
 
     const selector = '.app-shell-transcription .app-main-transcription {';
     const start = cssCode.indexOf(selector);
@@ -26,18 +43,16 @@ describe('Transcription layout guard', () => {
     expect(end).toBeGreaterThan(start);
 
     const block = cssCode.slice(start, end + 1);
-    expect(block).toContain('position: fixed;');
-    expect(block).toContain('top: 12px;');
-    expect(block).toContain('bottom: 12px;');
-    expect(block).toContain('left: var(--shell-left-offset);');
-    expect(block).toContain('right: 16px;');
+    expect(block).toContain('position: relative;');
+    expect(block).toContain('height: 100%;');
+    expect(block).toContain('min-height: 0;');
   });
 
   it('keeps speaker management popover centered in the viewport', () => {
     const cssPath = path.resolve(process.cwd(), 'src/styles/transcription.css');
     const cssCode = fs.readFileSync(cssPath, 'utf8');
 
-    const selector = '.transcription-layer-rail-action-popover-centered {';
+    const selector = '.transcription-side-pane-action-popover-centered {';
     const start = cssCode.indexOf(selector);
 
     expect(start).toBeGreaterThanOrEqual(0);

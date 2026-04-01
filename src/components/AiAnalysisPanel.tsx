@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Bot, WandSparkles } from 'lucide-react';
-import { detectLocale, t, tf } from '../i18n';
+import { t, tf, useLocale } from '../i18n';
 import { useAiPanelContext } from '../contexts/AiPanelContext';
 import { AiEmbeddingCard } from './ai/AiEmbeddingCard';
 
@@ -43,7 +43,7 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
   activeTab = 'embedding',
   onChangeActiveTab,
 }: AiAnalysisPanelProps) {
-  const locale = detectLocale();
+  const locale = useLocale();
   const {
     dbName,
     utteranceCount,
@@ -136,7 +136,7 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
             className={`transcription-assistant-hub-tab ${activeTab === tab ? 'transcription-assistant-hub-tab-active' : ''}`}
             onClick={() => onChangeActiveTab?.(tab)}
           >
-            {tab === 'embedding' ? (locale === 'zh-CN' ? '向量检索' : 'Embedding') : (locale === 'zh-CN' ? '统计' : 'Stats')}
+            {tab === 'embedding' ? t(locale, 'ai.header.embeddingTab') : t(locale, 'ai.header.statsTab')}
           </button>
         ))}
       </div>

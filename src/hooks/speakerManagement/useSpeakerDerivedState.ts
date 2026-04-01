@@ -8,26 +8,34 @@ import {
   buildSelectedSpeakerSummary,
   buildSpeakerFilterOptions,
   buildSpeakerVisualMap,
+  type SpeakerDisplayLabels,
+  type SpeakerSelectionSummaryLabels,
 } from './speakerUtils';
+
+type UseSpeakerDerivedStateLabels = {
+  displayLabels?: Partial<SpeakerDisplayLabels>;
+  summaryLabels?: Partial<SpeakerSelectionSummaryLabels>;
+};
 
 export function useSpeakerDerivedState(
   utterancesOnCurrentMedia: UtteranceDocType[],
   selectedBatchUtterances: UtteranceDocType[],
   speakerOptions: SpeakerDocType[],
+  labels?: UseSpeakerDerivedStateLabels,
 ) {
   const speakerVisualByUtteranceId = useMemo(
-    () => buildSpeakerVisualMap(utterancesOnCurrentMedia, speakerOptions),
-    [speakerOptions, utterancesOnCurrentMedia],
+    () => buildSpeakerVisualMap(utterancesOnCurrentMedia, speakerOptions, labels?.displayLabels),
+    [labels?.displayLabels, speakerOptions, utterancesOnCurrentMedia],
   );
 
   const speakerFilterOptions = useMemo(
-    () => buildSpeakerFilterOptions(utterancesOnCurrentMedia, speakerVisualByUtteranceId),
-    [speakerVisualByUtteranceId, utterancesOnCurrentMedia],
+    () => buildSpeakerFilterOptions(utterancesOnCurrentMedia, speakerVisualByUtteranceId, labels?.displayLabels),
+    [labels?.displayLabels, speakerVisualByUtteranceId, utterancesOnCurrentMedia],
   );
 
   const selectedSpeakerSummary = useMemo(
-    () => buildSelectedSpeakerSummary(selectedBatchUtterances, speakerOptions),
-    [selectedBatchUtterances, speakerOptions],
+    () => buildSelectedSpeakerSummary(selectedBatchUtterances, speakerOptions, labels?.summaryLabels),
+    [labels?.summaryLabels, selectedBatchUtterances, speakerOptions],
   );
 
   return {

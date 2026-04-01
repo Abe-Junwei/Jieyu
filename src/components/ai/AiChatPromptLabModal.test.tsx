@@ -21,12 +21,10 @@ describe('AiChatPromptLabModal', () => {
       <AiChatPromptLabModal
         isZh
         showPromptLab
-        quickPromptTemplates={[]}
         promptTemplates={promptTemplates}
         editingTemplateId={null}
         templateTitleInput=""
         templateContentInput=""
-        onClose={vi.fn()}
         onInjectTemplate={vi.fn()}
         onEditTemplate={vi.fn()}
         onRemoveTemplate={vi.fn()}

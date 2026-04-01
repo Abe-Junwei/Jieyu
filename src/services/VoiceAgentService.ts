@@ -1,14 +1,14 @@
 /**
- * VoiceAgentService — 语音智能体业务逻辑类（非 React）
+ * VoiceAgentService — \u8bed\u97f3\u667a\u80fd\u4f53\u4e1a\u52a1\u903b\u8f91\u7c7b（\u975e React）
  *
- * 从 useVoiceAgent hook 中提取的核心逻辑，作为单例 service 暴露给所有页面。
+ * \u4ece useVoiceAgent hook \u4e2d\u63d0\u53d6\u7684\u6838\u5fc3\u903b\u8f91，\u4f5c\u4e3a\u5355\u4f8b service \u66b4\u9732\u7ed9\u6240\u6709\u9875\u9762。
  *
- * 设计原则：
- * - 不依赖 React，不使用 useState/useEffect/useCallback
- * - 所有状态通过事件派发，外部通过订阅机制获取
- * - 与 useVoiceAgent hook 共享实现，保持向后兼容
+ * \u8bbe\u8ba1\u539f\u5219：
+ * - \u4e0d\u4f9d\u8d56 React，\u4e0d\u4f7f\u7528 useState/useEffect/useCallback
+ * - \u6240\u6709\u72b6\u6001\u901a\u8fc7\u4e8b\u4ef6\u6d3e\u53d1，\u5916\u90e8\u901a\u8fc7\u8ba2\u9605\u673a\u5236\u83b7\u53d6
+ * - \u4e0e useVoiceAgent hook \u5171\u4eab\u5b9e\u73b0，\u4fdd\u6301\u5411\u540e\u517c\u5bb9
  *
- * @see 解语语音智能体架构设计方案 v2.5 §阶段1
+ * @see \u89e3\u8bed\u8bed\u97f3\u667a\u80fd\u4f53\u67b6\u6784\u8bbe\u8ba1\u65b9\u6848 v2.5 §\u9636\u6bb51
  */
 
 import type { VoiceInputService as VoiceInputServiceType, SttEngine, SttResult, CommercialProviderKind } from './VoiceInputService';
@@ -19,6 +19,7 @@ import { saveVoiceSession, loadRecentVoiceSessions } from './VoiceSessionStore';
 import { projectMemoryStore } from './ProjectMemoryStore';
 import {
   SpeechAnnotationPipeline,
+  type AnnotationLayer,
   type QuickDictationConfig,
   type DictationPipelineCallbacks,
 } from './SpeechAnnotationPipeline';
@@ -51,10 +52,11 @@ import {
   type VoiceAgentGroundingUiContext,
 } from './VoiceAgentGroundingContext';
 import { createLogger } from '../observability/logger';
+import type { Locale } from '../i18n';
 
 const log = createLogger('VoiceAgentService');
 
-// ── Lazy runtime loaders | 运行时懒加载器 ─────────────────────────────────────
+// ── Lazy runtime loaders | \u8fd0\u884c\u65f6\u61d2\u52a0\u8f7d\u5668 ─────────────────────────────────────
 
 let voiceInputRuntimePromise: Promise<typeof import('./VoiceInputService')> | null = null;
 let wakeWordRuntimePromise: Promise<typeof import('./WakeWordDetector')> | null = null;
@@ -125,6 +127,7 @@ export interface VoiceAgentServiceState {
 export interface VoiceAgentServiceOptions {
   corpusLang?: string;
   langOverride?: string | null;
+  locale?: Locale;
   initialSafeMode?: boolean;
   initialWakeWordEnabled?: boolean;
   /** Whisper-server URL for whisper-local engine (port 3040) */
@@ -163,7 +166,7 @@ function createInitialSession(): VoiceSession {
 
 type StateChangeHandler = (state: VoiceAgentServiceState) => void;
 
-// ── Browser-safe emitter | 浏览器安全事件分发器 ───────────────────────────────
+// ── Browser-safe emitter | \u6d4f\u89c8\u5668\u5b89\u5168\u4e8b\u4ef6\u5206\u53d1\u5668 ───────────────────────────────
 
 type VoiceAgentServiceEventMap = {
   stateChange: [VoiceAgentServiceState];
@@ -230,6 +233,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
 
   private readonly _corpusLang: string;
   private _langOverride: string | null;
+  private _locale: Locale;
   private readonly _whisperServerUrl: string;
   private readonly _whisperServerModel: string;
   private readonly _onExecuteAction: ((actionId: ActionId, params?: { segmentIndex?: number }) => void) | undefined;
@@ -268,7 +272,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   private _currentPhase: string = 'transcribing';
   private _attentionHotspots: Array<{ segmentId: string; index: number; score: number }> = [];
 
-  // 页面隐藏 / 关闭时持久化会话 | Persist session on page hide / close
+  // \u9875\u9762\u9690\u85cf / \u5173\u95ed\u65f6\u6301\u4e45\u5316\u4f1a\u8bdd | Persist session on page hide / close
   private readonly _handleVisibilityChange = (): void => {
     if (document.visibilityState === 'hidden' && this._session.entries.length > 0) {
       void saveVoiceSession(this._session).catch((err) => { log.error('failed to persist session', { err }); });
@@ -287,6 +291,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     });
     this._corpusLang = options.corpusLang ?? 'cmn';
     this._langOverride = options.langOverride ?? null;
+    this._locale = options.locale ?? 'zh-CN';
     this._safeMode = options.initialSafeMode ?? false;
     this._wakeWordEnabled = options.initialWakeWordEnabled ?? false;
     this._whisperServerUrl = runtimeConfig.whisperServerUrl;
@@ -327,7 +332,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     // Initialize speech quality analyzer for adaptive STT engine recommendation
     this._speechQuality = SpeechQualityAnalyzer.getInstance();
 
-    // 页面关闭 / 隐藏时保存会话 | Save session on page hide / close
+    // \u9875\u9762\u5173\u95ed / \u9690\u85cf\u65f6\u4fdd\u5b58\u4f1a\u8bdd | Save session on page hide / close
     document.addEventListener('visibilitychange', this._handleVisibilityChange);
   }
 
@@ -453,7 +458,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   }
 
   /** Asynchronously refresh the cached battery level (fire-and-forget).
-   * 异步更新电量缓存，下次 chooseSttEngine 时生效。 */
+   * \u5f02\u6b65\u66f4\u65b0\u7535\u91cf\u7f13\u5b58，\u4e0b\u6b21 chooseSttEngine \u65f6\u751f\u6548。 */
   private _refreshBatteryLevel(): void {
     if (typeof navigator === 'undefined' || !('getBattery' in navigator)) return;
     type BatteryManager = { level: number };
@@ -502,7 +507,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     const svc = await this._ensureVoiceService();
     const lang = this._getEffectiveLang();
 
-    // Refresh battery level for next call; use cached value now | 异步刷新电量，当前用缓存值
+    // Refresh battery level for next call; use cached value now | \u5f02\u6b65\u5237\u65b0\u7535\u91cf，\u5f53\u524d\u7528\u7f13\u5b58\u503c
     this._refreshBatteryLevel();
     const region = await detectRegion();
     const { chooseSttEngine } = await loadSttStrategyRuntime();
@@ -522,7 +527,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       region,
       maxAlternatives: 3,
     };
-    // whisper-local 使用 whisper-server（3040 端口） | whisper-local uses whisper-server (port 3040)
+    // whisper-local \u4f7f\u7528 whisper-server（3040 \u7aef\u53e3） | whisper-local uses whisper-server (port 3040)
     if (runtimeEngine === 'whisper-local') {
       log.debug('start whisper config', { url: this._whisperServerUrl, model: this._whisperServerModel });
       startConfig.whisperServerUrl = this._whisperServerUrl;
@@ -538,7 +543,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     try {
       await svc.start(startConfig);
     } catch (error) {
-      const message = error instanceof Error ? error.message : '语音服务启动失败 | Failed to start voice service';
+      const message = error instanceof Error ? error.message : '\u8bed\u97f3\u670d\u52a1\u542f\u52a8\u5931\u8d25 | Failed to start voice service';
       this._setState({
         listening: false,
         speechActive: false,
@@ -685,7 +690,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
         clearInterval(this._recordingDurationInterval);
         this._recordingDurationInterval = null;
       }
-      this._setState({ isRecording: false, agentState: 'idle', error: error instanceof Error ? error.message : '录音启动失败' });
+      this._setState({ isRecording: false, agentState: 'idle', error: error instanceof Error ? error.message : '\u5f55\u97f3\u542f\u52a8\u5931\u8d25' });
       Earcon.playError();
     }
   }
@@ -704,7 +709,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   switchEngine(newEngine: SttEngine): void {
     this._engineSwitchCounter = 0;
     this._setState({ engine: newEngine });
-    // 持久化引擎偏好 | Persist engine preference
+    // \u6301\u4e45\u5316\u5f15\u64ce\u504f\u597d | Persist engine preference
     globalContext.updatePreference('preferredEngine', newEngine);
     if (this._listening) {
       // When switching to whisper-local, we need to pass the config again
@@ -756,7 +761,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
 
   setLangOverride(lang: string | null): void {
     this._langOverride = lang;
-    // 同步更新正在运行的 VoiceInputService | Sync to running VoiceInputService
+    // \u540c\u6b65\u66f4\u65b0\u6b63\u5728\u8fd0\u884c\u7684 VoiceInputService | Sync to running VoiceInputService
     if (this._voiceService && lang) {
       const bcp47 = lang === '__auto__' ? '' : (toBcp47(lang) ?? lang);
       this._voiceService.setLang(bcp47);
@@ -835,11 +840,11 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
           llmResolvedAction = intent.type === 'action';
         } else {
           llmFallbackFailed = true;
-          this._setState({ error: '无法识别该指令，请重试或切换到"分析"模式直接发送文本' });
+          this._setState({ error: '\u65e0\u6cd5\u8bc6\u522b\u8be5\u6307\u4ee4，\u8bf7\u91cd\u8bd5\u6216\u5207\u6362\u5230"\u5206\u6790"\u6a21\u5f0f\u76f4\u63a5\u53d1\u9001\u6587\u672c' });
         }
       } catch (err) {
         llmFallbackFailed = true;
-        this._setState({ error: err instanceof Error ? err.message : 'LLM intent解析失败' });
+        this._setState({ error: err instanceof Error ? err.message : 'LLM intent\u89e3\u6790\u5931\u8d25' });
       }
     }
 
@@ -849,7 +854,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
         this._intentAliasMap = learned.aliasMap;
       }
     }
-    // Bump usage stats for alias-matched intents | 命中别名时更新使用统计
+    // Bump usage stats for alias-matched intents | \u547d\u4e2d\u522b\u540d\u65f6\u66f4\u65b0\u4f7f\u7528\u7edf\u8ba1
     if (!llmResolvedAction && intent.type === 'action' && intent.fromAlias) {
       bumpAliasUsage(result.text);
     }
@@ -874,8 +879,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
           || (this._safeMode && isDestructiveAction(intent.actionId));
         if (needsConfirm) {
           const label = intent.fromFuzzy
-            ? `[模糊] ${getActionLabel(intent.actionId)}`
-            : getActionLabel(intent.actionId);
+            ? `[\u6a21\u7cca] ${getActionLabel(intent.actionId, this._locale)}`
+            : getActionLabel(intent.actionId, this._locale);
           this._setState({ pendingConfirm: { actionId: intent.actionId, label, ...(intent.fromFuzzy !== undefined && { fromFuzzy: intent.fromFuzzy }) }, agentState: 'idle' });
           Earcon.playTick();
         } else {
@@ -892,18 +897,18 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
           try {
             const toolResult = await this._onToolCall({ name: intent.toolName, arguments: intent.params });
             if (toolResult.ok) {
-              this._onSendToAiChat?.(`[工具执行] ${intent.toolName}：${toolResult.message}`);
+              this._onSendToAiChat?.(`[\u5de5\u5177\u6267\u884c] ${intent.toolName}：${toolResult.message}`);
               Earcon.playSuccess();
             } else {
-              this._onSendToAiChat?.(`[工具失败] ${intent.toolName}：${toolResult.message}`);
+              this._onSendToAiChat?.(`[\u5de5\u5177\u5931\u8d25] ${intent.toolName}：${toolResult.message}`);
               Earcon.playError();
             }
           } catch (err) {
-            this._onSendToAiChat?.(`[工具异常] ${intent.toolName}：${err instanceof Error ? err.message : String(err)}`);
+            this._onSendToAiChat?.(`[\u5de5\u5177\u5f02\u5e38] ${intent.toolName}：${err instanceof Error ? err.message : String(err)}`);
             Earcon.playError();
           }
         } else {
-          this._onSendToAiChat?.(`[语音指令] ${intent.raw}`);
+          this._onSendToAiChat?.(`[\u8bed\u97f3\u6307\u4ee4] ${intent.raw}`);
           Earcon.playSuccess();
         }
         this._setState({ agentState: 'idle' });
@@ -915,7 +920,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
         break;
       }
       case 'slot-fill': {
-        this._onSendToAiChat?.(`[槽位填充] ${intent.slotName}: ${intent.value}`);
+        this._onSendToAiChat?.(`[\u69fd\u4f4d\u586b\u5145] ${intent.slotName}: ${intent.value}`);
         this._setState({ agentState: 'idle' });
         break;
       }
@@ -948,15 +953,21 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
           },
         });
         this._wakeWordDetector = detector;
-        detector.start().catch(() => {
-          // Mic unavailable — silently disable
-          this._wakeWordEnabled = false;
-          this._emitStateChange();
+        detector.start().catch((err) => {
+          log.warn('wake-word detector start failed, disabling', { err });
+          this._wakeWordDetector = null;
+          this._setState({
+            wakeWordEnabled: false,
+            error: '\u8bed\u97f3\u5524\u9192\u542f\u52a8\u5931\u8d25，\u5df2\u81ea\u52a8\u5173\u95ed。\u8bf7\u68c0\u67e5\u9ea6\u514b\u98ce\u6743\u9650\u540e\u91cd\u8bd5。',
+          });
         });
       } catch (err) {
         log.warn('wake-word detector setup failed, disabling', { err });
-        this._wakeWordEnabled = false;
-        this._emitStateChange();
+        this._wakeWordDetector = null;
+        this._setState({
+          wakeWordEnabled: false,
+          error: '\u8bed\u97f3\u5524\u9192\u521d\u59cb\u5316\u5931\u8d25，\u5df2\u81ea\u52a8\u5173\u95ed。\u8bf7\u7a0d\u540e\u91cd\u8bd5。',
+        });
       }
     })();
   }
@@ -969,8 +980,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   /**
    * Detect natural-language memory patterns in the transcript and record them
    * to ProjectMemoryStore. Currently detects:
-   * - Term confirmation: "记住这个词" / "这是术语" / "添加术语"
-   * - Phrase recording: "记住这个表达" / "常见说法是" / "固定说法"
+   * - Term confirmation: "\u8bb0\u4f4f\u8fd9\u4e2a\u8bcd" / "\u8fd9\u662f\u672f\u8bed" / "\u6dfb\u52a0\u672f\u8bed"
+   * - Phrase recording: "\u8bb0\u4f4f\u8fd9\u4e2a\u8868\u8fbe" / "\u5e38\u89c1\u8bf4\u6cd5\u662f" / "\u56fa\u5b9a\u8bf4\u6cd5"
    */
   private _detectAndRecordMemoryPattern(text: string): void {
     const trimmed = text.trim();
@@ -978,27 +989,27 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
 
     const LOWER = trimmed.toLowerCase();
 
-    // Term confirmation: "记住这个词" / "记住这个术语" / "添加术语"
-    if (LOWER.includes('记住这个词') || LOWER.includes('记住这个术语') || LOWER.includes('添加术语')) {
+    // Term confirmation: "\u8bb0\u4f4f\u8fd9\u4e2a\u8bcd" / "\u8bb0\u4f4f\u8fd9\u4e2a\u672f\u8bed" / "\u6dfb\u52a0\u672f\u8bed"
+    if (LOWER.includes('\u8bb0\u4f4f\u8fd9\u4e2a\u8bcd') || LOWER.includes('\u8bb0\u4f4f\u8fd9\u4e2a\u672f\u8bed') || LOWER.includes('\u6dfb\u52a0\u672f\u8bed')) {
       // Try to extract term and gloss from the full transcript
-      // e.g. "记住了，'坚持'的意思是..." or "'坚持'的意思是..."
+      // e.g. "\u8bb0\u4f4f\u4e86，'\u575a\u6301'\u7684\u610f\u601d\u662f..." or "'\u575a\u6301'\u7684\u610f\u601d\u662f..."
       const termMatch = trimmed.match(/['"»‘’"](.+?)['"»‘’"]/);
       if (termMatch) {
         const term = termMatch[1];
         // Use the full sentence as the gloss approximation
-        const gloss = trimmed.replace(/记得.*?[，,]?/, '').replace(/记住.*?[，,]?/, '').trim();
+        const gloss = trimmed.replace(/\u8bb0\u5f97.*?[，,]?/, '').replace(/\u8bb0\u4f4f.*?[，,]?/, '').trim();
         if (term && gloss && term !== gloss) {
           void projectMemoryStore.confirmTerm(term, gloss.slice(0, 200), this._corpusLang);
         }
       }
     }
 
-    // Phrase recording: "记住这个表达" / "常见说法是" / "固定说法"
-    if (LOWER.includes('记住这个表达') || LOWER.includes('常见说法是') || LOWER.includes('固定说法')) {
+    // Phrase recording: "\u8bb0\u4f4f\u8fd9\u4e2a\u8868\u8fbe" / "\u5e38\u89c1\u8bf4\u6cd5\u662f" / "\u56fa\u5b9a\u8bf4\u6cd5"
+    if (LOWER.includes('\u8bb0\u4f4f\u8fd9\u4e2a\u8868\u8fbe') || LOWER.includes('\u5e38\u89c1\u8bf4\u6cd5\u662f') || LOWER.includes('\u56fa\u5b9a\u8bf4\u6cd5')) {
       const phraseMatch = trimmed.match(/['"»‘’"](.+?)['"»‘’"]/);
       if (phraseMatch) {
         const phrase = phraseMatch[1];
-        const translation = trimmed.replace(/记住.*?[，,]?/, '').replace(/常见.*?[，,]?/, '').replace(/固定.*?[，,]?/, '').trim();
+        const translation = trimmed.replace(/\u8bb0\u4f4f.*?[，,]?/, '').replace(/\u5e38\u89c1.*?[，,]?/, '').replace(/\u56fa\u5b9a.*?[，,]?/, '').trim();
         if (phrase && translation && phrase !== translation) {
           void projectMemoryStore.recordPhrase(phrase, translation.slice(0, 200), 'voice-confirmed');
         }
@@ -1046,11 +1057,17 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     this._emitStateChange();
   }
 
+  setLocale(locale: Locale): void {
+    this._locale = locale;
+    this._emitStateChange();
+  }
+
   private _buildGroundingContext(): GroundingContextData {
     return buildVoiceAgentGroundingContext({
       corpus: globalContext.getCorpusContext(),
       profile: globalContext.getBehaviorProfile(),
       session: this._session,
+      locale: this._locale,
       uiContext: {
         currentSegmentId: this._currentSegmentId,
         selectedSegmentIds: this._selectedSegmentIds,
@@ -1065,7 +1082,6 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   dispose(): void {
     document.removeEventListener('visibilitychange', this._handleVisibilityChange);
     this._ambientUnsubscribe?.();
-    AmbientObserver.getInstance().stop(); // Release all ambient listeners
     this._voiceService?.dispose();
     this._voiceService?.releaseSharedAnalysisStream();
     this._voiceService = null;

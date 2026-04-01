@@ -3,7 +3,7 @@ import type { ChatChunk } from './LLMProvider';
 export async function* iterateSseData(response: Response): AsyncGenerator<string, void, unknown> {
   const body = response.body;
   if (!body) {
-    throw new Error('远程模型未返回可读流');
+    throw new Error('Remote model did not return a readable stream');
   }
 
   const reader = body.getReader();
@@ -68,14 +68,18 @@ export async function* iterateSseData(response: Response): AsyncGenerator<string
       yield payload;
     }
   } finally {
-    reader.cancel();
+    try {
+      await reader.cancel();
+    } catch {
+      // 忽略 abort/收尾阶段的 cancel 失败 | Ignore cancel failures during abort/teardown.
+    }
   }
 }
 
 export async function* iterateJsonLines(response: Response): AsyncGenerator<string, void, unknown> {
   const body = response.body;
   if (!body) {
-    throw new Error('远程模型未返回可读流');
+    throw new Error('Remote model did not return a readable stream');
   }
 
   const reader = body.getReader();
@@ -105,7 +109,11 @@ export async function* iterateJsonLines(response: Response): AsyncGenerator<stri
       yield finalLine;
     }
   } finally {
-    reader.cancel();
+    try {
+      await reader.cancel();
+    } catch {
+      // 忽略 abort/收尾阶段的 cancel 失败 | Ignore cancel failures during abort/teardown.
+    }
   }
 }
 

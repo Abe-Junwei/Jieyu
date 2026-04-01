@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLatest } from './useLatest';
+import { t, useLocale, useOptionalLocale } from '../i18n';
 import {
   DEFAULT_FIRST_CHUNK_TIMEOUT_MS,
   INITIAL_METRICS,
@@ -158,6 +159,8 @@ interface ToolDecisionAuditMetadata {
 }
 
 export function useAiChat(options?: UseAiChatOptions) {
+  const locale = useLocale();
+  const toolFeedbackLocale = useOptionalLocale() ?? 'zh-CN';
   const onToolCall = options?.onToolCall;
   const onToolRiskCheck = options?.onToolRiskCheck;
   const systemPersonaKey = options?.systemPersonaKey ?? 'transcription';
@@ -254,7 +257,8 @@ export function useAiChat(options?: UseAiChatOptions) {
 
   const updateSettings = useCallback((patch: Partial<AiChatSettings>) => {
     abortRef.current?.abort();
-    testAbortRef.current?.abort();
+    // 软失效连接探测，避免某些流实现在 abort 时抛出未捕获 AbortError | Soft-invalidate probe to avoid unhandled AbortError from some stream implementations.
+    testAbortRef.current = null;
     userDirtyRef.current = true;
     setSettings((current) => applyAiChatSettingsPatch(current, patch));
     setConnectionTestStatus('idle');
@@ -262,10 +266,11 @@ export function useAiChat(options?: UseAiChatOptions) {
   }, []);
 
   const runConnectionProbe = useCallback(async (showTesting: boolean) => {
-    testAbortRef.current?.abort();
     const controller = new AbortController();
     testAbortRef.current = controller;
-    if (showTesting) {
+    const isActiveProbe = () => testAbortRef.current === controller;
+
+    if (showTesting && isActiveProbe()) {
       setConnectionTestStatus('testing');
       setConnectionTestMessage(null);
     }
@@ -301,9 +306,11 @@ export function useAiChat(options?: UseAiChatOptions) {
         throw new Error(formatConnectionProbeNoContentError());
       }
 
+      if (!isActiveProbe()) return;
       setConnectionTestStatus('success');
       setConnectionTestMessage(formatConnectionProbeSuccessMessage(provider.label, showTesting));
     } catch (error) {
+      if (!isActiveProbe()) return;
       if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
         if (showTesting) {
           setConnectionTestStatus('idle');
@@ -315,7 +322,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       setConnectionTestStatus('error');
       setConnectionTestMessage(normalizeAiProviderError(error, provider.label));
     } finally {
-      if (testAbortRef.current === controller) {
+      if (isActiveProbe()) {
         testAbortRef.current = null;
       }
     }
@@ -369,7 +376,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     const timestamp = nowIso();
     await db.collections.ai_conversations.insert({
       id,
-      title: '默认会话',
+      title: t(locale, 'ai.chat.defaultConversationTitle'),
       mode: 'assistant',
       providerId: provider.id,
       model: settings.model || provider.id,
@@ -378,7 +385,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     });
     setConversationId(id);
     return id;
-  }, [conversationId, provider.id, settings.model]);
+  }, [conversationId, locale, provider.id, settings.model]);
 
   useEffect(() => {
     let cancelled = false;
@@ -617,6 +624,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       assistantMessageId,
       call: callWithRequestId,
       auditContext,
+      locale: toolFeedbackLocale,
       toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
       hasPersistedExecutionForRequest,
       applyAssistantMessageResult,
@@ -656,7 +664,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     });
     await applyAssistantMessageResult(
       pending.assistantMessageId,
-      toNaturalToolCancelled(pending.call.name, settingsRef.current.toolFeedbackStyle),
+      toNaturalToolCancelled(toolFeedbackLocale, pending.call.name, settingsRef.current.toolFeedbackStyle),
     );
 
     await writeToolDecisionAuditLog(
@@ -898,7 +906,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         clarifyFastPathCall,
         history,
         orchestrator,
-        systemPrompt: buildAiSystemPrompt(systemPersonaKeyRef.current, contextBlock),
+        systemPrompt: buildAiSystemPrompt(systemPersonaKeyRef.current, contextBlock, settingsRef.current.toolFeedbackStyle),
         signal: controller.signal,
         taskSessionStatus: taskSessionRef.current.status,
         model: settingsRef.current.model,
@@ -1009,6 +1017,7 @@ export function useAiChat(options?: UseAiChatOptions) {
               messageHistory: messagesRef.current,
               providerId: provider.id,
               model: settingsRef.current.model,
+              locale: toolFeedbackLocale,
               toolDecisionMode: toolDecisionModeRef.current,
               toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
               planner,

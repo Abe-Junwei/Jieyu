@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { AudioLines, Languages, Trash2 } from 'lucide-react';
 import type { LayerConstraint, LayerDocType } from '../db';
 import type { LayerCreateInput } from '../hooks/useTranscriptionData';
+import { useLocale } from '../i18n';
+import { getLayerManagerPopoverMessages } from '../i18n/layerManagerPopoverMessages';
 import { COMMON_LANGUAGES, getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { fireAndForget } from '../utils/fireAndForget';
 import {
@@ -11,18 +13,15 @@ import {
 
 const BUBBLE_ANIMATION_MS = 180;
 
-function resolveCreateFailureText(message: string, fallback: string): string {
-  const text = message.trim().replace(/^创建失败[:：]\s*/u, '');
-  if (!text) return fallback;
-  if (text.startsWith('已创建')) return fallback;
-  return text;
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function getCreateFallbackMessage(layerType: 'transcription' | 'translation'): string {
-  if (layerType === 'translation') {
-    return '无法创建翻译层：请检查依赖层、目标语言与别名设置。';
-  }
-  return '无法创建转写层：请检查边界模式、目标语言与别名设置。';
+function resolveCreateFailureText(message: string, fallback: string, prefix: string): string {
+  const text = message.trim().replace(new RegExp(`^${escapeRegExp(prefix)}[:\uff1a]\\s*`, 'u'), '');
+  if (!text) return fallback;
+  if (text.startsWith('\u5df2\u521b\u5efa') || text.startsWith('Created ')) return fallback;
+  return text;
 }
 
 function getLayerDisplayName(layer: LayerDocType): string {
@@ -35,10 +34,10 @@ function getLayerDisplayName(layer: LayerDocType): string {
     ?? layer.key;
 }
 
-function formatLayerLanguage(layer: LayerDocType): string {
+function formatLayerLanguage(layer: LayerDocType, missingLanguage: string): string {
   const code = (layer.languageId ?? '').trim().toLowerCase();
   if (!code) {
-    return '未设置语言';
+    return missingLanguage;
   }
   const matched = COMMON_LANGUAGES.find((item) => item.code === code);
   return matched ? `${matched.label} ${code}` : code;
@@ -80,6 +79,8 @@ export function LayerManagerPopover({
   onDeleteLayer,
   message,
 }: LayerManagerPopoverProps) {
+  const locale = useLocale();
+  const messages = getLayerManagerPopoverMessages(locale);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [shouldRenderBubble, setShouldRenderBubble] = useState(() => isOpen);
   const [transcriptionForm, setTranscriptionForm] = useState<LayerCreateInput>({
@@ -98,9 +99,9 @@ export function LayerManagerPopover({
   const [translationCreateError, setTranslationCreateError] = useState('');
 
   const translationModalityOptions = [
-    { value: 'text', label: '文本（纯文字翻译）' },
-    { value: 'audio', label: '语音（口译录音）' },
-    { value: 'mixed', label: '混合（文字 + 录音）' },
+    { value: 'text', label: messages.modalityText },
+    { value: 'audio', label: messages.modalityAudio },
+    { value: 'mixed', label: messages.modalityMixed },
   ] as const;
 
   const transcriptionLayerCount = allLayers.filter((layer) => layer.layerType === 'transcription').length;
@@ -129,7 +130,7 @@ export function LayerManagerPopover({
   });
   const translationCreateDisabledReason = translationGuard.allowed
     ? ''
-    : (translationGuard.reasonShort ?? '当前无法新建翻译');
+    : (translationGuard.reasonShort ?? messages.translationCreateUnavailable);
   const transcriptionGuard = getLayerCreateGuard(allLayers, 'transcription', {
     languageId: resolvedTranscriptionLang,
     ...(transcriptionAliasTrimmed !== '' ? { alias: transcriptionAliasTrimmed } : {}),
@@ -139,7 +140,7 @@ export function LayerManagerPopover({
   });
   const transcriptionCreateDisabledReason = transcriptionGuard.allowed
     ? ''
-    : (transcriptionGuard.reasonShort ?? '当前无法新建转写');
+    : (transcriptionGuard.reasonShort ?? messages.transcriptionCreateUnavailable);
   const transcriptionSymbolicGuard = getLayerCreateGuard(allLayers, 'transcription', {
     languageId: resolvedTranscriptionLang,
     ...(transcriptionAliasTrimmed !== '' ? { alias: transcriptionAliasTrimmed } : {}),
@@ -214,7 +215,8 @@ export function LayerManagerPopover({
     }
     setTranscriptionCreateError(resolveCreateFailureText(
       immediateGuard.reason ?? message,
-      getCreateFallbackMessage('transcription'),
+      messages.transcriptionCreateFallback,
+      messages.createFailedPrefix,
     ));
   };
 
@@ -245,7 +247,8 @@ export function LayerManagerPopover({
     }
     setTranslationCreateError(resolveCreateFailureText(
       immediateGuard.reason ?? message,
-      getCreateFallbackMessage('translation'),
+      messages.translationCreateFallback,
+      messages.createFailedPrefix,
     ));
   };
 
@@ -290,7 +293,7 @@ export function LayerManagerPopover({
     <div className="transcription-layer-popover" ref={rootRef}>
       <div className="transcription-list-toolbar transcription-list-toolbar-layer-only">
         <button className="btn btn-sm" onClick={onToggle}>
-          层管理
+          {messages.layerManagement}
         </button>
       </div>
 
@@ -299,8 +302,8 @@ export function LayerManagerPopover({
           <div className="transcription-layer-bubble-arrow" />
           <div className="transcription-layer-form transcription-layer-manager">
             <div className="transcription-layer-manager-head">
-              <div className="transcription-layer-form-title">层管理</div>
-              <button className="btn btn-ghost btn-sm" onClick={onClose}>关闭</button>
+              <div className="transcription-layer-form-title">{messages.layerManagement}</div>
+              <button className="btn btn-ghost btn-sm" onClick={onClose}>{messages.close}</button>
             </div>
 
             <div className="transcription-layer-columns">
@@ -308,18 +311,18 @@ export function LayerManagerPopover({
                 <div className="transcription-layer-section-head-row">
                   <div className="transcription-layer-section-head">
                     <AudioLines size={14} />
-                    <span>新建转写层</span>
+                    <span>{messages.createTranscriptionLayer}</span>
                   </div>
-                  <span className="toolbar-chip small-chip transcription-layer-count-chip">现有 {transcriptionLayerCount}</span>
+                  <span className="toolbar-chip small-chip transcription-layer-count-chip">{messages.existingCount(transcriptionLayerCount)}</span>
                 </div>
                 {transcriptionCreateError && (
                   <div
                     role="alert"
                     aria-live="assertive"
                     style={{
-                      border: '1px solid #fecaca',
-                      background: '#fef2f2',
-                      color: '#991b1b',
+                      border: '1px solid var(--state-danger-border)',
+                      background: 'var(--state-danger-bg)',
+                      color: 'var(--state-danger-text)',
                       borderRadius: 8,
                       padding: '8px 10px',
                       fontSize: 13,
@@ -327,7 +330,7 @@ export function LayerManagerPopover({
                       lineHeight: 1.45,
                     }}
                   >
-                    创建失败：{transcriptionCreateError}
+                    {messages.createFailedPrefix}\uff1a{transcriptionCreateError}
                   </div>
                 )}
                 <div className="transcription-layer-column-fields">
@@ -336,29 +339,29 @@ export function LayerManagerPopover({
                     value={transcriptionForm.languageId}
                     onChange={(event) => setTranscriptionForm((prev) => ({ ...prev, languageId: event.target.value }))}
                   >
-                    <option value="">选择语言…</option>
+                    <option value="">{messages.selectLanguage}</option>
                     {COMMON_LANGUAGES.map((lang) => (
                       <option key={lang.code} value={lang.code}>{lang.label}（{lang.code}）</option>
                     ))}
-                    <option value="__custom__">其他（手动输入）</option>
+                    <option value="__custom__">{messages.customLanguageOption}</option>
                   </select>
                   {transcriptionForm.languageId === '__custom__' && (
                     <input
                       className="input"
-                      placeholder="ISO 639-3 代码（如 tib）"
+                      placeholder={messages.customLanguageCodePlaceholder}
                       value={transcriptionCustomLang}
                       onChange={(event) => setTranscriptionCustomLang(event.target.value)}
                     />
                   )}
                   <input
                     className="input"
-                    placeholder="别名（可选，同语言多层时用于区分）"
+                    placeholder={messages.aliasPlaceholder}
                     value={transcriptionForm.alias ?? ''}
                     onChange={(event) => setTranscriptionForm((prev) => ({ ...prev, alias: event.target.value }))}
                   />
                   {canConfigureTranscriptionConstraint && (
-                    <fieldset style={{ margin: '8px 0', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
-                      <legend style={{ fontSize: 12, fontWeight: 500, color: '#64748b', paddingBottom: 4 }}>层约束类型 | Layer Constraint Type</legend>
+                    <fieldset style={{ margin: '8px 0', padding: '8px', border: '1px solid var(--border-soft)', borderRadius: '4px' }}>
+                      <legend style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', paddingBottom: 4 }}>{messages.constraintLegend}</legend>
                       <label style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 13 }}>
                         <input
                           type="radio"
@@ -369,7 +372,7 @@ export function LayerManagerPopover({
                           onChange={(event) => setTranscriptionConstraint(event.target.value as LayerConstraint)}
                           style={{ marginRight: 6 }}
                         />
-                        依赖边界（跟随主转写层）| Dependent
+                        {messages.dependentConstraint}
                       </label>
                         <label style={{ display: 'flex', alignItems: 'center', fontSize: 13 }}>
                           <input
@@ -381,7 +384,7 @@ export function LayerManagerPopover({
                             onChange={(event) => setTranscriptionConstraint(event.target.value as LayerConstraint)}
                             style={{ marginRight: 6 }}
                           />
-                          独立边界（自由定义）| Independent
+                          {messages.independentConstraint}
                         </label>
                     </fieldset>
                   )}
@@ -391,14 +394,14 @@ export function LayerManagerPopover({
                         value={transcriptionParentLayerId}
                         onChange={(event) => setTranscriptionParentLayerId(event.target.value)}
                       >
-                        <option value="">选择依赖边界层…</option>
+                        <option value="">{messages.selectParentLayer}</option>
                         {independentParentLayers.map((layer) => (
                           <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
                         ))}
                       </select>
                     )}
                     {needsTranscriptionParent && autoTranscriptionParentLayer && (
-                      <p className="layer-parent-auto-note">已自动关联到「{formatParentLayerOptionLabel(autoTranscriptionParentLayer)}」。</p>
+                      <p className="layer-parent-auto-note">{messages.autoLinkedParent(formatParentLayerOptionLabel(autoTranscriptionParentLayer))}</p>
                     )}
                 </div>
                 <div className="action-row">
@@ -407,19 +410,19 @@ export function LayerManagerPopover({
                     disabled={!hasValidTranscriptionLanguage || transcriptionCreateDisabledReason.length > 0}
                     onClick={() => fireAndForget(handleCreateTranscription())}
                   >
-                    创建转写层
+                    {messages.createTranscriptionLayer}
                   </button>
                 </div>
                 {(transcriptionCreateDisabledReason || !hasValidTranscriptionLanguage) && (
                   <div className="layer-create-feedback-stack">
                     {transcriptionCreateDisabledReason && (
                       <p className="layer-create-feedback layer-create-feedback-error">
-                        当前限制：无法新建转写。{transcriptionCreateDisabledReason}
+                        {messages.transcriptionDisabledReason(transcriptionCreateDisabledReason)}
                       </p>
                     )}
                     {!hasValidTranscriptionLanguage && (
                       <p className="layer-create-feedback layer-create-feedback-info">
-                        必填项：请先选择转写层语言（自定义语言需填写代码）。
+                        {messages.transcriptionLanguageRequired}
                       </p>
                     )}
                   </div>
@@ -430,18 +433,18 @@ export function LayerManagerPopover({
                 <div className="transcription-layer-section-head-row">
                   <div className="transcription-layer-section-head">
                     <Languages size={14} />
-                    <span>新建翻译层</span>
+                    <span>{messages.createTranslationLayer}</span>
                   </div>
-                  <span className="toolbar-chip small-chip transcription-layer-count-chip">现有 {translationLayerCount}</span>
+                  <span className="toolbar-chip small-chip transcription-layer-count-chip">{messages.existingCount(translationLayerCount)}</span>
                 </div>
                 {translationCreateError && (
                   <div
                     role="alert"
                     aria-live="assertive"
                     style={{
-                      border: '1px solid #fecaca',
-                      background: '#fef2f2',
-                      color: '#991b1b',
+                      border: '1px solid var(--state-danger-border)',
+                      background: 'var(--state-danger-bg)',
+                      color: 'var(--state-danger-text)',
                       borderRadius: 8,
                       padding: '8px 10px',
                       fontSize: 13,
@@ -449,7 +452,7 @@ export function LayerManagerPopover({
                       lineHeight: 1.45,
                     }}
                   >
-                    创建失败：{translationCreateError}
+                    {messages.createFailedPrefix}\uff1a{translationCreateError}
                   </div>
                 )}
                 <div className="transcription-layer-column-fields">
@@ -458,23 +461,23 @@ export function LayerManagerPopover({
                     value={translationForm.languageId}
                     onChange={(event) => setTranslationForm((prev) => ({ ...prev, languageId: event.target.value }))}
                   >
-                    <option value="">选择语言…</option>
+                    <option value="">{messages.selectLanguage}</option>
                     {COMMON_LANGUAGES.map((lang) => (
                       <option key={lang.code} value={lang.code}>{lang.label}（{lang.code}）</option>
                     ))}
-                    <option value="__custom__">其他（手动输入）</option>
+                    <option value="__custom__">{messages.customLanguageOption}</option>
                   </select>
                   {translationForm.languageId === '__custom__' && (
                     <input
                       className="input"
-                      placeholder="ISO 639-3 代码（如 tib）"
+                      placeholder={messages.customLanguageCodePlaceholder}
                       value={translationCustomLang}
                       onChange={(event) => setTranslationCustomLang(event.target.value)}
                     />
                   )}
                   <input
                     className="input"
-                    placeholder="别名（可选，同语言多层时用于区分）"
+                    placeholder={messages.aliasPlaceholder}
                     value={translationForm.alias ?? ''}
                     onChange={(event) => setTranslationForm((prev) => ({ ...prev, alias: event.target.value }))}
                   />
@@ -490,7 +493,7 @@ export function LayerManagerPopover({
                     ))}
                   </select>
                   <div className="layer-parent-guidance-note">
-                    边界来源：翻译层会沿用所选转写层的边界范围。
+                    {messages.translationBoundarySource}
                   </div>
                   {independentParentLayers.length > 1 && (
                     <select
@@ -498,14 +501,14 @@ export function LayerManagerPopover({
                       value={translationParentLayerId}
                       onChange={(event) => setTranslationParentLayerId(event.target.value)}
                     >
-                      <option value="">选择依赖边界层…</option>
+                      <option value="">{messages.selectParentLayer}</option>
                       {independentParentLayers.map((layer) => (
                         <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
                       ))}
                     </select>
                   )}
                   {autoTranslationParentLayer && (
-                    <p className="layer-parent-auto-note">已自动关联到「{formatParentLayerOptionLabel(autoTranslationParentLayer)}」。</p>
+                    <p className="layer-parent-auto-note">{messages.autoLinkedParent(formatParentLayerOptionLabel(autoTranslationParentLayer))}</p>
                   )}
                 </div>
                 <div className="action-row">
@@ -514,19 +517,19 @@ export function LayerManagerPopover({
                     disabled={!hasValidTranslationLanguage || translationCreateDisabledReason.length > 0}
                     onClick={() => fireAndForget(handleCreateTranslation())}
                   >
-                    创建翻译层
+                    {messages.createTranslationLayer}
                   </button>
                 </div>
                 {(translationCreateDisabledReason || !hasValidTranslationLanguage) && (
                   <div className="layer-create-feedback-stack">
                     {translationCreateDisabledReason && (
                       <p className="layer-create-feedback layer-create-feedback-error">
-                        当前限制：无法新建翻译。{translationCreateDisabledReason}
+                        {messages.translationDisabledReason(translationCreateDisabledReason)}
                       </p>
                     )}
                     {!hasValidTranslationLanguage && (
                       <p className="layer-create-feedback layer-create-feedback-info">
-                        必填项：请先选择翻译层语言（自定义语言需填写代码）。
+                        {messages.translationLanguageRequired}
                       </p>
                     )}
                   </div>
@@ -537,9 +540,9 @@ export function LayerManagerPopover({
                 <div className="transcription-layer-section-head-row">
                   <div className="transcription-layer-section-head">
                     <Trash2 size={14} />
-                    <span>删除层</span>
+                    <span>{messages.deleteLayer}</span>
                   </div>
-                  <span className="toolbar-chip small-chip transcription-layer-count-chip">可删 {deletableLayers.length}</span>
+                  <span className="toolbar-chip small-chip transcription-layer-count-chip">{messages.deletableCount(deletableLayers.length)}</span>
                 </div>
                 <div className="transcription-layer-column-fields">
                   <select
@@ -551,22 +554,22 @@ export function LayerManagerPopover({
                     {deletableLayers.length > 0 ? (
                       deletableLayers.map((layer) => (
                         <option key={layer.id} value={layer.id}>
-                          {layer.layerType === 'translation' ? '翻译层' : '转写层'}
+                          {layer.layerType === 'translation' ? messages.translationLayerType : messages.transcriptionLayerType}
                           {' · '}
                           {getLayerDisplayName(layer)}
                           {' · '}
-                          {formatLayerLanguage(layer)}
+                          {formatLayerLanguage(layer, messages.missingLanguage)}
                         </option>
                       ))
                     ) : (
-                      <option value="">无可删除层</option>
+                      <option value="">{messages.noDeletableLayers}</option>
                     )}
                   </select>
 
                   <p className="small-text">
                     {deletableLayers.length === 0
-                      ? '当前没有可删除层。默认层会被保护，不能删除。'
-                      : '删除时会同时清理该层下的文本/录音记录与关联链接。'}
+                      ? messages.noDeletableLayersHint
+                      : messages.deleteCleanupHint}
                   </p>
                 </div>
 
@@ -576,7 +579,7 @@ export function LayerManagerPopover({
                     onClick={() => fireAndForget(Promise.resolve(onDeleteLayer()))}
                     disabled={deletableLayers.length === 0 || !layerPendingDelete}
                   >
-                    确认删除
+                    {messages.confirmDelete}
                   </button>
                 </div>
               </div>

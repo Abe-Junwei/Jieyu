@@ -2,7 +2,7 @@ import { useMemo, type Dispatch, type MutableRefObject, type ReactNode, type Set
 import type { LayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 import type { TranscriptionEditorContextValue } from '../contexts/TranscriptionEditorContext';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
-import { formatLayerRailLabel } from '../utils/transcriptionFormatters';
+import { formatSidePaneLayerLabel } from '../utils/transcriptionFormatters';
 
 interface RulerViewLike {
   start: number;
@@ -109,7 +109,7 @@ export function useTranscriptionTimelineController(
   const batchPreviewLayerOptions = useMemo(
     () => input.transcriptionLayers.map((layer) => ({
       id: layer.id,
-      label: formatLayerRailLabel(layer),
+      label: formatSidePaneLayerLabel(layer),
     })),
     [input.transcriptionLayers],
   );

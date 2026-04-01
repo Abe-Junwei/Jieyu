@@ -5,7 +5,7 @@ import { render, fireEvent } from '@testing-library/react';
 import { RegionActionOverlay } from './RegionActionOverlay';
 
 vi.mock('../../i18n', () => ({
-  detectLocale: vi.fn(() => 'zh-CN'),
+  useLocale: vi.fn(() => 'zh-CN'),
   t: vi.fn((locale: unknown, key: string) => {
     const translations: Record<string, string> = {
       'transcription.wave.segmentSpeed': '播放速度',

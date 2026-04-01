@@ -10,6 +10,7 @@ import { useSpeakerActions } from '../hooks/useSpeakerActions';
 import type { LayerActionPanelKind } from '../hooks/useLayerActionPanel';
 import type { SpeakerFilterOption } from '../hooks/speakerManagement/types';
 import type { SaveState, TimelineUnit, TimelineUnitKind } from '../hooks/transcriptionTypes';
+import { isDictKey, t as translate, tf as formatMessage, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { useSpeakerActionRoutingController } from './useSpeakerActionRoutingController';
 import { useSpeakerFocusController } from './useSpeakerFocusController';
@@ -61,18 +62,23 @@ interface UseTranscriptionSpeakerControllerInput {
   reloadSegments: () => Promise<void>;
   refreshSegmentUndoSnapshot: () => Promise<void>;
   updateSegmentsLocally: (segmentIds: Iterable<string>, updater: SegmentUpdater) => void;
-  setIsLayerRailCollapsed: Dispatch<SetStateAction<boolean>>;
   layerAction: {
     setLayerActionPanel: (panel: LayerActionPanelKind) => void;
   };
 }
 
 export function useTranscriptionSpeakerController(input: UseTranscriptionSpeakerControllerInput) {
-  const {
-    resolveSpeakerActionUtteranceIds,
-    setIsLayerRailCollapsed,
-    layerAction,
-  } = input;
+  const { resolveSpeakerActionUtteranceIds, layerAction } = input;
+  const locale = useLocale();
+  const t = useCallback((key: string) => (isDictKey(key) ? translate(locale, key) : key), [locale]);
+  const tf = useCallback(
+    (key: string, params?: Record<string, string | number>) => (
+      isDictKey(key)
+        ? formatMessage(locale, key, params ?? {})
+        : key
+    ),
+    [locale],
+  );
   const {
     speakerOptions,
     speakerDraftName,
@@ -118,6 +124,8 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     setSaveState: input.setSaveState,
     getUtteranceTextForLayer: input.getUtteranceTextForLayer,
     formatTime: input.formatTime,
+    t,
+    tf,
     syncBatchSpeakerId: false,
     speakerScopeOverride: {
       speakerFilterOptions: input.speakerFilterOptionsForActions,
@@ -137,11 +145,10 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     return next;
   }, [speakerOptions]);
 
-  const handleOpenSpeakerManagementPanel = useCallback((draftName = '') => {
-    setIsLayerRailCollapsed(false);
+  const handleOpenSpeakerManagementPanel = (draftName = '') => {
     setSpeakerDraftName(draftName);
     layerAction.setLayerActionPanel('speaker-management');
-  }, [layerAction, setIsLayerRailCollapsed, setSpeakerDraftName]);
+  };
 
   const {
     speakerSavingRouted,
@@ -202,6 +209,8 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     selectTimelineUnit: input.selectTimelineUnit,
     setSelectedUtteranceIds: input.setSelectedUtteranceIds,
     formatTime: input.formatTime,
+    t,
+    tf,
     pushUndo: input.data.pushUndo,
     undo: input.data.undo,
     reloadSegments: input.reloadSegments,
@@ -234,7 +243,7 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     segmentByIdForSpeakerActions: input.segmentByIdForSpeakerActions,
     resolveSpeakerKeyForSegment: input.resolveSpeakerKeyForSegment,
     getUtteranceSpeakerKey: input.getUtteranceSpeakerKey,
-    speakerByIdMap: new Map(speakerByIdMap),
+    speakerByIdMap,
   });
 
   const handleAssignSpeakerFromMenu = useCallback((unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => {

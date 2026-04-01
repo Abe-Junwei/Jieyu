@@ -3,6 +3,8 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, fireEvent, act } from '@testing-library/react';
 import { ToastProvider, useToast, type ToastVariant } from './ToastContext';
+import { t } from '../i18n';
+import { renderWithLocale } from '../test/localeTestUtils';
 
 const TOAST_FADE_OUT_MS = 260;
 
@@ -27,11 +29,12 @@ afterEach(() => {
 
 describe('ToastContext', () => {
   // Helper to render inside ToastProvider
-  function renderInProvider(element: React.ReactElement) {
-    return render(
+  function renderInProvider(element: React.ReactElement, locale: 'zh-CN' | 'en-US' = 'zh-CN') {
+    return renderWithLocale(
       <ToastProvider>
         {element}
-      </ToastProvider>
+      </ToastProvider>,
+      locale,
     );
   }
 
@@ -140,7 +143,7 @@ describe('ToastContext', () => {
       let ctx: ReturnType<typeof useToast>;
       renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
       act(() => { ctx!.showSaveState({ kind: 'saving' }); });
-      expect(screen.getByRole('status').textContent).toBe('保存中…');
+      expect(screen.getByRole('status').textContent).toBe(t('zh-CN', 'transcription.toast.saving'));
     });
 
     it('renders done toast with custom message', () => {
@@ -289,6 +292,13 @@ describe('ToastContext', () => {
       expect(screen.getByRole('status').textContent).toBe('🎤 正在分析…');
     });
 
+    it('uses locale-aware english voice message when locale is en-US', () => {
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />, 'en-US');
+      act(() => { ctx!.showVoiceState('dictation', false); });
+      expect(screen.getByRole('status').textContent).toBe('🎤 Dictation mode — speak to insert');
+    });
+
     it('dismisses toast when mode is null', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
@@ -327,6 +337,13 @@ describe('ToastContext', () => {
       act(() => { ctx!.dismiss(); });
       act(() => { vi.advanceTimersByTime(10000); });
       expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('uses locale-aware dismiss title when locale is en-US', () => {
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />, 'en-US');
+      act(() => { ctx!.showToast('dismiss me', 'info'); });
+      expect(screen.getByText('dismiss me').getAttribute('title')).toBe('Dismiss toast');
     });
   });
 

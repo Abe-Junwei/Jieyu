@@ -25,33 +25,33 @@ export interface KeybindingEntry {
 
 export const DEFAULT_KEYBINDINGS: KeybindingEntry[] = [
   // Global (active even when an input is focused)
-  { id: 'undo',          label: '撤销',         defaultKey: 'mod+z',          scope: 'global',   category: 'editing' },
-  { id: 'redo',          label: '重做',         defaultKey: 'mod+shift+z|mod+y', scope: 'global',   category: 'editing' },
-  { id: 'search',        label: '搜索替换',     defaultKey: 'mod+f',          scope: 'global',   category: 'view' },
-  { id: 'toggleNotes',   label: '切换备注面板', defaultKey: 'mod+shift+n',    scope: 'global',   category: 'view' },
+  { id: 'undo',          label: '\u64a4\u9500',         defaultKey: 'mod+z',          scope: 'global',   category: 'editing' },
+  { id: 'redo',          label: '\u91cd\u505a',         defaultKey: 'mod+shift+z|mod+y', scope: 'global',   category: 'editing' },
+  { id: 'search',        label: '\u641c\u7d22\u66ff\u6362',     defaultKey: 'mod+f',          scope: 'global',   category: 'view' },
+  { id: 'toggleNotes',   label: '\u5207\u6362\u5907\u6ce8\u9762\u677f', defaultKey: 'mod+shift+n',    scope: 'global',   category: 'view' },
 
   // Waveform (only when waveform area is focused, not in text inputs)
-  { id: 'playPause',     label: '播放/暂停',    defaultKey: 'space',          scope: 'waveform', category: 'playback' },
-  { id: 'markSegment',   label: '标记句段',     defaultKey: 'enter',          scope: 'waveform', category: 'editing' },
-  { id: 'cancel',        label: '取消',         defaultKey: 'escape',         scope: 'waveform', category: 'editing' },
-  { id: 'deleteSegment', label: '删除句段',     defaultKey: 'delete|backspace', scope: 'waveform', category: 'editing' },
-  { id: 'mergePrev',     label: '合并上一个',   defaultKey: 'mod+shift+m',    scope: 'waveform', category: 'editing' },
-  { id: 'mergeNext',     label: '合并下一个',   defaultKey: 'mod+m',          scope: 'waveform', category: 'editing' },
-  { id: 'splitSegment',  label: '分割句段',     defaultKey: 'mod+shift+s',    scope: 'waveform', category: 'editing' },
-  { id: 'selectBefore',  label: '选到开头',     defaultKey: 'shift+home',     scope: 'waveform', category: 'navigation' },
-  { id: 'selectAfter',   label: '选到结尾',     defaultKey: 'shift+end',      scope: 'waveform', category: 'navigation' },
-  { id: 'selectAll',     label: '全选',         defaultKey: 'mod+a',          scope: 'waveform', category: 'navigation' },
-  { id: 'navPrev',       label: '上一个句段',   defaultKey: 'arrowleft',      scope: 'waveform', category: 'navigation' },
-  { id: 'navNext',       label: '下一个句段',   defaultKey: 'arrowright',     scope: 'waveform', category: 'navigation' },
-  { id: 'tabNext',       label: 'Tab 播放下一个', defaultKey: 'tab',          scope: 'waveform', category: 'navigation' },
-  { id: 'tabPrev',       label: 'Tab 播放上一个', defaultKey: 'shift+tab',    scope: 'waveform', category: 'navigation' },
-  { id: 'stepBack',     label: '后退一帧',       defaultKey: ',',            scope: 'waveform', category: 'navigation' },
-  { id: 'stepForward',  label: '前进一帧',       defaultKey: '.',            scope: 'waveform', category: 'navigation' },
-  { id: 'reviewNext',   label: '跳到下一个低置信度句段', defaultKey: ']', scope: 'waveform', category: 'navigation' },
-  { id: 'reviewPrev',   label: '跳到上一个低置信度句段', defaultKey: '[', scope: 'waveform', category: 'navigation' },
+  { id: 'playPause',     label: '\u64ad\u653e/\u6682\u505c',    defaultKey: 'space',          scope: 'waveform', category: 'playback' },
+  { id: 'markSegment',   label: '\u6807\u8bb0\u53e5\u6bb5',     defaultKey: 'enter',          scope: 'waveform', category: 'editing' },
+  { id: 'cancel',        label: '\u53d6\u6d88',         defaultKey: 'escape',         scope: 'waveform', category: 'editing' },
+  { id: 'deleteSegment', label: '\u5220\u9664\u53e5\u6bb5',     defaultKey: 'delete|backspace', scope: 'waveform', category: 'editing' },
+  { id: 'mergePrev',     label: '\u5408\u5e76\u4e0a\u4e00\u4e2a',   defaultKey: 'mod+shift+m',    scope: 'waveform', category: 'editing' },
+  { id: 'mergeNext',     label: '\u5408\u5e76\u4e0b\u4e00\u4e2a',   defaultKey: 'mod+m',          scope: 'waveform', category: 'editing' },
+  { id: 'splitSegment',  label: '\u5206\u5272\u53e5\u6bb5',     defaultKey: 'mod+shift+s',    scope: 'waveform', category: 'editing' },
+  { id: 'selectBefore',  label: '\u9009\u5230\u5f00\u5934',     defaultKey: 'shift+home',     scope: 'waveform', category: 'navigation' },
+  { id: 'selectAfter',   label: '\u9009\u5230\u7ed3\u5c3e',     defaultKey: 'shift+end',      scope: 'waveform', category: 'navigation' },
+  { id: 'selectAll',     label: '\u5168\u9009',         defaultKey: 'mod+a',          scope: 'waveform', category: 'navigation' },
+  { id: 'navPrev',       label: '\u4e0a\u4e00\u4e2a\u53e5\u6bb5',   defaultKey: 'arrowleft',      scope: 'waveform', category: 'navigation' },
+  { id: 'navNext',       label: '\u4e0b\u4e00\u4e2a\u53e5\u6bb5',   defaultKey: 'arrowright',     scope: 'waveform', category: 'navigation' },
+  { id: 'tabNext',       label: 'Tab \u64ad\u653e\u4e0b\u4e00\u4e2a', defaultKey: 'tab',          scope: 'waveform', category: 'navigation' },
+  { id: 'tabPrev',       label: 'Tab \u64ad\u653e\u4e0a\u4e00\u4e2a', defaultKey: 'shift+tab',    scope: 'waveform', category: 'navigation' },
+  { id: 'stepBack',     label: '\u540e\u9000\u4e00\u5e27',       defaultKey: ',',            scope: 'waveform', category: 'navigation' },
+  { id: 'stepForward',  label: '\u524d\u8fdb\u4e00\u5e27',       defaultKey: '.',            scope: 'waveform', category: 'navigation' },
+  { id: 'reviewNext',   label: '\u8df3\u5230\u4e0b\u4e00\u4e2a\u4f4e\u7f6e\u4fe1\u5ea6\u53e5\u6bb5', defaultKey: ']', scope: 'waveform', category: 'navigation' },
+  { id: 'reviewPrev',   label: '\u8df3\u5230\u4e0a\u4e00\u4e2a\u4f4e\u7f6e\u4fe1\u5ea6\u53e5\u6bb5', defaultKey: '[', scope: 'waveform', category: 'navigation' },
 
   // Voice agent
-  { id: 'toggleVoice',   label: '语音智能体',     defaultKey: 'mod+shift+.',  scope: 'global',   category: 'voice' },
+  { id: 'toggleVoice',   label: '\u8bed\u97f3\u667a\u80fd\u4f53',     defaultKey: 'mod+shift+.',  scope: 'global',   category: 'voice' },
 ];
 
 // ---- Combo matching ----
@@ -140,7 +140,7 @@ export function getResolvedKeybindings(): Array<KeybindingEntry & { effectiveKey
   }));
 }
 
-/** 格式化快捷键组合显示 | Format keyboard combo for display */
+/** Format keyboard combo for display. */
 export function formatKeyComboForDisplay(combo: string): string {
   const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
   return combo
@@ -150,7 +150,7 @@ export function formatKeyComboForDisplay(combo: string): string {
       if (part === 'mod') return isMac ? '⌘' : 'Ctrl';
       if (part === 'shift') return '⇧';
       if (part === 'alt') return isMac ? '⌥' : 'Alt';
-      if (part === 'space') return '空格';
+      if (part === 'space') return '\u7a7a\u683c';
       if (part === 'enter') return '↵ Enter';
       if (part === 'escape') return 'Esc';
       if (part === 'tab') return '⇥ Tab';

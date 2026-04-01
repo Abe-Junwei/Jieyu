@@ -36,7 +36,7 @@ interface UseSpeakerFocusControllerInput {
   segmentByIdForSpeakerActions: ReadonlyMap<string, LayerSegmentDocType>;
   resolveSpeakerKeyForSegment: (segment: LayerSegmentDocType) => string;
   getUtteranceSpeakerKey: (utterance: UtteranceDocType) => string;
-  speakerByIdMap: Map<string, SpeakerDocType>;
+  speakerByIdMap: ReadonlyMap<string, SpeakerDocType>;
 }
 
 export interface SpeakerFocusOption {

@@ -109,15 +109,15 @@ describe('speakerUtils', () => {
     const speakerOptions = [makeSpeaker({ id: 'spk-1', name: 'Alice' })];
 
     expect(buildSelectedSpeakerSummary([], speakerOptions)).toBe('未选择句段');
-    expect(buildSelectedSpeakerSummary([makeUtterance({ speakerId: '', speaker: '' })], speakerOptions)).toBe('已选句段均未标注说话人');
+    expect(buildSelectedSpeakerSummary([makeUtterance({ speakerId: '', speaker: '' })], speakerOptions)).toBe('当前句段均未标注说话人');
     expect(buildSelectedSpeakerSummary([
       makeUtterance({ speakerId: 'spk-1', speaker: 'Alice' }),
       makeUtterance({ speakerId: 'spk-1', speaker: 'Alice' }),
     ], speakerOptions)).toBe('当前统一说话人：Alice');
     expect(buildSelectedSpeakerSummary([
       makeUtterance({ speakerId: 'spk-1', speaker: 'Alice' }),
-      makeUtterance({ speaker: '访客' }),
-    ], speakerOptions)).toBe('当前统一说话人：Alice');
+      makeUtterance({ speakerId: 'spk-2', speaker: '访客' }),
+    ], speakerOptions)).toBe('当前涉及 2 位说话人');
   });
 
   it('applies speaker assignment and supports clearing assignment', () => {

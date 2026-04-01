@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ProjectSetupDialog } from './ProjectSetupDialog';
+import { renderWithLocale } from '../test/localeTestUtils';
 
 const { mockCreateOrthography, mockCloneOrthographyToLanguage, mockCreateOrthographyTransform, mockUseOrthographies } = vi.hoisted(() => ({
   mockCreateOrthography: vi.fn(),
@@ -46,12 +47,12 @@ describe('ProjectSetupDialog orthography creation', () => {
 
     const onSubmit = vi.fn(async () => undefined);
     const onClose = vi.fn();
-    const view = render(
+    const view = renderWithLocale(
       <ProjectSetupDialog
         isOpen
         onClose={onClose}
         onSubmit={onSubmit}
-      />, 
+      />,
     );
 
     fireEvent.change(screen.getByPlaceholderText('例：白马藏语田野调查'), {

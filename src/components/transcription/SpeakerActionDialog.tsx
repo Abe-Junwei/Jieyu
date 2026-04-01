@@ -2,6 +2,7 @@ import { memo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { SpeakerActionDialogState } from '../../hooks/speakerManagement/types';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { t, tf, useLocale } from '../../i18n';
 
 type SpeakerActionDialogProps = {
   state: SpeakerActionDialogState | null;
@@ -20,6 +21,7 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
   onDraftNameChange,
   onTargetSpeakerChange,
 }: SpeakerActionDialogProps) {
+  const locale = useLocale();
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, state !== null, onClose);
 
@@ -35,12 +37,12 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
     || (isMerge && state.targetSpeakerKey.trim().length === 0);
 
   const dialogTitle = isRename
-    ? '重命名说话人'
+    ? t(locale, 'transcription.speakerDialog.renameTitle')
     : isMerge
-      ? '合并说话人'
+      ? t(locale, 'transcription.speakerDialog.mergeTitle')
       : isDelete
-        ? '删除说话人实体'
-        : '删除说话人标签';
+        ? t(locale, 'transcription.speakerDialog.deleteEntityTitle')
+        : t(locale, 'transcription.speakerDialog.clearTagTitle');
 
   return createPortal(
     <div className="dialog-overlay dialog-overlay-topmost" onClick={onClose} role="presentation">
@@ -59,7 +61,7 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
         <div className="dialog-body">
           {isRename && (
             <div className="dialog-field">
-              <label htmlFor="speaker-rename-input">新的说话人名称</label>
+              <label htmlFor="speaker-rename-input">{t(locale, 'transcription.speakerDialog.renameLabel')}</label>
               <input
                 id="speaker-rename-input"
                 className="input"
@@ -73,11 +75,11 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
 
           {isMerge && (
             <>
-              <p style={{ margin: 0, color: '#334155', fontSize: 14 }}>
-                {'\u201c'}{state.sourceSpeakerName}{'\u201d'}合并到目标说话人后，其关联句段会一并迁移。
+              <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: 14 }}>
+                {tf(locale, 'transcription.speakerDialog.mergeHint', { sourceSpeakerName: state.sourceSpeakerName })}
               </p>
               <div className="dialog-field">
-                <label htmlFor="speaker-merge-target">目标说话人</label>
+                <label htmlFor="speaker-merge-target">{t(locale, 'transcription.speakerDialog.mergeTargetLabel')}</label>
                 <select
                   id="speaker-merge-target"
                   className="input"
@@ -94,21 +96,27 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
           )}
 
           {isClear && (
-            <p style={{ margin: 0, color: '#334155', fontSize: 14 }}>
-              确认删除{'\u201c'}{state.speakerName}{'\u201d'}的说话人标签？将影响 {state.affectedCount} 条句段。
+            <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: 14 }}>
+              {tf(locale, 'transcription.speakerDialog.clearHint', {
+                speakerName: state.speakerName,
+                affectedCount: state.affectedCount,
+              })}
             </p>
           )}
 
           {isDelete && (
             <>
-              <p style={{ margin: 0, color: '#334155', fontSize: 14 }}>
-                删除说话人实体{'\u201c'}{state.sourceSpeakerName}{'\u201d'}后，将影响 {state.affectedCount} 条句段。
+              <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: 14 }}>
+                {tf(locale, 'transcription.speakerDialog.deleteEntityHint', {
+                  sourceSpeakerName: state.sourceSpeakerName,
+                  affectedCount: state.affectedCount,
+                })}
               </p>
-              <p style={{ margin: 0, color: '#b91c1c', fontSize: 13 }}>
-                风险提示：若选择删除说话人标签，相关句段将失去说话人归属。建议优先迁移到其他说话人。
+              <p style={{ margin: 0, color: 'var(--state-danger-text)', fontSize: 13 }}>
+                {t(locale, 'transcription.speakerDialog.deleteEntityRisk')}
               </p>
               <div className="dialog-field">
-                <label htmlFor="speaker-delete-target">删除策略</label>
+                <label htmlFor="speaker-delete-target">{t(locale, 'transcription.speakerDialog.deleteStrategyLabel')}</label>
                 <select
                   id="speaker-delete-target"
                   className="input"
@@ -116,9 +124,11 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
                   onChange={(event) => onTargetSpeakerChange(event.target.value)}
                   autoFocus
                 >
-                  <option value="">删除说话人标签并删除该说话人实体</option>
+                  <option value="">{t(locale, 'transcription.speakerDialog.deleteStrategyClearAndDelete')}</option>
                   {state.candidates.map((candidate) => (
-                    <option key={candidate.key} value={candidate.key}>迁移后删除：{candidate.name}</option>
+                    <option key={candidate.key} value={candidate.key}>
+                      {tf(locale, 'transcription.speakerDialog.deleteStrategyMigrateAndDelete', { name: candidate.name })}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -126,21 +136,21 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
           )}
         </div>
         <div className="dialog-footer">
-          <button className="btn btn-ghost" onClick={onClose} disabled={busy}>取消</button>
+          <button className="btn btn-ghost" onClick={onClose} disabled={busy}>{t(locale, 'transcription.dialog.cancel')}</button>
           <button
             className={`btn ${isClear || isDelete ? 'btn-danger' : 'btn-primary'}`}
             onClick={onConfirm}
             disabled={confirmDisabled}
           >
             {busy
-              ? '处理中…'
+              ? t(locale, 'transcription.speakerDialog.processing')
               : isRename
-                ? '确认改名'
+                ? t(locale, 'transcription.speakerDialog.confirmRename')
                 : isMerge
-                  ? '确认合并'
+                  ? t(locale, 'transcription.speakerDialog.confirmMerge')
                   : isDelete
-                      ? '确认删除说话人实体'
-                    : '确认删除标签'}
+                      ? t(locale, 'transcription.speakerDialog.confirmDeleteEntity')
+                    : t(locale, 'transcription.speakerDialog.confirmClearTag')}
           </button>
         </div>
       </div>

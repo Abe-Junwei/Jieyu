@@ -106,7 +106,7 @@ export function useTranscriptionDerivedData({
     };
   }, [layerToDeleteId, layers]);
 
-  const layerRailRows = orderedLayers;
+  const sidePaneRows = orderedLayers;
 
   const deletableLayers = layers;
 
@@ -186,7 +186,7 @@ export function useTranscriptionDerivedData({
     orderedLayers,
     translationLayers,
     transcriptionLayers,
-    layerRailRows,
+    sidePaneRows,
     deletableLayers,
     layerPendingDelete,
     selectedUtterance,

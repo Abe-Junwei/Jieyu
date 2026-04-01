@@ -15,7 +15,14 @@ import type { SttEngine } from '../services/VoiceInputService';
 import { commercialProviderDefinitions } from '../services/stt';
 import type { CommercialProviderKind } from '../services/VoiceInputService';
 import type { ActionIntent, VoiceIntent, VoiceSession } from '../services/IntentRouter';
-import { getActionLabel, loadVoiceAliasLearningLog, clearVoiceAliasLearningLog, type VoiceAliasLearningLogEntry } from '../services/voiceIntentUi';
+import { t, tf, useLocale } from '../i18n';
+import {
+  clearVoiceAliasLearningLog,
+  getActionLabel,
+  getVoiceAliasLearningReasonLabel,
+  loadVoiceAliasLearningLog,
+  type VoiceAliasLearningLogEntry,
+} from '../services/voiceIntentUi';
 
 // ── Types ──
 
@@ -83,47 +90,47 @@ export interface VoiceAgentWidgetProps {
 
 // ── Mode labels ──
 
-const MODE_LABELS: Record<VoiceAgentMode, string> = {
-  command: '指令',
-  dictation: '听写',
-  analysis: '分析',
-};
+const MODE_LABEL_KEYS = {
+  command: 'ai.assistantHub.mode.command',
+  dictation: 'ai.assistantHub.mode.dictation',
+  analysis: 'ai.assistantHub.mode.analysis',
+} as const;
 
 const MODE_ORDER: VoiceAgentMode[] = ['command', 'dictation', 'analysis'];
 
-const MODE_HINTS: Record<VoiceAgentMode, { idle: string; active: string }> = {
+const MODE_HINT_KEYS = {
   command: {
-    idle: '识别后的语音会映射成界面操作。',
-    active: '正在监听操作型语音指令。',
+    idle: 'transcription.voiceWidget.modeHint.command.idle',
+    active: 'transcription.voiceWidget.modeHint.command.active',
   },
   dictation: {
-    idle: '听写结果会显示在这里，并写入当前目标位置。',
-    active: '请直接说出要写入文本框的内容。',
+    idle: 'transcription.voiceWidget.modeHint.dictation.idle',
+    active: 'transcription.voiceWidget.modeHint.dictation.active',
   },
   analysis: {
-    idle: '语音内容会发送给 AI 做进一步分析。',
-    active: '请说出要交给 AI 分析的问题或说明。',
+    idle: 'transcription.voiceWidget.modeHint.analysis.idle',
+    active: 'transcription.voiceWidget.modeHint.analysis.active',
   },
-};
+} as const;
 
-const MODE_WORKSPACE_LABELS: Record<VoiceAgentMode, string> = {
-  command: '操作控制台',
-  dictation: '听写工作台',
-  analysis: '分析入口',
-};
+const MODE_WORKSPACE_LABEL_KEYS = {
+  command: 'transcription.voiceWidget.workspace.command',
+  dictation: 'transcription.voiceWidget.workspace.dictation',
+  analysis: 'transcription.voiceWidget.workspace.analysis',
+} as const;
 
-const MODE_PROCESS_LABELS: Record<VoiceAgentMode, string> = {
-  command: '识别后执行界面操作',
-  dictation: '识别后直接写入当前目标',
-  analysis: '识别后发送给 AI 分析',
-};
+const MODE_PROCESS_LABEL_KEYS = {
+  command: 'transcription.voiceWidget.process.command',
+  dictation: 'transcription.voiceWidget.process.dictation',
+  analysis: 'transcription.voiceWidget.process.analysis',
+} as const;
 
-const AGENT_STATE_LABELS: Record<VoiceAgentState['agentState'], string> = {
-  idle: '待命',
-  listening: '实时监听',
-  routing: '理解中',
-  executing: '执行中',
-  'ai-thinking': 'AI 处理中',
+const AGENT_STATE_LABEL_KEYS: Record<VoiceAgentState['agentState'], Parameters<typeof t>[1]> = {
+  idle: 'transcription.voice.status.standby',
+  listening: 'transcription.voice.status.listening',
+  routing: 'transcription.voiceWidget.agentState.routing',
+  executing: 'transcription.voiceWidget.agentState.executing',
+  'ai-thinking': 'transcription.voiceWidget.agentState.aiThinking',
 };
 
 // ── Helpers ──
@@ -135,6 +142,7 @@ function isVolcengine(kind: CommercialProviderKind): boolean {
 // ── Component ──
 
 export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgentWidgetProps) {
+  const locale = useLocale();
   const {
     listening,
     speechActive,
@@ -214,14 +222,14 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
   // Compute ARIA announcement when intent or error changes
   useEffect(() => {
     if (error) {
-      setAriaAnnouncement(`错误：${error}`);
+      setAriaAnnouncement(tf(locale, 'transcription.voiceWidget.aria.error', { error }));
       return;
     }
     if (lastIntent?.type === 'action') {
-      const label = getActionLabel(lastIntent.actionId as Parameters<typeof getActionLabel>[0]);
-      setAriaAnnouncement(`已执行：${label}`);
+      const label = getActionLabel(lastIntent.actionId as Parameters<typeof getActionLabel>[0], locale);
+      setAriaAnnouncement(tf(locale, 'transcription.voiceWidget.aria.executed', { label }));
     }
-  }, [lastIntent, error]);
+  }, [error, lastIntent, locale]);
 
   // Cache last test result — avoid redundant API calls within CACHE_TTL_MS
   const lastTestRef = useRef<{ result: { available: boolean; error?: string }; ts: number } | null>(null);
@@ -244,7 +252,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
     if (lastTestRef.current && Date.now() - lastTestRef.current.ts < CACHE_TTL_MS) {
       const cached = lastTestRef.current.result;
       setProviderAvailability(cached.available ? 'available' : 'unavailable');
-      setProviderError(cached.available ? null : (cached.error ?? 'Provider unavailable'));
+      setProviderError(cached.available ? null : (cached.error ?? t(locale, 'transcription.voiceWidget.provider.unavailable')));
       return;
     }
     setProviderAvailability('testing');
@@ -252,8 +260,8 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
     const result = await onTestCommercialProvider();
     lastTestRef.current = { result, ts: Date.now() };
     setProviderAvailability(result.available ? 'available' : 'unavailable');
-    setProviderError(result.available ? null : (result.error ?? 'Provider unavailable'));
-  }, [onTestCommercialProvider]);
+    setProviderError(result.available ? null : (result.error ?? t(locale, 'transcription.voiceWidget.provider.unavailable')));
+  }, [locale, onTestCommercialProvider]);
 
   // Build updated config and notify parent when any field changes
   const notifyConfigChange = (newApiKey: string, newBaseUrl: string, newModel: string, newAppId: string, newAccessToken: string) => {
@@ -266,42 +274,53 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
     });
   };
 
-  const sessionHint = listening ? MODE_HINTS[mode].active : MODE_HINTS[mode].idle;
+  const modeLabels: Record<VoiceAgentMode, string> = {
+    command: t(locale, MODE_LABEL_KEYS.command),
+    dictation: t(locale, MODE_LABEL_KEYS.dictation),
+    analysis: t(locale, MODE_LABEL_KEYS.analysis),
+  };
+  const sessionHint = listening
+    ? t(locale, MODE_HINT_KEYS[mode].active)
+    : t(locale, MODE_HINT_KEYS[mode].idle);
   const sessionText = displayText || sessionHint;
   const isSessionEmpty = displayText.length === 0;
   const sessionTextPreviewProps = mode === 'dictation' && !isSessionEmpty ? dictationPreviewTextProps : undefined;
   const sessionTargetLabel = mode === 'dictation'
-    ? '写入到'
+    ? t(locale, 'transcription.voiceWidget.targetLabel.dictation')
     : mode === 'analysis'
-      ? '发送到'
-      : '作用于';
+      ? t(locale, 'transcription.voiceWidget.targetLabel.analysis')
+      : t(locale, 'transcription.voiceWidget.targetLabel.command');
   const processLabel = mode === 'dictation'
-    ? '写入方式'
+    ? t(locale, 'transcription.voiceWidget.processLabel.dictation')
     : mode === 'analysis'
-      ? '处理方式'
-      : '执行方式';
-  const detailLabel = mode === 'command' ? '最近意图' : '句段范围';
-  const workspaceLabel = MODE_WORKSPACE_LABELS[mode];
-  const processSummary = MODE_PROCESS_LABELS[mode];
+      ? t(locale, 'transcription.voiceWidget.processLabel.analysis')
+      : t(locale, 'transcription.voiceWidget.processLabel.command');
+  const detailLabel = mode === 'command'
+    ? t(locale, 'transcription.voiceWidget.detailLabel.command')
+    : t(locale, 'transcription.voiceWidget.detailLabel.range');
+  const workspaceLabel = t(locale, MODE_WORKSPACE_LABEL_KEYS[mode]);
+  const processSummary = t(locale, MODE_PROCESS_LABEL_KEYS[mode]);
   const lastIntentSummary = (() => {
-    if (!lastIntent) return '暂无';
+    if (!lastIntent) return t(locale, 'transcription.voiceWidget.common.none');
     switch (lastIntent.type) {
       case 'action':
-        return getActionLabel(lastIntent.actionId);
+        return getActionLabel(lastIntent.actionId, locale);
       case 'dictation':
-        return '文本写入';
+        return t(locale, 'transcription.voiceWidget.lastIntent.dictation');
       case 'tool':
         return lastIntent.toolName;
       case 'slot-fill':
         return `${lastIntent.slotName}: ${lastIntent.value}`;
       case 'chat':
       default:
-        return lastIntent.text.length > 18 ? `${lastIntent.text.slice(0, 18)}…` : lastIntent.text || '暂无';
+        return lastIntent.text.length > 18
+          ? `${lastIntent.text.slice(0, 18)}…`
+          : lastIntent.text || t(locale, 'transcription.voiceWidget.common.none');
     }
   })();
   const detailSummary = mode === 'command' ? lastIntentSummary : selectionSummary;
   const insightCount = session.entries.length + learningLogEntries.length;
-  const agentStateLabel = AGENT_STATE_LABELS[agentState];
+  const agentStateLabel = t(locale, AGENT_STATE_LABEL_KEYS[agentState]);
 
   return (
     <div className="voice-agent-widget">
@@ -325,16 +344,16 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
               onClick={engine !== 'whisper-local' ? () => onToggle() : undefined}
               title={
                 engine === 'whisper-local'
-                  ? (isRecording ? '松开结束录音' : '按住说话')
-                  : (listening ? '关闭语音 (⌘⇧.)' : '开启语音 (⌘⇧.)')
+                  ? (isRecording ? t(locale, 'transcription.voiceWidget.mic.releaseToStop') : t(locale, 'transcription.voiceWidget.mic.holdToTalk'))
+                  : (listening ? t(locale, 'transcription.voiceWidget.mic.stopHotkey') : t(locale, 'transcription.voiceWidget.mic.startHotkey'))
               }
-              aria-label={listening ? '关闭语音智能体' : '开启语音智能体'}
+              aria-label={listening ? t(locale, 'transcription.voiceWidget.mic.stopAria') : t(locale, 'transcription.voiceWidget.mic.startAria')}
               aria-pressed={listening}
             >
               {isRecording ? <Mic size={22} /> : (listening ? <Mic size={22} /> : <MicOff size={22} />)}
             </button>
             <div className="voice-agent-header-copy">
-              <div className="voice-agent-status-line" role="status" aria-label="当前状态">
+              <div className="voice-agent-status-line" role="status" aria-label={t(locale, 'transcription.voiceWidget.status.current')}>
                 <span className={`voice-agent-state-badge voice-agent-state-badge-${agentState}`}>{agentStateLabel}</span>
                 {statusSummary}
               </div>
@@ -347,15 +366,15 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
               className={`voice-agent-disclosure-toggle ${showSettings ? 'is-open' : ''}`}
               onClick={() => setShowSettings((value) => !value)}
               aria-expanded={showSettings}
-              aria-label="切换语音设置"
+              aria-label={t(locale, 'transcription.voiceWidget.settings.toggle')}
             >
               <SlidersHorizontal size={15} />
-              <span>设置</span>
+              <span>{t(locale, 'transcription.voiceWidget.settings.button')}</span>
               <ChevronDown size={14} />
             </button>
           </div>
 
-          <div className="voice-agent-mode-bar" role="radiogroup" aria-label="语音模式">
+          <div className="voice-agent-mode-bar" role="radiogroup" aria-label={t(locale, 'ai.assistantHub.voiceMode')}>
             {MODE_ORDER.map((m) => (
               <button
                 key={m}
@@ -365,7 +384,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                 className={`voice-agent-mode-btn ${mode === m ? 'voice-agent-mode-btn-active' : ''}`}
                 onClick={() => onSwitchMode(m)}
               >
-                {MODE_LABELS[m]}
+                {modeLabels[m]}
               </button>
             ))}
           </div>
@@ -379,7 +398,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
 
           <div className="voice-agent-session-meta">
             <span className={`voice-agent-session-badge voice-agent-session-badge-${mode}`}>
-              {MODE_LABELS[mode]}
+              {modeLabels[mode]}
             </span>
             {isRecording && (
               <div className="voice-agent-recording-indicator" aria-live="polite">
@@ -391,11 +410,11 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
             )}
             {listening && engine === 'web-speech' && (
               <div className="voice-agent-session-signal-group">
-                <span className={`voice-agent-vad-dot ${speechActive ? 'voice-agent-vad-dot-active' : ''}`} title={speechActive ? '检测到说话' : '静默'} />
+                <span className={`voice-agent-vad-dot ${speechActive ? 'voice-agent-vad-dot-active' : ''}`} title={speechActive ? t(locale, 'transcription.voiceWidget.signal.speaking') : t(locale, 'transcription.voiceWidget.signal.silent')} />
                 <div
                   className="voice-agent-energy-bar"
-                  title={`音量 ${Math.round(energyLevel * 500)}%`}
-                  aria-label={`音量 ${Math.round(energyLevel * 500)}%`}
+                  title={tf(locale, 'transcription.voiceWidget.signal.volume', { percent: Math.round(energyLevel * 500) })}
+                  aria-label={tf(locale, 'transcription.voiceWidget.signal.volume', { percent: Math.round(energyLevel * 500) })}
                 >
                   <div
                     className="voice-agent-energy-fill"
@@ -405,7 +424,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
               </div>
             )}
             {langOverride === '__auto__' && detectedLang && (
-              <span className="voice-agent-session-chip" title={`检测到语言: ${detectedLang}`}>
+              <span className="voice-agent-session-chip" title={tf(locale, 'transcription.voiceWidget.detectedLanguage', { lang: detectedLang })}>
                 {detectedLang}
               </span>
             )}
@@ -445,10 +464,10 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
         {(disambiguationOptions.length > 0 || pendingConfirm || error) && (
           <div className="voice-agent-notice-stack">
             {disambiguationOptions.length > 0 && (
-              <div className="voice-agent-confirm voice-agent-disambiguation" role="alertdialog" aria-label="语音消歧候选">
+              <div className="voice-agent-confirm voice-agent-disambiguation" role="alertdialog" aria-label={t(locale, 'transcription.voiceWidget.disambiguation.aria')}>
                 <div className="voice-agent-confirm-copy">
-                  <span className="voice-agent-confirm-label">检测到低置信度指令，请选择更准确的操作</span>
-                  <span className="voice-agent-confirm-fuzzy">需要消歧</span>
+                  <span className="voice-agent-confirm-label">{t(locale, 'transcription.voiceWidget.disambiguation.label')}</span>
+                  <span className="voice-agent-confirm-fuzzy">{t(locale, 'transcription.voiceWidget.disambiguation.badge')}</span>
                 </div>
                 <div className="voice-agent-disambiguation-options">
                   {disambiguationOptions.map((option) => (
@@ -458,7 +477,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                       className="voice-agent-disambiguation-option"
                       onClick={() => onSelectDisambiguation(option.actionId)}
                     >
-                      <span>{getActionLabel(option.actionId)}</span>
+                      <span>{getActionLabel(option.actionId, locale)}</span>
                       <span className="voice-agent-disambiguation-score">{Math.round(option.confidence * 100)}%</span>
                     </button>
                   ))}
@@ -468,7 +487,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                     type="button"
                     className="voice-agent-confirm-btn voice-agent-confirm-no"
                     onClick={onDismissDisambiguation}
-                    aria-label="取消消歧"
+                    aria-label={t(locale, 'transcription.voiceWidget.disambiguation.cancelAria')}
                   >
                     <X size={17} />
                   </button>
@@ -477,13 +496,13 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
             )}
 
             {pendingConfirm && (
-              <div className="voice-agent-confirm" role="alertdialog" aria-label="语音操作确认">
+              <div className="voice-agent-confirm" role="alertdialog" aria-label={t(locale, 'transcription.voiceWidget.confirm.aria')}>
                 <div className="voice-agent-confirm-copy">
                   <span className="voice-agent-confirm-label">
-                    确认执行「{pendingConfirm.label}」？
+                    {tf(locale, 'transcription.voiceWidget.confirm.prompt', { label: pendingConfirm.label })}
                   </span>
                   {pendingConfirm.fromFuzzy && (
-                    <span className="voice-agent-confirm-fuzzy">模糊匹配</span>
+                    <span className="voice-agent-confirm-fuzzy">{t(locale, 'ai.assistantHub.fuzzyMatch')}</span>
                   )}
                 </div>
                 <div className="voice-agent-confirm-actions">
@@ -491,7 +510,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                     type="button"
                     className="voice-agent-confirm-btn voice-agent-confirm-yes"
                     onClick={onConfirm}
-                    aria-label="确认"
+                    aria-label={t(locale, 'ai.assistantHub.confirm')}
                   >
                     <Check size={17} />
                   </button>
@@ -499,7 +518,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                     type="button"
                     className="voice-agent-confirm-btn voice-agent-confirm-no"
                     onClick={onCancel}
-                    aria-label="取消"
+                    aria-label={t(locale, 'ai.assistantHub.cancel')}
                   >
                     <X size={17} />
                   </button>
@@ -523,7 +542,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
               onClick={() => setShowSettings((value) => !value)}
               aria-expanded={showSettings}
             >
-              <span className="voice-agent-disclosure-title">语音设置</span>
+              <span className="voice-agent-disclosure-title">{t(locale, 'transcription.voiceWidget.settings.title')}</span>
               <ChevronDown size={14} />
             </button>
 
@@ -531,15 +550,15 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
               <div className="voice-agent-disclosure-panel voice-agent-settings-panel">
                 <div className="voice-agent-settings-grid">
                   <label className="voice-agent-field">
-                    <span className="voice-agent-field-label">识别语言</span>
+                    <span className="voice-agent-field-label">{t(locale, 'transcription.voiceWidget.settings.recognitionLanguage')}</span>
                     <select
                       className="voice-agent-lang-select"
                       value={langOverride ?? corpusLang}
                       onChange={(e) => onSetLangOverride(e.currentTarget.value)}
-                      title="语音识别语言"
-                      aria-label="语音识别语言"
+                      title={t(locale, 'transcription.voiceWidget.settings.recognitionLanguage')}
+                      aria-label={t(locale, 'transcription.voiceWidget.settings.recognitionLanguage')}
                     >
-                      <option value="__auto__">🌐 自动检测</option>
+                      <option value="__auto__">{t(locale, 'transcription.voiceWidget.settings.autoDetectOption')}</option>
                       {SUPPORTED_VOICE_LANGS.map((group) => (
                         <optgroup key={group.group} label={group.group}>
                           {group.langs.map((lang) => (
@@ -553,42 +572,42 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                   </label>
 
                   <label className="voice-agent-field">
-                    <span className="voice-agent-field-label">STT 引擎</span>
+                    <span className="voice-agent-field-label">{t(locale, 'transcription.voiceWidget.settings.engine')}</span>
                     <select
                       className="voice-agent-engine-select"
                       value={engine}
                       onChange={(e) => onSwitchEngine(e.currentTarget.value as SttEngine)}
-                      title="STT 引擎"
-                      aria-label="STT 引擎"
+                      title={t(locale, 'transcription.voiceWidget.settings.engine')}
+                      aria-label={t(locale, 'transcription.voiceWidget.settings.engine')}
                     >
-                      <option value="web-speech">Web Speech</option>
-                      <option value="whisper-local">Ollama Whisper</option>
-                      <option value="commercial">商业模型</option>
+                      <option value="web-speech">{t(locale, 'transcription.voiceWidget.engine.webSpeech')}</option>
+                      <option value="whisper-local">{t(locale, 'transcription.voiceWidget.engine.whisperLocal')}</option>
+                      <option value="commercial">{t(locale, 'transcription.voiceWidget.engine.commercial')}</option>
                     </select>
                   </label>
                 </div>
 
                 <div className="voice-agent-toggle-row">
-                  <label className="voice-agent-safe-toggle" title="安全模式：破坏性操作需确认">
+                  <label className="voice-agent-safe-toggle" title={t(locale, 'transcription.voiceWidget.settings.safeModeTitle')}>
                     <input
                       type="checkbox"
                       checked={safeMode}
                       onChange={(e) => onSetSafeMode(e.target.checked)}
                     />
-                    <span className="voice-agent-safe-label">安全模式</span>
+                    <span className="voice-agent-safe-label">{t(locale, 'ai.assistantHub.safeMode')}</span>
                   </label>
 
-                  <label className="voice-agent-wakeword-toggle" title="唤醒词检测：说任意词语自动启动语音助手">
+                  <label className="voice-agent-wakeword-toggle" title={t(locale, 'transcription.voiceWidget.settings.wakeWordTitle')}>
                     <input
                       type="checkbox"
                       checked={wakeWordEnabled}
                       onChange={(e) => onSetWakeWordEnabled(e.target.checked)}
                     />
-                    <span className="voice-agent-wakeword-label">语音唤醒</span>
+                    <span className="voice-agent-wakeword-label">{t(locale, 'transcription.voiceWidget.settings.wakeWord')}</span>
                   </label>
 
                   {wakeWordEnabled && !listening && (
-                    <div className="voice-agent-wakeword-energy" title={`唤醒能量 ${Math.round(wakeWordEnergyLevel * 500)}%`}>
+                    <div className="voice-agent-wakeword-energy" title={tf(locale, 'transcription.voiceWidget.signal.wakeEnergy', { percent: Math.round(wakeWordEnergyLevel * 500) })}>
                       <div
                         className="voice-agent-wakeword-energy-fill"
                         style={{ width: `${Math.min(100, wakeWordEnergyLevel * 500)}%` }}
@@ -604,8 +623,8 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                         className="voice-agent-commercial-provider-select"
                         value={commercialProviderKind}
                         onChange={(e) => onSetCommercialProviderKind(e.currentTarget.value as CommercialProviderKind)}
-                        title="商业 STT Provider"
-                        aria-label="商业 STT Provider"
+                        title={t(locale, 'transcription.voiceWidget.settings.commercialProvider')}
+                        aria-label={t(locale, 'transcription.voiceWidget.settings.commercialProvider')}
                       >
                         {commercialProviderDefinitions.map((def) => (
                           <option key={def.kind} value={def.kind}>
@@ -621,18 +640,18 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                         className="icon-btn voice-agent-test-btn"
                         disabled={providerAvailability === 'testing'}
                         onClick={handleTestProvider}
-                        title="测试连接"
+                        title={t(locale, 'ai.chat.testConnection')}
                       >
-                        {providerAvailability === 'testing' ? '测试中…' : '测试连接'}
+                        {providerAvailability === 'testing' ? t(locale, 'ai.chat.testing') : t(locale, 'ai.chat.testConnection')}
                       </button>
                       {providerAvailability === 'available' && (
                         <span className="voice-agent-config-ok">
-                          <Check size={12} /> 可用
+                          <Check size={12} /> {t(locale, 'transcription.voiceWidget.provider.available')}
                         </span>
                       )}
                       {providerAvailability === 'unavailable' && (
                         <span className="voice-agent-config-error" title={providerError ?? undefined}>
-                          不可用{providerError ? `: ${providerError}` : ''}
+                          {t(locale, 'transcription.voiceWidget.provider.unavailable')}{providerError ? `: ${providerError}` : ''}
                         </span>
                       )}
                     </div>
@@ -645,16 +664,16 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                             type="text"
                             value={localAppId}
                             onChange={(e) => { const value = e.currentTarget.value; setLocalAppId(value); notifyConfigChange(localApiKey, localBaseUrl, localModel, value, localAccessToken); }}
-                            placeholder="App ID（火山引擎控制台）"
-                            aria-label="App ID"
+                            placeholder={t(locale, 'transcription.voiceWidget.placeholder.appId')}
+                            aria-label={t(locale, 'transcription.voiceWidget.label.appId')}
                           />
                           <input
                             className="voice-agent-commercial-input"
                             type="password"
                             value={localAccessToken}
                             onChange={(e) => { const value = e.currentTarget.value; setLocalAccessToken(value); notifyConfigChange(localApiKey, localBaseUrl, localModel, localAppId, value); }}
-                            placeholder="Access Token"
-                            aria-label="Access Token"
+                            placeholder={t(locale, 'transcription.voiceWidget.label.accessToken')}
+                            aria-label={t(locale, 'transcription.voiceWidget.label.accessToken')}
                           />
                         </>
                       ) : (
@@ -665,7 +684,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                             value={localApiKey}
                             onChange={(e) => { const value = e.currentTarget.value; setLocalApiKey(value); notifyConfigChange(value, localBaseUrl, localModel, localAppId, localAccessToken); }}
                             placeholder={commercialProviderKind === 'minimax' ? 'eyJ...' : 'sk-...'}
-                            aria-label="API Key"
+                            aria-label={t(locale, 'transcription.voiceWidget.label.apiKey')}
                           />
                           <input
                             className="voice-agent-commercial-input"
@@ -674,12 +693,12 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                             onChange={(e) => { const value = e.currentTarget.value; setLocalBaseUrl(value); notifyConfigChange(localApiKey, value, localModel, localAppId, localAccessToken); }}
                             placeholder={
                               commercialProviderKind === 'minimax'
-                                ? 'https://api.minimax.chat/v1（留空默认）'
+                                ? t(locale, 'transcription.voiceWidget.placeholder.baseUrlMinimax')
                                 : commercialProviderKind === 'groq'
-                                  ? '（留空使用 groq 官方）'
-                                  : 'Base URL（可选）'
+                                  ? t(locale, 'transcription.voiceWidget.placeholder.baseUrlGroq')
+                                  : t(locale, 'transcription.voiceWidget.placeholder.baseUrlOptional')
                             }
-                            aria-label="Base URL"
+                            aria-label={t(locale, 'transcription.voiceWidget.label.baseUrl')}
                           />
                         </>
                       )}
@@ -698,7 +717,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
               aria-expanded={showInsights}
             >
               <span className="voice-agent-disclosure-title voice-agent-disclosure-title-with-icon">
-                <History size={14} /> 记录
+                <History size={14} /> {t(locale, 'transcription.voiceWidget.insights.title')}
               </span>
               {insightCount > 0 && (
                 <span className="voice-agent-learning-count">{insightCount}</span>
@@ -708,7 +727,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
 
             {showInsights && (
               <div className="voice-agent-disclosure-panel voice-agent-insights-panel">
-                <div className="voice-agent-insights-tabs" role="tablist" aria-label="语音记录分类">
+                <div className="voice-agent-insights-tabs" role="tablist" aria-label={t(locale, 'transcription.voiceWidget.insights.tablist')}>
                   <button
                     type="button"
                     role="tab"
@@ -716,7 +735,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                     className={`voice-agent-insights-tab ${insightTab === 'history' ? 'is-active' : ''}`}
                     onClick={() => setInsightTab('history')}
                   >
-                    <History size={13} /> 最近语音
+                    <History size={13} /> {t(locale, 'transcription.voiceWidget.insights.historyTab')}
                   </button>
                   <button
                     type="button"
@@ -725,17 +744,25 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                     className={`voice-agent-insights-tab ${insightTab === 'learning' ? 'is-active' : ''}`}
                     onClick={() => setInsightTab('learning')}
                   >
-                    <Brain size={13} /> 学习记录
+                    <Brain size={13} /> {t(locale, 'transcription.voiceWidget.insights.learningTab')}
                   </button>
                 </div>
 
                 {insightTab === 'history' ? (
                   session.entries.length > 0 ? (
-                    <ul className="voice-agent-history-list" aria-label="语音命令历史">
+                    <ul className="voice-agent-history-list" aria-label={t(locale, 'transcription.voiceWidget.insights.historyAria')}>
                       {session.entries.slice(-8).reverse().map((entry, index) => (
                         <li key={`${entry.timestamp}-${index}`} className="voice-agent-history-entry">
                           <span className={`voice-agent-history-type voice-agent-history-type-${entry.intent.type}`}>
-                            {entry.intent.type === 'action' && entry.intent.actionId ? getActionLabel(entry.intent.actionId) : entry.intent.type}
+                            {entry.intent.type === 'action' && entry.intent.actionId
+                              ? getActionLabel(entry.intent.actionId, locale)
+                              : entry.intent.type === 'dictation'
+                                ? t(locale, 'transcription.voiceWidget.intentType.dictation')
+                                : entry.intent.type === 'tool'
+                                  ? t(locale, 'transcription.voiceWidget.intentType.tool')
+                                  : entry.intent.type === 'slot-fill'
+                                    ? t(locale, 'transcription.voiceWidget.intentType.slotFill')
+                                    : t(locale, 'transcription.voiceWidget.intentType.chat')}
                           </span>
                           <span
                             className="voice-agent-history-text"
@@ -754,19 +781,19 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                       ))}
                     </ul>
                   ) : (
-                    <div className="voice-agent-learning-empty">暂无最近语音记录</div>
+                    <div className="voice-agent-learning-empty">{t(locale, 'transcription.voiceWidget.empty.history')}</div>
                   )
                 ) : learningLogEntries.length === 0 ? (
-                  <div className="voice-agent-learning-empty">暂无学习记录</div>
+                  <div className="voice-agent-learning-empty">{t(locale, 'transcription.voiceWidget.empty.learning')}</div>
                 ) : (
                   <div className="voice-agent-learning-panel">
                     <div className="voice-agent-learning-panel-header">
-                      <span>语音别名学习记录 ({learningLogEntries.length})</span>
+                      <span>{tf(locale, 'transcription.voiceWidget.learning.header', { count: learningLogEntries.length })}</span>
                       <button
                         type="button"
                         className="voice-agent-learning-clear-btn"
                         onClick={() => { clearVoiceAliasLearningLog(); setLearningLogEntries([]); }}
-                        title="清空学习记录"
+                        title={t(locale, 'transcription.voiceWidget.learning.clear')}
                       >
                         <X size={12} />
                       </button>
@@ -779,10 +806,10 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                           </span>
                           <span className="voice-agent-learning-arrow">→</span>
                           <span className="voice-agent-learning-action">
-                            {getActionLabel(entry.actionId)}
+                            {getActionLabel(entry.actionId, locale)}
                           </span>
                           <span className={`voice-agent-learning-reason voice-agent-learning-reason-${entry.reason}`}>
-                            {entry.reason === 'updated' ? '更新' : entry.reason === 'conflict' ? '冲突' : entry.reason === 'unchanged' ? '未变' : '新建'}
+                            {getVoiceAliasLearningReasonLabel(entry.reason, locale)}
                           </span>
                         </li>
                       ))}

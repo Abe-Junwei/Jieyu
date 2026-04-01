@@ -113,8 +113,8 @@ export function PdfViewerRenderer({
             span.style.cursor = 'text';
 
             if (highlightedTextsRef.current.size > 0 && highlightedTextsRef.current.has(item.str.trim())) {
-              span.style.backgroundColor = '#ffff00';
-              span.style.color = '#000';
+              span.style.backgroundColor = 'var(--state-warning-bg)';
+              span.style.color = 'var(--text-primary)';
             }
 
             return span;
@@ -189,7 +189,7 @@ export function PdfViewerRenderer({
         padding: 16,
       }}
     >
-      <div style={{ position: 'relative', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+      <div style={{ position: 'relative', background: 'var(--surface-panel)', boxShadow: '0 2px 8px color-mix(in srgb, var(--text-primary) 10%, transparent)' }}>
         <canvas
           ref={canvasRef}
           style={{

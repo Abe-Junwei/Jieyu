@@ -17,6 +17,7 @@ import {
   withUtteranceTextLayerId,
 } from '../services/LayerIdBridgeService';
 import type { SaveState } from './transcriptionTypes';
+import { t, tf, useLocale } from '../i18n';
 
 type UseTranscriptionVoiceTranslationActionsParams = {
   resolveUtteranceById: (db: Awaited<ReturnType<typeof getDb>>, utteranceId: string) => Promise<UtteranceDocType | null>;
@@ -31,13 +32,15 @@ export function useTranscriptionVoiceTranslationActions({
   setSaveState,
   setTranslations,
 }: UseTranscriptionVoiceTranslationActionsParams) {
+  const locale = useLocale();
+
   const saveVoiceTranslation = useCallback(async (
     blob: Blob,
     targetUtterance: UtteranceDocType,
     targetLayer: LayerDocType,
   ) => {
     if (!targetUtterance || !targetLayer) {
-      throw new Error('请先选择句子与翻译层');
+      throw new Error(t(locale, 'transcription.error.validation.voiceTranslationTargetRequired'));
     }
 
     const db = await getDb();
@@ -96,15 +99,18 @@ export function useTranscriptionVoiceTranslationActions({
       }
       return prev.map((item) => (item.id === existingAudioTranslation.id ? newTranslation : item));
     });
-    setSaveState({ kind: 'done', message: `录音翻译已保存 (${translationId})` });
-  }, [setMediaItems, setSaveState, setTranslations]);
+    setSaveState({
+      kind: 'done',
+      message: tf(locale, 'transcription.voiceTranslation.done.saved', { id: translationId }),
+    });
+  }, [locale, setMediaItems, setSaveState, setTranslations]);
 
   const deleteVoiceTranslation = useCallback(async (
     targetUtterance: UtteranceDocType,
     targetLayer: LayerDocType,
   ) => {
     if (!targetUtterance || !targetLayer) {
-      throw new Error('请先选择句子与翻译层');
+      throw new Error(t(locale, 'transcription.error.validation.voiceTranslationTargetRequired'));
     }
 
     const db = await getDb();
@@ -115,7 +121,7 @@ export function useTranscriptionVoiceTranslationActions({
 
     const mediaId = existingAudioTranslation?.translationAudioMediaId;
     if (!existingAudioTranslation || !mediaId) {
-      setSaveState({ kind: 'done', message: '当前翻译没有可删除的录音' });
+      setSaveState({ kind: 'done', message: t(locale, 'transcription.voiceTranslation.done.noAudioToDelete') });
       return;
     }
 
@@ -140,8 +146,8 @@ export function useTranscriptionVoiceTranslationActions({
 
     await db.dexie.media_items.delete(mediaId);
     setMediaItems((prev) => prev.filter((item) => item.id !== mediaId));
-    setSaveState({ kind: 'done', message: '录音翻译已删除' });
-  }, [resolveUtteranceById, setMediaItems, setSaveState, setTranslations]);
+    setSaveState({ kind: 'done', message: t(locale, 'transcription.voiceTranslation.done.deleted') });
+  }, [locale, resolveUtteranceById, setMediaItems, setSaveState, setTranslations]);
 
   return {
     saveVoiceTranslation,

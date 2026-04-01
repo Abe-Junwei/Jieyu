@@ -67,7 +67,7 @@ export interface TranscriptionPageAssistantRuntimeVoiceTargetProps {
     callbacks: DictationPipelineCallbacks;
     config?: QuickDictationConfig;
   };
-  formatLayerRailLabel: (layer: LayerDocType) => string;
+  formatSidePaneLayerLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
 }
 

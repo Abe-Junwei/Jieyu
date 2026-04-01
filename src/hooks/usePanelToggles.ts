@@ -3,6 +3,7 @@ import { createLogger } from '../observability/logger';
 
 const HUB_HEIGHT_KEY = 'jieyu.hub.height';
 const HUB_DEFAULT_HEIGHT = 320;
+const AI_PANEL_DEFAULT_WIDTH = 380;
 const log = createLogger('usePanelToggles');
 
 function readPersistedHubHeight(): number {
@@ -22,17 +23,10 @@ function readPersistedHubHeight(): number {
 }
 
 export function usePanelToggles() {
-  const [isLayerRailCollapsed, setIsLayerRailCollapsed] = useState(false);
   const [isAiPanelCollapsed, setIsAiPanelCollapsed] = useState(false);
-  const [layerRailWidth, setLayerRailWidth] = useState(112);
-  const [aiPanelWidth, setAiPanelWidth] = useState(320);
+  const [aiPanelWidth, setAiPanelWidth] = useState(AI_PANEL_DEFAULT_WIDTH);
   const [isHubCollapsed, setIsHubCollapsed] = useState(false);
   const [hubHeight, setHubHeight] = useState(readPersistedHubHeight);
-
-  const handleLayerRailToggle = useCallback((e?: React.SyntheticEvent<HTMLElement>) => {
-    e?.stopPropagation();
-    setIsLayerRailCollapsed((prev) => !prev);
-  }, []);
 
   const handleAiPanelToggle = useCallback((e?: React.SyntheticEvent<HTMLElement>) => {
     e?.stopPropagation();
@@ -42,13 +36,6 @@ export function usePanelToggles() {
   const handleHubToggle = useCallback(() => {
     setIsHubCollapsed((prev) => !prev);
   }, []);
-
-  // 侧栏语义别名（兼容旧 layer rail 命名）| Side-pane semantic aliases with legacy layer-rail compatibility
-  const isSidePaneCollapsed = isLayerRailCollapsed;
-  const setIsSidePaneCollapsed = setIsLayerRailCollapsed;
-  const sidePaneWidth = layerRailWidth;
-  const setSidePaneWidth = setLayerRailWidth;
-  const handleSidePaneToggle = handleLayerRailToggle;
 
   // 持久化高度 | Persist hub height
   const setHubHeightPersisted: typeof setHubHeight = useCallback((action) => {
@@ -68,20 +55,10 @@ export function usePanelToggles() {
   }, []);
 
   return {
-    isLayerRailCollapsed,
-    setIsLayerRailCollapsed,
-    isSidePaneCollapsed,
-    setIsSidePaneCollapsed,
     isAiPanelCollapsed,
     setIsAiPanelCollapsed,
-    layerRailWidth,
-    setLayerRailWidth,
-    sidePaneWidth,
-    setSidePaneWidth,
     aiPanelWidth,
     setAiPanelWidth,
-    handleLayerRailToggle,
-    handleSidePaneToggle,
     handleAiPanelToggle,
     isHubCollapsed,
     setIsHubCollapsed,

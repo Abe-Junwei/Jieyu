@@ -6,12 +6,12 @@ import { z } from 'zod';
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
-const IdString = z.string().trim().min(1, 'ID 不能为空').max(128);
-const TextString = z.string().trim().min(1, '文本不能为空').max(5000);
+const IdString = z.string().trim().min(1, 'ID \u4e0d\u80fd\u4e3a\u7a7a').max(128);
+const TextString = z.string().trim().min(1, '\u6587\u672c\u4e0d\u80fd\u4e3a\u7a7a').max(5000);
 const AMBIGUOUS_LANGUAGE_TARGETS = ['und', 'unknown', 'auto', 'default'];
 const LanguageId = z.string().trim().min(1).max(32).superRefine((val, ctx) => {
   if (AMBIGUOUS_LANGUAGE_TARGETS.includes(val.toLowerCase())) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'languageId 不能是 und/unknown/auto/default，请提供明确语言。' });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'languageId \u4e0d\u80fd\u662f und/unknown/auto/default\uff0c\u8bf7\u63d0\u4f9b\u660e\u786e\u8bed\u8a00\u3002' });
   }
 });
 const Alias = z.string().trim().max(64).optional();
@@ -75,7 +75,7 @@ export const deleteLayerSchema = z.object({
   if (!hasLayerId && !hasTypeAndQuery) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: '需要 layerId，或同时提供 layerType + languageQuery',
+      message: '\u9700\u8981 layerId\uff0c\u6216\u540c\u65f6\u63d0\u4f9b layerType + languageQuery',
     });
   }
 });
@@ -89,10 +89,10 @@ export const linkTranslationLayerSchema = z.object({
   const hasTranscription = Boolean(args.transcriptionLayerId) || Boolean(args.transcriptionLayerKey);
   const hasTranslation = Boolean(args.translationLayerId) || Boolean(args.layerId);
   if (!hasTranscription) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '缺少 transcriptionLayerId/transcriptionLayerKey' });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u7f3a\u5c11 transcriptionLayerId/transcriptionLayerKey' });
   }
   if (!hasTranslation) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '缺少 translationLayerId/layerId' });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u7f3a\u5c11 translationLayerId/layerId' });
   }
 });
 
@@ -105,10 +105,10 @@ export const unlinkTranslationLayerSchema = z.object({
   const hasTranscription = Boolean(args.transcriptionLayerId) || Boolean(args.transcriptionLayerKey);
   const hasTranslation = Boolean(args.translationLayerId) || Boolean(args.layerId);
   if (!hasTranscription) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '缺少 transcriptionLayerId/transcriptionLayerKey' });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u7f3a\u5c11 transcriptionLayerId/transcriptionLayerKey' });
   }
   if (!hasTranslation) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '缺少 translationLayerId/layerId' });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u7f3a\u5c11 translationLayerId/layerId' });
   }
 });
 
@@ -127,7 +127,7 @@ export const setTokenPosSchema = z.object({
   if (!hasTokenId && !hasBatch) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: '需要 tokenId，或同时提供 utteranceId + form + pos',
+      message: '\u9700\u8981 tokenId\uff0c\u6216\u540c\u65f6\u63d0\u4f9b utteranceId + form + pos',
     });
   }
 });
@@ -156,7 +156,7 @@ const SEGMENT_OR_UTTERANCE_TARGET_SCHEMA = z.object({
   utteranceId: IdString.optional(),
 }).superRefine((args, ctx) => {
   if (!args.segmentId && !args.utteranceId) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '需要 segmentId 或 utteranceId。' });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u9700\u8981 segmentId \u6216 utteranceId\u3002' });
   }
 });
 

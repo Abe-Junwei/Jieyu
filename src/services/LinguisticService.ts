@@ -19,13 +19,11 @@ import {
   type AuditLogDocType,
   type AuditSource,
   type AnchorDocType,
-  type MultiLangString,
   type OrthographyDocType,
   type OrthographyTransformDocType,
   type SpeakerDocType,
 } from '../db';
 import { newId } from '../../src/utils/transcriptionFormatters';
-import { previewOrthographyTransform } from '../utils/orthographyTransforms';
 import {
   assertReviewProtection,
   assertStableId,
@@ -60,6 +58,25 @@ import {
   type TierSaveResult,
   validateTierConstraints,
 } from './LinguisticService.constraints';
+import {
+  applyOrthographyTransformRecord,
+  cloneOrthographyRecordToLanguage,
+  createOrthographyRecord,
+  createOrthographyTransformRecord,
+  deleteOrthographyTransformRecord,
+  getActiveOrthographyTransformRecord,
+  listOrthographyTransformRecords,
+  previewOrthographyTransformText,
+  updateOrthographyTransformRecord,
+  type ApplyOrthographyTransformInput,
+  type CloneOrthographyToLanguageInput,
+  type CreateOrthographyInput,
+  type CreateOrthographyTransformInput,
+  type GetActiveOrthographyTransformInput,
+  type ListOrthographyTransformsSelector,
+  type PreviewOrthographyTransformInput,
+  type UpdateOrthographyTransformInput,
+} from './LinguisticService.orthography';
 
 export {
   type ConstraintSeverity,
@@ -159,43 +176,17 @@ export class LinguisticService {
     const ids = [...new Set(utteranceIds.filter((id) => id.trim().length > 0))];
     if (ids.length === 0) return;
 
-    const tokens = await (async () => {
-      try {
-        return await db.dexie.utterance_tokens.where('utteranceId').anyOf(ids).toArray();
-      } catch {
-        const all = await db.dexie.utterance_tokens.toArray();
-        const idSet = new Set(ids);
-        return all.filter((row) => idSet.has(row.utteranceId));
-      }
-    })();
-
-    const morphemes = await (async () => {
-      try {
-        return await db.dexie.utterance_morphemes.where('utteranceId').anyOf(ids).toArray();
-      } catch {
-        const all = await db.dexie.utterance_morphemes.toArray();
-        const idSet = new Set(ids);
-        return all.filter((row) => idSet.has(row.utteranceId));
-      }
-    })();
+    const [tokens, morphemes] = await Promise.all([
+      db.dexie.utterance_tokens.where('utteranceId').anyOf(ids).toArray(),
+      db.dexie.utterance_morphemes.where('utteranceId').anyOf(ids).toArray(),
+    ]);
 
     const deleteByTarget = async (targetType: 'utterance' | 'token' | 'morpheme', targetIds: readonly string[]) => {
       if (targetIds.length === 0) return;
-      try {
-        await db.dexie.user_notes
-          .where('[targetType+targetId]')
-          .anyOf(targetIds.map((targetId) => [targetType, targetId] as [string, string]))
-          .delete();
-      } catch {
-        const allNotes = await db.dexie.user_notes.toArray();
-        const targetSet = new Set(targetIds);
-        const noteIds = allNotes
-          .filter((note) => note.targetType === targetType && targetSet.has(note.targetId))
-          .map((note) => note.id);
-        if (noteIds.length > 0) {
-          await db.dexie.user_notes.bulkDelete(noteIds);
-        }
-      }
+      await db.dexie.user_notes
+        .where('[targetType+targetId]')
+        .anyOf(targetIds.map((targetId) => [targetType, targetId] as [string, string]))
+        .delete();
     };
 
     await deleteByTarget('utterance', ids);
@@ -418,12 +409,12 @@ export class LinguisticService {
   }): Promise<SpeakerDocType> {
     const db = await getDb();
     const name = input.name.trim();
-    if (!name) throw new Error('说话人名称不能为空');
+    if (!name) throw new Error('\u8bf4\u8bdd\u4eba\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a');
 
     const normalizedName = name.toLocaleLowerCase('zh-Hans-CN');
     const existingSpeakers = (await db.collections.speakers.find().exec()).map((doc) => doc.toJSON());
     const duplicate = existingSpeakers.find((speaker) => speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName);
-    if (duplicate) throw new Error(`说话人已存在: ${duplicate.name}`);
+    if (duplicate) throw new Error(`\u8bf4\u8bdd\u4eba\u5df2\u5b58\u5728: ${duplicate.name}`);
 
     const now = new Date().toISOString();
     const speaker: SpeakerDocType = {
@@ -443,18 +434,18 @@ export class LinguisticService {
     const db = await getDb();
     const id = speakerId.trim();
     const name = nextName.trim();
-    if (!id) throw new Error('说话人 ID 不能为空');
-    if (!name) throw new Error('说话人名称不能为空');
+    if (!id) throw new Error('\u8bf4\u8bdd\u4eba ID \u4e0d\u80fd\u4e3a\u7a7a');
+    if (!name) throw new Error('\u8bf4\u8bdd\u4eba\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a');
 
     const speakerDoc = await db.collections.speakers.findOne({ selector: { id } }).exec();
-    if (!speakerDoc) throw new Error(`说话人不存在: ${id}`);
+    if (!speakerDoc) throw new Error(`\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${id}`);
 
     const normalizedName = name.toLocaleLowerCase('zh-Hans-CN');
     const existingSpeakers = (await db.collections.speakers.find().exec()).map((doc) => doc.toJSON());
     const duplicate = existingSpeakers.find((speaker) => (
       speaker.id !== id && speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName
     ));
-    if (duplicate) throw new Error(`说话人已存在: ${duplicate.name}`);
+    if (duplicate) throw new Error(`\u8bf4\u8bdd\u4eba\u5df2\u5b58\u5728: ${duplicate.name}`);
 
     const current = speakerDoc.toJSON();
     const now = new Date().toISOString();
@@ -485,7 +476,7 @@ export class LinguisticService {
     const db = await getDb();
     const sourceId = sourceSpeakerId.trim();
     const targetId = targetSpeakerId.trim();
-    if (!sourceId || !targetId) throw new Error('说话人 ID 不能为空');
+    if (!sourceId || !targetId) throw new Error('\u8bf4\u8bdd\u4eba ID \u4e0d\u80fd\u4e3a\u7a7a');
     if (sourceId === targetId) return 0;
 
     const [sourceDoc, targetDoc] = await Promise.all([
@@ -493,8 +484,8 @@ export class LinguisticService {
       db.collections.speakers.findOne({ selector: { id: targetId } }).exec(),
     ]);
 
-    if (!sourceDoc) throw new Error(`来源说话人不存在: ${sourceId}`);
-    if (!targetDoc) throw new Error(`目标说话人不存在: ${targetId}`);
+    if (!sourceDoc) throw new Error(`\u6765\u6e90\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${sourceId}`);
+    if (!targetDoc) throw new Error(`\u76ee\u6807\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${targetId}`);
 
     const target = targetDoc.toJSON();
     const now = new Date().toISOString();
@@ -537,11 +528,11 @@ export class LinguisticService {
   ): Promise<number> {
     const db = await getDb();
     const id = speakerId.trim();
-    if (!id) throw new Error('说话人 ID 不能为空');
+    if (!id) throw new Error('\u8bf4\u8bdd\u4eba ID \u4e0d\u80fd\u4e3a\u7a7a');
 
     const strategy = options.strategy ?? 'reject';
     const speakerDoc = await db.collections.speakers.findOne({ selector: { id } }).exec();
-    if (!speakerDoc) throw new Error(`说话人不存在: ${id}`);
+    if (!speakerDoc) throw new Error(`\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${id}`);
 
     const utteranceDocs = await db.collections.utterances.findByIndex('speakerId', id);
     const utterances = utteranceDocs.map((doc) => doc.toJSON());
@@ -550,17 +541,17 @@ export class LinguisticService {
     const affectedCount = utterances.length + segments.length;
 
     if (affectedCount > 0 && strategy === 'reject') {
-      throw new Error(`说话人仍被 ${affectedCount} 条句段引用`);
+      throw new Error(`\u8bf4\u8bdd\u4eba\u4ecd\u88ab ${affectedCount} \u6761\u53e5\u6bb5\u5f15\u7528`);
     }
 
     const now = new Date().toISOString();
 
     if (affectedCount > 0 && strategy === 'merge') {
       const targetId = options.targetSpeakerId?.trim();
-      if (!targetId) throw new Error('删除说话人时未指定迁移目标');
-      if (targetId === id) throw new Error('迁移目标不能是当前说话人');
+      if (!targetId) throw new Error('\u5220\u9664\u8bf4\u8bdd\u4eba\u65f6\u672a\u6307\u5b9a\u8fc1\u79fb\u76ee\u6807');
+      if (targetId === id) throw new Error('\u8fc1\u79fb\u76ee\u6807\u4e0d\u80fd\u662f\u5f53\u524d\u8bf4\u8bdd\u4eba');
       const targetDoc = await db.collections.speakers.findOne({ selector: { id: targetId } }).exec();
-      if (!targetDoc) throw new Error(`目标说话人不存在: ${targetId}`);
+      if (!targetDoc) throw new Error(`\u76ee\u6807\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${targetId}`);
       const target = targetDoc.toJSON();
 
       const normalized = utterances.map((row) => normalizeUtteranceDocForStorage({
@@ -624,7 +615,7 @@ export class LinguisticService {
     if (selectedSpeakerId) {
       const speakerDoc = await db.collections.speakers.findOne({ selector: { id: selectedSpeakerId } }).exec();
       if (!speakerDoc) {
-        throw new Error(`说话人不存在: ${selectedSpeakerId}`);
+        throw new Error(`\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${selectedSpeakerId}`);
       }
       speaker = speakerDoc.toJSON();
     }
@@ -661,7 +652,7 @@ export class LinguisticService {
     if (selectedSpeakerId) {
       const speakerDoc = await db.collections.speakers.findOne({ selector: { id: selectedSpeakerId } }).exec();
       if (!speakerDoc) {
-        throw new Error(`说话人不存在: ${selectedSpeakerId}`);
+        throw new Error(`\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${selectedSpeakerId}`);
       }
       resolvedSpeakerId = speakerDoc.toJSON().id;
     }
@@ -757,7 +748,7 @@ export class LinguisticService {
     const existing = await db.collections.utterance_tokens
       .findOne({ selector: { id: tokenId } }).exec();
     if (!existing) {
-      throw new Error(`未找到 token: ${tokenId}`);
+      throw new Error(`\u672a\u627e\u5230 token: ${tokenId}`);
     }
 
     const row = existing.toJSON();
@@ -777,7 +768,7 @@ export class LinguisticService {
     const existing = await db.collections.utterance_tokens
       .findOne({ selector: { id: tokenId } }).exec();
     if (!existing) {
-      throw new Error(`未找到 token: ${tokenId}`);
+      throw new Error(`\u672a\u627e\u5230 token: ${tokenId}`);
     }
 
     const row = existing.toJSON();
@@ -787,7 +778,7 @@ export class LinguisticService {
     if (trimmed.length > 0) {
       nextGloss = { ...(row.gloss ?? {}), [lang]: trimmed };
     } else if (row.gloss) {
-      // 清除指定语言的 gloss；若无其他语言则整体清除
+      // \u6e05\u9664\u6307\u5b9a\u8bed\u8a00\u7684 gloss；\u82e5\u65e0\u5176\u4ed6\u8bed\u8a00\u5219\u6574\u4f53\u6e05\u9664
       // Remove gloss for this lang; clear entirely if no other langs remain
       const { [lang]: _removed, ...rest } = row.gloss;
       nextGloss = Object.keys(rest).length > 0 ? rest : undefined;
@@ -922,7 +913,7 @@ export class LinguisticService {
 
   static async saveUtteranceText(data: UtteranceTextDocType): Promise<string> {
     const db = await getDb();
-    // 写入 V2 segment 表 | Write to V2 segment tables
+    // \u5199\u5165 V2 segment \u8868 | Write to V2 segment tables
     const utterance = await db.collections.utterances.findOne({ selector: { id: data.utteranceId } }).exec();
     if (utterance) {
       await syncUtteranceTextToSegmentationV2(db, utterance.toJSON() as UtteranceDocType, data);
@@ -1117,6 +1108,19 @@ export class LinguisticService {
     return doc.primary;
   }
 
+  private static async _persistTierAnnotationAtomic(
+    data: TierAnnotationDocType,
+    source: AuditSource,
+    mediaId?: string,
+  ): Promise<string> {
+    const db = await getDb();
+    return db.dexie.transaction(
+      'rw',
+      [db.dexie.tier_annotations, db.dexie.anchors, db.dexie.audit_logs],
+      async () => this._persistTierAnnotation(data, source, mediaId),
+    );
+  }
+
   /**
    * Save tier annotation with full constraint validation.
    * Loads the tier graph context, simulates adding this annotation,
@@ -1154,7 +1158,7 @@ export class LinguisticService {
       return { id: '', errors, warnings: [] };
     }
 
-    const id = await this._persistTierAnnotation(data, source, mediaId);
+    const id = await this._persistTierAnnotationAtomic(data, source, mediaId);
     const warnings = violations.filter((v) => v.severity === 'warning');
     return { id, errors: [], warnings };
   }
@@ -1214,10 +1218,15 @@ export class LinguisticService {
       return { violations: errors, warnings: [] };
     }
 
-    // Persist + audit (using internal method to skip per-item re-validation)
-    for (const ann of newAnnotations) {
-      await this._persistTierAnnotation(ann, 'human', mediaId);
-    }
+    await db.dexie.transaction(
+      'rw',
+      [db.dexie.tier_annotations, db.dexie.anchors, db.dexie.audit_logs],
+      async () => {
+        for (const ann of newAnnotations) {
+          await this._persistTierAnnotation(ann, 'human', mediaId);
+        }
+      },
+    );
 
     const warnings = allViolations.filter((v) => v.severity === 'warning');
     return { violations: [], warnings };
@@ -1267,335 +1276,46 @@ export class LinguisticService {
     return { textId };
   }
 
-  static async createOrthography(input: {
-    languageId: string;
-    name: MultiLangString;
-    abbreviation?: string;
-    type?: OrthographyDocType['type'];
-    scriptTag?: string;
-    localeTag?: string;
-    regionTag?: string;
-    variantTag?: string;
-    direction?: OrthographyDocType['direction'];
-    exemplarCharacters?: OrthographyDocType['exemplarCharacters'];
-    normalization?: OrthographyDocType['normalization'];
-    collation?: OrthographyDocType['collation'];
-    fontPreferences?: OrthographyDocType['fontPreferences'];
-    inputHints?: OrthographyDocType['inputHints'];
-    bidiPolicy?: OrthographyDocType['bidiPolicy'];
-    conversionRules?: Record<string, unknown>;
-    notes?: MultiLangString;
-  }): Promise<OrthographyDocType> {
-    const db = await getDb();
-    const now = new Date().toISOString();
-    const orthography: OrthographyDocType = {
-      id: newId('orth'),
-      name: input.name,
-      languageId: input.languageId,
-      ...(input.abbreviation ? { abbreviation: input.abbreviation } : {}),
-      ...(input.type ? { type: input.type } : {}),
-      ...(input.scriptTag ? { scriptTag: input.scriptTag } : {}),
-      ...(input.localeTag ? { localeTag: input.localeTag } : {}),
-      ...(input.regionTag ? { regionTag: input.regionTag } : {}),
-      ...(input.variantTag ? { variantTag: input.variantTag } : {}),
-      ...(input.direction ? { direction: input.direction } : {}),
-      ...(input.exemplarCharacters ? { exemplarCharacters: input.exemplarCharacters } : {}),
-      ...(input.normalization ? { normalization: input.normalization } : {}),
-      ...(input.collation ? { collation: input.collation } : {}),
-      ...(input.fontPreferences ? { fontPreferences: input.fontPreferences } : {}),
-      ...(input.inputHints ? { inputHints: input.inputHints } : {}),
-      ...(input.bidiPolicy ? { bidiPolicy: input.bidiPolicy } : {}),
-      ...(input.conversionRules ? { conversionRules: input.conversionRules } : {}),
-      ...(input.notes ? { notes: input.notes } : {}),
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await db.collections.orthographies.insert(orthography);
-    return orthography;
+  static async createOrthography(input: CreateOrthographyInput): Promise<OrthographyDocType> {
+    return createOrthographyRecord(input);
   }
 
-  static async cloneOrthographyToLanguage(input: {
-    sourceOrthographyId: string;
-    targetLanguageId: string;
-    name?: MultiLangString;
-    abbreviation?: string;
-    type?: OrthographyDocType['type'];
-    scriptTag?: string;
-    localeTag?: string;
-    regionTag?: string;
-    variantTag?: string;
-    direction?: OrthographyDocType['direction'];
-    exemplarCharacters?: OrthographyDocType['exemplarCharacters'];
-    normalization?: OrthographyDocType['normalization'];
-    collation?: OrthographyDocType['collation'];
-    fontPreferences?: OrthographyDocType['fontPreferences'];
-    inputHints?: OrthographyDocType['inputHints'];
-    bidiPolicy?: OrthographyDocType['bidiPolicy'];
-    conversionRules?: Record<string, unknown>;
-    notes?: MultiLangString;
-  }): Promise<OrthographyDocType> {
-    const db = await getDb();
-    const sourceDoc = await db.collections.orthographies.findOne({
-      selector: { id: input.sourceOrthographyId },
-    }).exec();
-    const source = sourceDoc?.toJSON();
-    if (!source) {
-      throw new Error('源正字法不存在');
-    }
-
-    return LinguisticService.createOrthography({
-      languageId: input.targetLanguageId,
-      name: input.name ?? source.name,
-      ...((input.abbreviation ?? source.abbreviation) !== undefined
-        ? { abbreviation: input.abbreviation ?? source.abbreviation }
-        : {}),
-      ...((input.type ?? source.type) !== undefined ? { type: input.type ?? source.type } : {}),
-      ...((input.scriptTag ?? source.scriptTag) !== undefined
-        ? { scriptTag: input.scriptTag ?? source.scriptTag }
-        : {}),
-      ...((input.localeTag ?? source.localeTag) !== undefined
-        ? { localeTag: input.localeTag ?? source.localeTag }
-        : {}),
-      ...((input.regionTag ?? source.regionTag) !== undefined
-        ? { regionTag: input.regionTag ?? source.regionTag }
-        : {}),
-      ...((input.variantTag ?? source.variantTag) !== undefined
-        ? { variantTag: input.variantTag ?? source.variantTag }
-        : {}),
-      ...((input.direction ?? source.direction) !== undefined
-        ? { direction: input.direction ?? source.direction }
-        : {}),
-      ...((input.exemplarCharacters ?? source.exemplarCharacters) !== undefined
-        ? { exemplarCharacters: input.exemplarCharacters ?? source.exemplarCharacters }
-        : {}),
-      ...((input.normalization ?? source.normalization) !== undefined
-        ? { normalization: input.normalization ?? source.normalization }
-        : {}),
-      ...((input.collation ?? source.collation) !== undefined
-        ? { collation: input.collation ?? source.collation }
-        : {}),
-      ...((input.fontPreferences ?? source.fontPreferences) !== undefined
-        ? { fontPreferences: input.fontPreferences ?? source.fontPreferences }
-        : {}),
-      ...((input.inputHints ?? source.inputHints) !== undefined
-        ? { inputHints: input.inputHints ?? source.inputHints }
-        : {}),
-      ...((input.bidiPolicy ?? source.bidiPolicy) !== undefined
-        ? { bidiPolicy: input.bidiPolicy ?? source.bidiPolicy }
-        : {}),
-      ...((input.conversionRules ?? source.conversionRules) !== undefined
-        ? { conversionRules: input.conversionRules ?? source.conversionRules }
-        : {}),
-      ...((input.notes ?? source.notes) !== undefined ? { notes: input.notes ?? source.notes } : {}),
-    });
+  static async cloneOrthographyToLanguage(input: CloneOrthographyToLanguageInput): Promise<OrthographyDocType> {
+    return cloneOrthographyRecordToLanguage(input);
   }
 
-  static async createOrthographyTransform(input: {
-    sourceOrthographyId: string;
-    targetOrthographyId: string;
-    engine: OrthographyTransformDocType['engine'];
-    rules: OrthographyTransformDocType['rules'];
-    name?: MultiLangString;
-    sampleInput?: string;
-    sampleOutput?: string;
-    sampleCases?: OrthographyTransformDocType['sampleCases'];
-    isReversible?: boolean;
-    status?: OrthographyTransformDocType['status'];
-    notes?: MultiLangString;
-  }): Promise<OrthographyTransformDocType> {
-    const db = await getDb();
-    const now = new Date().toISOString();
-    const transform: OrthographyTransformDocType = {
-      id: newId('orthxfm'),
-      sourceOrthographyId: input.sourceOrthographyId,
-      targetOrthographyId: input.targetOrthographyId,
-      engine: input.engine,
-      rules: input.rules,
-      ...(input.name ? { name: input.name } : {}),
-      ...(input.sampleInput ? { sampleInput: input.sampleInput } : {}),
-      ...(input.sampleOutput ? { sampleOutput: input.sampleOutput } : {}),
-      ...(input.sampleCases ? { sampleCases: input.sampleCases } : {}),
-      ...(input.isReversible !== undefined ? { isReversible: input.isReversible } : {}),
-      ...(input.status ? { status: input.status } : {}),
-      ...(input.notes ? { notes: input.notes } : {}),
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await db.collections.orthography_transforms.insert(transform);
-    return transform;
+  static async createOrthographyTransform(input: CreateOrthographyTransformInput): Promise<OrthographyTransformDocType> {
+    return createOrthographyTransformRecord(input);
   }
 
-  static async listOrthographyTransforms(selector: {
-    sourceOrthographyId?: string;
-    targetOrthographyId?: string;
-  } = {}): Promise<OrthographyTransformDocType[]> {
-    const db = await getDb();
-    const docs = await db.collections.orthography_transforms.find().exec();
-    const rankStatus = (status: OrthographyTransformDocType['status']): number => {
-      if (status === 'active') return 0;
-      if (status === 'draft' || status === undefined) return 1;
-      return 2;
-    };
-    return docs
-      .map((doc) => doc.toJSON())
-      .filter((doc) => {
-        if (selector.sourceOrthographyId && doc.sourceOrthographyId !== selector.sourceOrthographyId) {
-          return false;
-        }
-        if (selector.targetOrthographyId && doc.targetOrthographyId !== selector.targetOrthographyId) {
-          return false;
-        }
-        return true;
-      })
-      .sort((left, right) => {
-        const rankDiff = rankStatus(left.status) - rankStatus(right.status);
-        if (rankDiff !== 0) return rankDiff;
-        return (right.updatedAt || right.createdAt).localeCompare(left.updatedAt || left.createdAt);
-      });
+  static async listOrthographyTransforms(
+    selector: ListOrthographyTransformsSelector = {},
+  ): Promise<OrthographyTransformDocType[]> {
+    return listOrthographyTransformRecords(selector);
   }
 
-  static async updateOrthographyTransform(input: {
-    id: string;
-    sourceOrthographyId?: string;
-    targetOrthographyId?: string;
-    name?: MultiLangString | null;
-    engine?: OrthographyTransformDocType['engine'];
-    rules?: OrthographyTransformDocType['rules'];
-    sampleInput?: string | null;
-    sampleOutput?: string | null;
-    sampleCases?: OrthographyTransformDocType['sampleCases'] | null;
-    isReversible?: boolean | null;
-    status?: OrthographyTransformDocType['status'] | null;
-    notes?: MultiLangString | null;
-  }): Promise<OrthographyTransformDocType> {
-    const db = await getDb();
-    const existing = await db.dexie.orthography_transforms.get(input.id);
-    if (!existing) {
-      throw new Error('正字法变换不存在');
-    }
-
-    const next: OrthographyTransformDocType = {
-      ...existing,
-      ...(input.sourceOrthographyId ? { sourceOrthographyId: input.sourceOrthographyId } : {}),
-      ...(input.targetOrthographyId ? { targetOrthographyId: input.targetOrthographyId } : {}),
-      ...(input.engine ? { engine: input.engine } : {}),
-      ...(input.rules ? { rules: input.rules } : {}),
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (input.name === null) {
-      delete next.name;
-    } else if (input.name !== undefined) {
-      next.name = input.name;
-    }
-
-    if (input.sampleInput === null) {
-      delete next.sampleInput;
-    } else if (input.sampleInput !== undefined) {
-      next.sampleInput = input.sampleInput;
-    }
-
-    if (input.sampleOutput === null) {
-      delete next.sampleOutput;
-    } else if (input.sampleOutput !== undefined) {
-      next.sampleOutput = input.sampleOutput;
-    }
-
-    if (input.sampleCases === null) {
-      delete next.sampleCases;
-    } else if (input.sampleCases !== undefined) {
-      next.sampleCases = input.sampleCases;
-    }
-
-    if (input.isReversible === null) {
-      delete next.isReversible;
-    } else if (input.isReversible !== undefined) {
-      next.isReversible = input.isReversible;
-    }
-
-    if (input.status === null) {
-      delete next.status;
-    } else if (input.status !== undefined) {
-      next.status = input.status;
-    }
-
-    if (input.notes === null) {
-      delete next.notes;
-    } else if (input.notes !== undefined) {
-      next.notes = input.notes;
-    }
-
-    await db.collections.orthography_transforms.insert(next);
-    return next;
+  static async updateOrthographyTransform(input: UpdateOrthographyTransformInput): Promise<OrthographyTransformDocType> {
+    return updateOrthographyTransformRecord(input);
   }
 
   static async deleteOrthographyTransform(id: string): Promise<void> {
-    const db = await getDb();
-    await db.collections.orthography_transforms.remove(id);
+    return deleteOrthographyTransformRecord(id);
   }
 
-  static async getActiveOrthographyTransform(input: {
-    sourceOrthographyId: string;
-    targetOrthographyId: string;
-  }): Promise<OrthographyTransformDocType | null> {
-    const db = await getDb();
-    const candidates = await db.dexie.orthography_transforms
-      .where('[sourceOrthographyId+targetOrthographyId]')
-      .equals([input.sourceOrthographyId, input.targetOrthographyId])
-      .toArray();
-
-    const rankStatus = (status: OrthographyTransformDocType['status']): number => {
-      if (status === 'active') return 0;
-      if (status === 'draft' || status === undefined) return 1;
-      return 2;
-    };
-
-    const preferred = candidates
-      .filter((doc) => doc.status !== 'deprecated')
-      .sort((left, right) => {
-        const rankDiff = rankStatus(left.status) - rankStatus(right.status);
-        if (rankDiff !== 0) return rankDiff;
-        return (right.updatedAt || right.createdAt).localeCompare(left.updatedAt || left.createdAt);
-      })[0];
-
-    return preferred ?? null;
+  static async getActiveOrthographyTransform(
+    input: GetActiveOrthographyTransformInput,
+  ): Promise<OrthographyTransformDocType | null> {
+    return getActiveOrthographyTransformRecord(input);
   }
 
-  static async applyOrthographyTransform(input: {
-    sourceOrthographyId: string;
-    targetOrthographyId: string;
-    text: string;
-  }): Promise<{ text: string; transformId?: string }> {
-    if (!input.text || input.sourceOrthographyId === input.targetOrthographyId) {
-      return { text: input.text };
-    }
-
-    const transform = await LinguisticService.getActiveOrthographyTransform({
-      sourceOrthographyId: input.sourceOrthographyId,
-      targetOrthographyId: input.targetOrthographyId,
-    });
-    if (!transform) {
-      return { text: input.text };
-    }
-
-    return {
-      text: previewOrthographyTransform({
-        engine: transform.engine,
-        rules: transform.rules,
-        text: input.text,
-      }),
-      transformId: transform.id,
-    };
+  static async applyOrthographyTransform(
+    input: ApplyOrthographyTransformInput,
+  ): Promise<{ text: string; transformId?: string }> {
+    return applyOrthographyTransformRecord(input);
   }
 
-  static previewOrthographyTransform(input: {
-    engine: OrthographyTransformDocType['engine'];
-    rules: OrthographyTransformDocType['rules'];
-    text: string;
-  }): string {
-    return previewOrthographyTransform(input);
+  static previewOrthographyTransform(input: PreviewOrthographyTransformInput): string {
+    return previewOrthographyTransformText(input);
   }
 
   // ── Audio import ───────────────────────────────────────────

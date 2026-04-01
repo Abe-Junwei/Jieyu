@@ -21,10 +21,34 @@ const VOICE_COMMERCIAL_STT_STORAGE_KEY = 'jieyu.voiceAgent.commercialStt';
 const VOICE_LOCAL_WHISPER_STORAGE_KEY = 'jieyu.voiceAgent.localWhisper';
 const log = createLogger('useVoiceDock');
 
+function sanitizeCommercialConfig(config: CommercialProviderConfig | undefined): CommercialProviderConfig {
+  if (!config) return {};
+  return {
+    ...(typeof config.baseUrl === 'string' ? { baseUrl: config.baseUrl } : {}),
+    ...(typeof config.model === 'string' ? { model: config.model } : {}),
+    ...(typeof config.appId === 'string' ? { appId: config.appId } : {}),
+  };
+}
+
+function isCommercialProviderKind(value: unknown): value is CommercialProviderKind {
+  return value === 'groq'
+    || value === 'gemini'
+    || value === 'openai-audio'
+    || value === 'custom-http'
+    || value === 'minimax'
+    || value === 'volcengine';
+}
+
 function loadCommercialSttConfig(): { kind: CommercialProviderKind; config: CommercialProviderConfig } {
   try {
     const raw = window.localStorage.getItem(VOICE_COMMERCIAL_STT_STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as { kind: CommercialProviderKind; config: CommercialProviderConfig };
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<{ kind: CommercialProviderKind; config: CommercialProviderConfig }>;
+      return {
+        kind: isCommercialProviderKind(parsed.kind) ? parsed.kind : 'groq',
+        config: sanitizeCommercialConfig(parsed.config),
+      };
+    }
   } catch (error) {
     log.warn('Failed to load commercial STT config from localStorage', {
       key: VOICE_COMMERCIAL_STT_STORAGE_KEY,
@@ -34,9 +58,9 @@ function loadCommercialSttConfig(): { kind: CommercialProviderKind; config: Comm
   return { kind: 'groq', config: {} };
 }
 
-function saveCommercialSttConfig(kind: string, config: CommercialProviderConfig): void {
+function saveCommercialSttConfig(kind: CommercialProviderKind, config: CommercialProviderConfig): void {
   try {
-    window.localStorage.setItem(VOICE_COMMERCIAL_STT_STORAGE_KEY, JSON.stringify({ kind, config }));
+    window.localStorage.setItem(VOICE_COMMERCIAL_STT_STORAGE_KEY, JSON.stringify({ kind, config: sanitizeCommercialConfig(config) }));
   } catch (error) {
     log.warn('Failed to save commercial STT config to localStorage', {
       key: VOICE_COMMERCIAL_STT_STORAGE_KEY,

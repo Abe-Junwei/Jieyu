@@ -85,7 +85,7 @@ describe('useTranscriptionSidebarSectionsViewModel', () => {
     });
   });
 
-  it('builds assistant status summary from current sidebar signals', () => {
+  it('keeps assistant attention count for current sidebar signals', () => {
     const { result } = renderHook(() => useTranscriptionSidebarSectionsViewModel(createBaseInput({
       assistantRuntimeProps: {
         locale: 'zh-CN',
@@ -104,7 +104,6 @@ describe('useTranscriptionSidebarSectionsViewModel', () => {
       selectedTranslationGapCount: 2,
     })));
 
-    expect(result.current.aiSidebarProps.assistantStatusSummary.headline).toBe('任务进行中');
-    expect(result.current.aiSidebarProps.assistantStatusSummary.chips).toContain('待补翻译 2');
+    expect(result.current.aiSidebarProps.assistantAttentionCount).toBe(1);
   });
 });

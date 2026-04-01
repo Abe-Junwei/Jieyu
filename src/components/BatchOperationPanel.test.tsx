@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BatchOperationPanel } from './BatchOperationPanel';
+import { LocaleProvider } from '../i18n';
 
 // Mock ResizeObserver for useDraggablePanel
 class MockResizeObserver {
@@ -20,6 +21,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function renderZh(ui: Parameters<typeof render>[0]) {
+  return render(<LocaleProvider locale="zh-CN">{ui}</LocaleProvider>);
+}
+
 function makeUtterance(id: string, startTime: number, endTime: number) {
   return { id, startTime, endTime };
 }
@@ -29,7 +34,7 @@ describe('BatchOperationPanel preview table', () => {
     cleanup();
   });
   it('shows overlap conflict for offset preview and blocks submit', () => {
-    render(
+    renderZh(
       <BatchOperationPanel
         selectedCount={1}
         selectedUtterances={[makeUtterance('u1', 0, 1)]}
@@ -51,7 +56,7 @@ describe('BatchOperationPanel preview table', () => {
   });
 
   it('shows invalid regex as blocking conflict in split preview', () => {
-    render(
+    renderZh(
       <BatchOperationPanel
         selectedCount={1}
         selectedUtterances={[makeUtterance('u1', 0, 1)]}
@@ -73,7 +78,7 @@ describe('BatchOperationPanel preview table', () => {
   });
 
   it('keeps toggle visible when no conflicts under conflict-only mode', () => {
-    render(
+    renderZh(
       <BatchOperationPanel
         selectedCount={1}
         selectedUtterances={[makeUtterance('u1', 0, 1)]}
@@ -100,7 +105,7 @@ describe('BatchOperationPanel preview table', () => {
   });
 
   it('supports layer-wide quick preview for all utterances', () => {
-    render(
+    renderZh(
       <BatchOperationPanel
         selectedCount={0}
         selectedUtterances={[]}
@@ -133,7 +138,7 @@ describe('BatchOperationPanel preview table', () => {
   it('shows utterance content and supports jump for each row', () => {
     const onJump = vi.fn();
     const onClose = vi.fn();
-    render(
+    renderZh(
       <BatchOperationPanel
         selectedCount={1}
         selectedUtterances={[makeUtterance('u1', 0, 1)]}
@@ -157,7 +162,7 @@ describe('BatchOperationPanel preview table', () => {
   });
 
   it('applies orthography-aware preview dir and style to batch preview content', () => {
-    render(
+    renderZh(
       <BatchOperationPanel
         selectedCount={1}
         selectedUtterances={[makeUtterance('u1', 0, 1)]}

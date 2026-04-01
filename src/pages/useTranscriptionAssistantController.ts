@@ -155,7 +155,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     const targetUtterance = input.selectedTimelineOwnerUtterance;
     if (!targetUtterance) {
       reportValidationError({
-        message: '请先选择要填充的句段',
+        message: '\u8bf7\u5148\u9009\u62e9\u8981\u586b\u5145\u7684\u53e5\u6bb5',
         i18nKey: 'transcription.error.validation.voiceDictationUtteranceRequired',
         setErrorState: ({ message, meta }) => input.setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -163,13 +163,13 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     }
     const resolvedTarget = resolveVoiceDictationTarget({
       selectedLayerId: input.selectedLayerId,
-      defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,
+      ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
       translationLayers: input.translationLayers,
       layers: input.layers,
     });
     if (!resolvedTarget) {
       reportValidationError({
-        message: '无可用层，请先创建转写或翻译层',
+        message: '\u65e0\u53ef\u7528\u5c42，\u8bf7\u5148\u521b\u5efa\u8f6c\u5199\u6216\u7ffb\u8bd1\u5c42',
         i18nKey: 'transcription.error.validation.voiceDictationLayerRequired',
         setErrorState: ({ message, meta }) => input.setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -212,7 +212,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     if (isSegmentTimelineUnit(input.selectedTimelineUnit)) return undefined;
     return createVoiceDictationPipeline({
       selectedLayerId: input.selectedLayerId,
-      defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,
+      ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
       translationLayers: input.translationLayers,
       layers: input.layers,
       selectedTimelineOwnerUtterance: input.selectedTimelineOwnerUtterance,
@@ -238,7 +238,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
 
   const handleVoiceAnalysisResult = useCallback(async (utteranceId: string | null, analysisText: string) => {
     if (!utteranceId) {
-      const message = '请先选择要分析的句段';
+      const message = '\u8bf7\u5148\u9009\u62e9\u8981\u5206\u6790\u7684\u53e5\u6bb5';
       reportValidationError({
         message,
         i18nKey: 'transcription.error.validation.voiceAnalysisUtteranceRequired',
@@ -248,7 +248,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     }
     const trimmed = analysisText.trim();
     if (!trimmed) {
-      const message = '分析结果为空，未写回句段备注';
+      const message = '\u5206\u6790\u7ed3\u679c\u4e3a\u7a7a，\u672a\u5199\u56de\u53e5\u6bb5\u5907\u6ce8';
       return { ok: false, message };
     }
     try {
@@ -256,7 +256,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
       const utterances = await db.collections.utterances.find().exec();
       const target = utterances.find((item) => item.id === utteranceId);
       if (!target) {
-        const message = '未找到目标句段';
+        const message = '\u672a\u627e\u5230\u76ee\u6807\u53e5\u6bb5';
         reportValidationError({
           message,
           i18nKey: 'transcription.error.validation.voiceAnalysisTargetMissing',
@@ -264,7 +264,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
         });
         return { ok: false, message };
       }
-      pushUndo('AI 分析填充');
+      pushUndo('AI \u5206\u6790\u586b\u5145');
       const now = new Date().toISOString();
       const doc = target.toJSON() as UtteranceDocType;
       const existingNotes = doc.notes ?? {};
@@ -275,19 +275,19 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
       };
       await db.collections.utterances.insert(updated);
       setUtterances((prev) => prev.map((item) => (item.id === utteranceId ? updated : item)));
-      const message = 'AI 分析结果已保存到句段备注';
+      const message = 'AI \u5206\u6790\u7ed3\u679c\u5df2\u4fdd\u5b58\u5230\u53e5\u6bb5\u5907\u6ce8';
       setSaveState({ kind: 'done', message });
       return { ok: true, message };
     } catch (error) {
       reportActionError({
-        actionLabel: '保存分析结果',
+        actionLabel: '\u4fdd\u5b58\u5206\u6790\u7ed3\u679c',
         error,
         i18nKey: 'transcription.error.action.voiceAnalysisSaveFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
       return {
         ok: false,
-        message: error instanceof Error ? error.message : '保存分析结果失败',
+        message: error instanceof Error ? error.message : '\u4fdd\u5b58\u5206\u6790\u7ed3\u679c\u5931\u8d25',
       };
     }
   }, [pushUndo, setSaveState, setUtterances]);

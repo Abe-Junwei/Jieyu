@@ -220,6 +220,22 @@ describe('useVoiceAgent', () => {
       expect(result.current.listening).toBe(true);
     });
 
+    it('keeps push-to-talk engines idle until recording starts', async () => {
+      const { result } = renderHook(() =>
+        useVoiceAgent({ executeAction: makeExecuteAction() }),
+      );
+
+      act(() => {
+        result.current.switchEngine('whisper-local');
+      });
+
+      await act(async () => { await result.current.start('dictation'); });
+
+      expect(result.current.engine).toBe('whisper-local');
+      expect(result.current.listening).toBe(true);
+      expect(result.current.agentState).toBe('idle');
+    });
+
     it('sets error and stays idle when start() fails', async () => {
       voiceInputServiceMockState.setMockStartError(new Error('mic denied'));
       const { result } = renderHook(() =>

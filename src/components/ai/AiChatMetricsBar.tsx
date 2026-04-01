@@ -19,30 +19,30 @@ export function AiChatMetricsBar({
       className="ai-chat-metrics-bar"
       style={{
         display: 'flex', gap: 8, flexWrap: 'wrap', padding: '3px 0',
-        fontSize: 10, color: '#64748b', flexShrink: 0,
+        fontSize: 10, color: 'var(--text-secondary)', flexShrink: 0,
       }}
     >
-      <span title={isZh ? '对话轮次' : 'Turns'}>{isZh ? '轮次' : 'Turns'} {aiInteractionMetrics.turnCount}</span>
+      <span title={isZh ? '\u5bf9\u8bdd\u8f6e\u6b21' : 'Turns'}>{isZh ? '\u8f6e\u6b21' : 'Turns'} {aiInteractionMetrics.turnCount}</span>
       {aiInteractionMetrics.successCount > 0 && (
-        <span style={{ color: '#16a34a' }} title={isZh ? '执行成功' : 'Successes'}>✓ {aiInteractionMetrics.successCount}</span>
+        <span style={{ color: 'var(--state-success-text)' }} title={isZh ? '\u6267\u884c\u6210\u529f' : 'Successes'}>✓ {aiInteractionMetrics.successCount}</span>
       )}
       {aiInteractionMetrics.failureCount > 0 && (
-        <span style={{ color: '#dc2626' }} title={isZh ? '执行失败' : 'Failures'}>✗ {aiInteractionMetrics.failureCount}</span>
+        <span style={{ color: 'var(--state-danger-solid)' }} title={isZh ? '\u6267\u884c\u5931\u8d25' : 'Failures'}>✗ {aiInteractionMetrics.failureCount}</span>
       )}
       {aiInteractionMetrics.clarifyCount > 0 && (
-        <span title={isZh ? '澄清次数' : 'Clarifications'}>{isZh ? '澄清' : 'Clarify'} {aiInteractionMetrics.clarifyCount}</span>
+        <span title={isZh ? '\u6f84\u6e05\u6b21\u6570' : 'Clarifications'}>{isZh ? '\u6f84\u6e05' : 'Clarify'} {aiInteractionMetrics.clarifyCount}</span>
       )}
       {aiInteractionMetrics.cancelCount > 0 && (
-        <span title={isZh ? '取消次数' : 'Cancellations'}>{isZh ? '取消' : 'Cancel'} {aiInteractionMetrics.cancelCount}</span>
+        <span title={isZh ? '\u53d6\u6d88\u6b21\u6570' : 'Cancellations'}>{isZh ? '\u53d6\u6d88' : 'Cancel'} {aiInteractionMetrics.cancelCount}</span>
       )}
       {aiInteractionMetrics.explainFallbackCount > 0 && (
-        <span title={isZh ? '解释回退' : 'Explain fallbacks'}>{isZh ? '解释' : 'Explain'} {aiInteractionMetrics.explainFallbackCount}</span>
+        <span title={isZh ? '\u89e3\u91ca\u56de\u9000' : 'Explain fallbacks'}>{isZh ? '\u89e3\u91ca' : 'Explain'} {aiInteractionMetrics.explainFallbackCount}</span>
       )}
       {aiInteractionMetrics.recoveryCount > 0 && (
-        <span style={{ color: '#2563eb' }} title={isZh ? '恢复次数' : 'Recoveries'}>{isZh ? '恢复' : 'Recover'} {aiInteractionMetrics.recoveryCount}</span>
+        <span style={{ color: 'var(--state-info-solid)' }} title={isZh ? '\u6062\u590d\u6b21\u6570' : 'Recoveries'}>{isZh ? '\u6062\u590d' : 'Recover'} {aiInteractionMetrics.recoveryCount}</span>
       )}
       {aiSessionMemory?.lastToolName && (
-        <span style={{ marginLeft: 'auto', fontStyle: 'italic' }} title={isZh ? '上次工具' : 'Last tool'}>
+        <span style={{ marginLeft: 'auto', fontStyle: 'italic' }} title={isZh ? '\u4e0a\u6b21\u5de5\u5177' : 'Last tool'}>
           {formatToolName(isZh, aiSessionMemory.lastToolName)}
         </span>
       )}

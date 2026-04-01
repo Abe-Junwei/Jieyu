@@ -1,15 +1,13 @@
 /**
- * VoiceInputService — 语音采集与识别
+ * VoiceInputService - voice capture and speech recognition.
  *
- * 统一管理麦克风权限、音频流、STT 转写。
- * 支持:
- *   - Web Speech API (浏览器内置)
- *   - whisper-local (whisper.cpp HTTP 服务, 端口 3040)
- *   - commercial (Groq/Gemini 等商业 STT)
+ * Centralizes microphone permission handling, audio streams, and STT transcription.
+ * Supports:
+ *   - Web Speech API (browser-native)
+ *   - whisper-local (whisper.cpp HTTP service on port 3040)
+ *   - commercial (Groq/Gemini and other hosted STT providers)
  *
- * 注意: Ollama (端口 11434) 不支持音频转写 API.
- *
- * @see 解语-语音智能体架构设计方案 §4.1
+ * Note: Ollama on port 11434 does not expose an audio transcription API.
  */
 
 import type { Region } from '../utils/regionDetection';
@@ -176,7 +174,7 @@ export async function testOllamaWhisperAvailability(
   const normalizedBaseUrl = (baseUrl || 'http://localhost:11434').replace(/\/+$/, '');
   const normalizedModel = model.trim();
   if (!normalizedModel) {
-    return { available: false, error: '请先填写本地 Whisper 模型名' };
+    return { available: false, error: '\u8bf7\u5148\u586b\u5199\u672c\u5730 Whisper \u6a21\u578b\u540d' };
   }
 
   const tagsUrl = `${normalizedBaseUrl.replace(/\/v1$/, '')}/api/tags`;
@@ -184,7 +182,7 @@ export async function testOllamaWhisperAvailability(
   try {
     const resp = await fetch(tagsUrl);
     if (!resp.ok) {
-      return { available: false, error: `无法连接 Ollama 服务：${resp.status}` };
+      return { available: false, error: `\u65e0\u6cd5\u8fde\u63a5 Ollama \u670d\u52a1\uff1a${resp.status}` };
     }
     const json = await resp.json() as { models?: Array<{ name?: string; model?: string }> };
     availableModels = (json.models ?? [])
@@ -192,14 +190,14 @@ export async function testOllamaWhisperAvailability(
       .filter((name): name is string => typeof name === 'string' && name.trim().length > 0);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { available: false, error: `无法连接 Ollama 服务：${message}` };
+    return { available: false, error: `\u65e0\u6cd5\u8fde\u63a5 Ollama \u670d\u52a1\uff1a${message}` };
   }
 
   if (availableModels.length > 0 && !availableModels.includes(normalizedModel)) {
-    const preview = availableModels.slice(0, 3).join('、');
+    const preview = availableModels.slice(0, 3).join('\u3001');
     return {
       available: false,
-      error: `未找到模型 ${normalizedModel}。当前可用模型：${preview || '无'}`,
+      error: `\u672a\u627e\u5230\u6a21\u578b ${normalizedModel}\u3002\u5f53\u524d\u53ef\u7528\u6a21\u578b\uff1a${preview || '\u65e0'}`,
     };
   }
 
@@ -225,7 +223,7 @@ export async function testOllamaWhisperAvailability(
 
   return {
     available: false,
-    error: '当前 Ollama 实例未暴露音频转写接口，请改用支持音频转写的本地服务或其他 STT 引擎',
+    error: '\u5f53\u524d Ollama \u5b9e\u4f8b\u672a\u66b4\u9732\u97f3\u9891\u8f6c\u5199\u63a5\u53e3\uff0c\u8bf7\u6539\u7528\u652f\u6301\u97f3\u9891\u8f6c\u5199\u7684\u672c\u5730\u670d\u52a1\u6216\u5176\u4ed6 STT \u5f15\u64ce',
   };
 }
 
@@ -240,7 +238,7 @@ export async function testWhisperServerAvailability(
   const normalizedBaseUrl = (baseUrl || 'http://localhost:3040').replace(/\/+$/, '');
   const normalizedModel = model.trim();
   if (!normalizedModel) {
-    return { available: false, error: '请先填写 Whisper 模型名' };
+    return { available: false, error: '\u8bf7\u5148\u586b\u5199 Whisper \u6a21\u578b\u540d' };
   }
 
   // Probe the health endpoint
@@ -249,11 +247,11 @@ export async function testWhisperServerAvailability(
       signal: AbortSignal.timeout(4000),
     });
     if (!healthResp.ok) {
-      return { available: false, error: `whisper-server 不可用：${healthResp.status}` };
+      return { available: false, error: `whisper-server \u4e0d\u53ef\u7528\uff1a${healthResp.status}` };
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { available: false, error: `无法连接 whisper-server（${normalizedBaseUrl}）：${msg}` };
+    return { available: false, error: `\u65e0\u6cd5\u8fde\u63a5 whisper-server\uff08${normalizedBaseUrl}\uff09\uff1a${msg}` };
   }
 
   // Probe the transcription endpoint with a valid minimal WAV header
@@ -283,10 +281,10 @@ export async function testWhisperServerAvailability(
     if (resp.status !== 404) {
       return { available: true };
     }
-    return { available: false, error: `whisper-server 未暴露音频转写接口` };
+    return { available: false, error: 'whisper-server \u672a\u66b4\u9732\u97f3\u9891\u8f6c\u5199\u63a5\u53e3' };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { available: false, error: `whisper-server 转写探测失败：${msg}` };
+    return { available: false, error: `whisper-server \u8f6c\u5199\u63a2\u6d4b\u5931\u8d25\uff1a${msg}` };
   }
 }
 
@@ -391,7 +389,7 @@ export class VoiceInputService {
    */
   setLang(lang: string): void {
     this._config = { ...this._config, lang };
-    // 实时更新 Web Speech API 的 lang | Update running Web Speech recognition lang
+    // Update the running Web Speech recognition language without a restart.
     if (this.recognition) {
       this.recognition.lang = lang;
     }
@@ -428,7 +426,7 @@ export class VoiceInputService {
   }
   private recordedChunks: Blob[] = [];
   private _isRecording = false;
-  /** Guard against concurrent stopRecording calls | 防止并发 stopRecording 竞态 */
+  /** Guard against concurrent stopRecording calls. */
   private _stopRecordingPromise: Promise<void> | null = null;
 
   // Listeners
@@ -558,10 +556,10 @@ export class VoiceInputService {
       .map((e) => {
         const reason = this._engineFailureReasons[e];
         const label = this._engineLabel(e);
-        return reason ? `• ${label}：${reason}` : `• ${label}`;
+        return reason ? `• ${label}\uff1a${reason}` : `• ${label}`;
       })
       .join('\n');
-    this.emitError(`所有 STT 引擎均不可用：\n${reasons}\n请检查上述配置和网络连接。`);
+    this.emitError(`\u6240\u6709 STT \u5f15\u64ce\u5747\u4e0d\u53ef\u7528\uff1a\n${reasons}\n\u8bf7\u68c0\u67e5\u4e0a\u8ff0\u914d\u7f6e\u548c\u7f51\u7edc\u8fde\u63a5\u3002`);
     this.setListening(false);
   }
 
@@ -569,7 +567,7 @@ export class VoiceInputService {
     switch (e) {
       case 'web-speech': return 'Web Speech API';
       case 'whisper-local': return 'Whisper.cpp';
-      case 'commercial': return '商业 STT';
+      case 'commercial': return '\u5546\u4e1a STT';
       default: return e;
     }
   }
@@ -591,7 +589,7 @@ export class VoiceInputService {
         // commercial requires push-to-talk (it sends a recorded blob);
         // if no commercial provider is configured, treat as unavailable
         if (!this._config.commercialFallback) {
-          this._engineFailureReasons['commercial'] = '未配置商业 STT provider';
+          this._engineFailureReasons['commercial'] = '\u672a\u914d\u7f6e\u5546\u4e1a STT provider';
           return false;
         }
         this._listening = true;
@@ -605,7 +603,7 @@ export class VoiceInputService {
   private _startWebSpeech(): boolean {
     const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) {
-      this._engineFailureReasons['web-speech'] = '浏览器不支持 Web Speech API';
+      this._engineFailureReasons['web-speech'] = '\u6d4f\u89c8\u5668\u4e0d\u652f\u6301 Web Speech API';
       return false;
     }
 
@@ -656,7 +654,7 @@ export class VoiceInputService {
     // Fatal errors trigger fallback; non-fatal are silently ignored
     rec.onerror = (event: SpeechRecognitionErrorEvent) => {
       if (event.error === 'no-speech' || event.error === 'aborted') return;
-      this._engineFailureReasons['web-speech'] = `Web Speech API 错误: ${event.error}`;
+      this._engineFailureReasons['web-speech'] = `Web Speech API \u9519\u8bef: ${event.error}`;
       // Fatal error — attempt fallback to next engine in chain
       const chain = this.fallbackChain;
       const nextIdx = chain.indexOf('web-speech') + 1;
@@ -666,9 +664,9 @@ export class VoiceInputService {
       } else if (this._config.commercialFallback) {
         // All local engines failed and commercial is configured — notify caller
         this._stopCurrentEngine();
-        this.emitError(`Web Speech 不可用（${event.error}）。请切换到商业 STT 引擎，或检查 Ollama 服务。`);
+        this.emitError(`Web Speech \u4e0d\u53ef\u7528\uff08${event.error}\uff09\u3002\u8bf7\u5207\u6362\u5230\u5546\u4e1a STT \u5f15\u64ce\uff0c\u6216\u68c0\u67e5 Ollama \u670d\u52a1\u3002`);
       } else {
-        this.emitError(`Web Speech 不可用（${event.error}）。`);
+        this.emitError(`Web Speech \u4e0d\u53ef\u7528\uff08${event.error}\uff09\u3002`);
       }
     };
 
@@ -721,7 +719,7 @@ export class VoiceInputService {
     }
     if (this._isRecording) {
       void this.stopRecording().catch((error) => {
-        this.emitError(error instanceof Error ? error.message : '录音停止失败');
+        this.emitError(error instanceof Error ? error.message : '\u5f55\u97f3\u505c\u6b62\u5931\u8d25');
       });
     }
     this.setListening(false);
@@ -765,7 +763,7 @@ export class VoiceInputService {
       recorder.start(100); // chunk every 100ms for responsive stop
       this._isRecording = true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : '录音启动失败';
+      const message = err instanceof Error ? err.message : '\u5f55\u97f3\u542f\u52a8\u5931\u8d25';
       this.emitError(message);
       throw new Error(message);
     }
@@ -778,7 +776,7 @@ export class VoiceInputService {
    */
   async stopRecording(): Promise<void> {
     // Re-entrant guard: if a stop is already in flight, await it instead of racing
-    // 竞态防护：如果已有 stop 正在执行，直接等待而非重入
+    // If a stop is already running, await it instead of re-entering.
     if (this._stopRecordingPromise) {
       await this._stopRecordingPromise;
       return;
@@ -818,7 +816,7 @@ export class VoiceInputService {
         recorder.removeEventListener('dataavailable', dataHandler);
         recorder.removeEventListener('stop', stopHandler as EventListener);
         const err = (event as unknown as { error?: string }).error;
-        reject(new Error(typeof err === 'string' ? err : '录音停止失败'));
+        reject(new Error(typeof err === 'string' ? err : '\u5f55\u97f3\u505c\u6b62\u5931\u8d25'));
       };
 
       recorder.addEventListener('dataavailable', dataHandler);
@@ -887,11 +885,11 @@ export class VoiceInputService {
         } catch (fallbackErr) {
           log.warn('commercial fallback transcription failed', { fallbackErr });
           // Commercial also failed — emit the original error
-          this.emitError(lastError instanceof Error ? lastError.message : 'STT 转写失败');
+          this.emitError(lastError instanceof Error ? lastError.message : 'STT \u8f6c\u5199\u5931\u8d25');
           return;
         }
       }
-      this.emitError(err instanceof Error ? err.message : 'STT 转写失败');
+      this.emitError(err instanceof Error ? err.message : 'STT \u8f6c\u5199\u5931\u8d25');
     }
   }
 
@@ -943,7 +941,7 @@ export class VoiceInputService {
       }
     }
 
-    throw new Error(`whisper-server 转写失败. 已尝试:\n${failures.join('\n')}`);
+    throw new Error(`whisper-server \u8f6c\u5199\u5931\u8d25. \u5df2\u5c1d\u8bd5:\n${failures.join('\n')}`);
   }
 
   dispose(): void {
@@ -1056,7 +1054,7 @@ export class VoiceInputService {
           track.stop();
         }
       }
-      // VAD 为尽力增强能力，不可用时不应导致识别失败 | VAD is best-effort and must not fail recognition when unavailable.
+      // VAD is best-effort and must not fail recognition when unavailable.
     }
   }
 

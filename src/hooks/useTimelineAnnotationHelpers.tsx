@@ -300,7 +300,7 @@ export function useTimelineAnnotationHelpers({
         title={`${formatTime(utt.startTime)} – ${formatTime(utt.endTime)}${speakerVisual ? ` | 说话人：${speakerVisual.name}` : ''}`}
         draft={draft}
         speakerLabel={speakerVisual?.name ?? ''}
-        speakerColor={speakerVisual?.color ?? '#2563eb'}
+        speakerColor={speakerVisual?.color ?? 'var(--state-info-solid)'}
         {...(overlapCycleStatus ? { overlapCycleIndicator: overlapCycleStatus } : {})}
         {...(utt.ai_metadata?.confidence != null ? { confidence: utt.ai_metadata.confidence } : {})}
         {...(content ? { content } : {})}

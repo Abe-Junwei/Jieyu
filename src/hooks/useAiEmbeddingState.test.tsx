@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useAiEmbeddingState } from './useAiEmbeddingState';
 
@@ -61,5 +61,35 @@ describe('useAiEmbeddingState', () => {
 
     expect(setIntervalSpy).not.toHaveBeenCalled();
     expect(addEventListenerSpy).not.toHaveBeenCalledWith('visibilitychange', expect.any(Function));
+  });
+
+  it('surfaces query-embedding warnings instead of silently returning empty matches', async () => {
+    const services = makeServices();
+    services.embeddingSearchService.searchSimilarUtterances.mockResolvedValue({
+      query: 'target',
+      matches: [],
+      warningCode: 'query-embedding-unavailable',
+    });
+
+    const utterance = { id: 'utt-1', startTime: 0, endTime: 1 };
+    const { result } = renderHook(() => useAiEmbeddingState({
+      locale: 'zh-CN',
+      enabled: true,
+      taskRunner: services.taskRunner,
+      embeddingService: services.embeddingService,
+      embeddingSearchService: services.embeddingSearchService,
+      selectedUtterance: utterance,
+      utterancesOnCurrentMedia: [utterance],
+      getUtteranceTextForLayer: () => 'target',
+      formatTime: (seconds: number) => String(seconds),
+    }));
+
+    await act(async () => {
+      await result.current.handleFindSimilarUtterances();
+    });
+
+    expect(result.current.aiEmbeddingWarning).toContain('未生成可用 embedding');
+    expect(result.current.aiEmbeddingProgressLabel).toContain('无法完成相似语句检索');
+    expect(result.current.aiEmbeddingMatches).toEqual([]);
   });
 });

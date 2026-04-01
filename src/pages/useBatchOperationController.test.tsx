@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { renderHook } from '@testing-library/react';
 import { act } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UtteranceDocType } from '../db';
+import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useBatchOperationController } from './useBatchOperationController';
 
 function makeUtterance(id: string, startTime: number, endTime: number, speakerId?: string): UtteranceDocType {
@@ -19,6 +20,14 @@ function makeUtterance(id: string, startTime: number, endTime: number, speakerId
 }
 
 describe('useBatchOperationController', () => {
+  beforeEach(() => {
+    window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, 'zh-CN');
+  });
+
+  afterEach(() => {
+    window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
+  });
+
   it('maps selection to utterances and sorts selected batch utterances', () => {
     const { result } = renderHook(() => useBatchOperationController({
       selectedUtteranceIds: new Set(['seg-b', 'seg-a']),

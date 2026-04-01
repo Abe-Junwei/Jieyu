@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SpeakerActionDialog } from './SpeakerActionDialog';
+import { renderWithLocale } from '../../test/localeTestUtils';
 
 afterEach(cleanup);
 
@@ -9,7 +10,7 @@ describe('SpeakerActionDialog', () => {
   it('renders rename mode and updates the draft value', () => {
     const onDraftNameChange = vi.fn();
 
-    render(
+    renderWithLocale(
       <SpeakerActionDialog
         state={{
           mode: 'rename',
@@ -34,7 +35,7 @@ describe('SpeakerActionDialog', () => {
   it('renders merge mode and forwards target speaker changes', () => {
     const onTargetSpeakerChange = vi.fn();
 
-    render(
+    renderWithLocale(
       <SpeakerActionDialog
         state={{
           mode: 'merge',
@@ -63,7 +64,7 @@ describe('SpeakerActionDialog', () => {
   it('renders clear mode and disables actions while busy', () => {
     const onClose = vi.fn();
 
-    render(
+    renderWithLocale(
       <SpeakerActionDialog
         state={{
           mode: 'clear',
@@ -88,7 +89,7 @@ describe('SpeakerActionDialog', () => {
   it('renders delete mode and forwards delete strategy changes', () => {
     const onTargetSpeakerChange = vi.fn();
 
-    render(
+    renderWithLocale(
       <SpeakerActionDialog
         state={{
           mode: 'delete',

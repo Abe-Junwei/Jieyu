@@ -340,6 +340,28 @@ describe('useAiChat abort and recovery', () => {
     expect(lastSystemPrompt).toContain('形态学与语义标注助手');
   });
 
+  it('should inject concise response-style instruction into system prompt', async () => {
+    const { result } = renderHook(() => useAiChat());
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      result.current.updateSettings({ toolFeedbackStyle: 'concise' });
+    });
+
+    await act(async () => {
+      await result.current.send('__PLAIN_REPLY__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    expect(lastSystemPrompt).toContain('自然语言回复风格：简洁模式');
+  });
+
   it('should migrate legacy plaintext settings into secure storage', async () => {
     window.localStorage.setItem('jieyu.aiChat.settings', JSON.stringify({
       providerKind: 'deepseek',
@@ -950,6 +972,32 @@ describe('useAiChat abort and recovery', () => {
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(assistant?.status).toBe('done');
     expect(assistant?.content).toContain('你好，我在');
+  });
+
+  it('should render concise non-action fallback when configured', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '不应执行' });
+    const { result } = renderHook(() => useAiChat({ onToolCall }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      result.current.updateSettings({ toolFeedbackStyle: 'concise' });
+    });
+
+    await act(async () => {
+      await result.current.send('你好');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    expect(onToolCall).not.toHaveBeenCalled();
+    const assistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(assistant?.status).toBe('done');
+    expect(assistant?.content).toContain('可继续提问');
   });
 
   it('should ignore tool call for meta explanation questions', async () => {

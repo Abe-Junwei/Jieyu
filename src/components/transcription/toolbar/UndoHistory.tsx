@@ -6,12 +6,13 @@
  */
 
 import { type FC, useCallback } from 'react';
-import { Undo2 } from 'lucide-react';
-import { detectLocale, t, tf } from '../../../i18n';
+import { Redo2, Undo2 } from 'lucide-react';
+import { t, tf, useLocale } from '../../../i18n';
 
 export interface UndoHistoryProps {
   // 状态 | State
   canUndo: boolean;
+  canRedo: boolean;
   undoLabel: string;
   undoHistory: string[];
   isHistoryVisible: boolean;
@@ -19,17 +20,21 @@ export interface UndoHistoryProps {
   // 回调 | Callbacks
   onToggleHistoryVisible: (visible: boolean | ((v: boolean) => boolean)) => void;
   onJumpToHistoryIndex: (index: number) => void;
+  onRedo: () => void;
 }
 
 const UndoHistory: FC<UndoHistoryProps> = ({
   canUndo,
+  canRedo,
   undoLabel,
   undoHistory,
   isHistoryVisible,
   onToggleHistoryVisible,
   onJumpToHistoryIndex,
+  onRedo,
 }) => {
-  const locale = detectLocale();
+  const locale = useLocale();
+  const canShowUndoChip = canUndo && Boolean(undoLabel);
 
   const handleChipClick = useCallback(() => {
     onToggleHistoryVisible((v) => !v);
@@ -40,7 +45,12 @@ const UndoHistory: FC<UndoHistoryProps> = ({
     onToggleHistoryVisible(false);
   }, [onJumpToHistoryIndex, onToggleHistoryVisible]);
 
-  if (!canUndo || !undoLabel) {
+  const handleRedoClick = useCallback(() => {
+    onRedo();
+    onToggleHistoryVisible(false);
+  }, [onRedo, onToggleHistoryVisible]);
+
+  if (!canShowUndoChip && !canRedo) {
     return null;
   }
 
@@ -49,12 +59,16 @@ const UndoHistory: FC<UndoHistoryProps> = ({
       <button
         type="button"
         className="transcription-undo-chip"
-        title={tf(locale, 'transcription.undo.next', { label: undoLabel })}
+        title={canShowUndoChip
+          ? tf(locale, 'transcription.undo.next', { label: undoLabel })
+          : t(locale, 'transcription.toolbar.redo')}
         onClick={handleChipClick}
       >
-        <Undo2 size={13} />
+        {canShowUndoChip ? <Undo2 size={13} /> : <Redo2 size={13} />}
         <span className="transcription-undo-chip-label">
-          {tf(locale, 'transcription.undo.current', { label: undoLabel })}
+          {canShowUndoChip
+            ? tf(locale, 'transcription.undo.current', { label: undoLabel })
+            : t(locale, 'transcription.toolbar.redo')}
         </span>
       </button>
       {isHistoryVisible && (
@@ -62,6 +76,17 @@ const UndoHistory: FC<UndoHistoryProps> = ({
           <div className="transcription-undo-history-title">
             {t(locale, 'transcription.undo.historyTitle')}
           </div>
+          {canRedo && (
+            <button
+              type="button"
+              className="transcription-undo-history-item transcription-undo-history-redo"
+              onClick={handleRedoClick}
+              title={t(locale, 'transcription.toolbar.redo')}
+            >
+              <Redo2 size={12} />
+              <span>{t(locale, 'transcription.toolbar.redo')}</span>
+            </button>
+          )}
           {undoHistory.map((label, idx) => (
             <button
               key={`${label}-${idx}`}

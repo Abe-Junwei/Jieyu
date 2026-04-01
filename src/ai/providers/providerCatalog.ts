@@ -33,7 +33,7 @@ export interface AiChatSettings {
   providerKind: AiChatProviderKind;
   baseUrl: string;
   model: string;
-  /** 解释/非执行对话使用的轻量模型 | Lightweight model for explain / non-execute turns */
+  /** Lightweight model for explain / non-execute turns. */
   explainModel?: string;
   apiKey: string;
   apiKeysByProvider: AiChatProviderApiKeyMap;
@@ -44,7 +44,7 @@ export interface AiChatSettings {
   authHeaderName: string;
   authScheme: CustomHttpAuthScheme;
   responseFormat: CustomHttpResponseFormat;
-  /** 备用 provider（主模型限速/不可用时自动降级）| Fallback provider (auto-degrade on rate-limit / unavailable) */
+  /** Fallback provider used when the primary model is rate-limited or unavailable. */
   fallbackProviderKind?: AiChatProviderKind;
 }
 
@@ -76,7 +76,7 @@ export interface AiChatProviderDefinition {
   kind: AiChatProviderKind;
   label: string;
   description: string;
-  /** Short tag shown in the UI list, e.g. "本地" or "付费" */
+  /** Short tag shown in the UI list, e.g. "local" or "paid". */
   tag?: string;
   fields: AiChatFieldDefinition[];
   create(config: AiChatProviderCreateConfig): LLMProvider;
@@ -125,19 +125,19 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
   mock: {
     kind: 'mock',
     label: 'Mock',
-    description: '本地模拟回复，不访问远程接口。',
-    tag: '本地',
+    description: '\u672c\u5730\u6a21\u62df\u56de\u590d\uff0c\u4e0d\u8bbf\u95ee\u8fdc\u7a0b\u63a5\u53e3\u3002',
+    tag: '\u672c\u5730',
     fields: [],
     create: (): LLMProvider => new MockLLMProvider(),
   },
   minimax: {
     kind: 'minimax',
     label: 'MiniMax',
-    description: 'MiniMax AI（OpenAI兼容接口）。免费额度充足，国内直连。',
-    tag: '国内',
+    description: 'MiniMax AI\uff08OpenAI\u517c\u5bb9\u63a5\u53e3\uff09\u3002\u514d\u8d39\u989d\u5ea6\u5145\u8db3\uff0c\u56fd\u5185\u76f4\u8fde\u3002',
+    tag: '\u56fd\u5185',
     fields: [
-      { key: 'baseUrl', label: 'Base URL', type: 'text', placeholder: 'https://api.minimax.chat/v1（留空默认）', required: false },
-      { key: 'model', label: 'Model', type: 'text', placeholder: 'MiniMax-Text-01（留空默认）', required: false },
+      { key: 'baseUrl', label: 'Base URL', type: 'text', placeholder: 'https://api.minimax.chat/v1\uff08\u7559\u7a7a\u9ed8\u8ba4\uff09', required: false },
+      { key: 'model', label: 'Model', type: 'text', placeholder: 'MiniMax-Text-01\uff08\u7559\u7a7a\u9ed8\u8ba4\uff09', required: false },
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'eyJ...', required: true },
     ],
     create: (cfg): LLMProvider =>
@@ -146,8 +146,8 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
   'openai-compatible': {
     kind: 'openai-compatible',
     label: 'OpenAI Compatible',
-    description: '适配 OpenAI Chat Completions 兼容接口，如 OpenAI、OpenRouter、vLLM、One API、硅基流动等。',
-    tag: '付费',
+    description: '\u9002\u914d OpenAI Chat Completions \u517c\u5bb9\u63a5\u53e3\uff0c\u5982 OpenAI\u3001OpenRouter\u3001vLLM\u3001One API\u3001\u7845\u57fa\u6d41\u52a8 \u7b49\u3002',
+    tag: '\u4ed8\u8d39',
     fields: [
       { key: 'baseUrl', label: 'Base URL', type: 'text', placeholder: 'https://api.openai.com/v1', required: true },
       { key: 'model', label: 'Model', type: 'text', placeholder: 'gpt-4o-mini', required: true },
@@ -159,8 +159,8 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
   deepseek: {
     kind: 'deepseek',
     label: 'DeepSeek',
-    description: 'DeepSeek 官方 API（直连）。',
-    tag: '付费',
+    description: 'DeepSeek \u5b98\u65b9 API\uff08\u76f4\u8fde\uff09\u3002',
+    tag: '\u4ed8\u8d39',
     fields: [
       { key: 'baseUrl', label: 'Base URL', type: 'text', placeholder: 'https://api.deepseek.com/v1', required: true },
       { key: 'model', label: 'Model', type: 'text', placeholder: 'deepseek-chat', required: true },
@@ -171,9 +171,9 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
   },
   qwen: {
     kind: 'qwen',
-    label: 'Qwen (千问)',
-    description: '阿里云 DashScope 千问 API（直连）。',
-    tag: '付费',
+    label: 'Qwen (\u5343\u95ee)',
+    description: '\u963f\u91cc\u4e91 DashScope \u5343\u95ee API\uff08\u76f4\u8fde\uff09\u3002',
+    tag: '\u4ed8\u8d39',
     fields: [
       { key: 'baseUrl', label: 'Base URL', type: 'text', placeholder: 'https://dashscope.aliyuncs.com/compatible-mode/v1', required: true },
       { key: 'model', label: 'Model', type: 'text', placeholder: 'qwen-plus', required: true },
@@ -185,8 +185,8 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
   anthropic: {
     kind: 'anthropic',
     label: 'Anthropic',
-    description: 'Anthropic 官方 Messages API（直连）。',
-    tag: '付费',
+    description: 'Anthropic \u5b98\u65b9 Messages API\uff08\u76f4\u8fde\uff09\u3002',
+    tag: '\u4ed8\u8d39',
     fields: [
       { key: 'baseUrl', label: 'Base URL', type: 'text', placeholder: 'https://api.anthropic.com/v1', required: true },
       { key: 'model', label: 'Model', type: 'text', placeholder: 'claude-3-5-sonnet-latest', required: true },
@@ -198,8 +198,8 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
   gemini: {
     kind: 'gemini',
     label: 'Gemini',
-    description: 'Google Gemini 官方 Generate Content API（直连）。',
-    tag: '付费',
+    description: 'Google Gemini \u5b98\u65b9 Generate Content API\uff08\u76f4\u8fde\uff09\u3002',
+    tag: '\u4ed8\u8d39',
     fields: [
       { key: 'baseUrl', label: 'Base URL', type: 'text', placeholder: 'https://generativelanguage.googleapis.com/v1beta', required: true },
       { key: 'model', label: 'Model', type: 'text', placeholder: 'gemini-2.0-flash', required: true },
@@ -210,9 +210,9 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
   },
   ollama: {
     kind: 'ollama',
-    label: 'Ollama (本地)',
-    description: 'Ollama 官方 /api/chat（直连）。完全本地运行，无需 API Key。',
-    tag: '本地',
+    label: 'Ollama (\u672c\u5730)',
+    description: 'Ollama \u5b98\u65b9 /api/chat\uff08\u76f4\u8fde\uff09\u3002\u5b8c\u5168\u672c\u5730\u8fd0\u884c\uff0c\u65e0\u9700 API Key\u3002',
+    tag: '\u672c\u5730',
     fields: [
       { key: 'baseUrl', label: 'Base URL', type: 'text', placeholder: 'http://localhost:11434', required: true },
       { key: 'model', label: 'Model', type: 'text', placeholder: 'e.g. llama3.2, qwen2.5', required: true },
@@ -223,8 +223,8 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
   'custom-http': {
     kind: 'custom-http',
     label: 'Custom HTTP',
-    description: '适配私有网关或非内置厂商：向任意 endpoint URL 发送统一 chat 请求，并按所选响应格式解析。',
-    tag: '高级',
+    description: '\u9002\u914d\u79c1\u6709\u7f51\u5173\u6216\u975e\u5185\u7f6e\u5382\u5546\uff1a\u5411\u4efb\u610f endpoint URL \u53d1\u9001\u7edf\u4e00 chat \u8bf7\u6c42\uff0c\u5e76\u6309\u6240\u9009\u54cd\u5e94\u683c\u5f0f\u89e3\u6790\u3002',
+    tag: '\u9ad8\u7ea7',
     fields: [
       { key: 'endpointUrl', label: 'Endpoint URL', type: 'text', placeholder: 'https://your-gateway.example.com/chat', required: true },
       { key: 'model', label: 'Model', type: 'text', placeholder: 'your-model-name', required: true },

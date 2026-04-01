@@ -13,6 +13,19 @@ import {
   getSpeakerDisplayNameByKey,
   upsertSpeaker,
 } from '../hooks/speakerManagement/speakerUtils';
+import {
+  buildMixedSelectionSpeakerSummary,
+  buildSpeakerActionErrorOptions,
+  formatSpeakerAssignmentResult,
+  formatSpeakerClearResult,
+  formatSpeakerCreateAndAssignResult,
+  formatSpeakerExportContent,
+  formatSpeakerExportDone,
+  getSpeakerExportFallbackName,
+  getSpeakerUndoLabel,
+  type SpeakerFormat,
+  type SpeakerTranslate,
+} from '../hooks/speakerManagement/speakerI18n';
 import { LinguisticService } from '../services/LinguisticService';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportActionError } from '../utils/actionErrorReporter';
@@ -62,6 +75,8 @@ interface UseSpeakerActionRoutingControllerInput {
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
   setSelectedUtteranceIds: Dispatch<SetStateAction<Set<string>>>;
   formatTime: (seconds: number) => string;
+  t: SpeakerTranslate;
+  tf: SpeakerFormat;
   pushUndo: (label: string) => void;
   undo: () => Promise<void>;
   reloadSegments: () => Promise<void>;
@@ -140,6 +155,8 @@ export function useSpeakerActionRoutingController({
   selectTimelineUnit,
   setSelectedUtteranceIds,
   formatTime,
+  t,
+  tf,
   pushUndo,
   undo,
   reloadSegments,
@@ -162,14 +179,14 @@ export function useSpeakerActionRoutingController({
     [resolveSpeakerActionUtteranceIds, segmentByIdForSpeakerActions, selectedUnitIdsForSpeakerActions],
   );
 
-  const findExistingSpeakerEntityByName = useCallback((rawName: string) => {
+  const findExistingSpeakerEntityByName = (rawName: string) => {
     const normalizedName = rawName.trim().toLocaleLowerCase('zh-Hans-CN');
     if (!normalizedName) return undefined;
     return speakerOptions.find((speaker) => speaker.name.trim().toLocaleLowerCase('zh-Hans-CN') === normalizedName);
-  }, [speakerOptions]);
+  };
 
-  const speakerByIdMapForDisplay = useMemo(
-    () => new Map(speakerByIdMap),
+  const getSpeakerNameForDisplay = useCallback(
+    (speakerKey: string) => getSpeakerDisplayNameByKey(speakerKey, speakerByIdMap),
     [speakerByIdMap],
   );
 
@@ -190,21 +207,14 @@ export function useSpeakerActionRoutingController({
         .map((utterance) => getUtteranceSpeakerKey(utterance))
         .filter((key) => key.length > 0),
     ];
-    if (assignedKeys.length === 0) return '已选项均未标注说话人';
-    const uniqueKeys = new Set(assignedKeys);
-    if (assignedKeys.length < totalSelectedCount) {
-      if (uniqueKeys.size === 1) {
-        const firstKey = assignedKeys[0]!;
-        return `当前包含未标注项；已标注说话人：${getSpeakerDisplayNameByKey(firstKey, speakerByIdMapForDisplay)}`;
-      }
-      return `当前包含 ${uniqueKeys.size} 位说话人和未标注项`;
-    }
-    if (uniqueKeys.size === 1) {
-      const firstKey = assignedKeys[0]!;
-      return `当前统一说话人：${getSpeakerDisplayNameByKey(firstKey, speakerByIdMapForDisplay)}`;
-    }
-    return `当前包含 ${uniqueKeys.size} 位说话人`;
-  }, [getUtteranceSpeakerKey, resolveSpeakerKeyForSegment, selectedBatchSegmentsForSpeakerActions, selectedSpeakerSummary, selectedStandaloneUtteranceIdsForSpeakerActions, speakerByIdMapForDisplay, utterancesOnCurrentMedia]);
+    return buildMixedSelectionSpeakerSummary({
+      assignedKeys,
+      totalSelectedCount,
+      getSpeakerName: getSpeakerNameForDisplay,
+      t,
+      tf,
+    });
+  }, [getSpeakerNameForDisplay, getUtteranceSpeakerKey, resolveSpeakerKeyForSegment, selectedBatchSegmentsForSpeakerActions, selectedSpeakerSummary, selectedStandaloneUtteranceIdsForSpeakerActions, t, tf, utterancesOnCurrentMedia]);
 
   const [segmentSpeakerDialogState, setSegmentSpeakerDialogState] = useState<SpeakerActionDialogState | null>(null);
   const [segmentSpeakerDialogBusy, setSegmentSpeakerDialogBusy] = useState(false);
@@ -259,7 +269,7 @@ export function useSpeakerActionRoutingController({
     if (targetIds.length === 0 || speakerSavingRouted) return;
 
     try {
-      pushUndo('批量指派说话人');
+      pushUndo(getSpeakerUndoLabel('assign', t));
       const updated = await LinguisticService.assignSpeakerToSegments(targetIds, speakerId);
       const now = new Date().toISOString();
       updateSegmentsLocally(targetIds, (segment) => {
@@ -276,17 +286,18 @@ export function useSpeakerActionRoutingController({
       await refreshSpeakerReferenceStats();
       setSaveState({
         kind: 'done',
-        message: updated > 0 ? `已更新 ${updated} 条语段的说话人` : '未找到可更新语段',
+        message: formatSpeakerAssignmentResult('segments', updated, t, tf),
       });
     } catch (error) {
       reportActionError({
-        actionLabel: '说话人指派',
         error,
-        i18nKey: 'transcription.error.action.assignSpeakerFailed',
+        ...buildSpeakerActionErrorOptions('assign', error, t, tf),
+        conflictI18nKey: 'transcription.error.conflict.assignSpeaker',
+        fallbackI18nKey: 'transcription.error.action.assignSpeakerFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) }),
       });
     }
-  }, [pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, reloadSegments, setBatchSpeakerId, setSaveState, speakerSavingRouted, updateSegmentsLocally]);
+  }, [pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, reloadSegments, setBatchSpeakerId, setSaveState, speakerSavingRouted, t, tf, updateSegmentsLocally]);
 
   const createSpeakerAndAssignToSegments = useCallback(async (name: string, segmentIds: Iterable<string>) => {
     const trimmedName = name.trim();
@@ -296,10 +307,10 @@ export function useSpeakerActionRoutingController({
     let undoPushed = false;
     try {
       const existing = findExistingSpeakerEntityByName(trimmedName);
-      pushUndo(existing ? '复用说话人并分配' : '新建并分配说话人');
+      pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
       undoPushed = true;
       const targetSpeaker = existing ?? await LinguisticService.createSpeaker({ name: trimmedName });
-      await LinguisticService.assignSpeakerToSegments(targetIds, targetSpeaker.id);
+      const updated = await LinguisticService.assignSpeakerToSegments(targetIds, targetSpeaker.id);
       const now = new Date().toISOString();
       updateSegmentsLocally(targetIds, (segment) => ({ ...segment, speakerId: targetSpeaker.id, updatedAt: now }));
       setSpeakerDraftName('');
@@ -308,20 +319,19 @@ export function useSpeakerActionRoutingController({
       await refreshSegmentUndoSnapshot();
       setSaveState({
         kind: 'done',
-        message: existing
-          ? `已复用现有说话人"${targetSpeaker.name}"，并应用到 ${targetIds.length} 条语段`
-          : `已创建说话人"${targetSpeaker.name}"，并应用到 ${targetIds.length} 条语段`,
+        message: formatSpeakerCreateAndAssignResult('segments', targetSpeaker.name, updated, Boolean(existing), t, tf),
       });
     } catch (error) {
       if (undoPushed) await undo();
       reportActionError({
-        actionLabel: '创建说话人',
         error,
-        i18nKey: 'transcription.error.action.createSpeakerFailed',
+        ...buildSpeakerActionErrorOptions('create', error, t, tf),
+        conflictI18nKey: 'transcription.error.conflict.createSpeaker',
+        fallbackI18nKey: 'transcription.error.action.createSpeakerFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) }),
       });
     }
-  }, [findExistingSpeakerEntityByName, pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, refreshSpeakers, reloadSegments, setBatchSpeakerId, setSaveState, setSpeakerDraftName, speakerSavingRouted, undo, updateSegmentsLocally]);
+  }, [findExistingSpeakerEntityByName, pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, refreshSpeakers, reloadSegments, setBatchSpeakerId, setSaveState, setSpeakerDraftName, speakerSavingRouted, t, tf, undo, updateSegmentsLocally]);
 
   const applySpeakerToMixedSelection = useCallback(async (speakerId?: string) => {
     const targetSegmentIds = selectedBatchSegmentsForSpeakerActions.map((segment) => segment.id);
@@ -332,7 +342,7 @@ export function useSpeakerActionRoutingController({
     const speaker = normalizedSpeakerId ? speakerByIdMap.get(normalizedSpeakerId) : undefined;
     let undoPushed = false;
     try {
-      pushUndo('批量指派说话人');
+      pushUndo(getSpeakerUndoLabel('assign', t));
       undoPushed = true;
       const [updatedSegments, updatedUtterances] = await Promise.all([
         targetSegmentIds.length > 0
@@ -363,18 +373,19 @@ export function useSpeakerActionRoutingController({
       const totalUpdated = updatedSegments + updatedUtterances;
       setSaveState({
         kind: 'done',
-        message: totalUpdated > 0 ? `已更新 ${totalUpdated} 条选中项的说话人` : '未找到可更新项',
+        message: formatSpeakerAssignmentResult('selection', totalUpdated, t, tf),
       });
     } catch (error) {
       if (undoPushed) await undo();
       reportActionError({
-        actionLabel: '说话人指派',
         error,
-        i18nKey: 'transcription.error.action.assignSpeakerFailed',
+        ...buildSpeakerActionErrorOptions('assign', error, t, tf),
+        conflictI18nKey: 'transcription.error.conflict.assignSpeaker',
+        fallbackI18nKey: 'transcription.error.action.assignSpeakerFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) }),
       });
     }
-  }, [pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, reloadSegments, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, setBatchSpeakerId, setSaveState, setUtterances, speakerByIdMap, speakerSavingRouted, undo, updateSegmentsLocally]);
+  }, [pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, reloadSegments, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, setBatchSpeakerId, setSaveState, setUtterances, speakerByIdMap, speakerSavingRouted, t, tf, undo, updateSegmentsLocally]);
 
   const createSpeakerAndAssignToMixedSelection = useCallback(async (name: string) => {
     const trimmedName = name.trim();
@@ -385,7 +396,7 @@ export function useSpeakerActionRoutingController({
     let undoPushed = false;
     try {
       const existing = findExistingSpeakerEntityByName(trimmedName);
-      pushUndo(existing ? '复用说话人并分配' : '新建并分配说话人');
+      pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
       undoPushed = true;
       const targetSpeaker = existing ?? await LinguisticService.createSpeaker({ name: trimmedName });
       const [updatedSegments, updatedUtterances] = await Promise.all([
@@ -412,20 +423,19 @@ export function useSpeakerActionRoutingController({
       await refreshSegmentUndoSnapshot();
       setSaveState({
         kind: 'done',
-        message: existing
-          ? `已复用现有说话人"${targetSpeaker.name}"，并应用到 ${updatedSegments + updatedUtterances} 条选中项`
-          : `已创建说话人"${targetSpeaker.name}"，并应用到 ${updatedSegments + updatedUtterances} 条选中项`,
+        message: formatSpeakerCreateAndAssignResult('selection', targetSpeaker.name, updatedSegments + updatedUtterances, Boolean(existing), t, tf),
       });
     } catch (error) {
       if (undoPushed) await undo();
       reportActionError({
-        actionLabel: '创建说话人',
         error,
-        i18nKey: 'transcription.error.action.createSpeakerFailed',
+        ...buildSpeakerActionErrorOptions('create', error, t, tf),
+        conflictI18nKey: 'transcription.error.conflict.createSpeaker',
+        fallbackI18nKey: 'transcription.error.action.createSpeakerFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) }),
       });
     }
-  }, [findExistingSpeakerEntityByName, pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, refreshSpeakers, reloadSegments, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, setBatchSpeakerId, setSaveState, setSpeakerDraftName, setSpeakers, setUtterances, speakerSavingRouted, undo, updateSegmentsLocally]);
+  }, [findExistingSpeakerEntityByName, pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, refreshSpeakers, reloadSegments, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, setBatchSpeakerId, setSaveState, setSpeakerDraftName, setSpeakers, setUtterances, speakerSavingRouted, t, tf, undo, updateSegmentsLocally]);
 
   const handleSelectSpeakerUnitsRouted = useCallback((speakerKey: string) => {
     if (!activeSpeakerManagementLayer) {
@@ -462,7 +472,7 @@ export function useSpeakerActionRoutingController({
     const ids = getSegmentIdsForSpeakerKey(speakerKey);
     if (ids.length === 0) {
       reportValidationError({
-        message: '未找到可清空的语段',
+        message: t('transcription.error.validation.clearSpeakerNoTarget'),
         i18nKey: 'transcription.error.validation.clearSpeakerNoTarget',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) }),
       });
@@ -472,10 +482,10 @@ export function useSpeakerActionRoutingController({
     setSegmentSpeakerDialogState({
       mode: 'clear',
       speakerKey,
-      speakerName: target?.name ?? '未命名说话人',
+      speakerName: target?.name ?? t('transcription.speaker.common.unnamed'),
       affectedCount: ids.length,
     });
-  }, [activeSpeakerManagementLayer, getSegmentIdsForSpeakerKey, handleClearSpeakerAssignments, setSaveState, speakerFilterOptionByKeyForActions]);
+  }, [activeSpeakerManagementLayer, getSegmentIdsForSpeakerKey, handleClearSpeakerAssignments, setSaveState, speakerFilterOptionByKeyForActions, t]);
 
   const handleExportSpeakerSegmentsRouted = useCallback((speakerKey: string) => {
     if (!activeSpeakerManagementLayer) {
@@ -484,7 +494,7 @@ export function useSpeakerActionRoutingController({
     }
 
     const target = speakerFilterOptionByKeyForActions.get(speakerKey);
-    const speakerName = target?.name ?? 'speaker';
+    const speakerName = target?.name ?? getSpeakerExportFallbackName(t);
     const rows = (segmentsByLayer.get(activeSpeakerManagementLayer.id) ?? [])
       .filter((segment) => resolveExplicitSpeakerKeyForSegment(segment) === speakerKey)
       .sort((left, right) => left.startTime - right.startTime)
@@ -495,7 +505,7 @@ export function useSpeakerActionRoutingController({
 
     if (rows.length === 0) {
       reportValidationError({
-        message: '该说话人暂无可导出的语段',
+        message: t('transcription.error.validation.exportSpeakerNoSegments'),
         i18nKey: 'transcription.error.validation.exportSpeakerNoSegments',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) }),
       });
@@ -504,14 +514,14 @@ export function useSpeakerActionRoutingController({
 
     if (typeof window === 'undefined') {
       reportValidationError({
-        message: '当前环境不支持导出',
+        message: t('transcription.error.validation.exportSpeakerUnsupportedEnv'),
         i18nKey: 'transcription.error.validation.exportSpeakerUnsupportedEnv',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) }),
       });
       return;
     }
 
-    const content = [`说话人: ${speakerName}`, `语段数量: ${rows.length}`, '', ...rows].join('\n');
+    const content = formatSpeakerExportContent('segments', speakerName, rows, t, tf);
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -521,8 +531,8 @@ export function useSpeakerActionRoutingController({
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
-    setSaveState({ kind: 'done', message: `已导出 ${rows.length} 条语段` });
-  }, [activeSpeakerManagementLayer, formatTime, handleExportSpeakerSegments, resolveExplicitSpeakerKeyForSegment, segmentContentByLayer, segmentsByLayer, setSaveState, speakerFilterOptionByKeyForActions]);
+    setSaveState({ kind: 'done', message: formatSpeakerExportDone('segments', rows.length, t, tf) });
+  }, [activeSpeakerManagementLayer, formatTime, handleExportSpeakerSegments, resolveExplicitSpeakerKeyForSegment, segmentContentByLayer, segmentsByLayer, setSaveState, speakerFilterOptionByKeyForActions, t, tf]);
 
   const speakerDialogStateRouted = segmentSpeakerDialogState ?? speakerDialogStateBase;
 
@@ -550,7 +560,7 @@ export function useSpeakerActionRoutingController({
       const ids = getSegmentIdsForSpeakerKey(segmentSpeakerDialogState.speakerKey);
       if (ids.length === 0) {
         reportValidationError({
-          message: '未找到可清空的语段',
+          message: t('transcription.error.validation.clearSpeakerNoTarget'),
           i18nKey: 'transcription.error.validation.clearSpeakerNoTarget',
           setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) }),
         });
@@ -561,7 +571,7 @@ export function useSpeakerActionRoutingController({
       setSegmentSpeakerDialogBusy(true);
       let undoPushed = false;
       try {
-        pushUndo('删除说话人标签');
+        pushUndo(getSpeakerUndoLabel('clearTag', t));
         undoPushed = true;
         const cleared = await LinguisticService.assignSpeakerToSegments(ids, undefined);
         const now = new Date().toISOString();
@@ -574,14 +584,15 @@ export function useSpeakerActionRoutingController({
         await refreshSegmentUndoSnapshot();
         await refreshSpeakerReferenceStats();
         setActiveSpeakerFilterKey('all');
-        setSaveState({ kind: 'done', message: `已清空 ${cleared} 条语段的说话人标签` });
+        setSaveState({ kind: 'done', message: formatSpeakerClearResult('segments', cleared, t, tf) });
         setSegmentSpeakerDialogState(null);
       } catch (error) {
         if (undoPushed) await undo();
         reportActionError({
-          actionLabel: '说话人操作',
           error,
-          i18nKey: 'transcription.error.action.speakerDialogOperationFailed',
+          ...buildSpeakerActionErrorOptions('dialogOperation', error, t, tf),
+          conflictI18nKey: 'transcription.error.conflict.speakerDialogOperation',
+          fallbackI18nKey: 'transcription.error.action.speakerDialogOperationFailed',
           setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) }),
         });
       } finally {
@@ -594,7 +605,7 @@ export function useSpeakerActionRoutingController({
     await reloadSegments();
     await refreshSegmentUndoSnapshot();
     await refreshSpeakerReferenceStats();
-  }, [confirmSpeakerDialogBase, getSegmentIdsForSpeakerKey, pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, reloadSegments, segmentSpeakerDialogState, setActiveSpeakerFilterKey, setSaveState, undo, updateSegmentsLocally]);
+  }, [confirmSpeakerDialogBase, getSegmentIdsForSpeakerKey, pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, reloadSegments, segmentSpeakerDialogState, setActiveSpeakerFilterKey, setSaveState, t, tf, undo, updateSegmentsLocally]);
 
   const handleAssignSpeakerToSelectedRouted = useCallback(async () => {
     if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length > 0) {
@@ -686,8 +697,8 @@ export function useSpeakerActionRoutingController({
   }, [getUtteranceSpeakerKey, resolveSpeakerKeyForSegment, selectedBatchSegmentsForSpeakerActions, selectedUtteranceIdsForSpeakerActions, utterancesOnCurrentMedia]);
 
   const selectedSpeakerNamesForTrackLock = useMemo(
-    () => selectedSpeakerIdsForTrackLock.map((id) => getSpeakerDisplayNameByKey(id, speakerByIdMapForDisplay)),
-    [selectedSpeakerIdsForTrackLock, speakerByIdMapForDisplay],
+    () => selectedSpeakerIdsForTrackLock.map((id) => getSpeakerDisplayNameByKey(id, speakerByIdMap)),
+    [selectedSpeakerIdsForTrackLock, speakerByIdMap],
   );
 
   return {

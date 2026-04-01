@@ -15,6 +15,7 @@ import {
   ORTHOGRAPHY_CREATE_SENTINEL,
   useOrthographyPicker,
 } from '../hooks/useOrthographyPicker';
+import { decodeEscapedUnicode } from '../utils/decodeEscapedUnicode';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -40,23 +41,62 @@ const PANEL_MAX_WIDTH = 760;
 const PANEL_MAX_HEIGHT = 560;
 const PANEL_MARGIN = 8;
 const PANEL_DEFAULT_SIZE = { width: 360, height: 240 };
+const UI_TEXT = {
+  createTranscription: decodeEscapedUnicode('\\u65b0\\u5efa\\u8f6c\\u5199\\u5c42'),
+  createTranslation: decodeEscapedUnicode('\\u65b0\\u5efa\\u7ffb\\u8bd1\\u5c42'),
+  deleteLayer: decodeEscapedUnicode('\\u5220\\u9664\\u5c42'),
+  createFailedPrefix: decodeEscapedUnicode('\\u521b\\u5efa\\u5931\\u8d25\\uff1a'),
+  resetPanel: decodeEscapedUnicode('\\u91cd\\u7f6e\\u4f4d\\u7f6e\\u4e0e\\u5c3a\\u5bf8'),
+  dragToMove: decodeEscapedUnicode('\\u62d6\\u52a8\\u79fb\\u52a8\\uff0c\\u53cc\\u51fb\\u56de\\u4e2d'),
+  confirmDelete: decodeEscapedUnicode('\\u786e\\u8ba4\\u5220\\u9664'),
+  cancel: decodeEscapedUnicode('\\u53d6\\u6d88'),
+  delete: decodeEscapedUnicode('\\u5220\\u9664'),
+  create: decodeEscapedUnicode('\\u521b\\u5efa'),
+  selectLanguage: decodeEscapedUnicode('\\u9009\\u62e9\\u8bed\\u8a00\\u2026'),
+  otherManualInput: decodeEscapedUnicode('\\u5176\\u4ed6\\uff08\\u624b\\u52a8\\u8f93\\u5165\\uff09'),
+  customLanguageCodePlaceholder: decodeEscapedUnicode('ISO 639-3 \\u4ee3\\u7801\\uff08\\u5982 tib\\uff09'),
+  useDefaultScript: decodeEscapedUnicode('\\u6cbf\\u7528\\u9ed8\\u8ba4\\u811a\\u672c\\u63a8\\u65ad'),
+  createOrthography: decodeEscapedUnicode('+ \\u65b0\\u5efa\\u6b63\\u5b57\\u6cd5\\u2026'),
+  orthographyHint: decodeEscapedUnicode('\\u5f53\\u524d\\u8bed\\u8a00\\u6682\\u65e0\\u6b63\\u5b57\\u6cd5\\u8bb0\\u5f55\\uff0c\\u53ef\\u76f4\\u63a5\\u65b0\\u5efa\\u6216\\u6cbf\\u7528\\u9ed8\\u8ba4\\u811a\\u672c\\u63a8\\u65ad\\u3002'),
+  sourceLanguagePlaceholder: decodeEscapedUnicode('\\u9009\\u62e9\\u6765\\u6e90\\u8bed\\u8a00\\u2026'),
+  sourceLanguageCodePlaceholder: decodeEscapedUnicode('\\u6765\\u6e90\\u8bed\\u8a00 ISO 639-3 \\u4ee3\\u7801\\uff08\\u5982 eng\\uff09'),
+  aliasPlaceholder: decodeEscapedUnicode('\\u522b\\u540d\\uff08\\u53ef\\u9009\\uff09'),
+  translationText: decodeEscapedUnicode('\\u6587\\u672c\\uff08\\u7eaf\\u6587\\u5b57\\u7ffb\\u8bd1\\uff09'),
+  translationAudio: decodeEscapedUnicode('\\u8bed\\u97f3\\uff08\\u53e3\\u8bd1\\u5f55\\u97f3\\uff09'),
+  translationMixed: decodeEscapedUnicode('\\u6df7\\u5408\\uff08\\u6587\\u5b57 + \\u5f55\\u97f3\\uff09'),
+  translationBoundaryHint: decodeEscapedUnicode('\\u8fb9\\u754c\\u6765\\u6e90\\uff1a\\u7ffb\\u8bd1\\u5c42\\u4f1a\\u6cbf\\u7528\\u6240\\u9009\\u8f6c\\u5199\\u5c42\\u7684\\u8fb9\\u754c\\u8303\\u56f4\\u3002'),
+  selectParentLayer: decodeEscapedUnicode('\\u9009\\u62e9\\u4f9d\\u8d56\\u8fb9\\u754c\\u5c42\\u2026'),
+  autoLinkedPrefix: decodeEscapedUnicode('\\u5df2\\u81ea\\u52a8\\u5173\\u8054\\u5230\\u300c'),
+  autoLinkedSuffix: decodeEscapedUnicode('\\u300d\\u3002'),
+  constraintLegend: decodeEscapedUnicode('\\u5c42\\u7ea6\\u675f\\u7c7b\\u578b | Layer Constraint Type'),
+  constraintDependent: decodeEscapedUnicode('\\u4f9d\\u8d56\\u8fb9\\u754c\\uff08\\u8ddf\\u968f\\u4e3b\\u8f6c\\u5199\\u5c42\\uff09| Dependent'),
+  constraintIndependent: decodeEscapedUnicode('\\u72ec\\u7acb\\u8fb9\\u754c\\uff08\\u81ea\\u7531\\u5b9a\\u4e49\\uff09| Independent'),
+  currentRestrictionTranslation: decodeEscapedUnicode('\\u5f53\\u524d\\u9650\\u5236\\uff1a\\u65e0\\u6cd5\\u65b0\\u5efa\\u7ffb\\u8bd1\\u3002'),
+  currentRestrictionTranscription: decodeEscapedUnicode('\\u5f53\\u524d\\u9650\\u5236\\uff1a\\u65e0\\u6cd5\\u65b0\\u5efa\\u8f6c\\u5199\\u3002'),
+  requiredPrefix: decodeEscapedUnicode('\\u5fc5\\u586b\\u9879\\uff1a'),
+  createTranslationFallback: decodeEscapedUnicode('\\u65e0\\u6cd5\\u521b\\u5efa\\u7ffb\\u8bd1\\u5c42\\uff1a\\u8bf7\\u68c0\\u67e5\\u4f9d\\u8d56\\u5c42\\u3001\\u76ee\\u6807\\u8bed\\u8a00\\u4e0e\\u522b\\u540d\\u8bbe\\u7f6e\\u3002'),
+  createTranscriptionFallback: decodeEscapedUnicode('\\u65e0\\u6cd5\\u521b\\u5efa\\u8f6c\\u5199\\u5c42\\uff1a\\u8bf7\\u68c0\\u67e5\\u8fb9\\u754c\\u6a21\\u5f0f\\u3001\\u76ee\\u6807\\u8bed\\u8a00\\u4e0e\\u522b\\u540d\\u8bbe\\u7f6e\\u3002'),
+  genericActionFailed: decodeEscapedUnicode('\\u64cd\\u4f5c\\u5931\\u8d25\\uff0c\\u8bf7\\u7a0d\\u540e\\u91cd\\u8bd5\\u3002'),
+  translationLanguageRequired: decodeEscapedUnicode('\\u8bf7\\u5148\\u9009\\u62e9\\u7ffb\\u8bd1\\u5c42\\u8bed\\u8a00\\uff08\\u81ea\\u5b9a\\u4e49\\u8bed\\u8a00\\u9700\\u586b\\u5199\\u4ee3\\u7801\\uff09\\u3002'),
+  transcriptionLanguageRequired: decodeEscapedUnicode('\\u8bf7\\u5148\\u9009\\u62e9\\u8f6c\\u5199\\u5c42\\u8bed\\u8a00\\uff08\\u81ea\\u5b9a\\u4e49\\u8bed\\u8a00\\u9700\\u586b\\u5199\\u4ee3\\u7801\\uff09\\u3002'),
+} as const;
 
 function resolveCreateFailureText(message: string | undefined, fallback: string): string {
   const raw = (message ?? '').trim();
-  const text = raw.replace(/^创建失败[:：]\s*/u, '');
+  const text = raw.replace(/^\u521b\u5efa\u5931\u8d25[:：]\s*/u, '');
   if (!text) return fallback;
-  if (text.startsWith('已创建')) return fallback;
+  if (text.startsWith('\u5df2\u521b\u5efa')) return fallback;
   return text;
 }
 
 function getCreateFallbackMessage(action: LayerActionType): string {
   if (action === 'create-translation') {
-    return '无法创建翻译层：请检查依赖层、目标语言与别名设置。';
+    return UI_TEXT.createTranslationFallback;
   }
   if (action === 'create-transcription') {
-    return '无法创建转写层：请检查边界模式、目标语言与别名设置。';
+    return UI_TEXT.createTranscriptionFallback;
   }
-  return '操作失败，请稍后重试。';
+  return UI_TEXT.genericActionFailed;
 }
 
 function formatParentLayerOptionLabel(layer: LayerDocType): string {
@@ -140,7 +180,7 @@ export function LayerActionPopover({
     setSelectedParentLayerId(contextualParentLayerId);
   }, [action, contextualParentLayerId]);
 
-  // Keep currentPositionRef and currentSizeRef in sync with state to avoid stale closures | 保持 ref 与 state 同步，避免闭包过期
+  // Keep currentPositionRef and currentSizeRef in sync with state to avoid stale closures | \u4fdd\u6301 ref \u4e0e state \u540c\u6b65，\u907f\u514d\u95ed\u5305\u8fc7\u671f
 
   const needsDependentParent = action === 'create-translation'
     || (action === 'create-transcription' && constraint === 'symbolic_association');
@@ -251,10 +291,10 @@ export function LayerActionPopover({
   }, [onClose]);
 
   const label = action === 'create-transcription'
-    ? '新建转写层'
+    ? UI_TEXT.createTranscription
     : action === 'create-translation'
-    ? '新建翻译层'
-    : '删除层';
+    ? UI_TEXT.createTranslation
+    : UI_TEXT.deleteLayer;
 
   const existingTranscriptionCount = deletableLayers.filter((layer) => layer.layerType === 'transcription').length;
   const resolvedLangForGuard = resolvedLanguageId.trim();
@@ -279,10 +319,10 @@ export function LayerActionPopover({
     })
     : { allowed: true };
   const translationCreateDisabledReason = action === 'create-translation'
-    ? (translationGuard.allowed ? '' : (translationGuard.reasonShort ?? '当前无法新建翻译'))
+    ? (translationGuard.allowed ? '' : (translationGuard.reasonShort ?? '\u5f53\u524d\u65e0\u6cd5\u65b0\u5efa\u7ffb\u8bd1'))
     : '';
   const transcriptionCreateDisabledReason = action === 'create-transcription'
-    ? (transcriptionGuard.allowed ? '' : (transcriptionGuard.reasonShort ?? '当前无法新建转写'))
+    ? (transcriptionGuard.allowed ? '' : (transcriptionGuard.reasonShort ?? '\u5f53\u524d\u65e0\u6cd5\u65b0\u5efa\u8f6c\u5199'))
     : '';
   const createGuardByConstraint = (candidate: LayerConstraint) => {
     if (action === 'delete') return { allowed: true };
@@ -305,8 +345,8 @@ export function LayerActionPopover({
   const independentConstraintGuard = createGuardByConstraint('independent_boundary');
   const showCreateFailure = action !== 'delete' && createFailureMessage.trim().length > 0;
   const createLanguageRequiredMessage = action === 'create-translation'
-    ? '请先选择翻译层语言（自定义语言需填写代码）。'
-    : '请先选择转写层语言（自定义语言需填写代码）。';
+    ? UI_TEXT.translationLanguageRequired
+    : UI_TEXT.transcriptionLanguageRequired;
 
   const popover = (
     <div
@@ -336,7 +376,7 @@ export function LayerActionPopover({
           className="layer-action-popover-title floating-panel-title-row floating-panel-drag-handle"
           onPointerDown={handleDragStart}
           onDoubleClick={handleRecenter}
-          title="拖动移动，双击回中"
+          title={UI_TEXT.dragToMove}
         >
           <span>{label}</span>
           <button
@@ -344,8 +384,8 @@ export function LayerActionPopover({
             className="floating-panel-reset-btn"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={handleResetPanelLayout}
-            aria-label="重置位置与尺寸"
-            title="重置位置与尺寸"
+            aria-label={UI_TEXT.resetPanel}
+            title={UI_TEXT.resetPanel}
           >
             ↺
           </button>
@@ -355,40 +395,31 @@ export function LayerActionPopover({
           <div
             role="alert"
             aria-live="assertive"
-            style={{
-              margin: '8px 12px 0',
-              border: '1px solid #fecaca',
-              background: '#fef2f2',
-              color: '#991b1b',
-              borderRadius: 8,
-              padding: '8px 10px',
-              fontSize: 13,
-              fontWeight: 600,
-              lineHeight: 1.45,
-            }}
+            className="layer-action-popover-feedback layer-action-popover-feedback-error"
           >
-            创建失败：{createFailureMessage}
+            {UI_TEXT.createFailedPrefix}{createFailureMessage}
           </div>
         )}
 
+        <div className="transcription-side-pane-action-popover-body layer-action-popover-body">
         {action === 'delete' ? (
           <>
             {deleteConfirm ? (
               // Delete confirmation view
               <>
-                <p style={{ margin: '0 0 12px', color: '#334155', fontSize: 14 }}>
-                  层「{deleteConfirm.layerName}」包含 {deleteConfirm.textCount} 条文本记录，删除后将无法恢复。
+                <p className="layer-action-popover-copy">
+                  {decodeEscapedUnicode(`\\u5c42\\u300c${deleteConfirm.layerName}\\u300d\\u5305\\u542b ${deleteConfirm.textCount} \\u6761\\u6587\\u672c\\u8bb0\\u5f55\\uff0c\\u5220\\u9664\\u540e\\u5c06\\u65e0\\u6cd5\\u6062\\u590d\\u3002`)}
                 </p>
-                <div className="transcription-layer-rail-action-row">
+                <div className="transcription-side-pane-action-row">
                   <button
                     className="btn btn-sm btn-danger"
                     disabled={isLoading}
                     onClick={handleConfirmDelete}
                   >
-                    确认删除
+                    {UI_TEXT.confirmDelete}
                   </button>
                   <button className="btn btn-ghost btn-sm" onClick={handleCancelDelete} disabled={isLoading}>
-                    取消
+                    {UI_TEXT.cancel}
                   </button>
                 </div>
               </>
@@ -396,7 +427,7 @@ export function LayerActionPopover({
               // Delete selection view
               <>
                 <select
-                  className="input transcription-layer-rail-action-input"
+                  className="input transcription-side-pane-action-input"
                   value={deleteLayerId}
                   onChange={(e) => setDeleteLayerId(e.target.value)}
                 >
@@ -406,16 +437,16 @@ export function LayerActionPopover({
                     </option>
                   ))}
                 </select>
-                <div className="transcription-layer-rail-action-row">
+                <div className="transcription-side-pane-action-row">
                   <button
                     className="btn btn-sm btn-danger"
                     disabled={!deleteLayerId || isLoading}
                     onClick={handleDelete}
                   >
-                    删除
+                    {UI_TEXT.delete}
                   </button>
                   <button className="btn btn-ghost btn-sm" onClick={onClose}>
-                    取消
+                    {UI_TEXT.cancel}
                   </button>
                 </div>
               </>
@@ -424,22 +455,22 @@ export function LayerActionPopover({
         ) : (
           <>
             <select
-              className="input transcription-layer-rail-action-input"
+              className="input transcription-side-pane-action-input"
               value={langId}
               onChange={(e) => setLangId(e.target.value)}
             >
-              <option value="">选择语言…</option>
+              <option value="">{UI_TEXT.selectLanguage}</option>
               {COMMON_LANGUAGES.map((lang) => (
                 <option key={lang.code} value={lang.code}>
                   {lang.label}（{lang.code}）
                 </option>
               ))}
-              <option value="__custom__">其他（手动输入）</option>
+              <option value="__custom__">{UI_TEXT.otherManualInput}</option>
             </select>
             {langId === '__custom__' && (
               <input
-                className="input transcription-layer-rail-action-input"
-                placeholder="ISO 639-3 代码（如 tib）"
+                className="input transcription-side-pane-action-input"
+                placeholder={UI_TEXT.customLanguageCodePlaceholder}
                 value={customLang}
                 onChange={(e) => setCustomLang(e.target.value)}
               />
@@ -447,21 +478,21 @@ export function LayerActionPopover({
             {resolvedLanguageId && (
               <>
                 <select
-                  className="input transcription-layer-rail-action-input"
+                  className="input transcription-side-pane-action-input"
                   value={orthographyPicker.isCreating ? ORTHOGRAPHY_CREATE_SENTINEL : orthographyId}
                   onChange={(e) => orthographyPicker.handleSelectionChange(e.target.value)}
                 >
-                  {orthographyPicker.orthographies.length === 0 && <option value="">沿用默认脚本推断</option>}
+                  {orthographyPicker.orthographies.length === 0 && <option value="">{UI_TEXT.useDefaultScript}</option>}
                   {orthographyPicker.orthographies.map((orthography) => (
                     <option key={orthography.id} value={orthography.id}>
                       {formatOrthographyOptionLabel(orthography)}
                     </option>
                   ))}
-                  <option value={ORTHOGRAPHY_CREATE_SENTINEL}>+ 新建正字法…</option>
+                  <option value={ORTHOGRAPHY_CREATE_SENTINEL}>{UI_TEXT.createOrthography}</option>
                 </select>
                 {orthographyPicker.orthographies.length === 0 && !orthographyPicker.isCreating && (
                   <div className="layer-parent-guidance-note">
-                    当前语言暂无正字法记录，可直接新建或沿用默认脚本推断。
+                    {UI_TEXT.orthographyHint}
                   </div>
                 )}
                 {orthographyPicker.isCreating && (
@@ -469,8 +500,8 @@ export function LayerActionPopover({
                     picker={orthographyPicker}
                     languageOptions={COMMON_LANGUAGES}
                     compact
-                    sourceLanguagePlaceholder="选择来源语言…"
-                    sourceLanguageCodePlaceholder="来源语言 ISO 639-3 代码（如 eng）"
+                    sourceLanguagePlaceholder={UI_TEXT.sourceLanguagePlaceholder}
+                    sourceLanguageCodePlaceholder={UI_TEXT.sourceLanguageCodePlaceholder}
                   />
                 )}
                 {!orthographyPicker.isCreating && selectedOrthography && (
@@ -483,48 +514,48 @@ export function LayerActionPopover({
               </>
             )}
             <input
-              className="input transcription-layer-rail-action-input"
-              placeholder="别名（可选）"
+              className="input transcription-side-pane-action-input"
+              placeholder={UI_TEXT.aliasPlaceholder}
               value={alias}
               onChange={(e) => setAlias(e.target.value)}
             />
             {action === 'create-translation' && (
               <>
                 <select
-                  className="input transcription-layer-rail-action-input"
+                  className="input transcription-side-pane-action-input"
                   value={modality}
                   onChange={(e) => setModality(e.target.value as 'text' | 'audio' | 'mixed')}
                 >
-                  <option value="text">文本（纯文字翻译）</option>
-                  <option value="audio">语音（口译录音）</option>
-                  <option value="mixed">混合（文字 + 录音）</option>
+                  <option value="text">{UI_TEXT.translationText}</option>
+                  <option value="audio">{UI_TEXT.translationAudio}</option>
+                  <option value="mixed">{UI_TEXT.translationMixed}</option>
                 </select>
                 <div className="layer-parent-guidance-note">
-                  边界来源：翻译层会沿用所选转写层的边界范围。
+                  {UI_TEXT.translationBoundaryHint}
                 </div>
                 {independentParentLayers.length > 1 && (
                   <select
-                    className="input transcription-layer-rail-action-input layer-parent-select"
+                    className="input transcription-side-pane-action-input layer-parent-select"
                     value={selectedParentLayerId}
                     onChange={(e) => setSelectedParentLayerId(e.target.value)}
                   >
-                    <option value="">选择依赖边界层…</option>
+                    <option value="">{UI_TEXT.selectParentLayer}</option>
                     {independentParentLayers.map((layer) => (
                       <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
                     ))}
                   </select>
                 )}
                 {autoParentLayer && (
-                  <p className="layer-parent-auto-note" style={{ marginTop: 6 }}>
-                    已自动关联到「{formatParentLayerOptionLabel(autoParentLayer)}」。
+                  <p className="layer-parent-auto-note layer-action-popover-meta-note">
+                    {UI_TEXT.autoLinkedPrefix}{formatParentLayerOptionLabel(autoParentLayer)}{UI_TEXT.autoLinkedSuffix}
                   </p>
                 )}
               </>
             )}
             {action === 'create-transcription' && showConstraintSelector && (
-              <fieldset style={{ margin: '8px 0', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
-                <legend style={{ fontSize: 12, fontWeight: 500, color: '#64748b', paddingBottom: 4 }}>层约束类型 | Layer Constraint Type</legend>
-                <label style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 13 }}>
+              <fieldset className="layer-action-popover-fieldset">
+                <legend className="layer-action-popover-fieldset-legend">{UI_TEXT.constraintLegend}</legend>
+                <label className="layer-action-popover-radio-option layer-action-popover-radio-option-block">
                   <input
                     type="radio"
                     name="constraint"
@@ -532,11 +563,10 @@ export function LayerActionPopover({
                     checked={constraint === 'symbolic_association'}
                     disabled={!symbolicConstraintGuard.allowed}
                     onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
-                    style={{ marginRight: 6 }}
                   />
-                  依赖边界（跟随主转写层）| Dependent
+                  {UI_TEXT.constraintDependent}
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', fontSize: 13 }}>
+                <label className="layer-action-popover-radio-option">
                   <input
                     type="radio"
                     name="constraint"
@@ -544,30 +574,29 @@ export function LayerActionPopover({
                     checked={constraint === 'independent_boundary'}
                     disabled={!independentConstraintGuard.allowed}
                     onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
-                    style={{ marginRight: 6 }}
                   />
-                  独立边界（自由定义）| Independent
+                  {UI_TEXT.constraintIndependent}
                 </label>
               </fieldset>
             )}
             {action === 'create-transcription' && showConstraintSelector && constraint === 'symbolic_association' && independentParentLayers.length > 1 && (
               <select
-                className="input transcription-layer-rail-action-input layer-parent-select"
+                className="input transcription-side-pane-action-input layer-parent-select"
                 value={selectedParentLayerId}
                 onChange={(e) => setSelectedParentLayerId(e.target.value)}
               >
-                <option value="">选择依赖边界层…</option>
+                <option value="">{UI_TEXT.selectParentLayer}</option>
                 {independentParentLayers.map((layer) => (
                   <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
                 ))}
               </select>
             )}
             {action === 'create-transcription' && showConstraintSelector && constraint === 'symbolic_association' && autoParentLayer && (
-              <p className="layer-parent-auto-note" style={{ marginTop: 6 }}>
-                已自动关联到「{formatParentLayerOptionLabel(autoParentLayer)}」。
+              <p className="layer-parent-auto-note layer-action-popover-meta-note">
+                {UI_TEXT.autoLinkedPrefix}{formatParentLayerOptionLabel(autoParentLayer)}{UI_TEXT.autoLinkedSuffix}
               </p>
             )}
-            <div className="transcription-layer-rail-action-row">
+            <div className="transcription-side-pane-action-row">
               <button
                 className="btn btn-sm"
                 disabled={action === 'create-translation'
@@ -575,33 +604,34 @@ export function LayerActionPopover({
                   : (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || transcriptionCreateDisabledReason.length > 0)}
                 onClick={handleCreate}
               >
-                创建
+                {UI_TEXT.create}
               </button>
               <button className="btn btn-ghost btn-sm" onClick={onClose}>
-                取消
+                {UI_TEXT.cancel}
               </button>
             </div>
             {(translationCreateDisabledReason || transcriptionCreateDisabledReason || !hasValidLanguage) && (
               <div className="layer-create-feedback-stack">
                 {translationCreateDisabledReason && (
                   <p className="layer-create-feedback layer-create-feedback-error">
-                    当前限制：无法新建翻译。{translationCreateDisabledReason}
+                    {UI_TEXT.currentRestrictionTranslation}{translationCreateDisabledReason}
                   </p>
                 )}
                 {transcriptionCreateDisabledReason && (
                   <p className="layer-create-feedback layer-create-feedback-error">
-                    当前限制：无法新建转写。{transcriptionCreateDisabledReason}
+                    {UI_TEXT.currentRestrictionTranscription}{transcriptionCreateDisabledReason}
                   </p>
                 )}
                 {!hasValidLanguage && (
                   <p className="layer-create-feedback layer-create-feedback-info">
-                    必填项：{createLanguageRequiredMessage}
+                    {UI_TEXT.requiredPrefix}{createLanguageRequiredMessage}
                   </p>
                 )}
               </div>
             )}
           </>
         )}
+        </div>
         <div className="floating-panel-resize-handle" onPointerDown={handleResizeStart} aria-hidden="true" />
       </div>
     </div>

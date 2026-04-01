@@ -1,8 +1,13 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from './App';
+
+const ROUTER_FUTURE_FLAGS = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+} as const;
 
 vi.mock('./pages/TranscriptionPage', () => ({
   TranscriptionPage: ({ appSearchRequest }: { appSearchRequest?: { query?: string } | null }) => (
@@ -49,7 +54,7 @@ beforeEach(() => {
 describe('App shell', () => {
   it('removes shell search/theme/shortcut controls', async () => {
     render(
-      <MemoryRouter initialEntries={['/analysis']}>
+      <MemoryRouter initialEntries={['/analysis']} future={ROUTER_FUTURE_FLAGS}>
         <App />
       </MemoryRouter>,
     );
@@ -61,16 +66,39 @@ describe('App shell', () => {
 
   it('renders the current multi-workbench shell navigation', () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']}>
+      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
         <App />
       </MemoryRouter>,
     );
 
     const transcriptionLinks = screen.getAllByRole('link', { name: /Transcription|转写/ });
     expect(transcriptionLinks.length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: /Annotation|标注/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: /Analysis|分析/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByLabelText('功能面板内容区').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('link', { name: /Annotation|标注/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Analysis|分析/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Writing|写作/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Lexicon|词典/ })).toBeNull();
+    expect(screen.getAllByLabelText(/功能面板内容区|Feature panel content area/).length).toBeGreaterThan(0);
     expect(screen.queryByText('核心工作区')).toBeNull();
+  });
+
+  it('persists locale preference and rerenders shell copy after toggling language', () => {
+    const getter = vi.spyOn(navigator, 'language', 'get');
+    getter.mockReturnValue('zh-CN');
+
+    render(
+      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    const localeToggle = screen.getByRole('button', { name: 'Switch to English' });
+    fireEvent.click(localeToggle);
+
+    expect(window.localStorage.getItem('jieyu.locale')).toBe('en-US');
+    expect(screen.getAllByRole('link', { name: 'Transcription' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Feature panel content area').length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'Switch to Chinese' }).length).toBeGreaterThan(0);
+
+    getter.mockRestore();
   });
 });

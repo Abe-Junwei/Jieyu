@@ -23,10 +23,12 @@ import type {
   PreviewContract,
   UiChatMessage,
 } from '../../hooks/useAiChat';
+import type { Locale } from '../../i18n';
 import {
   parseToolCallFromTextZod,
   validateToolArgumentsZod,
 } from './toolCallSchemas';
+import { decodeEscapedUnicode, escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
 
 export type ToolPlannerClarifyReason =
   | 'missing-utterance-target'
@@ -150,7 +152,7 @@ export function parseToolCallFromText(rawText: string): AiChatToolCall | null {
 
 export function parseLegacyNarratedToolCall(text: string): AiChatToolCall | null {
   const patterns = [
-    /我识别到你想执行[“\”]([^”\”]+)[“\”]/,
+    escapedUnicodeRegExp('\\u6211\\u8bc6\\u522b\\u5230\\u4f60\\u60f3\\u6267\\u884c[“\\”]([^”\\”]+)[“\\”]'),
     /I think you want to (?:run|use|execute) [“\']([^”\']+)[“\']/i,
     /you want to (?:run|use|execute) [“\']([^”\']+)[“\']/i,
   ];
@@ -192,10 +194,15 @@ function inferDeleteLayerArgumentsFromText(userText: string): Partial<AiChatTool
   if (!normalizedText) return {};
 
   let layerType: 'translation' | 'transcription' | undefined;
-  if (/(翻译层|译文层)/i.test(normalizedText)) layerType = 'translation';
-  if (/(转写层|转录层|听写层)/i.test(normalizedText)) layerType = 'transcription';
+  if (escapedUnicodeRegExp('(\\u7ffb\\u8bd1\\u5c42|\\u8bd1\\u6587\\u5c42)', 'i').test(normalizedText)) layerType = 'translation';
+  if (escapedUnicodeRegExp('(\\u8f6c\\u5199\\u5c42|\\u8f6c\\u5f55\\u5c42|\\u542c\\u5199\\u5c42)', 'i').test(normalizedText)) layerType = 'transcription';
 
-  const languageQueryMatch = normalizedText.match(/删除\s*(.+?)\s*(?:翻译层|译文层|转写层|转录层|听写层|层)/i);
+  const languageQueryMatch = normalizedText.match(
+    escapedUnicodeRegExp(
+      '\\u5220\\u9664\\s*(.+?)\\s*(?:\\u7ffb\\u8bd1\\u5c42|\\u8bd1\\u6587\\u5c42|\\u8f6c\\u5199\\u5c42|\\u8f6c\\u5f55\\u5c42|\\u542c\\u5199\\u5c42|\\u5c42)',
+      'i',
+    ),
+  );
   const languageQuery = languageQueryMatch?.[1]?.trim();
 
   const result: Partial<AiChatToolCall['arguments']> = {};
@@ -208,30 +215,30 @@ const TOOL_ARG_MAX_ID_LENGTH = 128;
 const TOOL_ARG_MAX_TEXT_LENGTH = 5000;
 
 function validateArgId(args: Record<string, unknown>, key: string, required: boolean): string | null {
-  if (!(key in args)) return required ? `缺少 ${key}。` : null;
+  if (!(key in args)) return required ? decodeEscapedUnicode(`\\u7f3a\\u5c11 ${key}。`) : null;
   const value = args[key];
-  if (typeof value !== 'string') return `${key} 必须是字符串。`;
+  if (typeof value !== 'string') return decodeEscapedUnicode(`${key} \\u5fc5\\u987b\\u662f\\u5b57\\u7b26\\u4e32。`);
   const trimmed = value.trim();
-  if (trimmed.length === 0) return `${key} 不能为空。`;
-  if (trimmed.length > TOOL_ARG_MAX_ID_LENGTH) return `${key} 长度不能超过 ${TOOL_ARG_MAX_ID_LENGTH}。`;
+  if (trimmed.length === 0) return decodeEscapedUnicode(`${key} \\u4e0d\\u80fd\\u4e3a\\u7a7a。`);
+  if (trimmed.length > TOOL_ARG_MAX_ID_LENGTH) return decodeEscapedUnicode(`${key} \\u957f\\u5ea6\\u4e0d\\u80fd\\u8d85\\u8fc7 ${TOOL_ARG_MAX_ID_LENGTH}。`);
   return null;
 }
 
-/** 数值参数校验（兼容 Zod number schema） | Numeric arg validator (compatible with Zod number schemas) */
+/** \\u6570\\u503c\\u53c2\\u6570\\u6821\\u9a8c（\\u517c\\u5bb9 Zod number schema） | Numeric arg validator (compatible with Zod number schemas) */
 function validateArgNumeric(args: Record<string, unknown>, key: string, required: boolean): string | null {
-  if (!(key in args)) return required ? `缺少 ${key}。` : null;
+  if (!(key in args)) return required ? decodeEscapedUnicode(`\\u7f3a\\u5c11 ${key}。`) : null;
   const value = args[key];
   const num = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
-  if (!Number.isFinite(num)) return `${key} 必须是有效数字。`;
+  if (!Number.isFinite(num)) return decodeEscapedUnicode(`${key} \\u5fc5\\u987b\\u662f\\u6709\\u6548\\u6570\\u5b57。`);
   return null;
 }
 
 function validateArgText(args: Record<string, unknown>): string | null {
   const value = args.text;
-  if (typeof value !== 'string') return 'text 必须是字符串。';
+  if (typeof value !== 'string') return decodeEscapedUnicode('text \\u5fc5\\u987b\\u662f\\u5b57\\u7b26\\u4e32。');
   const trimmed = value.trim();
-  if (trimmed.length === 0) return 'text 不能为空。';
-  if (trimmed.length > TOOL_ARG_MAX_TEXT_LENGTH) return `text 长度不能超过 ${TOOL_ARG_MAX_TEXT_LENGTH}。`;
+  if (trimmed.length === 0) return decodeEscapedUnicode('text \\u4e0d\\u80fd\\u4e3a\\u7a7a。');
+  if (trimmed.length > TOOL_ARG_MAX_TEXT_LENGTH) return decodeEscapedUnicode(`text \\u957f\\u5ea6\\u4e0d\\u80fd\\u8d85\\u8fc7 ${TOOL_ARG_MAX_TEXT_LENGTH}。`);
   return null;
 }
 
@@ -242,10 +249,10 @@ function validateSplitSegmentArgs(args: Record<string, unknown>): string | null 
   if (!('splitTime' in args)) return null;
   const splitTime = args.splitTime;
   if (typeof splitTime !== 'number' || !Number.isFinite(splitTime)) {
-    return 'splitTime 必须是数值（秒）。';
+    return decodeEscapedUnicode('splitTime \\u5fc5\\u987b\\u662f\\u6570\\u503c（\\u79d2）。');
   }
   if (splitTime < 0) {
-    return 'splitTime 不能为负数。';
+    return decodeEscapedUnicode('splitTime \\u4e0d\\u80fd\\u4e3a\\u8d1f\\u6570。');
   }
   return null;
 }
@@ -259,22 +266,22 @@ function validateArgLayerCreate(args: Record<string, unknown>, allowModality: bo
       ? languageQuery.trim()
       : '';
   if (effectiveLang.length === 0) {
-    return 'languageId 必须是非空字符串。';
+    return decodeEscapedUnicode('languageId \\u5fc5\\u987b\\u662f\\u975e\\u7a7a\\u5b57\\u7b26\\u4e32。');
   }
   if (isAmbiguousLanguageTarget(effectiveLang)) {
-    return 'languageId 不能是 und/unknown/auto/default，请提供明确语言。';
+    return decodeEscapedUnicode('languageId \\u4e0d\\u80fd\\u662f und/unknown/auto/default，\\u8bf7\\u63d0\\u4f9b\\u660e\\u786e\\u8bed\\u8a00。');
   }
-  if (effectiveLang.length > 32) return 'languageId/languageQuery 长度不能超过 32。';
+  if (effectiveLang.length > 32) return decodeEscapedUnicode('languageId/languageQuery \\u957f\\u5ea6\\u4e0d\\u80fd\\u8d85\\u8fc7 32。');
   if ('alias' in args) {
     const alias = args.alias;
-    if (typeof alias !== 'string') return 'alias 必须是字符串。';
-    if (alias.trim().length > 64) return 'alias 长度不能超过 64。';
+    if (typeof alias !== 'string') return decodeEscapedUnicode('alias \\u5fc5\\u987b\\u662f\\u5b57\\u7b26\\u4e32。');
+    if (alias.trim().length > 64) return decodeEscapedUnicode('alias \\u957f\\u5ea6\\u4e0d\\u80fd\\u8d85\\u8fc7 64。');
   }
   if (allowModality && 'modality' in args) {
     const modality = args.modality;
-    if (typeof modality !== 'string') return 'modality 必须是字符串。';
+    if (typeof modality !== 'string') return decodeEscapedUnicode('modality \\u5fc5\\u987b\\u662f\\u5b57\\u7b26\\u4e32。');
     if (!['text', 'audio', 'mixed'].includes((modality as string).trim().toLowerCase())) {
-      return 'modality 必须是 text/audio/mixed 之一。';
+      return decodeEscapedUnicode('modality \\u5fc5\\u987b\\u662f text/audio/mixed \\u4e4b\\u4e00。');
     }
   }
   return null;
@@ -287,22 +294,22 @@ function validateDeleteLayerArgs(args: Record<string, unknown>): string | null {
   if (hasLayerId) return null;
   const layerType = args.layerType;
   if (layerType !== 'translation' && layerType !== 'transcription') {
-    return '缺少 layerId，且 layerType 必须是 translation/transcription 之一。';
+    return decodeEscapedUnicode('\\u7f3a\\u5c11 layerId，\\u4e14 layerType \\u5fc5\\u987b\\u662f translation/transcription \\u4e4b\\u4e00。');
   }
   const languageQuery = args.languageQuery;
   if (typeof languageQuery !== 'string' || languageQuery.trim().length === 0) {
-    return '缺少 layerId 时必须提供 languageQuery。';
+    return decodeEscapedUnicode('\\u7f3a\\u5c11 layerId \\u65f6\\u5fc5\\u987b\\u63d0\\u4f9b languageQuery。');
   }
-  if (languageQuery.trim().length > 32) return 'languageQuery 长度不能超过 32。';
+  if (languageQuery.trim().length > 32) return decodeEscapedUnicode('languageQuery \\u957f\\u5ea6\\u4e0d\\u80fd\\u8d85\\u8fc7 32。');
   return null;
 }
 
 function validateLinkLayerArgs(args: Record<string, unknown>): string | null {
   if (!('transcriptionLayerId' in args) && !('transcriptionLayerKey' in args)) {
-    return '缺少 transcriptionLayerId/transcriptionLayerKey。';
+    return decodeEscapedUnicode('\\u7f3a\\u5c11 transcriptionLayerId/transcriptionLayerKey。');
   }
   if (!('translationLayerId' in args) && !('layerId' in args)) {
-    return '缺少 translationLayerId/layerId。';
+    return decodeEscapedUnicode('\\u7f3a\\u5c11 translationLayerId/layerId。');
   }
   return validateArgId(args, 'transcriptionLayerId', false)
     ?? validateArgId(args, 'transcriptionLayerKey', false)
@@ -330,17 +337,17 @@ interface ToolStrategy {
 
 const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   create_transcription_segment: {
-    label: '创建句段',
+    label: '\\u521b\\u5efa\\u53e5\\u6bb5',
     contextFill: { utteranceId: true },
     validateArgs: (args) => validateArgId(args, 'utteranceId', true),
   },
   split_transcription_segment: {
-    label: '切分句段',
+    label: '\\u5207\\u5206\\u53e5\\u6bb5',
     contextFill: { utteranceId: true },
     validateArgs: validateSplitSegmentArgs,
   },
   delete_transcription_segment: {
-    label: '删除句段',
+    label: '\\u5220\\u9664\\u53e5\\u6bb5',
     contextFill: { utteranceId: true },
     destructive: true,
     validateArgs: (args) => validateArgId(args, 'utteranceId', true),
@@ -348,40 +355,40 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
       summary: (args) => {
         const utteranceId = typeof args.utteranceId === 'string' ? args.utteranceId : '';
         const target = utteranceId.trim().length > 0 ? utteranceId : 'current-segment';
-        return `将删除 1 条句段（目标：${target}）`;
+        return `\\u5c06\\u5220\\u9664 1 \\u6761\\u53e5\\u6bb5（\\u76ee\\u6807：${target}）`;
       },
       preview: [
-        '该句段的时间范围与转写文本会被清除',
-        '可通过撤销（Undo）恢复',
-        '关联翻译可能变为空引用',
+        '\\u8be5\\u53e5\\u6bb5\\u7684\\u65f6\\u95f4\\u8303\\u56f4\\u4e0e\\u8f6c\\u5199\\u6587\\u672c\\u4f1a\\u88ab\\u6e05\\u9664',
+        '\\u53ef\\u901a\\u8fc7\\u64a4\\u9500（Undo）\\u6062\\u590d',
+        '\\u5173\\u8054\\u7ffb\\u8bd1\\u53ef\\u80fd\\u53d8\\u4e3a\\u7a7a\\u5f15\\u7528',
       ],
     },
   },
   clear_translation_segment: {
-    label: '清空翻译',
+    label: '\\u6e05\\u7a7a\\u7ffb\\u8bd1',
     contextFill: { utteranceId: true, translationLayerId: true },
     validateArgs: (args) => validateArgId(args, 'utteranceId', true) ?? validateArgId(args, 'layerId', true),
   },
   set_transcription_text: {
-    label: '写入转写',
+    label: '\\u5199\\u5165\\u8f6c\\u5199',
     contextFill: { utteranceId: true },
     validateArgs: (args) => validateArgText(args) ?? validateArgId(args, 'utteranceId', true),
   },
   set_translation_text: {
-    label: '写入翻译',
+    label: '\\u5199\\u5165\\u7ffb\\u8bd1',
     contextFill: { utteranceId: true, translationLayerId: true },
     validateArgs: (args) => validateArgText(args) ?? validateArgId(args, 'utteranceId', true) ?? validateArgId(args, 'layerId', true),
   },
   create_transcription_layer: {
-    label: '创建转写层',
+    label: '\\u521b\\u5efa\\u8f6c\\u5199\\u5c42',
     validateArgs: (args) => validateArgLayerCreate(args, false),
   },
   create_translation_layer: {
-    label: '创建翻译层',
+    label: '\\u521b\\u5efa\\u7ffb\\u8bd1\\u5c42',
     validateArgs: (args) => validateArgLayerCreate(args, true),
   },
   delete_layer: {
-    label: '删除层',
+    label: '\\u5220\\u9664\\u5c42',
     contextFill: { layerTargetInference: true },
     destructive: true,
     validateArgs: validateDeleteLayerArgs,
@@ -390,107 +397,107 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
         const layerId = typeof args.layerId === 'string' ? args.layerId.trim() : '';
         const layerType = typeof args.layerType === 'string' ? args.layerType.trim() : '';
         const languageQuery = typeof args.languageQuery === 'string' ? args.languageQuery.trim() : '';
-        const typeLabel = layerType === 'transcription' ? '转写层' : layerType === 'translation' ? '翻译层' : '层';
+        const typeLabel = layerType === 'transcription' ? '\\u8f6c\\u5199\\u5c42' : layerType === 'translation' ? '\\u7ffb\\u8bd1\\u5c42' : '\\u5c42';
         if (languageQuery) {
-          return `将删除整层数据（目标：${languageQuery}${typeLabel}${layerId ? `，ID：${layerId}` : ''}）`;
+          return `\\u5c06\\u5220\\u9664\\u6574\\u5c42\\u6570\\u636e（\\u76ee\\u6807：${languageQuery}${typeLabel}${layerId ? `，ID：${layerId}` : ''}）`;
         }
         const layerLabel = layerId || 'current-layer';
-        return `将删除整层数据（目标层：${layerLabel}）`;
+        return `\\u5c06\\u5220\\u9664\\u6574\\u5c42\\u6570\\u636e（\\u76ee\\u6807\\u5c42：${layerLabel}）`;
       },
       preview: [
-        '该层下的文本会被一并移除',
-        '可通过撤销（Undo）恢复',
-        '与该层相关的链接/对齐关系可能失效',
+        '\\u8be5\\u5c42\\u4e0b\\u7684\\u6587\\u672c\\u4f1a\\u88ab\\u4e00\\u5e76\\u79fb\\u9664',
+        '\\u53ef\\u901a\\u8fc7\\u64a4\\u9500（Undo）\\u6062\\u590d',
+        '\\u4e0e\\u8be5\\u5c42\\u76f8\\u5173\\u7684\\u94fe\\u63a5/\\u5bf9\\u9f50\\u5173\\u7cfb\\u53ef\\u80fd\\u5931\\u6548',
       ],
     },
   },
   link_translation_layer: {
-    label: '关联翻译层',
+    label: '\\u5173\\u8054\\u7ffb\\u8bd1\\u5c42',
     contextFill: { linkBothLayers: true },
     validateArgs: validateLinkLayerArgs,
   },
   unlink_translation_layer: {
-    label: '解除翻译层关联',
+    label: '\\u89e3\\u9664\\u7ffb\\u8bd1\\u5c42\\u5173\\u8054',
     contextFill: { linkBothLayers: true },
     validateArgs: validateLinkLayerArgs,
   },
   auto_gloss_utterance: {
-    label: '自动词汇标注',
+    label: '\\u81ea\\u52a8\\u8bcd\\u6c47\\u6807\\u6ce8',
     contextFill: { utteranceId: true },
     validateArgs: (args) => validateArgId(args, 'utteranceId', true),
   },
   set_token_pos: {
-    label: '设置词性',
+    label: '\\u8bbe\\u7f6e\\u8bcd\\u6027',
     contextFill: { utteranceId: true },
     validateArgs: (args) => validateArgId(args, 'utteranceId', false),
   },
   set_token_gloss: {
-    label: '设置词汇标注',
+    label: '\\u8bbe\\u7f6e\\u8bcd\\u6c47\\u6807\\u6ce8',
     contextFill: {},
     validateArgs: (args) => validateArgId(args, 'tokenId', true),
   },
-  play_pause: { label: '播放/暂停', contextFill: {}, validateArgs: () => null },
-  undo: { label: '撤销', contextFill: {}, validateArgs: () => null },
-  redo: { label: '重做', contextFill: {}, validateArgs: () => null },
-  search_segments: { label: '搜索句段', contextFill: {}, validateArgs: (args) => validateArgText({ text: args.query }) },
-  toggle_notes: { label: '切换备注', contextFill: {}, validateArgs: () => null },
-  mark_segment: { label: '标记句段', contextFill: {}, validateArgs: () => null },
-  delete_segment: { label: '删除句段', contextFill: {}, validateArgs: () => null },
+  play_pause: { label: '\\u64ad\\u653e/\\u6682\\u505c', contextFill: {}, validateArgs: () => null },
+  undo: { label: '\\u64a4\\u9500', contextFill: {}, validateArgs: () => null },
+  redo: { label: '\\u91cd\\u505a', contextFill: {}, validateArgs: () => null },
+  search_segments: { label: '\\u641c\\u7d22\\u53e5\\u6bb5', contextFill: {}, validateArgs: (args) => validateArgText({ text: args.query }) },
+  toggle_notes: { label: '\\u5207\\u6362\\u5907\\u6ce8', contextFill: {}, validateArgs: () => null },
+  mark_segment: { label: '\\u6807\\u8bb0\\u53e5\\u6bb5', contextFill: {}, validateArgs: () => null },
+  delete_segment: { label: '\\u5220\\u9664\\u53e5\\u6bb5', contextFill: {}, validateArgs: () => null },
   auto_gloss_segment: {
-    label: '自动标注',
+    label: '\\u81ea\\u52a8\\u6807\\u6ce8',
     contextFill: { utteranceId: true },
     validateArgs: (args) => validateArgId(args, 'segmentId', false) ?? validateArgId(args, 'utteranceId', false),
   },
   auto_translate_segment: {
-    label: '自动翻译',
+    label: '\\u81ea\\u52a8\\u7ffb\\u8bd1',
     contextFill: { utteranceId: true },
     validateArgs: (args) => validateArgId(args, 'segmentId', false) ?? validateArgId(args, 'utteranceId', false),
   },
   nav_to_segment: {
-    label: '导航到句段',
+    label: '\\u5bfc\\u822a\\u5230\\u53e5\\u6bb5',
     contextFill: {},
     validateArgs: (args) => validateArgNumeric(args, 'segmentIndex', true),
   },
   nav_to_time: {
-    label: '导航到时间',
+    label: '\\u5bfc\\u822a\\u5230\\u65f6\\u95f4',
     contextFill: {},
     validateArgs: (args) => validateArgNumeric(args, 'timeSeconds', true),
   },
   focus_segment: {
-    label: '聚焦句段',
+    label: '\\u805a\\u7126\\u53e5\\u6bb5',
     contextFill: {},
     validateArgs: (args) => validateArgId(args, 'segmentId', true),
   },
   zoom_to_segment: {
-    label: '缩放至句段',
+    label: '\\u7f29\\u653e\\u81f3\\u53e5\\u6bb5',
     contextFill: {},
     validateArgs: (args) => validateArgId(args, 'segmentId', true),
   },
   split_at_time: {
-    label: '时间点分割',
+    label: '\\u65f6\\u95f4\\u70b9\\u5206\\u5272',
     contextFill: {},
     validateArgs: (args) => validateArgNumeric(args, 'timeSeconds', true),
   },
-  merge_prev: { label: '合并上一个', contextFill: {}, validateArgs: () => null },
-  merge_next: { label: '合并下一个', contextFill: {}, validateArgs: () => null },
+  merge_prev: { label: '\\u5408\\u5e76\\u4e0a\\u4e00\\u4e2a', contextFill: {}, validateArgs: () => null },
+  merge_next: { label: '\\u5408\\u5e76\\u4e0b\\u4e00\\u4e2a', contextFill: {}, validateArgs: () => null },
   auto_segment: {
-    label: '自动切分',
+    label: '\\u81ea\\u52a8\\u5207\\u5206',
     contextFill: {},
     validateArgs: (args) => validateArgNumeric(args, 'startTime', false),
   },
   suggest_segment_improvement: {
-    label: '建议改进',
+    label: '\\u5efa\\u8bae\\u6539\\u8fdb',
     contextFill: { utteranceId: true },
     validateArgs: (args) => validateArgId(args, 'utteranceId', false),
   },
   analyze_segment_quality: {
-    label: '分析质量',
+    label: '\\u5206\\u6790\\u8d28\\u91cf',
     contextFill: { utteranceId: true },
     validateArgs: (args) => validateArgId(args, 'utteranceId', false),
   },
-  get_current_segment: { label: '获取当前句段', contextFill: {}, validateArgs: () => null },
-  get_project_summary: { label: '获取项目摘要', contextFill: {}, validateArgs: () => null },
-  get_recent_history: { label: '获取最近历史', contextFill: {}, validateArgs: () => null },
+  get_current_segment: { label: '\\u83b7\\u53d6\\u5f53\\u524d\\u53e5\\u6bb5', contextFill: {}, validateArgs: () => null },
+  get_project_summary: { label: '\\u83b7\\u53d6\\u9879\\u76ee\\u6458\\u8981', contextFill: {}, validateArgs: () => null },
+  get_recent_history: { label: '\\u83b7\\u53d6\\u6700\\u8fd1\\u5386\\u53f2', contextFill: {}, validateArgs: () => null },
 };
 
 export function planToolCallTargets(
@@ -603,7 +610,7 @@ export function planToolCallTargets(
   if (cf?.linkBothLayers) {
     let transcriptionLayerId = getFirstNonEmptyString(nextCall.arguments.transcriptionLayerId);
     const transcriptionLayerKey = getFirstNonEmptyString(nextCall.arguments.transcriptionLayerKey);
-    const refersCurrentLayerPair = /(当前|这层|该层|本层|当前层)/i.test(userText);
+    const refersCurrentLayerPair = escapedUnicodeRegExp('(\\u5f53\\u524d|\\u8fd9\\u5c42|\\u8be5\\u5c42|\\u672c\\u5c42|\\u5f53\\u524d\\u5c42)', 'i').test(userText);
 
     if (transcriptionLayerId && selectedTranscriptionLayerId && transcriptionLayerId !== selectedTranscriptionLayerId) {
       nextCall.arguments.transcriptionLayerId = selectedTranscriptionLayerId;
@@ -645,7 +652,7 @@ export function planToolCallTargets(
       const inferred = inferDeleteLayerArgumentsFromText(userText);
       nextCall.arguments = { ...nextCall.arguments, ...inferred };
 
-      const refersCurrentLayer = /(当前|这层|该层|本层).*(层)|删除当前层|删除这层/i.test(userText);
+      const refersCurrentLayer = escapedUnicodeRegExp('(\\u5f53\\u524d|\\u8fd9\\u5c42|\\u8be5\\u5c42|\\u672c\\u5c42).*(\\u5c42)|\\u5220\\u9664\\u5f53\\u524d\\u5c42|\\u5220\\u9664\\u8fd9\\u5c42', 'i').test(userText);
       if (refersCurrentLayer && selectedLayerId) {
         nextCall.arguments.layerId = selectedLayerId;
       }
@@ -676,11 +683,11 @@ export function planToolCallTargets(
 
 function isDeicticConfirmationMessage(userText: string): boolean {
   const normalized = userText.trim();
-  return /^(这个|这个吧|就这个|它|它吧|就它|这条|该条|这一条|这个句段|该句段|这个字段|该字段|这里|此处|在这里|在此处|就这里|就此处)$/i.test(normalized);
+  return escapedUnicodeRegExp('^(\\u8fd9\\u4e2a|\\u8fd9\\u4e2a\\u5427|\\u5c31\\u8fd9\\u4e2a|\\u5b83|\\u5b83\\u5427|\\u5c31\\u5b83|\\u8fd9\\u6761|\\u8be5\\u6761|\\u8fd9\\u4e00\\u6761|\\u8fd9\\u4e2a\\u53e5\\u6bb5|\\u8be5\\u53e5\\u6bb5|\\u8fd9\\u4e2a\\u5b57\\u6bb5|\\u8be5\\u5b57\\u6bb5|\\u8fd9\\u91cc|\\u6b64\\u5904|\\u5728\\u8fd9\\u91cc|\\u5728\\u6b64\\u5904|\\u5c31\\u8fd9\\u91cc|\\u5c31\\u6b64\\u5904)$', 'i').test(normalized);
 }
 
 export function extractClarifyLanguagePatch(userText: string): Record<string, string> | null {
-  const trimmed = userText.trim().replace(/[的那个吧]$/g, '').trim();
+  const trimmed = userText.trim().replace(escapedUnicodeRegExp('[\\u7684\\u90a3\\u4e2a\\u5427]$', 'g'), '').trim();
   if (!trimmed || trimmed.length > 20) return null;
   const resolved = resolveLanguageQuery(trimmed);
   if (!resolved) return null;
@@ -691,7 +698,7 @@ export function extractClarifySplitPositionPatch(
   userText: string,
   context: AiPromptContext | null | undefined,
 ): Record<string, number | string> | null {
-  if (!/^(这里|此处|在这里|在此处|就这里|就此处)$/i.test(userText.trim())) return null;
+  if (!escapedUnicodeRegExp('^(\\u8fd9\\u91cc|\\u6b64\\u5904|\\u5728\\u8fd9\\u91cc|\\u5728\\u6b64\\u5904|\\u5c31\\u8fd9\\u91cc|\\u5c31\\u6b64\\u5904)$', 'i').test(userText.trim())) return null;
   const activeUtteranceUnitId = getFirstNonEmptyString(context?.shortTerm?.activeUtteranceUnitId);
   const audioTimeSec = context?.shortTerm?.audioTimeSec;
   if (!activeUtteranceUnitId) return null;
@@ -731,7 +738,7 @@ function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: 
 function wasRecentAssistantClarification(messages: UiChatMessage[]): boolean {
   const latestAssistant = messages.find((item) => item.role === 'assistant' && item.content.trim().length > 0);
   if (!latestAssistant) return false;
-  return /(还不够确定|还不能安全执行|缺少目标|请先选中目标)/.test(latestAssistant.content);
+  return escapedUnicodeRegExp('(\\u8fd8\\u4e0d\\u591f\\u786e\\u5b9a|\\u8fd8\\u4e0d\\u80fd\\u5b89\\u5168\\u6267\\u884c|\\u7f3a\\u5c11\\u76ee\\u6807|\\u8bf7\\u5148\\u9009\\u4e2d\\u76ee\\u6807)').test(latestAssistant.content);
 }
 
 export function shouldAllowDeicticExecutionIntent(
@@ -788,7 +795,7 @@ export function assessToolActionIntent(userText: string, options?: ToolIntentAss
     };
   }
 
-  const cancelPattern = /^(算了|不做了|不用了|取消|取消吧|别[做删建]了|不要了|never\s*mind|cancel|forget\s*it|stop|nvm|没事了|不需要了|还是算了)$/i;
+  const cancelPattern = escapedUnicodeRegExp('^(\\u7b97\\u4e86|\\u4e0d\\u505a\\u4e86|\\u4e0d\\u7528\\u4e86|\\u53d6\\u6d88|\\u53d6\\u6d88\\u5427|\\u522b[\\u505a\\u5220\\u5efa]\\u4e86|\\u4e0d\\u8981\\u4e86|never\\s*mind|cancel|forget\\s*it|stop|nvm|\\u6ca1\\u4e8b\\u4e86|\\u4e0d\\u9700\\u8981\\u4e86|\\u8fd8\\u662f\\u7b97\\u4e86)$', 'i');
   if (cancelPattern.test(normalized)) {
     return {
       decision: 'cancel',
@@ -802,11 +809,11 @@ export function assessToolActionIntent(userText: string, options?: ToolIntentAss
     };
   }
 
-  const executionCuePattern = /(请帮|请把|请将|帮我|把|将|给我|执行|run|do|please|麻烦|帮忙|可否|可以把|当前|此)/i;
-  const actionVerbPattern = /(创建|新建|新增|切分|拆分|删除|清空|移除|写入|填写|填入|设置|设为|修改|改成|改为|更新|覆盖|替换|关联|链接|解除|断开|自动标注|转写|翻译|create|add|insert|split|delete|remove|clear|set|update|replace|link|unlink|gloss)/i;
-  const actionTargetPattern = /(句段|段落|segment|层|layer|转写|翻译|文本|text|gloss|词义|utterance|当前|此|这个|那个)/i;
-  const actionObjectPronounPattern = /(之|它|其|这条|该条|本条|此条|这个|那个)$/i;
-  const explicitIdPattern = /(utteranceId|layerId|transcriptionLayerId|translationLayerId|\bu\d+\b|\blayer[-_a-z0-9]+\b|当前|此|这个|那个)/i;
+  const executionCuePattern = escapedUnicodeRegExp('(\\u8bf7\\u5e2e|\\u8bf7\\u628a|\\u8bf7\\u5c06|\\u5e2e\\u6211|\\u628a|\\u5c06|\\u7ed9\\u6211|\\u6267\\u884c|run|do|please|\\u9ebb\\u70e6|\\u5e2e\\u5fd9|\\u53ef\\u5426|\\u53ef\\u4ee5\\u628a|\\u5f53\\u524d|\\u6b64)', 'i');
+  const actionVerbPattern = escapedUnicodeRegExp('(\\u521b\\u5efa|\\u65b0\\u5efa|\\u65b0\\u589e|\\u5207\\u5206|\\u62c6\\u5206|\\u5220\\u9664|\\u6e05\\u7a7a|\\u79fb\\u9664|\\u5199\\u5165|\\u586b\\u5199|\\u586b\\u5165|\\u8bbe\\u7f6e|\\u8bbe\\u4e3a|\\u4fee\\u6539|\\u6539\\u6210|\\u6539\\u4e3a|\\u66f4\\u65b0|\\u8986\\u76d6|\\u66ff\\u6362|\\u5173\\u8054|\\u94fe\\u63a5|\\u89e3\\u9664|\\u65ad\\u5f00|\\u81ea\\u52a8\\u6807\\u6ce8|\\u8f6c\\u5199|\\u7ffb\\u8bd1|create|add|insert|split|delete|remove|clear|set|update|replace|link|unlink|gloss)', 'i');
+  const actionTargetPattern = escapedUnicodeRegExp('(\\u53e5\\u6bb5|\\u6bb5\\u843d|segment|\\u5c42|layer|\\u8f6c\\u5199|\\u7ffb\\u8bd1|\\u6587\\u672c|text|gloss|\\u8bcd\\u4e49|utterance|\\u5f53\\u524d|\\u6b64|\\u8fd9\\u4e2a|\\u90a3\\u4e2a)', 'i');
+  const actionObjectPronounPattern = escapedUnicodeRegExp('(\\u4e4b|\\u5b83|\\u5176|\\u8fd9\\u6761|\\u8be5\\u6761|\\u672c\\u6761|\\u6b64\\u6761|\\u8fd9\\u4e2a|\\u90a3\\u4e2a)$', 'i');
+  const explicitIdPattern = escapedUnicodeRegExp('(utteranceId|layerId|transcriptionLayerId|translationLayerId|\\bu\\d+\\b|\\blayer[-_a-z0-9]+\\b|\\u5f53\\u524d|\\u6b64|\\u8fd9\\u4e2a|\\u90a3\\u4e2a)', 'i');
 
   let score = 0;
   const hasExecutionCue = executionCuePattern.test(trimmed);
@@ -820,9 +827,9 @@ export function assessToolActionIntent(userText: string, options?: ToolIntentAss
   if (hasActionTarget) score += 2;
   if (hasExplicitId) score += 1;
 
-  const greetingPattern = /^(你好|您好|嗨|hello|hi|hey)([！!，,.。?？\s].*)?$/i;
-  const metaQuestionPattern = /(什么是|是什么意思|什么意思|请解释|解释一下|解释|说明一下|说明|含义|用法|区别|原理|why|what is|what does|explain|meaning|how to use)/i;
-  const technicalDiscussionPattern = /(tool_call|set_translation_text|set_transcription_text|delete_layer|create_translation_layer|create_transcription_layer|命令|指令|函数|接口|api)/i;
+  const greetingPattern = escapedUnicodeRegExp('^(\\u4f60\\u597d|\\u60a8\\u597d|\\u55e8|hello|hi|hey)([！!，,.。?？\\s].*)?$', 'i');
+  const metaQuestionPattern = escapedUnicodeRegExp('(\\u4ec0\\u4e48\\u662f|\\u662f\\u4ec0\\u4e48\\u610f\\u601d|\\u4ec0\\u4e48\\u610f\\u601d|\\u8bf7\\u89e3\\u91ca|\\u89e3\\u91ca\\u4e00\\u4e0b|\\u89e3\\u91ca|\\u8bf4\\u660e\\u4e00\\u4e0b|\\u8bf4\\u660e|\\u542b\\u4e49|\\u7528\\u6cd5|\\u533a\\u522b|\\u539f\\u7406|why|what is|what does|explain|meaning|how to use)', 'i');
+  const technicalDiscussionPattern = escapedUnicodeRegExp('(tool_call|set_translation_text|set_transcription_text|delete_layer|create_translation_layer|create_transcription_layer|\\u547d\\u4ee4|\\u6307\\u4ee4|\\u51fd\\u6570|\\u63a5\\u53e3|api)', 'i');
   const endsWithQuestionPattern = /[?？]\s*$/;
   const hasMetaQuestion = metaQuestionPattern.test(trimmed);
   const hasTechnicalDiscussion = technicalDiscussionPattern.test(trimmed);
@@ -905,13 +912,13 @@ function describeToolCallImpact(call: AiChatToolCall): { riskSummary: string; im
   const spec = TOOL_STRATEGY_TABLE[call.name];
   if (spec?.riskSpec) {
     return {
-      riskSummary: spec.riskSpec.summary(call.arguments),
-      impactPreview: spec.riskSpec.preview,
+      riskSummary: decodeEscapedUnicode(spec.riskSpec.summary(call.arguments)),
+      impactPreview: spec.riskSpec.preview.map(decodeEscapedUnicode),
     };
   }
   return {
-    riskSummary: `该操作会修改数据：${call.name}`,
-    impactPreview: ['请确认目标与影响后再继续。'],
+    riskSummary: decodeEscapedUnicode(`\\u8be5\\u64cd\\u4f5c\\u4f1a\\u4fee\\u6539\\u6570\\u636e：${call.name}`),
+    impactPreview: [decodeEscapedUnicode('\\u8bf7\\u786e\\u8ba4\\u76ee\\u6807\\u4e0e\\u5f71\\u54cd\\u540e\\u518d\\u7ee7\\u7eed。')],
   };
 }
 
@@ -954,27 +961,41 @@ export function validateToolCallArguments(call: AiChatToolCall): string | null {
 }
 
 function toToolActionLabel(callName: AiChatToolName): string {
-  return TOOL_STRATEGY_TABLE[callName]?.label ?? callName;
+  return decodeEscapedUnicode(TOOL_STRATEGY_TABLE[callName]?.label ?? callName);
 }
 
-export function toNaturalToolSuccess(callName: AiChatToolName, message: string, style: AiToolFeedbackStyle): string {
-  return formatToolSuccessMessage(toToolActionLabel(callName), message, style);
+export function toNaturalToolSuccess(
+  locale: Locale,
+  callName: AiChatToolName,
+  message: string,
+  style: AiToolFeedbackStyle,
+): string {
+  return formatToolSuccessMessage(locale, toToolActionLabel(callName), message, style);
 }
 
-export function toNaturalToolFailure(callName: AiChatToolName, message: string, style: AiToolFeedbackStyle): string {
-  return formatToolFailureMessage(callName, toToolActionLabel(callName), message, style);
+export function toNaturalToolFailure(
+  locale: Locale,
+  callName: AiChatToolName,
+  message: string,
+  style: AiToolFeedbackStyle,
+): string {
+  return formatToolFailureMessage(locale, callName, toToolActionLabel(callName), message, style);
 }
 
-export function toNaturalToolPending(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
-  return formatToolPendingMessage(toToolActionLabel(callName), style);
+export function toNaturalToolPending(locale: Locale, callName: AiChatToolName, style: AiToolFeedbackStyle): string {
+  return formatToolPendingMessage(locale, toToolActionLabel(callName), style);
 }
 
-export function toNaturalToolGraySkipped(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
-  return formatToolGraySkippedMessage(toToolActionLabel(callName), style);
+export function toNaturalToolGraySkipped(locale: Locale, callName: AiChatToolName, style: AiToolFeedbackStyle): string {
+  return formatToolGraySkippedMessage(locale, toToolActionLabel(callName), style);
 }
 
-export function toNaturalToolRollbackSkipped(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
-  return formatToolRollbackSkippedMessage(toToolActionLabel(callName), style);
+export function toNaturalToolRollbackSkipped(
+  locale: Locale,
+  callName: AiChatToolName,
+  style: AiToolFeedbackStyle,
+): string {
+  return formatToolRollbackSkippedMessage(locale, toToolActionLabel(callName), style);
 }
 
 export function resolveAiToolDecisionMode(): AiToolDecisionMode {
@@ -1046,12 +1067,12 @@ export function buildToolDecisionAuditMetadata(
   };
 }
 
-export function toNaturalToolCancelled(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
-  return formatToolCancelledMessage(toToolActionLabel(callName), style);
+export function toNaturalToolCancelled(locale: Locale, callName: AiChatToolName, style: AiToolFeedbackStyle): string {
+  return formatToolCancelledMessage(locale, toToolActionLabel(callName), style);
 }
 
-export function toNaturalNonActionFallback(userText: string): string {
-  return formatNonActionFallback(userText);
+export function toNaturalNonActionFallback(userText: string, style: AiToolFeedbackStyle): string {
+  return formatNonActionFallback(userText, style);
 }
 
 export function toNaturalActionClarify(callName: AiChatToolName, style: AiToolFeedbackStyle): string {
@@ -1079,30 +1100,33 @@ export function buildClarifyCandidates(
 
   const candidates: AiClarifyCandidate[] = [];
   if (reason === 'missing-utterance-target' && activeUtteranceUnitId) {
-    candidates.push({ key: '1', label: `当前选中句段（${activeUtteranceUnitId}）`, argsPatch: { utteranceId: activeUtteranceUnitId } });
+    candidates.push({ key: '1', label: `\\u5f53\\u524d\\u9009\\u4e2d\\u53e5\\u6bb5（${activeUtteranceUnitId}）`, argsPatch: { utteranceId: activeUtteranceUnitId } });
   }
   if (reason === 'missing-layer-target' && selectedLayerId) {
-    candidates.push({ key: '1', label: `当前选中层（${selectedLayerId}）`, argsPatch: { layerId: selectedLayerId } });
+    candidates.push({ key: '1', label: `\\u5f53\\u524d\\u9009\\u4e2d\\u5c42（${selectedLayerId}）`, argsPatch: { layerId: selectedLayerId } });
   }
   if (reason === 'missing-translation-layer-target' && selectedTranslationLayerId) {
-    candidates.push({ key: '1', label: `当前选中翻译层（${selectedTranslationLayerId}）`, argsPatch: { layerId: selectedTranslationLayerId } });
+    candidates.push({ key: '1', label: `\\u5f53\\u524d\\u9009\\u4e2d\\u7ffb\\u8bd1\\u5c42（${selectedTranslationLayerId}）`, argsPatch: { layerId: selectedTranslationLayerId } });
   }
   if (reason === 'missing-layer-link-target' && selectedTranscriptionLayerId && selectedTranslationLayerId) {
     candidates.push({
       key: '1',
-      label: `当前选中层对（${selectedTranscriptionLayerId} -> ${selectedTranslationLayerId}）`,
+      label: `\\u5f53\\u524d\\u9009\\u4e2d\\u5c42\\u5bf9（${selectedTranscriptionLayerId} -> ${selectedTranslationLayerId}）`,
       argsPatch: { transcriptionLayerId: selectedTranscriptionLayerId, translationLayerId: selectedTranslationLayerId },
     });
   }
   if (reason === 'missing-language-target' && callName === 'create_transcription_layer') {
     const lastLang = sessionMemory?.lastLanguage;
     if (lastLang && lastLang !== 'zho' && lastLang !== 'eng') {
-      candidates.push({ key: `${candidates.length}`, label: `上次使用（${lastLang}）`, argsPatch: { languageId: lastLang } });
+      candidates.push({ key: `${candidates.length}`, label: `\\u4e0a\\u6b21\\u4f7f\\u7528（${lastLang}）`, argsPatch: { languageId: lastLang } });
     }
-    candidates.push({ key: `${candidates.length}`, label: '创建中文转写层（zho）', argsPatch: { languageId: 'zho' } });
-    candidates.push({ key: `${candidates.length}`, label: '创建英文转写层（eng）', argsPatch: { languageId: 'eng' } });
+    candidates.push({ key: `${candidates.length}`, label: '\\u521b\\u5efa\\u4e2d\\u6587\\u8f6c\\u5199\\u5c42（zho）', argsPatch: { languageId: 'zho' } });
+    candidates.push({ key: `${candidates.length}`, label: '\\u521b\\u5efa\\u82f1\\u6587\\u8f6c\\u5199\\u5c42（eng）', argsPatch: { languageId: 'eng' } });
   }
-  return candidates;
+  return candidates.map((candidate) => ({
+    ...candidate,
+    label: decodeEscapedUnicode(candidate.label),
+  }));
 }
 
 export function toNaturalTargetClarify(
@@ -1124,8 +1148,8 @@ export function normalizeLegacyRiskNarration(content: string, style: AiToolFeedb
 
 export function isAmbiguousTargetRiskSummary(summary: string): boolean {
   const normalized = summary.toLowerCase();
-  return normalized.includes('匹配到多个')
-    || normalized.includes('目标不唯一')
+  return normalized.includes(decodeEscapedUnicode('\\u5339\\u914d\\u5230\\u591a\\u4e2a'))
+    || normalized.includes(decodeEscapedUnicode('\\u76ee\\u6807\\u4e0d\\u552f\\u4e00'))
     || normalized.includes('multiple')
     || normalized.includes('ambiguous');
 }

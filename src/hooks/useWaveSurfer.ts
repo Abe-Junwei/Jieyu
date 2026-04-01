@@ -133,9 +133,9 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
 
     const ws = WaveSurfer.create({
       container,
-      waveColor: '#1e3a5f',
-      progressColor: '#2563eb',
-      cursorColor: '#dc2626',
+      waveColor: 'color-mix(in srgb, var(--text-secondary) 70%, transparent)',
+      progressColor: 'var(--state-info-solid)',
+      cursorColor: 'var(--state-danger-solid)',
       height: options.waveformHeight ?? 180,
       normalize: true,
       dragToSeek: false,
@@ -268,7 +268,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       {
         drag: true,
         resize: true,
-        color: 'rgba(69, 121, 245, 0.24)',
+        color: 'color-mix(in srgb, var(--state-info-solid) 24%, transparent)',
       },
       3,
     );
@@ -320,10 +320,10 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         id: r.id, start: r.start, end: r.end,
         drag: true, resize: true,
         color: r.id === primaryRegionIdRef.current
-          ? 'rgba(250, 204, 21, 0.22)'
+          ? 'color-mix(in srgb, var(--state-warning-solid) 22%, transparent)'
           : activeRegionIdsRef.current?.has(r.id)
-            ? 'rgba(69, 121, 245, 0.22)'
-            : 'rgba(69, 121, 245, 0.06)',
+            ? 'color-mix(in srgb, var(--state-info-solid) 22%, transparent)'
+            : 'color-mix(in srgb, var(--state-info-solid) 6%, transparent)',
       }) as unknown as RegionHandle;
       // Alt+pointerdown: intercept native region drag so we can do sub-range selection
       const elForAlt = (handle as unknown as { element?: HTMLElement }).element;
@@ -454,7 +454,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       const markerHandle = rp.addRegion({
         id: '__start_marker__',
         start: startMarker, end: startMarker,
-        color: '#10b981', drag: false, resize: false,
+        color: 'var(--state-success-solid)', drag: false, resize: false,
       }) as unknown as RegionHandle;
       nextHandles.set('__start_marker__', markerHandle);
     }
@@ -485,7 +485,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         id: '__sub_selection__',
         start: sub.start,
         end: sub.end,
-        color: 'rgba(34, 197, 94, 0.38)',
+        color: 'color-mix(in srgb, var(--state-success-solid) 38%, transparent)',
         drag: false,
         resize: false,
       }) as unknown as RegionHandle;
@@ -504,10 +504,12 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       const el = (handle as unknown as { element?: HTMLElement }).element;
       if (el) {
         el.style.backgroundColor = id === primaryRegionId
-          ? (focused ? 'rgba(250, 204, 21, 0.22)' : 'rgba(34, 197, 94, 0.18)')
+          ? (focused
+              ? 'color-mix(in srgb, var(--state-warning-solid) 22%, transparent)'
+              : 'color-mix(in srgb, var(--state-success-solid) 18%, transparent)')
           : activeRegionIds?.has(id)
-            ? 'rgba(69, 121, 245, 0.22)'
-            : 'rgba(69, 121, 245, 0.06)';
+            ? 'color-mix(in srgb, var(--state-info-solid) 22%, transparent)'
+            : 'color-mix(in srgb, var(--state-info-solid) 6%, transparent)';
       }
     });
   }, [activeRegionIds, primaryRegionId, waveformFocused]);

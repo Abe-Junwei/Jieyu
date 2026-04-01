@@ -105,7 +105,9 @@ describe('AiAnalysisPanel embedding integration', () => {
   it('does not render AI chat decision logs inside analysis panel after hub decoupling', () => {
     render(
       <AiPanelContext.Provider value={makeContextValue()}>
-        <AiAnalysisPanel isCollapsed={false} />
+        <EmbeddingProvider value={makeEmbeddingContextValue()}>
+          <AiAnalysisPanel isCollapsed={false} />
+        </EmbeddingProvider>
       </AiPanelContext.Provider>,
     );
 
@@ -117,7 +119,9 @@ describe('AiAnalysisPanel embedding integration', () => {
   it('does not render pending high-risk preview in analysis panel after hub decoupling', () => {
     render(
       <AiPanelContext.Provider value={makeContextValue()}>
-        <AiAnalysisPanel isCollapsed={false} />
+        <EmbeddingProvider value={makeEmbeddingContextValue()}>
+          <AiAnalysisPanel isCollapsed={false} />
+        </EmbeddingProvider>
       </AiPanelContext.Provider>,
     );
 

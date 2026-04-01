@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { LayerDocType } from '../db';
-import { formatLayerRailLabel } from '../utils/transcriptionFormatters';
-import { useLayerRailContextOrFallback } from '../contexts/LayerRailContext';
+import { t, useLocale } from '../i18n';
+import { formatSidePaneLayerLabel } from '../utils/transcriptionFormatters';
+import { useSidePaneLayerContextOrFallback } from '../contexts/SidePaneContext';
 
 export type LayerDeleteConfirmState = {
   layerId: string;
@@ -24,23 +25,28 @@ export function useLayerDeleteConfirm({
   deleteLayer: deleteLayerProp,
   deleteLayerWithoutConfirm: deleteLayerWithoutConfirmProp,
 }: UseLayerDeleteConfirmInput = {}) {
+  const locale = useLocale();
   const shouldUseContext = (
     deletableLayersProp === undefined
     || checkLayerHasContentProp === undefined
     || deleteLayerProp === undefined
     || deleteLayerWithoutConfirmProp === undefined
   );
-  const ctx = useLayerRailContextOrFallback({ warnOnMissing: shouldUseContext });
+  const ctx = useSidePaneLayerContextOrFallback({ warnOnMissing: shouldUseContext });
   const deletableLayers = deletableLayersProp ?? ctx.deletableLayers;
   const checkLayerHasContent = checkLayerHasContentProp ?? ctx.checkLayerHasContent;
   const deleteLayer = deleteLayerProp ?? ctx.deleteLayer;
   const deleteLayerWithoutConfirm = deleteLayerWithoutConfirmProp ?? ctx.deleteLayerWithoutConfirm;
   const [deleteLayerConfirm, setDeleteLayerConfirm] = useState<LayerDeleteConfirmState>(null);
   const [deleteConfirmKeepUtterances, setDeleteConfirmKeepUtterances] = useState(false);
+  const deleteLayerFlowVersionRef = useRef(0);
 
   const requestDeleteLayer = useCallback(async (layerId: string) => {
     const layer = deletableLayers.find((item) => item.id === layerId);
     if (!layer) return;
+
+    const requestVersion = deleteLayerFlowVersionRef.current + 1;
+    deleteLayerFlowVersionRef.current = requestVersion;
 
     const transcriptionCount = deletableLayers.filter((item) => item.layerType === 'transcription').length;
     const translationCount = deletableLayers.filter((item) => item.layerType === 'translation').length;
@@ -48,32 +54,44 @@ export function useLayerDeleteConfirm({
       layer.layerType === 'transcription' && transcriptionCount <= 1 && translationCount > 0;
 
     const warningMessage = deletingLastTranscriptionWithTranslations
-      ? '当前仅剩一个转写层，删除后将自动级联删除其依赖翻译层，请确认是否继续。'
+      ? t(locale, 'transcription.dialog.deleteLayerLastTranscriptionCascadeWarning')
       : undefined;
 
     const textCount = await checkLayerHasContent(layerId);
+    if (deleteLayerFlowVersionRef.current !== requestVersion) return;
+
     if (textCount === 0 && !warningMessage) {
       await deleteLayerWithoutConfirm(layerId);
       return;
     }
+
     setDeleteConfirmKeepUtterances(false);
     setDeleteLayerConfirm({
       layerId,
-      layerName: formatLayerRailLabel(layer),
+      layerName: formatSidePaneLayerLabel(layer),
       layerType: layer.layerType,
       textCount,
       ...(warningMessage ? { warningMessage } : {}),
     });
-  }, [checkLayerHasContent, deleteLayerWithoutConfirm, deletableLayers]);
+  }, [checkLayerHasContent, deleteLayerWithoutConfirm, deletableLayers, locale]);
 
   const cancelDeleteLayerConfirm = useCallback(() => {
+    deleteLayerFlowVersionRef.current += 1;
     setDeleteLayerConfirm(null);
     setDeleteConfirmKeepUtterances(false);
   }, []);
 
   const confirmDeleteLayer = useCallback(async () => {
     if (!deleteLayerConfirm) return;
-    await deleteLayer(deleteLayerConfirm.layerId, { keepUtterances: deleteConfirmKeepUtterances });
+
+    const confirmVersion = deleteLayerFlowVersionRef.current;
+    const { layerId } = deleteLayerConfirm;
+    const keepUtterances = deleteConfirmKeepUtterances;
+
+    await deleteLayer(layerId, { keepUtterances });
+    if (deleteLayerFlowVersionRef.current !== confirmVersion) return;
+
+    deleteLayerFlowVersionRef.current += 1;
     setDeleteLayerConfirm(null);
     setDeleteConfirmKeepUtterances(false);
   }, [deleteConfirmKeepUtterances, deleteLayer, deleteLayerConfirm]);

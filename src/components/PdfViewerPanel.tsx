@@ -44,7 +44,7 @@ export function PdfViewerPanel({
         flexDirection: 'column',
         width: '100%',
         height: '100%',
-        background: '#f5f5f5',
+        background: 'var(--surface-elevated)',
         borderRadius: 8,
         overflow: 'hidden',
       }}
@@ -56,8 +56,8 @@ export function PdfViewerPanel({
           justifyContent: 'space-between',
           gap: 12,
           padding: '8px 12px',
-          background: '#fff',
-          borderBottom: '1px solid #e0e0e0',
+          background: 'var(--surface-panel)',
+          borderBottom: '1px solid var(--border-soft)',
           height: 40,
         }}
       >
@@ -69,15 +69,15 @@ export function PdfViewerPanel({
             padding: '4px 8px',
             fontSize: 12,
             borderRadius: 4,
-            border: '1px solid #ccc',
-            background: '#fff',
+            border: '1px solid var(--border-soft)',
+            background: 'var(--surface-panel)',
             cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
             opacity: currentPage <= 1 ? 0.5 : 1,
           }}
         >
           上一页 / Prev
         </button>
-        <div style={{ fontSize: 12, color: '#666' }}>
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
           {currentPage} / {totalPages}
         </div>
         <button
@@ -88,8 +88,8 @@ export function PdfViewerPanel({
             padding: '4px 8px',
             fontSize: 12,
             borderRadius: 4,
-            border: '1px solid #ccc',
-            background: '#fff',
+            border: '1px solid var(--border-soft)',
+            background: 'var(--surface-panel)',
             cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
             opacity: currentPage >= totalPages ? 0.5 : 1,
           }}
@@ -99,13 +99,13 @@ export function PdfViewerPanel({
       </div>
 
       {loading && (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
           加载中... / Loading...
         </div>
       )}
 
       {error && (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d32f2f', padding: 16 }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--state-danger-solid)', padding: 16 }}>
           {error}
         </div>
       )}
@@ -113,7 +113,7 @@ export function PdfViewerPanel({
       {!loading && !error && (
         <Suspense
           fallback={
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
               准备渲染器... / Preparing renderer...
             </div>
           }

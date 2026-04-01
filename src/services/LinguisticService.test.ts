@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db';
-import type { TierDefinitionDocType, TierAnnotationDocType } from '../db';
+import type { AuditLogDocType, TierDefinitionDocType, TierAnnotationDocType } from '../db';
 import { LinguisticService, validateTierConstraints } from './LinguisticService';
 
 async function clearDatabase(): Promise<void> {
@@ -11,6 +11,7 @@ async function clearDatabase(): Promise<void> {
     db.utterances.clear(),
     db.utterance_tokens.clear(),
     db.utterance_morphemes.clear(),
+    db.anchors.clear(),
     db.lexemes.clear(),
     db.token_lexeme_links.clear(),
     db.ai_tasks.clear(),
@@ -1798,6 +1799,43 @@ describe('Tier CRUD & batch save', () => {
 
     const stored = await LinguisticService.getTierAnnotations('td1');
     expect(stored).toHaveLength(2);
+  });
+
+  it('saveTierAnnotationsBatch rolls back earlier writes when a later annotation fails', async () => {
+    const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
+    await LinguisticService.saveTierDefinition(tier);
+    await db.media_items.put({
+      id: 'media_batch_tx',
+      textId: 'text_1',
+      filename: 'batch.wav',
+      details: {},
+      isOfflineCached: true,
+      createdAt: NOW,
+    });
+
+    const anns = [
+      makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 2 }),
+      makeAnn({ id: 'a2', tierId: 'td1', startTime: 2, endTime: 4 }),
+    ];
+
+    const originalPut = db.audit_logs.put.bind(db.audit_logs);
+    const auditLogCountBefore = (await db.audit_logs.toArray()).length;
+    const putSpy = vi.spyOn(db.audit_logs, 'put').mockImplementation((value: AuditLogDocType) => {
+      if (value.documentId === 'a2') {
+        throw new Error('audit boom');
+      }
+      return originalPut(value);
+    });
+
+    try {
+      await expect(LinguisticService.saveTierAnnotationsBatch('text_1', anns)).rejects.toThrow('audit boom');
+
+      expect(await LinguisticService.getTierAnnotations('td1')).toHaveLength(0);
+      expect((await db.audit_logs.toArray()).length).toBe(auditLogCountBefore);
+      expect(await db.anchors.toArray()).toHaveLength(0);
+    } finally {
+      putSpy.mockRestore();
+    }
   });
 });
 

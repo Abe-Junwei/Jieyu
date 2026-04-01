@@ -51,14 +51,14 @@ export function analyzeSearchPattern(query: string, options: SearchReplaceOption
   if (options.regexMode && query.length > 120) {
     return {
       pattern: null,
-      warning: '正则表达式过长，已跳过执行以避免卡顿。',
+      warning: '\u6b63\u5219\u8868\u8fbe\u5f0f\u8fc7\u957f\uff0c\u5df2\u8df3\u8fc7\u6267\u884c\u4ee5\u907f\u514d\u5361\u987f\u3002',
     };
   }
 
   if (options.regexMode && hasHighRiskRegexShape(query)) {
     return {
       pattern: null,
-      warning: '检测到高风险正则（嵌套量词），已跳过执行。',
+      warning: '\u68c0\u6d4b\u5230\u9ad8\u98ce\u9669\u6b63\u5219\uff08\u5d4c\u5957\u91cf\u8bcd\uff09\uff0c\u5df2\u8df3\u8fc7\u6267\u884c\u3002',
     };
   }
 
@@ -72,7 +72,7 @@ export function analyzeSearchPattern(query: string, options: SearchReplaceOption
     console.error('[Jieyu] searchReplaceUtils: invalid regex pattern', { body, flags, err });
     return {
       pattern: null,
-      error: '正则表达式无效，请检查语法。',
+      error: '\u6b63\u5219\u8868\u8fbe\u5f0f\u65e0\u6548\uff0c\u8bf7\u68c0\u67e5\u8bed\u6cd5\u3002',
     };
   }
 }

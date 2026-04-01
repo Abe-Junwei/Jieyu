@@ -1,19 +1,19 @@
 import { Check, MessageSquare, Mic, MicOff, X } from 'lucide-react';
-import { detectLocale } from '../../i18n';
+import { t, useLocale } from '../../i18n';
 import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
 import { getConfidenceColor } from '../../hooks/useVoiceAgent';
 import { AiChatCard } from './AiChatCard';
 
-const MODE_LABELS: Record<'command' | 'dictation' | 'analysis', string> = {
-  command: '指令',
-  dictation: '听写',
-  analysis: '分析',
+const MODE_LABEL_KEYS: Record<'command' | 'dictation' | 'analysis', 'ai.assistantHub.mode.command' | 'ai.assistantHub.mode.dictation' | 'ai.assistantHub.mode.analysis'> = {
+  command: 'ai.assistantHub.mode.command',
+  dictation: 'ai.assistantHub.mode.dictation',
+  analysis: 'ai.assistantHub.mode.analysis',
 };
 
 const MODE_ORDER: Array<'command' | 'dictation' | 'analysis'> = ['command', 'dictation', 'analysis'];
 
 export function AiAssistantHubCard() {
-  const locale = detectLocale();
+  const locale = useLocale();
   const {
     aiChatEnabled,
     aiIsStreaming,
@@ -37,15 +37,14 @@ export function AiAssistantHubCard() {
   const transcript = (voiceInterimText?.trim() || voiceFinalText?.trim() || '');
   const confidence = voiceConfidence ?? 0;
   const confidenceColor = confidence > 0 ? getConfidenceColor(confidence) : undefined;
-  const isZh = locale === 'zh-CN';
 
   return (
     <section className="transcription-ai-card transcription-ai-assistant-hub">
       <div className="transcription-ai-assistant-head">
         <div className="transcription-ai-card-head" style={{ marginBottom: 0 }}>
-          <span>{isZh ? 'AI 助手中枢' : 'AI Assistant Hub'}</span>
+          <span>{t(locale, 'ai.assistantHub.title')}</span>
           <span className={`transcription-ai-tag ${voiceListening ? 'transcription-ai-assistant-tag-active' : ''}`}>
-            {voiceListening ? (isZh ? '语音在线' : 'Voice Live') : (isZh ? '语音离线' : 'Voice Idle')}
+            {voiceListening ? t(locale, 'ai.assistantHub.voiceLive') : t(locale, 'ai.assistantHub.voiceIdle')}
           </span>
         </div>
       </div>
@@ -53,7 +52,7 @@ export function AiAssistantHubCard() {
       <div className="transcription-ai-assistant-voice">
         {!voiceEnabled ? (
           <p className="small-text" style={{ margin: 0 }}>
-            {isZh ? '语音智能体未启用，请在功能开关中开启。' : 'Voice agent is disabled by feature flags.'}
+            {t(locale, 'ai.assistantHub.disabled')}
           </p>
         ) : (
           <>
@@ -62,14 +61,14 @@ export function AiAssistantHubCard() {
                 type="button"
                 className={`transcription-ai-assistant-mic ${voiceListening ? 'is-active' : ''}`}
                 onClick={() => onVoiceToggle?.()}
-                aria-label={voiceListening ? (isZh ? '关闭语音' : 'Stop voice') : (isZh ? '开启语音' : 'Start voice')}
+                aria-label={voiceListening ? t(locale, 'ai.assistantHub.stopVoice') : t(locale, 'ai.assistantHub.startVoice')}
               >
                 {voiceListening ? <Mic size={15} /> : <MicOff size={15} />}
-                <span>{voiceListening ? (isZh ? '语音进行中' : 'Listening') : (isZh ? '启动语音' : 'Start Voice')}</span>
+                <span>{voiceListening ? t(locale, 'ai.assistantHub.listening') : t(locale, 'ai.assistantHub.startVoiceButton')}</span>
               </button>
 
               {voiceListening && voiceMode && (
-                <div className="transcription-ai-assistant-mode" role="radiogroup" aria-label={isZh ? '语音模式' : 'Voice mode'}>
+                <div className="transcription-ai-assistant-mode" role="radiogroup" aria-label={t(locale, 'ai.assistantHub.voiceMode')}>
                   {MODE_ORDER.map((mode) => (
                     <button
                       key={mode}
@@ -79,7 +78,7 @@ export function AiAssistantHubCard() {
                       className={`transcription-ai-assistant-mode-btn ${voiceMode === mode ? 'is-active' : ''}`}
                       onClick={() => onVoiceSwitchMode?.(mode)}
                     >
-                      {MODE_LABELS[mode]}
+                      {t(locale, MODE_LABEL_KEYS[mode])}
                     </button>
                   ))}
                 </div>
@@ -91,7 +90,7 @@ export function AiAssistantHubCard() {
                   checked={Boolean(voiceSafeMode)}
                   onChange={(e) => onVoiceSetSafeMode?.(e.currentTarget.checked)}
                 />
-                <span>{isZh ? '安全模式' : 'Safe Mode'}</span>
+                <span>{t(locale, 'ai.assistantHub.safeMode')}</span>
               </label>
             </div>
 
@@ -116,24 +115,24 @@ export function AiAssistantHubCard() {
                 disabled={!aiChatEnabled || !onSendAiMessage || !transcript || Boolean(aiIsStreaming)}
                 onClick={() => {
                   if (!onSendAiMessage || !transcript) return;
-                  void onSendAiMessage(`[语音] ${transcript}`);
+                  void onSendAiMessage(`[${t(locale, 'ai.assistantHub.voiceTag')}] ${transcript}`);
                 }}
               >
                 <MessageSquare size={13} />
-                {isZh ? '发送到聊天' : 'Send to Chat'}
+                {t(locale, 'ai.assistantHub.sendToChat')}
               </button>
             </div>
 
             {voicePendingConfirm && (
               <div className="transcription-ai-assistant-confirm" role="status" aria-live="polite">
-                <span>{isZh ? '待确认：' : 'Pending:'} {voicePendingConfirm.label}</span>
+                <span>{t(locale, 'ai.assistantHub.pending')} {voicePendingConfirm.label}</span>
                 {voicePendingConfirm.fromFuzzy && (
-                  <span>{isZh ? '模糊匹配' : 'Fuzzy Match'}</span>
+                  <span>{t(locale, 'ai.assistantHub.fuzzyMatch')}</span>
                 )}
-                <button type="button" className="icon-btn" onClick={() => onVoiceConfirm?.()} aria-label={isZh ? '确认' : 'Confirm'}>
+                <button type="button" className="icon-btn" onClick={() => onVoiceConfirm?.()} aria-label={t(locale, 'ai.assistantHub.confirm')}>
                   <Check size={13} />
                 </button>
-                <button type="button" className="icon-btn" onClick={() => onVoiceCancel?.()} aria-label={isZh ? '取消' : 'Cancel'}>
+                <button type="button" className="icon-btn" onClick={() => onVoiceCancel?.()} aria-label={t(locale, 'ai.assistantHub.cancel')}>
                   <X size={13} />
                 </button>
               </div>

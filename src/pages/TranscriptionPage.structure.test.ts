@@ -560,9 +560,11 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('textOnlyProps: {')).toBe(false);
     expect(orchestratorCode.includes('speakerDialogState={speakerDialogStateRouted}')).toBe(false);
 
-    expect(hookCode.includes('const toolbarProps = useMemo<TranscriptionPageToolbarProps>(() => ({')).toBe(true);
+    expect(hookCode.includes("import { createTranscriptionToolbarProps } from './transcriptionToolbarProps';")).toBe(true);
+    expect(hookCode.includes('const toolbarProps = useMemo<TranscriptionPageToolbarProps>(() => createTranscriptionToolbarProps({')).toBe(true);
     expect(hookCode.includes('const lowConfidenceCount = useMemo(() => utterancesOnCurrentMedia.filter(')).toBe(true);
-    expect(hookCode.includes('const timelineTopProps = useMemo<TranscriptionPageTimelineTopProps>(() => ({')).toBe(true);
+    expect(hookCode.includes("import { createTranscriptionTimelineTopProps } from './transcriptionTimelineTopProps';")).toBe(true);
+    expect(hookCode.includes('const timelineTopProps = useMemo<TranscriptionPageTimelineTopProps>(() => createTranscriptionTimelineTopProps({')).toBe(true);
     expect(hookCode.includes('return {\n    toolbarProps,\n    timelineTopProps,\n    timelineContentProps,\n    aiSidebarProps,\n    dialogsProps,\n  };')).toBe(true);
     expect(hookCode.includes("import {\n  useTranscriptionSidebarSectionsViewModel,")).toBe(true);
     expect(hookCode.includes('const { aiSidebarProps, dialogsProps } = useTranscriptionSidebarSectionsViewModel(sidebarSectionsInput);')).toBe(true);

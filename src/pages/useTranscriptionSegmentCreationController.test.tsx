@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   LayerDocType,
   LayerSegmentDocType,
@@ -8,6 +8,7 @@ import type {
   UtteranceDocType,
 } from '../db';
 import type { SaveState } from '../hooks/transcriptionTypes';
+import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useTranscriptionSegmentCreationController } from './useTranscriptionSegmentCreationController';
 
 const { mockCreateSegment, mockCreateSegmentWithParentConstraint } = vi.hoisted(() => ({
@@ -113,8 +114,13 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
 
 describe('useTranscriptionSegmentCreationController', () => {
   beforeEach(() => {
+    window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, 'zh-CN');
     mockCreateSegment.mockClear();
     mockCreateSegmentWithParentConstraint.mockClear();
+  });
+
+  afterEach(() => {
+    window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
   });
 
   it('creates independent segments with overlapping utterance linkage and focused speaker', async () => {
@@ -132,7 +138,7 @@ describe('useTranscriptionSegmentCreationController', () => {
       await result.current.createUtteranceFromSelectionRouted(1.2, 2.4);
     });
 
-    expect(pushUndo).toHaveBeenCalledWith('新建句段');
+    expect(pushUndo).toHaveBeenCalledWith('从选区创建句段');
     expect(mockCreateSegment).toHaveBeenCalledWith(expect.objectContaining({
       layerId: 'layer-seg',
       startTime: 1.2,
@@ -146,7 +152,7 @@ describe('useTranscriptionSegmentCreationController', () => {
     }));
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'done',
-      message: '已在当前层新建独立段 00:01.2 - 00:02.4',
+      message: '已新建句段 00:01.2 - 00:02.4',
     }));
   });
 
@@ -169,7 +175,7 @@ describe('useTranscriptionSegmentCreationController', () => {
       await result.current.createUtteranceFromSelectionRouted(0.6, 2.4);
     });
 
-    expect(pushUndo).toHaveBeenCalledWith('新建句段');
+    expect(pushUndo).toHaveBeenCalledWith('从选区创建句段');
     expect(mockCreateSegmentWithParentConstraint).toHaveBeenCalledWith(
       expect.objectContaining({
         layerId: 'layer-sub',

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { detectLocale, t } from '../i18n';
+import { t } from '../i18n';
+import { createLocaleWrapper } from '../test/localeTestUtils';
 import { useImportExport } from './useImportExport';
 
 const mockIngestTextFile = vi.hoisted(() => vi.fn());
@@ -43,6 +44,8 @@ function createInput() {
   };
 }
 
+const localeWrapper = createLocaleWrapper('zh-CN');
+
 describe('useImportExport - import error handling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -54,7 +57,7 @@ describe('useImportExport - import error handling', () => {
     const input = createInput();
     mockIngestTextFile.mockRejectedValueOnce(new Error('boom read'));
 
-    const { result } = renderHook(() => useImportExport(input));
+    const { result } = renderHook(() => useImportExport(input), { wrapper: localeWrapper });
 
     await act(async () => {
       await result.current.handleImportFile(new File(['x'], 'demo.eaf', { type: 'text/xml' }));
@@ -78,16 +81,15 @@ describe('useImportExport - import error handling', () => {
     conflict.name = 'TranscriptionPersistenceConflictError';
     mockIngestTextFile.mockRejectedValueOnce(conflict);
 
-    const { result } = renderHook(() => useImportExport(input));
+    const { result } = renderHook(() => useImportExport(input), { wrapper: localeWrapper });
 
     await act(async () => {
       await result.current.handleImportFile(new File(['x'], 'demo.eaf', { type: 'text/xml' }));
     });
 
-    const locale = detectLocale();
     expect(input.setSaveState).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'error',
-      message: t(locale, 'transcription.importExport.conflict'),
+      message: t('zh-CN', 'transcription.importExport.conflict'),
       errorMeta: expect.objectContaining({
         category: 'conflict',
         i18nKey: 'transcription.importExport.conflict',
@@ -99,7 +101,7 @@ describe('useImportExport - import error handling', () => {
     const input = createInput();
     mockImportJieyuArchiveFile.mockRejectedValueOnce(new Error('archive broken'));
 
-    const { result } = renderHook(() => useImportExport(input));
+    const { result } = renderHook(() => useImportExport(input), { wrapper: localeWrapper });
 
     await act(async () => {
       await result.current.handleImportFile(new File(['x'], 'demo.jym', { type: 'application/octet-stream' }));
@@ -123,16 +125,15 @@ describe('useImportExport - import error handling', () => {
     conflict.name = 'RecoveryApplyConflictError';
     mockImportJieyuArchiveFile.mockRejectedValueOnce(conflict);
 
-    const { result } = renderHook(() => useImportExport(input));
+    const { result } = renderHook(() => useImportExport(input), { wrapper: localeWrapper });
 
     await act(async () => {
       await result.current.handleImportFile(new File(['x'], 'demo.jym', { type: 'application/octet-stream' }));
     });
 
-    const locale = detectLocale();
     expect(input.setSaveState).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'error',
-      message: t(locale, 'transcription.importExport.conflict'),
+      message: t('zh-CN', 'transcription.importExport.conflict'),
       errorMeta: expect.objectContaining({
         category: 'conflict',
         i18nKey: 'transcription.importExport.conflict',

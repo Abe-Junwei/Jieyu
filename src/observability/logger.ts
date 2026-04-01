@@ -57,12 +57,18 @@ export function addLogObserver(fn: LogObserver): () => void {
 
 // ─── console 映射 | Console mapping ────────────────────────
 
-const CONSOLE_FN: Record<LogLevel, (...args: unknown[]) => void> = {
-  debug: console.debug,
-  info: console.info,
-  warn: console.warn,
-  error: console.error,
-};
+function getConsoleFn(level: LogLevel): (...args: unknown[]) => void {
+  switch (level) {
+    case 'debug':
+      return console.debug.bind(console);
+    case 'info':
+      return console.info.bind(console);
+    case 'warn':
+      return console.warn.bind(console);
+    case 'error':
+      return console.error.bind(console);
+  }
+}
 
 // ─── 核心 emit | Core emit ─────────────────────────────────
 
@@ -80,9 +86,9 @@ function emit(level: LogLevel, module: string, message: string, data?: Record<st
   // 写控制台 | Write to console
   const prefix = `[${module}]`;
   if (data) {
-    CONSOLE_FN[level](prefix, message, data);
+    getConsoleFn(level)(prefix, message, data);
   } else {
-    CONSOLE_FN[level](prefix, message);
+    getConsoleFn(level)(prefix, message);
   }
 
   // 通知观测器 | Notify observers

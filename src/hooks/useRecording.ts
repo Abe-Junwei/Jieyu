@@ -32,7 +32,7 @@ export function useRecording({
       const layerSupportsAudio =
         layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
       if (!layerSupportsAudio) {
-        setRecordingError('当前层不是口译层，无法录音。');
+        setRecordingError('\u5f53\u524d\u5c42\u4e0d\u662f\u53e3\u8bd1\u5c42\uff0c\u65e0\u6cd5\u5f55\u97f3\u3002');
         return;
       }
 
@@ -65,7 +65,7 @@ export function useRecording({
           } catch (error) {
             setSaveState({
               kind: 'error',
-              message: error instanceof Error ? error.message : '保存翻译录音失败',
+              message: error instanceof Error ? error.message : '\u4fdd\u5b58\u7ffb\u8bd1\u5f55\u97f3\u5931\u8d25',
             });
           } finally {
             streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -83,7 +83,7 @@ export function useRecording({
         setRecording(false);
         setRecordingUtteranceId(null);
         setRecordingLayerId(null);
-        setRecordingError(error instanceof Error ? error.message : '无法启动录音，请检查麦克风权限');
+        setRecordingError(error instanceof Error ? error.message : '\u65e0\u6cd5\u542f\u52a8\u5f55\u97f3\uff0c\u8bf7\u68c0\u67e5\u9ea6\u514b\u98ce\u6743\u9650');
       }
     },
     [saveVoiceTranslation, setSaveState, selectUtterance, manualSelectTsRef],

@@ -4,12 +4,14 @@ import {
 } from '../ai/chat/toolCallHelpers';
 import { formatInvalidArgsError } from '../ai/messages';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
+import type { Locale } from '../i18n';
 import type { AiChatToolCall } from './useAiChat';
 
 interface HandleInvalidToolArgumentsParams {
   assistantMessageId: string;
   toolCall: AiChatToolCall;
   argsValidationError: string;
+  locale: Locale;
   toolFeedbackStyle: AiToolFeedbackStyle;
   source: 'human' | 'ai' | 'system';
   decision: 'confirm_failed' | 'auto_failed' | 'gray_failed';
@@ -31,6 +33,7 @@ export async function handleInvalidToolArguments({
   assistantMessageId,
   toolCall,
   argsValidationError,
+  locale,
   toolFeedbackStyle,
   source,
   decision,
@@ -38,7 +41,7 @@ export async function handleInvalidToolArguments({
   writeToolDecisionAuditLog,
 }: HandleInvalidToolArgumentsParams): Promise<{ finalContent: string; finalErrorMessage: string }> {
   const finalErrorMessage = formatInvalidArgsError(argsValidationError);
-  const finalContent = toNaturalToolFailure(toolCall.name, finalErrorMessage, toolFeedbackStyle);
+  const finalContent = toNaturalToolFailure(locale, toolCall.name, finalErrorMessage, toolFeedbackStyle);
 
   await writeToolDecisionAuditLog(
     assistantMessageId,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createThinkTagStripper, iterateSseData } from './streamUtils';
+import { createThinkTagStripper, iterateJsonLines, iterateSseData } from './streamUtils';
 
 function createSseResponse(chunks: string[]): Response {
   const stream = new ReadableStream<Uint8Array>({
@@ -53,6 +53,62 @@ describe('iterateSseData', () => {
     }
 
     expect(payloads).toEqual(['hello']);
+  });
+
+  it('does not throw when reader.cancel rejects during teardown', async () => {
+    const fakeResponse = {
+      body: {
+        getReader: () => {
+          let emitted = false;
+          return {
+            read: async () => {
+              if (emitted) return { done: true, value: undefined };
+              emitted = true;
+              return { done: false, value: new TextEncoder().encode('data: hello\n\n') };
+            },
+            cancel: async () => {
+              throw new Error('cancel failed');
+            },
+          };
+        },
+      },
+    } as unknown as Response;
+
+    const payloads: string[] = [];
+    for await (const payload of iterateSseData(fakeResponse)) {
+      payloads.push(payload);
+    }
+
+    expect(payloads).toEqual(['hello']);
+  });
+});
+
+describe('iterateJsonLines', () => {
+  it('does not throw when reader.cancel rejects during teardown', async () => {
+    const fakeResponse = {
+      body: {
+        getReader: () => {
+          let emitted = false;
+          return {
+            read: async () => {
+              if (emitted) return { done: true, value: undefined };
+              emitted = true;
+              return { done: false, value: new TextEncoder().encode('{"ok":1}\n') };
+            },
+            cancel: async () => {
+              throw new Error('cancel failed');
+            },
+          };
+        },
+      },
+    } as unknown as Response;
+
+    const payloads: string[] = [];
+    for await (const payload of iterateJsonLines(fakeResponse)) {
+      payloads.push(payload);
+    }
+
+    expect(payloads).toEqual(['{"ok":1}']);
   });
 });
 

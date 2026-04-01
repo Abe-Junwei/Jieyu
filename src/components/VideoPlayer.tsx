@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Maximize, Settings } from 'lucide-react';
 import { useVideoPlayer } from '../hooks/useVideoPlayer';
 import type { WaveSurferRegion } from '../hooks/useWaveSurfer';
+import { t, useLocale } from '../i18n';
 
 type VideoPlayerProps = {
   mediaUrl: string | undefined;
@@ -45,6 +46,7 @@ export function VideoPlayer({
   autoPlay = false,
   videoHeight = 360,
 }: VideoPlayerProps) {
+  const locale = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -130,7 +132,7 @@ export function VideoPlayer({
         style={{
           width: '100%',
           height: videoHeight,
-          backgroundColor: '#000',
+          backgroundColor: 'var(--surface-overlay)',
           display: 'block',
           objectFit: videoFitMode === 'fill' ? 'cover' : videoFitMode === 'original' ? 'none' : 'contain',
         }}
@@ -263,10 +265,10 @@ export function VideoPlayer({
               })}
               title={
                 videoFitMode === 'fit'
-                  ? '当前：适应（完整显示，可能黑边）| 切换到铺满'
+                  ? t(locale, 'transcription.video.fitMode.fitTitle')
                   : videoFitMode === 'fill'
-                  ? '当前：铺满（裁切）| 切换到原始'
-                  : '当前：原始尺寸 | 切换到适应'
+                  ? t(locale, 'transcription.video.fitMode.fillTitle')
+                  : t(locale, 'transcription.video.fitMode.originalTitle')
               }
             >
               {videoFitMode === 'fit' ? 'Fit' : videoFitMode === 'fill' ? 'Fill' : 'Orig'}

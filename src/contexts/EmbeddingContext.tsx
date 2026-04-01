@@ -101,9 +101,7 @@ const EmbeddingContext = createContext<EmbeddingContextValue | null>(null);
 export function useEmbeddingContext(): EmbeddingContextValue {
   const ctx = useContext(EmbeddingContext);
   if (!ctx) {
-    // Fallback for development: return default rather than throwing
-    // This allows gradual migration without breaking existing code
-    return DEFAULT_EMBEDDING_CONTEXT_VALUE;
+    throw new Error('useEmbeddingContext must be used within <EmbeddingProvider>');
   }
   return ctx;
 }

@@ -20,7 +20,7 @@ vi.mock('../contexts/ToastContext', () => ({
 const baseProps = {
   voiceAgent: {
     agentState: 'idle',
-    mode: 'idle',
+    mode: 'command',
     listening: false,
     isRecording: false,
   },
@@ -28,7 +28,18 @@ const baseProps = {
   recording: false,
   recordingUtteranceId: null,
   recordingError: null,
-  tf: (key: string) => key,
+  tf: (key: string, opts?: Record<string, unknown>) => {
+    if (key === 'transcription.toast.overlapCandidates') {
+      return `重叠候选 ${opts?.index}/${opts?.total}`;
+    }
+    if (key === 'transcription.toast.lockConflict') {
+      return `锁定冲突 ${opts?.count} 项`;
+    }
+    if (key === 'transcription.toast.lockConflictWithSpeakers') {
+      return `锁定冲突 ${opts?.count} 项：${opts?.speakers}`;
+    }
+    return key;
+  },
 };
 
 describe('ToastController overlap cycle toast', () => {
@@ -80,5 +91,35 @@ describe('ToastController overlap cycle toast', () => {
     );
 
     expect(showToast).toHaveBeenCalledWith('锁定冲突 2 项：甲、乙', 'info', 2000);
+  });
+
+  it('shows voice error toast when voice agent exposes error', () => {
+    render(
+      <ToastController
+        {...baseProps}
+        voiceAgent={{
+          ...baseProps.voiceAgent,
+          error: '语音唤醒启动失败，已自动关闭。请检查麦克风权限后重试。',
+        }}
+      />,
+    );
+
+    expect(showToast).toHaveBeenCalledWith('语音唤醒启动失败，已自动关闭。请检查麦克风权限后重试。', 'error', 0);
+  });
+
+  it('maps push-to-talk ready state to waiting voice toast semantics', () => {
+    render(
+      <ToastController
+        {...baseProps}
+        voiceAgent={{
+          ...baseProps.voiceAgent,
+          mode: 'dictation',
+          listening: true,
+          agentState: 'idle',
+        }}
+      />,
+    );
+
+    expect(showVoiceState).toHaveBeenCalledWith('dictation', false);
   });
 });

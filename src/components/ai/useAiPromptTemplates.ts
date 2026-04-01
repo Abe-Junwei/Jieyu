@@ -31,22 +31,22 @@ interface UseAiPromptTemplatesReturn {
 const RAG_QUICK_PROMPT_TEMPLATES: PromptTemplateItem[] = [
   {
     id: 'rag-qa-template',
-    title: 'RAG 问答模板',
-    content: '[RAG_SCENARIO:qa]\n【问答模板】请基于检索上下文回答问题，并标注关键依据。\n问题：{{selected_text}}',
+    title: 'RAG \u95ee\u7b54\u6a21\u677f',
+    content: '[RAG_SCENARIO:qa]\n\u3010\u95ee\u7b54\u6a21\u677f\u3011\u8bf7\u57fa\u4e8e\u68c0\u7d22\u4e0a\u4e0b\u6587\u56de\u7b54\u95ee\u9898\uff0c\u5e76\u6807\u6ce8\u5173\u952e\u4f9d\u636e\u3002\n\u95ee\u9898\uff1a{{selected_text}}',
     createdAt: '2026-03-29T00:00:00.000Z',
     updatedAt: '2026-03-29T00:00:00.000Z',
   },
   {
     id: 'rag-review-template',
-    title: 'RAG 审校模板',
-    content: '[RAG_SCENARIO:review]\n【审校模板】请对当前内容做审校，指出不一致、歧义和可改进点。\n目标：{{current_utterance}}',
+    title: 'RAG \u5ba1\u6821\u6a21\u677f',
+    content: '[RAG_SCENARIO:review]\n\u3010\u5ba1\u6821\u6a21\u677f\u3011\u8bf7\u5bf9\u5f53\u524d\u5185\u5bb9\u505a\u5ba1\u6821\uff0c\u6307\u51fa\u4e0d\u4e00\u81f4\u3001\u6b67\u4e49\u548c\u53ef\u6539\u8fdb\u70b9\u3002\n\u76ee\u6807\uff1a{{current_utterance}}',
     createdAt: '2026-03-29T00:00:00.000Z',
     updatedAt: '2026-03-29T00:00:00.000Z',
   },
   {
     id: 'rag-terminology-template',
-    title: 'RAG 术语查证模板',
-    content: '[RAG_SCENARIO:terminology]\n【术语查证模板】请检索术语定义、上下文用例与对译建议。\n术语：{{selected_text}}',
+    title: 'RAG \u672f\u8bed\u67e5\u8bc1\u6a21\u677f',
+    content: '[RAG_SCENARIO:terminology]\n\u3010\u672f\u8bed\u67e5\u8bc1\u6a21\u677f\u3011\u8bf7\u68c0\u7d22\u672f\u8bed\u5b9a\u4e49\u3001\u4e0a\u4e0b\u6587\u7528\u4f8b\u4e0e\u5bf9\u8bd1\u5efa\u8bae\u3002\n\u672f\u8bed\uff1a{{selected_text}}',
     createdAt: '2026-03-29T00:00:00.000Z',
     updatedAt: '2026-03-29T00:00:00.000Z',
   },

@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createLogger, addLogObserver, setLogLevel, type LogEntry } from './logger';
 
 describe('createLogger', () => {
@@ -74,5 +74,14 @@ describe('createLogger', () => {
     expect(() => log.info('test')).not.toThrow();
 
     unsub();
+  });
+
+  it('uses the current console binding at emit time', () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    createLogger('PatchedConsole').error('visible to spy');
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[PatchedConsole]', 'visible to spy');
+    consoleErrorSpy.mockRestore();
   });
 });

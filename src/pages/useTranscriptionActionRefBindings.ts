@@ -41,29 +41,8 @@ interface UseTranscriptionActionRefBindingsInput {
 export function useTranscriptionActionRefBindings(input: UseTranscriptionActionRefBindingsInput): void {
   useEffect(() => {
     input.openSearchRef.current = input.openSearchFromRequest;
-
-    return () => {
-      input.openSearchRef.current = undefined;
-    };
-  }, [input.openSearchFromRequest, input.openSearchRef]);
-
-  useEffect(() => {
     input.seekToTimeRef.current = input.seekToTime;
-
-    return () => {
-      input.seekToTimeRef.current = undefined;
-    };
-  }, [input.seekToTime, input.seekToTimeRef]);
-
-  useEffect(() => {
     input.executeActionRef.current = input.executeAction;
-
-    return () => {
-      input.executeActionRef.current = undefined;
-    };
-  }, [input.executeAction, input.executeActionRef]);
-
-  useEffect(() => {
     input.waveformInteractionHandlerRefs.handleWaveformRegionAltPointerDownRef.current = input.handleWaveformRegionAltPointerDown;
     input.waveformInteractionHandlerRefs.handleWaveformRegionClickRef.current = input.handleWaveformRegionClick;
     input.waveformInteractionHandlerRefs.handleWaveformRegionDoubleClickRef.current = input.handleWaveformRegionDoubleClick;
@@ -84,10 +63,15 @@ export function useTranscriptionActionRefBindings(input: UseTranscriptionActionR
       input.waveformInteractionHandlerRefs.handleWaveformRegionUpdateRef.current = undefined;
       input.waveformInteractionHandlerRefs.handleWaveformRegionUpdateEndRef.current = undefined;
       input.waveformInteractionHandlerRefs.handleWaveformTimeUpdateRef.current = undefined;
+      input.executeActionRef.current = undefined;
+      input.openSearchRef.current = undefined;
+      input.seekToTimeRef.current = undefined;
       input.splitAtTimeRef.current = undefined;
       input.zoomToSegmentRef.current = undefined;
     };
   }, [
+    input.executeAction,
+    input.executeActionRef,
     input.handleSplitAtTimeRequest,
     input.handleWaveformRegionAltPointerDown,
     input.handleWaveformRegionClick,
@@ -98,6 +82,10 @@ export function useTranscriptionActionRefBindings(input: UseTranscriptionActionR
     input.handleWaveformRegionUpdateEnd,
     input.handleWaveformTimeUpdate,
     input.handleZoomToSegmentRequest,
+    input.openSearchFromRequest,
+    input.openSearchRef,
+    input.seekToTime,
+    input.seekToTimeRef,
     input.splitAtTimeRef,
     input.waveformInteractionHandlerRefs,
     input.zoomToSegmentRef,

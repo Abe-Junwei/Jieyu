@@ -58,8 +58,8 @@ describe('layerLinkConnector', () => {
 
   it('keeps palette stable when resolving connector colors', () => {
     expect(getLayerLinkConnectorColors(0)).toEqual({
-      base: 'rgba(14, 116, 144, 0.62)',
-      active: 'rgba(8, 145, 178, 0.88)',
+      base: 'color-mix(in srgb, var(--state-info-solid) 62%, transparent)',
+      active: 'color-mix(in srgb, var(--state-info-solid) 88%, transparent)',
     });
     expect(getLayerLinkConnectorColors(6)).toEqual(getLayerLinkConnectorColors(0));
   });

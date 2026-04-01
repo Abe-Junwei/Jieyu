@@ -1,17 +1,9 @@
 /**
- * ReportGenerator — 用户工作报告生成器
+ * ReportGenerator
  *
- * 从 userBehaviorDB 读取数据，生成结构化报告。
- * 支持日报/周报/项目总览/自定义区间四种类型，
- * 输出 Markdown / JSON / CSV / TTS 摘要格式。
- *
- * 数据来源：
- *  - actionRecords：操作频率、耗时、语音置信度
- *  - taskPhaseRecords：各阶段耗时、句段处理量
- *  - difficultSegments：困难句段列表
- *  - userBehaviorProfile：疲劳趋势、使用时段分布
- *
- * @see 解语-语音智能体架构设计方案 v2.5 §阶段5
+ * Reads from userBehaviorDB and generates structured reports.
+ * Supports daily / weekly / project / custom ranges and outputs
+ * Markdown / JSON / CSV / TTS summary formats.
  */
 
 import {
@@ -24,6 +16,8 @@ import {
   type DifficultSegmentDoc,
 } from './userBehaviorDB';
 import { globalContext } from './GlobalContextService';
+import type { Locale } from '../i18n';
+import { getReportGeneratorMessages } from '../i18n/reportGeneratorMessages';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -31,6 +25,8 @@ export type ReportType = 'daily' | 'weekly' | 'project' | 'custom';
 
 export interface ReportOptions {
   type: ReportType;
+  /** Locale used for user-facing report content */
+  locale?: Locale;
   /** Start time (ms) for custom range, ignored for daily/weekly which compute from now */
   startTime?: number;
   /** End time (ms), defaults to now */
@@ -42,6 +38,7 @@ export interface ReportOptions {
 }
 
 export interface DailySummary {
+  locale: Locale;
   date: string; // ISO date string YYYY-MM-DD
   totalActions: number;
   totalDurationMs: number;
@@ -57,6 +54,7 @@ export interface DailySummary {
 }
 
 export interface WeeklySummary {
+  locale: Locale;
   weekStart: string; // ISO date
   weekEnd: string;
   days: DailySummary[];
@@ -77,6 +75,7 @@ export interface WeeklySummary {
 }
 
 export interface ProjectSummary {
+  locale: Locale;
   projectId: string;
   projectName: string;
   totalSegments: number;
@@ -120,6 +119,7 @@ export class ReportGenerator {
    * Generate a daily report for today (or a specific date if startTime is set).
    */
   async _generateDaily(options: ReportOptions): Promise<DailySummary> {
+    const locale = this._resolveLocale(options.locale);
     const endTime = options.endTime ?? Date.now();
     const startTime = options.startTime ?? this._todayStart(endTime);
 
@@ -145,12 +145,13 @@ export class ReportGenerator {
     const difficultSegments = dsSegments.slice(0, 5).map((d) => ({
       segmentId: d.segmentId,
       score: d.difficultyScore,
-      reason: this._difficultyReason(d),
+      reason: this._difficultyReason(d, locale),
     }));
 
     const dateStr = new Date(startTime).toISOString().split('T')[0] ?? '';
 
     return {
+      locale,
       date: dateStr,
       totalActions: actions.length,
       totalDurationMs: actions.reduce((sum, a) => sum + a.durationMs, 0),
@@ -162,7 +163,7 @@ export class ReportGenerator {
       sessionCount: this._countSessions(actions),
       difficultSegments,
       efficiencyVsYesterday,
-      ttsSummary: this._buildDailyTtsSummary(actions, profile, efficiencyVsYesterday),
+      ttsSummary: this._buildDailyTtsSummary(actions, profile, efficiencyVsYesterday, locale),
     };
   }
 
@@ -170,6 +171,7 @@ export class ReportGenerator {
    * Generate a weekly report (Mon–Sun of current week or specified week).
    */
   async _generateWeekly(options: ReportOptions): Promise<WeeklySummary> {
+    const locale = this._resolveLocale(options.locale);
     const now = options.endTime ?? Date.now();
     const weekStart = options.startTime ?? this._weekStart(now);
     const weekEnd = now;
@@ -193,6 +195,7 @@ export class ReportGenerator {
     const difficultSegmentsOverall = this._collectDifficultSegments(days);
 
     return {
+      locale,
       weekStart: new Date(weekStart).toISOString().split('T')[0] ?? '',
       weekEnd: new Date(weekEnd).toISOString().split('T')[0] ?? '',
       days,
@@ -200,7 +203,7 @@ export class ReportGenerator {
       topActionsOverall,
       phaseDistribution,
       difficultSegmentsOverall,
-      weeklyTtsSummary: this._buildWeeklyTtsSummary(weeklyTotals, days.length),
+      weeklyTtsSummary: this._buildWeeklyTtsSummary(weeklyTotals, days.length, locale),
     };
   }
 
@@ -208,6 +211,8 @@ export class ReportGenerator {
    * Generate a project summary from all available data for a project.
    */
   async _generateProject(options: ReportOptions): Promise<ProjectSummary> {
+    const locale = this._resolveLocale(options.locale);
+    const messages = getReportGeneratorMessages(locale);
     const projectId = options.projectId ?? 'current';
     const corpus = globalContext.getCorpusContext();
     const profile = await this._getProfile();
@@ -222,7 +227,7 @@ export class ReportGenerator {
       ? Object.values(profile.actionDurationsMs).reduce((sum, d) => sum + (d ?? 0), 0) / annotatedSegments
       : 0;
 
-    // 获取最近活动（近 7 天） | Get recent activity (last 7 days)
+    // Get recent activity (last 7 days).
     const recentActivity: Array<{ date: string; actions: number; durationMs: number }> = [];
     for (let d = 6; d >= 0; d--) {
       const dayStart = this._todayStart(Date.now() - d * 86400000);
@@ -240,7 +245,7 @@ export class ReportGenerator {
       }
     }
 
-    // 基于当前节奏估算完成日期 | Estimate completion date based on current pace
+    // Estimate completion date based on current pace.
     const todayActions = recentActivity[recentActivity.length - 1]?.actions ?? 0;
     const remaining = totalSegments - annotatedSegments;
     const dailyPace = todayActions > 0 ? todayActions : 10;
@@ -250,8 +255,9 @@ export class ReportGenerator {
       : null;
 
     return {
+      locale,
       projectId,
-      projectName: corpus?.projectMeta.name ?? '未知项目',
+      projectName: corpus?.projectMeta.name ?? messages.unknownProject,
       totalSegments,
       annotatedSegments,
       translatedSegments,
@@ -263,7 +269,7 @@ export class ReportGenerator {
       phaseTimeDistribution: [],
       recentActivity,
       estimatedCompletionDate,
-      projectTtsSummary: this._buildProjectTtsSummary(totalSegments, annotatedSegments, completionRate, estimatedCompletionDate),
+      projectTtsSummary: this._buildProjectTtsSummary(totalSegments, annotatedSegments, completionRate, estimatedCompletionDate, locale),
     };
   }
 
@@ -273,9 +279,10 @@ export class ReportGenerator {
    * Export report as Markdown string.
    */
   toMarkdown(report: GeneratedReport): string {
-    if ('weekStart' in report) return this._weeklyToMarkdown(report);
-    if ('projectName' in report) return this._projectToMarkdown(report);
-    return this._dailyToMarkdown(report);
+    const locale = this._resolveLocale(report.locale);
+    if ('weekStart' in report) return this._weeklyToMarkdown(report, locale);
+    if ('projectName' in report) return this._projectToMarkdown(report, locale);
+    return this._dailyToMarkdown(report, locale);
   }
 
   /**
@@ -302,6 +309,10 @@ export class ReportGenerator {
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────────
+
+  private _resolveLocale(locale?: Locale): Locale {
+    return locale ?? 'zh-CN';
+  }
 
   private async _getProfile(): Promise<UserBehaviorProfileDoc> {
     const { loadBehaviorProfile } = await import('./userBehaviorDB');
@@ -480,12 +491,13 @@ export class ReportGenerator {
     return all.sort((a, b) => b.score - a.score).slice(0, 10);
   }
 
-  private _difficultyReason(d: DifficultSegmentDoc): string {
-    if (d.editCount > 5) return '编辑次数过多';
-    if (d.revertCount > 2) return '反复撤销';
-    if (d.aiAssistanceRequested) return 'AI 辅助次数高';
-    if (d.dwellTimeMs > 30000) return '停留时间过长';
-    return '综合难度较高';
+  private _difficultyReason(d: DifficultSegmentDoc, locale: Locale): string {
+    const messages = getReportGeneratorMessages(locale);
+    if (d.editCount > 5) return messages.difficultyTooManyEdits;
+    if (d.revertCount > 2) return messages.difficultyRepeatedUndo;
+    if (d.aiAssistanceRequested) return messages.difficultyHighAiAssistance;
+    if (d.dwellTimeMs > 30000) return messages.difficultyLongDwellTime;
+    return messages.difficultyHighOverall;
   }
 
   private _todayStart(timestamp: number): number {
@@ -509,19 +521,27 @@ export class ReportGenerator {
     actions: ActionRecordDoc[],
     _profile: { fatigueScore: number },
     efficiencyVsYesterday: number | null,
+    locale: Locale,
   ): string {
+    const messages = getReportGeneratorMessages(locale);
     const count = actions.length;
     const trend = efficiencyVsYesterday !== null
-      ? efficiencyVsYesterday >= 0 ? `效率比昨天提升${Math.round(efficiencyVsYesterday)}%` : `效率比昨天下降${Math.round(Math.abs(efficiencyVsYesterday))}%`
-      : '暂无对比数据';
-    return `今日共执行${count}次操作。${trend}。`;
+      ? efficiencyVsYesterday >= 0
+        ? messages.dailyTrendImproved(Math.round(efficiencyVsYesterday))
+        : messages.dailyTrendDeclined(Math.round(Math.abs(efficiencyVsYesterday)))
+      : messages.dailyTrendUnavailable;
+    return messages.dailyTtsSummary(count, trend);
   }
 
-  private _buildWeeklyTtsSummary(totals: ReturnType<typeof this._computeWeeklyTotals>, daysWithData: number): string {
+  private _buildWeeklyTtsSummary(totals: ReturnType<typeof this._computeWeeklyTotals>, daysWithData: number, locale: Locale): string {
+    const messages = getReportGeneratorMessages(locale);
     const { totalActions, fatigueTrend } = totals;
-    const fatigueStr = fatigueTrend === 'worsening' ? '疲劳度有所上升，注意休息' :
-      fatigueTrend === 'improving' ? '状态良好，继续保持' : '疲劳度稳定';
-    return `本周共${totalActions}次操作，分布在${daysWithData}天。${fatigueStr}。`;
+    const fatigueStr = fatigueTrend === 'worsening'
+      ? messages.weeklyFatigueWorsening
+      : fatigueTrend === 'improving'
+        ? messages.weeklyFatigueImproving
+        : messages.weeklyFatigueStable;
+    return messages.weeklyTtsSummary(totalActions, daysWithData, fatigueStr);
   }
 
   private _buildProjectTtsSummary(
@@ -529,70 +549,79 @@ export class ReportGenerator {
     annotated: number,
     completionRate: number,
     estimatedDate: string | null,
+    locale: Locale,
   ): string {
+    const messages = getReportGeneratorMessages(locale);
     const pct = Math.round(completionRate * 100);
     const remaining = total - annotated;
-    const estStr = estimatedDate ? `预计${estimatedDate}完成` : '无法预估';
-    return `项目共${total}句段，已完成${annotated}句，完成率${pct}%。还剩${remaining}句，${estStr}。`;
+    const estStr = estimatedDate ? messages.projectEstimateKnown(estimatedDate) : messages.projectEstimateUnknown;
+    return messages.projectTtsSummary(total, annotated, pct, remaining, estStr);
   }
 
   // ── Markdown formatters ─────────────────────────────────────────────────
 
-  private _dailyToMarkdown(d: DailySummary): string {
+  private _dailyToMarkdown(d: DailySummary, locale: Locale): string {
+    const messages = getReportGeneratorMessages(locale);
+    const voiceConfidence = d.voiceConfidenceAvg !== null ? `${(d.voiceConfidenceAvg * 100).toFixed(0)}%` : messages.notAvailable;
+    const efficiency = d.efficiencyVsYesterday !== null
+      ? `${d.efficiencyVsYesterday >= 0 ? '+' : ''}${d.efficiencyVsYesterday.toFixed(1)}%`
+      : messages.notAvailable;
     const lines = [
-      `# 日报 — ${d.date}`,
+      messages.markdownDailyTitle(d.date),
       '',
-      `## 概览`,
-      `- 总操作次数：${d.totalActions}`,
-      `- 总耗时：${(d.totalDurationMs / 60000).toFixed(1)}分钟`,
-      `- 语音平均置信度：${d.voiceConfidenceAvg !== null ? `${(d.voiceConfidenceAvg * 100).toFixed(0)}%` : 'N/A'}`,
-      `- AI 辅助次数：${d.aiAssistanceCount}`,
-      `- 疲劳指数：${(d.fatigueScore * 100).toFixed(0)}%`,
-      `- 效率对比昨天：${d.efficiencyVsYesterday !== null ? `${d.efficiencyVsYesterday >= 0 ? '+' : ''}${d.efficiencyVsYesterday.toFixed(1)}%` : 'N/A'}`,
+      messages.markdownOverview,
+      messages.markdownTotalActions(d.totalActions),
+      messages.markdownTotalDurationMinutes((d.totalDurationMs / 60000).toFixed(1)),
+      messages.markdownVoiceConfidence(voiceConfidence),
+      messages.markdownAiAssistance(d.aiAssistanceCount),
+      messages.markdownFatigueScore(`${(d.fatigueScore * 100).toFixed(0)}%`),
+      messages.markdownEfficiencyVsYesterday(efficiency),
       '',
-      `## 高频操作`,
-      ...d.topActions.map((a) => `- ${a.actionId}: ${a.count}次（均${(a.avgDurationMs / 1000).toFixed(1)}秒）`),
+      messages.markdownTopActions,
+      ...d.topActions.map((action) => messages.markdownTopActionRow(action.actionId, action.count, (action.avgDurationMs / 1000).toFixed(1))),
       '',
       d.difficultSegments.length > 0
-        ? `## 困难句段\n${d.difficultSegments.map((s) => `- \`${s.segmentId}\`（难度${(s.score * 100).toFixed(0)}%）${s.reason}`).join('\n')}`
+        ? `${messages.markdownDifficultSegments}\n${d.difficultSegments.map((segment) => messages.markdownDifficultSegmentRow(segment.segmentId, (segment.score * 100).toFixed(0), segment.reason)).join('\n')}`
         : '',
     ];
     return lines.filter(Boolean).join('\n');
   }
 
-  private _weeklyToMarkdown(w: WeeklySummary): string {
+  private _weeklyToMarkdown(w: WeeklySummary, locale: Locale): string {
+    const messages = getReportGeneratorMessages(locale);
     const lines = [
-      `# 周报 — ${w.weekStart} ~ ${w.weekEnd}`,
+      messages.markdownWeeklyTitle(w.weekStart, w.weekEnd),
       '',
-      `## 周统计`,
-      `- 总操作：${w.weeklyTotals.totalActions}次`,
-      `- 日均操作：${w.weeklyTotals.avgDailyActions}次`,
-      `- 总耗时：${(w.weeklyTotals.totalDurationMs / 3600000).toFixed(1)}小时`,
-      `- 疲劳趋势：${w.weeklyTotals.fatigueTrend === 'worsening' ? '上升📈' : w.weeklyTotals.fatigueTrend === 'improving' ? '下降📉' : '稳定➡️'}`,
-      `- 主要阶段：${w.weeklyTotals.dominantPhase}`,
+      messages.markdownWeeklyStats,
+      messages.markdownWeeklyTotalActions(w.weeklyTotals.totalActions),
+      messages.markdownWeeklyAvgDailyActions(w.weeklyTotals.avgDailyActions),
+      messages.markdownWeeklyTotalDurationHours((w.weeklyTotals.totalDurationMs / 3600000).toFixed(1)),
+      messages.markdownWeeklyFatigueTrend(messages.fatigueTrendLabel(w.weeklyTotals.fatigueTrend)),
+      messages.markdownWeeklyDominantPhase(messages.phaseLabel(w.weeklyTotals.dominantPhase)),
       '',
-      `## 阶段分布`,
-      ...w.phaseDistribution.map((p) => `- ${p.phase}: ${p.percentage}%`),
+      messages.markdownPhaseDistribution,
+      ...w.phaseDistribution.map((phase) => messages.markdownPhaseDistributionRow(messages.phaseLabel(phase.phase), phase.percentage)),
       '',
-      `## 高频操作`,
-      ...w.topActionsOverall.map((a) => `- ${a.actionId}: ${a.count}次`),
+      messages.markdownTopActions,
+      ...w.topActionsOverall.map((action) => messages.markdownTopActionOverallRow(action.actionId, action.count)),
     ];
     return lines.join('\n');
   }
 
-  private _projectToMarkdown(p: ProjectSummary): string {
+  private _projectToMarkdown(p: ProjectSummary, locale: Locale): string {
+    const messages = getReportGeneratorMessages(locale);
     const lines = [
-      `# 项目总览 — ${p.projectName}`,
+      messages.markdownProjectTitle(p.projectName),
       '',
-      `## 进度`,
-      `- 总句段：${p.totalSegments}`,
-      `- 已转写：${p.annotatedSegments}（${(p.completionRate * 100).toFixed(1)}%）`,
-      `- 已翻译：${p.translatedSegments}`,
-      `- 已标注：${p.glossedSegments}`,
-      p.estimatedCompletionDate ? `- 预计完成：${p.estimatedCompletionDate}` : '',
+      messages.markdownProgress,
+      messages.markdownProjectTotalSegments(p.totalSegments),
+      messages.markdownProjectAnnotatedSegments(p.annotatedSegments, (p.completionRate * 100).toFixed(1)),
+      messages.markdownProjectTranslatedSegments(p.translatedSegments),
+      messages.markdownProjectGlossedSegments(p.glossedSegments),
+      p.estimatedCompletionDate ? messages.markdownProjectEstimatedCompletion(p.estimatedCompletionDate) : '',
       '',
-      `## 近期活动`,
-      ...p.recentActivity.map((a) => `- ${a.date}：${a.actions}次操作，${(a.durationMs / 60000).toFixed(1)}分钟`),
+      messages.markdownRecentActivity,
+      ...p.recentActivity.map((activity) => messages.markdownRecentActivityRow(activity.date, activity.actions, (activity.durationMs / 60000).toFixed(1))),
     ];
     return lines.filter(Boolean).join('\n');
   }

@@ -1,29 +1,30 @@
 import type { ActionId } from './IntentRouter';
+import { getStoredLocalePreference, t, type DictKey, type Locale } from '../i18n';
 
 const VOICE_ALIAS_LEARNING_LOG_KEY = 'jieyu.voice.intent.aliasLearningLog';
 const MAX_VOICE_ALIAS_LOG_SIZE = 50;
 
-const ACTION_LABELS: Record<ActionId, string> = {
-  playPause: '播放/暂停',
-  markSegment: '标记句段',
-  cancel: '取消',
-  deleteSegment: '删除句段',
-  mergePrev: '合并上一个',
-  mergeNext: '合并下一个',
-  splitSegment: '分割句段',
-  undo: '撤销',
-  redo: '重做',
-  selectBefore: '选到开头',
-  selectAfter: '选到结尾',
-  selectAll: '全选',
-  navPrev: '上一个句段',
-  navNext: '下一个句段',
-  navToIndex: '跳到指定句段',
-  tabNext: 'Tab下一个',
-  tabPrev: 'Tab上一个',
-  search: '搜索',
-  toggleNotes: '备注面板',
-  toggleVoice: '语音',
+const ACTION_LABEL_KEYS: Record<ActionId, DictKey> = {
+  playPause: 'transcription.voiceAction.playPause',
+  markSegment: 'transcription.voiceAction.markSegment',
+  cancel: 'transcription.voiceAction.cancel',
+  deleteSegment: 'transcription.voiceAction.deleteSegment',
+  mergePrev: 'transcription.voiceAction.mergePrev',
+  mergeNext: 'transcription.voiceAction.mergeNext',
+  splitSegment: 'transcription.voiceAction.splitSegment',
+  undo: 'transcription.voiceAction.undo',
+  redo: 'transcription.voiceAction.redo',
+  selectBefore: 'transcription.voiceAction.selectBefore',
+  selectAfter: 'transcription.voiceAction.selectAfter',
+  selectAll: 'transcription.voiceAction.selectAll',
+  navPrev: 'transcription.voiceAction.navPrev',
+  navNext: 'transcription.voiceAction.navNext',
+  navToIndex: 'transcription.voiceAction.navToIndex',
+  tabNext: 'transcription.voiceAction.tabNext',
+  tabPrev: 'transcription.voiceAction.tabPrev',
+  search: 'transcription.voiceAction.search',
+  toggleNotes: 'transcription.voiceAction.toggleNotes',
+  toggleVoice: 'transcription.voiceAction.toggleVoice',
 };
 
 export interface VoiceAliasLearningLogEntry {
@@ -34,18 +35,33 @@ export interface VoiceAliasLearningLogEntry {
   previousActionId?: ActionId;
 }
 
+const VOICE_ALIAS_REASON_KEYS = {
+  empty: 'transcription.voiceWidget.learningReason.new',
+  updated: 'transcription.voiceWidget.learningReason.updated',
+  unchanged: 'transcription.voiceWidget.learningReason.unchanged',
+  conflict: 'transcription.voiceWidget.learningReason.conflict',
+} as const satisfies Record<VoiceAliasLearningLogEntry['reason'], DictKey>;
+
 function isVoiceAliasLearningLogEntry(entry: unknown): entry is VoiceAliasLearningLogEntry {
   if (!entry || typeof entry !== 'object') return false;
   const candidate = entry as Record<string, unknown>;
   return typeof candidate.timestamp === 'number'
     && typeof candidate.phrase === 'string'
     && typeof candidate.actionId === 'string'
-    && candidate.actionId in ACTION_LABELS
+    && candidate.actionId in ACTION_LABEL_KEYS
     && typeof candidate.reason === 'string';
 }
 
-export function getActionLabel(actionId: ActionId): string {
-  return ACTION_LABELS[actionId] ?? String(actionId);
+function resolveVoiceIntentLocale(locale?: Locale): Locale {
+  return locale ?? getStoredLocalePreference() ?? 'zh-CN';
+}
+
+export function getActionLabel(actionId: ActionId, locale?: Locale): string {
+  return t(resolveVoiceIntentLocale(locale), ACTION_LABEL_KEYS[actionId]);
+}
+
+export function getVoiceAliasLearningReasonLabel(reason: VoiceAliasLearningLogEntry['reason'], locale?: Locale): string {
+  return t(resolveVoiceIntentLocale(locale), VOICE_ALIAS_REASON_KEYS[reason]);
 }
 
 export function loadVoiceAliasLearningLog(): VoiceAliasLearningLogEntry[] {

@@ -1,11 +1,19 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import type { UtteranceDocType, LayerDocType } from '../db';
+import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useAiToolCallHandler } from './useAiToolCallHandler';
 
-afterEach(cleanup);
+beforeEach(() => {
+  window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, 'zh-CN');
+});
+
+afterEach(() => {
+  window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
+  cleanup();
+});
 
 const NOW = new Date().toISOString();
 

@@ -14,6 +14,7 @@ interface ToastControllerProps {
     mode: string;
     listening: boolean;
     isRecording: boolean;
+    error?: string | null;
   };
   saveState: SaveState;
   recording: boolean;
@@ -49,6 +50,13 @@ export function ToastController({
     }
   }, [recordingError, showToast]);
 
+  // Voice agent error (including wake-word startup failures) → error toast
+  useEffect(() => {
+    if (voiceAgent.error) {
+      showToast(voiceAgent.error, 'error', 0);
+    }
+  }, [showToast, voiceAgent.error]);
+
   // Recording active → persistent recording toast
   useEffect(() => {
     if (recording) {
@@ -64,28 +72,45 @@ export function ToastController({
 
   useEffect(() => {
     if (!overlapCycleToast) return;
-    showToast(`重叠候选 ${overlapCycleToast.index}/${overlapCycleToast.total}`, 'info', 2000);
-  }, [overlapCycleToast, showToast]);
+    showToast(tf('transcription.toast.overlapCandidates', {
+      index: overlapCycleToast.index,
+      total: overlapCycleToast.total,
+    }), 'info', 2000);
+  }, [overlapCycleToast, showToast, tf]);
 
   useEffect(() => {
     if (!lockConflictToast) return;
-    const speakerText = lockConflictToast.speakers.length > 0
-      ? `：${lockConflictToast.speakers.join('、')}`
-      : '';
-    showToast(`锁定冲突 ${lockConflictToast.count} 项${speakerText}`, 'info', 2000);
-  }, [lockConflictToast, showToast]);
+    if (lockConflictToast.speakers.length > 0) {
+      showToast(tf('transcription.toast.lockConflictWithSpeakers', {
+        count: lockConflictToast.count,
+        speakers: lockConflictToast.speakers.join('、'),
+      }), 'info', 2000);
+      return;
+    }
+    showToast(tf('transcription.toast.lockConflict', {
+      count: lockConflictToast.count,
+    }), 'info', 2000);
+  }, [lockConflictToast, showToast, tf]);
 
   // Voice agent state → toast
   useEffect(() => {
-    if (voiceAgent.listening || voiceAgent.agentState !== 'idle') {
+    const toastMode = (
+      voiceAgent.mode === 'command'
+      || voiceAgent.mode === 'dictation'
+      || voiceAgent.mode === 'analysis'
+    )
+      ? voiceAgent.mode
+      : null;
+
+    if (toastMode && (voiceAgent.listening || voiceAgent.isRecording || voiceAgent.agentState !== 'idle')) {
       showVoiceState(
-        voiceAgent.agentState as Parameters<typeof showVoiceState>[0],
-        voiceAgent.listening,
+        toastMode,
+        voiceAgent.agentState === 'listening' || voiceAgent.isRecording,
       );
     } else {
       showVoiceState(null);
     }
-  }, [voiceAgent.agentState, voiceAgent.listening, showVoiceState]);
+  }, [voiceAgent.agentState, voiceAgent.isRecording, voiceAgent.listening, voiceAgent.mode, showVoiceState]);
 
   // TaskRunner stale task recovery → alert toast
   useEffect(() => {

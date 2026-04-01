@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import type { AnchorDocType, LayerDocType, MediaItemDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 import { db } from '../db';
+import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { LinguisticService } from '../services/LinguisticService';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 
@@ -58,6 +59,7 @@ function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: '
 
 describe('useTranscriptionUtteranceActions - batch operations', () => {
   beforeEach(async () => {
+    window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, 'zh-CN');
     await db.open();
     await Promise.all([
       db.embeddings.clear(),
@@ -73,6 +75,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
 
   afterEach(() => {
     cleanup();
+    window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
     vi.restoreAllMocks();
   });
 
@@ -492,6 +495,10 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
 
     expect(translationsState).toHaveLength(1);
     expect(mediaItemsState).toHaveLength(1);
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'done',
+      message: expect.stringMatching(/^录音翻译已保存 \(.+\)$/),
+    }));
 
     await act(async () => {
       await result.current.deleteVoiceTranslation(utterance, translationLayer);

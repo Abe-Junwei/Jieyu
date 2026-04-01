@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import type { UtteranceDocType } from '../db';
+import { t, useLocale } from '../i18n';
 
 interface TimeRulerProps {
   duration: number;
@@ -33,6 +34,7 @@ export function TimeRuler({
   tierContainerRef,
   utterances,
 }: TimeRulerProps) {
+  const locale = useLocale();
   const rulerDragRef = useRef<{ dragging: boolean; startX: number; startScroll: number }>({ dragging: false, startX: 0, startScroll: 0 });
   const clearDragFlagTimerRef = useRef<number | null>(null);
   const moveListenerRef = useRef<((ev: MouseEvent) => void) | null>(null);
@@ -125,7 +127,13 @@ export function TimeRuler({
     return segments.filter((s) => s.level > 0);
   }, [utterances, duration]);
 
-  const HEAT_COLORS = ['', '#86efac', '#fde68a', '#fb923c', '#f87171'];
+  const HEAT_COLORS = [
+    '',
+    'color-mix(in srgb, var(--state-success-solid) 42%, transparent)',
+    'color-mix(in srgb, var(--state-warning-solid) 46%, transparent)',
+    'color-mix(in srgb, var(--state-warning-text) 48%, transparent)',
+    'color-mix(in srgb, var(--state-danger-solid) 52%, transparent)',
+  ];
 
   return (
     <div className="time-ruler">
@@ -134,8 +142,8 @@ export function TimeRuler({
         className="time-ruler-lane-toggle"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={onToggleLaneHeader}
-        aria-label={isLaneHeaderCollapsed ? '展开层头区域' : '折叠层头区域'}
-        title={isLaneHeaderCollapsed ? '展开层头区域' : '折叠层头区域'}
+        aria-label={isLaneHeaderCollapsed ? t(locale, 'transcription.timeRuler.expandLaneHeader') : t(locale, 'transcription.timeRuler.collapseLaneHeader')}
+        title={isLaneHeaderCollapsed ? t(locale, 'transcription.timeRuler.expandLaneHeader') : t(locale, 'transcription.timeRuler.collapseLaneHeader')}
       >
         <span
           className={`time-ruler-lane-toggle-triangle ${isLaneHeaderCollapsed ? 'time-ruler-lane-toggle-triangle-right' : 'time-ruler-lane-toggle-triangle-left'}`}

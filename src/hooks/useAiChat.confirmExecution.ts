@@ -13,6 +13,7 @@ import {
   formatToolExecutionFallbackError,
 } from '../ai/messages';
 import { nowIso } from './useAiChat.helpers';
+import type { Locale } from '../i18n';
 import type {
   AiChatToolCall,
   AiChatToolResult,
@@ -26,6 +27,7 @@ interface ExecuteConfirmedToolCallParams {
   assistantMessageId: string;
   call: AiChatToolCall & { requestId: string };
   auditContext: Parameters<typeof buildToolDecisionAuditMetadata>[2];
+  locale: Locale;
   toolFeedbackStyle: AiToolFeedbackStyle;
   hasPersistedExecutionForRequest: (requestId: string) => Promise<boolean>;
   applyAssistantMessageResult: (
@@ -59,6 +61,7 @@ export async function executeConfirmedToolCall({
   assistantMessageId,
   call,
   auditContext,
+  locale,
   toolFeedbackStyle,
   hasPersistedExecutionForRequest,
   applyAssistantMessageResult,
@@ -75,7 +78,7 @@ export async function executeConfirmedToolCall({
   if (await hasPersistedExecutionForRequest(call.requestId)) {
     await applyAssistantMessageResult(
       assistantMessageId,
-      toNaturalToolFailure(call.name, formatDuplicateRequestIgnoredDetail(), toolFeedbackStyle),
+      toNaturalToolFailure(locale, call.name, formatDuplicateRequestIgnoredDetail(), toolFeedbackStyle),
       'error',
       formatDuplicateRequestIgnoredError(),
     );
@@ -109,7 +112,7 @@ export async function executeConfirmedToolCall({
     const invalidArgsText = formatInvalidArgsError(argsValidationError);
     await applyAssistantMessageResult(
       assistantMessageId,
-      toNaturalToolFailure(call.name, invalidArgsText, toolFeedbackStyle),
+      toNaturalToolFailure(locale, call.name, invalidArgsText, toolFeedbackStyle),
       'error',
       invalidArgsText,
     );
@@ -142,7 +145,7 @@ export async function executeConfirmedToolCall({
     const noExecutorMessage = formatNoExecutorInternalError();
     await applyAssistantMessageResult(
       assistantMessageId,
-      toNaturalToolFailure(call.name, formatNoExecutorToolFailureDetail(), toolFeedbackStyle),
+      toNaturalToolFailure(locale, call.name, formatNoExecutorToolFailureDetail(), toolFeedbackStyle),
       'error',
       noExecutorMessage,
     );
@@ -194,8 +197,8 @@ export async function executeConfirmedToolCall({
     await applyAssistantMessageResult(
       assistantMessageId,
       result.ok
-        ? toNaturalToolSuccess(call.name, result.message, toolFeedbackStyle)
-        : toNaturalToolFailure(call.name, result.message, toolFeedbackStyle),
+        ? toNaturalToolSuccess(locale, call.name, result.message, toolFeedbackStyle)
+        : toNaturalToolFailure(locale, call.name, result.message, toolFeedbackStyle),
       result.ok ? 'done' : 'error',
       result.ok ? undefined : result.message,
     );
@@ -229,7 +232,7 @@ export async function executeConfirmedToolCall({
     const toolErrorText = error instanceof Error ? error.message : formatToolExecutionFallbackError();
     await applyAssistantMessageResult(
       assistantMessageId,
-      toNaturalToolFailure(call.name, toolErrorText, toolFeedbackStyle),
+      toNaturalToolFailure(locale, call.name, toolErrorText, toolFeedbackStyle),
       'error',
       toolErrorText,
     );

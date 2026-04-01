@@ -10,6 +10,7 @@ import { buildLayerLinkConnectorLayout } from '../utils/layerLinkConnector';
 import { LinguisticService } from '../services/LinguisticService';
 import { createPdfPreviewOpenRequest } from './TranscriptionPage.runtimeProps';
 import type { PdfPreviewOpenRequest } from './TranscriptionPage.runtimeContracts';
+import { t } from '../i18n';
 
 interface DialogUtteranceLike {
   textId: string;
@@ -53,20 +54,10 @@ interface UseTranscriptionShellControllerResult {
     hashSuffix?: string;
     searchSnippet?: string;
   }) => void;
-  isLayerRailCollapsed: boolean;
-  setIsLayerRailCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
-  isSidePaneCollapsed: boolean;
-  setIsSidePaneCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   isAiPanelCollapsed: boolean;
   setIsAiPanelCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
-  layerRailWidth: number;
-  setLayerRailWidth: React.Dispatch<React.SetStateAction<number>>;
-  sidePaneWidth: number;
-  setSidePaneWidth: React.Dispatch<React.SetStateAction<number>>;
   aiPanelWidth: number;
   setAiPanelWidth: React.Dispatch<React.SetStateAction<number>>;
-  handleLayerRailToggle: (e?: React.SyntheticEvent<HTMLElement>) => void;
-  handleSidePaneToggle: (e?: React.SyntheticEvent<HTMLElement>) => void;
   handleAiPanelToggle: (e?: React.SyntheticEvent<HTMLElement>) => void;
   isHubCollapsed: boolean;
   hubHeight: number;
@@ -158,20 +149,10 @@ export function useTranscriptionShellController(
   }, [hasAnyLayerConnectors]);
 
   const {
-    isLayerRailCollapsed,
-    setIsLayerRailCollapsed,
-    isSidePaneCollapsed,
-    setIsSidePaneCollapsed,
     isAiPanelCollapsed,
     setIsAiPanelCollapsed,
-    layerRailWidth,
-    setLayerRailWidth,
-    sidePaneWidth,
-    setSidePaneWidth,
     aiPanelWidth,
     setAiPanelWidth,
-    handleLayerRailToggle,
-    handleSidePaneToggle,
     handleAiPanelToggle,
     isHubCollapsed,
     hubHeight,
@@ -223,8 +204,8 @@ export function useTranscriptionShellController(
     let resolvedTextId = config.textId?.trim() || activeTextId || (await getActiveTextId()) || '';
     if (!resolvedTextId) {
       const result = await LinguisticService.createProject({
-        titleZh: '未命名项目',
-        titleEn: 'Untitled Project',
+        titleZh: t('zh-CN', 'transcription.project.untitledZh'),
+        titleEn: t('en-US', 'transcription.project.untitledEn'),
         primaryLanguageId: config.languageId?.trim() || 'und',
         ...(config.orthographyId?.trim() ? { primaryOrthographyId: config.orthographyId.trim() } : {}),
       });
@@ -244,7 +225,6 @@ export function useTranscriptionShellController(
     checkLayerHasContent: input.checkLayerHasContent ?? (async () => 0),
     deletableLayers: input.deletableLayers,
     focusedLayerRowId,
-    isLayerRailCollapsed,
   });
 
   useEffect(() => {
@@ -265,7 +245,7 @@ export function useTranscriptionShellController(
   }, [focusedLayerRowId, input.orderedLayers, input.selectedLayerId]);
 
   useEffect(() => {
-    if (!input.layerCreateMessage.startsWith('已创建') || input.orderedLayers.length === 0) return;
+    if (!input.layerCreateMessage.startsWith(t('zh-CN', 'transcription.layer.messageCreatedPrefix')) || input.orderedLayers.length === 0) return;
     if (handledLayerCreateMessageRef.current === input.layerCreateMessage) return;
     const latestCreatedLayer = [...input.orderedLayers].sort((a, b) => {
       const at = Date.parse(a.updatedAt || a.createdAt || '');
@@ -299,20 +279,10 @@ export function useTranscriptionShellController(
     pdfPreviewRequest,
     setPdfPreviewRequest,
     openPdfPreviewRequest,
-    isLayerRailCollapsed,
-    setIsLayerRailCollapsed,
-    isSidePaneCollapsed,
-    setIsSidePaneCollapsed,
     isAiPanelCollapsed,
     setIsAiPanelCollapsed,
-    layerRailWidth,
-    setLayerRailWidth,
-    sidePaneWidth,
-    setSidePaneWidth,
     aiPanelWidth,
     setAiPanelWidth,
-    handleLayerRailToggle,
-    handleSidePaneToggle,
     handleAiPanelToggle,
     isHubCollapsed,
     hubHeight,

@@ -103,7 +103,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
       instanceRef: { current: waveformInstance },
     },
     locale: 'zh-CN',
-    layerRailRows: [],
+    sidePaneRows: [],
     selectedTimelineUtteranceId: 'utt-1',
     onSetNotePopover: vi.fn(),
     onSetSidebarError: vi.fn(),

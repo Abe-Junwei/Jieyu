@@ -6,7 +6,7 @@
  */
 
 import { type FC, useCallback } from 'react';
-import { detectLocale, t } from '../../../i18n';
+import { t, useLocale } from '../../../i18n';
 
 export interface AiObserverRecommendation {
   id: string;
@@ -29,7 +29,7 @@ const ObserverStatus: FC<ObserverStatusProps> = ({
   recommendations,
   onExecuteRecommendation,
 }) => {
-  const locale = detectLocale();
+  const locale = useLocale();
 
   const getStageLabel = useCallback((stage: string | undefined): string => {
     if (!stage) return t(locale, 'ai.stages.collecting');

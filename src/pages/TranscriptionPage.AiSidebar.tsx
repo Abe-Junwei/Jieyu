@@ -1,10 +1,10 @@
 import { lazy, Suspense } from 'react';
 import '../styles/ai-hub.css';
+import { normalizeLocale, t } from '../i18n';
 import type {
   TranscriptionPageAnalysisRuntimeProps,
   TranscriptionPageAssistantRuntimeProps,
 } from './TranscriptionPage.runtimeContracts';
-import type { TranscriptionAssistantStatusSummary } from './transcriptionAssistantStatusSummary';
 
 const AssistantRuntime = lazy(async () => import('./TranscriptionPage.AssistantRuntime').then((module) => ({
   default: module.TranscriptionPageAssistantRuntime,
@@ -24,7 +24,6 @@ export interface TranscriptionPageAiSidebarProps {
   assistantRuntimeProps: TranscriptionPageAssistantRuntimeProps;
   analysisRuntimeProps: TranscriptionPageAnalysisRuntimeProps;
   assistantAttentionCount?: number;
-  assistantStatusSummary: TranscriptionAssistantStatusSummary;
 }
 
 export function TranscriptionPageAiSidebar({
@@ -35,8 +34,9 @@ export function TranscriptionPageAiSidebar({
   assistantRuntimeProps,
   analysisRuntimeProps,
   assistantAttentionCount = 0,
-  assistantStatusSummary,
 }: TranscriptionPageAiSidebarProps) {
+  const uiLocale = normalizeLocale(locale) ?? 'zh-CN';
+
   return (
     <aside className={`transcription-ai-panel ${isAiPanelCollapsed ? 'transcription-ai-panel-collapsed' : ''}`}>
       <div className="transcription-hub-sidebar-tabs" role="tablist">
@@ -47,7 +47,7 @@ export function TranscriptionPageAiSidebar({
           className={`transcription-hub-sidebar-tab ${hubSidebarTab === 'assistant' ? 'is-active' : ''}`}
           onClick={() => onHubSidebarTabChange('assistant')}
         >
-          {locale === 'zh-CN' ? '助手' : 'Assistant'}
+          {t(uiLocale, 'transcription.aiSidebar.assistantTab')}
           {assistantAttentionCount > 0 && <span className="transcription-ai-tab-badge">{assistantAttentionCount}</span>}
         </button>
         <button
@@ -57,22 +57,8 @@ export function TranscriptionPageAiSidebar({
           className={`transcription-hub-sidebar-tab ${hubSidebarTab === 'analysis' ? 'is-active' : ''}`}
           onClick={() => onHubSidebarTabChange('analysis')}
         >
-          {locale === 'zh-CN' ? 'AI 分析' : 'AI Analysis'}
+          {t(uiLocale, 'transcription.aiSidebar.analysisTab')}
         </button>
-      </div>
-
-      <div className={`transcription-ai-status-strip is-${assistantStatusSummary.tone}`}>
-        <div className="transcription-ai-status-copy">
-          <strong>{assistantStatusSummary.headline}</strong>
-          <span>{assistantStatusSummary.detail}</span>
-        </div>
-        {assistantStatusSummary.chips.length > 0 && (
-          <div className="transcription-ai-status-chips">
-            {assistantStatusSummary.chips.map((chip) => (
-              <span key={chip} className="transcription-ai-status-chip">{chip}</span>
-            ))}
-          </div>
-        )}
       </div>
 
       {hubSidebarTab === 'assistant' ? (

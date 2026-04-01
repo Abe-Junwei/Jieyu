@@ -3,9 +3,9 @@ import { Plus, Trash2, X } from 'lucide-react';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
 
 const CATEGORIES: { value: NoteCategory; label: string }[] = [
-  { value: 'comment', label: '评注' },
-  { value: 'question', label: '疑问' },
-  { value: 'todo', label: '待办' },
+  { value: 'comment', label: '\u8bc4\u6ce8' },
+  { value: 'question', label: '\u7591\u95ee' },
+  { value: 'todo', label: '\u5f85\u529e' },
 ];
 
 interface NotePopoverProps {
@@ -138,14 +138,14 @@ export const NotePopover = memo(function NotePopover({
                     autoFocus
                   />
                   <div className="note-popover-edit-actions">
-                    <button type="button" className="note-popover-btn note-popover-btn-save" onClick={() => handleEditSave(note.id)}>保存</button>
-                    <button type="button" className="note-popover-btn note-popover-btn-cancel" onClick={() => setEditingId(null)}>取消</button>
+                    <button type="button" className="note-popover-btn note-popover-btn-save" onClick={() => handleEditSave(note.id)}>{'\u4fdd\u5b58'}</button>
+                    <button type="button" className="note-popover-btn note-popover-btn-cancel" onClick={() => setEditingId(null)}>{'\u53d6\u6d88'}</button>
                   </div>
                 </div>
               ) : (
                 <div className="note-popover-content" onDoubleClick={() => handleEditStart(note)}>
                   <p>{note.content['default'] ?? Object.values(note.content)[0] ?? ''}</p>
-                  <button type="button" className="note-popover-delete" onClick={() => onDelete(note.id)} title="删除"><Trash2 size={11} /></button>
+                  <button type="button" className="note-popover-delete" onClick={() => onDelete(note.id)} title={'\u5220\u9664'}><Trash2 size={11} /></button>
                 </div>
               )}
             </div>
@@ -156,7 +156,7 @@ export const NotePopover = memo(function NotePopover({
       <div className="note-popover-add">
         <textarea
           className="note-popover-textarea"
-          placeholder="添加备注… (⌘Enter 提交)"
+          placeholder={'\u6dfb\u52a0\u5907\u6ce8\u2026 (\u2318Enter \u63d0\u4ea4)'}
           value={newContent}
           onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNewContent(e.target.value)}
           onKeyDown={handleAddKeyDown}
@@ -176,7 +176,7 @@ export const NotePopover = memo(function NotePopover({
             ))}
           </div>
           <button type="button" className="note-popover-btn note-popover-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
-            <Plus size={12} /> 添加
+            <Plus size={12} /> {'\u6dfb\u52a0'}
           </button>
         </div>
       </div>

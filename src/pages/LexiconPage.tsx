@@ -1,14 +1,19 @@
 import { FeatureAvailabilityPanel } from '../components/FeatureAvailabilityPanel';
+import { t, useLocale } from '../i18n';
 
 export function LexiconPage() {
+  const locale = useLocale();
+
   return (
     <FeatureAvailabilityPanel
-      title="词典工作台未开放"
-      summary="词条管理、义项编辑和语料反向关联尚未形成完整工作流，当前版本先明确降级为规划页。"
+      title={t(locale, 'workspace.lexicon.unavailable.title')}
+      summary={t(locale, 'workspace.lexicon.unavailable.summary')}
+      sidePaneTitle={t(locale, 'workspace.lexicon.unavailable.sidePaneTitle')}
+      sidePaneSubtitle={t(locale, 'workspace.lexicon.unavailable.sidePaneSubtitle')}
       scope={[
-        '词条与义项管理',
-        '词条到语料的反向引用',
-        '词典导入导出与审核流',
+        t(locale, 'workspace.lexicon.unavailable.scope.entry'),
+        t(locale, 'workspace.lexicon.unavailable.scope.backlink'),
+        t(locale, 'workspace.lexicon.unavailable.scope.review'),
       ]}
     />
   );

@@ -1,11 +1,10 @@
 /**
- * 层约束验证服务（纯函数）
- * Layer constraint validation service (pure functions)
+ * Layer constraint validation service (pure functions).
  *
- * 规则：
- * - 翻译层依赖转写层：无转写层时禁止创建翻译层
- * - 有翻译层时禁止删除最后一个转写层
- * - 超过软上限时发出警告（不阻断）
+ * Rules:
+ * - Translation layers depend on transcription layers.
+ * - Do not delete the last transcription layer when translations still depend on it.
+ * - Soft-limit overflow emits warnings without blocking.
  */
 import {
   LAYER_SOFT_LIMITS,
@@ -13,24 +12,24 @@ import {
   type LayerLinkDocType,
 } from '../db';
 
-// ─── 结果类型 | Result types ─────────────────────────────────────────
+// Result types
 
 export interface CanCreateResult {
   allowed: boolean;
-  /** 阻断原因 | Blocking reason */
+  /** Blocking reason */
   reason?: string;
-  /** 非阻断警告（如超软上限）| Non-blocking warning */
+  /** Non-blocking warning */
   warning?: string;
 }
 
 export interface CanDeleteResult {
   allowed: boolean;
   reason?: string;
-  /** 将被清理的链接数 | Number of links that will be cleaned up */
+  /** Number of links that will be cleaned up */
   affectedLinkCount?: number;
-  /** 因删除而变成孤立的翻译层 ID | Translation layer IDs that would become orphaned */
+  /** Translation layer IDs that would become orphaned */
   orphanedTranslationIds?: string[];
-  /** 孤立翻译层将被重链到的转写层 key | Transcription layer key orphans will be re-linked to */
+  /** Transcription layer key orphans will be re-linked to */
   relinkTargetKey?: string;
 }
 
@@ -75,6 +74,46 @@ const DEFAULT_CONSTRAINT_RUNTIME_CAPABILITIES: ConstraintRuntimeCapabilities = {
   time_subdivision: true,
 };
 
+const ZH = {
+  issueConstraintUnsupported: (layerKey: string, constraint: string) => `\u5c42 ${layerKey} \u4f7f\u7528\u4e86\u5f53\u524d\u8fd0\u884c\u65f6\u672a\u542f\u7528\u7684\u7ea6\u675f\uff1a${constraint}`,
+  issueRootTranscriptionIndependentOnly: '\u9996\u4e2a\u8f6c\u5199\u5c42\u5fc5\u987b\u4f7f\u7528\u72ec\u7acb\u8fb9\u754c\u3002',
+  issueMissingParentLayerId: (layerKey: string, constraint: string) => `\u5c42 ${layerKey} \u4f7f\u7528 ${constraint} \u4f46\u7f3a\u5c11 parentLayerId\u3002`,
+  issueParentNotFound: (layerKey: string, parentLayerId: string) => `\u5c42 ${layerKey} \u7684\u7236\u5c42 ${parentLayerId} \u4e0d\u5b58\u5728\u3002`,
+  issueParentMustBeIndependentTranscription: (layerKey: string) => `\u5c42 ${layerKey} \u7684\u7236\u5c42\u5fc5\u987b\u662f\u72ec\u7acb\u8f6c\u5199\u5c42\u3002`,
+  issueParentCycle: (layerKey: string) => `\u5c42 ${layerKey} \u7684\u7236\u5c42\u5f15\u7528\u5b58\u5728\u5faa\u73af\u3002`,
+  repairRootTranscription: (layerKey: string) => `\u5df2\u5c06\u9996\u4e2a\u8f6c\u5199\u5c42 ${layerKey} \u7684\u7ea6\u675f\u4fee\u590d\u4e3a\u72ec\u7acb\u8fb9\u754c\u3002`,
+  repairBindFallbackParent: (layerKey: string, parentKey: string) => `\u5df2\u4e3a\u5c42 ${layerKey} \u81ea\u52a8\u7ed1\u5b9a\u7236\u5c42 ${parentKey}\u3002`,
+  repairDowngradeNoParent: (layerKey: string) => `\u5c42 ${layerKey} \u7f3a\u5c11\u53ef\u7528\u7236\u5c42\uff0c\u5df2\u964d\u7ea7\u4e3a\u72ec\u7acb\u8fb9\u754c\u3002`,
+  repairTimeSubdivisionToDependent: (layerKey: string) => `\u5c42 ${layerKey} \u7684\u65f6\u95f4\u7ec6\u5206\u5df2\u964d\u7ea7\u4e3a\u4f9d\u8d56\u8fb9\u754c\u3002`,
+  repairTimeSubdivisionToIndependent: (layerKey: string) => `\u5c42 ${layerKey} \u7684\u65f6\u95f4\u7ec6\u5206\u4e0d\u53ef\u7528\uff0c\u5df2\u964d\u7ea7\u4e3a\u72ec\u7acb\u8fb9\u754c\u3002`,
+  repairConstraintToIndependent: (layerKey: string) => `\u5c42 ${layerKey} \u7684\u7ea6\u675f\u4e0d\u53ef\u7528\uff0c\u5df2\u964d\u7ea7\u4e3a\u72ec\u7acb\u8fb9\u754c\u3002`,
+  repairCycleToFallbackParent: (layerKey: string, parentKey: string) => `\u5c42 ${layerKey} \u7684\u7236\u5c42\u5faa\u73af\u5df2\u4fee\u590d\u4e3a ${parentKey}\u3002`,
+  repairCycleRemoved: (layerKey: string) => `\u5c42 ${layerKey} \u7684\u7236\u5c42\u5faa\u73af\u5df2\u79fb\u9664\u5e76\u964d\u7ea7\u4e3a\u72ec\u7acb\u8fb9\u754c\u3002`,
+  transcription: '\u8f6c\u5199',
+  translation: '\u7ffb\u8bd1',
+  invalidTranslationConstraint: '\u7ffb\u8bd1\u5c42\u4e0d\u652f\u6301\u72ec\u7acb\u8fb9\u754c\uff0c\u8bf7\u6539\u7528\u4f9d\u8d56\u8fb9\u754c\u5e76\u9009\u62e9\u8f6c\u5199\u7236\u5c42\u3002',
+  invalidTranslationConstraintShort: '\u7ffb\u8bd1\u5c42\u4ec5\u652f\u6301\u4f9d\u8d56\u8fb9\u754c',
+  timeSubdivisionUnavailable: '\u5f53\u524d\u7248\u672c\u6682\u672a\u542f\u7528\u201c\u65f6\u95f4\u7ec6\u5206\u201d\u7f16\u8f91\u80fd\u529b\uff0c\u8bf7\u6539\u7528\u4f9d\u8d56\u8fb9\u754c\u6216\u72ec\u7acb\u8fb9\u754c\u3002',
+  constraintUnavailable: '\u5f53\u524d\u6a21\u5f0f\u6682\u4e0d\u53ef\u7528\uff0c\u8bf7\u9009\u62e9\u5176\u4ed6\u8fb9\u754c\u7ea6\u675f\u3002',
+  timeSubdivisionUnavailableShort: '\u65f6\u95f4\u7ec6\u5206\u6682\u4e0d\u53ef\u7528',
+  constraintUnavailableShort: '\u8be5\u7ea6\u675f\u5f53\u524d\u4e0d\u53ef\u7528',
+  rootTranscriptionIndependentOnlyShort: '\u9996\u4e2a\u8f6c\u5199\u5c42\u4ec5\u652f\u6301\u72ec\u7acb\u8fb9\u754c',
+  chooseDependentBoundary: '\u5b58\u5728\u591a\u4e2a\u72ec\u7acb\u8f6c\u5199\u5c42\uff0c\u8bf7\u5148\u9009\u62e9\u8981\u4f9d\u8d56\u7684\u8fb9\u754c\u5c42\u3002',
+  chooseDependentBoundaryShort: '\u8bf7\u9009\u62e9\u4f9d\u8d56\u5c42',
+  chooseValidDependentBoundary: '\u8bf7\u9009\u62e9\u6709\u6548\u7684\u72ec\u7acb\u8f6c\u5199\u5c42\u4f5c\u4e3a\u4f9d\u8d56\u8fb9\u754c\u3002',
+  chooseValidDependentBoundaryShort: '\u8bf7\u9009\u62e9\u6709\u6548\u4f9d\u8d56\u5c42',
+  constraintNeedsParent: '\u8be5\u8fb9\u754c\u7ea6\u675f\u9700\u8981\u5148\u9009\u62e9\u6709\u6548\u7236\u5c42\u3002',
+  constraintNeedsParentShort: '\u8be5\u7ea6\u675f\u9700\u7236\u5c42',
+  needTranscriptionFirst: '\u8bf7\u5148\u521b\u5efa\u8f6c\u5199\u5c42\uff0c\u7ffb\u8bd1\u5c42\u4f9d\u8d56\u8f6c\u5199\u5c42\u3002',
+  needTranscriptionFirstShort: '\u9700\u5148\u6709\u8f6c\u5199\u5c42',
+  crossTypeLanguageConflict: (opposite: string, same: string) => `\u8be5\u8bed\u8a00\u5df2\u5b58\u5728${opposite}\u5c42\uff0c\u7981\u6b62\u4e0e${same}\u5c42\u540c\u8bed\u8a00\u3002`,
+  crossTypeLanguageConflictShort: (opposite: string) => `\u4e0e${opposite}\u5c42\u8bed\u8a00\u51b2\u7a81`,
+  sameTypeAliasRequired: (same: string) => `\u8be5\u8bed\u8a00\u5df2\u5b58\u5728${same}\u5c42\uff0c\u8bf7\u63d0\u4f9b\u522b\u540d\u4ee5\u533a\u5206\u3002`,
+  sameTypeAliasRequiredShort: (same: string) => `\u540c\u8bed\u8a00${same}\u5c42\u5df2\u5b58\u5728\uff0c\u9700\u586b\u522b\u540d`,
+  softLimitWarning: (count: number, label: string, limit: number) => `\u5f53\u524d\u5df2\u6709 ${count} \u4e2a${label}\u5c42\uff08\u5efa\u8bae\u4e0a\u9650 ${limit}\uff09\uff0c\u7ee7\u7eed\u521b\u5efa\u53ef\u80fd\u5f71\u54cd\u6027\u80fd\u3002`,
+  deleteTargetNotFound: '\u672a\u627e\u5230\u8981\u5220\u9664\u7684\u5c42\u3002',
+};
+
 function detectParentCycle(layerById: Map<string, LayerDocType>, startLayer: LayerDocType): boolean {
   const visited = new Set<string>();
   let cursor: LayerDocType | undefined = startLayer;
@@ -113,7 +152,7 @@ export function validateExistingLayerConstraints(
       issues.push({
         layerId: layer.id,
         code: 'constraint-runtime-not-supported',
-        message: `层 ${layer.key} 使用了当前运行时未启用的约束：${constraint}`,
+        message: ZH.issueConstraintUnsupported(layer.key, constraint),
       });
     }
 
@@ -121,7 +160,7 @@ export function validateExistingLayerConstraints(
       issues.push({
         layerId: layer.id,
         code: 'invalid-root-transcription-constraint',
-        message: '首个转写层必须使用独立边界。',
+        message: ZH.issueRootTranscriptionIndependentOnly,
       });
     }
 
@@ -130,7 +169,7 @@ export function validateExistingLayerConstraints(
         issues.push({
           layerId: layer.id,
           code: 'missing-parent-layer',
-          message: `层 ${layer.key} 使用 ${constraint} 但缺少 parentLayerId。`,
+          message: ZH.issueMissingParentLayerId(layer.key, constraint),
         });
         continue;
       }
@@ -139,7 +178,7 @@ export function validateExistingLayerConstraints(
         issues.push({
           layerId: layer.id,
           code: 'parent-layer-not-found',
-          message: `层 ${layer.key} 的父层 ${layer.parentLayerId} 不存在。`,
+          message: ZH.issueParentNotFound(layer.key, layer.parentLayerId),
         });
         continue;
       }
@@ -147,7 +186,7 @@ export function validateExistingLayerConstraints(
         issues.push({
           layerId: layer.id,
           code: 'invalid-parent-layer-type',
-          message: `层 ${layer.key} 的父层必须是独立转写层。`,
+          message: ZH.issueParentMustBeIndependentTranscription(layer.key),
         });
       }
     }
@@ -156,7 +195,7 @@ export function validateExistingLayerConstraints(
       issues.push({
         layerId: layer.id,
         code: 'parent-cycle-detected',
-        message: `层 ${layer.key} 的父层引用存在循环。`,
+        message: ZH.issueParentCycle(layer.key),
       });
     }
   }
@@ -215,7 +254,7 @@ export function repairExistingLayerConstraints(
       layer.constraint = 'independent_boundary';
       delete layer.parentLayerId;
       constraint = 'independent_boundary';
-      pushRepair(layer.id, 'invalid-root-transcription-constraint', `已将首个转写层 ${layer.key} 的约束修复为独立边界。`);
+      pushRepair(layer.id, 'invalid-root-transcription-constraint', ZH.repairRootTranscription(layer.key));
     }
 
     if (constraint === 'symbolic_association' || constraint === 'time_subdivision') {
@@ -224,12 +263,12 @@ export function repairExistingLayerConstraints(
         const fallbackParent = findFallbackParent(layer.id);
         if (fallbackParent) {
           layer.parentLayerId = fallbackParent.id;
-          pushRepair(layer.id, !parent ? 'missing-parent-layer' : 'invalid-parent-layer-type', `已为层 ${layer.key} 自动绑定父层 ${fallbackParent.key}。`);
+          pushRepair(layer.id, !parent ? 'missing-parent-layer' : 'invalid-parent-layer-type', ZH.repairBindFallbackParent(layer.key, fallbackParent.key));
         } else {
           layer.constraint = 'independent_boundary';
           delete layer.parentLayerId;
           constraint = 'independent_boundary';
-          pushRepair(layer.id, !parent ? 'missing-parent-layer' : 'invalid-parent-layer-type', `层 ${layer.key} 缺少可用父层，已降级为独立边界。`);
+          pushRepair(layer.id, !parent ? 'missing-parent-layer' : 'invalid-parent-layer-type', ZH.repairDowngradeNoParent(layer.key));
         }
       }
     }
@@ -241,16 +280,16 @@ export function repairExistingLayerConstraints(
         if (capabilities.symbolic_association && fallbackParent && fallbackParent.layerType === 'transcription') {
           layer.constraint = 'symbolic_association';
           layer.parentLayerId = fallbackParent.id;
-          pushRepair(layer.id, 'constraint-runtime-not-supported', `层 ${layer.key} 的时间细分已降级为依赖边界。`);
+          pushRepair(layer.id, 'constraint-runtime-not-supported', ZH.repairTimeSubdivisionToDependent(layer.key));
         } else {
           layer.constraint = 'independent_boundary';
           delete layer.parentLayerId;
-          pushRepair(layer.id, 'constraint-runtime-not-supported', `层 ${layer.key} 的时间细分不可用，已降级为独立边界。`);
+          pushRepair(layer.id, 'constraint-runtime-not-supported', ZH.repairTimeSubdivisionToIndependent(layer.key));
         }
       } else {
         layer.constraint = 'independent_boundary';
         delete layer.parentLayerId;
-        pushRepair(layer.id, 'constraint-runtime-not-supported', `层 ${layer.key} 的约束不可用，已降级为独立边界。`);
+        pushRepair(layer.id, 'constraint-runtime-not-supported', ZH.repairConstraintToIndependent(layer.key));
       }
     }
 
@@ -264,11 +303,11 @@ export function repairExistingLayerConstraints(
     const fallbackParent = findFallbackParent(layer.id);
     if (fallbackParent && getEffectiveConstraint(layer) !== 'independent_boundary') {
       layer.parentLayerId = fallbackParent.id;
-      pushRepair(layer.id, 'parent-cycle-detected', `层 ${layer.key} 的父层循环已修复为 ${fallbackParent.key}。`);
+      pushRepair(layer.id, 'parent-cycle-detected', ZH.repairCycleToFallbackParent(layer.key, fallbackParent.key));
     } else {
       layer.constraint = 'independent_boundary';
       delete layer.parentLayerId;
-      pushRepair(layer.id, 'parent-cycle-detected', `层 ${layer.key} 的父层循环已移除并降级为独立边界。`);
+      pushRepair(layer.id, 'parent-cycle-detected', ZH.repairCycleRemoved(layer.key));
     }
   }
 
@@ -278,9 +317,9 @@ export function repairExistingLayerConstraints(
 export interface TranslationCreateGuardResult {
   allowed: boolean;
   reasonCode?: TranslationCreateBlockReason;
-  /** 面向后端/动作提示文案 | Backend/action-facing message */
+  /** Backend/action-facing message */
   reason?: string;
-  /** 面向按钮附近的短提示 | Short UI helper message near buttons */
+  /** Short UI helper message near buttons */
   reasonShort?: string;
 }
 
@@ -289,7 +328,7 @@ function normalizeLanguageId(languageId: string | undefined): string {
 }
 
 function getLayerTypeLabel(layerType: 'transcription' | 'translation'): string {
-  return layerType === 'transcription' ? '转写' : '翻译';
+  return layerType === 'transcription' ? ZH.transcription : ZH.translation;
 }
 
 function getOppositeLayerType(layerType: 'transcription' | 'translation'): 'transcription' | 'translation' {
@@ -326,8 +365,8 @@ export function getLayerCreateGuard(
     return {
       allowed: false,
       reasonCode: 'invalid-translation-constraint',
-      reason: '翻译层不支持独立边界，请改用依赖边界并选择转写父层。',
-      reasonShort: '翻译层仅支持依赖边界',
+      reason: ZH.invalidTranslationConstraint,
+      reasonShort: ZH.invalidTranslationConstraintShort,
     };
   }
 
@@ -336,11 +375,11 @@ export function getLayerCreateGuard(
       allowed: false,
       reasonCode: 'constraint-runtime-not-supported',
       reason: effectiveConstraint === 'time_subdivision'
-        ? '当前版本暂未启用“时间细分”编辑能力，请改用依赖边界或独立边界。'
-        : '当前模式暂不可用，请选择其他边界约束。',
+        ? ZH.timeSubdivisionUnavailable
+        : ZH.constraintUnavailable,
       reasonShort: effectiveConstraint === 'time_subdivision'
-        ? '时间细分暂不可用'
-        : '该约束当前不可用',
+        ? ZH.timeSubdivisionUnavailableShort
+        : ZH.constraintUnavailableShort,
     };
   }
 
@@ -348,8 +387,8 @@ export function getLayerCreateGuard(
     return {
       allowed: false,
       reasonCode: 'invalid-constraint-for-root-transcription',
-      reason: '首个转写层必须使用独立边界。',
-      reasonShort: '首个转写层仅支持独立边界',
+      reason: ZH.issueRootTranscriptionIndependentOnly,
+      reasonShort: ZH.rootTranscriptionIndependentOnlyShort,
     };
   }
 
@@ -359,8 +398,8 @@ export function getLayerCreateGuard(
     return {
       allowed: false,
       reasonCode: 'constraint-parent-required',
-      reason: '存在多个独立转写层，请先选择要依赖的边界层。',
-      reasonShort: '请选择依赖层',
+      reason: ZH.chooseDependentBoundary,
+      reasonShort: ZH.chooseDependentBoundaryShort,
     };
   }
 
@@ -370,8 +409,8 @@ export function getLayerCreateGuard(
     return {
       allowed: false,
       reasonCode: 'constraint-parent-required',
-      reason: '请选择有效的独立转写层作为依赖边界。',
-      reasonShort: '请选择有效依赖层',
+      reason: ZH.chooseValidDependentBoundary,
+      reasonShort: ZH.chooseValidDependentBoundaryShort,
     };
   }
 
@@ -381,8 +420,8 @@ export function getLayerCreateGuard(
     return {
       allowed: false,
       reasonCode: 'constraint-parent-required',
-      reason: '该边界约束需要先选择有效父层。',
-      reasonShort: '该约束需父层',
+      reason: ZH.constraintNeedsParent,
+      reasonShort: ZH.constraintNeedsParentShort,
     };
   }
 
@@ -391,8 +430,8 @@ export function getLayerCreateGuard(
       return {
         allowed: false,
         reasonCode: 'missing-transcription',
-        reason: '请先创建转写层，翻译层依赖转写层。',
-        reasonShort: '需先有转写层',
+        reason: ZH.needTranscriptionFirst,
+        reasonShort: ZH.needTranscriptionFirstShort,
       };
     }
   }
@@ -414,8 +453,8 @@ export function getLayerCreateGuard(
     return {
       allowed: false,
       reasonCode: 'cross-type-same-language',
-      reason: `该语言已存在${oppositeTypeLabel}层，禁止与${sameTypeLabel}层同语言。`,
-      reasonShort: `与${oppositeTypeLabel}层语言冲突`,
+      reason: ZH.crossTypeLanguageConflict(oppositeTypeLabel, sameTypeLabel),
+      reasonShort: ZH.crossTypeLanguageConflictShort(oppositeTypeLabel),
     };
   }
 
@@ -426,17 +465,15 @@ export function getLayerCreateGuard(
     return {
       allowed: false,
       reasonCode: 'duplicate-same-type-without-alias',
-      reason: `该语言已存在${sameTypeLabel}层，请提供别名以区分。`,
-      reasonShort: `同语言${sameTypeLabel}已存在，需填别名`,
+      reason: ZH.sameTypeAliasRequired(sameTypeLabel),
+      reasonShort: ZH.sameTypeAliasRequiredShort(sameTypeLabel),
     };
   }
 
   return { allowed: true };
 }
 
-/**
- * 统一翻译层创建守卫（UI + 后端共用）| Shared translation-create guard (UI + backend)
- */
+/** Shared translation-create guard (UI + backend). */
 export function getTranslationCreateGuard(
   layers: LayerDocType[],
   input: { languageId?: string; alias?: string },
@@ -444,35 +481,35 @@ export function getTranslationCreateGuard(
   return getLayerCreateGuard(layers, 'translation', input);
 }
 
-// ─── 创建约束 | Create constraints ───────────────────────────────────
+// Create constraints
 
 export function canCreateLayer(
   layers: LayerDocType[],
   layerType: 'transcription' | 'translation',
 ): CanCreateResult {
-  // 翻译层需至少一个转写层存在 | Translation layer requires at least one transcription layer
+  // Translation layer requires at least one transcription layer.
   if (layerType === 'translation') {
     const hasTranscription = layers.some((l) => l.layerType === 'transcription');
     if (!hasTranscription) {
-      return { allowed: false, reason: '请先创建转写层，翻译层依赖转写层。' };
+      return { allowed: false, reason: ZH.needTranscriptionFirst };
     }
   }
 
-  // 软上限警告 | Soft limit warning
+  // Soft limit warning.
   const existing = layers.filter((l) => l.layerType === layerType);
   const limit = LAYER_SOFT_LIMITS[layerType];
   if (existing.length >= limit) {
-    const typeLabel = layerType === 'transcription' ? '转写' : '翻译';
+    const typeLabel = layerType === 'transcription' ? ZH.transcription : ZH.translation;
     return {
       allowed: true,
-      warning: `当前已有 ${existing.length} 个${typeLabel}层（建议上限 ${limit}），继续创建可能影响性能。`,
+      warning: ZH.softLimitWarning(existing.length, typeLabel, limit),
     };
   }
 
   return { allowed: true };
 }
 
-// ─── 删除约束 | Delete constraints ───────────────────────────────────
+// Delete constraints
 
 export function canDeleteLayer(
   layers: LayerDocType[],
@@ -480,7 +517,7 @@ export function canDeleteLayer(
 ): CanDeleteResult {
   const target = layers.find((l) => l.id === targetLayerId);
   if (!target) {
-    return { allowed: false, reason: '未找到要删除的层。' };
+    return { allowed: false, reason: ZH.deleteTargetNotFound };
   }
 
   if (target.layerType === 'transcription') {
@@ -490,7 +527,7 @@ export function canDeleteLayer(
     );
     const orphanedTranslationIds = dependentTranslations.map((layer) => layer.id);
 
-    // 最近的剩余转写层（重链目标）| Most recent remaining transcription layer (re-link target)
+    // Most recent remaining transcription layer (re-link target).
     const remainingTrc = transcriptionLayers
       .filter((l) => l.id !== targetLayerId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
@@ -508,16 +545,14 @@ export function canDeleteLayer(
     return result;
   }
 
-  // 翻译层：父层为主模型，不需要 link 统计
   // Translation uses parent-layer relation as canonical model.
   return { allowed: true, affectedLinkCount: 0 };
 }
 
-// ─── 链接查询 | Link queries ─────────────────────────────────────────
+// Link queries
 
 /**
- * 获取某一层的所有关联层 ID
- * Get all linked layer IDs for a given layer
+ * Get all linked layer IDs for a given layer.
  */
 export function getLinkedLayers(
   _layerLinks: LayerLinkDocType[],
@@ -528,20 +563,18 @@ export function getLinkedLayers(
   if (!target) return [];
 
   if (target.layerType === 'transcription') {
-    // 转写层 → 关联到其父层为当前层的翻译层
     // Transcription -> translations whose parentLayerId points to this layer.
     return layers.filter((layer) => layer.layerType === 'translation' && layer.parentLayerId === target.id);
   }
 
-  // 翻译层 → 找父转写层 | Translation -> resolve parent transcription.
+  // Translation -> resolve parent transcription.
   if (!target.parentLayerId) return [];
   const parent = layers.find((layer) => layer.id === target.parentLayerId && layer.layerType === 'transcription');
   return parent ? [parent] : [];
 }
 
 /**
- * 获取最近创建的对侧类型层（按 createdAt 降序）
- * Get the most recently created layer of the opposite type
+ * Get the most recently created layer of the opposite type.
  */
 export function getMostRecentLayerOfType(
   layers: LayerDocType[],

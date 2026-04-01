@@ -5,6 +5,7 @@ import type {
   UtteranceDocType,
 } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
+import { t, tf, useLocale } from '../i18n';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { formatTime, newId } from '../utils/transcriptionFormatters';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
@@ -42,6 +43,8 @@ interface UseTranscriptionSegmentCreationControllerResult {
 export function useTranscriptionSegmentCreationController(
   input: UseTranscriptionSegmentCreationControllerInput,
 ): UseTranscriptionSegmentCreationControllerResult {
+  const locale = useLocale();
+
   const createSegmentTarget = (unitId: string) => resolveTranscriptionUnitTarget({
     layerId: input.activeLayerIdForEdits,
     unitId,
@@ -52,7 +55,7 @@ export function useTranscriptionSegmentCreationController(
     const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
     if (routing.editMode === 'independent-segment' || routing.editMode === 'time-subdivision') {
       if (!input.selectedTimelineMedia) {
-        input.setSaveState({ kind: 'error', message: '请先导入并选择音频。' });
+        input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.mediaRequired') });
         return;
       }
       const minSpan = 0.05;
@@ -60,7 +63,7 @@ export function useTranscriptionSegmentCreationController(
       const rawStart = Math.max(0, Math.min(start, end));
       const rawEnd = Math.max(start, end);
       if (!routing.layer || !routing.segmentSourceLayer) {
-        console.error('未找到目标转写层');
+        console.error('Missing target transcription layer');
         return;
       }
       const layerSegments = input.segmentsByLayer.get(routing.sourceLayerId);
@@ -81,7 +84,7 @@ export function useTranscriptionSegmentCreationController(
       const normalizedEnd = Math.max(boundedStart + minSpan, rawEnd);
       const boundedEnd = Math.min(upperBound, normalizedEnd);
       if (!Number.isFinite(boundedEnd) || boundedEnd - boundedStart < minSpan) {
-        input.setSaveState({ kind: 'error', message: '选区与现有句段重叠，无法创建。请在空白区重新拖拽。' });
+        input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.createFromSelectionOverlap') });
         return;
       }
       const finalStart = Number(boundedStart.toFixed(3));
@@ -103,14 +106,14 @@ export function useTranscriptionSegmentCreationController(
           (utterance) => utterance.startTime <= finalStart + 0.01 && utterance.endTime >= finalEnd - 0.01,
         );
         if (!parentUtt) {
-          input.setSaveState({ kind: 'error', message: '所选区间未落在任何句段范围内，无法在时间细分层创建。' });
+          input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.segmentCreateNoParentSubdivision') });
           return;
         }
         newSeg.utteranceId = parentUtt.id;
         if (!newSeg.speakerId && parentUtt.speakerId) {
           newSeg.speakerId = parentUtt.speakerId;
         }
-        input.pushUndo('新建句段');
+        input.pushUndo(t(locale, 'transcription.utteranceAction.undo.createFromSelection'));
         await LayerSegmentationV2Service.createSegmentWithParentConstraint(
           newSeg,
           parentUtt.id,
@@ -127,7 +130,7 @@ export function useTranscriptionSegmentCreationController(
             newSeg.speakerId = overlappingUtt.speakerId;
           }
         }
-        input.pushUndo('新建句段');
+        input.pushUndo(t(locale, 'transcription.utteranceAction.undo.createFromSelection'));
         await LayerSegmentationV2Service.createSegment(newSeg);
       }
       await input.reloadSegments();
@@ -136,7 +139,10 @@ export function useTranscriptionSegmentCreationController(
       input.selectTimelineUnit(createSegmentTarget(newSeg.id));
       input.setSaveState({
         kind: 'done',
-        message: `已在当前层新建独立段 ${formatTime(finalStart)} - ${formatTime(finalEnd)}`,
+        message: tf(locale, 'transcription.utteranceAction.done.createFromSelection', {
+          start: formatTime(finalStart),
+          end: formatTime(finalEnd),
+        }),
       });
       return;
     }
@@ -144,7 +150,7 @@ export function useTranscriptionSegmentCreationController(
       ...(input.speakerFocusTargetKey ? { speakerId: input.speakerFocusTargetKey } : {}),
       ...(input.activeLayerIdForEdits ? { focusedLayerId: input.activeLayerIdForEdits } : {}),
     });
-  }, [input]);
+  }, [input, locale]);
 
   return { createUtteranceFromSelectionRouted };
 }

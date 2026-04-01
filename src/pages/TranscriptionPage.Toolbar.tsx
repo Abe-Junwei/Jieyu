@@ -1,6 +1,7 @@
 import type { RefObject } from 'react';
 import { WaveformToolbar } from '../components/WaveformToolbar';
 import { TranscriptionToolbarActions } from '../components/TranscriptionToolbarActions';
+import { t, tf, useLocale } from '../i18n';
 
 export type TranscriptionPageToolbarProps = {
   filename: string;
@@ -91,6 +92,8 @@ export function TranscriptionPageToolbar({
   onAutoSegment,
   autoSegmentBusy,
 }: TranscriptionPageToolbarProps) {
+  const locale = useLocale();
+
   return (
     <WaveformToolbar
       filename={filename}
@@ -104,11 +107,15 @@ export function TranscriptionPageToolbar({
       onLoopChange={onLoopChange}
       onTogglePlayback={onTogglePlayback}
       onSeek={onSeek}
+      {...(onAutoSegment ? { onAutoSegment } : {})}
+      {...(autoSegmentBusy != null ? { autoSegmentBusy } : {})}
+      autoSegmentRunTitle={t(locale, 'transcription.toolbar.autoSegmentRun')}
+      autoSegmentRunningTitle={t(locale, 'transcription.toolbar.autoSegmentRunning')}
     >
       {lowConfidenceCount != null && lowConfidenceCount > 0 && (
         <span
           className="toolbar-confidence-badge"
-          title={`${lowConfidenceCount} 个低置信度句段，按 [ / ] 跳转 | ${lowConfidenceCount} low-confidence segments, use [ / ] to navigate`}
+          title={tf(locale, 'transcription.toolbar.lowConfidenceBadgeTitle', { count: lowConfidenceCount })}
         >
           ⚠ {lowConfidenceCount}
         </span>
@@ -135,8 +142,6 @@ export function TranscriptionPageToolbar({
         onDeleteCurrentProject={onDeleteCurrentProject}
         onToggleNotes={onToggleNotes}
         onOpenUttOpsMenu={onOpenUttOpsMenu}
-        {...(onAutoSegment ? { onAutoSegment } : {})}
-        {...(autoSegmentBusy != null ? { autoSegmentBusy } : {})}
       />
     </WaveformToolbar>
   );

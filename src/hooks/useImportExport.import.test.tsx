@@ -535,7 +535,7 @@ describe('useImportExport - import success under stop-write', () => {
 
     expect(await db.layer_units.where('layerId').equals(independentLayer.id).count()).toBe(0);
     expect(warnSpy).toHaveBeenCalledWith(
-      '[Import] 跳过独立转写层导入：缺少媒体，无法恢复 segment',
+      expect.stringMatching(/\[Import\] (?:跳过独立转写层导入：缺少媒体，无法恢复 segment|Skipped independent transcription tier import: missing media, cannot restore segments)/),
       expect.objectContaining({ tierName: 'Independent Secondary', layerId: independentLayer.id }),
     );
     expect(setSaveState).toHaveBeenLastCalledWith(expect.objectContaining({

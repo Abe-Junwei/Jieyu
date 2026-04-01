@@ -1,14 +1,7 @@
 /**
- * RiskDetector — 主动风险检测
+ * RiskDetector - proactive risk checks before destructive operations.
  *
- * 在执行破坏性操作之前，主动检测潜在风险并提供警告。
- * 风险类型：
- *  - 数据丢失风险（删除最后一个/唯一句段）
- *  - 不可逆操作（大规模合并/分割）
- *  - 上下文丢失（操作目标已被删除）
- *  - 疲劳干扰（用户处于高疲劳状态时执行复杂操作）
- *
- * @see 解语-语音智能体架构设计方案 v2.5 §阶段3
+ * Detects likely risks and returns warnings before the action is executed.
  */
 
 import type { ActionId } from './IntentRouter';
@@ -27,27 +20,27 @@ export interface RiskAssessment {
 }
 
 export interface RiskDetectorContext {
-  /** 当前操作涉及的 segment ID（若有） */
+  /** Segment ID targeted by the current action, if any. */
   targetSegmentId?: string | null | undefined;
-  /** 当前操作涉及的时间点（秒） */
+  /** Target time position in seconds, if any. */
   targetTimeSeconds?: number | null | undefined;
-  /** 总句段数 */
+  /** Total segment count. */
   totalSegments: number;
-  /** 当前选中句段 ID */
+  /** Currently selected segment ID. */
   currentSegmentId?: string | null | undefined;
-  /** 目标 segment 的时长（秒） */
+  /** Target segment duration in seconds. */
   targetDurationSeconds?: number | null | undefined;
-  /** 是否是第一句段 */
+  /** Whether the target segment is the first segment. */
   isFirstSegment?: boolean | undefined;
-  /** 是否是最后一句段 */
+  /** Whether the target segment is the last segment. */
   isLastSegment?: boolean | undefined;
-  /** 用户疲劳分数（0-1） */
+  /** User fatigue score between 0 and 1. */
   fatigueScore?: number | undefined;
-  /** 是否在安全模式 */
+  /** Whether safe mode is enabled. */
   safeMode?: boolean | undefined;
-  /** 连续 destructive 操作计数 */
+  /** Number of recent destructive operations. */
   recentDestructiveCount?: number | undefined;
-  /** STT 置信度（0-1） */
+  /** STT confidence score between 0 and 1. */
   confidence?: number | undefined;
 }
 
@@ -66,9 +59,9 @@ const RISK_RULES: RiskRule[] = [
   {
     check: (ctx) => ctx.totalSegments === 1,
     level: 'critical',
-    reason: '这是唯一的句段，删除后将无法恢复',
+    reason: '\u8fd9\u662f\u552f\u4e00\u7684\u53e5\u6bb5\uff0c\u5220\u9664\u540e\u5c06\u65e0\u6cd5\u6062\u590d',
     requiresExplicitConfirm: true,
-    alternativeSuggestion: () => '建议先新建一个句段再删除当前内容',
+    alternativeSuggestion: () => '\u5efa\u8bae\u5148\u65b0\u5efa\u4e00\u4e2a\u53e5\u6bb5\u518d\u5220\u9664\u5f53\u524d\u5185\u5bb9',
   },
   // Critical: merge first or last segment (loses position context)
   {
@@ -76,25 +69,25 @@ const RISK_RULES: RiskRule[] = [
       (actionId === 'mergePrev' && ctx.isFirstSegment === true) ||
       (actionId === 'mergeNext' && ctx.isLastSegment === true),
     level: 'high',
-    reason: '合并边界句段可能丢失位置信息，且无法撤销',
+    reason: '\u5408\u5e76\u8fb9\u754c\u53e5\u6bb5\u53ef\u80fd\u4e22\u5931\u4f4d\u7f6e\u4fe1\u606f\uff0c\u4e14\u65e0\u6cd5\u64a4\u9500',
     requiresExplicitConfirm: true,
     alternativeSuggestion: (ctx) =>
-      ctx.isFirstSegment ? '建议先切换到第二句段，再合并到上一个' : '建议先切换到倒数第二句段，再合并下一个',
+      ctx.isFirstSegment ? '\u5efa\u8bae\u5148\u5207\u6362\u5230\u7b2c\u4e8c\u53e5\u6bb5\uff0c\u518d\u5408\u5e76\u5230\u4e0a\u4e00\u4e2a' : '\u5efa\u8bae\u5148\u5207\u6362\u5230\u5012\u6570\u7b2c\u4e8c\u53e5\u6bb5\uff0c\u518d\u5408\u5e76\u4e0b\u4e00\u4e2a',
   },
   // High: very short segment (< 0.3s)
   {
     check: (ctx) =>
       ctx.targetDurationSeconds != null && ctx.targetDurationSeconds < 0.3,
     level: 'high',
-    reason: '目标句段时长过短（<0.3s），可能是误识别导致',
+    reason: '\u76ee\u6807\u53e5\u6bb5\u65f6\u957f\u8fc7\u77ed\uff08<0.3s\uff09\uff0c\u53ef\u80fd\u662f\u8bef\u8bc6\u522b\u5bfc\u81f4',
     requiresExplicitConfirm: true,
-    alternativeSuggestion: () => '建议先确认该时间点确实存在有效语音',
+    alternativeSuggestion: () => '\u5efa\u8bae\u5148\u786e\u8ba4\u8be5\u65f6\u95f4\u70b9\u786e\u5b9e\u5b58\u5728\u6709\u6548\u8bed\u97f3',
   },
   // Medium: low STT confidence
   {
     check: (ctx) => ctx.confidence !== undefined && ctx.confidence < 0.6,
     level: 'medium',
-    reason: '语音识别置信度较低，操作可能不是用户本意',
+    reason: '\u8bed\u97f3\u8bc6\u522b\u7f6e\u4fe1\u5ea6\u8f83\u4f4e\uff0c\u64cd\u4f5c\u53ef\u80fd\u4e0d\u662f\u7528\u6237\u672c\u610f',
     requiresExplicitConfirm: true,
   },
   // Medium: fatigue + destructive action
@@ -103,7 +96,7 @@ const RISK_RULES: RiskRule[] = [
       ctx.fatigueScore !== undefined && ctx.fatigueScore > 0.7 &&
       ctx.recentDestructiveCount !== undefined && ctx.recentDestructiveCount >= 2,
     level: 'medium',
-    reason: '您目前疲劳度较高，建议休息后再继续复杂操作',
+    reason: '\u60a8\u76ee\u524d\u75b2\u52b3\u5ea6\u8f83\u9ad8\uff0c\u5efa\u8bae\u4f11\u606f\u540e\u518d\u7ee7\u7eed\u590d\u6742\u64cd\u4f5c',
     requiresExplicitConfirm: false,
   },
   // Medium: consecutive destructive operations
@@ -111,7 +104,7 @@ const RISK_RULES: RiskRule[] = [
     check: (ctx) =>
       ctx.recentDestructiveCount !== undefined && ctx.recentDestructiveCount >= 3,
     level: 'medium',
-    reason: '已连续执行多次破坏性操作，建议稍作停顿确认',
+    reason: '\u5df2\u8fde\u7eed\u6267\u884c\u591a\u6b21\u7834\u574f\u6027\u64cd\u4f5c\uff0c\u5efa\u8bae\u7a0d\u4f5c\u505c\u987f\u786e\u8ba4',
     requiresExplicitConfirm: false,
   },
   // Low: only two segments left
@@ -119,7 +112,7 @@ const RISK_RULES: RiskRule[] = [
     check: (ctx, actionId) =>
       (actionId === 'mergePrev' || actionId === 'mergeNext') && ctx.totalSegments <= 2,
     level: 'low',
-    reason: '只剩两个句段，合并后将变为一个',
+    reason: '\u53ea\u5269\u4e24\u4e2a\u53e5\u6bb5\uff0c\u5408\u5e76\u540e\u5c06\u53d8\u4e3a\u4e00\u4e2a',
     requiresExplicitConfirm: false,
   },
   // Low: split very long segment (> 30s)
@@ -128,7 +121,7 @@ const RISK_RULES: RiskRule[] = [
       actionId === 'splitSegment' &&
       ctx.targetDurationSeconds != null && ctx.targetDurationSeconds > 30,
     level: 'low',
-    reason: '原句段较长，分割后两个句段都会比较长',
+    reason: '\u539f\u53e5\u6bb5\u8f83\u957f\uff0c\u5206\u5272\u540e\u4e24\u4e2a\u53e5\u6bb5\u90fd\u4f1a\u6bd4\u8f83\u957f',
     requiresExplicitConfirm: false,
   },
 ];

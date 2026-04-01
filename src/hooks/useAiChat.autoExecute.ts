@@ -9,6 +9,7 @@ import {
   formatToolExecutionFallbackError,
 } from '../ai/messages';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
+import type { Locale } from '../i18n';
 import type {
   AiChatToolCall,
   AiChatToolResult,
@@ -22,6 +23,7 @@ interface ExecuteAutoToolCallParams {
   assistantMessageId: string;
   toolCall: AiChatToolCall;
   auditContext: Parameters<typeof buildToolDecisionAuditMetadata>[2];
+  locale: Locale;
   toolFeedbackStyle: AiToolFeedbackStyle;
   onToolCall?: ((call: AiChatToolCall) => Promise<AiChatToolResult> | AiChatToolResult) | null | undefined;
   writeToolDecisionAuditLog: (
@@ -55,6 +57,7 @@ export async function executeAutoToolCall({
   assistantMessageId,
   toolCall,
   auditContext,
+  locale,
   toolFeedbackStyle,
   onToolCall,
   writeToolDecisionAuditLog,
@@ -69,7 +72,7 @@ export async function executeAutoToolCall({
 }: ExecuteAutoToolCallParams): Promise<ExecuteAutoToolCallResult> {
   if (!onToolCall) {
     const finalErrorMessage = formatNoExecutorInternalError();
-    const finalContent = toNaturalToolFailure(toolCall.name, formatNoExecutorToolFailureDetail(), toolFeedbackStyle);
+    const finalContent = toNaturalToolFailure(locale, toolCall.name, formatNoExecutorToolFailureDetail(), toolFeedbackStyle);
     await writeToolDecisionAuditLog(
       assistantMessageId,
       `auto:${toolCall.name}`,
@@ -108,8 +111,8 @@ export async function executeAutoToolCall({
     const result = await onToolCall(toolCall);
     const autoExecDurationMs = Math.round(performance.now() - autoExecStart);
     const finalContent = result.ok
-      ? toNaturalToolSuccess(toolCall.name, result.message, toolFeedbackStyle)
-      : toNaturalToolFailure(toolCall.name, result.message, toolFeedbackStyle);
+      ? toNaturalToolSuccess(locale, toolCall.name, result.message, toolFeedbackStyle)
+      : toNaturalToolFailure(locale, toolCall.name, result.message, toolFeedbackStyle);
 
     if (result.ok) {
       bumpMetric('successCount');
@@ -161,7 +164,7 @@ export async function executeAutoToolCall({
   } catch (error) {
     const autoExecDurationMsErr = Math.round(performance.now() - autoExecStart);
     const toolErrorText = error instanceof Error ? error.message : formatToolExecutionFallbackError();
-    const finalContent = toNaturalToolFailure(toolCall.name, toolErrorText, toolFeedbackStyle);
+    const finalContent = toNaturalToolFailure(locale, toolCall.name, toolErrorText, toolFeedbackStyle);
 
     await writeToolDecisionAuditLog(
       assistantMessageId,

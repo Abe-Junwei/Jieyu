@@ -51,23 +51,23 @@ export type VoiceIntentLlmParseResult =
   | { ok: false; errorKind: VoiceIntentLlmErrorKind; message: string; rawResponse: string };
 
 const DEFAULT_SYSTEM_PROMPT = [
-  '你是解语语音指令解析器。',
-  '你的任务是把用户语音文本解析为一个 JSON 意图对象。',
-  '仅返回 JSON，不要返回额外解释。',
-  '允许的返回格式：',
-  '{"type":"action","actionId":"<ActionId>","raw":"<原文>"}',
-  '{"type":"tool","toolName":"<tool_name>","params":{},"raw":"<原文>"}',
-  '{"type":"chat","text":"<原文>","raw":"<原文>"}',
+  '\u4f60\u662f\u89e3\u8bed\u8bed\u97f3\u6307\u4ee4\u89e3\u6790\u5668\u3002',
+  '\u4f60\u7684\u4efb\u52a1\u662f\u628a\u7528\u6237\u8bed\u97f3\u6587\u672c\u89e3\u6790\u4e3a\u4e00\u4e2a JSON \u610f\u56fe\u5bf9\u8c61\u3002',
+  '\u4ec5\u8fd4\u56de JSON\uff0c\u4e0d\u8981\u8fd4\u56de\u989d\u5916\u89e3\u91ca\u3002',
+  '\u5141\u8bb8\u7684\u8fd4\u56de\u683c\u5f0f\uff1a',
+  '{"type":"action","actionId":"<ActionId>","raw":"<\u539f\u6587>"}',
+  '{"type":"tool","toolName":"<tool_name>","params":{},"raw":"<\u539f\u6587>"}',
+  '{"type":"chat","text":"<\u539f\u6587>","raw":"<\u539f\u6587>"}',
   '{"tool_call":{"name":"<tool_name>","arguments":{}}}',
-  'ActionId 仅允许：playPause,markSegment,cancel,deleteSegment,mergePrev,mergeNext,splitSegment,undo,redo,selectBefore,selectAfter,selectAll,navPrev,navNext,tabNext,tabPrev,search,toggleNotes,toggleVoice。',
-  '额外允许的工具（返回 type:"tool"，toolName 选其一）：',
+  'ActionId \u4ec5\u5141\u8bb8\uff1aplayPause,markSegment,cancel,deleteSegment,mergePrev,mergeNext,splitSegment,undo,redo,selectBefore,selectAfter,selectAll,navPrev,navNext,tabNext,tabPrev,search,toggleNotes,toggleVoice\u3002',
+  '\u989d\u5916\u5141\u8bb8\u7684\u5de5\u5177\uff08\u8fd4\u56de type:"tool"\uff0ctoolName \u9009\u5176\u4e00\uff09\uff1a',
   'nav_to_segment, nav_to_time, play_pause, mark_segment, delete_segment, split_at_time, merge_prev, merge_next, undo, redo, focus_segment, zoom_to_segment, toggle_notes, search_segments, auto_gloss_segment, get_current_segment, get_project_summary, get_recent_history。',
 ].join('\n');
 
 const DEFAULT_MODE_PROMPTS: Record<VoiceResolverMode, string> = {
-  command: '优先解析为 action/tool；仅在无法映射动作时返回 chat。',
-  dictation: '若内容像口述文本则优先返回 chat，不要编造 action。',
-  analysis: '优先返回 chat 或 tool，用于分析与问答。',
+  command: '\u4f18\u5148\u89e3\u6790\u4e3a action/tool\uff1b\u4ec5\u5728\u65e0\u6cd5\u6620\u5c04\u52a8\u4f5c\u65f6\u8fd4\u56de chat\u3002',
+  dictation: '\u82e5\u5185\u5bb9\u50cf\u53e3\u8ff0\u6587\u672c\u5219\u4f18\u5148\u8fd4\u56de chat\uff0c\u4e0d\u8981\u7f16\u9020 action\u3002',
+  analysis: '\u4f18\u5148\u8fd4\u56de chat \u6216 tool\uff0c\u7528\u4e8e\u5206\u6790\u4e0e\u95ee\u7b54\u3002',
 };
 
 const DEFAULT_SCHEMA: VoiceIntentLlmSchemaConfig = {
@@ -131,8 +131,8 @@ export function parseVoiceIntentFromLlmResponseDetailed(
       ok: false,
       errorKind: looksLikeBrokenJson ? 'invalid-json' : 'missing-json',
       message: looksLikeBrokenJson
-        ? 'LLM 返回了看似 JSON 的内容，但 JSON 结构不完整。'
-        : 'LLM 未返回可解析的 JSON 意图对象。',
+        ? 'LLM \u8fd4\u56de\u4e86\u770b\u4f3c JSON \u7684\u5185\u5bb9\uff0c\u4f46 JSON \u7ed3\u6784\u4e0d\u5b8c\u6574\u3002'
+        : 'LLM \u672a\u8fd4\u56de\u53ef\u89e3\u6790\u7684 JSON \u610f\u56fe\u5bf9\u8c61\u3002',
       rawResponse: responseText,
     };
   }
@@ -145,7 +145,7 @@ export function parseVoiceIntentFromLlmResponseDetailed(
     return {
       ok: false,
       errorKind: 'invalid-json',
-      message: 'LLM 返回了 JSON 片段，但 JSON 语法无效。',
+      message: 'LLM \u8fd4\u56de\u4e86 JSON \u7247\u6bb5\uff0c\u4f46 JSON \u8bed\u6cd5\u65e0\u6548\u3002',
       rawResponse: responseText,
     };
   }
@@ -155,7 +155,7 @@ export function parseVoiceIntentFromLlmResponseDetailed(
     return {
       ok: false,
       errorKind: 'invalid-shape',
-      message: 'LLM 返回的 JSON 不是对象结构。',
+      message: 'LLM \u8fd4\u56de\u7684 JSON \u4e0d\u662f\u5bf9\u8c61\u7ed3\u6784\u3002',
       rawResponse: responseText,
     };
   }
@@ -167,7 +167,7 @@ export function parseVoiceIntentFromLlmResponseDetailed(
       return {
         ok: false,
         errorKind: 'invalid-action',
-        message: `LLM 返回了未注册的 actionId：${actionId || '(empty)'}`,
+        message: `LLM \u8fd4\u56de\u4e86\u672a\u6ce8\u518c\u7684 actionId\uff1a${actionId || '(empty)'}`,
         rawResponse: responseText,
       };
     }
@@ -183,7 +183,7 @@ export function parseVoiceIntentFromLlmResponseDetailed(
       return {
         ok: false,
         errorKind: 'missing-tool-name',
-        message: 'LLM 返回了 tool 类型，但缺少 toolName。',
+        message: 'LLM \u8fd4\u56de\u4e86 tool \u7c7b\u578b\uff0c\u4f46\u7f3a\u5c11 toolName\u3002',
         rawResponse: responseText,
       };
     }
@@ -214,7 +214,7 @@ export function parseVoiceIntentFromLlmResponseDetailed(
       return {
         ok: false,
         errorKind: 'missing-tool-name',
-        message: 'LLM 返回了 tool_call，但缺少 name。',
+        message: 'LLM \u8fd4\u56de\u4e86 tool_call\uff0c\u4f46\u7f3a\u5c11 name\u3002',
         rawResponse: responseText,
       };
     }
@@ -233,7 +233,7 @@ export function parseVoiceIntentFromLlmResponseDetailed(
   return {
     ok: false,
     errorKind: 'invalid-shape',
-    message: 'LLM 返回的 JSON 缺少可识别的 type 或 tool_call 结构。',
+    message: 'LLM \u8fd4\u56de\u7684 JSON \u7f3a\u5c11\u53ef\u8bc6\u522b\u7684 type \u6216 tool_call \u7ed3\u6784\u3002',
     rawResponse: responseText,
   };
 }
@@ -260,7 +260,7 @@ export async function resolveVoiceIntentWithLlmUsingConfig(
   const recentContext = input.recentContext ?? [];
   const modePrompt = config.modePrompts?.[input.mode] ?? DEFAULT_MODE_PROMPTS[input.mode];
   const contextBlock = recentContext.length
-    ? `\n最近上下文:\n- ${recentContext.join('\n- ')}`
+    ? `\n\u6700\u8fd1\u4e0a\u4e0b\u6587:\n- ${recentContext.join('\n- ')}`
     : '';
 
   const userContent = config.buildUserPrompt

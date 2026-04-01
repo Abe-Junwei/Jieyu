@@ -125,9 +125,9 @@ function resolveTargetBundleIndex(bundles: LayerBundle[], targetIndex: number): 
 function describeLayer(layer: LayerDocType): string {
   const { type, lang, alias } = getLayerLabelParts(layer);
   if (alias) {
-    return `${type}「${alias}」 (${lang})`;
+    return `${type}\u300c${alias}\u300d (${lang})`;
   }
-  return `${type}（${lang}）`;
+  return `${type}\uff08${lang}\uff09`;
 }
 
 function getBundleRanges(bundles: LayerBundle[]): Array<{ start: number; end: number }> {
@@ -266,7 +266,7 @@ export function validateLayerOrder(layers: LayerDocType[]): LayerOrderIssue[] {
     return [{
       layerId: layer.id,
       code: 'non-canonical-sort-order' as const,
-      message: `层 ${layer.name.zho ?? layer.name.eng ?? layer.key} 当前位于第 ${actualIndex + 1} 位，应调整到第 ${expectedIndex + 1} 位。`,
+      message: `\u5c42 ${layer.name.zho ?? layer.name.eng ?? layer.key} \u5f53\u524d\u4f4d\u4e8e\u7b2c ${actualIndex + 1} \u4f4d\uff0c\u5e94\u8c03\u6574\u5230\u7b2c ${expectedIndex + 1} \u4f4d\u3002`,
     }];
   });
 }
@@ -282,7 +282,7 @@ export function repairLayerOrder(layers: LayerDocType[]): { layers: LayerDocType
     return [{
       layerId: layer.id,
       code: 'non-canonical-sort-order' as const,
-      message: `已将层 ${layer.name.zho ?? layer.name.eng ?? layer.key} 调整到第 ${index + 1} 位。`,
+      message: `\u5df2\u5c06\u5c42 ${layer.name.zho ?? layer.name.eng ?? layer.key} \u8c03\u6574\u5230\u7b2c ${index + 1} \u4f4d\u3002`,
     }];
   });
 
@@ -384,7 +384,7 @@ export function resolveLayerDrop(
     return {
       layers,
       changed: false,
-      message: `无法放置${describeLayer(draggedLayer)}：目标区域没有合法的独立转写层。`,
+      message: `\u65e0\u6cd5\u653e\u7f6e${describeLayer(draggedLayer)}\uff1a\u76ee\u6807\u533a\u57df\u6ca1\u6709\u5408\u6cd5\u7684\u72ec\u7acb\u8f6c\u5199\u5c42\u3002`,
       messageLevel: 'error',
     };
   }
@@ -417,8 +417,8 @@ export function resolveLayerDrop(
     ...(reparented
       ? {
           message: previousParent
-            ? `已将${describeLayer(draggedLayer)}从 ${describeLayer(previousParent)} 改为依赖 ${describeLayer(targetBundle.root)}。`
-            : `已将${describeLayer(draggedLayer)}改为依赖 ${describeLayer(targetBundle.root)}。`,
+            ? `\u5df2\u5c06${describeLayer(draggedLayer)}\u4ece ${describeLayer(previousParent)} \u6539\u4e3a\u4f9d\u8d56 ${describeLayer(targetBundle.root)}\u3002`
+            : `\u5df2\u5c06${describeLayer(draggedLayer)}\u6539\u4e3a\u4f9d\u8d56 ${describeLayer(targetBundle.root)}\u3002`,
           messageLevel: 'warning' as const,
         }
       : {}),

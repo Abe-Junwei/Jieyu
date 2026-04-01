@@ -8,8 +8,8 @@
   min-height: 260px;
   max-width: 92vw;
   max-height: 86vh;
-  background: #fff;
-  border: 1px solid #dbe5f1;
+  background: var(--surface-panel);
+  border: 1px solid var(--state-info-border);
   border-radius: 12px;
   box-shadow: 0 16px 42px rgba(15, 23, 42, 0.2);
   overflow: hidden;
@@ -28,8 +28,8 @@
   justify-content: space-between;
   gap: 12px;
   padding: 0 12px;
-  border-bottom: 1px solid #e6eef8;
-  background: #f8fbff;
+  border-bottom: 1px solid var(--state-info-border);
+  background: var(--state-info-bg);
   cursor: grab;
   user-select: none;
 }
@@ -41,7 +41,7 @@
 .transcription-pdf-preview-title {
   font-size: 13px;
   line-height: 1;
-  color: #0f172a;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -51,9 +51,9 @@
 .transcription-pdf-preview-page-tag {
   font-size: 11px;
   line-height: 1;
-  color: #1d4ed8;
-  background: #dbeafe;
-  border: 1px solid #bfdbfe;
+  color: var(--state-info-solid);
+  background: var(--state-info-bg);
+  border: 1px solid var(--state-info-border);
   border-radius: 999px;
   padding: 4px 8px;
   white-space: nowrap;
@@ -66,9 +66,9 @@
 }
 
 .transcription-pdf-preview-nav {
-  border: 1px solid #d7e3f2;
-  background: #ffffff;
-  color: #1f2937;
+  border: 1px solid var(--state-info-border);
+  background: var(--surface-panel);
+  color: var(--text-primary);
   border-radius: 999px;
   padding: 4px 9px;
   font-size: 11px;
@@ -78,8 +78,8 @@
 }
 
 .transcription-pdf-preview-nav:hover:not(:disabled) {
-  background: #eff6ff;
-  border-color: #c9dcf5;
+  background: var(--state-info-bg);
+  border-color: var(--state-info-border);
 }
 
 .transcription-pdf-preview-nav:disabled {
@@ -88,9 +88,9 @@
 }
 
 .transcription-pdf-preview-close {
-  border: 1px solid #d7e3f2;
-  background: #ffffff;
-  color: #1f2937;
+  border: 1px solid var(--state-info-border);
+  background: var(--surface-panel);
+  color: var(--text-primary);
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 12px;
@@ -99,15 +99,15 @@
 }
 
 .transcription-pdf-preview-close:hover {
-  background: #eff6ff;
-  border-color: #c9dcf5;
+  background: var(--state-info-bg);
+  border-color: var(--state-info-border);
 }
 
 .transcription-pdf-preview-frame {
   width: 100%;
   height: calc(100% - 42px);
   border: none;
-  background: #fff;
+  background: var(--surface-panel);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -118,8 +118,8 @@
   flex: 1;
   align-items: center;
   justify-content: center;
-  color: #64748b;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  color: var(--text-secondary);
+  background: linear-gradient(180deg, var(--surface-panel) 0%, var(--state-info-bg) 100%);
 }
 
 @media (max-width: 960px) {

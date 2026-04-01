@@ -1,14 +1,19 @@
 import { FeatureAvailabilityPanel } from '../components/FeatureAvailabilityPanel';
+import { t, useLocale } from '../i18n';
 
 export function AnnotationPage() {
+  const locale = useLocale();
+
   return (
     <FeatureAvailabilityPanel
-      title="标注工作台未开放"
-      summary="词切分、语素 gloss、标签标注仍在能力收口阶段，当前版本不再将该页作为已交付功能展示。"
+      title={t(locale, 'workspace.annotation.unavailable.title')}
+      summary={t(locale, 'workspace.annotation.unavailable.summary')}
+      sidePaneTitle={t(locale, 'workspace.annotation.unavailable.sidePaneTitle')}
+      sidePaneSubtitle={t(locale, 'workspace.annotation.unavailable.sidePaneSubtitle')}
       scope={[
-        '词切分与 token 级编辑',
-        'gloss 词库联动与批量修订',
-        '标签体系与语料回链',
+        t(locale, 'workspace.annotation.unavailable.scope.segmentation'),
+        t(locale, 'workspace.annotation.unavailable.scope.gloss'),
+        t(locale, 'workspace.annotation.unavailable.scope.tagging'),
       ]}
     />
   );

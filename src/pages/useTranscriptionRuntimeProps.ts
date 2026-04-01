@@ -59,7 +59,7 @@ interface UseTranscriptionRuntimePropsInput {
     callbacks: DictationPipelineCallbacks;
     config?: QuickDictationConfig;
   };
-  formatLayerRailLabel: (layer: LayerDocType) => string;
+  formatSidePaneLayerLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   toggleVoiceRef: MutableRefObject<(() => void) | undefined>;
   utterancesOnCurrentMedia: UtteranceDocType[];
@@ -109,7 +109,7 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
     translationLayers,
     layers,
     dictationPreviewTextProps,
-    formatLayerRailLabel,
+    formatSidePaneLayerLabel,
     formatTime,
     toggleVoiceRef,
     utterancesOnCurrentMedia,
@@ -148,7 +148,7 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
     layers,
     ...(dictationPreviewTextProps !== undefined ? { dictationPreviewTextProps } : {}),
     ...(input.dictationPipeline !== undefined ? { dictationPipeline: input.dictationPipeline } : {}),
-    formatLayerRailLabel,
+    formatSidePaneLayerLabel,
     formatTime,
     onRegisterToggleVoice: (handler) => {
       toggleVoiceRef.current = handler;
@@ -159,7 +159,7 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
     dictationPreviewTextProps,
     input.dictationPipeline,
     executeAction,
-    formatLayerRailLabel,
+    formatSidePaneLayerLabel,
     formatTime,
     getActiveTextPrimaryLanguageId,
     handleResolveVoiceIntentWithLlm,

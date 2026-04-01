@@ -1,4 +1,5 @@
 import { createLogger } from '../../observability/logger';
+import { getAiChatCardUtilityMessages } from '../../i18n/aiChatCardUtilityMessages';
 
 const log = createLogger('AiChatCardUtils');
 
@@ -43,33 +44,15 @@ export function interpolatePromptTemplate(template: string, vars: Record<string,
 }
 
 export function formatToolDecision(isZh: boolean, decision: string): string {
-  if (decision === 'confirmed') return isZh ? '已确认执行' : 'Confirmed';
-  if (decision === 'cancelled') return isZh ? '已取消执行' : 'Cancelled';
-  if (decision === 'confirm_failed') return isZh ? '确认后执行失败' : 'Confirm failed';
-  return decision || (isZh ? '未知' : 'Unknown');
+  const messages = getAiChatCardUtilityMessages(isZh);
+  if (decision === 'confirmed') return messages.confirmed;
+  if (decision === 'cancelled') return messages.cancelled;
+  if (decision === 'confirm_failed') return messages.confirmFailed;
+  return decision || messages.unknown;
 }
 
 export function formatToolName(isZh: boolean, toolName: string): string {
-  const zhMap: Record<string, string> = {
-    delete_transcription_segment: '删除句段',
-    split_transcription_segment: '切分句段',
-    delete_layer: '删除层',
-    set_transcription_text: '写入转写',
-    set_translation_text: '写入翻译',
-    clear_translation_segment: '清空翻译',
-    create_transcription_segment: '创建句段',
-  };
-  const enMap: Record<string, string> = {
-    delete_transcription_segment: 'Delete Segment',
-    split_transcription_segment: 'Split Segment',
-    delete_layer: 'Delete Layer',
-    set_transcription_text: 'Set Transcription',
-    set_translation_text: 'Set Translation',
-    clear_translation_segment: 'Clear Translation',
-    create_transcription_segment: 'Create Segment',
-  };
-  const map = isZh ? zhMap : enMap;
-  return map[toolName] ?? toolName;
+  return getAiChatCardUtilityMessages(isZh).toolNames[toolName] ?? toolName;
 }
 
 export function compactInternalId(value: string): string {
@@ -82,16 +65,17 @@ export function formatPendingTarget(
   isZh: boolean,
   call: { name: string; arguments: Record<string, unknown> },
 ): string | null {
+  const messages = getAiChatCardUtilityMessages(isZh);
   if (call.name === 'delete_transcription_segment') {
     const utteranceId = typeof call.arguments.utteranceId === 'string' ? call.arguments.utteranceId.trim() : '';
-    if (!utteranceId) return isZh ? '当前选中句段' : 'Current selected segment';
-    return isZh ? `句段（${compactInternalId(utteranceId)}）` : `Segment (${compactInternalId(utteranceId)})`;
+    if (!utteranceId) return messages.currentSelectedSegment;
+    return messages.segmentWithId(compactInternalId(utteranceId));
   }
 
   if (call.name === 'delete_layer') {
     const layerId = typeof call.arguments.layerId === 'string' ? call.arguments.layerId.trim() : '';
     if (layerId) {
-      return isZh ? `层（${compactInternalId(layerId)}）` : `Layer (${compactInternalId(layerId)})`;
+      return messages.layerWithId(compactInternalId(layerId));
     }
 
     const layerType = typeof call.arguments.layerType === 'string' ? call.arguments.layerType.trim() : '';
@@ -99,13 +83,13 @@ export function formatPendingTarget(
     if (!layerType && !languageQuery) return null;
 
     const layerTypeLabel = layerType === 'translation'
-      ? (isZh ? '翻译层' : 'Translation layer')
+      ? messages.translationLayer
       : layerType === 'transcription'
-        ? (isZh ? '转写层' : 'Transcription layer')
-        : (isZh ? '目标层' : 'Target layer');
+        ? messages.transcriptionLayer
+        : messages.targetLayer;
 
     if (!languageQuery) return layerTypeLabel;
-    return isZh ? `${layerTypeLabel}（语言：${languageQuery}）` : `${layerTypeLabel} (language: ${languageQuery})`;
+    return messages.layerLanguage(layerTypeLabel, languageQuery);
   }
 
   return null;
@@ -116,16 +100,18 @@ export function formatPendingConfirmActionLabel(
   callName: string,
 ): string {
   const isDeleteAction = callName === 'delete_transcription_segment' || callName === 'delete_layer';
-  if (isDeleteAction) return isZh ? '确认删除' : 'Confirm Delete';
-  return isZh ? '确认执行' : 'Confirm Action';
+  const messages = getAiChatCardUtilityMessages(isZh);
+  if (isDeleteAction) return messages.confirmDelete;
+  return messages.confirmAction;
 }
 
 export function normalizeImpactPreviewLines(
   lines: string[],
   reversible: boolean,
 ): string[] {
-  const irreversiblePattern = /(不可逆|irreversible)/i;
-  const reversiblePattern = /(可撤销|可逆|撤销恢复|undo|reversible)/i;
+  const messages = getAiChatCardUtilityMessages(true);
+  const irreversiblePattern = new RegExp(`(${messages.irreversiblePatternSource})`, 'i');
+  const reversiblePattern = new RegExp(`(${messages.reversiblePatternSource})`, 'i');
 
   return lines.filter((line) => {
     if (reversible) return !irreversiblePattern.test(line);
@@ -142,22 +128,24 @@ export function buildSnapshotDownloadName(toolName: string, requestId: string): 
 }
 
 export function formatReplayableLabel(isZh: boolean, replayable: boolean): string {
+  const messages = getAiChatCardUtilityMessages(isZh);
   return replayable
-    ? (isZh ? '可重放' : 'Replayable')
-    : (isZh ? '仅可审计' : 'Audit only');
+    ? messages.replayable
+    : messages.auditOnly;
 }
 
 export function formatCitationLabel(
   isZh: boolean,
   citation: { type: 'utterance' | 'note' | 'pdf' | 'schema'; label?: string; refId: string },
 ): string {
+  const messages = getAiChatCardUtilityMessages(isZh);
   const fallback = citation.type === 'utterance'
-    ? (isZh ? '句段参考' : 'Utterance Ref')
+    ? messages.utteranceRef
     : citation.type === 'note'
-      ? (isZh ? '笔记参考' : 'Note Ref')
+      ? messages.noteRef
       : citation.type === 'pdf'
-        ? (isZh ? '文档参考' : 'Document Ref')
-        : (isZh ? '参考' : 'Reference');
+        ? messages.documentRef
+        : messages.reference;
 
   const raw = (citation.label ?? '').trim();
   if (!raw) return fallback;

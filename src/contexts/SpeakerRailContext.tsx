@@ -1,8 +1,8 @@
 /**
  * SpeakerRailContext - 说话人管理 Context
  *
- * 将 LayerRailSidebar 所需的 17+ speaker 相关 props 封装为 Context，
- * 避免在 TranscriptionPage → LayerRailSidebar 链路上逐层透传。
+ * 将 SidePaneSidebar 所需的 17+ speaker 相关 props 封装为 Context，
+ * 避免在 TranscriptionPage → SidePaneSidebar 链路上逐层透传。
  *
  * SpeakerRailProvider 接收 TranscriptionPage 中 useSpeakerActions 的返回值，
  * 原样透传为 context value，不自行管理状态（避免与 TranscriptionPage 状态重复）。
@@ -66,7 +66,7 @@ export interface SpeakerRailContextValue {
 const SpeakerRailContext = createContext<SpeakerRailContextValue | null>(null);
 
 const log = createLogger('SpeakerRailContext');
-const MISSING_PROVIDER_MESSAGE = 'SpeakerRailProvider is missing. LayerRailSidebar speaker actions are unavailable.';
+const MISSING_PROVIDER_MESSAGE = 'SpeakerRailProvider is missing. SidePaneSidebar speaker actions are unavailable.';
 
 let hasLoggedMissingProvider = false;
 
@@ -74,7 +74,7 @@ function reportMissingProvider(): void {
   if (hasLoggedMissingProvider) return;
   hasLoggedMissingProvider = true;
   log.error(MISSING_PROVIDER_MESSAGE, {
-    hint: 'Wrap LayerRailSidebar with SpeakerRailProvider.',
+    hint: 'Wrap SidePaneSidebar with SpeakerRailProvider.',
   });
 }
 

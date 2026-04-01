@@ -53,16 +53,16 @@ export type TranscriptionLayerActionsParams = {
 };
 
 type DeleteLayerOptions = {
-  /** 保留关联语段 | Keep associated utterances */
+  /** Keep associated utterances. */
   keepUtterances?: boolean;
 };
 
 type PerformLayerDeleteOptions = DeleteLayerOptions & {
-  /** 静默执行，不更新弹窗与提示文案 | Silent mode: don't update dialog/message state */
+  /** Silent mode: do not update dialog or toast/message state. */
   silent?: boolean;
-  /** 跳过 undo 记录，用于级联子删除 | Skip undo record for cascaded child deletions */
+  /** Skip undo tracking for cascaded child deletions. */
   skipUndo?: boolean;
-  /** 级联删除的翻译层数量（仅用于最终提示）| Number of cascaded translation deletions (for final message only) */
+  /** Number of cascaded translation deletions, used only in the final message. */
   cascadedTranslationCount?: number;
 };
 
@@ -190,7 +190,7 @@ export function useTranscriptionLayerActions({
     const requestedParentLayerId = input.parentLayerId?.trim();
 
     if (!languageId) {
-      setLayerCreateMessage('请选择语言。');
+      setLayerCreateMessage('\u8bf7\u9009\u62e9\u8bed\u8a00\u3002');
       return false;
     }
 
@@ -215,7 +215,7 @@ export function useTranscriptionLayerActions({
       hasSupportedParent: independentParentCandidates.length > 0,
     });
     if (!createGuard.allowed) {
-      setLayerCreateMessage(createGuard.reason ?? '当前无法创建该层。');
+      setLayerCreateMessage(createGuard.reason ?? '\u5f53\u524d\u65e0\u6cd5\u521b\u5efa\u8be5\u5c42\u3002');
       return false;
     }
 
@@ -231,7 +231,7 @@ export function useTranscriptionLayerActions({
     const suffix = Math.random().toString(36).slice(2, 7);
     const key = `${layerType === 'transcription' ? 'trc' : 'trl'}_${languageId}_${suffix}`;
     const effectiveModality = layerType === 'transcription' ? 'text' : (modality ?? 'text');
-    const typeLabel = layerType === 'transcription' ? '转写' : '翻译';
+    const typeLabel = layerType === 'transcription' ? '\u8f6c\u5199' : '\u7ffb\u8bd1';
     const autoName = alias ? `${typeLabel} · ${alias}` : typeLabel;
 
     const existingOfType = layers.filter((l) => l.layerType === layerType);
@@ -244,7 +244,7 @@ export function useTranscriptionLayerActions({
       const id = newId('layer');
       const textId = input.textId?.trim() || utterancesRef.current[0]?.textId || layers[0]?.textId || '';
       if (!textId) {
-        setLayerCreateMessage('未找到当前项目上下文，请先进入目标项目后再创建层。');
+        setLayerCreateMessage('\u672a\u627e\u5230\u5f53\u524d\u9879\u76ee\u4e0a\u4e0b\u6587\uff0c\u8bf7\u5148\u8fdb\u5165\u76ee\u6807\u9879\u76ee\u540e\u518d\u521b\u5efa\u5c42\u3002');
         return false;
       }
       const newLayer: LayerDocType = {
@@ -266,7 +266,7 @@ export function useTranscriptionLayerActions({
         updatedAt: now,
       } as LayerDocType;
 
-      pushUndo(`创建${typeLabel}层`);
+      pushUndo(`\u521b\u5efa${typeLabel}\u5c42`);
       await LayerTierUnifiedService.createLayer(newLayer);
 
       let autoLink: LayerLinkDocType | undefined;
@@ -291,26 +291,26 @@ export function useTranscriptionLayerActions({
         setLayerLinks((prev) => [...prev, autoLink]);
       }
 
-      setLayerCreateMessage(`已创建${typeLabel}层：${autoName}（${languageId}）`);
+      setLayerCreateMessage(`\u5df2\u521b\u5efa${typeLabel}\u5c42\uff1a${autoName}\uff08${languageId}\uff09`);
       return true;
     } catch (error) {
-      setLayerCreateMessage(error instanceof Error ? error.message : '创建层失败');
+      setLayerCreateMessage(error instanceof Error ? error.message : '\u521b\u5efa\u5c42\u5931\u8d25');
       return false;
     }
   }, [layers, persistLayerState, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers, setSelectedLayerId, utterancesRef]);
 
-  /** 检查层是否有文本内容（用于判断是否需要确认） */
+  /** Check whether the layer contains text content and needs confirmation. */
   const checkLayerHasContent = useCallback(async (layerId: string): Promise<number> => {
     return LayerSegmentQueryService.countSegmentContentsByLayerId(layerId);
   }, []);
 
-  /** 执行层的实际删除操作（无确认提示） */
+  /** Execute the actual layer deletion without a confirmation prompt. */
   const performLayerDelete = useCallback(async (targetLayerId: string, options?: PerformLayerDeleteOptions) => {
     const effectiveLayerId = targetLayerId;
     const targetLayer = layers.find((item) => item.id === effectiveLayerId);
     if (!targetLayer) {
       if (!options?.silent) {
-        setLayerCreateMessage('未找到要删除的层。');
+        setLayerCreateMessage('\u672a\u627e\u5230\u8981\u5220\u9664\u7684\u5c42\u3002');
       }
       return;
     }
@@ -319,18 +319,18 @@ export function useTranscriptionLayerActions({
     const deleteCheck = canDeleteLayer(layers, effectiveLayerId);
     if (!deleteCheck.allowed) {
       if (!options?.silent) {
-        setLayerCreateMessage(deleteCheck.reason ?? '当前层无法删除。');
+        setLayerCreateMessage(deleteCheck.reason ?? '\u5f53\u524d\u5c42\u65e0\u6cd5\u5220\u9664\u3002');
       }
       return;
     }
 
     const layerLabel = targetLayer.name.zho ?? targetLayer.name.eng ?? targetLayer.key;
-    const layerTypeLabel = targetLayer.layerType === 'translation' ? '翻译层' : '转写层';
+    const layerTypeLabel = targetLayer.layerType === 'translation' ? '\u7ffb\u8bd1\u5c42' : '\u8f6c\u5199\u5c42';
     const keepUtterances = options?.keepUtterances ?? false;
 
     try {
       if (!options?.skipUndo) {
-        pushUndo(`删除${layerTypeLabel}`);
+        pushUndo(`\u5220\u9664${layerTypeLabel}`);
       }
 
       const isDeletingLastTranscription =
@@ -423,23 +423,23 @@ export function useTranscriptionLayerActions({
         const removedCount = removedUtteranceIds.size;
         const cascadedCount = options?.cascadedTranslationCount ?? 0;
         const cascadedNote = cascadedCount > 0
-          ? `（自动级联删除 ${cascadedCount} 个依赖翻译层）`
+          ? `\uff08\u81ea\u52a8\u7ea7\u8054\u5220\u9664 ${cascadedCount} \u4e2a\u4f9d\u8d56\u7ffb\u8bd1\u5c42\uff09`
           : '';
         setLayerCreateMessage(removedCount > 0
-          ? `已删除层：${layerLabel}${cascadedNote}（同时清除 ${removedCount} 个孤立语段）`
-          : `已删除层：${layerLabel}${cascadedNote}`);
+          ? `\u5df2\u5220\u9664\u5c42\uff1a${layerLabel}${cascadedNote}\uff08\u540c\u65f6\u6e05\u9664 ${removedCount} \u4e2a\u5b64\u7acb\u8bed\u6bb5\uff09`
+          : `\u5df2\u5220\u9664\u5c42\uff1a${layerLabel}${cascadedNote}`);
       }
     } catch (error) {
       if (options?.silent) {
-        throw (error instanceof Error ? error : new Error('删除层失败'));
+        throw (error instanceof Error ? error : new Error('\u5220\u9664\u5c42\u5931\u8d25'));
       }
       if (!options?.silent) {
-        setLayerCreateMessage(error instanceof Error ? error.message : '删除层失败');
+        setLayerCreateMessage(error instanceof Error ? error.message : '\u5220\u9664\u5c42\u5931\u8d25');
       }
     }
   }, [layerLinks, layers, pushUndo, selectedLayerId, setLayerCreateMessage, setLayerLinks, setLayerToDeleteId, setLayers, setSelectedLayerId, setShowLayerManager, setTranslations, setUtterances]);
 
-  /** 删除层，不弹出浏览器确认（用于已通过自定义确认对话框的用户） */
+  /** Delete a layer without showing the browser confirm dialog. */
   const deleteLayerWithoutConfirm = useCallback(async (targetLayerId: string) => {
     return performLayerDelete(targetLayerId);
   }, [performLayerDelete]);
@@ -447,18 +447,18 @@ export function useTranscriptionLayerActions({
   const deleteLayer = useCallback(async (targetLayerId?: string, options?: DeleteLayerOptions) => {
     const effectiveLayerId = targetLayerId ?? layerToDeleteId;
     if (!effectiveLayerId) {
-      setLayerCreateMessage('请先选择要删除的层。');
+      setLayerCreateMessage('\u8bf7\u5148\u9009\u62e9\u8981\u5220\u9664\u7684\u5c42\u3002');
       return;
     }
 
     const keepUtterances = options?.keepUtterances ?? false;
     const targetLayer = layers.find((item) => item.id === effectiveLayerId);
     if (!targetLayer) {
-      setLayerCreateMessage('未找到要删除的层。');
+      setLayerCreateMessage('\u672a\u627e\u5230\u8981\u5220\u9664\u7684\u5c42\u3002');
       return;
     }
 
-    // 删除最后一个转写层时，自动级联删除其依赖翻译层 | When deleting the last transcription layer, cascade-delete dependent translation layers
+    // When deleting the last transcription layer, cascade-delete dependent translation layers.
     if (targetLayer.layerType === 'transcription') {
       const transcriptionLayers = layers.filter((item) => item.layerType === 'transcription');
       if (transcriptionLayers.length <= 1) {
@@ -481,7 +481,7 @@ export function useTranscriptionLayerActions({
           });
           return;
         } catch (error) {
-          setLayerCreateMessage(error instanceof Error ? error.message : '删除层失败');
+          setLayerCreateMessage(error instanceof Error ? error.message : '\u5220\u9664\u5c42\u5931\u8d25');
           return;
         }
       }
@@ -497,7 +497,7 @@ export function useTranscriptionLayerActions({
     const targetParent = listIndependentBoundaryTranscriptionLayers(layers)
       .find((layer) => layer.key === transcriptionLayerKey);
     if (!targetParent) {
-      setLayerCreateMessage('请选择有效的独立转写层作为依赖目标。');
+      setLayerCreateMessage('\u8bf7\u9009\u62e9\u6709\u6548\u7684\u72ec\u7acb\u8f6c\u5199\u5c42\u4f5c\u4e3a\u4f9d\u8d56\u76ee\u6807\u3002');
       return;
     }
 
@@ -505,7 +505,7 @@ export function useTranscriptionLayerActions({
       (layer) => layer.id === layerId && layer.layerType === 'translation',
     );
     if (!translationLayer) {
-      setLayerCreateMessage('未找到要调整依赖的翻译层。');
+      setLayerCreateMessage('\u672a\u627e\u5230\u8981\u8c03\u6574\u4f9d\u8d56\u7684\u7ffb\u8bd1\u5c42\u3002');
       return;
     }
 
@@ -513,7 +513,7 @@ export function useTranscriptionLayerActions({
       return;
     }
 
-    pushUndo('调整层依赖');
+    pushUndo('\u8c03\u6574\u5c42\u4f9d\u8d56');
     const now = new Date().toISOString();
     const updatedTranslationBase: LayerDocType = {
       ...translationLayer,
@@ -592,7 +592,7 @@ export function useTranscriptionLayerActions({
         });
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : '层级重排失败';
+      const message = error instanceof Error ? error.message : '\u5c42\u7ea7\u91cd\u6392\u5931\u8d25';
       setLayerCreateMessage(message);
       setSaveState?.({ kind: 'error', message });
     }

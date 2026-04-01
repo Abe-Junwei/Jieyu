@@ -1,5 +1,6 @@
 import type { CorpusContext, UserBehaviorProfile } from './GlobalContextService';
 import { getActionLabel, type ActionId, type VoiceSession } from './IntentRouter';
+import type { Locale } from '../i18n';
 
 export interface GroundingContextData {
   currentSegment: {
@@ -44,6 +45,7 @@ export interface BuildVoiceAgentGroundingContextInput {
   profile: UserBehaviorProfile;
   session: VoiceSession;
   uiContext: VoiceAgentGroundingUiContext;
+  locale?: Locale;
 }
 
 export function buildVoiceAgentGroundingContext({
@@ -51,6 +53,7 @@ export function buildVoiceAgentGroundingContext({
   profile,
   session,
   uiContext,
+  locale,
 }: BuildVoiceAgentGroundingContextInput): GroundingContextData {
   let currentSegment: GroundingContextData['currentSegment'] = null;
   if (uiContext.currentSegmentId && corpus) {
@@ -76,7 +79,7 @@ export function buildVoiceAgentGroundingContext({
     actionEntries.sort((left, right) => right[1] - left[1]);
     const topEntry = actionEntries[0];
     if (topEntry) {
-      mostUsedAction = getActionLabel(topEntry[0] as ActionId);
+      mostUsedAction = getActionLabel(topEntry[0] as ActionId, locale);
     }
   }
 

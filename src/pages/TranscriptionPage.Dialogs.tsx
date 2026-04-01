@@ -4,10 +4,12 @@ import { ProjectSetupDialog } from '../components/ProjectSetupDialog';
 import { AudioImportDialog } from '../components/AudioImportDialog';
 import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
 import { ShortcutsPanel } from '../components/ShortcutsPanel';
+import { normalizeLocale, t, tf } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { SpeakerActionDialogState } from '../hooks/speakerManagement/types';
 
 export type TranscriptionPageDialogsProps = {
+  locale: string;
   // Speaker dialog
   speakerDialogState: SpeakerActionDialogState | null;
   speakerSaving: boolean;
@@ -43,6 +45,7 @@ export type TranscriptionPageDialogsProps = {
 };
 
 export function TranscriptionPageDialogs({
+  locale,
   speakerDialogState,
   speakerSaving,
   onCloseSpeakerDialog,
@@ -68,6 +71,8 @@ export function TranscriptionPageDialogs({
   isFocusMode,
   onExitFocusMode,
 }: TranscriptionPageDialogsProps) {
+  const uiLocale = normalizeLocale(locale) ?? 'zh-CN';
+
   return (
     <>
       <SpeakerActionDialog
@@ -103,8 +108,10 @@ export function TranscriptionPageDialogs({
       {/* Audio delete confirmation dialog */}
       <ConfirmDeleteDialog
         open={audioDeleteConfirm !== null}
-        title="删除音频"
-        description={audioDeleteConfirm ? `确定删除音频「${audioDeleteConfirm.filename}」及其所有句段？此操作不可撤销。` : ''}
+        title={t(uiLocale, 'transcription.dialog.deleteAudioTitle')}
+        description={audioDeleteConfirm
+          ? tf(uiLocale, 'transcription.dialog.deleteAudioDescription', { filename: audioDeleteConfirm.filename })
+          : ''}
         onCancel={onCancelAudioDelete}
         onConfirm={onConfirmAudioDelete}
       />
@@ -112,8 +119,8 @@ export function TranscriptionPageDialogs({
       {/* Project delete confirmation dialog */}
       <ConfirmDeleteDialog
         open={projectDeleteConfirm}
-        title="删除项目"
-        description="确定删除当前项目及其所有数据（音频、句段、翻译）？此操作不可撤销。"
+        title={t(uiLocale, 'transcription.dialog.deleteProjectTitle')}
+        description={t(uiLocale, 'transcription.action.confirmDeleteProject')}
         onCancel={onCancelProjectDelete}
         onConfirm={onConfirmProjectDelete}
       />
@@ -121,7 +128,7 @@ export function TranscriptionPageDialogs({
       {/* Focus mode exit badge */}
       {isFocusMode && (
         <div className="focus-mode-badge" onClick={onExitFocusMode}>
-          焦点模式 — 点击或 ⌘⇧F 退出
+          {t(uiLocale, 'transcription.dialog.focusModeExitBadge')}
         </div>
       )}
 

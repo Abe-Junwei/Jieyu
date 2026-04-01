@@ -142,6 +142,9 @@ export function useTranscriptionWorkspaceLayoutController(
     const startX = event.clientX;
     const startWidth = laneLabelWidth;
 
+    // 拖拽期间禁用 lane-label 相关 transition，避免上下区域动画不同步 | Disable lane-label transitions during drag to keep waveform and timeline in sync
+    document.documentElement.classList.add('lane-label-resizing');
+
     const onMove = (nextEvent: PointerEvent) => {
       const next = Math.max(40, Math.min(180, startWidth + (nextEvent.clientX - startX)));
       laneLabelWidthRef.current = next;
@@ -151,6 +154,7 @@ export function useTranscriptionWorkspaceLayoutController(
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      document.documentElement.classList.remove('lane-label-resizing');
       try {
         localStorage.setItem('jieyu:lane-label-width', String(laneLabelWidthRef.current));
       } catch (error) {

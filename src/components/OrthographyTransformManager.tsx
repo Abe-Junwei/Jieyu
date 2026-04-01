@@ -10,6 +10,7 @@ import {
   previewOrthographyTransform,
   validateOrthographyTransform,
 } from '../utils/orthographyTransforms';
+import { decodeEscapedUnicode } from '../utils/decodeEscapedUnicode';
 
 type LanguageOption = {
   code: string;
@@ -38,9 +39,9 @@ function formatTransformSampleCasesText(transform: OrthographyTransformDocType):
 }
 
 function formatTransformStatus(status: OrthographyTransformDocType['status'] | undefined): string {
-  if (status === 'active') return '启用';
-  if (status === 'deprecated') return '弃用';
-  return '草稿';
+  if (status === 'active') return decodeEscapedUnicode('\\u542f\\u7528');
+  if (status === 'deprecated') return decodeEscapedUnicode('\\u5f03\\u7528');
+  return decodeEscapedUnicode('\\u8349\\u7a3f');
 }
 
 function buildOptionalName(nameZh: string, nameEn: string): OrthographyTransformDocType['name'] | null {
@@ -78,7 +79,7 @@ export function OrthographyTransformManager({
   const [draftTransformIsReversible, setDraftTransformIsReversible] = useState(false);
 
   const targetLabel = targetOrthography ? formatOrthographyOptionLabel(targetOrthography) : '';
-  const fieldClassName = compact ? 'input transcription-layer-rail-action-input' : 'input';
+  const fieldClassName = compact ? 'input transcription-side-pane-action-input' : 'input';
   const panelClassName = compact
     ? 'orthography-builder-panel orthography-builder-panel-compact'
     : 'orthography-builder-panel';
@@ -155,7 +156,7 @@ export function OrthographyTransformManager({
       }
       setError('');
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : '变换规则加载失败');
+      setError(loadError instanceof Error ? loadError.message : decodeEscapedUnicode('\\u53d8\\u6362\\u89c4\\u5219\\u52a0\\u8f7d\\u5931\\u8d25'));
     } finally {
       setLoading(false);
     }
@@ -201,20 +202,20 @@ export function OrthographyTransformManager({
   const saveTransform = useCallback(async () => {
     if (!targetOrthography?.id) return;
     if (!resolvedSourceLanguageId || !sourceOrthographyId) {
-      setError('请先选择来源语言与来源正字法');
+      setError(decodeEscapedUnicode('\\u8bf7\\u5148\\u9009\\u62e9\\u6765\\u6e90\\u8bed\\u8a00\\u4e0e\\u6765\\u6e90\\u6b63\\u5b57\\u6cd5'));
       return;
     }
     if (sourceOrthographyId === targetOrthography.id) {
-      setError('来源与目标正字法不能相同');
+      setError(decodeEscapedUnicode('\\u6765\\u6e90\\u4e0e\\u76ee\\u6807\\u6b63\\u5b57\\u6cd5\\u4e0d\\u80fd\\u76f8\\u540c'));
       return;
     }
     if (transformValidationIssues.length > 0) {
-      setError(transformValidationIssues[0] ?? '变换规则校验失败');
+      setError(transformValidationIssues[0] ?? decodeEscapedUnicode('\\u53d8\\u6362\\u89c4\\u5219\\u6821\\u9a8c\\u5931\\u8d25'));
       return;
     }
     const failedSampleCases = transformSampleCaseResults.filter((item) => item.matchesExpectation === false);
     if (failedSampleCases.length > 0) {
-      setError(`样例用例校验失败，共 ${failedSampleCases.length} 条未通过。`);
+      setError(decodeEscapedUnicode(`\\u6837\\u4f8b\\u7528\\u4f8b\\u6821\\u9a8c\\u5931\\u8d25，\\u5171 ${failedSampleCases.length} \\u6761\\u672a\\u901a\\u8fc7。`));
       return;
     }
 
@@ -260,7 +261,7 @@ export function OrthographyTransformManager({
       await loadTransforms();
       resetEditor();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : '变换规则保存失败');
+      setError(saveError instanceof Error ? saveError.message : decodeEscapedUnicode('\\u53d8\\u6362\\u89c4\\u5219\\u4fdd\\u5b58\\u5931\\u8d25'));
     } finally {
       setSaving(false);
     }
@@ -275,7 +276,7 @@ export function OrthographyTransformManager({
       });
       await loadTransforms();
     } catch (toggleError) {
-      setError(toggleError instanceof Error ? toggleError.message : '变换状态更新失败');
+      setError(toggleError instanceof Error ? toggleError.message : decodeEscapedUnicode('\\u53d8\\u6362\\u72b6\\u6001\\u66f4\\u65b0\\u5931\\u8d25'));
     } finally {
       setSaving(false);
     }
@@ -290,7 +291,7 @@ export function OrthographyTransformManager({
         resetEditor();
       }
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : '变换规则删除失败');
+      setError(deleteError instanceof Error ? deleteError.message : decodeEscapedUnicode('\\u53d8\\u6362\\u89c4\\u5219\\u5220\\u9664\\u5931\\u8d25'));
     } finally {
       setSaving(false);
     }
@@ -300,13 +301,13 @@ export function OrthographyTransformManager({
 
   return (
     <div className={panelClassName}>
-      <div className={compact ? 'transcription-layer-rail-action-row' : 'orthography-builder-actions'}>
+      <div className={compact ? 'transcription-side-pane-action-row' : 'orthography-builder-actions'}>
         <button
           type="button"
           className={compact ? 'btn btn-ghost btn-sm' : 'btn btn-ghost'}
           onClick={() => setExpanded((prev) => !prev)}
         >
-          {expanded ? '收起导入变换规则' : '管理导入变换规则'}
+          {expanded ? decodeEscapedUnicode('\\u6536\\u8d77\\u5bfc\\u5165\\u53d8\\u6362\\u89c4\\u5219') : decodeEscapedUnicode('\\u7ba1\\u7406\\u5bfc\\u5165\\u53d8\\u6362\\u89c4\\u5219')}
         </button>
         {expanded && !isCreatingNew && !editingTransformId && (
           <button
@@ -315,7 +316,7 @@ export function OrthographyTransformManager({
             onClick={beginCreate}
             disabled={saving}
           >
-            新建规则
+            {decodeEscapedUnicode('\\u65b0\\u5efa\\u89c4\\u5219')}
           </button>
         )}
       </div>
@@ -323,14 +324,14 @@ export function OrthographyTransformManager({
       {expanded && (
         <div className="orthography-builder-grid">
           <div className="orthography-builder-preview-box">
-            <span className="orthography-builder-rule-label">目标正字法</span>
+            <span className="orthography-builder-rule-label">{decodeEscapedUnicode('\\u76ee\\u6807\\u6b63\\u5b57\\u6cd5')}</span>
             <span>{targetLabel}</span>
           </div>
 
           {loading ? (
-            <p className="orthography-builder-hint">正在加载变换规则…</p>
+            <p className="orthography-builder-hint">{decodeEscapedUnicode('\\u6b63\\u5728\\u52a0\\u8f7d\\u53d8\\u6362\\u89c4\\u5219…')}</p>
           ) : transforms.length === 0 && !isCreatingNew && !editingTransformId ? (
-            <p className="orthography-builder-hint">当前正字法尚未配置入站 transform，导入时会保留原文本。</p>
+            <p className="orthography-builder-hint">{decodeEscapedUnicode('\\u5f53\\u524d\\u6b63\\u5b57\\u6cd5\\u5c1a\\u672a\\u914d\\u7f6e\\u5165\\u7ad9 transform，\\u5bfc\\u5165\\u65f6\\u4f1a\\u4fdd\\u7559\\u539f\\u6587\\u672c。')}</p>
           ) : null}
 
           {transforms.map((transform) => {
@@ -339,18 +340,18 @@ export function OrthographyTransformManager({
             return (
               <div key={transform.id} className="orthography-builder-validation-box orthography-builder-validation-box-neutral">
                 <span className="orthography-builder-rule-label">{sourceLabel}{' -> '}{targetLabel}</span>
-                <span>{transform.engine} · {formatTransformStatus(transform.status)}{transform.isReversible ? ' · 可逆' : ''}</span>
+                <span>{transform.engine} · {formatTransformStatus(transform.status)}{transform.isReversible ? ` · ${decodeEscapedUnicode('\\u53ef\\u9006')}` : ''}</span>
                 {transform.sampleInput && transform.sampleOutput && (
-                  <span>样例：{transform.sampleInput}{' -> '}{transform.sampleOutput}</span>
+                  <span>{decodeEscapedUnicode('\\u6837\\u4f8b：')}{transform.sampleInput}{' -> '}{transform.sampleOutput}</span>
                 )}
-                <div className={compact ? 'transcription-layer-rail-action-row' : 'orthography-builder-actions'}>
+                <div className={compact ? 'transcription-side-pane-action-row' : 'orthography-builder-actions'}>
                   <button
                     type="button"
                     className={compact ? 'btn btn-ghost btn-sm' : 'btn btn-ghost'}
                     onClick={() => void toggleTransformStatus(transform)}
                     disabled={saving}
                   >
-                    {transform.status === 'active' ? '设为草稿' : '设为启用'}
+                    {transform.status === 'active' ? decodeEscapedUnicode('\\u8bbe\\u4e3a\\u8349\\u7a3f') : decodeEscapedUnicode('\\u8bbe\\u4e3a\\u542f\\u7528')}
                   </button>
                   <button
                     type="button"
@@ -358,7 +359,7 @@ export function OrthographyTransformManager({
                     onClick={() => beginEdit(transform)}
                     disabled={saving}
                   >
-                    编辑
+                    {decodeEscapedUnicode('\\u7f16\\u8f91')}
                   </button>
                   <button
                     type="button"
@@ -366,7 +367,7 @@ export function OrthographyTransformManager({
                     onClick={() => void deleteTransform(transform.id)}
                     disabled={saving}
                   >
-                    删除规则
+                    {decodeEscapedUnicode('\\u5220\\u9664\\u89c4\\u5219')}
                   </button>
                 </div>
               </div>
@@ -377,42 +378,42 @@ export function OrthographyTransformManager({
             <div className="orthography-builder-transform-panel">
               <div className="orthography-builder-transform-grid">
                 <label className="dialog-field">
-                  <span>来源语言</span>
+                  <span>{decodeEscapedUnicode('\\u6765\\u6e90\\u8bed\\u8a00')}</span>
                   <select
                     className={fieldClassName}
                     value={sourceLanguageId}
                     onChange={(event) => setSourceLanguageId(event.target.value)}
                   >
-                    <option value="">选择来源语言…</option>
+                    <option value="">{decodeEscapedUnicode('\\u9009\\u62e9\\u6765\\u6e90\\u8bed\\u8a00…')}</option>
                     {languageOptions.map((lang) => (
                       <option key={lang.code} value={lang.code}>{lang.label} ({lang.code})</option>
                     ))}
-                    <option value="__custom__">其他（手动输入 ISO 639-3 代码）</option>
+                    <option value="__custom__">{decodeEscapedUnicode('\\u5176\\u4ed6（\\u624b\\u52a8\\u8f93\\u5165 ISO 639-3 \\u4ee3\\u7801）')}</option>
                   </select>
                 </label>
 
                 {sourceLanguageId === '__custom__' && (
                   <label className="dialog-field">
-                    <span>来源语言代码</span>
+                    <span>{decodeEscapedUnicode('\\u6765\\u6e90\\u8bed\\u8a00\\u4ee3\\u7801')}</span>
                     <input
                       className={fieldClassName}
                       type="text"
                       value={sourceCustomLanguageId}
                       onChange={(event) => setSourceCustomLanguageId(event.target.value)}
-                      placeholder="例：eng"
+                      placeholder={decodeEscapedUnicode('\\u4f8b：eng')}
                     />
                   </label>
                 )}
 
                 <label className="dialog-field">
-                  <span>来源正字法</span>
+                  <span>{decodeEscapedUnicode('\\u6765\\u6e90\\u6b63\\u5b57\\u6cd5')}</span>
                   <select
                     className={fieldClassName}
                     value={sourceOrthographyId}
                     onChange={(event) => setSourceOrthographyId(event.target.value)}
                     disabled={sourceOrthographies.length === 0}
                   >
-                    <option value="">选择来源正字法…</option>
+                    <option value="">{decodeEscapedUnicode('\\u9009\\u62e9\\u6765\\u6e90\\u6b63\\u5b57\\u6cd5…')}</option>
                     {sourceOrthographies.map((orthography) => (
                       <option key={orthography.id} value={orthography.id}>
                         {formatOrthographyOptionLabel(orthography)}
@@ -422,18 +423,18 @@ export function OrthographyTransformManager({
                 </label>
 
                 <label className="dialog-field">
-                  <span>规则名（中文）</span>
+                  <span>{decodeEscapedUnicode('\\u89c4\\u5219\\u540d（\\u4e2d\\u6587）')}</span>
                   <input
                     className={fieldClassName}
                     type="text"
                     value={draftNameZh}
                     onChange={(event) => setDraftNameZh(event.target.value)}
-                    placeholder="例：导入映射"
+                    placeholder={decodeEscapedUnicode('\\u4f8b：\\u5bfc\\u5165\\u6620\\u5c04')}
                   />
                 </label>
 
                 <label className="dialog-field">
-                  <span>规则名（英文）</span>
+                  <span>{decodeEscapedUnicode('\\u89c4\\u5219\\u540d（\\u82f1\\u6587）')}</span>
                   <input
                     className={fieldClassName}
                     type="text"
@@ -444,20 +445,20 @@ export function OrthographyTransformManager({
                 </label>
 
                 <label className="dialog-field">
-                  <span>状态</span>
+                  <span>{decodeEscapedUnicode('\\u72b6\\u6001')}</span>
                   <select
                     className={fieldClassName}
                     value={draftStatus}
                     onChange={(event) => setDraftStatus(event.target.value as NonNullable<OrthographyTransformDocType['status']>)}
                   >
-                    <option value="draft">草稿</option>
-                    <option value="active">启用</option>
-                    <option value="deprecated">弃用</option>
+                    <option value="draft">{decodeEscapedUnicode('\\u8349\\u7a3f')}</option>
+                    <option value="active">{decodeEscapedUnicode('\\u542f\\u7528')}</option>
+                    <option value="deprecated">{decodeEscapedUnicode('\\u5f03\\u7528')}</option>
                   </select>
                 </label>
 
                 <label className="dialog-field">
-                  <span>变换引擎</span>
+                  <span>{decodeEscapedUnicode('\\u53d8\\u6362\\u5f15\\u64ce')}</span>
                   <select
                     className={fieldClassName}
                     value={draftTransformEngine}
@@ -475,45 +476,45 @@ export function OrthographyTransformManager({
                     checked={draftTransformIsReversible}
                     onChange={(event) => setDraftTransformIsReversible(event.target.checked)}
                   />
-                  <span>标记为可逆变换</span>
+                  <span>{decodeEscapedUnicode('\\u6807\\u8bb0\\u4e3a\\u53ef\\u9006\\u53d8\\u6362')}</span>
                 </label>
 
                 <div className="orthography-builder-rule-block">
-                  <span className="orthography-builder-rule-label">规则文本</span>
+                  <span className="orthography-builder-rule-label">{decodeEscapedUnicode('\\u89c4\\u5219\\u6587\\u672c')}</span>
                   <textarea
                     className="input orthography-builder-rule-textarea"
                     value={draftTransformRuleText}
                     onChange={(event) => setDraftTransformRuleText(event.target.value)}
-                    placeholder="每行一条映射，如 aa -> a"
+                    placeholder={decodeEscapedUnicode('\\u6bcf\\u884c\\u4e00\\u6761\\u6620\\u5c04，\\u5982 aa -> a')}
                     rows={compact ? 5 : 6}
                   />
                 </div>
 
                 <label className="dialog-field">
-                  <span>预览输入</span>
+                  <span>{decodeEscapedUnicode('\\u9884\\u89c8\\u8f93\\u5165')}</span>
                   <input
                     className={fieldClassName}
                     type="text"
                     value={draftTransformSampleInput}
                     onChange={(event) => setDraftTransformSampleInput(event.target.value)}
-                    placeholder="输入一段样例文本预览转换结果"
+                    placeholder={decodeEscapedUnicode('\\u8f93\\u5165\\u4e00\\u6bb5\\u6837\\u4f8b\\u6587\\u672c\\u9884\\u89c8\\u8f6c\\u6362\\u7ed3\\u679c')}
                   />
                 </label>
 
                 <div className="orthography-builder-rule-block">
-                  <span className="orthography-builder-rule-label">样例用例</span>
+                  <span className="orthography-builder-rule-label">{decodeEscapedUnicode('\\u6837\\u4f8b\\u7528\\u4f8b')}</span>
                   <textarea
                     className="input orthography-builder-rule-textarea"
                     value={draftTransformSampleCasesText}
                     onChange={(event) => setDraftTransformSampleCasesText(event.target.value)}
-                    placeholder="每行一条样例，格式如 shaa => saa"
+                    placeholder={decodeEscapedUnicode('\\u6bcf\\u884c\\u4e00\\u6761\\u6837\\u4f8b，\\u683c\\u5f0f\\u5982 shaa => saa')}
                     rows={compact ? 4 : 5}
                   />
                 </div>
 
                 {transformValidationIssues.length > 0 && (
                   <div className="orthography-builder-validation-box orthography-builder-validation-box-error">
-                    <span className="orthography-builder-rule-label">规则校验</span>
+                    <span className="orthography-builder-rule-label">{decodeEscapedUnicode('\\u89c4\\u5219\\u6821\\u9a8c')}</span>
                     <ul className="orthography-builder-validation-list">
                       {transformValidationIssues.map((issue) => (
                         <li key={issue}>{issue}</li>
@@ -524,27 +525,27 @@ export function OrthographyTransformManager({
 
                 {transformPreviewOutput && (
                   <div className="orthography-builder-preview-box">
-                    <span className="orthography-builder-rule-label">预览输出</span>
+                    <span className="orthography-builder-rule-label">{decodeEscapedUnicode('\\u9884\\u89c8\\u8f93\\u51fa')}</span>
                     <code>{transformPreviewOutput}</code>
                   </div>
                 )}
 
                 {transformSampleCaseResults.length > 0 && (
                   <div className="orthography-builder-validation-box orthography-builder-validation-box-neutral">
-                    <span className="orthography-builder-rule-label">样例结果</span>
+                    <span className="orthography-builder-rule-label">{decodeEscapedUnicode('\\u6837\\u4f8b\\u7ed3\\u679c')}</span>
                     <ul className="orthography-builder-validation-list">
                       {transformSampleCaseResults.map((sampleCase, index) => {
                         const status = sampleCase.matchesExpectation === false
-                          ? '未通过'
+                          ? decodeEscapedUnicode('\\u672a\\u901a\\u8fc7')
                           : sampleCase.matchesExpectation === true
-                          ? '通过'
-                          : '预览';
+                          ? decodeEscapedUnicode('\\u901a\\u8fc7')
+                          : decodeEscapedUnicode('\\u9884\\u89c8');
                         return (
                           <li key={`${sampleCase.input}-${sampleCase.expectedOutput ?? ''}-${index}`}>
                             <strong>{status}</strong>
                               <span>{sampleCase.input}{' -> '}{sampleCase.actualOutput}</span>
                             {sampleCase.expectedOutput !== undefined && (
-                              <span>期望：{sampleCase.expectedOutput}</span>
+                              <span>{decodeEscapedUnicode('\\u671f\\u671b：')}{sampleCase.expectedOutput}</span>
                             )}
                           </li>
                         );
@@ -553,14 +554,14 @@ export function OrthographyTransformManager({
                   </div>
                 )}
 
-                <div className={compact ? 'transcription-layer-rail-action-row' : 'orthography-builder-actions'}>
+                <div className={compact ? 'transcription-side-pane-action-row' : 'orthography-builder-actions'}>
                   <button
                     type="button"
                     className={compact ? 'btn btn-sm' : 'btn'}
                     onClick={() => void saveTransform()}
                     disabled={saving}
                   >
-                    {saving ? '保存中...' : '保存规则'}
+                    {saving ? decodeEscapedUnicode('\\u4fdd\\u5b58\\u4e2d...') : decodeEscapedUnicode('\\u4fdd\\u5b58\\u89c4\\u5219')}
                   </button>
                   <button
                     type="button"
@@ -568,7 +569,7 @@ export function OrthographyTransformManager({
                     onClick={resetEditor}
                     disabled={saving}
                   >
-                    取消编辑
+                    {decodeEscapedUnicode('\\u53d6\\u6d88\\u7f16\\u8f91')}
                   </button>
                 </div>
               </div>

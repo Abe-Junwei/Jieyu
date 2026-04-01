@@ -37,9 +37,9 @@ export function generateRecommendations(metrics: ObserverMetrics): Recommendatio
     return [{
       id: 'collecting-next',
       priority: 100,
-      title: '先完成分段与转写覆盖',
-      detail: '建议先补齐当前媒体的基础分段，并完成主要语段转写。',
-      actionLabel: '跳转处理',
+      title: '\u5148\u5b8c\u6210\u5206\u6bb5\u4e0e\u8f6c\u5199\u8986\u76d6',
+      detail: '\u5efa\u8bae\u5148\u8865\u9f50\u5f53\u524d\u5a92\u4f53\u7684\u57fa\u7840\u5206\u6bb5\uff0c\u5e76\u5b8c\u6210\u4e3b\u8981\u8bed\u6bb5\u8f6c\u5199\u3002',
+      actionLabel: '\u8df3\u8f6c\u5904\u7406',
     }];
   }
   if (stage === 'transcribing') {
@@ -47,16 +47,16 @@ export function generateRecommendations(metrics: ObserverMetrics): Recommendatio
       {
         id: 'transcribing-jump-untagged',
         priority: 92,
-        title: '跳转到未标注语段',
-        detail: '优先处理包含未标注 POS 的语段，快速提升标注覆盖。',
-        actionLabel: '跳转未标注',
+        title: '\u8df3\u8f6c\u5230\u672a\u6807\u6ce8\u8bed\u6bb5',
+        detail: '\u4f18\u5148\u5904\u7406\u5305\u542b\u672a\u6807\u6ce8 POS \u7684\u8bed\u6bb5\uff0c\u5feb\u901f\u63d0\u5347\u6807\u6ce8\u8986\u76d6\u3002',
+        actionLabel: '\u8df3\u8f6c\u672a\u6807\u6ce8',
       },
       {
         id: 'transcribing-batch-pos',
         priority: 90,
-        title: '执行同词形批量 POS',
-        detail: '对同词形且已知词性的 token 执行批量赋值，减少重复操作。',
-        actionLabel: '批量 POS',
+        title: '\u6267\u884c\u540c\u8bcd\u5f62\u6279\u91cf POS',
+        detail: '\u5bf9\u540c\u8bcd\u5f62\u4e14\u5df2\u77e5\u8bcd\u6027\u7684 token \u6267\u884c\u6279\u91cf\u8d4b\u503c\uff0c\u51cf\u5c11\u91cd\u590d\u64cd\u4f5c\u3002',
+        actionLabel: '\u6279\u91cf POS',
       },
     ];
   }
@@ -65,16 +65,16 @@ export function generateRecommendations(metrics: ObserverMetrics): Recommendatio
       {
         id: 'glossing-risk-review',
         priority: 85,
-        title: '优先复核高风险语段',
-        detail: '先处理低置信度语段，可快速降低错误传播。',
-        actionLabel: '风险复核',
+        title: '\u4f18\u5148\u590d\u6838\u9ad8\u98ce\u9669\u8bed\u6bb5',
+        detail: '\u5148\u5904\u7406\u4f4e\u7f6e\u4fe1\u5ea6\u8bed\u6bb5\uff0c\u53ef\u5feb\u901f\u964d\u4f4e\u9519\u8bef\u4f20\u64ad\u3002',
+        actionLabel: '\u98ce\u9669\u590d\u6838',
       },
       {
         id: 'glossing-next',
         priority: 80,
-        title: '进入校核阶段',
-        detail: '建议优先复核低置信度条目并统一标签规范。',
-        actionLabel: '跳转处理',
+        title: '\u8fdb\u5165\u6821\u6838\u9636\u6bb5',
+        detail: '\u5efa\u8bae\u4f18\u5148\u590d\u6838\u4f4e\u7f6e\u4fe1\u5ea6\u6761\u76ee\u5e76\u7edf\u4e00\u6807\u7b7e\u89c4\u8303\u3002',
+        actionLabel: '\u8df3\u8f6c\u5904\u7406',
       },
     ];
   }
@@ -82,16 +82,16 @@ export function generateRecommendations(metrics: ObserverMetrics): Recommendatio
     {
       id: 'reviewing-risk-review',
       priority: 75,
-      title: '复核剩余风险语段',
-      detail: '导出前优先检查低置信度或可疑语段。',
-      actionLabel: '风险复核',
+      title: '\u590d\u6838\u5269\u4f59\u98ce\u9669\u8bed\u6bb5',
+      detail: '\u5bfc\u51fa\u524d\u4f18\u5148\u68c0\u67e5\u4f4e\u7f6e\u4fe1\u5ea6\u6216\u53ef\u7591\u8bed\u6bb5\u3002',
+      actionLabel: '\u98ce\u9669\u590d\u6838',
     },
     {
       id: 'reviewing-next',
       priority: 70,
-      title: '准备导出前检查',
-      detail: '建议执行一致性检查与导出预检。',
-      actionLabel: '查看语段',
+      title: '\u51c6\u5907\u5bfc\u51fa\u524d\u68c0\u67e5',
+      detail: '\u5efa\u8bae\u6267\u884c\u4e00\u81f4\u6027\u68c0\u67e5\u4e0e\u5bfc\u51fa\u9884\u68c0\u3002',
+      actionLabel: '\u67e5\u770b\u8bed\u6bb5',
     },
   ];
 }

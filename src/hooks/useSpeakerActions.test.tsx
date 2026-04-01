@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import type { SpeakerDocType, UtteranceDocType } from '../db';
+import { isDictKey, t as translate, tf as formatMessage } from '../i18n';
 import { useSpeakerActions, type UseSpeakerActionsOptions } from './useSpeakerActions';
 
 vi.mock('../services/LinguisticService', () => ({
@@ -56,6 +57,14 @@ function makeOptions(
   overrides: Partial<UseSpeakerActionsOptions> = {},
 ): UseSpeakerActionsOptions {
   const utterances = overrides.utterances ?? [makeUtterance()];
+  const t = overrides.t ?? ((key: string) => (isDictKey(key) ? translate('zh-CN', key) : key));
+  const tf = overrides.tf ?? (
+    (key: string, params?: Record<string, string | number>) => (
+      isDictKey(key)
+        ? formatMessage('zh-CN', key, params ?? {})
+        : key
+    )
+  );
   return {
     utterances,
     setUtterances: overrides.setUtterances ?? (vi.fn() as unknown as UseSpeakerActionsOptions['setUtterances']),
@@ -74,6 +83,8 @@ function makeOptions(
     setSaveState: overrides.setSaveState ?? vi.fn(),
     getUtteranceTextForLayer: overrides.getUtteranceTextForLayer ?? (() => '示例文本'),
     formatTime: overrides.formatTime ?? ((seconds: number) => `${seconds.toFixed(1)}s`),
+    t,
+    tf,
   };
 }
 

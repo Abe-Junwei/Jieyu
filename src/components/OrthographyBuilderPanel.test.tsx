@@ -2,6 +2,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UseOrthographyPickerResult } from '../hooks/useOrthographyPicker';
+import { LocaleProvider } from '../i18n';
 import type { OrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { clearFontCoverageVerificationCache } from '../utils/layerDisplayStyle';
 import { OrthographyBuilderPanel } from './OrthographyBuilderPanel';
@@ -118,9 +119,13 @@ function createPicker(overrides?: Partial<UseOrthographyPickerResult>): UseOrtho
   };
 }
 
+function renderZh(ui: Parameters<typeof render>[0]) {
+  return render(<LocaleProvider locale="zh-CN">{ui}</LocaleProvider>);
+}
+
 describe('OrthographyBuilderPanel', () => {
   it('renders draft render preview with coverage summary and bidi direction', async () => {
-    render(
+    renderZh(
       <OrthographyBuilderPanel
         picker={createPicker()}
         languageOptions={[]}
@@ -141,7 +146,7 @@ describe('OrthographyBuilderPanel', () => {
   });
 
   it('renders script-only coverage warning when exemplars are missing', () => {
-    render(
+    renderZh(
       <OrthographyBuilderPanel
         picker={createPicker({
           draftRenderPolicy: createRenderPolicy({
@@ -177,7 +182,7 @@ describe('OrthographyBuilderPanel', () => {
   });
 
   it('shows warning confirmation state before creation when render risks exist', () => {
-    render(
+    renderZh(
       <OrthographyBuilderPanel
         picker={createPicker({
           draftRenderWarnings: ['未配置示例字符，当前仅提供脚本级字体推荐。'],
@@ -194,7 +199,7 @@ describe('OrthographyBuilderPanel', () => {
   });
 
   it('shows missing-glyph status for draft default font when runtime verification fails', async () => {
-    render(
+    renderZh(
       <OrthographyBuilderPanel
         picker={createPicker({
           draftRenderPolicy: createRenderPolicy({
@@ -213,7 +218,7 @@ describe('OrthographyBuilderPanel', () => {
   });
 
   it('shows shaping-risk for verified custom complex-script fonts in draft preview', async () => {
-    render(
+    renderZh(
       <OrthographyBuilderPanel
         picker={createPicker({
           draftPrimaryFonts: 'Experimental Arabic',

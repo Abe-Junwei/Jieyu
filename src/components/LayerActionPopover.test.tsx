@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LayerActionPopover } from './LayerActionPopover';
+import { renderWithLocale } from '../test/localeTestUtils';
 
 const NOW = '2025-01-01T00:00:00.000Z';
 
@@ -63,7 +64,7 @@ describe('LayerActionPopover orthography creation', () => {
     const createLayer = vi.fn(async () => true);
     const onClose = vi.fn();
 
-    render(
+    renderWithLocale(
       <LayerActionPopover
         action="create-transcription"
         layerId={undefined}

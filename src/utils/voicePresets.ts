@@ -30,38 +30,38 @@ export interface VoicePreset {
 
 export const VOICE_PRESETS: VoicePreset[] = [
   {
-    label: '🆓 中国免费',
+    label: '\ud83c\udd93 \u4e2d\u56fd\u514d\u8d39',
     engine: 'commercial',
     commercialKind: 'minimax',
     config: { apiKey: '' },
-    hint: 'MiniMax ASR · 1000分钟/月免费 · 国内推荐',
+    hint: 'MiniMax ASR \u00b7 1000\u5206\u949f/\u6708\u514d\u8d39 \u00b7 \u56fd\u5185\u63a8\u8350',
   },
   {
-    label: '🔧 中国专业',
+    label: '\ud83d\udd27 \u4e2d\u56fd\u4e13\u4e1a',
     engine: 'commercial',
     commercialKind: 'volcengine',
     config: { appId: '', accessToken: '' },
-    hint: '火山引擎 ASR · 字节跳动 · 中文优先',
+    hint: '\u706b\u5c71\u5f15\u64ce ASR \u00b7 \u5b57\u8282\u8df3\u52a8 \u00b7 \u4e2d\u6587\u4f18\u5148',
   },
   {
-    label: '🆓 海外免费',
+    label: '\ud83c\udd93 \u6d77\u5916\u514d\u8d39',
     engine: 'commercial',
     commercialKind: 'groq',
     config: { apiKey: '', model: 'whisper-large-v3' },
-    hint: 'Groq Whisper · 14400秒/月免费 · 国际推荐',
+    hint: 'Groq Whisper \u00b7 14400\u79d2/\u6708\u514d\u8d39 \u00b7 \u56fd\u9645\u63a8\u8350',
   },
   {
-    label: '✨ 海外专业',
+    label: '\u2728 \u6d77\u5916\u4e13\u4e1a',
     engine: 'commercial',
     commercialKind: 'gemini',
     config: { apiKey: '' },
-    hint: 'Gemini 2.0 Flash · $0.003/min · 多模态分析',
+    hint: 'Gemini 2.0 Flash \u00b7 $0.003/min \u00b7 \u591a\u6a21\u6001\u5206\u6790',
   },
   {
-    label: '💻 完全离线',
+    label: '\ud83d\udcbb \u5b8c\u5168\u79bb\u7ebf',
     engine: 'whisper-local',
     config: { baseUrl: 'http://localhost:3040', model: 'ggml-base.bin' },
-    hint: 'Whisper.cpp 本地服务 · 无需网络 · 需启动 whisper-server',
+    hint: 'Whisper.cpp \u672c\u5730\u670d\u52a1 \u00b7 \u65e0\u9700\u7f51\u7edc \u00b7 \u9700\u542f\u52a8 whisper-server',
   },
 ];
 

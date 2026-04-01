@@ -6,6 +6,7 @@ import {
   toNaturalToolCancelled,
 } from '../ai/chat/toolCallHelpers';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
+import type { Locale } from '../i18n';
 import type {
   AiChatToolName,
   AiInteractionMetrics,
@@ -35,6 +36,7 @@ interface ResolveToolIntentOutcomeParams {
   plannerReason?: PlannerReason;
   toolCallName: AiChatToolName;
   userText: string;
+  locale: Locale;
   toolFeedbackStyle: AiToolFeedbackStyle;
   aiContext: AiPromptContext | null;
   sessionMemory: AiSessionMemory;
@@ -53,6 +55,7 @@ export function resolveToolIntentOutcome({
   plannerReason,
   toolCallName,
   userText,
+  locale,
   toolFeedbackStyle,
   aiContext,
   sessionMemory,
@@ -71,7 +74,7 @@ export function resolveToolIntentOutcome({
       status: 'explaining',
       updatedAt: now,
     });
-    return toNaturalNonActionFallback(userText);
+    return toNaturalNonActionFallback(userText, toolFeedbackStyle);
   }
 
   if (intentAssessment.decision === 'cancel') {
@@ -81,7 +84,7 @@ export function resolveToolIntentOutcome({
       status: 'idle',
       updatedAt: now,
     });
-    return toNaturalToolCancelled(toolCallName, toolFeedbackStyle);
+    return toNaturalToolCancelled(locale, toolCallName, toolFeedbackStyle);
   }
 
   if (plannerDecision === 'clarify') {

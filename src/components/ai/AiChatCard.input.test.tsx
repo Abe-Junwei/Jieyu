@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { AiChatCard } from './AiChatCard';
+import * as replayUtils from './aiChatReplayUtils';
 import { db } from '../../db';
 import { normalizeAiChatSettings } from '../../ai/providers/providerCatalog';
 import {
@@ -174,8 +175,7 @@ describe('AiChatCard input submit', () => {
       </AiAssistantHubContext.Provider>,
     );
 
-    expect(within(view.container).getByText(/RAG 快捷场景|RAG Quick Scenarios/i)).toBeTruthy();
-
+    expect(within(view.container).queryByRole('button', { name: /RAG 快捷场景|RAG Quick Scenarios/i })).toBeNull();
     fireEvent.click(within(view.container).getByRole('button', { name: 'RAG 问答模板' }));
 
     const input = within(view.container).getByRole('textbox') as HTMLInputElement;
@@ -369,6 +369,30 @@ describe('AiChatCard input submit', () => {
   });
 
   it('opens replay details for a decision log requestId', async () => {
+    const openReplayBundleByRequestIdSpy = vi.spyOn(replayUtils, 'openReplayBundleByRequestId').mockResolvedValue({
+      bundle: {
+        requestId: 'toolreq_ui_1',
+        toolName: 'set_transcription_text',
+        replayable: true,
+        toolCall: { name: 'set_transcription_text', arguments: { utteranceId: 'u1', text: 'hello' } },
+        context: { userText: '改成 hello' },
+        decisions: [
+          {
+            id: 'decision-ui-1',
+            toolName: 'set_transcription_text',
+            decision: 'auto_confirmed',
+            requestId: 'toolreq_ui_1',
+            timestamp: '2026-03-21T15:00:01.000Z',
+            source: 'ai',
+            executed: true,
+            message: '已写入。',
+          },
+        ],
+      },
+      errorMessage: null,
+      snapshotDiff: null,
+    });
+
     await db.audit_logs.bulkPut([
       {
         id: 'intent-ui-1',
@@ -432,7 +456,12 @@ describe('AiChatCard input submit', () => {
       </AiAssistantHubContext.Provider>,
     );
 
-    fireEvent.click(within(view.container).getByRole('button', { name: /查看回放\/对比|Replay \/ Compare/i }));
+    fireEvent.click(within(view.container).getByRole('button', { name: /查看\s*回放\s*\/\s*对比|Replay\s*\/\s*Compare/i }));
+
+    await waitFor(() => {
+      expect(openReplayBundleByRequestIdSpy).toHaveBeenCalledTimes(1);
+    }, { timeout: 3000 });
+
     await waitFor(() => {
       expect(within(view.container).getByRole('button', { name: /展开详情|Show detail|收起详情|Hide detail/i })).toBeTruthy();
     }, { timeout: 3000 });
@@ -443,6 +472,9 @@ describe('AiChatCard input submit', () => {
 
     await waitFor(() => {
       expect(within(view.container).getByText(/回放 \/ 对比|Replay \/ Compare/i)).toBeTruthy();
+    }, { timeout: 3000 });
+
+    await waitFor(() => {
       expect(within(view.container).getByText(/决策轨迹|Decision timeline/i)).toBeTruthy();
       expect(within(view.container).getByText(/Golden 快照预览|Golden Snapshot Preview/i)).toBeTruthy();
     }, { timeout: 3000 });

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { OrthographyDocType } from '../db';
+import { useOptionalLocale } from '../i18n';
+import { getSearchReplaceOverlayMessages } from '../i18n/searchReplaceOverlayMessages';
 import {
   analyzeSearchPattern,
   buildReplacePlan,
@@ -39,6 +41,8 @@ export function SearchReplaceOverlay({
   onReplace,
   onClose,
 }: SearchReplaceOverlayProps) {
+  const locale = useOptionalLocale() ?? 'zh-CN';
+  const messages = getSearchReplaceOverlayMessages(locale);
   const [query, setQuery] = useState(initialQuery ?? '');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [replaceText, setReplaceText] = useState('');
@@ -176,18 +180,18 @@ export function SearchReplaceOverlay({
         <input
           ref={searchRef}
           type="text"
-          placeholder="搜索…"
+          placeholder={messages.searchPlaceholder}
           value={query}
           onChange={(e) => { setQuery(e.target.value); setCurrentIndex(0); }}
           className="search-replace-input"
         />
         <span className="search-replace-count">
-          {matches.length > 0 ? `${safeIndex + 1}/${matches.length}` : debouncedQuery ? '无结果' : ''}
+          {matches.length > 0 ? `${safeIndex + 1}/${matches.length}` : debouncedQuery ? messages.noResults : ''}
         </span>
-        <button onClick={goPrev} disabled={matches.length === 0} className="search-replace-btn" title="上一个 (Shift+Enter)">▲</button>
-        <button onClick={goNext} disabled={matches.length === 0} className="search-replace-btn" title="下一个 (Enter)">▼</button>
-        <button onClick={() => setShowReplace((v) => !v)} className="search-replace-btn" title="替换">⇄</button>
-        <button onClick={onClose} className="search-replace-btn" title="关闭 (Esc)">✕</button>
+        <button onClick={goPrev} disabled={matches.length === 0} className="search-replace-btn" title={messages.previousTitle}>▲</button>
+        <button onClick={goNext} disabled={matches.length === 0} className="search-replace-btn" title={messages.nextTitle}>▼</button>
+        <button onClick={() => setShowReplace((v) => !v)} className="search-replace-btn" title={messages.toggleReplaceTitle}>⇄</button>
+        <button onClick={onClose} className="search-replace-btn" title={messages.closeTitle}>✕</button>
       </div>
 
       <div className="search-replace-toolbar">
@@ -198,11 +202,11 @@ export function SearchReplaceOverlay({
             setCurrentIndex(0);
           }}
           className="search-replace-select"
-          title="搜索范围"
+          title={messages.scopeTitle}
         >
-          <option value="current-layer">当前层</option>
-          <option value="current-utterance">当前句段</option>
-          <option value="global">全局</option>
+          <option value="current-layer">{messages.scopeCurrentLayer}</option>
+          <option value="current-utterance">{messages.scopeCurrentUtterance}</option>
+          <option value="global">{messages.scopeGlobal}</option>
         </select>
         <select
           value={layerKinds.length === 1 ? layerKinds[0] : 'all'}
@@ -212,12 +216,12 @@ export function SearchReplaceOverlay({
             setCurrentIndex(0);
           }}
           className="search-replace-select"
-          title="搜索内容类型"
+          title={messages.layerKindTitle}
         >
-          <option value="all">全部内容</option>
-          <option value="transcription">仅转写</option>
-          <option value="translation">仅翻译</option>
-          <option value="gloss">仅 gloss</option>
+          <option value="all">{messages.layerKindAll}</option>
+          <option value="transcription">{messages.layerKindTranscription}</option>
+          <option value="translation">{messages.layerKindTranslation}</option>
+          <option value="gloss">{messages.layerKindGloss}</option>
         </select>
         <label className="search-replace-toggle">
           <input
@@ -225,7 +229,7 @@ export function SearchReplaceOverlay({
             checked={options.caseSensitive}
             onChange={(e) => setOptions((prev) => ({ ...prev, caseSensitive: e.target.checked }))}
           />
-          区分大小写
+          {messages.caseSensitive}
         </label>
         <label className="search-replace-toggle">
           <input
@@ -233,7 +237,7 @@ export function SearchReplaceOverlay({
             checked={options.wholeWord}
             onChange={(e) => setOptions((prev) => ({ ...prev, wholeWord: e.target.checked }))}
           />
-          全词匹配
+          {messages.wholeWord}
         </label>
         <label className="search-replace-toggle">
           <input
@@ -241,7 +245,7 @@ export function SearchReplaceOverlay({
             checked={options.regexMode}
             onChange={(e) => setOptions((prev) => ({ ...prev, regexMode: e.target.checked }))}
           />
-          正则
+          {messages.regexMode}
         </label>
       </div>
 
@@ -262,8 +266,8 @@ export function SearchReplaceOverlay({
             const contextSize = 16;
             const previewStart = Math.max(0, currentMatch.matchStart - contextSize);
             const previewEnd = Math.min(currentMatch.text.length, currentMatch.matchEnd + contextSize);
-            const prefix = previewStart > 0 ? '…' : '';
-            const suffix = previewEnd < currentMatch.text.length ? '…' : '';
+            const prefix = previewStart > 0 ? messages.clippedEllipsis : '';
+            const suffix = previewEnd < currentMatch.text.length ? messages.clippedEllipsis : '';
             const before = currentMatch.text.slice(previewStart, currentMatch.matchStart);
             const hit = currentMatch.text.slice(currentMatch.matchStart, currentMatch.matchEnd);
             const after = currentMatch.text.slice(currentMatch.matchEnd, previewEnd);
@@ -283,19 +287,19 @@ export function SearchReplaceOverlay({
         <div className="search-replace-row">
           <input
             type="text"
-            placeholder="替换为…"
+            placeholder={messages.replacePlaceholder}
             value={replaceText}
             onChange={(e) => setReplaceText(e.target.value)}
             className="search-replace-input search-replace-input-compact"
           />
-          <button onClick={handleReplaceCurrent} disabled={!currentMatch} className="search-replace-btn" title="替换当前">替换</button>
+          <button onClick={handleReplaceCurrent} disabled={!currentMatch} className="search-replace-btn" title={messages.replaceCurrentTitle}>{messages.replaceCurrent}</button>
           <button
             onClick={() => setShowReplacePreview((v) => !v)}
             disabled={replacePlan.length === 0}
             className="search-replace-btn"
-            title="预览全部替换"
+            title={messages.previewAllReplaceTitle}
           >
-            预览
+            {messages.preview}
           </button>
         </div>
       )}
@@ -303,17 +307,17 @@ export function SearchReplaceOverlay({
       {showReplace && showReplacePreview && (
         <div className="search-replace-plan">
           <div className="search-replace-plan-title">
-            将替换 {replacePlan.length} 条记录
+            {messages.replacePlanTitle(replacePlan.length)}
           </div>
           {replacePlan.slice(0, 3).map((item, idx) => (
             <div key={`${item.utteranceId}-${item.layerId ?? 'default'}-${idx}`} className="search-replace-plan-item">
-              <div>原文: {item.oldText.slice(0, 36)}{item.oldText.length > 36 ? '…' : ''}</div>
-              <div>新文: {item.newText.slice(0, 36)}{item.newText.length > 36 ? '…' : ''}</div>
+              <div>{messages.originalText}: {item.oldText.slice(0, 36)}{item.oldText.length > 36 ? messages.clippedEllipsis : ''}</div>
+              <div>{messages.replacedText}: {item.newText.slice(0, 36)}{item.newText.length > 36 ? messages.clippedEllipsis : ''}</div>
             </div>
           ))}
           <div className="search-replace-plan-actions">
-            <button onClick={() => setShowReplacePreview(false)} className="search-replace-btn" title="取消预览">取消</button>
-            <button onClick={handleReplaceAll} className="search-replace-btn" title="确认全部替换">确认替换</button>
+            <button onClick={() => setShowReplacePreview(false)} className="search-replace-btn" title={messages.cancelPreviewTitle}>{messages.cancel}</button>
+            <button onClick={handleReplaceAll} className="search-replace-btn" title={messages.confirmReplaceAllTitle}>{messages.confirmReplace}</button>
           </div>
         </div>
       )}

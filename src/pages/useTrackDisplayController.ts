@@ -215,14 +215,14 @@ export function useTrackDisplayController({
   }, [setLaneLockMap, setLockConflictToast, setTranscriptionTrackMode, speakerLayerLayout.lockConflictCount, speakerLayerLayout.lockConflictSpeakerIds, speakerNameById]);
 
   const trackModeLabel = useMemo(() => {
-    if (transcriptionTrackMode === 'single') return '单轨';
-    if (transcriptionTrackMode === 'multi-speaker-fixed') return '多轨·一人一轨';
-    if (transcriptionTrackMode === 'multi-locked') return '多轨·锁定';
-    return '多轨·自动';
+    if (transcriptionTrackMode === 'single') return '\u5355\u8f68';
+    if (transcriptionTrackMode === 'multi-speaker-fixed') return '\u591a\u8f68\u00b7\u4e00\u4eba\u4e00\u8f68';
+    if (transcriptionTrackMode === 'multi-locked') return '\u591a\u8f68\u00b7\u9501\u5b9a';
+    return '\u591a\u8f68\u00b7\u81ea\u52a8';
   }, [transcriptionTrackMode]);
 
   const trackConflictLabel = useMemo(
-    () => transcriptionTrackMode === 'multi-speaker-fixed' ? '一人一轨冲突' : '锁定冲突',
+    () => transcriptionTrackMode === 'multi-speaker-fixed' ? '\u4e00\u4eba\u4e00\u8f68\u51b2\u7a81' : '\u9501\u5b9a\u51b2\u7a81',
     [transcriptionTrackMode],
   );
 

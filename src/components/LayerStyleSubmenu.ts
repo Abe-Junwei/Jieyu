@@ -4,6 +4,8 @@
  */
 
 import type { LayerDisplaySettings, OrthographyDocType } from '../db';
+import type { Locale } from '../i18n';
+import { getLayerStyleSubmenuMessages } from '../i18n/layerStyleSubmenuMessages';
 import type { ContextMenuItem } from './ContextMenu';
 import type { FontCoverageVerification, LocalFontEntry, OrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import {
@@ -17,17 +19,6 @@ import {
   MIN_LAYER_FONT_SIZE,
   resolveOrthographyRenderPolicy,
 } from '../utils/layerDisplayStyle';
-
-const FONT_SIZE_OPTIONS = Array.from(
-  { length: Math.floor((MAX_LAYER_FONT_SIZE - MIN_LAYER_FONT_SIZE) / LAYER_FONT_SIZE_STEP) + 1 },
-  (_, index) => {
-    const value = MIN_LAYER_FONT_SIZE + index * LAYER_FONT_SIZE_STEP;
-    return {
-      label: value === BASE_FONT_SIZE ? `默认 (${value}px)` : `${value}px`,
-      value,
-    };
-  },
-);
 
 /** 构建"显示样式"子菜单项 | Build "Display Style" submenu items */
 export function buildLayerStyleMenuItems(
@@ -49,7 +40,19 @@ export function buildLayerStyleMenuItems(
     getCoverage?: (fontFamily: string, renderPolicy: OrthographyRenderPolicy) => FontCoverageVerification | undefined;
     ensureCoverage?: (fontFamily: string, renderPolicy: OrthographyRenderPolicy) => Promise<FontCoverageVerification | undefined>;
   },
+  locale: Locale = 'zh-CN',
 ): ContextMenuItem[] {
+  const messages = getLayerStyleSubmenuMessages(locale);
+  const fontSizeOptions = Array.from(
+    { length: Math.floor((MAX_LAYER_FONT_SIZE - MIN_LAYER_FONT_SIZE) / LAYER_FONT_SIZE_STEP) + 1 },
+    (_, index) => {
+      const value = MIN_LAYER_FONT_SIZE + index * LAYER_FONT_SIZE_STEP;
+      return {
+        label: value === BASE_FONT_SIZE ? messages.defaultFontSizeOption(value) : `${value}px`,
+        value,
+      };
+    },
+  );
   const renderPolicy = resolveOrthographyRenderPolicy(languageId, orthographies, orthographyId);
   const currentFont = current?.fontFamily ?? renderPolicy.defaultFontKey;
   const currentSize = current?.fontSize ?? BASE_FONT_SIZE;
@@ -60,10 +63,10 @@ export function buildLayerStyleMenuItems(
   // 字体子菜单 | Font submenu
   const fontMenuItems: ContextMenuItem[] = [
     {
-      label: '字体覆盖',
+      label: messages.fontCoverage,
       meta: renderPolicy.coverageSummary.confidence === 'sample-backed'
-        ? `样例 ${renderPolicy.coverageSummary.exemplarCharacterCount} 项`
-        : '未配置样例',
+        ? messages.fontCoverageSamples(renderPolicy.coverageSummary.exemplarCharacterCount)
+        : messages.fontCoverageMissing,
       disabled: true,
     },
     ...fontPresets.map((preset) => ({
@@ -107,23 +110,25 @@ export function buildLayerStyleMenuItems(
           })
         : visibleLocalFonts;
       fontMenuItems.push({
-        label: '查找字体',
+        label: messages.findFonts,
         separatorBefore: true,
         searchField: {
           value: currentSearchQuery,
-          placeholder: showAllFonts ? '输入字体名，查找全部本地字体' : '输入字体名，查找当前语言字体',
+          placeholder: showAllFonts ? messages.searchAllLocalFonts : messages.searchCurrentLanguageFonts,
           onChange: (nextValue) => localFonts.setSearchQuery?.(layerId, nextValue),
         },
       });
       fontMenuItems.push({
-        label: '显示所有本地字体',
+        label: messages.showAllLocalFonts,
         selectionState: showAllFonts ? 'selected' : 'unselected',
-        meta: showAllFonts ? `已开 · 全部 ${localFonts.fonts.length}` : `适配 ${visibleLocalFonts.length}`,
+        meta: showAllFonts
+          ? messages.showAllEnabledMeta(localFonts.fonts.length)
+          : messages.showAllFilteredMeta(visibleLocalFonts.length),
         keepOpen: true,
         onClick: () => localFonts.toggleShowAllFonts?.(),
       });
       fontMenuItems.push({
-        label: '结果',
+        label: messages.results,
         meta: `${searchedLocalFonts.length} / ${visibleLocalFonts.length}`,
         disabled: true,
       });
@@ -145,34 +150,34 @@ export function buildLayerStyleMenuItems(
       if (searchedLocalFonts.length === 0) {
         fontMenuItems.push({
           label: searchQuery.length > 0
-            ? '未找到匹配的本地字体'
-            : (showAllFonts ? '未发现可用本地字体' : '当前层语言无匹配本地字体'),
+            ? messages.noMatchingLocalFonts
+            : (showAllFonts ? messages.noAvailableLocalFonts : messages.noLanguageMatchedFonts),
           separatorBefore: isFirst,
           disabled: true,
         });
       }
     } else if (localFonts.status === 'idle' || localFonts.status === 'denied') {
       fontMenuItems.push({
-        label: localFonts.status === 'denied' ? '本地字体（权限被拒）' : '加载本地字体…',
-        icon: '本',
+        label: localFonts.status === 'denied' ? messages.localFontsDenied : messages.loadLocalFonts,
+        icon: messages.localFontsIcon,
         separatorBefore: true,
         disabled: localFonts.status === 'denied',
         keepOpen: true,
         onClick: () => { void localFonts.load(); },
       });
     } else if (localFonts.status === 'loading') {
-      fontMenuItems.push({ label: '加载中…', icon: '本', separatorBefore: true, disabled: true });
+      fontMenuItems.push({ label: messages.loading, icon: messages.localFontsIcon, separatorBefore: true, disabled: true });
     }
   }
 
   return [
     {
-      label: '字体',
+      label: messages.fontMenu,
       children: fontMenuItems,
     },
     {
-      label: '字号',
-      children: FONT_SIZE_OPTIONS.map((opt) => ({
+      label: messages.fontSizeMenu,
+      children: fontSizeOptions.map((opt) => ({
         label: opt.label,
         selectionState: currentSize === opt.value ? 'selected' : 'unselected',
         selectionVariant: 'check',
@@ -180,21 +185,21 @@ export function buildLayerStyleMenuItems(
       })),
     },
     {
-      label: '粗体',
+      label: messages.bold,
       selectionState: current?.bold ? 'selected' : 'unselected',
       selectionVariant: 'dot',
       shortcut: '⌘B',
       onClick: () => onUpdate({ bold: !current?.bold }),
     },
     {
-      label: '斜体',
+      label: messages.italic,
       selectionState: current?.italic ? 'selected' : 'unselected',
       selectionVariant: 'dot',
       shortcut: '⌘I',
       onClick: () => onUpdate({ italic: !current?.italic }),
     },
     {
-      label: '重置样式',
+      label: messages.resetStyle,
       separatorBefore: true,
       danger: true,
       onClick: onReset,

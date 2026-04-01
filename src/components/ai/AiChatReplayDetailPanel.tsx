@@ -32,50 +32,50 @@ export function AiChatReplayDetailPanel({
   onClearCompare,
 }: AiChatReplayDetailPanelProps) {
   return (
-    <div style={{ border: '1px solid #cbd5e1', background: '#fff', borderRadius: 6, padding: '8px', display: 'grid', gap: 6 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-        <strong style={{ fontSize: 11 }}>{isZh ? '回放 / 对比' : 'Replay / Compare'}</strong>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button type="button" className="icon-btn" style={{ height: 22, minWidth: 70, fontSize: 10 }} onClick={onToggleDetail}>{showReplayDetailPanel ? (isZh ? '收起详情' : 'Hide detail') : (isZh ? '展开详情' : 'Show detail')}</button>
-          <button type="button" className="icon-btn" style={{ height: 22, minWidth: 44, fontSize: 10 }} onClick={onClose}>{isZh ? '关闭' : 'Close'}</button>
+    <div className="ai-chat-replay-panel">
+      <div className="ai-chat-replay-panel-header">
+        <strong className="ai-chat-replay-panel-title">{isZh ? '\u56de\u653e / \u5bf9\u6bd4' : 'Replay / Compare'}</strong>
+        <div className="ai-chat-replay-panel-actions">
+          <button type="button" className="icon-btn ai-chat-replay-panel-btn" onClick={onToggleDetail}>{showReplayDetailPanel ? (isZh ? '\u6536\u8d77\u8be6\u60c5' : 'Hide detail') : (isZh ? '\u5c55\u5f00\u8be6\u60c5' : 'Show detail')}</button>
+          <button type="button" className="icon-btn ai-chat-replay-panel-btn" onClick={onClose}>{isZh ? '\u5173\u95ed' : 'Close'}</button>
         </div>
       </div>
-      <div style={{ fontSize: 10, display: 'grid', gap: 2 }}>
-        <div>{isZh ? '工具' : 'Tool'}: {formatToolName(isZh, selectedReplayBundle.toolName)}</div>
-        <div>{isZh ? '请求' : 'Request'}: {compactInternalId(selectedReplayBundle.requestId)}</div>
-        <div>{isZh ? '状态' : 'Status'}: {formatReplayableLabel(isZh, selectedReplayBundle.replayable)}</div>
+      <div className="ai-chat-replay-panel-meta">
+        <div>{isZh ? '\u5de5\u5177' : 'Tool'}: {formatToolName(isZh, selectedReplayBundle.toolName)}</div>
+        <div>{isZh ? '\u8bf7\u6c42' : 'Request'}: {compactInternalId(selectedReplayBundle.requestId)}</div>
+        <div>{isZh ? '\u72b6\u6001' : 'Status'}: {formatReplayableLabel(isZh, selectedReplayBundle.replayable)}</div>
         {selectedReplayBundle.latestDecision && (
-          <div>{isZh ? '最新决策' : 'Latest decision'}: {formatToolDecision(isZh, selectedReplayBundle.latestDecision.decision)}</div>
+          <div>{isZh ? '\u6700\u65b0\u51b3\u7b56' : 'Latest decision'}: {formatToolDecision(isZh, selectedReplayBundle.latestDecision.decision)}</div>
         )}
       </div>
       {showReplayDetailPanel && (
         <>
           {selectedReplayBundle.toolCall?.arguments && (
-            <div style={{ display: 'grid', gap: 4 }}>
-              <div style={{ fontSize: 10, fontWeight: 600 }}>{isZh ? '执行参数' : 'Tool arguments'}</div>
-              <pre style={{ margin: 0, padding: 6, fontSize: 10, lineHeight: 1.4, background: '#f8fafc', borderRadius: 4, overflowX: 'auto' }}>{JSON.stringify(selectedReplayBundle.toolCall.arguments, null, 2)}</pre>
+            <div className="ai-chat-replay-panel-section">
+              <div className="ai-chat-replay-panel-section-title">{isZh ? '\u6267\u884c\u53c2\u6570' : 'Tool arguments'}</div>
+              <pre className="ai-chat-replay-panel-code">{JSON.stringify(selectedReplayBundle.toolCall.arguments, null, 2)}</pre>
             </div>
           )}
-          <div style={{ display: 'grid', gap: 4 }}>
-            <div style={{ fontSize: 10, fontWeight: 600 }}>{isZh ? '决策轨迹' : 'Decision timeline'}</div>
-            <div style={{ display: 'grid', gap: 3 }}>
+          <div className="ai-chat-replay-panel-section">
+            <div className="ai-chat-replay-panel-section-title">{isZh ? '\u51b3\u7b56\u8f68\u8ff9' : 'Decision timeline'}</div>
+            <div className="ai-chat-replay-panel-timeline">
               {selectedReplayBundle.decisions.map((decision) => (
-                <div key={`${decision.timestamp}-${decision.decision}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 10 }}>
+                <div key={`${decision.timestamp}-${decision.decision}`} className="ai-chat-replay-panel-timeline-row">
                   <span>{formatToolDecision(isZh, decision.decision)}{decision.reason ? ` · ${decision.reason}` : ''}</span>
                   <em>{new Date(decision.timestamp).toLocaleTimeString()}</em>
                 </div>
               ))}
             </div>
           </div>
-          <div style={{ display: 'grid', gap: 4 }}>
-            <div style={{ fontSize: 10, fontWeight: 600 }}>{isZh ? 'Golden 快照预览' : 'Golden Snapshot Preview'}</div>
-            <pre style={{ margin: 0, padding: 6, fontSize: 10, lineHeight: 1.4, background: '#f8fafc', borderRadius: 4, overflowX: 'auto', maxHeight: 160, overflowY: 'auto' }}>{JSON.stringify(buildAiToolGoldenSnapshot(selectedReplayBundle), null, 2)}</pre>
+          <div className="ai-chat-replay-panel-section">
+            <div className="ai-chat-replay-panel-section-title">{isZh ? 'Golden \u5feb\u7167\u9884\u89c8' : 'Golden Snapshot Preview'}</div>
+            <pre className="ai-chat-replay-panel-code ai-chat-replay-panel-code-scroll">{JSON.stringify(buildAiToolGoldenSnapshot(selectedReplayBundle), null, 2)}</pre>
           </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="ai-chat-replay-panel-toolbar">
             <input
               type="file"
               accept=".json"
-              style={{ display: 'none' }}
+              className="ai-chat-replay-panel-file-input"
               ref={importFileInputRef}
               onChange={(e) => {
                 const file = e.currentTarget.files?.[0];
@@ -85,41 +85,39 @@ export function AiChatReplayDetailPanel({
             />
             <button
               type="button"
-              className="icon-btn"
-              style={{ fontSize: 9, height: 18 }}
+              className="icon-btn ai-chat-replay-panel-btn ai-chat-replay-panel-btn-compact"
               onClick={() => importFileInputRef.current?.click()}
             >
-              {isZh ? '导入快照对比' : 'Import & Compare'}
+              {isZh ? '\u5bfc\u5165\u5feb\u7167\u5bf9\u6bd4' : 'Import & Compare'}
             </button>
             {compareSnapshot && (
               <button
                 type="button"
-                className="icon-btn"
-                style={{ fontSize: 9, height: 18 }}
+                className="icon-btn ai-chat-replay-panel-btn ai-chat-replay-panel-btn-compact"
                 onClick={onClearCompare}
               >
-                {isZh ? '清除对比' : 'Clear diff'}
+                {isZh ? '\u6e05\u9664\u5bf9\u6bd4' : 'Clear diff'}
               </button>
             )}
           </div>
           {snapshotDiff && compareSnapshot && (
-            <div style={{ display: 'grid', gap: 4 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 600 }}>{isZh ? '快照对比' : 'Snapshot Diff'}</div>
-                <span style={{ fontSize: 10, fontWeight: 600, color: snapshotDiff.matches ? '#16a34a' : '#d97706' }}>
-                  {snapshotDiff.matches ? (isZh ? '✓ 一致' : '✓ Matches') : (isZh ? '△ 有差异' : '△ Changed')}
+            <div className="ai-chat-replay-panel-section">
+              <div className="ai-chat-replay-panel-diff-header">
+                <div className="ai-chat-replay-panel-section-title">{isZh ? '\u5feb\u7167\u5bf9\u6bd4' : 'Snapshot Diff'}</div>
+                <span className={`ai-chat-replay-panel-diff-badge ${snapshotDiff.matches ? 'is-match' : 'is-changed'}`}>
+                  {snapshotDiff.matches ? (isZh ? '✓ \u4e00\u81f4' : '✓ Matches') : (isZh ? '△ \u6709\u5dee\u5f02' : '△ Changed')}
                 </span>
               </div>
-              <div style={{ fontSize: 9, opacity: 0.6 }}>
-                {isZh ? `基准: ${compactInternalId(compareSnapshot.requestId)}` : `Baseline: ${compactInternalId(compareSnapshot.requestId)}`}
+              <div className="ai-chat-replay-panel-baseline">
+                {isZh ? `\u57fa\u51c6: ${compactInternalId(compareSnapshot.requestId)}` : `Baseline: ${compactInternalId(compareSnapshot.requestId)}`}
               </div>
-              <div style={{ display: 'grid', gap: 2 }}>
+              <div className="ai-chat-replay-panel-diff-list">
                 {snapshotDiff.fields.map((field) => (
-                  <div key={field.label} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 6, fontSize: 9 }}>
-                    <span style={{ fontFamily: 'monospace', color: '#64748b' }}>{field.label}</span>
+                  <div key={field.label} className="ai-chat-replay-panel-diff-row">
+                    <span className="ai-chat-replay-panel-diff-label">{field.label}</span>
                     {field.changed
-                      ? <span style={{ color: '#b91c1c' }}>{field.baseline} {'\u2192'} {field.live}</span>
-                      : <span style={{ color: '#16a34a' }}>✓</span>
+                      ? <span className="ai-chat-replay-panel-diff-value is-changed">{field.baseline} {'\u2192'} {field.live}</span>
+                      : <span className="ai-chat-replay-panel-diff-value is-match">✓</span>
                     }
                   </div>
                 ))}

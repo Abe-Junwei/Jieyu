@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Upload, FileAudio, FileVideo, X } from 'lucide-react';
-import { detectLocale, t } from '../i18n';
+import { t, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 
 type AudioImportDialogProps = {
@@ -14,7 +14,7 @@ const ACCEPTED_VIDEO_FORMATS = '.mp4,.webm,.mov,.avi,.mkv';
 const ALL_ACCEPTED_FORMATS = `${ACCEPTED_AUDIO_FORMATS},${ACCEPTED_VIDEO_FORMATS}`;
 
 export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDialogProps) {
-  const locale = detectLocale();
+  const locale = useLocale();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [duration, setDuration] = useState<number | null>(null);

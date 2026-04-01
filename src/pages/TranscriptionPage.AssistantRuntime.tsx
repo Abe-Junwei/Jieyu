@@ -8,6 +8,7 @@ import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 import { pickVoiceAgentContextValue, useVoiceAgentContextValue } from '../hooks/useVoiceAgentContextValue';
 import { ToastController } from './TranscriptionPage.ToastController';
 import { featureFlags } from '../ai/config/featureFlags';
+import { normalizeLocale, t } from '../i18n';
 import type {
   TranscriptionPageAssistantRuntimeFrameProps,
   TranscriptionPageAssistantRuntimeProps,
@@ -42,6 +43,7 @@ interface AssistantRuntimeHostProps {
     mode: string;
     listening: boolean;
     isRecording: boolean;
+    error?: string | null;
   };
   voiceDrawer?: ReactNode;
   voiceEntry?: {
@@ -102,6 +104,8 @@ function AssistantVoiceRuntime({
   startListeningOnMount,
   onInitialVoiceRequestHandled,
 }: AssistantVoiceRuntimeProps) {
+  const uiLocale = normalizeLocale(locale) ?? 'zh-CN';
+
   const {
     effectiveVoiceCorpusLang,
     voiceCorpusLangOverride,
@@ -130,6 +134,7 @@ function AssistantVoiceRuntime({
     handleVoiceSwitchEngine,
     handleMicPointerDown,
     handleMicPointerUp,
+    handleAssistantVoicePanelOpen,
     handleAssistantVoicePanelToggle,
   } = useVoiceInteraction({
     effectiveVoiceCorpusLang,
@@ -143,7 +148,7 @@ function AssistantVoiceRuntime({
     translationLayers: voice.target.translationLayers,
     layers: voice.target.layers,
     ...(voice.target.dictationPipeline !== undefined ? { dictationPipeline: voice.target.dictationPipeline } : {}),
-    formatLayerRailLabel: voice.target.formatLayerRailLabel,
+    formatSidePaneLayerLabel: voice.target.formatSidePaneLayerLabel,
     formatTime: voice.target.formatTime,
     aiChatSend: async (text: string) => aiChatContextValue.onSendAiMessage?.(text),
     aiIsStreaming: aiChatContextValue.aiIsStreaming ?? false,
@@ -166,13 +171,13 @@ function AssistantVoiceRuntime({
   useEffect(() => {
     if (!openPanelOnMount && !startListeningOnMount) return;
     if (openPanelOnMount) {
-      handleAssistantVoicePanelToggle();
+      handleAssistantVoicePanelOpen();
     }
     if (startListeningOnMount) {
       voiceAgent.toggle();
     }
     onInitialVoiceRequestHandled();
-  }, [handleAssistantVoicePanelToggle, onInitialVoiceRequestHandled, openPanelOnMount, startListeningOnMount, voiceAgent]);
+  }, [handleAssistantVoicePanelOpen, onInitialVoiceRequestHandled, openPanelOnMount, startListeningOnMount, voiceAgent]);
 
   const voiceAgentContextValue = useVoiceAgentContextValue({
     voiceListening: voiceAgent.listening,
@@ -198,16 +203,22 @@ function AssistantVoiceRuntime({
 
   const voiceEntry = useMemo(() => {
     if (!featureFlags.voiceAgentEnabled) return undefined;
+    const pushToTalkReady = voiceAgent.listening
+      && !voiceAgent.isRecording
+      && voiceAgent.agentState === 'idle'
+      && (voiceAgent.engine === 'whisper-local' || voiceAgent.engine === 'commercial');
     return {
       enabled: true,
       expanded: assistantVoiceExpanded,
       listening: voiceAgent.listening,
-      statusText: voiceAgent.listening
-        ? (locale === 'zh-CN' ? '监听中' : 'Listening')
-        : (locale === 'zh-CN' ? '待命' : 'Standby'),
+      statusText: pushToTalkReady
+        ? t(uiLocale, 'transcription.voice.status.readyToRecord')
+        : voiceAgent.listening
+          ? t(uiLocale, 'transcription.voice.status.listening')
+        : t(uiLocale, 'transcription.voice.status.standby'),
       onTogglePanel: handleAssistantVoicePanelToggle,
     };
-  }, [assistantVoiceExpanded, handleAssistantVoicePanelToggle, locale, voiceAgent.listening]);
+  }, [assistantVoiceExpanded, handleAssistantVoicePanelToggle, uiLocale, voiceAgent.agentState, voiceAgent.engine, voiceAgent.isRecording, voiceAgent.listening]);
 
   const voiceDrawer = featureFlags.voiceAgentEnabled && assistantVoiceExpanded
     ? (
@@ -281,6 +292,7 @@ export function TranscriptionPageAssistantRuntime({
   frame,
   voice,
 }: TranscriptionPageAssistantRuntimeProps) {
+  const uiLocale = normalizeLocale(locale) ?? 'zh-CN';
   const [voiceRuntimeRequested, setVoiceRuntimeRequested] = useState(false);
   const [openVoicePanelOnMount, setOpenVoicePanelOnMount] = useState(false);
   const [startVoiceListeningOnMount, setStartVoiceListeningOnMount] = useState(false);
@@ -317,10 +329,10 @@ export function TranscriptionPageAssistantRuntime({
       enabled: true,
       expanded: false,
       listening: false,
-      statusText: locale === 'zh-CN' ? '点击启用语音' : 'Enable voice',
+      statusText: t(uiLocale, 'transcription.voice.status.enableVoice'),
       onTogglePanel: handleActivateVoicePanel,
     };
-  }, [handleActivateVoicePanel, locale]);
+  }, [handleActivateVoicePanel, uiLocale]);
 
   const handleInitialVoiceRequestHandled = useCallback(() => {
     setOpenVoicePanelOnMount(false);

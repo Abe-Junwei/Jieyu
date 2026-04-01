@@ -6,6 +6,7 @@ import {
   AiAssistantHubContext,
   type AiAssistantHubContextValue,
 } from '../../contexts/AiAssistantHubContext';
+import { LocaleProvider } from '../../i18n';
 import { DEFAULT_AI_CHAT_CONTEXT_VALUE } from '../../contexts/AiChatContext';
 import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from '../../contexts/VoiceAgentContext';
 import { pickAiAssistantHubContextValue } from '../../hooks/useAiAssistantHubContextValue';
@@ -30,15 +31,17 @@ describe('AiAssistantHubCard', () => {
     const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
 
     render(
-      <AiAssistantHubContext.Provider
-        value={makeContextValue({
-          voiceEnabled: true,
-          voiceInterimText: '测试语音输入',
-          onSendAiMessage,
-        })}
-      >
-        <AiAssistantHubCard />
-      </AiAssistantHubContext.Provider>,
+      <LocaleProvider locale="zh-CN">
+        <AiAssistantHubContext.Provider
+          value={makeContextValue({
+            voiceEnabled: true,
+            voiceInterimText: '测试语音输入',
+            onSendAiMessage,
+          })}
+        >
+          <AiAssistantHubCard />
+        </AiAssistantHubContext.Provider>
+      </LocaleProvider>,
     );
 
     fireEvent.click(screen.getByRole('button', { name: /发送到聊天|Send to Chat/i }));
@@ -51,19 +54,21 @@ describe('AiAssistantHubCard', () => {
     const onVoiceCancel = vi.fn();
 
     render(
-      <AiAssistantHubContext.Provider
-        value={makeContextValue({
-          voicePendingConfirm: {
-            actionId: 'deleteSegment',
-            label: '删除当前句段',
-            fromFuzzy: true,
-          },
-          onVoiceConfirm,
-          onVoiceCancel,
-        })}
-      >
-        <AiAssistantHubCard />
-      </AiAssistantHubContext.Provider>,
+      <LocaleProvider locale="zh-CN">
+        <AiAssistantHubContext.Provider
+          value={makeContextValue({
+            voicePendingConfirm: {
+              actionId: 'deleteSegment',
+              label: '删除当前句段',
+              fromFuzzy: true,
+            },
+            onVoiceConfirm,
+            onVoiceCancel,
+          })}
+        >
+          <AiAssistantHubCard />
+        </AiAssistantHubContext.Provider>
+      </LocaleProvider>,
     );
 
     expect(screen.getByText(/待确认：|Pending:/)).toBeTruthy();
