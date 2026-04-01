@@ -72,8 +72,8 @@ describe('VoiceAgentWidget', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /删除/i }));
-    fireEvent.click(screen.getByRole('button', { name: '取消消歧' }));
+    fireEvent.click(screen.getByRole('button', { name: /删除|Delete Segment/i }));
+    fireEvent.click(screen.getByRole('button', { name: /取消消歧|Cancel disambiguation/i }));
 
     expect(onSelectDisambiguation).toHaveBeenCalledWith('deleteSegment');
     expect(onDismissDisambiguation).toHaveBeenCalledTimes(1);
@@ -122,7 +122,7 @@ describe('VoiceAgentWidget', () => {
     expect(sessionBodyText.style.unicodeBidi).toBe('isolate');
     expect(sessionBodyText.style.fontFamily).toContain('Noto Sans Arabic');
 
-    const historyButtons = screen.getAllByRole('button', { name: /记录/i });
+    const historyButtons = screen.getAllByRole('button', { name: /记录|Records/i });
     fireEvent.click(historyButtons[historyButtons.length - 1]!);
 
     const dictationHistoryText = screen.getByText('مرحبا');

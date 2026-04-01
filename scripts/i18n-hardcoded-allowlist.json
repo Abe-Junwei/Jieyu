@@ -1,0 +1,50 @@
+{
+  "version": 2,
+  "entries": [
+    { "pathPrefix": "src/utils/langMapping.ts", "reason": "data-dictionary" },
+    { "pathPrefix": "src/utils/layerDisplayStyle.ts", "reason": "data-dictionary" },
+    { "pathPrefix": "src/services/IntentRouter.ts", "reason": "data-dictionary" },
+    { "pathPrefix": "src/ai/config/voiceIntentResolver.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/ai/embeddings/embeddingSmokeTest.ts", "reason": "test-fixture" },
+    { "pathPrefix": "src/ai/embeddings/fallbackWarning.ts", "reason": "runtime-template-message" },
+
+    { "pathPrefix": "src/ai/embeddings/providers/LocalEmbeddingProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/ai/embeddings/providers/RemoteEmbeddingProvider.ts", "reason": "provider-protocol" },
+
+    { "pathPrefix": "src/ai/providers/AnthropicProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/ai/providers/CustomHttpProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/ai/providers/DeepSeekProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/ai/providers/GeminiProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/ai/providers/LLMProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/ai/providers/MiniMaxProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/ai/providers/MockLLMProvider.ts", "reason": "test-fixture" },
+    { "pathPrefix": "src/ai/providers/OllamaProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/ai/providers/OpenAICompatibleProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/ai/providers/QwenProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/ai/providers/errorUtils.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/ai/providers/providerCatalog.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/ai/providers/streamUtils.ts", "reason": "provider-protocol" },
+
+    { "pathPrefix": "src/services/stt/GeminiSttProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/services/stt/GroqSttProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/services/stt/LocalWhisperSttProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/services/stt/MiniMaxSttProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/services/stt/OpenAISttProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/services/stt/VolcEngineSttProvider.ts", "reason": "provider-protocol" },
+    { "pathPrefix": "src/services/stt/index.ts", "reason": "provider-protocol" },
+
+    { "pathPrefix": "src/services/EafService.ts", "reason": "parser-and-format-error" },
+    { "pathPrefix": "src/services/TranscriberService.ts", "reason": "parser-and-format-error" },
+    { "pathPrefix": "src/services/ProjectMemoryStore.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/services/SpeechAnnotationPipeline.ts", "reason": "runtime-template-message" },
+
+    { "pathPrefix": "src/utils/camDataUtils.ts", "reason": "validation-and-guard-message" },
+    { "pathPrefix": "src/utils/citationFootnoteUtils.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/utils/orthographyTransforms.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/utils/saveStateError.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/utils/validationErrorReporter.ts", "reason": "runtime-template-message" },
+
+    { "pathPrefix": "src/hooks/useAiChat.rag.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/ai/ChatOrchestrator.ts", "reason": "runtime-template-message" }
+  ]
+}

@@ -1,21 +1,15 @@
 import { useEffect } from 'react';
 
 type UsePanelAutoCollapseParams = {
-  hoverExpandEnabled: boolean;
   isCollapsed: boolean;
   setIsCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   boundaryRef: React.RefObject<HTMLElement | null>;
   panelSelector: string;
   toggleSelector?: string;
   resizerSelector?: string;
-  hoverZoneSelector?: string;
   ignoreSelectors?: string[];
   ignoreInteractiveElements?: boolean;
-  hoverExpandEdge?: 'left' | 'right';
-  hoverExpandEdgeThresholdPx?: number;
 };
-
-const DEFAULT_EDGE_THRESHOLD_PX = 12;
 const DEFAULT_INTERACTIVE_SELECTOR = 'button, input, textarea, select, a, [role="button"]';
 export const APP_SIDE_PANE_INTERACTION_SELECTOR = [
   '[data-layer-pane-interactive="true"]',
@@ -35,18 +29,14 @@ function matchesClosestSelector(target: Element, selectors: Array<string | undef
 }
 
 export function usePanelAutoCollapse({
-  hoverExpandEnabled,
   isCollapsed,
   setIsCollapsed,
   boundaryRef,
   panelSelector,
   toggleSelector,
   resizerSelector,
-  hoverZoneSelector,
   ignoreSelectors = [],
   ignoreInteractiveElements = false,
-  hoverExpandEdge,
-  hoverExpandEdgeThresholdPx = DEFAULT_EDGE_THRESHOLD_PX,
 }: UsePanelAutoCollapseParams) {
   // 面板外点击自动收起 | Auto-collapse panel when clicking outside
   useEffect(() => {
@@ -64,7 +54,6 @@ export function usePanelAutoCollapse({
         panelSelector,
         toggleSelector,
         resizerSelector,
-        hoverZoneSelector,
         ...ignoreSelectors,
       ])) {
         return;
@@ -83,7 +72,6 @@ export function usePanelAutoCollapse({
     };
   }, [
     boundaryRef,
-    hoverZoneSelector,
     ignoreInteractiveElements,
     ignoreSelectors,
     isCollapsed,
@@ -92,30 +80,4 @@ export function usePanelAutoCollapse({
     setIsCollapsed,
     toggleSelector,
   ]);
-
-  // 贴边悬停自动展开 | Expand panel when hovering near the screen edge
-  useEffect(() => {
-    if (!hoverExpandEnabled) return;
-    if (!isCollapsed) return;
-    if (!hoverExpandEdge) return;
-
-    let lastTrigger = 0;
-    const onPointerMove = (event: PointerEvent) => {
-      const now = Date.now();
-      if (now - lastTrigger < 200) return;
-
-      const hitLeftEdge = hoverExpandEdge === 'left' && event.clientX <= hoverExpandEdgeThresholdPx;
-      const hitRightEdge = hoverExpandEdge === 'right' && event.clientX >= window.innerWidth - hoverExpandEdgeThresholdPx;
-
-      if (hitLeftEdge || hitRightEdge) {
-        lastTrigger = now;
-        setIsCollapsed(false);
-      }
-    };
-
-    document.addEventListener('pointermove', onPointerMove);
-    return () => {
-      document.removeEventListener('pointermove', onPointerMove);
-    };
-  }, [hoverExpandEdge, hoverExpandEdgeThresholdPx, hoverExpandEnabled, isCollapsed, setIsCollapsed]);
 }

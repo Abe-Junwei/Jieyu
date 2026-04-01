@@ -9,15 +9,17 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 
 interface SidePaneActionModalProps {
   ariaLabel: string;
   children: ReactNode;
   onClose: () => void;
   className?: string;
+  closeLabel?: string;
 }
 
-export function SidePaneActionModal({ ariaLabel, children, onClose, className }: SidePaneActionModalProps) {
+export function SidePaneActionModal({ ariaLabel, children, onClose, className, closeLabel = 'Close' }: SidePaneActionModalProps) {
   const isSpeakerModal = Boolean(className?.includes('transcription-side-pane-action-popover-speaker-centered'));
   const defaultSize = useMemo(
     () => (isSpeakerModal ? { width: 560, height: 560 } : { width: 340, height: 200 }),
@@ -169,7 +171,7 @@ export function SidePaneActionModal({ ariaLabel, children, onClose, className }:
       role="presentation"
     >
       <div
-        className={className ?? 'transcription-side-pane-action-popover transcription-side-pane-action-popover-centered floating-panel'}
+        className={`${className ?? 'transcription-side-pane-action-popover transcription-side-pane-action-popover-centered floating-panel'} dialog-card`}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
@@ -187,24 +189,36 @@ export function SidePaneActionModal({ ariaLabel, children, onClose, className }:
         }}
       >
         <div
-          className="transcription-side-pane-action-popover-title floating-panel-title-row floating-panel-drag-handle"
+          className="transcription-side-pane-action-popover-title dialog-header floating-panel-title-row floating-panel-drag-handle"
           onPointerDown={handleDragStart}
           onDoubleClick={() => handleResetLayout()}
           title="Drag to move, double-click to recenter and reset size"
         >
-          <span>{ariaLabel}</span>
-          <button
-            type="button"
-            className="floating-panel-reset-btn"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={handleResetLayout}
-            aria-label="Reset position and size"
-            title="Reset position and size"
-          >
-            ↺
-          </button>
+          <h3>{ariaLabel}</h3>
+          <div className="dialog-header-actions floating-panel-title-actions">
+            <button
+              type="button"
+              className="floating-panel-reset-btn"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={handleResetLayout}
+              aria-label="Reset position and size"
+              title="Reset position and size"
+            >
+              ↺
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={onClose}
+              aria-label={`${ariaLabel} ${closeLabel}`}
+              title={`${ariaLabel} ${closeLabel}`}
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
-        <div className="transcription-side-pane-action-popover-body">
+        <div className="transcription-side-pane-action-popover-body dialog-body">
           {children}
         </div>
         <div className="floating-panel-resize-handle" onPointerDown={handleResizeStart} aria-hidden="true" />

@@ -211,7 +211,6 @@ export function App() {
   // 仅保留“点击空白区域收起”，禁用 hover/贴边自动展开
   // Keep click-outside collapse only; disable hover/edge auto-expand.
   usePanelAutoCollapse({
-    hoverExpandEnabled: false,
     isCollapsed: isSidePaneCollapsed,
     setIsCollapsed: setIsSidePaneCollapsed,
     boundaryRef: shellBodyRef,

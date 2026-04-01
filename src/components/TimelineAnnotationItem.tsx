@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { NoteDocumentIcon } from './NoteDocumentIcon';
+import { tf, useLocale } from '../i18n';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -78,6 +79,8 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   layerStyle,
   contentDirection,
 }: TimelineAnnotationItemProps) {
+  const locale = useLocale();
+
   return (
     <div
       className={[
@@ -113,13 +116,19 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
       {speakerLabel && (
         <span
           className={`timeline-annotation-speaker-badge${isCompact ? ' timeline-annotation-speaker-badge-compact' : ''}`}
-          title={`说话人：${speakerLabel}`}
+          title={tf(locale, 'transcription.timeline.speakerTitle', { name: speakerLabel })}
         >
           {isCompact ? '●' : speakerLabel}
         </span>
       )}
       {overlapCycleIndicator && overlapCycleIndicator.total > 1 && isActive && (
-        <span className="timeline-annotation-overlap-cycle-badge" title={`重叠候选 ${overlapCycleIndicator.index}/${overlapCycleIndicator.total}，再次点击可轮换`}>
+        <span
+          className="timeline-annotation-overlap-cycle-badge"
+          title={tf(locale, 'transcription.timeline.overlapCycleTitle', {
+            index: overlapCycleIndicator.index,
+            total: overlapCycleIndicator.total,
+          })}
+        >
           {overlapCycleIndicator.index}/{overlapCycleIndicator.total}
         </span>
       )}
@@ -146,8 +155,8 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         <NoteDocumentIcon
           className="timeline-annotation-note-icon timeline-annotation-note-icon-active"
           onClick={(e) => { e.stopPropagation(); onNoteClick?.(e); }}
-          ariaLabel={`${noteCount} 条备注`}
-          title={`${noteCount} 条备注`}
+          ariaLabel={tf(locale, 'transcription.notes.count', { count: noteCount })}
+          title={tf(locale, 'transcription.notes.count', { count: noteCount })}
         />
       )}
     </div>

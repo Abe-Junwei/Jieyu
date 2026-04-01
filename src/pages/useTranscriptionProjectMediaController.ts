@@ -103,10 +103,13 @@ export function useTranscriptionProjectMediaController(
         for (const seg of newSegs) {
           await createUtteranceFromSelectionRouted(seg.start, seg.end);
         }
-        setSaveState({ kind: 'done', message: `VAD 完成，新建 ${newSegs.length} 个句段 | VAD complete: ${newSegs.length} new segments` });
+        setSaveState({
+          kind: 'done',
+          message: tfB('transcription.projectMedia.vadDone', { count: newSegs.length }),
+        });
       } catch (error) {
         log.error('VAD auto-segment failed', { error: error instanceof Error ? error.message : String(error) });
-        setSaveState({ kind: 'error', message: 'VAD 分段失败 | VAD segmentation failed' });
+        setSaveState({ kind: 'error', message: t(locale, 'transcription.projectMedia.vadFailed') });
       } finally {
         setAutoSegmentBusy(false);
       }

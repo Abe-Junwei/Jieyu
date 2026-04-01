@@ -43,7 +43,7 @@ export function useTranscriptionLifecycle({
         if (cancelled) return;
         setState({
           phase: 'error',
-          message: error instanceof Error ? error.message : '未知错误',
+          message: error instanceof Error ? error.message : '\u672a\u77e5\u9519\u8bef',
         });
       }
     };

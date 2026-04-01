@@ -1,12 +1,8 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
-
-const CATEGORIES: { value: NoteCategory; label: string }[] = [
-  { value: 'comment', label: '\u8bc4\u6ce8' },
-  { value: 'question', label: '\u7591\u95ee' },
-  { value: 'todo', label: '\u5f85\u529e' },
-];
+import { useOptionalLocale } from '../i18n';
+import { getNotePanelMessages } from '../i18n/notePanelMessages';
 
 interface NotePopoverProps {
   x: number;
@@ -22,6 +18,13 @@ interface NotePopoverProps {
 export const NotePopover = memo(function NotePopover({
   x, y, notes, targetLabel, onClose, onAdd, onUpdate, onDelete,
 }: NotePopoverProps) {
+  const locale = useOptionalLocale() ?? 'zh-CN';
+  const messages = getNotePanelMessages(locale);
+  const categories: { value: NoteCategory; label: string }[] = [
+    { value: 'comment', label: messages.categoryComment },
+    { value: 'question', label: messages.categoryQuestion },
+    { value: 'todo', label: messages.categoryTodo },
+  ];
   const ref = useRef<HTMLDivElement>(null);
   const [newContent, setNewContent] = useState('');
   const [newCategory, setNewCategory] = useState<NoteCategory>('comment');
@@ -125,7 +128,7 @@ export const NotePopover = memo(function NotePopover({
             <div key={note.id} className="note-popover-item">
               {note.category && (
                 <span className={`note-popover-tag note-popover-tag-${note.category}`}>
-                  {CATEGORIES.find((c) => c.value === note.category)?.label ?? note.category}
+                  {categories.find((c) => c.value === note.category)?.label ?? note.category}
                 </span>
               )}
               {editingId === note.id ? (
@@ -138,14 +141,14 @@ export const NotePopover = memo(function NotePopover({
                     autoFocus
                   />
                   <div className="note-popover-edit-actions">
-                    <button type="button" className="note-popover-btn note-popover-btn-save" onClick={() => handleEditSave(note.id)}>{'\u4fdd\u5b58'}</button>
-                    <button type="button" className="note-popover-btn note-popover-btn-cancel" onClick={() => setEditingId(null)}>{'\u53d6\u6d88'}</button>
+                    <button type="button" className="note-popover-btn note-popover-btn-save" onClick={() => handleEditSave(note.id)}>{messages.save}</button>
+                    <button type="button" className="note-popover-btn note-popover-btn-cancel" onClick={() => setEditingId(null)}>{messages.cancel}</button>
                   </div>
                 </div>
               ) : (
                 <div className="note-popover-content" onDoubleClick={() => handleEditStart(note)}>
                   <p>{note.content['default'] ?? Object.values(note.content)[0] ?? ''}</p>
-                  <button type="button" className="note-popover-delete" onClick={() => onDelete(note.id)} title={'\u5220\u9664'}><Trash2 size={11} /></button>
+                  <button type="button" className="note-popover-delete" onClick={() => onDelete(note.id)} title={messages.deleteNote}><Trash2 size={11} /></button>
                 </div>
               )}
             </div>
@@ -156,7 +159,7 @@ export const NotePopover = memo(function NotePopover({
       <div className="note-popover-add">
         <textarea
           className="note-popover-textarea"
-          placeholder={'\u6dfb\u52a0\u5907\u6ce8\u2026 (\u2318Enter \u63d0\u4ea4)'}
+          placeholder={messages.newNotePlaceholder}
           value={newContent}
           onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNewContent(e.target.value)}
           onKeyDown={handleAddKeyDown}
@@ -164,7 +167,7 @@ export const NotePopover = memo(function NotePopover({
         />
         <div className="note-popover-add-row">
           <div className="note-popover-tags">
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <button
                 key={c.value}
                 type="button"
@@ -176,7 +179,7 @@ export const NotePopover = memo(function NotePopover({
             ))}
           </div>
           <button type="button" className="note-popover-btn note-popover-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
-            <Plus size={12} /> {'\u6dfb\u52a0'}
+            <Plus size={12} /> {messages.add}
           </button>
         </div>
       </div>

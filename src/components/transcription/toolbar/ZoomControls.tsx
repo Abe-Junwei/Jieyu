@@ -14,7 +14,6 @@ export interface ZoomControlsProps {
   zoomPercent: number;
   snapEnabled: boolean;
   autoScrollEnabled: boolean;
-  hoverExpandEnabled: boolean;
   activeUtteranceUnitId: string | null;
   utterancesOnCurrentMedia: Array<{ id: string; startTime: number; endTime: number }>;
   fitPxPerSec: number;
@@ -25,14 +24,12 @@ export interface ZoomControlsProps {
   onZoomToUtterance: (startTime: number, endTime: number) => void;
   onSnapEnabledChange: (enabled: boolean) => void;
   onAutoScrollEnabledChange: (enabled: boolean) => void;
-  onHoverExpandEnabledChange: (enabled: boolean) => void;
 }
 
 const ZoomControls: FC<ZoomControlsProps> = ({
   zoomPercent,
   snapEnabled,
   autoScrollEnabled,
-  hoverExpandEnabled,
   activeUtteranceUnitId,
   utterancesOnCurrentMedia,
   fitPxPerSec,
@@ -41,7 +38,6 @@ const ZoomControls: FC<ZoomControlsProps> = ({
   onZoomToUtterance,
   onSnapEnabledChange,
   onAutoScrollEnabledChange,
-  onHoverExpandEnabledChange,
 }) => {
   const locale = useLocale();
 
@@ -67,10 +63,6 @@ const ZoomControls: FC<ZoomControlsProps> = ({
   const handleAutoScrollToggle = useCallback(() => {
     onAutoScrollEnabledChange(!autoScrollEnabled);
   }, [autoScrollEnabled, onAutoScrollEnabledChange]);
-
-  const handleHoverExpandToggle = useCallback(() => {
-    onHoverExpandEnabledChange(!hoverExpandEnabled);
-  }, [hoverExpandEnabled, onHoverExpandEnabledChange]);
 
   const handleSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const pos = Number(e.target.value);
@@ -119,16 +111,6 @@ const ZoomControls: FC<ZoomControlsProps> = ({
         aria-label={autoScrollEnabled ? t(locale, 'transcription.zoom.autoScrollOff') : t(locale, 'transcription.zoom.autoScrollOn')}
       >
         <span className="icon-btn-label">AS</span>
-      </button>
-      <div className="toolbar-sep" />
-      <button
-        type="button"
-        className={`icon-btn${hoverExpandEnabled ? ' icon-btn-active' : ''}`}
-        onClick={handleHoverExpandToggle}
-        title={hoverExpandEnabled ? t(locale, 'transcription.zoom.hoverExpandOff') : t(locale, 'transcription.zoom.hoverExpandOn')}
-        aria-label={hoverExpandEnabled ? t(locale, 'transcription.zoom.hoverExpandOff') : t(locale, 'transcription.zoom.hoverExpandOn')}
-      >
-        <span className="icon-btn-label">{t(locale, 'transcription.zoom.hoverShort')}</span>
       </button>
       <div className="toolbar-sep" />
       <input

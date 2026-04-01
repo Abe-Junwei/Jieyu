@@ -15,6 +15,8 @@ import { applyVoiceCommercialConfigChange } from '../utils/voiceCommercialConfig
 import type { CommercialProviderKind, SttEngine } from '../services/VoiceInputService';
 import type { LayerDocType } from '../db';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
+import { useLocale } from '../i18n';
+import { getVoiceInteractionMessages } from '../i18n/voiceInteractionMessages';
 
 interface VoiceMessageLike {
   role?: string;
@@ -140,6 +142,8 @@ export function useVoiceInteraction({
   featureVoiceEnabled,
   toggleVoiceRef,
 }: UseVoiceInteractionOptions): UseVoiceInteractionReturn {
+  const locale = useLocale();
+  const messages = getVoiceInteractionMessages(locale);
   const [assistantVoiceExpanded, setAssistantVoiceExpanded] = useState(false);
   const [analysisWritebackFeedback, setAnalysisWritebackFeedback] = useState<{
     kind: 'done' | 'error';
@@ -179,19 +183,19 @@ export function useVoiceInteraction({
             const result = await onVoiceAnalysisResult(utteranceId, analysisText);
             if (!result) {
               voiceAgentRef.current?.setExternalError(null);
-              setAnalysisWritebackFeedback({ kind: 'done', message: 'AI \u5206\u6790\u7ed3\u679c\u5df2\u5199\u56de。' });
+              setAnalysisWritebackFeedback({ kind: 'done', message: messages.analysisWritebackDone });
               return;
             }
             const ok = result.ok !== false;
-            const normalizedMessage = result.message?.trim() || (ok ? 'AI \u5206\u6790\u7ed3\u679c\u5df2\u5199\u56de。' : 'AI \u5206\u6790\u5199\u56de\u5931\u8d25。');
+            const normalizedMessage = result.message?.trim() || (ok ? messages.analysisWritebackDone : messages.analysisWritebackFailed);
             setAnalysisWritebackFeedback({ kind: ok ? 'done' : 'error', message: normalizedMessage });
             voiceAgentRef.current?.setExternalError(ok ? null : normalizedMessage);
-          }, 'AI \u5206\u6790\u5199\u56de\u5931\u8d25。', (message) => {
+          }, messages.analysisWritebackFailed, (message) => {
             setAnalysisWritebackFeedback({ kind: 'error', message });
           });
         });
         await aiChatSend(text);
-      }, '\u53d1\u9001\u5230 AI \u5931\u8d25。', (message) => {
+      }, messages.sendToAiFailed, (message) => {
         voiceAgentRef.current?.setAnalysisFillCallback?.(null, null);
         setAnalysisWritebackFeedback({ kind: 'error', message });
       });
@@ -211,29 +215,30 @@ export function useVoiceInteraction({
   const voiceTargetSummary = useMemo(() => {
     const hasSelection = Boolean(selection.selectedRowMeta || selection.selectedUtterance);
     const rowLabel = selection.selectedUnitKind === 'segment'
-      ? '\u5f53\u524d\u72ec\u7acb\u6bb5'
+      ? messages.currentIndependentSegment
       : selection.selectedRowMeta
-        ? `\u7b2c ${selection.selectedRowMeta.rowNumber} \u53e5`
-        : (selection.selectedUtterance ? '\u5f53\u524d\u53e5\u6bb5' : '\u672a\u9009\u62e9\u53e5\u6bb5');
+        ? messages.currentSentenceWithIndex(selection.selectedRowMeta.rowNumber)
+        : (selection.selectedUtterance ? messages.currentUtterance : messages.noUtteranceSelected);
 
     if (voiceAgent.mode === 'command') {
-      return '\u5f53\u524d\u9875\u9762\u64cd\u4f5c';
+      return messages.currentPageAction;
     }
 
     if (voiceAgent.mode === 'analysis') {
-      return hasSelection ? `${rowLabel} / AI \u5206\u6790\u5907\u6ce8` : '\u672a\u9009\u62e9\u53e5\u6bb5';
+      return hasSelection ? `${rowLabel} / ${messages.analysisNoteSuffix}` : messages.noUtteranceSelected;
     }
 
     // \u89e3\u6790\u9996\u9009\u5c42 ID：selectedLayerId \u53ef\u80fd\u662f\u7a7a\u4e32，\u9700 trim \u540e\u5224\u65ad | resolve preferred layer ID with empty-string guard
     const normalizedSelected = selection.selectedLayerId?.trim();
     const targetLayerId = normalizedSelected || defaultTranscriptionLayerId || translationLayers[0]?.id;
     const targetLayer = targetLayerId ? layers.find((layer) => layer.id === targetLayerId) : undefined;
-    const layerLabel = targetLayer ? formatSidePaneLayerLabel(targetLayer) : '\u672a\u9009\u62e9\u5c42';
-    return `${layerLabel} / ${rowLabel}`;
+    const layerLabel = targetLayer ? formatSidePaneLayerLabel(targetLayer) : messages.noLayerSelected;
+    return messages.targetSummary(layerLabel, rowLabel);
   }, [
     defaultTranscriptionLayerId,
     formatSidePaneLayerLabel,
     layers,
+    messages,
     selection,
     translationLayers,
     voiceAgent.mode,
@@ -252,26 +257,26 @@ export function useVoiceInteraction({
     }
     switch (voiceAgent.agentState) {
       case 'listening':
-        return voiceAgent.mode === 'dictation' ? '\u6b63\u5728\u542c\u5199，\u8bf7\u76f4\u63a5\u8bf4\u51fa\u8981\u5199\u5165\u7684\u5185\u5bb9。' : '\u6b63\u5728\u76d1\u542c，\u8bf7\u5f00\u59cb\u8bf4\u8bdd。';
+        return voiceAgent.mode === 'dictation' ? messages.listeningDictation : messages.listening;
       case 'routing':
-        return '\u5df2\u8bc6\u522b\u8bed\u97f3，\u6b63\u5728\u5224\u65ad\u610f\u56fe。';
+        return messages.routing;
       case 'executing':
-        if (voiceAgent.mode === 'dictation') return '\u6b63\u5728\u5c06\u8bc6\u522b\u7ed3\u679c\u5199\u5165\u6587\u672c\u6846。';
-        if (voiceAgent.mode === 'analysis') return '\u6b63\u5728\u51c6\u5907\u53d1\u9001\u5230 AI \u5206\u6790。';
-        return '\u6b63\u5728\u6267\u884c\u8bed\u97f3\u64cd\u4f5c。';
+        if (voiceAgent.mode === 'dictation') return messages.executingDictation;
+        if (voiceAgent.mode === 'analysis') return messages.executingAnalysis;
+        return messages.executingAction;
       case 'ai-thinking':
-        return '\u6b63\u5728\u7b49\u5f85 AI \u5904\u7406\u7ed3\u679c。';
+        return messages.aiThinking;
       case 'idle':
       default:
         if (voiceAgent.mode === 'analysis' && analysisWritebackFeedback) {
           return analysisWritebackFeedback.message;
         }
         if (pushToTalkReady) {
-          return '\u8bed\u97f3\u901a\u9053\u5df2\u5c31\u7eea，\u6309\u4f4f\u9ea6\u514b\u98ce\u5f00\u59cb\u5f55\u97f3。';
+          return messages.pushToTalkReady;
         }
-        return voiceAgent.listening ? '\u8bed\u97f3\u901a\u9053\u5df2\u5f00\u542f，\u7b49\u5f85\u4e0b\u4e00\u53e5\u8f93\u5165。' : '\u5c31\u7eea，\u70b9\u51fb\u9ea6\u514b\u98ce\u5f00\u59cb\u8bed\u97f3\u4ea4\u4e92。';
+        return voiceAgent.listening ? messages.listeningIdle : messages.readyToStart;
     }
-  }, [analysisWritebackFeedback, pushToTalkReady, voiceAgent.agentState, voiceAgent.error, voiceAgent.listening, voiceAgent.mode]);
+  }, [analysisWritebackFeedback, messages, pushToTalkReady, voiceAgent.agentState, voiceAgent.error, voiceAgent.listening, voiceAgent.mode]);
 
   useEffect(() => {
     if (voiceAgent.mode !== 'analysis' && analysisWritebackFeedback) {
@@ -290,18 +295,18 @@ export function useVoiceInteraction({
 
   const voiceEnvironmentSummary = useMemo(() => {
     const currentLanguage = voiceCorpusLangOverride === '__auto__'
-      ? '\u81ea\u52a8\u68c0\u6d4b'
+      ? messages.autoDetectLanguage
       : formatLanguageLabel(voiceCorpusLangOverride ?? effectiveVoiceCorpusLang);
     const currentEngine = voiceAgent.engine === 'web-speech'
       ? 'Web Speech'
       : voiceAgent.engine === 'whisper-local'
         ? 'Ollama Whisper'
-        : '\u5546\u4e1a\u6a21\u578b';
+        : messages.commercialModel;
     const detectedLanguage = voiceCorpusLangOverride === '__auto__' && voiceAgent.detectedLang
-      ? ` · \u5df2\u8bc6\u522b ${formatLanguageLabel(voiceAgent.detectedLang)}`
+      ? messages.detectedLanguageSuffix(formatLanguageLabel(voiceAgent.detectedLang))
       : '';
     return `${currentLanguage} · ${currentEngine}${detectedLanguage}`;
-  }, [effectiveVoiceCorpusLang, voiceCorpusLangOverride, voiceAgent.detectedLang, voiceAgent.engine]);
+  }, [effectiveVoiceCorpusLang, messages, voiceCorpusLangOverride, voiceAgent.detectedLang, voiceAgent.engine]);
 
   const voiceSelectionSummary = useMemo(() => {
     if (selection.selectedTimeRangeLabel) {
@@ -313,8 +318,8 @@ export function useVoiceInteraction({
     if (selection.selectedUtterance) {
       return `${formatTime(selection.selectedUtterance.startTime)} - ${formatTime(selection.selectedUtterance.endTime)}`;
     }
-    return '\u672a\u5b9a\u4f4d\u53e5\u6bb5';
-  }, [formatTime, selection]);
+    return messages.unknownSegment;
+  }, [formatTime, messages, selection]);
 
   const prevAiStreamingRef = useRef(false);
 
@@ -337,7 +342,7 @@ export function useVoiceInteraction({
   const ensureWhisperLocalReady = useCallback(async (): Promise<boolean> => {
     const result = await voiceAgent.testWhisperLocal();
     if (!result.available) {
-      voiceAgent.setExternalError(result.error ?? '\u672c\u5730 Whisper \u4e0d\u53ef\u7528');
+      voiceAgent.setExternalError(result.error ?? 'Local Whisper unavailable');
       return false;
     }
     voiceAgent.setExternalError(null);
@@ -371,7 +376,7 @@ export function useVoiceInteraction({
         if (!ready) return;
       }
       voiceAgent.toggle();
-    }, '\u8bed\u97f3\u5207\u6362\u5931\u8d25。');
+    }, 'Failed to toggle voice mode.');
   }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent]);
 
   const handleVoiceSwitchEngine = useCallback((engine: SttEngine) => {
@@ -381,7 +386,7 @@ export function useVoiceInteraction({
         if (!ready) return;
       }
       voiceAgent.switchEngine(engine);
-    }, '\u8bed\u97f3\u5f15\u64ce\u5207\u6362\u5931\u8d25。');
+    }, 'Failed to switch voice engine.');
   }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent]);
 
   const handleMicPointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
@@ -391,7 +396,7 @@ export function useVoiceInteraction({
         const ready = await ensureWhisperLocalReady();
         if (!ready) return;
         await voiceAgent.startRecording();
-      }, '\u5f55\u97f3\u542f\u52a8\u5931\u8d25。');
+      }, 'Failed to start recording.');
     }
   }, [ensureWhisperLocalReady, runVoiceTask, voiceAgent]);
 
@@ -399,7 +404,7 @@ export function useVoiceInteraction({
     if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
       runVoiceTask(async () => {
         await voiceAgent.stopRecording();
-      }, '\u5f55\u97f3\u505c\u6b62\u5931\u8d25。');
+      }, 'Failed to stop recording.');
     }
   }, [runVoiceTask, voiceAgent]);
 

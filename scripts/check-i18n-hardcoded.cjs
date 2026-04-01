@@ -5,6 +5,7 @@ const { execSync } = require('child_process');
 const ROOT = process.cwd();
 const SRC_DIR = path.join(ROOT, 'src');
 const DEFAULT_BASELINE_PATH = path.join(ROOT, 'scripts', 'i18n-hardcoded-baseline.json');
+const DEFAULT_ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'i18n-hardcoded-allowlist.json');
 const HAN_REGEX = /[\u3400-\u9FFF\uF900-\uFAFF]/;
 const LITERAL_REGEX = /'([^'\\]|\\.)*'|"([^"\\]|\\.)*"|`([^`\\]|\\.)*`/g;
 const JSX_TEXT_REGEX = />([^<{]*[\u3400-\u9FFF\uF900-\uFAFF][^<{]*)</g;
@@ -16,6 +17,16 @@ const IGNORE_PATH_PATTERNS = [
   /\.spec\.[tj]sx?$/,
   /[\\/]__tests__[\\/]/,
 ];
+
+const ALLOWLIST_REASON_ENUM = [
+  'data-dictionary',
+  'provider-protocol',
+  'parser-and-format-error',
+  'runtime-template-message',
+  'validation-and-guard-message',
+  'test-fixture',
+];
+const ALLOWLIST_REASON_SET = new Set(ALLOWLIST_REASON_ENUM);
 
 function shouldIgnore(filePath) {
   return IGNORE_PATH_PATTERNS.some((pattern) => pattern.test(filePath));
@@ -33,6 +44,7 @@ function parseArgs(argv) {
     writeBaseline: false,
     baselinePath: DEFAULT_BASELINE_PATH,
     thresholdConfigPath: null,
+    allowlistPath: DEFAULT_ALLOWLIST_PATH,
   };
 
   for (const arg of argv) {
@@ -58,10 +70,62 @@ function parseArgs(argv) {
     }
     if (arg.startsWith('--threshold-config=')) {
       options.thresholdConfigPath = path.resolve(ROOT, arg.slice('--threshold-config='.length));
+      continue;
+    }
+    if (arg.startsWith('--allowlist=')) {
+      options.allowlistPath = path.resolve(ROOT, arg.slice('--allowlist='.length));
+      continue;
+    }
+    if (arg === '--no-allowlist') {
+      options.allowlistPath = null;
     }
   }
 
   return options;
+}
+
+function loadAllowlist(allowlistPath) {
+  if (!allowlistPath) return [];
+  if (!fs.existsSync(allowlistPath)) return [];
+
+  const parsed = JSON.parse(fs.readFileSync(allowlistPath, 'utf8'));
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error(`invalid allowlist format: ${toWorkspaceRelative(allowlistPath)}`);
+  }
+
+  const legacyPathPrefixes = Array.isArray(parsed.pathPrefixes)
+    ? parsed.pathPrefixes
+    : [];
+
+  const structuredEntries = [];
+  if (Array.isArray(parsed.entries)) {
+    for (const entry of parsed.entries) {
+      if (!entry || typeof entry !== 'object') continue;
+
+      const value = String(entry.pathPrefix || entry.path || '').trim();
+      if (value.length === 0) continue;
+
+      const reason = String(entry.reason || '').trim();
+      if (reason.length === 0) {
+        throw new Error(`invalid allowlist entry (missing reason): ${value}`);
+      }
+      if (!ALLOWLIST_REASON_SET.has(reason)) {
+        const allowed = ALLOWLIST_REASON_ENUM.join(', ');
+        throw new Error(`invalid allowlist entry reason: ${reason}; allowed: ${allowed}`);
+      }
+
+      structuredEntries.push(value);
+    }
+  }
+
+  const combined = [...legacyPathPrefixes, ...structuredEntries];
+  if (combined.length === 0) {
+    throw new Error(`invalid allowlist format: ${toWorkspaceRelative(allowlistPath)}`);
+  }
+
+  return combined
+    .map((prefix) => String(prefix).trim().split(path.sep).join('/'))
+    .filter((prefix) => prefix.length > 0);
 }
 
 function loadThresholdConfig(thresholdConfigPath) {
@@ -290,6 +354,14 @@ function buildFindings(files) {
   return findings;
 }
 
+function applyAllowlist(findings, allowlistPrefixes) {
+  if (!allowlistPrefixes || allowlistPrefixes.length === 0) return findings;
+  return findings.filter((item) => {
+    const relPath = toWorkspaceRelative(item.filePath);
+    return !allowlistPrefixes.some((prefix) => relPath.startsWith(prefix));
+  });
+}
+
 function buildFileCounts(findings) {
   const counts = {};
   for (const item of findings) {
@@ -367,8 +439,10 @@ function main() {
 
   const options = parseArgs(process.argv.slice(2));
   let thresholdConfig = null;
+  let allowlistPrefixes = [];
   try {
     thresholdConfig = loadThresholdConfig(options.thresholdConfigPath);
+    allowlistPrefixes = loadAllowlist(options.allowlistPath);
   } catch (error) {
     console.error(`[check-i18n-hardcoded] ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;
@@ -376,9 +450,13 @@ function main() {
   }
   const changedPaths = options.changedOnly ? getChangedPaths() : null;
   const files = listSourceFiles(SRC_DIR, changedPaths).sort();
-  const findings = buildFindings(files);
+  const findings = applyAllowlist(buildFindings(files), allowlistPrefixes);
   const fileCounts = buildFileCounts(findings);
   const totalHits = sumCounts(fileCounts);
+
+  if (allowlistPrefixes.length > 0) {
+    console.log(`[check-i18n-hardcoded] allowlist entries: ${allowlistPrefixes.length}`);
+  }
 
   if (options.changedOnly) {
     console.log(`[check-i18n-hardcoded] changed-only mode: scanning ${files.length} file(s).`);

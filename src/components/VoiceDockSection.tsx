@@ -5,6 +5,7 @@ import type { ActionIntent, VoiceIntent, VoiceSession } from '../services/Intent
 import type { ProviderReachability } from '../services/stt';
 import type { VoicePreset } from '../utils/voicePresets';
 import type { VoicePendingConfirm } from '../hooks/useVoiceAgent';
+import { t, useLocale } from '../i18n';
 
 const VoiceAgentWidget = lazy(async () => {
   const module = await import('./VoiceAgentWidget');
@@ -88,6 +89,7 @@ export function VoiceDockSection({
   onSetLangOverride,
   onCommercialConfigChange,
 }: Props) {
+  const locale = useLocale();
   const hasActiveToast = saveStateKind !== 'idle' || recording || Boolean(recordingError);
   const dockBottom = voiceDockPos.bottom + (hasActiveToast ? 92 : 0);
   const dockStyle = {
@@ -106,7 +108,7 @@ export function VoiceDockSection({
         type="button"
         className={`transcription-voice-bubble ${bubbleEdgeClass} ${voiceDockDragging ? 'transcription-voice-dragging' : ''} ${voiceAgent.listening ? 'transcription-voice-bubble-active' : ''}`}
         style={bubbleStyle}
-        aria-label="打开语音助手"
+        aria-label={t(locale, 'transcription.voiceDock.openAssistant')}
         onPointerDown={onBubblePointerDown}
         onClick={onBubbleClick}
       >
@@ -120,7 +122,7 @@ export function VoiceDockSection({
     <section
       ref={voiceDockContainerRef}
       className={`transcription-voice-dock ${voiceDockDragging ? 'transcription-voice-dragging' : ''} ${voiceAgent.listening ? 'transcription-voice-dock-active' : 'transcription-voice-dock-idle'}`}
-      aria-label="语音智能体控制栏"
+      aria-label={t(locale, 'transcription.voiceDock.controlBar')}
       style={dockStyle}
     >
       <Suspense fallback={null}>

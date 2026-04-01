@@ -12,6 +12,7 @@ export interface ContextMenuItem {
   id?: string;
   label: string;
   icon?: ReactNode;
+  submenuClassName?: string;
   selectionState?: 'selected' | 'unselected';
   selectionVariant?: 'dot' | 'check';
   meta?: string;
@@ -35,9 +36,10 @@ interface ContextMenuProps {
   y: number;
   items: ContextMenuItem[];
   onClose: () => void;
+  anchorOrigin?: 'top-left' | 'bottom-left';
 }
 
-export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
+export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose, anchorOrigin = 'top-left' }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const submenuRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [position, setPosition] = useState(() => ({ left: x, top: y }));
@@ -97,12 +99,13 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: C
     const height = menu.offsetHeight || 120;
     const maxLeft = Math.max(margin, window.innerWidth - width - margin);
     const maxTop = Math.max(margin, window.innerHeight - height - margin);
+    const anchoredTop = anchorOrigin === 'bottom-left' ? y - height : y;
 
     setPosition({
       left: Math.min(Math.max(margin, x), maxLeft),
-      top: Math.min(Math.max(margin, y), maxTop),
+      top: Math.min(Math.max(margin, anchoredTop), maxTop),
     });
-  }, [x, y, items.length]);
+  }, [anchorOrigin, x, y, items.length]);
 
   const computeSubmenuPosition = (anchorEl: HTMLElement, panel: HTMLDivElement | null) => {
     const margin = 8;
@@ -298,6 +301,7 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: C
 
       {submenus.map((submenu, index) => {
         const submenuItems = getChildrenAtPath(submenu.path);
+        const submenuOwner = getItemAtPath(submenu.path);
         if (submenuItems.length === 0) return null;
         return (
           <div
@@ -305,7 +309,11 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose }: C
             ref={(node) => {
               submenuRefs.current[index] = node;
             }}
-            className="context-menu context-menu-submenu"
+            className={[
+              'context-menu',
+              'context-menu-submenu',
+              submenuOwner?.submenuClassName ?? '',
+            ].filter(Boolean).join(' ')}
             style={{
               position: 'fixed',
               left: submenu.left,

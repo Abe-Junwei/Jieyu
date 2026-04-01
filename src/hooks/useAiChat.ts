@@ -429,6 +429,8 @@ export function useAiChat(options?: UseAiChatOptions) {
           role: row.role === 'assistant' ? 'assistant' : 'user',
           content: row.content,
           status: row.status,
+          ...(row.generationSource ? { generationSource: row.generationSource } : {}),
+          ...(typeof row.generationModel === 'string' ? { generationModel: row.generationModel } : {}),
           ...(row.errorMessage ? { error: row.errorMessage } : {}),
           ...(row.citations ? { citations: row.citations } : {}),
           ...('reasoningContent' in row && row.reasoningContent
@@ -846,6 +848,8 @@ export function useAiChat(options?: UseAiChatOptions) {
         role: 'assistant',
         content: '',
         status: 'streaming',
+        ...(assistantSeed.generationSource !== undefined ? { generationSource: assistantSeed.generationSource } : {}),
+        ...(assistantSeed.generationModel !== undefined ? { generationModel: assistantSeed.generationModel } : {}),
         createdAt: assistantTimestamp,
         updatedAt: assistantTimestamp,
       });
@@ -920,6 +924,12 @@ export function useAiChat(options?: UseAiChatOptions) {
           ? { ...msg, generationSource, generationModel }
           : msg
       )));
+
+      await db.collections.ai_messages.update(assistantId, {
+        generationSource,
+        generationModel,
+        updatedAt: nowIso(),
+      });
 
       let assistantReasoningContent = '';
       let assistantThinking = false;

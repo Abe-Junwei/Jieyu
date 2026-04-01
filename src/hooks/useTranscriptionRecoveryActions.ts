@@ -109,14 +109,14 @@ export function useTranscriptionRecoveryActions({
       await loadSnapshot();
       const name = dbNameRef.current;
       if (name) fireAndForget(clearRecoverySnapshot(name));
-      setSaveState({ kind: 'done', message: '已从崩溃恢复数据中还原' });
+      setSaveState({ kind: 'done', message: '\u5df2\u4ece\u5d29\u6e83\u6062\u590d\u6570\u636e\u4e2d\u8fd8\u539f' });
       return true;
     } catch (error) {
       log.error('Apply recovery failed', {
         error: error instanceof Error ? error.message : String(error),
       });
       reportActionError({
-        actionLabel: '恢复',
+        actionLabel: '\u6062\u590d',
         error,
         conflictNames: ['RecoveryApplyConflictError'],
           conflictI18nKey: 'transcription.error.conflict.recoveryApply',

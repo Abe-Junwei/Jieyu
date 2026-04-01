@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { X } from 'lucide-react';
 import type { LayerLinkDocType, LayerDocType, LayerDisplaySettings, OrthographyDocType } from '../db';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { buildLayerBundles, resolveLayerDragGroup } from '../services/LayerOrderingService';
@@ -900,7 +901,7 @@ export function TimelineLaneHeader({
           role="presentation"
         >
           <div
-            className="transcription-side-pane-action-popover transcription-side-pane-action-popover-centered floating-panel"
+            className="transcription-side-pane-action-popover transcription-side-pane-action-popover-centered floating-panel dialog-card"
             role="dialog"
             aria-modal="true"
             aria-label={decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}
@@ -909,19 +910,19 @@ export function TimelineLaneHeader({
             onPointerDown={(event) => event.stopPropagation()}
             style={{ width: 360, maxWidth: 'calc(100vw - 32px)', height: 'auto' }}
           >
-            <div className="transcription-side-pane-action-popover-title floating-panel-title-row">
-              <span>{decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}</span>
+            <div className="transcription-side-pane-action-popover-title dialog-header floating-panel-title-row">
+              <h3>{decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}</h3>
               <button
                 type="button"
-                className="floating-panel-reset-btn"
+                className="icon-btn"
                 onClick={closeLaneLockDialog}
                 aria-label={decodeEscapedUnicode('\\u5173\\u95ed\\u9501\\u5b9a\\u8f68\\u9053\\u9762\\u677f')}
                 title={decodeEscapedUnicode('\\u5173\\u95ed')}
               >
-                ×
+                <X size={18} />
               </button>
             </div>
-            <div className="transcription-side-pane-action-popover-body">
+            <div className="transcription-side-pane-action-popover-body dialog-body">
               <div className="speaker-rail-batch-panel">
                 <p className="speaker-rail-summary">{decodeEscapedUnicode('\\u9009\\u4e2d\\u8bf4\\u8bdd\\u4eba：')}{laneLockDialog.selectedSpeakerHint}</p>
                 <label className="speaker-rail-form-field">
@@ -950,7 +951,7 @@ export function TimelineLaneHeader({
                 </label>
                 <p className="speaker-rail-form-hint">{decodeEscapedUnicode('\\u8f93\\u5165\\u4ece 1 \\u5f00\\u59cb\\u7684\\u8f68\\u9053\\u7f16\\u53f7，\\u786e\\u8ba4\\u540e\\u4f1a\\u540c\\u65f6\\u8fdb\\u5165\\u591a\\u8f68\\u9501\\u5b9a\\u6a21\\u5f0f。')}</p>
                 {laneLockError && <p className="speaker-rail-form-error">{laneLockError}</p>}
-                <div className="speaker-rail-actions">
+                <div className="speaker-rail-actions dialog-footer">
                   <button type="button" className="btn btn-sm" onClick={closeLaneLockDialog}>{decodeEscapedUnicode('\\u53d6\\u6d88')}</button>
                   <button type="button" className="btn btn-sm btn-primary" onClick={confirmLaneLockDialog}>{decodeEscapedUnicode('\\u786e\\u8ba4\\u9501\\u5b9a')}</button>
                 </div>

@@ -1146,7 +1146,6 @@
   border-radius: 6px 0 0 6px;
   transform: translate(-22%, -50%);
   opacity: 0.98;
-  pointer-events: none;
 }
 
 .transcription-ai-panel-resizer {
@@ -1173,10 +1172,10 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  right: 0;
-  width: 12px;
+  right: -6px;
+  width: 22px;
   cursor: pointer;
-  transition: width var(--shell-motion-fast) ease, right var(--shell-motion-fast) ease;
+  pointer-events: auto;
 }
 
 :root[data-theme='dark'] .transcription-ai-panel {
@@ -1196,8 +1195,7 @@
 }
 
 .transcription-workspace-ai-collapsed .transcription-ai-panel-hover-zone {
-  right: -6px;
-  width: 20px;
+  display: block;
 }
 
 .transcription-ai-panel-toggle {
@@ -1774,16 +1772,30 @@ select.ai-cfg-input,
   top: calc(100% + 6px);
   right: 0;
   z-index: calc(var(--z-popover, 1200) + 20);
-  display: grid;
-  gap: 6px;
   min-width: 180px;
-  padding: 8px;
   border: 1px solid color-mix(in srgb, var(--header-border) 88%, transparent);
-  border-radius: 10px;
   background: color-mix(in srgb, var(--surface-panel) 96%, transparent);
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  overflow: hidden;
+  width: min(260px, calc(100vw - 24px));
+  max-height: min(360px, 60vh);
+}
+
+.ai-chat-rag-quick-menu-header {
+  padding: 12px 14px 10px;
+}
+
+.ai-chat-rag-quick-menu-header h3 {
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.ai-chat-rag-quick-menu-body {
+  padding: 10px 12px 12px;
+  gap: 8px;
+  overflow-y: auto;
 }
 
 .ai-chat-rag-quick-menu-btn {
@@ -1791,7 +1803,7 @@ select.ai-cfg-input,
   min-width: 0;
   justify-content: flex-start;
   padding-inline: 10px;
-  height: 28px;
+  height: 30px;
   font-size: 11px;
 }
 
@@ -2459,11 +2471,23 @@ select.ai-cfg-input,
   font-weight: 600;
 }
 
+.dialog-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .dialog-body {
   padding: 16px 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.dialog-card-wide {
+  width: min(760px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
 }
 
 .dialog-footer {
@@ -3129,6 +3153,15 @@ select.ai-cfg-input,
 }
 .context-menu-submenu {
   min-width: 200px;
+  max-height: min(72vh, 520px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.context-menu-submenu-export {
+  max-height: 220px;
 }
 
 .context-menu-search {
@@ -4065,16 +4098,38 @@ select.ai-cfg-input,
 }
 
 .voice-agent-confirm {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  gap: 0;
+  width: 100%;
+  max-height: none;
+  overflow: hidden;
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.2);
   font-size: 13px;
   color: var(--text-primary);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.voice-agent-confirm-header {
+  align-items: flex-start;
+  padding: 12px 14px 10px;
+  border-bottom-color: rgba(239, 68, 68, 0.14);
+}
+
+.voice-agent-confirm-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.voice-agent-confirm-header h3 {
+  font-size: 13px;
+}
+
+.voice-agent-confirm-body {
+  padding: 10px 14px 12px;
+  gap: 10px;
 }
 
 .voice-agent-confirm-copy {
@@ -4085,7 +4140,9 @@ select.ai-cfg-input,
 }
 
 .voice-agent-confirm-label {
+  margin: 0;
   font-weight: 700;
+  line-height: 1.5;
 }
 
 .voice-agent-confirm-fuzzy {
@@ -4097,7 +4154,10 @@ select.ai-cfg-input,
 .voice-agent-confirm-actions {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
+  padding: 10px 14px 12px;
+  border-top-color: rgba(239, 68, 68, 0.14);
 }
 
 .voice-agent-confirm-btn {
@@ -4131,10 +4191,13 @@ select.ai-cfg-input,
 }
 
 .voice-agent-disambiguation {
-  flex-direction: column;
-  align-items: stretch;
   background: rgba(245, 158, 11, 0.08);
   border-color: rgba(245, 158, 11, 0.24);
+}
+
+.voice-agent-disambiguation .voice-agent-confirm-header,
+.voice-agent-disambiguation .voice-agent-confirm-actions {
+  border-color: rgba(245, 158, 11, 0.16);
 }
 
 .voice-agent-disambiguation-options {

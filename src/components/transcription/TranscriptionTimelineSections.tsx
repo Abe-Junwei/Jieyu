@@ -13,6 +13,7 @@ import { VideoPlayer } from '../VideoPlayer';
 import { TimeRuler } from '../TimeRuler';
 import { WaveformOverviewBar } from '../WaveformOverviewBar';
 import type { WaveSurferRegion } from '../../hooks/useWaveSurfer';
+import { t, useLocale } from '../../i18n';
 
 export type VideoLayoutMode = 'top' | 'right' | 'left';
 
@@ -61,6 +62,7 @@ export function VideoPreviewSection({
   onPlayRegion,
   waveformOverlay,
 }: VideoPreviewSectionProps) {
+  const locale = useLocale();
   const renderWaveCanvas = () => (
     <div
       ref={(el) => {
@@ -110,7 +112,7 @@ export function VideoPreviewSection({
           onPointerDown={onVideoRightPanelResizeStart}
           role="separator"
           aria-orientation="vertical"
-          title="拖动调整视频面板宽度"
+          title={t(locale, 'transcription.timeline.video.resizePanelWidth')}
         >
           <div className="video-preview-right-resize-dots" />
         </div>
@@ -149,7 +151,7 @@ export function VideoPreviewSection({
             onPointerDown={onVideoPreviewResizeStart}
             role="separator"
             aria-orientation="horizontal"
-            title="拖动调整视频预览高度"
+            title={t(locale, 'transcription.timeline.video.resizePreviewHeight')}
           >
             <div className="video-preview-resize-dots" />
           </div>

@@ -33,6 +33,7 @@ import {
 } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
+import { t, useLocale } from '../i18n';
 
 type LassoRect = {
   x: number;
@@ -299,6 +300,7 @@ export function TranscriptionTimelineMediaLanes({
   onFocusLayer: (layerId: string) => void;
   layerLinks?: LayerLinkDocType[];
 }) {
+  const locale = useLocale();
   const [layerAction, setLayerAction] = useState<{ action: LayerActionType; layerId?: string } | null>(null);
   const [collapsedLayerIds, setCollapsedLayerIds] = useState<Set<string>>(new Set());
   const [previewFontSizeByLayerId, setPreviewFontSizeByLayerId] = useState<Record<string, number>>({});
@@ -643,7 +645,7 @@ export function TranscriptionTimelineMediaLanes({
               key={`ov-hint-${layer.id}-${group.id}`}
               type="button"
               className="timeline-lane-overlap-hint"
-              title="临时展开该重叠时间窗"
+              title={t(locale, 'transcription.timeline.overlapTempExpand')}
               style={{ left: group.centerTime * zoomPxPerSec }}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
@@ -688,7 +690,7 @@ export function TranscriptionTimelineMediaLanes({
                 {renderAnnotationItem(utt, layerForDisplay, draft, {
                   ...overlapCycleExtra,
                   ...(overlapCycleStatus ? { overlapCycleStatus } : {}),
-                  ...(usesSegmentTimeline ? { placeholder: '语段' } : {}),
+                  ...(usesSegmentTimeline ? { placeholder: t(locale, 'transcription.timeline.placeholder.segment') } : {}),
                   onChange: (e) => {
                     const value = normalizeSingleLine(e.target.value);
                     setUtteranceDrafts((prev) => ({ ...prev, [draftKey]: value }));
@@ -829,7 +831,9 @@ export function TranscriptionTimelineMediaLanes({
                   onBlur: () => undefined,
                 }) : renderAnnotationItem(uttCompat, layerForDisplay, draft, {
                   showSpeaker: false,
-                  placeholder: usesOwnSegments ? '语段' : '翻译',
+                  placeholder: usesOwnSegments
+                    ? t(locale, 'transcription.timeline.placeholder.segment')
+                    : t(locale, 'transcription.timeline.placeholder.translation'),
                   ...(audioControls ? { tools: audioControls, hasTrailingTools: showAudioTools } : {}),
                   onFocus: () => {
                     focusedTranslationDraftKeyRef.current = draftKey;

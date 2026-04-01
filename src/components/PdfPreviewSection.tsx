@@ -1,4 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
+import { normalizeLocale } from '../i18n';
+import { getPdfPreviewSectionMessages } from '../i18n/pdfPreviewSectionMessages';
 
 const PdfViewerPanel = lazy(async () => import('./PdfViewerPanel').then((module) => ({ default: module.PdfViewerPanel })));
 
@@ -33,6 +35,7 @@ export function PdfPreviewSection({
   onOpenExternal,
   onClose,
 }: Props) {
+  const messages = getPdfPreviewSectionMessages(normalizeLocale(locale) ?? 'zh-CN');
   const [useEnhancedPreview, setUseEnhancedPreview] = useState(false);
 
   useEffect(() => {
@@ -47,32 +50,32 @@ export function PdfPreviewSection({
         pdfPreviewRef.current = node;
       }}
       className={`transcription-pdf-preview-panel ${pdfPreviewDragging ? 'is-dragging' : ''}`}
-      aria-label={locale === 'zh-CN' ? 'PDF \u9884\u89c8\u9762\u677f' : 'PDF preview panel'}
+      aria-label={messages.panelAriaLabel}
       style={{ right: `${pdfPreviewPos.right}px`, bottom: `${pdfPreviewPos.bottom}px` }}
     >
       <header className="transcription-pdf-preview-header" onPointerDown={onDragStart}>
         <strong className="transcription-pdf-preview-title" title={pdfPreview.title}>{pdfPreview.title}</strong>
         {pdfPreview.page && (
           <span className="transcription-pdf-preview-page-tag">
-            {locale === 'zh-CN' ? `\u7b2c ${pdfPreview.page} \u9875` : `Page ${pdfPreview.page}`}
+            {messages.pageTag(pdfPreview.page)}
           </span>
         )}
         <div className="transcription-pdf-preview-actions">
           <button type="button" className="transcription-pdf-preview-nav" onClick={() => onChangePage(-1)} disabled={(pdfPreview.page ?? 1) <= 1}>
-            {locale === 'zh-CN' ? '\u4e0a\u4e00\u9875' : 'Prev'}
+            {messages.prevPage}
           </button>
           <button type="button" className="transcription-pdf-preview-nav" onClick={() => onChangePage(1)}>
-            {locale === 'zh-CN' ? '\u4e0b\u4e00\u9875' : 'Next'}
+            {messages.nextPage}
           </button>
           {pdfPreview.searchSnippet && !useEnhancedPreview && (
             <button type="button" className="transcription-pdf-preview-nav" onClick={() => setUseEnhancedPreview(true)}>
-              {locale === 'zh-CN' ? '\u589e\u5f3a\u9ad8\u4eae' : 'Enhanced Highlight'}
+              {messages.enhancedHighlight}
             </button>
           )}
           <button type="button" className="transcription-pdf-preview-nav" onClick={onOpenExternal}>
-            {locale === 'zh-CN' ? '\u65b0\u7a97\u53e3\u6253\u5f00' : 'Open'}
+            {messages.openExternal}
           </button>
-          <button type="button" className="transcription-pdf-preview-close" onClick={onClose} aria-label={locale === 'zh-CN' ? '\u5173\u95ed PDF \u9884\u89c8' : 'Close PDF preview'}>
+          <button type="button" className="transcription-pdf-preview-close" onClick={onClose} aria-label={messages.closePreviewAriaLabel}>
             ×
           </button>
         </div>
@@ -82,7 +85,7 @@ export function PdfPreviewSection({
           <Suspense
             fallback={
               <div className="transcription-pdf-preview-loading" role="status" aria-live="polite">
-                {locale === 'zh-CN' ? 'PDF \u52a0\u8f7d\u4e2d...' : 'Loading PDF...'}
+                {messages.loadingPdf}
               </div>
             }
           >

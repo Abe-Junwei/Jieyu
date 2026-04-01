@@ -20,6 +20,7 @@ export function taskToPersona(task: AiPanelTask): AiSystemPersonaKey {
 import type { UtteranceDocType } from '../db';
 import type { SaveState } from './useTranscriptionData';
 import { reportValidationError } from '../utils/validationErrorReporter';
+import { t, type Locale } from '../i18n';
 
 type ActionableRecommendation = Recommendation & {
   actionType?: 'jump' | 'batch_pos' | 'risk_review';
@@ -29,9 +30,59 @@ type ActionableRecommendation = Recommendation & {
   targetConfidence?: number;
 };
 
+const RECOMMENDATION_I18N_KEY_BY_ID = {
+  'collecting-next': {
+    title: 'ai.observer.recommendation.collectingNext.title',
+    detail: 'ai.observer.recommendation.collectingNext.detail',
+    actionLabel: 'ai.observer.recommendation.collectingNext.actionLabel',
+  },
+  'transcribing-jump-untagged': {
+    title: 'ai.observer.recommendation.transcribingJumpUntagged.title',
+    detail: 'ai.observer.recommendation.transcribingJumpUntagged.detail',
+    actionLabel: 'ai.observer.recommendation.transcribingJumpUntagged.actionLabel',
+  },
+  'transcribing-batch-pos': {
+    title: 'ai.observer.recommendation.transcribingBatchPos.title',
+    detail: 'ai.observer.recommendation.transcribingBatchPos.detail',
+    actionLabel: 'ai.observer.recommendation.transcribingBatchPos.actionLabel',
+  },
+  'glossing-risk-review': {
+    title: 'ai.observer.recommendation.glossingRiskReview.title',
+    detail: 'ai.observer.recommendation.glossingRiskReview.detail',
+    actionLabel: 'ai.observer.recommendation.glossingRiskReview.actionLabel',
+  },
+  'glossing-next': {
+    title: 'ai.observer.recommendation.glossingNext.title',
+    detail: 'ai.observer.recommendation.glossingNext.detail',
+    actionLabel: 'ai.observer.recommendation.glossingNext.actionLabel',
+  },
+  'reviewing-risk-review': {
+    title: 'ai.observer.recommendation.reviewingRiskReview.title',
+    detail: 'ai.observer.recommendation.reviewingRiskReview.detail',
+    actionLabel: 'ai.observer.recommendation.reviewingRiskReview.actionLabel',
+  },
+  'reviewing-next': {
+    title: 'ai.observer.recommendation.reviewingNext.title',
+    detail: 'ai.observer.recommendation.reviewingNext.detail',
+    actionLabel: 'ai.observer.recommendation.reviewingNext.actionLabel',
+  },
+} as const;
+
+function localizeRecommendation(locale: Locale, recommendation: Recommendation): Recommendation {
+  const keys = RECOMMENDATION_I18N_KEY_BY_ID[recommendation.id as keyof typeof RECOMMENDATION_I18N_KEY_BY_ID];
+  if (!keys) return recommendation;
+  return {
+    ...recommendation,
+    title: t(locale, keys.title),
+    detail: t(locale, keys.detail),
+    actionLabel: t(locale, keys.actionLabel),
+  };
+}
+
 export type { ActionableRecommendation };
 
 export interface UseAiPanelLogicInput {
+  locale: Locale;
   utterances: UtteranceDocType[];
   selectedUtterance: UtteranceDocType | undefined;
   selectedUtteranceText: string;
@@ -45,6 +96,7 @@ export interface UseAiPanelLogicInput {
 }
 
 export function useAiPanelLogic({
+  locale,
   utterances,
   selectedUtterance,
   selectedUtteranceText,
@@ -159,9 +211,11 @@ export function useAiPanelLogic({
     })();
 
     return observerResult.recommendations.map((item): ActionableRecommendation => {
-      if (item.id === 'transcribing-batch-pos') {
+      const localizedItem = localizeRecommendation(locale, item);
+
+      if (localizedItem.id === 'transcribing-batch-pos') {
         return {
-          ...item,
+          ...localizedItem,
           ...(batchPosCandidate
             ? {
               actionType: 'batch_pos',
@@ -173,17 +227,17 @@ export function useAiPanelLogic({
         };
       }
 
-      if (item.id === 'transcribing-jump-untagged') {
+      if (localizedItem.id === 'transcribing-jump-untagged') {
         return {
-          ...item,
+          ...localizedItem,
           actionType: 'jump',
           ...(nextUntaggedPosUtterance ? { targetUtteranceId: nextUntaggedPosUtterance.id } : {}),
         };
       }
 
-      if (item.id === 'glossing-risk-review' || item.id === 'reviewing-risk-review') {
+      if (localizedItem.id === 'glossing-risk-review' || localizedItem.id === 'reviewing-risk-review') {
         return {
-          ...item,
+          ...localizedItem,
           actionType: 'risk_review',
           ...(riskCandidate ? { targetUtteranceId: riskCandidate.id } : {}),
           ...((riskCandidate && typeof riskCandidate.ai_metadata?.confidence === 'number')
@@ -192,19 +246,19 @@ export function useAiPanelLogic({
         };
       }
 
-      const targetUtteranceId = item.id.startsWith('collecting')
+      const targetUtteranceId = localizedItem.id.startsWith('collecting')
         ? nextUntranscribed?.id
-        : item.id.startsWith('transcribing')
+        : localizedItem.id.startsWith('transcribing')
           ? nextUnglossed?.id
           : nextUnverified?.id;
 
       return {
-        ...item,
+        ...localizedItem,
         actionType: 'jump',
         ...(targetUtteranceId ? { targetUtteranceId } : {}),
       };
     });
-  }, [observerResult.recommendations, utterances]);
+  }, [locale, observerResult.recommendations, utterances]);
 
   // ── AI-derived values ──
   const selectedAiWarning = useMemo(() => {
@@ -394,7 +448,7 @@ export function useAiPanelLogic({
   const handleJumpToTranslationGap = useCallback(() => {
     if (!nextTranslationGapUtteranceId) {
       reportValidationError({
-        message: '当前没有待补全翻译的语段',
+        message: t(locale, 'transcription.ai.translationGap.nonePending'),
         i18nKey: 'transcription.error.validation.translationGapNotFound',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
@@ -402,8 +456,8 @@ export function useAiPanelLogic({
     }
 
     selectUtterance(nextTranslationGapUtteranceId);
-    setSaveState({ kind: 'done', message: '已跳转到翻译缺口语段' });
-  }, [nextTranslationGapUtteranceId, selectUtterance, setSaveState]);
+    setSaveState({ kind: 'done', message: t(locale, 'transcription.ai.translationGap.jumped') });
+  }, [locale, nextTranslationGapUtteranceId, selectUtterance, setSaveState]);
 
   return {
     lexemeMatches,

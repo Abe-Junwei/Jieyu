@@ -284,6 +284,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
         />
       )}
       <ConfirmDeleteDialog
+        locale={locale}
         open={Boolean(deleteConfirmState)}
         totalCount={deleteConfirmState?.totalCount ?? 0}
         textCount={deleteConfirmState?.textCount ?? 0}

@@ -377,9 +377,11 @@ function mockLayerRowRect(element: HTMLElement, top: number, height = 20) {
   });
 }
 
-async function clickMoreAction(actionName: string) {
-  fireEvent.click(screen.getByRole('button', { name: /更多/ }));
-  fireEvent.click(await screen.findByRole('button', { name: actionName }));
+async function openSpeakerManagementPanel(sidebar: { layerAction: ReturnType<typeof createLayerActionStub>; rerender: (speakerFilterOptions?: Array<{ key: string; name: string; count: number; color?: string }>) => void }) {
+  await act(async () => {
+    sidebar.layerAction.setLayerActionPanel('speaker-management');
+  });
+  sidebar.rerender();
 }
 
 async function clickCreateAction(actionName: string) {
@@ -394,30 +396,29 @@ describe('SidePaneSidebar speaker actions interaction', () => {
   });
 
   it('should call speaker callbacks when clicking 改名/合并/删除说话人实体', async () => {
-    const { onRenameSpeaker, onMergeSpeaker, onDeleteSpeaker, rerender } = renderSidebar();
+    const sidebar = renderSidebar();
 
-    await clickMoreAction('说话人管理');
-    rerender();
+    await openSpeakerManagementPanel(sidebar);
 
     fireEvent.click(screen.getByRole('button', { name: '改名' }));
     fireEvent.click(screen.getByRole('button', { name: '合并' }));
     fireEvent.click(screen.getByTitle('删除该说话人实体（危险）'));
 
-    expect(onRenameSpeaker).toHaveBeenCalledWith('spk-1');
-    expect(onMergeSpeaker).toHaveBeenCalledWith('spk-1');
-    expect(onDeleteSpeaker).toHaveBeenCalledWith('spk-1');
+    expect(sidebar.onRenameSpeaker).toHaveBeenCalledWith('spk-1');
+    expect(sidebar.onMergeSpeaker).toHaveBeenCalledWith('spk-1');
+    expect(sidebar.onDeleteSpeaker).toHaveBeenCalledWith('spk-1');
   });
 
   it('shows orphan speaker entities even when current filter list is empty', async () => {
-    const { rerender } = renderSidebar({
+    const sidebar = renderSidebar({
       speakerFilterOptions: [],
       speakerReferenceStats: {
         'spk-1': { utteranceCount: 0, segmentCount: 0, totalCount: 0 },
       },
     });
 
-    await clickMoreAction('说话人管理');
-    rerender([]);
+    await openSpeakerManagementPanel(sidebar);
+    sidebar.rerender([]);
 
     expect(screen.getByText('说话人实体：1')).toBeTruthy();
     expect(screen.getByText('未引用实体：1')).toBeTruthy();
@@ -428,14 +429,13 @@ describe('SidePaneSidebar speaker actions interaction', () => {
   });
 
   it('shows project-wide speaker counts and cleanup action for unused entities', async () => {
-    const { rerender } = renderSidebar({
+    const sidebar = renderSidebar({
       speakerReferenceStats: {
         'spk-1': { utteranceCount: 2, segmentCount: 3, totalCount: 5 },
       },
     });
 
-    await clickMoreAction('说话人管理');
-    rerender();
+    await openSpeakerManagementPanel(sidebar);
 
     expect(screen.getByText('全项目已引用：1')).toBeTruthy();
     expect(screen.getByText('全项目引用：5')).toBeTruthy();
@@ -450,7 +450,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       },
     });
 
-    await clickMoreAction('说话人管理');
+    await openSpeakerManagementPanel(orphanCase);
     orphanCase.rerender([]);
     fireEvent.click(screen.getByRole('button', { name: '清理未引用实体（1）' }));
 
@@ -463,7 +463,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
 
     function StatefulSidebarHost() {
       const [batchSpeakerId, setBatchSpeakerId] = useState('');
-      const [layerActionPanel, setLayerActionPanel] = useState<'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null>(null);
+      const [layerActionPanel, setLayerActionPanel] = useState<'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null>('speaker-management');
       const layerAction = {
         ...createLayerActionStub(),
         layerActionPanel,
@@ -501,25 +501,28 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       };
 
       return (
-        <SpeakerRailProvider
-          speakerManagement={speakerManagement}
-          selectedUtteranceIds={new Set(['utt-1', 'utt-2'])}
-          handleAssignSpeakerToSelectedRouted={onAssignSpeakerToSelectedRouted}
-          handleClearSpeakerOnSelectedRouted={onClearSpeakerOnSelectedRouted}
-        >
-          <SidePaneSidebar
-            sidePaneRows={[] as LayerDocType[]}
-            focusedLayerRowId=""
-            flashLayerRowId=""
-            onFocusLayer={vi.fn()}
-            transcriptionLayers={[]}
-            toggleLayerLink={vi.fn(async () => undefined)}
-            deletableLayers={[]}
-            layerCreateMessage=""
-            layerAction={layerAction as never}
-            onReorderLayers={vi.fn(async () => undefined)}
-          />
-        </SpeakerRailProvider>
+        <>
+          <button type="button" onClick={() => setLayerActionPanel('speaker-management')}>打开说话人管理</button>
+          <SpeakerRailProvider
+            speakerManagement={speakerManagement}
+            selectedUtteranceIds={new Set(['utt-1', 'utt-2'])}
+            handleAssignSpeakerToSelectedRouted={onAssignSpeakerToSelectedRouted}
+            handleClearSpeakerOnSelectedRouted={onClearSpeakerOnSelectedRouted}
+          >
+            <SidePaneSidebar
+              sidePaneRows={[] as LayerDocType[]}
+              focusedLayerRowId=""
+              flashLayerRowId=""
+              onFocusLayer={vi.fn()}
+              transcriptionLayers={[]}
+              toggleLayerLink={vi.fn(async () => undefined)}
+              deletableLayers={[]}
+              layerCreateMessage=""
+              layerAction={layerAction as never}
+              onReorderLayers={vi.fn(async () => undefined)}
+            />
+          </SpeakerRailProvider>
+        </>
       );
     }
 
@@ -529,7 +532,6 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       </LocaleProvider>,
     );
 
-    await clickMoreAction('说话人管理');
     expect(screen.getByRole('button', { name: '清空已选说话人' }).className).toContain('btn-danger');
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'spk-1' } });
     fireEvent.click(screen.getByRole('button', { name: '应用说话人' }));
@@ -540,7 +542,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       expect(screen.queryByRole('button', { name: '应用说话人' })).toBeNull();
     });
 
-    await clickMoreAction('说话人管理');
+    fireEvent.click(screen.getByRole('button', { name: '打开说话人管理' }));
     fireEvent.click(screen.getByRole('button', { name: '清空已选说话人' }));
 
     expect(onClearSpeakerOnSelectedRouted).toHaveBeenCalled();
@@ -552,7 +554,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
 
   it('closes the speaker management panel after selecting a grouped speaker action', async () => {
     function StatefulGroupActionHost() {
-      const [layerActionPanel, setLayerActionPanel] = useState<'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null>(null);
+      const [layerActionPanel, setLayerActionPanel] = useState<'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null>('speaker-management');
       const layerAction = {
         ...createLayerActionStub(),
         layerActionPanel,
@@ -590,25 +592,28 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       };
 
       return (
-        <SpeakerRailProvider
-          speakerManagement={speakerManagement}
-          selectedUtteranceIds={new Set(['utt-1'])}
-          handleAssignSpeakerToSelectedRouted={vi.fn(async () => undefined)}
-          handleClearSpeakerOnSelectedRouted={vi.fn(async () => undefined)}
-        >
-          <SidePaneSidebar
-            sidePaneRows={[] as LayerDocType[]}
-            focusedLayerRowId=""
-            flashLayerRowId=""
-            onFocusLayer={vi.fn()}
-            transcriptionLayers={[]}
-            toggleLayerLink={vi.fn(async () => undefined)}
-            deletableLayers={[]}
-            layerCreateMessage=""
-            layerAction={layerAction as never}
-            onReorderLayers={vi.fn(async () => undefined)}
-          />
-        </SpeakerRailProvider>
+        <>
+          <button type="button" onClick={() => setLayerActionPanel('speaker-management')}>打开说话人管理</button>
+          <SpeakerRailProvider
+            speakerManagement={speakerManagement}
+            selectedUtteranceIds={new Set(['utt-1'])}
+            handleAssignSpeakerToSelectedRouted={vi.fn(async () => undefined)}
+            handleClearSpeakerOnSelectedRouted={vi.fn(async () => undefined)}
+          >
+            <SidePaneSidebar
+              sidePaneRows={[] as LayerDocType[]}
+              focusedLayerRowId=""
+              flashLayerRowId=""
+              onFocusLayer={vi.fn()}
+              transcriptionLayers={[]}
+              toggleLayerLink={vi.fn(async () => undefined)}
+              deletableLayers={[]}
+              layerCreateMessage=""
+              layerAction={layerAction as never}
+              onReorderLayers={vi.fn(async () => undefined)}
+            />
+          </SpeakerRailProvider>
+        </>
       );
     }
 
@@ -618,7 +623,6 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       </LocaleProvider>,
     );
 
-    await clickMoreAction('说话人管理');
     fireEvent.click(screen.getByRole('button', { name: '选中' }));
 
     await waitFor(() => {
@@ -1002,7 +1006,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: '创建' }));
 
     const alertNode = await within(dialog).findByRole('alert');
-    expect(alertNode.textContent).toContain('创建失败：请选择语言。');
+    expect(alertNode.textContent).toContain('创建失败请选择语言。');
     expect(screen.getByRole('dialog', { name: '新建转写层' })).toBeTruthy();
     expect(createLayer).toHaveBeenCalled();
   });
@@ -1481,7 +1485,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       translationLayers: [trlLayer],
     });
 
-    await clickMoreAction('约束修复');
+    fireEvent.click(screen.getByRole('button', { name: '约束修复' }));
 
     await waitFor(() => {
       expect(updateLayerSpy).toHaveBeenCalled();

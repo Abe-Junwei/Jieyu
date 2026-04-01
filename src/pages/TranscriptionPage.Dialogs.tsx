@@ -107,6 +107,7 @@ export function TranscriptionPageDialogs({
 
       {/* Audio delete confirmation dialog */}
       <ConfirmDeleteDialog
+        locale={uiLocale}
         open={audioDeleteConfirm !== null}
         title={t(uiLocale, 'transcription.dialog.deleteAudioTitle')}
         description={audioDeleteConfirm
@@ -118,6 +119,7 @@ export function TranscriptionPageDialogs({
 
       {/* Project delete confirmation dialog */}
       <ConfirmDeleteDialog
+        locale={uiLocale}
         open={projectDeleteConfirm}
         title={t(uiLocale, 'transcription.dialog.deleteProjectTitle')}
         description={t(uiLocale, 'transcription.action.confirmDeleteProject')}

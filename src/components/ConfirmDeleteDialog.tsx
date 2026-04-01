@@ -1,6 +1,9 @@
 import { memo } from 'react';
+import { normalizeLocale, t } from '../i18n';
+import { getConfirmDeleteDialogMessages } from '../i18n/confirmDeleteDialogMessages';
 
 type ConfirmDeleteDialogProps = {
+  locale?: string;
   open: boolean;
   /** \u5220\u9664\u7c7b\u578b\u6807\u9898，\u5982"\u5220\u9664\u97f3\u9891"、"\u5220\u9664\u9879\u76ee" */
   title?: string;
@@ -23,6 +26,7 @@ type ConfirmDeleteDialogProps = {
 };
 
 export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
+  locale,
   open,
   title = '\u786e\u8ba4\u5220\u9664',
   description,
@@ -37,6 +41,8 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
   emptyCount,
 }: ConfirmDeleteDialogProps) {
   if (!open) return null;
+  const uiLocale = normalizeLocale(locale) ?? 'zh-CN';
+  const messages = getConfirmDeleteDialogMessages(uiLocale);
 
   // \u65e7\u63a5\u53e3\u517c\u5bb9：\u5982\u679c\u4f20\u5165\u4e86 totalCount，\u8bf4\u660e\u662f\u53e5\u6bb5\u5220\u9664
   const isSegmentDelete = totalCount !== undefined;
@@ -44,14 +50,14 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
   const displayDescription = description ?? (
     isSegmentDelete
       ? (totalCount > 1
-        ? `\u5c06\u5220\u9664 ${totalCount} \u4e2a\u53e5\u6bb5（\u542b\u6587\u672c ${textCount} \u4e2a，\u7a7a\u767d ${emptyCount} \u4e2a）。`
-        : '\u5f53\u524d\u53e5\u6bb5\u5305\u542b\u6587\u672c\u5185\u5bb9，\u5220\u9664\u540e\u65e0\u6cd5\u6062\u590d。')
+        ? messages.segmentDeleteMany(totalCount, textCount ?? 0, emptyCount ?? 0)
+        : messages.segmentDeleteSingle)
       : (itemCount !== undefined
-        ? `\u5c06\u5220\u9664 ${itemCount} \u4e2a\u9879\u76ee，\u5220\u9664\u540e\u65e0\u6cd5\u6062\u590d。`
-        : '\u6b64\u64cd\u4f5c\u5220\u9664\u540e\u65e0\u6cd5\u6062\u590d。')
+        ? messages.itemDeleteMany(itemCount)
+        : messages.deleteCannotUndo)
   );
 
-  const displayTitle = isSegmentDelete ? '\u786e\u8ba4\u5220\u9664' : title;
+  const displayTitle = isSegmentDelete ? messages.defaultTitle : title;
 
   return (
     <div className="dialog-overlay" onClick={onCancel}>
@@ -70,13 +76,13 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
                 checked={muteInSession}
                 onChange={(e) => onMuteChange?.(e.target.checked)}
               />
-              \u672c\u6b21\u4f1a\u8bdd\u540e\u7eed\u5220\u9664\u542b\u6587\u672c\u53e5\u6bb5\u65f6\u4e0d\u518d\u63d0\u793a
+              {messages.mutePromptInSession}
             </label>
           )}
         </div>
         <div className="dialog-footer">
-          <button className="btn btn-ghost" onClick={onCancel}>\u53d6\u6d88</button>
-          <button className="btn btn-danger" onClick={onConfirm}>\u786e\u8ba4\u5220\u9664</button>
+          <button className="btn btn-ghost" onClick={onCancel}>{t(uiLocale, 'transcription.dialog.cancel')}</button>
+          <button className="btn btn-danger" onClick={onConfirm}>{t(uiLocale, 'transcription.dialog.deleteLayerConfirmButton')}</button>
         </div>
       </div>
     </div>

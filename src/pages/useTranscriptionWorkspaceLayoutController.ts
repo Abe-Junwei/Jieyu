@@ -49,8 +49,6 @@ type UseTranscriptionWorkspaceLayoutControllerResult = {
   snapEnabled: boolean;
   setSnapEnabled: Dispatch<SetStateAction<boolean>>;
   toggleSnapEnabled: () => void;
-  hoverExpandEnabled: boolean;
-  setHoverExpandEnabled: Dispatch<SetStateAction<boolean>>;
 };
 
 function readStoredClampedNumber(key: string, min: number, max: number, fallback: number): number {
@@ -124,7 +122,6 @@ export function useTranscriptionWorkspaceLayoutController(
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [snapEnabled, setSnapEnabled] = useState(false);
-  const [hoverExpandEnabled, setHoverExpandEnabled] = useState(true);
 
   useEffect(() => {
     laneLabelWidthRef.current = laneLabelWidth;
@@ -402,7 +399,5 @@ export function useTranscriptionWorkspaceLayoutController(
     snapEnabled,
     setSnapEnabled,
     toggleSnapEnabled,
-    hoverExpandEnabled,
-    setHoverExpandEnabled,
   };
 }

@@ -34,8 +34,6 @@ import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
 
-type RailActionMenuKind = 'create' | 'more' | null;
-
 function getLayerEffectiveConstraint(layer: LayerDocType): NonNullable<LayerDocType['constraint']> {
   return layer.constraint ?? (layer.layerType === 'translation' ? 'symbolic_association' : 'independent_boundary');
 }
@@ -104,7 +102,6 @@ export function SidePaneSidebar({
     action: 'create-transcription' | 'create-translation';
     layerId?: string;
   } | null>(null);
-  const [railActionMenu, setRailActionMenu] = useState<RailActionMenuKind>(null);
 
   // 兼容外部入口（如空状态按钮）通过 layerActionPanel 触发创建弹层
   // Bridge external create requests (e.g. timeline empty-state button) to the unified popover.
@@ -115,38 +112,8 @@ export function SidePaneSidebar({
     setCreateLayerPopoverAction({
       action: layerActionPanel,
     });
-    setRailActionMenu(null);
     setLayerActionPanel(null);
   }, [layerActionPanel, setLayerActionPanel]);
-
-  useEffect(() => {
-    if (!createLayerPopoverAction && layerActionPanel === null) return;
-    setRailActionMenu(null);
-  }, [createLayerPopoverAction, layerActionPanel]);
-
-  useEffect(() => {
-    if (railActionMenu === null) return undefined;
-
-    const handlePointerDown = (event: MouseEvent) => {
-      const root = layerActionRootRef.current;
-      if (!root) return;
-      if (root.contains(event.target as Node)) return;
-      setRailActionMenu(null);
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setRailActionMenu(null);
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [layerActionRootRef, railActionMenu]);
 
   const {
     deleteLayerConfirm,
@@ -170,13 +137,11 @@ export function SidePaneSidebar({
   };
 
   const openCreateLayerPopover = useCallback((action: 'create-transcription' | 'create-translation', layerId?: string) => {
-    setRailActionMenu(null);
     setLayerActionPanel(null);
     setCreateLayerPopoverAction({ action, ...(layerId ? { layerId } : {}) });
   }, [setLayerActionPanel]);
 
   const openDeletePanelForLayer = useCallback((layerId: string) => {
-    setRailActionMenu(null);
     setQuickDeleteLayerId(layerId);
     setLayerActionPanel('delete');
   }, [setLayerActionPanel, setQuickDeleteLayerId]);
@@ -798,6 +763,7 @@ export function SidePaneSidebar({
   const renderSpeakerManagementPopover = () => (
     <SidePaneActionModal
       ariaLabel={messages.speakerManagementTitle}
+      closeLabel={messages.cancelButton}
       onClose={() => setLayerActionPanel(null)}
       className="transcription-side-pane-action-popover transcription-side-pane-action-popover-centered transcription-side-pane-action-popover-speaker transcription-side-pane-action-popover-speaker-centered floating-panel"
     >
@@ -1253,7 +1219,6 @@ export function SidePaneSidebar({
         type="button"
         className="transcription-side-pane-action-btn"
         onClick={() => {
-          setRailActionMenu(null);
           openCreateLayerPopover('create-transcription');
         }}
       >
@@ -1264,7 +1229,6 @@ export function SidePaneSidebar({
         className="transcription-side-pane-action-btn"
         disabled={disableCreateTranslationEntry}
         onClick={() => {
-          setRailActionMenu(null);
           openCreateLayerPopover('create-translation');
         }}
       >
@@ -1272,53 +1236,19 @@ export function SidePaneSidebar({
       </button>
       <button
         type="button"
-        className={`transcription-side-pane-action-btn ${railActionMenu === 'more' || layerActionPanel === 'speaker-management' || layerActionPanel === 'delete' ? 'transcription-side-pane-action-btn-active' : ''}`}
-        onClick={() => setRailActionMenu((prev) => (prev === 'more' ? null : 'more'))}
+        className="transcription-side-pane-action-btn"
+        disabled={constraintRepairBusy || sidePaneRows.length === 0}
+        onClick={() => {
+          fireAndForget(handleRepairLayerConstraints());
+        }}
       >
-        <span className="transcription-side-pane-action-icon" aria-hidden="true">⋯</span><strong>{messages.quickActionMore}</strong>
+        <span className="transcription-side-pane-action-icon" aria-hidden="true">🔧</span><strong>{constraintRepairBusy ? messages.quickActionRepairing : messages.quickActionRepair}</strong>
       </button>
-
-      {railActionMenu === 'more' && (
-        <div className="transcription-side-pane-action-popover" role="group" aria-label={messages.quickActionMoreAria}>
-          <button
-            type="button"
-            className="transcription-side-pane-action-btn"
-            onClick={() => {
-              setRailActionMenu(null);
-              setLayerActionPanel((prev) => (prev === 'speaker-management' ? null : 'speaker-management'));
-            }}
-          >
-            <span className="transcription-side-pane-action-icon" aria-hidden="true">👥</span><strong>{messages.quickActionSpeakerManagement}</strong>
-          </button>
-          <button
-            type="button"
-            className="transcription-side-pane-action-btn transcription-side-pane-action-btn-danger"
-            disabled={!focusedLayer}
-            onClick={() => {
-              if (!focusedLayer) return;
-              openDeletePanelForLayer(focusedLayer.id);
-            }}
-          >
-            <span className="transcription-side-pane-action-icon" aria-hidden="true">🗑️</span><strong>{messages.quickActionDeleteCurrentLayer}</strong>
-          </button>
-          <button
-            type="button"
-            className="transcription-side-pane-action-btn"
-            disabled={constraintRepairBusy || sidePaneRows.length === 0}
-            onClick={() => {
-              setRailActionMenu(null);
-              fireAndForget(handleRepairLayerConstraints());
-            }}
-          >
-            <span className="transcription-side-pane-action-icon" aria-hidden="true">🔧</span><strong>{constraintRepairBusy ? messages.quickActionRepairing : messages.quickActionRepair}</strong>
-          </button>
-        </div>
-      )}
 
       {layerActionPanel === 'speaker-management' && renderSpeakerManagementPopover()}
 
       {layerActionPanel === 'delete' && (
-        <SidePaneActionModal ariaLabel={messages.deleteLayerModalAria} onClose={() => setLayerActionPanel(null)}>
+        <SidePaneActionModal ariaLabel={messages.deleteLayerModalAria} closeLabel={messages.cancelButton} onClose={() => setLayerActionPanel(null)}>
           <select
             className="input transcription-side-pane-action-input"
             value={quickDeleteLayerId}

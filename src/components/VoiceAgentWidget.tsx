@@ -464,12 +464,16 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
         {(disambiguationOptions.length > 0 || pendingConfirm || error) && (
           <div className="voice-agent-notice-stack">
             {disambiguationOptions.length > 0 && (
-              <div className="voice-agent-confirm voice-agent-disambiguation" role="alertdialog" aria-label={t(locale, 'transcription.voiceWidget.disambiguation.aria')}>
-                <div className="voice-agent-confirm-copy">
-                  <span className="voice-agent-confirm-label">{t(locale, 'transcription.voiceWidget.disambiguation.label')}</span>
-                  <span className="voice-agent-confirm-fuzzy">{t(locale, 'transcription.voiceWidget.disambiguation.badge')}</span>
+              <div className="voice-agent-confirm voice-agent-disambiguation dialog-card" role="alertdialog" aria-label={t(locale, 'transcription.voiceWidget.disambiguation.aria')}>
+                <div className="dialog-header voice-agent-confirm-header">
+                  <div className="voice-agent-confirm-heading">
+                    <h3>{t(locale, 'transcription.voiceWidget.disambiguation.aria')}</h3>
+                    <span className="voice-agent-confirm-fuzzy">{t(locale, 'transcription.voiceWidget.disambiguation.badge')}</span>
+                  </div>
                 </div>
-                <div className="voice-agent-disambiguation-options">
+                <div className="dialog-body voice-agent-confirm-body">
+                  <p className="voice-agent-confirm-label">{t(locale, 'transcription.voiceWidget.disambiguation.label')}</p>
+                  <div className="voice-agent-disambiguation-options">
                   {disambiguationOptions.map((option) => (
                     <button
                       key={option.actionId}
@@ -482,7 +486,8 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                     </button>
                   ))}
                 </div>
-                <div className="voice-agent-confirm-actions">
+                </div>
+                <div className="dialog-footer voice-agent-confirm-actions">
                   <button
                     type="button"
                     className="voice-agent-confirm-btn voice-agent-confirm-no"
@@ -496,16 +501,21 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
             )}
 
             {pendingConfirm && (
-              <div className="voice-agent-confirm" role="alertdialog" aria-label={t(locale, 'transcription.voiceWidget.confirm.aria')}>
-                <div className="voice-agent-confirm-copy">
-                  <span className="voice-agent-confirm-label">
-                    {tf(locale, 'transcription.voiceWidget.confirm.prompt', { label: pendingConfirm.label })}
-                  </span>
-                  {pendingConfirm.fromFuzzy && (
-                    <span className="voice-agent-confirm-fuzzy">{t(locale, 'ai.assistantHub.fuzzyMatch')}</span>
-                  )}
+              <div className="voice-agent-confirm dialog-card" role="alertdialog" aria-label={t(locale, 'transcription.voiceWidget.confirm.aria')}>
+                <div className="dialog-header voice-agent-confirm-header">
+                  <div className="voice-agent-confirm-heading">
+                    <h3>{t(locale, 'transcription.voiceWidget.confirm.aria')}</h3>
+                    {pendingConfirm.fromFuzzy && (
+                      <span className="voice-agent-confirm-fuzzy">{t(locale, 'ai.assistantHub.fuzzyMatch')}</span>
+                    )}
+                  </div>
                 </div>
-                <div className="voice-agent-confirm-actions">
+                <div className="dialog-body voice-agent-confirm-body">
+                  <p className="voice-agent-confirm-label">
+                    {tf(locale, 'transcription.voiceWidget.confirm.prompt', { label: pendingConfirm.label })}
+                  </p>
+                </div>
+                <div className="dialog-footer voice-agent-confirm-actions">
                   <button
                     type="button"
                     className="voice-agent-confirm-btn voice-agent-confirm-yes"

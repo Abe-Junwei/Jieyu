@@ -14,6 +14,7 @@ import { reportValidationError } from '../utils/validationErrorReporter';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import { createVoiceDictationPipeline, persistVoiceDictationToUtterance, resolveVoiceDictationTarget, transformVoiceDictationText } from './voiceDictationRuntime';
 import { buildTranscriptionAssistantContextValue } from './transcriptionAssistantContextValue';
+import { t, useLocale } from '../i18n';
 
 interface SelectedRowMetaLike {
   rowNumber: number;
@@ -81,6 +82,7 @@ interface UseTranscriptionAssistantControllerResult {
   handleVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => Promise<{ ok: boolean; message: string }>;
 }
 export function useTranscriptionAssistantController(input: UseTranscriptionAssistantControllerInput): UseTranscriptionAssistantControllerResult {
+  const locale = useLocale();
   const { pushUndo, setUtterances, setSaveState } = input;
   const aiPanelContextValue = useMemo<AiPanelContextValue>(() => buildTranscriptionAssistantContextValue(input), [
     input.aiConfidenceAvg,
@@ -238,7 +240,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
 
   const handleVoiceAnalysisResult = useCallback(async (utteranceId: string | null, analysisText: string) => {
     if (!utteranceId) {
-      const message = '\u8bf7\u5148\u9009\u62e9\u8981\u5206\u6790\u7684\u53e5\u6bb5';
+      const message = t(locale, 'transcription.error.validation.voiceAnalysisUtteranceRequired');
       reportValidationError({
         message,
         i18nKey: 'transcription.error.validation.voiceAnalysisUtteranceRequired',
@@ -248,7 +250,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     }
     const trimmed = analysisText.trim();
     if (!trimmed) {
-      const message = '\u5206\u6790\u7ed3\u679c\u4e3a\u7a7a，\u672a\u5199\u56de\u53e5\u6bb5\u5907\u6ce8';
+      const message = t(locale, 'transcription.assistant.voiceAnalysis.empty');
       return { ok: false, message };
     }
     try {
@@ -256,7 +258,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
       const utterances = await db.collections.utterances.find().exec();
       const target = utterances.find((item) => item.id === utteranceId);
       if (!target) {
-        const message = '\u672a\u627e\u5230\u76ee\u6807\u53e5\u6bb5';
+        const message = t(locale, 'transcription.error.validation.voiceAnalysisTargetMissing');
         reportValidationError({
           message,
           i18nKey: 'transcription.error.validation.voiceAnalysisTargetMissing',
@@ -264,7 +266,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
         });
         return { ok: false, message };
       }
-      pushUndo('AI \u5206\u6790\u586b\u5145');
+      pushUndo(t(locale, 'transcription.assistant.undo.fillAnalysis'));
       const now = new Date().toISOString();
       const doc = target.toJSON() as UtteranceDocType;
       const existingNotes = doc.notes ?? {};
@@ -275,22 +277,22 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
       };
       await db.collections.utterances.insert(updated);
       setUtterances((prev) => prev.map((item) => (item.id === utteranceId ? updated : item)));
-      const message = 'AI \u5206\u6790\u7ed3\u679c\u5df2\u4fdd\u5b58\u5230\u53e5\u6bb5\u5907\u6ce8';
+      const message = t(locale, 'transcription.assistant.voiceAnalysis.saved');
       setSaveState({ kind: 'done', message });
       return { ok: true, message };
     } catch (error) {
       reportActionError({
-        actionLabel: '\u4fdd\u5b58\u5206\u6790\u7ed3\u679c',
+        actionLabel: t(locale, 'transcription.assistant.voiceAnalysis.actionLabelSave'),
         error,
         i18nKey: 'transcription.error.action.voiceAnalysisSaveFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
       return {
         ok: false,
-        message: error instanceof Error ? error.message : '\u4fdd\u5b58\u5206\u6790\u7ed3\u679c\u5931\u8d25',
+        message: error instanceof Error ? error.message : t(locale, 'transcription.assistant.voiceAnalysis.saveFailedFallback'),
       };
     }
-  }, [pushUndo, setSaveState, setUtterances]);
+  }, [locale, pushUndo, setSaveState, setUtterances]);
 
   return {
     aiPanelContextValue,

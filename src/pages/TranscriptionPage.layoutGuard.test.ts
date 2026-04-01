@@ -15,7 +15,6 @@ describe('Transcription layout guard', () => {
     expect(appCode).toContain('app-side-pane-handle-cluster');
     expect(appCode).toContain('className="app-side-pane-hover-zone"');
     expect(appCode).toContain("isSidePaneCollapsed ? '0px' : `${sidePaneWidth}px`");
-    expect(appCode).toContain("hoverExpandEdge: 'left'");
   });
 
   it('keeps stylesheet shell-body selector for rail-reserved transcription main area', () => {

@@ -297,6 +297,8 @@ interface AiMessageDoc {
   role: AiMessageRole;
   content: string;
   status: AiMessageStatus;
+  generationSource?: 'llm' | 'local';
+  generationModel?: string;
   contextSnapshot?: Record<string, unknown>;
   citations?: AiMessageCitation[];
   errorMessage?: string;
@@ -1040,6 +1042,8 @@ const aiMessageDocSchema = z.object({
   role: aiMessageRoleSchema,
   content: z.string(),
   status: aiMessageStatusSchema,
+  generationSource: z.enum(['llm', 'local']).optional(),
+  generationModel: z.string().optional(),
   contextSnapshot: z.record(z.string(), z.unknown()).optional(),
   citations: z.array(aiMessageCitationSchema).optional(),
   errorMessage: z.string().optional(),

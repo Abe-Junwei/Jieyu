@@ -4,9 +4,16 @@ export type LayerManagerPopoverMessages = {
   createFailedPrefix: string;
   transcriptionCreateFallback: string;
   translationCreateFallback: string;
+  genericActionFailed: string;
+  createdPrefix: string;
   missingLanguage: string;
   layerManagement: string;
   close: string;
+  resetPanel: string;
+  dragToMove: string;
+  cancel: string;
+  create: string;
+  deleteAction: string;
   createTranscriptionLayer: string;
   createTranslationLayer: string;
   deleteLayer: string;
@@ -15,12 +22,22 @@ export type LayerManagerPopoverMessages = {
   selectLanguage: string;
   customLanguageOption: string;
   customLanguageCodePlaceholder: string;
+  sourceLanguagePlaceholder: string;
+  sourceLanguageCodePlaceholder: string;
+  useDefaultScript: string;
+  createOrthography: string;
+  orthographyHint: string;
+  aliasShortPlaceholder: string;
   aliasPlaceholder: string;
   constraintLegend: string;
   dependentConstraint: string;
   independentConstraint: string;
   selectParentLayer: string;
   autoLinkedParent: (label: string) => string;
+  currentRestrictionTranslation: string;
+  currentRestrictionTranscription: string;
+  requiredPrefix: string;
+  deleteLayerConfirmMessage: (layerName: string, textCount: number) => string;
   transcriptionCreateUnavailable: string;
   translationCreateUnavailable: string;
   transcriptionDisabledReason: (reason: string) => string;
@@ -43,9 +60,16 @@ const zhCN: LayerManagerPopoverMessages = {
   createFailedPrefix: '\u521b\u5efa\u5931\u8d25',
   transcriptionCreateFallback: '\u65e0\u6cd5\u521b\u5efa\u8f6c\u5199\u5c42\uff1a\u8bf7\u68c0\u67e5\u8fb9\u754c\u6a21\u5f0f\u3001\u76ee\u6807\u8bed\u8a00\u4e0e\u522b\u540d\u8bbe\u7f6e\u3002',
   translationCreateFallback: '\u65e0\u6cd5\u521b\u5efa\u7ffb\u8bd1\u5c42\uff1a\u8bf7\u68c0\u67e5\u4f9d\u8d56\u5c42\u3001\u76ee\u6807\u8bed\u8a00\u4e0e\u522b\u540d\u8bbe\u7f6e\u3002',
+  genericActionFailed: '\u64cd\u4f5c\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002',
+  createdPrefix: '\u5df2\u521b\u5efa',
   missingLanguage: '\u672a\u8bbe\u7f6e\u8bed\u8a00',
   layerManagement: '\u5c42\u7ba1\u7406',
   close: '\u5173\u95ed',
+  resetPanel: '\u91cd\u7f6e\u4f4d\u7f6e\u4e0e\u5c3a\u5bf8',
+  dragToMove: '\u62d6\u52a8\u79fb\u52a8\uff0c\u53cc\u51fb\u56de\u4e2d',
+  cancel: '\u53d6\u6d88',
+  create: '\u521b\u5efa',
+  deleteAction: '\u5220\u9664',
   createTranscriptionLayer: '\u65b0\u5efa\u8f6c\u5199\u5c42',
   createTranslationLayer: '\u65b0\u5efa\u7ffb\u8bd1\u5c42',
   deleteLayer: '\u5220\u9664\u5c42',
@@ -54,12 +78,22 @@ const zhCN: LayerManagerPopoverMessages = {
   selectLanguage: '\u9009\u62e9\u8bed\u8a00\u2026',
   customLanguageOption: '\u5176\u4ed6\uff08\u624b\u52a8\u8f93\u5165\uff09',
   customLanguageCodePlaceholder: 'ISO 639-3 \u4ee3\u7801\uff08\u5982 tib\uff09',
+  sourceLanguagePlaceholder: '\u9009\u62e9\u6765\u6e90\u8bed\u8a00\u2026',
+  sourceLanguageCodePlaceholder: '\u6765\u6e90\u8bed\u8a00 ISO 639-3 \u4ee3\u7801\uff08\u5982 eng\uff09',
+  useDefaultScript: '\u6cbf\u7528\u9ed8\u8ba4\u811a\u672c\u63a8\u65ad',
+  createOrthography: '+ \u65b0\u5efa\u6b63\u5b57\u6cd5\u2026',
+  orthographyHint: '\u5f53\u524d\u8bed\u8a00\u6682\u65e0\u6b63\u5b57\u6cd5\u8bb0\u5f55\uff0c\u53ef\u76f4\u63a5\u65b0\u5efa\u6216\u6cbf\u7528\u9ed8\u8ba4\u811a\u672c\u63a8\u65ad\u3002',
+  aliasShortPlaceholder: '\u522b\u540d\uff08\u53ef\u9009\uff09',
   aliasPlaceholder: '\u522b\u540d\uff08\u53ef\u9009\uff0c\u540c\u8bed\u8a00\u591a\u5c42\u65f6\u7528\u4e8e\u533a\u5206\uff09',
   constraintLegend: '\u5c42\u7ea6\u675f\u7c7b\u578b | Layer Constraint Type',
   dependentConstraint: '\u4f9d\u8d56\u8fb9\u754c\uff08\u8ddf\u968f\u4e3b\u8f6c\u5199\u5c42\uff09| Dependent',
   independentConstraint: '\u72ec\u7acb\u8fb9\u754c\uff08\u81ea\u7531\u5b9a\u4e49\uff09| Independent',
   selectParentLayer: '\u9009\u62e9\u4f9d\u8d56\u8fb9\u754c\u5c42\u2026',
   autoLinkedParent: (label) => `\u5df2\u81ea\u52a8\u5173\u8054\u5230\u300c${label}\u300d\u3002`,
+  currentRestrictionTranslation: '\u5f53\u524d\u9650\u5236\uff1a\u65e0\u6cd5\u65b0\u5efa\u7ffb\u8bd1\u3002',
+  currentRestrictionTranscription: '\u5f53\u524d\u9650\u5236\uff1a\u65e0\u6cd5\u65b0\u5efa\u8f6c\u5199\u3002',
+  requiredPrefix: '\u5fc5\u586b\u9879\uff1a',
+  deleteLayerConfirmMessage: (layerName, textCount) => `\u5c42\u300c${layerName}\u300d\u5305\u542b ${textCount} \u6761\u6587\u672c\u8bb0\u5f55\uff0c\u5220\u9664\u540e\u5c06\u65e0\u6cd5\u6062\u590d\u3002`,
   transcriptionCreateUnavailable: '\u5f53\u524d\u65e0\u6cd5\u65b0\u5efa\u8f6c\u5199',
   translationCreateUnavailable: '\u5f53\u524d\u65e0\u6cd5\u65b0\u5efa\u7ffb\u8bd1',
   transcriptionDisabledReason: (reason) => `\u5f53\u524d\u9650\u5236\uff1a\u65e0\u6cd5\u65b0\u5efa\u8f6c\u5199\u3002${reason}`,
@@ -82,9 +116,16 @@ const enUS: LayerManagerPopoverMessages = {
   createFailedPrefix: 'Create failed',
   transcriptionCreateFallback: 'Unable to create transcription layer. Check boundary mode, target language, and alias settings.',
   translationCreateFallback: 'Unable to create translation layer. Check dependency layer, target language, and alias settings.',
+  genericActionFailed: 'Action failed. Please try again later.',
+  createdPrefix: 'Created',
   missingLanguage: 'Language not set',
   layerManagement: 'Layer Manager',
   close: 'Close',
+  resetPanel: 'Reset position and size',
+  dragToMove: 'Drag to move, double-click to recenter',
+  cancel: 'Cancel',
+  create: 'Create',
+  deleteAction: 'Delete',
   createTranscriptionLayer: 'New Transcription Layer',
   createTranslationLayer: 'New Translation Layer',
   deleteLayer: 'Delete Layer',
@@ -93,12 +134,22 @@ const enUS: LayerManagerPopoverMessages = {
   selectLanguage: 'Select language\u2026',
   customLanguageOption: 'Other (manual input)',
   customLanguageCodePlaceholder: 'ISO 639-3 code (e.g. tib)',
+  sourceLanguagePlaceholder: 'Select source language\u2026',
+  sourceLanguageCodePlaceholder: 'Source language ISO 639-3 code (e.g. eng)',
+  useDefaultScript: 'Use default script inference',
+  createOrthography: '+ Create orthography\u2026',
+  orthographyHint: 'No orthography is recorded for this language yet. Create one directly or use default script inference.',
+  aliasShortPlaceholder: 'Alias (optional)',
   aliasPlaceholder: 'Alias (optional, used to distinguish multiple layers in the same language)',
   constraintLegend: 'Layer Constraint Type',
   dependentConstraint: 'Dependent boundary (follows parent transcription layer)',
   independentConstraint: 'Independent boundary (free-defined)',
   selectParentLayer: 'Select dependent boundary layer\u2026',
   autoLinkedParent: (label) => `Automatically linked to "${label}".`,
+  currentRestrictionTranslation: 'Current restriction: cannot create translation.',
+  currentRestrictionTranscription: 'Current restriction: cannot create transcription.',
+  requiredPrefix: 'Required:',
+  deleteLayerConfirmMessage: (layerName, textCount) => `Layer "${layerName}" contains ${textCount} text entries and cannot be restored after deletion.`,
   transcriptionCreateUnavailable: 'Unable to create transcription right now',
   translationCreateUnavailable: 'Unable to create translation right now',
   transcriptionDisabledReason: (reason) => `Current constraint: cannot create transcription. ${reason}`,

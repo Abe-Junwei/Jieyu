@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Mic, Pause, Play, Trash2 } from 'lucide-react';
 import type { MediaItemDocType } from '../db';
+import { t, useLocale } from '../i18n';
 
 export interface TimelineTranslationAudioControlsProps {
   mediaItem?: MediaItemDocType;
@@ -29,6 +30,7 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
   onStopRecording,
   onDeleteRecording,
 }: TimelineTranslationAudioControlsProps) {
+  const locale = useLocale();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioBlob = resolveMediaAudioBlob(mediaItem);
@@ -131,8 +133,8 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
           'timeline-translation-audio-btn-record',
           isRecording ? 'timeline-translation-audio-btn-recording' : '',
         ].filter(Boolean).join(' ')}
-        aria-label={isRecording ? '停止录音翻译' : '开始录音翻译'}
-        title={isRecording ? '停止录音翻译' : '开始录音翻译'}
+        aria-label={isRecording ? t(locale, 'transcription.timeline.audio.stopRecording') : t(locale, 'transcription.timeline.audio.startRecording')}
+        title={isRecording ? t(locale, 'transcription.timeline.audio.stopRecording') : t(locale, 'transcription.timeline.audio.startRecording')}
         disabled={disabled}
         onClick={handleRecordClick}
       >
@@ -142,8 +144,8 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
         <button
           type="button"
           className="timeline-translation-audio-btn"
-          aria-label={isPlaying ? '暂停录音翻译' : '播放录音翻译'}
-          title={isPlaying ? '暂停录音翻译' : '播放录音翻译'}
+          aria-label={isPlaying ? t(locale, 'transcription.timeline.audio.pauseRecording') : t(locale, 'transcription.timeline.audio.playRecording')}
+          title={isPlaying ? t(locale, 'transcription.timeline.audio.pauseRecording') : t(locale, 'transcription.timeline.audio.playRecording')}
           disabled={disabled}
           onClick={(event) => {
             void handlePlaybackClick(event);
@@ -156,8 +158,8 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
         <button
           type="button"
           className="timeline-translation-audio-btn timeline-translation-audio-btn-delete"
-          aria-label="删除录音翻译"
-          title="删除录音翻译"
+          aria-label={t(locale, 'transcription.timeline.audio.deleteRecording')}
+          title={t(locale, 'transcription.timeline.audio.deleteRecording')}
           disabled={disabled || isRecording}
           onClick={handleDeleteClick}
         >
@@ -166,7 +168,11 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
       ) : null}
       {!compact ? (
         <span className="timeline-translation-audio-status">
-          {isRecording ? '录音中' : hasAudio ? '已录音' : '未录音'}
+          {isRecording
+            ? t(locale, 'transcription.timeline.audio.status.recording')
+            : hasAudio
+              ? t(locale, 'transcription.timeline.audio.status.recorded')
+              : t(locale, 'transcription.timeline.audio.status.empty')}
         </span>
       ) : null}
     </div>

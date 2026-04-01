@@ -1,6 +1,5 @@
 import type { RefObject } from 'react';
 import { WaveformToolbar } from '../components/WaveformToolbar';
-import { TranscriptionToolbarActions } from '../components/TranscriptionToolbarActions';
 import { t, tf, useLocale } from '../i18n';
 
 export type TranscriptionPageToolbarProps = {
@@ -15,7 +14,6 @@ export type TranscriptionPageToolbarProps = {
   onLoopChange: (loop: boolean) => void;
   onTogglePlayback: () => void;
   onSeek: (delta: number) => void;
-  // TranscriptionToolbarActions
   canUndo: boolean;
   canRedo: boolean;
   undoLabel: string;
@@ -107,6 +105,8 @@ export function TranscriptionPageToolbar({
       onLoopChange={onLoopChange}
       onTogglePlayback={onTogglePlayback}
       onSeek={onSeek}
+      canDeleteAudio={canDeleteAudio}
+      onDeleteCurrentAudio={onDeleteCurrentAudio}
       {...(onAutoSegment ? { onAutoSegment } : {})}
       {...(autoSegmentBusy != null ? { autoSegmentBusy } : {})}
       autoSegmentRunTitle={t(locale, 'transcription.toolbar.autoSegmentRun')}
@@ -120,29 +120,6 @@ export function TranscriptionPageToolbar({
           ⚠ {lowConfidenceCount}
         </span>
       )}
-      <TranscriptionToolbarActions
-        canUndo={canUndo}
-        canRedo={canRedo}
-        undoLabel={undoLabel}
-        canDeleteAudio={canDeleteAudio}
-        canDeleteProject={canDeleteProject}
-        canToggleNotes={canToggleNotes}
-        canOpenUttOpsMenu={canOpenUttOpsMenu}
-        notePopoverOpen={notePopoverOpen}
-        showExportMenu={showExportMenu}
-        importFileRef={importFileRef}
-        exportMenuRef={exportMenuRef}
-        exportCallbacks={exportCallbacks}
-        onRefresh={onRefresh}
-        onUndo={onUndo}
-        onRedo={onRedo}
-        onOpenProjectSetup={onOpenProjectSetup}
-        onOpenAudioImport={onOpenAudioImport}
-        onDeleteCurrentAudio={onDeleteCurrentAudio}
-        onDeleteCurrentProject={onDeleteCurrentProject}
-        onToggleNotes={onToggleNotes}
-        onOpenUttOpsMenu={onOpenUttOpsMenu}
-      />
     </WaveformToolbar>
   );
 }

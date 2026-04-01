@@ -101,14 +101,18 @@ export function buildSourceListFooter(
   locale: string,
 ): string {
   if (citations.length === 0) return '';
-  const isZh = locale.startsWith('zh');
-  const header = isZh ? '来源' : 'Sources';
+  const header = getSourceListHeader(locale);
   const lines = citations.map((c, i) => {
     const label = c.label ?? c.type;
     const snippet = normalizeCitationSnippetPlainText(c.snippet ?? '').slice(0, 100);
     return `[${i + 1}] ${label}: ${snippet}${snippet.length >= 100 ? '…' : ''}`;
   });
   return `\n\n---\n${header}:\n${lines.join('\n')}`;
+}
+
+function getSourceListHeader(locale: string): string {
+  if (locale.startsWith('zh')) return '来源';
+  return 'Sources';
 }
 
 // ── 内联标记拆分（UI 渲染） | Inline marker splitting for UI rendering ──

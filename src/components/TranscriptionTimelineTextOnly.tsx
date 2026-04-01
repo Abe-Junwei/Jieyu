@@ -31,6 +31,7 @@ import {
 import { buildSpeakerLayerLayoutWithOptions, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
+import { t, tf, useLocale } from '../i18n';
 
 const EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID = new Map<string, Array<{ id: string; startTime: number }>>();
 
@@ -240,6 +241,7 @@ export function TranscriptionTimelineTextOnly({
   deleteVoiceTranslation,
   displayStyleControl,
 }: TranscriptionTimelineTextOnlyProps) {
+  const locale = useLocale();
   const [layerAction, setLayerAction] = useState<{ action: LayerActionType; layerId?: string } | null>(null);
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
   const [saveStatusByCellKey, setSaveStatusByCellKey] = useState<Record<string, 'dirty' | 'saving' | 'error'>>({});
@@ -532,12 +534,12 @@ export function TranscriptionTimelineTextOnly({
                   ...layerDisplaySettingsToStyle(displaySettingsForRender, renderPolicy),
                 }}
                 dir={renderPolicy?.preferDirAttribute ? renderPolicy.textDirection : undefined}
-                title={speakerVisual ? `说话人：${speakerVisual.name}` : undefined}
+                title={speakerVisual ? tf(locale, 'transcription.timeline.speakerTitle', { name: speakerVisual.name }) : undefined}
                 onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e, overlapCycleItemsByUtteranceId.get(utt.id))}
                 onContextMenu={(e) => handleAnnotationContextMenu?.(utt.id, utt, layer.id, e)}
               >
                 {speakerVisual && (
-                  <span className="timeline-text-item-speaker-badge" title={`说话人：${speakerVisual.name}`}>
+                  <span className="timeline-text-item-speaker-badge" title={tf(locale, 'transcription.timeline.speakerTitle', { name: speakerVisual.name })}>
                     {speakerVisual.name}
                   </span>
                 )}
@@ -545,7 +547,7 @@ export function TranscriptionTimelineTextOnly({
                   <button
                     type="button"
                     className="timeline-text-item-status-dot timeline-text-item-status-dot-error timeline-text-item-status-dot-action"
-                    title="重试保存"
+                    title={t(locale, 'transcription.timeline.save.retry')}
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -555,13 +557,13 @@ export function TranscriptionTimelineTextOnly({
                 ) : saveStatus ? (
                   <span
                     className={`timeline-text-item-status-dot timeline-text-item-status-dot-${saveStatus}`}
-                    title={saveStatus === 'saving' ? '正在保存…' : '未保存'}
+                    title={saveStatus === 'saving' ? t(locale, 'transcription.timeline.save.saving') : t(locale, 'transcription.timeline.save.unsaved')}
                   />
                 ) : null}
                 <input
                   type="text"
                   className="timeline-text-input"
-                  placeholder={usesSegmentTimeline ? '语段' : undefined}
+                  placeholder={usesSegmentTimeline ? t(locale, 'transcription.timeline.placeholder.segment') : undefined}
                   value={draft}
                   dir={renderPolicy?.preferDirAttribute ? renderPolicy.textDirection : undefined}
                   onContextMenu={(e) => handleAnnotationContextMenu?.(utt.id, utt, layer.id, e)}
@@ -776,7 +778,7 @@ export function TranscriptionTimelineTextOnly({
                   <button
                     type="button"
                     className="timeline-text-item-status-dot timeline-text-item-status-dot-error timeline-text-item-status-dot-action"
-                    title="重试保存"
+                    title={t(locale, 'transcription.timeline.save.retry')}
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -786,7 +788,7 @@ export function TranscriptionTimelineTextOnly({
                 ) : !isAudioOnlyLayer && saveStatus ? (
                   <span
                     className={`timeline-text-item-status-dot timeline-text-item-status-dot-${saveStatus}`}
-                    title={saveStatus === 'saving' ? '正在保存…' : '未保存'}
+                    title={saveStatus === 'saving' ? t(locale, 'transcription.timeline.save.saving') : t(locale, 'transcription.timeline.save.unsaved')}
                   />
                 ) : null}
                 {showAudioTools && audioControls ? <div className="timeline-text-item-tools">{audioControls}</div> : null}
@@ -796,7 +798,7 @@ export function TranscriptionTimelineTextOnly({
                   <input
                     type="text"
                     className="timeline-text-input"
-                    placeholder={usesOwnSegments ? '语段' : '翻译'}
+                    placeholder={usesOwnSegments ? t(locale, 'transcription.timeline.placeholder.segment') : t(locale, 'transcription.timeline.placeholder.translation')}
                     value={draft}
                     dir={renderPolicy?.preferDirAttribute ? renderPolicy.textDirection : undefined}
                     onContextMenu={(e) => handleAnnotationContextMenu?.(utt.id, utt, layer.id, e)}

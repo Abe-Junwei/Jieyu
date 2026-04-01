@@ -24,6 +24,7 @@ const utt = (id: string, extra: Record<string, unknown> = {}): any => ({
 });
 
 const makeInput = (overrides: Partial<UseAiPanelLogicInput> = {}): UseAiPanelLogicInput => ({
+  locale: 'zh-CN',
   utterances: [],
   selectedUtterance: undefined,
   selectedUtteranceText: '',

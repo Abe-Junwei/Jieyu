@@ -1,4 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { useOptionalLocale } from '../i18n';
+import { getPdfViewerPanelMessages } from '../i18n/pdfViewerPanelMessages';
 
 interface PdfViewerPanelProps {
   url: string;
@@ -21,6 +23,8 @@ export function PdfViewerPanel({
   page = 1,
   searchSnippet,
 }: PdfViewerPanelProps) {
+  const locale = useOptionalLocale() ?? 'zh-CN';
+  const messages = getPdfViewerPanelMessages(locale);
   const [currentPage, setCurrentPage] = useState(() => Math.max(1, page ?? 1));
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -75,7 +79,7 @@ export function PdfViewerPanel({
             opacity: currentPage <= 1 ? 0.5 : 1,
           }}
         >
-          上一页 / Prev
+          {messages.prevPage}
         </button>
         <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
           {currentPage} / {totalPages}
@@ -94,13 +98,13 @@ export function PdfViewerPanel({
             opacity: currentPage >= totalPages ? 0.5 : 1,
           }}
         >
-          下一页 / Next
+          {messages.nextPage}
         </button>
       </div>
 
       {loading && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-          加载中... / Loading...
+          {messages.loading}
         </div>
       )}
 
@@ -114,7 +118,7 @@ export function PdfViewerPanel({
         <Suspense
           fallback={
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-              准备渲染器... / Preparing renderer...
+              {messages.preparingRenderer}
             </div>
           }
         >

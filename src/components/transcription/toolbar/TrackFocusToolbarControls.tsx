@@ -1,3 +1,5 @@
+import { t, tf, useLocale } from '../../../i18n';
+
 type TrackFocusToolbarControlsProps = {
   trackModeLabel?: string;
   laneLockCount?: number;
@@ -27,11 +29,12 @@ export function TrackFocusToolbarControls({
   onSpeakerFocusTargetKeyChange,
   onCycleSpeakerFocusMode,
 }: TrackFocusToolbarControlsProps) {
+  const locale = useLocale();
   const speakerFocusLabel = speakerFocusMode === 'focus-hard'
-    ? `仅${speakerFocusTargetName ?? '目标'}`
+    ? tf(locale, 'transcription.trackFocus.mode.hard', { target: speakerFocusTargetName ?? t(locale, 'transcription.trackFocus.targetDefault') })
     : speakerFocusMode === 'focus-soft'
-      ? `柔和${speakerFocusTargetName ? `·${speakerFocusTargetName}` : ''}`
-      : '全部';
+      ? tf(locale, 'transcription.trackFocus.mode.soft', { suffix: speakerFocusTargetName ? `·${speakerFocusTargetName}` : '' })
+      : t(locale, 'transcription.trackFocus.mode.all');
 
   if (!trackModeLabel && !onCycleSpeakerFocusMode && !(lockConflictCount != null && lockConflictCount > 0)) {
     return null;
@@ -42,9 +45,9 @@ export function TrackFocusToolbarControls({
       {trackModeLabel && (
         <span
           className="toolbar-track-mode-badge"
-          title={`当前轨道模式：${trackModeLabel} | Current track mode: ${trackModeLabel}`}
+          title={tf(locale, 'transcription.trackFocus.trackModeTitle', { mode: trackModeLabel })}
         >
-          轨道：{trackModeLabel}（已分配 {laneLockCount ?? 0}）
+          {tf(locale, 'transcription.trackFocus.trackModeBadge', { mode: trackModeLabel, count: laneLockCount ?? 0 })}
         </span>
       )}
       {lockConflictCount != null && lockConflictCount > 0 && (
@@ -52,9 +55,13 @@ export function TrackFocusToolbarControls({
           type="button"
           className="toolbar-lock-conflict-badge"
           onClick={onOpenLockConflictDetails}
-          title={`${trackConflictLabel ?? '轨道冲突'} ${lockConflictCount} 项：${(lockConflictSpeakerNames ?? []).join('、') || '未知说话人'} | ${lockConflictCount} track conflicts`}
+          title={tf(locale, 'transcription.trackFocus.conflictTitle', {
+            label: trackConflictLabel ?? t(locale, 'transcription.trackFocus.conflictDefaultLabel'),
+            count: lockConflictCount,
+            speakers: (lockConflictSpeakerNames ?? []).join('、') || t(locale, 'transcription.trackFocus.unknownSpeaker'),
+          })}
         >
-          轨冲突：{lockConflictCount}
+          {tf(locale, 'transcription.trackFocus.conflictBadge', { count: lockConflictCount })}
         </button>
       )}
       {onCycleSpeakerFocusMode && (
@@ -62,19 +69,19 @@ export function TrackFocusToolbarControls({
           <button
             type="button"
             className={`toolbar-focus-mode-badge${speakerFocusMode && speakerFocusMode !== 'all' ? ' toolbar-focus-mode-badge-active' : ''}`}
-            title={`说话人聚焦：${speakerFocusLabel}（点击切换） | Speaker focus: ${speakerFocusLabel} (click to cycle)`}
+            title={tf(locale, 'transcription.trackFocus.focusTitle', { label: speakerFocusLabel })}
             onClick={onCycleSpeakerFocusMode}
           >
-            聚焦：{speakerFocusLabel}
+            {tf(locale, 'transcription.trackFocus.focusBadge', { label: speakerFocusLabel })}
           </button>
           {onSpeakerFocusTargetKeyChange && (
             <select
               className="toolbar-focus-target-select"
-              title="选择聚焦说话人 | Select focus speaker"
+              title={t(locale, 'transcription.trackFocus.selectTitle')}
               value={speakerFocusTargetKey ?? ''}
               onChange={(event) => onSpeakerFocusTargetKeyChange(event.target.value)}
             >
-              <option value="">跟随当前选中</option>
+              <option value="">{t(locale, 'transcription.trackFocus.followSelected')}</option>
               {(speakerFocusOptions ?? []).map((option) => (
                 <option key={option.key} value={option.key}>{option.name}</option>
               ))}

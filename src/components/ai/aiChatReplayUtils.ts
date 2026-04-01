@@ -8,6 +8,7 @@ import {
 } from '../../ai/auditReplay';
 import { createLogger } from '../../observability/logger';
 import { buildSnapshotDownloadName } from './aiChatCardUtils';
+import { getAiChatReplayUtilsMessages } from '../../i18n/aiChatReplayUtilsMessages';
 
 const log = createLogger('AiChatReplayUtils');
 
@@ -22,12 +23,13 @@ export async function openReplayBundleByRequestId(
   compareSnapshot: AiToolGoldenSnapshot | null,
   isZh: boolean,
 ): Promise<ReplayBundleOpenResult> {
+  const messages = getAiChatReplayUtilsMessages(isZh);
   try {
     const bundle = await loadAiToolReplayBundle(requestId);
     if (!bundle) {
       return {
         bundle: null,
-        errorMessage: isZh ? '\u672a\u627e\u5230\u5bf9\u5e94\u56de\u653e\u6570\u636e\u3002' : 'Replay bundle was not found.',
+        errorMessage: messages.replayNotFound,
         snapshotDiff: null,
       };
     }
@@ -40,7 +42,7 @@ export async function openReplayBundleByRequestId(
   } catch (error) {
     return {
       bundle: null,
-      errorMessage: error instanceof Error ? error.message : (isZh ? '\u8bfb\u53d6\u56de\u653e\u5931\u8d25\u3002' : 'Failed to load replay bundle.'),
+      errorMessage: error instanceof Error ? error.message : messages.replayLoadFailed,
       snapshotDiff: null,
     };
   }
@@ -56,6 +58,7 @@ export async function exportReplayBundleSnapshot(
   selectedReplayBundle: AiToolReplayBundle | null,
   isZh: boolean,
 ): Promise<ExportReplaySnapshotResult> {
+  const messages = getAiChatReplayUtilsMessages(isZh);
   try {
     const bundle = selectedReplayBundle?.requestId === requestId
       ? selectedReplayBundle
@@ -63,7 +66,7 @@ export async function exportReplayBundleSnapshot(
     if (!bundle) {
       return {
         bundle: null,
-        errorMessage: isZh ? '\u5bfc\u51fa\u5931\u8d25\uff1a\u672a\u627e\u5230\u5bf9\u5e94\u56de\u653e\u6570\u636e\u3002' : 'Export failed: replay bundle was not found.',
+        errorMessage: messages.exportReplayNotFound,
       };
     }
 
@@ -82,7 +85,7 @@ export async function exportReplayBundleSnapshot(
   } catch (error) {
     return {
       bundle: null,
-      errorMessage: error instanceof Error ? error.message : (isZh ? '\u5bfc\u51fa\u5feb\u7167\u5931\u8d25\u3002' : 'Failed to export snapshot.'),
+      errorMessage: error instanceof Error ? error.message : messages.exportSnapshotFailed,
     };
   }
 }
@@ -96,12 +99,13 @@ export function parseImportedGoldenSnapshot(
   rawText: string,
   isZh: boolean,
 ): ImportReplaySnapshotResult {
+  const messages = getAiChatReplayUtilsMessages(isZh);
   try {
     const json = JSON.parse(rawText) as AiToolGoldenSnapshot;
     if (json?.schemaVersion !== 1 || typeof json?.requestId !== 'string') {
       return {
         snapshot: null,
-        errorMessage: isZh ? '\u5feb\u7167\u683c\u5f0f\u65e0\u6548\uff0c\u8bf7\u5bfc\u5165\u6709\u6548\u7684 golden snapshot \u6587\u4ef6\u3002' : 'Invalid snapshot format. Please import a valid golden snapshot file.',
+        errorMessage: messages.invalidSnapshotFormat,
       };
     }
     return { snapshot: json, errorMessage: null };
@@ -111,7 +115,7 @@ export function parseImportedGoldenSnapshot(
     });
     return {
       snapshot: null,
-      errorMessage: isZh ? '\u5feb\u7167\u89e3\u6790\u5931\u8d25\uff0c\u6587\u4ef6\u683c\u5f0f\u6709\u8bef\u3002' : 'Failed to parse snapshot file.',
+      errorMessage: messages.parseSnapshotFailed,
     };
   }
 }

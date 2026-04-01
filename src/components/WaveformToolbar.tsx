@@ -1,5 +1,5 @@
 import { Children, memo, type ReactNode } from 'react';
-import { FastForward, Pause, Play, Repeat, Rewind, Volume2, Zap } from 'lucide-react';
+import { FastForward, Pause, Play, Repeat, Rewind, Trash2, Volume2, Zap } from 'lucide-react';
 import { t, useLocale } from '../i18n';
 
 interface WaveformToolbarProps {
@@ -14,6 +14,8 @@ interface WaveformToolbarProps {
   onLoopChange: (loop: boolean) => void;
   onTogglePlayback: () => void;
   onSeek: (delta: number) => void;
+  canDeleteAudio?: boolean;
+  onDeleteCurrentAudio?: () => void;
   onAutoSegment?: () => void;
   autoSegmentBusy?: boolean;
   autoSegmentRunTitle?: string;
@@ -33,6 +35,8 @@ export const WaveformToolbar = memo(function WaveformToolbar({
   onLoopChange,
   onTogglePlayback,
   onSeek,
+  canDeleteAudio,
+  onDeleteCurrentAudio,
   onAutoSegment,
   autoSegmentBusy,
   autoSegmentRunTitle,
@@ -95,18 +99,31 @@ export const WaveformToolbar = memo(function WaveformToolbar({
             onChange={(event) => onVolumeChange(Number(event.target.value))}
           />
         </label>
-        {onAutoSegment && (
+        {(onAutoSegment || onDeleteCurrentAudio) && (
           <>
             <span className="transcription-toolbar-sep transcription-wave-toolbar-vad-sep" aria-hidden="true" />
-            <button
-              className="icon-btn transcription-wave-toolbar-vad-btn"
-              onClick={onAutoSegment}
-              disabled={autoSegmentBusy}
-              title={autoSegmentBusy ? autoSegmentRunningTitle : autoSegmentRunTitle}
-              aria-label={autoSegmentBusy ? autoSegmentRunningTitle : autoSegmentRunTitle}
-            >
-              <Zap size={15} />
-            </button>
+            {onAutoSegment && (
+              <button
+                className="icon-btn transcription-wave-toolbar-vad-btn"
+                onClick={onAutoSegment}
+                disabled={autoSegmentBusy}
+                title={autoSegmentBusy ? autoSegmentRunningTitle : autoSegmentRunTitle}
+                aria-label={autoSegmentBusy ? autoSegmentRunningTitle : autoSegmentRunTitle}
+              >
+                <Zap size={15} />
+              </button>
+            )}
+            {onDeleteCurrentAudio && (
+              <button
+                className="icon-btn icon-btn-danger transcription-wave-toolbar-delete-audio-btn"
+                onClick={onDeleteCurrentAudio}
+                disabled={!canDeleteAudio}
+                title={t(locale, 'transcription.toolbar.deleteCurrentAudio')}
+                aria-label={t(locale, 'transcription.toolbar.deleteCurrentAudio')}
+              >
+                <Trash2 size={15} />
+              </button>
+            )}
           </>
         )}
       </div>

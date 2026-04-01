@@ -6,7 +6,7 @@ import { useAiChat, type AiChatToolCall, type AiToolRiskCheckResult } from '../h
 import { useAiPanelLogic, taskToPersona, type ActionableRecommendation } from '../hooks/useAiPanelLogic';
 import { useAiToolCallHandler } from '../hooks/useAiToolCallHandler';
 import type { SaveState } from '../hooks/transcriptionTypes';
-import type { Locale } from '../i18n';
+import { t, tf, type Locale } from '../i18n';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import { SUPPORTED_VOICE_LANGS, resolveLanguageQuery } from '../utils/langMapping';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
@@ -18,7 +18,7 @@ import { fireAndForget } from '../utils/fireAndForget';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import { transformTextForLayerTarget } from '../utils/orthographyRuntime';
 
-const TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX = '刷新 AI 工具审计日志失败：';
+const TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX = '\u5237\u65b0 AI \u5de5\u5177\u5ba1\u8ba1\u65e5\u5fd7\u5931\u8d25\uff1a';
 
 interface UseTranscriptionAiControllerInput {
   utterances: UtteranceDocType[];
@@ -94,6 +94,7 @@ export function useTranscriptionAiController(
     utterances,
     transcriptionLayers,
     translationLayers,
+    locale,
     formatTime,
     getUtteranceTextForLayer,
     translationTextByLayer,
@@ -184,7 +185,11 @@ export function useTranscriptionAiController(
         const exists = transcriptionLayers.some((layer) => layer.id === layerId)
           || translationLayers.some((layer) => layer.id === layerId);
         if (!exists) {
-          return { requiresConfirmation: false, riskSummary: `未找到目标层：${layerId}`, impactPreview: [] };
+          return {
+            requiresConfirmation: false,
+            riskSummary: tf(locale, 'transcription.aiTool.layer.targetNotFound', { layerId }),
+            impactPreview: [],
+          };
         }
       } else {
         const layerType = String(call.arguments.layerType ?? '').trim().toLowerCase();
@@ -202,11 +207,27 @@ export function useTranscriptionAiController(
               .map((value) => value.trim().toLowerCase());
             return matchTokens.some((token) => fields.some((field) => field.includes(token) || token.includes(field)));
           });
+          const layerTypeLabel = layerType === 'translation'
+            ? t(locale, 'transcription.aiTool.layer.typeTranslation')
+            : t(locale, 'transcription.aiTool.layer.typeTranscription');
           if (matched.length === 0) {
-            return { requiresConfirmation: false, riskSummary: `未找到匹配"${languageQuery}"的${layerType === 'translation' ? '翻译' : '转写'}层`, impactPreview: [] };
+            return {
+              requiresConfirmation: false,
+              riskSummary: tf(locale, 'transcription.aiTool.layer.noMatchByLanguage', {
+                languageQuery,
+                layerType: layerTypeLabel,
+              }),
+              impactPreview: [],
+            };
           }
           if (matched.length > 1) {
-            return { requiresConfirmation: false, riskSummary: `匹配到多个${layerType === 'translation' ? '翻译' : '转写'}层，请改用 layerId 精确指定。`, impactPreview: [] };
+            return {
+              requiresConfirmation: false,
+              riskSummary: tf(locale, 'transcription.aiTool.layer.multipleMatchByLanguage', {
+                layerType: layerTypeLabel,
+              }),
+              impactPreview: [],
+            };
           }
         }
       }
@@ -228,7 +249,7 @@ export function useTranscriptionAiController(
     const transcriptionText = getUtteranceTextForLayer(targetUtterance).trim();
     const transcriptionPreview = transcriptionText.length > 0
       ? (transcriptionText.length > 18 ? `${transcriptionText.slice(0, 18)}...` : transcriptionText)
-      : '（无转写文本）';
+      : t(locale, 'transcription.ai.segment.noTranscriptionText');
     const translationLayerCountWithContent = Array.from(translationTextByLayer.values()).reduce((count, layerMap) => {
       const item = layerMap.get(utteranceId);
       return item?.text?.trim() ? count + 1 : count;
@@ -241,14 +262,14 @@ export function useTranscriptionAiController(
 
     return {
       requiresConfirmation: true,
-      riskSummary: `将删除第 ${rowIndex} 条句段（${timeRange}）`,
+      riskSummary: tf(locale, 'transcription.ai.segment.deleteRiskSummary', { rowIndex, timeRange }),
       impactPreview: [
-        `内容预览：${transcriptionPreview}`,
-        `关联影响：${translationLayerCountWithContent} 个翻译层包含内容，删除后会失去关联`,
-        '可通过撤销（Undo）恢复',
+        tf(locale, 'transcription.ai.segment.deleteImpactContent', { preview: transcriptionPreview }),
+        tf(locale, 'transcription.ai.segment.deleteImpactRelation', { count: translationLayerCountWithContent }),
+        t(locale, 'transcription.ai.segment.deleteImpactUndo'),
       ],
     };
-  }, [formatTime, getUtteranceTextForLayer, transcriptionLayers, translationLayers, translationTextByLayer, utterances]);
+  }, [formatTime, getUtteranceTextForLayer, locale, transcriptionLayers, translationLayers, translationTextByLayer, utterances]);
 
   const aiChat = useAiChat({
     onToolCall: handleAiToolCall,
@@ -274,6 +295,7 @@ export function useTranscriptionAiController(
     aiVisibleCards,
     handleJumpToTranslationGap,
   } = useAiPanelLogic({
+    locale: input.locale,
     utterances: input.utterances,
     selectedUtterance: input.selectedTimelineOwnerUtterance ?? undefined,
     selectedUtteranceText: input.selectionSnapshot.selectedText,

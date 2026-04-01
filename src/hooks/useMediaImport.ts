@@ -87,7 +87,7 @@ export function useMediaImport({
       setSaveState({ kind: 'done', message: tf('transcription.action.audioImported', { filename: file.name }) });
     } catch (error) {
       reportActionError({
-        actionLabel: '导入音频',
+        actionLabel: tf('transcription.toolbar.importAudio'),
         error,
         conflictNames: ['TranscriptionPersistenceConflictError', 'RecoveryApplyConflictError'],
         conflictI18nKey: 'transcription.importExport.conflict',

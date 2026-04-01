@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { ArrowUp, Check, Copy, Settings } from 'lucide-react';
+import { ArrowUp, Check, Copy, Settings, X } from 'lucide-react';
 import {
   diffAiToolSnapshot,
   type AiToolGoldenSnapshot,
@@ -28,7 +28,8 @@ import { AiChatCandidateChips } from './AiChatCandidateChips';
 import { AiChatPromptLabModal } from './AiChatPromptLabModal';
 import { AiChatReplayDetailPanel } from './AiChatReplayDetailPanel';
 import { useAiPromptTemplates } from './useAiPromptTemplates';
-import { decodeEscapedUnicode, escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
+import { escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
+import { getAiChatCardMessages } from '../../i18n/aiChatCardMessages';
 
 type AiChatCardProps = {
   embedded?: boolean;
@@ -88,6 +89,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     : getAiChatProviderDefinition('mock');
 
   const isZh = locale === 'zh-CN';
+  const cardMessages = useMemo(() => getAiChatCardMessages(isZh), [isZh]);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const hasApiKeyField = useMemo(() => activeProviderDefinition.fields.some((field) => field.key === 'apiKey'), [activeProviderDefinition.fields]);
 
@@ -144,20 +146,16 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
       .filter((provider): provider is NonNullable<typeof provider> => Boolean(provider));
 
     return [
-      { label: decodeEscapedUnicode('\\u5b98\\u65b9\\u76f4\\u8fde'), items: pick(directKinds) },
-      { label: decodeEscapedUnicode('\\u517c\\u5bb9\\u6a21\\u5f0f'), items: pick(compatibleKinds) },
-      { label: decodeEscapedUnicode('\\u672c\\u5730/\\u81ea\\u5b9a\\u4e49'), items: pick(localKinds) },
+      { label: cardMessages.providerGroupOfficial, items: pick(directKinds) },
+      { label: cardMessages.providerGroupCompatible, items: pick(compatibleKinds) },
+      { label: cardMessages.providerGroupLocalCustom, items: pick(localKinds) },
     ].filter((group) => group.items.length > 0);
-  }, []);
+  }, [cardMessages]);
 
   const providerStatusLabel = useMemo(() => {
     const kind = aiChatSettings?.providerKind ?? 'mock';
-    if (kind === 'mock') return isZh ? decodeEscapedUnicode('\\u6a21\\u62df') : 'Mock';
-    if (kind === 'ollama') return isZh ? decodeEscapedUnicode('\\u672c\\u5730') : 'Local';
-    if (aiConnectionTestStatus === 'success') return isZh ? decodeEscapedUnicode('\\u5df2\\u8fde\\u63a5') : 'Connected';
-    if (aiConnectionTestStatus === 'error') return isZh ? decodeEscapedUnicode('\\u5f02\\u5e38') : 'Error';
-    return isZh ? decodeEscapedUnicode('\\u672a\\u9a8c\\u8bc1') : 'Unverified';
-  }, [aiChatSettings?.providerKind, aiConnectionTestStatus, isZh]);
+    return cardMessages.providerStatusLabel(kind, aiConnectionTestStatus);
+  }, [aiChatSettings?.providerKind, aiConnectionTestStatus, cardMessages]);
 
   const providerStatusTone = useMemo(() => {
     const kind = aiChatSettings?.providerKind ?? 'mock';
@@ -219,15 +217,15 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     if (!raw) return null;
     const isLayerMismatch = escapedUnicodeRegExp('\\u672a\\u627e\\u5230\\u5339\\u914d.?\\u5f53\\u524d.?\\u7684\\u8f6c\\u5199\\u5c42|no matching\\s+"?current"?\\s+transcription\\s+layer', 'i').test(raw);
     return isLayerMismatch
-      ? (isZh ? decodeEscapedUnicode('⚠ \\u672a\\u627e\\u5230\\u5339\\u914d“\\u5f53\\u524d”\\u7684\\u8f6c\\u5199\\u5c42') : '⚠ No matching "current" transcription layer found')
-      : (isZh ? `⚠ ${raw}` : `⚠ ${raw}`);
-  }, [aiLastError, isZh]);
+      ? cardMessages.layerMismatchWarning
+      : `⚠ ${raw}`;
+  }, [aiLastError, cardMessages]);
   const inputBlockedReason = useMemo(() => {
     if (hasToolPending) {
-      return isZh ? decodeEscapedUnicode('\\u5b58\\u5728\\u5f85\\u786e\\u8ba4\\u7684\\u9ad8\\u98ce\\u9669\\u64cd\\u4f5c，\\u8bf7\\u5148\\u786e\\u8ba4\\u6216\\u53d6\\u6d88。') : 'A high-risk action is pending. Confirm or cancel it first.';
+      return cardMessages.highRiskPending;
     }
     return null;
-  }, [hasToolPending, isZh]);
+  }, [hasToolPending, cardMessages]);
   const [showAlertBar, setShowAlertBar] = useState(() => alertCount > 0);
   const [showDecisionPanel, setShowDecisionPanel] = useState(true);
   const [showReplayDetailPanel, setShowReplayDetailPanel] = useState(false);
@@ -515,16 +513,16 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     const text = chatInput.trim();
     if (!text) return;
     if (!onSendAiMessage) {
-      showTransientBlockedReason(isZh ? decodeEscapedUnicode('AI \\u5bf9\\u8bdd\\u5c1a\\u672a\\u5c31\\u7eea，\\u8bf7\\u7a0d\\u540e\\u91cd\\u8bd5。') : 'AI chat is not ready yet. Please try again shortly.');
+      showTransientBlockedReason(cardMessages.chatNotReady);
       return;
     }
     if (aiIsStreaming) {
-      showTransientBlockedReason(isZh ? decodeEscapedUnicode('\\u4e0a\\u4e00\\u6761\\u56de\\u590d\\u4ecd\\u5728\\u751f\\u6210\\u4e2d，\\u505c\\u6b62\\u540e\\u53ef\\u7ee7\\u7eed\\u53d1\\u9001。') : 'Previous reply is still streaming. Stop it before sending.');
+      showTransientBlockedReason(cardMessages.previousReplyStreaming);
       return;
     }
     if (hasToolPending) {
       setShowAlertBar(true);
-      showTransientBlockedReason(inputBlockedReason ?? (isZh ? decodeEscapedUnicode('\\u5b58\\u5728\\u5f85\\u786e\\u8ba4\\u64cd\\u4f5c，\\u8bf7\\u5148\\u5904\\u7406\\u540e\\u518d\\u53d1\\u9001。') : 'A pending action must be handled before sending.'));
+      showTransientBlockedReason(inputBlockedReason ?? cardMessages.pendingActionBeforeSend);
       return;
     }
     void onSendAiMessage(text);
@@ -542,7 +540,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
             </div>
           </div>
           <div className="ai-chat-header-tools">
-            <div className="transcription-ai-mode-switch" role="group" aria-label={isZh ? decodeEscapedUnicode('\\u5de5\\u5177\\u53cd\\u9988\\u98ce\\u683c') : 'Tool feedback style'}>
+            <div className="transcription-ai-mode-switch" role="group" aria-label={cardMessages.toolFeedbackStyle}>
               <button
                 type="button"
                 className={`transcription-ai-mode-btn ${(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'detailed' ? 'is-active' : ''}`}
@@ -550,7 +548,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                 aria-pressed={(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'detailed'}
                 onClick={() => onUpdateAiChatSettings?.({ toolFeedbackStyle: 'detailed' })}
               >
-                {isZh ? decodeEscapedUnicode('\\u8be6\\u7ec6') : 'Detailed'}
+                {cardMessages.detailed}
               </button>
               <button
                 type="button"
@@ -559,7 +557,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                 aria-pressed={(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'concise'}
                 onClick={() => onUpdateAiChatSettings?.({ toolFeedbackStyle: 'concise' })}
               >
-                {isZh ? decodeEscapedUnicode('\\u7b80\\u6d01') : 'Concise'}
+                {cardMessages.concise}
               </button>
             </div>
             <span
@@ -586,8 +584,8 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
             <button
               type="button"
               className="icon-btn ai-chat-header-config-btn"
-              aria-label={showProviderConfig ? (isZh ? decodeEscapedUnicode('\\u6536\\u8d77\\u914d\\u7f6e') : 'Hide provider config') : (isZh ? decodeEscapedUnicode('\\u6253\\u5f00\\u914d\\u7f6e') : 'Open provider config')}
-              title={showProviderConfig ? (isZh ? decodeEscapedUnicode('\\u6536\\u8d77\\u914d\\u7f6e') : 'Hide provider config') : (isZh ? decodeEscapedUnicode('\\u6253\\u5f00\\u914d\\u7f6e') : 'Open provider config')}
+              aria-label={showProviderConfig ? cardMessages.hideProviderConfig : cardMessages.openProviderConfig}
+              title={showProviderConfig ? cardMessages.hideProviderConfig : cardMessages.openProviderConfig}
               onClick={() => setShowProviderConfig((prev) => !prev)}
             >
               <Settings size={14} strokeWidth={2} />
@@ -634,7 +632,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               {aiConnectionTestStatus === 'testing'
                 ? t(locale, 'ai.chat.testing')
                 : aiConnectionTestStatus === 'success'
-                  ? <><Check size={12} strokeWidth={2.5} style={{ marginRight: 2, verticalAlign: -1 }} />{isZh ? decodeEscapedUnicode('\\u5df2\\u8fde\\u63a5') : 'Connected'}</>
+                  ? <><Check size={12} strokeWidth={2.5} style={{ marginRight: 2, verticalAlign: -1 }} />{cardMessages.connected}</>
                   : t(locale, 'ai.chat.testConnection')}
             </button>
             {hasApiKeyField && (
@@ -644,7 +642,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                 style={{ height: 26, minWidth: 96, fontSize: 12 }}
                 onClick={() => onUpdateAiChatSettings?.({ apiKey: '' })}
               >
-                {isZh ? decodeEscapedUnicode('\\u6e05\\u7a7a\\u5f53\\u524d Key') : 'Clear Current Key'}
+                {cardMessages.clearCurrentKey}
               </button>
             )}
           </div>
@@ -671,10 +669,10 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
 
                   const assistantContent = assistantMsg
                     ? ((assistantMsg.status === 'streaming' && /\{[\s\S]*"tool_call"\s*:\s*\{/.test(assistantMsg.content || ''))
-                      ? (isZh ? decodeEscapedUnicode('\\u6b63\\u5728\\u89e3\\u6790\\u5de5\\u5177\\u8c03\\u7528…') : 'Parsing tool call...')
+                      ? cardMessages.parsingToolCall
                       : (assistantMsg.content || (assistantMsg.status === 'streaming'
-                        ? (assistantMsg.thinking ? (isZh ? decodeEscapedUnicode('\\u6b63\\u5728\\u601d\\u8003...') : 'Thinking...') : '...')
-                        : (assistantMsg.status === 'aborted' ? decodeEscapedUnicode('⏹ \\u5df2\\u4e2d\\u65ad') : ''))))
+                        ? (assistantMsg.thinking ? cardMessages.thinking : '...')
+                        : (assistantMsg.status === 'aborted' ? cardMessages.aborted : ''))))
                     : '';
                   const reasoningContent = assistantMsg?.reasoningContent;
                   const hasReasoning = typeof reasoningContent === 'string' && reasoningContent.length > 0;
@@ -703,10 +701,10 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                   const showAiGeneratedText = assistantMsg?.generationSource === 'llm' && assistantMsg?.status === 'done';
                   const generatedModelName = (assistantMsg?.generationModel ?? '').trim();
                   const generatedLabel = generatedModelName.length > 0
-                    ? (isZh ? decodeEscapedUnicode(`${generatedModelName} \\u751f\\u6210`) : `${generatedModelName} Generated`)
-                    : (isZh ? decodeEscapedUnicode('AI \\u751f\\u6210') : 'AI Generated');
+                    ? cardMessages.generatedByModel(generatedModelName)
+                    : cardMessages.aiGenerated;
                   const userContent = userMsg
-                    ? (userMsg.content || (userMsg.status === 'streaming' ? '...' : (userMsg.status === 'aborted' ? decodeEscapedUnicode('⏹ \\u5df2\\u4e2d\\u65ad') : '')))
+                    ? (userMsg.content || (userMsg.status === 'streaming' ? '...' : (userMsg.status === 'aborted' ? cardMessages.aborted : '')))
                     : '';
 
                   return (
@@ -770,82 +768,82 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                 }}
                               >
                                 <div style={{ fontWeight: 600, marginBottom: 2, fontStyle: 'normal' }}>
-                                  {isZh ? decodeEscapedUnicode('💭 \\u63a8\\u7406\\u8fc7\\u7a0b') : '💭 Reasoning'}
+                                  {cardMessages.reasoning}
                                 </div>
                                 <div>{reasoningContent}</div>
                               </div>
                             )}
-                          </div>
-                          {(hasCopyableAssistantContent || orderedCitations.length > 0 || hasReasoning || showAiGeneratedText) && (
-                            <div className="ai-chat-message-actions">
-                              {hasCopyableAssistantContent && (
-                                <button
-                                  type="button"
-                                  className="icon-btn ai-chat-message-copy-btn"
-                                  title={copiedMessageId === assistantMsg.id
-                                    ? (isZh ? decodeEscapedUnicode('\\u5df2\\u590d\\u5236') : 'Copied')
-                                    : (isZh ? decodeEscapedUnicode('\\u590d\\u5236') : 'Copy')}
-                                  aria-label={copiedMessageId === assistantMsg.id
-                                    ? (isZh ? decodeEscapedUnicode('\\u5df2\\u590d\\u5236') : 'Copied')
-                                    : (isZh ? decodeEscapedUnicode('\\u590d\\u5236') : 'Copy')}
-                                  onClick={() => {
-                                    if (typeof navigator === 'undefined' || !navigator.clipboard) return;
-                                    void navigator.clipboard.writeText(copyableAssistantContent);
-                                    if (copiedMessageTimerRef.current !== null && typeof window !== 'undefined') {
-                                      window.clearTimeout(copiedMessageTimerRef.current);
-                                    }
-                                    setCopiedMessageId(assistantMsg.id);
-                                    if (typeof window !== 'undefined') {
-                                      copiedMessageTimerRef.current = window.setTimeout(() => {
-                                        setCopiedMessageId((current) => (current === assistantMsg.id ? null : current));
-                                      }, 1200);
-                                    }
-                                  }}
-                                >
-                                  {copiedMessageId === assistantMsg.id ? <Check size={13} /> : <Copy size={13} />}
-                                </button>
-                              )}
-                              {hasReasoning && (
-                                <button
-                                  type="button"
-                                  className="ai-chat-message-action-btn"
-                                  style={{ fontStyle: 'italic' }}
-                                  onClick={() => {
-                                    setExpandedReasoningIds((prev) => {
-                                      const next = new Set(prev);
-                                      if (next.has(assistantMsg.id)) {
-                                        next.delete(assistantMsg.id);
-                                      } else {
-                                        next.add(assistantMsg.id);
+                            {(hasCopyableAssistantContent || orderedCitations.length > 0 || hasReasoning || showAiGeneratedText) && (
+                              <div className="ai-chat-message-actions">
+                                {hasCopyableAssistantContent && (
+                                  <button
+                                    type="button"
+                                    className="icon-btn ai-chat-message-copy-btn"
+                                    title={copiedMessageId === assistantMsg.id
+                                      ? cardMessages.copied
+                                      : cardMessages.copy}
+                                    aria-label={copiedMessageId === assistantMsg.id
+                                      ? cardMessages.copied
+                                      : cardMessages.copy}
+                                    onClick={() => {
+                                      if (typeof navigator === 'undefined' || !navigator.clipboard) return;
+                                      void navigator.clipboard.writeText(copyableAssistantContent);
+                                      if (copiedMessageTimerRef.current !== null && typeof window !== 'undefined') {
+                                        window.clearTimeout(copiedMessageTimerRef.current);
                                       }
-                                      return next;
-                                    });
-                                  }}
-                                >
-                                  {isReasoningExpanded
-                                    ? (isZh ? decodeEscapedUnicode('▲ \\u9690\\u85cf\\u63a8\\u7406') : '▲ Hide reasoning')
-                                    : (isZh ? decodeEscapedUnicode('▼ \\u67e5\\u770b\\u63a8\\u7406') : '▼ Show reasoning')}
-                                </button>
-                              )}
-                              {orderedCitations.map((citation, ci) => (
-                                <button
-                                  key={`${assistantMsg.id}-${citation.type}-${citation.refId}`}
-                                  className="ai-chat-message-action-btn"
-                                  title={`${citation.type}:${citation.refId}`}
-                                  type="button"
-                                  onClick={() => { if (!onJumpToCitation) return; void onJumpToCitation(citation.type, citation.refId, citation); }}
-                                  disabled={!onJumpToCitation}
-                                >
-                                  {hasInlineMarkers ? `[${ci + 1}] ` : ''}{formatCitationLabel(isZh, citation)}
-                                </button>
-                              ))}
-                              {showAiGeneratedText && (
-                                <span className="ai-chat-message-source-text">
-                                  {generatedLabel}
-                                </span>
-                              )}
-                            </div>
-                          )}
+                                      setCopiedMessageId(assistantMsg.id);
+                                      if (typeof window !== 'undefined') {
+                                        copiedMessageTimerRef.current = window.setTimeout(() => {
+                                          setCopiedMessageId((current) => (current === assistantMsg.id ? null : current));
+                                        }, 1200);
+                                      }
+                                    }}
+                                  >
+                                    {copiedMessageId === assistantMsg.id ? <Check size={13} /> : <Copy size={13} />}
+                                  </button>
+                                )}
+                                {hasReasoning && (
+                                  <button
+                                    type="button"
+                                    className="ai-chat-message-action-btn"
+                                    style={{ fontStyle: 'italic' }}
+                                    onClick={() => {
+                                      setExpandedReasoningIds((prev) => {
+                                        const next = new Set(prev);
+                                        if (next.has(assistantMsg.id)) {
+                                          next.delete(assistantMsg.id);
+                                        } else {
+                                          next.add(assistantMsg.id);
+                                        }
+                                        return next;
+                                      });
+                                    }}
+                                  >
+                                    {isReasoningExpanded
+                                      ? cardMessages.hideReasoning
+                                      : cardMessages.showReasoning}
+                                  </button>
+                                )}
+                                {orderedCitations.map((citation, ci) => (
+                                  <button
+                                    key={`${assistantMsg.id}-${citation.type}-${citation.refId}`}
+                                    className="ai-chat-message-action-btn"
+                                    title={`${citation.type}:${citation.refId}`}
+                                    type="button"
+                                    onClick={() => { if (!onJumpToCitation) return; void onJumpToCitation(citation.type, citation.refId, citation); }}
+                                    disabled={!onJumpToCitation}
+                                  >
+                                    {hasInlineMarkers ? `[${ci + 1}] ` : ''}{formatCitationLabel(isZh, citation)}
+                                  </button>
+                                ))}
+                                {showAiGeneratedText && (
+                                  <span className="ai-chat-message-source-text">
+                                    {generatedLabel}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                        </div>
                         </div>
                       )}
                     </div>
@@ -914,23 +912,39 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                       aria-haspopup="true"
                       onClick={() => setShowRagQuickScenarios((prev) => !prev)}
                     >
-                      {isZh ? decodeEscapedUnicode('\\u66f4\\u591a') : 'More'}
+                      {cardMessages.more}
                     </button>
                     {showRagQuickScenarios && (
-                      <div className="ai-chat-rag-quick-menu" role="dialog" aria-label={isZh ? decodeEscapedUnicode('RAG \\u5feb\\u6377\\u573a\\u666f') : 'RAG Quick Scenarios'}>
-                        {quickPromptTemplates.map((item) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            className="icon-btn ai-chat-action-btn ai-chat-action-btn-quiet ai-chat-rag-quick-menu-btn"
-                            onClick={() => {
-                              injectPromptTemplate(item.content);
-                              setShowRagQuickScenarios(false);
-                            }}
-                          >
-                            {item.title}
-                          </button>
-                        ))}
+                      <div className="ai-chat-rag-quick-menu dialog-card" role="dialog" aria-label={cardMessages.ragQuickScenarios}>
+                        <div className="dialog-header ai-chat-rag-quick-menu-header">
+                          <h3>{cardMessages.ragQuickScenarios}</h3>
+                          <div className="dialog-header-actions">
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => setShowRagQuickScenarios(false)}
+                              aria-label={`${cardMessages.ragQuickScenarios} ${t(locale, 'ai.assistantHub.cancel')}`}
+                              title={`${cardMessages.ragQuickScenarios} ${t(locale, 'ai.assistantHub.cancel')}`}
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="dialog-body ai-chat-rag-quick-menu-body">
+                          {quickPromptTemplates.map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              className="icon-btn ai-chat-action-btn ai-chat-action-btn-quiet ai-chat-rag-quick-menu-btn"
+                              onClick={() => {
+                                injectPromptTemplate(item.content);
+                                setShowRagQuickScenarios(false);
+                              }}
+                            >
+                              {item.title}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -956,7 +970,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               <button
                 type="button"
                 className={`icon-btn ai-chat-composer-send-btn${aiIsStreaming ? ' is-streaming' : ''}`}
-                aria-label={aiIsStreaming ? (isZh ? decodeEscapedUnicode('\\u505c\\u6b62\\u751f\\u6210') : 'Stop generating') : t(locale, 'ai.chat.send')}
+                aria-label={aiIsStreaming ? cardMessages.stopGenerating : t(locale, 'ai.chat.send')}
                 disabled={aiIsStreaming ? !onStopAiMessage : (!onSendAiMessage || hasToolPending)}
                 onClick={() => {
                   if (aiIsStreaming) {
@@ -966,7 +980,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                   submitChatInput();
                 }}
               >
-                {aiIsStreaming ? (isZh ? decodeEscapedUnicode('\\u505c\\u6b62') : 'Stop') : <ArrowUp size={16} strokeWidth={2} />}
+                {aiIsStreaming ? cardMessages.stop : <ArrowUp size={16} strokeWidth={2} />}
               </button>
             </div>
             {(transientBlockedReason || inputBlockedReason) && (
@@ -981,9 +995,9 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                 aria-expanded={showPromptLab}
               >
                 <span className="ai-chat-prompt-lab-panel-title">
-                  {isZh ? decodeEscapedUnicode('Prompt \\u5b9e\\u9a8c\\u5ba4') : 'Prompt Lab'}
-                  <span className="ai-chat-decision-panel-bracket">{isZh ? ' · ' : ' · '}</span>
-                  <span className="ai-chat-decision-panel-count">{promptTemplates.length}{isZh ? decodeEscapedUnicode(' \\u9879') : ''}</span>
+                  {cardMessages.promptLab}
+                  <span className="ai-chat-decision-panel-bracket"> · </span>
+                  <span className="ai-chat-decision-panel-count">{promptTemplates.length}{cardMessages.promptTemplateCountSuffix}</span>
                 </span>
                 <span className="ai-chat-fold-caret" aria-hidden="true">▾</span>
               </button>
@@ -1020,7 +1034,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                     onClick={voiceEntry.onTogglePanel}
                     aria-expanded={voiceEntry.expanded}
                   >
-                    <span className="ai-chat-voice-drawer-title">{isZh ? decodeEscapedUnicode('\\u8bed\\u97f3\\u8f93\\u5165') : 'Voice Input'}</span>
+                    <span className="ai-chat-voice-drawer-title">{cardMessages.voiceInput}</span>
                     <span className="ai-chat-fold-caret" aria-hidden="true">▾</span>
                   </button>
                   <div className="ai-chat-voice-drawer-body" aria-hidden={!voiceEntry.expanded}>
@@ -1029,11 +1043,11 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                         className="ai-chat-voice-drawer-resizer"
                         role="separator"
                         aria-orientation="horizontal"
-                        aria-label={isZh ? decodeEscapedUnicode('\\u62d6\\u52a8\\u8c03\\u6574\\u8bed\\u97f3\\u9762\\u677f\\u9ad8\\u5ea6') : 'Drag to resize voice panel height'}
+                        aria-label={cardMessages.dragResizeVoicePanelHeight}
                         onPointerDown={startVoiceDrawerResize}
                       />
                     )}
-                    {voiceDrawer ?? <p className="ai-chat-fold-empty">{isZh ? decodeEscapedUnicode('\\u8bed\\u97f3\\u9762\\u677f\\u6682\\u4e0d\\u53ef\\u7528') : 'Voice panel is temporarily unavailable'}</p>}
+                    {voiceDrawer ?? <p className="ai-chat-fold-empty">{cardMessages.voicePanelUnavailable}</p>}
                   </div>
                 </div>
               </div>
@@ -1050,9 +1064,9 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                   aria-expanded={showDecisionPanel}
                 >
                   <span className="ai-chat-decision-panel-title">
-                    {isZh ? decodeEscapedUnicode('AI \\u51b3\\u7b56') : 'AI Decisions'}
-                    <span className="ai-chat-decision-panel-bracket">{isZh ? ' · ' : ' · '}</span>
-                    <span className="ai-chat-decision-panel-count">{aiToolDecisionLogs?.length ?? 0}{isZh ? decodeEscapedUnicode(' \\u6761') : ''}</span>
+                    {cardMessages.aiDecisions}
+                    <span className="ai-chat-decision-panel-bracket"> · </span>
+                    <span className="ai-chat-decision-panel-count">{aiToolDecisionLogs?.length ?? 0}{cardMessages.decisionCountSuffix}</span>
                   </span>
                   <span className="ai-chat-fold-caret" aria-hidden="true">▾</span>
                 </button>
@@ -1066,12 +1080,12 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                         className="ai-chat-decision-panel-resizer"
                         role="separator"
                         aria-orientation="horizontal"
-                        aria-label={isZh ? decodeEscapedUnicode('\\u62d6\\u52a8\\u8c03\\u6574 AI \\u51b3\\u7b56\\u533a\\u9ad8\\u5ea6') : 'Drag to resize AI decision panel height'}
+                        aria-label={cardMessages.dragResizeDecisionPanelHeight}
                         onPointerDown={startDecisionPanelResize}
                       />
                     )}
                     {!hasDecisionLogs && (
-                      <p className="ai-chat-fold-empty">{isZh ? decodeEscapedUnicode('\\u6682\\u65e0\\u51b3\\u7b56\\u8bb0\\u5f55') : 'No decisions yet'}</p>
+                      <p className="ai-chat-fold-empty">{cardMessages.noDecisionsYet}</p>
                     )}
                     <div style={{ display: 'grid', gap: 6 }}>
                       {(aiToolDecisionLogs ?? []).map((item) => {
@@ -1081,7 +1095,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                         return (
                           <div key={item.id} className="ai-chat-decision-item" style={{ display: 'grid', gap: 4, fontSize: 10 }}>
                             <div className="ai-chat-decision-item-meta">
-                              <span className="ai-chat-decision-item-main">{item.toolName || (isZh ? decodeEscapedUnicode('\\u672a\\u77e5\\u5de5\\u5177') : 'unknown')} · {formatToolDecision(isZh, item.decision)}</span>
+                              <span className="ai-chat-decision-item-main">{item.toolName || cardMessages.unknownTool} · {formatToolDecision(isZh, item.decision)}</span>
                               <em className="ai-chat-decision-item-time">{new Date(item.timestamp).toLocaleTimeString()}</em>
                             </div>
                             {canReplay && (
@@ -1093,7 +1107,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                   disabled={isLoading}
                                   onClick={() => void openReplayBundle(item.requestId!)}
                                 >
-                                  {isLoading ? (isZh ? decodeEscapedUnicode('\\u8bfb\\u53d6\\u4e2d...') : 'Loading...') : (isSelected ? (isZh ? decodeEscapedUnicode('\\u5df2\\u6253\\u5f00\\u56de\\u653e') : 'Replay Opened') : (isZh ? decodeEscapedUnicode('\\u67e5\\u770b\\u56de\\u653e/\\u5bf9\\u6bd4') : 'Replay / Compare'))}
+                                  {isLoading ? cardMessages.loading : (isSelected ? cardMessages.replayOpened : cardMessages.replayCompare)}
                                 </button>
                                 <button
                                   type="button"
@@ -1102,8 +1116,8 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                   onClick={() => void exportGoldenSnapshot(item.requestId!)}
                                 >
                                   {exportedSnapshotRequestId === item.requestId
-                                    ? (isZh ? decodeEscapedUnicode('\\u5df2\\u5bfc\\u51fa\\u5feb\\u7167') : 'Snapshot Exported')
-                                    : (isZh ? decodeEscapedUnicode('\\u5bfc\\u51fa\\u5feb\\u7167') : 'Export Snapshot')}
+                                    ? cardMessages.snapshotExported
+                                    : cardMessages.exportSnapshot}
                                 </button>
                               </div>
                             )}

@@ -432,8 +432,6 @@ function TranscriptionPageOrchestrator({
     snapEnabled,
     setSnapEnabled,
     toggleSnapEnabled,
-    hoverExpandEnabled,
-    setHoverExpandEnabled,
   } = useTranscriptionWorkspaceLayoutController({
     layers,
     selectedTimelineOwnerUtteranceId: selectedTimelineOwnerUtterance?.id,
@@ -1048,14 +1046,12 @@ function TranscriptionPageOrchestrator({
   });
 
   usePanelAutoCollapse({
-    hoverExpandEnabled,
     isCollapsed: isAiPanelCollapsed,
     setIsCollapsed: setIsAiPanelCollapsed,
     boundaryRef: workspaceRef,
     panelSelector: '.transcription-ai-panel',
     toggleSelector: '.transcription-ai-panel-toggle',
     resizerSelector: '.transcription-ai-panel-resizer',
-    hoverZoneSelector: '.transcription-ai-panel-hover-zone',
     ignoreSelectors: [
       '.timeline-annotation',
       '.timeline-annotation-input',
@@ -1066,7 +1062,6 @@ function TranscriptionPageOrchestrator({
       '.app-side-pane-handle-cluster',
     ],
     ignoreInteractiveElements: true,
-    hoverExpandEdge: 'right',
   });
 
   // ---- Keybinding system (from hook) ----
@@ -1806,44 +1801,45 @@ function TranscriptionPageOrchestrator({
 
       {state.phase === 'ready' && (
         <>
-          <Suspense fallback={null}>
-            <RecoveryBanner
-              locale={locale}
-              recoveryAvailable={recoveryAvailable}
-              recoveryDiffSummary={recoveryDiffSummary}
-              onApply={applyRecoveryBanner}
-              onDismiss={dismissRecoveryBanner}
-            />
-          </Suspense>
-          <section className="transcription-waveform" ref={waveformSectionRef}>
-            <Suspense fallback={null}>
-              <TranscriptionPageToolbar {...toolbarProps} />
-            </Suspense>
-          </section>
-          <LeftRailProjectHub
-            currentProjectLabel={toolbarProps.filename}
-            canDeleteProject={Boolean(activeTextId)}
-            canDeleteAudio={Boolean(selectedTimelineMedia)}
-            onOpenProjectSetup={() => setShowProjectSetup(true)}
-            onOpenAudioImport={() => setShowAudioImport(true)}
-            onDeleteCurrentProject={handleDeleteCurrentProject}
-            onDeleteCurrentAudio={handleDeleteCurrentAudio}
-            onImportAnnotationFile={(file) => {
-              void handleImportFile(file);
-            }}
-            onPreviewProjectArchiveImport={previewProjectArchiveImport}
-            onImportProjectArchive={importProjectArchive}
-            onExportEaf={handleExportEaf}
-            onExportTextGrid={handleExportTextGrid}
-            onExportTrs={handleExportTrs}
-            onExportFlextext={handleExportFlextext}
-            onExportToolbox={handleExportToolbox}
-            onExportJyt={handleExportJyt}
-            onExportJym={handleExportJym}
-          />
-
-          {/* Editor workspace: left side for row editing, right side for AI guidance. */}
           <ToastProvider>
+            <Suspense fallback={null}>
+              <RecoveryBanner
+                locale={locale}
+                recoveryAvailable={recoveryAvailable}
+                recoveryDiffSummary={recoveryDiffSummary}
+                onApply={applyRecoveryBanner}
+                onDismiss={dismissRecoveryBanner}
+              />
+            </Suspense>
+            <section className="transcription-waveform" ref={waveformSectionRef}>
+              <Suspense fallback={null}>
+                <TranscriptionPageToolbar {...toolbarProps} />
+              </Suspense>
+            </section>
+            <LeftRailProjectHub
+              currentProjectLabel={toolbarProps.filename}
+              canDeleteProject={Boolean(activeTextId)}
+              canDeleteAudio={Boolean(selectedTimelineMedia)}
+              onOpenProjectSetup={() => setShowProjectSetup(true)}
+              onOpenAudioImport={() => setShowAudioImport(true)}
+              onOpenSpeakerManagementPanel={() => handleOpenSpeakerManagementPanel()}
+              onDeleteCurrentProject={handleDeleteCurrentProject}
+              onDeleteCurrentAudio={handleDeleteCurrentAudio}
+              onImportAnnotationFile={(file) => {
+                void handleImportFile(file);
+              }}
+              onPreviewProjectArchiveImport={previewProjectArchiveImport}
+              onImportProjectArchive={importProjectArchive}
+              onExportEaf={handleExportEaf}
+              onExportTextGrid={handleExportTextGrid}
+              onExportTrs={handleExportTrs}
+              onExportFlextext={handleExportFlextext}
+              onExportToolbox={handleExportToolbox}
+              onExportJyt={handleExportJyt}
+              onExportJym={handleExportJym}
+            />
+
+            {/* Editor workspace: left side for row editing, right side for AI guidance. */}
             <main
               ref={workspaceRef}
               className={`transcription-workspace ${isAiPanelCollapsed ? 'transcription-workspace-ai-collapsed' : ''}`}
@@ -2130,7 +2126,6 @@ function TranscriptionPageOrchestrator({
                       zoomPercent={zoomPercent}
                       snapEnabled={snapEnabled}
                       autoScrollEnabled={autoScrollEnabled}
-                      hoverExpandEnabled={hoverExpandEnabled}
                       activeUtteranceUnitId={selectedTimelineUtteranceId}
                       utterancesOnCurrentMedia={utterancesOnCurrentMedia}
                       fitPxPerSec={fitPxPerSec}
@@ -2139,7 +2134,6 @@ function TranscriptionPageOrchestrator({
                       onZoomToUtterance={zoomToUtterance}
                       onSnapEnabledChange={setSnapEnabled}
                       onAutoScrollEnabledChange={setAutoScrollEnabled}
-                      onHoverExpandEnabledChange={setHoverExpandEnabled}
                     />
                     <div className="toolbar-sep" style={{ margin: '0 6px' }} />
                     <TrackFocusToolbarControls
@@ -2176,13 +2170,18 @@ function TranscriptionPageOrchestrator({
                 </BottomToolbarSection>
               </section>
 
-              <div className="transcription-ai-panel-handle-cluster">
+              <div
+                className="transcription-ai-panel-handle-cluster"
+              >
                 <div
                   className="transcription-ai-panel-hover-zone"
                   onMouseEnter={() => {
-                    if (isAiPanelCollapsed && hoverExpandEnabled) handleAiPanelToggle();
+                    if (isAiPanelCollapsed) {
+                      setIsAiPanelCollapsed(false);
+                    }
                   }}
-                  style={{ display: isAiPanelCollapsed ? undefined : 'none', pointerEvents: hoverExpandEnabled ? 'auto' : 'none' }}
+                  style={{ display: isAiPanelCollapsed ? undefined : 'none' }}
+                  aria-hidden="true"
                 />
                 <div
                   className="transcription-ai-panel-resizer"
@@ -2197,7 +2196,9 @@ function TranscriptionPageOrchestrator({
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={handleAiPanelToggle}
                   onMouseEnter={() => {
-                    if (isAiPanelCollapsed && hoverExpandEnabled) handleAiPanelToggle();
+                    if (isAiPanelCollapsed) {
+                      setIsAiPanelCollapsed(false);
+                    }
                   }}
                   aria-label={isAiPanelCollapsed
                     ? t(locale, 'transcription.panel.expandAiPanel')

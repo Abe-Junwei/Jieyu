@@ -29,6 +29,7 @@ import {
   deleteLayerSegmentGraphByLayerId,
 } from '../services/LayerSegmentGraphService';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
+import { t, useLocale } from '../i18n';
 
 export type TranscriptionLayerActionsParams = {
   layers: LayerDocType[];
@@ -87,6 +88,7 @@ export function useTranscriptionLayerActions({
   setTranslations,
   setUtterances,
 }: TranscriptionLayerActionsParams) {
+  const locale = useLocale();
   const syncTranslationParentLinks = useCallback(async (
     previousLayers: LayerDocType[],
     nextLayers: LayerDocType[],
@@ -266,7 +268,9 @@ export function useTranscriptionLayerActions({
         updatedAt: now,
       } as LayerDocType;
 
-      pushUndo(`\u521b\u5efa${typeLabel}\u5c42`);
+      pushUndo(layerType === 'transcription'
+        ? t(locale, 'transcription.layer.undo.createTranscription')
+        : t(locale, 'transcription.layer.undo.createTranslation'));
       await LayerTierUnifiedService.createLayer(newLayer);
 
       let autoLink: LayerLinkDocType | undefined;
@@ -297,7 +301,7 @@ export function useTranscriptionLayerActions({
       setLayerCreateMessage(error instanceof Error ? error.message : '\u521b\u5efa\u5c42\u5931\u8d25');
       return false;
     }
-  }, [layers, persistLayerState, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers, setSelectedLayerId, utterancesRef]);
+  }, [layers, locale, persistLayerState, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers, setSelectedLayerId, utterancesRef]);
 
   /** Check whether the layer contains text content and needs confirmation. */
   const checkLayerHasContent = useCallback(async (layerId: string): Promise<number> => {
@@ -325,12 +329,13 @@ export function useTranscriptionLayerActions({
     }
 
     const layerLabel = targetLayer.name.zho ?? targetLayer.name.eng ?? targetLayer.key;
-    const layerTypeLabel = targetLayer.layerType === 'translation' ? '\u7ffb\u8bd1\u5c42' : '\u8f6c\u5199\u5c42';
     const keepUtterances = options?.keepUtterances ?? false;
 
     try {
       if (!options?.skipUndo) {
-        pushUndo(`\u5220\u9664${layerTypeLabel}`);
+        pushUndo(targetLayer.layerType === 'translation'
+          ? t(locale, 'transcription.layer.undo.deleteTranslation')
+          : t(locale, 'transcription.layer.undo.deleteTranscription'));
       }
 
       const isDeletingLastTranscription =
@@ -437,7 +442,7 @@ export function useTranscriptionLayerActions({
         setLayerCreateMessage(error instanceof Error ? error.message : '\u5220\u9664\u5c42\u5931\u8d25');
       }
     }
-  }, [layerLinks, layers, pushUndo, selectedLayerId, setLayerCreateMessage, setLayerLinks, setLayerToDeleteId, setLayers, setSelectedLayerId, setShowLayerManager, setTranslations, setUtterances]);
+  }, [layerLinks, layers, locale, pushUndo, selectedLayerId, setLayerCreateMessage, setLayerLinks, setLayerToDeleteId, setLayers, setSelectedLayerId, setShowLayerManager, setTranslations, setUtterances]);
 
   /** Delete a layer without showing the browser confirm dialog. */
   const deleteLayerWithoutConfirm = useCallback(async (targetLayerId: string) => {
@@ -513,7 +518,7 @@ export function useTranscriptionLayerActions({
       return;
     }
 
-    pushUndo('\u8c03\u6574\u5c42\u4f9d\u8d56');
+    pushUndo(t(locale, 'transcription.layer.undo.adjustDependency'));
     const now = new Date().toISOString();
     const updatedTranslationBase: LayerDocType = {
       ...translationLayer,
@@ -557,7 +562,7 @@ export function useTranscriptionLayerActions({
       ...prev.filter((link) => link.layerId !== layerId),
       newLink,
     ]);
-  }, [layerLinks, layers, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers]);
+  }, [layerLinks, layers, locale, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers]);
 
   const addMediaItem = useCallback((item: MediaItemDocType) => {
     setMediaItems((prev) => [...prev, item]);

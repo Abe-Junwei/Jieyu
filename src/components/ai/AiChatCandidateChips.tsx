@@ -1,3 +1,5 @@
+import { getAiChatCandidateChipsMessages } from '../../i18n/aiChatCandidateChipsMessages';
+
 interface CandidateItem {
   key: string;
   label: string;
@@ -18,9 +20,10 @@ export function AiChatCandidateChips({
   candidates,
   onSendAiMessage,
 }: AiChatCandidateChipsProps) {
+  const messages = getAiChatCandidateChipsMessages(isZh);
   const fallbackCandidates: CandidateItem[] = [
-    { key: 'demo-1', label: isZh ? '示例候选 1' : 'Sample candidate 1' },
-    { key: 'demo-2', label: isZh ? '示例候选 2' : 'Sample candidate 2' },
+    { key: 'demo-1', label: messages.demoCandidate1 },
+    { key: 'demo-2', label: messages.demoCandidate2 },
   ];
 
   const displayCandidates = candidates.length > 0 ? candidates : fallbackCandidates;

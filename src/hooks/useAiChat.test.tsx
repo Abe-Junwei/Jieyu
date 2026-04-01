@@ -900,6 +900,43 @@ describe('useAiChat abort and recovery', () => {
     expect(assistant?.content).toContain('已完成');
   });
 
+  it('should persist assistant generation metadata across remounts', async () => {
+    const first = renderHook(() => useAiChat());
+
+    await waitFor(() => {
+      expect(first.result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await first.result.current.send('__PLAIN_REPLY__');
+    });
+
+    await waitFor(() => {
+      expect(first.result.current.isStreaming).toBe(false);
+    });
+
+    const firstAssistant = first.result.current.messages.find((item) => item.role === 'assistant');
+    expect(firstAssistant?.generationSource).toBe('llm');
+  expect(firstAssistant?.generationModel).toBe('mock-1');
+
+    const persistedAssistant = (await db.ai_messages.toArray()).find((row) => row.role === 'assistant');
+    expect(persistedAssistant?.generationSource).toBe('llm');
+  expect(persistedAssistant?.generationModel).toBe('mock-1');
+
+    first.unmount();
+
+    const second = renderHook(() => useAiChat());
+
+    await waitFor(() => {
+      expect(second.result.current.isBootstrapping).toBe(false);
+    });
+
+    const restoredAssistant = second.result.current.messages.find((item) => item.role === 'assistant');
+    expect(restoredAssistant?.content).toContain('普通对话回复');
+    expect(restoredAssistant?.generationSource).toBe('llm');
+    expect(restoredAssistant?.generationModel).toBe('mock-1');
+  });
+
   it('should render concise tool feedback when configured', async () => {
     const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '已重命名' });
     const { result } = renderHook(() => useAiChat({ onToolCall }));

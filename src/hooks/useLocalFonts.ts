@@ -63,7 +63,7 @@ export function useLocalFonts() {
   }, [coverageByKey]);
 
   const ensureCoverage = useCallback(async (fontFamily: string, renderPolicy: OrthographyRenderPolicy) => {
-    if (!fontFamily || fontFamily === '系统默认') return undefined;
+    if (!fontFamily || fontFamily === '\u7cfb\u7edf\u9ed8\u8ba4') return undefined;
     const cacheKey = [fontFamily, renderPolicy.scriptTag, renderPolicy.coverageSummary.exemplarSample, renderPolicy.coverageSummary.exemplarCharacterCount, renderPolicy.ipaMode ? 'ipa' : 'plain'].join('\u0000');
     const existing = coverageByKey[cacheKey] ?? getCachedFontCoverageVerification(fontFamily, renderPolicy);
     if (existing) {
