@@ -1,0 +1,320 @@
+import type { Locale } from './index';
+
+export type SidePaneSidebarMessages = {
+  constraintIndependent: string;
+  constraintTimeSubdivision: string;
+  constraintSymbolicAssociation: string;
+  contextCreateTranscription: string;
+  contextCreateTranslation: string;
+  contextDeleteCurrentLayer: string;
+  speakerManagementTitle: string;
+  speakerEntityCount: (count: number) => string;
+  speakerReferencedInScope: (count: number) => string;
+  speakerReferencedProject: (count: number) => string;
+  speakerReferencedProjectPending: string;
+  speakerUnusedCount: (count: number) => string;
+  speakerUnusedCountPending: string;
+  speakerDuplicateGroupCount: (count: number) => string;
+  speakerSelectedUtteranceCount: (count: number) => string;
+  speakerCleanupUnusedTitle: string;
+  speakerCleanupUnusedButton: (count: number) => string;
+  speakerBatchAssignTitle: string;
+  speakerTargetPlaceholder: string;
+  speakerApplyButton: string;
+  speakerClearTitle: string;
+  speakerClearButton: string;
+  speakerDraftPlaceholder: string;
+  speakerCreateOnlyTitle: string;
+  speakerCreateOnlyButton: string;
+  speakerCreateAssignTitle: string;
+  speakerCreateAssignButton: string;
+  speakerFilterAria: string;
+  speakerFilterAllTitle: string;
+  speakerFilterAllLabel: string;
+  speakerGroupAria: string;
+  speakerGroupExpand: string;
+  speakerGroupCollapse: string;
+  speakerFocusTitle: string;
+  speakerFocusButton: string;
+  speakerSelectAllTitle: string;
+  speakerSelectAllButton: string;
+  speakerDeleteTagTitle: string;
+  speakerDeleteTagButton: string;
+  speakerExportTitle: string;
+  speakerExportButton: string;
+  speakerRenameTitle: string;
+  speakerRenameButton: string;
+  speakerMergeTitle: string;
+  speakerMergeButton: string;
+  speakerDeleteEntityTitle: string;
+  speakerDeleteEntityButton: string;
+  speakerCurrentScopeCount: (count: number) => string;
+  speakerCurrentScopeNone: string;
+  speakerProjectRefCount: (count: number) => string;
+  speakerProjectRefPending: string;
+  speakerAxisStats: (utteranceCount: number, segmentCount: number) => string;
+  speakerAxisStatsPending: string;
+  speakerUnusedEntityHint: string;
+  speakerDuplicateEntityHint: (count: number) => string;
+  draggableLayerRoleDesc: string;
+  layerTypeTranslationShort: string;
+  layerTypeTranscriptionShort: string;
+  emptyLayerHint: string;
+  inspectorAria: string;
+  inspectorEmpty: string;
+  inspectorDeleteCurrentLayerTitle: string;
+  inspectorDeleteCurrentLayerAria: string;
+  inspectorLanguage: string;
+  inspectorConstraint: string;
+  inspectorAlias: string;
+  inspectorParentLayer: string;
+  inspectorParentLayerAria: string;
+  inspectorSelectPlaceholder: string;
+  inspectorNoIndependentLayer: string;
+  overviewLayerListAria: string;
+  overviewLayerListTitle: string;
+  overviewCurrentLayerCardAria: string;
+  overviewCurrentLayerTitle: string;
+  quickActionsAria: string;
+  quickActionCreateTranscription: string;
+  quickActionCreateTranslation: string;
+  quickActionMore: string;
+  quickActionMoreAria: string;
+  quickActionSpeakerManagement: string;
+  quickActionDeleteCurrentLayer: string;
+  quickActionRepairing: string;
+  quickActionRepair: string;
+  deleteLayerModalAria: string;
+  deleteKeepUtterances: string;
+  deleteButton: string;
+  cancelButton: string;
+  repairDetailsAria: string;
+  repairDetailsTitle: string;
+  repairDetailsExpandAria: string;
+  repairDetailsCollapseAria: string;
+  repairDetailsExpand: string;
+  repairDetailsCollapse: string;
+  quickActionsCardAria: string;
+  quickActionsCardTitle: string;
+  inlinePaneAria: string;
+  paneTitle: string;
+  paneSubtitle: string;
+  repairNoNeed: string;
+  repairFailedPrefix: string;
+  repairSummary: (changedLayers: number, changedSortLayers: number, remaining: number) => string;
+  repairSummaryDone: (changedLayers: number, changedSortLayers: number) => string;
+};
+
+const zhCN: SidePaneSidebarMessages = {
+  constraintIndependent: '\u72ec\u7acb\u8fb9\u754c',
+  constraintTimeSubdivision: '\u65f6\u95f4\u7ec6\u5206',
+  constraintSymbolicAssociation: '\u7b26\u53f7\u5173\u8054',
+  contextCreateTranscription: '\u65b0\u5efa\u8f6c\u5199\u5c42',
+  contextCreateTranslation: '\u65b0\u5efa\u7ffb\u8bd1\u5c42',
+  contextDeleteCurrentLayer: '\u5220\u9664\u5f53\u524d\u5c42',
+  speakerManagementTitle: '\u8bf4\u8bdd\u4eba\u7ba1\u7406',
+  speakerEntityCount: (count) => `\u8bf4\u8bdd\u4eba\u5b9e\u4f53\uff1a${count}`,
+  speakerReferencedInScope: (count) => `\u5f53\u524d\u8303\u56f4\u5df2\u5f15\u7528\uff1a${count}`,
+  speakerReferencedProject: (count) => `\u5168\u9879\u76ee\u5df2\u5f15\u7528\uff1a${count}`,
+  speakerReferencedProjectPending: '\u5168\u9879\u76ee\u5df2\u5f15\u7528\uff1a\u7edf\u8ba1\u4e2d\u2026',
+  speakerUnusedCount: (count) => `\u672a\u5f15\u7528\u5b9e\u4f53\uff1a${count}`,
+  speakerUnusedCountPending: '\u672a\u5f15\u7528\u5b9e\u4f53\uff1a\u7edf\u8ba1\u4e2d\u2026',
+  speakerDuplicateGroupCount: (count) => `\u540c\u540d\u7ec4\uff1a${count}`,
+  speakerSelectedUtteranceCount: (count) => `\u5df2\u9009\u53e5\u6bb5\uff1a${count}`,
+  speakerCleanupUnusedTitle: '\u6279\u91cf\u5220\u9664\u5168\u9879\u76ee\u672a\u5f15\u7528\u7684\u8bf4\u8bdd\u4eba\u5b9e\u4f53',
+  speakerCleanupUnusedButton: (count) => `\u6e05\u7406\u672a\u5f15\u7528\u5b9e\u4f53\uff08${count}\uff09`,
+  speakerBatchAssignTitle: '\u6279\u91cf\u5206\u914d',
+  speakerTargetPlaceholder: '\u9009\u62e9\u76ee\u6807\u8bf4\u8bdd\u4eba',
+  speakerApplyButton: '\u5e94\u7528\u8bf4\u8bdd\u4eba',
+  speakerClearTitle: '\u6e05\u7a7a\u5f53\u524d\u9009\u4e2d\u8bed\u6bb5\u7684\u8bf4\u8bdd\u4eba\u6807\u7b7e',
+  speakerClearButton: '\u6e05\u7a7a\u5df2\u9009\u8bf4\u8bdd\u4eba',
+  speakerDraftPlaceholder: '\u65b0\u8bf4\u8bdd\u4eba\u540d\u79f0',
+  speakerCreateOnlyTitle: '\u4ec5\u65b0\u5efa\u8bf4\u8bdd\u4eba\uff0c\u4e0d\u5206\u914d\u53e5\u6bb5',
+  speakerCreateOnlyButton: '\u4ec5\u65b0\u5efa',
+  speakerCreateAssignTitle: '\u65b0\u5efa\u8bf4\u8bdd\u4eba\u5e76\u5206\u914d\u5230\u5df2\u9009\u53e5\u6bb5',
+  speakerCreateAssignButton: '\u65b0\u5efa\u5e76\u5206\u914d',
+  speakerFilterAria: '\u8bf4\u8bdd\u4eba\u7b5b\u9009',
+  speakerFilterAllTitle: '\u663e\u793a\u5168\u90e8\u8bf4\u8bdd\u4eba',
+  speakerFilterAllLabel: '\u5168\u90e8',
+  speakerGroupAria: '\u8bf4\u8bdd\u4eba\u7ec4',
+  speakerGroupExpand: '\u5c55\u5f00\u8bf4\u8bdd\u4eba\u7ec4',
+  speakerGroupCollapse: '\u6298\u53e0\u8bf4\u8bdd\u4eba\u7ec4',
+  speakerFocusTitle: '\u53ea\u770b\u8be5\u8bf4\u8bdd\u4eba',
+  speakerFocusButton: '\u805a\u7126',
+  speakerSelectAllTitle: '\u9009\u4e2d\u8be5\u8bf4\u8bdd\u4eba\u7684\u5168\u90e8\u53e5\u6bb5',
+  speakerSelectAllButton: '\u9009\u4e2d',
+  speakerDeleteTagTitle: '\u5220\u9664\u8be5\u8bf4\u8bdd\u4eba\u7684\u6807\u7b7e',
+  speakerDeleteTagButton: '\u5220\u9664\u6807\u7b7e',
+  speakerExportTitle: '\u5bfc\u51fa\u8be5\u8bf4\u8bdd\u4eba\u53e5\u6bb5\u6e05\u5355',
+  speakerExportButton: '\u5bfc\u51fa',
+  speakerRenameTitle: '\u91cd\u547d\u540d\u8be5\u8bf4\u8bdd\u4eba',
+  speakerRenameButton: '\u6539\u540d',
+  speakerMergeTitle: '\u5c06\u8be5\u8bf4\u8bdd\u4eba\u5408\u5e76\u5230\u5176\u4ed6\u8bf4\u8bdd\u4eba',
+  speakerMergeButton: '\u5408\u5e76',
+  speakerDeleteEntityTitle: '\u5220\u9664\u8be5\u8bf4\u8bdd\u4eba\u5b9e\u4f53\uff08\u5371\u9669\uff09',
+  speakerDeleteEntityButton: '\u5220\u9664\u8bf4\u8bdd\u4eba\u5b9e\u4f53',
+  speakerCurrentScopeCount: (count) => `\u5f53\u524d\u8303\u56f4\u53e5\u6bb5\u6570\uff1a${count}`,
+  speakerCurrentScopeNone: '\u5f53\u524d\u8303\u56f4\u672a\u5f15\u7528',
+  speakerProjectRefCount: (count) => `\u5168\u9879\u76ee\u5f15\u7528\uff1a${count}`,
+  speakerProjectRefPending: '\u5168\u9879\u76ee\u5f15\u7528\uff1a\u7edf\u8ba1\u4e2d\u2026',
+  speakerAxisStats: (utteranceCount, segmentCount) => `\u4e3b\u8f74\u53e5\u6bb5\uff1a${utteranceCount} / \u72ec\u7acb\u8bed\u6bb5\uff1a${segmentCount}`,
+  speakerAxisStatsPending: '\u4e3b\u8f74\u53e5\u6bb5 / \u72ec\u7acb\u8bed\u6bb5\uff1a\u7edf\u8ba1\u4e2d\u2026',
+  speakerUnusedEntityHint: '\u8be5\u5b9e\u4f53\u5f53\u524d\u672a\u88ab\u5f15\u7528\uff0c\u53ef\u5b89\u5168\u6e05\u7406',
+  speakerDuplicateEntityHint: (count) => `\u68c0\u6d4b\u5230\u540c\u540d\u5b9e\u4f53\u7ec4\uff1a${count} \u4e2a\uff0c\u5efa\u8bae\u5408\u5e76\u6e05\u7406`,
+  draggableLayerRoleDesc: '\u53ef\u62d6\u62fd\u5c42',
+  layerTypeTranslationShort: '\u8bd1',
+  layerTypeTranscriptionShort: '\u5199',
+  emptyLayerHint: '\u6682\u65e0\u5c42\uff0c\u70b9\u51fb\u4e0b\u65b9\u6309\u94ae\u65b0\u5efa',
+  inspectorAria: '\u5f53\u524d\u5c42\u8be6\u60c5',
+  inspectorEmpty: '\u8bf7\u9009\u62e9\u4e00\u4e2a\u5c42\u67e5\u770b\u8be6\u60c5\u3002',
+  inspectorDeleteCurrentLayerTitle: '\u5220\u9664\u5f53\u524d\u5c42',
+  inspectorDeleteCurrentLayerAria: '\u5220\u9664\u5f53\u524d\u5c42',
+  inspectorLanguage: '\u8bed\u8a00',
+  inspectorConstraint: '\u7ea6\u675f',
+  inspectorAlias: '\u522b\u540d',
+  inspectorParentLayer: '\u4f9d\u8d56\u8f6c\u5199\u5c42',
+  inspectorParentLayerAria: '\u4f9d\u8d56\u8f6c\u5199\u5c42',
+  inspectorSelectPlaceholder: '\u8bf7\u9009\u62e9',
+  inspectorNoIndependentLayer: '\u6682\u65e0\u53ef\u7528\u7684\u72ec\u7acb\u8f6c\u5199\u5c42\u53ef\u4f9b\u7ed1\u5b9a\u3002',
+  overviewLayerListAria: '\u5c42\u5217\u8868',
+  overviewLayerListTitle: '\u5c42\u5217\u8868',
+  overviewCurrentLayerCardAria: '\u5f53\u524d\u5c42\u8be6\u60c5\u5361\u7247',
+  overviewCurrentLayerTitle: '\u5f53\u524d\u5c42\u8be6\u60c5',
+  quickActionsAria: '\u5c42\u7ba1\u7406\u5feb\u6377\u64cd\u4f5c',
+  quickActionCreateTranscription: '\u65b0\u5efa\u8f6c\u5199\u5c42',
+  quickActionCreateTranslation: '\u65b0\u5efa\u7ffb\u8bd1\u5c42',
+  quickActionMore: '\u66f4\u591a',
+  quickActionMoreAria: '\u66f4\u591a\u64cd\u4f5c',
+  quickActionSpeakerManagement: '\u8bf4\u8bdd\u4eba\u7ba1\u7406',
+  quickActionDeleteCurrentLayer: '\u5220\u9664\u5f53\u524d\u5c42',
+  quickActionRepairing: '\u4fee\u590d\u4e2d\u2026',
+  quickActionRepair: '\u7ea6\u675f\u4fee\u590d',
+  deleteLayerModalAria: '\u5220\u9664\u5c42',
+  deleteKeepUtterances: '\u4fdd\u7559\u73b0\u6709\u8bed\u6bb5\u533a\u95f4',
+  deleteButton: '\u5220\u9664',
+  cancelButton: '\u53d6\u6d88',
+  repairDetailsAria: '\u7ea6\u675f\u4fee\u590d\u660e\u7ec6',
+  repairDetailsTitle: '\u4fee\u590d\u660e\u7ec6',
+  repairDetailsExpandAria: '\u5c55\u5f00\u4fee\u590d\u660e\u7ec6',
+  repairDetailsCollapseAria: '\u6536\u8d77\u4fee\u590d\u660e\u7ec6',
+  repairDetailsExpand: '\u5c55\u5f00\u660e\u7ec6',
+  repairDetailsCollapse: '\u6536\u8d77\u660e\u7ec6',
+  quickActionsCardAria: '\u5c42\u7ba1\u7406\u5feb\u6377\u64cd\u4f5c\u5361\u7247',
+  quickActionsCardTitle: '\u5c42\u7ba1\u7406\u5feb\u6377\u64cd\u4f5c',
+  inlinePaneAria: '\u6587\u672c\u533a\u5c42\u6eda\u52a8\u680f',
+  paneTitle: '\u6587\u672c\u5c42\u5de5\u4f5c\u53f0',
+  paneSubtitle: '\u5c42\u5217\u8868\u3001\u5f53\u524d\u5c42\u8be6\u60c5\u4e0e\u5feb\u6377\u64cd\u4f5c',
+  repairNoNeed: '\u5c42\u7ea6\u675f\u68c0\u67e5\u901a\u8fc7\uff0c\u65e0\u9700\u4fee\u590d\u3002',
+  repairFailedPrefix: '\u7ea6\u675f\u4fee\u590d\u5931\u8d25\uff1a',
+  repairSummary: (changedLayers, changedSortLayers, remaining) => `\u5df2\u4fee\u590d ${changedLayers} \u6761\u7ed3\u6784\u7ea6\u675f\u3001${changedSortLayers} \u6761\u987a\u5e8f\u95ee\u9898\uff0c\u4ecd\u6709 ${remaining} \u6761\u9700\u4eba\u5de5\u5904\u7406\u3002`,
+  repairSummaryDone: (changedLayers, changedSortLayers) => `\u5df2\u81ea\u52a8\u4fee\u590d ${changedLayers} \u6761\u7ed3\u6784\u7ea6\u675f\u3001${changedSortLayers} \u6761\u987a\u5e8f\u95ee\u9898\u3002`,
+};
+
+const enUS: SidePaneSidebarMessages = {
+  constraintIndependent: 'Independent boundary',
+  constraintTimeSubdivision: 'Time subdivision',
+  constraintSymbolicAssociation: 'Symbolic association',
+  contextCreateTranscription: 'Create transcription layer',
+  contextCreateTranslation: 'Create translation layer',
+  contextDeleteCurrentLayer: 'Delete current layer',
+  speakerManagementTitle: 'Speaker management',
+  speakerEntityCount: (count) => `Speaker entities: ${count}`,
+  speakerReferencedInScope: (count) => `Referenced in current scope: ${count}`,
+  speakerReferencedProject: (count) => `Referenced project-wide: ${count}`,
+  speakerReferencedProjectPending: 'Referenced project-wide: counting\u2026',
+  speakerUnusedCount: (count) => `Unused entities: ${count}`,
+  speakerUnusedCountPending: 'Unused entities: counting\u2026',
+  speakerDuplicateGroupCount: (count) => `Duplicate-name groups: ${count}`,
+  speakerSelectedUtteranceCount: (count) => `Selected utterances: ${count}`,
+  speakerCleanupUnusedTitle: 'Batch delete unused speaker entities across the project',
+  speakerCleanupUnusedButton: (count) => `Clean unused entities (${count})`,
+  speakerBatchAssignTitle: 'Batch assign',
+  speakerTargetPlaceholder: 'Select target speaker',
+  speakerApplyButton: 'Apply speaker',
+  speakerClearTitle: 'Clear speaker tags on selected utterances',
+  speakerClearButton: 'Clear selected speakers',
+  speakerDraftPlaceholder: 'New speaker name',
+  speakerCreateOnlyTitle: 'Create speaker only, do not assign utterances',
+  speakerCreateOnlyButton: 'Create only',
+  speakerCreateAssignTitle: 'Create speaker and assign to selected utterances',
+  speakerCreateAssignButton: 'Create and assign',
+  speakerFilterAria: 'Speaker filter',
+  speakerFilterAllTitle: 'Show all speakers',
+  speakerFilterAllLabel: 'All',
+  speakerGroupAria: 'Speaker groups',
+  speakerGroupExpand: 'Expand speaker group',
+  speakerGroupCollapse: 'Collapse speaker group',
+  speakerFocusTitle: 'Focus this speaker only',
+  speakerFocusButton: 'Focus',
+  speakerSelectAllTitle: 'Select all utterances for this speaker',
+  speakerSelectAllButton: 'Select',
+  speakerDeleteTagTitle: 'Delete tags for this speaker',
+  speakerDeleteTagButton: 'Delete tag',
+  speakerExportTitle: 'Export segment list for this speaker',
+  speakerExportButton: 'Export',
+  speakerRenameTitle: 'Rename this speaker',
+  speakerRenameButton: 'Rename',
+  speakerMergeTitle: 'Merge this speaker into another one',
+  speakerMergeButton: 'Merge',
+  speakerDeleteEntityTitle: 'Delete this speaker entity (danger)',
+  speakerDeleteEntityButton: 'Delete speaker entity',
+  speakerCurrentScopeCount: (count) => `Segments in current scope: ${count}`,
+  speakerCurrentScopeNone: 'Not referenced in current scope',
+  speakerProjectRefCount: (count) => `Project references: ${count}`,
+  speakerProjectRefPending: 'Project references: counting\u2026',
+  speakerAxisStats: (utteranceCount, segmentCount) => `Main-axis segments: ${utteranceCount} / Independent segments: ${segmentCount}`,
+  speakerAxisStatsPending: 'Main-axis / independent segments: counting\u2026',
+  speakerUnusedEntityHint: 'This entity is currently unused and can be safely cleaned up',
+  speakerDuplicateEntityHint: (count) => `Detected duplicate-name entity group: ${count}, merge is recommended`,
+  draggableLayerRoleDesc: 'Draggable layer',
+  layerTypeTranslationShort: 'TR',
+  layerTypeTranscriptionShort: 'TX',
+  emptyLayerHint: 'No layers yet, click below to create one',
+  inspectorAria: 'Current layer details',
+  inspectorEmpty: 'Select a layer to view details.',
+  inspectorDeleteCurrentLayerTitle: 'Delete current layer',
+  inspectorDeleteCurrentLayerAria: 'Delete current layer',
+  inspectorLanguage: 'Language',
+  inspectorConstraint: 'Constraint',
+  inspectorAlias: 'Alias',
+  inspectorParentLayer: 'Parent transcription layer',
+  inspectorParentLayerAria: 'Parent transcription layer',
+  inspectorSelectPlaceholder: 'Please select',
+  inspectorNoIndependentLayer: 'No independent transcription layer available for binding.',
+  overviewLayerListAria: 'Layer list',
+  overviewLayerListTitle: 'Layer list',
+  overviewCurrentLayerCardAria: 'Current layer details card',
+  overviewCurrentLayerTitle: 'Current layer details',
+  quickActionsAria: 'Layer management quick actions',
+  quickActionCreateTranscription: 'Create transcription layer',
+  quickActionCreateTranslation: 'Create translation layer',
+  quickActionMore: 'More',
+  quickActionMoreAria: 'More actions',
+  quickActionSpeakerManagement: 'Speaker management',
+  quickActionDeleteCurrentLayer: 'Delete current layer',
+  quickActionRepairing: 'Repairing\u2026',
+  quickActionRepair: 'Constraint repair',
+  deleteLayerModalAria: 'Delete layer',
+  deleteKeepUtterances: 'Keep existing utterance ranges',
+  deleteButton: 'Delete',
+  cancelButton: 'Cancel',
+  repairDetailsAria: 'Constraint repair details',
+  repairDetailsTitle: 'Repair details',
+  repairDetailsExpandAria: 'Expand repair details',
+  repairDetailsCollapseAria: 'Collapse repair details',
+  repairDetailsExpand: 'Expand details',
+  repairDetailsCollapse: 'Collapse details',
+  quickActionsCardAria: 'Layer management quick actions card',
+  quickActionsCardTitle: 'Layer management quick actions',
+  inlinePaneAria: 'Text-area layer rail',
+  paneTitle: 'Text Layer Workspace',
+  paneSubtitle: 'Layer list, current layer details and quick actions',
+  repairNoNeed: 'Layer constraints are valid, no repair needed.',
+  repairFailedPrefix: 'Constraint repair failed: ',
+  repairSummary: (changedLayers, changedSortLayers, remaining) => `Repaired ${changedLayers} structural constraints and ${changedSortLayers} ordering issues, with ${remaining} still requiring manual handling.`,
+  repairSummaryDone: (changedLayers, changedSortLayers) => `Automatically repaired ${changedLayers} structural constraints and ${changedSortLayers} ordering issues.`,
+};
+
+export function getSidePaneSidebarMessages(locale: Locale): SidePaneSidebarMessages {
+  return locale === 'zh-CN' ? zhCN : enUS;
+}

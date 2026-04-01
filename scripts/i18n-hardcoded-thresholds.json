@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "prefix": "src/components/",
+      "label": "components",
+      "maxDelta": 0
+    },
+    {
+      "prefix": "src/pages/",
+      "label": "pages",
+      "maxDelta": 0
+    },
+    {
+      "prefix": "src/hooks/",
+      "label": "hooks",
+      "maxDelta": 0
+    },
+    {
+      "prefix": "src/ai/",
+      "label": "ai",
+      "maxDelta": 0
+    },
+    {
+      "prefix": "src/services/",
+      "label": "services",
+      "maxDelta": 0
+    },
+    {
+      "prefix": "src/utils/",
+      "label": "utils",
+      "maxDelta": 0
+    }
+  ]
+}
