@@ -10,7 +10,6 @@ const makeInput = (overrides: Partial<UseLayerActionPanelInput> = {}): UseLayerA
   deleteLayer: vi.fn(async () => {}),
   deletableLayers: [],
   focusedLayerRowId: '',
-  isLayerRailCollapsed: false,
   ...overrides,
 });
 
@@ -258,21 +257,6 @@ describe('quickDeleteLayerId sync effect', () => {
 });
 
 describe('panel close effects', () => {
-  it('closes panel when isLayerRailCollapsed becomes true', async () => {
-    const { result, rerender } = renderHook(
-      (input: UseLayerActionPanelInput) => useLayerActionPanel(input),
-      { initialProps: makeInput({ isLayerRailCollapsed: false }) },
-    );
-
-    await act(async () => {
-      result.current.setLayerActionPanel('create-transcription');
-    });
-    expect(result.current.layerActionPanel).toBe('create-transcription');
-
-    rerender(makeInput({ isLayerRailCollapsed: true }));
-    await waitFor(() => expect(result.current.layerActionPanel).toBeNull());
-  });
-
   it('keeps panel open when unrelated props rerender', async () => {
     const { result, rerender } = renderHook(
       (input: UseLayerActionPanelInput) => useLayerActionPanel(input),
