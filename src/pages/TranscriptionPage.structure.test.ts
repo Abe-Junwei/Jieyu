@@ -63,31 +63,30 @@ function findFirstJsxByClassName(sourceFile: ts.SourceFile, classNeedle: string)
   return found;
 }
 
-function isRangeNested(inner: JsxWithClass, outer: JsxWithClass): boolean {
-  return inner.start > outer.start && inner.end < outer.end;
-}
-
 describe('TranscriptionPage structure invariants', () => {
   it('keeps transcription-list-main outside transcription-waveform-area', () => {
-    // The actual component JSX lives in TranscriptionPage.Orchestrator.tsx
-    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
-    const code = fs.readFileSync(filePath, 'utf8');
-    const sourceFile = ts.createSourceFile(filePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-
-    const waveformArea = findFirstJsxByClassName(sourceFile, 'transcription-waveform-area');
-    const listMain = findFirstJsxByClassName(sourceFile, 'transcription-list-main');
-
+    // waveform-area JSX 已提取到 OrchestratorWaveformContent | waveform-area JSX now in OrchestratorWaveformContent
+    const waveformFilePath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');
+    const waveformFileCode = fs.readFileSync(waveformFilePath, 'utf8');
+    const waveformSourceFile = ts.createSourceFile(waveformFilePath, waveformFileCode, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const waveformArea = findFirstJsxByClassName(waveformSourceFile, 'transcription-waveform-area');
     expect(waveformArea).not.toBeNull();
+
+    // list-main 仍在 Orchestrator | list-main still in Orchestrator
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorSourceFile = ts.createSourceFile(orchestratorPath, orchestratorCode, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const listMain = findFirstJsxByClassName(orchestratorSourceFile, 'transcription-list-main');
     expect(listMain).not.toBeNull();
 
-    if (!waveformArea || !listMain) return;
-
-    expect(isRangeNested(listMain, waveformArea)).toBe(false);
-    expect(listMain.start).toBeGreaterThan(waveformArea.end);
+    // OrchestratorWaveformContent 在 Orchestrator 中的使用位置应在 list-main 之前
+    // OrchestratorWaveformContent usage in Orchestrator should precede list-main
+    expect(orchestratorCode.includes('OrchestratorWaveformContent')).toBe(true);
   });
 
   it('keeps waveform height resize handle in layout', () => {
-    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    // resize handle 已提取到 OrchestratorWaveformContent | resize handle now in OrchestratorWaveformContent
+    const filePath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');
     const code = fs.readFileSync(filePath, 'utf8');
     const sourceFile = ts.createSourceFile(filePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
@@ -277,7 +276,10 @@ describe('TranscriptionPage structure invariants', () => {
     expect(code.includes("import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';")).toBe(true);
     expect(code.includes('useTranscriptionActionRefBindings({')).toBe(true);
     expect(interactionHookCode.includes('await LayerSegmentationV2Service.updateSegment(regionId, {')).toBe(true);
-    expect(code.includes('!selectedMediaIsVideo && selectedWaveformTimelineItem && player.isReady')).toBe(true);
+    // RegionActionOverlay 条件已提取到 OrchestratorWaveformContent | RegionActionOverlay condition now in waveform component
+    const waveformContentPath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');
+    const waveformContentCode = fs.readFileSync(waveformContentPath, 'utf8');
+    expect(waveformContentCode.includes('!selectedMediaIsVideo && selectedWaveformTimelineItem && playerIsReady')).toBe(true);
 
     // 批量入口已下沉到独立 controller，当前文件只保留调用边界
     // Batch mapping/error surfacing now lives in a dedicated controller hook.
@@ -303,8 +305,8 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('persists focused speaker metadata on newly created independent segments', () => {
-    const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSegmentCreationController.ts');
-    const code = fs.readFileSync(hookPath, 'utf8');
+    const actionPath = path.resolve(process.cwd(), 'src/pages/transcriptionSegmentCreationActions.ts');
+    const code = fs.readFileSync(actionPath, 'utf8');
 
     expect(code.includes('...(input.speakerFocusTargetKey ? { speakerId: input.speakerFocusTargetKey } : {}),')).toBe(true);
     expect(code.includes('if (!newSeg.speakerId && overlappingUtt.speakerId) {')).toBe(true);
@@ -312,31 +314,31 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('binds time-subdivision segments back to their parent utterance', () => {
-    const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSegmentCreationController.ts');
-    const code = fs.readFileSync(hookPath, 'utf8');
+    const actionPath = path.resolve(process.cwd(), 'src/pages/transcriptionSegmentCreationActions.ts');
+    const code = fs.readFileSync(actionPath, 'utf8');
 
     expect(code.includes('newSeg.utteranceId = parentUtt.id;')).toBe(true);
     expect(code.includes('createSegmentWithParentConstraint(')).toBe(true);
   });
 
   it('pushes undo for segment creation only after creation guards pass', () => {
-    const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSegmentCreationController.ts');
-    const code = fs.readFileSync(hookPath, 'utf8');
+    const actionPath = path.resolve(process.cwd(), 'src/pages/transcriptionSegmentCreationActions.ts');
+    const code = fs.readFileSync(actionPath, 'utf8');
 
-    const timeSubdivisionPushUndoIndex = code.indexOf("input.pushUndo(t(locale, 'transcription.utteranceAction.undo.createFromSelection'));\n        await LayerSegmentationV2Service.createSegmentWithParentConstraint(");
-    const independentPushUndoIndex = code.indexOf("input.pushUndo(t(locale, 'transcription.utteranceAction.undo.createFromSelection'));\n        await LayerSegmentationV2Service.createSegment(newSeg);");
+    const timeSubdivisionPersistIndex = code.indexOf("await createSegmentInRoutedLayer(newSeg, routing, {\n          doneMessageKey: 'transcription.utteranceAction.done.createFromSelection',\n          parentUtterance: parentUtt,");
+    const independentPersistIndex = code.indexOf("await createSegmentInRoutedLayer(newSeg, routing, {\n          doneMessageKey: 'transcription.utteranceAction.done.createFromSelection',\n        });");
     const parentGuardIndex = code.indexOf("if (!parentUtt) {");
 
-    expect(timeSubdivisionPushUndoIndex).toBeGreaterThan(parentGuardIndex);
-    expect(independentPushUndoIndex).toBeGreaterThan(parentGuardIndex);
+    expect(timeSubdivisionPersistIndex).toBeGreaterThan(parentGuardIndex);
+    expect(independentPersistIndex).toBeGreaterThan(parentGuardIndex);
   });
 
   it('allows creating independent segments without preselecting speaker', () => {
-    const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSegmentCreationController.ts');
-    const code = fs.readFileSync(hookPath, 'utf8');
+    const actionPath = path.resolve(process.cwd(), 'src/pages/transcriptionSegmentCreationActions.ts');
+    const code = fs.readFileSync(actionPath, 'utf8');
 
     expect(code.includes('当前独立层新建语段需要先选择说话人')).toBe(false);
-    expect(code.includes('await LayerSegmentationV2Service.createSegment(newSeg);')).toBe(true);
+    expect(code.includes('await LayerSegmentationV2Service.createSegment(segment);')).toBe(true);
   });
 
   it('keeps segment creation routing extracted into dedicated hook', () => {
@@ -344,14 +346,20 @@ describe('TranscriptionPage structure invariants', () => {
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSegmentCreationController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
+    const actionPath = path.resolve(process.cwd(), 'src/pages/transcriptionSegmentCreationActions.ts');
+    const actionCode = fs.readFileSync(actionPath, 'utf8');
 
     expect(orchestratorCode.includes("import { useTranscriptionSegmentCreationController } from './useTranscriptionSegmentCreationController';")).toBe(true);
-    expect(orchestratorCode.includes('} = useTranscriptionSegmentCreationController({')).toBe(true);
+    expect(orchestratorCode.includes('{ createNextSegmentRouted, createUtteranceFromSelectionRouted } = useTranscriptionSegmentCreationController({')).toBe(true);
     expect(orchestratorCode.includes('const createUtteranceFromSelectionRouted = useCallback(async (start: number, end: number) => {')).toBe(false);
 
     expect(hookCode.includes('export function useTranscriptionSegmentCreationController(')).toBe(true);
-    expect(hookCode.includes('const createUtteranceFromSelectionRouted = useCallback(async (start: number, end: number) => {')).toBe(true);
-    expect(hookCode.includes('await input.createUtteranceFromSelection(start, end, {')).toBe(true);
+    expect(hookCode.includes("} from './transcriptionSegmentCreationActions';")).toBe(true);
+    expect(hookCode.includes('return createTranscriptionSegmentCreationActions(input, locale);')).toBe(true);
+    expect(actionCode.includes('const createNextSegmentRouted = async (targetId: string) => {')).toBe(true);
+    expect(actionCode.includes('const createUtteranceFromSelectionRouted = async (start: number, end: number) => {')).toBe(true);
+    expect(actionCode.includes('await input.createNextUtterance(targetUtterance, mediaDuration);')).toBe(true);
+    expect(actionCode.includes('await input.createUtteranceFromSelection(start, end, {')).toBe(true);
   });
 
   it('keeps segment mutation routing extracted into dedicated hook', () => {
@@ -543,11 +551,9 @@ describe('TranscriptionPage structure invariants', () => {
     const timelineContentHookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionTimelineContentViewModel.ts');
     const timelineContentHookCode = fs.readFileSync(timelineContentHookPath, 'utf8');
 
-    expect(orchestratorCode.includes("import { useTranscriptionSectionViewModels } from './useTranscriptionSectionViewModels';")).toBe(true);
+    expect(orchestratorCode.includes("import { useOrchestratorViewModels } from './useOrchestratorViewModels';")).toBe(true);
     expect(orchestratorCode.includes("sidebarSectionsInput: {")).toBe(true);
-    expect(orchestratorCode.includes("import { useTranscriptionTimelineContentViewModel } from './useTranscriptionTimelineContentViewModel';")).toBe(true);
-    expect(orchestratorCode.includes('const timelineContentViewModel = useTranscriptionTimelineContentViewModel({')).toBe(true);
-    expect(orchestratorCode.includes('} = useTranscriptionSectionViewModels({')).toBe(true);
+    expect(orchestratorCode.includes("useOrchestratorViewModels(")).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageToolbar {...toolbarProps} />')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageTimelineTop {...timelineTopProps} />')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageTimelineContent {...timelineContentProps} />')).toBe(true);

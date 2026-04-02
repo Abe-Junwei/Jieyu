@@ -71,15 +71,15 @@ export function useDraggablePanel({
 
   const clampSizeToViewport = useCallback((candidate: PanelSize): PanelSize => {
     if (typeof window === 'undefined') return candidate;
+    const viewportWidthCap = Math.max(1, window.innerWidth - margin * 2);
+    const viewportHeightCap = Math.max(1, window.innerHeight - margin * 2);
+    const effectiveMaxWidth = Math.min(maxWidth, viewportWidthCap);
+    const effectiveMaxHeight = Math.min(maxHeight, viewportHeightCap);
+    const effectiveMinWidth = Math.min(minWidth, effectiveMaxWidth);
+    const effectiveMinHeight = Math.min(minHeight, effectiveMaxHeight);
     return {
-      width: Math.min(
-        Math.max(Math.round(candidate.width), minWidth),
-        Math.min(maxWidth, Math.max(minWidth, window.innerWidth - margin * 2)),
-      ),
-      height: Math.min(
-        Math.max(Math.round(candidate.height), minHeight),
-        Math.min(maxHeight, Math.max(minHeight, window.innerHeight - margin * 2)),
-      ),
+      width: Math.min(Math.max(Math.round(candidate.width), effectiveMinWidth), effectiveMaxWidth),
+      height: Math.min(Math.max(Math.round(candidate.height), effectiveMinHeight), effectiveMaxHeight),
     };
   }, [minWidth, minHeight, maxWidth, maxHeight, margin]);
 
@@ -143,8 +143,8 @@ export function useDraggablePanel({
       if (resizeRef.current) {
         const rawWidth = resizeRef.current.startWidth + (event.clientX - resizeRef.current.startX);
         const rawHeight = resizeRef.current.startHeight + (event.clientY - resizeRef.current.startY);
-        const maxWidthByViewport = Math.max(minWidth, window.innerWidth - currentPositionRef.current.x - margin);
-        const maxHeightByViewport = Math.max(minHeight, window.innerHeight - currentPositionRef.current.y - margin);
+        const maxWidthByViewport = Math.max(1, window.innerWidth - currentPositionRef.current.x - margin);
+        const maxHeightByViewport = Math.max(1, window.innerHeight - currentPositionRef.current.y - margin);
         setSize(clampSizeToViewport({
           width: Math.min(rawWidth, Math.min(maxWidth, maxWidthByViewport)),
           height: Math.min(rawHeight, Math.min(maxHeight, maxHeightByViewport)),

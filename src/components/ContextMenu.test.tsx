@@ -25,7 +25,7 @@ describe('ContextMenu', () => {
                 label: '字体',
                 children: [
                   {
-                    label: '默认 (13px)',
+                    label: '默认（13号）',
                     onClick: onLeafClick,
                   },
                 ],
@@ -38,7 +38,7 @@ describe('ContextMenu', () => {
 
     fireEvent.mouseEnter(screen.getByRole('menuitem', { name: /^显示样式/ }));
     fireEvent.mouseEnter(screen.getByRole('menuitem', { name: /^字体/ }));
-    fireEvent.click(screen.getByRole('menuitem', { name: '默认 (13px)' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '默认（13号）' }));
 
     expect(onLeafClick).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);

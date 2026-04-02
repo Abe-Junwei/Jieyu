@@ -35,6 +35,26 @@ describe('CommandResolver', () => {
   });
 
   it.each([
+    ['删除第五个句段', { segmentIndex: 5 }],
+    ['删除第一个句段', { segmentIndex: 1 }],
+    ['删除第一条句段', { segmentIndex: 1 }],
+    ['删除前一个句段', { segmentPosition: 'previous' }],
+    ['删除后一个句段', { segmentPosition: 'next' }],
+    ['删除倒数第二个句段', { segmentPosition: 'penultimate' }],
+    ['删除中间那个句段', { segmentPosition: 'middle' }],
+    ['删除最后一个句段', { segmentPosition: 'last' }],
+    ['delete the fifth segment', { segmentIndex: 5 }],
+    ['delete the first segment', { segmentIndex: 1 }],
+    ['delete the previous segment', { segmentPosition: 'previous' }],
+    ['delete the last segment', { segmentPosition: 'last' }],
+  ])('should resolve "%s" to delete_transcription_segment with selector', (text, expectedArgs) => {
+    const result = resolveCommand(text);
+    expect(result).not.toBeNull();
+    expect(result!.call.name).toBe('delete_transcription_segment');
+    expect(result!.call.arguments).toEqual(expectedArgs);
+  });
+
+  it.each([
     '新建句段',
     '创建一个句段',
     '插入句段',
@@ -53,6 +73,36 @@ describe('CommandResolver', () => {
     const result = resolveCommand(text);
     expect(result).not.toBeNull();
     expect(result!.call.name).toBe('split_transcription_segment');
+  });
+
+  it.each([
+    '和前一句段合并',
+    '向前合并句段',
+    'merge previous segment',
+  ])('should resolve "%s" to merge_prev', (text) => {
+    const result = resolveCommand(text);
+    expect(result).not.toBeNull();
+    expect(result!.call.name).toBe('merge_prev');
+  });
+
+  it.each([
+    '和后一句段合并',
+    '向后合并句段',
+    'merge next segment',
+  ])('should resolve "%s" to merge_next', (text) => {
+    const result = resolveCommand(text);
+    expect(result).not.toBeNull();
+    expect(result!.call.name).toBe('merge_next');
+  });
+
+  it.each([
+    '合并两个句段',
+    '合并选中句段',
+    'merge selected segments',
+  ])('should resolve "%s" to merge_transcription_segments', (text) => {
+    const result = resolveCommand(text);
+    expect(result).not.toBeNull();
+    expect(result!.call.name).toBe('merge_transcription_segments');
   });
 
   // ── 自动标注 | Auto gloss ──
@@ -78,6 +128,34 @@ describe('CommandResolver', () => {
     const result = resolveCommand(text);
     expect(result).not.toBeNull();
     expect(result!.call.name).toBe('clear_translation_segment');
+  });
+
+  it('should resolve "把第五个句段转写改为你好" with selector + text argument', () => {
+    const result = resolveCommand('把第五个句段转写改为你好');
+    expect(result).not.toBeNull();
+    expect(result!.call.name).toBe('set_transcription_text');
+    expect(result!.call.arguments).toEqual({ segmentIndex: 5, text: '你好' });
+  });
+
+  it('should resolve "set the fifth segment transcription to hello" with selector + text argument', () => {
+    const result = resolveCommand('set the fifth segment transcription to hello');
+    expect(result).not.toBeNull();
+    expect(result!.call.name).toBe('set_transcription_text');
+    expect(result!.call.arguments).toEqual({ segmentIndex: 5, text: 'hello' });
+  });
+
+  it('should resolve "清空最后一个句段翻译" with selector', () => {
+    const result = resolveCommand('清空最后一个句段翻译');
+    expect(result).not.toBeNull();
+    expect(result!.call.name).toBe('clear_translation_segment');
+    expect(result!.call.arguments).toEqual({ segmentPosition: 'last' });
+  });
+
+  it('should resolve "clear translation of the last segment" with selector', () => {
+    const result = resolveCommand('clear translation of the last segment');
+    expect(result).not.toBeNull();
+    expect(result!.call.name).toBe('clear_translation_segment');
+    expect(result!.call.arguments).toEqual({ segmentPosition: 'last' });
   });
 
   // ── 层操作 | Layer operations ──

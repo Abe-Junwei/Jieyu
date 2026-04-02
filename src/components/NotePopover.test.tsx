@@ -30,7 +30,7 @@ describe('NotePopover', () => {
       target: { value: '新备注' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /添加/ }));
+      fireEvent.click(screen.getByRole('button', { name: /\u65b0\u589e\u5907\u6ce8|\u6dfb\u52a0/ }));
 
     await waitFor(() => {
       expect(onAdd).toHaveBeenCalledWith({ default: '新备注' }, 'comment');

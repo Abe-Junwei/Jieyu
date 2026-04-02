@@ -60,7 +60,7 @@ export class VolcEngineSttProvider implements CommercialSttProvider {
     }
   }
 
-  async transcribe(audioBlob: Blob, lang: string): Promise<SttResult> {
+  async transcribe(audioBlob: Blob, lang: string, options?: { signal?: AbortSignal }): Promise<SttResult> {
     const arrayBuffer = await audioBlob.arrayBuffer();
     const base64 = btoa(
       new Uint8Array(arrayBuffer).reduce(
@@ -87,6 +87,7 @@ export class VolcEngineSttProvider implements CommercialSttProvider {
         'X-App-Id': this.config.appId,
         'Authorization': `Bearer ${this.config.accessToken}`,
       },
+      ...(options?.signal ? { signal: options.signal } : {}),
       body: JSON.stringify(body),
     });
 

@@ -14,7 +14,6 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { fireAndForget } from '../utils/fireAndForget';
-import { getUtteranceSpeakerKey } from '../hooks/speakerManagement/speakerUtils';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { LayerActionPopover } from './LayerActionPopover';
@@ -28,75 +27,18 @@ import {
   layerDisplaySettingsToStyle,
   resolveOrthographyRenderPolicy,
 } from '../utils/layerDisplayStyle';
-import { buildSpeakerLayerLayoutWithOptions, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
+import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
+import { TranscriptionTimelineTextTranslationItem } from './TranscriptionTimelineTextTranslationItem';
+import {
+  buildSegmentSpeakerLayoutMaps,
+  EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID,
+  EMPTY_SPEAKER_LAYOUT,
+  normalizeSpeakerFocusKey,
+  resolveSpeakerFocusKeyFromSegment,
+  resolveSpeakerFocusKeyFromUtterance,
+} from './transcriptionTimelineSegmentSpeakerLayout';
 import { t, tf, useLocale } from '../i18n';
-
-const EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID = new Map<string, Array<{ id: string; startTime: number }>>();
-
-function normalizeSpeakerFocusKey(value: string | undefined): string {
-  const trimmed = (value ?? '').trim();
-  return trimmed.length > 0 ? trimmed : 'unknown-speaker';
-}
-
-function resolveSpeakerFocusKeyFromUtterance(
-  utterance?: Pick<UtteranceDocType, 'speakerId' | 'speaker'>,
-): string {
-  if (!utterance) return 'unknown-speaker';
-  return normalizeSpeakerFocusKey(getUtteranceSpeakerKey(utterance));
-}
-
-function resolveSpeakerFocusKeyFromSegment(
-  segment: Pick<LayerSegmentDocType, 'speakerId' | 'utteranceId'>,
-  utteranceById: ReadonlyMap<string, UtteranceDocType>,
-): string {
-  if (segment.speakerId && segment.speakerId.trim().length > 0) {
-    return normalizeSpeakerFocusKey(segment.speakerId);
-  }
-  const ownerUtterance = segment.utteranceId ? utteranceById.get(segment.utteranceId) : undefined;
-  return resolveSpeakerFocusKeyFromUtterance(ownerUtterance);
-}
-
-const EMPTY_SPEAKER_LAYOUT: SpeakerLayerLayoutResult = {
-  placements: new Map(),
-  subTrackCount: 1,
-  maxConcurrentSpeakerCount: 1,
-  overlapGroups: [],
-  overlapCycleItemsByGroupId: new Map(),
-  lockConflictCount: 0,
-  lockConflictSpeakerIds: [],
-};
-
-function toSpeakerLayoutInputFromSegments(
-  segments: LayerSegmentDocType[],
-  utteranceById: ReadonlyMap<string, UtteranceDocType>,
-): UtteranceDocType[] {
-  return segments.map((segment) => {
-    const speakerKey = resolveSpeakerFocusKeyFromSegment(segment, utteranceById);
-    return {
-      id: segment.id,
-      textId: segment.textId,
-      mediaId: segment.mediaId,
-      ...(speakerKey ? { speakerId: speakerKey } : {}),
-      startTime: segment.startTime,
-      endTime: segment.endTime,
-      createdAt: segment.createdAt,
-      updatedAt: segment.updatedAt,
-    } as UtteranceDocType;
-  });
-}
-
-function buildSegmentSpeakerIdMap(
-  segments: LayerSegmentDocType[],
-  utteranceById: ReadonlyMap<string, UtteranceDocType>,
-): Map<string, string> {
-  const next = new Map<string, string>();
-  for (const segment of segments) {
-    next.set(segment.id, resolveSpeakerFocusKeyFromSegment(segment, utteranceById));
-  }
-  return next;
-}
 
 function getSegmentTimelineItems(
   layer: LayerDocType,
@@ -344,25 +286,29 @@ export function TranscriptionTimelineTextOnly({
     () => new Map(mediaItems.map((item) => [item.id, item] as const)),
     [mediaItems],
   );
-  const segmentSpeakerLayoutByLayer = new Map<string, SpeakerLayerLayoutResult>();
-  const segmentSpeakerIdByLayer = new Map<string, Map<string, string>>();
-  for (const layer of transcriptionLayers) {
-    const sourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId);
-    if (!sourceLayer) continue;
-    const segments = (segmentsByLayer?.get(sourceLayer.id) ?? []).filter((segment) => (
-      activeSpeakerFilterKey === 'all'
-        || resolveSpeakerFocusKeyFromSegment(segment, utteranceById) === normalizeSpeakerFocusKey(activeSpeakerFilterKey)
-    ));
-    const segmentAsUtterances = toSpeakerLayoutInputFromSegments(segments, utteranceById);
-    segmentSpeakerLayoutByLayer.set(
-      sourceLayer.id,
-      buildSpeakerLayerLayoutWithOptions(segmentAsUtterances, {
-        trackMode: trackDisplayMode,
-        ...(laneLockMap ? { laneLockMap } : {}),
-      }),
-    );
-    segmentSpeakerIdByLayer.set(sourceLayer.id, buildSegmentSpeakerIdMap(segments, utteranceById));
-  }
+  const {
+    segmentSpeakerLayoutByLayer,
+    segmentSpeakerIdByLayer,
+  } = useMemo(() => buildSegmentSpeakerLayoutMaps({
+    transcriptionLayers,
+    layerById,
+    utteranceById,
+    segmentsByLayer,
+    defaultTranscriptionLayerId,
+    activeSpeakerFilterKey,
+    trackDisplayMode,
+    laneLockMap,
+    speakerSortKeyById: undefined,
+  }), [
+    activeSpeakerFilterKey,
+    defaultTranscriptionLayerId,
+    laneLockMap,
+    layerById,
+    segmentsByLayer,
+    trackDisplayMode,
+    transcriptionLayers,
+    utteranceById,
+  ]);
 
   const setCellSaveStatus = (cellKey: string, status?: 'dirty' | 'saving' | 'error') => {
     setSaveStatusByCellKey((prev) => {
@@ -727,156 +673,55 @@ export function TranscriptionTimelineTextOnly({
             const audioMedia = audioTranslation?.translationAudioMediaId
               ? mediaItemById.get(audioTranslation.translationAudioMediaId)
               : undefined;
-            const layerSupportsAudio = !usesOwnSegments
-              && (layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio));
-            const isAudioOnlyLayer = layer.modality === 'audio';
-            const showAudioTools = layerSupportsAudio && layer.modality === 'mixed';
-            const isCurrentRecording = recording && recordingUtteranceId === utt.id && recordingLayerId === layer.id;
-            const audioActionDisabled = recording && !isCurrentRecording;
             const draftKey = `${layer.id}-${utt.id}`;
             const cellKey = `tr-${layer.id}-${utt.id}`;
             const draft = translationDrafts[draftKey] ?? text;
             const isEditing = editingCellKey === cellKey;
             const isDimmed = !!editingCellKey && !isEditing;
             const saveStatus = saveStatusByCellKey[cellKey];
-            const audioControls = layerSupportsAudio ? (
-              <TimelineTranslationAudioControls
-                isRecording={isCurrentRecording}
-                disabled={audioActionDisabled}
-                compact={!isAudioOnlyLayer}
-                {...(audioMedia ? { mediaItem: audioMedia } : {})}
-                onStartRecording={() => startRecordingForUtterance?.(utt, layer)}
-                {...(stopRecording ? { onStopRecording: stopRecording } : {})}
-                {...(audioMedia && deleteVoiceTranslation ? { onDeleteRecording: () => deleteVoiceTranslation(utt, layer) } : {})}
-              />
-            ) : undefined;
-            const retrySave = () => {
-              if (draft === text) {
-                setCellSaveStatus(cellKey);
-                return;
-              }
-              fireAndForget(runSaveWithStatus(cellKey, async () => {
-                await saveTextTranslationForUtterance(utt.id, draft, layer.id);
-              }));
-            };
             const isActive = selectedTimelineUnit?.layerId === layer.id
               && selectedTimelineUnit.unitId === utt.id;
             return (
-              <div
+              <TranscriptionTimelineTextTranslationItem
                 key={utt.id}
-                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${showAudioTools ? ' timeline-text-item-has-tools' : ''}${isAudioOnlyLayer ? ' timeline-text-item-audio-only' : ''}`}
+                utt={utt}
+                layer={layer}
+                text={text}
+                draft={draft}
+                draftKey={draftKey}
+                cellKey={cellKey}
+                isActive={isActive}
+                isEditing={isEditing}
+                isDimmed={isDimmed}
+                saveStatus={saveStatus}
+                usesOwnSegments={usesOwnSegments}
                 style={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
                   ...layerDisplaySettingsToStyle(displaySettingsForRender, renderPolicy),
                 }}
                 dir={renderPolicy?.preferDirAttribute ? renderPolicy.textDirection : undefined}
-                onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e)}
-                onContextMenu={(e) => handleAnnotationContextMenu?.(utt.id, utt, layer.id, e)}
-              >
-                {!isAudioOnlyLayer && saveStatus === 'error' ? (
-                  <button
-                    type="button"
-                    className="timeline-text-item-status-dot timeline-text-item-status-dot-error timeline-text-item-status-dot-action"
-                    title={t(locale, 'transcription.timeline.save.retry')}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      retrySave();
-                    }}
-                  />
-                ) : !isAudioOnlyLayer && saveStatus ? (
-                  <span
-                    className={`timeline-text-item-status-dot timeline-text-item-status-dot-${saveStatus}`}
-                    title={saveStatus === 'saving' ? t(locale, 'transcription.timeline.save.saving') : t(locale, 'transcription.timeline.save.unsaved')}
-                  />
-                ) : null}
-                {showAudioTools && audioControls ? <div className="timeline-text-item-tools">{audioControls}</div> : null}
-                {isAudioOnlyLayer && audioControls ? (
-                  <div className="timeline-translation-audio-card timeline-translation-audio-card-text">{audioControls}</div>
-                ) : (
-                  <input
-                    type="text"
-                    className="timeline-text-input"
-                    placeholder={usesOwnSegments ? t(locale, 'transcription.timeline.placeholder.segment') : t(locale, 'transcription.timeline.placeholder.translation')}
-                    value={draft}
-                    dir={renderPolicy?.preferDirAttribute ? renderPolicy.textDirection : undefined}
-                    onContextMenu={(e) => handleAnnotationContextMenu?.(utt.id, utt, layer.id, e)}
-                    onFocus={() => {
-                      focusedTranslationDraftKeyRef.current = draftKey;
-                      setEditingCellKey(cellKey);
-                      onFocusLayer(layer.id);
-                    }}
-                    onChange={(e) => {
-                      const value = normalizeSingleLine(e.target.value);
-                      setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
-                      if (usesOwnSegments) {
-                        if (!saveSegmentContentForLayer) return;
-                        setCellSaveStatus(cellKey, 'dirty');
-                        scheduleAutoSave(`seg-${layer.id}-${utt.id}`, async () => {
-                          await runSaveWithStatus(cellKey, async () => {
-                            await saveSegmentContentForLayer(utt.id, layer.id, value);
-                          });
-                        });
-                        return;
-                      }
-                      if (value.trim() && value !== text) {
-                        setCellSaveStatus(cellKey, 'dirty');
-                        scheduleAutoSave(`tr-${layer.id}-${utt.id}`, async () => {
-                          await runSaveWithStatus(cellKey, async () => {
-                            await saveTextTranslationForUtterance(utt.id, value, layer.id);
-                          });
-                        });
-                      } else {
-                        clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
-                        setCellSaveStatus(cellKey);
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.nativeEvent.isComposing) return;
-                      if (e.key === 'Tab') {
-                        navigateUtteranceFromInput(e, e.shiftKey ? -1 : 1);
-                        return;
-                      }
-                      if (e.key === 'Enter') {
-                        navigateUtteranceFromInput(e, e.shiftKey ? -1 : 1);
-                        return;
-                      }
-                      if (e.key === 'Escape') {
-                        e.preventDefault();
-                        clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
-                        setTranslationDrafts((prev) => ({ ...prev, [draftKey]: text }));
-                        setCellSaveStatus(cellKey);
-                        focusedTranslationDraftKeyRef.current = null;
-                        e.currentTarget.blur();
-                      }
-                    }}
-                    onBlur={(e) => {
-                      setEditingCellKey((prev) => (prev === cellKey ? null : prev));
-                      const value = normalizeSingleLine(e.target.value);
-                      if (usesOwnSegments) {
-                        clearAutoSaveTimer(`seg-${layer.id}-${utt.id}`);
-                        if (value !== text && saveSegmentContentForLayer) {
-                          fireAndForget(runSaveWithStatus(cellKey, async () => {
-                            await saveSegmentContentForLayer(utt.id, layer.id, value);
-                          }));
-                        } else {
-                          setCellSaveStatus(cellKey);
-                        }
-                        return;
-                      }
-                      clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
-                      if (value !== text) {
-                        fireAndForget(runSaveWithStatus(cellKey, async () => {
-                          await saveTextTranslationForUtterance(utt.id, value, layer.id);
-                        }));
-                      } else {
-                        setCellSaveStatus(cellKey);
-                      }
-                    }}
-                  />
-                )}
-              </div>
+                audioMedia={audioMedia}
+                recording={recording}
+                recordingUtteranceId={recordingUtteranceId}
+                recordingLayerId={recordingLayerId}
+                startRecordingForUtterance={startRecordingForUtterance}
+                stopRecording={stopRecording}
+                deleteVoiceTranslation={deleteVoiceTranslation}
+                saveSegmentContentForLayer={saveSegmentContentForLayer}
+                saveTextTranslationForUtterance={saveTextTranslationForUtterance}
+                scheduleAutoSave={scheduleAutoSave}
+                clearAutoSaveTimer={clearAutoSaveTimer}
+                setTranslationDrafts={setTranslationDrafts}
+                setEditingCellKey={setEditingCellKey}
+                setCellSaveStatus={setCellSaveStatus}
+                runSaveWithStatus={runSaveWithStatus}
+                focusedTranslationDraftKeyRef={focusedTranslationDraftKeyRef}
+                onFocusLayer={onFocusLayer}
+                navigateUtteranceFromInput={navigateUtteranceFromInput}
+                handleAnnotationClick={handleAnnotationClick}
+                handleAnnotationContextMenu={handleAnnotationContextMenu}
+              />
             );
           })}
           </div>}

@@ -6,7 +6,9 @@ import { X } from 'lucide-react';
 import { DEFAULT_KEYBINDINGS, formatKeyComboForDisplay } from '../services/KeybindingService';
 import { useOptionalLocale } from '../i18n';
 import { getShortcutsPanelMessages } from '../i18n/shortcutsPanelMessages';
-import { computeAdaptivePanelWidth, readPersistedUiFontScale, resolveTextDirectionFromLocale } from '../utils/panelAdaptiveLayout';
+import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
+import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
+import { useViewportWidth } from '../hooks/useViewportWidth';
 
 interface ShortcutsPanelProps {
   onClose: () => void;
@@ -16,8 +18,8 @@ const CATEGORY_ORDER = ['playback', 'editing', 'navigation', 'view', 'voice'] as
 
 export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
   const locale = useOptionalLocale() ?? 'zh-CN';
-  const uiTextDirection = useMemo(() => resolveTextDirectionFromLocale(locale), [locale]);
-  const uiFontScale = readPersistedUiFontScale(locale, uiTextDirection);
+  const { uiTextDirection, uiFontScale } = useUiFontScaleRuntime(locale);
+  const viewportWidth = useViewportWidth();
   const panelWidth = useMemo(
     () => computeAdaptivePanelWidth({
       baseWidth: 480,
@@ -27,9 +29,9 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
       density: 'standard',
       minWidth: 340,
       maxWidth: 760,
-      ...(typeof window !== 'undefined' ? { viewportWidth: window.innerWidth } : {}),
+      ...(viewportWidth !== undefined ? { viewportWidth } : {}),
     }),
-    [locale, uiFontScale, uiTextDirection],
+    [locale, uiFontScale, uiTextDirection, viewportWidth],
   );
   const messages = getShortcutsPanelMessages(locale);
   const categoryLabels: Record<string, string> = {
@@ -56,14 +58,20 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
 
   return (
     <div
-      className="shortcuts-panel-backdrop"
+      className="dialog-overlay dialog-overlay-topmost"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      role="dialog"
-      aria-modal="true"
-      aria-label={messages.panelAriaLabel}
+      role="presentation"
       dir={uiTextDirection}
     >
-      <div className="shortcuts-panel dialog-card" style={{ width: `min(${panelWidth}px, 92vw)` }} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="shortcuts-panel dialog-card"
+        role="dialog"
+        aria-modal="true"
+        aria-label={messages.panelAriaLabel}
+        dir={uiTextDirection}
+        style={{ width: `min(${panelWidth}px, 92vw)` }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="shortcuts-panel-header dialog-header">
           <h3 className="shortcuts-panel-title">{messages.panelTitle}</h3>
           <button

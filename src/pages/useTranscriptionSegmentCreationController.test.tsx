@@ -107,6 +107,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     reloadSegmentContents: vi.fn(async () => undefined),
     selectTimelineUnit: vi.fn(),
     setSaveState: vi.fn() as unknown as (state: SaveState) => void,
+    createNextUtterance: vi.fn(async () => undefined),
     createUtteranceFromSelection: vi.fn(async () => undefined),
     ...overrides,
   };
@@ -190,6 +191,36 @@ describe('useTranscriptionSegmentCreationController', () => {
     );
   });
 
+  it('creates the next independent segment after a target segment', async () => {
+    const pushUndo = vi.fn();
+    const selectTimelineUnit = vi.fn();
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
+      pushUndo,
+      selectTimelineUnit,
+      setSaveState,
+    })));
+
+    await act(async () => {
+      await result.current.createNextSegmentRouted('seg-a');
+    });
+
+    expect(pushUndo).toHaveBeenCalledWith('创建句段');
+    expect(mockCreateSegment).toHaveBeenCalledWith(expect.objectContaining({
+      layerId: 'layer-seg',
+      startTime: 1.02,
+      endTime: 2.98,
+    }));
+    expect(selectTimelineUnit).toHaveBeenCalledWith(expect.objectContaining({
+      layerId: 'layer-seg',
+      kind: 'segment',
+    }));
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'done',
+      message: '已创建新区间 00:01.0 - 00:03.0',
+    }));
+  });
+
   it('reports an error when time-subdivision selection has no parent utterance', async () => {
     const pushUndo = vi.fn();
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
@@ -221,6 +252,7 @@ describe('useTranscriptionSegmentCreationController', () => {
 
   it('falls back to utterance creation when current layer does not use segments', async () => {
     const createUtteranceFromSelection = vi.fn(async () => undefined);
+    const createNextUtterance = vi.fn(async () => undefined);
     const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
       resolveSegmentRoutingForLayer: () => ({
         layer: makeLayer('layer-main'),
@@ -229,6 +261,8 @@ describe('useTranscriptionSegmentCreationController', () => {
         editMode: 'utterance',
       }),
       speakerFocusTargetKey: 'spk-focus',
+      utterancesOnCurrentMedia: [makeUtterance('utt-1', 1, 2, 'spk-focus')],
+      createNextUtterance,
       createUtteranceFromSelection,
     })));
 
@@ -240,5 +274,11 @@ describe('useTranscriptionSegmentCreationController', () => {
       speakerId: 'spk-focus',
       focusedLayerId: 'layer-seg',
     });
+
+    await act(async () => {
+      await result.current.createNextSegmentRouted('utt-1');
+    });
+
+    expect(createNextUtterance).toHaveBeenCalledWith(expect.objectContaining({ id: 'utt-1' }), 10);
   });
 });

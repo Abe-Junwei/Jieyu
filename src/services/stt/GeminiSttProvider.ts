@@ -59,7 +59,7 @@ export class GeminiSttProvider implements CommercialSttProvider {
     }
   }
 
-  async transcribe(audioBlob: Blob, lang: string): Promise<SttResult> {
+  async transcribe(audioBlob: Blob, lang: string, options?: { signal?: AbortSignal }): Promise<SttResult> {
     const langCode = toGeminiLang(lang);
     const arrayBuffer = await audioBlob.arrayBuffer();
     const base64 = btoa(
@@ -74,6 +74,7 @@ export class GeminiSttProvider implements CommercialSttProvider {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        ...(options?.signal ? { signal: options.signal } : {}),
         body: JSON.stringify({
           contents: [
             {

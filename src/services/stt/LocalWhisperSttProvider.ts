@@ -36,7 +36,7 @@ export class LocalWhisperSttProvider implements CommercialSttProvider {
     }
   }
 
-  async transcribe(audioBlob: Blob, lang: string): Promise<SttResult> {
+  async transcribe(audioBlob: Blob, lang: string, options?: { signal?: AbortSignal }): Promise<SttResult> {
     const formData = new FormData();
     formData.append('file', audioBlob, 'recording.webm');
     formData.append('model', this.model);
@@ -47,6 +47,7 @@ export class LocalWhisperSttProvider implements CommercialSttProvider {
     const resp = await fetch(`${this.baseUrl}/v1/audio/transcriptions`, {
       method: 'POST',
       body: formData,
+      ...(options?.signal ? { signal: options.signal } : {}),
     });
 
     if (!resp.ok) {

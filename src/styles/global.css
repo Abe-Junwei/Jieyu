@@ -76,7 +76,6 @@
   --z-popover: 170;
   --z-timeline-tooltip: 175;
   --z-context-menu: 180;
-  --z-floating-panel: 190;
   --z-modal-backdrop: 1200;
   --z-modal: 1220;
   --z-hub-sidebar: 1100;
@@ -944,8 +943,9 @@ body {
 
 .feature-availability-panel {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   max-width: 920px;
+  padding: 2px;
 }
 
 .feature-availability-badge {
@@ -975,10 +975,11 @@ body {
 .feature-availability-block {
   display: grid;
   gap: 8px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: 14px;
-  border: 1px solid var(--border-soft);
-  background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
 }
 
 .feature-availability-label {
@@ -1016,16 +1017,6 @@ body {
   color: var(--state-info-border);
   background: rgba(14, 165, 233, 0.14);
   border-color: rgba(56, 189, 248, 0.24);
-}
-
-.search-replace-overlay-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal-backdrop);
-  display: grid;
-  place-items: center;
-  background: rgba(15, 23, 42, 0.16);
-  backdrop-filter: blur(3px);
 }
 
 .search-replace-overlay {
@@ -1319,12 +1310,6 @@ body {
   font-weight: 600;
 }
 
-.btn-sm {
-  padding: 4px 10px;
-  font-size: 0.78rem;
-  border-radius: 6px;
-}
-
 .btn-ghost {
   background: var(--surface-panel);
   color: var(--text-primary);
@@ -1409,10 +1394,11 @@ body {
 }
 
 .transcription-layer-section {
-  padding: 14px;
-  border: 1px solid var(--border-soft);
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
   border-radius: 12px;
-  background: var(--surface-panel);
+  background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -1459,12 +1445,12 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 10px;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
 }
 
 .ai-card-row {
@@ -1544,7 +1530,7 @@ body {
   margin-bottom: 0;
 }
 
-.ai-btn-sm {
+.ai-btn-action {
   height: 28px;
   font-size: 12px;
 }
@@ -1595,101 +1581,15 @@ body {
   font-size: 12px;
 }
 
-.floating-panel {
-  position: fixed;
-  background: var(--bg-primary, var(--surface-panel));
-  border: 1px solid var(--border-color, var(--border-soft));
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-  z-index: var(--z-popover);
-  display: flex;
-  flex-direction: column;
-}
-
-.floating-panel-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px 10px;
-  border-bottom: 1px solid var(--border-soft);
-  background: transparent;
-  border-top-left-radius: 12px;
-  border-top-right-radius: 12px;
-  font-weight: 600;
-  font-size: 1rem;
-}
-
-.floating-panel-title-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85em;
-  font-weight: normal;
-  color: var(--text-secondary);
-}
-
-.floating-panel-drag-handle {
-  cursor: move;
-  user-select: none;
-}
-
-.floating-panel-resize-handle {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 16px;
-  height: 16px;
-  cursor: nwse-resize;
-  z-index: 10;
-}
-
-.floating-panel-reset-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-}
-
-.floating-panel-reset-btn:hover {
-  background: rgba(15, 23, 42, 0.05);
-  color: var(--text-primary);
-}
-
-.layer-action-popover-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal-backdrop);
-  background: rgba(0, 0, 0, 0.45);
-}
-
-.layer-action-popover-card {
-  padding-bottom: 14px;
-}
-
-.transcription-side-pane-action-row {
-  display: flex;
-  gap: 8px;
-  padding: 14px 14px 0;
-}
-
-.transcription-side-pane-action-input {
-  margin: 14px 14px 0;
-  width: calc(100% - 28px);
-}
-
 /* 批量操作面板样式 | Batch Operation Panel Styles */
 .batch-operation-section {
   display: grid;
   gap: 6px;
-  background: var(--surface-panel);
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-panel) 99%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
+  border-radius: 12px;
   padding: 10px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
 .batch-operation-preview-card {

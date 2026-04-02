@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react';
 import '../styles/transcription.css';
+import { t, useLocale } from '../i18n';
 
 interface TranscriptionPageProps {
   appSearchRequest?: import('../utils/appShellEvents').AppShellOpenSearchDetail | null;
@@ -11,9 +12,17 @@ const TranscriptionPageOrchestrator = lazy(async () => import('./TranscriptionPa
 })));
 
 export function TranscriptionPage(props: TranscriptionPageProps) {
-	return (
-		<Suspense fallback={null}>
-			<TranscriptionPageOrchestrator {...props} />
-		</Suspense>
-	);
+  const locale = useLocale();
+
+  return (
+    <Suspense
+      fallback={(
+        <section className="panel" role="status" aria-live="polite" aria-busy="true">
+          <p>{t(locale, 'transcription.status.loading')}</p>
+        </section>
+      )}
+    >
+      <TranscriptionPageOrchestrator {...props} />
+    </Suspense>
+  );
 }

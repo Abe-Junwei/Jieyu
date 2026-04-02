@@ -9,6 +9,7 @@ interface NotePopoverProps {
   y: number;
   notes: UserNoteDocType[];
   targetLabel: ReactNode;
+  displayMode?: 'anchored' | 'dialog';
   onClose: () => void;
   onAdd: (content: MultiLangString, category?: NoteCategory) => Promise<void>;
   onUpdate: (id: string, updates: { content?: MultiLangString; category?: NoteCategory }) => Promise<void>;
@@ -16,8 +17,9 @@ interface NotePopoverProps {
 }
 
 export const NotePopover = memo(function NotePopover({
-  x, y, notes, targetLabel, onClose, onAdd, onUpdate, onDelete,
+  x, y, notes, targetLabel, displayMode = 'anchored', onClose, onAdd, onUpdate, onDelete,
 }: NotePopoverProps) {
+  const isDialogMode = displayMode === 'dialog';
   const locale = useOptionalLocale() ?? 'zh-CN';
   const messages = getNotePanelMessages(locale);
   const categories: { value: NoteCategory; label: string }[] = [
@@ -25,6 +27,7 @@ export const NotePopover = memo(function NotePopover({
     { value: 'question', label: messages.categoryQuestion },
     { value: 'todo', label: messages.categoryTodo },
   ];
+  const hasNotes = notes.length > 0;
   const ref = useRef<HTMLDivElement>(null);
   const [newContent, setNewContent] = useState('');
   const [newCategory, setNewCategory] = useState<NoteCategory>('comment');
@@ -34,6 +37,9 @@ export const NotePopover = memo(function NotePopover({
 
   // Clamp to viewport before paint
   useLayoutEffect(() => {
+    if (isDialogMode) {
+      return;
+    }
     const el = ref.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
@@ -46,7 +52,7 @@ export const NotePopover = memo(function NotePopover({
     if (left < 12) left = 12;
     if (top < 12) top = 12;
     setPos({ left, top });
-  }, [x, y]);
+  }, [isDialogMode, x, y]);
 
   // Close on outside click or Escape
   useEffect(() => {
@@ -115,10 +121,23 @@ export const NotePopover = memo(function NotePopover({
     [handleEditSave],
   );
 
-  return (
-    <div ref={ref} className="note-popover dialog-card dialog-card-compact" style={{ left: pos.left, top: pos.top }}>
+  const popoverCard = (
+    <div
+      ref={ref}
+      className={`note-popover dialog-card dialog-card-compact${isDialogMode ? ' note-popover-dialog' : ''}`}
+      style={isDialogMode ? undefined : { left: pos.left, top: pos.top }}
+      {...(isDialogMode ? { role: 'dialog', 'aria-modal': true } : {})}
+    >
       <div className="note-popover-header dialog-header">
-        <h3 className="note-popover-title">{targetLabel}</h3>
+        <h3 className="note-popover-title">
+          <span>{messages.panelTitlePrefix}</span>
+          {targetLabel ? (
+            <>
+              <span>{' \u00b7 '}</span>
+              <span>{targetLabel}</span>
+            </>
+          ) : null}
+        </h3>
         <div className="dialog-header-actions">
           <button
             type="button"
@@ -133,8 +152,31 @@ export const NotePopover = memo(function NotePopover({
       </div>
 
       <div className="note-popover-body dialog-body">
-        {notes.length > 0 && (
+        <section className="panel-organization-surface panel-organization-surface-emphasis note-popover-summary">
+          <div className="panel-organization-surface-head">
+            <div>
+              <div className="panel-organization-surface-title">{messages.panelTitlePrefix}</div>
+              <p className="panel-organization-surface-copy">{targetLabel ?? messages.emptyStateHint}</p>
+            </div>
+            <div className="dialog-stat-row">
+              <span className="dialog-stat-chip">{messages.noteCount(notes.length)}</span>
+              <span className={`panel-organization-chip${hasNotes ? '' : ' panel-organization-chip-danger'}`}>
+                {categories.find((category) => category.value === newCategory)?.label ?? messages.noCategory}
+              </span>
+            </div>
+          </div>
+          <p className="dialog-supporting-note">{hasNotes ? messages.editHint : messages.emptyStateHint}</p>
+        </section>
+
+        <section className="panel-organization-surface note-popover-list-surface">
+          <div className="panel-organization-surface-head">
+            <div>
+              <div className="panel-organization-surface-title">{messages.notesSectionTitle}</div>
+              <p className="dialog-supporting-note">{messages.editHint}</p>
+            </div>
+          </div>
           <div className="note-popover-list">
+            {notes.length === 0 && <p className="note-panel-empty">{messages.empty}</p>}
             {notes.map((note) => (
               <div key={note.id} className="note-popover-item">
                 {note.category && (
@@ -165,9 +207,15 @@ export const NotePopover = memo(function NotePopover({
               </div>
             ))}
           </div>
-        )}
+        </section>
 
-        <div className="note-popover-add">
+        <section className="panel-organization-surface note-popover-add">
+          <div className="panel-organization-surface-head">
+            <div>
+              <div className="panel-organization-surface-title">{messages.composerSectionTitle}</div>
+              <p className="dialog-supporting-note">{messages.composerHint}</p>
+            </div>
+          </div>
           <textarea
             className="note-popover-textarea"
             placeholder={messages.newNotePlaceholder}
@@ -193,8 +241,18 @@ export const NotePopover = memo(function NotePopover({
               <Plus size={12} /> {messages.add}
             </button>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );
+
+  if (isDialogMode) {
+    return (
+      <div className="dialog-overlay dialog-overlay-topmost" role="presentation" onMouseDown={onClose}>
+        <div onMouseDown={(event) => event.stopPropagation()}>{popoverCard}</div>
+      </div>
+    );
+  }
+
+  return popoverCard;
 });

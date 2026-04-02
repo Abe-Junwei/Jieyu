@@ -5,11 +5,9 @@ import {
 } from '../observability/errorAggregation';
 import { useLocale } from '../i18n';
 import { getDevErrorAggregationPanelMessages, type DevErrorAggregationPanelMessages } from '../i18n/devErrorAggregationPanelMessages';
-import {
-  computeAdaptivePanelWidth,
-  readPersistedUiFontScale,
-  resolveTextDirectionFromLocale,
-} from '../utils/panelAdaptiveLayout';
+import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
+import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
+import { useViewportWidth } from '../hooks/useViewportWidth';
 
 function formatEntryLabel(entry: ErrorAggregationEntry, messages: DevErrorAggregationPanelMessages): string {
   const severity = entry.recoverable ? messages.recoverable : messages.fatal;
@@ -18,8 +16,8 @@ function formatEntryLabel(entry: ErrorAggregationEntry, messages: DevErrorAggreg
 
 export function DevErrorAggregationPanel() {
   const locale = useLocale();
-  const uiTextDirection = useMemo(() => resolveTextDirectionFromLocale(locale), [locale]);
-  const uiFontScale = readPersistedUiFontScale(locale, uiTextDirection);
+  const { uiTextDirection, uiFontScale } = useUiFontScaleRuntime(locale);
+  const viewportWidth = useViewportWidth();
   const panelMinWidth = useMemo(
     () => computeAdaptivePanelWidth({
       baseWidth: 320,
@@ -29,9 +27,9 @@ export function DevErrorAggregationPanel() {
       density: 'compact',
       minWidth: 280,
       maxWidth: 480,
-      ...(typeof window !== 'undefined' ? { viewportWidth: window.innerWidth } : {}),
+      ...(viewportWidth !== undefined ? { viewportWidth } : {}),
     }),
-    [locale, uiFontScale, uiTextDirection],
+    [locale, uiFontScale, uiTextDirection, viewportWidth],
   );
   const panelMaxWidth = useMemo(
     () => computeAdaptivePanelWidth({
@@ -42,9 +40,9 @@ export function DevErrorAggregationPanel() {
       density: 'data-dense',
       minWidth: 360,
       maxWidth: 760,
-      ...(typeof window !== 'undefined' ? { viewportWidth: window.innerWidth } : {}),
+      ...(viewportWidth !== undefined ? { viewportWidth } : {}),
     }),
-    [locale, uiFontScale, uiTextDirection],
+    [locale, uiFontScale, uiTextDirection, viewportWidth],
   );
   const messages = getDevErrorAggregationPanelMessages(locale);
   const [entries, setEntries] = useState<ErrorAggregationEntry[]>(() => getStructuredErrorAggregation());
@@ -60,6 +58,7 @@ export function DevErrorAggregationPanel() {
 
   return (
     <details
+      dir={uiTextDirection}
       style={{
         position: 'fixed',
         right: 12,

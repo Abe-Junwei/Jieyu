@@ -113,14 +113,14 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
   const defaultPreviewLayer = transcriptionLayers.find((layer) => layer.isDefault) ?? transcriptionLayers[0];
 
   const buildNotePopoverTargetLabel = (): ReactNode => {
-    if (!notePopover) return messages.note;
+    if (!notePopover) return messages.segment;
 
     const utt = utterances.find((u) => u.id === notePopover.uttId);
     const previewLayer = notePopover.layerId
       ? allTextLayers.find((layer) => layer.id === notePopover.layerId)
       : defaultPreviewLayer;
     const uttText = (utt ? getUtteranceTextForLayer(utt, previewLayer?.id) : '').slice(0, 20);
-    const fallbackLabel = messages.note;
+    const fallbackLabel = messages.segment;
 
     const prefix = (() => {
       if (!notePopover.layerId) return messages.segment;

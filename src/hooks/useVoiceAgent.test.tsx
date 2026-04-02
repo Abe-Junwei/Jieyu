@@ -24,6 +24,8 @@ const voiceInputServiceMockState = vi.hoisted(() => {
     simulateError: (e: string) => void;
     simulateVadState: (s: boolean) => void;
     getResultListenerCount: () => number;
+    startRecording: () => Promise<void>;
+    stopRecording: () => Promise<void>;
   };
 
   let lastMockVoiceService: MockVoiceService | null = null;
@@ -62,6 +64,8 @@ const voiceInputServiceMockState = vi.hoisted(() => {
         for (const fn of this.stateListeners) fn(true);
       }
       stop() { for (const fn of this.stateListeners) fn(false); }
+      async startRecording() {}
+      async stopRecording() {}
       setLang() {}
       dispose() { this.stop(); }
 
@@ -248,6 +252,33 @@ describe('useVoiceAgent', () => {
       expect(result.current.agentState).toBe('idle');
       expect(result.current.error).toContain('mic denied');
     });
+
+    it('stop() clears active recording state and duration timer', async () => {
+      vi.useFakeTimers();
+      try {
+        const { result } = renderHook(() =>
+          useVoiceAgent({ executeAction: makeExecuteAction() }),
+        );
+
+        await act(async () => { await result.current.start(); });
+        await act(async () => { await result.current.startRecording(); });
+
+        expect(result.current.isRecording).toBe(true);
+
+        await act(async () => {
+          vi.advanceTimersByTime(2000);
+        });
+        expect(result.current.recordingDuration).toBe(2);
+
+        await act(async () => { await result.current.stop(); });
+
+        expect(result.current.isRecording).toBe(false);
+        expect(result.current.recordingDuration).toBe(0);
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe('toggle()', () => {
@@ -425,6 +456,26 @@ describe('useVoiceAgent', () => {
       );
       await act(async () => { await result.current.start(); });
       expect(() => unmount()).not.toThrow();
+    });
+
+    it('clears recording duration timer on unmount', async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, unmount } = renderHook(() =>
+          useVoiceAgent({ executeAction: makeExecuteAction() }),
+        );
+
+        await act(async () => { await result.current.start(); });
+        await act(async () => { await result.current.startRecording(); });
+
+        expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+        unmount();
+
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

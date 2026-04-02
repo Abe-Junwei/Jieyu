@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { AudioLines, Languages, type LucideIcon } from 'lucide-react';
+import { AudioLines, Brain, FolderKanban, Languages, StickyNote, type LucideIcon } from 'lucide-react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
@@ -35,9 +35,17 @@ const SIDE_PANE_COLLAPSED_KEY = 'jieyu-side-pane-collapsed';
 const SIDE_PANE_WIDTH_KEY = 'jieyu-side-pane-width';
 const SIDE_PANE_DEFAULT_WIDTH = 272;
 
+function readLocalStorageValue(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
 function readPersistedSidePaneWidth(): number {
   try {
-    const raw = window.localStorage.getItem(SIDE_PANE_WIDTH_KEY);
+    const raw = readLocalStorageValue(SIDE_PANE_WIDTH_KEY);
     if (raw) {
       const next = Number(raw);
       if (Number.isFinite(next) && next >= 240 && next <= 420) return next;
@@ -49,11 +57,32 @@ function readPersistedSidePaneWidth(): number {
   return SIDE_PANE_DEFAULT_WIDTH;
 }
 
+function readInitialThemeMode(): ThemeMode {
+  const stored = readLocalStorageValue('jieyu-theme');
+  if (stored === 'light' || stored === 'dark') return stored;
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return 'light';
+}
+
+function readInitialSidePaneCollapsed(): boolean {
+  return readLocalStorageValue(SIDE_PANE_COLLAPSED_KEY) === '1';
+}
+
 function NotFound({ locale }: { locale: ReturnType<typeof detectLocale> }) {
   return (
     <section className="panel">
       <h2>{t(locale, 'app.notFound.title')}</h2>
       <p>{t(locale, 'app.notFound.desc')}</p>
+    </section>
+  );
+}
+
+function RouteLoading({ locale }: { locale: Locale }) {
+  return (
+    <section className="panel" role="status" aria-live="polite" aria-busy="true">
+      <p>{t(locale, 'transcription.status.loading')}</p>
     </section>
   );
 }
@@ -128,24 +157,26 @@ export function App() {
   const [locale, setLocale] = useState<Locale>(() => detectLocale());
   const shellBodyRef = useRef<HTMLDivElement | null>(null);
   const shellDragCleanupRef = useRef<(() => void) | null>(null);
-  const [themeMode] = useState<ThemeMode>(() => {
-    const stored = window.localStorage.getItem('jieyu-theme');
-    if (stored === 'light' || stored === 'dark') return stored;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
+  const [themeMode] = useState<ThemeMode>(readInitialThemeMode);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', themeMode);
-    window.localStorage.setItem('jieyu-theme', themeMode);
+    try {
+      window.localStorage.setItem('jieyu-theme', themeMode);
+    } catch {
+      // Ignore theme persistence failures and keep the current session theme.
+    }
   }, [themeMode]);
 
-  const [isSidePaneCollapsed, setIsSidePaneCollapsed] = useState<boolean>(() => (
-    window.localStorage.getItem(SIDE_PANE_COLLAPSED_KEY) === '1'
-  ));
+  const [isSidePaneCollapsed, setIsSidePaneCollapsed] = useState<boolean>(readInitialSidePaneCollapsed);
   const [sidePaneWidth, setSidePaneWidth] = useState<number>(readPersistedSidePaneWidth);
 
   useEffect(() => {
-    window.localStorage.setItem(SIDE_PANE_COLLAPSED_KEY, isSidePaneCollapsed ? '1' : '0');
+    try {
+      window.localStorage.setItem(SIDE_PANE_COLLAPSED_KEY, isSidePaneCollapsed ? '1' : '0');
+    } catch {
+      // Ignore persistence failures and keep the in-memory panel state.
+    }
   }, [isSidePaneCollapsed]);
 
   useEffect(() => {
@@ -181,6 +212,30 @@ export function App() {
           label: t(locale, 'app.nav.transcription'),
           icon: AudioLines,
           summary: t(locale, 'app.nav.summary.transcription'),
+        },
+        {
+          to: '/annotation',
+          label: t(locale, 'app.nav.annotation'),
+          icon: FolderKanban,
+          summary: t(locale, 'app.nav.summary.annotation'),
+        },
+        {
+          to: '/analysis',
+          label: t(locale, 'app.nav.analysis'),
+          icon: Brain,
+          summary: t(locale, 'app.nav.summary.analysis'),
+        },
+        {
+          to: '/writing',
+          label: t(locale, 'app.nav.writing'),
+          icon: StickyNote,
+          summary: t(locale, 'app.nav.summary.writing'),
+        },
+        {
+          to: '/lexicon',
+          label: t(locale, 'app.nav.lexicon'),
+          icon: Languages,
+          summary: t(locale, 'app.nav.summary.lexicon'),
         },
       ],
     },
@@ -293,7 +348,7 @@ export function App() {
               className={`app-main ${isTranscriptionRoute ? 'app-main-transcription' : ''}`}
             >
               <AiPanelProvider>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteLoading locale={locale} />}>
                   <Routes>
                     <Route path="/" element={<Navigate to="/transcription" replace />} />
                     <Route

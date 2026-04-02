@@ -51,6 +51,7 @@ function formatParentLayerOptionLabel(layer: LayerDocType): string {
 type LayerManagerPopoverProps = {
   allLayers: LayerDocType[];
   isOpen: boolean;
+  renderMode?: 'anchored' | 'dialog';
   onToggle: () => void;
   onClose: () => void;
   onCreateTranscriptionLayer: (input: LayerCreateInput) => Promise<boolean>;
@@ -68,6 +69,7 @@ type LayerManagerPopoverProps = {
 export function LayerManagerPopover({
   allLayers,
   isOpen,
+  renderMode = 'anchored',
   onToggle,
   onClose,
   onCreateTranscriptionLayer,
@@ -79,9 +81,11 @@ export function LayerManagerPopover({
   onDeleteLayer,
   message,
 }: LayerManagerPopoverProps) {
+  const isDialogMode = renderMode === 'dialog';
   const locale = useLocale();
   const messages = getLayerManagerPopoverMessages(locale);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const [shouldRenderBubble, setShouldRenderBubble] = useState(() => isOpen);
   const [transcriptionForm, setTranscriptionForm] = useState<LayerCreateInput>({
     languageId: '',
@@ -270,7 +274,10 @@ export function LayerManagerPopover({
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      if (!rootRef.current?.contains(target)) {
+      const isInsidePopover = isDialogMode
+        ? Boolean(panelRef.current?.contains(target))
+        : Boolean(rootRef.current?.contains(target));
+      if (!isInsidePopover) {
         onClose();
       }
     };
@@ -287,319 +294,333 @@ export function LayerManagerPopover({
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isDialogMode, isOpen, onClose]);
+
+  const managerCard = (
+    <div className="transcription-layer-form transcription-layer-manager dialog-card" ref={panelRef}>
+      <div className="transcription-layer-manager-head dialog-header">
+        <h3>{messages.layerManagement}</h3>
+        <div className="dialog-header-actions">
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={onClose}
+            aria-label={messages.close}
+            title={messages.close}
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+
+      <div className="transcription-layer-manager-body dialog-body">
+        <div className="transcription-layer-columns">
+        <div className="transcription-layer-section transcription-layer-section-transcription">
+          <div className="transcription-layer-section-head-row">
+            <div className="transcription-layer-section-head">
+              <AudioLines size={14} />
+              <span>{messages.createTranscriptionLayer}</span>
+            </div>
+            <span className="toolbar-chip small-chip transcription-layer-count-chip">{messages.existingCount(transcriptionLayerCount)}</span>
+          </div>
+          {transcriptionCreateError && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              style={{
+                border: '1px solid var(--state-danger-border)',
+                background: 'var(--state-danger-bg)',
+                color: 'var(--state-danger-text)',
+                borderRadius: 8,
+                padding: '8px 10px',
+                fontSize: 13,
+                fontWeight: 600,
+                lineHeight: 1.45,
+              }}
+            >
+              {messages.createFailedPrefix}: {transcriptionCreateError}
+            </div>
+          )}
+          <div className="transcription-layer-column-fields">
+            <select
+              className="input"
+              value={transcriptionForm.languageId}
+              onChange={(event) => setTranscriptionForm((prev) => ({ ...prev, languageId: event.target.value }))}
+            >
+              <option value="">{messages.selectLanguage}</option>
+              {COMMON_LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>{lang.label}（{lang.code}）</option>
+              ))}
+              <option value="__custom__">{messages.customLanguageOption}</option>
+            </select>
+            {transcriptionForm.languageId === '__custom__' && (
+              <input
+                className="input"
+                placeholder={messages.customLanguageCodePlaceholder}
+                value={transcriptionCustomLang}
+                onChange={(event) => setTranscriptionCustomLang(event.target.value)}
+              />
+            )}
+            <input
+              className="input"
+              placeholder={messages.aliasPlaceholder}
+              value={transcriptionForm.alias ?? ''}
+              onChange={(event) => setTranscriptionForm((prev) => ({ ...prev, alias: event.target.value }))}
+            />
+            {canConfigureTranscriptionConstraint && (
+              <fieldset style={{ margin: '8px 0', padding: '8px', border: '1px solid var(--border-soft)', borderRadius: '4px' }}>
+                <legend style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', paddingBottom: 4 }}>{messages.constraintLegend}</legend>
+                <label style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 13 }}>
+                  <input
+                    type="radio"
+                    name="manager-transcription-constraint"
+                    value="symbolic_association"
+                    checked={transcriptionConstraint === 'symbolic_association'}
+                    disabled={!transcriptionSymbolicGuard.allowed}
+                    onChange={(event) => setTranscriptionConstraint(event.target.value as LayerConstraint)}
+                    style={{ marginRight: 6 }}
+                  />
+                  {messages.dependentConstraint}
+                </label>
+                  <label style={{ display: 'flex', alignItems: 'center', fontSize: 13 }}>
+                    <input
+                      type="radio"
+                      name="manager-transcription-constraint"
+                      value="independent_boundary"
+                      checked={transcriptionConstraint === 'independent_boundary'}
+                      disabled={!transcriptionIndependentGuard.allowed}
+                      onChange={(event) => setTranscriptionConstraint(event.target.value as LayerConstraint)}
+                      style={{ marginRight: 6 }}
+                    />
+                    {messages.independentConstraint}
+                  </label>
+              </fieldset>
+            )}
+              {needsTranscriptionParent && independentParentLayers.length > 1 && (
+                <select
+                  className="input layer-parent-select"
+                  value={transcriptionParentLayerId}
+                  onChange={(event) => setTranscriptionParentLayerId(event.target.value)}
+                >
+                  <option value="">{messages.selectParentLayer}</option>
+                  {independentParentLayers.map((layer) => (
+                    <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
+                  ))}
+                </select>
+              )}
+              {needsTranscriptionParent && autoTranscriptionParentLayer && (
+                <p className="layer-parent-auto-note">{messages.autoLinkedParent(formatParentLayerOptionLabel(autoTranscriptionParentLayer))}</p>
+              )}
+          </div>
+          <div className="action-row">
+            <button
+              className="btn"
+              disabled={!hasValidTranscriptionLanguage || transcriptionCreateDisabledReason.length > 0}
+              onClick={() => fireAndForget(handleCreateTranscription())}
+            >
+              {messages.createTranscriptionLayer}
+            </button>
+          </div>
+          {(transcriptionCreateDisabledReason || !hasValidTranscriptionLanguage) && (
+            <div className="layer-create-feedback-stack">
+              {transcriptionCreateDisabledReason && (
+                <p className="layer-create-feedback layer-create-feedback-error">
+                  {messages.transcriptionDisabledReason(transcriptionCreateDisabledReason)}
+                </p>
+              )}
+              {!hasValidTranscriptionLanguage && (
+                <p className="layer-create-feedback layer-create-feedback-info">
+                  {messages.transcriptionLanguageRequired}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="transcription-layer-section transcription-layer-section-translation">
+          <div className="transcription-layer-section-head-row">
+            <div className="transcription-layer-section-head">
+              <Languages size={14} />
+              <span>{messages.createTranslationLayer}</span>
+            </div>
+            <span className="toolbar-chip small-chip transcription-layer-count-chip">{messages.existingCount(translationLayerCount)}</span>
+          </div>
+          {translationCreateError && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              style={{
+                border: '1px solid var(--state-danger-border)',
+                background: 'var(--state-danger-bg)',
+                color: 'var(--state-danger-text)',
+                borderRadius: 8,
+                padding: '8px 10px',
+                fontSize: 13,
+                fontWeight: 600,
+                lineHeight: 1.45,
+              }}
+            >
+              {messages.createFailedPrefix}: {translationCreateError}
+            </div>
+          )}
+          <div className="transcription-layer-column-fields">
+            <select
+              className="input"
+              value={translationForm.languageId}
+              onChange={(event) => setTranslationForm((prev) => ({ ...prev, languageId: event.target.value }))}
+            >
+              <option value="">{messages.selectLanguage}</option>
+              {COMMON_LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>{lang.label}（{lang.code}）</option>
+              ))}
+              <option value="__custom__">{messages.customLanguageOption}</option>
+            </select>
+            {translationForm.languageId === '__custom__' && (
+              <input
+                className="input"
+                placeholder={messages.customLanguageCodePlaceholder}
+                value={translationCustomLang}
+                onChange={(event) => setTranslationCustomLang(event.target.value)}
+              />
+            )}
+            <input
+              className="input"
+              placeholder={messages.aliasPlaceholder}
+              value={translationForm.alias ?? ''}
+              onChange={(event) => setTranslationForm((prev) => ({ ...prev, alias: event.target.value }))}
+            />
+            <select
+              className="input"
+              value={translationModality}
+              onChange={(event) => setTranslationModality(event.target.value as 'text' | 'audio' | 'mixed')}
+            >
+              {translationModalityOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <div className="layer-parent-guidance-note">
+              {messages.translationBoundarySource}
+            </div>
+            {independentParentLayers.length > 1 && (
+              <select
+                className="input layer-parent-select"
+                value={translationParentLayerId}
+                onChange={(event) => setTranslationParentLayerId(event.target.value)}
+              >
+                <option value="">{messages.selectParentLayer}</option>
+                {independentParentLayers.map((layer) => (
+                  <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
+                ))}
+              </select>
+            )}
+            {autoTranslationParentLayer && (
+              <p className="layer-parent-auto-note">{messages.autoLinkedParent(formatParentLayerOptionLabel(autoTranslationParentLayer))}</p>
+            )}
+          </div>
+          <div className="action-row">
+            <button
+              className="btn"
+              disabled={!hasValidTranslationLanguage || translationCreateDisabledReason.length > 0}
+              onClick={() => fireAndForget(handleCreateTranslation())}
+            >
+              {messages.createTranslationLayer}
+            </button>
+          </div>
+          {(translationCreateDisabledReason || !hasValidTranslationLanguage) && (
+            <div className="layer-create-feedback-stack">
+              {translationCreateDisabledReason && (
+                <p className="layer-create-feedback layer-create-feedback-error">
+                  {messages.translationDisabledReason(translationCreateDisabledReason)}
+                </p>
+              )}
+              {!hasValidTranslationLanguage && (
+                <p className="layer-create-feedback layer-create-feedback-info">
+                  {messages.translationLanguageRequired}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="transcription-layer-section transcription-layer-section-delete">
+          <div className="transcription-layer-section-head-row">
+            <div className="transcription-layer-section-head">
+              <Trash2 size={14} />
+              <span>{messages.deleteLayer}</span>
+            </div>
+            <span className="toolbar-chip small-chip transcription-layer-count-chip">{messages.deletableCount(deletableLayers.length)}</span>
+          </div>
+          <div className="transcription-layer-column-fields">
+            <select
+              className="input"
+              value={layerToDeleteId}
+              onChange={(event) => onLayerToDeleteIdChange(event.target.value)}
+              disabled={deletableLayers.length === 0}
+            >
+              {deletableLayers.length > 0 ? (
+                deletableLayers.map((layer) => (
+                  <option key={layer.id} value={layer.id}>
+                    {layer.layerType === 'translation' ? messages.translationLayerType : messages.transcriptionLayerType}
+                    {' · '}
+                    {getLayerDisplayName(layer)}
+                    {' · '}
+                    {formatLayerLanguage(layer, messages.missingLanguage)}
+                  </option>
+                ))
+              ) : (
+                <option value="">{messages.noDeletableLayers}</option>
+              )}
+            </select>
+
+            <p className="small-text">
+              {deletableLayers.length === 0
+                ? messages.noDeletableLayersHint
+                : messages.deleteCleanupHint}
+            </p>
+          </div>
+
+          <div className="action-row">
+            <button
+              className="btn btn-danger"
+              onClick={() => fireAndForget(Promise.resolve(onDeleteLayer()))}
+              disabled={deletableLayers.length === 0 || !layerPendingDelete}
+            >
+              {messages.confirmDelete}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {message && <p className="small-text transcription-layer-manager-message">{message}</p>}
+      </div>
+    </div>
+  );
 
   return (
     <div className="transcription-layer-popover" ref={rootRef}>
-      <div className="transcription-list-toolbar transcription-list-toolbar-layer-only">
-        <button className="btn btn-sm" onClick={onToggle}>
-          {messages.layerManagement}
-        </button>
-      </div>
+      {!isDialogMode && (
+        <div className="transcription-list-toolbar transcription-list-toolbar-layer-only">
+          <button className="btn" onClick={onToggle}>
+            {messages.layerManagement}
+          </button>
+        </div>
+      )}
 
       {shouldRenderBubble && (
-        <div className={`transcription-layer-bubble ${isOpen ? 'transcription-layer-bubble-open' : 'transcription-layer-bubble-closing'}`}>
-          <div className="transcription-layer-bubble-arrow" />
-          <div className="transcription-layer-form transcription-layer-manager dialog-card">
-            <div className="transcription-layer-manager-head dialog-header">
-              <h3>{messages.layerManagement}</h3>
-              <div className="dialog-header-actions">
-                <button
-                  type="button"
-                  className="icon-btn"
-                  onClick={onClose}
-                  aria-label={messages.close}
-                  title={messages.close}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            <div className="transcription-layer-manager-body dialog-body">
-              <div className="transcription-layer-columns">
-              <div className="transcription-layer-section transcription-layer-section-transcription">
-                <div className="transcription-layer-section-head-row">
-                  <div className="transcription-layer-section-head">
-                    <AudioLines size={14} />
-                    <span>{messages.createTranscriptionLayer}</span>
-                  </div>
-                  <span className="toolbar-chip small-chip transcription-layer-count-chip">{messages.existingCount(transcriptionLayerCount)}</span>
-                </div>
-                {transcriptionCreateError && (
-                  <div
-                    role="alert"
-                    aria-live="assertive"
-                    style={{
-                      border: '1px solid var(--state-danger-border)',
-                      background: 'var(--state-danger-bg)',
-                      color: 'var(--state-danger-text)',
-                      borderRadius: 8,
-                      padding: '8px 10px',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    {messages.createFailedPrefix}\uff1a{transcriptionCreateError}
-                  </div>
-                )}
-                <div className="transcription-layer-column-fields">
-                  <select
-                    className="input"
-                    value={transcriptionForm.languageId}
-                    onChange={(event) => setTranscriptionForm((prev) => ({ ...prev, languageId: event.target.value }))}
-                  >
-                    <option value="">{messages.selectLanguage}</option>
-                    {COMMON_LANGUAGES.map((lang) => (
-                      <option key={lang.code} value={lang.code}>{lang.label}（{lang.code}）</option>
-                    ))}
-                    <option value="__custom__">{messages.customLanguageOption}</option>
-                  </select>
-                  {transcriptionForm.languageId === '__custom__' && (
-                    <input
-                      className="input"
-                      placeholder={messages.customLanguageCodePlaceholder}
-                      value={transcriptionCustomLang}
-                      onChange={(event) => setTranscriptionCustomLang(event.target.value)}
-                    />
-                  )}
-                  <input
-                    className="input"
-                    placeholder={messages.aliasPlaceholder}
-                    value={transcriptionForm.alias ?? ''}
-                    onChange={(event) => setTranscriptionForm((prev) => ({ ...prev, alias: event.target.value }))}
-                  />
-                  {canConfigureTranscriptionConstraint && (
-                    <fieldset style={{ margin: '8px 0', padding: '8px', border: '1px solid var(--border-soft)', borderRadius: '4px' }}>
-                      <legend style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', paddingBottom: 4 }}>{messages.constraintLegend}</legend>
-                      <label style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 13 }}>
-                        <input
-                          type="radio"
-                          name="manager-transcription-constraint"
-                          value="symbolic_association"
-                          checked={transcriptionConstraint === 'symbolic_association'}
-                          disabled={!transcriptionSymbolicGuard.allowed}
-                          onChange={(event) => setTranscriptionConstraint(event.target.value as LayerConstraint)}
-                          style={{ marginRight: 6 }}
-                        />
-                        {messages.dependentConstraint}
-                      </label>
-                        <label style={{ display: 'flex', alignItems: 'center', fontSize: 13 }}>
-                          <input
-                            type="radio"
-                            name="manager-transcription-constraint"
-                            value="independent_boundary"
-                            checked={transcriptionConstraint === 'independent_boundary'}
-                            disabled={!transcriptionIndependentGuard.allowed}
-                            onChange={(event) => setTranscriptionConstraint(event.target.value as LayerConstraint)}
-                            style={{ marginRight: 6 }}
-                          />
-                          {messages.independentConstraint}
-                        </label>
-                    </fieldset>
-                  )}
-                    {needsTranscriptionParent && independentParentLayers.length > 1 && (
-                      <select
-                        className="input layer-parent-select"
-                        value={transcriptionParentLayerId}
-                        onChange={(event) => setTranscriptionParentLayerId(event.target.value)}
-                      >
-                        <option value="">{messages.selectParentLayer}</option>
-                        {independentParentLayers.map((layer) => (
-                          <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
-                        ))}
-                      </select>
-                    )}
-                    {needsTranscriptionParent && autoTranscriptionParentLayer && (
-                      <p className="layer-parent-auto-note">{messages.autoLinkedParent(formatParentLayerOptionLabel(autoTranscriptionParentLayer))}</p>
-                    )}
-                </div>
-                <div className="action-row">
-                  <button
-                    className="btn"
-                    disabled={!hasValidTranscriptionLanguage || transcriptionCreateDisabledReason.length > 0}
-                    onClick={() => fireAndForget(handleCreateTranscription())}
-                  >
-                    {messages.createTranscriptionLayer}
-                  </button>
-                </div>
-                {(transcriptionCreateDisabledReason || !hasValidTranscriptionLanguage) && (
-                  <div className="layer-create-feedback-stack">
-                    {transcriptionCreateDisabledReason && (
-                      <p className="layer-create-feedback layer-create-feedback-error">
-                        {messages.transcriptionDisabledReason(transcriptionCreateDisabledReason)}
-                      </p>
-                    )}
-                    {!hasValidTranscriptionLanguage && (
-                      <p className="layer-create-feedback layer-create-feedback-info">
-                        {messages.transcriptionLanguageRequired}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="transcription-layer-section transcription-layer-section-translation">
-                <div className="transcription-layer-section-head-row">
-                  <div className="transcription-layer-section-head">
-                    <Languages size={14} />
-                    <span>{messages.createTranslationLayer}</span>
-                  </div>
-                  <span className="toolbar-chip small-chip transcription-layer-count-chip">{messages.existingCount(translationLayerCount)}</span>
-                </div>
-                {translationCreateError && (
-                  <div
-                    role="alert"
-                    aria-live="assertive"
-                    style={{
-                      border: '1px solid var(--state-danger-border)',
-                      background: 'var(--state-danger-bg)',
-                      color: 'var(--state-danger-text)',
-                      borderRadius: 8,
-                      padding: '8px 10px',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    {messages.createFailedPrefix}\uff1a{translationCreateError}
-                  </div>
-                )}
-                <div className="transcription-layer-column-fields">
-                  <select
-                    className="input"
-                    value={translationForm.languageId}
-                    onChange={(event) => setTranslationForm((prev) => ({ ...prev, languageId: event.target.value }))}
-                  >
-                    <option value="">{messages.selectLanguage}</option>
-                    {COMMON_LANGUAGES.map((lang) => (
-                      <option key={lang.code} value={lang.code}>{lang.label}（{lang.code}）</option>
-                    ))}
-                    <option value="__custom__">{messages.customLanguageOption}</option>
-                  </select>
-                  {translationForm.languageId === '__custom__' && (
-                    <input
-                      className="input"
-                      placeholder={messages.customLanguageCodePlaceholder}
-                      value={translationCustomLang}
-                      onChange={(event) => setTranslationCustomLang(event.target.value)}
-                    />
-                  )}
-                  <input
-                    className="input"
-                    placeholder={messages.aliasPlaceholder}
-                    value={translationForm.alias ?? ''}
-                    onChange={(event) => setTranslationForm((prev) => ({ ...prev, alias: event.target.value }))}
-                  />
-                  <select
-                    className="input"
-                    value={translationModality}
-                    onChange={(event) => setTranslationModality(event.target.value as 'text' | 'audio' | 'mixed')}
-                  >
-                    {translationModalityOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="layer-parent-guidance-note">
-                    {messages.translationBoundarySource}
-                  </div>
-                  {independentParentLayers.length > 1 && (
-                    <select
-                      className="input layer-parent-select"
-                      value={translationParentLayerId}
-                      onChange={(event) => setTranslationParentLayerId(event.target.value)}
-                    >
-                      <option value="">{messages.selectParentLayer}</option>
-                      {independentParentLayers.map((layer) => (
-                        <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
-                      ))}
-                    </select>
-                  )}
-                  {autoTranslationParentLayer && (
-                    <p className="layer-parent-auto-note">{messages.autoLinkedParent(formatParentLayerOptionLabel(autoTranslationParentLayer))}</p>
-                  )}
-                </div>
-                <div className="action-row">
-                  <button
-                    className="btn"
-                    disabled={!hasValidTranslationLanguage || translationCreateDisabledReason.length > 0}
-                    onClick={() => fireAndForget(handleCreateTranslation())}
-                  >
-                    {messages.createTranslationLayer}
-                  </button>
-                </div>
-                {(translationCreateDisabledReason || !hasValidTranslationLanguage) && (
-                  <div className="layer-create-feedback-stack">
-                    {translationCreateDisabledReason && (
-                      <p className="layer-create-feedback layer-create-feedback-error">
-                        {messages.translationDisabledReason(translationCreateDisabledReason)}
-                      </p>
-                    )}
-                    {!hasValidTranslationLanguage && (
-                      <p className="layer-create-feedback layer-create-feedback-info">
-                        {messages.translationLanguageRequired}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="transcription-layer-section transcription-layer-section-delete">
-                <div className="transcription-layer-section-head-row">
-                  <div className="transcription-layer-section-head">
-                    <Trash2 size={14} />
-                    <span>{messages.deleteLayer}</span>
-                  </div>
-                  <span className="toolbar-chip small-chip transcription-layer-count-chip">{messages.deletableCount(deletableLayers.length)}</span>
-                </div>
-                <div className="transcription-layer-column-fields">
-                  <select
-                    className="input"
-                    value={layerToDeleteId}
-                    onChange={(event) => onLayerToDeleteIdChange(event.target.value)}
-                    disabled={deletableLayers.length === 0}
-                  >
-                    {deletableLayers.length > 0 ? (
-                      deletableLayers.map((layer) => (
-                        <option key={layer.id} value={layer.id}>
-                          {layer.layerType === 'translation' ? messages.translationLayerType : messages.transcriptionLayerType}
-                          {' · '}
-                          {getLayerDisplayName(layer)}
-                          {' · '}
-                          {formatLayerLanguage(layer, messages.missingLanguage)}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="">{messages.noDeletableLayers}</option>
-                    )}
-                  </select>
-
-                  <p className="small-text">
-                    {deletableLayers.length === 0
-                      ? messages.noDeletableLayersHint
-                      : messages.deleteCleanupHint}
-                  </p>
-                </div>
-
-                <div className="action-row">
-                  <button
-                    className="btn btn-danger"
-                    onClick={() => fireAndForget(Promise.resolve(onDeleteLayer()))}
-                    disabled={deletableLayers.length === 0 || !layerPendingDelete}
-                  >
-                    {messages.confirmDelete}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-              {message && <p className="small-text transcription-layer-manager-message">{message}</p>}
+        isDialogMode ? (
+          <div className="dialog-overlay dialog-overlay-topmost" role="presentation" onMouseDown={onClose}>
+            <div className="transcription-layer-bubble transcription-layer-bubble-dialog" onMouseDown={(event) => event.stopPropagation()}>
+              {managerCard}
             </div>
           </div>
-        </div>
+        ) : (
+          <div className={`transcription-layer-bubble ${isOpen ? 'transcription-layer-bubble-open' : 'transcription-layer-bubble-closing'}`}>
+            <div className="transcription-layer-bubble-arrow" />
+            {managerCard}
+          </div>
+        )
       )}
     </div>
   );

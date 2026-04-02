@@ -54,6 +54,31 @@ export default defineConfig({
       },
       output: {
         manualChunks(id) {
+          if (
+            id.includes('/src/pages/TranscriptionPage.SidePane')
+            || id.includes('/src/components/SidePaneSidebar')
+            || id.includes('/src/components/LayerActionPopover')
+            || id.includes('/src/components/SidePaneActionModal')
+          ) {
+            return 'TranscriptionPage.SidePane';
+          }
+          if (
+            id.includes('/src/hooks/useImportExport.ts')
+            || id.includes('/src/services/EafService')
+            || id.includes('/src/services/TextGridService')
+            || id.includes('/src/services/TranscriberService')
+            || id.includes('/src/services/FlexService')
+            || id.includes('/src/services/ToolboxService')
+            || id.includes('/src/services/JymService')
+            || id.includes('/src/services/TierBridgeService')
+            || id.includes('/src/services/LayerConstraintService')
+            || id.includes('/src/services/LayerTierUnifiedService')
+            || id.includes('/src/services/LayerSegmentationTextService')
+            || id.includes('/src/services/LayerSegmentationV2Service')
+            || id.includes('/src/services/LayerSegmentQueryService')
+          ) {
+            return 'TranscriptionPage.ImportExport';
+          }
           // 仅抽离语音域业务代码，降低主页面 chunk 且避免循环分包 | Extract only voice-domain app code to reduce main chunk without circular chunking
           if (id.includes('/src/services/VoiceInputService')) {
             return 'voice-input-runtime';
@@ -63,6 +88,18 @@ export default defineConfig({
           }
           if (id.includes('/src/services/stt/')) {
             return 'voice-stt-core';
+          }
+          if (
+            id.includes('/src/hooks/useVoiceAgentDictationPipeline.ts')
+            || id.includes('/src/services/SpeechAnnotationPipeline.ts')
+          ) {
+            return 'voice-dictation-runtime';
+          }
+          if (id.includes('/src/services/EarconService.ts')) {
+            return 'voice-earcon-runtime';
+          }
+          if (id.includes('/src/services/WakeWordDetector.ts')) {
+            return 'voice-wake-runtime';
           }
           // 已有 lazy 边界的语音 UI / runtime 不应被粗粒度 voice-core 吞并 | Preserve existing lazy boundaries for voice UI and runtime wiring
           if (id.includes('/src/components/VoiceAgentWidget')) {
@@ -84,8 +121,6 @@ export default defineConfig({
           if (
             id.includes('/src/hooks/useVoiceDock.ts')
             || id.includes('/src/hooks/useVoiceInteraction.ts')
-            || id.includes('/src/services/EarconService.ts')
-            || id.includes('/src/services/WakeWordDetector.ts')
             || id.includes('/src/services/voiceIntentUi.ts')
           ) {
             return 'voice-agent-core';

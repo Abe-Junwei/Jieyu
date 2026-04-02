@@ -71,7 +71,6 @@ interface UseTranscriptionShellControllerResult {
   adaptiveDialogWidth: number;
   adaptiveDialogCompactWidth: number;
   adaptiveDialogWideWidth: number;
-  adaptiveFloatingWidth: number;
   handleAiPanelToggle: (e?: React.SyntheticEvent<HTMLElement>) => void;
   isHubCollapsed: boolean;
   hubHeight: number;
@@ -182,7 +181,6 @@ export function useTranscriptionShellController(
     adaptiveDialogWidth,
     adaptiveDialogCompactWidth,
     adaptiveDialogWideWidth,
-    adaptiveFloatingWidth,
   } = useTranscriptionAdaptiveSizing(locale);
 
   const [analysisTab, setAnalysisTab] = useState<AnalysisBottomTab>('embedding');
@@ -317,7 +315,6 @@ export function useTranscriptionShellController(
     adaptiveDialogWidth,
     adaptiveDialogCompactWidth,
     adaptiveDialogWideWidth,
-    adaptiveFloatingWidth,
     handleAiPanelToggle,
     isHubCollapsed,
     hubHeight,

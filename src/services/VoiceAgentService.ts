@@ -16,7 +16,6 @@ import type { WakeWordDetector as WakeWordDetectorType } from './WakeWordDetecto
 import { AmbientObserver } from './AmbientObserver';
 import { SpeechQualityAnalyzer } from './SpeechQualityAnalyzer';
 import { saveVoiceSession, loadRecentVoiceSessions } from './VoiceSessionStore';
-import { projectMemoryStore } from './ProjectMemoryStore';
 import {
   SpeechAnnotationPipeline,
   type AnnotationLayer,
@@ -24,18 +23,11 @@ import {
   type DictationPipelineCallbacks,
 } from './SpeechAnnotationPipeline';
 import {
-  routeIntent,
-  isDestructiveAction,
-  shouldConfirmFuzzyAction,
-  getActionLabel,
   createVoiceSession,
   loadVoiceIntentAliasMap,
-  learnVoiceIntentAlias,
-  bumpAliasUsage,
   type ActionId,
   type VoiceIntent,
   type VoiceSession,
-  type VoiceSessionEntry,
 } from './IntentRouter';
 import { toBcp47 } from '../utils/langMapping';
 import type { CommercialProviderCreateConfig } from './stt';
@@ -45,13 +37,19 @@ import * as Earcon from './EarconService';
 import { unlockAudio } from './EarconService';
 import { globalContext } from './GlobalContextService';
 import { userBehaviorStore } from './UserBehaviorStore';
-import { refineLlmFallbackIntent } from './voiceIntentRefine';
 import {
   buildVoiceAgentGroundingContext,
   type GroundingContextData,
   type VoiceAgentGroundingUiContext,
 } from './VoiceAgentGroundingContext';
 import { createLogger } from '../observability/logger';
+import { BrowserEventEmitter } from './VoiceAgentService.eventEmitter';
+import { handleFinalSttResult } from './VoiceAgentService.commandBridge';
+import type { CommandBridgeContext } from './VoiceAgentService.commandBridge';
+import { buildVoiceAgentServiceStateSnapshot } from './VoiceAgentService.state';
+import { buildVoiceAgentStartConfig, testVoiceAgentCommercialProvider } from './VoiceAgentService.runtime';
+import { startWakeWordDetectorRuntime } from './VoiceAgentService.wakeWord';
+import { startVoiceAgentRecording, stopVoiceAgentRecording } from './VoiceAgentService.recordingControls';
 import type { Locale } from '../i18n';
 
 const log = createLogger('VoiceAgentService');
@@ -171,37 +169,6 @@ type StateChangeHandler = (state: VoiceAgentServiceState) => void;
 type VoiceAgentServiceEventMap = {
   stateChange: [VoiceAgentServiceState];
 };
-
-class BrowserEventEmitter<
-  Events extends Record<string, unknown[]>,
-> {
-  private readonly listeners = new Map<keyof Events, Set<(...args: unknown[]) => void>>();
-
-  on<EventName extends keyof Events>(eventName: EventName, listener: (...args: Events[EventName]) => void): void {
-    const eventListeners = this.listeners.get(eventName) ?? new Set<(...args: unknown[]) => void>();
-    eventListeners.add(listener as (...args: unknown[]) => void);
-    this.listeners.set(eventName, eventListeners);
-  }
-
-  off<EventName extends keyof Events>(eventName: EventName, listener: (...args: Events[EventName]) => void): void {
-    const eventListeners = this.listeners.get(eventName);
-    if (!eventListeners) return;
-    eventListeners.delete(listener as (...args: unknown[]) => void);
-    if (eventListeners.size === 0) this.listeners.delete(eventName);
-  }
-
-  emit<EventName extends keyof Events>(eventName: EventName, ...args: Events[EventName]): void {
-    const eventListeners = this.listeners.get(eventName);
-    if (!eventListeners || eventListeners.size === 0) return;
-    for (const listener of [...eventListeners]) {
-      listener(...args);
-    }
-  }
-
-  removeAllListeners(): void {
-    this.listeners.clear();
-  }
-}
 
 export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEventMap> {
   // ── State ────────────────────────────────────────────────────────────────
@@ -342,7 +309,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     // Return cached state if already built by _emitStateChange; otherwise build once.
     // This prevents expensive _buildGroundingContext() from running on every .state access.
     if (this._stateCache) return this._stateCache;
-    return {
+    return buildVoiceAgentServiceStateSnapshot({
       listening: this._listening,
       speechActive: this._speechActive,
       mode: this._mode,
@@ -365,7 +332,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       detectedLang: this._detectedLang,
       agentState: this._agentState,
       groundingContext: this._buildGroundingContext(),
-    };
+    });
   }
 
   get listening() { return this._listening; }
@@ -405,7 +372,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   }
 
   private _emitStateChange(): void {
-    this._stateCache = {
+    this._stateCache = buildVoiceAgentServiceStateSnapshot({
       listening: this._listening,
       speechActive: this._speechActive,
       mode: this._mode,
@@ -428,7 +395,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       detectedLang: this._detectedLang,
       agentState: this._agentState,
       groundingContext: this._buildGroundingContext(),
-    };
+    });
     this.emit('stateChange', this._stateCache);
   }
 
@@ -519,27 +486,16 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       regionHint: region,
     });
 
-    const startConfig: Parameters<typeof svc.start>[0] = {
+    const startConfig = await buildVoiceAgentStartConfig({
       lang,
-      continuous: true,
-      interimResults: true,
-      preferredEngine: runtimeEngine,
+      runtimeEngine,
       region,
-      maxAlternatives: 3,
-    };
-    // whisper-local \u4f7f\u7528 whisper-server（3040 \u7aef\u53e3） | whisper-local uses whisper-server (port 3040)
-    if (runtimeEngine === 'whisper-local') {
-      log.debug('start whisper config', { url: this._whisperServerUrl, model: this._whisperServerModel });
-      startConfig.whisperServerUrl = this._whisperServerUrl;
-      startConfig.whisperServerModel = this._whisperServerModel;
-    }
-    if (runtimeEngine === 'commercial' && this._commercialProviderConfig) {
-      const { createCommercialProvider } = await loadSttRuntime();
-      startConfig.commercialFallback = createCommercialProvider(
-        this._commercialProviderKind,
-        this._commercialProviderConfig,
-      );
-    }
+      whisperServerUrl: this._whisperServerUrl,
+      whisperServerModel: this._whisperServerModel,
+      commercialProviderKind: this._commercialProviderKind,
+      commercialProviderConfig: this._commercialProviderConfig,
+      loadSttRuntime,
+    });
     try {
       await svc.start(startConfig);
     } catch (error) {
@@ -677,31 +633,34 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   // ── Push-to-talk ────────────────────────────────────────────────────────
 
   async startRecording(): Promise<void> {
-    const svc = await this._ensureVoiceService();
-    this._setState({ agentState: 'listening' });
-    try {
-      await svc.startRecording();
-      this._setState({ isRecording: true, recordingDuration: 0 });
-      this._recordingDurationInterval = setInterval(() => {
-        this._setState({ recordingDuration: this._recordingDuration + 1 });
-      }, 1000);
-    } catch (error) {
-      if (this._recordingDurationInterval !== null) {
-        clearInterval(this._recordingDurationInterval);
-        this._recordingDurationInterval = null;
-      }
-      this._setState({ isRecording: false, agentState: 'idle', error: error instanceof Error ? error.message : '\u5f55\u97f3\u542f\u52a8\u5931\u8d25' });
-      Earcon.playError();
-    }
+    await startVoiceAgentRecording({
+      ensureVoiceService: () => this._ensureVoiceService(),
+      setState: (partial) => this._setState(partial),
+      getRecordingDuration: () => this._recordingDuration,
+      getRecordingDurationInterval: () => this._recordingDurationInterval,
+      setRecordingDurationInterval: (timer) => {
+        this._recordingDurationInterval = timer;
+      },
+      onError: (error) => {
+        this._setState({
+          isRecording: false,
+          agentState: 'idle',
+          error: error instanceof Error ? error.message : '\u5f55\u97f3\u542f\u52a8\u5931\u8d25',
+        });
+        Earcon.playError();
+      },
+    });
   }
 
   async stopRecording(): Promise<void> {
-    if (this._recordingDurationInterval !== null) {
-      clearInterval(this._recordingDurationInterval);
-      this._recordingDurationInterval = null;
-    }
-    this._setState({ isRecording: false, agentState: 'idle' });
-    await this._voiceService?.stopRecording();
+    await stopVoiceAgentRecording({
+      voiceService: this._voiceService,
+      setState: (partial) => this._setState(partial),
+      getRecordingDurationInterval: () => this._recordingDurationInterval,
+      setRecordingDurationInterval: (timer) => {
+        this._recordingDurationInterval = timer;
+      },
+    });
   }
 
   // ── Engine & config ────────────────────────────────────────────────────
@@ -735,8 +694,11 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   }
 
   async testCommercialProvider(): Promise<{ available: boolean; error?: string }> {
-    const { testCommercialProvider } = await loadSttRuntime();
-    return testCommercialProvider(this._commercialProviderKind, this._commercialProviderConfig);
+    return testVoiceAgentCommercialProvider(
+      this._commercialProviderKind,
+      this._commercialProviderConfig,
+      loadSttRuntime,
+    );
   }
 
   // ── Mode & safe mode ───────────────────────────────────────────────────
@@ -813,208 +775,69 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     // Record audio quality for command-mode segments
     this._speechQuality?.recordSegmentQuality('command');
 
-    // Detect and record term/phrase patterns from natural language
-    this._detectAndRecordMemoryPattern(result.text);
-
-    this._setState({ interimText: '', finalText: result.text, confidence: result.confidence, agentState: 'routing' });
-
-    let intent = routeIntent(result.text, this._mode, {
-      sttConfidence: result.confidence,
-      detectedLang: result.lang,
-      aliasMap: this._intentAliasMap,
-    });
-    log.debug('routeIntent', { text: result.text, mode: this._mode, intentType: intent.type });
-
-    // LLM fallback for chat intents
-    let llmFallbackFailed = false;
-    let llmResolvedAction = false;
-    if (intent.type === 'chat' && this._mode === 'command' && this._resolveIntentWithLlm) {
-      try {
-        const fallbackIntent = await this._resolveIntentWithLlm({
-          text: result.text,
-          mode: this._mode,
-          session: this._session,
-        });
-        if (fallbackIntent) {
-          intent = refineLlmFallbackIntent(fallbackIntent, result);
-          llmResolvedAction = intent.type === 'action';
-        } else {
-          llmFallbackFailed = true;
-          this._setState({ error: '\u65e0\u6cd5\u8bc6\u522b\u8be5\u6307\u4ee4，\u8bf7\u91cd\u8bd5\u6216\u5207\u6362\u5230"\u5206\u6790"\u6a21\u5f0f\u76f4\u63a5\u53d1\u9001\u6587\u672c' });
-        }
-      } catch (err) {
-        llmFallbackFailed = true;
-        this._setState({ error: err instanceof Error ? err.message : 'LLM intent\u89e3\u6790\u5931\u8d25' });
-      }
-    }
-
-    if (llmResolvedAction && intent.type === 'action') {
-      const learned = learnVoiceIntentAlias(result.text, intent.actionId);
-      if (learned.applied) {
-        this._intentAliasMap = learned.aliasMap;
-      }
-    }
-    // Bump usage stats for alias-matched intents | \u547d\u4e2d\u522b\u540d\u65f6\u66f4\u65b0\u4f7f\u7528\u7edf\u8ba1
-    if (!llmResolvedAction && intent.type === 'action' && intent.fromAlias) {
-      bumpAliasUsage(result.text);
-    }
-
-    this._setState({ lastIntent: intent, agentState: llmFallbackFailed ? 'idle' : 'executing' });
-
-    // Record to session
-    const entry: VoiceSessionEntry = {
-      timestamp: Date.now(),
-      intent,
-      sttText: result.text,
-      confidence: result.confidence,
+    // Delegate to command bridge for intent routing + dispatch
+    const ctx: CommandBridgeContext = {
+      mode: this._mode,
+      safeMode: this._safeMode,
+      session: this._session,
+      locale: this._locale,
+      corpusLang: this._corpusLang,
+      intentAliasMap: this._intentAliasMap,
+      setState: (p) => this._setState(p),
+      emitStateChange: () => this._emitStateChange(),
+      ...(this._resolveIntentWithLlm && { resolveIntentWithLlm: this._resolveIntentWithLlm }),
+      ...(this._onExecuteAction && { onExecuteAction: this._onExecuteAction }),
+      ...(this._onInsertDictation && { onInsertDictation: this._onInsertDictation }),
+      ...(this._onSendToAiChat && { onSendToAiChat: this._onSendToAiChat }),
+      ...(this._onToolCall && { onToolCall: this._onToolCall }),
     };
-    this._session = { ...this._session, entries: [...this._session.entries, entry] };
+    const mutations = await handleFinalSttResult(ctx, result);
+    this._session = mutations.session;
+    this._intentAliasMap = mutations.intentAliasMap;
     this._emitStateChange();
-
-    // Dispatch by intent type
-    switch (intent.type) {
-      case 'action': {
-        const needsConfirm =
-          (intent.fromFuzzy && shouldConfirmFuzzyAction(intent.actionId))
-          || (this._safeMode && isDestructiveAction(intent.actionId));
-        if (needsConfirm) {
-          const label = intent.fromFuzzy
-            ? `[\u6a21\u7cca] ${getActionLabel(intent.actionId, this._locale)}`
-            : getActionLabel(intent.actionId, this._locale);
-          this._setState({ pendingConfirm: { actionId: intent.actionId, label, ...(intent.fromFuzzy !== undefined && { fromFuzzy: intent.fromFuzzy }) }, agentState: 'idle' });
-          Earcon.playTick();
-        } else {
-          this._onExecuteAction?.(intent.actionId, intent.params);
-          Earcon.playSuccess();
-          globalContext.markSessionStart();
-          userBehaviorStore.recordAction({ actionId: intent.actionId, durationMs: 0, sessionId: this._session.id });
-          this._setState({ agentState: 'idle' });
-        }
-        break;
-      }
-      case 'tool': {
-        if (this._onToolCall) {
-          try {
-            const toolResult = await this._onToolCall({ name: intent.toolName, arguments: intent.params });
-            if (toolResult.ok) {
-              this._onSendToAiChat?.(`[\u5de5\u5177\u6267\u884c] ${intent.toolName}：${toolResult.message}`);
-              Earcon.playSuccess();
-            } else {
-              this._onSendToAiChat?.(`[\u5de5\u5177\u5931\u8d25] ${intent.toolName}：${toolResult.message}`);
-              Earcon.playError();
-            }
-          } catch (err) {
-            this._onSendToAiChat?.(`[\u5de5\u5177\u5f02\u5e38] ${intent.toolName}：${err instanceof Error ? err.message : String(err)}`);
-            Earcon.playError();
-          }
-        } else {
-          this._onSendToAiChat?.(`[\u8bed\u97f3\u6307\u4ee4] ${intent.raw}`);
-          Earcon.playSuccess();
-        }
-        this._setState({ agentState: 'idle' });
-        break;
-      }
-      case 'dictation': {
-        this._onInsertDictation?.(intent.text ?? result.text);
-        this._setState({ agentState: 'idle' });
-        break;
-      }
-      case 'slot-fill': {
-        this._onSendToAiChat?.(`[\u69fd\u4f4d\u586b\u5145] ${intent.slotName}: ${intent.value}`);
-        this._setState({ agentState: 'idle' });
-        break;
-      }
-      case 'chat': {
-        if (llmFallbackFailed) break;
-        this._onSendToAiChat?.(intent.text ?? result.text);
-        this._setState({ agentState: 'idle' });
-        break;
-      }
-    }
+    this._checkAndSwitchEngineIfNeeded();
   }
 
   // ── Wake-word detector ─────────────────────────────────────────────────
 
   private _startWakeWordDetector(): void {
-    if (this._wakeWordDetector) return;
-    void (async () => {
-      try {
-        const { WakeWordDetector } = await loadWakeWordRuntime();
-        if (this._wakeWordDetector) return;
-        const detector = new WakeWordDetector({
-          energyThreshold: 0.05,
-          speechMs: 400,
-          cooldownMs: 3000,
-          onWake: () => {
-            void this.start('command');
-          },
-          onEnergy: (rms) => {
-            this._setState({ wakeWordEnergyLevel: rms });
-          },
-        });
+    startWakeWordDetectorRuntime({
+      hasDetector: () => Boolean(this._wakeWordDetector),
+      loadWakeWordRuntime,
+      instantiateDetector: (WakeWordDetector) => new WakeWordDetector({
+        energyThreshold: 0.05,
+        speechMs: 400,
+        cooldownMs: 3000,
+        onWake: () => {
+          void this.start('command');
+        },
+        onEnergy: (rms) => {
+          this._setState({ wakeWordEnergyLevel: rms });
+        },
+      }),
+      setDetector: (detector) => {
         this._wakeWordDetector = detector;
-        detector.start().catch((err) => {
-          log.warn('wake-word detector start failed, disabling', { err });
-          this._wakeWordDetector = null;
-          this._setState({
-            wakeWordEnabled: false,
-            error: '\u8bed\u97f3\u5524\u9192\u542f\u52a8\u5931\u8d25，\u5df2\u81ea\u52a8\u5173\u95ed。\u8bf7\u68c0\u67e5\u9ea6\u514b\u98ce\u6743\u9650\u540e\u91cd\u8bd5。',
-          });
+      },
+      onStartFailed: (err) => {
+        log.warn('wake-word detector start failed, disabling', { err });
+        this._setState({
+          wakeWordEnabled: false,
+          error: '\u8bed\u97f3\u5524\u9192\u542f\u52a8\u5931\u8d25，\u5df2\u81ea\u52a8\u5173\u95ed。\u8bf7\u68c0\u67e5\u9ea6\u514b\u98ce\u6743\u9650\u540e\u91cd\u8bd5。',
         });
-      } catch (err) {
+      },
+      onSetupFailed: (err) => {
         log.warn('wake-word detector setup failed, disabling', { err });
-        this._wakeWordDetector = null;
         this._setState({
           wakeWordEnabled: false,
           error: '\u8bed\u97f3\u5524\u9192\u521d\u59cb\u5316\u5931\u8d25，\u5df2\u81ea\u52a8\u5173\u95ed。\u8bf7\u7a0d\u540e\u91cd\u8bd5。',
         });
-      }
-    })();
+      },
+    });
   }
 
   private _stopWakeWordDetector(): void {
     this._wakeWordDetector?.stop();
     this._wakeWordDetector = null;
-  }
-
-  /**
-   * Detect natural-language memory patterns in the transcript and record them
-   * to ProjectMemoryStore. Currently detects:
-   * - Term confirmation: "\u8bb0\u4f4f\u8fd9\u4e2a\u8bcd" / "\u8fd9\u662f\u672f\u8bed" / "\u6dfb\u52a0\u672f\u8bed"
-   * - Phrase recording: "\u8bb0\u4f4f\u8fd9\u4e2a\u8868\u8fbe" / "\u5e38\u89c1\u8bf4\u6cd5\u662f" / "\u56fa\u5b9a\u8bf4\u6cd5"
-   */
-  private _detectAndRecordMemoryPattern(text: string): void {
-    const trimmed = text.trim();
-    if (!trimmed || trimmed.length < 4) return;
-
-    const LOWER = trimmed.toLowerCase();
-
-    // Term confirmation: "\u8bb0\u4f4f\u8fd9\u4e2a\u8bcd" / "\u8bb0\u4f4f\u8fd9\u4e2a\u672f\u8bed" / "\u6dfb\u52a0\u672f\u8bed"
-    if (LOWER.includes('\u8bb0\u4f4f\u8fd9\u4e2a\u8bcd') || LOWER.includes('\u8bb0\u4f4f\u8fd9\u4e2a\u672f\u8bed') || LOWER.includes('\u6dfb\u52a0\u672f\u8bed')) {
-      // Try to extract term and gloss from the full transcript
-      // e.g. "\u8bb0\u4f4f\u4e86，'\u575a\u6301'\u7684\u610f\u601d\u662f..." or "'\u575a\u6301'\u7684\u610f\u601d\u662f..."
-      const termMatch = trimmed.match(/['"»‘’"](.+?)['"»‘’"]/);
-      if (termMatch) {
-        const term = termMatch[1];
-        // Use the full sentence as the gloss approximation
-        const gloss = trimmed.replace(/\u8bb0\u5f97.*?[，,]?/, '').replace(/\u8bb0\u4f4f.*?[，,]?/, '').trim();
-        if (term && gloss && term !== gloss) {
-          void projectMemoryStore.confirmTerm(term, gloss.slice(0, 200), this._corpusLang);
-        }
-      }
-    }
-
-    // Phrase recording: "\u8bb0\u4f4f\u8fd9\u4e2a\u8868\u8fbe" / "\u5e38\u89c1\u8bf4\u6cd5\u662f" / "\u56fa\u5b9a\u8bf4\u6cd5"
-    if (LOWER.includes('\u8bb0\u4f4f\u8fd9\u4e2a\u8868\u8fbe') || LOWER.includes('\u5e38\u89c1\u8bf4\u6cd5\u662f') || LOWER.includes('\u56fa\u5b9a\u8bf4\u6cd5')) {
-      const phraseMatch = trimmed.match(/['"»‘’"](.+?)['"»‘’"]/);
-      if (phraseMatch) {
-        const phrase = phraseMatch[1];
-        const translation = trimmed.replace(/\u8bb0\u4f4f.*?[，,]?/, '').replace(/\u5e38\u89c1.*?[，,]?/, '').replace(/\u56fa\u5b9a.*?[，,]?/, '').trim();
-        if (phrase && translation && phrase !== translation) {
-          void projectMemoryStore.recordPhrase(phrase, translation.slice(0, 200), 'voice-confirmed');
-        }
-      }
-    }
   }
 
   /**

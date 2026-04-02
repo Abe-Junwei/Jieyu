@@ -12,6 +12,13 @@
 
 import type { Region } from '../utils/regionDetection';
 import { createLogger } from '../observability/logger';
+import { VadMonitorRuntime } from './VoiceInputService.vad';
+import { RecordingExecutor } from './VoiceInputService.recording';
+export {
+  testOllamaWhisperAvailability,
+  testWhisperServerAvailability,
+} from './VoiceInputService.probes';
+export type { OllamaWhisperAvailabilityResult } from './VoiceInputService.probes';
 
 const log = createLogger('VoiceInputService');
 
@@ -72,12 +79,7 @@ export interface CommercialSttProvider {
   /** Check whether the service is reachable (health ping / auth check). */
   isAvailable(): Promise<boolean>;
   /** Transcribe an audio blob to text. */
-  transcribe(audioBlob: Blob, lang: string): Promise<SttResult>;
-}
-
-export interface OllamaWhisperAvailabilityResult {
-  available: boolean;
-  error?: string;
+  transcribe(audioBlob: Blob, lang: string, options?: { signal?: AbortSignal }): Promise<SttResult>;
 }
 
 /** Built-in commercial provider kinds for UI display. */
@@ -155,139 +157,6 @@ function getSpeechRecognitionCtor(): (new () => SpeechRecognition) | undefined {
   return window.SpeechRecognition ?? window.webkitSpeechRecognition;
 }
 
-function buildOllamaTranscriptionEndpoints(baseUrl: string): string[] {
-  const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
-  const withoutV1 = normalizedBaseUrl.replace(/\/v1$/, '');
-
-  return Array.from(new Set([
-    `${normalizedBaseUrl}/v1/audio/transcriptions`,
-    `${withoutV1}/v1/audio/transcriptions`,
-    `${normalizedBaseUrl}/api/audio/transcriptions`,
-    `${withoutV1}/api/audio/transcriptions`,
-  ]));
-}
-
-export async function testOllamaWhisperAvailability(
-  baseUrl: string,
-  model: string,
-): Promise<OllamaWhisperAvailabilityResult> {
-  const normalizedBaseUrl = (baseUrl || 'http://localhost:11434').replace(/\/+$/, '');
-  const normalizedModel = model.trim();
-  if (!normalizedModel) {
-    return { available: false, error: '\u8bf7\u5148\u586b\u5199\u672c\u5730 Whisper \u6a21\u578b\u540d' };
-  }
-
-  const tagsUrl = `${normalizedBaseUrl.replace(/\/v1$/, '')}/api/tags`;
-  let availableModels: string[] = [];
-  try {
-    const resp = await fetch(tagsUrl);
-    if (!resp.ok) {
-      return { available: false, error: `\u65e0\u6cd5\u8fde\u63a5 Ollama \u670d\u52a1\uff1a${resp.status}` };
-    }
-    const json = await resp.json() as { models?: Array<{ name?: string; model?: string }> };
-    availableModels = (json.models ?? [])
-      .map((item) => item.name ?? item.model ?? '')
-      .filter((name): name is string => typeof name === 'string' && name.trim().length > 0);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { available: false, error: `\u65e0\u6cd5\u8fde\u63a5 Ollama \u670d\u52a1\uff1a${message}` };
-  }
-
-  if (availableModels.length > 0 && !availableModels.includes(normalizedModel)) {
-    const preview = availableModels.slice(0, 3).join('\u3001');
-    return {
-      available: false,
-      error: `\u672a\u627e\u5230\u6a21\u578b ${normalizedModel}\u3002\u5f53\u524d\u53ef\u7528\u6a21\u578b\uff1a${preview || '\u65e0'}`,
-    };
-  }
-
-  const endpoints = buildOllamaTranscriptionEndpoints(normalizedBaseUrl);
-  for (const endpoint of endpoints) {
-    const body = new FormData();
-    body.append('file', new Blob(['probe'], { type: 'audio/webm' }), 'probe.webm');
-    body.append('model', normalizedModel);
-    body.append('language', 'en');
-
-    try {
-      const resp = await fetch(endpoint, {
-        method: 'POST',
-        body,
-      });
-      if (resp.status !== 404) {
-        return { available: true };
-      }
-    } catch (err) {
-      log.debug('Ollama probe failed, trying next endpoint', { endpoint, err });
-    }
-  }
-
-  return {
-    available: false,
-    error: '\u5f53\u524d Ollama \u5b9e\u4f8b\u672a\u66b4\u9732\u97f3\u9891\u8f6c\u5199\u63a5\u53e3\uff0c\u8bf7\u6539\u7528\u652f\u6301\u97f3\u9891\u8f6c\u5199\u7684\u672c\u5730\u670d\u52a1\u6216\u5176\u4ed6 STT \u5f15\u64ce',
-  };
-}
-
-/**
- * Check if a whisper-server (OpenAI-compatible local transcription server) is available.
- * Probes the /v1/models health endpoint and the /v1/audio/transcriptions endpoint.
- */
-export async function testWhisperServerAvailability(
-  baseUrl: string,
-  model: string,
-): Promise<{ available: boolean; error?: string }> {
-  const normalizedBaseUrl = (baseUrl || 'http://localhost:3040').replace(/\/+$/, '');
-  const normalizedModel = model.trim();
-  if (!normalizedModel) {
-    return { available: false, error: '\u8bf7\u5148\u586b\u5199 Whisper \u6a21\u578b\u540d' };
-  }
-
-  // Probe the health endpoint
-  try {
-    const healthResp = await fetch(`${normalizedBaseUrl}/v1/models`, {
-      signal: AbortSignal.timeout(4000),
-    });
-    if (!healthResp.ok) {
-      return { available: false, error: `whisper-server \u4e0d\u53ef\u7528\uff1a${healthResp.status}` };
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { available: false, error: `\u65e0\u6cd5\u8fde\u63a5 whisper-server\uff08${normalizedBaseUrl}\uff09\uff1a${msg}` };
-  }
-
-  // Probe the transcription endpoint with a valid minimal WAV header
-  // (whisper-server rejects empty/tiny blobs with 500, so use a real minimal WAV)
-  try {
-    // Minimal valid WAV: 16-bit mono 8kHz PCM, 0.01 seconds of silence
-    // WAV header (44 bytes) + 2 bytes of silence = 46 bytes total
-    const minWav = new Uint8Array([
-      0x52, 0x49, 0x46, 0x46, 0x2E, 0x00, 0x00, 0x00, // "RIFF" + size
-      0x57, 0x41, 0x56, 0x45, 0x66, 0x6D, 0x74, 0x20, // "WAVEfmt "
-      0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, // PCM, mono
-      0x40, 0x1F, 0x00, 0x00, 0x80, 0x3E, 0x00, 0x00, // 8000Hz, 16000 bytes/sec
-      0x02, 0x00, 0x10, 0x00,                         // block align, bits/sample
-      0x64, 0x61, 0x74, 0x61, 0x22, 0x00, 0x00, 0x00, // "data" + size
-      0x00, 0x00, 0x00, 0x00,                         // 2 bytes of silence
-    ]);
-    const formData = new FormData();
-    formData.append('file', new Blob([minWav], { type: 'audio/wav' }), 'probe.wav');
-    formData.append('model', normalizedModel);
-    formData.append('language', 'en');
-    const resp = await fetch(`${normalizedBaseUrl}/v1/audio/transcriptions`, {
-      method: 'POST',
-      body: formData,
-      signal: AbortSignal.timeout(15000),
-    });
-    // Any non-404 means the endpoint accepts audio (server is up)
-    if (resp.status !== 404) {
-      return { available: true };
-    }
-    return { available: false, error: 'whisper-server \u672a\u66b4\u9732\u97f3\u9891\u8f6c\u5199\u63a5\u53e3' };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { available: false, error: `whisper-server \u8f6c\u5199\u63a2\u6d4b\u5931\u8d25\uff1a${msg}` };
-  }
-}
-
 export function isWebSpeechSupported(): boolean {
   return getSpeechRecognitionCtor() !== undefined;
 }
@@ -360,24 +229,11 @@ export class VoiceInputService {
   private _switchingEngine = false;
   private switchEngineTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // VAD runtime
-  private vadStream: MediaStream | null = null;
-  private vadAudioContext: AudioContext | null = null;
-  private vadAnalyser: AnalyserNode | null = null;
-  private vadSource: MediaStreamAudioSourceNode | null = null;
-  private vadTimerId: number | null = null;
-  private vadLastSpeechTs = 0;
+  // VAD runtime — delegated to VadMonitorRuntime | VAD 运行时委托
+  private vadMonitor: VadMonitorRuntime;
 
-  // Silence timeout (auto-stop after prolonged silence)
-  private silenceTimerId: number | null = null;
-  private lastSpeechTimestamp = 0;
-
-  // Energy level for UI visualization (RMS, updated every VAD frame)
-  private _energyLevel = 0;
-
-  // Push-to-talk MediaRecorder (for whisper-local)
-  private mediaRecorder: MediaRecorder | null = null;
-  private mediaStream: MediaStream | null = null;
+  // Recording — delegated to RecordingExecutor | 录音委托
+  private recordingExecutor: RecordingExecutor;
   private sharedAnalysisStream: MediaStream | null = null;
 
   // ── Language override (updated from UI without restarting engine) ──────────
@@ -424,10 +280,6 @@ export class VoiceInputService {
     }
     this.sharedAnalysisStream = null;
   }
-  private recordedChunks: Blob[] = [];
-  private _isRecording = false;
-  /** Guard against concurrent stopRecording calls. */
-  private _stopRecordingPromise: Promise<void> | null = null;
 
   // Listeners
   private resultListeners: VoiceInputListener[] = [];
@@ -435,6 +287,22 @@ export class VoiceInputService {
   private stateListeners: VoiceInputStateListener[] = [];
   private vadListeners: VoiceInputVadListener[] = [];
   private energyListeners: VoiceInputEnergyListener[] = [];
+
+  constructor() {
+    this.vadMonitor = new VadMonitorRuntime({
+      createAnalysisCloneStream: () => this.createAnalysisCloneStream(),
+      setSpeaking: (v) => this.setSpeaking(v),
+      emitEnergyLevel: (rms) => { for (const l of this.energyListeners) l(rms); },
+      stop: () => this.stop(),
+      isDisposed: () => this._disposed,
+      isListening: () => this._listening,
+      isIntentionalStop: () => this._intentionalStop,
+    });
+    this.recordingExecutor = new RecordingExecutor({
+      emitResult: (r) => this.emitResult(r),
+      emitError: (e) => this.emitError(e),
+    });
+  }
 
   /** The currently active STT engine (may differ from preferredEngine after fallback). */
   private _currentEngine: SttEngine = 'web-speech';
@@ -471,7 +339,7 @@ export class VoiceInputService {
 
   /** Returns the most recent RMS energy level (0–1 normalised). */
   getEnergyLevel(): number {
-    return this._energyLevel;
+    return this.vadMonitor.energyLevel;
   }
 
   get engine(): SttEngine {
@@ -616,8 +484,8 @@ export class VoiceInputService {
     rec.onstart = () => {
       this._listening = true;
       this.emitState(true);
-      this.resetSilenceTimer();
-      void this.startVadMonitor();
+      this.vadMonitor.resetSilenceTimer(this._config.maxSilenceMs ?? 30_000);
+      void this.vadMonitor.start(this._config);
     };
 
     rec.onresult = (event: SpeechRecognitionEvent) => {
@@ -682,7 +550,7 @@ export class VoiceInputService {
         return;
       }
       this.setListening(false);
-      this.stopVadMonitor();
+      this.vadMonitor.stop();
 
     };
 
@@ -702,8 +570,8 @@ export class VoiceInputService {
       try { this.recognition.stop(); } catch (err) { log.debug('recognition.stop() failed during engine stop', { err }); }
       this.recognition = null;
     }
-    this.stopVadMonitor();
-    this._isRecording = false;
+    this.vadMonitor.stop();
+    this.recordingExecutor.dispose();
   }
 
   stop(): void {
@@ -717,13 +585,13 @@ export class VoiceInputService {
     if (this.recognition) {
       try { this.recognition.stop(); } catch (err) { log.debug('recognition.stop() failed during stop()', { err }); }
     }
-    if (this._isRecording) {
+    if (this.recordingExecutor.isRecording) {
       void this.stopRecording().catch((error) => {
         this.emitError(error instanceof Error ? error.message : '\u5f55\u97f3\u505c\u6b62\u5931\u8d25');
       });
     }
     this.setListening(false);
-    this.stopVadMonitor();
+    this.vadMonitor.stop();
     this.recognition = null;
     this.releaseSharedAnalysisStream();
   }
@@ -734,39 +602,7 @@ export class VoiceInputService {
    * Call stopRecording() to stop and trigger transcription.
    */
   async startRecording(): Promise<void> {
-    if (this._isRecording) return;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
-      this.mediaStream = stream;
-      this.recordedChunks = [];
-      // Prefer webm; fall back to any browser-supported format
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : 'audio/webm';
-      const recorder = new MediaRecorder(stream, { mimeType });
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          this.recordedChunks.push(event.data);
-        }
-      };
-      recorder.onerror = (event) => {
-        const err = (event as unknown as { error?: string }).error;
-        this.emitError(`MediaRecorder error: ${typeof err === 'string' ? err : (err ?? 'unknown')}`);
-      };
-      this.mediaRecorder = recorder;
-      recorder.start(100); // chunk every 100ms for responsive stop
-      this._isRecording = true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '\u5f55\u97f3\u542f\u52a8\u5931\u8d25';
-      this.emitError(message);
-      throw new Error(message);
-    }
+    return this.recordingExecutor.startRecording();
   }
 
   /**
@@ -775,173 +611,12 @@ export class VoiceInputService {
    * No-op if not currently recording.
    */
   async stopRecording(): Promise<void> {
-    // Re-entrant guard: if a stop is already in flight, await it instead of racing
-    // If a stop is already running, await it instead of re-entering.
-    if (this._stopRecordingPromise) {
-      await this._stopRecordingPromise;
-      return;
-    }
-    if (!this._isRecording || !this.mediaRecorder) return;
-
-    this._stopRecordingPromise = this._stopRecordingInternal();
-    try {
-      await this._stopRecordingPromise;
-    } finally {
-      this._stopRecordingPromise = null;
-    }
-  }
-
-  private async _stopRecordingInternal(): Promise<void> {
-    const recorder = this.mediaRecorder;
-    if (!recorder) return;
-    const stream = this.mediaStream;
-
-    this._isRecording = false;
-    this.mediaRecorder = null;
-    this.mediaStream = null;
-
-    // Wait for final chunk(s) and recorder stop event.
-    await new Promise<void>((resolve, reject) => {
-      const dataHandler = (event: BlobEvent) => {
-        if (event.data && event.data.size > 0) {
-          this.recordedChunks.push(event.data);
-        }
-      };
-      const stopHandler = () => {
-        recorder.removeEventListener('dataavailable', dataHandler);
-        recorder.removeEventListener('error', errorHandler as EventListener);
-        resolve();
-      };
-      const errorHandler = (event: Event) => {
-        recorder.removeEventListener('dataavailable', dataHandler);
-        recorder.removeEventListener('stop', stopHandler as EventListener);
-        const err = (event as unknown as { error?: string }).error;
-        reject(new Error(typeof err === 'string' ? err : '\u5f55\u97f3\u505c\u6b62\u5931\u8d25'));
-      };
-
-      recorder.addEventListener('dataavailable', dataHandler);
-      recorder.addEventListener('stop', stopHandler, { once: true });
-      recorder.addEventListener('error', errorHandler as EventListener, { once: true });
-      recorder.stop();
+    return this.recordingExecutor.stopRecording(this._currentEngine, {
+      ...(this._config.whisperServerUrl !== undefined && { whisperServerUrl: this._config.whisperServerUrl }),
+      ...(this._config.whisperServerModel !== undefined && { whisperServerModel: this._config.whisperServerModel }),
+      lang: this._config.lang,
+      ...(this._config.commercialFallback !== undefined && { commercialFallback: this._config.commercialFallback }),
     });
-
-    if (stream) {
-      for (const track of stream.getTracks()) {
-        track.stop();
-      }
-    }
-
-    if (this.recordedChunks.length === 0) {
-      this.emitError('No audio recorded');
-      return;
-    }
-
-    const audioBlob = new Blob(this.recordedChunks, { type: 'audio/webm' });
-    this.recordedChunks = [];
-
-    // Route based on the active engine: try the primary engine first,
-    // fall back to the other if unavailable.
-    const primaryEngine = this._currentEngine;
-
-    if (primaryEngine === 'commercial' && this._config.commercialFallback) {
-      try {
-        const commercialResult = await this._config.commercialFallback.transcribe(
-          audioBlob,
-          this._config.lang,
-        );
-        this.emitResult(commercialResult);
-        return;
-      } catch (err) {
-        // Commercial failed — try whisper-server as fallback
-        await this._transcribeWithWhisperServerFallback(audioBlob, err);
-        return;
-      }
-    }
-
-    // Default: whisper-local (whisper-server on port 3040)
-    await this._transcribeWithWhisperServerFallback(audioBlob, null);
-  }
-
-  /**
-   * Try whisper-server, falling back to commercial STT if configured.
-   * lastError is passed when called as secondary to a failed commercial attempt.
-   */
-  private async _transcribeWithWhisperServerFallback(audioBlob: Blob, lastError: unknown): Promise<void> {
-    const baseUrl = this._config.whisperServerUrl?.replace(/\/+$/, '') ?? 'http://localhost:3040';
-    const model = this._config.whisperServerModel ?? 'ggml-small-q5_k.bin';
-
-    try {
-      const result = await this.transcribeWithWhisperServer(audioBlob, baseUrl, model, this._config.lang);
-      this.emitResult(result);
-    } catch (err) {
-      if (this._config.commercialFallback) {
-        try {
-          const commercialResult = await this._config.commercialFallback.transcribe(
-            audioBlob,
-            this._config.lang,
-          );
-          this.emitResult(commercialResult);
-          return;
-        } catch (fallbackErr) {
-          log.warn('commercial fallback transcription failed', { fallbackErr });
-          // Commercial also failed — emit the original error
-          this.emitError(lastError instanceof Error ? lastError.message : 'STT \u8f6c\u5199\u5931\u8d25');
-          return;
-        }
-      }
-      this.emitError(err instanceof Error ? err.message : 'STT \u8f6c\u5199\u5931\u8d25');
-    }
-  }
-
-  /**
-   * Transcribe an audio blob using whisper-server (OpenAI-compatible endpoint).
-   *
-   * Prefer /v1/audio/transcriptions. Some local setups or older proxies may still
-   * expose /api/audio/transcriptions, so we probe both to reduce configuration drift.
-   */
-  private async transcribeWithWhisperServer(
-    audioBlob: Blob,
-    baseUrl: string,
-    model: string,
-    lang?: string,
-  ): Promise<SttResult> {
-    const endpoints = buildOllamaTranscriptionEndpoints(baseUrl);
-    const failures: string[] = [];
-
-    for (const endpoint of endpoints) {
-      const body = new FormData();
-      body.append('file', audioBlob, 'recording.webm');
-      body.append('model', model);
-      if (lang) body.append('language', lang);
-
-      try {
-        const resp = await fetch(endpoint, {
-          method: 'POST',
-          body,
-        });
-
-        if (!resp.ok) {
-          const text = await resp.text().catch(() => '');
-          failures.push(`${endpoint} -> ${resp.status} ${text}`.trim());
-          continue;
-        }
-
-        const json = await resp.json() as { text?: string };
-        return {
-          text: json.text ?? '',
-          lang: lang ?? 'unknown',
-          isFinal: true,
-          confidence: 1.0,
-          engine: 'whisper-local',
-          audioBlob,
-        };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        failures.push(`${endpoint} -> ${message}`);
-      }
-    }
-
-    throw new Error(`whisper-server \u8f6c\u5199\u5931\u8d25. \u5df2\u5c1d\u8bd5:\n${failures.join('\n')}`);
   }
 
   dispose(): void {
@@ -952,7 +627,8 @@ export class VoiceInputService {
     this.stateListeners = [];
     this.vadListeners = [];
     this.energyListeners = [];
-    this.stopSilenceTimer();
+    this.vadMonitor.stopSilenceTimer();
+    this.recordingExecutor.dispose();
     this.releaseSharedAnalysisStream();
   }
 
@@ -989,126 +665,5 @@ export class VoiceInputService {
     if (this._speaking === value) return;
     this._speaking = value;
     this.emitVadState(value);
-  }
-
-  private async startVadMonitor(): Promise<void> {
-    if (!this._config.vadEnabled) return;
-    if (!navigator.mediaDevices?.getUserMedia) return;
-    if (this.vadTimerId !== null) return;
-
-    let stream: MediaStream | null = null;
-    let audioContext: AudioContext | null = null;
-    try {
-      stream = await this.createAnalysisCloneStream();
-      if (!stream) return;
-
-      audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 1024;
-      source.connect(analyser);
-
-      this.vadStream = stream;
-      this.vadAudioContext = audioContext;
-      this.vadSource = source;
-      this.vadAnalyser = analyser;
-      this.vadLastSpeechTs = Date.now();
-
-      const buffer = new Float32Array(analyser.fftSize);
-      const rmsThreshold = this._config.vadRmsThreshold ?? DEFAULT_CONFIG.vadRmsThreshold ?? 0.018;
-      const silenceMs = this._config.vadSilenceMs ?? DEFAULT_CONFIG.vadSilenceMs ?? 700;
-      const intervalMs = this._config.vadFrameIntervalMs ?? DEFAULT_CONFIG.vadFrameIntervalMs ?? 80;
-
-      this.vadTimerId = window.setInterval(() => {
-        if (!this.vadAnalyser) return;
-        this.vadAnalyser.getFloatTimeDomainData(buffer);
-        let sum = 0;
-        for (let i = 0; i < buffer.length; i += 1) {
-          const sample = buffer[i] ?? 0;
-          sum += sample * sample;
-        }
-        const rms = Math.sqrt(sum / buffer.length);
-        this._energyLevel = rms;
-        for (const l of this.energyListeners) l(rms);
-
-        const now = Date.now();
-        if (rms >= rmsThreshold) {
-          this.vadLastSpeechTs = now;
-          this.lastSpeechTimestamp = now;
-          this.setSpeaking(true);
-          this.resetSilenceTimer();
-          return;
-        }
-        if (now - this.vadLastSpeechTs >= silenceMs) {
-          this.setSpeaking(false);
-        }
-        this.checkSilenceTimeout();
-      }, intervalMs);
-    } catch (err) {
-      log.warn('VAD monitor unavailable, continuing without VAD', { err });
-      if (audioContext) {
-        void audioContext.close();
-      }
-      if (stream) {
-        for (const track of stream.getTracks()) {
-          track.stop();
-        }
-      }
-      // VAD is best-effort and must not fail recognition when unavailable.
-    }
-  }
-
-  private stopVadMonitor(): void {
-    if (this.vadTimerId !== null) {
-      window.clearInterval(this.vadTimerId);
-      this.vadTimerId = null;
-    }
-    this.stopSilenceTimer();
-
-    this.vadSource?.disconnect();
-    this.vadSource = null;
-    this.vadAnalyser = null;
-
-    if (this.vadAudioContext) {
-      void this.vadAudioContext.close();
-      this.vadAudioContext = null;
-    }
-
-    if (this.vadStream) {
-      for (const track of this.vadStream.getTracks()) {
-        track.stop();
-      }
-      this.vadStream = null;
-    }
-
-    this.setSpeaking(false);
-  }
-
-  /** Start / reset the silence timeout counter. */
-  private resetSilenceTimer(): void {
-    const maxSilenceMs = this._config.maxSilenceMs ?? 30_000;
-    if (maxSilenceMs <= 0) return;
-    this.stopSilenceTimer();
-    this.lastSpeechTimestamp = Date.now();
-    this.silenceTimerId = window.setTimeout(() => {
-      if (!this._intentionalStop && this._listening) {
-        this.stop();
-      }
-    }, maxSilenceMs);
-  }
-
-  private checkSilenceTimeout(): void {
-    const maxSilenceMs = this._config.maxSilenceMs ?? 30_000;
-    if (maxSilenceMs <= 0) return;
-    if (Date.now() - this.lastSpeechTimestamp >= maxSilenceMs) {
-      this.stop();
-    }
-  }
-
-  private stopSilenceTimer(): void {
-    if (this.silenceTimerId !== null) {
-      window.clearTimeout(this.silenceTimerId);
-      this.silenceTimerId = null;
-    }
   }
 }

@@ -6,6 +6,7 @@ import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Servi
 import { reportActionError } from '../utils/actionErrorReporter';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
+import { useTranscriptionSegmentBatchMerge } from './useTranscriptionSegmentBatchMerge';
 
 interface UseTranscriptionSegmentMutationControllerInput {
   activeLayerIdForEdits: string;
@@ -18,6 +19,7 @@ interface UseTranscriptionSegmentMutationControllerInput {
   utterancesOnCurrentMedia: UtteranceDocType[];
   setSaveState: (state: SaveState) => void;
   splitUtterance: (id: string, splitTime: number) => Promise<void>;
+  mergeSelectedUtterances: (ids: Set<string>) => Promise<void>;
   mergeWithPrevious: (id: string) => Promise<void>;
   mergeWithNext: (id: string) => Promise<void>;
   deleteUtterance: (id: string) => Promise<void>;
@@ -28,6 +30,7 @@ interface UseTranscriptionSegmentMutationControllerResult {
   splitRouted: (id: string, splitTime: number, layerIdOverride?: string) => Promise<void>;
   mergeWithPreviousRouted: (id: string, layerIdOverride?: string) => Promise<void>;
   mergeWithNextRouted: (id: string, layerIdOverride?: string) => Promise<void>;
+  mergeSelectedSegmentsRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
   deleteUtteranceRouted: (id: string, layerIdOverride?: string) => Promise<void>;
   deleteSelectedUtterancesRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
 }
@@ -47,25 +50,14 @@ export function useTranscriptionSegmentMutationController(
 ): UseTranscriptionSegmentMutationControllerResult {
   const locale = useLocale();
   const {
-    activeLayerIdForEdits,
-    resolveSegmentRoutingForLayer,
-    pushUndo,
-    reloadSegments,
-    refreshSegmentUndoSnapshot,
-    selectTimelineUnit,
-    segmentsByLayer,
-    utterancesOnCurrentMedia,
-    setSaveState,
-    splitUtterance,
-    mergeWithPrevious,
-    mergeWithNext,
-    deleteUtterance,
-    deleteSelectedUtterances,
+    activeLayerIdForEdits, resolveSegmentRoutingForLayer, pushUndo, reloadSegments, refreshSegmentUndoSnapshot,
+    selectTimelineUnit, segmentsByLayer, utterancesOnCurrentMedia, setSaveState, splitUtterance,
+    mergeSelectedUtterances, mergeWithPrevious, mergeWithNext, deleteUtterance, deleteSelectedUtterances,
   } = input;
-  const createSegmentTarget = (unitId: string, layerIdOverride?: string) => resolveTranscriptionUnitTarget({
-    layerId: layerIdOverride ?? activeLayerIdForEdits,
-    unitId,
-    preferredKind: 'segment',
+  const createSegmentTarget = (unitId: string, layerIdOverride?: string) => resolveTranscriptionUnitTarget({ layerId: layerIdOverride ?? activeLayerIdForEdits, unitId, preferredKind: 'segment' });
+  const mergeSelectedSegmentsRouted = useTranscriptionSegmentBatchMerge({
+    activeLayerIdForEdits, resolveSegmentRoutingForLayer, pushUndo, reloadSegments, refreshSegmentUndoSnapshot,
+    selectTimelineUnit, createSegmentTarget, segmentsByLayer, utterancesOnCurrentMedia, setSaveState, mergeSelectedUtterances,
   });
   const splitRouted = useCallback(async (id: string, splitTime: number, layerIdOverride?: string) => {
     const targetLayerId = layerIdOverride ?? activeLayerIdForEdits;
@@ -84,9 +76,7 @@ export function useTranscriptionSegmentMutationController(
         }
         return;
       }
-      case 'utterance':
-        await splitUtterance(id, splitTime);
-        return;
+      case 'utterance': await splitUtterance(id, splitTime); return;
     }
   }, [activeLayerIdForEdits, createSegmentTarget, locale, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState, splitUtterance]);
 
@@ -123,9 +113,7 @@ export function useTranscriptionSegmentMutationController(
         }
         return;
       }
-      case 'utterance':
-        await mergeWithPrevious(id);
-        return;
+      case 'utterance': await mergeWithPrevious(id); return;
     }
   }, [activeLayerIdForEdits, createSegmentTarget, locale, mergeWithPrevious, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, segmentsByLayer, selectTimelineUnit, setSaveState, utterancesOnCurrentMedia]);
 
@@ -162,9 +150,7 @@ export function useTranscriptionSegmentMutationController(
         }
         return;
       }
-      case 'utterance':
-        await mergeWithNext(id);
-        return;
+      case 'utterance': await mergeWithNext(id); return;
     }
   }, [activeLayerIdForEdits, createSegmentTarget, locale, mergeWithNext, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, segmentsByLayer, selectTimelineUnit, setSaveState, utterancesOnCurrentMedia]);
   const deleteUtteranceRouted = useCallback(async (id: string, layerIdOverride?: string) => {
@@ -182,9 +168,7 @@ export function useTranscriptionSegmentMutationController(
           setSegmentMutationActionError(setSaveState, t(locale, 'transcription.utteranceAction.undo.delete'), 'transcription.error.action.segmentDeleteFailed', error);
         }
         return;
-      case 'utterance':
-        await deleteUtterance(id);
-        return;
+      case 'utterance': await deleteUtterance(id); return;
     }
   }, [activeLayerIdForEdits, deleteUtterance, locale, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState]);
 
@@ -208,9 +192,7 @@ export function useTranscriptionSegmentMutationController(
         }
         return;
       }
-      case 'utterance':
-        await deleteSelectedUtterances(ids);
-        return;
+      case 'utterance': await deleteSelectedUtterances(ids); return;
     }
   }, [activeLayerIdForEdits, deleteSelectedUtterances, locale, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState]);
 
@@ -218,6 +200,7 @@ export function useTranscriptionSegmentMutationController(
     splitRouted,
     mergeWithPreviousRouted,
     mergeWithNextRouted,
+    mergeSelectedSegmentsRouted,
     deleteUtteranceRouted,
     deleteSelectedUtterancesRouted,
   };

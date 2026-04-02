@@ -1,5 +1,10 @@
+import { useMemo } from 'react';
 import type { PromptTemplateItem } from './aiChatCardUtils';
 import { getAiChatPromptLabMessages } from '../../i18n/aiChatPromptLabMessages';
+import { useLocale } from '../../i18n';
+import { computeAdaptivePanelWidth } from '../../utils/panelAdaptiveLayout';
+import { useUiFontScaleRuntime } from '../../hooks/useUiFontScaleRuntime';
+import { useViewportWidth } from '../../hooks/useViewportWidth';
 
 interface AiChatPromptLabModalProps {
   isZh: boolean;
@@ -34,18 +39,65 @@ export function AiChatPromptLabModal({
   onSaveTemplate,
   onInjectAndClose,
 }: AiChatPromptLabModalProps) {
+  const locale = useLocale();
+  const { uiTextDirection, uiFontScale } = useUiFontScaleRuntime(locale);
+  const viewportWidth = useViewportWidth();
+  const compactWidth = useMemo(() => computeAdaptivePanelWidth({
+    baseWidth: 320,
+    locale,
+    direction: uiTextDirection,
+    uiFontScale,
+    density: 'compact',
+    minWidth: 280,
+    maxWidth: 540,
+    ...(viewportWidth !== undefined ? { viewportWidth } : {}),
+  }), [locale, uiTextDirection, uiFontScale, viewportWidth]);
+  const wideWidth = useMemo(() => computeAdaptivePanelWidth({
+    baseWidth: 720,
+    locale,
+    direction: uiTextDirection,
+    uiFontScale,
+    density: 'wide',
+    minWidth: 520,
+    maxWidth: 940,
+    ...(viewportWidth !== undefined ? { viewportWidth } : {}),
+  }), [locale, uiTextDirection, uiFontScale, viewportWidth]);
   if (!showPromptLab) return null;
   const messages = getAiChatPromptLabMessages(isZh);
+  const hasDraft = templateTitleInput.trim().length > 0 || templateContentInput.trim().length > 0;
+  const draftStatusLabel = editingTemplateId
+    ? messages.editingTemplate
+    : (hasDraft ? messages.draftReady : messages.draftEmpty);
 
   return (
-    <div className="ai-chat-prompt-lab-panel-content">
-      <div className="ai-chat-prompt-lab-section">
-        <p className="ai-chat-fold-empty ai-chat-prompt-lab-panel-note">
-          {messages.panelNote}
-        </p>
-      </div>
+    <div
+      className="ai-chat-prompt-lab-panel-content"
+      dir={uiTextDirection}
+      style={{
+        minWidth: `min(100%, ${compactWidth}px)`,
+        maxWidth: `min(100%, ${wideWidth}px)`,
+      }}
+    >
+      <section className="panel-organization-surface panel-organization-surface-emphasis ai-chat-prompt-lab-summary">
+        <div className="panel-organization-surface-head">
+          <div>
+            <div className="panel-organization-surface-title">{messages.overviewTitle}</div>
+            <p className="panel-organization-surface-copy ai-chat-prompt-lab-panel-note">{messages.panelNote}</p>
+          </div>
+          <div className="dialog-stat-row">
+            <span className="dialog-stat-chip">{messages.templateCount(promptTemplates.length)}</span>
+            <span className={`dialog-stat-chip${hasDraft ? ' dialog-stat-chip-warning' : ''}`}>{draftStatusLabel}</span>
+          </div>
+        </div>
+      </section>
 
-      <div className="ai-chat-prompt-lab-section">
+      <section className="panel-organization-surface ai-chat-prompt-lab-section ai-chat-prompt-lab-library-surface">
+        <div className="panel-organization-surface-head">
+          <div>
+            <div className="panel-organization-surface-title">{messages.libraryTitle}</div>
+            <p className="dialog-supporting-note">{messages.templateCount(promptTemplates.length)}</p>
+          </div>
+        </div>
         {promptTemplates.length === 0 ? (
           <p className="ai-chat-fold-empty ai-chat-prompt-lab-empty">{messages.emptyTemplates}</p>
         ) : (
@@ -58,9 +110,15 @@ export function AiChatPromptLabModal({
             </div>
           ))
         )}
-      </div>
+      </section>
 
-      <div className="ai-chat-prompt-lab-section ai-chat-prompt-lab-section-separated">
+      <section className="panel-organization-surface ai-chat-prompt-lab-section ai-chat-prompt-lab-editor-surface ai-chat-prompt-lab-section-separated">
+        <div className="panel-organization-surface-head">
+          <div>
+            <div className="panel-organization-surface-title">{messages.editorTitle}</div>
+            <p className="dialog-supporting-note">{messages.editorHint}</p>
+          </div>
+        </div>
         <input
           type="text"
           value={templateTitleInput}
@@ -83,7 +141,7 @@ export function AiChatPromptLabModal({
           <button type="button" className="icon-btn ai-chat-prompt-lab-action-btn" disabled={templateTitleInput.trim().length === 0 || templateContentInput.trim().length === 0} onClick={onSaveTemplate}>{editingTemplateId ? messages.update : messages.save}</button>
           <button type="button" className="icon-btn ai-chat-prompt-lab-action-btn ai-chat-prompt-lab-action-btn-primary" disabled={templateContentInput.trim().length === 0} onClick={onInjectAndClose}>{messages.injectToInput}</button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

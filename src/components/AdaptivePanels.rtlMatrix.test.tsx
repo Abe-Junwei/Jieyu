@@ -17,6 +17,15 @@ const {
 }));
 
 vi.mock('../utils/panelAdaptiveLayout', () => ({
+  UI_FONT_SCALE_LIMITS: {
+    min: 0.85,
+    max: 1.4,
+    fallback: 1,
+    storageKey: 'jieyu:ui-font-scale',
+    changeEvent: 'jieyu:ui-font-scale-changed',
+  },
+  subscribeUiFontScalePreference: () => () => {},
+  readUiFontScalePreferenceSnapshot: () => 'auto:1.0000',
   computeAdaptivePanelWidth: (input: { baseWidth: number; direction: 'ltr' | 'rtl' }) => computeAdaptivePanelWidthMock(input),
   readPersistedUiFontScale: (locale: string, direction: 'ltr' | 'rtl') => readPersistedUiFontScaleMock(locale, direction),
   resolveTextDirectionFromLocale: (locale: string) => resolveTextDirectionFromLocaleMock(locale),
@@ -118,7 +127,7 @@ describe('Adaptive panel RTL interaction matrix', () => {
     );
 
     const standardDialog = screen.getByRole('dialog', { name: 'Standard' }) as HTMLDivElement;
-    expect(standardDialog.style.width).toBe(`${compactWidth}px`);
+    expect(standardDialog.style.getPropertyValue('--dialog-auto-width')).toContain(`${compactWidth}`);
     fireEvent.click(screen.getByRole('button', { name: /Close/ }));
     expect(onCloseStandard).toHaveBeenCalledTimes(1);
 
@@ -130,7 +139,7 @@ describe('Adaptive panel RTL interaction matrix', () => {
         <SidePaneActionModal
           ariaLabel="Speaker"
           onClose={onCloseSpeaker}
-          className="transcription-side-pane-action-popover-speaker-centered"
+          className="side-pane-dialog-speaker"
         >
           <div>content</div>
         </SidePaneActionModal>
@@ -138,7 +147,7 @@ describe('Adaptive panel RTL interaction matrix', () => {
     );
 
     const speakerDialog = screen.getByRole('dialog', { name: 'Speaker' }) as HTMLDivElement;
-    expect(speakerDialog.style.width).toBe(`${speakerWidth}px`);
+    expect(speakerDialog.style.getPropertyValue('--dialog-auto-width')).toContain(`${speakerWidth}`);
 
     expect(computeAdaptivePanelWidthMock).toHaveBeenCalledWith(expect.objectContaining({
       baseWidth: 340,

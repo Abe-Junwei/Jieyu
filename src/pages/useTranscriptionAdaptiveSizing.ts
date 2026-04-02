@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Locale } from '../i18n';
 import {
   UI_FONT_SCALE_LIMITS,
@@ -9,9 +9,11 @@ import {
   readPersistedUiFontScalePreference,
   resolveEffectiveUiFontScale,
   resolveTextDirectionFromLocale,
+  subscribeUiFontScalePreference,
   type TextDirection,
   type UiFontScaleMode,
 } from '../utils/panelAdaptiveLayout';
+import { useViewportWidth } from '../hooks/useViewportWidth';
 
 type AdaptiveDensity = 'standard' | 'compact' | 'wide';
 
@@ -22,11 +24,18 @@ interface WidthConfig {
   maxWidth: number;
 }
 
+interface AdaptiveWidths {
+  adaptiveDialogWidth: number;
+  adaptiveDialogCompactWidth: number;
+  adaptiveDialogWideWidth: number;
+}
+
 function computeWidth(
   config: WidthConfig,
   locale: Locale,
   direction: TextDirection,
   uiFontScale: number,
+  viewportWidth: number | undefined,
 ): number {
   return computeAdaptivePanelWidth({
     baseWidth: config.baseWidth,
@@ -36,8 +45,21 @@ function computeWidth(
     density: config.density,
     minWidth: config.minWidth,
     maxWidth: config.maxWidth,
-    ...(typeof window !== 'undefined' ? { viewportWidth: window.innerWidth } : {}),
+    ...(viewportWidth !== undefined ? { viewportWidth } : {}),
   });
+}
+
+function computeAdaptiveWidths(
+  locale: Locale,
+  direction: TextDirection,
+  uiFontScale: number,
+  viewportWidth: number | undefined,
+): AdaptiveWidths {
+  return {
+    adaptiveDialogWidth: computeWidth({ baseWidth: 480, density: 'standard', minWidth: 360, maxWidth: 760 }, locale, direction, uiFontScale, viewportWidth),
+    adaptiveDialogCompactWidth: computeWidth({ baseWidth: 320, density: 'compact', minWidth: 260, maxWidth: 460 }, locale, direction, uiFontScale, viewportWidth),
+    adaptiveDialogWideWidth: computeWidth({ baseWidth: 760, density: 'wide', minWidth: 560, maxWidth: 980 }, locale, direction, uiFontScale, viewportWidth),
+  };
 }
 
 export interface UseTranscriptionAdaptiveSizingResult {
@@ -49,59 +71,44 @@ export interface UseTranscriptionAdaptiveSizingResult {
   adaptiveDialogWidth: number;
   adaptiveDialogCompactWidth: number;
   adaptiveDialogWideWidth: number;
-  adaptiveFloatingWidth: number;
 }
 
 export function useTranscriptionAdaptiveSizing(locale: Locale): UseTranscriptionAdaptiveSizingResult {
   const [uiFontScalePreference, setUiFontScalePreference] = useState(() => readPersistedUiFontScalePreference());
 
-  const uiTextDirection = useMemo<TextDirection>(() => resolveTextDirectionFromLocale(locale), [locale]);
-  const autoUiFontScale = useMemo(
-    () => computeAutoUiFontScale(locale, uiTextDirection),
-    [locale, uiTextDirection],
-  );
-  const uiFontScale = useMemo(
-    () => resolveEffectiveUiFontScale(uiFontScalePreference, autoUiFontScale),
-    [autoUiFontScale, uiFontScalePreference],
-  );
+  const uiTextDirection = resolveTextDirectionFromLocale(locale);
+  const autoUiFontScale = computeAutoUiFontScale(locale, uiTextDirection);
+  const uiFontScale = resolveEffectiveUiFontScale(uiFontScalePreference, autoUiFontScale);
   const uiFontScaleMode = uiFontScalePreference.mode;
 
   const setUiFontScale = useCallback((nextScale: number) => {
-    setUiFontScalePreference((prev) => ({
-      ...prev,
+    const persisted = persistUiFontScalePreference({
       mode: 'manual',
       manualScale: normalizeUiFontScale(nextScale),
-    }));
+    });
+    setUiFontScalePreference(persisted);
   }, []);
 
   const resetUiFontScale = useCallback(() => {
-    setUiFontScalePreference((prev) => ({
-      ...prev,
+    const persisted = persistUiFontScalePreference({
       mode: 'auto',
-      manualScale: normalizeUiFontScale(prev.manualScale ?? UI_FONT_SCALE_LIMITS.fallback),
-    }));
-  }, []);
+      manualScale: normalizeUiFontScale(uiFontScalePreference.manualScale ?? UI_FONT_SCALE_LIMITS.fallback),
+    });
+    setUiFontScalePreference(persisted);
+  }, [uiFontScalePreference.manualScale]);
 
   useEffect(() => {
-    persistUiFontScalePreference(uiFontScalePreference);
-  }, [uiFontScalePreference]);
+    return subscribeUiFontScalePreference(() => {
+      setUiFontScalePreference(readPersistedUiFontScalePreference());
+    });
+  }, []);
 
-  const adaptiveDialogWidth = useMemo(
-    () => computeWidth({ baseWidth: 480, density: 'standard', minWidth: 360, maxWidth: 760 }, locale, uiTextDirection, uiFontScale),
-    [locale, uiTextDirection, uiFontScale],
-  );
-  const adaptiveDialogCompactWidth = useMemo(
-    () => computeWidth({ baseWidth: 320, density: 'compact', minWidth: 260, maxWidth: 460 }, locale, uiTextDirection, uiFontScale),
-    [locale, uiTextDirection, uiFontScale],
-  );
-  const adaptiveDialogWideWidth = useMemo(
-    () => computeWidth({ baseWidth: 760, density: 'wide', minWidth: 560, maxWidth: 980 }, locale, uiTextDirection, uiFontScale),
-    [locale, uiTextDirection, uiFontScale],
-  );
-  const adaptiveFloatingWidth = useMemo(
-    () => computeWidth({ baseWidth: 360, density: 'standard', minWidth: 300, maxWidth: 620 }, locale, uiTextDirection, uiFontScale),
-    [locale, uiTextDirection, uiFontScale],
-  );
+  const viewportWidth = useViewportWidth();
+  const {
+    adaptiveDialogWidth,
+    adaptiveDialogCompactWidth,
+    adaptiveDialogWideWidth,
+  } = computeAdaptiveWidths(locale, uiTextDirection, uiFontScale, viewportWidth);
 
   return {
     uiFontScale,
@@ -112,6 +119,5 @@ export function useTranscriptionAdaptiveSizing(locale: Locale): UseTranscription
     adaptiveDialogWidth,
     adaptiveDialogCompactWidth,
     adaptiveDialogWideWidth,
-    adaptiveFloatingWidth,
   };
 }

@@ -5,7 +5,7 @@
  * Renders all sub-components in the correct layout positions.
  */
 
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import {
   Merge as _Merge,
   Pause as _Pause,
@@ -13,7 +13,6 @@ import {
 import {
   TimelineRailSection,
   TimelineScrollSection,
-  VideoPreviewSection,
 } from '../components/transcription/TranscriptionTimelineSections';
 import {
   BottomToolbarSection,
@@ -21,28 +20,20 @@ import {
   TimelineMainSection,
   ToolbarLeftSection,
   ToolbarRightSection,
-  WaveformAreaSection,
   ZoomControlsSection,
 } from '../components/transcription/TranscriptionLayoutSections';
-import { WaveformHoverTooltip } from '../components/transcription/WaveformHoverTooltip';
-import { WaveformLeftStatusStrip } from '../components/transcription/WaveformLeftStatusStrip';
-import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
 import { LeftRailProjectHub } from '../components/transcription/LeftRailProjectHub';
-import { NoteDocumentIcon } from '../components/NoteDocumentIcon';
+import { OrchestratorWaveformContent } from './OrchestratorWaveformContent';
 import { TrackFocusToolbarControls } from '../components/transcription/toolbar/TrackFocusToolbarControls';
-import { SidePaneSidebar } from '../components/SidePaneSidebar';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { useAiPanelContextUpdater, AiPanelContext } from '../contexts/AiPanelContext';
-import { SpeakerRailProvider } from '../contexts/SpeakerRailContext';
 import { ToastProvider } from '../contexts/ToastContext';
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
 import { useRecording } from '../hooks/useRecording';
 import { useUtteranceOps } from '../hooks/useUtteranceOps';
-import { useKeybindingActions } from '../hooks/useKeybindingActions';
 import { useJKLShuttle } from '../hooks/useJKLShuttle';
 import { useImportExport } from '../hooks/useImportExport';
 import { useNoteHandlers } from '../hooks/useNoteHandlers';
-import { useTimelineAnnotationHelpers } from '../hooks/useTimelineAnnotationHelpers';
 import { useTranscriptionUIState } from './TranscriptionPage.UIState';
 import {
   type AppShellOpenSearchDetail,
@@ -50,22 +41,15 @@ import {
 import { useTimelineResize } from '../hooks/useTimelineResize';
 import { useLayerSegments } from '../hooks/useLayerSegments';
 import { useLayerSegmentContents } from '../hooks/useLayerSegmentContents';
-import { usePanelResize } from '../hooks/usePanelResize';
-import { usePanelAutoCollapse } from '../hooks/usePanelAutoCollapse';
 import { useRecoveryBanner } from '../hooks/useRecoveryBanner';
 import { getUtteranceSpeakerKey } from '../hooks/useSpeakerActions';
 import {
   isUtteranceTimelineUnit,
 } from '../hooks/transcriptionTypes';
 import { t, tf, useLocale } from '../i18n';
-import { createLogger } from '../observability/logger';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import { formatSidePaneLayerLabel, formatTime } from '../utils/transcriptionFormatters';
-import {
-  INITIAL_OVERLAP_CYCLE_TELEMETRY,
-  updateOverlapCycleTelemetry,
-} from '../utils/overlapCycleTelemetry';
 import { useTranscriptionAiController } from './useTranscriptionAiController';
 import { useTranscriptionAssistantSidebarController } from './useTranscriptionAssistantSidebarController';
 import { useWaveformRuntimeController } from './useWaveformRuntimeController';
@@ -84,27 +68,21 @@ import { useTrackEntityStateController } from './useTrackEntityStateController';
 import { useTranscriptionTimelineController } from './useTranscriptionTimelineController';
 import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';
 import { useTrackDisplayController } from './useTrackDisplayController';
-import { useTranscriptionTimelineContentViewModel } from './useTranscriptionTimelineContentViewModel';
+import { useOrchestratorViewModels } from './useOrchestratorViewModels';
 import { useTranscriptionWorkspaceLayoutController } from './useTranscriptionWorkspaceLayoutController';
 import { useTranscriptionActionRefBindings } from './useTranscriptionActionRefBindings';
 import { useTranscriptionWaveformBridgeController } from './useTranscriptionWaveformBridgeController';
-import { useTranscriptionSectionViewModels } from './useTranscriptionSectionViewModels';
 import { useTranscriptionSpeakerController } from './useTranscriptionSpeakerController';
 import { useTranscriptionSelectionSnapshot } from './useTranscriptionSelectionSnapshot';
-import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
-import { useLocalFonts } from '../hooks/useLocalFonts';
-import { useOrthographies } from '../hooks/useOrthographies';
-import {
-  BASE_FONT_SIZE,
-  buildOrthographyPreviewTextProps,
-  computeLaneHeightFromRenderPolicy,
-  resolveOrthographyRenderPolicy,
-} from '../utils/layerDisplayStyle';
-import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/useTimelineLaneHeightResize';
-import type { LayerDisplaySettings } from '../db';
-
-const log = createLogger('TranscriptionPage');
-const SYSTEM_DEFAULT_FONT_KEY = '\u7cfb\u7edf\u9ed8\u8ba4';
+import { useTranscriptionDisplayStyleControl } from './useTranscriptionDisplayStyleControl';
+import { useTranscriptionAnnotationController } from './useTranscriptionAnnotationController';
+import { useTranscriptionRuntimeRefs } from './useTranscriptionRuntimeRefs';
+import { useTranscriptionWorkspacePanelEffects } from './useTranscriptionWorkspacePanelEffects';
+import { useTranscriptionPlaybackKeyboardController } from './useTranscriptionPlaybackKeyboardController';
+import { useTranscriptionAssistantSidebarControllerInput } from './useTranscriptionAssistantSidebarControllerInput';
+import { useTranscriptionImportExportInput } from './useTranscriptionImportExportInput';
+import { useTranscriptionProjectMediaControllerInput } from './useTranscriptionProjectMediaControllerInput';
+import { TranscriptionPageAiPanelHandle } from './TranscriptionPage.AiPanelHandle';
 
 const TranscriptionPageAiSidebar = lazy(async () => import('./TranscriptionPage.AiSidebar').then((module) => ({
   default: module.TranscriptionPageAiSidebar,
@@ -128,6 +106,10 @@ const TranscriptionPageTimelineContent = lazy(async () => import('./Transcriptio
 
 const TranscriptionPageTimelineTop = lazy(async () => import('./TranscriptionPage.TimelineTop').then((module) => ({
   default: module.TranscriptionPageTimelineTop,
+})));
+
+const TranscriptionPageSidePane = lazy(async () => import('./TranscriptionPage.SidePane').then((module) => ({
+  default: module.TranscriptionPageSidePane,
 })));
 
 const TranscriptionOverlays = lazy(async () => import('../components/TranscriptionOverlays').then((module) => ({
@@ -293,7 +275,6 @@ function TranscriptionPageOrchestrator({
     adaptiveDialogWidth,
     adaptiveDialogCompactWidth,
     adaptiveDialogWideWidth,
-    adaptiveFloatingWidth,
     handleAiPanelToggle,
     isHubCollapsed,
     hubHeight,
@@ -398,14 +379,26 @@ function TranscriptionPageOrchestrator({
     dismissRecovery,
   });
 
-  // Pre-declare action/search refs before dependent controllers; populated after useKeybindingActions.
-  const executeActionRef = useRef<((actionId: string) => void) | undefined>(undefined);
-  const openSearchRef = useRef<typeof openSearchFromRequest | undefined>(undefined);
-  const seekToTimeRef = useRef<((timeSeconds: number) => void) | undefined>(undefined);
-  const splitAtTimeRef = useRef<((timeSeconds: number) => boolean) | undefined>(undefined);
-  const zoomToSegmentRef = useRef<((segmentId: string, zoomLevel?: number) => boolean) | undefined>(undefined);
+  const {
+    executeActionRef,
+    openSearchRef,
+    seekToTimeRef,
+    splitAtTimeRef,
+    zoomToSegmentRef,
+    utteranceRowRef,
+    speakerFocusTargetMemoryByMediaRef,
+    overlapCycleTelemetryRef,
+    manualSelectTsRef,
+    tierContainerRef,
+    listMainRef,
+    workspaceRef,
+    screenRef,
+    waveformSectionRef,
+    dragCleanupRef,
+  } = useTranscriptionRuntimeRefs({
+    cssVarEnabled: state.phase === 'ready',
+  });
 
-  const utteranceRowRef = useRef<Record<string, HTMLDivElement | null>>({});
   const {
     waveformHeight,
     amplitudeScale,
@@ -447,139 +440,26 @@ function TranscriptionPageOrchestrator({
     utteranceRowRef,
   });
 
-  // ── 层显示样式控制 | Layer display style control ──────────
-  const localFonts = useLocalFonts();
-  const orthographyLanguageIds = useMemo(
-    () => Array.from(new Set(layers.map((layer) => layer.languageId).filter((languageId): languageId is string => Boolean(languageId)))),
-    [layers],
-  );
-  const orthographies = useOrthographies(orthographyLanguageIds);
-  const handleUpdateLayerDisplaySettings = useCallback((layerId: string, patch: Partial<LayerDisplaySettings>) => {
-    const layer = layers.find((l) => l.id === layerId);
-    if (!layer) return;
-    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
-    const merged: LayerDisplaySettings = { ...layer.displaySettings, ...patch };
-    // 移除等于默认值的属性（保持最小集合） | Remove default-valued properties (keep minimal set)
-    if (merged.fontSize === BASE_FONT_SIZE) delete merged.fontSize;
-    if (!merged.bold) delete merged.bold;
-    if (!merged.italic) delete merged.italic;
-    if (!merged.color) delete merged.color;
-    if (!merged.fontFamily || merged.fontFamily === renderPolicy.defaultFontKey) delete merged.fontFamily;
-    const { displaySettings: _prev, ...layerWithout } = layer;
-    const updatedLayer = {
-      ...layerWithout,
-      ...(Object.keys(merged).length > 0 ? { displaySettings: merged } : {}),
-      updatedAt: new Date().toISOString(),
-    } as typeof layer;
-    data.setLayers((prev) => prev.map((l) => (l.id === layerId ? updatedLayer : l)));
-    fireAndForget(LayerTierUnifiedService.updateLayer(updatedLayer));
-    // 字号→行高联动 | Font size → lane height sync
-    if (patch.fontSize != null) {
-      const newHeight = computeLaneHeightFromRenderPolicy(patch.fontSize, renderPolicy);
-      handleTimelineLaneHeightChange(layerId, newHeight);
-    }
-  }, [data, handleTimelineLaneHeightChange, layers, orthographies]);
-
-  const handleResetLayerDisplaySettings = useCallback((layerId: string) => {
-    const layer = layers.find((l) => l.id === layerId);
-    if (!layer) return;
-    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
-    const { displaySettings: _removed, ...rest } = layer;
-    const updatedLayer = { ...rest, updatedAt: new Date().toISOString() } as typeof layer;
-    data.setLayers((prev) => prev.map((l) => (l.id === layerId ? updatedLayer : l)));
-    fireAndForget(LayerTierUnifiedService.updateLayer(updatedLayer));
-    // 重置行高到默认 | Reset lane height to default
-    handleTimelineLaneHeightChange(layerId, computeLaneHeightFromRenderPolicy(BASE_FONT_SIZE, renderPolicy, () => DEFAULT_TIMELINE_LANE_HEIGHT));
-  }, [data, handleTimelineLaneHeightChange, layers, orthographies]);
-
-  const displayStyleControl = useMemo(() => ({
-    orthographies,
-    onUpdate: handleUpdateLayerDisplaySettings,
-    onReset: handleResetLayerDisplaySettings,
-    localFonts: {
-      fonts: localFonts.fonts,
-      status: localFonts.status,
-      load: localFonts.loadLocalFonts,
-      showAllFonts: localFonts.showAllFonts,
-      toggleShowAllFonts: localFonts.toggleShowAllFonts,
-      getSearchQuery: localFonts.getSearchQuery,
-      setSearchQuery: localFonts.setSearchQuery,
-      getCoverage: localFonts.getCoverage,
-      ensureCoverage: localFonts.ensureCoverage,
-    },
-  }), [handleResetLayerDisplaySettings, handleUpdateLayerDisplaySettings, localFonts.ensureCoverage, localFonts.fonts, localFonts.getCoverage, localFonts.getSearchQuery, localFonts.loadLocalFonts, localFonts.setSearchQuery, localFonts.showAllFonts, localFonts.status, localFonts.toggleShowAllFonts, orthographies]);
-
-  const waveformHoverPreviewProps = useMemo(() => {
-    if (!defaultTranscriptionLayerId) {
-      return buildOrthographyPreviewTextProps();
-    }
-    const defaultTranscriptionLayer = layerById.get(defaultTranscriptionLayerId);
-    if (!defaultTranscriptionLayer?.languageId) {
-      return buildOrthographyPreviewTextProps();
-    }
-    const renderPolicy = resolveOrthographyRenderPolicy(
-      defaultTranscriptionLayer.languageId,
-      orthographies,
-      defaultTranscriptionLayer.orthographyId,
-    );
-    return buildOrthographyPreviewTextProps(renderPolicy, defaultTranscriptionLayer.displaySettings);
-  }, [defaultTranscriptionLayerId, layerById, orthographies]);
-
-  const batchPreviewTextPropsByLayerId = useMemo(() => {
-    const next: Record<string, ReturnType<typeof buildOrthographyPreviewTextProps>> = {};
-    for (const layer of transcriptionLayers) {
-      if (!layer.languageId) continue;
-      const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
-      next[layer.id] = buildOrthographyPreviewTextProps(renderPolicy, layer.displaySettings);
-    }
-    return next;
-  }, [orthographies, transcriptionLayers]);
-
-  const voiceDictationPreviewTextProps = useMemo(() => {
-    const normalizedSelectedLayerId = selectedLayerId?.trim();
-    const targetLayerId = normalizedSelectedLayerId || defaultTranscriptionLayerId || translationLayers[0]?.id;
-    if (!targetLayerId) {
-      return buildOrthographyPreviewTextProps();
-    }
-    const targetLayer = layerById.get(targetLayerId);
-    if (!targetLayer?.languageId) {
-      return buildOrthographyPreviewTextProps();
-    }
-    const renderPolicy = resolveOrthographyRenderPolicy(
-      targetLayer.languageId,
-      orthographies,
-      targetLayer.orthographyId,
-    );
-    return buildOrthographyPreviewTextProps(renderPolicy, targetLayer.displaySettings);
-  }, [defaultTranscriptionLayerId, layerById, orthographies, selectedLayerId, translationLayers]);
-
-  useEffect(() => {
-    const seen = new Set<string>();
-    for (const layer of layers) {
-      const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
-      const fontCandidates = new Set<string>([
-        renderPolicy.defaultFontKey,
-        ...renderPolicy.preferredFontKeys,
-        ...renderPolicy.fallbackFontKeys,
-        ...(layer.displaySettings?.fontFamily ? [layer.displaySettings.fontFamily] : []),
-      ]);
-      for (const fontFamily of fontCandidates) {
-        if (!fontFamily || fontFamily === SYSTEM_DEFAULT_FONT_KEY) continue;
-        const verifyKey = `${fontFamily}\u0000${renderPolicy.scriptTag}\u0000${renderPolicy.coverageSummary.exemplarSample}\u0000${renderPolicy.coverageSummary.exemplarCharacterCount}`;
-        if (seen.has(verifyKey)) continue;
-        seen.add(verifyKey);
-        void localFonts.ensureCoverage(fontFamily, renderPolicy);
-      }
-    }
-  }, [layers, localFonts.ensureCoverage, orthographies]);
+  const {
+    displayStyleControl,
+    waveformHoverPreviewProps,
+    batchPreviewTextPropsByLayerId,
+    voiceDictationPreviewTextProps,
+  } = useTranscriptionDisplayStyleControl({
+    layers,
+    transcriptionLayers,
+    translationLayers,
+    layerById,
+    ...(defaultTranscriptionLayerId ? { defaultTranscriptionLayerId } : {}),
+    ...(selectedLayerId ? { selectedLayerId } : {}),
+    setLayers: data.setLayers,
+    handleTimelineLaneHeightChange,
+  });
 
   const [speakerFocusMode, setSpeakerFocusMode] = useState<'all' | 'focus-soft' | 'focus-hard'>('all');
   const [speakerFocusTargetKey, setSpeakerFocusTargetKey] = useState<string | null>(null);
   const [overlapCycleToast, setOverlapCycleToast] = useState<{ index: number; total: number; nonce: number } | null>(null);
   const [lockConflictToast, setLockConflictToast] = useState<{ count: number; speakers: string[]; nonce: number } | null>(null);
-  const speakerFocusTargetMemoryByMediaRef = useRef<Record<string, string | null>>({});
-  const overlapCycleTelemetryRef = useRef(INITIAL_OVERLAP_CYCLE_TELEMETRY);
-  const manualSelectTsRef = useRef(0);
 
   const {
     recording,
@@ -594,47 +474,6 @@ function TranscriptionPageOrchestrator({
     selectUtterance,
     manualSelectTsRef,
   });
-
-  const tierContainerRef = useRef<HTMLDivElement>(null);
-  const listMainRef = useRef<HTMLDivElement | null>(null);
-  const workspaceRef = useRef<HTMLElement | null>(null);
-  const screenRef = useRef<HTMLElement | null>(null);
-  const waveformSectionRef = useRef<HTMLElement | null>(null);
-  const dragCleanupRef = useRef<(() => void) | null>(null);
-
-  useEffect(() => {
-    return () => { dragCleanupRef.current?.(); };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (state.phase !== 'ready') return;
-
-    const waveformSection = waveformSectionRef.current;
-    const shell = screenRef.current?.closest('.app-shell');
-    if (!waveformSection || !(shell instanceof HTMLElement)) return;
-
-    const syncWorkspaceTop = () => {
-      const nextTop = Math.max(0, Math.round(waveformSection.getBoundingClientRect().height));
-      shell.style.setProperty('--transcription-workspace-top', `${nextTop}px`);
-    };
-
-    syncWorkspaceTop();
-
-    let observer: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(() => syncWorkspaceTop());
-      observer.observe(waveformSection);
-    }
-
-    window.addEventListener('resize', syncWorkspaceTop);
-
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener('resize', syncWorkspaceTop);
-      shell.style.removeProperty('--transcription-workspace-top');
-    };
-  }, [state.phase]);
 
   // UI state (context menu, batch operations)
   const {
@@ -679,6 +518,7 @@ function TranscriptionPageOrchestrator({
     splitRouted,
     mergeWithPreviousRouted,
     mergeWithNextRouted,
+    mergeSelectedSegmentsRouted,
     deleteUtteranceRouted,
     deleteSelectedUtterancesRouted,
   } = useTranscriptionSegmentMutationController({
@@ -692,13 +532,14 @@ function TranscriptionPageOrchestrator({
     utterancesOnCurrentMedia,
     setSaveState,
     splitUtterance,
+    mergeSelectedUtterances,
     mergeWithPrevious,
     mergeWithNext,
     deleteUtterance,
     deleteSelectedUtterances,
   });
 
-  const { createUtteranceFromSelectionRouted } = useTranscriptionSegmentCreationController({
+  const { createNextSegmentRouted, createUtteranceFromSelectionRouted } = useTranscriptionSegmentCreationController({
     activeLayerIdForEdits,
     resolveSegmentRoutingForLayer,
     selectedTimelineMedia: selectedTimelineMedia ?? null,
@@ -711,6 +552,7 @@ function TranscriptionPageOrchestrator({
     reloadSegmentContents,
     selectTimelineUnit,
     setSaveState,
+    createNextUtterance: _createNextUtterance,
     createUtteranceFromSelection,
   });
 
@@ -878,11 +720,17 @@ function TranscriptionPageOrchestrator({
     handleExecuteObserverRecommendation,
   } = useTranscriptionAiController({
     utterances,
+    utterancesOnCurrentMedia,
     selectedUnitIds: selectedUtteranceIds,
     selectedUtterance: selectedUtterance ?? null,
     selectedTimelineOwnerUtterance: selectedTimelineOwnerUtterance ?? null,
+    selectedTimelineSegment: selectedTimelineSegment ?? null,
     ...(selectedTimelineMedia ? { selectedTimelineMedia } : {}),
     selectedLayerId,
+    activeLayerIdForEdits,
+    resolveSegmentRoutingForLayer,
+    segmentsByLayer,
+    segmentContentByLayer,
     selectionSnapshot,
     layers,
     transcriptionLayers,
@@ -895,9 +743,13 @@ function TranscriptionPageOrchestrator({
     aiConfidenceAvg,
     undoHistory,
     createLayerWithActiveContext,
-    createNextUtterance: _createNextUtterance,
-    splitUtterance,
-    deleteUtterance,
+    createTranscriptionSegment: createNextSegmentRouted,
+    splitTranscriptionSegment: splitRouted,
+    mergeWithPrevious: mergeWithPreviousRouted,
+    mergeWithNext: mergeWithNextRouted,
+    mergeSelectedUtterances,
+    mergeSelectedSegments: mergeSelectedSegmentsRouted,
+    deleteUtterance: deleteUtteranceRouted,
     deleteSelectedUtterances: deleteSelectedUtterancesRouted,
     deleteLayer,
     toggleLayerLink,
@@ -1056,35 +908,13 @@ function TranscriptionPageOrchestrator({
     setUtterances,
   });
 
-  usePanelAutoCollapse({
-    isCollapsed: isAiPanelCollapsed,
-    setIsCollapsed: setIsAiPanelCollapsed,
-    boundaryRef: workspaceRef,
-    panelSelector: '.transcription-ai-panel',
-    toggleSelector: '.transcription-ai-panel-toggle',
-    resizerSelector: '.transcription-ai-panel-resizer',
-    ignoreSelectors: [
-      '.timeline-annotation',
-      '.timeline-annotation-input',
-      '.timeline-lane-label',
-      '#app-side-pane-body-slot',
-      '.app-side-pane',
-      '.app-side-pane-collapse-toggle',
-      '.app-side-pane-handle-cluster',
-    ],
-    ignoreInteractiveElements: true,
-  });
-
-  // ---- Keybinding system (from hook) ----
-  // toggleVoice is wired via ref to break the forward-declaration cycle.
-  const toggleVoiceRef = useRef<(() => void) | undefined>(undefined);
   const {
-    handlePlayPauseAction: _handlePlayPauseAction,
     handleGlobalPlayPauseAction,
     handleWaveformKeyDown,
     navigateUtteranceFromInput,
     executeAction,
-  } = useKeybindingActions({
+    toggleVoiceRef,
+  } = useTranscriptionPlaybackKeyboardController({
     player,
     subSelectionRange,
     setSubSelectionRange,
@@ -1117,10 +947,8 @@ function TranscriptionPageOrchestrator({
     redo,
     setShowSearch,
     toggleNotes,
-    toggleVoice: useCallback(() => toggleVoiceRef.current?.(), []),
   });
 
-  // JKL shuttle — global broadcast-standard playback control + frame stepping
   useJKLShuttle(player);
 
   useTranscriptionActionRefBindings({
@@ -1147,43 +975,18 @@ function TranscriptionPageOrchestrator({
     handleWaveformTimeUpdate,
   });
 
-  const {
-    assistantRuntimeProps,
-    analysisRuntimeProps,
-    pdfRuntimeProps,
-  } = useTranscriptionAssistantSidebarController({
+  const assistantSidebarControllerInput = useTranscriptionAssistantSidebarControllerInput({
     locale,
     analysisTab,
     onAnalysisTabChange: setAnalysisTab,
-    aiChatContextInput: {
-      selectedUtterance: selectedTimelineOwnerUtterance ?? null,
-      selectedRowMeta: selectedTimelineRowMeta,
-      lexemeMatches,
-      aiChatEnabled: aiChat.enabled,
-      aiProviderLabel: aiChat.providerLabel,
-      aiChatSettings: aiChat.settings,
-      aiMessages: aiChat.messages,
-      aiIsStreaming: aiChat.isStreaming,
-      aiLastError: aiChat.lastError,
-      aiConnectionTestStatus: aiChat.connectionTestStatus,
-      aiConnectionTestMessage: aiChat.connectionTestMessage,
-      aiContextDebugSnapshot: aiChat.contextDebugSnapshot,
-      aiPendingToolCall: aiChat.pendingToolCall,
-      aiTaskSession: aiChat.taskSession,
-      aiInteractionMetrics: aiChat.metrics,
-      aiSessionMemory: aiChat.sessionMemory,
-      aiToolDecisionLogs,
-      observerStage: observerResult.stage,
-      observerRecommendations: actionableObserverRecommendations,
-      onUpdateAiChatSettings: aiChat.updateSettings,
-      onTestAiConnection: aiChat.testConnection,
-      onSendAiMessage: aiChat.send,
-      onStopAiMessage: aiChat.stop,
-      onClearAiMessages: aiChat.clear,
-      onConfirmPendingToolCall: aiChat.confirmPendingToolCall,
-      onCancelPendingToolCall: aiChat.cancelPendingToolCall,
-      onJumpToCitation: handleJumpToCitation,
-    },
+    selectedUtterance: selectedTimelineOwnerUtterance ?? null,
+    selectedRowMeta: selectedTimelineRowMeta,
+    lexemeMatches,
+    aiChat,
+    aiToolDecisionLogs,
+    observerStage: observerResult.stage,
+    observerRecommendations: actionableObserverRecommendations,
+    onJumpToCitation: handleJumpToCitation,
     runtimePropsInput: {
       saveState,
       recording,
@@ -1220,28 +1023,42 @@ function TranscriptionPageOrchestrator({
     },
   });
 
-  const { handleAiPanelResizeStart } = usePanelResize({
-    aiPanel: {
-      isCollapsed: isAiPanelCollapsed,
-      width: aiPanelWidth,
-      setWidth: setAiPanelWidth,
-      boundaryRef: workspaceRef,
-      dragCleanupRef,
-      side: 'right',
-      minWidth: 240,
-      maxWidth: 560,
-      maxWidthRatio: 0.6,
-    },
-    hub: {
-      isHubCollapsed,
-      hubHeight,
-      setHubHeight,
-      screenRef,
-      dragCleanupRef,
-    },
+  const {
+    assistantRuntimeProps,
+    analysisRuntimeProps,
+    pdfRuntimeProps,
+  } = useTranscriptionAssistantSidebarController({
+    ...assistantSidebarControllerInput,
+  });
+
+  const { handleAiPanelResizeStart } = useTranscriptionWorkspacePanelEffects({
+    isAiPanelCollapsed,
+    setIsAiPanelCollapsed,
+    workspaceRef,
+    aiPanelWidth,
+    setAiPanelWidth,
+    dragCleanupRef,
+    isHubCollapsed,
+    hubHeight,
+    setHubHeight,
+    screenRef,
+    setShowBatchOperationPanel,
   });
 
   // ── Import / Export (extracted hook) ──
+
+  const importExportInput = useTranscriptionImportExportInput({
+    activeTextId,
+    getActiveTextId,
+    selectedUtteranceMedia: selectedTimelineMedia,
+    utterancesOnCurrentMedia,
+    anchors,
+    layers,
+    translations,
+    defaultTranscriptionLayerId,
+    loadSnapshot,
+    setSaveState,
+  });
 
   const {
     importFileRef,
@@ -1258,36 +1075,9 @@ function TranscriptionPageOrchestrator({
     previewProjectArchiveImport,
     importProjectArchive,
     handleImportFile,
-  } = useImportExport({
-    activeTextId,
-    getActiveTextId,
-    selectedUtteranceMedia: selectedTimelineMedia,
-    utterancesOnCurrentMedia,
-    anchors,
-    layers,
-    translations,
-    defaultTranscriptionLayerId,
-    loadSnapshot,
-    setSaveState,
-  });
+  } = useImportExport(importExportInput);
 
-  const {
-    mediaFileInputRef,
-    handleDirectMediaImport,
-    audioDeleteConfirm,
-    projectDeleteConfirm,
-    autoSegmentBusy,
-    handleAutoSegment,
-    handleDeleteCurrentAudio,
-    handleConfirmAudioDelete,
-    handleDeleteCurrentProject,
-    handleConfirmProjectDelete,
-    handleProjectSetupSubmit,
-    handleAudioImport,
-    searchableItems,
-    setAudioDeleteConfirm,
-    setProjectDeleteConfirm,
-  } = useTranscriptionProjectMediaController({
+  const projectMediaControllerInput = useTranscriptionProjectMediaControllerInput({
     activeTextId,
     getActiveTextId,
     setActiveTextId,
@@ -1308,26 +1098,25 @@ function TranscriptionPageOrchestrator({
     getUtteranceTextForLayer,
   });
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target && (
-        target.tagName === 'INPUT'
-        || target.tagName === 'TEXTAREA'
-        || target.tagName === 'SELECT'
-        || target.isContentEditable
-      )) {
-        return;
-      }
-      const hasMod = event.metaKey || event.ctrlKey;
-      if (!hasMod || !event.shiftKey || event.altKey) return;
-      if (event.key.toLowerCase() !== 'b') return;
-      event.preventDefault();
-      setShowBatchOperationPanel((prev) => !prev);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  const {
+    mediaFileInputRef,
+    handleDirectMediaImport,
+    audioDeleteConfirm,
+    projectDeleteConfirm,
+    autoSegmentBusy,
+    handleAutoSegment,
+    handleDeleteCurrentAudio,
+    handleConfirmAudioDelete,
+    handleDeleteCurrentProject,
+    handleConfirmProjectDelete,
+    handleProjectSetupSubmit,
+    handleAudioImport,
+    searchableItems,
+    setAudioDeleteConfirm,
+    setProjectDeleteConfirm,
+  } = useTranscriptionProjectMediaController({
+    ...projectMediaControllerInput,
+  });
 
   const {
     speakerActionUtteranceIdByUnitId,
@@ -1466,53 +1255,34 @@ function TranscriptionPageOrchestrator({
     setTranscriptionTrackMode,
   });
 
-  const renderOrthographyLanguageIds = useMemo(
-    () => Array.from(new Set(layers.map((layer) => layer.languageId).filter((languageId): languageId is string => Boolean(languageId)))),
-    [layers],
-  );
-  const renderOrthographies = useOrthographies(renderOrthographyLanguageIds);
-
-  const { handleAnnotationClick, handleAnnotationContextMenu, renderAnnotationItem, renderLaneLabel } = useTimelineAnnotationHelpers({
-      manualSelectTsRef,
-      player,
-      selectedTimelineUnit,
-      selectUtteranceRange,
-      toggleUtteranceSelection,
-      selectTimelineUnit,
-      selectUtterance,
-      selectSegment,
-      setSelectedLayerId,
-      onFocusLayerRow: handleFocusLayerRow,
-      tierContainerRef,
-      zoomPxPerSec,
-      setCtxMenu,
-      navigateUtteranceFromInput,
-      waveformAreaRef,
-      dragPreview,
-      selectedUtteranceIds,
-      focusedLayerRowId,
-      zoomToUtterance,
-      startTimelineResizeDrag,
-      handleNoteClick,
-      resolveNoteIndicatorTarget,
-      speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
-      independentLayerIds: segmentTimelineLayerIds,
-      orthographies: renderOrthographies,
-      onOverlapCycleToast: (index, total, utteranceId) => {
-        setOverlapCycleToast({ index, total, nonce: Date.now() });
-        const nextTelemetry = updateOverlapCycleTelemetry(overlapCycleTelemetryRef.current, {
-          utteranceId,
-          index,
-          total,
-        });
-        overlapCycleTelemetryRef.current = nextTelemetry;
-        log.info('Overlap cycle telemetry update', {
-          event: 'transcription.overlap_cycle',
-          cycleCount: nextTelemetry.cycleCount,
-          avgStep: nextTelemetry.avgStep,
-          avgCandidateTotal: nextTelemetry.avgCandidateTotal,
-        });
-      },
+  const { handleAnnotationClick, handleAnnotationContextMenu, renderAnnotationItem, renderLaneLabel } = useTranscriptionAnnotationController({
+    manualSelectTsRef,
+    player,
+    selectedTimelineUnit,
+    selectUtteranceRange,
+    toggleUtteranceSelection,
+    selectTimelineUnit,
+    selectUtterance,
+    selectSegment,
+    setSelectedLayerId,
+    onFocusLayerRow: handleFocusLayerRow,
+    tierContainerRef,
+    zoomPxPerSec,
+    setCtxMenu,
+    navigateUtteranceFromInput,
+    waveformAreaRef,
+    dragPreview,
+    selectedUtteranceIds,
+    focusedLayerRowId,
+    zoomToUtterance,
+    startTimelineResizeDrag,
+    handleNoteClick,
+    resolveNoteIndicatorTarget,
+    speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
+    independentLayerIds: segmentTimelineLayerIds,
+    orthographies: displayStyleControl.orthographies,
+    setOverlapCycleToast,
+    overlapCycleTelemetryRef,
   });
 
   const {
@@ -1592,7 +1362,58 @@ function TranscriptionPageOrchestrator({
     effectiveLaneLockMap,
   });
 
-  const timelineContentViewModel = useTranscriptionTimelineContentViewModel({
+  // ── 共享轨道属性 | Shared lane props for mediaLanes / textOnly ──
+  const sharedLaneProps = {
+    transcriptionLayers,
+    translationLayers,
+    segmentsByLayer,
+    segmentContentByLayer,
+    saveSegmentContentForLayer,
+    selectedTimelineUnit,
+    flashLayerRowId,
+    focusedLayerRowId,
+    activeUtteranceUnitId: selectedTimelineUtteranceId,
+    allLayersOrdered: orderedLayers,
+    onReorderLayers: reorderLayers,
+    deletableLayers,
+    onFocusLayer: handleFocusLayerRow,
+    layerLinks,
+    showConnectors: showAllLayerConnectors,
+    onToggleConnectors: handleToggleAllLayerConnectors,
+    laneHeights: timelineLaneHeights,
+    onLaneHeightChange: handleTimelineLaneHeightChange,
+    trackDisplayMode: transcriptionTrackMode,
+    onToggleTrackDisplayMode: handleToggleTrackDisplayMode,
+    onSetTrackDisplayMode: setTrackDisplayMode,
+    laneLockMap: effectiveLaneLockMap,
+    onLockSelectedSpeakersToLane: handleLockSelectedSpeakersToLane,
+    onUnlockSelectedSpeakers: handleUnlockSelectedSpeakers,
+    onResetTrackAutoLayout: handleResetTrackAutoLayout,
+    selectedSpeakerNamesForLock: selectedSpeakerNamesForTrackLock,
+    speakerLayerLayout,
+    speakerFocusMode,
+    ...(resolvedSpeakerFocusTargetKey ? { speakerFocusSpeakerKey: resolvedSpeakerFocusTargetKey } : {}),
+    activeSpeakerFilterKey,
+    speakerQuickActions,
+    onLaneLabelWidthResize: handleLaneLabelWidthResizeStart,
+    translationAudioByLayer,
+    mediaItems: _mediaItems,
+    recording,
+    recordingUtteranceId,
+    recordingLayerId: _recordingLayerId,
+    startRecordingForUtterance: _startRecordingForUtterance,
+    stopRecording: _stopRecording,
+    deleteVoiceTranslation,
+    displayStyleControl,
+  };
+
+  const {
+    toolbarProps,
+    timelineTopProps,
+    timelineContentProps,
+    aiSidebarProps,
+    dialogsProps,
+  } = useOrchestratorViewModels({
     selectedMediaUrl: selectedMediaUrl ?? null,
     playerIsReady: player.isReady,
     playerDuration: player.duration,
@@ -1601,114 +1422,24 @@ function TranscriptionPageOrchestrator({
     importFileRef,
     layerActionSetCreateTranscription: () => layerAction.setLayerActionPanel('create-transcription'),
     mediaLanesPropsInput: {
+      ...sharedLaneProps,
       zoomPxPerSec,
       lassoRect,
-      transcriptionLayers,
-      translationLayers,
       timelineRenderUtterances,
-      flashLayerRowId,
-      focusedLayerRowId,
-      activeUtteranceUnitId: selectedTimelineUtteranceId,
-      selectedTimelineUnit,
       defaultTranscriptionLayerId,
       renderAnnotationItem,
-      allLayersOrdered: orderedLayers,
-      onReorderLayers: reorderLayers,
-      deletableLayers,
-      onFocusLayer: handleFocusLayerRow,
-      layerLinks,
-      showConnectors: showAllLayerConnectors,
-      onToggleConnectors: handleToggleAllLayerConnectors,
-      laneHeights: timelineLaneHeights,
-      onLaneHeightChange: handleTimelineLaneHeightChange,
-      trackDisplayMode: transcriptionTrackMode,
-      onToggleTrackDisplayMode: handleToggleTrackDisplayMode,
-      onSetTrackDisplayMode: setTrackDisplayMode,
-      laneLockMap: effectiveLaneLockMap,
-      onLockSelectedSpeakersToLane: handleLockSelectedSpeakersToLane,
-      onUnlockSelectedSpeakers: handleUnlockSelectedSpeakers,
-      onResetTrackAutoLayout: handleResetTrackAutoLayout,
-      selectedSpeakerNamesForLock: selectedSpeakerNamesForTrackLock,
       speakerSortKeyById,
-      speakerLayerLayout,
-      speakerFocusMode,
-      ...(resolvedSpeakerFocusTargetKey ? { speakerFocusSpeakerKey: resolvedSpeakerFocusTargetKey } : {}),
-      activeSpeakerFilterKey,
-      speakerQuickActions,
-      onLaneLabelWidthResize: handleLaneLabelWidthResizeStart,
-      segmentsByLayer,
-      segmentContentByLayer,
-      saveSegmentContentForLayer,
-      translationAudioByLayer,
-      mediaItems: _mediaItems,
-      recording,
-      recordingUtteranceId,
-      recordingLayerId: _recordingLayerId,
-      startRecordingForUtterance: _startRecordingForUtterance,
-      stopRecording: _stopRecording,
-      deleteVoiceTranslation,
-      displayStyleControl,
     },
     textOnlyPropsInput: {
-      transcriptionLayers,
-      translationLayers,
+      ...sharedLaneProps,
       utterancesOnCurrentMedia: filteredUtterancesOnCurrentMedia,
-      segmentsByLayer,
-      segmentContentByLayer,
-      saveSegmentContentForLayer,
-      selectedTimelineUnit,
-      flashLayerRowId,
-      focusedLayerRowId,
       defaultTranscriptionLayerId: defaultTranscriptionLayerId ?? '',
       scrollContainerRef: tierContainerRef,
       handleAnnotationClick,
       handleAnnotationContextMenu,
-      allLayersOrdered: orderedLayers,
-      onReorderLayers: reorderLayers,
-      deletableLayers,
-      onFocusLayer: handleFocusLayerRow,
       navigateUtteranceFromInput,
-      layerLinks,
-      showConnectors: showAllLayerConnectors,
-      onToggleConnectors: handleToggleAllLayerConnectors,
-      laneHeights: timelineLaneHeights,
-      onLaneHeightChange: handleTimelineLaneHeightChange,
-      trackDisplayMode: transcriptionTrackMode,
-      onToggleTrackDisplayMode: handleToggleTrackDisplayMode,
-      onSetTrackDisplayMode: setTrackDisplayMode,
-      laneLockMap: effectiveLaneLockMap,
-      onLockSelectedSpeakersToLane: handleLockSelectedSpeakersToLane,
-      onUnlockSelectedSpeakers: handleUnlockSelectedSpeakers,
-      onResetTrackAutoLayout: handleResetTrackAutoLayout,
-      selectedSpeakerNamesForLock: selectedSpeakerNamesForTrackLock,
-      speakerLayerLayout,
-      activeUtteranceUnitId: selectedTimelineUtteranceId,
-      speakerFocusMode,
-      ...(resolvedSpeakerFocusTargetKey ? { speakerFocusSpeakerKey: resolvedSpeakerFocusTargetKey } : {}),
-      activeSpeakerFilterKey,
       speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
-      speakerQuickActions,
-      onLaneLabelWidthResize: handleLaneLabelWidthResizeStart,
-      translationAudioByLayer,
-      mediaItems: _mediaItems,
-      recording,
-      recordingUtteranceId,
-      recordingLayerId: _recordingLayerId,
-      startRecordingForUtterance: _startRecordingForUtterance,
-      stopRecording: _stopRecording,
-      deleteVoiceTranslation,
-      displayStyleControl,
     },
-  });
-
-  const {
-    toolbarProps,
-    timelineTopProps,
-    timelineContentProps,
-    aiSidebarProps,
-    dialogsProps,
-  } = useTranscriptionSectionViewModels({
-    locale,
     selectedTimelineMediaFilename: selectedTimelineMedia?.filename ?? null,
     player,
     globalLoopPlayback,
@@ -1722,7 +1453,6 @@ function TranscriptionPageOrchestrator({
     selectedTimelineUnit: selectedTimelineUnit ?? null,
     notePopoverOpen: Boolean(notePopover),
     showExportMenu,
-    importFileRef,
     exportMenuRef,
     loadSnapshot,
     undo,
@@ -1733,7 +1463,6 @@ function TranscriptionPageOrchestrator({
     handleDeleteCurrentProject,
     toggleNotes,
     setUttOpsMenu,
-    selectedMediaUrl: selectedMediaUrl ?? null,
     handleAutoSegment,
     autoSegmentBusy,
     setShowExportMenu,
@@ -1754,7 +1483,7 @@ function TranscriptionPageOrchestrator({
     tierContainerRef,
     showSearch,
     searchableItems,
-    orthographies,
+    orthographies: displayStyleControl.orthographies,
     activeLayerIdForEdits,
     selectedTimelineUtteranceId,
     searchOverlayRequest,
@@ -1763,7 +1492,6 @@ function TranscriptionPageOrchestrator({
     handleSearchReplace,
     setShowSearch,
     setSearchOverlayRequest,
-    timelineContentProps: timelineContentViewModel,
     sidebarSectionsInput: {
       locale,
       isAiPanelCollapsed,
@@ -1815,7 +1543,6 @@ function TranscriptionPageOrchestrator({
         '--dialog-auto-width': `${adaptiveDialogWidth}px`,
         '--dialog-compact-auto-width': `${adaptiveDialogCompactWidth}px`,
         '--dialog-wide-auto-width': `${adaptiveDialogWideWidth}px`,
-        '--floating-panel-auto-width': `${adaptiveFloatingWidth}px`,
       } as React.CSSProperties}
     >
       {state.phase === 'loading' && <p className="hint">{t(locale, 'transcription.status.loading')}</p>}
@@ -1874,194 +1601,76 @@ function TranscriptionPageOrchestrator({
                 className={`transcription-list-panel ${isTimelineLaneHeaderCollapsed ? 'transcription-list-panel-lane-header-collapsed' : ''}`}
                 style={{ '--lane-label-width': isTimelineLaneHeaderCollapsed ? '0px' : `${laneLabelWidth}px`, '--video-left-panel-width': videoLayoutMode === 'left' ? `${videoRightPanelWidth + 8}px` : '0px' } as React.CSSProperties}
               >
-                <WaveformAreaSection
-                  containerRef={waveformAreaRef}
-                  className={`transcription-waveform-area ${snapGuide.nearSide ? 'transcription-waveform-area-snapping' : ''} ${segMarkStart !== null ? 'transcription-waveform-area-marking' : ''} ${isResizingWaveform ? 'waveform-area-resizing' : ''}`}
-                  style={{ '--waveform-height': `${waveformHeight}px` } as React.CSSProperties}
-                  tabIndex={0}
-                  onKeyDown={handleWaveformKeyDown}
-                  onFocus={handleWaveformAreaFocus}
-                  onBlur={handleWaveformAreaBlur}
-                  onMouseMove={handleWaveformAreaMouseMove}
-                  onMouseLeave={handleWaveformAreaMouseLeave}
-                  onWheel={handleWaveformAreaWheel}
-                >
-                  {hoverTime && (
-                    <WaveformHoverTooltip
-                      time={hoverTime.time}
-                      x={hoverTime.x}
-                      y={hoverTime.y}
-                      utterances={utterancesOnCurrentMedia}
-                      getUtteranceTextForLayer={getUtteranceTextForLayer}
-                      formatTime={formatTime}
-                      {...(waveformHoverPreviewProps.dir !== undefined ? { previewDir: waveformHoverPreviewProps.dir } : {})}
-                      {...(waveformHoverPreviewProps.style !== undefined ? { previewStyle: waveformHoverPreviewProps.style } : {})}
-                    />
-                  )}
-{selectedMediaUrl && (
-                    <WaveformLeftStatusStrip
-                      zoomPercent={zoomPercent}
-                      snapEnabled={snapEnabled}
-                      onSnapToggle={toggleSnapEnabled}
-                      playbackRate={player.playbackRate}
-                      currentTime={player.currentTime}
-                      selectedUtteranceDuration={selectedTimelineUnitForTime
-                        ? selectedTimelineUnitForTime.endTime - selectedTimelineUnitForTime.startTime
-                        : null}
-                      amplitudeScale={amplitudeScale}
-                      onAmplitudeChange={setAmplitudeScale}
-                      onAmplitudeReset={() => setAmplitudeScale(1)}
-                      selectedMediaIsVideo={selectedMediaIsVideo}
-                      videoLayoutMode={videoLayoutMode}
-                      onVideoLayoutModeChange={setVideoLayoutMode}
-                      onLaneLabelWidthResize={handleLaneLabelWidthResizeStart}
-                      formatTime={formatTime}
-                    />
-                  )}
-                  <div className="waveform-content-offset">
-                    {selectedMediaUrl ? (
-                      <>
-                        <VideoPreviewSection
-                          selectedMediaIsVideo={selectedMediaIsVideo}
-                          selectedMediaUrl={selectedMediaUrl}
-                          videoLayoutMode={videoLayoutMode}
-                          videoPreviewHeight={videoPreviewHeight}
-                          videoRightPanelWidth={videoRightPanelWidth}
-                          waveformRegions={waveformRegions}
-                          selectedUtteranceIds={selectedUtteranceIds}
-                          activeUtteranceUnitId={selectedTimelineUtteranceId}
-                          segmentLoopPlayback={segmentLoopPlayback}
-                          subSelectionRange={subSelectionRange}
-                          isResizingVideoPreview={isResizingVideoPreview}
-                          isResizingVideoRightPanel={isResizingVideoRightPanel}
-                          onVideoPreviewResizeStart={handleVideoPreviewResizeStart}
-                          onVideoRightPanelResizeStart={handleVideoRightPanelResizeStart}
-                          waveformStripHeight={waveformHeight}
-                          waveCanvasRef={waveCanvasRef}
-                          playerWaveformRef={player.waveformRef}
-                          onSeek={player.seekTo}
-                          onPlayRegion={player.playRegion}
-                          waveformOverlay={(
-                            <>
-                              {waveLassoRect ? (
-                                <div
-                                  className={`wave-lasso-rect ${waveLassoRect.mode === 'create' ? 'wave-lasso-rect-create' : 'wave-lasso-rect-select'}`}
-                                  style={{
-                                    left: waveLassoRect.x,
-                                    top: waveLassoRect.y,
-                                    width: Math.max(2, waveLassoRect.w),
-                                    height: Math.max(2, waveLassoRect.h),
-                                  }}
-                                >
-                                  {waveLassoRect.mode === 'select' && (
-                                    <div className="wave-lasso-hint">
-                                      {tf(locale, 'transcription.wave.selectionHint', { count: waveLassoHintCount })}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : null}
-                              {waveformNoteIndicators.map(({ uttId, leftPx, widthPx, count, layerId }) => (
-                                <div
-                                  key={`note-${uttId}`}
-                                  style={{
-                                    position: 'absolute', top: 0, left: leftPx + widthPx - 26,
-                                    width: 16, height: '100%', pointerEvents: 'auto', zIndex: 6,
-                                    display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-                                    paddingBottom: 2, cursor: 'pointer',
-                                  }}
-                                  onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setNotePopover({ x: e.clientX, y: e.clientY, uttId, ...(layerId ? { layerId } : {}), scope: 'waveform' });
-                                  }}
-                                >
-                                  <NoteDocumentIcon
-                                    ariaLabel={tf(locale, 'transcription.notes.count', { count })}
-                                    title={tf(locale, 'transcription.notes.count', { count })}
-                                    style={{ width: 16, height: 16, color: 'var(--state-info-border)', opacity: 0.92 }}
-                                  />
-                                </div>
-                              ))}
-                              {snapGuide.visible && player.duration > 0 && rulerView && (() => {
-                                const windowSec = rulerView.end - rulerView.start;
-                                if (windowSec <= 0) return null;
-                                const pctL = ((snapGuide.left ?? 0) - rulerView.start) / windowSec * 100;
-                                const pctR = typeof snapGuide.right === 'number' ? (snapGuide.right - rulerView.start) / windowSec * 100 : null;
-                                return (
-                                  <>
-                                    <div
-                                      className={`snap-line snap-line-left ${snapGuide.nearSide === 'left' || snapGuide.nearSide === 'both' ? 'snap-line-near' : ''}`}
-                                      style={{ left: `${pctL}%` }}
-                                    >
-                                      <span>L</span>
-                                    </div>
-                                    {pctR !== null && (
-                                      <div
-                                        className={`snap-line snap-line-right ${snapGuide.nearSide === 'right' || snapGuide.nearSide === 'both' ? 'snap-line-near' : ''}`}
-                                        style={{ left: `${pctR}%` }}
-                                      >
-                                        <span>R</span>
-                                      </div>
-                                    )}
-                                  </>
-                                );
-                              })()}
-                            </>
-                          )}
-                        />
-                        {!selectedMediaIsVideo && selectedWaveformTimelineItem && player.isReady && (
-                          <RegionActionOverlay
-                            utteranceStartTime={selectedWaveformTimelineItem.startTime}
-                            utteranceEndTime={selectedWaveformTimelineItem.endTime}
-                            zoomPxPerSec={zoomPxPerSec}
-                            scrollLeft={waveformScrollLeft}
-                            waveAreaWidth={player.instanceRef.current?.getWidth() ?? 9999}
-                            isPlaying={player.isPlaying}
-                            segmentPlaybackRate={segmentPlaybackRate}
-                            segmentLoopPlayback={segmentLoopPlayback}
-                            onPlaybackRateChange={handleSegmentPlaybackRateChange}
-                            onToggleLoop={handleToggleSelectedWaveformLoop}
-                            onTogglePlay={handleToggleSelectedWaveformPlay}
-                          />
-                        )}
-                      </>
-                    ) : (
-                      <div className="wave-empty transcription-wave-empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                        {!selectedMediaUrl ? (
-                          <button
-                            className="transcription-import-media-btn"
-                            onClick={() => mediaFileInputRef.current?.click()}
-                          >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                              <polyline points="17 8 12 3 7 8"/>
-                              <line x1="12" y1="3" x2="12" y2="15"/>
-                            </svg>
-                            {t(locale, 'transcription.wave.emptyImportMedia')}
-                          </button>
-                        ) : (
-                          t(locale, 'transcription.wave.emptyNoMedia')
-                        )}
-                      </div>
-                    )}
-                    {segMarkStart !== null && (
-                      <div className="seg-mark-status">
-                        ✦ {tf(locale, 'transcription.wave.markingHint', { start: formatTime(segMarkStart) })}
-                      </div>
-                    )}
-                  </div>
-                </WaveformAreaSection>
-                {selectedMediaUrl ? (
-                  <div
-                    className={`transcription-waveform-resize-handle ${isResizingWaveform ? 'transcription-waveform-resize-handle-resizing' : ''}`}
-                    onPointerDown={handleWaveformResizeStart}
-                    role="separator"
-                    aria-orientation="horizontal"
-                    title={t(locale, 'transcription.wave.resizeHeight')}
-                  >
-                    <div className="transcription-waveform-resize-dots" />
-                  </div>
-                ) : null}
+                <OrchestratorWaveformContent
+                  locale={locale}
+                  waveformAreaRef={waveformAreaRef}
+                  snapGuideNearSide={snapGuide.nearSide}
+                  segMarkStart={segMarkStart}
+                  isResizingWaveform={isResizingWaveform}
+                  waveformHeight={waveformHeight}
+                  handleWaveformKeyDown={handleWaveformKeyDown}
+                  handleWaveformAreaFocus={handleWaveformAreaFocus}
+                  handleWaveformAreaBlur={handleWaveformAreaBlur}
+                  handleWaveformAreaMouseMove={handleWaveformAreaMouseMove}
+                  handleWaveformAreaMouseLeave={handleWaveformAreaMouseLeave}
+                  handleWaveformAreaWheel={handleWaveformAreaWheel}
+                  hoverTime={hoverTime}
+                  utterancesOnCurrentMedia={utterancesOnCurrentMedia}
+                  getUtteranceTextForLayer={getUtteranceTextForLayer}
+                  waveformHoverPreviewProps={waveformHoverPreviewProps}
+                  selectedMediaUrl={selectedMediaUrl}
+                  zoomPercent={zoomPercent}
+                  snapEnabled={snapEnabled}
+                  toggleSnapEnabled={toggleSnapEnabled}
+                  playerPlaybackRate={player.playbackRate}
+                  playerCurrentTime={player.currentTime}
+                  selectedUtteranceDuration={selectedTimelineUnitForTime
+                    ? selectedTimelineUnitForTime.endTime - selectedTimelineUnitForTime.startTime
+                    : null}
+                  amplitudeScale={amplitudeScale}
+                  setAmplitudeScale={setAmplitudeScale}
+                  selectedMediaIsVideo={selectedMediaIsVideo}
+                  videoLayoutMode={videoLayoutMode}
+                  setVideoLayoutMode={setVideoLayoutMode}
+                  handleLaneLabelWidthResizeStart={handleLaneLabelWidthResizeStart}
+                  videoPreviewHeight={videoPreviewHeight}
+                  videoRightPanelWidth={videoRightPanelWidth}
+                  waveformRegions={waveformRegions}
+                  selectedUtteranceIds={selectedUtteranceIds}
+                  selectedTimelineUtteranceId={selectedTimelineUtteranceId}
+                  segmentLoopPlayback={segmentLoopPlayback}
+                  subSelectionRange={subSelectionRange}
+                  isResizingVideoPreview={isResizingVideoPreview}
+                  isResizingVideoRightPanel={isResizingVideoRightPanel}
+                  handleVideoPreviewResizeStart={handleVideoPreviewResizeStart}
+                  handleVideoRightPanelResizeStart={handleVideoRightPanelResizeStart}
+                  waveCanvasRef={waveCanvasRef}
+                  playerWaveformRef={player.waveformRef}
+                  playerSeekTo={player.seekTo}
+                  playerPlayRegion={player.playRegion}
+                  waveLassoRect={waveLassoRect}
+                  waveLassoHintCount={waveLassoHintCount}
+                  waveformNoteIndicators={waveformNoteIndicators}
+                  setNotePopover={setNotePopover}
+                  snapGuideVisible={snapGuide.visible}
+                  snapGuideLeft={snapGuide.left}
+                  snapGuideRight={snapGuide.right}
+                  snapGuideNearSideValue={snapGuide.nearSide}
+                  playerDuration={player.duration}
+                  rulerView={rulerView}
+                  selectedWaveformTimelineItem={selectedWaveformTimelineItem}
+                  playerIsReady={player.isReady}
+                  playerIsPlaying={player.isPlaying}
+                  playerInstanceGetWidth={() => player.instanceRef.current?.getWidth() ?? 9999}
+                  zoomPxPerSec={zoomPxPerSec}
+                  waveformScrollLeft={waveformScrollLeft}
+                  segmentPlaybackRate={segmentPlaybackRate}
+                  handleSegmentPlaybackRateChange={handleSegmentPlaybackRateChange}
+                  handleToggleSelectedWaveformLoop={handleToggleSelectedWaveformLoop}
+                  handleToggleSelectedWaveformPlay={handleToggleSelectedWaveformPlay}
+                  mediaFileInputRef={mediaFileInputRef}
+                  handleWaveformResizeStart={handleWaveformResizeStart}
+                />
                 <Suspense fallback={null}>
                   <TranscriptionPageTimelineTop {...timelineTopProps} />
                 </Suspense>
@@ -2070,58 +1679,59 @@ function TranscriptionPageOrchestrator({
                   className={`transcription-list-main ${isTimelineLaneHeaderCollapsed ? 'transcription-list-main-lane-header-collapsed' : ''}`}
                 >
                   <TimelineRailSection>
-                    <SpeakerRailProvider
-                      speakerManagement={{
-                        speakerOptions,
-                        speakerDraftName,
-                        setSpeakerDraftName,
-                        batchSpeakerId,
-                        setBatchSpeakerId,
-                        speakerSaving: speakerSavingRouted,
-                        activeSpeakerFilterKey,
-                        setActiveSpeakerFilterKey,
-                        speakerDialogState: speakerDialogStateRouted,
-                        speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
-                        speakerFilterOptions: speakerFilterOptionsForActions,
-                        speakerReferenceStats,
-                        speakerReferenceStatsReady,
-                        selectedSpeakerSummary: selectedSpeakerSummaryForActions,
-                        handleSelectSpeakerUtterances: handleSelectSpeakerUnitsRouted,
-                        handleClearSpeakerAssignments: handleClearSpeakerAssignmentsRouted,
-                        handleExportSpeakerSegments: handleExportSpeakerSegmentsRouted,
-                        handleRenameSpeaker,
-                        handleMergeSpeaker,
-                        handleDeleteSpeaker,
-                        handleDeleteUnusedSpeakers,
-                        handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,
-                        handleCreateSpeakerAndAssign: handleCreateSpeakerAndAssignRouted,
-                        handleCreateSpeakerOnly,
-                        closeSpeakerDialog: closeSpeakerDialogRouted,
-                        updateSpeakerDialogDraftName: updateSpeakerDialogDraftNameRouted,
-                        updateSpeakerDialogTargetKey: updateSpeakerDialogTargetKeyRouted,
-                        confirmSpeakerDialog: confirmSpeakerDialogRouted,
-                      }}
-                      selectedUtteranceIds={selectedSpeakerUnitIdsForActionsSet}
-                      handleAssignSpeakerToSelectedRouted={handleAssignSpeakerToSelectedRouted}
-                      handleClearSpeakerOnSelectedRouted={handleClearSpeakerOnSelectedRouted}
-                    >
-                      <SidePaneSidebar
-                        sidePaneRows={orderedLayers}
-                        focusedLayerRowId={focusedLayerRowId}
-                        flashLayerRowId={flashLayerRowId}
-                        onFocusLayer={handleFocusLayerRow}
-                        transcriptionLayers={transcriptionLayers}
-                        toggleLayerLink={toggleLayerLink}
-                        deletableLayers={deletableLayers}
-                        layerCreateMessage={layerCreateMessage}
-                        layerAction={layerAction}
-                        onReorderLayers={reorderLayers}
-                        uiFontScale={uiFontScale}
-                        uiFontScaleMode={uiFontScaleMode}
-                        onUiFontScaleChange={setUiFontScale}
-                        onUiFontScaleReset={resetUiFontScale}
+                    <Suspense fallback={null}>
+                      <TranscriptionPageSidePane
+                        speakerManagement={{
+                          speakerOptions,
+                          speakerDraftName,
+                          setSpeakerDraftName,
+                          batchSpeakerId,
+                          setBatchSpeakerId,
+                          speakerSaving: speakerSavingRouted,
+                          activeSpeakerFilterKey,
+                          setActiveSpeakerFilterKey,
+                          speakerDialogState: speakerDialogStateRouted,
+                          speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
+                          speakerFilterOptions: speakerFilterOptionsForActions,
+                          speakerReferenceStats,
+                          speakerReferenceStatsReady,
+                          selectedSpeakerSummary: selectedSpeakerSummaryForActions,
+                          handleSelectSpeakerUtterances: handleSelectSpeakerUnitsRouted,
+                          handleClearSpeakerAssignments: handleClearSpeakerAssignmentsRouted,
+                          handleExportSpeakerSegments: handleExportSpeakerSegmentsRouted,
+                          handleRenameSpeaker,
+                          handleMergeSpeaker,
+                          handleDeleteSpeaker,
+                          handleDeleteUnusedSpeakers,
+                          handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,
+                          handleCreateSpeakerAndAssign: handleCreateSpeakerAndAssignRouted,
+                          handleCreateSpeakerOnly,
+                          closeSpeakerDialog: closeSpeakerDialogRouted,
+                          updateSpeakerDialogDraftName: updateSpeakerDialogDraftNameRouted,
+                          updateSpeakerDialogTargetKey: updateSpeakerDialogTargetKeyRouted,
+                          confirmSpeakerDialog: confirmSpeakerDialogRouted,
+                        }}
+                        selectedUtteranceIds={selectedSpeakerUnitIdsForActionsSet}
+                        handleAssignSpeakerToSelectedRouted={handleAssignSpeakerToSelectedRouted}
+                        handleClearSpeakerOnSelectedRouted={handleClearSpeakerOnSelectedRouted}
+                        sidebarProps={{
+                          sidePaneRows: orderedLayers,
+                          focusedLayerRowId,
+                          flashLayerRowId,
+                          onFocusLayer: handleFocusLayerRow,
+                          transcriptionLayers,
+                          toggleLayerLink,
+                          deletableLayers,
+                          layerCreateMessage,
+                          layerAction,
+                          onReorderLayers: reorderLayers,
+                          uiFontScale,
+                          uiFontScaleMode,
+                          onUiFontScaleChange: setUiFontScale,
+                          onUiFontScaleReset: resetUiFontScale,
+                        }}
                       />
-                    </SpeakerRailProvider>
+                    </Suspense>
                   </TimelineRailSection>
 
                   <TimelineScrollSection
@@ -2196,45 +1806,13 @@ function TranscriptionPageOrchestrator({
                 </BottomToolbarSection>
               </section>
 
-              <div
-                className="transcription-ai-panel-handle-cluster"
-              >
-                <div
-                  className="transcription-ai-panel-hover-zone"
-                  onMouseEnter={() => {
-                    if (isAiPanelCollapsed) {
-                      setIsAiPanelCollapsed(false);
-                    }
-                  }}
-                  style={{ display: isAiPanelCollapsed ? undefined : 'none' }}
-                  aria-hidden="true"
-                />
-                <div
-                  className="transcription-ai-panel-resizer"
-                  onPointerDown={handleAiPanelResizeStart}
-                  role="separator"
-                  aria-orientation="vertical"
-                  aria-label={t(locale, 'transcription.panel.resizeAiPanel')}
-                />
-                <button
-                  type="button"
-                  className="transcription-ai-panel-toggle"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={handleAiPanelToggle}
-                  onMouseEnter={() => {
-                    if (isAiPanelCollapsed) {
-                      setIsAiPanelCollapsed(false);
-                    }
-                  }}
-                  aria-label={isAiPanelCollapsed
-                    ? t(locale, 'transcription.panel.expandAiPanel')
-                    : t(locale, 'transcription.panel.collapseAiPanel')}
-                >
-                  <span className="transcription-panel-toggle-icon" aria-hidden="true">
-                    {isAiPanelCollapsed ? '‹' : '›'}
-                  </span>
-                </button>
-              </div>
+              <TranscriptionPageAiPanelHandle
+                locale={locale}
+                isAiPanelCollapsed={isAiPanelCollapsed}
+                setIsAiPanelCollapsed={setIsAiPanelCollapsed}
+                handleAiPanelResizeStart={handleAiPanelResizeStart}
+                handleAiPanelToggle={handleAiPanelToggle}
+              />
 
               <AiPanelContext.Provider value={aiPanelContextValue}>
                 <Suspense fallback={null}>

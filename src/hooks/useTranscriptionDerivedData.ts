@@ -124,9 +124,8 @@ export function useTranscriptionDerivedData({
     utterancesOnCurrentMedia,
     selectedRowMeta,
   } = useMemo(() => {
-    const targetId = selectedUtterance?.mediaId ?? selectedMediaId;
-    const selectedUtteranceMedia = targetId
-      ? mediaItems.find((item) => item.id === targetId)
+    const selectedUtteranceMedia = selectedMediaId
+      ? mediaItems.find((item) => item.id === selectedMediaId)
       : undefined;
     const utterancesSorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
     const utterancesOnCurrentMedia = selectedUtteranceMedia?.id
@@ -158,7 +157,7 @@ export function useTranscriptionDerivedData({
         }
         : null,
     };
-  }, [effectiveSelectedUtteranceId, mediaItems, selectedMediaId, selectedUtterance?.mediaId, utterances]);
+  }, [effectiveSelectedUtteranceId, mediaItems, selectedMediaId, utterances]);
 
   const visibleUtterances = utterancesOnCurrentMedia;
 

@@ -3489,6 +3489,13 @@ export async function importDatabaseFromJson(
   };
   const importStartedAt = result.importedAt;
 
+  const dbInstance = await getDb();
+  const preparedCollections: Array<{
+    collectionName: KnownCollectionName;
+    received: number;
+    normalizedDocs: unknown[];
+  }> = [];
+
   for (const [name, docs] of Object.entries(snapshot.collections)) {
     if (!knownCollectionNames.includes(name as KnownCollectionName)) {
       result.ignoredCollections.push(name);
@@ -3496,66 +3503,6 @@ export async function importDatabaseFromJson(
     }
 
     const collectionName = name as KnownCollectionName;
-    if (collectionName === 'layers') {
-      const collection = (await getDb()).collections.layers;
-      let written = 0;
-      let skipped = 0;
-
-      if (strategy === 'replace-all') {
-        const existing = await collection.find().exec();
-        for (const row of existing) {
-          await collection.remove(row.primary);
-        }
-      }
-
-      const normalizedDocs = docs.map((doc) => normalizeImportedDoc(collectionName, doc, importStartedAt));
-
-      for (const doc of normalizedDocs) {
-        const candidate = doc as { id?: unknown };
-        if (typeof candidate.id !== 'string' || candidate.id.trim() === '') {
-          throw new Error(`Invalid doc in ${collectionName}: missing non-empty id`);
-        }
-        validatorByCollection[collectionName](doc);
-      }
-
-      if (strategy === 'skip-existing') {
-        for (const doc of normalizedDocs as LayerDocType[]) {
-          const existing = await collection.findOne({ selector: { id: doc.id } }).exec();
-          if (existing) {
-            skipped += 1;
-            continue;
-          }
-          await collection.insert(doc);
-          written += 1;
-        }
-      } else {
-        for (const doc of normalizedDocs as LayerDocType[]) {
-          await collection.insert(doc);
-          written += 1;
-        }
-      }
-
-      result.collections[collectionName] = {
-        received: docs.length,
-        written,
-        skipped,
-      };
-      continue;
-    }
-
-    const table = tableByCollection[collectionName];
-    if (!table) {
-      result.ignoredCollections.push(collectionName);
-      continue;
-    }
-    const validate = validatorByCollection[collectionName];
-    let written = 0;
-    let skipped = 0;
-
-    if (strategy === 'replace-all') {
-      await table.clear();
-    }
-
     const normalizedDocs = docs.map((doc) => normalizeImportedDoc(collectionName, doc, importStartedAt));
 
     for (const doc of normalizedDocs) {
@@ -3564,38 +3511,117 @@ export async function importDatabaseFromJson(
         throw new Error(`Invalid doc in ${collectionName}: missing non-empty id`);
       }
 
-      // Restore audio Blobs from exported data URLs
       if (collectionName === 'media_items') {
         const details = (doc as Record<string, unknown>)['details'] as Record<string, unknown> | undefined;
-        if (typeof details?.['audioDataUrl'] === 'string') {
-          const resp = await fetch(details['audioDataUrl'] as string);
+        const audioDataUrl = details?.['audioDataUrl'];
+        if (details && typeof audioDataUrl === 'string') {
+          const trimmedAudioDataUrl = audioDataUrl.trim();
+          if (!/^data:/i.test(trimmedAudioDataUrl)) {
+            throw new Error(`Invalid media_items.details.audioDataUrl in ${collectionName}: only data URLs are supported during import`);
+          }
+          const resp = await fetch(trimmedAudioDataUrl);
           details['audioBlob'] = await resp.blob();
           delete details['audioDataUrl'];
         }
       }
 
-      validate(doc);
+      validatorByCollection[collectionName](doc);
     }
 
-    if (strategy === 'skip-existing') {
-      const existingDocs = await table.bulkGet(normalizedDocs.map((d) => (d as { id: string }).id));
-      const toInsert = normalizedDocs.filter((_, i) => !existingDocs[i]);
-      skipped = normalizedDocs.length - toInsert.length;
-      if (toInsert.length > 0) await table.bulkPut(toInsert as Array<{ id: string }>);
-      written = toInsert.length;
-    } else {
-      if (normalizedDocs.length > 0) await table.bulkPut(normalizedDocs as Array<{ id: string }>);
-      written = normalizedDocs.length;
-    }
-
-    result.collections[collectionName] = {
+    preparedCollections.push({
+      collectionName,
       received: docs.length,
-      written,
-      skipped,
-    };
+      normalizedDocs,
+    });
   }
 
-  await pruneOrphanUserNotes();
+  const txTables = [
+    dbInstance.dexie.tier_definitions as Table<any, any>,
+    ...Object.values(tableByCollection)
+      .filter((table): table is Table<{ id: string }, string> => Boolean(table))
+      .map((table) => table as Table<any, any>),
+  ];
+  const txTablesTuple = txTables as [Table<any, any>, ...Table<any, any>[]];
+  const transactionAny = dbInstance.dexie.transaction as (...args: any[]) => Promise<void>;
+
+  await transactionAny.apply(dbInstance.dexie, ['rw', ...txTablesTuple, async () => {
+    for (const prepared of preparedCollections) {
+      const { collectionName, normalizedDocs, received } = prepared;
+
+      if (collectionName === 'layers') {
+        const collection = dbInstance.collections.layers;
+        let written = 0;
+        let skipped = 0;
+
+        if (strategy === 'replace-all') {
+          const existing = await collection.find().exec();
+          for (const row of existing) {
+            await collection.remove(row.primary);
+          }
+        }
+
+        if (strategy === 'skip-existing') {
+          for (const doc of normalizedDocs as LayerDocType[]) {
+            const existing = await collection.findOne({ selector: { id: doc.id } }).exec();
+            if (existing) {
+              skipped += 1;
+              continue;
+            }
+            await collection.insert(doc);
+            written += 1;
+          }
+        } else {
+          for (const doc of normalizedDocs as LayerDocType[]) {
+            await collection.insert(doc);
+            written += 1;
+          }
+        }
+
+        result.collections[collectionName] = {
+          received,
+          written,
+          skipped,
+        };
+        continue;
+      }
+
+      const table = tableByCollection[collectionName];
+      if (!table) {
+        result.ignoredCollections.push(collectionName);
+        continue;
+      }
+
+      let written = 0;
+      let skipped = 0;
+
+      if (strategy === 'replace-all') {
+        await table.clear();
+      }
+
+      if (strategy === 'skip-existing') {
+        const existingDocs = await table.bulkGet(normalizedDocs.map((doc) => (doc as { id: string }).id));
+        const toInsert = normalizedDocs.filter((_, index) => !existingDocs[index]);
+        skipped = normalizedDocs.length - toInsert.length;
+        if (toInsert.length > 0) {
+          await table.bulkPut(toInsert as Array<{ id: string }>);
+        }
+        written = toInsert.length;
+      } else {
+        if (normalizedDocs.length > 0) {
+          await table.bulkPut(normalizedDocs as Array<{ id: string }>);
+        }
+        written = normalizedDocs.length;
+      }
+
+      result.collections[collectionName] = {
+        received,
+        written,
+        skipped,
+      };
+    }
+
+    await pruneOrphanUserNotes();
+  }]);
 
   return result;
 }

@@ -109,11 +109,11 @@ export function AiEmbeddingCard() {
         )}
       </div>
       <div className="ai-embed-actions-grid">
-        <button type="button" className="icon-btn ai-btn-sm" disabled={!onBuildUtteranceEmbeddings || !!aiEmbeddingBusy} onClick={() => void onBuildUtteranceEmbeddings?.()}>{messages.buildCurrentMedia}</button>
-        <button type="button" className="icon-btn ai-btn-sm" disabled={!onBuildNotesEmbeddings || !!aiEmbeddingBusy} onClick={() => void onBuildNotesEmbeddings?.()}>{messages.embedNotes}</button>
-        <button type="button" className="icon-btn ai-btn-sm" disabled={!onBuildPdfEmbeddings || !!aiEmbeddingBusy} onClick={() => void onBuildPdfEmbeddings?.()}>{messages.embedPdf}</button>
-        <button type="button" className="icon-btn ai-btn-sm" disabled={!onFindSimilarUtterances || !selectedUtterance || !!aiEmbeddingBusy} onClick={() => void onFindSimilarUtterances?.()}>{messages.findSimilar}</button>
-        <button type="button" className="icon-btn ai-btn-sm ai-btn-min-refresh" disabled={!onRefreshEmbeddingTasks || !!aiEmbeddingBusy} onClick={() => void onRefreshEmbeddingTasks?.()}>{messages.refresh}</button>
+        <button type="button" className="icon-btn ai-btn-action" disabled={!onBuildUtteranceEmbeddings || !!aiEmbeddingBusy} onClick={() => void onBuildUtteranceEmbeddings?.()}>{messages.buildCurrentMedia}</button>
+        <button type="button" className="icon-btn ai-btn-action" disabled={!onBuildNotesEmbeddings || !!aiEmbeddingBusy} onClick={() => void onBuildNotesEmbeddings?.()}>{messages.embedNotes}</button>
+        <button type="button" className="icon-btn ai-btn-action" disabled={!onBuildPdfEmbeddings || !!aiEmbeddingBusy} onClick={() => void onBuildPdfEmbeddings?.()}>{messages.embedPdf}</button>
+        <button type="button" className="icon-btn ai-btn-action" disabled={!onFindSimilarUtterances || !selectedUtterance || !!aiEmbeddingBusy} onClick={() => void onFindSimilarUtterances?.()}>{messages.findSimilar}</button>
+        <button type="button" className="icon-btn ai-btn-action ai-btn-min-refresh" disabled={!onRefreshEmbeddingTasks || !!aiEmbeddingBusy} onClick={() => void onRefreshEmbeddingTasks?.()}>{messages.refresh}</button>
       </div>
 
       {aiEmbeddingProgressLabel && <p className="small-text" style={{ marginBottom: 6 }}>{aiEmbeddingProgressLabel}</p>}

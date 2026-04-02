@@ -540,10 +540,50 @@ export function BatchOperationPanel({
     [preview.blockingCount, running, selectedCount],
   );
 
+  const activeTabLabel = tab === 'offset'
+    ? messages.tabOffset
+    : tab === 'scale'
+      ? messages.tabScale
+      : tab === 'split'
+        ? messages.tabSplit
+        : messages.tabMerge;
+
+  const submitLabel = tab === 'offset'
+    ? messages.runOffset
+    : tab === 'scale'
+      ? messages.runScale
+      : tab === 'split'
+        ? messages.runSplit
+        : messages.runMerge;
+
+  const canRunCurrentAction = canSubmit && (tab !== 'merge' || selectedCount >= 2);
+
+  const handleSubmit = () => {
+    if (tab === 'offset') {
+      const value = Number(deltaSec);
+      if (!Number.isFinite(value)) return;
+      runAction(onOffset(value));
+      return;
+    }
+    if (tab === 'scale') {
+      const factor = Number(scaleFactor);
+      const anchor = anchorTime.trim() ? Number(anchorTime) : undefined;
+      if (!Number.isFinite(factor)) return;
+      runAction(onScale(factor, Number.isFinite(anchor ?? Number.NaN) ? anchor : undefined));
+      return;
+    }
+    if (tab === 'split') {
+      if (!regexPattern.trim()) return;
+      runAction(onSplitByRegex(regexPattern, regexFlags));
+      return;
+    }
+    runAction(onMerge());
+  };
+
   return (
-    <div className="layer-action-popover-backdrop" onClick={onClose}>
+    <div className="dialog-overlay dialog-overlay-topmost" onClick={onClose}>
       <div 
-        className="floating-panel dialog-card"
+        className="dialog-card batch-operation-dialog"
         style={{
           left: `${position.x}px`,
           top: `${position.y}px`,
@@ -553,15 +593,15 @@ export function BatchOperationPanel({
         onClick={(e) => e.stopPropagation()}
       >
         <div 
-          className="floating-panel-title-row floating-panel-drag-handle dialog-header" 
+          className="dialog-header batch-operation-drag-handle" 
           onPointerDown={handleDragStart}
           onDoubleClick={handleRecenter}
         >
           <h3>{messages.panelTitle}</h3>
-          <div className="dialog-header-actions floating-panel-title-actions">
+          <div className="dialog-header-actions">
             <button
               type="button"
-              className="floating-panel-reset-btn"
+              className="batch-operation-reset-btn"
               onPointerDown={(event) => event.stopPropagation()}
               onClick={handleResetPanelLayout}
               aria-label={messages.resetLayout}
@@ -583,51 +623,116 @@ export function BatchOperationPanel({
         </div>
 
         <div className="dialog-body batch-operation-panel-body">
-        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-          {messages.selectedCount(selectedCount)}
-        </div>
-
-        <div className="batch-operation-section" style={{ gap: 8 }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <label className="ai-cfg-label">{messages.previewScopeLabel}</label>
-            <select
-              aria-label={messages.previewScopeAria}
-              value={previewScope}
-              onChange={(e) => setPreviewScope(e.target.value as PreviewScope)}
-              className="ai-cfg-input"
-            >
-              <option value="selected">{messages.previewScopeSelected}</option>
-              <option value="layer-all">{messages.previewScopeLayerAll}</option>
-            </select>
-
-            <label className="ai-cfg-label">{messages.previewLayerLabel}</label>
-            <select
-              aria-label={messages.previewLayerAria}
-              value={previewLayerId}
-              onChange={(e) => setPreviewLayerId(e.target.value)}
-              disabled={previewLayerOptions.length === 0}
-              className="ai-cfg-input"
-            >
-              {previewLayerOptions.length === 0 && <option value="">{messages.previewCurrentLayer}</option>}
-              {previewLayerOptions.map((layer) => (
-                <option key={layer.id} value={layer.id}>{layer.label}</option>
-              ))}
-            </select>
-          </div>
-          {previewScope === 'layer-all' && (
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              {messages.layerAllHint(previewTargets.length)}
+          <section className="panel-organization-surface panel-organization-surface-emphasis batch-operation-summary-card">
+            <div className="panel-organization-surface-head">
+              <strong className="panel-organization-surface-title">{messages.selectedCount(selectedCount)}</strong>
+              <div className="dialog-stat-row">
+                <span className="dialog-stat-chip dialog-stat-chip-success">{messages.passCount(preview.okCount)}</span>
+                <span className="dialog-stat-chip dialog-stat-chip-warning">{messages.warnCount(preview.warningCount)}</span>
+                <span className="dialog-stat-chip dialog-stat-chip-danger">{messages.blockCount(preview.blockingCount)}</span>
+              </div>
             </div>
-          )}
-        </div>
+            <p className={`panel-organization-surface-copy${preview.blockingCount > 0 ? ' batch-operation-summary-copy-danger' : ''}`}>
+              {preview.globalMessage}
+            </p>
+            {previewScope === 'layer-all' && (
+              <p className="dialog-supporting-note">{messages.layerAllHint(previewTargets.length)}</p>
+            )}
+          </section>
 
-        <div className="batch-operation-preview-card">
-          <div className="batch-operation-preview-header">
-            <strong>{messages.rowPreviewTitle}</strong>
-            <div style={{ display: 'flex', gap: 8, fontSize: 12, alignItems: 'center' }}>
-              <span style={{ color: 'var(--state-success-text)' }}>{messages.passCount(preview.okCount)}</span>
-              <span style={{ color: 'var(--state-warning-text)' }}>{messages.warnCount(preview.warningCount)}</span>
-              <span style={{ color: 'var(--state-danger-text)' }}>{messages.blockCount(preview.blockingCount)}</span>
+          <section className="panel-organization-surface batch-operation-section batch-operation-section-dense">
+            <div className="panel-organization-surface-head">
+              <strong className="panel-organization-surface-title">{activeTabLabel}</strong>
+            </div>
+            <div className="dialog-segmented-tabs" role="tablist" aria-label={messages.panelTitle}>
+              <button className={`dialog-segmented-tab${tab === 'offset' ? ' dialog-segmented-tab-active' : ''}`} onClick={() => setTab('offset')}>{messages.tabOffset}</button>
+              <button className={`dialog-segmented-tab${tab === 'scale' ? ' dialog-segmented-tab-active' : ''}`} onClick={() => setTab('scale')}>{messages.tabScale}</button>
+              <button className={`dialog-segmented-tab${tab === 'split' ? ' dialog-segmented-tab-active' : ''}`} onClick={() => setTab('split')}>{messages.tabSplit}</button>
+              <button className={`dialog-segmented-tab${tab === 'merge' ? ' dialog-segmented-tab-active' : ''}`} onClick={() => setTab('merge')}>{messages.tabMerge}</button>
+            </div>
+
+            {tab === 'offset' && (
+              <div className="batch-operation-controls-grid">
+                <div className="dialog-field">
+                  <label htmlFor="batch-operation-offset">{messages.offsetSeconds}</label>
+                  <input id="batch-operation-offset" value={deltaSec} onChange={(e) => setDeltaSec(e.target.value)} className="input layer-action-dialog-input" />
+                </div>
+              </div>
+            )}
+
+            {tab === 'scale' && (
+              <div className="batch-operation-controls-grid">
+                <div className="dialog-field">
+                  <label htmlFor="batch-operation-scale-factor">{messages.scaleFactor}</label>
+                  <input id="batch-operation-scale-factor" value={scaleFactor} onChange={(e) => setScaleFactor(e.target.value)} className="input layer-action-dialog-input" />
+                </div>
+                <div className="dialog-field">
+                  <label htmlFor="batch-operation-anchor-time">{messages.anchorTime}</label>
+                  <input id="batch-operation-anchor-time" value={anchorTime} onChange={(e) => setAnchorTime(e.target.value)} className="input layer-action-dialog-input" placeholder={messages.anchorPlaceholder} />
+                </div>
+              </div>
+            )}
+
+            {tab === 'split' && (
+              <div className="batch-operation-controls-grid">
+                <div className="dialog-field">
+                  <label htmlFor="batch-operation-regex-pattern">{messages.regexPattern}</label>
+                  <input id="batch-operation-regex-pattern" value={regexPattern} onChange={(e) => setRegexPattern(e.target.value)} className="input layer-action-dialog-input" />
+                </div>
+                <div className="dialog-field">
+                  <label htmlFor="batch-operation-regex-flags">{messages.regexFlags}</label>
+                  <input id="batch-operation-regex-flags" value={regexFlags} onChange={(e) => setRegexFlags(e.target.value)} className="input layer-action-dialog-input" />
+                </div>
+              </div>
+            )}
+
+            {tab === 'merge' && (
+              <p className="dialog-supporting-note">{messages.mergeHint}</p>
+            )}
+          </section>
+
+          <section className="panel-organization-surface batch-operation-section batch-operation-section-dense">
+            <div className="panel-organization-surface-head">
+              <strong className="panel-organization-surface-title">{messages.rowPreviewTitle}</strong>
+            </div>
+            <div className="batch-operation-controls-grid batch-operation-controls-grid-inline">
+              <div className="dialog-field">
+                <label htmlFor="batch-operation-preview-scope">{messages.previewScopeLabel}</label>
+                <select
+                  id="batch-operation-preview-scope"
+                  aria-label={messages.previewScopeAria}
+                  value={previewScope}
+                  onChange={(e) => setPreviewScope(e.target.value as PreviewScope)}
+                  className="input layer-action-dialog-input"
+                >
+                  <option value="selected">{messages.previewScopeSelected}</option>
+                  <option value="layer-all">{messages.previewScopeLayerAll}</option>
+                </select>
+              </div>
+
+              <div className="dialog-field">
+                <label htmlFor="batch-operation-preview-layer">{messages.previewLayerLabel}</label>
+                <select
+                  id="batch-operation-preview-layer"
+                  aria-label={messages.previewLayerAria}
+                  value={previewLayerId}
+                  onChange={(e) => setPreviewLayerId(e.target.value)}
+                  disabled={previewLayerOptions.length === 0}
+                  className="input layer-action-dialog-input"
+                >
+                  {previewLayerOptions.length === 0 && <option value="">{messages.previewCurrentLayer}</option>}
+                  {previewLayerOptions.map((layer) => (
+                    <option key={layer.id} value={layer.id}>{layer.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </section>
+
+          <div className="batch-operation-preview-card">
+            <div className="batch-operation-preview-header">
+              <strong>{messages.rowPreviewTitle}</strong>
+              <div style={{ display: 'flex', gap: 8, fontSize: 12, alignItems: 'center' }}>
               {(showOnlyConflicts || preview.warningCount > 0 || preview.blockingCount > 0) && (
                 <button
                   className="icon-btn"
@@ -638,160 +743,78 @@ export function BatchOperationPanel({
                 </button>
               )}
             </div>
-          </div>
-          <div style={{ fontSize: 12, color: preview.blockingCount > 0 ? 'var(--state-danger-text)' : 'var(--text-primary)' }}>
-            {preview.globalMessage}
-          </div>
-          <div className="batch-operation-table-wrap">
-            <table className="batch-operation-table">
-              <thead>
-                <tr>
-                  <th className="batch-operation-th">#</th>
-                  <th className="batch-operation-th">{messages.tableSegmentId}</th>
-                  <th className="batch-operation-th">{messages.tableSegmentText}</th>
-                  <th className="batch-operation-th">{messages.tableOriginal}</th>
-                  <th className="batch-operation-th">{messages.tableNext}</th>
-                  <th className="batch-operation-th">{messages.tableDetail}</th>
-                  <th className="batch-operation-th">{messages.tableConflict}</th>
-                  {onJumpToUtterance && <th className="batch-operation-th">{messages.tableJump}</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {preview.rows
-                  .filter((row) => !showOnlyConflicts || row.level !== 'ok')
-                  .map((row, index) => (
-                    <tr key={row.id}>
-                      <td className="batch-operation-td">{index + 1}</td>
-                      <td className="batch-operation-td">{row.id}</td>
-                      <td className="batch-operation-td-content" title={activeUtteranceTextById[row.id] ?? ''}>
-                        {((activeUtteranceTextById[row.id] ?? '').trim() || '-') === '-'
-                          ? '-'
-                          : (
-                            <span dir={activePreviewTextProps?.dir} style={activePreviewTextProps?.style}>
-                              {(activeUtteranceTextById[row.id] ?? '').trim()}
-                            </span>
-                          )}
-                      </td>
-                      <td className="batch-operation-td">{row.originalValue}</td>
-                      <td className="batch-operation-td">{row.nextValue}</td>
-                      <td className="batch-operation-td">{row.detail}</td>
-                      <td className="batch-operation-td">
-                        <span className={`batch-badge batch-badge-${row.level}`}>{row.conflict}</span>
-                      </td>
-                      {onJumpToUtterance && (
-                        <td className="batch-operation-td">
-                          <button
-                            className="icon-btn"
-                            style={{ fontSize: 11, padding: '1px 6px' }}
-                            onClick={() => {
-                              onJumpToUtterance(row.id);
-                              onClose();
-                            }}
-                          >
-                            {messages.jump}
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                {preview.rows.filter((r) => !showOnlyConflicts || r.level !== 'ok').length === 0 && (
+            </div>
+            <div className="batch-operation-table-wrap">
+              <table className="batch-operation-table">
+                <thead>
                   <tr>
-                    <td className="batch-operation-td" colSpan={onJumpToUtterance ? 8 : 7}>{messages.noRows}</td>
+                    <th className="batch-operation-th">#</th>
+                    <th className="batch-operation-th">{messages.tableSegmentId}</th>
+                    <th className="batch-operation-th">{messages.tableSegmentText}</th>
+                    <th className="batch-operation-th">{messages.tableOriginal}</th>
+                    <th className="batch-operation-th">{messages.tableNext}</th>
+                    <th className="batch-operation-th">{messages.tableDetail}</th>
+                    <th className="batch-operation-th">{messages.tableConflict}</th>
+                    {onJumpToUtterance && <th className="batch-operation-th">{messages.tableJump}</th>}
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {preview.rows
+                    .filter((row) => !showOnlyConflicts || row.level !== 'ok')
+                    .map((row, index) => (
+                      <tr key={row.id}>
+                        <td className="batch-operation-td">{index + 1}</td>
+                        <td className="batch-operation-td">{row.id}</td>
+                        <td className="batch-operation-td-content" title={activeUtteranceTextById[row.id] ?? ''}>
+                          {((activeUtteranceTextById[row.id] ?? '').trim() || '-') === '-'
+                            ? '-'
+                            : (
+                              <span dir={activePreviewTextProps?.dir} style={activePreviewTextProps?.style}>
+                                {(activeUtteranceTextById[row.id] ?? '').trim()}
+                              </span>
+                            )}
+                        </td>
+                        <td className="batch-operation-td">{row.originalValue}</td>
+                        <td className="batch-operation-td">{row.nextValue}</td>
+                        <td className="batch-operation-td">{row.detail}</td>
+                        <td className="batch-operation-td">
+                          <span className={`batch-badge batch-badge-${row.level}`}>{row.conflict}</span>
+                        </td>
+                        {onJumpToUtterance && (
+                          <td className="batch-operation-td">
+                            <button
+                              className="icon-btn"
+                              style={{ fontSize: 11, padding: '1px 6px' }}
+                              onClick={() => {
+                                onJumpToUtterance(row.id);
+                                onClose();
+                              }}
+                            >
+                              {messages.jump}
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  {preview.rows.filter((r) => !showOnlyConflicts || r.level !== 'ok').length === 0 && (
+                    <tr>
+                      <td className="batch-operation-td" colSpan={onJumpToUtterance ? 8 : 7}>{messages.noRows}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
+
+          <p className="dialog-hint batch-operation-shortcut-hint">{messages.shortcutHint}</p>
         </div>
 
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button className={`icon-btn ${tab === 'offset' ? 'icon-btn-active' : ''}`} onClick={() => setTab('offset')}>{messages.tabOffset}</button>
-          <button className={`icon-btn ${tab === 'scale' ? 'icon-btn-active' : ''}`} onClick={() => setTab('scale')}>{messages.tabScale}</button>
-          <button className={`icon-btn ${tab === 'split' ? 'icon-btn-active' : ''}`} onClick={() => setTab('split')}>{messages.tabSplit}</button>
-          <button className={`icon-btn ${tab === 'merge' ? 'icon-btn-active' : ''}`} onClick={() => setTab('merge')}>{messages.tabMerge}</button>
-        </div>
-
-        {tab === 'offset' && (
-          <div className="batch-operation-section">
-            <label className="ai-cfg-label">{messages.offsetSeconds}</label>
-            <input value={deltaSec} onChange={(e) => setDeltaSec(e.target.value)} className="ai-cfg-input" />
-            <button
-              className="icon-btn"
-              disabled={!canSubmit}
-              onClick={() => {
-                const value = Number(deltaSec);
-                if (!Number.isFinite(value)) return;
-                runAction(onOffset(value));
-              }}
-            >
-              {messages.runOffset}
-            </button>
-          </div>
-        )}
-
-        {tab === 'scale' && (
-          <div className="batch-operation-section">
-            <label className="ai-cfg-label">{messages.scaleFactor}</label>
-            <input value={scaleFactor} onChange={(e) => setScaleFactor(e.target.value)} className="ai-cfg-input" />
-            <label className="ai-cfg-label">{messages.anchorTime}</label>
-            <input value={anchorTime} onChange={(e) => setAnchorTime(e.target.value)} className="ai-cfg-input" placeholder={messages.anchorPlaceholder} />
-            <button
-              className="icon-btn"
-              disabled={!canSubmit}
-              onClick={() => {
-                const factor = Number(scaleFactor);
-                const anchor = anchorTime.trim() ? Number(anchorTime) : undefined;
-                if (!Number.isFinite(factor)) return;
-                runAction(onScale(factor, Number.isFinite(anchor ?? Number.NaN) ? anchor : undefined));
-              }}
-            >
-              {messages.runScale}
-            </button>
-          </div>
-        )}
-
-        {tab === 'split' && (
-          <div className="batch-operation-section">
-            <label className="ai-cfg-label">{messages.regexPattern}</label>
-            <input value={regexPattern} onChange={(e) => setRegexPattern(e.target.value)} className="ai-cfg-input" />
-            <label className="ai-cfg-label">{messages.regexFlags}</label>
-            <input value={regexFlags} onChange={(e) => setRegexFlags(e.target.value)} className="ai-cfg-input" />
-            <button
-              className="icon-btn"
-              disabled={!canSubmit}
-              onClick={() => {
-                if (!regexPattern.trim()) return;
-                runAction(onSplitByRegex(regexPattern, regexFlags));
-              }}
-            >
-              {messages.runSplit}
-            </button>
-          </div>
-        )}
-
-        {tab === 'merge' && (
-          <div className="batch-operation-section">
-            <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>
-              {messages.mergeHint}
-            </p>
-            <button
-              className="icon-btn"
-              disabled={!canSubmit || selectedCount < 2}
-              onClick={() => {
-                runAction(onMerge());
-              }}
-            >
-              {messages.runMerge}
-            </button>
-          </div>
-        )}
-
-        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-          {messages.shortcutHint}
-        </div>
+        <div className="dialog-footer batch-operation-footer">
+          <button className="btn btn-ghost" onClick={onClose} disabled={running}>{messages.close}</button>
+          <button className="btn" disabled={!canRunCurrentAction} onClick={handleSubmit}>{submitLabel}</button>
         </div>
         
-        <div className="floating-panel-resize-handle" onPointerDown={handleResizeStart} aria-hidden="true" />
+        <div className="batch-operation-resize-handle" onPointerDown={handleResizeStart} aria-hidden="true" />
       </div>
     </div>
   );

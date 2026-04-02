@@ -47,11 +47,11 @@ describe('Transcription layout guard', () => {
     expect(block).toContain('min-height: 0;');
   });
 
-  it('keeps speaker management popover centered in the viewport', () => {
+  it('keeps SidePaneActionModal dialog-card width via CSS variable', () => {
     const cssPath = path.resolve(process.cwd(), 'src/styles/transcription.css');
     const cssCode = fs.readFileSync(cssPath, 'utf8');
 
-    const selector = '.transcription-side-pane-action-popover-centered {';
+    const selector = '.side-pane-action-modal.dialog-card';
     const start = cssCode.indexOf(selector);
 
     expect(start).toBeGreaterThanOrEqual(0);
@@ -60,10 +60,8 @@ describe('Transcription layout guard', () => {
     expect(end).toBeGreaterThan(start);
 
     const block = cssCode.slice(start, end + 1);
-    expect(block).toContain('position: fixed;');
-    expect(block).toContain('left: 50%;');
-    expect(block).toContain('top: 50%;');
-    expect(block).toContain('transform: translate(-50%, -50%);');
+    expect(block).toContain('--dialog-auto-width');
+    expect(block).toContain('max-height');
   });
 
   it('keeps lane-label resize handle interactive styles', () => {

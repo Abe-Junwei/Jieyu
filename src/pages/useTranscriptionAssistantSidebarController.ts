@@ -13,7 +13,7 @@ import {
 } from './useTranscriptionRuntimeProps';
 
 type AssistantSidebarObserverRecommendation = AiChatContextValue['observerRecommendations'][number];
-type AssistantSidebarObserverRecommendationInput = {
+export type AssistantSidebarObserverRecommendationInput = {
   id: string;
   priority: number;
   title: string;
@@ -48,7 +48,7 @@ function normalizeAssistantSidebarObserverRecommendation(
   };
 }
 
-interface UseTranscriptionAssistantSidebarControllerInput {
+export interface UseTranscriptionAssistantSidebarControllerInput {
   locale: string;
   analysisTab: AnalysisBottomTab;
   onAnalysisTabChange: (tab: AnalysisBottomTab) => void;

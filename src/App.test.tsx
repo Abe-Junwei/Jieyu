@@ -73,10 +73,10 @@ describe('App shell', () => {
 
     const transcriptionLinks = screen.getAllByRole('link', { name: /Transcription|转写/ });
     expect(transcriptionLinks.length).toBeGreaterThan(0);
-    expect(screen.queryByRole('link', { name: /Annotation|标注/ })).toBeNull();
-    expect(screen.queryByRole('link', { name: /Analysis|分析/ })).toBeNull();
-    expect(screen.queryByRole('link', { name: /Writing|写作/ })).toBeNull();
-    expect(screen.queryByRole('link', { name: /Lexicon|词典/ })).toBeNull();
+    expect(screen.getAllByRole('link', { name: /Annotation|标注/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /Analysis|分析/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /Writing|写作/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /Lexicon|词典/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText(/功能面板内容区|Feature panel content area/).length).toBeGreaterThan(0);
     expect(screen.queryByText('核心工作区')).toBeNull();
   });

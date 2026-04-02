@@ -8,7 +8,6 @@ import {
   listIndependentBoundaryTranscriptionLayers,
 } from '../services/LayerConstraintService';
 import { COMMON_LANGUAGES, getLayerLabelParts } from '../utils/transcriptionFormatters';
-import { useDraggablePanel } from '../hooks/useDraggablePanel';
 import { OrthographyBuilderPanel } from './OrthographyBuilderPanel';
 import { OrthographyTransformManager } from './OrthographyTransformManager';
 import {
@@ -18,11 +17,9 @@ import {
 } from '../hooks/useOrthographyPicker';
 import { useLocale } from '../i18n';
 import { getLayerManagerPopoverMessages } from '../i18n/layerManagerPopoverMessages';
-import {
-  computeAdaptivePanelWidth,
-  readPersistedUiFontScale,
-  resolveTextDirectionFromLocale,
-} from '../utils/panelAdaptiveLayout';
+import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
+import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
+import { useViewportWidth } from '../hooks/useViewportWidth';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -41,11 +38,6 @@ interface LayerActionPopoverProps {
   checkLayerHasContent?: (layerId: string) => Promise<number>;
   onClose: () => void;
 }
-
-const PANEL_MIN_HEIGHT = 180;
-const PANEL_MAX_HEIGHT = 560;
-const PANEL_MARGIN = 8;
-const PANEL_DEFAULT_HEIGHT = 240;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -71,8 +63,6 @@ type LayerActionPopoverUiText = {
   createFailedPrefix: string;
   genericActionFailed: string;
   createdPrefix: string;
-  resetPanel: string;
-  dragToMove: string;
   confirmDelete: string;
   cancel: string;
   delete: string;
@@ -134,8 +124,8 @@ export function LayerActionPopover({
   onClose,
 }: LayerActionPopoverProps) {
   const locale = useLocale();
-  const uiTextDirection = useMemo(() => resolveTextDirectionFromLocale(locale), [locale]);
-  const uiFontScale = readPersistedUiFontScale(locale, uiTextDirection);
+  const { uiTextDirection, uiFontScale } = useUiFontScaleRuntime(locale);
+  const viewportWidth = useViewportWidth();
   const panelDefaultWidth = useMemo(
     () => computeAdaptivePanelWidth({
       baseWidth: 360,
@@ -145,14 +135,13 @@ export function LayerActionPopover({
       density: action === 'delete' ? 'compact' : 'standard',
       minWidth: 300,
       maxWidth: 640,
-      ...(typeof window !== 'undefined' ? { viewportWidth: window.innerWidth } : {}),
+      ...(viewportWidth !== undefined ? { viewportWidth } : {}),
     }),
-    [action, locale, uiFontScale, uiTextDirection],
+    [action, locale, uiFontScale, uiTextDirection, viewportWidth],
   );
   const panelMinWidth = useMemo(() => Math.max(280, Math.round(panelDefaultWidth * 0.78)), [panelDefaultWidth]);
-  const panelMaxWidth = useMemo(() => Math.max(540, Math.round(panelDefaultWidth * 1.75)), [panelDefaultWidth]);
-  const panelDefaultSize = useMemo(
-    () => ({ width: panelDefaultWidth, height: PANEL_DEFAULT_HEIGHT }),
+  const dialogAutoWidth = useMemo(
+    () => Math.max(320, Math.min(640, panelDefaultWidth)),
     [panelDefaultWidth],
   );
   const managerMessages = getLayerManagerPopoverMessages(locale);
@@ -163,8 +152,6 @@ export function LayerActionPopover({
     createFailedPrefix: managerMessages.createFailedPrefix,
     genericActionFailed: managerMessages.genericActionFailed,
     createdPrefix: managerMessages.createdPrefix,
-    resetPanel: managerMessages.resetPanel,
-    dragToMove: managerMessages.dragToMove,
     confirmDelete: managerMessages.confirmDelete,
     cancel: managerMessages.cancel,
     delete: managerMessages.deleteAction,
@@ -198,8 +185,6 @@ export function LayerActionPopover({
     translationCreateUnavailable: managerMessages.translationCreateUnavailable,
     transcriptionCreateUnavailable: managerMessages.transcriptionCreateUnavailable,
   }), [managerMessages]);
-
-  const storageKey = `jieyu:layer-action-popover-rect:${action}`;
   const [langId, setLangId] = useState('');
   const [customLang, setCustomLang] = useState('');
   const [orthographyId, setOrthographyId] = useState('');
@@ -211,23 +196,6 @@ export function LayerActionPopover({
   const [isLoading, setIsLoading] = useState(false);
   const [createFailureMessage, setCreateFailureMessage] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{ layerId: string; layerName: string; textCount: number } | null>(null);
-
-  const {
-    position,
-    size,
-    handleDragStart,
-    handleResizeStart,
-    handleRecenter,
-    handleResetPanelLayout,
-  } = useDraggablePanel({
-    storageKey,
-    defaultSize: panelDefaultSize,
-    minWidth: panelMinWidth,
-    minHeight: PANEL_MIN_HEIGHT,
-    maxWidth: panelMaxWidth,
-    maxHeight: PANEL_MAX_HEIGHT,
-    margin: PANEL_MARGIN,
-  });
 
   // Sync deleteLayerId when layerId changes
   useEffect(() => {
@@ -435,49 +403,35 @@ export function LayerActionPopover({
   const createLanguageRequiredMessage = action === 'create-translation'
     ? uiText.translationLanguageRequired
     : uiText.transcriptionLanguageRequired;
+  const createLanguageRequiredText = createLanguageRequiredMessage.startsWith(uiText.requiredPrefix)
+    ? createLanguageRequiredMessage
+    : `${uiText.requiredPrefix}${createLanguageRequiredMessage}`;
 
   const popover = (
     <div
-      className="layer-action-popover-backdrop"
+      className="dialog-overlay dialog-overlay-topmost"
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={onClose}
       onKeyDown={handleKeyDown}
-      role="dialog"
-      aria-modal="true"
-      aria-label={label}
+      role="presentation"
     >
       <div
-        className="layer-action-popover-card floating-panel dialog-card"
-        style={{
-          left: `${position.x}px`,
-          top: `${position.y}px`,
-          width: `${size.width}px`,
-          minHeight: `${size.height}px`,
-        }}
+        className="layer-action-dialog dialog-card"
+        style={{ '--dialog-auto-width': `${Math.max(panelMinWidth, dialogAutoWidth)}px` } as React.CSSProperties}
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
-        role="document"
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        dir={uiTextDirection}
       >
         <div
-          className="layer-action-popover-title dialog-header floating-panel-title-row floating-panel-drag-handle"
-          onPointerDown={handleDragStart}
-          onDoubleClick={handleRecenter}
-          title={uiText.dragToMove}
+          className="dialog-header layer-action-dialog-header"
         >
           <h3>{label}</h3>
-          <div className="dialog-header-actions floating-panel-title-actions">
-            <button
-              type="button"
-              className="floating-panel-reset-btn"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={handleResetPanelLayout}
-              aria-label={uiText.resetPanel}
-              title={uiText.resetPanel}
-            >
-              ↺
-            </button>
+          <div className="dialog-header-actions layer-action-dialog-header-actions">
             <button
               type="button"
               className="icon-btn"
@@ -495,147 +449,192 @@ export function LayerActionPopover({
           <div
             role="alert"
             aria-live="assertive"
-            className="layer-action-popover-feedback layer-action-popover-feedback-error"
+            className="layer-action-dialog-feedback layer-action-dialog-feedback-error"
           >
             {uiText.createFailedPrefix}{createFailureMessage}
           </div>
         )}
 
-        <div className="transcription-side-pane-action-popover-body layer-action-popover-body dialog-body">
         {action === 'delete' ? (
           <>
-            {deleteConfirm ? (
-              // Delete confirmation view
-              <>
-                <p className="layer-action-popover-copy">
+            <div className="dialog-body">
+              {deleteConfirm ? (
+                <p className="layer-action-dialog-copy">
                   {uiText.deleteConfirmMessage(deleteConfirm.layerName, deleteConfirm.textCount)}
                 </p>
-                <div className="transcription-side-pane-action-row">
-                  <button
-                    className="btn btn-sm btn-danger"
-                    disabled={isLoading}
-                    onClick={handleConfirmDelete}
+              ) : (
+                <div className="dialog-field">
+                  <select
+                    className="input layer-action-dialog-input"
+                    value={deleteLayerId}
+                    onChange={(e) => setDeleteLayerId(e.target.value)}
                   >
-                    {uiText.confirmDelete}
-                  </button>
-                  <button className="btn btn-ghost btn-sm" onClick={handleCancelDelete} disabled={isLoading}>
-                    {uiText.cancel}
-                  </button>
+                    {deletableLayers.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name?.zho ?? l.name?.zh ?? l.name?.eng ?? l.name?.en ?? l.key}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </>
-            ) : (
-              // Delete selection view
-              <>
-                <select
-                  className="input transcription-side-pane-action-input"
-                  value={deleteLayerId}
-                  onChange={(e) => setDeleteLayerId(e.target.value)}
-                >
-                  {deletableLayers.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name?.zho ?? l.name?.zh ?? l.name?.eng ?? l.name?.en ?? l.key}
-                    </option>
-                  ))}
-                </select>
-                <div className="transcription-side-pane-action-row">
-                  <button
-                    className="btn btn-sm btn-danger"
-                    disabled={!deleteLayerId || isLoading}
-                    onClick={handleDelete}
-                  >
-                    {uiText.delete}
-                  </button>
-                  <button className="btn btn-ghost btn-sm" onClick={onClose}>
-                    {uiText.cancel}
-                  </button>
-                </div>
-              </>
-            )}
+              )}
+            </div>
+            <div className="dialog-footer layer-action-dialog-footer">
+              <button
+                className={`btn ${deleteConfirm ? 'btn-danger' : 'btn-danger'}`}
+                disabled={deleteConfirm ? isLoading : (!deleteLayerId || isLoading)}
+                onClick={deleteConfirm ? handleConfirmDelete : handleDelete}
+              >
+                {deleteConfirm ? uiText.confirmDelete : uiText.delete}
+              </button>
+              <button className="btn btn-ghost" onClick={deleteConfirm ? handleCancelDelete : onClose} disabled={isLoading}>
+                {uiText.cancel}
+              </button>
+            </div>
           </>
         ) : (
           <>
-            <select
-              className="input transcription-side-pane-action-input"
-              value={langId}
-              onChange={(e) => setLangId(e.target.value)}
-            >
-              <option value="">{uiText.selectLanguage}</option>
-              {COMMON_LANGUAGES.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.label}（{lang.code}）
-                </option>
-              ))}
-              <option value="__custom__">{uiText.otherManualInput}</option>
-            </select>
-            {langId === '__custom__' && (
-              <input
-                className="input transcription-side-pane-action-input"
-                placeholder={uiText.customLanguageCodePlaceholder}
-                value={customLang}
-                onChange={(e) => setCustomLang(e.target.value)}
-              />
-            )}
-            {resolvedLanguageId && (
-              <>
+            <div className="dialog-body">
+              <div className="dialog-field">
                 <select
-                  className="input transcription-side-pane-action-input"
-                  value={orthographyPicker.isCreating ? ORTHOGRAPHY_CREATE_SENTINEL : orthographyId}
-                  onChange={(e) => orthographyPicker.handleSelectionChange(e.target.value)}
+                  className="input layer-action-dialog-input"
+                  value={langId}
+                  onChange={(e) => setLangId(e.target.value)}
                 >
-                  {orthographyPicker.orthographies.length === 0 && <option value="">{uiText.useDefaultScript}</option>}
-                  {orthographyPicker.orthographies.map((orthography) => (
-                    <option key={orthography.id} value={orthography.id}>
-                      {formatOrthographyOptionLabel(orthography)}
+                  <option value="">{uiText.selectLanguage}</option>
+                  {COMMON_LANGUAGES.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.label}（{lang.code}）
                     </option>
                   ))}
-                  <option value={ORTHOGRAPHY_CREATE_SENTINEL}>{uiText.createOrthography}</option>
+                  <option value="__custom__">{uiText.otherManualInput}</option>
                 </select>
-                {orthographyPicker.orthographies.length === 0 && !orthographyPicker.isCreating && (
-                  <div className="layer-parent-guidance-note">
-                    {uiText.orthographyHint}
-                  </div>
-                )}
-                {orthographyPicker.isCreating && (
-                  <OrthographyBuilderPanel
-                    picker={orthographyPicker}
-                    languageOptions={COMMON_LANGUAGES}
-                    compact
-                    sourceLanguagePlaceholder={uiText.sourceLanguagePlaceholder}
-                    sourceLanguageCodePlaceholder={uiText.sourceLanguageCodePlaceholder}
+              </div>
+              {langId === '__custom__' && (
+                <div className="dialog-field">
+                  <input
+                    className="input layer-action-dialog-input"
+                    placeholder={uiText.customLanguageCodePlaceholder}
+                    value={customLang}
+                    onChange={(e) => setCustomLang(e.target.value)}
                   />
-                )}
-                {!orthographyPicker.isCreating && selectedOrthography && (
-                  <OrthographyTransformManager
-                    targetOrthography={selectedOrthography}
-                    languageOptions={COMMON_LANGUAGES}
-                    compact
-                  />
-                )}
-              </>
-            )}
-            <input
-              className="input transcription-side-pane-action-input"
-              placeholder={uiText.aliasPlaceholder}
-              value={alias}
-              onChange={(e) => setAlias(e.target.value)}
-            />
-            {action === 'create-translation' && (
-              <>
-                <select
-                  className="input transcription-side-pane-action-input"
-                  value={modality}
-                  onChange={(e) => setModality(e.target.value as 'text' | 'audio' | 'mixed')}
-                >
-                  <option value="text">{uiText.translationText}</option>
-                  <option value="audio">{uiText.translationAudio}</option>
-                  <option value="mixed">{uiText.translationMixed}</option>
-                </select>
-                <div className="layer-parent-guidance-note">
-                  {uiText.translationBoundaryHint}
                 </div>
-                {independentParentLayers.length > 1 && (
+              )}
+              {resolvedLanguageId && (
+                <>
+                  <div className="dialog-field">
+                    <select
+                      className="input layer-action-dialog-input"
+                      value={orthographyPicker.isCreating ? ORTHOGRAPHY_CREATE_SENTINEL : orthographyId}
+                      onChange={(e) => orthographyPicker.handleSelectionChange(e.target.value)}
+                    >
+                      {orthographyPicker.orthographies.length === 0 && <option value="">{uiText.useDefaultScript}</option>}
+                      {orthographyPicker.orthographies.map((orthography) => (
+                        <option key={orthography.id} value={orthography.id}>
+                          {formatOrthographyOptionLabel(orthography)}
+                        </option>
+                      ))}
+                      <option value={ORTHOGRAPHY_CREATE_SENTINEL}>{uiText.createOrthography}</option>
+                    </select>
+                  </div>
+                  {orthographyPicker.orthographies.length === 0 && !orthographyPicker.isCreating && (
+                    <p className="dialog-hint layer-action-dialog-meta-note">
+                      {uiText.orthographyHint}
+                    </p>
+                  )}
+                  {orthographyPicker.isCreating && (
+                    <OrthographyBuilderPanel
+                      picker={orthographyPicker}
+                      languageOptions={COMMON_LANGUAGES}
+                      compact
+                      sourceLanguagePlaceholder={uiText.sourceLanguagePlaceholder}
+                      sourceLanguageCodePlaceholder={uiText.sourceLanguageCodePlaceholder}
+                    />
+                  )}
+                  {!orthographyPicker.isCreating && selectedOrthography && (
+                    <OrthographyTransformManager
+                      targetOrthography={selectedOrthography}
+                      languageOptions={COMMON_LANGUAGES}
+                      compact
+                    />
+                  )}
+                </>
+              )}
+              <div className="dialog-field">
+                <input
+                  className="input layer-action-dialog-input"
+                  placeholder={uiText.aliasPlaceholder}
+                  value={alias}
+                  onChange={(e) => setAlias(e.target.value)}
+                />
+              </div>
+              {action === 'create-translation' && (
+                <>
+                  <div className="dialog-field">
+                    <select
+                      className="input layer-action-dialog-input"
+                      value={modality}
+                      onChange={(e) => setModality(e.target.value as 'text' | 'audio' | 'mixed')}
+                    >
+                      <option value="text">{uiText.translationText}</option>
+                      <option value="audio">{uiText.translationAudio}</option>
+                      <option value="mixed">{uiText.translationMixed}</option>
+                    </select>
+                  </div>
+                  <p className="dialog-hint layer-action-dialog-meta-note">
+                    {uiText.translationBoundaryHint}
+                  </p>
+                  {independentParentLayers.length > 1 && (
+                    <div className="dialog-field">
+                      <select
+                        className="input layer-action-dialog-input layer-parent-select"
+                        value={selectedParentLayerId}
+                        onChange={(e) => setSelectedParentLayerId(e.target.value)}
+                      >
+                        <option value="">{uiText.selectParentLayer}</option>
+                        {independentParentLayers.map((layer) => (
+                          <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {autoParentLayer && (
+                    <p className="dialog-hint layer-action-dialog-meta-note">
+                      {uiText.autoLinkedParent(formatParentLayerOptionLabel(autoParentLayer))}
+                    </p>
+                  )}
+                </>
+              )}
+              {action === 'create-transcription' && showConstraintSelector && (
+                <fieldset className="layer-action-dialog-fieldset">
+                  <legend className="layer-action-dialog-fieldset-legend">{uiText.constraintLegend}</legend>
+                  <label className="layer-action-dialog-radio-option layer-action-dialog-radio-option-block">
+                    <input
+                      type="radio"
+                      name="constraint"
+                      value="symbolic_association"
+                      checked={constraint === 'symbolic_association'}
+                      disabled={!symbolicConstraintGuard.allowed}
+                      onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
+                    />
+                    {uiText.constraintDependent}
+                  </label>
+                  <label className="layer-action-dialog-radio-option">
+                    <input
+                      type="radio"
+                      name="constraint"
+                      value="independent_boundary"
+                      checked={constraint === 'independent_boundary'}
+                      disabled={!independentConstraintGuard.allowed}
+                      onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
+                    />
+                    {uiText.constraintIndependent}
+                  </label>
+                </fieldset>
+              )}
+              {action === 'create-transcription' && showConstraintSelector && constraint === 'symbolic_association' && independentParentLayers.length > 1 && (
+                <div className="dialog-field">
                   <select
-                    className="input transcription-side-pane-action-input layer-parent-select"
+                    className="input layer-action-dialog-input layer-parent-select"
                     value={selectedParentLayerId}
                     onChange={(e) => setSelectedParentLayerId(e.target.value)}
                   >
@@ -644,61 +643,36 @@ export function LayerActionPopover({
                       <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
                     ))}
                   </select>
-                )}
-                {autoParentLayer && (
-                  <p className="layer-parent-auto-note layer-action-popover-meta-note">
-                    {uiText.autoLinkedParent(formatParentLayerOptionLabel(autoParentLayer))}
-                  </p>
-                )}
-              </>
-            )}
-            {action === 'create-transcription' && showConstraintSelector && (
-              <fieldset className="layer-action-popover-fieldset">
-                <legend className="layer-action-popover-fieldset-legend">{uiText.constraintLegend}</legend>
-                <label className="layer-action-popover-radio-option layer-action-popover-radio-option-block">
-                  <input
-                    type="radio"
-                    name="constraint"
-                    value="symbolic_association"
-                    checked={constraint === 'symbolic_association'}
-                    disabled={!symbolicConstraintGuard.allowed}
-                    onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
-                  />
-                  {uiText.constraintDependent}
-                </label>
-                <label className="layer-action-popover-radio-option">
-                  <input
-                    type="radio"
-                    name="constraint"
-                    value="independent_boundary"
-                    checked={constraint === 'independent_boundary'}
-                    disabled={!independentConstraintGuard.allowed}
-                    onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
-                  />
-                  {uiText.constraintIndependent}
-                </label>
-              </fieldset>
-            )}
-            {action === 'create-transcription' && showConstraintSelector && constraint === 'symbolic_association' && independentParentLayers.length > 1 && (
-              <select
-                className="input transcription-side-pane-action-input layer-parent-select"
-                value={selectedParentLayerId}
-                onChange={(e) => setSelectedParentLayerId(e.target.value)}
-              >
-                <option value="">{uiText.selectParentLayer}</option>
-                {independentParentLayers.map((layer) => (
-                  <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
-                ))}
-              </select>
-            )}
-            {action === 'create-transcription' && showConstraintSelector && constraint === 'symbolic_association' && autoParentLayer && (
-              <p className="layer-parent-auto-note layer-action-popover-meta-note">
-                {uiText.autoLinkedParent(formatParentLayerOptionLabel(autoParentLayer))}
-              </p>
-            )}
-            <div className="transcription-side-pane-action-row">
+                </div>
+              )}
+              {action === 'create-transcription' && showConstraintSelector && constraint === 'symbolic_association' && autoParentLayer && (
+                <p className="dialog-hint layer-action-dialog-meta-note">
+                  {uiText.autoLinkedParent(formatParentLayerOptionLabel(autoParentLayer))}
+                </p>
+              )}
+              {(translationCreateDisabledReason || transcriptionCreateDisabledReason || !hasValidLanguage) && (
+                <div className="layer-create-feedback-stack">
+                  {translationCreateDisabledReason && (
+                    <p className="layer-action-dialog-feedback layer-action-dialog-feedback-error">
+                      {uiText.currentRestrictionTranslation}{translationCreateDisabledReason}
+                    </p>
+                  )}
+                  {transcriptionCreateDisabledReason && (
+                    <p className="layer-action-dialog-feedback layer-action-dialog-feedback-error">
+                      {uiText.currentRestrictionTranscription}{transcriptionCreateDisabledReason}
+                    </p>
+                  )}
+                  {!hasValidLanguage && (
+                    <p className="layer-action-dialog-feedback layer-action-dialog-feedback-info">
+                      {createLanguageRequiredText}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="dialog-footer layer-action-dialog-footer">
               <button
-                className="btn btn-sm"
+                className="btn"
                 disabled={action === 'create-translation'
                   ? (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || translationCreateDisabledReason.length > 0)
                   : (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || transcriptionCreateDisabledReason.length > 0)}
@@ -706,33 +680,12 @@ export function LayerActionPopover({
               >
                 {uiText.create}
               </button>
-              <button className="btn btn-ghost btn-sm" onClick={onClose}>
+              <button className="btn btn-ghost" onClick={onClose}>
                 {uiText.cancel}
               </button>
             </div>
-            {(translationCreateDisabledReason || transcriptionCreateDisabledReason || !hasValidLanguage) && (
-              <div className="layer-create-feedback-stack">
-                {translationCreateDisabledReason && (
-                  <p className="layer-create-feedback layer-create-feedback-error">
-                    {uiText.currentRestrictionTranslation}{translationCreateDisabledReason}
-                  </p>
-                )}
-                {transcriptionCreateDisabledReason && (
-                  <p className="layer-create-feedback layer-create-feedback-error">
-                    {uiText.currentRestrictionTranscription}{transcriptionCreateDisabledReason}
-                  </p>
-                )}
-                {!hasValidLanguage && (
-                  <p className="layer-create-feedback layer-create-feedback-info">
-                    {uiText.requiredPrefix}{createLanguageRequiredMessage}
-                  </p>
-                )}
-              </div>
-            )}
           </>
         )}
-        </div>
-        <div className="floating-panel-resize-handle" onPointerDown={handleResizeStart} aria-hidden="true" />
       </div>
     </div>
   );

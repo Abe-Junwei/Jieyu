@@ -1,120 +1,37 @@
 /** useVoiceAgent — 语音智能体核心 hook */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { VoiceInputService as VoiceInputServiceType, SttEngine, SttResult, CommercialProviderKind } from '../services/VoiceInputService';
+import type { VoiceInputService as VoiceInputServiceType, SttEngine, CommercialProviderKind } from '../services/VoiceInputService';
 import type { WakeWordDetector as WakeWordDetectorType } from '../services/WakeWordDetector';
-import { getActionLabel } from '../services/voiceIntentUi';
 import type {
   ActionId,
   ActionIntent,
   VoiceIntent,
   VoiceSession,
-  VoiceSessionEntry,
 } from '../services/IntentRouter';
 import { toBcp47 } from '../utils/langMapping';
 import type { CommercialProviderCreateConfig } from '../services/stt';
-import { createLogger } from '../observability/logger';
-import { detectRegion } from '../utils/regionDetection';
-import * as Earcon from '../services/EarconService';
-import { unlockAudio } from '../services/EarconService';
 import { useLatest } from './useLatest';
-import { globalContext } from '../services/GlobalContextService';
-import { userBehaviorStore } from '../services/UserBehaviorStore';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import { useVoiceAgentDictationPipeline } from './useVoiceAgentDictationPipeline';
 import { useVoiceAgentProviderControls } from './useVoiceAgentProviderControls';
-import { t, tf, useLocale } from '../i18n';
-
-const log = createLogger('useVoiceAgent');
-
-// ── Lazy runtime loaders | 运行时懒加载器 ─────────────────────────────────────
-
-let voiceInputRuntimePromise: Promise<typeof import('../services/VoiceInputService')> | null = null;
-let wakeWordRuntimePromise: Promise<typeof import('../services/WakeWordDetector')> | null = null;
-let sttRuntimePromise: Promise<typeof import('../services/stt')> | null = null;
-let sttStrategyRuntimePromise: Promise<typeof import('../services/SttStrategyRouter')> | null = null;
-let intentRouterRuntime: typeof import('../services/IntentRouter') | null = null;
-let intentRouterRuntimePromise: Promise<typeof import('../services/IntentRouter')> | null = null;
-let voiceIntentRefineRuntime: typeof import('../services/voiceIntentRefine') | null = null;
-let voiceIntentRefineRuntimePromise: Promise<typeof import('../services/voiceIntentRefine')> | null = null;
-let voiceSessionStoreRuntime: typeof import('../services/VoiceSessionStore') | null = null;
-let voiceSessionStoreRuntimePromise: Promise<typeof import('../services/VoiceSessionStore')> | null = null;
-
-function loadVoiceInputRuntime() {
-  if (!voiceInputRuntimePromise) {
-    voiceInputRuntimePromise = import('../services/VoiceInputService');
-  }
-  return voiceInputRuntimePromise;
-}
-
-function loadWakeWordRuntime() {
-  if (!wakeWordRuntimePromise) {
-    wakeWordRuntimePromise = import('../services/WakeWordDetector');
-  }
-  return wakeWordRuntimePromise;
-}
-
-function loadSttRuntime() {
-  if (!sttRuntimePromise) {
-    sttRuntimePromise = import('../services/stt');
-  }
-  return sttRuntimePromise;
-}
-
-function loadSttStrategyRuntime() {
-  if (!sttStrategyRuntimePromise) {
-    sttStrategyRuntimePromise = import('../services/SttStrategyRouter');
-  }
-  return sttStrategyRuntimePromise;
-}
-
-function loadIntentRouterRuntime() {
-  if (intentRouterRuntime) {
-    return Promise.resolve(intentRouterRuntime);
-  }
-  if (!intentRouterRuntimePromise) {
-    intentRouterRuntimePromise = import('../services/IntentRouter').then((runtime) => {
-      intentRouterRuntime = runtime;
-      return runtime;
-    });
-  }
-  return intentRouterRuntimePromise;
-}
-
-function loadVoiceIntentRefineRuntime() {
-  if (voiceIntentRefineRuntime) {
-    return Promise.resolve(voiceIntentRefineRuntime);
-  }
-  if (!voiceIntentRefineRuntimePromise) {
-    voiceIntentRefineRuntimePromise = import('../services/voiceIntentRefine').then((runtime) => {
-      voiceIntentRefineRuntime = runtime;
-      return runtime;
-    });
-  }
-  return voiceIntentRefineRuntimePromise;
-}
-
-function loadVoiceSessionStoreRuntime() {
-  if (voiceSessionStoreRuntime) {
-    return Promise.resolve(voiceSessionStoreRuntime);
-  }
-  if (!voiceSessionStoreRuntimePromise) {
-    voiceSessionStoreRuntimePromise = import('../services/VoiceSessionStore').then((runtime) => {
-      voiceSessionStoreRuntime = runtime;
-      return runtime;
-    });
-  }
-  return voiceSessionStoreRuntimePromise;
-}
-
-function createVoiceSessionState(): VoiceSession {
-  return {
-    id: crypto.randomUUID(),
-    startedAt: Date.now(),
-    entries: [],
-    mode: 'command',
-  };
-}
+import { useVoiceAgentResultHandler } from './useVoiceAgentResultHandler';
+import { useVoiceAgentStartController } from './useVoiceAgentStartController';
+import { useVoiceAgentTransportControls } from './useVoiceAgentTransportControls';
+import { useVoiceAgentWakeWord } from './useVoiceAgentWakeWord';
+import {
+  createVoiceSessionState,
+  loadIntentRouterRuntime,
+  loadSttRuntime,
+  loadSttStrategyRuntime,
+  loadVoiceInputRuntime,
+  loadVoiceIntentRefineRuntime,
+  loadVoiceSessionStoreRuntime,
+  loadWakeWordRuntime,
+} from './useVoiceAgent.runtime';
+import { cleanupVoiceInputSubscriptions } from './useVoiceAgent.serviceBindings';
+import { useVoiceAgentModeController } from './useVoiceAgentModeController';
+import { useLocale } from '../i18n';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -306,426 +223,120 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
       });
   }, []);
 
-  const handleSttResult = useCallback(async (result: SttResult) => {
-    if (handlePipelineResult(result)) {
-      return;
-    }
+  const handleSttResult = useVoiceAgentResultHandler({
+    locale,
+    handlePipelineResult,
+    modeRef,
+    safeModeRef,
+    sessionRef,
+    executeActionRef,
+    sendToAiChatRef,
+    insertDictationRef,
+    resolveIntentWithLlmRef,
+    aliasMapRef,
+    queueAiThinking,
+    setDetectedLang,
+    setError,
+    setInterimText,
+    setFinalText,
+    setConfidence,
+    setAgentState,
+    setLastIntent,
+    setDisambiguationOptions,
+    setSession,
+    setPendingConfirm,
+  });
 
-    if (result.lang) {
-      setDetectedLang(result.lang);
-    }
+  const start = useVoiceAgentStartController({
+    locale,
+    listening,
+    corpusLang,
+    whisperServerUrl,
+    whisperServerModel,
+    dictationPipeline,
+    modeRef,
+    engineRef,
+    langOverrideRef,
+    commercialProviderKindRef,
+    commercialProviderConfigRef,
+    aliasMapRef,
+    energyLevelRef,
+    pendingAiResponseCountRef,
+    serviceRef,
+    svcUnsubscribesRef,
+    handleSttResult,
+    clearInteractionPrompts,
+    startDictationPipeline,
+    stopDictationPipeline,
+    loadIntentRouterRuntime,
+    loadVoiceIntentRefineRuntime,
+    loadVoiceInputRuntime,
+    loadSttRuntime,
+    loadSttStrategyRuntime,
+    setMode,
+    setError,
+    setSession,
+    setAgentState,
+    setListening,
+    setSpeechActive,
+    setEnergyLevel,
+  });
 
-    if (!result.isFinal) {
-      if (result.text.trim().length > 0) {
-        setError(null);
-      }
-      setInterimText(result.text);
-      setConfidence(result.confidence);
-      return;
-    }
-
-    setError(null);
-    setInterimText('');
-    setFinalText(result.text);
-    setConfidence(result.confidence);
-    setAgentState('routing');
-
-    const currentMode = modeRef.current;
-    const intentRouter = intentRouterRuntime ?? await loadIntentRouterRuntime();
-    let intent = intentRouter.routeIntent(result.text, currentMode, {
-      sttConfidence: result.confidence,
-      detectedLang: result.lang,
-      aliasMap: aliasMapRef.current,
-    });
-
-    let llmFallbackFailed = false;
-    let llmResolvedAction = false;
-    if (intent.type === 'chat' && currentMode === 'command' && resolveIntentWithLlmRef.current) {
-      try {
-        const fallbackIntent = await resolveIntentWithLlmRef.current({
-          text: result.text,
-          mode: currentMode,
-          session: sessionRef.current,
-        });
-        if (fallbackIntent) {
-          const { refineLlmFallbackIntent } = voiceIntentRefineRuntime ?? await loadVoiceIntentRefineRuntime();
-          intent = refineLlmFallbackIntent(fallbackIntent, result);
-          llmResolvedAction = intent.type === 'action';
-        } else {
-          llmFallbackFailed = true;
-          setError(t(locale, 'transcription.voice.error.commandUnrecognized'));
-        }
-      } catch (err) {
-        llmFallbackFailed = true;
-        setError(err instanceof Error ? err.message : t(locale, 'transcription.voice.error.intentResolveFailed'));
-      }
-    }
-
-    if (llmResolvedAction && intent.type === 'action') {
-      const learned = intentRouter.learnVoiceIntentAlias(result.text, intent.actionId);
-      if (learned.applied) {
-        aliasMapRef.current = learned.aliasMap;
-      }
-    }
-    if (!llmResolvedAction && intent.type === 'action' && intent.fromAlias) {
-      intentRouter.bumpAliasUsage(result.text);
-    }
-    setLastIntent(intent);
-
-    if (
-      intent.type === 'action'
-      && intent.fromFuzzy
-      && intent.confidence < intentRouter.LOW_CONFIDENCE_THRESHOLD
-    ) {
-      const alternatives = intentRouter.collectAlternativeIntents(
-        result.text,
-        intent.actionId,
-        result.confidence,
-      );
-      setDisambiguationOptions(alternatives);
-    } else {
-      setDisambiguationOptions([]);
-    }
-
-    const entry: VoiceSessionEntry = {
-      timestamp: Date.now(),
-      intent,
-      sttText: result.text,
-      confidence: result.confidence,
-    };
-    setSession((prev) => ({
-      ...prev,
-      entries: [...prev.entries, entry],
-    }));
-
-    setAgentState(llmFallbackFailed ? 'idle' : 'executing');
-
-    switch (intent.type) {
-      case 'action': {
-        const needsConfirm =
-          (intent.fromFuzzy && intentRouter.shouldConfirmFuzzyAction(intent.actionId))
-          || (safeModeRef.current && intentRouter.isDestructiveAction(intent.actionId));
-        if (needsConfirm) {
-          setPendingConfirm({
-            actionId: intent.actionId,
-            label: getActionLabel(intent.actionId, locale),
-            ...(intent.fromFuzzy !== undefined ? { fromFuzzy: intent.fromFuzzy } : {}),
-          });
-          Earcon.playTick();
-          setAgentState('idle');
-        } else {
-          setError(null);
-          executeActionRef.current(intent.actionId);
-          Earcon.playSuccess();
-          globalContext.markSessionStart();
-          userBehaviorStore.recordAction({
-            actionId: intent.actionId,
-            durationMs: 0,
-            sessionId: sessionRef.current.id,
-          });
-          setAgentState('idle');
-        }
-        break;
-      }
-      case 'tool': {
-        if (!sendToAiChatRef.current) {
-          setAgentState('idle');
-          break;
-        }
-        setError(null);
-        Earcon.playSuccess();
-        queueAiThinking();
-        sendToAiChatRef.current(tf(locale, 'transcription.voice.chatPrefix.command', { text: intent.raw }));
-        break;
-      }
-      case 'dictation': {
-        setError(null);
-        insertDictationRef.current?.(intent.text);
-        setAgentState('idle');
-        break;
-      }
-      case 'slot-fill': {
-        if (!sendToAiChatRef.current) {
-          setAgentState('idle');
-          break;
-        }
-        setError(null);
-        queueAiThinking();
-        sendToAiChatRef.current(tf(locale, 'transcription.voice.chatPrefix.slotFill', {
-          slotName: intent.slotName,
-          value: intent.value,
-        }));
-        break;
-      }
-      case 'chat': {
-        if (llmFallbackFailed) break;
-        if (!sendToAiChatRef.current) {
-          setAgentState('idle');
-          break;
-        }
-        setError(null);
-        queueAiThinking();
-        sendToAiChatRef.current(intent.text);
-        break;
-      }
-    }
-  }, [modeRef, safeModeRef, executeActionRef, sendToAiChatRef, insertDictationRef, resolveIntentWithLlmRef, sessionRef, queueAiThinking, handlePipelineResult]);
-
-  const start = useCallback(async (targetMode?: VoiceAgentMode) => {
-    if (listening) return;
-
-    const nextMode = targetMode ?? modeRef.current;
-
-    const effectiveLang = (() => {
-      const override = langOverrideRef.current;
-      if (override === '__auto__') return '';
-      if (override) return toBcp47(override);
-      return toBcp47(corpusLang);
-    })();
-    if (targetMode) setMode(targetMode);
-    setError(null);
-    clearInteractionPrompts();
-    setSession(createVoiceSessionState());
-    pendingAiResponseCountRef.current = 0;
-    setAgentState('listening');
-
-    try {
-      const [intentRouter] = await Promise.all([
-        loadIntentRouterRuntime(),
-        loadVoiceIntentRefineRuntime(),
-      ]);
-      aliasMapRef.current = intentRouter.loadVoiceIntentAliasMap();
-    } catch {
-      aliasMapRef.current = {};
-    }
-
-    let svc = serviceRef.current;
-    if (!svc) {
-      const { VoiceInputService } = await loadVoiceInputRuntime();
-      svc = new VoiceInputService();
-      serviceRef.current = svc;
-    }
-
-    for (const unsub of svcUnsubscribesRef.current) unsub();
-    svcUnsubscribesRef.current = [];
-
-    svcUnsubscribesRef.current.push(svc.onResult(handleSttResult));
-    svcUnsubscribesRef.current.push(svc.onError((err) => {
-      setError(err);
-      Earcon.playError();
-    }));
-    svcUnsubscribesRef.current.push(svc.onStateChange(setListening));
-    if ('onVadStateChange' in svc && typeof svc.onVadStateChange === 'function') {
-      svcUnsubscribesRef.current.push(svc.onVadStateChange(setSpeechActive));
-    }
-    if ('onEnergyLevel' in svc && typeof svc.onEnergyLevel === 'function') {
-      svcUnsubscribesRef.current.push(svc.onEnergyLevel((rms) => {
-        energyLevelRef.current = rms;
-        setEnergyLevel(rms);
-      }));
-    }
-
-    let batteryLevel: number | undefined;
-    if (typeof navigator !== 'undefined' && 'getBattery' in navigator) {
-      try {
-        type BatteryManager = { level: number };
-        const battery = await (navigator as unknown as { getBattery(): Promise<BatteryManager> }).getBattery();
-        batteryLevel = battery.level;
-      } catch (error) {
-        log.warn('Battery API probing failed, fallback to default STT strategy context', {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    const region = await detectRegion();
-
-    const { chooseSttEngine } = await loadSttStrategyRuntime();
-    const runtimeEngine = chooseSttEngine({
-      preferred: engineRef.current,
-      online: typeof navigator !== 'undefined' ? navigator.onLine : true,
-      noiseLevel: energyLevelRef.current,
-      ...(batteryLevel !== undefined && { batteryLevel }),
-      regionHint: region,
-    });
-
-    const startConfig: Parameters<typeof svc.start>[0] = {
-      lang: effectiveLang,
-      continuous: true,
-      interimResults: true,
-      preferredEngine: runtimeEngine,
-      region,
-      maxAlternatives: 3,
-    };
-    if (runtimeEngine === 'whisper-local') {
-      startConfig.whisperServerUrl = whisperServerUrl;
-      startConfig.whisperServerModel = whisperServerModel;
-    }
-    if (runtimeEngine === 'commercial' && commercialProviderConfigRef.current) {
-      const { createCommercialProvider } = await loadSttRuntime();
-      startConfig.commercialFallback = createCommercialProvider(
-        commercialProviderKindRef.current,
-        commercialProviderConfigRef.current,
-      );
-    }
-    try {
-      await svc.start(startConfig);
-    } catch (err) {
-      setListening(false);
-      setSpeechActive(false);
-      setAgentState('idle');
-      setError(err instanceof Error ? err.message : t(locale, 'transcription.voice.error.startFailed'));
-      Earcon.playError();
-      return;
-    }
-
-    setAgentState(runtimeEngine === 'web-speech' ? 'listening' : 'idle');
-
-    if (nextMode === 'dictation' && dictationPipeline) {
-      startDictationPipeline();
-    } else {
-      stopDictationPipeline();
-    }
-    void unlockAudio();
-    Earcon.playActivate();
-  }, [clearInteractionPrompts, listening, langOverrideRef, handleSttResult, engineRef, whisperServerUrl, whisperServerModel, commercialProviderKindRef, commercialProviderConfigRef, modeRef, dictationPipeline, startDictationPipeline, stopDictationPipeline]);
-
-  const stop = useCallback(async () => {
-    stopDictationPipeline();
-    serviceRef.current?.stop();
-    setListening(false);
-    setSpeechActive(false);
-    setInterimText('');
-    clearInteractionPrompts();
-    pendingAiResponseCountRef.current = 0;
-    setAgentState('idle');
-
-    const currentSession = sessionRef.current;
-    if (currentSession.entries.length > 0) {
-      try {
-        const { saveVoiceSession } = await loadVoiceSessionStoreRuntime();
-        await saveVoiceSession(currentSession);
-      } catch (err) {
-        // IndexedDB unavailable — best effort save only | IndexedDB 不可用，保存会话仅尽力而为
-        console.warn('[useVoiceAgent] saveVoiceSession failed:', err);
-      }
-    }
-
-    Earcon.playDeactivate();
-  }, [clearInteractionPrompts, stopDictationPipeline]);
-
-  const startRecording = useCallback(async () => {
-    const svc = serviceRef.current;
-    if (!svc) return;
-    setAgentState('listening');
-    try {
-      await svc.startRecording();
-      setIsRecording(true);
-      setRecordingDuration(0);
-      if (recordingDurationIntervalRef.current !== null) {
-        clearInterval(recordingDurationIntervalRef.current);
-      }
-      recordingDurationIntervalRef.current = setInterval(() => {
-        setRecordingDuration((d) => d + 1);
-      }, 1000);
-    } catch (err) {
-      setIsRecording(false);
-      setAgentState('idle');
-      Earcon.playError();
-      setError(err instanceof Error ? err.message : t(locale, 'transcription.voice.error.recordingStartFailed'));
-    }
-  }, [locale]);
-
-  const stopRecording = useCallback(async () => {
-    const svc = serviceRef.current;
-    if (!svc) return;
-    setIsRecording(false);
-    if (recordingDurationIntervalRef.current !== null) {
-      clearInterval(recordingDurationIntervalRef.current);
-      recordingDurationIntervalRef.current = null;
-    }
-    setAgentState('idle');
-    await svc.stopRecording();
-  }, []);
-
-  const switchEngine = useCallback((newEngine: SttEngine) => {
-    setEngine(newEngine);
-    globalContext.updatePreference('preferredEngine', newEngine);
-    if (listening) {
-      serviceRef.current?.switchEngine(newEngine);
-      setAgentState(newEngine === 'web-speech' ? 'listening' : 'idle');
-    }
-  }, [listening]);
-
-  const toggle = useCallback((targetMode?: VoiceAgentMode) => {
-    if (listening) {
-      stop();
-    } else {
-      start(targetMode);
-    }
-  }, [listening, start, stop]);
+  const {
+    stop,
+    startRecording,
+    stopRecording,
+    switchEngine,
+    toggle,
+    confirmPendingAction,
+  } = useVoiceAgentTransportControls({
+    locale,
+    listening,
+    start,
+    stopDictationPipeline,
+    clearInteractionPrompts,
+    loadVoiceSessionStoreRuntime,
+    serviceRef,
+    sessionRef,
+    executeActionRef,
+    pendingAiResponseCountRef,
+    recordingDurationIntervalRef,
+    setListening,
+    setSpeechActive,
+    setInterimText,
+    setAgentState,
+    setIsRecording,
+    setRecordingDuration,
+    setError,
+    setEngine,
+  });
 
   const confirmPending = useCallback(() => {
-    if (!pendingConfirm) return;
-    executeActionRef.current(pendingConfirm.actionId);
-    clearInteractionPrompts();
-    Earcon.playSuccess();
-    globalContext.markSessionStart();
-    userBehaviorStore.recordAction({
-      actionId: pendingConfirm.actionId,
-      durationMs: 0,
-      sessionId: sessionRef.current.id,
-    });
-  }, [clearInteractionPrompts, pendingConfirm, executeActionRef, sessionRef]);
+    confirmPendingAction(pendingConfirm);
+  }, [confirmPendingAction, pendingConfirm]);
 
-  const cancelPending = useCallback(() => {
-    clearInteractionPrompts();
-    Earcon.playTick();
-  }, [clearInteractionPrompts]);
-
-  const selectDisambiguation = useCallback((actionId: ActionId) => {
-    void (async () => {
-      setDisambiguationOptions([]);
-      const intentRouter = intentRouterRuntime ?? await loadIntentRouterRuntime();
-      const needsConfirm = intentRouter.shouldConfirmFuzzyAction(actionId)
-        || (safeModeRef.current && intentRouter.isDestructiveAction(actionId));
-      if (needsConfirm) {
-        setPendingConfirm({ actionId, label: getActionLabel(actionId, locale), fromFuzzy: true });
-        Earcon.playTick();
-        setAgentState('idle');
-        return;
-      }
-
-      setPendingConfirm(null);
-      executeActionRef.current(actionId);
-      Earcon.playSuccess();
-      globalContext.markSessionStart();
-      userBehaviorStore.recordAction({
-        actionId,
-        durationMs: 0,
-        sessionId: sessionRef.current.id,
-      });
-      setAgentState('idle');
-    })();
-  }, [executeActionRef, locale, safeModeRef, sessionRef]);
-
-  const dismissDisambiguation = useCallback(() => {
-    setDisambiguationOptions([]);
-    setPendingConfirm(null);
-  }, []);
-
-  const switchMode = useCallback((newMode: VoiceAgentMode) => {
-    if (newMode === 'dictation') {
-      if (listening && dictationPipeline) {
-        startDictationPipeline();
-      }
-    } else {
-      stopDictationPipeline();
-    }
-    setMode(newMode);
-    clearInteractionPrompts();
-    setInterimText('');
-  }, [clearInteractionPrompts, dictationPipeline, listening, startDictationPipeline, stopDictationPipeline]);
+  const {
+    cancelPending,
+    selectDisambiguation,
+    dismissDisambiguation,
+    switchMode,
+  } = useVoiceAgentModeController({
+    locale,
+    listening,
+    dictationPipeline,
+    safeModeRef,
+    sessionRef,
+    executeActionRef,
+    loadIntentRouterRuntime,
+    clearInteractionPrompts,
+    startDictationPipeline,
+    stopDictationPipeline,
+    setMode,
+    setInterimText,
+    setAgentState,
+    setDisambiguationOptions,
+    setPendingConfirm,
+  });
 
   useEffect(() => {
     const override = langOverride;
@@ -733,47 +344,25 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     serviceRef.current?.setLang(effective);
   }, [langOverride, corpusLang, listening]);
 
-  useEffect(() => {
-    if (!wakeWordEnabled) {
-      wakeWordDetectorRef.current?.stop();
-      wakeWordDetectorRef.current = null;
-      return;
-    }
-    if (listening) return;
-
-    let disposed = false;
-    void (async () => {
-      const { WakeWordDetector } = await loadWakeWordRuntime();
-      if (disposed) return;
-      const detector = new WakeWordDetector({
-        energyThreshold: 0.05,
-        speechMs: 400,
-        cooldownMs: 3000,
-        onWake: () => {
-          start('command');
-        },
-        onEnergy: (rms) => {
-          setWakeWordEnergyLevel(rms);
-        },
-      });
-
-      wakeWordDetectorRef.current = detector;
-      detector.start().catch(() => {
-        setWakeWordEnabledState(false);
-      });
-    })();
-
-    return () => {
-      disposed = true;
-      wakeWordDetectorRef.current?.stop();
-      wakeWordDetectorRef.current = null;
-    };
-  }, [wakeWordEnabled, listening, start]);
+  useVoiceAgentWakeWord({
+    wakeWordEnabled,
+    listening,
+    wakeWordDetectorRef,
+    loadWakeWordRuntime,
+    setWakeWordEnabledState,
+    setWakeWordEnergyLevel,
+    onWake: () => {
+      void start('command');
+    },
+  });
 
   useEffect(() => {
     return () => {
-      for (const unsub of svcUnsubscribesRef.current) unsub();
-      svcUnsubscribesRef.current = [];
+      if (recordingDurationIntervalRef.current !== null) {
+        clearInterval(recordingDurationIntervalRef.current);
+        recordingDurationIntervalRef.current = null;
+      }
+      cleanupVoiceInputSubscriptions(svcUnsubscribesRef);
       stopDictationPipeline();
       serviceRef.current?.dispose();
       serviceRef.current = null;

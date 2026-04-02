@@ -169,9 +169,12 @@ export function SearchReplaceOverlay({
   );
 
   return (
-    <div className="search-replace-overlay-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className="dialog-overlay dialog-overlay-topmost" role="presentation" onMouseDown={onClose}>
       <div
-        className="search-replace-overlay"
+        className="search-replace-overlay dialog-card"
+        role="dialog"
+        aria-modal="true"
+        aria-label={messages.searchPlaceholder}
         onKeyDown={handleKeyDown}
         onMouseDown={(event) => event.stopPropagation()}
       >

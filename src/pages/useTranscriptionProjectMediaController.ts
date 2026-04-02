@@ -13,7 +13,7 @@ import type { SearchableItem } from '../utils/searchReplaceUtils';
 
 const log = createLogger('useTranscriptionProjectMediaController');
 
-interface UseTranscriptionProjectMediaControllerInput {
+export interface UseTranscriptionProjectMediaControllerInput {
   activeTextId: string | null;
   getActiveTextId: () => Promise<string | null>;
   setActiveTextId: (id: string | null) => void;

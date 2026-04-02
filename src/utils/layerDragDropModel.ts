@@ -12,6 +12,7 @@ export interface LayerDropIntent {
   sourceIndex: number;
   sourceSpan: number;
   previewIndex: number;
+  commitIndex: number;
   boundaryProbeIndex: number;
   targetRootId: string | null;
 }
@@ -37,15 +38,27 @@ export function buildLayerDropIntent(params: BuildLayerDropIntentParams): LayerD
     isRootBundleDrag,
   } = params;
 
+  const resolveCommitIndex = (targetRange?: LayerBundleRange): number => {
+    if (!targetRange) return baseTargetIndex;
+    if (sourceIndex < targetRange.start) return targetRange.end;
+    if (sourceIndex >= targetRange.end) return targetRange.start;
+    return baseTargetIndex;
+  };
+
   if (isRootBundleDrag) {
+    const boundaryProbeIndex = Math.max(0, Math.min(baseTargetIndex, Math.max(rowCount - 1, 0)));
+    const targetRange = bundleRanges.find((range) => (
+      boundaryProbeIndex >= range.start && boundaryProbeIndex < range.end && range.rootId !== draggedId
+    ));
     return {
       draggedId,
       dragKind: 'root-bundle',
       sourceIndex,
       sourceSpan,
-      previewIndex: baseTargetIndex,
-      boundaryProbeIndex: Math.max(0, Math.min(baseTargetIndex, Math.max(rowCount - 1, 0))),
-      targetRootId: null,
+      previewIndex: targetRange ? targetRange.start : baseTargetIndex,
+      commitIndex: resolveCommitIndex(targetRange),
+      boundaryProbeIndex,
+      targetRootId: targetRange?.rootId ?? null,
     };
   }
 
@@ -65,6 +78,7 @@ export function buildLayerDropIntent(params: BuildLayerDropIntentParams): LayerD
     sourceIndex,
     sourceSpan,
     previewIndex: targetRange ? targetRange.start : baseTargetIndex,
+    commitIndex: resolveCommitIndex(targetRange),
     boundaryProbeIndex,
     targetRootId: targetRange?.rootId ?? null,
   };

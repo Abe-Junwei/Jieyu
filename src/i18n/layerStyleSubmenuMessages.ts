@@ -27,7 +27,7 @@ export type LayerStyleSubmenuMessages = {
 };
 
 const zhCN: LayerStyleSubmenuMessages = {
-  defaultFontSizeOption: (value) => `\u9ed8\u8ba4 (${value}px)`,
+  defaultFontSizeOption: (value) => `\u9ed8\u8ba4\uff08${value}\u53f7\uff09`,
   fontCoverage: '\u5b57\u4f53\u8986\u76d6',
   fontCoverageSamples: (count) => `\u6837\u4f8b ${count} \u9879`,
   fontCoverageMissing: '\u672a\u914d\u7f6e\u6837\u4f8b',

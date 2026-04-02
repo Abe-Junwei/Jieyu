@@ -79,7 +79,7 @@ export function OrthographyTransformManager({
   const [draftTransformIsReversible, setDraftTransformIsReversible] = useState(false);
 
   const targetLabel = targetOrthography ? formatOrthographyOptionLabel(targetOrthography) : '';
-  const fieldClassName = compact ? 'input transcription-side-pane-action-input' : 'input';
+  const fieldClassName = compact ? 'input layer-action-dialog-input' : 'input';
   const panelClassName = compact
     ? 'orthography-builder-panel orthography-builder-panel-compact'
     : 'orthography-builder-panel';
@@ -301,18 +301,18 @@ export function OrthographyTransformManager({
 
   return (
     <div className={panelClassName}>
-      <div className={compact ? 'transcription-side-pane-action-row' : 'orthography-builder-actions'}>
+      <div className="orthography-builder-actions">
         <button
           type="button"
-          className={compact ? 'btn btn-ghost btn-sm' : 'btn btn-ghost'}
+          className="btn btn-ghost"
           onClick={() => setExpanded((prev) => !prev)}
         >
-          {expanded ? decodeEscapedUnicode('\\u6536\\u8d77\\u5bfc\\u5165\\u53d8\\u6362\\u89c4\\u5219') : decodeEscapedUnicode('\\u7ba1\\u7406\\u5bfc\\u5165\\u53d8\\u6362\\u89c4\\u5219')}
+          {expanded ? decodeEscapedUnicode('\u6536\u8d77\u5bfc\u5165\u53d8\u6362\u89c4\u5219') : decodeEscapedUnicode('\u7ba1\u7406\u5bfc\u5165\u53d8\u6362\u89c4\u5219')}
         </button>
         {expanded && !isCreatingNew && !editingTransformId && (
           <button
             type="button"
-            className={compact ? 'btn btn-sm' : 'btn'}
+            className="btn"
             onClick={beginCreate}
             disabled={saving}
           >
@@ -344,10 +344,10 @@ export function OrthographyTransformManager({
                 {transform.sampleInput && transform.sampleOutput && (
                   <span>{decodeEscapedUnicode('\\u6837\\u4f8b：')}{transform.sampleInput}{' -> '}{transform.sampleOutput}</span>
                 )}
-                <div className={compact ? 'transcription-side-pane-action-row' : 'orthography-builder-actions'}>
+                <div className="orthography-builder-actions">
                   <button
                     type="button"
-                    className={compact ? 'btn btn-ghost btn-sm' : 'btn btn-ghost'}
+                    className="btn btn-ghost"
                     onClick={() => void toggleTransformStatus(transform)}
                     disabled={saving}
                   >
@@ -355,7 +355,7 @@ export function OrthographyTransformManager({
                   </button>
                   <button
                     type="button"
-                    className={compact ? 'btn btn-ghost btn-sm' : 'btn btn-ghost'}
+                    className="btn btn-ghost"
                     onClick={() => beginEdit(transform)}
                     disabled={saving}
                   >
@@ -363,7 +363,7 @@ export function OrthographyTransformManager({
                   </button>
                   <button
                     type="button"
-                    className={compact ? 'btn btn-ghost btn-sm' : 'btn btn-ghost'}
+                    className="btn btn-ghost"
                     onClick={() => void deleteTransform(transform.id)}
                     disabled={saving}
                   >
@@ -554,10 +554,10 @@ export function OrthographyTransformManager({
                   </div>
                 )}
 
-                <div className={compact ? 'transcription-side-pane-action-row' : 'orthography-builder-actions'}>
+                <div className="orthography-builder-actions">
                   <button
                     type="button"
-                    className={compact ? 'btn btn-sm' : 'btn'}
+                    className="btn"
                     onClick={() => void saveTransform()}
                     disabled={saving}
                   >
@@ -565,7 +565,7 @@ export function OrthographyTransformManager({
                   </button>
                   <button
                     type="button"
-                    className={compact ? 'btn btn-ghost btn-sm' : 'btn btn-ghost'}
+                    className="btn btn-ghost"
                     onClick={resetEditor}
                     disabled={saving}
                   >

@@ -37,6 +37,7 @@
     { "pathPrefix": "src/services/TranscriberService.ts", "reason": "parser-and-format-error" },
     { "pathPrefix": "src/services/ProjectMemoryStore.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/services/SpeechAnnotationPipeline.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/services/CommandResolver.ts", "reason": "data-dictionary" },
 
     { "pathPrefix": "src/utils/camDataUtils.ts", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/utils/citationFootnoteUtils.ts", "reason": "runtime-template-message" },

@@ -83,6 +83,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     utterancesOnCurrentMedia: [makeUtterance('utt-1', 1.5, 2.5)],
     setSaveState: vi.fn() as unknown as (state: SaveState) => void,
     splitUtterance: vi.fn(async () => undefined),
+    mergeSelectedUtterances: vi.fn(async () => undefined),
     mergeWithPrevious: vi.fn(async () => undefined),
     mergeWithNext: vi.fn(async () => undefined),
     deleteUtterance: vi.fn(async () => undefined),
@@ -232,6 +233,45 @@ describe('useTranscriptionSegmentMutationController', () => {
     expect(setSaveState).not.toHaveBeenCalledWith({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
   });
 
+  it('merges selected independent segments in order and keeps the first segment selected', async () => {
+    const pushUndo = vi.fn();
+    const reloadSegments = vi.fn(async () => undefined);
+    const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
+    const selectTimelineUnit = vi.fn();
+    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
+      pushUndo,
+      reloadSegments,
+      refreshSegmentUndoSnapshot,
+      selectTimelineUnit,
+    })));
+
+    await act(async () => {
+      await result.current.mergeSelectedSegmentsRouted(new Set(['seg-1', 'seg-2', 'seg-3']));
+    });
+
+    expect(pushUndo).toHaveBeenCalledWith('批量合并句段');
+    expect(mockMergeAdjacentSegments).toHaveBeenNthCalledWith(1, 'seg-1', 'seg-2');
+    expect(mockMergeAdjacentSegments).toHaveBeenNthCalledWith(2, 'seg-1', 'seg-3');
+    expect(reloadSegments).toHaveBeenCalled();
+    expect(refreshSegmentUndoSnapshot).toHaveBeenCalled();
+    expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' });
+  });
+
+  it('rejects non-adjacent selected segments before batch merge', async () => {
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const pushUndo = vi.fn();
+    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
+      setSaveState,
+      pushUndo,
+    })));
+
+    await expect(result.current.mergeSelectedSegmentsRouted(new Set(['seg-1', 'seg-3']))).rejects.toThrow('请先选择相邻句段再执行合并。');
+
+    expect(mockMergeAdjacentSegments).not.toHaveBeenCalled();
+    expect(pushUndo).not.toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenCalledWith({ kind: 'error', message: '请先选择相邻句段再执行合并。' });
+  });
+
   it('reloads segments and surfaces error when batch segment delete fails', async () => {
     mockDeleteSegment.mockImplementationOnce(async () => undefined).mockImplementationOnce(async () => {
       throw new Error('delete failed');
@@ -266,6 +306,7 @@ describe('useTranscriptionSegmentMutationController', () => {
 
   it('falls back to utterance mutations when current layer does not use segment timeline', async () => {
     const splitUtterance = vi.fn(async () => undefined);
+    const mergeSelectedUtterances = vi.fn(async () => undefined);
     const mergeWithPrevious = vi.fn(async () => undefined);
     const mergeWithNext = vi.fn(async () => undefined);
     const deleteUtterance = vi.fn(async () => undefined);
@@ -278,6 +319,7 @@ describe('useTranscriptionSegmentMutationController', () => {
         editMode: 'utterance',
       }),
       splitUtterance,
+      mergeSelectedUtterances,
       mergeWithPrevious,
       mergeWithNext,
       deleteUtterance,
@@ -286,6 +328,7 @@ describe('useTranscriptionSegmentMutationController', () => {
 
     await act(async () => {
       await result.current.splitRouted('utt-1', 1.2);
+      await result.current.mergeSelectedSegmentsRouted(new Set(['utt-1', 'utt-2']));
       await result.current.mergeWithPreviousRouted('utt-1');
       await result.current.mergeWithNextRouted('utt-1');
       await result.current.deleteUtteranceRouted('utt-1');
@@ -293,6 +336,7 @@ describe('useTranscriptionSegmentMutationController', () => {
     });
 
     expect(splitUtterance).toHaveBeenCalledWith('utt-1', 1.2);
+    expect(mergeSelectedUtterances).toHaveBeenCalledWith(new Set(['utt-1', 'utt-2']));
     expect(mergeWithPrevious).toHaveBeenCalledWith('utt-1');
     expect(mergeWithNext).toHaveBeenCalledWith('utt-1');
     expect(deleteUtterance).toHaveBeenCalledWith('utt-1');

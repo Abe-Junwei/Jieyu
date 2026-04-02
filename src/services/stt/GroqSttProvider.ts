@@ -44,7 +44,7 @@ export class GroqSttProvider implements CommercialSttProvider {
     }
   }
 
-  async transcribe(audioBlob: Blob, lang: string): Promise<SttResult> {
+  async transcribe(audioBlob: Blob, lang: string, options?: { signal?: AbortSignal }): Promise<SttResult> {
     const formData = new FormData();
     formData.append('file', audioBlob, 'recording.webm');
     formData.append('model', this.config.model);
@@ -56,6 +56,7 @@ export class GroqSttProvider implements CommercialSttProvider {
       method: 'POST',
       headers: { Authorization: `Bearer ${this.config.apiKey}` },
       body: formData,
+      ...(options?.signal ? { signal: options.signal } : {}),
     });
 
     if (!resp.ok) {

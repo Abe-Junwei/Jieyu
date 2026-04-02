@@ -1,5 +1,6 @@
-import { memo, useRef } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 import type { SpeakerActionDialogState } from '../../hooks/speakerManagement/types';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { t, tf, useLocale } from '../../i18n';
@@ -44,6 +45,42 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
         ? t(locale, 'transcription.speakerDialog.deleteEntityTitle')
         : t(locale, 'transcription.speakerDialog.clearTagTitle');
 
+  const summaryCopy = useMemo(() => {
+    if (isMerge) {
+      return tf(locale, 'transcription.speakerDialog.mergeHint', { sourceSpeakerName: state.sourceSpeakerName });
+    }
+    if (isClear) {
+      return tf(locale, 'transcription.speakerDialog.clearHint', {
+        speakerName: state.speakerName,
+        affectedCount: state.affectedCount,
+      });
+    }
+    if (isDelete) {
+      return tf(locale, 'transcription.speakerDialog.deleteEntityHint', {
+        sourceSpeakerName: state.sourceSpeakerName,
+        affectedCount: state.affectedCount,
+      });
+    }
+    return state.speakerName;
+  }, [isClear, isDelete, isMerge, locale, state]);
+
+  const summaryMeta = useMemo(() => {
+    if (isRename) {
+      return [state.speakerName];
+    }
+    if (isMerge) {
+      return [state.sourceSpeakerName, String(state.candidates.length)];
+    }
+    if (isClear) {
+      return [state.speakerName, String(state.affectedCount)];
+    }
+    return [state.sourceSpeakerName, String(state.affectedCount), String(state.candidates.length)];
+  }, [isClear, isDelete, isMerge, isRename, state]);
+
+  const riskCopy = isDelete
+    ? t(locale, 'transcription.speakerDialog.deleteEntityRisk')
+    : null;
+
   return createPortal(
     <div className="dialog-overlay dialog-overlay-topmost" onClick={onClose} role="presentation">
       <div
@@ -57,32 +94,58 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
       >
         <div className="dialog-header">
           <h3 id="speaker-dialog-title">{dialogTitle}</h3>
+          <div className="dialog-header-actions">
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={onClose}
+              aria-label={`${dialogTitle} ${t(locale, 'transcription.dialog.cancel')}`}
+              title={`${dialogTitle} ${t(locale, 'transcription.dialog.cancel')}`}
+              disabled={busy}
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
-        <div className="dialog-body">
-          {isRename && (
-            <div className="dialog-field">
-              <label htmlFor="speaker-rename-input">{t(locale, 'transcription.speakerDialog.renameLabel')}</label>
-              <input
-                id="speaker-rename-input"
-                className="input"
-                value={state.draftName}
-                onChange={(event) => onDraftNameChange(event.target.value)}
-                placeholder={state.speakerName}
-                autoFocus
-              />
+        <div className="dialog-body speaker-action-dialog-body">
+          <section className="panel-organization-surface panel-organization-surface-emphasis">
+            <div className="panel-organization-chip-row">
+              {summaryMeta.map((item, index) => (
+                <span
+                  key={`${item}-${index}`}
+                  className={`panel-organization-chip${riskCopy && index === 1 ? ' panel-organization-chip-danger' : ''}`}
+                >
+                  {item}
+                </span>
+              ))}
             </div>
+            <p className="panel-organization-surface-copy">{summaryCopy}</p>
+            {riskCopy && <p className="dialog-supporting-note dialog-supporting-note-danger">{riskCopy}</p>}
+          </section>
+
+          {isRename && (
+            <section className="panel-organization-surface speaker-action-dialog-field-stack">
+              <div className="dialog-field">
+                <label htmlFor="speaker-rename-input">{t(locale, 'transcription.speakerDialog.renameLabel')}</label>
+                <input
+                  id="speaker-rename-input"
+                  className="input layer-action-dialog-input"
+                  value={state.draftName}
+                  onChange={(event) => onDraftNameChange(event.target.value)}
+                  placeholder={state.speakerName}
+                  autoFocus
+                />
+              </div>
+            </section>
           )}
 
           {isMerge && (
-            <>
-              <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: 14 }}>
-                {tf(locale, 'transcription.speakerDialog.mergeHint', { sourceSpeakerName: state.sourceSpeakerName })}
-              </p>
+            <section className="panel-organization-surface speaker-action-dialog-field-stack">
               <div className="dialog-field">
                 <label htmlFor="speaker-merge-target">{t(locale, 'transcription.speakerDialog.mergeTargetLabel')}</label>
                 <select
                   id="speaker-merge-target"
-                  className="input"
+                  className="input layer-action-dialog-input"
                   value={state.targetSpeakerKey}
                   onChange={(event) => onTargetSpeakerChange(event.target.value)}
                   autoFocus
@@ -92,34 +155,16 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
                   ))}
                 </select>
               </div>
-            </>
-          )}
-
-          {isClear && (
-            <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: 14 }}>
-              {tf(locale, 'transcription.speakerDialog.clearHint', {
-                speakerName: state.speakerName,
-                affectedCount: state.affectedCount,
-              })}
-            </p>
+            </section>
           )}
 
           {isDelete && (
-            <>
-              <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: 14 }}>
-                {tf(locale, 'transcription.speakerDialog.deleteEntityHint', {
-                  sourceSpeakerName: state.sourceSpeakerName,
-                  affectedCount: state.affectedCount,
-                })}
-              </p>
-              <p style={{ margin: 0, color: 'var(--state-danger-text)', fontSize: 13 }}>
-                {t(locale, 'transcription.speakerDialog.deleteEntityRisk')}
-              </p>
+            <section className="panel-organization-surface speaker-action-dialog-field-stack">
               <div className="dialog-field">
                 <label htmlFor="speaker-delete-target">{t(locale, 'transcription.speakerDialog.deleteStrategyLabel')}</label>
                 <select
                   id="speaker-delete-target"
-                  className="input"
+                  className="input layer-action-dialog-input"
                   value={state.replacementSpeakerKey}
                   onChange={(event) => onTargetSpeakerChange(event.target.value)}
                   autoFocus
@@ -132,7 +177,7 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
                   ))}
                 </select>
               </div>
-            </>
+            </section>
           )}
         </div>
         <div className="dialog-footer">

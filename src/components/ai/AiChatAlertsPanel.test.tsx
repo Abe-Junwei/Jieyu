@@ -11,6 +11,16 @@ const { resolveTextDirectionFromLocaleMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../utils/panelAdaptiveLayout', () => ({
+  UI_FONT_SCALE_LIMITS: {
+    min: 0.85,
+    max: 1.4,
+    fallback: 1,
+    storageKey: 'jieyu:ui-font-scale',
+    changeEvent: 'jieyu:ui-font-scale-changed',
+  },
+  subscribeUiFontScalePreference: () => () => {},
+  readUiFontScalePreferenceSnapshot: () => 'auto:1.0000',
+  readPersistedUiFontScale: () => 1,
   resolveTextDirectionFromLocale: (locale: string) => resolveTextDirectionFromLocaleMock(locale),
 }));
 

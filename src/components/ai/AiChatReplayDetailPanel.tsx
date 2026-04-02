@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { buildAiToolGoldenSnapshot, type AiToolGoldenSnapshot, type AiToolReplayBundle, type AiToolSnapshotDiff } from '../../ai/auditReplay';
 import {
   compactInternalId,
@@ -6,6 +7,10 @@ import {
   formatToolName,
 } from './aiChatCardUtils';
 import { getAiChatReplayDetailPanelMessages } from '../../i18n/aiChatReplayDetailPanelMessages';
+import { useLocale } from '../../i18n';
+import { computeAdaptivePanelWidth } from '../../utils/panelAdaptiveLayout';
+import { useUiFontScaleRuntime } from '../../hooks/useUiFontScaleRuntime';
+import { useViewportWidth } from '../../hooks/useViewportWidth';
 
 interface AiChatReplayDetailPanelProps {
   isZh: boolean;
@@ -32,10 +37,40 @@ export function AiChatReplayDetailPanel({
   onImportSnapshotFile,
   onClearCompare,
 }: AiChatReplayDetailPanelProps) {
+  const locale = useLocale();
+  const { uiTextDirection, uiFontScale } = useUiFontScaleRuntime(locale);
+  const viewportWidth = useViewportWidth();
+  const compactWidth = useMemo(() => computeAdaptivePanelWidth({
+    baseWidth: 360,
+    locale,
+    direction: uiTextDirection,
+    uiFontScale,
+    density: 'compact',
+    minWidth: 300,
+    maxWidth: 620,
+    ...(viewportWidth !== undefined ? { viewportWidth } : {}),
+  }), [locale, uiTextDirection, uiFontScale, viewportWidth]);
+  const wideWidth = useMemo(() => computeAdaptivePanelWidth({
+    baseWidth: 760,
+    locale,
+    direction: uiTextDirection,
+    uiFontScale,
+    density: 'wide',
+    minWidth: 520,
+    maxWidth: 980,
+    ...(viewportWidth !== undefined ? { viewportWidth } : {}),
+  }), [locale, uiTextDirection, uiFontScale, viewportWidth]);
   const messages = getAiChatReplayDetailPanelMessages(isZh);
 
   return (
-    <div className="ai-chat-replay-panel">
+    <div
+      className="ai-chat-replay-panel"
+      dir={uiTextDirection}
+      style={{
+        minWidth: `min(100%, ${compactWidth}px)`,
+        maxWidth: `min(100%, ${wideWidth}px)`,
+      }}
+    >
       <div className="ai-chat-replay-panel-header">
         <strong className="ai-chat-replay-panel-title">{messages.title}</strong>
         <div className="ai-chat-replay-panel-actions">

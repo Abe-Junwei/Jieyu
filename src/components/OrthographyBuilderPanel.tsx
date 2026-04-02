@@ -51,7 +51,7 @@ export function OrthographyBuilderPanel({
   const resolvedSourceLanguageCodePlaceholder = sourceLanguageCodePlaceholder ?? messages.sourceLanguageCodePlaceholder;
   const resolvedNameZhPlaceholder = nameZhPlaceholder ?? messages.nameZhPlaceholder;
   const resolvedNameEnPlaceholder = nameEnPlaceholder ?? messages.nameEnPlaceholder;
-  const fieldClassName = compact ? 'input transcription-side-pane-action-input' : 'input';
+  const fieldClassName = compact ? 'input layer-action-dialog-input' : 'input';
   const containerClassName = compact
     ? 'orthography-builder-panel orthography-builder-panel-compact'
     : 'orthography-builder-panel';
@@ -292,7 +292,7 @@ export function OrthographyBuilderPanel({
             {picker.requiresRenderWarningConfirmation && (
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
+                className="btn btn-ghost"
                 onClick={picker.acknowledgeRenderWarnings}
               >
                 {messages.confirmRiskButton}
@@ -305,7 +305,7 @@ export function OrthographyBuilderPanel({
       <div className="orthography-builder-section-toggle-row">
         <button
           type="button"
-          className="btn btn-ghost btn-sm"
+          className="btn btn-ghost"
           onClick={() => picker.setShowAdvancedFields(!picker.showAdvancedFields)}
         >
           {picker.showAdvancedFields ? messages.collapseAdvanced : messages.expandAdvanced}
@@ -473,10 +473,10 @@ export function OrthographyBuilderPanel({
           : <p className="error">{picker.error}</p>
       )}
 
-      <div className={compact ? 'transcription-side-pane-action-row' : 'orthography-builder-actions'}>
+      <div className="orthography-builder-actions">
         <button
           type="button"
-          className={compact ? 'btn btn-ghost btn-sm' : 'btn btn-ghost'}
+          className="btn btn-ghost"
           disabled={picker.submitting}
           onClick={picker.cancelCreate}
         >
@@ -484,7 +484,7 @@ export function OrthographyBuilderPanel({
         </button>
         <button
           type="button"
-          className={compact ? 'btn btn-sm' : 'btn'}
+          className="btn"
           disabled={picker.submitting}
           onClick={() => {
             void picker.createOrthography();

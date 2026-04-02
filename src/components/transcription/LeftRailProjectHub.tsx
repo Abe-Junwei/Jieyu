@@ -339,7 +339,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   ) : null;
 
   const projectImportDialogNode = projectImportState ? createPortal(
-    <div className="left-rail-project-import-backdrop" role="presentation" onClick={() => {
+    <div className="dialog-overlay dialog-overlay-topmost" role="presentation" onClick={() => {
       if (!projectImportState.importing) setProjectImportState(null);
     }}>
       <div className="left-rail-project-import-dialog dialog-card dialog-card-wide" role="dialog" aria-modal="true" aria-label={t(locale, 'transcription.projectHub.importDialogTitle')} onClick={(event) => event.stopPropagation()}>
@@ -424,7 +424,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         <div className="left-rail-project-import-actions dialog-footer">
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost"
             disabled={projectImportState.importing}
             onClick={() => setProjectImportState(null)}
           >
@@ -432,7 +432,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           </button>
           <button
             type="button"
-            className="btn btn-sm"
+            className="btn"
             disabled={projectImportState.importing}
             onClick={() => {
               fireAndForget(handleConfirmProjectImport());
