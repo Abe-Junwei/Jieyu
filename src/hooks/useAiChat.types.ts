@@ -116,6 +116,7 @@ export interface ToolAuditContext {
 export type AiChatToolName =
   | 'create_transcription_segment'
   | 'split_transcription_segment'
+  | 'merge_transcription_segments'
   | 'delete_transcription_segment'
   | 'clear_translation_segment'
   | 'set_transcription_text'
@@ -150,6 +151,7 @@ export interface AiChatToolResult {
  */
 export interface PendingAiToolCall {
   call: AiChatToolCall;
+  executionCall?: AiChatToolCall;
   assistantMessageId: string;
   riskSummary?: string;
   impactPreview?: string[];
@@ -235,6 +237,7 @@ export interface AiContextDebugSnapshot {
 export interface UseAiChatOptions {
   onToolCall?: (call: AiChatToolCall) => Promise<AiChatToolResult> | AiChatToolResult;
   onToolRiskCheck?: (call: AiChatToolCall) => Promise<AiToolRiskCheckResult | null | undefined> | AiToolRiskCheckResult | null | undefined;
+  preparePendingToolCall?: (call: AiChatToolCall) => Promise<AiChatToolCall | null | undefined> | AiChatToolCall | null | undefined;
   /** Called when an assistant message completes streaming (after all content is received). */
   onMessageComplete?: (assistantMessageId: string, content: string) => void;
   systemPersonaKey?: AiSystemPersonaKey;

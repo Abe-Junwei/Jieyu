@@ -57,12 +57,16 @@ function makeParams(
     layerLinks: [],
     createLayer: vi.fn(),
     createNextUtterance: vi.fn(),
+    createTranscriptionSegment: vi.fn(),
     splitUtterance: vi.fn(),
+    splitTranscriptionSegment: vi.fn(),
     deleteUtterance: vi.fn(),
     deleteLayer: vi.fn(),
     toggleLayerLink: vi.fn(),
     saveUtteranceText: vi.fn(),
     saveTextTranslationForUtterance: vi.fn(),
+    saveSegmentContentForLayer: vi.fn(),
+    segmentTargets: [],
     transformTextForLayerWrite: vi.fn(async ({ text }) => text),
     executeAction: vi.fn(),
     getSegments: vi.fn(() => []),
@@ -97,7 +101,7 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
     await act(async () => {
       response = await result.current({
         name: 'clear_translation_segment',
-        arguments: { utteranceId: 'u1', layerId: 'layer1' },
+        arguments: { segmentIndex: 1, layerId: 'layer1' },
       });
     });
 
@@ -129,7 +133,7 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
     await act(async () => {
       response = await result.current({
         name: 'clear_translation_segment',
-        arguments: { utteranceId: 'u1', layerId: 'layer1' },
+        arguments: { segmentIndex: 1, layerId: 'layer1' },
       });
     });
 
@@ -157,7 +161,7 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
     await act(async () => {
       response = await result.current({
         name: 'clear_translation_segment',
-        arguments: { utteranceId: 'u1', layerId: 'layer1' },
+        arguments: { segmentIndex: 1, layerId: 'layer1' },
       });
     });
 
@@ -165,7 +169,7 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
     expect(saveSpy).not.toHaveBeenCalled();
   });
 
-  it('指定 utteranceId 参数时清空指定句段而非当前选中', async () => {
+  it('指定 segmentIndex 参数时清空目标句段而非当前选中', async () => {
     const selected = makeUtterance('selected-u');
     const target = makeUtterance('target-u');
     const layer = makeTranslationLayer('layer1', '英语');
@@ -186,11 +190,40 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
     await act(async () => {
       await result.current({
         name: 'clear_translation_segment',
-        arguments: { utteranceId: 'target-u', layerId: 'layer1' },
+        arguments: { segmentIndex: 2, layerId: 'layer1' },
       });
     });
 
     expect(saveSpy).toHaveBeenCalledWith('target-u', '', 'layer1');
+  });
+
+  it('resolves last segment selector when clearing translation', async () => {
+    const layer = makeTranslationLayer('layer1', '英语');
+    const saveSpy = vi.fn<(u: string, t: string, l: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [
+            { ...makeUtterance('seg-2'), startTime: 2, endTime: 3 },
+            { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
+            { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
+          ],
+          selectedLayerId: 'layer1',
+          translationLayers: [layer],
+          saveTextTranslationForUtterance: saveSpy,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current({
+        name: 'clear_translation_segment',
+        arguments: { segmentPosition: 'last', layerId: 'layer1' },
+      });
+    });
+
+    expect(saveSpy).toHaveBeenCalledWith('seg-3', '', 'layer1');
   });
 });
 
@@ -199,6 +232,220 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
 // ---------------------------------------------------------------------------
 
 describe('useAiToolCallHandler — delete_transcription_segment', () => {
+  it('uses all current utterances when allSegments is requested', async () => {
+    const deleteSelectionSpy = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [makeUtterance('seg-1'), makeUtterance('seg-2'), makeUtterance('seg-3')],
+          deleteSelectedUtterances: deleteSelectionSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'delete_transcription_segment',
+        arguments: { allSegments: true },
+      });
+    });
+
+    expect(deleteSelectionSpy).toHaveBeenCalledTimes(1);
+    expect(Array.from(deleteSelectionSpy.mock.calls[0]?.[0] ?? [])).toEqual(['seg-1', 'seg-2', 'seg-3']);
+    expect(response?.ok).toBe(true);
+    expect(response?.message).toContain('已删除 3 个句段');
+  });
+
+  it('prefers concrete segmentIds over allSegments when both are present', async () => {
+    const deleteSelectionSpy = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [makeUtterance('seg-1'), makeUtterance('seg-2'), makeUtterance('seg-3')],
+          deleteSelectedUtterances: deleteSelectionSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'delete_transcription_segment',
+        arguments: { allSegments: true, segmentIds: ['seg-2'] },
+      });
+    });
+
+    expect(deleteSelectionSpy).toHaveBeenCalledTimes(1);
+    expect(Array.from(deleteSelectionSpy.mock.calls[0]?.[0] ?? [])).toEqual(['seg-2']);
+    expect(response?.ok).toBe(true);
+    expect(response?.message).toContain('已删除 1 个句段');
+  });
+
+  it('resolves segmentIndex to the ordered utterance target', async () => {
+    const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [
+            { ...makeUtterance('seg-2'), startTime: 2, endTime: 3 },
+            { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
+            { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
+          ],
+          deleteUtterance: deleteSpy,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current({
+        name: 'delete_transcription_segment',
+        arguments: { segmentIndex: 2 },
+      });
+    });
+
+    expect(deleteSpy).toHaveBeenCalledWith('seg-2');
+  });
+
+  it('resolves segmentPosition=last to the last ordered utterance target', async () => {
+    const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [
+            { ...makeUtterance('seg-2'), startTime: 2, endTime: 3 },
+            { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
+            { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
+          ],
+          deleteUtterance: deleteSpy,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current({
+        name: 'delete_transcription_segment',
+        arguments: { segmentPosition: 'last' },
+      });
+    });
+
+    expect(deleteSpy).toHaveBeenCalledWith('seg-3');
+  });
+
+  it('resolves segmentPosition=penultimate to the penultimate utterance target', async () => {
+    const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [
+            { ...makeUtterance('seg-2'), startTime: 2, endTime: 3 },
+            { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
+            { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
+          ],
+          deleteUtterance: deleteSpy,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current({
+        name: 'delete_transcription_segment',
+        arguments: { segmentPosition: 'penultimate' },
+      });
+    });
+
+    expect(deleteSpy).toHaveBeenCalledWith('seg-2');
+  });
+
+  it('resolves previous selector relative to the selected utterance', async () => {
+    const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+    const selected = { ...makeUtterance('seg-2'), startTime: 2, endTime: 3 };
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [
+            selected,
+            { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
+            { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
+          ],
+          selectedUtterance: selected,
+          deleteUtterance: deleteSpy,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current({
+        name: 'delete_transcription_segment',
+        arguments: { segmentPosition: 'previous' },
+      });
+    });
+
+    expect(deleteSpy).toHaveBeenCalledWith('seg-1');
+  });
+
+  it('resolves next selector relative to the selected utterance', async () => {
+    const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+    const selected = { ...makeUtterance('seg-2'), startTime: 2, endTime: 3 };
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [
+            selected,
+            { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
+            { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
+          ],
+          selectedUtterance: selected,
+          deleteUtterance: deleteSpy,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current({
+        name: 'delete_transcription_segment',
+        arguments: { segmentPosition: 'next' },
+      });
+    });
+
+    expect(deleteSpy).toHaveBeenCalledWith('seg-3');
+  });
+
+  it('resolves middle selector to the middle ordered utterance target', async () => {
+    const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          utterances: [
+            { ...makeUtterance('seg-4'), startTime: 6, endTime: 7 },
+            { ...makeUtterance('seg-2'), startTime: 2, endTime: 3 },
+            { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
+            { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
+            { ...makeUtterance('seg-5'), startTime: 8, endTime: 9 },
+          ],
+          deleteUtterance: deleteSpy,
+        }),
+      ),
+    );
+
+    await act(async () => {
+      await result.current({
+        name: 'delete_transcription_segment',
+        arguments: { segmentPosition: 'middle' },
+      });
+    });
+
+    expect(deleteSpy).toHaveBeenCalledWith('seg-3');
+  });
+
   it('uses segmentId directly when deleting a routed segment target', async () => {
     const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
 
@@ -245,6 +492,164 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     expect(Array.from(deleteSelectionSpy.mock.calls[0]?.[0] ?? [])).toEqual(['seg-1', 'seg-2']);
     expect(response?.ok).toBe(true);
     expect(response?.message).toContain('已删除 2 个句段');
+  });
+});
+
+describe('useAiToolCallHandler — merge_transcription_segments', () => {
+  it('prefers mergeSelectedSegments when only segment ids are provided', async () => {
+    const mergeSelectedUtterances = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
+    const mergeSelectedSegments = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          mergeSelectedUtterances,
+          mergeSelectedSegments,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'merge_transcription_segments',
+        arguments: { segmentIds: ['seg-a', 'seg-b'] },
+      });
+    });
+
+    expect(mergeSelectedSegments).toHaveBeenCalledTimes(1);
+    expect(Array.from(mergeSelectedSegments.mock.calls[0]?.[0] ?? [])).toEqual(['seg-a', 'seg-b']);
+    expect(mergeSelectedUtterances).not.toHaveBeenCalled();
+    expect(response?.ok).toBe(true);
+  });
+
+  it('falls back to mergeSelectedUtterances when segment merge executor is unavailable', async () => {
+    const mergeSelectedUtterances = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          mergeSelectedUtterances,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'merge_transcription_segments',
+        arguments: { segmentIds: ['seg-a', 'seg-b'] },
+      });
+    });
+
+    expect(mergeSelectedUtterances).toHaveBeenCalledTimes(1);
+    expect(Array.from(mergeSelectedUtterances.mock.calls[0]?.[0] ?? [])).toEqual(['seg-a', 'seg-b']);
+    expect(response?.ok).toBe(true);
+    expect(response?.message).toContain('2');
+  });
+
+  it('returns failure result when segment merge executor rejects', async () => {
+    const mergeSelectedSegments = vi.fn<(ids: Set<string>) => Promise<void>>().mockRejectedValue(new Error('请先选择相邻句段再执行合并。'));
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          mergeSelectedSegments,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'merge_transcription_segments',
+        arguments: { segmentIds: ['seg-a', 'seg-c'] },
+      });
+    });
+
+    expect(response).toEqual({ ok: false, message: '请先选择相邻句段再执行合并。' });
+  });
+
+  it('rejects batch merge when fewer than two targets are provided', async () => {
+    const mergeSelectedUtterances = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          mergeSelectedUtterances,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'merge_transcription_segments',
+        arguments: { segmentIds: ['seg-a'] },
+      });
+    });
+
+    expect(mergeSelectedUtterances).not.toHaveBeenCalled();
+    expect(response?.ok).toBe(false);
+    expect(response?.message).toContain('至少需要选中 2 个句段');
+  });
+
+  it('routes merge_prev to an explicit segment target instead of the current selection action', async () => {
+    const mergeWithPrevious = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+    const executeAction = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          mergeWithPrevious,
+          executeAction,
+          segmentTargets: [
+            { id: 'seg-2', kind: 'segment', startTime: 2, endTime: 3, text: '第二段' },
+          ],
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'merge_prev',
+        arguments: { segmentId: 'seg-2' },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(mergeWithPrevious).toHaveBeenCalledWith('seg-2');
+    expect(executeAction).not.toHaveBeenCalled();
+  });
+
+  it('routes merge_next to an explicit segment target instead of the current selection action', async () => {
+    const mergeWithNext = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+    const executeAction = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          mergeWithNext,
+          executeAction,
+          segmentTargets: [
+            { id: 'seg-2', kind: 'segment', startTime: 2, endTime: 3, text: '第二段' },
+          ],
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'merge_next',
+        arguments: { segmentId: 'seg-2' },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(mergeWithNext).toHaveBeenCalledWith('seg-2');
+    expect(executeAction).not.toHaveBeenCalled();
   });
 });
 
@@ -296,7 +701,69 @@ describe('useAiToolCallHandler — auto_gloss_utterance', () => {
 });
 
 describe('useAiToolCallHandler — strict target requirements', () => {
-  it('rejects set_transcription_text without utteranceId', async () => {
+  it('writes segment-backed transcription text via saveSegmentContentForLayer', async () => {
+    const saveSegmentContentForLayer = vi.fn<(segmentId: string, layerId: string, value: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          selectedLayerId: 'layer-seg',
+          transcriptionLayers: [{
+            id: 'layer-seg',
+            textId: 't1',
+            key: 'layer-seg',
+            name: { zho: '独立转写层' },
+            layerType: 'transcription',
+            languageId: 'zho',
+            modality: 'text',
+            createdAt: NOW,
+            updatedAt: NOW,
+          } as LayerDocType],
+          saveSegmentContentForLayer,
+          transformTextForLayerWrite: vi.fn(async ({ text }) => `xf:${text}`),
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'set_transcription_text',
+        arguments: { segmentId: 'seg-1', text: '新的句段文本' },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(saveSegmentContentForLayer).toHaveBeenCalledWith('seg-1', 'layer-seg', 'xf:新的句段文本');
+  });
+
+  it('clears segment-backed translation text via saveSegmentContentForLayer', async () => {
+    const saveSegmentContentForLayer = vi.fn<(segmentId: string, layerId: string, value: string) => Promise<void>>().mockResolvedValue(undefined);
+    const layer = makeTranslationLayer('layer-tr', '普通话');
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          selectedLayerId: 'layer-tr',
+          translationLayers: [layer],
+          saveSegmentContentForLayer,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'clear_translation_segment',
+        arguments: { segmentId: 'seg-9', layerId: 'layer-tr' },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(saveSegmentContentForLayer).toHaveBeenCalledWith('seg-9', 'layer-tr', '');
+  });
+
+  it('rejects set_transcription_text without segmentId', async () => {
     const utterance = makeUtterance('u1');
     const saveSpy = vi.fn<(u: string, t: string, l?: string) => Promise<void>>().mockResolvedValue(undefined);
 
@@ -316,7 +783,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     });
 
     expect(response?.ok).toBe(false);
-    expect(response?.message).toContain('缺少 utteranceId');
+    expect(response?.message).toContain('缺少 segmentId');
     expect(saveSpy).not.toHaveBeenCalled();
   });
 
@@ -337,7 +804,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
       response = await result.current({ name: 'delete_layer', arguments: {} });
     });
     expect(response?.ok).toBe(false);
-    expect(response?.message).toContain('缺少 layerId');
+    expect(response?.message).toContain('缺少层编号');
 
     await act(async () => {
       response = await result.current({ name: 'delete_layer', arguments: { layerId: 'missing-layer' } });
@@ -485,31 +952,50 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     });
 
     expect(response?.ok).toBe(false);
-    expect(response?.message).toContain('缺少 utteranceId');
+    expect(response?.message).toContain('缺少目标句段编号');
     expect(createNextSpy).not.toHaveBeenCalled();
   });
 
-  it('rejects split_transcription_segment when splitTime is missing', async () => {
-    const utterance = {
-      ...makeUtterance('u1'),
-      startTime: 10,
-      endTime: 14,
-    } as UtteranceDocType;
-    const splitSpy = vi.fn<(id: string, splitTime: number) => Promise<void>>().mockResolvedValue(undefined);
+  it('creates segment-backed transcription segments through routed createTranscriptionSegment', async () => {
+    const createSegmentSpy = vi.fn<(targetId: string) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [utterance],
-          selectedUtterance: utterance,
-          splitUtterance: splitSpy,
+          createTranscriptionSegment: createSegmentSpy,
+          segmentTargets: [
+            { id: 'seg-2', kind: 'segment', startTime: 2, endTime: 3, text: '第二段' },
+          ],
         }),
       ),
     );
 
     let response: Awaited<ReturnType<typeof result.current>> | undefined;
     await act(async () => {
-      response = await result.current({ name: 'split_transcription_segment', arguments: { utteranceId: 'u1' } });
+      response = await result.current({ name: 'create_transcription_segment', arguments: { segmentId: 'seg-2' } });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(createSegmentSpy).toHaveBeenCalledWith('seg-2');
+  });
+
+  it('rejects split_transcription_segment when splitTime is missing', async () => {
+    const splitSpy = vi.fn<(id: string, splitTime: number) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          splitTranscriptionSegment: splitSpy,
+          segmentTargets: [
+            { id: 'seg-1', kind: 'segment', startTime: 10, endTime: 14, text: '第一段' },
+          ],
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({ name: 'split_transcription_segment', arguments: { segmentId: 'seg-1' } });
     });
 
     expect(response?.ok).toBe(false);
@@ -518,19 +1004,15 @@ describe('useAiToolCallHandler — strict target requirements', () => {
   });
 
   it('rejects split_transcription_segment when splitTime is out of range', async () => {
-    const utterance = {
-      ...makeUtterance('u1'),
-      startTime: 2,
-      endTime: 3,
-    } as UtteranceDocType;
     const splitSpy = vi.fn<(id: string, splitTime: number) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [utterance],
-          selectedUtterance: utterance,
-          splitUtterance: splitSpy,
+          splitTranscriptionSegment: splitSpy,
+          segmentTargets: [
+            { id: 'seg-1', kind: 'segment', startTime: 2, endTime: 3, text: '第一段' },
+          ],
         }),
       ),
     );
@@ -539,13 +1021,39 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     await act(async () => {
       response = await result.current({
         name: 'split_transcription_segment',
-        arguments: { utteranceId: 'u1', splitTime: 2.01 },
+        arguments: { segmentId: 'seg-1', splitTime: 2.01 },
       });
     });
 
     expect(response?.ok).toBe(false);
     expect(response?.message).toContain('切分点不在可用范围内');
     expect(splitSpy).not.toHaveBeenCalled();
+  });
+
+  it('splits segment-backed transcription segments through routed splitTranscriptionSegment', async () => {
+    const splitSegmentSpy = vi.fn<(targetId: string, splitTime: number) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          splitTranscriptionSegment: splitSegmentSpy,
+          segmentTargets: [
+            { id: 'seg-2', kind: 'segment', startTime: 2, endTime: 3, text: '第二段' },
+          ],
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'split_transcription_segment',
+        arguments: { segmentId: 'seg-2', splitTime: 2.5 },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(splitSegmentSpy).toHaveBeenCalledWith('seg-2', 2.5);
   });
 
   it('rejects auto_gloss_utterance without utteranceId', async () => {
@@ -588,13 +1096,13 @@ describe('useAiToolCallHandler — strict target requirements', () => {
       response = await result.current({ name: 'link_translation_layer', arguments: {} });
     });
     expect(response?.ok).toBe(false);
-    expect(response?.message).toContain('缺少 transcriptionLayerId/transcriptionLayerKey');
+    expect(response?.message).toContain('缺少目标转写层信息');
 
     await act(async () => {
       response = await result.current({ name: 'unlink_translation_layer', arguments: { transcriptionLayerId: 'trc-1' } });
     });
     expect(response?.ok).toBe(false);
-    expect(response?.message).toContain('缺少 translationLayerId/layerId');
+    expect(response?.message).toContain('缺少目标翻译层信息');
     expect(toggleSpy).not.toHaveBeenCalled();
   });
 
@@ -648,7 +1156,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     });
 
     expect(response?.ok).toBe(false);
-    expect(response?.message).toContain('缺少 translationLayerId/layerId');
+    expect(response?.message).toContain('缺少目标翻译层信息');
     expect(toggleSpy).not.toHaveBeenCalled();
   });
 
@@ -773,7 +1281,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     await act(async () => {
       await result.current({
         name: 'set_translation_text',
-        arguments: { utteranceId: 'u1', layerId: 'trl-eng', text: 'abc' },
+        arguments: { segmentIndex: 1, layerId: 'trl-eng', text: 'abc' },
       });
     });
 
@@ -814,7 +1322,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     await act(async () => {
       await result.current({
         name: 'set_transcription_text',
-        arguments: { utteranceId: 'u1', text: 'source text' },
+        arguments: { segmentIndex: 1, text: 'source text' },
       });
     });
 

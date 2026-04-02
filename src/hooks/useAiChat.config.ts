@@ -43,8 +43,8 @@ The tool call should have this structure:
 }
 
 Available tools:
-- create_transcription_segment: Create a new segment at a time point
-- split_transcription_segment: Split an existing segment at a position
+- create_transcription_segment: Create a new segment after a target segment
+- split_transcription_segment: Split an existing target segment at a position
 - delete_transcription_segment: Delete a segment
 - clear_translation_segment: Clear translation text
 - set_transcription_text: Set the text of a transcription segment

@@ -3,6 +3,7 @@
  * Replaces manual JSON extraction + type guards with structured validation.
  */
 import { z } from 'zod';
+import { decodeEscapedUnicode } from '../../utils/decodeEscapedUnicode';
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
@@ -23,49 +24,85 @@ const LanguageQuery = z.string().trim().min(1).max(32).optional();
 const Form = z.string().trim().min(1).max(128).optional();
 const Pos = z.string().trim().min(1).max(32).optional();
 const Gloss = z.string().trim().max(256).optional();
+const SegmentIndex = z.number().int().min(1).optional();
+const SegmentPosition = z.enum(['last', 'previous', 'next', 'penultimate', 'middle']).optional();
+
+const SegmentTargetShape = {
+  segmentId: IdString.optional(),
+  segmentIndex: SegmentIndex,
+  segmentPosition: SegmentPosition,
+} as const;
+
+function refineSegmentTarget(
+  args: {
+    segmentId?: string | undefined;
+    segmentIndex?: number | undefined;
+    segmentPosition?: 'last' | 'previous' | 'next' | 'penultimate' | 'middle' | undefined;
+  },
+  ctx: z.RefinementCtx,
+): void {
+  const hasIdTarget = Boolean(args.segmentId);
+  const hasSelectorTarget = typeof args.segmentIndex === 'number' || Boolean(args.segmentPosition);
+  if (!hasIdTarget && !hasSelectorTarget) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: '\u9700\u8981 segmentId / segmentIndex / segmentPosition \u4e4b\u4e00\u3002',
+    });
+  }
+}
 
 // ─── Per-tool argument schemas ────────────────────────────────────────────────
 
-export const createTranscriptionSegmentSchema = z.object({
-  utteranceId: IdString,
-});
+export const createTranscriptionSegmentSchema = z.object(SegmentTargetShape).superRefine(refineSegmentTarget);
 
 export const splitTranscriptionSegmentSchema = z.object({
-  utteranceId: IdString,
+  ...SegmentTargetShape,
   splitTime: SplitTime,
+}).superRefine(refineSegmentTarget);
+
+export const mergeTranscriptionSegmentsSchema = z.object({
+  segmentIds: IdStringArray.optional(),
+}).superRefine((args, ctx) => {
+  const targetCount = args.segmentIds?.length ?? 0;
+  if (targetCount < 2) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: decodeEscapedUnicode('\u9700\u8981\u81f3\u5c11 2 \u4e2a\u53e5\u6bb5 ID \u624d\u80fd\u5408\u5e76\u3002'),
+    });
+  }
 });
 
 export const deleteTranscriptionSegmentSchema = z.object({
-  utteranceId: IdString.optional(),
-  segmentId: IdString.optional(),
-  utteranceIds: IdStringArray.optional(),
+  ...SegmentTargetShape,
   segmentIds: IdStringArray.optional(),
+  allSegments: z.boolean().optional(),
 }).superRefine((args, ctx) => {
-  const hasSingleTarget = Boolean(args.utteranceId) || Boolean(args.segmentId);
-  const hasBatchTarget = Boolean(args.utteranceIds?.length) || Boolean(args.segmentIds?.length);
-  if (!hasSingleTarget && !hasBatchTarget) {
+  const hasSingleTarget = Boolean(args.segmentId) || typeof args.segmentIndex === 'number' || Boolean(args.segmentPosition);
+  const hasBatchTarget = Boolean(args.segmentIds?.length);
+  const hasGlobalTarget = args.allSegments === true;
+  if (!hasSingleTarget && !hasBatchTarget && !hasGlobalTarget) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: '\u9700\u8981 utteranceId / segmentId / utteranceIds / segmentIds \u4e4b\u4e00\u3002',
+      message: '\u9700\u8981 segmentId / segmentIds / allSegments \u4e4b\u4e00\u3002',
     });
   }
 });
 
 export const clearTranslationSegmentSchema = z.object({
-  utteranceId: IdString,
+  ...SegmentTargetShape,
   layerId: IdString,
-});
+}).superRefine(refineSegmentTarget);
 
 export const setTranscriptionTextSchema = z.object({
-  utteranceId: IdString,
+  ...SegmentTargetShape,
   text: TextString,
-});
+}).superRefine(refineSegmentTarget);
 
 export const setTranslationTextSchema = z.object({
-  utteranceId: IdString,
+  ...SegmentTargetShape,
   layerId: IdString,
   text: TextString,
-});
+}).superRefine(refineSegmentTarget);
 
 export const createTranscriptionLayerSchema = z.object({
   languageId: LanguageId,
@@ -125,9 +162,7 @@ export const unlinkTranslationLayerSchema = z.object({
   }
 });
 
-export const autoGlossUtteranceSchema = z.object({
-  utteranceId: IdString,
-});
+export const autoGlossUtteranceSchema = z.object(SegmentTargetShape).superRefine(refineSegmentTarget);
 
 export const setTokenPosSchema = z.object({
   tokenId: IdString.optional(),
@@ -178,6 +213,7 @@ const SEGMENT_OR_UTTERANCE_TARGET_SCHEMA = z.object({
 export const toolArgumentSchemas = {
   create_transcription_segment: createTranscriptionSegmentSchema,
   split_transcription_segment: splitTranscriptionSegmentSchema,
+  merge_transcription_segments: mergeTranscriptionSegmentsSchema,
   delete_transcription_segment: deleteTranscriptionSegmentSchema,
   clear_translation_segment: clearTranslationSegmentSchema,
   set_transcription_text: setTranscriptionTextSchema,

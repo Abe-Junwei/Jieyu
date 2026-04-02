@@ -45,6 +45,7 @@ interface ResolveToolDecisionPipelineParams {
   planner?: Parameters<typeof buildToolAuditContext>[5];
   allowDestructiveToolCalls: boolean;
   onToolRiskCheck?: ((call: AiChatToolCall) => Promise<AiToolRiskCheckResult | null | undefined> | AiToolRiskCheckResult | null | undefined) | null | undefined;
+  preparePendingToolCall?: ((call: AiChatToolCall) => Promise<AiChatToolCall | null | undefined> | AiChatToolCall | null | undefined) | null | undefined;
   onToolCall?: ((call: AiChatToolCall) => Promise<{ ok: boolean; message: string }> | { ok: boolean; message: string }) | null | undefined;
   hasPersistedExecutionForRequest: (requestId: string) => Promise<boolean>;
   writeToolDecisionAuditLog: (
@@ -96,6 +97,7 @@ export async function resolveToolDecisionPipeline({
   planner,
   allowDestructiveToolCalls,
   onToolRiskCheck,
+  preparePendingToolCall,
   onToolCall,
   hasPersistedExecutionForRequest,
   writeToolDecisionAuditLog,
@@ -272,13 +274,15 @@ export async function resolveToolDecisionPipeline({
   }
 
   const gateOutcome = await resolveDestructiveGate({
-      assistantMessageId,
-      toolCall,
-      auditContext,
-      locale,
-      toolFeedbackStyle,
+    assistantMessageId,
+    toolCall,
+    aiContext,
+    auditContext,
+    locale,
+    toolFeedbackStyle,
     allowDestructiveToolCalls,
     ...(onToolRiskCheck ? { onToolRiskCheck } : {}),
+    ...(preparePendingToolCall ? { preparePendingToolCall } : {}),
     writeToolDecisionAuditLog,
     setTaskSession,
     setPendingToolCall: (value) => {
@@ -304,11 +308,11 @@ export async function resolveToolDecisionPipeline({
   }
 
   const autoExecution = await executeAutoToolCall({
-      assistantMessageId,
-      toolCall,
-      auditContext,
-      locale,
-      toolFeedbackStyle,
+    assistantMessageId,
+    toolCall,
+    auditContext,
+    locale,
+    toolFeedbackStyle,
     ...(onToolCall ? { onToolCall } : {}),
     writeToolDecisionAuditLog,
     setTaskSession,

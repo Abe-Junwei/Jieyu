@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import { useTranscriptionAiController } from './useTranscriptionAiController';
 
 const {
@@ -76,6 +76,125 @@ function makeUtterance(): UtteranceDocType {
   } as UtteranceDocType;
 }
 
+function makeUtteranceWithId(id: string, mediaId: string): UtteranceDocType {
+  return {
+    id,
+    textId: 'text-1',
+    mediaId,
+    startTime: id === 'utt-1' ? 0 : 10,
+    endTime: id === 'utt-1' ? 1 : 11,
+    createdAt: '2026-03-31T00:00:00.000Z',
+    updatedAt: '2026-03-31T00:00:00.000Z',
+  } as UtteranceDocType;
+}
+
+function makeSegment(id: string, layerId: string, startTime: number, endTime: number): LayerSegmentDocType {
+  return {
+    id,
+    textId: 'text-1',
+    mediaId: 'media-1',
+    layerId,
+    startTime,
+    endTime,
+    createdAt: '2026-03-31T00:00:00.000Z',
+    updatedAt: '2026-03-31T00:00:00.000Z',
+  } as LayerSegmentDocType;
+}
+
+function renderIndependentSegmentTimelineController(overrides?: {
+  selectedSegmentId?: string;
+  selectedSegmentText?: string;
+  mergeWithPrevious?: (id: string) => Promise<void>;
+  mergeWithNext?: (id: string) => Promise<void>;
+}) {
+  const handler = vi.fn(async () => ({ ok: true, message: 'ok' }));
+  mockUseAiToolCallHandler.mockImplementation(() => handler);
+
+  renderHook(() => useTranscriptionAiController({
+    utterances: [makeUtteranceWithId('utt-1', 'media-1')],
+    utterancesOnCurrentMedia: [makeUtteranceWithId('utt-1', 'media-1')],
+    selectedUnitIds: new Set([overrides?.selectedSegmentId ?? 'seg-2']),
+    selectedUtterance: null,
+    selectedTimelineOwnerUtterance: null,
+    selectedTimelineSegment: makeSegment(overrides?.selectedSegmentId ?? 'seg-2', 'layer-independent', 2, 3),
+    selectedLayerId: 'layer-independent',
+    activeLayerIdForEdits: 'layer-independent',
+    resolveSegmentRoutingForLayer: () => ({
+      layer: undefined,
+      segmentSourceLayer: undefined,
+      sourceLayerId: 'layer-independent',
+      editMode: 'independent-segment',
+    }),
+    segmentsByLayer: new Map([
+      ['layer-independent', [
+        makeSegment('seg-1', 'layer-independent', 0, 1),
+        makeSegment('seg-2', 'layer-independent', 2, 3),
+        makeSegment('seg-3', 'layer-independent', 4, 5),
+      ]],
+    ]),
+    segmentContentByLayer: new Map([
+      ['layer-independent', new Map([
+        ['seg-1', { text: '第一段' }],
+        ['seg-2', { text: overrides?.selectedSegmentText ?? '第二段' }],
+        ['seg-3', { text: '第三段' }],
+      ])],
+    ]),
+    selectionSnapshot: {
+      timelineUnit: { layerId: 'layer-independent', unitId: overrides?.selectedSegmentId ?? 'seg-2', kind: 'segment' },
+      selectedUnitKind: 'segment',
+      activeUtteranceUnitId: null,
+      selectedUtterance: null,
+      selectedRowMeta: null,
+      selectedLayerId: 'layer-independent',
+      selectedText: overrides?.selectedSegmentText ?? '第二段',
+    },
+    layers: [],
+    transcriptionLayers: [],
+    translationLayers: [],
+    layerLinks: [],
+    getUtteranceTextForLayer: () => '',
+    formatTime: (seconds) => `${seconds}`,
+    utteranceCount: 1,
+    translationLayerCount: 0,
+    aiConfidenceAvg: null,
+    undoHistory: [],
+    createLayerWithActiveContext: vi.fn(async () => true),
+    createTranscriptionSegment: vi.fn(async () => undefined),
+    splitTranscriptionSegment: vi.fn(async () => undefined),
+    ...(overrides?.mergeWithPrevious ? { mergeWithPrevious: overrides.mergeWithPrevious } : {}),
+    ...(overrides?.mergeWithNext ? { mergeWithNext: overrides.mergeWithNext } : {}),
+    mergeSelectedUtterances: vi.fn(async () => undefined),
+    deleteUtterance: vi.fn(async () => undefined),
+    deleteSelectedUtterances: vi.fn(async () => undefined),
+    deleteLayer: vi.fn(async () => undefined),
+    toggleLayerLink: vi.fn(async () => undefined),
+    saveUtteranceText: vi.fn(async () => undefined),
+    saveTextTranslationForUtterance: vi.fn(async () => undefined),
+    saveSegmentContentForLayer: vi.fn(async () => undefined),
+    updateTokenPos: vi.fn(),
+    batchUpdateTokenPosByForm: vi.fn(async () => 0),
+    updateTokenGloss: vi.fn(),
+    selectUtterance: vi.fn(),
+    setSaveState: vi.fn(),
+    translationDrafts: {},
+    translationTextByLayer: new Map(),
+    locale: 'zh-CN',
+    playerCurrentTime: 0,
+    executeActionRef: { current: undefined },
+    openSearchRef: { current: undefined },
+    seekToTimeRef: { current: undefined },
+    splitAtTimeRef: { current: undefined },
+    zoomToSegmentRef: { current: undefined },
+    handleExecuteRecommendation: vi.fn(),
+  }));
+
+  const latestAiChatCall = mockUseAiChat.mock.calls[mockUseAiChat.mock.calls.length - 1];
+  return {
+    handler,
+    aiChatOptions: latestAiChatCall?.[0],
+  };
+}
+
 describe('useTranscriptionAiController', () => {
   beforeEach(() => {
     mockUseAiToolCallHandler.mockImplementation(() => vi.fn());
@@ -122,6 +241,7 @@ describe('useTranscriptionAiController', () => {
 
     renderHook(() => useTranscriptionAiController({
       utterances: [utterance],
+      utterancesOnCurrentMedia: [utterance],
       selectedUnitIds: new Set([utterance.id]),
       selectedUtterance: utterance,
       selectedTimelineOwnerUtterance: utterance,
@@ -146,8 +266,9 @@ describe('useTranscriptionAiController', () => {
       aiConfidenceAvg: null,
       undoHistory: [],
       createLayerWithActiveContext: vi.fn(async () => true),
-      createNextUtterance: vi.fn(async () => undefined),
-      splitUtterance: vi.fn(async () => undefined),
+      createTranscriptionSegment: vi.fn(async () => undefined),
+      splitTranscriptionSegment: vi.fn(async () => undefined),
+      mergeSelectedUtterances: vi.fn(async () => undefined),
       deleteUtterance: vi.fn(async () => undefined),
       deleteSelectedUtterances: vi.fn(async () => undefined),
       deleteLayer: vi.fn(async () => undefined),
@@ -188,5 +309,445 @@ describe('useTranscriptionAiController', () => {
       selectedLayerId: '',
       fallbackSourceOrthographyId: 'orth-source',
     });
+  });
+
+  it('scopes delete-all preview and snapshot to utterances on current media', () => {
+    const currentMediaUtterance = makeUtteranceWithId('utt-1', 'media-1');
+    const otherMediaUtterance = makeUtteranceWithId('utt-2', 'media-2');
+
+    renderHook(() => useTranscriptionAiController({
+      utterances: [currentMediaUtterance, otherMediaUtterance],
+      utterancesOnCurrentMedia: [currentMediaUtterance],
+      selectedUnitIds: new Set([currentMediaUtterance.id]),
+      selectedUtterance: currentMediaUtterance,
+      selectedTimelineOwnerUtterance: currentMediaUtterance,
+      selectedLayerId: '',
+      selectionSnapshot: {
+        timelineUnit: null,
+        selectedUnitKind: null,
+        activeUtteranceUnitId: currentMediaUtterance.id,
+        selectedUtterance: currentMediaUtterance,
+        selectedRowMeta: null,
+        selectedLayerId: null,
+        selectedText: '',
+      },
+      layers: [],
+      transcriptionLayers: [],
+      translationLayers: [],
+      layerLinks: [],
+      getUtteranceTextForLayer: (utterance) => utterance.id === 'utt-1' ? '当前页句段' : '其他页句段',
+      formatTime: (seconds) => `${seconds}`,
+      utteranceCount: 2,
+      translationLayerCount: 1,
+      aiConfidenceAvg: null,
+      undoHistory: [],
+      createLayerWithActiveContext: vi.fn(async () => true),
+      createTranscriptionSegment: vi.fn(async () => undefined),
+      splitTranscriptionSegment: vi.fn(async () => undefined),
+      mergeSelectedUtterances: vi.fn(async () => undefined),
+      deleteUtterance: vi.fn(async () => undefined),
+      deleteSelectedUtterances: vi.fn(async () => undefined),
+      deleteLayer: vi.fn(async () => undefined),
+      toggleLayerLink: vi.fn(async () => undefined),
+      saveUtteranceText: vi.fn(async () => undefined),
+      saveTextTranslationForUtterance: vi.fn(async () => undefined),
+      saveSegmentContentForLayer: vi.fn(async () => undefined),
+      updateTokenPos: vi.fn(),
+      batchUpdateTokenPosByForm: vi.fn(async () => 0),
+      updateTokenGloss: vi.fn(),
+      selectUtterance: vi.fn(),
+      setSaveState: vi.fn(),
+      translationDrafts: {},
+      translationTextByLayer: new Map([
+        ['layer-1', new Map([
+          ['utt-1', { text: '保留当前页翻译' }],
+          ['utt-2', { text: '不应计入预演' }],
+        ])],
+      ]),
+      locale: 'zh-CN',
+      playerCurrentTime: 0,
+      executeActionRef: { current: undefined },
+      openSearchRef: { current: undefined },
+      seekToTimeRef: { current: undefined },
+      splitAtTimeRef: { current: undefined },
+      zoomToSegmentRef: { current: undefined },
+      handleExecuteRecommendation: vi.fn(),
+    }));
+
+    const latestToolCallHandlerCall = mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
+    const toolHandlerInput = latestToolCallHandlerCall?.[0];
+    expect(toolHandlerInput?.utterances).toEqual([currentMediaUtterance]);
+    expect(toolHandlerInput?.getSegments()).toEqual([currentMediaUtterance]);
+
+    const latestAiChatCall = mockUseAiChat.mock.calls[mockUseAiChat.mock.calls.length - 1];
+    const aiChatOptions = latestAiChatCall?.[0];
+    expect(aiChatOptions).toBeTruthy();
+
+    const preparedCall = aiChatOptions.preparePendingToolCall({
+      name: 'delete_transcription_segment',
+      arguments: { allSegments: true },
+    });
+    expect(preparedCall.arguments.segmentIds).toEqual(['utt-1']);
+
+    const riskCheck = aiChatOptions.onToolRiskCheck({
+      name: 'delete_transcription_segment',
+      arguments: { allSegments: true },
+    });
+    expect(riskCheck?.riskSummary).toContain('将删除第 1 条句段');
+    expect(riskCheck?.impactPreview?.[1]).toContain('1 个翻译层包含内容');
+  });
+
+  it('still scopes AI segment resolution to current media when there is no selected segment', () => {
+    const currentMediaUtterance = makeUtteranceWithId('utt-1', 'media-1');
+    const otherMediaUtterance = makeUtteranceWithId('utt-2', 'media-2');
+
+    renderHook(() => useTranscriptionAiController({
+      utterances: [currentMediaUtterance, otherMediaUtterance],
+      utterancesOnCurrentMedia: [currentMediaUtterance],
+      selectedUnitIds: new Set(),
+      selectedUtterance: null,
+      selectedTimelineOwnerUtterance: null,
+      selectedLayerId: '',
+      selectionSnapshot: {
+        timelineUnit: null,
+        selectedUnitKind: null,
+        activeUtteranceUnitId: null,
+        selectedUtterance: null,
+        selectedRowMeta: null,
+        selectedLayerId: null,
+        selectedText: '',
+      },
+      layers: [],
+      transcriptionLayers: [],
+      translationLayers: [],
+      layerLinks: [],
+      getUtteranceTextForLayer: (utterance) => utterance.id === 'utt-1' ? '当前页句段' : '其他页句段',
+      formatTime: (seconds) => `${seconds}`,
+      utteranceCount: 2,
+      translationLayerCount: 1,
+      aiConfidenceAvg: null,
+      undoHistory: [],
+      createLayerWithActiveContext: vi.fn(async () => true),
+      createTranscriptionSegment: vi.fn(async () => undefined),
+      splitTranscriptionSegment: vi.fn(async () => undefined),
+      mergeSelectedUtterances: vi.fn(async () => undefined),
+      deleteUtterance: vi.fn(async () => undefined),
+      deleteSelectedUtterances: vi.fn(async () => undefined),
+      deleteLayer: vi.fn(async () => undefined),
+      toggleLayerLink: vi.fn(async () => undefined),
+      saveUtteranceText: vi.fn(async () => undefined),
+      saveTextTranslationForUtterance: vi.fn(async () => undefined),
+      saveSegmentContentForLayer: vi.fn(async () => undefined),
+      updateTokenPos: vi.fn(),
+      batchUpdateTokenPosByForm: vi.fn(async () => 0),
+      updateTokenGloss: vi.fn(),
+      selectUtterance: vi.fn(),
+      setSaveState: vi.fn(),
+      translationDrafts: {},
+      translationTextByLayer: new Map(),
+      locale: 'zh-CN',
+      playerCurrentTime: 0,
+      executeActionRef: { current: undefined },
+      openSearchRef: { current: undefined },
+      seekToTimeRef: { current: undefined },
+      splitAtTimeRef: { current: undefined },
+      zoomToSegmentRef: { current: undefined },
+      handleExecuteRecommendation: vi.fn(),
+    }));
+
+    const latestToolCallHandlerCall = mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
+    const toolHandlerInput = latestToolCallHandlerCall?.[0];
+    expect(toolHandlerInput?.utterances).toEqual([currentMediaUtterance]);
+    expect(toolHandlerInput?.selectedUtterance).toBeUndefined();
+
+    const latestAiChatCall = mockUseAiChat.mock.calls[mockUseAiChat.mock.calls.length - 1];
+    const aiChatOptions = latestAiChatCall?.[0];
+    expect(aiChatOptions).toBeTruthy();
+
+    const preparedCall = aiChatOptions.preparePendingToolCall({
+      name: 'delete_transcription_segment',
+      arguments: { segmentIndex: 1 },
+    });
+    expect(preparedCall.arguments.segmentId).toBe('utt-1');
+    expect(preparedCall.arguments.segmentIndex).toBeUndefined();
+
+    const riskCheck = aiChatOptions.onToolRiskCheck({
+      name: 'delete_transcription_segment',
+      arguments: { segmentIndex: 1 },
+    });
+    expect(riskCheck?.riskSummary).toContain('第 1 条句段');
+  });
+
+  it('recovers a previewable AI segment scope from the project when current-media utterances are temporarily empty', () => {
+    const utterance1 = makeUtteranceWithId('utt-1', 'media-1');
+    const utterance2 = {
+      ...makeUtteranceWithId('utt-2', 'media-1'),
+      startTime: 2,
+      endTime: 3,
+    } as UtteranceDocType;
+
+    renderHook(() => useTranscriptionAiController({
+      utterances: [utterance1, utterance2],
+      utterancesOnCurrentMedia: [],
+      selectedUnitIds: new Set(),
+      selectedUtterance: null,
+      selectedTimelineOwnerUtterance: null,
+      selectedLayerId: '',
+      selectionSnapshot: {
+        timelineUnit: null,
+        selectedUnitKind: null,
+        activeUtteranceUnitId: null,
+        selectedUtterance: null,
+        selectedRowMeta: null,
+        selectedLayerId: null,
+        selectedText: '',
+      },
+      layers: [],
+      transcriptionLayers: [],
+      translationLayers: [],
+      layerLinks: [],
+      getUtteranceTextForLayer: (utterance) => utterance.id,
+      formatTime: (seconds) => `${seconds}`,
+      utteranceCount: 2,
+      translationLayerCount: 0,
+      aiConfidenceAvg: null,
+      undoHistory: [],
+      createLayerWithActiveContext: vi.fn(async () => true),
+      createTranscriptionSegment: vi.fn(async () => undefined),
+      splitTranscriptionSegment: vi.fn(async () => undefined),
+      mergeSelectedUtterances: vi.fn(async () => undefined),
+      deleteUtterance: vi.fn(async () => undefined),
+      deleteSelectedUtterances: vi.fn(async () => undefined),
+      deleteLayer: vi.fn(async () => undefined),
+      toggleLayerLink: vi.fn(async () => undefined),
+      saveUtteranceText: vi.fn(async () => undefined),
+      saveTextTranslationForUtterance: vi.fn(async () => undefined),
+      saveSegmentContentForLayer: vi.fn(async () => undefined),
+      updateTokenPos: vi.fn(),
+      batchUpdateTokenPosByForm: vi.fn(async () => 0),
+      updateTokenGloss: vi.fn(),
+      selectUtterance: vi.fn(),
+      setSaveState: vi.fn(),
+      translationDrafts: {},
+      translationTextByLayer: new Map(),
+      locale: 'zh-CN',
+      playerCurrentTime: 0,
+      executeActionRef: { current: undefined },
+      openSearchRef: { current: undefined },
+      seekToTimeRef: { current: undefined },
+      splitAtTimeRef: { current: undefined },
+      zoomToSegmentRef: { current: undefined },
+      handleExecuteRecommendation: vi.fn(),
+    }));
+
+    const latestToolCallHandlerCall = mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
+    const toolHandlerInput = latestToolCallHandlerCall?.[0];
+    expect(toolHandlerInput?.utterances).toEqual([utterance1, utterance2]);
+
+    const latestAiChatCall = mockUseAiChat.mock.calls[mockUseAiChat.mock.calls.length - 1];
+    const aiChatOptions = latestAiChatCall?.[0];
+    expect(aiChatOptions).toBeTruthy();
+
+    const preparedCall = aiChatOptions.preparePendingToolCall({
+      name: 'delete_transcription_segment',
+      arguments: { segmentIndex: 1 },
+    });
+    expect(preparedCall.arguments.segmentId).toBe('utt-1');
+
+    const riskCheck = aiChatOptions.onToolRiskCheck({
+      name: 'delete_transcription_segment',
+      arguments: { segmentIndex: 1 },
+    });
+    expect(riskCheck?.requiresConfirmation).toBe(true);
+    expect(riskCheck?.riskSummary).toContain('第 1 条句段');
+  });
+
+  it('materializes and previews delete selectors against independent layer segments on the current timeline', async () => {
+    const { handler, aiChatOptions } = renderIndependentSegmentTimelineController();
+    expect(aiChatOptions).toBeTruthy();
+
+    const preparedCall = aiChatOptions.preparePendingToolCall({
+      name: 'delete_transcription_segment',
+      arguments: { segmentIndex: 1 },
+    });
+    expect(preparedCall.arguments.segmentId).toBe('seg-1');
+    expect(preparedCall.arguments.utteranceId).toBeUndefined();
+
+    const riskCheck = aiChatOptions.onToolRiskCheck({
+      name: 'delete_transcription_segment',
+      arguments: { segmentIndex: 1 },
+    });
+    expect(riskCheck?.requiresConfirmation).toBe(true);
+    expect(riskCheck?.impactPreview?.[0]).toContain('第一段');
+
+    await aiChatOptions.onToolCall({
+      name: 'delete_transcription_segment',
+      arguments: { segmentIndex: 1 },
+    });
+    expect(handler).toHaveBeenCalledWith({
+      name: 'delete_transcription_segment',
+      arguments: { segmentId: 'seg-1' },
+    });
+  });
+
+  it('materializes previous/next and delete-all selectors against independent layer segments on the current timeline', async () => {
+    const { handler, aiChatOptions } = renderIndependentSegmentTimelineController();
+    expect(aiChatOptions).toBeTruthy();
+
+    const previousPrepared = aiChatOptions.preparePendingToolCall({
+      name: 'delete_transcription_segment',
+      arguments: { segmentPosition: 'previous' },
+    });
+    const nextPrepared = aiChatOptions.preparePendingToolCall({
+      name: 'delete_transcription_segment',
+      arguments: { segmentPosition: 'next' },
+    });
+    const allPrepared = aiChatOptions.preparePendingToolCall({
+      name: 'delete_transcription_segment',
+      arguments: { allSegments: true },
+    });
+
+    expect(previousPrepared.arguments.segmentId).toBe('seg-1');
+    expect(nextPrepared.arguments.segmentId).toBe('seg-3');
+    expect(allPrepared.arguments.segmentIds).toEqual(['seg-1', 'seg-2', 'seg-3']);
+
+    const previousRisk = aiChatOptions.onToolRiskCheck({
+      name: 'delete_transcription_segment',
+      arguments: { segmentPosition: 'previous' },
+    });
+    const deleteAllRisk = aiChatOptions.onToolRiskCheck({
+      name: 'delete_transcription_segment',
+      arguments: { allSegments: true },
+    });
+
+    expect(previousRisk?.requiresConfirmation).toBe(true);
+    expect(previousRisk?.impactPreview?.[0]).toContain('第一段');
+    expect(deleteAllRisk?.requiresConfirmation).toBe(true);
+    expect(deleteAllRisk?.riskSummary).toContain('将删除 3 条句段');
+
+    await aiChatOptions.onToolCall({
+      name: 'delete_transcription_segment',
+      arguments: { segmentPosition: 'previous' },
+    });
+    await aiChatOptions.onToolCall({
+      name: 'delete_transcription_segment',
+      arguments: { segmentPosition: 'next' },
+    });
+    await aiChatOptions.onToolCall({
+      name: 'delete_transcription_segment',
+      arguments: { allSegments: true },
+    });
+
+    expect(handler).toHaveBeenNthCalledWith(1, {
+      name: 'delete_transcription_segment',
+      arguments: { segmentId: 'seg-1' },
+    });
+    expect(handler).toHaveBeenNthCalledWith(2, {
+      name: 'delete_transcription_segment',
+      arguments: { segmentId: 'seg-3' },
+    });
+    expect(handler).toHaveBeenNthCalledWith(3, {
+      name: 'delete_transcription_segment',
+      arguments: { segmentIds: ['seg-1', 'seg-2', 'seg-3'] },
+    });
+  });
+
+  it('routes create and split calls against the current independent layer segment', async () => {
+    const { handler, aiChatOptions } = renderIndependentSegmentTimelineController();
+    expect(aiChatOptions).toBeTruthy();
+
+    const preparedCreate = aiChatOptions.preparePendingToolCall({
+      name: 'create_transcription_segment',
+      arguments: {},
+    });
+    const preparedSplit = aiChatOptions.preparePendingToolCall({
+      name: 'split_transcription_segment',
+      arguments: { splitTime: 2.5 },
+    });
+
+    expect(preparedCreate.arguments.segmentId).toBe('seg-2');
+    expect(preparedSplit.arguments.segmentId).toBe('seg-2');
+    expect(preparedSplit.arguments.splitTime).toBe(2.5);
+
+    await aiChatOptions.onToolCall({
+      name: 'create_transcription_segment',
+      arguments: {},
+    });
+    await aiChatOptions.onToolCall({
+      name: 'split_transcription_segment',
+      arguments: { splitTime: 2.5 },
+    });
+
+    expect(handler).toHaveBeenNthCalledWith(1, {
+      name: 'create_transcription_segment',
+      arguments: { segmentId: 'seg-2' },
+    });
+    expect(handler).toHaveBeenNthCalledWith(2, {
+      name: 'split_transcription_segment',
+      arguments: { segmentId: 'seg-2', splitTime: 2.5 },
+    });
+  });
+
+  it('routes text and translation segment calls against the current independent layer segment', async () => {
+    const { handler, aiChatOptions } = renderIndependentSegmentTimelineController();
+    expect(aiChatOptions).toBeTruthy();
+
+    const preparedSetTranscription = aiChatOptions.preparePendingToolCall({
+      name: 'set_transcription_text',
+      arguments: { text: '改写后文本' },
+    });
+    const preparedSetTranslation = aiChatOptions.preparePendingToolCall({
+      name: 'set_translation_text',
+      arguments: { layerId: 'trl-1', text: '译文' },
+    });
+    const preparedClearTranslation = aiChatOptions.preparePendingToolCall({
+      name: 'clear_translation_segment',
+      arguments: { layerId: 'trl-1' },
+    });
+
+    expect(preparedSetTranscription.arguments).toEqual({ segmentId: 'seg-2', text: '改写后文本' });
+    expect(preparedSetTranslation.arguments).toEqual({ segmentId: 'seg-2', layerId: 'trl-1', text: '译文' });
+    expect(preparedClearTranslation.arguments).toEqual({ segmentId: 'seg-2', layerId: 'trl-1' });
+
+    await aiChatOptions.onToolCall({
+      name: 'set_transcription_text',
+      arguments: { text: '改写后文本' },
+    });
+    await aiChatOptions.onToolCall({
+      name: 'set_translation_text',
+      arguments: { layerId: 'trl-1', text: '译文' },
+    });
+    await aiChatOptions.onToolCall({
+      name: 'clear_translation_segment',
+      arguments: { layerId: 'trl-1' },
+    });
+
+    expect(handler).toHaveBeenNthCalledWith(1, {
+      name: 'set_transcription_text',
+      arguments: { segmentId: 'seg-2', text: '改写后文本' },
+    });
+    expect(handler).toHaveBeenNthCalledWith(2, {
+      name: 'set_translation_text',
+      arguments: { segmentId: 'seg-2', layerId: 'trl-1', text: '译文' },
+    });
+    expect(handler).toHaveBeenNthCalledWith(3, {
+      name: 'clear_translation_segment',
+      arguments: { segmentId: 'seg-2', layerId: 'trl-1' },
+    });
+  });
+
+  it('threads targeted merge callbacks into the AI tool handler', () => {
+    const mergeWithPrevious = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+    const mergeWithNext = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    renderIndependentSegmentTimelineController({
+      mergeWithPrevious,
+      mergeWithNext,
+    });
+
+    const latestToolCallHandlerCall = mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
+    const toolHandlerInput = latestToolCallHandlerCall?.[0];
+    expect(toolHandlerInput?.mergeWithPrevious).toBe(mergeWithPrevious);
+    expect(toolHandlerInput?.mergeWithNext).toBe(mergeWithNext);
   });
 });

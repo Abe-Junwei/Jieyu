@@ -25,10 +25,16 @@ import type {
 } from '../../hooks/useAiChat';
 import type { Locale } from '../../i18n';
 import {
+  extractJsonCandidates,
   parseToolCallFromTextZod,
   validateToolArgumentsZod,
 } from './toolCallSchemas';
 import { decodeEscapedUnicode, escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
+
+interface RawToolCallEnvelope {
+  name: string;
+  arguments: Record<string, unknown>;
+}
 
 export type ToolPlannerClarifyReason =
   | 'missing-utterance-target'
@@ -104,10 +110,14 @@ function normalizeToolCallName(rawName: string): AiChatToolName | null {
 
   if (name === 'create_transcription_segment') return name;
   if (name === 'split_transcription_segment') return name;
+  if (name === 'merge_transcription_segments') return name;
   if (name === 'delete_transcription_segment') return name;
   if (name === 'clear_translation_segment') return name;
+  if (name === 'merge_prev') return name;
+  if (name === 'merge_next') return name;
   if (['split_segment', 'split_transcription_row', 'split_row', 'split_utterance', 'cut_segment', 'split_current_segment'].includes(name)) return 'split_transcription_segment';
   if (['create_transcription_row', 'create_segment', 'new_segment', 'add_segment', 'new_transcription_row', 'add_transcription_row'].includes(name)) return 'create_transcription_segment';
+  if (['merge_segments', 'merge_segment_selection', 'merge_selected_segments', 'merge_selected_transcription_segments', 'merge_transcription_segment_selection'].includes(name)) return 'merge_transcription_segments';
   if (['delete_transcription_row', 'remove_transcription_row', 'remove_utterance', 'delete_utterance', 'remove_row', 'delete_row', 'delete_segment', 'remove_segment'].includes(name)) return 'delete_transcription_segment';
   if (['delete_translation_row', 'clear_translation_text', 'clear_translation', 'empty_translation', 'remove_translation_text', 'clear_segment_translation'].includes(name)) return 'clear_translation_segment';
   if (name === 'set_transcription_text') return name;
@@ -167,6 +177,56 @@ export function parseLegacyNarratedToolCall(text: string): AiChatToolCall | null
   return null;
 }
 
+function parseRawToolCallEnvelope(rawText: string): RawToolCallEnvelope | null {
+  const candidates = extractJsonCandidates(rawText);
+  for (const candidate of candidates) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(candidate);
+    } catch {
+      continue;
+    }
+
+    if (typeof parsed === 'object' && parsed !== null && 'tool_call' in parsed) {
+      const holder = (parsed as { tool_call: unknown }).tool_call;
+      if (typeof holder !== 'object' || holder === null) continue;
+      parsed = holder;
+    }
+
+    if (typeof parsed !== 'object' || parsed === null) continue;
+    const obj = parsed as Record<string, unknown>;
+    const name = typeof obj.name === 'string' ? obj.name.trim() : '';
+    if (!name) continue;
+    const rawArgs = obj.arguments;
+    const args = typeof rawArgs === 'object' && rawArgs !== null && !Array.isArray(rawArgs)
+      ? rawArgs as Record<string, unknown>
+      : {};
+    return { name, arguments: args };
+  }
+  return null;
+}
+
+function inferFallbackActionLabel(userText: string, rawToolName: string): string {
+  const trimmedUserText = userText.trim().replace(/[。！？!?]+$/u, '');
+  if (trimmedUserText.length > 0 && trimmedUserText.length <= 24) {
+    return trimmedUserText;
+  }
+  return rawToolName.replace(/_/g, ' ');
+}
+
+function looksLikeSegmentScopedTool(rawToolName: string, args: Record<string, unknown>): boolean {
+  const normalizedName = rawToolName.toLowerCase();
+  if (normalizedName.includes('segment') || normalizedName.includes('utterance') || normalizedName.includes('row')) {
+    return true;
+  }
+  return [
+    'segmentId',
+    'segmentIds',
+    'segmentIndex',
+    'segmentPosition',
+  ].some((key) => key in args);
+}
+
 const AMBIGUOUS_LANGUAGE_TARGET_PATTERN = /^(und|unknown|auto|default)$/i;
 
 function isAmbiguousLanguageTarget(value: unknown): boolean {
@@ -200,17 +260,150 @@ function getNormalizedIdList(value: unknown): string[] {
 function getDeleteTargetIds(args: Record<string, unknown>): string[] {
   const ids = [
     ...getNormalizedIdList(args.segmentIds),
-    ...getNormalizedIdList(args.utteranceIds),
     ...(() => {
       const segmentId = getFirstNonEmptyString(args.segmentId);
       return segmentId ? [segmentId] : [];
     })(),
-    ...(() => {
-      const utteranceId = getFirstNonEmptyString(args.utteranceId);
-      return utteranceId ? [utteranceId] : [];
-    })(),
   ];
   return Array.from(new Set(ids));
+}
+
+function hasDeleteAllSegmentsScope(args: Record<string, unknown>): boolean {
+  return args.allSegments === true;
+}
+
+function hasSegmentSelector(args: Record<string, unknown>): boolean {
+  const segmentIndex = args.segmentIndex;
+  if (typeof segmentIndex === 'number' && Number.isInteger(segmentIndex) && segmentIndex >= 1) {
+    return true;
+  }
+  return typeof args.segmentPosition === 'string' && args.segmentPosition.length > 0;
+}
+
+function segmentSelectorNeedsAnchor(args: Record<string, unknown>): boolean {
+  return args.segmentPosition === 'previous' || args.segmentPosition === 'next';
+}
+
+function parseChineseInteger(raw: string): number | null {
+  const normalized = raw.trim().replace(/\u4e24/g, '\u4e8c');
+  if (!normalized) return null;
+  if (/^\d+$/.test(normalized)) return Number(normalized);
+
+  const digitMap: Record<string, number> = {
+    '\u4e00': 1,
+    '\u4e8c': 2,
+    '\u4e09': 3,
+    '\u56db': 4,
+    '\u4e94': 5,
+    '\u516d': 6,
+    '\u4e03': 7,
+    '\u516b': 8,
+    '\u4e5d': 9,
+  };
+
+  if (normalized === '\u5341') return 10;
+  const parts = normalized.split('\u5341');
+  if (parts.length === 2) {
+    const tens = parts[0] ? (digitMap[parts[0]] ?? NaN) : 1;
+    const ones = parts[1] ? (digitMap[parts[1]] ?? NaN) : 0;
+    if (Number.isFinite(tens) && Number.isFinite(ones)) {
+      return tens * 10 + ones;
+    }
+  }
+
+  return digitMap[normalized] ?? null;
+}
+
+function parseEnglishOrdinal(raw: string): number | null {
+  const normalized = raw.trim().toLowerCase();
+  if (!normalized) return null;
+  const wordMap: Record<string, number> = {
+    first: 1,
+    second: 2,
+    third: 3,
+    fourth: 4,
+    fifth: 5,
+    sixth: 6,
+    seventh: 7,
+    eighth: 8,
+    ninth: 9,
+    tenth: 10,
+  };
+  if (normalized in wordMap) return wordMap[normalized] ?? null;
+  const parsed = Number(normalized.replace(/(?:st|nd|rd|th)$/i, ''));
+  return Number.isInteger(parsed) && parsed >= 1 ? parsed : null;
+}
+
+const SEGMENT_NOUN_PATTERN = `(?:${decodeEscapedUnicode('\u53e5\u6bb5|\u5206\u6bb5|\u53e5\u5b50?|\u53e5|\u6bb5')}|segment|segments?)`;
+const LAST_SEGMENT_PREFIX_PATTERN = decodeEscapedUnicode('\u6700\u540e(?:\u4e00[\u4e2a\u6761\u6bb5\u53e5]?|\u4e00\u4e2a)?');
+const PREVIOUS_SEGMENT_PREFIX_PATTERN = decodeEscapedUnicode('\u524d\u4e00\u4e2a|\u4e0a\u4e00\u4e2a');
+const NEXT_SEGMENT_PREFIX_PATTERN = decodeEscapedUnicode('\u540e\u4e00\u4e2a|\u4e0b\u4e00\u4e2a');
+const PENULTIMATE_SEGMENT_PREFIX_PATTERN = decodeEscapedUnicode('\u5012\u6570\u7b2c\u4e8c(?:\u4e2a|\u6761|\u53e5|\u6bb5)?');
+const MIDDLE_SEGMENT_PREFIX_PATTERN = decodeEscapedUnicode('\u4e2d\u95f4\u90a3(?:\u4e2a|\u6761|\u53e5|\u6bb5)|\u4e2d\u95f4(?:\u90a3)?\u4e2a');
+const CHINESE_SEGMENT_ORDINAL_PATTERN = decodeEscapedUnicode('\u7b2c\\s*([0-9]+|[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u4e24]+)\\s*(?:\u4e2a|\u6761|\u53e5|\u6bb5)?\\s*');
+
+function extractSegmentSelectorFromUserText(userText: string): Record<string, unknown> | null {
+  const normalizedText = userText.trim();
+  if (!normalizedText) return null;
+
+  if (new RegExp(`(${LAST_SEGMENT_PREFIX_PATTERN}|(?:the\\s+)?last)\\s*${SEGMENT_NOUN_PATTERN}`, 'i').test(normalizedText)) {
+    return { segmentPosition: 'last' };
+  }
+
+  if (new RegExp(`(${PREVIOUS_SEGMENT_PREFIX_PATTERN}|(?:the\\s+)?previous|(?:the\\s+)?prev)\\s*${SEGMENT_NOUN_PATTERN}`, 'i').test(normalizedText)) {
+    return { segmentPosition: 'previous' };
+  }
+
+  if (new RegExp(`(${NEXT_SEGMENT_PREFIX_PATTERN}|(?:the\\s+)?next)\\s*${SEGMENT_NOUN_PATTERN}`, 'i').test(normalizedText)) {
+    return { segmentPosition: 'next' };
+  }
+
+  if (new RegExp(`(${PENULTIMATE_SEGMENT_PREFIX_PATTERN}|(?:the\\s+)?penultimate)\\s*${SEGMENT_NOUN_PATTERN}`, 'i').test(normalizedText)) {
+    return { segmentPosition: 'penultimate' };
+  }
+
+  if (new RegExp(`(${MIDDLE_SEGMENT_PREFIX_PATTERN}|(?:the\\s+)?middle)\\s*${SEGMENT_NOUN_PATTERN}`, 'i').test(normalizedText)) {
+    return { segmentPosition: 'middle' };
+  }
+
+  const chineseMatch = normalizedText.match(new RegExp(`${CHINESE_SEGMENT_ORDINAL_PATTERN}${SEGMENT_NOUN_PATTERN}?`, 'i'));
+  if (chineseMatch?.[1]) {
+    const parsed = parseChineseInteger(chineseMatch[1]);
+    if (typeof parsed === 'number' && Number.isInteger(parsed) && parsed >= 1) {
+      return { segmentIndex: parsed };
+    }
+  }
+
+  const englishMatch = normalizedText.match(/(?:the\s+)?(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|\d+(?:st|nd|rd|th))\s+segments?/i);
+  if (englishMatch?.[1]) {
+    const ordinal = englishMatch[1].toLowerCase();
+    if (ordinal === 'last') return { segmentPosition: 'last' };
+    const parsed = parseEnglishOrdinal(ordinal);
+    if (typeof parsed === 'number' && Number.isInteger(parsed) && parsed >= 1) {
+      return { segmentIndex: parsed };
+    }
+  }
+
+  return null;
+}
+
+function getContextUtteranceCount(context: AiPromptContext | null | undefined): number {
+  const count = context?.longTerm?.projectStats?.utteranceCount;
+  return typeof count === 'number' && Number.isFinite(count) && count >= 0 ? count : 0;
+}
+
+function describeDeleteSegmentSelectorTarget(args: Record<string, unknown>): string | null {
+  const segmentIndex = args.segmentIndex;
+  if (typeof segmentIndex === 'number' && Number.isInteger(segmentIndex) && segmentIndex >= 1) {
+    return decodeEscapedUnicode(`\\u7b2c ${segmentIndex} \\u4e2a\\u53e5\\u6bb5`);
+  }
+
+  if (args.segmentPosition === 'last') return decodeEscapedUnicode('\\u6700\\u540e\\u4e00\\u4e2a\\u53e5\\u6bb5');
+  if (args.segmentPosition === 'previous') return decodeEscapedUnicode('\\u524d\\u4e00\\u4e2a\\u53e5\\u6bb5');
+  if (args.segmentPosition === 'next') return decodeEscapedUnicode('\\u540e\\u4e00\\u4e2a\\u53e5\\u6bb5');
+  if (args.segmentPosition === 'penultimate') return decodeEscapedUnicode('\\u5012\\u6570\\u7b2c\\u4e8c\\u4e2a\\u53e5\\u6bb5');
+  if (args.segmentPosition === 'middle') return decodeEscapedUnicode('\\u4e2d\\u95f4\\u90a3\\u4e2a\\u53e5\\u6bb5');
+  return null;
 }
 
 function inferDeleteLayerArgumentsFromText(userText: string): Partial<AiChatToolCall['arguments']> {
@@ -265,21 +458,39 @@ function validateArgIdList(args: Record<string, unknown>, key: string, required:
 }
 
 function validateDeleteSegmentArgs(args: Record<string, unknown>): string | null {
-  const listValidation = validateArgIdList(args, 'segmentIds', false)
-    ?? validateArgIdList(args, 'utteranceIds', false);
+  if (hasDeleteAllSegmentsScope(args)) {
+    return null;
+  }
+
+  if (hasSegmentSelector(args)) {
+    return null;
+  }
+
+  const listValidation = validateArgIdList(args, 'segmentIds', false);
   if (listValidation) return listValidation;
 
-  if (getNormalizedIdList(args.segmentIds).length > 0 || getNormalizedIdList(args.utteranceIds).length > 0) {
+  if (getNormalizedIdList(args.segmentIds).length > 0) {
     return null;
   }
 
   const segmentId = getFirstNonEmptyString(args.segmentId);
   if (segmentId) return validateArgId(args, 'segmentId', false);
 
-  const utteranceId = getFirstNonEmptyString(args.utteranceId);
-  if (utteranceId) return validateArgId(args, 'utteranceId', false);
+  return decodeEscapedUnicode('\u7f3a\u5c11 segmentId/segmentIds/allSegments。');
+}
 
-  return decodeEscapedUnicode('\\u7f3a\\u5c11 segmentId/utteranceId/segmentIds/utteranceIds。');
+function validateSegmentTargetArgs(args: Record<string, unknown>): string | null {
+  if (hasSegmentSelector(args)) {
+    return null;
+  }
+  return validateArgId(args, 'segmentId', true);
+}
+
+function validateOptionalSegmentTargetArgs(args: Record<string, unknown>): string | null {
+  if (hasSegmentSelector(args)) {
+    return null;
+  }
+  return validateArgId(args, 'segmentId', false);
 }
 
 /** \\u6570\\u503c\\u53c2\\u6570\\u6821\\u9a8c（\\u517c\\u5bb9 Zod number schema） | Numeric arg validator (compatible with Zod number schemas) */
@@ -301,7 +512,10 @@ function validateArgText(args: Record<string, unknown>): string | null {
 }
 
 function validateSplitSegmentArgs(args: Record<string, unknown>): string | null {
-  const idValidation = validateArgId(args, 'utteranceId', true);
+  let idValidation: string | null = null;
+  if (!hasSegmentSelector(args)) {
+    idValidation = validateArgId(args, 'segmentId', true);
+  }
   if (idValidation) return idValidation;
 
   if (!('splitTime' in args)) return null;
@@ -393,16 +607,60 @@ interface ToolStrategy {
   };
 }
 
+const SEGMENT_SELECTION_COMPATIBLE_TOOLS = new Set<AiChatToolName>([
+  'create_transcription_segment',
+  'split_transcription_segment',
+  'merge_prev',
+  'merge_next',
+  'delete_transcription_segment',
+  'set_transcription_text',
+  'set_translation_text',
+  'clear_translation_segment',
+]);
+
+function toolSupportsSegmentSelectionTarget(callName: AiChatToolName): boolean {
+  return SEGMENT_SELECTION_COMPATIBLE_TOOLS.has(callName);
+}
+
+export function resolveSelectionTargetPatchForTool(
+  callName: AiChatToolName,
+  context: AiPromptContext | null | undefined,
+): Record<string, string> | null {
+  const short = context?.shortTerm;
+  const activeUtteranceUnitId = getFirstNonEmptyString(short?.activeUtteranceUnitId);
+  const activeSegmentUnitId = getFirstNonEmptyString(short?.activeSegmentUnitId);
+  const selectedUnitKind = short?.selectedUnitKind;
+
+  if (toolSupportsSegmentSelectionTarget(callName)) {
+    if ((selectedUnitKind === 'segment' || activeSegmentUnitId.length > 0) && activeSegmentUnitId.length > 0) {
+      return { segmentId: activeSegmentUnitId };
+    }
+    return null;
+  }
+  if (activeUtteranceUnitId.length > 0) {
+    return { utteranceId: activeUtteranceUnitId };
+  }
+  return null;
+}
+
 const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   create_transcription_segment: {
     label: '\\u521b\\u5efa\\u53e5\\u6bb5',
     contextFill: { utteranceId: true },
-    validateArgs: (args) => validateArgId(args, 'utteranceId', true),
+    validateArgs: validateSegmentTargetArgs,
   },
   split_transcription_segment: {
     label: '\\u5207\\u5206\\u53e5\\u6bb5',
     contextFill: { utteranceId: true },
-    validateArgs: validateSplitSegmentArgs,
+    validateArgs: (args) => validateSegmentTargetArgs(args) ?? validateSplitSegmentArgs(args),
+  },
+  merge_transcription_segments: {
+    label: '\\u5408\\u5e76\\u53e5\\u6bb5',
+    contextFill: {},
+    validateArgs: (args) => {
+      const segmentIds = getNormalizedIdList(args.segmentIds);
+      return segmentIds.length >= 2 ? null : '\\u7f3a\\u5c11\\u81f3\\u5c11 2 \\u4e2a\\u76ee\\u6807\\u53e5\\u6bb5';
+    },
   },
   delete_transcription_segment: {
     label: '\\u5220\\u9664\\u53e5\\u6bb5',
@@ -411,6 +669,13 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
     validateArgs: validateDeleteSegmentArgs,
     riskSpec: {
       summary: (args) => {
+        if (hasDeleteAllSegmentsScope(args)) {
+          return '\\u5c06\\u5220\\u9664\\u5f53\\u524d\\u9875\\u9762\\u7684\\u5168\\u90e8\\u53e5\\u6bb5';
+        }
+        const selectorTarget = describeDeleteSegmentSelectorTarget(args);
+        if (selectorTarget) {
+          return `\\u5c06\\u5220\\u9664 1 \\u6761\\u53e5\\u6bb5（\\u76ee\\u6807：${selectorTarget}）`;
+        }
         const targetIds = getDeleteTargetIds(args);
         const targetCount = Math.max(1, targetIds.length);
         const target = targetIds[0] ?? 'current-segment';
@@ -428,17 +693,17 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   clear_translation_segment: {
     label: '\\u6e05\\u7a7a\\u7ffb\\u8bd1',
     contextFill: { utteranceId: true, translationLayerId: true },
-    validateArgs: (args) => validateArgId(args, 'utteranceId', true) ?? validateArgId(args, 'layerId', true),
+    validateArgs: (args) => validateSegmentTargetArgs(args) ?? validateArgId(args, 'layerId', true),
   },
   set_transcription_text: {
     label: '\\u5199\\u5165\\u8f6c\\u5199',
     contextFill: { utteranceId: true },
-    validateArgs: (args) => validateArgText(args) ?? validateArgId(args, 'utteranceId', true),
+    validateArgs: (args) => validateArgText(args) ?? validateSegmentTargetArgs(args),
   },
   set_translation_text: {
     label: '\\u5199\\u5165\\u7ffb\\u8bd1',
     contextFill: { utteranceId: true, translationLayerId: true },
-    validateArgs: (args) => validateArgText(args) ?? validateArgId(args, 'utteranceId', true) ?? validateArgId(args, 'layerId', true),
+    validateArgs: (args) => validateArgText(args) ?? validateSegmentTargetArgs(args) ?? validateArgId(args, 'layerId', true),
   },
   create_transcription_layer: {
     label: '\\u521b\\u5efa\\u8f6c\\u5199\\u5c42',
@@ -485,7 +750,7 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   auto_gloss_utterance: {
     label: '\\u81ea\\u52a8\\u8bcd\\u6c47\\u6807\\u6ce8',
     contextFill: { utteranceId: true },
-    validateArgs: (args) => validateArgId(args, 'utteranceId', true),
+    validateArgs: validateSegmentTargetArgs,
   },
   set_token_pos: {
     label: '\\u8bbe\\u7f6e\\u8bcd\\u6027',
@@ -539,8 +804,16 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
     contextFill: {},
     validateArgs: (args) => validateArgNumeric(args, 'timeSeconds', true),
   },
-  merge_prev: { label: '\\u5408\\u5e76\\u4e0a\\u4e00\\u4e2a', contextFill: {}, validateArgs: () => null },
-  merge_next: { label: '\\u5408\\u5e76\\u4e0b\\u4e00\\u4e2a', contextFill: {}, validateArgs: () => null },
+  merge_prev: {
+    label: '\\u5408\\u5e76\\u4e0a\\u4e00\\u4e2a',
+    contextFill: { utteranceId: true },
+    validateArgs: validateOptionalSegmentTargetArgs,
+  },
+  merge_next: {
+    label: '\\u5408\\u5e76\\u4e0b\\u4e00\\u4e2a',
+    contextFill: { utteranceId: true },
+    validateArgs: validateOptionalSegmentTargetArgs,
+  },
   auto_segment: {
     label: '\\u81ea\\u52a8\\u5207\\u5206',
     contextFill: {},
@@ -569,14 +842,7 @@ export function planToolCallTargets(
   const shortTerm = context?.shortTerm;
   const currentUtteranceId = getFirstNonEmptyString(shortTerm?.activeUtteranceUnitId);
   const currentSegmentId = getFirstNonEmptyString(shortTerm?.activeSegmentUnitId);
-  const selectedUnitKind = shortTerm?.selectedUnitKind;
   const selectedUnitIds = getNormalizedIdList(shortTerm?.selectedUnitIds);
-  const currentUtteranceStartSec = typeof shortTerm?.selectedUtteranceStartSec === 'number' && Number.isFinite(shortTerm.selectedUtteranceStartSec)
-    ? shortTerm.selectedUtteranceStartSec
-    : undefined;
-  const currentUtteranceEndSec = typeof shortTerm?.selectedUtteranceEndSec === 'number' && Number.isFinite(shortTerm.selectedUtteranceEndSec)
-    ? shortTerm.selectedUtteranceEndSec
-    : undefined;
   const currentAudioTimeSec = typeof shortTerm?.audioTimeSec === 'number' && Number.isFinite(shortTerm.audioTimeSec)
     ? shortTerm.audioTimeSec
     : undefined;
@@ -595,6 +861,14 @@ export function planToolCallTargets(
     ...call,
     arguments: { ...call.arguments },
   };
+  if (toolSupportsSegmentSelectionTarget(call.name)) {
+    delete nextCall.arguments.utteranceId;
+  }
+  if (call.name === 'merge_transcription_segments' || call.name === 'delete_transcription_segment') {
+    delete nextCall.arguments.utteranceIds;
+  }
+  const parsedSegmentSelector = extractSegmentSelectorFromUserText(userText);
+  const activeSelectionTargetPatch = resolveSelectionTargetPatchForTool(call.name, context);
 
   const ensureUtteranceId = (): string => {
     const existingSegmentId = getFirstNonEmptyString(nextCall.arguments.segmentId);
@@ -622,6 +896,20 @@ export function planToolCallTargets(
     return '';
   };
 
+  const ensureSegmentScopedTarget = (): string => {
+    const segmentId = getFirstNonEmptyString(activeSelectionTargetPatch?.segmentId);
+    if (!segmentId) {
+      return '';
+    }
+    const existingSegmentId = getFirstNonEmptyString(nextCall.arguments.segmentId);
+    if (existingSegmentId === segmentId) {
+      return existingSegmentId;
+    }
+    nextCall.arguments.segmentId = segmentId;
+    delete nextCall.arguments.utteranceId;
+    return segmentId;
+  };
+
   const cf = TOOL_STRATEGY_TABLE[call.name]?.contextFill;
 
   if (requiresConcreteLanguageTarget(call.name)) {
@@ -631,36 +919,82 @@ export function planToolCallTargets(
   }
 
   if (call.name === 'delete_transcription_segment') {
-    const hasExplicitDeleteTarget = getDeleteTargetIds(nextCall.arguments).length > 0;
+    const hasExplicitDeleteTarget = getDeleteTargetIds(nextCall.arguments).length > 0 || hasSegmentSelector(nextCall.arguments);
+    if (hasSegmentSelector(nextCall.arguments) && segmentSelectorNeedsAnchor(nextCall.arguments) && !currentUtteranceId && !currentSegmentId) {
+      return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+    }
     const refersAllSelectedSegments = /(\u6240\u6709|\u5168\u90e8|\u5168\u4f53|all)/i.test(userText)
       && /(\u53e5\u6bb5|\u5206\u6bb5|segment)/i.test(userText);
 
-    if (!hasExplicitDeleteTarget) {
+    if (!hasExplicitDeleteTarget && !hasDeleteAllSegmentsScope(nextCall.arguments)) {
       if (refersAllSelectedSegments && selectedUnitIds.length > 1) {
-        if (selectedUnitKind === 'segment') {
-          nextCall.arguments.segmentIds = selectedUnitIds;
-        } else {
-          nextCall.arguments.utteranceIds = selectedUnitIds;
+        nextCall.arguments.segmentIds = selectedUnitIds;
+      } else if (refersAllSelectedSegments) {
+        nextCall.arguments.allSegments = true;
+      } else if (parsedSegmentSelector) {
+        Object.assign(nextCall.arguments, parsedSegmentSelector);
+        if (segmentSelectorNeedsAnchor(nextCall.arguments) && !currentUtteranceId && !currentSegmentId) {
+          return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
         }
-      } else if (selectedUnitKind === 'segment' && currentSegmentId) {
-        nextCall.arguments.segmentId = currentSegmentId;
       } else {
-        const utteranceId = ensureUtteranceId();
-        if (!utteranceId) {
+        const selectedTargetPatch = resolveSelectionTargetPatchForTool(call.name, context);
+        if (selectedTargetPatch?.segmentId) {
+          nextCall.arguments.segmentId = selectedTargetPatch.segmentId;
+        }
+        const segmentId = ensureSegmentScopedTarget();
+        if (!getFirstNonEmptyString(nextCall.arguments.segmentId) && !segmentId) {
           return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
         }
       }
     }
 
-    if (getDeleteTargetIds(nextCall.arguments).length === 0) {
+    if (!hasDeleteAllSegmentsScope(nextCall.arguments) && getDeleteTargetIds(nextCall.arguments).length === 0 && !hasSegmentSelector(nextCall.arguments)) {
       return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
     }
   }
 
-  if (cf?.utteranceId && call.name !== 'delete_transcription_segment') {
-    const utteranceId = ensureUtteranceId();
-    if (!utteranceId) {
+  if (call.name === 'merge_transcription_segments') {
+    if (selectedUnitIds.length > 1) {
+      nextCall.arguments.segmentIds = selectedUnitIds;
+    }
+    const hasBatchTarget = getNormalizedIdList(nextCall.arguments.segmentIds).length >= 2;
+    if (!hasBatchTarget) {
+      if (selectedUnitIds.length > 1) {
+        nextCall.arguments.segmentIds = selectedUnitIds;
+      } else {
+        return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+      }
+    }
+  }
+
+  if (call.name === 'merge_prev' || call.name === 'merge_next') {
+    delete nextCall.arguments.segmentIndex;
+    delete nextCall.arguments.segmentPosition;
+    const segmentId = ensureSegmentScopedTarget();
+    if (!segmentId) {
       return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+    }
+  }
+
+  if (cf?.utteranceId && call.name !== 'delete_transcription_segment' && call.name !== 'merge_prev' && call.name !== 'merge_next') {
+    if (!getFirstNonEmptyString(nextCall.arguments.segmentId, nextCall.arguments.utteranceId) && !hasSegmentSelector(nextCall.arguments) && parsedSegmentSelector) {
+      Object.assign(nextCall.arguments, parsedSegmentSelector);
+      if (segmentSelectorNeedsAnchor(nextCall.arguments) && !currentUtteranceId && !currentSegmentId) {
+        return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+      }
+    }
+    if (!hasSegmentSelector(nextCall.arguments)) {
+      const segmentId = ensureSegmentScopedTarget();
+      if (toolSupportsSegmentSelectionTarget(call.name)) {
+        if (!segmentId) {
+          return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+        }
+      } else if (!segmentId) {
+        const utteranceId = ensureUtteranceId();
+        if (!utteranceId) {
+          return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+        }
+      }
     }
   }
 
@@ -675,13 +1009,6 @@ export function planToolCallTargets(
     }
 
     nextCall.arguments.splitTime = splitTime;
-
-    if (typeof currentUtteranceStartSec === 'number' && typeof currentUtteranceEndSec === 'number') {
-      const minSpan = 0.05;
-      if (splitTime <= currentUtteranceStartSec + minSpan || splitTime >= currentUtteranceEndSec - minSpan) {
-        return { decision: 'clarify', call: nextCall, reason: 'missing-split-position' };
-      }
-    }
   }
 
   if (cf?.translationLayerId) {
@@ -790,18 +1117,15 @@ export function extractClarifySplitPositionPatch(
   context: AiPromptContext | null | undefined,
 ): Record<string, number | string> | null {
   if (!escapedUnicodeRegExp('^(\\u8fd9\\u91cc|\\u6b64\\u5904|\\u5728\\u8fd9\\u91cc|\\u5728\\u6b64\\u5904|\\u5c31\\u8fd9\\u91cc|\\u5c31\\u6b64\\u5904)$', 'i').test(userText.trim())) return null;
-  const activeUtteranceUnitId = getFirstNonEmptyString(context?.shortTerm?.activeUtteranceUnitId);
   const audioTimeSec = context?.shortTerm?.audioTimeSec;
-  if (!activeUtteranceUnitId) return null;
   if (typeof audioTimeSec !== 'number' || !Number.isFinite(audioTimeSec)) return null;
-  return { utteranceId: activeUtteranceUnitId, splitTime: audioTimeSec };
+  const targetPatch = resolveSelectionTargetPatchForTool('split_transcription_segment', context);
+  if (!targetPatch) return null;
+  return { ...targetPatch, splitTime: audioTimeSec };
 }
 
 function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: AiPromptContext | null | undefined): boolean {
   const short = context?.shortTerm;
-  const activeUtteranceUnitId = getFirstNonEmptyString(short?.activeUtteranceUnitId);
-  const activeSegmentUnitId = getFirstNonEmptyString(short?.activeSegmentUnitId);
-  const selectedUnitKind = short?.selectedUnitKind;
   const selectedUnitIds = getNormalizedIdList(short?.selectedUnitIds);
   const selectedLayerId = getFirstNonEmptyString(short?.selectedLayerId);
   const selectedLayerType = short?.selectedLayerType;
@@ -813,18 +1137,19 @@ function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: 
     short?.selectedTranscriptionLayerId,
     selectedLayerType === 'transcription' ? selectedLayerId : '',
   );
+  const selectionTargetPatch = resolveSelectionTargetPatchForTool(callName, context);
 
-  if (['create_transcription_segment', 'split_transcription_segment', 'delete_transcription_segment', 'set_transcription_text', 'auto_gloss_utterance', 'set_token_pos', 'set_token_gloss'].includes(callName)) {
+  if (['create_transcription_segment', 'split_transcription_segment', 'merge_prev', 'merge_next', 'delete_transcription_segment', 'set_transcription_text', 'auto_gloss_utterance', 'set_token_pos', 'set_token_gloss'].includes(callName)) {
     if (callName === 'delete_transcription_segment' && selectedUnitIds.length > 1) {
       return true;
     }
-    if (callName === 'delete_transcription_segment' && selectedUnitKind === 'segment' && activeSegmentUnitId.length > 0) {
-      return true;
-    }
-    return activeUtteranceUnitId.length > 0;
+    return selectionTargetPatch !== null;
+  }
+  if (callName === 'merge_transcription_segments') {
+    return selectedUnitIds.length > 1;
   }
   if (['set_translation_text', 'clear_translation_segment'].includes(callName)) {
-    return activeUtteranceUnitId.length > 0 && selectedTranslationLayerId.length > 0;
+    return selectionTargetPatch !== null && selectedTranslationLayerId.length > 0;
   }
   if (callName === 'delete_layer') {
     return selectedLayerId.length > 0;
@@ -910,7 +1235,7 @@ export function assessToolActionIntent(userText: string, options?: ToolIntentAss
   }
 
   const executionCuePattern = escapedUnicodeRegExp('(\\u8bf7\\u5e2e|\\u8bf7\\u628a|\\u8bf7\\u5c06|\\u5e2e\\u6211|\\u628a|\\u5c06|\\u7ed9\\u6211|\\u6267\\u884c|run|do|please|\\u9ebb\\u70e6|\\u5e2e\\u5fd9|\\u53ef\\u5426|\\u53ef\\u4ee5\\u628a|\\u5f53\\u524d|\\u6b64)', 'i');
-  const actionVerbPattern = escapedUnicodeRegExp('(\\u521b\\u5efa|\\u65b0\\u5efa|\\u65b0\\u589e|\\u5207\\u5206|\\u62c6\\u5206|\\u5220\\u9664|\\u6e05\\u7a7a|\\u79fb\\u9664|\\u5199\\u5165|\\u586b\\u5199|\\u586b\\u5165|\\u8bbe\\u7f6e|\\u8bbe\\u4e3a|\\u4fee\\u6539|\\u6539\\u6210|\\u6539\\u4e3a|\\u66f4\\u65b0|\\u8986\\u76d6|\\u66ff\\u6362|\\u5173\\u8054|\\u94fe\\u63a5|\\u89e3\\u9664|\\u65ad\\u5f00|\\u81ea\\u52a8\\u6807\\u6ce8|\\u8f6c\\u5199|\\u7ffb\\u8bd1|create|add|insert|split|delete|remove|clear|set|update|replace|link|unlink|gloss)', 'i');
+  const actionVerbPattern = escapedUnicodeRegExp('(\\u521b\\u5efa|\\u65b0\\u5efa|\\u65b0\\u589e|\\u5207\\u5206|\\u62c6\\u5206|\\u5408\\u5e76|\\u5220\\u9664|\\u6e05\\u7a7a|\\u79fb\\u9664|\\u5199\\u5165|\\u586b\\u5199|\\u586b\\u5165|\\u8bbe\\u7f6e|\\u8bbe\\u4e3a|\\u4fee\\u6539|\\u6539\\u6210|\\u6539\\u4e3a|\\u66f4\\u65b0|\\u8986\\u76d6|\\u66ff\\u6362|\\u5173\\u8054|\\u94fe\\u63a5|\\u89e3\\u9664|\\u65ad\\u5f00|\\u81ea\\u52a8\\u6807\\u6ce8|\\u8f6c\\u5199|\\u7ffb\\u8bd1|create|add|insert|split|merge|delete|remove|clear|set|update|replace|link|unlink|gloss)', 'i');
   const actionTargetPattern = escapedUnicodeRegExp('(\\u53e5\\u6bb5|\\u6bb5\\u843d|segment|\\u5c42|layer|\\u8f6c\\u5199|\\u7ffb\\u8bd1|\\u6587\\u672c|text|gloss|\\u8bcd\\u4e49|utterance|\\u5f53\\u524d|\\u6b64|\\u8fd9\\u4e2a|\\u90a3\\u4e2a)', 'i');
   const actionObjectPronounPattern = escapedUnicodeRegExp('(\\u4e4b|\\u5b83|\\u5176|\\u8fd9\\u6761|\\u8be5\\u6761|\\u672c\\u6761|\\u6b64\\u6761|\\u8fd9\\u4e2a|\\u90a3\\u4e2a)$', 'i');
   const explicitIdPattern = escapedUnicodeRegExp('(utteranceId|layerId|transcriptionLayerId|translationLayerId|\\bu\\d+\\b|\\blayer[-_a-z0-9]+\\b|\\u5f53\\u524d|\\u6b64|\\u8fd9\\u4e2a|\\u90a3\\u4e2a)', 'i');
@@ -1022,9 +1347,17 @@ function describeToolCallImpact(call: AiChatToolCall): { riskSummary: string; im
   };
 }
 
-export function buildPreviewContract(call: AiChatToolCall): PreviewContract {
+export function buildPreviewContract(call: AiChatToolCall, context?: AiPromptContext | null): PreviewContract {
   const args = call.arguments;
   if (call.name === 'delete_transcription_segment') {
+    if (hasDeleteAllSegmentsScope(args)) {
+      return {
+        affectedCount: getContextUtteranceCount(context),
+        affectedIds: [],
+        reversible: true,
+        cascadeTypes: ['translation'],
+      };
+    }
     const targetIds = getDeleteTargetIds(args);
     return {
       affectedCount: Math.max(1, targetIds.length),
@@ -1186,9 +1519,6 @@ export function buildClarifyCandidates(
   sessionMemory?: AiSessionMemory,
 ): AiClarifyCandidate[] {
   const short = context?.shortTerm;
-  const activeUtteranceUnitId = getFirstNonEmptyString(short?.activeUtteranceUnitId);
-  const activeSegmentUnitId = getFirstNonEmptyString(short?.activeSegmentUnitId);
-  const selectedUnitKind = short?.selectedUnitKind;
   const selectedLayerId = getFirstNonEmptyString(short?.selectedLayerId);
   const selectedLayerType = short?.selectedLayerType;
   const selectedTranslationLayerId = getFirstNonEmptyString(
@@ -1202,10 +1532,9 @@ export function buildClarifyCandidates(
 
   const candidates: AiClarifyCandidate[] = [];
   if (reason === 'missing-utterance-target') {
-    if (selectedUnitKind === 'segment' && activeSegmentUnitId) {
-      candidates.push({ key: '1', label: `\\u5f53\\u524d\\u9009\\u4e2d\\u53e5\\u6bb5（${activeSegmentUnitId}）`, argsPatch: { segmentId: activeSegmentUnitId } });
-    } else if (activeUtteranceUnitId) {
-      candidates.push({ key: '1', label: `\\u5f53\\u524d\\u9009\\u4e2d\\u53e5\\u6bb5（${activeUtteranceUnitId}）`, argsPatch: { utteranceId: activeUtteranceUnitId } });
+    const selectionTargetPatch = resolveSelectionTargetPatchForTool(callName, context);
+    if (selectionTargetPatch?.segmentId) {
+      candidates.push({ key: '1', label: `\\u5f53\\u524d\\u9009\\u4e2d\\u53e5\\u6bb5（${selectionTargetPatch.segmentId}）`, argsPatch: selectionTargetPatch });
     }
   }
   if (reason === 'missing-layer-target' && selectedLayerId) {
@@ -1244,6 +1573,22 @@ export function toNaturalTargetClarify(
   return formatTargetClarify(toToolActionLabel(callName), reason, style, candidates);
 }
 
+export function normalizeUnsupportedToolCallJson(
+  content: string,
+  userText: string,
+  style: AiToolFeedbackStyle,
+): string | null {
+  const rawCall = parseRawToolCallEnvelope(content);
+  if (!rawCall) return null;
+  if (normalizeToolCallName(rawCall.name)) return null;
+
+  const actionLabel = inferFallbackActionLabel(userText, rawCall.name);
+  if (looksLikeSegmentScopedTool(rawCall.name, rawCall.arguments)) {
+    return formatTargetClarify(actionLabel, 'missing-utterance-target', style);
+  }
+  return formatActionClarify(actionLabel, style);
+}
+
 export function normalizeLegacyRiskNarration(content: string, style: AiToolFeedbackStyle): string {
   const legacyCall = parseLegacyNarratedToolCall(content);
   if (!legacyCall) return content;
@@ -1262,11 +1607,12 @@ export function isAmbiguousTargetRiskSummary(summary: string): boolean {
 
 export function describeAndBuildPending(
   toolCall: AiChatToolCall,
+  context?: AiPromptContext | null,
 ): { riskSummary: string; impactPreview: string[]; previewContract: PreviewContract } {
   const impact = describeToolCallImpact(toolCall);
   return {
     riskSummary: impact.riskSummary,
     impactPreview: impact.impactPreview,
-    previewContract: buildPreviewContract(toolCall),
+    previewContract: buildPreviewContract(toolCall, context),
   };
 }

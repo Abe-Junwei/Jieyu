@@ -3,8 +3,6 @@
  * 提取自 useAiChat.ts 的纯工具函数，不依赖 React 或外部服务
  */
 
-import type { AiChatToolName } from './useAiChat.types';
-
 // ── ID Generation ──────────────────────────────────────────────────────────────
 
 let _messageCounter = 0;
@@ -70,77 +68,6 @@ export function base64ToByteArray(base64: string): Uint8Array {
   return bytes;
 }
 
-// ── Tool Name Normalization ────────────────────────────────────────────────────
-
-const TOOL_NAME_ALIASES: Record<string, AiChatToolName> = {
-  'create-segment': 'create_transcription_segment',
-  'create_transcription': 'create_transcription_segment',
-  'split-segment': 'split_transcription_segment',
-  'split': 'split_transcription_segment',
-  'delete-segment': 'delete_transcription_segment',
-  'delete_transcription': 'delete_transcription_segment',
-  'delete_text': 'delete_transcription_segment',
-  'clear_translation': 'clear_translation_segment',
-  'clear': 'clear_translation_segment',
-  'set-text': 'set_transcription_text',
-  'set_transcription': 'set_transcription_text',
-  'set_translation': 'set_translation_text',
-  'set_translation_text': 'set_translation_text',
-  'create_layer': 'create_transcription_layer',
-  'create_transcription_layer': 'create_transcription_layer',
-  'create_translation_layer': 'create_translation_layer',
-  'delete_layer': 'delete_layer',
-  'link_layer': 'link_translation_layer',
-  'link': 'link_translation_layer',
-  'unlink_layer': 'unlink_translation_layer',
-  'unlink': 'unlink_translation_layer',
-  'auto_gloss': 'auto_gloss_utterance',
-  'gloss': 'auto_gloss_utterance',
-  'set_pos': 'set_token_pos',
-  'set_pos_tag': 'set_token_pos',
-  'set_gloss': 'set_token_gloss',
-  'token_gloss': 'set_token_gloss',
-};
-
-export function normalizeToolCallName(rawName: string): AiChatToolName | null {
-  const normalized = rawName.trim().replace(/\s+/g, '_').toLowerCase();
-  if (TOOL_NAME_ALIASES[normalized]) {
-    return TOOL_NAME_ALIASES[normalized]!;
-  }
-  // Direct match
-  if (normalized in TOOL_NAME_ALIASES) {
-    return TOOL_NAME_ALIASES[normalized]!;
-  }
-  return null;
-}
-
-// ── Language Target Helpers ─────────────────────────────────────────────────────
-
-const AMBIGUOUS_LANGUAGE_TARGET_PATTERN = /^(und|unknown|auto|default)$/i;
-
-export function isAmbiguousLanguageTarget(value: unknown): boolean {
-  if (typeof value !== 'string') return false;
-  return AMBIGUOUS_LANGUAGE_TARGET_PATTERN.test(value);
-}
-
-export function requiresConcreteLanguageTarget(callName: AiChatToolName): boolean {
-  const requiresLanguage = [
-    'set_translation_text',
-    'create_translation_layer',
-    'auto_gloss_utterance',
-  ] as const;
-  return (requiresLanguage as readonly string[]).includes(callName);
-}
-
-export function getFirstNonEmptyString(...values: unknown[]): string {
-  for (const v of values) {
-    if (typeof v === 'string' && v.trim().length > 0) {
-      return v.trim();
-    }
-  }
-  return '';
-}
-
 // ── Text Processing ────────────────────────────────────────────────────────────
 
 export function trimTextToMax(input: string, maxChars: number): string {
@@ -167,73 +94,6 @@ export function compressMessageContent(content: string, maxLen: number): string 
 
 // ── Destructive Tool Detection ─────────────────────────────────────────────────
 
-export function isDestructiveToolCall(name: AiChatToolName): boolean {
-  const destructiveTools: AiChatToolName[] = [
-    'delete_transcription_segment',
-    'delete_layer',
-  ];
-  return destructiveTools.includes(name);
-}
-
-// ── Tool Call Validation (pure) ─────────────────────────────────────────────────
-
-export const TOOL_ARG_MAX_ID_LENGTH = 128;
-export const TOOL_ARG_MAX_TEXT_LENGTH = 5000;
-
-export function validateArgId(
-  args: Record<string, unknown>,
-  key: string,
-  required: boolean,
-): string | null {
-  const value = args[key];
-  if (value === undefined || value === null) {
-    return required ? `Missing required: ${key}` : null;
-  }
-  if (typeof value !== 'string') {
-    return `Expected string for ${key}`;
-  }
-  if (value.length > TOOL_ARG_MAX_ID_LENGTH) {
-    return `${key} exceeds max length ${TOOL_ARG_MAX_ID_LENGTH}`;
-  }
-  if (!/^[\w-]+$/.test(value)) {
-    return `${key} contains invalid characters`;
-  }
-  return null;
-}
-
-export function validateArgText(args: Record<string, unknown>): string | null {
-  const value = args.text ?? args.content ?? args.translation;
-  if (value === undefined || value === null) {
-    return null; // Optional
-  }
-  if (typeof value !== 'string') {
-    return 'Text argument must be a string';
-  }
-  if (value.length > TOOL_ARG_MAX_TEXT_LENGTH) {
-    return `Text exceeds max length ${TOOL_ARG_MAX_TEXT_LENGTH}`;
-  }
-  return null;
-}
-
-export function validateSplitSegmentArgs(args: Record<string, unknown>): string | null {
-  if (typeof args.segmentId !== 'string') {
-    return 'Missing or invalid segmentId';
-  }
-  if (typeof args.splitPosition !== 'number') {
-    if (typeof args.splitPosition !== 'string') {
-      return 'Missing or invalid splitPosition';
-    }
-    const parsed = Number(args.splitPosition);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      return 'splitPosition must be a non-negative number';
-    }
-  }
-  return validateArgText(args);
-}
-
-export function validateDeleteLayerArgs(args: Record<string, unknown>): string | null {
-  if (typeof args.layerId !== 'string') {
-    return 'Missing or invalid layerId';
-  }
-  return null;
+export function isDestructiveToolCall(name: string): boolean {
+  return name === 'delete_transcription_segment' || name === 'delete_layer';
 }

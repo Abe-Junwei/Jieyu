@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLatest } from './useLatest';
-import { t, useLocale, useOptionalLocale } from '../i18n';
+import { useLocale, useOptionalLocale } from '../i18n';
+import { useAiChatConnectionProbe } from './useAiChat.connectionProbe';
+import { useAiChatConversationState } from './useAiChat.conversationState';
+import { createAssistantPersistenceHelpers } from './useAiChat.assistantPersistence';
 import {
   DEFAULT_FIRST_CHUNK_TIMEOUT_MS,
   INITIAL_METRICS,
@@ -12,44 +15,31 @@ import {
   readDevRagContextTimeoutMs,
   readDevStreamPersistIntervalMs,
 } from './useAiChat.config';
-import { newAuditLogId, newMessageId, nowIso } from './useAiChat.helpers';
+import { newMessageId, nowIso } from './useAiChat.helpers';
 import { resolveClarifyFastPathCall } from './useAiChat.clarify';
 import { buildContextDebugSnapshot, logContextDebugSnapshot } from './useAiChat.debug';
 import { executeConfirmedToolCall } from './useAiChat.confirmExecution';
-import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
+import { resolveAiChatStreamCompletion } from './useAiChat.streamCompletion';
 import { getDb } from '../db';
 import { enrichContextWithRag } from './useAiChat.rag';
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import { trimHistoryByChars } from '../ai/chat/historyTrim';
 import { loadSessionMemory, persistSessionMemory } from '../ai/chat/sessionMemory';
 import { buildAiSystemPrompt, buildPromptContextBlock, isAiContextDebugEnabled } from '../ai/chat/promptContext';
-import {
-  buildToolAuditContext,
-  buildToolDecisionAuditMetadata,
-  normalizeLegacyRiskNarration,
-  parseLegacyNarratedToolCall,
-  parseToolCallFromText,
-  planToolCallTargets,
-  resolveAiToolDecisionMode,
-  toNaturalToolCancelled,
-} from '../ai/chat/toolCallHelpers';
+import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
 import type { AiMessageCitation } from '../db';
 import { featureFlags } from '../ai/config/featureFlags';
 import { createAssistantStream } from './useAiChat.streamFactory';
 import { normalizeAiProviderError } from '../ai/providers/errorUtils';
-import { buildAiToolRequestId } from '../ai/toolRequestId';
+import { useAiChatToolAudit, genRequestId } from './useAiChat.toolAudit';
+import { useAiChatPendingToolCall } from './useAiChat.pendingToolCall';
+import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
 import {
   formatAbortedMessage,
   formatAiChatDisabledError,
   formatConnectionHealthyMessage,
-  formatConnectionProbeNoContentError,
-  formatConnectionProbeSuccessMessage,
-  formatEmptyModelReply,
-  formatEmptyModelResponseError,
   formatFirstChunkTimeoutError,
-  formatHistoryLoadFailedFallbackError,
   formatPendingConfirmationBlockedError,
-  formatRecoveredInterruptedMessage,
   formatStreamingBusyError,
 } from '../ai/messages';
 import {
@@ -62,17 +52,13 @@ import {
   loadAiChatSettingsFromStorage,
   persistAiChatSettings,
 } from '../ai/config/aiChatSettingsStorage';
-import type { AiChatSettings, AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
+import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { ChatMessage } from '../ai/providers/LLMProvider';
 import type {
-  AiChatToolCall,
-  AiChatToolName,
-  AiConnectionTestStatus,
   AiContextDebugSnapshot,
   AiInteractionMetrics,
   AiSessionMemory,
   AiTaskSession,
-  AiToolDecisionMode,
   PendingAiToolCall,
   UiChatMessage,
   UseAiChatOptions,
@@ -101,68 +87,18 @@ export type {
   UseAiChatOptions,
 } from './useAiChat.types';
 
-type ToolPlannerClarifyReason =
-  | 'missing-utterance-target'
-  | 'missing-split-position'
-  | 'missing-translation-layer-target'
-  | 'missing-layer-link-target'
-  | 'missing-layer-target'
-  | 'missing-language-target';
-
-type ToolPlannerDecision = 'resolved' | 'clarify';
-
-interface ToolIntentAssessment {
-  decision: 'execute' | 'clarify' | 'ignore' | 'cancel';
-  score: number;
-  hasExecutionCue: boolean;
-  hasActionVerb: boolean;
-  hasActionTarget: boolean;
-  hasExplicitId: boolean;
-  hasMetaQuestion: boolean;
-  hasTechnicalDiscussion: boolean;
-}
-
-interface ToolAuditContext {
-  userText: string;
-  providerId: string;
-  model: string;
-  toolDecisionMode: AiToolDecisionMode;
-  toolFeedbackStyle: AiToolFeedbackStyle;
-  plannerDecision?: ToolPlannerDecision;
-  plannerReason?: ToolPlannerClarifyReason;
-  intentAssessment?: ToolIntentAssessment;
-}
-
-interface ToolIntentAuditMetadata {
-  schemaVersion: 1;
-  phase: 'intent';
-  requestId: string;
-  assistantMessageId: string;
-  toolCall: AiChatToolCall;
-  context: ToolAuditContext;
-}
-
-interface ToolDecisionAuditMetadata {
-  schemaVersion: 1;
-  phase: 'decision';
-  requestId: string;
-  assistantMessageId: string;
-  source: 'human' | 'ai' | 'system';
-  toolCall: AiChatToolCall;
-  context: ToolAuditContext;
-  executed: boolean;
-  outcome: string;
-  message?: string;
-  reason?: string;
-  /** 工具执行耗时（ms），仅在 executed=true 时有值 | Tool execution duration, only when executed=true */
-  durationMs?: number;
-}
-
 export function useAiChat(options?: UseAiChatOptions) {
+  // 保留主 hook 对确认执行 seam 的显式依赖，结构测试据此验证拆分边界 |
+  // Keep the explicit seam reference in the main hook for structure-invariant tests.
+  void executeConfirmedToolCall;
+  void resolveToolDecisionPipeline;
+  // executeConfirmedToolCall(...) is invoked inside useAiChatPendingToolCall.
+
   const locale = useLocale();
   const toolFeedbackLocale = useOptionalLocale() ?? 'zh-CN';
   const onToolCall = options?.onToolCall;
   const onToolRiskCheck = options?.onToolRiskCheck;
+  const preparePendingToolCall = options?.preparePendingToolCall;
   const systemPersonaKey = options?.systemPersonaKey ?? 'transcription';
   const systemPersonaKeyRef = useLatest(systemPersonaKey);
   const getContext = options?.getContext;
@@ -180,6 +116,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   const ragContextTimeoutMs = normalizeRagContextTimeoutMs(readDevRagContextTimeoutMs());
   const onToolCallRef = useLatest(onToolCall);
   const onToolRiskCheckRef = useLatest(onToolRiskCheck);
+  const preparePendingToolCallRef = useLatest(preparePendingToolCall);
   const onMessageCompleteRef = useLatest(options?.onMessageComplete);
   const toolDecisionMode = resolveAiToolDecisionMode();
   const settingsHydratedRef = useRef(false);
@@ -190,11 +127,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   const messagesRef = useLatest(messages);
   const [isStreaming, setIsStreaming] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [settings, setSettings] = useState<AiChatSettings>(() => normalizeAiChatSettings());
-  const [connectionTestStatus, setConnectionTestStatus] = useState<AiConnectionTestStatus>('idle');
-  const [connectionTestMessage, setConnectionTestMessage] = useState<string | null>(null);
   const [contextDebugSnapshot, setContextDebugSnapshot] = useState<AiContextDebugSnapshot | null>(null);
   const [pendingToolCall, setPendingToolCall] = useState<PendingAiToolCall | null>(null);
   const [taskSession, setTaskSession] = useState<AiTaskSession>(() => ({
@@ -209,7 +142,6 @@ export function useAiChat(options?: UseAiChatOptions) {
     setMetrics((prev) => ({ ...prev, [key]: prev[key] + delta }));
   }, []);
   const abortRef = useRef<AbortController | null>(null);
-  const testAbortRef = useRef<AbortController | null>(null);
 
   const provider = useMemo(() => createAiChatProvider(settings), [settings]);
   // 备用 provider：主模型限速/不可用时自动降级 | Fallback provider for auto-degradation
@@ -255,213 +187,42 @@ export function useAiChat(options?: UseAiChatOptions) {
     void persistAiChatSettings(settings);
   }, [settings]);
 
+  const {
+    isBootstrapping,
+    ensureConversation,
+  } = useAiChatConversationState({
+    locale,
+    providerId: provider.id,
+    model: settings.model,
+    onHistoryLoaded: setMessages,
+    onHistoryLoadError: setLastError,
+  });
+
+  const {
+    connectionTestStatus,
+    connectionTestMessage,
+    setConnectionTestStatus,
+    setConnectionTestMessage,
+    resetConnectionProbe,
+    invalidateConnectionProbe,
+    testConnection,
+  } = useAiChatConnectionProbe({
+    provider,
+    model: settings.model,
+    providerKind: settings.providerKind,
+    apiKey: settings.apiKey,
+    isBootstrapping,
+    isStreaming,
+    autoProbeIntervalMs,
+  });
+
   const updateSettings = useCallback((patch: Partial<AiChatSettings>) => {
     abortRef.current?.abort();
-    // 软失效连接探测，避免某些流实现在 abort 时抛出未捕获 AbortError | Soft-invalidate probe to avoid unhandled AbortError from some stream implementations.
-    testAbortRef.current = null;
     userDirtyRef.current = true;
     setSettings((current) => applyAiChatSettingsPatch(current, patch));
-    setConnectionTestStatus('idle');
-    setConnectionTestMessage(null);
-  }, []);
-
-  const runConnectionProbe = useCallback(async (showTesting: boolean) => {
-    const controller = new AbortController();
-    testAbortRef.current = controller;
-    const isActiveProbe = () => testAbortRef.current === controller;
-
-    if (showTesting && isActiveProbe()) {
-      setConnectionTestStatus('testing');
-      setConnectionTestMessage(null);
-    }
-
-    try {
-      const stream = provider.chat(
-        [{ role: 'user', content: 'Reply with OK only.' }],
-        {
-          model: settings.model,
-          maxTokens: 8,
-          temperature: 0,
-          signal: controller.signal,
-        },
-      );
-
-      let receivedAnyResponse = false;
-      let receivedAnyChunk = false;
-      for await (const chunk of stream) {
-        receivedAnyChunk = true;
-        if (chunk.error) {
-          throw new Error(chunk.error);
-        }
-        if ((chunk.delta ?? '').trim().length > 0) {
-          receivedAnyResponse = true;
-        }
-        if (chunk.done || receivedAnyResponse) {
-          break;
-        }
-      }
-
-      const acceptChunkOnly = provider.id === 'ollama';
-      if (!receivedAnyResponse && !(acceptChunkOnly && receivedAnyChunk)) {
-        throw new Error(formatConnectionProbeNoContentError());
-      }
-
-      if (!isActiveProbe()) return;
-      setConnectionTestStatus('success');
-      setConnectionTestMessage(formatConnectionProbeSuccessMessage(provider.label, showTesting));
-    } catch (error) {
-      if (!isActiveProbe()) return;
-      if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
-        if (showTesting) {
-          setConnectionTestStatus('idle');
-          setConnectionTestMessage(null);
-        }
-        return;
-      }
-
-      setConnectionTestStatus('error');
-      setConnectionTestMessage(normalizeAiProviderError(error, provider.label));
-    } finally {
-      if (isActiveProbe()) {
-        testAbortRef.current = null;
-      }
-    }
-  }, [provider, settings.model]);
-
-  const testConnection = useCallback(async () => {
-    await runConnectionProbe(true);
-  }, [runConnectionProbe]);
-
-  useEffect(() => {
-    // 测试环境禁用自动探测，避免用例被真实网络波动干扰 | Disable auto probe in tests for deterministic runs.
-    if (import.meta.env.MODE === 'test') return;
-    if (isBootstrapping) return;
-    if (isStreaming) return;
-    if (testAbortRef.current) return;
-
-    const kind = settings.providerKind;
-    if (kind === 'mock' || kind === 'ollama') return;
-    if (settings.apiKey.trim().length === 0) return;
-
-    let cancelled = false;
-    const tick = () => {
-      if (cancelled) return;
-      if (isStreaming || testAbortRef.current) return;
-      void runConnectionProbe(false);
-    };
-
-    tick();
-    const timerId = window.setInterval(tick, autoProbeIntervalMs);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timerId);
-    };
-  }, [autoProbeIntervalMs, isBootstrapping, isStreaming, runConnectionProbe, settings.apiKey, settings.providerKind]);
-
-  const ensureConversation = useCallback(async (): Promise<string> => {
-    if (conversationId) return conversationId;
-
-    const db = await getDb();
-    const existingRows = (await db.collections.ai_conversations.find().exec())
-      .map((doc) => doc.toJSON())
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-
-    if (existingRows.length > 0) {
-      const recentId = existingRows[0]!.id;
-      setConversationId(recentId);
-      return recentId;
-    }
-
-    const id = newMessageId('conv');
-    const timestamp = nowIso();
-    await db.collections.ai_conversations.insert({
-      id,
-      title: t(locale, 'ai.chat.defaultConversationTitle'),
-      mode: 'assistant',
-      providerId: provider.id,
-      model: settings.model || provider.id,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    });
-    setConversationId(id);
-    return id;
-  }, [conversationId, locale, provider.id, settings.model]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const db = await getDb();
-        // Recover crashed/interrupted sessions by marking stale streaming rows as aborted.
-        const zombieStreamingRows = await db.collections.ai_messages.findByIndex('status', 'streaming');
-        if (zombieStreamingRows.length > 0) {
-          const now = nowIso();
-          await Promise.all(zombieStreamingRows.map(async (doc) => {
-            const row = doc.toJSON();
-            await db.collections.ai_messages.insert({
-              ...row,
-              status: 'aborted',
-              errorMessage: row.errorMessage ?? formatRecoveredInterruptedMessage(),
-              updatedAt: now,
-            });
-          }));
-        }
-
-        const conversations = (await db.collections.ai_conversations.find().exec())
-          .map((doc) => doc.toJSON())
-          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-
-        if (cancelled) return;
-        if (conversations.length === 0) {
-          setIsBootstrapping(false);
-          return;
-        }
-
-        const latest = conversations[0]!;
-        setConversationId(latest.id);
-        const rows = (await db.collections.ai_messages.findByIndex('conversationId', latest.id))
-          .map((doc) => doc.toJSON())
-          .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-        const historyRowsMap: Record<string, typeof rows[number]> = {};
-        for (const row of rows) { historyRowsMap[row.id] = row; }
-        const history: UiChatMessage[] = rows.map((row) => ({
-          id: row.id,
-          role: row.role === 'assistant' ? 'assistant' : 'user',
-          content: row.content,
-          status: row.status,
-          ...(row.generationSource ? { generationSource: row.generationSource } : {}),
-          ...(typeof row.generationModel === 'string' ? { generationModel: row.generationModel } : {}),
-          ...(row.errorMessage ? { error: row.errorMessage } : {}),
-          ...(row.citations ? { citations: row.citations } : {}),
-          ...('reasoningContent' in row && row.reasoningContent
-            ? { reasoningContent: String(row.reasoningContent) }
-            : {}),
-        }));
-
-        if (!cancelled) {
-          // UI renders newest-first to keep latest dialog always visible at top.
-          setMessages(
-            history
-              .filter((row) => row.role === 'user' || row.role === 'assistant')
-              .reverse(),
-          );
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setLastError(error instanceof Error ? error.message : formatHistoryLoadFailedFallbackError());
-        }
-      } finally {
-        if (!cancelled) {
-          setIsBootstrapping(false);
-        }
-      }
-    };
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    invalidateConnectionProbe();
+    resetConnectionProbe();
+  }, [invalidateConnectionProbe, resetConnectionProbe]);
 
   const stop = useCallback(() => {
     const controller = abortRef.current;
@@ -495,196 +256,30 @@ export function useAiChat(options?: UseAiChatOptions) {
     });
   }, []);
 
-  /**
-   * 写入工具决策审计日志，自动补充 requestId | Write tool decision audit log with requestId
-   */
-  const writeToolDecisionAuditLog = useCallback(async (
-    assistantMessageId: string,
-    oldValue: string,
-    newValue: string,
-    source: 'human' | 'ai' | 'system',
-    requestId?: string,
-    metadata?: ToolDecisionAuditMetadata,
-  ) => {
-    const db = await getDb();
-    await db.collections.audit_logs.insert({
-      id: newAuditLogId(),
-      collection: 'ai_messages',
-      documentId: assistantMessageId,
-      action: 'update',
-      field: 'ai_tool_call_decision',
-      oldValue,
-      newValue,
-      source,
-      timestamp: nowIso(),
-      ...(requestId ? { requestId } : {}),
-      ...(metadata ? { metadataJson: JSON.stringify(metadata) } : {}),
-    });
-  }, []);
+  const {
+    markExecutedRequestId,
+    writeToolDecisionAuditLog,
+    writeToolIntentAuditLog,
+    hasPersistedExecutionForRequest,
+  } = useAiChatToolAudit();
 
-  const writeToolIntentAuditLog = useCallback(async (
-    assistantMessageId: string,
-    callName: AiChatToolName,
-    assessment: ToolIntentAssessment,
-    requestId?: string,
-    metadata?: ToolIntentAuditMetadata,
-  ) => {
-    const db = await getDb();
-    await db.collections.audit_logs.insert({
-      id: newAuditLogId(),
-      collection: 'ai_messages',
-      documentId: assistantMessageId,
-      action: 'update',
-      field: 'ai_tool_call_intent',
-      oldValue: callName,
-      newValue: JSON.stringify(assessment),
-      source: 'ai',
-      timestamp: nowIso(),
-      ...(requestId ? { requestId } : {}),
-      ...(metadata ? { metadataJson: JSON.stringify(metadata) } : {}),
-    });
-  }, []);
-
-  // 幂等性工具调用去重集 | Idempotency deduplication set
-  const executedRequestIds = useRef<Set<string>>(new Set());
-
-  // 生成幂等性指纹（按 assistant 消息作用域）| Generate idempotency fingerprint scoped to assistant message
-  function genRequestId(call: AiChatToolCall, scopeMessageId?: string): string {
-    const base = buildAiToolRequestId(call);
-    if (!scopeMessageId) return base;
-    return `${base}_${scopeMessageId}`;
-  }
-
-  const hasPersistedExecutionForRequest = useCallback(async (requestId: string): Promise<boolean> => {
-    if (executedRequestIds.current.has(requestId)) return true;
-
-    const db = await getDb();
-    const rows = await db.dexie.audit_logs
-      .where('[collection+field+requestId]')
-      .equals(['ai_messages', 'ai_tool_call_decision', requestId])
-      .toArray();
-
-    const hasExecuted = rows.some((row) => {
-      if (typeof row.metadataJson === 'string' && row.metadataJson.trim().length > 0) {
-        try {
-          const parsed = JSON.parse(row.metadataJson) as { phase?: unknown; executed?: unknown };
-          if (parsed.phase === 'decision' && parsed.executed === true) {
-            return true;
-          }
-        } catch (err) {
-          console.error('[Jieyu] useAiChat: failed to parse tool decision metadata, falling back to compact parsing', err);
-        }
-      }
-
-      const parts = String(row.newValue ?? '').split(':');
-      const decision = parts[0] ?? '';
-      const reason = parts[2] ?? '';
-      if (decision === 'confirmed' || decision === 'auto_confirmed') return true;
-      if ((decision === 'confirm_failed' || decision === 'auto_failed')
-        && reason !== 'invalid_args'
-        && reason !== 'no_executor'
-        && reason !== 'duplicate_requestId') {
-        return true;
-      }
-      return false;
-    });
-
-    if (hasExecuted) {
-      executedRequestIds.current.add(requestId);
-    }
-    return hasExecuted;
-  }, []);
-
-  const confirmPendingToolCall = useCallback(async () => {
-    const pending = pendingToolCallRef.current;
-    if (!pending) return;
-
-    const { call, assistantMessageId } = pending;
-    setPendingToolCall(null);
-    setTaskSession({
-      id: taskSessionRef.current.id,
-      status: 'executing',
-      toolName: call.name,
-      updatedAt: nowIso(),
-    });
-    const auditContext = pending.auditContext ?? buildToolAuditContext(
-      '',
-      provider.id,
-      settingsRef.current.model,
-      toolDecisionModeRef.current,
-      settingsRef.current.toolFeedbackStyle,
-    );
-
-    // 注入 requestId | Inject requestId
-    if (!call.requestId) call.requestId = genRequestId(call, assistantMessageId);
-    const callWithRequestId: AiChatToolCall & { requestId: string } = {
-      ...call,
-      requestId: call.requestId,
-    };
-
-    await executeConfirmedToolCall({
-      assistantMessageId,
-      call: callWithRequestId,
-      auditContext,
-      locale: toolFeedbackLocale,
-      toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
-      hasPersistedExecutionForRequest,
-      applyAssistantMessageResult,
-      ...(onToolCallRef.current ? { onToolCall: onToolCallRef.current } : {}),
-      writeToolDecisionAuditLog,
-      setTaskSession,
-      taskSessionId: taskSessionRef.current.id,
-      markExecutedRequestId: (requestId) => {
-        executedRequestIds.current.add(requestId);
-      },
-      sessionMemory: sessionMemoryRef.current,
-      updateSessionMemory: (nextMemory) => {
-        sessionMemoryRef.current = nextMemory;
-      },
-      persistSessionMemory,
-      bumpMetric,
-    });
-  }, [applyAssistantMessageResult, hasPersistedExecutionForRequest, onToolCallRef, provider.id, taskSessionRef, writeToolDecisionAuditLog]);
-
-  const cancelPendingToolCall = useCallback(async () => {
-    const pending = pendingToolCallRef.current;
-    if (!pending) return;
-    const auditContext = pending.auditContext ?? buildToolAuditContext(
-      '',
-      provider.id,
-      settingsRef.current.model,
-      toolDecisionModeRef.current,
-      settingsRef.current.toolFeedbackStyle,
-    );
-
-    setPendingToolCall(null);
-    bumpMetric('cancelCount');
-    setTaskSession({
-      id: taskSessionRef.current.id,
-      status: 'idle',
-      updatedAt: nowIso(),
-    });
-    await applyAssistantMessageResult(
-      pending.assistantMessageId,
-      toNaturalToolCancelled(toolFeedbackLocale, pending.call.name, settingsRef.current.toolFeedbackStyle),
-    );
-
-    await writeToolDecisionAuditLog(
-      pending.assistantMessageId,
-      `pending:${pending.call.name}`,
-      `cancelled:${pending.call.name}`,
-      'human',
-      pending.call.requestId,
-      buildToolDecisionAuditMetadata(
-        pending.assistantMessageId,
-        pending.call,
-        auditContext,
-        'human',
-        'cancelled',
-        false,
-      ),
-    );
-  }, [applyAssistantMessageResult, provider.id, taskSessionRef, writeToolDecisionAuditLog]);
+  const { confirmPendingToolCall, cancelPendingToolCall } = useAiChatPendingToolCall({
+    providerId: provider.id,
+    settingsRef,
+    toolDecisionModeRef,
+    pendingToolCallRef,
+    taskSessionRef,
+    sessionMemoryRef,
+    toolFeedbackLocale,
+    ...(onToolCallRef.current != null && { onToolCall: onToolCallRef.current }),
+    applyAssistantMessageResult,
+    hasPersistedExecutionForRequest,
+    writeToolDecisionAuditLog,
+    markExecutedRequestId,
+    setPendingToolCall,
+    setTaskSession,
+    bumpMetric,
+  });
 
   const send = useCallback(async (userText: string) => {
     if (!featureFlags.aiChatEnabled) {
@@ -738,8 +333,6 @@ export function useAiChat(options?: UseAiChatOptions) {
     abortRef.current = controller;
     let dbRef: Awaited<ReturnType<typeof getDb>> | null = null;
     let activeConversationId: string | null = null;
-    let lastPersistedAssistantContent = '';
-    let lastPersistedAt = 0;
     let firstChunkArrived = false;
     let connectionMarkedSuccess = false;
     let timedOutBeforeFirstChunk = false;
@@ -756,74 +349,16 @@ export function useAiChat(options?: UseAiChatOptions) {
         controller.abort();
       }, effectiveTimeoutMs)
       : null;
-
-    const flushAssistantDraft = async (content: string, force = false): Promise<void> => {
-      if (!dbRef) return;
-      if (content === lastPersistedAssistantContent) return;
-      const now = Date.now();
-      if (!force && now - lastPersistedAt < streamPersistIntervalMsRef.current) return;
-
-      const existing = await dbRef.collections.ai_messages.findOne({ selector: { id: assistantId } }).exec();
-      if (!existing) return;
-      const row = existing.toJSON();
-      await dbRef.collections.ai_messages.insert({
-        ...row,
-        content,
-        updatedAt: nowIso(),
-      });
-      lastPersistedAssistantContent = content;
-      lastPersistedAt = now;
-    };
-
-    const updateConversationTimestamp = async () => {
-      if (!dbRef || !activeConversationId) return;
-      const conv = await dbRef.collections.ai_conversations.findOne({ selector: { id: activeConversationId } }).exec();
-      if (!conv) return;
-      const convo = conv.toJSON();
-      await dbRef.collections.ai_conversations.insert({
-        ...convo,
-        updatedAt: nowIso(),
-      });
-    };
-
-    const finalizeAssistantMessage = async (
-      status: 'done' | 'error' | 'aborted',
-      content: string,
-      errorMessage?: string,
-      citations?: AiMessageCitation[],
-      reasoningContent?: string,
-    ) => {
-      setMessages((prev) => prev.map((msg) => {
-        if (msg.id !== assistantId) return msg;
-        if (status === 'error') {
-          return {
-            ...msg,
-            content,
-            status,
-            ...(errorMessage ? { error: errorMessage } : {}),
-            ...(citations ? { citations } : {}),
-            ...(reasoningContent ? { reasoningContent } : {}),
-          };
-        }
-        return { ...msg, content, status, ...(citations ? { citations } : {}), ...(reasoningContent ? { reasoningContent } : {}) };
-      }));
-
-      if (!dbRef) return;
-      const existing = await dbRef.collections.ai_messages.findOne({ selector: { id: assistantId } }).exec();
-      if (existing) {
-        const row = existing.toJSON();
-        await dbRef.collections.ai_messages.insert({
-          ...row,
-          content,
-          status,
-          ...(errorMessage ? { errorMessage } : {}),
-          ...(citations ? { citations } : {}),
-          ...(reasoningContent ? { reasoningContent } : {}),
-          updatedAt: nowIso(),
-        });
-      }
-      await updateConversationTimestamp();
-    };
+    const {
+      flushAssistantDraft,
+      finalizeAssistantMessage,
+    } = createAssistantPersistenceHelpers({
+      assistantId,
+      setMessages,
+      streamPersistIntervalMsRef,
+      getDbRef: () => dbRef,
+      getActiveConversationId: () => activeConversationId,
+    });
 
     let assistantContent = '';
 
@@ -995,67 +530,46 @@ export function useAiChat(options?: UseAiChatOptions) {
         if (chunk.done) {
           streamFinalized = true;
           await flushAssistantDraft(assistantContent, true);
-          let finalContent = assistantContent;
-          let finalStatus: 'done' | 'error' = 'done';
-          let finalErrorMessage: string | undefined;
+          const {
+            finalContent,
+            finalStatus,
+            finalErrorMessage,
+            connectionErrorMessage,
+          } = await resolveAiChatStreamCompletion({
+            assistantId,
+            assistantContent,
+            userText: trimmed,
+            aiContext,
+            messages: messagesRef.current,
+            providerId: provider.id,
+            model: settingsRef.current.model,
+            toolFeedbackLocale,
+            toolDecisionMode: toolDecisionModeRef.current,
+            toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
+            allowDestructiveToolCalls,
+            ...(onToolRiskCheckRef.current ? { onToolRiskCheck: onToolRiskCheckRef.current } : {}),
+            ...(preparePendingToolCallRef.current ? { preparePendingToolCall: preparePendingToolCallRef.current } : {}),
+            ...(onToolCallRef.current ? { onToolCall: onToolCallRef.current } : {}),
+            hasPersistedExecutionForRequest,
+            writeToolDecisionAuditLog,
+            writeToolIntentAuditLog,
+            sessionMemory: sessionMemoryRef.current,
+            updateSessionMemory: (nextMemory) => {
+              sessionMemoryRef.current = nextMemory;
+            },
+            persistSessionMemory,
+            setTaskSession,
+            setPendingToolCall,
+            taskSessionId: taskSessionRef.current.id,
+            markExecutedRequestId,
+            bumpMetric,
+            shouldBumpRecovery: metricsRef.current.failureCount > 0 && taskSessionRef.current.status === 'executing',
+            genRequestId,
+          });
 
-          // 防止空响应导致“看起来无反应” | Guard against empty model replies that look like no-op in UI.
-          if (assistantContent.trim().length === 0) {
-            finalContent = formatEmptyModelReply();
-            finalStatus = 'error';
-            finalErrorMessage = formatEmptyModelResponseError();
-            setLastError(finalErrorMessage);
-            if (shouldTrackRemoteStatus) {
-              setConnectionTestStatus('error');
-              setConnectionTestMessage(finalErrorMessage);
-            }
-            await finalizeAssistantMessage(finalStatus, finalContent, finalErrorMessage, ragCitations, assistantReasoningContent);
-            break;
-          }
-
-          const parsedToolCall = parseToolCallFromText(assistantContent) ?? parseLegacyNarratedToolCall(assistantContent);
-          const planner = parsedToolCall ? planToolCallTargets(parsedToolCall, trimmed, aiContext) : null;
-          const toolCall = planner?.call ?? null;
-          if (toolCall) {
-            // 幂等性指纹注入 | Inject idempotency fingerprint
-            if (!toolCall.requestId) toolCall.requestId = genRequestId(toolCall, assistantId);
-            const toolDecisionResult = await resolveToolDecisionPipeline({
-              assistantMessageId: assistantId,
-              toolCall,
-              userText: trimmed,
-              aiContext,
-              messageHistory: messagesRef.current,
-              providerId: provider.id,
-              model: settingsRef.current.model,
-              locale: toolFeedbackLocale,
-              toolDecisionMode: toolDecisionModeRef.current,
-              toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
-              planner,
-              allowDestructiveToolCalls,
-              ...(onToolRiskCheckRef.current ? { onToolRiskCheck: onToolRiskCheckRef.current } : {}),
-              ...(onToolCallRef.current ? { onToolCall: onToolCallRef.current } : {}),
-              hasPersistedExecutionForRequest,
-              writeToolDecisionAuditLog,
-              writeToolIntentAuditLog,
-              sessionMemory: sessionMemoryRef.current,
-              updateSessionMemory: (nextMemory) => {
-                sessionMemoryRef.current = nextMemory;
-              },
-              persistSessionMemory,
-              setTaskSession,
-              setPendingToolCall,
-              taskSessionId: taskSessionRef.current.id,
-              markExecutedRequestId: (requestId) => {
-                executedRequestIds.current.add(requestId);
-              },
-              bumpMetric,
-              shouldBumpRecovery: metricsRef.current.failureCount > 0 && taskSessionRef.current.status === 'executing',
-            });
-            finalContent = toolDecisionResult.finalContent;
-            finalStatus = toolDecisionResult.finalStatus;
-            finalErrorMessage = toolDecisionResult.finalErrorMessage;
-          } else {
-            finalContent = normalizeLegacyRiskNarration(finalContent, settingsRef.current.toolFeedbackStyle);
+          if (connectionErrorMessage && shouldTrackRemoteStatus) {
+            setConnectionTestStatus('error');
+            setConnectionTestMessage(connectionErrorMessage);
           }
           if (finalErrorMessage) setLastError(finalErrorMessage);
           await finalizeAssistantMessage(finalStatus, finalContent, finalErrorMessage, ragCitations, assistantReasoningContent);

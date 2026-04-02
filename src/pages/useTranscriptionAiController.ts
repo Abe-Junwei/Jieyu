@@ -1,14 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AiPanelMode } from '../components/AiAnalysisPanel';
 import type { AiObserverRecommendation } from '../components/transcription/toolbar/ObserverStatus';
-import type { LayerDocType, LayerLinkDocType, MediaItemDocType, UtteranceDocType } from '../db';
-import { useAiChat, type AiChatToolCall, type AiToolRiskCheckResult } from '../hooks/useAiChat';
+import type {
+  LayerDocType,
+  LayerLinkDocType,
+  LayerSegmentDocType,
+  MediaItemDocType,
+  UtteranceDocType,
+} from '../db';
+import { useAiChat } from '../hooks/useAiChat';
 import { useAiPanelLogic, taskToPersona, type ActionableRecommendation } from '../hooks/useAiPanelLogic';
 import { useAiToolCallHandler } from '../hooks/useAiToolCallHandler';
+import {
+  materializePendingToolCallTargets,
+} from '../hooks/useAiToolCallHandler.segmentTargeting';
 import type { SaveState } from '../hooks/transcriptionTypes';
-import { t, tf, type Locale } from '../i18n';
+import type { Locale } from '../i18n';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
-import { SUPPORTED_VOICE_LANGS, resolveLanguageQuery } from '../utils/langMapping';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import { createDeferredEmbeddingSearchService } from '../ai/embeddings/DeferredEmbeddingSearchService';
 import { listRecentAiToolDecisionLogs } from '../ai/auditReplay';
@@ -17,16 +25,28 @@ import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import { transformTextForLayerTarget } from '../utils/orthographyRuntime';
+import { createTranscriptionAiToolRiskCheck } from './transcriptionAiToolRiskCheck';
+import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
+import {
+  buildAiSegmentTargetDescriptors,
+  resolveAiSegmentTargetScopeUtterances,
+} from './useTranscriptionAiController.segmentTargets';
 
 const TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX = '\u5237\u65b0 AI \u5de5\u5177\u5ba1\u8ba1\u65e5\u5fd7\u5931\u8d25\uff1a';
 
 interface UseTranscriptionAiControllerInput {
   utterances: UtteranceDocType[];
+  utterancesOnCurrentMedia: UtteranceDocType[];
   selectedUnitIds: Set<string>;
   selectedUtterance: UtteranceDocType | null;
   selectedTimelineOwnerUtterance: UtteranceDocType | null;
+  selectedTimelineSegment?: LayerSegmentDocType | null;
   selectedTimelineMedia?: MediaItemDocType;
   selectedLayerId: string;
+  activeLayerIdForEdits?: string;
+  resolveSegmentRoutingForLayer?: (layerId?: string) => SegmentRoutingResult;
+  segmentsByLayer?: ReadonlyMap<string, LayerSegmentDocType[]>;
+  segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, { text?: string }>>;
   selectionSnapshot: TranscriptionSelectionSnapshot;
   layers: LayerDocType[];
   transcriptionLayers: LayerDocType[];
@@ -43,8 +63,12 @@ interface UseTranscriptionAiControllerInput {
     input: { languageId: string; alias?: string },
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
-  createNextUtterance: (utterance: UtteranceDocType, duration: number) => Promise<void>;
-  splitUtterance: (utteranceId: string, splitTime: number) => Promise<void>;
+  createTranscriptionSegment: (targetId: string) => Promise<void>;
+  splitTranscriptionSegment: (targetId: string, splitTime: number) => Promise<void>;
+  mergeWithPrevious?: (id: string) => Promise<void>;
+  mergeWithNext?: (id: string) => Promise<void>;
+  mergeSelectedUtterances: (ids: Set<string>) => Promise<void>;
+  mergeSelectedSegments?: (ids: Set<string>) => Promise<void>;
   deleteUtterance: (id: string) => Promise<void>;
   deleteSelectedUtterances: (ids: Set<string>) => Promise<void>;
   deleteLayer: (id: string, options?: { keepUtterances?: boolean }) => Promise<void>;
@@ -93,7 +117,6 @@ export function useTranscriptionAiController(
   input: UseTranscriptionAiControllerInput,
 ): UseTranscriptionAiControllerResult {
   const {
-    utterances,
     transcriptionLayers,
     translationLayers,
     locale,
@@ -127,8 +150,43 @@ export function useTranscriptionAiController(
     }
   }, []);
 
-  const handleAiToolCall = useAiToolCallHandler({
+  const segmentTargetScopeUtterances = resolveAiSegmentTargetScopeUtterances({
     utterances: input.utterances,
+    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
+    ...(input.selectedTimelineMedia ? { selectedTimelineMedia: input.selectedTimelineMedia } : {}),
+  });
+
+  const segmentTargetDescriptors = buildAiSegmentTargetDescriptors({
+    utteranceTargets: segmentTargetScopeUtterances,
+    selectedLayerId: input.selectedLayerId,
+    ...(input.activeLayerIdForEdits !== undefined ? { activeLayerIdForEdits: input.activeLayerIdForEdits } : {}),
+    ...(input.segmentsByLayer !== undefined ? { segmentsByLayer: input.segmentsByLayer } : {}),
+    ...(input.segmentContentByLayer !== undefined ? { segmentContentByLayer: input.segmentContentByLayer } : {}),
+    ...(input.resolveSegmentRoutingForLayer !== undefined ? { resolveSegmentRoutingForLayer: input.resolveSegmentRoutingForLayer } : {}),
+    getUtteranceTextForLayer,
+  });
+  const selectedSegmentTargetId = input.selectionSnapshot.selectedUnitKind === 'segment'
+    ? (input.selectedTimelineSegment?.id ?? input.selectionSnapshot.timelineUnit?.unitId ?? undefined)
+    : input.selectedTimelineOwnerUtterance?.id ?? undefined;
+
+  const materializeAiToolCall = useCallback((call: Parameters<typeof materializePendingToolCallTargets>[0]) => materializePendingToolCallTargets(call, {
+    utterances: segmentTargetScopeUtterances,
+    transcriptionLayers: input.transcriptionLayers,
+    translationLayers: input.translationLayers,
+    ...(input.selectedTimelineOwnerUtterance ? { selectedUtterance: input.selectedTimelineOwnerUtterance } : {}),
+    segmentTargets: segmentTargetDescriptors,
+    ...(selectedSegmentTargetId ? { selectedSegmentTargetId } : {}),
+  }), [
+    input.selectedTimelineOwnerUtterance,
+    input.transcriptionLayers,
+    input.translationLayers,
+    segmentTargetDescriptors,
+    segmentTargetScopeUtterances,
+    selectedSegmentTargetId,
+  ]);
+
+  const aiToolCallHandler = useAiToolCallHandler({
+    utterances: segmentTargetScopeUtterances,
     selectedUtterance: input.selectedTimelineOwnerUtterance ?? undefined,
     selectedUtteranceMedia: input.selectedTimelineMedia,
     selectedLayerId: input.selectedLayerId,
@@ -136,19 +194,27 @@ export function useTranscriptionAiController(
     translationLayers: input.translationLayers,
     layerLinks: input.layerLinks,
     createLayer: input.createLayerWithActiveContext,
-    createNextUtterance: input.createNextUtterance,
-    splitUtterance: input.splitUtterance,
+    createNextUtterance: async () => undefined,
+    createTranscriptionSegment: input.createTranscriptionSegment,
+    splitUtterance: async () => undefined,
+    splitTranscriptionSegment: input.splitTranscriptionSegment,
+    ...(input.mergeWithPrevious ? { mergeWithPrevious: input.mergeWithPrevious } : {}),
+    ...(input.mergeWithNext ? { mergeWithNext: input.mergeWithNext } : {}),
+    mergeSelectedUtterances: input.mergeSelectedUtterances,
+    ...(input.mergeSelectedSegments ? { mergeSelectedSegments: input.mergeSelectedSegments } : {}),
     deleteUtterance: input.deleteUtterance,
     deleteSelectedUtterances: input.deleteSelectedUtterances,
     deleteLayer: input.deleteLayer,
     toggleLayerLink: input.toggleLayerLink,
     saveUtteranceText: input.saveUtteranceText,
     saveTextTranslationForUtterance: input.saveTextTranslationForUtterance,
+    saveSegmentContentForLayer: input.saveSegmentContentForLayer,
+    segmentTargets: segmentTargetDescriptors,
     updateTokenPos: input.updateTokenPos,
     batchUpdateTokenPosByForm: input.batchUpdateTokenPosByForm,
     updateTokenGloss: input.updateTokenGloss,
     ...(input.executeActionRef.current ? { executeAction: input.executeActionRef.current } : {}),
-    getSegments: () => input.utterances,
+    getSegments: () => segmentTargetScopeUtterances,
     navigateTo: input.selectUtterance,
     openSearch: (detail) => input.openSearchRef.current?.(detail),
     seekToTime: (timeSeconds) => input.seekToTimeRef.current?.(timeSeconds),
@@ -169,6 +235,11 @@ export function useTranscriptionAiController(
     },
   });
 
+  const handleAiToolCall = useCallback(async (call: Parameters<typeof aiToolCallHandler>[0]) => {
+    const preparedCall = materializeAiToolCall(call);
+    return aiToolCallHandler(preparedCall);
+  }, [aiToolCallHandler, materializeAiToolCall]);
+
   const buildAiPromptContext = useCallback(() => buildTranscriptionAiPromptContext({
     selectionSnapshot: input.selectionSnapshot,
     selectedUnitIds: Array.from(input.selectedUnitIds).slice(0, 12),
@@ -182,102 +253,23 @@ export function useTranscriptionAiController(
     recentEdits: input.undoHistory.slice(0, 5).map((item) => String(item)),
   }), [input.aiConfidenceAvg, input.selectedUnitIds, input.selectionSnapshot, input.translationLayerCount, input.undoHistory, input.utteranceCount]);
 
-  const handleAiToolRiskCheck = useCallback((call: AiChatToolCall): AiToolRiskCheckResult | null => {
-    if (call.name === 'delete_layer') {
-      const layerId = String(call.arguments.layerId ?? '').trim();
-      if (layerId) {
-        const exists = transcriptionLayers.some((layer) => layer.id === layerId)
-          || translationLayers.some((layer) => layer.id === layerId);
-        if (!exists) {
-          return {
-            requiresConfirmation: false,
-            riskSummary: tf(locale, 'transcription.aiTool.layer.targetNotFound', { layerId }),
-            impactPreview: [],
-          };
-        }
-      } else {
-        const layerType = String(call.arguments.layerType ?? '').trim().toLowerCase();
-        const languageQuery = String(call.arguments.languageQuery ?? '').trim();
-        if (layerType && languageQuery) {
-          const pool = layerType === 'translation' ? translationLayers
-            : layerType === 'transcription' ? transcriptionLayers : [];
-          const code = resolveLanguageQuery(languageQuery);
-          const matchTokens = [languageQuery.toLowerCase(), ...(code ? [code] : [])];
-          const entry = code ? SUPPORTED_VOICE_LANGS.flatMap((group) => group.langs).find((lang) => lang.code === code) : undefined;
-          if (entry) entry.label.split(/\s*\/\s*/).forEach((part) => matchTokens.push(part.trim().toLowerCase()));
-          const matched = pool.filter((layer) => {
-            const fields = [layer.languageId, layer.key, layer.name.zho, layer.name.eng]
-              .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-              .map((value) => value.trim().toLowerCase());
-            return matchTokens.some((token) => fields.some((field) => field.includes(token) || token.includes(field)));
-          });
-          const layerTypeLabel = layerType === 'translation'
-            ? t(locale, 'transcription.aiTool.layer.typeTranslation')
-            : t(locale, 'transcription.aiTool.layer.typeTranscription');
-          if (matched.length === 0) {
-            return {
-              requiresConfirmation: false,
-              riskSummary: tf(locale, 'transcription.aiTool.layer.noMatchByLanguage', {
-                languageQuery,
-                layerType: layerTypeLabel,
-              }),
-              impactPreview: [],
-            };
-          }
-          if (matched.length > 1) {
-            return {
-              requiresConfirmation: false,
-              riskSummary: tf(locale, 'transcription.aiTool.layer.multipleMatchByLanguage', {
-                layerType: layerTypeLabel,
-              }),
-              impactPreview: [],
-            };
-          }
-        }
-      }
-      return null;
-    }
-
-    if (call.name !== 'delete_transcription_segment') return null;
-
-    const utteranceId = String(call.arguments.utteranceId ?? '').trim();
-    if (!utteranceId) return null;
-
-    const targetUtterance = utterances.find((item) => item.id === utteranceId);
-    if (!targetUtterance) return null;
-
-    const sortedByTime = [...utterances].sort((a, b) => a.startTime - b.startTime);
-    const rowIndex = Math.max(0, sortedByTime.findIndex((item) => item.id === utteranceId)) + 1;
-    const timeRange = `${formatTime(targetUtterance.startTime)}-${formatTime(targetUtterance.endTime)}`;
-
-    const transcriptionText = getUtteranceTextForLayer(targetUtterance).trim();
-    const transcriptionPreview = transcriptionText.length > 0
-      ? (transcriptionText.length > 18 ? `${transcriptionText.slice(0, 18)}...` : transcriptionText)
-      : t(locale, 'transcription.ai.segment.noTranscriptionText');
-    const translationLayerCountWithContent = Array.from(translationTextByLayer.values()).reduce((count, layerMap) => {
-      const item = layerMap.get(utteranceId);
-      return item?.text?.trim() ? count + 1 : count;
-    }, 0);
-
-    const hasAnyContent = transcriptionText.length > 0 || translationLayerCountWithContent > 0;
-    if (!hasAnyContent) {
-      return { requiresConfirmation: false };
-    }
-
-    return {
-      requiresConfirmation: true,
-      riskSummary: tf(locale, 'transcription.ai.segment.deleteRiskSummary', { rowIndex, timeRange }),
-      impactPreview: [
-        tf(locale, 'transcription.ai.segment.deleteImpactContent', { preview: transcriptionPreview }),
-        tf(locale, 'transcription.ai.segment.deleteImpactRelation', { count: translationLayerCountWithContent }),
-        t(locale, 'transcription.ai.segment.deleteImpactUndo'),
-      ],
-    };
-  }, [formatTime, getUtteranceTextForLayer, locale, transcriptionLayers, translationLayers, translationTextByLayer, utterances]);
+  const handleAiToolRiskCheck = createTranscriptionAiToolRiskCheck({
+    locale,
+    utterances: segmentTargetScopeUtterances,
+    ...(input.selectedTimelineOwnerUtterance ? { selectedUtterance: input.selectedTimelineOwnerUtterance } : {}),
+    ...(selectedSegmentTargetId ? { selectedSegmentTargetId } : {}),
+    segmentTargets: segmentTargetDescriptors,
+    transcriptionLayers,
+    translationLayers,
+    formatTime,
+    getUtteranceTextForLayer,
+    translationTextByLayer,
+  });
 
   const aiChat = useAiChat({
     onToolCall: handleAiToolCall,
     onToolRiskCheck: handleAiToolRiskCheck,
+    preparePendingToolCall: materializeAiToolCall,
     systemPersonaKey: aiDerivedPersona,
     getContext: buildAiPromptContext,
     maxContextChars: 2400,
@@ -285,9 +277,7 @@ export function useTranscriptionAiController(
     embeddingSearchService,
   });
 
-  useEffect(() => {
-    fireAndForget(refreshAiToolDecisionLogs());
-  }, [aiChat.pendingToolCall, refreshAiToolDecisionLogs]);
+  useEffect(() => { fireAndForget(refreshAiToolDecisionLogs()); }, [aiChat.pendingToolCall, refreshAiToolDecisionLogs]);
 
   const {
     lexemeMatches,
@@ -312,14 +302,8 @@ export function useTranscriptionAiController(
     setSaveState: input.setSaveState,
   });
 
-  useEffect(() => {
-    const nextPersona = taskToPersona(aiCurrentTask);
-    setAiDerivedPersona((prev) => (prev === nextPersona ? prev : nextPersona));
-  }, [aiCurrentTask]);
-
-  useEffect(() => {
-    aiAudioTimeRef.current = input.playerCurrentTime;
-  }, [input.playerCurrentTime]);
+  useEffect(() => { const nextPersona = taskToPersona(aiCurrentTask); setAiDerivedPersona((prev) => (prev === nextPersona ? prev : nextPersona)); }, [aiCurrentTask]);
+  useEffect(() => { aiAudioTimeRef.current = input.playerCurrentTime; }, [input.playerCurrentTime]);
 
   useEffect(() => {
     aiObserverStageRef.current = observerResult.stage;
@@ -333,8 +317,7 @@ export function useTranscriptionAiController(
 
   const handleExecuteObserverRecommendation = useCallback((item: AiObserverRecommendation) => {
     const match = actionableObserverRecommendations.find((candidate) => candidate.id === item.id);
-    if (!match) return;
-    fireAndForget(Promise.resolve(handleExecuteRecommendation(match)));
+    if (match) fireAndForget(Promise.resolve(handleExecuteRecommendation(match)));
   }, [actionableObserverRecommendations, handleExecuteRecommendation]);
 
   return {
