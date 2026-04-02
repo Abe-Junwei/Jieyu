@@ -12,6 +12,11 @@ import { getTimelineLaneHeaderMessages } from '../i18n/timelineLaneHeaderMessage
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { buildLayerStyleMenuItems } from './LayerStyleSubmenu';
 import { decodeEscapedUnicode } from '../utils/decodeEscapedUnicode';
+import {
+  computeAdaptivePanelWidth,
+  readPersistedUiFontScale,
+  resolveTextDirectionFromLocale,
+} from '../utils/panelAdaptiveLayout';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -97,6 +102,21 @@ export function TimelineLaneHeader({
   displayStyleControl,
 }: TimelineLaneHeaderProps) {
   const locale = useLocale();
+  const uiTextDirection = useMemo(() => resolveTextDirectionFromLocale(locale), [locale]);
+  const uiFontScale = readPersistedUiFontScale(locale, uiTextDirection);
+  const laneLockDialogWidth = useMemo(
+    () => computeAdaptivePanelWidth({
+      baseWidth: 360,
+      locale,
+      direction: uiTextDirection,
+      uiFontScale,
+      density: 'standard',
+      minWidth: 300,
+      maxWidth: 620,
+      ...(typeof window !== 'undefined' ? { viewportWidth: window.innerWidth } : {}),
+    }),
+    [locale, uiFontScale, uiTextDirection],
+  );
   const messages = getTimelineLaneHeaderMessages(locale);
   const connectorLayerLinks = useMemo(
     () => layerLinks.map((link) => ({ transcriptionLayerKey: link.transcriptionLayerKey, targetLayerId: link.layerId })),
@@ -908,7 +928,7 @@ export function TimelineLaneHeader({
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
-            style={{ width: 360, maxWidth: 'calc(100vw - 32px)', height: 'auto' }}
+            style={{ width: laneLockDialogWidth, maxWidth: 'calc(100vw - 32px)', height: 'auto' }}
           >
             <div className="transcription-side-pane-action-popover-title dialog-header floating-panel-title-row">
               <h3>{decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}</h3>

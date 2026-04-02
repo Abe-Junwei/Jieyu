@@ -35,7 +35,7 @@ export function AiChatCandidateChips({
           key={candidate.key}
           type="button"
           className="icon-btn ai-chat-candidate-chip"
-          style={{ height: 26, fontSize: 11, padding: '0 10px', borderRadius: 13 }}
+          style={{ height: 'calc(26px * var(--ui-font-scale, 1))', fontSize: 'calc(11px * var(--ui-font-scale, 1))', padding: '0 calc(10px * var(--ui-font-scale, 1))', borderRadius: 13 }}
           disabled={!onSendAiMessage || aiIsStreaming || debugUiShowAll}
           onClick={() => {
             if (debugUiShowAll) return;

@@ -253,7 +253,7 @@ describe('TimelineLaneHeader track mode menu', () => {
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));
     fireEvent.mouseEnter(await findMenuButtonByPattern(/^显示样式/));
-    fireEvent.mouseEnter(await findMenuButtonByPattern(/^字体/));
+    fireEvent.mouseEnter(await findMenuButtonByPattern(/^字体|^Fonts/));
     fireEvent.click(await findMenuButtonByPattern(/Noto Sans SC/));
 
     expect(onUpdate).toHaveBeenCalledWith('layer-1', { fontFamily: 'Noto Sans SC' });
@@ -278,7 +278,7 @@ describe('TimelineLaneHeader track mode menu', () => {
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));
     fireEvent.mouseEnter(await findMenuButtonByPattern(/^显示样式/));
-    fireEvent.mouseEnter(await findMenuButtonByPattern(/^字号/));
+    fireEvent.mouseEnter(await findMenuButtonByPattern(/^字号|^Font Size/));
     fireEvent.click(await findMenuButtonByPattern(/15px/));
 
     expect(onUpdate).toHaveBeenCalledWith('layer-1', { fontSize: 15 });

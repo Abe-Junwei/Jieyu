@@ -122,6 +122,7 @@ describe('useTranscriptionAiController', () => {
 
     renderHook(() => useTranscriptionAiController({
       utterances: [utterance],
+      selectedUnitIds: new Set([utterance.id]),
       selectedUtterance: utterance,
       selectedTimelineOwnerUtterance: utterance,
       selectedLayerId: '',
@@ -148,6 +149,7 @@ describe('useTranscriptionAiController', () => {
       createNextUtterance: vi.fn(async () => undefined),
       splitUtterance: vi.fn(async () => undefined),
       deleteUtterance: vi.fn(async () => undefined),
+      deleteSelectedUtterances: vi.fn(async () => undefined),
       deleteLayer: vi.fn(async () => undefined),
       toggleLayerLink: vi.fn(async () => undefined),
       saveUtteranceText: vi.fn(async () => undefined),

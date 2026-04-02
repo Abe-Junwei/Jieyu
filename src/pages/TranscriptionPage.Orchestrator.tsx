@@ -285,6 +285,15 @@ function TranscriptionPageOrchestrator({
     setIsAiPanelCollapsed,
     aiPanelWidth,
     setAiPanelWidth,
+    uiFontScale,
+    uiFontScaleMode,
+    setUiFontScale,
+    resetUiFontScale,
+    uiTextDirection,
+    adaptiveDialogWidth,
+    adaptiveDialogCompactWidth,
+    adaptiveDialogWideWidth,
+    adaptiveFloatingWidth,
     handleAiPanelToggle,
     isHubCollapsed,
     hubHeight,
@@ -869,6 +878,7 @@ function TranscriptionPageOrchestrator({
     handleExecuteObserverRecommendation,
   } = useTranscriptionAiController({
     utterances,
+    selectedUnitIds: selectedUtteranceIds,
     selectedUtterance: selectedUtterance ?? null,
     selectedTimelineOwnerUtterance: selectedTimelineOwnerUtterance ?? null,
     ...(selectedTimelineMedia ? { selectedTimelineMedia } : {}),
@@ -888,6 +898,7 @@ function TranscriptionPageOrchestrator({
     createNextUtterance: _createNextUtterance,
     splitUtterance,
     deleteUtterance,
+    deleteSelectedUtterances: deleteSelectedUtterancesRouted,
     deleteLayer,
     toggleLayerLink,
     saveUtteranceText,
@@ -1795,7 +1806,18 @@ function TranscriptionPageOrchestrator({
   // ═══════════════════════════════════════════════════════
 
   return (
-    <section className="transcription-screen" ref={screenRef}>
+    <section
+      className="transcription-screen"
+      ref={screenRef}
+      dir={uiTextDirection}
+      style={{
+        '--ui-font-scale': String(uiFontScale),
+        '--dialog-auto-width': `${adaptiveDialogWidth}px`,
+        '--dialog-compact-auto-width': `${adaptiveDialogCompactWidth}px`,
+        '--dialog-wide-auto-width': `${adaptiveDialogWideWidth}px`,
+        '--floating-panel-auto-width': `${adaptiveFloatingWidth}px`,
+      } as React.CSSProperties}
+    >
       {state.phase === 'loading' && <p className="hint">{t(locale, 'transcription.status.loading')}</p>}
       {state.phase === 'error' && <p className="error">{tf(locale, 'transcription.status.dbError', { message: state.message })}</p>}
 
@@ -2094,6 +2116,10 @@ function TranscriptionPageOrchestrator({
                         layerCreateMessage={layerCreateMessage}
                         layerAction={layerAction}
                         onReorderLayers={reorderLayers}
+                        uiFontScale={uiFontScale}
+                        uiFontScaleMode={uiFontScaleMode}
+                        onUiFontScaleChange={setUiFontScale}
+                        onUiFontScaleReset={resetUiFontScale}
                       />
                     </SpeakerRailProvider>
                   </TimelineRailSection>

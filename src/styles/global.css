@@ -1387,7 +1387,7 @@ body {
 
 .transcription-layer-manager {
   display: grid;
-  gap: 14px;
+  gap: 0;
 }
 
 .transcription-layer-manager-head {
@@ -1395,6 +1395,17 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.transcription-layer-manager-body {
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.transcription-layer-manager-message {
+  margin: 0;
 }
 
 .transcription-layer-section {
@@ -1586,10 +1597,10 @@ body {
 
 .floating-panel {
   position: fixed;
-  background: var(--surface-panel);
-  border: 1px solid var(--border-strong);
+  background: var(--bg-primary, var(--surface-panel));
+  border: 1px solid var(--border-color, var(--border-soft));
   border-radius: 12px;
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   z-index: var(--z-popover);
   display: flex;
   flex-direction: column;
@@ -1599,13 +1610,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  padding: 14px 18px 10px;
   border-bottom: 1px solid var(--border-soft);
-  background: var(--surface-header);
+  background: transparent;
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 .floating-panel-title-actions {
@@ -1652,7 +1663,8 @@ body {
 .layer-action-popover-backdrop {
   position: fixed;
   inset: 0;
-  z-index: var(--z-popover);
+  z-index: var(--z-modal-backdrop);
+  background: rgba(0, 0, 0, 0.45);
 }
 
 .layer-action-popover-card {

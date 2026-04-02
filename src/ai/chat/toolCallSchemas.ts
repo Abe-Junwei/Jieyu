@@ -7,6 +7,7 @@ import { z } from 'zod';
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
 const IdString = z.string().trim().min(1, 'ID \u4e0d\u80fd\u4e3a\u7a7a').max(128);
+const IdStringArray = z.array(IdString).min(1, '\u81f3\u5c11\u63d0\u4f9b 1 \u4e2a ID').max(200);
 const TextString = z.string().trim().min(1, '\u6587\u672c\u4e0d\u80fd\u4e3a\u7a7a').max(5000);
 const AMBIGUOUS_LANGUAGE_TARGETS = ['und', 'unknown', 'auto', 'default'];
 const LanguageId = z.string().trim().min(1).max(32).superRefine((val, ctx) => {
@@ -35,7 +36,19 @@ export const splitTranscriptionSegmentSchema = z.object({
 });
 
 export const deleteTranscriptionSegmentSchema = z.object({
-  utteranceId: IdString,
+  utteranceId: IdString.optional(),
+  segmentId: IdString.optional(),
+  utteranceIds: IdStringArray.optional(),
+  segmentIds: IdStringArray.optional(),
+}).superRefine((args, ctx) => {
+  const hasSingleTarget = Boolean(args.utteranceId) || Boolean(args.segmentId);
+  const hasBatchTarget = Boolean(args.utteranceIds?.length) || Boolean(args.segmentIds?.length);
+  if (!hasSingleTarget && !hasBatchTarget) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: '\u9700\u8981 utteranceId / segmentId / utteranceIds / segmentIds \u4e4b\u4e00\u3002',
+    });
+  }
 });
 
 export const clearTranslationSegmentSchema = z.object({

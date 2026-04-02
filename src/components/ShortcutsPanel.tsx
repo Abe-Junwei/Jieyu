@@ -1,11 +1,12 @@
 /**
  * Keyboard shortcuts reference panel.
  */
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { DEFAULT_KEYBINDINGS, formatKeyComboForDisplay } from '../services/KeybindingService';
 import { useOptionalLocale } from '../i18n';
 import { getShortcutsPanelMessages } from '../i18n/shortcutsPanelMessages';
+import { computeAdaptivePanelWidth, readPersistedUiFontScale, resolveTextDirectionFromLocale } from '../utils/panelAdaptiveLayout';
 
 interface ShortcutsPanelProps {
   onClose: () => void;
@@ -15,6 +16,21 @@ const CATEGORY_ORDER = ['playback', 'editing', 'navigation', 'view', 'voice'] as
 
 export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
   const locale = useOptionalLocale() ?? 'zh-CN';
+  const uiTextDirection = useMemo(() => resolveTextDirectionFromLocale(locale), [locale]);
+  const uiFontScale = readPersistedUiFontScale(locale, uiTextDirection);
+  const panelWidth = useMemo(
+    () => computeAdaptivePanelWidth({
+      baseWidth: 480,
+      locale,
+      direction: uiTextDirection,
+      uiFontScale,
+      density: 'standard',
+      minWidth: 340,
+      maxWidth: 760,
+      ...(typeof window !== 'undefined' ? { viewportWidth: window.innerWidth } : {}),
+    }),
+    [locale, uiFontScale, uiTextDirection],
+  );
   const messages = getShortcutsPanelMessages(locale);
   const categoryLabels: Record<string, string> = {
     playback: messages.categoryPlayback,
@@ -45,8 +61,9 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
       role="dialog"
       aria-modal="true"
       aria-label={messages.panelAriaLabel}
+      dir={uiTextDirection}
     >
-      <div className="shortcuts-panel dialog-card" onClick={(e) => e.stopPropagation()}>
+      <div className="shortcuts-panel dialog-card" style={{ width: `min(${panelWidth}px, 92vw)` }} onClick={(e) => e.stopPropagation()}>
         <div className="shortcuts-panel-header dialog-header">
           <h3 className="shortcuts-panel-title">{messages.panelTitle}</h3>
           <button

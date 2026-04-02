@@ -90,7 +90,7 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
 
   return (
     <div className="dialog-overlay" onClick={handleClose}>
-      <div className="dialog-card" onClick={(e) => e.stopPropagation()}>
+      <div className="dialog-card" role="dialog" aria-modal="true" aria-label={t(locale, 'transcription.importDialog.title')} onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">
           <h3>{t(locale, 'transcription.importDialog.title')}</h3>
           <button className="icon-btn" onClick={handleClose} title={t(locale, 'transcription.importDialog.close')}>

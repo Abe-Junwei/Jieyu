@@ -116,71 +116,83 @@ export const NotePopover = memo(function NotePopover({
   );
 
   return (
-    <div ref={ref} className="note-popover" style={{ left: pos.left, top: pos.top }}>
-      <div className="note-popover-header">
-        <span className="note-popover-title">{targetLabel}</span>
-        <button type="button" className="note-popover-close" onClick={onClose}><X size={14} /></button>
+    <div ref={ref} className="note-popover dialog-card dialog-card-compact" style={{ left: pos.left, top: pos.top }}>
+      <div className="note-popover-header dialog-header">
+        <h3 className="note-popover-title">{targetLabel}</h3>
+        <div className="dialog-header-actions">
+          <button
+            type="button"
+            className="note-popover-close icon-btn"
+            onClick={onClose}
+            aria-label={messages.closePanel}
+            title={messages.closePanel}
+          >
+            <X size={14} />
+          </button>
+        </div>
       </div>
 
-      {notes.length > 0 && (
-        <div className="note-popover-list">
-          {notes.map((note) => (
-            <div key={note.id} className="note-popover-item">
-              {note.category && (
-                <span className={`note-popover-tag note-popover-tag-${note.category}`}>
-                  {categories.find((c) => c.value === note.category)?.label ?? note.category}
-                </span>
-              )}
-              {editingId === note.id ? (
-                <div className="note-popover-edit">
-                  <textarea
-                    className="note-popover-textarea"
-                    value={editContent}
-                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditContent(e.target.value)}
-                    onKeyDown={(e) => handleEditKeyDown(e, note.id)}
-                    autoFocus
-                  />
-                  <div className="note-popover-edit-actions">
-                    <button type="button" className="note-popover-btn note-popover-btn-save" onClick={() => handleEditSave(note.id)}>{messages.save}</button>
-                    <button type="button" className="note-popover-btn note-popover-btn-cancel" onClick={() => setEditingId(null)}>{messages.cancel}</button>
+      <div className="note-popover-body dialog-body">
+        {notes.length > 0 && (
+          <div className="note-popover-list">
+            {notes.map((note) => (
+              <div key={note.id} className="note-popover-item">
+                {note.category && (
+                  <span className={`note-popover-tag note-popover-tag-${note.category}`}>
+                    {categories.find((c) => c.value === note.category)?.label ?? note.category}
+                  </span>
+                )}
+                {editingId === note.id ? (
+                  <div className="note-popover-edit">
+                    <textarea
+                      className="note-popover-textarea"
+                      value={editContent}
+                      onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditContent(e.target.value)}
+                      onKeyDown={(e) => handleEditKeyDown(e, note.id)}
+                      autoFocus
+                    />
+                    <div className="note-popover-edit-actions">
+                      <button type="button" className="note-popover-btn note-popover-btn-save" onClick={() => handleEditSave(note.id)}>{messages.save}</button>
+                      <button type="button" className="note-popover-btn note-popover-btn-cancel" onClick={() => setEditingId(null)}>{messages.cancel}</button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="note-popover-content" onDoubleClick={() => handleEditStart(note)}>
-                  <p>{note.content['default'] ?? Object.values(note.content)[0] ?? ''}</p>
-                  <button type="button" className="note-popover-delete" onClick={() => onDelete(note.id)} title={messages.deleteNote}><Trash2 size={11} /></button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="note-popover-add">
-        <textarea
-          className="note-popover-textarea"
-          placeholder={messages.newNotePlaceholder}
-          value={newContent}
-          onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNewContent(e.target.value)}
-          onKeyDown={handleAddKeyDown}
-          autoFocus={notes.length === 0}
-        />
-        <div className="note-popover-add-row">
-          <div className="note-popover-tags">
-            {categories.map((c) => (
-              <button
-                key={c.value}
-                type="button"
-                className={`note-popover-tag note-popover-tag-${c.value}${newCategory === c.value ? ' note-popover-tag-selected' : ''}`}
-                onClick={() => setNewCategory(c.value)}
-              >
-                {c.label}
-              </button>
+                ) : (
+                  <div className="note-popover-content" onDoubleClick={() => handleEditStart(note)}>
+                    <p>{note.content['default'] ?? Object.values(note.content)[0] ?? ''}</p>
+                    <button type="button" className="note-popover-delete" onClick={() => onDelete(note.id)} title={messages.deleteNote}><Trash2 size={11} /></button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
-          <button type="button" className="note-popover-btn note-popover-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
-            <Plus size={12} /> {messages.add}
-          </button>
+        )}
+
+        <div className="note-popover-add">
+          <textarea
+            className="note-popover-textarea"
+            placeholder={messages.newNotePlaceholder}
+            value={newContent}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNewContent(e.target.value)}
+            onKeyDown={handleAddKeyDown}
+            autoFocus={notes.length === 0}
+          />
+          <div className="note-popover-add-row">
+            <div className="note-popover-tags">
+              {categories.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  className={`note-popover-tag note-popover-tag-${c.value}${newCategory === c.value ? ' note-popover-tag-selected' : ''}`}
+                  onClick={() => setNewCategory(c.value)}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            <button type="button" className="note-popover-btn note-popover-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
+              <Plus size={12} /> {messages.add}
+            </button>
+          </div>
         </div>
       </div>
     </div>

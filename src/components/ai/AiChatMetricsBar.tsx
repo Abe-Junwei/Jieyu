@@ -21,7 +21,7 @@ export function AiChatMetricsBar({
       className="ai-chat-metrics-bar"
       style={{
         display: 'flex', gap: 8, flexWrap: 'wrap', padding: '3px 0',
-        fontSize: 10, color: 'var(--text-secondary)', flexShrink: 0,
+        fontSize: 'calc(10px * var(--ui-font-scale, 1))', color: 'var(--text-secondary)', flexShrink: 0,
       }}
     >
       <span title={messages.turnsTitle}>{messages.turnsLabel} {aiInteractionMetrics.turnCount}</span>

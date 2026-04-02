@@ -31,6 +31,7 @@ import {
   validateLayerOrder,
 } from '../services/LayerOrderingService';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
+import type { UiFontScaleMode } from '../utils/panelAdaptiveLayout';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
 
@@ -66,6 +67,10 @@ interface SidePaneSidebarProps {
   layerCreateMessage: string;
   layerAction: LayerActionResult;
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
+  uiFontScale?: number;
+  uiFontScaleMode?: UiFontScaleMode;
+  onUiFontScaleChange?: (nextScale: number) => void;
+  onUiFontScaleReset?: () => void;
 }
 
 export function SidePaneSidebar({
@@ -79,6 +84,10 @@ export function SidePaneSidebar({
   layerCreateMessage,
   layerAction,
   onReorderLayers,
+  uiFontScale = 1,
+  uiFontScaleMode = 'manual',
+  onUiFontScaleChange,
+  onUiFontScaleReset,
 }: SidePaneSidebarProps) {
   const locale = useLocale();
   const messages = getSidePaneSidebarMessages(locale);
@@ -201,6 +210,10 @@ export function SidePaneSidebar({
     };
   }, [sidePaneRows]);
   const disableCreateTranslationEntry = transcriptionLayers.length === 0;
+  const uiFontScalePercent = useMemo(() => Math.round(Math.max(0.85, Math.min(1.4, uiFontScale)) * 100), [uiFontScale]);
+  const uiFontScaleModeLabel = uiFontScaleMode === 'auto'
+    ? messages.uiFontScaleModeAuto
+    : messages.uiFontScaleModeManual;
   const focusedLayer = useMemo(
     () => sidePaneRows.find((layer) => layer.id === focusedLayerRowId) ?? null,
     [focusedLayerRowId, sidePaneRows],
@@ -1244,6 +1257,44 @@ export function SidePaneSidebar({
       >
         <span className="transcription-side-pane-action-icon" aria-hidden="true">🔧</span><strong>{constraintRepairBusy ? messages.quickActionRepairing : messages.quickActionRepair}</strong>
       </button>
+
+      <div
+        aria-label={messages.uiFontScaleAria}
+        style={{
+          border: '1px solid var(--border-soft)',
+          borderRadius: 8,
+          padding: '8px 10px',
+          background: 'var(--surface-elevated)',
+          display: 'grid',
+          gap: 6,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: '0.72rem' }}>
+          <strong>{messages.uiFontScaleTitle}</strong>
+          <span>{messages.uiFontScaleValue(uiFontScalePercent)} · {uiFontScaleModeLabel}</span>
+        </div>
+        <input
+          type="range"
+          min={85}
+          max={140}
+          step={5}
+          value={uiFontScalePercent}
+          aria-label={messages.uiFontScaleLabel}
+          onChange={(event) => {
+            onUiFontScaleChange?.(Number(event.target.value) / 100);
+          }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            disabled={uiFontScaleMode === 'auto'}
+            onClick={() => onUiFontScaleReset?.()}
+          >
+            {messages.uiFontScaleUseAuto}
+          </button>
+        </div>
+      </div>
 
       {layerActionPanel === 'speaker-management' && renderSpeakerManagementPopover()}
 

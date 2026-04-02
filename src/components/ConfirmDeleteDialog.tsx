@@ -61,7 +61,7 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
 
   return (
     <div className="dialog-overlay" onClick={onCancel}>
-      <div className="dialog-card" onClick={(e) => e.stopPropagation()}>
+      <div className="dialog-card" role="dialog" aria-modal="true" aria-label={displayTitle} onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">
           <h3>{displayTitle}</h3>
         </div>

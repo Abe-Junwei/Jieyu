@@ -942,15 +942,15 @@
 .shortcuts-panel-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: calc(var(--z-context-menu) + 10);
+  z-index: var(--z-modal-backdrop);
 }
 
 .shortcuts-panel {
-  width: 480px;
+  width: min(var(--dialog-auto-width, 480px), 92vw);
   max-width: 92vw;
   max-height: 80vh;
   display: flex;
@@ -964,7 +964,7 @@
 
 .shortcuts-panel-title {
   font-weight: 700;
-  font-size: 0.92rem;
+  font-size: calc(0.92rem * var(--ui-font-scale, 1));
   color: var(--text-primary);
 }
 
@@ -978,7 +978,7 @@
 }
 
 .shortcuts-panel-group-label {
-  font-size: 0.7rem;
+  font-size: calc(0.7rem * var(--ui-font-scale, 1));
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -999,7 +999,7 @@
 .shortcuts-panel-desc,
 .shortcuts-panel-scope {
   padding: 4px 16px;
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--ui-font-scale, 1));
   vertical-align: middle;
 }
 
@@ -1015,7 +1015,7 @@
 .shortcuts-panel-scope {
   width: 14%;
   color: var(--text-secondary);
-  font-size: 0.7rem;
+  font-size: calc(0.7rem * var(--ui-font-scale, 1));
   white-space: nowrap;
   text-align: right;
 }

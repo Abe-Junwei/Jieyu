@@ -24,6 +24,17 @@ describe('CommandResolver', () => {
   });
 
   it.each([
+    '移除现在所有分段',
+    '删除全部句段',
+    'delete all segments',
+  ])('should resolve "%s" to batch delete_transcription_segment skeleton', (text) => {
+    const result = resolveCommand(text);
+    expect(result).not.toBeNull();
+    expect(result!.call.name).toBe('delete_transcription_segment');
+    expect(result!.call.arguments).toEqual({});
+  });
+
+  it.each([
     '新建句段',
     '创建一个句段',
     '插入句段',

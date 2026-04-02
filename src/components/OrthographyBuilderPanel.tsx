@@ -315,28 +315,28 @@ export function OrthographyBuilderPanel({
       {picker.showAdvancedFields && (
         <div className="orthography-builder-advanced-grid">
           {renderField(
-            'Locale',
+            messages.advancedLocaleLabel,
             <input className={fieldClassName} type="text" value={picker.draftLocaleTag} onChange={(e) => picker.setDraftLocaleTag(e.target.value)} placeholder={messages.localePlaceholder} />,
             compact,
             'locale',
           )}
           {renderField(
-            'Region',
+            messages.advancedRegionLabel,
             <input className={fieldClassName} type="text" value={picker.draftRegionTag} onChange={(e) => picker.setDraftRegionTag(e.target.value)} placeholder={messages.regionPlaceholder} />,
             compact,
             'region',
           )}
           {renderField(
-            'Variant',
+            messages.advancedVariantLabel,
             <input className={fieldClassName} type="text" value={picker.draftVariantTag} onChange={(e) => picker.setDraftVariantTag(e.target.value)} placeholder={messages.variantPlaceholder} />,
             compact,
             'variant',
           )}
           {renderField(
-            'Direction',
+            messages.advancedDirectionLabel,
             <select className={fieldClassName} value={picker.draftDirection} onChange={(e) => picker.setDraftDirection(e.target.value as 'ltr' | 'rtl')}>
-              <option value="ltr">LTR</option>
-              <option value="rtl">RTL</option>
+              <option value="ltr">{messages.advancedDirectionLtr}</option>
+              <option value="rtl">{messages.advancedDirectionRtl}</option>
             </select>,
             compact,
             'direction',
@@ -382,9 +382,9 @@ export function OrthographyBuilderPanel({
               {renderField(
                 messages.transformEngineLabel,
                 <select className={fieldClassName} value={picker.draftTransformEngine} onChange={(e) => picker.setDraftTransformEngine(e.target.value as 'table-map' | 'icu-rule' | 'manual')}>
-                  <option value="table-map">Table Map</option>
-                  <option value="icu-rule">ICU Rule</option>
-                  <option value="manual">Manual</option>
+                  <option value="table-map">{messages.transformEngineTableMap}</option>
+                  <option value="icu-rule">{messages.transformEngineIcuRule}</option>
+                  <option value="manual">{messages.transformEngineManual}</option>
                 </select>,
                 compact,
                 'transform-engine',

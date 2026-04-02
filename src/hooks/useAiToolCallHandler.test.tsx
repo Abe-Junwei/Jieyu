@@ -195,6 +195,60 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
 });
 
 // ---------------------------------------------------------------------------
+// delete_transcription_segment
+// ---------------------------------------------------------------------------
+
+describe('useAiToolCallHandler — delete_transcription_segment', () => {
+  it('uses segmentId directly when deleting a routed segment target', async () => {
+    const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          deleteUtterance: deleteSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'delete_transcription_segment',
+        arguments: { segmentId: 'seg-1' },
+      });
+    });
+
+    expect(deleteSpy).toHaveBeenCalledWith('seg-1');
+    expect(response?.ok).toBe(true);
+  });
+
+  it('uses deleteSelectedUtterances for batch delete targets', async () => {
+    const deleteSelectionSpy = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          deleteSelectedUtterances: deleteSelectionSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'delete_transcription_segment',
+        arguments: { segmentIds: ['seg-1', 'seg-2'] },
+      });
+    });
+
+    expect(deleteSelectionSpy).toHaveBeenCalledTimes(1);
+    expect(Array.from(deleteSelectionSpy.mock.calls[0]?.[0] ?? [])).toEqual(['seg-1', 'seg-2']);
+    expect(response?.ok).toBe(true);
+    expect(response?.message).toContain('已删除 2 个句段');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // auto_gloss_utterance
 // ---------------------------------------------------------------------------
 

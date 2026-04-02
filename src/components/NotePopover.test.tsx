@@ -26,7 +26,7 @@ describe('NotePopover', () => {
       />,
     );
 
-    fireEvent.change(screen.getByPlaceholderText('添加备注… (⌘Enter 提交)'), {
+    fireEvent.change(screen.getByPlaceholderText(/输入新备注|添加备注/u), {
       target: { value: '新备注' },
     });
 

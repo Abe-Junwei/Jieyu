@@ -6,6 +6,7 @@ import {
   formatToolName,
   normalizeImpactPreviewLines,
 } from './aiChatCardUtils';
+import { resolveTextDirectionFromLocale } from '../../utils/panelAdaptiveLayout';
 
 interface AiChatAlertsPanelProps {
   isZh: boolean;
@@ -35,6 +36,7 @@ export function AiChatAlertsPanel({
   onCancelPendingToolCall,
 }: AiChatAlertsPanelProps) {
   const locale = useLocale();
+  const uiTextDirection = resolveTextDirectionFromLocale(locale);
   const hasToolPending = !!aiPendingToolCall;
 
   return (
@@ -50,13 +52,13 @@ export function AiChatAlertsPanel({
           border: '1px solid var(--state-warning-border)',
           background: 'color-mix(in srgb, var(--state-warning-bg) 90%, transparent)',
           color: 'var(--state-warning-text)',
-          fontSize: 11,
+          fontSize: 'calc(11px * var(--ui-font-scale, 1))',
         }}>
           <span>{errorWarningText}</span>
           <button
             type="button"
             className="icon-btn"
-            style={{ height: 22, minWidth: 54, fontSize: 10 }}
+            style={{ height: 22, minWidth: 'calc(54px * var(--ui-font-scale, 1))', fontSize: 'calc(10px * var(--ui-font-scale, 1))' }}
             onClick={onDismissErrorWarning}
           >
             {t(locale, 'ai.alerts.dismiss')}
@@ -65,22 +67,22 @@ export function AiChatAlertsPanel({
       )}
 
       {(alertCount > 0 || debugUiShowAll) && (
-        <div style={{ borderTop: '1px solid color-mix(in srgb, var(--border-soft) 45%, transparent)', flexShrink: 0 }}>
+        <div data-testid="ai-chat-alerts-region" dir={uiTextDirection} style={{ borderTop: '1px solid color-mix(in srgb, var(--border-soft) 45%, transparent)', flexShrink: 0 }}>
           <button
             type="button"
             onClick={onToggleAlertBar}
             style={{
               width: '100%', background: 'none', border: 'none', padding: '5px 10px',
               display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-              fontSize: 11, color: 'var(--state-warning-text)',
+              fontSize: 'calc(11px * var(--ui-font-scale, 1))', color: 'var(--state-warning-text)',
             }}
           >
-            <span style={{ fontSize: 14 }}>{hasToolPending ? '⚡' : '📋'}</span>
+            <span style={{ fontSize: 'calc(14px * var(--ui-font-scale, 1))' }}>{hasToolPending ? '⚡' : '📋'}</span>
             <span style={{ flex: 1, textAlign: 'left' }}>
               {hasToolPending && ` ${t(locale, 'ai.alerts.pendingToolCall')}`}
               {debugUiShowAll && !hasToolPending && ` ${t(locale, 'ai.alerts.demoDetails')}`}
             </span>
-            <span style={{ fontSize: 10, opacity: 0.6 }}>
+            <span style={{ fontSize: 'calc(10px * var(--ui-font-scale, 1))', opacity: 0.6 }}>
               {showAlertBar ? `▲ ${t(locale, 'ai.alerts.hide')}` : `▼ ${t(locale, 'ai.alerts.expand')}`}
             </span>
           </button>
@@ -89,16 +91,16 @@ export function AiChatAlertsPanel({
             <div style={{ padding: '0 10px 8px', display: 'grid', gap: 6 }}>
               {aiPendingToolCall && (
                 <div style={{ border: '1px solid var(--state-warning-solid)', background: 'var(--state-warning-bg)', borderRadius: 6, padding: '6px 8px', display: 'grid', gap: 4 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--state-warning-text)' }}>{t(locale, 'ai.alerts.confirmDestructiveAction')}</div>
-                  <div style={{ fontSize: 11 }}>{t(locale, 'ai.alerts.action')}: {formatToolName(isZh, aiPendingToolCall.call.name)}</div>
+                  <div style={{ fontSize: 'calc(11px * var(--ui-font-scale, 1))', fontWeight: 600, color: 'var(--state-warning-text)' }}>{t(locale, 'ai.alerts.confirmDestructiveAction')}</div>
+                  <div style={{ fontSize: 'calc(11px * var(--ui-font-scale, 1))' }}>{t(locale, 'ai.alerts.action')}: {formatToolName(isZh, aiPendingToolCall.call.name)}</div>
                   {(() => {
                     const pendingTarget = formatPendingTarget(isZh, aiPendingToolCall.call);
                     if (!pendingTarget) return null;
-                    return <div style={{ fontSize: 11 }}>{t(locale, 'ai.alerts.target')}: {pendingTarget}</div>;
+                    return <div style={{ fontSize: 'calc(11px * var(--ui-font-scale, 1))' }}>{t(locale, 'ai.alerts.target')}: {pendingTarget}</div>;
                   })()}
-                  {aiPendingToolCall.riskSummary && <div style={{ fontSize: 11, color: 'var(--state-warning-text)' }}>{aiPendingToolCall.riskSummary}</div>}
+                  {aiPendingToolCall.riskSummary && <div style={{ fontSize: 'calc(11px * var(--ui-font-scale, 1))', color: 'var(--state-warning-text)' }}>{aiPendingToolCall.riskSummary}</div>}
                   {aiPendingToolCall.previewContract && (
-                    <div style={{ fontSize: 10, color: 'var(--state-warning-text)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: 'calc(10px * var(--ui-font-scale, 1))', color: 'var(--state-warning-text)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <span>{t(locale, 'ai.alerts.affects')}: {aiPendingToolCall.previewContract.affectedCount} {t(locale, 'ai.alerts.items')}</span>
                       {!aiPendingToolCall.previewContract.reversible && <span style={{ color: 'var(--state-danger-text)' }}>{t(locale, 'ai.alerts.irreversible')}</span>}
                       {(aiPendingToolCall.previewContract.cascadeTypes ?? []).length > 0 && (
@@ -110,7 +112,7 @@ export function AiChatAlertsPanel({
                     aiPendingToolCall.impactPreview ?? [],
                     aiPendingToolCall.previewContract?.reversible ?? false,
                   ).length > 0 && (
-                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 10, color: 'var(--state-warning-text)' }}>
+                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 'calc(10px * var(--ui-font-scale, 1))', color: 'var(--state-warning-text)' }}>
                       {normalizeImpactPreviewLines(
                         aiPendingToolCall.impactPreview ?? [],
                         aiPendingToolCall.previewContract?.reversible ?? false,
@@ -118,8 +120,8 @@ export function AiChatAlertsPanel({
                     </ul>
                   )}
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button type="button" className="icon-btn" style={{ height: 24, minWidth: 92, fontSize: 11 }} disabled={!onConfirmPendingToolCall} onClick={() => void onConfirmPendingToolCall?.()}>{formatPendingConfirmActionLabel(isZh, aiPendingToolCall.call.name)}</button>
-                    <button type="button" className="icon-btn" style={{ height: 24, minWidth: 64, fontSize: 11 }} disabled={!onCancelPendingToolCall} onClick={() => void onCancelPendingToolCall?.()}>{t(locale, 'ai.alerts.cancel')}</button>
+                    <button type="button" className="icon-btn" style={{ height: 24, minWidth: 'calc(92px * var(--ui-font-scale, 1))', fontSize: 'calc(11px * var(--ui-font-scale, 1))' }} disabled={!onConfirmPendingToolCall} onClick={() => void onConfirmPendingToolCall?.()}>{formatPendingConfirmActionLabel(isZh, aiPendingToolCall.call.name)}</button>
+                    <button type="button" className="icon-btn" style={{ height: 24, minWidth: 'calc(64px * var(--ui-font-scale, 1))', fontSize: 'calc(11px * var(--ui-font-scale, 1))' }} disabled={!onCancelPendingToolCall} onClick={() => void onCancelPendingToolCall?.()}>{t(locale, 'ai.alerts.cancel')}</button>
                   </div>
                 </div>
               )}

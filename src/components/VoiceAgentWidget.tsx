@@ -464,7 +464,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
         {(disambiguationOptions.length > 0 || pendingConfirm || error) && (
           <div className="voice-agent-notice-stack">
             {disambiguationOptions.length > 0 && (
-              <div className="voice-agent-confirm voice-agent-disambiguation dialog-card" role="alertdialog" aria-label={t(locale, 'transcription.voiceWidget.disambiguation.aria')}>
+              <div className="voice-agent-confirm voice-agent-disambiguation dialog-card dialog-card-compact" role="alertdialog" aria-label={t(locale, 'transcription.voiceWidget.disambiguation.aria')}>
                 <div className="dialog-header voice-agent-confirm-header">
                   <div className="voice-agent-confirm-heading">
                     <h3>{t(locale, 'transcription.voiceWidget.disambiguation.aria')}</h3>
@@ -501,7 +501,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
             )}
 
             {pendingConfirm && (
-              <div className="voice-agent-confirm dialog-card" role="alertdialog" aria-label={t(locale, 'transcription.voiceWidget.confirm.aria')}>
+              <div className="voice-agent-confirm dialog-card dialog-card-compact" role="alertdialog" aria-label={t(locale, 'transcription.voiceWidget.confirm.aria')}>
                 <div className="dialog-header voice-agent-confirm-header">
                   <div className="voice-agent-confirm-heading">
                     <h3>{t(locale, 'transcription.voiceWidget.confirm.aria')}</h3>

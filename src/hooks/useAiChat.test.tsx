@@ -35,6 +35,11 @@ vi.mock('../ai/ChatOrchestrator', () => {
           yield { delta: '', done: true };
           return;
         }
+        if (userText.includes('__TOOL_DELETE_SELECTED_SEGMENTS__')) {
+          yield { delta: '{"tool_call":{"name":"delete_transcription_segment","arguments":{}}}' };
+          yield { delta: '', done: true };
+          return;
+        }
         if (userText.includes('__LEGACY_PENDING_SEGMENT_TEXT__')) {
           yield { delta: '我识别到你想执行“delete_transcription_segment”。这个操作风险较高，我先暂停，等你确认后再继续。' };
           yield { delta: '', done: true };
@@ -508,6 +513,76 @@ describe('useAiChat abort and recovery', () => {
     expect(assistant?.content).toContain('删除句段');
     expect(assistant?.content).toContain('等你确认');
     expect(onToolCall).not.toHaveBeenCalled();
+  });
+
+  it('should resolve current segment deletion to segmentId when a segment unit is selected', async () => {
+    const onToolCall = vi.fn();
+    const { result } = renderHook(() => useAiChat({
+      onToolCall,
+      getContext: () => ({
+        shortTerm: {
+          page: 'transcription',
+          activeUtteranceUnitId: 'utt-parent',
+          activeSegmentUnitId: 'seg-current',
+          selectedUnitKind: 'segment',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('删除当前句段');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    expect(result.current.pendingToolCall?.call.arguments.segmentId).toBe('seg-current');
+    expect(result.current.pendingToolCall?.call.arguments.utteranceId).toBeUndefined();
+    expect(onToolCall).not.toHaveBeenCalled();
+  });
+
+  it('should resolve delete-all request to selected segmentIds and confirm with batch payload', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '已删除 2 个句段' });
+    const { result } = renderHook(() => useAiChat({
+      onToolCall,
+      getContext: () => ({
+        shortTerm: {
+          page: 'transcription',
+          selectedUnitKind: 'segment',
+          selectedUnitIds: ['seg-a', 'seg-b'],
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('删除全部句段');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    await waitFor(() => {
+      expect(result.current.pendingToolCall).not.toBeNull();
+    });
+
+    expect(result.current.pendingToolCall?.call.arguments.segmentIds).toEqual(['seg-a', 'seg-b']);
+
+    await act(async () => {
+      await result.current.confirmPendingToolCall();
+    });
+
+    expect(onToolCall).toHaveBeenCalledTimes(1);
+    expect(onToolCall.mock.calls[0]?.[0]?.arguments.segmentIds).toEqual(['seg-a', 'seg-b']);
   });
 
   it('should treat 删除之 as actionable deletion with selected target context', async () => {

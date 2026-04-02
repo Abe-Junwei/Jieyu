@@ -70,7 +70,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
 
   return (
     <div className="dialog-overlay" onClick={handleClose}>
-      <div className="dialog-card" onClick={(e) => e.stopPropagation()}>
+      <div className="dialog-card" role="dialog" aria-modal="true" aria-label={messages.title} onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">
           <h3>{messages.title}</h3>
           <button className="icon-btn" onClick={handleClose} title={messages.close}>

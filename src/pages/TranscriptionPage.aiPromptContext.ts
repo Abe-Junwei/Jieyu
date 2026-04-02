@@ -3,6 +3,7 @@ import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSna
 
 interface BuildTranscriptionAiPromptContextParams {
   selectionSnapshot: TranscriptionSelectionSnapshot;
+  selectedUnitIds: string[];
   utteranceCount: number;
   translationLayerCount: number;
   aiConfidenceAvg: number | null;
@@ -15,6 +16,7 @@ interface BuildTranscriptionAiPromptContextParams {
 
 export function buildTranscriptionAiPromptContext({
   selectionSnapshot,
+  selectedUnitIds,
   utteranceCount,
   translationLayerCount,
   aiConfidenceAvg,
@@ -31,6 +33,8 @@ export function buildTranscriptionAiPromptContext({
       ...(selectionSnapshot.selectedUnitKind === 'segment' && selectionSnapshot.timelineUnit
         ? { activeSegmentUnitId: selectionSnapshot.timelineUnit.unitId }
         : {}),
+      ...(selectionSnapshot.selectedUnitKind ? { selectedUnitKind: selectionSnapshot.selectedUnitKind } : {}),
+      ...(selectedUnitIds.length > 0 ? { selectedUnitIds } : {}),
       ...(selectionSnapshot.selectedUnitStartSec !== undefined && selectionSnapshot.selectedUnitEndSec !== undefined
         ? {
             selectedUtteranceStartSec: selectionSnapshot.selectedUnitStartSec,

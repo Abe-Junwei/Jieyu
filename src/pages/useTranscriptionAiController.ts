@@ -22,6 +22,7 @@ const TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX = '\u5237\u65b0 AI \u5de5\u5177\u5b
 
 interface UseTranscriptionAiControllerInput {
   utterances: UtteranceDocType[];
+  selectedUnitIds: Set<string>;
   selectedUtterance: UtteranceDocType | null;
   selectedTimelineOwnerUtterance: UtteranceDocType | null;
   selectedTimelineMedia?: MediaItemDocType;
@@ -45,6 +46,7 @@ interface UseTranscriptionAiControllerInput {
   createNextUtterance: (utterance: UtteranceDocType, duration: number) => Promise<void>;
   splitUtterance: (utteranceId: string, splitTime: number) => Promise<void>;
   deleteUtterance: (id: string) => Promise<void>;
+  deleteSelectedUtterances: (ids: Set<string>) => Promise<void>;
   deleteLayer: (id: string, options?: { keepUtterances?: boolean }) => Promise<void>;
   toggleLayerLink: (transcriptionLayerKey: string, layerId: string) => Promise<void>;
   saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
@@ -137,6 +139,7 @@ export function useTranscriptionAiController(
     createNextUtterance: input.createNextUtterance,
     splitUtterance: input.splitUtterance,
     deleteUtterance: input.deleteUtterance,
+    deleteSelectedUtterances: input.deleteSelectedUtterances,
     deleteLayer: input.deleteLayer,
     toggleLayerLink: input.toggleLayerLink,
     saveUtteranceText: input.saveUtteranceText,
@@ -168,6 +171,7 @@ export function useTranscriptionAiController(
 
   const buildAiPromptContext = useCallback(() => buildTranscriptionAiPromptContext({
     selectionSnapshot: input.selectionSnapshot,
+    selectedUnitIds: Array.from(input.selectedUnitIds).slice(0, 12),
     utteranceCount: input.utteranceCount,
     translationLayerCount: input.translationLayerCount,
     aiConfidenceAvg: input.aiConfidenceAvg ?? 0,
@@ -176,7 +180,7 @@ export function useTranscriptionAiController(
     recommendations: aiRecommendationRef.current,
     audioTimeSec: aiAudioTimeRef.current,
     recentEdits: input.undoHistory.slice(0, 5).map((item) => String(item)),
-  }), [input.aiConfidenceAvg, input.selectionSnapshot, input.translationLayerCount, input.undoHistory, input.utteranceCount]);
+  }), [input.aiConfidenceAvg, input.selectedUnitIds, input.selectionSnapshot, input.translationLayerCount, input.undoHistory, input.utteranceCount]);
 
   const handleAiToolRiskCheck = useCallback((call: AiChatToolCall): AiToolRiskCheckResult | null => {
     if (call.name === 'delete_layer') {

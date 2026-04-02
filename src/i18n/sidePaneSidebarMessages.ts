@@ -88,6 +88,13 @@ export type SidePaneSidebarMessages = {
   deleteKeepUtterances: string;
   deleteButton: string;
   cancelButton: string;
+  uiFontScaleAria: string;
+  uiFontScaleTitle: string;
+  uiFontScaleLabel: string;
+  uiFontScaleUseAuto: string;
+  uiFontScaleModeAuto: string;
+  uiFontScaleModeManual: string;
+  uiFontScaleValue: (percent: number) => string;
   repairDetailsAria: string;
   repairDetailsTitle: string;
   repairDetailsExpandAria: string;
@@ -193,6 +200,13 @@ const zhCN: SidePaneSidebarMessages = {
   deleteKeepUtterances: '\u4fdd\u7559\u73b0\u6709\u8bed\u6bb5\u533a\u95f4',
   deleteButton: '\u5220\u9664',
   cancelButton: '\u53d6\u6d88',
+  uiFontScaleAria: '\u754c\u9762\u5b57\u53f7\u8c03\u8282',
+  uiFontScaleTitle: '\u754c\u9762\u5b57\u53f7',
+  uiFontScaleLabel: '\u8c03\u8282\u754c\u9762\u5b57\u53f7',
+  uiFontScaleUseAuto: '\u5207\u56de\u81ea\u52a8',
+  uiFontScaleModeAuto: '\u81ea\u52a8',
+  uiFontScaleModeManual: '\u624b\u52a8',
+  uiFontScaleValue: (percent) => `${percent}%`,
   repairDetailsAria: '\u7ea6\u675f\u4fee\u590d\u660e\u7ec6',
   repairDetailsTitle: '\u4fee\u590d\u660e\u7ec6',
   repairDetailsExpandAria: '\u5c55\u5f00\u4fee\u590d\u660e\u7ec6',
@@ -298,6 +312,13 @@ const enUS: SidePaneSidebarMessages = {
   deleteKeepUtterances: 'Keep existing utterance ranges',
   deleteButton: 'Delete',
   cancelButton: 'Cancel',
+  uiFontScaleAria: 'UI font size controls',
+  uiFontScaleTitle: 'UI font size',
+  uiFontScaleLabel: 'Adjust UI font size',
+  uiFontScaleUseAuto: 'Use Auto',
+  uiFontScaleModeAuto: 'Auto',
+  uiFontScaleModeManual: 'Manual',
+  uiFontScaleValue: (percent) => `${percent}%`,
   repairDetailsAria: 'Constraint repair details',
   repairDetailsTitle: 'Repair details',
   repairDetailsExpandAria: 'Expand repair details',

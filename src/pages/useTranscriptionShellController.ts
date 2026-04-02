@@ -7,10 +7,15 @@ import { useDialogs } from '../hooks/useDialogs';
 import { usePanelToggles } from '../hooks/usePanelToggles';
 import { APP_SHELL_OPEN_SEARCH_EVENT, type AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import { buildLayerLinkConnectorLayout } from '../utils/layerLinkConnector';
+import {
+  type TextDirection,
+  type UiFontScaleMode,
+} from '../utils/panelAdaptiveLayout';
 import { LinguisticService } from '../services/LinguisticService';
 import { createPdfPreviewOpenRequest } from './TranscriptionPage.runtimeProps';
 import type { PdfPreviewOpenRequest } from './TranscriptionPage.runtimeContracts';
-import { t } from '../i18n';
+import { t, useLocale } from '../i18n';
+import { useTranscriptionAdaptiveSizing } from './useTranscriptionAdaptiveSizing';
 
 interface DialogUtteranceLike {
   textId: string;
@@ -58,6 +63,15 @@ interface UseTranscriptionShellControllerResult {
   setIsAiPanelCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   aiPanelWidth: number;
   setAiPanelWidth: React.Dispatch<React.SetStateAction<number>>;
+  uiFontScale: number;
+  uiFontScaleMode: UiFontScaleMode;
+  setUiFontScale: (nextScale: number) => void;
+  resetUiFontScale: () => void;
+  uiTextDirection: TextDirection;
+  adaptiveDialogWidth: number;
+  adaptiveDialogCompactWidth: number;
+  adaptiveDialogWideWidth: number;
+  adaptiveFloatingWidth: number;
   handleAiPanelToggle: (e?: React.SyntheticEvent<HTMLElement>) => void;
   isHubCollapsed: boolean;
   hubHeight: number;
@@ -90,6 +104,7 @@ interface UseTranscriptionShellControllerResult {
 export function useTranscriptionShellController(
   input: UseTranscriptionShellControllerInput,
 ): UseTranscriptionShellControllerResult {
+  const locale = useLocale();
   const { layerCreateMessage, setLayerCreateMessage, setSelectedLayerId, createLayer } = input;
   const [focusedLayerRowId, setFocusedLayerRowId] = useState<string>('');
   const [flashLayerRowId, setFlashLayerRowId] = useState<string>('');
@@ -124,13 +139,13 @@ export function useTranscriptionShellController(
     }));
   }, []);
 
-  const handleFocusLayerRow = useCallback((id: string) => {
+  const handleFocusLayerRow = (id: string) => {
     setFocusedLayerRowId(id);
     setSelectedLayerId(id);
     if (flashLayerRowId && flashLayerRowId !== id) {
       setFlashLayerRowId('');
     }
-  }, [flashLayerRowId, setSelectedLayerId]);
+  };
 
   useEffect(() => {
     if (!hasAnyLayerConnectors) {
@@ -158,6 +173,17 @@ export function useTranscriptionShellController(
     hubHeight,
     setHubHeight,
   } = usePanelToggles();
+  const {
+    uiFontScale,
+    uiFontScaleMode,
+    setUiFontScale,
+    resetUiFontScale,
+    uiTextDirection,
+    adaptiveDialogWidth,
+    adaptiveDialogCompactWidth,
+    adaptiveDialogWideWidth,
+    adaptiveFloatingWidth,
+  } = useTranscriptionAdaptiveSizing(locale);
 
   const [analysisTab, setAnalysisTab] = useState<AnalysisBottomTab>('embedding');
   const [hubSidebarTab, setHubSidebarTab] = useState<'assistant' | 'analysis'>('assistant');
@@ -283,6 +309,15 @@ export function useTranscriptionShellController(
     setIsAiPanelCollapsed,
     aiPanelWidth,
     setAiPanelWidth,
+    uiFontScale,
+    uiFontScaleMode,
+    setUiFontScale,
+    resetUiFontScale,
+    uiTextDirection,
+    adaptiveDialogWidth,
+    adaptiveDialogCompactWidth,
+    adaptiveDialogWideWidth,
+    adaptiveFloatingWidth,
     handleAiPanelToggle,
     isHubCollapsed,
     hubHeight,

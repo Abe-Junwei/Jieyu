@@ -56,6 +56,13 @@ interface CommandRule {
 const COMMAND_RULES: CommandRule[] = [
   // ── 句段操作 | Segment operations ──
 
+  // "删除当前所有句段" / "移除全部分段"
+  {
+    pattern: /^(?:请?(?:帮我)?)?(?:删除|删掉|移除|remove|delete)\s*(?:当前|现在|本页)?\s*(?:所有|全部|全体|选中的|selected|all)\s*(?:句段|分段|segment|segments)/i,
+    build: () => ({ name: 'delete_transcription_segment', arguments: {} }),
+    priority: 95,
+  },
+
   // "删除当前句段" / "删除这个句段" / "删掉这条"
   {
     pattern: /^(?:请?(?:帮我)?)?(?:删除|删掉|移除|remove|delete)\s*(?:当前|这个|这条|此|这一[条个行]|current|this)?\s*(?:句段|段落|segment|这[条个行一])/i,

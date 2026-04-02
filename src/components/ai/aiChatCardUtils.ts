@@ -67,6 +67,18 @@ export function formatPendingTarget(
 ): string | null {
   const messages = getAiChatCardUtilityMessages(isZh);
   if (call.name === 'delete_transcription_segment') {
+    const segmentIds = Array.isArray(call.arguments.segmentIds)
+      ? call.arguments.segmentIds.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      : [];
+    const utteranceIds = Array.isArray(call.arguments.utteranceIds)
+      ? call.arguments.utteranceIds.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      : [];
+    const batchCount = segmentIds.length + utteranceIds.length;
+    if (batchCount > 1) return messages.selectedSegments(batchCount);
+
+    const segmentId = typeof call.arguments.segmentId === 'string' ? call.arguments.segmentId.trim() : '';
+    if (segmentId) return messages.segmentWithId(compactInternalId(segmentId));
+
     const utteranceId = typeof call.arguments.utteranceId === 'string' ? call.arguments.utteranceId.trim() : '';
     if (!utteranceId) return messages.currentSelectedSegment;
     return messages.segmentWithId(compactInternalId(utteranceId));

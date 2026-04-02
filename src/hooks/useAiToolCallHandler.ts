@@ -34,6 +34,7 @@ type Params = {
   createNextUtterance: (utt: UtteranceDocType, duration: number) => Promise<void>;
   splitUtterance: (utteranceId: string, splitTime: number) => Promise<void>;
   deleteUtterance: (id: string) => Promise<void>;
+  deleteSelectedUtterances?: (ids: Set<string>) => Promise<void>;
   deleteLayer: (id: string, options?: { keepUtterances?: boolean }) => Promise<void>;
   toggleLayerLink: (transcriptionLayerKey: string, layerId: string) => Promise<void>;
   saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
@@ -97,6 +98,7 @@ interface ExecutionContext {
   createNextUtterance: Params['createNextUtterance'];
   splitUtterance: Params['splitUtterance'];
   deleteUtterance: Params['deleteUtterance'];
+  deleteSelectedUtterances?: Params['deleteSelectedUtterances'];
   deleteLayer: Params['deleteLayer'];
   toggleLayerLink: Params['toggleLayerLink'];
   saveUtteranceText: Params['saveUtteranceText'];
@@ -191,6 +193,16 @@ function _formatLayerTypeLabel(layerType: 'transcription' | 'translation', local
     : t(locale, 'transcription.aiTool.layer.typeTranscription');
 }
 
+function _normalizeRequestedIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Set(
+    value
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0),
+  ));
+}
+
 // ─────────────────────────────────────────────────────────────
 //  句段对象适配器 | Segment object adapter
 // ─────────────────────────────────────────────────────────────
@@ -258,6 +270,29 @@ const segmentAdapter: ToolObjectAdapter = {
     }
 
     if (call.name === 'delete_transcription_segment') {
+      const requestedSegmentIds = _normalizeRequestedIds(call.arguments.segmentIds);
+      const requestedUtteranceIds = _normalizeRequestedIds(call.arguments.utteranceIds);
+      const requestedBatchIds = Array.from(new Set([...requestedSegmentIds, ...requestedUtteranceIds]));
+      if (requestedBatchIds.length > 0) {
+        if (ctx.deleteSelectedUtterances) {
+          await ctx.deleteSelectedUtterances(new Set(requestedBatchIds));
+        } else {
+          for (const targetId of requestedBatchIds) {
+            await ctx.deleteUtterance(targetId);
+          }
+        }
+        return {
+          ok: true,
+          message: tf(locale, 'transcription.utteranceAction.done.deleteSelection', { count: requestedBatchIds.length }),
+        };
+      }
+
+      const requestedSegmentId = String(call.arguments.segmentId ?? '').trim();
+      if (requestedSegmentId.length > 0) {
+        await ctx.deleteUtterance(requestedSegmentId);
+        return { ok: true, message: t(locale, 'transcription.aiTool.segment.deleteDone') };
+      }
+
       const requestedId = String(call.arguments.utteranceId ?? '').trim();
       if (requestedId.length === 0) {
         return { ok: false, message: t(locale, 'transcription.aiTool.segment.deleteMissingUtteranceId') };
@@ -1069,6 +1104,7 @@ export function useAiToolCallHandler({
   createNextUtterance,
   splitUtterance,
   deleteUtterance,
+  deleteSelectedUtterances,
   deleteLayer,
   toggleLayerLink,
   saveUtteranceText,
@@ -1165,6 +1201,7 @@ export function useAiToolCallHandler({
       createNextUtterance,
       splitUtterance,
       deleteUtterance,
+      deleteSelectedUtterances,
       deleteLayer,
       toggleLayerLink,
       saveUtteranceText,
@@ -1194,6 +1231,7 @@ export function useAiToolCallHandler({
     splitUtterance,
     deleteLayer,
     deleteUtterance,
+    deleteSelectedUtterances,
     toggleLayerLink,
     saveTextTranslationForUtterance,
     saveUtteranceText,

@@ -1,8 +1,9 @@
-import { memo, useCallback, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { memo, useCallback, useMemo, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
 import { useOptionalLocale } from '../i18n';
 import { getNotePanelMessages } from '../i18n/notePanelMessages';
+import { computeAdaptivePanelWidth, readPersistedUiFontScale, resolveTextDirectionFromLocale } from '../utils/panelAdaptiveLayout';
 
 interface NotePanelProps {
   isOpen: boolean;
@@ -24,6 +25,21 @@ export const NotePanel = memo(function NotePanel({
   onDelete,
 }: NotePanelProps) {
   const locale = useOptionalLocale() ?? 'zh-CN';
+  const uiTextDirection = useMemo(() => resolveTextDirectionFromLocale(locale), [locale]);
+  const uiFontScale = readPersistedUiFontScale(locale, uiTextDirection);
+  const panelWidth = useMemo(
+    () => computeAdaptivePanelWidth({
+      baseWidth: 380,
+      locale,
+      direction: uiTextDirection,
+      uiFontScale,
+      density: 'standard',
+      minWidth: 300,
+      maxWidth: 640,
+      ...(typeof window !== 'undefined' ? { viewportWidth: window.innerWidth } : {}),
+    }),
+    [locale, uiFontScale, uiTextDirection],
+  );
   const messages = getNotePanelMessages(locale);
   const categories: { value: NoteCategory; label: string }[] = [
     { value: 'comment', label: messages.categoryComment },
@@ -85,7 +101,7 @@ export const NotePanel = memo(function NotePanel({
   if (!isOpen) return null;
 
   return (
-    <div className="note-panel">
+    <div className="note-panel" dir={uiTextDirection} style={{ width: `min(${panelWidth}px, 100%)`, fontSize: `calc(1rem * ${uiFontScale})` }}>
       <div className="note-panel-header">
         <h3 className="note-panel-title">{messages.panelTitle(targetLabel)}</h3>
         <button type="button" className="note-panel-close" onClick={onClose} aria-label={messages.closePanel}>

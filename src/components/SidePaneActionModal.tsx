@@ -10,6 +10,12 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { useLocale } from '../i18n';
+import {
+  computeAdaptivePanelWidth,
+  readPersistedUiFontScale,
+  resolveTextDirectionFromLocale,
+} from '../utils/panelAdaptiveLayout';
 
 interface SidePaneActionModalProps {
   ariaLabel: string;
@@ -20,14 +26,43 @@ interface SidePaneActionModalProps {
 }
 
 export function SidePaneActionModal({ ariaLabel, children, onClose, className, closeLabel = 'Close' }: SidePaneActionModalProps) {
+  const locale = useLocale();
+  const uiTextDirection = useMemo(() => resolveTextDirectionFromLocale(locale), [locale]);
+  const uiFontScale = readPersistedUiFontScale(locale, uiTextDirection);
   const isSpeakerModal = Boolean(className?.includes('transcription-side-pane-action-popover-speaker-centered'));
+  const speakerDefaultWidth = useMemo(
+    () => computeAdaptivePanelWidth({
+      baseWidth: 560,
+      locale,
+      direction: uiTextDirection,
+      uiFontScale,
+      density: 'data-dense',
+      minWidth: 460,
+      maxWidth: 900,
+      ...(typeof window !== 'undefined' ? { viewportWidth: window.innerWidth } : {}),
+    }),
+    [locale, uiFontScale, uiTextDirection],
+  );
+  const standardDefaultWidth = useMemo(
+    () => computeAdaptivePanelWidth({
+      baseWidth: 340,
+      locale,
+      direction: uiTextDirection,
+      uiFontScale,
+      density: 'compact',
+      minWidth: 280,
+      maxWidth: 620,
+      ...(typeof window !== 'undefined' ? { viewportWidth: window.innerWidth } : {}),
+    }),
+    [locale, uiFontScale, uiTextDirection],
+  );
   const defaultSize = useMemo(
-    () => (isSpeakerModal ? { width: 560, height: 560 } : { width: 340, height: 200 }),
-    [isSpeakerModal],
+    () => (isSpeakerModal ? { width: speakerDefaultWidth, height: 560 } : { width: standardDefaultWidth, height: 200 }),
+    [isSpeakerModal, speakerDefaultWidth, standardDefaultWidth],
   );
   const minSize = useMemo(
-    () => (isSpeakerModal ? { width: 420, height: 320 } : { width: 280, height: 160 }),
-    [isSpeakerModal],
+    () => (isSpeakerModal ? { width: Math.max(420, Math.round(speakerDefaultWidth * 0.75)), height: 320 } : { width: Math.max(280, Math.round(standardDefaultWidth * 0.82)), height: 160 }),
+    [isSpeakerModal, speakerDefaultWidth, standardDefaultWidth],
   );
 
   const clampSize = useCallback((raw: { width: number; height: number }) => {

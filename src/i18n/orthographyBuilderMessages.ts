@@ -44,6 +44,12 @@ export type OrthographyBuilderMessages = {
   confirmRiskButton: string;
   collapseAdvanced: string;
   expandAdvanced: string;
+  advancedLocaleLabel: string;
+  advancedRegionLabel: string;
+  advancedVariantLabel: string;
+  advancedDirectionLabel: string;
+  advancedDirectionLtr: string;
+  advancedDirectionRtl: string;
   localePlaceholder: string;
   regionPlaceholder: string;
   variantPlaceholder: string;
@@ -57,6 +63,9 @@ export type OrthographyBuilderMessages = {
   preferDirLabel: string;
   transformEnabledLabel: string;
   transformEngineLabel: string;
+  transformEngineTableMap: string;
+  transformEngineIcuRule: string;
+  transformEngineManual: string;
   transformInputPreviewLabel: string;
   transformInputPreviewPlaceholder: string;
   transformReversibleLabel: string;
@@ -121,6 +130,12 @@ const zhCN: OrthographyBuilderMessages = {
   confirmRiskButton: '\u5148\u786e\u8ba4\u8fd9\u4e9b\u98ce\u9669',
   collapseAdvanced: '\u6536\u8d77\u9ad8\u7ea7\u5b57\u6bb5',
   expandAdvanced: '\u5c55\u5f00\u9ad8\u7ea7\u5b57\u6bb5',
+  advancedLocaleLabel: '\u8bed\u8a00\u533a\u57df\uff08Locale\uff09',
+  advancedRegionLabel: '\u5730\u533a\u6807\u7b7e\uff08Region\uff09',
+  advancedVariantLabel: '\u53d8\u4f53\u6807\u8bb0\uff08Variant\uff09',
+  advancedDirectionLabel: '\u6587\u672c\u65b9\u5411\uff08Direction\uff09',
+  advancedDirectionLtr: '\u4ece\u5de6\u5230\u53f3\uff08LTR\uff09',
+  advancedDirectionRtl: '\u4ece\u53f3\u5230\u5de6\uff08RTL\uff09',
   localePlaceholder: '\u4f8b\uff1azh-CN',
   regionPlaceholder: '\u4f8b\uff1aCN',
   variantPlaceholder: '\u4f8b\uff1afonipa',
@@ -134,6 +149,9 @@ const zhCN: OrthographyBuilderMessages = {
   preferDirLabel: '\u6e32\u67d3\u65f6\u4f18\u5148\u5199\u5165 dir \u5c5e\u6027',
   transformEnabledLabel: '\u4e3a\u6d3e\u751f\u6b63\u5b57\u6cd5\u521b\u5efa\u53d8\u6362\u89c4\u5219',
   transformEngineLabel: '\u53d8\u6362\u5f15\u64ce',
+  transformEngineTableMap: '\u8868\u6620\u5c04\uff08Table Map\uff09',
+  transformEngineIcuRule: 'ICU \u89c4\u5219',
+  transformEngineManual: '\u624b\u5de5\u89c4\u5219\uff08Manual\uff09',
   transformInputPreviewLabel: '\u9884\u89c8\u8f93\u5165',
   transformInputPreviewPlaceholder: '\u8f93\u5165\u4e00\u6bb5\u6837\u4f8b\u6587\u672c\u9884\u89c8\u8f6c\u6362\u7ed3\u679c',
   transformReversibleLabel: '\u6807\u8bb0\u4e3a\u53ef\u9006\u53d8\u6362',
@@ -198,6 +216,12 @@ const enUS: OrthographyBuilderMessages = {
   confirmRiskButton: 'Acknowledge risks first',
   collapseAdvanced: 'Collapse advanced fields',
   expandAdvanced: 'Expand advanced fields',
+  advancedLocaleLabel: 'Locale',
+  advancedRegionLabel: 'Region',
+  advancedVariantLabel: 'Variant',
+  advancedDirectionLabel: 'Direction',
+  advancedDirectionLtr: 'Left-to-right (LTR)',
+  advancedDirectionRtl: 'Right-to-left (RTL)',
   localePlaceholder: 'e.g. zh-CN',
   regionPlaceholder: 'e.g. CN',
   variantPlaceholder: 'e.g. fonipa',
@@ -211,6 +235,9 @@ const enUS: OrthographyBuilderMessages = {
   preferDirLabel: 'Prefer writing dir attribute during render',
   transformEnabledLabel: 'Create transform rules for derived orthography',
   transformEngineLabel: 'Transform engine',
+  transformEngineTableMap: 'Table Map',
+  transformEngineIcuRule: 'ICU Rule',
+  transformEngineManual: 'Manual',
   transformInputPreviewLabel: 'Preview input',
   transformInputPreviewPlaceholder: 'Type sample text to preview transformation',
   transformReversibleLabel: 'Mark as reversible transform',

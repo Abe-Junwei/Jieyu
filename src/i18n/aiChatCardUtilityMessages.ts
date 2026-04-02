@@ -5,6 +5,7 @@ export type AiChatCardUtilityMessages = {
   unknown: string;
   toolNames: Record<string, string>;
   currentSelectedSegment: string;
+  selectedSegments: (count: number) => string;
   segmentWithId: (id: string) => string;
   layerWithId: (id: string) => string;
   translationLayer: string;
@@ -38,6 +39,7 @@ const zhCN: AiChatCardUtilityMessages = {
     create_transcription_segment: '\u521b\u5efa\u53e5\u6bb5',
   },
   currentSelectedSegment: '\u5f53\u524d\u9009\u4e2d\u53e5\u6bb5',
+  selectedSegments: (count) => `\u5df2\u9009 ${count} \u4e2a\u53e5\u6bb5`,
   segmentWithId: (id) => `\u53e5\u6bb5\uff08${id}\uff09`,
   layerWithId: (id) => `\u5c42\uff08${id}\uff09`,
   translationLayer: '\u7ffb\u8bd1\u5c42',
@@ -71,6 +73,7 @@ const enUS: AiChatCardUtilityMessages = {
     create_transcription_segment: 'Create Segment',
   },
   currentSelectedSegment: 'Current selected segment',
+  selectedSegments: (count) => `${count} selected segments`,
   segmentWithId: (id) => `Segment (${id})`,
   layerWithId: (id) => `Layer (${id})`,
   translationLayer: 'Translation layer',

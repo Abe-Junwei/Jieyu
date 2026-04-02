@@ -188,6 +188,9 @@ export type AiSystemPersonaKey = 'transcription' | 'glossing' | 'review';
 export interface AiShortTermContext {
   page?: string;
   activeUtteranceUnitId?: string;
+  activeSegmentUnitId?: string;
+  selectedUnitKind?: 'utterance' | 'segment';
+  selectedUnitIds?: string[];
   selectedUtteranceStartSec?: number;
   selectedUtteranceEndSec?: number;
   selectedLayerId?: string;

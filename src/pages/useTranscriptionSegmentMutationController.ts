@@ -67,7 +67,6 @@ export function useTranscriptionSegmentMutationController(
     unitId,
     preferredKind: 'segment',
   });
-
   const splitRouted = useCallback(async (id: string, splitTime: number, layerIdOverride?: string) => {
     const targetLayerId = layerIdOverride ?? activeLayerIdForEdits;
     const routing = resolveSegmentRoutingForLayer(targetLayerId);
@@ -168,7 +167,6 @@ export function useTranscriptionSegmentMutationController(
         return;
     }
   }, [activeLayerIdForEdits, createSegmentTarget, locale, mergeWithNext, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, segmentsByLayer, selectTimelineUnit, setSaveState, utterancesOnCurrentMedia]);
-
   const deleteUtteranceRouted = useCallback(async (id: string, layerIdOverride?: string) => {
     const routing = resolveSegmentRoutingForLayer(layerIdOverride ?? activeLayerIdForEdits);
     switch (routing.editMode) {

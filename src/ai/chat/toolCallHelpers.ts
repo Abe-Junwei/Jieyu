@@ -189,6 +189,30 @@ function getFirstNonEmptyString(...values: unknown[]): string {
   return '';
 }
 
+function getNormalizedIdList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+function getDeleteTargetIds(args: Record<string, unknown>): string[] {
+  const ids = [
+    ...getNormalizedIdList(args.segmentIds),
+    ...getNormalizedIdList(args.utteranceIds),
+    ...(() => {
+      const segmentId = getFirstNonEmptyString(args.segmentId);
+      return segmentId ? [segmentId] : [];
+    })(),
+    ...(() => {
+      const utteranceId = getFirstNonEmptyString(args.utteranceId);
+      return utteranceId ? [utteranceId] : [];
+    })(),
+  ];
+  return Array.from(new Set(ids));
+}
+
 function inferDeleteLayerArgumentsFromText(userText: string): Partial<AiChatToolCall['arguments']> {
   const normalizedText = userText.trim();
   if (!normalizedText) return {};
@@ -222,6 +246,40 @@ function validateArgId(args: Record<string, unknown>, key: string, required: boo
   if (trimmed.length === 0) return decodeEscapedUnicode(`${key} \\u4e0d\\u80fd\\u4e3a\\u7a7a。`);
   if (trimmed.length > TOOL_ARG_MAX_ID_LENGTH) return decodeEscapedUnicode(`${key} \\u957f\\u5ea6\\u4e0d\\u80fd\\u8d85\\u8fc7 ${TOOL_ARG_MAX_ID_LENGTH}。`);
   return null;
+}
+
+function validateArgIdList(args: Record<string, unknown>, key: string, required: boolean): string | null {
+  if (!(key in args)) return required ? decodeEscapedUnicode(`\\u7f3a\\u5c11 ${key}。`) : null;
+  const value = args[key];
+  if (!Array.isArray(value)) return decodeEscapedUnicode(`${key} \\u5fc5\\u987b\\u662f ID \\u6570\\u7ec4。`);
+  if (value.length === 0) return decodeEscapedUnicode(`${key} \\u81f3\\u5c11\\u9700\\u8981 1 \\u4e2a ID。`);
+  for (const item of value) {
+    if (typeof item !== 'string') return decodeEscapedUnicode(`${key} \\u5fc5\\u987b\\u662f ID \\u6570\\u7ec4。`);
+    const trimmed = item.trim();
+    if (trimmed.length === 0) return decodeEscapedUnicode(`${key} \\u4e0d\\u80fd\\u5305\\u542b\\u7a7a ID。`);
+    if (trimmed.length > TOOL_ARG_MAX_ID_LENGTH) {
+      return decodeEscapedUnicode(`${key} \\u4e2d\\u7684 ID \\u957f\\u5ea6\\u4e0d\\u80fd\\u8d85\\u8fc7 ${TOOL_ARG_MAX_ID_LENGTH}。`);
+    }
+  }
+  return null;
+}
+
+function validateDeleteSegmentArgs(args: Record<string, unknown>): string | null {
+  const listValidation = validateArgIdList(args, 'segmentIds', false)
+    ?? validateArgIdList(args, 'utteranceIds', false);
+  if (listValidation) return listValidation;
+
+  if (getNormalizedIdList(args.segmentIds).length > 0 || getNormalizedIdList(args.utteranceIds).length > 0) {
+    return null;
+  }
+
+  const segmentId = getFirstNonEmptyString(args.segmentId);
+  if (segmentId) return validateArgId(args, 'segmentId', false);
+
+  const utteranceId = getFirstNonEmptyString(args.utteranceId);
+  if (utteranceId) return validateArgId(args, 'utteranceId', false);
+
+  return decodeEscapedUnicode('\\u7f3a\\u5c11 segmentId/utteranceId/segmentIds/utteranceIds。');
 }
 
 /** \\u6570\\u503c\\u53c2\\u6570\\u6821\\u9a8c（\\u517c\\u5bb9 Zod number schema） | Numeric arg validator (compatible with Zod number schemas) */
@@ -350,12 +408,15 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
     label: '\\u5220\\u9664\\u53e5\\u6bb5',
     contextFill: { utteranceId: true },
     destructive: true,
-    validateArgs: (args) => validateArgId(args, 'utteranceId', true),
+    validateArgs: validateDeleteSegmentArgs,
     riskSpec: {
       summary: (args) => {
-        const utteranceId = typeof args.utteranceId === 'string' ? args.utteranceId : '';
-        const target = utteranceId.trim().length > 0 ? utteranceId : 'current-segment';
-        return `\\u5c06\\u5220\\u9664 1 \\u6761\\u53e5\\u6bb5（\\u76ee\\u6807：${target}）`;
+        const targetIds = getDeleteTargetIds(args);
+        const targetCount = Math.max(1, targetIds.length);
+        const target = targetIds[0] ?? 'current-segment';
+        return targetCount > 1
+          ? `\\u5c06\\u5220\\u9664 ${targetCount} \\u6761\\u53e5\\u6bb5`
+          : `\\u5c06\\u5220\\u9664 1 \\u6761\\u53e5\\u6bb5（\\u76ee\\u6807：${target}）`;
       },
       preview: [
         '\\u8be5\\u53e5\\u6bb5\\u7684\\u65f6\\u95f4\\u8303\\u56f4\\u4e0e\\u8f6c\\u5199\\u6587\\u672c\\u4f1a\\u88ab\\u6e05\\u9664',
@@ -507,6 +568,9 @@ export function planToolCallTargets(
 ): ToolPlannerResult {
   const shortTerm = context?.shortTerm;
   const currentUtteranceId = getFirstNonEmptyString(shortTerm?.activeUtteranceUnitId);
+  const currentSegmentId = getFirstNonEmptyString(shortTerm?.activeSegmentUnitId);
+  const selectedUnitKind = shortTerm?.selectedUnitKind;
+  const selectedUnitIds = getNormalizedIdList(shortTerm?.selectedUnitIds);
   const currentUtteranceStartSec = typeof shortTerm?.selectedUtteranceStartSec === 'number' && Number.isFinite(shortTerm.selectedUtteranceStartSec)
     ? shortTerm.selectedUtteranceStartSec
     : undefined;
@@ -566,7 +630,34 @@ export function planToolCallTargets(
     }
   }
 
-  if (cf?.utteranceId) {
+  if (call.name === 'delete_transcription_segment') {
+    const hasExplicitDeleteTarget = getDeleteTargetIds(nextCall.arguments).length > 0;
+    const refersAllSelectedSegments = /(\u6240\u6709|\u5168\u90e8|\u5168\u4f53|all)/i.test(userText)
+      && /(\u53e5\u6bb5|\u5206\u6bb5|segment)/i.test(userText);
+
+    if (!hasExplicitDeleteTarget) {
+      if (refersAllSelectedSegments && selectedUnitIds.length > 1) {
+        if (selectedUnitKind === 'segment') {
+          nextCall.arguments.segmentIds = selectedUnitIds;
+        } else {
+          nextCall.arguments.utteranceIds = selectedUnitIds;
+        }
+      } else if (selectedUnitKind === 'segment' && currentSegmentId) {
+        nextCall.arguments.segmentId = currentSegmentId;
+      } else {
+        const utteranceId = ensureUtteranceId();
+        if (!utteranceId) {
+          return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+        }
+      }
+    }
+
+    if (getDeleteTargetIds(nextCall.arguments).length === 0) {
+      return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+    }
+  }
+
+  if (cf?.utteranceId && call.name !== 'delete_transcription_segment') {
     const utteranceId = ensureUtteranceId();
     if (!utteranceId) {
       return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
@@ -709,6 +800,9 @@ export function extractClarifySplitPositionPatch(
 function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: AiPromptContext | null | undefined): boolean {
   const short = context?.shortTerm;
   const activeUtteranceUnitId = getFirstNonEmptyString(short?.activeUtteranceUnitId);
+  const activeSegmentUnitId = getFirstNonEmptyString(short?.activeSegmentUnitId);
+  const selectedUnitKind = short?.selectedUnitKind;
+  const selectedUnitIds = getNormalizedIdList(short?.selectedUnitIds);
   const selectedLayerId = getFirstNonEmptyString(short?.selectedLayerId);
   const selectedLayerType = short?.selectedLayerType;
   const selectedTranslationLayerId = getFirstNonEmptyString(
@@ -721,6 +815,12 @@ function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: 
   );
 
   if (['create_transcription_segment', 'split_transcription_segment', 'delete_transcription_segment', 'set_transcription_text', 'auto_gloss_utterance', 'set_token_pos', 'set_token_gloss'].includes(callName)) {
+    if (callName === 'delete_transcription_segment' && selectedUnitIds.length > 1) {
+      return true;
+    }
+    if (callName === 'delete_transcription_segment' && selectedUnitKind === 'segment' && activeSegmentUnitId.length > 0) {
+      return true;
+    }
     return activeUtteranceUnitId.length > 0;
   }
   if (['set_translation_text', 'clear_translation_segment'].includes(callName)) {
@@ -925,10 +1025,10 @@ function describeToolCallImpact(call: AiChatToolCall): { riskSummary: string; im
 export function buildPreviewContract(call: AiChatToolCall): PreviewContract {
   const args = call.arguments;
   if (call.name === 'delete_transcription_segment') {
-    const uid = typeof args.utteranceId === 'string' ? args.utteranceId.trim() : '';
+    const targetIds = getDeleteTargetIds(args);
     return {
-      affectedCount: 1,
-      affectedIds: uid ? [uid] : [],
+      affectedCount: Math.max(1, targetIds.length),
+      affectedIds: targetIds.slice(0, 5),
       reversible: true,
       cascadeTypes: ['translation'],
     };
@@ -1087,6 +1187,8 @@ export function buildClarifyCandidates(
 ): AiClarifyCandidate[] {
   const short = context?.shortTerm;
   const activeUtteranceUnitId = getFirstNonEmptyString(short?.activeUtteranceUnitId);
+  const activeSegmentUnitId = getFirstNonEmptyString(short?.activeSegmentUnitId);
+  const selectedUnitKind = short?.selectedUnitKind;
   const selectedLayerId = getFirstNonEmptyString(short?.selectedLayerId);
   const selectedLayerType = short?.selectedLayerType;
   const selectedTranslationLayerId = getFirstNonEmptyString(
@@ -1099,8 +1201,12 @@ export function buildClarifyCandidates(
   );
 
   const candidates: AiClarifyCandidate[] = [];
-  if (reason === 'missing-utterance-target' && activeUtteranceUnitId) {
-    candidates.push({ key: '1', label: `\\u5f53\\u524d\\u9009\\u4e2d\\u53e5\\u6bb5（${activeUtteranceUnitId}）`, argsPatch: { utteranceId: activeUtteranceUnitId } });
+  if (reason === 'missing-utterance-target') {
+    if (selectedUnitKind === 'segment' && activeSegmentUnitId) {
+      candidates.push({ key: '1', label: `\\u5f53\\u524d\\u9009\\u4e2d\\u53e5\\u6bb5（${activeSegmentUnitId}）`, argsPatch: { segmentId: activeSegmentUnitId } });
+    } else if (activeUtteranceUnitId) {
+      candidates.push({ key: '1', label: `\\u5f53\\u524d\\u9009\\u4e2d\\u53e5\\u6bb5（${activeUtteranceUnitId}）`, argsPatch: { utteranceId: activeUtteranceUnitId } });
+    }
   }
   if (reason === 'missing-layer-target' && selectedLayerId) {
     candidates.push({ key: '1', label: `\\u5f53\\u524d\\u9009\\u4e2d\\u5c42（${selectedLayerId}）`, argsPatch: { layerId: selectedLayerId } });

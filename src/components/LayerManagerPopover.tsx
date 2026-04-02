@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AudioLines, Languages, Trash2 } from 'lucide-react';
+import { AudioLines, Languages, Trash2, X } from 'lucide-react';
 import type { LayerConstraint, LayerDocType } from '../db';
 import type { LayerCreateInput } from '../hooks/useTranscriptionData';
 import { useLocale } from '../i18n';
@@ -300,13 +300,24 @@ export function LayerManagerPopover({
       {shouldRenderBubble && (
         <div className={`transcription-layer-bubble ${isOpen ? 'transcription-layer-bubble-open' : 'transcription-layer-bubble-closing'}`}>
           <div className="transcription-layer-bubble-arrow" />
-          <div className="transcription-layer-form transcription-layer-manager">
-            <div className="transcription-layer-manager-head">
-              <div className="transcription-layer-form-title">{messages.layerManagement}</div>
-              <button className="btn btn-ghost btn-sm" onClick={onClose}>{messages.close}</button>
+          <div className="transcription-layer-form transcription-layer-manager dialog-card">
+            <div className="transcription-layer-manager-head dialog-header">
+              <h3>{messages.layerManagement}</h3>
+              <div className="dialog-header-actions">
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={onClose}
+                  aria-label={messages.close}
+                  title={messages.close}
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
-            <div className="transcription-layer-columns">
+            <div className="transcription-layer-manager-body dialog-body">
+              <div className="transcription-layer-columns">
               <div className="transcription-layer-section transcription-layer-section-transcription">
                 <div className="transcription-layer-section-head-row">
                   <div className="transcription-layer-section-head">
@@ -585,7 +596,8 @@ export function LayerManagerPopover({
               </div>
             </div>
 
-            {message && <p className="small-text">{message}</p>}
+              {message && <p className="small-text transcription-layer-manager-message">{message}</p>}
+            </div>
           </div>
         </div>
       )}

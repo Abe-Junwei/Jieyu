@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import type { UtteranceDocType } from '../db';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
 import { useLocale } from '../i18n';
@@ -542,25 +543,22 @@ export function BatchOperationPanel({
   return (
     <div className="layer-action-popover-backdrop" onClick={onClose}>
       <div 
-        className="floating-panel"
+        className="floating-panel dialog-card"
         style={{
           left: `${position.x}px`,
           top: `${position.y}px`,
           width: `${size.width}px`,
           height: `${size.height}px`,
-          padding: 14,
-          gap: 10,
         }} 
         onClick={(e) => e.stopPropagation()}
       >
         <div 
-          className="floating-panel-title-row floating-panel-drag-handle" 
+          className="floating-panel-title-row floating-panel-drag-handle dialog-header" 
           onPointerDown={handleDragStart}
           onDoubleClick={handleRecenter}
-          style={{ margin: '-14px -14px 10px', padding: '10px 14px' }}
         >
-          <strong>{messages.panelTitle}</strong>
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <h3>{messages.panelTitle}</h3>
+          <div className="dialog-header-actions floating-panel-title-actions">
             <button
               type="button"
               className="floating-panel-reset-btn"
@@ -571,10 +569,20 @@ export function BatchOperationPanel({
             >
               ↺
             </button>
-            <button className="icon-btn" onClick={onClose} title={messages.close} onPointerDown={(e) => e.stopPropagation()}>✕</button>
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={onClose}
+              title={messages.close}
+              aria-label={messages.close}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <X size={18} />
+            </button>
           </div>
         </div>
 
+        <div className="dialog-body batch-operation-panel-body">
         <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
           {messages.selectedCount(selectedCount)}
         </div>
@@ -780,6 +788,7 @@ export function BatchOperationPanel({
 
         <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
           {messages.shortcutHint}
+        </div>
         </div>
         
         <div className="floating-panel-resize-handle" onPointerDown={handleResizeStart} aria-hidden="true" />

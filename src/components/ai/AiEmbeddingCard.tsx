@@ -98,12 +98,12 @@ export function AiEmbeddingCard() {
           {embeddingAvailability === 'testing' ? '…' : messages.testButton}
         </button>
         {embeddingAvailability === 'available' && (
-          <span style={{ fontSize: 11, color: 'var(--state-success-solid)', display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{ fontSize: 'calc(11px * var(--ui-font-scale, 1))', color: 'var(--state-success-solid)', display: 'flex', alignItems: 'center', gap: 3 }}>
             <Check size={12} /> {messages.available}
           </span>
         )}
         {embeddingAvailability === 'unavailable' && (
-          <span style={{ fontSize: 11, color: 'var(--state-danger-solid)' }} title={embeddingError ?? undefined}>
+          <span style={{ fontSize: 'calc(11px * var(--ui-font-scale, 1))', color: 'var(--state-danger-solid)' }} title={embeddingError ?? undefined}>
             {embeddingError ? `: ${embeddingError}` : messages.unavailable}
           </span>
         )}
@@ -123,7 +123,7 @@ export function AiEmbeddingCard() {
         </p>
       )}
       {aiEmbeddingLastError && <p className="inspector-warning" style={{ marginBottom: 6 }}>{aiEmbeddingLastError}</p>}
-      {aiEmbeddingWarning && <p style={{ marginBottom: 6, fontSize: 11, color: 'var(--state-warning-text)', background: 'var(--state-warning-bg)', border: '1px solid var(--state-warning-border)', borderRadius: 6, padding: '4px 6px' }}>{aiEmbeddingWarning}</p>}
+      {aiEmbeddingWarning && <p style={{ marginBottom: 6, fontSize: 'calc(11px * var(--ui-font-scale, 1))', color: 'var(--state-warning-text)', background: 'var(--state-warning-bg)', border: '1px solid var(--state-warning-border)', borderRadius: 6, padding: '4px 6px' }}>{aiEmbeddingWarning}</p>}
       {(taskSummary.pending > 0 || taskSummary.running > 0 || taskSummary.failed > 0 || taskSummary.done > 0) && (
         <div className="ai-card-row ai-card-row-gap-sm ai-card-margin-bottom-sm">
           {taskSummary.pending > 0 && <span className="transcription-ai-tag">{messages.queued(taskSummary.pending)}</span>}

@@ -18,6 +18,11 @@ import {
 } from '../hooks/useOrthographyPicker';
 import { useLocale } from '../i18n';
 import { getLayerManagerPopoverMessages } from '../i18n/layerManagerPopoverMessages';
+import {
+  computeAdaptivePanelWidth,
+  readPersistedUiFontScale,
+  resolveTextDirectionFromLocale,
+} from '../utils/panelAdaptiveLayout';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -37,12 +42,10 @@ interface LayerActionPopoverProps {
   onClose: () => void;
 }
 
-const PANEL_MIN_WIDTH = 280;
 const PANEL_MIN_HEIGHT = 180;
-const PANEL_MAX_WIDTH = 760;
 const PANEL_MAX_HEIGHT = 560;
 const PANEL_MARGIN = 8;
-const PANEL_DEFAULT_SIZE = { width: 360, height: 240 };
+const PANEL_DEFAULT_HEIGHT = 240;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -131,6 +134,27 @@ export function LayerActionPopover({
   onClose,
 }: LayerActionPopoverProps) {
   const locale = useLocale();
+  const uiTextDirection = useMemo(() => resolveTextDirectionFromLocale(locale), [locale]);
+  const uiFontScale = readPersistedUiFontScale(locale, uiTextDirection);
+  const panelDefaultWidth = useMemo(
+    () => computeAdaptivePanelWidth({
+      baseWidth: 360,
+      locale,
+      direction: uiTextDirection,
+      uiFontScale,
+      density: action === 'delete' ? 'compact' : 'standard',
+      minWidth: 300,
+      maxWidth: 640,
+      ...(typeof window !== 'undefined' ? { viewportWidth: window.innerWidth } : {}),
+    }),
+    [action, locale, uiFontScale, uiTextDirection],
+  );
+  const panelMinWidth = useMemo(() => Math.max(280, Math.round(panelDefaultWidth * 0.78)), [panelDefaultWidth]);
+  const panelMaxWidth = useMemo(() => Math.max(540, Math.round(panelDefaultWidth * 1.75)), [panelDefaultWidth]);
+  const panelDefaultSize = useMemo(
+    () => ({ width: panelDefaultWidth, height: PANEL_DEFAULT_HEIGHT }),
+    [panelDefaultWidth],
+  );
   const managerMessages = getLayerManagerPopoverMessages(locale);
   const uiText = useMemo<LayerActionPopoverUiText>(() => ({
     createTranscription: managerMessages.createTranscriptionLayer,
@@ -197,10 +221,10 @@ export function LayerActionPopover({
     handleResetPanelLayout,
   } = useDraggablePanel({
     storageKey,
-    defaultSize: PANEL_DEFAULT_SIZE,
-    minWidth: PANEL_MIN_WIDTH,
+    defaultSize: panelDefaultSize,
+    minWidth: panelMinWidth,
     minHeight: PANEL_MIN_HEIGHT,
-    maxWidth: PANEL_MAX_WIDTH,
+    maxWidth: panelMaxWidth,
     maxHeight: PANEL_MAX_HEIGHT,
     margin: PANEL_MARGIN,
   });

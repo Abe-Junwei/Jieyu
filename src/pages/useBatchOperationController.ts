@@ -40,7 +40,6 @@ export function useBatchOperationController({
   mergeSelectedUtterances,
 }: UseBatchOperationControllerInput): UseBatchOperationControllerResult {
   const locale = useLocale();
-
   const batchUtteranceSelectionMapping = useMemo(() => {
     return resolveUtteranceSelectionMapping({
       selectedUtteranceIds,
@@ -48,17 +47,14 @@ export function useBatchOperationController({
       unitToUtteranceId,
     });
   }, [selectedTimelineUnit, selectedUtteranceIds, unitToUtteranceId]);
-
   const selectedUtteranceIdsForSpeakerActionsSet = batchUtteranceSelectionMapping.mappedUtteranceIds;
   const hasBatchSelectionSource = batchUtteranceSelectionMapping.hasSelectionSource;
-
   const selectedBatchUtterances = useMemo(
     () => utterancesOnCurrentMedia
       .filter((utt) => selectedUtteranceIdsForSpeakerActionsSet.has(utt.id))
       .sort((a, b) => a.startTime - b.startTime),
     [selectedUtteranceIdsForSpeakerActionsSet, utterancesOnCurrentMedia],
   );
-
   const resolveBatchUtteranceTargetIds = useCallback(() => {
     if (!hasBatchSelectionSource) return null;
     if (selectedUtteranceIdsForSpeakerActionsSet.size > 0) {
@@ -79,7 +75,6 @@ export function useBatchOperationController({
     });
     return null;
   }, [batchUtteranceSelectionMapping.unmappedSourceCount, hasBatchSelectionSource, locale, selectedUtteranceIdsForSpeakerActionsSet, setSaveState]);
-
   const runMappedBatchAction = useCallback(async (
     actionLabelKey: Parameters<typeof t>[1],
     i18nKey: Parameters<typeof t>[1],
@@ -102,23 +97,18 @@ export function useBatchOperationController({
       });
     }
   }, [locale, resolveBatchUtteranceTargetIds, setSaveState]);
-
   const handleBatchOffset = useCallback(async (deltaSec: number) => {
     await runMappedBatchAction('transcription.utteranceAction.undo.offsetSelection', 'transcription.error.action.offsetBatchFailed', (targetIds) => offsetSelectedTimes(targetIds, deltaSec));
   }, [offsetSelectedTimes, runMappedBatchAction]);
-
   const handleBatchScale = useCallback(async (factor: number, anchorTime?: number) => {
     await runMappedBatchAction('transcription.utteranceAction.undo.scaleSelection', 'transcription.error.action.scaleBatchFailed', (targetIds) => scaleSelectedTimes(targetIds, factor, anchorTime));
   }, [runMappedBatchAction, scaleSelectedTimes]);
-
   const handleBatchSplitByRegex = useCallback(async (pattern: string, flags?: string) => {
     await runMappedBatchAction('transcription.utteranceAction.undo.regexSplitSelection', 'transcription.error.action.regexSplitBatchFailed', (targetIds) => splitByRegex(targetIds, pattern, flags));
   }, [runMappedBatchAction, splitByRegex]);
-
   const handleBatchMerge = useCallback(async () => {
     await runMappedBatchAction('transcription.utteranceAction.undo.mergeSelection', 'transcription.error.action.mergeSelectionFailed', (targetIds) => mergeSelectedUtterances(targetIds));
   }, [mergeSelectedUtterances, runMappedBatchAction]);
-
   return {
     selectedUtteranceIdsForSpeakerActionsSet,
     selectedBatchUtterances,

@@ -626,7 +626,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               type="button"
               className={`icon-btn${aiConnectionTestStatus === 'success' ? ' ai-conn-ok' : ''}`}
               disabled={!onTestAiConnection || aiConnectionTestStatus === 'testing'}
-              style={{ height: 26, minWidth: 80, fontSize: 12 }}
+              style={{ height: 'calc(26px * var(--ui-font-scale, 1))', minWidth: 'calc(80px * var(--ui-font-scale, 1))', fontSize: 'calc(12px * var(--ui-font-scale, 1))' }}
               onClick={() => { if (!onTestAiConnection) return; void onTestAiConnection(); }}
             >
               {aiConnectionTestStatus === 'testing'
@@ -639,7 +639,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               <button
                 type="button"
                 className="icon-btn"
-                style={{ height: 26, minWidth: 96, fontSize: 12 }}
+                style={{ height: 'calc(26px * var(--ui-font-scale, 1))', minWidth: 'calc(96px * var(--ui-font-scale, 1))', fontSize: 'calc(12px * var(--ui-font-scale, 1))' }}
                 onClick={() => onUpdateAiChatSettings?.({ apiKey: '' })}
               >
                 {cardMessages.clearCurrentKey}
@@ -761,7 +761,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                   padding: '4px 8px',
                                   background: 'color-mix(in srgb, var(--text-secondary) 8%, transparent)',
                                   borderRadius: 4,
-                                  fontSize: 11,
+                                  fontSize: 'calc(11px * var(--ui-font-scale, 1))',
                                   color: 'var(--text-secondary)',
                                   lineHeight: 1.5,
                                   fontStyle: 'italic',
@@ -915,7 +915,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                       {cardMessages.more}
                     </button>
                     {showRagQuickScenarios && (
-                      <div className="ai-chat-rag-quick-menu dialog-card" role="dialog" aria-label={cardMessages.ragQuickScenarios}>
+                      <div className="ai-chat-rag-quick-menu dialog-card dialog-card-compact" role="dialog" aria-label={cardMessages.ragQuickScenarios}>
                         <div className="dialog-header ai-chat-rag-quick-menu-header">
                           <h3>{cardMessages.ragQuickScenarios}</h3>
                           <div className="dialog-header-actions">
@@ -1093,7 +1093,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                         const isLoading = replayLoadingRequestId === item.requestId;
                         const isSelected = selectedReplayBundle?.requestId === item.requestId;
                         return (
-                          <div key={item.id} className="ai-chat-decision-item" style={{ display: 'grid', gap: 4, fontSize: 10 }}>
+                          <div key={item.id} className="ai-chat-decision-item" style={{ display: 'grid', gap: 4, fontSize: 'calc(10px * var(--ui-font-scale, 1))' }}>
                             <div className="ai-chat-decision-item-meta">
                               <span className="ai-chat-decision-item-main">{item.toolName || cardMessages.unknownTool} · {formatToolDecision(isZh, item.decision)}</span>
                               <em className="ai-chat-decision-item-time">{new Date(item.timestamp).toLocaleTimeString()}</em>
@@ -1103,7 +1103,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                 <button
                                   type="button"
                                   className="icon-btn"
-                                  style={{ height: 22, minWidth: 96, fontSize: 10 }}
+                                  style={{ height: 'calc(22px * var(--ui-font-scale, 1))', minWidth: 'calc(96px * var(--ui-font-scale, 1))', fontSize: 'calc(10px * var(--ui-font-scale, 1))' }}
                                   disabled={isLoading}
                                   onClick={() => void openReplayBundle(item.requestId!)}
                                 >
@@ -1112,7 +1112,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                 <button
                                   type="button"
                                   className="icon-btn"
-                                  style={{ height: 22, minWidth: 92, fontSize: 10 }}
+                                  style={{ height: 'calc(22px * var(--ui-font-scale, 1))', minWidth: 'calc(92px * var(--ui-font-scale, 1))', fontSize: 'calc(10px * var(--ui-font-scale, 1))' }}
                                   onClick={() => void exportGoldenSnapshot(item.requestId!)}
                                 >
                                   {exportedSnapshotRequestId === item.requestId
@@ -1125,7 +1125,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                         );
                       })}
                       {replayErrorMessage && (
-                        <div style={{ fontSize: 10, color: 'var(--state-danger-text)' }}>{replayErrorMessage}</div>
+                        <div style={{ fontSize: 'calc(10px * var(--ui-font-scale, 1))', color: 'var(--state-danger-text)' }}>{replayErrorMessage}</div>
                       )}
                       {selectedReplayBundle && (
                         <AiChatReplayDetailPanel
