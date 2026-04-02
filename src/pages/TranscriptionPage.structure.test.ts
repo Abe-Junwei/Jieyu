@@ -323,8 +323,8 @@ describe('TranscriptionPage structure invariants', () => {
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSegmentCreationController.ts');
     const code = fs.readFileSync(hookPath, 'utf8');
 
-    const timeSubdivisionPushUndoIndex = code.indexOf("pushUndo('新建句段');");
-    const independentPushUndoIndex = code.lastIndexOf("pushUndo('新建句段');");
+    const timeSubdivisionPushUndoIndex = code.indexOf("input.pushUndo(t(locale, 'transcription.utteranceAction.undo.createFromSelection'));\n        await LayerSegmentationV2Service.createSegmentWithParentConstraint(");
+    const independentPushUndoIndex = code.indexOf("input.pushUndo(t(locale, 'transcription.utteranceAction.undo.createFromSelection'));\n        await LayerSegmentationV2Service.createSegment(newSeg);");
     const parentGuardIndex = code.indexOf("if (!parentUtt) {");
 
     expect(timeSubdivisionPushUndoIndex).toBeGreaterThan(parentGuardIndex);
@@ -736,9 +736,11 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(hookCode.includes('const batchUtteranceSelectionMapping = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const resolveBatchUtteranceTargetIds = useCallback(() => {')).toBe(true);
-    expect(hookCode.includes("message: '当前选中的语段无法映射到可编辑句段，请先选择可编辑句段后再试。'")).toBe(true);
-    expect(hookCode.includes('已忽略 ${batchUtteranceSelectionMapping.unmappedSourceCount} 个不可映射选中项')).toBe(true);
-    expect(hookCode.includes('const runMappedBatchAction = useCallback(async (actionLabel: string, i18nKey: string, action: BatchOperationSelectionAction) => {')).toBe(true);
+    expect(hookCode.includes("message: t(locale, 'transcription.batchOperation.mappingUnavailable'),")).toBe(true);
+    expect(hookCode.includes("message: tf(locale, 'transcription.batchOperation.mappingIgnored', {")).toBe(true);
+    expect(hookCode.includes('const runMappedBatchAction = useCallback(async (')).toBe(true);
+    expect(hookCode.includes('actionLabelKey: Parameters<typeof t>[1],')).toBe(true);
+    expect(hookCode.includes('i18nKey: Parameters<typeof t>[1],')).toBe(true);
   });
 
   it('keeps track display controller extracted into dedicated hook', () => {

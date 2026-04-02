@@ -13,7 +13,7 @@ describe('Transcription layout guard', () => {
     expect(appCode).toContain("app-main-transcription");
     expect(appCode).toContain('id="app-side-pane-body-slot"');
     expect(appCode).toContain('app-side-pane-handle-cluster');
-    expect(appCode).toContain('className="app-side-pane-hover-zone"');
+    expect(appCode).not.toContain('className="app-side-pane-hover-zone"');
     expect(appCode).toContain("isSidePaneCollapsed ? '0px' : `${sidePaneWidth}px`");
   });
 

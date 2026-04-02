@@ -207,7 +207,7 @@ describe('useVoiceInteraction', () => {
       toggleVoiceRef: { current: undefined },
     }));
 
-    expect(result.current.voiceTargetSummary).toContain('第 3 句 / AI 分析备注');
+    expect(result.current.voiceTargetSummary).toMatch(/第 3 句 \/ AI 分析备注|Sentence 3 \/ AI analysis note/);
     expect(result.current.voiceSelectionSummary).toBe('12.00 - 15.00');
   });
 
@@ -505,6 +505,6 @@ describe('useVoiceInteraction', () => {
       toggleVoiceRef: { current: undefined },
     }));
 
-    expect(result.current.voiceStatusSummary).toContain('按住麦克风开始录音');
+    expect(result.current.voiceStatusSummary).toMatch(/按住麦克风开始录音|Hold the mic to start recording/);
   });
 });

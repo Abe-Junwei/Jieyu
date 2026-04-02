@@ -100,7 +100,7 @@ describe('useMediaImport', () => {
     expect(input.setSaveState).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'error',
       message: 'audio-import-failed: disk full',
-      errorMeta: expect.objectContaining({ category: 'action', action: '导入音频' }),
+      errorMeta: expect.objectContaining({ category: 'action', action: 'transcription.toolbar.importAudio' }),
     }));
     expect(fileInput.value).toBe('');
     expect(input.addMediaItem).not.toHaveBeenCalled();
@@ -123,7 +123,7 @@ describe('useMediaImport', () => {
     expect(input.setSaveState).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'error',
       message: 'conflict-message',
-      errorMeta: expect.objectContaining({ category: 'conflict', action: '导入音频' }),
+      errorMeta: expect.objectContaining({ category: 'conflict', action: 'transcription.toolbar.importAudio' }),
     }));
     expect(fileInput.value).toBe('');
   });

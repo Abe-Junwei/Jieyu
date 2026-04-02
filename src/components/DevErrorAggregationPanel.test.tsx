@@ -36,6 +36,6 @@ describe('DevErrorAggregationPanel', () => {
 
     expect(screen.getByText(/Error Aggregation/)).toBeTruthy();
     expect(screen.getByText(/1x/)).toBeTruthy();
-    expect(screen.getByText(/action · 导入文件 · transcription\.importExport\.failed · recoverable/)).toBeTruthy();
+    expect(screen.getByText(/action · 导入文件 · (i18nKey: )?transcription\.importExport\.failed · recoverable/)).toBeTruthy();
   });
 });

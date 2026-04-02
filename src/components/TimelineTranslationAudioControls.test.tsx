@@ -26,16 +26,15 @@ describe('TimelineTranslationAudioControls', () => {
       />,
     );
 
-    const controls = screen.getByText('已录音').closest('.timeline-translation-audio-controls') as HTMLElement;
+    const controls = screen.getByText(/已录音|Recorded/).closest('.timeline-translation-audio-controls') as HTMLElement;
     const buttons = within(controls).getAllByRole('button');
 
-    expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual([
-      '开始录音翻译',
-      '播放录音翻译',
-      '删除录音翻译',
-    ]);
+    const labels = buttons.map((button) => button.getAttribute('aria-label') ?? '');
+    expect(labels[0]).toMatch(/开始录音翻译|Start recording translation/);
+    expect(labels[1]).toMatch(/播放录音翻译|Play recorded translation/);
+    expect(labels[2]).toMatch(/删除录音翻译|Delete recorded translation/);
 
-    fireEvent.click(screen.getByRole('button', { name: '删除录音翻译' }));
+    fireEvent.click(screen.getByRole('button', { name: /删除录音翻译|Delete recorded translation/ }));
 
     expect(onDeleteRecording).toHaveBeenCalledTimes(1);
     expect(onStartRecording).not.toHaveBeenCalled();

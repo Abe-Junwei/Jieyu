@@ -720,12 +720,12 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '开始录音翻译' }));
+    fireEvent.click(screen.getByRole('button', { name: /开始录音翻译|Start recording translation/i }));
 
     expect(startRecordingForUtterance).toHaveBeenCalledWith(
       expect.objectContaining({ id: utterance.id }),
       expect.objectContaining({ id: translationLayer.id }),
     );
-    expect(screen.getByText('未录音')).toBeTruthy();
+    expect(screen.getByText(/未录音|Not recorded/)).toBeTruthy();
   });
 });

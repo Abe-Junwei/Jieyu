@@ -88,7 +88,7 @@ export function useBatchOperationController({
       const { message, meta } = reportActionError({
         actionLabel: t(locale, actionLabelKey),
         error,
-        i18nKey,
+        i18nKey: i18nKey,
       });
       setSaveState({
         kind: 'error',

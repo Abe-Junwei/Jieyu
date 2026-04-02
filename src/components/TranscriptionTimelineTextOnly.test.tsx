@@ -717,7 +717,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
 
     expect(screen.getByDisplayValue('bonjour')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: '开始录音翻译' }));
+    fireEvent.click(screen.getByRole('button', { name: /开始录音翻译|Start recording translation/i }));
 
     expect(startRecordingForUtterance).toHaveBeenCalledWith(
       expect.objectContaining({ id: utterance.id }),
