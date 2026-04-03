@@ -44,7 +44,14 @@ describe('DeleteLayerConfirmDialog', () => {
       },
     );
 
-    expect(screen.getByRole('dialog')).toBeTruthy();
+    const dialog = screen.getByRole('dialog');
+    const cancelButton = screen.getByRole('button', { name: '取消' });
+    const confirmButton = screen.getByRole('button', { name: '确认删除' });
+
+    expect(dialog.className).toContain('dialog-card');
+    expect(dialog.className).toContain('delete-layer-confirm-dialog');
+    expect(cancelButton.className).toContain('panel-button--ghost');
+    expect(confirmButton.className).toContain('panel-button--danger');
     expect(screen.getByText('确定要删除层「日语翻译」吗？')).toBeTruthy();
     expect(screen.getByText(/类型：翻译层/)).toBeTruthy();
     expect(screen.getByText(/文本记录：0 条/)).toBeTruthy();

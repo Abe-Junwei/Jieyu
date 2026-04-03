@@ -23,6 +23,7 @@ import {
   loadVoiceAliasLearningLog,
   type VoiceAliasLearningLogEntry,
 } from '../services/voiceIntentUi';
+import { DialogShell } from './ui/DialogShell';
 
 // ── Types ──
 
@@ -464,14 +465,27 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
         {(disambiguationOptions.length > 0 || pendingConfirm || error) && (
           <div className="voice-agent-notice-stack">
             {disambiguationOptions.length > 0 && (
-              <div className="voice-agent-confirm voice-agent-disambiguation dialog-card dialog-card-compact" role="alertdialog" aria-label={t(locale, 'transcription.voiceWidget.disambiguation.aria')}>
-                <div className="dialog-header voice-agent-confirm-header">
-                  <div className="voice-agent-confirm-heading">
-                    <h3>{t(locale, 'transcription.voiceWidget.disambiguation.aria')}</h3>
-                    <span className="voice-agent-confirm-fuzzy">{t(locale, 'transcription.voiceWidget.disambiguation.badge')}</span>
-                  </div>
-                </div>
-                <div className="dialog-body voice-agent-confirm-body">
+              <DialogShell
+                className="voice-agent-confirm voice-agent-disambiguation"
+                compact
+                role="alertdialog"
+                aria-label={t(locale, 'transcription.voiceWidget.disambiguation.aria')}
+                headerClassName="voice-agent-confirm-header"
+                bodyClassName="voice-agent-confirm-body"
+                footerClassName="voice-agent-confirm-actions"
+                title={t(locale, 'transcription.voiceWidget.disambiguation.aria')}
+                actions={<span className="voice-agent-confirm-fuzzy">{t(locale, 'transcription.voiceWidget.disambiguation.badge')}</span>}
+                footer={(
+                  <button
+                    type="button"
+                    className="voice-agent-confirm-btn voice-agent-confirm-no"
+                    onClick={onDismissDisambiguation}
+                    aria-label={t(locale, 'transcription.voiceWidget.disambiguation.cancelAria')}
+                  >
+                    <X size={17} />
+                  </button>
+                )}
+              >
                   <p className="voice-agent-confirm-label">{t(locale, 'transcription.voiceWidget.disambiguation.label')}</p>
                   <div className="voice-agent-disambiguation-options">
                   {disambiguationOptions.map((option) => (
@@ -486,54 +500,45 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                     </button>
                   ))}
                 </div>
-                </div>
-                <div className="dialog-footer voice-agent-confirm-actions">
-                  <button
-                    type="button"
-                    className="voice-agent-confirm-btn voice-agent-confirm-no"
-                    onClick={onDismissDisambiguation}
-                    aria-label={t(locale, 'transcription.voiceWidget.disambiguation.cancelAria')}
-                  >
-                    <X size={17} />
-                  </button>
-                </div>
-              </div>
+              </DialogShell>
             )}
 
             {pendingConfirm && (
-              <div className="voice-agent-confirm dialog-card dialog-card-compact" role="alertdialog" aria-label={t(locale, 'transcription.voiceWidget.confirm.aria')}>
-                <div className="dialog-header voice-agent-confirm-header">
-                  <div className="voice-agent-confirm-heading">
-                    <h3>{t(locale, 'transcription.voiceWidget.confirm.aria')}</h3>
-                    {pendingConfirm.fromFuzzy && (
-                      <span className="voice-agent-confirm-fuzzy">{t(locale, 'ai.assistantHub.fuzzyMatch')}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="dialog-body voice-agent-confirm-body">
+              <DialogShell
+                className="voice-agent-confirm"
+                compact
+                role="alertdialog"
+                aria-label={t(locale, 'transcription.voiceWidget.confirm.aria')}
+                headerClassName="voice-agent-confirm-header"
+                bodyClassName="voice-agent-confirm-body"
+                footerClassName="voice-agent-confirm-actions"
+                title={t(locale, 'transcription.voiceWidget.confirm.aria')}
+                actions={pendingConfirm.fromFuzzy ? <span className="voice-agent-confirm-fuzzy">{t(locale, 'ai.assistantHub.fuzzyMatch')}</span> : undefined}
+                footer={(
+                  <>
+                    <button
+                      type="button"
+                      className="voice-agent-confirm-btn voice-agent-confirm-yes"
+                      onClick={onConfirm}
+                      aria-label={t(locale, 'ai.assistantHub.confirm')}
+                    >
+                      <Check size={17} />
+                    </button>
+                    <button
+                      type="button"
+                      className="voice-agent-confirm-btn voice-agent-confirm-no"
+                      onClick={onCancel}
+                      aria-label={t(locale, 'ai.assistantHub.cancel')}
+                    >
+                      <X size={17} />
+                    </button>
+                  </>
+                )}
+              >
                   <p className="voice-agent-confirm-label">
                     {tf(locale, 'transcription.voiceWidget.confirm.prompt', { label: pendingConfirm.label })}
                   </p>
-                </div>
-                <div className="dialog-footer voice-agent-confirm-actions">
-                  <button
-                    type="button"
-                    className="voice-agent-confirm-btn voice-agent-confirm-yes"
-                    onClick={onConfirm}
-                    aria-label={t(locale, 'ai.assistantHub.confirm')}
-                  >
-                    <Check size={17} />
-                  </button>
-                  <button
-                    type="button"
-                    className="voice-agent-confirm-btn voice-agent-confirm-no"
-                    onClick={onCancel}
-                    aria-label={t(locale, 'ai.assistantHub.cancel')}
-                  >
-                    <X size={17} />
-                  </button>
-                </div>
-              </div>
+              </DialogShell>
             )}
 
             {error && (

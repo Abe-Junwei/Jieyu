@@ -32,6 +32,27 @@ describe('ProjectSetupDialog orthography creation', () => {
     mockUseOrthographies.mockReset();
   });
 
+  it('renders through DialogShell with panel footer actions', () => {
+    mockUseOrthographies.mockReturnValue([]);
+
+    renderWithLocale(
+      <ProjectSetupDialog
+        isOpen
+        onClose={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: '新建项目' });
+    const cancelButton = screen.getByRole('button', { name: '取消' });
+    const createButton = screen.getByRole('button', { name: '创建项目' });
+
+    expect(dialog.className).toContain('dialog-card');
+    expect(dialog.className).toContain('project-setup-dialog');
+    expect(cancelButton.className).toContain('panel-button--ghost');
+    expect(createButton.className).toContain('panel-button--primary');
+  });
+
   it('creates an IPA orthography inline and submits it as project default', async () => {
     mockUseOrthographies.mockReturnValue([]);
     mockCreateOrthography.mockResolvedValue({

@@ -9950,7 +9950,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "SzUB8",
+                              "id": "QHZGm",
                               "fill": "#64748B",
                               "content": "主命令键打开智能助手快捷菜单  |  问号键打开快捷键帮助",
                               "fontFamily": "Noto Sans SC",
@@ -15114,7 +15114,7 @@
     {
       "type": "frame",
       "id": "m5Jko",
-      "x": 5253,
+      "x": 5255,
       "y": -121,
       "name": "面板-最终版（B 摘要优先）",
       "width": 2563,

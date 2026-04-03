@@ -3,6 +3,9 @@ import { Plus, Trash2, X } from 'lucide-react';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
 import { useOptionalLocale } from '../i18n';
 import { getNotePanelMessages } from '../i18n/notePanelMessages';
+import { DialogShell } from './ui/DialogShell';
+import { PanelSection } from './ui/PanelSection';
+import { PanelSummary } from './ui/PanelSummary';
 
 interface NotePopoverProps {
   x: number;
@@ -122,14 +125,14 @@ export const NotePopover = memo(function NotePopover({
   );
 
   const popoverCard = (
-    <div
-      ref={ref}
-      className={`note-popover dialog-card dialog-card-compact${isDialogMode ? ' note-popover-dialog' : ''}`}
-      style={isDialogMode ? undefined : { left: pos.left, top: pos.top }}
-      {...(isDialogMode ? { role: 'dialog', 'aria-modal': true } : {})}
-    >
-      <div className="note-popover-header dialog-header">
-        <h3 className="note-popover-title">
+    <DialogShell
+      containerRef={ref}
+      className={`note-popover panel-design-match panel-design-match-dialog${isDialogMode ? ' note-popover-dialog' : ''}`}
+      compact
+      headerClassName="note-popover-header"
+      bodyClassName="note-popover-body"
+      title={(
+        <>
           <span>{messages.panelTitlePrefix}</span>
           {targetLabel ? (
             <>
@@ -137,113 +140,109 @@ export const NotePopover = memo(function NotePopover({
               <span>{targetLabel}</span>
             </>
           ) : null}
-        </h3>
-        <div className="dialog-header-actions">
-          <button
-            type="button"
-            className="note-popover-close icon-btn"
-            onClick={onClose}
-            aria-label={messages.closePanel}
-            title={messages.closePanel}
-          >
-            <X size={14} />
-          </button>
+        </>
+      )}
+      titleClassName="note-popover-title"
+      actions={(
+        <button
+          type="button"
+          className="note-popover-close icon-btn"
+          onClick={onClose}
+          aria-label={messages.closePanel}
+          title={messages.closePanel}
+        >
+          <X size={14} />
+        </button>
+      )}
+      style={isDialogMode ? undefined : { left: pos.left, top: pos.top }}
+      {...(isDialogMode ? { role: 'dialog', 'aria-modal': true } : {})}
+    >
+      <PanelSummary
+        className="note-popover-summary"
+        title={messages.panelTitlePrefix}
+        description={targetLabel ?? messages.emptyStateHint}
+        meta={(
+          <div className="panel-meta">
+            <span className="panel-chip">{messages.noteCount(notes.length)}</span>
+            <span className={`panel-chip${hasNotes ? '' : ' panel-chip--danger'}`}>
+              {categories.find((category) => category.value === newCategory)?.label ?? messages.noCategory}
+            </span>
+          </div>
+        )}
+        supportingText={hasNotes ? messages.editHint : messages.emptyStateHint}
+      />
+
+      <PanelSection
+        className="note-popover-list-surface"
+        title={messages.notesSectionTitle}
+        description={messages.editHint}
+      >
+        <div className="note-popover-list">
+          {notes.length === 0 && <p className="note-panel-empty">{messages.empty}</p>}
+          {notes.map((note) => (
+            <div key={note.id} className="note-popover-item">
+              {note.category && (
+                <span className={`note-popover-tag note-popover-tag-${note.category}`}>
+                  {categories.find((c) => c.value === note.category)?.label ?? note.category}
+                </span>
+              )}
+              {editingId === note.id ? (
+                <div className="note-popover-edit">
+                  <textarea
+                    className="panel-input note-popover-textarea"
+                    value={editContent}
+                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditContent(e.target.value)}
+                    onKeyDown={(e) => handleEditKeyDown(e, note.id)}
+                    autoFocus
+                  />
+                  <div className="note-popover-edit-actions">
+                    <button type="button" className="panel-button panel-button--success note-popover-btn note-popover-btn-save" onClick={() => handleEditSave(note.id)}>{messages.save}</button>
+                    <button type="button" className="panel-button panel-button--ghost note-popover-btn note-popover-btn-cancel" onClick={() => setEditingId(null)}>{messages.cancel}</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="note-popover-content" onDoubleClick={() => handleEditStart(note)}>
+                  <p>{note.content['default'] ?? Object.values(note.content)[0] ?? ''}</p>
+                  <button type="button" className="note-popover-delete" onClick={() => onDelete(note.id)} title={messages.deleteNote}><Trash2 size={11} /></button>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
-      </div>
+      </PanelSection>
 
-      <div className="note-popover-body dialog-body">
-        <section className="panel-organization-surface panel-organization-surface-emphasis note-popover-summary">
-          <div className="panel-organization-surface-head">
-            <div>
-              <div className="panel-organization-surface-title">{messages.panelTitlePrefix}</div>
-              <p className="panel-organization-surface-copy">{targetLabel ?? messages.emptyStateHint}</p>
-            </div>
-            <div className="dialog-stat-row">
-              <span className="dialog-stat-chip">{messages.noteCount(notes.length)}</span>
-              <span className={`panel-organization-chip${hasNotes ? '' : ' panel-organization-chip-danger'}`}>
-                {categories.find((category) => category.value === newCategory)?.label ?? messages.noCategory}
-              </span>
-            </div>
-          </div>
-          <p className="dialog-supporting-note">{hasNotes ? messages.editHint : messages.emptyStateHint}</p>
-        </section>
-
-        <section className="panel-organization-surface note-popover-list-surface">
-          <div className="panel-organization-surface-head">
-            <div>
-              <div className="panel-organization-surface-title">{messages.notesSectionTitle}</div>
-              <p className="dialog-supporting-note">{messages.editHint}</p>
-            </div>
-          </div>
-          <div className="note-popover-list">
-            {notes.length === 0 && <p className="note-panel-empty">{messages.empty}</p>}
-            {notes.map((note) => (
-              <div key={note.id} className="note-popover-item">
-                {note.category && (
-                  <span className={`note-popover-tag note-popover-tag-${note.category}`}>
-                    {categories.find((c) => c.value === note.category)?.label ?? note.category}
-                  </span>
-                )}
-                {editingId === note.id ? (
-                  <div className="note-popover-edit">
-                    <textarea
-                      className="note-popover-textarea"
-                      value={editContent}
-                      onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditContent(e.target.value)}
-                      onKeyDown={(e) => handleEditKeyDown(e, note.id)}
-                      autoFocus
-                    />
-                    <div className="note-popover-edit-actions">
-                      <button type="button" className="note-popover-btn note-popover-btn-save" onClick={() => handleEditSave(note.id)}>{messages.save}</button>
-                      <button type="button" className="note-popover-btn note-popover-btn-cancel" onClick={() => setEditingId(null)}>{messages.cancel}</button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="note-popover-content" onDoubleClick={() => handleEditStart(note)}>
-                    <p>{note.content['default'] ?? Object.values(note.content)[0] ?? ''}</p>
-                    <button type="button" className="note-popover-delete" onClick={() => onDelete(note.id)} title={messages.deleteNote}><Trash2 size={11} /></button>
-                  </div>
-                )}
-              </div>
+      <PanelSection
+        className="note-popover-add"
+        title={messages.composerSectionTitle}
+        description={messages.composerHint}
+      >
+        <textarea
+          className="panel-input note-popover-textarea"
+          placeholder={messages.newNotePlaceholder}
+          value={newContent}
+          onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNewContent(e.target.value)}
+          onKeyDown={handleAddKeyDown}
+          autoFocus={notes.length === 0}
+        />
+        <div className="note-popover-add-row">
+          <div className="note-popover-tags">
+            {categories.map((c) => (
+              <button
+                key={c.value}
+                type="button"
+                className={`note-popover-tag note-popover-tag-${c.value}${newCategory === c.value ? ' note-popover-tag-selected' : ''}`}
+                onClick={() => setNewCategory(c.value)}
+              >
+                {c.label}
+              </button>
             ))}
           </div>
-        </section>
-
-        <section className="panel-organization-surface note-popover-add">
-          <div className="panel-organization-surface-head">
-            <div>
-              <div className="panel-organization-surface-title">{messages.composerSectionTitle}</div>
-              <p className="dialog-supporting-note">{messages.composerHint}</p>
-            </div>
-          </div>
-          <textarea
-            className="note-popover-textarea"
-            placeholder={messages.newNotePlaceholder}
-            value={newContent}
-            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNewContent(e.target.value)}
-            onKeyDown={handleAddKeyDown}
-            autoFocus={notes.length === 0}
-          />
-          <div className="note-popover-add-row">
-            <div className="note-popover-tags">
-              {categories.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  className={`note-popover-tag note-popover-tag-${c.value}${newCategory === c.value ? ' note-popover-tag-selected' : ''}`}
-                  onClick={() => setNewCategory(c.value)}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-            <button type="button" className="note-popover-btn note-popover-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
-              <Plus size={12} /> {messages.add}
-            </button>
-          </div>
-        </section>
-      </div>
-    </div>
+          <button type="button" className="panel-button panel-button--primary note-popover-btn note-popover-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
+            <Plus size={12} /> {messages.add}
+          </button>
+        </div>
+      </PanelSection>
+    </DialogShell>
   );
 
   if (isDialogMode) {

@@ -1,0 +1,39 @@
+/* AiAnalysisPanel-owned stats blocks */
+
+.transcription-ai-stats-panel {
+  margin: 10px;
+  border: 1px solid var(--state-info-bg);
+  border-radius: 10px;
+  background: var(--state-info-bg);
+  padding: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.transcription-ai-stats-panel-footer {
+  margin: 0;
+  margin-top: 0;
+  border: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 0;
+  background: rgba(241, 245, 249, 0.55);
+  padding: 6px 10px 8px;
+}
+
+.transcription-ai-task-hint {
+  margin-top: auto;
+  padding: 4px 12px 2px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.transcription-ai-stats-panel-footer .toolbar-chip.small-chip {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text-secondary);
+  padding: 2px 7px;
+  font-size: 0.72rem;
+}

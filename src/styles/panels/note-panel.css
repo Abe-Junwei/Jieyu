@@ -1,0 +1,153 @@
+.note-panel {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.note-panel-header {
+  min-height: 48px;
+  padding: 10px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 80%, var(--surface-panel));
+}
+
+.note-panel-title {
+  min-width: 0;
+}
+
+.note-panel-close {
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-panel) 96%, transparent);
+  color: var(--text-secondary);
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.note-panel-body {
+  min-height: 0;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.note-panel-list-surface {
+  min-height: 0;
+}
+
+.note-panel-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  overflow-y: auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.note-panel-empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.note-panel-category {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.note-panel-category-comment {
+  background: var(--state-info-bg);
+  color: var(--state-info-solid);
+}
+
+.note-panel-category-question {
+  background: var(--state-warning-bg);
+  color: var(--state-warning-text);
+}
+
+.note-panel-category-todo {
+  background: color-mix(in srgb, var(--state-success-bg) 86%, var(--surface-panel));
+  color: var(--state-success-text);
+}
+
+.note-panel-item {
+  border: 1px solid color-mix(in srgb, var(--border-soft) 86%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.note-panel-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.note-panel-content p {
+  margin: 0;
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.note-panel-delete {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.note-panel-delete:hover {
+  color: var(--state-danger-solid);
+}
+
+.note-panel-add {
+  padding: 12px 14px;
+  border-top: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.note-panel-textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.note-panel-add-actions,
+.note-panel-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.note-panel-btn {
+  white-space: nowrap;
+}
+
+.note-panel-category-select {
+  min-width: 132px;
+}
+
+.note-panel-btn-cancel {
+  color: var(--text-secondary);
+}

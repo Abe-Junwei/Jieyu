@@ -6,57 +6,57 @@ import React from 'react';
 import { t, type Locale } from '../i18n';
 
 interface Props {
-  locale: Locale;
-  isAiPanelCollapsed: boolean;
-  setIsAiPanelCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
-  handleAiPanelResizeStart: (e: React.PointerEvent<HTMLDivElement>) => void;
-  handleAiPanelToggle: () => void;
+	locale: Locale;
+	isAiPanelCollapsed: boolean;
+	setIsAiPanelCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+	handleAiPanelResizeStart: (e: React.PointerEvent<HTMLDivElement>) => void;
+	handleAiPanelToggle: () => void;
 }
 
 export function TranscriptionPageAiPanelHandle({
-  locale,
-  isAiPanelCollapsed,
-  setIsAiPanelCollapsed,
-  handleAiPanelResizeStart,
-  handleAiPanelToggle,
+	locale,
+	isAiPanelCollapsed,
+	setIsAiPanelCollapsed,
+	handleAiPanelResizeStart,
+	handleAiPanelToggle,
 }: Props) {
-  return (
-    <div className="transcription-ai-panel-handle-cluster">
-      <div
-        className="transcription-ai-panel-hover-zone"
-        onMouseEnter={() => {
-          if (isAiPanelCollapsed) {
-            setIsAiPanelCollapsed(false);
-          }
-        }}
-        style={{ display: isAiPanelCollapsed ? undefined : 'none' }}
-        aria-hidden="true"
-      />
-      <div
-        className="transcription-ai-panel-resizer"
-        onPointerDown={handleAiPanelResizeStart}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label={t(locale, 'transcription.panel.resizeAiPanel')}
-      />
-      <button
-        type="button"
-        className="transcription-ai-panel-toggle"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={handleAiPanelToggle}
-        onMouseEnter={() => {
-          if (isAiPanelCollapsed) {
-            setIsAiPanelCollapsed(false);
-          }
-        }}
-        aria-label={isAiPanelCollapsed
-          ? t(locale, 'transcription.panel.expandAiPanel')
-          : t(locale, 'transcription.panel.collapseAiPanel')}
-      >
-        <span className="transcription-panel-toggle-icon" aria-hidden="true">
-          {isAiPanelCollapsed ? '‹' : '›'}
-        </span>
-      </button>
-    </div>
-  );
+	return (
+		<div className="transcription-ai-panel-handle-cluster">
+			<div
+				className="transcription-ai-panel-hover-zone"
+				onMouseEnter={() => {
+					if (isAiPanelCollapsed) {
+						setIsAiPanelCollapsed(false);
+					}
+				}}
+				style={{ display: isAiPanelCollapsed ? undefined : 'none' }}
+				aria-hidden="true"
+			/>
+			<div
+				className="transcription-ai-panel-resizer"
+				onPointerDown={handleAiPanelResizeStart}
+				role="separator"
+				aria-orientation="vertical"
+				aria-label={t(locale, 'transcription.panel.resizeAiPanel')}
+			/>
+			<button
+				type="button"
+				className="transcription-ai-panel-toggle"
+				onPointerDown={(e) => e.stopPropagation()}
+				onClick={handleAiPanelToggle}
+				onMouseEnter={() => {
+					if (isAiPanelCollapsed) {
+						setIsAiPanelCollapsed(false);
+					}
+				}}
+				aria-label={isAiPanelCollapsed
+					? t(locale, 'transcription.panel.expandAiPanel')
+					: t(locale, 'transcription.panel.collapseAiPanel')}
+			>
+				<span className="transcription-panel-toggle-icon" aria-hidden="true">
+					{isAiPanelCollapsed ? '‹' : '›'}
+				</span>
+			</button>
+		</div>
+	);
 }

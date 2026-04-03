@@ -122,7 +122,13 @@ describe('TimelineLaneHeader track mode menu', () => {
   fireEvent.mouseEnter(await findMenuButton('轨道'));
   fireEvent.click(await findMenuButton('锁定选中说话人到轨道…（Alice、Bob）'));
 
-    expect(await screen.findByRole('dialog', { name: '锁定说话人到轨道' })).toBeTruthy();
+    const dialog = await screen.findByRole('dialog', { name: '锁定说话人到轨道' });
+    const closeButton = screen.getByRole('button', { name: '关闭锁定轨道面板' });
+
+    expect(dialog.className).toContain('dialog-card');
+    expect(dialog.className).toContain('timeline-lane-lock-dialog');
+    expect(closeButton.closest('.dialog-header')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '确认锁定' }).closest('.speaker-rail-actions')).toBeTruthy();
 
     const input = screen.getByRole('spinbutton');
     fireEvent.change(input, { target: { value: '3' } });

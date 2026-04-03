@@ -27,6 +27,14 @@ const FORBIDDEN_TOKENS = [
     pattern: /(?:^|[^\w-])ai-btn-sm(?:[^\w-]|$)/g,
   },
   {
+    label: 'legacy panel organization surface token',
+    pattern: /(?:^|[^\w-])panel-organization-surface(?:-emphasis)?(?:[^\w-]|$)/g,
+    allowInFiles: [
+      'src/styles/foundation/panel-primitives.css',
+      'src/styles/foundation/panel-design-presets.css',
+    ],
+  },
+  {
     label: 'legacy floating width token',
     pattern: /(?:^|[^\w-])adaptiveFloatingWidth(?:[^\w-]|$)|--floating-panel-auto-width/g,
   },
@@ -56,12 +64,13 @@ function shouldSkip(relPath) {
     || relPath.endsWith('.d.ts');
 }
 
-function findViolations(content) {
+function findViolations(content, relPath) {
   const violations = [];
   const lines = content.split(/\r?\n/);
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? '';
     for (const rule of FORBIDDEN_TOKENS) {
+      if (rule.allowInFiles?.includes(relPath)) continue;
       rule.pattern.lastIndex = 0;
       if (!rule.pattern.test(line)) continue;
       violations.push({
@@ -83,7 +92,7 @@ function main() {
     if (shouldSkip(relPath)) continue;
 
     const content = readFileSync(file, 'utf8');
-    const fileViolations = findViolations(content);
+    const fileViolations = findViolations(content, relPath);
     for (const item of fileViolations) {
       violations.push({
         file: relPath,

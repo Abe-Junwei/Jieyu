@@ -61,6 +61,124 @@ describe('AiChatCard input submit', () => {
     expect(onSendAiMessage).toHaveBeenCalledWith('你好');
   });
 
+  it('renders the recommendation as an in-input ghost suggestion and nowhere else', () => {
+    const view = render(
+      <AiAssistantHubContext.Provider value={makeContextValue({
+        currentPage: 'transcription',
+        selectedUnitKind: 'utterance',
+        selectedLayerType: 'translation',
+        selectedText: '这是一条需要补充说明的译文',
+        selectedTimeRangeLabel: '00:12-00:15',
+        selectedRowMeta: { rowNumber: 8, start: 12, end: 15 },
+      })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    const input = within(view.container).getByRole('textbox') as HTMLInputElement;
+    expect(input.value).toBe('');
+    expect(input.placeholder).toBe('');
+    const ghost = within(view.container).getByRole('button', { name: /row 8/i });
+    expect(ghost.textContent).toContain('translation layer');
+    expect(within(view.container).getByText(/translation layer/i)).toBeTruthy();
+    expect(within(view.container).queryByRole('button', { name: /填入输入框|Use suggestion|忽略本条推荐|Dismiss suggestion/i })).toBeNull();
+  });
+
+  it('adapts in-input ghost recommendation using prior user prompts instead of only static context rules', () => {
+    const view = render(
+      <AiAssistantHubContext.Provider value={makeContextValue({
+        currentPage: 'transcription',
+        selectedUnitKind: 'utterance',
+        selectedLayerType: 'translation',
+        selectedText: '这里是一条待处理的译文',
+        aiMessages: [
+          { id: 'u2', role: 'user', content: '请比较这两条译文差异并详细说明', status: 'done' },
+          { id: 'a1', role: 'assistant', content: 'ok', status: 'done' },
+          { id: 'u1', role: 'user', content: '继续复核翻译里的误译和漏译', status: 'done' },
+        ],
+        aiSessionMemory: {
+          adaptiveInputProfile: {
+            recentPrompts: ['请比较这两条译文差异并详细说明', '继续复核翻译里的误译和漏译'],
+            dominantIntent: 'compare',
+            preferredResponseStyle: 'detailed',
+            topKeywords: ['译文', '翻译'],
+            lastPromptExcerpt: '继续复核翻译里的误译和漏译',
+          },
+        },
+      })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    const ghost = within(view.container).getByRole('button', { name: /recent ask/i });
+    expect(ghost.textContent).toContain('recent ask');
+    expect(ghost.textContent).toContain('focus on');
+    expect(ghost.textContent).toContain('译文');
+  });
+
+  it('tracks recommendation exposure and exact adoption after clicking the ghost suggestion', async () => {
+    const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
+    const onTrackAiRecommendationEvent = vi.fn();
+
+    const view = render(
+      <AiAssistantHubContext.Provider value={makeContextValue({
+        currentPage: 'transcription',
+        selectedLayerType: 'translation',
+        selectedText: '这里是一条待处理的译文',
+        onSendAiMessage,
+        onTrackAiRecommendationEvent,
+      })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    const input = within(view.container).getByRole('textbox') as HTMLInputElement;
+    let recommendationPrompt = '';
+    await waitFor(() => {
+      expect(onTrackAiRecommendationEvent).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'shown',
+      }));
+      recommendationPrompt = (onTrackAiRecommendationEvent.mock.calls.find(
+        ([event]) => event?.type === 'shown',
+      )?.[0]?.prompt ?? '') as string;
+      expect(recommendationPrompt.length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(within(view.container).getByRole('button', { name: recommendationPrompt }));
+    expect(input.value).toBe(recommendationPrompt);
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+
+    expect(onSendAiMessage).toHaveBeenCalledWith(recommendationPrompt);
+    expect(onTrackAiRecommendationEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'accepted_exact',
+      prompt: recommendationPrompt,
+    }));
+  });
+
+  it('applies the visible recommendation with ArrowRight instead of relying on Tab', async () => {
+    const view = render(
+      <AiAssistantHubContext.Provider value={makeContextValue({
+        currentPage: 'transcription',
+        selectedLayerType: 'translation',
+        selectedText: '这里是一条待处理的译文',
+      })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    const input = within(view.container).getByRole('textbox') as HTMLInputElement;
+    expect(input.value).toBe('');
+    fireEvent.keyDown(input, { key: 'ArrowRight', code: 'ArrowRight' });
+
+    await waitFor(() => {
+      expect(input.value.length).toBeGreaterThan(0);
+    });
+  });
+
   it('shows stop button while assistant is streaming without persistent hint', () => {
     const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
 
@@ -176,11 +294,44 @@ describe('AiChatCard input submit', () => {
     );
 
     expect(within(view.container).queryByRole('button', { name: /RAG 快捷场景|RAG Quick Scenarios/i })).toBeNull();
-    fireEvent.click(within(view.container).getByRole('button', { name: 'RAG 问答模板' }));
+    fireEvent.click(within(view.container).getByRole('button', { name: /RAG 问答模板|RAG QA Template/i }));
 
     const input = within(view.container).getByRole('textbox') as HTMLInputElement;
     expect(input.value).toContain('[RAG_SCENARIO:qa]');
-    expect(input.value).toContain('问题：这是一条待分析句子');
+    expect(input.value).toMatch(/问题：这是一条待分析句子|Question: 这是一条待分析句子/);
+  });
+
+  it('opens the compact RAG quick menu from More and injects the balanced template', () => {
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          selectedUtterance: {
+            id: 'utt-quick-2',
+            startTime: 2.5,
+            endTime: 4.75,
+            transcription: { default: '这是一条需要平衡分析的句子' },
+          } as unknown as AiAssistantHubContextValue['selectedUtterance'],
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    fireEvent.click(within(view.container).getByRole('button', { name: /更多|More/i }));
+
+    const menu = within(view.container).getByRole('dialog', { name: /RAG 快捷场景|RAG Quick Scenarios/i });
+    expect(menu.className).toContain('dialog-card');
+    expect(menu.className).toContain('dialog-card-compact');
+    expect(menu.className).toContain('ai-chat-rag-quick-menu');
+    expect(within(menu).getByRole('button', { name: /RAG 平衡模板|RAG Balanced Template/i })).toBeTruthy();
+    expect(within(menu).getByRole('button', { name: /RAG 快捷场景 取消|RAG Quick Scenarios Cancel/i }).closest('.dialog-header')).toBeTruthy();
+
+    fireEvent.click(within(menu).getByRole('button', { name: /RAG 平衡模板|RAG Balanced Template/i }));
+
+    const input = within(view.container).getByRole('textbox') as HTMLInputElement;
+    expect(input.value).toContain('[RAG_SCENARIO:balanced]');
+    expect(input.value).toMatch(/目标：id=utt-quick-2;|Target: id=utt-quick-2;/);
+    expect(within(view.container).queryByRole('dialog', { name: /RAG 快捷场景|RAG Quick Scenarios/i })).toBeNull();
   });
 
   it('renders citation action buttons in fixed priority order', () => {
@@ -263,7 +414,7 @@ describe('AiChatCard input submit', () => {
       </AiAssistantHubContext.Provider>,
     );
 
-    const statusDot = within(view.container).getByRole('status');
+    const statusDot = within(view.container).getAllByRole('status')[0] as HTMLElement;
     expect(statusDot.className).toContain('ai-chat-provider-status-dot-idle');
   });
 

@@ -79,6 +79,36 @@ describe('VoiceAgentWidget', () => {
     expect(onDismissDisambiguation).toHaveBeenCalledTimes(1);
   });
 
+  it('renders disambiguation and confirm notices as compact alertdialogs', () => {
+    const view = render(
+      <VoiceAgentWidget
+        {...makeProps({
+          disambiguationOptions: [
+            { type: 'action', actionId: 'deleteSegment', raw: '删除', confidence: 0.45, fromFuzzy: true },
+          ],
+          pendingConfirm: {
+            actionId: 'deleteSegment',
+            label: '删除当前句段',
+            fromFuzzy: true,
+          },
+        })}
+      />,
+    );
+
+    const dialogs = Array.from(view.container.querySelectorAll('.voice-agent-notice-stack [role="alertdialog"]')) as HTMLDivElement[];
+    const confirmButtons = screen.getAllByRole('button', { name: /确认|confirm/i });
+    const cancelButtons = screen.getAllByRole('button', { name: /取消|cancel/i });
+
+    expect(dialogs).toHaveLength(2);
+    dialogs.forEach((dialog) => {
+      expect(dialog.className).toContain('dialog-card');
+      expect(dialog.className).toContain('dialog-card-compact');
+      expect(dialog.querySelector('.dialog-footer')).toBeTruthy();
+    });
+    expect(confirmButtons.some((button) => button.closest('.dialog-footer'))).toBe(true);
+    expect(cancelButtons.filter((button) => button.closest('.dialog-footer')).length).toBeGreaterThanOrEqual(2);
+  });
+
   it('applies dictation preview props to active session text and dictation history entries only', () => {
     render(
       <VoiceAgentWidget

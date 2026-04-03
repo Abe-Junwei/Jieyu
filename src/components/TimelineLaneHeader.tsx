@@ -13,6 +13,7 @@ import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
 import { useTimelineLaneHeaderDrag } from './useTimelineLaneHeaderDrag';
+import { DialogShell } from './ui/DialogShell';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -511,18 +512,13 @@ export function TimelineLaneHeader({
           onPointerDown={(event) => event.stopPropagation()}
           role="presentation"
         >
-          <div
-            className="dialog-card"
+          <DialogShell
+            className="timeline-lane-lock-dialog panel-design-match panel-design-match-dialog"
             role="dialog"
             aria-modal="true"
             aria-label={decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}
-            onClick={(event) => event.stopPropagation()}
-            onMouseDown={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
-            style={{ width: laneLockDialogWidth, maxWidth: 'calc(100vw - 32px)', height: 'auto' }}
-          >
-            <div className="dialog-header">
-              <h3>{decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}</h3>
+            title={decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}
+            actions={(
               <button
                 type="button"
                 className="icon-btn"
@@ -532,8 +528,12 @@ export function TimelineLaneHeader({
               >
                 <X size={18} />
               </button>
-            </div>
-            <div className="dialog-body">
+            )}
+            onClick={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+            style={{ width: laneLockDialogWidth, maxWidth: 'calc(100vw - 32px)', height: 'auto' }}
+          >
               <div className="speaker-rail-batch-panel">
                 <p className="speaker-rail-summary">{decodeEscapedUnicode('\\u9009\\u4e2d\\u8bf4\\u8bdd\\u4eba：')}{laneLockDialog.selectedSpeakerHint}</p>
                 <label className="speaker-rail-form-field">
@@ -567,8 +567,7 @@ export function TimelineLaneHeader({
                   <button type="button" className="btn btn-primary" onClick={confirmLaneLockDialog}>{decodeEscapedUnicode('\\u786e\\u8ba4\\u9501\\u5b9a')}</button>
                 </div>
               </div>
-            </div>
-          </div>
+          </DialogShell>
         </div>
       )}
 

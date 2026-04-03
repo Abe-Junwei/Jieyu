@@ -1,6 +1,5 @@
 import { lazy, Suspense } from 'react';
-import '../styles/ai-hub-shared.css';
-import '../styles/ai-hub.css';
+import '../styles/ai-sidebar-entry.css';
 import { normalizeLocale, t } from '../i18n';
 import type {
   TranscriptionPageAnalysisRuntimeProps,

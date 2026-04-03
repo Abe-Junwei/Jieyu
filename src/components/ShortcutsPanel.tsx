@@ -9,6 +9,7 @@ import { getShortcutsPanelMessages } from '../i18n/shortcutsPanelMessages';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
+import { DialogShell } from './ui/DialogShell';
 
 interface ShortcutsPanelProps {
   onClose: () => void;
@@ -63,17 +64,17 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
       role="presentation"
       dir={uiTextDirection}
     >
-      <div
-        className="shortcuts-panel dialog-card"
+      <DialogShell
+        className="shortcuts-panel panel-design-match panel-design-match-dialog"
         role="dialog"
         aria-modal="true"
         aria-label={messages.panelAriaLabel}
         dir={uiTextDirection}
-        style={{ width: `min(${panelWidth}px, 92vw)` }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="shortcuts-panel-header dialog-header">
-          <h3 className="shortcuts-panel-title">{messages.panelTitle}</h3>
+        headerClassName="shortcuts-panel-header"
+        bodyClassName="shortcuts-panel-body"
+        title={messages.panelTitle}
+        titleClassName="shortcuts-panel-title"
+        actions={(
           <button
             type="button"
             className="shortcuts-panel-close icon-btn"
@@ -82,8 +83,10 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
           >
             <X size={16} />
           </button>
-        </div>
-        <div className="shortcuts-panel-body dialog-body">
+        )}
+        style={{ width: `min(${panelWidth}px, 92vw)` }}
+        onClick={(e) => e.stopPropagation()}
+      >
           {grouped.map(({ cat, label, entries }) => (
             <div key={cat} className="shortcuts-panel-group">
               <div className="shortcuts-panel-group-label">{label}</div>
@@ -104,8 +107,7 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
               </table>
             </div>
           ))}
-        </div>
-      </div>
+      </DialogShell>
     </div>
   );
 }

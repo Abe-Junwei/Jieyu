@@ -2,6 +2,7 @@ import { memo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { t, tf, useLocale } from '../i18n';
+import { DialogShell } from './ui/DialogShell';
 
 export interface DeleteLayerConfirmDialogProps {
   open: boolean;
@@ -38,18 +39,21 @@ export const DeleteLayerConfirmDialog = memo(function DeleteLayerConfirmDialog({
 
   const dialog = (
     <div className="dialog-overlay" onClick={onCancel} role="presentation">
-      <div
+      <DialogShell
         ref={dialogRef}
-        className="dialog-card"
+        className="delete-layer-confirm-dialog panel-design-match panel-design-match-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="delete-layer-title"
+        title={<span id="delete-layer-title">{t(locale, 'transcription.dialog.deleteLayerTitle')}</span>}
+        footer={(
+          <>
+            <button className="panel-button panel-button--ghost" onClick={onCancel}>{t(locale, 'transcription.dialog.cancel')}</button>
+            <button className="panel-button panel-button--danger" onClick={onConfirm}>{t(locale, 'transcription.dialog.deleteLayerConfirmButton')}</button>
+          </>
+        )}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="dialog-header">
-          <h3 id="delete-layer-title">{t(locale, 'transcription.dialog.deleteLayerTitle')}</h3>
-        </div>
-        <div className="dialog-body">
           <p style={{ margin: '0 0 16px 0', color: 'var(--state-danger-solid)', fontSize: 14, fontWeight: 500 }}>
             {t(locale, 'transcription.dialog.deleteLayerIrreversibleWarning')}
           </p>
@@ -83,12 +87,7 @@ export const DeleteLayerConfirmDialog = memo(function DeleteLayerConfirmDialog({
           <p style={{ margin: '8px 0 0 0', color: 'var(--text-secondary)', fontSize: 12 }}>
             {t(locale, 'transcription.dialog.deleteLayerKeepUtterancesHint')}
           </p>
-        </div>
-        <div className="dialog-footer">
-          <button className="btn btn-ghost" onClick={onCancel}>{t(locale, 'transcription.dialog.cancel')}</button>
-          <button className="btn btn-danger" onClick={onConfirm}>{t(locale, 'transcription.dialog.deleteLayerConfirmButton')}</button>
-        </div>
-      </div>
+      </DialogShell>
     </div>
   );
 

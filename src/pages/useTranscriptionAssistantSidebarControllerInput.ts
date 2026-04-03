@@ -6,19 +6,42 @@ import type {
   AssistantSidebarObserverRecommendationInput,
   UseTranscriptionAssistantSidebarControllerInput,
 } from './useTranscriptionAssistantSidebarController';
-import type { useAiChat } from '../hooks/useAiChat';
-
-/** Accepts the full aiChat return value to avoid identity-mapping at the call site | 接受完整 aiChat 返回值，避免调用方逐字段映射 */
-type AiChatReturn = ReturnType<typeof useAiChat>;
 
 interface UseTranscriptionAssistantSidebarControllerInputInput {
   locale: string;
   analysisTab: AnalysisBottomTab;
   onAnalysisTabChange: (tab: AnalysisBottomTab) => void;
+  currentPage?: AiChatContextValue['currentPage'];
   selectedUtterance: AiChatContextValue['selectedUtterance'];
   selectedRowMeta: AiChatContextValue['selectedRowMeta'];
+  selectedUnitKind?: AiChatContextValue['selectedUnitKind'];
+  selectedLayerType?: AiChatContextValue['selectedLayerType'];
+  selectedText?: AiChatContextValue['selectedText'];
+  selectedTimeRangeLabel?: AiChatContextValue['selectedTimeRangeLabel'];
   lexemeMatches: AiChatContextValue['lexemeMatches'];
-  aiChat: AiChatReturn;
+  aiChat: {
+    enabled: boolean;
+    providerLabel: AiChatContextValue['aiProviderLabel'];
+    settings: AiChatContextValue['aiChatSettings'];
+    messages: AiChatContextValue['aiMessages'];
+    isStreaming: NonNullable<AiChatContextValue['aiIsStreaming']>;
+    lastError: AiChatContextValue['aiLastError'];
+    connectionTestStatus: AiChatContextValue['aiConnectionTestStatus'];
+    connectionTestMessage: AiChatContextValue['aiConnectionTestMessage'];
+    contextDebugSnapshot: AiChatContextValue['aiContextDebugSnapshot'];
+    pendingToolCall: AiChatContextValue['aiPendingToolCall'];
+    taskSession: AiChatContextValue['aiTaskSession'];
+    metrics: AiChatContextValue['aiInteractionMetrics'];
+    sessionMemory: AiChatContextValue['aiSessionMemory'];
+    updateSettings: AiChatContextValue['onUpdateAiChatSettings'];
+    testConnection: AiChatContextValue['onTestAiConnection'];
+    send: AiChatContextValue['onSendAiMessage'];
+    stop: AiChatContextValue['onStopAiMessage'];
+    clear: AiChatContextValue['onClearAiMessages'];
+    confirmPendingToolCall: AiChatContextValue['onConfirmPendingToolCall'];
+    cancelPendingToolCall: AiChatContextValue['onCancelPendingToolCall'];
+    trackRecommendationEvent: AiChatContextValue['onTrackAiRecommendationEvent'];
+  };
   aiToolDecisionLogs: AiChatContextValue['aiToolDecisionLogs'];
   observerStage: AiChatContextValue['observerStage'];
   observerRecommendations: AssistantSidebarObserverRecommendationInput[];
@@ -30,8 +53,13 @@ export function useTranscriptionAssistantSidebarControllerInput({
   locale,
   analysisTab,
   onAnalysisTabChange,
+  currentPage,
   selectedUtterance,
   selectedRowMeta,
+  selectedUnitKind,
+  selectedLayerType,
+  selectedText,
+  selectedTimeRangeLabel,
   lexemeMatches,
   aiChat,
   aiToolDecisionLogs,
@@ -41,8 +69,13 @@ export function useTranscriptionAssistantSidebarControllerInput({
   runtimePropsInput,
 }: UseTranscriptionAssistantSidebarControllerInputInput): UseTranscriptionAssistantSidebarControllerInput {
   const aiChatContextInput = useMemo(() => ({
+    currentPage: currentPage ?? 'transcription',
     selectedUtterance,
     selectedRowMeta,
+    selectedUnitKind: selectedUnitKind ?? null,
+    selectedText: selectedText ?? '',
+    ...(selectedLayerType !== undefined ? { selectedLayerType } : {}),
+    ...(selectedTimeRangeLabel !== undefined ? { selectedTimeRangeLabel } : {}),
     lexemeMatches,
     aiChatEnabled: aiChat.enabled,
     aiProviderLabel: aiChat.providerLabel,
@@ -67,6 +100,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
     onClearAiMessages: aiChat.clear,
     onConfirmPendingToolCall: aiChat.confirmPendingToolCall,
     onCancelPendingToolCall: aiChat.cancelPendingToolCall,
+    onTrackAiRecommendationEvent: aiChat.trackRecommendationEvent,
     onJumpToCitation,
   }), [
     aiChat.cancelPendingToolCall,
@@ -88,13 +122,19 @@ export function useTranscriptionAssistantSidebarControllerInput({
     aiChat.stop,
     aiChat.taskSession,
     aiChat.testConnection,
+    aiChat.trackRecommendationEvent,
     aiChat.updateSettings,
     aiToolDecisionLogs,
+    currentPage,
     lexemeMatches,
     observerRecommendations,
     observerStage,
     onJumpToCitation,
+    selectedLayerType,
     selectedRowMeta,
+    selectedText,
+    selectedTimeRangeLabel,
+    selectedUnitKind,
     selectedUtterance,
   ]);
 

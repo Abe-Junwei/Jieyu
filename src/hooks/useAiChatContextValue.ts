@@ -6,8 +6,13 @@ export type AiChatContextSource = Partial<AiChatContextValue>;
 export function pickAiChatContextValue(P: AiChatContextSource): AiChatContextValue {
   const observerRecommendations = (P.observerRecommendations ?? []).map((item) => ({ ...item }));
   return {
+    currentPage: P.currentPage ?? 'other',
     selectedUtterance: P.selectedUtterance ?? null,
     selectedRowMeta: P.selectedRowMeta ?? null,
+    selectedUnitKind: P.selectedUnitKind ?? null,
+    selectedText: P.selectedText ?? '',
+    selectedTimeRangeLabel: P.selectedTimeRangeLabel ?? null,
+    ...(P.selectedLayerType !== undefined ? { selectedLayerType: P.selectedLayerType } : {}),
     lexemeMatches: P.lexemeMatches ?? [],
     aiChatEnabled: P.aiChatEnabled ?? false,
     aiProviderLabel: P.aiProviderLabel,
@@ -32,6 +37,7 @@ export function pickAiChatContextValue(P: AiChatContextSource): AiChatContextVal
     onClearAiMessages: P.onClearAiMessages,
     onConfirmPendingToolCall: P.onConfirmPendingToolCall,
     onCancelPendingToolCall: P.onCancelPendingToolCall,
+    onTrackAiRecommendationEvent: P.onTrackAiRecommendationEvent,
     onJumpToCitation: P.onJumpToCitation,
   };
 }

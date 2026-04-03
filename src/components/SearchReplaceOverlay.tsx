@@ -12,6 +12,7 @@ import {
 } from '../utils/searchReplaceUtils';
 import type { AppShellSearchScope } from '../utils/appShellEvents';
 import { buildOrthographyPreviewTextProps, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
+import { DialogShell } from './ui/DialogShell';
 
 interface SearchReplaceOverlayProps {
   /** All searchable items: { id, text, layerId?, layerKind? } */
@@ -170,8 +171,8 @@ export function SearchReplaceOverlay({
 
   return (
     <div className="dialog-overlay dialog-overlay-topmost" role="presentation" onMouseDown={onClose}>
-      <div
-        className="search-replace-overlay dialog-card"
+      <DialogShell
+        className="search-replace-overlay"
         role="dialog"
         aria-modal="true"
         aria-label={messages.searchPlaceholder}
@@ -324,7 +325,7 @@ export function SearchReplaceOverlay({
           </div>
         </div>
       )}
-      </div>
+      </DialogShell>
     </div>
   );
 }

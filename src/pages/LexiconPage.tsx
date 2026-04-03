@@ -1,3 +1,4 @@
+import '../styles/pages/feature-availability.css';
 import { FeatureAvailabilityPanel } from '../components/FeatureAvailabilityPanel';
 import { t, useLocale } from '../i18n';
 

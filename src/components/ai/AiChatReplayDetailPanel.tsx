@@ -11,6 +11,8 @@ import { useLocale } from '../../i18n';
 import { computeAdaptivePanelWidth } from '../../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../../hooks/useViewportWidth';
+import { PanelSection } from '../ui/PanelSection';
+import { PanelSummary } from '../ui/PanelSummary';
 
 interface AiChatReplayDetailPanelProps {
   isZh: boolean;
@@ -61,6 +63,9 @@ export function AiChatReplayDetailPanel({
     ...(viewportWidth !== undefined ? { viewportWidth } : {}),
   }), [locale, uiTextDirection, uiFontScale, viewportWidth]);
   const messages = getAiChatReplayDetailPanelMessages(isZh);
+  const latestDecisionLabel = selectedReplayBundle.latestDecision
+    ? formatToolDecision(isZh, selectedReplayBundle.latestDecision.decision)
+    : null;
 
   return (
     <div
@@ -74,28 +79,33 @@ export function AiChatReplayDetailPanel({
       <div className="ai-chat-replay-panel-header">
         <strong className="ai-chat-replay-panel-title">{messages.title}</strong>
         <div className="ai-chat-replay-panel-actions">
-          <button type="button" className="icon-btn ai-chat-replay-panel-btn" onClick={onToggleDetail}>{showReplayDetailPanel ? messages.hideDetail : messages.showDetail}</button>
-          <button type="button" className="icon-btn ai-chat-replay-panel-btn" onClick={onClose}>{messages.close}</button>
+          <button type="button" className="panel-button ai-chat-replay-panel-btn" onClick={onToggleDetail}>{showReplayDetailPanel ? messages.hideDetail : messages.showDetail}</button>
+          <button type="button" className="panel-button ai-chat-replay-panel-btn" onClick={onClose}>{messages.close}</button>
         </div>
       </div>
-      <div className="ai-chat-replay-panel-meta">
-        <div>{messages.tool}: {formatToolName(isZh, selectedReplayBundle.toolName)}</div>
-        <div>{messages.request}: {compactInternalId(selectedReplayBundle.requestId)}</div>
-        <div>{messages.status}: {formatReplayableLabel(isZh, selectedReplayBundle.replayable)}</div>
-        {selectedReplayBundle.latestDecision && (
-          <div>{messages.latestDecision}: {formatToolDecision(isZh, selectedReplayBundle.latestDecision.decision)}</div>
-        )}
-      </div>
+      <div className="ai-chat-replay-panel-body">
+        <PanelSummary
+          className="ai-chat-replay-panel-summary"
+          title={formatToolName(isZh, selectedReplayBundle.toolName)}
+          description={`${messages.request}: ${compactInternalId(selectedReplayBundle.requestId)}`}
+          meta={(
+            <div className="panel-meta">
+              <span className={`panel-chip${selectedReplayBundle.replayable ? ' panel-chip--success' : ' panel-chip--danger'}`}>
+                {formatReplayableLabel(isZh, selectedReplayBundle.replayable)}
+              </span>
+              <span className="panel-chip">{showReplayDetailPanel ? messages.hideDetail : messages.showDetail}</span>
+            </div>
+          )}
+          supportingText={latestDecisionLabel ? `${messages.latestDecision}: ${latestDecisionLabel}` : undefined}
+        />
       {showReplayDetailPanel && (
         <>
           {selectedReplayBundle.toolCall?.arguments && (
-            <div className="ai-chat-replay-panel-section">
-              <div className="ai-chat-replay-panel-section-title">{messages.toolArguments}</div>
+            <PanelSection className="ai-chat-replay-panel-section" title={messages.toolArguments} titleClassName="ai-chat-replay-panel-section-title">
               <pre className="ai-chat-replay-panel-code">{JSON.stringify(selectedReplayBundle.toolCall.arguments, null, 2)}</pre>
-            </div>
+            </PanelSection>
           )}
-          <div className="ai-chat-replay-panel-section">
-            <div className="ai-chat-replay-panel-section-title">{messages.decisionTimeline}</div>
+          <PanelSection className="ai-chat-replay-panel-section" title={messages.decisionTimeline} titleClassName="ai-chat-replay-panel-section-title">
             <div className="ai-chat-replay-panel-timeline">
               {selectedReplayBundle.decisions.map((decision) => (
                 <div key={`${decision.timestamp}-${decision.decision}`} className="ai-chat-replay-panel-timeline-row">
@@ -104,48 +114,52 @@ export function AiChatReplayDetailPanel({
                 </div>
               ))}
             </div>
-          </div>
-          <div className="ai-chat-replay-panel-section">
-            <div className="ai-chat-replay-panel-section-title">{messages.goldenPreview}</div>
+          </PanelSection>
+          <PanelSection className="ai-chat-replay-panel-section" title={messages.goldenPreview} titleClassName="ai-chat-replay-panel-section-title">
             <pre className="ai-chat-replay-panel-code ai-chat-replay-panel-code-scroll">{JSON.stringify(buildAiToolGoldenSnapshot(selectedReplayBundle), null, 2)}</pre>
-          </div>
-          <div className="ai-chat-replay-panel-toolbar">
-            <input
-              type="file"
-              accept=".json"
-              className="ai-chat-replay-panel-file-input"
-              ref={importFileInputRef}
-              onChange={(e) => {
-                const file = e.currentTarget.files?.[0];
-                if (file) onImportSnapshotFile(file);
-                e.currentTarget.value = '';
-              }}
-            />
-            <button
-              type="button"
-              className="icon-btn ai-chat-replay-panel-btn ai-chat-replay-panel-btn-compact"
-              onClick={() => importFileInputRef.current?.click()}
-            >
-              {messages.importAndCompare}
-            </button>
-            {compareSnapshot && (
+          </PanelSection>
+          <PanelSection
+            className="ai-chat-replay-panel-section"
+            title={messages.snapshotDiff}
+            titleClassName="ai-chat-replay-panel-section-title"
+            description={compareSnapshot ? messages.baseline(compactInternalId(compareSnapshot.requestId)) : messages.importAndCompare}
+            meta={snapshotDiff ? (
+              <span className={`ai-chat-replay-panel-diff-badge ${snapshotDiff.matches ? 'is-match' : 'is-changed'}`}>
+                {snapshotDiff.matches ? messages.matches : messages.changed}
+              </span>
+            ) : undefined}
+          >
+            <div className="ai-chat-replay-panel-toolbar">
+              <input
+                type="file"
+                accept=".json"
+                className="ai-chat-replay-panel-file-input"
+                ref={importFileInputRef}
+                onChange={(e) => {
+                  const file = e.currentTarget.files?.[0];
+                  if (file) onImportSnapshotFile(file);
+                  e.currentTarget.value = '';
+                }}
+              />
               <button
                 type="button"
-                className="icon-btn ai-chat-replay-panel-btn ai-chat-replay-panel-btn-compact"
-                onClick={onClearCompare}
+                className="panel-button ai-chat-replay-panel-btn ai-chat-replay-panel-btn-compact"
+                onClick={() => importFileInputRef.current?.click()}
               >
-                {messages.clearDiff}
+                {messages.importAndCompare}
               </button>
-            )}
-          </div>
+              {compareSnapshot && (
+                <button
+                  type="button"
+                  className="panel-button ai-chat-replay-panel-btn ai-chat-replay-panel-btn-compact"
+                  onClick={onClearCompare}
+                >
+                  {messages.clearDiff}
+                </button>
+              )}
+            </div>
           {snapshotDiff && compareSnapshot && (
-            <div className="ai-chat-replay-panel-section">
-              <div className="ai-chat-replay-panel-diff-header">
-                <div className="ai-chat-replay-panel-section-title">{messages.snapshotDiff}</div>
-                <span className={`ai-chat-replay-panel-diff-badge ${snapshotDiff.matches ? 'is-match' : 'is-changed'}`}>
-                  {snapshotDiff.matches ? messages.matches : messages.changed}
-                </span>
-              </div>
+            <>
               <div className="ai-chat-replay-panel-baseline">
                 {messages.baseline(compactInternalId(compareSnapshot.requestId))}
               </div>
@@ -160,10 +174,12 @@ export function AiChatReplayDetailPanel({
                   </div>
                 ))}
               </div>
-            </div>
+            </>
           )}
+          </PanelSection>
         </>
       )}
+      </div>
     </div>
   );
 }

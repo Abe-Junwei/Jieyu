@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Upload, FileAudio, FileVideo, X } from 'lucide-react';
 import { t, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
+import { DialogShell } from './ui/DialogShell';
 
 type AudioImportDialogProps = {
   isOpen: boolean;
@@ -90,15 +91,33 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
 
   return (
     <div className="dialog-overlay" onClick={handleClose}>
-      <div className="dialog-card" role="dialog" aria-modal="true" aria-label={t(locale, 'transcription.importDialog.title')} onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-header">
-          <h3>{t(locale, 'transcription.importDialog.title')}</h3>
+      <DialogShell
+        className="audio-import-dialog panel-design-match panel-design-match-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t(locale, 'transcription.importDialog.title')}
+        title={t(locale, 'transcription.importDialog.title')}
+        actions={(
           <button className="icon-btn" onClick={handleClose} title={t(locale, 'transcription.importDialog.close')}>
             <X size={18} />
           </button>
-        </div>
-
-        <div className="dialog-body">
+        )}
+        footer={(
+          <>
+            <button className="panel-button panel-button--ghost" onClick={handleClose} disabled={importing}>
+              {t(locale, 'transcription.importDialog.cancel')}
+            </button>
+            <button
+              className="panel-button panel-button--primary"
+              disabled={!selectedFile || !duration || importing}
+              onClick={() => fireAndForget(handleImport())}
+            >
+              {importing ? t(locale, 'transcription.importDialog.importing') : t(locale, 'transcription.importDialog.confirmImport')}
+            </button>
+          </>
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
           <div
             className={`audio-drop-zone ${selectedFile ? 'audio-drop-zone-filled' : ''}`}
             onClick={() => fileRef.current?.click()}
@@ -129,21 +148,7 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
           />
 
           {error && <p className="error">{error}</p>}
-        </div>
-
-        <div className="dialog-footer">
-          <button className="btn btn-ghost" onClick={handleClose} disabled={importing}>
-            {t(locale, 'transcription.importDialog.cancel')}
-          </button>
-          <button
-            className="btn"
-            disabled={!selectedFile || !duration || importing}
-            onClick={() => fireAndForget(handleImport())}
-          >
-            {importing ? t(locale, 'transcription.importDialog.importing') : t(locale, 'transcription.importDialog.confirmImport')}
-          </button>
-        </div>
-      </div>
+      </DialogShell>
     </div>
   );
 }

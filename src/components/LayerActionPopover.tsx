@@ -20,6 +20,9 @@ import { getLayerManagerPopoverMessages } from '../i18n/layerManagerPopoverMessa
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
+import { DialogShell } from './ui/DialogShell';
+import { PanelSection } from './ui/PanelSection';
+import { PanelSummary } from './ui/PanelSummary';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -406,6 +409,51 @@ export function LayerActionPopover({
   const createLanguageRequiredText = createLanguageRequiredMessage.startsWith(uiText.requiredPrefix)
     ? createLanguageRequiredMessage
     : `${uiText.requiredPrefix}${createLanguageRequiredMessage}`;
+  const resolvedParentLayerLabel = useMemo(() => {
+    if (!resolvedCreateParentLayerId) return '';
+    const resolvedParentLayer = independentParentLayers.find((layer) => layer.id === resolvedCreateParentLayerId) ?? autoParentLayer;
+    return resolvedParentLayer ? formatParentLayerOptionLabel(resolvedParentLayer) : '';
+  }, [autoParentLayer, independentParentLayers, resolvedCreateParentLayerId]);
+  const summaryMeta = (
+    <div className="panel-meta">
+      <span className="panel-chip">{action === 'delete' ? uiText.deleteLayer : label}</span>
+      {action === 'create-translation' ? <span className="panel-chip">{uiText.translationText}</span> : null}
+      {action === 'create-transcription' && showConstraintSelector
+        ? <span className="panel-chip">{constraint === 'independent_boundary' ? uiText.constraintIndependent : uiText.constraintDependent}</span>
+        : null}
+      {action === 'delete' ? <span className="panel-chip panel-chip--danger">{deletableLayers.length}</span> : null}
+    </div>
+  );
+  const createFooter = (
+    <>
+      <button
+        className="panel-button panel-button--primary"
+        disabled={action === 'create-translation'
+          ? (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || translationCreateDisabledReason.length > 0)
+          : (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || transcriptionCreateDisabledReason.length > 0)}
+        onClick={handleCreate}
+      >
+        {uiText.create}
+      </button>
+      <button className="panel-button panel-button--ghost" onClick={onClose}>
+        {uiText.cancel}
+      </button>
+    </>
+  );
+  const deleteFooter = (
+    <>
+      <button
+        className="panel-button panel-button--danger"
+        disabled={deleteConfirm ? isLoading : (!deleteLayerId || isLoading)}
+        onClick={deleteConfirm ? handleConfirmDelete : handleDelete}
+      >
+        {deleteConfirm ? uiText.confirmDelete : uiText.delete}
+      </button>
+      <button className="panel-button panel-button--ghost" onClick={deleteConfirm ? handleCancelDelete : onClose} disabled={isLoading}>
+        {uiText.cancel}
+      </button>
+    </>
+  );
 
   const popover = (
     <div
@@ -416,9 +464,26 @@ export function LayerActionPopover({
       onKeyDown={handleKeyDown}
       role="presentation"
     >
-      <div
-        className="layer-action-dialog dialog-card"
+      <DialogShell
+        className="layer-action-dialog"
         style={{ '--dialog-auto-width': `${Math.max(panelMinWidth, dialogAutoWidth)}px` } as React.CSSProperties}
+        bodyClassName="layer-action-dialog-body"
+        footerClassName="layer-action-dialog-footer"
+        title={label}
+        headerClassName="layer-action-dialog-header"
+        actions={(
+          <button
+            type="button"
+            className="icon-btn"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={onClose}
+            aria-label={`${label} ${uiText.cancel}`}
+            title={`${label} ${uiText.cancel}`}
+          >
+            <X size={18} />
+          </button>
+        )}
+        footer={action === 'delete' ? deleteFooter : createFooter}
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
@@ -427,24 +492,6 @@ export function LayerActionPopover({
         aria-label={label}
         dir={uiTextDirection}
       >
-        <div
-          className="dialog-header layer-action-dialog-header"
-        >
-          <h3>{label}</h3>
-          <div className="dialog-header-actions layer-action-dialog-header-actions">
-            <button
-              type="button"
-              className="icon-btn"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={onClose}
-              aria-label={`${label} ${uiText.cancel}`}
-              title={`${label} ${uiText.cancel}`}
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-
         {showCreateFailure && (
           <div
             role="alert"
@@ -457,7 +504,14 @@ export function LayerActionPopover({
 
         {action === 'delete' ? (
           <>
-            <div className="dialog-body">
+            <PanelSummary
+              className="layer-action-dialog-summary"
+              description={deleteConfirm
+                ? uiText.deleteConfirmMessage(deleteConfirm.layerName, deleteConfirm.textCount)
+                : uiText.deleteLayer}
+              meta={summaryMeta}
+            />
+            <PanelSection className="layer-action-dialog-section">
               {deleteConfirm ? (
                 <p className="layer-action-dialog-copy">
                   {uiText.deleteConfirmMessage(deleteConfirm.layerName, deleteConfirm.textCount)}
@@ -465,7 +519,7 @@ export function LayerActionPopover({
               ) : (
                 <div className="dialog-field">
                   <select
-                    className="input layer-action-dialog-input"
+                    className="input panel-input layer-action-dialog-input"
                     value={deleteLayerId}
                     onChange={(e) => setDeleteLayerId(e.target.value)}
                   >
@@ -477,26 +531,20 @@ export function LayerActionPopover({
                   </select>
                 </div>
               )}
-            </div>
-            <div className="dialog-footer layer-action-dialog-footer">
-              <button
-                className={`btn ${deleteConfirm ? 'btn-danger' : 'btn-danger'}`}
-                disabled={deleteConfirm ? isLoading : (!deleteLayerId || isLoading)}
-                onClick={deleteConfirm ? handleConfirmDelete : handleDelete}
-              >
-                {deleteConfirm ? uiText.confirmDelete : uiText.delete}
-              </button>
-              <button className="btn btn-ghost" onClick={deleteConfirm ? handleCancelDelete : onClose} disabled={isLoading}>
-                {uiText.cancel}
-              </button>
-            </div>
+            </PanelSection>
           </>
         ) : (
           <>
-            <div className="dialog-body">
+            <PanelSummary
+              className="layer-action-dialog-summary"
+              description={action === 'create-translation' ? uiText.translationBoundaryHint : uiText.selectLanguage}
+              meta={summaryMeta}
+              supportingText={resolvedParentLayerLabel ? uiText.autoLinkedParent(resolvedParentLayerLabel) : undefined}
+            />
+            <PanelSection className="layer-action-dialog-section">
               <div className="dialog-field">
                 <select
-                  className="input layer-action-dialog-input"
+                  className="input panel-input layer-action-dialog-input"
                   value={langId}
                   onChange={(e) => setLangId(e.target.value)}
                 >
@@ -512,7 +560,7 @@ export function LayerActionPopover({
               {langId === '__custom__' && (
                 <div className="dialog-field">
                   <input
-                    className="input layer-action-dialog-input"
+                    className="input panel-input layer-action-dialog-input"
                     placeholder={uiText.customLanguageCodePlaceholder}
                     value={customLang}
                     onChange={(e) => setCustomLang(e.target.value)}
@@ -523,7 +571,7 @@ export function LayerActionPopover({
                 <>
                   <div className="dialog-field">
                     <select
-                      className="input layer-action-dialog-input"
+                      className="input panel-input layer-action-dialog-input"
                       value={orthographyPicker.isCreating ? ORTHOGRAPHY_CREATE_SENTINEL : orthographyId}
                       onChange={(e) => orthographyPicker.handleSelectionChange(e.target.value)}
                     >
@@ -561,7 +609,7 @@ export function LayerActionPopover({
               )}
               <div className="dialog-field">
                 <input
-                  className="input layer-action-dialog-input"
+                  className="input panel-input layer-action-dialog-input"
                   placeholder={uiText.aliasPlaceholder}
                   value={alias}
                   onChange={(e) => setAlias(e.target.value)}
@@ -571,7 +619,7 @@ export function LayerActionPopover({
                 <>
                   <div className="dialog-field">
                     <select
-                      className="input layer-action-dialog-input"
+                      className="input panel-input layer-action-dialog-input"
                       value={modality}
                       onChange={(e) => setModality(e.target.value as 'text' | 'audio' | 'mixed')}
                     >
@@ -586,7 +634,7 @@ export function LayerActionPopover({
                   {independentParentLayers.length > 1 && (
                     <div className="dialog-field">
                       <select
-                        className="input layer-action-dialog-input layer-parent-select"
+                        className="input panel-input layer-action-dialog-input layer-parent-select"
                         value={selectedParentLayerId}
                         onChange={(e) => setSelectedParentLayerId(e.target.value)}
                       >
@@ -605,9 +653,9 @@ export function LayerActionPopover({
                 </>
               )}
               {action === 'create-transcription' && showConstraintSelector && (
-                <fieldset className="layer-action-dialog-fieldset">
+                <fieldset className="panel-fieldset layer-action-dialog-fieldset">
                   <legend className="layer-action-dialog-fieldset-legend">{uiText.constraintLegend}</legend>
-                  <label className="layer-action-dialog-radio-option layer-action-dialog-radio-option-block">
+                  <label className="panel-radio layer-action-dialog-radio-option layer-action-dialog-radio-option-block">
                     <input
                       type="radio"
                       name="constraint"
@@ -616,9 +664,9 @@ export function LayerActionPopover({
                       disabled={!symbolicConstraintGuard.allowed}
                       onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
                     />
-                    {uiText.constraintDependent}
+                    <span>{uiText.constraintDependent}</span>
                   </label>
-                  <label className="layer-action-dialog-radio-option">
+                  <label className="panel-radio layer-action-dialog-radio-option">
                     <input
                       type="radio"
                       name="constraint"
@@ -627,14 +675,14 @@ export function LayerActionPopover({
                       disabled={!independentConstraintGuard.allowed}
                       onChange={(e) => setConstraint(e.target.value as LayerConstraint)}
                     />
-                    {uiText.constraintIndependent}
+                    <span>{uiText.constraintIndependent}</span>
                   </label>
                 </fieldset>
               )}
               {action === 'create-transcription' && showConstraintSelector && constraint === 'symbolic_association' && independentParentLayers.length > 1 && (
                 <div className="dialog-field">
                   <select
-                    className="input layer-action-dialog-input layer-parent-select"
+                    className="input panel-input layer-action-dialog-input layer-parent-select"
                     value={selectedParentLayerId}
                     onChange={(e) => setSelectedParentLayerId(e.target.value)}
                   >
@@ -669,24 +717,10 @@ export function LayerActionPopover({
                   )}
                 </div>
               )}
-            </div>
-            <div className="dialog-footer layer-action-dialog-footer">
-              <button
-                className="btn"
-                disabled={action === 'create-translation'
-                  ? (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || translationCreateDisabledReason.length > 0)
-                  : (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || transcriptionCreateDisabledReason.length > 0)}
-                onClick={handleCreate}
-              >
-                {uiText.create}
-              </button>
-              <button className="btn btn-ghost" onClick={onClose}>
-                {uiText.cancel}
-              </button>
-            </div>
+            </PanelSection>
           </>
         )}
-      </div>
+      </DialogShell>
     </div>
   );
 

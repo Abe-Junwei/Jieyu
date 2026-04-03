@@ -21,7 +21,7 @@ export type AiChatPromptLabMessages = {
 
 const zhCN: AiChatPromptLabMessages = {
   overviewTitle: '\u63d0\u793a\u8bcd\u5b9e\u9a8c\u5ba4',
-  templateCount: (count) => `\u6a21\u677f ${count}`,
+  templateCount: (count) => `${count} \u4e2a\u6a21\u677f`,
   draftReady: '\u8349\u7a3f\u5f85\u4fdd\u5b58',
   draftEmpty: '\u65e0\u8349\u7a3f',
   editingTemplate: '\u6b63\u5728\u7f16\u8f91',

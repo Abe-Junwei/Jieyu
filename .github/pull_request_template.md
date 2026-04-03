@@ -13,7 +13,13 @@
 - [ ] 已运行 `npm run typecheck`
 - [ ] 已运行 `npm test`
 - [ ] 已查看 `npm run report:architecture-hotspots`
+- [ ] 若影响转写页时间轴，已运行 `npm run gate:timeline-phase1`
 - [ ] 未新增 `check:architecture-guard` hard failure
+
+## Timeline 验收 | Timeline Validation
+
+- [ ] 若影响转写页时间轴，已按执行脚本完成手工冒烟：`docs/execution/手工验收执行脚本-转写页时间轴治理门禁-2026-04-03.md`
+- [ ] 已附验收证据（截图或录屏链接）
 
 ### Hotspot 检查 | Hotspot Check
 

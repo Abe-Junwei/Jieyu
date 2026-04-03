@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import '../styles/transcription.css';
+import '../styles/transcription-entry.css';
 import { t, useLocale } from '../i18n';
 
 interface TranscriptionPageProps {

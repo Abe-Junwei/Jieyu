@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { render, fireEvent, within } from '@testing-library/react';
 import { RegionActionOverlay } from './RegionActionOverlay';
 
 vi.mock('../../i18n', () => ({
@@ -50,6 +50,29 @@ describe('RegionActionOverlay', () => {
   it('renders overlay within visible area', () => {
     const { container } = render(<RegionActionOverlay {...defaultProps} />);
     expect(container.querySelector('.region-action-overlay')).toBeTruthy();
+  });
+
+  it('renders anchored overlay structure with clamped left offset and visible controls', () => {
+    const props = {
+      ...defaultProps,
+      utteranceStartTime: 1,
+      utteranceEndTime: 12,
+      zoomPxPerSec: 20,
+      scrollLeft: 40,
+    };
+    const { container } = render(<RegionActionOverlay {...props} />);
+
+    const overlay = container.querySelector('.region-action-overlay') as HTMLDivElement;
+    const buttons = container.querySelectorAll('.region-action-btn');
+    const slider = container.querySelector('.segment-speed-slider') as HTMLInputElement;
+
+    expect(overlay).toBeTruthy();
+    expect(overlay.style.left).toBe('0px');
+    expect(container.querySelector('.segment-speed-control')).toBeTruthy();
+    expect(slider.value).toBe('1');
+    expect(buttons.length).toBe(2);
+    expect(within(overlay).getByTitle('播放')).toBeTruthy();
+    expect(within(overlay).getByTitle(/播放速度 1\.00/)).toBeTruthy();
   });
 
   it('does not render when region is completely left of visible area', () => {

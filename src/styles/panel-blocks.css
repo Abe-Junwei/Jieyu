@@ -1,0 +1,13 @@
+@import './panels/layer-manager.css';
+@import './panels/action-dialogs.css';
+@import './panels/batch-operation.css';
+@import './panels/note-panel.css';
+@import './panels/note-popover.css';
+@import './panels/prompt-lab.css';
+@import './panels/replay-detail.css';
+@import './panels/pdf-viewer-panel.css';
+@import './panels/shortcuts-panel.css';
+@import './panels/ai-chat-thread.css';
+@import './panels/ai-analysis-panel.css';
+@import './panels/left-rail-project-hub.css';
+@import './panels/undo-history.css';

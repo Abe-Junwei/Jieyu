@@ -1,6 +1,162 @@
+import { t, tf, type Locale } from '.';
 import type { AiChatProviderKind } from '../ai/providers/providerCatalog';
 
 type AiConnectionTestStatus = 'idle' | 'testing' | 'success' | 'error' | null | undefined;
+type AiChatPreferredMode = 'command' | 'dictation' | 'analysis' | null | undefined;
+type AiChatConfirmationThreshold = 'always' | 'destructive' | 'never' | null | undefined;
+type AiChatPage = 'transcription' | 'glossing' | 'settings' | 'other' | null | undefined;
+type AiChatUnitKind = 'utterance' | 'segment' | null | undefined;
+type AiChatLayerType = 'transcription' | 'translation' | null | undefined;
+type AiAdaptiveIntent = 'translation' | 'transcription' | 'gloss' | 'review' | 'summary' | 'explain' | 'compare' | 'steps' | 'qa';
+type AiAdaptiveResponseStyle = 'analysis' | 'direct_edit' | 'concise' | 'detailed' | 'step_by_step';
+type AiChatTask =
+  | 'segmentation'
+  | 'transcription'
+  | 'translation'
+  | 'pos_tagging'
+  | 'glossing'
+  | 'risk_review'
+  | 'ai_chat_setup'
+  | null
+  | undefined;
+
+export interface RecommendedPlaceholderInput {
+  fallback: string;
+  page?: AiChatPage;
+  observerStage?: string | null;
+  aiCurrentTask?: AiChatTask;
+  selectedLayerType?: AiChatLayerType;
+  selectedUnitKind?: AiChatUnitKind;
+  selectedTimeRangeLabel?: string | null;
+  rowNumber?: number | null;
+  selectedText?: string | null;
+  annotationStatus?: string | null;
+  confidence?: number | null;
+  lexemeCount?: number;
+  lastToolName?: string | null;
+  preferredMode?: AiChatPreferredMode;
+  confirmationThreshold?: AiChatConfirmationThreshold;
+  adaptiveIntent?: AiAdaptiveIntent;
+  adaptiveResponseStyle?: AiAdaptiveResponseStyle;
+  adaptiveKeywords?: string[];
+  adaptiveLastPromptExcerpt?: string | null;
+}
+
+function clipText(text: string | null | undefined, max = 16): string {
+  const normalized = String(text ?? '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  return normalized.length <= max ? normalized : `${normalized.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+}
+
+function isLowConfidence(confidence: number | null | undefined): boolean {
+  return typeof confidence === 'number' && confidence > 0 && confidence < 0.72;
+}
+
+function normalizeTask(task: AiChatTask, observerStage: string | null | undefined): NonNullable<AiChatTask> | 'collecting' {
+  if (task) return task;
+  if (observerStage === 'reviewing') return 'risk_review';
+  if (observerStage === 'glossing') return 'glossing';
+  if (observerStage === 'transcribing') return 'transcription';
+  return 'collecting';
+}
+
+function getPlaceholderPrefix(locale: Locale, input: RecommendedPlaceholderInput): string {
+  if (input.adaptiveResponseStyle === 'step_by_step') return t(locale, 'ai.chat.placeholder.prefix.steps');
+  if (input.preferredMode === 'analysis' || input.confirmationThreshold === 'always' || input.adaptiveResponseStyle === 'analysis') {
+    return t(locale, 'ai.chat.placeholder.prefix.analysis');
+  }
+  if (input.adaptiveResponseStyle === 'direct_edit') return t(locale, 'ai.chat.placeholder.prefix.directEdit');
+  return t(locale, 'ai.chat.placeholder.prefix.default');
+}
+
+function buildRecommendedPlaceholder(locale: Locale, input: RecommendedPlaceholderInput): string {
+  const task = normalizeTask(input.aiCurrentTask, input.observerStage);
+  const rowLabel = input.rowNumber ? tf(locale, 'ai.chat.placeholder.scope.row', { rowNumber: input.rowNumber }) : '';
+  const unitLabel = input.selectedUnitKind === 'segment'
+    ? t(locale, 'ai.chat.placeholder.scope.unit.segment')
+    : input.selectedUnitKind === 'utterance'
+      ? t(locale, 'ai.chat.placeholder.scope.unit.utterance')
+      : '';
+  const layerLabel = input.selectedLayerType === 'translation'
+    ? t(locale, 'ai.chat.placeholder.scope.layer.translation')
+    : input.selectedLayerType === 'transcription'
+      ? t(locale, 'ai.chat.placeholder.scope.layer.transcription')
+      : '';
+  const excerpt = clipText(input.selectedText);
+  const excerptLabel = excerpt ? (locale === 'zh-CN' ? `「${excerpt}」` : `"${excerpt}"`) : '';
+  const scope = [rowLabel, unitLabel, layerLabel, input.selectedTimeRangeLabel ?? ''].filter(Boolean).join(locale === 'zh-CN' ? ' · ' : ' | ');
+  const target = [scope, excerptLabel].filter(Boolean).join(' ');
+  const focus = target || (input.page === 'transcription'
+    ? t(locale, 'ai.chat.placeholder.focus.transcriptionWorkspace')
+    : t(locale, 'ai.chat.placeholder.focus.currentContext'));
+  const prefix = getPlaceholderPrefix(locale, input);
+  const confidenceReview = isLowConfidence(input.confidence) || input.annotationStatus === 'verified';
+  const keywordHint = input.adaptiveKeywords && input.adaptiveKeywords.length > 0
+    ? tf(locale, 'ai.chat.placeholder.hint.keywords', { keywords: input.adaptiveKeywords.slice(0, 2).join(' / ') })
+    : '';
+  const recentNeedHint = input.adaptiveLastPromptExcerpt
+    ? tf(locale, 'ai.chat.placeholder.hint.recent', { prompt: input.adaptiveLastPromptExcerpt })
+    : '';
+
+  if (task === 'ai_chat_setup') {
+    return `${prefix}${t(locale, 'ai.chat.placeholder.setup')}`;
+  }
+
+  if (input.adaptiveIntent === 'compare') {
+    return `${prefix}${tf(locale, 'ai.chat.placeholder.compare', { focus })}${keywordHint}`;
+  }
+  if (input.adaptiveIntent === 'summary') {
+    return `${prefix}${tf(locale, 'ai.chat.placeholder.summary', { focus })}${keywordHint}`;
+  }
+  if (input.adaptiveIntent === 'explain') {
+    return `${prefix}${tf(locale, 'ai.chat.placeholder.explain', { focus })}${keywordHint}`;
+  }
+
+  if (input.selectedLayerType === 'translation') {
+    if (!excerpt) return `${prefix}${tf(locale, 'ai.chat.placeholder.translation.draft', { focus })}`;
+    if (confidenceReview || task === 'risk_review' || input.observerStage === 'reviewing') {
+      return `${prefix}${tf(locale, 'ai.chat.placeholder.translation.review', { focus })}${recentNeedHint}${keywordHint}`;
+    }
+    return `${prefix}${tf(locale, 'ai.chat.placeholder.translation.refine', { focus })}${recentNeedHint}${keywordHint}`;
+  }
+
+  if (input.selectedLayerType === 'transcription') {
+    if (!excerpt) return `${prefix}${tf(locale, 'ai.chat.placeholder.transcription.complete', { focus })}`;
+    if (task === 'glossing' || task === 'pos_tagging' || (input.lexemeCount ?? 0) > 0) {
+      return `${prefix}${tf(locale, 'ai.chat.placeholder.transcription.gloss', { focus })}${recentNeedHint}${keywordHint}`;
+    }
+    if (confidenceReview || input.observerStage === 'reviewing') {
+      return `${prefix}${tf(locale, 'ai.chat.placeholder.transcription.risk', { focus })}${recentNeedHint}${keywordHint}`;
+    }
+    return `${prefix}${tf(locale, 'ai.chat.placeholder.transcription.check', { focus })}${recentNeedHint}${keywordHint}`;
+  }
+
+  if (input.adaptiveIntent === 'translation') {
+    return `${prefix}${t(locale, 'ai.chat.placeholder.intent.translation')}${keywordHint}`;
+  }
+  if (input.adaptiveIntent === 'review') {
+    return `${prefix}${t(locale, 'ai.chat.placeholder.intent.review')}${keywordHint}`;
+  }
+  if (input.adaptiveIntent === 'gloss') {
+    return `${prefix}${t(locale, 'ai.chat.placeholder.intent.gloss')}${keywordHint}`;
+  }
+  if (task === 'glossing' || task === 'pos_tagging') {
+    return `${prefix}${t(locale, 'ai.chat.placeholder.task.gloss')}${keywordHint}`;
+  }
+  if (task === 'risk_review' || input.observerStage === 'reviewing') {
+    return `${prefix}${t(locale, 'ai.chat.placeholder.task.risk')}${keywordHint}`;
+  }
+  if (task === 'transcription' || task === 'segmentation') {
+    return `${prefix}${t(locale, 'ai.chat.placeholder.task.transcription')}${keywordHint}`;
+  }
+  if (task === 'translation') {
+    return `${prefix}${t(locale, 'ai.chat.placeholder.task.translation')}${keywordHint}`;
+  }
+  if (input.lastToolName === 'set_translation_text') {
+    return `${prefix}${t(locale, 'ai.chat.placeholder.tool.translationConsistency')}${keywordHint}`;
+  }
+  return `${prefix}${t(locale, 'ai.chat.placeholder.fallback')}${keywordHint}`;
+}
 
 export type AiChatCardMessages = {
   providerGroupOfficial: string;
@@ -33,6 +189,10 @@ export type AiChatCardMessages = {
   ragQuickScenarios: string;
   stopGenerating: string;
   stop: string;
+  recommendationTitle: string;
+  recommendationApply: string;
+  recommendationDismiss: string;
+  recommendationApplyHint: string;
   promptLab: string;
   promptTemplateCountSuffix: string;
   voiceInput: string;
@@ -48,6 +208,7 @@ export type AiChatCardMessages = {
   replayCompare: string;
   snapshotExported: string;
   exportSnapshot: string;
+  recommendedInputPlaceholder: (input: RecommendedPlaceholderInput) => string;
 };
 
 export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
@@ -89,6 +250,10 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       ragQuickScenarios: 'RAG \u5feb\u6377\u573a\u666f',
       stopGenerating: '\u505c\u6b62\u751f\u6210',
       stop: '\u505c\u6b62',
+      recommendationTitle: '\u4f60\u53ef\u80fd\u60f3\u95ee\uff1a',
+      recommendationApply: '\u586b\u5165\u8f93\u5165\u6846',
+      recommendationDismiss: '\u5ffd\u7565\u672c\u6761\u63a8\u8350',
+      recommendationApplyHint: 'Tab \u586b\u5165\uff0cEsc \u5ffd\u7565',
       promptLab: 'Prompt \u5b9e\u9a8c\u5ba4',
       promptTemplateCountSuffix: ' \u9879',
       voiceInput: '\u8bed\u97f3\u8f93\u5165',
@@ -104,6 +269,7 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       replayCompare: '\u67e5\u770b\u56de\u653e/\u5bf9\u6bd4',
       snapshotExported: '\u5df2\u5bfc\u51fa\u5feb\u7167',
       exportSnapshot: '\u5bfc\u51fa\u5feb\u7167',
+      recommendedInputPlaceholder: (input) => buildRecommendedPlaceholder('zh-CN', input),
     };
   }
 
@@ -144,6 +310,10 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     ragQuickScenarios: 'RAG Quick Scenarios',
     stopGenerating: 'Stop generating',
     stop: 'Stop',
+    recommendationTitle: 'You may want to ask:',
+    recommendationApply: 'Use suggestion',
+    recommendationDismiss: 'Dismiss suggestion',
+    recommendationApplyHint: 'Tab to use, Esc to dismiss',
     promptLab: 'Prompt Lab',
     promptTemplateCountSuffix: '',
     voiceInput: 'Voice Input',
@@ -159,5 +329,6 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     replayCompare: 'Replay / Compare',
     snapshotExported: 'Snapshot Exported',
     exportSnapshot: 'Export Snapshot',
+    recommendedInputPlaceholder: (input) => buildRecommendedPlaceholder('en-US', input),
   };
 }

@@ -1,0 +1,161 @@
+.note-popover {
+  position: fixed;
+  z-index: calc(var(--z-hub-sidebar) + 20);
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(82vh, 720px);
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+}
+
+.note-popover-dialog {
+  position: static;
+  inset: auto;
+}
+
+.note-popover-header {
+  flex-shrink: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 78%, var(--surface-panel));
+}
+
+.note-popover-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-popover-body {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.note-popover-close {
+  color: var(--text-secondary);
+}
+
+.note-popover-list-surface {
+  min-height: 0;
+}
+
+.note-popover-list {
+  overflow-y: auto;
+  padding: 0;
+  max-height: none;
+  min-height: 0;
+}
+
+.note-popover-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.note-popover-item:last-child {
+  border-bottom: none;
+}
+
+.note-popover-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: border-color 0.1s;
+}
+
+.note-popover-tag-comment  { background: var(--state-info-bg); color: var(--state-info-solid); }
+.note-popover-tag-question { background: var(--state-warning-bg); color: var(--state-warning-text); }
+.note-popover-tag-todo     { background: var(--state-info-bg); color: var(--state-info-solid); }
+.note-popover-tag-selected { border-color: currentColor; }
+
+.note-popover-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.note-popover-content p {
+  margin: 0;
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+}
+
+.note-popover-delete {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.note-popover-item:hover .note-popover-delete {
+  opacity: 1;
+}
+
+.note-popover-delete:hover {
+  color: var(--state-danger-solid);
+  background: var(--state-danger-bg);
+}
+
+.note-popover-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.note-popover-edit-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.note-popover-textarea {
+  min-height: 48px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.note-popover-add {
+  padding-top: 0;
+  border-top: 0;
+  flex-shrink: 0;
+}
+
+.note-popover-add-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-top: 6px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.note-popover-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.note-popover-btn {
+  white-space: nowrap;
+}

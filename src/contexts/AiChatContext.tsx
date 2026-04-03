@@ -7,15 +7,21 @@
 
 import { createContext, useContext } from 'react';
 import type { UtteranceDocType } from '../db';
-import type { AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiTaskSession, PendingAiToolCall, UiChatMessage } from '../hooks/useAiChat';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { ProjectStage } from '../ai/ProjectObserver';
+import type { AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiTaskSession, PendingAiToolCall, UiChatMessage } from '../hooks/useAiChat';
+import type { AiRecommendationEvent } from '../hooks/useAiChat.types';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export interface AiChatContextValue {
+  currentPage?: 'transcription' | 'glossing' | 'settings' | 'other';
   selectedUtterance: UtteranceDocType | null;
   selectedRowMeta: { rowNumber: number; start: number; end: number } | null;
+  selectedUnitKind?: 'utterance' | 'segment' | null;
+  selectedLayerType?: 'transcription' | 'translation';
+  selectedText?: string | null;
+  selectedTimeRangeLabel?: string | null;
   lexemeMatches: Array<{ id: string; lemma: Record<string, string> }>;
   // Chat
   aiChatEnabled: boolean;
@@ -56,6 +62,7 @@ export interface AiChatContextValue {
   onClearAiMessages: (() => void) | undefined;
   onConfirmPendingToolCall: (() => Promise<void>) | undefined;
   onCancelPendingToolCall: (() => Promise<void>) | undefined;
+  onTrackAiRecommendationEvent: ((event: AiRecommendationEvent) => void) | undefined;
   onJumpToCitation: ((
     citationType: 'utterance' | 'note' | 'pdf' | 'schema',
     refId: string,
@@ -64,8 +71,12 @@ export interface AiChatContextValue {
 }
 
 export const DEFAULT_AI_CHAT_CONTEXT_VALUE: AiChatContextValue = {
+  currentPage: 'other',
   selectedUtterance: null,
   selectedRowMeta: null,
+  selectedUnitKind: null,
+  selectedText: '',
+  selectedTimeRangeLabel: null,
   lexemeMatches: [],
   aiChatEnabled: false,
   aiProviderLabel: undefined,
@@ -90,6 +101,7 @@ export const DEFAULT_AI_CHAT_CONTEXT_VALUE: AiChatContextValue = {
   onClearAiMessages: undefined,
   onConfirmPendingToolCall: undefined,
   onCancelPendingToolCall: undefined,
+  onTrackAiRecommendationEvent: undefined,
   onJumpToCitation: undefined,
 };
 

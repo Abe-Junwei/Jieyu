@@ -1,0 +1,153 @@
+:root {
+  --panel-design-font-family: "Noto Sans SC", "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --panel-design-title-color: #0f172a;
+  --panel-design-text-color: #64748b;
+  --panel-design-muted-color: #94a3b8;
+  --panel-design-border-color: #e2e8f0;
+  --panel-design-surface-color: #ffffff;
+  --panel-design-accent-color: #2563eb;
+}
+
+.panel-design-match,
+.panel-design-match-content {
+  font-family: var(--panel-design-font-family);
+  color: var(--panel-design-text-color);
+}
+
+.panel-design-match :is(.panel-input, .panel-button, .panel-chip, .panel-note, .panel-section__title, .panel-section__description, .panel-summary__supporting, input, select, textarea, button),
+.panel-design-match-content :is(.panel-input, .panel-button, .panel-chip, .panel-note, .panel-section__title, .panel-section__description, .panel-summary__supporting, input, select, textarea, button) {
+  font-family: inherit;
+}
+
+.panel-design-match-dialog.dialog-card {
+  border-color: var(--panel-design-border-color);
+  background: var(--panel-design-surface-color);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+}
+
+.panel-design-match-dialog .dialog-header {
+  min-height: 44px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--panel-design-border-color);
+  background: var(--panel-design-surface-color);
+}
+
+.panel-design-match-dialog :is(.dialog-shell__title, .note-panel-title, .note-popover-title) {
+  color: var(--panel-design-title-color);
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.panel-design-match-dialog .dialog-body {
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.panel-design-match-dialog .dialog-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--panel-design-border-color);
+  background: var(--panel-design-surface-color);
+}
+
+.panel-design-match-dialog .icon-btn {
+  color: var(--panel-design-muted-color);
+}
+
+.panel-design-match-dialog .icon-btn:hover {
+  color: var(--panel-design-text-color);
+}
+
+.panel-design-match :is(.panel-section, .panel-section--emphasis, .panel-organization-surface, .panel-organization-surface-emphasis),
+.panel-design-match-content :is(.panel-section, .panel-section--emphasis, .panel-organization-surface, .panel-organization-surface-emphasis) {
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--panel-design-border-color);
+  border-radius: 8px;
+  background: var(--panel-design-surface-color);
+  box-shadow: none;
+}
+
+.panel-design-match :is(.panel-section__header, .panel-section__meta, .dialog-stat-row),
+.panel-design-match-content :is(.panel-section__header, .panel-section__meta, .dialog-stat-row) {
+  gap: 8px 12px;
+}
+
+.panel-design-match :is(.panel-section__title, .panel-organization-surface-title, .ai-chat-replay-panel-section-title),
+.panel-design-match-content :is(.panel-section__title, .panel-organization-surface-title, .ai-chat-replay-panel-section-title) {
+  color: var(--panel-design-text-color);
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.panel-design-match :is(.panel-section__description, .panel-summary__supporting, .panel-note, .panel-organization-surface-copy, .dialog-supporting-note),
+.panel-design-match-content :is(.panel-section__description, .panel-summary__supporting, .panel-note, .panel-organization-surface-copy, .dialog-supporting-note) {
+  color: var(--panel-design-text-color);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.panel-design-match :is(.panel-chip, .dialog-stat-chip, .panel-organization-chip),
+.panel-design-match-content :is(.panel-chip, .dialog-stat-chip, .panel-organization-chip) {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--panel-design-muted-color);
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.panel-design-match :is(.panel-chip--danger, .panel-note--danger, .dialog-stat-chip-danger, .panel-organization-chip-danger, .dialog-supporting-note-danger),
+.panel-design-match-content :is(.panel-chip--danger, .panel-note--danger, .dialog-stat-chip-danger, .panel-organization-chip-danger, .dialog-supporting-note-danger) {
+  color: #b91c1c;
+}
+
+.panel-design-match :is(.panel-input),
+.panel-design-match-content :is(.panel-input) {
+  min-height: 30px;
+  padding: 6px 8px;
+  border-color: var(--panel-design-border-color);
+  border-radius: 6px;
+  background: var(--panel-design-surface-color);
+  color: var(--panel-design-title-color);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.panel-design-match textarea.panel-input,
+.panel-design-match-content textarea.panel-input {
+  min-height: 44px;
+}
+
+.panel-design-match :is(.panel-button),
+.panel-design-match-content :is(.panel-button) {
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  border-color: var(--panel-design-border-color);
+  background: var(--panel-design-surface-color);
+  color: var(--panel-design-text-color);
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.panel-design-match :is(.panel-button--primary),
+.panel-design-match-content :is(.panel-button--primary) {
+  border-color: var(--panel-design-accent-color);
+  background: var(--panel-design-accent-color);
+  color: #f8fafc;
+}
+
+.panel-design-match :is(.panel-button--danger),
+.panel-design-match-content :is(.panel-button--danger) {
+  border-color: #b91c1c;
+  background: #b91c1c;
+  color: #f8fafc;
+}

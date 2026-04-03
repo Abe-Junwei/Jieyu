@@ -10,6 +10,9 @@ import {
   getLayerCreateGuard,
   listIndependentBoundaryTranscriptionLayers,
 } from '../services/LayerConstraintService';
+import { DialogShell } from './ui/DialogShell';
+import { PanelSection } from './ui/PanelSection';
+import { PanelSummary } from './ui/PanelSummary';
 
 const BUBBLE_ANIMATION_MS = 180;
 
@@ -296,54 +299,82 @@ export function LayerManagerPopover({
     };
   }, [isDialogMode, isOpen, onClose]);
 
-  const managerCard = (
-    <div className="transcription-layer-form transcription-layer-manager dialog-card" ref={panelRef}>
-      <div className="transcription-layer-manager-head dialog-header">
-        <h3>{messages.layerManagement}</h3>
-        <div className="dialog-header-actions">
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={onClose}
-            aria-label={messages.close}
-            title={messages.close}
-          >
-            <X size={18} />
-          </button>
-        </div>
-      </div>
+  const layerManagerSummaryMessage = message
+    || transcriptionCreateError
+    || translationCreateError
+    || (!independentParentLayers.length ? messages.translationBoundarySource : '');
+  const selectedDeleteLabel = layerPendingDelete
+    ? `${getLayerDisplayName(layerPendingDelete)} · ${formatLayerLanguage(layerPendingDelete, messages.missingLanguage)}`
+    : '';
 
-      <div className="transcription-layer-manager-body dialog-body">
-        <div className="transcription-layer-columns">
-        <div className="transcription-layer-section transcription-layer-section-transcription">
-          <div className="transcription-layer-section-head-row">
-            <div className="transcription-layer-section-head">
-              <AudioLines size={14} />
+  const managerCard = (
+    <DialogShell
+      containerRef={panelRef}
+      className="transcription-layer-form transcription-layer-manager layer-manager panel-design-match panel-design-match-dialog"
+      {...(isDialogMode ? {
+        role: 'dialog' as const,
+        'aria-modal': true,
+        'aria-label': messages.layerManagement,
+      } : {})}
+      headerClassName="transcription-layer-manager-head"
+      bodyClassName="transcription-layer-manager-body layer-manager__body"
+      title={messages.layerManagement}
+      actions={(
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={onClose}
+          aria-label={messages.close}
+          title={messages.close}
+        >
+          <X size={18} />
+        </button>
+      )}
+      footerClassName="layer-manager__footer"
+      footer={(
+        <>
+          <span className="dialog-hint">{messages.translationBoundarySource}</span>
+          <button type="button" className="transcription-outline-btn panel-button panel-button--ghost" onClick={onClose}>
+            {messages.close}
+          </button>
+        </>
+      )}
+    >
+      <PanelSummary
+        className="layer-manager__summary"
+        title={messages.layerManagement}
+        description={`${messages.createTranscriptionLayer} / ${messages.createTranslationLayer} / ${messages.deleteLayer}`}
+        meta={(
+          <div className="panel-meta">
+            <span className="panel-chip">{messages.existingCount(transcriptionLayerCount)}</span>
+            <span className="panel-chip">{messages.existingCount(translationLayerCount)}</span>
+            <span className={`panel-chip${deletableLayers.length > 0 ? ' panel-chip--warning' : ''}`}>{messages.deletableCount(deletableLayers.length)}</span>
+          </div>
+        )}
+        supportingText={layerManagerSummaryMessage || undefined}
+        supportingClassName={transcriptionCreateError || translationCreateError ? 'panel-note panel-note--danger' : 'panel-note'}
+      />
+
+      <div className="layer-manager__grid">
+        <PanelSection
+          className="layer-manager__panel"
+          title={(
+            <div className="layer-manager__heading">
+              <AudioLines size={14} className="layer-manager__icon" />
               <span>{messages.createTranscriptionLayer}</span>
             </div>
-            <span className="toolbar-chip small-chip transcription-layer-count-chip">{messages.existingCount(transcriptionLayerCount)}</span>
-          </div>
+          )}
+          description={messages.existingCount(transcriptionLayerCount)}
+          meta={<span className="panel-chip">{transcriptionConstraint === 'symbolic_association' ? messages.dependentConstraint : messages.independentConstraint}</span>}
+        >
           {transcriptionCreateError && (
-            <div
-              role="alert"
-              aria-live="assertive"
-              style={{
-                border: '1px solid var(--state-danger-border)',
-                background: 'var(--state-danger-bg)',
-                color: 'var(--state-danger-text)',
-                borderRadius: 8,
-                padding: '8px 10px',
-                fontSize: 13,
-                fontWeight: 600,
-                lineHeight: 1.45,
-              }}
-            >
+            <div role="alert" aria-live="assertive" className="layer-manager__alert">
               {messages.createFailedPrefix}: {transcriptionCreateError}
             </div>
           )}
-          <div className="transcription-layer-column-fields">
+          <div className="layer-manager__fields">
             <select
-              className="input"
+              className="input panel-input"
               value={transcriptionForm.languageId}
               onChange={(event) => setTranscriptionForm((prev) => ({ ...prev, languageId: event.target.value }))}
             >
@@ -355,22 +386,22 @@ export function LayerManagerPopover({
             </select>
             {transcriptionForm.languageId === '__custom__' && (
               <input
-                className="input"
+                className="input panel-input"
                 placeholder={messages.customLanguageCodePlaceholder}
                 value={transcriptionCustomLang}
                 onChange={(event) => setTranscriptionCustomLang(event.target.value)}
               />
             )}
             <input
-              className="input"
+              className="input panel-input"
               placeholder={messages.aliasPlaceholder}
               value={transcriptionForm.alias ?? ''}
               onChange={(event) => setTranscriptionForm((prev) => ({ ...prev, alias: event.target.value }))}
             />
             {canConfigureTranscriptionConstraint && (
-              <fieldset style={{ margin: '8px 0', padding: '8px', border: '1px solid var(--border-soft)', borderRadius: '4px' }}>
-                <legend style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', paddingBottom: 4 }}>{messages.constraintLegend}</legend>
-                <label style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 13 }}>
+              <fieldset className="panel-fieldset">
+                <legend>{messages.constraintLegend}</legend>
+                <label className="panel-radio">
                   <input
                     type="radio"
                     name="manager-transcription-constraint"
@@ -378,94 +409,82 @@ export function LayerManagerPopover({
                     checked={transcriptionConstraint === 'symbolic_association'}
                     disabled={!transcriptionSymbolicGuard.allowed}
                     onChange={(event) => setTranscriptionConstraint(event.target.value as LayerConstraint)}
-                    style={{ marginRight: 6 }}
                   />
-                  {messages.dependentConstraint}
+                  <span>{messages.dependentConstraint}</span>
                 </label>
-                  <label style={{ display: 'flex', alignItems: 'center', fontSize: 13 }}>
-                    <input
-                      type="radio"
-                      name="manager-transcription-constraint"
-                      value="independent_boundary"
-                      checked={transcriptionConstraint === 'independent_boundary'}
-                      disabled={!transcriptionIndependentGuard.allowed}
-                      onChange={(event) => setTranscriptionConstraint(event.target.value as LayerConstraint)}
-                      style={{ marginRight: 6 }}
-                    />
-                    {messages.independentConstraint}
-                  </label>
+                <label className="panel-radio">
+                  <input
+                    type="radio"
+                    name="manager-transcription-constraint"
+                    value="independent_boundary"
+                    checked={transcriptionConstraint === 'independent_boundary'}
+                    disabled={!transcriptionIndependentGuard.allowed}
+                    onChange={(event) => setTranscriptionConstraint(event.target.value as LayerConstraint)}
+                  />
+                  <span>{messages.independentConstraint}</span>
+                </label>
               </fieldset>
             )}
-              {needsTranscriptionParent && independentParentLayers.length > 1 && (
-                <select
-                  className="input layer-parent-select"
-                  value={transcriptionParentLayerId}
-                  onChange={(event) => setTranscriptionParentLayerId(event.target.value)}
-                >
-                  <option value="">{messages.selectParentLayer}</option>
-                  {independentParentLayers.map((layer) => (
-                    <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
-                  ))}
-                </select>
-              )}
-              {needsTranscriptionParent && autoTranscriptionParentLayer && (
-                <p className="layer-parent-auto-note">{messages.autoLinkedParent(formatParentLayerOptionLabel(autoTranscriptionParentLayer))}</p>
-              )}
+            {needsTranscriptionParent && independentParentLayers.length > 1 && (
+              <select
+                className="input panel-input layer-parent-select"
+                value={transcriptionParentLayerId}
+                onChange={(event) => setTranscriptionParentLayerId(event.target.value)}
+              >
+                <option value="">{messages.selectParentLayer}</option>
+                {independentParentLayers.map((layer) => (
+                  <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
+                ))}
+              </select>
+            )}
+            {needsTranscriptionParent && autoTranscriptionParentLayer && (
+              <p className="panel-note">{messages.autoLinkedParent(formatParentLayerOptionLabel(autoTranscriptionParentLayer))}</p>
+            )}
           </div>
+          {(transcriptionCreateDisabledReason || !hasValidTranscriptionLanguage) && (
+            <div className="layer-manager__feedback-stack">
+              {transcriptionCreateDisabledReason && (
+                <p className="layer-manager__feedback layer-manager__feedback--error">
+                  {messages.transcriptionDisabledReason(transcriptionCreateDisabledReason)}
+                </p>
+              )}
+              {!hasValidTranscriptionLanguage && (
+                <p className="layer-manager__feedback layer-manager__feedback--info">
+                  {messages.transcriptionLanguageRequired}
+                </p>
+              )}
+            </div>
+          )}
           <div className="action-row">
             <button
-              className="btn"
+              className="btn panel-button panel-button--primary"
               disabled={!hasValidTranscriptionLanguage || transcriptionCreateDisabledReason.length > 0}
               onClick={() => fireAndForget(handleCreateTranscription())}
             >
               {messages.createTranscriptionLayer}
             </button>
           </div>
-          {(transcriptionCreateDisabledReason || !hasValidTranscriptionLanguage) && (
-            <div className="layer-create-feedback-stack">
-              {transcriptionCreateDisabledReason && (
-                <p className="layer-create-feedback layer-create-feedback-error">
-                  {messages.transcriptionDisabledReason(transcriptionCreateDisabledReason)}
-                </p>
-              )}
-              {!hasValidTranscriptionLanguage && (
-                <p className="layer-create-feedback layer-create-feedback-info">
-                  {messages.transcriptionLanguageRequired}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+        </PanelSection>
 
-        <div className="transcription-layer-section transcription-layer-section-translation">
-          <div className="transcription-layer-section-head-row">
-            <div className="transcription-layer-section-head">
-              <Languages size={14} />
+        <PanelSection
+          className="layer-manager__panel"
+          title={(
+            <div className="layer-manager__heading">
+              <Languages size={14} className="layer-manager__icon" />
               <span>{messages.createTranslationLayer}</span>
             </div>
-            <span className="toolbar-chip small-chip transcription-layer-count-chip">{messages.existingCount(translationLayerCount)}</span>
-          </div>
+          )}
+          description={messages.existingCount(translationLayerCount)}
+          meta={<span className="panel-chip">{translationModalityOptions.find((option) => option.value === translationModality)?.label ?? messages.modalityText}</span>}
+        >
           {translationCreateError && (
-            <div
-              role="alert"
-              aria-live="assertive"
-              style={{
-                border: '1px solid var(--state-danger-border)',
-                background: 'var(--state-danger-bg)',
-                color: 'var(--state-danger-text)',
-                borderRadius: 8,
-                padding: '8px 10px',
-                fontSize: 13,
-                fontWeight: 600,
-                lineHeight: 1.45,
-              }}
-            >
+            <div role="alert" aria-live="assertive" className="layer-manager__alert">
               {messages.createFailedPrefix}: {translationCreateError}
             </div>
           )}
-          <div className="transcription-layer-column-fields">
+          <div className="layer-manager__fields">
             <select
-              className="input"
+              className="input panel-input"
               value={translationForm.languageId}
               onChange={(event) => setTranslationForm((prev) => ({ ...prev, languageId: event.target.value }))}
             >
@@ -477,20 +496,20 @@ export function LayerManagerPopover({
             </select>
             {translationForm.languageId === '__custom__' && (
               <input
-                className="input"
+                className="input panel-input"
                 placeholder={messages.customLanguageCodePlaceholder}
                 value={translationCustomLang}
                 onChange={(event) => setTranslationCustomLang(event.target.value)}
               />
             )}
             <input
-              className="input"
+              className="input panel-input"
               placeholder={messages.aliasPlaceholder}
               value={translationForm.alias ?? ''}
               onChange={(event) => setTranslationForm((prev) => ({ ...prev, alias: event.target.value }))}
             />
             <select
-              className="input"
+              className="input panel-input"
               value={translationModality}
               onChange={(event) => setTranslationModality(event.target.value as 'text' | 'audio' | 'mixed')}
             >
@@ -500,12 +519,10 @@ export function LayerManagerPopover({
                 </option>
               ))}
             </select>
-            <div className="layer-parent-guidance-note">
-              {messages.translationBoundarySource}
-            </div>
+            <p className="panel-note">{messages.translationBoundarySource}</p>
             {independentParentLayers.length > 1 && (
               <select
-                className="input layer-parent-select"
+                className="input panel-input layer-parent-select"
                 value={translationParentLayerId}
                 onChange={(event) => setTranslationParentLayerId(event.target.value)}
               >
@@ -516,45 +533,48 @@ export function LayerManagerPopover({
               </select>
             )}
             {autoTranslationParentLayer && (
-              <p className="layer-parent-auto-note">{messages.autoLinkedParent(formatParentLayerOptionLabel(autoTranslationParentLayer))}</p>
+              <p className="panel-note">{messages.autoLinkedParent(formatParentLayerOptionLabel(autoTranslationParentLayer))}</p>
             )}
           </div>
+          {(translationCreateDisabledReason || !hasValidTranslationLanguage) && (
+            <div className="layer-manager__feedback-stack">
+              {translationCreateDisabledReason && (
+                <p className="layer-manager__feedback layer-manager__feedback--error">
+                  {messages.translationDisabledReason(translationCreateDisabledReason)}
+                </p>
+              )}
+              {!hasValidTranslationLanguage && (
+                <p className="layer-manager__feedback layer-manager__feedback--info">
+                  {messages.translationLanguageRequired}
+                </p>
+              )}
+            </div>
+          )}
           <div className="action-row">
             <button
-              className="btn"
+              className="btn panel-button panel-button--primary"
               disabled={!hasValidTranslationLanguage || translationCreateDisabledReason.length > 0}
               onClick={() => fireAndForget(handleCreateTranslation())}
             >
               {messages.createTranslationLayer}
             </button>
           </div>
-          {(translationCreateDisabledReason || !hasValidTranslationLanguage) && (
-            <div className="layer-create-feedback-stack">
-              {translationCreateDisabledReason && (
-                <p className="layer-create-feedback layer-create-feedback-error">
-                  {messages.translationDisabledReason(translationCreateDisabledReason)}
-                </p>
-              )}
-              {!hasValidTranslationLanguage && (
-                <p className="layer-create-feedback layer-create-feedback-info">
-                  {messages.translationLanguageRequired}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+        </PanelSection>
 
-        <div className="transcription-layer-section transcription-layer-section-delete">
-          <div className="transcription-layer-section-head-row">
-            <div className="transcription-layer-section-head">
-              <Trash2 size={14} />
+        <PanelSection
+          className="layer-manager__panel layer-manager__panel--delete"
+          title={(
+            <div className="layer-manager__heading">
+              <Trash2 size={14} className="layer-manager__icon" />
               <span>{messages.deleteLayer}</span>
             </div>
-            <span className="toolbar-chip small-chip transcription-layer-count-chip">{messages.deletableCount(deletableLayers.length)}</span>
-          </div>
-          <div className="transcription-layer-column-fields">
+          )}
+          description={messages.deletableCount(deletableLayers.length)}
+          meta={selectedDeleteLabel ? <span className="panel-chip panel-chip--danger">{selectedDeleteLabel}</span> : undefined}
+        >
+          <div className="layer-manager__fields">
             <select
-              className="input"
+              className="input panel-input"
               value={layerToDeleteId}
               onChange={(event) => onLayerToDeleteIdChange(event.target.value)}
               disabled={deletableLayers.length === 0}
@@ -574,7 +594,7 @@ export function LayerManagerPopover({
               )}
             </select>
 
-            <p className="small-text">
+            <p className="panel-note panel-note--danger">
               {deletableLayers.length === 0
                 ? messages.noDeletableLayersHint
                 : messages.deleteCleanupHint}
@@ -583,19 +603,16 @@ export function LayerManagerPopover({
 
           <div className="action-row">
             <button
-              className="btn btn-danger"
+              className="btn btn-danger panel-button panel-button--danger"
               onClick={() => fireAndForget(Promise.resolve(onDeleteLayer()))}
               disabled={deletableLayers.length === 0 || !layerPendingDelete}
             >
               {messages.confirmDelete}
             </button>
           </div>
-        </div>
+        </PanelSection>
       </div>
-
-      {message && <p className="small-text transcription-layer-manager-message">{message}</p>}
-      </div>
-    </div>
+    </DialogShell>
   );
 
   return (

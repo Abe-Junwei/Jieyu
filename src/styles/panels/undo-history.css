@@ -1,0 +1,93 @@
+/* UndoHistory */
+
+.transcription-undo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(224, 242, 254, 0.9);
+  color: var(--state-info-text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.transcription-undo-chip-label {
+  display: inline;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transcription-undo-history {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  min-width: 180px;
+  max-width: 280px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: calc(var(--z-timeline-sticky) + 16);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-panel);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
+  padding: 8px;
+  color: var(--text-primary);
+  display: grid;
+  gap: 4px;
+}
+
+.transcription-undo-history-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.transcription-undo-history-item {
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.45;
+  padding: 4px 6px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 76%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 78%, var(--surface-panel));
+  width: 100%;
+  text-align: left;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.transcription-undo-history-item:hover {
+  background: color-mix(in srgb, var(--surface-header) 66%, var(--state-info-bg));
+  border-color: color-mix(in srgb, var(--state-info-solid) 36%, var(--border-soft));
+}
+
+.transcription-undo-history-redo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: auto;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+@media (max-width: 1080px) {
+  .transcription-undo-chip {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .transcription-undo-chip-label {
+    display: none;
+  }
+}

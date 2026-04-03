@@ -26,8 +26,16 @@ describe('SpeakerActionDialog', () => {
       />,
     );
 
+    const dialog = screen.getByRole('dialog', { name: '重命名说话人' });
+    const cancelButton = screen.getByRole('button', { name: '取消' });
+    const confirmButton = screen.getByRole('button', { name: '确认改名' });
+
     fireEvent.change(screen.getByLabelText('新的说话人名称'), { target: { value: '新名字' } });
 
+    expect(dialog.className).toContain('dialog-card');
+    expect(dialog.className).toContain('speaker-action-dialog');
+    expect(cancelButton.className).toContain('panel-button--ghost');
+    expect(confirmButton.className).toContain('panel-button--primary');
     expect((screen.getByRole('button', { name: '确认改名' }) as HTMLButtonElement).disabled).toBe(false);
     expect(onDraftNameChange).toHaveBeenCalledWith('新名字');
   });
@@ -113,11 +121,12 @@ describe('SpeakerActionDialog', () => {
 
     const dialog = screen.getByRole('dialog', { name: '删除说话人实体' });
     const overlay = dialog.parentElement;
+    const confirmButton = screen.getByRole('button', { name: '确认删除说话人实体' });
 
     expect(screen.getByText('删除说话人实体“来源说话人”后，将影响 4 条句段。')).toBeTruthy();
     expect(screen.getByText('风险提示：若选择删除说话人标签，相关句段将失去说话人归属。建议优先迁移到其他说话人。')).toBeTruthy();
     expect(onTargetSpeakerChange).toHaveBeenCalledWith('speaker-2');
-    expect(screen.getByRole('button', { name: '确认删除说话人实体' })).toBeTruthy();
+    expect(confirmButton.className).toContain('panel-button--danger');
     expect(overlay?.classList.contains('dialog-overlay-topmost')).toBe(true);
   });
 });

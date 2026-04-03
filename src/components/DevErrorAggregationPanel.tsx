@@ -58,6 +58,7 @@ export function DevErrorAggregationPanel() {
 
   return (
     <details
+      className="dev-error-aggregation-panel"
       dir={uiTextDirection}
       style={{
         position: 'fixed',
@@ -76,10 +77,10 @@ export function DevErrorAggregationPanel() {
         fontSize: Math.max(11, Math.round(12 * uiFontScale)),
       }}
     >
-      <summary style={{ cursor: 'pointer', userSelect: 'none' }}>
+      <summary className="dev-error-aggregation-panel-summary" style={{ cursor: 'pointer', userSelect: 'none' }}>
         {messages.summary(entries.length)}
       </summary>
-      <div style={{ marginTop: 6, display: 'grid', gap: 4 }}>
+      <div className="dev-error-aggregation-panel-list" style={{ marginTop: 6, display: 'grid', gap: 4 }}>
         {entries.slice(0, 20).map((entry) => (
           <div key={`${entry.category}:${entry.action}:${entry.i18nKey ?? ''}:${entry.recoverable}`}>
             <strong>{entry.count}x</strong>

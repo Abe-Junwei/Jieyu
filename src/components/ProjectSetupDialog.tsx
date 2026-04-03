@@ -9,6 +9,7 @@ import {
   ORTHOGRAPHY_CREATE_SENTINEL,
   useOrthographyPicker,
 } from '../hooks/useOrthographyPicker';
+import { DialogShell } from './ui/DialogShell';
 
 type ProjectSetupDialogProps = {
   isOpen: boolean;
@@ -70,19 +71,39 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
 
   return (
     <div className="dialog-overlay" onClick={handleClose}>
-      <div className="dialog-card" role="dialog" aria-modal="true" aria-label={messages.title} onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-header">
-          <h3>{messages.title}</h3>
+      <DialogShell
+        className="project-setup-dialog panel-design-match panel-design-match-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={messages.title}
+        title={messages.title}
+        actions={(
           <button className="icon-btn" onClick={handleClose} title={messages.close}>
             <X size={18} />
           </button>
-        </div>
-
-        <div className="dialog-body">
+        )}
+        footer={(
+          <>
+            <button className="panel-button panel-button--ghost" onClick={handleClose} disabled={submitting}>
+              {messages.cancel}
+            </button>
+            <button
+              className="panel-button panel-button--primary"
+              disabled={!canSubmit}
+              onClick={() => {
+                void handleSubmit();
+              }}
+            >
+              {submitting ? messages.creating : messages.createProject}
+            </button>
+          </>
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
           <label className="dialog-field">
             <span>{messages.titleZhLabel}<em>*</em></span>
             <input
-              className="input"
+              className="input panel-input"
               type="text"
               value={titleZh}
               onChange={(e) => setTitleZh(e.target.value)}
@@ -94,7 +115,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
           <label className="dialog-field">
             <span>{messages.titleEnLabel}</span>
             <input
-              className="input"
+              className="input panel-input"
               type="text"
               value={titleEn}
               onChange={(e) => setTitleEn(e.target.value)}
@@ -105,7 +126,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
           <label className="dialog-field">
             <span>{messages.languageLabel} <em>*</em></span>
             <select
-              className="input"
+              className="input panel-input"
               value={languageId}
               onChange={(e) => setLanguageId(e.target.value)}
             >
@@ -121,7 +142,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
             <label className="dialog-field">
               <span>{messages.languageCodeLabel}</span>
               <input
-                className="input"
+                className="input panel-input"
                 type="text"
                 maxLength={8}
                 value={customLang}
@@ -135,7 +156,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
             <div className="dialog-field">
               <span>{messages.orthographyLabel}</span>
               <select
-                className="input"
+                className="input panel-input"
                 value={orthographyPicker.isCreating ? ORTHOGRAPHY_CREATE_SENTINEL : orthographyId}
                 onChange={(e) => orthographyPicker.handleSelectionChange(e.target.value)}
               >
@@ -169,23 +190,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
           )}
 
           {error && <p className="error">{error}</p>}
-        </div>
-
-        <div className="dialog-footer">
-          <button className="btn btn-ghost" onClick={handleClose} disabled={submitting}>
-            {messages.cancel}
-          </button>
-          <button
-            className="btn"
-            disabled={!canSubmit}
-            onClick={() => {
-              void handleSubmit();
-            }}
-          >
-            {submitting ? messages.creating : messages.createProject}
-          </button>
-        </div>
-      </div>
+      </DialogShell>
     </div>
   );
 }

@@ -147,4 +147,87 @@ describe('AI complex panels RTL matrix', () => {
     expect(computeAdaptivePanelWidthMock).toHaveBeenCalledWith(expect.objectContaining({ baseWidth: 320, direction }));
     expect(computeAdaptivePanelWidthMock).toHaveBeenCalledWith(expect.objectContaining({ baseWidth: 520, direction }));
   });
+
+  it('renders replay detail panel shell with summary, sections, and diff controls', () => {
+    resolveTextDirectionFromLocaleMock.mockReturnValue('ltr');
+
+    const view = render(
+      <LocaleProvider locale="en-US">
+        <AiChatReplayDetailPanel
+          isZh={false}
+          showReplayDetailPanel
+          selectedReplayBundle={{
+            toolName: 'delete_layer',
+            requestId: 'req-123456',
+            replayable: false,
+            toolCall: {
+              name: 'delete_layer',
+              arguments: { layerId: 'layer-1' },
+            },
+            decisions: [
+              {
+                decision: 'blocked',
+                source: 'ai',
+                timestamp: '2026-04-03T00:00:00.000Z',
+                reason: 'confirmation required',
+                toolName: 'delete_layer',
+              },
+            ],
+            latestDecision: {
+              decision: 'blocked',
+              source: 'ai',
+              timestamp: '2026-04-03T00:00:00.000Z',
+              reason: 'confirmation required',
+              toolName: 'delete_layer',
+            },
+          } as any}
+          compareSnapshot={{
+            schemaVersion: 1,
+            exportedAt: '2026-04-03T00:00:00.000Z',
+            requestId: 'baseline-1',
+            toolName: 'delete_layer',
+            replayable: true,
+            decisions: [],
+          }}
+          snapshotDiff={{
+            matches: false,
+            fields: [
+              {
+                label: 'toolName',
+                baseline: '"delete_layer"',
+                live: '"delete_layer_v2"',
+                changed: true,
+              },
+            ],
+          }}
+          importFileInputRef={{ current: null }}
+          onToggleDetail={vi.fn()}
+          onClose={vi.fn()}
+          onImportSnapshotFile={vi.fn()}
+          onClearCompare={vi.fn()}
+        />
+      </LocaleProvider>,
+    );
+
+    const root = view.container.querySelector('.ai-chat-replay-panel') as HTMLDivElement;
+    const buttons = view.container.querySelectorAll('.ai-chat-replay-panel-btn');
+    const sections = view.container.querySelectorAll('.ai-chat-replay-panel-section');
+    const diffBadge = view.container.querySelector('.ai-chat-replay-panel-diff-badge') as HTMLSpanElement;
+    const fileInput = view.container.querySelector('.ai-chat-replay-panel-file-input') as HTMLInputElement;
+
+    expect(root).toBeTruthy();
+    expect(root.querySelector('.ai-chat-replay-panel-summary')).toBeTruthy();
+    expect(root.querySelector('.ai-chat-replay-panel-header')).toBeTruthy();
+    expect(buttons.length).toBeGreaterThanOrEqual(4);
+    buttons.forEach((button) => {
+      expect(button.className).toContain('panel-button');
+    });
+    expect(sections.length).toBe(4);
+    expect(diffBadge.className).toContain('is-changed');
+    expect(fileInput).toBeTruthy();
+    expect(fileInput.getAttribute('type')).toBe('file');
+    expect(screen.getByText('Decision timeline')).toBeTruthy();
+    expect(screen.getByText('Golden Snapshot Preview')).toBeTruthy();
+    expect(screen.getByText('Snapshot Diff')).toBeTruthy();
+  });
 });

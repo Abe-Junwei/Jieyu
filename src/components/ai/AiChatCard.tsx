@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { Fragment, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { ArrowUp, Check, Copy, Settings, X } from 'lucide-react';
 import {
   diffAiToolSnapshot,
@@ -30,6 +30,12 @@ import { AiChatReplayDetailPanel } from './AiChatReplayDetailPanel';
 import { useAiPromptTemplates } from './useAiPromptTemplates';
 import { escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
 import { getAiChatCardMessages } from '../../i18n/aiChatCardMessages';
+import { DialogShell } from '../ui/DialogShell';
+import { AiPanelContext } from '../../contexts/AiPanelContext';
+import { useGlobalContext } from '../../services/GlobalContextService';
+import { deriveAdaptiveProfileFromMessages, mergeAdaptiveProfiles } from '../../ai/chat/adaptiveInputProfile';
+import { rankCandidateLabelsByAdaptiveProfile } from './aiChatAdaptiveRanking';
+import { useAiChatHybridRecommendations } from './useAiChatHybridRecommendations';
 
 type AiChatCardProps = {
   embedded?: boolean;
@@ -43,11 +49,47 @@ type AiChatCardProps = {
   } | undefined;
 };
 
+function normalizeRecommendationText(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function classifyRecommendationAdoption(
+  inputText: string,
+  recommendedText: string,
+): 'accepted_exact' | 'accepted_edited' | null {
+  const normalizedInput = normalizeRecommendationText(inputText);
+  const normalizedRecommended = normalizeRecommendationText(recommendedText);
+  if (!normalizedInput || !normalizedRecommended) return null;
+  if (normalizedInput === normalizedRecommended) return 'accepted_exact';
+
+  const anchorLength = normalizedRecommended.length >= 16 ? 10 : 6;
+  const recommendedAnchor = normalizedRecommended.slice(0, Math.min(anchorLength, normalizedRecommended.length));
+  if (recommendedAnchor.length >= 4 && normalizedInput.startsWith(recommendedAnchor)) {
+    return 'accepted_edited';
+  }
+
+  let sharedPrefix = 0;
+  while (
+    sharedPrefix < normalizedInput.length
+    && sharedPrefix < normalizedRecommended.length
+    && normalizedInput[sharedPrefix] === normalizedRecommended[sharedPrefix]
+  ) {
+    sharedPrefix += 1;
+  }
+
+  return sharedPrefix / normalizedRecommended.length >= 0.45 ? 'accepted_edited' : null;
+}
+
 export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChatCardProps = {}) {
   const locale = useLocale();
   const {
+    currentPage,
     selectedUtterance,
     selectedRowMeta,
+    selectedUnitKind,
+    selectedLayerType,
+    selectedText,
+    selectedTimeRangeLabel,
     lexemeMatches,
     aiChatEnabled,
     aiChatSettings,
@@ -58,6 +100,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     aiConnectionTestMessage,
     aiPendingToolCall,
     aiTaskSession,
+    aiSessionMemory,
     aiToolDecisionLogs,
     onUpdateAiChatSettings,
     onTestAiConnection,
@@ -66,9 +109,12 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     onClearAiMessages,
     onConfirmPendingToolCall,
     onCancelPendingToolCall,
+    onTrackAiRecommendationEvent,
     observerStage,
     onJumpToCitation,
   } = useAiAssistantHubContext();
+  const aiPanelContext = useContext(AiPanelContext);
+  const { profile } = useGlobalContext();
 
   const [chatInput, setChatInput] = useState('');
   const [showProviderConfig, setShowProviderConfig] = useState(false);
@@ -83,6 +129,10 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   // \\u5c55\\u5f00\\u7684\\u63a8\\u7406\\u5185\\u5bb9\\u6d88\\u606f ID \\u96c6\\u5408 | Set of message IDs with expanded reasoning content
   const [expandedReasoningIds, setExpandedReasoningIds] = useState<Set<string>>(new Set());
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
+  const chatInputRef = useRef<HTMLInputElement | null>(null);
+  const lastTrackedRecommendationSignatureRef = useRef<string | null>(null);
+  const exposedRecommendationRef = useRef<{ prompt: string; source: 'fallback' | 'llm'; signature: string } | null>(null);
+  const [dismissedRecommendationSignature, setDismissedRecommendationSignature] = useState<string | null>(null);
 
   const activeProviderDefinition = aiChatSettings
     ? getAiChatProviderDefinition(aiChatSettings.providerKind)
@@ -116,6 +166,14 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     };
   }, [lexemeMatches, observerStage, selectedRowMeta, selectedUtterance]);
 
+  const adaptiveInputProfile = useMemo(
+    () => mergeAdaptiveProfiles(
+      deriveAdaptiveProfileFromMessages(aiMessages ?? []),
+      aiSessionMemory?.adaptiveInputProfile,
+    ),
+    [aiMessages, aiSessionMemory?.adaptiveInputProfile],
+  );
+
   const {
     quickPromptTemplates,
     promptTemplates,
@@ -133,6 +191,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     promptVars,
     onInjectRenderedPrompt: setChatInput,
     onEditTemplate: () => setShowPromptLab(true),
+    ...(adaptiveInputProfile !== undefined ? { adaptiveInputProfile } : {}),
   });
 
   const providerGroups = useMemo(() => {
@@ -164,6 +223,117 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     if (kind === 'mock' || kind === 'ollama') return 'local';
     return 'idle';
   }, [aiChatSettings?.providerKind, aiConnectionTestStatus]);
+
+  const inputPlaceholder = useMemo(() => cardMessages.recommendedInputPlaceholder({
+    fallback: t(locale, 'ai.chat.inputPlaceholder'),
+    page: currentPage,
+    observerStage,
+    aiCurrentTask: aiPanelContext?.aiCurrentTask,
+    rowNumber: selectedRowMeta?.rowNumber ?? null,
+    selectedText: selectedText ?? '',
+    annotationStatus: selectedUtterance?.annotationStatus ?? null,
+    confidence: selectedUtterance?.ai_metadata?.confidence ?? null,
+    lexemeCount: lexemeMatches.length,
+    lastToolName: aiTaskSession?.toolName ?? aiSessionMemory?.lastToolName ?? null,
+    preferredMode: profile.preferences.preferredMode,
+    confirmationThreshold: profile.preferences.confirmationThreshold,
+    selectedUnitKind: selectedUnitKind ?? null,
+    ...(adaptiveInputProfile?.dominantIntent !== undefined ? { adaptiveIntent: adaptiveInputProfile.dominantIntent } : {}),
+    ...(adaptiveInputProfile?.preferredResponseStyle !== undefined ? { adaptiveResponseStyle: adaptiveInputProfile.preferredResponseStyle } : {}),
+    ...(adaptiveInputProfile?.topKeywords !== undefined ? { adaptiveKeywords: adaptiveInputProfile.topKeywords } : {}),
+    ...(adaptiveInputProfile?.lastPromptExcerpt !== undefined ? { adaptiveLastPromptExcerpt: adaptiveInputProfile.lastPromptExcerpt } : {}),
+    ...(selectedLayerType !== undefined ? { selectedLayerType } : {}),
+    ...(selectedTimeRangeLabel !== undefined ? { selectedTimeRangeLabel } : {}),
+  }), [
+    adaptiveInputProfile?.dominantIntent,
+    adaptiveInputProfile?.lastPromptExcerpt,
+    adaptiveInputProfile?.preferredResponseStyle,
+    adaptiveInputProfile?.topKeywords,
+    aiPanelContext?.aiCurrentTask,
+    aiTaskSession?.toolName,
+    aiSessionMemory?.lastToolName,
+    cardMessages,
+    currentPage,
+    lexemeMatches.length,
+    locale,
+    observerStage,
+    profile.preferences.confirmationThreshold,
+    profile.preferences.preferredMode,
+    selectedLayerType,
+    selectedRowMeta?.rowNumber,
+    selectedText,
+    selectedTimeRangeLabel,
+    selectedUnitKind,
+    selectedUtterance,
+  ]);
+
+  const rankedClarifyCandidates = useMemo(
+    () => rankCandidateLabelsByAdaptiveProfile(aiTaskSession?.candidates ?? [], adaptiveInputProfile),
+    [adaptiveInputProfile, aiTaskSession?.candidates],
+  );
+
+  const hybridRecommendations = useAiChatHybridRecommendations({
+    locale,
+    enabled: aiChatEnabled,
+    composerIdle: chatInput.trim().length === 0 && !aiIsStreaming,
+    aiChatSettings,
+    connectionTestStatus: aiConnectionTestStatus,
+    recommendationTelemetry: aiSessionMemory?.recommendationTelemetry,
+    primarySuggestion: inputPlaceholder,
+    page: currentPage,
+    observerStage,
+    aiCurrentTask: aiPanelContext?.aiCurrentTask,
+    rowNumber: selectedRowMeta?.rowNumber ?? null,
+    selectedText: selectedText ?? '',
+    annotationStatus: selectedUtterance?.annotationStatus ?? null,
+    confidence: selectedUtterance?.ai_metadata?.confidence ?? null,
+    lexemeCount: lexemeMatches.length,
+    lastToolName: aiTaskSession?.toolName ?? aiSessionMemory?.lastToolName ?? null,
+    preferredMode: profile.preferences.preferredMode,
+    confirmationThreshold: profile.preferences.confirmationThreshold,
+    selectedUnitKind: selectedUnitKind ?? null,
+    selectedLayerType: selectedLayerType ?? null,
+    selectedTimeRangeLabel: selectedTimeRangeLabel ?? null,
+    ...(adaptiveInputProfile?.dominantIntent !== undefined ? { adaptiveIntent: adaptiveInputProfile.dominantIntent } : {}),
+    ...(adaptiveInputProfile?.preferredResponseStyle !== undefined ? { adaptiveResponseStyle: adaptiveInputProfile.preferredResponseStyle } : {}),
+    ...(adaptiveInputProfile?.topKeywords !== undefined ? { adaptiveKeywords: adaptiveInputProfile.topKeywords } : {}),
+    ...(adaptiveInputProfile?.lastPromptExcerpt !== undefined ? { adaptiveLastPromptExcerpt: adaptiveInputProfile.lastPromptExcerpt } : {}),
+  });
+  const topHybridRecommendation = hybridRecommendations.items[0];
+  const hybridInputSuggestion = topHybridRecommendation?.prompt ?? inputPlaceholder;
+  const hybridInputSignature = topHybridRecommendation
+    ? `${hybridRecommendations.source}:${topHybridRecommendation.prompt}`
+    : `fallback:${inputPlaceholder}`;
+  const showInlineRecommendation = chatInput.length === 0
+    && !aiIsStreaming
+    && hybridInputSuggestion.trim().length > 0
+    && dismissedRecommendationSignature !== hybridInputSignature;
+  const composerPlaceholder = showInlineRecommendation ? '' : inputPlaceholder;
+
+  useEffect(() => {
+    if (dismissedRecommendationSignature !== hybridInputSignature) return;
+    setDismissedRecommendationSignature(null);
+  }, [dismissedRecommendationSignature, hybridInputSignature]);
+
+  useEffect(() => {
+    const topRecommendation = hybridRecommendations.items[0];
+    if (!topRecommendation || !showInlineRecommendation || !onTrackAiRecommendationEvent) return;
+    const signature = `${hybridRecommendations.source}:${topRecommendation.prompt}`;
+    if (lastTrackedRecommendationSignatureRef.current === signature) return;
+    lastTrackedRecommendationSignatureRef.current = signature;
+    exposedRecommendationRef.current = {
+      prompt: topRecommendation.prompt,
+      source: hybridRecommendations.source,
+      signature,
+    };
+    onTrackAiRecommendationEvent({
+      type: 'shown',
+      source: hybridRecommendations.source,
+      prompt: topRecommendation.prompt,
+      signature,
+      timestamp: new Date().toISOString(),
+    });
+  }, [hybridRecommendations.items, hybridRecommendations.source, onTrackAiRecommendationEvent, showInlineRecommendation]);
 
   const chatTitle = useMemo(() => t(locale, 'ai.chat.title').replace(/\s*[（(]MVP[）)]\s*/gi, ''), [locale]);
   const messages = aiMessages ?? [];
@@ -525,8 +695,38 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
       showTransientBlockedReason(inputBlockedReason ?? cardMessages.pendingActionBeforeSend);
       return;
     }
+    const exposedRecommendation = exposedRecommendationRef.current;
+    if (exposedRecommendation && onTrackAiRecommendationEvent) {
+      const adoptionType = classifyRecommendationAdoption(text, exposedRecommendation.prompt);
+      if (adoptionType) {
+        onTrackAiRecommendationEvent({
+          type: adoptionType,
+          source: exposedRecommendation.source,
+          prompt: exposedRecommendation.prompt,
+          signature: exposedRecommendation.signature,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
     void onSendAiMessage(text);
     setChatInput('');
+    setDismissedRecommendationSignature(null);
+  };
+
+  const applyInlineRecommendation = (): void => {
+    if (!topHybridRecommendation) return;
+    setChatInput(topHybridRecommendation.prompt);
+    setDismissedRecommendationSignature(null);
+    const input = chatInputRef.current;
+    if (!input) return;
+    if (typeof window === 'undefined') {
+      input.focus();
+      return;
+    }
+    window.requestAnimationFrame(() => {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    });
   };
 
   return (
@@ -884,7 +1084,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               isZh={isZh}
               aiIsStreaming={Boolean(aiIsStreaming)}
               debugUiShowAll={false}
-              candidates={aiTaskSession?.candidates ?? []}
+              candidates={rankedClarifyCandidates}
               onSendAiMessage={onSendAiMessage}
             />
           )}
@@ -915,10 +1115,15 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                       {cardMessages.more}
                     </button>
                     {showRagQuickScenarios && (
-                      <div className="ai-chat-rag-quick-menu dialog-card dialog-card-compact" role="dialog" aria-label={cardMessages.ragQuickScenarios}>
-                        <div className="dialog-header ai-chat-rag-quick-menu-header">
-                          <h3>{cardMessages.ragQuickScenarios}</h3>
-                          <div className="dialog-header-actions">
+                      <DialogShell
+                        className="ai-chat-rag-quick-menu"
+                        compact
+                        role="dialog"
+                        aria-label={cardMessages.ragQuickScenarios}
+                        headerClassName="ai-chat-rag-quick-menu-header"
+                        bodyClassName="ai-chat-rag-quick-menu-body"
+                        title={cardMessages.ragQuickScenarios}
+                        actions={(
                             <button
                               type="button"
                               className="icon-btn"
@@ -928,9 +1133,8 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                             >
                               <X size={16} />
                             </button>
-                          </div>
-                        </div>
-                        <div className="dialog-body ai-chat-rag-quick-menu-body">
+                        )}
+                      >
                           {quickPromptTemplates.map((item) => (
                             <button
                               key={item.id}
@@ -944,29 +1148,58 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                               {item.title}
                             </button>
                           ))}
-                        </div>
-                      </div>
+                      </DialogShell>
                     )}
                   </div>
                 )}
               </div>
             )}
             <div className="ai-chat-composer-row">
-              <input
-                className="ai-chat-input ai-chat-input-composer"
-              type="text"
-              value={chatInput}
-              placeholder={t(locale, 'ai.chat.inputPlaceholder')}
-              onChange={(e) => setChatInput(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                const native = e.nativeEvent as KeyboardEvent;
-                // \\u8f93\\u5165\\u6cd5\\u7ec4\\u5408\\u671f\\u95f4\\u56de\\u8f66\\u7528\\u4e8e\\u9009\\u8bcd，\\u4e0d\\u5e94\\u89e6\\u53d1\\u53d1\\u9001 | Enter should not submit while IME composition is active.
-                if (native.isComposing || native.keyCode === 229) return;
-                if (e.key !== 'Enter' || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
-                e.preventDefault();
-                submitChatInput();
-              }}
-              />
+              <div className="ai-chat-composer-input-wrap">
+                <input
+                  ref={chatInputRef}
+                  className={`ai-chat-input ai-chat-input-composer${showInlineRecommendation ? ' has-ghost-suggestion' : ''}`}
+                  type="text"
+                  value={chatInput}
+                  placeholder={composerPlaceholder}
+                  aria-label={showInlineRecommendation ? hybridInputSuggestion : inputPlaceholder}
+                  onChange={(e) => setChatInput(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    const native = e.nativeEvent as KeyboardEvent;
+                    // \\u8f93\\u5165\\u6cd5\\u7ec4\\u5408\\u671f\\u95f4\\u56de\\u8f66\\u7528\\u4e8e\\u9009\\u8bcd，\\u4e0d\\u5e94\\u89e6\\u53d1\\u53d1\\u9001 | Enter should not submit while IME composition is active.
+                    if (native.isComposing || native.keyCode === 229) return;
+                    if (!e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && showInlineRecommendation && e.key === 'ArrowRight') {
+                      const input = chatInputRef.current;
+                      const caretAtStart = !input || ((input.selectionStart ?? 0) === 0 && (input.selectionEnd ?? 0) === 0);
+                      if (caretAtStart) {
+                        e.preventDefault();
+                        applyInlineRecommendation();
+                        return;
+                      }
+                    }
+                    if (!e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && showInlineRecommendation && e.key === 'Escape') {
+                      e.preventDefault();
+                      setDismissedRecommendationSignature(hybridInputSignature);
+                      return;
+                    }
+                    if (e.key !== 'Enter' || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+                    e.preventDefault();
+                    submitChatInput();
+                  }}
+                />
+                {showInlineRecommendation && (
+                  <button
+                    type="button"
+                    className="ai-chat-input-ghost-suggestion"
+                    onClick={applyInlineRecommendation}
+                    aria-label={hybridInputSuggestion}
+                    title={hybridInputSuggestion}
+                  >
+                    <span className="ai-chat-input-ghost-prefix">{cardMessages.recommendationTitle}</span>
+                    <span className="ai-chat-input-ghost-text">{hybridInputSuggestion}</span>
+                  </button>
+                )}
+              </div>
               <button
                 type="button"
                 className={`icon-btn ai-chat-composer-send-btn${aiIsStreaming ? ' is-streaming' : ''}`}

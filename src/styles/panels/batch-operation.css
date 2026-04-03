@@ -1,0 +1,135 @@
+.batch-operation-panel-body {
+  gap: 12px;
+}
+
+.batch-operation-summary-card,
+.batch-operation-section,
+.batch-operation-preview-card {
+  min-width: 0;
+}
+
+.batch-operation-summary-copy-danger {
+  color: var(--state-danger-text);
+}
+
+.batch-operation-controls-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.batch-operation-controls-grid-inline {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.batch-operation-section-dense {
+  gap: 12px;
+}
+
+.batch-operation-footer {
+  padding: 12px 16px 16px;
+}
+
+.batch-operation-shortcut-hint {
+  font-size: 0.76rem;
+}
+
+.batch-operation-preview-card {
+  border: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-panel) 99%, var(--surface-header));
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.batch-operation-preview-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.batch-operation-preview-filter-btn {
+  min-height: 24px;
+  padding: 1px 6px;
+  font-size: 11px;
+}
+
+.batch-operation-table-wrap {
+  border: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 98%, transparent);
+  overflow: auto;
+}
+
+.batch-operation-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.batch-operation-th {
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--surface-header) 88%, var(--surface-panel));
+  text-align: left;
+}
+
+.batch-operation-th,
+.batch-operation-td,
+.batch-operation-td-content {
+  padding: 8px 10px;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.batch-operation-td,
+.batch-operation-td-content {
+  color: var(--text-primary);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 65%, transparent);
+}
+
+.batch-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 85%, transparent);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.batch-operation-dialog {
+  position: fixed;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.batch-operation-drag-handle {
+  cursor: move;
+  user-select: none;
+}
+
+.batch-operation-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  z-index: 10;
+}
+
+.batch-operation-reset-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.batch-operation-reset-btn:hover {
+  background: rgba(15, 23, 42, 0.05);
+  color: var(--text-primary);
+}

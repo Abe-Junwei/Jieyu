@@ -8,6 +8,74 @@ afterEach(() => {
 });
 
 describe('ContextMenu', () => {
+  it('renders fixed menu shell with clamped position and submenu structure', () => {
+    const onClose = vi.fn();
+    const onChange = vi.fn();
+
+    render(
+      <ContextMenu
+        x={2}
+        y={4}
+        onClose={onClose}
+        items={[
+          {
+            label: '导出',
+            submenuClassName: 'context-menu-submenu-export',
+            children: [
+              {
+                label: '查找项目',
+                searchField: {
+                  value: '词',
+                  placeholder: '输入关键字',
+                  onChange,
+                },
+              },
+              {
+                label: '删除导出项',
+                danger: true,
+                shortcut: 'Del',
+                separatorBefore: true,
+              },
+            ],
+          },
+          {
+            label: '当前方案',
+            selectionState: 'selected',
+            selectionVariant: 'check',
+            meta: '已启用',
+          },
+        ]}
+      />,
+    );
+
+    const rootMenu = screen.getAllByRole('menu')[0] as HTMLDivElement;
+    const selectedItem = screen.getByRole('menuitem', { name: /当前方案/ });
+
+    expect(rootMenu).toBeTruthy();
+    expect(rootMenu.getAttribute('role')).toBe('menu');
+    expect(rootMenu.style.position).toBe('fixed');
+    expect(rootMenu.style.left).toBe('8px');
+    expect(rootMenu.style.top).toBe('8px');
+    expect(selectedItem.querySelector('.context-menu-item-selection-check.context-menu-item-selection-selected')).toBeTruthy();
+    expect(selectedItem.querySelector('.context-menu-item-meta')?.textContent).toContain('已启用');
+
+    fireEvent.mouseEnter(screen.getByRole('menuitem', { name: /^导出/ }));
+
+    const submenu = document.querySelector('.context-menu-submenu.context-menu-submenu-export') as HTMLDivElement;
+    const searchInput = screen.getByRole('searchbox') as HTMLInputElement;
+    const dangerItem = screen.getByRole('menuitem', { name: /删除导出项/ });
+
+    expect(submenu).toBeTruthy();
+    expect(submenu.style.position).toBe('fixed');
+    expect(searchInput.value).toBe('词');
+    expect(dangerItem.className).toContain('context-menu-danger');
+    expect(dangerItem.className).toContain('context-menu-item-separator-before');
+
+    fireEvent.change(searchInput, { target: { value: '短语' } });
+    expect(onChange).toHaveBeenCalledWith('短语');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('supports nested submenus beyond one level', () => {
     const onLeafClick = vi.fn();
     const onClose = vi.fn();

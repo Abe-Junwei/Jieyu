@@ -66,6 +66,57 @@ export interface AiInteractionMetrics {
   recoveryCount: number;
 }
 
+export type AiAdaptiveIntent =
+  | 'translation'
+  | 'transcription'
+  | 'gloss'
+  | 'review'
+  | 'summary'
+  | 'explain'
+  | 'compare'
+  | 'steps'
+  | 'qa';
+
+export type AiAdaptiveResponseStyle =
+  | 'analysis'
+  | 'direct_edit'
+  | 'concise'
+  | 'detailed'
+  | 'step_by_step';
+
+export interface AiAdaptiveInputProfile {
+  recentPrompts?: string[];
+  dominantIntent?: AiAdaptiveIntent;
+  preferredResponseStyle?: AiAdaptiveResponseStyle;
+  topKeywords?: string[];
+  lastPromptExcerpt?: string;
+  updatedAt?: string;
+}
+
+export type AiRecommendationSource = 'fallback' | 'llm';
+export type AiRecommendationEventType = 'shown' | 'accepted_exact' | 'accepted_edited';
+
+export interface AiRecommendationEvent {
+  type: AiRecommendationEventType;
+  source: AiRecommendationSource;
+  prompt: string;
+  signature: string;
+  timestamp: string;
+}
+
+export interface AiRecommendationTelemetry {
+  shownCount?: number;
+  fallbackShownCount?: number;
+  llmShownCount?: number;
+  acceptedExactCount?: number;
+  acceptedEditedCount?: number;
+  lastShownAt?: string;
+  lastAcceptedAt?: string;
+  lastShownPrompt?: string;
+  lastAcceptedPrompt?: string;
+  recentEvents?: AiRecommendationEvent[];
+}
+
 /**
  * 会话级短期偏好记忆 | Session-scoped short-term preference memory
  * 在一次对话中累积用户偏好，用于候选排序 & 默认值预填。
@@ -77,6 +128,10 @@ export interface AiSessionMemory {
   lastToolName?: AiChatToolName;
   /** 最近一次选中的层 ID | Last layer ID selected */
   lastLayerId?: string;
+  /** 历史输入画像 | Adaptive profile inferred from prior prompts */
+  adaptiveInputProfile?: AiAdaptiveInputProfile;
+  /** 推荐曝光/采纳遥测 | Recommendation exposure/adoption telemetry */
+  recommendationTelemetry?: AiRecommendationTelemetry;
 }
 
 // ── Tool Types ──────────────────────────────────────────────────────────────────

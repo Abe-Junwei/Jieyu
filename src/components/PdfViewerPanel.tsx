@@ -1,6 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useOptionalLocale } from '../i18n';
 import { getPdfViewerPanelMessages } from '../i18n/pdfViewerPanelMessages';
+import { PanelSection } from './ui/PanelSection';
+import { PanelSummary } from './ui/PanelSummary';
 
 interface PdfViewerPanelProps {
   url: string;
@@ -25,6 +27,7 @@ export function PdfViewerPanel({
 }: PdfViewerPanelProps) {
   const locale = useOptionalLocale() ?? 'zh-CN';
   const messages = getPdfViewerPanelMessages(locale);
+  const resolvedTitle = title?.trim() || messages.viewerTitle;
   const [currentPage, setCurrentPage] = useState(() => Math.max(1, page ?? 1));
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -41,99 +44,79 @@ export function PdfViewerPanel({
     setCurrentPage((p) => Math.min(totalPages, p + 1));
   }, []);
 
+  const summaryProps = {
+    ...(searchSnippet ? { supportingText: searchSnippet, supportingClassName: 'pdf-viewer-panel-snippet' } : {}),
+  };
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        width: '100%',
-        height: '100%',
-        background: 'var(--surface-elevated)',
-        borderRadius: 8,
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          padding: '8px 12px',
-          background: 'var(--surface-panel)',
-          borderBottom: '1px solid var(--border-soft)',
-          height: 40,
-        }}
-      >
+    <div className="pdf-viewer-panel panel-design-match-content">
+      <PanelSummary
+        className="pdf-viewer-panel-summary"
+        title={resolvedTitle}
+        description={searchSnippet ? messages.searchHint : messages.noSearchHint}
+        meta={(
+          <div className="panel-meta">
+            <span className="panel-chip">{messages.pageStatus(currentPage, totalPages)}</span>
+            {searchSnippet ? <span className="panel-chip">{messages.searchHit}</span> : null}
+          </div>
+        )}
+        {...summaryProps}
+      />
+
+      <PanelSection className="pdf-viewer-panel-toolbar-surface" bodyClassName="pdf-viewer-panel-toolbar">
         <button
           type="button"
+          className="panel-button pdf-viewer-panel-nav"
           onClick={handlePrevPage}
           disabled={currentPage <= 1}
-          style={{
-            padding: '4px 8px',
-            fontSize: 12,
-            borderRadius: 4,
-            border: '1px solid var(--border-soft)',
-            background: 'var(--surface-panel)',
-            cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
-            opacity: currentPage <= 1 ? 0.5 : 1,
-          }}
         >
           {messages.prevPage}
         </button>
-        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-          {currentPage} / {totalPages}
-        </div>
+        <div className="pdf-viewer-panel-page-status">{messages.pageStatus(currentPage, totalPages)}</div>
         <button
           type="button"
+          className="panel-button pdf-viewer-panel-nav"
           onClick={handleNextPage}
           disabled={currentPage >= totalPages}
-          style={{
-            padding: '4px 8px',
-            fontSize: 12,
-            borderRadius: 4,
-            border: '1px solid var(--border-soft)',
-            background: 'var(--surface-panel)',
-            cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
-            opacity: currentPage >= totalPages ? 0.5 : 1,
-          }}
         >
           {messages.nextPage}
         </button>
-      </div>
+      </PanelSection>
 
-      {loading && (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+      <div className="pdf-viewer-panel-stage">
+        {loading && (
+          <div className="pdf-viewer-panel-state pdf-viewer-panel-state-loading">
           {messages.loading}
-        </div>
-      )}
+          </div>
+        )}
 
-      {error && (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--state-danger-solid)', padding: 16 }}>
+        {error && (
+          <div className="pdf-viewer-panel-state pdf-viewer-panel-state-error">
           {error}
-        </div>
-      )}
+          </div>
+        )}
 
-      {!loading && !error && (
-        <Suspense
-          fallback={
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-              {messages.preparingRenderer}
-            </div>
-          }
-        >
-          <PdfViewerRenderer
-            url={url}
-            currentPage={currentPage}
-            initialPage={page}
-            searchSnippet={searchSnippet}
-            onLoadingChange={setLoading}
-            onErrorChange={setError}
-            onTotalPagesChange={setTotalPages}
-            onPageResolved={setCurrentPage}
-          />
-        </Suspense>
-      )}
+        {!loading && !error && (
+          <Suspense
+            fallback={
+              <div className="pdf-viewer-panel-state pdf-viewer-panel-state-loading">
+                {messages.preparingRenderer}
+              </div>
+            }
+          >
+            <PdfViewerRenderer
+              url={url}
+              currentPage={currentPage}
+              initialPage={page}
+              searchSnippet={searchSnippet}
+              onLoadingChange={setLoading}
+              onErrorChange={setError}
+              onTotalPagesChange={setTotalPages}
+              onPageResolved={setCurrentPage}
+            />
+          </Suspense>
+        )}
+      </div>
     </div>
   );
 }

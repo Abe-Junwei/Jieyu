@@ -127,8 +127,11 @@ describe('Adaptive panel RTL interaction matrix', () => {
     );
 
     const standardDialog = screen.getByRole('dialog', { name: 'Standard' }) as HTMLDivElement;
+    expect(standardDialog.className).toContain('dialog-card');
+    expect(standardDialog.className).toContain('side-pane-action-modal');
     expect(standardDialog.style.getPropertyValue('--dialog-auto-width')).toContain(`${compactWidth}`);
-    fireEvent.click(screen.getByRole('button', { name: /Close/ }));
+    expect(screen.getByRole('button', { name: /Standard Close/ }).closest('.dialog-header')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Standard Close/ }));
     expect(onCloseStandard).toHaveBeenCalledTimes(1);
 
     standard.unmount();
@@ -147,6 +150,8 @@ describe('Adaptive panel RTL interaction matrix', () => {
     );
 
     const speakerDialog = screen.getByRole('dialog', { name: 'Speaker' }) as HTMLDivElement;
+  expect(speakerDialog.className).toContain('dialog-card');
+  expect(speakerDialog.className).toContain('side-pane-action-modal-speaker');
     expect(speakerDialog.style.getPropertyValue('--dialog-auto-width')).toContain(`${speakerWidth}`);
 
     expect(computeAdaptivePanelWidthMock).toHaveBeenCalledWith(expect.objectContaining({

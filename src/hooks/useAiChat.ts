@@ -25,6 +25,8 @@ import { enrichContextWithRag } from './useAiChat.rag';
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import { trimHistoryByChars } from '../ai/chat/historyTrim';
 import { loadSessionMemory, persistSessionMemory } from '../ai/chat/sessionMemory';
+import { updateSessionMemoryWithPrompt } from '../ai/chat/adaptiveInputProfile';
+import { updateSessionMemoryWithRecommendationEvent } from '../ai/chat/recommendationTelemetry';
 import { buildAiSystemPrompt, buildPromptContextBlock, isAiContextDebugEnabled } from '../ai/chat/promptContext';
 import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
 import type { AiMessageCitation } from '../db';
@@ -62,6 +64,7 @@ import type {
   PendingAiToolCall,
   UiChatMessage,
   UseAiChatOptions,
+  AiRecommendationEvent,
 } from './useAiChat.types';
 export type {
   AiChatProviderKind,
@@ -232,6 +235,11 @@ export function useAiChat(options?: UseAiChatOptions) {
     setIsStreaming(false);
   }, []);
 
+  const trackRecommendationEvent = useCallback((event: AiRecommendationEvent) => {
+    sessionMemoryRef.current = updateSessionMemoryWithRecommendationEvent(sessionMemoryRef.current, event);
+    persistSessionMemory(sessionMemoryRef.current);
+  }, []);
+
   const applyAssistantMessageResult = useCallback(async (
     messageId: string,
     content: string,
@@ -300,6 +308,8 @@ export function useAiChat(options?: UseAiChatOptions) {
     }
 
     setLastError(null);
+    sessionMemoryRef.current = updateSessionMemoryWithPrompt(sessionMemoryRef.current, trimmed);
+    persistSessionMemory(sessionMemoryRef.current);
     bumpMetric('turnCount');
     const shouldTrackRemoteStatus = provider.id !== 'mock' && provider.id !== 'ollama';
     if (shouldTrackRemoteStatus) {
@@ -683,5 +693,6 @@ export function useAiChat(options?: UseAiChatOptions) {
     sessionMemory: sessionMemoryRef.current,
     confirmPendingToolCall,
     cancelPendingToolCall,
+    trackRecommendationEvent,
   };
 }

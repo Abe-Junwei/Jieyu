@@ -33,6 +33,39 @@ describe('BatchOperationPanel preview table', () => {
   afterEach(() => {
     cleanup();
   });
+
+  it('renders through DialogShell with topmost overlay, header actions, and panel footer', () => {
+    const view = renderZh(
+      <BatchOperationPanel
+        selectedCount={1}
+        selectedUtterances={[makeUtterance('u1', 0, 1)]}
+        allUtterancesOnMedia={[makeUtterance('u1', 0, 1), makeUtterance('u2', 1.1, 2)]}
+        utteranceTextById={{ u1: 'hello world' }}
+        onClose={vi.fn()}
+        onOffset={vi.fn().mockResolvedValue(undefined)}
+        onScale={vi.fn().mockResolvedValue(undefined)}
+        onSplitByRegex={vi.fn().mockResolvedValue(undefined)}
+        onMerge={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: '批量句段操作' });
+    const overlay = dialog.parentElement as HTMLDivElement;
+    const resetButton = screen.getByRole('button', { name: '重置位置与尺寸' });
+    const closeButtons = screen.getAllByRole('button', { name: '关闭' });
+    const footerCloseButton = closeButtons.find((button) => button.className.includes('panel-button--ghost'));
+    const submitButton = screen.getByRole('button', { name: '执行偏移' });
+
+    expect(dialog.className).toContain('dialog-card');
+    expect(dialog.className).toContain('batch-operation-dialog');
+    expect(overlay.className).toContain('dialog-overlay-topmost');
+    expect(resetButton.closest('.dialog-header')).toBeTruthy();
+    expect(footerCloseButton?.className).toContain('panel-button--ghost');
+    expect(submitButton.className).toContain('panel-button--primary');
+    expect(view.container.querySelector('.batch-operation-summary-card')).toBeTruthy();
+    expect(screen.getAllByText('逐条预览').length).toBeGreaterThan(0);
+  });
+
   it('shows overlap conflict for offset preview and blocks submit', () => {
     renderZh(
       <BatchOperationPanel

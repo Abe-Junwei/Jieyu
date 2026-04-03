@@ -11,6 +11,7 @@ import { t, tf, useLocale } from '../../i18n';
 import { getSidePaneSidebarMessages } from '../../i18n/sidePaneSidebarMessages';
 import type { JieyuArchiveImportPreview } from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';
+import { DialogShell } from '../ui/DialogShell';
 
 interface ProjectImportState {
   file: File;
@@ -342,12 +343,14 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     <div className="dialog-overlay dialog-overlay-topmost" role="presentation" onClick={() => {
       if (!projectImportState.importing) setProjectImportState(null);
     }}>
-      <div className="left-rail-project-import-dialog dialog-card dialog-card-wide" role="dialog" aria-modal="true" aria-label={t(locale, 'transcription.projectHub.importDialogTitle')} onClick={(event) => event.stopPropagation()}>
-        <header className="left-rail-project-import-header dialog-header">
-          <div>
-            <h3>{t(locale, 'transcription.projectHub.importDialogTitle')}</h3>
-            <span>{projectImportState.file.name}</span>
-          </div>
+      <DialogShell
+        className="left-rail-project-import-dialog dialog-card-wide panel-design-match panel-design-match-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t(locale, 'transcription.projectHub.importDialogTitle')}
+        title={t(locale, 'transcription.projectHub.importDialogTitle')}
+        headerClassName="left-rail-project-import-header"
+        actions={(
           <button
             type="button"
             className="icon-btn"
@@ -358,9 +361,37 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           >
             <X size={18} />
           </button>
-        </header>
-
-        <div className="dialog-body">
+        )}
+        footerClassName="left-rail-project-import-actions"
+        footer={(
+          <>
+            <button
+              type="button"
+              className="panel-button panel-button--ghost"
+              disabled={projectImportState.importing}
+              onClick={() => setProjectImportState(null)}
+            >
+              {t(locale, 'transcription.dialog.cancel')}
+            </button>
+            <button
+              type="button"
+              className="panel-button panel-button--primary"
+              disabled={projectImportState.importing}
+              onClick={() => {
+                fireAndForget(handleConfirmProjectImport());
+              }}
+            >
+              {projectImportState.importing
+                ? t(locale, 'transcription.projectHub.importing')
+                : t(locale, 'transcription.projectHub.confirmImport')}
+            </button>
+          </>
+        )}
+        onClick={(event) => event.stopPropagation()}
+      >
+          <div className="left-rail-project-import-summary">
+            <div>{projectImportState.file.name}</div>
+          </div>
           <div className="left-rail-project-import-summary">
             <div>{tf(locale, 'transcription.projectHub.importDialogKind', { kind: projectImportState.preview.kind.toUpperCase() })}</div>
             <div>{tf(locale, 'transcription.projectHub.importDialogExportedAt', { at: projectImportState.preview.manifest.exportedAt })}</div>
@@ -419,31 +450,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
               </tbody>
             </table>
           </div>
-        </div>
-
-        <div className="left-rail-project-import-actions dialog-footer">
-          <button
-            type="button"
-            className="btn btn-ghost"
-            disabled={projectImportState.importing}
-            onClick={() => setProjectImportState(null)}
-          >
-            {t(locale, 'transcription.dialog.cancel')}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={projectImportState.importing}
-            onClick={() => {
-              fireAndForget(handleConfirmProjectImport());
-            }}
-          >
-            {projectImportState.importing
-              ? t(locale, 'transcription.projectHub.importing')
-              : t(locale, 'transcription.projectHub.confirmImport')}
-          </button>
-        </div>
-      </div>
+      </DialogShell>
     </div>,
     document.body,
   ) : null;

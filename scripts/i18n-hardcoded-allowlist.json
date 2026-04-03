@@ -46,6 +46,7 @@
     { "pathPrefix": "src/utils/validationErrorReporter.ts", "reason": "runtime-template-message" },
 
     { "pathPrefix": "src/hooks/useAiChat.rag.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/components/ai/useAiPromptTemplates.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/ai/ChatOrchestrator.ts", "reason": "runtime-template-message" }
   ]
 }

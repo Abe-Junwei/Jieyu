@@ -8,6 +8,7 @@ import { useLocale } from '../i18n';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
+import { DialogShell } from './ui/DialogShell';
 
 interface SidePaneActionModalProps {
   ariaLabel: string;
@@ -58,36 +59,33 @@ export function SidePaneActionModal({ ariaLabel, children, onClose, className, c
       onKeyDown={handleKeyDown}
       role="presentation"
     >
-      <div
-        className={`side-pane-action-modal dialog-card${isSpeakerModal ? ' side-pane-action-modal-speaker' : ''}`}
+      <DialogShell
+        className={`side-pane-action-modal${isSpeakerModal ? ' side-pane-action-modal-speaker' : ''}${className ? ` ${className}` : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
         dir={uiTextDirection}
+        title={ariaLabel}
+        bodyClassName="side-pane-action-modal-body"
+        actions={(
+          <button
+            type="button"
+            className="icon-btn"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={onClose}
+            aria-label={`${ariaLabel} ${closeLabel}`}
+            title={`${ariaLabel} ${closeLabel}`}
+          >
+            <X size={18} />
+          </button>
+        )}
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
         style={{ '--dialog-auto-width': `${dialogAutoWidth}px` } as React.CSSProperties}
       >
-        <div className="dialog-header">
-          <h3>{ariaLabel}</h3>
-          <div className="dialog-header-actions">
-            <button
-              type="button"
-              className="icon-btn"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={onClose}
-              aria-label={`${ariaLabel} ${closeLabel}`}
-              title={`${ariaLabel} ${closeLabel}`}
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-        <div className="dialog-body">
-          {children}
-        </div>
-      </div>
+        {children}
+      </DialogShell>
     </div>,
     document.body,
   );

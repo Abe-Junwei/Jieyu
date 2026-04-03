@@ -8,6 +8,25 @@ afterEach(() => {
 });
 
 describe('SearchReplaceOverlay', () => {
+  it('renders through DialogShell with topmost overlay shell', () => {
+    render(
+      <SearchReplaceOverlay
+        items={[]}
+        onNavigate={vi.fn()}
+        onReplace={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: '搜索…' });
+    const overlay = dialog.parentElement as HTMLDivElement;
+
+    expect(dialog.className).toContain('dialog-card');
+    expect(dialog.className).toContain('search-replace-overlay');
+    expect(overlay.className).toContain('dialog-overlay-topmost');
+    expect(screen.getByPlaceholderText('搜索…')).toBeTruthy();
+  });
+
   it('applies initial query and layer kind filters from shell/tool requests', async () => {
     const onNavigate = vi.fn();
 

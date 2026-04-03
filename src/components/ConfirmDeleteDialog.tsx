@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { normalizeLocale, t } from '../i18n';
 import { getConfirmDeleteDialogMessages } from '../i18n/confirmDeleteDialogMessages';
+import { DialogShell } from './ui/DialogShell';
 
 type ConfirmDeleteDialogProps = {
   locale?: string;
@@ -61,11 +62,20 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
 
   return (
     <div className="dialog-overlay" onClick={onCancel}>
-      <div className="dialog-card" role="dialog" aria-modal="true" aria-label={displayTitle} onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-header">
-          <h3>{displayTitle}</h3>
-        </div>
-        <div className="dialog-body">
+      <DialogShell
+        className="confirm-delete-dialog panel-design-match panel-design-match-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={displayTitle}
+        title={displayTitle}
+        footer={(
+          <>
+            <button className="panel-button panel-button--ghost" onClick={onCancel}>{t(uiLocale, 'transcription.dialog.cancel')}</button>
+            <button className="panel-button panel-button--danger" onClick={onConfirm}>{t(uiLocale, 'transcription.dialog.deleteLayerConfirmButton')}</button>
+          </>
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
           <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: 14 }}>
             {displayDescription}
           </p>
@@ -79,12 +89,7 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
               {messages.mutePromptInSession}
             </label>
           )}
-        </div>
-        <div className="dialog-footer">
-          <button className="btn btn-ghost" onClick={onCancel}>{t(uiLocale, 'transcription.dialog.cancel')}</button>
-          <button className="btn btn-danger" onClick={onConfirm}>{t(uiLocale, 'transcription.dialog.deleteLayerConfirmButton')}</button>
-        </div>
-      </div>
+      </DialogShell>
     </div>
   );
 });

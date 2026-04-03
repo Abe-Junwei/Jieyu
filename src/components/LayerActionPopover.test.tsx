@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { LayerDocType } from '../db';
 import { LayerActionPopover } from './LayerActionPopover';
 import { renderWithLocale } from '../test/localeTestUtils';
 
@@ -32,6 +33,88 @@ describe('LayerActionPopover orthography creation', () => {
     mockCloneOrthographyToLanguage.mockReset();
     mockCreateOrthographyTransform.mockReset();
     mockUseOrthographies.mockReset();
+  });
+
+  function makeLayer(overrides: Partial<LayerDocType> = {}): LayerDocType {
+    return {
+      id: 'layer-1',
+      projectId: 'project-1',
+      mediaId: 'media-1',
+      key: 'layer-key',
+      layerType: 'transcription',
+      name: { zho: '默认转写' },
+      languageId: 'cmn',
+      constraint: 'independent_boundary',
+      createdAt: NOW,
+      updatedAt: NOW,
+      ...overrides,
+    } as LayerDocType;
+  }
+
+  it('renders create-transcription path through DialogShell with panel footer actions', () => {
+    mockUseOrthographies.mockReturnValue([]);
+    const transcriptionLayer = makeLayer();
+
+    renderWithLocale(
+      <LayerActionPopover
+        action="create-transcription"
+        layerId={undefined}
+        deletableLayers={[transcriptionLayer]}
+        createLayer={vi.fn(async () => true)}
+        deleteLayer={vi.fn(async () => undefined)}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: '新建转写层' });
+    const overlay = dialog.parentElement as HTMLDivElement;
+    const createButton = screen.getByRole('button', { name: '创建' });
+    const cancelButton = screen.getByRole('button', { name: '取消' });
+    const closeButton = screen.getByRole('button', { name: '新建转写层 取消' });
+
+    expect(dialog.className).toContain('dialog-card');
+    expect(dialog.className).toContain('layer-action-dialog');
+    expect(overlay.className).toContain('dialog-overlay-topmost');
+    expect(closeButton.closest('.dialog-header')).toBeTruthy();
+    expect(createButton.className).toContain('panel-button--primary');
+    expect(cancelButton.className).toContain('panel-button--ghost');
+    expect(screen.getAllByText('新建转写层').length).toBeGreaterThan(0);
+  });
+
+  it('renders delete path through DialogShell with destructive footer action', () => {
+    mockUseOrthographies.mockReturnValue([]);
+    const transcriptionLayer = makeLayer();
+    const translationLayer = makeLayer({
+      id: 'layer-2',
+      key: 'layer-translation',
+      layerType: 'translation',
+      name: { zho: '日语翻译' },
+      languageId: 'jpn',
+    });
+
+    renderWithLocale(
+      <LayerActionPopover
+        action="delete"
+        layerId={translationLayer.id}
+        deletableLayers={[transcriptionLayer, translationLayer]}
+        createLayer={vi.fn(async () => true)}
+        deleteLayer={vi.fn(async () => undefined)}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: '删除层' });
+    const overlay = dialog.parentElement as HTMLDivElement;
+    const deleteButton = screen.getByRole('button', { name: '删除' });
+    const cancelButton = screen.getByRole('button', { name: '取消' });
+
+    expect(dialog.className).toContain('dialog-card');
+    expect(dialog.className).toContain('layer-action-dialog');
+    expect(overlay.className).toContain('dialog-overlay-topmost');
+    expect(deleteButton.className).toContain('panel-button--danger');
+    expect(cancelButton.className).toContain('panel-button--ghost');
+    expect(screen.getByRole('option', { name: /日语翻译/ })).toBeTruthy();
+    expect(screen.getAllByText('删除层').length).toBeGreaterThan(0);
   });
 
   it('derives a new current-language orthography from another language before layer creation', async () => {

@@ -6,6 +6,9 @@ import { getNotePanelMessages } from '../i18n/notePanelMessages';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
+import { DialogShell } from './ui/DialogShell';
+import { PanelSection } from './ui/PanelSection';
+import { PanelSummary } from './ui/PanelSummary';
 
 interface NotePanelProps {
   isOpen: boolean;
@@ -104,117 +107,116 @@ export const NotePanel = memo(function NotePanel({
   if (!isOpen) return null;
 
   return (
-    <div className="note-panel" dir={uiTextDirection} style={{ width: `min(${panelWidth}px, 100%)`, fontSize: `calc(1rem * ${uiFontScale})` }}>
-      <div className="note-panel-header dialog-header">
-        <h3 className="note-panel-title">{messages.panelTitle(targetLabel)}</h3>
+    <DialogShell
+      className="note-panel panel-design-match panel-design-match-dialog"
+      headerClassName="note-panel-header"
+      bodyClassName="note-panel-body"
+      title={messages.panelTitle(targetLabel)}
+      titleClassName="note-panel-title"
+      actions={(
         <button type="button" className="note-panel-close icon-btn" onClick={onClose} aria-label={messages.closePanel}>
           <X size={16} />
         </button>
-      </div>
-
-      <div className="note-panel-body">
-        <section className="panel-organization-surface panel-organization-surface-emphasis note-panel-summary">
-          <div className="panel-organization-surface-head">
-            <div>
-              <div className="panel-organization-surface-title">{messages.panelTitlePrefix}</div>
-              <p className="panel-organization-surface-copy">{targetLabel}</p>
-            </div>
-            <div className="dialog-stat-row">
-              <span className="dialog-stat-chip">{messages.noteCount(notes.length)}</span>
-              <span className={`panel-organization-chip${hasNotes ? '' : ' panel-organization-chip-danger'}`}>
-                {hasNotes ? messages.notesSectionTitle : messages.empty}
-              </span>
-            </div>
+      )}
+      dir={uiTextDirection}
+      style={{ width: `min(${panelWidth}px, 100%)`, fontSize: `calc(1rem * ${uiFontScale})` }}
+    >
+      <PanelSummary
+        className="note-panel-summary"
+        title={messages.panelTitlePrefix}
+        description={targetLabel}
+        meta={(
+          <div className="panel-meta">
+            <span className="panel-chip">{messages.noteCount(notes.length)}</span>
+            <span className={`panel-chip${hasNotes ? '' : ' panel-chip--danger'}`}>
+              {hasNotes ? messages.notesSectionTitle : messages.empty}
+            </span>
           </div>
-          <p className="dialog-supporting-note">{hasNotes ? messages.editHint : messages.emptyStateHint}</p>
-        </section>
+        )}
+        supportingText={hasNotes ? messages.editHint : messages.emptyStateHint}
+      />
 
-        <section className="panel-organization-surface note-panel-list-surface">
-          <div className="panel-organization-surface-head">
-            <div>
-              <div className="panel-organization-surface-title">{messages.notesSectionTitle}</div>
-              <p className="dialog-supporting-note">{messages.editHint}</p>
-            </div>
-          </div>
-          <div className="note-panel-list">
-            {notes.length === 0 && <p className="note-panel-empty">{messages.empty}</p>}
-            {notes.map((note) => (
-              <div key={note.id} className="note-panel-item">
-                {note.category && (
-                  <span className={`note-panel-category note-panel-category-${note.category}`}>
-                    {categories.find((c) => c.value === note.category)?.label ?? note.category}
-                  </span>
-                )}
-                {editingId === note.id ? (
-                  <div className="note-panel-edit">
-                    <textarea
-                      className="note-panel-textarea"
-                      value={editContent}
-                      onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditContent(e.target.value)}
-                      onKeyDown={(e) => handleEditKeyDown(e, note.id)}
-                      autoFocus
-                    />
-                    <div className="note-panel-edit-actions">
-                      <button type="button" className="note-panel-btn note-panel-btn-save" onClick={() => handleEditSave(note.id)}>
-                        {messages.save}
-                      </button>
-                      <button type="button" className="note-panel-btn note-panel-btn-cancel" onClick={() => setEditingId(null)}>
-                        {messages.cancel}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="note-panel-content" onDoubleClick={() => handleEditStart(note)}>
-                    <p>{note.content['default'] ?? Object.values(note.content)[0] ?? ''}</p>
-                    <button
-                      type="button"
-                      className="note-panel-delete"
-                      onClick={() => onDelete(note.id)}
-                      title={messages.deleteNote}
-                      aria-label={messages.deleteNote}
-                    >
-                      <Trash2 size={12} />
+      <PanelSection
+        className="note-panel-list-surface"
+        title={messages.notesSectionTitle}
+        description={messages.editHint}
+      >
+        <div className="note-panel-list">
+          {notes.length === 0 && <p className="note-panel-empty">{messages.empty}</p>}
+          {notes.map((note) => (
+            <div key={note.id} className="note-panel-item">
+              {note.category && (
+                <span className={`note-panel-category note-panel-category-${note.category}`}>
+                  {categories.find((c) => c.value === note.category)?.label ?? note.category}
+                </span>
+              )}
+              {editingId === note.id ? (
+                <div className="note-panel-edit">
+                  <textarea
+                    className="panel-input note-panel-textarea"
+                    value={editContent}
+                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditContent(e.target.value)}
+                    onKeyDown={(e) => handleEditKeyDown(e, note.id)}
+                    autoFocus
+                  />
+                  <div className="note-panel-edit-actions">
+                    <button type="button" className="panel-button panel-button--success note-panel-btn note-panel-btn-save" onClick={() => handleEditSave(note.id)}>
+                      {messages.save}
+                    </button>
+                    <button type="button" className="panel-button panel-button--ghost note-panel-btn note-panel-btn-cancel" onClick={() => setEditingId(null)}>
+                      {messages.cancel}
                     </button>
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="panel-organization-surface note-panel-add">
-          <div className="panel-organization-surface-head">
-            <div>
-              <div className="panel-organization-surface-title">{messages.composerSectionTitle}</div>
-              <p className="dialog-supporting-note">{messages.composerHint}</p>
+                </div>
+              ) : (
+                <div className="note-panel-content" onDoubleClick={() => handleEditStart(note)}>
+                  <p>{note.content['default'] ?? Object.values(note.content)[0] ?? ''}</p>
+                  <button
+                    type="button"
+                    className="note-panel-delete"
+                    onClick={() => onDelete(note.id)}
+                    title={messages.deleteNote}
+                    aria-label={messages.deleteNote}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
-          <textarea
-            className="note-panel-textarea"
-            placeholder={messages.newNotePlaceholder}
-            value={newContent}
-            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNewContent(e.target.value)}
-            onKeyDown={handleAddKeyDown}
-          />
-          <div className="note-panel-add-actions">
-            <select
-              className="note-panel-category-select"
-              value={newCategory}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) => setNewCategory(e.target.value as NoteCategory | '')}
-            >
-              <option value="">{messages.noCategory}</option>
-              {categories.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-            <button type="button" className="note-panel-btn note-panel-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
-              <Plus size={14} /> {messages.add}
-            </button>
-          </div>
-        </section>
-      </div>
-    </div>
+          ))}
+        </div>
+      </PanelSection>
+
+      <PanelSection
+        className="note-panel-add"
+        title={messages.composerSectionTitle}
+        description={messages.composerHint}
+      >
+        <textarea
+          className="panel-input note-panel-textarea"
+          placeholder={messages.newNotePlaceholder}
+          value={newContent}
+          onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNewContent(e.target.value)}
+          onKeyDown={handleAddKeyDown}
+        />
+        <div className="note-panel-add-actions">
+          <select
+            className="panel-input note-panel-category-select"
+            value={newCategory}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => setNewCategory(e.target.value as NoteCategory | '')}
+          >
+            <option value="">{messages.noCategory}</option>
+            {categories.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="panel-button panel-button--primary note-panel-btn note-panel-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
+            <Plus size={14} /> {messages.add}
+          </button>
+        </div>
+      </PanelSection>
+    </DialogShell>
   );
 });

@@ -5,6 +5,8 @@ import { useLocale } from '../../i18n';
 import { computeAdaptivePanelWidth } from '../../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../../hooks/useViewportWidth';
+import { PanelSection } from '../ui/PanelSection';
+import { PanelSummary } from '../ui/PanelSummary';
 
 interface AiChatPromptLabModalProps {
   isZh: boolean;
@@ -71,77 +73,68 @@ export function AiChatPromptLabModal({
 
   return (
     <div
-      className="ai-chat-prompt-lab-panel-content"
+      className="ai-chat-prompt-lab ai-chat-prompt-lab-panel-content panel-design-match-content"
       dir={uiTextDirection}
       style={{
         minWidth: `min(100%, ${compactWidth}px)`,
         maxWidth: `min(100%, ${wideWidth}px)`,
       }}
     >
-      <section className="panel-organization-surface panel-organization-surface-emphasis ai-chat-prompt-lab-summary">
-        <div className="panel-organization-surface-head">
-          <div>
-            <div className="panel-organization-surface-title">{messages.overviewTitle}</div>
-            <p className="panel-organization-surface-copy ai-chat-prompt-lab-panel-note">{messages.panelNote}</p>
+      <PanelSummary
+        className="ai-chat-prompt-lab-summary"
+        title={messages.overviewTitle}
+        description={messages.panelNote}
+        meta={(
+          <div className="panel-meta">
+            <span className="panel-chip">{messages.templateCount(promptTemplates.length)}</span>
+            <span className={`panel-chip${hasDraft ? ' panel-chip--warning' : ''}`}>{draftStatusLabel}</span>
           </div>
-          <div className="dialog-stat-row">
-            <span className="dialog-stat-chip">{messages.templateCount(promptTemplates.length)}</span>
-            <span className={`dialog-stat-chip${hasDraft ? ' dialog-stat-chip-warning' : ''}`}>{draftStatusLabel}</span>
-          </div>
-        </div>
-      </section>
+        )}
+      />
 
-      <section className="panel-organization-surface ai-chat-prompt-lab-section ai-chat-prompt-lab-library-surface">
-        <div className="panel-organization-surface-head">
-          <div>
-            <div className="panel-organization-surface-title">{messages.libraryTitle}</div>
-            <p className="dialog-supporting-note">{messages.templateCount(promptTemplates.length)}</p>
-          </div>
-        </div>
+      <PanelSection className="ai-chat-prompt-lab-section ai-chat-prompt-lab-library-surface" title={messages.libraryTitle}>
         {promptTemplates.length === 0 ? (
           <p className="ai-chat-fold-empty ai-chat-prompt-lab-empty">{messages.emptyTemplates}</p>
         ) : (
           promptTemplates.map((item) => (
             <div key={item.id} className="ai-chat-prompt-lab-template-row">
               <span className="small-text ai-chat-prompt-lab-item-title ai-chat-prompt-lab-item-title-ellipsis" title={item.content}>{item.title}</span>
-              <button type="button" className="icon-btn ai-chat-prompt-lab-mini-btn" onClick={() => onInjectTemplate(item.content)}>{messages.inject}</button>
-              <button type="button" className="icon-btn ai-chat-prompt-lab-mini-btn" onClick={() => onEditTemplate(item)}>{messages.edit}</button>
-              <button type="button" className="icon-btn ai-chat-prompt-lab-mini-btn ai-chat-prompt-lab-mini-btn-danger" onClick={() => onRemoveTemplate(item.id)}>{messages.deleteShort}</button>
+              <button type="button" className="panel-button ai-chat-prompt-lab-mini-btn" onClick={() => onInjectTemplate(item.content)}>{messages.inject}</button>
+              <button type="button" className="panel-button ai-chat-prompt-lab-mini-btn" onClick={() => onEditTemplate(item)}>{messages.edit}</button>
+              <button type="button" className="panel-button panel-button--danger ai-chat-prompt-lab-mini-btn ai-chat-prompt-lab-mini-btn-danger" onClick={() => onRemoveTemplate(item.id)}>{messages.deleteShort}</button>
             </div>
           ))
         )}
-      </section>
+      </PanelSection>
 
-      <section className="panel-organization-surface ai-chat-prompt-lab-section ai-chat-prompt-lab-editor-surface ai-chat-prompt-lab-section-separated">
-        <div className="panel-organization-surface-head">
-          <div>
-            <div className="panel-organization-surface-title">{messages.editorTitle}</div>
-            <p className="dialog-supporting-note">{messages.editorHint}</p>
-          </div>
-        </div>
+      <PanelSection
+        className="ai-chat-prompt-lab-section ai-chat-prompt-lab-editor-surface ai-chat-prompt-lab-section-separated"
+        title={messages.editorTitle}
+        description={messages.editorHint}
+      >
         <input
           type="text"
           value={templateTitleInput}
           placeholder={messages.titlePlaceholder}
           onChange={(event) => onTemplateTitleInputChange(event.currentTarget.value)}
-          className="ai-chat-input ai-chat-prompt-lab-input"
+          className="ai-chat-input panel-input ai-chat-prompt-lab-input"
         />
         <textarea
           value={templateContentInput}
           placeholder={messages.contentPlaceholder}
           onChange={(event) => onTemplateContentInputChange(event.currentTarget.value)}
-          className="ai-chat-prompt-lab-textarea"
+          className="panel-input ai-chat-prompt-lab-textarea"
         />
         <div className="ai-chat-prompt-lab-token-row">
           {['selected_text', 'current_utterance', 'lexicon_summary', 'project_stage', 'current_row'].map((token) => (
-            <button key={token} type="button" className="icon-btn ai-chat-prompt-lab-token-btn" onClick={() => onAppendPromptVariable(token)}>{`{{${token}}}`}</button>
+            <button key={token} type="button" className="panel-button ai-chat-prompt-lab-token-btn" onClick={() => onAppendPromptVariable(token)}>{`{{${token}}}`}</button>
           ))}
         </div>
         <div className="ai-chat-prompt-lab-action-row">
-          <button type="button" className="icon-btn ai-chat-prompt-lab-action-btn" disabled={templateTitleInput.trim().length === 0 || templateContentInput.trim().length === 0} onClick={onSaveTemplate}>{editingTemplateId ? messages.update : messages.save}</button>
-          <button type="button" className="icon-btn ai-chat-prompt-lab-action-btn ai-chat-prompt-lab-action-btn-primary" disabled={templateContentInput.trim().length === 0} onClick={onInjectAndClose}>{messages.injectToInput}</button>
+          <button type="button" className="panel-button ai-chat-prompt-lab-action-btn" disabled={templateTitleInput.trim().length === 0 || templateContentInput.trim().length === 0} onClick={onSaveTemplate}>{editingTemplateId ? messages.update : messages.save}</button>
+          <button type="button" className="panel-button panel-button--primary ai-chat-prompt-lab-action-btn ai-chat-prompt-lab-action-btn-primary" disabled={templateContentInput.trim().length === 0} onClick={onInjectAndClose}>{messages.injectToInput}</button>
         </div>
-      </section>
+      </PanelSection>
     </div>
   );
 }

@@ -19,6 +19,34 @@ describe('DevErrorAggregationPanel', () => {
     expect(screen.queryByText(/Error Aggregation/)).toBeNull();
   });
 
+  it('renders as a fixed disclosure panel with stable shell classes', () => {
+    vi.useFakeTimers();
+    recordStructuredError({
+      category: 'action',
+      action: '导入文件',
+      recoverable: true,
+      i18nKey: 'transcription.importExport.failed',
+    });
+
+    const { container } = render(<DevErrorAggregationPanel />);
+
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+
+    const panel = container.querySelector('.dev-error-aggregation-panel') as HTMLDetailsElement;
+    const summary = container.querySelector('.dev-error-aggregation-panel-summary') as HTMLElement;
+    const list = container.querySelector('.dev-error-aggregation-panel-list') as HTMLDivElement;
+
+    expect(panel).toBeTruthy();
+    expect(summary).toBeTruthy();
+    expect(list).toBeTruthy();
+    expect(panel.style.position).toBe('fixed');
+    expect(panel.style.right).toBe('12px');
+    expect(panel.style.bottom).toBe('12px');
+    expect(summary.textContent).toContain('Error Aggregation (1)');
+  });
+
   it('renders aggregated errors and refreshes by polling', () => {
     vi.useFakeTimers();
     render(<DevErrorAggregationPanel />);

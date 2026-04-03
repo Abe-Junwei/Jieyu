@@ -3,8 +3,8 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { initSentryForReleaseStage } from './observability/sentry';
-import './styles/global.css';
-import './styles/shared.css';
+import './styles/app-foundation.css';
+import './styles/panel-blocks.css';
 
 void initSentryForReleaseStage();
 
