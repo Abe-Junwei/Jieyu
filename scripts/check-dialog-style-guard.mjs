@@ -38,6 +38,10 @@ const FORBIDDEN_TOKENS = [
     label: 'legacy floating width token',
     pattern: /(?:^|[^\w-])adaptiveFloatingWidth(?:[^\w-]|$)|--floating-panel-auto-width/g,
   },
+  {
+    label: 'unclamped dialog auto width usage',
+    pattern: /width\s*:\s*var\(--dialog-auto-width/g,
+  },
 ];
 
 function walk(dir) {

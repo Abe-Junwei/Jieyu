@@ -66,6 +66,48 @@ describe('panelAdaptiveLayout', () => {
     expect(tooLarge).toBe(600);
   });
 
+  it('keeps width stable by default regardless of font scale and script', () => {
+    const baseline = computeAdaptivePanelWidth({
+      baseWidth: 480,
+      locale: 'en-US',
+      uiFontScale: 1,
+      density: 'standard',
+      minWidth: 360,
+      maxWidth: 900,
+    });
+    const largerTextAndScript = computeAdaptivePanelWidth({
+      baseWidth: 480,
+      locale: 'zh-CN',
+      uiFontScale: 1.3,
+      density: 'standard',
+      minWidth: 360,
+      maxWidth: 900,
+    });
+    expect(largerTextAndScript).toBe(baseline);
+  });
+
+  it('supports explicit opt-in for font/script based width scaling', () => {
+    const designFirst = computeAdaptivePanelWidth({
+      baseWidth: 560,
+      locale: 'zh-CN',
+      uiFontScale: 1.2,
+      density: 'standard',
+      minWidth: 360,
+      maxWidth: 1200,
+    });
+    const scaled = computeAdaptivePanelWidth({
+      baseWidth: 560,
+      locale: 'zh-CN',
+      uiFontScale: 1.2,
+      density: 'standard',
+      minWidth: 360,
+      maxWidth: 1200,
+      scaleWidthByFont: true,
+      scaleWidthByScript: true,
+    });
+    expect(scaled).toBeGreaterThan(designFirst);
+  });
+
   it('normalizes ui font scale to supported range', () => {
     expect(normalizeUiFontScale(0.5)).toBe(0.85);
     expect(normalizeUiFontScale(1.8)).toBe(1.4);

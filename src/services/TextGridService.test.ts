@@ -72,6 +72,7 @@ describe('TextGridService tier metadata', () => {
       key: 'trc_default',
       languageId: 'ara',
       orthographyId: 'ortho-ar',
+      transformId: 'xf-ar-latn',
     });
     const trl = makeLayer({
       id: 'trl_gloss',
@@ -105,6 +106,7 @@ describe('TextGridService tier metadata', () => {
     expect(imported.tierMetadata.get('transcription')?.scriptTag).toBe('Arab');
     expect(imported.tierMetadata.get('transcription')?.regionTag).toBe('EG');
     expect(imported.tierMetadata.get('transcription')?.variantTag).toBe('fonipa');
+    expect(imported.tierMetadata.get('transcription')?.transformId).toBe('xf-ar-latn');
     expect(imported.tierMetadata.get('Gloss Tier')?.languageId).toBe('eng');
     expect(imported.tierMetadata.get('Gloss Tier')?.orthographyId).toBe('ortho-eng');
   });

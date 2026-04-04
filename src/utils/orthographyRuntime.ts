@@ -1,31 +1,41 @@
 import type { LayerDocType } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 
-type LayerOrthographyRef = Pick<LayerDocType, 'id' | 'orthographyId'>;
+type LayerOrthographyRef = Pick<LayerDocType, 'id' | 'orthographyId' | 'transformId'>;
+type TranscriptionLayerRef = Pick<LayerDocType, 'layerType' | 'orthographyId'>;
 
 function normalizeOrthographyId(value: string | null | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
 }
 
-export async function applyOrthographyTransformIfNeeded(input: {
+export function resolveFallbackSourceOrthographyId(input: {
+  layers: ReadonlyArray<TranscriptionLayerRef>;
+  selectedLayerId?: string | null;
+}): string | undefined {
+  return normalizeOrthographyId(input.layers.find((layer) => layer.layerType === 'transcription')?.orthographyId);
+}
+
+export async function applyOrthographyBridgeIfNeeded(input: {
   text: string;
   sourceOrthographyId?: string | null;
   targetOrthographyId?: string | null;
+  transformId?: string | null;
 }): Promise<{ text: string; transformId?: string }> {
   const sourceOrthographyId = normalizeOrthographyId(input.sourceOrthographyId);
   const targetOrthographyId = normalizeOrthographyId(input.targetOrthographyId);
   if (!input.text || !sourceOrthographyId || !targetOrthographyId || sourceOrthographyId === targetOrthographyId) {
     return { text: input.text };
   }
-  return LinguisticService.applyOrthographyTransform({
+  return LinguisticService.applyOrthographyBridge({
     text: input.text,
     sourceOrthographyId,
     targetOrthographyId,
+    ...(input.transformId?.trim() ? { transformId: input.transformId.trim() } : {}),
   });
 }
 
-export async function transformTextForLayerTarget(input: {
+export async function bridgeTextForLayerTarget(input: {
   text: string;
   layers: ReadonlyArray<LayerOrthographyRef>;
   targetLayerId?: string | null;
@@ -46,9 +56,10 @@ export async function transformTextForLayerTarget(input: {
   const sourceOrthographyId = normalizeOrthographyId(selectedLayer?.orthographyId)
     ?? normalizeOrthographyId(input.fallbackSourceOrthographyId);
 
-  return (await applyOrthographyTransformIfNeeded({
+  return (await applyOrthographyBridgeIfNeeded({
     text: input.text,
     ...(sourceOrthographyId !== undefined && { sourceOrthographyId }),
     targetOrthographyId,
+    ...(targetLayer?.transformId !== undefined ? { transformId: targetLayer.transformId } : {}),
   })).text;
 }

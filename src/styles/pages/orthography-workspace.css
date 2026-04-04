@@ -1,0 +1,199 @@
+.orthography-workspace {
+  display: grid;
+  gap: 16px;
+  max-width: 1280px;
+}
+
+.orthography-workspace-hero {
+  display: grid;
+  gap: 8px;
+}
+
+.orthography-workspace-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--state-info-text);
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px solid rgba(14, 165, 233, 0.18);
+}
+
+.orthography-workspace-summary,
+.orthography-workspace-context,
+.orthography-workspace-state {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.orthography-workspace-state-error {
+  color: var(--state-danger-text);
+}
+
+.orthography-workspace-state-success {
+  color: var(--state-success-text, #15803d);
+}
+
+.orthography-workspace-state-warning {
+  color: var(--state-warning-text, #b45309);
+}
+
+.orthography-workspace-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.orthography-workspace-list-panel,
+.orthography-workspace-summary-card,
+.orthography-workspace-basic-panel,
+.orthography-workspace-bridge-panel {
+  border-radius: 16px;
+}
+
+.orthography-workspace-detail-column {
+  display: grid;
+  gap: 16px;
+}
+
+.orthography-workspace-search {
+  width: 100%;
+}
+
+.orthography-workspace-list {
+  display: grid;
+  gap: 10px;
+}
+
+.orthography-workspace-list-item {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.orthography-workspace-list-item-active {
+  border-color: rgba(14, 165, 233, 0.35);
+  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.18);
+}
+
+.orthography-workspace-list-label {
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.orthography-workspace-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.orthography-workspace-basic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.orthography-workspace-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.orthography-workspace-form-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.orthography-workspace-subsection {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-header) 82%, transparent);
+}
+
+.orthography-workspace-subsection-title {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.orthography-workspace-form-span-2 {
+  grid-column: 1 / -1;
+}
+
+.orthography-workspace-textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.orthography-workspace-codearea {
+  min-height: 140px;
+  font-family: var(--font-mono, 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace);
+}
+
+.orthography-workspace-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.orthography-workspace-basic-grid div {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-header) 94%, transparent);
+}
+
+.orthography-workspace-basic-grid dt {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.orthography-workspace-basic-grid dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+@media (max-width: 960px) {
+  .orthography-workspace-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .orthography-workspace-basic-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .orthography-workspace-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .orthography-workspace-form-span-2 {
+    grid-column: auto;
+  }
+
+  .orthography-workspace-form-actions {
+    justify-content: stretch;
+  }
+
+  .orthography-workspace-form-actions .btn {
+    flex: 1 1 0;
+  }
+}

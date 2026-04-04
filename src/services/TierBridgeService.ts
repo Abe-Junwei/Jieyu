@@ -69,6 +69,8 @@ export async function syncLayerToTier(
     // Update mutable fields if they drifted
     const needsUpdate =
       existing.languageId !== layer.languageId ||
+      existing.orthographyId !== layer.orthographyId ||
+      existing.transformId !== layer.transformId ||
       JSON.stringify(existing.name) !== JSON.stringify(layer.name) ||
       existing.modality !== layer.modality ||
       existing.acceptsAudio !== layer.acceptsAudio ||
@@ -81,6 +83,8 @@ export async function syncLayerToTier(
         languageId: layer.languageId,
         name: layer.name,
         modality: layer.modality,
+        ...(layer.orthographyId !== undefined && { orthographyId: layer.orthographyId }),
+        ...(layer.transformId !== undefined ? { transformId: layer.transformId } : {}),
         ...(layer.acceptsAudio !== undefined && { acceptsAudio: layer.acceptsAudio }),
         ...(layer.isDefault !== undefined && { isDefault: layer.isDefault }),
         ...(layer.accessRights !== undefined && { accessRights: layer.accessRights }),
@@ -102,6 +106,8 @@ export async function syncLayerToTier(
     tierType: 'time-aligned',
     contentType,
     languageId: layer.languageId,
+    ...(layer.orthographyId !== undefined && { orthographyId: layer.orthographyId }),
+    ...(layer.transformId !== undefined && { transformId: layer.transformId }),
     modality: layer.modality,
     ...(layer.acceptsAudio !== undefined && { acceptsAudio: layer.acceptsAudio }),
     ...(layer.isDefault !== undefined && { isDefault: layer.isDefault }),
@@ -135,6 +141,8 @@ export async function syncTierToLayer(
     const needsUpdate =
       existing.textId !== tier.textId ||
       existing.languageId !== (tier.languageId ?? existing.languageId) ||
+      existing.orthographyId !== (tier.orthographyId ?? existing.orthographyId) ||
+      existing.transformId !== (tier.transformId ?? existing.transformId) ||
       JSON.stringify(existing.name) !== JSON.stringify(tier.name);
 
     if (needsUpdate) {
@@ -144,6 +152,8 @@ export async function syncTierToLayer(
         textId: tier.textId,
         languageId: tier.languageId ?? existing.languageId,
         name: tier.name,
+        ...(tier.orthographyId !== undefined && { orthographyId: tier.orthographyId }),
+        ...(tier.transformId !== undefined ? { transformId: tier.transformId } : {}),
         updatedAt: now,
       };
       await db.collections.layers.insert(updated);
@@ -161,6 +171,8 @@ export async function syncTierToLayer(
     name: tier.name,
     layerType,
     languageId: tier.languageId ?? '',
+    ...(tier.orthographyId !== undefined && { orthographyId: tier.orthographyId }),
+    ...(tier.transformId !== undefined && { transformId: tier.transformId }),
     modality: tier.modality ?? 'text',
     ...(tier.acceptsAudio !== undefined && { acceptsAudio: tier.acceptsAudio }),
     ...(tier.isDefault !== undefined && { isDefault: tier.isDefault }),
@@ -211,6 +223,24 @@ export async function validateLayerTierConsistency(
         layerId: layer.id,
         tierId: tier.id,
         message: `Language mismatch: layer="${layer.languageId}", tier="${tier.languageId ?? ''}".`,
+      });
+    }
+
+    if ((layer.orthographyId ?? '') !== (tier.orthographyId ?? '')) {
+      issues.push({
+        kind: 'mismatch',
+        layerId: layer.id,
+        tierId: tier.id,
+        message: `Orthography mismatch: layer="${layer.orthographyId ?? ''}", tier="${tier.orthographyId ?? ''}".`,
+      });
+    }
+
+    if ((layer.transformId ?? '') !== (tier.transformId ?? '')) {
+      issues.push({
+        kind: 'mismatch',
+        layerId: layer.id,
+        tierId: tier.id,
+        message: `Transform mismatch: layer="${layer.transformId ?? ''}", tier="${tier.transformId ?? ''}".`,
       });
     }
   }

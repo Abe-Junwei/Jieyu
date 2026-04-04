@@ -1,39 +1,132 @@
-/* AiAnalysisPanel-owned stats blocks */
+/* AiAnalysisPanel-owned shell and stats blocks */
+
+.transcription-analysis-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+}
+
+.transcription-analysis-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--panel-design-border-color);
+  background: var(--panel-design-surface-color);
+}
+
+.transcription-analysis-toolbar-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--panel-design-title-color);
+}
+
+.transcription-analysis-panel-body {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  grid-auto-rows: max-content;
+  gap: 12px;
+  padding: 12px 16px;
+  overflow-y: auto;
+}
+
+.transcription-analysis-panel-summary,
+.transcription-analysis-stats-section {
+  min-width: 0;
+}
+
+.transcription-analysis-tab-content {
+  min-height: 0;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.transcription-analysis-tab-content .transcription-ai-card {
+  margin: 0;
+}
 
 .transcription-ai-stats-panel {
-  margin: 10px;
-  border: 1px solid var(--state-info-bg);
-  border-radius: 10px;
-  background: var(--state-info-bg);
-  padding: 10px;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 8px;
 }
 
-.transcription-ai-stats-panel-footer {
-  margin: 0;
-  margin-top: 0;
-  border: 0;
-  border-top: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 0;
-  background: rgba(241, 245, 249, 0.55);
-  padding: 6px 10px 8px;
+.transcription-analysis-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
 }
 
-.transcription-ai-task-hint {
-  margin-top: auto;
-  padding: 4px 12px 2px;
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  line-height: 1.35;
-  text-align: left;
+.transcription-analysis-stats-row:last-child {
+  border-bottom: none;
 }
 
-.transcription-ai-stats-panel-footer .toolbar-chip.small-chip {
-  border-color: rgba(148, 163, 184, 0.28);
-  background: rgba(255, 255, 255, 0.82);
+.transcription-analysis-stats-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--text-secondary);
-  padding: 2px 7px;
-  font-size: 0.72rem;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.transcription-analysis-stats-label-accent {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.transcription-analysis-stats-value {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  font-weight: 600;
+  text-align: right;
+}
+
+.transcription-analysis-stats-row-accent .transcription-analysis-stats-value {
+  color: var(--state-info-solid);
+}
+
+.transcription-analysis-panel-footer {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--panel-design-border-color);
+  padding: 0 16px 12px;
+}
+
+.transcription-analysis-panel-footer .transcription-assistant-hub-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-header) 74%, transparent);
+  color: var(--text-primary);
+  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.transcription-analysis-panel-footer .transcription-assistant-hub-tab:hover:not(.transcription-assistant-hub-tab-active) {
+  background: color-mix(in srgb, var(--surface-header) 60%, var(--surface-panel));
+}
+
+.transcription-analysis-panel-footer .transcription-assistant-hub-tab-active {
+  border-color: color-mix(in srgb, var(--header-accent) 28%, var(--border-soft));
+  background: color-mix(in srgb, var(--state-info-bg) 82%, var(--surface-panel));
+  color: var(--state-info-solid);
 }

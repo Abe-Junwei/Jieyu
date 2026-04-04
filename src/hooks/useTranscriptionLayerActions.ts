@@ -29,6 +29,7 @@ import {
   deleteLayerSegmentGraphByLayerId,
 } from '../services/LayerSegmentGraphService';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
+import { isKnownIso639_3Code } from '../utils/langMapping';
 import { t, useLocale } from '../i18n';
 
 export type TranscriptionLayerActionsParams = {
@@ -193,6 +194,10 @@ export function useTranscriptionLayerActions({
 
     if (!languageId) {
       setLayerCreateMessage('\u8bf7\u9009\u62e9\u8bed\u8a00\u3002');
+      return false;
+    }
+    if (!isKnownIso639_3Code(languageId)) {
+      setLayerCreateMessage('语言代码必须是有效的 ISO 639-3 三字母代码。');
       return false;
     }
 

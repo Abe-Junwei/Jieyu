@@ -1,6 +1,6 @@
 import { Children, memo, type ReactNode } from 'react';
 import { FastForward, Pause, Play, Repeat, Rewind, Trash2, Volume2, Zap } from 'lucide-react';
-import { t, useLocale } from '../i18n';
+import { t, tf, useLocale } from '../i18n';
 
 interface WaveformToolbarProps {
   filename: string;
@@ -54,7 +54,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
             <strong>{filename}</strong>
           </div>
         </div>
-        <button className="icon-btn" onClick={() => onSeek(-10)} title={t(locale, 'transcription.wave.toolbar.rewind10')}>
+        <button className="icon-btn" onClick={() => onSeek(-10)} title={t(locale, 'transcription.wave.toolbar.rewind10')} aria-label={t(locale, 'transcription.wave.toolbar.rewind10')}>
           <Rewind size={16} />
         </button>
         <button
@@ -66,13 +66,14 @@ export const WaveformToolbar = memo(function WaveformToolbar({
         >
           {isPlaying ? <Pause size={18} /> : <Play size={18} />}
         </button>
-        <button className="icon-btn" onClick={() => onSeek(10)} title={t(locale, 'transcription.wave.toolbar.forward10')}>
+        <button className="icon-btn" onClick={() => onSeek(10)} title={t(locale, 'transcription.wave.toolbar.forward10')} aria-label={t(locale, 'transcription.wave.toolbar.forward10')}>
           <FastForward size={16} />
         </button>
         <select
           className="speed-select"
           value={String(playbackRate)}
           onChange={(event) => onPlaybackRateChange(Number(event.target.value))}
+          aria-label={tf(locale, 'transcription.wave.segmentSpeed', { rate: playbackRate })}
         >
           <option value="0.5">0.5x</option>
           <option value="0.75">0.75x</option>
@@ -85,6 +86,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           className={`icon-btn ${loop ? 'icon-btn-active' : ''}`}
           onClick={() => onLoopChange(!loop)}
           title={loop ? t(locale, 'transcription.wave.toolbar.globalLoopOff') : t(locale, 'transcription.wave.toolbar.globalLoopOn')}
+          aria-label={loop ? t(locale, 'transcription.wave.toolbar.globalLoopOff') : t(locale, 'transcription.wave.toolbar.globalLoopOn')}
         >
           <Repeat size={15} />
         </button>
@@ -97,6 +99,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
             step={0.05}
             value={volume}
             onChange={(event) => onVolumeChange(Number(event.target.value))}
+            aria-label={tf(locale, 'transcription.voiceWidget.signal.volume', { percent: Math.round(volume * 100) })}
           />
         </label>
         {(onAutoSegment || onDeleteCurrentAudio) && (

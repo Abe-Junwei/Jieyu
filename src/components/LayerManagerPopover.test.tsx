@@ -79,4 +79,15 @@ describe('LayerManagerPopover', () => {
     expect(screen.getAllByText('新建翻译层').length).toBeGreaterThan(0);
     expect(screen.getAllByText('删除层').length).toBeGreaterThan(0);
   });
+
+  it('exposes accessible names for layer management form controls', () => {
+    renderDialog();
+
+    expect(screen.getByRole('combobox', { name: '新建转写层 选择语言' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '新建转写层 别名（可选）' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '新建翻译层 选择语言' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '新建翻译层 别名（可选）' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '翻译层输出形态' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '删除目标层' })).toBeTruthy();
+  });
 });

@@ -33,7 +33,7 @@ export async function importAdditionalTiers(input: {
   layers: LayerDocType[];
   additionalTiers: Map<string, AdditionalTierAnnotation[]>;
   insertedUtterances: InsertedUtterance[];
-  importedTierMetadata: Map<string, { languageId?: string; orthographyId?: string }>;
+  importedTierMetadata: Map<string, { languageId?: string; orthographyId?: string; transformId?: string }>;
   tierNameToLayerId: Map<string, string>;
   effectiveTranscriptionLayerId?: string;
   autoCreatedLayerKey?: string;
@@ -45,11 +45,19 @@ export async function importAdditionalTiers(input: {
     languageTagCandidates: Array<string | undefined>,
     fallbackName: string,
   ) => { label: string; source: 'db' | 'eaf' | 'fallback'; matchedTag?: string };
-  transformImportedText: (inputData: {
+  planImportedWrites: (inputData: {
     text: string;
     sourceOrthographyId?: string;
     targetLayerId?: string;
-  }) => Promise<string>;
+    transformId?: string;
+    baseLabel: string;
+    languageId: string;
+    layerType: LayerDocType['layerType'];
+    keyPrefix: string;
+    constraint?: LayerDocType['constraint'];
+    parentLayerId?: string;
+    tierName?: string;
+  }) => Promise<Array<{ layerId: string; text: string }>>;
   rememberLayer: (layer: LayerDocType) => void;
 }) {
   let tierCount = 0;
@@ -111,36 +119,45 @@ export async function importAdditionalTiers(input: {
         const annStart = Number(annotation.startTime.toFixed(3));
         const annEnd = Number(annotation.endTime.toFixed(3));
         if (annEnd - annStart < 0.01) continue;
-        const transformedAnnText = await input.transformImportedText({
+        const writes = await input.planImportedWrites({
           text: annotation.text,
           ...(importedTierMeta?.orthographyId !== undefined ? { sourceOrthographyId: importedTierMeta.orthographyId } : {}),
+          ...(importedTierMeta?.transformId !== undefined ? { transformId: importedTierMeta.transformId } : {}),
           targetLayerId: indepLayerId,
+          baseLabel: humanizeTierName(tierName),
+          languageId: importedTierMeta?.languageId ?? 'und',
+          layerType: 'transcription',
+          keyPrefix: 'trc_import_source',
+          constraint: 'independent_boundary',
+          tierName,
         });
         const segNow = new Date().toISOString();
-        const segId = newId('seg');
-        await LayerSegmentationV2Service.createSegmentWithContentAtomic(
-          {
-            id: segId,
-            textId: importTextId,
-            mediaId: importMediaId,
-            layerId: indepLayerId,
-            startTime: annStart,
-            endTime: annEnd,
-            createdAt: segNow,
-            updatedAt: segNow,
-          },
-          {
-            id: newId('sc'),
-            textId: importTextId,
-            segmentId: segId,
-            layerId: indepLayerId,
-            modality: 'text',
-            text: transformedAnnText,
-            sourceType: 'human',
-            createdAt: segNow,
-            updatedAt: segNow,
-          },
-        );
+        for (const write of writes) {
+          const segId = newId('seg');
+          await LayerSegmentationV2Service.createSegmentWithContentAtomic(
+            {
+              id: segId,
+              textId: importTextId,
+              mediaId: importMediaId,
+              layerId: write.layerId,
+              startTime: annStart,
+              endTime: annEnd,
+              createdAt: segNow,
+              updatedAt: segNow,
+            },
+            {
+              id: newId('sc'),
+              textId: importTextId,
+              segmentId: segId,
+              layerId: write.layerId,
+              modality: 'text',
+              text: write.text,
+              sourceType: 'human',
+              createdAt: segNow,
+              updatedAt: segNow,
+            },
+          );
+        }
       }
       continue;
     }
@@ -191,6 +208,7 @@ export async function importAdditionalTiers(input: {
         layerType: 'translation' as const,
         languageId: tierLang,
         ...(importedTierMeta?.orthographyId ? { orthographyId: importedTierMeta.orthographyId } : {}),
+        ...(importedTierMeta?.transformId ? { transformId: importedTierMeta.transformId } : {}),
         modality: 'text' as const,
         acceptsAudio: false,
         sortOrder: tierCount + 1,
@@ -225,6 +243,10 @@ export async function importAdditionalTiers(input: {
       }
     }
 
+    const translationBaseLabel = existingMatch && typeof existingMatch.name === 'object' && existingMatch.name !== null
+      ? ((existingMatch.name as Record<string, string>).zho ?? (existingMatch.name as Record<string, string>).eng ?? humanizedName)
+      : humanizedName;
+
     for (const annotation of annotations) {
       const annStart = Number(annotation.startTime.toFixed(3));
       const annEnd = Number(annotation.endTime.toFixed(3));
@@ -232,23 +254,33 @@ export async function importAdditionalTiers(input: {
         (utterance) => Math.abs(utterance.startTime - annStart) < 0.05 && Math.abs(utterance.endTime - annEnd) < 0.05,
       );
       if (match && annotation.text.trim()) {
-        const transformedAnnText = await input.transformImportedText({
+        const writes = await input.planImportedWrites({
           text: annotation.text,
           ...(importedTierMeta?.orthographyId !== undefined ? { sourceOrthographyId: importedTierMeta.orthographyId } : {}),
+          ...(importedTierMeta?.transformId !== undefined ? { transformId: importedTierMeta.transformId } : {}),
           targetLayerId: layerId,
+          baseLabel: translationBaseLabel,
+          languageId: tierLang,
+          layerType: 'translation',
+          keyPrefix: 'trl_import_source',
+          ...(input.eafResult?.tierConstraints?.get(tierName)?.constraint ? { constraint: input.eafResult.tierConstraints.get(tierName)?.constraint } : {}),
+          ...(existingMatch?.parentLayerId ? { parentLayerId: existingMatch.parentLayerId } : {}),
+          tierName,
         });
-        const doc: UtteranceTextDocType = {
-          id: newId('utr'),
-          utteranceId: match.id,
-          layerId,
-          modality: 'text' as const,
-          text: transformedAnnText,
-          sourceType: 'human' as const,
-          ...(annotation.annotationId ? { externalRef: annotation.annotationId } : {}),
-          createdAt: input.now,
-          updatedAt: input.now,
-        };
-        await syncUtteranceTextToSegmentationV2(input.db, match.utterance, doc);
+        for (const write of writes) {
+          const doc: UtteranceTextDocType = {
+            id: newId('utr'),
+            utteranceId: match.id,
+            layerId: write.layerId,
+            modality: 'text' as const,
+            text: write.text,
+            sourceType: 'human' as const,
+            ...(annotation.annotationId ? { externalRef: annotation.annotationId } : {}),
+            createdAt: input.now,
+            updatedAt: input.now,
+          };
+          await syncUtteranceTextToSegmentationV2(input.db, match.utterance, doc);
+        }
       }
     }
   }

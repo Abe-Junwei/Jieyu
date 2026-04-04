@@ -1,9 +1,24 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { VoiceAgentWidget } from './VoiceAgentWidget';
 import type { VoiceAgentWidgetProps } from './VoiceAgentWidget';
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
 
 function makeProps(overrides: Partial<VoiceAgentWidgetProps> = {}): VoiceAgentWidgetProps {
   return {
@@ -164,5 +179,48 @@ describe('VoiceAgentWidget', () => {
     const actionHistoryText = screen.getByText('删除');
     expect(actionHistoryText.getAttribute('dir')).toBeNull();
     expect(actionHistoryText.getAttribute('style')).toBeNull();
+  });
+
+  it('ignores stale provider test results after provider changes', async () => {
+    const first = createDeferred<{ available: boolean; error?: string }>();
+    const second = createDeferred<{ available: boolean; error?: string }>();
+    const onTestCommercialProvider = vi.fn()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    const view = render(
+      <VoiceAgentWidget
+        {...makeProps({
+          engine: 'commercial',
+          commercialProviderKind: 'groq',
+          onTestCommercialProvider,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Toggle voice settings|切换语音设置/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Test connection|测试连接/i }));
+
+    view.rerender(
+      <VoiceAgentWidget
+        {...makeProps({
+          engine: 'commercial',
+          commercialProviderKind: 'minimax',
+          onTestCommercialProvider,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Test connection|测试连接/i }));
+
+    first.resolve({ available: true });
+    await Promise.resolve();
+    expect(screen.queryByText(/^可用$|^Available$/i)).toBeNull();
+
+    second.resolve({ available: false, error: 'offline' });
+    await waitFor(() => {
+      expect(screen.getByText(/offline/i)).toBeTruthy();
+    });
+    expect(onTestCommercialProvider).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText(/^可用$|^Available$/i)).toBeNull();
   });
 });

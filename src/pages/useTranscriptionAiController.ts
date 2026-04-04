@@ -24,7 +24,7 @@ import { buildTranscriptionAiPromptContext } from './TranscriptionPage.aiPromptC
 import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
-import { transformTextForLayerTarget } from '../utils/orthographyRuntime';
+import { bridgeTextForLayerTarget, resolveFallbackSourceOrthographyId } from '../utils/orthographyRuntime';
 import { createTranscriptionAiToolRiskCheck } from './transcriptionAiToolRiskCheck';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import {
@@ -185,6 +185,25 @@ export function useTranscriptionAiController(
     selectedSegmentTargetId,
   ]);
 
+  const bridgeTextForLayerWrite = useCallback(({ text, targetLayerId, selectedLayerId }: {
+    text: string;
+    targetLayerId?: string;
+    selectedLayerId?: string;
+  }) => {
+    const effectiveSelectedLayerId = (selectedLayerId ?? input.selectedLayerId).trim();
+    const fallbackSourceOrthographyId = resolveFallbackSourceOrthographyId({
+      layers: input.layers,
+      selectedLayerId: effectiveSelectedLayerId,
+    });
+    return bridgeTextForLayerTarget({
+      text,
+      layers: input.layers,
+      ...(targetLayerId !== undefined ? { targetLayerId } : {}),
+      selectedLayerId: effectiveSelectedLayerId,
+      ...(fallbackSourceOrthographyId !== undefined ? { fallbackSourceOrthographyId } : {}),
+    });
+  }, [input.layers, input.selectedLayerId]);
+
   const aiToolCallHandler = useAiToolCallHandler({
     utterances: segmentTargetScopeUtterances,
     selectedUtterance: input.selectedTimelineOwnerUtterance ?? undefined,
@@ -220,19 +239,7 @@ export function useTranscriptionAiController(
     seekToTime: (timeSeconds) => input.seekToTimeRef.current?.(timeSeconds),
     splitAtTime: (timeSeconds) => input.splitAtTimeRef.current?.(timeSeconds) ?? false,
     zoomToSegment: (segmentId, zoomLevel) => input.zoomToSegmentRef.current?.(segmentId, zoomLevel) ?? false,
-    transformTextForLayerWrite: ({ text, targetLayerId, selectedLayerId }) => {
-      const effectiveSelectedLayerId = (selectedLayerId ?? input.selectedLayerId).trim();
-      const fallbackSourceOrthographyId = effectiveSelectedLayerId
-        ? undefined
-        : input.layers.find((layer) => layer.layerType === 'transcription')?.orthographyId;
-      return transformTextForLayerTarget({
-        text,
-        layers: input.layers,
-        ...(targetLayerId !== undefined ? { targetLayerId } : {}),
-        selectedLayerId: effectiveSelectedLayerId,
-        ...(fallbackSourceOrthographyId !== undefined ? { fallbackSourceOrthographyId } : {}),
-      });
-    },
+    bridgeTextForLayerWrite,
   });
 
   const handleAiToolCall = useCallback(async (call: Parameters<typeof aiToolCallHandler>[0]) => {

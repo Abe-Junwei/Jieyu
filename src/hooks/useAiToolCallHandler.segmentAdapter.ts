@@ -189,8 +189,8 @@ export const segmentAdapter: ToolObjectAdapter = {
         if (!targetLayerId || !ctx.saveSegmentContentForLayer) {
           return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranscriptionMissingUtteranceId') };
         }
-        const transformedText = ctx.transformTextForLayerWrite
-          ? await ctx.transformTextForLayerWrite({
+        const transformedText = ctx.bridgeTextForLayerWrite
+          ? await ctx.bridgeTextForLayerWrite({
               text,
               targetLayerId,
               selectedLayerId: ctx.selectedLayerId,
@@ -209,8 +209,8 @@ export const segmentAdapter: ToolObjectAdapter = {
       const targetLayerId = ctx.transcriptionLayers.some((layer) => layer.id === ctx.selectedLayerId)
         ? ctx.selectedLayerId
         : undefined;
-      const transformedText = ctx.transformTextForLayerWrite
-        ? await ctx.transformTextForLayerWrite({
+      const transformedText = ctx.bridgeTextForLayerWrite
+        ? await ctx.bridgeTextForLayerWrite({
             text,
             ...(targetLayerId !== undefined ? { targetLayerId } : {}),
             selectedLayerId: ctx.selectedLayerId,
@@ -238,8 +238,8 @@ export const segmentAdapter: ToolObjectAdapter = {
         if (!ctx.saveSegmentContentForLayer) {
           return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranslationMissingUtteranceId') };
         }
-        const transformedText = ctx.transformTextForLayerWrite
-          ? await ctx.transformTextForLayerWrite({
+        const transformedText = ctx.bridgeTextForLayerWrite
+          ? await ctx.bridgeTextForLayerWrite({
               text,
               targetLayerId,
               selectedLayerId: ctx.selectedLayerId,
@@ -255,8 +255,8 @@ export const segmentAdapter: ToolObjectAdapter = {
       if (!targetUtterance) {
         return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUtteranceTarget() }) };
       }
-      const transformedText = ctx.transformTextForLayerWrite
-        ? await ctx.transformTextForLayerWrite({
+      const transformedText = ctx.bridgeTextForLayerWrite
+        ? await ctx.bridgeTextForLayerWrite({
             text,
             targetLayerId,
             selectedLayerId: ctx.selectedLayerId,

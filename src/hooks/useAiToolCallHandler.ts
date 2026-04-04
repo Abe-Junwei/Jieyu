@@ -50,7 +50,7 @@ export function useAiToolCallHandler({
   seekToTime,
   splitAtTime,
   zoomToSegment,
-  transformTextForLayerWrite,
+  bridgeTextForLayerWrite,
 }: Params): (call: AiChatToolCall) => Promise<AiChatToolResult> {
   const locale = useLocale();
   const utterancesRef = useLatest(utterances);
@@ -244,7 +244,7 @@ export function useAiToolCallHandler({
       seekToTime,
       splitAtTime,
       zoomToSegment,
-      transformTextForLayerWrite,
+      bridgeTextForLayerWrite,
     };
 
     const adapter = AI_TOOL_CALL_ADAPTER_MAP[call.name];
@@ -280,7 +280,7 @@ export function useAiToolCallHandler({
     seekToTime,
     splitAtTime,
     zoomToSegment,
-    transformTextForLayerWrite,
+    bridgeTextForLayerWrite,
     utterancesRef,
     selectedUtteranceRef,
     selectedUtteranceMediaRef,

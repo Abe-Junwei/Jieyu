@@ -1,8 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useOptionalLocale } from '../i18n';
 import { getPdfViewerPanelMessages } from '../i18n/pdfViewerPanelMessages';
-import { PanelSection } from './ui/PanelSection';
 import { PanelSummary } from './ui/PanelSummary';
+import { EmbeddedPanelShell } from './ui/EmbeddedPanelShell';
 
 interface PdfViewerPanelProps {
   url: string;
@@ -49,10 +49,37 @@ export function PdfViewerPanel({
   };
 
   return (
-    <div className="pdf-viewer-panel panel-design-match-content">
+    <EmbeddedPanelShell
+      className="pdf-viewer-panel"
+      bodyClassName="pdf-viewer-panel-body"
+      footerClassName="pdf-viewer-panel-footer"
+      title={resolvedTitle}
+      footer={(
+        <>
+          <div className="pdf-viewer-panel-page-status">{messages.pageStatus(currentPage, totalPages)}</div>
+          <div className="pdf-viewer-panel-toolbar">
+            <button
+              type="button"
+              className="panel-button pdf-viewer-panel-nav"
+              onClick={handlePrevPage}
+              disabled={currentPage <= 1}
+            >
+              {messages.prevPage}
+            </button>
+            <button
+              type="button"
+              className="panel-button pdf-viewer-panel-nav"
+              onClick={handleNextPage}
+              disabled={currentPage >= totalPages}
+            >
+              {messages.nextPage}
+            </button>
+          </div>
+        </>
+      )}
+    >
       <PanelSummary
         className="pdf-viewer-panel-summary"
-        title={resolvedTitle}
         description={searchSnippet ? messages.searchHint : messages.noSearchHint}
         meta={(
           <div className="panel-meta">
@@ -63,36 +90,16 @@ export function PdfViewerPanel({
         {...summaryProps}
       />
 
-      <PanelSection className="pdf-viewer-panel-toolbar-surface" bodyClassName="pdf-viewer-panel-toolbar">
-        <button
-          type="button"
-          className="panel-button pdf-viewer-panel-nav"
-          onClick={handlePrevPage}
-          disabled={currentPage <= 1}
-        >
-          {messages.prevPage}
-        </button>
-        <div className="pdf-viewer-panel-page-status">{messages.pageStatus(currentPage, totalPages)}</div>
-        <button
-          type="button"
-          className="panel-button pdf-viewer-panel-nav"
-          onClick={handleNextPage}
-          disabled={currentPage >= totalPages}
-        >
-          {messages.nextPage}
-        </button>
-      </PanelSection>
-
       <div className="pdf-viewer-panel-stage">
         {loading && (
           <div className="pdf-viewer-panel-state pdf-viewer-panel-state-loading">
-          {messages.loading}
+            {messages.loading}
           </div>
         )}
 
         {error && (
           <div className="pdf-viewer-panel-state pdf-viewer-panel-state-error">
-          {error}
+            {error}
           </div>
         )}
 
@@ -117,6 +124,6 @@ export function PdfViewerPanel({
           </Suspense>
         )}
       </div>
-    </div>
+    </EmbeddedPanelShell>
   );
 }

@@ -187,7 +187,11 @@ export function useAiChat(options?: UseAiChatOptions) {
     if (typeof window === 'undefined') return;
     // 水合完成或用户手动改过 → 允许持久化 | Persist after hydration or user-dirty
     if (!settingsHydratedRef.current && !userDirtyRef.current) return;
-    void persistAiChatSettings(settings);
+    let cancelled = false;
+    void persistAiChatSettings(settings, { isStale: () => cancelled });
+    return () => {
+      cancelled = true;
+    };
   }, [settings]);
 
   const {

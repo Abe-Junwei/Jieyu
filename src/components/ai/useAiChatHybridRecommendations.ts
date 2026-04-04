@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getAiChatHybridMessages } from '../../i18n/aiChatHybridMessages';
 import {
   aiHybridRecommendationService,
@@ -35,6 +35,8 @@ export function __unsafeClearAiChatHybridRecommendationCache(): void {
 export function useAiChatHybridRecommendations(
   input: UseAiChatHybridRecommendationsOptions,
 ): AiHybridRecommendationState {
+  const latestInputRef = useRef(input);
+  latestInputRef.current = input;
   const isZh = input.locale === 'zh-CN';
   const providerKind = input.aiChatSettings?.providerKind;
   const model = input.aiChatSettings?.model;
@@ -110,15 +112,18 @@ export function useAiChatHybridRecommendations(
     () => prepared.fallbackItems,
     [prepared.displaySignature],
   );
+  const usableCachedItems = useMemo(
+    () => (prepared.shouldUseRemote ? prepared.cachedItems : null),
+    [prepared.cachedItems, prepared.shouldUseRemote],
+  );
   const cachedItemsSignature = useMemo(
-    () => buildItemsSignature(prepared.cachedItems),
-    [prepared.cachedItems],
+    () => buildItemsSignature(usableCachedItems),
+    [usableCachedItems],
   );
   const stableCachedItems = useMemo(
-    () => prepared.cachedItems,
+    () => usableCachedItems,
     [prepared.refinementSignature, cachedItemsSignature],
   );
-  const requestInput = useMemo(() => input, [prepared.refinementSignature, prepared.remoteEligibilitySignature]);
   const [state, setState] = useState<AiHybridRecommendationState>(() => ({
     items: stableCachedItems ?? stableFallbackItems,
     source: stableCachedItems ? 'llm' : 'fallback',
@@ -146,11 +151,14 @@ export function useAiChatHybridRecommendations(
 
   useEffect(() => {
     if (!prepared.shouldUseRemote) {
-      setState((current) => (
-        current.source === 'llm' && current.items.length > 0
-          ? { ...current, isRefreshing: false }
-          : { items: stableFallbackItems, source: 'fallback', isRefreshing: false }
-      ));
+      setState((current) => {
+        const nextState: AiHybridRecommendationState = {
+          items: stableFallbackItems,
+          source: 'fallback',
+          isRefreshing: false,
+        };
+        return areRecommendationStatesEqual(current, nextState) ? current : nextState;
+      });
       return;
     }
 
@@ -166,20 +174,20 @@ export function useAiChatHybridRecommendations(
       return;
     }
 
-    if (!aiHybridRecommendationService.consumeRemoteBudget()) {
-      setState((current) => {
-        const nextState: AiHybridRecommendationState = {
-          items: stableFallbackItems,
-          source: 'fallback',
-          isRefreshing: false,
-        };
-        return areRecommendationStatesEqual(current, nextState) ? current : nextState;
-      });
-      return;
-    }
-
     const controller = new AbortController();
     const timerId = window.setTimeout(() => {
+      if (!aiHybridRecommendationService.consumeRemoteBudget()) {
+        setState((current) => {
+          const nextState: AiHybridRecommendationState = {
+            items: stableFallbackItems,
+            source: 'fallback',
+            isRefreshing: false,
+          };
+          return areRecommendationStatesEqual(current, nextState) ? current : nextState;
+        });
+        return;
+      }
+
       setState((current) => {
         const nextState: AiHybridRecommendationState = {
           items: stableFallbackItems,
@@ -189,7 +197,7 @@ export function useAiChatHybridRecommendations(
         return areRecommendationStatesEqual(current, nextState) ? current : nextState;
       });
 
-      void aiHybridRecommendationService.requestRemoteRecommendations(requestInput, stableFallbackItems, controller.signal)
+      void aiHybridRecommendationService.requestRemoteRecommendations(latestInputRef.current, stableFallbackItems, controller.signal)
         .then((items) => {
           if (!items || controller.signal.aborted) return;
           aiHybridRecommendationService.setCachedRecommendations(prepared.refinementSignature, items);
@@ -224,7 +232,6 @@ export function useAiChatHybridRecommendations(
     prepared.remoteEligibilitySignature,
     prepared.requestDebounceMs,
     prepared.shouldUseRemote,
-    requestInput,
     stableCachedItems,
     stableFallbackItems,
   ]);

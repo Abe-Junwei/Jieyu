@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { UtteranceDocType } from '../db';
 import { AiAnalysisPanel } from './AiAnalysisPanel';
 import {
@@ -143,5 +143,44 @@ describe('AiAnalysisPanel embedding integration', () => {
     );
 
     expect(screen.getByText(/fallback embedding/i)).toBeTruthy();
+  });
+
+  it('renders standardized header, summary, and footer shell for stats tab', () => {
+    const baseContext = makeContextValue({
+      aiCurrentTask: 'risk_review',
+      aiConfidenceAvg: 0.88,
+    });
+
+    const { container } = render(
+      <AiPanelContext.Provider value={baseContext}>
+        <EmbeddingProvider value={makeEmbeddingContextValue()}>
+          <AiAnalysisPanel isCollapsed={false} activeTab="stats" />
+        </EmbeddingProvider>
+      </AiPanelContext.Provider>,
+    );
+
+    expect(container.querySelector('.transcription-analysis-panel-header')).toBeTruthy();
+    expect(container.querySelector('.transcription-analysis-panel-body')).toBeTruthy();
+    expect(container.querySelector('.transcription-analysis-panel-footer')).toBeTruthy();
+    expect(container.querySelector('.transcription-analysis-panel-summary')).toBeTruthy();
+    expect(container.querySelector('.transcription-analysis-stats-section')).toBeTruthy();
+    expect(screen.getAllByText(/Risk review|风险复核/i).length).toBeGreaterThan(0);
+  });
+
+  it('keeps the highlighted stats label aligned with the current task', () => {
+    const { container } = render(
+      <AiPanelContext.Provider value={makeContextValue({
+        aiCurrentTask: 'translation',
+        aiConfidenceAvg: 0.91,
+      })}
+      >
+        <EmbeddingProvider value={makeEmbeddingContextValue()}>
+          <AiAnalysisPanel isCollapsed={false} activeTab="stats" />
+        </EmbeddingProvider>
+      </AiPanelContext.Provider>,
+    );
+
+    expect(within(container).getAllByText(/Translation|翻译/i).length).toBeGreaterThan(0);
+    expect(within(container).queryByText(/Risk review|风险复核/i)).toBeNull();
   });
 });

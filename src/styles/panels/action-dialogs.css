@@ -1,15 +1,45 @@
 .side-pane-action-modal.dialog-card {
-  width: var(--dialog-auto-width, min(360px, 92vw));
+  width: min(var(--dialog-auto-width, 360px), 92vw);
   max-height: 85vh;
 }
 
 .side-pane-action-modal-speaker.dialog-card {
-  width: var(--dialog-auto-width, min(560px, 92vw));
+  width: min(var(--dialog-auto-width, 560px), 92vw);
   max-height: 85vh;
 }
 
 .side-pane-action-modal-body {
   gap: 12px;
+}
+
+/* 新建面板（转写/翻译）扁平字段布局 | Flat field layout for create panels */
+.layer-action-dialog-body {
+  gap: 8px;
+}
+
+.layer-action-dialog-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.layer-action-dialog-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--panel-design-text-color, var(--text-secondary));
+}
+
+.side-pane-dialog-speaker .dialog-footer {
+  padding-top: 10px;
+}
+
+.speaker-management-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
 }
 
 .transcription-side-pane-speaker-panel-section {
@@ -58,8 +88,8 @@
 .speaker-management-dialog-actions .panel-button,
 .layer-action-dialog-actions .panel-button,
 .layer-action-dialog-btn {
-  min-height: 36px;
-  border-radius: 10px;
+  min-height: 30px;
+  border-radius: 7px;
 }
 
 .speaker-management-dialog-actions-fill .btn,
@@ -67,9 +97,52 @@
   flex: 1 1 0;
 }
 
+.speaker-management-control {
+  min-height: 30px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  padding: 0 10px;
+}
+
+.side-pane-dialog-speaker .transcription-side-pane-speaker-filter {
+  gap: 8px;
+}
+
+.side-pane-dialog-speaker .transcription-side-pane-speaker-chip {
+  min-height: 30px;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 0.74rem;
+}
+
+.side-pane-dialog-speaker .transcription-side-pane-speaker-group {
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.side-pane-dialog-speaker .transcription-side-pane-speaker-group-toggle {
+  min-height: 28px;
+  border-radius: 7px;
+  padding: 0 8px;
+}
+
+.side-pane-dialog-speaker .transcription-side-pane-speaker-mini-btn {
+  min-height: 22px;
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 0.7rem;
+}
+
+.side-pane-dialog-speaker .transcription-side-pane-speaker-group-body {
+  gap: 4px;
+  padding-left: 10px;
+  font-size: 0.72rem;
+}
+
 .speaker-action-dialog-body,
 .speaker-action-dialog-field-stack,
-.layer-action-dialog-body,
 .layer-action-dialog-section {
   gap: 12px;
 }
@@ -81,12 +154,9 @@
 
 .speaker-management-panel-card {
   display: grid;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+  gap: 8px;
+  min-width: 0;
+  box-shadow: none;
 }
 
 .speaker-management-panel-card-head {
@@ -95,14 +165,14 @@
 }
 
 .speaker-management-panel-card-title {
-  font-size: 0.84rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .speaker-management-panel-card-copy {
   margin: 0;
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -115,6 +185,36 @@
 .speaker-management-panel-grid-secondary {
   padding-top: 4px;
   border-top: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
+}
+
+.confirm-delete-dialog-mute {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.speaker-rail-batch-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.speaker-rail-form-section {
+  min-width: 0;
+}
+
+.speaker-rail-form-field {
+  display: grid;
+  gap: 8px;
+}
+
+.speaker-rail-form-error {
+  margin: 0;
+  color: var(--state-danger-text);
+  font-size: 0.76rem;
+  line-height: 1.5;
 }
 
 .layer-action-dialog-copy {
@@ -176,12 +276,12 @@
 
 .layer-action-dialog-input {
   width: 100%;
-  min-height: 42px;
+  min-height: 30px;
   box-sizing: border-box;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  line-height: 1.25;
-  padding: 0 14px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  padding: 0 10px;
 }
 
 .layer-action-dialog select.layer-action-dialog-input {
@@ -201,10 +301,10 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 0 14px;
+  padding: 0 10px;
   border: 1px solid transparent;
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 0.78rem;
+  font-weight: 600;
   cursor: pointer;
   transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, opacity 0.16s ease;
 }
@@ -234,12 +334,30 @@
 
 @media (max-width: 640px) {
   .layer-action-dialog-input {
-    min-height: 40px;
-    font-size: 0.88rem;
+    min-height: 30px;
+    font-size: 0.78rem;
   }
 
   .layer-action-dialog-btn {
-    min-height: 36px;
-    font-size: 0.86rem;
+    min-height: 30px;
+    font-size: 0.78rem;
   }
+}
+
+.delete-layer-confirm-section {
+  min-width: 0;
+}
+
+.delete-layer-confirm-warning {
+  color: var(--state-warning-text);
+  font-weight: 600;
+}
+
+.delete-layer-confirm-keep-toggle {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.5;
 }

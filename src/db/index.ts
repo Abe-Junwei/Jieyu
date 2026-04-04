@@ -348,6 +348,14 @@ interface OrthographyDocType {
   abbreviation?: string;
   languageId?: string;
   type?: 'phonemic' | 'phonetic' | 'practical' | 'historical' | 'other';
+  /** Catalog provenance and review state | 目录来源与审校状态 */
+  catalogMetadata?: {
+    catalogSource?: 'user' | 'built-in-reviewed' | 'built-in-generated';
+    source?: string;
+    reviewStatus?: 'needs-review' | 'verified-primary' | 'verified-secondary' | 'historical' | 'legacy' | 'experimental';
+    priority?: 'primary' | 'secondary';
+    seedKind?: string;
+  };
   /** BCP 47 script subtag (e.g. 'Latn', 'Thai', 'Deva') */
   scriptTag?: string;
   /** BCP 47 locale / region / variant hints | BCP 47 locale / region / variant hints */
@@ -401,14 +409,14 @@ interface OrthographyDocType {
   updatedAt?: string;
 }
 
-type OrthographyTransformEngine = 'table-map' | 'icu-rule' | 'manual';
+type OrthographyBridgeEngine = 'table-map' | 'icu-rule' | 'manual';
 
-interface OrthographyTransformDocType {
+interface OrthographyBridgeDocType {
   id: string;
   sourceOrthographyId: string;
   targetOrthographyId: string;
   name?: MultiLangString;
-  engine: OrthographyTransformEngine;
+  engine: OrthographyBridgeEngine;
   rules: {
     mappings?: Array<{ from: string; to: string }>;
     ruleText?: string;
@@ -527,6 +535,8 @@ interface LayerDocType {
   languageId: string;
   /** 绑定的正字法 ID；为空时回退到 languageId → script 推断 | Bound orthography id; falls back to languageId → script inference when absent */
   orthographyId?: string;
+  /** 首选入站桥接规则 ID；用于显式写入转换往返 | Preferred inbound bridge bridge id for explicit write-bridge round-tripping */
+  transformId?: string;
   modality: 'text' | 'audio' | 'mixed';
   acceptsAudio?: boolean;
   isDefault?: boolean;
@@ -699,6 +709,8 @@ interface TierDefinitionDocType {
   tierType: TierType;
   parentTierId?: string;
   languageId?: string;
+  orthographyId?: string;
+  transformId?: string;
   participantId?: string;
   dataCategory?: string;
   contentType: TierContentType;
@@ -1123,8 +1135,8 @@ const orthographyBidiPolicySchema = z.object({
   isolateInlineRuns: z.boolean().optional(),
   preferDirAttribute: z.boolean().optional(),
 }).optional();
-const orthographyTransformEngineSchema = z.enum(['table-map', 'icu-rule', 'manual']);
-const orthographyTransformRulesSchema = z.object({
+const orthographyBridgeEngineSchema = z.enum(['table-map', 'icu-rule', 'manual']);
+const orthographyBridgeRulesSchema = z.object({
   mappings: z.array(z.object({
     from: z.string(),
     to: z.string(),
@@ -1134,13 +1146,13 @@ const orthographyTransformRulesSchema = z.object({
   normalizeOutput: z.enum(['NFC', 'NFD', 'NFKC', 'NFKD']).optional(),
   caseSensitive: z.boolean().optional(),
 });
-const orthographyTransformDocSchema = z.object({
+const orthographyBridgeDocSchema = z.object({
   id: z.string().min(1),
   sourceOrthographyId: z.string().min(1),
   targetOrthographyId: z.string().min(1),
   name: multiLangStringSchema.optional(),
-  engine: orthographyTransformEngineSchema,
-  rules: orthographyTransformRulesSchema,
+  engine: orthographyBridgeEngineSchema,
+  rules: orthographyBridgeRulesSchema,
   sampleInput: z.string().optional(),
   sampleOutput: z.string().optional(),
   sampleCases: z.array(z.object({
@@ -1160,6 +1172,13 @@ const orthographyDocSchema = z.object({
   abbreviation: z.string().optional(),
   languageId: z.string().optional(),
   type: z.enum(['phonemic', 'phonetic', 'practical', 'historical', 'other']).optional(),
+  catalogMetadata: z.object({
+    catalogSource: z.enum(['user', 'built-in-reviewed', 'built-in-generated']).optional(),
+    source: z.string().optional(),
+    reviewStatus: z.enum(['needs-review', 'verified-primary', 'verified-secondary', 'historical', 'legacy', 'experimental']).optional(),
+    priority: z.enum(['primary', 'secondary']).optional(),
+    seedKind: z.string().optional(),
+  }).optional(),
   scriptTag: z.string().optional(),
   localeTag: z.string().optional(),
   regionTag: z.string().optional(),
@@ -1270,6 +1289,7 @@ const translationLayerDocSchema = z.object({
   layerType: z.enum(['transcription', 'translation']),
   languageId: z.string().min(1),
   orthographyId: z.string().min(1).optional(),
+  transformId: z.string().min(1).optional(),
   modality: z.enum(['text', 'audio', 'mixed']),
   acceptsAudio: z.boolean().optional(),
   isDefault: z.boolean().optional(),
@@ -1355,6 +1375,8 @@ const tierDefinitionDocSchema = z.object({
   tierType: tierTypeSchema,
   parentTierId: z.string().min(1).optional(),
   languageId: z.string().optional(),
+  orthographyId: z.string().min(1).optional(),
+  transformId: z.string().min(1).optional(),
   participantId: z.string().optional(),
   dataCategory: z.string().optional(),
   contentType: tierContentTypeSchema,
@@ -1513,8 +1535,8 @@ function validateOrthographyDoc(doc: OrthographyDocType): void {
   orthographyDocSchema.parse(doc);
 }
 
-function validateOrthographyTransformDoc(doc: OrthographyTransformDocType): void {
-  orthographyTransformDocSchema.parse(doc);
+function validateOrthographyBridgeDoc(doc: OrthographyBridgeDocType): void {
+  orthographyBridgeDocSchema.parse(doc);
 }
 
 function validateLocationDoc(doc: LocationDocType): void {
@@ -1760,6 +1782,8 @@ function bridgeTierToLayer(tier: TierDefinitionDocType): LayerDocType | null {
     name: tier.name,
     layerType: tier.contentType as 'transcription' | 'translation',
     languageId: tier.languageId ?? '',
+    ...(tier.orthographyId !== undefined && { orthographyId: tier.orthographyId }),
+    ...(tier.transformId !== undefined && { transformId: tier.transformId }),
     modality: tier.modality ?? 'text',
     ...(tier.acceptsAudio !== undefined && { acceptsAudio: tier.acceptsAudio }),
     ...(tier.isDefault !== undefined && { isDefault: tier.isDefault }),
@@ -1780,6 +1804,8 @@ function layerToBridgeTier(layer: LayerDocType): TierDefinitionDocType {
     name: layer.name,
     tierType: constraintToTierType(layer.constraint),
     languageId: layer.languageId,
+    ...(layer.orthographyId !== undefined && { orthographyId: layer.orthographyId }),
+    ...(layer.transformId !== undefined && { transformId: layer.transformId }),
     contentType: layer.layerType,
     modality: layer.modality,
     ...(layer.acceptsAudio !== undefined && { acceptsAudio: layer.acceptsAudio }),
@@ -1910,6 +1936,8 @@ class TierBackedLayerCollectionAdapter implements CollectionAdapter<LayerDocType
       ...existingTier,
       ...(changes.name !== undefined ? { name: changes.name } : {}),
       ...(changes.languageId !== undefined ? { languageId: changes.languageId } : {}),
+      ...(changes.orthographyId !== undefined ? { orthographyId: changes.orthographyId } : {}),
+      ...(changes.transformId !== undefined ? { transformId: changes.transformId } : {}),
       ...(changes.modality !== undefined ? { modality: changes.modality } : {}),
       ...(changes.acceptsAudio !== undefined ? { acceptsAudio: changes.acceptsAudio } : {}),
       ...(changes.isDefault !== undefined ? { isDefault: changes.isDefault } : {}),
@@ -1939,7 +1967,7 @@ type JieyuCollections = {
   languages: CollectionAdapter<LanguageDocType>;
   speakers: CollectionAdapter<SpeakerDocType>;
   orthographies: CollectionAdapter<OrthographyDocType>;
-  orthography_transforms: CollectionAdapter<OrthographyTransformDocType>;
+  orthography_bridges: CollectionAdapter<OrthographyBridgeDocType>;
   locations: CollectionAdapter<LocationDocType>;
   bibliographic_sources: CollectionAdapter<BibliographicSourceDocType>;
   grammar_docs: CollectionAdapter<GrammarDocDocType>;
@@ -2211,7 +2239,10 @@ class JieyuDexie extends Dexie {
   languages!: Table<LanguageDocType, string>;
   speakers!: Table<SpeakerDocType, string>;
   orthographies!: Table<OrthographyDocType, string>;
-  orthography_transforms!: Table<OrthographyTransformDocType, string>;
+  orthography_transforms!: Table<OrthographyBridgeDocType, string>;
+  get orthography_bridges(): Table<OrthographyBridgeDocType, string> {
+    return this.orthography_transforms;
+  }
   locations!: Table<LocationDocType, string>;
   bibliographic_sources!: Table<BibliographicSourceDocType, string>;
   grammar_docs!: Table<GrammarDocDocType, string>;
@@ -2478,6 +2509,8 @@ class JieyuDexie extends Dexie {
           key: bridgeKey,
           name: layer.name,
           languageId: layer.languageId,
+          ...(layer.orthographyId !== undefined && { orthographyId: layer.orthographyId }),
+          ...(layer.transformId !== undefined && { transformId: layer.transformId }),
           contentType: layer.layerType,
           modality: layer.modality,
           acceptsAudio: layer.acceptsAudio,
@@ -3049,7 +3082,7 @@ class JieyuDexie extends Dexie {
       layer_utterances: null,
     });
 
-    // v33: orthography transform registry.
+    // v33: orthography bridge registry.
     // 正字法转换注册表：为 source->target 转换规则、样例与状态提供独立存储。
     this.version(33).stores({
       orthography_transforms: 'id, sourceOrthographyId, targetOrthographyId, [sourceOrthographyId+targetOrthographyId], engine, status, updatedAt',
@@ -3099,7 +3132,7 @@ async function _createDb(): Promise<JieyuDatabase> {
     languages: new DexieCollectionAdapter(dexie.languages, validateLanguageDoc),
     speakers: new DexieCollectionAdapter(dexie.speakers, validateSpeakerDoc),
     orthographies: new DexieCollectionAdapter(dexie.orthographies, validateOrthographyDoc),
-    orthography_transforms: new DexieCollectionAdapter(dexie.orthography_transforms, validateOrthographyTransformDoc),
+    orthography_bridges: new DexieCollectionAdapter(dexie.orthography_bridges, validateOrthographyBridgeDoc),
     locations: new DexieCollectionAdapter(dexie.locations, validateLocationDoc),
     bibliographic_sources: new DexieCollectionAdapter(
       dexie.bibliographic_sources,
@@ -3244,6 +3277,7 @@ const knownCollectionNames = [
   'languages',
   'speakers',
   'orthographies',
+  'orthography_bridges',
   'orthography_transforms',
   'locations',
   'bibliographic_sources',
@@ -3281,7 +3315,8 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   languages: db.languages,
   speakers: db.speakers,
   orthographies: db.orthographies,
-  orthography_transforms: db.orthography_transforms,
+  orthography_bridges: db.orthography_bridges,
+  orthography_transforms: db.orthography_bridges,
   locations: db.locations,
   bibliographic_sources: db.bibliographic_sources,
   grammar_docs: db.grammar_docs,
@@ -3315,7 +3350,8 @@ const validatorByCollection: Record<KnownCollectionName, (value: unknown) => voi
   languages: (value) => validateLanguageDoc(value as LanguageDocType),
   speakers: (value) => validateSpeakerDoc(value as SpeakerDocType),
   orthographies: (value) => validateOrthographyDoc(value as OrthographyDocType),
-  orthography_transforms: (value) => validateOrthographyTransformDoc(value as OrthographyTransformDocType),
+  orthography_bridges: (value) => validateOrthographyBridgeDoc(value as OrthographyBridgeDocType),
+  orthography_transforms: (value) => validateOrthographyBridgeDoc(value as OrthographyBridgeDocType),
   locations: (value) => validateLocationDoc(value as LocationDocType),
   bibliographic_sources: (value) => validateBibliographicSourceDoc(value as BibliographicSourceDocType),
   grammar_docs: (value) => validateGrammarDoc(value as GrammarDocDocType),
@@ -3547,6 +3583,9 @@ export async function importDatabaseFromJson(
   await transactionAny.apply(dbInstance.dexie, ['rw', ...txTablesTuple, async () => {
     for (const prepared of preparedCollections) {
       const { collectionName, normalizedDocs, received } = prepared;
+      const resultCollectionName = (
+        collectionName === 'orthography_transforms' ? 'orthography_bridges' : collectionName
+      ) as keyof JieyuCollections;
 
       if (collectionName === 'layers') {
         const collection = dbInstance.collections.layers;
@@ -3577,7 +3616,7 @@ export async function importDatabaseFromJson(
           }
         }
 
-        result.collections[collectionName] = {
+        result.collections[resultCollectionName] = {
           received,
           written,
           skipped,
@@ -3613,7 +3652,7 @@ export async function importDatabaseFromJson(
         written = normalizedDocs.length;
       }
 
-      result.collections[collectionName] = {
+      result.collections[resultCollectionName] = {
         received,
         written,
         skipped,
@@ -3656,7 +3695,7 @@ export type {
   LanguageDocType,
   SpeakerDocType,
   OrthographyDocType,
-  OrthographyTransformDocType,
+  OrthographyBridgeDocType as OrthographyBridgeDocType,
   LocationDocType,
   BibliographicSourceDocType,
   GrammarDocDocType,

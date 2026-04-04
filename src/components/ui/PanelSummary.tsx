@@ -2,17 +2,17 @@ import type { ReactNode } from 'react';
 import { PanelSection } from './PanelSection';
 
 interface PanelSummaryProps {
-  className?: string;
-  headerClassName?: string;
-  bodyClassName?: string;
-  title?: ReactNode;
-  titleClassName?: string;
-  description?: ReactNode;
-  descriptionClassName?: string;
-  meta?: ReactNode;
-  supportingText?: ReactNode;
-  supportingClassName?: string;
-  children?: ReactNode;
+  className?: string | undefined;
+  headerClassName?: string | undefined;
+  bodyClassName?: string | undefined;
+  title?: ReactNode | undefined;
+  titleClassName?: string | undefined;
+  description?: ReactNode | undefined;
+  descriptionClassName?: string | undefined;
+  meta?: ReactNode | undefined;
+  supportingText?: ReactNode | undefined;
+  supportingClassName?: string | undefined;
+  children?: ReactNode | undefined;
 }
 
 function joinClassNames(...tokens: Array<string | false | null | undefined>) {

@@ -4,10 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ProjectSetupDialog } from './ProjectSetupDialog';
 import { renderWithLocale } from '../test/localeTestUtils';
 
-const { mockCreateOrthography, mockCloneOrthographyToLanguage, mockCreateOrthographyTransform, mockUseOrthographies } = vi.hoisted(() => ({
+const { mockCreateOrthography, mockCloneOrthographyToLanguage, mockCreateOrthographyBridge, mockUseOrthographies } = vi.hoisted(() => ({
   mockCreateOrthography: vi.fn(),
   mockCloneOrthographyToLanguage: vi.fn(),
-  mockCreateOrthographyTransform: vi.fn(),
+  mockCreateOrthographyBridge: vi.fn(),
   mockUseOrthographies: vi.fn(),
 }));
 
@@ -15,7 +15,7 @@ vi.mock('../services/LinguisticService', () => ({
   LinguisticService: {
     createOrthography: mockCreateOrthography,
     cloneOrthographyToLanguage: mockCloneOrthographyToLanguage,
-    createOrthographyTransform: mockCreateOrthographyTransform,
+    createOrthographyBridge: mockCreateOrthographyBridge,
   },
 }));
 
@@ -28,7 +28,7 @@ describe('ProjectSetupDialog orthography creation', () => {
     cleanup();
     mockCreateOrthography.mockReset();
     mockCloneOrthographyToLanguage.mockReset();
-    mockCreateOrthographyTransform.mockReset();
+    mockCreateOrthographyBridge.mockReset();
     mockUseOrthographies.mockReset();
   });
 
@@ -44,11 +44,13 @@ describe('ProjectSetupDialog orthography creation', () => {
     );
 
     const dialog = screen.getByRole('dialog', { name: '新建项目' });
+    const closeButton = screen.getByRole('button', { name: '关闭' });
     const cancelButton = screen.getByRole('button', { name: '取消' });
     const createButton = screen.getByRole('button', { name: '创建项目' });
 
     expect(dialog.className).toContain('dialog-card');
     expect(dialog.className).toContain('project-setup-dialog');
+    expect(closeButton.className).toContain('icon-btn');
     expect(cancelButton.className).toContain('panel-button--ghost');
     expect(createButton.className).toContain('panel-button--primary');
   });
@@ -68,7 +70,7 @@ describe('ProjectSetupDialog orthography creation', () => {
 
     const onSubmit = vi.fn(async () => undefined);
     const onClose = vi.fn();
-    const view = renderWithLocale(
+    renderWithLocale(
       <ProjectSetupDialog
         isOpen
         onClose={onClose}
@@ -80,17 +82,15 @@ describe('ProjectSetupDialog orthography creation', () => {
       target: { value: '项目 A' },
     });
 
-    const initialSelects = view.container.querySelectorAll('select');
-    fireEvent.change(initialSelects[0] as HTMLSelectElement, {
-      target: { value: 'eng' },
+    fireEvent.change(screen.getByRole('textbox', { name: /目标语言/ }), {
+      target: { value: 'English' },
     });
 
     await waitFor(() => {
-      const selects = view.container.querySelectorAll('select');
-      expect(selects.length).toBeGreaterThanOrEqual(2);
+      expect(screen.getByRole('combobox', { name: '正字法 / 书写系统' })).toBeTruthy();
     });
 
-    fireEvent.change(view.container.querySelectorAll('select')[1] as HTMLSelectElement, {
+    fireEvent.change(screen.getByRole('combobox', { name: '正字法 / 书写系统' }), {
       target: { value: '__create_new_orthography__' },
     });
 
@@ -115,5 +115,60 @@ describe('ProjectSetupDialog orthography creation', () => {
         primaryOrthographyId: 'orth_project_ipa',
       }));
     });
+  });
+
+  it('shows the selected orthography status badge in project setup', async () => {
+    mockUseOrthographies.mockImplementation((languageIds: string[]) => {
+      if (languageIds.includes('eng')) {
+        return [{
+          id: 'orth_project_reviewed',
+          languageId: 'eng',
+          name: { eng: 'English Reviewed' },
+          scriptTag: 'Latn',
+          type: 'practical',
+          catalogMetadata: { catalogSource: 'built-in-reviewed', reviewStatus: 'verified-primary', priority: 'primary' },
+          createdAt: '2025-01-01T00:00:00.000Z',
+          updatedAt: '2025-01-01T00:00:00.000Z',
+        }];
+      }
+      return [];
+    });
+
+    renderWithLocale(
+      <ProjectSetupDialog
+        isOpen
+        onClose={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole('textbox', { name: /目标语言/ }), {
+      target: { value: 'English' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByText('English Reviewed · Latn · practical').length).toBeGreaterThan(0);
+      expect(Array.from(document.querySelectorAll('.panel-chip')).some((node) => node.textContent === '已审校主项')).toBe(true);
+    });
+
+    expect(screen.queryByRole('button', { name: '管理写入桥接规则' })).toBeNull();
+  });
+
+  it('fills ISO code from the shared language search input', () => {
+    mockUseOrthographies.mockReturnValue([]);
+
+    renderWithLocale(
+      <ProjectSetupDialog
+        isOpen
+        onClose={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole('textbox', { name: /目标语言/ }), {
+      target: { value: 'Portuguese' },
+    });
+
+    expect((screen.getByRole('textbox', { name: /语言代码/ }) as HTMLInputElement).value).toBe('por');
   });
 });

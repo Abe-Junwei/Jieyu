@@ -17,6 +17,9 @@ export type NotePanelMessages = {
   save: string;
   cancel: string;
   deleteNote: string;
+  editNoteContentLabel: string;
+  newNoteContentLabel: string;
+  newNoteCategoryLabel: string;
   newNotePlaceholder: string;
   noCategory: string;
   add: string;
@@ -39,6 +42,9 @@ const zhCN: NotePanelMessages = {
   save: '\u4fdd\u5b58',
   cancel: '\u53d6\u6d88',
   deleteNote: '\u5220\u9664\u5907\u6ce8',
+  editNoteContentLabel: '\u7f16\u8f91\u5907\u6ce8\u5185\u5bb9',
+  newNoteContentLabel: '\u65b0\u5907\u6ce8\u5185\u5bb9',
+  newNoteCategoryLabel: '\u65b0\u5907\u6ce8\u5206\u7c7b',
   newNotePlaceholder: '\u8f93\u5165\u65b0\u5907\u6ce8\u2026\uff08Ctrl+Enter \u63d0\u4ea4\uff09',
   noCategory: '\u65e0\u5206\u7c7b',
   add: '\u65b0\u589e\u5907\u6ce8',
@@ -61,6 +67,9 @@ const enUS: NotePanelMessages = {
   save: 'Save',
   cancel: 'Cancel',
   deleteNote: 'Delete note',
+  editNoteContentLabel: 'Edit note content',
+  newNoteContentLabel: 'New note content',
+  newNoteCategoryLabel: 'New note category',
   newNotePlaceholder: 'Enter a new note… (Ctrl+Enter to submit)',
   noCategory: 'No category',
   add: 'Add',

@@ -50,6 +50,7 @@ function makePreview(): JieyuArchiveImportPreview {
 function renderHub(overrides: Partial<Parameters<typeof LeftRailProjectHub>[0]> = {}) {
   const onPreviewProjectArchiveImport = vi.fn(async () => makePreview());
   const onImportProjectArchive = vi.fn(async () => true);
+  const onImportAnnotationFile = vi.fn(async () => undefined);
 
   render(
     <LocaleProvider locale="zh-CN">
@@ -62,7 +63,7 @@ function renderHub(overrides: Partial<Parameters<typeof LeftRailProjectHub>[0]> 
         onDeleteCurrentProject={vi.fn()}
         onDeleteCurrentAudio={vi.fn()}
         onOpenSpeakerManagementPanel={vi.fn()}
-        onImportAnnotationFile={vi.fn()}
+        onImportAnnotationFile={onImportAnnotationFile}
         onPreviewProjectArchiveImport={onPreviewProjectArchiveImport}
         onImportProjectArchive={onImportProjectArchive}
         onExportEaf={vi.fn()}
@@ -80,6 +81,7 @@ function renderHub(overrides: Partial<Parameters<typeof LeftRailProjectHub>[0]> 
   return {
     onPreviewProjectArchiveImport,
     onImportProjectArchive,
+    onImportAnnotationFile,
   };
 }
 
@@ -134,6 +136,22 @@ describe('LeftRailProjectHub project import dialog', () => {
 
     await waitFor(() => {
       expect(onImportProjectArchive).toHaveBeenCalledWith(file, 'skip-existing');
+    });
+  });
+
+  it('opens annotation import strategy dialog and passes the selected strategy', async () => {
+    const { onImportAnnotationFile } = renderHub();
+    const file = new File(['annotation'], 'demo.eaf', { type: 'application/xml' });
+    const input = document.querySelector('input[accept=".eaf,.textgrid,.TextGrid,.trs,.flextext,.txt,.toolbox"]') as HTMLInputElement;
+
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await screen.findByRole('dialog', { name: '导入标注文件' });
+    fireEvent.click(screen.getByRole('radio', { name: /仅写入目标表示/ }));
+    fireEvent.click(screen.getByRole('button', { name: '开始导入标注' }));
+
+    await waitFor(() => {
+      expect(onImportAnnotationFile).toHaveBeenCalledWith(file, 'bridge-target');
     });
   });
 });

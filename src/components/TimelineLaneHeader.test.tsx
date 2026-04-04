@@ -128,9 +128,9 @@ describe('TimelineLaneHeader track mode menu', () => {
     expect(dialog.className).toContain('dialog-card');
     expect(dialog.className).toContain('timeline-lane-lock-dialog');
     expect(closeButton.closest('.dialog-header')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '确认锁定' }).closest('.speaker-rail-actions')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '确认锁定' }).closest('.dialog-footer')).toBeTruthy();
 
-    const input = screen.getByRole('spinbutton');
+    const input = screen.getByRole('spinbutton', { name: '目标轨道序号' });
     fireEvent.change(input, { target: { value: '3' } });
     fireEvent.click(screen.getByRole('button', { name: '确认锁定' }));
 

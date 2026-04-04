@@ -9,8 +9,12 @@ import { SpeakerRailProvider } from '../contexts/SpeakerRailContext';
 import { LocaleProvider } from '../i18n';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 
+const { mockUseOrthographies } = vi.hoisted(() => ({
+  mockUseOrthographies: vi.fn<(languageIds: string[]) => Array<Record<string, unknown>>>(() => []),
+}));
+
 vi.mock('../hooks/useOrthographies', () => ({
-  useOrthographies: () => [],
+  useOrthographies: mockUseOrthographies,
 }));
 
 function createLayerActionStub() {
@@ -390,6 +394,8 @@ async function clickCreateAction(actionName: string) {
 
 describe('SidePaneSidebar speaker actions interaction', () => {
   afterEach(() => {
+    mockUseOrthographies.mockReset();
+    mockUseOrthographies.mockImplementation(() => []);
     vi.useRealTimers();
     cleanup();
     vi.restoreAllMocks();
@@ -532,7 +538,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       </LocaleProvider>,
     );
 
-    expect(screen.getByRole('button', { name: '清空已选说话人' }).className).toContain('btn-danger');
+    expect(screen.getByRole('button', { name: '清空已选说话人' }).className).toContain('panel-button');
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'spk-1' } });
     fireEvent.click(screen.getByRole('button', { name: '应用说话人' }));
 
@@ -731,6 +737,68 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     expect(translationDialog).toBeTruthy();
     expect(within(translationDialog).queryByText(/时间细分/)).toBeNull();
     expect(within(translationDialog).queryByText(/独立边界/)).toBeNull();
+  });
+
+  it('preserves orthography defaults when creating layers from the sidebar popover', async () => {
+    const now = '2026-03-25T00:00:00.000Z';
+    const trcLayer = {
+      id: 'layer_trc_1',
+      textId: 'text_1',
+      key: 'trc_zh_1',
+      name: { zho: '转写层1' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const createLayer = vi.fn(async () => true);
+    mockUseOrthographies.mockImplementation((languageIds: string[]) => (
+      languageIds.includes('eng')
+        ? [{
+          id: 'orth_eng_default',
+          languageId: 'eng',
+          name: { eng: 'English Default' },
+          scriptTag: 'Latn',
+          type: 'practical',
+          createdAt: now,
+          updatedAt: now,
+        }]
+        : []
+    ));
+
+    renderSidebarForCreateContextMenuFlow({
+      layerRows: [trcLayer],
+      transcriptionLayers: [trcLayer],
+      translationLayers: [],
+      createLayer,
+    });
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /中文/ }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: '新建转写层' }));
+
+    const dialog = await screen.findByRole('dialog', { name: '新建转写层' });
+    const languageSelect = within(dialog).getByRole('combobox', { name: '选择语言…' });
+    fireEvent.change(languageSelect, { target: { value: 'eng' } });
+
+    await waitFor(() => {
+      expect((within(dialog).getByRole('combobox', { name: '新建正字法…' }) as HTMLSelectElement).value).toBe('orth_eng_default');
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: '创建' }));
+
+    await waitFor(() => {
+      expect(createLayer).toHaveBeenCalledWith(
+        'transcription',
+        expect.objectContaining({
+          languageId: 'eng',
+          orthographyId: 'orth_eng_default',
+        }),
+        undefined,
+      );
+    });
   });
 
   it('allows switching transcription constraint back to dependent after choosing independent', async () => {
@@ -972,6 +1040,56 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     await waitFor(() => {
       expect(toggleLayerLink).toHaveBeenCalledWith('trc_eng_1', 'layer_trl_1');
     });
+  });
+
+  it('shows an independent bridge-rule entry in current-layer inspector when the focused layer has an orthography', async () => {
+    const now = '2026-03-25T00:00:00.000Z';
+    const trcLayer = {
+      id: 'layer_trc_bridge',
+      textId: 'text_1',
+      key: 'trc_eng_bridge',
+      name: { zho: '转写层桥接' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      orthographyId: 'orth-bridge',
+      modality: 'text',
+      acceptsAudio: false,
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+
+    mockUseOrthographies.mockImplementation((languageIds: string[]) => {
+      if (languageIds.includes('eng')) {
+        return [{
+          id: 'orth-bridge',
+          languageId: 'eng',
+          name: { eng: 'Bridge Orthography' },
+          scriptTag: 'Latn',
+          type: 'practical',
+          createdAt: now,
+          updatedAt: now,
+        }];
+      }
+      return [];
+    });
+
+    renderSidebarForCreateContextMenuFlow({
+      layerRows: [trcLayer],
+      transcriptionLayers: [trcLayer],
+      translationLayers: [],
+      focusedLayerRowId: trcLayer.id,
+    });
+
+    const inspector = within(screen.getByLabelText('当前层详情'));
+    await waitFor(() => {
+      expect(inspector.getByText('Bridge Orthography · Latn · practical')).toBeTruthy();
+      expect(inspector.getByRole('link', { name: '打开正字法桥接工作台' })).toBeTruthy();
+    });
+
+    const workspaceLink = inspector.getByRole('link', { name: '打开正字法桥接工作台' });
+    expect(workspaceLink.getAttribute('href')).toBe('/lexicon/orthographies?orthographyId=orth-bridge&fromLayerId=layer_trc_bridge');
+    expect(inspector.getByText('写入桥接规则已迁移到独立的正字法工作台，当前检视器只保留跳转入口。')).toBeTruthy();
   });
 
   it('shows prominent error message inside popover when create transcription fails and keeps popover open', async () => {

@@ -143,6 +143,7 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
             ref={fileRef}
             type="file"
             accept={ALL_ACCEPTED_FORMATS}
+            aria-label={t(locale, 'transcription.importDialog.selectMedia')}
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />

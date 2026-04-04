@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { db } from '../db';
+import { db, getDb } from '../db';
 import type { LayerDocType } from '../db';
 import { useImportExport } from './useImportExport';
 
@@ -10,6 +10,7 @@ const mockReadFileAsText = vi.hoisted(() => vi.fn());
 const mockIngestTextFile = vi.hoisted(() => vi.fn());
 const mockImportFromTextGrid = vi.hoisted(() => vi.fn());
 const mockValidateLayerTierConsistency = vi.hoisted(() => vi.fn(async () => []));
+const mockSyncLayerToTier = vi.hoisted(() => vi.fn(async () => undefined));
 const mockRepairExistingLayerConstraints = vi.hoisted(() => vi.fn((layers: LayerDocType[]) => ({ layers, repairs: [] })));
 const mockValidateExistingLayerConstraints = vi.hoisted(() => vi.fn(() => []));
 
@@ -39,6 +40,7 @@ vi.mock('../services/TextGridService', async () => {
 
 vi.mock('../services/TierBridgeService', () => ({
   validateLayerTierConsistency: mockValidateLayerTierConsistency,
+  syncLayerToTier: mockSyncLayerToTier,
 }));
 
 vi.mock('../services/LayerConstraintService', () => ({
@@ -55,7 +57,7 @@ describe('useImportExport - import success under stop-write', () => {
       db.texts.clear(),
       db.media_items.clear(),
       db.orthographies.clear(),
-      db.orthography_transforms.clear(),
+      db.orthography_bridges.clear(),
       db.tier_definitions.clear(),
       db.layer_links.clear(),
       db.utterances.clear(),
@@ -168,7 +170,7 @@ describe('useImportExport - import success under stop-write', () => {
         updatedAt: NOW,
       },
     ] as never[]);
-    await db.orthography_transforms.put({
+    await db.orthography_bridges.put({
       id: 'orthxfm_import_trc',
       sourceOrthographyId: 'orth_source_import',
       targetOrthographyId: 'orth_target_import',
@@ -223,6 +225,212 @@ describe('useImportExport - import success under stop-write', () => {
     ]);
   });
 
+  it('keeps only source text in a dedicated source layer when import strategy is preserve-source', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-default-preserve-source',
+      textId: 'text-import',
+      key: 'trc_default_preserve_source',
+      name: { zho: '默认转写层', eng: 'Default Transcription' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      orthographyId: 'orth_target_import',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await db.tier_definitions.put(defaultLayer as never);
+    await db.orthographies.bulkPut([
+      {
+        id: 'orth_source_import',
+        languageId: 'eng',
+        name: { eng: 'Source Import' },
+        scriptTag: 'Latn',
+        type: 'practical',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'orth_target_import',
+        languageId: 'eng',
+        name: { eng: 'Target Import' },
+        scriptTag: 'Latn',
+        type: 'practical',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ] as never[]);
+    await db.orthography_bridges.put({
+      id: 'orthxfm_import_trc_preserve_source',
+      sourceOrthographyId: 'orth_source_import',
+      targetOrthographyId: 'orth_target_import',
+      engine: 'table-map',
+      rules: {
+        mappings: [{ from: 'sh', to: 's' }],
+      },
+      status: 'active',
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as never);
+
+    mockIngestTextFile.mockResolvedValueOnce({ text: 'dummy textgrid', detectedEncoding: 'utf-8', confidence: 'high' as const });
+    mockImportFromTextGrid.mockReturnValueOnce({
+      utterances: [
+        {
+          startTime: 0,
+          endTime: 1,
+          transcription: 'shaam',
+        },
+      ],
+      additionalTiers: new Map(),
+      transcriptionTierName: 'Surface',
+      tierMetadata: new Map([
+        ['Surface', { orthographyId: 'orth_source_import', languageId: 'eng' }],
+      ]),
+    });
+
+    const { result } = renderHook(() => useImportExport({
+      activeTextId: 'text-import',
+      getActiveTextId: vi.fn(async () => 'text-import'),
+      selectedUtteranceMedia: undefined,
+      utterancesOnCurrentMedia: [],
+      anchors: [],
+      layers: [defaultLayer],
+      translations: [],
+      defaultTranscriptionLayerId: defaultLayer.id,
+      loadSnapshot: vi.fn(async () => undefined),
+      setSaveState: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.handleImportFile(new File(['x'], 'demo.textgrid', { type: 'text/plain' }), 'preserve-source');
+    });
+
+    const defaultContents = await db.layer_unit_contents.where('layerId').equals(defaultLayer.id).toArray();
+    expect(defaultContents).toEqual([]);
+
+    const sourceLayer = (await (await getDb()).collections.layers.find().exec())
+      .find((layer) => layer.id !== defaultLayer.id && layer.textId === 'text-import' && layer.orthographyId === 'orth_source_import');
+
+    expect(sourceLayer).toBeTruthy();
+    expect(sourceLayer?.name.zho).toContain('原文');
+
+    const sourceContents = sourceLayer
+      ? await db.layer_unit_contents.where('layerId').equals(sourceLayer.id).toArray()
+      : [];
+    expect(sourceContents).toEqual([
+      expect.objectContaining({
+        layerId: sourceLayer?.id,
+        text: 'shaam',
+      }),
+    ]);
+  });
+
+  it('keeps source text and bridged target text when import strategy is preserve-source-and-bridge', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-default-preserve-both',
+      textId: 'text-import',
+      key: 'trc_default_preserve_both',
+      name: { zho: '默认转写层', eng: 'Default Transcription' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      orthographyId: 'orth_target_import',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await db.tier_definitions.put(defaultLayer as never);
+    await db.orthographies.bulkPut([
+      {
+        id: 'orth_source_import',
+        languageId: 'eng',
+        name: { eng: 'Source Import' },
+        scriptTag: 'Latn',
+        type: 'practical',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'orth_target_import',
+        languageId: 'eng',
+        name: { eng: 'Target Import' },
+        scriptTag: 'Latn',
+        type: 'practical',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ] as never[]);
+    await db.orthography_bridges.put({
+      id: 'orthxfm_import_trc_preserve_both',
+      sourceOrthographyId: 'orth_source_import',
+      targetOrthographyId: 'orth_target_import',
+      engine: 'table-map',
+      rules: {
+        mappings: [{ from: 'sh', to: 's' }],
+      },
+      status: 'active',
+      createdAt: NOW,
+      updatedAt: NOW,
+    } as never);
+
+    mockIngestTextFile.mockResolvedValueOnce({ text: 'dummy textgrid', detectedEncoding: 'utf-8', confidence: 'high' as const });
+    mockImportFromTextGrid.mockReturnValueOnce({
+      utterances: [
+        {
+          startTime: 0,
+          endTime: 1,
+          transcription: 'shaam',
+        },
+      ],
+      additionalTiers: new Map(),
+      transcriptionTierName: 'Surface',
+      tierMetadata: new Map([
+        ['Surface', { orthographyId: 'orth_source_import', languageId: 'eng' }],
+      ]),
+    });
+
+    const { result } = renderHook(() => useImportExport({
+      activeTextId: 'text-import',
+      getActiveTextId: vi.fn(async () => 'text-import'),
+      selectedUtteranceMedia: undefined,
+      utterancesOnCurrentMedia: [],
+      anchors: [],
+      layers: [defaultLayer],
+      translations: [],
+      defaultTranscriptionLayerId: defaultLayer.id,
+      loadSnapshot: vi.fn(async () => undefined),
+      setSaveState: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.handleImportFile(new File(['x'], 'demo.textgrid', { type: 'text/plain' }), 'preserve-source-and-bridge');
+    });
+
+    const defaultContents = await db.layer_unit_contents.where('layerId').equals(defaultLayer.id).toArray();
+    expect(defaultContents).toEqual([
+      expect.objectContaining({
+        layerId: defaultLayer.id,
+        text: 'saam',
+      }),
+    ]);
+
+    const sourceLayer = (await (await getDb()).collections.layers.find().exec())
+      .find((layer) => layer.id !== defaultLayer.id && layer.textId === 'text-import' && layer.orthographyId === 'orth_source_import');
+
+    expect(sourceLayer).toBeTruthy();
+
+    const sourceContents = sourceLayer
+      ? await db.layer_unit_contents.where('layerId').equals(sourceLayer.id).toArray()
+      : [];
+    expect(sourceContents).toEqual([
+      expect.objectContaining({
+        layerId: sourceLayer?.id,
+        text: 'shaam',
+      }),
+    ]);
+  });
+
   it('applies active orthography transform before saving imported translation text', async () => {
     const defaultLayer: LayerDocType = {
       id: 'trc-default-transform-translation',
@@ -269,7 +477,7 @@ describe('useImportExport - import success under stop-write', () => {
         updatedAt: NOW,
       },
     ] as never[]);
-    await db.orthography_transforms.put({
+    await db.orthography_bridges.put({
       id: 'orthxfm_import_translation',
       sourceOrthographyId: 'orth_source_translation',
       targetOrthographyId: 'orth_target_translation',

@@ -157,6 +157,7 @@ export const NotePanel = memo(function NotePanel({
                     value={editContent}
                     onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditContent(e.target.value)}
                     onKeyDown={(e) => handleEditKeyDown(e, note.id)}
+                    aria-label={messages.editNoteContentLabel}
                     autoFocus
                   />
                   <div className="note-panel-edit-actions">
@@ -198,12 +199,14 @@ export const NotePanel = memo(function NotePanel({
           value={newContent}
           onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNewContent(e.target.value)}
           onKeyDown={handleAddKeyDown}
+          aria-label={messages.newNoteContentLabel}
         />
         <div className="note-panel-add-actions">
           <select
             className="panel-input note-panel-category-select"
             value={newCategory}
             onChange={(e: ChangeEvent<HTMLSelectElement>) => setNewCategory(e.target.value as NoteCategory | '')}
+            aria-label={messages.newNoteCategoryLabel}
           >
             <option value="">{messages.noCategory}</option>
             {categories.map((c) => (

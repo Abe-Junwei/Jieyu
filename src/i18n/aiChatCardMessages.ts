@@ -84,7 +84,7 @@ function buildRecommendedPlaceholder(locale: Locale, input: RecommendedPlacehold
       : '';
   const excerpt = clipText(input.selectedText);
   const excerptLabel = excerpt ? (locale === 'zh-CN' ? `「${excerpt}」` : `"${excerpt}"`) : '';
-  const scope = [rowLabel, unitLabel, layerLabel, input.selectedTimeRangeLabel ?? ''].filter(Boolean).join(locale === 'zh-CN' ? ' · ' : ' | ');
+  const scope = [rowLabel, unitLabel, layerLabel, (input.selectedTimeRangeLabel ?? '').trim()].filter(Boolean).join(locale === 'zh-CN' ? ' · ' : ' | ');
   const target = [scope, excerptLabel].filter(Boolean).join(' ');
   const focus = target || (input.page === 'transcription'
     ? t(locale, 'ai.chat.placeholder.focus.transcriptionWorkspace')

@@ -16,28 +16,43 @@ interface SidePaneActionModalProps {
   onClose: () => void;
   className?: string;
   closeLabel?: string;
+  footer?: ReactNode;
+  widthPreset?: 'standard' | 'wide';
+  open?: boolean;
+  keepMounted?: boolean;
 }
 
-export function SidePaneActionModal({ ariaLabel, children, onClose, className, closeLabel = 'Close' }: SidePaneActionModalProps) {
+export function SidePaneActionModal({
+  ariaLabel,
+  children,
+  onClose,
+  className,
+  closeLabel = 'Close',
+  footer,
+  widthPreset = 'standard',
+  open = true,
+  keepMounted = false,
+}: SidePaneActionModalProps) {
   const locale = useLocale();
   const { uiTextDirection, uiFontScale } = useUiFontScaleRuntime(locale);
   const viewportWidth = useViewportWidth();
   const isSpeakerModal = Boolean(
     className?.includes('side-pane-dialog-speaker'),
   );
+  const isWideModal = widthPreset === 'wide';
   const dialogAutoWidth = useMemo(() => {
     const base = computeAdaptivePanelWidth({
-      baseWidth: isSpeakerModal ? 560 : 340,
+      baseWidth: isSpeakerModal || isWideModal ? 560 : 340,
       locale,
       direction: uiTextDirection,
       uiFontScale,
-      density: isSpeakerModal ? 'data-dense' : 'compact',
-      minWidth: isSpeakerModal ? 460 : 280,
-      maxWidth: isSpeakerModal ? 900 : 620,
+      density: 'compact',
+      minWidth: isSpeakerModal || isWideModal ? 460 : 280,
+      maxWidth: 620,
       ...(viewportWidth !== undefined ? { viewportWidth } : {}),
     });
-    return Math.max(isSpeakerModal ? 460 : 300, Math.min(isSpeakerModal ? 900 : 620, base));
-  }, [isSpeakerModal, locale, uiFontScale, uiTextDirection, viewportWidth]);
+    return Math.max(isSpeakerModal || isWideModal ? 460 : 300, Math.min(620, base));
+  }, [isSpeakerModal, isWideModal, locale, uiFontScale, uiTextDirection, viewportWidth]);
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape') {
@@ -46,7 +61,13 @@ export function SidePaneActionModal({ ariaLabel, children, onClose, className, c
     }
   };
 
+  const hidden = !open;
+
   if (typeof document === 'undefined') {
+    return null;
+  }
+
+  if (hidden && !keepMounted) {
     return null;
   }
 
@@ -58,6 +79,9 @@ export function SidePaneActionModal({ ariaLabel, children, onClose, className, c
       onClick={onClose}
       onKeyDown={handleKeyDown}
       role="presentation"
+      hidden={hidden}
+      aria-hidden={hidden ? 'true' : undefined}
+      style={hidden ? { display: 'none' } : undefined}
     >
       <DialogShell
         className={`side-pane-action-modal${isSpeakerModal ? ' side-pane-action-modal-speaker' : ''}${className ? ` ${className}` : ''}`}
@@ -67,6 +91,7 @@ export function SidePaneActionModal({ ariaLabel, children, onClose, className, c
         dir={uiTextDirection}
         title={ariaLabel}
         bodyClassName="side-pane-action-modal-body"
+        footer={footer}
         actions={(
           <button
             type="button"

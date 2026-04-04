@@ -171,6 +171,7 @@ export function SidePaneSidebarActions({
             className="layer-action-dialog-input"
             value={quickDeleteLayerId}
             onChange={(event) => setQuickDeleteLayerId(event.target.value)}
+            aria-label={messages.deleteLayerModalAria}
           >
             {deletableLayers.map((layer) => (
               <option key={layer.id} value={layer.id}>

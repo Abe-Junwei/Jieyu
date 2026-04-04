@@ -115,10 +115,12 @@ async function decryptAiChatSettings(rawSecurePayload: string): Promise<AiChatSe
   }
 }
 
-export async function persistAiChatSettings(settings: AiChatSettings): Promise<void> {
+export async function persistAiChatSettings(settings: AiChatSettings, options?: { isStale?: () => boolean }): Promise<void> {
   if (typeof window === 'undefined') return;
+  const isStale = options?.isStale;
   const canUseCrypto = !!window.crypto?.subtle;
   if (!canUseCrypto) {
+    if (isStale?.()) return;
     const redacted = redactAiChatSettingsForPlainStorage(settings);
     window.localStorage.setItem(AI_CHAT_SETTINGS_STORAGE_KEY, JSON.stringify(redacted));
     window.localStorage.removeItem(AI_CHAT_SETTINGS_SECURE_STORAGE_KEY);
@@ -126,6 +128,7 @@ export async function persistAiChatSettings(settings: AiChatSettings): Promise<v
   }
 
   const encryptedPayload = await encryptAiChatSettings(settings);
+  if (isStale?.()) return;
   window.localStorage.setItem(AI_CHAT_SETTINGS_SECURE_STORAGE_KEY, encryptedPayload);
   window.localStorage.removeItem(AI_CHAT_SETTINGS_STORAGE_KEY);
 }

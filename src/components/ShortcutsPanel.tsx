@@ -10,6 +10,7 @@ import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
 import { DialogShell } from './ui/DialogShell';
+import { PanelSection } from './ui/PanelSection';
 
 interface ShortcutsPanelProps {
   onClose: () => void;
@@ -88,8 +89,7 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
         onClick={(e) => e.stopPropagation()}
       >
           {grouped.map(({ cat, label, entries }) => (
-            <div key={cat} className="shortcuts-panel-group">
-              <div className="shortcuts-panel-group-label">{label}</div>
+            <PanelSection key={cat} className="shortcuts-panel-group" title={label}>
               <table className="shortcuts-panel-table">
                 <tbody>
                   {entries.map((entry) => (
@@ -105,7 +105,7 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </PanelSection>
           ))}
       </DialogShell>
     </div>

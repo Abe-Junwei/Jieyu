@@ -107,6 +107,48 @@
   border-radius: 6px;
 }
 
+.language-iso-input {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.language-iso-input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.language-iso-input-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.language-iso-input-suggestion {
+  appearance: none;
+  border: 1px solid var(--border-color, var(--border-soft));
+  background: color-mix(in srgb, var(--panel-bg, #fff) 86%, var(--accent-soft, #dbeafe));
+  color: var(--text-primary);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.language-iso-input-suggestion:hover:not(:disabled),
+.language-iso-input-suggestion:focus-visible {
+  border-color: var(--accent-color, #2563eb);
+  outline: none;
+}
+
+@media (max-width: 720px) {
+  .language-iso-input-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .dialog-card-compact .dialog-header {
   min-height: 40px;
   padding: 8px 12px;

@@ -48,6 +48,7 @@ interface AiHybridRecommendationPreparedState {
   fallbackItems: AiHybridRecommendation[];
   cachedItems: AiHybridRecommendation[] | null;
   shouldUseRemote: boolean;
+  llmCooldownActive: boolean;
   requestDebounceMs: number;
 }
 
@@ -64,6 +65,22 @@ function compactText(text: string | null | undefined, max = 80): string {
 
 function normalizePromptText(text: string | null | undefined): string {
   return String(text ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function sanitizeRecommendationPrompt(prompt: string, locale: Locale): string {
+  let normalized = prompt.replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+
+  if (locale === 'zh-CN') {
+    normalized = normalized
+      .replace(/^(?:问|问题)\s*[:：]\s*/u, '')
+      .replace(/([\p{Script=Han}])\s+(?=[\p{Script=Han}])/gu, '$1')
+      .replace(/\s+([，。！？；：、])/gu, '$1')
+      .replace(/([（《〈【「『])\s+/gu, '$1')
+      .replace(/\s+([）》〉】」』])/gu, '$1');
+  }
+
+  return normalized;
 }
 
 function extractJsonCandidate(text: string): string | null {
@@ -110,13 +127,15 @@ export class AiHybridRecommendationService {
     input: AiHybridRecommendationInput,
     fallbackPrompts: string[],
   ): AiHybridRecommendationPreparedState {
+    const llmCooldownActive = this.isRemoteCooldownActive(input.recommendationTelemetry);
     const fallbackItems = this.buildRecommendationItems(
       fallbackPrompts,
       'fallback',
+      input.locale,
       input.recommendationTelemetry,
     ).slice(0, 1);
     const refinementSignature = this.buildRefinementSignature(input);
-    const cachedItems = this.getCachedRecommendations(refinementSignature);
+    const cachedItems = llmCooldownActive ? null : this.getCachedRecommendations(refinementSignature);
 
     return {
       displaySignature: JSON.stringify({
@@ -137,11 +156,12 @@ export class AiHybridRecommendationService {
         providerKind: input.aiChatSettings?.providerKind ?? 'mock',
         model: input.aiChatSettings?.model ?? '',
         connectionTestStatus: input.connectionTestStatus ?? 'idle',
-        llmCooldown: this.isRemoteCooldownActive(input.recommendationTelemetry),
+        llmCooldown: llmCooldownActive,
       }),
       fallbackItems,
       cachedItems,
       shouldUseRemote: this.shouldUseRemoteRefinement(input),
+      llmCooldownActive,
       requestDebounceMs: this.config.requestDebounceMs,
     };
   }
@@ -188,9 +208,12 @@ export class AiHybridRecommendationService {
   buildRecommendationItems(
     prompts: string[],
     source: AiRecommendationSource,
+    locale: Locale,
     telemetry?: AiRecommendationTelemetry,
   ): AiHybridRecommendation[] {
-    const uniquePrompts = [...new Set(prompts.map((item) => item.trim()).filter(Boolean))];
+    const uniquePrompts = [
+      ...new Set(prompts.map((item) => sanitizeRecommendationPrompt(item, locale)).filter(Boolean)),
+    ];
     const scored = uniquePrompts.map((prompt, index) => {
       const promptStats = this.collectPromptStats(prompt, source, telemetry);
       const repeatedIgnores = Math.max(0, promptStats.shownCount - promptStats.acceptedCount);
@@ -293,7 +316,7 @@ export class AiHybridRecommendationService {
 
     const prompts = this.parseLlmRecommendationText(rawResponse);
     if (prompts.length === 0) return null;
-    const items = this.buildRecommendationItems(prompts, 'llm', input.recommendationTelemetry).slice(0, 1);
+    const items = this.buildRecommendationItems(prompts, 'llm', input.locale, input.recommendationTelemetry).slice(0, 1);
     return items.length > 0 ? items : null;
   }
 

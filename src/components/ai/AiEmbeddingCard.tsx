@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useLocale } from '../../i18n';
 import { useEmbeddingContext } from '../../contexts/EmbeddingContext';
 import type { EmbeddingProviderKind } from '../../ai/embeddings/EmbeddingProvider';
@@ -37,19 +37,46 @@ export function AiEmbeddingCard() {
   const [embeddingAvailability, setEmbeddingAvailability] = useState<'idle' | 'testing' | 'available' | 'unavailable'>('idle');
   const [embeddingError, setEmbeddingError] = useState<string | null>(null);
   const lastEmbeddingTestRef = useRef<{ ts: number } | null>(null);
+  const embeddingTestVersionRef = useRef(0);
+  const embeddingTestMountedRef = useRef(true);
   const CACHE_TTL_MS = 30_000;
+  const providerSelectId = useId();
   const isZh = locale === 'zh-CN';
   const messages = getAiEmbeddingCardMessages(isZh);
+
+  useEffect(() => () => {
+    embeddingTestMountedRef.current = false;
+    embeddingTestVersionRef.current += 1;
+  }, []);
+
+  useEffect(() => {
+    setEmbeddingAvailability('idle');
+    setEmbeddingError(null);
+    lastEmbeddingTestRef.current = null;
+    embeddingTestVersionRef.current += 1;
+  }, [embeddingProviderKind, onTestEmbeddingProvider]);
 
   const handleTestEmbedding = useCallback(async () => {
     if (!onTestEmbeddingProvider) return;
     if (lastEmbeddingTestRef.current && Date.now() - lastEmbeddingTestRef.current.ts < CACHE_TTL_MS) return;
+    const requestVersion = ++embeddingTestVersionRef.current;
     setEmbeddingAvailability('testing');
     setEmbeddingError(null);
-    const result = await onTestEmbeddingProvider();
-    lastEmbeddingTestRef.current = { ts: Date.now() };
-    setEmbeddingAvailability(result.available ? 'available' : 'unavailable');
-    setEmbeddingError(result.available ? null : (result.error ?? 'Provider unavailable'));
+    try {
+      const result = await onTestEmbeddingProvider();
+      if (!embeddingTestMountedRef.current || requestVersion !== embeddingTestVersionRef.current) {
+        return;
+      }
+      lastEmbeddingTestRef.current = { ts: Date.now() };
+      setEmbeddingAvailability(result.available ? 'available' : 'unavailable');
+      setEmbeddingError(result.available ? null : (result.error ?? 'Provider unavailable'));
+    } catch (error) {
+      if (!embeddingTestMountedRef.current || requestVersion !== embeddingTestVersionRef.current) {
+        return;
+      }
+      setEmbeddingAvailability('unavailable');
+      setEmbeddingError(error instanceof Error && error.message ? error.message : 'Provider unavailable');
+    }
   }, [onTestEmbeddingProvider]);
 
   const visibleAiTasks = useMemo(() => {
@@ -77,8 +104,9 @@ export function AiEmbeddingCard() {
         <span className="transcription-ai-tag">F28</span>
       </div>
       <div className="ai-card-row ai-card-row-gap-sm ai-card-margin-bottom-sm">
-        <label className="ai-card-label">{messages.engineLabel}</label>
+        <label className="ai-card-label" htmlFor={providerSelectId}>{messages.engineLabel}</label>
         <select
+          id={providerSelectId}
           value={embeddingProviderKind ?? 'local'}
           onChange={(e) => onSetEmbeddingProviderKind?.(e.currentTarget.value as EmbeddingProviderKind)}
           className="ai-card-select"
@@ -104,7 +132,7 @@ export function AiEmbeddingCard() {
         )}
         {embeddingAvailability === 'unavailable' && (
           <span style={{ fontSize: 'calc(11px * var(--ui-font-scale, 1))', color: 'var(--state-danger-solid)' }} title={embeddingError ?? undefined}>
-            {embeddingError ? `: ${embeddingError}` : messages.unavailable}
+            {embeddingError ? `${messages.unavailable}: ${embeddingError}` : messages.unavailable}
           </span>
         )}
       </div>
@@ -136,7 +164,12 @@ export function AiEmbeddingCard() {
       <div className="ai-card-grid-gap">
         <div className="ai-card-row ai-card-row-space">
           <span className="transcription-ai-caption ai-caption-inline">{messages.recentTasks}</span>
-          <select value={taskTypeFilter} onChange={(e) => setTaskTypeFilter(e.target.value as 'all' | 'embed' | 'gloss')} className="ai-card-filter-select">
+          <select
+            value={taskTypeFilter}
+            onChange={(e) => setTaskTypeFilter(e.target.value as 'all' | 'embed' | 'gloss')}
+            className="ai-card-filter-select"
+            aria-label={messages.recentTasks}
+          >
             <option value="all">{messages.all}</option>
             <option value="embed">embed</option>
             <option value="gloss">gloss</option>

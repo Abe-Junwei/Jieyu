@@ -1,6 +1,6 @@
 import type { LayerDocType, UtteranceDocType } from '../db';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
-import { transformTextForLayerTarget } from '../utils/orthographyRuntime';
+import { bridgeTextForLayerTarget, resolveFallbackSourceOrthographyId } from '../utils/orthographyRuntime';
 
 interface ResolveVoiceDictationTargetInput {
   selectedLayerId: string | null;
@@ -41,11 +41,12 @@ export function resolveVoiceDictationTarget(input: ResolveVoiceDictationTargetIn
   return { targetLayerId, targetLayer };
 }
 
-export async function transformVoiceDictationText(input: TransformVoiceDictationTextInput) {
-  const fallbackSourceOrthographyId = input.selectedLayerId
-    ? undefined
-    : input.layers.find((layer) => layer.layerType === 'transcription')?.orthographyId;
-  return transformTextForLayerTarget({
+export async function bridgeVoiceDictationText(input: TransformVoiceDictationTextInput) {
+  const fallbackSourceOrthographyId = resolveFallbackSourceOrthographyId({
+    layers: input.layers,
+    selectedLayerId: input.selectedLayerId,
+  });
+  return bridgeTextForLayerTarget({
     text: input.text,
     layers: input.layers,
     targetLayerId: input.targetLayerId,
@@ -55,7 +56,7 @@ export async function transformVoiceDictationText(input: TransformVoiceDictation
 }
 
 export async function persistVoiceDictationToUtterance(input: PersistVoiceDictationToUtteranceInput) {
-  const transformedText = await transformVoiceDictationText(input);
+  const transformedText = await bridgeVoiceDictationText(input);
   if (input.targetLayer.layerType === 'transcription') {
     await input.saveUtteranceText(input.utteranceId, transformedText, input.targetLayerId);
     return transformedText;
@@ -88,7 +89,7 @@ export function createVoiceDictationPipeline(input: CreateVoiceDictationPipeline
         };
       }),
       getCurrentSegmentId: () => input.selectedTimelineOwnerUtterance?.id ?? null,
-      transformTextForFill: ({ text }) => transformVoiceDictationText({
+      transformTextForFill: ({ text }) => bridgeVoiceDictationText({
         text,
         targetLayerId,
         selectedLayerId: input.selectedLayerId,

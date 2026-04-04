@@ -1,5 +1,9 @@
 .ai-chat-prompt-lab,
 .ai-chat-prompt-lab-panel-content {
+  min-height: 0;
+}
+
+.ai-chat-prompt-lab-body {
   display: grid;
   gap: 12px;
 }
@@ -69,6 +73,10 @@
   justify-content: flex-end;
 }
 
+.ai-chat-prompt-lab-action-row-footer {
+  width: 100%;
+}
+
 .ai-chat-prompt-lab-token-btn,
 .ai-chat-prompt-lab-action-btn,
 .ai-chat-prompt-lab-mini-btn {
@@ -79,5 +87,17 @@
   .ai-chat-prompt-lab-template-row {
     grid-template-columns: 1fr;
     justify-items: start;
+  }
+
+  .ai-chat-prompt-lab-footer {
+    justify-content: stretch;
+  }
+
+  .ai-chat-prompt-lab-action-row-footer {
+    justify-content: stretch;
+  }
+
+  .ai-chat-prompt-lab-action-row-footer .ai-chat-prompt-lab-action-btn {
+    flex: 1;
   }
 }

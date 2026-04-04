@@ -20,9 +20,10 @@ import {
   type AuditSource,
   type AnchorDocType,
   type OrthographyDocType,
-  type OrthographyTransformDocType,
+  type OrthographyBridgeDocType,
   type SpeakerDocType,
 } from '../db';
+import { isKnownIso639_3Code } from '../utils/langMapping';
 import { newId } from '../../src/utils/transcriptionFormatters';
 import {
   assertReviewProtection,
@@ -59,23 +60,27 @@ import {
   validateTierConstraints,
 } from './LinguisticService.constraints';
 import {
-  applyOrthographyTransformRecord,
+  applyOrthographyBridgeRecord,
   cloneOrthographyRecordToLanguage,
   createOrthographyRecord,
-  createOrthographyTransformRecord,
-  deleteOrthographyTransformRecord,
-  getActiveOrthographyTransformRecord,
-  listOrthographyTransformRecords,
-  previewOrthographyTransformText,
-  updateOrthographyTransformRecord,
-  type ApplyOrthographyTransformInput,
+  createOrthographyBridgeRecord,
+  deleteOrthographyBridgeRecord,
+  getActiveOrthographyBridgeRecord,
+  listOrthographyRecords,
+  listOrthographyBridgeRecords,
+  previewOrthographyBridgeText,
+  updateOrthographyRecord,
+  updateOrthographyBridgeRecord,
+  type ApplyOrthographyBridgeInput,
   type CloneOrthographyToLanguageInput,
   type CreateOrthographyInput,
-  type CreateOrthographyTransformInput,
-  type GetActiveOrthographyTransformInput,
-  type ListOrthographyTransformsSelector,
-  type PreviewOrthographyTransformInput,
-  type UpdateOrthographyTransformInput,
+  type CreateOrthographyBridgeInput,
+  type GetActiveOrthographyBridgeInput,
+  type ListOrthographyRecordsSelector,
+  type ListOrthographyBridgesSelector,
+  type PreviewOrthographyBridgeInput,
+  type UpdateOrthographyInput,
+  type UpdateOrthographyBridgeInput,
 } from './LinguisticService.orthography';
 
 export {
@@ -89,7 +94,7 @@ export {
 export type {
   MultiLangString,
   OrthographyDocType,
-  OrthographyTransformDocType,
+  OrthographyBridgeDocType,
 } from '../db';
 
 // ── Audit log infrastructure ──────────────────────────────────
@@ -864,6 +869,25 @@ export class LinguisticService {
     await db.collections.token_lexeme_links.removeBySelector({ targetType, targetId });
   }
 
+  static async listLexemes(): Promise<LexemeDocType[]> {
+    const db = await getDb();
+    const docs = await db.collections.lexemes.find().exec();
+
+    return docs
+      .map((doc) => doc.toJSON())
+      .sort((left, right) => {
+        const usageDiff = (right.usageCount ?? 0) - (left.usageCount ?? 0);
+        if (usageDiff !== 0) return usageDiff;
+
+        const updatedDiff = right.updatedAt.localeCompare(left.updatedAt);
+        if (updatedDiff !== 0) return updatedDiff;
+
+        const leftLabel = Object.values(left.lemma)[0] ?? left.id;
+        const rightLabel = Object.values(right.lemma)[0] ?? right.id;
+        return leftLabel.localeCompare(rightLabel, 'zh-CN');
+      });
+  }
+
   static async searchLexemes(query: string): Promise<LexemeDocType[]> {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return [];
@@ -1261,12 +1285,17 @@ export class LinguisticService {
     const db = await getDb();
     const now = new Date().toISOString();
     const textId = newId('text');
+    const primaryLanguageId = input.primaryLanguageId.trim().toLowerCase();
+
+    if (!isKnownIso639_3Code(primaryLanguageId)) {
+      throw new Error('primaryLanguageId 必须是有效的 ISO 639-3 三字母代码');
+    }
 
     await db.collections.texts.insert({
       id: textId,
       title: { zho: input.titleZh, eng: input.titleEn },
       metadata: {
-        primaryLanguageId: input.primaryLanguageId,
+        primaryLanguageId,
         ...(input.primaryOrthographyId ? { primaryOrthographyId: input.primaryOrthographyId } : {}),
       },
       createdAt: now,
@@ -1284,38 +1313,46 @@ export class LinguisticService {
     return cloneOrthographyRecordToLanguage(input);
   }
 
-  static async createOrthographyTransform(input: CreateOrthographyTransformInput): Promise<OrthographyTransformDocType> {
-    return createOrthographyTransformRecord(input);
+  static async listOrthographies(selector: ListOrthographyRecordsSelector = {}): Promise<OrthographyDocType[]> {
+    return listOrthographyRecords(selector);
   }
 
-  static async listOrthographyTransforms(
-    selector: ListOrthographyTransformsSelector = {},
-  ): Promise<OrthographyTransformDocType[]> {
-    return listOrthographyTransformRecords(selector);
+  static async updateOrthography(input: UpdateOrthographyInput): Promise<OrthographyDocType> {
+    return updateOrthographyRecord(input);
   }
 
-  static async updateOrthographyTransform(input: UpdateOrthographyTransformInput): Promise<OrthographyTransformDocType> {
-    return updateOrthographyTransformRecord(input);
+  static async createOrthographyBridge(input: CreateOrthographyBridgeInput): Promise<OrthographyBridgeDocType> {
+    return createOrthographyBridgeRecord(input);
   }
 
-  static async deleteOrthographyTransform(id: string): Promise<void> {
-    return deleteOrthographyTransformRecord(id);
+  static async listOrthographyBridges(
+    selector: ListOrthographyBridgesSelector = {},
+  ): Promise<OrthographyBridgeDocType[]> {
+    return listOrthographyBridgeRecords(selector);
   }
 
-  static async getActiveOrthographyTransform(
-    input: GetActiveOrthographyTransformInput,
-  ): Promise<OrthographyTransformDocType | null> {
-    return getActiveOrthographyTransformRecord(input);
+  static async updateOrthographyBridge(input: UpdateOrthographyBridgeInput): Promise<OrthographyBridgeDocType> {
+    return updateOrthographyBridgeRecord(input);
   }
 
-  static async applyOrthographyTransform(
-    input: ApplyOrthographyTransformInput,
+  static async deleteOrthographyBridge(id: string): Promise<void> {
+    return deleteOrthographyBridgeRecord(id);
+  }
+
+  static async getActiveOrthographyBridge(
+    input: GetActiveOrthographyBridgeInput,
+  ): Promise<OrthographyBridgeDocType | null> {
+    return getActiveOrthographyBridgeRecord(input);
+  }
+
+  static async applyOrthographyBridge(
+    input: ApplyOrthographyBridgeInput,
   ): Promise<{ text: string; transformId?: string }> {
-    return applyOrthographyTransformRecord(input);
+    return applyOrthographyBridgeRecord(input);
   }
 
-  static previewOrthographyTransform(input: PreviewOrthographyTransformInput): string {
-    return previewOrthographyTransformText(input);
+  static previewOrthographyBridge(input: PreviewOrthographyBridgeInput): string {
+    return previewOrthographyBridgeText(input);
   }
 
   // ── Audio import ───────────────────────────────────────────

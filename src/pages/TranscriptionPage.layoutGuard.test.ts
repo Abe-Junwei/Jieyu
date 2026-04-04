@@ -78,21 +78,35 @@ describe('Transcription layout guard', () => {
     expect(block).toContain('min-height: 0;');
   });
 
-  it('keeps SidePaneActionModal dialog-card width via CSS variable', () => {
+  it('keeps SidePaneActionModal dialog-card width policy clamped to viewport', () => {
     const cssPath = path.resolve(process.cwd(), 'src/styles/panels/action-dialogs.css');
     const cssCode = fs.readFileSync(cssPath, 'utf8');
 
-    const selector = '.side-pane-action-modal.dialog-card';
-    const start = cssCode.indexOf(selector);
+    const standardSelector = '.side-pane-action-modal.dialog-card';
+    const standardStart = cssCode.indexOf(standardSelector);
 
-    expect(start).toBeGreaterThanOrEqual(0);
+    expect(standardStart).toBeGreaterThanOrEqual(0);
 
-    const end = cssCode.indexOf('}', start);
-    expect(end).toBeGreaterThan(start);
+    const standardEnd = cssCode.indexOf('}', standardStart);
+    expect(standardEnd).toBeGreaterThan(standardStart);
 
-    const block = cssCode.slice(start, end + 1);
-    expect(block).toContain('--dialog-auto-width');
-    expect(block).toContain('max-height');
+    const standardBlock = cssCode.slice(standardStart, standardEnd + 1);
+    expect(standardBlock).toContain('width: min(var(--dialog-auto-width');
+    expect(standardBlock).toContain('92vw');
+    expect(standardBlock).toContain('max-height');
+
+    const speakerSelector = '.side-pane-action-modal-speaker.dialog-card';
+    const speakerStart = cssCode.indexOf(speakerSelector);
+
+    expect(speakerStart).toBeGreaterThanOrEqual(0);
+
+    const speakerEnd = cssCode.indexOf('}', speakerStart);
+    expect(speakerEnd).toBeGreaterThan(speakerStart);
+
+    const speakerBlock = cssCode.slice(speakerStart, speakerEnd + 1);
+    expect(speakerBlock).toContain('width: min(var(--dialog-auto-width');
+    expect(speakerBlock).toContain('92vw');
+    expect(speakerBlock).toContain('max-height');
   });
 
   it('keeps transcription workspace container styles in dedicated page layout css', () => {

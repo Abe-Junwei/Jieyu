@@ -158,6 +158,43 @@ describe('AiChatCard input submit', () => {
     }));
   });
 
+  it('tracks a fresh shown event when the same recommendation becomes visible again', async () => {
+    const onTrackAiRecommendationEvent = vi.fn();
+
+    const view = render(
+      <AiAssistantHubContext.Provider value={makeContextValue({
+        currentPage: 'transcription',
+        selectedLayerType: 'translation',
+        selectedText: '这里是一条待处理的译文',
+        onTrackAiRecommendationEvent,
+      })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    const input = within(view.container).getByRole('textbox') as HTMLInputElement;
+    await waitFor(() => {
+      expect(onTrackAiRecommendationEvent.mock.calls.filter(([event]) => event?.type === 'shown')).toHaveLength(1);
+    });
+
+    const firstPrompt = (onTrackAiRecommendationEvent.mock.calls.find(
+      ([event]) => event?.type === 'shown',
+    )?.[0]?.prompt ?? '') as string;
+
+    fireEvent.change(input, { target: { value: 'custom draft' } });
+    fireEvent.change(input, { target: { value: '' } });
+
+    await waitFor(() => {
+      expect(onTrackAiRecommendationEvent.mock.calls.filter(([event]) => event?.type === 'shown')).toHaveLength(2);
+    });
+
+    const shownPrompts = onTrackAiRecommendationEvent.mock.calls
+      .filter(([event]) => event?.type === 'shown')
+      .map(([event]) => event.prompt);
+    expect(shownPrompts).toEqual([firstPrompt, firstPrompt]);
+  });
+
   it('applies the visible recommendation with ArrowRight instead of relying on Tab', async () => {
     const view = render(
       <AiAssistantHubContext.Provider value={makeContextValue({
@@ -211,7 +248,7 @@ describe('AiChatCard input submit', () => {
     );
 
     expect(within(view.container).getByText(/待确认的高风险操作|high-risk action is pending/i)).toBeTruthy();
-    expect(within(view.container).getByText(/删除操作确认|destructive action/i)).toBeTruthy();
+    expect(within(view.container).getAllByText(/删除操作确认|destructive action/i).length).toBeGreaterThan(0);
     const sendButton = within(view.container).getByRole('button', { name: /发送|Send/i }) as HTMLButtonElement;
     expect(sendButton.disabled).toBe(true);
   });
@@ -301,7 +338,7 @@ describe('AiChatCard input submit', () => {
     expect(input.value).toMatch(/问题：这是一条待分析句子|Question: 这是一条待分析句子/);
   });
 
-  it('opens the compact RAG quick menu from More and injects the balanced template', () => {
+  it('renders all RAG templates directly without More menu and injects the terminology template', () => {
     const view = render(
       <AiAssistantHubContext.Provider
         value={makeContextValue({
@@ -309,7 +346,7 @@ describe('AiChatCard input submit', () => {
             id: 'utt-quick-2',
             startTime: 2.5,
             endTime: 4.75,
-            transcription: { default: '这是一条需要平衡分析的句子' },
+            transcription: { default: '关键术语上下文' },
           } as unknown as AiAssistantHubContextValue['selectedUtterance'],
         })}
       >
@@ -317,21 +354,12 @@ describe('AiChatCard input submit', () => {
       </AiAssistantHubContext.Provider>,
     );
 
-    fireEvent.click(within(view.container).getByRole('button', { name: /更多|More/i }));
-
-    const menu = within(view.container).getByRole('dialog', { name: /RAG 快捷场景|RAG Quick Scenarios/i });
-    expect(menu.className).toContain('dialog-card');
-    expect(menu.className).toContain('dialog-card-compact');
-    expect(menu.className).toContain('ai-chat-rag-quick-menu');
-    expect(within(menu).getByRole('button', { name: /RAG 平衡模板|RAG Balanced Template/i })).toBeTruthy();
-    expect(within(menu).getByRole('button', { name: /RAG 快捷场景 取消|RAG Quick Scenarios Cancel/i }).closest('.dialog-header')).toBeTruthy();
-
-    fireEvent.click(within(menu).getByRole('button', { name: /RAG 平衡模板|RAG Balanced Template/i }));
+    expect(within(view.container).queryByRole('button', { name: /更多|More/i })).toBeNull();
+    fireEvent.click(within(view.container).getByRole('button', { name: /RAG 术语查证模板|RAG Terminology Template/i }));
 
     const input = within(view.container).getByRole('textbox') as HTMLInputElement;
-    expect(input.value).toContain('[RAG_SCENARIO:balanced]');
-    expect(input.value).toMatch(/目标：id=utt-quick-2;|Target: id=utt-quick-2;/);
-    expect(within(view.container).queryByRole('dialog', { name: /RAG 快捷场景|RAG Quick Scenarios/i })).toBeNull();
+    expect(input.value).toContain('[RAG_SCENARIO:terminology]');
+    expect(input.value).toMatch(/术语：关键术语上下文|Term: 关键术语上下文/);
   });
 
   it('renders citation action buttons in fixed priority order', () => {
@@ -607,6 +635,10 @@ describe('AiChatCard input submit', () => {
       </AiAssistantHubContext.Provider>,
     );
 
+    const decisionPanelToggle = within(view.container).getByRole('button', { name: /AI 决策|AI Decisions/i });
+    expect(decisionPanelToggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(decisionPanelToggle);
+
     fireEvent.click(within(view.container).getByRole('button', { name: /查看\s*回放\s*\/\s*对比|Replay\s*\/\s*Compare/i }));
 
     await waitFor(() => {
@@ -629,6 +661,36 @@ describe('AiChatCard input submit', () => {
       expect(within(view.container).getByText(/决策轨迹|Decision timeline/i)).toBeTruthy();
       expect(within(view.container).getByText(/Golden 快照预览|Golden Snapshot Preview/i)).toBeTruthy();
     }, { timeout: 3000 });
+  });
+
+  it('keeps the AI decision panel collapsed by default', () => {
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          aiToolDecisionLogs: [
+            {
+              id: 'decision-default-closed-1',
+              toolName: 'set_transcription_text',
+              decision: 'auto_confirmed',
+              requestId: 'toolreq_default_closed_1',
+              timestamp: '2026-04-03T12:00:00.000Z',
+            },
+          ],
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    const decisionPanelToggle = within(view.container).getByRole('button', { name: /AI 决策|AI Decisions/i });
+
+    expect(decisionPanelToggle.getAttribute('aria-expanded')).toBe('false');
+    expect(within(view.container).queryByRole('button', { name: /查看\s*回放\s*\/\s*对比|Replay\s*\/\s*Compare/i })).toBeNull();
+
+    fireEvent.click(decisionPanelToggle);
+
+    expect(decisionPanelToggle.getAttribute('aria-expanded')).toBe('true');
+    expect(within(view.container).getByRole('button', { name: /查看\s*回放\s*\/\s*对比|Replay\s*\/\s*Compare/i })).toBeTruthy();
   });
 
   it('exports golden snapshot from the decision log entry', async () => {
@@ -698,6 +760,7 @@ describe('AiChatCard input submit', () => {
       </AiAssistantHubContext.Provider>,
     );
 
+    fireEvent.click(within(view.container).getByRole('button', { name: /AI 决策|AI Decisions/i }));
     fireEvent.click(within(view.container).getByRole('button', { name: /导出快照|Export Snapshot/i }));
 
     await waitFor(() => {
@@ -794,6 +857,7 @@ describe('AiChatCard input submit', () => {
 
     // 打开回放面板（已迁移到语音模块下方的 AI 决策折叠区）
     // Open replay panel from the AI decision section below voice input.
+    fireEvent.click(within(view.container).getByRole('button', { name: /AI 决策|AI Decisions/i }));
     fireEvent.click(within(view.container).getByRole('button', { name: /Replay|回放/i }));
     await waitFor(() => {
       expect(within(view.container).getByRole('button', { name: /展开详情|Show detail|收起详情|Hide detail/i })).toBeTruthy();

@@ -96,19 +96,15 @@ describe('AiChatAlertsPanel', () => {
       onCancelPendingToolCall,
     });
 
-    const buttons = screen.getAllByRole('button');
-    expect(buttons.length).toBeGreaterThanOrEqual(3);
+    const toggleButton = screen.getByRole('button', { name: /Hide|收起/i });
+    const confirmButton = screen.getByRole('button', { name: /Delete layer|删除层|Confirm/i });
+    const cancelButton = screen.getByRole('button', { name: /Cancel|取消/i });
+    const region = screen.getByTestId('ai-chat-alerts-region');
+    expect(region.className).toContain('panel-design-match-content');
 
-    const toggleButton = buttons[0];
-    const confirmButton = buttons[1];
-    const cancelButton = buttons[2];
-    expect(toggleButton).toBeTruthy();
-    expect(confirmButton).toBeTruthy();
-    expect(cancelButton).toBeTruthy();
-
-    fireEvent.click(toggleButton!);
-    fireEvent.click(confirmButton!);
-    fireEvent.click(cancelButton!);
+    fireEvent.click(toggleButton);
+    fireEvent.click(confirmButton);
+    fireEvent.click(cancelButton);
 
     expect(onToggleAlertBar).toHaveBeenCalledTimes(1);
     expect(onConfirmPendingToolCall).toHaveBeenCalledTimes(1);

@@ -71,4 +71,41 @@ describe('NotePopover', () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
   });
+
+  it('provides accessible names for composer, edit, and delete controls', async () => {
+    const note = {
+      id: 'note-1',
+      content: { default: '已有备注' },
+      targetType: 'utterance',
+      targetId: 'utt-1',
+      createdAt: '2026-04-04T00:00:00.000Z',
+      updatedAt: '2026-04-04T00:00:00.000Z',
+      category: 'comment',
+    } as UserNoteDocType;
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <NotePopover
+          x={120}
+          y={80}
+          notes={[note]}
+          targetLabel="测试目标"
+          onClose={vi.fn()}
+          onAdd={vi.fn(async () => undefined)}
+          onUpdate={vi.fn(async () => undefined)}
+          onDelete={vi.fn(async () => undefined)}
+        />
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByRole('textbox', { name: '新备注内容' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '删除备注' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '新备注分类: 评论' }).getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.doubleClick(screen.getByText('已有备注'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: '编辑备注内容' })).toBeTruthy();
+    });
+  });
 });

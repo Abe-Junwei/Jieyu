@@ -1,28 +1,32 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useId, useState, useCallback, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { X } from 'lucide-react';
+import { RotateCcw, X } from 'lucide-react';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
 import type { LayerConstraint, LayerDocType } from '../db';
+import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
 import {
   getLayerCreateGuard,
   listIndependentBoundaryTranscriptionLayers,
 } from '../services/LayerConstraintService';
 import { COMMON_LANGUAGES, getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { OrthographyBuilderPanel } from './OrthographyBuilderPanel';
-import { OrthographyTransformManager } from './OrthographyTransformManager';
 import {
   formatOrthographyOptionLabel,
+  groupOrthographiesForSelect,
   ORTHOGRAPHY_CREATE_SENTINEL,
   useOrthographyPicker,
 } from '../hooks/useOrthographyPicker';
 import { useLocale } from '../i18n';
+import { getOrthographyCatalogGroupLabel } from '../i18n/orthographyBuilderMessages';
 import { getLayerManagerPopoverMessages } from '../i18n/layerManagerPopoverMessages';
+import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
 import { DialogShell } from './ui/DialogShell';
 import { PanelSection } from './ui/PanelSection';
 import { PanelSummary } from './ui/PanelSummary';
+import { getLanguageDisplayName, isKnownIso639_3Code } from '../utils/langMapping';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -30,6 +34,8 @@ interface LayerActionPopoverProps {
   action: LayerActionType;
   layerId: string | undefined;
   deletableLayers: LayerDocType[];
+  defaultLanguageId?: string;
+  defaultOrthographyId?: string;
   layerCreateMessage?: string;
   createLayer: (
     layerType: 'transcription' | 'translation',
@@ -98,6 +104,7 @@ type LayerActionPopoverUiText = {
   transcriptionLanguageRequired: string;
   translationCreateUnavailable: string;
   transcriptionCreateUnavailable: string;
+  resetForm: string;
 };
 
 function getCreateFallbackMessage(action: LayerActionType, uiText: LayerActionPopoverUiText): string {
@@ -115,10 +122,26 @@ function formatParentLayerOptionLabel(layer: LayerDocType): string {
   return alias ? `${type} · ${lang} · ${alias}` : `${type} · ${lang}`;
 }
 
+function resolveLanguageSeed(defaultLanguageId?: string): {
+  languageName: string;
+  languageCode: string;
+} {
+  const normalized = defaultLanguageId?.trim().toLowerCase() ?? '';
+  if (!normalized) {
+    return { languageName: '', languageCode: '' };
+  }
+  return {
+    languageName: getLanguageDisplayName(normalized),
+    languageCode: normalized,
+  };
+}
+
 export function LayerActionPopover({
   action,
   layerId,
   deletableLayers,
+  defaultLanguageId,
+  defaultOrthographyId,
   layerCreateMessage,
   createLayer,
   deleteLayer,
@@ -187,10 +210,12 @@ export function LayerActionPopover({
     transcriptionLanguageRequired: managerMessages.transcriptionLanguageRequired,
     translationCreateUnavailable: managerMessages.translationCreateUnavailable,
     transcriptionCreateUnavailable: managerMessages.transcriptionCreateUnavailable,
+    resetForm: managerMessages.resetForm,
   }), [managerMessages]);
-  const [langId, setLangId] = useState('');
-  const [customLang, setCustomLang] = useState('');
-  const [orthographyId, setOrthographyId] = useState('');
+  const defaultLanguageSeed = useMemo(() => resolveLanguageSeed(defaultLanguageId), [defaultLanguageId]);
+  const normalizedDefaultOrthographyId = useMemo(() => defaultOrthographyId?.trim() ?? '', [defaultOrthographyId]);
+  const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>(defaultLanguageSeed);
+  const [orthographyId, setOrthographyId] = useState(normalizedDefaultOrthographyId);
   const [alias, setAlias] = useState('');
   const [modality, setModality] = useState<'text' | 'audio' | 'mixed'>('text');
   const [constraint, setConstraint] = useState<LayerConstraint>('symbolic_association');
@@ -199,6 +224,8 @@ export function LayerActionPopover({
   const [isLoading, setIsLoading] = useState(false);
   const [createFailureMessage, setCreateFailureMessage] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{ layerId: string; layerName: string; textCount: number } | null>(null);
+  const fieldIdPrefix = useId();
+  const pendingDefaultOrthographyIdRef = React.useRef(normalizedDefaultOrthographyId);
 
   // Sync deleteLayerId when layerId changes
   useEffect(() => {
@@ -220,20 +247,69 @@ export function LayerActionPopover({
     return '';
   }, [deletableLayers, independentParentLayers, layerId]);
   const resolvedLanguageId = useMemo(
-    () => (langId === '__custom__' ? customLang.trim() : langId),
-    [customLang, langId],
+    () => languageInput.languageCode.trim().toLowerCase(),
+    [languageInput.languageCode],
   );
   const orthographyPicker = useOrthographyPicker(resolvedLanguageId, orthographyId, setOrthographyId);
+  const groupedOrthographyOptions = useMemo(
+    () => groupOrthographiesForSelect(orthographyPicker.orthographies),
+    [orthographyPicker.orthographies],
+  );
   const selectedOrthography = useMemo(
     () => orthographyPicker.orthographies.find((item) => item.id === orthographyId),
     [orthographyId, orthographyPicker.orthographies],
   );
+  const selectedOrthographyBadge = useMemo(
+    () => (selectedOrthography ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography) : null),
+    [locale, selectedOrthography],
+  );
+  const customLanguageError = resolvedLanguageId && !isKnownIso639_3Code(resolvedLanguageId)
+    ? '语言代码必须是有效的 ISO 639-3 三字母代码。'
+    : '';
+  const orthographySelectionError = orthographyId && !orthographyPicker.isCreating && !selectedOrthography
+    ? '所选正字法已失效，请重新选择。'
+    : '';
 
   useEffect(() => {
     setCreateFailureMessage('');
     setConstraint('symbolic_association');
     setSelectedParentLayerId(contextualParentLayerId);
-  }, [action, contextualParentLayerId]);
+    if (action === 'delete') {
+      pendingDefaultOrthographyIdRef.current = '';
+      return;
+    }
+    pendingDefaultOrthographyIdRef.current = normalizedDefaultOrthographyId;
+    setLanguageInput(defaultLanguageSeed);
+    setOrthographyId(normalizedDefaultOrthographyId);
+    setAlias('');
+    setModality('text');
+  }, [action, contextualParentLayerId, defaultLanguageSeed, normalizedDefaultOrthographyId]);
+
+  useEffect(() => {
+    const pendingDefaultOrthographyId = pendingDefaultOrthographyIdRef.current.trim();
+    if (!pendingDefaultOrthographyId) return;
+    if (resolvedLanguageId !== defaultLanguageSeed.languageCode || orthographyPicker.isCreating) {
+      return;
+    }
+    if (orthographyId === pendingDefaultOrthographyId) {
+      pendingDefaultOrthographyIdRef.current = '';
+      return;
+    }
+    if (orthographyPicker.orthographies.some((orthography) => orthography.id === pendingDefaultOrthographyId)) {
+      setOrthographyId(pendingDefaultOrthographyId);
+      pendingDefaultOrthographyIdRef.current = '';
+      return;
+    }
+    if (orthographyPicker.orthographies.length > 0) {
+      pendingDefaultOrthographyIdRef.current = '';
+    }
+  }, [
+    defaultLanguageSeed.languageCode,
+    orthographyId,
+    orthographyPicker.isCreating,
+    orthographyPicker.orthographies,
+    resolvedLanguageId,
+  ]);
 
   // Keep refs synchronized with state to avoid stale closures | 保持 ref 与 state 同步，避免闭包过期
 
@@ -266,6 +342,14 @@ export function LayerActionPopover({
   const handleCreate = useCallback(async () => {
     const resolvedLang = resolvedLanguageId;
     if (!resolvedLang) return;
+    if (customLanguageError) {
+      setCreateFailureMessage(customLanguageError);
+      return;
+    }
+    if (orthographySelectionError) {
+      setCreateFailureMessage(orthographySelectionError);
+      return;
+    }
     const existingTranscriptionCount = deletableLayers.filter((layer) => layer.layerType === 'transcription').length;
     const canConfigureTranscriptionConstraint = action === 'create-transcription' && existingTranscriptionCount > 0;
     const resolvedConstraint = action === 'create-translation'
@@ -310,7 +394,7 @@ export function LayerActionPopover({
     } finally {
       setIsLoading(false);
     }
-  }, [resolvedLanguageId, orthographyId, alias, modality, constraint, action, createLayer, deletableLayers, independentParentLayers.length, layerCreateMessage, onClose, resolvedCreateParentLayerId, uiText]);
+  }, [resolvedLanguageId, customLanguageError, orthographySelectionError, orthographyId, alias, modality, constraint, action, createLayer, deletableLayers, independentParentLayers.length, layerCreateMessage, onClose, resolvedCreateParentLayerId, uiText]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteLayerId) return;
@@ -345,9 +429,16 @@ export function LayerActionPopover({
     setDeleteConfirm(null);
   }, []);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
-  }, [onClose]);
+  const handleResetForm = useCallback(() => {
+    pendingDefaultOrthographyIdRef.current = normalizedDefaultOrthographyId;
+    setLanguageInput(defaultLanguageSeed);
+    setOrthographyId(normalizedDefaultOrthographyId);
+    setAlias('');
+    setModality('text');
+    setConstraint('symbolic_association');
+    setSelectedParentLayerId(contextualParentLayerId);
+    setCreateFailureMessage('');
+  }, [contextualParentLayerId, defaultLanguageSeed, normalizedDefaultOrthographyId]);
 
   const label = action === 'create-transcription'
     ? uiText.createTranscription
@@ -409,39 +500,33 @@ export function LayerActionPopover({
   const createLanguageRequiredText = createLanguageRequiredMessage.startsWith(uiText.requiredPrefix)
     ? createLanguageRequiredMessage
     : `${uiText.requiredPrefix}${createLanguageRequiredMessage}`;
-  const resolvedParentLayerLabel = useMemo(() => {
-    if (!resolvedCreateParentLayerId) return '';
-    const resolvedParentLayer = independentParentLayers.find((layer) => layer.id === resolvedCreateParentLayerId) ?? autoParentLayer;
-    return resolvedParentLayer ? formatParentLayerOptionLabel(resolvedParentLayer) : '';
-  }, [autoParentLayer, independentParentLayers, resolvedCreateParentLayerId]);
   const summaryMeta = (
     <div className="panel-meta">
-      <span className="panel-chip">{action === 'delete' ? uiText.deleteLayer : label}</span>
-      {action === 'create-translation' ? <span className="panel-chip">{uiText.translationText}</span> : null}
-      {action === 'create-transcription' && showConstraintSelector
-        ? <span className="panel-chip">{constraint === 'independent_boundary' ? uiText.constraintIndependent : uiText.constraintDependent}</span>
-        : null}
-      {action === 'delete' ? <span className="panel-chip panel-chip--danger">{deletableLayers.length}</span> : null}
+      <span className="panel-chip">{uiText.deleteLayer}</span>
+      <span className="panel-chip panel-chip--danger">{deletableLayers.length}</span>
     </div>
   );
   const createFooter = (
     <>
+      <button className="panel-button panel-button--ghost" onClick={onClose}>
+        {uiText.cancel}
+      </button>
       <button
         className="panel-button panel-button--primary"
         disabled={action === 'create-translation'
-          ? (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || translationCreateDisabledReason.length > 0)
-          : (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || transcriptionCreateDisabledReason.length > 0)}
+          ? (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || Boolean(customLanguageError) || Boolean(orthographySelectionError) || translationCreateDisabledReason.length > 0)
+          : (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || Boolean(customLanguageError) || Boolean(orthographySelectionError) || transcriptionCreateDisabledReason.length > 0)}
         onClick={handleCreate}
       >
         {uiText.create}
-      </button>
-      <button className="panel-button panel-button--ghost" onClick={onClose}>
-        {uiText.cancel}
       </button>
     </>
   );
   const deleteFooter = (
     <>
+      <button className="panel-button panel-button--ghost" onClick={deleteConfirm ? handleCancelDelete : onClose} disabled={isLoading}>
+        {uiText.cancel}
+      </button>
       <button
         className="panel-button panel-button--danger"
         disabled={deleteConfirm ? isLoading : (!deleteLayerId || isLoading)}
@@ -449,20 +534,20 @@ export function LayerActionPopover({
       >
         {deleteConfirm ? uiText.confirmDelete : uiText.delete}
       </button>
-      <button className="panel-button panel-button--ghost" onClick={deleteConfirm ? handleCancelDelete : onClose} disabled={isLoading}>
-        {uiText.cancel}
-      </button>
     </>
   );
+  const orthographyFieldId = `${fieldIdPrefix}-orthography`;
+  const aliasFieldId = `${fieldIdPrefix}-alias`;
+  const modalityFieldId = `${fieldIdPrefix}-modality`;
+  const translationParentLayerFieldId = `${fieldIdPrefix}-translation-parent-layer`;
+  const transcriptionParentLayerFieldId = `${fieldIdPrefix}-transcription-parent-layer`;
+  const deleteLayerFieldId = `${fieldIdPrefix}-delete-layer`;
 
   const popover = (
     <div
       className="dialog-overlay dialog-overlay-topmost"
-      onMouseDown={(e) => e.stopPropagation()}
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={onClose}
-      onKeyDown={handleKeyDown}
       role="presentation"
+      onMouseDown={onClose}
     >
       <DialogShell
         className="layer-action-dialog"
@@ -472,16 +557,29 @@ export function LayerActionPopover({
         title={label}
         headerClassName="layer-action-dialog-header"
         actions={(
-          <button
-            type="button"
-            className="icon-btn"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={onClose}
-            aria-label={`${label} ${uiText.cancel}`}
-            title={`${label} ${uiText.cancel}`}
-          >
-            <X size={18} />
-          </button>
+          <>
+            {action !== 'delete' && (
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={handleResetForm}
+                aria-label={uiText.resetForm}
+                title={uiText.resetForm}
+              >
+                <RotateCcw size={15} />
+              </button>
+            )}
+            <button
+              type="button"
+              className="icon-btn"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={onClose}
+              aria-label={`${label} ${uiText.cancel}`}
+              title={`${label} ${uiText.cancel}`}
+            >
+              <X size={18} />
+            </button>
+          </>
         )}
         footer={action === 'delete' ? deleteFooter : createFooter}
         onMouseDown={(e) => e.stopPropagation()}
@@ -492,16 +590,6 @@ export function LayerActionPopover({
         aria-label={label}
         dir={uiTextDirection}
       >
-        {showCreateFailure && (
-          <div
-            role="alert"
-            aria-live="assertive"
-            className="layer-action-dialog-feedback layer-action-dialog-feedback-error"
-          >
-            {uiText.createFailedPrefix}{createFailureMessage}
-          </div>
-        )}
-
         {action === 'delete' ? (
           <>
             <PanelSummary
@@ -518,7 +606,9 @@ export function LayerActionPopover({
                 </p>
               ) : (
                 <div className="dialog-field">
+                  <label className="layer-action-dialog-field-label" htmlFor={deleteLayerFieldId}>{uiText.deleteLayer}</label>
                   <select
+                    id={deleteLayerFieldId}
                     className="input panel-input layer-action-dialog-input"
                     value={deleteLayerId}
                     onChange={(e) => setDeleteLayerId(e.target.value)}
@@ -535,130 +625,135 @@ export function LayerActionPopover({
           </>
         ) : (
           <>
-            <PanelSummary
-              className="layer-action-dialog-summary"
-              description={action === 'create-translation' ? uiText.translationBoundaryHint : uiText.selectLanguage}
-              meta={summaryMeta}
-              supportingText={resolvedParentLayerLabel ? uiText.autoLinkedParent(resolvedParentLayerLabel) : undefined}
-            />
-            <PanelSection className="layer-action-dialog-section">
-              <div className="dialog-field">
-                <select
-                  className="input panel-input layer-action-dialog-input"
-                  value={langId}
-                  onChange={(e) => setLangId(e.target.value)}
-                >
-                  <option value="">{uiText.selectLanguage}</option>
-                  {COMMON_LANGUAGES.map((lang) => (
-                    <option key={lang.code} value={lang.code}>
-                      {lang.label}（{lang.code}）
-                    </option>
-                  ))}
-                  <option value="__custom__">{uiText.otherManualInput}</option>
-                </select>
-              </div>
-              {langId === '__custom__' && (
+            <div className="dialog-field">
+              <label className="layer-action-dialog-field-label">{uiText.selectLanguage}</label>
+              <LanguageIsoInput
+                locale={locale}
+                value={languageInput}
+                onChange={setLanguageInput}
+                nameLabel={uiText.selectLanguage}
+                codeLabel={uiText.customLanguageCodePlaceholder}
+                namePlaceholder={uiText.selectLanguage}
+                codePlaceholder={uiText.customLanguageCodePlaceholder}
+                error={customLanguageError}
+                disabled={isLoading || orthographyPicker.submitting}
+              />
+            </div>
+            {customLanguageError && (
+              <p className="layer-action-dialog-feedback layer-action-dialog-feedback-error">
+                {customLanguageError}
+              </p>
+            )}
+            {resolvedLanguageId && (
+              <div className="layer-action-dialog-field-group">
                 <div className="dialog-field">
-                  <input
+                  <label className="layer-action-dialog-field-label" htmlFor={orthographyFieldId}>{uiText.createOrthography.replace(/^\+\s*/, '')}</label>
+                  <select
+                    id={orthographyFieldId}
                     className="input panel-input layer-action-dialog-input"
-                    placeholder={uiText.customLanguageCodePlaceholder}
-                    value={customLang}
-                    onChange={(e) => setCustomLang(e.target.value)}
-                  />
-                </div>
-              )}
-              {resolvedLanguageId && (
-                <>
-                  <div className="dialog-field">
-                    <select
-                      className="input panel-input layer-action-dialog-input"
-                      value={orthographyPicker.isCreating ? ORTHOGRAPHY_CREATE_SENTINEL : orthographyId}
-                      onChange={(e) => orthographyPicker.handleSelectionChange(e.target.value)}
-                    >
-                      {orthographyPicker.orthographies.length === 0 && <option value="">{uiText.useDefaultScript}</option>}
-                      {orthographyPicker.orthographies.map((orthography) => (
-                        <option key={orthography.id} value={orthography.id}>
-                          {formatOrthographyOptionLabel(orthography)}
-                        </option>
+                    value={orthographyPicker.isCreating ? ORTHOGRAPHY_CREATE_SENTINEL : orthographyId}
+                    onChange={(e) => orthographyPicker.handleSelectionChange(e.target.value)}
+                  >
+                    {orthographyPicker.orthographies.length === 0 && <option value="">{uiText.useDefaultScript}</option>}
+                      {groupedOrthographyOptions.map((group) => (
+                        <optgroup key={group.key} label={getOrthographyCatalogGroupLabel(locale, group.key)}>
+                          {group.orthographies.map((orthography) => (
+                            <option key={orthography.id} value={orthography.id}>
+                              {formatOrthographyOptionLabel(orthography)}
+                            </option>
+                          ))}
+                        </optgroup>
                       ))}
-                      <option value={ORTHOGRAPHY_CREATE_SENTINEL}>{uiText.createOrthography}</option>
-                    </select>
-                  </div>
-                  {orthographyPicker.orthographies.length === 0 && !orthographyPicker.isCreating && (
-                    <p className="dialog-hint layer-action-dialog-meta-note">
-                      {uiText.orthographyHint}
-                    </p>
-                  )}
-                  {orthographyPicker.isCreating && (
-                    <OrthographyBuilderPanel
-                      picker={orthographyPicker}
-                      languageOptions={COMMON_LANGUAGES}
-                      compact
-                      sourceLanguagePlaceholder={uiText.sourceLanguagePlaceholder}
-                      sourceLanguageCodePlaceholder={uiText.sourceLanguageCodePlaceholder}
-                    />
-                  )}
-                  {!orthographyPicker.isCreating && selectedOrthography && (
-                    <OrthographyTransformManager
-                      targetOrthography={selectedOrthography}
-                      languageOptions={COMMON_LANGUAGES}
-                      compact
-                    />
-                  )}
-                </>
-              )}
-              <div className="dialog-field">
-                <input
-                  className="input panel-input layer-action-dialog-input"
-                  placeholder={uiText.aliasPlaceholder}
-                  value={alias}
-                  onChange={(e) => setAlias(e.target.value)}
-                />
-              </div>
-              {action === 'create-translation' && (
-                <>
-                  <div className="dialog-field">
-                    <select
-                      className="input panel-input layer-action-dialog-input"
-                      value={modality}
-                      onChange={(e) => setModality(e.target.value as 'text' | 'audio' | 'mixed')}
-                    >
-                      <option value="text">{uiText.translationText}</option>
-                      <option value="audio">{uiText.translationAudio}</option>
-                      <option value="mixed">{uiText.translationMixed}</option>
-                    </select>
-                  </div>
-                  <p className="dialog-hint layer-action-dialog-meta-note">
-                    {uiText.translationBoundaryHint}
+                    <option value={ORTHOGRAPHY_CREATE_SENTINEL}>{uiText.createOrthography}</option>
+                  </select>
+                </div>
+                {orthographyPicker.orthographies.length === 0 && !orthographyPicker.isCreating && (
+                  <p className="panel-note layer-action-dialog-meta-note">
+                    {uiText.orthographyHint}
                   </p>
-                  {independentParentLayers.length > 1 && (
-                    <div className="dialog-field">
-                      <select
-                        className="input panel-input layer-action-dialog-input layer-parent-select"
-                        value={selectedParentLayerId}
-                        onChange={(e) => setSelectedParentLayerId(e.target.value)}
-                      >
-                        <option value="">{uiText.selectParentLayer}</option>
-                        {independentParentLayers.map((layer) => (
-                          <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  {autoParentLayer && (
-                    <p className="dialog-hint layer-action-dialog-meta-note">
-                      {uiText.autoLinkedParent(formatParentLayerOptionLabel(autoParentLayer))}
-                    </p>
-                  )}
-                </>
-              )}
-              {action === 'create-transcription' && showConstraintSelector && (
+                )}
+                {!orthographyPicker.isCreating && selectedOrthography && selectedOrthographyBadge && (
+                  <div className="panel-note layer-action-dialog-meta-note" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span>{formatOrthographyOptionLabel(selectedOrthography)}</span>
+                    <span className={selectedOrthographyBadge.className}>{selectedOrthographyBadge.label}</span>
+                  </div>
+                )}
+                {orthographyPicker.isCreating && (
+                  <OrthographyBuilderPanel
+                    picker={orthographyPicker}
+                    languageOptions={COMMON_LANGUAGES}
+                    compact
+                    sourceLanguagePlaceholder={uiText.sourceLanguagePlaceholder}
+                    sourceLanguageCodePlaceholder={uiText.sourceLanguageCodePlaceholder}
+                  />
+                )}
+                {!orthographyPicker.isCreating && orthographyPicker.error && (
+                  <p className="layer-create-feedback layer-create-feedback-error">{orthographyPicker.error}</p>
+                )}
+                {!orthographyPicker.isCreating && orthographySelectionError && (
+                  <p className="layer-create-feedback layer-create-feedback-error">{orthographySelectionError}</p>
+                )}
+              </div>
+            )}
+            <div className="dialog-field">
+              <label className="layer-action-dialog-field-label" htmlFor={aliasFieldId}>{uiText.aliasPlaceholder}</label>
+              <input
+                id={aliasFieldId}
+                className="input panel-input layer-action-dialog-input"
+                placeholder={uiText.aliasPlaceholder}
+                value={alias}
+                onChange={(e) => setAlias(e.target.value)}
+              />
+            </div>
+            {action === 'create-translation' && (
+              <div className="layer-action-dialog-field-group">
+                <div className="dialog-field">
+                  <label className="layer-action-dialog-field-label" htmlFor={modalityFieldId}>{uiText.translationText.replace(/\s*\(.*\)$|\s*（.*）$/, '')}</label>
+                  <select
+                    id={modalityFieldId}
+                    className="input panel-input layer-action-dialog-input"
+                    value={modality}
+                    onChange={(e) => setModality(e.target.value as 'text' | 'audio' | 'mixed')}
+                  >
+                    <option value="text">{uiText.translationText}</option>
+                    <option value="audio">{uiText.translationAudio}</option>
+                    <option value="mixed">{uiText.translationMixed}</option>
+                  </select>
+                </div>
+                <p className="panel-note layer-action-dialog-meta-note">
+                  {uiText.translationBoundaryHint}
+                </p>
+                {independentParentLayers.length > 1 && (
+                  <div className="dialog-field">
+                    <label className="layer-action-dialog-field-label" htmlFor={translationParentLayerFieldId}>{uiText.selectParentLayer}</label>
+                    <select
+                      id={translationParentLayerFieldId}
+                      className="input panel-input layer-action-dialog-input layer-parent-select"
+                      value={selectedParentLayerId}
+                      onChange={(e) => setSelectedParentLayerId(e.target.value)}
+                    >
+                      <option value="">{uiText.selectParentLayer}</option>
+                      {independentParentLayers.map((layer) => (
+                        <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {autoParentLayer && (
+                  <p className="panel-note layer-action-dialog-meta-note">
+                    {uiText.autoLinkedParent(formatParentLayerOptionLabel(autoParentLayer))}
+                  </p>
+                )}
+              </div>
+            )}
+            {action === 'create-transcription' && showConstraintSelector && (
+              <div className="layer-action-dialog-field-group">
                 <fieldset className="panel-fieldset layer-action-dialog-fieldset">
                   <legend className="layer-action-dialog-fieldset-legend">{uiText.constraintLegend}</legend>
                   <label className="panel-radio layer-action-dialog-radio-option layer-action-dialog-radio-option-block">
                     <input
                       type="radio"
-                      name="constraint"
+                      name={`${fieldIdPrefix}-constraint`}
                       value="symbolic_association"
                       checked={constraint === 'symbolic_association'}
                       disabled={!symbolicConstraintGuard.allowed}
@@ -669,7 +764,7 @@ export function LayerActionPopover({
                   <label className="panel-radio layer-action-dialog-radio-option">
                     <input
                       type="radio"
-                      name="constraint"
+                      name={`${fieldIdPrefix}-constraint`}
                       value="independent_boundary"
                       checked={constraint === 'independent_boundary'}
                       disabled={!independentConstraintGuard.allowed}
@@ -678,50 +773,61 @@ export function LayerActionPopover({
                     <span>{uiText.constraintIndependent}</span>
                   </label>
                 </fieldset>
-              )}
-              {action === 'create-transcription' && showConstraintSelector && constraint === 'symbolic_association' && independentParentLayers.length > 1 && (
-                <div className="dialog-field">
-                  <select
-                    className="input panel-input layer-action-dialog-input layer-parent-select"
-                    value={selectedParentLayerId}
-                    onChange={(e) => setSelectedParentLayerId(e.target.value)}
-                  >
-                    <option value="">{uiText.selectParentLayer}</option>
-                    {independentParentLayers.map((layer) => (
-                      <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              {action === 'create-transcription' && showConstraintSelector && constraint === 'symbolic_association' && autoParentLayer && (
-                <p className="dialog-hint layer-action-dialog-meta-note">
-                  {uiText.autoLinkedParent(formatParentLayerOptionLabel(autoParentLayer))}
-                </p>
-              )}
-              {(translationCreateDisabledReason || transcriptionCreateDisabledReason || !hasValidLanguage) && (
-                <div className="layer-create-feedback-stack">
-                  {translationCreateDisabledReason && (
-                    <p className="layer-action-dialog-feedback layer-action-dialog-feedback-error">
-                      {uiText.currentRestrictionTranslation}{translationCreateDisabledReason}
-                    </p>
-                  )}
-                  {transcriptionCreateDisabledReason && (
-                    <p className="layer-action-dialog-feedback layer-action-dialog-feedback-error">
-                      {uiText.currentRestrictionTranscription}{transcriptionCreateDisabledReason}
-                    </p>
-                  )}
-                  {!hasValidLanguage && (
-                    <p className="layer-action-dialog-feedback layer-action-dialog-feedback-info">
-                      {createLanguageRequiredText}
-                    </p>
-                  )}
-                </div>
-              )}
-            </PanelSection>
+                {constraint === 'symbolic_association' && independentParentLayers.length > 1 && (
+                  <div className="dialog-field">
+                    <label className="layer-action-dialog-field-label" htmlFor={transcriptionParentLayerFieldId}>{uiText.selectParentLayer}</label>
+                    <select
+                      id={transcriptionParentLayerFieldId}
+                      className="input panel-input layer-action-dialog-input layer-parent-select"
+                      value={selectedParentLayerId}
+                      onChange={(e) => setSelectedParentLayerId(e.target.value)}
+                    >
+                      <option value="">{uiText.selectParentLayer}</option>
+                      {independentParentLayers.map((layer) => (
+                        <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {constraint === 'symbolic_association' && autoParentLayer && (
+                  <p className="panel-note layer-action-dialog-meta-note">
+                    {uiText.autoLinkedParent(formatParentLayerOptionLabel(autoParentLayer))}
+                  </p>
+                )}
+              </div>
+            )}
+            {showCreateFailure && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="layer-action-dialog-feedback layer-action-dialog-feedback-error"
+              >
+                {uiText.createFailedPrefix}{createFailureMessage}
+              </div>
+            )}
+            {(translationCreateDisabledReason || transcriptionCreateDisabledReason || !hasValidLanguage) && (
+              <div className="layer-create-feedback-stack">
+                {translationCreateDisabledReason && (
+                  <p className="layer-action-dialog-feedback layer-action-dialog-feedback-error">
+                    {uiText.currentRestrictionTranslation}{translationCreateDisabledReason}
+                  </p>
+                )}
+                {transcriptionCreateDisabledReason && (
+                  <p className="layer-action-dialog-feedback layer-action-dialog-feedback-error">
+                    {uiText.currentRestrictionTranscription}{transcriptionCreateDisabledReason}
+                  </p>
+                )}
+                {!hasValidLanguage && (
+                  <p className="layer-action-dialog-feedback layer-action-dialog-feedback-info">
+                    {createLanguageRequiredText}
+                  </p>
+                )}
+              </div>
+            )}
           </>
         )}
       </DialogShell>
-    </div>
+      </div>
   );
 
   return ReactDOM.createPortal(popover, document.body);

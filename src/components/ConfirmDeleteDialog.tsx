@@ -2,6 +2,8 @@ import { memo } from 'react';
 import { normalizeLocale, t } from '../i18n';
 import { getConfirmDeleteDialogMessages } from '../i18n/confirmDeleteDialogMessages';
 import { DialogShell } from './ui/DialogShell';
+import { PanelSection } from './ui/PanelSection';
+import { PanelSummary } from './ui/PanelSummary';
 
 type ConfirmDeleteDialogProps = {
   locale?: string;
@@ -76,19 +78,24 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
         )}
         onClick={(e) => e.stopPropagation()}
       >
-          <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: 14 }}>
-            {displayDescription}
-          </p>
-          {showMuteOption && (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-secondary)', marginTop: 12 }}>
+        <PanelSummary
+          className="confirm-delete-dialog-summary"
+          description={displayDescription}
+          supportingText={displayDescription === messages.deleteCannotUndo ? undefined : messages.deleteCannotUndo}
+          supportingClassName="dialog-supporting-note-danger"
+        />
+        {showMuteOption && (
+          <PanelSection className="confirm-delete-dialog-section">
+            <label className="confirm-delete-dialog-mute">
               <input
                 type="checkbox"
                 checked={muteInSession}
                 onChange={(e) => onMuteChange?.(e.target.checked)}
               />
-              {messages.mutePromptInSession}
+              <span>{messages.mutePromptInSession}</span>
             </label>
-          )}
+          </PanelSection>
+        )}
       </DialogShell>
     </div>
   );

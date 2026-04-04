@@ -7,12 +7,21 @@ import type { AiPanelContextValue } from '../contexts/AiPanelContext';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import { useTranscriptionAssistantController } from './useTranscriptionAssistantController';
 
-const { mockTransformTextForLayerTarget } = vi.hoisted(() => ({
-  mockTransformTextForLayerTarget: vi.fn(async ({ text }: { text: string }) => text),
+const {
+  mockBridgeTextForLayerTarget,
+  mockResolveFallbackSourceOrthographyId,
+} = vi.hoisted(() => ({
+  mockBridgeTextForLayerTarget: vi.fn(async ({ text }: { text: string }) => text),
+  mockResolveFallbackSourceOrthographyId: vi.fn(({ layers, selectedLayerId }: { layers: Array<{ layerType: string; orthographyId?: string }>; selectedLayerId?: string | null }) => {
+    const normalizedSelectedLayerId = selectedLayerId?.trim();
+    if (normalizedSelectedLayerId) return undefined;
+    return layers.find((layer) => layer.layerType === 'transcription')?.orthographyId?.trim();
+  }),
 }));
 
 vi.mock('../utils/orthographyRuntime', () => ({
-  transformTextForLayerTarget: mockTransformTextForLayerTarget,
+  resolveFallbackSourceOrthographyId: mockResolveFallbackSourceOrthographyId,
+  bridgeTextForLayerTarget: mockBridgeTextForLayerTarget,
 }));
 
 function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcription'): LayerDocType {
@@ -101,7 +110,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
 
 describe('useTranscriptionAssistantController', () => {
   it('transforms dictation text before writing to the default transcription layer when no layer is explicitly selected', async () => {
-    mockTransformTextForLayerTarget.mockResolvedValueOnce('xf:translated text');
+    mockBridgeTextForLayerTarget.mockResolvedValueOnce('xf:translated text');
     const saveUtteranceText = vi.fn(async () => undefined);
     const selectUtterance = vi.fn();
     const { result } = renderHook(() => useTranscriptionAssistantController(createBaseInput({
@@ -119,7 +128,7 @@ describe('useTranscriptionAssistantController', () => {
     });
 
     await waitFor(() => {
-      expect(mockTransformTextForLayerTarget).toHaveBeenCalledWith({
+      expect(mockBridgeTextForLayerTarget).toHaveBeenCalledWith({
         text: 'translated text',
         layers: expect.arrayContaining([
           expect.objectContaining({ id: 'layer-main', orthographyId: 'orth-source' }),
@@ -153,7 +162,7 @@ describe('useTranscriptionAssistantController', () => {
     const saveSegmentContentForLayer = vi.fn(async () => undefined);
     const saveUtteranceText = vi.fn(async () => undefined);
     const selectedTimelineUnit: TimelineUnit = { layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' };
-    mockTransformTextForLayerTarget.mockResolvedValueOnce('xf:segment text');
+    mockBridgeTextForLayerTarget.mockResolvedValueOnce('xf:segment text');
     const { result } = renderHook(() => useTranscriptionAssistantController(createBaseInput({
       selectedLayerId: null,
       selectedTimelineUnit,
@@ -170,7 +179,7 @@ describe('useTranscriptionAssistantController', () => {
     });
 
     await waitFor(() => {
-      expect(mockTransformTextForLayerTarget).toHaveBeenCalledWith({
+      expect(mockBridgeTextForLayerTarget).toHaveBeenCalledWith({
         text: 'segment text',
         layers: expect.arrayContaining([
           expect.objectContaining({ id: 'layer-main', orthographyId: 'orth-source' }),

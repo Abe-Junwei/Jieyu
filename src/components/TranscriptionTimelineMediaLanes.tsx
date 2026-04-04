@@ -132,6 +132,8 @@ type TranscriptionTimelineMediaLanesProps = {
   allLayersOrdered: LayerDocType[];
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
   deletableLayers: LayerDocType[];
+  defaultLanguageId?: string;
+  defaultOrthographyId?: string;
   onFocusLayer: (layerId: string) => void;
   layerLinks?: LayerLinkDocType[];
   showConnectors?: boolean;
@@ -201,6 +203,8 @@ export function TranscriptionTimelineMediaLanes({
   allLayersOrdered,
   onReorderLayers,
   deletableLayers,
+  defaultLanguageId,
+  defaultOrthographyId,
   onFocusLayer,
   layerLinks = [],
   showConnectors = true,
@@ -689,6 +693,8 @@ export function TranscriptionTimelineMediaLanes({
           action={layerAction.action}
           layerId={layerAction.layerId}
           deletableLayers={deletableLayers}
+          {...(defaultLanguageId !== undefined ? { defaultLanguageId } : {})}
+          {...(defaultOrthographyId !== undefined ? { defaultOrthographyId } : {})}
           createLayer={createLayer}
           deleteLayer={deleteLayer}
           deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}

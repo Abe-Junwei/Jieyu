@@ -14,6 +14,8 @@ import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
 import { useTimelineLaneHeaderDrag } from './useTimelineLaneHeaderDrag';
 import { DialogShell } from './ui/DialogShell';
+import { PanelSection } from './ui/PanelSection';
+import { PanelSummary } from './ui/PanelSummary';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -533,16 +535,28 @@ export function TimelineLaneHeader({
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
             style={{ width: laneLockDialogWidth, maxWidth: 'calc(100vw - 32px)', height: 'auto' }}
+            footer={(
+              <>
+                <button type="button" className="panel-button panel-button--ghost" onClick={closeLaneLockDialog}>{decodeEscapedUnicode('\\u53d6\\u6d88')}</button>
+                <button type="button" className="panel-button panel-button--primary" onClick={confirmLaneLockDialog}>{decodeEscapedUnicode('\\u786e\\u8ba4\\u9501\\u5b9a')}</button>
+              </>
+            )}
           >
-              <div className="speaker-rail-batch-panel">
-                <p className="speaker-rail-summary">{decodeEscapedUnicode('\\u9009\\u4e2d\\u8bf4\\u8bdd\\u4eba：')}{laneLockDialog.selectedSpeakerHint}</p>
+            <div className="speaker-rail-batch-panel">
+              <PanelSummary
+                className="speaker-rail-summary-card"
+                description={`${decodeEscapedUnicode('\\u9009\\u4e2d\\u8bf4\\u8bdd\\u4eba：')}${laneLockDialog.selectedSpeakerHint}`}
+                supportingText={decodeEscapedUnicode('\\u8f93\\u5165\\u4ece 1 \\u5f00\\u59cb\\u7684\\u8f68\\u9053\\u7f16\\u53f7，\\u786e\\u8ba4\\u540e\\u4f1a\\u540c\\u65f6\\u8fdb\\u5165\\u591a\\u8f68\\u9501\\u5b9a\\u6a21\\u5f0f。')}
+              />
+              <PanelSection className="speaker-rail-form-section" title={decodeEscapedUnicode('\\u76ee\\u6807\\u8f68\\u9053\\u5e8f\\u53f7')}>
                 <label className="speaker-rail-form-field">
-                  <span>{decodeEscapedUnicode('\\u76ee\\u6807\\u8f68\\u9053\\u5e8f\\u53f7')}</span>
                   <input
                     autoFocus
+                    className="panel-input"
                     type="number"
                     min={1}
                     step={1}
+                    aria-label={decodeEscapedUnicode('\\u76ee\\u6807\\u8f68\\u9053\\u5e8f\\u53f7')}
                     value={laneLockValue}
                     onChange={(event) => {
                       setLaneLockValue(event.target.value);
@@ -560,13 +574,9 @@ export function TimelineLaneHeader({
                     }}
                   />
                 </label>
-                <p className="speaker-rail-form-hint">{decodeEscapedUnicode('\\u8f93\\u5165\\u4ece 1 \\u5f00\\u59cb\\u7684\\u8f68\\u9053\\u7f16\\u53f7，\\u786e\\u8ba4\\u540e\\u4f1a\\u540c\\u65f6\\u8fdb\\u5165\\u591a\\u8f68\\u9501\\u5b9a\\u6a21\\u5f0f。')}</p>
                 {laneLockError && <p className="speaker-rail-form-error">{laneLockError}</p>}
-                <div className="speaker-rail-actions dialog-footer">
-                  <button type="button" className="btn" onClick={closeLaneLockDialog}>{decodeEscapedUnicode('\\u53d6\\u6d88')}</button>
-                  <button type="button" className="btn btn-primary" onClick={confirmLaneLockDialog}>{decodeEscapedUnicode('\\u786e\\u8ba4\\u9501\\u5b9a')}</button>
-                </div>
-              </div>
+              </PanelSection>
+            </div>
           </DialogShell>
         </div>
       )}

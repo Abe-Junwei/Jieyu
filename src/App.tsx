@@ -15,6 +15,7 @@ const AnnotationPage = lazy(() => import('./pages/AnnotationPage').then(m => ({ 
 const AnalysisPage = lazy(() => import('./pages/AnalysisPage').then(m => ({ default: m.AnalysisPage })));
 const WritingPage = lazy(() => import('./pages/WritingPage').then(m => ({ default: m.WritingPage })));
 const LexiconPage = lazy(() => import('./pages/LexiconPage').then(m => ({ default: m.LexiconPage })));
+const OrthographyWorkspacePage = lazy(() => import('./pages/OrthographyWorkspacePage').then(m => ({ default: m.OrthographyWorkspacePage })));
 
 type ThemeMode = 'light' | 'dark';
 
@@ -359,6 +360,7 @@ export function App() {
                     <Route path="/analysis" element={<AnalysisPage />} />
                     <Route path="/writing" element={<WritingPage />} />
                     <Route path="/lexicon" element={<LexiconPage />} />
+                    <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
                     <Route path="*" element={<NotFound locale={locale} />} />
                   </Routes>
                 </Suspense>

@@ -37,16 +37,34 @@
     { "pathPrefix": "src/services/TranscriberService.ts", "reason": "parser-and-format-error" },
     { "pathPrefix": "src/services/ProjectMemoryStore.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/services/SpeechAnnotationPipeline.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/services/AiHybridRecommendationService.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/services/CommandResolver.ts", "reason": "data-dictionary" },
 
+    { "pathPrefix": "src/ai/chat/adaptiveInputProfile.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/utils/camDataUtils.ts", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/utils/citationFootnoteUtils.ts", "reason": "runtime-template-message" },
-    { "pathPrefix": "src/utils/orthographyTransforms.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/utils/orthographyIdentity.ts", "reason": "validation-and-guard-message" },
+    { "pathPrefix": "src/utils/orthographyBridges.ts", "reason": "validation-and-guard-message" },
+    { "pathPrefix": "src/utils/orthographyBridges.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/utils/saveStateError.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/utils/validationErrorReporter.ts", "reason": "runtime-template-message" },
 
     { "pathPrefix": "src/hooks/useAiChat.rag.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/hooks/useOrthographyPicker.ts", "reason": "validation-and-guard-message" },
+    { "pathPrefix": "src/hooks/useTranscriptionLayerActions.ts", "reason": "validation-and-guard-message" },
+    { "pathPrefix": "src/components/ai/aiChatAdaptiveRanking.ts", "reason": "data-dictionary" },
+    { "pathPrefix": "src/components/LayerActionPopover.tsx", "reason": "validation-and-guard-message" },
+    { "pathPrefix": "src/components/ProjectSetupDialog.tsx", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/components/ai/useAiPromptTemplates.ts", "reason": "runtime-template-message" },
-    { "pathPrefix": "src/ai/ChatOrchestrator.ts", "reason": "runtime-template-message" }
+    { "pathPrefix": "src/ai/ChatOrchestrator.ts", "reason": "runtime-template-message" },
+
+    { "pathPrefix": "src/data/builtInOrthographies.ts", "reason": "data-dictionary" },
+    { "pathPrefix": "src/data/orthographyTop50Reviewed.ts", "reason": "data-dictionary" },
+
+    { "pathPrefix": "src/services/LinguisticService.ts", "reason": "validation-and-guard-message" },
+    { "pathPrefix": "src/services/LinguisticService.orthography.ts", "reason": "validation-and-guard-message" },
+
+    { "pathPrefix": "src/i18n/aiChatHybridMessages.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/i18n/aiChatQuickPromptTemplates.ts", "reason": "runtime-template-message" }
   ]
 }

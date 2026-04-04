@@ -41,7 +41,14 @@ export function DialogShell({
   return (
     <div
       ref={containerRef}
-      className={joinClassNames('dialog-card', compact && 'dialog-card-compact', wide && 'dialog-card-wide', className)}
+      className={joinClassNames(
+        'dialog-card',
+        'panel-design-match',
+        'panel-design-match-dialog',
+        compact && 'dialog-card-compact',
+        wide && 'dialog-card-wide',
+        className,
+      )}
       {...divProps}
     >
       {hasHeader ? (

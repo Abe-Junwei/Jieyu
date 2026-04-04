@@ -27,6 +27,7 @@ export function buildOrthographyInteropMetadata(
     ...(orthography?.scriptTag ? { scriptTag: orthography.scriptTag } : {}),
     ...(orthography?.regionTag ? { regionTag: orthography.regionTag } : {}),
     ...(orthography?.variantTag ? { variantTag: orthography.variantTag } : {}),
+    ...(layer.transformId ? { transformId: layer.transformId } : {}),
   };
   return Object.keys(metadata).length > 0 ? metadata : undefined;
 }

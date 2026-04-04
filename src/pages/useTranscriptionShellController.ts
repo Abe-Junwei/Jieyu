@@ -90,6 +90,7 @@ interface UseTranscriptionShellControllerResult {
   activeTextId: string | null;
   setActiveTextId: React.Dispatch<React.SetStateAction<string | null>>;
   activeTextPrimaryLanguageId: string | null;
+  activeTextPrimaryOrthographyId: string | null;
   getActiveTextId: () => Promise<string | null>;
   getActiveTextPrimaryLanguageId: () => Promise<string | null>;
   searchOverlayRequest: AppShellOpenSearchDetail | null;
@@ -198,6 +199,7 @@ export function useTranscriptionShellController(
     activeTextId,
     setActiveTextId,
     activeTextPrimaryLanguageId,
+    activeTextPrimaryOrthographyId,
     getActiveTextId,
     getActiveTextPrimaryLanguageId,
   } = useDialogs(input.utterances);
@@ -334,6 +336,7 @@ export function useTranscriptionShellController(
     activeTextId,
     setActiveTextId,
     activeTextPrimaryLanguageId,
+    activeTextPrimaryOrthographyId,
     getActiveTextId,
     getActiveTextPrimaryLanguageId,
     searchOverlayRequest,

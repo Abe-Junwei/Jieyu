@@ -8,13 +8,19 @@ const {
   mockUseAiChat,
   mockUseAiPanelLogic,
   mockUseAiToolCallHandler,
-  mockTransformTextForLayerTarget,
+  mockBridgeTextForLayerTarget,
+  mockResolveFallbackSourceOrthographyId,
   mockListRecentAiToolDecisionLogs,
 } = vi.hoisted(() => ({
   mockUseAiChat: vi.fn(),
   mockUseAiPanelLogic: vi.fn(),
   mockUseAiToolCallHandler: vi.fn(),
-  mockTransformTextForLayerTarget: vi.fn(async ({ text }: { text: string }) => text),
+  mockBridgeTextForLayerTarget: vi.fn(async ({ text }: { text: string }) => text),
+  mockResolveFallbackSourceOrthographyId: vi.fn(({ layers, selectedLayerId }: { layers: Array<{ layerType: string; orthographyId?: string }>; selectedLayerId?: string | null }) => {
+    const normalizedSelectedLayerId = selectedLayerId?.trim();
+    if (normalizedSelectedLayerId) return undefined;
+    return layers.find((layer) => layer.layerType === 'transcription')?.orthographyId?.trim();
+  }),
   mockListRecentAiToolDecisionLogs: vi.fn(async () => []),
 }));
 
@@ -32,7 +38,8 @@ vi.mock('../hooks/useAiToolCallHandler', () => ({
 }));
 
 vi.mock('../utils/orthographyRuntime', () => ({
-  transformTextForLayerTarget: mockTransformTextForLayerTarget,
+  resolveFallbackSourceOrthographyId: mockResolveFallbackSourceOrthographyId,
+  bridgeTextForLayerTarget: mockBridgeTextForLayerTarget,
 }));
 
 vi.mock('../ai/auditReplay', () => ({
@@ -218,7 +225,7 @@ describe('useTranscriptionAiController', () => {
     mockUseAiChat.mockClear();
     mockUseAiPanelLogic.mockClear();
     mockUseAiToolCallHandler.mockClear();
-    mockTransformTextForLayerTarget.mockClear();
+    mockBridgeTextForLayerTarget.mockClear();
     mockListRecentAiToolDecisionLogs.mockClear();
   });
 
@@ -296,13 +303,13 @@ describe('useTranscriptionAiController', () => {
     const toolHandlerInput = mockUseAiToolCallHandler.mock.calls[0]?.[0];
     expect(toolHandlerInput).toBeTruthy();
 
-    await toolHandlerInput.transformTextForLayerWrite({
+    await toolHandlerInput.bridgeTextForLayerWrite({
       text: 'hello',
       targetLayerId: 'trl-target',
       selectedLayerId: '',
     });
 
-    expect(mockTransformTextForLayerTarget).toHaveBeenCalledWith({
+    expect(mockBridgeTextForLayerTarget).toHaveBeenCalledWith({
       text: 'hello',
       layers: [transcriptionLayer, translationLayer],
       targetLayerId: 'trl-target',

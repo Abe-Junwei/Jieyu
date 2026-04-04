@@ -53,7 +53,10 @@ export type LayerManagerPopoverMessages = {
   noDeletableLayers: string;
   noDeletableLayersHint: string;
   deleteCleanupHint: string;
+  translationModalityLabel: string;
+  deleteTargetLabel: string;
   confirmDelete: string;
+  resetForm: string;
 };
 
 const zhCN: LayerManagerPopoverMessages = {
@@ -80,9 +83,9 @@ const zhCN: LayerManagerPopoverMessages = {
   customLanguageCodePlaceholder: 'ISO 639-3 \u4ee3\u7801\uff08\u5982 tib\uff09',
   sourceLanguagePlaceholder: '\u9009\u62e9\u6765\u6e90\u8bed\u8a00\u2026',
   sourceLanguageCodePlaceholder: '\u6765\u6e90\u8bed\u8a00 ISO 639-3 \u4ee3\u7801\uff08\u5982 eng\uff09',
-  useDefaultScript: '\u6cbf\u7528\u9ed8\u8ba4\u811a\u672c\u63a8\u65ad',
+  useDefaultScript: '\u5f53\u524d\u8bed\u8a00\u6682\u65e0\u53ef\u7528\u6b63\u5b57\u6cd5',
   createOrthography: '+ \u65b0\u5efa\u6b63\u5b57\u6cd5\u2026',
-  orthographyHint: '\u5f53\u524d\u8bed\u8a00\u6682\u65e0\u6b63\u5b57\u6cd5\u8bb0\u5f55\uff0c\u53ef\u76f4\u63a5\u65b0\u5efa\u6216\u6cbf\u7528\u9ed8\u8ba4\u811a\u672c\u63a8\u65ad\u3002',
+  orthographyHint: '\u5f53\u524d\u8bed\u8a00\u5c1a\u672a\u5339\u914d\u5230\u5185\u7f6e\u6216\u81ea\u5efa\u6b63\u5b57\u6cd5\uff0c\u53ef\u76f4\u63a5\u65b0\u5efa\u4e00\u5957\u6b63\u5b57\u6cd5\u3002',
   aliasShortPlaceholder: '\u522b\u540d\uff08\u53ef\u9009\uff09',
   aliasPlaceholder: '\u522b\u540d\uff08\u53ef\u9009\uff0c\u540c\u8bed\u8a00\u591a\u5c42\u65f6\u7528\u4e8e\u533a\u5206\uff09',
   constraintLegend: '\u5c42\u7ea6\u675f\u7c7b\u578b',
@@ -109,7 +112,10 @@ const zhCN: LayerManagerPopoverMessages = {
   noDeletableLayers: '\u65e0\u53ef\u5220\u9664\u5c42',
   noDeletableLayersHint: '\u5f53\u524d\u6ca1\u6709\u53ef\u5220\u9664\u5c42\u3002\u9ed8\u8ba4\u5c42\u4f1a\u88ab\u4fdd\u62a4\uff0c\u4e0d\u80fd\u5220\u9664\u3002',
   deleteCleanupHint: '\u5220\u9664\u65f6\u4f1a\u540c\u65f6\u6e05\u7406\u8be5\u5c42\u4e0b\u7684\u6587\u672c/\u5f55\u97f3\u8bb0\u5f55\u4e0e\u5173\u8054\u94fe\u63a5\u3002',
+  translationModalityLabel: '\u7ffb\u8bd1\u5c42\u8f93\u51fa\u5f62\u6001',
+  deleteTargetLabel: '\u5220\u9664\u76ee\u6807\u5c42',
   confirmDelete: '\u786e\u8ba4\u5220\u9664',
+  resetForm: '\u91cd\u7f6e\u8868\u5355',
 };
 
 const enUS: LayerManagerPopoverMessages = {
@@ -136,9 +142,9 @@ const enUS: LayerManagerPopoverMessages = {
   customLanguageCodePlaceholder: 'ISO 639-3 code (e.g. tib)',
   sourceLanguagePlaceholder: 'Select source language\u2026',
   sourceLanguageCodePlaceholder: 'Source language ISO 639-3 code (e.g. eng)',
-  useDefaultScript: 'Use default script inference',
+  useDefaultScript: 'No available orthography yet',
   createOrthography: '+ Create orthography\u2026',
-  orthographyHint: 'No orthography is recorded for this language yet. Create one directly or use default script inference.',
+  orthographyHint: 'No built-in or custom orthography is available for this language yet. Create one directly.',
   aliasShortPlaceholder: 'Alias (optional)',
   aliasPlaceholder: 'Alias (optional, used to distinguish multiple layers in the same language)',
   constraintLegend: 'Layer Constraint Type',
@@ -165,7 +171,10 @@ const enUS: LayerManagerPopoverMessages = {
   noDeletableLayers: 'No deletable layers',
   noDeletableLayersHint: 'There are no deletable layers right now. Protected default layers cannot be removed.',
   deleteCleanupHint: 'Deleting a layer also removes its text/audio records and related links.',
+  translationModalityLabel: 'Translation output modality',
+  deleteTargetLabel: 'Layer to delete',
   confirmDelete: 'Confirm Delete',
+  resetForm: 'Reset form',
 };
 
 export function getLayerManagerPopoverMessages(locale: Locale): LayerManagerPopoverMessages {

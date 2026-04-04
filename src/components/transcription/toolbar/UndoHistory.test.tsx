@@ -83,7 +83,8 @@ describe('UndoHistory', () => {
     expect(onJumpToHistoryIndex).toHaveBeenCalledWith(1);
     expect(onToggleHistoryVisible).toHaveBeenCalledWith(false);
 
-    fireEvent.click(screen.getAllByRole('button', { name: '重做' }).at(-1) as HTMLButtonElement);
+    const redoButtons = screen.getAllByRole('button', { name: '重做' });
+    fireEvent.click(redoButtons[redoButtons.length - 1] as HTMLButtonElement);
 
     expect(onRedo).toHaveBeenCalledTimes(1);
   });

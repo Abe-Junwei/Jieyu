@@ -71,9 +71,19 @@ describe('AiHybridRecommendationService', () => {
       'Review the current translation',
       'Explain what should be fixed first',
       'Summarize the main issues in this draft',
-    ], 'fallback', telemetry);
+    ], 'fallback', 'en-US', telemetry);
 
     expect(items[0]?.prompt).toBe('Explain what should be fixed first');
+  });
+
+  it('removes duplicate zh prefix and extra spaces in recommendation prompts', () => {
+    const service = new AiHybridRecommendationService();
+
+    const items = service.buildRecommendationItems([
+      '问：根据当前音频补全 转写层 的转写，并保留听不清标记',
+    ], 'fallback', 'zh-CN');
+
+    expect(items[0]?.prompt).toBe('根据当前音频补全转写层的转写，并保留听不清标记');
   });
 
   it('suppresses remote refinement during repeated ignored llm suggestions', () => {

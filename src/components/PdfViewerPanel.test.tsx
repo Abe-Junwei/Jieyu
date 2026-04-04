@@ -58,8 +58,10 @@ describe('PdfViewerPanel', () => {
     const navButtons = view.container.querySelectorAll('.pdf-viewer-panel-nav');
 
     expect(root).toBeTruthy();
+    expect(root.querySelector('.dialog-header')).toBeTruthy();
+    expect(root.querySelector('.dialog-footer')).toBeTruthy();
     expect(root.querySelector('.pdf-viewer-panel-summary')).toBeTruthy();
-    expect(root.querySelector('.pdf-viewer-panel-toolbar-surface')).toBeTruthy();
+    expect(root.querySelector('.pdf-viewer-panel-toolbar')).toBeTruthy();
     expect(root.querySelector('.pdf-viewer-panel-stage')).toBeTruthy();
     expect(screen.getByText('项目手册')).toBeTruthy();
     expect(screen.getByText('命中的引用片段')).toBeTruthy();

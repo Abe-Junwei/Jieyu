@@ -67,6 +67,9 @@ export type SidePaneSidebarMessages = {
   inspectorLanguage: string;
   inspectorConstraint: string;
   inspectorAlias: string;
+  inspectorOrthography: string;
+  inspectorBridgeRulesButton: string;
+  inspectorBridgeRulesHint: string;
   inspectorParentLayer: string;
   inspectorParentLayerAria: string;
   inspectorSelectPlaceholder: string;
@@ -88,6 +91,7 @@ export type SidePaneSidebarMessages = {
   deleteKeepUtterances: string;
   deleteButton: string;
   cancelButton: string;
+  closeButton: string;
   uiFontScaleAria: string;
   uiFontScaleTitle: string;
   uiFontScaleLabel: string;
@@ -179,6 +183,9 @@ const zhCN: SidePaneSidebarMessages = {
   inspectorLanguage: '\u8bed\u8a00',
   inspectorConstraint: '\u7ea6\u675f',
   inspectorAlias: '\u522b\u540d',
+  inspectorOrthography: '\u6b63\u5b57\u6cd5',
+  inspectorBridgeRulesButton: '\u6253\u5f00\u6b63\u5b57\u6cd5\u6865\u63a5\u5de5\u4f5c\u53f0',
+  inspectorBridgeRulesHint: '\u5199\u5165\u6865\u63a5\u89c4\u5219\u5df2\u8fc1\u79fb\u5230\u72ec\u7acb\u7684\u6b63\u5b57\u6cd5\u5de5\u4f5c\u53f0\uff0c\u5f53\u524d\u68c0\u89c6\u5668\u53ea\u4fdd\u7559\u8df3\u8f6c\u5165\u53e3\u3002',
   inspectorParentLayer: '\u4f9d\u8d56\u8f6c\u5199\u5c42',
   inspectorParentLayerAria: '\u4f9d\u8d56\u8f6c\u5199\u5c42',
   inspectorSelectPlaceholder: '\u8bf7\u9009\u62e9',
@@ -200,6 +207,7 @@ const zhCN: SidePaneSidebarMessages = {
   deleteKeepUtterances: '\u4fdd\u7559\u73b0\u6709\u8bed\u6bb5\u533a\u95f4',
   deleteButton: '\u5220\u9664',
   cancelButton: '\u53d6\u6d88',
+  closeButton: '\u5173\u95ed',
   uiFontScaleAria: '\u754c\u9762\u5b57\u53f7\u8c03\u8282',
   uiFontScaleTitle: '\u754c\u9762\u5b57\u53f7',
   uiFontScaleLabel: '\u8c03\u8282\u754c\u9762\u5b57\u53f7',
@@ -291,6 +299,9 @@ const enUS: SidePaneSidebarMessages = {
   inspectorLanguage: 'Language',
   inspectorConstraint: 'Constraint',
   inspectorAlias: 'Alias',
+  inspectorOrthography: 'Orthography',
+  inspectorBridgeRulesButton: 'Open orthography bridge workspace',
+  inspectorBridgeRulesHint: 'Write bridge rules now live in a dedicated orthography workspace, and the current-layer inspector only keeps the jump entry.',
   inspectorParentLayer: 'Parent transcription layer',
   inspectorParentLayerAria: 'Parent transcription layer',
   inspectorSelectPlaceholder: 'Please select',
@@ -312,6 +323,7 @@ const enUS: SidePaneSidebarMessages = {
   deleteKeepUtterances: 'Keep existing utterance ranges',
   deleteButton: 'Delete',
   cancelButton: 'Cancel',
+  closeButton: 'Close',
   uiFontScaleAria: 'UI font size controls',
   uiFontScaleTitle: 'UI font size',
   uiFontScaleLabel: 'Adjust UI font size',

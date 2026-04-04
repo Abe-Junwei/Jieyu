@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiAnalysisPanel';
 import { LinguisticService } from '../services/LinguisticService';
 import { ProjectObserver, type Recommendation } from '../ai/ProjectObserver';
@@ -110,27 +110,41 @@ export function useAiPanelLogic({
 }: UseAiPanelLogicInput) {
   // ── Lexeme search ──
   const [lexemeMatches, setLexemeMatches] = useState<Array<{ id: string; lemma: Record<string, string> }>>([]);
+  const lexemeSearchRequestRef = useRef(0);
 
   useEffect(() => {
     const query = selectedUtteranceText.trim();
     if (!query) {
+      lexemeSearchRequestRef.current += 1;
       setLexemeMatches([]);
       return;
     }
 
     const token = query.split(/\s+/).filter(Boolean)[0] ?? '';
     if (!token) {
+      lexemeSearchRequestRef.current += 1;
       setLexemeMatches([]);
       return;
     }
 
+    const requestId = lexemeSearchRequestRef.current + 1;
+    lexemeSearchRequestRef.current = requestId;
     const timer = window.setTimeout(() => {
       void LinguisticService.searchLexemes(token)
-        .then((items) => setLexemeMatches(items.slice(0, 8)))
-        .catch(() => setLexemeMatches([]));
+        .then((items) => {
+          if (lexemeSearchRequestRef.current !== requestId) return;
+          setLexemeMatches(items.slice(0, 8));
+        })
+        .catch(() => {
+          if (lexemeSearchRequestRef.current !== requestId) return;
+          setLexemeMatches([]);
+        });
     }, 120);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      lexemeSearchRequestRef.current += 1;
+      window.clearTimeout(timer);
+    };
   }, [selectedUtterance?.id, selectedUtteranceText]);
 
   // ── Project observer ──

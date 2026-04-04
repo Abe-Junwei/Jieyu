@@ -13,6 +13,7 @@ import { useUiFontScaleRuntime } from '../../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../../hooks/useViewportWidth';
 import { PanelSection } from '../ui/PanelSection';
 import { PanelSummary } from '../ui/PanelSummary';
+import { EmbeddedPanelShell } from '../ui/EmbeddedPanelShell';
 
 interface AiChatReplayDetailPanelProps {
   isZh: boolean;
@@ -57,9 +58,9 @@ export function AiChatReplayDetailPanel({
     locale,
     direction: uiTextDirection,
     uiFontScale,
-    density: 'wide',
+    density: 'standard',
     minWidth: 520,
-    maxWidth: 980,
+    maxWidth: 900,
     ...(viewportWidth !== undefined ? { viewportWidth } : {}),
   }), [locale, uiTextDirection, uiFontScale, viewportWidth]);
   const messages = getAiChatReplayDetailPanelMessages(isZh);
@@ -68,36 +69,37 @@ export function AiChatReplayDetailPanel({
     : null;
 
   return (
-    <div
-      className="ai-chat-replay-panel"
+    <EmbeddedPanelShell
+      className="ai-chat-replay-panel panel-design-match-content"
+      bodyClassName="ai-chat-replay-panel-body"
+      footerClassName="ai-chat-replay-panel-footer"
       dir={uiTextDirection}
       style={{
         minWidth: `min(100%, ${compactWidth}px)`,
         maxWidth: `min(100%, ${wideWidth}px)`,
       }}
-    >
-      <div className="ai-chat-replay-panel-header">
-        <strong className="ai-chat-replay-panel-title">{messages.title}</strong>
-        <div className="ai-chat-replay-panel-actions">
+      title={messages.title}
+      footer={(
+        <div className="ai-chat-replay-panel-actions ai-chat-replay-panel-actions-footer">
           <button type="button" className="panel-button ai-chat-replay-panel-btn" onClick={onToggleDetail}>{showReplayDetailPanel ? messages.hideDetail : messages.showDetail}</button>
           <button type="button" className="panel-button ai-chat-replay-panel-btn" onClick={onClose}>{messages.close}</button>
         </div>
-      </div>
-      <div className="ai-chat-replay-panel-body">
-        <PanelSummary
-          className="ai-chat-replay-panel-summary"
-          title={formatToolName(isZh, selectedReplayBundle.toolName)}
-          description={`${messages.request}: ${compactInternalId(selectedReplayBundle.requestId)}`}
-          meta={(
-            <div className="panel-meta">
-              <span className={`panel-chip${selectedReplayBundle.replayable ? ' panel-chip--success' : ' panel-chip--danger'}`}>
-                {formatReplayableLabel(isZh, selectedReplayBundle.replayable)}
-              </span>
-              <span className="panel-chip">{showReplayDetailPanel ? messages.hideDetail : messages.showDetail}</span>
-            </div>
-          )}
-          supportingText={latestDecisionLabel ? `${messages.latestDecision}: ${latestDecisionLabel}` : undefined}
-        />
+      )}
+    >
+      <PanelSummary
+        className="ai-chat-replay-panel-summary"
+        title={formatToolName(isZh, selectedReplayBundle.toolName)}
+        description={`${messages.request}: ${compactInternalId(selectedReplayBundle.requestId)}`}
+        meta={(
+          <div className="panel-meta">
+            <span className={`panel-chip${selectedReplayBundle.replayable ? ' panel-chip--success' : ' panel-chip--danger'}`}>
+              {formatReplayableLabel(isZh, selectedReplayBundle.replayable)}
+            </span>
+            <span className="panel-chip">{showReplayDetailPanel ? messages.hideDetail : messages.showDetail}</span>
+          </div>
+        )}
+        supportingText={latestDecisionLabel ? `${messages.latestDecision}: ${latestDecisionLabel}` : undefined}
+      />
       {showReplayDetailPanel && (
         <>
           {selectedReplayBundle.toolCall?.arguments && (
@@ -134,6 +136,7 @@ export function AiChatReplayDetailPanel({
                 type="file"
                 accept=".json"
                 className="ai-chat-replay-panel-file-input"
+                aria-label={messages.importAndCompare}
                 ref={importFileInputRef}
                 onChange={(e) => {
                   const file = e.currentTarget.files?.[0];
@@ -179,7 +182,6 @@ export function AiChatReplayDetailPanel({
           </PanelSection>
         </>
       )}
-      </div>
-    </div>
+    </EmbeddedPanelShell>
   );
 }

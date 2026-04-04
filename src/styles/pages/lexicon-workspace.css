@@ -1,0 +1,153 @@
+.lexicon-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.lexicon-workspace-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lexicon-workspace-badge,
+.lexicon-workspace-list-count,
+.lexicon-workspace-summary-meta {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--panel-border, #d6d6d6) 85%, transparent);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-secondary, #5f6368);
+  background: color-mix(in srgb, var(--panel-surface, #ffffff) 92%, #f4efe4 8%);
+  width: fit-content;
+}
+
+.lexicon-workspace-summary {
+  margin: 0;
+  color: var(--text-secondary, #5f6368);
+}
+
+.lexicon-workspace-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.lexicon-workspace-list-panel,
+.lexicon-workspace-detail-panel,
+.lexicon-workspace-summary-card {
+  min-width: 0;
+}
+
+.lexicon-workspace-search {
+  width: 100%;
+}
+
+.lexicon-workspace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lexicon-workspace-list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  border: 1px solid var(--panel-border, #d6d6d6);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--panel-surface, #ffffff);
+  color: inherit;
+  text-align: left;
+}
+
+.lexicon-workspace-list-item-active {
+  border-color: var(--accent-color, #5f6fff);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-color, #5f6fff) 30%, transparent);
+}
+
+.lexicon-workspace-list-label {
+  font-weight: 600;
+}
+
+.lexicon-workspace-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 12px;
+  color: var(--text-secondary, #5f6368);
+}
+
+.lexicon-workspace-detail-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lexicon-workspace-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin: 0;
+}
+
+.lexicon-workspace-detail-grid div {
+  border: 1px solid color-mix(in srgb, var(--panel-border, #d6d6d6) 85%, transparent);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--panel-surface, #ffffff) 96%, #eef3f8 4%);
+}
+
+.lexicon-workspace-detail-grid dt {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--text-secondary, #5f6368);
+}
+
+.lexicon-workspace-detail-grid dd {
+  margin: 0;
+  font-weight: 500;
+}
+
+.lexicon-workspace-sense-list,
+.lexicon-workspace-form-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.lexicon-workspace-sense-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lexicon-workspace-sense-item p,
+.lexicon-workspace-notes,
+.lexicon-workspace-state {
+  margin: 0;
+}
+
+.lexicon-workspace-state {
+  color: var(--text-secondary, #5f6368);
+}
+
+.lexicon-workspace-state-error {
+  color: var(--danger-text, #b42318);
+}
+
+@media (max-width: 960px) {
+  .lexicon-workspace-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lexicon-workspace-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -160,7 +160,7 @@ export const NotePopover = memo(function NotePopover({
       <PanelSummary
         className="note-popover-summary"
         title={messages.panelTitlePrefix}
-        description={targetLabel ?? messages.emptyStateHint}
+        description={targetLabel ? undefined : messages.emptyStateHint}
         meta={(
           <div className="panel-meta">
             <span className="panel-chip">{messages.noteCount(notes.length)}</span>
@@ -190,6 +190,7 @@ export const NotePopover = memo(function NotePopover({
                 <div className="note-popover-edit">
                   <textarea
                     className="panel-input note-popover-textarea"
+                    aria-label={messages.editNoteContentLabel}
                     value={editContent}
                     onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditContent(e.target.value)}
                     onKeyDown={(e) => handleEditKeyDown(e, note.id)}
@@ -203,7 +204,15 @@ export const NotePopover = memo(function NotePopover({
               ) : (
                 <div className="note-popover-content" onDoubleClick={() => handleEditStart(note)}>
                   <p>{note.content['default'] ?? Object.values(note.content)[0] ?? ''}</p>
-                  <button type="button" className="note-popover-delete" onClick={() => onDelete(note.id)} title={messages.deleteNote}><Trash2 size={11} /></button>
+                  <button
+                    type="button"
+                    className="note-popover-delete"
+                    onClick={() => onDelete(note.id)}
+                    title={messages.deleteNote}
+                    aria-label={messages.deleteNote}
+                  >
+                    <Trash2 size={11} />
+                  </button>
                 </div>
               )}
             </div>
@@ -218,6 +227,7 @@ export const NotePopover = memo(function NotePopover({
       >
         <textarea
           className="panel-input note-popover-textarea"
+          aria-label={messages.newNoteContentLabel}
           placeholder={messages.newNotePlaceholder}
           value={newContent}
           onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNewContent(e.target.value)}
@@ -232,6 +242,8 @@ export const NotePopover = memo(function NotePopover({
                 type="button"
                 className={`note-popover-tag note-popover-tag-${c.value}${newCategory === c.value ? ' note-popover-tag-selected' : ''}`}
                 onClick={() => setNewCategory(c.value)}
+                aria-label={`${messages.newNoteCategoryLabel}: ${c.label}`}
+                aria-pressed={newCategory === c.value}
               >
                 {c.label}
               </button>

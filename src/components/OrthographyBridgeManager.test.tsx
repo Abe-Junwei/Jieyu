@@ -1,0 +1,238 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { OrthographyDocType, OrthographyBridgeDocType } from '../db';
+import { OrthographyBridgeManager } from './OrthographyBridgeManager';
+import { SidePaneActionModal } from './SidePaneActionModal';
+import { renderWithLocale } from '../test/localeTestUtils';
+
+const NOW = '2026-03-31T00:00:00.000Z';
+
+const {
+  mockListOrthographyBridges,
+  mockCreateOrthographyBridge,
+  mockUpdateOrthographyBridge,
+  mockDeleteOrthographyBridge,
+  mockUseOrthographies,
+  mockGetDb,
+  mockBulkGet,
+} = vi.hoisted(() => ({
+  mockListOrthographyBridges: vi.fn(),
+  mockCreateOrthographyBridge: vi.fn(),
+  mockUpdateOrthographyBridge: vi.fn(),
+  mockDeleteOrthographyBridge: vi.fn(),
+  mockUseOrthographies: vi.fn(),
+  mockGetDb: vi.fn(),
+  mockBulkGet: vi.fn(),
+}));
+
+vi.mock('../services/LinguisticService', () => ({
+  LinguisticService: {
+    listOrthographyBridges: mockListOrthographyBridges,
+    createOrthographyBridge: mockCreateOrthographyBridge,
+    updateOrthographyBridge: mockUpdateOrthographyBridge,
+    deleteOrthographyBridge: mockDeleteOrthographyBridge,
+  },
+}));
+
+vi.mock('../hooks/useOrthographies', () => ({
+  useOrthographies: mockUseOrthographies,
+}));
+
+vi.mock('../db', async () => {
+  const actual = await vi.importActual('../db');
+  return {
+    ...actual,
+    getDb: mockGetDb,
+  };
+});
+
+const targetOrthography: OrthographyDocType = {
+  id: 'orth-target',
+  languageId: 'cmn',
+  name: { zho: '目标正字法' },
+  scriptTag: 'Latn',
+  type: 'practical',
+  catalogMetadata: { catalogSource: 'built-in-reviewed', reviewStatus: 'verified-primary', priority: 'primary' },
+  createdAt: NOW,
+  updatedAt: NOW,
+};
+
+const sourceOrthography: OrthographyDocType = {
+  id: 'orth-source',
+  languageId: 'eng',
+  name: { eng: 'Source Orthography' },
+  scriptTag: 'Latn',
+  type: 'practical',
+  createdAt: NOW,
+  updatedAt: NOW,
+};
+
+function KeepMountedBridgeModalHarness() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        打开桥接面板
+      </button>
+      <SidePaneActionModal
+        ariaLabel="正字法写入桥接规则"
+        closeLabel="关闭"
+        onClose={() => setOpen(false)}
+        open={open}
+        keepMounted
+        widthPreset="wide"
+      >
+        <OrthographyBridgeManager
+          targetOrthography={targetOrthography}
+          languageOptions={[{ code: 'eng', label: '英语 English' }]}
+          compact
+          initialExpanded
+          hideToggleButton
+        />
+      </SidePaneActionModal>
+    </>
+  );
+}
+
+describe('OrthographyBridgeManager', () => {
+  beforeEach(() => {
+    mockListOrthographyBridges.mockReset();
+    mockCreateOrthographyBridge.mockReset();
+    mockUpdateOrthographyBridge.mockReset();
+    mockDeleteOrthographyBridge.mockReset();
+    mockUseOrthographies.mockReset();
+    mockGetDb.mockReset();
+    mockBulkGet.mockReset();
+
+    mockListOrthographyBridges.mockResolvedValue([] as OrthographyBridgeDocType[]);
+    mockBulkGet.mockResolvedValue([]);
+    mockUseOrthographies.mockImplementation((languageIds: string[]) => {
+      if (languageIds.includes('eng')) return [sourceOrthography];
+      return [];
+    });
+    mockGetDb.mockResolvedValue({
+      dexie: {
+        orthographies: {
+          bulkGet: mockBulkGet,
+        },
+      },
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('creates a new inbound bridge for the selected orthography', async () => {
+    renderWithLocale(
+      <OrthographyBridgeManager
+        targetOrthography={targetOrthography}
+        languageOptions={[{ code: 'eng', label: '英语 English' }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '管理写入桥接规则' }));
+    await screen.findByText('当前正字法尚未配置入站桥接规则，导入或自动写入时会保留原文本。');
+    expect(Array.from(document.querySelectorAll('.panel-chip')).some((node) => node.textContent === '已审校主项')).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: '新建规则' }));
+    fireEvent.change(screen.getByLabelText('来源语言代码'), { target: { value: 'eng' } });
+
+    await waitFor(() => {
+      const select = screen.getByLabelText('来源正字法') as HTMLSelectElement;
+      expect(select.options.length).toBeGreaterThan(1);
+    });
+
+    fireEvent.change(screen.getByLabelText('来源正字法'), { target: { value: 'orth-source' } });
+    fireEvent.change(screen.getByPlaceholderText('每行一条映射，如 aa => a'), { target: { value: 'sh => s' } });
+    fireEvent.change(screen.getByPlaceholderText('输入一段样例文本预览桥接结果'), { target: { value: 'sha' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存规则' }));
+
+    await waitFor(() => {
+      expect(mockCreateOrthographyBridge).toHaveBeenCalledWith(expect.objectContaining({
+        sourceOrthographyId: 'orth-source',
+        targetOrthographyId: 'orth-target',
+        engine: 'table-map',
+        status: 'draft',
+      }));
+    });
+  });
+
+  it('lists existing inbound bridges and supports toggling status and deleting', async () => {
+    mockListOrthographyBridges.mockResolvedValue([
+      {
+        id: 'orthxfm-1',
+        sourceOrthographyId: 'orth-source',
+        targetOrthographyId: 'orth-target',
+        name: { zho: '导入规则' },
+        engine: 'table-map',
+        rules: { mappings: [{ from: 'sh', to: 's' }] },
+        sampleInput: 'sha',
+        sampleOutput: 'sa',
+        status: 'active',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ] satisfies OrthographyBridgeDocType[]);
+    mockBulkGet.mockResolvedValue([sourceOrthography]);
+
+    renderWithLocale(
+      <OrthographyBridgeManager
+        targetOrthography={targetOrthography}
+        languageOptions={[{ code: 'eng', label: '英语 English' }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '管理写入桥接规则' }));
+
+    await screen.findByText('Source Orthography · Latn · practical -> 目标正字法 · Latn · practical');
+
+    fireEvent.click(screen.getByRole('button', { name: '设为草稿' }));
+    await waitFor(() => {
+      expect(mockUpdateOrthographyBridge).toHaveBeenCalledWith({
+        id: 'orthxfm-1',
+        status: 'draft',
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '删除规则' }));
+    await waitFor(() => {
+      expect(mockDeleteOrthographyBridge).toHaveBeenCalledWith('orthxfm-1');
+    });
+  });
+
+  it('preserves draft editing context when the bridge modal closes and reopens', async () => {
+    renderWithLocale(<KeepMountedBridgeModalHarness />);
+
+    fireEvent.click(screen.getByRole('button', { name: '打开桥接面板' }));
+    await screen.findByRole('dialog', { name: '正字法写入桥接规则' });
+
+    fireEvent.click(screen.getByRole('button', { name: '新建规则' }));
+    fireEvent.change(screen.getByLabelText('来源语言代码'), { target: { value: 'eng' } });
+
+    await waitFor(() => {
+      const select = screen.getByLabelText('来源正字法') as HTMLSelectElement;
+      expect(select.options.length).toBeGreaterThan(1);
+    });
+
+    fireEvent.change(screen.getByLabelText('来源正字法'), { target: { value: 'orth-source' } });
+    fireEvent.change(screen.getByPlaceholderText('每行一条映射，如 aa => a'), { target: { value: 'sh => s' } });
+    fireEvent.change(screen.getByPlaceholderText('输入一段样例文本预览桥接结果'), { target: { value: 'sha' } });
+
+    fireEvent.click(screen.getByRole('button', { name: '正字法写入桥接规则 关闭' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: '正字法写入桥接规则' })).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '打开桥接面板' }));
+    await screen.findByRole('dialog', { name: '正字法写入桥接规则' });
+
+    expect(screen.getByDisplayValue('sh => s')).toBeTruthy();
+    expect(screen.getByDisplayValue('sha')).toBeTruthy();
+    expect((screen.getByLabelText('来源正字法') as HTMLSelectElement).value).toBe('orth-source');
+  });
+});

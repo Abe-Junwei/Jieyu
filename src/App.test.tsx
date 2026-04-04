@@ -19,6 +19,7 @@ vi.mock('./pages/AnnotationPage', () => ({ AnnotationPage: () => <div>annotation
 vi.mock('./pages/AnalysisPage', () => ({ AnalysisPage: () => <div>analysis-page</div> }));
 vi.mock('./pages/WritingPage', () => ({ WritingPage: () => <div>writing-page</div> }));
 vi.mock('./pages/LexiconPage', () => ({ LexiconPage: () => <div>lexicon-page</div> }));
+vi.mock('./pages/OrthographyWorkspacePage', () => ({ OrthographyWorkspacePage: () => <div>orthography-workspace-page</div> }));
 
 beforeAll(() => {
   Object.defineProperty(window, 'matchMedia', {

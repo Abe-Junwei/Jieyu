@@ -15,6 +15,14 @@ function resolvePrimaryLanguageId(text: TextDocType): string | null {
   return null;
 }
 
+function resolvePrimaryOrthographyId(text: TextDocType): string | null {
+  const metadataOrthography = (text.metadata as { primaryOrthographyId?: unknown } | undefined)?.primaryOrthographyId;
+  if (typeof metadataOrthography === 'string' && metadataOrthography.trim()) {
+    return metadataOrthography.trim();
+  }
+  return null;
+}
+
 export function useDialogs(utterances: DialogUtterance[]) {
   const [showProjectSetup, setShowProjectSetup] = useState(false);
   const [showAudioImport, setShowAudioImport] = useState(false);
@@ -22,6 +30,7 @@ export function useDialogs(utterances: DialogUtterance[]) {
   const [showUndoHistory, setShowUndoHistory] = useState(false);
   const [activeTextId, setActiveTextId] = useState<string | null>(null);
   const [activeTextPrimaryLanguageId, setActiveTextPrimaryLanguageId] = useState<string | null>(null);
+  const [activeTextPrimaryOrthographyId, setActiveTextPrimaryOrthographyId] = useState<string | null>(null);
 
   const getActiveTextId = useCallback(async (): Promise<string | null> => {
     if (activeTextId) return activeTextId;
@@ -30,6 +39,7 @@ export function useDialogs(utterances: DialogUtterance[]) {
     if (first) {
       setActiveTextId(first.id);
       setActiveTextPrimaryLanguageId(resolvePrimaryLanguageId(first));
+      setActiveTextPrimaryOrthographyId(resolvePrimaryOrthographyId(first));
       return first.id;
     }
     return null;
@@ -44,6 +54,7 @@ export function useDialogs(utterances: DialogUtterance[]) {
     if (!activeText) return null;
     const languageId = resolvePrimaryLanguageId(activeText);
     setActiveTextPrimaryLanguageId(languageId);
+    setActiveTextPrimaryOrthographyId(resolvePrimaryOrthographyId(activeText));
     if (!activeTextId) setActiveTextId(activeText.id);
     return languageId;
   }, [activeTextId, activeTextPrimaryLanguageId]);
@@ -57,6 +68,7 @@ export function useDialogs(utterances: DialogUtterance[]) {
   useEffect(() => {
     if (!activeTextId) {
       setActiveTextPrimaryLanguageId(null);
+      setActiveTextPrimaryOrthographyId(null);
       return;
     }
     let cancelled = false;
@@ -64,6 +76,7 @@ export function useDialogs(utterances: DialogUtterance[]) {
       if (cancelled) return;
       const activeText = texts.find((text) => text.id === activeTextId);
       setActiveTextPrimaryLanguageId(activeText ? resolvePrimaryLanguageId(activeText) : null);
+      setActiveTextPrimaryOrthographyId(activeText ? resolvePrimaryOrthographyId(activeText) : null);
     });
     return () => { cancelled = true; };
   }, [activeTextId]);
@@ -80,6 +93,7 @@ export function useDialogs(utterances: DialogUtterance[]) {
     activeTextId,
     setActiveTextId,
     activeTextPrimaryLanguageId,
+    activeTextPrimaryOrthographyId,
     getActiveTextId,
     getActiveTextPrimaryLanguageId,
   };

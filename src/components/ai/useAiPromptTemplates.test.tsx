@@ -11,7 +11,7 @@ function withLocale(locale: Locale) {
 }
 
 describe('useAiPromptTemplates', () => {
-  it('exposes built-in RAG quick templates for qa/review/terminology/balanced', () => {
+  it('exposes built-in RAG quick templates for qa/review/terminology', () => {
     const { result } = renderHook(() => useAiPromptTemplates({
       promptVars: {},
       onInjectRenderedPrompt: vi.fn(),
@@ -21,13 +21,13 @@ describe('useAiPromptTemplates', () => {
     expect(titles).toContain('RAG 问答模板');
     expect(titles).toContain('RAG 审校模板');
     expect(titles).toContain('RAG 术语查证模板');
-    expect(titles).toContain('RAG 平衡模板');
+    expect(titles).not.toContain('RAG 平衡模板');
 
     const contents = result.current.quickPromptTemplates.map((item) => item.content).join('\n');
     expect(contents).toContain('[RAG_SCENARIO:qa]');
     expect(contents).toContain('[RAG_SCENARIO:review]');
     expect(contents).toContain('[RAG_SCENARIO:terminology]');
-    expect(contents).toContain('[RAG_SCENARIO:balanced]');
+    expect(contents).not.toContain('[RAG_SCENARIO:balanced]');
   });
 
   it('reorders quick templates using adaptive input profile', () => {
@@ -57,6 +57,6 @@ describe('useAiPromptTemplates', () => {
     expect(titles).toContain('RAG QA Template');
     expect(titles).toContain('RAG Review Template');
     expect(titles).toContain('RAG Terminology Template');
-    expect(titles).toContain('RAG Balanced Template');
+    expect(titles).not.toContain('RAG Balanced Template');
   });
 });

@@ -185,6 +185,7 @@ export function SearchReplaceOverlay({
           ref={searchRef}
           type="text"
           placeholder={messages.searchPlaceholder}
+          aria-label={messages.searchPlaceholder}
           value={query}
           onChange={(e) => { setQuery(e.target.value); setCurrentIndex(0); }}
           className="search-replace-input"
@@ -192,10 +193,10 @@ export function SearchReplaceOverlay({
         <span className="search-replace-count">
           {matches.length > 0 ? `${safeIndex + 1}/${matches.length}` : debouncedQuery ? messages.noResults : ''}
         </span>
-        <button onClick={goPrev} disabled={matches.length === 0} className="search-replace-btn" title={messages.previousTitle}>▲</button>
-        <button onClick={goNext} disabled={matches.length === 0} className="search-replace-btn" title={messages.nextTitle}>▼</button>
-        <button onClick={() => setShowReplace((v) => !v)} className="search-replace-btn" title={messages.toggleReplaceTitle}>⇄</button>
-        <button onClick={onClose} className="search-replace-btn" title={messages.closeTitle}>✕</button>
+        <button onClick={goPrev} disabled={matches.length === 0} className="search-replace-btn" title={messages.previousTitle} aria-label={messages.previousTitle}>▲</button>
+        <button onClick={goNext} disabled={matches.length === 0} className="search-replace-btn" title={messages.nextTitle} aria-label={messages.nextTitle}>▼</button>
+        <button onClick={() => setShowReplace((v) => !v)} className="search-replace-btn" title={messages.toggleReplaceTitle} aria-label={messages.toggleReplaceTitle}>⇄</button>
+        <button onClick={onClose} className="search-replace-btn" title={messages.closeTitle} aria-label={messages.closeTitle}>✕</button>
       </div>
 
       <div className="search-replace-toolbar">
@@ -207,6 +208,7 @@ export function SearchReplaceOverlay({
           }}
           className="search-replace-select"
           title={messages.scopeTitle}
+          aria-label={messages.scopeTitle}
         >
           <option value="current-layer">{messages.scopeCurrentLayer}</option>
           <option value="current-utterance">{messages.scopeCurrentUtterance}</option>
@@ -221,6 +223,7 @@ export function SearchReplaceOverlay({
           }}
           className="search-replace-select"
           title={messages.layerKindTitle}
+          aria-label={messages.layerKindTitle}
         >
           <option value="all">{messages.layerKindAll}</option>
           <option value="transcription">{messages.layerKindTranscription}</option>
@@ -292,16 +295,18 @@ export function SearchReplaceOverlay({
           <input
             type="text"
             placeholder={messages.replacePlaceholder}
+            aria-label={messages.replacePlaceholder}
             value={replaceText}
             onChange={(e) => setReplaceText(e.target.value)}
             className="search-replace-input search-replace-input-compact"
           />
-          <button onClick={handleReplaceCurrent} disabled={!currentMatch} className="search-replace-btn" title={messages.replaceCurrentTitle}>{messages.replaceCurrent}</button>
+          <button onClick={handleReplaceCurrent} disabled={!currentMatch} className="search-replace-btn" title={messages.replaceCurrentTitle} aria-label={messages.replaceCurrentTitle}>{messages.replaceCurrent}</button>
           <button
             onClick={() => setShowReplacePreview((v) => !v)}
             disabled={replacePlan.length === 0}
             className="search-replace-btn"
             title={messages.previewAllReplaceTitle}
+            aria-label={messages.previewAllReplaceTitle}
           >
             {messages.preview}
           </button>
@@ -320,8 +325,8 @@ export function SearchReplaceOverlay({
             </div>
           ))}
           <div className="search-replace-plan-actions">
-            <button onClick={() => setShowReplacePreview(false)} className="search-replace-btn" title={messages.cancelPreviewTitle}>{messages.cancel}</button>
-            <button onClick={handleReplaceAll} className="search-replace-btn" title={messages.confirmReplaceAllTitle}>{messages.confirmReplace}</button>
+            <button onClick={() => setShowReplacePreview(false)} className="search-replace-btn" title={messages.cancelPreviewTitle} aria-label={messages.cancelPreviewTitle}>{messages.cancel}</button>
+            <button onClick={handleReplaceAll} className="search-replace-btn" title={messages.confirmReplaceAllTitle} aria-label={messages.confirmReplaceAllTitle}>{messages.confirmReplace}</button>
           </div>
         </div>
       )}

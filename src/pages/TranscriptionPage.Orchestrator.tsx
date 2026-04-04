@@ -294,6 +294,7 @@ function TranscriptionPageOrchestrator({
     activeTextId,
     setActiveTextId,
     activeTextPrimaryLanguageId,
+    activeTextPrimaryOrthographyId,
     getActiveTextId,
     getActiveTextPrimaryLanguageId,
     searchOverlayRequest,
@@ -1384,6 +1385,8 @@ function TranscriptionPageOrchestrator({
     onFocusLayer: handleFocusLayerRow,
     layerLinks,
     showConnectors: showAllLayerConnectors,
+    ...(activeTextPrimaryLanguageId ? { defaultLanguageId: activeTextPrimaryLanguageId } : {}),
+    ...(activeTextPrimaryOrthographyId ? { defaultOrthographyId: activeTextPrimaryOrthographyId } : {}),
     onToggleConnectors: handleToggleAllLayerConnectors,
     laneHeights: timelineLaneHeights,
     onLaneHeightChange: handleTimelineLaneHeightChange,
@@ -1579,8 +1582,8 @@ function TranscriptionPageOrchestrator({
               onOpenSpeakerManagementPanel={() => handleOpenSpeakerManagementPanel()}
               onDeleteCurrentProject={handleDeleteCurrentProject}
               onDeleteCurrentAudio={handleDeleteCurrentAudio}
-              onImportAnnotationFile={(file) => {
-                void handleImportFile(file);
+              onImportAnnotationFile={async (file, strategy) => {
+                await handleImportFile(file, strategy);
               }}
               onPreviewProjectArchiveImport={previewProjectArchiveImport}
               onImportProjectArchive={importProjectArchive}
@@ -1729,6 +1732,8 @@ function TranscriptionPageOrchestrator({
                           deletableLayers,
                           layerCreateMessage,
                           layerAction,
+                          ...(activeTextPrimaryLanguageId ? { defaultLanguageId: activeTextPrimaryLanguageId } : {}),
+                          ...(activeTextPrimaryOrthographyId ? { defaultOrthographyId: activeTextPrimaryOrthographyId } : {}),
                           onReorderLayers: reorderLayers,
                           uiFontScale,
                           uiFontScaleMode,

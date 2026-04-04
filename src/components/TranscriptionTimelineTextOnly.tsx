@@ -84,6 +84,8 @@ type TranscriptionTimelineTextOnlyProps = {
   allLayersOrdered: LayerDocType[];
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
   deletableLayers: LayerDocType[];
+  defaultLanguageId?: string;
+  defaultOrthographyId?: string;
   onFocusLayer: (layerId: string) => void;
   navigateUtteranceFromInput: (e: React.KeyboardEvent<HTMLInputElement>, direction: -1 | 1) => void;
   layerLinks?: LayerLinkDocType[];
@@ -150,6 +152,8 @@ export function TranscriptionTimelineTextOnly({
   allLayersOrdered,
   onReorderLayers,
   deletableLayers,
+  defaultLanguageId,
+  defaultOrthographyId,
   onFocusLayer,
   navigateUtteranceFromInput,
   layerLinks = [],
@@ -739,6 +743,8 @@ export function TranscriptionTimelineTextOnly({
           action={layerAction.action}
           layerId={layerAction.layerId}
           deletableLayers={deletableLayers}
+          {...(defaultLanguageId !== undefined ? { defaultLanguageId } : {})}
+          {...(defaultOrthographyId !== undefined ? { defaultOrthographyId } : {})}
           createLayer={createLayer}
           deleteLayer={deleteLayer}
           deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}

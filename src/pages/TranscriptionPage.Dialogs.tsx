@@ -101,6 +101,7 @@ export function TranscriptionPageDialogs({
         ref={mediaFileInputRef}
         type="file"
         accept=".mp3,.wav,.ogg,.webm,.m4a,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv"
+        aria-label={t(uiLocale, 'transcription.importDialog.selectMedia')}
         style={{ display: 'none' }}
         onChange={onDirectMediaImport}
       />

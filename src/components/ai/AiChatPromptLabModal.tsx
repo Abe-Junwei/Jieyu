@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import type { PromptTemplateItem } from './aiChatCardUtils';
 import { getAiChatPromptLabMessages } from '../../i18n/aiChatPromptLabMessages';
 import { useLocale } from '../../i18n';
@@ -7,6 +7,7 @@ import { useUiFontScaleRuntime } from '../../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../../hooks/useViewportWidth';
 import { PanelSection } from '../ui/PanelSection';
 import { PanelSummary } from '../ui/PanelSummary';
+import { EmbeddedPanelShell } from '../ui/EmbeddedPanelShell';
 
 interface AiChatPromptLabModalProps {
   isZh: boolean;
@@ -59,11 +60,12 @@ export function AiChatPromptLabModal({
     locale,
     direction: uiTextDirection,
     uiFontScale,
-    density: 'wide',
+    density: 'standard',
     minWidth: 520,
-    maxWidth: 940,
+    maxWidth: 860,
     ...(viewportWidth !== undefined ? { viewportWidth } : {}),
   }), [locale, uiTextDirection, uiFontScale, viewportWidth]);
+  const fieldIdPrefix = useId();
   if (!showPromptLab) return null;
   const messages = getAiChatPromptLabMessages(isZh);
   const hasDraft = templateTitleInput.trim().length > 0 || templateContentInput.trim().length > 0;
@@ -72,21 +74,29 @@ export function AiChatPromptLabModal({
     : (hasDraft ? messages.draftReady : messages.draftEmpty);
 
   return (
-    <div
+    <EmbeddedPanelShell
       className="ai-chat-prompt-lab ai-chat-prompt-lab-panel-content panel-design-match-content"
+      bodyClassName="ai-chat-prompt-lab-body"
+      footerClassName="ai-chat-prompt-lab-footer"
       dir={uiTextDirection}
       style={{
         minWidth: `min(100%, ${compactWidth}px)`,
         maxWidth: `min(100%, ${wideWidth}px)`,
       }}
+      title={messages.overviewTitle}
+      actions={<span className="panel-chip">{messages.templateCount(promptTemplates.length)}</span>}
+      footer={(
+        <div className="ai-chat-prompt-lab-action-row ai-chat-prompt-lab-action-row-footer">
+          <button type="button" className="panel-button ai-chat-prompt-lab-action-btn" disabled={templateTitleInput.trim().length === 0 || templateContentInput.trim().length === 0} onClick={onSaveTemplate}>{editingTemplateId ? messages.update : messages.save}</button>
+          <button type="button" className="panel-button panel-button--primary ai-chat-prompt-lab-action-btn ai-chat-prompt-lab-action-btn-primary" disabled={templateContentInput.trim().length === 0} onClick={onInjectAndClose}>{messages.injectToInput}</button>
+        </div>
+      )}
     >
       <PanelSummary
         className="ai-chat-prompt-lab-summary"
-        title={messages.overviewTitle}
         description={messages.panelNote}
         meta={(
           <div className="panel-meta">
-            <span className="panel-chip">{messages.templateCount(promptTemplates.length)}</span>
             <span className={`panel-chip${hasDraft ? ' panel-chip--warning' : ''}`}>{draftStatusLabel}</span>
           </div>
         )}
@@ -112,14 +122,18 @@ export function AiChatPromptLabModal({
         title={messages.editorTitle}
         description={messages.editorHint}
       >
+        <label htmlFor={`${fieldIdPrefix}-title`} className="layer-action-dialog-field-label">{messages.titlePlaceholder}</label>
         <input
+          id={`${fieldIdPrefix}-title`}
           type="text"
           value={templateTitleInput}
           placeholder={messages.titlePlaceholder}
           onChange={(event) => onTemplateTitleInputChange(event.currentTarget.value)}
           className="ai-chat-input panel-input ai-chat-prompt-lab-input"
         />
+        <label htmlFor={`${fieldIdPrefix}-content`} className="layer-action-dialog-field-label">{messages.contentPlaceholder}</label>
         <textarea
+          id={`${fieldIdPrefix}-content`}
           value={templateContentInput}
           placeholder={messages.contentPlaceholder}
           onChange={(event) => onTemplateContentInputChange(event.currentTarget.value)}
@@ -130,11 +144,7 @@ export function AiChatPromptLabModal({
             <button key={token} type="button" className="panel-button ai-chat-prompt-lab-token-btn" onClick={() => onAppendPromptVariable(token)}>{`{{${token}}}`}</button>
           ))}
         </div>
-        <div className="ai-chat-prompt-lab-action-row">
-          <button type="button" className="panel-button ai-chat-prompt-lab-action-btn" disabled={templateTitleInput.trim().length === 0 || templateContentInput.trim().length === 0} onClick={onSaveTemplate}>{editingTemplateId ? messages.update : messages.save}</button>
-          <button type="button" className="panel-button panel-button--primary ai-chat-prompt-lab-action-btn ai-chat-prompt-lab-action-btn-primary" disabled={templateContentInput.trim().length === 0} onClick={onInjectAndClose}>{messages.injectToInput}</button>
-        </div>
       </PanelSection>
-    </div>
+    </EmbeddedPanelShell>
   );
 }

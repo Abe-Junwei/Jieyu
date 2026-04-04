@@ -12,7 +12,7 @@ import { fireAndForget } from '../utils/fireAndForget';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
-import { createVoiceDictationPipeline, persistVoiceDictationToUtterance, resolveVoiceDictationTarget, transformVoiceDictationText } from './voiceDictationRuntime';
+import { bridgeVoiceDictationText, createVoiceDictationPipeline, persistVoiceDictationToUtterance, resolveVoiceDictationTarget } from './voiceDictationRuntime';
 import { buildTranscriptionAssistantContextValue } from './transcriptionAssistantContextValue';
 import { t, useLocale } from '../i18n';
 
@@ -144,7 +144,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     if (isSegmentTimelineUnit(input.selectedTimelineUnit)) {
       const selectedTimelineUnit = input.selectedTimelineUnit;
       fireAndForget((async () => {
-        const transformedText = await transformVoiceDictationText({
+        const transformedText = await bridgeVoiceDictationText({
           text,
           targetLayerId: selectedTimelineUnit.layerId,
           selectedLayerId: input.selectedLayerId,

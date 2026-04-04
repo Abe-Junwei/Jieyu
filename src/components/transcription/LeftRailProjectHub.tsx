@@ -8,15 +8,27 @@ import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
 import { useToast } from '../../contexts/ToastContext';
 import type { ImportConflictStrategy } from '../../db';
 import { t, tf, useLocale } from '../../i18n';
+import {
+  DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
+  type AnnotationImportBridgeStrategy,
+} from '../../hooks/useImportExport.annotationImport';
 import { getSidePaneSidebarMessages } from '../../i18n/sidePaneSidebarMessages';
 import type { JieyuArchiveImportPreview } from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { DialogShell } from '../ui/DialogShell';
+import { PanelSection } from '../ui/PanelSection';
+import { PanelSummary } from '../ui/PanelSummary';
 
 interface ProjectImportState {
   file: File;
   preview: JieyuArchiveImportPreview;
   strategy: ImportConflictStrategy;
+  importing: boolean;
+}
+
+interface AnnotationImportState {
+  file: File;
+  strategy: AnnotationImportBridgeStrategy;
   importing: boolean;
 }
 
@@ -29,7 +41,7 @@ interface LeftRailProjectHubProps {
   onDeleteCurrentProject: () => void;
   onDeleteCurrentAudio: () => void;
   onOpenSpeakerManagementPanel: () => void;
-  onImportAnnotationFile: (file: File) => void;
+  onImportAnnotationFile: (file: File, strategy: AnnotationImportBridgeStrategy) => Promise<void>;
   onPreviewProjectArchiveImport: (file: File) => Promise<JieyuArchiveImportPreview>;
   onImportProjectArchive: (file: File, strategy: ImportConflictStrategy) => Promise<boolean>;
   onExportEaf: () => void;
@@ -81,6 +93,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [panelPosition, setPanelPosition] = useState({ top: 88, left: 88 });
   const [projectImportState, setProjectImportState] = useState<ProjectImportState | null>(null);
+  const [annotationImportState, setAnnotationImportState] = useState<AnnotationImportState | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
 
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -137,6 +150,15 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     annotationImportInputRef.current?.click();
   }, []);
 
+  const handleAnnotationImportPicked = useCallback((file: File) => {
+    setAnnotationImportState({
+      file,
+      strategy: DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
+      importing: false,
+    });
+    setIsOpen(false);
+  }, []);
+
   const handleProjectArchivePicked = useCallback(async (file: File) => {
     setPreviewBusy(true);
     try {
@@ -177,6 +199,20 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     });
     showToast(t(locale, 'transcription.projectHub.importFailedHint'), 'error', 0);
   }, [locale, onImportProjectArchive, projectImportState, showToast]);
+
+  const handleConfirmAnnotationImport = useCallback(async () => {
+    setAnnotationImportState((prev) => (prev ? { ...prev, importing: true } : null));
+    const current = annotationImportState;
+    if (!current) return;
+
+    try {
+      await onImportAnnotationFile(current.file, current.strategy);
+      setAnnotationImportState(null);
+      setIsOpen(false);
+    } catch {
+      setAnnotationImportState((prev) => (prev ? { ...prev, importing: false } : prev));
+    }
+  }, [annotationImportState, onImportAnnotationFile]);
 
   const previewInsertEstimate = useMemo(() => {
     if (!projectImportState) return 0;
@@ -306,6 +342,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         ref={projectArchiveInputRef}
         type="file"
         accept=".jyt,.jym"
+        aria-label={t(locale, 'transcription.projectHub.importProject')}
         style={{ display: 'none' }}
         onChange={(event) => {
           const file = event.target.files?.[0];
@@ -319,10 +356,11 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         ref={annotationImportInputRef}
         type="file"
         accept=".eaf,.textgrid,.TextGrid,.trs,.flextext,.txt,.toolbox"
+        aria-label={t(locale, 'transcription.projectHub.importAnnotation')}
         style={{ display: 'none' }}
         onChange={(event) => {
           const file = event.target.files?.[0];
-          if (file) onImportAnnotationFile(file);
+          if (file) handleAnnotationImportPicked(file);
           event.target.value = '';
         }}
       />
@@ -389,24 +427,28 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         )}
         onClick={(event) => event.stopPropagation()}
       >
-          <div className="left-rail-project-import-summary">
-            <div>{projectImportState.file.name}</div>
-          </div>
-          <div className="left-rail-project-import-summary">
-            <div>{tf(locale, 'transcription.projectHub.importDialogKind', { kind: projectImportState.preview.kind.toUpperCase() })}</div>
-            <div>{tf(locale, 'transcription.projectHub.importDialogExportedAt', { at: projectImportState.preview.manifest.exportedAt })}</div>
-            <div>{tf(locale, 'transcription.projectHub.importDialogStats', {
-              incoming: projectImportState.preview.totalIncoming,
-              conflicts: projectImportState.preview.totalConflicts,
-              insertable: previewInsertEstimate,
-            })}</div>
-          </div>
+          <PanelSummary
+            className="left-rail-project-import-summary"
+            title={projectImportState.file.name}
+            description={tf(locale, 'transcription.projectHub.importDialogKind', { kind: projectImportState.preview.kind.toUpperCase() })}
+            meta={(
+              <div className="panel-meta">
+                <span className="panel-chip">{tf(locale, 'transcription.projectHub.importDialogExportedAt', { at: projectImportState.preview.manifest.exportedAt })}</span>
+                <span className={`panel-chip${projectImportState.preview.totalConflicts > 0 ? ' panel-chip--warning' : ''}`}>{tf(locale, 'transcription.projectHub.importDialogStats', {
+                  incoming: projectImportState.preview.totalIncoming,
+                  conflicts: projectImportState.preview.totalConflicts,
+                  insertable: previewInsertEstimate,
+                })}</span>
+              </div>
+            )}
+          />
 
-          <fieldset className="left-rail-project-import-strategy">
-            <legend>{t(locale, 'transcription.projectHub.importDialogStrategy')}</legend>
+          <PanelSection className="left-rail-project-import-strategy-section" title={t(locale, 'transcription.projectHub.importDialogStrategy')}>
+            <fieldset className="left-rail-project-import-strategy">
             <label>
               <input
                 type="radio"
+                name="project-import-strategy"
                 checked={projectImportState.strategy === 'upsert'}
                 onChange={() => setProjectImportState((prev) => (prev ? { ...prev, strategy: 'upsert' } : prev))}
               />
@@ -415,6 +457,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             <label>
               <input
                 type="radio"
+                name="project-import-strategy"
                 checked={projectImportState.strategy === 'skip-existing'}
                 onChange={() => setProjectImportState((prev) => (prev ? { ...prev, strategy: 'skip-existing' } : prev))}
               />
@@ -423,13 +466,16 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             <label>
               <input
                 type="radio"
+                name="project-import-strategy"
                 checked={projectImportState.strategy === 'replace-all'}
                 onChange={() => setProjectImportState((prev) => (prev ? { ...prev, strategy: 'replace-all' } : prev))}
               />
               <span>{t(locale, 'transcription.projectHub.strategy.replaceAll')}</span>
             </label>
-          </fieldset>
+            </fieldset>
+          </PanelSection>
 
+          <PanelSection className="left-rail-project-import-table-section" title={t(locale, 'transcription.projectHub.importDialogTableCollection')}>
           <div className="left-rail-project-import-table-wrap">
             <table className="left-rail-project-import-table">
               <thead>
@@ -450,6 +496,100 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
               </tbody>
             </table>
           </div>
+          </PanelSection>
+      </DialogShell>
+    </div>,
+    document.body,
+  ) : null;
+
+  const annotationImportDialogNode = annotationImportState ? createPortal(
+    <div className="dialog-overlay dialog-overlay-topmost" role="presentation" onClick={() => {
+      if (!annotationImportState.importing) setAnnotationImportState(null);
+    }}>
+      <DialogShell
+        className="left-rail-project-import-dialog panel-design-match panel-design-match-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t(locale, 'transcription.projectHub.annotationImportDialogTitle')}
+        title={t(locale, 'transcription.projectHub.annotationImportDialogTitle')}
+        actions={(
+          <button
+            type="button"
+            className="icon-btn"
+            disabled={annotationImportState.importing}
+            onClick={() => setAnnotationImportState(null)}
+            aria-label={`${t(locale, 'transcription.projectHub.annotationImportDialogTitle')} ${t(locale, 'transcription.dialog.cancel')}`}
+            title={`${t(locale, 'transcription.projectHub.annotationImportDialogTitle')} ${t(locale, 'transcription.dialog.cancel')}`}
+          >
+            <X size={18} />
+          </button>
+        )}
+        footer={(
+          <>
+            <button
+              type="button"
+              className="panel-button panel-button--ghost"
+              disabled={annotationImportState.importing}
+              onClick={() => setAnnotationImportState(null)}
+            >
+              {t(locale, 'transcription.dialog.cancel')}
+            </button>
+            <button
+              type="button"
+              className="panel-button panel-button--primary"
+              disabled={annotationImportState.importing}
+              onClick={() => {
+                fireAndForget(handleConfirmAnnotationImport());
+              }}
+            >
+              {annotationImportState.importing
+                ? t(locale, 'transcription.projectHub.importing')
+                : t(locale, 'transcription.projectHub.confirmAnnotationImport')}
+            </button>
+          </>
+        )}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <PanelSummary
+          className="left-rail-project-import-summary"
+          title={annotationImportState.file.name}
+          description={t(locale, 'transcription.projectHub.annotationImportDialogSummary')}
+        />
+
+        <PanelSection className="left-rail-project-import-strategy-section" title={t(locale, 'transcription.projectHub.annotationImportDialogStrategy')}>
+          <fieldset className="left-rail-project-import-strategy">
+            <label>
+              <input
+                type="radio"
+                name="annotation-import-strategy"
+                checked={annotationImportState.strategy === 'preserve-source'}
+                onChange={() => setAnnotationImportState((prev) => (prev ? { ...prev, strategy: 'preserve-source' } : prev))}
+              />
+              <span>{t(locale, 'transcription.projectHub.annotationStrategy.preserveSource')}</span>
+              <span className="small-text">{t(locale, 'transcription.projectHub.annotationStrategy.preserveSourceHint')}</span>
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="annotation-import-strategy"
+                checked={annotationImportState.strategy === 'bridge-target'}
+                onChange={() => setAnnotationImportState((prev) => (prev ? { ...prev, strategy: 'bridge-target' } : prev))}
+              />
+              <span>{t(locale, 'transcription.projectHub.annotationStrategy.bridgeTarget')}</span>
+              <span className="small-text">{t(locale, 'transcription.projectHub.annotationStrategy.bridgeTargetHint')}</span>
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="annotation-import-strategy"
+                checked={annotationImportState.strategy === 'preserve-source-and-bridge'}
+                onChange={() => setAnnotationImportState((prev) => (prev ? { ...prev, strategy: 'preserve-source-and-bridge' } : prev))}
+              />
+              <span>{t(locale, 'transcription.projectHub.annotationStrategy.preserveSourceAndBridge')}</span>
+              <span className="small-text">{t(locale, 'transcription.projectHub.annotationStrategy.preserveSourceAndBridgeHint')}</span>
+            </label>
+          </fieldset>
+        </PanelSection>
       </DialogShell>
     </div>,
     document.body,
@@ -460,6 +600,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       {createPortal(buttonNode, hostElement)}
       {panelNode}
       {projectImportDialogNode}
+      {annotationImportDialogNode}
     </>
   );
 }

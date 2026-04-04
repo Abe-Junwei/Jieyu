@@ -3,6 +3,8 @@ import { Bot, WandSparkles } from 'lucide-react';
 import { t, tf, useLocale } from '../i18n';
 import { useAiPanelContext } from '../contexts/AiPanelContext';
 import { AiEmbeddingCard } from './ai/AiEmbeddingCard';
+import { PanelSection } from './ui/PanelSection';
+import { PanelSummary } from './ui/PanelSummary';
 
 export type AiPanelMode = 'auto' | 'all';
 
@@ -72,10 +74,14 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
 
   if (isCollapsed) return null;
 
+  const activeTabLabel = activeTab === 'embedding'
+    ? t(locale, 'ai.header.embeddingTab')
+    : t(locale, 'ai.header.statsTab');
+  const currentTaskLabel = aiCurrentTask ? taskLabel[aiCurrentTask] : t(locale, 'ai.header.taskUnknown');
+
   return (
-    <div className="transcription-analysis-content">
-      {/* 模式切换条 | Mode switch bar */}
-      <div className="transcription-analysis-toolbar">
+    <div className="transcription-analysis-panel panel-design-match-content">
+      <div className="transcription-analysis-panel-header">
         <div className="transcription-ai-header-title">
           <Bot size={14} />
           <span className="transcription-analysis-toolbar-title">{t(locale, 'ai.header.title')}</span>
@@ -106,29 +112,50 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
         </div>
       </div>
 
-      {/* 内容区 */}
-      <div className="transcription-analysis-tab-content">
-        {activeTab === 'embedding' && shouldShow('embedding_ops') && <AiEmbeddingCard />}
-        {activeTab === 'stats' && (
-          <>
-            <div className="transcription-ai-task-hint" aria-live="polite">
-              {t(locale, 'ai.header.currentTask')}{aiCurrentTask ? taskLabel[aiCurrentTask] : t(locale, 'ai.header.taskUnknown')}
+      <div className="transcription-analysis-panel-body">
+        <PanelSummary
+          className="transcription-analysis-panel-summary"
+          title={activeTabLabel}
+          description={`${t(locale, 'ai.header.currentTask')}${currentTaskLabel}`}
+          meta={(
+            <div className="panel-meta">
+              <span className="panel-chip">{tf(locale, 'ai.stats.database', { dbName })}</span>
+              <span className="panel-chip">{tf(locale, 'ai.stats.utterance', { utteranceCount })}</span>
+              <span className="panel-chip">{tf(locale, 'ai.stats.translationLayer', { translationLayerCount })}</span>
             </div>
-            <div className="transcription-ai-stats-panel transcription-ai-stats-panel-footer">
-              <span className="toolbar-chip small-chip">{tf(locale, 'ai.stats.database', { dbName })}</span>
-              <span className="toolbar-chip small-chip">{tf(locale, 'ai.stats.utterance', { utteranceCount })}</span>
-              <span className="toolbar-chip small-chip">{tf(locale, 'ai.stats.translationLayer', { translationLayerCount })}</span>
-              <span className="toolbar-chip small-chip">
-                <WandSparkles size={12} />
-                {aiConfidenceAvg === null ? t(locale, 'ai.stats.aiConfidenceNone') : tf(locale, 'ai.stats.aiConfidence', { confidence: (aiConfidenceAvg * 100).toFixed(1) })}
-              </span>
-            </div>
-          </>
-        )}
+          )}
+          supportingText={activeTab === 'embedding' ? t(locale, 'ai.header.focusModeDesc') : t(locale, 'ai.header.allModeDesc')}
+        />
+
+        <div className="transcription-analysis-tab-content">
+          {activeTab === 'embedding' && shouldShow('embedding_ops') && <AiEmbeddingCard />}
+          {activeTab === 'stats' && (
+            <PanelSection
+              className="transcription-analysis-stats-section"
+              title={t(locale, 'ai.header.statsTab')}
+              description={`${t(locale, 'ai.header.currentTask')}${currentTaskLabel}`}
+            >
+              <div className="transcription-ai-stats-panel">
+                <div className="transcription-analysis-stats-row">
+                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.header.currentTask')}</span>
+                  <span className="transcription-analysis-stats-value" aria-live="polite">{currentTaskLabel}</span>
+                </div>
+                <div className="transcription-analysis-stats-row transcription-analysis-stats-row-accent">
+                  <span className="transcription-analysis-stats-label transcription-analysis-stats-label-accent">
+                    <WandSparkles size={12} />
+                    <span>{currentTaskLabel}</span>
+                  </span>
+                  <span className="transcription-analysis-stats-value">
+                    {aiConfidenceAvg === null ? t(locale, 'ai.stats.aiConfidenceNone') : tf(locale, 'ai.stats.aiConfidence', { confidence: (aiConfidenceAvg * 100).toFixed(1) })}
+                  </span>
+                </div>
+              </div>
+            </PanelSection>
+          )}
+        </div>
       </div>
 
-      {/* 子 tab 栏（底部）：向量检索 / 统计 */}
-      <div className="transcription-assistant-hub-bottom-head" style={{ display: 'flex', gap: 0, flexShrink: 0 }}>
+      <div className="transcription-analysis-panel-footer">
         {(['embedding', 'stats'] as const).map((tab) => (
           <button
             key={tab}
@@ -140,7 +167,6 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
           </button>
         ))}
       </div>
-
     </div>
   );
 });

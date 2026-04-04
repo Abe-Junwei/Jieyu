@@ -67,7 +67,7 @@ function makeParams(
     saveTextTranslationForUtterance: vi.fn(),
     saveSegmentContentForLayer: vi.fn(),
     segmentTargets: [],
-    transformTextForLayerWrite: vi.fn(async ({ text }) => text),
+    bridgeTextForLayerWrite: vi.fn(async ({ text }) => text),
     executeAction: vi.fn(),
     getSegments: vi.fn(() => []),
     navigateTo: vi.fn(),
@@ -720,7 +720,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
             updatedAt: NOW,
           } as LayerDocType],
           saveSegmentContentForLayer,
-          transformTextForLayerWrite: vi.fn(async ({ text }) => `xf:${text}`),
+          bridgeTextForLayerWrite: vi.fn(async ({ text }) => `xf:${text}`),
         }),
       ),
     );
@@ -1273,7 +1273,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
           } as LayerDocType],
           translationLayers: [targetLayer],
           saveTextTranslationForUtterance: saveSpy,
-          transformTextForLayerWrite: transformSpy,
+          bridgeTextForLayerWrite: transformSpy,
         }),
       ),
     );
@@ -1314,7 +1314,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
           selectedLayerId: 'trc-alt',
           transcriptionLayers: [selectedLayer],
           saveUtteranceText: saveSpy,
-          transformTextForLayerWrite: transformSpy,
+          bridgeTextForLayerWrite: transformSpy,
         }),
       ),
     );

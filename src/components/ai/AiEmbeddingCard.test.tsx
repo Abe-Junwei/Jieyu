@@ -58,6 +58,8 @@ describe('AiEmbeddingCard', () => {
 
     expect(root).toBeTruthy();
     expect(screen.getByText('向量索引')).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '引擎' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '最近 AI 任务' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '构建当前媒体' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '向量化笔记' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '向量化 PDF' })).toBeTruthy();
@@ -99,7 +101,7 @@ describe('AiEmbeddingCard', () => {
 
     await waitFor(() => {
       expect(onTestEmbeddingProvider).toHaveBeenCalledTimes(1);
-      expect(screen.getByText(': offline')).toBeTruthy();
+      expect(screen.getByText('不可用: offline')).toBeTruthy();
     });
 
     expect(onBuildUtteranceEmbeddings).toHaveBeenCalledTimes(1);
@@ -107,5 +109,20 @@ describe('AiEmbeddingCard', () => {
     expect(onBuildPdfEmbeddings).toHaveBeenCalledTimes(1);
     expect(onFindSimilarUtterances).toHaveBeenCalledTimes(1);
     expect(onRefreshEmbeddingTasks).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaces rejected provider tests as unavailable instead of leaving the card stuck in testing state', async () => {
+    const onTestEmbeddingProvider = vi.fn(async () => {
+      throw new Error('network down');
+    });
+
+    renderCard({ onTestEmbeddingProvider });
+
+    fireEvent.click(screen.getByRole('button', { name: '测试' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('不可用: network down')).toBeTruthy();
+    });
+    expect(screen.getByRole('button', { name: '测试' })).toBeTruthy();
   });
 });

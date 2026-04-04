@@ -14,7 +14,7 @@ const mockExportToToolbox = vi.hoisted(() => vi.fn(() => '\\_sh v3.0'));
 const mockDownloadToolbox = vi.hoisted(() => vi.fn());
 const mockGetDb = vi.hoisted(() => vi.fn());
 const mockUseOrthographies = vi.hoisted(() => vi.fn(() => []));
-const mockApplyOrthographyTransformIfNeeded = vi.hoisted(() => vi.fn(async ({ text }: { text: string }) => ({ text: `xf:${text}` })));
+const mockApplyOrthographyBridgeIfNeeded = vi.hoisted(() => vi.fn(async ({ text }: { text: string }) => ({ text: `xf:${text}` })));
 
 vi.mock('./useClickOutside', () => ({
   useClickOutside: vi.fn(),
@@ -69,7 +69,7 @@ vi.mock('./useOrthographies', () => ({
 }));
 
 vi.mock('../utils/orthographyRuntime', () => ({
-  applyOrthographyTransformIfNeeded: mockApplyOrthographyTransformIfNeeded,
+  applyOrthographyBridgeIfNeeded: mockApplyOrthographyBridgeIfNeeded,
 }));
 
 const FIXED_NOW = '2026-03-26T00:00:00.000Z';
@@ -311,7 +311,7 @@ describe('useImportExport - export eaf behavior', () => {
     vi.clearAllMocks();
     mockGetDb.mockResolvedValue(buildMockDb({ preferLayerUnits: true }));
     mockUseOrthographies.mockReturnValue([]);
-    mockApplyOrthographyTransformIfNeeded.mockImplementation(async ({ text }: { text: string }) => ({ text: `xf:${text}` }));
+    mockApplyOrthographyBridgeIfNeeded.mockImplementation(async ({ text }: { text: string }) => ({ text: `xf:${text}` }));
   });
 
   afterEach(() => {
@@ -453,6 +453,9 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
 
   it('transforms legacy default transcription fallback before plain-text export', async () => {
     const input = makeInputWithSegmentLayers();
+    input.layers = input.layers.map((layer) => (layer.id === 'trc-1'
+      ? { ...layer, transformId: 'xf-explicit' }
+      : layer));
     input.translations = input.translations.filter((item) => item.layerId !== 'trc-1');
     input.utterancesOnCurrentMedia = [{
       ...input.utterancesOnCurrentMedia[0]!,
@@ -467,10 +470,11 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
     const arg = (mockExportToTextGrid.mock.calls as any[])[0]?.[0] as unknown as {
       utterances?: Array<{ transcription?: { default?: string } }>;
     };
-    expect(mockApplyOrthographyTransformIfNeeded).toHaveBeenCalledWith({
+    expect(mockApplyOrthographyBridgeIfNeeded).toHaveBeenCalledWith({
       text: 'legacy raw',
       sourceOrthographyId: 'orth-project',
       targetOrthographyId: 'orth-layer',
+      transformId: 'xf-explicit',
     });
     expect(arg?.utterances?.[0]?.transcription?.default).toBe('xf:legacy raw');
   });

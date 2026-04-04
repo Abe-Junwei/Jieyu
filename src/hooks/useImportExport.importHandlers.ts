@@ -23,9 +23,15 @@ import { createLogger } from '../observability/logger';
 import { toErrorMessage } from '../utils/saveStateError';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
-import { applyOrthographyTransformIfNeeded } from '../utils/orthographyRuntime';
+import { applyOrthographyBridgeIfNeeded } from '../utils/orthographyRuntime';
 import { createImportExportArchiveHandlers } from './useImportExport.archiveHandlers';
 import { importAdditionalTiers } from './useImportExport.additionalTierHandlers';
+import {
+  DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
+  shouldWriteOriginalSourceText,
+  shouldWriteBridgedTargetText,
+  type AnnotationImportBridgeStrategy,
+} from './useImportExport.annotationImport';
 import {
   buildImportLanguageNameMap,
   createImportLanguageResolvers,
@@ -68,7 +74,10 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
     setSaveState,
   });
 
-  const handleImportFile = async (file: File) => {
+  const handleImportFile = async (
+    file: File,
+    importWriteStrategy: AnnotationImportBridgeStrategy = DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
+  ) => {
     const name = file.name.toLowerCase();
     const isJieyuArchive = name.endsWith('.jym') || name.endsWith('.jyt');
     if (isJieyuArchive) {
@@ -129,6 +138,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       const textId = activeTextId ?? (await getActiveTextId());
       resolvedTextId = textId;
       if (!textId) { setSaveState({ kind: 'error', message: t(locale, 'transcription.importExport.noProject') }); return; }
+      const importTextId = textId;
       let mediaId = selectedUtteranceMedia?.id;
 
       if (!mediaId && eafResult && eafResult.mediaFilename && eafResult.mediaFilename !== 'unknown.wav') {
@@ -151,10 +161,23 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         layerById.set(layer.id, layer);
       }
 
-      async function transformImportedText(inputData: {
+      function resolveLayerNameText(name: LayerDocType['name']): string {
+        return name.zho ?? name.eng ?? name.zh ?? name.en ?? '';
+      }
+
+      function buildSourcePreservationLayerName(baseLabel: string): LayerDocType['name'] {
+        const trimmed = baseLabel.trim() || 'Imported';
+        return {
+          zho: `${trimmed}（${t('zh-CN', 'transcription.importExport.sourcePreservationLayerSuffix')}）`,
+          eng: `${trimmed} (${t('en-US', 'transcription.importExport.sourcePreservationLayerSuffix')})`,
+        };
+      }
+
+      async function transformImportedTextToTarget(inputData: {
         text: string;
         sourceOrthographyId?: string;
         targetLayerId?: string;
+        transformId?: string;
       }): Promise<string> {
         const targetOrthographyId = inputData.targetLayerId
           ? layerById.get(inputData.targetLayerId)?.orthographyId?.trim()
@@ -162,11 +185,128 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         if (!inputData.text || !targetOrthographyId) {
           return inputData.text;
         }
-        return (await applyOrthographyTransformIfNeeded({
+        return (await applyOrthographyBridgeIfNeeded({
           text: inputData.text,
           ...(inputData.sourceOrthographyId !== undefined ? { sourceOrthographyId: inputData.sourceOrthographyId } : {}),
           targetOrthographyId,
+          ...(inputData.transformId !== undefined ? { transformId: inputData.transformId } : {}),
         })).text;
+      }
+
+      async function ensureSourcePreservationLayer(inputData: {
+        targetLayerId?: string;
+        baseLabel: string;
+        languageId: string;
+        sourceOrthographyId?: string;
+        layerType: LayerDocType['layerType'];
+        keyPrefix: string;
+        constraint?: LayerDocType['constraint'];
+        parentLayerId?: string;
+        tierName?: string;
+      }): Promise<string | undefined> {
+        const sourceOrthographyId = inputData.sourceOrthographyId?.trim();
+        const targetLayer = inputData.targetLayerId ? layerById.get(inputData.targetLayerId) : undefined;
+        const targetOrthographyId = targetLayer?.orthographyId?.trim();
+        if (!sourceOrthographyId || !targetLayer || !targetOrthographyId || sourceOrthographyId === targetOrthographyId) {
+          return inputData.targetLayerId;
+        }
+
+        const desiredName = buildSourcePreservationLayerName(inputData.baseLabel);
+        const existingLayer = layersAfterImport.find((layer) => {
+          if (layer.layerType !== inputData.layerType) return false;
+          if ((layer.parentLayerId ?? '') !== (inputData.parentLayerId ?? '')) return false;
+          if ((layer.constraint ?? '') !== (inputData.constraint ?? '')) return false;
+          if (layer.languageId !== inputData.languageId) return false;
+          if ((layer.orthographyId?.trim() ?? '') !== sourceOrthographyId) return false;
+          return resolveLayerNameText(layer.name) === resolveLayerNameText(desiredName);
+        });
+        if (existingLayer) return existingLayer.id;
+
+        const layerId = newId('layer');
+        const newLayer: LayerDocType = {
+          id: layerId,
+          textId: importTextId,
+          key: `${inputData.keyPrefix}_${Math.random().toString(36).slice(2, 7)}`,
+          name: desiredName,
+          layerType: inputData.layerType,
+          languageId: inputData.languageId,
+          orthographyId: sourceOrthographyId,
+          modality: 'text',
+          acceptsAudio: false,
+          sortOrder: layersAfterImport.length + 1,
+          ...(inputData.constraint ? { constraint: inputData.constraint } : {}),
+          ...(inputData.parentLayerId ? { parentLayerId: inputData.parentLayerId } : {}),
+          createdAt: now,
+          updatedAt: now,
+        };
+        await LayerTierUnifiedService.createLayer(newLayer);
+        rememberLayer(newLayer);
+        await writeImportLayerNameAudit({
+          db,
+          now,
+          layerId,
+          displayName: resolveLayerNameText(desiredName),
+          source: 'fallback',
+          languageId: inputData.languageId,
+          ...(inputData.tierName ? { tierName: inputData.tierName } : {}),
+        });
+        return layerId;
+      }
+
+      async function planImportedWrites(inputData: {
+        text: string;
+        sourceOrthographyId?: string;
+        targetLayerId?: string;
+        transformId?: string;
+        baseLabel: string;
+        languageId: string;
+        layerType: LayerDocType['layerType'];
+        keyPrefix: string;
+        constraint?: LayerDocType['constraint'];
+        parentLayerId?: string;
+        tierName?: string;
+      }): Promise<Array<{ layerId: string; text: string }>> {
+        const targetLayerId = inputData.targetLayerId?.trim();
+        if (!targetLayerId || !inputData.text.trim()) return [];
+
+        const targetLayer = layerById.get(targetLayerId);
+        const sourceOrthographyId = inputData.sourceOrthographyId?.trim();
+        const targetOrthographyId = targetLayer?.orthographyId?.trim();
+        const needsSeparateSourceLayer = Boolean(
+          targetLayer && sourceOrthographyId && targetOrthographyId && sourceOrthographyId !== targetOrthographyId,
+        );
+        const writes: Array<{ layerId: string; text: string }> = [];
+
+        if (shouldWriteOriginalSourceText(importWriteStrategy)) {
+          const sourceLayerId = needsSeparateSourceLayer
+            ? await ensureSourcePreservationLayer({
+              targetLayerId,
+              baseLabel: inputData.baseLabel,
+              languageId: inputData.languageId,
+              ...(sourceOrthographyId !== undefined ? { sourceOrthographyId } : {}),
+              layerType: inputData.layerType,
+              keyPrefix: inputData.keyPrefix,
+              ...(inputData.constraint ? { constraint: inputData.constraint } : {}),
+              ...(inputData.parentLayerId ? { parentLayerId: inputData.parentLayerId } : {}),
+              ...(inputData.tierName ? { tierName: inputData.tierName } : {}),
+            })
+            : targetLayerId;
+          if (sourceLayerId) {
+            writes.push({ layerId: sourceLayerId, text: inputData.text });
+          }
+        }
+
+        if (shouldWriteBridgedTargetText(importWriteStrategy)) {
+          const transformedText = await transformImportedTextToTarget({
+            text: inputData.text,
+            ...(sourceOrthographyId !== undefined ? { sourceOrthographyId } : {}),
+            targetLayerId,
+            ...(inputData.transformId !== undefined ? { transformId: inputData.transformId } : {}),
+          });
+          writes.push({ layerId: targetLayerId, text: transformedText });
+        }
+
+        return Array.from(new Map(writes.map((item) => [item.layerId, item])).values());
       }
 
       const languageNameByIso = await buildImportLanguageNameMap(db);
@@ -200,7 +340,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         ?? undefined;
       const importedTierMetadata = eafResult?.tierMetadata
         ?? tgResult?.tierMetadata
-        ?? new Map<string, { languageId?: string; orthographyId?: string }>();
+        ?? new Map<string, { languageId?: string; orthographyId?: string; transformId?: string }>();
       const importedTranscriptionMeta = importedTrcName
         ? importedTierMetadata.get(importedTrcName)
         : undefined;
@@ -259,6 +399,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
             layerType: 'transcription' as const,
             languageId: inferredTranscriptionLang,
             ...(importedTranscriptionMeta?.orthographyId ? { orthographyId: importedTranscriptionMeta.orthographyId } : {}),
+            ...(importedTranscriptionMeta?.transformId ? { transformId: importedTranscriptionMeta.transformId } : {}),
             modality: 'text' as const,
             acceptsAudio: false,
             sortOrder: 0,
@@ -375,23 +516,34 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         insertedUtterances.push({ id, startTime, endTime, utterance: newUtterance });
 
         if (u.transcription.trim() && effectiveTranscriptionLayerId) {
-          const transformedTranscription = await transformImportedText({
+          const transcriptionWrites = await planImportedWrites({
             text: u.transcription,
             ...(importedTranscriptionMeta?.orthographyId !== undefined ? { sourceOrthographyId: importedTranscriptionMeta.orthographyId } : {}),
+            ...(importedTranscriptionMeta?.transformId !== undefined ? { transformId: importedTranscriptionMeta.transformId } : {}),
             targetLayerId: effectiveTranscriptionLayerId,
+            baseLabel: resolveLayerDisplayName(
+              [inferredTranscriptionLang, importedTrcName],
+              humanizeTierName(importedTrcName ?? 'Transcription'),
+            ).label,
+            languageId: inferredTranscriptionLang,
+            layerType: 'transcription',
+            keyPrefix: 'trc_import_source',
+            ...(importedTrcName ? { tierName: importedTrcName } : {}),
           });
-          const doc: UtteranceTextDocType = {
-            id: newId('utr'),
-            utteranceId: id,
-            layerId: effectiveTranscriptionLayerId,
-            modality: 'text' as const,
-            text: transformedTranscription,
-            sourceType: 'human' as const,
-            ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
-            createdAt: now,
-            updatedAt: now,
-          };
-          await syncUtteranceTextToSegmentationV2(db, newUtterance, doc);
+          for (const write of transcriptionWrites) {
+            const doc: UtteranceTextDocType = {
+              id: newId('utr'),
+              utteranceId: id,
+              layerId: write.layerId,
+              modality: 'text' as const,
+              text: write.text,
+              sourceType: 'human' as const,
+              ...(maybeAnnotationId ? { externalRef: maybeAnnotationId } : {}),
+              createdAt: now,
+              updatedAt: now,
+            };
+            await syncUtteranceTextToSegmentationV2(db, newUtterance, doc);
+          }
         }
       }
 
@@ -412,7 +564,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         resolveDbLanguageName,
         resolveEafLanguageLabel,
         resolveLayerDisplayName,
-        transformImportedText,
+        planImportedWrites,
         rememberLayer,
       });
 

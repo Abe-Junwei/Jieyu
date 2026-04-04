@@ -186,11 +186,17 @@ export function computeAdaptivePanelWidth(input: {
   minWidth?: number;
   maxWidth?: number;
   viewportWidth?: number;
+  scaleWidthByFont?: boolean;
+  scaleWidthByScript?: boolean;
 }): number {
   const density = input.density ?? 'standard';
   const direction = input.direction ?? resolveTextDirectionFromLocale(input.locale);
-  const fontScale = clamp(input.uiFontScale, UI_FONT_SCALE_MIN, UI_FONT_SCALE_MAX);
-  const scriptMultiplier = resolveScriptWidthMultiplier(input.locale);
+  const fontScale = input.scaleWidthByFont
+    ? clamp(input.uiFontScale, UI_FONT_SCALE_MIN, UI_FONT_SCALE_MAX)
+    : 1;
+  const scriptMultiplier = input.scaleWidthByScript
+    ? resolveScriptWidthMultiplier(input.locale)
+    : 1;
   const densityMultiplier = resolveDensityMultiplier(density);
   const directionMultiplier = direction === 'rtl' ? 1.06 : 1;
   const directionPadding = direction === 'rtl' ? 20 : 8;

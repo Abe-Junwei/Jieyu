@@ -36,7 +36,9 @@ export function useAiChatConnectionProbe({
   }, []);
 
   const invalidateConnectionProbe = useCallback(() => {
+    const controller = testAbortRef.current;
     testAbortRef.current = null;
+    controller?.abort();
   }, []);
 
   const runConnectionProbe = useCallback(async (showTesting: boolean) => {

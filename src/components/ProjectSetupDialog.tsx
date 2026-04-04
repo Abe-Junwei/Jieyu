@@ -1,15 +1,25 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { X } from 'lucide-react';
 import { OrthographyBuilderPanel } from './OrthographyBuilderPanel';
-import { OrthographyTransformManager } from './OrthographyTransformManager';
+import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
 import { useLocale } from '../i18n';
 import { getProjectSetupDialogMessages } from '../i18n/projectSetupDialogMessages';
 import {
   formatOrthographyOptionLabel,
+  groupOrthographiesForSelect,
   ORTHOGRAPHY_CREATE_SENTINEL,
   useOrthographyPicker,
 } from '../hooks/useOrthographyPicker';
+import { getOrthographyCatalogGroupLabel } from '../i18n/orthographyBuilderMessages';
+import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 import { DialogShell } from './ui/DialogShell';
+import { isKnownIso639_3Code } from '../utils/langMapping';
+import { COMMON_LANGUAGES } from '../utils/transcriptionFormatters';
+
+const EMPTY_LANGUAGE_INPUT: LanguageIsoInputValue = {
+  languageName: '',
+  languageCode: '',
+};
 
 type ProjectSetupDialogProps = {
   isOpen: boolean;
@@ -20,25 +30,36 @@ type ProjectSetupDialogProps = {
 export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDialogProps) {
   const locale = useLocale();
   const messages = getProjectSetupDialogMessages(locale);
-  const languageSuggestions = messages.languageSuggestions;
+  const fieldIdPrefix = useId();
   const [titleZh, setTitleZh] = useState('');
   const [titleEn, setTitleEn] = useState('');
-  const [languageId, setLanguageId] = useState('');
-  const [customLang, setCustomLang] = useState('');
+  const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>(EMPTY_LANGUAGE_INPUT);
   const [orthographyId, setOrthographyId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const effectiveLang = languageId === '__custom' ? customLang.trim() : languageId;
+  const effectiveLang = languageInput.languageCode.trim().toLowerCase();
   const orthographyPicker = useOrthographyPicker(effectiveLang, orthographyId, setOrthographyId);
+  const groupedOrthographyOptions = groupOrthographiesForSelect(orthographyPicker.orthographies);
   const selectedOrthography = orthographyPicker.orthographies.find((item) => item.id === orthographyId);
-  const canSubmit = titleZh.trim() && effectiveLang && !submitting && !orthographyPicker.isCreating;
+  const selectedOrthographyBadge = selectedOrthography ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography) : null;
+  const customLanguageError = effectiveLang && !isKnownIso639_3Code(effectiveLang)
+    ? '语言代码必须是有效的 ISO 639-3 三字母代码。'
+    : '';
+  const orthographySelectionError = orthographyId && !orthographyPicker.isCreating && !selectedOrthography
+    ? '所选正字法已失效，请重新选择。'
+    : '';
+  const canSubmit = titleZh.trim()
+    && effectiveLang
+    && !customLanguageError
+    && !orthographySelectionError
+    && !submitting
+    && !orthographyPicker.isCreating;
 
   const reset = () => {
     setTitleZh('');
     setTitleEn('');
-    setLanguageId('');
-    setCustomLang('');
+    setLanguageInput(EMPTY_LANGUAGE_INPUT);
     setOrthographyId('');
     setError('');
     setSubmitting(false);
@@ -51,6 +72,14 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    if (customLanguageError) {
+      setError(customLanguageError);
+      return;
+    }
+    if (orthographySelectionError) {
+      setError(orthographySelectionError);
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {
@@ -78,7 +107,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
         aria-label={messages.title}
         title={messages.title}
         actions={(
-          <button className="icon-btn" onClick={handleClose} title={messages.close}>
+          <button className="icon-btn" onClick={handleClose} title={messages.close} aria-label={messages.close}>
             <X size={18} />
           </button>
         )}
@@ -123,48 +152,42 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
             />
           </label>
 
-          <label className="dialog-field">
+          <div className="dialog-field">
             <span>{messages.languageLabel} <em>*</em></span>
-            <select
-              className="input panel-input"
-              value={languageId}
-              onChange={(e) => setLanguageId(e.target.value)}
-            >
-              <option value="">{messages.languagePlaceholder}</option>
-              {languageSuggestions.map((lang) => (
-                <option key={lang.code} value={lang.code}>{lang.label} ({lang.code})</option>
-              ))}
-              <option value="__custom">{messages.customLanguageOption}</option>
-            </select>
-          </label>
-
-          {languageId === '__custom' && (
-            <label className="dialog-field">
-              <span>{messages.languageCodeLabel}</span>
-              <input
-                className="input panel-input"
-                type="text"
-                maxLength={8}
-                value={customLang}
-                onChange={(e) => setCustomLang(e.target.value)}
-                placeholder={messages.languageCodePlaceholder}
-              />
-            </label>
-          )}
+            <LanguageIsoInput
+              locale={locale}
+              value={languageInput}
+              onChange={setLanguageInput}
+              nameLabel={messages.languageLabel}
+              codeLabel={messages.languageCodeLabel}
+              namePlaceholder={messages.languagePlaceholder}
+              codePlaceholder={messages.languageCodePlaceholder}
+              required
+              disabled={submitting}
+              error={customLanguageError}
+            />
+          </div>
 
           {effectiveLang && (
             <div className="dialog-field">
-              <span>{messages.orthographyLabel}</span>
+              <label htmlFor={`${fieldIdPrefix}-orthography`}>
+                <span>{messages.orthographyLabel}</span>
+              </label>
               <select
+                id={`${fieldIdPrefix}-orthography`}
                 className="input panel-input"
                 value={orthographyPicker.isCreating ? ORTHOGRAPHY_CREATE_SENTINEL : orthographyId}
                 onChange={(e) => orthographyPicker.handleSelectionChange(e.target.value)}
               >
                 {orthographyPicker.orthographies.length === 0 && <option value="">{messages.orthographyDefaultInference}</option>}
-                {orthographyPicker.orthographies.map((orthography) => (
-                  <option key={orthography.id} value={orthography.id}>
-                    {formatOrthographyOptionLabel(orthography)}
-                  </option>
+                {groupedOrthographyOptions.map((group) => (
+                  <optgroup key={group.key} label={getOrthographyCatalogGroupLabel(locale, group.key)}>
+                    {group.orthographies.map((orthography) => (
+                      <option key={orthography.id} value={orthography.id}>
+                        {formatOrthographyOptionLabel(orthography)}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
                 <option value={ORTHOGRAPHY_CREATE_SENTINEL}>{messages.createOrthography}</option>
               </select>
@@ -173,18 +196,24 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
                 <p className="dialog-hint">{messages.noOrthographyHint}</p>
               )}
 
+              {!orthographyPicker.isCreating && selectedOrthography && selectedOrthographyBadge && (
+                <p className="dialog-hint" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span>{formatOrthographyOptionLabel(selectedOrthography)}</span>
+                  <span className={selectedOrthographyBadge.className}>{selectedOrthographyBadge.label}</span>
+                </p>
+              )}
+
               {orthographyPicker.isCreating && (
                 <OrthographyBuilderPanel
                   picker={orthographyPicker}
-                  languageOptions={languageSuggestions}
+                  languageOptions={COMMON_LANGUAGES}
                 />
               )}
-
-              {!orthographyPicker.isCreating && selectedOrthography && (
-                <OrthographyTransformManager
-                  targetOrthography={selectedOrthography}
-                  languageOptions={languageSuggestions}
-                />
+              {!orthographyPicker.isCreating && orthographyPicker.error && (
+                <p className="error">{orthographyPicker.error}</p>
+              )}
+              {!orthographyPicker.isCreating && orthographySelectionError && (
+                <p className="error">{orthographySelectionError}</p>
               )}
             </div>
           )}

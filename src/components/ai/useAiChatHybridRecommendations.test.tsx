@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider, type Locale } from '../../i18n';
 import {
@@ -34,6 +34,25 @@ function createStreamingProvider(response: string) {
       yield { delta: response };
       yield { delta: '', done: true };
     },
+  };
+}
+
+function buildRecommendationEvent(
+  prompt: string,
+  timestamp: string,
+): {
+  type: 'shown';
+  source: 'llm';
+  prompt: string;
+  signature: string;
+  timestamp: string;
+} {
+  return {
+    type: 'shown',
+    source: 'llm',
+    prompt,
+    signature: `llm:${prompt}`,
+    timestamp,
   };
 }
 
@@ -161,5 +180,156 @@ describe('useAiChatHybridRecommendations', () => {
     expect(result.current.source).toBe('llm');
     expect(createAiChatProviderMock).toHaveBeenCalledTimes(1);
     unmount();
+  });
+
+  it('falls back immediately when cached llm recommendations enter cooldown', async () => {
+    const llmPrompt = 'Review row 3 and tell me what to fix first';
+    const now = Date.now();
+    createAiChatProviderMock.mockReturnValue(createStreamingProvider(JSON.stringify({
+      suggestions: [
+        { label: 'Review row 3', prompt: llmPrompt },
+      ],
+    })));
+
+    const baseOptions = {
+      locale: 'en-US' as const,
+      enabled: true,
+      composerIdle: true,
+      aiChatSettings: {
+        providerKind: 'deepseek',
+        model: 'deepseek-chat',
+      } as never,
+      connectionTestStatus: 'success' as const,
+      primarySuggestion: 'Try asking: review the current translation',
+      page: 'transcription' as const,
+      selectedLayerType: 'translation' as const,
+      rowNumber: 3,
+      selectedText: 'Current draft translation',
+    };
+
+    const { result, rerender } = renderHook((telemetry?: {
+      recentEvents?: Array<ReturnType<typeof buildRecommendationEvent>>;
+      lastShownPrompt?: string;
+    }) => useAiChatHybridRecommendations({
+      ...baseOptions,
+      recommendationTelemetry: telemetry,
+    }), {
+      wrapper: withLocale('en-US'),
+    });
+
+    await waitFor(() => {
+      expect(result.current.source).toBe('llm');
+    }, { timeout: 2000 });
+
+    rerender({
+      recentEvents: [
+        buildRecommendationEvent(llmPrompt, new Date(now - 180_000).toISOString()),
+        buildRecommendationEvent(llmPrompt, new Date(now - 120_000).toISOString()),
+        buildRecommendationEvent(llmPrompt, new Date(now - 60_000).toISOString()),
+      ],
+      lastShownPrompt: llmPrompt,
+    });
+
+    await waitFor(() => {
+      expect(result.current.source).toBe('fallback');
+    }, { timeout: 2000 });
+    expect(createAiChatProviderMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not consume remote budget for debounced requests that never start', async () => {
+    vi.useFakeTimers();
+    createAiChatProviderMock.mockReturnValue(createStreamingProvider(JSON.stringify({
+      suggestions: [
+        { label: 'Review the latest row', prompt: 'Review the latest row and tell me what to fix first' },
+      ],
+    })));
+
+    const baseOptions = {
+      locale: 'en-US' as const,
+      enabled: true,
+      composerIdle: true,
+      aiChatSettings: {
+        providerKind: 'deepseek',
+        model: 'deepseek-chat',
+      } as never,
+      connectionTestStatus: 'success' as const,
+      primarySuggestion: 'Try asking: review the current translation',
+      page: 'transcription' as const,
+      selectedLayerType: 'translation' as const,
+      rowNumber: 3,
+    };
+
+    const { result, rerender } = renderHook((props: { selectedText: string }) => useAiChatHybridRecommendations({
+      ...baseOptions,
+      selectedText: props.selectedText,
+    }), {
+      wrapper: withLocale('en-US'),
+      initialProps: { selectedText: 'Draft 1' },
+    });
+
+    for (let index = 2; index <= 8; index += 1) {
+      rerender({ selectedText: `Draft ${index}` });
+    }
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+
+    expect(result.current.source).toBe('llm');
+    expect(createAiChatProviderMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the latest row context when the request is still within the same significance bucket', async () => {
+    vi.useFakeTimers();
+    let latestUserPrompt = '';
+    createAiChatProviderMock.mockReturnValue({
+      id: 'deepseek',
+      label: 'DeepSeek',
+      supportsStreaming: true,
+      async *chat(messages: Array<{ role: string; content: string }>) {
+        latestUserPrompt = messages.find((message) => message.role === 'user')?.content ?? '';
+        yield {
+          delta: JSON.stringify({
+            suggestions: [
+              { label: 'Review the current row', prompt: 'Review the current row and explain the top issue' },
+            ],
+          }),
+        };
+        yield { delta: '', done: true };
+      },
+    });
+
+    const baseOptions = {
+      locale: 'en-US' as const,
+      enabled: true,
+      composerIdle: true,
+      aiChatSettings: {
+        providerKind: 'deepseek',
+        model: 'deepseek-chat',
+      } as never,
+      connectionTestStatus: 'success' as const,
+      primarySuggestion: 'Try asking: review the current translation',
+      page: 'transcription' as const,
+      selectedLayerType: null,
+      selectedText: '',
+    };
+
+    const { result, rerender } = renderHook((props: { rowNumber: number }) => useAiChatHybridRecommendations({
+      ...baseOptions,
+      rowNumber: props.rowNumber,
+    }), {
+      wrapper: withLocale('en-US'),
+      initialProps: { rowNumber: 3 },
+    });
+
+    rerender({ rowNumber: 4 });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+
+    expect(result.current.source).toBe('llm');
+    expect(latestUserPrompt).toContain('rowNumber=4');
+    expect(latestUserPrompt).not.toContain('rowNumber=3');
   });
 });

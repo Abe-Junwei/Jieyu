@@ -39,7 +39,7 @@ function makeOrthography(overrides: Partial<OrthographyDocType> = {}): Orthograp
 describe('orthographyInteropMetadata', () => {
   it('builds provider-neutral metadata from layer and orthography snapshot', () => {
     expect(buildOrthographyInteropMetadata(
-      makeLayer(),
+      makeLayer({ transformId: 'xf-ar-latn' }),
       [makeOrthography()],
     )).toEqual({
       languageId: 'ara',
@@ -47,6 +47,7 @@ describe('orthographyInteropMetadata', () => {
       scriptTag: 'Arab',
       regionTag: 'EG',
       variantTag: 'fonipa',
+      transformId: 'xf-ar-latn',
     });
   });
 

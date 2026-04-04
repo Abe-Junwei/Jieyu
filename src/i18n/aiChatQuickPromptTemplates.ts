@@ -22,11 +22,6 @@ const zhCN: AiChatQuickPromptTemplateDefinition[] = [
     title: 'RAG 术语查证模板',
     content: '[RAG_SCENARIO:terminology]\n【术语查证模板】请检索术语定义、上下文用例与对译建议。\n术语：{{selected_text}}',
   },
-  {
-    id: 'rag-balanced-template',
-    title: 'RAG 平衡模板',
-    content: '[RAG_SCENARIO:balanced]\n【平衡模板】请结合检索上下文，兼顾问答、审校与术语一致性，给出稳健结论与依据。\n目标：{{current_utterance}}',
-  },
 ];
 
 const enUS: AiChatQuickPromptTemplateDefinition[] = [
@@ -44,11 +39,6 @@ const enUS: AiChatQuickPromptTemplateDefinition[] = [
     id: 'rag-terminology-template',
     title: 'RAG Terminology Template',
     content: '[RAG_SCENARIO:terminology]\n[Terminology Template] Retrieve term definitions, contextual examples, and translation suggestions.\nTerm: {{selected_text}}',
-  },
-  {
-    id: 'rag-balanced-template',
-    title: 'RAG Balanced Template',
-    content: '[RAG_SCENARIO:balanced]\n[Balanced Template] Combine retrieved context for QA, review, and terminology consistency, then provide a balanced conclusion with evidence.\nTarget: {{current_utterance}}',
   },
 ];
 

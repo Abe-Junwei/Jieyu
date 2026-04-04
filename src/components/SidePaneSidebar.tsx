@@ -37,6 +37,8 @@ interface SidePaneSidebarProps {
   deletableLayers: LayerDocType[];
   layerCreateMessage: string;
   layerAction: LayerActionResult;
+  defaultLanguageId?: string;
+  defaultOrthographyId?: string;
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
   uiFontScale?: number;
   uiFontScaleMode?: UiFontScaleMode;
@@ -54,6 +56,8 @@ export function SidePaneSidebar({
   deletableLayers,
   layerCreateMessage,
   layerAction,
+  defaultLanguageId,
+  defaultOrthographyId,
   onReorderLayers,
   uiFontScale = 1,
   uiFontScaleMode = 'manual',
@@ -345,10 +349,13 @@ export function SidePaneSidebar({
           layerCreateMessage={layerCreateMessage}
           createLayer={async (layerType, input, modality) => createLayer(layerType, {
             languageId: input.languageId,
+            ...(input.orthographyId !== undefined ? { orthographyId: input.orthographyId } : {}),
             ...(input.alias !== undefined ? { alias: input.alias } : {}),
             ...(input.constraint !== undefined ? { constraint: input.constraint } : {}),
             ...(input.parentLayerId !== undefined ? { parentLayerId: input.parentLayerId } : {}),
           }, modality)}
+          {...(defaultLanguageId !== undefined ? { defaultLanguageId } : {})}
+          {...(defaultOrthographyId !== undefined ? { defaultOrthographyId } : {})}
           deleteLayer={deleteLayer}
           deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}
           checkLayerHasContent={checkLayerHasContent}

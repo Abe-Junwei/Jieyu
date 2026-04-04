@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UseOrthographyPickerResult } from '../hooks/useOrthographyPicker';
 import { LocaleProvider } from '../i18n';
 import type { OrthographyRenderPolicy } from '../utils/layerDisplayStyle';
@@ -17,6 +17,10 @@ beforeEach(() => {
     },
   });
   window.localStorage.clear();
+});
+
+afterEach(() => {
+  cleanup();
 });
 
 function createRenderPolicy(overrides?: Partial<OrthographyRenderPolicy>): OrthographyRenderPolicy {
@@ -88,27 +92,27 @@ function createPicker(overrides?: Partial<UseOrthographyPickerResult>): UseOrtho
     setDraftBidiIsolate: vi.fn(),
     draftPreferDirAttribute: true,
     setDraftPreferDirAttribute: vi.fn(),
-    canConfigureTransform: false,
-    transformEnabled: false,
-    setTransformEnabled: vi.fn(),
-    draftTransformEngine: 'table-map',
-    setDraftTransformEngine: vi.fn(),
-    draftTransformRuleText: '',
-    setDraftTransformRuleText: vi.fn(),
-    draftTransformSampleInput: '',
-    setDraftTransformSampleInput: vi.fn(),
-    draftTransformSampleCasesText: '',
-    setDraftTransformSampleCasesText: vi.fn(),
-    draftTransformIsReversible: false,
-    setDraftTransformIsReversible: vi.fn(),
+    canConfigureBridge: false,
+    bridgeEnabled: false,
+    setBridgeEnabled: vi.fn(),
+    draftBridgeEngine: 'table-map',
+    setDraftBridgeEngine: vi.fn(),
+    draftBridgeRuleText: '',
+    setDraftBridgeRuleText: vi.fn(),
+    draftBridgeSampleInput: '',
+    setDraftBridgeSampleInput: vi.fn(),
+    draftBridgeSampleCasesText: '',
+    setDraftBridgeSampleCasesText: vi.fn(),
+    draftBridgeIsReversible: false,
+    setDraftBridgeIsReversible: vi.fn(),
     draftRenderPolicy: createRenderPolicy(),
     draftRenderPreviewText: 'ا ب ت',
     draftRenderWarnings: [],
     renderWarningsAcknowledged: false,
     requiresRenderWarningConfirmation: false,
-    transformPreviewOutput: '',
-    transformValidationIssues: [],
-    transformSampleCaseResults: [],
+    bridgePreviewOutput: '',
+    bridgeValidationIssues: [],
+    bridgeSampleCaseResults: [],
     error: '',
     submitting: false,
     handleSelectionChange: vi.fn(),
@@ -125,14 +129,19 @@ function renderZh(ui: Parameters<typeof render>[0]) {
 
 describe('OrthographyBuilderPanel', () => {
   it('renders draft render preview with coverage summary and bidi direction', async () => {
-    renderZh(
+    const view = renderZh(
       <OrthographyBuilderPanel
         picker={createPicker()}
         languageOptions={[]}
       />,
     );
 
+    const root = view.container.querySelector('.orthography-builder-panel-shell') as HTMLDivElement;
+
+    expect(root).toBeTruthy();
+    expect(root.querySelector('.dialog-header')).toBeTruthy();
     expect(screen.getByText('渲染预览')).toBeTruthy();
+    expect(screen.getByText('正字法构建器')).toBeTruthy();
     expect(screen.getByText('脚本：Arab')).toBeTruthy();
     expect(screen.getByText('方向：RTL')).toBeTruthy();
     expect(screen.getByText('字体覆盖：样例 3 项')).toBeTruthy();
@@ -236,5 +245,85 @@ describe('OrthographyBuilderPanel', () => {
     await waitFor(() => {
       expect(screen.getByText('默认字体验证：Experimental Arabic · 高风险')).toBeTruthy();
     });
+  });
+
+  it('keeps compact fields accessible by role and name', () => {
+    renderZh(
+      <OrthographyBuilderPanel
+        compact
+        picker={createPicker({
+          createMode: 'derive-other',
+          sourceLanguageId: 'eng',
+          sourceOrthographies: [
+            {
+              id: 'ortho-eng',
+              languageId: 'eng',
+              name: { zho: '英语方案', eng: 'English Orthography' },
+              abbreviation: 'ENG',
+              scriptTag: 'Latn',
+              type: 'practical',
+              createdAt: '2026-04-04T00:00:00.000Z',
+              updatedAt: '2026-04-04T00:00:00.000Z',
+            },
+          ],
+          canConfigureBridge: true,
+          bridgeEnabled: true,
+        })}
+        languageOptions={[{ code: 'eng', label: '英语 English' }]}
+      />,
+    );
+
+    expect(screen.getByRole('combobox', { name: '创建方式' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '来源语言' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '来源语言代码' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '来源正字法' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '名称（中文）' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '脚本标签' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '桥接引擎' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '桥接规则文本' })).toBeTruthy();
+  });
+
+  it('shows grouped source orthography options and icu syntax hints', () => {
+    const view = renderZh(
+      <OrthographyBuilderPanel
+        compact
+        picker={createPicker({
+          createMode: 'derive-other',
+          sourceLanguageId: 'eng',
+          canConfigureBridge: true,
+          bridgeEnabled: true,
+          draftBridgeEngine: 'icu-rule',
+          sourceOrthographies: [
+            {
+              id: 'user-orth',
+              languageId: 'eng',
+              name: { eng: 'User Orthography' },
+              scriptTag: 'Latn',
+              type: 'practical',
+              createdAt: '2026-04-04T00:00:00.000Z',
+              updatedAt: '2026-04-04T00:00:00.000Z',
+              catalogMetadata: { catalogSource: 'user' },
+            },
+            {
+              id: 'reviewed-orth',
+              languageId: 'eng',
+              name: { eng: 'Reviewed Orthography' },
+              scriptTag: 'Latn',
+              type: 'practical',
+              createdAt: '2026-04-04T00:00:00.000Z',
+              updatedAt: '2026-04-04T00:00:00.000Z',
+              catalogMetadata: { catalogSource: 'built-in-reviewed', reviewStatus: 'verified-primary', priority: 'primary' },
+            },
+          ],
+        })}
+        languageOptions={[]}
+      />,
+    );
+
+    expect(view.container.querySelector('optgroup[label="自建正字法"]')).toBeTruthy();
+    expect(view.container.querySelector('optgroup[label="已审校主项"]')).toBeTruthy();
+    expect(screen.getByText(/语法提示/)).toBeTruthy();
+    expect(screen.getByText(/ICU 规则按行链式执行/)).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '桥接规则文本' }).getAttribute('placeholder')).toContain('::NFC');
   });
 });

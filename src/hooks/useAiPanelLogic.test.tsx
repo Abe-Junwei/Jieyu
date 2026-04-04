@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { useAiPanelLogic, taskToPersona, type UseAiPanelLogicInput } from './useAiPanelLogic';
+import { LinguisticService } from '../services/LinguisticService';
+import type { LexemeDocType } from '../db';
 
 // Prevent real network calls from the debounced lexeme search effect.
 vi.mock('../services/LinguisticService', () => ({
@@ -10,7 +12,14 @@ vi.mock('../services/LinguisticService', () => ({
   },
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  searchLexemesMock.mockReset();
+  searchLexemesMock.mockResolvedValue([]);
+});
+
+const searchLexemesMock = vi.mocked(LinguisticService.searchLexemes);
 
 // Minimal utterance stub – only the fields useAiPanelLogic actually reads.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,6 +45,14 @@ const makeInput = (overrides: Partial<UseAiPanelLogicInput> = {}): UseAiPanelLog
   selectUtterance: vi.fn(),
   setSaveState: vi.fn(),
   ...overrides,
+});
+
+const lexeme = (id: string, lemma: string): LexemeDocType => ({
+  id,
+  lemma: { default: lemma },
+  senses: [],
+  createdAt: '2026-04-04T00:00:00.000Z',
+  updatedAt: '2026-04-04T00:00:00.000Z',
 });
 
 // ---------------------------------------------------------------------------
@@ -287,6 +304,47 @@ describe('selectedAiWarning', () => {
       useAiPanelLogic(makeInput({ selectedUtteranceText: 'a' }))
     );
     expect(result.current.selectedAiWarning).toBe(false);
+  });
+});
+
+describe('lexemeMatches', () => {
+  it('ignores stale lexeme search results from earlier queries', async () => {
+    vi.useFakeTimers();
+    let resolveFirst: ((value: LexemeDocType[]) => void) | undefined;
+    let resolveSecond: ((value: LexemeDocType[]) => void) | undefined;
+    searchLexemesMock.mockReset();
+    searchLexemesMock
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve; }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve; }));
+
+    const { result, rerender } = renderHook(
+      ({ selectedUtteranceText }) => useAiPanelLogic(makeInput({ selectedUtteranceText })),
+      { initialProps: { selectedUtteranceText: 'alpha' } },
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(120);
+    });
+
+    rerender({ selectedUtteranceText: 'beta' });
+
+    await act(async () => {
+      vi.advanceTimersByTime(120);
+    });
+
+    await act(async () => {
+      resolveFirst?.([lexeme('old', 'alpha')]);
+      await Promise.resolve();
+    });
+
+    expect(result.current.lexemeMatches).toEqual([]);
+
+    await act(async () => {
+      resolveSecond?.([lexeme('new', 'beta')]);
+      await Promise.resolve();
+    });
+
+    expect(result.current.lexemeMatches).toEqual([lexeme('new', 'beta')]);
   });
 });
 

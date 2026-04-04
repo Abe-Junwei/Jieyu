@@ -37,5 +37,9 @@ describe('AiChatPromptLabModal', () => {
     );
 
     expect(screen.getByText('模板 7')).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '模板名称' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '模板内容，支持 {{selected_text}} 等变量' })).toBeTruthy();
+    expect(document.querySelector('.ai-chat-prompt-lab-panel-content .dialog-header')).toBeTruthy();
+    expect(document.querySelector('.ai-chat-prompt-lab-panel-content .dialog-footer')).toBeTruthy();
   });
 });

@@ -24,7 +24,9 @@ describe('SearchReplaceOverlay', () => {
     expect(dialog.className).toContain('dialog-card');
     expect(dialog.className).toContain('search-replace-overlay');
     expect(overlay.className).toContain('dialog-overlay-topmost');
-    expect(screen.getByPlaceholderText('搜索…')).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '搜索…' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '搜索范围' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '搜索内容类型' })).toBeTruthy();
   });
 
   it('applies initial query and layer kind filters from shell/tool requests', async () => {
@@ -47,7 +49,7 @@ describe('SearchReplaceOverlay', () => {
       />,
     );
 
-    expect((screen.getByPlaceholderText('搜索…') as HTMLInputElement).value).toBe('hello');
+    expect((screen.getByRole('textbox', { name: '搜索…' }) as HTMLInputElement).value).toBe('hello');
     await waitFor(() => {
       expect(onNavigate).toHaveBeenCalledWith('u2');
       expect(screen.getByText('1/1')).toBeTruthy();

@@ -50,7 +50,7 @@ export type UseAiToolCallHandlerParams = {
   seekToTime?: (timeSeconds: number) => void;
   splitAtTime?: (timeSeconds: number) => boolean;
   zoomToSegment?: (segmentId: string, zoomLevel?: number) => boolean;
-  transformTextForLayerWrite?: (input: {
+  bridgeTextForLayerWrite?: (input: {
     text: string;
     targetLayerId?: string;
     selectedLayerId?: string;
@@ -109,7 +109,7 @@ export interface ExecutionContext {
   seekToTime?: UseAiToolCallHandlerParams['seekToTime'];
   splitAtTime?: UseAiToolCallHandlerParams['splitAtTime'];
   zoomToSegment?: UseAiToolCallHandlerParams['zoomToSegment'];
-  transformTextForLayerWrite?: UseAiToolCallHandlerParams['transformTextForLayerWrite'];
+  bridgeTextForLayerWrite?: UseAiToolCallHandlerParams['bridgeTextForLayerWrite'];
 }
 
 /**

@@ -1,5 +1,5 @@
 import { Fragment, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { ArrowUp, Check, Copy, Settings, X } from 'lucide-react';
+import { ArrowUp, Check, Copy, Settings } from 'lucide-react';
 import {
   diffAiToolSnapshot,
   type AiToolGoldenSnapshot,
@@ -30,7 +30,6 @@ import { AiChatReplayDetailPanel } from './AiChatReplayDetailPanel';
 import { useAiPromptTemplates } from './useAiPromptTemplates';
 import { escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
 import { getAiChatCardMessages } from '../../i18n/aiChatCardMessages';
-import { DialogShell } from '../ui/DialogShell';
 import { AiPanelContext } from '../../contexts/AiPanelContext';
 import { useGlobalContext } from '../../services/GlobalContextService';
 import { deriveAdaptiveProfileFromMessages, mergeAdaptiveProfiles } from '../../ai/chat/adaptiveInputProfile';
@@ -119,7 +118,6 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const [chatInput, setChatInput] = useState('');
   const [showProviderConfig, setShowProviderConfig] = useState(false);
   const [showPromptLab, setShowPromptLab] = useState(false);
-  const [showRagQuickScenarios, setShowRagQuickScenarios] = useState(false);
   const [selectedReplayBundle, setSelectedReplayBundle] = useState<AiToolReplayBundle | null>(null);
   const [replayLoadingRequestId, setReplayLoadingRequestId] = useState<string | null>(null);
   const [replayErrorMessage, setReplayErrorMessage] = useState<string | null>(null);
@@ -130,7 +128,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const [expandedReasoningIds, setExpandedReasoningIds] = useState<Set<string>>(new Set());
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
   const chatInputRef = useRef<HTMLInputElement | null>(null);
-  const lastTrackedRecommendationSignatureRef = useRef<string | null>(null);
+  const visibleRecommendationSignatureRef = useRef<string | null>(null);
   const exposedRecommendationRef = useRef<{ prompt: string; source: 'fallback' | 'llm'; signature: string } | null>(null);
   const [dismissedRecommendationSignature, setDismissedRecommendationSignature] = useState<string | null>(null);
 
@@ -317,10 +315,13 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
 
   useEffect(() => {
     const topRecommendation = hybridRecommendations.items[0];
-    if (!topRecommendation || !showInlineRecommendation || !onTrackAiRecommendationEvent) return;
+    if (!topRecommendation || !showInlineRecommendation || !onTrackAiRecommendationEvent) {
+      visibleRecommendationSignatureRef.current = null;
+      return;
+    }
     const signature = `${hybridRecommendations.source}:${topRecommendation.prompt}`;
-    if (lastTrackedRecommendationSignatureRef.current === signature) return;
-    lastTrackedRecommendationSignatureRef.current = signature;
+    if (visibleRecommendationSignatureRef.current === signature) return;
+    visibleRecommendationSignatureRef.current = signature;
     exposedRecommendationRef.current = {
       prompt: topRecommendation.prompt,
       source: hybridRecommendations.source,
@@ -397,7 +398,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     return null;
   }, [hasToolPending, cardMessages]);
   const [showAlertBar, setShowAlertBar] = useState(() => alertCount > 0);
-  const [showDecisionPanel, setShowDecisionPanel] = useState(true);
+  const [showDecisionPanel, setShowDecisionPanel] = useState(false);
   const [showReplayDetailPanel, setShowReplayDetailPanel] = useState(false);
   const [dismissedErrorWarning, setDismissedErrorWarning] = useState(false);
   const [voiceDrawerMaxHeight, setVoiceDrawerMaxHeight] = useState<number | null>(null);
@@ -408,11 +409,9 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const copiedMessageTimerRef = useRef<number | null>(null);
   const blockedHintTimerRef = useRef<number | null>(null);
   const exportedSnapshotTimerRef = useRef<number | null>(null);
-  const ragQuickMenuRef = useRef<HTMLDivElement | null>(null);
   const decisionPanelBodyRef = useRef<HTMLDivElement | null>(null);
   const [transientBlockedReason, setTransientBlockedReason] = useState<string | null>(null);
   const prevAlertCountRef = useRef(alertCount);
-  const prevHasDecisionLogsRef = useRef(hasDecisionLogs);
   const canUseVoiceEntry = Boolean(voiceEntry?.enabled);
   const voiceResizeStartYRef = useRef(0);
   const voiceResizeStartHeightRef = useRef(0);
@@ -498,14 +497,6 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   }, [errorWarningText]);
 
   useEffect(() => {
-    const prev = prevHasDecisionLogsRef.current;
-    if (!prev && hasDecisionLogs) {
-      setShowDecisionPanel(true);
-    }
-    prevHasDecisionLogsRef.current = hasDecisionLogs;
-  }, [hasDecisionLogs]);
-
-  useEffect(() => {
     setShowReplayDetailPanel(false);
   }, [selectedReplayBundle?.requestId]);
 
@@ -531,30 +522,6 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
       blockedHintTimerRef.current = null;
     }
   }, [aiIsStreaming]);
-
-  useEffect(() => {
-    if (!showRagQuickScenarios || typeof window === 'undefined') return;
-
-    const handlePointerDown = (event: PointerEvent): void => {
-      if (!ragQuickMenuRef.current?.contains(event.target as Node)) {
-        setShowRagQuickScenarios(false);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        setShowRagQuickScenarios(false);
-      }
-    };
-
-    window.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [showRagQuickScenarios]);
 
   useEffect(() => {
     if (!isVoiceDrawerResizing || typeof window === 'undefined') return;
@@ -708,6 +675,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
         });
       }
     }
+    exposedRecommendationRef.current = null;
     void onSendAiMessage(text);
     setChatInput('');
     setDismissedRecommendationSignature(null);
@@ -1093,65 +1061,18 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
           <div className="ai-chat-composer">
             {quickPromptTemplates.length > 0 && (
               <div className="ai-chat-composer-shortcuts">
-                {quickPromptTemplates.slice(0, 3).map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className="icon-btn ai-chat-composer-shortcut"
-                    onClick={() => injectPromptTemplate(item.content)}
-                  >
-                    {item.title}
-                  </button>
-                ))}
-                {quickPromptTemplates.length > 3 && (
-                  <div ref={ragQuickMenuRef} className="ai-chat-rag-quick-menu-wrap">
+                <div className="ai-chat-composer-shortcuts-list">
+                  {quickPromptTemplates.map((item) => (
                     <button
+                      key={item.id}
                       type="button"
-                      className="icon-btn ai-chat-composer-shortcut ai-chat-composer-shortcut-muted"
-                      aria-expanded={showRagQuickScenarios}
-                      aria-haspopup="true"
-                      onClick={() => setShowRagQuickScenarios((prev) => !prev)}
+                      className="icon-btn ai-chat-composer-shortcut"
+                      onClick={() => injectPromptTemplate(item.content)}
                     >
-                      {cardMessages.more}
+                      {item.title}
                     </button>
-                    {showRagQuickScenarios && (
-                      <DialogShell
-                        className="ai-chat-rag-quick-menu"
-                        compact
-                        role="dialog"
-                        aria-label={cardMessages.ragQuickScenarios}
-                        headerClassName="ai-chat-rag-quick-menu-header"
-                        bodyClassName="ai-chat-rag-quick-menu-body"
-                        title={cardMessages.ragQuickScenarios}
-                        actions={(
-                            <button
-                              type="button"
-                              className="icon-btn"
-                              onClick={() => setShowRagQuickScenarios(false)}
-                              aria-label={`${cardMessages.ragQuickScenarios} ${t(locale, 'ai.assistantHub.cancel')}`}
-                              title={`${cardMessages.ragQuickScenarios} ${t(locale, 'ai.assistantHub.cancel')}`}
-                            >
-                              <X size={16} />
-                            </button>
-                        )}
-                      >
-                          {quickPromptTemplates.map((item) => (
-                            <button
-                              key={item.id}
-                              type="button"
-                              className="icon-btn ai-chat-action-btn ai-chat-action-btn-quiet ai-chat-rag-quick-menu-btn"
-                              onClick={() => {
-                                injectPromptTemplate(item.content);
-                                setShowRagQuickScenarios(false);
-                              }}
-                            >
-                              {item.title}
-                            </button>
-                          ))}
-                      </DialogShell>
-                    )}
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             )}
             <div className="ai-chat-composer-row">

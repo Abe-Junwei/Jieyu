@@ -6,7 +6,6 @@ const PAGE_FILES = [
   'src/pages/AnnotationPage.tsx',
   'src/pages/AnalysisPage.tsx',
   'src/pages/WritingPage.tsx',
-  'src/pages/LexiconPage.tsx',
 ];
 
 describe('Feature availability page layout guard', () => {

@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { t, tf, useLocale } from '../i18n';
 import { DialogShell } from './ui/DialogShell';
+import { PanelSection } from './ui/PanelSection';
+import { PanelSummary } from './ui/PanelSummary';
 
 export interface DeleteLayerConfirmDialogProps {
   open: boolean;
@@ -40,7 +42,7 @@ export const DeleteLayerConfirmDialog = memo(function DeleteLayerConfirmDialog({
   const dialog = (
     <div className="dialog-overlay" onClick={onCancel} role="presentation">
       <DialogShell
-        ref={dialogRef}
+        containerRef={dialogRef}
         className="delete-layer-confirm-dialog panel-design-match panel-design-match-dialog"
         role="dialog"
         aria-modal="true"
@@ -54,39 +56,46 @@ export const DeleteLayerConfirmDialog = memo(function DeleteLayerConfirmDialog({
         )}
         onClick={(e) => e.stopPropagation()}
       >
-          <p style={{ margin: '0 0 16px 0', color: 'var(--state-danger-solid)', fontSize: 14, fontWeight: 500 }}>
-            {t(locale, 'transcription.dialog.deleteLayerIrreversibleWarning')}
-          </p>
-          <p style={{ margin: '0 0 8px 0', color: 'var(--text-primary)', fontSize: 14 }}>
-            {tf(locale, 'transcription.dialog.deleteLayerConfirm', { layerName })}
-          </p>
-          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 13 }}>
-            {tf(locale, 'transcription.dialog.deleteLayerType', { layerType: layerTypeLabel })}
-            <br />
-            {tf(locale, 'transcription.dialog.deleteLayerTextCount', { count: textCount })}
-            {textCount > 0 && (
-              <span style={{ color: 'var(--state-danger-solid)' }}>
-                <br />
-                {t(locale, 'transcription.dialog.deleteLayerTextDestructiveHint')}
+        <PanelSummary
+          className="delete-layer-confirm-summary"
+          description={tf(locale, 'transcription.dialog.deleteLayerConfirm', { layerName })}
+          meta={(
+            <div className="panel-meta">
+              <span className="panel-chip">{tf(locale, 'transcription.dialog.deleteLayerType', { layerType: layerTypeLabel })}</span>
+              <span className={`panel-chip${textCount > 0 ? ' panel-chip--danger' : ''}`}>
+                {tf(locale, 'transcription.dialog.deleteLayerTextCount', { count: textCount })}
               </span>
-            )}
-          </p>
-          {warningMessage && (
-            <p style={{ margin: '12px 0 0 0', color: 'var(--state-warning-text)', fontSize: 13, fontWeight: 500 }}>
+            </div>
+          )}
+          supportingText={t(locale, 'transcription.dialog.deleteLayerIrreversibleWarning')}
+          supportingClassName="dialog-supporting-note-danger"
+        >
+          {textCount > 0 ? (
+            <p className="panel-note panel-note--danger">
+              {t(locale, 'transcription.dialog.deleteLayerTextDestructiveHint')}
+            </p>
+          ) : null}
+        </PanelSummary>
+        {warningMessage ? (
+          <PanelSection className="delete-layer-confirm-section">
+            <p className="panel-note delete-layer-confirm-warning">
               {t(locale, 'transcription.dialog.deleteLayerWarningPrefix')} {warningMessage}
             </p>
-          )}
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer', marginTop: 12 }}>
+          </PanelSection>
+        ) : null}
+        <PanelSection className="delete-layer-confirm-section">
+          <label className="delete-layer-confirm-keep-toggle">
             <input
               type="checkbox"
               checked={keepUtterances}
               onChange={(e) => onKeepUtterancesChange?.(e.target.checked)}
             />
-            {t(locale, 'transcription.dialog.deleteLayerKeepUtterances')}
+            <span>{t(locale, 'transcription.dialog.deleteLayerKeepUtterances')}</span>
           </label>
-          <p style={{ margin: '8px 0 0 0', color: 'var(--text-secondary)', fontSize: 12 }}>
+          <p className="panel-note">
             {t(locale, 'transcription.dialog.deleteLayerKeepUtterancesHint')}
           </p>
+        </PanelSection>
       </DialogShell>
     </div>
   );

@@ -19,7 +19,7 @@ import { downloadJieyuArchive } from '../services/JymService';
 import { t, useLocale } from '../i18n';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { useOrthographies } from './useOrthographies';
-import { applyOrthographyTransformIfNeeded } from '../utils/orthographyRuntime';
+import { applyOrthographyBridgeIfNeeded } from '../utils/orthographyRuntime';
 import { createImportExportImportHandlers } from './useImportExport.importHandlers';
 
 export interface UseImportExportInput {
@@ -183,10 +183,11 @@ export function useImportExport(input: UseImportExportInput) {
 
       let transformedText = transformedTextCache.get(legacyText);
       if (transformedText === undefined) {
-        transformedText = (await applyOrthographyTransformIfNeeded({
+        transformedText = (await applyOrthographyBridgeIfNeeded({
           text: legacyText,
           sourceOrthographyId,
           targetOrthographyId,
+          ...(defaultLayer?.transformId ? { transformId: defaultLayer.transformId } : {}),
         })).text;
         transformedTextCache.set(legacyText, transformedText);
       }

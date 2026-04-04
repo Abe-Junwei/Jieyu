@@ -123,9 +123,8 @@ describe('LayerActionPopover RTL matrix', () => {
       'en-US',
     );
 
-    const languageSelect = document.body.querySelector('select') as HTMLSelectElement;
-    expect(languageSelect).toBeTruthy();
-    fireEvent.change(languageSelect, { target: { value: 'cmn' } });
+    const languageCodeInput = screen.getByRole('textbox', { name: /iso 639-3 code/i });
+    fireEvent.change(languageCodeInput, { target: { value: 'cmn' } });
 
     const createButton = screen.getByRole('button', { name: /^create$/i });
     fireEvent.click(createButton);
@@ -139,7 +138,7 @@ describe('LayerActionPopover RTL matrix', () => {
     events.push('cancel-click');
     fireEvent.click(cancelButton);
 
-    const closeIcon = document.body.querySelector('.dialog-header .icon-btn') as HTMLButtonElement;
+    const closeIcon = document.body.querySelector('.dialog-header .dialog-header-actions .icon-btn:last-child') as HTMLButtonElement;
     expect(closeIcon).toBeTruthy();
     events.push('close-click');
     fireEvent.click(closeIcon);

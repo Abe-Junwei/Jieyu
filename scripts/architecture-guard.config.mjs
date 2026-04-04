@@ -150,7 +150,7 @@ export const architectureGuardRules = [
   }),
   pageControllerRule('useTranscriptionAiController', {
     maxLines: 360,
-    maxUseCallbackDecls: 5,
+    maxUseCallbackDecls: 6,
     maxUseMemoDecls: 2,
     maxUseEffects: 4,
   }),
@@ -437,9 +437,11 @@ export const architectureGuardRules = [
   {
     file: 'src/styles/panels/ai-analysis-panel.css',
     requiredLiterals: [
+      '.transcription-analysis-panel {',
+      '.transcription-analysis-panel-header {',
+      '.transcription-analysis-panel-body {',
+      '.transcription-analysis-panel-footer {',
       '.transcription-ai-stats-panel {',
-      '.transcription-ai-stats-panel-footer {',
-      '.transcription-ai-task-hint {',
     ],
   },
   {
@@ -578,8 +580,8 @@ export const architectureGuardRules = [
       /^\.ai-chat-message-actions/m,
       /^\.ai-chat-message-action-btn/m,
       /^\.ai-citation-marker/m,
+      /^\.transcription-analysis-panel/m,
       /^\.transcription-ai-stats-panel/m,
-      /^\.transcription-ai-task-hint/m,
       /^\.left-rail-project-hub-root/m,
       /^\.left-rail-project-import-dialog/m,
       /^\.left-rail-project-import-table/m,

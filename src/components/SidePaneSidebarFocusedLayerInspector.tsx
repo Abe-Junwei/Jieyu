@@ -1,7 +1,12 @@
+import { useMemo } from 'react';
 import type { LayerDocType } from '../db';
+import { useOrthographies } from '../hooks/useOrthographies';
+import { useLocale } from '../i18n';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
 import { formatSidePaneLayerLabel, getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { formatConstraintLabel } from './SidePaneSidebar.shared';
+import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 
 type SidePaneSidebarFocusedLayerInspectorProps = {
   focusedLayer: LayerDocType | null;
@@ -22,6 +27,9 @@ export function SidePaneSidebarFocusedLayerInspector({
   onOpenDeletePanel,
   onChangeLayerParent,
 }: SidePaneSidebarFocusedLayerInspectorProps) {
+  const locale = useLocale();
+  const orthographies = useOrthographies(focusedLayer?.languageId ? [focusedLayer.languageId] : []);
+
   if (!focusedLayer) {
     return (
       <section className="transcription-side-pane-inspector" aria-label={messages.inspectorAria}>
@@ -36,6 +44,17 @@ export function SidePaneSidebarFocusedLayerInspector({
     && independentRootLayers.length > 0;
   const hasValidFocusedParent = Boolean(focusedLayerParentKey)
     && independentRootLayers.some((candidateLayer) => candidateLayer.key === focusedLayerParentKey);
+  const targetOrthography = focusedLayer.orthographyId
+    ? orthographies.find((orthography) => orthography.id === focusedLayer.orthographyId)
+    : undefined;
+  const targetOrthographyBadge = targetOrthography ? getOrthographyCatalogBadgeInfo(locale, targetOrthography) : null;
+  const orthographyWorkspaceHref = useMemo(() => {
+    if (!targetOrthography) return '';
+    const params = new URLSearchParams();
+    params.set('orthographyId', targetOrthography.id);
+    params.set('fromLayerId', focusedLayer.id);
+    return `/lexicon/orthographies?${params.toString()}`;
+  }, [focusedLayer.id, targetOrthography]);
 
   return (
     <section className="transcription-side-pane-inspector" aria-label={messages.inspectorAria}>
@@ -59,6 +78,15 @@ export function SidePaneSidebarFocusedLayerInspector({
         <div><dt>{messages.inspectorLanguage}</dt><dd>{labelParts.lang}</dd></div>
         <div><dt>{messages.inspectorConstraint}</dt><dd>{formatConstraintLabel(focusedLayer, messages)}</dd></div>
         {labelParts.alias ? <div><dt>{messages.inspectorAlias}</dt><dd>{labelParts.alias}</dd></div> : null}
+        {targetOrthography ? (
+          <div>
+            <dt>{messages.inspectorOrthography}</dt>
+            <dd>
+              <span>{formatOrthographyOptionLabel(targetOrthography)}</span>
+              {targetOrthographyBadge ? <span className={targetOrthographyBadge.className}>{targetOrthographyBadge.label}</span> : null}
+            </dd>
+          </div>
+        ) : null}
         {canEditFocusedLayerParent ? (
           <div>
             <dt>{messages.inspectorParentLayer}</dt>
@@ -88,6 +116,17 @@ export function SidePaneSidebarFocusedLayerInspector({
       </dl>
       {focusedLayer.layerType === 'translation' && independentRootLayers.length === 0 ? (
         <div className="transcription-side-pane-inspector-note">{messages.inspectorNoIndependentLayer}</div>
+      ) : null}
+      {targetOrthography ? (
+        <div className="transcription-side-pane-inspector-note">
+          <a
+            className="btn btn-ghost"
+            href={orthographyWorkspaceHref}
+          >
+            {messages.inspectorBridgeRulesButton}
+          </a>
+          <div>{messages.inspectorBridgeRulesHint}</div>
+        </div>
       ) : null}
     </section>
   );

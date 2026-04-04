@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MultiLangString, OrthographyDocType } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 import {
@@ -6,13 +6,14 @@ import {
   type OrthographyRenderPolicy,
 } from '../utils/layerDisplayStyle';
 import {
-  buildTransformRulesFromRuleText,
-  evaluateOrthographyTransformSampleCases,
-  parseTransformSampleCases,
-  previewOrthographyTransform,
-  validateOrthographyTransform,
-} from '../utils/orthographyTransforms';
+  buildBridgeRulesFromRuleText,
+  evaluateOrthographyBridgeSampleCases,
+  parseBridgeSampleCases,
+  previewOrthographyBridge,
+  validateOrthographyBridge,
+} from '../utils/orthographyBridges';
 import { COMMON_LANGUAGES } from '../utils/transcriptionFormatters';
+import { hasSameOrthographyIdentity } from '../utils/orthographyIdentity';
 import { useOrthographies } from './useOrthographies';
 
 export const ORTHOGRAPHY_CREATE_SENTINEL = '__create_new_orthography__';
@@ -82,8 +83,8 @@ function buildSeedFromOrthography(source: OrthographyDocType | undefined) {
     fallbackFonts: (source?.fontPreferences?.fallback ?? []).join(', '),
     bidiIsolate: source?.bidiPolicy?.isolateInlineRuns ?? (source?.direction === 'rtl'),
     preferDirAttribute: source?.bidiPolicy?.preferDirAttribute ?? true,
-    transformEngine: resolveTransformEngine(source),
-    transformRuleText: resolveTransformRuleText(source),
+    bridgeEngine: resolveBridgeEngine(source),
+    bridgeRuleText: resolveBridgeRuleText(source),
   };
 }
 
@@ -98,12 +99,16 @@ function parseDraftList(value: string): string[] {
     .filter(Boolean);
 }
 
-function resolveTransformEngine(source: OrthographyDocType | undefined): 'table-map' | 'icu-rule' | 'manual' {
+function normalizeCustomLanguageId(value: string): string {
+  return value.replace(/[^A-Za-z]/g, '').slice(0, 3).toLowerCase();
+}
+
+function resolveBridgeEngine(source: OrthographyDocType | undefined): 'table-map' | 'icu-rule' | 'manual' {
   const engine = (source?.conversionRules as { engine?: string } | undefined)?.engine;
   return engine === 'icu-rule' || engine === 'manual' ? engine : 'table-map';
 }
 
-function resolveTransformRuleText(source: OrthographyDocType | undefined): string {
+function resolveBridgeRuleText(source: OrthographyDocType | undefined): string {
   const conversionRules = source?.conversionRules as {
     ruleText?: string;
     rules?: { ruleText?: string };
@@ -125,6 +130,66 @@ export function formatOrthographyOptionLabel(orthography: {
     ?? '\u672a\u547d\u540d\u6b63\u5b57\u6cd5';
   const extras = [orthography.scriptTag, orthography.type].filter(Boolean).join(' · ');
   return extras ? `${name} · ${extras}` : name;
+}
+
+export type OrthographyCatalogGroupKey =
+  | 'user'
+  | 'reviewed-primary'
+  | 'reviewed-secondary'
+  | 'historical'
+  | 'needs-review'
+  | 'experimental'
+  | 'legacy'
+  | 'other';
+
+export function resolveOrthographyCatalogGroupKey(orthography: Pick<OrthographyDocType, 'catalogMetadata'>): OrthographyCatalogGroupKey {
+  const catalogSource = orthography.catalogMetadata?.catalogSource;
+  const reviewStatus = orthography.catalogMetadata?.reviewStatus;
+  const priority = orthography.catalogMetadata?.priority;
+
+  if (catalogSource === 'user') return 'user';
+  if (reviewStatus === 'historical') return 'historical';
+  if (reviewStatus === 'experimental') return 'experimental';
+  if (reviewStatus === 'legacy') return 'legacy';
+  if (reviewStatus === 'verified-primary') return 'reviewed-primary';
+  if (reviewStatus === 'verified-secondary') return 'reviewed-secondary';
+  if (reviewStatus === 'needs-review') return 'needs-review';
+  if (catalogSource === 'built-in-reviewed') {
+    return priority === 'secondary' ? 'reviewed-secondary' : 'reviewed-primary';
+  }
+  if (catalogSource === 'built-in-generated') return 'needs-review';
+  return 'other';
+}
+
+export function groupOrthographiesForSelect(orthographies: readonly OrthographyDocType[]): Array<{
+  key: OrthographyCatalogGroupKey;
+  orthographies: OrthographyDocType[];
+}> {
+  const orderedKeys: OrthographyCatalogGroupKey[] = [
+    'user',
+    'reviewed-primary',
+    'reviewed-secondary',
+    'historical',
+    'needs-review',
+    'experimental',
+    'legacy',
+    'other',
+  ];
+  const buckets = new Map<OrthographyCatalogGroupKey, OrthographyDocType[]>();
+
+  orthographies.forEach((orthography) => {
+    const groupKey = resolveOrthographyCatalogGroupKey(orthography);
+    const group = buckets.get(groupKey);
+    if (group) {
+      group.push(orthography);
+      return;
+    }
+    buckets.set(groupKey, [orthography]);
+  });
+
+  return orderedKeys
+    .map((key) => ({ key, orthographies: buckets.get(key) ?? [] }))
+    .filter((group) => group.orthographies.length > 0);
 }
 
 function mergeOrthographies(
@@ -201,12 +266,12 @@ export function useOrthographyPicker(
   const [draftFallbackFonts, setDraftFallbackFonts] = useState('');
   const [draftBidiIsolate, setDraftBidiIsolate] = useState(false);
   const [draftPreferDirAttribute, setDraftPreferDirAttribute] = useState(true);
-  const [transformEnabled, setTransformEnabled] = useState(false);
-  const [draftTransformEngine, setDraftTransformEngine] = useState<'table-map' | 'icu-rule' | 'manual'>('table-map');
-  const [draftTransformRuleText, setDraftTransformRuleText] = useState('');
-  const [draftTransformSampleInput, setDraftTransformSampleInput] = useState('');
-  const [draftTransformSampleCasesText, setDraftTransformSampleCasesText] = useState('');
-  const [draftTransformIsReversible, setDraftTransformIsReversible] = useState(false);
+  const [bridgeEnabled, setBridgeEnabled] = useState(false);
+  const [draftBridgeEngine, setDraftBridgeEngine] = useState<'table-map' | 'icu-rule' | 'manual'>('table-map');
+  const [draftBridgeRuleText, setDraftBridgeRuleText] = useState('');
+  const [draftBridgeSampleInput, setDraftBridgeSampleInput] = useState('');
+  const [draftBridgeSampleCasesText, setDraftBridgeSampleCasesText] = useState('');
+  const [draftBridgeIsReversible, setDraftBridgeIsReversible] = useState(false);
   const [renderWarningsAcknowledged, setRenderWarningsAcknowledged] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -220,7 +285,9 @@ export function useOrthographyPicker(
   const resolvedSourceLanguageId = useMemo(() => {
     if (createMode === 'copy-current') return languageId;
     if (createMode !== 'derive-other') return '';
-    return sourceLanguageId === '__custom__' ? sourceCustomLanguageId.trim() : sourceLanguageId;
+    return sourceLanguageId === '__custom__'
+      ? normalizeCustomLanguageId(sourceCustomLanguageId)
+      : sourceLanguageId;
   }, [createMode, languageId, sourceCustomLanguageId, sourceLanguageId]);
   const fetchedSourceOrthographies = useOrthographies(resolvedSourceLanguageId ? [resolvedSourceLanguageId] : []);
   const sourceOrthographies = useMemo(() => {
@@ -232,34 +299,34 @@ export function useOrthographyPicker(
     () => sourceOrthographies.find((orthography) => orthography.id === sourceOrthographyId),
     [sourceOrthographies, sourceOrthographyId],
   );
-  const canConfigureTransform = createMode !== 'ipa' && Boolean(selectedSourceOrthography ?? sourceOrthographies[0]);
-  const transformDraftRules = useMemo(() => buildTransformRulesFromRuleText(draftTransformRuleText, { caseSensitive: true }), [draftTransformRuleText]);
-  const transformDraftSampleCases = useMemo(() => parseTransformSampleCases(draftTransformSampleCasesText), [draftTransformSampleCasesText]);
-  const transformValidationIssues = useMemo(() => {
-    if (!transformEnabled || !canConfigureTransform) return [];
-    return validateOrthographyTransform({
-      engine: draftTransformEngine,
-      rules: transformDraftRules,
+  const canConfigureBridge = createMode !== 'ipa' && Boolean(selectedSourceOrthography ?? sourceOrthographies[0]);
+  const bridgeDraftRules = useMemo(() => buildBridgeRulesFromRuleText(draftBridgeRuleText, { caseSensitive: true }), [draftBridgeRuleText]);
+  const bridgeDraftSampleCases = useMemo(() => parseBridgeSampleCases(draftBridgeSampleCasesText), [draftBridgeSampleCasesText]);
+  const bridgeValidationIssues = useMemo(() => {
+    if (!bridgeEnabled || !canConfigureBridge) return [];
+    return validateOrthographyBridge({
+      engine: draftBridgeEngine,
+      rules: bridgeDraftRules,
     }).issues;
-  }, [canConfigureTransform, draftTransformEngine, transformDraftRules, transformEnabled]);
-  const transformSampleCaseResults = useMemo(() => {
-    if (!transformEnabled || !canConfigureTransform || transformDraftSampleCases.length === 0) return [];
-    return evaluateOrthographyTransformSampleCases({
-      engine: draftTransformEngine,
-      rules: transformDraftRules,
-      sampleCases: transformDraftSampleCases,
+  }, [canConfigureBridge, draftBridgeEngine, bridgeDraftRules, bridgeEnabled]);
+  const bridgeSampleCaseResults = useMemo(() => {
+    if (!bridgeEnabled || !canConfigureBridge || bridgeDraftSampleCases.length === 0) return [];
+    return evaluateOrthographyBridgeSampleCases({
+      engine: draftBridgeEngine,
+      rules: bridgeDraftRules,
+      sampleCases: bridgeDraftSampleCases,
     });
-  }, [canConfigureTransform, draftTransformEngine, transformDraftRules, transformDraftSampleCases, transformEnabled]);
-  const transformPreviewOutput = useMemo(() => {
-    if (!transformEnabled) return '';
-    const sampleInput = draftTransformSampleInput.trim();
+  }, [canConfigureBridge, draftBridgeEngine, bridgeDraftRules, bridgeDraftSampleCases, bridgeEnabled]);
+  const bridgePreviewOutput = useMemo(() => {
+    if (!bridgeEnabled) return '';
+    const sampleInput = draftBridgeSampleInput.trim();
     if (!sampleInput) return '';
-    return previewOrthographyTransform({
-      engine: draftTransformEngine,
-      rules: transformDraftRules,
+    return previewOrthographyBridge({
+      engine: draftBridgeEngine,
+      rules: bridgeDraftRules,
       text: sampleInput,
     });
-  }, [draftTransformEngine, draftTransformSampleInput, transformDraftRules, transformEnabled]);
+  }, [draftBridgeEngine, draftBridgeSampleInput, bridgeDraftRules, bridgeEnabled]);
   const draftRenderPolicy = useMemo<OrthographyRenderPolicy | undefined>(() => {
     if (!languageId) return undefined;
     const trimmedScriptTag = draftScriptTag.trim();
@@ -307,6 +374,135 @@ export function useOrthographyPicker(
     ...(draftRenderPolicy !== undefined ? { draftRenderPolicy } : {}),
   }), [draftBidiIsolate, draftFallbackFonts, draftPrimaryFonts, draftRenderPolicy]);
   const requiresRenderWarningConfirmation = draftRenderWarnings.length > 0 && !renderWarningsAcknowledged;
+  const seedFieldsDirtyRef = useRef(false);
+
+  const markSeedFieldsDirty = () => {
+    seedFieldsDirtyRef.current = true;
+  };
+
+  const resetSeedFieldsDirty = () => {
+    seedFieldsDirtyRef.current = false;
+  };
+
+  const setCreateModeWithReset = (nextMode: OrthographyCreateMode) => {
+    resetSeedFieldsDirty();
+    setCreateMode(nextMode);
+  };
+
+  const setSourceLanguageIdWithReset = (nextLanguageId: string) => {
+    resetSeedFieldsDirty();
+    setSourceLanguageId(nextLanguageId);
+  };
+
+  const setSourceCustomLanguageIdWithReset = (nextLanguageId: string) => {
+    resetSeedFieldsDirty();
+    setSourceCustomLanguageId(normalizeCustomLanguageId(nextLanguageId));
+  };
+
+  const setSourceOrthographyIdWithReset = (nextOrthographyId: string) => {
+    resetSeedFieldsDirty();
+    setSourceOrthographyId(nextOrthographyId);
+  };
+
+  const setDraftNameZhWithDirty = (nextValue: string) => {
+    markSeedFieldsDirty();
+    setDraftNameZh(nextValue);
+  };
+
+  const setDraftNameEnWithDirty = (nextValue: string) => {
+    markSeedFieldsDirty();
+    setDraftNameEn(nextValue);
+  };
+
+  const setDraftAbbreviationWithDirty = (nextValue: string) => {
+    markSeedFieldsDirty();
+    setDraftAbbreviation(nextValue);
+  };
+
+  const setDraftScriptTagWithDirty = (nextValue: string) => {
+    markSeedFieldsDirty();
+    setDraftScriptTag(nextValue);
+  };
+
+  const setDraftTypeWithDirty = (nextValue: NonNullable<OrthographyDocType['type']>) => {
+    markSeedFieldsDirty();
+    setDraftType(nextValue);
+  };
+
+  const setDraftLocaleTagWithDirty = (nextValue: string) => {
+    markSeedFieldsDirty();
+    setDraftLocaleTag(nextValue);
+  };
+
+  const setDraftRegionTagWithDirty = (nextValue: string) => {
+    markSeedFieldsDirty();
+    setDraftRegionTag(nextValue);
+  };
+
+  const setDraftVariantTagWithDirty = (nextValue: string) => {
+    markSeedFieldsDirty();
+    setDraftVariantTag(nextValue);
+  };
+
+  const setDraftDirectionWithDirty = (nextValue: NonNullable<OrthographyDocType['direction']>) => {
+    markSeedFieldsDirty();
+    setDraftDirection(nextValue);
+  };
+
+  const setDraftExemplarMainWithDirty = (nextValue: string) => {
+    markSeedFieldsDirty();
+    setDraftExemplarMain(nextValue);
+  };
+
+  const setDraftPrimaryFontsWithDirty = (nextValue: string) => {
+    markSeedFieldsDirty();
+    setDraftPrimaryFonts(nextValue);
+  };
+
+  const setDraftFallbackFontsWithDirty = (nextValue: string) => {
+    markSeedFieldsDirty();
+    setDraftFallbackFonts(nextValue);
+  };
+
+  const setDraftBidiIsolateWithDirty = (nextValue: boolean) => {
+    markSeedFieldsDirty();
+    setDraftBidiIsolate(nextValue);
+  };
+
+  const setDraftPreferDirAttributeWithDirty = (nextValue: boolean) => {
+    markSeedFieldsDirty();
+    setDraftPreferDirAttribute(nextValue);
+  };
+
+  const setBridgeEnabledWithDirty = (nextValue: boolean) => {
+    markSeedFieldsDirty();
+    setBridgeEnabled(nextValue);
+  };
+
+  const setDraftBridgeEngineWithDirty = (nextValue: 'table-map' | 'icu-rule' | 'manual') => {
+    markSeedFieldsDirty();
+    setDraftBridgeEngine(nextValue);
+  };
+
+  const setDraftBridgeRuleTextWithDirty = (nextValue: string) => {
+    markSeedFieldsDirty();
+    setDraftBridgeRuleText(nextValue);
+  };
+
+  const setDraftBridgeSampleInputWithDirty = (nextValue: string) => {
+    markSeedFieldsDirty();
+    setDraftBridgeSampleInput(nextValue);
+  };
+
+  const setDraftBridgeSampleCasesTextWithDirty = (nextValue: string) => {
+    markSeedFieldsDirty();
+    setDraftBridgeSampleCasesText(nextValue);
+  };
+
+  const setDraftBridgeIsReversibleWithDirty = (nextValue: boolean) => {
+    markSeedFieldsDirty();
+    setDraftBridgeIsReversible(nextValue);
+  };
 
   useEffect(() => {
     setRenderWarningsAcknowledged(false);
@@ -314,6 +510,7 @@ export function useOrthographyPicker(
 
   useEffect(() => {
     setLocalCreatedOrthographies([]);
+    seedFieldsDirtyRef.current = false;
     setIsCreating(false);
     setCreateMode('ipa');
     setSourceLanguageId('');
@@ -334,12 +531,12 @@ export function useOrthographyPicker(
     setDraftFallbackFonts('');
     setDraftBidiIsolate(false);
     setDraftPreferDirAttribute(true);
-    setTransformEnabled(false);
-    setDraftTransformEngine('table-map');
-    setDraftTransformRuleText('');
-    setDraftTransformSampleInput('');
-    setDraftTransformSampleCasesText('');
-    setDraftTransformIsReversible(false);
+    setBridgeEnabled(false);
+    setDraftBridgeEngine('table-map');
+    setDraftBridgeRuleText('');
+    setDraftBridgeSampleInput('');
+    setDraftBridgeSampleCasesText('');
+    setDraftBridgeIsReversible(false);
     setRenderWarningsAcknowledged(false);
     setError('');
     setSubmitting(false);
@@ -361,6 +558,9 @@ export function useOrthographyPicker(
   }, [isCreating, languageId, onChange, orthographies, value]);
 
   useEffect(() => {
+    if (seedFieldsDirtyRef.current) {
+      return;
+    }
     if (createMode === 'ipa') {
       const seed = buildIpaSeed(languageId);
       setDraftNameZh(seed.nameZh);
@@ -377,12 +577,12 @@ export function useOrthographyPicker(
       setDraftFallbackFonts('');
       setDraftBidiIsolate(false);
       setDraftPreferDirAttribute(true);
-      setTransformEnabled(false);
-      setDraftTransformEngine('table-map');
-      setDraftTransformRuleText('');
-      setDraftTransformSampleInput('');
-      setDraftTransformSampleCasesText('');
-      setDraftTransformIsReversible(false);
+      setBridgeEnabled(false);
+      setDraftBridgeEngine('table-map');
+      setDraftBridgeRuleText('');
+      setDraftBridgeSampleInput('');
+      setDraftBridgeSampleCasesText('');
+      setDraftBridgeIsReversible(false);
       return;
     }
 
@@ -401,12 +601,12 @@ export function useOrthographyPicker(
       setDraftFallbackFonts('');
       setDraftBidiIsolate(false);
       setDraftPreferDirAttribute(true);
-      setTransformEnabled(false);
-      setDraftTransformEngine('table-map');
-      setDraftTransformRuleText('');
-      setDraftTransformSampleInput('');
-      setDraftTransformSampleCasesText('');
-      setDraftTransformIsReversible(false);
+      setBridgeEnabled(false);
+      setDraftBridgeEngine('table-map');
+      setDraftBridgeRuleText('');
+      setDraftBridgeSampleInput('');
+      setDraftBridgeSampleCasesText('');
+      setDraftBridgeIsReversible(false);
       return;
     }
 
@@ -426,12 +626,12 @@ export function useOrthographyPicker(
     setDraftFallbackFonts(seed.fallbackFonts);
     setDraftBidiIsolate(seed.bidiIsolate);
     setDraftPreferDirAttribute(seed.preferDirAttribute);
-    setTransformEnabled(Boolean(seed.transformRuleText));
-    setDraftTransformEngine(seed.transformEngine);
-    setDraftTransformRuleText(seed.transformRuleText);
-    setDraftTransformSampleInput('');
-    setDraftTransformSampleCasesText('');
-    setDraftTransformIsReversible(false);
+    setBridgeEnabled(Boolean(seed.bridgeRuleText));
+    setDraftBridgeEngine(seed.bridgeEngine);
+    setDraftBridgeRuleText(seed.bridgeRuleText);
+    setDraftBridgeSampleInput('');
+    setDraftBridgeSampleCasesText('');
+    setDraftBridgeIsReversible(false);
   }, [createMode, languageId, selectedSourceOrthography, sourceOrthographies]);
 
   useEffect(() => {
@@ -479,6 +679,7 @@ export function useOrthographyPicker(
 
   const createOrthography = useCallback(async () => {
     if (!languageId) return undefined;
+    let createdOrthography: OrthographyDocType | undefined;
     const resolvedSourceOrthographyId = sourceOrthographyId || sourceOrthographies[0]?.id || '';
     if ((createMode === 'copy-current' || createMode === 'derive-other') && !resolvedSourceOrthographyId) {
       setError('\u8bf7\u5148\u9009\u62e9\u6765\u6e90\u6b63\u5b57\u6cd5');
@@ -511,25 +712,25 @@ export function useOrthographyPicker(
       const exemplarMain = parseDraftList(draftExemplarMain);
       const primaryFonts = parseDraftList(draftPrimaryFonts);
       const fallbackFonts = parseDraftList(draftFallbackFonts);
-      const transformRules = canConfigureTransform && transformEnabled
-        ? transformDraftRules
+      const bridgeRules = canConfigureBridge && bridgeEnabled
+        ? bridgeDraftRules
         : undefined;
-      const sampleCases = canConfigureTransform && transformEnabled
-        ? transformDraftSampleCases
+      const sampleCases = canConfigureBridge && bridgeEnabled
+        ? bridgeDraftSampleCases
         : [];
-      const transformSampleCaseFailures = transformSampleCaseResults.filter((sampleCase) => sampleCase.matchesExpectation === false);
-      if (transformEnabled && canConfigureTransform && transformValidationIssues.length > 0) {
-        setError(transformValidationIssues[0] ?? '\u53d8\u6362\u89c4\u5219\u6821\u9a8c\u5931\u8d25');
+      const bridgeSampleCaseFailures = bridgeSampleCaseResults.filter((sampleCase) => sampleCase.matchesExpectation === false);
+      if (bridgeEnabled && canConfigureBridge && bridgeValidationIssues.length > 0) {
+        setError(bridgeValidationIssues[0] ?? '\u53d8\u6362\u89c4\u5219\u6821\u9a8c\u5931\u8d25');
         return undefined;
       }
-      if (transformEnabled && canConfigureTransform && transformSampleCaseFailures.length > 0) {
-        setError(`\u6837\u4f8b\u7528\u4f8b\u6821\u9a8c\u5931\u8d25\uff0c\u5171 ${transformSampleCaseFailures.length} \u6761\u672a\u901a\u8fc7\u3002`);
+      if (bridgeEnabled && canConfigureBridge && bridgeSampleCaseFailures.length > 0) {
+        setError(`\u6837\u4f8b\u7528\u4f8b\u6821\u9a8c\u5931\u8d25\uff0c\u5171 ${bridgeSampleCaseFailures.length} \u6761\u672a\u901a\u8fc7\u3002`);
         return undefined;
       }
-      const conversionRules = transformRules
+      const conversionRules = bridgeRules
         ? {
-          engine: draftTransformEngine,
-          rules: transformRules,
+          engine: draftBridgeEngine,
+          rules: bridgeRules,
         }
         : undefined;
       const orthographyDraft = {
@@ -557,6 +758,35 @@ export function useOrthographyPicker(
         },
         ...(conversionRules ? { conversionRules } : {}),
       };
+      const conflictingOrthography = orthographies.find((orthography) => {
+        try {
+          return hasSameOrthographyIdentity(
+            {
+              languageId,
+              ...(orthographyDraft.type ? { type: orthographyDraft.type } : {}),
+              ...(orthographyDraft.scriptTag ? { scriptTag: orthographyDraft.scriptTag } : {}),
+              ...(orthographyDraft.localeTag ? { localeTag: orthographyDraft.localeTag } : {}),
+              ...(orthographyDraft.regionTag ? { regionTag: orthographyDraft.regionTag } : {}),
+              ...(orthographyDraft.variantTag ? { variantTag: orthographyDraft.variantTag } : {}),
+            },
+            {
+              ...(orthography.languageId ? { languageId: orthography.languageId } : {}),
+              ...(orthography.type ? { type: orthography.type } : {}),
+              ...(orthography.scriptTag ? { scriptTag: orthography.scriptTag } : {}),
+              ...(orthography.localeTag ? { localeTag: orthography.localeTag } : {}),
+              ...(orthography.regionTag ? { regionTag: orthography.regionTag } : {}),
+              ...(orthography.variantTag ? { variantTag: orthography.variantTag } : {}),
+            },
+          );
+        } catch {
+          return false;
+        }
+      });
+      if (conflictingOrthography) {
+        setError(`已存在相同身份的正字法：${formatOrthographyOptionLabel(conflictingOrthography)}`);
+        return undefined;
+      }
+
       const created = createMode === 'ipa'
         ? await LinguisticService.createOrthography(orthographyDraft)
         : await LinguisticService.cloneOrthographyToLanguage({
@@ -564,32 +794,41 @@ export function useOrthographyPicker(
           targetLanguageId: languageId,
           ...orthographyDraft,
         });
+      createdOrthography = created;
 
-      if (transformRules && canConfigureTransform) {
-        const sampleInput = draftTransformSampleInput.trim();
-        await LinguisticService.createOrthographyTransform({
-          sourceOrthographyId: resolvedSourceOrthographyId,
-          targetOrthographyId: created.id,
-          engine: draftTransformEngine,
-          rules: transformRules,
-          status: 'active',
-          isReversible: draftTransformIsReversible,
-          name: {
-            zho: `${formatOrthographyOptionLabel(selectedSourceOrthography ?? {})} -> ${name.zho ?? name.eng ?? created.id}`,
-            eng: `${formatOrthographyOptionLabel(selectedSourceOrthography ?? {})} -> ${name.eng ?? name.zho ?? created.id}`,
-          },
-          ...(sampleCases.length ? { sampleCases } : {}),
-          ...(sampleInput
-            ? {
-              sampleInput,
-              sampleOutput: previewOrthographyTransform({
-                engine: draftTransformEngine,
-                rules: transformRules,
-                text: sampleInput,
-              }),
-            }
-            : {}),
-        });
+      if (bridgeRules && canConfigureBridge) {
+        try {
+          const sampleInput = draftBridgeSampleInput.trim();
+          await LinguisticService.createOrthographyBridge({
+            sourceOrthographyId: resolvedSourceOrthographyId,
+            targetOrthographyId: created.id,
+            engine: draftBridgeEngine,
+            rules: bridgeRules,
+            status: 'active',
+            isReversible: draftBridgeIsReversible,
+            name: {
+              zho: `${formatOrthographyOptionLabel(selectedSourceOrthography ?? {})} -> ${name.zho ?? name.eng ?? created.id}`,
+              eng: `${formatOrthographyOptionLabel(selectedSourceOrthography ?? {})} -> ${name.eng ?? name.zho ?? created.id}`,
+            },
+            ...(sampleCases.length ? { sampleCases } : {}),
+            ...(sampleInput
+              ? {
+                sampleInput,
+                sampleOutput: previewOrthographyBridge({
+                  engine: draftBridgeEngine,
+                  rules: bridgeRules,
+                  text: sampleInput,
+                }),
+              }
+              : {}),
+          });
+        } catch (bridgeError) {
+          setLocalCreatedOrthographies((prev) => mergeOrthographies(prev, [created]));
+          onChange(created.id);
+          setIsCreating(false);
+          setError(`Orthography created, but bridge creation failed: ${bridgeError instanceof Error ? bridgeError.message : String(bridgeError)}`);
+          return created;
+        }
       }
 
       setLocalCreatedOrthographies((prev) => mergeOrthographies(prev, [created]));
@@ -597,76 +836,84 @@ export function useOrthographyPicker(
       setIsCreating(false);
       return created;
     } catch (creationError) {
+      if (createdOrthography) {
+        const created = createdOrthography;
+        setLocalCreatedOrthographies((prev) => mergeOrthographies(prev, [created]));
+        onChange(created.id);
+        setIsCreating(false);
+        setError(`Orthography created, but follow-up configuration failed: ${creationError instanceof Error ? creationError.message : String(creationError)}`);
+        return created;
+      }
       setError(creationError instanceof Error ? creationError.message : '\u6b63\u5b57\u6cd5\u521b\u5efa\u5931\u8d25');
       return undefined;
     } finally {
       setSubmitting(false);
     }
-  }, [canConfigureTransform, createMode, draftAbbreviation, draftBidiIsolate, draftDirection, draftExemplarMain, draftFallbackFonts, draftLocaleTag, draftNameEn, draftNameZh, draftPreferDirAttribute, draftPrimaryFonts, draftRegionTag, draftRenderWarnings, draftScriptTag, draftTransformEngine, draftTransformIsReversible, draftTransformSampleCasesText, draftTransformSampleInput, draftType, draftVariantTag, languageId, onChange, renderWarningsAcknowledged, selectedSourceOrthography, sourceOrthographies, sourceOrthographyId, transformDraftRules, transformDraftSampleCases, transformEnabled, transformSampleCaseResults, transformValidationIssues]);
+  }, [canConfigureBridge, createMode, draftAbbreviation, draftBidiIsolate, draftDirection, draftExemplarMain, draftFallbackFonts, draftLocaleTag, draftNameEn, draftNameZh, draftPreferDirAttribute, draftPrimaryFonts, draftRegionTag, draftRenderWarnings, draftScriptTag, draftBridgeEngine, draftBridgeIsReversible, draftBridgeSampleCasesText, draftBridgeSampleInput, draftType, draftVariantTag, languageId, onChange, orthographies, renderWarningsAcknowledged, selectedSourceOrthography, sourceOrthographies, sourceOrthographyId, bridgeDraftRules, bridgeDraftSampleCases, bridgeEnabled, bridgeSampleCaseResults, bridgeValidationIssues]);
 
   return {
     orthographies,
     isCreating,
     createMode,
-    setCreateMode,
+    setCreateMode: setCreateModeWithReset,
     sourceLanguageId,
-    setSourceLanguageId,
+    setSourceLanguageId: setSourceLanguageIdWithReset,
     sourceCustomLanguageId,
-    setSourceCustomLanguageId,
+    setSourceCustomLanguageId: setSourceCustomLanguageIdWithReset,
     sourceOrthographies,
     sourceOrthographyId,
-    setSourceOrthographyId,
+    setSourceOrthographyId: setSourceOrthographyIdWithReset,
     draftNameZh,
-    setDraftNameZh,
+    setDraftNameZh: setDraftNameZhWithDirty,
     draftNameEn,
-    setDraftNameEn,
+    setDraftNameEn: setDraftNameEnWithDirty,
     draftAbbreviation,
-    setDraftAbbreviation,
+    setDraftAbbreviation: setDraftAbbreviationWithDirty,
     draftScriptTag,
-    setDraftScriptTag,
+    setDraftScriptTag: setDraftScriptTagWithDirty,
     draftType,
-    setDraftType,
+    setDraftType: setDraftTypeWithDirty,
     showAdvancedFields,
     setShowAdvancedFields,
     draftLocaleTag,
-    setDraftLocaleTag,
+    setDraftLocaleTag: setDraftLocaleTagWithDirty,
     draftRegionTag,
-    setDraftRegionTag,
+    setDraftRegionTag: setDraftRegionTagWithDirty,
     draftVariantTag,
-    setDraftVariantTag,
+    setDraftVariantTag: setDraftVariantTagWithDirty,
     draftDirection,
-    setDraftDirection,
+    setDraftDirection: setDraftDirectionWithDirty,
     draftExemplarMain,
-    setDraftExemplarMain,
+    setDraftExemplarMain: setDraftExemplarMainWithDirty,
     draftPrimaryFonts,
-    setDraftPrimaryFonts,
+    setDraftPrimaryFonts: setDraftPrimaryFontsWithDirty,
     draftFallbackFonts,
-    setDraftFallbackFonts,
+    setDraftFallbackFonts: setDraftFallbackFontsWithDirty,
     draftBidiIsolate,
-    setDraftBidiIsolate,
+    setDraftBidiIsolate: setDraftBidiIsolateWithDirty,
     draftPreferDirAttribute,
-    setDraftPreferDirAttribute,
-    canConfigureTransform,
-    transformEnabled,
-    setTransformEnabled,
-    draftTransformEngine,
-    setDraftTransformEngine,
-    draftTransformRuleText,
-    setDraftTransformRuleText,
-    draftTransformSampleInput,
-    setDraftTransformSampleInput,
-    draftTransformSampleCasesText,
-    setDraftTransformSampleCasesText,
-    draftTransformIsReversible,
-    setDraftTransformIsReversible,
+    setDraftPreferDirAttribute: setDraftPreferDirAttributeWithDirty,
+    canConfigureBridge,
+    bridgeEnabled,
+    setBridgeEnabled: setBridgeEnabledWithDirty,
+    draftBridgeEngine,
+    setDraftBridgeEngine: setDraftBridgeEngineWithDirty,
+    draftBridgeRuleText,
+    setDraftBridgeRuleText: setDraftBridgeRuleTextWithDirty,
+    draftBridgeSampleInput,
+    setDraftBridgeSampleInput: setDraftBridgeSampleInputWithDirty,
+    draftBridgeSampleCasesText,
+    setDraftBridgeSampleCasesText: setDraftBridgeSampleCasesTextWithDirty,
+    draftBridgeIsReversible,
+    setDraftBridgeIsReversible: setDraftBridgeIsReversibleWithDirty,
     draftRenderPolicy,
     draftRenderPreviewText,
     draftRenderWarnings,
     renderWarningsAcknowledged,
     requiresRenderWarningConfirmation,
-    transformPreviewOutput,
-    transformValidationIssues,
-    transformSampleCaseResults,
+    bridgePreviewOutput,
+    bridgeValidationIssues,
+    bridgeSampleCaseResults,
     error,
     submitting,
     handleSelectionChange,

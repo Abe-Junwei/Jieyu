@@ -324,6 +324,7 @@ describe('EAF export behavior for constraint layers', () => {
       key: withEafKeyMeta('trc_default', 'TRC_MAIN'),
       languageId: 'ara',
       orthographyId: 'ortho-ar',
+      transformId: 'xf-ar-latn',
     });
     const trl = makeLayer({
       id: 'trl_child',
@@ -356,6 +357,7 @@ describe('EAF export behavior for constraint layers', () => {
     expect(headerProperties['jieyu:layer-meta:TRC_MAIN']).toContain('"scriptTag":"Arab"');
     expect(headerProperties['jieyu:layer-meta:TRC_MAIN']).toContain('"regionTag":"EG"');
     expect(headerProperties['jieyu:layer-meta:TRC_MAIN']).toContain('"variantTag":"fonipa"');
+    expect(headerProperties['jieyu:layer-meta:TRC_MAIN']).toContain('"transformId":"xf-ar-latn"');
     expect(headerProperties['jieyu:layer-meta:TRL_CHILD']).toContain('"orthographyId":"ortho-eng"');
 
     const imported = importFromEaf(xml);
@@ -363,6 +365,7 @@ describe('EAF export behavior for constraint layers', () => {
     expect(imported.tierMetadata.get('TRC_MAIN')?.scriptTag).toBe('Arab');
     expect(imported.tierMetadata.get('TRC_MAIN')?.regionTag).toBe('EG');
     expect(imported.tierMetadata.get('TRC_MAIN')?.variantTag).toBe('fonipa');
+    expect(imported.tierMetadata.get('TRC_MAIN')?.transformId).toBe('xf-ar-latn');
     expect(imported.tierMetadata.get('TRL_CHILD')?.orthographyId).toBe('ortho-eng');
     expect(imported.tierMetadata.get('TRL_CHILD')?.languageId).toBe('eng');
   });

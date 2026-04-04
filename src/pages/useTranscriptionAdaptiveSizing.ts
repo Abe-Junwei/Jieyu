@@ -58,7 +58,7 @@ function computeAdaptiveWidths(
   return {
     adaptiveDialogWidth: computeWidth({ baseWidth: 480, density: 'standard', minWidth: 360, maxWidth: 760 }, locale, direction, uiFontScale, viewportWidth),
     adaptiveDialogCompactWidth: computeWidth({ baseWidth: 320, density: 'compact', minWidth: 260, maxWidth: 460 }, locale, direction, uiFontScale, viewportWidth),
-    adaptiveDialogWideWidth: computeWidth({ baseWidth: 760, density: 'wide', minWidth: 560, maxWidth: 980 }, locale, direction, uiFontScale, viewportWidth),
+    adaptiveDialogWideWidth: computeWidth({ baseWidth: 760, density: 'standard', minWidth: 560, maxWidth: 900 }, locale, direction, uiFontScale, viewportWidth),
   };
 }
 

@@ -214,10 +214,17 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
   const [learningLogEntries, setLearningLogEntries] = useState<VoiceAliasLearningLogEntry[]>([]);
   /** Current ARIA live announcement text. */
   const [ariaAnnouncement, setAriaAnnouncement] = useState('');
+  const providerTestVersionRef = useRef(0);
+  const providerTestMountedRef = useRef(true);
 
   // Load voice alias learning log on mount
   useEffect(() => {
     setLearningLogEntries(loadVoiceAliasLearningLog());
+  }, []);
+
+  useEffect(() => () => {
+    providerTestMountedRef.current = false;
+    providerTestVersionRef.current += 1;
   }, []);
 
   // Compute ARIA announcement when intent or error changes
@@ -245,23 +252,38 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
     setLocalAccessToken(commercialProviderConfig.accessToken ?? '');
     setProviderAvailability('idle');
     setProviderError(null);
+    providerTestVersionRef.current += 1;
     lastTestRef.current = null; // invalidate cached test result
-  }, [commercialProviderConfig]);
+  }, [commercialProviderConfig, commercialProviderKind]);
 
   const handleTestProvider = useCallback(async () => {
+    const unavailableLabel = t(locale, 'transcription.voiceWidget.provider.unavailable');
     // Return cached result if still fresh
     if (lastTestRef.current && Date.now() - lastTestRef.current.ts < CACHE_TTL_MS) {
       const cached = lastTestRef.current.result;
       setProviderAvailability(cached.available ? 'available' : 'unavailable');
-      setProviderError(cached.available ? null : (cached.error ?? t(locale, 'transcription.voiceWidget.provider.unavailable')));
+      setProviderError(cached.available ? null : (cached.error ?? unavailableLabel));
       return;
     }
+    const requestVersion = ++providerTestVersionRef.current;
     setProviderAvailability('testing');
     setProviderError(null);
-    const result = await onTestCommercialProvider();
-    lastTestRef.current = { result, ts: Date.now() };
-    setProviderAvailability(result.available ? 'available' : 'unavailable');
-    setProviderError(result.available ? null : (result.error ?? t(locale, 'transcription.voiceWidget.provider.unavailable')));
+    try {
+      const result = await onTestCommercialProvider();
+      if (!providerTestMountedRef.current || requestVersion !== providerTestVersionRef.current) {
+        return;
+      }
+      lastTestRef.current = { result, ts: Date.now() };
+      setProviderAvailability(result.available ? 'available' : 'unavailable');
+      setProviderError(result.available ? null : (result.error ?? unavailableLabel));
+    } catch (error) {
+      if (!providerTestMountedRef.current || requestVersion !== providerTestVersionRef.current) {
+        return;
+      }
+      const message = error instanceof Error ? error.message : unavailableLabel;
+      setProviderAvailability('unavailable');
+      setProviderError(message || unavailableLabel);
+    }
   }, [locale, onTestCommercialProvider]);
 
   // Build updated config and notify parent when any field changes
@@ -474,15 +496,15 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                 bodyClassName="voice-agent-confirm-body"
                 footerClassName="voice-agent-confirm-actions"
                 title={t(locale, 'transcription.voiceWidget.disambiguation.aria')}
-                actions={<span className="voice-agent-confirm-fuzzy">{t(locale, 'transcription.voiceWidget.disambiguation.badge')}</span>}
+                actions={<span className="panel-chip panel-chip--warning voice-agent-confirm-fuzzy">{t(locale, 'transcription.voiceWidget.disambiguation.badge')}</span>}
                 footer={(
                   <button
                     type="button"
-                    className="voice-agent-confirm-btn voice-agent-confirm-no"
+                    className="panel-button panel-button--ghost voice-agent-confirm-btn voice-agent-confirm-no"
                     onClick={onDismissDisambiguation}
                     aria-label={t(locale, 'transcription.voiceWidget.disambiguation.cancelAria')}
                   >
-                    <X size={17} />
+                    {t(locale, 'ai.assistantHub.cancel')}
                   </button>
                 )}
               >
@@ -492,7 +514,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                     <button
                       key={option.actionId}
                       type="button"
-                      className="voice-agent-disambiguation-option"
+                      className="panel-button voice-agent-disambiguation-option"
                       onClick={() => onSelectDisambiguation(option.actionId)}
                     >
                       <span>{getActionLabel(option.actionId, locale)}</span>
@@ -513,24 +535,24 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                 bodyClassName="voice-agent-confirm-body"
                 footerClassName="voice-agent-confirm-actions"
                 title={t(locale, 'transcription.voiceWidget.confirm.aria')}
-                actions={pendingConfirm.fromFuzzy ? <span className="voice-agent-confirm-fuzzy">{t(locale, 'ai.assistantHub.fuzzyMatch')}</span> : undefined}
+                actions={pendingConfirm.fromFuzzy ? <span className="panel-chip panel-chip--warning voice-agent-confirm-fuzzy">{t(locale, 'ai.assistantHub.fuzzyMatch')}</span> : undefined}
                 footer={(
                   <>
                     <button
                       type="button"
-                      className="voice-agent-confirm-btn voice-agent-confirm-yes"
+                      className="panel-button panel-button--primary voice-agent-confirm-btn voice-agent-confirm-yes"
                       onClick={onConfirm}
                       aria-label={t(locale, 'ai.assistantHub.confirm')}
                     >
-                      <Check size={17} />
+                      {t(locale, 'ai.assistantHub.confirm')}
                     </button>
                     <button
                       type="button"
-                      className="voice-agent-confirm-btn voice-agent-confirm-no"
+                      className="panel-button panel-button--ghost voice-agent-confirm-btn voice-agent-confirm-no"
                       onClick={onCancel}
                       aria-label={t(locale, 'ai.assistantHub.cancel')}
                     >
-                      <X size={17} />
+                      {t(locale, 'ai.assistantHub.cancel')}
                     </button>
                   </>
                 )}

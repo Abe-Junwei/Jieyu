@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { AudioLines, Languages, Trash2, X } from 'lucide-react';
 import type { LayerConstraint, LayerDocType } from '../db';
 import type { LayerCreateInput } from '../hooks/useTranscriptionData';
@@ -87,6 +87,7 @@ export function LayerManagerPopover({
   const isDialogMode = renderMode === 'dialog';
   const locale = useLocale();
   const messages = getLayerManagerPopoverMessages(locale);
+  const fieldIdPrefix = useId();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [shouldRenderBubble, setShouldRenderBubble] = useState(() => isOpen);
@@ -306,6 +307,16 @@ export function LayerManagerPopover({
   const selectedDeleteLabel = layerPendingDelete
     ? `${getLayerDisplayName(layerPendingDelete)} · ${formatLayerLanguage(layerPendingDelete, messages.missingLanguage)}`
     : '';
+  const transcriptionLanguageLabel = `${messages.createTranscriptionLayer} ${messages.selectLanguage.replace(/\u2026$/, '')}`;
+  const translationLanguageLabel = `${messages.createTranslationLayer} ${messages.selectLanguage.replace(/\u2026$/, '')}`;
+  const transcriptionCustomLanguageLabel = `${messages.createTranscriptionLayer} ${messages.customLanguageCodePlaceholder}`;
+  const translationCustomLanguageLabel = `${messages.createTranslationLayer} ${messages.customLanguageCodePlaceholder}`;
+  const transcriptionAliasLabel = `${messages.createTranscriptionLayer} ${messages.aliasShortPlaceholder}`;
+  const translationAliasLabel = `${messages.createTranslationLayer} ${messages.aliasShortPlaceholder}`;
+  const transcriptionParentLabel = `${messages.createTranscriptionLayer} ${messages.selectParentLayer.replace(/\u2026$/, '')}`;
+  const translationParentLabel = `${messages.createTranslationLayer} ${messages.selectParentLayer.replace(/\u2026$/, '')}`;
+  const translationModalityLabel = messages.translationModalityLabel;
+  const deleteTargetLabel = messages.deleteTargetLabel;
 
   const managerCard = (
     <DialogShell
@@ -374,9 +385,11 @@ export function LayerManagerPopover({
           )}
           <div className="layer-manager__fields">
             <select
+              id={`${fieldIdPrefix}-transcription-language`}
               className="input panel-input"
               value={transcriptionForm.languageId}
               onChange={(event) => setTranscriptionForm((prev) => ({ ...prev, languageId: event.target.value }))}
+              aria-label={transcriptionLanguageLabel}
             >
               <option value="">{messages.selectLanguage}</option>
               {COMMON_LANGUAGES.map((lang) => (
@@ -386,17 +399,21 @@ export function LayerManagerPopover({
             </select>
             {transcriptionForm.languageId === '__custom__' && (
               <input
+                id={`${fieldIdPrefix}-transcription-custom-language`}
                 className="input panel-input"
                 placeholder={messages.customLanguageCodePlaceholder}
                 value={transcriptionCustomLang}
                 onChange={(event) => setTranscriptionCustomLang(event.target.value)}
+                aria-label={transcriptionCustomLanguageLabel}
               />
             )}
             <input
+              id={`${fieldIdPrefix}-transcription-alias`}
               className="input panel-input"
               placeholder={messages.aliasPlaceholder}
               value={transcriptionForm.alias ?? ''}
               onChange={(event) => setTranscriptionForm((prev) => ({ ...prev, alias: event.target.value }))}
+              aria-label={transcriptionAliasLabel}
             />
             {canConfigureTranscriptionConstraint && (
               <fieldset className="panel-fieldset">
@@ -427,9 +444,11 @@ export function LayerManagerPopover({
             )}
             {needsTranscriptionParent && independentParentLayers.length > 1 && (
               <select
+                id={`${fieldIdPrefix}-transcription-parent`}
                 className="input panel-input layer-parent-select"
                 value={transcriptionParentLayerId}
                 onChange={(event) => setTranscriptionParentLayerId(event.target.value)}
+                aria-label={transcriptionParentLabel}
               >
                 <option value="">{messages.selectParentLayer}</option>
                 {independentParentLayers.map((layer) => (
@@ -484,9 +503,11 @@ export function LayerManagerPopover({
           )}
           <div className="layer-manager__fields">
             <select
+              id={`${fieldIdPrefix}-translation-language`}
               className="input panel-input"
               value={translationForm.languageId}
               onChange={(event) => setTranslationForm((prev) => ({ ...prev, languageId: event.target.value }))}
+              aria-label={translationLanguageLabel}
             >
               <option value="">{messages.selectLanguage}</option>
               {COMMON_LANGUAGES.map((lang) => (
@@ -496,22 +517,28 @@ export function LayerManagerPopover({
             </select>
             {translationForm.languageId === '__custom__' && (
               <input
+                id={`${fieldIdPrefix}-translation-custom-language`}
                 className="input panel-input"
                 placeholder={messages.customLanguageCodePlaceholder}
                 value={translationCustomLang}
                 onChange={(event) => setTranslationCustomLang(event.target.value)}
+                aria-label={translationCustomLanguageLabel}
               />
             )}
             <input
+              id={`${fieldIdPrefix}-translation-alias`}
               className="input panel-input"
               placeholder={messages.aliasPlaceholder}
               value={translationForm.alias ?? ''}
               onChange={(event) => setTranslationForm((prev) => ({ ...prev, alias: event.target.value }))}
+              aria-label={translationAliasLabel}
             />
             <select
+              id={`${fieldIdPrefix}-translation-modality`}
               className="input panel-input"
               value={translationModality}
               onChange={(event) => setTranslationModality(event.target.value as 'text' | 'audio' | 'mixed')}
+              aria-label={translationModalityLabel}
             >
               {translationModalityOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -522,9 +549,11 @@ export function LayerManagerPopover({
             <p className="panel-note">{messages.translationBoundarySource}</p>
             {independentParentLayers.length > 1 && (
               <select
+                id={`${fieldIdPrefix}-translation-parent`}
                 className="input panel-input layer-parent-select"
                 value={translationParentLayerId}
                 onChange={(event) => setTranslationParentLayerId(event.target.value)}
+                aria-label={translationParentLabel}
               >
                 <option value="">{messages.selectParentLayer}</option>
                 {independentParentLayers.map((layer) => (
@@ -574,10 +603,12 @@ export function LayerManagerPopover({
         >
           <div className="layer-manager__fields">
             <select
+              id={`${fieldIdPrefix}-delete-layer`}
               className="input panel-input"
               value={layerToDeleteId}
               onChange={(event) => onLayerToDeleteIdChange(event.target.value)}
               disabled={deletableLayers.length === 0}
+              aria-label={deleteTargetLabel}
             >
               {deletableLayers.length > 0 ? (
                 deletableLayers.map((layer) => (

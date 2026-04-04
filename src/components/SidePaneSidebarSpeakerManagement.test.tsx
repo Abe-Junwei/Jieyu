@@ -92,6 +92,10 @@ describe('SidePaneSidebarSpeakerManagement', () => {
     expect(screen.getByRole('button', { name: '清空已选说话人' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '仅新建' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '新建并分配' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '选择目标说话人' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '新说话人名称' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: '取消' }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('button', { name: '关闭' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '全部' })).toBeTruthy();
     expect(group).toBeTruthy();
     expect(screen.getByText('该实体当前未被引用，可安全清理')).toBeTruthy();
@@ -113,7 +117,9 @@ describe('SidePaneSidebarSpeakerManagement', () => {
       expect(handleDeleteUnusedSpeakers).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.click(screen.getAllByRole('button', { name: '改名' })[0]);
+    const renameButtons = screen.getAllByRole('button', { name: '改名' });
+    expect(renameButtons[0]).toBeTruthy();
+    fireEvent.click(renameButtons[0] as HTMLElement);
 
     expect(handleRenameSpeaker).toHaveBeenCalledWith('spk-1');
     await waitFor(() => {

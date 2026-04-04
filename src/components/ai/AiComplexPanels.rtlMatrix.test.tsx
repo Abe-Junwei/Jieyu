@@ -217,7 +217,8 @@ describe('AI complex panels RTL matrix', () => {
 
     expect(root).toBeTruthy();
     expect(root.querySelector('.ai-chat-replay-panel-summary')).toBeTruthy();
-    expect(root.querySelector('.ai-chat-replay-panel-header')).toBeTruthy();
+    expect(root.querySelector('.dialog-header')).toBeTruthy();
+    expect(root.querySelector('.dialog-footer')).toBeTruthy();
     expect(buttons.length).toBeGreaterThanOrEqual(4);
     buttons.forEach((button) => {
       expect(button.className).toContain('panel-button');
@@ -226,6 +227,7 @@ describe('AI complex panels RTL matrix', () => {
     expect(diffBadge.className).toContain('is-changed');
     expect(fileInput).toBeTruthy();
     expect(fileInput.getAttribute('type')).toBe('file');
+    expect(fileInput.getAttribute('aria-label')).toBe('Import & Compare');
     expect(screen.getByText('Decision timeline')).toBeTruthy();
     expect(screen.getByText('Golden Snapshot Preview')).toBeTruthy();
     expect(screen.getByText('Snapshot Diff')).toBeTruthy();

@@ -109,7 +109,7 @@ describe('Adaptive panel RTL interaction matrix', () => {
 
   it.each([
     { direction: 'ltr' as const, compactWidth: 340, speakerWidth: 560 },
-    { direction: 'rtl' as const, compactWidth: 420, speakerWidth: 700 },
+    { direction: 'rtl' as const, compactWidth: 420, speakerWidth: 620 },
   ])('keeps SidePaneActionModal sizing and close interaction stable in $direction mode', ({ direction, compactWidth, speakerWidth }) => {
     resolveTextDirectionFromLocaleMock.mockReturnValue(direction);
     computeAdaptivePanelWidthMock.mockImplementation((input) => {
