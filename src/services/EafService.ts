@@ -8,6 +8,7 @@
 import type { UtteranceDocType, AnchorDocType, LayerDocType, UtteranceTextDocType, MediaItemDocType, UserNoteDocType, LayerConstraint, LayerSegmentDocType, LayerSegmentContentDocType, SpeakerDocType, OrthographyDocType } from '../db';
 import { ingestTextFile } from '../utils/textIngestion';
 import { buildOrthographyInteropMetadata, parseOrthographyInteropMetadata, type OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
+import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -235,7 +236,7 @@ export function exportToEaf(input: EafExportInput): string {
   }
   for (const layer of layers) {
     const layerMeta = parseEafMetaFromLayerKey(layer.key);
-    const tierName = layerMeta.tierId ?? layer.name?.eng ?? layer.name?.zho ?? layer.key;
+    const tierName = layerMeta.tierId ?? readEnglishFallbackMultiLangLabel(layer.name) ?? layer.key;
     tierNameByLayerId.set(layer.id, tierName);
     registerTierIdentityMetadata(tierName, layer);
   }
@@ -273,7 +274,7 @@ export function exportToEaf(input: EafExportInput): string {
       else layerTranslationsByUtterance.set(row.utteranceId, [row]);
     }
     const layerMeta = parseEafMetaFromLayerKey(layer.key);
-    const tierName = layerMeta.tierId ?? layer.name?.eng ?? layer.name?.zho ?? layer.key;
+    const tierName = layerMeta.tierId ?? readEnglishFallbackMultiLangLabel(layer.name) ?? layer.key;
     const isTranslation = layer.layerType === 'translation';
 
     if (isTranslation) {

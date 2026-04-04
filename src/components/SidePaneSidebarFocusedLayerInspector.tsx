@@ -82,7 +82,7 @@ export function SidePaneSidebarFocusedLayerInspector({
           <div>
             <dt>{messages.inspectorOrthography}</dt>
             <dd>
-              <span>{formatOrthographyOptionLabel(targetOrthography)}</span>
+              <span>{formatOrthographyOptionLabel(targetOrthography, locale)}</span>
               {targetOrthographyBadge ? <span className={targetOrthographyBadge.className}>{targetOrthographyBadge.label}</span> : null}
             </dd>
           </div>

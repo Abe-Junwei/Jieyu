@@ -72,7 +72,7 @@ describe('TextGridService tier metadata', () => {
       key: 'trc_default',
       languageId: 'ara',
       orthographyId: 'ortho-ar',
-      transformId: 'xf-ar-latn',
+      bridgeId: 'xf-ar-latn',
     });
     const trl = makeLayer({
       id: 'trl_gloss',
@@ -97,6 +97,7 @@ describe('TextGridService tier metadata', () => {
     });
 
     expect(textGrid).toContain('__jieyu_meta_');
+    expect(textGrid).toContain('%22bridgeId%22%3A%22xf-ar-latn%22');
 
     const imported = importFromTextGrid(textGrid);
     expect(imported.transcriptionTierName).toBe('transcription');
@@ -106,9 +107,39 @@ describe('TextGridService tier metadata', () => {
     expect(imported.tierMetadata.get('transcription')?.scriptTag).toBe('Arab');
     expect(imported.tierMetadata.get('transcription')?.regionTag).toBe('EG');
     expect(imported.tierMetadata.get('transcription')?.variantTag).toBe('fonipa');
-    expect(imported.tierMetadata.get('transcription')?.transformId).toBe('xf-ar-latn');
+    expect(imported.tierMetadata.get('transcription')?.bridgeId).toBe('xf-ar-latn');
     expect(imported.tierMetadata.get('Gloss Tier')?.languageId).toBe('eng');
     expect(imported.tierMetadata.get('Gloss Tier')?.orthographyId).toBe('ortho-eng');
+  });
+
+  it('prefers English fallback labels for exported additional tier names', () => {
+    const trc = makeLayer({
+      id: 'trc_default',
+      layerType: 'transcription',
+      key: 'trc_default',
+      name: { zho: '默认转写', eng: 'Default Transcription' },
+      languageId: 'zho',
+    });
+    const trl = makeLayer({
+      id: 'trl_notes',
+      layerType: 'translation',
+      key: 'trl_notes',
+      name: { zho: '中文层名', eng: 'English Tier Name' },
+      languageId: 'eng',
+    });
+
+    const textGrid = exportToTextGrid({
+      utterances: [makeUtterance()],
+      layers: [trc, trl],
+      translations: [
+        makeTranslation({ id: 'utr_trc', layerId: trc.id, utteranceId: 'utt_1', text: '你好' }),
+        makeTranslation({ id: 'utr_trl', layerId: trl.id, utteranceId: 'utt_1', text: 'hello' }),
+      ],
+    });
+
+    const imported = importFromTextGrid(textGrid);
+    expect(imported.additionalTiers.has('English Tier Name')).toBe(true);
+    expect(imported.additionalTiers.has('中文层名')).toBe(false);
   });
 
   it('drops unknown TextGrid metadata fields during import downgrade', () => {
@@ -122,7 +153,7 @@ size = 1
 item []:
     item [1]:
         class = "IntervalTier"
-        name = "transcription__jieyu_meta_%7B%22languageId%22%3A%22ara%22%2C%22orthographyId%22%3A%22ortho-ar%22%2C%22scriptTag%22%3A%22Arab%22%2C%22unknownField%22%3A%22drop-me%22%2C%22transformId%22%3A%22xf-1%22%7D"
+        name = "transcription__jieyu_meta_%7B%22languageId%22%3A%22ara%22%2C%22orthographyId%22%3A%22ortho-ar%22%2C%22scriptTag%22%3A%22Arab%22%2C%22unknownField%22%3A%22drop-me%22%2C%22bridgeId%22%3A%22xf-1%22%7D"
         xmin = 0
         xmax = 1
         intervals: size = 1
@@ -137,7 +168,7 @@ item []:
       languageId: 'ara',
       orthographyId: 'ortho-ar',
       scriptTag: 'Arab',
-      transformId: 'xf-1',
+      bridgeId: 'xf-1',
     });
   });
 });

@@ -23,6 +23,7 @@ import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
+import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { DialogShell } from './ui/DialogShell';
 import { PanelSection } from './ui/PanelSection';
 import { PanelSummary } from './ui/PanelSummary';
@@ -83,6 +84,7 @@ type LayerActionPopoverUiText = {
   createOrthography: string;
   orthographyHint: string;
   sourceLanguagePlaceholder: string;
+  sourceLanguageCodeLabel: string;
   sourceLanguageCodePlaceholder: string;
   aliasPlaceholder: string;
   translationText: string;
@@ -189,6 +191,7 @@ export function LayerActionPopover({
     createOrthography: managerMessages.createOrthography,
     orthographyHint: managerMessages.orthographyHint,
     sourceLanguagePlaceholder: managerMessages.sourceLanguagePlaceholder,
+    sourceLanguageCodeLabel: managerMessages.sourceLanguageCodeLabel,
     sourceLanguageCodePlaceholder: managerMessages.sourceLanguageCodePlaceholder,
     aliasPlaceholder: managerMessages.aliasShortPlaceholder,
     translationText: managerMessages.modalityText,
@@ -250,6 +253,10 @@ export function LayerActionPopover({
     () => languageInput.languageCode.trim().toLowerCase(),
     [languageInput.languageCode],
   );
+  const displayedLanguage = useMemo(
+    () => languageInput.languageName.trim() || resolvedLanguageId.toUpperCase(),
+    [languageInput.languageName, resolvedLanguageId],
+  );
   const orthographyPicker = useOrthographyPicker(resolvedLanguageId, orthographyId, setOrthographyId);
   const groupedOrthographyOptions = useMemo(
     () => groupOrthographiesForSelect(orthographyPicker.orthographies),
@@ -264,10 +271,10 @@ export function LayerActionPopover({
     [locale, selectedOrthography],
   );
   const customLanguageError = resolvedLanguageId && !isKnownIso639_3Code(resolvedLanguageId)
-    ? '语言代码必须是有效的 ISO 639-3 三字母代码。'
+    ? managerMessages.invalidLanguageCode
     : '';
   const orthographySelectionError = orthographyId && !orthographyPicker.isCreating && !selectedOrthography
-    ? '所选正字法已失效，请重新选择。'
+    ? managerMessages.invalidOrthographySelection
     : '';
 
   useEffect(() => {
@@ -399,7 +406,7 @@ export function LayerActionPopover({
   const handleDelete = useCallback(async () => {
     if (!deleteLayerId) return;
     const layer = deletableLayers.find((l) => l.id === deleteLayerId);
-    const layerName = layer?.name?.zho ?? layer?.name?.zh ?? layer?.name?.eng ?? layer?.name?.en ?? layer?.key ?? deleteLayerId;
+    const layerName = (layer ? readAnyMultiLangLabel(layer.name) : undefined) ?? layer?.key ?? deleteLayerId;
 
     // Check if layer has content
     const textCount = checkLayerHasContent ? await checkLayerHasContent(deleteLayerId) : 0;
@@ -439,6 +446,13 @@ export function LayerActionPopover({
     setSelectedParentLayerId(contextualParentLayerId);
     setCreateFailureMessage('');
   }, [contextualParentLayerId, defaultLanguageSeed, normalizedDefaultOrthographyId]);
+
+  const handleOpenOrthographyWorkspace = useCallback((createdOrthographyId: string) => {
+    const params = new URLSearchParams();
+    params.set('orthographyId', createdOrthographyId);
+    onClose();
+    window.location.assign(`/lexicon/orthographies?${params.toString()}`);
+  }, [onClose]);
 
   const label = action === 'create-transcription'
     ? uiText.createTranscription
@@ -615,7 +629,7 @@ export function LayerActionPopover({
                   >
                     {deletableLayers.map((l) => (
                       <option key={l.id} value={l.id}>
-                        {l.name?.zho ?? l.name?.zh ?? l.name?.eng ?? l.name?.en ?? l.key}
+                        {readAnyMultiLangLabel(l.name) ?? l.key}
                       </option>
                     ))}
                   </select>
@@ -632,7 +646,7 @@ export function LayerActionPopover({
                 value={languageInput}
                 onChange={setLanguageInput}
                 nameLabel={uiText.selectLanguage}
-                codeLabel={uiText.customLanguageCodePlaceholder}
+                codeLabel={uiText.sourceLanguageCodeLabel}
                 namePlaceholder={uiText.selectLanguage}
                 codePlaceholder={uiText.customLanguageCodePlaceholder}
                 error={customLanguageError}
@@ -659,7 +673,7 @@ export function LayerActionPopover({
                         <optgroup key={group.key} label={getOrthographyCatalogGroupLabel(locale, group.key)}>
                           {group.orthographies.map((orthography) => (
                             <option key={orthography.id} value={orthography.id}>
-                              {formatOrthographyOptionLabel(orthography)}
+                              {formatOrthographyOptionLabel(orthography, locale)}
                             </option>
                           ))}
                         </optgroup>
@@ -674,7 +688,7 @@ export function LayerActionPopover({
                 )}
                 {!orthographyPicker.isCreating && selectedOrthography && selectedOrthographyBadge && (
                   <div className="panel-note layer-action-dialog-meta-note" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span>{formatOrthographyOptionLabel(selectedOrthography)}</span>
+                    <span>{formatOrthographyOptionLabel(selectedOrthography, locale)}</span>
                     <span className={selectedOrthographyBadge.className}>{selectedOrthographyBadge.label}</span>
                   </div>
                 )}
@@ -685,6 +699,12 @@ export function LayerActionPopover({
                     compact
                     sourceLanguagePlaceholder={uiText.sourceLanguagePlaceholder}
                     sourceLanguageCodePlaceholder={uiText.sourceLanguageCodePlaceholder}
+                    contextLines={[
+                      label,
+                      managerMessages.orthographyContextTargetLanguage(displayedLanguage),
+                      managerMessages.orthographyContextLayerType(action === 'create-translation' ? managerMessages.translationLayerType : managerMessages.transcriptionLayerType),
+                    ]}
+                    onOpenWorkspace={handleOpenOrthographyWorkspace}
                   />
                 )}
                 {!orthographyPicker.isCreating && orthographyPicker.error && (

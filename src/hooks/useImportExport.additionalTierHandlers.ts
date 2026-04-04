@@ -33,7 +33,7 @@ export async function importAdditionalTiers(input: {
   layers: LayerDocType[];
   additionalTiers: Map<string, AdditionalTierAnnotation[]>;
   insertedUtterances: InsertedUtterance[];
-  importedTierMetadata: Map<string, { languageId?: string; orthographyId?: string; transformId?: string }>;
+  importedTierMetadata: Map<string, { languageId?: string; orthographyId?: string; bridgeId?: string }>;
   tierNameToLayerId: Map<string, string>;
   effectiveTranscriptionLayerId?: string;
   autoCreatedLayerKey?: string;
@@ -49,7 +49,7 @@ export async function importAdditionalTiers(input: {
     text: string;
     sourceOrthographyId?: string;
     targetLayerId?: string;
-    transformId?: string;
+    bridgeId?: string;
     baseLabel: string;
     languageId: string;
     layerType: LayerDocType['layerType'];
@@ -97,6 +97,7 @@ export async function importAdditionalTiers(input: {
     if (annotations.length === 0) continue;
     if (existingTrcLayers.length === 0) continue;
     const importedTierMeta = input.importedTierMetadata.get(tierName);
+    const importedTierBridgeId = importedTierMeta?.bridgeId;
     const humanizedTierForLookup = humanizeTierName(tierName).toLocaleLowerCase('en');
     const indepLayerId =
       existingIndepTrcLayersByName.get(tierName.toLocaleLowerCase('en'))
@@ -122,7 +123,7 @@ export async function importAdditionalTiers(input: {
         const writes = await input.planImportedWrites({
           text: annotation.text,
           ...(importedTierMeta?.orthographyId !== undefined ? { sourceOrthographyId: importedTierMeta.orthographyId } : {}),
-          ...(importedTierMeta?.transformId !== undefined ? { transformId: importedTierMeta.transformId } : {}),
+          ...(importedTierBridgeId !== undefined ? { bridgeId: importedTierBridgeId } : {}),
           targetLayerId: indepLayerId,
           baseLabel: humanizeTierName(tierName),
           languageId: importedTierMeta?.languageId ?? 'und',
@@ -208,7 +209,9 @@ export async function importAdditionalTiers(input: {
         layerType: 'translation' as const,
         languageId: tierLang,
         ...(importedTierMeta?.orthographyId ? { orthographyId: importedTierMeta.orthographyId } : {}),
-        ...(importedTierMeta?.transformId ? { transformId: importedTierMeta.transformId } : {}),
+        ...(importedTierBridgeId
+          ? { bridgeId: importedTierBridgeId }
+          : {}),
         modality: 'text' as const,
         acceptsAudio: false,
         sortOrder: tierCount + 1,
@@ -257,7 +260,7 @@ export async function importAdditionalTiers(input: {
         const writes = await input.planImportedWrites({
           text: annotation.text,
           ...(importedTierMeta?.orthographyId !== undefined ? { sourceOrthographyId: importedTierMeta.orthographyId } : {}),
-          ...(importedTierMeta?.transformId !== undefined ? { transformId: importedTierMeta.transformId } : {}),
+          ...(importedTierBridgeId !== undefined ? { bridgeId: importedTierBridgeId } : {}),
           targetLayerId: layerId,
           baseLabel: translationBaseLabel,
           languageId: tierLang,

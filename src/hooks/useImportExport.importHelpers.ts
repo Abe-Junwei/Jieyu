@@ -1,5 +1,6 @@
 import type { JieyuDatabase, SpeakerDocType } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
+import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { newId, parseBcp47 } from '../utils/transcriptionFormatters';
 
 const EAF_META_TIER_FIELD = 'tier' + 'Id';
@@ -74,7 +75,7 @@ export async function buildImportLanguageNameMap(db: JieyuDatabase): Promise<Map
   for (const doc of languageDocs) {
     const language = doc.toJSON();
     const fromName = typeof language.name === 'object' && language.name !== null
-      ? ((language.name.zho ?? language.name.eng ?? Object.values(language.name).find((value) => typeof value === 'string' && value.trim().length > 0)) ?? '')
+      ? (readAnyMultiLangLabel(language.name) ?? '')
       : '';
     const displayName = (fromName || language.autonym || '').trim();
     if (!displayName) continue;

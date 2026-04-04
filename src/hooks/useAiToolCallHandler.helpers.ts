@@ -1,6 +1,7 @@
 import type { LayerDocType } from '../db';
 import { t, type Locale } from '../i18n';
 import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
+import { listUniqueNonEmptyMultiLangLabels } from '../utils/multiLangLabels';
 
 export function normalizeAiToolCallText(value: string): string {
   return value.trim().toLowerCase();
@@ -37,7 +38,7 @@ export function parseLayerHintFromOpaqueId(value: string): { layerType: 'transla
 }
 
 export function layerMatchesLanguage(layer: LayerDocType, languageQuery: string): boolean {
-  const fields = [layer.languageId, layer.key, layer.name.zho, layer.name.eng]
+  const fields = [layer.languageId, layer.key, ...listUniqueNonEmptyMultiLangLabels(layer.name)]
     .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
     .map((value) => normalizeAiToolCallText(value));
   const tokens = buildAiToolLanguageTokens(languageQuery).map((token) => normalizeAiToolCallText(token));

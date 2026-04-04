@@ -1,4 +1,5 @@
 import { resolveLanguageQuery } from '../utils/langMapping';
+import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { createLogger } from '../observability/logger';
 import { t, tf } from '../i18n';
 import { formatLayerTypeLabel } from './useAiToolCallHandler.helpers';
@@ -248,12 +249,15 @@ export const layerAdapter: ToolObjectAdapter = {
         }
 
         compensationRef.current.delete(call.requestId ?? 'default');
+        const transcriptionLayer = readAnyMultiLangLabel(trcLayer.name) ?? trcLayer.key;
+        const translationLayer = readAnyMultiLangLabel(trlLayer.name) ?? trlLayer.key;
+        const fallbackLayer = readAnyMultiLangLabel(fallbackParent.name) ?? fallbackParent.key;
         return {
           ok: true,
           message: tf(locale, 'transcription.aiTool.layer.unlinkDoneWithFallback', {
-            transcriptionLayer: trcLayer.name.zho ?? trcLayer.name.eng ?? trcLayer.key,
-            translationLayer: trlLayer.name.zho ?? trlLayer.name.eng ?? trlLayer.key,
-            fallbackLayer: fallbackParent.name.zho ?? fallbackParent.name.eng ?? fallbackParent.key,
+            transcriptionLayer,
+            translationLayer,
+            fallbackLayer,
           }),
         };
       }
@@ -282,8 +286,8 @@ export const layerAdapter: ToolObjectAdapter = {
       }
 
       compensationRef.current.delete(call.requestId ?? 'default');
-      const trcLabel = trcLayer.name.zho ?? trcLayer.name.eng ?? trcLayer.key;
-      const trlLabel = trlLayer.name.zho ?? trlLayer.name.eng ?? trlLayer.key;
+      const trcLabel = readAnyMultiLangLabel(trcLayer.name) ?? trcLayer.key;
+      const trlLabel = readAnyMultiLangLabel(trlLayer.name) ?? trlLayer.key;
       return {
         ok: true,
         message: shouldLink

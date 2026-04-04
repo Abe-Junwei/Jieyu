@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UseOrthographyPickerResult } from '../hooks/useOrthographyPicker';
 import { LocaleProvider } from '../i18n';
@@ -141,7 +141,7 @@ describe('OrthographyBuilderPanel', () => {
     expect(root).toBeTruthy();
     expect(root.querySelector('.dialog-header')).toBeTruthy();
     expect(screen.getByText('渲染预览')).toBeTruthy();
-    expect(screen.getByText('正字法构建器')).toBeTruthy();
+    expect(screen.getByText('正字法快速创建')).toBeTruthy();
     expect(screen.getByText('脚本：Arab')).toBeTruthy();
     expect(screen.getByText('方向：RTL')).toBeTruthy();
     expect(screen.getByText('字体覆盖：样例 3 项')).toBeTruthy();
@@ -277,10 +277,38 @@ describe('OrthographyBuilderPanel', () => {
     expect(screen.getByRole('textbox', { name: '来源语言' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '来源语言代码' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '来源正字法' })).toBeTruthy();
-    expect(screen.getByRole('textbox', { name: '名称（中文）' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '本地名称' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '文本方向' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '脚本标签' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '桥接引擎' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '桥接规则文本' })).toBeTruthy();
+  });
+
+  it('renders lightweight context and workspace follow-up actions when provided', () => {
+    const openWorkspace = vi.fn();
+    const createOrthography = vi.fn(async () => ({
+      id: 'orth-created',
+      languageId: 'eng',
+      name: { eng: 'Created Orthography' },
+      scriptTag: 'Latn',
+      type: 'practical' as const,
+      createdAt: '2026-04-04T00:00:00.000Z',
+      updatedAt: '2026-04-04T00:00:00.000Z',
+    }));
+
+    renderZh(
+      <OrthographyBuilderPanel
+        picker={createPicker({ createOrthography })}
+        languageOptions={[]}
+        contextLines={['新建项目', '项目主语言：英语 English']}
+        onOpenWorkspace={openWorkspace}
+      />,
+    );
+
+    expect(screen.getByText('当前创建场景')).toBeTruthy();
+    expect(screen.getByText('项目主语言：英语 English')).toBeTruthy();
+    expect(screen.getByText('创建后去向')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '创建并前往工作台完善' })).toBeTruthy();
   });
 
   it('shows grouped source orthography options and icu syntax hints', () => {
@@ -324,6 +352,9 @@ describe('OrthographyBuilderPanel', () => {
     expect(view.container.querySelector('optgroup[label="已审校主项"]')).toBeTruthy();
     expect(screen.getByText(/语法提示/)).toBeTruthy();
     expect(screen.getByText(/ICU 规则按行链式执行/)).toBeTruthy();
+    expect(screen.queryByRole('textbox', { name: '桥接样例' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '添加创建前自检样例' }));
+    expect(screen.getByRole('textbox', { name: '桥接样例' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '桥接规则文本' }).getAttribute('placeholder')).toContain('::NFC');
   });
 });

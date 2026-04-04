@@ -536,7 +536,7 @@ interface LayerDocType {
   /** 绑定的正字法 ID；为空时回退到 languageId → script 推断 | Bound orthography id; falls back to languageId → script inference when absent */
   orthographyId?: string;
   /** 首选入站桥接规则 ID；用于显式写入转换往返 | Preferred inbound bridge bridge id for explicit write-bridge round-tripping */
-  transformId?: string;
+  bridgeId?: string;
   modality: 'text' | 'audio' | 'mixed';
   acceptsAudio?: boolean;
   isDefault?: boolean;
@@ -710,7 +710,7 @@ interface TierDefinitionDocType {
   parentTierId?: string;
   languageId?: string;
   orthographyId?: string;
-  transformId?: string;
+  bridgeId?: string;
   participantId?: string;
   dataCategory?: string;
   contentType: TierContentType;
@@ -1289,7 +1289,7 @@ const translationLayerDocSchema = z.object({
   layerType: z.enum(['transcription', 'translation']),
   languageId: z.string().min(1),
   orthographyId: z.string().min(1).optional(),
-  transformId: z.string().min(1).optional(),
+  bridgeId: z.string().min(1).optional(),
   modality: z.enum(['text', 'audio', 'mixed']),
   acceptsAudio: z.boolean().optional(),
   isDefault: z.boolean().optional(),
@@ -1376,7 +1376,7 @@ const tierDefinitionDocSchema = z.object({
   parentTierId: z.string().min(1).optional(),
   languageId: z.string().optional(),
   orthographyId: z.string().min(1).optional(),
-  transformId: z.string().min(1).optional(),
+  bridgeId: z.string().min(1).optional(),
   participantId: z.string().optional(),
   dataCategory: z.string().optional(),
   contentType: tierContentTypeSchema,
@@ -1747,6 +1747,12 @@ type CollectionAdapter<T extends { id: string }> = {
 
 const BRIDGE_TIER_PREFIX = 'bridge_';
 
+function resolveBridgeId(value: { bridgeId?: unknown } | null | undefined): string | undefined {
+  if (!value) return undefined;
+  if (typeof value.bridgeId === 'string' && value.bridgeId.trim()) return value.bridgeId.trim();
+  return undefined;
+}
+
 function isBridgeLayerTier(tier: TierDefinitionDocType): boolean {
   return tier.key.startsWith(BRIDGE_TIER_PREFIX)
     && (tier.contentType === 'transcription' || tier.contentType === 'translation');
@@ -1775,6 +1781,7 @@ function constraintToTierType(constraint: LayerConstraint | undefined): TierType
 function bridgeTierToLayer(tier: TierDefinitionDocType): LayerDocType | null {
   if (!isBridgeLayerTier(tier)) return null;
   const constraint = tierTypeToConstraint(tier.tierType);
+  const bridgeId = resolveBridgeId(tier);
   return {
     id: tier.id,
     textId: tier.textId,
@@ -1783,7 +1790,7 @@ function bridgeTierToLayer(tier: TierDefinitionDocType): LayerDocType | null {
     layerType: tier.contentType as 'transcription' | 'translation',
     languageId: tier.languageId ?? '',
     ...(tier.orthographyId !== undefined && { orthographyId: tier.orthographyId }),
-    ...(tier.transformId !== undefined && { transformId: tier.transformId }),
+    ...(bridgeId !== undefined && { bridgeId }),
     modality: tier.modality ?? 'text',
     ...(tier.acceptsAudio !== undefined && { acceptsAudio: tier.acceptsAudio }),
     ...(tier.isDefault !== undefined && { isDefault: tier.isDefault }),
@@ -1797,6 +1804,7 @@ function bridgeTierToLayer(tier: TierDefinitionDocType): LayerDocType | null {
 }
 
 function layerToBridgeTier(layer: LayerDocType): TierDefinitionDocType {
+  const bridgeId = resolveBridgeId(layer);
   return {
     id: layer.id,
     textId: layer.textId,
@@ -1805,7 +1813,7 @@ function layerToBridgeTier(layer: LayerDocType): TierDefinitionDocType {
     tierType: constraintToTierType(layer.constraint),
     languageId: layer.languageId,
     ...(layer.orthographyId !== undefined && { orthographyId: layer.orthographyId }),
-    ...(layer.transformId !== undefined && { transformId: layer.transformId }),
+    ...(bridgeId !== undefined && { bridgeId }),
     contentType: layer.layerType,
     modality: layer.modality,
     ...(layer.acceptsAudio !== undefined && { acceptsAudio: layer.acceptsAudio }),
@@ -1931,13 +1939,14 @@ class TierBackedLayerCollectionAdapter implements CollectionAdapter<LayerDocType
   async update(id: string, changes: Partial<LayerDocType>): Promise<void> {
     const existingTier = await this.tierTable.get(id);
     if (!existingTier) return;
+    const nextBridgeId = resolveBridgeId(changes) ?? resolveBridgeId(existingTier);
     // Apply only the fields that exist in TierDefinitionDocType
     const updatedTier: TierDefinitionDocType = {
       ...existingTier,
       ...(changes.name !== undefined ? { name: changes.name } : {}),
       ...(changes.languageId !== undefined ? { languageId: changes.languageId } : {}),
       ...(changes.orthographyId !== undefined ? { orthographyId: changes.orthographyId } : {}),
-      ...(changes.transformId !== undefined ? { transformId: changes.transformId } : {}),
+      ...(nextBridgeId !== undefined ? { bridgeId: nextBridgeId } : {}),
       ...(changes.modality !== undefined ? { modality: changes.modality } : {}),
       ...(changes.acceptsAudio !== undefined ? { acceptsAudio: changes.acceptsAudio } : {}),
       ...(changes.isDefault !== undefined ? { isDefault: changes.isDefault } : {}),
@@ -2493,6 +2502,7 @@ class JieyuDexie extends Dexie {
       if (layers.length === 0) return;
 
       for (const layer of layers) {
+        const bridgeId = resolveBridgeId(layer);
         const bridgeKey = `${BRIDGE_TIER_PREFIX}${layer.key}`;
         const existingTier = await tiersTable
           .filter((t: TierDefinitionDocType) => t.textId === layer.textId && t.key === bridgeKey)
@@ -2510,7 +2520,7 @@ class JieyuDexie extends Dexie {
           name: layer.name,
           languageId: layer.languageId,
           ...(layer.orthographyId !== undefined && { orthographyId: layer.orthographyId }),
-          ...(layer.transformId !== undefined && { transformId: layer.transformId }),
+          ...(bridgeId !== undefined && { bridgeId }),
           contentType: layer.layerType,
           modality: layer.modality,
           acceptsAudio: layer.acceptsAudio,

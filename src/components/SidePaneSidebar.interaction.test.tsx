@@ -780,8 +780,8 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: '新建转写层' }));
 
     const dialog = await screen.findByRole('dialog', { name: '新建转写层' });
-    const languageSelect = within(dialog).getByRole('combobox', { name: '选择语言…' });
-    fireEvent.change(languageSelect, { target: { value: 'eng' } });
+    const languageCodeInput = within(dialog).getByRole('textbox', { name: /来源语言代码|Source language code/i });
+    fireEvent.change(languageCodeInput, { target: { value: 'eng' } });
 
     await waitFor(() => {
       expect((within(dialog).getByRole('combobox', { name: '新建正字法…' }) as HTMLSelectElement).value).toBe('orth_eng_default');
@@ -899,7 +899,8 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     ));
     expect(parentSelect).toBeTruthy();
 
-    fireEvent.change(selects[0]!, { target: { value: 'fra' } });
+    const languageCodeInput = within(dialog).getByRole('textbox', { name: /来源语言代码|Source language code/i });
+    fireEvent.change(languageCodeInput, { target: { value: 'fra' } });
     fireEvent.click(within(dialog).getByRole('button', { name: '创建' }));
 
     expect(createLayer).not.toHaveBeenCalled();
@@ -958,10 +959,13 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: '新建翻译层' }));
 
     const dialog = await screen.findByRole('dialog', { name: '新建翻译层' });
-    const selects = within(dialog).getAllByRole('combobox');
-    expect((selects[2] as HTMLSelectElement | undefined)?.value).toBe('layer_trc_2');
+    const parentSelect = within(dialog)
+      .getAllByRole('combobox')
+      .find((select) => Array.from((select as HTMLSelectElement).options).some((option) => option.value === 'layer_trc_2')) as HTMLSelectElement | undefined;
+    expect(parentSelect?.value).toBe('layer_trc_2');
 
-    fireEvent.change(selects[0]!, { target: { value: 'fra' } });
+    const languageCodeInput = within(dialog).getByRole('textbox', { name: /来源语言代码|Source language code/i });
+    fireEvent.change(languageCodeInput, { target: { value: 'fra' } });
     fireEvent.click(within(dialog).getByRole('button', { name: '创建' }));
 
     await waitFor(() => {
@@ -1120,7 +1124,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     await clickCreateAction('新建转写层');
     const dialog = await screen.findByRole('dialog', { name: '新建转写层' });
 
-    fireEvent.change(within(dialog).getByRole('combobox'), { target: { value: 'eng' } });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /来源语言代码|Source language code/i }), { target: { value: 'eng' } });
     fireEvent.click(within(dialog).getByRole('button', { name: '创建' }));
 
     const alertNode = await within(dialog).findByRole('alert');

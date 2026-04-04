@@ -23,6 +23,7 @@ export type LayerManagerPopoverMessages = {
   customLanguageOption: string;
   customLanguageCodePlaceholder: string;
   sourceLanguagePlaceholder: string;
+  sourceLanguageCodeLabel: string;
   sourceLanguageCodePlaceholder: string;
   useDefaultScript: string;
   createOrthography: string;
@@ -57,6 +58,10 @@ export type LayerManagerPopoverMessages = {
   deleteTargetLabel: string;
   confirmDelete: string;
   resetForm: string;
+  invalidLanguageCode: string;
+  invalidOrthographySelection: string;
+  orthographyContextTargetLanguage: (language: string) => string;
+  orthographyContextLayerType: (layerType: string) => string;
 };
 
 const zhCN: LayerManagerPopoverMessages = {
@@ -82,6 +87,7 @@ const zhCN: LayerManagerPopoverMessages = {
   customLanguageOption: '\u5176\u4ed6\uff08\u624b\u52a8\u8f93\u5165\uff09',
   customLanguageCodePlaceholder: 'ISO 639-3 \u4ee3\u7801\uff08\u5982 tib\uff09',
   sourceLanguagePlaceholder: '\u9009\u62e9\u6765\u6e90\u8bed\u8a00\u2026',
+  sourceLanguageCodeLabel: '\u6765\u6e90\u8bed\u8a00\u4ee3\u7801',
   sourceLanguageCodePlaceholder: '\u6765\u6e90\u8bed\u8a00 ISO 639-3 \u4ee3\u7801\uff08\u5982 eng\uff09',
   useDefaultScript: '\u5f53\u524d\u8bed\u8a00\u6682\u65e0\u53ef\u7528\u6b63\u5b57\u6cd5',
   createOrthography: '+ \u65b0\u5efa\u6b63\u5b57\u6cd5\u2026',
@@ -116,6 +122,10 @@ const zhCN: LayerManagerPopoverMessages = {
   deleteTargetLabel: '\u5220\u9664\u76ee\u6807\u5c42',
   confirmDelete: '\u786e\u8ba4\u5220\u9664',
   resetForm: '\u91cd\u7f6e\u8868\u5355',
+  invalidLanguageCode: '\u8bed\u8a00\u4ee3\u7801\u5fc5\u987b\u662f\u6709\u6548\u7684 ISO 639-3 \u4e09\u5b57\u6bcd\u4ee3\u7801\u3002',
+  invalidOrthographySelection: '\u6240\u9009\u6b63\u5b57\u6cd5\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u9009\u62e9\u3002',
+  orthographyContextTargetLanguage: (language) => `\u76ee\u6807\u5c42\u8bed\u8a00\uff1a${language}`,
+  orthographyContextLayerType: (layerType) => `\u5c42\u7c7b\u578b\uff1a${layerType}`,
 };
 
 const enUS: LayerManagerPopoverMessages = {
@@ -141,6 +151,7 @@ const enUS: LayerManagerPopoverMessages = {
   customLanguageOption: 'Other (manual input)',
   customLanguageCodePlaceholder: 'ISO 639-3 code (e.g. tib)',
   sourceLanguagePlaceholder: 'Select source language\u2026',
+  sourceLanguageCodeLabel: 'Source language code',
   sourceLanguageCodePlaceholder: 'Source language ISO 639-3 code (e.g. eng)',
   useDefaultScript: 'No available orthography yet',
   createOrthography: '+ Create orthography\u2026',
@@ -175,6 +186,10 @@ const enUS: LayerManagerPopoverMessages = {
   deleteTargetLabel: 'Layer to delete',
   confirmDelete: 'Confirm Delete',
   resetForm: 'Reset form',
+  invalidLanguageCode: 'Language code must be a valid ISO 639-3 code.',
+  invalidOrthographySelection: 'The selected orthography is no longer available. Please choose another one.',
+  orthographyContextTargetLanguage: (language) => `Target layer language: ${language}`,
+  orthographyContextLayerType: (layerType) => `Layer type: ${layerType}`,
 };
 
 export function getLayerManagerPopoverMessages(locale: Locale): LayerManagerPopoverMessages {

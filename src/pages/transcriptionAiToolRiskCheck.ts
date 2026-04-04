@@ -3,6 +3,7 @@ import { t, tf, type Locale } from '../i18n';
 import type { AiChatToolCall, AiToolRiskCheckResult } from '../hooks/useAiChat';
 import type { SegmentTargetDescriptor } from '../hooks/useAiToolCallHandler.segmentTargeting';
 import { SUPPORTED_VOICE_LANGS, resolveLanguageQuery } from '../utils/langMapping';
+import { listUniqueNonEmptyMultiLangLabels } from '../utils/multiLangLabels';
 
 interface CreateTranscriptionAiToolRiskCheckInput {
   locale: Locale;
@@ -152,7 +153,7 @@ export function createTranscriptionAiToolRiskCheck({
             entry.label.split(/\s*\/\s*/).forEach((part) => matchTokens.push(part.trim().toLowerCase()));
           }
           const matched = pool.filter((layer) => {
-            const fields = [layer.languageId, layer.key, layer.name.zho, layer.name.eng]
+            const fields = [layer.languageId, layer.key, ...listUniqueNonEmptyMultiLangLabels(layer.name)]
               .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
               .map((value) => value.trim().toLowerCase());
             return matchTokens.some((token) => fields.some((field) => field.includes(token) || token.includes(field)));

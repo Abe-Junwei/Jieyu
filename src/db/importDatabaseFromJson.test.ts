@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db, importDatabaseFromJson } from './index';
+import { db, getDb, importDatabaseFromJson } from './index';
 
 const NOW = '2026-04-02T00:00:00.000Z';
 
@@ -104,5 +104,41 @@ describe('importDatabaseFromJson', () => {
 
     const remainingMediaItems = await db.media_items.toArray();
     expect(remainingMediaItems.map((item) => item.id)).toEqual(['media_existing']);
+  });
+
+  it('ignores removed transformId compatibility fields during snapshot import', async () => {
+    const snapshot = {
+      schemaVersion: 1,
+      exportedAt: NOW,
+      dbName: 'jieyudb',
+      collections: {
+        tier_definitions: [
+          {
+            id: 'layer_legacy',
+            textId: 'text_legacy',
+            key: 'bridge_trc_legacy',
+            name: { default: 'Legacy Tier' },
+            tierType: 'time-aligned',
+            contentType: 'transcription',
+            languageId: 'ara',
+            orthographyId: 'ortho-ar',
+            transformId: 'xf-legacy',
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+        layer_units: [],
+        layer_unit_contents: [],
+      },
+    };
+
+    await importDatabaseFromJson(snapshot, { strategy: 'replace-all' });
+
+    const database = await getDb();
+    const importedLayer = await database.collections.layers.findOne({ selector: { textId: 'text_legacy', key: 'trc_legacy' } }).exec();
+    expect(importedLayer?.toJSON().bridgeId).toBeUndefined();
+
+    const importedTiers = await db.tier_definitions.toArray();
+    expect(importedTiers.find((item) => item.id === 'layer_legacy')?.bridgeId).toBeUndefined();
   });
 });

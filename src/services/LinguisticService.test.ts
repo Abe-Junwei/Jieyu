@@ -75,8 +75,8 @@ describe('LinguisticService smoke tests', () => {
 
   it('rejects invalid ISO 639-3 language ids for project and orthography creation', async () => {
     await expect(LinguisticService.createProject({
-      titleZh: '项目',
-      titleEn: 'Project',
+      primaryTitle: '项目',
+      englishFallbackTitle: 'Project',
       primaryLanguageId: 'zh',
     })).rejects.toThrow('primaryLanguageId 必须是有效的 ISO 639-3 三字母代码');
 
@@ -84,6 +84,18 @@ describe('LinguisticService smoke tests', () => {
       languageId: 'zh',
       name: { eng: 'Invalid Orthography' },
     })).rejects.toThrow('languageId 必须是有效的 ISO 639-3 三字母代码');
+  });
+
+  it('stores new project titles in neutral primary and English fallback slots', async () => {
+    const created = await LinguisticService.createProject({
+      primaryTitle: '白马藏语田野调查',
+      englishFallbackTitle: 'Baima Tibetan Fieldwork',
+      primaryLanguageId: 'eng',
+    });
+
+    const saved = await db.texts.get(created.textId);
+    expect(saved?.title.und).toBe('白马藏语田野调查');
+    expect(saved?.title.eng).toBe('Baima Tibetan Fieldwork');
   });
 
   it('can update an existing orthography while preserving catalog metadata', async () => {
@@ -271,6 +283,22 @@ describe('LinguisticService smoke tests', () => {
     expect(saved?.fontPreferences?.primary).toEqual(['Andika']);
     expect(saved?.bidiPolicy?.preferDirAttribute).toBe(true);
     expect(saved?.conversionRules).toEqual({ romanized: true });
+  });
+
+  it('can clone a built-in orthography source into another language', async () => {
+    const cloned = await LinguisticService.cloneOrthographyToLanguage({
+      sourceOrthographyId: 'eng-latn',
+      targetLanguageId: 'cmn',
+      name: { zho: '普通话英语派生', eng: 'Mandarin from English Built-in' },
+      abbreviation: 'CMN-ENG-DERIVED',
+    });
+
+    const saved = await db.orthographies.get(cloned.id);
+    expect(cloned.id).not.toBe('eng-latn');
+    expect(saved?.languageId).toBe('cmn');
+    expect(saved?.scriptTag).toBe('Latn');
+    expect(saved?.abbreviation).toBe('CMN-ENG-DERIVED');
+    expect(saved?.catalogMetadata?.catalogSource).toBe('user');
   });
 
   it('can create and query orthography transforms', async () => {
@@ -471,7 +499,7 @@ describe('LinguisticService smoke tests', () => {
     expect(selected?.id).toBe('orthxfm_runtime_active');
     expect(applied).toEqual({
       text: 'saam',
-      transformId: 'orthxfm_runtime_active',
+      bridgeId: 'orthxfm_runtime_active',
     });
   });
 
@@ -567,7 +595,7 @@ describe('LinguisticService smoke tests', () => {
 
     expect(applied).toEqual({
       text: 'sak',
-      transformId: 'orthxfm_runtime_icu_active',
+      bridgeId: 'orthxfm_runtime_icu_active',
     });
   });
 

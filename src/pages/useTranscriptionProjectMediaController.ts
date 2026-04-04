@@ -45,7 +45,7 @@ interface UseTranscriptionProjectMediaControllerResult {
   handleConfirmAudioDelete: () => void;
   handleDeleteCurrentProject: () => void;
   handleConfirmProjectDelete: () => void;
-  handleProjectSetupSubmit: (input: { titleZh: string; titleEn: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
+  handleProjectSetupSubmit: (input: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
   handleAudioImport: (file: File, duration: number) => Promise<void>;
   searchableItems: SearchableItem[];
   setAudioDeleteConfirm: React.Dispatch<React.SetStateAction<{ filename: string } | null>>;
@@ -183,10 +183,10 @@ export function useTranscriptionProjectMediaController(
     })());
   }, [activeTextId, loadSnapshot, locale, selectTimelineUnit, setActiveTextId, setSaveState, tfB]);
 
-  const handleProjectSetupSubmit = useCallback(async (projectInput: { titleZh: string; titleEn: string; primaryLanguageId: string; primaryOrthographyId?: string }) => {
+  const handleProjectSetupSubmit = useCallback(async (projectInput: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => {
     const result = await LinguisticService.createProject(projectInput);
     setActiveTextId(result.textId);
-    setSaveState({ kind: 'done', message: tfB('transcription.action.projectCreated', { title: projectInput.titleZh }) });
+    setSaveState({ kind: 'done', message: tfB('transcription.action.projectCreated', { title: projectInput.primaryTitle }) });
     setShowAudioImport(true);
     await loadSnapshot();
   }, [loadSnapshot, setActiveTextId, setSaveState, setShowAudioImport, tfB]);
@@ -196,8 +196,8 @@ export function useTranscriptionProjectMediaController(
     if (!textId) {
       const baseName = file.name.replace(/\.[^.]+$/, '');
       const result = await LinguisticService.createProject({
-        titleZh: baseName,
-        titleEn: baseName,
+        primaryTitle: baseName,
+        englishFallbackTitle: baseName,
         primaryLanguageId: 'und',
       });
       textId = result.textId;

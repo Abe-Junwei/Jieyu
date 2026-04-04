@@ -1,7 +1,7 @@
 import type { LayerDocType } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 
-type LayerOrthographyRef = Pick<LayerDocType, 'id' | 'orthographyId' | 'transformId'>;
+type LayerOrthographyRef = Pick<LayerDocType, 'id' | 'orthographyId' | 'bridgeId'>;
 type TranscriptionLayerRef = Pick<LayerDocType, 'layerType' | 'orthographyId'>;
 
 function normalizeOrthographyId(value: string | null | undefined): string | undefined {
@@ -20,18 +20,19 @@ export async function applyOrthographyBridgeIfNeeded(input: {
   text: string;
   sourceOrthographyId?: string | null;
   targetOrthographyId?: string | null;
-  transformId?: string | null;
-}): Promise<{ text: string; transformId?: string }> {
+  bridgeId?: string | null;
+}): Promise<{ text: string; bridgeId?: string }> {
   const sourceOrthographyId = normalizeOrthographyId(input.sourceOrthographyId);
   const targetOrthographyId = normalizeOrthographyId(input.targetOrthographyId);
   if (!input.text || !sourceOrthographyId || !targetOrthographyId || sourceOrthographyId === targetOrthographyId) {
     return { text: input.text };
   }
+  const bridgeId = input.bridgeId?.trim();
   return LinguisticService.applyOrthographyBridge({
     text: input.text,
     sourceOrthographyId,
     targetOrthographyId,
-    ...(input.transformId?.trim() ? { transformId: input.transformId.trim() } : {}),
+    ...(bridgeId ? { bridgeId } : {}),
   });
 }
 
@@ -60,6 +61,6 @@ export async function bridgeTextForLayerTarget(input: {
     text: input.text,
     ...(sourceOrthographyId !== undefined && { sourceOrthographyId }),
     targetOrthographyId,
-    ...(targetLayer?.transformId !== undefined ? { transformId: targetLayer.transformId } : {}),
+    ...(targetLayer?.bridgeId !== undefined ? { bridgeId: targetLayer.bridgeId } : {}),
   })).text;
 }

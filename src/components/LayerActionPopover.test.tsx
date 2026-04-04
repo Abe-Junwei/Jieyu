@@ -158,7 +158,7 @@ describe('LayerActionPopover orthography creation', () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'ISO 639-3 代码（如 tib）' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: /来源语言代码|ISO 639-3/i }), {
       target: { value: 'cmn' },
     });
 
@@ -170,7 +170,7 @@ describe('LayerActionPopover orthography creation', () => {
       target: { value: 'derive-other' },
     });
 
-    fireEvent.change(await screen.findByRole('textbox', { name: '来源语言代码' }), {
+    fireEvent.change(await screen.findByPlaceholderText('来源语言 ISO 639-3 代码（如 eng）'), {
       target: { value: 'eng' },
     });
 
@@ -234,7 +234,7 @@ describe('LayerActionPopover orthography creation', () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'ISO 639-3 代码（如 tib）' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: /来源语言代码|ISO 639-3/i }), {
       target: { value: 'eng' },
     });
 
@@ -286,7 +286,7 @@ describe('LayerActionPopover orthography creation', () => {
       />,
     );
 
-    const languageCodeInput = screen.getByRole('textbox', { name: 'ISO 639-3 代码（如 tib）' }) as HTMLInputElement;
+    const languageCodeInput = screen.getByRole('textbox', { name: /来源语言代码|ISO 639-3/i }) as HTMLInputElement;
 
     await waitFor(() => {
       expect(languageCodeInput.value).toBe('eng');

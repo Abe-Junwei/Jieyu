@@ -151,7 +151,7 @@ describe('OrthographyWorkspacePage', () => {
       </MemoryRouter>,
     );
 
-    const nameInput = await screen.findByDisplayValue('Bridge Orthography');
+    const nameInput = (await screen.findAllByDisplayValue('Bridge Orthography'))[0]!;
     fireEvent.change(nameInput, { target: { value: 'Updated Bridge Orthography' } });
     fireEvent.change(screen.getAllByLabelText('键盘布局')[0]!, { target: { value: 'us-intl' } });
     fireEvent.change(screen.getByRole('combobox', { name: '审校状态' }), { target: { value: 'verified-secondary' } });
@@ -162,7 +162,7 @@ describe('OrthographyWorkspacePage', () => {
       expect(mockUpdateOrthography).toHaveBeenCalledWith(expect.objectContaining({
         id: 'orth-source',
         languageId: 'eng',
-        name: { eng: 'Updated Bridge Orthography' },
+        name: { und: 'Updated Bridge Orthography', eng: 'Bridge Orthography' },
         scriptTag: 'Latn',
         type: 'practical',
         direction: 'ltr',
@@ -174,6 +174,146 @@ describe('OrthographyWorkspacePage', () => {
     expect(await screen.findByText('正字法元数据已保存。')).toBeTruthy();
     expect(screen.getAllByText('Updated Bridge Orthography · Latn · practical').length).toBeGreaterThan(0);
     expect(screen.getAllByText('已审校·次级').length).toBeGreaterThan(0);
+  });
+
+  it('resets the language input UI together with the draft state', async () => {
+    render(
+      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    const languageNameInput = await screen.findByRole('textbox', { name: '语言' });
+    const languageCodeInput = screen.getByRole('textbox', { name: '来源语言代码' });
+
+    fireEvent.change(languageCodeInput, { target: { value: 'zho' } });
+
+    await waitFor(() => {
+      expect((languageCodeInput as HTMLInputElement).value).toBe('zho');
+      expect((languageNameInput as HTMLInputElement).value).toBe('中文');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '重置修改' }));
+
+    await waitFor(() => {
+      expect((languageNameInput as HTMLInputElement).value).toBe('英语');
+      expect((languageCodeInput as HTMLInputElement).value).toBe('eng');
+    });
+  });
+
+  it('saves additional localized name labels from the workspace panel', async () => {
+    render(
+      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: '添加语言标签' }));
+
+  fireEvent.change(screen.getByPlaceholderText('例如 fra、deu、zh-Hant'), { target: { value: 'fra' } });
+  fireEvent.change(screen.getByPlaceholderText('输入该标签对应的名称'), { target: { value: 'Orthographe passerelle' } });
+    fireEvent.click(screen.getAllByRole('button', { name: '保存元数据' })[0]!);
+
+    await waitFor(() => {
+      expect(mockUpdateOrthography).toHaveBeenCalledWith(expect.objectContaining({
+        id: 'orth-source',
+        name: {
+          und: 'Bridge Orthography',
+          eng: 'Bridge Orthography',
+          fra: 'Orthographe passerelle',
+        },
+      }));
+    });
+  });
+
+  it('clears detected locale tags when switching from a tagged code to a plain language', async () => {
+    render(
+      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    const languageCodeInput = await screen.findByRole('textbox', { name: '来源语言代码' });
+
+    fireEvent.change(languageCodeInput, { target: { value: 'en-US' } });
+    await waitFor(() => {
+      expect((languageCodeInput as HTMLInputElement).value).toBe('eng');
+    });
+
+    fireEvent.change(languageCodeInput, { target: { value: 'zho' } });
+    fireEvent.click(screen.getAllByRole('button', { name: '保存元数据' })[0]!);
+
+    await waitFor(() => {
+      const lastCallIndex = mockUpdateOrthography.mock.calls.length - 1;
+      const lastCall = (lastCallIndex >= 0
+        ? mockUpdateOrthography.mock.calls[lastCallIndex]?.[0]
+        : undefined) as Record<string, unknown> | undefined;
+      expect(lastCall).toBeTruthy();
+      expect(lastCall).toEqual(expect.objectContaining({
+        languageId: 'zho',
+      }));
+      expect(lastCall?.localeTag).toBeUndefined();
+      expect(lastCall?.regionTag).toBeUndefined();
+      expect(lastCall?.variantTag).toBeUndefined();
+    });
+  });
+
+  it('clears detected locale tags after editing the language name without a fresh match', async () => {
+    render(
+      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    const languageNameInput = await screen.findByRole('textbox', { name: '语言' });
+    const languageCodeInput = screen.getByRole('textbox', { name: '来源语言代码' });
+
+    fireEvent.change(languageCodeInput, { target: { value: 'en-US' } });
+    await waitFor(() => {
+      expect((languageCodeInput as HTMLInputElement).value).toBe('eng');
+    });
+
+    fireEvent.change(languageNameInput, { target: { value: 'English custom' } });
+    fireEvent.change(screen.getAllByLabelText('键盘布局')[0]!, { target: { value: 'us-intl' } });
+    fireEvent.click(screen.getAllByRole('button', { name: '保存元数据' })[0]!);
+
+    await waitFor(() => {
+      const lastCallIndex = mockUpdateOrthography.mock.calls.length - 1;
+      const lastCall = (lastCallIndex >= 0
+        ? mockUpdateOrthography.mock.calls[lastCallIndex]?.[0]
+        : undefined) as Record<string, unknown> | undefined;
+      expect(lastCall).toBeTruthy();
+      expect(lastCall).toEqual(expect.objectContaining({
+        languageId: 'eng',
+      }));
+      expect(lastCall?.localeTag).toBeUndefined();
+      expect(lastCall?.regionTag).toBeUndefined();
+      expect(lastCall?.variantTag).toBeUndefined();
+    });
   });
 
   it('shows sidebar entry context and blocks orthography switching while the draft is dirty until confirmed', async () => {
@@ -193,7 +333,7 @@ describe('OrthographyWorkspacePage', () => {
 
     expect(await screen.findByText('当前入口来自转写侧栏；后续可直接在这里长期维护桥接规则。')).toBeTruthy();
 
-    fireEvent.change(await screen.findByLabelText('名称（英文）'), { target: { value: 'Dirty Bridge Orthography' } });
+    fireEvent.change(await screen.findByLabelText('英文回退名'), { target: { value: 'Dirty Bridge Orthography' } });
     fireEvent.click(screen.getAllByRole('button', { name: /备选正字法/ })[0]!);
 
     expect(confirmSpy).toHaveBeenCalledWith('当前正字法有未保存修改。仍要切换或离开吗？');

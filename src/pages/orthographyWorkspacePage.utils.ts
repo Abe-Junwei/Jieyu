@@ -1,5 +1,12 @@
 import type { OrthographyDocType } from '../db';
 import { t, useLocale } from '../i18n';
+import {
+  listAdditionalMultiLangLabelEntries,
+  type MultiLangLabelEntry,
+  readAnyMultiLangLabel,
+  readEnglishFallbackMultiLangLabel,
+  readPrimaryMultiLangLabel,
+} from '../utils/multiLangLabels';
 import { COMMON_LANGUAGES } from '../utils/transcriptionFormatters';
 
 export type NormalizationForm = 'NFC' | 'NFD' | 'NFKC' | 'NFKD';
@@ -9,8 +16,9 @@ export type OrthographyCatalogSource = NonNullable<NonNullable<OrthographyDocTyp
 
 export type OrthographyDraft = {
   languageId: string;
-  nameZh: string;
-  nameEn: string;
+  namePrimary: string;
+  nameEnglishFallback: string;
+  localizedNameEntries: MultiLangLabelEntry[];
   abbreviation: string;
   scriptTag: string;
   type: NonNullable<OrthographyDocType['type']>;
@@ -50,10 +58,7 @@ export function resolveLanguageLabel(languageId: string): string {
 }
 
 export function readOrthographyName(orthography: OrthographyDocType): string {
-  return orthography.name?.zho
-    ?? orthography.name?.zh
-    ?? orthography.name?.eng
-    ?? orthography.name?.en
+  return readAnyMultiLangLabel(orthography.name)
     ?? orthography.abbreviation
     ?? orthography.id;
 }
@@ -71,8 +76,9 @@ export function buildSearchText(orthography: OrthographyDocType): string {
 export function buildOrthographyDraft(orthography: OrthographyDocType): OrthographyDraft {
   return {
     languageId: orthography.languageId ?? '',
-    nameZh: orthography.name?.zho ?? orthography.name?.zh ?? '',
-    nameEn: orthography.name?.eng ?? orthography.name?.en ?? '',
+    namePrimary: readPrimaryMultiLangLabel(orthography.name) ?? '',
+    nameEnglishFallback: readEnglishFallbackMultiLangLabel(orthography.name) ?? '',
+    localizedNameEntries: listAdditionalMultiLangLabelEntries(orthography.name),
     abbreviation: orthography.abbreviation ?? '',
     scriptTag: orthography.scriptTag ?? '',
     type: orthography.type ?? 'practical',

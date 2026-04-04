@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MultiLangString, OrthographyDocType } from '../db';
+import { useLocale } from '../i18n';
 import { LinguisticService } from '../services/LinguisticService';
 import {
   resolveOrthographyRenderPolicy,
@@ -12,6 +13,12 @@ import {
   previewOrthographyBridge,
   validateOrthographyBridge,
 } from '../utils/orthographyBridges';
+import {
+  buildPrimaryAndEnglishLabels,
+  readEnglishFallbackMultiLangLabel,
+  readLocalizedMultiLangLabel,
+  readPrimaryMultiLangLabel,
+} from '../utils/multiLangLabels';
 import { COMMON_LANGUAGES } from '../utils/transcriptionFormatters';
 import { hasSameOrthographyIdentity } from '../utils/orthographyIdentity';
 import { useOrthographies } from './useOrthographies';
@@ -27,25 +34,27 @@ function resolveLanguageLabel(languageId: string): string {
 
 function buildOrthographyNameMap(input: {
   languageId: string;
-  nameZh: string;
-  nameEn: string;
+  primaryName: string;
+  englishFallbackName: string;
   abbreviation: string;
   fallback?: string;
 }): MultiLangString {
-  const name: MultiLangString = {};
-  const zh = input.nameZh.trim();
-  const en = input.nameEn.trim();
+  const primaryName = input.primaryName.trim();
+  const englishFallbackName = input.englishFallbackName.trim();
   const abbreviation = input.abbreviation.trim();
   const fallback = input.fallback?.trim();
+  const name = buildPrimaryAndEnglishLabels({
+    primaryLabel: primaryName,
+    englishFallbackLabel: englishFallbackName,
+  });
 
-  if (zh) name.zho = zh;
-  if (en) name.eng = en;
-
-  if (!name.zho && !name.eng) {
+  if (!Object.keys(name).length) {
     const languageLabel = resolveLanguageLabel(input.languageId);
     const resolved = fallback || abbreviation || `${languageLabel} \u6b63\u5b57\u6cd5`;
-    name.zho = resolved;
-    name.eng = fallback || abbreviation || `${input.languageId.toUpperCase()} orthography`;
+    return buildPrimaryAndEnglishLabels({
+      primaryLabel: resolved,
+      englishFallbackLabel: fallback || abbreviation || `${input.languageId.toUpperCase()} orthography`,
+    });
   }
 
   return name;
@@ -69,8 +78,8 @@ function inputLanguageToEnglishLabel(languageId: string): string {
 
 function buildSeedFromOrthography(source: OrthographyDocType | undefined) {
   return {
-    nameZh: source?.name?.zho ?? source?.name?.zh ?? '',
-    nameEn: source?.name?.eng ?? source?.name?.en ?? '',
+    nameZh: readPrimaryMultiLangLabel(source?.name) ?? '',
+    nameEn: readEnglishFallbackMultiLangLabel(source?.name) ?? '',
     abbreviation: source?.abbreviation ?? '',
     scriptTag: source?.scriptTag ?? '',
     type: source?.type ?? ('practical' as const),
@@ -121,11 +130,8 @@ export function formatOrthographyOptionLabel(orthography: {
   abbreviation?: string;
   scriptTag?: string;
   type?: string;
-}): string {
-  const name = orthography.name?.zho
-    ?? orthography.name?.zh
-    ?? orthography.name?.eng
-    ?? orthography.name?.en
+}, locale?: 'zh-CN' | 'en-US'): string {
+  const name = readLocalizedMultiLangLabel(orthography.name, locale)
     ?? orthography.abbreviation
     ?? '\u672a\u547d\u540d\u6b63\u5b57\u6cd5';
   const extras = [orthography.scriptTag, orthography.type].filter(Boolean).join(' · ');
@@ -245,6 +251,7 @@ export function useOrthographyPicker(
   value: string,
   onChange: (nextId: string) => void,
 ) {
+  const locale = useLocale();
   const [localCreatedOrthographies, setLocalCreatedOrthographies] = useState<OrthographyDocType[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [createMode, setCreateMode] = useState<OrthographyCreateMode>('ipa');
@@ -338,8 +345,8 @@ export function useOrthographyPicker(
       languageId,
       name: buildOrthographyNameMap({
         languageId,
-        nameZh: draftNameZh,
-        nameEn: draftNameEn,
+        primaryName: draftNameZh,
+        englishFallbackName: draftNameEn,
         abbreviation: draftAbbreviation,
         fallback: '\u9884\u89c8\u6b63\u5b57\u6cd5',
       }),
@@ -696,11 +703,11 @@ export function useOrthographyPicker(
     try {
       const fallbackName = createMode === 'ipa'
         ? `${resolveLanguageLabel(languageId)} IPA`
-        : formatOrthographyOptionLabel(selectedSourceOrthography ?? {});
+        : formatOrthographyOptionLabel(selectedSourceOrthography ?? {}, locale);
       const name = buildOrthographyNameMap({
         languageId,
-        nameZh: draftNameZh,
-        nameEn: draftNameEn,
+        primaryName: draftNameZh,
+        englishFallbackName: draftNameEn,
         abbreviation: draftAbbreviation,
         fallback: fallbackName,
       });
@@ -783,7 +790,7 @@ export function useOrthographyPicker(
         }
       });
       if (conflictingOrthography) {
-        setError(`已存在相同身份的正字法：${formatOrthographyOptionLabel(conflictingOrthography)}`);
+        setError(`已存在相同身份的正字法：${formatOrthographyOptionLabel(conflictingOrthography, locale)}`);
         return undefined;
       }
 
@@ -806,10 +813,10 @@ export function useOrthographyPicker(
             rules: bridgeRules,
             status: 'active',
             isReversible: draftBridgeIsReversible,
-            name: {
-              zho: `${formatOrthographyOptionLabel(selectedSourceOrthography ?? {})} -> ${name.zho ?? name.eng ?? created.id}`,
-              eng: `${formatOrthographyOptionLabel(selectedSourceOrthography ?? {})} -> ${name.eng ?? name.zho ?? created.id}`,
-            },
+            name: buildPrimaryAndEnglishLabels({
+              primaryLabel: `${formatOrthographyOptionLabel(selectedSourceOrthography ?? {}, locale)} -> ${readPrimaryMultiLangLabel(name) ?? created.id}`,
+              englishFallbackLabel: `${formatOrthographyOptionLabel(selectedSourceOrthography ?? {}, locale)} -> ${readEnglishFallbackMultiLangLabel(name) ?? readPrimaryMultiLangLabel(name) ?? created.id}`,
+            }),
             ...(sampleCases.length ? { sampleCases } : {}),
             ...(sampleInput
               ? {
@@ -849,7 +856,7 @@ export function useOrthographyPicker(
     } finally {
       setSubmitting(false);
     }
-  }, [canConfigureBridge, createMode, draftAbbreviation, draftBidiIsolate, draftDirection, draftExemplarMain, draftFallbackFonts, draftLocaleTag, draftNameEn, draftNameZh, draftPreferDirAttribute, draftPrimaryFonts, draftRegionTag, draftRenderWarnings, draftScriptTag, draftBridgeEngine, draftBridgeIsReversible, draftBridgeSampleCasesText, draftBridgeSampleInput, draftType, draftVariantTag, languageId, onChange, orthographies, renderWarningsAcknowledged, selectedSourceOrthography, sourceOrthographies, sourceOrthographyId, bridgeDraftRules, bridgeDraftSampleCases, bridgeEnabled, bridgeSampleCaseResults, bridgeValidationIssues]);
+  }, [bridgeDraftRules, bridgeDraftSampleCases, bridgeEnabled, bridgeSampleCaseResults, bridgeValidationIssues, canConfigureBridge, createMode, draftAbbreviation, draftBidiIsolate, draftBridgeEngine, draftBridgeIsReversible, draftBridgeSampleCasesText, draftBridgeSampleInput, draftDirection, draftExemplarMain, draftFallbackFonts, draftLocaleTag, draftNameEn, draftNameZh, draftPreferDirAttribute, draftPrimaryFonts, draftRegionTag, draftRenderWarnings, draftScriptTag, draftType, draftVariantTag, languageId, locale, onChange, orthographies, renderWarningsAcknowledged, selectedSourceOrthography, sourceOrthographies, sourceOrthographyId]);
 
   return {
     orthographies,

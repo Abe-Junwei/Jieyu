@@ -61,8 +61,8 @@ export function useMediaImport({
       if (!textId) {
         const baseName = file.name.replace(/\.[^.]+$/, '');
         const result = await LinguisticService.createProject({
-          titleZh: baseName,
-          titleEn: baseName,
+          primaryTitle: baseName,
+          englishFallbackTitle: baseName,
           primaryLanguageId: 'und',
         });
         textId = result.textId;

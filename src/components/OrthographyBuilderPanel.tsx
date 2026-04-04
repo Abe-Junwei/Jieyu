@@ -30,7 +30,21 @@ type OrthographyBuilderPanelProps = {
   sourceLanguageCodePlaceholder?: string;
   nameZhPlaceholder?: string;
   nameEnPlaceholder?: string;
+  contextLines?: string[];
+  onOpenWorkspace?: (orthographyId: string) => void;
 };
+
+function renderSection(title: string, children: ReactNode, key: string, description?: string) {
+  return (
+    <section key={key} className="orthography-builder-section">
+      <div className="orthography-builder-section-header">
+        <h3 className="orthography-builder-section-title">{title}</h3>
+        {description ? <p className="orthography-builder-section-description">{description}</p> : null}
+      </div>
+      <div className="orthography-builder-section-body">{children}</div>
+    </section>
+  );
+}
 
 function renderField(label: string, control: ReactNode, compact: boolean, key: string) {
   if (compact) {
@@ -52,6 +66,8 @@ export function OrthographyBuilderPanel({
   sourceLanguageCodePlaceholder,
   nameZhPlaceholder,
   nameEnPlaceholder,
+  contextLines,
+  onOpenWorkspace,
 }: OrthographyBuilderPanelProps) {
   const locale = useLocale();
   const messages = getOrthographyBuilderMessages(locale);
@@ -69,6 +85,7 @@ export function OrthographyBuilderPanel({
     languageName: '',
     languageCode: '',
   });
+  const [bridgeChecksExpanded, setBridgeChecksExpanded] = useState(false);
   const groupedSourceOrthographies = groupOrthographiesForSelect(picker.sourceOrthographies);
   const bridgeRulePlaceholder = getOrthographyBridgeRulePlaceholder(messages, picker.draftBridgeEngine);
   const bridgeSyntaxHint = getOrthographyBridgeSyntaxHint(messages, picker.draftBridgeEngine);
@@ -136,11 +153,38 @@ export function OrthographyBuilderPanel({
       fontVerification,
     )
     : null;
+  const hasBridgeChecks = picker.draftBridgeSampleCasesText.trim().length > 0 || picker.bridgeSampleCaseResults.length > 0;
+
+  useEffect(() => {
+    if (hasBridgeChecks) {
+      setBridgeChecksExpanded(true);
+    }
+  }, [hasBridgeChecks]);
+
+  const showBridgeChecks = bridgeChecksExpanded || hasBridgeChecks;
+
+  const handleCreateAction = async (openWorkspace: boolean) => {
+    const created = await picker.createOrthography();
+    if (!created || !openWorkspace || !onOpenWorkspace) return;
+    onOpenWorkspace(created.id);
+  };
 
   const content = (
     <div className={containerClassName}>
-      <div className={gridClassName}>
-        {renderField(
+      {contextLines && contextLines.length > 0 && (
+        <div className="orthography-builder-preview-box orthography-builder-context-box">
+          <span className="orthography-builder-rule-label">{messages.contextTitle}</span>
+          <ul className="orthography-builder-context-list">
+            {contextLines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {renderSection(
+        messages.createModeSectionTitle,
+        renderField(
           messages.createModeLabel,
           <select
             className={fieldClassName}
@@ -154,122 +198,170 @@ export function OrthographyBuilderPanel({
           </select>,
           compact,
           'create-mode',
-        )}
+        ),
+        'create-mode-section',
+      )}
 
-        {picker.createMode === 'derive-other' && (
-          <div className="orthography-builder-language-field" key="source-language-input">
-            <LanguageIsoInput
-              locale={locale}
-              value={sourceLanguageInput}
-              onChange={handleSourceLanguageInputChange}
-              nameLabel={messages.sourceLanguageLabel}
-              codeLabel={messages.sourceLanguageCodeLabel}
-              namePlaceholder={compact ? messages.sourceLanguageCompactPlaceholder : resolvedSourceLanguagePlaceholder}
-              codePlaceholder={resolvedSourceLanguageCodePlaceholder}
-            />
-          </div>
-        )}
+      {picker.createMode !== 'ipa' && renderSection(
+        messages.sourceSectionTitle,
+        <>
+          {picker.createMode === 'derive-other' && (
+            <div className="orthography-builder-language-field" key="source-language-input">
+              <LanguageIsoInput
+                locale={locale}
+                value={sourceLanguageInput}
+                onChange={handleSourceLanguageInputChange}
+                nameLabel={messages.sourceLanguageLabel}
+                codeLabel={messages.sourceLanguageCodeLabel}
+                namePlaceholder={compact ? messages.sourceLanguageCompactPlaceholder : resolvedSourceLanguagePlaceholder}
+                codePlaceholder={resolvedSourceLanguageCodePlaceholder}
+              />
+            </div>
+          )}
 
-        {picker.createMode !== 'ipa' && picker.sourceOrthographies.length > 0 && renderField(
-          messages.sourceOrthographyLabel,
-          <select
-            className={fieldClassName}
-            value={picker.sourceOrthographyId}
-            onChange={(e) => picker.setSourceOrthographyId(e.target.value)}
-            aria-label={messages.sourceOrthographyLabel}
-          >
-            {groupedSourceOrthographies.map((group) => (
-              <optgroup key={group.key} label={getOrthographyCatalogGroupLabel(locale, group.key)}>
-                {group.orthographies.map((orthography) => (
-                  <option key={orthography.id} value={orthography.id}>
-                    {formatOrthographyOptionLabel(orthography)}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>,
-          compact,
-          'source-orthography',
-        )}
+          {picker.sourceOrthographies.length > 0 && renderField(
+            messages.sourceOrthographyLabel,
+            <select
+              className={fieldClassName}
+              value={picker.sourceOrthographyId}
+              onChange={(e) => picker.setSourceOrthographyId(e.target.value)}
+              aria-label={messages.sourceOrthographyLabel}
+            >
+              {groupedSourceOrthographies.map((group) => (
+                <optgroup key={group.key} label={getOrthographyCatalogGroupLabel(locale, group.key)}>
+                  {group.orthographies.map((orthography) => (
+                    <option key={orthography.id} value={orthography.id}>
+                      {formatOrthographyOptionLabel(orthography, locale)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>,
+            compact,
+            'source-orthography',
+          )}
 
-        {picker.createMode !== 'ipa' && picker.sourceOrthographies.length === 0 && (
-          <p className="orthography-builder-hint" key="source-hint">{messages.sourceOrthographyHint}</p>
-        )}
+          {picker.sourceOrthographies.length === 0 && (
+            <p className="orthography-builder-hint" key="source-hint">{messages.sourceOrthographyHint}</p>
+          )}
+        </>,
+        'source-section',
+        picker.createMode === 'copy-current' ? messages.sourceSectionCopyDescription : undefined,
+      )}
 
-        {renderField(
-          messages.nameZhLabel,
-          <input
-            className={fieldClassName}
-            type="text"
-            value={picker.draftNameZh}
-            onChange={(e) => picker.setDraftNameZh(e.target.value)}
-            placeholder={compact ? messages.nameZhCompactPlaceholder : resolvedNameZhPlaceholder}
-            aria-label={messages.nameZhLabel}
-          />,
-          compact,
-          'name-zh',
-        )}
+      {renderSection(
+        messages.identitySectionTitle,
+        <div className={gridClassName}>
+          {renderField(
+            messages.nameZhLabel,
+            <input
+              className={fieldClassName}
+              type="text"
+              value={picker.draftNameZh}
+              onChange={(e) => picker.setDraftNameZh(e.target.value)}
+              placeholder={compact ? messages.nameZhCompactPlaceholder : resolvedNameZhPlaceholder}
+              aria-label={messages.nameZhLabel}
+            />,
+            compact,
+            'name-zh',
+          )}
 
-        {renderField(
-          messages.nameEnLabel,
-          <input
-            className={fieldClassName}
-            type="text"
-            value={picker.draftNameEn}
-            onChange={(e) => picker.setDraftNameEn(e.target.value)}
-            placeholder={compact ? messages.nameEnCompactPlaceholder : resolvedNameEnPlaceholder}
-            aria-label={messages.nameEnLabel}
-          />,
-          compact,
-          'name-en',
-        )}
+          {renderField(
+            messages.nameEnLabel,
+            <input
+              className={fieldClassName}
+              type="text"
+              value={picker.draftNameEn}
+              onChange={(e) => picker.setDraftNameEn(e.target.value)}
+              placeholder={compact ? messages.nameEnCompactPlaceholder : resolvedNameEnPlaceholder}
+              aria-label={messages.nameEnLabel}
+            />,
+            compact,
+            'name-en',
+          )}
 
-        {renderField(
-          messages.abbreviationLabel,
-          <input
-            className={fieldClassName}
-            type="text"
-            value={picker.draftAbbreviation}
-            onChange={(e) => picker.setDraftAbbreviation(e.target.value)}
-            placeholder={messages.abbreviationPlaceholder}
-            aria-label={messages.abbreviationLabel}
-          />,
-          compact,
-          'abbr',
-        )}
+          {renderField(
+            messages.abbreviationLabel,
+            <input
+              className={fieldClassName}
+              type="text"
+              value={picker.draftAbbreviation}
+              onChange={(e) => picker.setDraftAbbreviation(e.target.value)}
+              placeholder={messages.abbreviationPlaceholder}
+              aria-label={messages.abbreviationLabel}
+            />,
+            compact,
+            'abbr',
+          )}
 
-        {renderField(
-          messages.scriptTagLabel,
-          <input
-            className={fieldClassName}
-            type="text"
-            value={picker.draftScriptTag}
-            onChange={(e) => picker.setDraftScriptTag(e.target.value)}
-            placeholder={messages.scriptTagPlaceholder}
-            aria-label={messages.scriptTagLabel}
-          />,
-          compact,
-          'script',
-        )}
+          {renderField(
+            messages.scriptTagLabel,
+            <input
+              className={fieldClassName}
+              type="text"
+              value={picker.draftScriptTag}
+              onChange={(e) => picker.setDraftScriptTag(e.target.value)}
+              placeholder={messages.scriptTagPlaceholder}
+              aria-label={messages.scriptTagLabel}
+            />,
+            compact,
+            'script',
+          )}
 
-        {renderField(
-          messages.typeLabel,
-          <select
-            className={fieldClassName}
-            value={picker.draftType}
-            onChange={(e) => picker.setDraftType(e.target.value as 'phonemic' | 'phonetic' | 'practical' | 'historical' | 'other')}
-            aria-label={messages.typeLabel}
-          >
-            <option value="phonemic">{messages.typePhonemic}</option>
-            <option value="phonetic">{messages.typePhonetic}</option>
-            <option value="practical">{messages.typePractical}</option>
-            <option value="historical">{messages.typeHistorical}</option>
-            <option value="other">{messages.typeOther}</option>
-          </select>,
-          compact,
-          'type',
-        )}
-      </div>
+          {renderField(
+            messages.typeLabel,
+            <select
+              className={fieldClassName}
+              value={picker.draftType}
+              onChange={(e) => picker.setDraftType(e.target.value as 'phonemic' | 'phonetic' | 'practical' | 'historical' | 'other')}
+              aria-label={messages.typeLabel}
+            >
+              <option value="phonemic">{messages.typePhonemic}</option>
+              <option value="phonetic">{messages.typePhonetic}</option>
+              <option value="practical">{messages.typePractical}</option>
+              <option value="historical">{messages.typeHistorical}</option>
+              <option value="other">{messages.typeOther}</option>
+            </select>,
+            compact,
+            'type',
+          )}
+        </div>,
+        'identity-section',
+      )}
+
+      {renderSection(
+        messages.renderSectionTitle,
+        <div className={gridClassName}>
+          {renderField(
+            messages.advancedDirectionLabel,
+            <select className={fieldClassName} value={picker.draftDirection} onChange={(e) => picker.setDraftDirection(e.target.value as 'ltr' | 'rtl')} aria-label={messages.advancedDirectionLabel}>
+              <option value="ltr">{messages.advancedDirectionLtr}</option>
+              <option value="rtl">{messages.advancedDirectionRtl}</option>
+            </select>,
+            compact,
+            'direction',
+          )}
+          {renderField(
+            messages.exemplarLabel,
+            <input className={fieldClassName} type="text" value={picker.draftExemplarMain} onChange={(e) => picker.setDraftExemplarMain(e.target.value)} placeholder={messages.exemplarPlaceholder} aria-label={messages.exemplarLabel} />,
+            compact,
+            'exemplar',
+          )}
+          {renderField(
+            messages.primaryFontLabel,
+            <input className={fieldClassName} type="text" value={picker.draftPrimaryFonts} onChange={(e) => picker.setDraftPrimaryFonts(e.target.value)} placeholder={messages.primaryFontPlaceholder} aria-label={messages.primaryFontLabel} />,
+            compact,
+            'primary-fonts',
+          )}
+          {renderField(
+            messages.fallbackFontLabel,
+            <input className={fieldClassName} type="text" value={picker.draftFallbackFonts} onChange={(e) => picker.setDraftFallbackFonts(e.target.value)} placeholder={messages.fallbackFontPlaceholder} aria-label={messages.fallbackFontLabel} />,
+            compact,
+            'fallback-fonts',
+          )}
+        </div>,
+        'render-section',
+      )}
 
       {picker.draftRenderPolicy && (
         <div className="orthography-builder-preview-box orthography-builder-render-preview">
@@ -337,76 +429,9 @@ export function OrthographyBuilderPanel({
         </div>
       )}
 
-      <div className="orthography-builder-section-toggle-row">
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={() => picker.setShowAdvancedFields(!picker.showAdvancedFields)}
-        >
-          {picker.showAdvancedFields ? messages.collapseAdvanced : messages.expandAdvanced}
-        </button>
-      </div>
-
-      {picker.showAdvancedFields && (
-        <div className="orthography-builder-advanced-grid">
-          {renderField(
-            messages.advancedLocaleLabel,
-            <input className={fieldClassName} type="text" value={picker.draftLocaleTag} onChange={(e) => picker.setDraftLocaleTag(e.target.value)} placeholder={messages.localePlaceholder} aria-label={messages.advancedLocaleLabel} />,
-            compact,
-            'locale',
-          )}
-          {renderField(
-            messages.advancedRegionLabel,
-            <input className={fieldClassName} type="text" value={picker.draftRegionTag} onChange={(e) => picker.setDraftRegionTag(e.target.value)} placeholder={messages.regionPlaceholder} aria-label={messages.advancedRegionLabel} />,
-            compact,
-            'region',
-          )}
-          {renderField(
-            messages.advancedVariantLabel,
-            <input className={fieldClassName} type="text" value={picker.draftVariantTag} onChange={(e) => picker.setDraftVariantTag(e.target.value)} placeholder={messages.variantPlaceholder} aria-label={messages.advancedVariantLabel} />,
-            compact,
-            'variant',
-          )}
-          {renderField(
-            messages.advancedDirectionLabel,
-            <select className={fieldClassName} value={picker.draftDirection} onChange={(e) => picker.setDraftDirection(e.target.value as 'ltr' | 'rtl')} aria-label={messages.advancedDirectionLabel}>
-              <option value="ltr">{messages.advancedDirectionLtr}</option>
-              <option value="rtl">{messages.advancedDirectionRtl}</option>
-            </select>,
-            compact,
-            'direction',
-          )}
-          {renderField(
-            messages.exemplarLabel,
-            <input className={fieldClassName} type="text" value={picker.draftExemplarMain} onChange={(e) => picker.setDraftExemplarMain(e.target.value)} placeholder={messages.exemplarPlaceholder} aria-label={messages.exemplarLabel} />,
-            compact,
-            'exemplar',
-          )}
-          {renderField(
-            messages.primaryFontLabel,
-            <input className={fieldClassName} type="text" value={picker.draftPrimaryFonts} onChange={(e) => picker.setDraftPrimaryFonts(e.target.value)} placeholder={messages.primaryFontPlaceholder} aria-label={messages.primaryFontLabel} />,
-            compact,
-            'primary-fonts',
-          )}
-          {renderField(
-            messages.fallbackFontLabel,
-            <input className={fieldClassName} type="text" value={picker.draftFallbackFonts} onChange={(e) => picker.setDraftFallbackFonts(e.target.value)} placeholder={messages.fallbackFontPlaceholder} aria-label={messages.fallbackFontLabel} />,
-            compact,
-            'fallback-fonts',
-          )}
-          <label className="orthography-builder-checkbox">
-            <input type="checkbox" checked={picker.draftBidiIsolate} onChange={(e) => picker.setDraftBidiIsolate(e.target.checked)} />
-            <span>{messages.bidiIsolationLabel}</span>
-          </label>
-          <label className="orthography-builder-checkbox">
-            <input type="checkbox" checked={picker.draftPreferDirAttribute} onChange={(e) => picker.setDraftPreferDirAttribute(e.target.checked)} />
-            <span>{messages.preferDirLabel}</span>
-          </label>
-        </div>
-      )}
-
-      {picker.canConfigureBridge && (
-        <div className="orthography-builder-bridge-panel">
+      {picker.canConfigureBridge && renderSection(
+        messages.bridgeSectionTitle,
+        <>
           <label className="orthography-builder-checkbox">
             <input type="checkbox" checked={picker.bridgeEnabled} onChange={(e) => picker.setBridgeEnabled(e.target.checked)} />
             <span>{messages.bridgeEnabledLabel}</span>
@@ -444,21 +469,10 @@ export function OrthographyBuilderPanel({
                   aria-label={messages.bridgeRuleTextLabel}
                   rows={compact ? 5 : 6}
                 />
-              </div>
-              <div className="orthography-builder-preview-box orthography-builder-bridge-hint-box">
-                <span className="orthography-builder-rule-label">{messages.bridgeRuleSyntaxTitle}</span>
-                <span>{bridgeSyntaxHint}</span>
-              </div>
-              <div className="orthography-builder-rule-block">
-                <span className="orthography-builder-rule-label">{messages.bridgeSampleCaseLabel}</span>
-                <textarea
-                  className="input orthography-builder-rule-textarea"
-                  value={picker.draftBridgeSampleCasesText}
-                  onChange={(e) => picker.setDraftBridgeSampleCasesText(e.target.value)}
-                  placeholder={messages.bridgeSampleCasePlaceholder}
-                  aria-label={messages.bridgeSampleCaseLabel}
-                  rows={compact ? 4 : 5}
-                />
+                <div className="orthography-builder-helper-text">
+                  <strong>{messages.bridgeRuleSyntaxTitle}</strong>
+                  <span>{bridgeSyntaxHint}</span>
+                </div>
               </div>
               {picker.bridgeValidationIssues.length > 0 && (
                 <div className="orthography-builder-validation-box orthography-builder-validation-box-error">
@@ -476,7 +490,32 @@ export function OrthographyBuilderPanel({
                   <code>{picker.bridgePreviewOutput}</code>
                 </div>
               )}
-              {picker.bridgeSampleCaseResults.length > 0 && (
+              <div className="orthography-builder-bridge-secondary">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setBridgeChecksExpanded((prev) => !prev)}
+                >
+                  {showBridgeChecks ? messages.collapseBridgeChecks : messages.expandBridgeChecks}
+                </button>
+                {showBridgeChecks && (
+                  <div className="orthography-builder-rule-block">
+                    <span className="orthography-builder-rule-label">{messages.bridgeSampleCaseLabel}</span>
+                    <div className="orthography-builder-helper-text">
+                      <span>{messages.bridgeSampleCaseDescription}</span>
+                    </div>
+                    <textarea
+                      className="input orthography-builder-rule-textarea"
+                      value={picker.draftBridgeSampleCasesText}
+                      onChange={(e) => picker.setDraftBridgeSampleCasesText(e.target.value)}
+                      placeholder={messages.bridgeSampleCasePlaceholder}
+                      aria-label={messages.bridgeSampleCaseLabel}
+                      rows={compact ? 4 : 5}
+                    />
+                  </div>
+                )}
+              </div>
+              {showBridgeChecks && picker.bridgeSampleCaseResults.length > 0 && (
                 <div className="orthography-builder-validation-box orthography-builder-validation-box-neutral">
                   <span className="orthography-builder-rule-label">{messages.bridgeSampleResultTitle}</span>
                   <ul className="orthography-builder-validation-list">
@@ -501,7 +540,9 @@ export function OrthographyBuilderPanel({
               )}
             </div>
           )}
-        </div>
+        </>,
+        'bridge-section',
+        messages.bridgeSectionDescription,
       )}
 
       {picker.error && (
@@ -514,6 +555,11 @@ export function OrthographyBuilderPanel({
           : <p className="error">{picker.error}</p>
       )}
 
+      <div className="orthography-builder-preview-box orthography-builder-workspace-note">
+        <span className="orthography-builder-rule-label">{messages.workspaceNoteTitle}</span>
+        <span>{messages.workspaceNoteBody}</span>
+      </div>
+
       <div className="orthography-builder-actions">
         <button
           type="button"
@@ -523,12 +569,28 @@ export function OrthographyBuilderPanel({
         >
           {messages.cancelCreate}
         </button>
+        {onOpenWorkspace && (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={picker.submitting}
+            onClick={() => {
+              void handleCreateAction(true);
+            }}
+          >
+            {picker.submitting
+              ? messages.creating
+              : picker.requiresRenderWarningConfirmation
+                ? messages.confirmRiskAndOpenWorkspace
+                : messages.createAndOpenWorkspace}
+          </button>
+        )}
         <button
           type="button"
           className="btn"
           disabled={picker.submitting}
           onClick={() => {
-            void picker.createOrthography();
+            void handleCreateAction(false);
           }}
         >
           {picker.submitting ? messages.creating : picker.requiresRenderWarningConfirmation ? messages.confirmRiskAndCreate : messages.createAndSelect}

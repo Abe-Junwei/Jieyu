@@ -20,6 +20,7 @@ import type {
 } from '../db';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
+import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -161,7 +162,7 @@ export function exportToFlextext(input: FlexExportInput): string {
       const segs = segmentsByLayer.get(layer.id);
       if (!segs || segs.length === 0) continue;
       const contentMap = segmentContents?.get(layer.id);
-      const tierName = layer.name?.eng ?? layer.name?.zho ?? layer.key;
+      const tierName = readEnglishFallbackMultiLangLabel(layer.name) ?? layer.key;
       const sortedSegs = [...segs].sort((a, b) => a.startTime - b.startTime);
       const segPhrasesXml = sortedSegs.map((seg, i) => {
         const txt = wrapLayerText(contentMap?.get(seg.id)?.text ?? '', layer);

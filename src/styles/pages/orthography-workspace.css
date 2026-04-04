@@ -127,6 +127,11 @@
   background: color-mix(in srgb, var(--surface-header) 82%, transparent);
 }
 
+.orthography-workspace-subsection-header {
+  display: grid;
+  gap: 6px;
+}
+
 .orthography-workspace-subsection-title {
   margin: 0;
   font-size: 0.95rem;
@@ -151,6 +156,27 @@
   justify-content: flex-end;
   gap: 10px;
   margin-top: 16px;
+}
+
+.orthography-workspace-array-list {
+  display: grid;
+  gap: 12px;
+}
+
+.orthography-workspace-array-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.orthography-workspace-array-value {
+  min-width: 0;
+}
+
+.orthography-workspace-array-add,
+.orthography-workspace-array-remove {
+  white-space: nowrap;
 }
 
 .orthography-workspace-basic-grid div {
@@ -182,6 +208,10 @@
   }
 
   .orthography-workspace-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .orthography-workspace-array-row {
     grid-template-columns: 1fr;
   }
 

@@ -123,7 +123,7 @@ describe('LayerActionPopover RTL matrix', () => {
       'en-US',
     );
 
-    const languageCodeInput = screen.getByRole('textbox', { name: /iso 639-3 code/i });
+    const languageCodeInput = screen.getByRole('textbox', { name: /source language code/i });
     fireEvent.change(languageCodeInput, { target: { value: 'cmn' } });
 
     const createButton = screen.getByRole('button', { name: /^create$/i });

@@ -6,11 +6,15 @@ export interface OrthographyInteropMetadata {
   scriptTag?: string;
   regionTag?: string;
   variantTag?: string;
-  transformId?: string;
+  bridgeId?: string;
 }
 
 function normalizeInteropString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function resolveInteropBridgeId(raw: { bridgeId?: unknown }): string | undefined {
+  return normalizeInteropString(raw.bridgeId);
 }
 
 export function buildOrthographyInteropMetadata(
@@ -21,13 +25,14 @@ export function buildOrthographyInteropMetadata(
   const orthography = layer.orthographyId
     ? orthographies?.find((item) => item.id === layer.orthographyId)
     : undefined;
+  const bridgeId = resolveInteropBridgeId(layer);
   const metadata: OrthographyInteropMetadata = {
     ...(layer.languageId ? { languageId: layer.languageId } : {}),
     ...(layer.orthographyId ? { orthographyId: layer.orthographyId } : {}),
     ...(orthography?.scriptTag ? { scriptTag: orthography.scriptTag } : {}),
     ...(orthography?.regionTag ? { regionTag: orthography.regionTag } : {}),
     ...(orthography?.variantTag ? { variantTag: orthography.variantTag } : {}),
-    ...(layer.transformId ? { transformId: layer.transformId } : {}),
+    ...(bridgeId ? { bridgeId } : {}),
   };
   return Object.keys(metadata).length > 0 ? metadata : undefined;
 }
@@ -40,14 +45,14 @@ export function parseOrthographyInteropMetadata(raw: unknown): OrthographyIntero
   const scriptTag = normalizeInteropString(parsed.scriptTag);
   const regionTag = normalizeInteropString(parsed.regionTag);
   const variantTag = normalizeInteropString(parsed.variantTag);
-  const transformId = normalizeInteropString(parsed.transformId);
+  const resolvedBridgeId = resolveInteropBridgeId(parsed);
   const metadata: OrthographyInteropMetadata = {
     ...(languageId ? { languageId } : {}),
     ...(orthographyId ? { orthographyId } : {}),
     ...(scriptTag ? { scriptTag } : {}),
     ...(regionTag ? { regionTag } : {}),
     ...(variantTag ? { variantTag } : {}),
-    ...(transformId ? { transformId } : {}),
+    ...(resolvedBridgeId ? { bridgeId: resolvedBridgeId } : {}),
   };
   return Object.keys(metadata).length > 0 ? metadata : undefined;
 }

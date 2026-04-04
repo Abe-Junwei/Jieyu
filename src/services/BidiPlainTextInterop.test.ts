@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import type { LayerDocType, OrthographyDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type {
+  LayerDocType,
+  LayerSegmentContentDocType,
+  LayerSegmentDocType,
+  OrthographyDocType,
+  UtteranceDocType,
+  UtteranceTextDocType,
+} from '../db';
 import { exportToTextGrid, importFromTextGrid } from './TextGridService';
 import { exportToFlextext, importFromFlextext } from './FlexService';
 import { exportToToolbox, importFromToolbox } from './ToolboxService';
@@ -70,6 +77,47 @@ function makeUtteranceText(layerId: string, text: string): UtteranceTextDocType 
   } as UtteranceTextDocType;
 }
 
+function makeSegmentLayer(): LayerDocType {
+  return {
+    id: 'trl-segment',
+    textId: 'text-1',
+    key: 'trl_segment',
+    name: { zho: '中文层名', eng: 'English Gloss Layer' },
+    layerType: 'translation',
+    languageId: 'eng',
+    modality: 'text',
+    acceptsAudio: false,
+    parentLayerId: 'trc-1',
+    createdAt: NOW,
+    updatedAt: NOW,
+  } as LayerDocType;
+}
+
+function makeSegment(): LayerSegmentDocType {
+  return {
+    id: 'seg-1',
+    textId: 'text-1',
+    mediaId: 'media-1',
+    layerId: 'trl-segment',
+    utteranceId: 'utt-1',
+    startTime: 0,
+    endTime: 1,
+    createdAt: NOW,
+    updatedAt: NOW,
+  } as LayerSegmentDocType;
+}
+
+function makeSegmentContent(): LayerSegmentContentDocType {
+  return {
+    id: 'segc-1',
+    segmentId: 'seg-1',
+    layerId: 'trl-segment',
+    text: 'hello',
+    createdAt: NOW,
+    updatedAt: NOW,
+  } as LayerSegmentContentDocType;
+}
+
 describe('plain-text bidi export interop', () => {
   it('TextGrid wraps exported RTL text and strips controls on import', () => {
     const layer = makeTranscriptionLayer();
@@ -103,6 +151,21 @@ describe('plain-text bidi export interop', () => {
     expect(imported.utterances[0]?.transcription).toBe(MIXED_RTL_TEXT);
   });
 
+  it('FLEx prefers English fallback labels for additional layer titles', () => {
+    const transcriptionLayer = makeTranscriptionLayer();
+    const segmentLayer = makeSegmentLayer();
+    const flex = exportToFlextext({
+      utterances: [makeUtterance()],
+      layers: [transcriptionLayer, segmentLayer],
+      translations: [makeUtteranceText(transcriptionLayer.id, MIXED_RTL_TEXT)],
+      segmentsByLayer: new Map([[segmentLayer.id, [makeSegment()]]]),
+      segmentContents: new Map([[segmentLayer.id, new Map([[ 'seg-1', makeSegmentContent() ]])]]),
+    });
+
+    expect(flex).toContain('<item type="title" lang="en">English Gloss Layer</item>');
+    expect(flex).not.toContain('<item type="title" lang="en">中文层名</item>');
+  });
+
   it('Toolbox wraps exported RTL marker text and strips controls on import', () => {
     const layer = makeTranscriptionLayer();
     const orthography = makeOrthography();
@@ -117,6 +180,21 @@ describe('plain-text bidi export interop', () => {
 
     const imported = importFromToolbox(toolbox);
     expect(imported.utterances[0]?.transcription).toBe(MIXED_RTL_TEXT);
+  });
+
+  it('Toolbox prefers English fallback labels for additional layer headers', () => {
+    const transcriptionLayer = makeTranscriptionLayer();
+    const segmentLayer = makeSegmentLayer();
+    const toolbox = exportToToolbox({
+      utterances: [makeUtterance()],
+      layers: [transcriptionLayer, segmentLayer],
+      translations: [makeUtteranceText(transcriptionLayer.id, MIXED_RTL_TEXT)],
+      segmentsByLayer: new Map([[segmentLayer.id, [makeSegment()]]]),
+      segmentContents: new Map([[segmentLayer.id, new Map([[ 'seg-1', makeSegmentContent() ]])]]),
+    });
+
+    expect(toolbox).toContain('\\_sh v3.0 400  English Gloss Layer');
+    expect(toolbox).not.toContain('\\_sh v3.0 400  中文层名');
   });
 
   it('TRS wraps exported RTL sync text and strips controls on import', () => {

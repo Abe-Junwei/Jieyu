@@ -230,8 +230,8 @@ export function useTranscriptionShellController(
     let resolvedTextId = config.textId?.trim() || activeTextId || (await getActiveTextId()) || '';
     if (!resolvedTextId) {
       const result = await LinguisticService.createProject({
-        titleZh: t('zh-CN', 'transcription.project.untitledZh'),
-        titleEn: t('en-US', 'transcription.project.untitledEn'),
+        primaryTitle: t('zh-CN', 'transcription.project.untitledZh'),
+        englishFallbackTitle: t('en-US', 'transcription.project.untitledEn'),
         primaryLanguageId: config.languageId?.trim() || 'und',
         ...(config.orthographyId?.trim() ? { primaryOrthographyId: config.orthographyId.trim() } : {}),
       });

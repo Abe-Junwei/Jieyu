@@ -23,6 +23,7 @@ import type {
 } from '../db';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
+import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 
 export interface ToolboxExportInput {
   utterances: UtteranceDocType[];
@@ -302,7 +303,7 @@ export function exportToToolbox(input: ToolboxExportInput): string {
     for (const [layerId, segs] of segmentsByLayer) {
       const layer = layers.find((l) => l.id === layerId);
       if (!layer) continue;
-      const tierName = layer.name?.eng ?? layer.name?.zho ?? layer.key;
+      const tierName = readEnglishFallbackMultiLangLabel(layer.name) ?? layer.key;
       const sortedSegs = [...segs].sort((a, b) => a.startTime - b.startTime);
       const contentMap = segmentContents?.get(layerId);
       lines.push(`\\_sh v3.0 400  ${tierName}`);

@@ -3,6 +3,16 @@ import type { OrthographyCatalogGroupKey } from '../hooks/useOrthographyPicker';
 
 export type OrthographyBuilderMessages = {
   panelTitle: string;
+  contextTitle: string;
+  createModeSectionTitle: string;
+  sourceSectionTitle: string;
+  sourceSectionCopyDescription: string;
+  identitySectionTitle: string;
+  renderSectionTitle: string;
+  bridgeSectionTitle: string;
+  bridgeSectionDescription: string;
+  workspaceNoteTitle: string;
+  workspaceNoteBody: string;
   sourceLanguagePlaceholder: string;
   sourceLanguageCodePlaceholder: string;
   nameZhPlaceholder: string;
@@ -81,10 +91,13 @@ export type OrthographyBuilderMessages = {
   bridgeRuleSyntaxIcuRule: string;
   bridgeRuleSyntaxManual: string;
   bridgeSampleCaseLabel: string;
+  bridgeSampleCaseDescription: string;
   bridgeSampleCasePlaceholder: string;
   bridgeValidationTitle: string;
   bridgePreviewOutputTitle: string;
   bridgeSampleResultTitle: string;
+  expandBridgeChecks: string;
+  collapseBridgeChecks: string;
   sampleStatusFail: string;
   sampleStatusPass: string;
   sampleStatusPreview: string;
@@ -93,6 +106,8 @@ export type OrthographyBuilderMessages = {
   creating: string;
   confirmRiskAndCreate: string;
   createAndSelect: string;
+  confirmRiskAndOpenWorkspace: string;
+  createAndOpenWorkspace: string;
   orthographyGroupUser: string;
   orthographyGroupReviewedPrimary: string;
   orthographyGroupReviewedSecondary: string;
@@ -104,7 +119,17 @@ export type OrthographyBuilderMessages = {
 };
 
 const zhCN: OrthographyBuilderMessages = {
-  panelTitle: '\u6b63\u5b57\u6cd5\u6784\u5efa\u5668',
+  panelTitle: '\u6b63\u5b57\u6cd5\u5feb\u901f\u521b\u5efa',
+  contextTitle: '\u5f53\u524d\u521b\u5efa\u573a\u666f',
+  createModeSectionTitle: '\u521b\u5efa\u65b9\u5f0f',
+  sourceSectionTitle: '\u6765\u6e90\u4fe1\u606f',
+  sourceSectionCopyDescription: '\u590d\u5236\u5f53\u524d\u6a21\u5f0f\u4e0b\u53ea\u9700\u9009\u4e00\u4e2a\u6765\u6e90\u6b63\u5b57\u6cd5\uff0c\u5b8c\u6574\u5dee\u5f02\u7ef4\u62a4\u7559\u7ed9\u5de5\u4f5c\u53f0\u3002',
+  identitySectionTitle: '\u6700\u5c0f\u8eab\u4efd\u5b57\u6bb5',
+  renderSectionTitle: '\u6700\u5c0f\u6e32\u67d3\u51b3\u7b56',
+  bridgeSectionTitle: '\u53ef\u9009\u8d77\u6b65\u6865\u63a5',
+  bridgeSectionDescription: '\u53ea\u6709\u5f53\u4f60\u5e0c\u671b\u65b0\u65b9\u6848\u521b\u5efa\u540e\u7acb\u5373\u53ef\u4ece\u6765\u6e90\u65b9\u6848\u63a8\u5bfc\u65f6\uff0c\u624d\u5728\u8fd9\u91cc\u8865\u4e00\u6761\u8d77\u6b65\u6865\u63a5\u3002\u5b8c\u6574\u6865\u63a5\u8bbe\u8ba1\u4e0e\u540e\u7eed\u7ef4\u62a4\u8bf7\u53bb\u5de5\u4f5c\u53f0\u3002',
+  workspaceNoteTitle: '\u521b\u5efa\u540e\u53bb\u5411',
+  workspaceNoteBody: '\u8fd9\u91cc\u53ea\u521b\u5efa\u53ef\u7acb\u5373\u9009\u4e2d\u3001\u53ef\u7acb\u5373\u5199\u5165\u7684\u6700\u5c0f\u7248\u672c\uff1b\u76ee\u5f55\u5ba1\u6821\u3001\u8f93\u5165\u63d0\u793a\u3001\u89c4\u8303\u5316\u4e0e\u5b8c\u6574\u6865\u63a5\u7ba1\u7406\u8bf7\u8f6c\u5230\u6b63\u5b57\u6cd5\u5de5\u4f5c\u53f0\u3002',
   sourceLanguagePlaceholder: '\u8bf7\u9009\u62e9\u6765\u6e90\u8bed\u8a00\u2026',
   sourceLanguageCodePlaceholder: '\u4f8b\uff1aeng',
   nameZhPlaceholder: '\u4f8b\uff1a\u82d7\u6587 IPA',
@@ -120,10 +145,10 @@ const zhCN: OrthographyBuilderMessages = {
   sourceLanguageCodeLabel: '\u6765\u6e90\u8bed\u8a00\u4ee3\u7801',
   sourceOrthographyLabel: '\u6765\u6e90\u6b63\u5b57\u6cd5',
   sourceOrthographyHint: '\u5f53\u524d\u6a21\u5f0f\u4e0b\u6682\u65e0\u53ef\u590d\u5236\u7684\u6765\u6e90\u6b63\u5b57\u6cd5\uff0c\u8bf7\u5148\u5207\u6362\u6765\u6e90\u8bed\u8a00\u6216\u6539\u7528\u56fd\u9645\u97f3\u6807\u6a21\u5f0f\u521b\u5efa\u3002',
-  nameZhLabel: '\u540d\u79f0\uff08\u4e2d\u6587\uff09',
-  nameZhCompactPlaceholder: '\u6b63\u5b57\u6cd5\u540d\u79f0\uff08\u4e2d\u6587\uff0c\u53ef\u9009\uff09',
-  nameEnLabel: '\u540d\u79f0\uff08\u82f1\u6587\uff09',
-  nameEnCompactPlaceholder: '\u6b63\u5b57\u6cd5\u540d\u79f0\uff08\u82f1\u6587\uff0c\u53ef\u9009\uff09',
+  nameZhLabel: '\u672c\u5730\u540d\u79f0',
+  nameZhCompactPlaceholder: '\u6b63\u5b57\u6cd5\u672c\u5730\u540d\u79f0\uff08\u53ef\u9009\uff09',
+  nameEnLabel: '\u82f1\u6587\u56de\u9000\u540d',
+  nameEnCompactPlaceholder: '\u6b63\u5b57\u6cd5\u82f1\u6587\u56de\u9000\u540d\uff08\u53ef\u9009\uff09',
   abbreviationLabel: '\u7f29\u5199',
   abbreviationPlaceholder: '\u4f8b\uff1aIPA',
   scriptTagLabel: '\u811a\u672c\u6807\u7b7e',
@@ -165,7 +190,7 @@ const zhCN: OrthographyBuilderMessages = {
   fallbackFontPlaceholder: '\u4ee5\u9017\u53f7\u5206\u9694\uff0c\u5982 Arial Unicode MS',
   bidiIsolationLabel: '\u884c\u5185\u53cc\u5411\u6587\u672c\u542f\u7528\u9694\u79bb',
   preferDirLabel: '\u6e32\u67d3\u65f6\u4f18\u5148\u5199\u5165 dir \u5c5e\u6027',
-  bridgeEnabledLabel: '\u4e3a\u6d3e\u751f\u6b63\u5b57\u6cd5\u521b\u5efa\u6865\u63a5\u89c4\u5219',
+  bridgeEnabledLabel: '\u521b\u5efa\u65f6\u987a\u624b\u5e26\u4e0a\u4e00\u6761\u8d77\u6b65\u6865\u63a5',
   bridgeEngineLabel: '\u6865\u63a5\u5f15\u64ce',
   bridgeEngineTableMap: '\u8868\u683c\u6620\u5c04',
   bridgeEngineIcuRule: 'ICU \u89c4\u5219',
@@ -183,10 +208,13 @@ const zhCN: OrthographyBuilderMessages = {
   bridgeRuleSyntaxIcuRule: 'ICU \u89c4\u5219\u6309\u884c\u94fe\u5f0f\u6267\u884c\uff0c\u652f\u6301 ::NFC/::NFD/::NFKC/::NFKD \u89c4\u8303\u5316\u6307\u4ee4\uff0c\u4ee5\u53ca /regex/flags => replacement \u6b63\u5219\u6865\u63a5\u66ff\u6362\u3002',
   bridgeRuleSyntaxManual: '\u624b\u5de5\u89c4\u5219\u4e0d\u81ea\u52a8\u6865\u63a5\u6587\u672c\uff0c\u9002\u5408\u9700\u8981\u4eba\u5de5\u5ba1\u6838\u6216\u5916\u90e8\u6d41\u7a0b\u7684\u6d3e\u751f\u6b63\u5b57\u6cd5\u3002',
   bridgeSampleCaseLabel: '\u6865\u63a5\u6837\u4f8b',
+  bridgeSampleCaseDescription: '\u53ef\u9009\u3002\u53ea\u6709\u60f3\u5728\u521b\u5efa\u524d\u518d\u770b\u51e0\u6761\u6837\u4f8b\u65f6\u624d\u586b\u5199\u3002',
   bridgeSampleCasePlaceholder: '\u6bcf\u884c\u4e00\u6761\u6837\u4f8b\uff0c\u683c\u5f0f\u5982 shaa => saa',
   bridgeValidationTitle: '\u6865\u63a5\u89c4\u5219\u6821\u9a8c',
   bridgePreviewOutputTitle: '\u6865\u63a5\u9884\u89c8\u8f93\u51fa',
   bridgeSampleResultTitle: '\u6865\u63a5\u6837\u4f8b\u7ed3\u679c',
+  expandBridgeChecks: '\u6dfb\u52a0\u521b\u5efa\u524d\u81ea\u68c0\u6837\u4f8b',
+  collapseBridgeChecks: '\u6536\u8d77\u521b\u5efa\u524d\u81ea\u68c0\u6837\u4f8b',
   sampleStatusFail: '\u672a\u901a\u8fc7',
   sampleStatusPass: '\u901a\u8fc7',
   sampleStatusPreview: '\u9884\u89c8',
@@ -195,6 +223,8 @@ const zhCN: OrthographyBuilderMessages = {
   creating: '\u521b\u5efa\u4e2d...',
   confirmRiskAndCreate: '\u786e\u8ba4\u98ce\u9669\u5e76\u521b\u5efa',
   createAndSelect: '\u521b\u5efa\u5e76\u9009\u4e2d',
+  confirmRiskAndOpenWorkspace: '\u786e\u8ba4\u98ce\u9669\u540e\u524d\u5f80\u5de5\u4f5c\u53f0',
+  createAndOpenWorkspace: '\u521b\u5efa\u5e76\u524d\u5f80\u5de5\u4f5c\u53f0\u5b8c\u5584',
   orthographyGroupUser: '\u81ea\u5efa\u6b63\u5b57\u6cd5',
   orthographyGroupReviewedPrimary: '\u5df2\u5ba1\u6821\u4e3b\u9879',
   orthographyGroupReviewedSecondary: '\u5df2\u5ba1\u6821\u6b21\u7ea7\u9879',
@@ -206,7 +236,17 @@ const zhCN: OrthographyBuilderMessages = {
 };
 
 const enUS: OrthographyBuilderMessages = {
-  panelTitle: 'Orthography Builder',
+  panelTitle: 'Orthography Quick Create',
+  contextTitle: 'Current creation context',
+  createModeSectionTitle: 'Create mode',
+  sourceSectionTitle: 'Source details',
+  sourceSectionCopyDescription: 'Copy-current only needs a source orthography. Long-term differences should be maintained in the workspace.',
+  identitySectionTitle: 'Minimal identity fields',
+  renderSectionTitle: 'Minimal rendering decisions',
+  bridgeSectionTitle: 'Optional starter bridge',
+  bridgeSectionDescription: 'Only add a starter bridge here when the new orthography should be immediately derivable from the source. Full bridge design and ongoing maintenance stay in the workspace.',
+  workspaceNoteTitle: 'What happens next',
+  workspaceNoteBody: 'This panel only creates the smallest version that can be selected and written immediately. Catalog review, input hints, normalization, and full bridge management belong in the orthography workspace.',
   sourceLanguagePlaceholder: 'Select source language\u2026',
   sourceLanguageCodePlaceholder: 'e.g. eng',
   nameZhPlaceholder: 'e.g. Miao IPA',
@@ -222,10 +262,10 @@ const enUS: OrthographyBuilderMessages = {
   sourceLanguageCodeLabel: 'Source language code',
   sourceOrthographyLabel: 'Source orthography',
   sourceOrthographyHint: 'No source orthography can be copied in this mode. Switch source language or use IPA mode.',
-  nameZhLabel: 'Name (ZH)',
-  nameZhCompactPlaceholder: 'Orthography name (ZH, optional)',
-  nameEnLabel: 'Name (EN)',
-  nameEnCompactPlaceholder: 'Orthography name (optional)',
+  nameZhLabel: 'Native name',
+  nameZhCompactPlaceholder: 'Orthography native name (optional)',
+  nameEnLabel: 'English fallback name',
+  nameEnCompactPlaceholder: 'Orthography English fallback name (optional)',
   abbreviationLabel: 'Abbreviation',
   abbreviationPlaceholder: 'e.g. IPA',
   scriptTagLabel: 'Script tag',
@@ -267,7 +307,7 @@ const enUS: OrthographyBuilderMessages = {
   fallbackFontPlaceholder: 'Comma-separated, e.g. Arial Unicode MS',
   bidiIsolationLabel: 'Enable isolation for inline bidirectional text',
   preferDirLabel: 'Prefer writing dir attribute during render',
-  bridgeEnabledLabel: 'Create bridge rules for derived orthography',
+  bridgeEnabledLabel: 'Bring along one starter bridge during creation',
   bridgeEngineLabel: 'Bridge engine',
   bridgeEngineTableMap: 'Table Map',
   bridgeEngineIcuRule: 'ICU Rule',
@@ -285,10 +325,13 @@ const enUS: OrthographyBuilderMessages = {
   bridgeRuleSyntaxIcuRule: 'ICU-rule runs as an ordered rule chain. It supports ::NFC/::NFD/::NFKC/::NFKD directives and /regex/flags => replacement bridge rules.',
   bridgeRuleSyntaxManual: 'Manual rules do not bridge text automatically. Use them for workflows that require human confirmation or external processing.',
   bridgeSampleCaseLabel: 'Bridge samples',
+  bridgeSampleCaseDescription: 'Optional. Fill this only when you want a few extra checks before creation.',
   bridgeSampleCasePlaceholder: 'One sample per line, e.g. shaa => saa',
   bridgeValidationTitle: 'Bridge rule validation',
   bridgePreviewOutputTitle: 'Bridge preview output',
   bridgeSampleResultTitle: 'Bridge sample results',
+  expandBridgeChecks: 'Add pre-create sample checks',
+  collapseBridgeChecks: 'Hide pre-create sample checks',
   sampleStatusFail: 'Fail',
   sampleStatusPass: 'Pass',
   sampleStatusPreview: 'Preview',
@@ -297,6 +340,8 @@ const enUS: OrthographyBuilderMessages = {
   creating: 'Creating...',
   confirmRiskAndCreate: 'Confirm risk and create',
   createAndSelect: 'Create and select',
+  confirmRiskAndOpenWorkspace: 'Confirm risk and open workspace',
+  createAndOpenWorkspace: 'Create and open workspace',
   orthographyGroupUser: 'User-created',
   orthographyGroupReviewedPrimary: 'Reviewed primary',
   orthographyGroupReviewedSecondary: 'Reviewed secondary',

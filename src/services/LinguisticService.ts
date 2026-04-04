@@ -38,6 +38,7 @@ import {
   removeUtteranceCascadeFromSegmentationV2,
   syncUtteranceTextToSegmentationV2,
 } from './LayerSegmentationTextService';
+import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 import {
   hasEmbeddedDefaultTextChanged,
   invalidateUtteranceEmbeddings,
@@ -1277,8 +1278,8 @@ export class LinguisticService {
   // ── Project initialization ─────────────────────────────────
 
   static async createProject(input: {
-    titleZh: string;
-    titleEn: string;
+    primaryTitle: string;
+    englishFallbackTitle: string;
     primaryLanguageId: string;
     primaryOrthographyId?: string;
   }): Promise<{ textId: string }> {
@@ -1293,7 +1294,10 @@ export class LinguisticService {
 
     await db.collections.texts.insert({
       id: textId,
-      title: { zho: input.titleZh, eng: input.titleEn },
+      title: buildPrimaryAndEnglishLabels({
+        primaryLabel: input.primaryTitle,
+        englishFallbackLabel: input.englishFallbackTitle,
+      }),
       metadata: {
         primaryLanguageId,
         ...(input.primaryOrthographyId ? { primaryOrthographyId: input.primaryOrthographyId } : {}),
@@ -1347,7 +1351,7 @@ export class LinguisticService {
 
   static async applyOrthographyBridge(
     input: ApplyOrthographyBridgeInput,
-  ): Promise<{ text: string; transformId?: string }> {
+  ): Promise<{ text: string; bridgeId?: string }> {
     return applyOrthographyBridgeRecord(input);
   }
 

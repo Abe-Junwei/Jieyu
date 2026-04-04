@@ -110,7 +110,7 @@ describe('ProjectSetupDialog orthography creation', () => {
 
     await waitFor(() => {
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-        titleZh: '项目 A',
+        primaryTitle: '项目 A',
         primaryLanguageId: 'eng',
         primaryOrthographyId: 'orth_project_ipa',
       }));

@@ -73,11 +73,11 @@ export function OrthographyWorkspaceEditor({
               </label>
               <label className="dialog-field">
                 <span>{builderMessages.nameZhLabel}</span>
-                <input className="input" type="text" value={draft.nameZh} onChange={(event) => onDraftChange('nameZh', event.target.value)} placeholder={builderMessages.nameZhPlaceholder} />
+                <input className="input" type="text" value={draft.namePrimary} onChange={(event) => onDraftChange('namePrimary', event.target.value)} placeholder={builderMessages.nameZhPlaceholder} />
               </label>
               <label className="dialog-field">
                 <span>{builderMessages.nameEnLabel}</span>
-                <input className="input" type="text" value={draft.nameEn} onChange={(event) => onDraftChange('nameEn', event.target.value)} placeholder={builderMessages.nameEnPlaceholder} />
+                <input className="input" type="text" value={draft.nameEnglishFallback} onChange={(event) => onDraftChange('nameEnglishFallback', event.target.value)} placeholder={builderMessages.nameEnPlaceholder} />
               </label>
               <label className="dialog-field">
                 <span>{builderMessages.abbreviationLabel}</span>
@@ -115,6 +115,57 @@ export function OrthographyWorkspaceEditor({
                 <input className="input" type="text" value={draft.variantTag} onChange={(event) => onDraftChange('variantTag', event.target.value)} placeholder={builderMessages.variantPlaceholder} />
               </label>
             </div>
+          </section>
+
+          <section className="orthography-workspace-subsection">
+            <div className="orthography-workspace-subsection-header">
+              <h3 className="orthography-workspace-subsection-title">{t(locale, 'workspace.orthography.sectionLocalizedNamesTitle')}</h3>
+              <p className="orthography-workspace-context">{t(locale, 'workspace.orthography.localizedNamesDescription')}</p>
+            </div>
+            <div className="orthography-workspace-array-list">
+              {draft.localizedNameEntries.map((entry, index) => (
+                <div key={`${entry.languageTag}-${index}`} className="orthography-workspace-array-row">
+                  <label className="dialog-field">
+                    <span>{t(locale, 'workspace.orthography.localizedNameTagLabel')}</span>
+                    <input
+                      className="input"
+                      type="text"
+                      value={entry.languageTag}
+                      onChange={(event) => onDraftChange('localizedNameEntries', draft.localizedNameEntries.map((current, currentIndex) => (
+                        currentIndex === index ? { ...current, languageTag: event.target.value } : current
+                      )))}
+                      placeholder={t(locale, 'workspace.orthography.localizedNameTagPlaceholder')}
+                    />
+                  </label>
+                  <label className="dialog-field orthography-workspace-array-value">
+                    <span>{t(locale, 'workspace.orthography.localizedNameValueLabel')}</span>
+                    <input
+                      className="input"
+                      type="text"
+                      value={entry.label}
+                      onChange={(event) => onDraftChange('localizedNameEntries', draft.localizedNameEntries.map((current, currentIndex) => (
+                        currentIndex === index ? { ...current, label: event.target.value } : current
+                      )))}
+                      placeholder={t(locale, 'workspace.orthography.localizedNameValuePlaceholder')}
+                    />
+                  </label>
+                  <button
+                    className="btn btn-ghost orthography-workspace-array-remove"
+                    type="button"
+                    onClick={() => onDraftChange('localizedNameEntries', draft.localizedNameEntries.filter((_, currentIndex) => currentIndex !== index))}
+                  >
+                    {t(locale, 'workspace.orthography.localizedNameRemove')}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              className="btn btn-secondary orthography-workspace-array-add"
+              type="button"
+              onClick={() => onDraftChange('localizedNameEntries', [...draft.localizedNameEntries, { languageTag: '', label: '' }])}
+            >
+              {t(locale, 'workspace.orthography.localizedNameAdd')}
+            </button>
           </section>
 
           <section className="orthography-workspace-subsection">

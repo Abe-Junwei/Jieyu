@@ -24,32 +24,33 @@ const EMPTY_LANGUAGE_INPUT: LanguageIsoInputValue = {
 type ProjectSetupDialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (input: { titleZh: string; titleEn: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
+  onSubmit: (input: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
 };
 
 export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDialogProps) {
   const locale = useLocale();
   const messages = getProjectSetupDialogMessages(locale);
   const fieldIdPrefix = useId();
-  const [titleZh, setTitleZh] = useState('');
-  const [titleEn, setTitleEn] = useState('');
+  const [primaryTitle, setPrimaryTitle] = useState('');
+  const [englishFallbackTitle, setEnglishFallbackTitle] = useState('');
   const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>(EMPTY_LANGUAGE_INPUT);
   const [orthographyId, setOrthographyId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const effectiveLang = languageInput.languageCode.trim().toLowerCase();
+  const displayedLanguage = languageInput.languageName.trim() || effectiveLang.toUpperCase();
   const orthographyPicker = useOrthographyPicker(effectiveLang, orthographyId, setOrthographyId);
   const groupedOrthographyOptions = groupOrthographiesForSelect(orthographyPicker.orthographies);
   const selectedOrthography = orthographyPicker.orthographies.find((item) => item.id === orthographyId);
   const selectedOrthographyBadge = selectedOrthography ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography) : null;
   const customLanguageError = effectiveLang && !isKnownIso639_3Code(effectiveLang)
-    ? '语言代码必须是有效的 ISO 639-3 三字母代码。'
+    ? messages.invalidLanguageCode
     : '';
   const orthographySelectionError = orthographyId && !orthographyPicker.isCreating && !selectedOrthography
-    ? '所选正字法已失效，请重新选择。'
+    ? messages.invalidOrthographySelection
     : '';
-  const canSubmit = titleZh.trim()
+  const canSubmit = primaryTitle.trim()
     && effectiveLang
     && !customLanguageError
     && !orthographySelectionError
@@ -57,8 +58,8 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
     && !orthographyPicker.isCreating;
 
   const reset = () => {
-    setTitleZh('');
-    setTitleEn('');
+    setPrimaryTitle('');
+    setEnglishFallbackTitle('');
     setLanguageInput(EMPTY_LANGUAGE_INPUT);
     setOrthographyId('');
     setError('');
@@ -84,8 +85,8 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
     setError('');
     try {
       await onSubmit({
-        titleZh: titleZh.trim(),
-        titleEn: titleEn.trim(),
+        primaryTitle: primaryTitle.trim(),
+        englishFallbackTitle: englishFallbackTitle.trim(),
         primaryLanguageId: effectiveLang,
         ...(orthographyId ? { primaryOrthographyId: orthographyId } : {}),
       });
@@ -94,6 +95,13 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
       setError(err instanceof Error ? err.message : messages.createFailed);
       setSubmitting(false);
     }
+  };
+
+  const handleOpenOrthographyWorkspace = (createdOrthographyId: string) => {
+    const params = new URLSearchParams();
+    params.set('orthographyId', createdOrthographyId);
+    handleClose();
+    window.location.assign(`/lexicon/orthographies?${params.toString()}`);
   };
 
   if (!isOpen) return null;
@@ -134,8 +142,8 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
             <input
               className="input panel-input"
               type="text"
-              value={titleZh}
-              onChange={(e) => setTitleZh(e.target.value)}
+              value={primaryTitle}
+              onChange={(e) => setPrimaryTitle(e.target.value)}
               placeholder={messages.titleZhPlaceholder}
               autoFocus
             />
@@ -146,8 +154,8 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
             <input
               className="input panel-input"
               type="text"
-              value={titleEn}
-              onChange={(e) => setTitleEn(e.target.value)}
+              value={englishFallbackTitle}
+              onChange={(e) => setEnglishFallbackTitle(e.target.value)}
               placeholder={messages.titleEnPlaceholder}
             />
           </label>
@@ -184,7 +192,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
                   <optgroup key={group.key} label={getOrthographyCatalogGroupLabel(locale, group.key)}>
                     {group.orthographies.map((orthography) => (
                       <option key={orthography.id} value={orthography.id}>
-                        {formatOrthographyOptionLabel(orthography)}
+                        {formatOrthographyOptionLabel(orthography, locale)}
                       </option>
                     ))}
                   </optgroup>
@@ -198,7 +206,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
 
               {!orthographyPicker.isCreating && selectedOrthography && selectedOrthographyBadge && (
                 <p className="dialog-hint" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <span>{formatOrthographyOptionLabel(selectedOrthography)}</span>
+                  <span>{formatOrthographyOptionLabel(selectedOrthography, locale)}</span>
                   <span className={selectedOrthographyBadge.className}>{selectedOrthographyBadge.label}</span>
                 </p>
               )}
@@ -207,6 +215,11 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
                 <OrthographyBuilderPanel
                   picker={orthographyPicker}
                   languageOptions={COMMON_LANGUAGES}
+                  contextLines={[
+                    messages.title,
+                    messages.orthographyContextPrimaryLanguage(displayedLanguage),
+                  ]}
+                  onOpenWorkspace={handleOpenOrthographyWorkspace}
                 />
               )}
               {!orthographyPicker.isCreating && orthographyPicker.error && (

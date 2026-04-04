@@ -10,6 +10,7 @@ import {
 } from '../data/builtInOrthographies';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { buildOrthographyIdentityKey, normalizeOrthographyIdentity } from '../utils/orthographyIdentity';
+import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { newId } from '../utils/transcriptionFormatters';
 import { previewOrthographyBridge } from '../utils/orthographyBridges';
 
@@ -93,7 +94,7 @@ export interface ApplyOrthographyBridgeInput {
   text: string;
   sourceOrthographyId?: string;
   targetOrthographyId?: string;
-  transformId?: string;
+  bridgeId?: string;
 }
 
 export interface PreviewOrthographyBridgeInput {
@@ -103,10 +104,7 @@ export interface PreviewOrthographyBridgeInput {
 }
 
 function resolveOrthographySortLabel(orthography: OrthographyDocType): string {
-  return orthography.name?.zho
-    ?? orthography.name?.zh
-    ?? orthography.name?.eng
-    ?? orthography.name?.en
+  return readAnyMultiLangLabel(orthography.name)
     ?? orthography.abbreviation
     ?? orthography.id;
 }
@@ -198,7 +196,7 @@ async function deactivateSiblingActiveBridges(input: {
 }
 
 async function resolveBridgeForApplication(input: ApplyOrthographyBridgeInput): Promise<OrthographyBridgeDocType | null> {
-  const explicitBridgeId = input.transformId?.trim();
+  const explicitBridgeId = input.bridgeId?.trim();
   if (explicitBridgeId) {
     const db = await getDb();
     const bridge = await db.dexie.orthography_bridges.get(explicitBridgeId);
@@ -371,10 +369,8 @@ export async function cloneOrthographyRecordToLanguage(
   input: CloneOrthographyToLanguageInput,
 ): Promise<OrthographyDocType> {
   const db = await getDb();
-  const sourceDoc = await db.collections.orthographies.findOne({
-    selector: { id: input.sourceOrthographyId },
-  }).exec();
-  const source = sourceDoc?.toJSON();
+  const source = await db.dexie.orthographies.get(input.sourceOrthographyId)
+    ?? await getBuiltInOrthographyById(input.sourceOrthographyId);
   if (!source) {
     throw new Error('\u6e90\u6b63\u5b57\u6cd5\u4e0d\u5b58\u5728');
   }
@@ -613,7 +609,7 @@ export async function getActiveOrthographyBridgeRecord(
 
 export async function applyOrthographyBridgeRecord(
   input: ApplyOrthographyBridgeInput,
-): Promise<{ text: string; transformId?: string }> {
+): Promise<{ text: string; bridgeId?: string }> {
   const sourceOrthographyId = input.sourceOrthographyId?.trim();
   const targetOrthographyId = input.targetOrthographyId?.trim();
   if (!input.text || (sourceOrthographyId && targetOrthographyId && sourceOrthographyId === targetOrthographyId)) {
@@ -631,7 +627,7 @@ export async function applyOrthographyBridgeRecord(
       rules: bridge.rules,
       text: input.text,
     }),
-    transformId: bridge.id,
+    bridgeId: bridge.id,
   };
 }
 

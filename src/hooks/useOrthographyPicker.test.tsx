@@ -2,6 +2,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OrthographyDocType } from '../db';
+import { createLocaleWrapper } from '../test/localeTestUtils';
 import { groupOrthographiesForSelect, useOrthographyPicker } from './useOrthographyPicker';
 
 const { mockCreateOrthography, mockCloneOrthographyToLanguage, mockCreateOrthographyBridge, mockUseOrthographies } = vi.hoisted(() => ({
@@ -198,6 +199,43 @@ describe('useOrthographyPicker render warnings', () => {
 
     expect(mockCloneOrthographyToLanguage).not.toHaveBeenCalled();
     expect(result.current.error).toContain('已存在相同身份的正字法');
+  });
+
+  it('formats duplicate orthography errors with the active locale label', async () => {
+    const sourceOrthography: OrthographyDocType = {
+      id: 'eng-latn',
+      languageId: 'eng',
+      name: { zho: '英语标准正字法', eng: 'English Standard Orthography' },
+      scriptTag: 'Latn',
+      type: 'practical',
+      exemplarCharacters: { main: ['a', 'e', 'i'] },
+      direction: 'ltr',
+      createdAt: '2026-04-04T00:00:00.000Z',
+      updatedAt: '2026-04-04T00:00:00.000Z',
+    };
+    mockUseOrthographies.mockReturnValue([sourceOrthography]);
+
+    const { result } = renderHook(
+      () => useOrthographyPicker('eng', '', vi.fn()),
+      { wrapper: createLocaleWrapper('zh-CN') },
+    );
+
+    act(() => {
+      result.current.handleSelectionChange('__create_new_orthography__');
+      result.current.setCreateMode('copy-current');
+    });
+
+    await waitFor(() => {
+      expect(result.current.sourceOrthographyId).toBe('eng-latn');
+    });
+
+    await act(async () => {
+      await result.current.createOrthography();
+    });
+
+    expect(mockCloneOrthographyToLanguage).not.toHaveBeenCalled();
+    expect(result.current.error).toContain('已存在相同身份的正字法：英语标准正字法');
+    expect(result.current.error).not.toContain('English Standard Orthography');
   });
 
   it('groups orthographies into explicit catalog sections', () => {

@@ -18,9 +18,6 @@ import {
   parseConversionRulesJson,
   parseDraftList,
   parseOptionalNumber,
-  resolveCatalogPriorityLabel,
-  resolveCatalogReviewStatusLabel,
-  resolveCatalogSourceLabel,
   resolveLanguageLabel,
   type OrthographyDraft,
   type NormalizationForm,
@@ -29,6 +26,7 @@ import { LinguisticService } from '../services/LinguisticService';
 import { COMMON_LANGUAGES } from '../utils/transcriptionFormatters';
 import { getLanguageDisplayName } from '../utils/langMapping';
 import type { LanguageIsoInputValue } from '../components/LanguageIsoInput';
+import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 
 const ORTHOGRAPHY_ID_PARAM = 'orthographyId';
 
@@ -168,9 +166,9 @@ export function OrthographyWorkspacePage() {
       return {
         ...prev,
         languageId: nextValue.languageCode.trim().toLowerCase(),
-        ...(nextValue.localeTag ? { localeTag: nextValue.localeTag } : {}),
-        ...(nextValue.regionTag ? { regionTag: nextValue.regionTag } : {}),
-        ...(nextValue.variantTag ? { variantTag: nextValue.variantTag } : {}),
+        localeTag: nextValue.localeTag ?? '',
+        regionTag: nextValue.regionTag ?? '',
+        variantTag: nextValue.variantTag ?? '',
       };
     });
     setSaveError('');
@@ -180,6 +178,13 @@ export function OrthographyWorkspacePage() {
   const handleResetDraft = () => {
     if (!baselineDraft) return;
     setDraft(baselineDraft);
+    setLanguageInput({
+      languageName: baselineDraft.languageId ? getLanguageDisplayName(baselineDraft.languageId, locale) : '',
+      languageCode: baselineDraft.languageId,
+      ...(baselineDraft.localeTag ? { localeTag: baselineDraft.localeTag } : {}),
+      ...(baselineDraft.regionTag ? { regionTag: baselineDraft.regionTag } : {}),
+      ...(baselineDraft.variantTag ? { variantTag: baselineDraft.variantTag } : {}),
+    });
     setSaveError('');
     setSaveSuccess('');
   };
@@ -194,7 +199,7 @@ export function OrthographyWorkspacePage() {
           {selectedOrthography ? (
             <>
               <span className="app-side-pane-feature-badge">{selectedBadge?.label ?? t(locale, 'workspace.orthography.notSet')}</span>
-              <p className="app-side-pane-feature-summary">{formatOrthographyOptionLabel(selectedOrthography)}</p>
+              <p className="app-side-pane-feature-summary">{formatOrthographyOptionLabel(selectedOrthography, locale)}</p>
               <p className="app-side-pane-feature-note">{t(locale, 'workspace.orthography.sidePaneSelectedHint')}</p>
             </>
           ) : (
@@ -227,7 +232,7 @@ export function OrthographyWorkspacePage() {
   useRegisterAppSidePane({
     title: t(locale, 'workspace.orthography.sidePaneTitle'),
     subtitle: selectedOrthography
-      ? formatOrthographyOptionLabel(selectedOrthography)
+      ? formatOrthographyOptionLabel(selectedOrthography, locale)
       : t(locale, 'workspace.orthography.sidePaneSubtitle'),
     content: sidePaneContent,
   });
@@ -235,9 +240,9 @@ export function OrthographyWorkspacePage() {
   const handleSaveDraft = async () => {
     if (!selectedOrthography || !draft) return;
 
-    const nameZh = draft.nameZh.trim();
-    const nameEn = draft.nameEn.trim();
-    if (!nameZh && !nameEn) {
+    const primaryName = draft.namePrimary.trim();
+    const englishFallbackName = draft.nameEnglishFallback.trim();
+    if (!primaryName && !englishFallbackName) {
       setSaveError(t(locale, 'workspace.orthography.editNameRequired'));
       setSaveSuccess('');
       return;
@@ -277,8 +282,11 @@ export function OrthographyWorkspacePage() {
         id: selectedOrthography.id,
         languageId: draft.languageId.trim().toLowerCase(),
         name: {
-          ...(nameZh ? { zho: nameZh } : {}),
-          ...(nameEn ? { eng: nameEn } : {}),
+          ...buildPrimaryAndEnglishLabels({
+            primaryLabel: primaryName,
+            englishFallbackLabel: englishFallbackName,
+            additionalLabels: draft.localizedNameEntries,
+          }),
         },
         ...(draft.abbreviation.trim() ? { abbreviation: draft.abbreviation.trim() } : {}),
         ...(draft.scriptTag.trim() ? { scriptTag: draft.scriptTag.trim() } : {}),
@@ -409,7 +417,7 @@ export function OrthographyWorkspacePage() {
                   className={`orthography-workspace-list-item${active ? ' orthography-workspace-list-item-active' : ''}`}
                   onClick={() => handleSelectOrthography(orthography.id)}
                 >
-                  <span className="orthography-workspace-list-label">{formatOrthographyOptionLabel(orthography)}</span>
+                  <span className="orthography-workspace-list-label">{formatOrthographyOptionLabel(orthography, locale)}</span>
                   <span className="orthography-workspace-list-meta">
                     <span>{resolveLanguageLabel(orthography.languageId ?? '')}</span>
                     <span className={badge.className}>{badge.label}</span>
@@ -426,7 +434,7 @@ export function OrthographyWorkspacePage() {
               <PanelSummary
                 className="orthography-workspace-summary-card"
                 title={t(locale, 'workspace.orthography.detailTitle')}
-                description={formatOrthographyOptionLabel(selectedOrthography)}
+                description={formatOrthographyOptionLabel(selectedOrthography, locale)}
                 meta={selectedBadge ? <span className={selectedBadge.className}>{selectedBadge.label}</span> : undefined}
                 supportingText={t(locale, 'workspace.orthography.detailDescription')}
               />
@@ -435,7 +443,7 @@ export function OrthographyWorkspacePage() {
                 locale={locale}
                 builderMessages={builderMessages}
                 selectedOrthography={selectedOrthography}
-                selectedBadgeLabel={selectedBadge?.label}
+                {...(selectedBadge?.label ? { selectedBadgeLabel: selectedBadge.label } : {})}
                 draft={draft}
                 languageInput={languageInput}
                 isDirty={isDirty}

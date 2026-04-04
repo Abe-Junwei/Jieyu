@@ -1867,14 +1867,38 @@ select.ai-cfg-input,
   gap: 8px;
 }
 
-.orthography-builder-grid-compact {
-  gap: 6px;
+.orthography-builder-section {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
 }
 
-.orthography-builder-section-toggle-row {
-  display: flex;
-  justify-content: flex-start;
-  margin-top: 10px;
+.orthography-builder-section-header {
+  display: grid;
+  gap: 4px;
+}
+
+.orthography-builder-section-title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.orthography-builder-section-description {
+  margin: 0;
+  font-size: 0.77rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.orthography-builder-section-body {
+  display: grid;
+  gap: 8px;
+}
+
+.orthography-builder-grid-compact {
+  gap: 6px;
 }
 
 .orthography-builder-advanced-grid,
@@ -1904,6 +1928,18 @@ select.ai-cfg-input,
   gap: 6px;
 }
 
+.orthography-builder-helper-text {
+  display: grid;
+  gap: 2px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.orthography-builder-helper-text strong {
+  font-weight: 600;
+}
+
 .orthography-builder-rule-label {
   font-size: 0.76rem;
   font-weight: 600;
@@ -1920,6 +1956,25 @@ select.ai-cfg-input,
   border: 1px solid rgba(148, 163, 184, 0.3);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.9);
+}
+
+.orthography-builder-context-box,
+.orthography-builder-workspace-note {
+  margin-top: 10px;
+}
+
+.orthography-builder-bridge-secondary {
+  display: grid;
+  gap: 8px;
+}
+
+.orthography-builder-context-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  color: var(--text-primary);
+  font-size: 0.78rem;
 }
 
 .orthography-builder-validation-box {

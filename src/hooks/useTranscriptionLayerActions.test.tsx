@@ -274,10 +274,13 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setUtterances: vi.fn(),
     }));
 
-    const constraints = ['symbolic_association', 'time_subdivision'] as const;
-    for (const constraint of constraints) {
+    const constraintInputs = [
+      { constraint: 'symbolic_association' as const, languageId: 'eng' },
+      { constraint: 'time_subdivision' as const, languageId: 'fra' },
+    ];
+    for (const { constraint, languageId } of constraintInputs) {
       await act(async () => {
-        await result.current.createLayer('translation', { languageId: `lng_${constraint}`, textId: 'text_1', constraint }, 'text');
+        await result.current.createLayer('translation', { languageId, textId: 'text_1', constraint }, 'text');
       });
     }
 

@@ -728,7 +728,16 @@ export function resolveLanguageCodeInput(
   }
 
   const maybeTag = languageTags(normalized);
-  const preferredTag = maybeTag.preferred?.() ?? maybeTag;
+  if (typeof maybeTag.valid !== 'function' || !maybeTag.valid()) {
+    return { status: 'invalid', warnings: [] };
+  }
+
+  let preferredTag = maybeTag;
+  try {
+    preferredTag = maybeTag.preferred?.() ?? maybeTag;
+  } catch {
+    preferredTag = maybeTag;
+  }
   const subtags = preferredTag.subtags?.() ?? [];
   const scriptSubtag = subtags.find((subtag) => subtag.type() === 'script');
   const regionSubtag = subtags.find((subtag) => subtag.type() === 'region');

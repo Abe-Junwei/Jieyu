@@ -1,5 +1,6 @@
 import type { LayerDocType } from '../db';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
+import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 
 export type LayerOrderingMessageLevel = 'info' | 'warning' | 'error';
 
@@ -266,7 +267,7 @@ export function validateLayerOrder(layers: LayerDocType[]): LayerOrderIssue[] {
     return [{
       layerId: layer.id,
       code: 'non-canonical-sort-order' as const,
-      message: `\u5c42 ${layer.name.zho ?? layer.name.eng ?? layer.key} \u5f53\u524d\u4f4d\u4e8e\u7b2c ${actualIndex + 1} \u4f4d\uff0c\u5e94\u8c03\u6574\u5230\u7b2c ${expectedIndex + 1} \u4f4d\u3002`,
+      message: `Layer ${readAnyMultiLangLabel(layer.name) ?? layer.key} is currently at position ${actualIndex + 1}; expected position ${expectedIndex + 1}.`,
     }];
   });
 }
@@ -282,7 +283,7 @@ export function repairLayerOrder(layers: LayerDocType[]): { layers: LayerDocType
     return [{
       layerId: layer.id,
       code: 'non-canonical-sort-order' as const,
-      message: `\u5df2\u5c06\u5c42 ${layer.name.zho ?? layer.name.eng ?? layer.key} \u8c03\u6574\u5230\u7b2c ${index + 1} \u4f4d\u3002`,
+      message: `Moved layer ${readAnyMultiLangLabel(layer.name) ?? layer.key} to position ${index + 1}.`,
     }];
   });
 

@@ -98,8 +98,9 @@ export function LanguageIsoInput({
     const nextLanguageName = event.target.value;
     const nextMatch = pickAutoFillMatch(nextLanguageName, locale);
     if (!nextMatch) {
+      const baseValue = clearDetectedLanguageTags(value);
       onChange({
-        ...value,
+        ...baseValue,
         languageName: nextLanguageName,
       });
       return;
@@ -115,7 +116,7 @@ export function LanguageIsoInput({
     const rawInput = event.target.value.replace(/[^A-Za-z0-9-]/g, '').slice(0, 24).toLowerCase();
     const resolved = resolveLanguageCodeInput(rawInput, locale);
     if (resolved.status !== 'resolved') {
-      const baseValue = rawInput ? value : clearDetectedLanguageTags(value);
+      const baseValue = clearDetectedLanguageTags(value);
       onChange({
         ...baseValue,
         languageCode: rawInput,

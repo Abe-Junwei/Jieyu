@@ -28,6 +28,7 @@ import { listUtteranceTextsByUtterances } from '../services/LayerSegmentationTex
 import {
   deleteLayerSegmentGraphByLayerId,
 } from '../services/LayerSegmentGraphService';
+import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { t, useLocale } from '../i18n';
@@ -333,7 +334,7 @@ export function useTranscriptionLayerActions({
       return;
     }
 
-    const layerLabel = targetLayer.name.zho ?? targetLayer.name.eng ?? targetLayer.key;
+    const layerLabel = readAnyMultiLangLabel(targetLayer.name) ?? targetLayer.key;
     const keepUtterances = options?.keepUtterances ?? false;
 
     try {

@@ -324,7 +324,7 @@ describe('EAF export behavior for constraint layers', () => {
       key: withEafKeyMeta('trc_default', 'TRC_MAIN'),
       languageId: 'ara',
       orthographyId: 'ortho-ar',
-      transformId: 'xf-ar-latn',
+      bridgeId: 'xf-ar-latn',
     });
     const trl = makeLayer({
       id: 'trl_child',
@@ -357,7 +357,7 @@ describe('EAF export behavior for constraint layers', () => {
     expect(headerProperties['jieyu:layer-meta:TRC_MAIN']).toContain('"scriptTag":"Arab"');
     expect(headerProperties['jieyu:layer-meta:TRC_MAIN']).toContain('"regionTag":"EG"');
     expect(headerProperties['jieyu:layer-meta:TRC_MAIN']).toContain('"variantTag":"fonipa"');
-    expect(headerProperties['jieyu:layer-meta:TRC_MAIN']).toContain('"transformId":"xf-ar-latn"');
+    expect(headerProperties['jieyu:layer-meta:TRC_MAIN']).toContain('"bridgeId":"xf-ar-latn"');
     expect(headerProperties['jieyu:layer-meta:TRL_CHILD']).toContain('"orthographyId":"ortho-eng"');
 
     const imported = importFromEaf(xml);
@@ -365,7 +365,7 @@ describe('EAF export behavior for constraint layers', () => {
     expect(imported.tierMetadata.get('TRC_MAIN')?.scriptTag).toBe('Arab');
     expect(imported.tierMetadata.get('TRC_MAIN')?.regionTag).toBe('EG');
     expect(imported.tierMetadata.get('TRC_MAIN')?.variantTag).toBe('fonipa');
-    expect(imported.tierMetadata.get('TRC_MAIN')?.transformId).toBe('xf-ar-latn');
+    expect(imported.tierMetadata.get('TRC_MAIN')?.bridgeId).toBe('xf-ar-latn');
     expect(imported.tierMetadata.get('TRL_CHILD')?.orthographyId).toBe('ortho-eng');
     expect(imported.tierMetadata.get('TRL_CHILD')?.languageId).toBe('eng');
   });
@@ -374,7 +374,7 @@ describe('EAF export behavior for constraint layers', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <ANNOTATION_DOCUMENT>
   <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
-    <PROPERTY NAME="jieyu:layer-meta:default">{"languageId":"ara","orthographyId":"ortho-ar","scriptTag":"Arab","unknownField":"drop-me","transformId":"xf-1"}</PROPERTY>
+    <PROPERTY NAME="jieyu:layer-meta:default">{"languageId":"ara","orthographyId":"ortho-ar","scriptTag":"Arab","unknownField":"drop-me","bridgeId":"xf-1"}</PROPERTY>
   </HEADER>
   <TIME_ORDER>
     <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0"/>
@@ -394,7 +394,7 @@ describe('EAF export behavior for constraint layers', () => {
       languageId: 'ara',
       orthographyId: 'ortho-ar',
       scriptTag: 'Arab',
-      transformId: 'xf-1',
+      bridgeId: 'xf-1',
     });
   });
 

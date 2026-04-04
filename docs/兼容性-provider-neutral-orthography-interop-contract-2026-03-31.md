@@ -29,7 +29,7 @@
 | `scriptTag` | 脚本快照 | BCP 47 script subtag，如 `Arab` / `Latn` |
 | `regionTag` | 地区快照 | 可选；例如 `EG` |
 | `variantTag` | 变体快照 | 可选；例如 `fonipa` |
-| `transformId` | 来源/目标变换标识 | 当前只做透传，不要求所有 exporter 都必须写出 |
+| `bridgeId` | 来源/目标桥接规则标识 | 当前只做透传，不要求所有 exporter 都必须写出；旧 `transformId` 已退出现行合同 |
 
 对应代码门禁：
 
@@ -92,7 +92,8 @@
 ## 当前已验证行为
 
 - TextGrid round-trip 保留 `languageId / orthographyId / scriptTag / regionTag / variantTag`：[src/services/TextGridService.test.ts](src/services/TextGridService.test.ts#L66)
-- TextGrid import 对未知 metadata 字段做 downgrade 忽略，同时保留 `transformId`：[src/services/TextGridService.test.ts](src/services/TextGridService.test.ts#L111)
+- TextGrid import 对未知 metadata 字段做 downgrade 忽略，同时保留 `bridgeId`：[src/services/TextGridService.test.ts](src/services/TextGridService.test.ts#L111)
+- 快照导入会忽略已移除的旧 `transformId` 兼容字段：[src/db/importDatabaseFromJson.test.ts](src/db/importDatabaseFromJson.test.ts)
 - metadata helper 只解析白名单字段并丢弃未知键：[src/utils/orthographyInteropMetadata.test.ts](src/utils/orthographyInteropMetadata.test.ts)
 
 ## 对未来 provider 的要求

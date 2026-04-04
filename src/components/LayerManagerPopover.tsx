@@ -4,6 +4,7 @@ import type { LayerConstraint, LayerDocType } from '../db';
 import type { LayerCreateInput } from '../hooks/useTranscriptionData';
 import { useLocale } from '../i18n';
 import { getLayerManagerPopoverMessages } from '../i18n/layerManagerPopoverMessages';
+import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { COMMON_LANGUAGES, getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { fireAndForget } from '../utils/fireAndForget';
 import {
@@ -28,13 +29,7 @@ function resolveCreateFailureText(message: string, fallback: string, prefix: str
 }
 
 function getLayerDisplayName(layer: LayerDocType): string {
-  return layer.name.zho
-    ?? layer.name.zh
-    ?? layer.name.cmn
-    ?? layer.name.eng
-    ?? layer.name.en
-    ?? Object.values(layer.name).find((value) => Boolean(value?.trim()))
-    ?? layer.key;
+  return readAnyMultiLangLabel(layer.name) ?? layer.key;
 }
 
 function formatLayerLanguage(layer: LayerDocType, missingLanguage: string): string {

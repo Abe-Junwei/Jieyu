@@ -39,7 +39,7 @@ function makeOrthography(overrides: Partial<OrthographyDocType> = {}): Orthograp
 describe('orthographyInteropMetadata', () => {
   it('builds provider-neutral metadata from layer and orthography snapshot', () => {
     expect(buildOrthographyInteropMetadata(
-      makeLayer({ transformId: 'xf-ar-latn' }),
+      makeLayer({ bridgeId: 'xf-ar-latn' }),
       [makeOrthography()],
     )).toEqual({
       languageId: 'ara',
@@ -47,7 +47,7 @@ describe('orthographyInteropMetadata', () => {
       scriptTag: 'Arab',
       regionTag: 'EG',
       variantTag: 'fonipa',
-      transformId: 'xf-ar-latn',
+      bridgeId: 'xf-ar-latn',
     });
   });
 
@@ -67,16 +67,42 @@ describe('orthographyInteropMetadata', () => {
       scriptTag: 'Arab',
       regionTag: 'EG',
       variantTag: 'fonipa',
-      transformId: 'xf-ar-latn',
+      bridgeId: 'xf-ar-latn',
       provider: 'custom-eaf-plugin',
       unknownField: 'drop-me',
     })).toEqual({
       languageId: 'ara',
       orthographyId: 'ortho-ar',
+      bridgeId: 'xf-ar-latn',
       scriptTag: 'Arab',
       regionTag: 'EG',
       variantTag: 'fonipa',
-      transformId: 'xf-ar-latn',
+    });
+  });
+
+  it('accepts bridgeId as canonical metadata key and maps it to bridgeId', () => {
+    expect(parseOrthographyInteropMetadata({
+      languageId: 'ara',
+      orthographyId: 'ortho-ar',
+      bridgeId: 'xf-ar-latn',
+      provider: 'custom-eaf-plugin',
+      unknownField: 'drop-me',
+    })).toEqual({
+      languageId: 'ara',
+      orthographyId: 'ortho-ar',
+      bridgeId: 'xf-ar-latn',
+    });
+  });
+
+  it('ignores removed transformId compatibility metadata', () => {
+    expect(parseOrthographyInteropMetadata({
+      languageId: 'ara',
+      orthographyId: 'ortho-ar',
+      transformId: 'xf-legacy',
+      provider: 'legacy-exporter',
+    })).toEqual({
+      languageId: 'ara',
+      orthographyId: 'ortho-ar',
     });
   });
 });

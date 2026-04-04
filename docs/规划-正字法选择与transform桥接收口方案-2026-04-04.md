@@ -1,4 +1,6 @@
-# 规划：正字法选择与 transform 桥接收口方案（2026-04-04）
+# 规划：正字法选择与桥接规则收口方案（2026-04-04）
+
+> 注：本文保留少量历史术语 `transform`，仅用于记录 2026-04-04 当日讨论语境；当前实现、测试与产品口径统一使用“桥接规则 / bridge / bridgeId”。
 
 ## 一、背景
 
@@ -6,8 +8,8 @@
 
 - 层可以绑定目标语言与目标正字法
 - 用户可以选择现有正字法，或内嵌新建正字法
-- 系统已经具备 source orthography -> target orthography 的 transform 实体、预览、校验与运行时调用能力
-- 导入、AI 写回、assistant 听写等路径已经开始消费 transform runtime
+- 系统已经具备 source orthography -> target orthography 的桥接规则实体、预览、校验与运行时调用能力
+- 导入、AI 写回、assistant 听写等路径已经开始消费 bridge runtime
 
 但当前产品语义仍有一个没有完全收口的问题：
 
@@ -557,8 +559,8 @@ transform 只负责：
    - 运行时已支持顺序规则链、正则替换、规范化指令
    - UI 已补引擎级 placeholder 与语法提示
 
-5. transform 管理器 i18n 收口
-   - `OrthographyTransformManager` 剩余主文案已抽到独立消息文件
+5. 桥接规则管理器 i18n 收口
+   - 旧 `OrthographyTransformManager` 历史文案已完成迁移，当前以 `OrthographyBridgeManager` 为唯一入口
 
 6. 建层主流程默认移除 transform 管理
    - `ProjectSetupDialog` 不再在主流程中展示 transform 管理区

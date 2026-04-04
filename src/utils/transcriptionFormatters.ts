@@ -1,4 +1,5 @@
 import type { LayerDocType } from '../db';
+import { listUniqueNonEmptyMultiLangLabels, readAnyMultiLangLabel } from './multiLangLabels';
 
 export const LANGUAGE_NAME_MAP: Record<string, string> = {
   cmn: '\u666e\u901a\u8bdd',
@@ -153,15 +154,7 @@ export function formatLanguageLabel(code?: string): string {
 }
 
 export function formatLayerLanguageLabel(layer: LayerDocType): string {
-  const nameCandidates = [
-    layer.name.zho,
-    layer.name.zh,
-    layer.name.cmn,
-    layer.name.eng,
-    layer.name.en,
-    ...Object.values(layer.name),
-  ];
-  const preferredName = nameCandidates.find((value) => typeof value === 'string' && value.trim().length > 0)?.trim();
+  const preferredName = readAnyMultiLangLabel(layer.name);
   const code = (layer.languageId ?? '').trim().toLowerCase();
   if (!preferredName) {
     return formatLanguageLabel(code);
@@ -181,12 +174,8 @@ export function getLayerLabelParts(layer: LayerDocType): { type: string; lang: s
   const code = (layer.languageId ?? '').trim();
   const typeLabel = layer.layerType === 'translation' ? '\u7ffb\u8bd1' : '\u8f6c\u5199';
   const langLabel = formatBcp47Label(code) || code;
-  const alias = layer.name.zho
-    ?? layer.name.zh
-    ?? layer.name.cmn
-    ?? layer.name.eng
-    ?? layer.name.en
-    ?? Object.values(layer.name).find((value) => typeof value === 'string' && value.trim().length > 0)
+  const alias = readAnyMultiLangLabel(layer.name)
+    ?? listUniqueNonEmptyMultiLangLabels(layer.name)[0]
     ?? '';
   const hasAutoPrefix = alias.startsWith('\u8f6c\u5199') || alias.startsWith('\u7ffb\u8bd1');
   if (hasAutoPrefix || !alias) {

@@ -18,6 +18,7 @@ import { importFromFlextext } from '../services/FlexService';
 import { importFromToolbox } from '../services/ToolboxService';
 import { t, tf, type Locale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
+import { buildPrimaryAndEnglishLabels, readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { newId, humanizeTierName } from '../utils/transcriptionFormatters';
 import { createLogger } from '../observability/logger';
 import { toErrorMessage } from '../utils/saveStateError';
@@ -162,22 +163,22 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       }
 
       function resolveLayerNameText(name: LayerDocType['name']): string {
-        return name.zho ?? name.eng ?? name.zh ?? name.en ?? '';
+        return readAnyMultiLangLabel(name) ?? '';
       }
 
       function buildSourcePreservationLayerName(baseLabel: string): LayerDocType['name'] {
         const trimmed = baseLabel.trim() || 'Imported';
-        return {
-          zho: `${trimmed}（${t('zh-CN', 'transcription.importExport.sourcePreservationLayerSuffix')}）`,
-          eng: `${trimmed} (${t('en-US', 'transcription.importExport.sourcePreservationLayerSuffix')})`,
-        };
+        return buildPrimaryAndEnglishLabels({
+          primaryLabel: `${trimmed}（${t('zh-CN', 'transcription.importExport.sourcePreservationLayerSuffix')}）`,
+          englishFallbackLabel: `${trimmed} (${t('en-US', 'transcription.importExport.sourcePreservationLayerSuffix')})`,
+        });
       }
 
       async function transformImportedTextToTarget(inputData: {
         text: string;
         sourceOrthographyId?: string;
         targetLayerId?: string;
-        transformId?: string;
+        bridgeId?: string;
       }): Promise<string> {
         const targetOrthographyId = inputData.targetLayerId
           ? layerById.get(inputData.targetLayerId)?.orthographyId?.trim()
@@ -189,7 +190,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           text: inputData.text,
           ...(inputData.sourceOrthographyId !== undefined ? { sourceOrthographyId: inputData.sourceOrthographyId } : {}),
           targetOrthographyId,
-          ...(inputData.transformId !== undefined ? { transformId: inputData.transformId } : {}),
+          ...(inputData.bridgeId !== undefined ? { bridgeId: inputData.bridgeId } : {}),
         })).text;
       }
 
@@ -257,7 +258,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         text: string;
         sourceOrthographyId?: string;
         targetLayerId?: string;
-        transformId?: string;
+        bridgeId?: string;
         baseLabel: string;
         languageId: string;
         layerType: LayerDocType['layerType'];
@@ -301,7 +302,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
             text: inputData.text,
             ...(sourceOrthographyId !== undefined ? { sourceOrthographyId } : {}),
             targetLayerId,
-            ...(inputData.transformId !== undefined ? { transformId: inputData.transformId } : {}),
+            ...(inputData.bridgeId !== undefined ? { bridgeId: inputData.bridgeId } : {}),
           });
           writes.push({ layerId: targetLayerId, text: transformedText });
         }
@@ -340,10 +341,12 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         ?? undefined;
       const importedTierMetadata = eafResult?.tierMetadata
         ?? tgResult?.tierMetadata
-        ?? new Map<string, { languageId?: string; orthographyId?: string; transformId?: string }>();
+        ?? new Map<string, { languageId?: string; orthographyId?: string; bridgeId?: string }>();
       const importedTranscriptionMeta = importedTrcName
         ? importedTierMetadata.get(importedTrcName)
         : undefined;
+      const importedTranscriptionBridgeId = importedTranscriptionMeta?.bridgeId
+        ?? undefined;
       const inferredTranscriptionLang = importedTranscriptionMeta?.languageId
         ?? eafResult?.defaultLocale
         ?? flexResult?.sourceLanguage
@@ -399,7 +402,9 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
             layerType: 'transcription' as const,
             languageId: inferredTranscriptionLang,
             ...(importedTranscriptionMeta?.orthographyId ? { orthographyId: importedTranscriptionMeta.orthographyId } : {}),
-            ...(importedTranscriptionMeta?.transformId ? { transformId: importedTranscriptionMeta.transformId } : {}),
+            ...(importedTranscriptionBridgeId
+              ? { bridgeId: importedTranscriptionBridgeId }
+              : {}),
             modality: 'text' as const,
             acceptsAudio: false,
             sortOrder: 0,
@@ -519,7 +524,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           const transcriptionWrites = await planImportedWrites({
             text: u.transcription,
             ...(importedTranscriptionMeta?.orthographyId !== undefined ? { sourceOrthographyId: importedTranscriptionMeta.orthographyId } : {}),
-            ...(importedTranscriptionMeta?.transformId !== undefined ? { transformId: importedTranscriptionMeta.transformId } : {}),
+            ...(importedTranscriptionBridgeId !== undefined ? { bridgeId: importedTranscriptionBridgeId } : {}),
             targetLayerId: effectiveTranscriptionLayerId,
             baseLabel: resolveLayerDisplayName(
               [inferredTranscriptionLang, importedTrcName],

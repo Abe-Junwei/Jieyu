@@ -9,6 +9,7 @@ import type { UtteranceDocType, LayerDocType, UtteranceTextDocType, UserNoteDocT
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
 import { buildOrthographyInteropMetadata, parseOrthographyInteropMetadata, type OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
+import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -122,7 +123,7 @@ export function exportToTextGrid(input: TextGridExportInput): string {
   );
   for (const layer of additionalLayers) {
     const tierName = encodeTierNameWithMetadata(
-      layer.name?.eng ?? layer.name?.zho ?? layer.key,
+      readEnglishFallbackMultiLangLabel(layer.name) ?? layer.key,
       buildOrthographyInteropMetadata(layer, orthographies),
     );
 

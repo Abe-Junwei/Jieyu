@@ -1,4 +1,5 @@
 import { t, tf } from '../i18n';
+import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { normalizeRequestedIds } from './useAiToolCallHandler.helpers';
 import type { ToolObjectAdapter } from './useAiToolCallHandler.types';
 
@@ -285,7 +286,7 @@ export const segmentAdapter: ToolObjectAdapter = {
           return { ok: false, message: t(locale, 'transcription.aiTool.segment.clearTranslationMissingUtteranceId') };
         }
         await ctx.saveSegmentContentForLayer(requestedSegmentId, targetLayerId, '');
-        const layerLabel = targetLayer.name.zho ?? targetLayer.name.eng ?? targetLayer.key;
+        const layerLabel = readAnyMultiLangLabel(targetLayer.name) ?? targetLayer.key;
         return {
           ok: true,
           message: tf(locale, 'transcription.aiTool.segment.clearTranslationDone', {
@@ -302,7 +303,7 @@ export const segmentAdapter: ToolObjectAdapter = {
         return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUtteranceTarget() }) };
       }
       await ctx.saveTextTranslationForUtterance(targetUtterance.id, '', targetLayerId);
-      const layerLabel = targetLayer.name.zho ?? targetLayer.name.eng ?? targetLayer.key;
+      const layerLabel = readAnyMultiLangLabel(targetLayer.name) ?? targetLayer.key;
       return {
         ok: true,
         message: tf(locale, 'transcription.aiTool.segment.clearTranslationDone', {

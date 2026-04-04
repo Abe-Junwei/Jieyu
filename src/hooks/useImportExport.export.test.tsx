@@ -454,7 +454,7 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
   it('transforms legacy default transcription fallback before plain-text export', async () => {
     const input = makeInputWithSegmentLayers();
     input.layers = input.layers.map((layer) => (layer.id === 'trc-1'
-      ? { ...layer, transformId: 'xf-explicit' }
+      ? { ...layer, bridgeId: 'xf-explicit' }
       : layer));
     input.translations = input.translations.filter((item) => item.layerId !== 'trc-1');
     input.utterancesOnCurrentMedia = [{
@@ -474,7 +474,7 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
       text: 'legacy raw',
       sourceOrthographyId: 'orth-project',
       targetOrthographyId: 'orth-layer',
-      transformId: 'xf-explicit',
+      bridgeId: 'xf-explicit',
     });
     expect(arg?.utterances?.[0]?.transcription?.default).toBe('xf:legacy raw');
   });

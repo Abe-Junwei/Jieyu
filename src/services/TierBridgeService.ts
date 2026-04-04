@@ -29,6 +29,12 @@ export interface ConsistencyIssue {
 
 const TIER_KEY_PREFIX = 'bridge_';
 
+function resolveBridgeId(value: { bridgeId?: unknown } | null | undefined): string | undefined {
+  if (!value) return undefined;
+  if (typeof value.bridgeId === 'string' && value.bridgeId.trim()) return value.bridgeId.trim();
+  return undefined;
+}
+
 function tierKeyForLayer(layer: Pick<LayerDocType, 'key'>): string {
   return `${TIER_KEY_PREFIX}${layer.key}`;
 }
@@ -61,6 +67,8 @@ export async function syncLayerToTier(
   const existingDoc = await db.collections.tier_definitions
     .findOne({ selector: { textId, key: expectedKey } }).exec();
   const existing = existingDoc?.toJSON();
+  const existingBridgeId = resolveBridgeId(existing);
+  const layerBridgeId = resolveBridgeId(layer);
 
   const now = new Date().toISOString();
   const contentType = layer.layerType === 'transcription' ? 'transcription' : 'translation';
@@ -69,8 +77,8 @@ export async function syncLayerToTier(
     // Update mutable fields if they drifted
     const needsUpdate =
       existing.languageId !== layer.languageId ||
-      existing.orthographyId !== layer.orthographyId ||
-      existing.transformId !== layer.transformId ||
+      (existing.orthographyId ?? '') !== (layer.orthographyId ?? '') ||
+      (existingBridgeId ?? '') !== (layerBridgeId ?? '') ||
       JSON.stringify(existing.name) !== JSON.stringify(layer.name) ||
       existing.modality !== layer.modality ||
       existing.acceptsAudio !== layer.acceptsAudio ||
@@ -83,14 +91,22 @@ export async function syncLayerToTier(
         languageId: layer.languageId,
         name: layer.name,
         modality: layer.modality,
-        ...(layer.orthographyId !== undefined && { orthographyId: layer.orthographyId }),
-        ...(layer.transformId !== undefined ? { transformId: layer.transformId } : {}),
         ...(layer.acceptsAudio !== undefined && { acceptsAudio: layer.acceptsAudio }),
         ...(layer.isDefault !== undefined && { isDefault: layer.isDefault }),
         ...(layer.accessRights !== undefined && { accessRights: layer.accessRights }),
         ...(layer.sortOrder !== undefined && { sortOrder: layer.sortOrder }),
         updatedAt: now,
       };
+      if (layer.orthographyId !== undefined) {
+        updated.orthographyId = layer.orthographyId;
+      } else {
+        delete updated.orthographyId;
+      }
+      if (layerBridgeId !== undefined) {
+        updated.bridgeId = layerBridgeId;
+      } else {
+        delete updated.bridgeId;
+      }
       await db.collections.tier_definitions.insert(updated);
       return updated;
     }
@@ -107,7 +123,7 @@ export async function syncLayerToTier(
     contentType,
     languageId: layer.languageId,
     ...(layer.orthographyId !== undefined && { orthographyId: layer.orthographyId }),
-    ...(layer.transformId !== undefined && { transformId: layer.transformId }),
+    ...(layerBridgeId !== undefined && { bridgeId: layerBridgeId }),
     modality: layer.modality,
     ...(layer.acceptsAudio !== undefined && { acceptsAudio: layer.acceptsAudio }),
     ...(layer.isDefault !== undefined && { isDefault: layer.isDefault }),
@@ -135,14 +151,16 @@ export async function syncTierToLayer(
   const existingDoc = await db.collections.layers
     .findOne({ selector: { textId: tier.textId, key: layerKey } }).exec();
   const existing = existingDoc?.toJSON();
+  const tierBridgeId = resolveBridgeId(tier);
+  const existingBridgeId = resolveBridgeId(existing);
 
   if (existing) {
     // Update mutable fields if they drifted
     const needsUpdate =
       existing.textId !== tier.textId ||
       existing.languageId !== (tier.languageId ?? existing.languageId) ||
-      existing.orthographyId !== (tier.orthographyId ?? existing.orthographyId) ||
-      existing.transformId !== (tier.transformId ?? existing.transformId) ||
+      (existing.orthographyId ?? '') !== (tier.orthographyId ?? '') ||
+      (existingBridgeId ?? '') !== (tierBridgeId ?? '') ||
       JSON.stringify(existing.name) !== JSON.stringify(tier.name);
 
     if (needsUpdate) {
@@ -152,10 +170,18 @@ export async function syncTierToLayer(
         textId: tier.textId,
         languageId: tier.languageId ?? existing.languageId,
         name: tier.name,
-        ...(tier.orthographyId !== undefined && { orthographyId: tier.orthographyId }),
-        ...(tier.transformId !== undefined ? { transformId: tier.transformId } : {}),
         updatedAt: now,
       };
+      if (tier.orthographyId !== undefined) {
+        updated.orthographyId = tier.orthographyId;
+      } else {
+        delete updated.orthographyId;
+      }
+      if (tierBridgeId !== undefined) {
+        updated.bridgeId = tierBridgeId;
+      } else {
+        delete updated.bridgeId;
+      }
       await db.collections.layers.insert(updated);
       return updated;
     }
@@ -172,7 +198,7 @@ export async function syncTierToLayer(
     layerType,
     languageId: tier.languageId ?? '',
     ...(tier.orthographyId !== undefined && { orthographyId: tier.orthographyId }),
-    ...(tier.transformId !== undefined && { transformId: tier.transformId }),
+    ...(tierBridgeId !== undefined && { bridgeId: tierBridgeId }),
     modality: tier.modality ?? 'text',
     ...(tier.acceptsAudio !== undefined && { acceptsAudio: tier.acceptsAudio }),
     ...(tier.isDefault !== undefined && { isDefault: tier.isDefault }),
@@ -235,12 +261,14 @@ export async function validateLayerTierConsistency(
       });
     }
 
-    if ((layer.transformId ?? '') !== (tier.transformId ?? '')) {
+    const layerBridgeId = resolveBridgeId(layer) ?? '';
+    const tierBridgeId = resolveBridgeId(tier) ?? '';
+    if (layerBridgeId !== tierBridgeId) {
       issues.push({
         kind: 'mismatch',
         layerId: layer.id,
         tierId: tier.id,
-        message: `Transform mismatch: layer="${layer.transformId ?? ''}", tier="${tier.transformId ?? ''}".`,
+        message: `Bridge mismatch: layer="${layerBridgeId}", tier="${tierBridgeId}".`,
       });
     }
   }

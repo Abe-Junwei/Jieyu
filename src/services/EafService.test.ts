@@ -245,11 +245,91 @@ describe('EafService export', () => {
     });
   });
 
-  it('ignores unknown EAF tier metadata fields while preserving transformId on import', () => {
+  it('prefers English fallback labels for exported tier ids', () => {
+    const utterances: UtteranceDocType[] = [
+      {
+        id: 'utt_1',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        startTime: 0,
+        endTime: 1,
+        transcription: { default: 'ni hao' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+
+    const layers: LayerDocType[] = [
+      {
+        id: 'layer_trc',
+        textId: 'text_1',
+        key: 'trc_zh',
+        name: { zho: '默认转写', eng: 'Default Transcription' },
+        layerType: 'transcription',
+        languageId: 'zho',
+        modality: 'text',
+        acceptsAudio: false,
+        isDefault: true,
+        sortOrder: 0,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'layer_trl',
+        textId: 'text_1',
+        key: 'trl_notes',
+        name: { zho: '中文层名', eng: 'English Tier Name' },
+        layerType: 'translation',
+        languageId: 'eng',
+        modality: 'text',
+        acceptsAudio: false,
+        parentLayerId: 'layer_trc',
+        sortOrder: 1,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+
+    const translations: UtteranceTextDocType[] = [
+      {
+        id: 'utr_trc_1',
+        utteranceId: 'utt_1',
+        layerId: 'layer_trc',
+        modality: 'text',
+        text: 'ni hao',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'utr_trl_1',
+        utteranceId: 'utt_1',
+        layerId: 'layer_trl',
+        modality: 'text',
+        text: 'hello',
+        sourceType: 'human',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+
+    const xml = exportToEaf({
+      utterances,
+      layers,
+      translations,
+    });
+
+    expect(xml).toContain('TIER_ID="English Tier Name"');
+    expect(xml).not.toContain('TIER_ID="中文层名"');
+    expect(xml).toContain('jieyu:layer-meta:English Tier Name');
+    expect(xml).not.toContain('jieyu:layer-meta:中文层名');
+  });
+
+  it('ignores unknown EAF tier metadata fields while preserving bridgeId on import', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <ANNOTATION_DOCUMENT AUTHOR="Jieyu" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">
     <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
-        <PROPERTY NAME="jieyu:layer-meta:default">{"languageId":"ara","orthographyId":"ortho-ar","scriptTag":"Arab","transformId":"xf-ar-latn","provider":"custom","unknownField":"drop-me"}</PROPERTY>
+        <PROPERTY NAME="jieyu:layer-meta:default">{"languageId":"ara","orthographyId":"ortho-ar","scriptTag":"Arab","bridgeId":"xf-ar-latn","provider":"custom","unknownField":"drop-me"}</PROPERTY>
     </HEADER>
     <TIME_ORDER>
         <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
@@ -270,7 +350,7 @@ describe('EafService export', () => {
       languageId: 'ara',
       orthographyId: 'ortho-ar',
       scriptTag: 'Arab',
-      transformId: 'xf-ar-latn',
+      bridgeId: 'xf-ar-latn',
     });
   });
 });

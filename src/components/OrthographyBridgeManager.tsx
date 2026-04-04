@@ -13,6 +13,11 @@ import {
 import { getOrthographyBridgeManagerMessages } from '../i18n/orthographyBridgeManagerMessages';
 import { LinguisticService } from '../services/LinguisticService';
 import {
+  buildPrimaryAndEnglishLabels,
+  readEnglishFallbackMultiLangLabel,
+  readPrimaryMultiLangLabel,
+} from '../utils/multiLangLabels';
+import {
   buildBridgeRulesFromRuleText,
   evaluateOrthographyBridgeSampleCases,
   parseBridgeSampleCases,
@@ -21,6 +26,7 @@ import {
 } from '../utils/orthographyBridges';
 import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 import { getLanguageDisplayName, isKnownIso639_3Code } from '../utils/langMapping';
+import { listBuiltInOrthographiesByIds } from '../data/builtInOrthographies';
 
 type LanguageOption = {
   code: string;
@@ -50,15 +56,6 @@ function formatBridgeSampleCasesText(bridge: OrthographyBridgeDocType): string {
     .join('\n');
 }
 
-function buildOptionalName(nameZh: string, nameEn: string): OrthographyBridgeDocType['name'] | null {
-  const nextName: NonNullable<OrthographyBridgeDocType['name']> = {};
-  const trimmedZh = nameZh.trim();
-  const trimmedEn = nameEn.trim();
-  if (trimmedZh) nextName.zho = trimmedZh;
-  if (trimmedEn) nextName.eng = trimmedEn;
-  return Object.keys(nextName).length > 0 ? nextName : null;
-}
-
 export function OrthographyBridgeManager({
   targetOrthography,
   languageOptions,
@@ -81,8 +78,8 @@ export function OrthographyBridgeManager({
   const [sourceLanguageId, setSourceLanguageId] = useState('');
   const [sourceCustomLanguageId, setSourceCustomLanguageId] = useState('');
   const [sourceOrthographyId, setSourceOrthographyId] = useState('');
-  const [draftNameZh, setDraftNameZh] = useState('');
-  const [draftNameEn, setDraftNameEn] = useState('');
+  const [draftPrimaryName, setDraftPrimaryName] = useState('');
+  const [draftEnglishFallbackName, setDraftEnglishFallbackName] = useState('');
   const [draftStatus, setDraftStatus] = useState<NonNullable<OrthographyBridgeDocType['status']>>('draft');
   const [draftBridgeEngine, setDraftBridgeEngine] = useState<OrthographyBridgeDocType['engine']>('table-map');
   const [draftBridgeRuleText, setDraftBridgeRuleText] = useState('');
@@ -91,7 +88,7 @@ export function OrthographyBridgeManager({
   const [draftBridgeIsReversible, setDraftBridgeIsReversible] = useState(false);
   const loadRequestVersionRef = useRef(0);
 
-  const targetLabel = targetOrthography ? formatOrthographyOptionLabel(targetOrthography) : '';
+  const targetLabel = targetOrthography ? formatOrthographyOptionLabel(targetOrthography, locale) : '';
   const fieldClassName = compact ? 'input layer-action-dialog-input' : 'input';
   const panelClassName = compact
     ? 'orthography-builder-panel orthography-builder-panel-compact'
@@ -143,8 +140,8 @@ export function OrthographyBridgeManager({
     setSourceLanguageId('');
     setSourceCustomLanguageId('');
     setSourceOrthographyId('');
-    setDraftNameZh('');
-    setDraftNameEn('');
+    setDraftPrimaryName('');
+    setDraftEnglishFallbackName('');
     setDraftStatus('draft');
     setDraftBridgeEngine('table-map');
     setDraftBridgeRuleText('');
@@ -174,11 +171,21 @@ export function OrthographyBridgeManager({
         setSourceOrthographyById({});
       } else {
         const db = await getDb();
-        const orthographies = (await db.dexie.orthographies.bulkGet(sourceIds)).filter(
-          (item): item is OrthographyDocType => Boolean(item),
-        );
+        const [dbOrthographies, builtInOrthographies] = await Promise.all([
+          db.dexie.orthographies.bulkGet(sourceIds),
+          listBuiltInOrthographiesByIds(sourceIds),
+        ]);
         if (loadRequestVersionRef.current !== requestVersion) return;
-        setSourceOrthographyById(Object.fromEntries(orthographies.map((item) => [item.id, item])));
+        const mergedOrthographies = new Map<string, OrthographyDocType>();
+        builtInOrthographies.forEach((item) => {
+          mergedOrthographies.set(item.id, item);
+        });
+        dbOrthographies
+          .filter((item): item is OrthographyDocType => Boolean(item))
+          .forEach((item) => {
+            mergedOrthographies.set(item.id, item);
+          });
+        setSourceOrthographyById(Object.fromEntries(Array.from(mergedOrthographies.entries())));
       }
       setError('');
     } catch (loadError) {
@@ -225,8 +232,8 @@ export function OrthographyBridgeManager({
     setSourceLanguageId(nextSourceLanguageId ? '__custom__' : '');
     setSourceCustomLanguageId(nextSourceLanguageId);
     setSourceOrthographyId(bridge.sourceOrthographyId);
-    setDraftNameZh(bridge.name?.zho ?? '');
-    setDraftNameEn(bridge.name?.eng ?? '');
+    setDraftPrimaryName(readPrimaryMultiLangLabel(bridge.name) ?? '');
+    setDraftEnglishFallbackName(readEnglishFallbackMultiLangLabel(bridge.name) ?? '');
     setDraftStatus(bridge.status ?? 'draft');
     setDraftBridgeEngine(bridge.engine);
     setDraftBridgeRuleText(formatBridgeRuleText(bridge));
@@ -234,7 +241,7 @@ export function OrthographyBridgeManager({
     setDraftBridgeSampleCasesText(formatBridgeSampleCasesText(bridge));
     setDraftBridgeIsReversible(Boolean(bridge.isReversible));
     setError('');
-  }, [languageOptions, sourceOrthographyById]);
+  }, [locale, sourceOrthographyById]);
 
   useEffect(() => {
     if (!isCreatingNew && !editingBridgeId) return;
@@ -282,7 +289,14 @@ export function OrthographyBridgeManager({
 
     setSaving(true);
     try {
-      const name = buildOptionalName(draftNameZh, draftNameEn);
+      const existingBridge = editingBridgeId
+        ? bridges.find((bridge) => bridge.id === editingBridgeId)
+        : undefined;
+      const name = buildPrimaryAndEnglishLabels({
+        primaryLabel: draftPrimaryName,
+        englishFallbackLabel: draftEnglishFallbackName,
+        existing: existingBridge?.name,
+      });
       const sampleInput = draftBridgeSampleInput.trim();
       const sampleOutput = sampleInput
         ? previewOrthographyBridge({
@@ -295,7 +309,7 @@ export function OrthographyBridgeManager({
         await LinguisticService.createOrthographyBridge({
           sourceOrthographyId,
           targetOrthographyId: targetOrthography.id,
-          ...(name ? { name } : {}),
+          ...(Object.keys(name).length ? { name } : {}),
           engine: draftBridgeEngine,
           rules: bridgeDraftRules,
           ...(sampleInput ? { sampleInput } : {}),
@@ -305,11 +319,13 @@ export function OrthographyBridgeManager({
           status: draftStatus,
         });
       } else if (editingBridgeId) {
+        const shouldClearName = !Object.keys(name).length && existingBridge?.name !== undefined;
         await LinguisticService.updateOrthographyBridge({
           id: editingBridgeId,
           sourceOrthographyId,
           targetOrthographyId: targetOrthography.id,
-          ...(name !== undefined ? { name } : {}),
+          ...(Object.keys(name).length ? { name } : {}),
+          ...(shouldClearName ? { name: null } : {}),
           engine: draftBridgeEngine,
           rules: bridgeDraftRules,
           sampleInput: sampleInput || null,
@@ -326,7 +342,7 @@ export function OrthographyBridgeManager({
     } finally {
       setSaving(false);
     }
-  }, [draftNameEn, draftNameZh, draftStatus, draftBridgeEngine, draftBridgeIsReversible, draftBridgeSampleInput, editingBridgeId, isCreatingNew, loadBridges, managerMessages, resetEditor, resolvedSourceLanguageId, sourceLanguageError, sourceOrthographies, sourceOrthographyId, targetOrthography?.id, bridgeDraftRules, bridgeDraftSampleCases, bridgeSampleCaseResults, bridgeValidationIssues]);
+  }, [bridgeDraftRules, bridgeDraftSampleCases, bridgeSampleCaseResults, bridgeValidationIssues, bridges, draftBridgeEngine, draftBridgeIsReversible, draftBridgeSampleInput, draftEnglishFallbackName, draftPrimaryName, draftStatus, editingBridgeId, isCreatingNew, loadBridges, managerMessages, resetEditor, resolvedSourceLanguageId, sourceLanguageError, sourceOrthographies, sourceOrthographyId, targetOrthography?.id]);
 
   const handleSourceLanguageInputChange = useCallback((nextValue: LanguageIsoInputValue) => {
     const normalizedCode = nextValue.languageCode.trim().toLowerCase();
@@ -416,7 +432,7 @@ export function OrthographyBridgeManager({
 
           {bridges.map((bridge) => {
             const sourceOrthography = sourceOrthographyById[bridge.sourceOrthographyId];
-            const sourceLabel = sourceOrthography ? formatOrthographyOptionLabel(sourceOrthography) : bridge.sourceOrthographyId;
+            const sourceLabel = sourceOrthography ? formatOrthographyOptionLabel(sourceOrthography, locale) : bridge.sourceOrthographyId;
             return (
               <div key={bridge.id} className="orthography-builder-validation-box orthography-builder-validation-box-neutral">
                 <span className="orthography-builder-rule-label">{sourceLabel}{' -> '}{targetLabel}</span>
@@ -484,7 +500,7 @@ export function OrthographyBridgeManager({
                       <optgroup key={group.key} label={getOrthographyCatalogGroupLabel(locale, group.key)}>
                         {group.orthographies.map((orthography) => (
                           <option key={orthography.id} value={orthography.id}>
-                            {formatOrthographyOptionLabel(orthography)}
+                            {formatOrthographyOptionLabel(orthography, locale)}
                           </option>
                         ))}
                       </optgroup>
@@ -497,8 +513,8 @@ export function OrthographyBridgeManager({
                   <input
                     className={fieldClassName}
                     type="text"
-                    value={draftNameZh}
-                    onChange={(event) => setDraftNameZh(event.target.value)}
+                    value={draftPrimaryName}
+                    onChange={(event) => setDraftPrimaryName(event.target.value)}
                     placeholder={managerMessages.ruleNameZhPlaceholder}
                   />
                 </label>
@@ -508,8 +524,8 @@ export function OrthographyBridgeManager({
                   <input
                     className={fieldClassName}
                     type="text"
-                    value={draftNameEn}
-                    onChange={(event) => setDraftNameEn(event.target.value)}
+                    value={draftEnglishFallbackName}
+                    onChange={(event) => setDraftEnglishFallbackName(event.target.value)}
                     placeholder={managerMessages.ruleNameEnPlaceholder}
                   />
                 </label>

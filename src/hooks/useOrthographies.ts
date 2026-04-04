@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getDb, type OrthographyDocType } from '../db';
 import { listBuiltInOrthographies } from '../data/builtInOrthographies';
+import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 
 type OrthographyCatalogSource = NonNullable<NonNullable<OrthographyDocType['catalogMetadata']>['catalogSource']>;
 type OrthographyReviewStatus = NonNullable<NonNullable<OrthographyDocType['catalogMetadata']>['reviewStatus']>;
@@ -58,10 +59,7 @@ function getPriorityRank(priority: OrthographyCatalogPriority | undefined): numb
 }
 
 function resolveOrthographyDisplayName(orthography: OrthographyDocType): string {
-  return orthography.name.eng
-    ?? orthography.name.zho
-    ?? orthography.name.en
-    ?? orthography.name.zh
+  return readAnyMultiLangLabel(orthography.name)
     ?? orthography.abbreviation
     ?? orthography.id;
 }

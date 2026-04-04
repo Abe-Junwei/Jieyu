@@ -187,7 +187,7 @@ export function useImportExport(input: UseImportExportInput) {
           text: legacyText,
           sourceOrthographyId,
           targetOrthographyId,
-          ...(defaultLayer?.transformId ? { transformId: defaultLayer.transformId } : {}),
+          ...(defaultLayer?.bridgeId ? { bridgeId: defaultLayer.bridgeId } : {}),
         })).text;
         transformedTextCache.set(legacyText, transformedText);
       }

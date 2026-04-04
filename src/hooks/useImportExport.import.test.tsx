@@ -313,7 +313,7 @@ describe('useImportExport - import success under stop-write', () => {
       .find((layer) => layer.id !== defaultLayer.id && layer.textId === 'text-import' && layer.orthographyId === 'orth_source_import');
 
     expect(sourceLayer).toBeTruthy();
-    expect(sourceLayer?.name.zho).toContain('原文');
+    expect(sourceLayer?.name.und).toContain('原文');
 
     const sourceContents = sourceLayer
       ? await db.layer_unit_contents.where('layerId').equals(sourceLayer.id).toArray()
