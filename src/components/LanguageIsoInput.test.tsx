@@ -16,7 +16,7 @@ const resolveInjectedLanguageDisplayName = (languageId: string | undefined) => {
 function extractIsoCodeFromSuggestion(option: HTMLElement): string {
   const text = option.textContent ?? '';
   const matches = Array.from(text.matchAll(/·\s*([a-z]{3})(?=\s*·|$)/gi));
-  const lastMatch = matches.at(-1);
+  const lastMatch = matches[matches.length - 1];
   if (!lastMatch?.[1]) {
     throw new Error(`Unable to extract ISO code from suggestion text: ${text}`);
   }

@@ -277,7 +277,7 @@ describe('OrthographyBuilderPanel', () => {
     expect(screen.getByRole('combobox', { name: '来源语言' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '来源语言代码' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '来源正字法' })).toBeTruthy();
-    expect(screen.getByRole('textbox', { name: '本地名称' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '本族语名称' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '文本方向' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '文字标签' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '桥接引擎' })).toBeTruthy();

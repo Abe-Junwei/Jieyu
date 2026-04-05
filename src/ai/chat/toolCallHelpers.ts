@@ -1,5 +1,5 @@
 import { featureFlags } from '../config/featureFlags';
-import { resolveLanguageQuery } from '../../utils/langMapping';
+import { LinguisticService } from '../../services/LinguisticService';
 import { buildAiToolRequestId } from '../toolRequestId';
 import {
   formatActionClarify,
@@ -1107,7 +1107,7 @@ function isDeicticConfirmationMessage(userText: string): boolean {
 export function extractClarifyLanguagePatch(userText: string): Record<string, string> | null {
   const trimmed = userText.trim().replace(escapedUnicodeRegExp('[\\u7684\\u90a3\\u4e2a\\u5427]$', 'g'), '').trim();
   if (!trimmed || trimmed.length > 20) return null;
-  const resolved = resolveLanguageQuery(trimmed);
+  const resolved = LinguisticService.resolveLanguageQuery(trimmed);
   if (!resolved) return null;
   return { languageId: resolved, languageQuery: trimmed };
 }

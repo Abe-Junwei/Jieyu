@@ -1,6 +1,7 @@
 import type { LayerDocType } from '../db';
 import { t, type Locale } from '../i18n';
-import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
+import { SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
+import { LinguisticService } from '../services/LinguisticService';
 import { listUniqueNonEmptyMultiLangLabels } from '../utils/multiLangLabels';
 
 export function normalizeAiToolCallText(value: string): string {
@@ -10,7 +11,7 @@ export function normalizeAiToolCallText(value: string): string {
 export function buildAiToolLanguageTokens(query: string): string[] {
   const normalizedQuery = normalizeAiToolCallText(query);
   const tokens = new Set<string>([normalizedQuery]);
-  const code = resolveLanguageQuery(query);
+  const code = LinguisticService.resolveLanguageQuery(query);
   if (code) {
     tokens.add(code);
     const entry = SUPPORTED_VOICE_LANGS.flatMap((group) => group.langs).find((lang) => lang.code === code);
@@ -32,7 +33,7 @@ export function parseLayerHintFromOpaqueId(value: string): { layerType: 'transla
     .replace(/translation|transcription|layer|tier|译|翻译|转写|转录|听写|层|_/g, '')
     .trim();
   if (!languageFragment) return null;
-  const code = resolveLanguageQuery(languageFragment);
+  const code = LinguisticService.resolveLanguageQuery(languageFragment);
   if (!code) return null;
   return { layerType, languageQuery: code };
 }

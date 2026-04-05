@@ -90,7 +90,6 @@ import {
   listLanguageCatalogHistory,
   upsertLanguageCatalogEntry,
   type LanguageCatalogEntry,
-  type LanguageCatalogDisplayNameEntry,
   type UpsertLanguageCatalogEntryInput,
 } from './LinguisticService.languageCatalog';
 
@@ -106,12 +105,23 @@ export type {
   MultiLangString,
   OrthographyDocType,
   OrthographyBridgeDocType,
+  LanguageCatalogVisibility,
 } from '../db';
 export type {
   LanguageCatalogEntry,
   LanguageCatalogDisplayNameEntry,
   UpsertLanguageCatalogEntryInput,
 } from './LinguisticService.languageCatalog';
+
+import {
+  resolveLanguageQuery as resolveLanguageQueryImpl,
+  searchLanguageCatalog,
+} from '../utils/langMapping';
+export type {
+  LanguageCatalogMatch,
+  LanguageCatalogMatchSource,
+  LanguageSearchLocale,
+} from '../utils/langMapping';
 
 // ── Audit log infrastructure ──────────────────────────────────
 
@@ -1383,6 +1393,24 @@ export class LinguisticService {
 
   static async listLanguageCatalogHistory(languageId: string) {
     return listLanguageCatalogHistory(languageId);
+  }
+
+  /**
+   * 在语言目录中搜索匹配项 | Search for matching entries in the language catalog
+   */
+  static searchLanguageCatalogEntries(
+    query: string,
+    locale?: import('../utils/langMapping').LanguageSearchLocale,
+    maxResults?: number,
+  ): import('../utils/langMapping').LanguageCatalogMatch[] {
+    return searchLanguageCatalog(query, locale, maxResults);
+  }
+
+  /**
+   * 解析用户输入为 ISO 639-3 代码 | Resolve user input to ISO 639-3 code
+   */
+  static resolveLanguageQuery(query: string): string | undefined {
+    return resolveLanguageQueryImpl(query);
   }
 
   static async deleteOrthographyBridge(id: string): Promise<void> {

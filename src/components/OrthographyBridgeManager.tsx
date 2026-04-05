@@ -15,8 +15,6 @@ import { getOrthographyBridgeManagerMessages } from '../i18n/orthographyBridgeMa
 import { LinguisticService } from '../services/LinguisticService';
 import {
   buildPrimaryAndEnglishLabels,
-  readEnglishFallbackMultiLangLabel,
-  readPrimaryMultiLangLabel,
 } from '../utils/multiLangLabels';
 import {
   buildBridgeRulesFromRuleText,
@@ -28,7 +26,6 @@ import {
 import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import {
-  buildLanguageInputSeed,
   resolveLanguageHostSelection,
 } from '../utils/languageInputHostState';
 import { listBuiltInOrthographiesByIds } from '../data/builtInOrthographies';
@@ -46,21 +43,6 @@ type OrthographyBridgeManagerProps = {
   hideToggleButton?: boolean;
 };
 
-function formatBridgeRuleText(bridge: OrthographyBridgeDocType): string {
-  if (bridge.rules.ruleText?.trim()) return bridge.rules.ruleText;
-  return (bridge.rules.mappings ?? [])
-    .map((mapping) => `${mapping.from} => ${mapping.to}`)
-    .join('\n');
-}
-
-function formatBridgeSampleCasesText(bridge: OrthographyBridgeDocType): string {
-  return (bridge.sampleCases ?? [])
-    .map((sampleCase) => sampleCase.expectedOutput !== undefined
-      ? `${sampleCase.input} => ${sampleCase.expectedOutput}`
-      : sampleCase.input)
-    .join('\n');
-}
-
 export function OrthographyBridgeManager({
   targetOrthography,
   languageOptions,
@@ -77,7 +59,7 @@ export function OrthographyBridgeManager({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [bridges, setTransforms] = useState<OrthographyBridgeDocType[]>([]);
-  const [sourceOrthographyById, setSourceOrthographyById] = useState<Record<string, OrthographyDocType>>({});
+  const [, setSourceOrthographyById] = useState<Record<string, OrthographyDocType>>({});
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [editingBridgeId, setEditingBridgeId] = useState<string | null>(null);
   const [sourceLanguageInput, setSourceLanguageInput] = useState<LanguageIsoInputValue>({ languageName: '', languageCode: '' });
@@ -227,27 +209,6 @@ export function OrthographyBridgeManager({
     setIsCreatingNew(true);
   }, [resetEditor]);
 
-  const beginEdit = useCallback((bridge: OrthographyBridgeDocType) => {
-    const sourceOrthography = sourceOrthographyById[bridge.sourceOrthographyId];
-    const nextSourceLanguageId = sourceOrthography?.languageId ?? '';
-    const hostSelection = resolveLanguageHostSelection(nextSourceLanguageId, languageOptions);
-    setIsCreatingNew(false);
-    setEditingBridgeId(bridge.id);
-    setSourceLanguageInput(buildLanguageInputSeed(nextSourceLanguageId, locale, resolveLanguageDisplayName));
-    setSourceLanguageId(hostSelection.languageId);
-    setSourceCustomLanguageId(hostSelection.customLanguageId);
-    setSourceOrthographyId(bridge.sourceOrthographyId);
-    setDraftPrimaryName(readPrimaryMultiLangLabel(bridge.name) ?? '');
-    setDraftEnglishFallbackName(readEnglishFallbackMultiLangLabel(bridge.name) ?? '');
-    setDraftStatus(bridge.status ?? 'draft');
-    setDraftBridgeEngine(bridge.engine);
-    setDraftBridgeRuleText(formatBridgeRuleText(bridge));
-    setDraftBridgeSampleInput(bridge.sampleInput ?? '');
-    setDraftBridgeSampleCasesText(formatBridgeSampleCasesText(bridge));
-    setDraftBridgeIsReversible(Boolean(bridge.isReversible));
-    setError('');
-  }, [languageOptions, locale, resolveLanguageDisplayName, sourceOrthographyById]);
-
   useEffect(() => {
     if (!isCreatingNew && !editingBridgeId) return;
     if (!resolvedSourceLanguageId) {
@@ -356,36 +317,6 @@ export function OrthographyBridgeManager({
     setSourceLanguageId(hostSelection.languageId);
     setSourceCustomLanguageId(hostSelection.customLanguageId);
   }, [languageOptions]);
-
-  const toggleBridgeStatus = useCallback(async (bridge: OrthographyBridgeDocType) => {
-    setSaving(true);
-    try {
-      await LinguisticService.updateOrthographyBridge({
-        id: bridge.id,
-        status: bridge.status === 'active' ? 'draft' : 'active',
-      });
-      await loadBridges();
-    } catch (toggleError) {
-      setError(toggleError instanceof Error ? toggleError.message : managerMessages.errorToggle);
-    } finally {
-      setSaving(false);
-    }
-  }, [loadBridges, managerMessages.errorToggle]);
-
-  const deleteBridge = useCallback(async (bridgeId: string) => {
-    setSaving(true);
-    try {
-      await LinguisticService.deleteOrthographyBridge(bridgeId);
-      await loadBridges();
-      if (editingBridgeId === bridgeId) {
-        resetEditor();
-      }
-    } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : managerMessages.errorDelete);
-    } finally {
-      setSaving(false);
-    }
-  }, [editingBridgeId, loadBridges, managerMessages.errorDelete, resetEditor]);
 
   if (!targetOrthography) return null;
 

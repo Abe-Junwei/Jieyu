@@ -241,7 +241,6 @@
 
 .orthography-builder-panel-compact .orthography-builder-group-divided {
   padding-top: var(--orthography-builder-space-3);
-  border-top: 1px solid color-mix(in srgb, var(--panel-design-border-color) 100%, transparent);
 }
 
 .orthography-builder-panel-compact .orthography-builder-group {
@@ -340,11 +339,6 @@
   align-self: stretch;
 }
 
-.orthography-builder-panel-compact .orthography-builder-render-preview {
-  gap: 6px;
-  padding: 8px 10px;
-}
-
 .orthography-builder-render-preview-meta {
   display: flex;
   flex-wrap: wrap;
@@ -409,6 +403,53 @@
 .orthography-builder-advanced-toggle-row {
   display: flex;
   justify-content: flex-start;
+}
+
+/* 高级设置折叠切换按钮（无边框无背景） | Advanced toggle button (borderless, transparent) */
+.orthography-builder-advanced-toggle-btn {
+  all: unset;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #94a3b8;
+}
+
+/* 创建模式区域视觉提权 | Create-mode section visual emphasis */
+.orthography-builder-panel-compact .orthography-builder-group-create-mode {
+  padding: 8px 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #f0f9ff;
+}
+
+/* 渲染预览去边框（只读展示） | Render preview: remove border (read-only display) */
+.orthography-builder-panel-compact .orthography-builder-render-preview {
+  gap: 6px;
+  padding: 8px 10px;
+  border: none;
+  background: #f8fafc;
+}
+
+/* 高级设置折叠整体容器 | Advanced settings unified toggle+panel container */
+.orthography-builder-advanced-group {
+  border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
+  border-radius: 8px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.orthography-builder-advanced-group .orthography-builder-advanced-toggle-row {
+  padding: 8px 10px;
+}
+
+.orthography-builder-advanced-group-open .orthography-builder-advanced-toggle-row {
+  border-bottom: 1px solid color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
+}
+
+.orthography-builder-advanced-group .orthography-builder-advanced-panel {
+  padding: 10px;
+  border-top: none;
 }
 
 .orthography-builder-workspace-note {
@@ -525,9 +566,9 @@
   border-top: 1px solid color-mix(in srgb, var(--panel-design-border-color) 54%, transparent);
 }
 
-/* 760px 响应断点已移除：所有网格已收口为单列 | 760px breakpoint removed: all grids are single-column */
+/* 窄屏断点：仅极窄时才退化为单列 | Narrow breakpoint: degrade to single-column only at very narrow widths */
 
-@container (max-width: 460px) {
+@container (max-width: 360px) {
   .orthography-builder-panel-compact .orthography-builder-identity-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

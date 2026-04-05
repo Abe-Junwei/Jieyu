@@ -1,3 +1,10 @@
+/**
+ * 运行时缓存层：以 localStorage 提供同步可读的用户数据库语言资产快照。
+ * Runtime cache layer: provides synchronous access to user DB language assets
+ * via localStorage. Rebuilt after each write operation by LinguisticService.
+ * This is Layer ② in the three-layer data model, taking priority over the
+ * built-in generated baseline (Layer ①).
+ */
 import type { LanguageCatalogVisibility } from '../db';
 
 const LANGUAGE_CATALOG_RUNTIME_CACHE_STORAGE_KEY = 'jieyu.language-catalog.runtime-cache.v1';

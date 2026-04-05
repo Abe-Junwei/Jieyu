@@ -1,3 +1,17 @@
+/**
+ * 统一读取层：合并“内置基线”与“运行时缓存（用户数据库）”两层语言名称信息。
+ * Unified read layer: merges the built-in baseline (generated module) with the
+ * runtime cache (sourced from IndexedDB via localStorage). Runtime entries take
+ * priority, allowing user overrides while keeping generated data as a fallback.
+ *
+ * 数据分层：
+ *   Layer ① — 内置基线 (Generated baseline)
+ *     来源： scripts/generate-language-name-indexes.mjs → src/data/generated/
+ *     特点：只读，随构建更新，提供 ISO 639 数据库的完整快照
+ *   Layer ② — 运行时缓存 (Runtime cache from user DB)
+ *     来源： LinguisticService.languageCatalog → languageCatalogRuntimeCache
+ *     特点：同步可读（localStorage），包含用户自定义条目与显示名覆盖，优先级高于 Layer ①
+ */
 import { getLanguageDisplayNameOverride } from './languageNameOverrides';
 import {
   GENERATED_LANGUAGE_ALIAS_TO_CODE,

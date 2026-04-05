@@ -64,7 +64,7 @@ export function OrthographyWorkspaceEditor({
                 locale={locale}
                 value={languageInput}
                 onChange={onLanguageInputChange}
-                resolveLanguageDisplayName={resolveLanguageDisplayName}
+                {...(resolveLanguageDisplayName ? { resolveLanguageDisplayName } : {})}
                 nameLabel={t(locale, 'workspace.orthography.languageLabel')}
                 codeLabel={builderMessages.sourceLanguageCodeLabel}
                 namePlaceholder={t(locale, 'workspace.orthography.languageLabel')}

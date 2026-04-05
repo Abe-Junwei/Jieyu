@@ -11,7 +11,6 @@ import {
   MAX_LANGUAGE_INPUT_VISIBLE_SUGGESTIONS,
   reduceLanguageInput,
   selectCommittedLanguageInputValue,
-  selectDisplayedLanguageInputValue,
   selectLanguageInputAssistState,
   selectPresentedLanguageInputValue,
   serializeLanguageInputValue,
@@ -53,17 +52,17 @@ export function LanguageIsoInput({
 }: LanguageIsoInputProps) {
   const fieldIdPrefix = useId();
   const serializedIncomingValue = serializeLanguageInputValue(value);
+  const resolverOptions = resolveLanguageDisplayName ? { resolveLanguageDisplayName } : {};
   const [model, dispatch] = useReducer(
-    (state: ReturnType<typeof createLanguageInputModel>, action: Parameters<typeof reduceLanguageInput>[1]) => reduceLanguageInput(state, action, locale, { resolveLanguageDisplayName }),
+    (state: ReturnType<typeof createLanguageInputModel>, action: Parameters<typeof reduceLanguageInput>[1]) => reduceLanguageInput(state, action, locale, resolverOptions),
     value,
-    (initialValue) => createLanguageInputModel(initialValue, locale, { resolveLanguageDisplayName }),
+    (initialValue) => createLanguageInputModel(initialValue, locale, resolverOptions),
   );
   const lastSeenValueKeyRef = useRef(serializedIncomingValue);
   const lastSeenLocaleRef = useRef(locale);
   const lastSeenResolverRef = useRef(resolveLanguageDisplayName);
   const lastNotifiedCommittedKeyRef = useRef(serializedIncomingValue);
   const [isNameInputFocused, setIsNameInputFocused] = useState(false);
-  const displayedValue = useMemo(() => selectDisplayedLanguageInputValue(model), [model]);
   const presentedValue = useMemo(
     () => selectPresentedLanguageInputValue(model, locale, isNameInputFocused),
     [isNameInputFocused, locale, model],

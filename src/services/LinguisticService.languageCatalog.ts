@@ -2,7 +2,6 @@ import { iso6393 } from 'iso-639-3';
 import {
   getDb,
   type LanguageAliasDocType,
-  type LanguageAliasType,
   type LanguageCatalogHistoryAction,
   type LanguageCatalogHistoryDocType,
   type LanguageCatalogReviewStatus,
@@ -235,7 +234,7 @@ function buildProjectedDisplayNames(input: {
       value,
       isPreferred: canonicalizeDisplayLocale(locale) === 'en-US' || canonicalizeDisplayLocale(locale) === 'zh-CN',
       sourceType: input.languageDoc?.sourceType ?? 'user-override',
-      reviewStatus: input.languageDoc?.reviewStatus,
+      ...(input.languageDoc?.reviewStatus ? { reviewStatus: input.languageDoc.reviewStatus } : {}),
       persisted: Boolean(input.languageDoc),
     });
   });
@@ -247,7 +246,7 @@ function buildProjectedDisplayNames(input: {
       value: input.languageDoc.autonym,
       isPreferred: true,
       sourceType: input.languageDoc.sourceType ?? 'user-override',
-      reviewStatus: input.languageDoc.reviewStatus,
+      ...(input.languageDoc.reviewStatus ? { reviewStatus: input.languageDoc.reviewStatus } : {}),
       persisted: true,
     });
   }
@@ -558,8 +557,8 @@ function buildHistoryRecord(input: {
     summary: input.summary,
     ...(input.changedFields && input.changedFields.length > 0 ? { changedFields: input.changedFields } : {}),
     ...(input.reason ? { reason: input.reason } : {}),
-    sourceType: input.sourceType,
-    snapshot: input.snapshot,
+    ...(input.sourceType ? { sourceType: input.sourceType } : {}),
+    ...(input.snapshot ? { snapshot: input.snapshot } : {}),
     actorType: 'human',
     createdAt: new Date().toISOString(),
   };
@@ -577,8 +576,8 @@ function projectLanguageCatalogEntry(input: {
   const builtInAliases = GENERATED_LANGUAGE_ALIASES_BY_CODE[input.languageId] ?? [];
   const languageDoc = input.languageDoc;
   const projectedDisplayNames = buildProjectedDisplayNames({
-    generatedEntry: generated,
-    languageDoc,
+    ...(generated ? { generatedEntry: generated } : {}),
+    ...(languageDoc ? { languageDoc } : {}),
     displayNames: input.displayNames,
   });
   const entryKind: LanguageCatalogEntryKind = input.languageId.startsWith('user:') || languageDoc?.sourceType === 'user-custom'
@@ -604,34 +603,52 @@ function projectLanguageCatalogEntry(input: {
   const sourceType = languageDoc?.sourceType
     ?? (generated ? 'built-in-generated' : 'user-custom');
 
+  // 提取复合可选值，避免 exactOptionalPropertyTypes 违规 | Extract compound optional values to satisfy exactOptionalPropertyTypes
+  const resolvedCanonicalTag = languageDoc?.canonicalTag;
+  const resolvedIso6391 = languageDoc?.iso6391 ?? isoRecord?.iso6391;
+  const resolvedIso6392B = languageDoc?.iso6392B ?? isoRecord?.iso6392B;
+  const resolvedIso6392T = languageDoc?.iso6392T ?? isoRecord?.iso6392T;
+  const resolvedIso6393 = languageDoc?.iso6393 ?? isoRecord?.iso6393 ?? (isKnownIso639_3Code(input.languageId) ? input.languageId : undefined);
+  const resolvedGlottocode = languageDoc?.glottocode;
+  const resolvedWikidataId = languageDoc?.wikidataId;
+  const resolvedScope = languageDoc?.scope ?? isoRecord?.scope;
+  const resolvedFamily = languageDoc?.family;
+  const resolvedSubfamily = languageDoc?.subfamily;
+  const resolvedMacrolanguage = languageDoc?.macrolanguage;
+  const resolvedLanguageType = languageDoc?.languageType ?? isoRecord?.type;
+  const resolvedModality = languageDoc?.modality;
+  const resolvedReviewStatus = languageDoc?.reviewStatus;
+  const resolvedNotes = languageDoc?.notes;
+  const resolvedUpdatedAt = languageDoc?.updatedAt;
+
   return {
     id: input.languageId,
     entryKind,
     hasPersistedRecord,
     languageCode: languageDoc?.languageCode ?? languageDoc?.iso6393 ?? input.languageId,
-    canonicalTag: languageDoc?.canonicalTag,
-    iso6391: languageDoc?.iso6391 ?? isoRecord?.iso6391,
-    iso6392B: languageDoc?.iso6392B ?? isoRecord?.iso6392B,
-    iso6392T: languageDoc?.iso6392T ?? isoRecord?.iso6392T,
-    iso6393: languageDoc?.iso6393 ?? isoRecord?.iso6393 ?? (isKnownIso639_3Code(input.languageId) ? input.languageId : undefined),
-    glottocode: languageDoc?.glottocode,
-    wikidataId: languageDoc?.wikidataId,
+    ...(resolvedCanonicalTag ? { canonicalTag: resolvedCanonicalTag } : {}),
+    ...(resolvedIso6391 ? { iso6391: resolvedIso6391 } : {}),
+    ...(resolvedIso6392B ? { iso6392B: resolvedIso6392B } : {}),
+    ...(resolvedIso6392T ? { iso6392T: resolvedIso6392T } : {}),
+    ...(resolvedIso6393 ? { iso6393: resolvedIso6393 } : {}),
+    ...(resolvedGlottocode ? { glottocode: resolvedGlottocode } : {}),
+    ...(resolvedWikidataId ? { wikidataId: resolvedWikidataId } : {}),
     englishName,
     localName,
     ...(nativeName ? { nativeName } : {}),
     aliases,
-    scope: languageDoc?.scope ?? isoRecord?.scope,
-    family: languageDoc?.family,
-    subfamily: languageDoc?.subfamily,
-    macrolanguage: languageDoc?.macrolanguage ?? isoRecord?.macrolanguage,
-    languageType: languageDoc?.languageType ?? isoRecord?.type,
-    modality: languageDoc?.modality,
+    ...(resolvedScope ? { scope: resolvedScope } : {}),
+    ...(resolvedFamily ? { family: resolvedFamily } : {}),
+    ...(resolvedSubfamily ? { subfamily: resolvedSubfamily } : {}),
+    ...(resolvedMacrolanguage ? { macrolanguage: resolvedMacrolanguage } : {}),
+    ...(resolvedLanguageType ? { languageType: resolvedLanguageType } : {}),
+    ...(resolvedModality ? { modality: resolvedModality } : {}),
     sourceType,
-    reviewStatus: languageDoc?.reviewStatus,
+    ...(resolvedReviewStatus ? { reviewStatus: resolvedReviewStatus } : {}),
     visibility: languageDoc?.visibility ?? 'visible',
-    notes: languageDoc?.notes,
+    ...(resolvedNotes ? { notes: resolvedNotes } : {}),
     displayNames: projectedDisplayNames,
-    updatedAt: languageDoc?.updatedAt,
+    ...(resolvedUpdatedAt ? { updatedAt: resolvedUpdatedAt } : {}),
   };
 }
 
@@ -667,13 +684,16 @@ async function readLanguageCatalogProjection(locale: Locale, includeHidden = fal
   });
 
   const projected = Array.from(languageIds)
-    .map((languageId) => projectLanguageCatalogEntry({
-      languageId,
-      locale,
-      languageDoc: languageById.get(languageId),
-      displayNames: displayNamesByLanguageId.get(languageId) ?? [],
-      aliases: aliasesByLanguageId.get(languageId) ?? [],
-    }));
+    .map((languageId) => {
+      const doc = languageById.get(languageId);
+      return projectLanguageCatalogEntry({
+        languageId,
+        locale,
+        ...(doc ? { languageDoc: doc } : {}),
+        displayNames: displayNamesByLanguageId.get(languageId) ?? [],
+        aliases: aliasesByLanguageId.get(languageId) ?? [],
+      });
+    });
 
   // 管理视图需要包含隐藏条目 | Management views need hidden entries
   const filtered = includeHidden ? projected : projected.filter((entry) => entry.visibility !== 'hidden');
@@ -784,34 +804,46 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
     }
   }
 
+  // 提取 normalizeOptionalValue 结果，避免双重调用无法被 TS 收窄 | Extract normalized values to allow TS narrowing
+  const normCanonicalTag = normalizeOptionalValue(input.canonicalTag);
+  const normIso6391 = normalizeOptionalValue(input.iso6391);
+  const normIso6392B = normalizeOptionalValue(input.iso6392B);
+  const normIso6392T = normalizeOptionalValue(input.iso6392T);
+  const normIso6393 = normalizeOptionalValue(input.iso6393);
+  const normGlottocode = normalizeOptionalValue(input.glottocode);
+  const normWikidataId = normalizeOptionalValue(input.wikidataId);
+  const normMacrolanguage = normalizeOptionalValue(input.macrolanguage);
+  const normFamily = normalizeOptionalValue(input.family);
+  const normSubfamily = normalizeOptionalValue(input.subfamily);
+
   const nextLanguage: LanguageDocType = {
     id: languageId,
     name: mergedName,
     languageCode: normalizeOptionalValue(input.languageCode) ?? normalizeOptionalValue(input.iso6393) ?? languageId,
     ...(!hasCanonicalTag && existing?.canonicalTag ? { canonicalTag: existing.canonicalTag } : {}),
-    ...(hasCanonicalTag ? (normalizeOptionalValue(input.canonicalTag) ? { canonicalTag: normalizeOptionalValue(input.canonicalTag) } : {}) : {}),
+    ...(hasCanonicalTag && normCanonicalTag ? { canonicalTag: normCanonicalTag } : {}),
     ...(!hasIso6391 && existing?.iso6391 ? { iso6391: existing.iso6391 } : {}),
-    ...(hasIso6391 ? (normalizeOptionalValue(input.iso6391) ? { iso6391: normalizeOptionalValue(input.iso6391) } : {}) : {}),
+    ...(hasIso6391 && normIso6391 ? { iso6391: normIso6391 } : {}),
     ...(!hasIso6392B && existing?.iso6392B ? { iso6392B: existing.iso6392B } : {}),
-    ...(hasIso6392B ? (normalizeOptionalValue(input.iso6392B) ? { iso6392B: normalizeOptionalValue(input.iso6392B) } : {}) : {}),
+    ...(hasIso6392B && normIso6392B ? { iso6392B: normIso6392B } : {}),
     ...(!hasIso6392T && existing?.iso6392T ? { iso6392T: existing.iso6392T } : {}),
-    ...(hasIso6392T ? (normalizeOptionalValue(input.iso6392T) ? { iso6392T: normalizeOptionalValue(input.iso6392T) } : {}) : {}),
+    ...(hasIso6392T && normIso6392T ? { iso6392T: normIso6392T } : {}),
     ...(!hasIso6393 && existing?.iso6393 ? { iso6393: existing.iso6393 } : {}),
-    ...(hasIso6393 ? (normalizeOptionalValue(input.iso6393) ? { iso6393: normalizeOptionalValue(input.iso6393) } : {}) : {}),
+    ...(hasIso6393 && normIso6393 ? { iso6393: normIso6393 } : {}),
     ...(!hasNativeName && existing?.autonym ? { autonym: existing.autonym } : {}),
-    ...(hasNativeName ? (nativeName ? { autonym: nativeName } : {}) : {}),
+    ...(hasNativeName && nativeName ? { autonym: nativeName } : {}),
     ...(!hasGlottocode && existing?.glottocode ? { glottocode: existing.glottocode } : {}),
-    ...(hasGlottocode ? (normalizeOptionalValue(input.glottocode) ? { glottocode: normalizeOptionalValue(input.glottocode) } : {}) : {}),
+    ...(hasGlottocode && normGlottocode ? { glottocode: normGlottocode } : {}),
     ...(!hasWikidataId && existing?.wikidataId ? { wikidataId: existing.wikidataId } : {}),
-    ...(hasWikidataId ? (normalizeOptionalValue(input.wikidataId) ? { wikidataId: normalizeOptionalValue(input.wikidataId) } : {}) : {}),
+    ...(hasWikidataId && normWikidataId ? { wikidataId: normWikidataId } : {}),
     ...(!hasScope && existing?.scope ? { scope: existing.scope } : {}),
-    ...(hasScope ? (input.scope ? { scope: input.scope } : {}) : {}),
+    ...(hasScope && input.scope ? { scope: input.scope } : {}),
     ...(!hasMacrolanguage && existing?.macrolanguage ? { macrolanguage: existing.macrolanguage } : {}),
-    ...(hasMacrolanguage ? (normalizeOptionalValue(input.macrolanguage) ? { macrolanguage: normalizeOptionalValue(input.macrolanguage) } : {}) : {}),
+    ...(hasMacrolanguage && normMacrolanguage ? { macrolanguage: normMacrolanguage } : {}),
     ...(!hasFamily && existing?.family ? { family: existing.family } : {}),
-    ...(hasFamily ? (normalizeOptionalValue(input.family) ? { family: normalizeOptionalValue(input.family) } : {}) : {}),
+    ...(hasFamily && normFamily ? { family: normFamily } : {}),
     ...(!hasSubfamily && existing?.subfamily ? { subfamily: existing.subfamily } : {}),
-    ...(hasSubfamily ? (normalizeOptionalValue(input.subfamily) ? { subfamily: normalizeOptionalValue(input.subfamily) } : {}) : {}),
+    ...(hasSubfamily && normSubfamily ? { subfamily: normSubfamily } : {}),
     ...(!hasModality && existing?.modality ? { modality: existing.modality } : {}),
     ...(hasModality ? (input.modality ? { modality: input.modality } : {}) : {}),
     ...(!hasLanguageType && existing?.languageType ? { languageType: existing.languageType } : {}),
@@ -863,7 +895,7 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
       action: existing ? 'update' : 'create',
       summary: t(locale as Locale, existing ? 'service.languageCatalog.historyUpdate' : 'service.languageCatalog.historyCreate'),
       changedFields: ['languages', 'language_display_names', 'language_aliases'],
-      reason: input.reason,
+      ...(input.reason ? { reason: input.reason } : {}),
       sourceType: nextSourceType,
       snapshot: {
         language: nextLanguage,
@@ -897,8 +929,8 @@ export async function deleteLanguageCatalogEntry(input: {
       languageId: input.languageId,
       action: 'delete',
       summary: t(input.locale, existing.sourceType === 'user-custom' ? 'service.languageCatalog.historyDeleteCustom' : 'service.languageCatalog.historyDeleteOverride'),
-      reason: input.reason,
-      sourceType: existing.sourceType,
+      ...(input.reason ? { reason: input.reason } : {}),
+      ...(existing.sourceType ? { sourceType: existing.sourceType } : {}),
       snapshot: { language: existing },
     }));
   });

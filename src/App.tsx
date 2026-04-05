@@ -409,7 +409,8 @@ export function App() {
                     <Route path="/assets/language-metadata" element={<LanguageMetadataWorkspacePage />} />
                     <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
                     <Route path="/assets/orthography-bridges" element={<OrthographyBridgeWorkspacePage />} />
-                    <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+                    {/* 旧路由重定向，保持外部链接兼容 | Legacy route redirect for backward compatibility */}
+                    <Route path="/lexicon/orthographies" element={<Navigate to="/assets/orthographies" replace />} />
                     <Route path="*" element={<NotFound locale={locale} />} />
                   </Routes>
                 </Suspense>

@@ -17,7 +17,6 @@ import {
   getLanguageLocalDisplayNameFromCatalog,
   getLanguageNativeDisplayNameFromCatalog,
   getLanguageQueryEntriesFromCatalog,
-  getLanguageQueryNamesFromCatalog,
 } from '../data/languageNameCatalog';
 import {
   normalizeLanguageCatalogRuntimeLookupKey,
@@ -453,7 +452,7 @@ const LANGUAGE_CATALOG_BY_CODE: Readonly<Record<string, LanguageCatalogEntry>> =
       ...(entry.iso6392T ? { iso6392T: entry.iso6392T.toLowerCase() } : {}),
       name: entry.name,
       ...((entry as { invertedName?: string }).invertedName ? { invertedName: (entry as { invertedName?: string }).invertedName } : {}),
-      ...(getLanguageLocalDisplayNameFromCatalog(code, 'zh-CN') ? { displayNameZh: getLanguageLocalDisplayNameFromCatalog(code, 'zh-CN') } : {}),
+      ...(() => { const zh = getLanguageLocalDisplayNameFromCatalog(code, 'zh-CN'); return zh ? { displayNameZh: zh } : {}; })(),
       aliases: [...getLanguageAliasesForCodeFromCatalog(code)],
       scope: ((subtag?.scope() ?? entry.scope ?? 'individual') as LanguageCatalogEntry['scope']),
       type: (entry.type as LanguageCatalogEntry['type']),
@@ -814,10 +813,11 @@ export function getLanguageDisplayNames(
     };
   }
 
+  const nativeLabel = getNativeDisplayName(entry);
   return {
     local: getLocaleDisplayName(entry, locale),
     english: getEnglishDisplayName(entry),
-    ...(getNativeDisplayName(entry) ? { native: getNativeDisplayName(entry) } : {}),
+    ...(nativeLabel ? { native: nativeLabel } : {}),
   };
 }
 
@@ -916,7 +916,6 @@ export function searchLanguageCatalog(
       const localDisplayName = getLocaleDisplayName(entry, locale);
       const nativeDisplayName = getNativeDisplayName(entry);
       const localeQueryEntries = getLanguageQueryEntriesFromCatalog(entry.iso6393, locale);
-      const localeQueryNames = getLanguageQueryNamesFromCatalog(entry.iso6393, locale);
       const exactLocaleQueryEntry = localeQueryEntries.find((entryLabel) => normalizeLanguageLabelKey(entryLabel.label) === normalized);
 
       if (entry.iso6393 === normalized) {

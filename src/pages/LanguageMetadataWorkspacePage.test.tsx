@@ -169,7 +169,7 @@ describe('LanguageMetadataWorkspacePage', () => {
     fireEvent.click(screen.getByRole('button', { name: '新增名称行' }));
 
   const matrixRows = Array.from(view.container.querySelectorAll('.language-metadata-workspace-matrix-row'));
-  const newRow = matrixRows.at(-1) as HTMLElement;
+  const newRow = matrixRows[matrixRows.length - 1] as HTMLElement;
   const newRowQueries = within(newRow);
 
   fireEvent.change(newRowQueries.getByPlaceholderText('例如 fr-FR、zh-TW、native'), { target: { value: 'es-ES' } });
@@ -182,7 +182,8 @@ describe('LanguageMetadataWorkspacePage', () => {
       expect(mockUpsertLanguageCatalogEntry).toHaveBeenCalled();
     });
 
-    expect(mockUpsertLanguageCatalogEntry.mock.calls.at(-1)?.[0]).toMatchObject({
+    const calls = mockUpsertLanguageCatalogEntry.mock.calls;
+    expect(calls[calls.length - 1]?.[0]).toMatchObject({
       id: 'eng',
       displayNames: expect.arrayContaining([
         expect.objectContaining({ locale: 'fr-FR', role: 'preferred', value: 'anglais' }),

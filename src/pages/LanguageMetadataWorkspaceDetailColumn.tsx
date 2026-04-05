@@ -23,7 +23,7 @@ function readDisplayNameRoleLabel(locale: WorkspaceLocale, role: LanguageCatalog
     historical: 'workspace.languageMetadata.matrixRoleHistorical',
     search: 'workspace.languageMetadata.matrixRoleSearch',
   };
-  return t(locale, keyByRole[role]);
+  return t(locale, keyByRole[role] as Parameters<typeof t>[1]);
 }
 
 type LanguageMetadataWorkspaceDetailColumnProps = {

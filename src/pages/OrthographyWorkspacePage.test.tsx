@@ -142,12 +142,12 @@ describe('OrthographyWorkspacePage', () => {
 
   it('loads the orthography workspace, selects the requested orthography, and registers side-pane summary', async () => {
     render(
-      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <SidePaneSnapshot />
             <Routes>
-              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -169,11 +169,11 @@ describe('OrthographyWorkspacePage', () => {
 
   it('saves edited orthography metadata from the workspace panel', async () => {
     render(
-      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -207,11 +207,11 @@ describe('OrthographyWorkspacePage', () => {
 
   it('resets the language input UI together with the draft state', async () => {
     render(
-      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -238,11 +238,11 @@ describe('OrthographyWorkspacePage', () => {
 
   it('does not auto-infer a language from a two-character code while the user is still typing', async () => {
     render(
-      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -269,11 +269,11 @@ describe('OrthographyWorkspacePage', () => {
 
   it('allows continuing deletion after a normalized code has fallen back to a two-character draft', async () => {
     render(
-      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -293,11 +293,11 @@ describe('OrthographyWorkspacePage', () => {
 
   it('commits a new language after the previous name has been cleared and replaced', async () => {
     render(
-      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -341,11 +341,11 @@ describe('OrthographyWorkspacePage', () => {
 
   it('saves additional localized name labels from the workspace panel', async () => {
     render(
-      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -372,11 +372,11 @@ describe('OrthographyWorkspacePage', () => {
 
   it('clears detected locale tags when switching from a tagged code to a plain language', async () => {
     render(
-      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -410,11 +410,11 @@ describe('OrthographyWorkspacePage', () => {
 
   it('clears detected locale tags after editing the language name without a fresh match', async () => {
     render(
-      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -450,11 +450,11 @@ describe('OrthographyWorkspacePage', () => {
 
   it('keeps unsaved draft edits when the locale changes and only relocalizes the language display', async () => {
     const renderPage = (locale: 'zh-CN' | 'en-US') => (
-      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale={locale}>
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -499,11 +499,11 @@ describe('OrthographyWorkspacePage', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     render(
-      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source&fromLayerId=layer_trc_bridge']}>
+      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source&fromLayerId=layer_trc_bridge']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>

@@ -35,6 +35,7 @@ vi.mock('../services/LinguisticService', () => ({
     createOrthographyBridge: mockCreateOrthographyBridge,
     updateOrthographyBridge: mockUpdateOrthographyBridge,
     deleteOrthographyBridge: mockDeleteOrthographyBridge,
+    listLanguageCatalogEntries: vi.fn().mockResolvedValue([]),
   },
 }));
 

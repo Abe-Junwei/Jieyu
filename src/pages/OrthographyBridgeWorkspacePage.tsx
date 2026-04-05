@@ -181,7 +181,7 @@ export function OrthographyBridgeWorkspacePage() {
             supportingText={t(locale, 'workspace.orthographyBridge.detailDescription')}
           />
 
-          <PanelSection className="orthography-workspace-detail-panel" title={t(locale, 'workspace.orthographyBridge.managerTitle')} description={t(locale, 'workspace.orthographyBridge.managerDescription')}>
+          <PanelSection className="orthography-workspace-bridge-panel" title={t(locale, 'workspace.orthographyBridge.managerTitle')} description={t(locale, 'workspace.orthographyBridge.managerDescription')}>
             <OrthographyBridgeManager
               targetOrthography={selectedOrthography ?? undefined}
               languageOptions={languageOptions}

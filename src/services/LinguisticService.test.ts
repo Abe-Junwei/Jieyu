@@ -2550,3 +2550,33 @@ describe('Validated single-item CRUD', () => {
     expect(stored).toHaveLength(1);
   });
 });
+
+// ── Language catalog Service facade ───────────────────────────
+
+describe('searchLanguageCatalogEntries', () => {
+  it('returns matches for a known language name', () => {
+    const results = LinguisticService.searchLanguageCatalogEntries('English', 'en-US', 5);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0]!.entry.iso6393).toBe('eng');
+  });
+
+  it('returns empty suggestions for empty query (common languages fallback)', () => {
+    const results = LinguisticService.searchLanguageCatalogEntries('', 'zh-CN', 5);
+    // 空查询返回常见语言列表 | Empty query returns common language list
+    expect(Array.isArray(results)).toBe(true);
+  });
+});
+
+describe('resolveLanguageQuery', () => {
+  it('resolves a known ISO 639-3 code directly', () => {
+    expect(LinguisticService.resolveLanguageQuery('eng')).toBe('eng');
+  });
+
+  it('resolves a Chinese language name to ISO code', () => {
+    expect(LinguisticService.resolveLanguageQuery('英语')).toBe('eng');
+  });
+
+  it('returns undefined for unrecognised input', () => {
+    expect(LinguisticService.resolveLanguageQuery('xyznonexistent')).toBeUndefined();
+  });
+});

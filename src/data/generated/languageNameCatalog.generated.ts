@@ -1,3 +1,10 @@
+/**
+ * 此文件由 scripts/generate-language-name-indexes.mjs 自动生成，提供内置基线数据（Layer ①）。
+ * Auto-generated built-in baseline (Layer ①). NOT the sole source of truth.
+ * User-defined entries in IndexedDB (Layer ②) take priority at read time
+ * via the runtime cache merge in languageNameCatalog.ts.
+ * 请勿手动编辑 | DO NOT EDIT MANUALLY.
+ */
 import type {
   LanguageAliasToCodeRecord,
   LanguageAliasesByCodeRecord,

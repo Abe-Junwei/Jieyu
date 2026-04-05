@@ -434,6 +434,8 @@ export function OrthographyBuilderPanel({
           </select>
         </div>,
         'create-mode',
+        undefined,
+        compact ? 'orthography-builder-group-create-mode' : undefined,
       )}
 
       {picker.createMode !== 'ipa' && (() => {
@@ -689,19 +691,20 @@ export function OrthographyBuilderPanel({
       )}
 
       {compact ? (
-        <div className="orthography-builder-advanced-toggle-row">
-          <button
-            type="button"
-            className={ghostButtonClassName}
-            onClick={() => picker.setShowAdvancedFields(!picker.showAdvancedFields)}
-            aria-expanded={showAdvancedFields}
-          >
-            {showAdvancedFields ? messages.collapseAdvanced : messages.expandAdvanced}
-          </button>
+        <div className={`orthography-builder-advanced-group${showAdvancedFields ? ' orthography-builder-advanced-group-open' : ''}`}>
+          <div className="orthography-builder-advanced-toggle-row">
+            <button
+              type="button"
+              className="orthography-builder-advanced-toggle-btn"
+              onClick={() => picker.setShowAdvancedFields(!picker.showAdvancedFields)}
+              aria-expanded={showAdvancedFields}
+            >
+              {showAdvancedFields ? messages.collapseAdvanced : messages.expandAdvanced}
+            </button>
+          </div>
+          {advancedFields}
         </div>
-      ) : null}
-
-      {advancedFields}
+      ) : advancedFields}
 
       <div className="orthography-builder-workspace-note">
         {messages.workspaceNote}

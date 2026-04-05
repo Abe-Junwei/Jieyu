@@ -1,3 +1,10 @@
+/**
+ * 基线种子生成器与快照构建器 | Baseline seed generator & snapshot builder
+ *
+ * 本脚本从 ISO 639 数据库和种子文件生成内置基线数据（Layer ①），
+ * 并非运行时唯一数据来源。用户通过 UI 添加/修改的条目存储在 IndexedDB 中（Layer ②），
+ * 并通过运行时缓存在读取时优先于本文件的输出。
+ */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';

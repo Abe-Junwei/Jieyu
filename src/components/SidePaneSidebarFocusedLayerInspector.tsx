@@ -52,7 +52,7 @@ export function SidePaneSidebarFocusedLayerInspector({
     const params = new URLSearchParams();
     params.set('orthographyId', targetOrthography.id);
     params.set('fromLayerId', focusedLayer.id);
-    return `/lexicon/orthographies?${params.toString()}`;
+    return `/assets/orthographies?${params.toString()}`;
   })();
 
   return (
