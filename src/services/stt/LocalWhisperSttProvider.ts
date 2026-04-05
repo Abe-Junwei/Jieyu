@@ -51,7 +51,7 @@ export class LocalWhisperSttProvider implements CommercialSttProvider {
     });
 
     if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
+      const text = await resp.text().catch((e) => { console.warn('LocalWhisper STT: failed to read error response body', e); return ''; });
       throw new Error(`Local Whisper failed: ${resp.status} ${text}`);
     }
 

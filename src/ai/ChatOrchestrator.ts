@@ -121,9 +121,9 @@ export class ChatOrchestrator {
       yield { delta: '', error: notice };
       try {
         yield* fallback.chat(messages, options);
-      } catch (fallbackError) {
+      } catch (fallbackCatchError) {
         // Fallback also failed — propagate the error
-        throw fallbackError;
+        throw fallbackCatchError;
       }
     }
   }

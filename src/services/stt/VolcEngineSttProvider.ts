@@ -92,7 +92,7 @@ export class VolcEngineSttProvider implements CommercialSttProvider {
     });
 
     if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
+      const text = await resp.text().catch((e) => { console.warn('VolcEngine STT: failed to read error response body', e); return ''; });
       throw new Error(`VolcEngine STT failed: ${resp.status} ${text}`);
     }
 

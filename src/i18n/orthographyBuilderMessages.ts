@@ -4,6 +4,7 @@ import type { OrthographyCatalogGroupKey } from '../hooks/useOrthographyPicker';
 export type OrthographyBuilderMessages = {
   panelTitle: string;
   contextTitle: string;
+  workspaceNote: string;
   createModeSectionTitle: string;
   sourceSectionTitle: string;
   sourceSectionCopyDescription: string;
@@ -11,8 +12,6 @@ export type OrthographyBuilderMessages = {
   renderSectionTitle: string;
   bridgeSectionTitle: string;
   bridgeSectionDescription: string;
-  workspaceNoteTitle: string;
-  workspaceNoteBody: string;
   sourceLanguagePlaceholder: string;
   sourceLanguageCodePlaceholder: string;
   nameZhPlaceholder: string;
@@ -106,8 +105,6 @@ export type OrthographyBuilderMessages = {
   creating: string;
   confirmRiskAndCreate: string;
   createAndSelect: string;
-  confirmRiskAndOpenWorkspace: string;
-  createAndOpenWorkspace: string;
   orthographyGroupUser: string;
   orthographyGroupReviewedPrimary: string;
   orthographyGroupReviewedSecondary: string;
@@ -119,26 +116,25 @@ export type OrthographyBuilderMessages = {
 };
 
 const zhCN: OrthographyBuilderMessages = {
-  panelTitle: '\u6b63\u5b57\u6cd5\u5feb\u901f\u521b\u5efa',
+  panelTitle: '\u6b63\u5b57\u6cd5\u6784\u5efa\u5668',
   contextTitle: '\u5f53\u524d\u521b\u5efa\u573a\u666f',
-  createModeSectionTitle: '\u521b\u5efa\u65b9\u5f0f',
-  sourceSectionTitle: '\u6765\u6e90\u4fe1\u606f',
+  workspaceNote: '\u5de5\u4f5c\u533a\u5185\u90e8\u4f7f\u7528\uff1a\u6b64\u6b63\u5b57\u6cd5\u4ec5\u5728\u5f53\u524d\u9879\u76ee\u4e2d\u53ef\u89c1\u3002',
+  createModeSectionTitle: '\u521b\u5efa\u6a21\u5f0f',
+  sourceSectionTitle: '\u6765\u6e90',
   sourceSectionCopyDescription: '\u590d\u5236\u5f53\u524d\u6a21\u5f0f\u4e0b\u53ea\u9700\u9009\u4e00\u4e2a\u6765\u6e90\u6b63\u5b57\u6cd5\uff0c\u5b8c\u6574\u5dee\u5f02\u7ef4\u62a4\u7559\u7ed9\u5de5\u4f5c\u53f0\u3002',
-  identitySectionTitle: '\u6700\u5c0f\u8eab\u4efd\u5b57\u6bb5',
-  renderSectionTitle: '\u6700\u5c0f\u6e32\u67d3\u51b3\u7b56',
-  bridgeSectionTitle: '\u53ef\u9009\u8d77\u6b65\u6865\u63a5',
+  identitySectionTitle: '\u8eab\u4efd\u4fe1\u606f',
+  renderSectionTitle: '\u6e32\u67d3\u8bbe\u7f6e',
+  bridgeSectionTitle: '\u6865\u63a5\u8bbe\u7f6e',
   bridgeSectionDescription: '\u53ea\u6709\u5f53\u4f60\u5e0c\u671b\u65b0\u65b9\u6848\u521b\u5efa\u540e\u7acb\u5373\u53ef\u4ece\u6765\u6e90\u65b9\u6848\u63a8\u5bfc\u65f6\uff0c\u624d\u5728\u8fd9\u91cc\u8865\u4e00\u6761\u8d77\u6b65\u6865\u63a5\u3002\u5b8c\u6574\u6865\u63a5\u8bbe\u8ba1\u4e0e\u540e\u7eed\u7ef4\u62a4\u8bf7\u53bb\u5de5\u4f5c\u53f0\u3002',
-  workspaceNoteTitle: '\u521b\u5efa\u540e\u53bb\u5411',
-  workspaceNoteBody: '\u8fd9\u91cc\u53ea\u521b\u5efa\u53ef\u7acb\u5373\u9009\u4e2d\u3001\u53ef\u7acb\u5373\u5199\u5165\u7684\u6700\u5c0f\u7248\u672c\uff1b\u76ee\u5f55\u5ba1\u6821\u3001\u8f93\u5165\u63d0\u793a\u3001\u89c4\u8303\u5316\u4e0e\u5b8c\u6574\u6865\u63a5\u7ba1\u7406\u8bf7\u8f6c\u5230\u6b63\u5b57\u6cd5\u5de5\u4f5c\u53f0\u3002',
   sourceLanguagePlaceholder: '\u8bf7\u9009\u62e9\u6765\u6e90\u8bed\u8a00\u2026',
   sourceLanguageCodePlaceholder: '\u4f8b\uff1aeng',
   nameZhPlaceholder: '\u4f8b\uff1a\u82d7\u6587 IPA',
   nameEnPlaceholder: 'e.g. IPA for Miao',
   systemDefaultFontKey: '\u7cfb\u7edf\u9ed8\u8ba4',
   createModeLabel: '\u521b\u5efa\u65b9\u5f0f',
-  createModeIpa: '\u57fa\u4e8e IPA \u521b\u5efa',
-  createModeCopyCurrent: '\u590d\u5236\u5f53\u524d\u8bed\u8a00\u5df2\u6709\u6b63\u5b57\u6cd5',
-  createModeDeriveOther: '\u4ece\u5176\u4ed6\u8bed\u8a00\u6b63\u5b57\u6cd5\u6d3e\u751f',
+  createModeIpa: '\u4ece IPA \u521b\u5efa',
+  createModeCopyCurrent: '\u590d\u5236\u5f53\u524d\u6b63\u5b57\u6cd5',
+  createModeDeriveOther: '\u4ece\u5176\u4ed6\u8bed\u8a00\u885d\u751f',
   sourceLanguageLabel: '\u6765\u6e90\u8bed\u8a00',
   sourceLanguageCompactPlaceholder: '\u9009\u62e9\u6765\u6e90\u8bed\u8a00\u2026',
   sourceLanguageCustom: '\u5176\u4ed6\uff08\u624b\u52a8\u8f93\u5165\u4e09\u5b57\u6bcd\u8bed\u8a00\u4ee3\u7801\uff09',
@@ -147,17 +143,17 @@ const zhCN: OrthographyBuilderMessages = {
   sourceOrthographyHint: '\u5f53\u524d\u6a21\u5f0f\u4e0b\u6682\u65e0\u53ef\u590d\u5236\u7684\u6765\u6e90\u6b63\u5b57\u6cd5\uff0c\u8bf7\u5148\u5207\u6362\u6765\u6e90\u8bed\u8a00\u6216\u6539\u7528\u56fd\u9645\u97f3\u6807\u6a21\u5f0f\u521b\u5efa\u3002',
   nameZhLabel: '\u672c\u5730\u540d\u79f0',
   nameZhCompactPlaceholder: '\u6b63\u5b57\u6cd5\u672c\u5730\u540d\u79f0\uff08\u53ef\u9009\uff09',
-  nameEnLabel: '\u82f1\u6587\u56de\u9000\u540d',
+  nameEnLabel: '\u82f1\u6587\u540d\u79f0',
   nameEnCompactPlaceholder: '\u6b63\u5b57\u6cd5\u82f1\u6587\u56de\u9000\u540d\uff08\u53ef\u9009\uff09',
   abbreviationLabel: '\u7f29\u5199',
   abbreviationPlaceholder: '\u4f8b\uff1aIPA',
-  scriptTagLabel: '\u811a\u672c\u6807\u7b7e',
+  scriptTagLabel: '\u6587\u5b57\u6807\u7b7e',
   scriptTagPlaceholder: '\u4f8b\uff1aLatn',
   typeLabel: '\u7c7b\u578b',
-  typePhonemic: '\u97f3\u4f4d\u5f0f',
-  typePhonetic: '\u97f3\u6807\u5f0f',
-  typePractical: '\u5b9e\u7528\u62fc\u5199',
-  typeHistorical: '\u5386\u53f2\u62fc\u5199',
+  typePhonemic: '\u97f3\u4f4d (phonemic)',
+  typePhonetic: '\u8bed\u97f3 (phonetic)',
+  typePractical: '\u5b9e\u7528 (practical)',
+  typeHistorical: '\u5386\u53f2 (historical)',
   typeOther: '\u5176\u4ed6',
   renderPreviewTitle: '\u6e32\u67d3\u9884\u89c8',
   scriptLabel: '\u811a\u672c\uff1a',
@@ -223,8 +219,6 @@ const zhCN: OrthographyBuilderMessages = {
   creating: '\u521b\u5efa\u4e2d...',
   confirmRiskAndCreate: '\u786e\u8ba4\u98ce\u9669\u5e76\u521b\u5efa',
   createAndSelect: '\u521b\u5efa\u5e76\u9009\u4e2d',
-  confirmRiskAndOpenWorkspace: '\u786e\u8ba4\u98ce\u9669\u540e\u524d\u5f80\u5de5\u4f5c\u53f0',
-  createAndOpenWorkspace: '\u521b\u5efa\u5e76\u524d\u5f80\u5de5\u4f5c\u53f0\u5b8c\u5584',
   orthographyGroupUser: '\u81ea\u5efa\u6b63\u5b57\u6cd5',
   orthographyGroupReviewedPrimary: '\u5df2\u5ba1\u6821\u4e3b\u9879',
   orthographyGroupReviewedSecondary: '\u5df2\u5ba1\u6821\u6b21\u7ea7\u9879',
@@ -236,17 +230,17 @@ const zhCN: OrthographyBuilderMessages = {
 };
 
 const enUS: OrthographyBuilderMessages = {
-  panelTitle: 'Orthography Quick Create',
+  panelTitle: 'Orthography Builder',
   contextTitle: 'Current creation context',
+  workspaceNote: 'Workspace-only: this orthography is visible only in the current project.',
   createModeSectionTitle: 'Create mode',
-  sourceSectionTitle: 'Source details',
+  sourceSectionTitle: 'Source',
   sourceSectionCopyDescription: 'Copy-current only needs a source orthography. Long-term differences should be maintained in the workspace.',
-  identitySectionTitle: 'Minimal identity fields',
-  renderSectionTitle: 'Minimal rendering decisions',
-  bridgeSectionTitle: 'Optional starter bridge',
+  identitySectionTitle: 'Identity',
+  renderSectionTitle: 'Rendering',
+  bridgeSectionTitle: 'Bridge',
   bridgeSectionDescription: 'Only add a starter bridge here when the new orthography should be immediately derivable from the source. Full bridge design and ongoing maintenance stay in the workspace.',
-  workspaceNoteTitle: 'What happens next',
-  workspaceNoteBody: 'This panel only creates the smallest version that can be selected and written immediately. Catalog review, input hints, normalization, and full bridge management belong in the orthography workspace.',
+
   sourceLanguagePlaceholder: 'Select source language\u2026',
   sourceLanguageCodePlaceholder: 'e.g. eng',
   nameZhPlaceholder: 'e.g. Miao IPA',
@@ -254,8 +248,8 @@ const enUS: OrthographyBuilderMessages = {
   systemDefaultFontKey: '\u7cfb\u7edf\u9ed8\u8ba4',
   createModeLabel: 'Create mode',
   createModeIpa: 'Create from IPA',
-  createModeCopyCurrent: 'Copy existing orthography in current language',
-  createModeDeriveOther: 'Derive from another language orthography',
+  createModeCopyCurrent: 'Copy current orthography',
+  createModeDeriveOther: 'Derive from another language',
   sourceLanguageLabel: 'Source language',
   sourceLanguageCompactPlaceholder: 'Select source language\u2026',
   sourceLanguageCustom: 'Other (manual ISO 639-3 code input)',
@@ -264,17 +258,17 @@ const enUS: OrthographyBuilderMessages = {
   sourceOrthographyHint: 'No source orthography can be copied in this mode. Switch source language or use IPA mode.',
   nameZhLabel: 'Native name',
   nameZhCompactPlaceholder: 'Orthography native name (optional)',
-  nameEnLabel: 'English fallback name',
+  nameEnLabel: 'English name',
   nameEnCompactPlaceholder: 'Orthography English fallback name (optional)',
   abbreviationLabel: 'Abbreviation',
   abbreviationPlaceholder: 'e.g. IPA',
-  scriptTagLabel: 'Script tag',
+  scriptTagLabel: 'Writing system',
   scriptTagPlaceholder: 'e.g. Latn',
   typeLabel: 'Type',
-  typePhonemic: 'Phonemic',
-  typePhonetic: 'Phonetic',
-  typePractical: 'Practical',
-  typeHistorical: 'Historical',
+  typePhonemic: 'Phonemic (phonemic)',
+  typePhonetic: 'Phonetic (phonetic)',
+  typePractical: 'Practical (practical)',
+  typeHistorical: 'Historical (historical)',
   typeOther: 'Other',
   renderPreviewTitle: 'Render preview',
   scriptLabel: 'Script: ',
@@ -340,8 +334,6 @@ const enUS: OrthographyBuilderMessages = {
   creating: 'Creating...',
   confirmRiskAndCreate: 'Confirm risk and create',
   createAndSelect: 'Create and select',
-  confirmRiskAndOpenWorkspace: 'Confirm risk and open workspace',
-  createAndOpenWorkspace: 'Create and open workspace',
   orthographyGroupUser: 'User-created',
   orthographyGroupReviewedPrimary: 'Reviewed primary',
   orthographyGroupReviewedSecondary: 'Reviewed secondary',

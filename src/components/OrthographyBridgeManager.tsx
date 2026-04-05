@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getDb, type OrthographyDocType, type OrthographyBridgeDocType } from '../db';
+import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { useOrthographies } from '../hooks/useOrthographies';
 import { formatOrthographyOptionLabel, groupOrthographiesForSelect } from '../hooks/useOrthographyPicker';
 import { useLocale } from '../i18n';
@@ -25,7 +26,11 @@ import {
   validateOrthographyBridge,
 } from '../utils/orthographyBridges';
 import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
-import { getLanguageDisplayName, isKnownIso639_3Code } from '../utils/langMapping';
+import { isKnownIso639_3Code } from '../utils/langMapping';
+import {
+  buildLanguageInputSeed,
+  resolveLanguageHostSelection,
+} from '../utils/languageInputHostState';
 import { listBuiltInOrthographiesByIds } from '../data/builtInOrthographies';
 
 type LanguageOption = {
@@ -64,6 +69,7 @@ export function OrthographyBridgeManager({
   hideToggleButton = false,
 }: OrthographyBridgeManagerProps) {
   const locale = useLocale();
+  const { resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale);
   const builderMessages = getOrthographyBuilderMessages(locale);
   const managerMessages = getOrthographyBridgeManagerMessages(locale);
   const [expanded, setExpanded] = useState(initialExpanded);
@@ -199,17 +205,18 @@ export function OrthographyBridgeManager({
   }, [managerMessages.errorLoad, targetOrthography?.id]);
 
   useEffect(() => {
-    if (!isExpanded) return;
-    void loadBridges();
-  }, [isExpanded, loadBridges]);
-
-  useEffect(() => {
+    loadRequestVersionRef.current += 1;
+    setLoading(false);
     resetEditor();
     setExpanded(initialExpanded);
     setTransforms([]);
     setSourceOrthographyById({});
-    loadRequestVersionRef.current += 1;
   }, [initialExpanded, resetEditor, targetOrthography?.id]);
+
+  useEffect(() => {
+    if (!isExpanded) return;
+    void loadBridges();
+  }, [isExpanded, loadBridges]);
 
   useEffect(() => () => {
     loadRequestVersionRef.current += 1;
@@ -223,14 +230,12 @@ export function OrthographyBridgeManager({
   const beginEdit = useCallback((bridge: OrthographyBridgeDocType) => {
     const sourceOrthography = sourceOrthographyById[bridge.sourceOrthographyId];
     const nextSourceLanguageId = sourceOrthography?.languageId ?? '';
+    const hostSelection = resolveLanguageHostSelection(nextSourceLanguageId, languageOptions);
     setIsCreatingNew(false);
     setEditingBridgeId(bridge.id);
-    setSourceLanguageInput({
-      languageName: nextSourceLanguageId ? getLanguageDisplayName(nextSourceLanguageId, locale) : '',
-      languageCode: nextSourceLanguageId,
-    });
-    setSourceLanguageId(nextSourceLanguageId ? '__custom__' : '');
-    setSourceCustomLanguageId(nextSourceLanguageId);
+    setSourceLanguageInput(buildLanguageInputSeed(nextSourceLanguageId, locale, resolveLanguageDisplayName));
+    setSourceLanguageId(hostSelection.languageId);
+    setSourceCustomLanguageId(hostSelection.customLanguageId);
     setSourceOrthographyId(bridge.sourceOrthographyId);
     setDraftPrimaryName(readPrimaryMultiLangLabel(bridge.name) ?? '');
     setDraftEnglishFallbackName(readEnglishFallbackMultiLangLabel(bridge.name) ?? '');
@@ -241,7 +246,7 @@ export function OrthographyBridgeManager({
     setDraftBridgeSampleCasesText(formatBridgeSampleCasesText(bridge));
     setDraftBridgeIsReversible(Boolean(bridge.isReversible));
     setError('');
-  }, [locale, sourceOrthographyById]);
+  }, [languageOptions, locale, resolveLanguageDisplayName, sourceOrthographyById]);
 
   useEffect(() => {
     if (!isCreatingNew && !editingBridgeId) return;
@@ -345,17 +350,11 @@ export function OrthographyBridgeManager({
   }, [bridgeDraftRules, bridgeDraftSampleCases, bridgeSampleCaseResults, bridgeValidationIssues, bridges, draftBridgeEngine, draftBridgeIsReversible, draftBridgeSampleInput, draftEnglishFallbackName, draftPrimaryName, draftStatus, editingBridgeId, isCreatingNew, loadBridges, managerMessages, resetEditor, resolvedSourceLanguageId, sourceLanguageError, sourceOrthographies, sourceOrthographyId, targetOrthography?.id]);
 
   const handleSourceLanguageInputChange = useCallback((nextValue: LanguageIsoInputValue) => {
-    const normalizedCode = nextValue.languageCode.trim().toLowerCase();
     setSourceLanguageInput(nextValue);
     setSourceOrthographyId('');
-    if (!normalizedCode) {
-      setSourceLanguageId('');
-      setSourceCustomLanguageId('');
-      return;
-    }
-    const knownLanguage = languageOptions.some((option) => option.code === normalizedCode);
-    setSourceLanguageId(knownLanguage ? normalizedCode : '__custom__');
-    setSourceCustomLanguageId(knownLanguage ? '' : normalizedCode);
+    const hostSelection = resolveLanguageHostSelection(nextValue.languageCode, languageOptions);
+    setSourceLanguageId(hostSelection.languageId);
+    setSourceCustomLanguageId(hostSelection.customLanguageId);
   }, [languageOptions]);
 
   const toggleBridgeStatus = useCallback(async (bridge: OrthographyBridgeDocType) => {
@@ -430,219 +429,187 @@ export function OrthographyBridgeManager({
             <p className="orthography-builder-hint">{managerMessages.emptyHint}</p>
           ) : null}
 
-          {bridges.map((bridge) => {
-            const sourceOrthography = sourceOrthographyById[bridge.sourceOrthographyId];
-            const sourceLabel = sourceOrthography ? formatOrthographyOptionLabel(sourceOrthography, locale) : bridge.sourceOrthographyId;
-            return (
-              <div key={bridge.id} className="orthography-builder-validation-box orthography-builder-validation-box-neutral">
-                <span className="orthography-builder-rule-label">{sourceLabel}{' -> '}{targetLabel}</span>
-                <span>{bridge.engine} · {bridge.status === 'active' ? managerMessages.statusActive : bridge.status === 'deprecated' ? managerMessages.statusDeprecated : managerMessages.statusDraft}{bridge.isReversible ? ` · ${managerMessages.reversibleShort}` : ''}</span>
-                {bridge.sampleInput && bridge.sampleOutput && (
-                  <span>{managerMessages.samplePrefix}{bridge.sampleInput}{' -> '}{bridge.sampleOutput}</span>
-                )}
-                <div className="orthography-builder-actions">
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={() => void toggleBridgeStatus(bridge)}
-                    disabled={saving}
-                  >
-                    {bridge.status === 'active' ? managerMessages.setDraft : managerMessages.setActive}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={() => beginEdit(bridge)}
-                    disabled={saving}
-                  >
-                    {managerMessages.edit}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={() => void deleteBridge(bridge.id)}
-                    disabled={saving}
-                  >
-                    {managerMessages.deleteRule}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-
           {(isCreatingNew || editingBridgeId) && (
             <div className="orthography-builder-bridge-panel">
               <div className="orthography-builder-bridge-grid">
-                <div className="orthography-builder-language-field">
-                  <LanguageIsoInput
-                    locale={locale}
-                    value={sourceLanguageInput}
-                    onChange={handleSourceLanguageInputChange}
-                    nameLabel={managerMessages.sourceLanguageLabel}
-                    codeLabel={managerMessages.sourceLanguageCodeLabel}
-                    namePlaceholder={managerMessages.sourceLanguagePlaceholder}
-                    codePlaceholder={managerMessages.sourceLanguageCodePlaceholder}
-                    disabled={saving}
-                    error={sourceLanguageError}
-                  />
-                </div>
+                <div className="orthography-workspace-bridge-group orthography-workspace-bridge-group-source">
+                  <div className="orthography-builder-language-field">
+                    <LanguageIsoInput
+                      locale={locale}
+                      value={sourceLanguageInput}
+                      onChange={handleSourceLanguageInputChange}
+                      resolveLanguageDisplayName={resolveLanguageDisplayName}
+                      nameLabel={managerMessages.sourceLanguageLabel}
+                      codeLabel={managerMessages.sourceLanguageCodeLabel}
+                      namePlaceholder={managerMessages.sourceLanguagePlaceholder}
+                      codePlaceholder={managerMessages.sourceLanguageCodePlaceholder}
+                      disabled={saving}
+                      error={sourceLanguageError}
+                    />
+                  </div>
 
-                <label className="dialog-field">
-                  <span>{managerMessages.sourceOrthographyLabel}</span>
-                  <select
-                    className={fieldClassName}
-                    value={sourceOrthographyId}
-                    onChange={(event) => setSourceOrthographyId(event.target.value)}
-                    disabled={sourceOrthographies.length === 0}
-                  >
-                    <option value="">{managerMessages.sourceOrthographyPlaceholder}</option>
-                    {groupedSourceOrthographies.map((group) => (
-                      <optgroup key={group.key} label={getOrthographyCatalogGroupLabel(locale, group.key)}>
-                        {group.orthographies.map((orthography) => (
-                          <option key={orthography.id} value={orthography.id}>
-                            {formatOrthographyOptionLabel(orthography, locale)}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="dialog-field">
-                  <span>{managerMessages.ruleNameZhLabel}</span>
-                  <input
-                    className={fieldClassName}
-                    type="text"
-                    value={draftPrimaryName}
-                    onChange={(event) => setDraftPrimaryName(event.target.value)}
-                    placeholder={managerMessages.ruleNameZhPlaceholder}
-                  />
-                </label>
-
-                <label className="dialog-field">
-                  <span>{managerMessages.ruleNameEnLabel}</span>
-                  <input
-                    className={fieldClassName}
-                    type="text"
-                    value={draftEnglishFallbackName}
-                    onChange={(event) => setDraftEnglishFallbackName(event.target.value)}
-                    placeholder={managerMessages.ruleNameEnPlaceholder}
-                  />
-                </label>
-
-                <label className="dialog-field">
-                  <span>{managerMessages.statusLabel}</span>
-                  <select
-                    className={fieldClassName}
-                    value={draftStatus}
-                    onChange={(event) => setDraftStatus(event.target.value as NonNullable<OrthographyBridgeDocType['status']>)}
-                  >
-                    <option value="draft">{managerMessages.statusDraft}</option>
-                    <option value="active">{managerMessages.statusActive}</option>
-                    <option value="deprecated">{managerMessages.statusDeprecated}</option>
-                  </select>
-                </label>
-
-                <label className="dialog-field">
-                  <span>{builderMessages.bridgeEngineLabel}</span>
-                  <select
-                    className={fieldClassName}
-                    value={draftBridgeEngine}
-                    onChange={(event) => setDraftBridgeEngine(event.target.value as OrthographyBridgeDocType['engine'])}
-                  >
-                    <option value="table-map">{builderMessages.bridgeEngineTableMap}</option>
-                    <option value="icu-rule">{builderMessages.bridgeEngineIcuRule}</option>
-                    <option value="manual">{builderMessages.bridgeEngineManual}</option>
-                  </select>
-                </label>
-
-                <label className="orthography-builder-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={draftBridgeIsReversible}
-                    onChange={(event) => setDraftBridgeIsReversible(event.target.checked)}
-                  />
-                  <span>{builderMessages.bridgeReversibleLabel}</span>
-                </label>
-
-                <div className="orthography-builder-rule-block">
-                  <span className="orthography-builder-rule-label">{builderMessages.bridgeRuleTextLabel}</span>
-                  <textarea
-                    className="input orthography-builder-rule-textarea"
-                    value={draftBridgeRuleText}
-                    onChange={(event) => setDraftBridgeRuleText(event.target.value)}
-                    placeholder={bridgeRulePlaceholder}
-                    rows={compact ? 5 : 6}
-                  />
-                </div>
-                <div className="orthography-builder-preview-box orthography-builder-bridge-hint-box">
-                  <span className="orthography-builder-rule-label">{builderMessages.bridgeRuleSyntaxTitle}</span>
-                  <span>{bridgeSyntaxHint}</span>
-                </div>
-
-                <label className="dialog-field">
-                  <span>{builderMessages.bridgeInputPreviewLabel}</span>
-                  <input
-                    className={fieldClassName}
-                    type="text"
-                    value={draftBridgeSampleInput}
-                    onChange={(event) => setDraftBridgeSampleInput(event.target.value)}
-                    placeholder={builderMessages.bridgeInputPreviewPlaceholder}
-                  />
-                </label>
-
-                <div className="orthography-builder-rule-block">
-                  <span className="orthography-builder-rule-label">{builderMessages.bridgeSampleCaseLabel}</span>
-                  <textarea
-                    className="input orthography-builder-rule-textarea"
-                    value={draftBridgeSampleCasesText}
-                    onChange={(event) => setDraftBridgeSampleCasesText(event.target.value)}
-                    placeholder={builderMessages.bridgeSampleCasePlaceholder}
-                    rows={compact ? 4 : 5}
-                  />
-                </div>
-
-                {bridgeValidationIssues.length > 0 && (
-                  <div className="orthography-builder-validation-box orthography-builder-validation-box-error">
-                    <span className="orthography-builder-rule-label">{builderMessages.bridgeValidationTitle}</span>
-                    <ul className="orthography-builder-validation-list">
-                      {bridgeValidationIssues.map((issue) => (
-                        <li key={issue}>{issue}</li>
+                  <label className="dialog-field">
+                    <span>{managerMessages.sourceOrthographyLabel}</span>
+                    <select
+                      className={fieldClassName}
+                      value={sourceOrthographyId}
+                      onChange={(event) => setSourceOrthographyId(event.target.value)}
+                      disabled={sourceOrthographies.length === 0}
+                    >
+                      <option value="">{managerMessages.sourceOrthographyPlaceholder}</option>
+                      {groupedSourceOrthographies.map((group) => (
+                        <optgroup key={group.key} label={getOrthographyCatalogGroupLabel(locale, group.key)}>
+                          {group.orthographies.map((orthography) => (
+                            <option key={orthography.id} value={orthography.id}>
+                              {formatOrthographyOptionLabel(orthography, locale)}
+                            </option>
+                          ))}
+                        </optgroup>
                       ))}
-                    </ul>
-                  </div>
-                )}
+                    </select>
+                  </label>
+                </div>
 
-                {bridgePreviewOutput && (
-                  <div className="orthography-builder-preview-box">
-                    <span className="orthography-builder-rule-label">{builderMessages.bridgePreviewOutputTitle}</span>
-                    <code>{bridgePreviewOutput}</code>
-                  </div>
-                )}
+                <div className="orthography-workspace-bridge-group orthography-workspace-bridge-group-meta">
+                  <label className="dialog-field">
+                    <span>{managerMessages.ruleNameZhLabel}</span>
+                    <input
+                      className={fieldClassName}
+                      type="text"
+                      value={draftPrimaryName}
+                      onChange={(event) => setDraftPrimaryName(event.target.value)}
+                      placeholder={managerMessages.ruleNameZhPlaceholder}
+                    />
+                  </label>
 
-                {bridgeSampleCaseResults.length > 0 && (
-                  <div className="orthography-builder-validation-box orthography-builder-validation-box-neutral">
-                    <span className="orthography-builder-rule-label">{builderMessages.bridgeSampleResultTitle}</span>
-                    <ul className="orthography-builder-validation-list">
-                      {bridgeSampleCaseResults.map((sampleCase, index) => {
-                        const status = sampleCase.matchesExpectation === false
-                          ? builderMessages.sampleStatusFail
-                          : sampleCase.matchesExpectation === true
-                          ? builderMessages.sampleStatusPass
-                          : builderMessages.sampleStatusPreview;
-                        return (
-                          <li key={`${sampleCase.input}-${sampleCase.expectedOutput ?? ''}-${index}`}>
-                            <strong>{status}</strong>
+                  <label className="dialog-field">
+                    <span>{managerMessages.ruleNameEnLabel}</span>
+                    <input
+                      className={fieldClassName}
+                      type="text"
+                      value={draftEnglishFallbackName}
+                      onChange={(event) => setDraftEnglishFallbackName(event.target.value)}
+                      placeholder={managerMessages.ruleNameEnPlaceholder}
+                    />
+                  </label>
+
+                  <label className="dialog-field">
+                    <span>{managerMessages.statusLabel}</span>
+                    <select
+                      className={fieldClassName}
+                      value={draftStatus}
+                      onChange={(event) => setDraftStatus(event.target.value as NonNullable<OrthographyBridgeDocType['status']>)}
+                    >
+                      <option value="draft">{managerMessages.statusDraft}</option>
+                      <option value="active">{managerMessages.statusActive}</option>
+                      <option value="deprecated">{managerMessages.statusDeprecated}</option>
+                    </select>
+                  </label>
+
+                  <label className="dialog-field">
+                    <span>{builderMessages.bridgeEngineLabel}</span>
+                    <select
+                      className={fieldClassName}
+                      value={draftBridgeEngine}
+                      onChange={(event) => setDraftBridgeEngine(event.target.value as OrthographyBridgeDocType['engine'])}
+                    >
+                      <option value="table-map">{builderMessages.bridgeEngineTableMap}</option>
+                      <option value="icu-rule">{builderMessages.bridgeEngineIcuRule}</option>
+                      <option value="manual">{builderMessages.bridgeEngineManual}</option>
+                    </select>
+                  </label>
+
+                  <label className="orthography-builder-checkbox orthography-workspace-bridge-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={draftBridgeIsReversible}
+                      onChange={(event) => setDraftBridgeIsReversible(event.target.checked)}
+                    />
+                    <span>{builderMessages.bridgeReversibleLabel}</span>
+                  </label>
+                </div>
+
+                <div className="orthography-workspace-bridge-group orthography-workspace-bridge-group-content">
+                  <div className="orthography-builder-rule-block">
+                    <span className="orthography-builder-rule-label">{builderMessages.bridgeRuleTextLabel}</span>
+                    <textarea
+                      className="input orthography-builder-rule-textarea"
+                      value={draftBridgeRuleText}
+                      onChange={(event) => setDraftBridgeRuleText(event.target.value)}
+                      placeholder={bridgeRulePlaceholder}
+                      rows={compact ? 5 : 6}
+                    />
+                  </div>
+
+                  <div className="orthography-builder-preview-box orthography-builder-bridge-hint-box">
+                    <span className="orthography-builder-rule-label">{builderMessages.bridgeRuleSyntaxTitle}</span>
+                    <span>{bridgeSyntaxHint}</span>
+                  </div>
+
+                  <label className="dialog-field">
+                    <span>{builderMessages.bridgeInputPreviewLabel}</span>
+                    <input
+                      className={fieldClassName}
+                      type="text"
+                      value={draftBridgeSampleInput}
+                      onChange={(event) => setDraftBridgeSampleInput(event.target.value)}
+                      placeholder={builderMessages.bridgeInputPreviewPlaceholder}
+                    />
+                  </label>
+
+                  <div className="orthography-builder-rule-block">
+                    <span className="orthography-builder-rule-label">{builderMessages.bridgeSampleCaseLabel}</span>
+                    <textarea
+                      className="input orthography-builder-rule-textarea"
+                      value={draftBridgeSampleCasesText}
+                      onChange={(event) => setDraftBridgeSampleCasesText(event.target.value)}
+                      placeholder={builderMessages.bridgeSampleCasePlaceholder}
+                      rows={compact ? 4 : 5}
+                    />
+                  </div>
+
+                  {bridgeValidationIssues.length > 0 && (
+                    <div className="orthography-builder-validation-box orthography-builder-validation-box-error">
+                      <span className="orthography-builder-rule-label">{builderMessages.bridgeValidationTitle}</span>
+                      <ul className="orthography-builder-validation-list">
+                        {bridgeValidationIssues.map((issue) => (
+                          <li key={issue}>{issue}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {bridgePreviewOutput && (
+                    <div className="orthography-builder-preview-box">
+                      <span className="orthography-builder-rule-label">{builderMessages.bridgePreviewOutputTitle}</span>
+                      <code>{bridgePreviewOutput}</code>
+                    </div>
+                  )}
+
+                  {bridgeSampleCaseResults.length > 0 && (
+                    <div className="orthography-builder-validation-box orthography-builder-validation-box-neutral">
+                      <span className="orthography-builder-rule-label">{builderMessages.bridgeSampleResultTitle}</span>
+                      <ul className="orthography-builder-validation-list">
+                        {bridgeSampleCaseResults.map((sampleCase, index) => {
+                          const status = sampleCase.matchesExpectation === false
+                            ? builderMessages.sampleStatusFail
+                            : sampleCase.matchesExpectation === true
+                            ? builderMessages.sampleStatusPass
+                            : builderMessages.sampleStatusPreview;
+                          return (
+                            <li key={`${sampleCase.input}-${sampleCase.expectedOutput ?? ''}-${index}`}>
+                              <strong>{status}</strong>
                               <span>{sampleCase.input}{' -> '}{sampleCase.actualOutput}</span>
-                            {sampleCase.expectedOutput !== undefined && (
-                              <span>{builderMessages.sampleExpected}{sampleCase.expectedOutput}</span>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
+                              {sampleCase.expectedOutput !== undefined && (
+                                <span>{builderMessages.sampleExpected}{sampleCase.expectedOutput}</span>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                </div>
 
                 <div className="orthography-builder-actions">
                   <button

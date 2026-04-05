@@ -1,20 +1,23 @@
-import { useId, useMemo } from 'react';
-import type { ChangeEvent } from 'react';
+import { useEffect, useId, useMemo, useReducer, useRef, useState } from 'react';
+import type { ChangeEvent, KeyboardEvent } from 'react';
 import {
   formatLanguageCatalogMatch,
-  resolveLanguageCodeInput,
-  searchLanguageCatalog,
   type LanguageSearchLocale,
 } from '../utils/langMapping';
+import type { ResolveLanguageDisplayName } from '../utils/languageDisplayNameResolver';
+import type { LanguageIsoInputValue } from '../utils/languageInputTypes';
+import {
+  createLanguageInputModel,
+  MAX_LANGUAGE_INPUT_VISIBLE_SUGGESTIONS,
+  reduceLanguageInput,
+  selectCommittedLanguageInputValue,
+  selectDisplayedLanguageInputValue,
+  selectLanguageInputAssistState,
+  selectPresentedLanguageInputValue,
+  serializeLanguageInputValue,
+} from '../utils/languageInputReducer';
 
-export type LanguageIsoInputValue = {
-  languageName: string;
-  languageCode: string;
-  localeTag?: string;
-  scriptTag?: string;
-  regionTag?: string;
-  variantTag?: string;
-};
+export type { LanguageIsoInputValue } from '../utils/languageInputTypes';
 
 type LanguageIsoInputProps = {
   locale: LanguageSearchLocale;
@@ -27,27 +30,11 @@ type LanguageIsoInputProps = {
   required?: boolean;
   disabled?: boolean;
   error?: string;
+  /** 抑制组件内部的 codeError 显示，由外部统一展示 | Suppress internal codeError, let parent render it */
+  suppressCodeError?: boolean;
   className?: string;
+  resolveLanguageDisplayName?: ResolveLanguageDisplayName;
 };
-
-function pickAutoFillMatch(query: string, locale: LanguageSearchLocale, maxResults = 5) {
-  const matches = searchLanguageCatalog(query, locale, maxResults);
-  const exactMatch = matches.find((match) => match.matchSource === 'alias-exact' || match.matchSource === 'name-exact');
-  if (exactMatch) return exactMatch;
-  if (matches.length === 1 && matches[0]?.matchSource === 'prefix') {
-    return matches[0];
-  }
-  return undefined;
-}
-
-function clearDetectedLanguageTags(value: LanguageIsoInputValue): LanguageIsoInputValue {
-  const next = { ...value };
-  delete next.localeTag;
-  delete next.scriptTag;
-  delete next.regionTag;
-  delete next.variantTag;
-  return next;
-}
 
 export function LanguageIsoInput({
   locale,
@@ -60,80 +47,106 @@ export function LanguageIsoInput({
   required = false,
   disabled = false,
   error = '',
+  suppressCodeError = false,
   className = '',
+  resolveLanguageDisplayName,
 }: LanguageIsoInputProps) {
   const fieldIdPrefix = useId();
-  const trimmedLanguageName = value.languageName.trim();
-  const nameMatches = useMemo(
-    () => searchLanguageCatalog(trimmedLanguageName, locale, 5),
-    [locale, trimmedLanguageName],
+  const serializedIncomingValue = serializeLanguageInputValue(value);
+  const [model, dispatch] = useReducer(
+    (state: ReturnType<typeof createLanguageInputModel>, action: Parameters<typeof reduceLanguageInput>[1]) => reduceLanguageInput(state, action, locale, { resolveLanguageDisplayName }),
+    value,
+    (initialValue) => createLanguageInputModel(initialValue, locale, { resolveLanguageDisplayName }),
   );
-  const resolvedCode = useMemo(
-    () => resolveLanguageCodeInput(value.languageCode, locale),
-    [locale, value.languageCode],
+  const lastSeenValueKeyRef = useRef(serializedIncomingValue);
+  const lastSeenLocaleRef = useRef(locale);
+  const lastSeenResolverRef = useRef(resolveLanguageDisplayName);
+  const lastNotifiedCommittedKeyRef = useRef(serializedIncomingValue);
+  const [isNameInputFocused, setIsNameInputFocused] = useState(false);
+  const displayedValue = useMemo(() => selectDisplayedLanguageInputValue(model), [model]);
+  const presentedValue = useMemo(
+    () => selectPresentedLanguageInputValue(model, locale, isNameInputFocused),
+    [isNameInputFocused, locale, model],
   );
-  const suggestionMatches = trimmedLanguageName.length > 0 ? nameMatches : [];
-  const ambiguityHint = suggestionMatches.length > 1 && !pickAutoFillMatch(trimmedLanguageName, locale)
-    ? (locale === 'zh-CN' ? '\u5b58\u5728\u591a\u4e2a\u53ef\u80fd\u8bed\u8a00\uff0c\u8bf7\u9009\u62e9\u66f4\u5177\u4f53\u9879\u3002' : 'Multiple languages matched. Please choose a more specific option.')
-    : '';
-  const codeError = value.languageCode.trim().length > 0 && resolvedCode.status === 'invalid'
-    ? (locale === 'zh-CN' ? '\u8bf7\u8f93\u5165\u6709\u6548\u7684 ISO 639 / BCP 47 \u8bed\u8a00\u4ee3\u7801\u3002' : 'Enter a valid ISO 639 / BCP 47 language code.')
-    : '';
-  const warnings = [
-    ...resolvedCode.warnings,
-    ...(suggestionMatches[0]?.warnings ?? []),
-  ].filter((item, index, all) => item && all.indexOf(item) === index);
+  const committedValue = useMemo(() => selectCommittedLanguageInputValue(model), [model]);
+  const assistState = useMemo(
+    () => selectLanguageInputAssistState(model, locale),
+    [locale, model],
+  );
+  const visibleSuggestionMatches = useMemo(
+    () => assistState.suggestionMatches.slice(0, MAX_LANGUAGE_INPUT_VISIBLE_SUGGESTIONS),
+    [assistState.suggestionMatches],
+  );
+  const committedValueKey = serializeLanguageInputValue(committedValue);
 
-  const applyMatch = (matchIndex: number) => {
-    const match = suggestionMatches[matchIndex];
-    if (!match) return;
-    onChange({
-      ...clearDetectedLanguageTags(value),
-      languageName: locale === 'zh-CN' ? (match.entry.displayNameZh ?? match.entry.name) : match.entry.name,
-      languageCode: match.entry.iso6393,
-    });
-  };
-
-  const handleLanguageNameChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const nextLanguageName = event.target.value;
-    const nextMatch = pickAutoFillMatch(nextLanguageName, locale);
-    if (!nextMatch) {
-      const baseValue = clearDetectedLanguageTags(value);
-      onChange({
-        ...baseValue,
-        languageName: nextLanguageName,
-      });
+  useEffect(() => {
+    const localeChanged = locale !== lastSeenLocaleRef.current;
+    const resolverChanged = resolveLanguageDisplayName !== lastSeenResolverRef.current;
+    if (!localeChanged && !resolverChanged && serializedIncomingValue === lastSeenValueKeyRef.current) {
       return;
     }
-    onChange({
-      ...clearDetectedLanguageTags(value),
-      languageName: nextLanguageName,
-      languageCode: nextMatch.entry.iso6393,
-    });
+    lastSeenValueKeyRef.current = serializedIncomingValue;
+    lastSeenLocaleRef.current = locale;
+    lastSeenResolverRef.current = resolveLanguageDisplayName;
+    if (!localeChanged && !resolverChanged && serializedIncomingValue === lastNotifiedCommittedKeyRef.current) {
+      return;
+    }
+    dispatch({ type: 'externalValueSynced', value });
+  }, [locale, resolveLanguageDisplayName, serializedIncomingValue, value]);
+
+  useEffect(() => {
+    if (committedValueKey === lastNotifiedCommittedKeyRef.current) {
+      return;
+    }
+    lastNotifiedCommittedKeyRef.current = committedValueKey;
+    onChange(committedValue);
+  }, [committedValue, committedValueKey, onChange]);
+
+  const handleLanguageNameKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    const suggestionCount = visibleSuggestionMatches.length;
+    if (suggestionCount === 0) {
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      dispatch({ type: 'highlightNextSuggestion', visibleCount: suggestionCount });
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      dispatch({ type: 'highlightPreviousSuggestion', visibleCount: suggestionCount });
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      dispatch({ type: 'clearSuggestionHighlight' });
+      return;
+    }
+
+    if (event.key === 'Enter' && model.activeSuggestionIndex >= 0 && model.activeSuggestionIndex < suggestionCount) {
+      event.preventDefault();
+      dispatch({ type: 'nameSuggestionCommitted', index: model.activeSuggestionIndex, source: 'enter' });
+    }
+  };
+
+  const languageNameInputId = `${fieldIdPrefix}-language-name`;
+  const suggestionListId = `${fieldIdPrefix}-language-suggestions`;
+  const activeSuggestionId = model.activeSuggestionIndex >= 0 && model.activeSuggestionIndex < visibleSuggestionMatches.length
+    ? `${fieldIdPrefix}-language-suggestion-${model.activeSuggestionIndex}`
+    : undefined;
+
+  const handleLanguageNameChange = (event: ChangeEvent<HTMLInputElement>) => {
+    dispatch({ type: 'nameChanged', value: event.target.value });
   };
 
   const handleLanguageCodeChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const rawInput = event.target.value.replace(/[^A-Za-z0-9-]/g, '').slice(0, 24).toLowerCase();
-    const resolved = resolveLanguageCodeInput(rawInput, locale);
-    if (resolved.status !== 'resolved') {
-      const baseValue = clearDetectedLanguageTags(value);
-      onChange({
-        ...baseValue,
-        languageCode: rawInput,
-      });
-      return;
-    }
+    dispatch({ type: 'codeChanged', value: event.target.value });
+  };
 
-    const clearedValue = clearDetectedLanguageTags(value);
-    onChange({
-      ...clearedValue,
-      languageName: resolved.languageName ?? value.languageName,
-      languageCode: resolved.languageId ?? rawInput,
-      ...(resolved.localeTag ? { localeTag: resolved.localeTag } : {}),
-      ...(resolved.scriptTag ? { scriptTag: resolved.scriptTag } : {}),
-      ...(resolved.regionTag ? { regionTag: resolved.regionTag } : {}),
-      ...(resolved.variantTag ? { variantTag: resolved.variantTag } : {}),
-    });
+  const handleLanguageCodeBlur = () => {
+    dispatch({ type: 'codeBlurred' });
   };
 
   return (
@@ -142,13 +155,22 @@ export function LanguageIsoInput({
         <label className="dialog-field">
           <span>{nameLabel}{required ? ' *' : ''}</span>
           <input
-            id={`${fieldIdPrefix}-language-name`}
+            id={languageNameInputId}
             className="input panel-input"
             type="text"
-            value={value.languageName}
+            role="combobox"
+            value={presentedValue.languageName}
             onChange={handleLanguageNameChange}
+            onKeyDown={handleLanguageNameKeyDown}
+            onFocus={() => setIsNameInputFocused(true)}
+            onBlur={() => setIsNameInputFocused(false)}
             placeholder={namePlaceholder}
             autoComplete="off"
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
+            aria-expanded={visibleSuggestionMatches.length > 0}
+            aria-controls={visibleSuggestionMatches.length > 0 ? suggestionListId : undefined}
+            aria-activedescendant={activeSuggestionId}
             disabled={disabled}
           />
         </label>
@@ -158,8 +180,9 @@ export function LanguageIsoInput({
             id={`${fieldIdPrefix}-language-code`}
             className="input panel-input"
             type="text"
-            value={value.languageCode}
+            value={presentedValue.languageCode}
             onChange={handleLanguageCodeChange}
+            onBlur={handleLanguageCodeBlur}
             placeholder={codePlaceholder}
             autoComplete="off"
             spellCheck={false}
@@ -168,37 +191,47 @@ export function LanguageIsoInput({
         </label>
       </div>
 
-      {suggestionMatches.length > 0 && (
-        <div className="language-iso-input-suggestions" role="listbox" aria-label={nameLabel}>
-          {suggestionMatches.slice(0, 4).map((match, index) => (
-            <button
+      {visibleSuggestionMatches.length > 0 && (
+        <div
+          className="language-iso-input-suggestions"
+          id={suggestionListId}
+          role="listbox"
+          aria-label={nameLabel}
+          aria-labelledby={languageNameInputId}
+        >
+          {visibleSuggestionMatches.map((match, index) => (
+            <div
+              id={`${fieldIdPrefix}-language-suggestion-${index}`}
               key={`${match.entry.iso6393}-${index}`}
-              type="button"
-              className="language-iso-input-suggestion"
-              onClick={() => applyMatch(index)}
-              disabled={disabled}
+              role="option"
+              aria-selected={model.activeSuggestionIndex === index}
+              aria-disabled={disabled ? 'true' : undefined}
+              className={`language-iso-input-suggestion${model.activeSuggestionIndex === index ? ' is-active' : ''}`}
+              onMouseEnter={() => dispatch({ type: 'nameSuggestionHovered', index })}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                if (disabled) {
+                  return;
+                }
+                dispatch({ type: 'nameSuggestionCommitted', index, source: 'click' });
+              }}
             >
               {formatLanguageCatalogMatch(match, locale)}
-            </button>
+            </div>
           ))}
         </div>
       )}
 
-      {(value.localeTag || value.scriptTag || value.regionTag || value.variantTag) && (
+      {assistState.detectedTagSummary && (
         <p className="dialog-hint">
           {locale === 'zh-CN' ? '\u8bc6\u522b\u5230\u6807\u7b7e\uff1a' : 'Detected tag: '}
-          {[
-            value.localeTag,
-            value.scriptTag,
-            value.regionTag,
-            value.variantTag,
-          ].filter(Boolean).join(' · ')}
+          {assistState.detectedTagSummary}
         </p>
       )}
 
-      {ambiguityHint && <p className="dialog-hint">{ambiguityHint}</p>}
-      {warnings[0] && <p className="dialog-hint">{warnings[0]}</p>}
-      {(error || codeError) && <p className="error">{error || codeError}</p>}
+      {assistState.ambiguityHint && <p className="dialog-hint">{assistState.ambiguityHint}</p>}
+      {assistState.warning && <p className="dialog-hint">{assistState.warning}</p>}
+      {(error || (!suppressCodeError && assistState.codeError)) && <p className="error">{error || assistState.codeError}</p>}
     </div>
   );
 }

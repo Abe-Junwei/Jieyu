@@ -171,7 +171,11 @@ export function useTranscriptionLayerActions({
           ...layer,
           updatedAt: new Date().toISOString(),
         });
-        continue;
+        // parentChanged 时 updateLayer 已整行覆盖写入（含 sortOrder），
+        // 但仍需检查 sortChanged 以免未来 updateLayerSortOrder 增加额外逻辑时遗漏
+        // | updateLayer writes full row (incl. sortOrder), but still check sortChanged
+        // to avoid missing future side-effects in updateLayerSortOrder
+        if (!sortChanged) continue;
       }
 
       await LayerTierUnifiedService.updateLayerSortOrder(layer.id, layer.sortOrder ?? 0, db);

@@ -209,7 +209,8 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       await onImportAnnotationFile(current.file, current.strategy);
       setAnnotationImportState(null);
       setIsOpen(false);
-    } catch {
+    } catch (e) {
+      console.warn('Annotation file import failed', e);
       setAnnotationImportState((prev) => (prev ? { ...prev, importing: false } : prev));
     }
   }, [annotationImportState, onImportAnnotationFile]);

@@ -60,7 +60,7 @@ export class GroqSttProvider implements CommercialSttProvider {
     });
 
     if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
+      const text = await resp.text().catch((e) => { console.warn('Groq STT: failed to read error response body', e); return ''; });
       throw new Error(`Groq STT failed: ${resp.status} ${text}`);
     }
 

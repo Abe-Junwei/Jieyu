@@ -1,4 +1,5 @@
 import type { OrthographyBridgeDocType } from '../db';
+import { escapeRegExp } from './escapeRegExp';
 
 export type OrthographyBridgeRules = OrthographyBridgeDocType['rules'];
 export type OrthographyBridgeEngine = OrthographyBridgeDocType['engine'];
@@ -68,10 +69,6 @@ function parseBridgeMappingsDetailed(ruleText: string): ParsedBridgeMapping[] {
     })
     .filter((mapping) => mapping.from.length > 0)
     .sort((left, right) => right.from.length - left.from.length);
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function ensureGlobalFlag(flags: string): string {

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { AudioLines, Brain, FolderKanban, Languages, StickyNote, type LucideIcon } from 'lucide-react';
+import { AudioLines, BookType, Brain, FolderKanban, GitBranch, Languages, StickyNote, type LucideIcon } from 'lucide-react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
@@ -15,7 +15,9 @@ const AnnotationPage = lazy(() => import('./pages/AnnotationPage').then(m => ({ 
 const AnalysisPage = lazy(() => import('./pages/AnalysisPage').then(m => ({ default: m.AnalysisPage })));
 const WritingPage = lazy(() => import('./pages/WritingPage').then(m => ({ default: m.WritingPage })));
 const LexiconPage = lazy(() => import('./pages/LexiconPage').then(m => ({ default: m.LexiconPage })));
+const LanguageMetadataWorkspacePage = lazy(() => import('./pages/LanguageMetadataWorkspacePage').then(m => ({ default: m.LanguageMetadataWorkspacePage })));
 const OrthographyWorkspacePage = lazy(() => import('./pages/OrthographyWorkspacePage').then(m => ({ default: m.OrthographyWorkspacePage })));
+const OrthographyBridgeWorkspacePage = lazy(() => import('./pages/OrthographyBridgeWorkspacePage').then(m => ({ default: m.OrthographyBridgeWorkspacePage })));
 
 type ThemeMode = 'light' | 'dark';
 
@@ -242,7 +244,29 @@ export function App() {
     },
   ], [locale]);
 
-  const navItems = useMemo(() => navGroups.flatMap((group) => group.items), [navGroups]);
+  const secondaryNavItems = useMemo<NavItem[]>(() => [
+    {
+      to: '/assets/language-metadata',
+      label: t(locale, 'app.nav.languageMetadata'),
+      icon: Languages,
+      summary: t(locale, 'app.nav.summary.languageMetadata'),
+    },
+    {
+      to: '/assets/orthographies',
+      label: t(locale, 'app.nav.orthographies'),
+      icon: BookType,
+      summary: t(locale, 'app.nav.summary.orthographies'),
+    },
+    {
+      to: '/assets/orthography-bridges',
+      label: t(locale, 'app.nav.orthographyBridges'),
+      icon: GitBranch,
+      summary: t(locale, 'app.nav.summary.orthographyBridges'),
+    },
+  ], [locale]);
+
+  const primaryNavItems = useMemo(() => navGroups.flatMap((group) => group.items), [navGroups]);
+  const navItems = useMemo(() => [...primaryNavItems, ...secondaryNavItems], [primaryNavItems, secondaryNavItems]);
 
   const activeNavItem = useMemo(() => (
     navItems.find((item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`))
@@ -301,7 +325,7 @@ export function App() {
             <div ref={shellBodyRef} className="app-shell-body">
             <aside className="app-left-rail" aria-label={t(locale, 'app.leftRail.aria.navigation')}>
               <div className="app-left-rail-group">
-                {navItems.map((item) => {
+                {primaryNavItems.map((item) => {
                   const ItemIcon = item.icon;
                   return (
                     <NavLink
@@ -318,6 +342,28 @@ export function App() {
                     </NavLink>
                   );
                 })}
+              </div>
+              <div className="app-left-rail-secondary" aria-label={t(locale, 'app.leftRail.aria.languageAssets')}>
+                <p className="app-left-rail-section-label">{t(locale, 'app.navGroup.language')}</p>
+                <div className="app-left-rail-group">
+                  {secondaryNavItems.map((item) => {
+                    const ItemIcon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        className={({ isActive }) =>
+                          isActive ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'
+                        }
+                        title={item.label}
+                        aria-label={item.label}
+                      >
+                        <ItemIcon size={17} aria-hidden="true" />
+                        <span>{item.label}</span>
+                      </NavLink>
+                    );
+                  })}
+                </div>
               </div>
               <div
                 id="left-rail-bottom-slot"
@@ -360,6 +406,9 @@ export function App() {
                     <Route path="/analysis" element={<AnalysisPage />} />
                     <Route path="/writing" element={<WritingPage />} />
                     <Route path="/lexicon" element={<LexiconPage />} />
+                    <Route path="/assets/language-metadata" element={<LanguageMetadataWorkspacePage />} />
+                    <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+                    <Route path="/assets/orthography-bridges" element={<OrthographyBridgeWorkspacePage />} />
                     <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
                     <Route path="*" element={<NotFound locale={locale} />} />
                   </Routes>

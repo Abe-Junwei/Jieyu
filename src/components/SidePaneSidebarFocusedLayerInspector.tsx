@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import type { LayerDocType } from '../db';
 import { useOrthographies } from '../hooks/useOrthographies';
 import { useLocale } from '../i18n';
@@ -48,13 +47,13 @@ export function SidePaneSidebarFocusedLayerInspector({
     ? orthographies.find((orthography) => orthography.id === focusedLayer.orthographyId)
     : undefined;
   const targetOrthographyBadge = targetOrthography ? getOrthographyCatalogBadgeInfo(locale, targetOrthography) : null;
-  const orthographyWorkspaceHref = useMemo(() => {
+  const orthographyWorkspaceHref = (() => {
     if (!targetOrthography) return '';
     const params = new URLSearchParams();
     params.set('orthographyId', targetOrthography.id);
     params.set('fromLayerId', focusedLayer.id);
     return `/lexicon/orthographies?${params.toString()}`;
-  }, [focusedLayer.id, targetOrthography]);
+  })();
 
   return (
     <section className="transcription-side-pane-inspector" aria-label={messages.inspectorAria}>

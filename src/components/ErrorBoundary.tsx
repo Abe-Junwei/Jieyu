@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { detectLocale, t } from '../i18n';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -28,18 +29,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, { error: Error 
       }
       return (
         <section className="panel" style={{ padding: '2rem' }}>
-          <h2>应用出错</h2>
+          <h2>{t(detectLocale(), 'app.errorBoundary.title')}</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{error.message}</p>
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <button className="btn" onClick={this.reset}>
-              重试
+              {t(detectLocale(), 'app.errorBoundary.retry')}
             </button>
             <button
               className="btn"
               style={{ background: 'var(--border-soft)', color: 'var(--text-primary)' }}
               onClick={() => window.location.reload()}
             >
-              重载页面
+              {t(detectLocale(), 'app.errorBoundary.reload')}
             </button>
           </div>
         </section>

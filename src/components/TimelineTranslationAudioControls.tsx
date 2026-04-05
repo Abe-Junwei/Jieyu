@@ -104,7 +104,8 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
         await result;
       }
       setIsPlaying(true);
-    } catch {
+    } catch (e) {
+      console.warn('Translation audio play failed', e);
       setIsPlaying(false);
     }
   };

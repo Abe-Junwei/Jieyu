@@ -8,6 +8,7 @@ import { PanelSummary } from '../components/ui/PanelSummary';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { OrthographyDocType } from '../db';
 import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
+import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { t, useLocale } from '../i18n';
 import { getOrthographyBuilderMessages } from '../i18n/orthographyBuilderMessages';
 import { OrthographyWorkspaceEditor } from './OrthographyWorkspaceEditor';
@@ -18,13 +19,11 @@ import {
   parseConversionRulesJson,
   parseDraftList,
   parseOptionalNumber,
-  resolveLanguageLabel,
   type OrthographyDraft,
   type NormalizationForm,
 } from './orthographyWorkspacePage.utils';
 import { LinguisticService } from '../services/LinguisticService';
 import { COMMON_LANGUAGES } from '../utils/transcriptionFormatters';
-import { getLanguageDisplayName } from '../utils/langMapping';
 import type { LanguageIsoInputValue } from '../components/LanguageIsoInput';
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 
@@ -44,6 +43,7 @@ export function OrthographyWorkspacePage() {
   const [draft, setDraft] = useState<OrthographyDraft | null>(null);
   const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>({ languageName: '', languageCode: '' });
   const deferredSearchText = useDeferredValue(searchText);
+  const { resolveLabel, resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,8 +73,8 @@ export function OrthographyWorkspacePage() {
   const normalizedSearchText = deferredSearchText.trim().toLowerCase();
   const filteredOrthographies = useMemo(() => {
     if (!normalizedSearchText) return orthographies;
-    return orthographies.filter((orthography) => buildSearchText(orthography).includes(normalizedSearchText));
-  }, [normalizedSearchText, orthographies]);
+    return orthographies.filter((orthography) => buildSearchText(orthography, resolveLabel(orthography.languageId)).includes(normalizedSearchText));
+  }, [normalizedSearchText, orthographies, resolveLabel]);
 
   const selectedOrthographyId = searchParams.get(ORTHOGRAPHY_ID_PARAM) ?? '';
   const selectedOrthography = orthographies.find((orthography) => orthography.id === selectedOrthographyId) ?? null;
@@ -99,7 +99,7 @@ export function OrthographyWorkspacePage() {
     }
     setDraft(baselineDraft);
     setLanguageInput({
-      languageName: baselineDraft.languageId ? getLanguageDisplayName(baselineDraft.languageId, locale) : '',
+      languageName: resolveLabel(baselineDraft.languageId),
       languageCode: baselineDraft.languageId,
       ...(baselineDraft.localeTag ? { localeTag: baselineDraft.localeTag } : {}),
       ...(baselineDraft.regionTag ? { regionTag: baselineDraft.regionTag } : {}),
@@ -107,7 +107,24 @@ export function OrthographyWorkspacePage() {
     });
     setSaveError('');
     setSaveSuccess('');
-  }, [baselineDraft, locale]);
+  }, [baselineDraft]);
+
+  useEffect(() => {
+    if (!baselineDraft?.languageId) {
+      return;
+    }
+
+    const nextLanguageName = resolveLabel(baselineDraft.languageId);
+    setLanguageInput((prev) => {
+      if (prev.languageCode.trim().toLowerCase() !== baselineDraft.languageId || prev.languageName === nextLanguageName) {
+        return prev;
+      }
+      return {
+        ...prev,
+        languageName: nextLanguageName,
+      };
+    });
+  }, [baselineDraft?.languageId, resolveLabel]);
 
   useEffect(() => {
     if (!isDirty || typeof window === 'undefined') {
@@ -179,7 +196,7 @@ export function OrthographyWorkspacePage() {
     if (!baselineDraft) return;
     setDraft(baselineDraft);
     setLanguageInput({
-      languageName: baselineDraft.languageId ? getLanguageDisplayName(baselineDraft.languageId, locale) : '',
+      languageName: resolveLabel(baselineDraft.languageId),
       languageCode: baselineDraft.languageId,
       ...(baselineDraft.localeTag ? { localeTag: baselineDraft.localeTag } : {}),
       ...(baselineDraft.regionTag ? { regionTag: baselineDraft.regionTag } : {}),
@@ -223,6 +240,17 @@ export function OrthographyWorkspacePage() {
             }}
           >
             {t(locale, 'app.featureAvailability.backToTranscription')}
+          </Link>
+          <Link
+            to="/assets/orthography-bridges"
+            className="side-pane-nav-link app-side-pane-feature-link"
+            onClick={(event) => {
+              if (!confirmDiscardDirtyDraft()) {
+                event.preventDefault();
+              }
+            }}
+          >
+            {t(locale, 'workspace.orthography.openBridgeWorkspace')}
           </Link>
         </div>
       </section>
@@ -419,7 +447,7 @@ export function OrthographyWorkspacePage() {
                 >
                   <span className="orthography-workspace-list-label">{formatOrthographyOptionLabel(orthography, locale)}</span>
                   <span className="orthography-workspace-list-meta">
-                    <span>{resolveLanguageLabel(orthography.languageId ?? '')}</span>
+                    <span>{resolveLabel(orthography.languageId)}</span>
                     <span className={badge.className}>{badge.label}</span>
                   </span>
                 </button>
@@ -446,6 +474,7 @@ export function OrthographyWorkspacePage() {
                 {...(selectedBadge?.label ? { selectedBadgeLabel: selectedBadge.label } : {})}
                 draft={draft}
                 languageInput={languageInput}
+                resolveLanguageDisplayName={resolveLanguageDisplayName}
                 isDirty={isDirty}
                 saving={saving}
                 saveError={saveError}

@@ -915,7 +915,10 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       this._recordingDurationInterval = null;
     }
     // Remove all tracked subscriptions cleanly
-    for (const handler of this._subscriptions.keys()) {
+    // 先快照 keys 再逐个移除，避免迭代 Map 时删除元素
+    // | Snapshot keys first to avoid mutating Map during iteration
+    const handlers = Array.from(this._subscriptions.keys());
+    for (const handler of handlers) {
       this.removeStateListener(handler);
     }
     this._subscriptions.clear();

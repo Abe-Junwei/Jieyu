@@ -135,6 +135,7 @@ describe('Transcription layout guard', () => {
   it('keeps transcription toolbar layout styles in dedicated page toolbar css', () => {
     const entryPath = path.resolve(process.cwd(), 'src/styles/transcription-entry.css');
     const entryCode = fs.readFileSync(entryPath, 'utf8');
+    expect(entryCode).toContain("@import './panel-blocks.css';");
     expect(entryCode).toContain("@import './pages/transcription-toolbar.css';");
 
     const cssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-toolbar.css');
@@ -170,6 +171,16 @@ describe('Transcription layout guard', () => {
     const legacyCssPath = path.resolve(process.cwd(), 'src/styles/transcription.css');
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
     expect(legacyCssCode).not.toContain(portaledSelector);
+  });
+
+  it('keeps panel block aggregation out of the global app entry', () => {
+    const mainPath = path.resolve(process.cwd(), 'src/main.tsx');
+    const mainCode = fs.readFileSync(mainPath, 'utf8');
+    const entryPath = path.resolve(process.cwd(), 'src/styles/transcription-entry.css');
+    const entryCode = fs.readFileSync(entryPath, 'utf8');
+
+    expect(mainCode).not.toContain("import './styles/panel-blocks.css';");
+    expect(entryCode).toContain("@import './panel-blocks.css';");
   });
 
   it('keeps observer status styles in dedicated page toolbar css', () => {

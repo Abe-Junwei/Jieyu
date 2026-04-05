@@ -1,5 +1,5 @@
 import { t, type Locale } from '../i18n';
-import { getLayerManagerPopoverMessages } from '../i18n/layerManagerPopoverMessages';
+import { getLayerActionLabels } from '../i18n/layerActionLabels';
 
 interface TranscriptionPageTimelineEmptyStateProps {
   locale: Locale;
@@ -16,7 +16,7 @@ export function TranscriptionPageTimelineEmptyState({
   onCreateTranscriptionLayer,
   onOpenImportFile,
 }: TranscriptionPageTimelineEmptyStateProps) {
-  const layerManagerMessages = getLayerManagerPopoverMessages(locale);
+  const layerActionLabels = getLayerActionLabels(locale);
   if (layersCount === 0) {
     return (
       <div className="timeline-empty-actions-shell">
@@ -26,7 +26,7 @@ export function TranscriptionPageTimelineEmptyState({
             className="btn"
             onClick={onCreateTranscriptionLayer}
           >
-            {layerManagerMessages.createTranscriptionLayer}
+            {layerActionLabels.createTranscriptionLayer}
           </button>
           <button
             type="button"

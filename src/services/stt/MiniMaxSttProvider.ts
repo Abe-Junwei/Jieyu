@@ -63,7 +63,7 @@ export class MiniMaxSttProvider implements CommercialSttProvider {
     });
 
     if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
+      const text = await resp.text().catch((e) => { console.warn('MiniMax STT: failed to read error response body', e); return ''; });
       throw new Error(`MiniMax STT failed: ${resp.status} ${text}`);
     }
 

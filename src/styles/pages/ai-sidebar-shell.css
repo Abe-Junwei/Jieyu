@@ -13,10 +13,6 @@
   transition: width var(--rail-motion);
 }
 
-.transcription-hub-sidebar-hidden {
-  display: none;
-}
-
 .transcription-hub-sidebar-tabs {
   display: flex;
   border-bottom: 1px solid var(--border-soft);
@@ -64,55 +60,6 @@
   line-height: 1;
 }
 
-.transcription-hub-sidebar-collapse-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin-left: auto;
-  padding: 0;
-  color: var(--text-secondary);
-  background: transparent;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: color 0.15s, background 0.15s;
-}
-
-.transcription-hub-sidebar-collapse-btn:hover {
-  color: var(--text-primary);
-  background: rgba(148, 163, 184, 0.12);
-}
-
-.transcription-hub-sidebar-expand-btn {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 12px;
-  height: 48px;
-  padding: 0;
-  color: var(--text-secondary);
-  background: color-mix(in srgb, var(--surface-header) 94%, var(--surface-panel));
-  border: 1px solid var(--header-border);
-  border-right: 0;
-  border-radius: 6px 0 0 6px;
-  cursor: pointer;
-  z-index: var(--z-hub-sidebar, 1100);
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
-}
-
-.transcription-hub-sidebar-expand-btn:hover {
-  color: var(--text-primary);
-  background: color-mix(in srgb, var(--tab-active) 98%, transparent);
-  border-color: var(--border-strong);
-}
-
 .transcription-hub-sidebar-panel {
   display: none;
   flex-direction: column;
@@ -123,18 +70,6 @@
 
 .transcription-hub-sidebar-panel.is-active {
   display: flex;
-}
-
-.transcription-hub-sidebar-panel-header {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-secondary);
-  padding: 6px 12px;
-  background: color-mix(in srgb, var(--surface-header) 92%, transparent);
-  border-bottom: 1px solid var(--border-soft);
-  flex-shrink: 0;
 }
 
 .transcription-hub-sidebar-panel-body {
@@ -356,8 +291,7 @@
   }
 
   .transcription-ai-panel-toggle,
-  .transcription-ai-panel-resizer,
-  .transcription-assistant-hub-bottom {
+  .transcription-ai-panel-resizer {
     display: none;
   }
 }

@@ -343,7 +343,8 @@ export class AiHybridRecommendationService {
             : '';
         return prompt ? [prompt] : [];
       }).filter(Boolean);
-    } catch {
+    } catch (e) {
+      console.warn('Failed to collect recommendation prompts', e);
       return [];
     }
   }

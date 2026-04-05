@@ -189,7 +189,6 @@ describe('CommandResolver', () => {
     ['创建英文转写层', 'create_transcription_layer', '英文', 'eng'],
     ['新建法语转写层', 'create_transcription_layer', '法语', 'fra'],
     ['创建韩语转写层', 'create_transcription_layer', '韩语', 'kor'],
-    ['新增中文翻译层', 'create_translation_layer', '中文', 'cmn'],
     ['创建粤语转写层', 'create_transcription_layer', '粤语', 'yue'],
     ['创建西班牙语翻译层', 'create_translation_layer', '西班牙语', 'spa'],
     ['create English transcription layer', 'create_transcription_layer', 'English', 'eng'],
@@ -200,6 +199,14 @@ describe('CommandResolver', () => {
     expect(result!.call.name).toBe(toolName);
     expect(result!.call.arguments.languageId).toBe(code);
     expect(result!.call.arguments.languageQuery).toBe(lang);
+  });
+
+  it('keeps ambiguous language in clarify state for "新增中文翻译层"', () => {
+    const result = resolveCommand('新增中文翻译层');
+    expect(result).not.toBeNull();
+    expect(result!.call.name).toBe('create_translation_layer');
+    expect(result!.call.arguments.languageId).toBeUndefined();
+    expect(result!.call.arguments.languageQuery).toBeUndefined();
   });
 
   it('should resolve "删除转写层" to delete_layer with layerType', () => {

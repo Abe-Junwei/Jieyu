@@ -1,0 +1,8766 @@
+{
+  "generatedAt": "2026-04-05T06:48:13.697Z",
+  "sourceSeed": "top500-language-orthography-seeds.json",
+  "sourceAliasSeed": "language-name-aliases.json",
+  "locale": "de-DE",
+  "entriesByIso6393": {
+    "eng": [
+      {
+        "label": "Englisch",
+        "kind": "local"
+      },
+      {
+        "label": "English",
+        "kind": "native"
+      },
+      {
+        "label": "英语",
+        "kind": "alias"
+      },
+      {
+        "label": "anglais",
+        "kind": "alias"
+      },
+      {
+        "label": "inglés",
+        "kind": "alias"
+      },
+      {
+        "label": "英文",
+        "kind": "alias"
+      },
+      {
+        "label": "英語",
+        "kind": "alias"
+      },
+      {
+        "label": "american english",
+        "kind": "alias"
+      },
+      {
+        "label": "british english",
+        "kind": "alias"
+      }
+    ],
+    "deu": [
+      {
+        "label": "Deutsch",
+        "kind": "local"
+      },
+      {
+        "label": "German",
+        "kind": "english"
+      },
+      {
+        "label": "德语",
+        "kind": "alias"
+      },
+      {
+        "label": "allemand",
+        "kind": "alias"
+      },
+      {
+        "label": "alemán",
+        "kind": "alias"
+      },
+      {
+        "label": "德文",
+        "kind": "alias"
+      },
+      {
+        "label": "德語",
+        "kind": "alias"
+      }
+    ],
+    "spa": [
+      {
+        "label": "Spanisch",
+        "kind": "local"
+      },
+      {
+        "label": "español",
+        "kind": "native"
+      },
+      {
+        "label": "Spanish",
+        "kind": "english"
+      },
+      {
+        "label": "西班牙语",
+        "kind": "alias"
+      },
+      {
+        "label": "espagnol",
+        "kind": "alias"
+      },
+      {
+        "label": "西文",
+        "kind": "alias"
+      },
+      {
+        "label": "西語",
+        "kind": "alias"
+      },
+      {
+        "label": "castilian",
+        "kind": "alias"
+      },
+      {
+        "label": "castilian spanish",
+        "kind": "alias"
+      },
+      {
+        "label": "latin american spanish",
+        "kind": "alias"
+      },
+      {
+        "label": "mexican spanish",
+        "kind": "alias"
+      }
+    ],
+    "fra": [
+      {
+        "label": "Französisch",
+        "kind": "local"
+      },
+      {
+        "label": "français",
+        "kind": "native"
+      },
+      {
+        "label": "French",
+        "kind": "english"
+      },
+      {
+        "label": "法语",
+        "kind": "alias"
+      },
+      {
+        "label": "francés",
+        "kind": "alias"
+      },
+      {
+        "label": "法文",
+        "kind": "alias"
+      },
+      {
+        "label": "法語",
+        "kind": "alias"
+      }
+    ],
+    "rus": [
+      {
+        "label": "Russisch",
+        "kind": "local"
+      },
+      {
+        "label": "русский",
+        "kind": "native"
+      },
+      {
+        "label": "Russian",
+        "kind": "english"
+      },
+      {
+        "label": "俄语",
+        "kind": "alias"
+      },
+      {
+        "label": "russe",
+        "kind": "alias"
+      },
+      {
+        "label": "ruso",
+        "kind": "alias"
+      },
+      {
+        "label": "俄文",
+        "kind": "alias"
+      },
+      {
+        "label": "俄語",
+        "kind": "alias"
+      }
+    ],
+    "ara": [
+      {
+        "label": "Arabisch",
+        "kind": "local"
+      },
+      {
+        "label": "العربية",
+        "kind": "native"
+      },
+      {
+        "label": "Arabic",
+        "kind": "english"
+      },
+      {
+        "label": "阿拉伯语",
+        "kind": "alias"
+      },
+      {
+        "label": "arabe",
+        "kind": "alias"
+      },
+      {
+        "label": "árabe",
+        "kind": "alias"
+      },
+      {
+        "label": "阿文",
+        "kind": "alias"
+      },
+      {
+        "label": "阿语",
+        "kind": "alias"
+      },
+      {
+        "label": "阿語",
+        "kind": "alias"
+      },
+      {
+        "label": "modern standard arabic",
+        "kind": "alias"
+      }
+    ],
+    "lat": [
+      {
+        "label": "Latein",
+        "kind": "local"
+      },
+      {
+        "label": "Latin",
+        "kind": "english"
+      },
+      {
+        "label": "拉丁语",
+        "kind": "alias"
+      },
+      {
+        "label": "latín",
+        "kind": "alias"
+      }
+    ],
+    "ita": [
+      {
+        "label": "Italienisch",
+        "kind": "local"
+      },
+      {
+        "label": "italiano",
+        "kind": "native"
+      },
+      {
+        "label": "Italian",
+        "kind": "english"
+      },
+      {
+        "label": "意大利语",
+        "kind": "alias"
+      },
+      {
+        "label": "italien",
+        "kind": "alias"
+      },
+      {
+        "label": "意文",
+        "kind": "alias"
+      },
+      {
+        "label": "意语",
+        "kind": "alias"
+      },
+      {
+        "label": "意語",
+        "kind": "alias"
+      }
+    ],
+    "jpn": [
+      {
+        "label": "Japanisch",
+        "kind": "local"
+      },
+      {
+        "label": "日本語",
+        "kind": "native"
+      },
+      {
+        "label": "Japanese",
+        "kind": "english"
+      },
+      {
+        "label": "日语",
+        "kind": "alias"
+      },
+      {
+        "label": "japonais",
+        "kind": "alias"
+      },
+      {
+        "label": "japonés",
+        "kind": "alias"
+      },
+      {
+        "label": "日文",
+        "kind": "alias"
+      },
+      {
+        "label": "日語",
+        "kind": "alias"
+      }
+    ],
+    "por": [
+      {
+        "label": "Portugiesisch",
+        "kind": "local"
+      },
+      {
+        "label": "português",
+        "kind": "native"
+      },
+      {
+        "label": "Portuguese",
+        "kind": "english"
+      },
+      {
+        "label": "葡萄牙语",
+        "kind": "alias"
+      },
+      {
+        "label": "portugais",
+        "kind": "alias"
+      },
+      {
+        "label": "portugués",
+        "kind": "alias"
+      },
+      {
+        "label": "葡文",
+        "kind": "alias"
+      },
+      {
+        "label": "葡语",
+        "kind": "alias"
+      },
+      {
+        "label": "葡語",
+        "kind": "alias"
+      },
+      {
+        "label": "brazilian portuguese",
+        "kind": "alias"
+      },
+      {
+        "label": "european portuguese",
+        "kind": "alias"
+      }
+    ],
+    "epo": [
+      {
+        "label": "Esperanto",
+        "kind": "local"
+      },
+      {
+        "label": "世界语",
+        "kind": "alias"
+      },
+      {
+        "label": "espéranto",
+        "kind": "alias"
+      }
+    ],
+    "fas": [
+      {
+        "label": "Persisch",
+        "kind": "local"
+      },
+      {
+        "label": "فارسی",
+        "kind": "native"
+      },
+      {
+        "label": "Persian",
+        "kind": "english"
+      },
+      {
+        "label": "波斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "persan",
+        "kind": "alias"
+      },
+      {
+        "label": "persa",
+        "kind": "alias"
+      },
+      {
+        "label": "波斯文",
+        "kind": "alias"
+      },
+      {
+        "label": "波斯語",
+        "kind": "alias"
+      },
+      {
+        "label": "法尔西",
+        "kind": "alias"
+      },
+      {
+        "label": "法爾西",
+        "kind": "alias"
+      },
+      {
+        "label": "farsi",
+        "kind": "alias"
+      },
+      {
+        "label": "persian farsi",
+        "kind": "alias"
+      }
+    ],
+    "zho": [
+      {
+        "label": "Chinesisch",
+        "kind": "local"
+      },
+      {
+        "label": "中文",
+        "kind": "native"
+      },
+      {
+        "label": "Chinese",
+        "kind": "english"
+      },
+      {
+        "label": "chinois",
+        "kind": "alias"
+      },
+      {
+        "label": "chino",
+        "kind": "alias"
+      },
+      {
+        "label": "汉文",
+        "kind": "alias"
+      },
+      {
+        "label": "漢文",
+        "kind": "alias"
+      },
+      {
+        "label": "华文",
+        "kind": "alias"
+      },
+      {
+        "label": "華文",
+        "kind": "alias"
+      }
+    ],
+    "heb": [
+      {
+        "label": "Hebräisch",
+        "kind": "local"
+      },
+      {
+        "label": "עברית",
+        "kind": "native"
+      },
+      {
+        "label": "Hebrew",
+        "kind": "english"
+      },
+      {
+        "label": "希伯来语",
+        "kind": "alias"
+      },
+      {
+        "label": "hébreu",
+        "kind": "alias"
+      },
+      {
+        "label": "hebreo",
+        "kind": "alias"
+      },
+      {
+        "label": "希伯来文",
+        "kind": "alias"
+      },
+      {
+        "label": "希伯來文",
+        "kind": "alias"
+      }
+    ],
+    "nld": [
+      {
+        "label": "Niederländisch",
+        "kind": "local"
+      },
+      {
+        "label": "Nederlands",
+        "kind": "native"
+      },
+      {
+        "label": "Dutch",
+        "kind": "english"
+      },
+      {
+        "label": "荷兰语",
+        "kind": "alias"
+      },
+      {
+        "label": "néerlandais",
+        "kind": "alias"
+      },
+      {
+        "label": "neerlandés",
+        "kind": "alias"
+      },
+      {
+        "label": "荷文",
+        "kind": "alias"
+      },
+      {
+        "label": "荷语",
+        "kind": "alias"
+      },
+      {
+        "label": "荷語",
+        "kind": "alias"
+      },
+      {
+        "label": "flemish",
+        "kind": "alias"
+      }
+    ],
+    "pol": [
+      {
+        "label": "Polnisch",
+        "kind": "local"
+      },
+      {
+        "label": "polski",
+        "kind": "native"
+      },
+      {
+        "label": "Polish",
+        "kind": "english"
+      },
+      {
+        "label": "波兰语",
+        "kind": "alias"
+      },
+      {
+        "label": "polonais",
+        "kind": "alias"
+      },
+      {
+        "label": "polaco",
+        "kind": "alias"
+      },
+      {
+        "label": "波文",
+        "kind": "alias"
+      },
+      {
+        "label": "波语",
+        "kind": "alias"
+      },
+      {
+        "label": "波語",
+        "kind": "alias"
+      }
+    ],
+    "swe": [
+      {
+        "label": "Schwedisch",
+        "kind": "local"
+      },
+      {
+        "label": "svenska",
+        "kind": "native"
+      },
+      {
+        "label": "Swedish",
+        "kind": "english"
+      },
+      {
+        "label": "瑞典语",
+        "kind": "alias"
+      },
+      {
+        "label": "suédois",
+        "kind": "alias"
+      },
+      {
+        "label": "sueco",
+        "kind": "alias"
+      }
+    ],
+    "tur": [
+      {
+        "label": "Türkisch",
+        "kind": "local"
+      },
+      {
+        "label": "Türkçe",
+        "kind": "native"
+      },
+      {
+        "label": "Turkish",
+        "kind": "english"
+      },
+      {
+        "label": "土耳其语",
+        "kind": "alias"
+      },
+      {
+        "label": "turc",
+        "kind": "alias"
+      },
+      {
+        "label": "turco",
+        "kind": "alias"
+      },
+      {
+        "label": "土文",
+        "kind": "alias"
+      },
+      {
+        "label": "土语",
+        "kind": "alias"
+      },
+      {
+        "label": "土語",
+        "kind": "alias"
+      }
+    ],
+    "ukr": [
+      {
+        "label": "Ukrainisch",
+        "kind": "local"
+      },
+      {
+        "label": "українська",
+        "kind": "native"
+      },
+      {
+        "label": "Ukrainian",
+        "kind": "english"
+      },
+      {
+        "label": "乌克兰语",
+        "kind": "alias"
+      },
+      {
+        "label": "ukrainien",
+        "kind": "alias"
+      },
+      {
+        "label": "ucraniano",
+        "kind": "alias"
+      }
+    ],
+    "fin": [
+      {
+        "label": "Finnisch",
+        "kind": "local"
+      },
+      {
+        "label": "suomi",
+        "kind": "native"
+      },
+      {
+        "label": "Finnish",
+        "kind": "english"
+      },
+      {
+        "label": "芬兰语",
+        "kind": "alias"
+      },
+      {
+        "label": "finnois",
+        "kind": "alias"
+      },
+      {
+        "label": "finés",
+        "kind": "alias"
+      }
+    ],
+    "kor": [
+      {
+        "label": "Koreanisch",
+        "kind": "local"
+      },
+      {
+        "label": "한국어",
+        "kind": "native"
+      },
+      {
+        "label": "Korean",
+        "kind": "english"
+      },
+      {
+        "label": "韩语",
+        "kind": "alias"
+      },
+      {
+        "label": "coréen",
+        "kind": "alias"
+      },
+      {
+        "label": "coreano",
+        "kind": "alias"
+      },
+      {
+        "label": "韩文",
+        "kind": "alias"
+      },
+      {
+        "label": "韓文",
+        "kind": "alias"
+      },
+      {
+        "label": "韩国语",
+        "kind": "alias"
+      },
+      {
+        "label": "朝鲜语",
+        "kind": "alias"
+      },
+      {
+        "label": "朝鮮文",
+        "kind": "alias"
+      },
+      {
+        "label": "韓語",
+        "kind": "alias"
+      }
+    ],
+    "san": [
+      {
+        "label": "Sanskrit",
+        "kind": "local"
+      },
+      {
+        "label": "संस्कृत भाषा",
+        "kind": "native"
+      },
+      {
+        "label": "梵语",
+        "kind": "alias"
+      },
+      {
+        "label": "sánscrito",
+        "kind": "alias"
+      }
+    ],
+    "ces": [
+      {
+        "label": "Tschechisch",
+        "kind": "local"
+      },
+      {
+        "label": "čeština",
+        "kind": "native"
+      },
+      {
+        "label": "Czech",
+        "kind": "english"
+      },
+      {
+        "label": "捷克语",
+        "kind": "alias"
+      },
+      {
+        "label": "tchèque",
+        "kind": "alias"
+      },
+      {
+        "label": "checo",
+        "kind": "alias"
+      }
+    ],
+    "cat": [
+      {
+        "label": "Katalanisch",
+        "kind": "local"
+      },
+      {
+        "label": "català",
+        "kind": "native"
+      },
+      {
+        "label": "Catalan",
+        "kind": "english"
+      },
+      {
+        "label": "加泰罗尼亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "catalán",
+        "kind": "alias"
+      }
+    ],
+    "dan": [
+      {
+        "label": "Dänisch",
+        "kind": "local"
+      },
+      {
+        "label": "dansk",
+        "kind": "native"
+      },
+      {
+        "label": "Danish",
+        "kind": "english"
+      },
+      {
+        "label": "丹麦语",
+        "kind": "alias"
+      },
+      {
+        "label": "danois",
+        "kind": "alias"
+      },
+      {
+        "label": "danés",
+        "kind": "alias"
+      }
+    ],
+    "ron": [
+      {
+        "label": "Rumänisch",
+        "kind": "local"
+      },
+      {
+        "label": "română",
+        "kind": "native"
+      },
+      {
+        "label": "Romanian",
+        "kind": "english"
+      },
+      {
+        "label": "罗马尼亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "roumain",
+        "kind": "alias"
+      },
+      {
+        "label": "rumano",
+        "kind": "alias"
+      }
+    ],
+    "swa": [
+      {
+        "label": "Suaheli",
+        "kind": "local"
+      },
+      {
+        "label": "Kiswahili",
+        "kind": "native"
+      },
+      {
+        "label": "Swahili",
+        "kind": "english"
+      },
+      {
+        "label": "斯瓦希里语",
+        "kind": "alias"
+      },
+      {
+        "label": "suajili",
+        "kind": "alias"
+      }
+    ],
+    "hun": [
+      {
+        "label": "Ungarisch",
+        "kind": "local"
+      },
+      {
+        "label": "magyar",
+        "kind": "native"
+      },
+      {
+        "label": "Hungarian",
+        "kind": "english"
+      },
+      {
+        "label": "匈牙利语",
+        "kind": "alias"
+      },
+      {
+        "label": "hongrois",
+        "kind": "alias"
+      },
+      {
+        "label": "húngaro",
+        "kind": "alias"
+      }
+    ],
+    "syl": [
+      {
+        "label": "Sylheti",
+        "kind": "english"
+      }
+    ],
+    "hrv": [
+      {
+        "label": "Kroatisch",
+        "kind": "local"
+      },
+      {
+        "label": "hrvatski",
+        "kind": "native"
+      },
+      {
+        "label": "Croatian",
+        "kind": "english"
+      },
+      {
+        "label": "克罗地亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "croate",
+        "kind": "alias"
+      },
+      {
+        "label": "croata",
+        "kind": "alias"
+      }
+    ],
+    "nor": [
+      {
+        "label": "Norwegisch",
+        "kind": "local"
+      },
+      {
+        "label": "norsk",
+        "kind": "native"
+      },
+      {
+        "label": "Norwegian",
+        "kind": "english"
+      },
+      {
+        "label": "挪威语",
+        "kind": "alias"
+      },
+      {
+        "label": "norvégien",
+        "kind": "alias"
+      },
+      {
+        "label": "noruego",
+        "kind": "alias"
+      }
+    ],
+    "ben": [
+      {
+        "label": "Bengalisch",
+        "kind": "local"
+      },
+      {
+        "label": "বাংলা",
+        "kind": "native"
+      },
+      {
+        "label": "Bangla",
+        "kind": "english"
+      },
+      {
+        "label": "孟加拉语",
+        "kind": "alias"
+      },
+      {
+        "label": "bengali",
+        "kind": "alias"
+      },
+      {
+        "label": "bengalí",
+        "kind": "alias"
+      },
+      {
+        "label": "孟加拉文",
+        "kind": "alias"
+      },
+      {
+        "label": "孟加拉語",
+        "kind": "alias"
+      }
+    ],
+    "aze": [
+      {
+        "label": "Aserbaidschanisch",
+        "kind": "local"
+      },
+      {
+        "label": "azərbaycan",
+        "kind": "native"
+      },
+      {
+        "label": "Azerbaijani",
+        "kind": "english"
+      },
+      {
+        "label": "阿塞拜疆语",
+        "kind": "alias"
+      },
+      {
+        "label": "azerbaïdjanais",
+        "kind": "alias"
+      },
+      {
+        "label": "azerbaiyano",
+        "kind": "alias"
+      }
+    ],
+    "afr": [
+      {
+        "label": "Afrikaans",
+        "kind": "local"
+      },
+      {
+        "label": "南非荷兰语",
+        "kind": "alias"
+      },
+      {
+        "label": "afrikáans",
+        "kind": "alias"
+      }
+    ],
+    "est": [
+      {
+        "label": "Estnisch",
+        "kind": "local"
+      },
+      {
+        "label": "eesti",
+        "kind": "native"
+      },
+      {
+        "label": "Estonian",
+        "kind": "english"
+      },
+      {
+        "label": "爱沙尼亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "estonien",
+        "kind": "alias"
+      },
+      {
+        "label": "estonio",
+        "kind": "alias"
+      }
+    ],
+    "bul": [
+      {
+        "label": "Bulgarisch",
+        "kind": "local"
+      },
+      {
+        "label": "български",
+        "kind": "native"
+      },
+      {
+        "label": "Bulgarian",
+        "kind": "english"
+      },
+      {
+        "label": "保加利亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "bulgare",
+        "kind": "alias"
+      },
+      {
+        "label": "búlgaro",
+        "kind": "alias"
+      }
+    ],
+    "gle": [
+      {
+        "label": "Irisch",
+        "kind": "local"
+      },
+      {
+        "label": "Gaeilge",
+        "kind": "native"
+      },
+      {
+        "label": "Irish",
+        "kind": "english"
+      },
+      {
+        "label": "爱尔兰语",
+        "kind": "alias"
+      },
+      {
+        "label": "irlandais",
+        "kind": "alias"
+      },
+      {
+        "label": "irlandés",
+        "kind": "alias"
+      }
+    ],
+    "bel": [
+      {
+        "label": "Belarussisch",
+        "kind": "local"
+      },
+      {
+        "label": "беларуская",
+        "kind": "native"
+      },
+      {
+        "label": "Belarusian",
+        "kind": "english"
+      },
+      {
+        "label": "白俄罗斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "biélorusse",
+        "kind": "alias"
+      },
+      {
+        "label": "bielorruso",
+        "kind": "alias"
+      }
+    ],
+    "ind": [
+      {
+        "label": "Indonesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Bahasa Indonesia",
+        "kind": "native"
+      },
+      {
+        "label": "Indonesian",
+        "kind": "english"
+      },
+      {
+        "label": "印度尼西亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "indonésien",
+        "kind": "alias"
+      },
+      {
+        "label": "indonesio",
+        "kind": "alias"
+      },
+      {
+        "label": "印尼文",
+        "kind": "alias"
+      },
+      {
+        "label": "印尼语",
+        "kind": "alias"
+      },
+      {
+        "label": "印尼語",
+        "kind": "alias"
+      }
+    ],
+    "isl": [
+      {
+        "label": "Isländisch",
+        "kind": "local"
+      },
+      {
+        "label": "íslenska",
+        "kind": "native"
+      },
+      {
+        "label": "Icelandic",
+        "kind": "english"
+      },
+      {
+        "label": "冰岛语",
+        "kind": "alias"
+      },
+      {
+        "label": "islandais",
+        "kind": "alias"
+      },
+      {
+        "label": "islandés",
+        "kind": "alias"
+      }
+    ],
+    "lit": [
+      {
+        "label": "Litauisch",
+        "kind": "local"
+      },
+      {
+        "label": "lietuvių",
+        "kind": "native"
+      },
+      {
+        "label": "Lithuanian",
+        "kind": "english"
+      },
+      {
+        "label": "立陶宛语",
+        "kind": "alias"
+      },
+      {
+        "label": "lituanien",
+        "kind": "alias"
+      },
+      {
+        "label": "lituano",
+        "kind": "alias"
+      }
+    ],
+    "ile": [
+      {
+        "label": "Interlingue",
+        "kind": "local"
+      },
+      {
+        "label": "国际文字（E）",
+        "kind": "alias"
+      }
+    ],
+    "hye": [
+      {
+        "label": "Armenisch",
+        "kind": "local"
+      },
+      {
+        "label": "հայերեն",
+        "kind": "native"
+      },
+      {
+        "label": "Armenian",
+        "kind": "english"
+      },
+      {
+        "label": "亚美尼亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "arménien",
+        "kind": "alias"
+      },
+      {
+        "label": "armenio",
+        "kind": "alias"
+      }
+    ],
+    "slk": [
+      {
+        "label": "Slowakisch",
+        "kind": "local"
+      },
+      {
+        "label": "slovenčina",
+        "kind": "native"
+      },
+      {
+        "label": "Slovak",
+        "kind": "english"
+      },
+      {
+        "label": "斯洛伐克语",
+        "kind": "alias"
+      },
+      {
+        "label": "slovaque",
+        "kind": "alias"
+      },
+      {
+        "label": "eslovaco",
+        "kind": "alias"
+      }
+    ],
+    "tam": [
+      {
+        "label": "Tamil",
+        "kind": "local"
+      },
+      {
+        "label": "தமிழ்",
+        "kind": "native"
+      },
+      {
+        "label": "泰米尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "tamoul",
+        "kind": "alias"
+      }
+    ],
+    "sqi": [
+      {
+        "label": "Albanisch",
+        "kind": "local"
+      },
+      {
+        "label": "shqip",
+        "kind": "native"
+      },
+      {
+        "label": "Albanian",
+        "kind": "english"
+      },
+      {
+        "label": "阿尔巴尼亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "albanais",
+        "kind": "alias"
+      },
+      {
+        "label": "albanés",
+        "kind": "alias"
+      }
+    ],
+    "eus": [
+      {
+        "label": "Baskisch",
+        "kind": "local"
+      },
+      {
+        "label": "euskara",
+        "kind": "native"
+      },
+      {
+        "label": "Basque",
+        "kind": "english"
+      },
+      {
+        "label": "巴斯克语",
+        "kind": "alias"
+      },
+      {
+        "label": "euskera",
+        "kind": "alias"
+      }
+    ],
+    "kat": [
+      {
+        "label": "Georgisch",
+        "kind": "local"
+      },
+      {
+        "label": "ქართული",
+        "kind": "native"
+      },
+      {
+        "label": "Georgian",
+        "kind": "english"
+      },
+      {
+        "label": "格鲁吉亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "géorgien",
+        "kind": "alias"
+      },
+      {
+        "label": "georgiano",
+        "kind": "alias"
+      }
+    ],
+    "srp": [
+      {
+        "label": "Serbisch",
+        "kind": "local"
+      },
+      {
+        "label": "српски",
+        "kind": "native"
+      },
+      {
+        "label": "Serbian",
+        "kind": "english"
+      },
+      {
+        "label": "塞尔维亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "serbe",
+        "kind": "alias"
+      },
+      {
+        "label": "serbio",
+        "kind": "alias"
+      }
+    ],
+    "lav": [
+      {
+        "label": "Lettisch",
+        "kind": "local"
+      },
+      {
+        "label": "latviešu",
+        "kind": "native"
+      },
+      {
+        "label": "Latvian",
+        "kind": "english"
+      },
+      {
+        "label": "拉脱维亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "letton",
+        "kind": "alias"
+      },
+      {
+        "label": "letón",
+        "kind": "alias"
+      }
+    ],
+    "tha": [
+      {
+        "label": "Thailändisch",
+        "kind": "local"
+      },
+      {
+        "label": "ไทย",
+        "kind": "native"
+      },
+      {
+        "label": "Thai",
+        "kind": "english"
+      },
+      {
+        "label": "泰语",
+        "kind": "alias"
+      },
+      {
+        "label": "thaï",
+        "kind": "alias"
+      },
+      {
+        "label": "tailandés",
+        "kind": "alias"
+      },
+      {
+        "label": "泰文",
+        "kind": "alias"
+      },
+      {
+        "label": "泰語",
+        "kind": "alias"
+      }
+    ],
+    "slv": [
+      {
+        "label": "Slowenisch",
+        "kind": "local"
+      },
+      {
+        "label": "slovenščina",
+        "kind": "native"
+      },
+      {
+        "label": "Slovene",
+        "kind": "english"
+      },
+      {
+        "label": "斯洛文尼亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "Slovenian",
+        "kind": "alias"
+      },
+      {
+        "label": "slovène",
+        "kind": "alias"
+      },
+      {
+        "label": "esloveno",
+        "kind": "alias"
+      }
+    ],
+    "vie": [
+      {
+        "label": "Vietnamesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Tiếng Việt",
+        "kind": "native"
+      },
+      {
+        "label": "Vietnamese",
+        "kind": "english"
+      },
+      {
+        "label": "越南语",
+        "kind": "alias"
+      },
+      {
+        "label": "vietnamien",
+        "kind": "alias"
+      },
+      {
+        "label": "vietnamita",
+        "kind": "alias"
+      },
+      {
+        "label": "越文",
+        "kind": "alias"
+      },
+      {
+        "label": "越語",
+        "kind": "alias"
+      }
+    ],
+    "oci": [
+      {
+        "label": "Okzitanisch",
+        "kind": "local"
+      },
+      {
+        "label": "occitan",
+        "kind": "native"
+      },
+      {
+        "label": "奥克语",
+        "kind": "alias"
+      },
+      {
+        "label": "occitano",
+        "kind": "alias"
+      }
+    ],
+    "kaz": [
+      {
+        "label": "Kasachisch",
+        "kind": "local"
+      },
+      {
+        "label": "қазақ тілі",
+        "kind": "native"
+      },
+      {
+        "label": "Kazakh",
+        "kind": "english"
+      },
+      {
+        "label": "哈萨克语",
+        "kind": "alias"
+      },
+      {
+        "label": "kazajo",
+        "kind": "alias"
+      },
+      {
+        "label": "哈薩克語",
+        "kind": "alias"
+      }
+    ],
+    "cym": [
+      {
+        "label": "Walisisch",
+        "kind": "local"
+      },
+      {
+        "label": "Cymraeg",
+        "kind": "native"
+      },
+      {
+        "label": "Welsh",
+        "kind": "english"
+      },
+      {
+        "label": "威尔士语",
+        "kind": "alias"
+      },
+      {
+        "label": "gallois",
+        "kind": "alias"
+      },
+      {
+        "label": "galés",
+        "kind": "alias"
+      }
+    ],
+    "msa": [
+      {
+        "label": "Malaiisch",
+        "kind": "local"
+      },
+      {
+        "label": "Melayu",
+        "kind": "native"
+      },
+      {
+        "label": "Malay",
+        "kind": "english"
+      },
+      {
+        "label": "马来语",
+        "kind": "alias"
+      },
+      {
+        "label": "malais",
+        "kind": "alias"
+      },
+      {
+        "label": "malayo",
+        "kind": "alias"
+      },
+      {
+        "label": "马来文",
+        "kind": "alias"
+      },
+      {
+        "label": "马来话",
+        "kind": "alias"
+      },
+      {
+        "label": "馬來文",
+        "kind": "alias"
+      },
+      {
+        "label": "馬來話",
+        "kind": "alias"
+      },
+      {
+        "label": "bahasa melayu",
+        "kind": "alias"
+      }
+    ],
+    "ina": [
+      {
+        "label": "Interlingua",
+        "kind": "local"
+      },
+      {
+        "label": "Interlingua (International Auxiliary Language Association)",
+        "kind": "english"
+      },
+      {
+        "label": "国际语",
+        "kind": "alias"
+      }
+    ],
+    "yid": [
+      {
+        "label": "Jiddisch",
+        "kind": "local"
+      },
+      {
+        "label": "ייִדיש",
+        "kind": "native"
+      },
+      {
+        "label": "Yiddish",
+        "kind": "english"
+      },
+      {
+        "label": "意第绪语",
+        "kind": "alias"
+      },
+      {
+        "label": "yidis",
+        "kind": "alias"
+      }
+    ],
+    "mkd": [
+      {
+        "label": "Mazedonisch",
+        "kind": "local"
+      },
+      {
+        "label": "македонски",
+        "kind": "native"
+      },
+      {
+        "label": "Macedonian",
+        "kind": "english"
+      },
+      {
+        "label": "马其顿语",
+        "kind": "alias"
+      },
+      {
+        "label": "macédonien",
+        "kind": "alias"
+      },
+      {
+        "label": "macedonio",
+        "kind": "alias"
+      }
+    ],
+    "grc": [
+      {
+        "label": "Altgriechisch",
+        "kind": "local"
+      },
+      {
+        "label": "Ancient Greek",
+        "kind": "english"
+      },
+      {
+        "label": "古希腊语",
+        "kind": "alias"
+      },
+      {
+        "label": "grec ancien",
+        "kind": "alias"
+      },
+      {
+        "label": "griego antiguo",
+        "kind": "alias"
+      }
+    ],
+    "kur": [
+      {
+        "label": "Kurdisch",
+        "kind": "local"
+      },
+      {
+        "label": "Kurdî",
+        "kind": "native"
+      },
+      {
+        "label": "Kurdish",
+        "kind": "english"
+      },
+      {
+        "label": "库尔德语",
+        "kind": "alias"
+      },
+      {
+        "label": "kurde",
+        "kind": "alias"
+      },
+      {
+        "label": "kurdo",
+        "kind": "alias"
+      }
+    ],
+    "lfn": [
+      {
+        "label": "Lingua Franca Nova",
+        "kind": "local"
+      }
+    ],
+    "mon": [
+      {
+        "label": "Mongolisch",
+        "kind": "local"
+      },
+      {
+        "label": "монгол",
+        "kind": "native"
+      },
+      {
+        "label": "Mongolian",
+        "kind": "english"
+      },
+      {
+        "label": "蒙古语",
+        "kind": "alias"
+      },
+      {
+        "label": "mongol",
+        "kind": "alias"
+      },
+      {
+        "label": "蒙古文",
+        "kind": "alias"
+      },
+      {
+        "label": "蒙古語",
+        "kind": "alias"
+      },
+      {
+        "label": "蒙古話",
+        "kind": "alias"
+      }
+    ],
+    "ido": [
+      {
+        "label": "Ido",
+        "kind": "local"
+      },
+      {
+        "label": "伊多语",
+        "kind": "alias"
+      }
+    ],
+    "glg": [
+      {
+        "label": "Galicisch",
+        "kind": "local"
+      },
+      {
+        "label": "galego",
+        "kind": "native"
+      },
+      {
+        "label": "Galician",
+        "kind": "english"
+      },
+      {
+        "label": "加利西亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "galicien",
+        "kind": "alias"
+      },
+      {
+        "label": "gallego",
+        "kind": "alias"
+      }
+    ],
+    "tel": [
+      {
+        "label": "Telugu",
+        "kind": "local"
+      },
+      {
+        "label": "తెలుగు",
+        "kind": "native"
+      },
+      {
+        "label": "泰卢固语",
+        "kind": "alias"
+      },
+      {
+        "label": "télougou",
+        "kind": "alias"
+      }
+    ],
+    "mlt": [
+      {
+        "label": "Maltesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Malti",
+        "kind": "native"
+      },
+      {
+        "label": "Maltese",
+        "kind": "english"
+      },
+      {
+        "label": "马耳他语",
+        "kind": "alias"
+      },
+      {
+        "label": "maltais",
+        "kind": "alias"
+      },
+      {
+        "label": "maltés",
+        "kind": "alias"
+      }
+    ],
+    "pus": [
+      {
+        "label": "Paschtu",
+        "kind": "local"
+      },
+      {
+        "label": "پښتو",
+        "kind": "native"
+      },
+      {
+        "label": "Pashto",
+        "kind": "english"
+      },
+      {
+        "label": "普什图语",
+        "kind": "alias"
+      },
+      {
+        "label": "pachto",
+        "kind": "alias"
+      },
+      {
+        "label": "pastún",
+        "kind": "alias"
+      }
+    ],
+    "tat": [
+      {
+        "label": "Tatarisch",
+        "kind": "local"
+      },
+      {
+        "label": "татар",
+        "kind": "native"
+      },
+      {
+        "label": "Tatar",
+        "kind": "english"
+      },
+      {
+        "label": "鞑靼语",
+        "kind": "alias"
+      },
+      {
+        "label": "tártaro",
+        "kind": "alias"
+      }
+    ],
+    "pan": [
+      {
+        "label": "Punjabi",
+        "kind": "local"
+      },
+      {
+        "label": "ਪੰਜਾਬੀ",
+        "kind": "native"
+      },
+      {
+        "label": "旁遮普语",
+        "kind": "alias"
+      },
+      {
+        "label": "pendjabi",
+        "kind": "alias"
+      },
+      {
+        "label": "punyabí",
+        "kind": "alias"
+      },
+      {
+        "label": "旁遮普文",
+        "kind": "alias"
+      },
+      {
+        "label": "旁遮普語",
+        "kind": "alias"
+      }
+    ],
+    "uzb": [
+      {
+        "label": "Usbekisch",
+        "kind": "local"
+      },
+      {
+        "label": "o‘zbek",
+        "kind": "native"
+      },
+      {
+        "label": "Uzbek",
+        "kind": "english"
+      },
+      {
+        "label": "乌兹别克语",
+        "kind": "alias"
+      },
+      {
+        "label": "ouzbek",
+        "kind": "alias"
+      },
+      {
+        "label": "uzbeko",
+        "kind": "alias"
+      }
+    ],
+    "ltz": [
+      {
+        "label": "Luxemburgisch",
+        "kind": "local"
+      },
+      {
+        "label": "Lëtzebuergesch",
+        "kind": "native"
+      },
+      {
+        "label": "Luxembourgish",
+        "kind": "english"
+      },
+      {
+        "label": "卢森堡语",
+        "kind": "alias"
+      },
+      {
+        "label": "luxembourgeois",
+        "kind": "alias"
+      },
+      {
+        "label": "luxemburgués",
+        "kind": "alias"
+      }
+    ],
+    "nep": [
+      {
+        "label": "Nepalesisch",
+        "kind": "local"
+      },
+      {
+        "label": "नेपाली",
+        "kind": "native"
+      },
+      {
+        "label": "Nepali",
+        "kind": "english"
+      },
+      {
+        "label": "尼泊尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "népalais",
+        "kind": "alias"
+      },
+      {
+        "label": "nepalí",
+        "kind": "alias"
+      },
+      {
+        "label": "尼泊尔文",
+        "kind": "alias"
+      },
+      {
+        "label": "尼泊爾文",
+        "kind": "alias"
+      }
+    ],
+    "gla": [
+      {
+        "label": "Gälisch (Schottland)",
+        "kind": "local"
+      },
+      {
+        "label": "Gàidhlig",
+        "kind": "native"
+      },
+      {
+        "label": "Scottish Gaelic",
+        "kind": "english"
+      },
+      {
+        "label": "苏格兰盖尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "gaélique écossais",
+        "kind": "alias"
+      },
+      {
+        "label": "gaélico escocés",
+        "kind": "alias"
+      }
+    ],
+    "bre": [
+      {
+        "label": "Bretonisch",
+        "kind": "local"
+      },
+      {
+        "label": "brezhoneg",
+        "kind": "native"
+      },
+      {
+        "label": "Breton",
+        "kind": "english"
+      },
+      {
+        "label": "布列塔尼语",
+        "kind": "alias"
+      },
+      {
+        "label": "bretón",
+        "kind": "alias"
+      }
+    ],
+    "cmn": [
+      {
+        "label": "Mandarin",
+        "kind": "local"
+      },
+      {
+        "label": "普通话",
+        "kind": "native"
+      },
+      {
+        "label": "mandarín",
+        "kind": "alias"
+      },
+      {
+        "label": "中文",
+        "kind": "alias"
+      },
+      {
+        "label": "chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "mandarin chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "standard chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "putonghua",
+        "kind": "alias"
+      },
+      {
+        "label": "guoyu",
+        "kind": "alias"
+      },
+      {
+        "label": "汉语",
+        "kind": "alias"
+      },
+      {
+        "label": "国语",
+        "kind": "alias"
+      },
+      {
+        "label": "國語",
+        "kind": "alias"
+      },
+      {
+        "label": "华语",
+        "kind": "alias"
+      },
+      {
+        "label": "華語",
+        "kind": "alias"
+      },
+      {
+        "label": "官话",
+        "kind": "alias"
+      },
+      {
+        "label": "北方话",
+        "kind": "alias"
+      },
+      {
+        "label": "北方方言",
+        "kind": "alias"
+      },
+      {
+        "label": "中文普通话",
+        "kind": "alias"
+      }
+    ],
+    "kir": [
+      {
+        "label": "Kirgisisch",
+        "kind": "local"
+      },
+      {
+        "label": "кыргызча",
+        "kind": "native"
+      },
+      {
+        "label": "Kyrgyz",
+        "kind": "english"
+      },
+      {
+        "label": "吉尔吉斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "kirghize",
+        "kind": "alias"
+      },
+      {
+        "label": "kirguís",
+        "kind": "alias"
+      },
+      {
+        "label": "柯尔克孜语",
+        "kind": "alias"
+      },
+      {
+        "label": "柯爾克孜語",
+        "kind": "alias"
+      },
+      {
+        "label": "吉爾吉斯語",
+        "kind": "alias"
+      }
+    ],
+    "fao": [
+      {
+        "label": "Färöisch",
+        "kind": "local"
+      },
+      {
+        "label": "føroyskt",
+        "kind": "native"
+      },
+      {
+        "label": "Faroese",
+        "kind": "english"
+      },
+      {
+        "label": "法罗语",
+        "kind": "alias"
+      },
+      {
+        "label": "féroïen",
+        "kind": "alias"
+      },
+      {
+        "label": "feroés",
+        "kind": "alias"
+      }
+    ],
+    "amh": [
+      {
+        "label": "Amharisch",
+        "kind": "local"
+      },
+      {
+        "label": "አማርኛ",
+        "kind": "native"
+      },
+      {
+        "label": "Amharic",
+        "kind": "english"
+      },
+      {
+        "label": "阿姆哈拉语",
+        "kind": "alias"
+      },
+      {
+        "label": "amharique",
+        "kind": "alias"
+      },
+      {
+        "label": "amárico",
+        "kind": "alias"
+      },
+      {
+        "label": "阿姆哈拉文",
+        "kind": "alias"
+      },
+      {
+        "label": "阿姆哈拉語",
+        "kind": "alias"
+      }
+    ],
+    "kan": [
+      {
+        "label": "Kannada",
+        "kind": "local"
+      },
+      {
+        "label": "ಕನ್ನಡ",
+        "kind": "native"
+      },
+      {
+        "label": "卡纳达语",
+        "kind": "alias"
+      },
+      {
+        "label": "canarés",
+        "kind": "alias"
+      }
+    ],
+    "mar": [
+      {
+        "label": "Marathi",
+        "kind": "local"
+      },
+      {
+        "label": "मराठी",
+        "kind": "native"
+      },
+      {
+        "label": "马拉地语",
+        "kind": "alias"
+      },
+      {
+        "label": "maratí",
+        "kind": "alias"
+      }
+    ],
+    "tgl": [
+      {
+        "label": "Tagalog",
+        "kind": "local"
+      },
+      {
+        "label": "他加禄语",
+        "kind": "alias"
+      },
+      {
+        "label": "tagalo",
+        "kind": "alias"
+      },
+      {
+        "label": "他加禄文",
+        "kind": "alias"
+      },
+      {
+        "label": "他加祿文",
+        "kind": "alias"
+      }
+    ],
+    "roh": [
+      {
+        "label": "Rätoromanisch",
+        "kind": "local"
+      },
+      {
+        "label": "rumantsch",
+        "kind": "native"
+      },
+      {
+        "label": "Romansh",
+        "kind": "english"
+      },
+      {
+        "label": "罗曼什语",
+        "kind": "alias"
+      },
+      {
+        "label": "romanche",
+        "kind": "alias"
+      }
+    ],
+    "bak": [
+      {
+        "label": "Baschkirisch",
+        "kind": "local"
+      },
+      {
+        "label": "Bashkir",
+        "kind": "english"
+      },
+      {
+        "label": "巴什基尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "bachkir",
+        "kind": "alias"
+      },
+      {
+        "label": "baskir",
+        "kind": "alias"
+      }
+    ],
+    "mal": [
+      {
+        "label": "Malayalam",
+        "kind": "local"
+      },
+      {
+        "label": "മലയാളം",
+        "kind": "native"
+      },
+      {
+        "label": "马拉雅拉姆语",
+        "kind": "alias"
+      },
+      {
+        "label": "malayálam",
+        "kind": "alias"
+      }
+    ],
+    "mya": [
+      {
+        "label": "Birmanisch",
+        "kind": "local"
+      },
+      {
+        "label": "မြန်မာ",
+        "kind": "native"
+      },
+      {
+        "label": "Burmese",
+        "kind": "english"
+      },
+      {
+        "label": "缅甸语",
+        "kind": "alias"
+      },
+      {
+        "label": "birman",
+        "kind": "alias"
+      },
+      {
+        "label": "birmano",
+        "kind": "alias"
+      },
+      {
+        "label": "缅语",
+        "kind": "alias"
+      },
+      {
+        "label": "缅文",
+        "kind": "alias"
+      },
+      {
+        "label": "緬語",
+        "kind": "alias"
+      },
+      {
+        "label": "緬文",
+        "kind": "alias"
+      }
+    ],
+    "que": [
+      {
+        "label": "Quechua",
+        "kind": "local"
+      },
+      {
+        "label": "Runasimi",
+        "kind": "native"
+      },
+      {
+        "label": "克丘亚语",
+        "kind": "alias"
+      }
+    ],
+    "jav": [
+      {
+        "label": "Javanisch",
+        "kind": "local"
+      },
+      {
+        "label": "Jawa",
+        "kind": "native"
+      },
+      {
+        "label": "Javanese",
+        "kind": "english"
+      },
+      {
+        "label": "爪哇语",
+        "kind": "alias"
+      },
+      {
+        "label": "javanais",
+        "kind": "alias"
+      },
+      {
+        "label": "javanés",
+        "kind": "alias"
+      }
+    ],
+    "uig": [
+      {
+        "label": "Uigurisch",
+        "kind": "local"
+      },
+      {
+        "label": "ئۇيغۇرچە",
+        "kind": "native"
+      },
+      {
+        "label": "Uyghur",
+        "kind": "english"
+      },
+      {
+        "label": "维吾尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "ouïghour",
+        "kind": "alias"
+      },
+      {
+        "label": "uigur",
+        "kind": "alias"
+      },
+      {
+        "label": "维语",
+        "kind": "alias"
+      },
+      {
+        "label": "維語",
+        "kind": "alias"
+      },
+      {
+        "label": "維吾爾語",
+        "kind": "alias"
+      }
+    ],
+    "mri": [
+      {
+        "label": "Māori",
+        "kind": "local"
+      },
+      {
+        "label": "毛利语",
+        "kind": "alias"
+      },
+      {
+        "label": "maori",
+        "kind": "alias"
+      },
+      {
+        "label": "maorí",
+        "kind": "alias"
+      }
+    ],
+    "tgk": [
+      {
+        "label": "Tadschikisch",
+        "kind": "local"
+      },
+      {
+        "label": "тоҷикӣ",
+        "kind": "native"
+      },
+      {
+        "label": "Tajik",
+        "kind": "english"
+      },
+      {
+        "label": "塔吉克语",
+        "kind": "alias"
+      },
+      {
+        "label": "tadjik",
+        "kind": "alias"
+      },
+      {
+        "label": "tayiko",
+        "kind": "alias"
+      },
+      {
+        "label": "塔吉克語",
+        "kind": "alias"
+      }
+    ],
+    "tuk": [
+      {
+        "label": "Turkmenisch",
+        "kind": "local"
+      },
+      {
+        "label": "türkmen dili",
+        "kind": "native"
+      },
+      {
+        "label": "Turkmen",
+        "kind": "english"
+      },
+      {
+        "label": "土库曼语",
+        "kind": "alias"
+      },
+      {
+        "label": "turkmène",
+        "kind": "alias"
+      },
+      {
+        "label": "turcomano",
+        "kind": "alias"
+      }
+    ],
+    "abk": [
+      {
+        "label": "Abchasisch",
+        "kind": "local"
+      },
+      {
+        "label": "Abkhaz",
+        "kind": "english"
+      },
+      {
+        "label": "阿布哈西亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "Abkhazian",
+        "kind": "alias"
+      },
+      {
+        "label": "abkhaze",
+        "kind": "alias"
+      },
+      {
+        "label": "abjasio",
+        "kind": "alias"
+      }
+    ],
+    "guj": [
+      {
+        "label": "Gujarati",
+        "kind": "local"
+      },
+      {
+        "label": "ગુજરાતી",
+        "kind": "native"
+      },
+      {
+        "label": "古吉拉特语",
+        "kind": "alias"
+      },
+      {
+        "label": "goudjarati",
+        "kind": "alias"
+      },
+      {
+        "label": "guyaratí",
+        "kind": "alias"
+      }
+    ],
+    "szl": [
+      {
+        "label": "Schlesisch (Wasserpolnisch)",
+        "kind": "local"
+      },
+      {
+        "label": "ślōnski",
+        "kind": "native"
+      },
+      {
+        "label": "Silesian",
+        "kind": "english"
+      },
+      {
+        "label": "西里西亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "silésien",
+        "kind": "alias"
+      },
+      {
+        "label": "silesio",
+        "kind": "alias"
+      }
+    ],
+    "khm": [
+      {
+        "label": "Khmer",
+        "kind": "local"
+      },
+      {
+        "label": "ខ្មែរ",
+        "kind": "native"
+      },
+      {
+        "label": "高棉语",
+        "kind": "alias"
+      },
+      {
+        "label": "jemer",
+        "kind": "alias"
+      },
+      {
+        "label": "高棉文",
+        "kind": "alias"
+      },
+      {
+        "label": "柬语",
+        "kind": "alias"
+      },
+      {
+        "label": "柬語",
+        "kind": "alias"
+      },
+      {
+        "label": "柬埔寨语",
+        "kind": "alias"
+      },
+      {
+        "label": "柬埔寨語",
+        "kind": "alias"
+      }
+    ],
+    "zul": [
+      {
+        "label": "Zulu",
+        "kind": "local"
+      },
+      {
+        "label": "isiZulu",
+        "kind": "native"
+      },
+      {
+        "label": "祖鲁语",
+        "kind": "alias"
+      },
+      {
+        "label": "zoulou",
+        "kind": "alias"
+      },
+      {
+        "label": "zulú",
+        "kind": "alias"
+      }
+    ],
+    "bod": [
+      {
+        "label": "Tibetisch",
+        "kind": "local"
+      },
+      {
+        "label": "བོད་སྐད་",
+        "kind": "native"
+      },
+      {
+        "label": "Tibetan",
+        "kind": "english"
+      },
+      {
+        "label": "藏语",
+        "kind": "alias"
+      },
+      {
+        "label": "tibétain",
+        "kind": "alias"
+      },
+      {
+        "label": "tibetano",
+        "kind": "alias"
+      },
+      {
+        "label": "藏文",
+        "kind": "alias"
+      },
+      {
+        "label": "藏語",
+        "kind": "alias"
+      },
+      {
+        "label": "藏話",
+        "kind": "alias"
+      }
+    ],
+    "che": [
+      {
+        "label": "Tschetschenisch",
+        "kind": "local"
+      },
+      {
+        "label": "нохчийн",
+        "kind": "native"
+      },
+      {
+        "label": "Chechen",
+        "kind": "english"
+      },
+      {
+        "label": "车臣语",
+        "kind": "alias"
+      },
+      {
+        "label": "tchétchène",
+        "kind": "alias"
+      },
+      {
+        "label": "checheno",
+        "kind": "alias"
+      }
+    ],
+    "zza": [
+      {
+        "label": "Zaza",
+        "kind": "local"
+      },
+      {
+        "label": "Zazaki",
+        "kind": "english"
+      },
+      {
+        "label": "扎扎语",
+        "kind": "alias"
+      }
+    ],
+    "asm": [
+      {
+        "label": "Assamesisch",
+        "kind": "local"
+      },
+      {
+        "label": "অসমীয়া",
+        "kind": "native"
+      },
+      {
+        "label": "Assamese",
+        "kind": "english"
+      },
+      {
+        "label": "阿萨姆语",
+        "kind": "alias"
+      },
+      {
+        "label": "assamais",
+        "kind": "alias"
+      },
+      {
+        "label": "asamés",
+        "kind": "alias"
+      }
+    ],
+    "cor": [
+      {
+        "label": "Kornisch",
+        "kind": "local"
+      },
+      {
+        "label": "kernewek",
+        "kind": "native"
+      },
+      {
+        "label": "Cornish",
+        "kind": "english"
+      },
+      {
+        "label": "康沃尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "cornique",
+        "kind": "alias"
+      },
+      {
+        "label": "córnico",
+        "kind": "alias"
+      }
+    ],
+    "chv": [
+      {
+        "label": "Tschuwaschisch",
+        "kind": "local"
+      },
+      {
+        "label": "чӑваш",
+        "kind": "native"
+      },
+      {
+        "label": "Chuvash",
+        "kind": "english"
+      },
+      {
+        "label": "楚瓦什语",
+        "kind": "alias"
+      },
+      {
+        "label": "tchouvache",
+        "kind": "alias"
+      },
+      {
+        "label": "chuvasio",
+        "kind": "alias"
+      }
+    ],
+    "haw": [
+      {
+        "label": "Hawaiisch",
+        "kind": "local"
+      },
+      {
+        "label": "ʻŌlelo Hawaiʻi",
+        "kind": "native"
+      },
+      {
+        "label": "Hawaiian",
+        "kind": "english"
+      },
+      {
+        "label": "夏威夷语",
+        "kind": "alias"
+      },
+      {
+        "label": "hawaïen",
+        "kind": "alias"
+      },
+      {
+        "label": "hawaiano",
+        "kind": "alias"
+      }
+    ],
+    "sco": [
+      {
+        "label": "Schottisch",
+        "kind": "local"
+      },
+      {
+        "label": "Scots",
+        "kind": "english"
+      },
+      {
+        "label": "苏格兰语",
+        "kind": "alias"
+      },
+      {
+        "label": "écossais",
+        "kind": "alias"
+      },
+      {
+        "label": "escocés",
+        "kind": "alias"
+      }
+    ],
+    "vol": [
+      {
+        "label": "Volapük",
+        "kind": "local"
+      },
+      {
+        "label": "沃拉普克语",
+        "kind": "alias"
+      }
+    ],
+    "hbs": [
+      {
+        "label": "Serbo-Kroatisch",
+        "kind": "local"
+      },
+      {
+        "label": "srpskohrvatski",
+        "kind": "native"
+      },
+      {
+        "label": "Serbo-Croatian",
+        "kind": "english"
+      },
+      {
+        "label": "塞尔维亚-克罗地亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "serbo-croate",
+        "kind": "alias"
+      },
+      {
+        "label": "serbocroata",
+        "kind": "alias"
+      }
+    ],
+    "hau": [
+      {
+        "label": "Haussa",
+        "kind": "local"
+      },
+      {
+        "label": "Hausa",
+        "kind": "native"
+      },
+      {
+        "label": "豪萨语",
+        "kind": "alias"
+      },
+      {
+        "label": "haoussa",
+        "kind": "alias"
+      }
+    ],
+    "grn": [
+      {
+        "label": "Guaraní",
+        "kind": "local"
+      },
+      {
+        "label": "Guarani",
+        "kind": "english"
+      },
+      {
+        "label": "瓜拉尼语",
+        "kind": "alias"
+      }
+    ],
+    "som": [
+      {
+        "label": "Somali",
+        "kind": "local"
+      },
+      {
+        "label": "Soomaali",
+        "kind": "native"
+      },
+      {
+        "label": "索马里语",
+        "kind": "alias"
+      },
+      {
+        "label": "somalí",
+        "kind": "alias"
+      }
+    ],
+    "mlg": [
+      {
+        "label": "Malagasy",
+        "kind": "local"
+      },
+      {
+        "label": "马拉加斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "malgache",
+        "kind": "alias"
+      }
+    ],
+    "srd": [
+      {
+        "label": "Sardisch",
+        "kind": "local"
+      },
+      {
+        "label": "sardu",
+        "kind": "native"
+      },
+      {
+        "label": "Sardinian",
+        "kind": "english"
+      },
+      {
+        "label": "萨丁语",
+        "kind": "alias"
+      },
+      {
+        "label": "sarde",
+        "kind": "alias"
+      },
+      {
+        "label": "sardo",
+        "kind": "alias"
+      }
+    ],
+    "ory": [
+      {
+        "label": "Oriya",
+        "kind": "local"
+      },
+      {
+        "label": "ଓଡ଼ିଆ",
+        "kind": "native"
+      },
+      {
+        "label": "Odia",
+        "kind": "english"
+      },
+      {
+        "label": "奥里亚语",
+        "kind": "alias"
+      }
+    ],
+    "glv": [
+      {
+        "label": "Manx",
+        "kind": "local"
+      },
+      {
+        "label": "Gaelg",
+        "kind": "native"
+      },
+      {
+        "label": "马恩语",
+        "kind": "alias"
+      },
+      {
+        "label": "mannois",
+        "kind": "alias"
+      },
+      {
+        "label": "manés",
+        "kind": "alias"
+      }
+    ],
+    "arg": [
+      {
+        "label": "Aragonesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Aragonese",
+        "kind": "english"
+      },
+      {
+        "label": "阿拉贡语",
+        "kind": "alias"
+      },
+      {
+        "label": "aragonais",
+        "kind": "alias"
+      },
+      {
+        "label": "aragonés",
+        "kind": "alias"
+      }
+    ],
+    "crh": [
+      {
+        "label": "Krimtatarisch",
+        "kind": "local"
+      },
+      {
+        "label": "Crimean Tatar",
+        "kind": "english"
+      },
+      {
+        "label": "克里米亚鞑靼语",
+        "kind": "alias"
+      },
+      {
+        "label": "tatar de Crimée",
+        "kind": "alias"
+      },
+      {
+        "label": "tártaro de Crimea",
+        "kind": "alias"
+      }
+    ],
+    "lao": [
+      {
+        "label": "Laotisch",
+        "kind": "local"
+      },
+      {
+        "label": "ລາວ",
+        "kind": "native"
+      },
+      {
+        "label": "Lao",
+        "kind": "english"
+      },
+      {
+        "label": "老挝语",
+        "kind": "alias"
+      }
+    ],
+    "sah": [
+      {
+        "label": "Jakutisch",
+        "kind": "local"
+      },
+      {
+        "label": "саха тыла",
+        "kind": "native"
+      },
+      {
+        "label": "Yakut",
+        "kind": "english"
+      },
+      {
+        "label": "萨哈语",
+        "kind": "alias"
+      },
+      {
+        "label": "iakoute",
+        "kind": "alias"
+      },
+      {
+        "label": "sakha",
+        "kind": "alias"
+      }
+    ],
+    "cop": [
+      {
+        "label": "Koptisch",
+        "kind": "local"
+      },
+      {
+        "label": "Coptic",
+        "kind": "english"
+      },
+      {
+        "label": "科普特语",
+        "kind": "alias"
+      },
+      {
+        "label": "copte",
+        "kind": "alias"
+      },
+      {
+        "label": "copto",
+        "kind": "alias"
+      }
+    ],
+    "pli": [
+      {
+        "label": "Pali",
+        "kind": "local"
+      },
+      {
+        "label": "巴利语",
+        "kind": "alias"
+      }
+    ],
+    "xho": [
+      {
+        "label": "Xhosa",
+        "kind": "local"
+      },
+      {
+        "label": "IsiXhosa",
+        "kind": "native"
+      },
+      {
+        "label": "科萨语",
+        "kind": "alias"
+      }
+    ],
+    "csb": [
+      {
+        "label": "Kaschubisch",
+        "kind": "local"
+      },
+      {
+        "label": "Kashubian",
+        "kind": "english"
+      },
+      {
+        "label": "卡舒比语",
+        "kind": "alias"
+      },
+      {
+        "label": "kachoube",
+        "kind": "alias"
+      },
+      {
+        "label": "casubio",
+        "kind": "alias"
+      }
+    ],
+    "arn": [
+      {
+        "label": "Mapudungun",
+        "kind": "local"
+      },
+      {
+        "label": "马普切语",
+        "kind": "alias"
+      },
+      {
+        "label": "Mapuche",
+        "kind": "alias"
+      }
+    ],
+    "sin": [
+      {
+        "label": "Singhalesisch",
+        "kind": "local"
+      },
+      {
+        "label": "සිංහල",
+        "kind": "native"
+      },
+      {
+        "label": "Sinhala",
+        "kind": "english"
+      },
+      {
+        "label": "僧伽罗语",
+        "kind": "alias"
+      },
+      {
+        "label": "cingalais",
+        "kind": "alias"
+      },
+      {
+        "label": "cingalés",
+        "kind": "alias"
+      },
+      {
+        "label": "sinhalese",
+        "kind": "alias"
+      }
+    ],
+    "ang": [
+      {
+        "label": "Altenglisch",
+        "kind": "local"
+      },
+      {
+        "label": "Old English",
+        "kind": "english"
+      },
+      {
+        "label": "古英语",
+        "kind": "alias"
+      },
+      {
+        "label": "ancien anglais",
+        "kind": "alias"
+      },
+      {
+        "label": "inglés antiguo",
+        "kind": "alias"
+      }
+    ],
+    "kas": [
+      {
+        "label": "Kaschmiri",
+        "kind": "local"
+      },
+      {
+        "label": "کٲشُر",
+        "kind": "native"
+      },
+      {
+        "label": "Kashmiri",
+        "kind": "english"
+      },
+      {
+        "label": "克什米尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "cachemiri",
+        "kind": "alias"
+      },
+      {
+        "label": "cachemir",
+        "kind": "alias"
+      }
+    ],
+    "got": [
+      {
+        "label": "Gotisch",
+        "kind": "local"
+      },
+      {
+        "label": "Gothic",
+        "kind": "english"
+      },
+      {
+        "label": "哥特语",
+        "kind": "alias"
+      },
+      {
+        "label": "gotique",
+        "kind": "alias"
+      },
+      {
+        "label": "gótico",
+        "kind": "alias"
+      }
+    ],
+    "egy": [
+      {
+        "label": "Ägyptisch",
+        "kind": "local"
+      },
+      {
+        "label": "Egyptian",
+        "kind": "english"
+      },
+      {
+        "label": "古埃及语",
+        "kind": "alias"
+      },
+      {
+        "label": "Ancient Egyptian",
+        "kind": "alias"
+      },
+      {
+        "label": "égyptien ancien",
+        "kind": "alias"
+      },
+      {
+        "label": "egipcio antiguo",
+        "kind": "alias"
+      }
+    ],
+    "rom": [
+      {
+        "label": "Romani",
+        "kind": "local"
+      },
+      {
+        "label": "吉普赛语",
+        "kind": "alias"
+      },
+      {
+        "label": "Romany",
+        "kind": "alias"
+      },
+      {
+        "label": "romaní",
+        "kind": "alias"
+      }
+    ],
+    "snd": [
+      {
+        "label": "Sindhi",
+        "kind": "local"
+      },
+      {
+        "label": "سنڌي",
+        "kind": "native"
+      },
+      {
+        "label": "信德语",
+        "kind": "alias"
+      },
+      {
+        "label": "sindi",
+        "kind": "alias"
+      }
+    ],
+    "cos": [
+      {
+        "label": "Korsisch",
+        "kind": "local"
+      },
+      {
+        "label": "Corsican",
+        "kind": "english"
+      },
+      {
+        "label": "科西嘉语",
+        "kind": "alias"
+      },
+      {
+        "label": "corse",
+        "kind": "alias"
+      },
+      {
+        "label": "corso",
+        "kind": "alias"
+      }
+    ],
+    "ceb": [
+      {
+        "label": "Cebuano",
+        "kind": "local"
+      },
+      {
+        "label": "宿务语",
+        "kind": "alias"
+      }
+    ],
+    "nds": [
+      {
+        "label": "Niederdeutsch",
+        "kind": "local"
+      },
+      {
+        "label": "Neddersass’sch",
+        "kind": "native"
+      },
+      {
+        "label": "Low German",
+        "kind": "english"
+      },
+      {
+        "label": "低地德语",
+        "kind": "alias"
+      },
+      {
+        "label": "bas-allemand",
+        "kind": "alias"
+      },
+      {
+        "label": "bajo alemán",
+        "kind": "alias"
+      }
+    ],
+    "aym": [
+      {
+        "label": "Aymara",
+        "kind": "local"
+      },
+      {
+        "label": "艾马拉语",
+        "kind": "alias"
+      },
+      {
+        "label": "aimara",
+        "kind": "alias"
+      }
+    ],
+    "scn": [
+      {
+        "label": "Sizilianisch",
+        "kind": "local"
+      },
+      {
+        "label": "Sicilian",
+        "kind": "english"
+      },
+      {
+        "label": "西西里语",
+        "kind": "alias"
+      },
+      {
+        "label": "sicilien",
+        "kind": "alias"
+      },
+      {
+        "label": "siciliano",
+        "kind": "alias"
+      }
+    ],
+    "ast": [
+      {
+        "label": "Asturisch",
+        "kind": "local"
+      },
+      {
+        "label": "asturianu",
+        "kind": "native"
+      },
+      {
+        "label": "Asturian",
+        "kind": "english"
+      },
+      {
+        "label": "阿斯图里亚斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "asturien",
+        "kind": "alias"
+      },
+      {
+        "label": "asturiano",
+        "kind": "alias"
+      }
+    ],
+    "dzo": [
+      {
+        "label": "Dzongkha",
+        "kind": "local"
+      },
+      {
+        "label": "རྫོང་ཁ",
+        "kind": "native"
+      },
+      {
+        "label": "宗卡语",
+        "kind": "alias"
+      }
+    ],
+    "tok": [
+      {
+        "label": "Toki Pona",
+        "kind": "local"
+      },
+      {
+        "label": "道本语",
+        "kind": "alias"
+      }
+    ],
+    "kal": [
+      {
+        "label": "Grönländisch",
+        "kind": "local"
+      },
+      {
+        "label": "kalaallisut",
+        "kind": "native"
+      },
+      {
+        "label": "Greenlandic",
+        "kind": "english"
+      },
+      {
+        "label": "格陵兰语",
+        "kind": "alias"
+      },
+      {
+        "label": "groenlandais",
+        "kind": "alias"
+      },
+      {
+        "label": "groenlandés",
+        "kind": "alias"
+      }
+    ],
+    "ava": [
+      {
+        "label": "Awarisch",
+        "kind": "local"
+      },
+      {
+        "label": "Avar",
+        "kind": "english"
+      },
+      {
+        "label": "阿瓦尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "Avaric",
+        "kind": "alias"
+      }
+    ],
+    "sun": [
+      {
+        "label": "Sundanesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Basa Sunda",
+        "kind": "native"
+      },
+      {
+        "label": "Sundanese",
+        "kind": "english"
+      },
+      {
+        "label": "巽他语",
+        "kind": "alias"
+      },
+      {
+        "label": "soundanais",
+        "kind": "alias"
+      },
+      {
+        "label": "sundanés",
+        "kind": "alias"
+      }
+    ],
+    "wln": [
+      {
+        "label": "Wallonisch",
+        "kind": "local"
+      },
+      {
+        "label": "Walloon",
+        "kind": "english"
+      },
+      {
+        "label": "瓦隆语",
+        "kind": "alias"
+      },
+      {
+        "label": "wallon",
+        "kind": "alias"
+      },
+      {
+        "label": "valón",
+        "kind": "alias"
+      }
+    ],
+    "cnr": [
+      {
+        "label": "Montenegrinisch",
+        "kind": "local"
+      },
+      {
+        "label": "crnogorski",
+        "kind": "native"
+      },
+      {
+        "label": "Montenegrin",
+        "kind": "english"
+      },
+      {
+        "label": "黑山语",
+        "kind": "alias"
+      },
+      {
+        "label": "monténégrin",
+        "kind": "alias"
+      },
+      {
+        "label": "montenegrino",
+        "kind": "alias"
+      }
+    ],
+    "prs": [
+      {
+        "label": "Dari",
+        "kind": "local"
+      },
+      {
+        "label": "دری",
+        "kind": "native"
+      },
+      {
+        "label": "达里语",
+        "kind": "alias"
+      },
+      {
+        "label": "darí",
+        "kind": "alias"
+      }
+    ],
+    "nap": [
+      {
+        "label": "Neapolitanisch",
+        "kind": "local"
+      },
+      {
+        "label": "Neapolitan",
+        "kind": "english"
+      },
+      {
+        "label": "那不勒斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "napolitain",
+        "kind": "alias"
+      },
+      {
+        "label": "napolitano",
+        "kind": "alias"
+      }
+    ],
+    "tir": [
+      {
+        "label": "Tigrinya",
+        "kind": "local"
+      },
+      {
+        "label": "ትግርኛ",
+        "kind": "native"
+      },
+      {
+        "label": "提格利尼亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "tigrigna",
+        "kind": "alias"
+      },
+      {
+        "label": "tigriña",
+        "kind": "alias"
+      }
+    ],
+    "ain": [
+      {
+        "label": "Ainu",
+        "kind": "local"
+      },
+      {
+        "label": "阿伊努语",
+        "kind": "alias"
+      },
+      {
+        "label": "aïnou",
+        "kind": "alias"
+      }
+    ],
+    "udm": [
+      {
+        "label": "Udmurtisch",
+        "kind": "local"
+      },
+      {
+        "label": "Udmurt",
+        "kind": "english"
+      },
+      {
+        "label": "乌德穆尔特语",
+        "kind": "alias"
+      },
+      {
+        "label": "oudmourte",
+        "kind": "alias"
+      }
+    ],
+    "akk": [
+      {
+        "label": "Akkadisch",
+        "kind": "local"
+      },
+      {
+        "label": "Akkadian",
+        "kind": "english"
+      },
+      {
+        "label": "阿卡德语",
+        "kind": "alias"
+      },
+      {
+        "label": "akkadien",
+        "kind": "alias"
+      },
+      {
+        "label": "acadio",
+        "kind": "alias"
+      }
+    ],
+    "gag": [
+      {
+        "label": "Gagausisch",
+        "kind": "local"
+      },
+      {
+        "label": "Gagauz",
+        "kind": "english"
+      },
+      {
+        "label": "加告兹语",
+        "kind": "alias"
+      },
+      {
+        "label": "gagaouze",
+        "kind": "alias"
+      },
+      {
+        "label": "gagauzo",
+        "kind": "alias"
+      }
+    ],
+    "ibo": [
+      {
+        "label": "Igbo",
+        "kind": "local"
+      },
+      {
+        "label": "伊博语",
+        "kind": "alias"
+      }
+    ],
+    "krl": [
+      {
+        "label": "Karelisch",
+        "kind": "local"
+      },
+      {
+        "label": "Karelian",
+        "kind": "english"
+      },
+      {
+        "label": "卡累利阿语",
+        "kind": "alias"
+      },
+      {
+        "label": "carélien",
+        "kind": "alias"
+      },
+      {
+        "label": "carelio",
+        "kind": "alias"
+      }
+    ],
+    "ave": [
+      {
+        "label": "Avestisch",
+        "kind": "local"
+      },
+      {
+        "label": "Avestan",
+        "kind": "english"
+      },
+      {
+        "label": "阿维斯塔语",
+        "kind": "alias"
+      },
+      {
+        "label": "avestique",
+        "kind": "alias"
+      },
+      {
+        "label": "avéstico",
+        "kind": "alias"
+      }
+    ],
+    "div": [
+      {
+        "label": "Dhivehi",
+        "kind": "local"
+      },
+      {
+        "label": "迪维希语",
+        "kind": "alias"
+      },
+      {
+        "label": "maldivien",
+        "kind": "alias"
+      },
+      {
+        "label": "divehi",
+        "kind": "alias"
+      },
+      {
+        "label": "maldivian",
+        "kind": "alias"
+      }
+    ],
+    "isv": [
+      {
+        "label": "Interslavic",
+        "kind": "english"
+      }
+    ],
+    "tyv": [
+      {
+        "label": "Tuwinisch",
+        "kind": "local"
+      },
+      {
+        "label": "Tuvan",
+        "kind": "english"
+      },
+      {
+        "label": "图瓦语",
+        "kind": "alias"
+      },
+      {
+        "label": "Tuvinian",
+        "kind": "alias"
+      },
+      {
+        "label": "touvain",
+        "kind": "alias"
+      },
+      {
+        "label": "tuviniano",
+        "kind": "alias"
+      }
+    ],
+    "lmo": [
+      {
+        "label": "Lombardisch",
+        "kind": "local"
+      },
+      {
+        "label": "Lombard",
+        "kind": "native"
+      },
+      {
+        "label": "伦巴第语",
+        "kind": "alias"
+      },
+      {
+        "label": "lombardo",
+        "kind": "alias"
+      }
+    ],
+    "ota": [
+      {
+        "label": "Osmanisch",
+        "kind": "local"
+      },
+      {
+        "label": "Ottoman Turkish",
+        "kind": "english"
+      },
+      {
+        "label": "奥斯曼土耳其语",
+        "kind": "alias"
+      },
+      {
+        "label": "turc ottoman",
+        "kind": "alias"
+      },
+      {
+        "label": "turco otomano",
+        "kind": "alias"
+      }
+    ],
+    "myv": [
+      {
+        "label": "Ersja-Mordwinisch",
+        "kind": "local"
+      },
+      {
+        "label": "Erzya",
+        "kind": "english"
+      },
+      {
+        "label": "厄尔兹亚语",
+        "kind": "alias"
+      }
+    ],
+    "bal": [
+      {
+        "label": "Belutschisch",
+        "kind": "local"
+      },
+      {
+        "label": "Balochi",
+        "kind": "english"
+      },
+      {
+        "label": "俾路支语",
+        "kind": "alias"
+      },
+      {
+        "label": "Baluchi",
+        "kind": "alias"
+      },
+      {
+        "label": "baloutchi",
+        "kind": "alias"
+      }
+    ],
+    "yor": [
+      {
+        "label": "Yoruba",
+        "kind": "local"
+      },
+      {
+        "label": "Èdè Yorùbá",
+        "kind": "native"
+      },
+      {
+        "label": "约鲁巴语",
+        "kind": "alias"
+      }
+    ],
+    "pms": [
+      {
+        "label": "Piemontesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Piedmontese",
+        "kind": "english"
+      },
+      {
+        "label": "piémontais",
+        "kind": "alias"
+      }
+    ],
+    "ady": [
+      {
+        "label": "Adygeisch",
+        "kind": "local"
+      },
+      {
+        "label": "Adyghe",
+        "kind": "english"
+      },
+      {
+        "label": "阿迪格语",
+        "kind": "alias"
+      },
+      {
+        "label": "adyguéen",
+        "kind": "alias"
+      },
+      {
+        "label": "adigué",
+        "kind": "alias"
+      }
+    ],
+    "wol": [
+      {
+        "label": "Wolof",
+        "kind": "local"
+      },
+      {
+        "label": "沃洛夫语",
+        "kind": "alias"
+      },
+      {
+        "label": "wólof",
+        "kind": "alias"
+      }
+    ],
+    "fur": [
+      {
+        "label": "Friaulisch",
+        "kind": "local"
+      },
+      {
+        "label": "furlan",
+        "kind": "native"
+      },
+      {
+        "label": "Friulian",
+        "kind": "english"
+      },
+      {
+        "label": "弗留利语",
+        "kind": "alias"
+      },
+      {
+        "label": "frioulan",
+        "kind": "alias"
+      },
+      {
+        "label": "friulano",
+        "kind": "alias"
+      }
+    ],
+    "smo": [
+      {
+        "label": "Samoanisch",
+        "kind": "local"
+      },
+      {
+        "label": "Samoan",
+        "kind": "english"
+      },
+      {
+        "label": "萨摩亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "samoano",
+        "kind": "alias"
+      }
+    ],
+    "rue": [
+      {
+        "label": "Russinisch",
+        "kind": "local"
+      },
+      {
+        "label": "Rusyn",
+        "kind": "english"
+      },
+      {
+        "label": "ruthène",
+        "kind": "alias"
+      }
+    ],
+    "sot": [
+      {
+        "label": "Süd-Sotho",
+        "kind": "local"
+      },
+      {
+        "label": "Sesotho",
+        "kind": "native"
+      },
+      {
+        "label": "南索托语",
+        "kind": "alias"
+      },
+      {
+        "label": "Southern Sotho",
+        "kind": "alias"
+      },
+      {
+        "label": "sotho du Sud",
+        "kind": "alias"
+      },
+      {
+        "label": "sotho meridional",
+        "kind": "alias"
+      }
+    ],
+    "hat": [
+      {
+        "label": "Haiti-Kreolisch",
+        "kind": "local"
+      },
+      {
+        "label": "Haitian Creole",
+        "kind": "english"
+      },
+      {
+        "label": "海地克里奥尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "créole haïtien",
+        "kind": "alias"
+      },
+      {
+        "label": "criollo haitiano",
+        "kind": "alias"
+      }
+    ],
+    "syc": [
+      {
+        "label": "Altsyrisch",
+        "kind": "local"
+      },
+      {
+        "label": "Syriac",
+        "kind": "english"
+      },
+      {
+        "label": "古典叙利亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "Classical Syriac",
+        "kind": "alias"
+      },
+      {
+        "label": "syriaque classique",
+        "kind": "alias"
+      },
+      {
+        "label": "siríaco clásico",
+        "kind": "alias"
+      }
+    ],
+    "kom": [
+      {
+        "label": "Komi",
+        "kind": "local"
+      },
+      {
+        "label": "科米语",
+        "kind": "alias"
+      }
+    ],
+    "kin": [
+      {
+        "label": "Kinyarwanda",
+        "kind": "local"
+      },
+      {
+        "label": "Ikinyarwanda",
+        "kind": "native"
+      },
+      {
+        "label": "卢旺达语",
+        "kind": "alias"
+      }
+    ],
+    "hif": [
+      {
+        "label": "Fidschi-Hindi",
+        "kind": "local"
+      },
+      {
+        "label": "Fiji Hindi",
+        "kind": "english"
+      },
+      {
+        "label": "hindi fidjien",
+        "kind": "alias"
+      }
+    ],
+    "tpi": [
+      {
+        "label": "Neumelanesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Tok Pisin",
+        "kind": "english"
+      },
+      {
+        "label": "托克皮辛语",
+        "kind": "alias"
+      }
+    ],
+    "nav": [
+      {
+        "label": "Navajo",
+        "kind": "local"
+      },
+      {
+        "label": "纳瓦霍语",
+        "kind": "alias"
+      }
+    ],
+    "ton": [
+      {
+        "label": "Tongaisch",
+        "kind": "local"
+      },
+      {
+        "label": "lea fakatonga",
+        "kind": "native"
+      },
+      {
+        "label": "Tongan",
+        "kind": "english"
+      },
+      {
+        "label": "汤加语",
+        "kind": "alias"
+      },
+      {
+        "label": "tongien",
+        "kind": "alias"
+      },
+      {
+        "label": "tongano",
+        "kind": "alias"
+      }
+    ],
+    "nob": [
+      {
+        "label": "Norwegisch (Bokmål)",
+        "kind": "local"
+      },
+      {
+        "label": "norsk bokmål",
+        "kind": "native"
+      },
+      {
+        "label": "Bokmål",
+        "kind": "english"
+      },
+      {
+        "label": "书面挪威语",
+        "kind": "alias"
+      },
+      {
+        "label": "Norwegian Bokmål",
+        "kind": "alias"
+      },
+      {
+        "label": "norvégien bokmål",
+        "kind": "alias"
+      },
+      {
+        "label": "noruego bokmal",
+        "kind": "alias"
+      }
+    ],
+    "nno": [
+      {
+        "label": "Norwegisch (Nynorsk)",
+        "kind": "local"
+      },
+      {
+        "label": "norsk nynorsk",
+        "kind": "native"
+      },
+      {
+        "label": "Nynorsk",
+        "kind": "english"
+      },
+      {
+        "label": "挪威尼诺斯克语",
+        "kind": "alias"
+      },
+      {
+        "label": "Norwegian Nynorsk",
+        "kind": "alias"
+      },
+      {
+        "label": "norvégien nynorsk",
+        "kind": "alias"
+      },
+      {
+        "label": "noruego nynorsk",
+        "kind": "alias"
+      }
+    ],
+    "kok": [
+      {
+        "label": "Konkani",
+        "kind": "local"
+      },
+      {
+        "label": "कोंकणी",
+        "kind": "native"
+      },
+      {
+        "label": "孔卡尼语",
+        "kind": "alias"
+      },
+      {
+        "label": "konkaní",
+        "kind": "alias"
+      }
+    ],
+    "mai": [
+      {
+        "label": "Maithili",
+        "kind": "local"
+      },
+      {
+        "label": "मैथिली",
+        "kind": "native"
+      },
+      {
+        "label": "迈蒂利语",
+        "kind": "alias"
+      },
+      {
+        "label": "maïthili",
+        "kind": "alias"
+      }
+    ],
+    "mnc": [
+      {
+        "label": "Mandschurisch",
+        "kind": "local"
+      },
+      {
+        "label": "Manchu",
+        "kind": "english"
+      },
+      {
+        "label": "满语",
+        "kind": "alias"
+      },
+      {
+        "label": "mandchou",
+        "kind": "alias"
+      },
+      {
+        "label": "manchú",
+        "kind": "alias"
+      },
+      {
+        "label": "滿語",
+        "kind": "alias"
+      }
+    ],
+    "liv": [
+      {
+        "label": "Livisch",
+        "kind": "local"
+      },
+      {
+        "label": "Livonian",
+        "kind": "english"
+      },
+      {
+        "label": "livonien",
+        "kind": "alias"
+      }
+    ],
+    "nov": [
+      {
+        "label": "Novial",
+        "kind": "local"
+      }
+    ],
+    "tsn": [
+      {
+        "label": "Tswana",
+        "kind": "local"
+      },
+      {
+        "label": "Setswana",
+        "kind": "native"
+      },
+      {
+        "label": "茨瓦纳语",
+        "kind": "alias"
+      },
+      {
+        "label": "setsuana",
+        "kind": "alias"
+      }
+    ],
+    "vec": [
+      {
+        "label": "Venetisch",
+        "kind": "local"
+      },
+      {
+        "label": "veneto",
+        "kind": "native"
+      },
+      {
+        "label": "Venetian",
+        "kind": "english"
+      },
+      {
+        "label": "威尼斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "vénitien",
+        "kind": "alias"
+      },
+      {
+        "label": "veneciano",
+        "kind": "alias"
+      }
+    ],
+    "sux": [
+      {
+        "label": "Sumerisch",
+        "kind": "local"
+      },
+      {
+        "label": "Sumerian",
+        "kind": "english"
+      },
+      {
+        "label": "苏美尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "sumérien",
+        "kind": "alias"
+      },
+      {
+        "label": "sumerio",
+        "kind": "alias"
+      }
+    ],
+    "hsb": [
+      {
+        "label": "Obersorbisch",
+        "kind": "local"
+      },
+      {
+        "label": "hornjoserbšćina",
+        "kind": "native"
+      },
+      {
+        "label": "Upper Sorbian",
+        "kind": "english"
+      },
+      {
+        "label": "上索布语",
+        "kind": "alias"
+      },
+      {
+        "label": "haut-sorabe",
+        "kind": "alias"
+      },
+      {
+        "label": "alto sorbio",
+        "kind": "alias"
+      }
+    ],
+    "lim": [
+      {
+        "label": "Limburgisch",
+        "kind": "local"
+      },
+      {
+        "label": "Limburgish language",
+        "kind": "english"
+      },
+      {
+        "label": "林堡语",
+        "kind": "alias"
+      },
+      {
+        "label": "Limburgish",
+        "kind": "alias"
+      },
+      {
+        "label": "limbourgeois",
+        "kind": "alias"
+      },
+      {
+        "label": "limburgués",
+        "kind": "alias"
+      }
+    ],
+    "tlh": [
+      {
+        "label": "Klingonisch",
+        "kind": "local"
+      },
+      {
+        "label": "Klingon",
+        "kind": "english"
+      },
+      {
+        "label": "克林贡语",
+        "kind": "alias"
+      }
+    ],
+    "new": [
+      {
+        "label": "Newari",
+        "kind": "local"
+      },
+      {
+        "label": "Newar",
+        "kind": "english"
+      },
+      {
+        "label": "尼瓦尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "nevarí",
+        "kind": "alias"
+      }
+    ],
+    "bua": [
+      {
+        "label": "Burjatisch",
+        "kind": "local"
+      },
+      {
+        "label": "Buryat",
+        "kind": "english"
+      },
+      {
+        "label": "布里亚特语",
+        "kind": "alias"
+      },
+      {
+        "label": "Buriat",
+        "kind": "alias"
+      },
+      {
+        "label": "bouriate",
+        "kind": "alias"
+      },
+      {
+        "label": "buriato",
+        "kind": "alias"
+      }
+    ],
+    "lld": [
+      {
+        "label": "Ladin",
+        "kind": "english"
+      }
+    ],
+    "sme": [
+      {
+        "label": "Nordsamisch",
+        "kind": "local"
+      },
+      {
+        "label": "davvisámegiella",
+        "kind": "native"
+      },
+      {
+        "label": "Northern Sami",
+        "kind": "english"
+      },
+      {
+        "label": "北方萨米语",
+        "kind": "alias"
+      },
+      {
+        "label": "same du Nord",
+        "kind": "alias"
+      },
+      {
+        "label": "sami septentrional",
+        "kind": "alias"
+      }
+    ],
+    "ssw": [
+      {
+        "label": "Swazi",
+        "kind": "local"
+      },
+      {
+        "label": "斯瓦蒂语",
+        "kind": "alias"
+      },
+      {
+        "label": "Swati",
+        "kind": "alias"
+      },
+      {
+        "label": "suazi",
+        "kind": "alias"
+      }
+    ],
+    "aar": [
+      {
+        "label": "Afar",
+        "kind": "local"
+      },
+      {
+        "label": "阿法尔语",
+        "kind": "alias"
+      }
+    ],
+    "lez": [
+      {
+        "label": "Lesgisch",
+        "kind": "local"
+      },
+      {
+        "label": "Lezgian",
+        "kind": "english"
+      },
+      {
+        "label": "列兹金语",
+        "kind": "alias"
+      },
+      {
+        "label": "Lezghian",
+        "kind": "alias"
+      },
+      {
+        "label": "lezghien",
+        "kind": "alias"
+      },
+      {
+        "label": "lezgiano",
+        "kind": "alias"
+      }
+    ],
+    "bho": [
+      {
+        "label": "Bhodschpuri",
+        "kind": "local"
+      },
+      {
+        "label": "भोजपुरी",
+        "kind": "native"
+      },
+      {
+        "label": "Bhojpuri",
+        "kind": "english"
+      },
+      {
+        "label": "博杰普尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "bhodjpouri",
+        "kind": "alias"
+      },
+      {
+        "label": "bhoyapurí",
+        "kind": "alias"
+      }
+    ],
+    "kaa": [
+      {
+        "label": "Karakalpakisch",
+        "kind": "local"
+      },
+      {
+        "label": "Karakalpak",
+        "kind": "english"
+      },
+      {
+        "label": "卡拉卡尔帕克语",
+        "kind": "alias"
+      },
+      {
+        "label": "Kara-Kalpak",
+        "kind": "alias"
+      },
+      {
+        "label": "karakalpako",
+        "kind": "alias"
+      }
+    ],
+    "dsb": [
+      {
+        "label": "Niedersorbisch",
+        "kind": "local"
+      },
+      {
+        "label": "dolnoserbšćina",
+        "kind": "native"
+      },
+      {
+        "label": "Lower Sorbian",
+        "kind": "english"
+      },
+      {
+        "label": "下索布语",
+        "kind": "alias"
+      },
+      {
+        "label": "bas-sorabe",
+        "kind": "alias"
+      },
+      {
+        "label": "bajo sorbio",
+        "kind": "alias"
+      }
+    ],
+    "mni": [
+      {
+        "label": "Meithei",
+        "kind": "local"
+      },
+      {
+        "label": "মৈতৈলোন্",
+        "kind": "native"
+      },
+      {
+        "label": "Meitei",
+        "kind": "english"
+      },
+      {
+        "label": "曼尼普尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "Manipuri",
+        "kind": "alias"
+      },
+      {
+        "label": "manipurí",
+        "kind": "alias"
+      }
+    ],
+    "rup": [
+      {
+        "label": "Aromunisch",
+        "kind": "local"
+      },
+      {
+        "label": "Aromanian",
+        "kind": "english"
+      },
+      {
+        "label": "阿罗马尼亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "aroumain",
+        "kind": "alias"
+      },
+      {
+        "label": "arrumano",
+        "kind": "alias"
+      }
+    ],
+    "iku": [
+      {
+        "label": "Inuktitut",
+        "kind": "local"
+      },
+      {
+        "label": "因纽特语",
+        "kind": "alias"
+      }
+    ],
+    "nau": [
+      {
+        "label": "Nauruisch",
+        "kind": "local"
+      },
+      {
+        "label": "Nauruan",
+        "kind": "english"
+      },
+      {
+        "label": "瑙鲁语",
+        "kind": "alias"
+      },
+      {
+        "label": "Nauru",
+        "kind": "alias"
+      },
+      {
+        "label": "nauruano",
+        "kind": "alias"
+      }
+    ],
+    "pap": [
+      {
+        "label": "Papiamento",
+        "kind": "local"
+      },
+      {
+        "label": "帕皮阿门托语",
+        "kind": "alias"
+      }
+    ],
+    "bar": [
+      {
+        "label": "Bairisch",
+        "kind": "local"
+      },
+      {
+        "label": "Bavarian",
+        "kind": "english"
+      },
+      {
+        "label": "bavarois",
+        "kind": "alias"
+      }
+    ],
+    "run": [
+      {
+        "label": "Rundi",
+        "kind": "local"
+      },
+      {
+        "label": "Ikirundi",
+        "kind": "native"
+      },
+      {
+        "label": "Kirundi",
+        "kind": "english"
+      },
+      {
+        "label": "隆迪语",
+        "kind": "alias"
+      },
+      {
+        "label": "roundi",
+        "kind": "alias"
+      }
+    ],
+    "krc": [
+      {
+        "label": "Karatschaiisch-Balkarisch",
+        "kind": "local"
+      },
+      {
+        "label": "Karachay-Balkar",
+        "kind": "english"
+      },
+      {
+        "label": "卡拉恰伊巴尔卡尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "karatchaï balkar",
+        "kind": "alias"
+      }
+    ],
+    "tet": [
+      {
+        "label": "Tetum",
+        "kind": "local"
+      },
+      {
+        "label": "德顿语",
+        "kind": "alias"
+      },
+      {
+        "label": "tétoum",
+        "kind": "alias"
+      },
+      {
+        "label": "tetún",
+        "kind": "alias"
+      }
+    ],
+    "vep": [
+      {
+        "label": "Wepsisch",
+        "kind": "local"
+      },
+      {
+        "label": "Veps",
+        "kind": "english"
+      },
+      {
+        "label": "维普森语",
+        "kind": "alias"
+      },
+      {
+        "label": "vepse",
+        "kind": "alias"
+      }
+    ],
+    "non": [
+      {
+        "label": "Altnordisch",
+        "kind": "local"
+      },
+      {
+        "label": "Old Norse",
+        "kind": "english"
+      },
+      {
+        "label": "古诺尔斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "vieux norrois",
+        "kind": "alias"
+      },
+      {
+        "label": "nórdico antiguo",
+        "kind": "alias"
+      }
+    ],
+    "nya": [
+      {
+        "label": "Nyanja",
+        "kind": "local"
+      },
+      {
+        "label": "Chewa",
+        "kind": "english"
+      },
+      {
+        "label": "齐切瓦语",
+        "kind": "alias"
+      }
+    ],
+    "chr": [
+      {
+        "label": "Cherokee",
+        "kind": "local"
+      },
+      {
+        "label": "ᏣᎳᎩ",
+        "kind": "native"
+      },
+      {
+        "label": "切罗基语",
+        "kind": "alias"
+      },
+      {
+        "label": "cheroqui",
+        "kind": "alias"
+      }
+    ],
+    "wuu": [
+      {
+        "label": "Wu-Chinesisch",
+        "kind": "local"
+      },
+      {
+        "label": "吴语",
+        "kind": "native"
+      },
+      {
+        "label": "Wu Chinese",
+        "kind": "english"
+      },
+      {
+        "label": "chinois wu",
+        "kind": "alias"
+      },
+      {
+        "label": "chino wu",
+        "kind": "alias"
+      },
+      {
+        "label": "shanghainese",
+        "kind": "alias"
+      },
+      {
+        "label": "上海话",
+        "kind": "alias"
+      },
+      {
+        "label": "上海话方言",
+        "kind": "alias"
+      }
+    ],
+    "bam": [
+      {
+        "label": "Bambara",
+        "kind": "local"
+      },
+      {
+        "label": "bamanakan",
+        "kind": "native"
+      },
+      {
+        "label": "班巴拉语",
+        "kind": "alias"
+      }
+    ],
+    "ful": [
+      {
+        "label": "Ful",
+        "kind": "local"
+      },
+      {
+        "label": "Pulaar",
+        "kind": "native"
+      },
+      {
+        "label": "Fula",
+        "kind": "english"
+      },
+      {
+        "label": "富拉语",
+        "kind": "alias"
+      },
+      {
+        "label": "peul",
+        "kind": "alias"
+      }
+    ],
+    "inh": [
+      {
+        "label": "Inguschisch",
+        "kind": "local"
+      },
+      {
+        "label": "Ingush",
+        "kind": "english"
+      },
+      {
+        "label": "印古什语",
+        "kind": "alias"
+      },
+      {
+        "label": "ingouche",
+        "kind": "alias"
+      }
+    ],
+    "orm": [
+      {
+        "label": "Oromo",
+        "kind": "local"
+      },
+      {
+        "label": "Oromoo",
+        "kind": "native"
+      },
+      {
+        "label": "奥罗莫语",
+        "kind": "alias"
+      }
+    ],
+    "ban": [
+      {
+        "label": "Balinesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Balinese",
+        "kind": "english"
+      },
+      {
+        "label": "巴厘语",
+        "kind": "alias"
+      },
+      {
+        "label": "balinais",
+        "kind": "alias"
+      },
+      {
+        "label": "balinés",
+        "kind": "alias"
+      }
+    ],
+    "fij": [
+      {
+        "label": "Fidschi",
+        "kind": "local"
+      },
+      {
+        "label": "Fijian",
+        "kind": "english"
+      },
+      {
+        "label": "斐济语",
+        "kind": "alias"
+      },
+      {
+        "label": "fidjien",
+        "kind": "alias"
+      },
+      {
+        "label": "fiyiano",
+        "kind": "alias"
+      }
+    ],
+    "chm": [
+      {
+        "label": "Mari",
+        "kind": "local"
+      },
+      {
+        "label": "马里语",
+        "kind": "alias"
+      },
+      {
+        "label": "marí",
+        "kind": "alias"
+      }
+    ],
+    "mdf": [
+      {
+        "label": "Mokschanisch",
+        "kind": "local"
+      },
+      {
+        "label": "Moksha",
+        "kind": "english"
+      },
+      {
+        "label": "莫克沙语",
+        "kind": "alias"
+      },
+      {
+        "label": "mokcha",
+        "kind": "alias"
+      }
+    ],
+    "sna": [
+      {
+        "label": "Shona",
+        "kind": "local"
+      },
+      {
+        "label": "chiShona",
+        "kind": "native"
+      },
+      {
+        "label": "绍纳语",
+        "kind": "alias"
+      }
+    ],
+    "lij": [
+      {
+        "label": "Ligurisch",
+        "kind": "local"
+      },
+      {
+        "label": "ligure",
+        "kind": "native"
+      },
+      {
+        "label": "Ligurian",
+        "kind": "english"
+      },
+      {
+        "label": "利古里亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "ligur",
+        "kind": "alias"
+      }
+    ],
+    "min": [
+      {
+        "label": "Minangkabau",
+        "kind": "local"
+      },
+      {
+        "label": "米南佳保语",
+        "kind": "alias"
+      }
+    ],
+    "sat": [
+      {
+        "label": "Santali",
+        "kind": "local"
+      },
+      {
+        "label": "ᱥᱟᱱᱛᱟᱲᱤ",
+        "kind": "native"
+      },
+      {
+        "label": "桑塔利语",
+        "kind": "alias"
+      }
+    ],
+    "abq": [
+      {
+        "label": "Abaza",
+        "kind": "english"
+      }
+    ],
+    "ewe": [
+      {
+        "label": "Ewe",
+        "kind": "local"
+      },
+      {
+        "label": "eʋegbe",
+        "kind": "native"
+      },
+      {
+        "label": "埃维语",
+        "kind": "alias"
+      },
+      {
+        "label": "éwé",
+        "kind": "alias"
+      },
+      {
+        "label": "ewé",
+        "kind": "alias"
+      }
+    ],
+    "bis": [
+      {
+        "label": "Bislama",
+        "kind": "local"
+      },
+      {
+        "label": "比斯拉马语",
+        "kind": "alias"
+      },
+      {
+        "label": "bichelamar",
+        "kind": "alias"
+      }
+    ],
+    "kbd": [
+      {
+        "label": "Kabardinisch",
+        "kind": "local"
+      },
+      {
+        "label": "Kabardian",
+        "kind": "english"
+      },
+      {
+        "label": "卡巴尔德语",
+        "kind": "alias"
+      },
+      {
+        "label": "kabarde",
+        "kind": "alias"
+      },
+      {
+        "label": "kabardiano",
+        "kind": "alias"
+      }
+    ],
+    "nrf": [
+      {
+        "label": "Norman",
+        "kind": "english"
+      }
+    ],
+    "fry": [
+      {
+        "label": "Westfriesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Frysk",
+        "kind": "native"
+      },
+      {
+        "label": "West Frisian",
+        "kind": "english"
+      },
+      {
+        "label": "西弗里西亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "Western Frisian",
+        "kind": "alias"
+      },
+      {
+        "label": "frison occidental",
+        "kind": "alias"
+      },
+      {
+        "label": "frisón occidental",
+        "kind": "alias"
+      }
+    ],
+    "arz": [
+      {
+        "label": "Ägyptisches Arabisch",
+        "kind": "local"
+      },
+      {
+        "label": "Egyptian Arabic",
+        "kind": "english"
+      },
+      {
+        "label": "arabe égyptien",
+        "kind": "alias"
+      }
+    ],
+    "vro": [
+      {
+        "label": "Võro",
+        "kind": "local"
+      }
+    ],
+    "ilo": [
+      {
+        "label": "Ilokano",
+        "kind": "local"
+      },
+      {
+        "label": "Ilocano",
+        "kind": "english"
+      },
+      {
+        "label": "伊洛卡诺语",
+        "kind": "alias"
+      },
+      {
+        "label": "Iloko",
+        "kind": "alias"
+      }
+    ],
+    "lin": [
+      {
+        "label": "Lingala",
+        "kind": "local"
+      },
+      {
+        "label": "lingála",
+        "kind": "native"
+      },
+      {
+        "label": "林加拉语",
+        "kind": "alias"
+      }
+    ],
+    "jbo": [
+      {
+        "label": "Lojban",
+        "kind": "local"
+      },
+      {
+        "label": "逻辑语",
+        "kind": "alias"
+      }
+    ],
+    "mwl": [
+      {
+        "label": "Mirandesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Mirandese",
+        "kind": "english"
+      },
+      {
+        "label": "米兰德斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "mirandais",
+        "kind": "alias"
+      },
+      {
+        "label": "mirandés",
+        "kind": "alias"
+      }
+    ],
+    "frp": [
+      {
+        "label": "Frankoprovenzalisch",
+        "kind": "local"
+      },
+      {
+        "label": "Arpitan language",
+        "kind": "english"
+      },
+      {
+        "label": "Arpitan",
+        "kind": "alias"
+      },
+      {
+        "label": "francoprovençal",
+        "kind": "alias"
+      }
+    ],
+    "tso": [
+      {
+        "label": "Tsonga",
+        "kind": "local"
+      },
+      {
+        "label": "聪加语",
+        "kind": "alias"
+      }
+    ],
+    "xal": [
+      {
+        "label": "Kalmückisch",
+        "kind": "local"
+      },
+      {
+        "label": "Kalmyk",
+        "kind": "english"
+      },
+      {
+        "label": "卡尔梅克语",
+        "kind": "alias"
+      },
+      {
+        "label": "kalmouk",
+        "kind": "alias"
+      }
+    ],
+    "ett": [
+      {
+        "label": "Etruscan",
+        "kind": "english"
+      }
+    ],
+    "tah": [
+      {
+        "label": "Tahitisch",
+        "kind": "local"
+      },
+      {
+        "label": "Tahitian",
+        "kind": "english"
+      },
+      {
+        "label": "塔希提语",
+        "kind": "alias"
+      },
+      {
+        "label": "tahitien",
+        "kind": "alias"
+      },
+      {
+        "label": "tahitiano",
+        "kind": "alias"
+      }
+    ],
+    "ven": [
+      {
+        "label": "Venda",
+        "kind": "local"
+      },
+      {
+        "label": "文达语",
+        "kind": "alias"
+      }
+    ],
+    "tcy": [
+      {
+        "label": "Tulu",
+        "kind": "local"
+      },
+      {
+        "label": "toulou",
+        "kind": "alias"
+      }
+    ],
+    "cha": [
+      {
+        "label": "Chamorro",
+        "kind": "local"
+      },
+      {
+        "label": "查莫罗语",
+        "kind": "alias"
+      }
+    ],
+    "hak": [
+      {
+        "label": "Hakka",
+        "kind": "local"
+      },
+      {
+        "label": "客家話",
+        "kind": "native"
+      },
+      {
+        "label": "Hakka Chinese",
+        "kind": "english"
+      },
+      {
+        "label": "客家话",
+        "kind": "alias"
+      },
+      {
+        "label": "chino hakka",
+        "kind": "alias"
+      },
+      {
+        "label": "客家语",
+        "kind": "alias"
+      }
+    ],
+    "kjh": [
+      {
+        "label": "Khakas",
+        "kind": "english"
+      }
+    ],
+    "ace": [
+      {
+        "label": "Aceh",
+        "kind": "local"
+      },
+      {
+        "label": "Acehnese",
+        "kind": "english"
+      },
+      {
+        "label": "亚齐语",
+        "kind": "alias"
+      },
+      {
+        "label": "achenés",
+        "kind": "alias"
+      }
+    ],
+    "gsw": [
+      {
+        "label": "Schweizerdeutsch",
+        "kind": "local"
+      },
+      {
+        "label": "Schwiizertüütsch",
+        "kind": "native"
+      },
+      {
+        "label": "Swiss German",
+        "kind": "english"
+      },
+      {
+        "label": "瑞士德语",
+        "kind": "alias"
+      },
+      {
+        "label": "suisse allemand",
+        "kind": "alias"
+      },
+      {
+        "label": "alemán suizo",
+        "kind": "alias"
+      },
+      {
+        "label": "alemannic",
+        "kind": "alias"
+      },
+      {
+        "label": "alsatian",
+        "kind": "alias"
+      }
+    ],
+    "war": [
+      {
+        "label": "Waray",
+        "kind": "local"
+      },
+      {
+        "label": "瓦瑞语",
+        "kind": "alias"
+      }
+    ],
+    "hit": [
+      {
+        "label": "Hethitisch",
+        "kind": "local"
+      },
+      {
+        "label": "Hittite",
+        "kind": "english"
+      },
+      {
+        "label": "赫梯语",
+        "kind": "alias"
+      },
+      {
+        "label": "hitita",
+        "kind": "alias"
+      }
+    ],
+    "mns": [
+      {
+        "label": "Mansi",
+        "kind": "english"
+      }
+    ],
+    "pcd": [
+      {
+        "label": "Picardisch",
+        "kind": "local"
+      },
+      {
+        "label": "Picard",
+        "kind": "english"
+      }
+    ],
+    "gez": [
+      {
+        "label": "Geez",
+        "kind": "local"
+      },
+      {
+        "label": "Ge'ez",
+        "kind": "english"
+      },
+      {
+        "label": "吉兹语",
+        "kind": "alias"
+      },
+      {
+        "label": "guèze",
+        "kind": "alias"
+      }
+    ],
+    "brx": [
+      {
+        "label": "Bodo",
+        "kind": "local"
+      },
+      {
+        "label": "बर’",
+        "kind": "native"
+      },
+      {
+        "label": "博多语",
+        "kind": "alias"
+      }
+    ],
+    "phn": [
+      {
+        "label": "Phönizisch",
+        "kind": "local"
+      },
+      {
+        "label": "Phoenician",
+        "kind": "english"
+      },
+      {
+        "label": "腓尼基语",
+        "kind": "alias"
+      },
+      {
+        "label": "phénicien",
+        "kind": "alias"
+      },
+      {
+        "label": "fenicio",
+        "kind": "alias"
+      }
+    ],
+    "mah": [
+      {
+        "label": "Marschallesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Marshallese",
+        "kind": "english"
+      },
+      {
+        "label": "马绍尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "marshallais",
+        "kind": "alias"
+      },
+      {
+        "label": "marshalés",
+        "kind": "alias"
+      }
+    ],
+    "kca": [
+      {
+        "label": "Khanty",
+        "kind": "english"
+      }
+    ],
+    "dgo": [
+      {
+        "label": "Dogri",
+        "kind": "local"
+      },
+      {
+        "label": "डोगरी",
+        "kind": "native"
+      },
+      {
+        "label": "多格拉语",
+        "kind": "alias"
+      }
+    ],
+    "brh": [
+      {
+        "label": "Brahui",
+        "kind": "local"
+      },
+      {
+        "label": "brahoui",
+        "kind": "alias"
+      }
+    ],
+    "nog": [
+      {
+        "label": "Nogai",
+        "kind": "local"
+      },
+      {
+        "label": "诺盖语",
+        "kind": "alias"
+      },
+      {
+        "label": "nogaï",
+        "kind": "alias"
+      }
+    ],
+    "ckt": [
+      {
+        "label": "Chukchi",
+        "kind": "english"
+      }
+    ],
+    "lbe": [
+      {
+        "label": "Lak",
+        "kind": "english"
+      }
+    ],
+    "mzn": [
+      {
+        "label": "Masanderanisch",
+        "kind": "local"
+      },
+      {
+        "label": "مازرونی",
+        "kind": "native"
+      },
+      {
+        "label": "Mazanderani",
+        "kind": "english"
+      },
+      {
+        "label": "马赞德兰语",
+        "kind": "alias"
+      },
+      {
+        "label": "mazandérani",
+        "kind": "alias"
+      },
+      {
+        "label": "mazandaraní",
+        "kind": "alias"
+      }
+    ],
+    "gil": [
+      {
+        "label": "Kiribatisch",
+        "kind": "local"
+      },
+      {
+        "label": "Gilbertese",
+        "kind": "english"
+      },
+      {
+        "label": "吉尔伯特语",
+        "kind": "alias"
+      },
+      {
+        "label": "gilbertin",
+        "kind": "alias"
+      },
+      {
+        "label": "gilbertés",
+        "kind": "alias"
+      }
+    ],
+    "bug": [
+      {
+        "label": "Buginesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Bugis",
+        "kind": "english"
+      },
+      {
+        "label": "布吉语",
+        "kind": "alias"
+      },
+      {
+        "label": "Buginese",
+        "kind": "alias"
+      },
+      {
+        "label": "bugi",
+        "kind": "alias"
+      },
+      {
+        "label": "buginés",
+        "kind": "alias"
+      }
+    ],
+    "izh": [
+      {
+        "label": "Ischorisch",
+        "kind": "local"
+      },
+      {
+        "label": "Ingrian",
+        "kind": "english"
+      },
+      {
+        "label": "ingrien",
+        "kind": "alias"
+      }
+    ],
+    "kon": [
+      {
+        "label": "Kongolesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Kongo",
+        "kind": "english"
+      },
+      {
+        "label": "刚果语",
+        "kind": "alias"
+      },
+      {
+        "label": "kikongo",
+        "kind": "alias"
+      }
+    ],
+    "ell": [
+      {
+        "label": "Griechisch",
+        "kind": "local"
+      },
+      {
+        "label": "Ελληνικά",
+        "kind": "native"
+      },
+      {
+        "label": "Modern Greek",
+        "kind": "english"
+      },
+      {
+        "label": "希腊语",
+        "kind": "alias"
+      },
+      {
+        "label": "Greek",
+        "kind": "alias"
+      },
+      {
+        "label": "grec",
+        "kind": "alias"
+      },
+      {
+        "label": "griego",
+        "kind": "alias"
+      }
+    ],
+    "chg": [
+      {
+        "label": "Tschagataisch",
+        "kind": "local"
+      },
+      {
+        "label": "Chagatai",
+        "kind": "english"
+      },
+      {
+        "label": "察合台语",
+        "kind": "alias"
+      },
+      {
+        "label": "tchaghataï",
+        "kind": "alias"
+      },
+      {
+        "label": "chagatái",
+        "kind": "alias"
+      }
+    ],
+    "pdc": [
+      {
+        "label": "Pennsylvaniadeutsch",
+        "kind": "local"
+      },
+      {
+        "label": "Pennsylvania German",
+        "kind": "english"
+      },
+      {
+        "label": "pennsilfaanisch",
+        "kind": "alias"
+      }
+    ],
+    "aka": [
+      {
+        "label": "Akan",
+        "kind": "local"
+      },
+      {
+        "label": "阿肯语",
+        "kind": "alias"
+      }
+    ],
+    "kum": [
+      {
+        "label": "Kumükisch",
+        "kind": "local"
+      },
+      {
+        "label": "Kumyk",
+        "kind": "english"
+      },
+      {
+        "label": "库梅克语",
+        "kind": "alias"
+      },
+      {
+        "label": "koumyk",
+        "kind": "alias"
+      }
+    ],
+    "hmo": [
+      {
+        "label": "Hiri-Motu",
+        "kind": "local"
+      },
+      {
+        "label": "Hiri Motu",
+        "kind": "english"
+      },
+      {
+        "label": "希里莫图语",
+        "kind": "alias"
+      }
+    ],
+    "ale": [
+      {
+        "label": "Aleutisch",
+        "kind": "local"
+      },
+      {
+        "label": "Aleut",
+        "kind": "english"
+      },
+      {
+        "label": "阿留申语",
+        "kind": "alias"
+      },
+      {
+        "label": "aléoute",
+        "kind": "alias"
+      },
+      {
+        "label": "aleutiano",
+        "kind": "alias"
+      }
+    ],
+    "awa": [
+      {
+        "label": "Awadhi",
+        "kind": "local"
+      },
+      {
+        "label": "阿瓦德语",
+        "kind": "alias"
+      },
+      {
+        "label": "avadhi",
+        "kind": "alias"
+      }
+    ],
+    "dlm": [
+      {
+        "label": "Dalmatian",
+        "kind": "english"
+      }
+    ],
+    "her": [
+      {
+        "label": "Herero",
+        "kind": "local"
+      },
+      {
+        "label": "赫雷罗语",
+        "kind": "alias"
+      },
+      {
+        "label": "héréro",
+        "kind": "alias"
+      }
+    ],
+    "enm": [
+      {
+        "label": "Mittelenglisch",
+        "kind": "local"
+      },
+      {
+        "label": "Middle English",
+        "kind": "english"
+      },
+      {
+        "label": "中古英语",
+        "kind": "alias"
+      },
+      {
+        "label": "moyen anglais",
+        "kind": "alias"
+      },
+      {
+        "label": "inglés medio",
+        "kind": "alias"
+      }
+    ],
+    "prg": [
+      {
+        "label": "Altpreußisch",
+        "kind": "local"
+      },
+      {
+        "label": "prūsiskan",
+        "kind": "native"
+      },
+      {
+        "label": "Old Prussian",
+        "kind": "english"
+      },
+      {
+        "label": "普鲁士语",
+        "kind": "alias"
+      },
+      {
+        "label": "Prussian",
+        "kind": "alias"
+      },
+      {
+        "label": "prussien",
+        "kind": "alias"
+      },
+      {
+        "label": "prusiano",
+        "kind": "alias"
+      }
+    ],
+    "yrk": [
+      {
+        "label": "Nenets",
+        "kind": "english"
+      }
+    ],
+    "qya": [
+      {
+        "label": "Quenya",
+        "kind": "english"
+      }
+    ],
+    "vot": [
+      {
+        "label": "Wotisch",
+        "kind": "local"
+      },
+      {
+        "label": "Votic",
+        "kind": "english"
+      },
+      {
+        "label": "沃提克语",
+        "kind": "alias"
+      },
+      {
+        "label": "vote",
+        "kind": "alias"
+      },
+      {
+        "label": "vótico",
+        "kind": "alias"
+      }
+    ],
+    "pau": [
+      {
+        "label": "Palau",
+        "kind": "local"
+      },
+      {
+        "label": "Palauan",
+        "kind": "english"
+      },
+      {
+        "label": "帕劳语",
+        "kind": "alias"
+      },
+      {
+        "label": "palauano",
+        "kind": "alias"
+      }
+    ],
+    "nan": [
+      {
+        "label": "Min Nan",
+        "kind": "local"
+      },
+      {
+        "label": "閩南語",
+        "kind": "native"
+      },
+      {
+        "label": "Southern Min",
+        "kind": "english"
+      },
+      {
+        "label": "闽南语",
+        "kind": "alias"
+      },
+      {
+        "label": "minnan",
+        "kind": "alias"
+      },
+      {
+        "label": "hokkien",
+        "kind": "alias"
+      },
+      {
+        "label": "taiwanese hokkien",
+        "kind": "alias"
+      },
+      {
+        "label": "台语",
+        "kind": "alias"
+      },
+      {
+        "label": "臺語",
+        "kind": "alias"
+      },
+      {
+        "label": "河洛话",
+        "kind": "alias"
+      },
+      {
+        "label": "河洛話",
+        "kind": "alias"
+      }
+    ],
+    "nso": [
+      {
+        "label": "Nord-Sotho",
+        "kind": "local"
+      },
+      {
+        "label": "Sesotho sa Leboa",
+        "kind": "native"
+      },
+      {
+        "label": "Northern Sotho",
+        "kind": "english"
+      },
+      {
+        "label": "北索托语",
+        "kind": "alias"
+      },
+      {
+        "label": "sotho du Nord",
+        "kind": "alias"
+      },
+      {
+        "label": "sotho septentrional",
+        "kind": "alias"
+      }
+    ],
+    "sag": [
+      {
+        "label": "Sango",
+        "kind": "local"
+      },
+      {
+        "label": "Sängö",
+        "kind": "native"
+      },
+      {
+        "label": "桑戈语",
+        "kind": "alias"
+      }
+    ],
+    "stq": [
+      {
+        "label": "Saterfriesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Saterland Frisian",
+        "kind": "english"
+      },
+      {
+        "label": "saterlandais",
+        "kind": "alias"
+      }
+    ],
+    "yue": [
+      {
+        "label": "Kantonesisch",
+        "kind": "local"
+      },
+      {
+        "label": "粵語",
+        "kind": "native"
+      },
+      {
+        "label": "Cantonese",
+        "kind": "english"
+      },
+      {
+        "label": "粤语",
+        "kind": "alias"
+      },
+      {
+        "label": "cantonais",
+        "kind": "alias"
+      },
+      {
+        "label": "cantonés",
+        "kind": "alias"
+      },
+      {
+        "label": "cantonese chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "guangdonghua",
+        "kind": "alias"
+      },
+      {
+        "label": "广东话",
+        "kind": "alias"
+      },
+      {
+        "label": "廣東話",
+        "kind": "alias"
+      },
+      {
+        "label": "白话",
+        "kind": "alias"
+      },
+      {
+        "label": "白話",
+        "kind": "alias"
+      }
+    ],
+    "xmf": [
+      {
+        "label": "Mingrelisch",
+        "kind": "local"
+      },
+      {
+        "label": "Mingrelian",
+        "kind": "english"
+      },
+      {
+        "label": "mingrélien",
+        "kind": "alias"
+      }
+    ],
+    "bjn": [
+      {
+        "label": "Banjaresisch",
+        "kind": "local"
+      },
+      {
+        "label": "Banjar",
+        "kind": "english"
+      }
+    ],
+    "ase": [
+      {
+        "label": "Amerikanische Gebärdensprache",
+        "kind": "local"
+      },
+      {
+        "label": "American Sign Language",
+        "kind": "english"
+      },
+      {
+        "label": "langue des signes américaine",
+        "kind": "alias"
+      }
+    ],
+    "kau": [
+      {
+        "label": "Kanuri",
+        "kind": "local"
+      },
+      {
+        "label": "卡努里语",
+        "kind": "alias"
+      },
+      {
+        "label": "kanouri",
+        "kind": "alias"
+      }
+    ],
+    "nrn": [
+      {
+        "label": "Norn",
+        "kind": "english"
+      }
+    ],
+    "frr": [
+      {
+        "label": "Nordfriesisch",
+        "kind": "local"
+      },
+      {
+        "label": "North Frisian",
+        "kind": "english"
+      },
+      {
+        "label": "北弗里西亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "Northern Frisian",
+        "kind": "alias"
+      },
+      {
+        "label": "frison septentrional",
+        "kind": "alias"
+      },
+      {
+        "label": "frisón septentrional",
+        "kind": "alias"
+      }
+    ],
+    "lug": [
+      {
+        "label": "Ganda",
+        "kind": "local"
+      },
+      {
+        "label": "Luganda",
+        "kind": "native"
+      },
+      {
+        "label": "卢干达语",
+        "kind": "alias"
+      }
+    ],
+    "cre": [
+      {
+        "label": "Cree",
+        "kind": "local"
+      },
+      {
+        "label": "克里语",
+        "kind": "alias"
+      }
+    ],
+    "gan": [
+      {
+        "label": "Gan",
+        "kind": "local"
+      },
+      {
+        "label": "Gan Chinese",
+        "kind": "english"
+      },
+      {
+        "label": "赣语",
+        "kind": "alias"
+      },
+      {
+        "label": "chino gan",
+        "kind": "alias"
+      },
+      {
+        "label": "贛語",
+        "kind": "alias"
+      }
+    ],
+    "kik": [
+      {
+        "label": "Kikuyu",
+        "kind": "local"
+      },
+      {
+        "label": "Gikuyu",
+        "kind": "native"
+      },
+      {
+        "label": "吉库尤语",
+        "kind": "alias"
+      }
+    ],
+    "mag": [
+      {
+        "label": "Khotta",
+        "kind": "local"
+      },
+      {
+        "label": "Magahi",
+        "kind": "english"
+      },
+      {
+        "label": "摩揭陀语",
+        "kind": "alias"
+      }
+    ],
+    "pox": [
+      {
+        "label": "Polabian",
+        "kind": "english"
+      }
+    ],
+    "zha": [
+      {
+        "label": "Zhuang",
+        "kind": "local"
+      },
+      {
+        "label": "Vahcuengh",
+        "kind": "native"
+      },
+      {
+        "label": "壮语",
+        "kind": "alias"
+      },
+      {
+        "label": "壮文",
+        "kind": "alias"
+      },
+      {
+        "label": "壯語",
+        "kind": "alias"
+      }
+    ],
+    "bsk": [
+      {
+        "label": "Burushaski",
+        "kind": "english"
+      }
+    ],
+    "sva": [
+      {
+        "label": "Svan",
+        "kind": "english"
+      }
+    ],
+    "fro": [
+      {
+        "label": "Altfranzösisch",
+        "kind": "local"
+      },
+      {
+        "label": "Old French",
+        "kind": "english"
+      },
+      {
+        "label": "古法语",
+        "kind": "alias"
+      },
+      {
+        "label": "ancien français",
+        "kind": "alias"
+      },
+      {
+        "label": "francés antiguo",
+        "kind": "alias"
+      }
+    ],
+    "nbl": [
+      {
+        "label": "Süd-Ndebele",
+        "kind": "local"
+      },
+      {
+        "label": "Southern Ndebele",
+        "kind": "english"
+      },
+      {
+        "label": "南恩德贝勒语",
+        "kind": "alias"
+      },
+      {
+        "label": "South Ndebele",
+        "kind": "alias"
+      },
+      {
+        "label": "ndébélé du Sud",
+        "kind": "alias"
+      },
+      {
+        "label": "ndebele meridional",
+        "kind": "alias"
+      }
+    ],
+    "lzz": [
+      {
+        "label": "Lasisch",
+        "kind": "local"
+      },
+      {
+        "label": "Laz",
+        "kind": "english"
+      },
+      {
+        "label": "laze",
+        "kind": "alias"
+      }
+    ],
+    "tvl": [
+      {
+        "label": "Tuvaluisch",
+        "kind": "local"
+      },
+      {
+        "label": "Tuvaluan",
+        "kind": "english"
+      },
+      {
+        "label": "图瓦卢语",
+        "kind": "alias"
+      },
+      {
+        "label": "Tuvalu",
+        "kind": "alias"
+      },
+      {
+        "label": "tuvaluano",
+        "kind": "alias"
+      }
+    ],
+    "elx": [
+      {
+        "label": "Elamisch",
+        "kind": "local"
+      },
+      {
+        "label": "Elamite",
+        "kind": "english"
+      },
+      {
+        "label": "埃兰语",
+        "kind": "alias"
+      },
+      {
+        "label": "élamite",
+        "kind": "alias"
+      },
+      {
+        "label": "elamita",
+        "kind": "alias"
+      }
+    ],
+    "koi": [
+      {
+        "label": "Komi-Permjakisch",
+        "kind": "local"
+      },
+      {
+        "label": "Komi-Permyak",
+        "kind": "english"
+      },
+      {
+        "label": "科米-彼尔米亚克语",
+        "kind": "alias"
+      },
+      {
+        "label": "komi-permiak",
+        "kind": "alias"
+      },
+      {
+        "label": "komi permio",
+        "kind": "alias"
+      }
+    ],
+    "sgs": [
+      {
+        "label": "Samogitisch",
+        "kind": "local"
+      },
+      {
+        "label": "Samogitian",
+        "kind": "english"
+      },
+      {
+        "label": "samogitien",
+        "kind": "alias"
+      }
+    ],
+    "sma": [
+      {
+        "label": "Südsamisch",
+        "kind": "local"
+      },
+      {
+        "label": "Southern Sami",
+        "kind": "english"
+      },
+      {
+        "label": "南萨米语",
+        "kind": "alias"
+      },
+      {
+        "label": "same du Sud",
+        "kind": "alias"
+      },
+      {
+        "label": "sami meridional",
+        "kind": "alias"
+      }
+    ],
+    "ext": [
+      {
+        "label": "Extremadurisch",
+        "kind": "local"
+      },
+      {
+        "label": "Extremaduran",
+        "kind": "english"
+      },
+      {
+        "label": "estrémègne",
+        "kind": "alias"
+      }
+    ],
+    "evn": [
+      {
+        "label": "Evenki",
+        "kind": "english"
+      }
+    ],
+    "kab": [
+      {
+        "label": "Kabylisch",
+        "kind": "local"
+      },
+      {
+        "label": "Taqbaylit",
+        "kind": "native"
+      },
+      {
+        "label": "Kabyle",
+        "kind": "english"
+      },
+      {
+        "label": "卡拜尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "cabileño",
+        "kind": "alias"
+      }
+    ],
+    "rap": [
+      {
+        "label": "Rapanui",
+        "kind": "local"
+      },
+      {
+        "label": "Rapa Nui",
+        "kind": "english"
+      },
+      {
+        "label": "拉帕努伊语",
+        "kind": "alias"
+      }
+    ],
+    "rut": [
+      {
+        "label": "Rutulian",
+        "kind": "english"
+      }
+    ],
+    "lzh": [
+      {
+        "label": "Klassisches Chinesisch",
+        "kind": "local"
+      },
+      {
+        "label": "Classical Chinese",
+        "kind": "english"
+      },
+      {
+        "label": "Literary Chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "chinois littéraire",
+        "kind": "alias"
+      }
+    ],
+    "raj": [
+      {
+        "label": "Rajasthani",
+        "kind": "local"
+      },
+      {
+        "label": "राजस्थानी",
+        "kind": "native"
+      },
+      {
+        "label": "拉贾斯坦语",
+        "kind": "alias"
+      }
+    ],
+    "srn": [
+      {
+        "label": "Srananisch",
+        "kind": "local"
+      },
+      {
+        "label": "Sranan Tongo",
+        "kind": "english"
+      },
+      {
+        "label": "苏里南汤加语",
+        "kind": "alias"
+      }
+    ],
+    "niu": [
+      {
+        "label": "Niue",
+        "kind": "local"
+      },
+      {
+        "label": "Niuean",
+        "kind": "english"
+      },
+      {
+        "label": "纽埃语",
+        "kind": "alias"
+      },
+      {
+        "label": "niuéen",
+        "kind": "alias"
+      },
+      {
+        "label": "niueano",
+        "kind": "alias"
+      }
+    ],
+    "smn": [
+      {
+        "label": "Inari-Samisch",
+        "kind": "local"
+      },
+      {
+        "label": "anarâškielâ",
+        "kind": "native"
+      },
+      {
+        "label": "Inari Sami",
+        "kind": "english"
+      },
+      {
+        "label": "伊纳里萨米语",
+        "kind": "alias"
+      },
+      {
+        "label": "same d’Inari",
+        "kind": "alias"
+      },
+      {
+        "label": "sami inari",
+        "kind": "alias"
+      }
+    ],
+    "glk": [
+      {
+        "label": "Gilaki",
+        "kind": "local"
+      }
+    ],
+    "peo": [
+      {
+        "label": "Altpersisch",
+        "kind": "local"
+      },
+      {
+        "label": "Old Persian",
+        "kind": "english"
+      },
+      {
+        "label": "古波斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "persan ancien",
+        "kind": "alias"
+      },
+      {
+        "label": "persa antiguo",
+        "kind": "alias"
+      }
+    ],
+    "ryu": [
+      {
+        "label": "Okinawan",
+        "kind": "english"
+      }
+    ],
+    "tly": [
+      {
+        "label": "Talisch",
+        "kind": "local"
+      },
+      {
+        "label": "Talysh",
+        "kind": "english"
+      }
+    ],
+    "chu": [
+      {
+        "label": "Kirchenslawisch",
+        "kind": "local"
+      },
+      {
+        "label": "Church Slavonic",
+        "kind": "english"
+      },
+      {
+        "label": "教会斯拉夫语",
+        "kind": "alias"
+      },
+      {
+        "label": "Church Slavic",
+        "kind": "alias"
+      },
+      {
+        "label": "slavon d’église",
+        "kind": "alias"
+      },
+      {
+        "label": "eslavo eclesiástico",
+        "kind": "alias"
+      }
+    ],
+    "orv": [
+      {
+        "label": "Old East Slavic",
+        "kind": "english"
+      }
+    ],
+    "fon": [
+      {
+        "label": "Fon",
+        "kind": "local"
+      },
+      {
+        "label": "丰语",
+        "kind": "alias"
+      }
+    ],
+    "pam": [
+      {
+        "label": "Pampanggan",
+        "kind": "local"
+      },
+      {
+        "label": "Kapampangan",
+        "kind": "english"
+      },
+      {
+        "label": "邦板牙语",
+        "kind": "alias"
+      },
+      {
+        "label": "Pampanga",
+        "kind": "alias"
+      },
+      {
+        "label": "pampangan",
+        "kind": "alias"
+      }
+    ],
+    "mad": [
+      {
+        "label": "Maduresisch",
+        "kind": "local"
+      },
+      {
+        "label": "Madurese",
+        "kind": "english"
+      },
+      {
+        "label": "马都拉语",
+        "kind": "alias"
+      },
+      {
+        "label": "madurais",
+        "kind": "alias"
+      },
+      {
+        "label": "madurés",
+        "kind": "alias"
+      }
+    ],
+    "fit": [
+      {
+        "label": "Meänkieli",
+        "kind": "local"
+      },
+      {
+        "label": "Tornedalen Finnish",
+        "kind": "alias"
+      },
+      {
+        "label": "finnois tornédalien",
+        "kind": "alias"
+      }
+    ],
+    "pal": [
+      {
+        "label": "Mittelpersisch",
+        "kind": "local"
+      },
+      {
+        "label": "Middle Persian",
+        "kind": "english"
+      },
+      {
+        "label": "巴拉维语",
+        "kind": "alias"
+      },
+      {
+        "label": "Pahlavi",
+        "kind": "alias"
+      }
+    ],
+    "hne": [
+      {
+        "label": "Chhattisgarhi",
+        "kind": "english"
+      }
+    ],
+    "ckb": [
+      {
+        "label": "Zentralkurdisch",
+        "kind": "local"
+      },
+      {
+        "label": "کوردیی ناوەندی",
+        "kind": "native"
+      },
+      {
+        "label": "Central Kurdish",
+        "kind": "english"
+      },
+      {
+        "label": "中库尔德语",
+        "kind": "alias"
+      },
+      {
+        "label": "sorani",
+        "kind": "alias"
+      },
+      {
+        "label": "kurdo sorani",
+        "kind": "alias"
+      }
+    ],
+    "bpy": [
+      {
+        "label": "Bishnupriya",
+        "kind": "local"
+      },
+      {
+        "label": "Bishnupriya Manipuri",
+        "kind": "english"
+      }
+    ],
+    "sog": [
+      {
+        "label": "Sogdisch",
+        "kind": "local"
+      },
+      {
+        "label": "Sogdian",
+        "kind": "english"
+      },
+      {
+        "label": "粟特语",
+        "kind": "alias"
+      },
+      {
+        "label": "Sogdien",
+        "kind": "alias"
+      },
+      {
+        "label": "sogdiano",
+        "kind": "alias"
+      }
+    ],
+    "ipk": [
+      {
+        "label": "Inupiak",
+        "kind": "local"
+      },
+      {
+        "label": "Iñupiaq",
+        "kind": "english"
+      },
+      {
+        "label": "伊努皮克语",
+        "kind": "alias"
+      },
+      {
+        "label": "Inupiaq",
+        "kind": "alias"
+      }
+    ],
+    "mwr": [
+      {
+        "label": "Marwari",
+        "kind": "local"
+      },
+      {
+        "label": "马尔瓦里语",
+        "kind": "alias"
+      },
+      {
+        "label": "marwarî",
+        "kind": "alias"
+      }
+    ],
+    "uga": [
+      {
+        "label": "Ugaritisch",
+        "kind": "local"
+      },
+      {
+        "label": "Ugaritic",
+        "kind": "english"
+      },
+      {
+        "label": "乌加里特语",
+        "kind": "alias"
+      },
+      {
+        "label": "ougaritique",
+        "kind": "alias"
+      },
+      {
+        "label": "ugarítico",
+        "kind": "alias"
+      }
+    ],
+    "fkv": [
+      {
+        "label": "Kven",
+        "kind": "english"
+      }
+    ],
+    "tab": [
+      {
+        "label": "Tabasaran",
+        "kind": "english"
+      }
+    ],
+    "jam": [
+      {
+        "label": "Jamaikanisch-Kreolisch",
+        "kind": "local"
+      },
+      {
+        "label": "Jamaican Patois",
+        "kind": "english"
+      },
+      {
+        "label": "Jamaican Creole English",
+        "kind": "alias"
+      },
+      {
+        "label": "créole jamaïcain",
+        "kind": "alias"
+      }
+    ],
+    "bgc": [
+      {
+        "label": "Haryanvi",
+        "kind": "local"
+      },
+      {
+        "label": "हरियाणवी",
+        "kind": "native"
+      },
+      {
+        "label": "哈里亚纳语",
+        "kind": "alias"
+      }
+    ],
+    "nio": [
+      {
+        "label": "Nganasan",
+        "kind": "english"
+      }
+    ],
+    "mnw": [
+      {
+        "label": "Mon",
+        "kind": "english"
+      }
+    ],
+    "skr": [
+      {
+        "label": "Saraiki",
+        "kind": "english"
+      },
+      {
+        "label": "色莱基语",
+        "kind": "alias"
+      }
+    ],
+    "tkl": [
+      {
+        "label": "Tokelauanisch",
+        "kind": "local"
+      },
+      {
+        "label": "Tokelauan",
+        "kind": "english"
+      },
+      {
+        "label": "托克劳语",
+        "kind": "alias"
+      },
+      {
+        "label": "tokelau",
+        "kind": "alias"
+      },
+      {
+        "label": "tokelauano",
+        "kind": "alias"
+      }
+    ],
+    "dng": [
+      {
+        "label": "Dungan",
+        "kind": "english"
+      }
+    ],
+    "kmr": [
+      {
+        "label": "Kurdisch",
+        "kind": "local"
+      },
+      {
+        "label": "kurdî (kurmancî)",
+        "kind": "native"
+      },
+      {
+        "label": "Northern Kurdish",
+        "kind": "english"
+      },
+      {
+        "label": "库尔曼吉语",
+        "kind": "alias"
+      },
+      {
+        "label": "kurde",
+        "kind": "alias"
+      },
+      {
+        "label": "kurdo",
+        "kind": "alias"
+      },
+      {
+        "label": "kurmanji",
+        "kind": "alias"
+      }
+    ],
+    "osc": [
+      {
+        "label": "Oscan",
+        "kind": "english"
+      }
+    ],
+    "smj": [
+      {
+        "label": "Lule-Samisch",
+        "kind": "local"
+      },
+      {
+        "label": "Lule Sami",
+        "kind": "english"
+      },
+      {
+        "label": "吕勒萨米语",
+        "kind": "alias"
+      },
+      {
+        "label": "same de Lule",
+        "kind": "alias"
+      },
+      {
+        "label": "sami lule",
+        "kind": "alias"
+      }
+    ],
+    "cbk": [
+      {
+        "label": "Chavacano",
+        "kind": "english"
+      }
+    ],
+    "sel": [
+      {
+        "label": "Selkupisch",
+        "kind": "local"
+      },
+      {
+        "label": "Selkup",
+        "kind": "english"
+      },
+      {
+        "label": "塞尔库普语",
+        "kind": "alias"
+      },
+      {
+        "label": "selkoupe",
+        "kind": "alias"
+      }
+    ],
+    "tmh": [
+      {
+        "label": "Tamaseq",
+        "kind": "local"
+      },
+      {
+        "label": "Tuareg",
+        "kind": "english"
+      },
+      {
+        "label": "塔马奇克语",
+        "kind": "alias"
+      },
+      {
+        "label": "Tamashek",
+        "kind": "alias"
+      },
+      {
+        "label": "tamacheq",
+        "kind": "alias"
+      }
+    ],
+    "ltg": [
+      {
+        "label": "Lettgallisch",
+        "kind": "local"
+      },
+      {
+        "label": "Latgalian",
+        "kind": "english"
+      },
+      {
+        "label": "latgalien",
+        "kind": "alias"
+      }
+    ],
+    "ket": [
+      {
+        "label": "Ket",
+        "kind": "english"
+      }
+    ],
+    "sjd": [
+      {
+        "label": "Kildin Sami",
+        "kind": "english"
+      }
+    ],
+    "lab": [
+      {
+        "label": "Linear A",
+        "kind": "english"
+      }
+    ],
+    "hil": [
+      {
+        "label": "Hiligaynon",
+        "kind": "local"
+      },
+      {
+        "label": "希利盖农语",
+        "kind": "alias"
+      }
+    ],
+    "shi": [
+      {
+        "label": "Taschelhit",
+        "kind": "local"
+      },
+      {
+        "label": "ⵜⴰⵛⵍⵃⵉⵜ",
+        "kind": "native"
+      },
+      {
+        "label": "Tashelhit",
+        "kind": "english"
+      },
+      {
+        "label": "希尔哈语",
+        "kind": "alias"
+      },
+      {
+        "label": "Tachelhit",
+        "kind": "alias"
+      },
+      {
+        "label": "chleuh",
+        "kind": "alias"
+      }
+    ],
+    "prv": [
+      {
+        "label": "Provençal",
+        "kind": "english"
+      }
+    ],
+    "gon": [
+      {
+        "label": "Gondi",
+        "kind": "local"
+      },
+      {
+        "label": "冈德语",
+        "kind": "alias"
+      }
+    ],
+    "naq": [
+      {
+        "label": "Nama",
+        "kind": "local"
+      },
+      {
+        "label": "Khoekhoegowab",
+        "kind": "native"
+      },
+      {
+        "label": "Khoekhoe",
+        "kind": "english"
+      },
+      {
+        "label": "纳马语",
+        "kind": "alias"
+      }
+    ],
+    "pag": [
+      {
+        "label": "Pangasinan",
+        "kind": "local"
+      },
+      {
+        "label": "邦阿西南语",
+        "kind": "alias"
+      },
+      {
+        "label": "pangasinán",
+        "kind": "alias"
+      }
+    ],
+    "cho": [
+      {
+        "label": "Choctaw",
+        "kind": "local"
+      },
+      {
+        "label": "乔克托语",
+        "kind": "alias"
+      }
+    ],
+    "kpy": [
+      {
+        "label": "Koryak",
+        "kind": "english"
+      }
+    ],
+    "ttt": [
+      {
+        "label": "Tatisch",
+        "kind": "local"
+      },
+      {
+        "label": "Tat",
+        "kind": "english"
+      },
+      {
+        "label": "Muslim Tat",
+        "kind": "alias"
+      },
+      {
+        "label": "tati caucasien",
+        "kind": "alias"
+      }
+    ],
+    "hbo": [
+      {
+        "label": "Biblical Hebrew",
+        "kind": "english"
+      }
+    ],
+    "yua": [
+      {
+        "label": "Yucatec Maya",
+        "kind": "english"
+      }
+    ],
+    "xpr": [
+      {
+        "label": "Parthian",
+        "kind": "english"
+      }
+    ],
+    "anp": [
+      {
+        "label": "Angika",
+        "kind": "local"
+      },
+      {
+        "label": "昂加语",
+        "kind": "alias"
+      }
+    ],
+    "eve": [
+      {
+        "label": "Even",
+        "kind": "english"
+      }
+    ],
+    "dyu": [
+      {
+        "label": "Dyula",
+        "kind": "local"
+      },
+      {
+        "label": "Dioula",
+        "kind": "english"
+      },
+      {
+        "label": "迪尤拉语",
+        "kind": "alias"
+      },
+      {
+        "label": "diula",
+        "kind": "alias"
+      }
+    ],
+    "dlg": [
+      {
+        "label": "Dolgan",
+        "kind": "english"
+      }
+    ],
+    "goh": [
+      {
+        "label": "Althochdeutsch",
+        "kind": "local"
+      },
+      {
+        "label": "Old High German",
+        "kind": "english"
+      },
+      {
+        "label": "古高地德语",
+        "kind": "alias"
+      },
+      {
+        "label": "ancien haut allemand",
+        "kind": "alias"
+      },
+      {
+        "label": "alto alemán antiguo",
+        "kind": "alias"
+      }
+    ],
+    "mos": [
+      {
+        "label": "Mossi",
+        "kind": "local"
+      },
+      {
+        "label": "Mooré",
+        "kind": "english"
+      },
+      {
+        "label": "莫西语",
+        "kind": "alias"
+      },
+      {
+        "label": "moré",
+        "kind": "alias"
+      }
+    ],
+    "niv": [
+      {
+        "label": "Nivkh",
+        "kind": "english"
+      }
+    ],
+    "pnt": [
+      {
+        "label": "Pontisch",
+        "kind": "local"
+      },
+      {
+        "label": "Pontic Greek",
+        "kind": "english"
+      },
+      {
+        "label": "Pontic",
+        "kind": "alias"
+      },
+      {
+        "label": "pontique",
+        "kind": "alias"
+      }
+    ],
+    "uby": [
+      {
+        "label": "Ubykh",
+        "kind": "english"
+      }
+    ],
+    "fsl": [
+      {
+        "label": "French Sign Language",
+        "kind": "english"
+      }
+    ],
+    "oji": [
+      {
+        "label": "Ojibwa",
+        "kind": "local"
+      },
+      {
+        "label": "Ojibwe",
+        "kind": "english"
+      },
+      {
+        "label": "奥吉布瓦语",
+        "kind": "alias"
+      }
+    ],
+    "bem": [
+      {
+        "label": "Bemba",
+        "kind": "local"
+      },
+      {
+        "label": "Ichibemba",
+        "kind": "native"
+      },
+      {
+        "label": "本巴语",
+        "kind": "alias"
+      }
+    ],
+    "mnk": [
+      {
+        "label": "Malinke",
+        "kind": "local"
+      },
+      {
+        "label": "Mandinka",
+        "kind": "english"
+      },
+      {
+        "label": "曼丁哥语",
+        "kind": "alias"
+      },
+      {
+        "label": "Mandingo",
+        "kind": "alias"
+      },
+      {
+        "label": "mandingue",
+        "kind": "alias"
+      }
+    ],
+    "kdr": [
+      {
+        "label": "Karaim",
+        "kind": "english"
+      }
+    ],
+    "ary": [
+      {
+        "label": "Marokkanisches Arabisch",
+        "kind": "local"
+      },
+      {
+        "label": "Moroccan Arabic",
+        "kind": "english"
+      },
+      {
+        "label": "arabe marocain",
+        "kind": "alias"
+      }
+    ],
+    "sms": [
+      {
+        "label": "Skolt-Samisch",
+        "kind": "local"
+      },
+      {
+        "label": "Skolt Sami",
+        "kind": "english"
+      },
+      {
+        "label": "斯科特萨米语",
+        "kind": "alias"
+      },
+      {
+        "label": "same skolt",
+        "kind": "alias"
+      },
+      {
+        "label": "sami skolt",
+        "kind": "alias"
+      }
+    ],
+    "chy": [
+      {
+        "label": "Cheyenne",
+        "kind": "local"
+      },
+      {
+        "label": "夏延语",
+        "kind": "alias"
+      },
+      {
+        "label": "cheyene",
+        "kind": "alias"
+      }
+    ],
+    "cdo": [
+      {
+        "label": "Eastern Min",
+        "kind": "english"
+      }
+    ],
+    "agx": [
+      {
+        "label": "Aghul",
+        "kind": "english"
+      }
+    ],
+    "wym": [
+      {
+        "label": "Wymysorys",
+        "kind": "english"
+      }
+    ],
+    "qxq": [
+      {
+        "label": "Qashqai",
+        "kind": "english"
+      }
+    ],
+    "xil": [
+      {
+        "label": "Illyrian",
+        "kind": "english"
+      }
+    ],
+    "gld": [
+      {
+        "label": "Nanai",
+        "kind": "english"
+      }
+    ],
+    "crs": [
+      {
+        "label": "Seychellenkreol",
+        "kind": "local"
+      },
+      {
+        "label": "Seychellois Creole",
+        "kind": "english"
+      },
+      {
+        "label": "塞舌尔克里奥尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "Seselwa Creole French",
+        "kind": "alias"
+      },
+      {
+        "label": "créole seychellois",
+        "kind": "alias"
+      },
+      {
+        "label": "criollo seychelense",
+        "kind": "alias"
+      }
+    ],
+    "tig": [
+      {
+        "label": "Tigre",
+        "kind": "local"
+      },
+      {
+        "label": "提格雷语",
+        "kind": "alias"
+      },
+      {
+        "label": "tigré",
+        "kind": "alias"
+      }
+    ],
+    "wbl": [
+      {
+        "label": "Wakhi",
+        "kind": "english"
+      }
+    ],
+    "lus": [
+      {
+        "label": "Lushai",
+        "kind": "local"
+      },
+      {
+        "label": "Mizo",
+        "kind": "english"
+      },
+      {
+        "label": "米佐语",
+        "kind": "alias"
+      },
+      {
+        "label": "lushaï",
+        "kind": "alias"
+      }
+    ],
+    "xcb": [
+      {
+        "label": "Cumbric",
+        "kind": "english"
+      }
+    ],
+    "vsn": [
+      {
+        "label": "Vedic Sanskrit",
+        "kind": "english"
+      }
+    ],
+    "hyw": [
+      {
+        "label": "Western Armenian",
+        "kind": "english"
+      }
+    ],
+    "avk": [
+      {
+        "label": "Kotava",
+        "kind": "local"
+      }
+    ],
+    "slr": [
+      {
+        "label": "Salar",
+        "kind": "english"
+      }
+    ],
+    "otk": [
+      {
+        "label": "Old Turkic",
+        "kind": "english"
+      }
+    ],
+    "nde": [
+      {
+        "label": "Nord-Ndebele",
+        "kind": "local"
+      },
+      {
+        "label": "isiNdebele",
+        "kind": "native"
+      },
+      {
+        "label": "Northern Ndebele",
+        "kind": "english"
+      },
+      {
+        "label": "北恩德贝勒语",
+        "kind": "alias"
+      },
+      {
+        "label": "North Ndebele",
+        "kind": "alias"
+      },
+      {
+        "label": "ndébélé du Nord",
+        "kind": "alias"
+      },
+      {
+        "label": "ndebele septentrional",
+        "kind": "alias"
+      }
+    ],
+    "kha": [
+      {
+        "label": "Khasi",
+        "kind": "local"
+      },
+      {
+        "label": "卡西语",
+        "kind": "alias"
+      }
+    ],
+    "twi": [
+      {
+        "label": "Twi",
+        "kind": "local"
+      },
+      {
+        "label": "Akan",
+        "kind": "native"
+      },
+      {
+        "label": "契维语",
+        "kind": "alias"
+      }
+    ],
+    "grt": [
+      {
+        "label": "Garo",
+        "kind": "english"
+      }
+    ],
+    "txh": [
+      {
+        "label": "Thracian",
+        "kind": "english"
+      }
+    ],
+    "khw": [
+      {
+        "label": "Khowar",
+        "kind": "local"
+      }
+    ],
+    "xbc": [
+      {
+        "label": "Bactrian",
+        "kind": "english"
+      }
+    ],
+    "xpi": [
+      {
+        "label": "Pictish",
+        "kind": "english"
+      }
+    ],
+    "mxi": [
+      {
+        "label": "Andalusi Romance",
+        "kind": "english"
+      }
+    ],
+    "xpu": [
+      {
+        "label": "Punic",
+        "kind": "english"
+      }
+    ],
+    "sgh": [
+      {
+        "label": "Shughni",
+        "kind": "english"
+      }
+    ],
+    "bra": [
+      {
+        "label": "Braj-Bhakha",
+        "kind": "local"
+      },
+      {
+        "label": "Braj Bhasha",
+        "kind": "english"
+      },
+      {
+        "label": "布拉杰语",
+        "kind": "alias"
+      },
+      {
+        "label": "Braj",
+        "kind": "alias"
+      }
+    ],
+    "snk": [
+      {
+        "label": "Soninke",
+        "kind": "local"
+      },
+      {
+        "label": "索宁克语",
+        "kind": "alias"
+      },
+      {
+        "label": "soninké",
+        "kind": "alias"
+      }
+    ],
+    "xpg": [
+      {
+        "label": "Phrygian",
+        "kind": "english"
+      }
+    ],
+    "sjn": [
+      {
+        "label": "Sindarin",
+        "kind": "english"
+      }
+    ],
+    "ruo": [
+      {
+        "label": "Istro-Romanian",
+        "kind": "english"
+      }
+    ],
+    "nzs": [
+      {
+        "label": "New Zealand Sign Language",
+        "kind": "english"
+      }
+    ],
+    "cjs": [
+      {
+        "label": "Shor",
+        "kind": "english"
+      }
+    ],
+    "lua": [
+      {
+        "label": "Luba-Lulua",
+        "kind": "local"
+      },
+      {
+        "label": "Luba-Kasai",
+        "kind": "english"
+      },
+      {
+        "label": "卢巴-卢拉语",
+        "kind": "alias"
+      },
+      {
+        "label": "luba-kasaï (ciluba)",
+        "kind": "alias"
+      }
+    ],
+    "vls": [
+      {
+        "label": "Westflämisch",
+        "kind": "local"
+      },
+      {
+        "label": "West Flemish",
+        "kind": "english"
+      },
+      {
+        "label": "flamand occidental",
+        "kind": "alias"
+      }
+    ],
+    "zea": [
+      {
+        "label": "Seeländisch",
+        "kind": "local"
+      },
+      {
+        "label": "Zeelandic",
+        "kind": "english"
+      },
+      {
+        "label": "zélandais",
+        "kind": "alias"
+      }
+    ],
+    "pfl": [
+      {
+        "label": "Pfälzisch",
+        "kind": "local"
+      },
+      {
+        "label": "Palatinate German",
+        "kind": "english"
+      },
+      {
+        "label": "Palatine German",
+        "kind": "alias"
+      },
+      {
+        "label": "allemand palatin",
+        "kind": "alias"
+      }
+    ],
+    "aii": [
+      {
+        "label": "Assyrian Neo-Aramaic",
+        "kind": "english"
+      }
+    ],
+    "bfi": [
+      {
+        "label": "British Sign Language",
+        "kind": "english"
+      }
+    ],
+    "osx": [
+      {
+        "label": "Old Saxon",
+        "kind": "english"
+      }
+    ],
+    "xhu": [
+      {
+        "label": "Hurrian",
+        "kind": "english"
+      }
+    ],
+    "sjt": [
+      {
+        "label": "Ter Sami",
+        "kind": "english"
+      }
+    ],
+    "xvn": [
+      {
+        "label": "Vandalic",
+        "kind": "english"
+      }
+    ],
+    "yai": [
+      {
+        "label": "Yaghnobi",
+        "kind": "english"
+      }
+    ],
+    "sje": [
+      {
+        "label": "Pite Sami",
+        "kind": "english"
+      }
+    ],
+    "shn": [
+      {
+        "label": "Schan",
+        "kind": "local"
+      },
+      {
+        "label": "Shan",
+        "kind": "english"
+      },
+      {
+        "label": "掸语",
+        "kind": "alias"
+      }
+    ],
+    "tli": [
+      {
+        "label": "Tlingit",
+        "kind": "local"
+      },
+      {
+        "label": "特林吉特语",
+        "kind": "alias"
+      }
+    ],
+    "sga": [
+      {
+        "label": "Altirisch",
+        "kind": "local"
+      },
+      {
+        "label": "Old Irish",
+        "kind": "english"
+      },
+      {
+        "label": "古爱尔兰语",
+        "kind": "alias"
+      },
+      {
+        "label": "ancien irlandais",
+        "kind": "alias"
+      },
+      {
+        "label": "irlandés antiguo",
+        "kind": "alias"
+      }
+    ],
+    "lbj": [
+      {
+        "label": "Ladakhi",
+        "kind": "english"
+      }
+    ],
+    "bhb": [
+      {
+        "label": "Bhili",
+        "kind": "english"
+      }
+    ],
+    "rar": [
+      {
+        "label": "Rarotonganisch",
+        "kind": "local"
+      },
+      {
+        "label": "Cook Islands Maori",
+        "kind": "english"
+      },
+      {
+        "label": "拉罗汤加语",
+        "kind": "alias"
+      },
+      {
+        "label": "Rarotongan",
+        "kind": "alias"
+      },
+      {
+        "label": "rarotongien",
+        "kind": "alias"
+      },
+      {
+        "label": "rarotongano",
+        "kind": "alias"
+      }
+    ],
+    "tkr": [
+      {
+        "label": "Tsachurisch",
+        "kind": "local"
+      },
+      {
+        "label": "Tsakhur",
+        "kind": "english"
+      },
+      {
+        "label": "tsakhour",
+        "kind": "alias"
+      }
+    ],
+    "srh": [
+      {
+        "label": "Sarikoli",
+        "kind": "english"
+      }
+    ],
+    "uum": [
+      {
+        "label": "Urum",
+        "kind": "english"
+      }
+    ],
+    "sia": [
+      {
+        "label": "Akkala Sami",
+        "kind": "english"
+      }
+    ],
+    "ist": [
+      {
+        "label": "Istriot",
+        "kind": "english"
+      }
+    ],
+    "xld": [
+      {
+        "label": "Lydian",
+        "kind": "english"
+      }
+    ],
+    "lkt": [
+      {
+        "label": "Lakota",
+        "kind": "local"
+      },
+      {
+        "label": "Lakȟólʼiyapi",
+        "kind": "native"
+      },
+      {
+        "label": "拉科塔语",
+        "kind": "alias"
+      }
+    ],
+    "kim": [
+      {
+        "label": "Tofa",
+        "kind": "english"
+      }
+    ],
+    "jrb": [
+      {
+        "label": "Jüdisch-Arabisch",
+        "kind": "local"
+      },
+      {
+        "label": "Judeo-Arabic",
+        "kind": "english"
+      },
+      {
+        "label": "犹太阿拉伯语",
+        "kind": "alias"
+      },
+      {
+        "label": "judéo-arabe",
+        "kind": "alias"
+      },
+      {
+        "label": "judeo-árabe",
+        "kind": "alias"
+      }
+    ],
+    "tzm": [
+      {
+        "label": "Zentralatlas-Tamazight",
+        "kind": "local"
+      },
+      {
+        "label": "Tamaziɣt n laṭlaṣ",
+        "kind": "native"
+      },
+      {
+        "label": "Central Atlas Tamazight",
+        "kind": "english"
+      },
+      {
+        "label": "塔马齐格特语",
+        "kind": "alias"
+      },
+      {
+        "label": "amazighe de l’Atlas central",
+        "kind": "alias"
+      },
+      {
+        "label": "tamazight del Atlas Central",
+        "kind": "alias"
+      }
+    ],
+    "arq": [
+      {
+        "label": "Algerisches Arabisch",
+        "kind": "local"
+      },
+      {
+        "label": "Algerian Arabic",
+        "kind": "english"
+      },
+      {
+        "label": "arabe algérien",
+        "kind": "alias"
+      }
+    ],
+    "myp": [
+      {
+        "label": "Pirahã",
+        "kind": "english"
+      }
+    ],
+    "mey": [
+      {
+        "label": "Hassaniya Arabic",
+        "kind": "english"
+      }
+    ],
+    "tsg": [
+      {
+        "label": "Tausug",
+        "kind": "english"
+      }
+    ],
+    "rif": [
+      {
+        "label": "Tarifit",
+        "kind": "local"
+      },
+      {
+        "label": "里夫语",
+        "kind": "alias"
+      },
+      {
+        "label": "Riffian",
+        "kind": "alias"
+      },
+      {
+        "label": "rifain",
+        "kind": "alias"
+      }
+    ],
+    "mrj": [
+      {
+        "label": "Bergmari",
+        "kind": "local"
+      },
+      {
+        "label": "Hill Mari",
+        "kind": "english"
+      },
+      {
+        "label": "Western Mari",
+        "kind": "alias"
+      },
+      {
+        "label": "mari occidental",
+        "kind": "alias"
+      }
+    ],
+    "bft": [
+      {
+        "label": "Balti",
+        "kind": "english"
+      }
+    ],
+    "clw": [
+      {
+        "label": "Chulym",
+        "kind": "english"
+      }
+    ],
+    "jct": [
+      {
+        "label": "Krymchak",
+        "kind": "english"
+      }
+    ],
+    "udi": [
+      {
+        "label": "Udi",
+        "kind": "english"
+      }
+    ],
+    "sju": [
+      {
+        "label": "Ume Sami",
+        "kind": "english"
+      }
+    ],
+    "ruq": [
+      {
+        "label": "Megleno-Romanian",
+        "kind": "english"
+      }
+    ],
+    "xga": [
+      {
+        "label": "Galatian",
+        "kind": "english"
+      }
+    ],
+    "aib": [
+      {
+        "label": "Äynu",
+        "kind": "english"
+      }
+    ],
+    "ncs": [
+      {
+        "label": "Nicaraguan Sign Language",
+        "kind": "english"
+      }
+    ],
+    "afb": [
+      {
+        "label": "Gulf Arabic",
+        "kind": "english"
+      }
+    ],
+    "swg": [
+      {
+        "label": "Swabian",
+        "kind": "english"
+      }
+    ],
+    "eya": [
+      {
+        "label": "Eyak",
+        "kind": "english"
+      }
+    ],
+    "dar": [
+      {
+        "label": "Darginisch",
+        "kind": "local"
+      },
+      {
+        "label": "Dargwa",
+        "kind": "english"
+      },
+      {
+        "label": "达尔格瓦语",
+        "kind": "alias"
+      },
+      {
+        "label": "dargva",
+        "kind": "alias"
+      }
+    ],
+    "trp": [
+      {
+        "label": "Kokborok",
+        "kind": "english"
+      }
+    ],
+    "xlc": [
+      {
+        "label": "Lycian",
+        "kind": "english"
+      }
+    ],
+    "hoc": [
+      {
+        "label": "Ho",
+        "kind": "english"
+      }
+    ],
+    "pih": [
+      {
+        "label": "Pitkern",
+        "kind": "english"
+      }
+    ],
+    "xum": [
+      {
+        "label": "Umbrian",
+        "kind": "english"
+      }
+    ],
+    "din": [
+      {
+        "label": "Dinka",
+        "kind": "local"
+      },
+      {
+        "label": "丁卡语",
+        "kind": "alias"
+      }
+    ],
+    "lif": [
+      {
+        "label": "Limbu",
+        "kind": "english"
+      }
+    ],
+    "lki": [
+      {
+        "label": "Laki",
+        "kind": "english"
+      }
+    ],
+    "ise": [
+      {
+        "label": "Italian Sign Language",
+        "kind": "english"
+      }
+    ],
+    "scl": [
+      {
+        "label": "Shina",
+        "kind": "english"
+      }
+    ],
+    "xeb": [
+      {
+        "label": "Eblaite",
+        "kind": "english"
+      }
+    ],
+    "xur": [
+      {
+        "label": "Urartian",
+        "kind": "english"
+      }
+    ],
+    "zkz": [
+      {
+        "label": "Khazar language",
+        "kind": "english"
+      }
+    ],
+    "gmy": [
+      {
+        "label": "Mycenaean Greek",
+        "kind": "english"
+      }
+    ],
+    "gmh": [
+      {
+        "label": "Mittelhochdeutsch",
+        "kind": "local"
+      },
+      {
+        "label": "Middle High German",
+        "kind": "english"
+      },
+      {
+        "label": "中古高地德语",
+        "kind": "alias"
+      },
+      {
+        "label": "moyen haut-allemand",
+        "kind": "alias"
+      },
+      {
+        "label": "alto alemán medio",
+        "kind": "alias"
+      }
+    ],
+    "aln": [
+      {
+        "label": "Gegisch",
+        "kind": "local"
+      },
+      {
+        "label": "Gheg",
+        "kind": "english"
+      },
+      {
+        "label": "Gheg Albanian",
+        "kind": "alias"
+      },
+      {
+        "label": "guègue",
+        "kind": "alias"
+      }
+    ],
+    "alt": [
+      {
+        "label": "Süd-Altaisch",
+        "kind": "local"
+      },
+      {
+        "label": "Southern Altai",
+        "kind": "english"
+      },
+      {
+        "label": "南阿尔泰语",
+        "kind": "alias"
+      },
+      {
+        "label": "altaï du Sud",
+        "kind": "alias"
+      },
+      {
+        "label": "altái meridional",
+        "kind": "alias"
+      }
+    ],
+    "rhg": [
+      {
+        "label": "Rohingyalisch",
+        "kind": "local"
+      },
+      {
+        "label": "Rohingya",
+        "kind": "english"
+      },
+      {
+        "label": "罗兴亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "rohinyá",
+        "kind": "alias"
+      }
+    ],
+    "lrl": [
+      {
+        "label": "Achomi",
+        "kind": "english"
+      }
+    ],
+    "tum": [
+      {
+        "label": "Tumbuka",
+        "kind": "local"
+      },
+      {
+        "label": "通布卡语",
+        "kind": "alias"
+      }
+    ],
+    "bin": [
+      {
+        "label": "Bini",
+        "kind": "local"
+      },
+      {
+        "label": "Edo",
+        "kind": "english"
+      },
+      {
+        "label": "比尼语",
+        "kind": "alias"
+      }
+    ],
+    "bik": [
+      {
+        "label": "Bikol",
+        "kind": "local"
+      },
+      {
+        "label": "比科尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "bicol",
+        "kind": "alias"
+      }
+    ],
+    "iii": [
+      {
+        "label": "Yi",
+        "kind": "local"
+      },
+      {
+        "label": "ꆈꌠꉙ",
+        "kind": "native"
+      },
+      {
+        "label": "Sichuan Yi",
+        "kind": "english"
+      },
+      {
+        "label": "凉山彝语",
+        "kind": "alias"
+      },
+      {
+        "label": "yi du Sichuan",
+        "kind": "alias"
+      },
+      {
+        "label": "yi de Sichuán",
+        "kind": "alias"
+      },
+      {
+        "label": "nuosu",
+        "kind": "alias"
+      },
+      {
+        "label": "彝语",
+        "kind": "alias"
+      },
+      {
+        "label": "彝文",
+        "kind": "alias"
+      },
+      {
+        "label": "彝語",
+        "kind": "alias"
+      }
+    ],
+    "olo": [
+      {
+        "label": "Livvi-Karelian",
+        "kind": "english"
+      }
+    ],
+    "xsr": [
+      {
+        "label": "Sherpa",
+        "kind": "english"
+      }
+    ],
+    "umb": [
+      {
+        "label": "Umbundu",
+        "kind": "local"
+      },
+      {
+        "label": "翁本杜语",
+        "kind": "alias"
+      }
+    ],
+    "acm": [
+      {
+        "label": "Iraqi Arabic",
+        "kind": "english"
+      }
+    ],
+    "sas": [
+      {
+        "label": "Sasak",
+        "kind": "local"
+      },
+      {
+        "label": "萨萨克语",
+        "kind": "alias"
+      }
+    ],
+    "kua": [
+      {
+        "label": "Kwanyama",
+        "kind": "local"
+      },
+      {
+        "label": "宽亚玛语",
+        "kind": "alias"
+      },
+      {
+        "label": "Kuanyama",
+        "kind": "alias"
+      }
+    ]
+  }
+}

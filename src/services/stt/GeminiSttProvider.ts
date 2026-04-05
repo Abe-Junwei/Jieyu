@@ -101,7 +101,7 @@ export class GeminiSttProvider implements CommercialSttProvider {
     );
 
     if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
+      const text = await resp.text().catch((e) => { console.warn('Gemini STT: failed to read error response body', e); return ''; });
       throw new Error(`Gemini STT failed: ${resp.status} ${text}`);
     }
 

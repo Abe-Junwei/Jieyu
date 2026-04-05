@@ -141,7 +141,7 @@ describe('OrthographyBuilderPanel', () => {
     expect(root).toBeTruthy();
     expect(root.querySelector('.dialog-header')).toBeTruthy();
     expect(screen.getByText('渲染预览')).toBeTruthy();
-    expect(screen.getByText('正字法快速创建')).toBeTruthy();
+    expect(screen.getByText('正字法构建器')).toBeTruthy();
     expect(screen.getByText('脚本：Arab')).toBeTruthy();
     expect(screen.getByText('方向：RTL')).toBeTruthy();
     expect(screen.getByText('字体覆盖：样例 3 项')).toBeTruthy();
@@ -274,41 +274,27 @@ describe('OrthographyBuilderPanel', () => {
     );
 
     expect(screen.getByRole('combobox', { name: '创建方式' })).toBeTruthy();
-    expect(screen.getByRole('textbox', { name: '来源语言' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '来源语言' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '来源语言代码' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '来源正字法' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '本地名称' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '文本方向' })).toBeTruthy();
-    expect(screen.getByRole('textbox', { name: '脚本标签' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '文字标签' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '桥接引擎' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '桥接规则文本' })).toBeTruthy();
   });
 
-  it('renders lightweight context and workspace follow-up actions when provided', () => {
-    const openWorkspace = vi.fn();
-    const createOrthography = vi.fn(async () => ({
-      id: 'orth-created',
-      languageId: 'eng',
-      name: { eng: 'Created Orthography' },
-      scriptTag: 'Latn',
-      type: 'practical' as const,
-      createdAt: '2026-04-04T00:00:00.000Z',
-      updatedAt: '2026-04-04T00:00:00.000Z',
-    }));
-
+  it('renders lightweight context notes when provided', () => {
     renderZh(
       <OrthographyBuilderPanel
-        picker={createPicker({ createOrthography })}
+        picker={createPicker({})}
         languageOptions={[]}
         contextLines={['新建项目', '项目主语言：英语 English']}
-        onOpenWorkspace={openWorkspace}
       />,
     );
 
     expect(screen.getByText('当前创建场景')).toBeTruthy();
     expect(screen.getByText('项目主语言：英语 English')).toBeTruthy();
-    expect(screen.getByText('创建后去向')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '创建并前往工作台完善' })).toBeTruthy();
   });
 
   it('shows grouped source orthography options and icu syntax hints', () => {
@@ -356,5 +342,25 @@ describe('OrthographyBuilderPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: '添加创建前自检样例' }));
     expect(screen.getByRole('textbox', { name: '桥接样例' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '桥接规则文本' }).getAttribute('placeholder')).toContain('::NFC');
+  });
+
+  it('renders a resolved source language code with its locale-first display label', async () => {
+    renderZh(
+      <OrthographyBuilderPanel
+        picker={createPicker({
+          createMode: 'derive-other',
+          sourceLanguageId: 'eng',
+        })}
+        languageOptions={[{ code: 'eng', label: '英语 English' }]}
+      />,
+    );
+
+    const sourceLanguageNameInput = screen.getByRole('combobox', { name: '来源语言' }) as HTMLInputElement;
+    const sourceLanguageCodeInput = screen.getByRole('textbox', { name: '来源语言代码' }) as HTMLInputElement;
+
+    await waitFor(() => {
+      expect(sourceLanguageCodeInput.value).toBe('eng');
+      expect(sourceLanguageNameInput.value).toBe('英语 · English');
+    });
   });
 });

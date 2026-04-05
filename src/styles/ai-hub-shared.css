@@ -14,16 +14,6 @@
   border-color: var(--border, var(--border-soft));
 }
 
-.voice-agent-config-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-:root[data-theme='dark'] .voice-agent-config-title {
-  color: var(--text-primary, color-mix(in srgb, var(--surface-header) 84%, transparent));
-}
-
 .voice-agent-config-actions {
   display: flex;
   align-items: center;
@@ -132,10 +122,6 @@
 
 .transcription-voice-dock-idle .voice-agent-status-line {
   white-space: nowrap;
-}
-
-.transcription-hub-voice-section {
-  padding: 8px;
 }
 
 @media (max-width: 1280px) {

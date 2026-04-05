@@ -1,0 +1,93 @@
+{
+  "cmn": {
+    "english": "Mandarin",
+    "native": "普通话",
+    "byLocale": {
+      "zh-CN": "普通话",
+      "en-US": "Mandarin",
+      "fr-FR": "mandarin",
+      "es-ES": "mandarín",
+      "de-DE": "Mandarin"
+    }
+  },
+  "yue": {
+    "english": "Cantonese",
+    "native": "粵語",
+    "byLocale": {
+      "zh-CN": "粤语",
+      "en-US": "Cantonese",
+      "fr-FR": "cantonais",
+      "es-ES": "cantonés",
+      "de-DE": "Kantonesisch"
+    }
+  },
+  "wuu": {
+    "native": "吴语",
+    "byLocale": {
+      "zh-CN": "吴语",
+      "en-US": "Wu Chinese",
+      "fr-FR": "chinois wu",
+      "es-ES": "chino wu",
+      "de-DE": "Wu-Chinesisch"
+    }
+  },
+  "nan": {
+    "native": "閩南語",
+    "byLocale": {
+      "zh-CN": "闽南语",
+      "en-US": "Southern Min",
+      "fr-FR": "minnan",
+      "es-ES": "minnan",
+      "de-DE": "Min Nan"
+    }
+  },
+  "hak": {
+    "native": "客家話",
+    "byLocale": {
+      "zh-CN": "客家话"
+    }
+  },
+  "ind": {
+    "native": "Bahasa Indonesia"
+  },
+  "tgl": {
+    "native": "Tagalog"
+  },
+  "kur": {
+    "native": "Kurdî"
+  },
+  "hbs": {
+    "native": "srpskohrvatski"
+  },
+  "ckb": {
+    "english": "Central Kurdish"
+  },
+  "kmr": {
+    "english": "Northern Kurdish",
+    "byLocale": {
+      "zh-CN": "库尔曼吉语",
+      "en-US": "Northern Kurdish"
+    }
+  },
+  "gsw": {
+    "english": "Swiss German"
+  },
+  "iii": {
+    "english": "Sichuan Yi"
+  },
+  "div": {
+    "english": "Dhivehi",
+    "byLocale": {
+      "en-US": "Dhivehi"
+    }
+  },
+  "cnr": {
+    "native": "crnogorski",
+    "byLocale": {
+      "zh-CN": "黑山语",
+      "fr-FR": "monténégrin",
+      "es-ES": "montenegrino",
+      "de-DE": "Montenegrinisch"
+    }
+  }
+}

@@ -123,10 +123,10 @@ describe('LayerActionPopover RTL matrix', () => {
       'en-US',
     );
 
-    const languageCodeInput = screen.getByRole('textbox', { name: /source language code/i });
+    const languageCodeInput = screen.getByRole('textbox', { name: /language code/i });
     fireEvent.change(languageCodeInput, { target: { value: 'cmn' } });
 
-    const createButton = screen.getByRole('button', { name: /^create$/i });
+    const createButton = screen.getByRole('button', { name: /^new transcription layer$/i });
     fireEvent.click(createButton);
 
     await waitFor(() => {
@@ -134,14 +134,12 @@ describe('LayerActionPopover RTL matrix', () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    const cancelButton = screen.getByRole('button', { name: /^cancel$/i });
+    const cancelButton = screen.getByRole('button', { name: /^new transcription layer cancel$/i });
     events.push('cancel-click');
     fireEvent.click(cancelButton);
 
-    const closeIcon = document.body.querySelector('.dialog-header .dialog-header-actions .icon-btn:last-child') as HTMLButtonElement;
-    expect(closeIcon).toBeTruthy();
     events.push('close-click');
-    fireEvent.click(closeIcon);
+    fireEvent.click(cancelButton);
 
     expect(events).toEqual(['confirm', 'close', 'cancel-click', 'close', 'close-click', 'close']);
   });

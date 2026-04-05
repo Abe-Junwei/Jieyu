@@ -1,5 +1,4 @@
-.panel-section,
-.panel-organization-surface {
+.panel-section {
   display: grid;
   gap: 10px;
   min-width: 0;
@@ -10,13 +9,11 @@
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
 }
 
-.panel-section--emphasis,
-.panel-organization-surface-emphasis {
+.panel-section--emphasis {
   background: color-mix(in srgb, var(--surface-header) 88%, var(--surface-panel));
 }
 
-.panel-section__header,
-.panel-organization-surface-head {
+.panel-section__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -30,16 +27,14 @@
   gap: 4px;
 }
 
-.panel-section__title,
-.panel-organization-surface-title {
+.panel-section__title {
   color: var(--text-primary);
   font-size: calc(0.84rem * var(--ui-font-scale, 1));
   line-height: 1.45;
   font-weight: 700;
 }
 
-.panel-section__description,
-.panel-organization-surface-copy {
+.panel-section__description {
   margin: 0;
   color: var(--text-secondary);
   font-size: calc(0.78rem * var(--ui-font-scale, 1));
@@ -47,8 +42,7 @@
 }
 
 .panel-section__meta,
-.panel-meta,
-.dialog-stat-row {
+.panel-meta {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -75,9 +69,7 @@
   color: var(--state-danger-text);
 }
 
-.panel-chip,
-.dialog-stat-chip,
-.panel-organization-chip {
+.panel-chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -92,23 +84,19 @@
   font-weight: 600;
 }
 
-.panel-chip--danger,
-.dialog-stat-chip-danger,
-.panel-organization-chip-danger {
+.panel-chip--danger {
   border-color: color-mix(in srgb, var(--state-danger-border) 88%, transparent);
   background: color-mix(in srgb, var(--state-danger-bg) 88%, var(--surface-panel));
   color: var(--state-danger-text);
 }
 
-.panel-chip--success,
-.dialog-stat-chip-success {
+.panel-chip--success {
   border-color: color-mix(in srgb, var(--state-success-border) 88%, transparent);
   background: color-mix(in srgb, var(--state-success-bg) 88%, var(--surface-panel));
   color: var(--state-success-text);
 }
 
-.panel-chip--warning,
-.dialog-stat-chip-warning {
+.panel-chip--warning {
   border-color: color-mix(in srgb, var(--state-warning-border) 88%, transparent);
   background: color-mix(in srgb, var(--state-warning-bg) 88%, var(--surface-panel));
   color: var(--state-warning-text);

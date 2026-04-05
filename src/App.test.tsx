@@ -19,7 +19,9 @@ vi.mock('./pages/AnnotationPage', () => ({ AnnotationPage: () => <div>annotation
 vi.mock('./pages/AnalysisPage', () => ({ AnalysisPage: () => <div>analysis-page</div> }));
 vi.mock('./pages/WritingPage', () => ({ WritingPage: () => <div>writing-page</div> }));
 vi.mock('./pages/LexiconPage', () => ({ LexiconPage: () => <div>lexicon-page</div> }));
+vi.mock('./pages/LanguageMetadataWorkspacePage', () => ({ LanguageMetadataWorkspacePage: () => <div>language-metadata-page</div> }));
 vi.mock('./pages/OrthographyWorkspacePage', () => ({ OrthographyWorkspacePage: () => <div>orthography-workspace-page</div> }));
+vi.mock('./pages/OrthographyBridgeWorkspacePage', () => ({ OrthographyBridgeWorkspacePage: () => <div>orthography-bridge-workspace-page</div> }));
 
 beforeAll(() => {
   Object.defineProperty(window, 'matchMedia', {
@@ -78,8 +80,11 @@ describe('App shell', () => {
     expect(screen.getAllByRole('link', { name: /Analysis|分析/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /Writing|写作/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /Lexicon|词典/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /Language Metadata|语言元数据/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /Orthographies|正字法/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /Orthography Bridges|正字法桥接/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText(/功能面板内容区|Feature panel content area/).length).toBeGreaterThan(0);
-    expect(screen.queryByText('核心工作区')).toBeNull();
+    expect(screen.getAllByText(/Language Assets|语言资产/).length).toBeGreaterThan(0);
   });
 
   it('persists locale preference and rerenders shell copy after toggling language', () => {

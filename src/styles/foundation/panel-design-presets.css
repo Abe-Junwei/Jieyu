@@ -76,8 +76,8 @@
   color: var(--panel-design-text-color);
 }
 
-.panel-design-match :is(.panel-section, .panel-section--emphasis, .panel-organization-surface, .panel-organization-surface-emphasis),
-.panel-design-match-content :is(.panel-section, .panel-section--emphasis, .panel-organization-surface, .panel-organization-surface-emphasis) {
+.panel-design-match :is(.panel-section, .panel-section--emphasis),
+.panel-design-match-content :is(.panel-section, .panel-section--emphasis) {
   gap: 8px;
   padding: 8px;
   border: 1px solid var(--panel-design-border-color);
@@ -86,28 +86,28 @@
   box-shadow: none;
 }
 
-.panel-design-match :is(.panel-section__header, .panel-section__meta, .dialog-stat-row),
-.panel-design-match-content :is(.panel-section__header, .panel-section__meta, .dialog-stat-row) {
+.panel-design-match :is(.panel-section__header, .panel-section__meta),
+.panel-design-match-content :is(.panel-section__header, .panel-section__meta) {
   gap: 8px 12px;
 }
 
-.panel-design-match :is(.panel-section__title, .panel-organization-surface-title, .ai-chat-replay-panel-section-title),
-.panel-design-match-content :is(.panel-section__title, .panel-organization-surface-title, .ai-chat-replay-panel-section-title) {
+.panel-design-match :is(.panel-section__title, .ai-chat-replay-panel-section-title),
+.panel-design-match-content :is(.panel-section__title, .ai-chat-replay-panel-section-title) {
   color: var(--panel-design-text-color);
   font-size: 12px;
   line-height: 1.5;
   font-weight: 600;
 }
 
-.panel-design-match :is(.panel-section__description, .panel-summary__supporting, .panel-note, .panel-organization-surface-copy, .dialog-supporting-note),
-.panel-design-match-content :is(.panel-section__description, .panel-summary__supporting, .panel-note, .panel-organization-surface-copy, .dialog-supporting-note) {
+.panel-design-match :is(.panel-section__description, .panel-summary__supporting, .panel-note, .dialog-supporting-note),
+.panel-design-match-content :is(.panel-section__description, .panel-summary__supporting, .panel-note, .dialog-supporting-note) {
   color: var(--panel-design-text-color);
   font-size: 12px;
   line-height: 1.5;
 }
 
-.panel-design-match :is(.panel-chip, .dialog-stat-chip, .panel-organization-chip),
-.panel-design-match-content :is(.panel-chip, .dialog-stat-chip, .panel-organization-chip) {
+.panel-design-match :is(.panel-chip),
+.panel-design-match-content :is(.panel-chip) {
   min-height: auto;
   padding: 0;
   border: 0;
@@ -119,8 +119,8 @@
   font-weight: 600;
 }
 
-.panel-design-match :is(.panel-chip--danger, .panel-note--danger, .dialog-stat-chip-danger, .panel-organization-chip-danger, .dialog-supporting-note-danger),
-.panel-design-match-content :is(.panel-chip--danger, .panel-note--danger, .dialog-stat-chip-danger, .panel-organization-chip-danger, .dialog-supporting-note-danger) {
+.panel-design-match :is(.panel-chip--danger, .panel-note--danger, .dialog-supporting-note-danger),
+.panel-design-match-content :is(.panel-chip--danger, .panel-note--danger, .dialog-supporting-note-danger) {
   color: #b91c1c;
 }
 

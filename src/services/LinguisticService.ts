@@ -83,6 +83,16 @@ import {
   type UpdateOrthographyInput,
   type UpdateOrthographyBridgeInput,
 } from './LinguisticService.orthography';
+import {
+  deleteLanguageCatalogEntry,
+  getLanguageCatalogEntry,
+  listLanguageCatalogEntries,
+  listLanguageCatalogHistory,
+  upsertLanguageCatalogEntry,
+  type LanguageCatalogEntry,
+  type LanguageCatalogDisplayNameEntry,
+  type UpsertLanguageCatalogEntryInput,
+} from './LinguisticService.languageCatalog';
 
 export {
   type ConstraintSeverity,
@@ -97,6 +107,11 @@ export type {
   OrthographyDocType,
   OrthographyBridgeDocType,
 } from '../db';
+export type {
+  LanguageCatalogEntry,
+  LanguageCatalogDisplayNameEntry,
+  UpsertLanguageCatalogEntryInput,
+} from './LinguisticService.languageCatalog';
 
 // ── Audit log infrastructure ──────────────────────────────────
 
@@ -1337,6 +1352,37 @@ export class LinguisticService {
 
   static async updateOrthographyBridge(input: UpdateOrthographyBridgeInput): Promise<OrthographyBridgeDocType> {
     return updateOrthographyBridgeRecord(input);
+  }
+
+  static async listLanguageCatalogEntries(input: {
+    locale: 'zh-CN' | 'en-US';
+    searchText?: string;
+    includeHidden?: boolean;
+  }): Promise<LanguageCatalogEntry[]> {
+    return listLanguageCatalogEntries(input);
+  }
+
+  static async getLanguageCatalogEntry(input: {
+    languageId: string;
+    locale: 'zh-CN' | 'en-US';
+  }): Promise<LanguageCatalogEntry | null> {
+    return getLanguageCatalogEntry(input);
+  }
+
+  static async upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEntryInput): Promise<LanguageCatalogEntry> {
+    return upsertLanguageCatalogEntry(input);
+  }
+
+  static async deleteLanguageCatalogEntry(input: {
+    languageId: string;
+    reason?: string;
+    locale: 'zh-CN' | 'en-US';
+  }): Promise<void> {
+    return deleteLanguageCatalogEntry(input);
+  }
+
+  static async listLanguageCatalogHistory(languageId: string) {
+    return listLanguageCatalogHistory(languageId);
   }
 
   static async deleteOrthographyBridge(id: string): Promise<void> {

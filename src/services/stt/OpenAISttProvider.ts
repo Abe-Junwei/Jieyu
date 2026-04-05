@@ -63,7 +63,7 @@ export class OpenAISttProvider implements CommercialSttProvider {
     });
 
     if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
+      const text = await resp.text().catch((e) => { console.warn('OpenAI STT: failed to read error response body', e); return ''; });
       throw new Error(`OpenAI Audio STT failed: ${resp.status} ${text}`);
     }
 

@@ -4,7 +4,6 @@ import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { initSentryForReleaseStage } from './observability/sentry';
 import './styles/app-foundation.css';
-import './styles/panel-blocks.css';
 
 void initSentryForReleaseStage();
 

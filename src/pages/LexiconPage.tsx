@@ -125,7 +125,7 @@ export function LexiconPage() {
         </div>
         <div className="app-side-pane-nav app-side-pane-feature-nav">
           <Link to="/transcription" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'app.featureAvailability.backToTranscription')}</Link>
-          <Link to="/lexicon/orthographies" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.lexicon.openOrthographyWorkspace')}</Link>
+          <Link to="/assets/orthographies" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.lexicon.openOrthographyWorkspace')}</Link>
         </div>
       </section>
     </div>

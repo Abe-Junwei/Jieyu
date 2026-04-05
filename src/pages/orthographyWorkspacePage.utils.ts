@@ -7,7 +7,6 @@ import {
   readEnglishFallbackMultiLangLabel,
   readPrimaryMultiLangLabel,
 } from '../utils/multiLangLabels';
-import { COMMON_LANGUAGES } from '../utils/transcriptionFormatters';
 
 export type NormalizationForm = 'NFC' | 'NFD' | 'NFKC' | 'NFKD';
 export type OrthographyCatalogReviewStatus = NonNullable<NonNullable<OrthographyDocType['catalogMetadata']>['reviewStatus']>;
@@ -53,21 +52,17 @@ export type OrthographyDraft = {
   preferDirAttribute: boolean;
 };
 
-export function resolveLanguageLabel(languageId: string): string {
-  return COMMON_LANGUAGES.find((item) => item.code === languageId)?.label ?? languageId;
-}
-
 export function readOrthographyName(orthography: OrthographyDocType): string {
   return readAnyMultiLangLabel(orthography.name)
     ?? orthography.abbreviation
     ?? orthography.id;
 }
 
-export function buildSearchText(orthography: OrthographyDocType): string {
+export function buildSearchText(orthography: OrthographyDocType, languageLabel: string): string {
   return [
     readOrthographyName(orthography),
     orthography.languageId ?? '',
-    resolveLanguageLabel(orthography.languageId ?? ''),
+    languageLabel,
     orthography.scriptTag,
     orthography.type,
   ].filter(Boolean).join(' ').toLowerCase();

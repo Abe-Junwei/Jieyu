@@ -24,7 +24,7 @@
 }
 
 .layer-action-dialog-field-label {
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 600;
   line-height: 1.5;
   color: var(--panel-design-text-color, var(--text-secondary));
@@ -47,33 +47,12 @@
   gap: 6px;
 }
 
-.transcription-side-pane-speaker-panel-summary {
-  padding-bottom: 0;
-  border-bottom: 0;
-}
-
-.transcription-side-pane-speaker-panel-title {
-  font-size: 0.78rem;
-  color: var(--text-primary);
-}
-
-.transcription-side-pane-speaker-panel-subtitle {
-  font-size: 0.72rem;
-  color: var(--text-primary);
-}
-
 .transcription-side-pane-speaker-panel-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 10px;
   font-size: 0.68rem;
   color: var(--text-secondary);
-}
-
-.transcription-side-pane-speaker-panel-summary-text {
-  font-size: 0.72rem;
-  color: var(--text-primary);
-  line-height: 1.4;
 }
 
 .speaker-management-dialog-actions,
@@ -159,24 +138,6 @@
   box-shadow: none;
 }
 
-.speaker-management-panel-card-head {
-  display: grid;
-  gap: 6px;
-}
-
-.speaker-management-panel-card-title {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.speaker-management-panel-card-copy {
-  margin: 0;
-  font-size: 0.74rem;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-
 .speaker-management-panel-grid {
   display: grid;
   gap: 10px;
@@ -220,16 +181,16 @@
 .layer-action-dialog-copy {
   margin: 0;
   color: var(--text-primary);
-  font-size: 0.8rem;
-  line-height: 1.52;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  line-height: 1.5;
 }
 
 .layer-action-dialog-feedback {
   margin: 0;
   padding: 9px 11px;
-  border-radius: 10px;
-  font-size: 0.76rem;
-  font-weight: 600;
+  border-radius: 8px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 500;
   line-height: 1.5;
 }
 
@@ -245,26 +206,13 @@
   color: var(--state-info-solid);
 }
 
-.layer-action-dialog-fieldset {
-  margin: 0;
+/* 反馈消息堆叠容器 | Feedback message stack */
+.layer-action-dialog-feedback-stack {
+  display: grid;
+  gap: 6px;
 }
 
-.layer-action-dialog-fieldset-legend {
-  padding: 0 6px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.layer-action-dialog-radio-option {
-  color: var(--text-primary);
-  font-size: 0.78rem;
-  line-height: 1.45;
-}
-
-.layer-action-dialog-radio-option-block {
-  margin-bottom: 8px;
-}
+/* 旧规则已收敛至 .layer-action-dialog 精调区 | Legacy rules consolidated below */
 
 .layer-action-dialog-meta-note {
   margin-top: -2px;
@@ -279,7 +227,7 @@
   min-height: 30px;
   box-sizing: border-box;
   border-radius: 6px;
-  font-size: 0.78rem;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.5;
   padding: 0 10px;
 }
@@ -303,7 +251,7 @@
   gap: 6px;
   padding: 0 10px;
   border: 1px solid transparent;
-  font-size: 0.78rem;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 600;
   cursor: pointer;
   transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, opacity 0.16s ease;
@@ -312,12 +260,6 @@
 .layer-action-dialog-btn:disabled {
   opacity: 0.56;
   cursor: not-allowed;
-}
-
-.layer-action-dialog-btn-primary {
-  background: var(--state-info-solid);
-  border-color: var(--state-info-solid);
-  color: #fff;
 }
 
 .layer-action-dialog-btn-ghost {
@@ -335,12 +277,12 @@
 @media (max-width: 640px) {
   .layer-action-dialog-input {
     min-height: 30px;
-    font-size: 0.78rem;
+    font-size: calc(12px * var(--ui-font-scale, 1));
   }
 
   .layer-action-dialog-btn {
     min-height: 30px;
-    font-size: 0.78rem;
+    font-size: calc(12px * var(--ui-font-scale, 1));
   }
 }
 
@@ -360,4 +302,161 @@
   color: var(--text-secondary);
   font-size: 0.78rem;
   line-height: 1.5;
+}
+
+/* ──────────────────────────────────────────────────────────
+ *  新建转写/翻译面板 · 设计稿精调
+ *  Create-layer dialog · design-spec refinement
+ *
+ *  字号层级 | Font-size hierarchy:
+ *    L0  标题   16px / 600  --text-primary    (.dialog-shell__title)
+ *    L1  字段标签 12px / 600  --text-secondary  (field-label, legend, language grid > span)
+ *    L2  提示   11px / 500  --text-tertiary   (.panel-note, .dialog-hint, alias-hint)
+ *    L3  按钮   12px / 600  #f8fafc on solid  (.panel-button--primary)
+ * ────────────────────────────────────────────────────────── */
+
+/* 头部 / 尾部内距与字重 | Header / footer padding & title weight */
+.layer-action-dialog .dialog-header {
+  padding: 12px 16px;
+}
+
+/* L0 标题 16px/600 | L0 title 16px/600 */
+.layer-action-dialog .dialog-shell__title {
+  font-size: calc(16px * var(--ui-font-scale, 1));
+  font-weight: 600;
+}
+
+.layer-action-dialog .dialog-footer {
+  padding: 12px 16px;
+}
+
+/* 语言双列网格间距 | Language two-column grid gap */
+.layer-action-dialog .language-iso-input-grid {
+  gap: 8px;
+}
+
+/* L1 语言网格内子标签 12px/600（与字段标签同级） | L1 language grid sub-labels 12px/600 */
+.layer-action-dialog .language-iso-input .dialog-field {
+  gap: 3px;
+}
+
+.layer-action-dialog .language-iso-input .dialog-field > span {
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+}
+
+/* L1 字段标签 12px/600 (已在全局声明，此处确认) | L1 field label 12px/600 */
+.layer-action-dialog .layer-action-dialog-field-label {
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* 约束字段组移除边框/内距，缩小选项间距 | Constraint fieldset: borderless, tighter radio gap */
+.layer-action-dialog .layer-action-dialog-fieldset {
+  margin: 0;
+  border: none;
+  padding: 0;
+  gap: 6px;
+}
+
+/* L1 约束 legend 12px/600，底部留距拉开与选项的距离 | L1 constraint legend with bottom spacing */
+.layer-action-dialog .layer-action-dialog-fieldset-legend {
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+/* 单选文案 12px/500 | Radio option text 12px/500 */
+.layer-action-dialog .layer-action-dialog-radio-option {
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 500;
+}
+
+/* 单选按钮间距 | Radio button gap */
+.layer-action-dialog .panel-radio {
+  gap: 6px;
+}
+
+/* L3 提示/备注文本 11px/500 | L3 hint / note text 11px/500 */
+.layer-action-dialog .panel-note {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 500;
+}
+
+.layer-action-dialog .dialog-hint {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 500;
+}
+
+/* L3 别名辅助提示 | L3 alias helper hint */
+.layer-action-dialog-alias-hint {
+  margin: 0;
+  color: var(--text-tertiary, #94a3b8);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* L1 反馈块 12px/500 | L1 Feedback block 12px/500 */
+.layer-action-dialog .layer-action-dialog-feedback {
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 500;
+}
+
+/* 自动关联父层提示（蓝色） | Auto-linked parent hint (blue) */
+.layer-action-dialog-auto-linked-hint {
+  color: var(--state-info-solid, #2563eb);
+}
+
+/* 主按钮禁用态：实色灰底 | Primary button disabled: solid gray */
+.layer-action-dialog .panel-button--primary:disabled {
+  opacity: 1;
+  background: #94a3b8;
+  border-color: #94a3b8;
+  color: #f8fafc;
+}
+
+/* 主按钮启用态：实色蓝底 | Primary button enabled: solid blue */
+.layer-action-dialog .panel-button--primary:not(:disabled) {
+  background: var(--state-info-solid, #2563eb);
+  border-color: var(--state-info-solid, #2563eb);
+  color: #fff;
+}
+
+/* L4 主按钮 12px/600 | L4 Primary button 12px/600 */
+.layer-action-dialog .panel-button--primary {
+  padding: 6px 10px;
+  min-height: unset;
+  border-radius: 7px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+}
+
+/* 选择框 + 内联新建按钮横排 | Select + inline create button row */
+.layer-action-dialog-select-with-btn {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.layer-action-dialog-select-with-btn > select {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.layer-action-dialog-inline-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 8px;
+  min-height: 30px;
+  border-radius: 6px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }

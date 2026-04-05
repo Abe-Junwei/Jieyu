@@ -539,7 +539,11 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     );
 
     expect(screen.getByRole('button', { name: '清空已选说话人' }).className).toContain('panel-button');
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'spk-1' } });
+    const speakerSelect = screen.getAllByRole('combobox').find(
+      (element): element is HTMLSelectElement => element instanceof HTMLSelectElement,
+    );
+    expect(speakerSelect).toBeTruthy();
+    fireEvent.change(speakerSelect!, { target: { value: 'spk-1' } });
     fireEvent.click(screen.getByRole('button', { name: '应用说话人' }));
 
     expect(onAssignSpeakerToSelectedRouted).toHaveBeenCalled();
@@ -729,7 +733,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     expect(transcriptionDialog).toBeTruthy();
     expect(within(transcriptionDialog).queryByText(/时间细分/)).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: '取消' }));
+    fireEvent.click(screen.getByRole('button', { name: '新建转写层 取消' }));
 
     fireEvent.contextMenu(screen.getByRole('button', { name: /中文/ }));
     fireEvent.click(await screen.findByRole('menuitem', { name: '新建翻译层' }));
@@ -780,14 +784,14 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: '新建转写层' }));
 
     const dialog = await screen.findByRole('dialog', { name: '新建转写层' });
-    const languageCodeInput = within(dialog).getByRole('textbox', { name: /来源语言代码|Source language code/i });
+    const languageCodeInput = within(dialog).getByRole('textbox', { name: /语言代码|Source language code/i });
     fireEvent.change(languageCodeInput, { target: { value: 'eng' } });
 
     await waitFor(() => {
       expect((within(dialog).getByRole('combobox', { name: '新建正字法…' }) as HTMLSelectElement).value).toBe('orth_eng_default');
     });
 
-    fireEvent.click(within(dialog).getByRole('button', { name: '创建' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: '新建转写层' }));
 
     await waitFor(() => {
       expect(createLayer).toHaveBeenCalledWith(
@@ -893,15 +897,17 @@ describe('SidePaneSidebar speaker actions interaction', () => {
 
     await clickCreateAction('新建翻译层');
     const dialog = await screen.findByRole('dialog', { name: '新建翻译层' });
-    const selects = within(dialog).getAllByRole('combobox');
+    const selects = within(dialog)
+      .getAllByRole('combobox')
+      .filter((select): select is HTMLSelectElement => select instanceof HTMLSelectElement);
     const parentSelect = selects.find((select) => (
-      Array.from((select as HTMLSelectElement).options).some((option) => option.value === 'layer_trc_2')
+      Array.from(select.options).some((option) => option.value === 'layer_trc_2')
     ));
     expect(parentSelect).toBeTruthy();
 
-    const languageCodeInput = within(dialog).getByRole('textbox', { name: /来源语言代码|Source language code/i });
+    const languageCodeInput = within(dialog).getByRole('textbox', { name: /语言代码|Source language code/i });
     fireEvent.change(languageCodeInput, { target: { value: 'fra' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: '创建' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: '新建翻译层' }));
 
     expect(createLayer).not.toHaveBeenCalled();
     expect(within(dialog).getByText(/当前限制：无法新建翻译。请选择依赖层/)).toBeTruthy();
@@ -910,7 +916,8 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     await waitFor(() => {
       const latestParentSelect = within(dialog)
         .getAllByRole('combobox')
-        .find((select) => Array.from((select as HTMLSelectElement).options).some((option) => option.value === 'layer_trc_2')) as HTMLSelectElement | undefined;
+        .filter((select): select is HTMLSelectElement => select instanceof HTMLSelectElement)
+        .find((select) => Array.from(select.options).some((option) => option.value === 'layer_trc_2'));
       expect(latestParentSelect?.value).toBe('layer_trc_2');
     });
     expect(createLayer).not.toHaveBeenCalled();
@@ -961,12 +968,13 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     const dialog = await screen.findByRole('dialog', { name: '新建翻译层' });
     const parentSelect = within(dialog)
       .getAllByRole('combobox')
-      .find((select) => Array.from((select as HTMLSelectElement).options).some((option) => option.value === 'layer_trc_2')) as HTMLSelectElement | undefined;
+      .filter((select): select is HTMLSelectElement => select instanceof HTMLSelectElement)
+      .find((select) => Array.from(select.options).some((option) => option.value === 'layer_trc_2'));
     expect(parentSelect?.value).toBe('layer_trc_2');
 
-    const languageCodeInput = within(dialog).getByRole('textbox', { name: /来源语言代码|Source language code/i });
+    const languageCodeInput = within(dialog).getByRole('textbox', { name: /语言代码|Source language code/i });
     fireEvent.change(languageCodeInput, { target: { value: 'fra' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: '创建' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: '新建翻译层' }));
 
     await waitFor(() => {
       expect(createLayer).toHaveBeenCalledWith(
@@ -1096,6 +1104,121 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     expect(inspector.getByText('写入桥接规则已迁移到独立的正字法工作台，当前检视器只保留跳转入口。')).toBeTruthy();
   });
 
+  it('keeps hook order stable when the focused-layer inspector switches from empty to populated', async () => {
+    const now = '2026-03-25T00:00:00.000Z';
+    const trcLayer = {
+      id: 'layer_trc_focus_toggle',
+      textId: 'text_1',
+      key: 'trc_eng_focus_toggle',
+      name: { zho: '转写层切换' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      orthographyId: 'orth-focus-toggle',
+      modality: 'text',
+      acceptsAudio: false,
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+
+    mockUseOrthographies.mockImplementation((languageIds: string[]) => {
+      if (languageIds.includes('eng')) {
+        return [{
+          id: 'orth-focus-toggle',
+          languageId: 'eng',
+          name: { eng: 'Focus Toggle Orthography' },
+          scriptTag: 'Latn',
+          type: 'practical',
+          createdAt: now,
+          updatedAt: now,
+        }];
+      }
+      return [];
+    });
+
+    const view = renderSidebarForCreateContextMenuFlow({
+      layerRows: [trcLayer],
+      transcriptionLayers: [trcLayer],
+      translationLayers: [],
+      focusedLayerRowId: '',
+    });
+
+    expect(screen.getByText('请选择一个层查看详情。')).toBeTruthy();
+
+    view.rerender(
+      <LocaleProvider locale="zh-CN">
+        <SpeakerRailProvider
+          speakerManagement={{
+            speakerOptions: [] as SpeakerDocType[],
+            speakerDraftName: '',
+            setSpeakerDraftName: vi.fn(),
+            batchSpeakerId: '',
+            setBatchSpeakerId: vi.fn(),
+            speakerSaving: false,
+            activeSpeakerFilterKey: 'all',
+            setActiveSpeakerFilterKey: vi.fn(),
+            speakerDialogState: null,
+            speakerVisualByUtteranceId: {},
+            speakerFilterOptions: [],
+            speakerReferenceStats: {},
+            speakerReferenceStatsReady: true,
+            selectedSpeakerSummary: '',
+            selectedUtteranceIds: new Set<string>(),
+            handleSelectSpeakerUtterances: vi.fn(),
+            handleClearSpeakerAssignments: vi.fn(),
+            handleExportSpeakerSegments: vi.fn(),
+            handleRenameSpeaker: vi.fn(),
+            handleMergeSpeaker: vi.fn(),
+            handleDeleteSpeaker: vi.fn(),
+            handleDeleteUnusedSpeakers: vi.fn(async () => undefined),
+            handleAssignSpeakerToSelected: vi.fn(async () => undefined),
+            handleCreateSpeakerAndAssign: vi.fn(async () => undefined),
+            handleCreateSpeakerOnly: vi.fn(async () => undefined),
+            closeSpeakerDialog: vi.fn(),
+            updateSpeakerDialogDraftName: vi.fn(),
+            updateSpeakerDialogTargetKey: vi.fn(),
+            confirmSpeakerDialog: vi.fn(async () => undefined),
+          }}
+          selectedUtteranceIds={new Set<string>()}
+          handleAssignSpeakerToSelectedRouted={vi.fn(async () => undefined)}
+          handleClearSpeakerOnSelectedRouted={vi.fn(async () => undefined)}
+        >
+          <SidePaneSidebar
+            sidePaneRows={[trcLayer]}
+            focusedLayerRowId={trcLayer.id}
+            flashLayerRowId=""
+            onFocusLayer={vi.fn()}
+            transcriptionLayers={[trcLayer]}
+            toggleLayerLink={vi.fn(async () => undefined)}
+            deletableLayers={[trcLayer]}
+            layerCreateMessage=""
+            layerAction={{
+              layerActionPanel: null,
+              setLayerActionPanel: vi.fn(),
+              layerActionRootRef: { current: null },
+              quickDeleteLayerId: trcLayer.id,
+              setQuickDeleteLayerId: vi.fn(),
+              quickDeleteKeepUtterances: false,
+              setQuickDeleteKeepUtterances: vi.fn(),
+              createLayer: vi.fn(async () => false),
+              deleteLayer: vi.fn(async () => undefined),
+              deleteLayerWithoutConfirm: vi.fn(async () => undefined),
+              checkLayerHasContent: vi.fn(async () => 0),
+            } as never}
+            onReorderLayers={vi.fn(async () => undefined)}
+          />
+        </SpeakerRailProvider>
+      </LocaleProvider>,
+    );
+
+    const inspector = within(screen.getByLabelText('当前层详情'));
+    await waitFor(() => {
+      expect(inspector.getByText('转写 · 英语 eng')).toBeTruthy();
+      expect(inspector.getByText(/Focus Toggle Orthography/)).toBeTruthy();
+      expect(inspector.getByRole('link', { name: '打开正字法桥接工作台' })).toBeTruthy();
+    });
+  });
+
   it('shows prominent error message inside popover when create transcription fails and keeps popover open', async () => {
     const now = '2026-03-25T00:00:00.000Z';
     const trcLayer = {
@@ -1124,8 +1247,8 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     await clickCreateAction('新建转写层');
     const dialog = await screen.findByRole('dialog', { name: '新建转写层' });
 
-    fireEvent.change(within(dialog).getByRole('textbox', { name: /来源语言代码|Source language code/i }), { target: { value: 'eng' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: '创建' }));
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /语言代码|Source language code/i }), { target: { value: 'eng' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: '新建转写层' }));
 
     const alertNode = await within(dialog).findByRole('alert');
     expect(alertNode.textContent).toContain('创建失败请选择语言。');

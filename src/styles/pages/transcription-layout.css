@@ -168,28 +168,6 @@
   border: 2px solid var(--border-soft);
 }
 
-.transcription-screen-focus-mode .transcription-waveform {
-  display: none;
-}
-
-.transcription-screen-focus-mode .transcription-workspace {
-  --transcription-ai-visible-width: 0px !important;
-}
-
-.transcription-screen-focus-mode .transcription-ai-panel,
-.transcription-screen-focus-mode .transcription-ai-panel-resizer {
-  display: none !important;
-}
-
-.transcription-screen-focus-mode .transcription-side-pane {
-  width: 0 !important;
-  overflow: hidden;
-}
-
-.transcription-screen-focus-mode .transcription-list-toolbar {
-  display: none;
-}
-
 .focus-mode-badge {
   position: fixed;
   bottom: 16px;

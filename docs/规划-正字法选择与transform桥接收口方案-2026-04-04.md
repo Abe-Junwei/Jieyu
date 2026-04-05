@@ -406,7 +406,8 @@ transform 只负责：
 - `src/components/LayerActionPopover.tsx`
 - `src/components/OrthographyTransformManager.tsx`
 - `src/i18n/projectSetupDialogMessages.ts`
-- `src/i18n/layerManagerPopoverMessages.ts`
+- `src/i18n/layerActionLabels.ts`
+- `src/i18n/layerActionPopoverMessages.ts`
 - `面板—极简.pen`
 
 ### Phase 2：运行时策略收口

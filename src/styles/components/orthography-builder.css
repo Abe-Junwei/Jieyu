@@ -1,0 +1,555 @@
+/* 正字法构建器基础样式 | Orthography builder foundation styles */
+
+.orthography-builder-panel {
+  --orthography-builder-space-1: 4px;
+  --orthography-builder-space-2: 8px;
+  --orthography-builder-space-3: 12px;
+  --orthography-builder-space-4: 16px;
+  --orthography-builder-space-5: 20px;
+  display: grid;
+  gap: var(--orthography-builder-space-3);
+  margin-top: 8px;
+  padding: 0;
+  container-type: inline-size;
+  font-family: var(--font-base);
+  color: var(--text-primary);
+}
+
+.orthography-builder-panel-compact {
+  --orthography-builder-space-1: 3px;
+  --orthography-builder-space-2: 8px;
+  --orthography-builder-space-3: 10px;
+  --orthography-builder-space-4: 12px;
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.orthography-builder-panel-compact .orthography-builder-group-title {
+  color: var(--panel-design-text-color, var(--text-secondary));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.orthography-builder-panel-compact .orthography-builder-group-title::before,
+.orthography-builder-panel-compact .orthography-builder-group-title::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: color-mix(in srgb, var(--panel-design-border-color) 100%, transparent);
+}
+
+.orthography-builder-panel-compact .orthography-builder-control-compact {
+  min-height: 34px;
+  border-radius: 8px;
+}
+
+.orthography-builder-panel-shell .orthography-builder-panel {
+  margin-top: 0;
+}
+
+.orthography-builder-panel-shell-body {
+  padding: 12px 16px 16px;
+}
+
+.orthography-builder-dialog-host .dialog-body {
+  gap: 0;
+  padding: 10px 12px 12px;
+}
+
+.orthography-builder-dialog-host .dialog-footer {
+  padding: 10px 12px;
+}
+
+.orthography-builder-dialog-host .dialog-shell__title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.orthography-builder-panel :is(.input, input, select, textarea) {
+  font-family: var(--font-base);
+  color: var(--text-primary);
+}
+
+.orthography-builder-panel :is(.orthography-builder-control, .orthography-builder-language-input .input, .orthography-builder-language-input input, .script-tag-combobox .input) {
+  width: 100%;
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 100%, transparent);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--panel-design-title-color, var(--text-primary));
+  font-size: 12px;
+  line-height: 1.35;
+  box-shadow: none;
+}
+
+.orthography-builder-panel :is(textarea.orthography-builder-control, textarea.orthography-builder-rule-textarea) {
+  min-height: 84px;
+  padding: 8px 10px;
+}
+
+.orthography-builder-panel select.orthography-builder-control {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 38px;
+  background-image:
+    linear-gradient(180deg, rgba(148, 163, 184, 0.24), rgba(148, 163, 184, 0.1)),
+    var(--select-caret-icon);
+  background-repeat: no-repeat;
+  background-position: calc(100% - 28px) 50%, calc(100% - 12px) 50%;
+  background-size: 1px 16px, 10px 10px;
+}
+
+.orthography-builder-panel .orthography-builder-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 100%, transparent);
+  background: #fff;
+  color: var(--panel-design-text-color, var(--text-secondary));
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.orthography-builder-panel .orthography-builder-btn-ghost {
+  background: #fff;
+  color: var(--panel-design-text-color, var(--text-secondary));
+}
+
+.orthography-builder-panel .orthography-builder-btn-primary {
+  border-color: var(--panel-design-accent-color);
+  background: var(--panel-design-accent-color);
+  color: #f8fafc;
+}
+
+.orthography-builder-panel :is(.input, input, select, textarea)::placeholder {
+  color: var(--text-secondary);
+}
+
+.orthography-builder-panel :is(.dialog-field, .language-iso-input .dialog-field) {
+  gap: var(--orthography-builder-space-1);
+}
+
+.orthography-builder-panel :is(.dialog-field, .language-iso-input .dialog-field) > span {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.orthography-builder-panel .language-iso-input-grid {
+  gap: var(--orthography-builder-space-2);
+}
+
+.orthography-builder-panel .orthography-builder-language-input {
+  gap: var(--orthography-builder-space-2);
+}
+
+.orthography-builder-panel-compact .language-iso-input-grid {
+  grid-template-columns: minmax(0, 1.8fr) minmax(88px, 0.8fr);
+}
+
+.orthography-builder-panel-compact .orthography-builder-language-input .dialog-field,
+.orthography-builder-panel-compact .script-tag-combobox,
+.orthography-builder-panel-compact .script-tag-combobox > * {
+  gap: var(--orthography-builder-space-1);
+}
+
+.orthography-builder-top-notes,
+.orthography-builder-group,
+.orthography-builder-group-body,
+.orthography-builder-source-stack,
+.orthography-builder-field-stack,
+.orthography-builder-render-controls,
+.orthography-builder-bridge-grid,
+.orthography-builder-bridge-group,
+.orthography-builder-grid,
+.orthography-builder-rule-block,
+.orthography-builder-preview-box,
+.orthography-builder-validation-box,
+.orthography-builder-hint,
+.orthography-builder-top-note {
+  display: grid;
+  gap: var(--orthography-builder-space-2);
+}
+
+.orthography-builder-top-notes {
+  grid-template-columns: 1fr;
+}
+
+.orthography-builder-top-note,
+.orthography-builder-preview-box,
+.orthography-builder-validation-box,
+.orthography-builder-hint,
+.orthography-builder-inline-summary {
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.orthography-builder-context-box {
+  background: color-mix(in srgb, var(--state-info-bg) 40%, white);
+}
+
+.orthography-builder-context-list,
+.orthography-builder-validation-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 3px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.orthography-builder-validation-list li {
+  display: grid;
+  gap: 2px;
+}
+
+.orthography-builder-rule-label,
+.orthography-builder-field-inline-label,
+.orthography-builder-group-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.orthography-builder-group {
+  gap: var(--orthography-builder-space-2);
+}
+
+.orthography-builder-panel-compact .orthography-builder-group-divided {
+  padding-top: var(--orthography-builder-space-3);
+  border-top: 1px solid color-mix(in srgb, var(--panel-design-border-color) 100%, transparent);
+}
+
+.orthography-builder-panel-compact .orthography-builder-group {
+  gap: 8px;
+}
+
+.orthography-builder-group-header {
+  display: grid;
+  gap: 2px;
+}
+
+.orthography-builder-panel-compact .orthography-builder-group-header {
+  justify-items: stretch;
+  gap: 4px;
+}
+
+.orthography-builder-group-description {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.orthography-builder-group-body,
+.orthography-builder-grid-compact {
+  gap: var(--orthography-builder-space-2);
+}
+
+.orthography-builder-panel-compact .orthography-builder-group-body {
+  gap: 8px;
+}
+
+.orthography-builder-field-shell {
+  display: grid;
+  gap: var(--orthography-builder-space-1);
+}
+
+.orthography-builder-field-shell-compact {
+  gap: 4px;
+}
+
+.orthography-builder-field-label {
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.orthography-builder-inline-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.orthography-builder-identity-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--orthography-builder-space-2);
+}
+
+.orthography-builder-script-type-row,
+.orthography-builder-render-row,
+.orthography-builder-bridge-group-settings {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--orthography-builder-space-2);
+}
+
+.orthography-builder-render-layout {
+  display: grid;
+  gap: var(--orthography-builder-space-2);
+}
+
+.orthography-builder-panel-compact .orthography-builder-identity-row {
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.25fr) minmax(84px, 0.72fr);
+  gap: 8px;
+}
+
+.orthography-builder-panel-compact .orthography-builder-script-type-row,
+.orthography-builder-panel-compact .orthography-builder-render-row,
+.orthography-builder-panel-compact .orthography-builder-bridge-group-settings {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.orthography-builder-panel-compact .orthography-builder-advanced-panel {
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--panel-design-border-color) 100%, transparent);
+}
+
+.orthography-builder-render-preview {
+  align-self: stretch;
+}
+
+.orthography-builder-panel-compact .orthography-builder-render-preview {
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.orthography-builder-render-preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.orthography-builder-render-preview-warning {
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--state-warning-bg) 84%, white);
+  color: var(--state-warning-text);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.orthography-builder-render-preview-sample {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px dashed color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 72%, white);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.orthography-builder-panel-compact .orthography-builder-render-preview-sample {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.orthography-builder-helper-text {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.orthography-builder-helper-text strong {
+  font-weight: 600;
+}
+
+.orthography-builder-advanced-stack {
+  display: grid;
+  gap: var(--orthography-builder-space-2);
+}
+
+.orthography-builder-checkbox-grid {
+  display: grid;
+  gap: var(--orthography-builder-space-2);
+}
+
+.orthography-builder-panel-compact .orthography-builder-checkbox-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.orthography-builder-advanced-toggle-row {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.orthography-builder-workspace-note {
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.orthography-builder-panel-compact .orthography-builder-workspace-note {
+  padding: 7px 9px;
+  border-radius: 8px;
+}
+
+.orthography-builder-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.orthography-builder-checkbox input {
+  margin: 0;
+}
+
+.orthography-builder-rule-textarea {
+  display: block;
+  width: 100%;
+  min-height: 96px;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.orthography-builder-bridge-panel {
+  gap: var(--orthography-builder-space-2);
+}
+
+.orthography-builder-bridge-group-secondary {
+  padding-top: var(--orthography-builder-space-2);
+  border-top: 1px solid color-mix(in srgb, var(--panel-design-border-color) 54%, transparent);
+}
+
+.orthography-builder-panel-compact .orthography-builder-bridge-group-secondary {
+  gap: 8px;
+}
+
+.orthography-builder-bridge-toggle {
+  align-self: center;
+}
+
+.orthography-builder-validation-box {
+  border: 1px solid transparent;
+  background: #fff;
+}
+
+.orthography-builder-validation-box-error {
+  border-color: color-mix(in srgb, var(--state-danger-text) 28%, transparent);
+  background: color-mix(in srgb, var(--state-danger-bg) 82%, white);
+}
+
+.orthography-builder-validation-box-neutral {
+  border-color: color-mix(in srgb, var(--panel-design-border-color) 68%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 80%, white);
+}
+
+.orthography-builder-validation-box-warn {
+  border-color: color-mix(in srgb, var(--state-warning-text) 28%, transparent);
+  background: color-mix(in srgb, var(--state-warning-bg) 84%, white);
+}
+
+.orthography-builder-warning-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--orthography-builder-space-2);
+  flex-wrap: wrap;
+}
+
+.orthography-builder-warning-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--state-warning-text);
+}
+
+.orthography-builder-preview-box code {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.orthography-builder-hint {
+  border-color: color-mix(in srgb, var(--state-info-solid) 18%, transparent);
+  background: color-mix(in srgb, var(--state-info-bg) 84%, white);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--state-info-solid);
+}
+
+.orthography-builder-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--orthography-builder-space-2);
+  flex-wrap: wrap;
+  padding-top: var(--orthography-builder-space-3);
+  border-top: 1px solid color-mix(in srgb, var(--panel-design-border-color) 54%, transparent);
+}
+
+/* 760px 响应断点已移除：所有网格已收口为单列 | 760px breakpoint removed: all grids are single-column */
+
+@container (max-width: 460px) {
+  .orthography-builder-panel-compact .orthography-builder-identity-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .orthography-builder-panel-compact .orthography-builder-script-type-row,
+  .orthography-builder-panel-compact .orthography-builder-render-row,
+  .orthography-builder-panel-compact .orthography-builder-bridge-group-settings,
+  .orthography-builder-panel-compact .orthography-builder-checkbox-grid,
+  .orthography-builder-panel-compact .language-iso-input-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container (max-width: 620px) {
+  .orthography-builder-warning-actions,
+  .orthography-builder-actions,
+  .orthography-builder-inline-summary {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .orthography-builder-actions > * {
+    width: 100%;
+  }
+}

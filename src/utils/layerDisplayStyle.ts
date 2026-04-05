@@ -408,16 +408,36 @@ const UNIVERSAL_FONTS: FontPreset[] = [
 
 /** ISO 639-3 → 默认脚本 | ISO 639-3 → default script */
 const LANG_DEFAULT_SCRIPT: Record<string, string> = {
-  cmn: 'Hans', yue: 'Hant', wuu: 'Hans', nan: 'Hant',
+  // 汉语族 | Sinitic
+  cmn: 'Hans', yue: 'Hant', wuu: 'Hans', nan: 'Hant', hak: 'Hans',
+  // 日韩 | Japanese & Korean
   jpn: 'Jpan', kor: 'Kore',
+  // 藏缅 | Tibeto-Burman
   bod: 'Tibt', mya: 'Mymr',
-  hin: 'Deva', nep: 'Deva', ben: 'Beng', tam: 'Taml', urd: 'Arab',
-  tha: 'Thai', khm: 'Khmr', vie: 'Latn',
-  ara: 'Arab', heb: 'Hebr', uig: 'Arab',
-  amh: 'Ethi', swa: 'Latn',
+  // 南亚 | South Asian
+  hin: 'Deva', nep: 'Deva', mar: 'Deva', san: 'Deva',
+  ben: 'Beng', asm: 'Beng',
+  tam: 'Taml', tel: 'Telu', mal: 'Mlym', kan: 'Knda',
+  guj: 'Gujr', pan: 'Guru', ori: 'Orya', sin: 'Sinh',
+  urd: 'Arab',
+  // 东南亚 | Southeast Asian
+  tha: 'Thai', khm: 'Khmr', lao: 'Laoo', vie: 'Latn',
+  // 中东 & 非洲 | Middle East & Africa
+  ara: 'Arab', heb: 'Hebr', uig: 'Arab', fas: 'Arab', pus: 'Arab',
+  amh: 'Ethi', tir: 'Ethi', swa: 'Latn', hau: 'Latn', yor: 'Latn',
+  // 高加索 | Caucasian
+  kat: 'Geor', hye: 'Armn',
+  // 欧洲拉丁 | European Latin
   eng: 'Latn', fra: 'Latn', deu: 'Latn', spa: 'Latn', por: 'Latn',
   ita: 'Latn', nld: 'Latn', pol: 'Latn', tur: 'Latn',
-  rus: 'Cyrl',
+  cat: 'Latn', ron: 'Latn', ces: 'Latn', slk: 'Latn',
+  hrv: 'Latn', slv: 'Latn', lit: 'Latn', lav: 'Latn',
+  est: 'Latn', fin: 'Latn', hun: 'Latn', swe: 'Latn',
+  nor: 'Latn', dan: 'Latn', isl: 'Latn',
+  ind: 'Latn', msa: 'Latn', tgl: 'Latn',
+  // 欧洲西里尔 | European Cyrillic
+  rus: 'Cyrl', ukr: 'Cyrl', bel: 'Cyrl', bul: 'Cyrl',
+  srp: 'Cyrl', mkd: 'Cyrl', kaz: 'Cyrl', mon: 'Cyrl',
 };
 
 const SCRIPT_DEFAULT_DIRECTION: Partial<Record<string, NonNullable<OrthographyDocType['direction']>>> = {

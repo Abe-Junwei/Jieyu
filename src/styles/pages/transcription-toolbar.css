@@ -87,26 +87,6 @@
   width: 100%;
 }
 
-.app-left-rail-bottom-slot .transcription-wave-toolbar-right-portaled .transcription-wave-toolbar-action-group {
-  width: 100%;
-  min-height: 0;
-  margin: 0;
-  padding: 7px 8px;
-  border-radius: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  justify-items: initial;
-  gap: 6px;
-}
-
-.app-left-rail-bottom-slot .transcription-wave-toolbar-right-portaled .transcription-wave-toolbar-action-group-danger {
-  margin-left: 0;
-}
-
-.app-left-rail-bottom-slot .transcription-wave-toolbar-right-portaled .transcription-wave-toolbar-action-label {
-  display: inline-flex;
-}
-
 .app-left-rail-bottom-slot .transcription-wave-toolbar-right-portaled .icon-btn {
   width: 28px;
   height: 28px;
@@ -168,64 +148,6 @@
 
 .app-shell-transcription .transcription-wave-toolbar-right:not(.transcription-wave-toolbar-right-portaled) .compact-volume input[type='range'] {
   width: 100%;
-}
-
-.transcription-wave-toolbar-action-group {
-  display: flex;
-  align-items: center;
-  align-content: center;
-  flex-wrap: wrap;
-  gap: 7px;
-  min-height: 36px;
-  padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface-header) 88%, transparent);
-}
-
-.app-shell-transcription .transcription-wave-toolbar-action-group {
-  width: 100%;
-  min-width: 0;
-  min-height: 0;
-  justify-content: flex-start;
-  padding: 7px 8px;
-}
-
-.transcription-wave-toolbar-action-group-danger {
-  margin-left: auto;
-  border-color: color-mix(in srgb, var(--state-danger-border) 92%, transparent);
-  background: color-mix(in srgb, var(--state-danger-bg) 82%, var(--surface-panel));
-}
-
-.app-shell-transcription .transcription-wave-toolbar-action-group-danger {
-  margin-left: 0;
-  grid-column: 1 / -1;
-}
-
-.transcription-wave-toolbar-action-group-danger .transcription-wave-toolbar-action-label {
-  color: var(--state-danger-text);
-}
-
-.transcription-wave-toolbar-action-label {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  min-width: 2.2em;
-  padding-right: 2px;
-  color: color-mix(in srgb, var(--text-secondary) 82%, var(--text-muted));
-  font-size: 0.64rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  opacity: 0.82;
-}
-
-.transcription-wave-toolbar-menu-wrap {
-  position: relative;
-  display: inline-flex;
-}
-
-.transcription-toolbar-dropdown-menu {
-  min-width: 168px;
 }
 
 .transcription-wave-toolbar .transcription-file-brand strong {
@@ -345,12 +267,6 @@
     border-radius: 0;
     background: transparent;
   }
-
-  .app-shell-transcription .transcription-wave-toolbar-action-group {
-    width: auto;
-    min-height: 32px;
-    border-radius: 999px;
-  }
 }
 
 @media (max-width: 640px) {
@@ -360,10 +276,6 @@
 
   .transcription-wave-toolbar-meta {
     width: 100%;
-  }
-
-  .app-left-rail-bottom-slot .transcription-wave-toolbar-right-portaled .transcription-wave-toolbar-action-group {
-    gap: 4px;
   }
 }
 

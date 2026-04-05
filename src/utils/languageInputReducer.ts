@@ -1,0 +1,589 @@
+import {
+  formatLanguageDisplayName,
+  pickAutoFillLanguageMatch,
+  resolveLanguageCodeInput,
+  resolveLanguageCodeInputChange,
+  searchLanguageCatalog,
+  type LanguageCatalogMatch,
+  type LanguageSearchLocale,
+} from './langMapping';
+import { resolveLanguageDisplayNameWithFallback, type ResolveLanguageDisplayName } from './languageDisplayNameResolver';
+import type {
+  LanguageInputDisplayMode,
+  LanguageInputAssistState,
+  LanguageIsoInputValue,
+} from './languageInputTypes';
+
+export type LanguageInputStatus =
+  | 'idle'
+  | 'editing-name'
+  | 'editing-code'
+  | 'suggesting'
+  | 'selected'
+  | 'invalid'
+  | 'deferred-code';
+
+export type LanguageInputChangeSource =
+  | 'user-name-input'
+  | 'user-code-input'
+  | 'suggestion-click'
+  | 'suggestion-enter'
+  | 'blur-commit'
+  | 'external-sync'
+  | 'reset';
+
+export type LanguageInputDraft = {
+  nameInput: string;
+  codeInput: string;
+  activeField: 'name' | 'code' | null;
+};
+
+export type LanguageInputModel = {
+  draft: LanguageInputDraft;
+  committed: LanguageIsoInputValue | null;
+  selectedOption: LanguageIsoInputValue | null;
+  suggestions: LanguageCatalogMatch[];
+  activeSuggestionIndex: number;
+  status: LanguageInputStatus;
+  lastChangeSource: LanguageInputChangeSource;
+};
+
+export type LanguageInputEvent =
+  | { type: 'nameChanged'; value: string }
+  | { type: 'codeChanged'; value: string }
+  | { type: 'nameSuggestionHovered'; index: number }
+  | { type: 'highlightNextSuggestion'; visibleCount: number }
+  | { type: 'highlightPreviousSuggestion'; visibleCount: number }
+  | { type: 'clearSuggestionHighlight' }
+  | { type: 'nameSuggestionCommitted'; index: number; source: 'click' | 'enter' }
+  | { type: 'codeBlurred' }
+  | { type: 'externalValueSynced'; value: LanguageIsoInputValue }
+  | { type: 'resetToValue'; value: LanguageIsoInputValue }
+  | { type: 'clear' };
+
+export const MAX_LANGUAGE_INPUT_VISIBLE_SUGGESTIONS = 4;
+
+export type LanguageInputResolverOptions = {
+  resolveLanguageDisplayName?: ResolveLanguageDisplayName;
+};
+
+const EMPTY_LANGUAGE_INPUT_VALUE: LanguageIsoInputValue = {
+  languageName: '',
+  languageCode: '',
+};
+
+function resolveLanguageDisplayMode(value: LanguageIsoInputValue): LanguageInputDisplayMode {
+  return value.displayMode ?? 'locale-first';
+}
+
+function optionalTrimmedValue(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function normalizeLanguageValue(
+  value: LanguageIsoInputValue,
+  locale: LanguageSearchLocale,
+  options?: LanguageInputResolverOptions,
+): LanguageIsoInputValue {
+  const normalizedCode = value.languageCode.trim().toLowerCase();
+  const displayMode = resolveLanguageDisplayMode(value);
+  const preferredDisplayName = optionalTrimmedValue(value.preferredDisplayName);
+  const preferredDisplayKind = value.preferredDisplayKind;
+  const preservedPrimaryName = preferredDisplayName ?? value.languageName.trim();
+  const normalizedName = normalizedCode
+    ? (displayMode === 'input-first'
+      ? (preservedPrimaryName || resolveLanguageDisplayNameWithFallback(normalizedCode, locale, options?.resolveLanguageDisplayName))
+      : resolveLanguageDisplayNameWithFallback(normalizedCode, locale, options?.resolveLanguageDisplayName))
+    : value.languageName.trim();
+  const localeTag = optionalTrimmedValue(value.localeTag);
+  const scriptTag = optionalTrimmedValue(value.scriptTag);
+  const regionTag = optionalTrimmedValue(value.regionTag);
+  const variantTag = optionalTrimmedValue(value.variantTag);
+
+  return {
+    languageName: normalizedName,
+    languageCode: normalizedCode,
+    ...(normalizedCode ? { displayMode } : {}),
+    ...(preferredDisplayName ? { preferredDisplayName } : {}),
+    ...(preferredDisplayKind ? { preferredDisplayKind } : {}),
+    ...(localeTag ? { localeTag } : {}),
+    ...(scriptTag ? { scriptTag } : {}),
+    ...(regionTag ? { regionTag } : {}),
+    ...(variantTag ? { variantTag } : {}),
+  };
+}
+
+function hasCommittedLanguageValue(value: LanguageIsoInputValue): boolean {
+  return value.languageCode.trim().length > 0;
+}
+
+function buildCommittedValueFromMatch(
+  match: LanguageCatalogMatch,
+  locale: LanguageSearchLocale,
+  options?: LanguageInputResolverOptions,
+): LanguageIsoInputValue {
+  const displayMode: LanguageInputDisplayMode = match.matchedLabelKind === 'code' ? 'locale-first' : 'input-first';
+  const preferredDisplayName = displayMode === 'input-first' ? match.matchedLabel : undefined;
+  return {
+    languageName: preferredDisplayName ?? resolveLanguageDisplayNameWithFallback(match.entry.iso6393, locale, options?.resolveLanguageDisplayName),
+    languageCode: match.entry.iso6393,
+    ...(displayMode === 'input-first' ? { displayMode } : {}),
+    ...(preferredDisplayName ? { preferredDisplayName } : {}),
+    ...(preferredDisplayName ? { preferredDisplayKind: match.matchedLabelKind } : {}),
+  };
+}
+
+function buildCommittedValueFromResolvedCode(
+  fallbackCode: string,
+  resolved: ReturnType<typeof resolveLanguageCodeInput>,
+  locale: LanguageSearchLocale,
+  options?: LanguageInputResolverOptions,
+): LanguageIsoInputValue | null {
+  if (resolved.status !== 'resolved') {
+    return null;
+  }
+
+  const localeTag = optionalTrimmedValue(resolved.localeTag);
+  const scriptTag = optionalTrimmedValue(resolved.scriptTag);
+  const regionTag = optionalTrimmedValue(resolved.regionTag);
+  const variantTag = optionalTrimmedValue(resolved.variantTag);
+  const normalizedCode = (resolved.languageId ?? fallbackCode).trim().toLowerCase();
+  const resolvedDisplayName = resolveLanguageDisplayNameWithFallback(normalizedCode, locale, options?.resolveLanguageDisplayName);
+
+  return {
+    languageName: resolvedDisplayName,
+    languageCode: normalizedCode,
+    displayMode: 'locale-first',
+    ...(localeTag ? { localeTag } : {}),
+    ...(scriptTag ? { scriptTag } : {}),
+    ...(regionTag ? { regionTag } : {}),
+    ...(variantTag ? { variantTag } : {}),
+  };
+}
+
+function withChangeSource(
+  model: LanguageInputModel,
+  lastChangeSource: LanguageInputChangeSource,
+): LanguageInputModel {
+  return {
+    ...model,
+    lastChangeSource,
+  };
+}
+
+function buildModelFromExternalValue(
+  value: LanguageIsoInputValue,
+  locale: LanguageSearchLocale,
+  changeSource: 'external-sync' | 'reset',
+  options?: LanguageInputResolverOptions,
+): LanguageInputModel {
+  const normalizedValue = normalizeLanguageValue(value, locale, options);
+
+  if (hasCommittedLanguageValue(normalizedValue)) {
+    return {
+      draft: {
+        nameInput: normalizedValue.languageName,
+        codeInput: normalizedValue.languageCode,
+        activeField: null,
+      },
+      committed: normalizedValue,
+      selectedOption: normalizedValue,
+      suggestions: [],
+      activeSuggestionIndex: -1,
+      status: 'selected',
+      lastChangeSource: changeSource,
+    };
+  }
+
+  const trimmedName = normalizedValue.languageName.trim();
+  const suggestions = trimmedName ? searchLanguageCatalog(trimmedName, locale, 5) : [];
+
+  return {
+    draft: {
+      nameInput: normalizedValue.languageName,
+      codeInput: '',
+      activeField: null,
+    },
+    committed: null,
+    selectedOption: null,
+    suggestions,
+    activeSuggestionIndex: -1,
+    status: trimmedName ? (suggestions.length > 0 ? 'suggesting' : 'editing-name') : 'idle',
+    lastChangeSource: changeSource,
+  };
+}
+
+export function createLanguageInputModel(
+  value: LanguageIsoInputValue,
+  locale: LanguageSearchLocale,
+  options?: LanguageInputResolverOptions,
+): LanguageInputModel {
+  return buildModelFromExternalValue(value, locale, 'reset', options);
+}
+
+export function serializeLanguageInputValue(value: LanguageIsoInputValue): string {
+  return JSON.stringify({
+    languageName: value.languageName.trim(),
+    languageCode: value.languageCode.trim().toLowerCase(),
+    ...(value.displayMode ? { displayMode: value.displayMode } : {}),
+    ...(optionalTrimmedValue(value.preferredDisplayName) ? { preferredDisplayName: optionalTrimmedValue(value.preferredDisplayName) } : {}),
+    ...(value.preferredDisplayKind ? { preferredDisplayKind: value.preferredDisplayKind } : {}),
+    ...(optionalTrimmedValue(value.localeTag) ? { localeTag: optionalTrimmedValue(value.localeTag) } : {}),
+    ...(optionalTrimmedValue(value.scriptTag) ? { scriptTag: optionalTrimmedValue(value.scriptTag) } : {}),
+    ...(optionalTrimmedValue(value.regionTag) ? { regionTag: optionalTrimmedValue(value.regionTag) } : {}),
+    ...(optionalTrimmedValue(value.variantTag) ? { variantTag: optionalTrimmedValue(value.variantTag) } : {}),
+  });
+}
+
+export function selectDisplayedLanguageInputValue(model: LanguageInputModel): LanguageIsoInputValue {
+  const selected = model.selectedOption ?? model.committed;
+  return {
+    languageName: model.draft.nameInput,
+    languageCode: model.draft.codeInput,
+    ...(selected?.displayMode ? { displayMode: selected.displayMode } : {}),
+    ...(selected?.preferredDisplayName ? { preferredDisplayName: selected.preferredDisplayName } : {}),
+    ...(selected?.preferredDisplayKind ? { preferredDisplayKind: selected.preferredDisplayKind } : {}),
+    ...(selected?.localeTag ? { localeTag: selected.localeTag } : {}),
+    ...(selected?.scriptTag ? { scriptTag: selected.scriptTag } : {}),
+    ...(selected?.regionTag ? { regionTag: selected.regionTag } : {}),
+    ...(selected?.variantTag ? { variantTag: selected.variantTag } : {}),
+  };
+}
+
+export function selectPresentedLanguageInputValue(
+  model: LanguageInputModel,
+  locale: LanguageSearchLocale,
+  preserveEditableName: boolean,
+): LanguageIsoInputValue {
+  const displayed = selectDisplayedLanguageInputValue(model);
+  const selected = model.selectedOption ?? model.committed;
+  if (!selected || preserveEditableName || model.status !== 'selected') {
+    return displayed;
+  }
+
+  const displayMode = resolveLanguageDisplayMode(selected);
+  const formattedLanguageName = formatLanguageDisplayName(
+    selected.languageCode,
+    locale,
+    displayMode,
+    selected.preferredDisplayName ?? selected.languageName,
+    selected.preferredDisplayKind,
+  );
+
+  const primaryCommittedName = selected.languageName.trim();
+  const resolvedLanguageName = displayMode === 'locale-first' && primaryCommittedName
+    ? [primaryCommittedName, ...formattedLanguageName.split(' · ').slice(1)].filter((part, index, all) => part && all.indexOf(part) === index).join(' · ')
+    : formattedLanguageName;
+
+  return {
+    ...displayed,
+    languageName: resolvedLanguageName,
+  };
+}
+
+export function selectCommittedLanguageInputValue(model: LanguageInputModel): LanguageIsoInputValue {
+  return model.committed ?? EMPTY_LANGUAGE_INPUT_VALUE;
+}
+
+export function selectLanguageInputAssistState(
+  model: LanguageInputModel,
+  locale: LanguageSearchLocale,
+): LanguageInputAssistState {
+  const ambiguityHint = model.suggestions.length > 1 && !pickAutoFillLanguageMatch(model.draft.nameInput, locale)
+    ? (locale === 'zh-CN'
+      ? '\u5b58\u5728\u591a\u4e2a\u53ef\u80fd\u8bed\u8a00\uff0c\u8bf7\u9009\u62e9\u66f4\u5177\u4f53\u9879\u3002'
+      : 'Multiple languages matched. Please choose a more specific option.')
+    : '';
+
+  const displayedCode = model.draft.codeInput;
+  const resolvedCode = displayedCode ? resolveLanguageCodeInput(displayedCode, locale) : { status: 'empty' as const, warnings: [] };
+  const codeError = displayedCode && resolvedCode.status === 'invalid'
+    ? (locale === 'zh-CN'
+      ? '\u8bf7\u8f93\u5165\u6709\u6548\u7684 ISO 639 / BCP 47 \u8bed\u8a00\u4ee3\u7801\u3002'
+      : 'Enter a valid ISO 639 / BCP 47 language code.')
+    : '';
+  const warnings = [
+    ...(model.status === 'deferred-code' ? [] : resolvedCode.warnings),
+    ...(model.suggestions[0]?.warnings ?? []),
+  ].filter((warning, index, all) => warning && all.indexOf(warning) === index);
+  const selected = model.selectedOption ?? model.committed;
+  const detectedTagSummary = [
+    selected?.localeTag,
+    selected?.scriptTag,
+    selected?.regionTag,
+    selected?.variantTag,
+  ].filter(Boolean).join(' · ');
+
+  return {
+    suggestionMatches: model.suggestions,
+    ambiguityHint,
+    warning: warnings[0] ?? '',
+    codeError,
+    detectedTagSummary,
+  };
+}
+
+function clearModelForNameDraft(
+  nextNameInput: string,
+  suggestions: LanguageCatalogMatch[],
+): LanguageInputModel {
+  return {
+    draft: {
+      nameInput: nextNameInput,
+      codeInput: '',
+      activeField: 'name',
+    },
+    committed: null,
+    selectedOption: null,
+    suggestions,
+    activeSuggestionIndex: -1,
+    status: nextNameInput.trim().length === 0
+      ? 'idle'
+      : (suggestions.length > 0 ? 'suggesting' : 'invalid'),
+    lastChangeSource: 'user-name-input',
+  };
+}
+
+function hasUncommittedLocalDraft(model: LanguageInputModel): boolean {
+  return model.status === 'editing-name'
+    || model.status === 'editing-code'
+    || model.status === 'suggesting'
+    || model.status === 'invalid'
+    || model.status === 'deferred-code';
+}
+
+export function reduceLanguageInput(
+  model: LanguageInputModel,
+  event: LanguageInputEvent,
+  locale: LanguageSearchLocale,
+  options?: LanguageInputResolverOptions,
+): LanguageInputModel {
+  switch (event.type) {
+    case 'nameChanged': {
+      const nextNameInput = event.value;
+      const trimmedName = nextNameInput.trim();
+      if (!trimmedName) {
+        return clearModelForNameDraft(nextNameInput, []);
+      }
+
+      const nextMatch = pickAutoFillLanguageMatch(nextNameInput, locale);
+      if (!nextMatch) {
+        return clearModelForNameDraft(nextNameInput, searchLanguageCatalog(nextNameInput, locale, 5));
+      }
+
+      const committed = buildCommittedValueFromMatch(nextMatch, locale, options);
+      const resolvedCommitted = committed.displayMode === 'input-first'
+        ? {
+          ...committed,
+          languageName: trimmedName,
+          preferredDisplayName: trimmedName,
+        }
+        : committed;
+      return {
+        draft: {
+          nameInput: nextNameInput,
+          codeInput: resolvedCommitted.languageCode,
+          activeField: 'name',
+        },
+        committed: resolvedCommitted,
+        selectedOption: resolvedCommitted,
+        suggestions: [],
+        activeSuggestionIndex: -1,
+        status: 'selected',
+        lastChangeSource: 'user-name-input',
+      };
+    }
+
+    case 'codeChanged': {
+      const nextInputState = resolveLanguageCodeInputChange(event.value, model.draft.codeInput, locale);
+      const sanitizedInput = nextInputState.sanitizedInput;
+
+      if (!sanitizedInput) {
+        return {
+          draft: {
+            nameInput: '',
+            codeInput: '',
+            activeField: 'code',
+          },
+          committed: null,
+          selectedOption: null,
+          suggestions: [],
+          activeSuggestionIndex: -1,
+          status: 'idle',
+          lastChangeSource: 'user-code-input',
+        };
+      }
+
+      if (nextInputState.status === 'deferred') {
+        return {
+          draft: {
+            nameInput: '',
+            codeInput: sanitizedInput,
+            activeField: 'code',
+          },
+          committed: null,
+          selectedOption: null,
+          suggestions: [],
+          activeSuggestionIndex: -1,
+          status: 'deferred-code',
+          lastChangeSource: 'user-code-input',
+        };
+      }
+
+      if (nextInputState.status !== 'resolved') {
+        return {
+          draft: {
+            nameInput: '',
+            codeInput: sanitizedInput,
+            activeField: 'code',
+          },
+          committed: null,
+          selectedOption: null,
+          suggestions: [],
+          activeSuggestionIndex: -1,
+          status: 'invalid',
+          lastChangeSource: 'user-code-input',
+        };
+      }
+
+      const committed = buildCommittedValueFromResolvedCode(sanitizedInput, nextInputState.resolution, locale, options);
+      if (!committed) {
+        return withChangeSource(model, 'user-code-input');
+      }
+
+      return {
+        draft: {
+          nameInput: committed.languageName,
+          codeInput: committed.languageCode,
+          activeField: 'code',
+        },
+        committed,
+        selectedOption: committed,
+        suggestions: [],
+        activeSuggestionIndex: -1,
+        status: 'selected',
+        lastChangeSource: 'user-code-input',
+      };
+    }
+
+    case 'nameSuggestionHovered': {
+      if (event.index < 0 || event.index >= model.suggestions.length) {
+        return model;
+      }
+      return {
+        ...model,
+        activeSuggestionIndex: event.index,
+      };
+    }
+
+    case 'highlightNextSuggestion': {
+      const visibleSuggestionCount = Math.min(
+        model.suggestions.length,
+        Math.max(0, event.visibleCount),
+      );
+      if (visibleSuggestionCount === 0) {
+        return model;
+      }
+      return {
+        ...model,
+        activeSuggestionIndex: (model.activeSuggestionIndex + 1 + visibleSuggestionCount) % visibleSuggestionCount,
+      };
+    }
+
+    case 'highlightPreviousSuggestion': {
+      const visibleSuggestionCount = Math.min(
+        model.suggestions.length,
+        Math.max(0, event.visibleCount),
+      );
+      if (visibleSuggestionCount === 0) {
+        return model;
+      }
+      return {
+        ...model,
+        activeSuggestionIndex: model.activeSuggestionIndex <= 0
+          ? visibleSuggestionCount - 1
+          : model.activeSuggestionIndex - 1,
+      };
+    }
+
+    case 'clearSuggestionHighlight': {
+      if (model.activeSuggestionIndex === -1) {
+        return model;
+      }
+      return {
+        ...model,
+        activeSuggestionIndex: -1,
+      };
+    }
+
+    case 'nameSuggestionCommitted': {
+      const match = model.suggestions[event.index];
+      if (!match) {
+        return model;
+      }
+      const committed = buildCommittedValueFromMatch(match, locale, options);
+      return {
+        draft: {
+          nameInput: committed.languageName,
+          codeInput: committed.languageCode,
+          activeField: 'name',
+        },
+        committed,
+        selectedOption: committed,
+        suggestions: [],
+        activeSuggestionIndex: -1,
+        status: 'selected',
+        lastChangeSource: event.source === 'click' ? 'suggestion-click' : 'suggestion-enter',
+      };
+    }
+
+    case 'codeBlurred': {
+      if (model.status !== 'deferred-code') {
+        return model;
+      }
+      const resolved = resolveLanguageCodeInput(model.draft.codeInput, locale);
+      const committed = buildCommittedValueFromResolvedCode(model.draft.codeInput, resolved, locale, options);
+      if (!committed) {
+        return {
+          ...model,
+          status: model.draft.codeInput ? 'invalid' : 'idle',
+          lastChangeSource: 'blur-commit',
+          draft: {
+            ...model.draft,
+            activeField: null,
+          },
+        };
+      }
+      return {
+        draft: {
+          nameInput: committed.languageName,
+          codeInput: committed.languageCode,
+          activeField: null,
+        },
+        committed,
+        selectedOption: committed,
+        suggestions: [],
+        activeSuggestionIndex: -1,
+        status: 'selected',
+        lastChangeSource: 'blur-commit',
+      };
+    }
+
+    case 'externalValueSynced': {
+      if (hasUncommittedLocalDraft(model)) {
+        return withChangeSource(model, 'external-sync');
+      }
+      return buildModelFromExternalValue(event.value, locale, 'external-sync', options);
+    }
+
+    case 'resetToValue':
+      return buildModelFromExternalValue(event.value, locale, 'reset', options);
+
+    case 'clear':
+      return buildModelFromExternalValue(EMPTY_LANGUAGE_INPUT_VALUE, locale, 'reset', options);
+
+    default:
+      return model;
+  }
+}

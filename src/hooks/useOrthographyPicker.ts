@@ -785,7 +785,8 @@ export function useOrthographyPicker(
               ...(orthography.variantTag ? { variantTag: orthography.variantTag } : {}),
             },
           );
-        } catch {
+        } catch (e) {
+          console.warn('Orthography identity match failed', e);
           return false;
         }
       });

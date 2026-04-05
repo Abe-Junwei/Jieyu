@@ -338,10 +338,10 @@ export const architectureGuardRules = [
   {
     file: 'src/styles/foundation/panel-primitives.css',
     requiredLiterals: [
-      '.panel-section,',
+      '.panel-section {',
       '.panel-button {',
       '.panel-input {',
-      '.panel-chip,',
+      '.panel-chip {',
     ],
   },
   {
@@ -353,7 +353,6 @@ export const architectureGuardRules = [
       '.transcription-workspace {',
       '.transcription-list-panel {',
       '.transcription-side-pane {',
-      '.transcription-screen-focus-mode .transcription-waveform {',
       '.focus-mode-badge {',
     ],
   },
@@ -364,7 +363,6 @@ export const architectureGuardRules = [
       '.transcription-wave-toolbar {',
       '.transcription-wave-toolbar-right {',
       '.app-left-rail-bottom-slot .transcription-wave-toolbar-right-portaled {',
-      '.transcription-wave-toolbar-action-group {',
       '.transcription-ai-observer-status {',
       '.transcription-ai-observer-status-bar {',
       '.transcription-ai-observer-stage-label {',

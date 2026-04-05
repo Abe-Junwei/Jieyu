@@ -11,6 +11,8 @@ import {
   type LayerDocType,
   type LayerLinkDocType,
 } from '../db';
+import type { Locale } from '../i18n';
+import { getLayerConstraintServiceMessages } from '../i18n/layerConstraintServiceMessages';
 
 // Result types
 
@@ -74,45 +76,8 @@ const DEFAULT_CONSTRAINT_RUNTIME_CAPABILITIES: ConstraintRuntimeCapabilities = {
   time_subdivision: true,
 };
 
-const ZH = {
-  issueConstraintUnsupported: (layerKey: string, constraint: string) => `\u5c42 ${layerKey} \u4f7f\u7528\u4e86\u5f53\u524d\u8fd0\u884c\u65f6\u672a\u542f\u7528\u7684\u7ea6\u675f\uff1a${constraint}`,
-  issueRootTranscriptionIndependentOnly: '\u9996\u4e2a\u8f6c\u5199\u5c42\u5fc5\u987b\u4f7f\u7528\u72ec\u7acb\u8fb9\u754c\u3002',
-  issueMissingParentLayerId: (layerKey: string, constraint: string) => `\u5c42 ${layerKey} \u4f7f\u7528 ${constraint} \u4f46\u7f3a\u5c11 parentLayerId\u3002`,
-  issueParentNotFound: (layerKey: string, parentLayerId: string) => `\u5c42 ${layerKey} \u7684\u7236\u5c42 ${parentLayerId} \u4e0d\u5b58\u5728\u3002`,
-  issueParentMustBeIndependentTranscription: (layerKey: string) => `\u5c42 ${layerKey} \u7684\u7236\u5c42\u5fc5\u987b\u662f\u72ec\u7acb\u8f6c\u5199\u5c42\u3002`,
-  issueParentCycle: (layerKey: string) => `\u5c42 ${layerKey} \u7684\u7236\u5c42\u5f15\u7528\u5b58\u5728\u5faa\u73af\u3002`,
-  repairRootTranscription: (layerKey: string) => `\u5df2\u5c06\u9996\u4e2a\u8f6c\u5199\u5c42 ${layerKey} \u7684\u7ea6\u675f\u4fee\u590d\u4e3a\u72ec\u7acb\u8fb9\u754c\u3002`,
-  repairBindFallbackParent: (layerKey: string, parentKey: string) => `\u5df2\u4e3a\u5c42 ${layerKey} \u81ea\u52a8\u7ed1\u5b9a\u7236\u5c42 ${parentKey}\u3002`,
-  repairDowngradeNoParent: (layerKey: string) => `\u5c42 ${layerKey} \u7f3a\u5c11\u53ef\u7528\u7236\u5c42\uff0c\u5df2\u964d\u7ea7\u4e3a\u72ec\u7acb\u8fb9\u754c\u3002`,
-  repairTimeSubdivisionToDependent: (layerKey: string) => `\u5c42 ${layerKey} \u7684\u65f6\u95f4\u7ec6\u5206\u5df2\u964d\u7ea7\u4e3a\u4f9d\u8d56\u8fb9\u754c\u3002`,
-  repairTimeSubdivisionToIndependent: (layerKey: string) => `\u5c42 ${layerKey} \u7684\u65f6\u95f4\u7ec6\u5206\u4e0d\u53ef\u7528\uff0c\u5df2\u964d\u7ea7\u4e3a\u72ec\u7acb\u8fb9\u754c\u3002`,
-  repairConstraintToIndependent: (layerKey: string) => `\u5c42 ${layerKey} \u7684\u7ea6\u675f\u4e0d\u53ef\u7528\uff0c\u5df2\u964d\u7ea7\u4e3a\u72ec\u7acb\u8fb9\u754c\u3002`,
-  repairCycleToFallbackParent: (layerKey: string, parentKey: string) => `\u5c42 ${layerKey} \u7684\u7236\u5c42\u5faa\u73af\u5df2\u4fee\u590d\u4e3a ${parentKey}\u3002`,
-  repairCycleRemoved: (layerKey: string) => `\u5c42 ${layerKey} \u7684\u7236\u5c42\u5faa\u73af\u5df2\u79fb\u9664\u5e76\u964d\u7ea7\u4e3a\u72ec\u7acb\u8fb9\u754c\u3002`,
-  transcription: '\u8f6c\u5199',
-  translation: '\u7ffb\u8bd1',
-  invalidTranslationConstraint: '\u7ffb\u8bd1\u5c42\u4e0d\u652f\u6301\u72ec\u7acb\u8fb9\u754c\uff0c\u8bf7\u6539\u7528\u4f9d\u8d56\u8fb9\u754c\u5e76\u9009\u62e9\u8f6c\u5199\u7236\u5c42\u3002',
-  invalidTranslationConstraintShort: '\u7ffb\u8bd1\u5c42\u4ec5\u652f\u6301\u4f9d\u8d56\u8fb9\u754c',
-  timeSubdivisionUnavailable: '\u5f53\u524d\u7248\u672c\u6682\u672a\u542f\u7528\u201c\u65f6\u95f4\u7ec6\u5206\u201d\u7f16\u8f91\u80fd\u529b\uff0c\u8bf7\u6539\u7528\u4f9d\u8d56\u8fb9\u754c\u6216\u72ec\u7acb\u8fb9\u754c\u3002',
-  constraintUnavailable: '\u5f53\u524d\u6a21\u5f0f\u6682\u4e0d\u53ef\u7528\uff0c\u8bf7\u9009\u62e9\u5176\u4ed6\u8fb9\u754c\u7ea6\u675f\u3002',
-  timeSubdivisionUnavailableShort: '\u65f6\u95f4\u7ec6\u5206\u6682\u4e0d\u53ef\u7528',
-  constraintUnavailableShort: '\u8be5\u7ea6\u675f\u5f53\u524d\u4e0d\u53ef\u7528',
-  rootTranscriptionIndependentOnlyShort: '\u9996\u4e2a\u8f6c\u5199\u5c42\u4ec5\u652f\u6301\u72ec\u7acb\u8fb9\u754c',
-  chooseDependentBoundary: '\u5b58\u5728\u591a\u4e2a\u72ec\u7acb\u8f6c\u5199\u5c42\uff0c\u8bf7\u5148\u9009\u62e9\u8981\u4f9d\u8d56\u7684\u8fb9\u754c\u5c42\u3002',
-  chooseDependentBoundaryShort: '\u8bf7\u9009\u62e9\u4f9d\u8d56\u5c42',
-  chooseValidDependentBoundary: '\u8bf7\u9009\u62e9\u6709\u6548\u7684\u72ec\u7acb\u8f6c\u5199\u5c42\u4f5c\u4e3a\u4f9d\u8d56\u8fb9\u754c\u3002',
-  chooseValidDependentBoundaryShort: '\u8bf7\u9009\u62e9\u6709\u6548\u4f9d\u8d56\u5c42',
-  constraintNeedsParent: '\u8be5\u8fb9\u754c\u7ea6\u675f\u9700\u8981\u5148\u9009\u62e9\u6709\u6548\u7236\u5c42\u3002',
-  constraintNeedsParentShort: '\u8be5\u7ea6\u675f\u9700\u7236\u5c42',
-  needTranscriptionFirst: '\u8bf7\u5148\u521b\u5efa\u8f6c\u5199\u5c42\uff0c\u7ffb\u8bd1\u5c42\u4f9d\u8d56\u8f6c\u5199\u5c42\u3002',
-  needTranscriptionFirstShort: '\u9700\u5148\u6709\u8f6c\u5199\u5c42',
-  crossTypeLanguageConflict: (opposite: string, same: string) => `\u8be5\u8bed\u8a00\u5df2\u5b58\u5728${opposite}\u5c42\uff0c\u7981\u6b62\u4e0e${same}\u5c42\u540c\u8bed\u8a00\u3002`,
-  crossTypeLanguageConflictShort: (opposite: string) => `\u4e0e${opposite}\u5c42\u8bed\u8a00\u51b2\u7a81`,
-  sameTypeAliasRequired: (same: string) => `\u8be5\u8bed\u8a00\u5df2\u5b58\u5728${same}\u5c42\uff0c\u8bf7\u63d0\u4f9b\u522b\u540d\u4ee5\u533a\u5206\u3002`,
-  sameTypeAliasRequiredShort: (same: string) => `\u540c\u8bed\u8a00${same}\u5c42\u5df2\u5b58\u5728\uff0c\u9700\u586b\u522b\u540d`,
-  softLimitWarning: (count: number, label: string, limit: number) => `\u5f53\u524d\u5df2\u6709 ${count} \u4e2a${label}\u5c42\uff08\u5efa\u8bae\u4e0a\u9650 ${limit}\uff09\uff0c\u7ee7\u7eed\u521b\u5efa\u53ef\u80fd\u5f71\u54cd\u6027\u80fd\u3002`,
-  deleteTargetNotFound: '\u672a\u627e\u5230\u8981\u5220\u9664\u7684\u5c42\u3002',
-};
+/** 默认 locale | Default locale for backward compatibility */
+const DEFAULT_LOCALE: Locale = 'zh-CN';
 
 function detectParentCycle(layerById: Map<string, LayerDocType>, startLayer: LayerDocType): boolean {
   const visited = new Set<string>();
@@ -130,7 +95,9 @@ function detectParentCycle(layerById: Map<string, LayerDocType>, startLayer: Lay
 export function validateExistingLayerConstraints(
   layers: LayerDocType[],
   runtimeCapabilities?: Partial<ConstraintRuntimeCapabilities>,
+  locale: Locale = DEFAULT_LOCALE,
 ): ExistingLayerConstraintIssue[] {
+  const msg = getLayerConstraintServiceMessages(locale);
   const issues: ExistingLayerConstraintIssue[] = [];
   const layerById = new Map(layers.map((layer) => [layer.id, layer]));
   const capabilities: ConstraintRuntimeCapabilities = {
@@ -152,7 +119,7 @@ export function validateExistingLayerConstraints(
       issues.push({
         layerId: layer.id,
         code: 'constraint-runtime-not-supported',
-        message: ZH.issueConstraintUnsupported(layer.key, constraint),
+        message: msg.issueConstraintUnsupported(layer.key, constraint),
       });
     }
 
@@ -160,7 +127,7 @@ export function validateExistingLayerConstraints(
       issues.push({
         layerId: layer.id,
         code: 'invalid-root-transcription-constraint',
-        message: ZH.issueRootTranscriptionIndependentOnly,
+        message: msg.issueRootTranscriptionIndependentOnly,
       });
     }
 
@@ -169,7 +136,7 @@ export function validateExistingLayerConstraints(
         issues.push({
           layerId: layer.id,
           code: 'missing-parent-layer',
-          message: ZH.issueMissingParentLayerId(layer.key, constraint),
+          message: msg.issueMissingParentLayerId(layer.key, constraint),
         });
         continue;
       }
@@ -178,7 +145,7 @@ export function validateExistingLayerConstraints(
         issues.push({
           layerId: layer.id,
           code: 'parent-layer-not-found',
-          message: ZH.issueParentNotFound(layer.key, layer.parentLayerId),
+          message: msg.issueParentNotFound(layer.key, layer.parentLayerId),
         });
         continue;
       }
@@ -186,7 +153,7 @@ export function validateExistingLayerConstraints(
         issues.push({
           layerId: layer.id,
           code: 'invalid-parent-layer-type',
-          message: ZH.issueParentMustBeIndependentTranscription(layer.key),
+          message: msg.issueParentMustBeIndependentTranscription(layer.key),
         });
       }
     }
@@ -195,7 +162,7 @@ export function validateExistingLayerConstraints(
       issues.push({
         layerId: layer.id,
         code: 'parent-cycle-detected',
-        message: ZH.issueParentCycle(layer.key),
+        message: msg.issueParentCycle(layer.key),
       });
     }
   }
@@ -225,7 +192,9 @@ function hasSameConstraint(a: LayerDocType, b: LayerDocType): boolean {
 export function repairExistingLayerConstraints(
   layers: LayerDocType[],
   runtimeCapabilities?: Partial<ConstraintRuntimeCapabilities>,
+  locale: Locale = DEFAULT_LOCALE,
 ): { layers: LayerDocType[]; repairs: ExistingLayerConstraintRepair[] } {
+  const msg = getLayerConstraintServiceMessages(locale);
   const capabilities: ConstraintRuntimeCapabilities = {
     ...DEFAULT_CONSTRAINT_RUNTIME_CAPABILITIES,
     ...(runtimeCapabilities ?? {}),
@@ -254,7 +223,7 @@ export function repairExistingLayerConstraints(
       layer.constraint = 'independent_boundary';
       delete layer.parentLayerId;
       constraint = 'independent_boundary';
-      pushRepair(layer.id, 'invalid-root-transcription-constraint', ZH.repairRootTranscription(layer.key));
+      pushRepair(layer.id, 'invalid-root-transcription-constraint', msg.repairRootTranscription(layer.key));
     }
 
     if (constraint === 'symbolic_association' || constraint === 'time_subdivision') {
@@ -263,12 +232,12 @@ export function repairExistingLayerConstraints(
         const fallbackParent = findFallbackParent(layer.id);
         if (fallbackParent) {
           layer.parentLayerId = fallbackParent.id;
-          pushRepair(layer.id, !parent ? 'missing-parent-layer' : 'invalid-parent-layer-type', ZH.repairBindFallbackParent(layer.key, fallbackParent.key));
+          pushRepair(layer.id, !parent ? 'missing-parent-layer' : 'invalid-parent-layer-type', msg.repairBindFallbackParent(layer.key, fallbackParent.key));
         } else {
           layer.constraint = 'independent_boundary';
           delete layer.parentLayerId;
           constraint = 'independent_boundary';
-          pushRepair(layer.id, !parent ? 'missing-parent-layer' : 'invalid-parent-layer-type', ZH.repairDowngradeNoParent(layer.key));
+          pushRepair(layer.id, !parent ? 'missing-parent-layer' : 'invalid-parent-layer-type', msg.repairDowngradeNoParent(layer.key));
         }
       }
     }
@@ -280,16 +249,16 @@ export function repairExistingLayerConstraints(
         if (capabilities.symbolic_association && fallbackParent && fallbackParent.layerType === 'transcription') {
           layer.constraint = 'symbolic_association';
           layer.parentLayerId = fallbackParent.id;
-          pushRepair(layer.id, 'constraint-runtime-not-supported', ZH.repairTimeSubdivisionToDependent(layer.key));
+          pushRepair(layer.id, 'constraint-runtime-not-supported', msg.repairTimeSubdivisionToDependent(layer.key));
         } else {
           layer.constraint = 'independent_boundary';
           delete layer.parentLayerId;
-          pushRepair(layer.id, 'constraint-runtime-not-supported', ZH.repairTimeSubdivisionToIndependent(layer.key));
+          pushRepair(layer.id, 'constraint-runtime-not-supported', msg.repairTimeSubdivisionToIndependent(layer.key));
         }
       } else {
         layer.constraint = 'independent_boundary';
         delete layer.parentLayerId;
-        pushRepair(layer.id, 'constraint-runtime-not-supported', ZH.repairConstraintToIndependent(layer.key));
+        pushRepair(layer.id, 'constraint-runtime-not-supported', msg.repairConstraintToIndependent(layer.key));
       }
     }
 
@@ -303,11 +272,11 @@ export function repairExistingLayerConstraints(
     const fallbackParent = findFallbackParent(layer.id);
     if (fallbackParent && getEffectiveConstraint(layer) !== 'independent_boundary') {
       layer.parentLayerId = fallbackParent.id;
-      pushRepair(layer.id, 'parent-cycle-detected', ZH.repairCycleToFallbackParent(layer.key, fallbackParent.key));
+      pushRepair(layer.id, 'parent-cycle-detected', msg.repairCycleToFallbackParent(layer.key, fallbackParent.key));
     } else {
       layer.constraint = 'independent_boundary';
       delete layer.parentLayerId;
-      pushRepair(layer.id, 'parent-cycle-detected', ZH.repairCycleRemoved(layer.key));
+      pushRepair(layer.id, 'parent-cycle-detected', msg.repairCycleRemoved(layer.key));
     }
   }
 
@@ -327,8 +296,8 @@ function normalizeLanguageId(languageId: string | undefined): string {
   return (languageId ?? '').trim().toLowerCase();
 }
 
-function getLayerTypeLabel(layerType: 'transcription' | 'translation'): string {
-  return layerType === 'transcription' ? ZH.transcription : ZH.translation;
+function getLayerTypeLabel(layerType: 'transcription' | 'translation', msg: ReturnType<typeof getLayerConstraintServiceMessages>): string {
+  return layerType === 'transcription' ? msg.transcription : msg.translation;
 }
 
 function getOppositeLayerType(layerType: 'transcription' | 'translation'): 'transcription' | 'translation' {
@@ -346,7 +315,9 @@ export function getLayerCreateGuard(
     hasSupportedParent?: boolean;
     runtimeCapabilities?: Partial<ConstraintRuntimeCapabilities>;
   },
+  locale: Locale = DEFAULT_LOCALE,
 ): TranslationCreateGuardResult {
+  const msg = getLayerConstraintServiceMessages(locale);
   const effectiveConstraint = input.constraint
     ?? (layerType === 'translation' ? 'symbolic_association' : 'independent_boundary');
   const dependentParentCandidates = listIndependentBoundaryTranscriptionLayers(layers);
@@ -365,8 +336,8 @@ export function getLayerCreateGuard(
     return {
       allowed: false,
       reasonCode: 'invalid-translation-constraint',
-      reason: ZH.invalidTranslationConstraint,
-      reasonShort: ZH.invalidTranslationConstraintShort,
+      reason: msg.invalidTranslationConstraint,
+      reasonShort: msg.invalidTranslationConstraintShort,
     };
   }
 
@@ -375,11 +346,11 @@ export function getLayerCreateGuard(
       allowed: false,
       reasonCode: 'constraint-runtime-not-supported',
       reason: effectiveConstraint === 'time_subdivision'
-        ? ZH.timeSubdivisionUnavailable
-        : ZH.constraintUnavailable,
+        ? msg.timeSubdivisionUnavailable
+        : msg.constraintUnavailable,
       reasonShort: effectiveConstraint === 'time_subdivision'
-        ? ZH.timeSubdivisionUnavailableShort
-        : ZH.constraintUnavailableShort,
+        ? msg.timeSubdivisionUnavailableShort
+        : msg.constraintUnavailableShort,
     };
   }
 
@@ -387,8 +358,8 @@ export function getLayerCreateGuard(
     return {
       allowed: false,
       reasonCode: 'invalid-constraint-for-root-transcription',
-      reason: ZH.issueRootTranscriptionIndependentOnly,
-      reasonShort: ZH.rootTranscriptionIndependentOnlyShort,
+      reason: msg.issueRootTranscriptionIndependentOnly,
+      reasonShort: msg.rootTranscriptionIndependentOnlyShort,
     };
   }
 
@@ -398,8 +369,8 @@ export function getLayerCreateGuard(
     return {
       allowed: false,
       reasonCode: 'constraint-parent-required',
-      reason: ZH.chooseDependentBoundary,
-      reasonShort: ZH.chooseDependentBoundaryShort,
+      reason: msg.chooseDependentBoundary,
+      reasonShort: msg.chooseDependentBoundaryShort,
     };
   }
 
@@ -409,8 +380,8 @@ export function getLayerCreateGuard(
     return {
       allowed: false,
       reasonCode: 'constraint-parent-required',
-      reason: ZH.chooseValidDependentBoundary,
-      reasonShort: ZH.chooseValidDependentBoundaryShort,
+      reason: msg.chooseValidDependentBoundary,
+      reasonShort: msg.chooseValidDependentBoundaryShort,
     };
   }
 
@@ -420,8 +391,8 @@ export function getLayerCreateGuard(
     return {
       allowed: false,
       reasonCode: 'constraint-parent-required',
-      reason: ZH.constraintNeedsParent,
-      reasonShort: ZH.constraintNeedsParentShort,
+      reason: msg.constraintNeedsParent,
+      reasonShort: msg.constraintNeedsParentShort,
     };
   }
 
@@ -430,8 +401,8 @@ export function getLayerCreateGuard(
       return {
         allowed: false,
         reasonCode: 'missing-transcription',
-        reason: ZH.needTranscriptionFirst,
-        reasonShort: ZH.needTranscriptionFirstShort,
+        reason: msg.needTranscriptionFirst,
+        reasonShort: msg.needTranscriptionFirstShort,
       };
     }
   }
@@ -443,8 +414,8 @@ export function getLayerCreateGuard(
   }
 
   const oppositeType = getOppositeLayerType(layerType);
-  const oppositeTypeLabel = getLayerTypeLabel(oppositeType);
-  const sameTypeLabel = getLayerTypeLabel(layerType);
+  const oppositeTypeLabel = getLayerTypeLabel(oppositeType, msg);
+  const sameTypeLabel = getLayerTypeLabel(layerType, msg);
 
   const hasOppositeTypeLanguage = layers.some(
     (l) => l.layerType === oppositeType && normalizeLanguageId(l.languageId) === languageId,
@@ -453,8 +424,8 @@ export function getLayerCreateGuard(
     return {
       allowed: false,
       reasonCode: 'cross-type-same-language',
-      reason: ZH.crossTypeLanguageConflict(oppositeTypeLabel, sameTypeLabel),
-      reasonShort: ZH.crossTypeLanguageConflictShort(oppositeTypeLabel),
+      reason: msg.crossTypeLanguageConflict(oppositeTypeLabel, sameTypeLabel),
+      reasonShort: msg.crossTypeLanguageConflictShort(oppositeTypeLabel),
     };
   }
 
@@ -465,8 +436,8 @@ export function getLayerCreateGuard(
     return {
       allowed: false,
       reasonCode: 'duplicate-same-type-without-alias',
-      reason: ZH.sameTypeAliasRequired(sameTypeLabel),
-      reasonShort: ZH.sameTypeAliasRequiredShort(sameTypeLabel),
+      reason: msg.sameTypeAliasRequired(sameTypeLabel),
+      reasonShort: msg.sameTypeAliasRequiredShort(sameTypeLabel),
     };
   }
 
@@ -477,8 +448,9 @@ export function getLayerCreateGuard(
 export function getTranslationCreateGuard(
   layers: LayerDocType[],
   input: { languageId?: string; alias?: string },
+  locale: Locale = DEFAULT_LOCALE,
 ): TranslationCreateGuardResult {
-  return getLayerCreateGuard(layers, 'translation', input);
+  return getLayerCreateGuard(layers, 'translation', input, locale);
 }
 
 // Create constraints
@@ -486,12 +458,14 @@ export function getTranslationCreateGuard(
 export function canCreateLayer(
   layers: LayerDocType[],
   layerType: 'transcription' | 'translation',
+  locale: Locale = DEFAULT_LOCALE,
 ): CanCreateResult {
+  const msg = getLayerConstraintServiceMessages(locale);
   // Translation layer requires at least one transcription layer.
   if (layerType === 'translation') {
     const hasTranscription = layers.some((l) => l.layerType === 'transcription');
     if (!hasTranscription) {
-      return { allowed: false, reason: ZH.needTranscriptionFirst };
+      return { allowed: false, reason: msg.needTranscriptionFirst };
     }
   }
 
@@ -499,10 +473,10 @@ export function canCreateLayer(
   const existing = layers.filter((l) => l.layerType === layerType);
   const limit = LAYER_SOFT_LIMITS[layerType];
   if (existing.length >= limit) {
-    const typeLabel = layerType === 'transcription' ? ZH.transcription : ZH.translation;
+    const typeLabel = layerType === 'transcription' ? msg.transcription : msg.translation;
     return {
       allowed: true,
-      warning: ZH.softLimitWarning(existing.length, typeLabel, limit),
+      warning: msg.softLimitWarning(existing.length, typeLabel, limit),
     };
   }
 
@@ -514,10 +488,12 @@ export function canCreateLayer(
 export function canDeleteLayer(
   layers: LayerDocType[],
   targetLayerId: string,
+  locale: Locale = DEFAULT_LOCALE,
 ): CanDeleteResult {
+  const msg = getLayerConstraintServiceMessages(locale);
   const target = layers.find((l) => l.id === targetLayerId);
   if (!target) {
-    return { allowed: false, reason: ZH.deleteTargetNotFound };
+    return { allowed: false, reason: msg.deleteTargetNotFound };
   }
 
   if (target.layerType === 'transcription') {

@@ -34,15 +34,6 @@
   padding: 8px 0 4px;
 }
 
-.shortcuts-panel-group-label {
-  font-size: calc(0.7rem * var(--ui-font-scale, 1));
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-secondary);
-  padding: 4px 16px;
-}
-
 .shortcuts-panel-table {
   width: 100%;
   border-collapse: collapse;

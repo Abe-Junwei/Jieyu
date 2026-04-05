@@ -17,6 +17,9 @@ async function clearDatabase(): Promise<void> {
     db.ai_tasks.clear(),
     db.embeddings.clear(),
     db.languages.clear(),
+    db.language_display_names.clear(),
+    db.language_aliases.clear(),
+    db.language_catalog_history.clear(),
     db.speakers.clear(),
     db.orthographies.clear(),
     db.orthography_bridges.clear(),
@@ -1796,6 +1799,75 @@ describe('LinguisticService smoke tests', () => {
     // Canonical cascade should clean up segment contents
     expect(await db.layer_unit_contents.where('layerId').equals('layer_cascade').count()).toBe(0);
     expect(await db.utterances.count()).toBe(0);
+  });
+
+  it('regression: upsertLanguageCatalogEntry clears explicitly blank persisted fields', async () => {
+    await LinguisticService.upsertLanguageCatalogEntry({
+      id: 'user:demo-language',
+      languageCode: 'demo',
+      locale: 'zh-CN',
+      localName: '示例语言',
+      englishName: 'Demo Language',
+      nativeName: 'Demo Native',
+      canonicalTag: 'demo-Latn',
+      iso6391: 'dm',
+      iso6392B: 'dem',
+      iso6392T: 'deo',
+      iso6393: 'dmo',
+      glottocode: 'demo1234',
+      wikidataId: 'Q123456',
+      family: 'Demo Family',
+      subfamily: 'Demo Branch',
+      macrolanguage: 'demo-macro',
+      aliases: ['示例别名'],
+      displayNames: [{ locale: 'fr-FR', role: 'preferred', value: 'langue de demonstration' }],
+    });
+
+    const clearInput: Record<string, unknown> = {
+      id: 'user:demo-language',
+      languageCode: 'demo',
+      locale: 'zh-CN',
+      localName: '',
+      englishName: '',
+      nativeName: '',
+      canonicalTag: '',
+      iso6391: '',
+      iso6392B: '',
+      iso6392T: '',
+      iso6393: '',
+      glottocode: '',
+      wikidataId: '',
+      family: '',
+      subfamily: '',
+      macrolanguage: '',
+      aliases: [],
+      displayNames: [],
+      scope: undefined,
+      modality: undefined,
+      languageType: undefined,
+    };
+
+    await LinguisticService.upsertLanguageCatalogEntry(clearInput as Parameters<typeof LinguisticService.upsertLanguageCatalogEntry>[0]);
+
+    const saved = await db.languages.get('user:demo-language');
+    expect(saved).toBeTruthy();
+    expect(saved?.name).toEqual({});
+    expect(saved?.autonym).toBeUndefined();
+    expect(saved?.canonicalTag).toBeUndefined();
+    expect(saved?.iso6391).toBeUndefined();
+    expect(saved?.iso6392B).toBeUndefined();
+    expect(saved?.iso6392T).toBeUndefined();
+    expect(saved?.iso6393).toBeUndefined();
+    expect(saved?.glottocode).toBeUndefined();
+    expect(saved?.wikidataId).toBeUndefined();
+    expect(saved?.family).toBeUndefined();
+    expect(saved?.subfamily).toBeUndefined();
+    expect(saved?.macrolanguage).toBeUndefined();
+    expect(saved?.scope).toBeUndefined();
+    expect(saved?.modality).toBeUndefined();
+    expect(saved?.languageType).toBeUndefined();
+    expect(await db.language_display_names.where('languageId').equals('user:demo-language').count()).toBe(0);
+    expect(await db.language_aliases.where('languageId').equals('user:demo-language').count()).toBe(0);
   });
 });
 

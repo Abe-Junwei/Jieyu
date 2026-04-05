@@ -8,15 +8,17 @@ import type { OrthographyDocType } from '../db';
 import { LocaleProvider } from '../i18n';
 import { OrthographyWorkspacePage } from './OrthographyWorkspacePage';
 
-const { mockListOrthographies, mockUpdateOrthography } = vi.hoisted(() => ({
+const { mockListOrthographies, mockUpdateOrthography, mockListLanguageCatalogEntries } = vi.hoisted(() => ({
   mockListOrthographies: vi.fn(),
   mockUpdateOrthography: vi.fn(),
+  mockListLanguageCatalogEntries: vi.fn(),
 }));
 
 vi.mock('../services/LinguisticService', () => ({
   LinguisticService: {
     listOrthographies: mockListOrthographies,
     updateOrthography: mockUpdateOrthography,
+    listLanguageCatalogEntries: mockListLanguageCatalogEntries,
   },
 }));
 
@@ -44,6 +46,7 @@ describe('OrthographyWorkspacePage', () => {
   beforeEach(() => {
     mockListOrthographies.mockReset();
     mockUpdateOrthography.mockReset();
+    mockListLanguageCatalogEntries.mockReset();
     mockListOrthographies.mockResolvedValue([
       {
         id: 'orth-source',
@@ -66,6 +69,32 @@ describe('OrthographyWorkspacePage', () => {
         updatedAt: '2026-04-04T00:00:00.000Z',
       },
     ] satisfies OrthographyDocType[]);
+    mockListLanguageCatalogEntries.mockImplementation(async ({ locale }: { locale: 'zh-CN' | 'en-US' }) => ([
+      {
+        id: 'eng',
+        entryKind: 'built-in',
+        hasPersistedRecord: false,
+        languageCode: 'eng',
+        englishName: 'English',
+        localName: locale === 'en-US' ? 'English' : '英语',
+        aliases: ['英文'],
+        sourceType: 'built-in-generated',
+        visibility: 'visible',
+        displayNames: [],
+      },
+      {
+        id: 'zho',
+        entryKind: 'built-in',
+        hasPersistedRecord: false,
+        languageCode: 'zho',
+        englishName: 'Chinese',
+        localName: locale === 'en-US' ? 'Chinese' : '中文',
+        aliases: ['汉语'],
+        sourceType: 'built-in-generated',
+        visibility: 'visible',
+        displayNames: [],
+      },
+    ]));
     mockUpdateOrthography.mockImplementation(async (input: Record<string, unknown>) => ({
       id: 'orth-source',
       languageId: String(input.languageId ?? 'eng'),
@@ -189,21 +218,124 @@ describe('OrthographyWorkspacePage', () => {
       </MemoryRouter>,
     );
 
-    const languageNameInput = await screen.findByRole('textbox', { name: '语言' });
+    const languageNameInput = await screen.findByRole('combobox', { name: '语言' });
     const languageCodeInput = screen.getByRole('textbox', { name: '来源语言代码' });
 
     fireEvent.change(languageCodeInput, { target: { value: 'zho' } });
 
     await waitFor(() => {
       expect((languageCodeInput as HTMLInputElement).value).toBe('zho');
-      expect((languageNameInput as HTMLInputElement).value).toBe('中文');
+      expect((languageNameInput as HTMLInputElement).value).toBe('中文 · Chinese');
     });
 
     fireEvent.click(screen.getByRole('button', { name: '重置修改' }));
 
     await waitFor(() => {
-      expect((languageNameInput as HTMLInputElement).value).toBe('英语');
+      expect((languageNameInput as HTMLInputElement).value).toBe('英语 · English');
       expect((languageCodeInput as HTMLInputElement).value).toBe('eng');
+    });
+  });
+
+  it('does not auto-infer a language from a two-character code while the user is still typing', async () => {
+    render(
+      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    const languageNameInput = await screen.findByRole('combobox', { name: '语言' });
+    const languageCodeInput = screen.getByRole('textbox', { name: '来源语言代码' });
+
+    fireEvent.change(languageCodeInput, { target: { value: 'en' } });
+
+    await waitFor(() => {
+      expect((languageCodeInput as HTMLInputElement).value).toBe('en');
+      expect((languageNameInput as HTMLInputElement).value).toBe('');
+    });
+
+    fireEvent.blur(languageCodeInput);
+
+    await waitFor(() => {
+      expect((languageCodeInput as HTMLInputElement).value).toBe('eng');
+      expect((languageNameInput as HTMLInputElement).value).toBe('英语 · English');
+    });
+  });
+
+  it('allows continuing deletion after a normalized code has fallen back to a two-character draft', async () => {
+    render(
+      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    const languageCodeInput = await screen.findByRole('textbox', { name: '来源语言代码' });
+
+    fireEvent.change(languageCodeInput, { target: { value: 'en' } });
+
+    fireEvent.change(languageCodeInput, { target: { value: '' } });
+
+    await waitFor(() => {
+      expect((languageCodeInput as HTMLInputElement).value).toBe('');
+    });
+  });
+
+  it('commits a new language after the previous name has been cleared and replaced', async () => {
+    render(
+      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    const languageNameInput = await screen.findByRole('combobox', { name: '语言' });
+    const languageCodeInput = screen.getByRole('textbox', { name: '来源语言代码' });
+
+    fireEvent.change(languageCodeInput, { target: { value: 'eng' } });
+    await waitFor(() => {
+      expect((languageCodeInput as HTMLInputElement).value).toBe('eng');
+      expect((languageNameInput as HTMLInputElement).value).toBe('英语 · English');
+    });
+
+    fireEvent.change(languageNameInput, { target: { value: 'P' } });
+    await waitFor(() => {
+      expect((languageNameInput as HTMLInputElement).value).toBe('P');
+      expect((languageCodeInput as HTMLInputElement).value).toBe('');
+    });
+
+    fireEvent.change(languageNameInput, { target: { value: 'Portuguese' } });
+    await waitFor(() => {
+      expect((languageNameInput as HTMLInputElement).value).toBe('Portuguese · 葡萄牙语 · português');
+      expect((languageCodeInput as HTMLInputElement).value).toBe('por');
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: '保存元数据' })[0]!);
+
+    await waitFor(() => {
+      const lastCallIndex = mockUpdateOrthography.mock.calls.length - 1;
+      const lastCall = (lastCallIndex >= 0
+        ? mockUpdateOrthography.mock.calls[lastCallIndex]?.[0]
+        : undefined) as Record<string, unknown> | undefined;
+      expect(lastCall).toBeTruthy();
+      expect(lastCall).toEqual(expect.objectContaining({
+        languageId: 'por',
+      }));
     });
   });
 
@@ -289,7 +421,7 @@ describe('OrthographyWorkspacePage', () => {
       </MemoryRouter>,
     );
 
-    const languageNameInput = await screen.findByRole('textbox', { name: '语言' });
+    const languageNameInput = await screen.findByRole('combobox', { name: '语言' });
     const languageCodeInput = screen.getByRole('textbox', { name: '来源语言代码' });
 
     fireEvent.change(languageCodeInput, { target: { value: 'en-US' } });
@@ -308,11 +440,58 @@ describe('OrthographyWorkspacePage', () => {
         : undefined) as Record<string, unknown> | undefined;
       expect(lastCall).toBeTruthy();
       expect(lastCall).toEqual(expect.objectContaining({
-        languageId: 'eng',
+        languageId: '',
       }));
       expect(lastCall?.localeTag).toBeUndefined();
       expect(lastCall?.regionTag).toBeUndefined();
       expect(lastCall?.variantTag).toBeUndefined();
+    });
+  });
+
+  it('keeps unsaved draft edits when the locale changes and only relocalizes the language display', async () => {
+    const renderPage = (locale: 'zh-CN' | 'en-US') => (
+      <MemoryRouter initialEntries={['/lexicon/orthographies?orthographyId=orth-source']}>
+        <LocaleProvider locale={locale}>
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/lexicon/orthographies" element={<OrthographyWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>
+    );
+
+    const { rerender } = render(renderPage('zh-CN'));
+
+    const nameInput = (await screen.findAllByDisplayValue('Bridge Orthography'))[0]!;
+    const languageNameInput = screen.getByRole('combobox', { name: '语言' });
+
+    fireEvent.change(nameInput, { target: { value: 'Dirty Bridge Orthography' } });
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Dirty Bridge Orthography')).toBeTruthy();
+      expect((languageNameInput as HTMLInputElement).value).toBe('英语 · English');
+    });
+
+    rerender(renderPage('en-US'));
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Dirty Bridge Orthography')).toBeTruthy();
+      expect((screen.getByRole('combobox', { name: 'Language' }) as HTMLInputElement).value).toBe('English');
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /保存元数据|Save metadata/ })[0]!);
+
+    await waitFor(() => {
+      const lastCallIndex = mockUpdateOrthography.mock.calls.length - 1;
+      const lastCall = (lastCallIndex >= 0
+        ? mockUpdateOrthography.mock.calls[lastCallIndex]?.[0]
+        : undefined) as Record<string, unknown> | undefined;
+      expect(lastCall).toBeTruthy();
+      expect(lastCall).toEqual(expect.objectContaining({
+        languageId: 'eng',
+        name: { und: 'Dirty Bridge Orthography', eng: 'Bridge Orthography' },
+      }));
     });
   });
 

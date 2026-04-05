@@ -44,7 +44,6 @@
   color: var(--state-danger-text);
 }
 
-.ai-chat-prompt-lab-panel-note,
 .ai-chat-prompt-lab-empty {
   margin: 0;
 }

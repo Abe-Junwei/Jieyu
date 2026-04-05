@@ -319,7 +319,7 @@ export class WebMaServiceClient {
     }
 
     if (!submitResp.ok) {
-      const body = await submitResp.text().catch(() => '');
+      const body = await submitResp.text().catch((e) => { console.warn('WebMAUS: failed to read error response body', e); return ''; });
       throw new Error(`WebMAUS submission failed (${submitResp.status}): ${body}`);
     }
 

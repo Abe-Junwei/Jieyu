@@ -10,6 +10,20 @@
 import languageTags from 'language-tags';
 import { iso6393 } from 'iso-639-3';
 
+import {
+  getLanguageAliasCodeFromCatalog,
+  getLanguageAliasesForCodeFromCatalog,
+  getLanguageEnglishDisplayNameFromCatalog,
+  getLanguageLocalDisplayNameFromCatalog,
+  getLanguageNativeDisplayNameFromCatalog,
+  getLanguageQueryEntriesFromCatalog,
+  getLanguageQueryNamesFromCatalog,
+} from '../data/languageNameCatalog';
+import {
+  normalizeLanguageCatalogRuntimeLookupKey,
+  readLanguageCatalogRuntimeCache,
+} from '../data/languageCatalogRuntimeCache';
+
 /**
  * ISO 639-3 → BCP-47 静态映射表。
  * 仅包含 Web Speech API / Whisper 有对应支持的语种。
@@ -231,52 +245,6 @@ export function isKnownIso639_3Code(value: string): boolean {
   return normalized.length === 3 && (ISO639_3_DB_CODE_SET.has(normalized) || normalized in ISO639_3_TO_BCP47);
 }
 
-// ── 中国语种中文别名（按业务高频补充）| Chinese aliases for languages used in China ──
-const CHINA_LANGUAGE_ALIAS: Readonly<Record<string, string>> = {
-  // 汉语及方言群 | Sinitic languages and topolects
-  '汉语': 'cmn', '国语': 'cmn', '國語': 'cmn', '华语': 'cmn', '華語': 'cmn', '普通话': 'cmn',
-  '官话': 'cmn', '北方话': 'cmn', '北方方言': 'cmn', '中文': 'cmn', '中文普通话': 'cmn',
-  '粤语': 'yue', '广东话': 'yue', '廣東話': 'yue', '白话': 'yue', '白話': 'yue',
-  '吴语': 'wuu', '上海话': 'wuu', '上海话方言': 'wuu',
-  '闽南语': 'nan', '閩南語': 'nan', '台语': 'nan', '臺語': 'nan', '河洛话': 'nan', '河洛話': 'nan',
-  '客家语': 'hak', '客家話': 'hak', '客家话': 'hak',
-  '赣语': 'gan', '贛語': 'gan',
-  '晋语': 'cjy', '晉語': 'cjy',
-  '湘语': 'hsn', '湘語': 'hsn',
-
-  // 中国少数民族语言（常见称呼）| Common names for ethnic minority languages in China
-  '藏语': 'bod', '藏文': 'bod', '藏語': 'bod',
-  '维语': 'uig', '維語': 'uig', '维吾尔语': 'uig', '維吾爾語': 'uig',
-  '蒙古语': 'mon', '蒙古文': 'mon', '蒙古語': 'mon',
-  '壮语': 'zha', '壮文': 'zha', '壯語': 'zha',
-  '朝鲜语': 'kor', '朝鮮語': 'kor', '韩国语': 'kor', '韓國語': 'kor', '韩语': 'kor', '韓語': 'kor',
-  '哈萨克语': 'kaz', '哈薩克語': 'kaz',
-  '柯尔克孜语': 'kir', '柯爾克孜語': 'kir', '吉尔吉斯语': 'kir', '吉爾吉斯語': 'kir',
-  '塔吉克语': 'tgk', '塔吉克語': 'tgk',
-  '锡伯语': 'sjo', '錫伯語': 'sjo',
-  '满语': 'mnc', '滿語': 'mnc',
-  '彝语': 'iii', '彝文': 'iii', '彝語': 'iii',
-  '苗语': 'hmn', '苗語': 'hmn',
-  '傈僳语': 'lis', '傈僳語': 'lis',
-  '拉祜语': 'lhu', '拉祜語': 'lhu',
-};
-
-// ── 常见别名映射（覆盖用户口语化表达）| Common aliases for colloquial language names ──
-const LANG_ALIAS: Readonly<Record<string, string>> = {
-  '英文': 'eng', '中文': 'cmn', '日文': 'jpn', '韩文': 'kor', '法文': 'fra',
-  '德文': 'deu', '西文': 'spa', '俄文': 'rus', '泰文': 'tha', '越文': 'vie',
-  'english': 'eng', 'chinese': 'cmn', 'mandarin': 'cmn', 'cantonese': 'yue',
-  'japanese': 'jpn', 'korean': 'kor', 'french': 'fra', 'german': 'deu',
-  'spanish': 'spa', 'portuguese': 'por', 'italian': 'ita', 'russian': 'rus',
-  'arabic': 'ara', 'thai': 'tha', 'vietnamese': 'vie', 'indonesian': 'ind',
-  'hindi': 'hin', 'turkish': 'tur', 'dutch': 'nld', 'polish': 'pol',
-  'hebrew': 'heb', 'swahili': 'swa', 'malay': 'msa', 'burmese': 'mya',
-  'khmer': 'khm', 'tibetan': 'bod', 'nepali': 'nep', 'bengali': 'ben',
-  'tamil': 'tam', 'urdu': 'urd', 'tagalog': 'tgl', 'amharic': 'amh',
-  '韩国语': 'kor', '朝鲜语': 'kor',
-  ...CHINA_LANGUAGE_ALIAS,
-};
-
 /**
  * 模糊解析用户输入的语言名称为 ISO 639-3 代码。
  * Fuzzy-resolve a human language query to an ISO 639-3 code.
@@ -293,26 +261,44 @@ const LANG_ALIAS: Readonly<Record<string, string>> = {
 export function resolveLanguageQuery(query: string): string | undefined {
   const q = query.trim().toLowerCase();
   if (q.length === 0) return undefined;
+  const visibleCatalogByCode = getMergedLanguageCatalogByCode();
+  const directRuntimeCode = resolveRuntimeLanguageCode(q);
 
   // 1. 本身就是已知 ISO 639-3 代码 | Direct ISO 639-3 code
-  if (ISO639_3_DB_CODE_SET.has(q) || q in ISO639_3_TO_BCP47) return q;
+  if (directRuntimeCode && visibleCatalogByCode[directRuntimeCode]) {
+    return directRuntimeCode;
+  }
+  if ((ISO639_3_DB_CODE_SET.has(q) || q in ISO639_3_TO_BCP47) && visibleCatalogByCode[q]) return q;
+
+  // 歧义词必须进入澄清，不应静默落到某个具体语种 | Ambiguous queries must be clarified instead of silently resolving.
+  if ((AMBIGUOUS_QUERY_PRESETS[q]?.length ?? 0) > 1) return undefined;
 
   // 2. 常见别名 | Common alias
-  const alias = LANG_ALIAS[q];
+  const alias = getLanguageAliasCodeFromCatalog(q);
   if (alias) return alias;
 
   // 3. ISO 639-3 名称库（英文）精确匹配 | Exact match against ISO 639-3 name database
   const dbExact = ISO639_3_DB_NAME_TO_CODE[q];
-  if (dbExact) return dbExact;
+  if (dbExact && visibleCatalogByCode[dbExact]) return dbExact;
 
-  // 4 & 5. 遍历 label 精确/模糊匹配 | Label exact / fuzzy match
-  const allLangs = SUPPORTED_VOICE_LANGS.flatMap((g) => g.langs)
-    .filter((l) => l.code !== '__auto__');
+  // 4 & 5. 走统一语言目录检索，保证 runtime 资产与 hidden 语义一致 | Use unified catalog search so runtime assets and hidden visibility stay consistent.
+  const searchLocales: readonly LanguageSearchLocale[] = ['zh-CN', 'en-US', 'fr-FR', 'es-ES', 'de-DE'];
 
-  for (const lang of allLangs) {
+  for (const locale of searchLocales) {
+    const exactMatch = searchLanguageCatalog(query, locale, 8)
+      .find((match) => match.matchSource === 'alias-exact' || match.matchSource === 'name-exact');
+    if (exactMatch) {
+      return exactMatch.entry.iso6393;
+    }
+  }
+
+  const visibleVoiceLangs = SUPPORTED_VOICE_LANGS.flatMap((group) => group.langs)
+    .filter((language) => language.code !== '__auto__' && Boolean(visibleCatalogByCode[language.code]));
+
+  for (const lang of visibleVoiceLangs) {
     if (lang.label.toLowerCase() === q) return lang.code;
   }
-  for (const lang of allLangs) {
+  for (const lang of visibleVoiceLangs) {
     if (lang.label.toLowerCase().includes(q) || q.includes(lang.label.toLowerCase())) {
       return lang.code;
     }
@@ -321,7 +307,16 @@ export function resolveLanguageQuery(query: string): string | undefined {
   return undefined;
 }
 
-export type LanguageSearchLocale = 'zh-CN' | 'en-US';
+export type LanguageSearchLocale = 'zh-CN' | 'en-US' | 'fr-FR' | 'es-ES' | 'de-DE';
+
+export type LanguageCatalogMatchedLabelKind = 'local' | 'native' | 'english' | 'alias' | 'code';
+export type LanguageDisplayMode = 'locale-first' | 'input-first';
+
+export type LanguageDisplayNames = {
+  local: string;
+  english: string;
+  native?: string;
+};
 
 export type LanguageCatalogEntry = {
   iso6393: string;
@@ -356,6 +351,8 @@ export type LanguageCatalogMatch = {
   entry: LanguageCatalogEntry;
   score: number;
   matchSource: LanguageCatalogMatchSource;
+  matchedLabel: string;
+  matchedLabelKind: LanguageCatalogMatchedLabelKind;
   warnings: string[];
 };
 
@@ -370,58 +367,17 @@ export type ResolvedLanguageCodeInput = {
   warnings: string[];
 };
 
+export type LanguageCodeInputChangeState = {
+  sanitizedInput: string;
+  keepsDraft: boolean;
+  status: 'empty' | 'deferred' | 'resolved' | 'invalid';
+  resolution: ResolvedLanguageCodeInput;
+};
+
 const COMMON_LANGUAGE_INPUT_CODES = [
   'cmn', 'zho', 'yue', 'wuu', 'nan', 'hak',
   'eng', 'jpn', 'kor', 'fra', 'deu', 'spa', 'rus', 'ara', 'por', 'hin', 'vie', 'tha', 'msa', 'ind', 'bod',
 ] as const;
-
-const ZH_DISPLAY_NAME_BY_CODE: Readonly<Record<string, string>> = {
-  cmn: '普通话',
-  zho: '中文',
-  yue: '粤语',
-  wuu: '吴语',
-  nan: '闽南语',
-  hak: '客家话',
-  gan: '赣语',
-  cjy: '晋语',
-  hsn: '湘语',
-  eng: '英语',
-  jpn: '日语',
-  kor: '韩语',
-  fra: '法语',
-  deu: '德语',
-  spa: '西班牙语',
-  rus: '俄语',
-  ara: '阿拉伯语',
-  por: '葡萄牙语',
-  hin: '印地语',
-  vie: '越南语',
-  tha: '泰语',
-  msa: '马来语',
-  ind: '印尼语',
-  bod: '藏语',
-  uig: '维吾尔语',
-  mon: '蒙古语',
-  zha: '壮语',
-  kaz: '哈萨克语',
-  kir: '吉尔吉斯语',
-  tgk: '塔吉克语',
-  sjo: '锡伯语',
-  mnc: '满语',
-  iii: '彝语',
-  hmn: '苗语',
-  lis: '傈僳语',
-  lhu: '拉祜语',
-  amh: '阿姆哈拉语',
-  khm: '高棉语',
-  mya: '缅甸语',
-  tgl: '他加禄语',
-  ben: '孟加拉语',
-  tam: '泰米尔语',
-  urd: '乌尔都语',
-  nep: '尼泊尔语',
-  und: '未定语言',
-};
 
 const AMBIGUOUS_QUERY_PRESETS: Readonly<Record<string, readonly string[]>> = {
   '中文': ['cmn', 'zho', 'yue', 'wuu', 'nan', 'hak'],
@@ -458,16 +414,6 @@ const ISO639_2_TO_3: Readonly<Record<string, string>> = (() => {
     }
   }
   return map;
-})();
-
-const ALIASES_BY_CODE: Readonly<Record<string, string[]>> = (() => {
-  const map = new Map<string, Set<string>>();
-  for (const [alias, code] of Object.entries(LANG_ALIAS)) {
-    const bucket = map.get(code) ?? new Set<string>();
-    bucket.add(alias);
-    map.set(code, bucket);
-  }
-  return Object.fromEntries(Array.from(map.entries()).map(([code, aliases]) => [code, Array.from(aliases.values())]));
 })();
 
 const MACROLANGUAGE_BY_CODE: Readonly<Record<string, string>> = (() => {
@@ -507,8 +453,8 @@ const LANGUAGE_CATALOG_BY_CODE: Readonly<Record<string, LanguageCatalogEntry>> =
       ...(entry.iso6392T ? { iso6392T: entry.iso6392T.toLowerCase() } : {}),
       name: entry.name,
       ...((entry as { invertedName?: string }).invertedName ? { invertedName: (entry as { invertedName?: string }).invertedName } : {}),
-      ...(ZH_DISPLAY_NAME_BY_CODE[code] ? { displayNameZh: ZH_DISPLAY_NAME_BY_CODE[code] } : {}),
-      aliases: ALIASES_BY_CODE[code] ?? [],
+      ...(getLanguageLocalDisplayNameFromCatalog(code, 'zh-CN') ? { displayNameZh: getLanguageLocalDisplayNameFromCatalog(code, 'zh-CN') } : {}),
+      aliases: [...getLanguageAliasesForCodeFromCatalog(code)],
       scope: ((subtag?.scope() ?? entry.scope ?? 'individual') as LanguageCatalogEntry['scope']),
       type: (entry.type as LanguageCatalogEntry['type']),
       descriptions: Array.from(new Set([
@@ -525,14 +471,261 @@ const LANGUAGE_CATALOG_BY_CODE: Readonly<Record<string, LanguageCatalogEntry>> =
   return map;
 })();
 
+function resolveRuntimeLanguageCode(query: string | undefined): string | undefined {
+  const normalizedQuery = normalizeLanguageCatalogRuntimeLookupKey(query);
+  if (!normalizedQuery) {
+    return undefined;
+  }
+
+  const cache = readLanguageCatalogRuntimeCache();
+  const resolvedId = cache.entries[normalizedQuery]
+    ? normalizedQuery
+    : cache.lookupToId[normalizedQuery];
+  if (!resolvedId) {
+    return undefined;
+  }
+
+  const runtimeEntry = cache.entries[resolvedId];
+  return runtimeEntry?.languageCode?.trim().toLowerCase()
+    || runtimeEntry?.iso6393?.trim().toLowerCase()
+    || resolvedId;
+}
+
+function buildRuntimeLanguageCatalogEntries(includeHidden = false): LanguageCatalogEntry[] {
+  const cache = readLanguageCatalogRuntimeCache();
+
+  return Object.entries(cache.entries)
+    .map(([entryId, runtimeEntry]) => {
+      if (!includeHidden && runtimeEntry.visibility === 'hidden') {
+        return null;
+      }
+
+      const resolvedCode = runtimeEntry.languageCode?.trim().toLowerCase()
+        || runtimeEntry.iso6393?.trim().toLowerCase()
+        || entryId;
+      if (!resolvedCode) {
+        return null;
+      }
+
+      const baseEntry = LANGUAGE_CATALOG_BY_CODE[resolvedCode];
+      const descriptions = dedupeLanguageLabels([
+        runtimeEntry.english,
+        runtimeEntry.native,
+        ...(runtimeEntry.byLocale ? Object.values(runtimeEntry.byLocale) : []),
+        ...(baseEntry?.descriptions ?? []),
+      ]);
+
+      return {
+        iso6393: resolvedCode,
+        ...(runtimeEntry.iso6391?.trim() ? { iso6391: runtimeEntry.iso6391.trim().toLowerCase() } : baseEntry?.iso6391 ? { iso6391: baseEntry.iso6391 } : {}),
+        ...(runtimeEntry.iso6392B?.trim() ? { iso6392B: runtimeEntry.iso6392B.trim().toLowerCase() } : baseEntry?.iso6392B ? { iso6392B: baseEntry.iso6392B } : {}),
+        ...(runtimeEntry.iso6392T?.trim() ? { iso6392T: runtimeEntry.iso6392T.trim().toLowerCase() } : baseEntry?.iso6392T ? { iso6392T: baseEntry.iso6392T } : {}),
+        name: runtimeEntry.english?.trim() || baseEntry?.name || resolvedCode,
+        ...(baseEntry?.invertedName ? { invertedName: baseEntry.invertedName } : {}),
+        ...(runtimeEntry.byLocale?.['zh-CN']?.trim() ? { displayNameZh: runtimeEntry.byLocale['zh-CN'].trim() } : baseEntry?.displayNameZh ? { displayNameZh: baseEntry.displayNameZh } : {}),
+        aliases: dedupeLanguageLabels([
+          ...(runtimeEntry.aliases ?? []),
+          ...(baseEntry?.aliases ?? []),
+        ]),
+        scope: baseEntry?.scope ?? 'individual',
+        type: baseEntry?.type ?? 'living',
+        descriptions,
+        deprecated: baseEntry?.deprecated ?? false,
+        ...(baseEntry?.preferredIso6393 ? { preferredIso6393: baseEntry.preferredIso6393 } : {}),
+        ...(baseEntry?.suppressScript ? { suppressScript: baseEntry.suppressScript } : {}),
+        ...(baseEntry?.macrolanguage ? { macrolanguage: baseEntry.macrolanguage } : {}),
+      };
+    })
+    .filter((entry): entry is LanguageCatalogEntry => Boolean(entry));
+}
+
+function getMergedLanguageCatalogByCode(includeHidden = false): Readonly<Record<string, LanguageCatalogEntry>> {
+  const merged: Record<string, LanguageCatalogEntry> = { ...LANGUAGE_CATALOG_BY_CODE };
+  const runtimeEntries = buildRuntimeLanguageCatalogEntries(true);
+
+  runtimeEntries.forEach((entry) => {
+    const runtimeState = readLanguageCatalogRuntimeCache().entries[entry.iso6393]
+      ?? readLanguageCatalogRuntimeCache().entries[readLanguageCatalogRuntimeCache().lookupToId[normalizeLanguageCatalogRuntimeLookupKey(entry.iso6393)] ?? ''];
+    if (!includeHidden && runtimeState?.visibility === 'hidden') {
+      delete merged[entry.iso6393];
+      return;
+    }
+    merged[entry.iso6393] = entry;
+  });
+
+  return merged;
+}
+
+const INTL_LANGUAGE_DISPLAY_NAME_CACHE = new Map<string, string | null>();
+
+const GENERIC_CHINESE_VARIETY_NATIVE_NAMES = new Set([
+  '中文',
+  'chinese',
+  '中文(',
+  '中文（',
+  'chinese(',
+  'chinese (',
+  'chinese（',
+]);
+
+const LANGUAGE_NATIVE_DISPLAY_NAME_OVERRIDES: Readonly<Record<string, string>> = {
+  ind: 'Bahasa Indonesia',
+  tgl: 'Tagalog',
+};
+
+function isGenericChineseVarietyNativeName(languageId: string, label: string): boolean {
+  if (!['cmn', 'yue', 'wuu', 'nan', 'hak'].includes(languageId)) {
+    return false;
+  }
+  const normalized = normalizeLanguageLabelKey(label);
+  return GENERIC_CHINESE_VARIETY_NATIVE_NAMES.has(normalized)
+    || normalized.startsWith('中文(')
+    || normalized.startsWith('中文（')
+    || normalized.startsWith('chinese(')
+    || normalized.startsWith('chinese (')
+    || normalized.startsWith('chinese（');
+}
+
+function getIntlLanguageDisplayName(locale: string, languageCode: string): string | undefined {
+  const normalizedLocale = locale.trim();
+  const normalizedLanguageCode = languageCode.trim();
+  if (!normalizedLocale || !normalizedLanguageCode) {
+    return undefined;
+  }
+
+  const cacheKey = `${normalizedLocale}::${normalizedLanguageCode}`;
+  const cached = INTL_LANGUAGE_DISPLAY_NAME_CACHE.get(cacheKey);
+  if (cached !== undefined) {
+    return cached ?? undefined;
+  }
+
+  try {
+    if (Intl.DisplayNames.supportedLocalesOf([normalizedLocale]).length === 0) {
+      INTL_LANGUAGE_DISPLAY_NAME_CACHE.set(cacheKey, null);
+      return undefined;
+    }
+    const displayName = new Intl.DisplayNames([normalizedLocale], { type: 'language' }).of(normalizedLanguageCode)?.trim() ?? '';
+    const resolved = displayName && displayName.toLowerCase() !== normalizedLanguageCode.toLowerCase()
+      ? displayName
+      : null;
+    INTL_LANGUAGE_DISPLAY_NAME_CACHE.set(cacheKey, resolved);
+    return resolved ?? undefined;
+  } catch {
+    INTL_LANGUAGE_DISPLAY_NAME_CACHE.set(cacheKey, null);
+    return undefined;
+  }
+}
+
+function buildLanguageCodeDisplayCandidates(entry: LanguageCatalogEntry): string[] {
+  return Array.from(new Set([
+    entry.iso6393,
+    ...(entry.iso6391 ? [entry.iso6391] : []),
+    toBcp47(entry.iso6393),
+  ].filter((value) => value.trim().length > 0)));
+}
+
+function getEnglishDisplayName(entry: LanguageCatalogEntry): string {
+  return getLanguageEnglishDisplayNameFromCatalog(entry.iso6393) ?? entry.descriptions[0] ?? entry.name;
+}
+
+function getNativeDisplayName(entry: LanguageCatalogEntry): string | undefined {
+  const runtimeOverride = LANGUAGE_NATIVE_DISPLAY_NAME_OVERRIDES[entry.iso6393];
+  if (runtimeOverride) {
+    return runtimeOverride;
+  }
+  const generatedDisplayName = getLanguageNativeDisplayNameFromCatalog(entry.iso6393);
+  if (generatedDisplayName && !isGenericChineseVarietyNativeName(entry.iso6393, generatedDisplayName)) {
+    return generatedDisplayName;
+  }
+  for (const candidate of buildLanguageCodeDisplayCandidates(entry)) {
+    const displayName = getIntlLanguageDisplayName(candidate, candidate);
+    if (displayName && !isGenericChineseVarietyNativeName(entry.iso6393, displayName)) {
+      return displayName;
+    }
+  }
+  return undefined;
+}
+
+function normalizeLanguageLabelKey(label: string): string {
+  return label.normalize('NFKC').trim().toLowerCase();
+}
+
+function dedupeLanguageLabels(labels: Array<string | undefined>): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const label of labels) {
+    const trimmed = label?.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const normalized = normalizeLanguageLabelKey(trimmed);
+    if (seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    result.push(trimmed);
+  }
+
+  return result;
+}
+
+export function formatLanguageDisplayName(
+  languageId: string | undefined,
+  locale: LanguageSearchLocale = 'zh-CN',
+  mode: LanguageDisplayMode = 'locale-first',
+  preferredDisplayName?: string,
+  preferredDisplayKind: LanguageCatalogMatchedLabelKind = 'local',
+): string {
+  const normalizedCode = languageId?.trim().toLowerCase();
+  if (!normalizedCode) {
+    return preferredDisplayName?.trim() ?? '';
+  }
+
+  const { local, native, english } = getLanguageDisplayNames(normalizedCode, locale);
+  if (mode === 'locale-first') {
+    return dedupeLanguageLabels([local, native, english]).join(' · ');
+  }
+
+  const normalizedPreferredLabel = normalizeLanguageLabelKey(preferredDisplayName ?? '');
+  const normalizedLocal = normalizeLanguageLabelKey(local);
+  const normalizedNative = normalizeLanguageLabelKey(native ?? '');
+  const normalizedEnglish = normalizeLanguageLabelKey(english);
+  const resolvedPreferredKind = normalizedPreferredLabel && normalizedPreferredLabel === normalizedEnglish
+    ? 'english'
+    : normalizedPreferredLabel && normalizedPreferredLabel === normalizedNative
+      ? 'native'
+      : normalizedPreferredLabel && normalizedPreferredLabel === normalizedLocal
+        ? 'local'
+        : preferredDisplayKind;
+
+  const inputFirstLabels = resolvedPreferredKind === 'english'
+    ? [preferredDisplayName, local, native]
+    : resolvedPreferredKind === 'native'
+      ? [preferredDisplayName, local, english]
+      : [preferredDisplayName, native, english];
+
+  return dedupeLanguageLabels(inputFirstLabels).slice(0, 3).join(' · ');
+}
+
 function getLocaleDisplayName(entry: LanguageCatalogEntry, locale: LanguageSearchLocale): string {
+  const generatedDisplayName = getLanguageLocalDisplayNameFromCatalog(entry.iso6393, locale);
+  if (generatedDisplayName) {
+    return generatedDisplayName;
+  }
   if (locale === 'zh-CN' && entry.displayNameZh) return entry.displayNameZh;
-  return entry.descriptions[0] ?? entry.name;
+  for (const candidate of buildLanguageCodeDisplayCandidates(entry)) {
+    const displayName = getIntlLanguageDisplayName(locale, candidate);
+    if (displayName) {
+      return displayName;
+    }
+  }
+  return getEnglishDisplayName(entry);
 }
 
 function getMacrolanguageHint(entry: LanguageCatalogEntry, locale: LanguageSearchLocale): string | undefined {
   if (entry.scope !== 'macrolanguage') return undefined;
-  const members = Object.values(LANGUAGE_CATALOG_BY_CODE)
+  const members = Object.values(getMergedLanguageCatalogByCode())
     .filter((candidate) => candidate.macrolanguage === entry.iso6393)
     .slice(0, 4)
     .map((candidate) => candidate.iso6393);
@@ -563,7 +756,12 @@ function buildWarningsForEntry(entry: LanguageCatalogEntry, locale: LanguageSear
 function resolveAnyLanguageCode(input: string): { languageId?: string; matchSource?: LanguageCatalogMatchSource } {
   const normalized = input.trim().toLowerCase();
   if (!normalized) return {};
-  if (normalized.length === 3 && LANGUAGE_CATALOG_BY_CODE[normalized]) {
+  const mergedCatalog = getMergedLanguageCatalogByCode(true);
+  const runtimeCode = resolveRuntimeLanguageCode(normalized);
+  if (runtimeCode && mergedCatalog[runtimeCode]) {
+    return { languageId: runtimeCode, matchSource: runtimeCode === normalized ? 'iso6393-exact' : 'bcp47-primary' };
+  }
+  if (normalized.length === 3 && mergedCatalog[normalized]) {
     return { languageId: normalized, matchSource: 'iso6393-exact' };
   }
   if (normalized.length === 2 && ISO639_1_TO_3[normalized]) {
@@ -583,7 +781,8 @@ function rankLanguageCatalogEntry(entry: LanguageCatalogEntry): number {
 export function getLanguageCatalogEntry(languageId: string | undefined): LanguageCatalogEntry | undefined {
   const normalized = languageId?.trim().toLowerCase();
   if (!normalized) return undefined;
-  return LANGUAGE_CATALOG_BY_CODE[normalized];
+  const resolvedCode = resolveRuntimeLanguageCode(normalized) ?? normalized;
+  return getMergedLanguageCatalogByCode()[resolvedCode];
 }
 
 export function getLanguageDisplayName(languageId: string | undefined, locale: LanguageSearchLocale = 'zh-CN'): string {
@@ -594,12 +793,80 @@ export function getLanguageDisplayName(languageId: string | undefined, locale: L
   return getLocaleDisplayName(entry, locale);
 }
 
+export function getNativeLanguageDisplayName(languageId: string | undefined): string | undefined {
+  const entry = getLanguageCatalogEntry(languageId);
+  if (!entry) {
+    return undefined;
+  }
+  return getNativeDisplayName(entry);
+}
+
+export function getLanguageDisplayNames(
+  languageId: string | undefined,
+  locale: LanguageSearchLocale = 'zh-CN',
+): LanguageDisplayNames {
+  const entry = getLanguageCatalogEntry(languageId);
+  if (!entry) {
+    const fallback = (languageId ?? '').trim() || (locale === 'zh-CN' ? '未设置语言' : 'Language not set');
+    return {
+      local: fallback,
+      english: fallback,
+    };
+  }
+
+  return {
+    local: getLocaleDisplayName(entry, locale),
+    english: getEnglishDisplayName(entry),
+    ...(getNativeDisplayName(entry) ? { native: getNativeDisplayName(entry) } : {}),
+  };
+}
+
+function formatLanguageDisplayLabels(
+  entry: LanguageCatalogEntry,
+  locale: LanguageSearchLocale,
+  primaryLabel?: string,
+): string {
+  const displayNames = getLanguageDisplayNames(entry.iso6393, locale);
+  return dedupeLanguageLabels([
+    primaryLabel,
+    displayNames.local,
+    displayNames.native,
+    displayNames.english,
+  ]).join(' · ');
+}
+
 export function formatLanguageCatalogMatch(match: LanguageCatalogMatch, locale: LanguageSearchLocale = 'zh-CN'): string {
-  const displayName = getLocaleDisplayName(match.entry, locale);
+  const displayName = formatLanguageDisplayLabels(
+    match.entry,
+    locale,
+    match.matchedLabelKind === 'code' ? undefined : match.matchedLabel,
+  );
   const scopeLabel = match.entry.scope === 'macrolanguage'
     ? (locale === 'zh-CN' ? '宏语言' : 'macrolanguage')
     : match.entry.scope;
   return `${displayName} · ${match.entry.iso6393}${scopeLabel !== 'individual' ? ` · ${scopeLabel}` : ''}`;
+}
+
+export function pickAutoFillLanguageMatch(
+  query: string,
+  locale: LanguageSearchLocale = 'zh-CN',
+  maxResults = 5,
+): LanguageCatalogMatch | undefined {
+  const matches = searchLanguageCatalog(query, locale, maxResults);
+  const exactMatch = matches.find((match) => match.matchSource === 'alias-exact' || match.matchSource === 'name-exact');
+  if (exactMatch) return exactMatch;
+  if (matches.length === 1 && matches[0]?.matchSource === 'prefix') {
+    return matches[0];
+  }
+  return undefined;
+}
+
+export function sanitizeLanguageCodeInput(input: string): string {
+  return input.replace(/[^A-Za-z0-9-]/g, '').slice(0, 24).toLowerCase();
+}
+
+export function isDeferredLanguageCodeDraft(input: string): boolean {
+  return /^[a-z]{2}$/.test(input.trim().toLowerCase());
 }
 
 export function searchLanguageCatalog(
@@ -607,15 +874,18 @@ export function searchLanguageCatalog(
   locale: LanguageSearchLocale = 'zh-CN',
   maxResults = 8,
 ): LanguageCatalogMatch[] {
+  const catalogByCode = getMergedLanguageCatalogByCode();
   const normalized = query.trim().toLowerCase();
   if (!normalized) {
     return COMMON_LANGUAGE_INPUT_CODES
-      .map((code, index) => LANGUAGE_CATALOG_BY_CODE[code])
+      .map((code, index) => catalogByCode[code])
       .filter((entry): entry is LanguageCatalogEntry => Boolean(entry))
       .map((entry, index) => ({
         entry,
         score: 80 - index,
         matchSource: 'prefix' as const,
+        matchedLabel: getLocaleDisplayName(entry, locale),
+        matchedLabelKind: 'local' as const,
         warnings: buildWarningsForEntry(entry, locale),
       }));
   }
@@ -623,56 +893,115 @@ export function searchLanguageCatalog(
   const preset = AMBIGUOUS_QUERY_PRESETS[normalized];
   if (preset) {
     return preset
-      .map((code, index) => LANGUAGE_CATALOG_BY_CODE[code])
+      .map((code, index) => catalogByCode[code])
       .filter((entry): entry is LanguageCatalogEntry => Boolean(entry))
       .map((entry, index) => ({
         entry,
         score: 96 - index,
         matchSource: 'ambiguous-preset' as const,
+        matchedLabel: getLocaleDisplayName(entry, locale),
+        matchedLabelKind: 'local' as const,
         warnings: buildWarningsForEntry(entry, locale),
       }));
   }
 
-  const matches = Object.values(LANGUAGE_CATALOG_BY_CODE)
+  const matches = Object.values(catalogByCode)
     .map((entry): LanguageCatalogMatch | null => {
       let score = 0;
       let matchSource: LanguageCatalogMatchSource | null = null;
+      let matchedLabel = '';
+      let matchedLabelKind: LanguageCatalogMatchedLabelKind = 'english';
+
+      const englishDisplayName = getEnglishDisplayName(entry);
+      const localDisplayName = getLocaleDisplayName(entry, locale);
+      const nativeDisplayName = getNativeDisplayName(entry);
+      const localeQueryEntries = getLanguageQueryEntriesFromCatalog(entry.iso6393, locale);
+      const localeQueryNames = getLanguageQueryNamesFromCatalog(entry.iso6393, locale);
+      const exactLocaleQueryEntry = localeQueryEntries.find((entryLabel) => normalizeLanguageLabelKey(entryLabel.label) === normalized);
 
       if (entry.iso6393 === normalized) {
         score = 100;
         matchSource = 'iso6393-exact';
+        matchedLabel = entry.iso6393;
+        matchedLabelKind = 'code';
       } else if (entry.iso6391 === normalized) {
         score = 98;
         matchSource = 'iso6391-exact';
+        matchedLabel = entry.iso6391;
+        matchedLabelKind = 'code';
       } else if (entry.iso6392B === normalized || entry.iso6392T === normalized) {
         score = 97;
         matchSource = 'iso6392-exact';
+        matchedLabel = entry.iso6392B === normalized ? entry.iso6392B : entry.iso6392T ?? normalized;
+        matchedLabelKind = 'code';
       } else if (entry.aliases.some((alias) => alias.toLowerCase() === normalized)) {
         score = 94;
         matchSource = 'alias-exact';
-      } else if (entry.descriptions.some((description) => description.trim().toLowerCase() === normalized)) {
+        matchedLabel = entry.aliases.find((alias) => alias.toLowerCase() === normalized) ?? normalized;
+        matchedLabelKind = 'alias';
+      } else if (exactLocaleQueryEntry?.kind === 'alias') {
+        score = 94;
+        matchSource = 'alias-exact';
+        matchedLabel = exactLocaleQueryEntry.label;
+        matchedLabelKind = 'alias';
+      } else if (exactLocaleQueryEntry?.kind === 'local') {
         score = 92;
         matchSource = 'name-exact';
+        matchedLabel = exactLocaleQueryEntry.label;
+        matchedLabelKind = 'local';
+      } else if (exactLocaleQueryEntry?.kind === 'native') {
+        score = 91;
+        matchSource = 'name-exact';
+        matchedLabel = exactLocaleQueryEntry.label;
+        matchedLabelKind = 'native';
+      } else if (exactLocaleQueryEntry?.kind === 'english') {
+        score = 90;
+        matchSource = 'name-exact';
+        matchedLabel = exactLocaleQueryEntry.label;
+        matchedLabelKind = 'english';
+      } else if (normalizeLanguageLabelKey(localDisplayName) === normalized) {
+        score = 92;
+        matchSource = 'name-exact';
+        matchedLabel = localDisplayName;
+        matchedLabelKind = 'local';
+      } else if (nativeDisplayName && normalizeLanguageLabelKey(nativeDisplayName) === normalized) {
+        score = 91;
+        matchSource = 'name-exact';
+        matchedLabel = nativeDisplayName;
+        matchedLabelKind = 'native';
+      } else if (entry.descriptions.some((description) => description.trim().toLowerCase() === normalized)) {
+        score = 90;
+        matchSource = 'name-exact';
+        matchedLabel = entry.descriptions.find((description) => description.trim().toLowerCase() === normalized)?.trim() ?? englishDisplayName;
+        matchedLabelKind = 'english';
       } else {
         const searchTerms = [
-          ...entry.aliases,
-          ...entry.descriptions,
-          ...(entry.displayNameZh ? [entry.displayNameZh] : []),
-          entry.iso6393,
-          ...(entry.iso6391 ? [entry.iso6391] : []),
-          ...(entry.iso6392B ? [entry.iso6392B] : []),
-          ...(entry.iso6392T ? [entry.iso6392T] : []),
-        ].map((term) => term.trim().toLowerCase());
+          ...entry.aliases.map((label) => ({ label, kind: 'alias' as const })),
+          ...localeQueryEntries.map((entryLabel) => ({ label: entryLabel.label, kind: entryLabel.kind })),
+          { label: localDisplayName, kind: 'local' as const },
+          ...(nativeDisplayName ? [{ label: nativeDisplayName, kind: 'native' as const }] : []),
+          ...entry.descriptions.map((label) => ({ label, kind: 'english' as const })),
+          { label: entry.iso6393, kind: 'code' as const },
+          ...(entry.iso6391 ? [{ label: entry.iso6391, kind: 'code' as const }] : []),
+          ...(entry.iso6392B ? [{ label: entry.iso6392B, kind: 'code' as const }] : []),
+          ...(entry.iso6392T ? [{ label: entry.iso6392T, kind: 'code' as const }] : []),
+        ].filter((term, index, terms) => terms.findIndex(
+          (candidate) => normalizeLanguageLabelKey(candidate.label) === normalizeLanguageLabelKey(term.label) && candidate.kind === term.kind,
+        ) === index);
 
-        const prefixHit = searchTerms.find((term) => term.startsWith(normalized));
-        const containsHit = searchTerms.find((term) => normalized.length >= 2 && term.includes(normalized));
+        const prefixHit = searchTerms.find((term) => normalizeLanguageLabelKey(term.label).startsWith(normalized));
+        const containsHit = searchTerms.find((term) => normalized.length >= 2 && normalizeLanguageLabelKey(term.label).includes(normalized));
 
         if (prefixHit) {
           score = 76;
           matchSource = 'prefix';
+          matchedLabel = prefixHit.label;
+          matchedLabelKind = prefixHit.kind;
         } else if (containsHit) {
           score = 62;
           matchSource = 'contains';
+          matchedLabel = containsHit.label;
+          matchedLabelKind = containsHit.kind;
         }
       }
 
@@ -681,6 +1010,8 @@ export function searchLanguageCatalog(
         entry,
         score: score - rankLanguageCatalogEntry(entry) * 0.01,
         matchSource,
+        matchedLabel,
+        matchedLabelKind,
         warnings: buildWarningsForEntry(entry, locale),
       };
     })
@@ -697,6 +1028,7 @@ export function resolveLanguageCodeInput(
   input: string,
   locale: LanguageSearchLocale = 'zh-CN',
 ): ResolvedLanguageCodeInput {
+  const catalogByCode = getMergedLanguageCatalogByCode();
   const normalized = input.trim();
   if (!normalized) {
     return { status: 'empty', warnings: [] };
@@ -704,7 +1036,7 @@ export function resolveLanguageCodeInput(
 
   const direct = resolveAnyLanguageCode(normalized);
   if (direct.languageId) {
-    const entry = LANGUAGE_CATALOG_BY_CODE[direct.languageId];
+    const entry = catalogByCode[direct.languageId];
     if (!entry) {
       return { status: 'invalid', warnings: [] };
     }
@@ -749,11 +1081,11 @@ export function resolveLanguageCodeInput(
     ? (resolveAnyLanguageCode(canonicalPrimary).languageId ?? toIso639_3(canonicalPrimary))
     : undefined;
 
-  if (!canonicalCode || !LANGUAGE_CATALOG_BY_CODE[canonicalCode]) {
+  if (!canonicalCode || !catalogByCode[canonicalCode]) {
     return { status: 'invalid', warnings: [] };
   }
 
-  const entry = LANGUAGE_CATALOG_BY_CODE[canonicalCode]!;
+  const entry = catalogByCode[canonicalCode]!;
   const formattedTag = preferredTag.format?.() ?? normalized;
   const warnings = buildWarningsForEntry(entry, locale);
   if (formattedTag.toLowerCase() !== canonicalCode.toLowerCase()) {
@@ -771,5 +1103,23 @@ export function resolveLanguageCodeInput(
     ...(regionSubtag ? { regionTag: regionSubtag.format() } : {}),
     ...(variantSubtags.length > 0 ? { variantTag: variantSubtags.map((subtag) => subtag.format()).join('-') } : {}),
     warnings,
+  };
+}
+
+export function resolveLanguageCodeInputChange(
+  rawInput: string,
+  previousDisplayedCode: string,
+  locale: LanguageSearchLocale = 'zh-CN',
+): LanguageCodeInputChangeState {
+  const sanitizedInput = sanitizeLanguageCodeInput(rawInput);
+  const normalizedPreviousCode = sanitizeLanguageCodeInput(previousDisplayedCode);
+  const deferred = isDeferredLanguageCodeDraft(sanitizedInput);
+  const resolution = resolveLanguageCodeInput(sanitizedInput, locale);
+
+  return {
+    sanitizedInput,
+    keepsDraft: sanitizedInput.length < normalizedPreviousCode.length || deferred,
+    status: deferred ? 'deferred' : resolution.status,
+    resolution,
   };
 }

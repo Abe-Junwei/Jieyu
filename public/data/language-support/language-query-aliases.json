@@ -1,0 +1,576 @@
+{
+  "generatedAt": "2026-04-05T06:48:13.694Z",
+  "sourceAliasSeed": "language-name-aliases.json",
+  "aliasToCode": {
+    "英文": "eng",
+    "英語": "eng",
+    "中文": "cmn",
+    "日文": "jpn",
+    "日語": "jpn",
+    "韩文": "kor",
+    "韓文": "kor",
+    "法文": "fra",
+    "法語": "fra",
+    "德文": "deu",
+    "德語": "deu",
+    "西文": "spa",
+    "西語": "spa",
+    "俄文": "rus",
+    "俄語": "rus",
+    "泰文": "tha",
+    "泰語": "tha",
+    "越文": "vie",
+    "越語": "vie",
+    "葡文": "por",
+    "葡语": "por",
+    "葡語": "por",
+    "意文": "ita",
+    "意语": "ita",
+    "意語": "ita",
+    "阿文": "ara",
+    "阿语": "ara",
+    "阿語": "ara",
+    "土文": "tur",
+    "土语": "tur",
+    "土語": "tur",
+    "荷文": "nld",
+    "荷语": "nld",
+    "荷語": "nld",
+    "波文": "pol",
+    "波语": "pol",
+    "波語": "pol",
+    "印地文": "hin",
+    "印地語": "hin",
+    "印尼文": "ind",
+    "印尼语": "ind",
+    "印尼語": "ind",
+    "马来文": "msa",
+    "马来话": "msa",
+    "馬來文": "msa",
+    "馬來話": "msa",
+    "波斯文": "fas",
+    "波斯語": "fas",
+    "法尔西": "fas",
+    "法爾西": "fas",
+    "希伯来文": "heb",
+    "希伯來文": "heb",
+    "缅语": "mya",
+    "缅文": "mya",
+    "緬語": "mya",
+    "緬文": "mya",
+    "高棉文": "khm",
+    "柬语": "khm",
+    "柬語": "khm",
+    "柬埔寨语": "khm",
+    "柬埔寨語": "khm",
+    "尼泊尔文": "nep",
+    "尼泊爾文": "nep",
+    "孟加拉文": "ben",
+    "孟加拉語": "ben",
+    "乌尔都文": "urd",
+    "烏爾都文": "urd",
+    "旁遮普文": "pan",
+    "旁遮普語": "pan",
+    "他加禄文": "tgl",
+    "他加祿文": "tgl",
+    "阿姆哈拉文": "amh",
+    "阿姆哈拉語": "amh",
+    "english": "eng",
+    "american english": "eng",
+    "british english": "eng",
+    "chinese": "cmn",
+    "mandarin": "cmn",
+    "mandarin chinese": "cmn",
+    "standard chinese": "cmn",
+    "putonghua": "cmn",
+    "guoyu": "cmn",
+    "central kurdish": "ckb",
+    "sorani": "ckb",
+    "northern kurdish": "kmr",
+    "kurmanji": "kmr",
+    "cantonese": "yue",
+    "cantonese chinese": "yue",
+    "guangdonghua": "yue",
+    "japanese": "jpn",
+    "korean": "kor",
+    "french": "fra",
+    "german": "deu",
+    "deutsch": "deu",
+    "spanish": "spa",
+    "castilian": "spa",
+    "castilian spanish": "spa",
+    "latin american spanish": "spa",
+    "mexican spanish": "spa",
+    "portuguese": "por",
+    "brazilian portuguese": "por",
+    "european portuguese": "por",
+    "italian": "ita",
+    "russian": "rus",
+    "arabic": "ara",
+    "modern standard arabic": "ara",
+    "thai": "tha",
+    "vietnamese": "vie",
+    "indonesian": "ind",
+    "bahasa indonesia": "ind",
+    "hindi": "hin",
+    "turkish": "tur",
+    "dutch": "nld",
+    "flemish": "nld",
+    "polish": "pol",
+    "hebrew": "heb",
+    "swahili": "swa",
+    "malay": "msa",
+    "bahasa melayu": "msa",
+    "burmese": "mya",
+    "khmer": "khm",
+    "tibetan": "bod",
+    "nepali": "nep",
+    "bengali": "ben",
+    "bangla": "ben",
+    "tamil": "tam",
+    "urdu": "urd",
+    "tagalog": "tgl",
+    "amharic": "amh",
+    "farsi": "fas",
+    "persian farsi": "fas",
+    "sinhalese": "sin",
+    "shanghainese": "wuu",
+    "wu chinese": "wuu",
+    "hokkien": "nan",
+    "taiwanese hokkien": "nan",
+    "minnan": "nan",
+    "swiss german": "gsw",
+    "alemannic": "gsw",
+    "alsatian": "gsw",
+    "sichuan yi": "iii",
+    "nuosu": "iii",
+    "dhivehi": "div",
+    "divehi": "div",
+    "maldivian": "div",
+    "hakka": "hak",
+    "hakka chinese": "hak",
+    "gan chinese": "gan",
+    "xiang chinese": "hsn",
+    "jin chinese": "cjy",
+    "韩国语": "kor",
+    "朝鲜语": "kor",
+    "朝鮮文": "kor",
+    "韓語": "kor",
+    "汉语": "cmn",
+    "国语": "cmn",
+    "國語": "cmn",
+    "华语": "cmn",
+    "華語": "cmn",
+    "汉文": "zho",
+    "漢文": "zho",
+    "华文": "zho",
+    "華文": "zho",
+    "普通话": "cmn",
+    "官话": "cmn",
+    "北方话": "cmn",
+    "北方方言": "cmn",
+    "中文普通话": "cmn",
+    "粤语": "yue",
+    "广东话": "yue",
+    "廣東話": "yue",
+    "白话": "yue",
+    "白話": "yue",
+    "吴语": "wuu",
+    "上海话": "wuu",
+    "上海话方言": "wuu",
+    "闽南语": "nan",
+    "閩南語": "nan",
+    "台语": "nan",
+    "臺語": "nan",
+    "河洛话": "nan",
+    "河洛話": "nan",
+    "客家语": "hak",
+    "客家話": "hak",
+    "客家话": "hak",
+    "赣语": "gan",
+    "贛語": "gan",
+    "晋语": "cjy",
+    "晉語": "cjy",
+    "湘语": "hsn",
+    "湘語": "hsn",
+    "藏语": "bod",
+    "藏文": "bod",
+    "藏語": "bod",
+    "藏話": "bod",
+    "维语": "uig",
+    "維語": "uig",
+    "维吾尔语": "uig",
+    "維吾爾語": "uig",
+    "蒙古语": "mon",
+    "蒙古文": "mon",
+    "蒙古語": "mon",
+    "蒙古話": "mon",
+    "壮语": "zha",
+    "壮文": "zha",
+    "壯語": "zha",
+    "哈萨克语": "kaz",
+    "哈薩克語": "kaz",
+    "柯尔克孜语": "kir",
+    "柯爾克孜語": "kir",
+    "吉尔吉斯语": "kir",
+    "吉爾吉斯語": "kir",
+    "塔吉克语": "tgk",
+    "塔吉克語": "tgk",
+    "锡伯语": "sjo",
+    "錫伯語": "sjo",
+    "满语": "mnc",
+    "滿語": "mnc",
+    "彝语": "iii",
+    "彝文": "iii",
+    "彝語": "iii",
+    "苗语": "hmn",
+    "苗語": "hmn",
+    "傈僳语": "lis",
+    "傈僳語": "lis",
+    "拉祜语": "lhu",
+    "拉祜語": "lhu"
+  },
+  "aliasesByCode": {
+    "eng": [
+      "英文",
+      "英語",
+      "english",
+      "american english",
+      "british english"
+    ],
+    "cmn": [
+      "中文",
+      "chinese",
+      "mandarin",
+      "mandarin chinese",
+      "standard chinese",
+      "putonghua",
+      "guoyu",
+      "汉语",
+      "国语",
+      "國語",
+      "华语",
+      "華語",
+      "普通话",
+      "官话",
+      "北方话",
+      "北方方言",
+      "中文普通话"
+    ],
+    "jpn": [
+      "日文",
+      "日語",
+      "japanese"
+    ],
+    "kor": [
+      "韩文",
+      "韓文",
+      "korean",
+      "韩国语",
+      "朝鲜语",
+      "朝鮮文",
+      "韓語"
+    ],
+    "fra": [
+      "法文",
+      "法語",
+      "french"
+    ],
+    "deu": [
+      "德文",
+      "德語",
+      "german",
+      "deutsch"
+    ],
+    "spa": [
+      "西文",
+      "西語",
+      "spanish",
+      "castilian",
+      "castilian spanish",
+      "latin american spanish",
+      "mexican spanish"
+    ],
+    "rus": [
+      "俄文",
+      "俄語",
+      "russian"
+    ],
+    "tha": [
+      "泰文",
+      "泰語",
+      "thai"
+    ],
+    "vie": [
+      "越文",
+      "越語",
+      "vietnamese"
+    ],
+    "por": [
+      "葡文",
+      "葡语",
+      "葡語",
+      "portuguese",
+      "brazilian portuguese",
+      "european portuguese"
+    ],
+    "ita": [
+      "意文",
+      "意语",
+      "意語",
+      "italian"
+    ],
+    "ara": [
+      "阿文",
+      "阿语",
+      "阿語",
+      "arabic",
+      "modern standard arabic"
+    ],
+    "tur": [
+      "土文",
+      "土语",
+      "土語",
+      "turkish"
+    ],
+    "nld": [
+      "荷文",
+      "荷语",
+      "荷語",
+      "dutch",
+      "flemish"
+    ],
+    "pol": [
+      "波文",
+      "波语",
+      "波語",
+      "polish"
+    ],
+    "hin": [
+      "印地文",
+      "印地語",
+      "hindi"
+    ],
+    "ind": [
+      "印尼文",
+      "印尼语",
+      "印尼語",
+      "indonesian",
+      "bahasa indonesia"
+    ],
+    "msa": [
+      "马来文",
+      "马来话",
+      "馬來文",
+      "馬來話",
+      "malay",
+      "bahasa melayu"
+    ],
+    "fas": [
+      "波斯文",
+      "波斯語",
+      "法尔西",
+      "法爾西",
+      "farsi",
+      "persian farsi"
+    ],
+    "heb": [
+      "希伯来文",
+      "希伯來文",
+      "hebrew"
+    ],
+    "mya": [
+      "缅语",
+      "缅文",
+      "緬語",
+      "緬文",
+      "burmese"
+    ],
+    "khm": [
+      "高棉文",
+      "柬语",
+      "柬語",
+      "柬埔寨语",
+      "柬埔寨語",
+      "khmer"
+    ],
+    "nep": [
+      "尼泊尔文",
+      "尼泊爾文",
+      "nepali"
+    ],
+    "ben": [
+      "孟加拉文",
+      "孟加拉語",
+      "bengali",
+      "bangla"
+    ],
+    "urd": [
+      "乌尔都文",
+      "烏爾都文",
+      "urdu"
+    ],
+    "pan": [
+      "旁遮普文",
+      "旁遮普語"
+    ],
+    "tgl": [
+      "他加禄文",
+      "他加祿文",
+      "tagalog"
+    ],
+    "amh": [
+      "阿姆哈拉文",
+      "阿姆哈拉語",
+      "amharic"
+    ],
+    "ckb": [
+      "central kurdish",
+      "sorani"
+    ],
+    "kmr": [
+      "northern kurdish",
+      "kurmanji"
+    ],
+    "yue": [
+      "cantonese",
+      "cantonese chinese",
+      "guangdonghua",
+      "粤语",
+      "广东话",
+      "廣東話",
+      "白话",
+      "白話"
+    ],
+    "swa": [
+      "swahili"
+    ],
+    "bod": [
+      "tibetan",
+      "藏语",
+      "藏文",
+      "藏語",
+      "藏話"
+    ],
+    "tam": [
+      "tamil"
+    ],
+    "sin": [
+      "sinhalese"
+    ],
+    "wuu": [
+      "shanghainese",
+      "wu chinese",
+      "吴语",
+      "上海话",
+      "上海话方言"
+    ],
+    "nan": [
+      "hokkien",
+      "taiwanese hokkien",
+      "minnan",
+      "闽南语",
+      "閩南語",
+      "台语",
+      "臺語",
+      "河洛话",
+      "河洛話"
+    ],
+    "gsw": [
+      "swiss german",
+      "alemannic",
+      "alsatian"
+    ],
+    "iii": [
+      "sichuan yi",
+      "nuosu",
+      "彝语",
+      "彝文",
+      "彝語"
+    ],
+    "div": [
+      "dhivehi",
+      "divehi",
+      "maldivian"
+    ],
+    "hak": [
+      "hakka",
+      "hakka chinese",
+      "客家语",
+      "客家話",
+      "客家话"
+    ],
+    "gan": [
+      "gan chinese",
+      "赣语",
+      "贛語"
+    ],
+    "hsn": [
+      "xiang chinese",
+      "湘语",
+      "湘語"
+    ],
+    "cjy": [
+      "jin chinese",
+      "晋语",
+      "晉語"
+    ],
+    "zho": [
+      "汉文",
+      "漢文",
+      "华文",
+      "華文"
+    ],
+    "uig": [
+      "维语",
+      "維語",
+      "维吾尔语",
+      "維吾爾語"
+    ],
+    "mon": [
+      "蒙古语",
+      "蒙古文",
+      "蒙古語",
+      "蒙古話"
+    ],
+    "zha": [
+      "壮语",
+      "壮文",
+      "壯語"
+    ],
+    "kaz": [
+      "哈萨克语",
+      "哈薩克語"
+    ],
+    "kir": [
+      "柯尔克孜语",
+      "柯爾克孜語",
+      "吉尔吉斯语",
+      "吉爾吉斯語"
+    ],
+    "tgk": [
+      "塔吉克语",
+      "塔吉克語"
+    ],
+    "sjo": [
+      "锡伯语",
+      "錫伯語"
+    ],
+    "mnc": [
+      "满语",
+      "滿語"
+    ],
+    "hmn": [
+      "苗语",
+      "苗語"
+    ],
+    "lis": [
+      "傈僳语",
+      "傈僳語"
+    ],
+    "lhu": [
+      "拉祜语",
+      "拉祜語"
+    ]
+  }
+}

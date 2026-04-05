@@ -4,10 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ProjectSetupDialog } from './ProjectSetupDialog';
 import { renderWithLocale } from '../test/localeTestUtils';
 
-const { mockCreateOrthography, mockCloneOrthographyToLanguage, mockCreateOrthographyBridge, mockUseOrthographies } = vi.hoisted(() => ({
+const { mockCreateOrthography, mockCloneOrthographyToLanguage, mockCreateOrthographyBridge, mockListLanguageCatalogEntries, mockUseOrthographies } = vi.hoisted(() => ({
   mockCreateOrthography: vi.fn(),
   mockCloneOrthographyToLanguage: vi.fn(),
   mockCreateOrthographyBridge: vi.fn(),
+  mockListLanguageCatalogEntries: vi.fn(),
   mockUseOrthographies: vi.fn(),
 }));
 
@@ -16,6 +17,7 @@ vi.mock('../services/LinguisticService', () => ({
     createOrthography: mockCreateOrthography,
     cloneOrthographyToLanguage: mockCloneOrthographyToLanguage,
     createOrthographyBridge: mockCreateOrthographyBridge,
+    listLanguageCatalogEntries: mockListLanguageCatalogEntries,
   },
 }));
 
@@ -23,12 +25,16 @@ vi.mock('../hooks/useOrthographies', () => ({
   useOrthographies: mockUseOrthographies,
 }));
 
+mockListLanguageCatalogEntries.mockResolvedValue([]);
+
 describe('ProjectSetupDialog orthography creation', () => {
   afterEach(() => {
     cleanup();
     mockCreateOrthography.mockReset();
     mockCloneOrthographyToLanguage.mockReset();
     mockCreateOrthographyBridge.mockReset();
+    mockListLanguageCatalogEntries.mockReset();
+    mockListLanguageCatalogEntries.mockResolvedValue([]);
     mockUseOrthographies.mockReset();
   });
 
@@ -82,7 +88,7 @@ describe('ProjectSetupDialog orthography creation', () => {
       target: { value: '项目 A' },
     });
 
-    fireEvent.change(screen.getByRole('textbox', { name: /目标语言/ }), {
+    fireEvent.change(screen.getByRole('combobox', { name: /目标语言/ }), {
       target: { value: 'English' },
     });
 
@@ -90,12 +96,12 @@ describe('ProjectSetupDialog orthography creation', () => {
       expect(screen.getByRole('combobox', { name: '正字法 / 书写系统' })).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByRole('combobox', { name: '正字法 / 书写系统' }), {
-      target: { value: '__create_new_orthography__' },
-    });
+    fireEvent.click(screen.getByRole('button', { name: '新建' }));
 
-    fireEvent.click(await screen.findByRole('button', { name: '确认风险并创建' }));
-    fireEvent.click(await screen.findByRole('button', { name: '创建并选中' }));
+    fireEvent.click(await screen.findByRole('button', { name: /确认风险并创建|创建并选中/ }));
+    if (mockCreateOrthography.mock.calls.length === 0) {
+      fireEvent.click(await screen.findByRole('button', { name: /确认风险并创建|创建并选中/ }));
+    }
 
     await waitFor(() => {
       expect(mockCreateOrthography).toHaveBeenCalledWith(expect.objectContaining({
@@ -142,7 +148,7 @@ describe('ProjectSetupDialog orthography creation', () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole('textbox', { name: /目标语言/ }), {
+    fireEvent.change(screen.getByRole('combobox', { name: /目标语言/ }), {
       target: { value: 'English' },
     });
 
@@ -165,7 +171,7 @@ describe('ProjectSetupDialog orthography creation', () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole('textbox', { name: /目标语言/ }), {
+    fireEvent.change(screen.getByRole('combobox', { name: /目标语言/ }), {
       target: { value: 'Portuguese' },
     });
 

@@ -307,12 +307,31 @@ interface AiMessageDoc {
   updatedAt: string;
 }
 
+type LanguageCatalogSourceType = 'built-in-generated' | 'built-in-reviewed' | 'user-override' | 'user-custom';
+type LanguageCatalogReviewStatus = 'needs-review' | 'verified';
+type LanguageCatalogVisibility = 'visible' | 'hidden';
+type LanguageDisplayNameRole = 'preferred' | 'autonym' | 'exonym' | 'historical' | 'menu' | 'academic' | 'search';
+type LanguageAliasType = 'search' | 'display' | 'legacy' | 'short' | 'variant';
+type LanguageCatalogHistoryAction = 'create' | 'update' | 'delete';
+
 interface LanguageDocType {
   id: string;
   name: MultiLangString;
+  languageCode?: string;
+  canonicalTag?: string;
+  iso6391?: string;
+  iso6392B?: string;
+  iso6392T?: string;
+  iso6393?: string;
   autonym?: string;
   glottocode?: string;
+  wikidataId?: string;
+  scope?: 'individual' | 'macrolanguage' | 'collection' | 'special' | 'private-use';
+  macrolanguage?: string;
   family?: string;
+  subfamily?: string;
+  modality?: 'spoken' | 'signed' | 'written' | 'mixed';
+  languageType?: 'living' | 'historical' | 'extinct' | 'ancient' | 'constructed' | 'special';
   endangermentLevel?:
     | 'safe'
     | 'vulnerable'
@@ -321,9 +340,52 @@ interface LanguageDocType {
     | 'critically_endangered'
     | 'extinct';
   locationId?: string;
+  sourceType?: LanguageCatalogSourceType;
+  reviewStatus?: LanguageCatalogReviewStatus;
+  visibility?: LanguageCatalogVisibility;
   notes?: MultiLangString;
   createdAt: string;
   updatedAt: string;
+}
+
+interface LanguageDisplayNameDocType {
+  id: string;
+  languageId: string;
+  locale: string;
+  role: LanguageDisplayNameRole;
+  value: string;
+  isPreferred?: boolean;
+  sourceType: LanguageCatalogSourceType;
+  reviewStatus?: LanguageCatalogReviewStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface LanguageAliasDocType {
+  id: string;
+  languageId: string;
+  alias: string;
+  normalizedAlias: string;
+  locale?: string;
+  aliasType: LanguageAliasType;
+  sourceType: LanguageCatalogSourceType;
+  reviewStatus?: LanguageCatalogReviewStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface LanguageCatalogHistoryDocType {
+  id: string;
+  languageId: string;
+  action: LanguageCatalogHistoryAction;
+  summary: string;
+  changedFields?: string[];
+  reason?: string;
+  actorId?: string;
+  actorType?: ActorType;
+  sourceType?: LanguageCatalogSourceType;
+  snapshot?: Record<string, unknown>;
+  createdAt: string;
 }
 
 interface SpeakerDocType {
@@ -1064,12 +1126,31 @@ const aiMessageDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
+const languageCatalogSourceTypeSchema = z.enum(['built-in-generated', 'built-in-reviewed', 'user-override', 'user-custom']);
+const languageCatalogReviewStatusSchema = z.enum(['needs-review', 'verified']);
+const languageCatalogVisibilitySchema = z.enum(['visible', 'hidden']);
+const languageDisplayNameRoleSchema = z.enum(['preferred', 'autonym', 'exonym', 'historical', 'menu', 'academic', 'search']);
+const languageAliasTypeSchema = z.enum(['search', 'display', 'legacy', 'short', 'variant']);
+const languageCatalogHistoryActionSchema = z.enum(['create', 'update', 'delete']);
+
 const languageDocSchema = z.object({
   id: z.string().min(1),
   name: multiLangStringSchema,
+  languageCode: z.string().min(1).optional(),
+  canonicalTag: z.string().min(1).optional(),
+  iso6391: z.string().min(1).optional(),
+  iso6392B: z.string().min(1).optional(),
+  iso6392T: z.string().min(1).optional(),
+  iso6393: z.string().min(1).optional(),
   autonym: z.string().optional(),
   glottocode: z.string().optional(),
+  wikidataId: z.string().optional(),
+  scope: z.enum(['individual', 'macrolanguage', 'collection', 'special', 'private-use']).optional(),
+  macrolanguage: z.string().optional(),
   family: z.string().optional(),
+  subfamily: z.string().optional(),
+  modality: z.enum(['spoken', 'signed', 'written', 'mixed']).optional(),
+  languageType: z.enum(['living', 'historical', 'extinct', 'ancient', 'constructed', 'special']).optional(),
   endangermentLevel: z
     .enum([
       'safe',
@@ -1081,9 +1162,52 @@ const languageDocSchema = z.object({
     ])
     .optional(),
   locationId: z.string().optional(),
+  sourceType: languageCatalogSourceTypeSchema.optional(),
+  reviewStatus: languageCatalogReviewStatusSchema.optional(),
+  visibility: languageCatalogVisibilitySchema.optional(),
   notes: multiLangStringSchema.optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
+});
+
+const languageDisplayNameDocSchema = z.object({
+  id: z.string().min(1),
+  languageId: z.string().min(1),
+  locale: z.string().min(1),
+  role: languageDisplayNameRoleSchema,
+  value: z.string().min(1),
+  isPreferred: z.boolean().optional(),
+  sourceType: languageCatalogSourceTypeSchema,
+  reviewStatus: languageCatalogReviewStatusSchema.optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const languageAliasDocSchema = z.object({
+  id: z.string().min(1),
+  languageId: z.string().min(1),
+  alias: z.string().min(1),
+  normalizedAlias: z.string().min(1),
+  locale: z.string().min(1).optional(),
+  aliasType: languageAliasTypeSchema,
+  sourceType: languageCatalogSourceTypeSchema,
+  reviewStatus: languageCatalogReviewStatusSchema.optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const languageCatalogHistoryDocSchema = z.object({
+  id: z.string().min(1),
+  languageId: z.string().min(1),
+  action: languageCatalogHistoryActionSchema,
+  summary: z.string().min(1),
+  changedFields: z.array(z.string().min(1)).optional(),
+  reason: z.string().optional(),
+  actorId: z.string().optional(),
+  actorType: z.enum(['human', 'ai', 'system', 'importer']).optional(),
+  sourceType: languageCatalogSourceTypeSchema.optional(),
+  snapshot: z.record(z.string(), z.unknown()).optional(),
+  createdAt: isoDateSchema,
 });
 
 const speakerDocSchema = z.object({
@@ -1525,6 +1649,18 @@ function validateAiMessageDoc(doc: AiMessageDoc): void {
 
 function validateLanguageDoc(doc: LanguageDocType): void {
   languageDocSchema.parse(doc);
+}
+
+function validateLanguageDisplayNameDoc(doc: LanguageDisplayNameDocType): void {
+  languageDisplayNameDocSchema.parse(doc);
+}
+
+function validateLanguageAliasDoc(doc: LanguageAliasDocType): void {
+  languageAliasDocSchema.parse(doc);
+}
+
+function validateLanguageCatalogHistoryDoc(doc: LanguageCatalogHistoryDocType): void {
+  languageCatalogHistoryDocSchema.parse(doc);
 }
 
 function validateSpeakerDoc(doc: SpeakerDocType): void {
@@ -1974,6 +2110,9 @@ type JieyuCollections = {
   ai_conversations: CollectionAdapter<AiConversationDoc>;
   ai_messages: CollectionAdapter<AiMessageDoc>;
   languages: CollectionAdapter<LanguageDocType>;
+  language_display_names: CollectionAdapter<LanguageDisplayNameDocType>;
+  language_aliases: CollectionAdapter<LanguageAliasDocType>;
+  language_catalog_history: CollectionAdapter<LanguageCatalogHistoryDocType>;
   speakers: CollectionAdapter<SpeakerDocType>;
   orthographies: CollectionAdapter<OrthographyDocType>;
   orthography_bridges: CollectionAdapter<OrthographyBridgeDocType>;
@@ -2246,6 +2385,9 @@ class JieyuDexie extends Dexie {
   ai_conversations!: Table<AiConversationDoc, string>;
   ai_messages!: Table<AiMessageDoc, string>;
   languages!: Table<LanguageDocType, string>;
+  language_display_names!: Table<LanguageDisplayNameDocType, string>;
+  language_aliases!: Table<LanguageAliasDocType, string>;
+  language_catalog_history!: Table<LanguageCatalogHistoryDocType, string>;
   speakers!: Table<SpeakerDocType, string>;
   orthographies!: Table<OrthographyDocType, string>;
   orthography_transforms!: Table<OrthographyBridgeDocType, string>;
@@ -3097,6 +3239,15 @@ class JieyuDexie extends Dexie {
     this.version(33).stores({
       orthography_transforms: 'id, sourceOrthographyId, targetOrthographyId, [sourceOrthographyId+targetOrthographyId], engine, status, updatedAt',
     });
+
+    // v34: language asset catalog tables.
+    // 语言资产目录底座：语言主表 + 名称矩阵 + 别名 + 审计历史。
+    this.version(34).stores({
+      languages: 'id, languageCode, canonicalTag, iso6393, sourceType, reviewStatus, visibility, family, macrolanguage, updatedAt',
+      language_display_names: 'id, languageId, locale, role, [languageId+locale], [languageId+role], [languageId+locale+role], [locale+value], updatedAt',
+      language_aliases: 'id, languageId, normalizedAlias, aliasType, locale, [languageId+normalizedAlias], [normalizedAlias+languageId], [languageId+aliasType], updatedAt',
+      language_catalog_history: 'id, languageId, action, createdAt, [languageId+createdAt]',
+    });
   }
 }
 
@@ -3140,6 +3291,9 @@ async function _createDb(): Promise<JieyuDatabase> {
     ),
     ai_messages: new DexieCollectionAdapter(dexie.ai_messages, validateAiMessageDoc),
     languages: new DexieCollectionAdapter(dexie.languages, validateLanguageDoc),
+    language_display_names: new DexieCollectionAdapter(dexie.language_display_names, validateLanguageDisplayNameDoc),
+    language_aliases: new DexieCollectionAdapter(dexie.language_aliases, validateLanguageAliasDoc),
+    language_catalog_history: new DexieCollectionAdapter(dexie.language_catalog_history, validateLanguageCatalogHistoryDoc),
     speakers: new DexieCollectionAdapter(dexie.speakers, validateSpeakerDoc),
     orthographies: new DexieCollectionAdapter(dexie.orthographies, validateOrthographyDoc),
     orthography_bridges: new DexieCollectionAdapter(dexie.orthography_bridges, validateOrthographyBridgeDoc),
@@ -3285,6 +3439,9 @@ const knownCollectionNames = [
   'ai_conversations',
   'ai_messages',
   'languages',
+  'language_display_names',
+  'language_aliases',
+  'language_catalog_history',
   'speakers',
   'orthographies',
   'orthography_bridges',
@@ -3323,6 +3480,9 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   ai_conversations: db.ai_conversations,
   ai_messages: db.ai_messages,
   languages: db.languages,
+  language_display_names: db.language_display_names,
+  language_aliases: db.language_aliases,
+  language_catalog_history: db.language_catalog_history,
   speakers: db.speakers,
   orthographies: db.orthographies,
   orthography_bridges: db.orthography_bridges,
@@ -3358,6 +3518,9 @@ const validatorByCollection: Record<KnownCollectionName, (value: unknown) => voi
   ai_conversations: (value) => validateAiConversationDoc(value as AiConversationDoc),
   ai_messages: (value) => validateAiMessageDoc(value as AiMessageDoc),
   languages: (value) => validateLanguageDoc(value as LanguageDocType),
+  language_display_names: (value) => validateLanguageDisplayNameDoc(value as LanguageDisplayNameDocType),
+  language_aliases: (value) => validateLanguageAliasDoc(value as LanguageAliasDocType),
+  language_catalog_history: (value) => validateLanguageCatalogHistoryDoc(value as LanguageCatalogHistoryDocType),
   speakers: (value) => validateSpeakerDoc(value as SpeakerDocType),
   orthographies: (value) => validateOrthographyDoc(value as OrthographyDocType),
   orthography_bridges: (value) => validateOrthographyBridgeDoc(value as OrthographyBridgeDocType),
@@ -3703,6 +3866,15 @@ export type {
   AiMessageStatus,
   AiMessageCitation,
   LanguageDocType,
+  LanguageCatalogSourceType,
+  LanguageCatalogReviewStatus,
+  LanguageCatalogVisibility,
+  LanguageDisplayNameRole,
+  LanguageAliasType,
+  LanguageCatalogHistoryAction,
+  LanguageDisplayNameDocType,
+  LanguageAliasDocType,
+  LanguageCatalogHistoryDocType,
   SpeakerDocType,
   OrthographyDocType,
   OrthographyBridgeDocType as OrthographyBridgeDocType,

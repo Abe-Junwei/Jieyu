@@ -157,7 +157,7 @@ describe('OrthographyBridgeManager', () => {
     expect(Array.from(document.querySelectorAll('.panel-chip')).some((node) => node.textContent === '已审校主项')).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: '新建规则' }));
-    fireEvent.change(screen.getByLabelText('来源语言代码'), { target: { value: 'eng' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /语言代码|Source language code/i }), { target: { value: 'eng' } });
 
     await waitFor(() => {
       const select = screen.getByLabelText('来源正字法') as HTMLSelectElement;
@@ -268,7 +268,7 @@ describe('OrthographyBridgeManager', () => {
     await screen.findByRole('dialog', { name: '正字法写入桥接规则' });
 
     fireEvent.click(screen.getByRole('button', { name: '新建规则' }));
-    fireEvent.change(screen.getByLabelText('来源语言代码'), { target: { value: 'eng' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /语言代码|Source language code/i }), { target: { value: 'eng' } });
 
     await waitFor(() => {
       const select = screen.getByLabelText('来源正字法') as HTMLSelectElement;
@@ -338,5 +338,23 @@ describe('OrthographyBridgeManager', () => {
         targetOrthographyId: 'orth-target',
       }));
     });
+  });
+
+  it('clears loading state in always-expanded workspace mode', async () => {
+    renderWithLocale(
+      <OrthographyBridgeManager
+        targetOrthography={targetOrthography}
+        languageOptions={[{ code: 'eng', label: '英语 English' }]}
+        compact
+        initialExpanded
+        hideToggleButton
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText('正在加载桥接规则…')).toBeNull();
+    });
+
+    expect(screen.getByText('当前正字法尚未配置入站桥接规则，导入或自动写入时会保留原文本。')).toBeTruthy();
   });
 });

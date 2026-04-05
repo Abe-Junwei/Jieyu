@@ -24,6 +24,7 @@ export type ProjectSetupDialogMessages = {
   orthographyLabel: string;
   orthographyDefaultInference: string;
   createOrthography: string;
+  newOrthographyButton: string;
   noOrthographyHint: string;
   cancel: string;
   creating: string;
@@ -76,6 +77,7 @@ const zhCN: ProjectSetupDialogMessages = {
   orthographyLabel: '\u6b63\u5b57\u6cd5 / \u4e66\u5199\u7cfb\u7edf',
   orthographyDefaultInference: '\u5f53\u524d\u8bed\u8a00\u6682\u65e0\u53ef\u7528\u6b63\u5b57\u6cd5',
   createOrthography: '+ \u65b0\u5efa\u6b63\u5b57\u6cd5\u2026',
+  newOrthographyButton: '\u65b0\u5efa',
   noOrthographyHint: '\u5f53\u524d\u8bed\u8a00\u5c1a\u672a\u5339\u914d\u5230\u5185\u7f6e\u6216\u81ea\u5efa\u6b63\u5b57\u6cd5\uff0c\u53ef\u76f4\u63a5\u65b0\u5efa\u4e00\u5957\u6b63\u5b57\u6cd5\u3002',
   cancel: '\u53d6\u6d88',
   creating: '\u521b\u5efa\u4e2d...',
@@ -102,6 +104,7 @@ const enUS: ProjectSetupDialogMessages = {
   orthographyLabel: 'Orthography / Writing System',
   orthographyDefaultInference: 'No available orthography yet',
   createOrthography: '+ New orthography\u2026',
+  newOrthographyButton: 'New',
   noOrthographyHint: 'No built-in or custom orthography is available for this language yet. You can create one directly.',
   cancel: 'Cancel',
   creating: 'Creating...',

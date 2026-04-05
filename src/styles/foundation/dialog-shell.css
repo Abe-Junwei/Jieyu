@@ -61,6 +61,64 @@
   flex-shrink: 0;
 }
 
+/* 弹窗头部图标按钮：无边框、透明底 | Dialog header icon buttons: borderless, transparent */
+.dialog-header .icon-btn {
+  border: none;
+  background: transparent;
+  height: 24px;
+  min-width: 24px;
+  border-radius: 6px;
+  padding: 0;
+}
+
+.dialog-header .icon-btn:hover {
+  background: color-mix(in srgb, var(--border-soft) 40%, transparent);
+}
+
+/* 面包屑标题：父级 > 子级切换 | Breadcrumb title: parent > child navigation */
+.dialog-breadcrumb-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dialog-breadcrumb-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: calc(0.84rem * var(--ui-font-scale, 1));
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+
+.dialog-breadcrumb-back:hover {
+  color: var(--panel-design-accent-color, var(--accent-primary));
+}
+
+.dialog-breadcrumb-separator {
+  color: var(--text-tertiary, var(--text-secondary));
+  font-weight: 400;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.dialog-breadcrumb-current {
+  font-weight: 700;
+  color: var(--panel-design-title-color, var(--text-primary));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .dialog-body {
   padding: 12px 16px;
   min-height: 0;
@@ -90,6 +148,31 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* 选择框 + 内联按钮横排（通用） | Select + inline button row (generic) */
+.dialog-field-select-with-btn {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.dialog-field-select-with-btn > select {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.dialog-field-inline-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 8px;
+  min-height: 30px;
+  border-radius: 6px;
+  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .dialog-field label,
@@ -141,6 +224,53 @@
 .language-iso-input-suggestion:focus-visible {
   border-color: var(--accent-color, #2563eb);
   outline: none;
+}
+
+/* ── ScriptTagCombobox 文字标签下拉 | Script tag combobox ────── */
+
+.script-tag-combobox {
+  position: relative;
+}
+
+.script-tag-combobox-listbox {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  background: var(--panel-bg, #fff);
+  border: 1px solid var(--border-color, var(--border-soft));
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+  list-style: none;
+}
+
+.script-tag-combobox-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: calc(0.82rem * var(--ui-font-scale, 1));
+}
+
+.script-tag-combobox-option:hover,
+.script-tag-combobox-option.is-active {
+  background: color-mix(in srgb, var(--accent-soft, #dbeafe) 50%, transparent);
+}
+
+.script-tag-combobox-code {
+  font-weight: 600;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  min-width: 36px;
+}
+
+.script-tag-combobox-name {
+  color: var(--text-secondary, #666);
 }
 
 @media (max-width: 720px) {

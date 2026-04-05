@@ -235,6 +235,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     const controller = abortRef.current;
     if (!controller) return;
     controller.abort();
+    abortRef.current = null;
     // 用户点停止后应立即解除发送拦截 | Immediately unblock sending after user requests stop.
     setIsStreaming(false);
   }, []);
