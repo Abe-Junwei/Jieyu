@@ -70,6 +70,20 @@ export function OrthographyWorkspaceEditor({
                 namePlaceholder={t(locale, 'workspace.orthography.languageLabel')}
                 codePlaceholder={builderMessages.sourceLanguageCodePlaceholder}
               />
+              <label className="dialog-field">
+                <span>{t(locale, 'workspace.orthography.languageAssetIdLabel')}</span>
+                <input
+                  className="input"
+                  type="text"
+                  value={languageInput.languageAssetId ?? ''}
+                  onChange={(event) => onLanguageInputChange({
+                    ...languageInput,
+                    languageAssetId: event.target.value.trim().toLowerCase(),
+                  })}
+                  placeholder={t(locale, 'workspace.orthography.languageAssetIdPlaceholder')}
+                  aria-label={t(locale, 'workspace.orthography.languageAssetIdLabel')}
+                />
+              </label>
             </div>
             <div className="orthography-builder-script-type-row">
               <label className="dialog-field">

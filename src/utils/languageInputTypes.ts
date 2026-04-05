@@ -5,6 +5,7 @@ export type LanguageInputDisplayMode = 'locale-first' | 'input-first';
 export type LanguageIsoInputValue = {
   languageName: string;
   languageCode: string;
+  languageAssetId?: string;
   displayMode?: LanguageInputDisplayMode;
   preferredDisplayName?: string;
   preferredDisplayKind?: LanguageCatalogMatchedLabelKind;

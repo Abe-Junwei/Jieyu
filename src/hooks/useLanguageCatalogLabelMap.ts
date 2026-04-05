@@ -7,6 +7,8 @@ import { getLanguageDisplayName } from '../utils/langMapping';
 
 export function useLanguageCatalogLabelMap(locale: Locale): {
   labelById: ReadonlyMap<string, string>;
+  languageOptions: ReadonlyArray<{ code: string; label: string }>;
+  resolveLanguageCode: (languageId: string | undefined) => string;
   resolveLabel: (languageId: string | undefined) => string;
   resolveLanguageDisplayName: ResolveLanguageDisplayName;
 } {
@@ -58,6 +60,28 @@ export function useLanguageCatalogLabelMap(locale: Locale): {
     return nextMap;
   }, [entries]);
 
+  const codeById = useMemo(() => {
+    const nextMap = new Map<string, string>();
+    entries.forEach((entry) => {
+      const normalizedId = entry.id.trim().toLowerCase();
+      const normalizedCode = entry.languageCode.trim().toLowerCase();
+      if (normalizedId) {
+        nextMap.set(normalizedId, normalizedCode || normalizedId);
+      }
+      if (normalizedCode) {
+        nextMap.set(normalizedCode, normalizedCode);
+      }
+    });
+    return nextMap;
+  }, [entries]);
+
+  const languageOptions = useMemo(() => entries
+    .map((entry) => ({
+      code: entry.id.trim().toLowerCase(),
+      label: entry.localName,
+    }))
+    .filter((entry, index, all) => entry.code.length > 0 && all.findIndex((candidate) => candidate.code === entry.code) === index), [entries]);
+
   const resolveLabel = useCallback((languageId: string | undefined): string => {
     const normalizedLanguageId = languageId?.trim().toLowerCase() ?? '';
     if (!normalizedLanguageId) {
@@ -65,6 +89,14 @@ export function useLanguageCatalogLabelMap(locale: Locale): {
     }
     return labelById.get(normalizedLanguageId) ?? getLanguageDisplayName(normalizedLanguageId, locale);
   }, [labelById, locale]);
+
+  const resolveLanguageCode = useCallback((languageId: string | undefined): string => {
+    const normalizedLanguageId = languageId?.trim().toLowerCase() ?? '';
+    if (!normalizedLanguageId) {
+      return '';
+    }
+    return codeById.get(normalizedLanguageId) ?? normalizedLanguageId;
+  }, [codeById]);
 
   const resolveLanguageDisplayName = useCallback<ResolveLanguageDisplayName>((languageId, targetLocale) => {
     const normalizedLanguageId = languageId?.trim().toLowerCase() ?? '';
@@ -81,7 +113,7 @@ export function useLanguageCatalogLabelMap(locale: Locale): {
   }, [englishById, labelById, locale]);
 
   return useMemo(
-    () => ({ labelById, resolveLabel, resolveLanguageDisplayName }),
-    [labelById, resolveLabel, resolveLanguageDisplayName],
+    () => ({ labelById, languageOptions, resolveLanguageCode, resolveLabel, resolveLanguageDisplayName }),
+    [labelById, languageOptions, resolveLanguageCode, resolveLabel, resolveLanguageDisplayName],
   );
 }

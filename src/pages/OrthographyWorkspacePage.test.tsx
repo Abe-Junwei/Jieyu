@@ -495,6 +495,70 @@ describe('OrthographyWorkspacePage', () => {
     });
   });
 
+  it('shows custom language asset id separately from language code and saves the asset id', async () => {
+    mockListOrthographies.mockResolvedValueOnce([
+      {
+        id: 'orth-custom',
+        languageId: 'user:demo-language',
+        name: { und: 'Custom Bridge Orthography' },
+        scriptTag: 'Latn',
+        type: 'practical',
+        catalogMetadata: { catalogSource: 'user' },
+        createdAt: '2026-04-04T00:00:00.000Z',
+        updatedAt: '2026-04-04T00:00:00.000Z',
+      },
+    ] satisfies OrthographyDocType[]);
+    mockListLanguageCatalogEntries.mockResolvedValueOnce([
+      {
+        id: 'user:demo-language',
+        entryKind: 'custom',
+        hasPersistedRecord: true,
+        languageCode: 'demo',
+        englishName: 'Demo Language',
+        localName: '示例语言',
+        aliases: [],
+        sourceType: 'user-custom',
+        visibility: 'visible',
+        displayNames: [],
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-custom']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    const languageCodeInput = await screen.findByRole('textbox', { name: '来源语言代码' });
+    const assetIdInput = screen.getByRole('textbox', { name: '语言资产 ID' });
+
+    await waitFor(() => {
+      expect((languageCodeInput as HTMLInputElement).value).toBe('demo');
+      expect((assetIdInput as HTMLInputElement).value).toBe('user:demo-language');
+    });
+
+    fireEvent.change(assetIdInput, { target: { value: 'user:field-language' } });
+    fireEvent.click(screen.getAllByRole('button', { name: '保存元数据' })[0]!);
+
+    await waitFor(() => {
+      const lastCallIndex = mockUpdateOrthography.mock.calls.length - 1;
+      const lastCall = (lastCallIndex >= 0
+        ? mockUpdateOrthography.mock.calls[lastCallIndex]?.[0]
+        : undefined) as Record<string, unknown> | undefined;
+      expect(lastCall).toBeTruthy();
+      expect(lastCall).toEqual(expect.objectContaining({
+        id: 'orth-custom',
+        languageId: 'user:field-language',
+      }));
+    });
+  });
+
   it('shows sidebar entry context and blocks orthography switching while the draft is dirty until confirmed', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
@@ -512,7 +576,7 @@ describe('OrthographyWorkspacePage', () => {
 
     expect(await screen.findByText('当前入口来自转写侧栏；后续可直接在这里长期维护桥接规则。')).toBeTruthy();
 
-    fireEvent.change(await screen.findByLabelText('英文回退名'), { target: { value: 'Dirty Bridge Orthography' } });
+    fireEvent.change(await screen.findByLabelText('英文名称'), { target: { value: 'Dirty Bridge Orthography' } });
     fireEvent.click(screen.getAllByRole('button', { name: /备选正字法/ })[0]!);
 
     expect(confirmSpy).toHaveBeenCalledWith('当前正字法有未保存修改。仍要切换或离开吗？');

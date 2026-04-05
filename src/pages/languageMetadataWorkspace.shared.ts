@@ -41,6 +41,7 @@ export type LanguageMetadataDraft = {
   visibility: LanguageCatalogVisibility;
   notesZh: string;
   notesEn: string;
+  changeReason: string;
   displayNameRows: LanguageDisplayNameDraftRow[];
 };
 
@@ -193,6 +194,7 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
       visibility: 'visible',
       notesZh: '',
       notesEn: '',
+      changeReason: '',
       displayNameRows: [],
     };
   }
@@ -219,8 +221,36 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
     visibility: entry.visibility,
     notesZh: entry.notes?.['zh-CN'] ?? entry.notes?.zho ?? '',
     notesEn: entry.notes?.['en-US'] ?? entry.notes?.eng ?? '',
+    changeReason: '',
     displayNameRows: buildDisplayNameRows(entry, locale),
   };
+}
+
+export function readHistoryFieldLabel(locale: WorkspaceLocale, field: string): string {
+  const keyByField: Partial<Record<string, Parameters<typeof t>[1]>> = {
+    languageCode: 'workspace.languageMetadata.languageCodeLabel',
+    canonicalTag: 'workspace.languageMetadata.canonicalTagLabel',
+    iso6391: 'workspace.languageMetadata.iso6391Label',
+    iso6392B: 'workspace.languageMetadata.iso6392BLabel',
+    iso6392T: 'workspace.languageMetadata.iso6392TLabel',
+    iso6393: 'workspace.languageMetadata.iso6393Label',
+    glottocode: 'workspace.languageMetadata.glottocodeLabel',
+    wikidataId: 'workspace.languageMetadata.wikidataIdLabel',
+    englishName: 'workspace.languageMetadata.englishNameLabel',
+    localName: 'workspace.languageMetadata.localNameLabel',
+    nativeName: 'workspace.languageMetadata.nativeNameLabel',
+    aliases: 'workspace.languageMetadata.aliasesLabel',
+    scope: 'workspace.languageMetadata.scopeLabel',
+    family: 'workspace.languageMetadata.familyLabel',
+    subfamily: 'workspace.languageMetadata.subfamilyLabel',
+    macrolanguage: 'workspace.languageMetadata.macrolanguageLabel',
+    languageType: 'workspace.languageMetadata.languageTypeLabel',
+    visibility: 'workspace.languageMetadata.visibilityLabel',
+    displayNames: 'workspace.languageMetadata.matrixTitle',
+  };
+
+  const dictKey = keyByField[field];
+  return dictKey ? t(locale, dictKey) : field;
 }
 
 export function readEntryKindLabel(locale: WorkspaceLocale, entry: LanguageCatalogEntry | null): string {

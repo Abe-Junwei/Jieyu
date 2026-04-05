@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MultiLangString, OrthographyDocType } from '../db';
 import { useLocale } from '../i18n';
 import { LinguisticService } from '../services/LinguisticService';
+import { getLanguageDisplayName } from '../utils/langMapping';
 import {
   resolveOrthographyRenderPolicy,
   type OrthographyRenderPolicy,
@@ -19,7 +20,6 @@ import {
   readLocalizedMultiLangLabel,
   readPrimaryMultiLangLabel,
 } from '../utils/multiLangLabels';
-import { COMMON_LANGUAGES } from '../utils/transcriptionFormatters';
 import { hasSameOrthographyIdentity } from '../utils/orthographyIdentity';
 import { useOrthographies } from './useOrthographies';
 
@@ -28,8 +28,7 @@ export const ORTHOGRAPHY_CREATE_SENTINEL = '__create_new_orthography__';
 export type OrthographyCreateMode = 'ipa' | 'copy-current' | 'derive-other';
 
 function resolveLanguageLabel(languageId: string): string {
-  const matched = COMMON_LANGUAGES.find((item) => item.code === languageId);
-  return matched?.label ?? languageId.toUpperCase();
+  return getLanguageDisplayName(languageId, 'zh-CN');
 }
 
 function buildOrthographyNameMap(input: {
@@ -72,8 +71,7 @@ function buildIpaSeed(languageId: string) {
 }
 
 function inputLanguageToEnglishLabel(languageId: string): string {
-  const matched = COMMON_LANGUAGES.find((item) => item.code === languageId);
-  return matched?.label ?? languageId.toUpperCase();
+  return getLanguageDisplayName(languageId, 'en-US');
 }
 
 function buildSeedFromOrthography(source: OrthographyDocType | undefined) {
@@ -109,7 +107,14 @@ function parseDraftList(value: string): string[] {
 }
 
 function normalizeCustomLanguageId(value: string): string {
-  return value.replace(/[^A-Za-z]/g, '').slice(0, 3).toLowerCase();
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9:_-]/g, '')
+    .replace(/-{2,}/g, '-')
+    .replace(/:{2,}/g, ':')
+    .replace(/^-+|-+$/g, '');
 }
 
 function resolveBridgeEngine(source: OrthographyDocType | undefined): 'table-map' | 'icu-rule' | 'manual' {

@@ -86,7 +86,35 @@ describe('LinguisticService smoke tests', () => {
     await expect(LinguisticService.createOrthography({
       languageId: 'zh',
       name: { eng: 'Invalid Orthography' },
-    })).rejects.toThrow('languageId 必须是有效的 ISO 639-3 三字母代码');
+    })).rejects.toThrow('languageId 必须是已存在的语言资产 ID 或有效的 ISO 639-3 三字母代码');
+  });
+
+  it('allows existing custom language assets to own orthographies', async () => {
+    const customLanguage = await LinguisticService.upsertLanguageCatalogEntry({
+      id: 'user:hak-community',
+      localName: '客话社区语',
+      englishName: 'Hakka Community Language',
+      nativeName: 'Hak-ka-fa',
+    });
+
+    const created = await LinguisticService.createOrthography({
+      languageId: customLanguage.id,
+      name: { zho: '客话社区语拼写', eng: 'Hakka Community Orthography' },
+      scriptTag: 'Latn',
+      type: 'practical',
+      direction: 'ltr',
+    });
+
+    expect(created.languageId).toBe('user:hak-community');
+
+    const cloned = await LinguisticService.cloneOrthographyToLanguage({
+      sourceOrthographyId: created.id,
+      targetLanguageId: 'user:hak-community',
+      name: { zho: '客话社区语拼写-副本', eng: 'Hakka Community Orthography Copy' },
+      type: 'phonemic',
+    });
+
+    expect(cloned.languageId).toBe('user:hak-community');
   });
 
   it('stores new project titles in neutral primary and English fallback slots', async () => {
@@ -1809,7 +1837,7 @@ describe('LinguisticService smoke tests', () => {
       localName: '示例语言',
       englishName: 'Demo Language',
       nativeName: 'Demo Native',
-      canonicalTag: 'demo-Latn',
+      canonicalTag: 'und-Latn',
       iso6391: 'dm',
       iso6392B: 'dem',
       iso6392T: 'deo',
@@ -1868,6 +1896,77 @@ describe('LinguisticService smoke tests', () => {
     expect(saved?.languageType).toBeUndefined();
     expect(await db.language_display_names.where('languageId').equals('user:demo-language').count()).toBe(0);
     expect(await db.language_aliases.where('languageId').equals('user:demo-language').count()).toBe(0);
+  });
+
+  it('rejects conflicting or highly ambiguous aliases before saving', async () => {
+    await expect(LinguisticService.upsertLanguageCatalogEntry({
+      id: 'user:conflict-language',
+      languageCode: 'demo',
+      locale: 'zh-CN',
+      localName: '冲突语言',
+      englishName: 'Conflict Language',
+      aliases: ['Chinese'],
+    })).rejects.toThrow('别名“Chinese”属于高频泛称');
+  });
+
+  it('records detailed changed fields and reason in language catalog history', async () => {
+    await LinguisticService.upsertLanguageCatalogEntry({
+      id: 'user:history-language',
+      languageCode: 'hst',
+      locale: 'zh-CN',
+      localName: '历史语言',
+      englishName: 'History Language',
+      aliases: ['历史别名'],
+      reason: '初始化自定义语言条目',
+    });
+
+    await LinguisticService.upsertLanguageCatalogEntry({
+      id: 'user:history-language',
+      languageCode: 'hst',
+      locale: 'zh-CN',
+      localName: '历史语言新版',
+      englishName: 'History Language Revised',
+      aliases: ['历史别名新版'],
+      canonicalTag: 'zh-hans-cn',
+      displayNames: [{ locale: 'fr-fr', role: 'menu', value: 'langue historique' }],
+      reason: '补充法语菜单名并统一 canonical tag',
+    });
+
+    const history = await LinguisticService.listLanguageCatalogHistory('user:history-language');
+    const latest = history[0];
+    expect(latest).toBeTruthy();
+    expect(latest?.reason).toBe('补充法语菜单名并统一 canonical tag');
+    expect(latest?.reasonCode).toBe('user-provided');
+    expect(latest?.changedFields).toEqual(expect.arrayContaining(['localName', 'englishName', 'aliases', 'canonicalTag', 'displayNames']));
+    expect(latest?.beforePatch).toEqual(expect.objectContaining({
+      localName: '历史语言',
+      englishName: 'History Language',
+      aliases: ['历史别名'],
+    }));
+    expect(latest?.afterPatch).toEqual(expect.objectContaining({
+      localName: '历史语言新版',
+      englishName: 'History Language Revised',
+      aliases: ['历史别名新版'],
+      canonicalTag: 'zh-Hans-CN',
+    }));
+  });
+
+  it('validates canonical tags and display-name locales before saving', async () => {
+    await expect(LinguisticService.upsertLanguageCatalogEntry({
+      id: 'user:invalid-tag',
+      languageCode: 'bad',
+      locale: 'zh-CN',
+      localName: '非法标签语言',
+      canonicalTag: 'not a tag',
+    })).rejects.toThrow('Canonical Tag 不是合法的 BCP 47 语言标签');
+
+    await expect(LinguisticService.upsertLanguageCatalogEntry({
+      id: 'user:invalid-locale',
+      languageCode: 'bad',
+      locale: 'zh-CN',
+      localName: '非法 locale 语言',
+      displayNames: [{ locale: 'bad locale', role: 'preferred', value: 'bad locale label' }],
+    })).rejects.toThrow('显示名称矩阵中的 locale 必须是合法的 BCP 47 locale key');
   });
 });
 

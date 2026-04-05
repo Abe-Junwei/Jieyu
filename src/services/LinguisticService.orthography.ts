@@ -8,6 +8,7 @@ import {
   getBuiltInOrthographyById,
   listAllBuiltInOrthographies,
 } from '../data/builtInOrthographies';
+import { getLanguageCatalogEntry as getLanguageCatalogWorkspaceEntry } from './LinguisticService.languageCatalog';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { buildOrthographyIdentityKey, normalizeOrthographyIdentity } from '../utils/orthographyIdentity';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
@@ -115,12 +116,24 @@ function rankOrthographyBridgeStatus(status: OrthographyBridgeDocType['status'])
   return 2;
 }
 
-function normalizeRequiredLanguageId(languageId: string): string {
+async function normalizeRequiredLanguageId(languageId: string): Promise<string> {
   const normalized = languageId.trim().toLowerCase();
-  if (!isKnownIso639_3Code(normalized)) {
-    throw new Error('languageId 必须是有效的 ISO 639-3 三字母代码');
+  if (!normalized) {
+    throw new Error('languageId 不能为空');
   }
-  return normalized;
+  if (isKnownIso639_3Code(normalized)) {
+    return normalized;
+  }
+  if (normalized.startsWith('user:')) {
+    const entry = await getLanguageCatalogWorkspaceEntry({
+      languageId: normalized,
+      locale: 'zh-CN',
+    });
+    if (entry?.id === normalized) {
+      return normalized;
+    }
+  }
+  throw new Error('languageId 必须是已存在的语言资产 ID 或有效的 ISO 639-3 三字母代码');
 }
 
 function mergeOrthographyCatalogMetadata(
@@ -253,7 +266,7 @@ export async function listOrthographyRecords(
 export async function createOrthographyRecord(input: CreateOrthographyInput): Promise<OrthographyDocType> {
   const db = await getDb();
   const now = new Date().toISOString();
-  const languageId = normalizeRequiredLanguageId(input.languageId);
+  const languageId = await normalizeRequiredLanguageId(input.languageId);
   const normalizedIdentity = normalizeOrthographyIdentity({
     languageId,
     ...(input.type ? { type: input.type } : {}),
@@ -310,7 +323,7 @@ export async function updateOrthographyRecord(input: UpdateOrthographyInput): Pr
     throw new Error('正字法不存在');
   }
 
-  const languageId = normalizeRequiredLanguageId(input.languageId);
+  const languageId = await normalizeRequiredLanguageId(input.languageId);
   const normalizedIdentity = normalizeOrthographyIdentity({
     languageId,
     ...(input.type ? { type: input.type } : {}),
@@ -376,7 +389,7 @@ export async function cloneOrthographyRecordToLanguage(
   }
 
   return createOrthographyRecord({
-    languageId: normalizeRequiredLanguageId(input.targetLanguageId),
+    languageId: await normalizeRequiredLanguageId(input.targetLanguageId),
     name: input.name ?? source.name,
     ...((input.abbreviation ?? source.abbreviation) !== undefined
       ? { abbreviation: input.abbreviation ?? source.abbreviation }

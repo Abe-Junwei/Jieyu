@@ -381,9 +381,13 @@ interface LanguageCatalogHistoryDocType {
   summary: string;
   changedFields?: string[];
   reason?: string;
+  reasonCode?: string;
   actorId?: string;
   actorType?: ActorType;
   sourceType?: LanguageCatalogSourceType;
+  beforePatch?: Record<string, unknown>;
+  afterPatch?: Record<string, unknown>;
+  sourceRef?: string;
   snapshot?: Record<string, unknown>;
   createdAt: string;
 }

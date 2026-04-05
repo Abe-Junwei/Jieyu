@@ -41,6 +41,8 @@ export type LayerActionPopoverMessages = LayerActionLabels & {
   modalityMixed: string;
   translationBoundarySource: string;
   languageNameLabel: string;
+  languageAssetIdLabel: string;
+  languageAssetIdPlaceholder: string;
   languageCodeLabel: string;
   aliasHint: string;
   confirmDelete: string;
@@ -92,6 +94,8 @@ const zhCN: LayerActionPopoverMessages = {
   modalityMixed: '\u6df7\u5408\uff08\u6587\u5b57 + \u5f55\u97f3\uff09',
   translationBoundarySource: '\u8fb9\u754c\u6765\u6e90\uff1a\u7ffb\u8bd1\u5c42\u4f1a\u6cbf\u7528\u6240\u9009\u8f6c\u5199\u5c42\u7684\u8fb9\u754c\u8303\u56f4\u3002',
   languageNameLabel: '\u8bed\u8a00\u540d\u79f0',
+  languageAssetIdLabel: '\u8bed\u8a00\u8d44\u4ea7 ID',
+  languageAssetIdPlaceholder: '\u4f8b\uff1auser:demo-language',
   languageCodeLabel: '\u8bed\u8a00\u4ee3\u7801',
   aliasHint: '\u522b\u540d\uff08\u53ef\u9009\uff0c\u540c\u8bed\u8a00\u591a\u5c42\u65f6\u7528\u4e8e\u533a\u5206\uff09',
   confirmDelete: '\u786e\u8ba4\u5220\u9664',
@@ -143,6 +147,8 @@ const enUS: LayerActionPopoverMessages = {
   modalityMixed: 'Mixed (text + recording)',
   translationBoundarySource: 'Boundary source: translation layers inherit the boundary range of the selected transcription layer.',
   languageNameLabel: 'Language Name',
+  languageAssetIdLabel: 'Language asset ID',
+  languageAssetIdPlaceholder: 'e.g. user:demo-language',
   languageCodeLabel: 'Language Code',
   aliasHint: 'Optional — used to distinguish layers of the same language',
   confirmDelete: 'Confirm Delete',

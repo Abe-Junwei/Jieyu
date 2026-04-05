@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildLanguageInputSeed,
   getDisplayedLanguageInputLabel,
+  normalizeLanguageInputAssetId,
   normalizeLanguageInputCode,
   resolveLanguageHostSelection,
   syncLanguageInputWithExternalCode,
@@ -19,14 +20,15 @@ const resolveInjectedLanguageDisplayName = (languageId: string | undefined) => {
 
 describe('languageInputHostState', () => {
   it('builds locale-aware language seeds', () => {
-    expect(buildLanguageInputSeed('eng', 'zh-CN')).toEqual({ languageName: '英语', languageCode: 'eng' });
-    expect(buildLanguageInputSeed('eng', 'en-US')).toEqual({ languageName: 'English', languageCode: 'eng' });
+    expect(buildLanguageInputSeed('eng', 'zh-CN')).toEqual({ languageName: '英语', languageCode: 'eng', languageAssetId: 'eng' });
+    expect(buildLanguageInputSeed('eng', 'en-US')).toEqual({ languageName: 'English', languageCode: 'eng', languageAssetId: 'eng' });
   });
 
   it('supports an injected language display-name resolver for seeds and sync', () => {
     expect(buildLanguageInputSeed('eng', 'zh-CN', resolveInjectedLanguageDisplayName)).toEqual({
       languageName: '英语资产标签',
       languageCode: 'eng',
+      languageAssetId: 'eng',
     });
 
     expect(syncLanguageInputWithExternalCode(
@@ -37,11 +39,13 @@ describe('languageInputHostState', () => {
     )).toEqual({
       languageName: '中文资产标签',
       languageCode: 'zho',
+      languageAssetId: 'zho',
     });
   });
 
   it('normalizes and formats displayed language labels', () => {
     expect(normalizeLanguageInputCode({ languageName: ' English ', languageCode: ' ENG ' })).toBe('eng');
+    expect(normalizeLanguageInputAssetId({ languageName: ' English ', languageCode: ' ENG ', languageAssetId: ' user:english-custom ' })).toBe('user:english-custom');
     expect(getDisplayedLanguageInputLabel({ languageName: '', languageCode: 'eng' })).toBe('ENG');
   });
 
@@ -49,6 +53,7 @@ describe('languageInputHostState', () => {
     expect(syncLanguageInputWithExternalCode({ languageName: '', languageCode: '' }, 'en', 'zh-CN')).toEqual({
       languageName: '',
       languageCode: 'en',
+      languageAssetId: 'en',
     });
   });
 
@@ -65,6 +70,7 @@ describe('languageInputHostState', () => {
     expect(syncLanguageInputWithExternalCode(previousValue, 'zho', 'zh-CN')).toEqual({
       languageName: '中文',
       languageCode: 'zho',
+      languageAssetId: 'zho',
     });
 
     expect(syncLanguageInputWithExternalCode(previousValue, '', 'zh-CN')).toEqual({
@@ -76,5 +82,6 @@ describe('languageInputHostState', () => {
   it('resolves known and custom language selections for host components', () => {
     expect(resolveLanguageHostSelection('eng', [{ code: 'eng' }])).toEqual({ languageId: 'eng', customLanguageId: '' });
     expect(resolveLanguageHostSelection('hak', [{ code: 'eng' }])).toEqual({ languageId: '__custom__', customLanguageId: 'hak' });
+    expect(resolveLanguageHostSelection('user:hak-community', [{ code: 'eng' }])).toEqual({ languageId: 'user:hak-community', customLanguageId: '' });
   });
 });

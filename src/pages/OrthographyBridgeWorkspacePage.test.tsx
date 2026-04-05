@@ -156,4 +156,77 @@ describe('OrthographyBridgeWorkspacePage', () => {
       expect(screen.getByTestId('orthography-bridge-manager').textContent).toContain('eng:英语');
     });
   });
+
+  it('keeps custom language asset ids in manager options and search labels', async () => {
+    mockListOrthographies.mockResolvedValueOnce([
+      {
+        id: 'orth-custom-target',
+        languageId: 'user:demo-language',
+        name: { und: 'Custom Orthography' },
+        scriptTag: 'Latn',
+        type: 'practical',
+        catalogMetadata: { catalogSource: 'user' },
+        createdAt: '2026-04-04T00:00:00.000Z',
+        updatedAt: '2026-04-04T00:00:00.000Z',
+      },
+      {
+        id: 'orth-eng-target',
+        languageId: 'eng',
+        name: { eng: 'English Orthography' },
+        scriptTag: 'Latn',
+        type: 'practical',
+        catalogMetadata: { catalogSource: 'built-in-reviewed' },
+        createdAt: '2026-04-04T00:00:00.000Z',
+        updatedAt: '2026-04-04T00:00:00.000Z',
+      },
+    ] satisfies OrthographyDocType[]);
+    mockListLanguageCatalogEntries.mockResolvedValueOnce([
+      {
+        id: 'user:demo-language',
+        entryKind: 'custom',
+        hasPersistedRecord: true,
+        languageCode: 'demo',
+        englishName: 'Demo Language',
+        localName: '示例语言资产',
+        aliases: [],
+        sourceType: 'user-custom',
+        visibility: 'visible',
+        displayNames: [],
+      },
+      {
+        id: 'eng',
+        entryKind: 'built-in',
+        hasPersistedRecord: false,
+        languageCode: 'eng',
+        englishName: 'English',
+        localName: '英语',
+        aliases: [],
+        sourceType: 'built-in-generated',
+        visibility: 'visible',
+        displayNames: [],
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={['/assets/orthography-bridges?targetOrthographyId=orth-custom-target']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/assets/orthography-bridges" element={<OrthographyBridgeWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('orthography-bridge-manager').textContent).toContain('user:demo-language:示例语言资产');
+    });
+
+    fireEvent.change(screen.getByRole('searchbox', { name: '按语言、名称或脚本筛选目标正字法' }), { target: { value: '示例语言资产' } });
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Custom Orthography · Latn · practical').length).toBeGreaterThan(0);
+    });
+  });
 });

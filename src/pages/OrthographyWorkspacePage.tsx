@@ -23,9 +23,9 @@ import {
   type NormalizationForm,
 } from './orthographyWorkspacePage.utils';
 import { LinguisticService } from '../services/LinguisticService';
-import { COMMON_LANGUAGES } from '../utils/transcriptionFormatters';
 import type { LanguageIsoInputValue } from '../components/LanguageIsoInput';
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
+import { normalizeLanguageInputAssetId } from '../utils/languageInputHostState';
 
 const ORTHOGRAPHY_ID_PARAM = 'orthographyId';
 
@@ -43,7 +43,7 @@ export function OrthographyWorkspacePage() {
   const [draft, setDraft] = useState<OrthographyDraft | null>(null);
   const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>({ languageName: '', languageCode: '' });
   const deferredSearchText = useDeferredValue(searchText);
-  const { resolveLabel, resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale);
+  const { languageOptions, resolveLanguageCode, resolveLabel, resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,7 +100,8 @@ export function OrthographyWorkspacePage() {
     setDraft(baselineDraft);
     setLanguageInput({
       languageName: resolveLabel(baselineDraft.languageId),
-      languageCode: baselineDraft.languageId,
+      languageCode: resolveLanguageCode(baselineDraft.languageId),
+      languageAssetId: baselineDraft.languageId,
       ...(baselineDraft.localeTag ? { localeTag: baselineDraft.localeTag } : {}),
       ...(baselineDraft.regionTag ? { regionTag: baselineDraft.regionTag } : {}),
       ...(baselineDraft.variantTag ? { variantTag: baselineDraft.variantTag } : {}),
@@ -182,7 +183,7 @@ export function OrthographyWorkspacePage() {
       if (!prev) return prev;
       return {
         ...prev,
-        languageId: nextValue.languageCode.trim().toLowerCase(),
+        languageId: normalizeLanguageInputAssetId(nextValue),
         localeTag: nextValue.localeTag ?? '',
         regionTag: nextValue.regionTag ?? '',
         variantTag: nextValue.variantTag ?? '',
@@ -197,7 +198,8 @@ export function OrthographyWorkspacePage() {
     setDraft(baselineDraft);
     setLanguageInput({
       languageName: resolveLabel(baselineDraft.languageId),
-      languageCode: baselineDraft.languageId,
+      languageCode: resolveLanguageCode(baselineDraft.languageId),
+      languageAssetId: baselineDraft.languageId,
       ...(baselineDraft.localeTag ? { localeTag: baselineDraft.localeTag } : {}),
       ...(baselineDraft.regionTag ? { regionTag: baselineDraft.regionTag } : {}),
       ...(baselineDraft.variantTag ? { variantTag: baselineDraft.variantTag } : {}),
@@ -494,7 +496,7 @@ export function OrthographyWorkspacePage() {
               >
                 <OrthographyBridgeManager
                   targetOrthography={selectedOrthography}
-                  languageOptions={COMMON_LANGUAGES}
+                  languageOptions={languageOptions}
                   compact
                   initialExpanded
                   hideToggleButton

@@ -18,6 +18,7 @@ import {
   type FontCoverageVerification,
 } from '../utils/layerDisplayStyle';
 import {
+  normalizeLanguageInputAssetId,
   resolveLanguageHostSelection,
   syncLanguageInputWithExternalCode,
 } from '../utils/languageInputHostState';
@@ -81,7 +82,7 @@ export function OrthographyBuilderPanel({
   contextLines,
 }: OrthographyBuilderPanelProps) {
   const locale = useLocale();
-  const { resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale);
+  const { resolveLanguageCode, resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale);
   const messages = getOrthographyBuilderMessages(locale);
   const resolvedSourceLanguagePlaceholder = sourceLanguagePlaceholder ?? messages.sourceLanguagePlaceholder;
   const resolvedSourceLanguageCodePlaceholder = sourceLanguageCodePlaceholder ?? messages.sourceLanguageCodePlaceholder;
@@ -119,13 +120,25 @@ export function OrthographyBuilderPanel({
     }
 
     lastSyncedSourceLanguageCodeRef.current = normalizedResolvedSourceLanguageCode;
-    setSourceLanguageInput((prev) => syncLanguageInputWithExternalCode(prev, normalizedResolvedSourceLanguageCode, locale, resolveLanguageDisplayName));
-  }, [locale, normalizedResolvedSourceLanguageCode, resolveLanguageDisplayName]);
+    setSourceLanguageInput((prev) => syncLanguageInputWithExternalCode(prev, normalizedResolvedSourceLanguageCode, locale, resolveLanguageDisplayName, resolveLanguageCode));
+  }, [locale, normalizedResolvedSourceLanguageCode, resolveLanguageCode, resolveLanguageDisplayName]);
 
   const handleSourceLanguageInputChange = (nextValue: LanguageIsoInputValue) => {
     setSourceLanguageInput(nextValue);
     picker.setSourceOrthographyId('');
-    const hostSelection = resolveLanguageHostSelection(nextValue.languageCode, languageOptions);
+    const hostSelection = resolveLanguageHostSelection(normalizeLanguageInputAssetId(nextValue), languageOptions);
+    picker.setSourceLanguageId(hostSelection.languageId);
+    picker.setSourceCustomLanguageId(hostSelection.customLanguageId);
+  };
+
+  const handleSourceLanguageAssetIdChange = (nextAssetId: string) => {
+    const normalizedAssetId = nextAssetId.trim().toLowerCase();
+    setSourceLanguageInput((prev) => ({
+      ...prev,
+      languageAssetId: normalizedAssetId,
+    }));
+    picker.setSourceOrthographyId('');
+    const hostSelection = resolveLanguageHostSelection(normalizedAssetId, languageOptions);
     picker.setSourceLanguageId(hostSelection.languageId);
     picker.setSourceCustomLanguageId(hostSelection.customLanguageId);
   };
@@ -454,6 +467,19 @@ export function OrthographyBuilderPanel({
                   namePlaceholder={compact ? messages.sourceLanguageCompactPlaceholder : resolvedSourceLanguagePlaceholder}
                   codePlaceholder={resolvedSourceLanguageCodePlaceholder}
                 />
+                {renderField(
+                  messages.sourceLanguageAssetIdLabel,
+                  <input
+                    className={fieldClassName}
+                    type="text"
+                    value={sourceLanguageInput.languageAssetId ?? ''}
+                    onChange={(e) => handleSourceLanguageAssetIdChange(e.target.value)}
+                    placeholder={messages.sourceLanguageAssetIdPlaceholder}
+                    aria-label={messages.sourceLanguageAssetIdLabel}
+                  />,
+                  compact,
+                  'source-language-asset-id',
+                )}
               </div>
             )}
 

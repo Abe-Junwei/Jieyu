@@ -11,6 +11,8 @@ export type OrthographyBridgeManagerMessages = {
   sourceLanguageLabel: string;
   sourceLanguagePlaceholder: string;
   sourceLanguageCustom: string;
+  sourceLanguageAssetIdLabel: string;
+  sourceLanguageAssetIdPlaceholder: string;
   sourceLanguageCodeLabel: string;
   sourceLanguageCodePlaceholder: string;
   sourceOrthographyLabel: string;
@@ -53,6 +55,8 @@ const zhCN: OrthographyBridgeManagerMessages = {
   sourceLanguageLabel: '\u6765\u6e90\u8bed\u8a00',
   sourceLanguagePlaceholder: '\u9009\u62e9\u6765\u6e90\u8bed\u8a00\u2026',
   sourceLanguageCustom: '\u5176\u4ed6\uff08\u624b\u52a8\u8f93\u5165 ISO 639-3 \u4ee3\u7801\uff09',
+  sourceLanguageAssetIdLabel: '\u6765\u6e90\u8bed\u8a00\u8d44\u4ea7 ID',
+  sourceLanguageAssetIdPlaceholder: '\u4f8b\uff1auser:demo-language',
   sourceLanguageCodeLabel: '\u6765\u6e90\u8bed\u8a00\u4ee3\u7801',
   sourceLanguageCodePlaceholder: '\u4f8b\uff1aeng',
   sourceOrthographyLabel: '\u6765\u6e90\u6b63\u5b57\u6cd5',
@@ -95,6 +99,8 @@ const enUS: OrthographyBridgeManagerMessages = {
   sourceLanguageLabel: 'Source language',
   sourceLanguagePlaceholder: 'Select source language…',
   sourceLanguageCustom: 'Other (manual ISO 639-3 code)',
+  sourceLanguageAssetIdLabel: 'Source language asset ID',
+  sourceLanguageAssetIdPlaceholder: 'e.g. user:demo-language',
   sourceLanguageCodeLabel: 'Source language code',
   sourceLanguageCodePlaceholder: 'e.g. eng',
   sourceOrthographyLabel: 'Source orthography',

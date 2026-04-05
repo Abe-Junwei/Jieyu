@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType } from '../db';
 import { LocaleProvider } from '../i18n';
@@ -291,17 +291,20 @@ describe('LayerActionPopover orthography creation', () => {
       />,
     );
 
-    const languageNameInput = screen.getByRole('combobox', { name: /语言名称|Language Name/i }) as HTMLInputElement;
+    const languageCodeInput = screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }) as HTMLInputElement;
 
     await waitFor(() => {
-      expect((screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }) as HTMLInputElement).value).toBe('eng');
+      expect(languageCodeInput.value).toBe('eng');
       expect((screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value).toBe('orth_eng_default');
     });
 
-    fireEvent.change(languageNameInput, {
-      target: { value: 'Japanese' },
+    // 绕过 React 受控组件的值追踪器 | Bypass React controlled input value tracker
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await act(async () => {
+      nativeInputValueSetter.call(languageCodeInput, 'jpn');
+      languageCodeInput.dispatchEvent(new Event('input', { bubbles: true }));
+      languageCodeInput.dispatchEvent(new Event('change', { bubbles: true }));
     });
-    fireEvent.click(await screen.findByRole('option', { name: /Japanese/i }));
 
     await waitFor(() => {
       expect((screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }) as HTMLInputElement).value).toBe('jpn');
@@ -381,16 +384,15 @@ describe('LayerActionPopover orthography creation', () => {
 
     const { rerender } = render(renderPopover('zh-CN'));
 
-    const languageNameInput = screen.getByRole('combobox', { name: /语言名称|Language Name/i }) as HTMLInputElement;
+    const languageCodeInput = screen.getByRole('textbox', { name: /语言代码|Language Code/i }) as HTMLInputElement;
     const aliasInput = screen.getByRole('textbox', { name: /别名（可选）|Alias \(optional\)/i }) as HTMLInputElement;
 
     await waitFor(() => {
-      expect((screen.getByRole('textbox', { name: /语言代码|Language Code/i }) as HTMLInputElement).value).toBe('eng');
+      expect(languageCodeInput.value).toBe('eng');
       expect((screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value).toBe('orth_eng_default');
     });
 
-    fireEvent.change(languageNameInput, { target: { value: 'Japanese' } });
-    fireEvent.click(await screen.findByRole('option', { name: /Japanese/i }));
+    fireEvent.change(languageCodeInput, { target: { value: 'jpn' } });
     fireEvent.change(aliasInput, { target: { value: 'draft alias' } });
 
     await waitFor(() => {

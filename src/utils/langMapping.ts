@@ -318,6 +318,7 @@ export type LanguageDisplayNames = {
 };
 
 export type LanguageCatalogEntry = {
+  languageId: string;
   iso6393: string;
   iso6391?: string;
   iso6392B?: string;
@@ -446,6 +447,7 @@ const LANGUAGE_CATALOG_BY_CODE: Readonly<Record<string, LanguageCatalogEntry>> =
       ? (ISO639_1_TO_3[preferred] ?? ISO639_2_TO_3[preferred] ?? (isKnownIso639_3Code(preferred) ? preferred : undefined))
       : undefined;
     map[code] = {
+      languageId: code,
       iso6393: code,
       ...(entry.iso6391 ? { iso6391: entry.iso6391.toLowerCase() } : {}),
       ...(entry.iso6392B ? { iso6392B: entry.iso6392B.toLowerCase() } : {}),
@@ -515,6 +517,7 @@ function buildRuntimeLanguageCatalogEntries(includeHidden = false): LanguageCata
       ]);
 
       return {
+        languageId: entryId,
         iso6393: resolvedCode,
         ...(runtimeEntry.iso6391?.trim() ? { iso6391: runtimeEntry.iso6391.trim().toLowerCase() } : baseEntry?.iso6391 ? { iso6391: baseEntry.iso6391 } : {}),
         ...(runtimeEntry.iso6392B?.trim() ? { iso6392B: runtimeEntry.iso6392B.trim().toLowerCase() } : baseEntry?.iso6392B ? { iso6392B: baseEntry.iso6392B } : {}),
@@ -758,16 +761,19 @@ function resolveAnyLanguageCode(input: string): { languageId?: string; matchSour
   const mergedCatalog = getMergedLanguageCatalogByCode(true);
   const runtimeCode = resolveRuntimeLanguageCode(normalized);
   if (runtimeCode && mergedCatalog[runtimeCode]) {
-    return { languageId: runtimeCode, matchSource: runtimeCode === normalized ? 'iso6393-exact' : 'bcp47-primary' };
+    return {
+      languageId: mergedCatalog[runtimeCode]!.languageId,
+      matchSource: runtimeCode === normalized ? 'iso6393-exact' : 'bcp47-primary',
+    };
   }
   if (normalized.length === 3 && mergedCatalog[normalized]) {
-    return { languageId: normalized, matchSource: 'iso6393-exact' };
+    return { languageId: mergedCatalog[normalized]!.languageId, matchSource: 'iso6393-exact' };
   }
   if (normalized.length === 2 && ISO639_1_TO_3[normalized]) {
-    return { languageId: ISO639_1_TO_3[normalized], matchSource: 'iso6391-exact' };
+    return { languageId: mergedCatalog[ISO639_1_TO_3[normalized]]?.languageId ?? ISO639_1_TO_3[normalized], matchSource: 'iso6391-exact' };
   }
   if (normalized.length === 3 && ISO639_2_TO_3[normalized]) {
-    return { languageId: ISO639_2_TO_3[normalized], matchSource: 'iso6392-exact' };
+    return { languageId: mergedCatalog[ISO639_2_TO_3[normalized]]?.languageId ?? ISO639_2_TO_3[normalized], matchSource: 'iso6392-exact' };
   }
   return {};
 }
@@ -1035,7 +1041,7 @@ export function resolveLanguageCodeInput(
 
   const direct = resolveAnyLanguageCode(normalized);
   if (direct.languageId) {
-    const entry = catalogByCode[direct.languageId];
+    const entry = Object.values(catalogByCode).find((candidate) => candidate.languageId === direct.languageId);
     if (!entry) {
       return { status: 'invalid', warnings: [] };
     }
@@ -1052,7 +1058,7 @@ export function resolveLanguageCodeInput(
     }
     return {
       status: 'resolved',
-      languageId: entry.iso6393,
+      languageId: entry.languageId,
       languageName: getLocaleDisplayName(entry, locale),
       warnings,
     };
@@ -1095,7 +1101,7 @@ export function resolveLanguageCodeInput(
 
   return {
     status: 'resolved',
-    languageId: canonicalCode,
+    languageId: entry.languageId,
     languageName: getLocaleDisplayName(entry, locale),
     ...(formattedTag.toLowerCase() !== canonicalCode.toLowerCase() ? { localeTag: formattedTag } : {}),
     ...(scriptSubtag ? { scriptTag: scriptSubtag.format() } : {}),

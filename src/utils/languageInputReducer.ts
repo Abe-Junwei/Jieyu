@@ -1,5 +1,6 @@
 import {
   formatLanguageDisplayName,
+  getLanguageCatalogEntry,
   pickAutoFillLanguageMatch,
   resolveLanguageCodeInput,
   resolveLanguageCodeInputChange,
@@ -87,14 +88,15 @@ function normalizeLanguageValue(
   options?: LanguageInputResolverOptions,
 ): LanguageIsoInputValue {
   const normalizedCode = value.languageCode.trim().toLowerCase();
+  const normalizedAssetId = optionalTrimmedValue(value.languageAssetId)?.toLowerCase() ?? (normalizedCode || undefined);
   const displayMode = resolveLanguageDisplayMode(value);
   const preferredDisplayName = optionalTrimmedValue(value.preferredDisplayName);
   const preferredDisplayKind = value.preferredDisplayKind;
   const preservedPrimaryName = preferredDisplayName ?? value.languageName.trim();
-  const normalizedName = normalizedCode
+  const normalizedName = (normalizedAssetId ?? normalizedCode)
     ? (displayMode === 'input-first'
-      ? (preservedPrimaryName || resolveLanguageDisplayNameWithFallback(normalizedCode, locale, options?.resolveLanguageDisplayName))
-      : resolveLanguageDisplayNameWithFallback(normalizedCode, locale, options?.resolveLanguageDisplayName))
+      ? (preservedPrimaryName || resolveLanguageDisplayNameWithFallback(normalizedAssetId ?? normalizedCode, locale, options?.resolveLanguageDisplayName))
+      : resolveLanguageDisplayNameWithFallback(normalizedAssetId ?? normalizedCode, locale, options?.resolveLanguageDisplayName))
     : value.languageName.trim();
   const localeTag = optionalTrimmedValue(value.localeTag);
   const scriptTag = optionalTrimmedValue(value.scriptTag);
@@ -104,6 +106,7 @@ function normalizeLanguageValue(
   return {
     languageName: normalizedName,
     languageCode: normalizedCode,
+    ...(normalizedAssetId ? { languageAssetId: normalizedAssetId } : {}),
     ...(normalizedCode ? { displayMode } : {}),
     ...(preferredDisplayName ? { preferredDisplayName } : {}),
     ...(preferredDisplayKind ? { preferredDisplayKind } : {}),
@@ -126,8 +129,9 @@ function buildCommittedValueFromMatch(
   const displayMode: LanguageInputDisplayMode = match.matchedLabelKind === 'code' ? 'locale-first' : 'input-first';
   const preferredDisplayName = displayMode === 'input-first' ? match.matchedLabel : undefined;
   return {
-    languageName: preferredDisplayName ?? resolveLanguageDisplayNameWithFallback(match.entry.iso6393, locale, options?.resolveLanguageDisplayName),
+    languageName: preferredDisplayName ?? resolveLanguageDisplayNameWithFallback(match.entry.languageId, locale, options?.resolveLanguageDisplayName),
     languageCode: match.entry.iso6393,
+    languageAssetId: match.entry.languageId,
     ...(displayMode === 'input-first' ? { displayMode } : {}),
     ...(preferredDisplayName ? { preferredDisplayName } : {}),
     ...(preferredDisplayName ? { preferredDisplayKind: match.matchedLabelKind } : {}),
@@ -148,12 +152,15 @@ function buildCommittedValueFromResolvedCode(
   const scriptTag = optionalTrimmedValue(resolved.scriptTag);
   const regionTag = optionalTrimmedValue(resolved.regionTag);
   const variantTag = optionalTrimmedValue(resolved.variantTag);
-  const normalizedCode = (resolved.languageId ?? fallbackCode).trim().toLowerCase();
-  const resolvedDisplayName = resolveLanguageDisplayNameWithFallback(normalizedCode, locale, options?.resolveLanguageDisplayName);
+  const normalizedFallbackCode = fallbackCode.trim().toLowerCase();
+  const normalizedAssetId = (resolved.languageId ?? normalizedFallbackCode).trim().toLowerCase();
+  const normalizedCode = getLanguageCatalogEntry(normalizedAssetId)?.iso6393?.trim().toLowerCase() || normalizedFallbackCode || normalizedAssetId;
+  const resolvedDisplayName = resolveLanguageDisplayNameWithFallback(normalizedAssetId, locale, options?.resolveLanguageDisplayName);
 
   return {
     languageName: resolvedDisplayName,
-    languageCode: normalizedCode,
+    languageCode: normalizedCode || normalizedAssetId,
+    languageAssetId: normalizedAssetId,
     displayMode: 'locale-first',
     ...(localeTag ? { localeTag } : {}),
     ...(scriptTag ? { scriptTag } : {}),
@@ -226,6 +233,7 @@ export function serializeLanguageInputValue(value: LanguageIsoInputValue): strin
   return JSON.stringify({
     languageName: value.languageName.trim(),
     languageCode: value.languageCode.trim().toLowerCase(),
+    ...(optionalTrimmedValue(value.languageAssetId)?.toLowerCase() ? { languageAssetId: optionalTrimmedValue(value.languageAssetId)?.toLowerCase() } : {}),
     ...(value.displayMode ? { displayMode: value.displayMode } : {}),
     ...(optionalTrimmedValue(value.preferredDisplayName) ? { preferredDisplayName: optionalTrimmedValue(value.preferredDisplayName) } : {}),
     ...(value.preferredDisplayKind ? { preferredDisplayKind: value.preferredDisplayKind } : {}),
@@ -241,6 +249,7 @@ export function selectDisplayedLanguageInputValue(model: LanguageInputModel): La
   return {
     languageName: model.draft.nameInput,
     languageCode: model.draft.codeInput,
+    ...(selected?.languageAssetId ? { languageAssetId: selected.languageAssetId } : {}),
     ...(selected?.displayMode ? { displayMode: selected.displayMode } : {}),
     ...(selected?.preferredDisplayName ? { preferredDisplayName: selected.preferredDisplayName } : {}),
     ...(selected?.preferredDisplayKind ? { preferredDisplayKind: selected.preferredDisplayKind } : {}),

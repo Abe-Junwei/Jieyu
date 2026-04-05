@@ -284,10 +284,10 @@ describe('useOrthographyPicker render warnings', () => {
     expect(groups[3]?.orthographies.map((item) => item.id)).toEqual(['generated-review']);
   });
 
-  it('normalizes custom source language ids to lowercase ISO 639-3 alpha input', async () => {
+  it('preserves custom source language asset ids without truncating to three letters', async () => {
     const sourceOrthography: OrthographyDocType = {
       id: 'eng-source',
-      languageId: 'eng',
+      languageId: 'user:eng-community',
       name: { eng: 'English Source' },
       scriptTag: 'Latn',
       type: 'practical',
@@ -295,7 +295,7 @@ describe('useOrthographyPicker render warnings', () => {
       updatedAt: '2026-04-04T00:00:00.000Z',
     };
     mockUseOrthographies.mockImplementation((languageIds: string[]) => (
-      languageIds.includes('eng') ? [sourceOrthography] : []
+      languageIds.includes('user:eng-community') ? [sourceOrthography] : []
     ));
 
     const { result } = renderHook(() => useOrthographyPicker('cmn', '', vi.fn()));
@@ -304,11 +304,11 @@ describe('useOrthographyPicker render warnings', () => {
       result.current.handleSelectionChange('__create_new_orthography__');
       result.current.setCreateMode('derive-other');
       result.current.setSourceLanguageId('__custom__');
-      result.current.setSourceCustomLanguageId('E- NG123');
+      result.current.setSourceCustomLanguageId('User:Eng Community');
     });
 
     await waitFor(() => {
-      expect(result.current.sourceCustomLanguageId).toBe('eng');
+      expect(result.current.sourceCustomLanguageId).toBe('user:eng-community');
       expect(result.current.sourceOrthographies.map((item) => item.id)).toEqual(['eng-source']);
     });
   });

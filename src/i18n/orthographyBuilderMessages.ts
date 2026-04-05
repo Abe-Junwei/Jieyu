@@ -24,6 +24,8 @@ export type OrthographyBuilderMessages = {
   sourceLanguageLabel: string;
   sourceLanguageCompactPlaceholder: string;
   sourceLanguageCustom: string;
+  sourceLanguageAssetIdLabel: string;
+  sourceLanguageAssetIdPlaceholder: string;
   sourceLanguageCodeLabel: string;
   sourceOrthographyLabel: string;
   sourceOrthographyHint: string;
@@ -138,6 +140,8 @@ const zhCN: OrthographyBuilderMessages = {
   sourceLanguageLabel: '\u6765\u6e90\u8bed\u8a00',
   sourceLanguageCompactPlaceholder: '\u9009\u62e9\u6765\u6e90\u8bed\u8a00\u2026',
   sourceLanguageCustom: '\u5176\u4ed6\uff08\u624b\u52a8\u8f93\u5165\u4e09\u5b57\u6bcd\u8bed\u8a00\u4ee3\u7801\uff09',
+  sourceLanguageAssetIdLabel: '\u6765\u6e90\u8bed\u8a00\u8d44\u4ea7 ID',
+  sourceLanguageAssetIdPlaceholder: '\u4f8b\uff1auser:demo-language',
   sourceLanguageCodeLabel: '\u6765\u6e90\u8bed\u8a00\u4ee3\u7801',
   sourceOrthographyLabel: '\u6765\u6e90\u6b63\u5b57\u6cd5',
   sourceOrthographyHint: '\u5f53\u524d\u6a21\u5f0f\u4e0b\u6682\u65e0\u53ef\u590d\u5236\u7684\u6765\u6e90\u6b63\u5b57\u6cd5\uff0c\u8bf7\u5148\u5207\u6362\u6765\u6e90\u8bed\u8a00\u6216\u6539\u7528\u56fd\u9645\u97f3\u6807\u6a21\u5f0f\u521b\u5efa\u3002',
@@ -253,6 +257,8 @@ const enUS: OrthographyBuilderMessages = {
   sourceLanguageLabel: 'Source language',
   sourceLanguageCompactPlaceholder: 'Select source language\u2026',
   sourceLanguageCustom: 'Other (manual ISO 639-3 code input)',
+  sourceLanguageAssetIdLabel: 'Source language asset ID',
+  sourceLanguageAssetIdPlaceholder: 'e.g. user:demo-language',
   sourceLanguageCodeLabel: 'Source language code',
   sourceOrthographyLabel: 'Source orthography',
   sourceOrthographyHint: 'No source orthography can be copied in this mode. Switch source language or use IPA mode.',

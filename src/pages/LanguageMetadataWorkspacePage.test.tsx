@@ -88,6 +88,8 @@ describe('LanguageMetadataWorkspacePage', () => {
         languageId: 'eng',
         action: 'update',
         summary: '更新语言元数据',
+        changedFields: ['englishName', 'aliases'],
+        reason: '根据术语表修正英文名与检索别名。',
         actorType: 'human',
         createdAt: '2026-04-05T00:00:00.000Z',
       },
@@ -133,6 +135,7 @@ describe('LanguageMetadataWorkspacePage', () => {
 
     fireEvent.change(screen.getByDisplayValue('英语'), { target: { value: '英语（覆盖）' } });
     fireEvent.change(screen.getByDisplayValue('English'), { target: { value: 'English Override' } });
+    fireEvent.change(screen.getByPlaceholderText('建议说明为何修改、来源依据或兼容性背景。'), { target: { value: '修正工作台展示名' } });
     fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
 
     await waitFor(() => {
@@ -143,6 +146,7 @@ describe('LanguageMetadataWorkspacePage', () => {
       id: 'eng',
       localName: '英语（覆盖）',
       englishName: 'English Override',
+      reason: '修正工作台展示名',
       locale: 'zh-CN',
     });
 
@@ -209,6 +213,9 @@ describe('LanguageMetadataWorkspacePage', () => {
       expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
     });
 
+    expect(await screen.findByText((content) => content.includes('变更字段：') && content.includes('英文名') && content.includes('别名 / 检索标签'))).toBeTruthy();
+    expect(screen.getByText('根据术语表修正英文名与检索别名。')).toBeTruthy();
+
     fireEvent.click(screen.getByRole('button', { name: '删除自定义条目' }));
 
     await waitFor(() => {
@@ -221,6 +228,48 @@ describe('LanguageMetadataWorkspacePage', () => {
     fireEvent.click(screen.getByRole('button', { name: '新建自定义语言' }));
     await waitFor(() => {
       expect(screen.getByPlaceholderText('例如 user:demo-language')).toBeTruthy();
+    });
+  });
+
+  it('saves a new custom language with separate asset id and display code', async () => {
+    render(
+      <MemoryRouter initialEntries={['/assets/language-metadata']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/assets/language-metadata" element={<LanguageMetadataWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('英语')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '新建自定义语言' }));
+
+    const assetIdInput = await screen.findByPlaceholderText('例如 user:demo-language');
+    const languageCodeInput = screen.getByRole('textbox', { name: '语言代码' });
+
+    fireEvent.change(assetIdInput, { target: { value: 'user:field-language' } });
+    fireEvent.change(languageCodeInput, { target: { value: 'fld' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '当前语言显示名' }), { target: { value: '田野语言' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '英文名' }), { target: { value: 'Field Language' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
+
+    await waitFor(() => {
+      expect(mockUpsertLanguageCatalogEntry).toHaveBeenCalled();
+    });
+
+    const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
+    expect((lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined)).toMatchObject({
+      id: 'user:field-language',
+      languageCode: 'fld',
+      localName: '田野语言',
+      englishName: 'Field Language',
+      locale: 'zh-CN',
     });
   });
 });

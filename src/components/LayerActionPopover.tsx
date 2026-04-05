@@ -8,7 +8,7 @@ import {
   getLayerCreateGuard,
   listIndependentBoundaryTranscriptionLayers,
 } from '../services/LayerConstraintService';
-import { COMMON_LANGUAGES, getLayerLabelParts } from '../utils/transcriptionFormatters';
+import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { OrthographyBuilderPanel } from './OrthographyBuilderPanel';
 import {
   formatOrthographyOptionLabel,
@@ -28,11 +28,10 @@ import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { DialogShell } from './ui/DialogShell';
 import { PanelSection } from './ui/PanelSection';
 import { PanelSummary } from './ui/PanelSummary';
-import { isKnownIso639_3Code } from '../utils/langMapping';
 import {
   buildLanguageInputSeed,
   getDisplayedLanguageInputLabel,
-  normalizeLanguageInputCode,
+  normalizeLanguageInputAssetId,
 } from '../utils/languageInputHostState';
 import { escapeRegExp } from '../utils/escapeRegExp';
 
@@ -119,10 +118,10 @@ export function LayerActionPopover({
     [panelDefaultWidth],
   );
   const actionMessages = getLayerActionPopoverMessages(locale);
-  const { resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale);
+  const { languageOptions, resolveLanguageCode, resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale);
   const defaultLanguageSeed = useMemo(
-    () => buildLanguageInputSeed(defaultLanguageId, locale, resolveLanguageDisplayName),
-    [defaultLanguageId, locale, resolveLanguageDisplayName],
+    () => buildLanguageInputSeed(defaultLanguageId, locale, resolveLanguageDisplayName, resolveLanguageCode),
+    [defaultLanguageId, locale, resolveLanguageCode, resolveLanguageDisplayName],
   );
   const normalizedDefaultOrthographyId = useMemo(() => defaultOrthographyId?.trim() ?? '', [defaultOrthographyId]);
   const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>(defaultLanguageSeed);
@@ -162,7 +161,7 @@ export function LayerActionPopover({
     () => `${action}::${contextualParentLayerId}::${defaultLanguageId?.trim().toLowerCase() ?? ''}::${normalizedDefaultOrthographyId}`,
     [action, contextualParentLayerId, defaultLanguageId, normalizedDefaultOrthographyId],
   );
-  const resolvedLanguageId = useMemo(() => normalizeLanguageInputCode(languageInput), [languageInput]);
+  const resolvedLanguageId = useMemo(() => normalizeLanguageInputAssetId(languageInput), [languageInput]);
   const displayedLanguage = useMemo(() => getDisplayedLanguageInputLabel(languageInput), [languageInput]);
   const orthographyPicker = useOrthographyPicker(resolvedLanguageId, orthographyId, setOrthographyId);
   const groupedOrthographyOptions = useMemo(
@@ -177,9 +176,7 @@ export function LayerActionPopover({
     () => (selectedOrthography ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography) : null),
     [locale, selectedOrthography],
   );
-  const customLanguageError = resolvedLanguageId && !isKnownIso639_3Code(resolvedLanguageId)
-    ? actionMessages.invalidLanguageCode
-    : '';
+  const customLanguageError = '';
   const orthographySelectionError = orthographyId && !orthographyPicker.isCreating && !selectedOrthography
     ? actionMessages.invalidOrthographySelection
     : '';
@@ -206,7 +203,7 @@ export function LayerActionPopover({
   useEffect(() => {
     const pendingDefaultOrthographyId = pendingDefaultOrthographyIdRef.current.trim();
     if (!pendingDefaultOrthographyId) return;
-    if (resolvedLanguageId !== defaultLanguageSeed.languageCode || orthographyPicker.isCreating) {
+    if (resolvedLanguageId !== normalizeLanguageInputAssetId(defaultLanguageSeed) || orthographyPicker.isCreating) {
       return;
     }
     if (orthographyId === pendingDefaultOrthographyId) {
@@ -222,6 +219,7 @@ export function LayerActionPopover({
       pendingDefaultOrthographyIdRef.current = '';
     }
   }, [
+    defaultLanguageSeed.languageAssetId,
     defaultLanguageSeed.languageCode,
     orthographyId,
     orthographyPicker.isCreating,
@@ -579,7 +577,7 @@ export function LayerActionPopover({
         ) : orthographyPicker.isCreating ? (
           <OrthographyBuilderPanel
             picker={orthographyPicker}
-            languageOptions={COMMON_LANGUAGES}
+            languageOptions={languageOptions}
             compact
             hideActions
             sourceLanguagePlaceholder={actionMessages.sourceLanguagePlaceholder}
@@ -603,6 +601,21 @@ export function LayerActionPopover({
                 namePlaceholder={actionMessages.selectLanguage}
                 codePlaceholder={actionMessages.customLanguageCodePlaceholder}
                 error={customLanguageError}
+                disabled={isLoading || orthographyPicker.submitting}
+              />
+            </div>
+            <div className="dialog-field">
+              <label className="layer-action-dialog-field-label" htmlFor={`${fieldIdPrefix}-language-asset-id`}>{actionMessages.languageAssetIdLabel}</label>
+              <input
+                id={`${fieldIdPrefix}-language-asset-id`}
+                className="input panel-input layer-action-dialog-input"
+                type="text"
+                value={languageInput.languageAssetId ?? ''}
+                onChange={(event) => setLanguageInput((prev) => ({
+                  ...prev,
+                  languageAssetId: event.target.value.trim().toLowerCase(),
+                }))}
+                placeholder={actionMessages.languageAssetIdPlaceholder}
                 disabled={isLoading || orthographyPicker.submitting}
               />
             </div>

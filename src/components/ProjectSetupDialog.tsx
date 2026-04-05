@@ -16,7 +16,6 @@ import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 import { DialogShell } from './ui/DialogShell';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { buildLanguageInputSeed, getDisplayedLanguageInputLabel, normalizeLanguageInputCode } from '../utils/languageInputHostState';
-import { COMMON_LANGUAGES } from '../utils/transcriptionFormatters';
 
 type ProjectSetupDialogProps = {
   isOpen: boolean;
@@ -26,7 +25,7 @@ type ProjectSetupDialogProps = {
 
 export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDialogProps) {
   const locale = useLocale();
-  const { resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale);
+  const { languageOptions, resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale);
   const messages = getProjectSetupDialogMessages(locale);
   const fieldIdPrefix = useId();
   const emptyLanguageInput = useMemo<LanguageIsoInputValue>(
@@ -173,7 +172,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
         {orthographyPicker.isCreating ? (
           <OrthographyBuilderPanel
             picker={orthographyPicker}
-            languageOptions={COMMON_LANGUAGES}
+            languageOptions={languageOptions}
             compact
             hideActions
             contextLines={[

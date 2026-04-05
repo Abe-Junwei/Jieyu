@@ -5,6 +5,7 @@ import type { LanguageCatalogDisplayNameEntry, LanguageCatalogEntry, LanguageCat
 import {
   LANGUAGE_DISPLAY_NAME_ROLE_OPTIONS,
   readEntryKindLabel,
+  readHistoryFieldLabel,
   type HistoryItem,
   type LanguageDisplayNameDraftRow,
   type LanguageDisplayNameRowChangeHandler,
@@ -233,6 +234,16 @@ export function LanguageMetadataWorkspaceDetailColumn({
           </label>
         </div>
 
+        <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
+          <span>{t(locale, 'workspace.languageMetadata.changeReasonLabel')}</span>
+          <textarea
+            className="input language-metadata-workspace-textarea"
+            value={draft.changeReason}
+            onChange={(event) => onDraftChange('changeReason', event.target.value)}
+            placeholder={t(locale, 'workspace.languageMetadata.changeReasonPlaceholder')}
+          />
+        </label>
+
         {saveError ? <p className="language-metadata-workspace-state language-metadata-workspace-state-error">{saveError}</p> : null}
         {saveSuccess ? <p className="language-metadata-workspace-state language-metadata-workspace-state-success">{saveSuccess}</p> : null}
 
@@ -258,6 +269,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
               <li key={item.id} className="language-metadata-workspace-history-item">
                 <strong>{item.summary}</strong>
                 <span>{item.createdAt}</span>
+                {item.changedFields?.length ? <p>{t(locale, 'workspace.languageMetadata.historyChangedFieldsLabel')}{item.changedFields.map((field) => readHistoryFieldLabel(locale, field)).join('、')}</p> : null}
                 {item.reason ? <p>{item.reason}</p> : null}
               </li>
             ))}

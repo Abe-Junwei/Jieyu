@@ -208,6 +208,7 @@ export function LanguageMetadataWorkspacePage() {
           ...(draft.notesZh.trim() ? { 'zh-CN': draft.notesZh.trim() } : {}),
           ...(draft.notesEn.trim() ? { 'en-US': draft.notesEn.trim() } : {}),
         },
+        ...(draft.changeReason.trim() ? { reason: draft.changeReason.trim() } : {}),
         locale,
       });
 
@@ -234,6 +235,7 @@ export function LanguageMetadataWorkspacePage() {
     try {
       await LinguisticService.deleteLanguageCatalogEntry({
         languageId: selectedEntry.id,
+        ...(draft.changeReason.trim() ? { reason: draft.changeReason.trim() } : {}),
         locale,
       });
       const refreshed = await loadEntries(deferredSearchText.trim());
