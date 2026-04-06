@@ -5,6 +5,7 @@ import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { LanguageCatalogEntry } from '../services/LinguisticService';
 import { t, useLocale } from '../i18n';
 import { LinguisticService } from '../services/LinguisticService';
+import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { LanguageMetadataWorkspaceCatalogPanel } from './LanguageMetadataWorkspaceCatalogPanel';
 import { LanguageMetadataWorkspaceDetailColumn } from './LanguageMetadataWorkspaceDetailColumn';
 import {
@@ -25,6 +26,7 @@ import {
 export function LanguageMetadataWorkspacePage() {
   // M1: useLocale() 返回 Locale 与 WorkspaceLocale 类型一致，无需强转 | useLocale() returns Locale which matches WorkspaceLocale
   const locale: WorkspaceLocale = useLocale();
+  const { projectLanguageIds } = useProjectLanguageIds();
   const [searchParams, setSearchParams] = useSearchParams();
   const [entries, setEntries] = useState<LanguageCatalogEntry[]>([]);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
@@ -100,6 +102,18 @@ export function LanguageMetadataWorkspacePage() {
     [entries, selectedLanguageId],
   );
 
+  // 新建模式下检测 languageCode 是否已有相同条目 | Detect duplicate languageCode in new-entry mode
+  const duplicateHint = useMemo(() => {
+    if (selectedLanguageId !== NEW_LANGUAGE_ID) return null;
+    const code = draft.languageCode.trim().toLowerCase();
+    if (!code) return null;
+    const match = entries.find(
+      (entry) => entry.languageCode.toLowerCase() === code || entry.id.toLowerCase() === code,
+    );
+    if (!match) return null;
+    return { id: match.id, name: match.localName || match.englishName || match.id };
+  }, [selectedLanguageId, draft.languageCode, entries]);
+
   useEffect(() => {
     if (!selectedEntry?.hasPersistedRecord) {
       setHistoryItems([]);
@@ -125,7 +139,25 @@ export function LanguageMetadataWorkspacePage() {
   }, [selectedEntry?.hasPersistedRecord, selectedEntry?.id]);
 
   const handleDraftChange = <K extends keyof LanguageMetadataDraft>(key: K, value: LanguageMetadataDraft[K]) => {
-    setDraft((prev) => ({ ...prev, [key]: value }));
+    setDraft((prev) => {
+      const next = { ...prev, [key]: value };
+      // 新建模式下输入 ISO 代码时同步预填充种子数据（仅填充空字段） | Sync pre-fill seed data when typing ISO code in new-entry mode (empty fields only)
+      if ((key === 'idInput' || key === 'languageCode') && selectedLanguageId === NEW_LANGUAGE_ID) {
+        const code = (value as string).trim().toLowerCase();
+        if (code.length >= 2) {
+          const seed = LinguisticService.lookupIso639_3Seed(code);
+          if (seed) {
+            if (next.englishName === '' && seed.name) next.englishName = seed.name;
+            if (next.iso6391 === '' && seed.iso6391) next.iso6391 = seed.iso6391;
+            if (next.iso6392B === '' && seed.iso6392B) next.iso6392B = seed.iso6392B;
+            if (next.iso6392T === '' && seed.iso6392T) next.iso6392T = seed.iso6392T;
+            if (next.scope === '' && seed.scope) next.scope = seed.scope;
+            if (next.languageType === '' && seed.type) next.languageType = seed.type;
+          }
+        }
+      }
+      return next;
+    });
     setSaveError('');
     setSaveSuccess('');
   };
@@ -205,18 +237,71 @@ export function LanguageMetadataWorkspacePage() {
         nativeName,
         displayNames: matrixRows,
         aliases: parseAliasText(draft.aliasesText),
-        family: draft.family.trim(),
-        subfamily: draft.subfamily.trim(),
+        genus: draft.genus.trim(),
+        classificationPath: draft.classificationPath.trim(),
         macrolanguage: draft.macrolanguage.trim(),
         scope: draft.scope.trim() ? draft.scope as LanguageCatalogEntry['scope'] : undefined,
         languageType: draft.languageType.trim() ? draft.languageType as LanguageCatalogEntry['languageType'] : undefined,
+        ...(draft.endangermentLevel.trim() ? { endangermentLevel: draft.endangermentLevel as NonNullable<LanguageCatalogEntry['endangermentLevel']> } : {}),
+        ...(draft.aesStatus.trim() ? { aesStatus: draft.aesStatus as NonNullable<LanguageCatalogEntry['aesStatus']> } : {}),
+        endangermentSource: draft.endangermentSource.trim(),
+        ...(draft.endangermentAssessmentYear.trim() ? { endangermentAssessmentYear: Number(draft.endangermentAssessmentYear.trim()) } : {}),
+        ...(draft.speakerCountL1.trim() ? { speakerCountL1: Number(draft.speakerCountL1.trim()) } : {}),
+        ...(draft.speakerCountL2.trim() ? { speakerCountL2: Number(draft.speakerCountL2.trim()) } : {}),
+        speakerCountSource: draft.speakerCountSource.trim(),
+        ...(draft.speakerCountYear.trim() ? { speakerCountYear: Number(draft.speakerCountYear.trim()) } : {}),
+        ...(draft.speakerTrend.trim() ? { speakerTrend: draft.speakerTrend as NonNullable<LanguageCatalogEntry['speakerTrend']> } : {}),
+        ...(draft.countriesText.trim() ? { countries: draft.countriesText.split(',').map((c) => c.trim()).filter(Boolean) } : {}),
+        ...(draft.macroarea.trim() ? { macroarea: draft.macroarea as NonNullable<LanguageCatalogEntry['macroarea']> } : {}),
+        ...(draft.administrativeDivisionsText.trim() ? { administrativeDivisions: draft.administrativeDivisionsText.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => ({ freeText: line })) } : {}),
+        ...(draft.intergenerationalTransmission.trim() ? { intergenerationalTransmission: draft.intergenerationalTransmission as NonNullable<LanguageCatalogEntry['intergenerationalTransmission']> } : {}),
+        ...(draft.domainsText.trim() ? { domains: draft.domainsText.split(',').map((d) => d.trim()).filter(Boolean) as NonNullable<LanguageCatalogEntry['domains']> } : {}),
+        ...(draft.officialStatus.trim() ? { officialStatus: draft.officialStatus as NonNullable<LanguageCatalogEntry['officialStatus']> } : {}),
+        egids: draft.egids.trim(),
+        ...(draft.documentationLevel.trim() ? { documentationLevel: draft.documentationLevel as NonNullable<LanguageCatalogEntry['documentationLevel']> } : {}),
+        ...(draft.dialectsText.trim() ? { dialects: draft.dialectsText.split('\n').map((d) => d.trim()).filter(Boolean) } : {}),
+        ...(draft.writingSystemsText.trim() ? { writingSystems: draft.writingSystemsText.split(',').map((w) => w.trim()).filter(Boolean) } : {}),
+        ...(draft.literacyRate.trim() ? { literacyRate: Number(draft.literacyRate.trim()) } : {}),
         glottocode: draft.glottocode.trim(),
         wikidataId: draft.wikidataId.trim(),
         visibility: draft.visibility,
+        ...(draft.latitude.trim() ? { latitude: Number(draft.latitude.trim()) } : {}),
+        ...(draft.longitude.trim() ? { longitude: Number(draft.longitude.trim()) } : {}),
         notes: {
           ...(draft.notesZh.trim() ? { 'zh-CN': draft.notesZh.trim() } : {}),
           ...(draft.notesEn.trim() ? { 'en-US': draft.notesEn.trim() } : {}),
         },
+        // 自定义字段：按字段定义还原类型，并以完整对象覆盖持久层 | Custom fields: restore typed values and replace the persisted object as a whole
+        customFields: await (async () => {
+          const defs = await LinguisticService.listCustomFieldDefinitions();
+          const defMap = new Map(defs.map((d) => [d.id, d]));
+          const result: Record<string, string | number | boolean | string[]> = {};
+          for (const [fid, raw] of Object.entries(draft.customFieldValues)) {
+            const trimmed = raw.trim();
+            if (!trimmed) continue;
+            const def = defMap.get(fid);
+            if (!def) {
+              result[fid] = trimmed;
+              continue;
+            }
+            switch (def.fieldType) {
+              case 'number': {
+                const n = Number(trimmed);
+                if (!Number.isNaN(n)) result[fid] = n;
+                break;
+              }
+              case 'boolean':
+                result[fid] = trimmed === 'true';
+                break;
+              case 'multiselect':
+                result[fid] = trimmed.split(', ').map((s) => s.trim()).filter(Boolean);
+                break;
+              default:
+                result[fid] = trimmed;
+            }
+          }
+          return result;
+        })(),
         ...(draft.changeReason.trim() ? { reason: draft.changeReason.trim() } : {}),
         locale,
       });
@@ -323,6 +408,7 @@ export function LanguageMetadataWorkspacePage() {
         <LanguageMetadataWorkspaceCatalogPanel
           locale={locale}
           entries={entries}
+          projectLanguageIds={projectLanguageIds}
           selectedEntryId={selectedEntry?.id ?? ''}
           loading={loading}
           error={error}
@@ -336,6 +422,7 @@ export function LanguageMetadataWorkspacePage() {
           locale={locale}
           draft={draft}
           selectedEntry={selectedEntry}
+          duplicateHint={duplicateHint}
           historyItems={historyItems}
           saving={saving}
           deleting={deleting}
@@ -348,6 +435,7 @@ export function LanguageMetadataWorkspacePage() {
           onResetDraft={handleResetDraft}
           onDelete={handleDelete}
           onSave={handleSave}
+          onSelectEntry={handleSelectEntry}
         />
       </div>
     </section>

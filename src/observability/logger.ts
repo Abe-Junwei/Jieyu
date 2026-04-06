@@ -70,23 +70,45 @@ function getConsoleFn(level: LogLevel): (...args: unknown[]) => void {
   }
 }
 
+// ─── 敏感字段脱敏 | Sensitive field scrubbing ──────────────
+
+const SENSITIVE_KEYS = new Set([
+  'apikey', 'api_key', 'apiKey',
+  'token', 'accesstoken', 'accessToken', 'access_token',
+  'password', 'secret', 'authorization',
+]);
+
+function scrubData(data: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (SENSITIVE_KEYS.has(key.toLowerCase()) && typeof value === 'string' && value.length > 0) {
+      result[key] = `***${value.slice(-4)}`;
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 // ─── 核心 emit | Core emit ─────────────────────────────────
 
 function emit(level: LogLevel, module: string, message: string, data?: Record<string, unknown>): void {
   if (LEVEL_RANK[level] < LEVEL_RANK[minLevel]) return;
+
+  const safeData = data ? scrubData(data) : undefined;
 
   const entry: LogEntry = {
     level,
     module,
     message,
     ts: new Date().toISOString(),
-    ...(data ? { data } : {}),
+    ...(safeData ? { data: safeData } : {}),
   };
 
   // 写控制台 | Write to console
   const prefix = `[${module}]`;
-  if (data) {
-    getConsoleFn(level)(prefix, message, data);
+  if (safeData) {
+    getConsoleFn(level)(prefix, message, safeData);
   } else {
     getConsoleFn(level)(prefix, message);
   }

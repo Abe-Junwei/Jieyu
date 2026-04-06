@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { getDb } from '../db';
 import { useClickOutside } from './useClickOutside';
 import type {
@@ -10,17 +10,19 @@ import type {
   UtteranceTextDocType,
 } from '../db';
 import type { SaveState } from './useTranscriptionData';
-import { exportToEaf, downloadEaf } from '../services/EafService';
-import { exportToTextGrid, downloadTextGrid } from '../services/TextGridService';
-import { exportToTrs, downloadTrs } from '../services/TranscriberService';
-import { exportToFlextext, downloadFlextext } from '../services/FlexService';
-import { exportToToolbox, downloadToolbox } from '../services/ToolboxService';
-import { downloadJieyuArchive } from '../services/JymService';
 import { t, useLocale } from '../i18n';
-import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { useOrthographies } from './useOrthographies';
-import { applyOrthographyBridgeIfNeeded } from '../utils/orthographyRuntime';
-import { createImportExportImportHandlers } from './useImportExport.importHandlers';
+
+type ExportRuntimeModules = {
+  eafService: typeof import('../services/EafService');
+  textGridService: typeof import('../services/TextGridService');
+  transcriberService: typeof import('../services/TranscriberService');
+  flexService: typeof import('../services/FlexService');
+  toolboxService: typeof import('../services/ToolboxService');
+  jymService: typeof import('../services/JymService');
+  layerSegmentQueryService: typeof import('../services/LayerSegmentQueryService');
+  orthographyRuntime: typeof import('../utils/orthographyRuntime');
+};
 
 export interface UseImportExportInput {
   activeTextId: string | null;
@@ -37,6 +39,9 @@ export interface UseImportExportInput {
 
 export function useImportExport(input: UseImportExportInput) {
   const locale = useLocale();
+  const exportRuntimeModulesRef = useRef<Promise<ExportRuntimeModules> | null>(null);
+  const archiveHandlersModuleRef = useRef<Promise<typeof import('./useImportExport.archiveHandlers')> | null>(null);
+  const importHandlersModuleRef = useRef<Promise<typeof import('./useImportExport.importHandlers')> | null>(null);
   const {
     activeTextId,
     getActiveTextId,
@@ -80,6 +85,54 @@ export function useImportExport(input: UseImportExportInput) {
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
+  const loadExportRuntimeModules = useCallback(async (): Promise<ExportRuntimeModules> => {
+    if (!exportRuntimeModulesRef.current) {
+      exportRuntimeModulesRef.current = Promise.all([
+        import('../services/EafService'),
+        import('../services/TextGridService'),
+        import('../services/TranscriberService'),
+        import('../services/FlexService'),
+        import('../services/ToolboxService'),
+        import('../services/JymService'),
+        import('../services/LayerSegmentQueryService'),
+        import('../utils/orthographyRuntime'),
+      ]).then(([
+        eafService,
+        textGridService,
+        transcriberService,
+        flexService,
+        toolboxService,
+        jymService,
+        layerSegmentQueryService,
+        orthographyRuntime,
+      ]) => ({
+        eafService,
+        textGridService,
+        transcriberService,
+        flexService,
+        toolboxService,
+        jymService,
+        layerSegmentQueryService,
+        orthographyRuntime,
+      }));
+    }
+    return exportRuntimeModulesRef.current;
+  }, []);
+
+  const loadArchiveHandlersModule = useCallback(async () => {
+    if (!archiveHandlersModuleRef.current) {
+      archiveHandlersModuleRef.current = import('./useImportExport.archiveHandlers');
+    }
+    return archiveHandlersModuleRef.current;
+  }, []);
+
+  const loadImportHandlersModule = useCallback(async () => {
+    if (!importHandlersModuleRef.current) {
+      importHandlersModuleRef.current = import('./useImportExport.importHandlers');
+    }
+    return importHandlersModuleRef.current;
+  }, []);
+
   // Use centralized click-outside pattern to avoid race condition with click handlers
   useClickOutside(
     exportMenuRef as React.RefObject<HTMLElement | null>,
@@ -102,16 +155,18 @@ export function useImportExport(input: UseImportExportInput) {
   ) => {
     if (!mediaId || targetLayers.length === 0) return {};
 
+    const { layerSegmentQueryService } = await loadExportRuntimeModules();
+
     const segMap = new Map<string, import('../db').LayerSegmentDocType[]>();
     const contentMap = new Map<string, Map<string, import('../db').LayerSegmentContentDocType>>();
 
     for (const layer of targetLayers) {
-      const orderedSegments = await LayerSegmentQueryService.listSegmentsByLayerMedia(layer.id, mediaId);
+      const orderedSegments = await layerSegmentQueryService.LayerSegmentQueryService.listSegmentsByLayerMedia(layer.id, mediaId);
       if (orderedSegments.length === 0) continue;
       segMap.set(layer.id, orderedSegments);
 
       const segmentIds = orderedSegments.map((segment) => segment.id);
-      const mergedContents = await LayerSegmentQueryService.listSegmentContentsBySegmentIds(segmentIds, {
+      const mergedContents = await layerSegmentQueryService.LayerSegmentQueryService.listSegmentContentsBySegmentIds(segmentIds, {
         layerId: layer.id,
         modality: 'text',
       });
@@ -132,7 +187,7 @@ export function useImportExport(input: UseImportExportInput) {
         ? { segmentContents: contentMap as Map<string, Map<string, import('../db').LayerSegmentContentDocType>> }
         : {}),
     };
-  }, []);
+  }, [loadExportRuntimeModules]);
 
   /** 加载所有具有 segment 约束的层的 segment 及内容（TextGrid/FLEx/Toolbox 导出共用）
    *  Load layers with segment constraints (independent_boundary / time_subdivision) — shared by TextGrid/FLEx/Toolbox export */
@@ -176,6 +231,7 @@ export function useImportExport(input: UseImportExportInput) {
 
     let didChange = false;
     const transformedTextCache = new Map<string, string>();
+    const { orthographyRuntime } = await loadExportRuntimeModules();
     const nextUtterances = await Promise.all(currentUtterances.map(async (utterance) => {
       if (defaultLayerTextUtteranceIds.has(utterance.id)) return utterance;
       const legacyText = utterance.transcription?.default ?? '';
@@ -183,7 +239,7 @@ export function useImportExport(input: UseImportExportInput) {
 
       let transformedText = transformedTextCache.get(legacyText);
       if (transformedText === undefined) {
-        transformedText = (await applyOrthographyBridgeIfNeeded({
+        transformedText = (await orthographyRuntime.applyOrthographyBridgeIfNeeded({
           text: legacyText,
           sourceOrthographyId,
           targetOrthographyId,
@@ -204,10 +260,11 @@ export function useImportExport(input: UseImportExportInput) {
     }));
 
     return didChange ? nextUtterances : currentUtterances;
-  }, [loadProjectPrimaryOrthographyId, translations]);
+  }, [loadExportRuntimeModules, loadProjectPrimaryOrthographyId, translations]);
 
   const handleExportEaf = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
+    const { eafService } = await loadExportRuntimeModules();
     const userNotes = await fetchUtteranceNotes(utterancesOnCurrentMedia.map((u) => u.id));
     const defaultTrcLayer = layers.find((layer) => layer.id === defaultTranscriptionLayerId)
       ?? layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault)
@@ -231,7 +288,7 @@ export function useImportExport(input: UseImportExportInput) {
       ? []
       : (await db.dexie.speakers.toArray()).filter((speaker) => relevantSpeakerIds.has(speaker.id));
     const exportUtterances = await buildOrthographyAwareExportUtterances(utterancesOnCurrentMedia, defaultTrcLayer);
-    const xml = exportToEaf({
+    const xml = eafService.exportToEaf({
       ...(selectedUtteranceMedia ? { mediaItem: selectedUtteranceMedia } : {}),
       utterances: exportUtterances,
       anchors,
@@ -247,13 +304,14 @@ export function useImportExport(input: UseImportExportInput) {
     const baseName = selectedUtteranceMedia
       ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
       : 'export';
-    downloadEaf(xml, baseName);
+    eafService.downloadEaf(xml, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.eaf') });
     setShowExportMenu(false);
-  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, selectedUtteranceMedia, utterancesOnCurrentMedia, anchors, layers, orthographies, translations, setSaveState, fetchUtteranceNotes, loadSegmentExportDataForLayers, resolveRelevantExportSpeakerIds]);
+  }, [anchors, buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, fetchUtteranceNotes, layers, loadExportRuntimeModules, loadSegmentExportDataForLayers, orthographies, resolveRelevantExportSpeakerIds, selectedUtteranceMedia, setSaveState, translations, utterancesOnCurrentMedia]);
 
   const handleExportTextGrid = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
+    const { textGridService } = await loadExportRuntimeModules();
     const userNotes = await fetchUtteranceNotes(utterancesOnCurrentMedia.map((u) => u.id));
     const exportData = (await loadSegmentExportData(utterancesOnCurrentMedia[0]?.mediaId)) as any;
     const segmentsByLayer = exportData?.segmentsByLayer;
@@ -262,7 +320,7 @@ export function useImportExport(input: UseImportExportInput) {
       ?? layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault)
       ?? layers.find((layer) => layer.layerType === 'transcription');
     const exportUtterances = await buildOrthographyAwareExportUtterances(utterancesOnCurrentMedia, defaultTrcLayer);
-    const tg = exportToTextGrid({
+    const tg = textGridService.exportToTextGrid({
       utterances: exportUtterances,
       layers,
       orthographies,
@@ -274,18 +332,19 @@ export function useImportExport(input: UseImportExportInput) {
     const baseName = selectedUtteranceMedia
       ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
       : 'export';
-    downloadTextGrid(tg, baseName);
+    textGridService.downloadTextGrid(tg, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.textgrid') });
     setShowExportMenu(false);
-  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, selectedUtteranceMedia, utterancesOnCurrentMedia, layers, translations, setSaveState, fetchUtteranceNotes, loadSegmentExportData]);
+  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, fetchUtteranceNotes, layers, loadExportRuntimeModules, loadSegmentExportData, selectedUtteranceMedia, setSaveState, translations, utterancesOnCurrentMedia]);
 
   const handleExportTrs = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
+    const { transcriberService } = await loadExportRuntimeModules();
     const transcriptionLayer = layers.find((layer) => layer.id === defaultTranscriptionLayerId)
       ?? layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault)
       ?? layers.find((layer) => layer.layerType === 'transcription');
     const exportUtterances = await buildOrthographyAwareExportUtterances(utterancesOnCurrentMedia, transcriptionLayer);
-    const trs = exportToTrs({
+    const trs = transcriberService.exportToTrs({
       utterances: exportUtterances,
       orthographies,
       ...(transcriptionLayer !== undefined ? { transcriptionLayer } : {}),
@@ -293,13 +352,14 @@ export function useImportExport(input: UseImportExportInput) {
     const baseName = selectedUtteranceMedia
       ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
       : 'export';
-    downloadTrs(trs, baseName);
+    transcriberService.downloadTrs(trs, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.trs') });
     setShowExportMenu(false);
-  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, layers, orthographies, selectedUtteranceMedia, utterancesOnCurrentMedia, setSaveState]);
+  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, layers, loadExportRuntimeModules, orthographies, selectedUtteranceMedia, setSaveState, utterancesOnCurrentMedia]);
 
   const handleExportFlextext = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
+    const { flexService } = await loadExportRuntimeModules();
     const exportData2 = (await loadSegmentExportData(utterancesOnCurrentMedia[0]?.mediaId)) as any;
     const segmentsByLayer = exportData2?.segmentsByLayer;
     const segmentContents = exportData2?.segmentContents;
@@ -307,7 +367,7 @@ export function useImportExport(input: UseImportExportInput) {
       ?? layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault)
       ?? layers.find((layer) => layer.layerType === 'transcription');
     const exportUtterances = await buildOrthographyAwareExportUtterances(utterancesOnCurrentMedia, defaultTrcLayer);
-    const flex = exportToFlextext({
+    const flex = flexService.exportToFlextext({
       utterances: exportUtterances,
       layers,
       orthographies,
@@ -318,13 +378,14 @@ export function useImportExport(input: UseImportExportInput) {
     const baseName = selectedUtteranceMedia
       ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
       : 'export';
-    downloadFlextext(flex, baseName);
+    flexService.downloadFlextext(flex, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.flextext') });
     setShowExportMenu(false);
-  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, selectedUtteranceMedia, utterancesOnCurrentMedia, layers, translations, setSaveState, loadSegmentExportData]);
+  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, layers, loadExportRuntimeModules, loadSegmentExportData, selectedUtteranceMedia, setSaveState, translations, utterancesOnCurrentMedia]);
 
   const handleExportToolbox = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
+    const { toolboxService } = await loadExportRuntimeModules();
     const exportData3 = (await loadSegmentExportData(utterancesOnCurrentMedia[0]?.mediaId)) as any;
     const segmentsByLayer = exportData3?.segmentsByLayer;
     const segmentContents = exportData3?.segmentContents;
@@ -332,7 +393,7 @@ export function useImportExport(input: UseImportExportInput) {
       ?? layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault)
       ?? layers.find((layer) => layer.layerType === 'transcription');
     const exportUtterances = await buildOrthographyAwareExportUtterances(utterancesOnCurrentMedia, defaultTrcLayer);
-    const toolbox = exportToToolbox({
+    const toolbox = toolboxService.exportToToolbox({
       utterances: exportUtterances,
       layers,
       orthographies,
@@ -343,31 +404,59 @@ export function useImportExport(input: UseImportExportInput) {
     const baseName = selectedUtteranceMedia
       ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
       : 'export';
-    downloadToolbox(toolbox, baseName);
+    toolboxService.downloadToolbox(toolbox, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.toolbox') });
     setShowExportMenu(false);
-  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, selectedUtteranceMedia, utterancesOnCurrentMedia, layers, translations, setSaveState, loadSegmentExportData]);
+  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, layers, loadExportRuntimeModules, loadSegmentExportData, selectedUtteranceMedia, setSaveState, translations, utterancesOnCurrentMedia]);
 
   const handleExportJyt = useCallback(async () => {
+    const { jymService } = await loadExportRuntimeModules();
     const baseName = selectedUtteranceMedia
       ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
       : 'jieyu-project';
-    await downloadJieyuArchive('jyt', baseName);
+    await jymService.downloadJieyuArchive('jyt', baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.jyt') });
     setShowExportMenu(false);
-  }, [selectedUtteranceMedia, setSaveState]);
+  }, [loadExportRuntimeModules, selectedUtteranceMedia, setSaveState]);
 
   const handleExportJym = useCallback(async () => {
+    const { jymService } = await loadExportRuntimeModules();
     const baseName = selectedUtteranceMedia
       ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
       : 'jieyu-project';
-    await downloadJieyuArchive('jym', baseName);
+    await jymService.downloadJieyuArchive('jym', baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.jym') });
     setShowExportMenu(false);
-  }, [selectedUtteranceMedia, setSaveState]);
+  }, [loadExportRuntimeModules, selectedUtteranceMedia, setSaveState]);
 
-  const { previewProjectArchiveImport, importProjectArchive, handleImportFile } = useMemo(() => (
-    createImportExportImportHandlers({
+  const previewProjectArchiveImport = useCallback(async (file: File) => {
+    const archiveHandlersModule = await loadArchiveHandlersModule();
+    const { previewProjectArchiveImport: previewImport } = archiveHandlersModule.createImportExportArchiveHandlers({
+      activeTextId,
+      loadSnapshot,
+      locale,
+      setSaveState,
+    });
+    return previewImport(file);
+  }, [activeTextId, loadArchiveHandlersModule, loadSnapshot, locale, setSaveState]);
+
+  const importProjectArchive = useCallback(async (file: File, strategy: import('../db').ImportConflictStrategy) => {
+    const archiveHandlersModule = await loadArchiveHandlersModule();
+    const { importProjectArchive: importArchive } = archiveHandlersModule.createImportExportArchiveHandlers({
+      activeTextId,
+      loadSnapshot,
+      locale,
+      setSaveState,
+    });
+    return importArchive(file, strategy);
+  }, [activeTextId, loadArchiveHandlersModule, loadSnapshot, locale, setSaveState]);
+
+  const handleImportFile = useCallback(async (
+    file: File,
+    importWriteStrategy?: import('./useImportExport.annotationImport').AnnotationImportBridgeStrategy,
+  ) => {
+    const importHandlersModule = await loadImportHandlersModule();
+    const { handleImportFile: importFile } = importHandlersModule.createImportExportImportHandlers({
       activeTextId,
       getActiveTextId,
       selectedUtteranceMedia,
@@ -377,18 +466,9 @@ export function useImportExport(input: UseImportExportInput) {
       setSaveState,
       locale,
       normalizeSpeakerLookupKey,
-    })
-  ), [
-    activeTextId,
-    defaultTranscriptionLayerId,
-    getActiveTextId,
-    layers,
-    loadSnapshot,
-    locale,
-    normalizeSpeakerLookupKey,
-    selectedUtteranceMedia,
-    setSaveState,
-  ]);
+    });
+    return importFile(file, importWriteStrategy);
+  }, [activeTextId, defaultTranscriptionLayerId, getActiveTextId, layers, loadImportHandlersModule, loadSnapshot, locale, normalizeSpeakerLookupKey, selectedUtteranceMedia, setSaveState]);
 
   return {
     importFileRef,

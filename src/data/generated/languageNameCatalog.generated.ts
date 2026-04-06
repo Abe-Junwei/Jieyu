@@ -1,10 +1,3 @@
-/**
- * 此文件由 scripts/generate-language-name-indexes.mjs 自动生成，提供内置基线数据（Layer ①）。
- * Auto-generated built-in baseline (Layer ①). NOT the sole source of truth.
- * User-defined entries in IndexedDB (Layer ②) take priority at read time
- * via the runtime cache merge in languageNameCatalog.ts.
- * 请勿手动编辑 | DO NOT EDIT MANUALLY.
- */
 import type {
   LanguageAliasToCodeRecord,
   LanguageAliasesByCodeRecord,
@@ -24,7 +17,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "anglais",
       "es-ES": "inglés",
       "de-DE": "Englisch"
-    }
+    },
+    "latitude": 53,
+    "longitude": -1
   },
   "deu": {
     "english": "German",
@@ -35,7 +30,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "allemand",
       "es-ES": "alemán",
       "de-DE": "Deutsch"
-    }
+    },
+    "latitude": 48.649,
+    "longitude": 12.4676
   },
   "spa": {
     "english": "Spanish",
@@ -46,7 +43,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "espagnol",
       "es-ES": "español",
       "de-DE": "Spanisch"
-    }
+    },
+    "latitude": 40.4414,
+    "longitude": -1.11788
   },
   "fra": {
     "english": "French",
@@ -57,7 +56,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "français",
       "es-ES": "francés",
       "de-DE": "Französisch"
-    }
+    },
+    "latitude": 48,
+    "longitude": 2
   },
   "rus": {
     "english": "Russian",
@@ -68,7 +69,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "russe",
       "es-ES": "ruso",
       "de-DE": "Russisch"
-    }
+    },
+    "latitude": 59,
+    "longitude": 50
   },
   "ara": {
     "english": "Arabic",
@@ -89,7 +92,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "latin",
       "es-ES": "latín",
       "de-DE": "Latein"
-    }
+    },
+    "latitude": 41.9026,
+    "longitude": 12.4502
   },
   "ita": {
     "english": "Italian",
@@ -100,7 +105,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "italien",
       "es-ES": "italiano",
       "de-DE": "Italienisch"
-    }
+    },
+    "latitude": 43.0464,
+    "longitude": 12.6489
   },
   "jpn": {
     "english": "Japanese",
@@ -111,7 +118,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "japonais",
       "es-ES": "japonés",
       "de-DE": "Japanisch"
-    }
+    },
+    "latitude": 35,
+    "longitude": 135
   },
   "por": {
     "english": "Portuguese",
@@ -122,7 +131,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "portugais",
       "es-ES": "portugués",
       "de-DE": "Portugiesisch"
-    }
+    },
+    "latitude": 39.91,
+    "longitude": -8.1
   },
   "epo": {
     "english": "Esperanto",
@@ -133,7 +144,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "espéranto",
       "es-ES": "esperanto",
       "de-DE": "Esperanto"
-    }
+    },
+    "latitude": 49.3273,
+    "longitude": 2.81045
   },
   "fas": {
     "english": "Persian",
@@ -166,7 +179,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "hébreu",
       "es-ES": "hebreo",
       "de-DE": "Hebräisch"
-    }
+    },
+    "latitude": 31.1056,
+    "longitude": 35.0179
   },
   "nld": {
     "english": "Dutch",
@@ -177,7 +192,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "néerlandais",
       "es-ES": "neerlandés",
       "de-DE": "Niederländisch"
-    }
+    },
+    "latitude": 52,
+    "longitude": 5
   },
   "pol": {
     "english": "Polish",
@@ -188,7 +205,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "polonais",
       "es-ES": "polaco",
       "de-DE": "Polnisch"
-    }
+    },
+    "latitude": 51.8439,
+    "longitude": 18.6255
   },
   "swe": {
     "english": "Swedish",
@@ -199,7 +218,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "suédois",
       "es-ES": "sueco",
       "de-DE": "Schwedisch"
-    }
+    },
+    "latitude": 59.800634,
+    "longitude": 17.389526
   },
   "tur": {
     "english": "Turkish",
@@ -210,7 +231,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "turc",
       "es-ES": "turco",
       "de-DE": "Türkisch"
-    }
+    },
+    "latitude": 39.8667,
+    "longitude": 32.8667
   },
   "ukr": {
     "english": "Ukrainian",
@@ -221,7 +244,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "ukrainien",
       "es-ES": "ucraniano",
       "de-DE": "Ukrainisch"
-    }
+    },
+    "latitude": 49.796,
+    "longitude": 29.945
   },
   "fin": {
     "english": "Finnish",
@@ -232,7 +257,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "finnois",
       "es-ES": "finés",
       "de-DE": "Finnisch"
-    }
+    },
+    "latitude": 64.7628,
+    "longitude": 25.5577
   },
   "kor": {
     "english": "Korean",
@@ -243,7 +270,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "coréen",
       "es-ES": "coreano",
       "de-DE": "Koreanisch"
-    }
+    },
+    "latitude": 37.54,
+    "longitude": 126.98
   },
   "san": {
     "english": "Sanskrit",
@@ -254,7 +283,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "sanskrit",
       "es-ES": "sánscrito",
       "de-DE": "Sanskrit"
-    }
+    },
+    "latitude": 20,
+    "longitude": 77
   },
   "ces": {
     "english": "Czech",
@@ -265,7 +296,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tchèque",
       "es-ES": "checo",
       "de-DE": "Tschechisch"
-    }
+    },
+    "latitude": 49.873398,
+    "longitude": 15.10437
   },
   "cat": {
     "english": "Catalan",
@@ -276,7 +309,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "catalan",
       "es-ES": "catalán",
       "de-DE": "Katalanisch"
-    }
+    },
+    "latitude": 41.453,
+    "longitude": 1.569
   },
   "dan": {
     "english": "Danish",
@@ -287,7 +322,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "danois",
       "es-ES": "danés",
       "de-DE": "Dänisch"
-    }
+    },
+    "latitude": 54.8655,
+    "longitude": 9.36284
   },
   "ron": {
     "english": "Romanian",
@@ -298,7 +335,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "roumain",
       "es-ES": "rumano",
       "de-DE": "Rumänisch"
-    }
+    },
+    "latitude": 46.3913,
+    "longitude": 24.2256
   },
   "swa": {
     "english": "Swahili",
@@ -320,10 +359,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "hongrois",
       "es-ES": "húngaro",
       "de-DE": "Ungarisch"
-    }
+    },
+    "latitude": 46.9068585714,
+    "longitude": 19.6555271429
   },
   "syl": {
-    "english": "Sylheti"
+    "english": "Sylheti",
+    "latitude": 24.83724,
+    "longitude": 92.25347
   },
   "hrv": {
     "english": "Croatian",
@@ -345,7 +388,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "norvégien",
       "es-ES": "noruego",
       "de-DE": "Norwegisch"
-    }
+    },
+    "latitude": 59.92,
+    "longitude": 10.71
   },
   "ben": {
     "english": "Bangla",
@@ -356,7 +401,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "bengali",
       "es-ES": "bengalí",
       "de-DE": "Bengalisch"
-    }
+    },
+    "latitude": 24,
+    "longitude": 90
   },
   "aze": {
     "english": "Azerbaijani",
@@ -378,7 +425,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "afrikaans",
       "es-ES": "afrikáans",
       "de-DE": "Afrikaans"
-    }
+    },
+    "latitude": -31.63272,
+    "longitude": 20.46356
   },
   "est": {
     "english": "Estonian",
@@ -389,7 +438,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "estonien",
       "es-ES": "estonio",
       "de-DE": "Estnisch"
-    }
+    },
+    "latitude": 58.55,
+    "longitude": 25.82
   },
   "bul": {
     "english": "Bulgarian",
@@ -400,7 +451,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "bulgare",
       "es-ES": "búlgaro",
       "de-DE": "Bulgarisch"
-    }
+    },
+    "latitude": 43.3646,
+    "longitude": 25.047
   },
   "gle": {
     "english": "Irish",
@@ -411,7 +464,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "irlandais",
       "es-ES": "irlandés",
       "de-DE": "Irisch"
-    }
+    },
+    "latitude": 53.2186,
+    "longitude": -7.61509
   },
   "bel": {
     "english": "Belarusian",
@@ -422,7 +477,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "biélorusse",
       "es-ES": "bielorruso",
       "de-DE": "Belarussisch"
-    }
+    },
+    "latitude": 53.2307,
+    "longitude": 25.6038
   },
   "ind": {
     "english": "Indonesian",
@@ -433,7 +490,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "indonésien",
       "es-ES": "indonesio",
       "de-DE": "Indonesisch"
-    }
+    },
+    "latitude": -7.33458,
+    "longitude": 109.716
   },
   "isl": {
     "english": "Icelandic",
@@ -444,7 +503,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "islandais",
       "es-ES": "islandés",
       "de-DE": "Isländisch"
-    }
+    },
+    "latitude": 63.4837,
+    "longitude": -19.0212
   },
   "lit": {
     "english": "Lithuanian",
@@ -455,7 +516,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "lituanien",
       "es-ES": "lituano",
       "de-DE": "Litauisch"
-    }
+    },
+    "latitude": 55.1429,
+    "longitude": 23.9601
   },
   "ile": {
     "english": "Interlingue",
@@ -477,7 +540,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "arménien",
       "es-ES": "armenio",
       "de-DE": "Armenisch"
-    }
+    },
+    "latitude": 40,
+    "longitude": 45
   },
   "slk": {
     "english": "Slovak",
@@ -488,7 +553,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "slovaque",
       "es-ES": "eslovaco",
       "de-DE": "Slowakisch"
-    }
+    },
+    "latitude": 48.545705,
+    "longitude": 18.78479
   },
   "tam": {
     "english": "Tamil",
@@ -499,7 +566,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tamoul",
       "es-ES": "tamil",
       "de-DE": "Tamil"
-    }
+    },
+    "latitude": 10.520219,
+    "longitude": 78.825989
   },
   "sqi": {
     "english": "Albanian",
@@ -521,7 +590,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "basque",
       "es-ES": "euskera",
       "de-DE": "Baskisch"
-    }
+    },
+    "latitude": 43.2787,
+    "longitude": -1.31622
   },
   "kat": {
     "english": "Georgian",
@@ -532,7 +603,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "géorgien",
       "es-ES": "georgiano",
       "de-DE": "Georgisch"
-    }
+    },
+    "latitude": 41.850397,
+    "longitude": 43.78613
   },
   "srp": {
     "english": "Serbian",
@@ -554,7 +627,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "letton",
       "es-ES": "letón",
       "de-DE": "Lettisch"
-    }
+    },
+    "latitude": 56.826108,
+    "longitude": 24.309118
   },
   "tha": {
     "english": "Thai",
@@ -565,7 +640,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "thaï",
       "es-ES": "tailandés",
       "de-DE": "Thailändisch"
-    }
+    },
+    "latitude": 14.192,
+    "longitude": 100.671
   },
   "slv": {
     "english": "Slovene",
@@ -576,7 +653,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "slovène",
       "es-ES": "esloveno",
       "de-DE": "Slowenisch"
-    }
+    },
+    "latitude": 46.2543,
+    "longitude": 14.7766
   },
   "vie": {
     "english": "Vietnamese",
@@ -587,7 +666,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "vietnamien",
       "es-ES": "vietnamita",
       "de-DE": "Vietnamesisch"
-    }
+    },
+    "latitude": 20.681188,
+    "longitude": 105.774071
   },
   "oci": {
     "english": "Occitan",
@@ -598,7 +679,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "occitan",
       "es-ES": "occitano",
       "de-DE": "Okzitanisch"
-    }
+    },
+    "latitude": 44.1415,
+    "longitude": 6.82979
   },
   "kaz": {
     "english": "Kazakh",
@@ -609,7 +692,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "kazakh",
       "es-ES": "kazajo",
       "de-DE": "Kasachisch"
-    }
+    },
+    "latitude": 51.17,
+    "longitude": 71.454
   },
   "cym": {
     "english": "Welsh",
@@ -620,7 +705,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "gallois",
       "es-ES": "galés",
       "de-DE": "Walisisch"
-    }
+    },
+    "latitude": 52,
+    "longitude": -4
   },
   "msa": {
     "english": "Malay",
@@ -642,7 +729,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "interlingua",
       "es-ES": "interlingua",
       "de-DE": "Interlingua"
-    }
+    },
+    "latitude": 48.203,
+    "longitude": 2.615
   },
   "yid": {
     "english": "Yiddish",
@@ -664,7 +753,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "macédonien",
       "es-ES": "macedonio",
       "de-DE": "Mazedonisch"
-    }
+    },
+    "latitude": 41.5957,
+    "longitude": 21.7932
   },
   "grc": {
     "english": "Ancient Greek",
@@ -674,7 +765,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "grec ancien",
       "es-ES": "griego antiguo",
       "de-DE": "Altgriechisch"
-    }
+    },
+    "latitude": 39.8155,
+    "longitude": 21.9129
   },
   "kur": {
     "english": "Kurdish",
@@ -725,7 +818,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "galicien",
       "es-ES": "gallego",
       "de-DE": "Galicisch"
-    }
+    },
+    "latitude": 42.2446,
+    "longitude": -7.5343
   },
   "tel": {
     "english": "Telugu",
@@ -736,7 +831,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "télougou",
       "es-ES": "telugu",
       "de-DE": "Telugu"
-    }
+    },
+    "latitude": 16.4529,
+    "longitude": 78.7024
   },
   "mlt": {
     "english": "Maltese",
@@ -747,7 +844,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "maltais",
       "es-ES": "maltés",
       "de-DE": "Maltesisch"
-    }
+    },
+    "latitude": 35.8884,
+    "longitude": 14.4508
   },
   "pus": {
     "english": "Pashto",
@@ -769,7 +868,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tatar",
       "es-ES": "tártaro",
       "de-DE": "Tatarisch"
-    }
+    },
+    "latitude": 55.79592,
+    "longitude": 49.11577
   },
   "pan": {
     "english": "Punjabi",
@@ -780,7 +881,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "pendjabi",
       "es-ES": "punyabí",
       "de-DE": "Punjabi"
-    }
+    },
+    "latitude": 30.0368,
+    "longitude": 75.6702
   },
   "uzb": {
     "english": "Uzbek",
@@ -802,7 +905,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "luxembourgeois",
       "es-ES": "luxemburgués",
       "de-DE": "Luxemburgisch"
-    }
+    },
+    "latitude": 49.6839,
+    "longitude": 6.14931
   },
   "nep": {
     "english": "Nepali",
@@ -813,7 +918,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "népalais",
       "es-ES": "nepalí",
       "de-DE": "Nepalesisch"
-    }
+    },
+    "latitude": 28,
+    "longitude": 85
   },
   "gla": {
     "english": "Scottish Gaelic",
@@ -824,7 +931,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "gaélique écossais",
       "es-ES": "gaélico escocés",
       "de-DE": "Gälisch (Schottland)"
-    }
+    },
+    "latitude": 56.7574,
+    "longitude": -5.24366
   },
   "bre": {
     "english": "Breton",
@@ -835,18 +944,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "breton",
       "es-ES": "bretón",
       "de-DE": "Bretonisch"
-    }
-  },
-  "cmn": {
-    "english": "Mandarin",
-    "native": "普通话",
-    "byLocale": {
-      "fr-FR": "mandarin",
-      "es-ES": "mandarín",
-      "de-DE": "Mandarin",
-      "zh-CN": "普通话",
-      "en-US": "Mandarin"
-    }
+    },
+    "latitude": 48.2452,
+    "longitude": -3.78934
   },
   "kir": {
     "english": "Kyrgyz",
@@ -857,7 +957,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "kirghize",
       "es-ES": "kirguís",
       "de-DE": "Kirgisisch"
-    }
+    },
+    "latitude": 42,
+    "longitude": 74
   },
   "fao": {
     "english": "Faroese",
@@ -868,7 +970,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "féroïen",
       "es-ES": "feroés",
       "de-DE": "Färöisch"
-    }
+    },
+    "latitude": 62.0732,
+    "longitude": -6.88497
   },
   "amh": {
     "english": "Amharic",
@@ -879,7 +983,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "amharique",
       "es-ES": "amárico",
       "de-DE": "Amharisch"
-    }
+    },
+    "latitude": 11.708182,
+    "longitude": 39.543456
   },
   "kan": {
     "english": "Kannada",
@@ -890,7 +996,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "kannada",
       "es-ES": "canarés",
       "de-DE": "Kannada"
-    }
+    },
+    "latitude": 13.5878,
+    "longitude": 76.1198
   },
   "mar": {
     "english": "Marathi",
@@ -901,7 +1009,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "marathi",
       "es-ES": "maratí",
       "de-DE": "Marathi"
-    }
+    },
+    "latitude": 17.9344,
+    "longitude": 76.6665
   },
   "tgl": {
     "english": "Tagalog",
@@ -912,7 +1022,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tagalog",
       "es-ES": "tagalo",
       "de-DE": "Tagalog"
-    }
+    },
+    "latitude": 14.06,
+    "longitude": 121.747
   },
   "roh": {
     "english": "Romansh",
@@ -923,7 +1035,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "romanche",
       "es-ES": "romanche",
       "de-DE": "Rätoromanisch"
-    }
+    },
+    "latitude": 46.5538,
+    "longitude": 9.92812
   },
   "bak": {
     "english": "Bashkir",
@@ -933,7 +1047,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "bachkir",
       "es-ES": "baskir",
       "de-DE": "Baschkirisch"
-    }
+    },
+    "latitude": 53.59671,
+    "longitude": 56.55937
   },
   "mal": {
     "english": "Malayalam",
@@ -944,7 +1060,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "malayalam",
       "es-ES": "malayálam",
       "de-DE": "Malayalam"
-    }
+    },
+    "latitude": 9.59208,
+    "longitude": 76.7651
   },
   "mya": {
     "english": "Burmese",
@@ -955,7 +1073,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "birman",
       "es-ES": "birmano",
       "de-DE": "Birmanisch"
-    }
+    },
+    "latitude": 20.7926,
+    "longitude": 93.9665
   },
   "que": {
     "english": "Quechua",
@@ -977,7 +1097,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "javanais",
       "es-ES": "javanés",
       "de-DE": "Javanisch"
-    }
+    },
+    "latitude": -7.001,
+    "longitude": 109.287
   },
   "uig": {
     "english": "Uyghur",
@@ -988,7 +1110,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "ouïghour",
       "es-ES": "uigur",
       "de-DE": "Uigurisch"
-    }
+    },
+    "latitude": 43.88,
+    "longitude": 87.38
   },
   "mri": {
     "english": "Māori",
@@ -999,7 +1123,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "maori",
       "es-ES": "maorí",
       "de-DE": "Māori"
-    }
+    },
+    "latitude": -38.2881,
+    "longitude": 176.541
   },
   "tgk": {
     "english": "Tajik",
@@ -1010,7 +1136,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tadjik",
       "es-ES": "tayiko",
       "de-DE": "Tadschikisch"
-    }
+    },
+    "latitude": 38.8213,
+    "longitude": 68.5549
   },
   "tuk": {
     "english": "Turkmen",
@@ -1021,7 +1149,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "turkmène",
       "es-ES": "turcomano",
       "de-DE": "Turkmenisch"
-    }
+    },
+    "latitude": 37.08719,
+    "longitude": 59.17574
   },
   "abk": {
     "english": "Abkhaz",
@@ -1031,7 +1161,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "abkhaze",
       "es-ES": "abjasio",
       "de-DE": "Abchasisch"
-    }
+    },
+    "latitude": 43.056218,
+    "longitude": 41.159115
   },
   "guj": {
     "english": "Gujarati",
@@ -1042,7 +1174,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "goudjarati",
       "es-ES": "guyaratí",
       "de-DE": "Gujarati"
-    }
+    },
+    "latitude": 22.687,
+    "longitude": 71.0962
   },
   "szl": {
     "english": "Silesian",
@@ -1053,7 +1187,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "silésien",
       "es-ES": "silesio",
       "de-DE": "Schlesisch (Wasserpolnisch)"
-    }
+    },
+    "latitude": 50.9656,
+    "longitude": 16.9491
   },
   "khm": {
     "english": "Khmer",
@@ -1064,7 +1200,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "khmer",
       "es-ES": "jemer",
       "de-DE": "Khmer"
-    }
+    },
+    "latitude": 12.0515,
+    "longitude": 105.015
   },
   "zul": {
     "english": "Zulu",
@@ -1075,7 +1213,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "zoulou",
       "es-ES": "zulú",
       "de-DE": "Zulu"
-    }
+    },
+    "latitude": -28.9,
+    "longitude": 30.2
   },
   "bod": {
     "english": "Tibetan",
@@ -1086,7 +1226,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tibétain",
       "es-ES": "tibetano",
       "de-DE": "Tibetisch"
-    }
+    },
+    "latitude": 28.3681,
+    "longitude": 90.1872
   },
   "che": {
     "english": "Chechen",
@@ -1097,7 +1239,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tchétchène",
       "es-ES": "checheno",
       "de-DE": "Tschetschenisch"
-    }
+    },
+    "latitude": 43.5,
+    "longitude": 45.5
   },
   "zza": {
     "english": "Zazaki",
@@ -1118,7 +1262,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "assamais",
       "es-ES": "asamés",
       "de-DE": "Assamesisch"
-    }
+    },
+    "latitude": 26.0876,
+    "longitude": 91.2932
   },
   "cor": {
     "english": "Cornish",
@@ -1129,7 +1275,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "cornique",
       "es-ES": "córnico",
       "de-DE": "Kornisch"
-    }
+    },
+    "latitude": 50.5233,
+    "longitude": -4.18619
   },
   "chv": {
     "english": "Chuvash",
@@ -1140,7 +1288,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tchouvache",
       "es-ES": "chuvasio",
       "de-DE": "Tschuwaschisch"
-    }
+    },
+    "latitude": 55.48701,
+    "longitude": 47.16298
   },
   "haw": {
     "english": "Hawaiian",
@@ -1151,7 +1301,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "hawaïen",
       "es-ES": "hawaiano",
       "de-DE": "Hawaiisch"
-    }
+    },
+    "latitude": 19.6297,
+    "longitude": -155.43
   },
   "sco": {
     "english": "Scots",
@@ -1161,7 +1313,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "écossais",
       "es-ES": "escocés",
       "de-DE": "Schottisch"
-    }
+    },
+    "latitude": 55.886945,
+    "longitude": -3.710133
   },
   "vol": {
     "english": "Volapük",
@@ -1182,7 +1336,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "serbo-croate",
       "es-ES": "serbocroata",
       "de-DE": "Serbo-Kroatisch"
-    }
+    },
+    "latitude": 44.15,
+    "longitude": 18.81
   },
   "hau": {
     "english": "Hausa",
@@ -1193,7 +1349,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "haoussa",
       "es-ES": "hausa",
       "de-DE": "Haussa"
-    }
+    },
+    "latitude": 11.1513,
+    "longitude": 8.7804
   },
   "grn": {
     "english": "Guarani",
@@ -1214,7 +1372,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "somali",
       "es-ES": "somalí",
       "de-DE": "Somali"
-    }
+    },
+    "latitude": 4.778704,
+    "longitude": 45.152856
   },
   "mlg": {
     "english": "Malagasy",
@@ -1247,7 +1407,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "odia",
       "es-ES": "oriya",
       "de-DE": "Oriya"
-    }
+    },
+    "latitude": 21,
+    "longitude": 85
   },
   "glv": {
     "english": "Manx",
@@ -1258,7 +1420,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "mannois",
       "es-ES": "manés",
       "de-DE": "Manx"
-    }
+    },
+    "latitude": 54.2604,
+    "longitude": -4.45437
   },
   "arg": {
     "english": "Aragonese",
@@ -1268,7 +1432,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "aragonais",
       "es-ES": "aragonés",
       "de-DE": "Aragonesisch"
-    }
+    },
+    "latitude": 42.4669,
+    "longitude": -0.00919
   },
   "crh": {
     "english": "Crimean Tatar",
@@ -1278,7 +1444,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tatar de Crimée",
       "es-ES": "tártaro de Crimea",
       "de-DE": "Krimtatarisch"
-    }
+    },
+    "latitude": 45,
+    "longitude": 34.08
   },
   "lao": {
     "english": "Lao",
@@ -1289,7 +1457,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "lao",
       "es-ES": "lao",
       "de-DE": "Laotisch"
-    }
+    },
+    "latitude": 19,
+    "longitude": 102.46
   },
   "sah": {
     "english": "Yakut",
@@ -1300,7 +1470,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "iakoute",
       "es-ES": "sakha",
       "de-DE": "Jakutisch"
-    }
+    },
+    "latitude": 61.69744,
+    "longitude": 133.98031
   },
   "cop": {
     "english": "Coptic",
@@ -1310,7 +1482,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "copte",
       "es-ES": "copto",
       "de-DE": "Koptisch"
-    }
+    },
+    "latitude": 29.472,
+    "longitude": 31.2053
   },
   "pli": {
     "english": "Pali",
@@ -1320,7 +1494,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "pali",
       "es-ES": "pali",
       "de-DE": "Pali"
-    }
+    },
+    "latitude": 24.5271,
+    "longitude": 82.251
   },
   "xho": {
     "english": "Xhosa",
@@ -1331,7 +1507,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "xhosa",
       "es-ES": "xhosa",
       "de-DE": "Xhosa"
-    }
+    },
+    "latitude": -31.0389,
+    "longitude": 28.0769
   },
   "csb": {
     "english": "Kashubian",
@@ -1341,7 +1519,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "kachoube",
       "es-ES": "casubio",
       "de-DE": "Kaschubisch"
-    }
+    },
+    "latitude": 54.2996,
+    "longitude": 18.6163
   },
   "arn": {
     "english": "Mapudungun",
@@ -1351,7 +1531,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "mapuche",
       "es-ES": "mapuche",
       "de-DE": "Mapudungun"
-    }
+    },
+    "latitude": -38.7392,
+    "longitude": -71.277
   },
   "sin": {
     "english": "Sinhala",
@@ -1362,7 +1544,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "cingalais",
       "es-ES": "cingalés",
       "de-DE": "Singhalesisch"
-    }
+    },
+    "latitude": 8,
+    "longitude": 81
   },
   "ang": {
     "english": "Old English",
@@ -1372,7 +1556,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "ancien anglais",
       "es-ES": "inglés antiguo",
       "de-DE": "Altenglisch"
-    }
+    },
+    "latitude": 51.06,
+    "longitude": -1.31
   },
   "kas": {
     "english": "Kashmiri",
@@ -1383,7 +1569,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "cachemiri",
       "es-ES": "cachemir",
       "de-DE": "Kaschmiri"
-    }
+    },
+    "latitude": 34.166825,
+    "longitude": 74.330455
   },
   "got": {
     "english": "Gothic",
@@ -1393,7 +1581,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "gotique",
       "es-ES": "gótico",
       "de-DE": "Gotisch"
-    }
+    },
+    "latitude": 46.9304,
+    "longitude": 29.9786
   },
   "egy": {
     "english": "Egyptian",
@@ -1403,7 +1593,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "égyptien ancien",
       "es-ES": "egipcio antiguo",
       "de-DE": "Ägyptisch"
-    }
+    },
+    "latitude": 28.381735,
+    "longitude": 30.834959
   },
   "rom": {
     "english": "Romani",
@@ -1424,7 +1616,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "sindhi",
       "es-ES": "sindi",
       "de-DE": "Sindhi"
-    }
+    },
+    "latitude": 26,
+    "longitude": 69
   },
   "cos": {
     "english": "Corsican",
@@ -1434,7 +1628,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "corse",
       "es-ES": "corso",
       "de-DE": "Korsisch"
-    }
+    },
+    "latitude": 41.7,
+    "longitude": 9.25537
   },
   "ceb": {
     "english": "Cebuano",
@@ -1445,7 +1641,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "cebuano",
       "es-ES": "cebuano",
       "de-DE": "Cebuano"
-    }
+    },
+    "latitude": 8.38799,
+    "longitude": 124.367
   },
   "nds": {
     "english": "Low German",
@@ -1456,7 +1654,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "bas-allemand",
       "es-ES": "bajo alemán",
       "de-DE": "Niederdeutsch"
-    }
+    },
+    "latitude": 53.115373,
+    "longitude": 12.391439
   },
   "aym": {
     "english": "Aymara",
@@ -1476,7 +1676,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "sicilien",
       "es-ES": "siciliano",
       "de-DE": "Sizilianisch"
-    }
+    },
+    "latitude": 37.5735,
+    "longitude": 14.0414
   },
   "ast": {
     "english": "Asturian",
@@ -1487,7 +1689,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "asturien",
       "es-ES": "asturiano",
       "de-DE": "Asturisch"
-    }
+    },
+    "latitude": 42.4181,
+    "longitude": -6.02227
   },
   "dzo": {
     "english": "Dzongkha",
@@ -1498,7 +1702,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "dzongkha",
       "es-ES": "dzongkha",
       "de-DE": "Dzongkha"
-    }
+    },
+    "latitude": 27.410786,
+    "longitude": 89.581604
   },
   "tok": {
     "english": "Toki Pona",
@@ -1520,7 +1726,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "groenlandais",
       "es-ES": "groenlandés",
       "de-DE": "Grönländisch"
-    }
+    },
+    "latitude": 69.3761,
+    "longitude": -52.864
   },
   "ava": {
     "english": "Avar",
@@ -1530,7 +1738,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "avar",
       "es-ES": "avar",
       "de-DE": "Awarisch"
-    }
+    },
+    "latitude": 41.7047,
+    "longitude": 46.558
   },
   "sun": {
     "english": "Sundanese",
@@ -1541,7 +1751,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "soundanais",
       "es-ES": "sundanés",
       "de-DE": "Sundanesisch"
-    }
+    },
+    "latitude": -6.89708,
+    "longitude": 107.106
   },
   "wln": {
     "english": "Walloon",
@@ -1551,7 +1763,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "wallon",
       "es-ES": "valón",
       "de-DE": "Wallonisch"
-    }
+    },
+    "latitude": 50.2235,
+    "longitude": 5.14509
   },
   "cnr": {
     "english": "Montenegrin",
@@ -1573,7 +1787,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "dari",
       "es-ES": "darí",
       "de-DE": "Dari"
-    }
+    },
+    "latitude": 34.39757,
+    "longitude": 66.14961
   },
   "nap": {
     "english": "Neapolitan",
@@ -1583,7 +1799,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "napolitain",
       "es-ES": "napolitano",
       "de-DE": "Neapolitanisch"
-    }
+    },
+    "latitude": 39.2288,
+    "longitude": 16.4225
   },
   "tir": {
     "english": "Tigrinya",
@@ -1594,7 +1812,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tigrigna",
       "es-ES": "tigriña",
       "de-DE": "Tigrinya"
-    }
+    },
+    "latitude": 15.3359,
+    "longitude": 38.9266
   },
   "ain": {
     "english": "Ainu",
@@ -1604,7 +1824,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "aïnou",
       "es-ES": "ainu",
       "de-DE": "Ainu"
-    }
+    },
+    "latitude": 43.633654,
+    "longitude": 142.46167
   },
   "udm": {
     "english": "Udmurt",
@@ -1614,7 +1836,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "oudmourte",
       "es-ES": "udmurt",
       "de-DE": "Udmurtisch"
-    }
+    },
+    "latitude": 56.12921,
+    "longitude": 52.63548
   },
   "akk": {
     "english": "Akkadian",
@@ -1624,7 +1848,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "akkadien",
       "es-ES": "acadio",
       "de-DE": "Akkadisch"
-    }
+    },
+    "latitude": 33.1,
+    "longitude": 44.1
   },
   "gag": {
     "english": "Gagauz",
@@ -1634,7 +1860,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "gagaouze",
       "es-ES": "gagauzo",
       "de-DE": "Gagausisch"
-    }
+    },
+    "latitude": 44.59876,
+    "longitude": 28.02769
   },
   "ibo": {
     "english": "Igbo",
@@ -1645,7 +1873,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "igbo",
       "es-ES": "igbo",
       "de-DE": "Igbo"
-    }
+    },
+    "latitude": 4.62705,
+    "longitude": 7.23441
   },
   "krl": {
     "english": "Karelian",
@@ -1655,7 +1885,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "carélien",
       "es-ES": "carelio",
       "de-DE": "Karelisch"
-    }
+    },
+    "latitude": 65.1691,
+    "longitude": 30.8655
   },
   "ave": {
     "english": "Avestan",
@@ -1665,7 +1897,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "avestique",
       "es-ES": "avéstico",
       "de-DE": "Avestisch"
-    }
+    },
+    "latitude": 34.217,
+    "longitude": 62.112
   },
   "div": {
     "english": "Dhivehi",
@@ -1675,10 +1909,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "maldivien",
       "es-ES": "divehi",
       "de-DE": "Dhivehi"
-    }
+    },
+    "latitude": 1.928498,
+    "longitude": 73.54433
   },
   "isv": {
-    "english": "Interslavic"
+    "english": "Interslavic",
+    "latitude": 49.07835,
+    "longitude": 17.44454
   },
   "tyv": {
     "english": "Tuvan",
@@ -1688,7 +1926,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "touvain",
       "es-ES": "tuviniano",
       "de-DE": "Tuwinisch"
-    }
+    },
+    "latitude": 51.7,
+    "longitude": 94.36667
   },
   "lmo": {
     "english": "Lombard",
@@ -1699,7 +1939,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "lombard",
       "es-ES": "lombardo",
       "de-DE": "Lombardisch"
-    }
+    },
+    "latitude": 45.8817,
+    "longitude": 9.39509
   },
   "ota": {
     "english": "Ottoman Turkish",
@@ -1719,7 +1961,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "erzya",
       "es-ES": "erzya",
       "de-DE": "Ersja-Mordwinisch"
-    }
+    },
+    "latitude": 52.8548,
+    "longitude": 45.3901
   },
   "bal": {
     "english": "Balochi",
@@ -1740,7 +1984,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "yoruba",
       "es-ES": "yoruba",
       "de-DE": "Yoruba"
-    }
+    },
+    "latitude": 7.15345,
+    "longitude": 3.67225
   },
   "pms": {
     "english": "Piedmontese",
@@ -1748,7 +1994,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Piedmontese",
       "fr-FR": "piémontais",
       "de-DE": "Piemontesisch"
-    }
+    },
+    "latitude": 45.4633,
+    "longitude": 8.32366
   },
   "ady": {
     "english": "Adyghe",
@@ -1758,7 +2006,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "adyguéen",
       "es-ES": "adigué",
       "de-DE": "Adygeisch"
-    }
+    },
+    "latitude": 44,
+    "longitude": 39.33
   },
   "wol": {
     "english": "Wolof",
@@ -1769,7 +2019,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "wolof",
       "es-ES": "wólof",
       "de-DE": "Wolof"
-    }
+    },
+    "latitude": 15.2534,
+    "longitude": -15.383
   },
   "fur": {
     "english": "Friulian",
@@ -1780,7 +2032,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "frioulan",
       "es-ES": "friulano",
       "de-DE": "Friaulisch"
-    }
+    },
+    "latitude": 46.1473,
+    "longitude": 13.0493
   },
   "smo": {
     "english": "Samoan",
@@ -1790,7 +2044,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "samoan",
       "es-ES": "samoano",
       "de-DE": "Samoanisch"
-    }
+    },
+    "latitude": -13.92,
+    "longitude": -171.83
   },
   "rue": {
     "english": "Rusyn",
@@ -1798,7 +2054,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Rusyn",
       "fr-FR": "ruthène",
       "de-DE": "Russinisch"
-    }
+    },
+    "latitude": 48.7171,
+    "longitude": 22.9579
   },
   "sot": {
     "english": "Sesotho",
@@ -1809,7 +2067,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "sotho du Sud",
       "es-ES": "sotho meridional",
       "de-DE": "Süd-Sotho"
-    }
+    },
+    "latitude": -28.78,
+    "longitude": 27.89
   },
   "hat": {
     "english": "Haitian Creole",
@@ -1819,7 +2079,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "créole haïtien",
       "es-ES": "criollo haitiano",
       "de-DE": "Haiti-Kreolisch"
-    }
+    },
+    "latitude": 18.795135,
+    "longitude": -72.136115
   },
   "syc": {
     "english": "Syriac",
@@ -1829,7 +2091,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "syriaque classique",
       "es-ES": "siríaco clásico",
       "de-DE": "Altsyrisch"
-    }
+    },
+    "latitude": 37.1129,
+    "longitude": 42.1432
   },
   "kom": {
     "english": "Komi",
@@ -1850,7 +2114,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "kinyarwanda",
       "es-ES": "kinyarwanda",
       "de-DE": "Kinyarwanda"
-    }
+    },
+    "latitude": -1.56771,
+    "longitude": 29.6441
   },
   "hif": {
     "english": "Fiji Hindi",
@@ -1858,7 +2124,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Fiji Hindi",
       "fr-FR": "hindi fidjien",
       "de-DE": "Fidschi-Hindi"
-    }
+    },
+    "latitude": -17.8148,
+    "longitude": 177.772
   },
   "tpi": {
     "english": "Tok Pisin",
@@ -1868,7 +2136,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tok pisin",
       "es-ES": "tok pisin",
       "de-DE": "Neumelanesisch"
-    }
+    },
+    "latitude": -9.41971,
+    "longitude": 147.303
   },
   "nav": {
     "english": "Navajo",
@@ -1878,7 +2148,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "navajo",
       "es-ES": "navajo",
       "de-DE": "Navajo"
-    }
+    },
+    "latitude": 36.33,
+    "longitude": -109.38
   },
   "ton": {
     "english": "Tongan",
@@ -1889,7 +2161,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tongien",
       "es-ES": "tongano",
       "de-DE": "Tongaisch"
-    }
+    },
+    "latitude": -21.17,
+    "longitude": -175.25
   },
   "nob": {
     "english": "Bokmål",
@@ -1933,7 +2207,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "maïthili",
       "es-ES": "maithili",
       "de-DE": "Maithili"
-    }
+    },
+    "latitude": 26.3817,
+    "longitude": 86.2211
   },
   "mnc": {
     "english": "Manchu",
@@ -1943,7 +2219,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "mandchou",
       "es-ES": "manchú",
       "de-DE": "Mandschurisch"
-    }
+    },
+    "latitude": 47.31225,
+    "longitude": 126.55713
   },
   "liv": {
     "english": "Livonian",
@@ -1951,7 +2229,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Livonian",
       "fr-FR": "livonien",
       "de-DE": "Livisch"
-    }
+    },
+    "latitude": 57.566,
+    "longitude": 22.0262
   },
   "nov": {
     "english": "Novial",
@@ -1970,7 +2250,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tswana",
       "es-ES": "setsuana",
       "de-DE": "Tswana"
-    }
+    },
+    "latitude": -24.368,
+    "longitude": 24.7587
   },
   "vec": {
     "english": "Venetian",
@@ -1981,7 +2263,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "vénitien",
       "es-ES": "veneciano",
       "de-DE": "Venetisch"
-    }
+    },
+    "latitude": 45.503581,
+    "longitude": 12.214167
   },
   "sux": {
     "english": "Sumerian",
@@ -1991,7 +2275,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "sumérien",
       "es-ES": "sumerio",
       "de-DE": "Sumerisch"
-    }
+    },
+    "latitude": 31.3,
+    "longitude": 45.6667
   },
   "hsb": {
     "english": "Upper Sorbian",
@@ -2002,7 +2288,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "haut-sorabe",
       "es-ES": "alto sorbio",
       "de-DE": "Obersorbisch"
-    }
+    },
+    "latitude": 51.2403,
+    "longitude": 14.4098
   },
   "lim": {
     "english": "Limburgish language",
@@ -2012,7 +2300,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "limbourgeois",
       "es-ES": "limburgués",
       "de-DE": "Limburgisch"
-    }
+    },
+    "latitude": 51.015,
+    "longitude": 5.87705
   },
   "tlh": {
     "english": "Klingon",
@@ -2032,7 +2322,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "newari",
       "es-ES": "nevarí",
       "de-DE": "Newari"
-    }
+    },
+    "latitude": 27.67,
+    "longitude": 85.326
   },
   "bua": {
     "english": "Buryat",
@@ -2045,7 +2337,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
     }
   },
   "lld": {
-    "english": "Ladin"
+    "english": "Ladin",
+    "latitude": 46.60651,
+    "longitude": 11.89498
   },
   "sme": {
     "english": "Northern Sami",
@@ -2056,7 +2350,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "same du Nord",
       "es-ES": "sami septentrional",
       "de-DE": "Nordsamisch"
-    }
+    },
+    "latitude": 68.725,
+    "longitude": 22.1113
   },
   "ssw": {
     "english": "Swazi",
@@ -2066,7 +2362,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "swati",
       "es-ES": "suazi",
       "de-DE": "Swazi"
-    }
+    },
+    "latitude": -26,
+    "longitude": 31.5
   },
   "aar": {
     "english": "Afar",
@@ -2076,7 +2374,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "afar",
       "es-ES": "afar",
       "de-DE": "Afar"
-    }
+    },
+    "latitude": 12.2281,
+    "longitude": 41.8083
   },
   "lez": {
     "english": "Lezgian",
@@ -2086,7 +2386,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "lezghien",
       "es-ES": "lezgiano",
       "de-DE": "Lesgisch"
-    }
+    },
+    "latitude": 41.5157,
+    "longitude": 47.8951
   },
   "bho": {
     "english": "Bhojpuri",
@@ -2097,7 +2399,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "bhodjpouri",
       "es-ES": "bhoyapurí",
       "de-DE": "Bhodschpuri"
-    }
+    },
+    "latitude": 26.458455,
+    "longitude": 84.817115
   },
   "kaa": {
     "english": "Karakalpak",
@@ -2107,7 +2411,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "karakalpak",
       "es-ES": "karakalpako",
       "de-DE": "Karakalpakisch"
-    }
+    },
+    "latitude": 39.98005,
+    "longitude": 63.32233
   },
   "dsb": {
     "english": "Lower Sorbian",
@@ -2118,7 +2424,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "bas-sorabe",
       "es-ES": "bajo sorbio",
       "de-DE": "Niedersorbisch"
-    }
+    },
+    "latitude": 51.6621,
+    "longitude": 13.9407
   },
   "mni": {
     "english": "Meitei",
@@ -2129,7 +2437,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "manipuri",
       "es-ES": "manipurí",
       "de-DE": "Meithei"
-    }
+    },
+    "latitude": 24.4409,
+    "longitude": 93.3426
   },
   "rup": {
     "english": "Aromanian",
@@ -2139,7 +2449,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "aroumain",
       "es-ES": "arrumano",
       "de-DE": "Aromunisch"
-    }
+    },
+    "latitude": 40.616,
+    "longitude": 21.2
   },
   "iku": {
     "english": "Inuktitut",
@@ -2159,7 +2471,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "nauruan",
       "es-ES": "nauruano",
       "de-DE": "Nauruisch"
-    }
+    },
+    "latitude": -0.52957,
+    "longitude": 166.922
   },
   "pap": {
     "english": "Papiamento",
@@ -2169,7 +2483,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "papiamento",
       "es-ES": "papiamento",
       "de-DE": "Papiamento"
-    }
+    },
+    "latitude": 12.48485,
+    "longitude": -69.93988
   },
   "bar": {
     "english": "Bavarian",
@@ -2177,7 +2493,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Bavarian",
       "fr-FR": "bavarois",
       "de-DE": "Bairisch"
-    }
+    },
+    "latitude": 47.9232,
+    "longitude": 13.246
   },
   "run": {
     "english": "Kirundi",
@@ -2188,7 +2506,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "roundi",
       "es-ES": "kirundi",
       "de-DE": "Rundi"
-    }
+    },
+    "latitude": -2.94,
+    "longitude": 29.97
   },
   "krc": {
     "english": "Karachay-Balkar",
@@ -2198,7 +2518,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "karatchaï balkar",
       "es-ES": "karachay-balkar",
       "de-DE": "Karatschaiisch-Balkarisch"
-    }
+    },
+    "latitude": 43.565,
+    "longitude": 42.2606
   },
   "tet": {
     "english": "Tetum",
@@ -2208,7 +2530,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tétoum",
       "es-ES": "tetún",
       "de-DE": "Tetum"
-    }
+    },
+    "latitude": -9.11217,
+    "longitude": 125.528
   },
   "vep": {
     "english": "Veps",
@@ -2217,7 +2541,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Veps",
       "fr-FR": "vepse",
       "de-DE": "Wepsisch"
-    }
+    },
+    "latitude": 60.3353,
+    "longitude": 34.7865
   },
   "non": {
     "english": "Old Norse",
@@ -2227,7 +2553,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "vieux norrois",
       "es-ES": "nórdico antiguo",
       "de-DE": "Altnordisch"
-    }
+    },
+    "latitude": 63.42,
+    "longitude": 10.38
   },
   "nya": {
     "english": "Chewa",
@@ -2237,7 +2565,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "chewa",
       "es-ES": "nyanja",
       "de-DE": "Nyanja"
-    }
+    },
+    "latitude": -14.8047,
+    "longitude": 32.8108
   },
   "chr": {
     "english": "Cherokee",
@@ -2248,7 +2578,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "cherokee",
       "es-ES": "cheroqui",
       "de-DE": "Cherokee"
-    }
+    },
+    "latitude": 35.4664,
+    "longitude": -83.163
   },
   "wuu": {
     "english": "Wu Chinese",
@@ -2259,7 +2591,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "chinois wu",
       "es-ES": "chino wu",
       "de-DE": "Wu-Chinesisch"
-    }
+    },
+    "latitude": 29.8621,
+    "longitude": 119.682
   },
   "bam": {
     "english": "Bambara",
@@ -2270,7 +2604,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "bambara",
       "es-ES": "bambara",
       "de-DE": "Bambara"
-    }
+    },
+    "latitude": 12.9,
+    "longitude": -7.65
   },
   "ful": {
     "english": "Fula",
@@ -2291,7 +2627,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "ingouche",
       "es-ES": "ingush",
       "de-DE": "Inguschisch"
-    }
+    },
+    "latitude": 43.11,
+    "longitude": 45.03
   },
   "orm": {
     "english": "Oromo",
@@ -2312,7 +2650,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "balinais",
       "es-ES": "balinés",
       "de-DE": "Balinesisch"
-    }
+    },
+    "latitude": -8.35714,
+    "longitude": 115.075
   },
   "fij": {
     "english": "Fijian",
@@ -2322,7 +2662,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "fidjien",
       "es-ES": "fiyiano",
       "de-DE": "Fidschi"
-    }
+    },
+    "latitude": -18,
+    "longitude": 178.33
   },
   "chm": {
     "english": "Mari",
@@ -2342,7 +2684,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "mokcha",
       "es-ES": "moksha",
       "de-DE": "Mokschanisch"
-    }
+    },
+    "latitude": 54.1855,
+    "longitude": 42.6728
   },
   "sna": {
     "english": "Shona",
@@ -2353,7 +2697,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "shona",
       "es-ES": "shona",
       "de-DE": "Shona"
-    }
+    },
+    "latitude": -17.20849,
+    "longitude": 29.75725
   },
   "lij": {
     "english": "Ligurian",
@@ -2364,7 +2710,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "ligure",
       "es-ES": "ligur",
       "de-DE": "Ligurisch"
-    }
+    },
+    "latitude": 44.0816,
+    "longitude": 7.90522
   },
   "min": {
     "english": "Minangkabau",
@@ -2374,7 +2722,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "minangkabau",
       "es-ES": "minangkabau",
       "de-DE": "Minangkabau"
-    }
+    },
+    "latitude": -0.896,
+    "longitude": 100.44
   },
   "sat": {
     "english": "Santali",
@@ -2385,10 +2735,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "santali",
       "es-ES": "santali",
       "de-DE": "Santali"
-    }
+    },
+    "latitude": 25.0317,
+    "longitude": 87.8185
   },
   "abq": {
-    "english": "Abaza"
+    "english": "Abaza",
+    "latitude": 44.25,
+    "longitude": 42
   },
   "ewe": {
     "english": "Ewe",
@@ -2399,7 +2753,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "éwé",
       "es-ES": "ewé",
       "de-DE": "Ewe"
-    }
+    },
+    "latitude": 6.46061,
+    "longitude": 0.814975
   },
   "bis": {
     "english": "Bislama",
@@ -2409,7 +2765,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "bichelamar",
       "es-ES": "bislama",
       "de-DE": "Bislama"
-    }
+    },
+    "latitude": -15.4,
+    "longitude": 166.89
   },
   "kbd": {
     "english": "Kabardian",
@@ -2419,7 +2777,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "kabarde",
       "es-ES": "kabardiano",
       "de-DE": "Kabardinisch"
-    }
+    },
+    "latitude": 43.5082,
+    "longitude": 43.3918
   },
   "nrf": {
     "english": "Norman"
@@ -2433,7 +2793,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "frison occidental",
       "es-ES": "frisón occidental",
       "de-DE": "Westfriesisch"
-    }
+    },
+    "latitude": 53.143,
+    "longitude": 5.86091
   },
   "arz": {
     "english": "Egyptian Arabic",
@@ -2441,7 +2803,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Egyptian Arabic",
       "fr-FR": "arabe égyptien",
       "de-DE": "Ägyptisches Arabisch"
-    }
+    },
+    "latitude": 31,
+    "longitude": 31
   },
   "vro": {
     "english": "Võro",
@@ -2449,7 +2813,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Võro",
       "fr-FR": "võro",
       "de-DE": "Võro"
-    }
+    },
+    "latitude": 57.85,
+    "longitude": 27
   },
   "ilo": {
     "english": "Ilocano",
@@ -2459,7 +2825,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "ilocano",
       "es-ES": "ilocano",
       "de-DE": "Ilokano"
-    }
+    },
+    "latitude": 15.9361,
+    "longitude": 120.993
   },
   "lin": {
     "english": "Lingala",
@@ -2470,7 +2838,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "lingala",
       "es-ES": "lingala",
       "de-DE": "Lingala"
-    }
+    },
+    "latitude": -4.409174,
+    "longitude": 15.28532
   },
   "jbo": {
     "english": "Lojban",
@@ -2490,7 +2860,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "mirandais",
       "es-ES": "mirandés",
       "de-DE": "Mirandesisch"
-    }
+    },
+    "latitude": 41.5375,
+    "longitude": -6.38371
   },
   "frp": {
     "english": "Arpitan language",
@@ -2498,7 +2870,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Arpitan",
       "fr-FR": "francoprovençal",
       "de-DE": "Frankoprovenzalisch"
-    }
+    },
+    "latitude": 45.8051,
+    "longitude": 6.48152
   },
   "tso": {
     "english": "Tsonga",
@@ -2508,7 +2882,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tsonga",
       "es-ES": "tsonga",
       "de-DE": "Tsonga"
-    }
+    },
+    "latitude": -23.5754,
+    "longitude": 31.8105
   },
   "xal": {
     "english": "Kalmyk",
@@ -2518,10 +2894,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "kalmouk",
       "es-ES": "kalmyk",
       "de-DE": "Kalmückisch"
-    }
+    },
+    "latitude": 46.566667,
+    "longitude": 45.316667
   },
   "ett": {
-    "english": "Etruscan"
+    "english": "Etruscan",
+    "latitude": 41.9,
+    "longitude": 12.4833
   },
   "tah": {
     "english": "Tahitian",
@@ -2531,7 +2911,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tahitien",
       "es-ES": "tahitiano",
       "de-DE": "Tahitisch"
-    }
+    },
+    "latitude": -17.6485,
+    "longitude": -149.45
   },
   "ven": {
     "english": "Venda",
@@ -2541,7 +2923,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "venda",
       "es-ES": "venda",
       "de-DE": "Venda"
-    }
+    },
+    "latitude": -22.188,
+    "longitude": 29.9523
   },
   "tcy": {
     "english": "Tulu",
@@ -2549,7 +2933,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Tulu",
       "fr-FR": "toulou",
       "de-DE": "Tulu"
-    }
+    },
+    "latitude": 12.8114,
+    "longitude": 75.2651
   },
   "cha": {
     "english": "Chamorro",
@@ -2559,7 +2945,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "chamorro",
       "es-ES": "chamorro",
       "de-DE": "Chamorro"
-    }
+    },
+    "latitude": 13.438011,
+    "longitude": 144.74474
   },
   "hak": {
     "english": "Hakka Chinese",
@@ -2570,10 +2958,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "hakka",
       "es-ES": "chino hakka",
       "de-DE": "Hakka"
-    }
+    },
+    "latitude": 25,
+    "longitude": 116
   },
   "kjh": {
-    "english": "Khakas"
+    "english": "Khakas",
+    "latitude": 52.66002,
+    "longitude": 89.67409
   },
   "ace": {
     "english": "Acehnese",
@@ -2583,7 +2975,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "aceh",
       "es-ES": "achenés",
       "de-DE": "Aceh"
-    }
+    },
+    "latitude": 3.90757,
+    "longitude": 96.6032
   },
   "gsw": {
     "english": "Swiss German",
@@ -2594,7 +2988,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "suisse allemand",
       "es-ES": "alemán suizo",
       "de-DE": "Schweizerdeutsch"
-    }
+    },
+    "latitude": 47.0516,
+    "longitude": 8.46419
   },
   "war": {
     "english": "Waray",
@@ -2604,7 +3000,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "waray",
       "es-ES": "waray",
       "de-DE": "Waray"
-    }
+    },
+    "latitude": 11.4911,
+    "longitude": 125.012
   },
   "hit": {
     "english": "Hittite",
@@ -2614,10 +3012,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "hittite",
       "es-ES": "hitita",
       "de-DE": "Hethitisch"
-    }
+    },
+    "latitude": 40,
+    "longitude": 35
   },
   "mns": {
-    "english": "Mansi"
+    "english": "Mansi",
+    "latitude": 64.4118,
+    "longitude": 61.344
   },
   "pcd": {
     "english": "Picard",
@@ -2625,7 +3027,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Picard",
       "fr-FR": "picard",
       "de-DE": "Picardisch"
-    }
+    },
+    "latitude": 50.2831,
+    "longitude": 3.25085
   },
   "gez": {
     "english": "Ge'ez",
@@ -2635,7 +3039,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "guèze",
       "es-ES": "geez",
       "de-DE": "Geez"
-    }
+    },
+    "latitude": 10.1342,
+    "longitude": 40.6821
   },
   "brx": {
     "english": "Bodo",
@@ -2646,7 +3052,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "bodo",
       "es-ES": "bodo",
       "de-DE": "Bodo"
-    }
+    },
+    "latitude": 26.1,
+    "longitude": 92
   },
   "phn": {
     "english": "Phoenician",
@@ -2656,7 +3064,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "phénicien",
       "es-ES": "fenicio",
       "de-DE": "Phönizisch"
-    }
+    },
+    "latitude": 34.12,
+    "longitude": 35.65
   },
   "mah": {
     "english": "Marshallese",
@@ -2666,10 +3076,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "marshallais",
       "es-ES": "marshalés",
       "de-DE": "Marschallesisch"
-    }
+    },
+    "latitude": 8.72,
+    "longitude": 167.73
   },
   "kca": {
-    "english": "Khanty"
+    "english": "Khanty",
+    "latitude": 62.4308,
+    "longitude": 66.1218
   },
   "dgo": {
     "english": "Dogri",
@@ -2680,7 +3094,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "dogri",
       "es-ES": "dogri",
       "de-DE": "Dogri"
-    }
+    },
+    "latitude": 32.5534,
+    "longitude": 75.7111
   },
   "brh": {
     "english": "Brahui",
@@ -2688,7 +3104,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Brahui",
       "fr-FR": "brahoui",
       "de-DE": "Brahui"
-    }
+    },
+    "latitude": 29.04,
+    "longitude": 66.56
   },
   "nog": {
     "english": "Nogai",
@@ -2698,13 +3116,19 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "nogaï",
       "es-ES": "nogai",
       "de-DE": "Nogai"
-    }
+    },
+    "latitude": 44.89776,
+    "longitude": 43.1656
   },
   "ckt": {
-    "english": "Chukchi"
+    "english": "Chukchi",
+    "latitude": 68.6436,
+    "longitude": 170.045
   },
   "lbe": {
-    "english": "Lak"
+    "english": "Lak",
+    "latitude": 42.1328,
+    "longitude": 47.0809
   },
   "mzn": {
     "english": "Mazanderani",
@@ -2715,7 +3139,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "mazandérani",
       "es-ES": "mazandaraní",
       "de-DE": "Masanderanisch"
-    }
+    },
+    "latitude": 36.241,
+    "longitude": 52.3009
   },
   "gil": {
     "english": "Gilbertese",
@@ -2725,7 +3151,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "gilbertin",
       "es-ES": "gilbertés",
       "de-DE": "Kiribatisch"
-    }
+    },
+    "latitude": 0.179,
+    "longitude": 173.64
   },
   "bug": {
     "english": "Bugis",
@@ -2735,7 +3163,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "bugi",
       "es-ES": "buginés",
       "de-DE": "Buginesisch"
-    }
+    },
+    "latitude": -4.47,
+    "longitude": 119.977
   },
   "izh": {
     "english": "Ingrian",
@@ -2743,7 +3173,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Ingrian",
       "fr-FR": "ingrien",
       "de-DE": "Ischorisch"
-    }
+    },
+    "latitude": 59.47403,
+    "longitude": 29.71145
   },
   "kon": {
     "english": "Kongo",
@@ -2764,7 +3196,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "grec",
       "es-ES": "griego",
       "de-DE": "Griechisch"
-    }
+    },
+    "latitude": 38.36,
+    "longitude": 23.13
   },
   "chg": {
     "english": "Chagatai",
@@ -2774,7 +3208,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tchaghataï",
       "es-ES": "chagatái",
       "de-DE": "Tschagataisch"
-    }
+    },
+    "latitude": 38.21146,
+    "longitude": 57.88758
   },
   "pdc": {
     "english": "Pennsylvania German",
@@ -2782,7 +3218,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Pennsylvania German",
       "fr-FR": "pennsilfaanisch",
       "de-DE": "Pennsylvaniadeutsch"
-    }
+    },
+    "latitude": 40.030507,
+    "longitude": -76.3211
   },
   "aka": {
     "english": "Akan",
@@ -2793,7 +3231,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "akan",
       "es-ES": "akan",
       "de-DE": "Akan"
-    }
+    },
+    "latitude": 6.34756,
+    "longitude": -1.33254
   },
   "kum": {
     "english": "Kumyk",
@@ -2803,7 +3243,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "koumyk",
       "es-ES": "kumyk",
       "de-DE": "Kumükisch"
-    }
+    },
+    "latitude": 43,
+    "longitude": 47
   },
   "hmo": {
     "english": "Hiri Motu",
@@ -2813,7 +3255,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "hiri motu",
       "es-ES": "hiri motu",
       "de-DE": "Hiri-Motu"
-    }
+    },
+    "latitude": -9.33333,
+    "longitude": 147.083
   },
   "ale": {
     "english": "Aleut",
@@ -2823,7 +3267,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "aléoute",
       "es-ES": "aleutiano",
       "de-DE": "Aleutisch"
-    }
+    },
+    "latitude": -15.5656,
+    "longitude": 166.902
   },
   "awa": {
     "english": "Awadhi",
@@ -2833,10 +3279,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "awadhi",
       "es-ES": "avadhi",
       "de-DE": "Awadhi"
-    }
+    },
+    "latitude": 27.5907,
+    "longitude": 82.4663
   },
   "dlm": {
-    "english": "Dalmatian"
+    "english": "Dalmatian",
+    "latitude": 42.7095,
+    "longitude": 18.0238
   },
   "her": {
     "english": "Herero",
@@ -2846,7 +3296,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "héréro",
       "es-ES": "herero",
       "de-DE": "Herero"
-    }
+    },
+    "latitude": -21.0231,
+    "longitude": 20.5655
   },
   "enm": {
     "english": "Middle English",
@@ -2856,7 +3308,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "moyen anglais",
       "es-ES": "inglés medio",
       "de-DE": "Mittelenglisch"
-    }
+    },
+    "latitude": 51.65,
+    "longitude": -1.11
   },
   "prg": {
     "english": "Old Prussian",
@@ -2867,10 +3321,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "prussien",
       "es-ES": "prusiano",
       "de-DE": "Altpreußisch"
-    }
+    },
+    "latitude": 52.394,
+    "longitude": 14.757
   },
   "yrk": {
-    "english": "Nenets"
+    "english": "Nenets",
+    "latitude": 66.1775,
+    "longitude": 71.0234
   },
   "qya": {
     "english": "Quenya"
@@ -2883,7 +3341,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "vote",
       "es-ES": "vótico",
       "de-DE": "Wotisch"
-    }
+    },
+    "latitude": 59.3802,
+    "longitude": 28.6235
   },
   "pau": {
     "english": "Palauan",
@@ -2893,7 +3353,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "palau",
       "es-ES": "palauano",
       "de-DE": "Palau"
-    }
+    },
+    "latitude": 7.34138,
+    "longitude": 134.476678
   },
   "nan": {
     "english": "Southern Min",
@@ -2904,7 +3366,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "minnan",
       "es-ES": "minnan",
       "de-DE": "Min Nan"
-    }
+    },
+    "latitude": 24.5,
+    "longitude": 118.17
   },
   "nso": {
     "english": "Northern Sotho",
@@ -2915,7 +3379,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "sotho du Nord",
       "es-ES": "sotho septentrional",
       "de-DE": "Nord-Sotho"
-    }
+    },
+    "latitude": -24.7993,
+    "longitude": 29.4718
   },
   "sag": {
     "english": "Sango",
@@ -2926,7 +3392,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "sango",
       "es-ES": "sango",
       "de-DE": "Sango"
-    }
+    },
+    "latitude": 6.78584,
+    "longitude": 20.1702
   },
   "stq": {
     "english": "Saterland Frisian",
@@ -2934,7 +3402,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Saterland Frisian",
       "fr-FR": "saterlandais",
       "de-DE": "Saterfriesisch"
-    }
+    },
+    "latitude": 53.117,
+    "longitude": 7.721
   },
   "yue": {
     "english": "Cantonese",
@@ -2945,7 +3415,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "cantonais",
       "es-ES": "cantonés",
       "de-DE": "Kantonesisch"
-    }
+    },
+    "latitude": 23,
+    "longitude": 113
   },
   "xmf": {
     "english": "Mingrelian",
@@ -2953,7 +3425,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Mingrelian",
       "fr-FR": "mingrélien",
       "de-DE": "Mingrelisch"
-    }
+    },
+    "latitude": 42.5129,
+    "longitude": 41.8719
   },
   "bjn": {
     "english": "Banjar",
@@ -2961,7 +3435,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Banjar",
       "fr-FR": "banjar",
       "de-DE": "Banjaresisch"
-    }
+    },
+    "latitude": 0.747105,
+    "longitude": 115.79
   },
   "ase": {
     "english": "American Sign Language",
@@ -2969,7 +3445,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "American Sign Language",
       "fr-FR": "langue des signes américaine",
       "de-DE": "Amerikanische Gebärdensprache"
-    }
+    },
+    "latitude": 33.8117,
+    "longitude": -81.6121
   },
   "kau": {
     "english": "Kanuri",
@@ -2984,6 +3462,19 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
   "nrn": {
     "english": "Norn"
   },
+  "cmn": {
+    "english": "Mandarin",
+    "native": "普通话",
+    "byLocale": {
+      "fr-FR": "mandarin",
+      "es-ES": "mandarín",
+      "de-DE": "Mandarin",
+      "zh-CN": "普通话",
+      "en-US": "Mandarin"
+    },
+    "latitude": 40.0209,
+    "longitude": 116.228
+  },
   "frr": {
     "english": "North Frisian",
     "byLocale": {
@@ -2992,7 +3483,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "frison septentrional",
       "es-ES": "frisón septentrional",
       "de-DE": "Nordfriesisch"
-    }
+    },
+    "latitude": 54.6409,
+    "longitude": 8.58489
   },
   "lug": {
     "english": "Luganda",
@@ -3003,7 +3496,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "ganda",
       "es-ES": "ganda",
       "de-DE": "Ganda"
-    }
+    },
+    "latitude": 0.66884,
+    "longitude": 32.15153
   },
   "cre": {
     "english": "Cree",
@@ -3023,7 +3518,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "gan",
       "es-ES": "chino gan",
       "de-DE": "Gan"
-    }
+    },
+    "latitude": 27.9896,
+    "longitude": 115.166
   },
   "kik": {
     "english": "Gikuyu",
@@ -3034,7 +3531,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "kikuyu",
       "es-ES": "kikuyu",
       "de-DE": "Kikuyu"
-    }
+    },
+    "latitude": -0.29005,
+    "longitude": 36.719
   },
   "mag": {
     "english": "Magahi",
@@ -3044,10 +3543,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "magahi",
       "es-ES": "magahi",
       "de-DE": "Khotta"
-    }
-  },
-  "pox": {
-    "english": "Polabian"
+    },
+    "latitude": 25.0915,
+    "longitude": 85.3335
   },
   "zha": {
     "english": "Zhuang",
@@ -3061,10 +3559,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
     }
   },
   "bsk": {
-    "english": "Burushaski"
+    "english": "Burushaski",
+    "latitude": 36.2161,
+    "longitude": 74.8236
   },
   "sva": {
-    "english": "Svan"
+    "english": "Svan",
+    "latitude": 42.9134,
+    "longitude": 42.5915
   },
   "fro": {
     "english": "Old French",
@@ -3074,7 +3576,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "ancien français",
       "es-ES": "francés antiguo",
       "de-DE": "Altfranzösisch"
-    }
+    },
+    "latitude": 48.8,
+    "longitude": 1.11
   },
   "nbl": {
     "english": "Southern Ndebele",
@@ -3084,7 +3588,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "ndébélé du Sud",
       "es-ES": "ndebele meridional",
       "de-DE": "Süd-Ndebele"
-    }
+    },
+    "latitude": -25.6272,
+    "longitude": 29.048
   },
   "lzz": {
     "english": "Laz",
@@ -3092,7 +3598,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Laz",
       "fr-FR": "laze",
       "de-DE": "Lasisch"
-    }
+    },
+    "latitude": 41.5004,
+    "longitude": 41.9096
   },
   "tvl": {
     "english": "Tuvaluan",
@@ -3102,7 +3610,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tuvalu",
       "es-ES": "tuvaluano",
       "de-DE": "Tuvaluisch"
-    }
+    },
+    "latitude": -8.520813,
+    "longitude": 179.198088
   },
   "elx": {
     "english": "Elamite",
@@ -3112,7 +3622,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "élamite",
       "es-ES": "elamita",
       "de-DE": "Elamisch"
-    }
+    },
+    "latitude": 31.1833,
+    "longitude": 48.2333
   },
   "koi": {
     "english": "Komi-Permyak",
@@ -3122,7 +3634,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "komi-permiak",
       "es-ES": "komi permio",
       "de-DE": "Komi-Permjakisch"
-    }
+    },
+    "latitude": 59.6602,
+    "longitude": 54.7959
   },
   "sgs": {
     "english": "Samogitian",
@@ -3140,7 +3654,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "same du Sud",
       "es-ES": "sami meridional",
       "de-DE": "Südsamisch"
-    }
+    },
+    "latitude": 62.8801,
+    "longitude": 13.7006
   },
   "ext": {
     "english": "Extremaduran",
@@ -3148,10 +3664,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Extremaduran",
       "fr-FR": "estrémègne",
       "de-DE": "Extremadurisch"
-    }
+    },
+    "latitude": 39.1926,
+    "longitude": -6.10179
   },
   "evn": {
-    "english": "Evenki"
+    "english": "Evenki",
+    "latitude": 61.972,
+    "longitude": 94.689
   },
   "kab": {
     "english": "Kabyle",
@@ -3162,7 +3682,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "kabyle",
       "es-ES": "cabileño",
       "de-DE": "Kabylisch"
-    }
+    },
+    "latitude": 36.4103,
+    "longitude": 4.76137
   },
   "rap": {
     "english": "Rapa Nui",
@@ -3172,10 +3694,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "rapanui",
       "es-ES": "rapanui",
       "de-DE": "Rapanui"
-    }
+    },
+    "latitude": -27.113,
+    "longitude": -109.342
   },
   "rut": {
-    "english": "Rutulian"
+    "english": "Rutulian",
+    "latitude": 41.6187,
+    "longitude": 47.3244
   },
   "lzh": {
     "english": "Classical Chinese",
@@ -3183,7 +3709,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Literary Chinese",
       "fr-FR": "chinois littéraire",
       "de-DE": "Klassisches Chinesisch"
-    }
+    },
+    "latitude": 34.09,
+    "longitude": 109.05
   },
   "raj": {
     "english": "Rajasthani",
@@ -3204,7 +3732,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "sranan tongo",
       "es-ES": "sranan tongo",
       "de-DE": "Srananisch"
-    }
+    },
+    "latitude": 5.83,
+    "longitude": -55.33
   },
   "niu": {
     "english": "Niuean",
@@ -3214,7 +3744,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "niuéen",
       "es-ES": "niueano",
       "de-DE": "Niue"
-    }
+    },
+    "latitude": -19.06,
+    "longitude": -169.86
   },
   "smn": {
     "english": "Inari Sami",
@@ -3225,7 +3757,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "same d’Inari",
       "es-ES": "sami inari",
       "de-DE": "Inari-Samisch"
-    }
+    },
+    "latitude": 69.4229,
+    "longitude": 27.8658
   },
   "glk": {
     "english": "Gilaki",
@@ -3233,7 +3767,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Gilaki",
       "fr-FR": "gilaki",
       "de-DE": "Gilaki"
-    }
+    },
+    "latitude": 37.1344,
+    "longitude": 49.8359
   },
   "peo": {
     "english": "Old Persian",
@@ -3243,10 +3779,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "persan ancien",
       "es-ES": "persa antiguo",
       "de-DE": "Altpersisch"
-    }
+    },
+    "latitude": 32,
+    "longitude": 54
   },
   "ryu": {
-    "english": "Okinawan"
+    "english": "Okinawan",
+    "latitude": 26.14854,
+    "longitude": 127.7816
   },
   "tly": {
     "english": "Talysh",
@@ -3254,7 +3794,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Talysh",
       "fr-FR": "talysh",
       "de-DE": "Talisch"
-    }
+    },
+    "latitude": 38.4552,
+    "longitude": 48.6349
   },
   "chu": {
     "english": "Church Slavonic",
@@ -3264,10 +3806,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "slavon d’église",
       "es-ES": "eslavo eclesiástico",
       "de-DE": "Kirchenslawisch"
-    }
+    },
+    "latitude": 43.7171,
+    "longitude": 22.8442
   },
   "orv": {
-    "english": "Old East Slavic"
+    "english": "Old East Slavic",
+    "latitude": 54.813,
+    "longitude": 31.827
   },
   "fon": {
     "english": "Fon",
@@ -3277,7 +3823,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "fon",
       "es-ES": "fon",
       "de-DE": "Fon"
-    }
+    },
+    "latitude": 7.15484,
+    "longitude": 1.66495
   },
   "pam": {
     "english": "Kapampangan",
@@ -3287,7 +3835,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "pampangan",
       "es-ES": "pampanga",
       "de-DE": "Pampanggan"
-    }
+    },
+    "latitude": 14.9603,
+    "longitude": 120.502
   },
   "mad": {
     "english": "Madurese",
@@ -3297,7 +3847,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "madurais",
       "es-ES": "madurés",
       "de-DE": "Maduresisch"
-    }
+    },
+    "latitude": -7,
+    "longitude": 113
   },
   "fit": {
     "english": "Meänkieli",
@@ -3305,7 +3857,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Tornedalen Finnish",
       "fr-FR": "finnois tornédalien",
       "de-DE": "Meänkieli"
-    }
+    },
+    "latitude": 67.2527,
+    "longitude": 23.066
   },
   "pal": {
     "english": "Middle Persian",
@@ -3315,10 +3869,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "pahlavi",
       "es-ES": "pahlavi",
       "de-DE": "Mittelpersisch"
-    }
+    },
+    "latitude": 30.06,
+    "longitude": 52.7
   },
   "hne": {
-    "english": "Chhattisgarhi"
+    "english": "Chhattisgarhi",
+    "latitude": 20.3601,
+    "longitude": 82.0483
   },
   "ckb": {
     "english": "Central Kurdish",
@@ -3329,7 +3887,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "sorani",
       "es-ES": "kurdo sorani",
       "de-DE": "Zentralkurdisch"
-    }
+    },
+    "latitude": 35.6539,
+    "longitude": 45.8077
   },
   "bpy": {
     "english": "Bishnupriya Manipuri",
@@ -3337,7 +3897,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Bishnupriya",
       "fr-FR": "bishnupriya",
       "de-DE": "Bishnupriya"
-    }
+    },
+    "latitude": 24.4578,
+    "longitude": 92.0157
   },
   "sog": {
     "english": "Sogdian",
@@ -3347,7 +3909,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "sogdien",
       "es-ES": "sogdiano",
       "de-DE": "Sogdisch"
-    }
+    },
+    "latitude": 39.7,
+    "longitude": 66.983
   },
   "ipk": {
     "english": "Iñupiaq",
@@ -3377,13 +3941,19 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "ougaritique",
       "es-ES": "ugarítico",
       "de-DE": "Ugaritisch"
-    }
+    },
+    "latitude": 35.6,
+    "longitude": 35.78
   },
   "fkv": {
-    "english": "Kven"
+    "english": "Kven",
+    "latitude": 70.31894,
+    "longitude": 25.56202
   },
   "tab": {
-    "english": "Tabasaran"
+    "english": "Tabasaran",
+    "latitude": 42.0198,
+    "longitude": 47.8379
   },
   "jam": {
     "english": "Jamaican Patois",
@@ -3391,7 +3961,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Jamaican Creole English",
       "fr-FR": "créole jamaïcain",
       "de-DE": "Jamaikanisch-Kreolisch"
-    }
+    },
+    "latitude": 18.13,
+    "longitude": -77.2612
   },
   "bgc": {
     "english": "Haryanvi",
@@ -3402,19 +3974,27 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "haryanvi",
       "es-ES": "haryanvi",
       "de-DE": "Haryanvi"
-    }
+    },
+    "latitude": 29.0166,
+    "longitude": 76.0432
   },
   "nio": {
-    "english": "Nganasan"
+    "english": "Nganasan",
+    "latitude": 73.1354,
+    "longitude": 86.2106
   },
   "mnw": {
-    "english": "Mon"
+    "english": "Mon",
+    "latitude": 15.49394,
+    "longitude": 98.122465
   },
   "skr": {
     "english": "Saraiki",
     "byLocale": {
       "zh-CN": "色莱基语"
-    }
+    },
+    "latitude": 29.5534,
+    "longitude": 71.906
   },
   "tkl": {
     "english": "Tokelauan",
@@ -3424,10 +4004,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tokelau",
       "es-ES": "tokelauano",
       "de-DE": "Tokelauanisch"
-    }
+    },
+    "latitude": -9.227642,
+    "longitude": -171.780833
   },
   "dng": {
-    "english": "Dungan"
+    "english": "Dungan",
+    "latitude": 42.7292,
+    "longitude": 76.8382
   },
   "kmr": {
     "english": "Northern Kurdish",
@@ -3438,10 +4022,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "kurde",
       "es-ES": "kurdo",
       "de-DE": "Kurdisch"
-    }
+    },
+    "latitude": 37,
+    "longitude": 43
   },
   "osc": {
-    "english": "Oscan"
+    "english": "Oscan",
+    "latitude": 40.98,
+    "longitude": 15.67
   },
   "smj": {
     "english": "Lule Sami",
@@ -3451,10 +4039,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "same de Lule",
       "es-ES": "sami lule",
       "de-DE": "Lule-Samisch"
-    }
+    },
+    "latitude": 67.2759,
+    "longitude": 17.8057
   },
   "cbk": {
-    "english": "Chavacano"
+    "english": "Chavacano",
+    "latitude": 7.435034,
+    "longitude": 122.18849
   },
   "sel": {
     "english": "Selkup",
@@ -3464,7 +4056,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "selkoupe",
       "es-ES": "selkup",
       "de-DE": "Selkupisch"
-    }
+    },
+    "latitude": 59.9409,
+    "longitude": 82.3004
   },
   "tmh": {
     "english": "Tuareg",
@@ -3485,10 +4079,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
     }
   },
   "ket": {
-    "english": "Ket"
+    "english": "Ket",
+    "latitude": 63.7551,
+    "longitude": 87.5466
   },
   "sjd": {
-    "english": "Kildin Sami"
+    "english": "Kildin Sami",
+    "latitude": 68.2158,
+    "longitude": 35.8348
   },
   "lab": {
     "english": "Linear A"
@@ -3501,7 +4099,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "hiligaynon",
       "es-ES": "hiligaynon",
       "de-DE": "Hiligaynon"
-    }
+    },
+    "latitude": 10.4018,
+    "longitude": 122.974
   },
   "shi": {
     "english": "Tashelhit",
@@ -3512,10 +4112,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "chleuh",
       "es-ES": "tashelhit",
       "de-DE": "Taschelhit"
-    }
-  },
-  "prv": {
-    "english": "Provençal"
+    },
+    "latitude": 29.7854,
+    "longitude": -7.77879
   },
   "gon": {
     "english": "Gondi",
@@ -3536,7 +4135,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "nama",
       "es-ES": "nama",
       "de-DE": "Nama"
-    }
+    },
+    "latitude": -25.0747,
+    "longitude": 17.9767
   },
   "pag": {
     "english": "Pangasinan",
@@ -3546,7 +4147,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "pangasinan",
       "es-ES": "pangasinán",
       "de-DE": "Pangasinan"
-    }
+    },
+    "latitude": 15.9377,
+    "longitude": 120.365
   },
   "cho": {
     "english": "Choctaw",
@@ -3556,10 +4159,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "choctaw",
       "es-ES": "choctaw",
       "de-DE": "Choctaw"
-    }
+    },
+    "latitude": 32.25,
+    "longitude": -88.5
   },
   "kpy": {
-    "english": "Koryak"
+    "english": "Koryak",
+    "latitude": 63.8977,
+    "longitude": 166.695
   },
   "ttt": {
     "english": "Tat",
@@ -3567,16 +4174,24 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Muslim Tat",
       "fr-FR": "tati caucasien",
       "de-DE": "Tatisch"
-    }
+    },
+    "latitude": 41.425062,
+    "longitude": 46.645589
   },
   "hbo": {
-    "english": "Biblical Hebrew"
+    "english": "Biblical Hebrew",
+    "latitude": 31.7761,
+    "longitude": 35.1725
   },
   "yua": {
-    "english": "Yucatec Maya"
+    "english": "Yucatec Maya",
+    "latitude": 18.7757,
+    "longitude": -88.9567
   },
   "xpr": {
-    "english": "Parthian"
+    "english": "Parthian",
+    "latitude": 37.052,
+    "longitude": 56.056
   },
   "anp": {
     "english": "Angika",
@@ -3586,10 +4201,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "angika",
       "es-ES": "angika",
       "de-DE": "Angika"
-    }
+    },
+    "latitude": 26.0047,
+    "longitude": 85.534
   },
   "eve": {
-    "english": "Even"
+    "english": "Even",
+    "latitude": 70.6687,
+    "longitude": 130.914
   },
   "dyu": {
     "english": "Dioula",
@@ -3599,10 +4218,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "dioula",
       "es-ES": "diula",
       "de-DE": "Dyula"
-    }
+    },
+    "latitude": 9.291,
+    "longitude": -4.5823
   },
   "dlg": {
-    "english": "Dolgan"
+    "english": "Dolgan",
+    "latitude": 71.10828,
+    "longitude": 94.29358
   },
   "goh": {
     "english": "Old High German",
@@ -3612,7 +4235,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "ancien haut allemand",
       "es-ES": "alto alemán antiguo",
       "de-DE": "Althochdeutsch"
-    }
+    },
+    "latitude": 52,
+    "longitude": 10
   },
   "mos": {
     "english": "Mooré",
@@ -3622,10 +4247,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "moré",
       "es-ES": "mossi",
       "de-DE": "Mossi"
-    }
+    },
+    "latitude": 11.95,
+    "longitude": -1.32
   },
   "niv": {
-    "english": "Nivkh"
+    "english": "Nivkh",
+    "latitude": 52.59,
+    "longitude": 140.681
   },
   "pnt": {
     "english": "Pontic Greek",
@@ -3633,13 +4262,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Pontic",
       "fr-FR": "pontique",
       "de-DE": "Pontisch"
-    }
+    },
+    "latitude": 41.266015,
+    "longitude": 36.097421
   },
   "uby": {
-    "english": "Ubykh"
-  },
-  "fsl": {
-    "english": "French Sign Language"
+    "english": "Ubykh",
+    "latitude": 43.67,
+    "longitude": 39.67
   },
   "oji": {
     "english": "Ojibwe",
@@ -3660,7 +4290,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "bemba",
       "es-ES": "bemba",
       "de-DE": "Bemba"
-    }
+    },
+    "latitude": -10.6122,
+    "longitude": 29.2993
   },
   "mnk": {
     "english": "Mandinka",
@@ -3670,10 +4302,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "mandingue",
       "es-ES": "mandingo",
       "de-DE": "Malinke"
-    }
+    },
+    "latitude": 12.8165233333,
+    "longitude": -15.6539466667
   },
   "kdr": {
-    "english": "Karaim"
+    "english": "Karaim",
+    "latitude": 54.5534,
+    "longitude": 25.1054
   },
   "ary": {
     "english": "Moroccan Arabic",
@@ -3681,7 +4317,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Moroccan Arabic",
       "fr-FR": "arabe marocain",
       "de-DE": "Marokkanisches Arabisch"
-    }
+    },
+    "latitude": 32.5,
+    "longitude": -7.5
   },
   "sms": {
     "english": "Skolt Sami",
@@ -3691,7 +4329,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "same skolt",
       "es-ES": "sami skolt",
       "de-DE": "Skolt-Samisch"
-    }
+    },
+    "latitude": 68.8326,
+    "longitude": 29.7204
   },
   "chy": {
     "english": "Cheyenne",
@@ -3701,25 +4341,34 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "cheyenne",
       "es-ES": "cheyene",
       "de-DE": "Cheyenne"
-    }
+    },
+    "latitude": 45.5321,
+    "longitude": -106.659
   },
   "cdo": {
-    "english": "Eastern Min"
+    "english": "Eastern Min",
+    "latitude": 26,
+    "longitude": 119.5
   },
   "agx": {
-    "english": "Aghul"
+    "english": "Aghul",
+    "latitude": 41.9242,
+    "longitude": 47.5843
   },
   "wym": {
-    "english": "Wymysorys"
+    "english": "Wymysorys",
+    "latitude": 49.91617,
+    "longitude": 19.15195
   },
   "qxq": {
-    "english": "Qashqai"
-  },
-  "xil": {
-    "english": "Illyrian"
+    "english": "Qashqai",
+    "latitude": 28.25931,
+    "longitude": 52.83349
   },
   "gld": {
-    "english": "Nanai"
+    "english": "Nanai",
+    "latitude": 48.43426,
+    "longitude": 134.79726
   },
   "crs": {
     "english": "Seychellois Creole",
@@ -3729,7 +4378,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "créole seychellois",
       "es-ES": "criollo seychelense",
       "de-DE": "Seychellenkreol"
-    }
+    },
+    "latitude": -4.62314,
+    "longitude": 55.4503
   },
   "tig": {
     "english": "Tigre",
@@ -3739,10 +4390,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tigré",
       "es-ES": "tigré",
       "de-DE": "Tigre"
-    }
+    },
+    "latitude": 17.3494,
+    "longitude": 38.2233
   },
   "wbl": {
-    "english": "Wakhi"
+    "english": "Wakhi",
+    "latitude": 37.1768,
+    "longitude": 73.9777
   },
   "lus": {
     "english": "Mizo",
@@ -3752,16 +4407,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "lushaï",
       "es-ES": "mizo",
       "de-DE": "Lushai"
-    }
-  },
-  "xcb": {
-    "english": "Cumbric"
-  },
-  "vsn": {
-    "english": "Vedic Sanskrit"
+    },
+    "latitude": 22.6138,
+    "longitude": 92.6247
   },
   "hyw": {
-    "english": "Western Armenian"
+    "english": "Western Armenian",
+    "latitude": 40.1897,
+    "longitude": 44.4839
   },
   "avk": {
     "english": "Kotava",
@@ -3772,10 +4425,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
     }
   },
   "slr": {
-    "english": "Salar"
+    "english": "Salar",
+    "latitude": 35.5457,
+    "longitude": 102.819
   },
   "otk": {
-    "english": "Old Turkic"
+    "english": "Old Turkic",
+    "latitude": 42.852778,
+    "longitude": 89.529167
   },
   "nde": {
     "english": "Northern Ndebele",
@@ -3786,7 +4443,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "ndébélé du Nord",
       "es-ES": "ndebele septentrional",
       "de-DE": "Nord-Ndebele"
-    }
+    },
+    "latitude": -20.2513,
+    "longitude": 27.4096
   },
   "kha": {
     "english": "Khasi",
@@ -3796,7 +4455,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "khasi",
       "es-ES": "khasi",
       "de-DE": "Khasi"
-    }
+    },
+    "latitude": 24.977,
+    "longitude": 91.9998
   },
   "twi": {
     "english": "Twi",
@@ -3810,10 +4471,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
     }
   },
   "grt": {
-    "english": "Garo"
-  },
-  "txh": {
-    "english": "Thracian"
+    "english": "Garo",
+    "latitude": 25.2954,
+    "longitude": 90.462
   },
   "khw": {
     "english": "Khowar",
@@ -3821,22 +4481,34 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Khowar",
       "fr-FR": "khowar",
       "de-DE": "Khowar"
-    }
+    },
+    "latitude": 36,
+    "longitude": 72
   },
   "xbc": {
-    "english": "Bactrian"
+    "english": "Bactrian",
+    "latitude": 36.81,
+    "longitude": 66.85
   },
   "xpi": {
-    "english": "Pictish"
+    "english": "Pictish",
+    "latitude": 56.374,
+    "longitude": -3.9
   },
   "mxi": {
-    "english": "Andalusi Romance"
+    "english": "Andalusi Romance",
+    "latitude": 37.8763,
+    "longitude": -1.79724
   },
   "xpu": {
-    "english": "Punic"
+    "english": "Punic",
+    "latitude": 36.527295,
+    "longitude": 10.356444
   },
   "sgh": {
-    "english": "Shughni"
+    "english": "Shughni",
+    "latitude": 37.5018,
+    "longitude": 71.7925
   },
   "bra": {
     "english": "Braj Bhasha",
@@ -3846,7 +4518,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "braj",
       "es-ES": "braj",
       "de-DE": "Braj-Bhakha"
-    }
+    },
+    "latitude": 26.4758,
+    "longitude": 78.0813
   },
   "snk": {
     "english": "Soninke",
@@ -3856,22 +4530,27 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "soninké",
       "es-ES": "soninké",
       "de-DE": "Soninke"
-    }
+    },
+    "latitude": 14.7596,
+    "longitude": -12.1408
   },
   "xpg": {
-    "english": "Phrygian"
+    "english": "Phrygian",
+    "latitude": 39.613,
+    "longitude": 31.28
   },
   "sjn": {
     "english": "Sindarin"
   },
   "ruo": {
-    "english": "Istro-Romanian"
-  },
-  "nzs": {
-    "english": "New Zealand Sign Language"
+    "english": "Istro-Romanian",
+    "latitude": 45.433,
+    "longitude": 14.2
   },
   "cjs": {
-    "english": "Shor"
+    "english": "Shor",
+    "latitude": 53.70953,
+    "longitude": 87.84468
   },
   "lua": {
     "english": "Luba-Kasai",
@@ -3881,7 +4560,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "luba-kasaï (ciluba)",
       "es-ES": "luba-lulua",
       "de-DE": "Luba-Lulua"
-    }
+    },
+    "latitude": -5.72717,
+    "longitude": 22.4422
   },
   "vls": {
     "english": "West Flemish",
@@ -3889,7 +4570,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "West Flemish",
       "fr-FR": "flamand occidental",
       "de-DE": "Westflämisch"
-    }
+    },
+    "latitude": 51.0754,
+    "longitude": 3.11345
   },
   "zea": {
     "english": "Zeelandic",
@@ -3897,7 +4580,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Zeelandic",
       "fr-FR": "zélandais",
       "de-DE": "Seeländisch"
-    }
+    },
+    "latitude": 51.4981,
+    "longitude": 3.85428
   },
   "pfl": {
     "english": "Palatinate German",
@@ -3905,31 +4590,47 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Palatine German",
       "fr-FR": "allemand palatin",
       "de-DE": "Pfälzisch"
-    }
+    },
+    "latitude": 49.701,
+    "longitude": 6.846
   },
   "aii": {
-    "english": "Assyrian Neo-Aramaic"
+    "english": "Assyrian Neo-Aramaic",
+    "latitude": 36.75,
+    "longitude": 43
   },
   "bfi": {
-    "english": "British Sign Language"
+    "english": "British Sign Language",
+    "latitude": 51.6688,
+    "longitude": -0.4431
   },
   "osx": {
-    "english": "Old Saxon"
+    "english": "Old Saxon",
+    "latitude": 52.37,
+    "longitude": 9.72
   },
   "xhu": {
-    "english": "Hurrian"
+    "english": "Hurrian",
+    "latitude": 40.7339,
+    "longitude": 43.3154
   },
   "sjt": {
-    "english": "Ter Sami"
+    "english": "Ter Sami",
+    "latitude": 67.2458,
+    "longitude": 38.5061
   },
   "xvn": {
     "english": "Vandalic"
   },
   "yai": {
-    "english": "Yaghnobi"
+    "english": "Yaghnobi",
+    "latitude": 39.1486,
+    "longitude": 69.2422
   },
   "sje": {
-    "english": "Pite Sami"
+    "english": "Pite Sami",
+    "latitude": 66.4011,
+    "longitude": 17.4261
   },
   "shn": {
     "english": "Shan",
@@ -3939,7 +4640,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "shan",
       "es-ES": "shan",
       "de-DE": "Schan"
-    }
+    },
+    "latitude": 21.5995,
+    "longitude": 98.0342
   },
   "tli": {
     "english": "Tlingit",
@@ -3949,7 +4652,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tlingit",
       "es-ES": "tlingit",
       "de-DE": "Tlingit"
-    }
+    },
+    "latitude": 59.4447,
+    "longitude": -135.29
   },
   "sga": {
     "english": "Old Irish",
@@ -3959,13 +4664,19 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "ancien irlandais",
       "es-ES": "irlandés antiguo",
       "de-DE": "Altirisch"
-    }
+    },
+    "latitude": 53,
+    "longitude": -8
   },
   "lbj": {
-    "english": "Ladakhi"
+    "english": "Ladakhi",
+    "latitude": 34.14649,
+    "longitude": 77.56261
   },
   "bhb": {
-    "english": "Bhili"
+    "english": "Bhili",
+    "latitude": 20.85,
+    "longitude": 73.9592
   },
   "rar": {
     "english": "Cook Islands Maori",
@@ -3975,7 +4686,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "rarotongien",
       "es-ES": "rarotongano",
       "de-DE": "Rarotonganisch"
-    }
+    },
+    "latitude": -21.23,
+    "longitude": -159.78
   },
   "tkr": {
     "english": "Tsakhur",
@@ -3983,22 +4696,34 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Tsakhur",
       "fr-FR": "tsakhour",
       "de-DE": "Tsachurisch"
-    }
+    },
+    "latitude": 41.5916,
+    "longitude": 46.8858
   },
   "srh": {
-    "english": "Sarikoli"
+    "english": "Sarikoli",
+    "latitude": 37.905,
+    "longitude": 75.1449
   },
   "uum": {
-    "english": "Urum"
+    "english": "Urum",
+    "latitude": 42.0379,
+    "longitude": 43.994
   },
   "sia": {
-    "english": "Akkala Sami"
+    "english": "Akkala Sami",
+    "latitude": 67.8625,
+    "longitude": 32.4046
   },
   "ist": {
-    "english": "Istriot"
+    "english": "Istriot",
+    "latitude": 45.088,
+    "longitude": 13.64
   },
   "xld": {
-    "english": "Lydian"
+    "english": "Lydian",
+    "latitude": 40.287,
+    "longitude": 28.599
   },
   "lkt": {
     "english": "Lakota",
@@ -4009,10 +4734,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "lakota",
       "es-ES": "lakota",
       "de-DE": "Lakota"
-    }
+    },
+    "latitude": 46.3699,
+    "longitude": -103.95
   },
   "kim": {
-    "english": "Tofa"
+    "english": "Tofa",
+    "latitude": 53.7145,
+    "longitude": 98.3792
   },
   "jrb": {
     "english": "Judeo-Arabic",
@@ -4033,7 +4762,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "amazighe de l’Atlas central",
       "es-ES": "tamazight del Atlas Central",
       "de-DE": "Zentralatlas-Tamazight"
-    }
+    },
+    "latitude": 32.7415,
+    "longitude": -2.40872
   },
   "arq": {
     "english": "Algerian Arabic",
@@ -4041,16 +4772,24 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Algerian Arabic",
       "fr-FR": "arabe algérien",
       "de-DE": "Algerisches Arabisch"
-    }
+    },
+    "latitude": 35.4208,
+    "longitude": 3.23033
   },
   "myp": {
-    "english": "Pirahã"
+    "english": "Pirahã",
+    "latitude": -6.77713,
+    "longitude": -61.8167
   },
   "mey": {
-    "english": "Hassaniya Arabic"
+    "english": "Hassaniya Arabic",
+    "latitude": 18.29,
+    "longitude": -14.11
   },
   "tsg": {
-    "english": "Tausug"
+    "english": "Tausug",
+    "latitude": 5.12236,
+    "longitude": 118.88
   },
   "rif": {
     "english": "Tarifit",
@@ -4059,7 +4798,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Riffian",
       "fr-FR": "rifain",
       "de-DE": "Tarifit"
-    }
+    },
+    "latitude": 34.916974,
+    "longitude": -3.430616
   },
   "mrj": {
     "english": "Hill Mari",
@@ -4067,43 +4808,59 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Western Mari",
       "fr-FR": "mari occidental",
       "de-DE": "Bergmari"
-    }
+    },
+    "latitude": 56.22,
+    "longitude": 46.569
   },
   "bft": {
-    "english": "Balti"
+    "english": "Balti",
+    "latitude": 34.4491,
+    "longitude": 77.2859
   },
   "clw": {
-    "english": "Chulym"
+    "english": "Chulym",
+    "latitude": 56.87439,
+    "longitude": 86.5892
   },
   "jct": {
-    "english": "Krymchak"
+    "english": "Krymchak",
+    "latitude": 45.05543,
+    "longitude": 34.55619
   },
   "udi": {
-    "english": "Udi"
+    "english": "Udi",
+    "latitude": 40.9,
+    "longitude": 47.7236
   },
   "sju": {
-    "english": "Ume Sami"
+    "english": "Ume Sami",
+    "latitude": 64.6383,
+    "longitude": 18.646
   },
   "ruq": {
-    "english": "Megleno-Romanian"
-  },
-  "xga": {
-    "english": "Galatian"
+    "english": "Megleno-Romanian",
+    "latitude": 41.1174,
+    "longitude": 22.3782
   },
   "aib": {
-    "english": "Äynu"
-  },
-  "ncs": {
-    "english": "Nicaraguan Sign Language"
+    "english": "Äynu",
+    "latitude": 39.2714,
+    "longitude": 76.4209
   },
   "afb": {
-    "english": "Gulf Arabic"
+    "english": "Gulf Arabic",
+    "latitude": 30.17,
+    "longitude": 47.5
   },
   "swg": {
-    "english": "Swabian"
+    "english": "Swabian",
+    "latitude": 48.386796,
+    "longitude": 9.987111
   },
   "eya": {
-    "english": "Eyak"
+    "english": "Eyak",
+    "latitude": 60.4232,
+    "longitude": -144.762
   },
   "dar": {
     "english": "Dargwa",
@@ -4113,22 +4870,34 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "dargwa",
       "es-ES": "dargva",
       "de-DE": "Darginisch"
-    }
+    },
+    "latitude": 42.4257,
+    "longitude": 47.4388
   },
   "trp": {
-    "english": "Kokborok"
+    "english": "Kokborok",
+    "latitude": 23.1916,
+    "longitude": 91.4673
   },
   "xlc": {
-    "english": "Lycian"
+    "english": "Lycian",
+    "latitude": 36.517,
+    "longitude": 29.764
   },
   "hoc": {
-    "english": "Ho"
+    "english": "Ho",
+    "latitude": 23.9596,
+    "longitude": 87.1188
   },
   "pih": {
-    "english": "Pitkern"
+    "english": "Pitkern",
+    "latitude": -24.379858,
+    "longitude": -128.324075
   },
   "xum": {
-    "english": "Umbrian"
+    "english": "Umbrian",
+    "latitude": 42.75,
+    "longitude": 13.02
   },
   "din": {
     "english": "Dinka",
@@ -4141,28 +4910,27 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
     }
   },
   "lif": {
-    "english": "Limbu"
+    "english": "Limbu",
+    "latitude": 27.2703,
+    "longitude": 87.8859
   },
   "lki": {
-    "english": "Laki"
-  },
-  "ise": {
-    "english": "Italian Sign Language"
+    "english": "Laki",
+    "latitude": 34.0103,
+    "longitude": 47.9398
   },
   "scl": {
-    "english": "Shina"
-  },
-  "xeb": {
-    "english": "Eblaite"
-  },
-  "xur": {
-    "english": "Urartian"
+    "english": "Shina",
+    "latitude": 34.6515,
+    "longitude": 75.287
   },
   "zkz": {
     "english": "Khazar language"
   },
   "gmy": {
-    "english": "Mycenaean Greek"
+    "english": "Mycenaean Greek",
+    "latitude": 37.73,
+    "longitude": 22.82
   },
   "gmh": {
     "english": "Middle High German",
@@ -4172,7 +4940,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "moyen haut-allemand",
       "es-ES": "alto alemán medio",
       "de-DE": "Mittelhochdeutsch"
-    }
+    },
+    "latitude": 48.254,
+    "longitude": 10.599
   },
   "aln": {
     "english": "Gheg",
@@ -4180,7 +4950,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "en-US": "Gheg Albanian",
       "fr-FR": "guègue",
       "de-DE": "Gegisch"
-    }
+    },
+    "latitude": 42.317,
+    "longitude": 21.3837
   },
   "alt": {
     "english": "Southern Altai",
@@ -4190,7 +4962,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "altaï du Sud",
       "es-ES": "altái meridional",
       "de-DE": "Süd-Altaisch"
-    }
+    },
+    "latitude": 50.1347,
+    "longitude": 86.8705
   },
   "rhg": {
     "english": "Rohingya",
@@ -4200,10 +4974,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "rohingya",
       "es-ES": "rohinyá",
       "de-DE": "Rohingyalisch"
-    }
+    },
+    "latitude": 20.833082,
+    "longitude": 92.393968
   },
   "lrl": {
-    "english": "Achomi"
+    "english": "Achomi",
+    "latitude": 27.6436,
+    "longitude": 54.63449
   },
   "tum": {
     "english": "Tumbuka",
@@ -4213,7 +4991,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "tumbuka",
       "es-ES": "tumbuka",
       "de-DE": "Tumbuka"
-    }
+    },
+    "latitude": -11.3297,
+    "longitude": 33.3738
   },
   "bin": {
     "english": "Edo",
@@ -4223,7 +5003,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "bini",
       "es-ES": "bini",
       "de-DE": "Bini"
-    }
+    },
+    "latitude": 6.40701,
+    "longitude": 5.70426
   },
   "bik": {
     "english": "Bikol",
@@ -4244,13 +5026,19 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "yi du Sichuan",
       "es-ES": "yi de Sichuán",
       "de-DE": "Yi"
-    }
+    },
+    "latitude": 28.1947,
+    "longitude": 102.121
   },
   "olo": {
-    "english": "Livvi-Karelian"
+    "english": "Livvi-Karelian",
+    "latitude": 61.6565,
+    "longitude": 29.0726
   },
   "xsr": {
-    "english": "Sherpa"
+    "english": "Sherpa",
+    "latitude": 27.674,
+    "longitude": 86.9994
   },
   "umb": {
     "english": "Umbundu",
@@ -4260,10 +5048,14 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "umbundu",
       "es-ES": "umbundu",
       "de-DE": "Umbundu"
-    }
+    },
+    "latitude": -12.4763,
+    "longitude": 14.4148
   },
   "acm": {
-    "english": "Iraqi Arabic"
+    "english": "Iraqi Arabic",
+    "latitude": 33.8178,
+    "longitude": 43.1095
   },
   "sas": {
     "english": "Sasak",
@@ -4273,7 +5065,9 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "sasak",
       "es-ES": "sasak",
       "de-DE": "Sasak"
-    }
+    },
+    "latitude": -8.58349,
+    "longitude": 116.284
   },
   "kua": {
     "english": "Kwanyama",
@@ -4283,7 +5077,1177 @@ export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, Langu
       "fr-FR": "kuanyama",
       "es-ES": "kuanyama",
       "de-DE": "Kwanyama"
-    }
+    },
+    "latitude": -17.7176,
+    "longitude": 16.58
+  },
+  "ctg": {
+    "english": "Chittagonian",
+    "latitude": 20.831,
+    "longitude": 93.1695
+  },
+  "itl": {
+    "english": "Itelmen",
+    "latitude": 56.046173,
+    "longitude": 156.30704
+  },
+  "mhj": {
+    "english": "Moghol",
+    "latitude": 34.25,
+    "longitude": 62.28
+  },
+  "sip": {
+    "english": "Sikkimese Bhutia",
+    "latitude": 27.85795,
+    "longitude": 88.59153
+  },
+  "gbm": {
+    "english": "Garhwali",
+    "latitude": 30.5061,
+    "longitude": 78.7201
+  },
+  "kfy": {
+    "english": "Kumaoni",
+    "latitude": 29.5622,
+    "longitude": 80.0171
+  },
+  "kru": {
+    "english": "Kurukh",
+    "byLocale": {
+      "zh-CN": "库鲁克语",
+      "en-US": "Kurukh",
+      "fr-FR": "kouroukh",
+      "es-ES": "kurukh",
+      "de-DE": "Oraon"
+    },
+    "latitude": 24.46442,
+    "longitude": 86.46568
+  },
+  "bbl": {
+    "english": "Bats",
+    "latitude": 42.1806,
+    "longitude": 45.344
+  },
+  "bej": {
+    "english": "Beja",
+    "byLocale": {
+      "zh-CN": "贝沙语",
+      "en-US": "Beja",
+      "fr-FR": "bedja",
+      "es-ES": "beja",
+      "de-DE": "Bedauye"
+    },
+    "latitude": 17.2436,
+    "longitude": 36.6666
+  },
+  "rmt": {
+    "english": "Domari",
+    "latitude": 32,
+    "longitude": 35
+  },
+  "haz": {
+    "english": "Hazaragi",
+    "latitude": 33.3708,
+    "longitude": 64.5105
+  },
+  "sty": {
+    "english": "Siberian Tatar",
+    "latitude": 57.4921,
+    "longitude": 72.5642
+  },
+  "ddo": {
+    "english": "Tsez",
+    "latitude": 42.2646,
+    "longitude": 45.8096
+  },
+  "bla": {
+    "english": "Blackfoot",
+    "byLocale": {
+      "zh-CN": "西克西卡语",
+      "en-US": "Siksiká",
+      "fr-FR": "siksika",
+      "es-ES": "siksika",
+      "de-DE": "Blackfoot"
+    },
+    "latitude": 49.0669,
+    "longitude": -113.109
+  },
+  "cia": {
+    "english": "Cia-Cia",
+    "latitude": -5.68289,
+    "longitude": 122.791
+  },
+  "kmz": {
+    "english": "Khorasani Turkic",
+    "latitude": 36.4438,
+    "longitude": 60.0277
+  },
+  "lud": {
+    "english": "Ludic",
+    "latitude": 61.853,
+    "longitude": 33.7346
+  },
+  "tsd": {
+    "english": "Tsakonian",
+    "byLocale": {
+      "en-US": "Tsakonian",
+      "fr-FR": "tsakonien",
+      "de-DE": "Tsakonisch"
+    },
+    "latitude": 37.1405,
+    "longitude": 22.7341
+  },
+  "yoi": {
+    "english": "Yonaguni",
+    "latitude": 24.44997,
+    "longitude": 122.99075
+  },
+  "alr": {
+    "english": "Alyutor",
+    "latitude": 60.3844,
+    "longitude": 165.653
+  },
+  "aqc": {
+    "english": "Archi",
+    "latitude": 42.3239,
+    "longitude": 46.8267
+  },
+  "xco": {
+    "english": "Khwarezmian",
+    "latitude": 41.68,
+    "longitude": 60.75
+  },
+  "dty": {
+    "english": "Doteli",
+    "latitude": 29.242,
+    "longitude": 80.7252
+  },
+  "kac": {
+    "english": "Jingpo",
+    "byLocale": {
+      "zh-CN": "克钦语",
+      "en-US": "Kachin",
+      "fr-FR": "kachin",
+      "es-ES": "kachin",
+      "de-DE": "Kachin"
+    },
+    "latitude": 25.4634,
+    "longitude": 97.3278
+  },
+  "khn": {
+    "english": "Khandeshi",
+    "latitude": 21.3181,
+    "longitude": 74.142
+  },
+  "kjj": {
+    "english": "Khinalug",
+    "latitude": 41.1801,
+    "longitude": 48.0571
+  },
+  "kgg": {
+    "english": "Kusunda",
+    "latitude": 28.33,
+    "longitude": 82.6
+  },
+  "oaa": {
+    "english": "Orok",
+    "latitude": 49.36393,
+    "longitude": 143.12819
+  },
+  "siz": {
+    "english": "Siwa",
+    "latitude": 29.200415,
+    "longitude": 25.519627
+  },
+  "srr": {
+    "english": "Serer",
+    "byLocale": {
+      "zh-CN": "塞雷尔语",
+      "en-US": "Serer",
+      "fr-FR": "sérère",
+      "es-ES": "serer",
+      "de-DE": "Serer"
+    },
+    "latitude": 13.8941,
+    "longitude": -16.3916
+  },
+  "kfa": {
+    "english": "Kodava",
+    "latitude": 12.2443,
+    "longitude": 75.9161
+  },
+  "zum": {
+    "english": "Kumzari",
+    "latitude": 26.1602,
+    "longitude": 56.4202
+  },
+  "rys": {
+    "english": "Yaeyama",
+    "latitude": 24.3401,
+    "longitude": 123.801
+  },
+  "ani": {
+    "english": "Andi",
+    "latitude": 42.8078,
+    "longitude": 46.2919
+  },
+  "bhh": {
+    "english": "Bukharian",
+    "latitude": 41,
+    "longitude": 64
+  },
+  "acy": {
+    "english": "Cypriot Arabic",
+    "latitude": 35.1674,
+    "longitude": 33.0943
+  },
+  "jje": {
+    "english": "Jejuan",
+    "latitude": 33.3805,
+    "longitude": 126.5554
+  },
+  "mdh": {
+    "english": "Maguindanao",
+    "latitude": 6.9453,
+    "longitude": 124.509
+  },
+  "ude": {
+    "english": "Udege",
+    "latitude": 46.63086,
+    "longitude": 135.67762
+  },
+  "mnj": {
+    "english": "Munji",
+    "latitude": 35.9321,
+    "longitude": 70.9404
+  },
+  "sck": {
+    "english": "Nagpuri",
+    "latitude": 23.6585,
+    "longitude": 84.8114
+  },
+  "neg": {
+    "english": "Negidal",
+    "latitude": 52.96584,
+    "longitude": 139.20575
+  },
+  "rkt": {
+    "english": "Rangpuri",
+    "latitude": 26.3834,
+    "longitude": 88.4536
+  },
+  "tru": {
+    "english": "Turoyo",
+    "byLocale": {
+      "en-US": "Turoyo",
+      "fr-FR": "touroyo",
+      "de-DE": "Turoyo"
+    },
+    "latitude": 37.2275,
+    "longitude": 42.1451
+  },
+  "ulc": {
+    "english": "Ulch",
+    "latitude": 51.85209,
+    "longitude": 140.29045
+  },
+  "sjo": {
+    "english": "Xibe",
+    "latitude": 43.5854,
+    "longitude": 81.0034
+  },
+  "akv": {
+    "english": "Akhvakh",
+    "latitude": 42.4003,
+    "longitude": 46.3037
+  },
+  "dta": {
+    "english": "Daur",
+    "latitude": 48,
+    "longitude": 124
+  },
+  "gin": {
+    "english": "Hinuq",
+    "latitude": 42.4502,
+    "longitude": 45.8064
+  },
+  "czk": {
+    "english": "Knaanic"
+  },
+  "oru": {
+    "english": "Ormuri",
+    "latitude": 32.6819,
+    "longitude": 69.3444
+  },
+  "oac": {
+    "english": "Oroch",
+    "latitude": 50.32354,
+    "longitude": 137.85131
+  },
+  "aiw": {
+    "english": "Aari",
+    "latitude": 5.95034,
+    "longitude": 36.5721
+  },
+  "tts": {
+    "english": "Isan",
+    "latitude": 16.03,
+    "longitude": 103.67
+  },
+  "jpr": {
+    "english": "Judeo-Persian",
+    "byLocale": {
+      "zh-CN": "犹太波斯语",
+      "en-US": "Judeo-Persian",
+      "fr-FR": "judéo-persan",
+      "es-ES": "judeo-persa",
+      "de-DE": "Jüdisch-Persisch"
+    },
+    "latitude": 31.45071,
+    "longitude": 43.57147
+  },
+  "lmn": {
+    "english": "Lambadi",
+    "latitude": 16.5734,
+    "longitude": 76.9717
+  },
+  "chp": {
+    "english": "Chipewyan",
+    "byLocale": {
+      "zh-CN": "奇佩维安语",
+      "en-US": "Chipewyan",
+      "fr-FR": "chipewyan",
+      "es-ES": "chipewyan",
+      "de-DE": "Chipewyan"
+    },
+    "latitude": 58.98,
+    "longitude": -104.44
+  },
+  "xnr": {
+    "english": "Kangri",
+    "native": "कांगड़ी",
+    "byLocale": {
+      "zh-CN": "康格里语",
+      "en-US": "Kangri",
+      "fr-FR": "kangri",
+      "es-ES": "kangri",
+      "de-DE": "Kangri"
+    },
+    "latitude": 31.915,
+    "longitude": 76.366
+  },
+  "mvi": {
+    "english": "Miyako",
+    "latitude": 24.7564,
+    "longitude": 125.363
+  },
+  "rki": {
+    "english": "Rakhine",
+    "latitude": 20.527429,
+    "longitude": 93.145906
+  },
+  "ysr": {
+    "english": "Sirenik",
+    "latitude": 64.5192,
+    "longitude": -173.925
+  },
+  "taq": {
+    "english": "Tamasheq",
+    "latitude": 14.2038,
+    "longitude": -2.41269
+  },
+  "tcx": {
+    "english": "Toda",
+    "latitude": 11.4184,
+    "longitude": 77.0168
+  },
+  "bdk": {
+    "english": "Budukh",
+    "latitude": 41.2272,
+    "longitude": 48.3353
+  },
+  "mtr": {
+    "english": "Mewari",
+    "latitude": 24.57,
+    "longitude": 73.68
+  },
+  "yej": {
+    "english": "Yevanic",
+    "latitude": 31.801,
+    "longitude": 35.1084
+  },
+  "aat": {
+    "english": "Arvanitic",
+    "latitude": 38.283,
+    "longitude": 23.3703
+  },
+  "jdt": {
+    "english": "Judeo-Tat",
+    "latitude": 42.068306,
+    "longitude": 48.264749
+  },
+  "bjj": {
+    "english": "Kannauji",
+    "latitude": 27.1074,
+    "longitude": 79.2883
+  },
+  "kfq": {
+    "english": "Korku",
+    "latitude": 21.8358,
+    "longitude": 77.5541
+  },
+  "mdr": {
+    "english": "Mandar",
+    "byLocale": {
+      "zh-CN": "曼达尔语",
+      "en-US": "Mandar",
+      "fr-FR": "mandar",
+      "es-ES": "mandar",
+      "de-DE": "Mandaresisch"
+    },
+    "latitude": -3.34717,
+    "longitude": 119.068
+  },
+  "oon": {
+    "english": "Önge",
+    "latitude": 10.6926,
+    "longitude": 92.4707
+  },
+  "tsj": {
+    "english": "Tshangla",
+    "latitude": 27.3694,
+    "longitude": 91.7741
+  },
+  "ydg": {
+    "english": "Yidgha",
+    "latitude": 36.014,
+    "longitude": 71.5077
+  },
+  "agj": {
+    "english": "Argobba",
+    "latitude": 10.6596,
+    "longitude": 39.756
+  },
+  "bph": {
+    "english": "Botlikh",
+    "latitude": 42.665,
+    "longitude": 46.22
+  },
+  "dml": {
+    "english": "Dameli",
+    "latitude": 35.299,
+    "longitude": 71.6806
+  },
+  "gdo": {
+    "english": "Godoberi",
+    "latitude": 42.7428,
+    "longitude": 46.2252
+  },
+  "hlb": {
+    "english": "Halbi",
+    "latitude": 20.3081,
+    "longitude": 81.3742
+  },
+  "huz": {
+    "english": "Hunzib",
+    "latitude": 42.0808,
+    "longitude": 46.1369
+  },
+  "anq": {
+    "english": "Jarawa",
+    "latitude": 11.6089,
+    "longitude": 92.658
+  },
+  "khv": {
+    "english": "Khwarshi",
+    "latitude": 42.2743,
+    "longitude": 45.9977
+  },
+  "lis": {
+    "english": "Lisu",
+    "latitude": 26.91,
+    "longitude": 98.94
+  },
+  "noe": {
+    "english": "Nimadi",
+    "latitude": 22.1263,
+    "longitude": 76.1264
+  },
+  "trw": {
+    "english": "Torwali",
+    "byLocale": {
+      "zh-CN": "托尔瓦利语",
+      "en-US": "Torwali"
+    },
+    "latitude": 35.3101,
+    "longitude": 72.5316
+  },
+  "yah": {
+    "english": "Yazgulyam",
+    "latitude": 38.2801,
+    "longitude": 71.565
+  },
+  "kap": {
+    "english": "Bezhta",
+    "latitude": 42.1206,
+    "longitude": 46.0332
+  },
+  "caq": {
+    "english": "Car",
+    "latitude": 9.18853,
+    "longitude": 92.7671
+  },
+  "cji": {
+    "english": "Chamalal",
+    "latitude": 42.5024,
+    "longitude": 45.995
+  },
+  "dhd": {
+    "english": "Dhundari",
+    "byLocale": {
+      "zh-CN": "马尔瓦里语",
+      "en-US": "Marwari",
+      "fr-FR": "marwarî",
+      "es-ES": "marwari",
+      "de-DE": "Marwari"
+    },
+    "latitude": 26.473,
+    "longitude": 76.198
+  },
+  "gvr": {
+    "english": "Gurung",
+    "latitude": 27.41687,
+    "longitude": 86.28988
+  },
+  "har": {
+    "english": "Harari",
+    "latitude": 9.30485,
+    "longitude": 42.1332
+  },
+  "kry": {
+    "english": "Kryts",
+    "latitude": 41.1811,
+    "longitude": 48.1846
+  },
+  "mjt": {
+    "english": "Sauria Paharia",
+    "latitude": 24.8124,
+    "longitude": 87.6432
+  },
+  "kva": {
+    "english": "Bagvalal",
+    "latitude": 42.3966,
+    "longitude": 46.1041
+  },
+  "byn": {
+    "english": "Blin",
+    "byLocale": {
+      "zh-CN": "比林语",
+      "en-US": "Blin",
+      "fr-FR": "blin",
+      "es-ES": "blin",
+      "de-DE": "Blin"
+    },
+    "latitude": 15.7833,
+    "longitude": 38.3917
+  },
+  "phl": {
+    "english": "Palula",
+    "latitude": 35.5096,
+    "longitude": 71.8421
+  },
+  "srb": {
+    "english": "Sora",
+    "latitude": 19.1213,
+    "longitude": 84.19
+  },
+  "awn": {
+    "english": "Awngi",
+    "latitude": 10.9819,
+    "longitude": 36.6916
+  },
+  "gwc": {
+    "english": "Gawri",
+    "latitude": 35.5303,
+    "longitude": 72.5738
+  },
+  "kpt": {
+    "english": "Karata-Tukita",
+    "latitude": 42.6501,
+    "longitude": 46.3151
+  },
+  "khr": {
+    "english": "Kharia",
+    "latitude": 22.3571,
+    "longitude": 84.3922
+  },
+  "kdt": {
+    "english": "Kuy",
+    "latitude": 14.6698,
+    "longitude": 104.911
+  },
+  "onw": {
+    "english": "Old Nubian",
+    "latitude": 18.760713,
+    "longitude": 31.748657
+  },
+  "blt": {
+    "english": "Tai Dam",
+    "byLocale": {
+      "en-US": "Tai Dam"
+    },
+    "latitude": 18.9572,
+    "longitude": 102.928
+  },
+  "tin": {
+    "english": "Tindi",
+    "latitude": 42.3316,
+    "longitude": 45.9227
+  },
+  "amw": {
+    "english": "Western Neo-Aramaic",
+    "latitude": 33.8162,
+    "longitude": 36.484
+  },
+  "thz": {
+    "english": "Air Tamajeq",
+    "latitude": 16.9232,
+    "longitude": 7.6743
+  },
+  "mvy": {
+    "english": "Indus Kohistani",
+    "latitude": 35.3389,
+    "longitude": 73.0154
+  },
+  "iru": {
+    "english": "Irula",
+    "latitude": 12.70645,
+    "longitude": 79.95209
+  },
+  "ahk": {
+    "english": "Akha",
+    "latitude": 21.2309,
+    "longitude": 100.964
+  },
+  "kjg": {
+    "english": "Khmu",
+    "latitude": 20.2463,
+    "longitude": 101.671
+  },
+  "kyw": {
+    "english": "Kudmali",
+    "latitude": 25.92,
+    "longitude": 87.33
+  },
+  "blk": {
+    "english": "Pa'O",
+    "latitude": 20.211,
+    "longitude": 97.5969
+  },
+  "stv": {
+    "english": "Selti",
+    "latitude": 7.77004,
+    "longitude": 38.1449
+  },
+  "urk": {
+    "english": "Urak Lawoi’",
+    "latitude": 7.5258,
+    "longitude": 99.0768
+  },
+  "mki": {
+    "english": "Dhatki",
+    "latitude": 26.4156,
+    "longitude": 70.7826
+  },
+  "ttq": {
+    "english": "Tahoua",
+    "byLocale": {
+      "zh-CN": "塔马奇克语",
+      "en-US": "Tamashek",
+      "fr-FR": "tamacheq",
+      "es-ES": "tamashek",
+      "de-DE": "Tamaseq"
+    },
+    "latitude": 13.9878,
+    "longitude": 4.47692
+  },
+  "dhi": {
+    "english": "Dhimal",
+    "latitude": 26.6283,
+    "longitude": 88.3798
+  },
+  "guk": {
+    "english": "Gumuz",
+    "latitude": 11.05,
+    "longitude": 35.93
+  },
+  "khg": {
+    "english": "Khams Tibetan",
+    "latitude": 31.9313,
+    "longitude": 91.7062
+  },
+  "kzg": {
+    "english": "Kikai",
+    "latitude": 28.31,
+    "longitude": 129.982
+  },
+  "ugh": {
+    "english": "Kubachi",
+    "latitude": 42.08504,
+    "longitude": 47.601843
+  },
+  "ush": {
+    "english": "Ushoji",
+    "latitude": 35.1584,
+    "longitude": 72.643
+  },
+  "xan": {
+    "english": "Xamtanga",
+    "latitude": 12.4479,
+    "longitude": 38.8352
+  },
+  "yox": {
+    "english": "Yoron",
+    "latitude": 27.0407,
+    "longitude": 128.428
+  },
+  "aeq": {
+    "english": "Aer",
+    "latitude": 25.254,
+    "longitude": 69.029
+  },
+  "bap": {
+    "english": "Bantawa",
+    "latitude": 27.12147,
+    "longitude": 87.04738
+  },
+  "bcq": {
+    "english": "Bench",
+    "latitude": 7.04682,
+    "longitude": 35.7673
+  },
+  "kjz": {
+    "english": "Bumthang",
+    "latitude": 27.6494,
+    "longitude": 90.8037
+  },
+  "xka": {
+    "english": "Kalkoti",
+    "latitude": 35.3651,
+    "longitude": 72.0533
+  },
+  "sdb": {
+    "english": "Shabaki",
+    "latitude": 36.375,
+    "longitude": 43.144
+  },
+  "twh": {
+    "english": "Tai Dón",
+    "latitude": 21.84898,
+    "longitude": 103.570496667
+  },
+  "wne": {
+    "english": "Tareeno",
+    "latitude": 30.0501,
+    "longitude": 67.8327
+  },
+  "tft": {
+    "english": "Ternate",
+    "latitude": 0.80562,
+    "longitude": 127.333
+  },
+  "aio": {
+    "english": "Aiton",
+    "latitude": 26.5145,
+    "longitude": 92.3169
+  },
+  "akj": {
+    "english": "Aka-Jeru",
+    "latitude": 13.1525,
+    "longitude": 92.9504
+  },
+  "amf": {
+    "english": "Hamer",
+    "latitude": 5.06515,
+    "longitude": 36.5176
+  },
+  "kcn": {
+    "english": "Nubi",
+    "latitude": -0.183215,
+    "longitude": 34.7552
+  },
+  "suz": {
+    "english": "Sunwar",
+    "latitude": 27.5201,
+    "longitude": 86.2476
+  },
+  "adx": {
+    "english": "Amdo Tibetan",
+    "latitude": 34.5177,
+    "longitude": 100.485
+  },
+  "dhw": {
+    "english": "Dhanwar Rai",
+    "latitude": 27.094496,
+    "longitude": 85.910081
+  },
+  "mdx": {
+    "english": "Dizin",
+    "latitude": 6.1405,
+    "longitude": 35.5763
+  },
+  "ior": {
+    "english": "Inor",
+    "latitude": 7.94883,
+    "longitude": 37.7968
+  },
+  "xdq": {
+    "english": "Kaitag",
+    "latitude": 42.052428,
+    "longitude": 47.776611
+  },
+  "mjl": {
+    "english": "Mandeali",
+    "latitude": 31.5425,
+    "longitude": 77.0419
+  },
+  "nsk": {
+    "english": "Naskapi",
+    "latitude": 55.9316,
+    "longitude": -61.1318
+  },
+  "cbn": {
+    "english": "Nyah Kur",
+    "latitude": 15.8909,
+    "longitude": 101.515
+  },
+  "kvx": {
+    "english": "Parkari Koli",
+    "latitude": 24.486,
+    "longitude": 69.9423
+  },
+  "tkn": {
+    "english": "Tokunoshima",
+    "latitude": 27.7736,
+    "longitude": 128.961
+  },
+  "scp": {
+    "english": "Yolmo",
+    "latitude": 27.9212,
+    "longitude": 85.6289
+  },
+  "atb": {
+    "english": "Zaiwa",
+    "latitude": 24.1726,
+    "longitude": 98.3643
+  },
+  "bhj": {
+    "english": "Bahing",
+    "latitude": 27.3323,
+    "longitude": 86.3949
+  },
+  "bzi": {
+    "english": "Bisu",
+    "latitude": 20.8542,
+    "longitude": 99.9862
+  },
+  "rab": {
+    "english": "Chamling",
+    "latitude": 27.3371,
+    "longitude": 86.7612
+  },
+  "kjp": {
+    "english": "Eastern Pwo",
+    "latitude": 15.1915,
+    "longitude": 98.7355
+  },
+  "jun": {
+    "english": "Juang",
+    "latitude": 21.2606,
+    "longitude": 85.5845
+  },
+  "kuf": {
+    "english": "Katu",
+    "latitude": 15.7949,
+    "longitude": 107.166
+  },
+  "ykh": {
+    "english": "Khamnigan Mongol",
+    "latitude": 49,
+    "longitude": 117
+  },
+  "bfz": {
+    "english": "Mahasu Pahari",
+    "latitude": 31.0088,
+    "longitude": 77.5317
+  },
+  "okn": {
+    "english": "Okinoerabu",
+    "latitude": 27.37384,
+    "longitude": 128.6187
+  },
+  "ksw": {
+    "english": "S'gaw Karen",
+    "latitude": 17.9872,
+    "longitude": 97.7126
+  },
+  "kht": {
+    "english": "Khamti",
+    "latitude": 27.6653,
+    "longitude": 97.0359
+  },
+  "lpo": {
+    "english": "Lipo",
+    "latitude": 25.226,
+    "longitude": 101.302
+  },
+  "ths": {
+    "english": "Thakali",
+    "latitude": 28.7014,
+    "longitude": 83.6466
+  },
+  "aph": {
+    "english": "Athpare",
+    "latitude": 26.8794,
+    "longitude": 87.3296
+  },
+  "kfs": {
+    "english": "Bilaspuri",
+    "latitude": 31.3842,
+    "longitude": 76.6739
+  },
+  "cld": {
+    "english": "Chaldean Neo-Aramaic",
+    "native": "ܣܘܪܝܝܐ",
+    "byLocale": {
+      "zh-CN": "叙利亚语",
+      "en-US": "Syriac",
+      "fr-FR": "syriaque",
+      "es-ES": "siriaco",
+      "de-DE": "Syrisch"
+    },
+    "latitude": 37.0972,
+    "longitude": 43.5027
+  },
+  "cdh": {
+    "english": "Chambeali",
+    "latitude": 32.5476,
+    "longitude": 76.1796
+  },
+  "dso": {
+    "english": "Desia",
+    "latitude": 18.965,
+    "longitude": 82.646
+  },
+  "mhu": {
+    "english": "Digaro Mishmi",
+    "latitude": 28.4993,
+    "longitude": 96.8803
+  },
+  "gbk": {
+    "english": "Gaddi",
+    "latitude": 32.36,
+    "longitude": 76.5713
+  },
+  "jns": {
+    "english": "Jaunsari",
+    "latitude": 30.5587,
+    "longitude": 77.9084
+  },
+  "kfx": {
+    "english": "Kullui",
+    "latitude": 31.8339,
+    "longitude": 77.3772
+  },
+  "mid": {
+    "english": "Neo-Mandaic",
+    "latitude": 31.3443,
+    "longitude": 48.8128
+  },
+  "yea": {
+    "english": "Ravula",
+    "latitude": 12.3231,
+    "longitude": 75.6265
+  },
+  "srx": {
+    "english": "Sirmauri",
+    "latitude": 31.1,
+    "longitude": 77.17
+  },
+  "phk": {
+    "english": "Tai Phake",
+    "latitude": 27.8197,
+    "longitude": 95.8131
+  },
+  "thf": {
+    "english": "Thangmi",
+    "latitude": 28.7554,
+    "longitude": 85.7657
+  },
+  "wme": {
+    "english": "Wambule",
+    "latitude": 27.14808,
+    "longitude": 86.47646
+  },
+  "nnp": {
+    "english": "Wancho",
+    "latitude": 26.8873,
+    "longitude": 95.3203
+  },
+  "ybh": {
+    "english": "Yakkha",
+    "latitude": 27.3714,
+    "longitude": 87.9306
+  },
+  "hmd": {
+    "english": "A-Hmao",
+    "latitude": 27.8682,
+    "longitude": 104.06
+  },
+  "byw": {
+    "english": "Belhare",
+    "latitude": 26.9972,
+    "longitude": 87.2783
+  },
+  "cda": {
+    "english": "Choni",
+    "latitude": 33.91167,
+    "longitude": 103.46196
+  },
+  "klr": {
+    "english": "Khaling",
+    "latitude": 27.3912,
+    "longitude": 87.5053
+  },
+  "mqa": {
+    "english": "Maba",
+    "latitude": 0.59011,
+    "longitude": 128.418
+  },
+  "njz": {
+    "english": "Nishi",
+    "latitude": 27.278263,
+    "longitude": 93.675529
+  },
+  "kxm": {
+    "english": "Northern Khmer",
+    "latitude": 14.4674,
+    "longitude": 103.863
+  },
+  "pww": {
+    "english": "Northern Pwo",
+    "latitude": 18.016,
+    "longitude": 98.2709
+  },
+  "rjs": {
+    "english": "Rajbanshi",
+    "latitude": 26.521945,
+    "longitude": 88.038582
+  },
+  "pwo": {
+    "english": "Western Pwo",
+    "latitude": 17.3622,
+    "longitude": 97.7044
+  },
+  "crx": {
+    "english": "Carrier",
+    "latitude": 54.3768,
+    "longitude": -124.328
+  },
+  "syw": {
+    "english": "Kagate",
+    "latitude": 27.4492,
+    "longitude": 86.1675
+  },
+  "mqu": {
+    "english": "Mandari",
+    "latitude": 5.83656,
+    "longitude": 31.2327
+  },
+  "ojs": {
+    "english": "Oji-Cree",
+    "byLocale": {
+      "zh-CN": "欧吉克里语",
+      "en-US": "Oji-Cree",
+      "fr-FR": "oji-cri",
+      "es-ES": "oji-cree",
+      "de-DE": "Oji-Cree"
+    },
+    "latitude": 53.9092,
+    "longitude": -89.9331
+  },
+  "pgg": {
+    "english": "Pangwali",
+    "latitude": 32.9753,
+    "longitude": 76.5569
+  },
+  "jul": {
+    "english": "Jirel",
+    "latitude": 27.6931,
+    "longitude": 86.3201
+  },
+  "xkf": {
+    "english": "Kheng",
+    "latitude": 27.0879,
+    "longitude": 90.8633
+  },
+  "hmb": {
+    "english": "Humburi Senni",
+    "latitude": 15.2948,
+    "longitude": -1.69301
+  },
+  "saw": {
+    "english": "Sawi",
+    "latitude": -5.99286,
+    "longitude": 138.643
+  },
+  "tjl": {
+    "english": "Tai Laing",
+    "latitude": 24.9041,
+    "longitude": 95.0772
+  },
+  "soa": {
+    "english": "Thai Song",
+    "latitude": 13.2136,
+    "longitude": 99.8651
+  },
+  "bjt": {
+    "english": "Balanta-Ganja",
+    "latitude": 12.5382,
+    "longitude": -15.6658
+  },
+  "ffm": {
+    "english": "Maasina Fulfulde",
+    "latitude": 11.1324,
+    "longitude": -3.64763
+  },
+  "lhm": {
+    "english": "Lhomi",
+    "latitude": 27.5948,
+    "longitude": 87.7161
+  },
+  "ldd": {
+    "english": "Luri",
+    "latitude": 10.059,
+    "longitude": 9.59745
+  },
+  "oak": {
+    "english": "Noakhailla"
+  },
+  "rmz": {
+    "english": "Marma",
+    "latitude": 22.759948,
+    "longitude": 92.210748
+  },
+  "tyj": {
+    "english": "Tai Yo",
+    "latitude": 19.1801,
+    "longitude": 104.938
+  },
+  "phj": {
+    "english": "Pahari",
+    "latitude": 27.566,
+    "longitude": 85.318
   }
 };
 
@@ -6375,80 +8339,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       },
       {
         "label": "Bretonisch",
-        "kind": "alias"
-      }
-    ],
-    "cmn": [
-      {
-        "label": "普通话",
-        "kind": "local"
-      },
-      {
-        "label": "Mandarin",
-        "kind": "english"
-      },
-      {
-        "label": "mandarín",
-        "kind": "alias"
-      },
-      {
-        "label": "中文",
-        "kind": "alias"
-      },
-      {
-        "label": "chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "mandarin chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "standard chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "putonghua",
-        "kind": "alias"
-      },
-      {
-        "label": "guoyu",
-        "kind": "alias"
-      },
-      {
-        "label": "汉语",
-        "kind": "alias"
-      },
-      {
-        "label": "国语",
-        "kind": "alias"
-      },
-      {
-        "label": "國語",
-        "kind": "alias"
-      },
-      {
-        "label": "华语",
-        "kind": "alias"
-      },
-      {
-        "label": "華語",
-        "kind": "alias"
-      },
-      {
-        "label": "官话",
-        "kind": "alias"
-      },
-      {
-        "label": "北方话",
-        "kind": "alias"
-      },
-      {
-        "label": "北方方言",
-        "kind": "alias"
-      },
-      {
-        "label": "中文普通话",
         "kind": "alias"
       }
     ],
@@ -10648,6 +12538,80 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
+    "cmn": [
+      {
+        "label": "普通话",
+        "kind": "local"
+      },
+      {
+        "label": "Mandarin",
+        "kind": "english"
+      },
+      {
+        "label": "mandarín",
+        "kind": "alias"
+      },
+      {
+        "label": "中文",
+        "kind": "alias"
+      },
+      {
+        "label": "chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "mandarin chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "standard chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "putonghua",
+        "kind": "alias"
+      },
+      {
+        "label": "guoyu",
+        "kind": "alias"
+      },
+      {
+        "label": "汉语",
+        "kind": "alias"
+      },
+      {
+        "label": "国语",
+        "kind": "alias"
+      },
+      {
+        "label": "國語",
+        "kind": "alias"
+      },
+      {
+        "label": "华语",
+        "kind": "alias"
+      },
+      {
+        "label": "華語",
+        "kind": "alias"
+      },
+      {
+        "label": "官话",
+        "kind": "alias"
+      },
+      {
+        "label": "北方话",
+        "kind": "alias"
+      },
+      {
+        "label": "北方方言",
+        "kind": "alias"
+      },
+      {
+        "label": "中文普通话",
+        "kind": "alias"
+      }
+    ],
     "frr": [
       {
         "label": "北弗里西亚语",
@@ -10746,12 +12710,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Khotta",
         "kind": "alias"
-      }
-    ],
-    "pox": [
-      {
-        "label": "Polabian",
-        "kind": "english"
       }
     ],
     "zha": [
@@ -11654,12 +13612,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "alias"
       }
     ],
-    "prv": [
-      {
-        "label": "Provençal",
-        "kind": "english"
-      }
-    ],
     "gon": [
       {
         "label": "冈德语",
@@ -11864,12 +13816,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "fsl": [
-      {
-        "label": "French Sign Language",
-        "kind": "english"
-      }
-    ],
     "oji": [
       {
         "label": "奥吉布瓦语",
@@ -12000,12 +13946,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "xil": [
-      {
-        "label": "Illyrian",
-        "kind": "english"
-      }
-    ],
     "gld": [
       {
         "label": "Nanai",
@@ -12074,18 +14014,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Lushai",
         "kind": "alias"
-      }
-    ],
-    "xcb": [
-      {
-        "label": "Cumbric",
-        "kind": "english"
-      }
-    ],
-    "vsn": [
-      {
-        "label": "Vedic Sanskrit",
-        "kind": "english"
       }
     ],
     "hyw": [
@@ -12172,12 +14100,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "txh": [
-      {
-        "label": "Thracian",
-        "kind": "english"
-      }
-    ],
     "khw": [
       {
         "label": "Khowar",
@@ -12261,12 +14183,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
     "ruo": [
       {
         "label": "Istro-Romanian",
-        "kind": "english"
-      }
-    ],
-    "nzs": [
-      {
-        "label": "New Zealand Sign Language",
         "kind": "english"
       }
     ],
@@ -12688,21 +14604,9 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "xga": [
-      {
-        "label": "Galatian",
-        "kind": "english"
-      }
-    ],
     "aib": [
       {
         "label": "Äynu",
-        "kind": "english"
-      }
-    ],
-    "ncs": [
-      {
-        "label": "Nicaraguan Sign Language",
         "kind": "english"
       }
     ],
@@ -12794,27 +14698,9 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "ise": [
-      {
-        "label": "Italian Sign Language",
-        "kind": "english"
-      }
-    ],
     "scl": [
       {
         "label": "Shina",
-        "kind": "english"
-      }
-    ],
-    "xeb": [
-      {
-        "label": "Eblaite",
-        "kind": "english"
-      }
-    ],
-    "xur": [
-      {
-        "label": "Urartian",
         "kind": "english"
       }
     ],
@@ -13046,6 +14932,1456 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Kuanyama",
         "kind": "alias"
+      }
+    ],
+    "ctg": [
+      {
+        "label": "Chittagonian",
+        "kind": "english"
+      }
+    ],
+    "itl": [
+      {
+        "label": "Itelmen",
+        "kind": "english"
+      }
+    ],
+    "mhj": [
+      {
+        "label": "Moghol",
+        "kind": "english"
+      }
+    ],
+    "sip": [
+      {
+        "label": "Sikkimese Bhutia",
+        "kind": "english"
+      }
+    ],
+    "gbm": [
+      {
+        "label": "Garhwali",
+        "kind": "english"
+      }
+    ],
+    "kfy": [
+      {
+        "label": "Kumaoni",
+        "kind": "english"
+      }
+    ],
+    "kru": [
+      {
+        "label": "库鲁克语",
+        "kind": "local"
+      },
+      {
+        "label": "Kurukh",
+        "kind": "english"
+      },
+      {
+        "label": "kouroukh",
+        "kind": "alias"
+      },
+      {
+        "label": "Oraon",
+        "kind": "alias"
+      }
+    ],
+    "bbl": [
+      {
+        "label": "Bats",
+        "kind": "english"
+      }
+    ],
+    "bej": [
+      {
+        "label": "贝沙语",
+        "kind": "local"
+      },
+      {
+        "label": "Beja",
+        "kind": "english"
+      },
+      {
+        "label": "bedja",
+        "kind": "alias"
+      },
+      {
+        "label": "Bedauye",
+        "kind": "alias"
+      }
+    ],
+    "rmt": [
+      {
+        "label": "Domari",
+        "kind": "english"
+      }
+    ],
+    "haz": [
+      {
+        "label": "Hazaragi",
+        "kind": "english"
+      }
+    ],
+    "sty": [
+      {
+        "label": "Siberian Tatar",
+        "kind": "english"
+      }
+    ],
+    "ddo": [
+      {
+        "label": "Tsez",
+        "kind": "english"
+      }
+    ],
+    "bla": [
+      {
+        "label": "西克西卡语",
+        "kind": "local"
+      },
+      {
+        "label": "Blackfoot",
+        "kind": "english"
+      },
+      {
+        "label": "Siksiká",
+        "kind": "alias"
+      },
+      {
+        "label": "siksika",
+        "kind": "alias"
+      }
+    ],
+    "cia": [
+      {
+        "label": "Cia-Cia",
+        "kind": "english"
+      }
+    ],
+    "kmz": [
+      {
+        "label": "Khorasani Turkic",
+        "kind": "english"
+      }
+    ],
+    "lud": [
+      {
+        "label": "Ludic",
+        "kind": "english"
+      }
+    ],
+    "tsd": [
+      {
+        "label": "Tsakonian",
+        "kind": "english"
+      },
+      {
+        "label": "tsakonien",
+        "kind": "alias"
+      },
+      {
+        "label": "Tsakonisch",
+        "kind": "alias"
+      }
+    ],
+    "yoi": [
+      {
+        "label": "Yonaguni",
+        "kind": "english"
+      }
+    ],
+    "alr": [
+      {
+        "label": "Alyutor",
+        "kind": "english"
+      }
+    ],
+    "aqc": [
+      {
+        "label": "Archi",
+        "kind": "english"
+      }
+    ],
+    "xco": [
+      {
+        "label": "Khwarezmian",
+        "kind": "english"
+      }
+    ],
+    "dty": [
+      {
+        "label": "Doteli",
+        "kind": "english"
+      }
+    ],
+    "kac": [
+      {
+        "label": "克钦语",
+        "kind": "local"
+      },
+      {
+        "label": "Jingpo",
+        "kind": "english"
+      },
+      {
+        "label": "Kachin",
+        "kind": "alias"
+      }
+    ],
+    "khn": [
+      {
+        "label": "Khandeshi",
+        "kind": "english"
+      }
+    ],
+    "kjj": [
+      {
+        "label": "Khinalug",
+        "kind": "english"
+      }
+    ],
+    "kgg": [
+      {
+        "label": "Kusunda",
+        "kind": "english"
+      }
+    ],
+    "oaa": [
+      {
+        "label": "Orok",
+        "kind": "english"
+      }
+    ],
+    "siz": [
+      {
+        "label": "Siwa",
+        "kind": "english"
+      }
+    ],
+    "srr": [
+      {
+        "label": "塞雷尔语",
+        "kind": "local"
+      },
+      {
+        "label": "Serer",
+        "kind": "english"
+      },
+      {
+        "label": "sérère",
+        "kind": "alias"
+      }
+    ],
+    "kfa": [
+      {
+        "label": "Kodava",
+        "kind": "english"
+      }
+    ],
+    "zum": [
+      {
+        "label": "Kumzari",
+        "kind": "english"
+      }
+    ],
+    "rys": [
+      {
+        "label": "Yaeyama",
+        "kind": "english"
+      }
+    ],
+    "ani": [
+      {
+        "label": "Andi",
+        "kind": "english"
+      }
+    ],
+    "bhh": [
+      {
+        "label": "Bukharian",
+        "kind": "english"
+      }
+    ],
+    "acy": [
+      {
+        "label": "Cypriot Arabic",
+        "kind": "english"
+      }
+    ],
+    "jje": [
+      {
+        "label": "Jejuan",
+        "kind": "english"
+      }
+    ],
+    "mdh": [
+      {
+        "label": "Maguindanao",
+        "kind": "english"
+      }
+    ],
+    "ude": [
+      {
+        "label": "Udege",
+        "kind": "english"
+      }
+    ],
+    "mnj": [
+      {
+        "label": "Munji",
+        "kind": "english"
+      }
+    ],
+    "sck": [
+      {
+        "label": "Nagpuri",
+        "kind": "english"
+      }
+    ],
+    "neg": [
+      {
+        "label": "Negidal",
+        "kind": "english"
+      }
+    ],
+    "rkt": [
+      {
+        "label": "Rangpuri",
+        "kind": "english"
+      }
+    ],
+    "tru": [
+      {
+        "label": "Turoyo",
+        "kind": "english"
+      },
+      {
+        "label": "touroyo",
+        "kind": "alias"
+      }
+    ],
+    "ulc": [
+      {
+        "label": "Ulch",
+        "kind": "english"
+      }
+    ],
+    "sjo": [
+      {
+        "label": "Xibe",
+        "kind": "english"
+      },
+      {
+        "label": "锡伯语",
+        "kind": "alias"
+      },
+      {
+        "label": "錫伯語",
+        "kind": "alias"
+      }
+    ],
+    "akv": [
+      {
+        "label": "Akhvakh",
+        "kind": "english"
+      }
+    ],
+    "dta": [
+      {
+        "label": "Daur",
+        "kind": "english"
+      }
+    ],
+    "gin": [
+      {
+        "label": "Hinuq",
+        "kind": "english"
+      }
+    ],
+    "czk": [
+      {
+        "label": "Knaanic",
+        "kind": "english"
+      }
+    ],
+    "oru": [
+      {
+        "label": "Ormuri",
+        "kind": "english"
+      }
+    ],
+    "oac": [
+      {
+        "label": "Oroch",
+        "kind": "english"
+      }
+    ],
+    "aiw": [
+      {
+        "label": "Aari",
+        "kind": "english"
+      }
+    ],
+    "tts": [
+      {
+        "label": "Isan",
+        "kind": "english"
+      }
+    ],
+    "jpr": [
+      {
+        "label": "犹太波斯语",
+        "kind": "local"
+      },
+      {
+        "label": "Judeo-Persian",
+        "kind": "english"
+      },
+      {
+        "label": "judéo-persan",
+        "kind": "alias"
+      },
+      {
+        "label": "judeo-persa",
+        "kind": "alias"
+      },
+      {
+        "label": "Jüdisch-Persisch",
+        "kind": "alias"
+      }
+    ],
+    "lmn": [
+      {
+        "label": "Lambadi",
+        "kind": "english"
+      }
+    ],
+    "chp": [
+      {
+        "label": "奇佩维安语",
+        "kind": "local"
+      },
+      {
+        "label": "Chipewyan",
+        "kind": "english"
+      }
+    ],
+    "xnr": [
+      {
+        "label": "康格里语",
+        "kind": "local"
+      },
+      {
+        "label": "कांगड़ी",
+        "kind": "native"
+      },
+      {
+        "label": "Kangri",
+        "kind": "english"
+      }
+    ],
+    "mvi": [
+      {
+        "label": "Miyako",
+        "kind": "english"
+      }
+    ],
+    "rki": [
+      {
+        "label": "Rakhine",
+        "kind": "english"
+      }
+    ],
+    "ysr": [
+      {
+        "label": "Sirenik",
+        "kind": "english"
+      }
+    ],
+    "taq": [
+      {
+        "label": "Tamasheq",
+        "kind": "english"
+      }
+    ],
+    "tcx": [
+      {
+        "label": "Toda",
+        "kind": "english"
+      }
+    ],
+    "bdk": [
+      {
+        "label": "Budukh",
+        "kind": "english"
+      }
+    ],
+    "mtr": [
+      {
+        "label": "Mewari",
+        "kind": "english"
+      }
+    ],
+    "yej": [
+      {
+        "label": "Yevanic",
+        "kind": "english"
+      }
+    ],
+    "aat": [
+      {
+        "label": "Arvanitic",
+        "kind": "english"
+      }
+    ],
+    "jdt": [
+      {
+        "label": "Judeo-Tat",
+        "kind": "english"
+      }
+    ],
+    "bjj": [
+      {
+        "label": "Kannauji",
+        "kind": "english"
+      }
+    ],
+    "kfq": [
+      {
+        "label": "Korku",
+        "kind": "english"
+      }
+    ],
+    "mdr": [
+      {
+        "label": "曼达尔语",
+        "kind": "local"
+      },
+      {
+        "label": "Mandar",
+        "kind": "english"
+      },
+      {
+        "label": "Mandaresisch",
+        "kind": "alias"
+      }
+    ],
+    "oon": [
+      {
+        "label": "Önge",
+        "kind": "english"
+      }
+    ],
+    "tsj": [
+      {
+        "label": "Tshangla",
+        "kind": "english"
+      }
+    ],
+    "ydg": [
+      {
+        "label": "Yidgha",
+        "kind": "english"
+      }
+    ],
+    "agj": [
+      {
+        "label": "Argobba",
+        "kind": "english"
+      }
+    ],
+    "bph": [
+      {
+        "label": "Botlikh",
+        "kind": "english"
+      }
+    ],
+    "dml": [
+      {
+        "label": "Dameli",
+        "kind": "english"
+      }
+    ],
+    "gdo": [
+      {
+        "label": "Godoberi",
+        "kind": "english"
+      }
+    ],
+    "hlb": [
+      {
+        "label": "Halbi",
+        "kind": "english"
+      }
+    ],
+    "huz": [
+      {
+        "label": "Hunzib",
+        "kind": "english"
+      }
+    ],
+    "anq": [
+      {
+        "label": "Jarawa",
+        "kind": "english"
+      }
+    ],
+    "khv": [
+      {
+        "label": "Khwarshi",
+        "kind": "english"
+      }
+    ],
+    "lis": [
+      {
+        "label": "Lisu",
+        "kind": "english"
+      },
+      {
+        "label": "傈僳语",
+        "kind": "alias"
+      },
+      {
+        "label": "傈僳語",
+        "kind": "alias"
+      }
+    ],
+    "noe": [
+      {
+        "label": "Nimadi",
+        "kind": "english"
+      }
+    ],
+    "trw": [
+      {
+        "label": "托尔瓦利语",
+        "kind": "local"
+      },
+      {
+        "label": "Torwali",
+        "kind": "english"
+      }
+    ],
+    "yah": [
+      {
+        "label": "Yazgulyam",
+        "kind": "english"
+      }
+    ],
+    "kap": [
+      {
+        "label": "Bezhta",
+        "kind": "english"
+      }
+    ],
+    "caq": [
+      {
+        "label": "Car",
+        "kind": "english"
+      }
+    ],
+    "cji": [
+      {
+        "label": "Chamalal",
+        "kind": "english"
+      }
+    ],
+    "dhd": [
+      {
+        "label": "马尔瓦里语",
+        "kind": "local"
+      },
+      {
+        "label": "Dhundari",
+        "kind": "english"
+      },
+      {
+        "label": "Marwari",
+        "kind": "alias"
+      },
+      {
+        "label": "marwarî",
+        "kind": "alias"
+      }
+    ],
+    "gvr": [
+      {
+        "label": "Gurung",
+        "kind": "english"
+      }
+    ],
+    "har": [
+      {
+        "label": "Harari",
+        "kind": "english"
+      }
+    ],
+    "kry": [
+      {
+        "label": "Kryts",
+        "kind": "english"
+      }
+    ],
+    "mjt": [
+      {
+        "label": "Sauria Paharia",
+        "kind": "english"
+      }
+    ],
+    "kva": [
+      {
+        "label": "Bagvalal",
+        "kind": "english"
+      }
+    ],
+    "byn": [
+      {
+        "label": "比林语",
+        "kind": "local"
+      },
+      {
+        "label": "Blin",
+        "kind": "english"
+      }
+    ],
+    "phl": [
+      {
+        "label": "Palula",
+        "kind": "english"
+      }
+    ],
+    "srb": [
+      {
+        "label": "Sora",
+        "kind": "english"
+      }
+    ],
+    "awn": [
+      {
+        "label": "Awngi",
+        "kind": "english"
+      }
+    ],
+    "gwc": [
+      {
+        "label": "Gawri",
+        "kind": "english"
+      }
+    ],
+    "kpt": [
+      {
+        "label": "Karata-Tukita",
+        "kind": "english"
+      }
+    ],
+    "khr": [
+      {
+        "label": "Kharia",
+        "kind": "english"
+      }
+    ],
+    "kdt": [
+      {
+        "label": "Kuy",
+        "kind": "english"
+      }
+    ],
+    "onw": [
+      {
+        "label": "Old Nubian",
+        "kind": "english"
+      }
+    ],
+    "blt": [
+      {
+        "label": "Tai Dam",
+        "kind": "english"
+      }
+    ],
+    "tin": [
+      {
+        "label": "Tindi",
+        "kind": "english"
+      }
+    ],
+    "amw": [
+      {
+        "label": "Western Neo-Aramaic",
+        "kind": "english"
+      }
+    ],
+    "thz": [
+      {
+        "label": "Air Tamajeq",
+        "kind": "english"
+      }
+    ],
+    "mvy": [
+      {
+        "label": "Indus Kohistani",
+        "kind": "english"
+      }
+    ],
+    "iru": [
+      {
+        "label": "Irula",
+        "kind": "english"
+      }
+    ],
+    "ahk": [
+      {
+        "label": "Akha",
+        "kind": "english"
+      }
+    ],
+    "kjg": [
+      {
+        "label": "Khmu",
+        "kind": "english"
+      }
+    ],
+    "kyw": [
+      {
+        "label": "Kudmali",
+        "kind": "english"
+      }
+    ],
+    "blk": [
+      {
+        "label": "Pa'O",
+        "kind": "english"
+      }
+    ],
+    "stv": [
+      {
+        "label": "Selti",
+        "kind": "english"
+      }
+    ],
+    "urk": [
+      {
+        "label": "Urak Lawoi’",
+        "kind": "english"
+      }
+    ],
+    "mki": [
+      {
+        "label": "Dhatki",
+        "kind": "english"
+      }
+    ],
+    "ttq": [
+      {
+        "label": "塔马奇克语",
+        "kind": "local"
+      },
+      {
+        "label": "Tahoua",
+        "kind": "english"
+      },
+      {
+        "label": "Tamashek",
+        "kind": "alias"
+      },
+      {
+        "label": "tamacheq",
+        "kind": "alias"
+      },
+      {
+        "label": "Tamaseq",
+        "kind": "alias"
+      }
+    ],
+    "dhi": [
+      {
+        "label": "Dhimal",
+        "kind": "english"
+      }
+    ],
+    "guk": [
+      {
+        "label": "Gumuz",
+        "kind": "english"
+      }
+    ],
+    "khg": [
+      {
+        "label": "Khams Tibetan",
+        "kind": "english"
+      }
+    ],
+    "kzg": [
+      {
+        "label": "Kikai",
+        "kind": "english"
+      }
+    ],
+    "ugh": [
+      {
+        "label": "Kubachi",
+        "kind": "english"
+      }
+    ],
+    "ush": [
+      {
+        "label": "Ushoji",
+        "kind": "english"
+      }
+    ],
+    "xan": [
+      {
+        "label": "Xamtanga",
+        "kind": "english"
+      }
+    ],
+    "yox": [
+      {
+        "label": "Yoron",
+        "kind": "english"
+      }
+    ],
+    "aeq": [
+      {
+        "label": "Aer",
+        "kind": "english"
+      }
+    ],
+    "bap": [
+      {
+        "label": "Bantawa",
+        "kind": "english"
+      }
+    ],
+    "bcq": [
+      {
+        "label": "Bench",
+        "kind": "english"
+      }
+    ],
+    "kjz": [
+      {
+        "label": "Bumthang",
+        "kind": "english"
+      }
+    ],
+    "xka": [
+      {
+        "label": "Kalkoti",
+        "kind": "english"
+      }
+    ],
+    "sdb": [
+      {
+        "label": "Shabaki",
+        "kind": "english"
+      }
+    ],
+    "twh": [
+      {
+        "label": "Tai Dón",
+        "kind": "english"
+      }
+    ],
+    "wne": [
+      {
+        "label": "Tareeno",
+        "kind": "english"
+      }
+    ],
+    "tft": [
+      {
+        "label": "Ternate",
+        "kind": "english"
+      }
+    ],
+    "aio": [
+      {
+        "label": "Aiton",
+        "kind": "english"
+      }
+    ],
+    "akj": [
+      {
+        "label": "Aka-Jeru",
+        "kind": "english"
+      }
+    ],
+    "amf": [
+      {
+        "label": "Hamer",
+        "kind": "english"
+      }
+    ],
+    "kcn": [
+      {
+        "label": "Nubi",
+        "kind": "english"
+      }
+    ],
+    "suz": [
+      {
+        "label": "Sunwar",
+        "kind": "english"
+      }
+    ],
+    "adx": [
+      {
+        "label": "Amdo Tibetan",
+        "kind": "english"
+      }
+    ],
+    "dhw": [
+      {
+        "label": "Dhanwar Rai",
+        "kind": "english"
+      }
+    ],
+    "mdx": [
+      {
+        "label": "Dizin",
+        "kind": "english"
+      }
+    ],
+    "ior": [
+      {
+        "label": "Inor",
+        "kind": "english"
+      }
+    ],
+    "xdq": [
+      {
+        "label": "Kaitag",
+        "kind": "english"
+      }
+    ],
+    "mjl": [
+      {
+        "label": "Mandeali",
+        "kind": "english"
+      }
+    ],
+    "nsk": [
+      {
+        "label": "Naskapi",
+        "kind": "english"
+      }
+    ],
+    "cbn": [
+      {
+        "label": "Nyah Kur",
+        "kind": "english"
+      }
+    ],
+    "kvx": [
+      {
+        "label": "Parkari Koli",
+        "kind": "english"
+      }
+    ],
+    "tkn": [
+      {
+        "label": "Tokunoshima",
+        "kind": "english"
+      }
+    ],
+    "scp": [
+      {
+        "label": "Yolmo",
+        "kind": "english"
+      }
+    ],
+    "atb": [
+      {
+        "label": "Zaiwa",
+        "kind": "english"
+      }
+    ],
+    "bhj": [
+      {
+        "label": "Bahing",
+        "kind": "english"
+      }
+    ],
+    "bzi": [
+      {
+        "label": "Bisu",
+        "kind": "english"
+      }
+    ],
+    "rab": [
+      {
+        "label": "Chamling",
+        "kind": "english"
+      }
+    ],
+    "kjp": [
+      {
+        "label": "Eastern Pwo",
+        "kind": "english"
+      }
+    ],
+    "jun": [
+      {
+        "label": "Juang",
+        "kind": "english"
+      }
+    ],
+    "kuf": [
+      {
+        "label": "Katu",
+        "kind": "english"
+      }
+    ],
+    "ykh": [
+      {
+        "label": "Khamnigan Mongol",
+        "kind": "english"
+      }
+    ],
+    "bfz": [
+      {
+        "label": "Mahasu Pahari",
+        "kind": "english"
+      }
+    ],
+    "okn": [
+      {
+        "label": "Okinoerabu",
+        "kind": "english"
+      }
+    ],
+    "ksw": [
+      {
+        "label": "S'gaw Karen",
+        "kind": "english"
+      }
+    ],
+    "kht": [
+      {
+        "label": "Khamti",
+        "kind": "english"
+      }
+    ],
+    "lpo": [
+      {
+        "label": "Lipo",
+        "kind": "english"
+      }
+    ],
+    "ths": [
+      {
+        "label": "Thakali",
+        "kind": "english"
+      }
+    ],
+    "aph": [
+      {
+        "label": "Athpare",
+        "kind": "english"
+      }
+    ],
+    "kfs": [
+      {
+        "label": "Bilaspuri",
+        "kind": "english"
+      }
+    ],
+    "cld": [
+      {
+        "label": "叙利亚语",
+        "kind": "local"
+      },
+      {
+        "label": "ܣܘܪܝܝܐ",
+        "kind": "native"
+      },
+      {
+        "label": "Chaldean Neo-Aramaic",
+        "kind": "english"
+      },
+      {
+        "label": "Syriac",
+        "kind": "alias"
+      },
+      {
+        "label": "syriaque",
+        "kind": "alias"
+      },
+      {
+        "label": "siriaco",
+        "kind": "alias"
+      },
+      {
+        "label": "Syrisch",
+        "kind": "alias"
+      }
+    ],
+    "cdh": [
+      {
+        "label": "Chambeali",
+        "kind": "english"
+      }
+    ],
+    "dso": [
+      {
+        "label": "Desia",
+        "kind": "english"
+      }
+    ],
+    "mhu": [
+      {
+        "label": "Digaro Mishmi",
+        "kind": "english"
+      }
+    ],
+    "gbk": [
+      {
+        "label": "Gaddi",
+        "kind": "english"
+      }
+    ],
+    "jns": [
+      {
+        "label": "Jaunsari",
+        "kind": "english"
+      }
+    ],
+    "kfx": [
+      {
+        "label": "Kullui",
+        "kind": "english"
+      }
+    ],
+    "mid": [
+      {
+        "label": "Neo-Mandaic",
+        "kind": "english"
+      }
+    ],
+    "yea": [
+      {
+        "label": "Ravula",
+        "kind": "english"
+      }
+    ],
+    "srx": [
+      {
+        "label": "Sirmauri",
+        "kind": "english"
+      }
+    ],
+    "phk": [
+      {
+        "label": "Tai Phake",
+        "kind": "english"
+      }
+    ],
+    "thf": [
+      {
+        "label": "Thangmi",
+        "kind": "english"
+      }
+    ],
+    "wme": [
+      {
+        "label": "Wambule",
+        "kind": "english"
+      }
+    ],
+    "nnp": [
+      {
+        "label": "Wancho",
+        "kind": "english"
+      }
+    ],
+    "ybh": [
+      {
+        "label": "Yakkha",
+        "kind": "english"
+      }
+    ],
+    "hmd": [
+      {
+        "label": "A-Hmao",
+        "kind": "english"
+      }
+    ],
+    "byw": [
+      {
+        "label": "Belhare",
+        "kind": "english"
+      }
+    ],
+    "cda": [
+      {
+        "label": "Choni",
+        "kind": "english"
+      }
+    ],
+    "klr": [
+      {
+        "label": "Khaling",
+        "kind": "english"
+      }
+    ],
+    "mqa": [
+      {
+        "label": "Maba",
+        "kind": "english"
+      }
+    ],
+    "njz": [
+      {
+        "label": "Nishi",
+        "kind": "english"
+      }
+    ],
+    "kxm": [
+      {
+        "label": "Northern Khmer",
+        "kind": "english"
+      }
+    ],
+    "pww": [
+      {
+        "label": "Northern Pwo",
+        "kind": "english"
+      }
+    ],
+    "rjs": [
+      {
+        "label": "Rajbanshi",
+        "kind": "english"
+      }
+    ],
+    "pwo": [
+      {
+        "label": "Western Pwo",
+        "kind": "english"
+      }
+    ],
+    "crx": [
+      {
+        "label": "Carrier",
+        "kind": "english"
+      }
+    ],
+    "syw": [
+      {
+        "label": "Kagate",
+        "kind": "english"
+      }
+    ],
+    "mqu": [
+      {
+        "label": "Mandari",
+        "kind": "english"
+      }
+    ],
+    "ojs": [
+      {
+        "label": "欧吉克里语",
+        "kind": "local"
+      },
+      {
+        "label": "Oji-Cree",
+        "kind": "english"
+      },
+      {
+        "label": "oji-cri",
+        "kind": "alias"
+      }
+    ],
+    "pgg": [
+      {
+        "label": "Pangwali",
+        "kind": "english"
+      }
+    ],
+    "jul": [
+      {
+        "label": "Jirel",
+        "kind": "english"
+      }
+    ],
+    "xkf": [
+      {
+        "label": "Kheng",
+        "kind": "english"
+      }
+    ],
+    "hmb": [
+      {
+        "label": "Humburi Senni",
+        "kind": "english"
+      }
+    ],
+    "saw": [
+      {
+        "label": "Sawi",
+        "kind": "english"
+      }
+    ],
+    "tjl": [
+      {
+        "label": "Tai Laing",
+        "kind": "english"
+      }
+    ],
+    "soa": [
+      {
+        "label": "Thai Song",
+        "kind": "english"
+      }
+    ],
+    "bjt": [
+      {
+        "label": "Balanta-Ganja",
+        "kind": "english"
+      }
+    ],
+    "ffm": [
+      {
+        "label": "Maasina Fulfulde",
+        "kind": "english"
+      }
+    ],
+    "lhm": [
+      {
+        "label": "Lhomi",
+        "kind": "english"
+      }
+    ],
+    "ldd": [
+      {
+        "label": "Luri",
+        "kind": "english"
+      }
+    ],
+    "oak": [
+      {
+        "label": "Noakhailla",
+        "kind": "english"
+      }
+    ],
+    "rmz": [
+      {
+        "label": "Marma",
+        "kind": "english"
+      }
+    ],
+    "tyj": [
+      {
+        "label": "Tai Yo",
+        "kind": "english"
+      }
+    ],
+    "phj": [
+      {
+        "label": "Pahari",
+        "kind": "english"
       }
     ]
   },
@@ -15135,80 +18471,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       },
       {
         "label": "Bretonisch",
-        "kind": "alias"
-      }
-    ],
-    "cmn": [
-      {
-        "label": "Mandarin",
-        "kind": "local"
-      },
-      {
-        "label": "普通话",
-        "kind": "native"
-      },
-      {
-        "label": "mandarín",
-        "kind": "alias"
-      },
-      {
-        "label": "中文",
-        "kind": "alias"
-      },
-      {
-        "label": "chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "mandarin chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "standard chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "putonghua",
-        "kind": "alias"
-      },
-      {
-        "label": "guoyu",
-        "kind": "alias"
-      },
-      {
-        "label": "汉语",
-        "kind": "alias"
-      },
-      {
-        "label": "国语",
-        "kind": "alias"
-      },
-      {
-        "label": "國語",
-        "kind": "alias"
-      },
-      {
-        "label": "华语",
-        "kind": "alias"
-      },
-      {
-        "label": "華語",
-        "kind": "alias"
-      },
-      {
-        "label": "官话",
-        "kind": "alias"
-      },
-      {
-        "label": "北方话",
-        "kind": "alias"
-      },
-      {
-        "label": "北方方言",
-        "kind": "alias"
-      },
-      {
-        "label": "中文普通话",
         "kind": "alias"
       }
     ],
@@ -19408,6 +22670,80 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
+    "cmn": [
+      {
+        "label": "Mandarin",
+        "kind": "local"
+      },
+      {
+        "label": "普通话",
+        "kind": "native"
+      },
+      {
+        "label": "mandarín",
+        "kind": "alias"
+      },
+      {
+        "label": "中文",
+        "kind": "alias"
+      },
+      {
+        "label": "chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "mandarin chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "standard chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "putonghua",
+        "kind": "alias"
+      },
+      {
+        "label": "guoyu",
+        "kind": "alias"
+      },
+      {
+        "label": "汉语",
+        "kind": "alias"
+      },
+      {
+        "label": "国语",
+        "kind": "alias"
+      },
+      {
+        "label": "國語",
+        "kind": "alias"
+      },
+      {
+        "label": "华语",
+        "kind": "alias"
+      },
+      {
+        "label": "華語",
+        "kind": "alias"
+      },
+      {
+        "label": "官话",
+        "kind": "alias"
+      },
+      {
+        "label": "北方话",
+        "kind": "alias"
+      },
+      {
+        "label": "北方方言",
+        "kind": "alias"
+      },
+      {
+        "label": "中文普通话",
+        "kind": "alias"
+      }
+    ],
     "frr": [
       {
         "label": "Northern Frisian",
@@ -19506,12 +22842,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Khotta",
         "kind": "alias"
-      }
-    ],
-    "pox": [
-      {
-        "label": "Polabian",
-        "kind": "english"
       }
     ],
     "zha": [
@@ -20414,12 +23744,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "alias"
       }
     ],
-    "prv": [
-      {
-        "label": "Provençal",
-        "kind": "english"
-      }
-    ],
     "gon": [
       {
         "label": "Gondi",
@@ -20624,12 +23948,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "fsl": [
-      {
-        "label": "French Sign Language",
-        "kind": "english"
-      }
-    ],
     "oji": [
       {
         "label": "Ojibwa",
@@ -20760,12 +24078,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "xil": [
-      {
-        "label": "Illyrian",
-        "kind": "english"
-      }
-    ],
     "gld": [
       {
         "label": "Nanai",
@@ -20834,18 +24146,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Lushai",
         "kind": "alias"
-      }
-    ],
-    "xcb": [
-      {
-        "label": "Cumbric",
-        "kind": "english"
-      }
-    ],
-    "vsn": [
-      {
-        "label": "Vedic Sanskrit",
-        "kind": "english"
       }
     ],
     "hyw": [
@@ -20932,12 +24232,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "txh": [
-      {
-        "label": "Thracian",
-        "kind": "english"
-      }
-    ],
     "khw": [
       {
         "label": "Khowar",
@@ -21021,12 +24315,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
     "ruo": [
       {
         "label": "Istro-Romanian",
-        "kind": "english"
-      }
-    ],
-    "nzs": [
-      {
-        "label": "New Zealand Sign Language",
         "kind": "english"
       }
     ],
@@ -21448,21 +24736,9 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "xga": [
-      {
-        "label": "Galatian",
-        "kind": "english"
-      }
-    ],
     "aib": [
       {
         "label": "Äynu",
-        "kind": "english"
-      }
-    ],
-    "ncs": [
-      {
-        "label": "Nicaraguan Sign Language",
         "kind": "english"
       }
     ],
@@ -21554,27 +24830,9 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "ise": [
-      {
-        "label": "Italian Sign Language",
-        "kind": "english"
-      }
-    ],
     "scl": [
       {
         "label": "Shina",
-        "kind": "english"
-      }
-    ],
-    "xeb": [
-      {
-        "label": "Eblaite",
-        "kind": "english"
-      }
-    ],
-    "xur": [
-      {
-        "label": "Urartian",
         "kind": "english"
       }
     ],
@@ -21806,6 +25064,1456 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "宽亚玛语",
         "kind": "alias"
+      }
+    ],
+    "ctg": [
+      {
+        "label": "Chittagonian",
+        "kind": "english"
+      }
+    ],
+    "itl": [
+      {
+        "label": "Itelmen",
+        "kind": "english"
+      }
+    ],
+    "mhj": [
+      {
+        "label": "Moghol",
+        "kind": "english"
+      }
+    ],
+    "sip": [
+      {
+        "label": "Sikkimese Bhutia",
+        "kind": "english"
+      }
+    ],
+    "gbm": [
+      {
+        "label": "Garhwali",
+        "kind": "english"
+      }
+    ],
+    "kfy": [
+      {
+        "label": "Kumaoni",
+        "kind": "english"
+      }
+    ],
+    "kru": [
+      {
+        "label": "Kurukh",
+        "kind": "local"
+      },
+      {
+        "label": "库鲁克语",
+        "kind": "alias"
+      },
+      {
+        "label": "kouroukh",
+        "kind": "alias"
+      },
+      {
+        "label": "Oraon",
+        "kind": "alias"
+      }
+    ],
+    "bbl": [
+      {
+        "label": "Bats",
+        "kind": "english"
+      }
+    ],
+    "bej": [
+      {
+        "label": "Beja",
+        "kind": "local"
+      },
+      {
+        "label": "贝沙语",
+        "kind": "alias"
+      },
+      {
+        "label": "bedja",
+        "kind": "alias"
+      },
+      {
+        "label": "Bedauye",
+        "kind": "alias"
+      }
+    ],
+    "rmt": [
+      {
+        "label": "Domari",
+        "kind": "english"
+      }
+    ],
+    "haz": [
+      {
+        "label": "Hazaragi",
+        "kind": "english"
+      }
+    ],
+    "sty": [
+      {
+        "label": "Siberian Tatar",
+        "kind": "english"
+      }
+    ],
+    "ddo": [
+      {
+        "label": "Tsez",
+        "kind": "english"
+      }
+    ],
+    "bla": [
+      {
+        "label": "Siksiká",
+        "kind": "local"
+      },
+      {
+        "label": "Blackfoot",
+        "kind": "english"
+      },
+      {
+        "label": "西克西卡语",
+        "kind": "alias"
+      },
+      {
+        "label": "siksika",
+        "kind": "alias"
+      }
+    ],
+    "cia": [
+      {
+        "label": "Cia-Cia",
+        "kind": "english"
+      }
+    ],
+    "kmz": [
+      {
+        "label": "Khorasani Turkic",
+        "kind": "english"
+      }
+    ],
+    "lud": [
+      {
+        "label": "Ludic",
+        "kind": "english"
+      }
+    ],
+    "tsd": [
+      {
+        "label": "Tsakonian",
+        "kind": "local"
+      },
+      {
+        "label": "tsakonien",
+        "kind": "alias"
+      },
+      {
+        "label": "Tsakonisch",
+        "kind": "alias"
+      }
+    ],
+    "yoi": [
+      {
+        "label": "Yonaguni",
+        "kind": "english"
+      }
+    ],
+    "alr": [
+      {
+        "label": "Alyutor",
+        "kind": "english"
+      }
+    ],
+    "aqc": [
+      {
+        "label": "Archi",
+        "kind": "english"
+      }
+    ],
+    "xco": [
+      {
+        "label": "Khwarezmian",
+        "kind": "english"
+      }
+    ],
+    "dty": [
+      {
+        "label": "Doteli",
+        "kind": "english"
+      }
+    ],
+    "kac": [
+      {
+        "label": "Kachin",
+        "kind": "local"
+      },
+      {
+        "label": "Jingpo",
+        "kind": "english"
+      },
+      {
+        "label": "克钦语",
+        "kind": "alias"
+      }
+    ],
+    "khn": [
+      {
+        "label": "Khandeshi",
+        "kind": "english"
+      }
+    ],
+    "kjj": [
+      {
+        "label": "Khinalug",
+        "kind": "english"
+      }
+    ],
+    "kgg": [
+      {
+        "label": "Kusunda",
+        "kind": "english"
+      }
+    ],
+    "oaa": [
+      {
+        "label": "Orok",
+        "kind": "english"
+      }
+    ],
+    "siz": [
+      {
+        "label": "Siwa",
+        "kind": "english"
+      }
+    ],
+    "srr": [
+      {
+        "label": "Serer",
+        "kind": "local"
+      },
+      {
+        "label": "塞雷尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "sérère",
+        "kind": "alias"
+      }
+    ],
+    "kfa": [
+      {
+        "label": "Kodava",
+        "kind": "english"
+      }
+    ],
+    "zum": [
+      {
+        "label": "Kumzari",
+        "kind": "english"
+      }
+    ],
+    "rys": [
+      {
+        "label": "Yaeyama",
+        "kind": "english"
+      }
+    ],
+    "ani": [
+      {
+        "label": "Andi",
+        "kind": "english"
+      }
+    ],
+    "bhh": [
+      {
+        "label": "Bukharian",
+        "kind": "english"
+      }
+    ],
+    "acy": [
+      {
+        "label": "Cypriot Arabic",
+        "kind": "english"
+      }
+    ],
+    "jje": [
+      {
+        "label": "Jejuan",
+        "kind": "english"
+      }
+    ],
+    "mdh": [
+      {
+        "label": "Maguindanao",
+        "kind": "english"
+      }
+    ],
+    "ude": [
+      {
+        "label": "Udege",
+        "kind": "english"
+      }
+    ],
+    "mnj": [
+      {
+        "label": "Munji",
+        "kind": "english"
+      }
+    ],
+    "sck": [
+      {
+        "label": "Nagpuri",
+        "kind": "english"
+      }
+    ],
+    "neg": [
+      {
+        "label": "Negidal",
+        "kind": "english"
+      }
+    ],
+    "rkt": [
+      {
+        "label": "Rangpuri",
+        "kind": "english"
+      }
+    ],
+    "tru": [
+      {
+        "label": "Turoyo",
+        "kind": "local"
+      },
+      {
+        "label": "touroyo",
+        "kind": "alias"
+      }
+    ],
+    "ulc": [
+      {
+        "label": "Ulch",
+        "kind": "english"
+      }
+    ],
+    "sjo": [
+      {
+        "label": "Xibe",
+        "kind": "english"
+      },
+      {
+        "label": "锡伯语",
+        "kind": "alias"
+      },
+      {
+        "label": "錫伯語",
+        "kind": "alias"
+      }
+    ],
+    "akv": [
+      {
+        "label": "Akhvakh",
+        "kind": "english"
+      }
+    ],
+    "dta": [
+      {
+        "label": "Daur",
+        "kind": "english"
+      }
+    ],
+    "gin": [
+      {
+        "label": "Hinuq",
+        "kind": "english"
+      }
+    ],
+    "czk": [
+      {
+        "label": "Knaanic",
+        "kind": "english"
+      }
+    ],
+    "oru": [
+      {
+        "label": "Ormuri",
+        "kind": "english"
+      }
+    ],
+    "oac": [
+      {
+        "label": "Oroch",
+        "kind": "english"
+      }
+    ],
+    "aiw": [
+      {
+        "label": "Aari",
+        "kind": "english"
+      }
+    ],
+    "tts": [
+      {
+        "label": "Isan",
+        "kind": "english"
+      }
+    ],
+    "jpr": [
+      {
+        "label": "Judeo-Persian",
+        "kind": "local"
+      },
+      {
+        "label": "犹太波斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "judéo-persan",
+        "kind": "alias"
+      },
+      {
+        "label": "judeo-persa",
+        "kind": "alias"
+      },
+      {
+        "label": "Jüdisch-Persisch",
+        "kind": "alias"
+      }
+    ],
+    "lmn": [
+      {
+        "label": "Lambadi",
+        "kind": "english"
+      }
+    ],
+    "chp": [
+      {
+        "label": "Chipewyan",
+        "kind": "local"
+      },
+      {
+        "label": "奇佩维安语",
+        "kind": "alias"
+      }
+    ],
+    "xnr": [
+      {
+        "label": "Kangri",
+        "kind": "local"
+      },
+      {
+        "label": "कांगड़ी",
+        "kind": "native"
+      },
+      {
+        "label": "康格里语",
+        "kind": "alias"
+      }
+    ],
+    "mvi": [
+      {
+        "label": "Miyako",
+        "kind": "english"
+      }
+    ],
+    "rki": [
+      {
+        "label": "Rakhine",
+        "kind": "english"
+      }
+    ],
+    "ysr": [
+      {
+        "label": "Sirenik",
+        "kind": "english"
+      }
+    ],
+    "taq": [
+      {
+        "label": "Tamasheq",
+        "kind": "english"
+      }
+    ],
+    "tcx": [
+      {
+        "label": "Toda",
+        "kind": "english"
+      }
+    ],
+    "bdk": [
+      {
+        "label": "Budukh",
+        "kind": "english"
+      }
+    ],
+    "mtr": [
+      {
+        "label": "Mewari",
+        "kind": "english"
+      }
+    ],
+    "yej": [
+      {
+        "label": "Yevanic",
+        "kind": "english"
+      }
+    ],
+    "aat": [
+      {
+        "label": "Arvanitic",
+        "kind": "english"
+      }
+    ],
+    "jdt": [
+      {
+        "label": "Judeo-Tat",
+        "kind": "english"
+      }
+    ],
+    "bjj": [
+      {
+        "label": "Kannauji",
+        "kind": "english"
+      }
+    ],
+    "kfq": [
+      {
+        "label": "Korku",
+        "kind": "english"
+      }
+    ],
+    "mdr": [
+      {
+        "label": "Mandar",
+        "kind": "local"
+      },
+      {
+        "label": "曼达尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "Mandaresisch",
+        "kind": "alias"
+      }
+    ],
+    "oon": [
+      {
+        "label": "Önge",
+        "kind": "english"
+      }
+    ],
+    "tsj": [
+      {
+        "label": "Tshangla",
+        "kind": "english"
+      }
+    ],
+    "ydg": [
+      {
+        "label": "Yidgha",
+        "kind": "english"
+      }
+    ],
+    "agj": [
+      {
+        "label": "Argobba",
+        "kind": "english"
+      }
+    ],
+    "bph": [
+      {
+        "label": "Botlikh",
+        "kind": "english"
+      }
+    ],
+    "dml": [
+      {
+        "label": "Dameli",
+        "kind": "english"
+      }
+    ],
+    "gdo": [
+      {
+        "label": "Godoberi",
+        "kind": "english"
+      }
+    ],
+    "hlb": [
+      {
+        "label": "Halbi",
+        "kind": "english"
+      }
+    ],
+    "huz": [
+      {
+        "label": "Hunzib",
+        "kind": "english"
+      }
+    ],
+    "anq": [
+      {
+        "label": "Jarawa",
+        "kind": "english"
+      }
+    ],
+    "khv": [
+      {
+        "label": "Khwarshi",
+        "kind": "english"
+      }
+    ],
+    "lis": [
+      {
+        "label": "Lisu",
+        "kind": "english"
+      },
+      {
+        "label": "傈僳语",
+        "kind": "alias"
+      },
+      {
+        "label": "傈僳語",
+        "kind": "alias"
+      }
+    ],
+    "noe": [
+      {
+        "label": "Nimadi",
+        "kind": "english"
+      }
+    ],
+    "trw": [
+      {
+        "label": "Torwali",
+        "kind": "local"
+      },
+      {
+        "label": "托尔瓦利语",
+        "kind": "alias"
+      }
+    ],
+    "yah": [
+      {
+        "label": "Yazgulyam",
+        "kind": "english"
+      }
+    ],
+    "kap": [
+      {
+        "label": "Bezhta",
+        "kind": "english"
+      }
+    ],
+    "caq": [
+      {
+        "label": "Car",
+        "kind": "english"
+      }
+    ],
+    "cji": [
+      {
+        "label": "Chamalal",
+        "kind": "english"
+      }
+    ],
+    "dhd": [
+      {
+        "label": "Marwari",
+        "kind": "local"
+      },
+      {
+        "label": "Dhundari",
+        "kind": "english"
+      },
+      {
+        "label": "马尔瓦里语",
+        "kind": "alias"
+      },
+      {
+        "label": "marwarî",
+        "kind": "alias"
+      }
+    ],
+    "gvr": [
+      {
+        "label": "Gurung",
+        "kind": "english"
+      }
+    ],
+    "har": [
+      {
+        "label": "Harari",
+        "kind": "english"
+      }
+    ],
+    "kry": [
+      {
+        "label": "Kryts",
+        "kind": "english"
+      }
+    ],
+    "mjt": [
+      {
+        "label": "Sauria Paharia",
+        "kind": "english"
+      }
+    ],
+    "kva": [
+      {
+        "label": "Bagvalal",
+        "kind": "english"
+      }
+    ],
+    "byn": [
+      {
+        "label": "Blin",
+        "kind": "local"
+      },
+      {
+        "label": "比林语",
+        "kind": "alias"
+      }
+    ],
+    "phl": [
+      {
+        "label": "Palula",
+        "kind": "english"
+      }
+    ],
+    "srb": [
+      {
+        "label": "Sora",
+        "kind": "english"
+      }
+    ],
+    "awn": [
+      {
+        "label": "Awngi",
+        "kind": "english"
+      }
+    ],
+    "gwc": [
+      {
+        "label": "Gawri",
+        "kind": "english"
+      }
+    ],
+    "kpt": [
+      {
+        "label": "Karata-Tukita",
+        "kind": "english"
+      }
+    ],
+    "khr": [
+      {
+        "label": "Kharia",
+        "kind": "english"
+      }
+    ],
+    "kdt": [
+      {
+        "label": "Kuy",
+        "kind": "english"
+      }
+    ],
+    "onw": [
+      {
+        "label": "Old Nubian",
+        "kind": "english"
+      }
+    ],
+    "blt": [
+      {
+        "label": "Tai Dam",
+        "kind": "local"
+      }
+    ],
+    "tin": [
+      {
+        "label": "Tindi",
+        "kind": "english"
+      }
+    ],
+    "amw": [
+      {
+        "label": "Western Neo-Aramaic",
+        "kind": "english"
+      }
+    ],
+    "thz": [
+      {
+        "label": "Air Tamajeq",
+        "kind": "english"
+      }
+    ],
+    "mvy": [
+      {
+        "label": "Indus Kohistani",
+        "kind": "english"
+      }
+    ],
+    "iru": [
+      {
+        "label": "Irula",
+        "kind": "english"
+      }
+    ],
+    "ahk": [
+      {
+        "label": "Akha",
+        "kind": "english"
+      }
+    ],
+    "kjg": [
+      {
+        "label": "Khmu",
+        "kind": "english"
+      }
+    ],
+    "kyw": [
+      {
+        "label": "Kudmali",
+        "kind": "english"
+      }
+    ],
+    "blk": [
+      {
+        "label": "Pa'O",
+        "kind": "english"
+      }
+    ],
+    "stv": [
+      {
+        "label": "Selti",
+        "kind": "english"
+      }
+    ],
+    "urk": [
+      {
+        "label": "Urak Lawoi’",
+        "kind": "english"
+      }
+    ],
+    "mki": [
+      {
+        "label": "Dhatki",
+        "kind": "english"
+      }
+    ],
+    "ttq": [
+      {
+        "label": "Tamashek",
+        "kind": "local"
+      },
+      {
+        "label": "Tahoua",
+        "kind": "english"
+      },
+      {
+        "label": "塔马奇克语",
+        "kind": "alias"
+      },
+      {
+        "label": "tamacheq",
+        "kind": "alias"
+      },
+      {
+        "label": "Tamaseq",
+        "kind": "alias"
+      }
+    ],
+    "dhi": [
+      {
+        "label": "Dhimal",
+        "kind": "english"
+      }
+    ],
+    "guk": [
+      {
+        "label": "Gumuz",
+        "kind": "english"
+      }
+    ],
+    "khg": [
+      {
+        "label": "Khams Tibetan",
+        "kind": "english"
+      }
+    ],
+    "kzg": [
+      {
+        "label": "Kikai",
+        "kind": "english"
+      }
+    ],
+    "ugh": [
+      {
+        "label": "Kubachi",
+        "kind": "english"
+      }
+    ],
+    "ush": [
+      {
+        "label": "Ushoji",
+        "kind": "english"
+      }
+    ],
+    "xan": [
+      {
+        "label": "Xamtanga",
+        "kind": "english"
+      }
+    ],
+    "yox": [
+      {
+        "label": "Yoron",
+        "kind": "english"
+      }
+    ],
+    "aeq": [
+      {
+        "label": "Aer",
+        "kind": "english"
+      }
+    ],
+    "bap": [
+      {
+        "label": "Bantawa",
+        "kind": "english"
+      }
+    ],
+    "bcq": [
+      {
+        "label": "Bench",
+        "kind": "english"
+      }
+    ],
+    "kjz": [
+      {
+        "label": "Bumthang",
+        "kind": "english"
+      }
+    ],
+    "xka": [
+      {
+        "label": "Kalkoti",
+        "kind": "english"
+      }
+    ],
+    "sdb": [
+      {
+        "label": "Shabaki",
+        "kind": "english"
+      }
+    ],
+    "twh": [
+      {
+        "label": "Tai Dón",
+        "kind": "english"
+      }
+    ],
+    "wne": [
+      {
+        "label": "Tareeno",
+        "kind": "english"
+      }
+    ],
+    "tft": [
+      {
+        "label": "Ternate",
+        "kind": "english"
+      }
+    ],
+    "aio": [
+      {
+        "label": "Aiton",
+        "kind": "english"
+      }
+    ],
+    "akj": [
+      {
+        "label": "Aka-Jeru",
+        "kind": "english"
+      }
+    ],
+    "amf": [
+      {
+        "label": "Hamer",
+        "kind": "english"
+      }
+    ],
+    "kcn": [
+      {
+        "label": "Nubi",
+        "kind": "english"
+      }
+    ],
+    "suz": [
+      {
+        "label": "Sunwar",
+        "kind": "english"
+      }
+    ],
+    "adx": [
+      {
+        "label": "Amdo Tibetan",
+        "kind": "english"
+      }
+    ],
+    "dhw": [
+      {
+        "label": "Dhanwar Rai",
+        "kind": "english"
+      }
+    ],
+    "mdx": [
+      {
+        "label": "Dizin",
+        "kind": "english"
+      }
+    ],
+    "ior": [
+      {
+        "label": "Inor",
+        "kind": "english"
+      }
+    ],
+    "xdq": [
+      {
+        "label": "Kaitag",
+        "kind": "english"
+      }
+    ],
+    "mjl": [
+      {
+        "label": "Mandeali",
+        "kind": "english"
+      }
+    ],
+    "nsk": [
+      {
+        "label": "Naskapi",
+        "kind": "english"
+      }
+    ],
+    "cbn": [
+      {
+        "label": "Nyah Kur",
+        "kind": "english"
+      }
+    ],
+    "kvx": [
+      {
+        "label": "Parkari Koli",
+        "kind": "english"
+      }
+    ],
+    "tkn": [
+      {
+        "label": "Tokunoshima",
+        "kind": "english"
+      }
+    ],
+    "scp": [
+      {
+        "label": "Yolmo",
+        "kind": "english"
+      }
+    ],
+    "atb": [
+      {
+        "label": "Zaiwa",
+        "kind": "english"
+      }
+    ],
+    "bhj": [
+      {
+        "label": "Bahing",
+        "kind": "english"
+      }
+    ],
+    "bzi": [
+      {
+        "label": "Bisu",
+        "kind": "english"
+      }
+    ],
+    "rab": [
+      {
+        "label": "Chamling",
+        "kind": "english"
+      }
+    ],
+    "kjp": [
+      {
+        "label": "Eastern Pwo",
+        "kind": "english"
+      }
+    ],
+    "jun": [
+      {
+        "label": "Juang",
+        "kind": "english"
+      }
+    ],
+    "kuf": [
+      {
+        "label": "Katu",
+        "kind": "english"
+      }
+    ],
+    "ykh": [
+      {
+        "label": "Khamnigan Mongol",
+        "kind": "english"
+      }
+    ],
+    "bfz": [
+      {
+        "label": "Mahasu Pahari",
+        "kind": "english"
+      }
+    ],
+    "okn": [
+      {
+        "label": "Okinoerabu",
+        "kind": "english"
+      }
+    ],
+    "ksw": [
+      {
+        "label": "S'gaw Karen",
+        "kind": "english"
+      }
+    ],
+    "kht": [
+      {
+        "label": "Khamti",
+        "kind": "english"
+      }
+    ],
+    "lpo": [
+      {
+        "label": "Lipo",
+        "kind": "english"
+      }
+    ],
+    "ths": [
+      {
+        "label": "Thakali",
+        "kind": "english"
+      }
+    ],
+    "aph": [
+      {
+        "label": "Athpare",
+        "kind": "english"
+      }
+    ],
+    "kfs": [
+      {
+        "label": "Bilaspuri",
+        "kind": "english"
+      }
+    ],
+    "cld": [
+      {
+        "label": "Syriac",
+        "kind": "local"
+      },
+      {
+        "label": "ܣܘܪܝܝܐ",
+        "kind": "native"
+      },
+      {
+        "label": "Chaldean Neo-Aramaic",
+        "kind": "english"
+      },
+      {
+        "label": "叙利亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "syriaque",
+        "kind": "alias"
+      },
+      {
+        "label": "siriaco",
+        "kind": "alias"
+      },
+      {
+        "label": "Syrisch",
+        "kind": "alias"
+      }
+    ],
+    "cdh": [
+      {
+        "label": "Chambeali",
+        "kind": "english"
+      }
+    ],
+    "dso": [
+      {
+        "label": "Desia",
+        "kind": "english"
+      }
+    ],
+    "mhu": [
+      {
+        "label": "Digaro Mishmi",
+        "kind": "english"
+      }
+    ],
+    "gbk": [
+      {
+        "label": "Gaddi",
+        "kind": "english"
+      }
+    ],
+    "jns": [
+      {
+        "label": "Jaunsari",
+        "kind": "english"
+      }
+    ],
+    "kfx": [
+      {
+        "label": "Kullui",
+        "kind": "english"
+      }
+    ],
+    "mid": [
+      {
+        "label": "Neo-Mandaic",
+        "kind": "english"
+      }
+    ],
+    "yea": [
+      {
+        "label": "Ravula",
+        "kind": "english"
+      }
+    ],
+    "srx": [
+      {
+        "label": "Sirmauri",
+        "kind": "english"
+      }
+    ],
+    "phk": [
+      {
+        "label": "Tai Phake",
+        "kind": "english"
+      }
+    ],
+    "thf": [
+      {
+        "label": "Thangmi",
+        "kind": "english"
+      }
+    ],
+    "wme": [
+      {
+        "label": "Wambule",
+        "kind": "english"
+      }
+    ],
+    "nnp": [
+      {
+        "label": "Wancho",
+        "kind": "english"
+      }
+    ],
+    "ybh": [
+      {
+        "label": "Yakkha",
+        "kind": "english"
+      }
+    ],
+    "hmd": [
+      {
+        "label": "A-Hmao",
+        "kind": "english"
+      }
+    ],
+    "byw": [
+      {
+        "label": "Belhare",
+        "kind": "english"
+      }
+    ],
+    "cda": [
+      {
+        "label": "Choni",
+        "kind": "english"
+      }
+    ],
+    "klr": [
+      {
+        "label": "Khaling",
+        "kind": "english"
+      }
+    ],
+    "mqa": [
+      {
+        "label": "Maba",
+        "kind": "english"
+      }
+    ],
+    "njz": [
+      {
+        "label": "Nishi",
+        "kind": "english"
+      }
+    ],
+    "kxm": [
+      {
+        "label": "Northern Khmer",
+        "kind": "english"
+      }
+    ],
+    "pww": [
+      {
+        "label": "Northern Pwo",
+        "kind": "english"
+      }
+    ],
+    "rjs": [
+      {
+        "label": "Rajbanshi",
+        "kind": "english"
+      }
+    ],
+    "pwo": [
+      {
+        "label": "Western Pwo",
+        "kind": "english"
+      }
+    ],
+    "crx": [
+      {
+        "label": "Carrier",
+        "kind": "english"
+      }
+    ],
+    "syw": [
+      {
+        "label": "Kagate",
+        "kind": "english"
+      }
+    ],
+    "mqu": [
+      {
+        "label": "Mandari",
+        "kind": "english"
+      }
+    ],
+    "ojs": [
+      {
+        "label": "Oji-Cree",
+        "kind": "local"
+      },
+      {
+        "label": "欧吉克里语",
+        "kind": "alias"
+      },
+      {
+        "label": "oji-cri",
+        "kind": "alias"
+      }
+    ],
+    "pgg": [
+      {
+        "label": "Pangwali",
+        "kind": "english"
+      }
+    ],
+    "jul": [
+      {
+        "label": "Jirel",
+        "kind": "english"
+      }
+    ],
+    "xkf": [
+      {
+        "label": "Kheng",
+        "kind": "english"
+      }
+    ],
+    "hmb": [
+      {
+        "label": "Humburi Senni",
+        "kind": "english"
+      }
+    ],
+    "saw": [
+      {
+        "label": "Sawi",
+        "kind": "english"
+      }
+    ],
+    "tjl": [
+      {
+        "label": "Tai Laing",
+        "kind": "english"
+      }
+    ],
+    "soa": [
+      {
+        "label": "Thai Song",
+        "kind": "english"
+      }
+    ],
+    "bjt": [
+      {
+        "label": "Balanta-Ganja",
+        "kind": "english"
+      }
+    ],
+    "ffm": [
+      {
+        "label": "Maasina Fulfulde",
+        "kind": "english"
+      }
+    ],
+    "lhm": [
+      {
+        "label": "Lhomi",
+        "kind": "english"
+      }
+    ],
+    "ldd": [
+      {
+        "label": "Luri",
+        "kind": "english"
+      }
+    ],
+    "oak": [
+      {
+        "label": "Noakhailla",
+        "kind": "english"
+      }
+    ],
+    "rmz": [
+      {
+        "label": "Marma",
+        "kind": "english"
+      }
+    ],
+    "tyj": [
+      {
+        "label": "Tai Yo",
+        "kind": "english"
+      }
+    ],
+    "phj": [
+      {
+        "label": "Pahari",
+        "kind": "english"
       }
     ]
   },
@@ -23895,80 +28603,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       },
       {
         "label": "Bretonisch",
-        "kind": "alias"
-      }
-    ],
-    "cmn": [
-      {
-        "label": "mandarin",
-        "kind": "local"
-      },
-      {
-        "label": "普通话",
-        "kind": "native"
-      },
-      {
-        "label": "mandarín",
-        "kind": "alias"
-      },
-      {
-        "label": "中文",
-        "kind": "alias"
-      },
-      {
-        "label": "chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "mandarin chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "standard chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "putonghua",
-        "kind": "alias"
-      },
-      {
-        "label": "guoyu",
-        "kind": "alias"
-      },
-      {
-        "label": "汉语",
-        "kind": "alias"
-      },
-      {
-        "label": "国语",
-        "kind": "alias"
-      },
-      {
-        "label": "國語",
-        "kind": "alias"
-      },
-      {
-        "label": "华语",
-        "kind": "alias"
-      },
-      {
-        "label": "華語",
-        "kind": "alias"
-      },
-      {
-        "label": "官话",
-        "kind": "alias"
-      },
-      {
-        "label": "北方话",
-        "kind": "alias"
-      },
-      {
-        "label": "北方方言",
-        "kind": "alias"
-      },
-      {
-        "label": "中文普通话",
         "kind": "alias"
       }
     ],
@@ -28168,6 +32802,80 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
+    "cmn": [
+      {
+        "label": "mandarin",
+        "kind": "local"
+      },
+      {
+        "label": "普通话",
+        "kind": "native"
+      },
+      {
+        "label": "mandarín",
+        "kind": "alias"
+      },
+      {
+        "label": "中文",
+        "kind": "alias"
+      },
+      {
+        "label": "chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "mandarin chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "standard chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "putonghua",
+        "kind": "alias"
+      },
+      {
+        "label": "guoyu",
+        "kind": "alias"
+      },
+      {
+        "label": "汉语",
+        "kind": "alias"
+      },
+      {
+        "label": "国语",
+        "kind": "alias"
+      },
+      {
+        "label": "國語",
+        "kind": "alias"
+      },
+      {
+        "label": "华语",
+        "kind": "alias"
+      },
+      {
+        "label": "華語",
+        "kind": "alias"
+      },
+      {
+        "label": "官话",
+        "kind": "alias"
+      },
+      {
+        "label": "北方话",
+        "kind": "alias"
+      },
+      {
+        "label": "北方方言",
+        "kind": "alias"
+      },
+      {
+        "label": "中文普通话",
+        "kind": "alias"
+      }
+    ],
     "frr": [
       {
         "label": "frison septentrional",
@@ -28266,12 +32974,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Khotta",
         "kind": "alias"
-      }
-    ],
-    "pox": [
-      {
-        "label": "Polabian",
-        "kind": "english"
       }
     ],
     "zha": [
@@ -29174,12 +33876,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "alias"
       }
     ],
-    "prv": [
-      {
-        "label": "Provençal",
-        "kind": "english"
-      }
-    ],
     "gon": [
       {
         "label": "gondi",
@@ -29384,12 +34080,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "fsl": [
-      {
-        "label": "French Sign Language",
-        "kind": "english"
-      }
-    ],
     "oji": [
       {
         "label": "ojibwa",
@@ -29520,12 +34210,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "xil": [
-      {
-        "label": "Illyrian",
-        "kind": "english"
-      }
-    ],
     "gld": [
       {
         "label": "Nanai",
@@ -29594,18 +34278,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Lushai",
         "kind": "alias"
-      }
-    ],
-    "xcb": [
-      {
-        "label": "Cumbric",
-        "kind": "english"
-      }
-    ],
-    "vsn": [
-      {
-        "label": "Vedic Sanskrit",
-        "kind": "english"
       }
     ],
     "hyw": [
@@ -29692,12 +34364,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "txh": [
-      {
-        "label": "Thracian",
-        "kind": "english"
-      }
-    ],
     "khw": [
       {
         "label": "khowar",
@@ -29781,12 +34447,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
     "ruo": [
       {
         "label": "Istro-Romanian",
-        "kind": "english"
-      }
-    ],
-    "nzs": [
-      {
-        "label": "New Zealand Sign Language",
         "kind": "english"
       }
     ],
@@ -30208,21 +34868,9 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "xga": [
-      {
-        "label": "Galatian",
-        "kind": "english"
-      }
-    ],
     "aib": [
       {
         "label": "Äynu",
-        "kind": "english"
-      }
-    ],
-    "ncs": [
-      {
-        "label": "Nicaraguan Sign Language",
         "kind": "english"
       }
     ],
@@ -30314,27 +34962,9 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "ise": [
-      {
-        "label": "Italian Sign Language",
-        "kind": "english"
-      }
-    ],
     "scl": [
       {
         "label": "Shina",
-        "kind": "english"
-      }
-    ],
-    "xeb": [
-      {
-        "label": "Eblaite",
-        "kind": "english"
-      }
-    ],
-    "xur": [
-      {
-        "label": "Urartian",
         "kind": "english"
       }
     ],
@@ -30566,6 +35196,1456 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "宽亚玛语",
         "kind": "alias"
+      }
+    ],
+    "ctg": [
+      {
+        "label": "Chittagonian",
+        "kind": "english"
+      }
+    ],
+    "itl": [
+      {
+        "label": "Itelmen",
+        "kind": "english"
+      }
+    ],
+    "mhj": [
+      {
+        "label": "Moghol",
+        "kind": "english"
+      }
+    ],
+    "sip": [
+      {
+        "label": "Sikkimese Bhutia",
+        "kind": "english"
+      }
+    ],
+    "gbm": [
+      {
+        "label": "Garhwali",
+        "kind": "english"
+      }
+    ],
+    "kfy": [
+      {
+        "label": "Kumaoni",
+        "kind": "english"
+      }
+    ],
+    "kru": [
+      {
+        "label": "kouroukh",
+        "kind": "local"
+      },
+      {
+        "label": "Kurukh",
+        "kind": "english"
+      },
+      {
+        "label": "库鲁克语",
+        "kind": "alias"
+      },
+      {
+        "label": "Oraon",
+        "kind": "alias"
+      }
+    ],
+    "bbl": [
+      {
+        "label": "Bats",
+        "kind": "english"
+      }
+    ],
+    "bej": [
+      {
+        "label": "bedja",
+        "kind": "local"
+      },
+      {
+        "label": "Beja",
+        "kind": "english"
+      },
+      {
+        "label": "贝沙语",
+        "kind": "alias"
+      },
+      {
+        "label": "Bedauye",
+        "kind": "alias"
+      }
+    ],
+    "rmt": [
+      {
+        "label": "Domari",
+        "kind": "english"
+      }
+    ],
+    "haz": [
+      {
+        "label": "Hazaragi",
+        "kind": "english"
+      }
+    ],
+    "sty": [
+      {
+        "label": "Siberian Tatar",
+        "kind": "english"
+      }
+    ],
+    "ddo": [
+      {
+        "label": "Tsez",
+        "kind": "english"
+      }
+    ],
+    "bla": [
+      {
+        "label": "siksika",
+        "kind": "local"
+      },
+      {
+        "label": "Blackfoot",
+        "kind": "english"
+      },
+      {
+        "label": "西克西卡语",
+        "kind": "alias"
+      },
+      {
+        "label": "Siksiká",
+        "kind": "alias"
+      }
+    ],
+    "cia": [
+      {
+        "label": "Cia-Cia",
+        "kind": "english"
+      }
+    ],
+    "kmz": [
+      {
+        "label": "Khorasani Turkic",
+        "kind": "english"
+      }
+    ],
+    "lud": [
+      {
+        "label": "Ludic",
+        "kind": "english"
+      }
+    ],
+    "tsd": [
+      {
+        "label": "tsakonien",
+        "kind": "local"
+      },
+      {
+        "label": "Tsakonian",
+        "kind": "english"
+      },
+      {
+        "label": "Tsakonisch",
+        "kind": "alias"
+      }
+    ],
+    "yoi": [
+      {
+        "label": "Yonaguni",
+        "kind": "english"
+      }
+    ],
+    "alr": [
+      {
+        "label": "Alyutor",
+        "kind": "english"
+      }
+    ],
+    "aqc": [
+      {
+        "label": "Archi",
+        "kind": "english"
+      }
+    ],
+    "xco": [
+      {
+        "label": "Khwarezmian",
+        "kind": "english"
+      }
+    ],
+    "dty": [
+      {
+        "label": "Doteli",
+        "kind": "english"
+      }
+    ],
+    "kac": [
+      {
+        "label": "kachin",
+        "kind": "local"
+      },
+      {
+        "label": "Jingpo",
+        "kind": "english"
+      },
+      {
+        "label": "克钦语",
+        "kind": "alias"
+      }
+    ],
+    "khn": [
+      {
+        "label": "Khandeshi",
+        "kind": "english"
+      }
+    ],
+    "kjj": [
+      {
+        "label": "Khinalug",
+        "kind": "english"
+      }
+    ],
+    "kgg": [
+      {
+        "label": "Kusunda",
+        "kind": "english"
+      }
+    ],
+    "oaa": [
+      {
+        "label": "Orok",
+        "kind": "english"
+      }
+    ],
+    "siz": [
+      {
+        "label": "Siwa",
+        "kind": "english"
+      }
+    ],
+    "srr": [
+      {
+        "label": "sérère",
+        "kind": "local"
+      },
+      {
+        "label": "Serer",
+        "kind": "english"
+      },
+      {
+        "label": "塞雷尔语",
+        "kind": "alias"
+      }
+    ],
+    "kfa": [
+      {
+        "label": "Kodava",
+        "kind": "english"
+      }
+    ],
+    "zum": [
+      {
+        "label": "Kumzari",
+        "kind": "english"
+      }
+    ],
+    "rys": [
+      {
+        "label": "Yaeyama",
+        "kind": "english"
+      }
+    ],
+    "ani": [
+      {
+        "label": "Andi",
+        "kind": "english"
+      }
+    ],
+    "bhh": [
+      {
+        "label": "Bukharian",
+        "kind": "english"
+      }
+    ],
+    "acy": [
+      {
+        "label": "Cypriot Arabic",
+        "kind": "english"
+      }
+    ],
+    "jje": [
+      {
+        "label": "Jejuan",
+        "kind": "english"
+      }
+    ],
+    "mdh": [
+      {
+        "label": "Maguindanao",
+        "kind": "english"
+      }
+    ],
+    "ude": [
+      {
+        "label": "Udege",
+        "kind": "english"
+      }
+    ],
+    "mnj": [
+      {
+        "label": "Munji",
+        "kind": "english"
+      }
+    ],
+    "sck": [
+      {
+        "label": "Nagpuri",
+        "kind": "english"
+      }
+    ],
+    "neg": [
+      {
+        "label": "Negidal",
+        "kind": "english"
+      }
+    ],
+    "rkt": [
+      {
+        "label": "Rangpuri",
+        "kind": "english"
+      }
+    ],
+    "tru": [
+      {
+        "label": "touroyo",
+        "kind": "local"
+      },
+      {
+        "label": "Turoyo",
+        "kind": "english"
+      }
+    ],
+    "ulc": [
+      {
+        "label": "Ulch",
+        "kind": "english"
+      }
+    ],
+    "sjo": [
+      {
+        "label": "Xibe",
+        "kind": "english"
+      },
+      {
+        "label": "锡伯语",
+        "kind": "alias"
+      },
+      {
+        "label": "錫伯語",
+        "kind": "alias"
+      }
+    ],
+    "akv": [
+      {
+        "label": "Akhvakh",
+        "kind": "english"
+      }
+    ],
+    "dta": [
+      {
+        "label": "Daur",
+        "kind": "english"
+      }
+    ],
+    "gin": [
+      {
+        "label": "Hinuq",
+        "kind": "english"
+      }
+    ],
+    "czk": [
+      {
+        "label": "Knaanic",
+        "kind": "english"
+      }
+    ],
+    "oru": [
+      {
+        "label": "Ormuri",
+        "kind": "english"
+      }
+    ],
+    "oac": [
+      {
+        "label": "Oroch",
+        "kind": "english"
+      }
+    ],
+    "aiw": [
+      {
+        "label": "Aari",
+        "kind": "english"
+      }
+    ],
+    "tts": [
+      {
+        "label": "Isan",
+        "kind": "english"
+      }
+    ],
+    "jpr": [
+      {
+        "label": "judéo-persan",
+        "kind": "local"
+      },
+      {
+        "label": "Judeo-Persian",
+        "kind": "english"
+      },
+      {
+        "label": "犹太波斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "judeo-persa",
+        "kind": "alias"
+      },
+      {
+        "label": "Jüdisch-Persisch",
+        "kind": "alias"
+      }
+    ],
+    "lmn": [
+      {
+        "label": "Lambadi",
+        "kind": "english"
+      }
+    ],
+    "chp": [
+      {
+        "label": "chipewyan",
+        "kind": "local"
+      },
+      {
+        "label": "奇佩维安语",
+        "kind": "alias"
+      }
+    ],
+    "xnr": [
+      {
+        "label": "kangri",
+        "kind": "local"
+      },
+      {
+        "label": "कांगड़ी",
+        "kind": "native"
+      },
+      {
+        "label": "康格里语",
+        "kind": "alias"
+      }
+    ],
+    "mvi": [
+      {
+        "label": "Miyako",
+        "kind": "english"
+      }
+    ],
+    "rki": [
+      {
+        "label": "Rakhine",
+        "kind": "english"
+      }
+    ],
+    "ysr": [
+      {
+        "label": "Sirenik",
+        "kind": "english"
+      }
+    ],
+    "taq": [
+      {
+        "label": "Tamasheq",
+        "kind": "english"
+      }
+    ],
+    "tcx": [
+      {
+        "label": "Toda",
+        "kind": "english"
+      }
+    ],
+    "bdk": [
+      {
+        "label": "Budukh",
+        "kind": "english"
+      }
+    ],
+    "mtr": [
+      {
+        "label": "Mewari",
+        "kind": "english"
+      }
+    ],
+    "yej": [
+      {
+        "label": "Yevanic",
+        "kind": "english"
+      }
+    ],
+    "aat": [
+      {
+        "label": "Arvanitic",
+        "kind": "english"
+      }
+    ],
+    "jdt": [
+      {
+        "label": "Judeo-Tat",
+        "kind": "english"
+      }
+    ],
+    "bjj": [
+      {
+        "label": "Kannauji",
+        "kind": "english"
+      }
+    ],
+    "kfq": [
+      {
+        "label": "Korku",
+        "kind": "english"
+      }
+    ],
+    "mdr": [
+      {
+        "label": "mandar",
+        "kind": "local"
+      },
+      {
+        "label": "曼达尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "Mandaresisch",
+        "kind": "alias"
+      }
+    ],
+    "oon": [
+      {
+        "label": "Önge",
+        "kind": "english"
+      }
+    ],
+    "tsj": [
+      {
+        "label": "Tshangla",
+        "kind": "english"
+      }
+    ],
+    "ydg": [
+      {
+        "label": "Yidgha",
+        "kind": "english"
+      }
+    ],
+    "agj": [
+      {
+        "label": "Argobba",
+        "kind": "english"
+      }
+    ],
+    "bph": [
+      {
+        "label": "Botlikh",
+        "kind": "english"
+      }
+    ],
+    "dml": [
+      {
+        "label": "Dameli",
+        "kind": "english"
+      }
+    ],
+    "gdo": [
+      {
+        "label": "Godoberi",
+        "kind": "english"
+      }
+    ],
+    "hlb": [
+      {
+        "label": "Halbi",
+        "kind": "english"
+      }
+    ],
+    "huz": [
+      {
+        "label": "Hunzib",
+        "kind": "english"
+      }
+    ],
+    "anq": [
+      {
+        "label": "Jarawa",
+        "kind": "english"
+      }
+    ],
+    "khv": [
+      {
+        "label": "Khwarshi",
+        "kind": "english"
+      }
+    ],
+    "lis": [
+      {
+        "label": "Lisu",
+        "kind": "english"
+      },
+      {
+        "label": "傈僳语",
+        "kind": "alias"
+      },
+      {
+        "label": "傈僳語",
+        "kind": "alias"
+      }
+    ],
+    "noe": [
+      {
+        "label": "Nimadi",
+        "kind": "english"
+      }
+    ],
+    "trw": [
+      {
+        "label": "Torwali",
+        "kind": "english"
+      },
+      {
+        "label": "托尔瓦利语",
+        "kind": "alias"
+      }
+    ],
+    "yah": [
+      {
+        "label": "Yazgulyam",
+        "kind": "english"
+      }
+    ],
+    "kap": [
+      {
+        "label": "Bezhta",
+        "kind": "english"
+      }
+    ],
+    "caq": [
+      {
+        "label": "Car",
+        "kind": "english"
+      }
+    ],
+    "cji": [
+      {
+        "label": "Chamalal",
+        "kind": "english"
+      }
+    ],
+    "dhd": [
+      {
+        "label": "marwarî",
+        "kind": "local"
+      },
+      {
+        "label": "Dhundari",
+        "kind": "english"
+      },
+      {
+        "label": "马尔瓦里语",
+        "kind": "alias"
+      },
+      {
+        "label": "Marwari",
+        "kind": "alias"
+      }
+    ],
+    "gvr": [
+      {
+        "label": "Gurung",
+        "kind": "english"
+      }
+    ],
+    "har": [
+      {
+        "label": "Harari",
+        "kind": "english"
+      }
+    ],
+    "kry": [
+      {
+        "label": "Kryts",
+        "kind": "english"
+      }
+    ],
+    "mjt": [
+      {
+        "label": "Sauria Paharia",
+        "kind": "english"
+      }
+    ],
+    "kva": [
+      {
+        "label": "Bagvalal",
+        "kind": "english"
+      }
+    ],
+    "byn": [
+      {
+        "label": "blin",
+        "kind": "local"
+      },
+      {
+        "label": "比林语",
+        "kind": "alias"
+      }
+    ],
+    "phl": [
+      {
+        "label": "Palula",
+        "kind": "english"
+      }
+    ],
+    "srb": [
+      {
+        "label": "Sora",
+        "kind": "english"
+      }
+    ],
+    "awn": [
+      {
+        "label": "Awngi",
+        "kind": "english"
+      }
+    ],
+    "gwc": [
+      {
+        "label": "Gawri",
+        "kind": "english"
+      }
+    ],
+    "kpt": [
+      {
+        "label": "Karata-Tukita",
+        "kind": "english"
+      }
+    ],
+    "khr": [
+      {
+        "label": "Kharia",
+        "kind": "english"
+      }
+    ],
+    "kdt": [
+      {
+        "label": "Kuy",
+        "kind": "english"
+      }
+    ],
+    "onw": [
+      {
+        "label": "Old Nubian",
+        "kind": "english"
+      }
+    ],
+    "blt": [
+      {
+        "label": "Tai Dam",
+        "kind": "english"
+      }
+    ],
+    "tin": [
+      {
+        "label": "Tindi",
+        "kind": "english"
+      }
+    ],
+    "amw": [
+      {
+        "label": "Western Neo-Aramaic",
+        "kind": "english"
+      }
+    ],
+    "thz": [
+      {
+        "label": "Air Tamajeq",
+        "kind": "english"
+      }
+    ],
+    "mvy": [
+      {
+        "label": "Indus Kohistani",
+        "kind": "english"
+      }
+    ],
+    "iru": [
+      {
+        "label": "Irula",
+        "kind": "english"
+      }
+    ],
+    "ahk": [
+      {
+        "label": "Akha",
+        "kind": "english"
+      }
+    ],
+    "kjg": [
+      {
+        "label": "Khmu",
+        "kind": "english"
+      }
+    ],
+    "kyw": [
+      {
+        "label": "Kudmali",
+        "kind": "english"
+      }
+    ],
+    "blk": [
+      {
+        "label": "Pa'O",
+        "kind": "english"
+      }
+    ],
+    "stv": [
+      {
+        "label": "Selti",
+        "kind": "english"
+      }
+    ],
+    "urk": [
+      {
+        "label": "Urak Lawoi’",
+        "kind": "english"
+      }
+    ],
+    "mki": [
+      {
+        "label": "Dhatki",
+        "kind": "english"
+      }
+    ],
+    "ttq": [
+      {
+        "label": "tamacheq",
+        "kind": "local"
+      },
+      {
+        "label": "Tahoua",
+        "kind": "english"
+      },
+      {
+        "label": "塔马奇克语",
+        "kind": "alias"
+      },
+      {
+        "label": "Tamashek",
+        "kind": "alias"
+      },
+      {
+        "label": "Tamaseq",
+        "kind": "alias"
+      }
+    ],
+    "dhi": [
+      {
+        "label": "Dhimal",
+        "kind": "english"
+      }
+    ],
+    "guk": [
+      {
+        "label": "Gumuz",
+        "kind": "english"
+      }
+    ],
+    "khg": [
+      {
+        "label": "Khams Tibetan",
+        "kind": "english"
+      }
+    ],
+    "kzg": [
+      {
+        "label": "Kikai",
+        "kind": "english"
+      }
+    ],
+    "ugh": [
+      {
+        "label": "Kubachi",
+        "kind": "english"
+      }
+    ],
+    "ush": [
+      {
+        "label": "Ushoji",
+        "kind": "english"
+      }
+    ],
+    "xan": [
+      {
+        "label": "Xamtanga",
+        "kind": "english"
+      }
+    ],
+    "yox": [
+      {
+        "label": "Yoron",
+        "kind": "english"
+      }
+    ],
+    "aeq": [
+      {
+        "label": "Aer",
+        "kind": "english"
+      }
+    ],
+    "bap": [
+      {
+        "label": "Bantawa",
+        "kind": "english"
+      }
+    ],
+    "bcq": [
+      {
+        "label": "Bench",
+        "kind": "english"
+      }
+    ],
+    "kjz": [
+      {
+        "label": "Bumthang",
+        "kind": "english"
+      }
+    ],
+    "xka": [
+      {
+        "label": "Kalkoti",
+        "kind": "english"
+      }
+    ],
+    "sdb": [
+      {
+        "label": "Shabaki",
+        "kind": "english"
+      }
+    ],
+    "twh": [
+      {
+        "label": "Tai Dón",
+        "kind": "english"
+      }
+    ],
+    "wne": [
+      {
+        "label": "Tareeno",
+        "kind": "english"
+      }
+    ],
+    "tft": [
+      {
+        "label": "Ternate",
+        "kind": "english"
+      }
+    ],
+    "aio": [
+      {
+        "label": "Aiton",
+        "kind": "english"
+      }
+    ],
+    "akj": [
+      {
+        "label": "Aka-Jeru",
+        "kind": "english"
+      }
+    ],
+    "amf": [
+      {
+        "label": "Hamer",
+        "kind": "english"
+      }
+    ],
+    "kcn": [
+      {
+        "label": "Nubi",
+        "kind": "english"
+      }
+    ],
+    "suz": [
+      {
+        "label": "Sunwar",
+        "kind": "english"
+      }
+    ],
+    "adx": [
+      {
+        "label": "Amdo Tibetan",
+        "kind": "english"
+      }
+    ],
+    "dhw": [
+      {
+        "label": "Dhanwar Rai",
+        "kind": "english"
+      }
+    ],
+    "mdx": [
+      {
+        "label": "Dizin",
+        "kind": "english"
+      }
+    ],
+    "ior": [
+      {
+        "label": "Inor",
+        "kind": "english"
+      }
+    ],
+    "xdq": [
+      {
+        "label": "Kaitag",
+        "kind": "english"
+      }
+    ],
+    "mjl": [
+      {
+        "label": "Mandeali",
+        "kind": "english"
+      }
+    ],
+    "nsk": [
+      {
+        "label": "Naskapi",
+        "kind": "english"
+      }
+    ],
+    "cbn": [
+      {
+        "label": "Nyah Kur",
+        "kind": "english"
+      }
+    ],
+    "kvx": [
+      {
+        "label": "Parkari Koli",
+        "kind": "english"
+      }
+    ],
+    "tkn": [
+      {
+        "label": "Tokunoshima",
+        "kind": "english"
+      }
+    ],
+    "scp": [
+      {
+        "label": "Yolmo",
+        "kind": "english"
+      }
+    ],
+    "atb": [
+      {
+        "label": "Zaiwa",
+        "kind": "english"
+      }
+    ],
+    "bhj": [
+      {
+        "label": "Bahing",
+        "kind": "english"
+      }
+    ],
+    "bzi": [
+      {
+        "label": "Bisu",
+        "kind": "english"
+      }
+    ],
+    "rab": [
+      {
+        "label": "Chamling",
+        "kind": "english"
+      }
+    ],
+    "kjp": [
+      {
+        "label": "Eastern Pwo",
+        "kind": "english"
+      }
+    ],
+    "jun": [
+      {
+        "label": "Juang",
+        "kind": "english"
+      }
+    ],
+    "kuf": [
+      {
+        "label": "Katu",
+        "kind": "english"
+      }
+    ],
+    "ykh": [
+      {
+        "label": "Khamnigan Mongol",
+        "kind": "english"
+      }
+    ],
+    "bfz": [
+      {
+        "label": "Mahasu Pahari",
+        "kind": "english"
+      }
+    ],
+    "okn": [
+      {
+        "label": "Okinoerabu",
+        "kind": "english"
+      }
+    ],
+    "ksw": [
+      {
+        "label": "S'gaw Karen",
+        "kind": "english"
+      }
+    ],
+    "kht": [
+      {
+        "label": "Khamti",
+        "kind": "english"
+      }
+    ],
+    "lpo": [
+      {
+        "label": "Lipo",
+        "kind": "english"
+      }
+    ],
+    "ths": [
+      {
+        "label": "Thakali",
+        "kind": "english"
+      }
+    ],
+    "aph": [
+      {
+        "label": "Athpare",
+        "kind": "english"
+      }
+    ],
+    "kfs": [
+      {
+        "label": "Bilaspuri",
+        "kind": "english"
+      }
+    ],
+    "cld": [
+      {
+        "label": "syriaque",
+        "kind": "local"
+      },
+      {
+        "label": "ܣܘܪܝܝܐ",
+        "kind": "native"
+      },
+      {
+        "label": "Chaldean Neo-Aramaic",
+        "kind": "english"
+      },
+      {
+        "label": "叙利亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "Syriac",
+        "kind": "alias"
+      },
+      {
+        "label": "siriaco",
+        "kind": "alias"
+      },
+      {
+        "label": "Syrisch",
+        "kind": "alias"
+      }
+    ],
+    "cdh": [
+      {
+        "label": "Chambeali",
+        "kind": "english"
+      }
+    ],
+    "dso": [
+      {
+        "label": "Desia",
+        "kind": "english"
+      }
+    ],
+    "mhu": [
+      {
+        "label": "Digaro Mishmi",
+        "kind": "english"
+      }
+    ],
+    "gbk": [
+      {
+        "label": "Gaddi",
+        "kind": "english"
+      }
+    ],
+    "jns": [
+      {
+        "label": "Jaunsari",
+        "kind": "english"
+      }
+    ],
+    "kfx": [
+      {
+        "label": "Kullui",
+        "kind": "english"
+      }
+    ],
+    "mid": [
+      {
+        "label": "Neo-Mandaic",
+        "kind": "english"
+      }
+    ],
+    "yea": [
+      {
+        "label": "Ravula",
+        "kind": "english"
+      }
+    ],
+    "srx": [
+      {
+        "label": "Sirmauri",
+        "kind": "english"
+      }
+    ],
+    "phk": [
+      {
+        "label": "Tai Phake",
+        "kind": "english"
+      }
+    ],
+    "thf": [
+      {
+        "label": "Thangmi",
+        "kind": "english"
+      }
+    ],
+    "wme": [
+      {
+        "label": "Wambule",
+        "kind": "english"
+      }
+    ],
+    "nnp": [
+      {
+        "label": "Wancho",
+        "kind": "english"
+      }
+    ],
+    "ybh": [
+      {
+        "label": "Yakkha",
+        "kind": "english"
+      }
+    ],
+    "hmd": [
+      {
+        "label": "A-Hmao",
+        "kind": "english"
+      }
+    ],
+    "byw": [
+      {
+        "label": "Belhare",
+        "kind": "english"
+      }
+    ],
+    "cda": [
+      {
+        "label": "Choni",
+        "kind": "english"
+      }
+    ],
+    "klr": [
+      {
+        "label": "Khaling",
+        "kind": "english"
+      }
+    ],
+    "mqa": [
+      {
+        "label": "Maba",
+        "kind": "english"
+      }
+    ],
+    "njz": [
+      {
+        "label": "Nishi",
+        "kind": "english"
+      }
+    ],
+    "kxm": [
+      {
+        "label": "Northern Khmer",
+        "kind": "english"
+      }
+    ],
+    "pww": [
+      {
+        "label": "Northern Pwo",
+        "kind": "english"
+      }
+    ],
+    "rjs": [
+      {
+        "label": "Rajbanshi",
+        "kind": "english"
+      }
+    ],
+    "pwo": [
+      {
+        "label": "Western Pwo",
+        "kind": "english"
+      }
+    ],
+    "crx": [
+      {
+        "label": "Carrier",
+        "kind": "english"
+      }
+    ],
+    "syw": [
+      {
+        "label": "Kagate",
+        "kind": "english"
+      }
+    ],
+    "mqu": [
+      {
+        "label": "Mandari",
+        "kind": "english"
+      }
+    ],
+    "ojs": [
+      {
+        "label": "oji-cri",
+        "kind": "local"
+      },
+      {
+        "label": "Oji-Cree",
+        "kind": "english"
+      },
+      {
+        "label": "欧吉克里语",
+        "kind": "alias"
+      }
+    ],
+    "pgg": [
+      {
+        "label": "Pangwali",
+        "kind": "english"
+      }
+    ],
+    "jul": [
+      {
+        "label": "Jirel",
+        "kind": "english"
+      }
+    ],
+    "xkf": [
+      {
+        "label": "Kheng",
+        "kind": "english"
+      }
+    ],
+    "hmb": [
+      {
+        "label": "Humburi Senni",
+        "kind": "english"
+      }
+    ],
+    "saw": [
+      {
+        "label": "Sawi",
+        "kind": "english"
+      }
+    ],
+    "tjl": [
+      {
+        "label": "Tai Laing",
+        "kind": "english"
+      }
+    ],
+    "soa": [
+      {
+        "label": "Thai Song",
+        "kind": "english"
+      }
+    ],
+    "bjt": [
+      {
+        "label": "Balanta-Ganja",
+        "kind": "english"
+      }
+    ],
+    "ffm": [
+      {
+        "label": "Maasina Fulfulde",
+        "kind": "english"
+      }
+    ],
+    "lhm": [
+      {
+        "label": "Lhomi",
+        "kind": "english"
+      }
+    ],
+    "ldd": [
+      {
+        "label": "Luri",
+        "kind": "english"
+      }
+    ],
+    "oak": [
+      {
+        "label": "Noakhailla",
+        "kind": "english"
+      }
+    ],
+    "rmz": [
+      {
+        "label": "Marma",
+        "kind": "english"
+      }
+    ],
+    "tyj": [
+      {
+        "label": "Tai Yo",
+        "kind": "english"
+      }
+    ],
+    "phj": [
+      {
+        "label": "Pahari",
+        "kind": "english"
       }
     ]
   },
@@ -32655,80 +38735,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       },
       {
         "label": "Bretonisch",
-        "kind": "alias"
-      }
-    ],
-    "cmn": [
-      {
-        "label": "mandarín",
-        "kind": "local"
-      },
-      {
-        "label": "普通话",
-        "kind": "native"
-      },
-      {
-        "label": "Mandarin",
-        "kind": "english"
-      },
-      {
-        "label": "中文",
-        "kind": "alias"
-      },
-      {
-        "label": "chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "mandarin chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "standard chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "putonghua",
-        "kind": "alias"
-      },
-      {
-        "label": "guoyu",
-        "kind": "alias"
-      },
-      {
-        "label": "汉语",
-        "kind": "alias"
-      },
-      {
-        "label": "国语",
-        "kind": "alias"
-      },
-      {
-        "label": "國語",
-        "kind": "alias"
-      },
-      {
-        "label": "华语",
-        "kind": "alias"
-      },
-      {
-        "label": "華語",
-        "kind": "alias"
-      },
-      {
-        "label": "官话",
-        "kind": "alias"
-      },
-      {
-        "label": "北方话",
-        "kind": "alias"
-      },
-      {
-        "label": "北方方言",
-        "kind": "alias"
-      },
-      {
-        "label": "中文普通话",
         "kind": "alias"
       }
     ],
@@ -36928,6 +42934,80 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
+    "cmn": [
+      {
+        "label": "mandarín",
+        "kind": "local"
+      },
+      {
+        "label": "普通话",
+        "kind": "native"
+      },
+      {
+        "label": "Mandarin",
+        "kind": "english"
+      },
+      {
+        "label": "中文",
+        "kind": "alias"
+      },
+      {
+        "label": "chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "mandarin chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "standard chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "putonghua",
+        "kind": "alias"
+      },
+      {
+        "label": "guoyu",
+        "kind": "alias"
+      },
+      {
+        "label": "汉语",
+        "kind": "alias"
+      },
+      {
+        "label": "国语",
+        "kind": "alias"
+      },
+      {
+        "label": "國語",
+        "kind": "alias"
+      },
+      {
+        "label": "华语",
+        "kind": "alias"
+      },
+      {
+        "label": "華語",
+        "kind": "alias"
+      },
+      {
+        "label": "官话",
+        "kind": "alias"
+      },
+      {
+        "label": "北方话",
+        "kind": "alias"
+      },
+      {
+        "label": "北方方言",
+        "kind": "alias"
+      },
+      {
+        "label": "中文普通话",
+        "kind": "alias"
+      }
+    ],
     "frr": [
       {
         "label": "frisón septentrional",
@@ -37026,12 +43106,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Khotta",
         "kind": "alias"
-      }
-    ],
-    "pox": [
-      {
-        "label": "Polabian",
-        "kind": "english"
       }
     ],
     "zha": [
@@ -37934,12 +44008,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "alias"
       }
     ],
-    "prv": [
-      {
-        "label": "Provençal",
-        "kind": "english"
-      }
-    ],
     "gon": [
       {
         "label": "gondi",
@@ -38144,12 +44212,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "fsl": [
-      {
-        "label": "French Sign Language",
-        "kind": "english"
-      }
-    ],
     "oji": [
       {
         "label": "ojibwa",
@@ -38280,12 +44342,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "xil": [
-      {
-        "label": "Illyrian",
-        "kind": "english"
-      }
-    ],
     "gld": [
       {
         "label": "Nanai",
@@ -38354,18 +44410,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Lushai",
         "kind": "alias"
-      }
-    ],
-    "xcb": [
-      {
-        "label": "Cumbric",
-        "kind": "english"
-      }
-    ],
-    "vsn": [
-      {
-        "label": "Vedic Sanskrit",
-        "kind": "english"
       }
     ],
     "hyw": [
@@ -38452,12 +44496,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "txh": [
-      {
-        "label": "Thracian",
-        "kind": "english"
-      }
-    ],
     "khw": [
       {
         "label": "Khowar",
@@ -38541,12 +44579,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
     "ruo": [
       {
         "label": "Istro-Romanian",
-        "kind": "english"
-      }
-    ],
-    "nzs": [
-      {
-        "label": "New Zealand Sign Language",
         "kind": "english"
       }
     ],
@@ -38968,21 +45000,9 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "xga": [
-      {
-        "label": "Galatian",
-        "kind": "english"
-      }
-    ],
     "aib": [
       {
         "label": "Äynu",
-        "kind": "english"
-      }
-    ],
-    "ncs": [
-      {
-        "label": "Nicaraguan Sign Language",
         "kind": "english"
       }
     ],
@@ -39074,27 +45094,9 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "ise": [
-      {
-        "label": "Italian Sign Language",
-        "kind": "english"
-      }
-    ],
     "scl": [
       {
         "label": "Shina",
-        "kind": "english"
-      }
-    ],
-    "xeb": [
-      {
-        "label": "Eblaite",
-        "kind": "english"
-      }
-    ],
-    "xur": [
-      {
-        "label": "Urartian",
         "kind": "english"
       }
     ],
@@ -39326,6 +45328,1456 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "宽亚玛语",
         "kind": "alias"
+      }
+    ],
+    "ctg": [
+      {
+        "label": "Chittagonian",
+        "kind": "english"
+      }
+    ],
+    "itl": [
+      {
+        "label": "Itelmen",
+        "kind": "english"
+      }
+    ],
+    "mhj": [
+      {
+        "label": "Moghol",
+        "kind": "english"
+      }
+    ],
+    "sip": [
+      {
+        "label": "Sikkimese Bhutia",
+        "kind": "english"
+      }
+    ],
+    "gbm": [
+      {
+        "label": "Garhwali",
+        "kind": "english"
+      }
+    ],
+    "kfy": [
+      {
+        "label": "Kumaoni",
+        "kind": "english"
+      }
+    ],
+    "kru": [
+      {
+        "label": "kurukh",
+        "kind": "local"
+      },
+      {
+        "label": "库鲁克语",
+        "kind": "alias"
+      },
+      {
+        "label": "kouroukh",
+        "kind": "alias"
+      },
+      {
+        "label": "Oraon",
+        "kind": "alias"
+      }
+    ],
+    "bbl": [
+      {
+        "label": "Bats",
+        "kind": "english"
+      }
+    ],
+    "bej": [
+      {
+        "label": "beja",
+        "kind": "local"
+      },
+      {
+        "label": "贝沙语",
+        "kind": "alias"
+      },
+      {
+        "label": "bedja",
+        "kind": "alias"
+      },
+      {
+        "label": "Bedauye",
+        "kind": "alias"
+      }
+    ],
+    "rmt": [
+      {
+        "label": "Domari",
+        "kind": "english"
+      }
+    ],
+    "haz": [
+      {
+        "label": "Hazaragi",
+        "kind": "english"
+      }
+    ],
+    "sty": [
+      {
+        "label": "Siberian Tatar",
+        "kind": "english"
+      }
+    ],
+    "ddo": [
+      {
+        "label": "Tsez",
+        "kind": "english"
+      }
+    ],
+    "bla": [
+      {
+        "label": "siksika",
+        "kind": "local"
+      },
+      {
+        "label": "Blackfoot",
+        "kind": "english"
+      },
+      {
+        "label": "西克西卡语",
+        "kind": "alias"
+      },
+      {
+        "label": "Siksiká",
+        "kind": "alias"
+      }
+    ],
+    "cia": [
+      {
+        "label": "Cia-Cia",
+        "kind": "english"
+      }
+    ],
+    "kmz": [
+      {
+        "label": "Khorasani Turkic",
+        "kind": "english"
+      }
+    ],
+    "lud": [
+      {
+        "label": "Ludic",
+        "kind": "english"
+      }
+    ],
+    "tsd": [
+      {
+        "label": "Tsakonian",
+        "kind": "english"
+      },
+      {
+        "label": "tsakonien",
+        "kind": "alias"
+      },
+      {
+        "label": "Tsakonisch",
+        "kind": "alias"
+      }
+    ],
+    "yoi": [
+      {
+        "label": "Yonaguni",
+        "kind": "english"
+      }
+    ],
+    "alr": [
+      {
+        "label": "Alyutor",
+        "kind": "english"
+      }
+    ],
+    "aqc": [
+      {
+        "label": "Archi",
+        "kind": "english"
+      }
+    ],
+    "xco": [
+      {
+        "label": "Khwarezmian",
+        "kind": "english"
+      }
+    ],
+    "dty": [
+      {
+        "label": "Doteli",
+        "kind": "english"
+      }
+    ],
+    "kac": [
+      {
+        "label": "kachin",
+        "kind": "local"
+      },
+      {
+        "label": "Jingpo",
+        "kind": "english"
+      },
+      {
+        "label": "克钦语",
+        "kind": "alias"
+      }
+    ],
+    "khn": [
+      {
+        "label": "Khandeshi",
+        "kind": "english"
+      }
+    ],
+    "kjj": [
+      {
+        "label": "Khinalug",
+        "kind": "english"
+      }
+    ],
+    "kgg": [
+      {
+        "label": "Kusunda",
+        "kind": "english"
+      }
+    ],
+    "oaa": [
+      {
+        "label": "Orok",
+        "kind": "english"
+      }
+    ],
+    "siz": [
+      {
+        "label": "Siwa",
+        "kind": "english"
+      }
+    ],
+    "srr": [
+      {
+        "label": "serer",
+        "kind": "local"
+      },
+      {
+        "label": "塞雷尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "sérère",
+        "kind": "alias"
+      }
+    ],
+    "kfa": [
+      {
+        "label": "Kodava",
+        "kind": "english"
+      }
+    ],
+    "zum": [
+      {
+        "label": "Kumzari",
+        "kind": "english"
+      }
+    ],
+    "rys": [
+      {
+        "label": "Yaeyama",
+        "kind": "english"
+      }
+    ],
+    "ani": [
+      {
+        "label": "Andi",
+        "kind": "english"
+      }
+    ],
+    "bhh": [
+      {
+        "label": "Bukharian",
+        "kind": "english"
+      }
+    ],
+    "acy": [
+      {
+        "label": "Cypriot Arabic",
+        "kind": "english"
+      }
+    ],
+    "jje": [
+      {
+        "label": "Jejuan",
+        "kind": "english"
+      }
+    ],
+    "mdh": [
+      {
+        "label": "Maguindanao",
+        "kind": "english"
+      }
+    ],
+    "ude": [
+      {
+        "label": "Udege",
+        "kind": "english"
+      }
+    ],
+    "mnj": [
+      {
+        "label": "Munji",
+        "kind": "english"
+      }
+    ],
+    "sck": [
+      {
+        "label": "Nagpuri",
+        "kind": "english"
+      }
+    ],
+    "neg": [
+      {
+        "label": "Negidal",
+        "kind": "english"
+      }
+    ],
+    "rkt": [
+      {
+        "label": "Rangpuri",
+        "kind": "english"
+      }
+    ],
+    "tru": [
+      {
+        "label": "Turoyo",
+        "kind": "english"
+      },
+      {
+        "label": "touroyo",
+        "kind": "alias"
+      }
+    ],
+    "ulc": [
+      {
+        "label": "Ulch",
+        "kind": "english"
+      }
+    ],
+    "sjo": [
+      {
+        "label": "Xibe",
+        "kind": "english"
+      },
+      {
+        "label": "锡伯语",
+        "kind": "alias"
+      },
+      {
+        "label": "錫伯語",
+        "kind": "alias"
+      }
+    ],
+    "akv": [
+      {
+        "label": "Akhvakh",
+        "kind": "english"
+      }
+    ],
+    "dta": [
+      {
+        "label": "Daur",
+        "kind": "english"
+      }
+    ],
+    "gin": [
+      {
+        "label": "Hinuq",
+        "kind": "english"
+      }
+    ],
+    "czk": [
+      {
+        "label": "Knaanic",
+        "kind": "english"
+      }
+    ],
+    "oru": [
+      {
+        "label": "Ormuri",
+        "kind": "english"
+      }
+    ],
+    "oac": [
+      {
+        "label": "Oroch",
+        "kind": "english"
+      }
+    ],
+    "aiw": [
+      {
+        "label": "Aari",
+        "kind": "english"
+      }
+    ],
+    "tts": [
+      {
+        "label": "Isan",
+        "kind": "english"
+      }
+    ],
+    "jpr": [
+      {
+        "label": "judeo-persa",
+        "kind": "local"
+      },
+      {
+        "label": "Judeo-Persian",
+        "kind": "english"
+      },
+      {
+        "label": "犹太波斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "judéo-persan",
+        "kind": "alias"
+      },
+      {
+        "label": "Jüdisch-Persisch",
+        "kind": "alias"
+      }
+    ],
+    "lmn": [
+      {
+        "label": "Lambadi",
+        "kind": "english"
+      }
+    ],
+    "chp": [
+      {
+        "label": "chipewyan",
+        "kind": "local"
+      },
+      {
+        "label": "奇佩维安语",
+        "kind": "alias"
+      }
+    ],
+    "xnr": [
+      {
+        "label": "kangri",
+        "kind": "local"
+      },
+      {
+        "label": "कांगड़ी",
+        "kind": "native"
+      },
+      {
+        "label": "康格里语",
+        "kind": "alias"
+      }
+    ],
+    "mvi": [
+      {
+        "label": "Miyako",
+        "kind": "english"
+      }
+    ],
+    "rki": [
+      {
+        "label": "Rakhine",
+        "kind": "english"
+      }
+    ],
+    "ysr": [
+      {
+        "label": "Sirenik",
+        "kind": "english"
+      }
+    ],
+    "taq": [
+      {
+        "label": "Tamasheq",
+        "kind": "english"
+      }
+    ],
+    "tcx": [
+      {
+        "label": "Toda",
+        "kind": "english"
+      }
+    ],
+    "bdk": [
+      {
+        "label": "Budukh",
+        "kind": "english"
+      }
+    ],
+    "mtr": [
+      {
+        "label": "Mewari",
+        "kind": "english"
+      }
+    ],
+    "yej": [
+      {
+        "label": "Yevanic",
+        "kind": "english"
+      }
+    ],
+    "aat": [
+      {
+        "label": "Arvanitic",
+        "kind": "english"
+      }
+    ],
+    "jdt": [
+      {
+        "label": "Judeo-Tat",
+        "kind": "english"
+      }
+    ],
+    "bjj": [
+      {
+        "label": "Kannauji",
+        "kind": "english"
+      }
+    ],
+    "kfq": [
+      {
+        "label": "Korku",
+        "kind": "english"
+      }
+    ],
+    "mdr": [
+      {
+        "label": "mandar",
+        "kind": "local"
+      },
+      {
+        "label": "曼达尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "Mandaresisch",
+        "kind": "alias"
+      }
+    ],
+    "oon": [
+      {
+        "label": "Önge",
+        "kind": "english"
+      }
+    ],
+    "tsj": [
+      {
+        "label": "Tshangla",
+        "kind": "english"
+      }
+    ],
+    "ydg": [
+      {
+        "label": "Yidgha",
+        "kind": "english"
+      }
+    ],
+    "agj": [
+      {
+        "label": "Argobba",
+        "kind": "english"
+      }
+    ],
+    "bph": [
+      {
+        "label": "Botlikh",
+        "kind": "english"
+      }
+    ],
+    "dml": [
+      {
+        "label": "Dameli",
+        "kind": "english"
+      }
+    ],
+    "gdo": [
+      {
+        "label": "Godoberi",
+        "kind": "english"
+      }
+    ],
+    "hlb": [
+      {
+        "label": "Halbi",
+        "kind": "english"
+      }
+    ],
+    "huz": [
+      {
+        "label": "Hunzib",
+        "kind": "english"
+      }
+    ],
+    "anq": [
+      {
+        "label": "Jarawa",
+        "kind": "english"
+      }
+    ],
+    "khv": [
+      {
+        "label": "Khwarshi",
+        "kind": "english"
+      }
+    ],
+    "lis": [
+      {
+        "label": "Lisu",
+        "kind": "english"
+      },
+      {
+        "label": "傈僳语",
+        "kind": "alias"
+      },
+      {
+        "label": "傈僳語",
+        "kind": "alias"
+      }
+    ],
+    "noe": [
+      {
+        "label": "Nimadi",
+        "kind": "english"
+      }
+    ],
+    "trw": [
+      {
+        "label": "Torwali",
+        "kind": "english"
+      },
+      {
+        "label": "托尔瓦利语",
+        "kind": "alias"
+      }
+    ],
+    "yah": [
+      {
+        "label": "Yazgulyam",
+        "kind": "english"
+      }
+    ],
+    "kap": [
+      {
+        "label": "Bezhta",
+        "kind": "english"
+      }
+    ],
+    "caq": [
+      {
+        "label": "Car",
+        "kind": "english"
+      }
+    ],
+    "cji": [
+      {
+        "label": "Chamalal",
+        "kind": "english"
+      }
+    ],
+    "dhd": [
+      {
+        "label": "marwari",
+        "kind": "local"
+      },
+      {
+        "label": "Dhundari",
+        "kind": "english"
+      },
+      {
+        "label": "马尔瓦里语",
+        "kind": "alias"
+      },
+      {
+        "label": "marwarî",
+        "kind": "alias"
+      }
+    ],
+    "gvr": [
+      {
+        "label": "Gurung",
+        "kind": "english"
+      }
+    ],
+    "har": [
+      {
+        "label": "Harari",
+        "kind": "english"
+      }
+    ],
+    "kry": [
+      {
+        "label": "Kryts",
+        "kind": "english"
+      }
+    ],
+    "mjt": [
+      {
+        "label": "Sauria Paharia",
+        "kind": "english"
+      }
+    ],
+    "kva": [
+      {
+        "label": "Bagvalal",
+        "kind": "english"
+      }
+    ],
+    "byn": [
+      {
+        "label": "blin",
+        "kind": "local"
+      },
+      {
+        "label": "比林语",
+        "kind": "alias"
+      }
+    ],
+    "phl": [
+      {
+        "label": "Palula",
+        "kind": "english"
+      }
+    ],
+    "srb": [
+      {
+        "label": "Sora",
+        "kind": "english"
+      }
+    ],
+    "awn": [
+      {
+        "label": "Awngi",
+        "kind": "english"
+      }
+    ],
+    "gwc": [
+      {
+        "label": "Gawri",
+        "kind": "english"
+      }
+    ],
+    "kpt": [
+      {
+        "label": "Karata-Tukita",
+        "kind": "english"
+      }
+    ],
+    "khr": [
+      {
+        "label": "Kharia",
+        "kind": "english"
+      }
+    ],
+    "kdt": [
+      {
+        "label": "Kuy",
+        "kind": "english"
+      }
+    ],
+    "onw": [
+      {
+        "label": "Old Nubian",
+        "kind": "english"
+      }
+    ],
+    "blt": [
+      {
+        "label": "Tai Dam",
+        "kind": "english"
+      }
+    ],
+    "tin": [
+      {
+        "label": "Tindi",
+        "kind": "english"
+      }
+    ],
+    "amw": [
+      {
+        "label": "Western Neo-Aramaic",
+        "kind": "english"
+      }
+    ],
+    "thz": [
+      {
+        "label": "Air Tamajeq",
+        "kind": "english"
+      }
+    ],
+    "mvy": [
+      {
+        "label": "Indus Kohistani",
+        "kind": "english"
+      }
+    ],
+    "iru": [
+      {
+        "label": "Irula",
+        "kind": "english"
+      }
+    ],
+    "ahk": [
+      {
+        "label": "Akha",
+        "kind": "english"
+      }
+    ],
+    "kjg": [
+      {
+        "label": "Khmu",
+        "kind": "english"
+      }
+    ],
+    "kyw": [
+      {
+        "label": "Kudmali",
+        "kind": "english"
+      }
+    ],
+    "blk": [
+      {
+        "label": "Pa'O",
+        "kind": "english"
+      }
+    ],
+    "stv": [
+      {
+        "label": "Selti",
+        "kind": "english"
+      }
+    ],
+    "urk": [
+      {
+        "label": "Urak Lawoi’",
+        "kind": "english"
+      }
+    ],
+    "mki": [
+      {
+        "label": "Dhatki",
+        "kind": "english"
+      }
+    ],
+    "ttq": [
+      {
+        "label": "tamashek",
+        "kind": "local"
+      },
+      {
+        "label": "Tahoua",
+        "kind": "english"
+      },
+      {
+        "label": "塔马奇克语",
+        "kind": "alias"
+      },
+      {
+        "label": "tamacheq",
+        "kind": "alias"
+      },
+      {
+        "label": "Tamaseq",
+        "kind": "alias"
+      }
+    ],
+    "dhi": [
+      {
+        "label": "Dhimal",
+        "kind": "english"
+      }
+    ],
+    "guk": [
+      {
+        "label": "Gumuz",
+        "kind": "english"
+      }
+    ],
+    "khg": [
+      {
+        "label": "Khams Tibetan",
+        "kind": "english"
+      }
+    ],
+    "kzg": [
+      {
+        "label": "Kikai",
+        "kind": "english"
+      }
+    ],
+    "ugh": [
+      {
+        "label": "Kubachi",
+        "kind": "english"
+      }
+    ],
+    "ush": [
+      {
+        "label": "Ushoji",
+        "kind": "english"
+      }
+    ],
+    "xan": [
+      {
+        "label": "Xamtanga",
+        "kind": "english"
+      }
+    ],
+    "yox": [
+      {
+        "label": "Yoron",
+        "kind": "english"
+      }
+    ],
+    "aeq": [
+      {
+        "label": "Aer",
+        "kind": "english"
+      }
+    ],
+    "bap": [
+      {
+        "label": "Bantawa",
+        "kind": "english"
+      }
+    ],
+    "bcq": [
+      {
+        "label": "Bench",
+        "kind": "english"
+      }
+    ],
+    "kjz": [
+      {
+        "label": "Bumthang",
+        "kind": "english"
+      }
+    ],
+    "xka": [
+      {
+        "label": "Kalkoti",
+        "kind": "english"
+      }
+    ],
+    "sdb": [
+      {
+        "label": "Shabaki",
+        "kind": "english"
+      }
+    ],
+    "twh": [
+      {
+        "label": "Tai Dón",
+        "kind": "english"
+      }
+    ],
+    "wne": [
+      {
+        "label": "Tareeno",
+        "kind": "english"
+      }
+    ],
+    "tft": [
+      {
+        "label": "Ternate",
+        "kind": "english"
+      }
+    ],
+    "aio": [
+      {
+        "label": "Aiton",
+        "kind": "english"
+      }
+    ],
+    "akj": [
+      {
+        "label": "Aka-Jeru",
+        "kind": "english"
+      }
+    ],
+    "amf": [
+      {
+        "label": "Hamer",
+        "kind": "english"
+      }
+    ],
+    "kcn": [
+      {
+        "label": "Nubi",
+        "kind": "english"
+      }
+    ],
+    "suz": [
+      {
+        "label": "Sunwar",
+        "kind": "english"
+      }
+    ],
+    "adx": [
+      {
+        "label": "Amdo Tibetan",
+        "kind": "english"
+      }
+    ],
+    "dhw": [
+      {
+        "label": "Dhanwar Rai",
+        "kind": "english"
+      }
+    ],
+    "mdx": [
+      {
+        "label": "Dizin",
+        "kind": "english"
+      }
+    ],
+    "ior": [
+      {
+        "label": "Inor",
+        "kind": "english"
+      }
+    ],
+    "xdq": [
+      {
+        "label": "Kaitag",
+        "kind": "english"
+      }
+    ],
+    "mjl": [
+      {
+        "label": "Mandeali",
+        "kind": "english"
+      }
+    ],
+    "nsk": [
+      {
+        "label": "Naskapi",
+        "kind": "english"
+      }
+    ],
+    "cbn": [
+      {
+        "label": "Nyah Kur",
+        "kind": "english"
+      }
+    ],
+    "kvx": [
+      {
+        "label": "Parkari Koli",
+        "kind": "english"
+      }
+    ],
+    "tkn": [
+      {
+        "label": "Tokunoshima",
+        "kind": "english"
+      }
+    ],
+    "scp": [
+      {
+        "label": "Yolmo",
+        "kind": "english"
+      }
+    ],
+    "atb": [
+      {
+        "label": "Zaiwa",
+        "kind": "english"
+      }
+    ],
+    "bhj": [
+      {
+        "label": "Bahing",
+        "kind": "english"
+      }
+    ],
+    "bzi": [
+      {
+        "label": "Bisu",
+        "kind": "english"
+      }
+    ],
+    "rab": [
+      {
+        "label": "Chamling",
+        "kind": "english"
+      }
+    ],
+    "kjp": [
+      {
+        "label": "Eastern Pwo",
+        "kind": "english"
+      }
+    ],
+    "jun": [
+      {
+        "label": "Juang",
+        "kind": "english"
+      }
+    ],
+    "kuf": [
+      {
+        "label": "Katu",
+        "kind": "english"
+      }
+    ],
+    "ykh": [
+      {
+        "label": "Khamnigan Mongol",
+        "kind": "english"
+      }
+    ],
+    "bfz": [
+      {
+        "label": "Mahasu Pahari",
+        "kind": "english"
+      }
+    ],
+    "okn": [
+      {
+        "label": "Okinoerabu",
+        "kind": "english"
+      }
+    ],
+    "ksw": [
+      {
+        "label": "S'gaw Karen",
+        "kind": "english"
+      }
+    ],
+    "kht": [
+      {
+        "label": "Khamti",
+        "kind": "english"
+      }
+    ],
+    "lpo": [
+      {
+        "label": "Lipo",
+        "kind": "english"
+      }
+    ],
+    "ths": [
+      {
+        "label": "Thakali",
+        "kind": "english"
+      }
+    ],
+    "aph": [
+      {
+        "label": "Athpare",
+        "kind": "english"
+      }
+    ],
+    "kfs": [
+      {
+        "label": "Bilaspuri",
+        "kind": "english"
+      }
+    ],
+    "cld": [
+      {
+        "label": "siriaco",
+        "kind": "local"
+      },
+      {
+        "label": "ܣܘܪܝܝܐ",
+        "kind": "native"
+      },
+      {
+        "label": "Chaldean Neo-Aramaic",
+        "kind": "english"
+      },
+      {
+        "label": "叙利亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "Syriac",
+        "kind": "alias"
+      },
+      {
+        "label": "syriaque",
+        "kind": "alias"
+      },
+      {
+        "label": "Syrisch",
+        "kind": "alias"
+      }
+    ],
+    "cdh": [
+      {
+        "label": "Chambeali",
+        "kind": "english"
+      }
+    ],
+    "dso": [
+      {
+        "label": "Desia",
+        "kind": "english"
+      }
+    ],
+    "mhu": [
+      {
+        "label": "Digaro Mishmi",
+        "kind": "english"
+      }
+    ],
+    "gbk": [
+      {
+        "label": "Gaddi",
+        "kind": "english"
+      }
+    ],
+    "jns": [
+      {
+        "label": "Jaunsari",
+        "kind": "english"
+      }
+    ],
+    "kfx": [
+      {
+        "label": "Kullui",
+        "kind": "english"
+      }
+    ],
+    "mid": [
+      {
+        "label": "Neo-Mandaic",
+        "kind": "english"
+      }
+    ],
+    "yea": [
+      {
+        "label": "Ravula",
+        "kind": "english"
+      }
+    ],
+    "srx": [
+      {
+        "label": "Sirmauri",
+        "kind": "english"
+      }
+    ],
+    "phk": [
+      {
+        "label": "Tai Phake",
+        "kind": "english"
+      }
+    ],
+    "thf": [
+      {
+        "label": "Thangmi",
+        "kind": "english"
+      }
+    ],
+    "wme": [
+      {
+        "label": "Wambule",
+        "kind": "english"
+      }
+    ],
+    "nnp": [
+      {
+        "label": "Wancho",
+        "kind": "english"
+      }
+    ],
+    "ybh": [
+      {
+        "label": "Yakkha",
+        "kind": "english"
+      }
+    ],
+    "hmd": [
+      {
+        "label": "A-Hmao",
+        "kind": "english"
+      }
+    ],
+    "byw": [
+      {
+        "label": "Belhare",
+        "kind": "english"
+      }
+    ],
+    "cda": [
+      {
+        "label": "Choni",
+        "kind": "english"
+      }
+    ],
+    "klr": [
+      {
+        "label": "Khaling",
+        "kind": "english"
+      }
+    ],
+    "mqa": [
+      {
+        "label": "Maba",
+        "kind": "english"
+      }
+    ],
+    "njz": [
+      {
+        "label": "Nishi",
+        "kind": "english"
+      }
+    ],
+    "kxm": [
+      {
+        "label": "Northern Khmer",
+        "kind": "english"
+      }
+    ],
+    "pww": [
+      {
+        "label": "Northern Pwo",
+        "kind": "english"
+      }
+    ],
+    "rjs": [
+      {
+        "label": "Rajbanshi",
+        "kind": "english"
+      }
+    ],
+    "pwo": [
+      {
+        "label": "Western Pwo",
+        "kind": "english"
+      }
+    ],
+    "crx": [
+      {
+        "label": "Carrier",
+        "kind": "english"
+      }
+    ],
+    "syw": [
+      {
+        "label": "Kagate",
+        "kind": "english"
+      }
+    ],
+    "mqu": [
+      {
+        "label": "Mandari",
+        "kind": "english"
+      }
+    ],
+    "ojs": [
+      {
+        "label": "oji-cree",
+        "kind": "local"
+      },
+      {
+        "label": "欧吉克里语",
+        "kind": "alias"
+      },
+      {
+        "label": "oji-cri",
+        "kind": "alias"
+      }
+    ],
+    "pgg": [
+      {
+        "label": "Pangwali",
+        "kind": "english"
+      }
+    ],
+    "jul": [
+      {
+        "label": "Jirel",
+        "kind": "english"
+      }
+    ],
+    "xkf": [
+      {
+        "label": "Kheng",
+        "kind": "english"
+      }
+    ],
+    "hmb": [
+      {
+        "label": "Humburi Senni",
+        "kind": "english"
+      }
+    ],
+    "saw": [
+      {
+        "label": "Sawi",
+        "kind": "english"
+      }
+    ],
+    "tjl": [
+      {
+        "label": "Tai Laing",
+        "kind": "english"
+      }
+    ],
+    "soa": [
+      {
+        "label": "Thai Song",
+        "kind": "english"
+      }
+    ],
+    "bjt": [
+      {
+        "label": "Balanta-Ganja",
+        "kind": "english"
+      }
+    ],
+    "ffm": [
+      {
+        "label": "Maasina Fulfulde",
+        "kind": "english"
+      }
+    ],
+    "lhm": [
+      {
+        "label": "Lhomi",
+        "kind": "english"
+      }
+    ],
+    "ldd": [
+      {
+        "label": "Luri",
+        "kind": "english"
+      }
+    ],
+    "oak": [
+      {
+        "label": "Noakhailla",
+        "kind": "english"
+      }
+    ],
+    "rmz": [
+      {
+        "label": "Marma",
+        "kind": "english"
+      }
+    ],
+    "tyj": [
+      {
+        "label": "Tai Yo",
+        "kind": "english"
+      }
+    ],
+    "phj": [
+      {
+        "label": "Pahari",
+        "kind": "english"
       }
     ]
   },
@@ -41415,80 +48867,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       },
       {
         "label": "bretón",
-        "kind": "alias"
-      }
-    ],
-    "cmn": [
-      {
-        "label": "Mandarin",
-        "kind": "local"
-      },
-      {
-        "label": "普通话",
-        "kind": "native"
-      },
-      {
-        "label": "mandarín",
-        "kind": "alias"
-      },
-      {
-        "label": "中文",
-        "kind": "alias"
-      },
-      {
-        "label": "chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "mandarin chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "standard chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "putonghua",
-        "kind": "alias"
-      },
-      {
-        "label": "guoyu",
-        "kind": "alias"
-      },
-      {
-        "label": "汉语",
-        "kind": "alias"
-      },
-      {
-        "label": "国语",
-        "kind": "alias"
-      },
-      {
-        "label": "國語",
-        "kind": "alias"
-      },
-      {
-        "label": "华语",
-        "kind": "alias"
-      },
-      {
-        "label": "華語",
-        "kind": "alias"
-      },
-      {
-        "label": "官话",
-        "kind": "alias"
-      },
-      {
-        "label": "北方话",
-        "kind": "alias"
-      },
-      {
-        "label": "北方方言",
-        "kind": "alias"
-      },
-      {
-        "label": "中文普通话",
         "kind": "alias"
       }
     ],
@@ -45688,6 +53066,80 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
+    "cmn": [
+      {
+        "label": "Mandarin",
+        "kind": "local"
+      },
+      {
+        "label": "普通话",
+        "kind": "native"
+      },
+      {
+        "label": "mandarín",
+        "kind": "alias"
+      },
+      {
+        "label": "中文",
+        "kind": "alias"
+      },
+      {
+        "label": "chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "mandarin chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "standard chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "putonghua",
+        "kind": "alias"
+      },
+      {
+        "label": "guoyu",
+        "kind": "alias"
+      },
+      {
+        "label": "汉语",
+        "kind": "alias"
+      },
+      {
+        "label": "国语",
+        "kind": "alias"
+      },
+      {
+        "label": "國語",
+        "kind": "alias"
+      },
+      {
+        "label": "华语",
+        "kind": "alias"
+      },
+      {
+        "label": "華語",
+        "kind": "alias"
+      },
+      {
+        "label": "官话",
+        "kind": "alias"
+      },
+      {
+        "label": "北方话",
+        "kind": "alias"
+      },
+      {
+        "label": "北方方言",
+        "kind": "alias"
+      },
+      {
+        "label": "中文普通话",
+        "kind": "alias"
+      }
+    ],
     "frr": [
       {
         "label": "Nordfriesisch",
@@ -45786,12 +53238,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "摩揭陀语",
         "kind": "alias"
-      }
-    ],
-    "pox": [
-      {
-        "label": "Polabian",
-        "kind": "english"
       }
     ],
     "zha": [
@@ -46694,12 +54140,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "alias"
       }
     ],
-    "prv": [
-      {
-        "label": "Provençal",
-        "kind": "english"
-      }
-    ],
     "gon": [
       {
         "label": "Gondi",
@@ -46904,12 +54344,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "fsl": [
-      {
-        "label": "French Sign Language",
-        "kind": "english"
-      }
-    ],
     "oji": [
       {
         "label": "Ojibwa",
@@ -47040,12 +54474,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "xil": [
-      {
-        "label": "Illyrian",
-        "kind": "english"
-      }
-    ],
     "gld": [
       {
         "label": "Nanai",
@@ -47114,18 +54542,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "lushaï",
         "kind": "alias"
-      }
-    ],
-    "xcb": [
-      {
-        "label": "Cumbric",
-        "kind": "english"
-      }
-    ],
-    "vsn": [
-      {
-        "label": "Vedic Sanskrit",
-        "kind": "english"
       }
     ],
     "hyw": [
@@ -47212,12 +54628,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "txh": [
-      {
-        "label": "Thracian",
-        "kind": "english"
-      }
-    ],
     "khw": [
       {
         "label": "Khowar",
@@ -47301,12 +54711,6 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
     "ruo": [
       {
         "label": "Istro-Romanian",
-        "kind": "english"
-      }
-    ],
-    "nzs": [
-      {
-        "label": "New Zealand Sign Language",
         "kind": "english"
       }
     ],
@@ -47728,21 +55132,9 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "xga": [
-      {
-        "label": "Galatian",
-        "kind": "english"
-      }
-    ],
     "aib": [
       {
         "label": "Äynu",
-        "kind": "english"
-      }
-    ],
-    "ncs": [
-      {
-        "label": "Nicaraguan Sign Language",
         "kind": "english"
       }
     ],
@@ -47834,27 +55226,9 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
         "kind": "english"
       }
     ],
-    "ise": [
-      {
-        "label": "Italian Sign Language",
-        "kind": "english"
-      }
-    ],
     "scl": [
       {
         "label": "Shina",
-        "kind": "english"
-      }
-    ],
-    "xeb": [
-      {
-        "label": "Eblaite",
-        "kind": "english"
-      }
-    ],
-    "xur": [
-      {
-        "label": "Urartian",
         "kind": "english"
       }
     ],
@@ -48086,6 +55460,1456 @@ export const GENERATED_LANGUAGE_QUERY_INDEXES: Readonly<Record<LanguageNameQuery
       {
         "label": "Kuanyama",
         "kind": "alias"
+      }
+    ],
+    "ctg": [
+      {
+        "label": "Chittagonian",
+        "kind": "english"
+      }
+    ],
+    "itl": [
+      {
+        "label": "Itelmen",
+        "kind": "english"
+      }
+    ],
+    "mhj": [
+      {
+        "label": "Moghol",
+        "kind": "english"
+      }
+    ],
+    "sip": [
+      {
+        "label": "Sikkimese Bhutia",
+        "kind": "english"
+      }
+    ],
+    "gbm": [
+      {
+        "label": "Garhwali",
+        "kind": "english"
+      }
+    ],
+    "kfy": [
+      {
+        "label": "Kumaoni",
+        "kind": "english"
+      }
+    ],
+    "kru": [
+      {
+        "label": "Oraon",
+        "kind": "local"
+      },
+      {
+        "label": "Kurukh",
+        "kind": "english"
+      },
+      {
+        "label": "库鲁克语",
+        "kind": "alias"
+      },
+      {
+        "label": "kouroukh",
+        "kind": "alias"
+      }
+    ],
+    "bbl": [
+      {
+        "label": "Bats",
+        "kind": "english"
+      }
+    ],
+    "bej": [
+      {
+        "label": "Bedauye",
+        "kind": "local"
+      },
+      {
+        "label": "Beja",
+        "kind": "english"
+      },
+      {
+        "label": "贝沙语",
+        "kind": "alias"
+      },
+      {
+        "label": "bedja",
+        "kind": "alias"
+      }
+    ],
+    "rmt": [
+      {
+        "label": "Domari",
+        "kind": "english"
+      }
+    ],
+    "haz": [
+      {
+        "label": "Hazaragi",
+        "kind": "english"
+      }
+    ],
+    "sty": [
+      {
+        "label": "Siberian Tatar",
+        "kind": "english"
+      }
+    ],
+    "ddo": [
+      {
+        "label": "Tsez",
+        "kind": "english"
+      }
+    ],
+    "bla": [
+      {
+        "label": "Blackfoot",
+        "kind": "local"
+      },
+      {
+        "label": "西克西卡语",
+        "kind": "alias"
+      },
+      {
+        "label": "Siksiká",
+        "kind": "alias"
+      },
+      {
+        "label": "siksika",
+        "kind": "alias"
+      }
+    ],
+    "cia": [
+      {
+        "label": "Cia-Cia",
+        "kind": "english"
+      }
+    ],
+    "kmz": [
+      {
+        "label": "Khorasani Turkic",
+        "kind": "english"
+      }
+    ],
+    "lud": [
+      {
+        "label": "Ludic",
+        "kind": "english"
+      }
+    ],
+    "tsd": [
+      {
+        "label": "Tsakonisch",
+        "kind": "local"
+      },
+      {
+        "label": "Tsakonian",
+        "kind": "english"
+      },
+      {
+        "label": "tsakonien",
+        "kind": "alias"
+      }
+    ],
+    "yoi": [
+      {
+        "label": "Yonaguni",
+        "kind": "english"
+      }
+    ],
+    "alr": [
+      {
+        "label": "Alyutor",
+        "kind": "english"
+      }
+    ],
+    "aqc": [
+      {
+        "label": "Archi",
+        "kind": "english"
+      }
+    ],
+    "xco": [
+      {
+        "label": "Khwarezmian",
+        "kind": "english"
+      }
+    ],
+    "dty": [
+      {
+        "label": "Doteli",
+        "kind": "english"
+      }
+    ],
+    "kac": [
+      {
+        "label": "Kachin",
+        "kind": "local"
+      },
+      {
+        "label": "Jingpo",
+        "kind": "english"
+      },
+      {
+        "label": "克钦语",
+        "kind": "alias"
+      }
+    ],
+    "khn": [
+      {
+        "label": "Khandeshi",
+        "kind": "english"
+      }
+    ],
+    "kjj": [
+      {
+        "label": "Khinalug",
+        "kind": "english"
+      }
+    ],
+    "kgg": [
+      {
+        "label": "Kusunda",
+        "kind": "english"
+      }
+    ],
+    "oaa": [
+      {
+        "label": "Orok",
+        "kind": "english"
+      }
+    ],
+    "siz": [
+      {
+        "label": "Siwa",
+        "kind": "english"
+      }
+    ],
+    "srr": [
+      {
+        "label": "Serer",
+        "kind": "local"
+      },
+      {
+        "label": "塞雷尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "sérère",
+        "kind": "alias"
+      }
+    ],
+    "kfa": [
+      {
+        "label": "Kodava",
+        "kind": "english"
+      }
+    ],
+    "zum": [
+      {
+        "label": "Kumzari",
+        "kind": "english"
+      }
+    ],
+    "rys": [
+      {
+        "label": "Yaeyama",
+        "kind": "english"
+      }
+    ],
+    "ani": [
+      {
+        "label": "Andi",
+        "kind": "english"
+      }
+    ],
+    "bhh": [
+      {
+        "label": "Bukharian",
+        "kind": "english"
+      }
+    ],
+    "acy": [
+      {
+        "label": "Cypriot Arabic",
+        "kind": "english"
+      }
+    ],
+    "jje": [
+      {
+        "label": "Jejuan",
+        "kind": "english"
+      }
+    ],
+    "mdh": [
+      {
+        "label": "Maguindanao",
+        "kind": "english"
+      }
+    ],
+    "ude": [
+      {
+        "label": "Udege",
+        "kind": "english"
+      }
+    ],
+    "mnj": [
+      {
+        "label": "Munji",
+        "kind": "english"
+      }
+    ],
+    "sck": [
+      {
+        "label": "Nagpuri",
+        "kind": "english"
+      }
+    ],
+    "neg": [
+      {
+        "label": "Negidal",
+        "kind": "english"
+      }
+    ],
+    "rkt": [
+      {
+        "label": "Rangpuri",
+        "kind": "english"
+      }
+    ],
+    "tru": [
+      {
+        "label": "Turoyo",
+        "kind": "local"
+      },
+      {
+        "label": "touroyo",
+        "kind": "alias"
+      }
+    ],
+    "ulc": [
+      {
+        "label": "Ulch",
+        "kind": "english"
+      }
+    ],
+    "sjo": [
+      {
+        "label": "Xibe",
+        "kind": "english"
+      },
+      {
+        "label": "锡伯语",
+        "kind": "alias"
+      },
+      {
+        "label": "錫伯語",
+        "kind": "alias"
+      }
+    ],
+    "akv": [
+      {
+        "label": "Akhvakh",
+        "kind": "english"
+      }
+    ],
+    "dta": [
+      {
+        "label": "Daur",
+        "kind": "english"
+      }
+    ],
+    "gin": [
+      {
+        "label": "Hinuq",
+        "kind": "english"
+      }
+    ],
+    "czk": [
+      {
+        "label": "Knaanic",
+        "kind": "english"
+      }
+    ],
+    "oru": [
+      {
+        "label": "Ormuri",
+        "kind": "english"
+      }
+    ],
+    "oac": [
+      {
+        "label": "Oroch",
+        "kind": "english"
+      }
+    ],
+    "aiw": [
+      {
+        "label": "Aari",
+        "kind": "english"
+      }
+    ],
+    "tts": [
+      {
+        "label": "Isan",
+        "kind": "english"
+      }
+    ],
+    "jpr": [
+      {
+        "label": "Jüdisch-Persisch",
+        "kind": "local"
+      },
+      {
+        "label": "Judeo-Persian",
+        "kind": "english"
+      },
+      {
+        "label": "犹太波斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "judéo-persan",
+        "kind": "alias"
+      },
+      {
+        "label": "judeo-persa",
+        "kind": "alias"
+      }
+    ],
+    "lmn": [
+      {
+        "label": "Lambadi",
+        "kind": "english"
+      }
+    ],
+    "chp": [
+      {
+        "label": "Chipewyan",
+        "kind": "local"
+      },
+      {
+        "label": "奇佩维安语",
+        "kind": "alias"
+      }
+    ],
+    "xnr": [
+      {
+        "label": "Kangri",
+        "kind": "local"
+      },
+      {
+        "label": "कांगड़ी",
+        "kind": "native"
+      },
+      {
+        "label": "康格里语",
+        "kind": "alias"
+      }
+    ],
+    "mvi": [
+      {
+        "label": "Miyako",
+        "kind": "english"
+      }
+    ],
+    "rki": [
+      {
+        "label": "Rakhine",
+        "kind": "english"
+      }
+    ],
+    "ysr": [
+      {
+        "label": "Sirenik",
+        "kind": "english"
+      }
+    ],
+    "taq": [
+      {
+        "label": "Tamasheq",
+        "kind": "english"
+      }
+    ],
+    "tcx": [
+      {
+        "label": "Toda",
+        "kind": "english"
+      }
+    ],
+    "bdk": [
+      {
+        "label": "Budukh",
+        "kind": "english"
+      }
+    ],
+    "mtr": [
+      {
+        "label": "Mewari",
+        "kind": "english"
+      }
+    ],
+    "yej": [
+      {
+        "label": "Yevanic",
+        "kind": "english"
+      }
+    ],
+    "aat": [
+      {
+        "label": "Arvanitic",
+        "kind": "english"
+      }
+    ],
+    "jdt": [
+      {
+        "label": "Judeo-Tat",
+        "kind": "english"
+      }
+    ],
+    "bjj": [
+      {
+        "label": "Kannauji",
+        "kind": "english"
+      }
+    ],
+    "kfq": [
+      {
+        "label": "Korku",
+        "kind": "english"
+      }
+    ],
+    "mdr": [
+      {
+        "label": "Mandaresisch",
+        "kind": "local"
+      },
+      {
+        "label": "Mandar",
+        "kind": "english"
+      },
+      {
+        "label": "曼达尔语",
+        "kind": "alias"
+      }
+    ],
+    "oon": [
+      {
+        "label": "Önge",
+        "kind": "english"
+      }
+    ],
+    "tsj": [
+      {
+        "label": "Tshangla",
+        "kind": "english"
+      }
+    ],
+    "ydg": [
+      {
+        "label": "Yidgha",
+        "kind": "english"
+      }
+    ],
+    "agj": [
+      {
+        "label": "Argobba",
+        "kind": "english"
+      }
+    ],
+    "bph": [
+      {
+        "label": "Botlikh",
+        "kind": "english"
+      }
+    ],
+    "dml": [
+      {
+        "label": "Dameli",
+        "kind": "english"
+      }
+    ],
+    "gdo": [
+      {
+        "label": "Godoberi",
+        "kind": "english"
+      }
+    ],
+    "hlb": [
+      {
+        "label": "Halbi",
+        "kind": "english"
+      }
+    ],
+    "huz": [
+      {
+        "label": "Hunzib",
+        "kind": "english"
+      }
+    ],
+    "anq": [
+      {
+        "label": "Jarawa",
+        "kind": "english"
+      }
+    ],
+    "khv": [
+      {
+        "label": "Khwarshi",
+        "kind": "english"
+      }
+    ],
+    "lis": [
+      {
+        "label": "Lisu",
+        "kind": "english"
+      },
+      {
+        "label": "傈僳语",
+        "kind": "alias"
+      },
+      {
+        "label": "傈僳語",
+        "kind": "alias"
+      }
+    ],
+    "noe": [
+      {
+        "label": "Nimadi",
+        "kind": "english"
+      }
+    ],
+    "trw": [
+      {
+        "label": "Torwali",
+        "kind": "english"
+      },
+      {
+        "label": "托尔瓦利语",
+        "kind": "alias"
+      }
+    ],
+    "yah": [
+      {
+        "label": "Yazgulyam",
+        "kind": "english"
+      }
+    ],
+    "kap": [
+      {
+        "label": "Bezhta",
+        "kind": "english"
+      }
+    ],
+    "caq": [
+      {
+        "label": "Car",
+        "kind": "english"
+      }
+    ],
+    "cji": [
+      {
+        "label": "Chamalal",
+        "kind": "english"
+      }
+    ],
+    "dhd": [
+      {
+        "label": "Marwari",
+        "kind": "local"
+      },
+      {
+        "label": "Dhundari",
+        "kind": "english"
+      },
+      {
+        "label": "马尔瓦里语",
+        "kind": "alias"
+      },
+      {
+        "label": "marwarî",
+        "kind": "alias"
+      }
+    ],
+    "gvr": [
+      {
+        "label": "Gurung",
+        "kind": "english"
+      }
+    ],
+    "har": [
+      {
+        "label": "Harari",
+        "kind": "english"
+      }
+    ],
+    "kry": [
+      {
+        "label": "Kryts",
+        "kind": "english"
+      }
+    ],
+    "mjt": [
+      {
+        "label": "Sauria Paharia",
+        "kind": "english"
+      }
+    ],
+    "kva": [
+      {
+        "label": "Bagvalal",
+        "kind": "english"
+      }
+    ],
+    "byn": [
+      {
+        "label": "Blin",
+        "kind": "local"
+      },
+      {
+        "label": "比林语",
+        "kind": "alias"
+      }
+    ],
+    "phl": [
+      {
+        "label": "Palula",
+        "kind": "english"
+      }
+    ],
+    "srb": [
+      {
+        "label": "Sora",
+        "kind": "english"
+      }
+    ],
+    "awn": [
+      {
+        "label": "Awngi",
+        "kind": "english"
+      }
+    ],
+    "gwc": [
+      {
+        "label": "Gawri",
+        "kind": "english"
+      }
+    ],
+    "kpt": [
+      {
+        "label": "Karata-Tukita",
+        "kind": "english"
+      }
+    ],
+    "khr": [
+      {
+        "label": "Kharia",
+        "kind": "english"
+      }
+    ],
+    "kdt": [
+      {
+        "label": "Kuy",
+        "kind": "english"
+      }
+    ],
+    "onw": [
+      {
+        "label": "Old Nubian",
+        "kind": "english"
+      }
+    ],
+    "blt": [
+      {
+        "label": "Tai Dam",
+        "kind": "english"
+      }
+    ],
+    "tin": [
+      {
+        "label": "Tindi",
+        "kind": "english"
+      }
+    ],
+    "amw": [
+      {
+        "label": "Western Neo-Aramaic",
+        "kind": "english"
+      }
+    ],
+    "thz": [
+      {
+        "label": "Air Tamajeq",
+        "kind": "english"
+      }
+    ],
+    "mvy": [
+      {
+        "label": "Indus Kohistani",
+        "kind": "english"
+      }
+    ],
+    "iru": [
+      {
+        "label": "Irula",
+        "kind": "english"
+      }
+    ],
+    "ahk": [
+      {
+        "label": "Akha",
+        "kind": "english"
+      }
+    ],
+    "kjg": [
+      {
+        "label": "Khmu",
+        "kind": "english"
+      }
+    ],
+    "kyw": [
+      {
+        "label": "Kudmali",
+        "kind": "english"
+      }
+    ],
+    "blk": [
+      {
+        "label": "Pa'O",
+        "kind": "english"
+      }
+    ],
+    "stv": [
+      {
+        "label": "Selti",
+        "kind": "english"
+      }
+    ],
+    "urk": [
+      {
+        "label": "Urak Lawoi’",
+        "kind": "english"
+      }
+    ],
+    "mki": [
+      {
+        "label": "Dhatki",
+        "kind": "english"
+      }
+    ],
+    "ttq": [
+      {
+        "label": "Tamaseq",
+        "kind": "local"
+      },
+      {
+        "label": "Tahoua",
+        "kind": "english"
+      },
+      {
+        "label": "塔马奇克语",
+        "kind": "alias"
+      },
+      {
+        "label": "Tamashek",
+        "kind": "alias"
+      },
+      {
+        "label": "tamacheq",
+        "kind": "alias"
+      }
+    ],
+    "dhi": [
+      {
+        "label": "Dhimal",
+        "kind": "english"
+      }
+    ],
+    "guk": [
+      {
+        "label": "Gumuz",
+        "kind": "english"
+      }
+    ],
+    "khg": [
+      {
+        "label": "Khams Tibetan",
+        "kind": "english"
+      }
+    ],
+    "kzg": [
+      {
+        "label": "Kikai",
+        "kind": "english"
+      }
+    ],
+    "ugh": [
+      {
+        "label": "Kubachi",
+        "kind": "english"
+      }
+    ],
+    "ush": [
+      {
+        "label": "Ushoji",
+        "kind": "english"
+      }
+    ],
+    "xan": [
+      {
+        "label": "Xamtanga",
+        "kind": "english"
+      }
+    ],
+    "yox": [
+      {
+        "label": "Yoron",
+        "kind": "english"
+      }
+    ],
+    "aeq": [
+      {
+        "label": "Aer",
+        "kind": "english"
+      }
+    ],
+    "bap": [
+      {
+        "label": "Bantawa",
+        "kind": "english"
+      }
+    ],
+    "bcq": [
+      {
+        "label": "Bench",
+        "kind": "english"
+      }
+    ],
+    "kjz": [
+      {
+        "label": "Bumthang",
+        "kind": "english"
+      }
+    ],
+    "xka": [
+      {
+        "label": "Kalkoti",
+        "kind": "english"
+      }
+    ],
+    "sdb": [
+      {
+        "label": "Shabaki",
+        "kind": "english"
+      }
+    ],
+    "twh": [
+      {
+        "label": "Tai Dón",
+        "kind": "english"
+      }
+    ],
+    "wne": [
+      {
+        "label": "Tareeno",
+        "kind": "english"
+      }
+    ],
+    "tft": [
+      {
+        "label": "Ternate",
+        "kind": "english"
+      }
+    ],
+    "aio": [
+      {
+        "label": "Aiton",
+        "kind": "english"
+      }
+    ],
+    "akj": [
+      {
+        "label": "Aka-Jeru",
+        "kind": "english"
+      }
+    ],
+    "amf": [
+      {
+        "label": "Hamer",
+        "kind": "english"
+      }
+    ],
+    "kcn": [
+      {
+        "label": "Nubi",
+        "kind": "english"
+      }
+    ],
+    "suz": [
+      {
+        "label": "Sunwar",
+        "kind": "english"
+      }
+    ],
+    "adx": [
+      {
+        "label": "Amdo Tibetan",
+        "kind": "english"
+      }
+    ],
+    "dhw": [
+      {
+        "label": "Dhanwar Rai",
+        "kind": "english"
+      }
+    ],
+    "mdx": [
+      {
+        "label": "Dizin",
+        "kind": "english"
+      }
+    ],
+    "ior": [
+      {
+        "label": "Inor",
+        "kind": "english"
+      }
+    ],
+    "xdq": [
+      {
+        "label": "Kaitag",
+        "kind": "english"
+      }
+    ],
+    "mjl": [
+      {
+        "label": "Mandeali",
+        "kind": "english"
+      }
+    ],
+    "nsk": [
+      {
+        "label": "Naskapi",
+        "kind": "english"
+      }
+    ],
+    "cbn": [
+      {
+        "label": "Nyah Kur",
+        "kind": "english"
+      }
+    ],
+    "kvx": [
+      {
+        "label": "Parkari Koli",
+        "kind": "english"
+      }
+    ],
+    "tkn": [
+      {
+        "label": "Tokunoshima",
+        "kind": "english"
+      }
+    ],
+    "scp": [
+      {
+        "label": "Yolmo",
+        "kind": "english"
+      }
+    ],
+    "atb": [
+      {
+        "label": "Zaiwa",
+        "kind": "english"
+      }
+    ],
+    "bhj": [
+      {
+        "label": "Bahing",
+        "kind": "english"
+      }
+    ],
+    "bzi": [
+      {
+        "label": "Bisu",
+        "kind": "english"
+      }
+    ],
+    "rab": [
+      {
+        "label": "Chamling",
+        "kind": "english"
+      }
+    ],
+    "kjp": [
+      {
+        "label": "Eastern Pwo",
+        "kind": "english"
+      }
+    ],
+    "jun": [
+      {
+        "label": "Juang",
+        "kind": "english"
+      }
+    ],
+    "kuf": [
+      {
+        "label": "Katu",
+        "kind": "english"
+      }
+    ],
+    "ykh": [
+      {
+        "label": "Khamnigan Mongol",
+        "kind": "english"
+      }
+    ],
+    "bfz": [
+      {
+        "label": "Mahasu Pahari",
+        "kind": "english"
+      }
+    ],
+    "okn": [
+      {
+        "label": "Okinoerabu",
+        "kind": "english"
+      }
+    ],
+    "ksw": [
+      {
+        "label": "S'gaw Karen",
+        "kind": "english"
+      }
+    ],
+    "kht": [
+      {
+        "label": "Khamti",
+        "kind": "english"
+      }
+    ],
+    "lpo": [
+      {
+        "label": "Lipo",
+        "kind": "english"
+      }
+    ],
+    "ths": [
+      {
+        "label": "Thakali",
+        "kind": "english"
+      }
+    ],
+    "aph": [
+      {
+        "label": "Athpare",
+        "kind": "english"
+      }
+    ],
+    "kfs": [
+      {
+        "label": "Bilaspuri",
+        "kind": "english"
+      }
+    ],
+    "cld": [
+      {
+        "label": "Syrisch",
+        "kind": "local"
+      },
+      {
+        "label": "ܣܘܪܝܝܐ",
+        "kind": "native"
+      },
+      {
+        "label": "Chaldean Neo-Aramaic",
+        "kind": "english"
+      },
+      {
+        "label": "叙利亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "Syriac",
+        "kind": "alias"
+      },
+      {
+        "label": "syriaque",
+        "kind": "alias"
+      },
+      {
+        "label": "siriaco",
+        "kind": "alias"
+      }
+    ],
+    "cdh": [
+      {
+        "label": "Chambeali",
+        "kind": "english"
+      }
+    ],
+    "dso": [
+      {
+        "label": "Desia",
+        "kind": "english"
+      }
+    ],
+    "mhu": [
+      {
+        "label": "Digaro Mishmi",
+        "kind": "english"
+      }
+    ],
+    "gbk": [
+      {
+        "label": "Gaddi",
+        "kind": "english"
+      }
+    ],
+    "jns": [
+      {
+        "label": "Jaunsari",
+        "kind": "english"
+      }
+    ],
+    "kfx": [
+      {
+        "label": "Kullui",
+        "kind": "english"
+      }
+    ],
+    "mid": [
+      {
+        "label": "Neo-Mandaic",
+        "kind": "english"
+      }
+    ],
+    "yea": [
+      {
+        "label": "Ravula",
+        "kind": "english"
+      }
+    ],
+    "srx": [
+      {
+        "label": "Sirmauri",
+        "kind": "english"
+      }
+    ],
+    "phk": [
+      {
+        "label": "Tai Phake",
+        "kind": "english"
+      }
+    ],
+    "thf": [
+      {
+        "label": "Thangmi",
+        "kind": "english"
+      }
+    ],
+    "wme": [
+      {
+        "label": "Wambule",
+        "kind": "english"
+      }
+    ],
+    "nnp": [
+      {
+        "label": "Wancho",
+        "kind": "english"
+      }
+    ],
+    "ybh": [
+      {
+        "label": "Yakkha",
+        "kind": "english"
+      }
+    ],
+    "hmd": [
+      {
+        "label": "A-Hmao",
+        "kind": "english"
+      }
+    ],
+    "byw": [
+      {
+        "label": "Belhare",
+        "kind": "english"
+      }
+    ],
+    "cda": [
+      {
+        "label": "Choni",
+        "kind": "english"
+      }
+    ],
+    "klr": [
+      {
+        "label": "Khaling",
+        "kind": "english"
+      }
+    ],
+    "mqa": [
+      {
+        "label": "Maba",
+        "kind": "english"
+      }
+    ],
+    "njz": [
+      {
+        "label": "Nishi",
+        "kind": "english"
+      }
+    ],
+    "kxm": [
+      {
+        "label": "Northern Khmer",
+        "kind": "english"
+      }
+    ],
+    "pww": [
+      {
+        "label": "Northern Pwo",
+        "kind": "english"
+      }
+    ],
+    "rjs": [
+      {
+        "label": "Rajbanshi",
+        "kind": "english"
+      }
+    ],
+    "pwo": [
+      {
+        "label": "Western Pwo",
+        "kind": "english"
+      }
+    ],
+    "crx": [
+      {
+        "label": "Carrier",
+        "kind": "english"
+      }
+    ],
+    "syw": [
+      {
+        "label": "Kagate",
+        "kind": "english"
+      }
+    ],
+    "mqu": [
+      {
+        "label": "Mandari",
+        "kind": "english"
+      }
+    ],
+    "ojs": [
+      {
+        "label": "Oji-Cree",
+        "kind": "local"
+      },
+      {
+        "label": "欧吉克里语",
+        "kind": "alias"
+      },
+      {
+        "label": "oji-cri",
+        "kind": "alias"
+      }
+    ],
+    "pgg": [
+      {
+        "label": "Pangwali",
+        "kind": "english"
+      }
+    ],
+    "jul": [
+      {
+        "label": "Jirel",
+        "kind": "english"
+      }
+    ],
+    "xkf": [
+      {
+        "label": "Kheng",
+        "kind": "english"
+      }
+    ],
+    "hmb": [
+      {
+        "label": "Humburi Senni",
+        "kind": "english"
+      }
+    ],
+    "saw": [
+      {
+        "label": "Sawi",
+        "kind": "english"
+      }
+    ],
+    "tjl": [
+      {
+        "label": "Tai Laing",
+        "kind": "english"
+      }
+    ],
+    "soa": [
+      {
+        "label": "Thai Song",
+        "kind": "english"
+      }
+    ],
+    "bjt": [
+      {
+        "label": "Balanta-Ganja",
+        "kind": "english"
+      }
+    ],
+    "ffm": [
+      {
+        "label": "Maasina Fulfulde",
+        "kind": "english"
+      }
+    ],
+    "lhm": [
+      {
+        "label": "Lhomi",
+        "kind": "english"
+      }
+    ],
+    "ldd": [
+      {
+        "label": "Luri",
+        "kind": "english"
+      }
+    ],
+    "oak": [
+      {
+        "label": "Noakhailla",
+        "kind": "english"
+      }
+    ],
+    "rmz": [
+      {
+        "label": "Marma",
+        "kind": "english"
+      }
+    ],
+    "tyj": [
+      {
+        "label": "Tai Yo",
+        "kind": "english"
+      }
+    ],
+    "phj": [
+      {
+        "label": "Pahari",
+        "kind": "english"
       }
     ]
   }

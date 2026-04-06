@@ -13,6 +13,10 @@ export type LanguageDisplayCoreEntry = {
   english: string;
   native?: string;
   byLocale?: Partial<Record<LanguageNameQueryLocale, string>>;
+  /** Glottolog 纬度 | Glottolog latitude */
+  latitude?: number;
+  /** Glottolog 经度 | Glottolog longitude */
+  longitude?: number;
 };
 
 export type LanguageQueryIndexLocaleRecord = Readonly<Record<string, readonly LanguageQueryLabelEntry[]>>;

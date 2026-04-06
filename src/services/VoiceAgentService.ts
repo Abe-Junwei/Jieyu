@@ -529,6 +529,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   }
 
   stop(): void {
+    this._dictationPipeline?.stop();
+    this._dictationPipeline = null;
     this._speechQuality?.stop();
     this._voiceService?.releaseSharedAnalysisStream();
     this._voiceService?.stop();
@@ -905,6 +907,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   dispose(): void {
     document.removeEventListener('visibilitychange', this._handleVisibilityChange);
     this._ambientUnsubscribe?.();
+    this._dictationPipeline?.stop();
+    this._dictationPipeline = null;
     this._voiceService?.dispose();
     this._voiceService?.releaseSharedAnalysisStream();
     this._voiceService = null;

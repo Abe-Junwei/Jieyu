@@ -116,6 +116,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   const autoProbeIntervalMs = normalizeAutoProbeIntervalMs(
     options?.autoProbeIntervalMs ?? readDevAutoProbeIntervalMs(),
   );
+  const autoConnectionProbeEnabled = options?.autoConnectionProbeEnabled ?? true;
   const ragContextTimeoutMs = normalizeRagContextTimeoutMs(readDevRagContextTimeoutMs());
   const onToolCallRef = useLatest(onToolCall);
   const onToolRiskCheckRef = useLatest(onToolRiskCheck);
@@ -221,6 +222,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     isBootstrapping,
     isStreaming,
     autoProbeIntervalMs,
+    autoConnectionProbeEnabled,
   });
 
   const updateSettings = useCallback((patch: Partial<AiChatSettings>) => {
@@ -416,7 +418,10 @@ export function useAiChat(options?: UseAiChatOptions) {
       }
 
       // Convert UI order (newest-first) back to chronological order for model context.
+      // 排除当前轮次的 userMsg 和空 assistantSeed，因为 assembleMessages 会独立添加 userText
+      // | Exclude current turn's userMsg and empty assistantSeed — assembleMessages adds userText separately
       const historyRaw: ChatMessage[] = [...messagesRef.current]
+        .filter((m) => m.id !== userMsg.id && m.id !== assistantId)
         .reverse()
         .map((m) => ({ role: m.role, content: m.content }));
       const history = trimHistoryByChars(historyRaw, historyCharBudget);

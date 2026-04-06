@@ -1,0 +1,439 @@
+{
+  "generatedAt": "2026-04-06T06:56:36.867Z",
+  "inputFile": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/public/data/language-support/top500-language-orthography-seeds.json",
+  "sources": {
+    "iso6393": "https://iso639-3.sil.org/sites/iso639-3/files/downloads/iso-639-3.tab",
+    "iso6393Retirements": "https://iso639-3.sil.org/sites/iso639-3/files/downloads/iso-639-3_Retirements.tab",
+    "iso15924": "https://www.unicode.org/iso15924/iso15924.txt",
+    "cldrLikelySubtags": "https://raw.githubusercontent.com/unicode-org/cldr-json/main/cldr-json/cldr-core/supplemental/likelySubtags.json",
+    "ianaRegistry": "https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry"
+  },
+  "metrics": {
+    "totalLanguages": 698,
+    "invalidIso6393Count": 1,
+    "retiredIso6393Count": 1,
+    "invalidScriptCodeCount": 0,
+    "cldrComparableCount": 489,
+    "cldrAgreementCount": 441,
+    "cldrDisagreementCount": 48,
+    "cldrAgreementRate": 0.901840490797546,
+    "ianaComparableCount": 123,
+    "ianaAgreementCount": 123,
+    "ianaDisagreementCount": 0,
+    "ianaAgreementRate": 1
+  },
+  "invalidIso6393": [
+    {
+      "iso6393": "myq",
+      "languageLabel": "Maninka",
+      "rank": 525
+    }
+  ],
+  "retiredIso6393InCatalog": [
+    {
+      "iso6393": "myq",
+      "languageLabel": "Maninka",
+      "rank": 525,
+      "retirement": {
+        "id": "myq",
+        "refName": "Forest Maninka",
+        "reason": "N",
+        "changeTo": "",
+        "retireDate": ""
+      }
+    }
+  ],
+  "invalidScriptCodes": [],
+  "sampleCldrMismatches": [
+    {
+      "iso6393": "ctg",
+      "languageLabel": "Chittagonian",
+      "cldrLikelyScript": "Beng",
+      "catalogScripts": [
+        "Arab"
+      ]
+    },
+    {
+      "iso6393": "bla",
+      "languageLabel": "Blackfoot",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cans"
+      ]
+    },
+    {
+      "iso6393": "cia",
+      "languageLabel": "Cia-Cia",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Hang"
+      ]
+    },
+    {
+      "iso6393": "lud",
+      "languageLabel": "Ludic",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cyrl"
+      ]
+    },
+    {
+      "iso6393": "xco",
+      "languageLabel": "Khwarezmian",
+      "cldrLikelyScript": "Chrs",
+      "catalogScripts": [
+        "Arab"
+      ]
+    },
+    {
+      "iso6393": "kac",
+      "languageLabel": "Jingpo",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Mymr"
+      ]
+    },
+    {
+      "iso6393": "kjj",
+      "languageLabel": "Khinalug",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cyrl"
+      ]
+    },
+    {
+      "iso6393": "siz",
+      "languageLabel": "Siwa",
+      "cldrLikelyScript": "Arab",
+      "catalogScripts": [
+        "Tfng"
+      ]
+    },
+    {
+      "iso6393": "srr",
+      "languageLabel": "Serer",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ]
+    },
+    {
+      "iso6393": "bhh",
+      "languageLabel": "Bukharian",
+      "cldrLikelyScript": "Cyrl",
+      "catalogScripts": [
+        "Hebr"
+      ]
+    },
+    {
+      "iso6393": "acy",
+      "languageLabel": "Cypriot Arabic",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Grek"
+      ]
+    },
+    {
+      "iso6393": "mdh",
+      "languageLabel": "Maguindanao",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ]
+    },
+    {
+      "iso6393": "rkt",
+      "languageLabel": "Rangpuri",
+      "cldrLikelyScript": "Beng",
+      "catalogScripts": [
+        "Deva"
+      ]
+    },
+    {
+      "iso6393": "tru",
+      "languageLabel": "Turoyo",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Syrc"
+      ]
+    },
+    {
+      "iso6393": "dta",
+      "languageLabel": "Daur",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cyrl",
+        "Mong"
+      ]
+    },
+    {
+      "iso6393": "aiw",
+      "languageLabel": "Aari",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Ethi"
+      ]
+    },
+    {
+      "iso6393": "chp",
+      "languageLabel": "Chipewyan",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cans"
+      ]
+    },
+    {
+      "iso6393": "taq",
+      "languageLabel": "Tamasheq",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Tfng"
+      ]
+    },
+    {
+      "iso6393": "bdk",
+      "languageLabel": "Budukh",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cyrl"
+      ]
+    },
+    {
+      "iso6393": "yej",
+      "languageLabel": "Yevanic",
+      "cldrLikelyScript": "Grek",
+      "catalogScripts": [
+        "Hebr"
+      ]
+    },
+    {
+      "iso6393": "mdr",
+      "languageLabel": "Mandar",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Bugi"
+      ]
+    },
+    {
+      "iso6393": "yah",
+      "languageLabel": "Yazgulyam",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cyrl"
+      ]
+    },
+    {
+      "iso6393": "caq",
+      "languageLabel": "Car",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Deva"
+      ]
+    },
+    {
+      "iso6393": "kry",
+      "languageLabel": "Kryts",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cyrl"
+      ]
+    },
+    {
+      "iso6393": "srb",
+      "languageLabel": "Sora",
+      "cldrLikelyScript": "Sora",
+      "catalogScripts": [
+        "Orya"
+      ]
+    },
+    {
+      "iso6393": "khr",
+      "languageLabel": "Kharia",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Deva",
+        "Orya"
+      ]
+    },
+    {
+      "iso6393": "thz",
+      "languageLabel": "Air Tamajeq",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab",
+        "Tfng"
+      ]
+    },
+    {
+      "iso6393": "ahk",
+      "languageLabel": "Akha",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Mymr",
+        "Thai"
+      ]
+    },
+    {
+      "iso6393": "guk",
+      "languageLabel": "Gumuz",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Ethi"
+      ]
+    },
+    {
+      "iso6393": "twh",
+      "languageLabel": "Tai Dón",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Tavt"
+      ]
+    },
+    {
+      "iso6393": "tft",
+      "languageLabel": "Ternate",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ]
+    },
+    {
+      "iso6393": "amf",
+      "languageLabel": "Hamer",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Ethi"
+      ]
+    },
+    {
+      "iso6393": "kcn",
+      "languageLabel": "Nubi",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ]
+    },
+    {
+      "iso6393": "atb",
+      "languageLabel": "Zaiwa",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Lisu"
+      ]
+    },
+    {
+      "iso6393": "ykh",
+      "languageLabel": "Khamnigan Mongol",
+      "cldrLikelyScript": "Cyrl",
+      "catalogScripts": [
+        "Mong"
+      ]
+    },
+    {
+      "iso6393": "mhu",
+      "languageLabel": "Digaro Mishmi",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Deva"
+      ]
+    },
+    {
+      "iso6393": "mid",
+      "languageLabel": "Neo-Mandaic",
+      "cldrLikelyScript": "Mand",
+      "catalogScripts": [
+        "Syrc"
+      ]
+    },
+    {
+      "iso6393": "nnp",
+      "languageLabel": "Wancho",
+      "cldrLikelyScript": "Wcho",
+      "catalogScripts": [
+        "Deva"
+      ]
+    },
+    {
+      "iso6393": "mqa",
+      "languageLabel": "Maba",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ]
+    },
+    {
+      "iso6393": "njz",
+      "languageLabel": "Nishi",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Deva"
+      ]
+    },
+    {
+      "iso6393": "crx",
+      "languageLabel": "Carrier",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cans"
+      ]
+    },
+    {
+      "iso6393": "mqu",
+      "languageLabel": "Mandari",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Deva",
+        "Orya"
+      ]
+    },
+    {
+      "iso6393": "hmb",
+      "languageLabel": "Humburi Senni",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ]
+    },
+    {
+      "iso6393": "saw",
+      "languageLabel": "Sawi",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ]
+    },
+    {
+      "iso6393": "bjt",
+      "languageLabel": "Balanta-Ganja",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ]
+    },
+    {
+      "iso6393": "ffm",
+      "languageLabel": "Maasina Fulfulde",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ]
+    },
+    {
+      "iso6393": "ldd",
+      "languageLabel": "Luri",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ]
+    },
+    {
+      "iso6393": "tyj",
+      "languageLabel": "Tai Yo",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Thai"
+      ]
+    }
+  ],
+  "sampleIanaSuppressScriptMismatches": []
+}

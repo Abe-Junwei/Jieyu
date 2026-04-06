@@ -31,9 +31,16 @@ export function extractBalancedJsonObjects(rawText: string): string[] {
   const results: string[] = [];
   let depth = 0;
   let start = -1;
+  let inString = false;
 
   for (let i = 0; i < rawText.length; i += 1) {
     const char = rawText[i];
+    // 跳过字符串内部的花括号 | Skip braces inside JSON string literals
+    if (char === '"' && (i === 0 || rawText[i - 1] !== '\\')) {
+      if (depth > 0) inString = !inString;
+      continue;
+    }
+    if (inString) continue;
     if (char === '{') {
       if (depth === 0) start = i;
       depth += 1;
@@ -95,5 +102,8 @@ export function compressMessageContent(content: string, maxLen: number): string 
 // ── Destructive Tool Detection ─────────────────────────────────────────────────
 
 export function isDestructiveToolCall(name: string): boolean {
-  return name === 'delete_transcription_segment' || name === 'delete_layer';
+  return name === 'delete_transcription_segment'
+    || name === 'delete_layer'
+    || name === 'merge_transcription_segments'
+    || name === 'clear_translation_segment';
 }

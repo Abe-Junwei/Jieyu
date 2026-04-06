@@ -132,7 +132,8 @@ export function useTranscriptionPersistence({
       for (const id of currentSpeakerIds) {
         if (!targetSpeakerIds.has(id)) await db.collections.speakers.remove(id);
       }
-      // Upsert target speakers
+      // Upsert target speakers — 使用 upsert 避免 undo/redo 时已有 speaker 抛主键重复异常
+      // | Use upsert to avoid duplicate primary key errors during undo/redo
       for (const speaker of targetSpeakers) await db.collections.speakers.insert(speaker);
     });
   }, [speakersRef, translationsRef, utterancesRef]);

@@ -1,6 +1,8 @@
 import { iso6393 } from 'iso-639-3';
 import {
   getDb,
+  type CustomFieldDefinitionDocType,
+  type CustomFieldValueType,
   type LanguageAliasDocType,
   type LanguageCatalogHistoryAction,
   type LanguageCatalogHistoryDocType,
@@ -32,6 +34,23 @@ const ISO_639_3_BY_CODE = new Map<string, Iso6393Record>(
     .map((entry) => [entry.iso6393.toLowerCase(), entry] as const),
 );
 
+/**
+ * ISO 639-3 种子数据（同步查询） | ISO 639-3 seed data (sync lookup)
+ */
+export type Iso639_3Seed = {
+  name: string;
+  iso6391?: string | undefined;
+  iso6392B?: string | undefined;
+  iso6392T?: string | undefined;
+  scope: string;
+  type: string;
+};
+
+/** 同步查询 ISO 639-3 种子记录 | Synchronously look up an ISO 639-3 seed record */
+export function lookupIso639_3Seed(code: string): Iso639_3Seed | undefined {
+  return ISO_639_3_BY_CODE.get(code.trim().toLowerCase());
+}
+
 export type LanguageCatalogEntryKind = 'built-in' | 'override' | 'custom';
 
 export type LanguageCatalogDisplayNameEntry = {
@@ -62,11 +81,34 @@ export type LanguageCatalogEntry = {
   nativeName?: string;
   aliases: string[];
   scope?: LanguageDocType['scope'];
-  family?: string;
-  subfamily?: string;
+  genus?: string;
+  classificationPath?: string;
   macrolanguage?: string;
   languageType?: LanguageDocType['languageType'];
   modality?: LanguageDocType['modality'];
+  endangermentLevel?: LanguageDocType['endangermentLevel'];
+  aesStatus?: LanguageDocType['aesStatus'];
+  endangermentSource?: string;
+  endangermentAssessmentYear?: number;
+  speakerCountL1?: number;
+  speakerCountL2?: number;
+  speakerCountSource?: string;
+  speakerCountYear?: number;
+  speakerTrend?: LanguageDocType['speakerTrend'];
+  countries?: string[];
+  macroarea?: LanguageDocType['macroarea'];
+  administrativeDivisions?: LanguageDocType['administrativeDivisions'];
+  intergenerationalTransmission?: LanguageDocType['intergenerationalTransmission'];
+  domains?: LanguageDocType['domains'];
+  officialStatus?: LanguageDocType['officialStatus'];
+  egids?: string;
+  documentationLevel?: LanguageDocType['documentationLevel'];
+  dialects?: string[];
+  writingSystems?: string[];
+  literacyRate?: number;
+  latitude?: number;
+  longitude?: number;
+  customFields?: LanguageDocType['customFields'];
   sourceType: LanguageCatalogSourceType;
   reviewStatus?: LanguageCatalogReviewStatus;
   visibility: LanguageCatalogVisibility;
@@ -91,11 +133,34 @@ export type UpsertLanguageCatalogEntryInput = {
   locale?: string;
   aliases?: string[];
   scope?: LanguageDocType['scope'];
-  family?: string;
-  subfamily?: string;
+  genus?: string;
+  classificationPath?: string;
   macrolanguage?: string;
   languageType?: LanguageDocType['languageType'];
   modality?: LanguageDocType['modality'];
+  endangermentLevel?: LanguageDocType['endangermentLevel'];
+  aesStatus?: LanguageDocType['aesStatus'];
+  endangermentSource?: string;
+  endangermentAssessmentYear?: number;
+  speakerCountL1?: number;
+  speakerCountL2?: number;
+  speakerCountSource?: string;
+  speakerCountYear?: number;
+  speakerTrend?: LanguageDocType['speakerTrend'];
+  countries?: string[];
+  macroarea?: LanguageDocType['macroarea'];
+  administrativeDivisions?: LanguageDocType['administrativeDivisions'];
+  intergenerationalTransmission?: LanguageDocType['intergenerationalTransmission'];
+  domains?: LanguageDocType['domains'];
+  officialStatus?: LanguageDocType['officialStatus'];
+  egids?: string;
+  documentationLevel?: LanguageDocType['documentationLevel'];
+  dialects?: string[];
+  writingSystems?: string[];
+  literacyRate?: number;
+  latitude?: number;
+  longitude?: number;
+  customFields?: LanguageDocType['customFields'];
   visibility?: LanguageCatalogVisibility;
   notes?: MultiLangString;
   reviewStatus?: LanguageCatalogReviewStatus;
@@ -107,6 +172,26 @@ export type UpsertLanguageCatalogEntryInput = {
   }>;
   reason?: string;
 };
+
+function flattenCustomFieldSearchValues(customFields?: LanguageDocType['customFields']): string[] {
+  if (!customFields) {
+    return [];
+  }
+
+  return Object.values(customFields).flatMap((value) => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed ? [trimmed] : [];
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return [String(value)];
+    }
+    if (Array.isArray(value)) {
+      return value.map((item) => item.trim()).filter(Boolean);
+    }
+    return [];
+  });
+}
 
 const HIGH_AMBIGUITY_LANGUAGE_ALIASES = new Set([
   'chinese',
@@ -251,8 +336,8 @@ function buildComparableHistoryPatch(entry: LanguageCatalogEntry | null): Record
     nativeName: entry.nativeName ?? null,
     aliases: normalizedAliases,
     scope: entry.scope ?? null,
-    family: entry.family ?? null,
-    subfamily: entry.subfamily ?? null,
+    genus: entry.genus ?? null,
+    classificationPath: entry.classificationPath ?? null,
     macrolanguage: entry.macrolanguage ?? null,
     languageType: entry.languageType ?? null,
     modality: entry.modality ?? null,
@@ -564,6 +649,16 @@ function slugifyLanguageId(value: string): string {
   return normalized || newId('lang').replace(/^lang_/, 'entry-');
 }
 
+/** 4 位确定性短哈希，基于字符串内容 | 4-char deterministic short hash from string content */
+function shortHash4(value: string): string {
+  let h = 0x811c9dc5; // FNV-1a offset basis
+  for (let i = 0; i < value.length; i++) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 0x01000193); // FNV prime
+  }
+  return (h >>> 0).toString(16).slice(-4).padStart(4, '0');
+}
+
 function resolveStoredLanguageId(input: UpsertLanguageCatalogEntryInput): string {
   const explicitId = normalizeLanguageId(input.id);
   const normalizedLanguageCode = normalizeLanguageId(input.languageCode ?? input.iso6393);
@@ -582,8 +677,15 @@ function resolveStoredLanguageId(input: UpsertLanguageCatalogEntryInput): string
     return `user:${slugifyLanguageId(explicitId)}`;
   }
 
-  const fallback = input.languageCode ?? input.englishName ?? input.localName ?? input.nativeName ?? newId('lang');
-  return `user:${slugifyLanguageId(fallback)}`;
+  // 留空时自动生成 user:{slug}-{4位hash}，human-readable 且有区别性 | Auto-generate user:{slug}-{4-char hash} when left empty
+  const nameSeed = input.englishName?.trim() || input.localName?.trim() || input.nativeName?.trim() || input.languageCode?.trim() || '';
+  if (nameSeed) {
+    const slug = slugifyLanguageId(nameSeed);
+    const hash = shortHash4(nameSeed.toLowerCase());
+    return `user:${slug}-${hash}`;
+  }
+
+  return `user:${newId('lang').replace(/^lang_/, 'entry-')}`;
 }
 
 function readMultiLangValue(record: MultiLangString | undefined, locale: string): string | undefined {
@@ -655,6 +757,25 @@ function pickDisplayName(
 
 function buildBaselineCodes(): string[] {
   return Object.keys(GENERATED_LANGUAGE_DISPLAY_NAME_CORE).sort();
+}
+
+function normalizeRequestedLanguageIds(languageIds: readonly string[] | undefined): string[] | undefined {
+  if (!languageIds) {
+    return undefined;
+  }
+
+  const seen = new Set<string>();
+  const normalizedIds: string[] = [];
+  languageIds.forEach((languageId) => {
+    const normalizedId = normalizeLanguageId(languageId);
+    if (!normalizedId || seen.has(normalizedId)) {
+      return;
+    }
+    seen.add(normalizedId);
+    normalizedIds.push(normalizedId);
+  });
+
+  return normalizedIds;
 }
 
 function pickRuntimeSnapshotBaseEntry(
@@ -852,13 +973,15 @@ function projectLanguageCatalogEntry(input: {
   const resolvedGlottocode = languageDoc?.glottocode;
   const resolvedWikidataId = languageDoc?.wikidataId;
   const resolvedScope = languageDoc?.scope ?? isoRecord?.scope;
-  const resolvedFamily = languageDoc?.family;
-  const resolvedSubfamily = languageDoc?.subfamily;
+  const resolvedGenus = languageDoc?.genus;
+  const resolvedClassificationPath = languageDoc?.classificationPath;
   const resolvedMacrolanguage = languageDoc?.macrolanguage;
   const resolvedLanguageType = languageDoc?.languageType ?? isoRecord?.type;
   const resolvedModality = languageDoc?.modality;
   const resolvedReviewStatus = languageDoc?.reviewStatus;
   const resolvedNotes = languageDoc?.notes;
+  const resolvedLatitude = languageDoc?.latitude ?? generated?.latitude;
+  const resolvedLongitude = languageDoc?.longitude ?? generated?.longitude;
   const resolvedUpdatedAt = languageDoc?.updatedAt;
 
   return {
@@ -878,11 +1001,34 @@ function projectLanguageCatalogEntry(input: {
     ...(nativeName ? { nativeName } : {}),
     aliases,
     ...(resolvedScope ? { scope: resolvedScope } : {}),
-    ...(resolvedFamily ? { family: resolvedFamily } : {}),
-    ...(resolvedSubfamily ? { subfamily: resolvedSubfamily } : {}),
+    ...(resolvedGenus ? { genus: resolvedGenus } : {}),
+    ...(resolvedClassificationPath ? { classificationPath: resolvedClassificationPath } : {}),
     ...(resolvedMacrolanguage ? { macrolanguage: resolvedMacrolanguage } : {}),
     ...(resolvedLanguageType ? { languageType: resolvedLanguageType } : {}),
     ...(resolvedModality ? { modality: resolvedModality } : {}),
+    ...(languageDoc?.endangermentLevel ? { endangermentLevel: languageDoc.endangermentLevel } : {}),
+    ...(languageDoc?.aesStatus ? { aesStatus: languageDoc.aesStatus } : {}),
+    ...(languageDoc?.endangermentSource ? { endangermentSource: languageDoc.endangermentSource } : {}),
+    ...(languageDoc?.endangermentAssessmentYear !== undefined ? { endangermentAssessmentYear: languageDoc.endangermentAssessmentYear } : {}),
+    ...(languageDoc?.speakerCountL1 !== undefined ? { speakerCountL1: languageDoc.speakerCountL1 } : {}),
+    ...(languageDoc?.speakerCountL2 !== undefined ? { speakerCountL2: languageDoc.speakerCountL2 } : {}),
+    ...(languageDoc?.speakerCountSource ? { speakerCountSource: languageDoc.speakerCountSource } : {}),
+    ...(languageDoc?.speakerCountYear !== undefined ? { speakerCountYear: languageDoc.speakerCountYear } : {}),
+    ...(languageDoc?.speakerTrend ? { speakerTrend: languageDoc.speakerTrend } : {}),
+    ...(languageDoc?.countries?.length ? { countries: languageDoc.countries } : {}),
+    ...(languageDoc?.macroarea ? { macroarea: languageDoc.macroarea } : {}),
+    ...(languageDoc?.administrativeDivisions?.length ? { administrativeDivisions: languageDoc.administrativeDivisions } : {}),
+    ...(languageDoc?.intergenerationalTransmission ? { intergenerationalTransmission: languageDoc.intergenerationalTransmission } : {}),
+    ...(languageDoc?.domains?.length ? { domains: languageDoc.domains } : {}),
+    ...(languageDoc?.officialStatus ? { officialStatus: languageDoc.officialStatus } : {}),
+    ...(languageDoc?.egids ? { egids: languageDoc.egids } : {}),
+    ...(languageDoc?.documentationLevel ? { documentationLevel: languageDoc.documentationLevel } : {}),
+    ...(languageDoc?.dialects?.length ? { dialects: languageDoc.dialects } : {}),
+    ...(languageDoc?.writingSystems?.length ? { writingSystems: languageDoc.writingSystems } : {}),
+    ...(languageDoc?.literacyRate !== undefined ? { literacyRate: languageDoc.literacyRate } : {}),
+    ...(resolvedLatitude !== undefined ? { latitude: resolvedLatitude } : {}),
+    ...(resolvedLongitude !== undefined ? { longitude: resolvedLongitude } : {}),
+    ...(languageDoc?.customFields && Object.keys(languageDoc.customFields).length > 0 ? { customFields: languageDoc.customFields } : {}),
     sourceType,
     ...(resolvedReviewStatus ? { reviewStatus: resolvedReviewStatus } : {}),
     visibility: languageDoc?.visibility ?? 'visible',
@@ -892,10 +1038,27 @@ function projectLanguageCatalogEntry(input: {
   };
 }
 
-async function readLanguageCatalogProjection(locale: string, includeHidden = false): Promise<LanguageCatalogEntry[]> {
+async function readLanguageCatalogProjection(
+  locale: string,
+  includeHidden = false,
+  requestedLanguageIds?: readonly string[],
+): Promise<LanguageCatalogEntry[]> {
+  const scopedLanguageIds = normalizeRequestedLanguageIds(requestedLanguageIds);
+  if (scopedLanguageIds && scopedLanguageIds.length === 0) {
+    return [];
+  }
+
   const db = await getDb();
   // 三表读取包裹在读事务中，避免并发写入造成数据不对齐 | Wrap 3-table reads in a read transaction to prevent misalignment from concurrent writes
   const [languages, displayNames, aliases] = await db.dexie.transaction('r', db.dexie.languages, db.dexie.language_display_names, db.dexie.language_aliases, async () => {
+    if (scopedLanguageIds) {
+      return Promise.all([
+        db.dexie.languages.bulkGet(scopedLanguageIds),
+        db.dexie.language_display_names.where('languageId').anyOf(scopedLanguageIds).toArray(),
+        db.dexie.language_aliases.where('languageId').anyOf(scopedLanguageIds).toArray(),
+      ]);
+    }
+
     return Promise.all([
       db.dexie.languages.toArray(),
       db.dexie.language_display_names.toArray(),
@@ -903,14 +1066,16 @@ async function readLanguageCatalogProjection(locale: string, includeHidden = fal
     ]);
   });
 
-  const languageIds = new Set<string>([
+  const persistedLanguages = languages.filter((row): row is LanguageDocType => Boolean(row));
+
+  const languageIds = new Set<string>(scopedLanguageIds ?? [
     ...buildBaselineCodes(),
-    ...languages.map((row) => row.id),
+    ...persistedLanguages.map((row) => row.id),
     ...displayNames.map((row) => row.languageId),
     ...aliases.map((row) => row.languageId),
   ]);
 
-  const languageById = new Map(languages.map((row) => [row.id, row] as const));
+  const languageById = new Map(persistedLanguages.map((row) => [row.id, row] as const));
   const displayNamesByLanguageId = new Map<string, LanguageDisplayNameDocType[]>();
   const aliasesByLanguageId = new Map<string, LanguageAliasDocType[]>();
 
@@ -953,8 +1118,9 @@ export async function listLanguageCatalogEntries(input: {
   locale: Locale;
   searchText?: string;
   includeHidden?: boolean;
+  languageIds?: readonly string[];
 }): Promise<LanguageCatalogEntry[]> {
-  const entries = await readLanguageCatalogProjection(input.locale, input.includeHidden);
+  const entries = await readLanguageCatalogProjection(input.locale, input.includeHidden, input.languageIds);
 
   const normalizedSearch = input.searchText?.trim().toLowerCase();
   if (!normalizedSearch) {
@@ -973,13 +1139,14 @@ export async function listLanguageCatalogEntries(input: {
       entry.englishName,
       entry.localName,
       entry.nativeName,
-      entry.family,
-      entry.subfamily,
+      entry.genus,
+      entry.classificationPath,
       entry.glottocode,
       entry.wikidataId,
       ...entry.aliases,
       ...entry.displayNames.map((d) => d.value),
       ...Object.values(entry.notes ?? {}),
+      ...flattenCustomFieldSearchValues(entry.customFields),
     ]
       .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
       .join(' ')
@@ -994,7 +1161,7 @@ export async function getLanguageCatalogEntry(input: {
   locale: Locale;
 }): Promise<LanguageCatalogEntry | null> {
   // 包含隐藏条目，否则刚设为 hidden 的条目无法读取 | Include hidden entries so freshly hidden ones are still accessible
-  const entries = await readLanguageCatalogProjection(input.locale, true);
+  const entries = await readLanguageCatalogProjection(input.locale, true, [input.languageId]);
   return entries.find((entry) => entry.id === input.languageId) ?? null;
 }
 
@@ -1009,25 +1176,31 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
   // H1: 安全验证 locale 而非强转（匹配 'en'/'en-GB' 等变体）| Validate locale safely, matching en-* variants
   const rawLocale = normalizeCanonicalTag(input.locale ?? 'zh-CN', 'zh-CN') ?? 'zh-CN';
   const locale: Locale = rawLocale.toLowerCase().startsWith('en') ? 'en-US' : 'zh-CN';
-  const englishName = normalizeOptionalValue(input.englishName);
+
+  // 首次创建时从 iso-639-3 包自动回填缺失字段 | Auto-fill missing fields from iso-639-3 package on first creation
+  const isoSeed = !existing ? ISO_639_3_BY_CODE.get(languageId) : undefined;
+
+  const englishName = normalizeOptionalValue(input.englishName) ?? (!existing ? isoSeed?.name : undefined);
   const localName = normalizeOptionalValue(input.localName);
   const nativeName = normalizeOptionalValue(input.nativeName);
-  const hasEnglishName = hasOwnField(input, 'englishName');
+  const hasEnglishName = hasOwnField(input, 'englishName') || Boolean(!existing && isoSeed?.name);
   const hasLocalName = hasOwnField(input, 'localName');
   const hasNativeName = hasOwnField(input, 'nativeName');
   const hasCanonicalTag = hasOwnField(input, 'canonicalTag');
-  const hasIso6391 = hasOwnField(input, 'iso6391');
-  const hasIso6392B = hasOwnField(input, 'iso6392B');
-  const hasIso6392T = hasOwnField(input, 'iso6392T');
+  const hasIso6391 = hasOwnField(input, 'iso6391') || Boolean(!existing && isoSeed?.iso6391);
+  const hasIso6392B = hasOwnField(input, 'iso6392B') || Boolean(!existing && isoSeed?.iso6392B);
+  const hasIso6392T = hasOwnField(input, 'iso6392T') || Boolean(!existing && isoSeed?.iso6392T);
   const hasIso6393 = hasOwnField(input, 'iso6393');
   const hasGlottocode = hasOwnField(input, 'glottocode');
   const hasWikidataId = hasOwnField(input, 'wikidataId');
-  const hasScope = hasOwnField(input, 'scope');
+  const hasScope = hasOwnField(input, 'scope') || Boolean(!existing && isoSeed?.scope);
   const hasMacrolanguage = hasOwnField(input, 'macrolanguage');
-  const hasFamily = hasOwnField(input, 'family');
-  const hasSubfamily = hasOwnField(input, 'subfamily');
+  const hasGenus = hasOwnField(input, 'genus');
+  const hasClassificationPath = hasOwnField(input, 'classificationPath');
   const hasModality = hasOwnField(input, 'modality');
-  const hasLanguageType = hasOwnField(input, 'languageType');
+  const hasLatitude = hasOwnField(input, 'latitude');
+  const hasLongitude = hasOwnField(input, 'longitude');
+  const hasLanguageType = hasOwnField(input, 'languageType') || Boolean(!existing && isoSeed?.type);
   const mergedName: MultiLangString = {
     ...(existing?.name ?? {}),
   };
@@ -1051,15 +1224,15 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
 
   // 提取 normalizeOptionalValue 结果，避免双重调用无法被 TS 收窄 | Extract normalized values to allow TS narrowing
   const normCanonicalTag = normalizeCanonicalTag(input.canonicalTag, locale);
-  const normIso6391 = normalizeIsoAlphaCode(input.iso6391, 2, locale, 'service.languageCatalog.invalidIso6391');
-  const normIso6392B = normalizeIsoAlphaCode(input.iso6392B, 3, locale, 'service.languageCatalog.invalidIso6392B');
-  const normIso6392T = normalizeIsoAlphaCode(input.iso6392T, 3, locale, 'service.languageCatalog.invalidIso6392T');
+  const normIso6391 = normalizeIsoAlphaCode(input.iso6391, 2, locale, 'service.languageCatalog.invalidIso6391') ?? (!existing ? isoSeed?.iso6391 : undefined);
+  const normIso6392B = normalizeIsoAlphaCode(input.iso6392B, 3, locale, 'service.languageCatalog.invalidIso6392B') ?? (!existing ? isoSeed?.iso6392B : undefined);
+  const normIso6392T = normalizeIsoAlphaCode(input.iso6392T, 3, locale, 'service.languageCatalog.invalidIso6392T') ?? (!existing ? isoSeed?.iso6392T : undefined);
   const normIso6393 = normalizeIsoAlphaCode(input.iso6393, 3, locale, 'service.languageCatalog.invalidIso6393');
   const normGlottocode = normalizeOptionalValue(input.glottocode);
   const normWikidataId = normalizeOptionalValue(input.wikidataId);
   const normMacrolanguage = normalizeOptionalValue(input.macrolanguage);
-  const normFamily = normalizeOptionalValue(input.family);
-  const normSubfamily = normalizeOptionalValue(input.subfamily);
+  const normGenus = normalizeOptionalValue(input.genus);
+  const normClassificationPath = normalizeOptionalValue(input.classificationPath);
   const normalizedDisplayNameInput = input.displayNames?.map((row) => ({
     locale: normalizeValidatedDisplayLocale(row.locale, locale),
     role: row.role,
@@ -1096,17 +1269,49 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
     ...(!hasWikidataId && existing?.wikidataId ? { wikidataId: existing.wikidataId } : {}),
     ...(hasWikidataId && normWikidataId ? { wikidataId: normWikidataId } : {}),
     ...(!hasScope && existing?.scope ? { scope: existing.scope } : {}),
-    ...(hasScope && input.scope ? { scope: input.scope } : {}),
+    ...(hasScope && (input.scope ?? isoSeed?.scope) ? { scope: (input.scope ?? isoSeed!.scope) as NonNullable<LanguageDocType['scope']> } : {}),
     ...(!hasMacrolanguage && existing?.macrolanguage ? { macrolanguage: existing.macrolanguage } : {}),
     ...(hasMacrolanguage && normMacrolanguage ? { macrolanguage: normMacrolanguage } : {}),
-    ...(!hasFamily && existing?.family ? { family: existing.family } : {}),
-    ...(hasFamily && normFamily ? { family: normFamily } : {}),
-    ...(!hasSubfamily && existing?.subfamily ? { subfamily: existing.subfamily } : {}),
-    ...(hasSubfamily && normSubfamily ? { subfamily: normSubfamily } : {}),
+    ...(!hasGenus && existing?.genus ? { genus: existing.genus } : {}),
+    ...(hasGenus && normGenus ? { genus: normGenus } : {}),
+    ...(!hasClassificationPath && existing?.classificationPath ? { classificationPath: existing.classificationPath } : {}),
+    ...(hasClassificationPath && normClassificationPath ? { classificationPath: normClassificationPath } : {}),
     ...(!hasModality && existing?.modality ? { modality: existing.modality } : {}),
     ...(hasModality ? (input.modality ? { modality: input.modality } : {}) : {}),
+    ...(!hasLatitude && existing?.latitude !== undefined ? { latitude: existing.latitude } : {}),
+    ...(hasLatitude ? (input.latitude !== undefined ? { latitude: input.latitude } : {}) : {}),
+    ...(!hasLongitude && existing?.longitude !== undefined ? { longitude: existing.longitude } : {}),
+    ...(hasLongitude ? (input.longitude !== undefined ? { longitude: input.longitude } : {}) : {}),
     ...(!hasLanguageType && existing?.languageType ? { languageType: existing.languageType } : {}),
-    ...(hasLanguageType ? (input.languageType ? { languageType: input.languageType } : {}) : {}),
+    ...(hasLanguageType ? ((input.languageType ?? isoSeed?.type) ? { languageType: (input.languageType ?? isoSeed!.type) as NonNullable<LanguageDocType['languageType']> } : {}) : {}),
+    // 新增元数据字段：简单 merge 逻辑（输入优先，否则保留已有值）| New metadata fields: simple merge (input preferred, fallback to existing)
+    ...(hasOwnField(input, 'endangermentLevel') ? (input.endangermentLevel ? { endangermentLevel: input.endangermentLevel } : {}) : existing?.endangermentLevel ? { endangermentLevel: existing.endangermentLevel } : {}),
+    ...(hasOwnField(input, 'aesStatus') ? (input.aesStatus ? { aesStatus: input.aesStatus } : {}) : existing?.aesStatus ? { aesStatus: existing.aesStatus } : {}),
+    ...(hasOwnField(input, 'endangermentSource') ? (input.endangermentSource ? { endangermentSource: input.endangermentSource } : {}) : existing?.endangermentSource ? { endangermentSource: existing.endangermentSource } : {}),
+    ...(hasOwnField(input, 'endangermentAssessmentYear') ? (input.endangermentAssessmentYear !== undefined ? { endangermentAssessmentYear: input.endangermentAssessmentYear } : {}) : existing?.endangermentAssessmentYear !== undefined ? { endangermentAssessmentYear: existing.endangermentAssessmentYear } : {}),
+    ...(hasOwnField(input, 'speakerCountL1') ? (input.speakerCountL1 !== undefined ? { speakerCountL1: input.speakerCountL1 } : {}) : existing?.speakerCountL1 !== undefined ? { speakerCountL1: existing.speakerCountL1 } : {}),
+    ...(hasOwnField(input, 'speakerCountL2') ? (input.speakerCountL2 !== undefined ? { speakerCountL2: input.speakerCountL2 } : {}) : existing?.speakerCountL2 !== undefined ? { speakerCountL2: existing.speakerCountL2 } : {}),
+    ...(hasOwnField(input, 'speakerCountSource') ? (input.speakerCountSource ? { speakerCountSource: input.speakerCountSource } : {}) : existing?.speakerCountSource ? { speakerCountSource: existing.speakerCountSource } : {}),
+    ...(hasOwnField(input, 'speakerCountYear') ? (input.speakerCountYear !== undefined ? { speakerCountYear: input.speakerCountYear } : {}) : existing?.speakerCountYear !== undefined ? { speakerCountYear: existing.speakerCountYear } : {}),
+    ...(hasOwnField(input, 'speakerTrend') ? (input.speakerTrend ? { speakerTrend: input.speakerTrend } : {}) : existing?.speakerTrend ? { speakerTrend: existing.speakerTrend } : {}),
+    ...(hasOwnField(input, 'countries') ? (input.countries?.length ? { countries: input.countries } : {}) : existing?.countries?.length ? { countries: existing.countries } : {}),
+    ...(hasOwnField(input, 'macroarea') ? (input.macroarea ? { macroarea: input.macroarea } : {}) : existing?.macroarea ? { macroarea: existing.macroarea } : {}),
+    ...(hasOwnField(input, 'administrativeDivisions') ? (input.administrativeDivisions?.length ? { administrativeDivisions: input.administrativeDivisions } : {}) : existing?.administrativeDivisions?.length ? { administrativeDivisions: existing.administrativeDivisions } : {}),
+    ...(hasOwnField(input, 'intergenerationalTransmission') ? (input.intergenerationalTransmission ? { intergenerationalTransmission: input.intergenerationalTransmission } : {}) : existing?.intergenerationalTransmission ? { intergenerationalTransmission: existing.intergenerationalTransmission } : {}),
+    ...(hasOwnField(input, 'domains') ? (input.domains?.length ? { domains: input.domains } : {}) : existing?.domains?.length ? { domains: existing.domains } : {}),
+    ...(hasOwnField(input, 'officialStatus') ? (input.officialStatus ? { officialStatus: input.officialStatus } : {}) : existing?.officialStatus ? { officialStatus: existing.officialStatus } : {}),
+    ...(hasOwnField(input, 'egids') ? (input.egids ? { egids: input.egids } : {}) : existing?.egids ? { egids: existing.egids } : {}),
+    ...(hasOwnField(input, 'documentationLevel') ? (input.documentationLevel ? { documentationLevel: input.documentationLevel } : {}) : existing?.documentationLevel ? { documentationLevel: existing.documentationLevel } : {}),
+    ...(hasOwnField(input, 'dialects') ? (input.dialects?.length ? { dialects: input.dialects } : {}) : existing?.dialects?.length ? { dialects: existing.dialects } : {}),
+    ...(hasOwnField(input, 'writingSystems') ? (input.writingSystems?.length ? { writingSystems: input.writingSystems } : {}) : existing?.writingSystems?.length ? { writingSystems: existing.writingSystems } : {}),
+    ...(hasOwnField(input, 'literacyRate') ? (input.literacyRate !== undefined ? { literacyRate: input.literacyRate } : {}) : existing?.literacyRate !== undefined ? { literacyRate: existing.literacyRate } : {}),
+    ...(hasOwnField(input, 'customFields')
+      ? (input.customFields && Object.keys(input.customFields).length > 0
+        ? { customFields: input.customFields }
+        : {}) // 显式传空对象 → 清除 | Explicit empty → clear
+      : existing?.customFields && Object.keys(existing.customFields).length > 0
+        ? { customFields: existing.customFields }
+        : {}),
     sourceType: nextSourceType,
     ...(input.reviewStatus ? { reviewStatus: input.reviewStatus } : existing?.reviewStatus ? { reviewStatus: existing.reviewStatus } : {}),
     visibility: input.visibility ?? existing?.visibility ?? 'visible',
@@ -1261,4 +1466,71 @@ export async function listLanguageCatalogHistory(languageId: string): Promise<La
     .equals(languageId)
     .reverse()
     .sortBy('createdAt');
+}
+
+// ── 自定义字段定义 CRUD | Custom field definition CRUD ──
+
+export async function listCustomFieldDefinitions(): Promise<CustomFieldDefinitionDocType[]> {
+  const db = await getDb();
+  const all = await db.dexie.custom_field_definitions.toArray();
+  return all.sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+export async function upsertCustomFieldDefinition(input: {
+  id?: string;
+  name: MultiLangString;
+  fieldType: CustomFieldValueType;
+  options?: string[];
+  description?: MultiLangString;
+}): Promise<CustomFieldDefinitionDocType> {
+  const db = await getDb();
+  const now = new Date().toISOString();
+  const existing = input.id ? await db.dexie.custom_field_definitions.get(input.id) : undefined;
+  const maxSort = existing
+    ? existing.sortOrder
+    : (await db.dexie.custom_field_definitions.toArray()).reduce((max, d) => Math.max(max, d.sortOrder), -1) + 1;
+
+  const doc: CustomFieldDefinitionDocType = {
+    id: input.id ?? newId('cfd'),
+    name: input.name,
+    fieldType: input.fieldType,
+    ...(input.options?.length ? { options: input.options } : {}),
+    ...(input.description && Object.values(input.description).some((v) => v.trim()) ? { description: input.description } : {}),
+    sortOrder: maxSort,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  };
+
+  await db.dexie.custom_field_definitions.put(doc);
+  return doc;
+}
+
+export async function deleteCustomFieldDefinition(id: string): Promise<void> {
+  const db = await getDb();
+  await db.dexie.transaction('rw', db.dexie.custom_field_definitions, db.dexie.languages, async () => {
+    await db.dexie.custom_field_definitions.delete(id);
+
+    const languages = await db.dexie.languages.toArray();
+    const updates = languages.flatMap((language) => {
+      const customFields = language.customFields;
+      if (!customFields || !(id in customFields)) {
+        return [];
+      }
+
+      const { [id]: _removed, ...restCustomFields } = customFields;
+      return [{
+        ...language,
+        ...(Object.keys(restCustomFields).length > 0 ? { customFields: restCustomFields } : {}),
+        updatedAt: new Date().toISOString(),
+      } satisfies LanguageDocType];
+    });
+
+    if (updates.length > 0) {
+      await db.dexie.languages.bulkPut(updates);
+    }
+  });
+
+  await refreshLanguageCatalogReadModel().catch((refreshError) => {
+    console.error('Failed to refresh language catalog read model after custom field definition delete:', refreshError);
+  });
 }

@@ -760,3 +760,18 @@ body {
   padding: 2px 8px;
 }
 
+/* ── 首屏过渡抑制：避免初始挂载时的布局过渡产生 CLS | Suppress layout transitions on initial mount to prevent CLS ── */
+:root:not([data-motion-ready]) .app-side-pane,
+:root:not([data-motion-ready]) .app-side-pane-collapse-toggle,
+:root:not([data-motion-ready]) .app-side-pane-handle-cluster,
+:root:not([data-motion-ready]) .transcription-ai-panel,
+:root:not([data-motion-ready]) .transcription-ai-panel-toggle,
+:root:not([data-motion-ready]) .transcription-ai-panel-resizer::before,
+:root:not([data-motion-ready]) .transcription-ai-panel-handle-cluster,
+:root:not([data-motion-ready]) .transcription-list-panel,
+:root:not([data-motion-ready]) .transcription-workspace::after,
+:root:not([data-motion-ready]) .transcription-list-main::before,
+:root:not([data-motion-ready]) .transcription-side-pane {
+  transition-duration: 0s !important;
+}
+

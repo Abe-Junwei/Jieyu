@@ -185,32 +185,8 @@
   line-height: 1.5;
 }
 
-.layer-action-dialog-feedback {
-  margin: 0;
-  padding: 9px 11px;
-  border-radius: 8px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
-  font-weight: 500;
-  line-height: 1.5;
-}
-
-.layer-action-dialog-feedback-error {
-  border: 1px solid color-mix(in srgb, var(--state-danger-border) 90%, transparent);
-  background: color-mix(in srgb, var(--state-danger-bg) 74%, var(--surface-panel));
-  color: var(--state-danger-text);
-}
-
-.layer-action-dialog-feedback-info {
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  background: rgba(239, 246, 255, 0.96);
-  color: var(--state-info-solid);
-}
-
-/* 反馈消息堆叠容器 | Feedback message stack */
-.layer-action-dialog-feedback-stack {
-  display: grid;
-  gap: 6px;
-}
+/* 已收敛至 dialog-shell.css → .panel-feedback / .panel-feedback--error / --info / -stack
+ * Consolidated into dialog-shell.css generic .panel-feedback classes */
 
 /* 旧规则已收敛至 .layer-action-dialog 精调区 | Legacy rules consolidated below */
 
@@ -400,7 +376,7 @@
 }
 
 /* L1 反馈块 12px/500 | L1 Feedback block 12px/500 */
-.layer-action-dialog .layer-action-dialog-feedback {
+.layer-action-dialog .panel-feedback {
   padding: 7px 8px;
   border-radius: 8px;
   font-size: calc(12px * var(--ui-font-scale, 1));

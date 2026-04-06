@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-05T06:48:13.696Z",
+  "generatedAt": "2026-04-06T12:01:33.392Z",
   "sourceSeed": "top500-language-orthography-seeds.json",
   "sourceAliasSeed": "language-name-aliases.json",
   "locale": "fr-FR",
@@ -2089,80 +2089,6 @@
       },
       {
         "label": "Bretonisch",
-        "kind": "alias"
-      }
-    ],
-    "cmn": [
-      {
-        "label": "mandarin",
-        "kind": "local"
-      },
-      {
-        "label": "普通话",
-        "kind": "native"
-      },
-      {
-        "label": "mandarín",
-        "kind": "alias"
-      },
-      {
-        "label": "中文",
-        "kind": "alias"
-      },
-      {
-        "label": "chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "mandarin chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "standard chinese",
-        "kind": "alias"
-      },
-      {
-        "label": "putonghua",
-        "kind": "alias"
-      },
-      {
-        "label": "guoyu",
-        "kind": "alias"
-      },
-      {
-        "label": "汉语",
-        "kind": "alias"
-      },
-      {
-        "label": "国语",
-        "kind": "alias"
-      },
-      {
-        "label": "國語",
-        "kind": "alias"
-      },
-      {
-        "label": "华语",
-        "kind": "alias"
-      },
-      {
-        "label": "華語",
-        "kind": "alias"
-      },
-      {
-        "label": "官话",
-        "kind": "alias"
-      },
-      {
-        "label": "北方话",
-        "kind": "alias"
-      },
-      {
-        "label": "北方方言",
-        "kind": "alias"
-      },
-      {
-        "label": "中文普通话",
         "kind": "alias"
       }
     ],
@@ -6362,6 +6288,80 @@
         "kind": "english"
       }
     ],
+    "cmn": [
+      {
+        "label": "mandarin",
+        "kind": "local"
+      },
+      {
+        "label": "普通话",
+        "kind": "native"
+      },
+      {
+        "label": "mandarín",
+        "kind": "alias"
+      },
+      {
+        "label": "中文",
+        "kind": "alias"
+      },
+      {
+        "label": "chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "mandarin chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "standard chinese",
+        "kind": "alias"
+      },
+      {
+        "label": "putonghua",
+        "kind": "alias"
+      },
+      {
+        "label": "guoyu",
+        "kind": "alias"
+      },
+      {
+        "label": "汉语",
+        "kind": "alias"
+      },
+      {
+        "label": "国语",
+        "kind": "alias"
+      },
+      {
+        "label": "國語",
+        "kind": "alias"
+      },
+      {
+        "label": "华语",
+        "kind": "alias"
+      },
+      {
+        "label": "華語",
+        "kind": "alias"
+      },
+      {
+        "label": "官话",
+        "kind": "alias"
+      },
+      {
+        "label": "北方话",
+        "kind": "alias"
+      },
+      {
+        "label": "北方方言",
+        "kind": "alias"
+      },
+      {
+        "label": "中文普通话",
+        "kind": "alias"
+      }
+    ],
     "frr": [
       {
         "label": "frison septentrional",
@@ -6460,12 +6460,6 @@
       {
         "label": "Khotta",
         "kind": "alias"
-      }
-    ],
-    "pox": [
-      {
-        "label": "Polabian",
-        "kind": "english"
       }
     ],
     "zha": [
@@ -7368,12 +7362,6 @@
         "kind": "alias"
       }
     ],
-    "prv": [
-      {
-        "label": "Provençal",
-        "kind": "english"
-      }
-    ],
     "gon": [
       {
         "label": "gondi",
@@ -7578,12 +7566,6 @@
         "kind": "english"
       }
     ],
-    "fsl": [
-      {
-        "label": "French Sign Language",
-        "kind": "english"
-      }
-    ],
     "oji": [
       {
         "label": "ojibwa",
@@ -7714,12 +7696,6 @@
         "kind": "english"
       }
     ],
-    "xil": [
-      {
-        "label": "Illyrian",
-        "kind": "english"
-      }
-    ],
     "gld": [
       {
         "label": "Nanai",
@@ -7788,18 +7764,6 @@
       {
         "label": "Lushai",
         "kind": "alias"
-      }
-    ],
-    "xcb": [
-      {
-        "label": "Cumbric",
-        "kind": "english"
-      }
-    ],
-    "vsn": [
-      {
-        "label": "Vedic Sanskrit",
-        "kind": "english"
       }
     ],
     "hyw": [
@@ -7886,12 +7850,6 @@
         "kind": "english"
       }
     ],
-    "txh": [
-      {
-        "label": "Thracian",
-        "kind": "english"
-      }
-    ],
     "khw": [
       {
         "label": "khowar",
@@ -7975,12 +7933,6 @@
     "ruo": [
       {
         "label": "Istro-Romanian",
-        "kind": "english"
-      }
-    ],
-    "nzs": [
-      {
-        "label": "New Zealand Sign Language",
         "kind": "english"
       }
     ],
@@ -8402,21 +8354,9 @@
         "kind": "english"
       }
     ],
-    "xga": [
-      {
-        "label": "Galatian",
-        "kind": "english"
-      }
-    ],
     "aib": [
       {
         "label": "Äynu",
-        "kind": "english"
-      }
-    ],
-    "ncs": [
-      {
-        "label": "Nicaraguan Sign Language",
         "kind": "english"
       }
     ],
@@ -8508,27 +8448,9 @@
         "kind": "english"
       }
     ],
-    "ise": [
-      {
-        "label": "Italian Sign Language",
-        "kind": "english"
-      }
-    ],
     "scl": [
       {
         "label": "Shina",
-        "kind": "english"
-      }
-    ],
-    "xeb": [
-      {
-        "label": "Eblaite",
-        "kind": "english"
-      }
-    ],
-    "xur": [
-      {
-        "label": "Urartian",
         "kind": "english"
       }
     ],
@@ -8760,6 +8682,1456 @@
       {
         "label": "宽亚玛语",
         "kind": "alias"
+      }
+    ],
+    "ctg": [
+      {
+        "label": "Chittagonian",
+        "kind": "english"
+      }
+    ],
+    "itl": [
+      {
+        "label": "Itelmen",
+        "kind": "english"
+      }
+    ],
+    "mhj": [
+      {
+        "label": "Moghol",
+        "kind": "english"
+      }
+    ],
+    "sip": [
+      {
+        "label": "Sikkimese Bhutia",
+        "kind": "english"
+      }
+    ],
+    "gbm": [
+      {
+        "label": "Garhwali",
+        "kind": "english"
+      }
+    ],
+    "kfy": [
+      {
+        "label": "Kumaoni",
+        "kind": "english"
+      }
+    ],
+    "kru": [
+      {
+        "label": "kouroukh",
+        "kind": "local"
+      },
+      {
+        "label": "Kurukh",
+        "kind": "english"
+      },
+      {
+        "label": "库鲁克语",
+        "kind": "alias"
+      },
+      {
+        "label": "Oraon",
+        "kind": "alias"
+      }
+    ],
+    "bbl": [
+      {
+        "label": "Bats",
+        "kind": "english"
+      }
+    ],
+    "bej": [
+      {
+        "label": "bedja",
+        "kind": "local"
+      },
+      {
+        "label": "Beja",
+        "kind": "english"
+      },
+      {
+        "label": "贝沙语",
+        "kind": "alias"
+      },
+      {
+        "label": "Bedauye",
+        "kind": "alias"
+      }
+    ],
+    "rmt": [
+      {
+        "label": "Domari",
+        "kind": "english"
+      }
+    ],
+    "haz": [
+      {
+        "label": "Hazaragi",
+        "kind": "english"
+      }
+    ],
+    "sty": [
+      {
+        "label": "Siberian Tatar",
+        "kind": "english"
+      }
+    ],
+    "ddo": [
+      {
+        "label": "Tsez",
+        "kind": "english"
+      }
+    ],
+    "bla": [
+      {
+        "label": "siksika",
+        "kind": "local"
+      },
+      {
+        "label": "Blackfoot",
+        "kind": "english"
+      },
+      {
+        "label": "西克西卡语",
+        "kind": "alias"
+      },
+      {
+        "label": "Siksiká",
+        "kind": "alias"
+      }
+    ],
+    "cia": [
+      {
+        "label": "Cia-Cia",
+        "kind": "english"
+      }
+    ],
+    "kmz": [
+      {
+        "label": "Khorasani Turkic",
+        "kind": "english"
+      }
+    ],
+    "lud": [
+      {
+        "label": "Ludic",
+        "kind": "english"
+      }
+    ],
+    "tsd": [
+      {
+        "label": "tsakonien",
+        "kind": "local"
+      },
+      {
+        "label": "Tsakonian",
+        "kind": "english"
+      },
+      {
+        "label": "Tsakonisch",
+        "kind": "alias"
+      }
+    ],
+    "yoi": [
+      {
+        "label": "Yonaguni",
+        "kind": "english"
+      }
+    ],
+    "alr": [
+      {
+        "label": "Alyutor",
+        "kind": "english"
+      }
+    ],
+    "aqc": [
+      {
+        "label": "Archi",
+        "kind": "english"
+      }
+    ],
+    "xco": [
+      {
+        "label": "Khwarezmian",
+        "kind": "english"
+      }
+    ],
+    "dty": [
+      {
+        "label": "Doteli",
+        "kind": "english"
+      }
+    ],
+    "kac": [
+      {
+        "label": "kachin",
+        "kind": "local"
+      },
+      {
+        "label": "Jingpo",
+        "kind": "english"
+      },
+      {
+        "label": "克钦语",
+        "kind": "alias"
+      }
+    ],
+    "khn": [
+      {
+        "label": "Khandeshi",
+        "kind": "english"
+      }
+    ],
+    "kjj": [
+      {
+        "label": "Khinalug",
+        "kind": "english"
+      }
+    ],
+    "kgg": [
+      {
+        "label": "Kusunda",
+        "kind": "english"
+      }
+    ],
+    "oaa": [
+      {
+        "label": "Orok",
+        "kind": "english"
+      }
+    ],
+    "siz": [
+      {
+        "label": "Siwa",
+        "kind": "english"
+      }
+    ],
+    "srr": [
+      {
+        "label": "sérère",
+        "kind": "local"
+      },
+      {
+        "label": "Serer",
+        "kind": "english"
+      },
+      {
+        "label": "塞雷尔语",
+        "kind": "alias"
+      }
+    ],
+    "kfa": [
+      {
+        "label": "Kodava",
+        "kind": "english"
+      }
+    ],
+    "zum": [
+      {
+        "label": "Kumzari",
+        "kind": "english"
+      }
+    ],
+    "rys": [
+      {
+        "label": "Yaeyama",
+        "kind": "english"
+      }
+    ],
+    "ani": [
+      {
+        "label": "Andi",
+        "kind": "english"
+      }
+    ],
+    "bhh": [
+      {
+        "label": "Bukharian",
+        "kind": "english"
+      }
+    ],
+    "acy": [
+      {
+        "label": "Cypriot Arabic",
+        "kind": "english"
+      }
+    ],
+    "jje": [
+      {
+        "label": "Jejuan",
+        "kind": "english"
+      }
+    ],
+    "mdh": [
+      {
+        "label": "Maguindanao",
+        "kind": "english"
+      }
+    ],
+    "ude": [
+      {
+        "label": "Udege",
+        "kind": "english"
+      }
+    ],
+    "mnj": [
+      {
+        "label": "Munji",
+        "kind": "english"
+      }
+    ],
+    "sck": [
+      {
+        "label": "Nagpuri",
+        "kind": "english"
+      }
+    ],
+    "neg": [
+      {
+        "label": "Negidal",
+        "kind": "english"
+      }
+    ],
+    "rkt": [
+      {
+        "label": "Rangpuri",
+        "kind": "english"
+      }
+    ],
+    "tru": [
+      {
+        "label": "touroyo",
+        "kind": "local"
+      },
+      {
+        "label": "Turoyo",
+        "kind": "english"
+      }
+    ],
+    "ulc": [
+      {
+        "label": "Ulch",
+        "kind": "english"
+      }
+    ],
+    "sjo": [
+      {
+        "label": "Xibe",
+        "kind": "english"
+      },
+      {
+        "label": "锡伯语",
+        "kind": "alias"
+      },
+      {
+        "label": "錫伯語",
+        "kind": "alias"
+      }
+    ],
+    "akv": [
+      {
+        "label": "Akhvakh",
+        "kind": "english"
+      }
+    ],
+    "dta": [
+      {
+        "label": "Daur",
+        "kind": "english"
+      }
+    ],
+    "gin": [
+      {
+        "label": "Hinuq",
+        "kind": "english"
+      }
+    ],
+    "czk": [
+      {
+        "label": "Knaanic",
+        "kind": "english"
+      }
+    ],
+    "oru": [
+      {
+        "label": "Ormuri",
+        "kind": "english"
+      }
+    ],
+    "oac": [
+      {
+        "label": "Oroch",
+        "kind": "english"
+      }
+    ],
+    "aiw": [
+      {
+        "label": "Aari",
+        "kind": "english"
+      }
+    ],
+    "tts": [
+      {
+        "label": "Isan",
+        "kind": "english"
+      }
+    ],
+    "jpr": [
+      {
+        "label": "judéo-persan",
+        "kind": "local"
+      },
+      {
+        "label": "Judeo-Persian",
+        "kind": "english"
+      },
+      {
+        "label": "犹太波斯语",
+        "kind": "alias"
+      },
+      {
+        "label": "judeo-persa",
+        "kind": "alias"
+      },
+      {
+        "label": "Jüdisch-Persisch",
+        "kind": "alias"
+      }
+    ],
+    "lmn": [
+      {
+        "label": "Lambadi",
+        "kind": "english"
+      }
+    ],
+    "chp": [
+      {
+        "label": "chipewyan",
+        "kind": "local"
+      },
+      {
+        "label": "奇佩维安语",
+        "kind": "alias"
+      }
+    ],
+    "xnr": [
+      {
+        "label": "kangri",
+        "kind": "local"
+      },
+      {
+        "label": "कांगड़ी",
+        "kind": "native"
+      },
+      {
+        "label": "康格里语",
+        "kind": "alias"
+      }
+    ],
+    "mvi": [
+      {
+        "label": "Miyako",
+        "kind": "english"
+      }
+    ],
+    "rki": [
+      {
+        "label": "Rakhine",
+        "kind": "english"
+      }
+    ],
+    "ysr": [
+      {
+        "label": "Sirenik",
+        "kind": "english"
+      }
+    ],
+    "taq": [
+      {
+        "label": "Tamasheq",
+        "kind": "english"
+      }
+    ],
+    "tcx": [
+      {
+        "label": "Toda",
+        "kind": "english"
+      }
+    ],
+    "bdk": [
+      {
+        "label": "Budukh",
+        "kind": "english"
+      }
+    ],
+    "mtr": [
+      {
+        "label": "Mewari",
+        "kind": "english"
+      }
+    ],
+    "yej": [
+      {
+        "label": "Yevanic",
+        "kind": "english"
+      }
+    ],
+    "aat": [
+      {
+        "label": "Arvanitic",
+        "kind": "english"
+      }
+    ],
+    "jdt": [
+      {
+        "label": "Judeo-Tat",
+        "kind": "english"
+      }
+    ],
+    "bjj": [
+      {
+        "label": "Kannauji",
+        "kind": "english"
+      }
+    ],
+    "kfq": [
+      {
+        "label": "Korku",
+        "kind": "english"
+      }
+    ],
+    "mdr": [
+      {
+        "label": "mandar",
+        "kind": "local"
+      },
+      {
+        "label": "曼达尔语",
+        "kind": "alias"
+      },
+      {
+        "label": "Mandaresisch",
+        "kind": "alias"
+      }
+    ],
+    "oon": [
+      {
+        "label": "Önge",
+        "kind": "english"
+      }
+    ],
+    "tsj": [
+      {
+        "label": "Tshangla",
+        "kind": "english"
+      }
+    ],
+    "ydg": [
+      {
+        "label": "Yidgha",
+        "kind": "english"
+      }
+    ],
+    "agj": [
+      {
+        "label": "Argobba",
+        "kind": "english"
+      }
+    ],
+    "bph": [
+      {
+        "label": "Botlikh",
+        "kind": "english"
+      }
+    ],
+    "dml": [
+      {
+        "label": "Dameli",
+        "kind": "english"
+      }
+    ],
+    "gdo": [
+      {
+        "label": "Godoberi",
+        "kind": "english"
+      }
+    ],
+    "hlb": [
+      {
+        "label": "Halbi",
+        "kind": "english"
+      }
+    ],
+    "huz": [
+      {
+        "label": "Hunzib",
+        "kind": "english"
+      }
+    ],
+    "anq": [
+      {
+        "label": "Jarawa",
+        "kind": "english"
+      }
+    ],
+    "khv": [
+      {
+        "label": "Khwarshi",
+        "kind": "english"
+      }
+    ],
+    "lis": [
+      {
+        "label": "Lisu",
+        "kind": "english"
+      },
+      {
+        "label": "傈僳语",
+        "kind": "alias"
+      },
+      {
+        "label": "傈僳語",
+        "kind": "alias"
+      }
+    ],
+    "noe": [
+      {
+        "label": "Nimadi",
+        "kind": "english"
+      }
+    ],
+    "trw": [
+      {
+        "label": "Torwali",
+        "kind": "english"
+      },
+      {
+        "label": "托尔瓦利语",
+        "kind": "alias"
+      }
+    ],
+    "yah": [
+      {
+        "label": "Yazgulyam",
+        "kind": "english"
+      }
+    ],
+    "kap": [
+      {
+        "label": "Bezhta",
+        "kind": "english"
+      }
+    ],
+    "caq": [
+      {
+        "label": "Car",
+        "kind": "english"
+      }
+    ],
+    "cji": [
+      {
+        "label": "Chamalal",
+        "kind": "english"
+      }
+    ],
+    "dhd": [
+      {
+        "label": "marwarî",
+        "kind": "local"
+      },
+      {
+        "label": "Dhundari",
+        "kind": "english"
+      },
+      {
+        "label": "马尔瓦里语",
+        "kind": "alias"
+      },
+      {
+        "label": "Marwari",
+        "kind": "alias"
+      }
+    ],
+    "gvr": [
+      {
+        "label": "Gurung",
+        "kind": "english"
+      }
+    ],
+    "har": [
+      {
+        "label": "Harari",
+        "kind": "english"
+      }
+    ],
+    "kry": [
+      {
+        "label": "Kryts",
+        "kind": "english"
+      }
+    ],
+    "mjt": [
+      {
+        "label": "Sauria Paharia",
+        "kind": "english"
+      }
+    ],
+    "kva": [
+      {
+        "label": "Bagvalal",
+        "kind": "english"
+      }
+    ],
+    "byn": [
+      {
+        "label": "blin",
+        "kind": "local"
+      },
+      {
+        "label": "比林语",
+        "kind": "alias"
+      }
+    ],
+    "phl": [
+      {
+        "label": "Palula",
+        "kind": "english"
+      }
+    ],
+    "srb": [
+      {
+        "label": "Sora",
+        "kind": "english"
+      }
+    ],
+    "awn": [
+      {
+        "label": "Awngi",
+        "kind": "english"
+      }
+    ],
+    "gwc": [
+      {
+        "label": "Gawri",
+        "kind": "english"
+      }
+    ],
+    "kpt": [
+      {
+        "label": "Karata-Tukita",
+        "kind": "english"
+      }
+    ],
+    "khr": [
+      {
+        "label": "Kharia",
+        "kind": "english"
+      }
+    ],
+    "kdt": [
+      {
+        "label": "Kuy",
+        "kind": "english"
+      }
+    ],
+    "onw": [
+      {
+        "label": "Old Nubian",
+        "kind": "english"
+      }
+    ],
+    "blt": [
+      {
+        "label": "Tai Dam",
+        "kind": "english"
+      }
+    ],
+    "tin": [
+      {
+        "label": "Tindi",
+        "kind": "english"
+      }
+    ],
+    "amw": [
+      {
+        "label": "Western Neo-Aramaic",
+        "kind": "english"
+      }
+    ],
+    "thz": [
+      {
+        "label": "Air Tamajeq",
+        "kind": "english"
+      }
+    ],
+    "mvy": [
+      {
+        "label": "Indus Kohistani",
+        "kind": "english"
+      }
+    ],
+    "iru": [
+      {
+        "label": "Irula",
+        "kind": "english"
+      }
+    ],
+    "ahk": [
+      {
+        "label": "Akha",
+        "kind": "english"
+      }
+    ],
+    "kjg": [
+      {
+        "label": "Khmu",
+        "kind": "english"
+      }
+    ],
+    "kyw": [
+      {
+        "label": "Kudmali",
+        "kind": "english"
+      }
+    ],
+    "blk": [
+      {
+        "label": "Pa'O",
+        "kind": "english"
+      }
+    ],
+    "stv": [
+      {
+        "label": "Selti",
+        "kind": "english"
+      }
+    ],
+    "urk": [
+      {
+        "label": "Urak Lawoi’",
+        "kind": "english"
+      }
+    ],
+    "mki": [
+      {
+        "label": "Dhatki",
+        "kind": "english"
+      }
+    ],
+    "ttq": [
+      {
+        "label": "tamacheq",
+        "kind": "local"
+      },
+      {
+        "label": "Tahoua",
+        "kind": "english"
+      },
+      {
+        "label": "塔马奇克语",
+        "kind": "alias"
+      },
+      {
+        "label": "Tamashek",
+        "kind": "alias"
+      },
+      {
+        "label": "Tamaseq",
+        "kind": "alias"
+      }
+    ],
+    "dhi": [
+      {
+        "label": "Dhimal",
+        "kind": "english"
+      }
+    ],
+    "guk": [
+      {
+        "label": "Gumuz",
+        "kind": "english"
+      }
+    ],
+    "khg": [
+      {
+        "label": "Khams Tibetan",
+        "kind": "english"
+      }
+    ],
+    "kzg": [
+      {
+        "label": "Kikai",
+        "kind": "english"
+      }
+    ],
+    "ugh": [
+      {
+        "label": "Kubachi",
+        "kind": "english"
+      }
+    ],
+    "ush": [
+      {
+        "label": "Ushoji",
+        "kind": "english"
+      }
+    ],
+    "xan": [
+      {
+        "label": "Xamtanga",
+        "kind": "english"
+      }
+    ],
+    "yox": [
+      {
+        "label": "Yoron",
+        "kind": "english"
+      }
+    ],
+    "aeq": [
+      {
+        "label": "Aer",
+        "kind": "english"
+      }
+    ],
+    "bap": [
+      {
+        "label": "Bantawa",
+        "kind": "english"
+      }
+    ],
+    "bcq": [
+      {
+        "label": "Bench",
+        "kind": "english"
+      }
+    ],
+    "kjz": [
+      {
+        "label": "Bumthang",
+        "kind": "english"
+      }
+    ],
+    "xka": [
+      {
+        "label": "Kalkoti",
+        "kind": "english"
+      }
+    ],
+    "sdb": [
+      {
+        "label": "Shabaki",
+        "kind": "english"
+      }
+    ],
+    "twh": [
+      {
+        "label": "Tai Dón",
+        "kind": "english"
+      }
+    ],
+    "wne": [
+      {
+        "label": "Tareeno",
+        "kind": "english"
+      }
+    ],
+    "tft": [
+      {
+        "label": "Ternate",
+        "kind": "english"
+      }
+    ],
+    "aio": [
+      {
+        "label": "Aiton",
+        "kind": "english"
+      }
+    ],
+    "akj": [
+      {
+        "label": "Aka-Jeru",
+        "kind": "english"
+      }
+    ],
+    "amf": [
+      {
+        "label": "Hamer",
+        "kind": "english"
+      }
+    ],
+    "kcn": [
+      {
+        "label": "Nubi",
+        "kind": "english"
+      }
+    ],
+    "suz": [
+      {
+        "label": "Sunwar",
+        "kind": "english"
+      }
+    ],
+    "adx": [
+      {
+        "label": "Amdo Tibetan",
+        "kind": "english"
+      }
+    ],
+    "dhw": [
+      {
+        "label": "Dhanwar Rai",
+        "kind": "english"
+      }
+    ],
+    "mdx": [
+      {
+        "label": "Dizin",
+        "kind": "english"
+      }
+    ],
+    "ior": [
+      {
+        "label": "Inor",
+        "kind": "english"
+      }
+    ],
+    "xdq": [
+      {
+        "label": "Kaitag",
+        "kind": "english"
+      }
+    ],
+    "mjl": [
+      {
+        "label": "Mandeali",
+        "kind": "english"
+      }
+    ],
+    "nsk": [
+      {
+        "label": "Naskapi",
+        "kind": "english"
+      }
+    ],
+    "cbn": [
+      {
+        "label": "Nyah Kur",
+        "kind": "english"
+      }
+    ],
+    "kvx": [
+      {
+        "label": "Parkari Koli",
+        "kind": "english"
+      }
+    ],
+    "tkn": [
+      {
+        "label": "Tokunoshima",
+        "kind": "english"
+      }
+    ],
+    "scp": [
+      {
+        "label": "Yolmo",
+        "kind": "english"
+      }
+    ],
+    "atb": [
+      {
+        "label": "Zaiwa",
+        "kind": "english"
+      }
+    ],
+    "bhj": [
+      {
+        "label": "Bahing",
+        "kind": "english"
+      }
+    ],
+    "bzi": [
+      {
+        "label": "Bisu",
+        "kind": "english"
+      }
+    ],
+    "rab": [
+      {
+        "label": "Chamling",
+        "kind": "english"
+      }
+    ],
+    "kjp": [
+      {
+        "label": "Eastern Pwo",
+        "kind": "english"
+      }
+    ],
+    "jun": [
+      {
+        "label": "Juang",
+        "kind": "english"
+      }
+    ],
+    "kuf": [
+      {
+        "label": "Katu",
+        "kind": "english"
+      }
+    ],
+    "ykh": [
+      {
+        "label": "Khamnigan Mongol",
+        "kind": "english"
+      }
+    ],
+    "bfz": [
+      {
+        "label": "Mahasu Pahari",
+        "kind": "english"
+      }
+    ],
+    "okn": [
+      {
+        "label": "Okinoerabu",
+        "kind": "english"
+      }
+    ],
+    "ksw": [
+      {
+        "label": "S'gaw Karen",
+        "kind": "english"
+      }
+    ],
+    "kht": [
+      {
+        "label": "Khamti",
+        "kind": "english"
+      }
+    ],
+    "lpo": [
+      {
+        "label": "Lipo",
+        "kind": "english"
+      }
+    ],
+    "ths": [
+      {
+        "label": "Thakali",
+        "kind": "english"
+      }
+    ],
+    "aph": [
+      {
+        "label": "Athpare",
+        "kind": "english"
+      }
+    ],
+    "kfs": [
+      {
+        "label": "Bilaspuri",
+        "kind": "english"
+      }
+    ],
+    "cld": [
+      {
+        "label": "syriaque",
+        "kind": "local"
+      },
+      {
+        "label": "ܣܘܪܝܝܐ",
+        "kind": "native"
+      },
+      {
+        "label": "Chaldean Neo-Aramaic",
+        "kind": "english"
+      },
+      {
+        "label": "叙利亚语",
+        "kind": "alias"
+      },
+      {
+        "label": "Syriac",
+        "kind": "alias"
+      },
+      {
+        "label": "siriaco",
+        "kind": "alias"
+      },
+      {
+        "label": "Syrisch",
+        "kind": "alias"
+      }
+    ],
+    "cdh": [
+      {
+        "label": "Chambeali",
+        "kind": "english"
+      }
+    ],
+    "dso": [
+      {
+        "label": "Desia",
+        "kind": "english"
+      }
+    ],
+    "mhu": [
+      {
+        "label": "Digaro Mishmi",
+        "kind": "english"
+      }
+    ],
+    "gbk": [
+      {
+        "label": "Gaddi",
+        "kind": "english"
+      }
+    ],
+    "jns": [
+      {
+        "label": "Jaunsari",
+        "kind": "english"
+      }
+    ],
+    "kfx": [
+      {
+        "label": "Kullui",
+        "kind": "english"
+      }
+    ],
+    "mid": [
+      {
+        "label": "Neo-Mandaic",
+        "kind": "english"
+      }
+    ],
+    "yea": [
+      {
+        "label": "Ravula",
+        "kind": "english"
+      }
+    ],
+    "srx": [
+      {
+        "label": "Sirmauri",
+        "kind": "english"
+      }
+    ],
+    "phk": [
+      {
+        "label": "Tai Phake",
+        "kind": "english"
+      }
+    ],
+    "thf": [
+      {
+        "label": "Thangmi",
+        "kind": "english"
+      }
+    ],
+    "wme": [
+      {
+        "label": "Wambule",
+        "kind": "english"
+      }
+    ],
+    "nnp": [
+      {
+        "label": "Wancho",
+        "kind": "english"
+      }
+    ],
+    "ybh": [
+      {
+        "label": "Yakkha",
+        "kind": "english"
+      }
+    ],
+    "hmd": [
+      {
+        "label": "A-Hmao",
+        "kind": "english"
+      }
+    ],
+    "byw": [
+      {
+        "label": "Belhare",
+        "kind": "english"
+      }
+    ],
+    "cda": [
+      {
+        "label": "Choni",
+        "kind": "english"
+      }
+    ],
+    "klr": [
+      {
+        "label": "Khaling",
+        "kind": "english"
+      }
+    ],
+    "mqa": [
+      {
+        "label": "Maba",
+        "kind": "english"
+      }
+    ],
+    "njz": [
+      {
+        "label": "Nishi",
+        "kind": "english"
+      }
+    ],
+    "kxm": [
+      {
+        "label": "Northern Khmer",
+        "kind": "english"
+      }
+    ],
+    "pww": [
+      {
+        "label": "Northern Pwo",
+        "kind": "english"
+      }
+    ],
+    "rjs": [
+      {
+        "label": "Rajbanshi",
+        "kind": "english"
+      }
+    ],
+    "pwo": [
+      {
+        "label": "Western Pwo",
+        "kind": "english"
+      }
+    ],
+    "crx": [
+      {
+        "label": "Carrier",
+        "kind": "english"
+      }
+    ],
+    "syw": [
+      {
+        "label": "Kagate",
+        "kind": "english"
+      }
+    ],
+    "mqu": [
+      {
+        "label": "Mandari",
+        "kind": "english"
+      }
+    ],
+    "ojs": [
+      {
+        "label": "oji-cri",
+        "kind": "local"
+      },
+      {
+        "label": "Oji-Cree",
+        "kind": "english"
+      },
+      {
+        "label": "欧吉克里语",
+        "kind": "alias"
+      }
+    ],
+    "pgg": [
+      {
+        "label": "Pangwali",
+        "kind": "english"
+      }
+    ],
+    "jul": [
+      {
+        "label": "Jirel",
+        "kind": "english"
+      }
+    ],
+    "xkf": [
+      {
+        "label": "Kheng",
+        "kind": "english"
+      }
+    ],
+    "hmb": [
+      {
+        "label": "Humburi Senni",
+        "kind": "english"
+      }
+    ],
+    "saw": [
+      {
+        "label": "Sawi",
+        "kind": "english"
+      }
+    ],
+    "tjl": [
+      {
+        "label": "Tai Laing",
+        "kind": "english"
+      }
+    ],
+    "soa": [
+      {
+        "label": "Thai Song",
+        "kind": "english"
+      }
+    ],
+    "bjt": [
+      {
+        "label": "Balanta-Ganja",
+        "kind": "english"
+      }
+    ],
+    "ffm": [
+      {
+        "label": "Maasina Fulfulde",
+        "kind": "english"
+      }
+    ],
+    "lhm": [
+      {
+        "label": "Lhomi",
+        "kind": "english"
+      }
+    ],
+    "ldd": [
+      {
+        "label": "Luri",
+        "kind": "english"
+      }
+    ],
+    "oak": [
+      {
+        "label": "Noakhailla",
+        "kind": "english"
+      }
+    ],
+    "rmz": [
+      {
+        "label": "Marma",
+        "kind": "english"
+      }
+    ],
+    "tyj": [
+      {
+        "label": "Tai Yo",
+        "kind": "english"
+      }
+    ],
+    "phj": [
+      {
+        "label": "Pahari",
+        "kind": "english"
       }
     ]
   }

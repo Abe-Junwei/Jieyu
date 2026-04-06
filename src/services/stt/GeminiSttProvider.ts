@@ -49,8 +49,11 @@ export class GeminiSttProvider implements CommercialSttProvider {
     if (!this.config.apiKey) return false;
     try {
       const resp = await fetch(
-        `${this.config.baseUrl}/models?key=${this.config.apiKey}`,
-        { method: 'GET' },
+        `${this.config.baseUrl}/models`,
+        {
+          method: 'GET',
+          headers: { 'x-goog-api-key': this.config.apiKey },
+        },
       );
       return resp.ok;
     } catch (err) {
@@ -70,10 +73,13 @@ export class GeminiSttProvider implements CommercialSttProvider {
     );
 
     const resp = await fetch(
-      `${this.config.baseUrl}/models/${this.config.model}:generateContent?key=${this.config.apiKey}`,
+      `${this.config.baseUrl}/models/${this.config.model}:generateContent`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': this.config.apiKey,
+        },
         ...(options?.signal ? { signal: options.signal } : {}),
         body: JSON.stringify({
           contents: [

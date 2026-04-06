@@ -664,10 +664,10 @@ export function LayerActionPopover({
                   </div>
                 )}
                 {orthographyPicker.error && (
-                  <p className="layer-action-dialog-feedback layer-action-dialog-feedback-error">{orthographyPicker.error}</p>
+                  <p className="panel-feedback panel-feedback--error">{orthographyPicker.error}</p>
                 )}
                 {orthographySelectionError && (
-                  <p className="layer-action-dialog-feedback layer-action-dialog-feedback-error">{orthographySelectionError}</p>
+                  <p className="panel-feedback panel-feedback--error">{orthographySelectionError}</p>
                 )}
               </div>
             )}
@@ -777,25 +777,25 @@ export function LayerActionPopover({
               <div
                 role="alert"
                 aria-live="assertive"
-                className="layer-action-dialog-feedback layer-action-dialog-feedback-error"
+                className="panel-feedback panel-feedback--error"
               >
                 {actionMessages.createFailedPrefix}{createFailureMessage}
               </div>
             )}
             {(translationCreateDisabledReason || transcriptionCreateDisabledReason || !hasValidLanguage) && (
-              <div className="layer-action-dialog-feedback-stack">
+              <div className="panel-feedback-stack">
                 {translationCreateDisabledReason && (
-                  <p className="layer-action-dialog-feedback layer-action-dialog-feedback-error">
+                  <p className="panel-feedback panel-feedback--error">
                     {actionMessages.currentRestrictionTranslation}{translationCreateDisabledReason}
                   </p>
                 )}
                 {transcriptionCreateDisabledReason && (
-                  <p className="layer-action-dialog-feedback layer-action-dialog-feedback-error">
+                  <p className="panel-feedback panel-feedback--error">
                     {actionMessages.currentRestrictionTranscription}{transcriptionCreateDisabledReason}
                   </p>
                 )}
                 {!hasValidLanguage && (
-                  <p className="layer-action-dialog-feedback layer-action-dialog-feedback-info">
+                  <p className="panel-feedback panel-feedback--info">
                     {createLanguageRequiredText}
                   </p>
                 )}

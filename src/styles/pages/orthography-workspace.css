@@ -112,6 +112,13 @@
   width: 100%;
 }
 
+/* 项目语言过滤切换 | Project language filter toggle */
+.orthography-workspace-filter-toggle {
+  display: flex;
+  gap: 4px;
+  margin-top: var(--orthography-space-2, 6px);
+}
+
 .orthography-workspace-list {
   display: grid;
   gap: var(--orthography-space-3);

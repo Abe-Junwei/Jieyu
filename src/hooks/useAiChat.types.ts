@@ -303,5 +303,6 @@ export interface UseAiChatOptions {
   streamPersistIntervalMs?: number;
   firstChunkTimeoutMs?: number;
   autoProbeIntervalMs?: number;
+  autoConnectionProbeEnabled?: boolean;
   embeddingSearchService?: EmbeddingSearchService;
 }

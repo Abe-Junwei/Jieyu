@@ -148,7 +148,7 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
             onChange={handleFileChange}
           />
 
-          {error && <p className="error">{error}</p>}
+          {error && <p className="panel-feedback panel-feedback--error">{error}</p>}
       </DialogShell>
     </div>
   );

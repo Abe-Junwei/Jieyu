@@ -1,5 +1,4 @@
 import { lazy, Suspense } from 'react';
-import '../styles/ai-sidebar-entry.css';
 import { normalizeLocale, t } from '../i18n';
 import type {
   TranscriptionPageAnalysisRuntimeProps,
@@ -19,6 +18,7 @@ type HubSidebarTab = 'assistant' | 'analysis';
 export interface TranscriptionPageAiSidebarProps {
   locale: string;
   isAiPanelCollapsed: boolean;
+  shouldRenderRuntime?: boolean;
   hubSidebarTab: HubSidebarTab;
   onHubSidebarTabChange: (tab: HubSidebarTab) => void;
   assistantRuntimeProps: TranscriptionPageAssistantRuntimeProps;
@@ -29,6 +29,7 @@ export interface TranscriptionPageAiSidebarProps {
 export function TranscriptionPageAiSidebar({
   locale,
   isAiPanelCollapsed,
+  shouldRenderRuntime = true,
   hubSidebarTab,
   onHubSidebarTabChange,
   assistantRuntimeProps,
@@ -61,15 +62,17 @@ export function TranscriptionPageAiSidebar({
         </button>
       </div>
 
-      {hubSidebarTab === 'assistant' ? (
-        <Suspense fallback={null}>
-          <AssistantRuntime {...assistantRuntimeProps} />
-        </Suspense>
-      ) : (
-        <Suspense fallback={null}>
-          <AnalysisRuntime {...analysisRuntimeProps} />
-        </Suspense>
-      )}
+      {shouldRenderRuntime ? (
+        hubSidebarTab === 'assistant' ? (
+          <Suspense fallback={null}>
+            <AssistantRuntime {...assistantRuntimeProps} />
+          </Suspense>
+        ) : (
+          <Suspense fallback={null}>
+            <AnalysisRuntime {...analysisRuntimeProps} />
+          </Suspense>
+        )
+      ) : null}
     </aside>
   );
 }

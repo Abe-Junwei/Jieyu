@@ -15,6 +15,7 @@ interface UseAiChatConnectionProbeOptions {
   isBootstrapping: boolean;
   isStreaming: boolean;
   autoProbeIntervalMs: number;
+  autoConnectionProbeEnabled?: boolean;
 }
 
 export function useAiChatConnectionProbe({
@@ -25,6 +26,7 @@ export function useAiChatConnectionProbe({
   isBootstrapping,
   isStreaming,
   autoProbeIntervalMs,
+  autoConnectionProbeEnabled = true,
 }: UseAiChatConnectionProbeOptions) {
   const [connectionTestStatus, setConnectionTestStatus] = useState<AiConnectionTestStatus>('idle');
   const [connectionTestMessage, setConnectionTestMessage] = useState<string | null>(null);
@@ -110,6 +112,7 @@ export function useAiChatConnectionProbe({
   useEffect(() => {
     // 测试环境禁用自动探测，避免用例被真实网络波动干扰 | Disable auto probe in tests for deterministic runs.
     if (import.meta.env.MODE === 'test') return;
+    if (!autoConnectionProbeEnabled) return;
     if (isBootstrapping) return;
     if (isStreaming) return;
     if (testAbortRef.current) return;
@@ -129,7 +132,7 @@ export function useAiChatConnectionProbe({
       cancelled = true;
       window.clearInterval(timerId);
     };
-  }, [apiKey, autoProbeIntervalMs, isBootstrapping, isStreaming, providerKind, runConnectionProbe]);
+  }, [apiKey, autoConnectionProbeEnabled, autoProbeIntervalMs, isBootstrapping, isStreaming, providerKind, runConnectionProbe]);
 
   return {
     connectionTestStatus,

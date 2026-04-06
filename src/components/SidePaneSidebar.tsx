@@ -234,7 +234,7 @@ export function SidePaneSidebar({
     fireAndForget(onReorderLayers(layerId, targetIndex));
   }, [dragState, sidePaneRows.length, onReorderLayers]);
 
-  const sidePaneOverviewNode = (
+  const sidePaneOverviewNode = useMemo(() => (
     <SidePaneSidebarOverview
       sidePaneOverviewRef={sidePaneOverviewRef}
       hasSidePaneHost={hasSidePaneHost}
@@ -259,9 +259,32 @@ export function SidePaneSidebar({
       onOpenDeletePanel={openDeletePanelForLayer}
       onChangeLayerParent={handleChangeLayerParent}
     />
-  );
+  ), [
+    sidePaneOverviewRef,
+    hasSidePaneHost,
+    messages,
+    sidePaneRows,
+    dragState,
+    dropTargetIndex,
+    focusedLayerRowId,
+    flashLayerRowId,
+    bundleRootIds,
+    bundleBoundaryIndexes,
+    layerLabelById,
+    deletableLayers,
+    focusedLayer,
+    focusedLayerParentKey,
+    independentRootLayers,
+    resolveTargetBundleRange,
+    onFocusLayer,
+    handleLayerContextMenu,
+    handleDragStart,
+    handleKeyboardReorder,
+    openDeletePanelForLayer,
+    handleChangeLayerParent,
+  ]);
 
-  const sidePaneActionsNode = (
+  const sidePaneActionsNode = useMemo(() => (
     <SidePaneSidebarActions
       hasSidePaneHost={hasSidePaneHost}
       messages={messages}
@@ -293,9 +316,38 @@ export function SidePaneSidebar({
       requestDeleteLayer={requestDeleteLayer}
       setConstraintRepairDetailsCollapsed={setConstraintRepairDetailsCollapsed}
     />
-  );
+  ), [
+    hasSidePaneHost,
+    messages,
+    layerActionRootRef,
+    disableCreateTranslationEntry,
+    constraintRepairBusy,
+    sidePaneRows.length,
+    uiFontScalePercent,
+    uiFontScaleMode,
+    uiFontScaleModeLabel,
+    layerActionPanel,
+    quickDeleteLayerId,
+    quickDeleteKeepUtterances,
+    deletableLayers,
+    layerCreateMessage,
+    constraintRepairMessage,
+    constraintRepairDetails,
+    constraintRepairDetailsCollapsed,
+    groupedConstraintRepairDetails,
+    speakerCtx,
+    openCreateLayerPopover,
+    handleRepairLayerConstraints,
+    onUiFontScaleChange,
+    onUiFontScaleReset,
+    setLayerActionPanel,
+    setQuickDeleteLayerId,
+    setQuickDeleteKeepUtterances,
+    requestDeleteLayer,
+    setConstraintRepairDetailsCollapsed,
+  ]);
 
-  const sidePanePortaledNode = (
+  const sidePanePortaledNode = useMemo(() => (
     <div className="transcription-side-pane-portaled-stack" data-layer-pane-interactive="true">
       {sidePaneOverviewNode}
       <section className="app-side-pane-group app-side-pane-layer-group app-side-pane-layer-actions-group" aria-label={messages.quickActionsCardAria}>
@@ -307,9 +359,9 @@ export function SidePaneSidebar({
         </div>
       </section>
     </div>
-  );
+  ), [messages.quickActionsCardAria, messages.quickActionsCardTitle, sidePaneActionsNode, sidePaneOverviewNode]);
 
-  const sidePaneInlineFallbackNode = (
+  const sidePaneInlineFallbackNode = useMemo(() => (
     <div
       className="transcription-side-pane"
       aria-label={messages.inlinePaneAria}
@@ -318,7 +370,7 @@ export function SidePaneSidebar({
       {sidePaneOverviewNode}
       {sidePaneActionsNode}
     </div>
-  );
+  ), [messages.inlinePaneAria, sidePaneActionsNode, sidePaneOverviewNode]);
 
   useRegisterAppSidePane({
     title: messages.paneTitle,

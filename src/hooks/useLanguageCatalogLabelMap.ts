@@ -5,7 +5,11 @@ import type { ResolveLanguageDisplayName } from '../utils/languageDisplayNameRes
 import { LinguisticService } from '../services/LinguisticService';
 import { getLanguageDisplayName } from '../utils/langMapping';
 
-export function useLanguageCatalogLabelMap(locale: Locale): {
+type UseLanguageCatalogLabelMapOptions = {
+  languageIds?: readonly string[];
+};
+
+export function useLanguageCatalogLabelMap(locale: Locale, options?: UseLanguageCatalogLabelMapOptions): {
   labelById: ReadonlyMap<string, string>;
   languageOptions: ReadonlyArray<{ code: string; label: string }>;
   resolveLanguageCode: (languageId: string | undefined) => string;
@@ -13,11 +17,38 @@ export function useLanguageCatalogLabelMap(locale: Locale): {
   resolveLanguageDisplayName: ResolveLanguageDisplayName;
 } {
   const [entries, setEntries] = useState<LanguageCatalogEntry[]>([]);
+  const normalizedLanguageIds = useMemo(() => {
+    if (!options?.languageIds) {
+      return undefined;
+    }
+
+    const seen = new Set<string>();
+    const nextIds: string[] = [];
+    options.languageIds.forEach((languageId) => {
+      const normalizedId = languageId.trim().toLowerCase();
+      if (!normalizedId || seen.has(normalizedId)) {
+        return;
+      }
+      seen.add(normalizedId);
+      nextIds.push(normalizedId);
+    });
+    return nextIds;
+  }, [options?.languageIds]);
 
   useEffect(() => {
     let cancelled = false;
 
-    void LinguisticService.listLanguageCatalogEntries({ locale })
+    if (normalizedLanguageIds && normalizedLanguageIds.length === 0) {
+      setEntries([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void LinguisticService.listLanguageCatalogEntries({
+      locale,
+      ...(normalizedLanguageIds ? { languageIds: normalizedLanguageIds } : {}),
+    })
       .then((records) => {
         if (!cancelled) {
           setEntries(records);
@@ -32,7 +63,7 @@ export function useLanguageCatalogLabelMap(locale: Locale): {
     return () => {
       cancelled = true;
     };
-  }, [locale]);
+  }, [locale, normalizedLanguageIds]);
 
   const labelById = useMemo(() => {
     const nextMap = new Map<string, string>();

@@ -73,7 +73,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(waveformArea).not.toBeNull();
 
     // list-main 仍在 Orchestrator | list-main still in Orchestrator
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const orchestratorSourceFile = ts.createSourceFile(orchestratorPath, orchestratorCode, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     const listMain = findFirstJsxByClassName(orchestratorSourceFile, 'transcription-list-main');
@@ -102,7 +102,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps media-scoped speaker focus memory restore logic', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const controllerPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSpeakerController.ts');
     const controllerCode = fs.readFileSync(controllerPath, 'utf8');
@@ -142,7 +142,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps media-scoped track entity persistence integration', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const stateHookPath = path.resolve(process.cwd(), 'src/pages/useTrackEntityStateController.ts');
     const stateHookCode = fs.readFileSync(stateHookPath, 'utf8');
@@ -180,7 +180,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps assistant sidebar assembly outside orchestrator inline glue', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const controllerPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionAssistantSidebarController.ts');
     const controllerCode = fs.readFileSync(controllerPath, 'utf8');
@@ -206,7 +206,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps action ref wiring behind a dedicated hook boundary', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionActionRefBindings.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
@@ -223,7 +223,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps waveform region routing for independent-boundary layers', () => {
-    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const code = fs.readFileSync(filePath, 'utf8');
     const waveformBridgeHookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionWaveformBridgeController.ts');
     const waveformBridgeHookCode = fs.readFileSync(waveformBridgeHookPath, 'utf8');
@@ -288,7 +288,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps workspace layout state behind a dedicated controller boundary', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionWorkspaceLayoutController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
@@ -342,7 +342,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps segment creation routing extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSegmentCreationController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
@@ -363,7 +363,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps segment mutation routing extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSegmentMutationController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
@@ -385,7 +385,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps direct segment graph mutation service calls out of Orchestrator', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
 
     // 允许仅剩的 segment content 写路径暂时留在页面层；segment graph mutation 必须留在 dedicated controllers。
@@ -407,7 +407,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps overlay action routing extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionOverlayActionRoutingController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
@@ -424,7 +424,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps Orchestrator below the current regression ceiling', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const lineCount = orchestratorCode.split('\n').length;
     const useCallbackCount = (orchestratorCode.match(/const\s+\w+\s*=\s*useCallback\(/g) ?? []).length;
@@ -434,7 +434,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('routes speaker assignment through segment writes for independent selections', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const scopeHookPath = path.resolve(process.cwd(), 'src/pages/useSpeakerActionScopeController.ts');
     const scopeHookCode = fs.readFileSync(scopeHookPath, 'utf8');
@@ -471,7 +471,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps mixed segment and utterance speaker routing intact', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const routingHookPath = path.resolve(process.cwd(), 'src/pages/useSpeakerActionRoutingController.ts');
     const routingHookCode = fs.readFileSync(routingHookPath, 'utf8');
@@ -487,7 +487,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('does not render the removed floating speaker assign panel', () => {
-    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const code = fs.readFileSync(filePath, 'utf8');
 
     expect(code.includes("import { SpeakerAssignPanel } from '../components/transcription/SpeakerAssignPanel';")).toBe(false);
@@ -495,7 +495,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('limits segment speaker management actions to explicit segment speaker labels', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const scopeHookPath = path.resolve(process.cwd(), 'src/pages/useSpeakerActionScopeController.ts');
     const scopeHookCode = fs.readFileSync(scopeHookPath, 'utf8');
@@ -509,7 +509,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps runtime props composition extracted into dedicated hook', () => {
-    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const filePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const code = fs.readFileSync(filePath, 'utf8');
     const sidebarControllerPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionAssistantSidebarController.ts');
     const sidebarControllerCode = fs.readFileSync(sidebarControllerPath, 'utf8');
@@ -532,7 +532,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps section view-model assembly extracted from orchestrator JSX', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSectionViewModels.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
@@ -554,11 +554,17 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes("import { useOrchestratorViewModels } from './useOrchestratorViewModels';")).toBe(true);
     expect(orchestratorCode.includes("sidebarSectionsInput: {")).toBe(true);
     expect(orchestratorCode.includes("useOrchestratorViewModels(")).toBe(true);
+    expect(orchestratorCode.includes('const shouldRenderAiSidebar = hasActivatedAiSidebar || !isAiPanelCollapsed;')).toBe(true);
+    expect(orchestratorCode.includes('const shouldRenderDialogs = Boolean(')).toBe(true);
+    expect(orchestratorCode.includes('const shouldRenderPdfRuntime = pdfRuntimeProps.previewRequest.request !== null;')).toBe(true);
+    expect(orchestratorCode.includes('const shouldRenderBatchOps = showBatchOperationPanel;')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageToolbar {...toolbarProps} />')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageTimelineTop {...timelineTopProps} />')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageTimelineContent {...timelineContentProps} />')).toBe(true);
-    expect(orchestratorCode.includes('<TranscriptionPageAiSidebar {...aiSidebarProps} />')).toBe(true);
+    expect(orchestratorCode.includes('<TranscriptionPageAiSidebar')).toBe(true);
+    expect(orchestratorCode.includes('shouldRenderRuntime={shouldRenderAiSidebar}')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageDialogs {...dialogsProps} />')).toBe(true);
+    expect(orchestratorCode.includes('aria-label={t(locale, \'transcription.importDialog.selectMedia\')}')).toBe(true);
     expect(orchestratorCode.includes('lowConfidenceCount,')).toBe(false);
     expect(orchestratorCode.includes('aiChatContextValue,')).toBe(false);
     expect(orchestratorCode.includes('headerProps={{')).toBe(false);
@@ -580,6 +586,8 @@ describe('TranscriptionPage structure invariants', () => {
   expect(sidebarHookCode.includes('countAssistantAttentionSignals({')).toBe(true);
   expect(sidebarHookCode.includes("setHubSidebarTab('assistant');")).toBe(true);
   expect(sidebarHookCode.includes('const dialogsProps = useMemo<TranscriptionPageDialogsProps>(() => ({')).toBe(true);
+  expect(aiSidebarCode.includes('shouldRenderRuntime = true')).toBe(true);
+  expect(aiSidebarCode.includes('shouldRenderRuntime ? (')).toBe(true);
   expect(aiSidebarCode.includes('<AssistantRuntime {...assistantRuntimeProps} />')).toBe(true);
   expect(aiSidebarCode.includes('<AnalysisRuntime {...analysisRuntimeProps} />')).toBe(true);
   expect(aiSidebarCode.includes('analysisTab={analysisTab}')).toBe(false);
@@ -624,7 +632,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps assistant callbacks and AI panel context extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionAssistantController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
@@ -646,7 +654,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps recovery banner actions behind the dedicated hook boundary', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/hooks/useRecoveryBanner.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
@@ -664,7 +672,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps timeline filtering and editor context composition extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionTimelineController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
@@ -685,7 +693,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps timeline interaction routing extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionTimelineInteractionController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
@@ -730,7 +738,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps batch operation controller extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useBatchOperationController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
@@ -750,7 +758,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps track display controller extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTrackDisplayController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
@@ -767,7 +775,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps waveform runtime controller extracted into dedicated hook', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useWaveformRuntimeController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
@@ -782,7 +790,7 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('keeps voice dictation write-then-auto-advance flow inside assistant controller', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Orchestrator.tsx');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionAssistantController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');

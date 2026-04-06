@@ -9,6 +9,7 @@ import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { OrthographyDocType } from '../db';
 import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
+import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
 import { LinguisticService } from '../services/LinguisticService';
 
@@ -22,7 +23,17 @@ export function OrthographyBridgeWorkspacePage() {
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
   const deferredSearchText = useDeferredValue(searchText);
-  const { resolveLabel } = useLanguageCatalogLabelMap(locale);
+  const { projectLanguageIds } = useProjectLanguageIds();
+  // 默认仅显示项目语言的正字法（有项目语言时） | Default to project-only when project has languages
+  const [projectOnly, setProjectOnly] = useState(true);
+  const orthographyLanguageIds = useMemo(() => Array.from(new Set(
+    orthographies
+      .map((orthography) => orthography.languageId?.trim().toLowerCase())
+      .filter((languageId): languageId is string => Boolean(languageId)),
+  )), [orthographies]);
+  const { resolveLabel } = useLanguageCatalogLabelMap(locale, {
+    languageIds: orthographyLanguageIds,
+  });
 
   // M4: 正字法数据不依赖 locale，移除多余的重取触发 | Orthography data is locale-independent; remove unnecessary refetch trigger
   useEffect(() => {
@@ -53,15 +64,26 @@ export function OrthographyBridgeWorkspacePage() {
 
   const normalizedSearchText = deferredSearchText.trim().toLowerCase();
   const filteredOrthographies = useMemo(() => {
-    if (!normalizedSearchText) return orthographies;
-    return orthographies.filter((orthography) => [
-      formatOrthographyOptionLabel(orthography, locale),
-      resolveLabel(orthography.languageId),
-      orthography.languageId ?? '',
-      orthography.scriptTag ?? '',
-      orthography.type ?? '',
-    ].join(' ').toLowerCase().includes(normalizedSearchText));
-  }, [locale, normalizedSearchText, orthographies, resolveLabel]);
+    // 先按项目语言过滤，再按搜索文字过滤 | Filter by project languages first, then by search text
+    const projectIdSet = projectOnly && projectLanguageIds.length > 0 ? new Set(projectLanguageIds) : null;
+    let result = orthographies;
+    if (projectIdSet) {
+      result = result.filter((orthography) => {
+        const languageId = orthography.languageId?.trim().toLowerCase();
+        return languageId ? projectIdSet.has(languageId) : false;
+      });
+    }
+    if (normalizedSearchText) {
+      result = result.filter((orthography) => [
+        formatOrthographyOptionLabel(orthography, locale),
+        resolveLabel(orthography.languageId),
+        orthography.languageId ?? '',
+        orthography.scriptTag ?? '',
+        orthography.type ?? '',
+      ].join(' ').toLowerCase().includes(normalizedSearchText));
+    }
+    return result;
+  }, [locale, normalizedSearchText, orthographies, projectLanguageIds, projectOnly, resolveLabel]);
 
   const selectedOrthographyId = searchParams.get(TARGET_ORTHOGRAPHY_ID_PARAM) ?? '';
   const selectedOrthography = orthographies.find((orthography) => orthography.id === selectedOrthographyId) ?? null;
@@ -147,6 +169,12 @@ export function OrthographyBridgeWorkspacePage() {
             placeholder={t(locale, 'workspace.orthographyBridge.searchPlaceholder')}
             aria-label={t(locale, 'workspace.orthographyBridge.searchPlaceholder')}
           />
+          {projectLanguageIds.length > 0 ? (
+            <div className="orthography-workspace-filter-toggle" role="radiogroup" aria-label={t(locale, 'workspace.orthographyBridge.filterProjectOnly')}>
+              <button type="button" role="radio" aria-checked={projectOnly} className={`btn${projectOnly ? ' btn-active' : ''}`} onClick={() => setProjectOnly(true)}>{t(locale, 'workspace.orthographyBridge.filterProjectOnly')}</button>
+              <button type="button" role="radio" aria-checked={!projectOnly} className={`btn${!projectOnly ? ' btn-active' : ''}`} onClick={() => setProjectOnly(false)}>{t(locale, 'workspace.orthographyBridge.filterShowAll')}</button>
+            </div>
+          ) : null}
 
           {loading ? <p className="orthography-workspace-state">{t(locale, 'workspace.orthographyBridge.loading')}</p> : null}
           {!loading && error ? <p className="orthography-workspace-state orthography-workspace-state-error">{t(locale, 'workspace.orthographyBridge.errorPrefix').replace('{message}', error)}</p> : null}

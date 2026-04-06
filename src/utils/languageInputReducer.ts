@@ -12,6 +12,7 @@ import { resolveLanguageDisplayNameWithFallback, type ResolveLanguageDisplayName
 import type {
   LanguageInputDisplayMode,
   LanguageInputAssistState,
+  LanguageInputAssistMessages,
   LanguageIsoInputValue,
 } from './languageInputTypes';
 
@@ -51,6 +52,7 @@ export type LanguageInputModel = {
 
 export type LanguageInputEvent =
   | { type: 'nameChanged'; value: string }
+  | { type: 'codeFocused' }
   | { type: 'codeChanged'; value: string }
   | { type: 'nameSuggestionHovered'; index: number }
   | { type: 'highlightNextSuggestion'; visibleCount: number }
@@ -298,19 +300,21 @@ export function selectCommittedLanguageInputValue(model: LanguageInputModel): La
 export function selectLanguageInputAssistState(
   model: LanguageInputModel,
   locale: LanguageSearchLocale,
+  messages?: LanguageInputAssistMessages,
 ): LanguageInputAssistState {
   const ambiguityHint = model.suggestions.length > 1 && !pickAutoFillLanguageMatch(model.draft.nameInput, locale)
-    ? (locale === 'zh-CN'
+    ? (messages?.ambiguityHint ?? (locale === 'zh-CN'
       ? '\u5b58\u5728\u591a\u4e2a\u53ef\u80fd\u8bed\u8a00\uff0c\u8bf7\u9009\u62e9\u66f4\u5177\u4f53\u9879\u3002'
-      : 'Multiple languages matched. Please choose a more specific option.')
+      : 'Multiple languages matched. Please choose a more specific option.'))
     : '';
 
   const displayedCode = model.draft.codeInput;
   const resolvedCode = displayedCode ? resolveLanguageCodeInput(displayedCode, locale) : { status: 'empty' as const, warnings: [] };
-  const codeError = displayedCode && resolvedCode.status === 'invalid'
-    ? (locale === 'zh-CN'
+  const shouldShowCodeError = displayedCode && resolvedCode.status === 'invalid' && model.draft.activeField !== 'code';
+  const codeError = shouldShowCodeError
+    ? (messages?.invalidLanguageCode ?? (locale === 'zh-CN'
       ? '\u8bf7\u8f93\u5165\u6709\u6548\u7684 ISO 639 / BCP 47 \u8bed\u8a00\u4ee3\u7801\u3002'
-      : 'Enter a valid ISO 639 / BCP 47 language code.')
+      : 'Enter a valid ISO 639 / BCP 47 language code.'))
     : '';
   const warnings = [
     ...(model.status === 'deferred-code' ? [] : resolvedCode.warnings),
@@ -369,6 +373,19 @@ export function reduceLanguageInput(
   options?: LanguageInputResolverOptions,
 ): LanguageInputModel {
   switch (event.type) {
+    case 'codeFocused': {
+      if (model.draft.activeField === 'code') {
+        return model;
+      }
+      return {
+        ...model,
+        draft: {
+          ...model.draft,
+          activeField: 'code',
+        },
+      };
+    }
+
     case 'nameChanged': {
       const nextNameInput = event.value;
       const trimmedName = nextNameInput.trim();
@@ -548,33 +565,67 @@ export function reduceLanguageInput(
     }
 
     case 'codeBlurred': {
-      if (model.status !== 'deferred-code') {
+      if (model.status === 'deferred-code') {
+        const resolved = resolveLanguageCodeInput(model.draft.codeInput, locale);
+        const committed = buildCommittedValueFromResolvedCode(model.draft.codeInput, resolved, locale, options);
+        if (!committed) {
+          return {
+            ...model,
+            status: model.draft.codeInput ? 'invalid' : 'idle',
+            lastChangeSource: 'blur-commit',
+            draft: {
+              ...model.draft,
+              activeField: null,
+            },
+          };
+        }
+        return {
+          draft: {
+            nameInput: committed.languageName,
+            codeInput: committed.languageCode,
+            activeField: null,
+          },
+          committed,
+          selectedOption: committed,
+          suggestions: [],
+          activeSuggestionIndex: -1,
+          status: 'selected',
+          lastChangeSource: 'blur-commit',
+        };
+      }
+      if (model.draft.activeField !== 'code') {
         return model;
       }
-      const resolved = resolveLanguageCodeInput(model.draft.codeInput, locale);
-      const committed = buildCommittedValueFromResolvedCode(model.draft.codeInput, resolved, locale, options);
-      if (!committed) {
+
+      // 输入结束后统一退出编辑态，让无效值在 blur 后可见 | Exit editing mode on blur so invalid values become visible after typing
+      if (model.status === 'invalid') {
         return {
           ...model,
-          status: model.draft.codeInput ? 'invalid' : 'idle',
-          lastChangeSource: 'blur-commit',
           draft: {
             ...model.draft,
             activeField: null,
           },
+          lastChangeSource: 'blur-commit',
         };
       }
+
+      if (model.status === 'selected' || model.status === 'idle') {
+        return {
+          ...model,
+          draft: {
+            ...model.draft,
+            activeField: null,
+          },
+          lastChangeSource: 'blur-commit',
+        };
+      }
+
       return {
+        ...model,
         draft: {
-          nameInput: committed.languageName,
-          codeInput: committed.languageCode,
+          ...model.draft,
           activeField: null,
         },
-        committed,
-        selectedOption: committed,
-        suggestions: [],
-        activeSuggestionIndex: -1,
-        status: 'selected',
         lastChangeSource: 'blur-commit',
       };
     }

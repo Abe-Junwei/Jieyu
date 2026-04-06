@@ -20,6 +20,13 @@ vi.mock('../services/LinguisticService', () => ({
   },
 }));
 
+vi.mock('../hooks/useProjectLanguageIds', () => {
+  const stableIds: string[] = [];
+  return {
+    useProjectLanguageIds: () => ({ projectLanguageIds: stableIds, loading: false }),
+  };
+});
+
 vi.mock('../components/OrthographyBridgeManager', () => ({
   OrthographyBridgeManager: ({
     targetOrthography,
@@ -126,7 +133,15 @@ describe('OrthographyBridgeWorkspacePage', () => {
       expect(screen.getByTestId('orthography-bridge-manager').textContent).toContain('target:orth-target');
     });
 
-    expect(screen.getByTestId('orthography-bridge-manager').textContent).toContain('eng:英语资产标签');
+    expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith({
+      locale: 'zh-CN',
+      languageIds: ['eng', 'zho'],
+    });
+
+    // 目录标签异步加载，需等待渲染更新 | Catalog labels load asynchronously, need to wait for render update
+    await waitFor(() => {
+      expect(screen.getByTestId('orthography-bridge-manager').textContent).toContain('eng:英语资产标签');
+    });
     expect(screen.getByTestId('orthography-bridge-manager').textContent).toContain('zho:中文资产标签');
     expect(screen.getByTestId('side-pane-title').textContent).toBe('正字法桥接工作台');
 

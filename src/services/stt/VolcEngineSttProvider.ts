@@ -52,8 +52,9 @@ export class VolcEngineSttProvider implements CommercialSttProvider {
         },
         body: '{}',
       });
-      // 任何非网络错误响应都说明端点可达 | Any non-network response means the endpoint is reachable
-      return resp.ok || resp.status === 400 || resp.status === 401 || resp.status === 403 || resp.status === 404;
+      // 仅 200 或 400（缺参数）说明端点可达且凭证有效 | Only 200 or 400 (missing params) confirms reachable + valid creds
+      // 401/403 = 凭证无效，不应视为可用 | 401/403 = invalid credentials, should not be treated as available
+      return resp.ok || resp.status === 400;
     } catch (err) {
       console.debug('[VolcEngineSttProvider] availability probe failed:', err);
       return false;

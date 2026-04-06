@@ -22,6 +22,13 @@ vi.mock('../services/LinguisticService', () => ({
   },
 }));
 
+vi.mock('../hooks/useProjectLanguageIds', () => {
+  const stableIds: string[] = [];
+  return {
+    useProjectLanguageIds: () => ({ projectLanguageIds: stableIds, loading: false }),
+  };
+});
+
 function SidePaneSnapshot() {
   const registration = useAppSidePaneRegistrationSnapshot();
 
@@ -151,11 +158,17 @@ describe('OrthographyWorkspacePage', () => {
     });
 
     expect(mockListOrthographies).toHaveBeenCalledWith({ includeBuiltIns: true });
+    expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith({
+      locale: 'zh-CN',
+      languageIds: ['eng', 'zho'],
+    });
 
-    const bridgeLinks = screen.getAllByRole('link', { name: '打开正字法桥接工作台' });
-    expect(bridgeLinks).toHaveLength(2);
-    bridgeLinks.forEach((link) => {
-      expect(link.getAttribute('href')).toBe('/assets/orthography-bridges?targetOrthographyId=orth-source');
+    await waitFor(() => {
+      const bridgeLinks = screen.getAllByRole('link', { name: '打开正字法桥接工作台' });
+      expect(bridgeLinks).toHaveLength(2);
+      bridgeLinks.forEach((link) => {
+        expect(link.getAttribute('href')).toBe('/assets/orthography-bridges?targetOrthographyId=orth-source');
+      });
     });
     expect(screen.getByTestId('side-pane-title').textContent).toBe('正字法工作台');
     await waitFor(() => {
@@ -532,7 +545,7 @@ describe('OrthographyWorkspacePage', () => {
     );
 
     const languageCodeInput = await screen.findByRole('textbox', { name: '来源语言代码' });
-    const assetIdInput = screen.getByRole('textbox', { name: '语言资产 ID' });
+    const assetIdInput = screen.getByRole('textbox', { name: '语言 ID（系统唯一标识）' });
 
     await waitFor(() => {
       expect((languageCodeInput as HTMLInputElement).value).toBe('demo');

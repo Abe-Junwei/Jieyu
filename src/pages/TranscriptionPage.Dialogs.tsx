@@ -58,8 +58,8 @@ export function TranscriptionPageDialogs({
   showAudioImport,
   onCloseAudioImport,
   onImportAudio,
-  mediaFileInputRef,
-  onDirectMediaImport,
+  mediaFileInputRef: _mediaFileInputRef,
+  onDirectMediaImport: _onDirectMediaImport,
   audioDeleteConfirm,
   onCancelAudioDelete,
   onConfirmAudioDelete,
@@ -94,16 +94,6 @@ export function TranscriptionPageDialogs({
         isOpen={showAudioImport}
         onClose={onCloseAudioImport}
         onImport={onImportAudio}
-      />
-
-      {/* Hidden file input for direct media import from empty state button */}
-      <input
-        ref={mediaFileInputRef}
-        type="file"
-        accept=".mp3,.wav,.ogg,.webm,.m4a,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv"
-        aria-label={t(uiLocale, 'transcription.importDialog.selectMedia')}
-        style={{ display: 'none' }}
-        onChange={onDirectMediaImport}
       />
 
       {/* Audio delete confirmation dialog */}

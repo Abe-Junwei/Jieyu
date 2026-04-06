@@ -55,6 +55,7 @@
     { "pathPrefix": "src/hooks/useTranscriptionLayerActions.ts", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/components/ai/aiChatAdaptiveRanking.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/components/ScriptTagCombobox.tsx", "reason": "data-dictionary" },
+    { "pathPrefix": "src/components/LanguageMapEmbed.tsx", "reason": "data-dictionary" },
     { "pathPrefix": "src/components/LayerActionPopover.tsx", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/components/ProjectSetupDialog.tsx", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/components/ai/useAiPromptTemplates.ts", "reason": "runtime-template-message" },
@@ -70,6 +71,7 @@
 
     { "pathPrefix": "src/i18n/aiChatHybridMessages.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/i18n/aiChatQuickPromptTemplates.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/i18n/languageInputMessages.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/i18n/layerConstraintServiceMessages.ts", "reason": "runtime-template-message" }
   ]
 }

@@ -55,6 +55,25 @@ export async function initSentryForReleaseStage(): Promise<void> {
     if ('user' in event) {
       delete event.user;
     }
+    // 清理面包屑和扩展数据中的敏感信息 | Scrub PII from breadcrumbs & extras
+    if (event.breadcrumbs) {
+      for (const bc of event.breadcrumbs) {
+        if (bc.data) {
+          for (const key of Object.keys(bc.data)) {
+            if (/api.?key|token|password|secret|authorization/i.test(key)) {
+              bc.data[key] = '[REDACTED]';
+            }
+          }
+        }
+      }
+    }
+    if (event.extra) {
+      for (const key of Object.keys(event.extra)) {
+        if (/api.?key|token|password|secret|authorization/i.test(key)) {
+          event.extra[key] = '[REDACTED]';
+        }
+      }
+    }
     return event;
   };
 

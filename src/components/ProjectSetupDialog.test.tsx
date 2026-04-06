@@ -177,4 +177,26 @@ describe('ProjectSetupDialog orthography creation', () => {
 
     expect((screen.getByRole('textbox', { name: /语言代码/ }) as HTMLInputElement).value).toBe('por');
   });
+
+  it('focuses the language code field when submit is attempted with invalid language input', () => {
+    mockUseOrthographies.mockReturnValue([]);
+
+    renderWithLocale(
+      <ProjectSetupDialog
+        isOpen
+        onClose={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+      />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('例：白马藏语田野调查'), {
+      target: { value: '项目 B' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '创建项目' }));
+
+    const languageCodeInput = screen.getByRole('textbox', { name: /语言代码/ }) as HTMLInputElement;
+    expect(screen.getByText('语言代码必须是有效的 ISO 639-3 三字母代码。')).toBeTruthy();
+    expect(document.activeElement).toBe(languageCodeInput);
+  });
 });

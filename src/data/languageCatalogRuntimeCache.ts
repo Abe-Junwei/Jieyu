@@ -85,6 +85,8 @@ function buildBaselineLanguageCatalogRuntimeCache(): LanguageCatalogRuntimeCache
 const BASELINE_LANGUAGE_CATALOG_RUNTIME_CACHE = buildBaselineLanguageCatalogRuntimeCache();
 
 let inMemoryRuntimeCache: LanguageCatalogRuntimeCache = BASELINE_LANGUAGE_CATALOG_RUNTIME_CACHE;
+// 标记是否已从 localStorage 水合过 | Whether the cache has been hydrated from localStorage
+let localStorageHydrated = false;
 
 function normalizeRuntimeLocaleMap(value: unknown): Record<string, string> | undefined {
   if (!value || typeof value !== 'object') {
@@ -228,20 +230,21 @@ export function normalizeLanguageCatalogRuntimeLookupKey(value: string | undefin
 }
 
 export function readLanguageCatalogRuntimeCache(): LanguageCatalogRuntimeCache {
-  try {
-    if (typeof window === 'undefined') {
-      return inMemoryRuntimeCache;
+  // 首次读取时从 localStorage 水合一次，后续直接返回内存缓存 | Hydrate once from localStorage on first read, then return in-memory cache
+  if (!localStorageHydrated) {
+    localStorageHydrated = true;
+    try {
+      if (typeof window !== 'undefined') {
+        const raw = window.localStorage.getItem(LANGUAGE_CATALOG_RUNTIME_CACHE_STORAGE_KEY);
+        if (raw) {
+          inMemoryRuntimeCache = sanitizeRuntimeCache(JSON.parse(raw));
+        }
+      }
+    } catch {
+      // 解析失败保留基线缓存 | Keep baseline cache on parse failure
     }
-    const raw = window.localStorage.getItem(LANGUAGE_CATALOG_RUNTIME_CACHE_STORAGE_KEY);
-    if (!raw) {
-      return inMemoryRuntimeCache;
-    }
-    const parsed = sanitizeRuntimeCache(JSON.parse(raw));
-    inMemoryRuntimeCache = parsed;
-    return parsed;
-  } catch {
-    return inMemoryRuntimeCache;
   }
+  return inMemoryRuntimeCache;
 }
 
 export function writeLanguageCatalogRuntimeCache(cache: LanguageCatalogRuntimeCache): void {
@@ -275,6 +278,7 @@ function notifyLanguageCatalogCacheListeners(): void {
 
 export function clearLanguageCatalogRuntimeCache(): void {
   inMemoryRuntimeCache = BASELINE_LANGUAGE_CATALOG_RUNTIME_CACHE;
+  localStorageHydrated = true; // 已显式重置，无需再水合 | Explicitly reset, no need to re-hydrate
   try {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(LANGUAGE_CATALOG_RUNTIME_CACHE_STORAGE_KEY);

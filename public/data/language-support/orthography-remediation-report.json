@@ -1,0 +1,14 @@
+{
+  "generatedAt": "2026-04-06T07:10:17.006Z",
+  "inputSeeds": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/public/data/language-support/top500-language-orthography-seeds.json",
+  "inputValidationReport": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/public/data/language-support/orthography-independent-validation-report.json",
+  "actions": [],
+  "metrics": {
+    "beforeLanguageCount": 697,
+    "afterLanguageCount": 697,
+    "retiredWithoutReplacementCount": 1,
+    "retiredWithoutReplacementIso6393": [
+      "myq"
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { renderWithLocale } from '../test/localeTestUtils';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
@@ -163,6 +163,25 @@ describe('LanguageIsoInput', () => {
     fireEvent.blur(languageCodeInput);
     expect(languageCodeInput.value).toBe('eng');
     expect(languageNameInput.value).toBe('English');
+  });
+
+  it('does not show code error while typing and only shows it after blur', async () => {
+    const view = renderWithLocale(<StatefulLanguageIsoInputHarness locale="zh-CN" />, 'zh-CN');
+    const scopedQueries = within(view.container);
+
+    const languageCodeInput = scopedQueries.getByRole('textbox', { name: 'Language code' }) as HTMLInputElement;
+
+    fireEvent.focus(languageCodeInput);
+    fireEvent.change(languageCodeInput, { target: { value: 'e' } });
+    expect(scopedQueries.queryByText('请输入有效的 ISO 639 / BCP 47 语言代码。')).toBeNull();
+
+    fireEvent.change(languageCodeInput, { target: { value: '0' } });
+    expect(scopedQueries.queryByText('请输入有效的 ISO 639 / BCP 47 语言代码。')).toBeNull();
+
+    fireEvent.focusOut(languageCodeInput);
+    await waitFor(() => {
+      expect(scopedQueries.getByText('请输入有效的 ISO 639 / BCP 47 语言代码。')).toBeTruthy();
+    });
   });
 
   it('relocalizes a committed value when the locale changes', () => {

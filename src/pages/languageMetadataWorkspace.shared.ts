@@ -31,18 +31,41 @@ export type LanguageMetadataDraft = {
   englishName: string;
   nativeName: string;
   aliasesText: string;
-  family: string;
-  subfamily: string;
+  genus: string;
+  classificationPath: string;
   macrolanguage: string;
   scope: string;
   languageType: string;
+  endangermentLevel: string;
+  aesStatus: string;
+  endangermentSource: string;
+  endangermentAssessmentYear: string;
+  speakerCountL1: string;
+  speakerCountL2: string;
+  speakerCountSource: string;
+  speakerCountYear: string;
+  speakerTrend: string;
+  countriesText: string;
+  macroarea: string;
+  administrativeDivisionsText: string;
+  intergenerationalTransmission: string;
+  domainsText: string;
+  officialStatus: string;
+  egids: string;
+  documentationLevel: string;
+  dialectsText: string;
+  writingSystemsText: string;
+  literacyRate: string;
   glottocode: string;
   wikidataId: string;
   visibility: LanguageCatalogVisibility;
   notesZh: string;
   notesEn: string;
+  latitude: string;
+  longitude: string;
   changeReason: string;
   displayNameRows: LanguageDisplayNameDraftRow[];
+  customFieldValues: Record<string, string>;
 };
 
 export type HistoryItem = LanguageCatalogHistoryDocType;
@@ -184,18 +207,41 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
       englishName: '',
       nativeName: '',
       aliasesText: '',
-      family: '',
-      subfamily: '',
+      genus: '',
+      classificationPath: '',
       macrolanguage: '',
       scope: '',
       languageType: '',
+      endangermentLevel: '',
+      aesStatus: '',
+      endangermentSource: '',
+      endangermentAssessmentYear: '',
+      speakerCountL1: '',
+      speakerCountL2: '',
+      speakerCountSource: '',
+      speakerCountYear: '',
+      speakerTrend: '',
+      countriesText: '',
+      macroarea: '',
+      administrativeDivisionsText: '',
+      intergenerationalTransmission: '',
+      domainsText: '',
+      officialStatus: '',
+      egids: '',
+      documentationLevel: '',
+      dialectsText: '',
+      writingSystemsText: '',
+      literacyRate: '',
       glottocode: '',
       wikidataId: '',
       visibility: 'visible',
       notesZh: '',
       notesEn: '',
+      latitude: '',
+      longitude: '',
       changeReason: '',
       displayNameRows: [],
+      customFieldValues: {},
     };
   }
 
@@ -211,16 +257,42 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
     englishName: entry.englishName,
     nativeName: entry.nativeName ?? '',
     aliasesText: entry.aliases.join('\n'),
-    family: entry.family ?? '',
-    subfamily: entry.subfamily ?? '',
+    genus: entry.genus ?? '',
+    classificationPath: entry.classificationPath ?? '',
     macrolanguage: entry.macrolanguage ?? '',
     scope: entry.scope ?? '',
     languageType: entry.languageType ?? '',
+    endangermentLevel: entry.endangermentLevel ?? '',
+    aesStatus: entry.aesStatus ?? '',
+    endangermentSource: entry.endangermentSource ?? '',
+    endangermentAssessmentYear: entry.endangermentAssessmentYear !== undefined ? String(entry.endangermentAssessmentYear) : '',
+    speakerCountL1: entry.speakerCountL1 !== undefined ? String(entry.speakerCountL1) : '',
+    speakerCountL2: entry.speakerCountL2 !== undefined ? String(entry.speakerCountL2) : '',
+    speakerCountSource: entry.speakerCountSource ?? '',
+    speakerCountYear: entry.speakerCountYear !== undefined ? String(entry.speakerCountYear) : '',
+    speakerTrend: entry.speakerTrend ?? '',
+    countriesText: entry.countries?.join(', ') ?? '',
+    macroarea: entry.macroarea ?? '',
+    administrativeDivisionsText: entry.administrativeDivisions?.map((d) => d.freeText ?? [d.country, d.province, d.city, d.county, d.township].filter(Boolean).join(' / ')).join('\n') ?? '',
+    intergenerationalTransmission: entry.intergenerationalTransmission ?? '',
+    domainsText: entry.domains?.join(', ') ?? '',
+    officialStatus: entry.officialStatus ?? '',
+    egids: entry.egids ?? '',
+    documentationLevel: entry.documentationLevel ?? '',
+    dialectsText: entry.dialects?.join('\n') ?? '',
+    writingSystemsText: entry.writingSystems?.join(', ') ?? '',
+    literacyRate: entry.literacyRate !== undefined ? String(entry.literacyRate) : '',
     glottocode: entry.glottocode ?? '',
     wikidataId: entry.wikidataId ?? '',
     visibility: entry.visibility,
     notesZh: entry.notes?.['zh-CN'] ?? entry.notes?.zho ?? '',
     notesEn: entry.notes?.['en-US'] ?? entry.notes?.eng ?? '',
+    latitude: entry.latitude !== undefined ? String(entry.latitude) : '',
+    longitude: entry.longitude !== undefined ? String(entry.longitude) : '',
+    // 自定义字段值映射（全部转为 string 供表单绑定） | Custom field values (all stringified for form binding)
+    customFieldValues: Object.fromEntries(
+      Object.entries(entry.customFields ?? {}).map(([k, v]) => [k, Array.isArray(v) ? v.join(', ') : String(v)])
+    ),
     changeReason: '',
     displayNameRows: buildDisplayNameRows(entry, locale),
   };
@@ -241,12 +313,15 @@ export function readHistoryFieldLabel(locale: WorkspaceLocale, field: string): s
     nativeName: 'workspace.languageMetadata.nativeNameLabel',
     aliases: 'workspace.languageMetadata.aliasesLabel',
     scope: 'workspace.languageMetadata.scopeLabel',
-    family: 'workspace.languageMetadata.familyLabel',
-    subfamily: 'workspace.languageMetadata.subfamilyLabel',
+    genus: 'workspace.languageMetadata.genusLabel',
+    classificationPath: 'workspace.languageMetadata.classificationPathLabel',
     macrolanguage: 'workspace.languageMetadata.macrolanguageLabel',
     languageType: 'workspace.languageMetadata.languageTypeLabel',
     visibility: 'workspace.languageMetadata.visibilityLabel',
+    latitude: 'workspace.languageMetadata.latitudeLabel',
+    longitude: 'workspace.languageMetadata.longitudeLabel',
     displayNames: 'workspace.languageMetadata.matrixTitle',
+    customFields: 'workspace.languageMetadata.sectionCustomFields',
   };
 
   const dictKey = keyByField[field];

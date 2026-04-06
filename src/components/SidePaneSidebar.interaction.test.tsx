@@ -784,7 +784,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: '新建转写层' }));
 
     const dialog = await screen.findByRole('dialog', { name: '新建转写层' });
-    fireEvent.change(within(dialog).getByRole('textbox', { name: '语言资产 ID' }), { target: { value: 'eng' } });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: '语言 ID（系统唯一标识）' }), { target: { value: 'eng' } });
 
     await waitFor(() => {
       expect((within(dialog).getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value).toBe('orth_eng_default');
@@ -972,7 +972,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       .find((select) => Array.from(select.options).some((option) => option.value === 'layer_trc_2'));
     expect(parentSelect?.value).toBe('layer_trc_2');
 
-    fireEvent.change(within(dialog).getByRole('textbox', { name: '语言资产 ID' }), { target: { value: 'fra' } });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: '语言 ID（系统唯一标识）' }), { target: { value: 'fra' } });
     await waitFor(() => {
       expect((within(dialog).getByRole('button', { name: '新建翻译层' }) as HTMLButtonElement).disabled).toBe(false);
     });
@@ -1248,7 +1248,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     await clickCreateAction('新建转写层');
     const dialog = await screen.findByRole('dialog', { name: '新建转写层' });
 
-    fireEvent.change(within(dialog).getByRole('textbox', { name: '语言资产 ID' }), { target: { value: 'eng' } });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: '语言 ID（系统唯一标识）' }), { target: { value: 'eng' } });
     await waitFor(() => {
       expect((within(dialog).getByRole('button', { name: '新建转写层' }) as HTMLButtonElement).disabled).toBe(false);
     });

@@ -23,6 +23,7 @@ async function clearDatabase(): Promise<void> {
     db.language_display_names.clear(),
     db.language_aliases.clear(),
     db.language_catalog_history.clear(),
+    db.custom_field_definitions.clear(),
     db.speakers.clear(),
     db.orthographies.clear(),
     db.orthography_bridges.clear(),
@@ -1848,8 +1849,8 @@ describe('LinguisticService smoke tests', () => {
       iso6393: 'dmo',
       glottocode: 'demo1234',
       wikidataId: 'Q123456',
-      family: 'Demo Family',
-      subfamily: 'Demo Branch',
+      genus: 'Demo Genus',
+      classificationPath: 'Demo Family > Demo Branch',
       macrolanguage: 'demo-macro',
       aliases: ['示例别名'],
       displayNames: [{ locale: 'fr-FR', role: 'preferred', value: 'langue de demonstration' }],
@@ -1869,8 +1870,8 @@ describe('LinguisticService smoke tests', () => {
       iso6393: '',
       glottocode: '',
       wikidataId: '',
-      family: '',
-      subfamily: '',
+      genus: '',
+      classificationPath: '',
       macrolanguage: '',
       aliases: [],
       displayNames: [],
@@ -1892,14 +1893,80 @@ describe('LinguisticService smoke tests', () => {
     expect(saved?.iso6393).toBeUndefined();
     expect(saved?.glottocode).toBeUndefined();
     expect(saved?.wikidataId).toBeUndefined();
-    expect(saved?.family).toBeUndefined();
-    expect(saved?.subfamily).toBeUndefined();
+    expect(saved?.genus).toBeUndefined();
+    expect(saved?.classificationPath).toBeUndefined();
     expect(saved?.macrolanguage).toBeUndefined();
     expect(saved?.scope).toBeUndefined();
     expect(saved?.modality).toBeUndefined();
     expect(saved?.languageType).toBeUndefined();
     expect(await db.language_display_names.where('languageId').equals('user:demo-language').count()).toBe(0);
     expect(await db.language_aliases.where('languageId').equals('user:demo-language').count()).toBe(0);
+  });
+
+  it('regression: upsertLanguageCatalogEntry replaces custom fields so single-key clears persist', async () => {
+    await LinguisticService.upsertLanguageCatalogEntry({
+      id: 'user:custom-fields-language',
+      languageCode: 'cfl',
+      locale: 'zh-CN',
+      localName: '自定义字段语言',
+      englishName: 'Custom Fields Language',
+      customFields: {
+        fieldText: 'alpha',
+        fieldNumber: 42,
+      },
+    });
+
+    await LinguisticService.upsertLanguageCatalogEntry({
+      id: 'user:custom-fields-language',
+      languageCode: 'cfl',
+      locale: 'zh-CN',
+      localName: '自定义字段语言',
+      englishName: 'Custom Fields Language',
+      customFields: {
+        fieldNumber: 42,
+      },
+    });
+
+    const saved = await db.languages.get('user:custom-fields-language');
+    expect(saved?.customFields).toEqual({ fieldNumber: 42 });
+  });
+
+  it('regression: deleting a custom field definition cascades persisted language values', async () => {
+    const keepDefinition = await LinguisticService.upsertCustomFieldDefinition({
+      name: { 'zh-CN': '保留字段' },
+      fieldType: 'text',
+    });
+    const removedDefinition = await LinguisticService.upsertCustomFieldDefinition({
+      name: { 'zh-CN': '删除字段' },
+      fieldType: 'text',
+    });
+
+    await LinguisticService.upsertLanguageCatalogEntry({
+      id: 'user:custom-field-delete',
+      languageCode: 'cfd',
+      locale: 'zh-CN',
+      localName: '删除字段语言',
+      englishName: 'Deleted Field Language',
+      customFields: {
+        [keepDefinition.id]: 'keep',
+        [removedDefinition.id]: 'remove',
+      },
+    });
+
+    await LinguisticService.deleteCustomFieldDefinition(removedDefinition.id);
+
+    const saved = await db.languages.get('user:custom-field-delete');
+    expect(saved?.customFields).toEqual({
+      [keepDefinition.id]: 'keep',
+    });
+
+    const entry = await LinguisticService.getLanguageCatalogEntry({
+      languageId: 'user:custom-field-delete',
+      locale: 'zh-CN',
+    });
+    expect(entry?.customFields).toEqual({
+      [keepDefinition.id]: 'keep',
+    });
   });
 
   it('rejects conflicting or highly ambiguous aliases before saving', async () => {
@@ -2687,6 +2754,45 @@ describe('searchLanguageCatalogEntries', () => {
     const results = LinguisticService.searchLanguageCatalogEntries('', 'zh-CN', 5);
     // 空查询返回常见语言列表 | Empty query returns common language list
     expect(Array.isArray(results)).toBe(true);
+  });
+
+  it('lists persisted entries when search hits number, boolean, or multiselect custom fields', async () => {
+    await LinguisticService.upsertLanguageCatalogEntry({
+      id: 'user:search-custom-fields',
+      languageCode: 'scf',
+      locale: 'zh-CN',
+      localName: '搜索字段语言',
+      englishName: 'Search Field Language',
+      customFields: {
+        numericField: 1200,
+        booleanField: true,
+        multiselectField: ['plateau', 'river'],
+      },
+    });
+
+    await expect(LinguisticService.listLanguageCatalogEntries({
+      locale: 'zh-CN',
+      searchText: '1200',
+      includeHidden: true,
+    })).resolves.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'user:search-custom-fields' }),
+    ]));
+
+    await expect(LinguisticService.listLanguageCatalogEntries({
+      locale: 'zh-CN',
+      searchText: 'true',
+      includeHidden: true,
+    })).resolves.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'user:search-custom-fields' }),
+    ]));
+
+    await expect(LinguisticService.listLanguageCatalogEntries({
+      locale: 'zh-CN',
+      searchText: 'river',
+      includeHidden: true,
+    })).resolves.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'user:search-custom-fields' }),
+    ]));
   });
 });
 

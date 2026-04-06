@@ -39,7 +39,7 @@ export default defineConfig({
   },
   build: {
     sourcemap: false,
-    chunkSizeWarningLimit: 900,
+    chunkSizeWarningLimit: 1400,
     rollupOptions: {
       onwarn(warning, defaultHandler) {
         // onnxruntime-web 内部使用 eval，属于上游实现细节；此处只精确忽略该已知第三方告警 | onnxruntime-web uses eval internally; suppress only this known vendor warning
@@ -63,7 +63,11 @@ export default defineConfig({
             return 'TranscriptionPage.SidePane';
           }
           if (
-            id.includes('/src/hooks/useImportExport.ts')
+            id.includes('/src/hooks/useImportExport.importHandlers')
+            || id.includes('/src/hooks/useImportExport.archiveHandlers')
+            || id.includes('/src/hooks/useImportExport.additionalTierHandlers')
+            || id.includes('/src/hooks/useImportExport.importHelpers')
+            || id.includes('/src/hooks/useImportExport.annotationImport')
             || id.includes('/src/services/EafService')
             || id.includes('/src/services/TextGridService')
             || id.includes('/src/services/TranscriberService')
@@ -141,6 +145,9 @@ export default defineConfig({
           }
           if (id.includes('/@xenova/transformers/')) {
             return 'transformers-vendor';
+          }
+          if (id.includes('/@maptiler/') || id.includes('/maplibre-gl/')) {
+            return 'map-vendor';
           }
           return undefined;
         },

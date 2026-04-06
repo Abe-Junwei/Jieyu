@@ -26,11 +26,23 @@ describe('langMapping input helpers', () => {
     expect(sanitizeLanguageCodeInput('zh-Hant-HK***')).toBe('zh-hant-hk');
   });
 
-  it('marks two-letter pure alphabetic codes as deferred drafts', () => {
+  it('marks incomplete code drafts as deferred', () => {
+    // 1 字母主子标签输入中 | 1-letter primary subtag still in progress
+    expect(isDeferredLanguageCodeDraft('e')).toBe(true);
+    expect(isDeferredLanguageCodeDraft('z')).toBe(true);
+    // 2 字母 ISO 639-1 前缀 | 2-letter ISO 639-1 prefix
     expect(isDeferredLanguageCodeDraft('en')).toBe(true);
     expect(isDeferredLanguageCodeDraft('zh')).toBe(true);
+    // 以连字符结尾 → BCP 47 标签仍在输入中 | trailing hyphen
+    expect(isDeferredLanguageCodeDraft('zh-')).toBe(true);
+    expect(isDeferredLanguageCodeDraft('zh-Hans-')).toBe(true);
+    // 连字符后末段仅 1 个字符 → 仍在输入中 | single-char final subtag
+    expect(isDeferredLanguageCodeDraft('zh-H')).toBe(true);
+    expect(isDeferredLanguageCodeDraft('en-U')).toBe(true);
+    // 完整的代码或标签 → 不 defer | complete codes/tags → not deferred
     expect(isDeferredLanguageCodeDraft('en-US')).toBe(false);
     expect(isDeferredLanguageCodeDraft('eng')).toBe(false);
+    expect(isDeferredLanguageCodeDraft('zh-Hans')).toBe(false);
   });
 
   it('keeps a shortened two-letter code as a draft during editing', () => {
@@ -41,6 +53,15 @@ describe('langMapping input helpers', () => {
     expect(nextState.status).toBe('deferred');
     expect(nextState.resolution.status).toBe('resolved');
     expect(nextState.resolution.languageId).toBe('eng');
+  });
+
+  it('keeps a one-letter code as an in-progress draft during editing', () => {
+    const nextState = resolveLanguageCodeInputChange('e', 'eng', 'zh-CN');
+
+    expect(nextState.sanitizedInput).toBe('e');
+    expect(nextState.keepsDraft).toBe(true);
+    expect(nextState.status).toBe('deferred');
+    expect(nextState.resolution.status).toBe('invalid');
   });
 
   it('preserves deletion drafts while allowing empty input', () => {

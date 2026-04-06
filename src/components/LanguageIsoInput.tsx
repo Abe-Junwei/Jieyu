@@ -15,6 +15,8 @@ import {
   selectPresentedLanguageInputValue,
   serializeLanguageInputValue,
 } from '../utils/languageInputReducer';
+import { getLanguageInputMessages } from '../i18n/languageInputMessages';
+import type { Locale } from '../i18n/index';
 
 export type { LanguageIsoInputValue } from '../utils/languageInputTypes';
 
@@ -63,19 +65,26 @@ export function LanguageIsoInput({
   const lastSeenResolverRef = useRef(resolveLanguageDisplayName);
   const lastNotifiedCommittedKeyRef = useRef(serializedIncomingValue);
   const [isNameInputFocused, setIsNameInputFocused] = useState(false);
+  const languageCodeInputRef = useRef<HTMLInputElement | null>(null);
+  const previousVisibleErrorRef = useRef('');
   const presentedValue = useMemo(
     () => selectPresentedLanguageInputValue(model, locale, isNameInputFocused),
     [isNameInputFocused, locale, model],
   );
   const committedValue = useMemo(() => selectCommittedLanguageInputValue(model), [model]);
+  const i18nMessages = useMemo(() => getLanguageInputMessages(locale as Locale), [locale]);
   const assistState = useMemo(
-    () => selectLanguageInputAssistState(model, locale),
-    [locale, model],
+    () => selectLanguageInputAssistState(model, locale, i18nMessages),
+    [locale, model, i18nMessages],
   );
   const visibleSuggestionMatches = useMemo(
     () => assistState.suggestionMatches.slice(0, MAX_LANGUAGE_INPUT_VISIBLE_SUGGESTIONS),
     [assistState.suggestionMatches],
   );
+  const hasVisibleSuggestions = visibleSuggestionMatches.length > 0;
+  const hasExternalError = Boolean(error);
+  const visibleCodeError = error || (!suppressCodeError ? assistState.codeError : '');
+  const codeErrorId = `${fieldIdPrefix}-language-code-error`;
   const committedValueKey = serializeLanguageInputValue(committedValue);
 
   useEffect(() => {
@@ -100,6 +109,24 @@ export function LanguageIsoInput({
     lastNotifiedCommittedKeyRef.current = committedValueKey;
     onChange(committedValue);
   }, [committedValue, committedValueKey, onChange]);
+
+  useEffect(() => {
+    const previousVisibleError = previousVisibleErrorRef.current;
+    previousVisibleErrorRef.current = visibleCodeError;
+    if (!visibleCodeError || visibleCodeError === previousVisibleError) {
+      return;
+    }
+
+    const inputNode = languageCodeInputRef.current;
+    if (!inputNode) {
+      return;
+    }
+
+    inputNode.scrollIntoView?.({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+    if (hasExternalError && document.activeElement !== inputNode) {
+      inputNode.focus({ preventScroll: true });
+    }
+  }, [hasExternalError, visibleCodeError]);
 
   const handleLanguageNameKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     const suggestionCount = visibleSuggestionMatches.length;
@@ -144,6 +171,10 @@ export function LanguageIsoInput({
     dispatch({ type: 'codeChanged', value: event.target.value });
   };
 
+  const handleLanguageCodeFocus = () => {
+    dispatch({ type: 'codeFocused' });
+  };
+
   const handleLanguageCodeBlur = () => {
     dispatch({ type: 'codeBlurred' });
   };
@@ -177,28 +208,37 @@ export function LanguageIsoInput({
           <span>{codeLabel}{required ? ' *' : ''}</span>
           <input
             id={`${fieldIdPrefix}-language-code`}
+            ref={languageCodeInputRef}
             className="input panel-input"
             type="text"
             value={presentedValue.languageCode}
             onChange={handleLanguageCodeChange}
+            onFocus={handleLanguageCodeFocus}
             onBlur={handleLanguageCodeBlur}
             placeholder={codePlaceholder}
             autoComplete="off"
             spellCheck={false}
+            data-language-iso-code-input="true"
+            aria-invalid={visibleCodeError ? 'true' : undefined}
+            aria-describedby={visibleCodeError ? codeErrorId : undefined}
             disabled={disabled}
           />
         </label>
       </div>
 
-      {visibleSuggestionMatches.length > 0 && (
-        <div
-          className="language-iso-input-suggestions"
-          id={suggestionListId}
-          role="listbox"
-          aria-label={nameLabel}
-          aria-labelledby={languageNameInputId}
-        >
-          {visibleSuggestionMatches.map((match, index) => (
+      <div
+        className={`language-iso-input-suggestions${hasVisibleSuggestions ? '' : ' is-empty'}`}
+        {...(hasVisibleSuggestions
+          ? {
+            id: suggestionListId,
+            role: 'listbox' as const,
+            'aria-label': nameLabel,
+            'aria-labelledby': languageNameInputId,
+          }
+          : { 'aria-hidden': 'true' as const })}
+      >
+        {hasVisibleSuggestions
+          ? visibleSuggestionMatches.map((match, index) => (
             <div
               id={`${fieldIdPrefix}-language-suggestion-${index}`}
               key={`${match.entry.iso6393}-${index}`}
@@ -217,20 +257,22 @@ export function LanguageIsoInput({
             >
               {formatLanguageCatalogMatch(match, locale)}
             </div>
-          ))}
-        </div>
-      )}
+          ))
+          : null}
+      </div>
 
-      {assistState.detectedTagSummary && (
-        <p className="dialog-hint">
-          {locale === 'zh-CN' ? '\u8bc6\u522b\u5230\u6807\u7b7e\uff1a' : 'Detected tag: '}
-          {assistState.detectedTagSummary}
-        </p>
-      )}
+      <div className="language-iso-input-feedback-slot" aria-live="polite">
+        {assistState.detectedTagSummary && (
+          <p className="dialog-hint">
+            {locale === 'zh-CN' ? '\u8bc6\u522b\u5230\u6807\u7b7e\uff1a' : 'Detected tag: '}
+            {assistState.detectedTagSummary}
+          </p>
+        )}
 
-      {assistState.ambiguityHint && <p className="dialog-hint">{assistState.ambiguityHint}</p>}
-      {assistState.warning && <p className="dialog-hint">{assistState.warning}</p>}
-      {(error || (!suppressCodeError && assistState.codeError)) && <p className="error">{error || assistState.codeError}</p>}
+        {assistState.ambiguityHint && <p className="dialog-hint">{assistState.ambiguityHint}</p>}
+        {assistState.warning && <p className="dialog-hint">{assistState.warning}</p>}
+        {visibleCodeError && <p id={codeErrorId} className="panel-feedback panel-feedback--error">{visibleCodeError}</p>}
+      </div>
     </div>
   );
 }

@@ -395,6 +395,10 @@ function buildCoreDisplayPayload(languages, cldrLanguageMaps, aliasesByCode, dis
       });
     });
 
+    if (language.latitude !== undefined && language.longitude !== undefined) {
+      displayEntry.latitude = language.latitude;
+      displayEntry.longitude = language.longitude;
+    }
     core[language.iso6393] = displayEntry;
   });
 

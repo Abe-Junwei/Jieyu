@@ -25,7 +25,12 @@ vi.mock('../services/LinguisticService', () => ({
     listLanguageCatalogHistory: mockListLanguageCatalogHistory,
     upsertLanguageCatalogEntry: mockUpsertLanguageCatalogEntry,
     deleteLanguageCatalogEntry: mockDeleteLanguageCatalogEntry,
+    lookupIso639_3Seed: () => undefined,
   },
+}));
+
+vi.mock('../hooks/useProjectLanguageIds', () => ({
+  useProjectLanguageIds: () => ({ projectLanguageIds: ['eng'], loading: false }),
 }));
 
 function SidePaneSnapshot() {
@@ -227,7 +232,7 @@ describe('LanguageMetadataWorkspacePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '新建自定义语言' }));
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('例如 user:demo-language')).toBeTruthy();
+      expect(screen.getByPlaceholderText('留空则自动生成')).toBeTruthy();
     });
   });
 
@@ -250,7 +255,7 @@ describe('LanguageMetadataWorkspacePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '新建自定义语言' }));
 
-    const assetIdInput = await screen.findByPlaceholderText('例如 user:demo-language');
+    const assetIdInput = await screen.findByPlaceholderText('留空则自动生成');
     const languageCodeInput = screen.getByRole('textbox', { name: '语言代码' });
 
     fireEvent.change(assetIdInput, { target: { value: 'user:field-language' } });

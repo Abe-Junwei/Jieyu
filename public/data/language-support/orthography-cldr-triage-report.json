@@ -1,0 +1,955 @@
+{
+  "generatedAt": "2026-04-06T07:10:17.006Z",
+  "sourceValidationReport": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/public/data/language-support/orthography-independent-validation-report.json",
+  "metrics": {
+    "mismatchCount": 48,
+    "acceptedVariantCount": 20,
+    "correctionCandidateCount": 28
+  },
+  "acceptedVariants": [
+    {
+      "iso6393": "cia",
+      "languageLabel": "Cia-Cia",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Hang"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Hang",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "kjj",
+      "languageLabel": "Khinalug",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cyrl"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Cyrl",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "srr",
+      "languageLabel": "Serer",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Arab",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "tru",
+      "languageLabel": "Turoyo",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Syrc"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Syrc",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "dta",
+      "languageLabel": "Daur",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cyrl",
+        "Mong"
+      ],
+      "category": "accepted-variant",
+      "reason": "language keeps multiple orthography scripts and should stay multi-script",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": true,
+      "sources": [
+        {
+          "scriptCode": "Cyrl",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        },
+        {
+          "scriptCode": "Mong",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "aiw",
+      "languageLabel": "Aari",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Ethi"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Ethi",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "chp",
+      "languageLabel": "Chipewyan",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cans"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Cans",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "taq",
+      "languageLabel": "Tamasheq",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Tfng"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Tfng",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "mdr",
+      "languageLabel": "Mandar",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Bugi"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Bugi",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "yah",
+      "languageLabel": "Yazgulyam",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cyrl"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Cyrl",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "srb",
+      "languageLabel": "Sora",
+      "cldrLikelyScript": "Sora",
+      "catalogScripts": [
+        "Orya"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Orya",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "khr",
+      "languageLabel": "Kharia",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Deva",
+        "Orya"
+      ],
+      "category": "accepted-variant",
+      "reason": "language keeps multiple orthography scripts and should stay multi-script",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": true,
+      "sources": [
+        {
+          "scriptCode": "Deva",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        },
+        {
+          "scriptCode": "Orya",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "thz",
+      "languageLabel": "Air Tamajeq",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab",
+        "Tfng"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": true,
+      "sources": [
+        {
+          "scriptCode": "Arab",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        },
+        {
+          "scriptCode": "Tfng",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "ahk",
+      "languageLabel": "Akha",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Mymr",
+        "Thai"
+      ],
+      "category": "accepted-variant",
+      "reason": "language keeps multiple orthography scripts and should stay multi-script",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": true,
+      "sources": [
+        {
+          "scriptCode": "Mymr",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        },
+        {
+          "scriptCode": "Thai",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "guk",
+      "languageLabel": "Gumuz",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Ethi"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Ethi",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "twh",
+      "languageLabel": "Tai Dón",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Tavt"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Tavt",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "tft",
+      "languageLabel": "Ternate",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Arab",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "atb",
+      "languageLabel": "Zaiwa",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Lisu"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Lisu",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "nnp",
+      "languageLabel": "Wancho",
+      "cldrLikelyScript": "Wcho",
+      "catalogScripts": [
+        "Deva"
+      ],
+      "category": "accepted-variant",
+      "reason": "catalog script has wikidata verification evidence",
+      "hasWikidataVerification": true,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Deva",
+          "source": "omniglot-langalph+wws+wikidata",
+          "verificationStatus": "verified-by-wikidata"
+        }
+      ]
+    },
+    {
+      "iso6393": "mqu",
+      "languageLabel": "Mandari",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Deva",
+        "Orya"
+      ],
+      "category": "accepted-variant",
+      "reason": "language keeps multiple orthography scripts and should stay multi-script",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": true,
+      "sources": [
+        {
+          "scriptCode": "Deva",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        },
+        {
+          "scriptCode": "Orya",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    }
+  ],
+  "correctionCandidates": [
+    {
+      "iso6393": "ctg",
+      "languageLabel": "Chittagonian",
+      "cldrLikelyScript": "Beng",
+      "catalogScripts": [
+        "Arab"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Arab",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "bla",
+      "languageLabel": "Blackfoot",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cans"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Cans",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "lud",
+      "languageLabel": "Ludic",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cyrl"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Cyrl",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "xco",
+      "languageLabel": "Khwarezmian",
+      "cldrLikelyScript": "Chrs",
+      "catalogScripts": [
+        "Arab"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Arab",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "kac",
+      "languageLabel": "Jingpo",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Mymr"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Mymr",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "siz",
+      "languageLabel": "Siwa",
+      "cldrLikelyScript": "Arab",
+      "catalogScripts": [
+        "Tfng"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Tfng",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "bhh",
+      "languageLabel": "Bukharian",
+      "cldrLikelyScript": "Cyrl",
+      "catalogScripts": [
+        "Hebr"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Hebr",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "acy",
+      "languageLabel": "Cypriot Arabic",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Grek"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Grek",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "mdh",
+      "languageLabel": "Maguindanao",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Arab",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "rkt",
+      "languageLabel": "Rangpuri",
+      "cldrLikelyScript": "Beng",
+      "catalogScripts": [
+        "Deva"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Deva",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "bdk",
+      "languageLabel": "Budukh",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cyrl"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Cyrl",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "yej",
+      "languageLabel": "Yevanic",
+      "cldrLikelyScript": "Grek",
+      "catalogScripts": [
+        "Hebr"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Hebr",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "caq",
+      "languageLabel": "Car",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Deva"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Deva",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "kry",
+      "languageLabel": "Kryts",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cyrl"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Cyrl",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "amf",
+      "languageLabel": "Hamer",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Ethi"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Ethi",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "kcn",
+      "languageLabel": "Nubi",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Arab",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "ykh",
+      "languageLabel": "Khamnigan Mongol",
+      "cldrLikelyScript": "Cyrl",
+      "catalogScripts": [
+        "Mong"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Mong",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "mhu",
+      "languageLabel": "Digaro Mishmi",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Deva"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Deva",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "mid",
+      "languageLabel": "Neo-Mandaic",
+      "cldrLikelyScript": "Mand",
+      "catalogScripts": [
+        "Syrc"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Syrc",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "mqa",
+      "languageLabel": "Maba",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Arab",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "njz",
+      "languageLabel": "Nishi",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Deva"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Deva",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "crx",
+      "languageLabel": "Carrier",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Cans"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Cans",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "hmb",
+      "languageLabel": "Humburi Senni",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Arab",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "saw",
+      "languageLabel": "Sawi",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Arab",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "bjt",
+      "languageLabel": "Balanta-Ganja",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Arab",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "ffm",
+      "languageLabel": "Maasina Fulfulde",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Arab",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "ldd",
+      "languageLabel": "Luri",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Arab"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Arab",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    },
+    {
+      "iso6393": "tyj",
+      "languageLabel": "Tai Yo",
+      "cldrLikelyScript": "Latn",
+      "catalogScripts": [
+        "Thai"
+      ],
+      "category": "candidate-correction",
+      "reason": "single non-CLDR script without wikidata verification, keep for manual correction queue",
+      "hasWikidataVerification": false,
+      "hasMultipleCatalogScripts": false,
+      "sources": [
+        {
+          "scriptCode": "Thai",
+          "source": "omniglot-langalph+wws",
+          "verificationStatus": "pending-manual-review"
+        }
+      ]
+    }
+  ]
+}

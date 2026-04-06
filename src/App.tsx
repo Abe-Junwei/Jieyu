@@ -8,7 +8,6 @@ import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from './conte
 import { usePanelAutoCollapse } from './hooks/usePanelAutoCollapse';
 import { usePanelResize } from './hooks/usePanelResize';
 import { LOCALE_PREFERENCE_STORAGE_KEY, LocaleProvider, detectLocale, setStoredLocalePreference, t, type Locale } from './i18n';
-import { LinguisticService } from './services/LinguisticService';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const TranscriptionPage = lazy(() => import('./pages/TranscriptionPage').then(m => ({ default: m.TranscriptionPage })));
@@ -172,6 +171,15 @@ export function App() {
     }
   }, [themeMode]);
 
+  // 首屏渲染后启用布局过渡，避免初始挂载产生 CLS | Enable layout transitions after first paint to prevent CLS
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.documentElement.setAttribute('data-motion-ready', '');
+      });
+    });
+  }, []);
+
   const [isSidePaneCollapsed, setIsSidePaneCollapsed] = useState<boolean>(readInitialSidePaneCollapsed);
   const [sidePaneWidth, setSidePaneWidth] = useState<number>(readPersistedSidePaneWidth);
 
@@ -210,10 +218,56 @@ export function App() {
     if (typeof indexedDB === 'undefined') {
       return;
     }
-    void LinguisticService.refreshLanguageCatalogReadModel().catch(() => {
-      // 忽略启动期语言目录快照刷新失败，保留生成基线回退 | Ignore boot-time refresh failures and keep generated fallback behavior
-    });
+
+    // 启动后空闲时再刷新语言目录快照，避免把重模块评估放进首屏关键路径
+    // | Refresh language-catalog read model during idle time to keep heavy module evaluation off the first-paint critical path
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    let cancelled = false;
+    let idleHandle: number | null = null;
+    let timeoutHandle: number | null = null;
+
+    const runRefresh = async () => {
+      try {
+        const { LinguisticService } = await import('./services/LinguisticService');
+        if (cancelled) return;
+        await LinguisticService.refreshLanguageCatalogReadModel();
+      } catch {
+        // 忽略启动期语言目录快照刷新失败，保留生成基线回退 | Ignore boot-time refresh failures and keep generated fallback behavior
+      }
+    };
+
+    if (idleWindow.requestIdleCallback) {
+      idleHandle = idleWindow.requestIdleCallback(() => {
+        void runRefresh();
+      }, { timeout: 5000 });
+    } else {
+      timeoutHandle = window.setTimeout(() => {
+        void runRefresh();
+      }, 800);
+    }
+
+    return () => {
+      cancelled = true;
+      if (idleHandle !== null) {
+        idleWindow.cancelIdleCallback?.(idleHandle);
+      }
+      if (timeoutHandle !== null) {
+        window.clearTimeout(timeoutHandle);
+      }
+    };
   }, []);
+
+  useEffect(() => {
+    // 首屏路由是转写页时，预热关键模块请求，避免懒加载链延后触发 | Prewarm transcription modules on first-route hit to avoid delayed lazy-chain fetches
+    if (location.pathname !== '/' && !location.pathname.startsWith('/transcription')) {
+      return;
+    }
+    void import('./pages/TranscriptionPage');
+    void import('./pages/TranscriptionPage.Orchestrator');
+  }, [location.pathname]);
 
   const navGroups = useMemo<NavGroup[]>(() => [
     {

@@ -328,8 +328,8 @@ interface LanguageDocType {
   wikidataId?: string;
   scope?: 'individual' | 'macrolanguage' | 'collection' | 'special' | 'private-use';
   macrolanguage?: string;
-  family?: string;
-  subfamily?: string;
+  genus?: string;
+  classificationPath?: string;
   modality?: 'spoken' | 'signed' | 'written' | 'mixed';
   languageType?: 'living' | 'historical' | 'extinct' | 'ancient' | 'constructed' | 'special';
   endangermentLevel?:
@@ -339,11 +339,47 @@ interface LanguageDocType {
     | 'severely_endangered'
     | 'critically_endangered'
     | 'extinct';
+  aesStatus?: 'not_endangered' | 'threatened' | 'shifting' | 'moribund' | 'nearly_extinct' | 'extinct';
+  endangermentSource?: string;
+  endangermentAssessmentYear?: number;
+  speakerCountL1?: number;
+  speakerCountL2?: number;
+  speakerCountSource?: string;
+  speakerCountYear?: number;
+  speakerTrend?: 'growing' | 'stable' | 'shrinking' | 'unknown';
+  countries?: string[];
+  macroarea?: 'Africa' | 'Eurasia' | 'Papunesia' | 'Australia' | 'North America' | 'South America';
+  administrativeDivisions?: { country?: string; province?: string; city?: string; county?: string; township?: string; freeText?: string }[];
+  intergenerationalTransmission?: 'all_ages' | 'adults_only' | 'elderly_only' | 'very_few' | 'none';
+  domains?: ('home' | 'education' | 'government' | 'media' | 'religion' | 'commerce' | 'literature')[];
+  officialStatus?: 'national' | 'regional' | 'recognized_minority' | 'none';
+  egids?: string;
+  documentationLevel?: 'undocumented' | 'marginally' | 'fragmentary' | 'fair' | 'well_documented';
+  dialects?: string[];
+  writingSystems?: string[];
+  literacyRate?: number;
+  latitude?: number;
+  longitude?: number;
   locationId?: string;
   sourceType?: LanguageCatalogSourceType;
   reviewStatus?: LanguageCatalogReviewStatus;
   visibility?: LanguageCatalogVisibility;
   notes?: MultiLangString;
+  customFields?: Record<string, string | number | boolean | string[]>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 自定义字段值类型 | Custom field value type
+type CustomFieldValueType = 'text' | 'number' | 'boolean' | 'select' | 'multiselect' | 'url';
+
+interface CustomFieldDefinitionDocType {
+  id: string;
+  name: MultiLangString;
+  fieldType: CustomFieldValueType;
+  options?: string[];
+  description?: MultiLangString;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -1151,8 +1187,8 @@ const languageDocSchema = z.object({
   wikidataId: z.string().optional(),
   scope: z.enum(['individual', 'macrolanguage', 'collection', 'special', 'private-use']).optional(),
   macrolanguage: z.string().optional(),
-  family: z.string().optional(),
-  subfamily: z.string().optional(),
+  genus: z.string().optional(),
+  classificationPath: z.string().optional(),
   modality: z.enum(['spoken', 'signed', 'written', 'mixed']).optional(),
   languageType: z.enum(['living', 'historical', 'extinct', 'ancient', 'constructed', 'special']).optional(),
   endangermentLevel: z
@@ -1165,11 +1201,51 @@ const languageDocSchema = z.object({
       'extinct',
     ])
     .optional(),
+  aesStatus: z.enum(['not_endangered', 'threatened', 'shifting', 'moribund', 'nearly_extinct', 'extinct']).optional(),
+  endangermentSource: z.string().optional(),
+  endangermentAssessmentYear: z.number().int().optional(),
+  speakerCountL1: z.number().int().nonnegative().optional(),
+  speakerCountL2: z.number().int().nonnegative().optional(),
+  speakerCountSource: z.string().optional(),
+  speakerCountYear: z.number().int().optional(),
+  speakerTrend: z.enum(['growing', 'stable', 'shrinking', 'unknown']).optional(),
+  countries: z.array(z.string().min(1)).optional(),
+  macroarea: z.enum(['Africa', 'Eurasia', 'Papunesia', 'Australia', 'North America', 'South America']).optional(),
+  administrativeDivisions: z.array(z.object({
+    country: z.string().optional(),
+    province: z.string().optional(),
+    city: z.string().optional(),
+    county: z.string().optional(),
+    township: z.string().optional(),
+    freeText: z.string().optional(),
+  })).optional(),
+  intergenerationalTransmission: z.enum(['all_ages', 'adults_only', 'elderly_only', 'very_few', 'none']).optional(),
+  domains: z.array(z.enum(['home', 'education', 'government', 'media', 'religion', 'commerce', 'literature'])).optional(),
+  officialStatus: z.enum(['national', 'regional', 'recognized_minority', 'none']).optional(),
+  egids: z.string().optional(),
+  documentationLevel: z.enum(['undocumented', 'marginally', 'fragmentary', 'fair', 'well_documented']).optional(),
+  dialects: z.array(z.string().min(1)).optional(),
+  writingSystems: z.array(z.string().min(1)).optional(),
+  literacyRate: z.number().min(0).max(100).optional(),
   locationId: z.string().optional(),
   sourceType: languageCatalogSourceTypeSchema.optional(),
   reviewStatus: languageCatalogReviewStatusSchema.optional(),
   visibility: languageCatalogVisibilitySchema.optional(),
   notes: multiLangStringSchema.optional(),
+  customFields: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.array(z.string())])).optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const customFieldValueTypeSchema = z.enum(['text', 'number', 'boolean', 'select', 'multiselect', 'url']);
+
+const customFieldDefinitionDocSchema = z.object({
+  id: z.string().min(1),
+  name: multiLangStringSchema,
+  fieldType: customFieldValueTypeSchema,
+  options: z.array(z.string()).optional(),
+  description: multiLangStringSchema.optional(),
+  sortOrder: z.number().int(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });
@@ -1667,6 +1743,10 @@ function validateLanguageCatalogHistoryDoc(doc: LanguageCatalogHistoryDocType): 
   languageCatalogHistoryDocSchema.parse(doc);
 }
 
+function validateCustomFieldDefinitionDoc(doc: CustomFieldDefinitionDocType): void {
+  customFieldDefinitionDocSchema.parse(doc);
+}
+
 function validateSpeakerDoc(doc: SpeakerDocType): void {
   speakerDocSchema.parse(doc);
 }
@@ -2117,6 +2197,7 @@ type JieyuCollections = {
   language_display_names: CollectionAdapter<LanguageDisplayNameDocType>;
   language_aliases: CollectionAdapter<LanguageAliasDocType>;
   language_catalog_history: CollectionAdapter<LanguageCatalogHistoryDocType>;
+  custom_field_definitions: CollectionAdapter<CustomFieldDefinitionDocType>;
   speakers: CollectionAdapter<SpeakerDocType>;
   orthographies: CollectionAdapter<OrthographyDocType>;
   orthography_bridges: CollectionAdapter<OrthographyBridgeDocType>;
@@ -2392,6 +2473,7 @@ class JieyuDexie extends Dexie {
   language_display_names!: Table<LanguageDisplayNameDocType, string>;
   language_aliases!: Table<LanguageAliasDocType, string>;
   language_catalog_history!: Table<LanguageCatalogHistoryDocType, string>;
+  custom_field_definitions!: Table<CustomFieldDefinitionDocType, string>;
   speakers!: Table<SpeakerDocType, string>;
   orthographies!: Table<OrthographyDocType, string>;
   orthography_transforms!: Table<OrthographyBridgeDocType, string>;
@@ -3252,6 +3334,12 @@ class JieyuDexie extends Dexie {
       language_aliases: 'id, languageId, normalizedAlias, aliasType, locale, [languageId+normalizedAlias], [normalizedAlias+languageId], [languageId+aliasType], updatedAt',
       language_catalog_history: 'id, languageId, action, createdAt, [languageId+createdAt]',
     });
+
+    // v35: custom field definitions table + customFields JSON blob on languages.
+    // 自定义字段定义表 + 语言主表上的 customFields JSON 扩展字段。无需迁移。
+    this.version(35).stores({
+      custom_field_definitions: 'id, sortOrder, updatedAt',
+    });
   }
 }
 
@@ -3298,6 +3386,7 @@ async function _createDb(): Promise<JieyuDatabase> {
     language_display_names: new DexieCollectionAdapter(dexie.language_display_names, validateLanguageDisplayNameDoc),
     language_aliases: new DexieCollectionAdapter(dexie.language_aliases, validateLanguageAliasDoc),
     language_catalog_history: new DexieCollectionAdapter(dexie.language_catalog_history, validateLanguageCatalogHistoryDoc),
+    custom_field_definitions: new DexieCollectionAdapter(dexie.custom_field_definitions, validateCustomFieldDefinitionDoc),
     speakers: new DexieCollectionAdapter(dexie.speakers, validateSpeakerDoc),
     orthographies: new DexieCollectionAdapter(dexie.orthographies, validateOrthographyDoc),
     orthography_bridges: new DexieCollectionAdapter(dexie.orthography_bridges, validateOrthographyBridgeDoc),
@@ -3879,6 +3968,8 @@ export type {
   LanguageDisplayNameDocType,
   LanguageAliasDocType,
   LanguageCatalogHistoryDocType,
+  CustomFieldDefinitionDocType,
+  CustomFieldValueType,
   SpeakerDocType,
   OrthographyDocType,
   OrthographyBridgeDocType as OrthographyBridgeDocType,

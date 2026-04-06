@@ -34,7 +34,7 @@ import {
 
 const TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX = '\u5237\u65b0 AI \u5de5\u5177\u5ba1\u8ba1\u65e5\u5fd7\u5931\u8d25\uff1a';
 
-interface UseTranscriptionAiControllerInput {
+export interface UseTranscriptionAiControllerInput {
   utterances: UtteranceDocType[];
   utterancesOnCurrentMedia: UtteranceDocType[];
   selectedUnitIds: Set<string>;
@@ -91,9 +91,13 @@ interface UseTranscriptionAiControllerInput {
   splitAtTimeRef: React.MutableRefObject<((timeSeconds: number) => boolean) | undefined>;
   zoomToSegmentRef: React.MutableRefObject<((segmentId: string, zoomLevel?: number) => boolean) | undefined>;
   handleExecuteRecommendation: (item: ActionableRecommendation) => Promise<void> | void;
+  aiSidebarError?: string | null;
+  setAiSidebarError?: React.Dispatch<React.SetStateAction<string | null>>;
+  embeddingProviderConfig?: { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string };
+  setEmbeddingProviderConfig?: React.Dispatch<React.SetStateAction<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>>;
 }
 
-interface UseTranscriptionAiControllerResult {
+export interface UseTranscriptionAiControllerResult {
   aiPanelMode: AiPanelMode;
   setAiPanelMode: React.Dispatch<React.SetStateAction<AiPanelMode>>;
   aiSidebarError: string | null;
@@ -131,13 +135,17 @@ export function useTranscriptionAiController(
   const aiRecommendationRef = useRef<string[]>([]);
   const aiLexemeSummaryRef = useRef<string[]>([]);
   const aiAudioTimeRef = useRef(0);
-  const [embeddingProviderConfig, setEmbeddingProviderConfig] = useState<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>(() => loadEmbeddingProviderConfig());
+  const [internalEmbeddingProviderConfig, setInternalEmbeddingProviderConfig] = useState<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>(() => loadEmbeddingProviderConfig());
+  const embeddingProviderConfig = input.embeddingProviderConfig ?? internalEmbeddingProviderConfig;
+  const setEmbeddingProviderConfig = input.setEmbeddingProviderConfig ?? setInternalEmbeddingProviderConfig;
   const embeddingSearchService = useMemo(
     () => createDeferredEmbeddingSearchService(() => embeddingProviderConfig),
     [embeddingProviderConfig],
   );
   const [aiToolDecisionLogs, setAiToolDecisionLogs] = useState<Array<{ id: string; toolName: string; decision: string; requestId?: string; timestamp: string }>>([]);
-  const [aiSidebarError, setAiSidebarError] = useState<string | null>(null);
+  const [internalAiSidebarError, setInternalAiSidebarError] = useState<string | null>(null);
+  const aiSidebarError = input.aiSidebarError ?? internalAiSidebarError;
+  const setAiSidebarError = input.setAiSidebarError ?? setInternalAiSidebarError;
 
   const refreshAiToolDecisionLogs = useCallback(async () => {
     try {
@@ -281,6 +289,8 @@ export function useTranscriptionAiController(
     getContext: buildAiPromptContext,
     maxContextChars: 2400,
     historyCharBudget: 6000,
+    // 转写页首屏关闭自动连通性探测，避免未交互时触发远程请求 | Disable auto connection probing on transcription first screen to avoid remote calls before user interaction
+    autoConnectionProbeEnabled: false,
     embeddingSearchService,
   });
 

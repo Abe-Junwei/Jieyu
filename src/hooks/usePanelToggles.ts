@@ -23,7 +23,7 @@ function readPersistedHubHeight(): number {
 }
 
 export function usePanelToggles() {
-  const [isAiPanelCollapsed, setIsAiPanelCollapsed] = useState(false);
+  const [isAiPanelCollapsed, setIsAiPanelCollapsed] = useState(true);
   const [aiPanelWidth, setAiPanelWidth] = useState(AI_PANEL_DEFAULT_WIDTH);
   const [isHubCollapsed, setIsHubCollapsed] = useState(false);
   const [hubHeight, setHubHeight] = useState(readPersistedHubHeight);

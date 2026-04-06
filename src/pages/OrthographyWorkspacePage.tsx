@@ -8,6 +8,7 @@ import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { OrthographyDocType } from '../db';
 import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
+import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
 import { getOrthographyBuilderMessages } from '../i18n/orthographyBuilderMessages';
 import { OrthographyWorkspaceEditor } from './OrthographyWorkspaceEditor';
@@ -42,7 +43,17 @@ export function OrthographyWorkspacePage() {
   const [draft, setDraft] = useState<OrthographyDraft | null>(null);
   const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>({ languageName: '', languageCode: '' });
   const deferredSearchText = useDeferredValue(searchText);
-  const { resolveLanguageCode, resolveLabel, resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale);
+  const { projectLanguageIds } = useProjectLanguageIds();
+  // 默认仅显示项目语言的正字法（有项目语言时） | Default to project-only when project has languages
+  const [projectOnly, setProjectOnly] = useState(true);
+  const orthographyLanguageIds = useMemo(() => Array.from(new Set(
+    orthographies
+      .map((orthography) => orthography.languageId?.trim().toLowerCase())
+      .filter((languageId): languageId is string => Boolean(languageId)),
+  )), [orthographies]);
+  const { resolveLanguageCode, resolveLabel, resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale, {
+    languageIds: orthographyLanguageIds,
+  });
 
   // M3: 正字法数据不依赖 locale，移除多余的重取触发 | Orthography data is locale-independent; remove unnecessary refetch trigger
   useEffect(() => {
@@ -73,9 +84,20 @@ export function OrthographyWorkspacePage() {
 
   const normalizedSearchText = deferredSearchText.trim().toLowerCase();
   const filteredOrthographies = useMemo(() => {
-    if (!normalizedSearchText) return orthographies;
-    return orthographies.filter((orthography) => buildSearchText(orthography, resolveLabel(orthography.languageId)).includes(normalizedSearchText));
-  }, [normalizedSearchText, orthographies, resolveLabel]);
+    // 先按项目语言过滤，再按搜索文字过滤 | Filter by project languages first, then by search text
+    const projectIdSet = projectOnly && projectLanguageIds.length > 0 ? new Set(projectLanguageIds) : null;
+    let result = orthographies;
+    if (projectIdSet) {
+      result = result.filter((orthography) => {
+        const languageId = orthography.languageId?.trim().toLowerCase();
+        return languageId ? projectIdSet.has(languageId) : false;
+      });
+    }
+    if (normalizedSearchText) {
+      result = result.filter((orthography) => buildSearchText(orthography, resolveLabel(orthography.languageId)).includes(normalizedSearchText));
+    }
+    return result;
+  }, [normalizedSearchText, orthographies, projectLanguageIds, projectOnly, resolveLabel]);
 
   const selectedOrthographyId = searchParams.get(ORTHOGRAPHY_ID_PARAM) ?? '';
   const selectedOrthography = orthographies.find((orthography) => orthography.id === selectedOrthographyId) ?? null;
@@ -462,6 +484,12 @@ export function OrthographyWorkspacePage() {
             placeholder={t(locale, 'workspace.orthography.searchPlaceholder')}
             aria-label={t(locale, 'workspace.orthography.searchPlaceholder')}
           />
+          {projectLanguageIds.length > 0 ? (
+            <div className="orthography-workspace-filter-toggle" role="radiogroup" aria-label={t(locale, 'workspace.orthography.filterProjectOnly')}>
+              <button type="button" role="radio" aria-checked={projectOnly} className={`btn${projectOnly ? ' btn-active' : ''}`} onClick={() => setProjectOnly(true)}>{t(locale, 'workspace.orthography.filterProjectOnly')}</button>
+              <button type="button" role="radio" aria-checked={!projectOnly} className={`btn${!projectOnly ? ' btn-active' : ''}`} onClick={() => setProjectOnly(false)}>{t(locale, 'workspace.orthography.filterShowAll')}</button>
+            </div>
+          ) : null}
 
           {loading ? <p className="orthography-workspace-state">{t(locale, 'workspace.orthography.loading')}</p> : null}
           {!loading && error ? <p className="orthography-workspace-state orthography-workspace-state-error">{t(locale, 'workspace.orthography.errorPrefix').replace('{message}', error)}</p> : null}

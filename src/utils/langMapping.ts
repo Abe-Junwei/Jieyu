@@ -436,7 +436,10 @@ const MACROLANGUAGE_BY_CODE: Readonly<Record<string, string>> = (() => {
   return map;
 })();
 
-const LANGUAGE_CATALOG_BY_CODE: Readonly<Record<string, LanguageCatalogEntry>> = (() => {
+// 延迟构建语言目录映射，避免模块加载时同步遍历 7867 条 × readLanguageCatalogRuntimeCache | Lazy-init to avoid O(n²) blocking on module load
+let _languageCatalogByCode: Readonly<Record<string, LanguageCatalogEntry>> | undefined;
+function getLanguageCatalogByCode(): Readonly<Record<string, LanguageCatalogEntry>> {
+  if (_languageCatalogByCode) return _languageCatalogByCode;
   const map: Record<string, LanguageCatalogEntry> = {};
   for (const entry of iso6393) {
     const code = entry.iso6393.toLowerCase();
@@ -469,8 +472,9 @@ const LANGUAGE_CATALOG_BY_CODE: Readonly<Record<string, LanguageCatalogEntry>> =
       ...(MACROLANGUAGE_BY_CODE[code] ? { macrolanguage: MACROLANGUAGE_BY_CODE[code] } : {}),
     };
   }
-  return map;
-})();
+  _languageCatalogByCode = map;
+  return _languageCatalogByCode;
+}
 
 function resolveRuntimeLanguageCode(query: string | undefined): string | undefined {
   const normalizedQuery = normalizeLanguageCatalogRuntimeLookupKey(query);
@@ -508,7 +512,7 @@ function buildRuntimeLanguageCatalogEntries(includeHidden = false): LanguageCata
         return null;
       }
 
-      const baseEntry = LANGUAGE_CATALOG_BY_CODE[resolvedCode];
+      const baseEntry = getLanguageCatalogByCode()[resolvedCode];
       const descriptions = dedupeLanguageLabels([
         runtimeEntry.english,
         runtimeEntry.native,
@@ -541,8 +545,33 @@ function buildRuntimeLanguageCatalogEntries(includeHidden = false): LanguageCata
     .filter((entry): entry is LanguageCatalogEntry => Boolean(entry));
 }
 
+function buildLanguageCatalogRuntimeSignature(): string {
+  const runtimeCache = readLanguageCatalogRuntimeCache();
+  return [
+    runtimeCache.updatedAt,
+    Object.keys(runtimeCache.entries).length,
+    Object.keys(runtimeCache.aliasToId).length,
+    Object.keys(runtimeCache.lookupToId).length,
+  ].join('|');
+}
+
+let _visibleMergedLanguageCatalogCache:
+  | { signature: string; value: Readonly<Record<string, LanguageCatalogEntry>> }
+  | undefined;
+let _allMergedLanguageCatalogCache:
+  | { signature: string; value: Readonly<Record<string, LanguageCatalogEntry>> }
+  | undefined;
+
 function getMergedLanguageCatalogByCode(includeHidden = false): Readonly<Record<string, LanguageCatalogEntry>> {
-  const merged: Record<string, LanguageCatalogEntry> = { ...LANGUAGE_CATALOG_BY_CODE };
+  const signature = buildLanguageCatalogRuntimeSignature();
+  if (!includeHidden && _visibleMergedLanguageCatalogCache?.signature === signature) {
+    return _visibleMergedLanguageCatalogCache.value;
+  }
+  if (includeHidden && _allMergedLanguageCatalogCache?.signature === signature) {
+    return _allMergedLanguageCatalogCache.value;
+  }
+
+  const merged: Record<string, LanguageCatalogEntry> = { ...getLanguageCatalogByCode() };
   const runtimeEntries = buildRuntimeLanguageCatalogEntries(true);
   const cache = readLanguageCatalogRuntimeCache();
 
@@ -555,6 +584,12 @@ function getMergedLanguageCatalogByCode(includeHidden = false): Readonly<Record<
     }
     merged[entry.iso6393] = entry;
   });
+
+  if (includeHidden) {
+    _allMergedLanguageCatalogCache = { signature, value: merged };
+  } else {
+    _visibleMergedLanguageCatalogCache = { signature, value: merged };
+  }
 
   return merged;
 }
@@ -756,6 +791,114 @@ function buildWarningsForEntry(entry: LanguageCatalogEntry, locale: LanguageSear
   ].filter((warning): warning is string => typeof warning === 'string' && warning.length > 0);
 }
 
+type IndexedLanguageSearchTerm = {
+  label: string;
+  normalizedLabel: string;
+  kind: LanguageCatalogMatchedLabelKind;
+};
+
+type IndexedLanguageSearchEntry = {
+  entry: LanguageCatalogEntry;
+  searchTerms: IndexedLanguageSearchTerm[];
+};
+
+const SEARCH_LANGUAGE_INDEX_CACHE = new Map<string, IndexedLanguageSearchEntry[]>();
+const SEARCH_LANGUAGE_RESULT_CACHE = new Map<string, LanguageCatalogMatch[]>();
+const SEARCH_LANGUAGE_CACHE_LIMIT = 240;
+let SEARCH_LANGUAGE_CACHE_SIGNATURE = '';
+
+function trimSearchCache<T>(cache: Map<string, T>, maxSize: number): void {
+  while (cache.size > maxSize) {
+    const firstKey = cache.keys().next().value;
+    if (!firstKey) {
+      return;
+    }
+    cache.delete(firstKey);
+  }
+}
+
+function ensureSearchCacheFresh(): string {
+  const signature = buildLanguageCatalogRuntimeSignature();
+  if (signature !== SEARCH_LANGUAGE_CACHE_SIGNATURE) {
+    SEARCH_LANGUAGE_CACHE_SIGNATURE = signature;
+    SEARCH_LANGUAGE_INDEX_CACHE.clear();
+    SEARCH_LANGUAGE_RESULT_CACHE.clear();
+  }
+  return signature;
+}
+
+function buildIndexedLanguageSearchTerms(
+  entry: LanguageCatalogEntry,
+  locale: LanguageSearchLocale,
+  localDisplayName: string,
+  nativeDisplayName: string | undefined,
+): IndexedLanguageSearchTerm[] {
+  const localeQueryEntries = getLanguageQueryEntriesFromCatalog(entry.iso6393, locale);
+  const rawTerms: IndexedLanguageSearchTerm[] = [
+    ...entry.aliases.map((label) => ({ label, normalizedLabel: normalizeLanguageLabelKey(label), kind: 'alias' as const })),
+    ...localeQueryEntries.map((entryLabel) => ({
+      label: entryLabel.label,
+      normalizedLabel: normalizeLanguageLabelKey(entryLabel.label),
+      kind: entryLabel.kind,
+    })),
+    { label: localDisplayName, normalizedLabel: normalizeLanguageLabelKey(localDisplayName), kind: 'local' as const },
+    ...(nativeDisplayName
+      ? [{ label: nativeDisplayName, normalizedLabel: normalizeLanguageLabelKey(nativeDisplayName), kind: 'native' as const }]
+      : []),
+    ...entry.descriptions.map((label) => ({ label, normalizedLabel: normalizeLanguageLabelKey(label), kind: 'english' as const })),
+    { label: entry.iso6393, normalizedLabel: entry.iso6393, kind: 'code' as const },
+    ...(entry.iso6391 ? [{ label: entry.iso6391, normalizedLabel: entry.iso6391, kind: 'code' as const }] : []),
+    ...(entry.iso6392B ? [{ label: entry.iso6392B, normalizedLabel: entry.iso6392B, kind: 'code' as const }] : []),
+    ...(entry.iso6392T ? [{ label: entry.iso6392T, normalizedLabel: entry.iso6392T, kind: 'code' as const }] : []),
+  ];
+
+  const dedupedTerms: IndexedLanguageSearchTerm[] = [];
+  const seen = new Set<string>();
+  rawTerms.forEach((term) => {
+    if (!term.normalizedLabel) {
+      return;
+    }
+    const dedupeKey = `${term.kind}::${term.normalizedLabel}`;
+    if (seen.has(dedupeKey)) {
+      return;
+    }
+    seen.add(dedupeKey);
+    dedupedTerms.push(term);
+  });
+  return dedupedTerms;
+}
+
+function getIndexedLanguageSearchEntries(locale: LanguageSearchLocale): IndexedLanguageSearchEntry[] {
+  const signature = ensureSearchCacheFresh();
+  const cacheKey = `${locale}::${signature}`;
+  const cached = SEARCH_LANGUAGE_INDEX_CACHE.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const entries = Object.values(getMergedLanguageCatalogByCode()).map((entry) => {
+    const localDisplayName = getLocaleDisplayName(entry, locale);
+    const nativeDisplayName = getNativeDisplayName(entry);
+    return {
+      entry,
+      searchTerms: buildIndexedLanguageSearchTerms(entry, locale, localDisplayName, nativeDisplayName),
+    };
+  });
+
+  SEARCH_LANGUAGE_INDEX_CACHE.set(cacheKey, entries);
+  trimSearchCache(SEARCH_LANGUAGE_INDEX_CACHE, 8);
+  return entries;
+}
+
+function buildLanguageSearchCacheKey(
+  normalizedQuery: string,
+  locale: LanguageSearchLocale,
+  maxResults: number,
+): string {
+  const signature = ensureSearchCacheFresh();
+  return `${signature}::${locale}::${maxResults}::${normalizedQuery}`;
+}
+
 function resolveAnyLanguageCode(input: string): { languageId?: string; matchSource?: LanguageCatalogMatchSource } {
   const normalized = input.trim().toLowerCase();
   if (!normalized) return {};
@@ -873,7 +1016,12 @@ export function sanitizeLanguageCodeInput(input: string): string {
 }
 
 export function isDeferredLanguageCodeDraft(input: string): boolean {
-  return /^[a-z]{2}$/.test(input.trim().toLowerCase());
+  const trimmed = input.trim().toLowerCase();
+  // 1-2 字母主子标签仍处于输入中 | 1-2 letter primary subtags are still in-progress drafts
+  if (/^[a-z]{1,2}$/.test(trimmed)) return true;
+  // 以连字符结尾 或 连字符后末段仅 1 个字符 → BCP 47 标签仍在输入中 | trailing hyphen or single-char final subtag → still typing a BCP 47 tag
+  if (/[-]$|[-][a-z0-9]$/i.test(trimmed)) return true;
+  return false;
 }
 
 export function searchLanguageCatalog(
@@ -881,10 +1029,17 @@ export function searchLanguageCatalog(
   locale: LanguageSearchLocale = 'zh-CN',
   maxResults = 8,
 ): LanguageCatalogMatch[] {
+  ensureSearchCacheFresh();
   const catalogByCode = getMergedLanguageCatalogByCode();
   const normalized = query.trim().toLowerCase();
+  const searchCacheKey = buildLanguageSearchCacheKey(normalized, locale, maxResults);
+  const cachedMatches = SEARCH_LANGUAGE_RESULT_CACHE.get(searchCacheKey);
+  if (cachedMatches) {
+    return cachedMatches;
+  }
+
   if (!normalized) {
-    return COMMON_LANGUAGE_INPUT_CODES
+    const defaultMatches = COMMON_LANGUAGE_INPUT_CODES
       .map((code, index) => catalogByCode[code])
       .filter((entry): entry is LanguageCatalogEntry => Boolean(entry))
       .map((entry, index) => ({
@@ -895,11 +1050,14 @@ export function searchLanguageCatalog(
         matchedLabelKind: 'local' as const,
         warnings: buildWarningsForEntry(entry, locale),
       }));
+    SEARCH_LANGUAGE_RESULT_CACHE.set(searchCacheKey, defaultMatches);
+    trimSearchCache(SEARCH_LANGUAGE_RESULT_CACHE, SEARCH_LANGUAGE_CACHE_LIMIT);
+    return defaultMatches;
   }
 
   const preset = AMBIGUOUS_QUERY_PRESETS[normalized];
   if (preset) {
-    return preset
+    const presetMatches = preset
       .map((code, index) => catalogByCode[code])
       .filter((entry): entry is LanguageCatalogEntry => Boolean(entry))
       .map((entry, index) => ({
@@ -910,20 +1068,23 @@ export function searchLanguageCatalog(
         matchedLabelKind: 'local' as const,
         warnings: buildWarningsForEntry(entry, locale),
       }));
+    SEARCH_LANGUAGE_RESULT_CACHE.set(searchCacheKey, presetMatches);
+    trimSearchCache(SEARCH_LANGUAGE_RESULT_CACHE, SEARCH_LANGUAGE_CACHE_LIMIT);
+    return presetMatches;
   }
 
-  const matches = Object.values(catalogByCode)
-    .map((entry): LanguageCatalogMatch | null => {
+  const matches = getIndexedLanguageSearchEntries(locale)
+    .map((indexedEntry): LanguageCatalogMatch | null => {
+      const { entry, searchTerms } = indexedEntry;
       let score = 0;
       let matchSource: LanguageCatalogMatchSource | null = null;
       let matchedLabel = '';
       let matchedLabelKind: LanguageCatalogMatchedLabelKind = 'english';
 
-      const englishDisplayName = getEnglishDisplayName(entry);
-      const localDisplayName = getLocaleDisplayName(entry, locale);
-      const nativeDisplayName = getNativeDisplayName(entry);
-      const localeQueryEntries = getLanguageQueryEntriesFromCatalog(entry.iso6393, locale);
-      const exactLocaleQueryEntry = localeQueryEntries.find((entryLabel) => normalizeLanguageLabelKey(entryLabel.label) === normalized);
+      const exactAliasTerm = searchTerms.find((term) => term.kind === 'alias' && term.normalizedLabel === normalized);
+      const exactLocalTerm = searchTerms.find((term) => term.kind === 'local' && term.normalizedLabel === normalized);
+      const exactNativeTerm = searchTerms.find((term) => term.kind === 'native' && term.normalizedLabel === normalized);
+      const exactEnglishTerm = searchTerms.find((term) => term.kind === 'english' && term.normalizedLabel === normalized);
 
       if (entry.iso6393 === normalized) {
         score = 100;
@@ -940,63 +1101,29 @@ export function searchLanguageCatalog(
         matchSource = 'iso6392-exact';
         matchedLabel = entry.iso6392B === normalized ? entry.iso6392B : entry.iso6392T ?? normalized;
         matchedLabelKind = 'code';
-      } else if (entry.aliases.some((alias) => alias.toLowerCase() === normalized)) {
+      } else if (exactAliasTerm) {
         score = 94;
         matchSource = 'alias-exact';
-        matchedLabel = entry.aliases.find((alias) => alias.toLowerCase() === normalized) ?? normalized;
+        matchedLabel = exactAliasTerm.label;
         matchedLabelKind = 'alias';
-      } else if (exactLocaleQueryEntry?.kind === 'alias') {
-        score = 94;
-        matchSource = 'alias-exact';
-        matchedLabel = exactLocaleQueryEntry.label;
-        matchedLabelKind = 'alias';
-      } else if (exactLocaleQueryEntry?.kind === 'local') {
+      } else if (exactLocalTerm) {
         score = 92;
         matchSource = 'name-exact';
-        matchedLabel = exactLocaleQueryEntry.label;
+        matchedLabel = exactLocalTerm.label;
         matchedLabelKind = 'local';
-      } else if (exactLocaleQueryEntry?.kind === 'native') {
+      } else if (exactNativeTerm) {
         score = 91;
         matchSource = 'name-exact';
-        matchedLabel = exactLocaleQueryEntry.label;
+        matchedLabel = exactNativeTerm.label;
         matchedLabelKind = 'native';
-      } else if (exactLocaleQueryEntry?.kind === 'english') {
+      } else if (exactEnglishTerm) {
         score = 90;
         matchSource = 'name-exact';
-        matchedLabel = exactLocaleQueryEntry.label;
-        matchedLabelKind = 'english';
-      } else if (normalizeLanguageLabelKey(localDisplayName) === normalized) {
-        score = 92;
-        matchSource = 'name-exact';
-        matchedLabel = localDisplayName;
-        matchedLabelKind = 'local';
-      } else if (nativeDisplayName && normalizeLanguageLabelKey(nativeDisplayName) === normalized) {
-        score = 91;
-        matchSource = 'name-exact';
-        matchedLabel = nativeDisplayName;
-        matchedLabelKind = 'native';
-      } else if (entry.descriptions.some((description) => description.trim().toLowerCase() === normalized)) {
-        score = 90;
-        matchSource = 'name-exact';
-        matchedLabel = entry.descriptions.find((description) => description.trim().toLowerCase() === normalized)?.trim() ?? englishDisplayName;
+        matchedLabel = exactEnglishTerm.label;
         matchedLabelKind = 'english';
       } else {
-        const searchTerms = [
-          ...entry.aliases.map((label) => ({ label, kind: 'alias' as const })),
-          ...localeQueryEntries.map((entryLabel) => ({ label: entryLabel.label, kind: entryLabel.kind })),
-          { label: localDisplayName, kind: 'local' as const },
-          ...(nativeDisplayName ? [{ label: nativeDisplayName, kind: 'native' as const }] : []),
-          ...entry.descriptions.map((label) => ({ label, kind: 'english' as const })),
-          { label: entry.iso6393, kind: 'code' as const },
-          ...(entry.iso6391 ? [{ label: entry.iso6391, kind: 'code' as const }] : []),
-          ...(entry.iso6392B ? [{ label: entry.iso6392B, kind: 'code' as const }] : []),
-          ...(entry.iso6392T ? [{ label: entry.iso6392T, kind: 'code' as const }] : []),
-        ].filter((term, index, terms) => terms.findIndex(
-          (candidate) => normalizeLanguageLabelKey(candidate.label) === normalizeLanguageLabelKey(term.label) && candidate.kind === term.kind,
-        ) === index);
-
-        const prefixHit = searchTerms.find((term) => normalizeLanguageLabelKey(term.label).startsWith(normalized));
-        const containsHit = searchTerms.find((term) => normalized.length >= 2 && normalizeLanguageLabelKey(term.label).includes(normalized));
+        const prefixHit = searchTerms.find((term) => term.normalizedLabel.startsWith(normalized));
+        const containsHit = searchTerms.find((term) => normalized.length >= 2 && term.normalizedLabel.includes(normalized));
 
         if (prefixHit) {
           score = 76;
@@ -1027,7 +1154,10 @@ export function searchLanguageCatalog(
       return rankLanguageCatalogEntry(left.entry) - rankLanguageCatalogEntry(right.entry);
     });
 
-  return matches.slice(0, maxResults);
+  const finalMatches = matches.slice(0, maxResults);
+  SEARCH_LANGUAGE_RESULT_CACHE.set(searchCacheKey, finalMatches);
+  trimSearchCache(SEARCH_LANGUAGE_RESULT_CACHE, SEARCH_LANGUAGE_CACHE_LIMIT);
+  return finalMatches;
 }
 
 export function resolveLanguageCodeInput(

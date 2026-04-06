@@ -1,0 +1,483 @@
+{
+  "generatedAt": "2026-04-06T06:40:06.037Z",
+  "baseLanguageCount": 500,
+  "expandedLanguageCount": 699,
+  "addedLanguageCount": 199,
+  "omniglotScriptRowCount": 46,
+  "wwsScriptCount": 293,
+  "resolvedOmniglotScriptCodeCount": 44,
+  "unresolvedOmniglotLanguageCount": 77,
+  "unresolvedOmniglotScriptCount": 1,
+  "scriptsInWwsNotInOmniglotResolved": [
+    "Adlm",
+    "Afak",
+    "Aghb",
+    "Ahom",
+    "Armi",
+    "Avst",
+    "Bali",
+    "Bamu",
+    "Bass",
+    "Batk",
+    "Beng",
+    "Bhks",
+    "Blis",
+    "Bopo",
+    "Brah",
+    "Brai",
+    "Buhd",
+    "Cakm",
+    "Cari",
+    "Cham",
+    "Cher",
+    "Cirt",
+    "Cpmn",
+    "Cprt",
+    "Diak",
+    "Dogr",
+    "Dsrt",
+    "Dupl",
+    "Egyd",
+    "Egyh",
+    "Egyp",
+    "Elba",
+    "Elym",
+    "Glag",
+    "Gong",
+    "Gonm",
+    "Goth",
+    "Gran",
+    "Hano",
+    "Hatr",
+    "Hira",
+    "Hluw",
+    "Hmng",
+    "Hmnp",
+    "Hung",
+    "Ital",
+    "Jurc",
+    "Kali",
+    "Kana",
+    "Khoj",
+    "Kitl",
+    "Kits",
+    "Kpel",
+    "Lana",
+    "Latn",
+    "Leke",
+    "Lepc",
+    "Limb",
+    "Lina",
+    "Linb",
+    "Loma",
+    "Lyci",
+    "Lydi",
+    "Mahj",
+    "Maka",
+    "Mand",
+    "Mani",
+    "Marc",
+    "Maya",
+    "Medf",
+    "Mend",
+    "Merc",
+    "Mero",
+    "Modi",
+    "Moon",
+    "Mroo",
+    "Mtei",
+    "Mult",
+    "Nand",
+    "Narb",
+    "Nbat",
+    "Newa",
+    "Nkdb",
+    "Nkgb",
+    "Nshu",
+    "Olck",
+    "Orkh",
+    "Osge",
+    "Osma",
+    "Ougr",
+    "Palm",
+    "Pauc",
+    "Pelm",
+    "Perm",
+    "Phli",
+    "Phlp",
+    "Phlv",
+    "Phnx",
+    "Piqd",
+    "Prti",
+    "Psin",
+    "Qaab",
+    "Qaag",
+    "Qaaj",
+    "Qaaq",
+    "Qaau",
+    "Qaaw",
+    "Qaaz",
+    "Qabb",
+    "Qabg",
+    "Qabh",
+    "Qabn",
+    "Qabq",
+    "Qabr",
+    "Rjng",
+    "Rohg",
+    "Roro",
+    "Samr",
+    "Sarb",
+    "Saur",
+    "Shaw",
+    "Shui",
+    "Sidd",
+    "Sind",
+    "Sinh",
+    "Sogd",
+    "Sogo",
+    "Sora",
+    "Sund",
+    "Sylo",
+    "Tagb",
+    "Tale",
+    "Talu",
+    "Tang",
+    "Teng",
+    "Thaa",
+    "Tirh",
+    "Tnsa",
+    "Toto",
+    "Ugar",
+    "Vaii",
+    "Visp",
+    "Vith",
+    "Wara",
+    "Wcho",
+    "Wole",
+    "Xpeo",
+    "Yezi",
+    "Yiii",
+    "Zanb"
+  ],
+  "scriptsInOmniglotNotInWwsResolved": [
+    "Jpan",
+    "Nkoo"
+  ],
+  "unresolvedLanguages": [
+    {
+      "name": "Bosnian",
+      "occurrences": 2
+    },
+    {
+      "name": "Lezgi",
+      "occurrences": 2
+    },
+    {
+      "name": "Bhumij",
+      "occurrences": 2
+    },
+    {
+      "name": "Tamang",
+      "occurrences": 2
+    },
+    {
+      "name": "Aramaic",
+      "occurrences": 2
+    },
+    {
+      "name": "Adamaua Fulfulde",
+      "occurrences": 1
+    },
+    {
+      "name": "Arwi",
+      "occurrences": 1
+    },
+    {
+      "name": "Comorian",
+      "occurrences": 1
+    },
+    {
+      "name": "Gawar Bati",
+      "occurrences": 1
+    },
+    {
+      "name": "Hindko",
+      "occurrences": 1
+    },
+    {
+      "name": "Lop",
+      "occurrences": 1
+    },
+    {
+      "name": "Mazandarani",
+      "occurrences": 1
+    },
+    {
+      "name": "Morisco",
+      "occurrences": 1
+    },
+    {
+      "name": "Urdu",
+      "occurrences": 1
+    },
+    {
+      "name": "Xiao'erjing",
+      "occurrences": 1
+    },
+    {
+      "name": "Armeno-Turkish",
+      "occurrences": 1
+    },
+    {
+      "name": "Palaung",
+      "occurrences": 1
+    },
+    {
+      "name": "Inuinnaqtun",
+      "occurrences": 1
+    },
+    {
+      "name": "Old Persian Cuneiform",
+      "occurrences": 1
+    },
+    {
+      "name": "Altay",
+      "occurrences": 1
+    },
+    {
+      "name": "Balkar",
+      "occurrences": 1
+    },
+    {
+      "name": "Baraba Tatar",
+      "occurrences": 1
+    },
+    {
+      "name": "Besermyan",
+      "occurrences": 1
+    },
+    {
+      "name": "Chelkan",
+      "occurrences": 1
+    },
+    {
+      "name": "Enets",
+      "occurrences": 1
+    },
+    {
+      "name": "Kalderash Romani",
+      "occurrences": 1
+    },
+    {
+      "name": "Kili",
+      "occurrences": 1
+    },
+    {
+      "name": "Kumandy",
+      "occurrences": 1
+    },
+    {
+      "name": "Ossetian",
+      "occurrences": 1
+    },
+    {
+      "name": "Rushani",
+      "occurrences": 1
+    },
+    {
+      "name": "Rutul",
+      "occurrences": 1
+    },
+    {
+      "name": "Slovio",
+      "occurrences": 1
+    },
+    {
+      "name": "Soyot",
+      "occurrences": 1
+    },
+    {
+      "name": "Teleut",
+      "occurrences": 1
+    },
+    {
+      "name": "Tsudaqar",
+      "occurrences": 1
+    },
+    {
+      "name": "West Polesian",
+      "occurrences": 1
+    },
+    {
+      "name": "Yukaghir (Northern / Tundra)",
+      "occurrences": 1
+    },
+    {
+      "name": "Yukaghir (Southern / Kolyma)",
+      "occurrences": 1
+    },
+    {
+      "name": "Yupik (Central Siberian)",
+      "occurrences": 1
+    },
+    {
+      "name": "Chhantyal",
+      "occurrences": 1
+    },
+    {
+      "name": "Hill Miri",
+      "occurrences": 1
+    },
+    {
+      "name": "Hindi",
+      "occurrences": 1
+    },
+    {
+      "name": "Jumli",
+      "occurrences": 1
+    },
+    {
+      "name": "Kham",
+      "occurrences": 1
+    },
+    {
+      "name": "Khortha",
+      "occurrences": 1
+    },
+    {
+      "name": "Lhowa",
+      "occurrences": 1
+    },
+    {
+      "name": "Magar",
+      "occurrences": 1
+    },
+    {
+      "name": "Nancowry",
+      "occurrences": 1
+    },
+    {
+      "name": "Amharic",
+      "occurrences": 1
+    },
+    {
+      "name": "Chaha",
+      "occurrences": 1
+    },
+    {
+      "name": "Sidama",
+      "occurrences": 1
+    },
+    {
+      "name": "Cypriot Greek",
+      "occurrences": 1
+    },
+    {
+      "name": "Greek",
+      "occurrences": 1
+    },
+    {
+      "name": "Griko",
+      "occurrences": 1
+    },
+    {
+      "name": "Karamanli Turkish",
+      "occurrences": 1
+    },
+    {
+      "name": "Greek alphabet",
+      "occurrences": 1
+    },
+    {
+      "name": "Phrygia",
+      "occurrences": 1
+    },
+    {
+      "name": "Kutchi",
+      "occurrences": 1
+    },
+    {
+      "name": "Jewish Neo-Aramaic",
+      "occurrences": 1
+    },
+    {
+      "name": "Ladino",
+      "occurrences": 1
+    },
+    {
+      "name": "Amami",
+      "occurrences": 1
+    },
+    {
+      "name": "Tarama",
+      "occurrences": 1
+    },
+    {
+      "name": "Sankethi",
+      "occurrences": 1
+    },
+    {
+      "name": "Gandhari and Sanskrit",
+      "occurrences": 1
+    },
+    {
+      "name": "Mnong",
+      "occurrences": 1
+    },
+    {
+      "name": "TaʼOi",
+      "occurrences": 1
+    },
+    {
+      "name": "Makasarese",
+      "occurrences": 1
+    },
+    {
+      "name": "Alasha",
+      "occurrences": 1
+    },
+    {
+      "name": "Barin",
+      "occurrences": 1
+    },
+    {
+      "name": "Chakhar",
+      "occurrences": 1
+    },
+    {
+      "name": "Jarud",
+      "occurrences": 1
+    },
+    {
+      "name": "Khorchin",
+      "occurrences": 1
+    },
+    {
+      "name": "Germanic languages & Latin",
+      "occurrences": 1
+    },
+    {
+      "name": "Suriyani Malayalam",
+      "occurrences": 1
+    },
+    {
+      "name": "Simauri",
+      "occurrences": 1
+    },
+    {
+      "name": "Bokar",
+      "occurrences": 1
+    },
+    {
+      "name": "Chocha Ngacha",
+      "occurrences": 1
+    }
+  ],
+  "unresolvedScripts": [
+    {
+      "scriptName": "Eastern Neo-Brahmic)",
+      "occurrences": 1
+    }
+  ]
+}

@@ -26,6 +26,12 @@ function HookHarness() {
   );
 }
 
+function ScopedHookHarness() {
+  const { resolveLabel } = useLanguageCatalogLabelMap('zh-CN', { languageIds: ['eng', 'zho', 'eng'] });
+
+  return <div data-testid="scoped-label">{resolveLabel('eng')}</div>;
+}
+
 describe('useLanguageCatalogLabelMap', () => {
   beforeEach(() => {
     mockListLanguageCatalogEntries.mockReset();
@@ -62,5 +68,22 @@ describe('useLanguageCatalogLabelMap', () => {
     });
 
     expect(screen.getByTestId('cross-locale').textContent).toBe('English Override');
+  });
+
+  it('scopes catalog loading to the requested language ids when provided', async () => {
+    render(
+      <LocaleProvider locale="zh-CN">
+        <ScopedHookHarness />
+      </LocaleProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('scoped-label').textContent).toBe('英语资产标签');
+    });
+
+    expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith({
+      locale: 'zh-CN',
+      languageIds: ['eng', 'zho'],
+    });
   });
 });

@@ -82,6 +82,25 @@ describe('languageInputReducer', () => {
     expect(committed.status).toBe('selected');
   });
 
+  it('treats a one-letter code as in-progress and only marks invalid after blur', () => {
+    const initial = createLanguageInputModel({ languageName: '', languageCode: '' }, 'zh-CN');
+    const deferred = reduceLanguageInput(initial, { type: 'codeChanged', value: 'e' }, 'zh-CN');
+
+    expect(selectDisplayedLanguageInputValue(deferred)).toEqual({
+      languageName: '',
+      languageCode: 'e',
+    });
+    expect(selectCommittedLanguageInputValue(deferred)).toEqual({
+      languageName: '',
+      languageCode: '',
+    });
+    expect(deferred.status).toBe('deferred-code');
+
+    const blurred = reduceLanguageInput(deferred, { type: 'codeBlurred' }, 'zh-CN');
+    expect(blurred.status).toBe('invalid');
+    expect(blurred.draft.activeField).toBeNull();
+  });
+
   it('commits a clicked suggestion with canonical values', () => {
     const initial = createLanguageInputModel({ languageName: '', languageCode: '' }, 'en-US');
     const suggesting = reduceLanguageInput(initial, { type: 'nameChanged', value: 'Chinese' }, 'en-US');

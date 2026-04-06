@@ -739,11 +739,11 @@ export function OrthographyBuilderPanel({
       {picker.error && (
         compact
           ? (
-            <div className="layer-action-dialog-feedback-stack">
-              <p className="layer-action-dialog-feedback layer-action-dialog-feedback-error">{picker.error}</p>
+            <div className="panel-feedback-stack">
+              <p className="panel-feedback panel-feedback--error">{picker.error}</p>
             </div>
           )
-          : <p className="error">{picker.error}</p>
+          : <p className="panel-feedback panel-feedback--error">{picker.error}</p>
       )}
 
       {!hideActions && (

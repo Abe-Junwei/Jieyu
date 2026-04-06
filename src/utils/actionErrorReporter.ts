@@ -52,7 +52,9 @@ export function reportActionError(options: ActionErrorReporterOptions): { messag
     action: actionLabel,
     recoverable,
     ...(resolvedI18nKey !== undefined && { i18nKey: resolvedI18nKey }),
-    ...(error instanceof Error ? { detail: error.message } : { detail: String(error) }),
+    ...(error instanceof Error
+      ? { detail: error.message.replace(/(?:api.?key|token|password|secret|authorization)[=: ]+\S+/gi, '[REDACTED]') }
+      : { detail: String(error).replace(/(?:api.?key|token|password|secret|authorization)[=: ]+\S+/gi, '[REDACTED]') }),
   };
 
   recordStructuredError(meta);

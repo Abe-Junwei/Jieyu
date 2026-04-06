@@ -174,10 +174,16 @@ export async function executeConfirmedToolCall({
     return;
   }
 
+  const TOOL_EXEC_TIMEOUT_MS = 30_000;
   const execStart = performance.now();
   try {
     markExecutedRequestId(call.requestId);
-    const result = await onToolCall(call);
+    const result = await Promise.race([
+      onToolCall(call),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Tool execution timed out after ${TOOL_EXEC_TIMEOUT_MS}ms`)), TOOL_EXEC_TIMEOUT_MS),
+      ),
+    ]);
     const execDurationMs = Math.round(performance.now() - execStart);
 
     if (result.ok) {

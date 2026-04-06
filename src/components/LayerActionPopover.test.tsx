@@ -319,7 +319,7 @@ describe('LayerActionPopover orthography creation', () => {
     });
   });
 
-  it('shows an inline invalid language-code error while the user is typing an invalid value', async () => {
+  it('shows an inline invalid language-code error after the user finishes editing an invalid value', async () => {
     mockUseOrthographies.mockReturnValue([]);
 
     renderWithLocale(
@@ -333,9 +333,15 @@ describe('LayerActionPopover orthography creation', () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }), {
-      target: { value: 'bad!' },
+    const languageCodeInput = screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }) as HTMLInputElement;
+    fireEvent.focus(languageCodeInput);
+    fireEvent.change(languageCodeInput, {
+      target: { value: '0' },
     });
+
+    expect(screen.queryByText('请输入有效的 ISO 639 / BCP 47 语言代码。')).toBeNull();
+
+    fireEvent.focusOut(languageCodeInput);
 
     expect(screen.getByText('请输入有效的 ISO 639 / BCP 47 语言代码。')).toBeTruthy();
   });

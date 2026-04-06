@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-04-06T07:10:05.550Z",
+  "inputMain": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/public/data/language-support/top500-language-orthography-seeds.json",
+  "outputMain": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu/public/data/language-support/top500-language-orthography-seeds.json",
+  "actions": [
+    {
+      "action": "merge-retired-main",
+      "fromIso6393": "myq",
+      "toIso6393": "mnk",
+      "detail": "Removed myq entry from main seeds and merged unique seeds into mnk."
+    }
+  ],
+  "metrics": {
+    "languageCount": 697,
+    "myqPresent": false,
+    "mnkPresent": true,
+    "mnkLegacyAliases": [
+      "myq"
+    ],
+    "mnkScripts": [
+      "Latn",
+      "Arab",
+      "Nkoo"
+    ]
+  }
+}

@@ -85,14 +85,19 @@ import {
 } from './LinguisticService.orthography';
 import {
   deleteLanguageCatalogEntry,
+  deleteCustomFieldDefinition,
   getLanguageCatalogEntry,
+  listCustomFieldDefinitions,
   listLanguageCatalogEntries,
   listLanguageCatalogHistory,
+  lookupIso639_3Seed,
   refreshLanguageCatalogReadModel,
+  upsertCustomFieldDefinition,
   upsertLanguageCatalogEntry,
   type LanguageCatalogEntry,
   type UpsertLanguageCatalogEntryInput,
 } from './LinguisticService.languageCatalog';
+export type { Iso639_3Seed } from './LinguisticService.languageCatalog';
 
 export {
   type ConstraintSeverity,
@@ -933,6 +938,20 @@ export class LinguisticService {
     return doc.primary;
   }
 
+  // 查询项目中使用的不重复语言 ID（从层定义表提取） | Query distinct language IDs used in the project (from layer definitions)
+  static async listDistinctProjectLanguageIds(): Promise<string[]> {
+    const db = await getDb();
+    const docs = await db.collections.layers.find().exec();
+    const seen = new Set<string>();
+    docs.forEach((doc) => {
+      const languageId = doc.toJSON().languageId?.trim().toLowerCase();
+      if (languageId) {
+        seen.add(languageId);
+      }
+    });
+    return Array.from(seen).sort();
+  }
+
   static async getTranslationLayers(
     layerType?: LayerDocType['layerType'],
     textId?: string,
@@ -1369,6 +1388,7 @@ export class LinguisticService {
     locale: 'zh-CN' | 'en-US';
     searchText?: string;
     includeHidden?: boolean;
+    languageIds?: readonly string[];
   }): Promise<LanguageCatalogEntry[]> {
     return listLanguageCatalogEntries(input);
   }
@@ -1396,6 +1416,18 @@ export class LinguisticService {
     return listLanguageCatalogHistory(languageId);
   }
 
+  static async listCustomFieldDefinitions() {
+    return listCustomFieldDefinitions();
+  }
+
+  static async upsertCustomFieldDefinition(input: Parameters<typeof upsertCustomFieldDefinition>[0]) {
+    return upsertCustomFieldDefinition(input);
+  }
+
+  static async deleteCustomFieldDefinition(id: string) {
+    return deleteCustomFieldDefinition(id);
+  }
+
   static async refreshLanguageCatalogReadModel(): Promise<void> {
     return refreshLanguageCatalogReadModel();
   }
@@ -1416,6 +1448,13 @@ export class LinguisticService {
    */
   static resolveLanguageQuery(query: string): string | undefined {
     return resolveLanguageQueryImpl(query);
+  }
+
+  /**
+   * 同步查询 ISO 639-3 种子记录（用于前端即时预填充） | Synchronously look up ISO 639-3 seed record for instant pre-fill
+   */
+  static lookupIso639_3Seed(code: string) {
+    return lookupIso639_3Seed(code);
   }
 
   static async deleteOrthographyBridge(id: string): Promise<void> {

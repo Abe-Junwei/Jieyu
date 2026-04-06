@@ -16,6 +16,7 @@ import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 import { DialogShell } from './ui/DialogShell';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { buildLanguageInputSeed, getDisplayedLanguageInputLabel, normalizeLanguageInputCode } from '../utils/languageInputHostState';
+import { focusFirstInvalidLanguageCodeInput } from '../utils/focusInvalidLanguageInput';
 
 type ProjectSetupDialogProps = {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
   const [orthographyId, setOrthographyId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [languageInputError, setLanguageInputError] = useState('');
 
   const effectiveLang = normalizeLanguageInputCode(languageInput);
   const displayedLanguage = getDisplayedLanguageInputLabel(languageInput);
@@ -48,13 +50,11 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
   const customLanguageError = effectiveLang && !isKnownIso639_3Code(effectiveLang)
     ? messages.invalidLanguageCode
     : '';
+  const resolvedLanguageError = customLanguageError || languageInputError;
   const orthographySelectionError = orthographyId && !orthographyPicker.isCreating && !selectedOrthography
     ? messages.invalidOrthographySelection
     : '';
   const canSubmit = primaryTitle.trim()
-    && effectiveLang
-    && !customLanguageError
-    && !orthographySelectionError
     && !submitting
     && !orthographyPicker.isCreating;
 
@@ -64,6 +64,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
     setLanguageInput(emptyLanguageInput);
     setOrthographyId('');
     setError('');
+    setLanguageInputError('');
     setSubmitting(false);
   };
 
@@ -74,10 +75,13 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
-    if (customLanguageError) {
-      setError(customLanguageError);
+    if (!effectiveLang || customLanguageError) {
+      setLanguageInputError(customLanguageError || messages.invalidLanguageCode);
+      setError('');
+      focusFirstInvalidLanguageCodeInput({ allowFallback: true });
       return;
     }
+    setLanguageInputError('');
     if (orthographySelectionError) {
       setError(orthographySelectionError);
       return;
@@ -206,11 +210,15 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
           </label>
 
           <div className="dialog-field">
-            <span>{messages.languageLabel} <em>*</em></span>
             <LanguageIsoInput
               locale={locale}
               value={languageInput}
-              onChange={setLanguageInput}
+              onChange={(nextValue) => {
+                setLanguageInput(nextValue);
+                if (languageInputError) {
+                  setLanguageInputError('');
+                }
+              }}
               resolveLanguageDisplayName={resolveLanguageDisplayName}
               nameLabel={messages.languageLabel}
               codeLabel={messages.languageCodeLabel}
@@ -218,7 +226,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
               codePlaceholder={messages.languageCodePlaceholder}
               required
               disabled={submitting}
-              error={customLanguageError}
+              error={resolvedLanguageError}
             />
           </div>
 
@@ -268,15 +276,15 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
               )}
 
               {orthographyPicker.error && (
-                <p className="error">{orthographyPicker.error}</p>
+                <p className="panel-feedback panel-feedback--error">{orthographyPicker.error}</p>
               )}
               {orthographySelectionError && (
-                <p className="error">{orthographySelectionError}</p>
+                <p className="panel-feedback panel-feedback--error">{orthographySelectionError}</p>
               )}
             </div>
           )}
 
-          {error && <p className="error">{error}</p>}
+          {error && <p className="panel-feedback panel-feedback--error">{error}</p>}
           </>
         )}
       </DialogShell>
