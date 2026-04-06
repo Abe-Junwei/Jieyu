@@ -34,10 +34,6 @@ export type VoiceActionToolName =
   | 'search_segments'
   // ── AI assistance ───────────────────────────────────────────────────────
   | 'auto_gloss_segment'
-  | 'auto_translate_segment'
-  | 'auto_segment'
-  | 'suggest_segment_improvement'
-  | 'analyze_segment_quality'
   // ── Context query ────────────────────────────────────────────────────────
   | 'get_current_segment'
   | 'get_project_summary'
@@ -318,10 +314,6 @@ export function toolToActionId(toolName: VoiceActionToolName, params: VoiceActio
 export function isAiTool(toolName: VoiceActionToolName): boolean {
   switch (toolName) {
     case 'auto_gloss_segment':
-    case 'auto_translate_segment':
-    case 'auto_segment':
-    case 'suggest_segment_improvement':
-    case 'analyze_segment_quality':
     case 'get_current_segment':
     case 'get_project_summary':
     case 'get_recent_history':

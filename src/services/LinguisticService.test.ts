@@ -1,8 +1,11 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getLanguageLocalDisplayNameFromCatalog } from '../data/languageNameCatalog';
+import { clearLanguageCatalogRuntimeCache } from '../data/languageCatalogRuntimeCache';
 import { db } from '../db';
 import type { AuditLogDocType, TierDefinitionDocType, TierAnnotationDocType } from '../db';
 import { LinguisticService, validateTierConstraints } from './LinguisticService';
+import { resolveLanguageQuery } from '../utils/langMapping';
 
 async function clearDatabase(): Promise<void> {
   await Promise.all([
@@ -44,6 +47,7 @@ describe('LinguisticService smoke tests', () => {
   beforeEach(async () => {
     await db.open();
     await clearDatabase();
+    clearLanguageCatalogRuntimeCache();
   });
 
   it('can create an orthography for the target language', async () => {
@@ -1907,6 +1911,26 @@ describe('LinguisticService smoke tests', () => {
       englishName: 'Conflict Language',
       aliases: ['Chinese'],
     })).rejects.toThrow('别名“Chinese”属于高频泛称');
+  });
+
+  it('rehydrates the runtime language read model from persisted catalog data', async () => {
+    await LinguisticService.upsertLanguageCatalogEntry({
+      id: 'user:demo-language',
+      languageCode: 'demo',
+      locale: 'zh-CN',
+      localName: '示例语言',
+      englishName: 'Demo Language',
+      aliases: ['示例别名'],
+    });
+
+    clearLanguageCatalogRuntimeCache();
+    expect(getLanguageLocalDisplayNameFromCatalog('demo', 'zh-CN')).toBeUndefined();
+    expect(resolveLanguageQuery('示例别名')).toBeUndefined();
+
+    await LinguisticService.refreshLanguageCatalogReadModel();
+
+    expect(getLanguageLocalDisplayNameFromCatalog('demo', 'zh-CN')).toBe('示例语言');
+    expect(resolveLanguageQuery('示例别名')).toBe('demo');
   });
 
   it('records detailed changed fields and reason in language catalog history', async () => {

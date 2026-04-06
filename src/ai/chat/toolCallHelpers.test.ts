@@ -153,14 +153,9 @@ describe('planToolCallTargets', () => {
     })).toBeNull();
   });
 
-  it.each([
-    'auto_gloss_segment',
-    'auto_translate_segment',
-    'suggest_segment_improvement',
-    'analyze_segment_quality',
-  ] as const)('accepts segmentId-only arguments for %s without reintroducing utteranceId validation', (name) => {
+  it('accepts segmentId-only arguments for auto_gloss_segment without reintroducing utteranceId validation', () => {
     expect(validateToolCallArguments({
-      name,
+      name: 'auto_gloss_segment',
       arguments: { segmentId: 'seg_real_007' },
     })).toBeNull();
   });

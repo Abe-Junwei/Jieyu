@@ -31,6 +31,7 @@ export type OrthographyBridgeManagerMessages = {
   setActive: string;
   edit: string;
   deleteRule: string;
+  deleteConfirm: string;
   saveRule: string;
   savingRule: string;
   cancelEdit: string;
@@ -75,6 +76,7 @@ const zhCN: OrthographyBridgeManagerMessages = {
   setActive: '\u8bbe\u4e3a\u542f\u7528',
   edit: '\u7f16\u8f91',
   deleteRule: '\u5220\u9664\u89c4\u5219',
+  deleteConfirm: '\u786e\u5b9a\u8981\u5220\u9664\u6b64\u6865\u63a5\u89c4\u5219\u5417\uff1f',
   saveRule: '\u4fdd\u5b58\u89c4\u5219',
   savingRule: '\u4fdd\u5b58\u4e2d...',
   cancelEdit: '\u53d6\u6d88\u7f16\u8f91',
@@ -119,6 +121,7 @@ const enUS: OrthographyBridgeManagerMessages = {
   setActive: 'Set as active',
   edit: 'Edit',
   deleteRule: 'Delete rule',
+  deleteConfirm: 'Are you sure you want to delete this bridge rule?',
   saveRule: 'Save rule',
   savingRule: 'Saving...',
   cancelEdit: 'Cancel editing',

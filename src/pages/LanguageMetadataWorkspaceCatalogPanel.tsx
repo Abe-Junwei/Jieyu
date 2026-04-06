@@ -1,7 +1,7 @@
 import { PanelSection } from '../components/ui/PanelSection';
 import { t } from '../i18n';
 import type { LanguageCatalogEntry } from '../services/LinguisticService';
-import type { WorkspaceLocale } from './languageMetadataWorkspace.shared';
+import { readEntryKindLabel, type WorkspaceLocale } from './languageMetadataWorkspace.shared';
 
 type LanguageMetadataWorkspaceCatalogPanelProps = {
   locale: WorkspaceLocale;
@@ -42,7 +42,7 @@ export function LanguageMetadataWorkspaceCatalogPanel({
           placeholder={t(locale, 'workspace.languageMetadata.searchPlaceholder')}
           aria-label={t(locale, 'workspace.languageMetadata.searchPlaceholder')}
         />
-        <button type="button" className="button secondary" onClick={onCreateCustom}>{t(locale, 'workspace.languageMetadata.createCustom')}</button>
+        <button type="button" className="btn btn-ghost" onClick={onCreateCustom}>{t(locale, 'workspace.languageMetadata.createCustom')}</button>
       </div>
 
       {loading ? <p className="language-metadata-workspace-state">{t(locale, 'workspace.languageMetadata.loading')}</p> : null}
@@ -57,12 +57,22 @@ export function LanguageMetadataWorkspaceCatalogPanel({
               key={entry.id}
               type="button"
               className={`language-metadata-workspace-list-item${active ? ' language-metadata-workspace-list-item-active' : ''}${entry.visibility === 'hidden' ? ' language-metadata-workspace-list-item-hidden' : ''}`}
+              aria-current={active ? 'true' : undefined}
               onClick={() => onSelectEntry(entry.id)}
             >
-              <span className="language-metadata-workspace-list-label">{entry.localName}</span>
+              <div className="language-metadata-workspace-list-heading">
+                <span className="language-metadata-workspace-list-label">{entry.localName}</span>
+                {entry.visibility === 'hidden' ? (
+                  <span className="language-metadata-workspace-chip language-metadata-workspace-chip-muted">
+                    {t(locale, 'workspace.languageMetadata.visibilityHidden')}
+                  </span>
+                ) : null}
+              </div>
+              <p className="language-metadata-workspace-list-description">{entry.englishName}</p>
               <span className="language-metadata-workspace-list-meta">
-                <span>{entry.englishName}</span>
-                <span>{entry.languageCode}</span>
+                <span className="language-metadata-workspace-chip">{entry.languageCode}</span>
+                <span className="language-metadata-workspace-chip language-metadata-workspace-chip-subtle">{readEntryKindLabel(locale, entry)}</span>
+                {entry.id !== entry.languageCode ? <span className="language-metadata-workspace-list-id">{entry.id}</span> : null}
               </span>
             </button>
           );

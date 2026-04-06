@@ -8,6 +8,7 @@ import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from './conte
 import { usePanelAutoCollapse } from './hooks/usePanelAutoCollapse';
 import { usePanelResize } from './hooks/usePanelResize';
 import { LOCALE_PREFERENCE_STORAGE_KEY, LocaleProvider, detectLocale, setStoredLocalePreference, t, type Locale } from './i18n';
+import { LinguisticService } from './services/LinguisticService';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const TranscriptionPage = lazy(() => import('./pages/TranscriptionPage').then(m => ({ default: m.TranscriptionPage })));
@@ -203,6 +204,15 @@ export function App() {
 
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  useEffect(() => {
+    if (typeof indexedDB === 'undefined') {
+      return;
+    }
+    void LinguisticService.refreshLanguageCatalogReadModel().catch(() => {
+      // 忽略启动期语言目录快照刷新失败，保留生成基线回退 | Ignore boot-time refresh failures and keep generated fallback behavior
+    });
   }, []);
 
   const navGroups = useMemo<NavGroup[]>(() => [

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, act } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType } from '../db';
 import { LocaleProvider } from '../i18n';
@@ -298,13 +298,13 @@ describe('LayerActionPopover orthography creation', () => {
       expect((screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value).toBe('orth_eng_default');
     });
 
-    // 绕过 React 受控组件的值追踪器 | Bypass React controlled input value tracker
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-    await act(async () => {
-      nativeInputValueSetter.call(languageCodeInput, 'jpn');
-      languageCodeInput.dispatchEvent(new Event('input', { bubbles: true }));
-      languageCodeInput.dispatchEvent(new Event('change', { bubbles: true }));
+    // 等待异步语言目录加载完成，避免 resolveLanguageDisplayName 引用变化覆盖用户输入
+    // Wait for async language catalog to settle so resolveLanguageDisplayName ref stabilises
+    await waitFor(() => {
+      expect(mockListLanguageCatalogEntries).toHaveBeenCalled();
     });
+
+    fireEvent.change(languageCodeInput, { target: { value: 'jpn' } });
 
     await waitFor(() => {
       expect((screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }) as HTMLInputElement).value).toBe('jpn');
@@ -390,6 +390,11 @@ describe('LayerActionPopover orthography creation', () => {
     await waitFor(() => {
       expect(languageCodeInput.value).toBe('eng');
       expect((screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value).toBe('orth_eng_default');
+    });
+
+    // 等待异步语言目录加载完成 | Wait for async language catalog to settle
+    await waitFor(() => {
+      expect(mockListLanguageCatalogEntries).toHaveBeenCalled();
     });
 
     fireEvent.change(languageCodeInput, { target: { value: 'jpn' } });

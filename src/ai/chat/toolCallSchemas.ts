@@ -193,7 +193,6 @@ const NoArgs = z.object({}).strict();
 const NAV_TARGET_SCHEMA = z.object({ segmentIndex: z.number().int().nonnegative() });
 const TIME_TARGET_SCHEMA = z.object({ timeSeconds: z.number().finite().nonnegative() });
 const SEGMENT_TARGET_SCHEMA = z.object({ segmentId: IdString });
-const START_TIME_SCHEMA = z.object({ startTime: z.number().finite().nonnegative().optional() });
 const SEARCH_SEGMENTS_SCHEMA = z.object({
   query: TextString,
   layers: z.array(z.enum(['transcription', 'translation', 'gloss'])).optional(),
@@ -234,7 +233,6 @@ export const toolArgumentSchemas = {
   mark_segment: OPTIONAL_SEGMENT_TARGET_SCHEMA,
   delete_segment: OPTIONAL_SEGMENT_TARGET_SCHEMA,
   auto_gloss_segment: SEGMENT_OR_UTTERANCE_TARGET_SCHEMA,
-  auto_translate_segment: SEGMENT_OR_UTTERANCE_TARGET_SCHEMA,
   nav_to_segment: NAV_TARGET_SCHEMA,
   nav_to_time: TIME_TARGET_SCHEMA,
   focus_segment: SEGMENT_TARGET_SCHEMA,
@@ -242,9 +240,6 @@ export const toolArgumentSchemas = {
   split_at_time: TIME_TARGET_SCHEMA,
   merge_prev: OPTIONAL_SEGMENT_TARGET_SCHEMA,
   merge_next: OPTIONAL_SEGMENT_TARGET_SCHEMA,
-  auto_segment: START_TIME_SCHEMA,
-  suggest_segment_improvement: SEGMENT_OR_UTTERANCE_TARGET_SCHEMA,
-  analyze_segment_quality: SEGMENT_OR_UTTERANCE_TARGET_SCHEMA,
   get_current_segment: NoArgs,
   get_project_summary: NoArgs,
   get_recent_history: NoArgs,

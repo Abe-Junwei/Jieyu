@@ -46,7 +46,7 @@ git add src/utils/langMapping.ts
 # 6) 基础与文档
 # git add db.ts package.json package-lock.json
 # git add docs/execution/
-# git add 参考/
+# git add docs/规划-* docs/调研-*
 # git commit -m "docs(chore): update schema/deps and add execution reports"
 
 echo "Done: first commit executed, remaining commit groups are prepared as uncomment-and-run blocks."

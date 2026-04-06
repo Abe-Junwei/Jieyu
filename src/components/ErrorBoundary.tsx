@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { detectLocale, t } from '../i18n';
+import { t, type Locale, useLocale } from '../i18n';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -7,7 +7,11 @@ interface ErrorBoundaryProps {
   fallback?: (error: Error, reset: () => void) => ReactNode;
 }
 
-export class ErrorBoundary extends Component<ErrorBoundaryProps, { error: Error | null }> {
+interface ErrorBoundaryImplProps extends ErrorBoundaryProps {
+  locale: Locale;
+}
+
+class ErrorBoundaryImpl extends Component<ErrorBoundaryImplProps, { error: Error | null }> {
   override state: { error: Error | null } = { error: null };
 
   static getDerivedStateFromError(error: Error) {
@@ -22,6 +26,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, { error: Error 
 
   override render() {
     const { error } = this.state;
+    const { locale } = this.props;
 
     if (error) {
       if (this.props.fallback) {
@@ -29,18 +34,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, { error: Error 
       }
       return (
         <section className="panel" style={{ padding: '2rem' }}>
-          <h2>{t(detectLocale(), 'app.errorBoundary.title')}</h2>
+          <h2>{t(locale, 'app.errorBoundary.title')}</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{error.message}</p>
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <button className="btn" onClick={this.reset}>
-              {t(detectLocale(), 'app.errorBoundary.retry')}
+              {t(locale, 'app.errorBoundary.retry')}
             </button>
             <button
               className="btn"
               style={{ background: 'var(--border-soft)', color: 'var(--text-primary)' }}
               onClick={() => window.location.reload()}
             >
-              {t(detectLocale(), 'app.errorBoundary.reload')}
+              {t(locale, 'app.errorBoundary.reload')}
             </button>
           </div>
         </section>
@@ -49,4 +54,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, { error: Error 
 
     return this.props.children;
   }
+}
+
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  const locale = useLocale();
+  return <ErrorBoundaryImpl {...props} locale={locale} />;
 }

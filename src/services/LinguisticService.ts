@@ -88,6 +88,7 @@ import {
   getLanguageCatalogEntry,
   listLanguageCatalogEntries,
   listLanguageCatalogHistory,
+  refreshLanguageCatalogReadModel,
   upsertLanguageCatalogEntry,
   type LanguageCatalogEntry,
   type UpsertLanguageCatalogEntryInput,
@@ -1393,6 +1394,10 @@ export class LinguisticService {
 
   static async listLanguageCatalogHistory(languageId: string) {
     return listLanguageCatalogHistory(languageId);
+  }
+
+  static async refreshLanguageCatalogReadModel(): Promise<void> {
+    return refreshLanguageCatalogReadModel();
   }
 
   /**

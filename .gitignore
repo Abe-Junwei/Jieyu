@@ -2,11 +2,14 @@ node_modules/
 .DS_Store
 dist/
 *.log
+audit-report*.json
 
 # Environment files
 .env
 .env.*
 !.env.example
+.venv/
+.backup/
 
 # Build and cache
 coverage/
@@ -24,5 +27,3 @@ coverage/
 .claude/
 .mcp.json
 
-# Reference materials (non-code)
-参考/

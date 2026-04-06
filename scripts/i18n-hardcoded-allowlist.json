@@ -39,6 +39,7 @@
     { "pathPrefix": "src/services/SpeechAnnotationPipeline.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/services/AiHybridRecommendationService.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/services/CommandResolver.ts", "reason": "data-dictionary" },
+    { "pathPrefix": "src/services/LinguisticService.languageCatalog.ts", "reason": "data-dictionary" },
 
     { "pathPrefix": "src/ai/chat/adaptiveInputProfile.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/utils/camDataUtils.ts", "reason": "validation-and-guard-message" },
@@ -68,6 +69,7 @@
     { "pathPrefix": "src/services/LinguisticService.orthography.ts", "reason": "validation-and-guard-message" },
 
     { "pathPrefix": "src/i18n/aiChatHybridMessages.ts", "reason": "runtime-template-message" },
-    { "pathPrefix": "src/i18n/aiChatQuickPromptTemplates.ts", "reason": "runtime-template-message" }
+    { "pathPrefix": "src/i18n/aiChatQuickPromptTemplates.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/i18n/layerConstraintServiceMessages.ts", "reason": "runtime-template-message" }
   ]
 }

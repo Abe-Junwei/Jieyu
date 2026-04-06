@@ -36,6 +36,7 @@ describe('languageInputReducer', () => {
     expect(selectDisplayedLanguageInputValue(next)).toEqual({
       languageName: 'Portuguese',
       languageCode: 'por',
+      languageAssetId: 'por',
       displayMode: 'input-first',
       preferredDisplayName: 'Portuguese',
       preferredDisplayKind: 'alias',
@@ -43,6 +44,7 @@ describe('languageInputReducer', () => {
     expect(selectCommittedLanguageInputValue(next)).toEqual({
       languageName: 'Portuguese',
       languageCode: 'por',
+      languageAssetId: 'por',
       displayMode: 'input-first',
       preferredDisplayName: 'Portuguese',
       preferredDisplayKind: 'alias',
@@ -68,11 +70,13 @@ describe('languageInputReducer', () => {
     expect(selectDisplayedLanguageInputValue(committed)).toEqual({
       languageName: '英语',
       languageCode: 'eng',
+      languageAssetId: 'eng',
       displayMode: 'locale-first',
     });
     expect(selectCommittedLanguageInputValue(committed)).toEqual({
       languageName: '英语',
       languageCode: 'eng',
+      languageAssetId: 'eng',
       displayMode: 'locale-first',
     });
     expect(committed.status).toBe('selected');
@@ -114,11 +118,13 @@ describe('languageInputReducer', () => {
     expect(selectDisplayedLanguageInputValue(model)).toEqual({
       languageName: 'English',
       languageCode: 'eng',
+      languageAssetId: 'eng',
       displayMode: 'locale-first',
     });
     expect(selectCommittedLanguageInputValue(model)).toEqual({
       languageName: 'English',
       languageCode: 'eng',
+      languageAssetId: 'eng',
       displayMode: 'locale-first',
     });
     expect(model.status).toBe('selected');
@@ -134,6 +140,7 @@ describe('languageInputReducer', () => {
     expect(selectDisplayedLanguageInputValue(model)).toEqual({
       languageName: '英语资产标签',
       languageCode: 'eng',
+      languageAssetId: 'eng',
       displayMode: 'locale-first',
     });
 
@@ -148,6 +155,7 @@ describe('languageInputReducer', () => {
     expect(selectCommittedLanguageInputValue(committed)).toEqual({
       languageName: '英语资产标签',
       languageCode: 'eng',
+      languageAssetId: 'eng',
       displayMode: 'locale-first',
     });
   });

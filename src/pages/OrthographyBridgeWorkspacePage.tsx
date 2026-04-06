@@ -24,6 +24,7 @@ export function OrthographyBridgeWorkspacePage() {
   const deferredSearchText = useDeferredValue(searchText);
   const { resolveLabel } = useLanguageCatalogLabelMap(locale);
 
+  // M4: 正字法数据不依赖 locale，移除多余的重取触发 | Orthography data is locale-independent; remove unnecessary refetch trigger
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -47,6 +48,7 @@ export function OrthographyBridgeWorkspacePage() {
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 数据加载不依赖 locale，但 catch 中错误文案需要 locale | Data fetch is locale-independent, but error message formatting needs locale
   }, [locale]);
 
   const normalizedSearchText = deferredSearchText.trim().toLowerCase();

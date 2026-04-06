@@ -17,7 +17,6 @@ export const voiceAdapter: ToolObjectAdapter = {
     'mark_segment',
     'delete_segment',
     'auto_gloss_segment',
-    'auto_translate_segment',
     'focus_segment',
     'zoom_to_segment',
     'nav_to_segment',
@@ -25,9 +24,6 @@ export const voiceAdapter: ToolObjectAdapter = {
     'split_at_time',
     'merge_prev',
     'merge_next',
-    'auto_segment',
-    'suggest_segment_improvement',
-    'analyze_segment_quality',
     'get_current_segment',
     'get_project_summary',
     'get_recent_history',
@@ -131,9 +127,6 @@ export const voiceAdapter: ToolObjectAdapter = {
     }
     if (call.name === 'auto_gloss_segment') {
       return glossAdapter.execute(ctx);
-    }
-    if (call.name === 'auto_translate_segment') {
-      return { ok: false, message: t(locale, 'transcription.aiTool.voice.autoTranslateUnavailable') };
     }
     if (call.name === 'nav_to_segment') {
       const idx = Number(call.arguments.segmentIndex);
@@ -257,16 +250,6 @@ export const voiceAdapter: ToolObjectAdapter = {
         }),
       };
     }
-    if (call.name === 'auto_segment') {
-      return { ok: false, message: t(locale, 'transcription.aiTool.voice.autoSegmentUnavailable') };
-    }
-    if (call.name === 'suggest_segment_improvement') {
-      return { ok: false, message: t(locale, 'transcription.aiTool.voice.suggestSegmentImprovementUnavailable') };
-    }
-    if (call.name === 'analyze_segment_quality') {
-      return { ok: false, message: t(locale, 'transcription.aiTool.voice.analyzeSegmentQualityUnavailable') };
-    }
-
     return { ok: false, message: tf(locale, 'transcription.aiTool.voice.unknownTool', { toolName: call.name }) };
   },
 };

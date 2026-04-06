@@ -774,11 +774,6 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
     contextFill: { utteranceId: true },
     validateArgs: (args) => validateArgId(args, 'segmentId', false) ?? validateArgId(args, 'utteranceId', false),
   },
-  auto_translate_segment: {
-    label: '\\u81ea\\u52a8\\u7ffb\\u8bd1',
-    contextFill: { utteranceId: true },
-    validateArgs: (args) => validateArgId(args, 'segmentId', false) ?? validateArgId(args, 'utteranceId', false),
-  },
   nav_to_segment: {
     label: '\\u5bfc\\u822a\\u5230\\u53e5\\u6bb5',
     contextFill: {},
@@ -813,21 +808,6 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
     label: '\\u5408\\u5e76\\u4e0b\\u4e00\\u4e2a',
     contextFill: { utteranceId: true },
     validateArgs: validateOptionalSegmentTargetArgs,
-  },
-  auto_segment: {
-    label: '\\u81ea\\u52a8\\u5207\\u5206',
-    contextFill: {},
-    validateArgs: (args) => validateArgNumeric(args, 'startTime', false),
-  },
-  suggest_segment_improvement: {
-    label: '\\u5efa\\u8bae\\u6539\\u8fdb',
-    contextFill: { utteranceId: true },
-    validateArgs: (args) => validateArgId(args, 'utteranceId', false),
-  },
-  analyze_segment_quality: {
-    label: '\\u5206\\u6790\\u8d28\\u91cf',
-    contextFill: { utteranceId: true },
-    validateArgs: (args) => validateArgId(args, 'utteranceId', false),
   },
   get_current_segment: { label: '\\u83b7\\u53d6\\u5f53\\u524d\\u53e5\\u6bb5', contextFill: {}, validateArgs: () => null },
   get_project_summary: { label: '\\u83b7\\u53d6\\u9879\\u76ee\\u6458\\u8981', contextFill: {}, validateArgs: () => null },
@@ -879,7 +859,7 @@ export function planToolCallTargets(
     if (existing) {
       if (currentUtteranceId && existing !== currentUtteranceId) {
         nextCall.arguments.utteranceId = currentUtteranceId;
-        if (call.name === 'auto_gloss_segment' || call.name === 'auto_translate_segment') {
+        if (call.name === 'auto_gloss_segment') {
           nextCall.arguments.segmentId = currentUtteranceId;
         }
         return currentUtteranceId;
@@ -888,7 +868,7 @@ export function planToolCallTargets(
     }
     if (currentUtteranceId) {
       nextCall.arguments.utteranceId = currentUtteranceId;
-      if (call.name === 'auto_gloss_segment' || call.name === 'auto_translate_segment') {
+      if (call.name === 'auto_gloss_segment') {
         nextCall.arguments.segmentId = currentUtteranceId;
       }
       return currentUtteranceId;

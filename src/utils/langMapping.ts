@@ -529,13 +529,13 @@ function buildRuntimeLanguageCatalogEntries(includeHidden = false): LanguageCata
           ...(runtimeEntry.aliases ?? []),
           ...(baseEntry?.aliases ?? []),
         ]),
-        scope: baseEntry?.scope ?? 'individual',
-        type: baseEntry?.type ?? 'living',
+        scope: runtimeEntry.scope ?? baseEntry?.scope ?? 'individual',
+        type: runtimeEntry.languageType ?? baseEntry?.type ?? 'living',
         descriptions,
         deprecated: baseEntry?.deprecated ?? false,
         ...(baseEntry?.preferredIso6393 ? { preferredIso6393: baseEntry.preferredIso6393 } : {}),
         ...(baseEntry?.suppressScript ? { suppressScript: baseEntry.suppressScript } : {}),
-        ...(baseEntry?.macrolanguage ? { macrolanguage: baseEntry.macrolanguage } : {}),
+        ...(runtimeEntry.macrolanguage?.trim() ? { macrolanguage: runtimeEntry.macrolanguage.trim().toLowerCase() } : baseEntry?.macrolanguage ? { macrolanguage: baseEntry.macrolanguage } : {}),
       };
     })
     .filter((entry): entry is LanguageCatalogEntry => Boolean(entry));
@@ -544,10 +544,11 @@ function buildRuntimeLanguageCatalogEntries(includeHidden = false): LanguageCata
 function getMergedLanguageCatalogByCode(includeHidden = false): Readonly<Record<string, LanguageCatalogEntry>> {
   const merged: Record<string, LanguageCatalogEntry> = { ...LANGUAGE_CATALOG_BY_CODE };
   const runtimeEntries = buildRuntimeLanguageCatalogEntries(true);
+  const cache = readLanguageCatalogRuntimeCache();
 
   runtimeEntries.forEach((entry) => {
-    const runtimeState = readLanguageCatalogRuntimeCache().entries[entry.iso6393]
-      ?? readLanguageCatalogRuntimeCache().entries[readLanguageCatalogRuntimeCache().lookupToId[normalizeLanguageCatalogRuntimeLookupKey(entry.iso6393)] ?? ''];
+    const runtimeState = cache.entries[entry.iso6393]
+      ?? cache.entries[cache.lookupToId[normalizeLanguageCatalogRuntimeLookupKey(entry.iso6393)] ?? ''];
     if (!includeHidden && runtimeState?.visibility === 'hidden') {
       delete merged[entry.iso6393];
       return;

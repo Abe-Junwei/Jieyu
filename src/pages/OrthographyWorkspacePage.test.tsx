@@ -22,14 +22,6 @@ vi.mock('../services/LinguisticService', () => ({
   },
 }));
 
-vi.mock('../components/OrthographyBridgeManager', () => ({
-  OrthographyBridgeManager: ({ targetOrthography }: { targetOrthography?: OrthographyDocType }) => (
-    <div data-testid="orthography-bridge-manager">
-      {targetOrthography ? `bridge:${targetOrthography.id}` : 'bridge:none'}
-    </div>
-  ),
-}));
-
 function SidePaneSnapshot() {
   const registration = useAppSidePaneRegistrationSnapshot();
 
@@ -160,7 +152,11 @@ describe('OrthographyWorkspacePage', () => {
 
     expect(mockListOrthographies).toHaveBeenCalledWith({ includeBuiltIns: true });
 
-    expect(screen.getByTestId('orthography-bridge-manager').textContent).toBe('bridge:orth-source');
+    const bridgeLinks = screen.getAllByRole('link', { name: '打开正字法桥接工作台' });
+    expect(bridgeLinks).toHaveLength(2);
+    bridgeLinks.forEach((link) => {
+      expect(link.getAttribute('href')).toBe('/assets/orthography-bridges?targetOrthographyId=orth-source');
+    });
     expect(screen.getByTestId('side-pane-title').textContent).toBe('正字法工作台');
     await waitFor(() => {
       expect(screen.getByTestId('side-pane-content').textContent).toContain('Bridge Orthography · Latn · practical');
@@ -566,6 +562,7 @@ describe('OrthographyWorkspacePage', () => {
       <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source&fromLayerId=layer_trc_bridge']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
+            <SidePaneSnapshot />
             <Routes>
               <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
             </Routes>
@@ -574,7 +571,15 @@ describe('OrthographyWorkspacePage', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText('当前入口来自转写侧栏；后续可直接在这里长期维护桥接规则。')).toBeTruthy();
+    expect(await screen.findByText('当前入口来自转写侧栏；桥接规则维护已迁移到独立的正字法桥接工作台。')).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByTestId('side-pane-content').textContent).toContain('Bridge Orthography · Latn · practical');
+    });
+    const bridgeLinks = screen.getAllByRole('link', { name: '打开正字法桥接工作台' });
+    expect(bridgeLinks).toHaveLength(2);
+    bridgeLinks.forEach((link) => {
+      expect(link.getAttribute('href')).toBe('/assets/orthography-bridges?targetOrthographyId=orth-source&fromLayerId=layer_trc_bridge');
+    });
 
     fireEvent.change(await screen.findByLabelText('英文名称'), { target: { value: 'Dirty Bridge Orthography' } });
     fireEvent.click(screen.getAllByRole('button', { name: /备选正字法/ })[0]!);
@@ -589,6 +594,31 @@ describe('OrthographyWorkspacePage', () => {
       expect(screen.getAllByText('备选正字法 · Hans · practical').length).toBeGreaterThan(0);
     });
 
+    confirmSpy.mockRestore();
+  });
+
+  it('blocks bridge workspace navigation while the draft is dirty until confirmed', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(await screen.findByLabelText('英文名称'), { target: { value: 'Dirty Bridge Orthography' } });
+    const detailBridgeLink = screen.getAllByRole('link', { name: '打开正字法桥接工作台' })
+      .find((link) => link.getAttribute('href')?.includes('targetOrthographyId=orth-source'));
+    expect(detailBridgeLink).toBeTruthy();
+    fireEvent.click(detailBridgeLink!);
+
+    expect(confirmSpy).toHaveBeenCalledWith('当前正字法有未保存修改。仍要切换或离开吗？');
     confirmSpy.mockRestore();
   });
 });

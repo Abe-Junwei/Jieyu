@@ -125,6 +125,9 @@ describe('OrthographyBridgeManager', () => {
     mockGetDb.mockReset();
     mockBulkGet.mockReset();
 
+    // 模拟 window.confirm 总是返回 true | Mock window.confirm to always return true
+    vi.stubGlobal('confirm', vi.fn(() => true));
+
     mockListOrthographyBridges.mockResolvedValue([] as OrthographyBridgeDocType[]);
     mockBulkGet.mockResolvedValue([]);
     mockListBuiltInOrthographiesByIds.mockResolvedValue([]);
@@ -218,6 +221,7 @@ describe('OrthographyBridgeManager', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: '删除规则' }));
+    // window.confirm 被 vi.stubGlobal 模拟为 true | window.confirm mocked to true
     await waitFor(() => {
       expect(mockDeleteOrthographyBridge).toHaveBeenCalledWith('orthxfm-1');
     });

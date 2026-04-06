@@ -14,10 +14,12 @@ import {
 } from '../db';
 import {
   normalizeLanguageCatalogRuntimeLabelKey,
+  normalizeLanguageCatalogRuntimeLookupKey,
   writeLanguageCatalogRuntimeCache,
   type LanguageCatalogRuntimeEntry,
 } from '../data/languageCatalogRuntimeCache';
 import { GENERATED_LANGUAGE_ALIASES_BY_CODE, GENERATED_LANGUAGE_DISPLAY_NAME_CORE } from '../data/generated/languageNameCatalog.generated';
+import { LANGUAGE_NAME_QUERY_LOCALES, type LanguageNameQueryLocale } from '../data/languageNameTypes';
 import { t, tf, type Locale } from '../i18n';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { newId } from '../utils/transcriptionFormatters';
@@ -655,100 +657,95 @@ function buildBaselineCodes(): string[] {
   return Object.keys(GENERATED_LANGUAGE_DISPLAY_NAME_CORE).sort();
 }
 
-function buildRuntimeCacheEntry(input: {
-  language: LanguageDocType;
-  displayNames: readonly LanguageDisplayNameDocType[];
-  aliases: readonly LanguageAliasDocType[];
-}): LanguageCatalogRuntimeEntry {
-  const byLocale: Record<string, string> = {};
-  Object.entries(input.language.name).forEach(([locale, value]) => {
-    if (value.trim().length > 0) {
-      byLocale[locale] = value.trim();
+function pickRuntimeSnapshotBaseEntry(
+  entryByLocale: Partial<Record<LanguageNameQueryLocale, LanguageCatalogEntry>>,
+): LanguageCatalogEntry | undefined {
+  for (const locale of LANGUAGE_NAME_QUERY_LOCALES) {
+    const entry = entryByLocale[locale];
+    if (entry) {
+      return entry;
     }
-  });
-  input.displayNames.forEach((row) => {
-    if (row.locale !== 'native' && row.value.trim().length > 0) {
-      byLocale[row.locale] = row.value.trim();
-    }
-  });
+  }
+  return undefined;
+}
 
-  const english = pickDisplayName(input.displayNames, 'en-US', ['preferred', 'menu', 'exonym', 'academic'])
-    ?? readMultiLangValue(input.language.name, 'en-US');
-  const native = pickDisplayName(input.displayNames, 'native', ['autonym'])
-    ?? normalizeOptionalValue(input.language.autonym);
-  const aliases = dedupeStrings([
-    ...input.aliases.map((row) => row.alias),
-  ]);
+function buildRuntimeCacheEntry(
+  entryByLocale: Partial<Record<LanguageNameQueryLocale, LanguageCatalogEntry>>,
+): LanguageCatalogRuntimeEntry | null {
+  const baseEntry = pickRuntimeSnapshotBaseEntry(entryByLocale);
+  if (!baseEntry) {
+    return null;
+  }
+
+  const byLocale = Object.fromEntries(
+    LANGUAGE_NAME_QUERY_LOCALES
+      .map((locale) => [locale, entryByLocale[locale]?.localName?.trim() ?? ''] as const)
+      .filter(([, value]) => value.length > 0),
+  );
+  const aliases = dedupeStrings(baseEntry.aliases);
 
   return {
-    ...(input.language.languageCode?.trim() ? { languageCode: input.language.languageCode.trim().toLowerCase() } : {}),
-    ...(input.language.canonicalTag?.trim() ? { canonicalTag: input.language.canonicalTag.trim() } : {}),
-    ...(input.language.iso6391?.trim() ? { iso6391: input.language.iso6391.trim().toLowerCase() } : {}),
-    ...(input.language.iso6392B?.trim() ? { iso6392B: input.language.iso6392B.trim().toLowerCase() } : {}),
-    ...(input.language.iso6392T?.trim() ? { iso6392T: input.language.iso6392T.trim().toLowerCase() } : {}),
-    ...(input.language.iso6393?.trim() ? { iso6393: input.language.iso6393.trim().toLowerCase() } : {}),
-    ...(english ? { english } : {}),
-    ...(native ? { native } : {}),
+    ...(baseEntry.languageCode.trim() ? { languageCode: baseEntry.languageCode.trim().toLowerCase() } : {}),
+    ...(baseEntry.canonicalTag?.trim() ? { canonicalTag: baseEntry.canonicalTag.trim() } : {}),
+    ...(baseEntry.iso6391?.trim() ? { iso6391: baseEntry.iso6391.trim().toLowerCase() } : {}),
+    ...(baseEntry.iso6392B?.trim() ? { iso6392B: baseEntry.iso6392B.trim().toLowerCase() } : {}),
+    ...(baseEntry.iso6392T?.trim() ? { iso6392T: baseEntry.iso6392T.trim().toLowerCase() } : {}),
+    ...(baseEntry.iso6393?.trim() ? { iso6393: baseEntry.iso6393.trim().toLowerCase() } : {}),
+    ...(baseEntry.englishName.trim() ? { english: baseEntry.englishName.trim() } : {}),
+    ...(baseEntry.nativeName?.trim() ? { native: baseEntry.nativeName.trim() } : {}),
     ...(Object.keys(byLocale).length > 0 ? { byLocale } : {}),
     ...(aliases.length > 0 ? { aliases } : {}),
-    visibility: input.language.visibility ?? 'visible',
+    ...(baseEntry.scope ? { scope: baseEntry.scope } : {}),
+    ...(baseEntry.languageType ? { languageType: baseEntry.languageType } : {}),
+    ...(baseEntry.macrolanguage?.trim() ? { macrolanguage: baseEntry.macrolanguage.trim().toLowerCase() } : {}),
+    visibility: baseEntry.visibility,
   };
 }
 
+let rebuildLanguageCatalogRuntimeCachePromise: Promise<void> | null = null;
+
 async function rebuildLanguageCatalogRuntimeCache(): Promise<void> {
-  const db = await getDb();
-  const [languages, displayNames, aliases] = await Promise.all([
-    db.dexie.languages.toArray(),
-    db.dexie.language_display_names.toArray(),
-    db.dexie.language_aliases.toArray(),
-  ]);
+  const projectedByLocale = await Promise.all(
+    LANGUAGE_NAME_QUERY_LOCALES.map(async (locale) => [locale, await readLanguageCatalogProjection(locale, true)] as const),
+  );
 
-  const displayNamesByLanguageId = new Map<string, LanguageDisplayNameDocType[]>();
-  const aliasesByLanguageId = new Map<string, LanguageAliasDocType[]>();
-
-  displayNames.forEach((row) => {
-    const bucket = displayNamesByLanguageId.get(row.languageId) ?? [];
-    bucket.push(row);
-    displayNamesByLanguageId.set(row.languageId, bucket);
-  });
-  aliases.forEach((row) => {
-    const bucket = aliasesByLanguageId.get(row.languageId) ?? [];
-    bucket.push(row);
-    aliasesByLanguageId.set(row.languageId, bucket);
-  });
-
-  const entries = Object.fromEntries(languages.map((language) => {
-    const entry = buildRuntimeCacheEntry({
-      language,
-      displayNames: displayNamesByLanguageId.get(language.id) ?? [],
-      aliases: aliasesByLanguageId.get(language.id) ?? [],
+  const entriesByLanguageId = new Map<string, Partial<Record<LanguageNameQueryLocale, LanguageCatalogEntry>>>();
+  projectedByLocale.forEach(([locale, entries]) => {
+    entries.forEach((entry) => {
+      const bucket = entriesByLanguageId.get(entry.id) ?? {};
+      bucket[locale] = entry;
+      entriesByLanguageId.set(entry.id, bucket);
     });
-    return [language.id, entry] as const;
-  }));
+  });
+
+  const entries = Object.fromEntries(
+    Array.from(entriesByLanguageId.entries())
+      .map(([languageId, entryByLocale]) => [languageId, buildRuntimeCacheEntry(entryByLocale)] as const)
+      .filter((item): item is [string, LanguageCatalogRuntimeEntry] => Boolean(item[1])),
+  );
 
   const aliasToId = Object.fromEntries(
-    languages.flatMap((language) => {
-      if ((language.visibility ?? 'visible') === 'hidden') {
+    Object.entries(entries).flatMap(([languageId, entry]) => {
+      if (entry.visibility === 'hidden') {
         return [] as Array<[string, string]>;
       }
-
-      return (aliasesByLanguageId.get(language.id) ?? [])
-        .map((row) => [normalizeLanguageCatalogRuntimeLabelKey(row.alias), language.id] as [string, string])
+      return (entry.aliases ?? [])
+        .map((alias) => [normalizeLanguageCatalogRuntimeLabelKey(alias), languageId] as const)
         .filter(([alias]) => alias.length > 0);
     }),
   );
   const lookupToId = Object.fromEntries(
-    languages.flatMap((language) => {
+    Object.entries(entries).flatMap(([languageId, entry]) => {
       const lookupKeys = dedupeStrings([
-        language.id,
-        language.languageCode,
-        language.canonicalTag,
-        language.iso6391,
-        language.iso6392B,
-        language.iso6392T,
-        language.iso6393,
+        languageId,
+        entry.languageCode,
+        entry.canonicalTag,
+        entry.iso6391,
+        entry.iso6392B,
+        entry.iso6392T,
+        entry.iso6393,
       ]);
-      return lookupKeys.map((lookupKey) => [normalizeLanguageCatalogRuntimeLabelKey(lookupKey), language.id] as const);
+      return lookupKeys.map((lookupKey) => [normalizeLanguageCatalogRuntimeLookupKey(lookupKey), languageId] as const);
     }),
   );
 
@@ -758,6 +755,21 @@ async function rebuildLanguageCatalogRuntimeCache(): Promise<void> {
     lookupToId,
     updatedAt: new Date().toISOString(),
   });
+}
+
+export async function refreshLanguageCatalogReadModel(): Promise<void> {
+  if (!rebuildLanguageCatalogRuntimeCachePromise) {
+    rebuildLanguageCatalogRuntimeCachePromise = rebuildLanguageCatalogRuntimeCache()
+      .catch((error) => {
+        // H5: 记录日志后重新抛出，.finally 会清除引用使后续调用可重试 | Log then re-throw; .finally clears the ref so subsequent calls can retry
+        console.error('Failed to rebuild language catalog runtime cache:', error);
+        throw error;
+      })
+      .finally(() => {
+        rebuildLanguageCatalogRuntimeCachePromise = null;
+      });
+  }
+  await rebuildLanguageCatalogRuntimeCachePromise;
 }
 
 function buildHistoryRecord(input: {
@@ -793,7 +805,7 @@ function buildHistoryRecord(input: {
 
 function projectLanguageCatalogEntry(input: {
   languageId: string;
-  locale: Locale;
+  locale: string;
   languageDoc?: LanguageDocType;
   displayNames: readonly LanguageDisplayNameDocType[];
   aliases: readonly LanguageAliasDocType[];
@@ -816,9 +828,10 @@ function projectLanguageCatalogEntry(input: {
     ?? generated?.english
     ?? isoRecord?.name
     ?? input.languageId;
+  const generatedLocalName = generated?.byLocale?.[input.locale as LanguageNameQueryLocale];
   const localName = pickDisplayName(input.displayNames, input.locale, ['preferred', 'menu', 'exonym', 'academic'])
     ?? readMultiLangValue(languageDoc?.name, input.locale)
-    ?? generated?.byLocale?.[input.locale]
+    ?? generatedLocalName
     ?? englishName;
   const nativeName = pickDisplayName(input.displayNames, 'native', ['autonym'])
     ?? normalizeOptionalValue(languageDoc?.autonym)
@@ -879,13 +892,16 @@ function projectLanguageCatalogEntry(input: {
   };
 }
 
-async function readLanguageCatalogProjection(locale: Locale, includeHidden = false): Promise<LanguageCatalogEntry[]> {
+async function readLanguageCatalogProjection(locale: string, includeHidden = false): Promise<LanguageCatalogEntry[]> {
   const db = await getDb();
-  const [languages, displayNames, aliases] = await Promise.all([
-    db.dexie.languages.toArray(),
-    db.dexie.language_display_names.toArray(),
-    db.dexie.language_aliases.toArray(),
-  ]);
+  // 三表读取包裹在读事务中，避免并发写入造成数据不对齐 | Wrap 3-table reads in a read transaction to prevent misalignment from concurrent writes
+  const [languages, displayNames, aliases] = await db.dexie.transaction('r', db.dexie.languages, db.dexie.language_display_names, db.dexie.language_aliases, async () => {
+    return Promise.all([
+      db.dexie.languages.toArray(),
+      db.dexie.language_display_names.toArray(),
+      db.dexie.language_aliases.toArray(),
+    ]);
+  });
 
   const languageIds = new Set<string>([
     ...buildBaselineCodes(),
@@ -990,7 +1006,9 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
   const nextSourceType: LanguageCatalogSourceType = languageId.startsWith('user:')
     ? 'user-custom'
     : existing?.sourceType ?? 'user-override';
-  const locale = (normalizeCanonicalTag(input.locale ?? 'zh-CN', 'zh-CN') ?? 'zh-CN') as Locale;
+  // H1: 安全验证 locale 而非强转（匹配 'en'/'en-GB' 等变体）| Validate locale safely, matching en-* variants
+  const rawLocale = normalizeCanonicalTag(input.locale ?? 'zh-CN', 'zh-CN') ?? 'zh-CN';
+  const locale: Locale = rawLocale.toLowerCase().startsWith('en') ? 'en-US' : 'zh-CN';
   const englishName = normalizeOptionalValue(input.englishName);
   const localName = normalizeOptionalValue(input.localName);
   const nativeName = normalizeOptionalValue(input.nativeName);
@@ -1010,20 +1028,17 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
   const hasSubfamily = hasOwnField(input, 'subfamily');
   const hasModality = hasOwnField(input, 'modality');
   const hasLanguageType = hasOwnField(input, 'languageType');
-  const [currentDisplayRows, currentAliasRows] = await Promise.all([
-    db.dexie.language_display_names.where('languageId').equals(languageId).toArray(),
-    db.dexie.language_aliases.where('languageId').equals(languageId).toArray(),
-  ]);
-
   const mergedName: MultiLangString = {
     ...(existing?.name ?? {}),
   };
   if (hasEnglishName) {
+    // 删除并统一写回所有英文 locale 键，避免 'en' 被静默丢弃 | Delete and re-set all English locale keys to avoid silently losing 'en'
     delete mergedName.eng;
     delete mergedName.en;
     delete mergedName['en-US'];
     if (englishName) {
       mergedName.eng = englishName;
+      mergedName.en = englishName;
       mergedName['en-US'] = englishName;
     }
   }
@@ -1053,6 +1068,7 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
   })) ?? [];
   const normalizedAliases = dedupeStrings(input.aliases ?? []);
 
+  // 别名冲突检查提前到事务外做只读查询（仍可能有 TOCTOU 窗口，但 Dexie IndexedDB 单线程已足够安全） | Alias conflict check as pre-validation before the write transaction
   await assertNoAliasConflicts({
     languageId,
     locale,
@@ -1122,27 +1138,34 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
     ...(input.reviewStatus ? { reviewStatus: input.reviewStatus } : {}),
     createdAt: now,
   });
-  const beforeEntry = shouldProjectBeforeEntry(languageId, existing, currentDisplayRows, currentAliasRows)
-    ? projectLanguageCatalogEntry({
-      languageId,
-      locale,
-      ...(existing ? { languageDoc: existing } : {}),
-      displayNames: currentDisplayRows,
-      aliases: currentAliasRows,
-    })
-    : null;
-  const afterEntry = projectLanguageCatalogEntry({
-    languageId,
-    locale,
-    languageDoc: nextLanguage,
-    displayNames: displayRows,
-    aliases: aliasRows,
-  });
-  const historyDiff = computeHistoryDiff(beforeEntry, afterEntry);
+
   const reason = normalizeOptionalValue(input.reason)
     ?? t(locale, existing ? 'service.languageCatalog.historyReasonUpdateDefault' : 'service.languageCatalog.historyReasonCreateDefault');
 
+  // 将当前行读取和历史 diff 计算移入事务内，避免 before 快照过时 | Move current row reads and history diff inside transaction to prevent stale before-snapshot
   await db.dexie.transaction('rw', db.dexie.languages, db.dexie.language_display_names, db.dexie.language_aliases, db.dexie.language_catalog_history, async () => {
+    const [currentDisplayRows, currentAliasRows] = await Promise.all([
+      db.dexie.language_display_names.where('languageId').equals(languageId).toArray(),
+      db.dexie.language_aliases.where('languageId').equals(languageId).toArray(),
+    ]);
+    const beforeEntry = shouldProjectBeforeEntry(languageId, existing, currentDisplayRows, currentAliasRows)
+      ? projectLanguageCatalogEntry({
+        languageId,
+        locale,
+        ...(existing ? { languageDoc: existing } : {}),
+        displayNames: currentDisplayRows,
+        aliases: currentAliasRows,
+      })
+      : null;
+    const afterEntry = projectLanguageCatalogEntry({
+      languageId,
+      locale,
+      languageDoc: nextLanguage,
+      displayNames: displayRows,
+      aliases: aliasRows,
+    });
+    const historyDiff = computeHistoryDiff(beforeEntry, afterEntry);
+
     await db.dexie.languages.put(nextLanguage);
     await db.dexie.language_display_names.where('languageId').equals(languageId).delete();
     await db.dexie.language_aliases.where('languageId').equals(languageId).delete();
@@ -1155,7 +1178,7 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
     await db.dexie.language_catalog_history.put(buildHistoryRecord({
       languageId,
       action: existing ? 'update' : 'create',
-      summary: t(locale as Locale, existing ? 'service.languageCatalog.historyUpdate' : 'service.languageCatalog.historyCreate'),
+      summary: t(locale, existing ? 'service.languageCatalog.historyUpdate' : 'service.languageCatalog.historyCreate'),
       changedFields: historyDiff.changedFields,
       reason,
       reasonCode: normalizeOptionalValue(input.reason) ? 'user-provided' : 'workspace-save',
@@ -1171,9 +1194,12 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
     }));
   });
 
-  await rebuildLanguageCatalogRuntimeCache();
+  // C4: 添加错误处理，避免 rebuild 失败导致缓存/DB 永久脱节 | Add error handling to prevent permanent cache/DB desync on rebuild failure
+  await refreshLanguageCatalogReadModel().catch((refreshError) => {
+    console.error('Failed to refresh language catalog read model after upsert:', refreshError);
+  });
 
-  return (await getLanguageCatalogEntry({ languageId, locale: locale as Locale })) as LanguageCatalogEntry;
+  return (await getLanguageCatalogEntry({ languageId, locale })) as LanguageCatalogEntry;
 }
 
 export async function deleteLanguageCatalogEntry(input: {
@@ -1186,24 +1212,26 @@ export async function deleteLanguageCatalogEntry(input: {
   if (!existing) {
     throw new Error(t(input.locale, 'service.languageCatalog.deleteMissingPersisted'));
   }
-  const [currentDisplayRows, currentAliasRows] = await Promise.all([
-    db.dexie.language_display_names.where('languageId').equals(input.languageId).toArray(),
-    db.dexie.language_aliases.where('languageId').equals(input.languageId).toArray(),
-  ]);
-  const beforeEntry = projectLanguageCatalogEntry({
-    languageId: input.languageId,
-    locale: input.locale,
-    languageDoc: existing,
-    displayNames: currentDisplayRows,
-    aliases: currentAliasRows,
-  });
-  const historyDiff = computeHistoryDiff(beforeEntry, null);
   const reason = normalizeOptionalValue(input.reason)
     ?? t(input.locale, existing.sourceType === 'user-custom'
       ? 'service.languageCatalog.historyReasonDeleteCustomDefault'
       : 'service.languageCatalog.historyReasonDeleteOverrideDefault');
 
+  // 将 beforeEntry 投影和 historyDiff 移入事务内，避免并发写入导致快照过时 | Move beforeEntry projection and historyDiff inside transaction to prevent stale snapshot from concurrent writes
   await db.dexie.transaction('rw', db.dexie.languages, db.dexie.language_display_names, db.dexie.language_aliases, db.dexie.language_catalog_history, async () => {
+    const [currentDisplayRows, currentAliasRows] = await Promise.all([
+      db.dexie.language_display_names.where('languageId').equals(input.languageId).toArray(),
+      db.dexie.language_aliases.where('languageId').equals(input.languageId).toArray(),
+    ]);
+    const beforeEntry = projectLanguageCatalogEntry({
+      languageId: input.languageId,
+      locale: input.locale,
+      languageDoc: existing,
+      displayNames: currentDisplayRows,
+      aliases: currentAliasRows,
+    });
+    const historyDiff = computeHistoryDiff(beforeEntry, null);
+
     await db.dexie.languages.delete(input.languageId);
     await db.dexie.language_display_names.where('languageId').equals(input.languageId).delete();
     await db.dexie.language_aliases.where('languageId').equals(input.languageId).delete();
@@ -1221,7 +1249,9 @@ export async function deleteLanguageCatalogEntry(input: {
     }));
   });
 
-  await rebuildLanguageCatalogRuntimeCache();
+  await refreshLanguageCatalogReadModel().catch((refreshError) => {
+    console.error('Failed to refresh language catalog read model after delete:', refreshError);
+  });
 }
 
 export async function listLanguageCatalogHistory(languageId: string): Promise<LanguageCatalogHistoryDocType[]> {

@@ -1,7 +1,6 @@
 import '../styles/pages/orthography-workspace.css';
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { OrthographyBridgeManager } from '../components/OrthographyBridgeManager';
 import { getOrthographyCatalogBadgeInfo } from '../components/orthographyCatalogUi';
 import { PanelSection } from '../components/ui/PanelSection';
 import { PanelSummary } from '../components/ui/PanelSummary';
@@ -43,8 +42,9 @@ export function OrthographyWorkspacePage() {
   const [draft, setDraft] = useState<OrthographyDraft | null>(null);
   const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>({ languageName: '', languageCode: '' });
   const deferredSearchText = useDeferredValue(searchText);
-  const { languageOptions, resolveLanguageCode, resolveLabel, resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale);
+  const { resolveLanguageCode, resolveLabel, resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale);
 
+  // M3: 正字法数据不依赖 locale，移除多余的重取触发 | Orthography data is locale-independent; remove unnecessary refetch trigger
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -68,6 +68,7 @@ export function OrthographyWorkspacePage() {
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 数据加载不依赖 locale，但 catch 中错误文案需要 locale | Data fetch is locale-independent, but error message formatting needs locale
   }, [locale]);
 
   const normalizedSearchText = deferredSearchText.trim().toLowerCase();
@@ -127,6 +128,24 @@ export function OrthographyWorkspacePage() {
     });
   }, [baselineDraft?.languageId, resolveLabel]);
 
+  // 目录加载后同步 languageCode 显示 | Sync languageCode display after catalog loads
+  useEffect(() => {
+    if (!baselineDraft?.languageId) {
+      return;
+    }
+
+    const nextLanguageCode = resolveLanguageCode(baselineDraft.languageId);
+    setLanguageInput((prev) => {
+      if (prev.languageAssetId !== baselineDraft.languageId || prev.languageCode === nextLanguageCode) {
+        return prev;
+      }
+      return {
+        ...prev,
+        languageCode: nextLanguageCode,
+      };
+    });
+  }, [baselineDraft?.languageId, resolveLanguageCode]);
+
   useEffect(() => {
     if (!isDirty || typeof window === 'undefined') {
       return undefined;
@@ -152,12 +171,13 @@ export function OrthographyWorkspacePage() {
     setSearchParams(nextParams, { replace: true });
   }, [orthographies, searchParams, selectedOrthography, setSearchParams]);
 
-  const confirmDiscardDirtyDraft = () => {
+  // M5: 用 useCallback 稳定引用，避免破坏 sidePaneContent useMemo | Stabilize with useCallback to prevent breaking sidePaneContent useMemo
+  const confirmDiscardDirtyDraft = useCallback(() => {
     if (!isDirty || typeof window === 'undefined') {
       return true;
     }
     return window.confirm(t(locale, 'workspace.orthography.unsavedConfirmSwitch'));
-  };
+  }, [isDirty, locale]);
 
   const handleSelectOrthography = (orthographyId: string) => {
     if (orthographyId === selectedOrthography?.id) {
@@ -208,6 +228,17 @@ export function OrthographyWorkspacePage() {
     setSaveSuccess('');
   };
 
+  const bridgeWorkspaceHref = useMemo(() => {
+    if (!selectedOrthography) {
+      return '/assets/orthography-bridges';
+    }
+    const params = new URLSearchParams({ targetOrthographyId: selectedOrthography.id });
+    if (fromLayerId) {
+      params.set('fromLayerId', fromLayerId);
+    }
+    return `/assets/orthography-bridges?${params.toString()}`;
+  }, [fromLayerId, selectedOrthography]);
+
   const sidePaneContent = useMemo(() => (
     <div className="app-side-pane-feature-stack">
       <section className="app-side-pane-group" aria-label={t(locale, 'workspace.orthography.sidePaneCurrent')}>
@@ -244,7 +275,7 @@ export function OrthographyWorkspacePage() {
             {t(locale, 'app.featureAvailability.backToTranscription')}
           </Link>
           <Link
-            to="/assets/orthography-bridges"
+            to={bridgeWorkspaceHref}
             className="side-pane-nav-link app-side-pane-feature-link"
             onClick={(event) => {
               if (!confirmDiscardDirtyDraft()) {
@@ -257,7 +288,7 @@ export function OrthographyWorkspacePage() {
         </div>
       </section>
     </div>
-  ), [confirmDiscardDirtyDraft, locale, selectedBadge?.label, selectedOrthography]);
+  ), [bridgeWorkspaceHref, confirmDiscardDirtyDraft, locale, selectedBadge?.label, selectedOrthography]);
 
   useRegisterAppSidePane({
     title: t(locale, 'workspace.orthography.sidePaneTitle'),
@@ -391,8 +422,8 @@ export function OrthographyWorkspacePage() {
         ...((draft.notesZh.trim() || draft.notesEn.trim())
           ? {
             notes: {
-              ...(draft.notesZh.trim() ? { zho: draft.notesZh.trim() } : {}),
-              ...(draft.notesEn.trim() ? { eng: draft.notesEn.trim() } : {}),
+              ...(draft.notesZh.trim() ? { 'zh-CN': draft.notesZh.trim() } : {}),
+              ...(draft.notesEn.trim() ? { 'en-US': draft.notesEn.trim() } : {}),
             },
           }
           : {}),
@@ -488,19 +519,22 @@ export function OrthographyWorkspacePage() {
                   void handleSaveDraft();
                 }}
               />
-
               <PanelSection
                 className="orthography-workspace-bridge-panel"
                 title={t(locale, 'workspace.orthography.bridgeTitle')}
                 description={t(locale, 'workspace.orthography.bridgeDescription')}
               >
-                <OrthographyBridgeManager
-                  targetOrthography={selectedOrthography}
-                  languageOptions={languageOptions}
-                  compact
-                  initialExpanded
-                  hideToggleButton
-                />
+                <Link
+                  to={bridgeWorkspaceHref}
+                  className="button secondary"
+                  onClick={(event) => {
+                    if (!confirmDiscardDirtyDraft()) {
+                      event.preventDefault();
+                    }
+                  }}
+                >
+                  {t(locale, 'workspace.orthography.openBridgeWorkspace')}
+                </Link>
               </PanelSection>
             </>
           ) : (

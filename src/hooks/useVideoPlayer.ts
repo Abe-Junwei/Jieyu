@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLatest } from './useLatest';
+import { evaluateSegmentTimeUpdateGuard, type SegmentSeekGuard } from '../utils/segmentPlaybackGuard';
 
 export interface UseVideoPlayerOptions {
   /** URL of video to load. */
@@ -38,6 +39,8 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
 
   // Segment-bounded playback
   const segmentBoundsRef = useRef<{ start: number; end: number } | null>(null);
+  // 段落寻道防护，避免陈旧 timeupdate 导致误判越界 | Guard against stale timeupdate ticks after seek
+  const segmentSeekGuardRef = useRef<SegmentSeekGuard | null>(null);
 
   const setPlaybackRate = useCallback((r: number) => {
     _setRate(r);
@@ -55,10 +58,12 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
 
     if (video.paused) {
       segmentBoundsRef.current = null;
+      segmentSeekGuardRef.current = null;
       void video.play();
     } else {
       video.pause();
       segmentBoundsRef.current = null;
+      segmentSeekGuardRef.current = null;
     }
   }, []);
 
@@ -69,6 +74,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     const canResume = resume && video.currentTime >= start && video.currentTime < end;
     if (!canResume) {
       video.currentTime = start;
+      segmentSeekGuardRef.current = { pending: true };
     }
     segmentBoundsRef.current = { start, end };
     void video.play();
@@ -79,6 +85,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     if (!video) return;
     video.pause();
     segmentBoundsRef.current = null;
+    segmentSeekGuardRef.current = null;
   }, []);
 
   const seekBySeconds = useCallback((delta: number) => {
@@ -130,14 +137,25 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       const time = video.currentTime;
       const bounds = segmentBoundsRef.current;
 
+      // 段落寻道防护：过滤寻道落地前的陈旧 tick | Guard: filter stale ticks before seek lands
+      if (bounds) {
+        const guardResult = evaluateSegmentTimeUpdateGuard(
+          time, bounds, segmentSeekGuardRef.current,
+        );
+        segmentSeekGuardRef.current = guardResult.nextGuard;
+        if (guardResult.ignore) return;
+      }
+
       if (bounds && time >= bounds.end) {
         if (cbRef.current.segmentLoop) {
+          segmentSeekGuardRef.current = { pending: true };
           video.currentTime = bounds.start;
           cbRef.current.onTimeUpdate?.(bounds.start);
         } else {
           video.pause();
           video.currentTime = bounds.start;
           segmentBoundsRef.current = null;
+          segmentSeekGuardRef.current = null;
           cbRef.current.onTimeUpdate?.(bounds.start);
         }
         return;
@@ -151,6 +169,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     const onPause = () => setIsPlaying(false);
     const onEnded = () => {
       segmentBoundsRef.current = null;
+      segmentSeekGuardRef.current = null;
       if (cbRef.current.globalLoop) {
         video.currentTime = 0;
         void video.play();

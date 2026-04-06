@@ -1,4 +1,15 @@
+---
+title: Services 分层规则
+doc_type: services-governance
+status: active
+owner: repo
+last_reviewed: 2026-04-06
+source_of_truth: governance
+---
+
 # Services 分层规则
+
+> 文档角色：service 层治理与目标分层文档。描述推荐结构、依赖规则与迁移方向，不直接代表当前实际代码布局。当前现状请优先查看 `../architecture/` 与仓库代码。
 
 ## 背景
 

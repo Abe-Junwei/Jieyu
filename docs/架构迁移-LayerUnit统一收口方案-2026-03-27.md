@@ -1,3 +1,5 @@
+> 文档角色：历史迁移方案文档。仅用于保留当时的迁移背景与执行路径，不再作为当前实现的事实源。当前现状请优先查看 docs/architecture/ 与 README 中的文档索引。
+
 # 架构迁移：LayerUnit 统一收口方案
 Architecture Migration: Unified LayerUnit Convergence Plan
 
@@ -159,7 +161,7 @@ legacy tables:
 
 ### 5.3 P1：桥接层职责过宽但还不够正式
 
-#### [src/services/LayerUnitLegacyBridgeService.ts](src/services/LayerUnitLegacyBridgeService.ts)
+#### 历史桥接服务（现已删除，相关 graph helper 已收敛到 [src/services/LayerSegmentGraphService.ts](../src/services/LayerSegmentGraphService.ts)）
 
 - 已承担 merged read、conversion、cascade、upsert。
 - 但尚未拆清为：

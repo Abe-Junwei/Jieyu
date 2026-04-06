@@ -76,7 +76,7 @@ export function OrthographyBridgeManager({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [bridges, setTransforms] = useState<OrthographyBridgeDocType[]>([]);
+  const [bridges, setBridges] = useState<OrthographyBridgeDocType[]>([]);
   const [sourceOrthographyById, setSourceOrthographyById] = useState<Record<string, OrthographyDocType>>();
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [editingBridgeId, setEditingBridgeId] = useState<string | null>(null);
@@ -158,7 +158,7 @@ export function OrthographyBridgeManager({
     const requestVersion = loadRequestVersionRef.current + 1;
     loadRequestVersionRef.current = requestVersion;
     if (!targetOrthography?.id) {
-      setTransforms([]);
+      setBridges([]);
       setSourceOrthographyById({});
       return;
     }
@@ -168,7 +168,7 @@ export function OrthographyBridgeManager({
         targetOrthographyId: targetOrthography.id,
       });
       if (loadRequestVersionRef.current !== requestVersion) return;
-      setTransforms(nextBridges);
+      setBridges(nextBridges);
       const sourceIds = Array.from(new Set(nextBridges.map((item) => item.sourceOrthographyId)));
       if (sourceIds.length === 0) {
         setSourceOrthographyById({});
@@ -206,7 +206,7 @@ export function OrthographyBridgeManager({
     setLoading(false);
     resetEditor();
     setExpanded(initialExpanded);
-    setTransforms([]);
+    setBridges([]);
     setSourceOrthographyById({});
   }, [initialExpanded, resetEditor, targetOrthography?.id]);
 
@@ -459,7 +459,15 @@ export function OrthographyBridgeManager({
                 <button type="button" className="btn btn-ghost" onClick={() => beginEdit(bridge)} disabled={saving}>
                   {managerMessages.edit}
                 </button>
-                <button type="button" className="btn btn-ghost btn-danger" onClick={() => void deleteBridge(bridge.id)} disabled={saving}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-danger"
+                  onClick={() => {
+                    if (typeof window !== 'undefined' && !window.confirm(managerMessages.deleteConfirm ?? managerMessages.deleteRule)) return;
+                    void deleteBridge(bridge.id);
+                  }}
+                  disabled={saving}
+                >
                   {managerMessages.deleteRule}
                 </button>
               </div>

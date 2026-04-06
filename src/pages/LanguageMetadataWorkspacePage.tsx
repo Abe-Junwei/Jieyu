@@ -1,5 +1,5 @@
 import '../styles/pages/language-metadata-workspace.css';
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { LanguageCatalogEntry } from '../services/LinguisticService';
@@ -23,7 +23,8 @@ import {
 } from './languageMetadataWorkspace.shared';
 
 export function LanguageMetadataWorkspacePage() {
-  const locale = useLocale() as WorkspaceLocale;
+  // M1: useLocale() 返回 Locale 与 WorkspaceLocale 类型一致，无需强转 | useLocale() returns Locale which matches WorkspaceLocale
+  const locale: WorkspaceLocale = useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
   const [entries, setEntries] = useState<LanguageCatalogEntry[]>([]);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
@@ -37,6 +38,8 @@ export function LanguageMetadataWorkspacePage() {
   const [draft, setDraft] = useState<LanguageMetadataDraft>(() => buildDraft(null, locale));
   const deferredSearchText = useDeferredValue(searchText);
   const selectedLanguageId = searchParams.get(LANGUAGE_ID_PARAM) ?? '';
+  // 跟踪上一次选中 ID，避免仅 entries 变化时重置未保存草稿 | Track previous selection to prevent resetting unsaved draft on entries-only change
+  const prevSelectedLanguageIdRef = useRef<string | null>(null);
 
   const loadEntries = async (nextSearchText: string) => {
     setLoading(true);
@@ -63,8 +66,14 @@ export function LanguageMetadataWorkspacePage() {
   }, [deferredSearchText, locale]);
 
   useEffect(() => {
+    const selectionChanged = prevSelectedLanguageIdRef.current !== selectedLanguageId;
+    prevSelectedLanguageIdRef.current = selectedLanguageId;
+
     if (selectedLanguageId === NEW_LANGUAGE_ID) {
-      setDraft(buildDraft(null, locale));
+      // 仅在切换到新建时初始化草稿，搜索导致的 entries 变化不重置 | Only init draft on switch-to-new, not on entries-only change
+      if (selectionChanged) {
+        setDraft(buildDraft(null, locale));
+      }
       return;
     }
 

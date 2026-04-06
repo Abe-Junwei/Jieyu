@@ -102,8 +102,8 @@ export function buildOrthographyDraft(orthography: OrthographyDocType): Orthogra
     collationBase: orthography.collation?.base ?? '',
     collationRules: orthography.collation?.customRules ?? '',
     conversionRulesJson: orthography.conversionRules ? JSON.stringify(orthography.conversionRules, null, 2) : '',
-    notesZh: orthography.notes?.zho ?? orthography.notes?.zh ?? '',
-    notesEn: orthography.notes?.eng ?? orthography.notes?.en ?? '',
+    notesZh: orthography.notes?.['zh-CN'] ?? orthography.notes?.zho ?? orthography.notes?.zh ?? '',
+    notesEn: orthography.notes?.['en-US'] ?? orthography.notes?.eng ?? orthography.notes?.en ?? '',
     bidiIsolate: orthography.bidiPolicy?.isolateInlineRuns ?? false,
     preferDirAttribute: orthography.bidiPolicy?.preferDirAttribute ?? true,
   };

@@ -248,7 +248,7 @@ describe('langMapping input helpers', () => {
     expect(resolveLanguageQuery('示例别名')).toBe('demo');
     expect(resolveLanguageCodeInput('demo', 'zh-CN')).toMatchObject({
       status: 'resolved',
-      languageId: 'demo',
+      languageId: 'user:demo-language',
       languageName: '示例语言',
     });
     expect(searchLanguageCatalog('示例', 'zh-CN', 5)[0]?.entry.iso6393).toBe('demo');

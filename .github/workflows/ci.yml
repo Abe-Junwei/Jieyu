@@ -13,6 +13,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  docs-governance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Docs governance
+        run: npm run check:docs-governance
+
+      - name: Docs link debt report
+        run: npm run report:docs-link-debt
+
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 30

@@ -107,4 +107,14 @@ describe('App shell', () => {
 
     getter.mockRestore();
   });
+
+  it('redirects the legacy orthography route to the language-assets workspace route', async () => {
+    render(
+      <MemoryRouter initialEntries={['/lexicon/orthographies']} future={ROUTER_FUTURE_FLAGS}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('orthography-workspace-page')).toBeTruthy();
+  });
 });

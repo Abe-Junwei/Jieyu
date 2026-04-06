@@ -1,11 +1,13 @@
 /**
- * 运行时缓存层：以 localStorage 提供同步可读的用户数据库语言资产快照。
- * Runtime cache layer: provides synchronous access to user DB language assets
- * via localStorage. Rebuilt after each write operation by LinguisticService.
- * This is Layer ② in the three-layer data model, taking priority over the
- * built-in generated baseline (Layer ①).
+ * 运行时读模型缓存：以 localStorage 提供同步可读的语言资产投影快照。
+ * Runtime read-model cache: provides synchronous access to the projected
+ * language asset catalog via localStorage. The snapshot is rebuilt by
+ * LinguisticService after writes and on application boot, allowing sync
+ * consumers to read the same merged catalog semantics as the Service layer.
  */
-import type { LanguageCatalogVisibility } from '../db';
+import type { LanguageCatalogVisibility, LanguageDocType } from '../db';
+import { GENERATED_LANGUAGE_ALIASES_BY_CODE, GENERATED_LANGUAGE_DISPLAY_NAME_CORE } from './generated/languageNameCatalog.generated';
+import { getLanguageDisplayNameOverride } from './languageNameOverrides';
 
 const LANGUAGE_CATALOG_RUNTIME_CACHE_STORAGE_KEY = 'jieyu.language-catalog.runtime-cache.v1';
 
@@ -20,6 +22,9 @@ export type LanguageCatalogRuntimeEntry = {
   native?: string;
   byLocale?: Record<string, string>;
   aliases?: string[];
+  scope?: LanguageDocType['scope'];
+  languageType?: LanguageDocType['languageType'];
+  macrolanguage?: string;
   visibility?: LanguageCatalogVisibility;
 };
 
@@ -37,7 +42,49 @@ const EMPTY_LANGUAGE_CATALOG_RUNTIME_CACHE: LanguageCatalogRuntimeCache = {
   updatedAt: '',
 };
 
-let inMemoryRuntimeCache: LanguageCatalogRuntimeCache = EMPTY_LANGUAGE_CATALOG_RUNTIME_CACHE;
+function buildBaselineLanguageCatalogRuntimeCache(): LanguageCatalogRuntimeCache {
+  const entries = Object.fromEntries(
+    Object.entries(GENERATED_LANGUAGE_DISPLAY_NAME_CORE).map(([languageId, entry]) => {
+      const zhOverride = getLanguageDisplayNameOverride(languageId, 'zh-CN');
+      const byLocale = {
+        ...(entry.byLocale ?? {}),
+        ...(zhOverride ? { 'zh-CN': zhOverride } : {}),
+      };
+
+      return [languageId, {
+        languageCode: languageId,
+        english: entry.english,
+        ...(entry.native ? { native: entry.native } : {}),
+        ...(Object.keys(byLocale).length > 0 ? { byLocale } : {}),
+        ...(GENERATED_LANGUAGE_ALIASES_BY_CODE[languageId]?.length ? { aliases: [...GENERATED_LANGUAGE_ALIASES_BY_CODE[languageId]!] } : {}),
+        visibility: 'visible' as const,
+      }] as const;
+    }),
+  );
+
+  const aliasToId = Object.fromEntries(
+    Object.entries(GENERATED_LANGUAGE_ALIASES_BY_CODE).flatMap(([languageId, aliases]) =>
+      aliases
+        .map((alias) => [normalizeLanguageCatalogRuntimeLabelKey(alias), languageId] as const)
+        .filter(([alias]) => alias.length > 0),
+    ),
+  );
+
+  const lookupToId = Object.fromEntries(
+    Object.keys(GENERATED_LANGUAGE_DISPLAY_NAME_CORE).map((languageId) => [normalizeLanguageCatalogRuntimeLookupKey(languageId), languageId] as const),
+  );
+
+  return {
+    entries,
+    aliasToId,
+    lookupToId,
+    updatedAt: 'baseline-generated',
+  };
+}
+
+const BASELINE_LANGUAGE_CATALOG_RUNTIME_CACHE = buildBaselineLanguageCatalogRuntimeCache();
+
+let inMemoryRuntimeCache: LanguageCatalogRuntimeCache = BASELINE_LANGUAGE_CATALOG_RUNTIME_CACHE;
 
 function normalizeRuntimeLocaleMap(value: unknown): Record<string, string> | undefined {
   if (!value || typeof value !== 'object') {
@@ -87,10 +134,29 @@ function sanitizeRuntimeEntry(value: unknown): LanguageCatalogRuntimeEntry | und
       .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
       .map((item) => item.trim())
     : undefined;
+  const scope = record.scope === 'individual'
+    || record.scope === 'macrolanguage'
+    || record.scope === 'collection'
+    || record.scope === 'special'
+    || record.scope === 'private-use'
+    ? record.scope
+    : undefined;
+  const languageType = record.languageType === 'living'
+    || record.languageType === 'historical'
+    || record.languageType === 'extinct'
+    || record.languageType === 'ancient'
+    || record.languageType === 'constructed'
+    || record.languageType === 'special'
+    ? record.languageType
+    : undefined;
+  const macrolanguage = typeof record.macrolanguage === 'string' && record.macrolanguage.trim().length > 0
+    ? record.macrolanguage.trim().toLowerCase()
+    : undefined;
   const visibility = record.visibility === 'hidden' ? 'hidden' : record.visibility === 'visible' ? 'visible' : undefined;
 
   if (!languageCode && !canonicalTag && !iso6391 && !iso6392B && !iso6392T && !iso6393
-    && !english && !native && !byLocale && (!aliases || aliases.length === 0) && !visibility) {
+    && !english && !native && !byLocale && (!aliases || aliases.length === 0)
+    && !scope && !languageType && !macrolanguage && !visibility) {
     return undefined;
   }
 
@@ -105,6 +171,9 @@ function sanitizeRuntimeEntry(value: unknown): LanguageCatalogRuntimeEntry | und
     ...(native ? { native } : {}),
     ...(byLocale ? { byLocale } : {}),
     ...(aliases && aliases.length > 0 ? { aliases } : {}),
+    ...(scope ? { scope } : {}),
+    ...(languageType ? { languageType } : {}),
+    ...(macrolanguage ? { macrolanguage } : {}),
     ...(visibility ? { visibility } : {}),
   };
 }
@@ -177,7 +246,8 @@ export function readLanguageCatalogRuntimeCache(): LanguageCatalogRuntimeCache {
 
 export function writeLanguageCatalogRuntimeCache(cache: LanguageCatalogRuntimeCache): void {
   const sanitized = sanitizeRuntimeCache(cache);
-  inMemoryRuntimeCache = sanitized;
+  // C6: 写入时生成不可变快照，避免并发读取到半更新状态 | Freeze snapshot on write to prevent concurrent reads from seeing partial updates
+  inMemoryRuntimeCache = Object.freeze(sanitized) as LanguageCatalogRuntimeCache;
   try {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(LANGUAGE_CATALOG_RUNTIME_CACHE_STORAGE_KEY, JSON.stringify(sanitized));
@@ -185,10 +255,26 @@ export function writeLanguageCatalogRuntimeCache(cache: LanguageCatalogRuntimeCa
   } catch {
     // 忽略本地缓存写入失败，保留内存态 | Ignore storage failures and keep in-memory cache
   }
+  // H8: 通知消费端缓存已刷新 | Notify consumers that cache has been refreshed
+  notifyLanguageCatalogCacheListeners();
+}
+
+type LanguageCatalogCacheListener = () => void;
+const cacheListeners = new Set<LanguageCatalogCacheListener>();
+
+export function subscribeLanguageCatalogCacheChange(listener: LanguageCatalogCacheListener): () => void {
+  cacheListeners.add(listener);
+  return () => { cacheListeners.delete(listener); };
+}
+
+function notifyLanguageCatalogCacheListeners(): void {
+  cacheListeners.forEach((listener) => {
+    try { listener(); } catch { /* 忽略监听器错误 | Ignore listener errors */ }
+  });
 }
 
 export function clearLanguageCatalogRuntimeCache(): void {
-  inMemoryRuntimeCache = EMPTY_LANGUAGE_CATALOG_RUNTIME_CACHE;
+  inMemoryRuntimeCache = BASELINE_LANGUAGE_CATALOG_RUNTIME_CACHE;
   try {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(LANGUAGE_CATALOG_RUNTIME_CACHE_STORAGE_KEY);
@@ -196,4 +282,6 @@ export function clearLanguageCatalogRuntimeCache(): void {
   } catch {
     // 忽略缓存删除失败 | Ignore cache removal failures
   }
+  // H8: 清除时也通知消费端 | Notify consumers on clear as well
+  notifyLanguageCatalogCacheListeners();
 }
