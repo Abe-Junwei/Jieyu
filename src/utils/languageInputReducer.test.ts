@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   createLanguageInputModel,
+  MAX_LANGUAGE_INPUT_VISIBLE_SUGGESTIONS,
   reduceLanguageInput,
   selectCommittedLanguageInputValue,
   selectDisplayedLanguageInputValue,
 } from './languageInputReducer';
+import {
+  pickAutoFillLanguageMatchFromSuggestions,
+  searchLanguageCatalog,
+} from './langMapping';
 
 const resolveInjectedLanguageDisplayName = (languageId: string | undefined) => {
   if (languageId?.trim().toLowerCase() === 'eng') {
@@ -31,7 +36,15 @@ describe('languageInputReducer', () => {
 
   it('commits an unambiguous language name match', () => {
     const initial = createLanguageInputModel({ languageName: '', languageCode: '' }, 'en-US');
-    const next = reduceLanguageInput(initial, { type: 'nameChanged', value: 'Portuguese' }, 'en-US');
+    const pending = reduceLanguageInput(initial, { type: 'nameChanged', value: 'Portuguese' }, 'en-US');
+    const suggestions = searchLanguageCatalog('Portuguese', 'en-US', 5);
+    const autoFillMatch = pickAutoFillLanguageMatchFromSuggestions(suggestions);
+    const next = reduceLanguageInput(pending, {
+      type: 'nameSuggestionsResolved',
+      query: 'Portuguese',
+      suggestions,
+      ...(autoFillMatch ? { autoFillMatch } : {}),
+    }, 'en-US');
 
     expect(selectDisplayedLanguageInputValue(next)).toEqual({
       languageName: 'Portuguese',
@@ -103,7 +116,12 @@ describe('languageInputReducer', () => {
 
   it('commits a clicked suggestion with canonical values', () => {
     const initial = createLanguageInputModel({ languageName: '', languageCode: '' }, 'en-US');
-    const suggesting = reduceLanguageInput(initial, { type: 'nameChanged', value: 'Chinese' }, 'en-US');
+    const pending = reduceLanguageInput(initial, { type: 'nameChanged', value: 'Chinese' }, 'en-US');
+    const suggesting = reduceLanguageInput(pending, {
+      type: 'nameSuggestionsResolved',
+      query: 'Chinese',
+      suggestions: searchLanguageCatalog('Chinese', 'en-US', MAX_LANGUAGE_INPUT_VISIBLE_SUGGESTIONS),
+    }, 'en-US');
     const committed = reduceLanguageInput(suggesting, { type: 'nameSuggestionCommitted', index: 0, source: 'click' }, 'en-US');
 
     expect(selectCommittedLanguageInputValue(committed).languageCode).toBe('cmn');
@@ -177,5 +195,29 @@ describe('languageInputReducer', () => {
       languageAssetId: 'eng',
       displayMode: 'locale-first',
     });
+  });
+
+  it('ignores stale async suggestion payloads after the input query changes', () => {
+    const initial = createLanguageInputModel({ languageName: '', languageCode: '' }, 'en-US');
+    const pending = reduceLanguageInput(initial, { type: 'nameChanged', value: 'French' }, 'en-US');
+    const changed = reduceLanguageInput(pending, { type: 'nameChanged', value: 'German' }, 'en-US');
+    const staleSuggestions = searchLanguageCatalog('French', 'en-US', 5);
+    const staleAutoFillMatch = pickAutoFillLanguageMatchFromSuggestions(staleSuggestions);
+    const stale = reduceLanguageInput(changed, {
+      type: 'nameSuggestionsResolved',
+      query: 'French',
+      suggestions: staleSuggestions,
+      ...(staleAutoFillMatch ? { autoFillMatch: staleAutoFillMatch } : {}),
+    }, 'en-US');
+
+    expect(selectDisplayedLanguageInputValue(stale)).toEqual({
+      languageName: 'German',
+      languageCode: '',
+    });
+    expect(selectCommittedLanguageInputValue(stale)).toEqual({
+      languageName: '',
+      languageCode: '',
+    });
+    expect(stale.status).toBe('suggesting');
   });
 });

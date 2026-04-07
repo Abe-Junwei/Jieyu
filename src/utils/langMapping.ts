@@ -8,8 +8,7 @@
  */
 
 import languageTags from 'language-tags';
-import { iso6393 } from 'iso-639-3';
-
+import { listIso639_3Seeds } from '../data/iso6393Seed';
 import {
   getLanguageAliasCodeFromCatalog,
   getLanguageAliasesForCodeFromCatalog,
@@ -169,21 +168,23 @@ export const ALL_VOICE_LANG_CODES: readonly string[] =
     .filter((l) => l.code !== '__auto__')
     .map((l) => l.code);
 
+const ISO639_3_SEEDS = listIso639_3Seeds();
+
 // ── ISO 639-3 数据库索引 | ISO 639-3 database indexes ──
 
 const ISO639_3_DB_CODE_SET: ReadonlySet<string> = new Set(
-  iso6393
+  ISO639_3_SEEDS
     .map((entry) => entry.iso6393.toLowerCase())
     .filter((code) => code.length > 0),
 );
 
 const ISO639_3_DB_NAME_TO_CODE: Readonly<Record<string, string>> = (() => {
   const map: Record<string, string> = {};
-  for (const entry of iso6393) {
+  for (const entry of ISO639_3_SEEDS) {
     const code = entry.iso6393.toLowerCase();
     if (!code) continue;
 
-    const refs = [entry.name, (entry as { invertedName?: string }).invertedName]
+    const refs = [entry.name, entry.invertedName]
       .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
       .map((v) => v.trim().toLowerCase());
 
@@ -390,7 +391,7 @@ const AMBIGUOUS_QUERY_PRESETS: Readonly<Record<string, readonly string[]>> = {
 
 const ISO639_1_TO_3: Readonly<Record<string, string>> = (() => {
   const map: Record<string, string> = {};
-  for (const entry of iso6393) {
+  for (const entry of ISO639_3_SEEDS) {
     const code = entry.iso6393.toLowerCase();
     const iso6391 = entry.iso6391?.trim().toLowerCase();
     if (code && iso6391 && !(iso6391 in map)) {
@@ -402,7 +403,7 @@ const ISO639_1_TO_3: Readonly<Record<string, string>> = (() => {
 
 const ISO639_2_TO_3: Readonly<Record<string, string>> = (() => {
   const map: Record<string, string> = {};
-  for (const entry of iso6393) {
+  for (const entry of ISO639_3_SEEDS) {
     const code = entry.iso6393.toLowerCase();
     const iso6392B = entry.iso6392B?.trim().toLowerCase();
     const iso6392T = entry.iso6392T?.trim().toLowerCase();
@@ -418,7 +419,7 @@ const ISO639_2_TO_3: Readonly<Record<string, string>> = (() => {
 
 const MACROLANGUAGE_BY_CODE: Readonly<Record<string, string>> = (() => {
   const map: Record<string, string> = {};
-  for (const entry of iso6393) {
+  for (const entry of ISO639_3_SEEDS) {
     const subtag = languageTags.language(entry.iso6393) ?? languageTags.type(entry.iso6393, 'extlang');
     if (!subtag || subtag.scope() !== 'macrolanguage') continue;
     const macroCode = entry.iso6393.toLowerCase();
@@ -441,7 +442,7 @@ let _languageCatalogByCode: Readonly<Record<string, LanguageCatalogEntry>> | und
 function getLanguageCatalogByCode(): Readonly<Record<string, LanguageCatalogEntry>> {
   if (_languageCatalogByCode) return _languageCatalogByCode;
   const map: Record<string, LanguageCatalogEntry> = {};
-  for (const entry of iso6393) {
+  for (const entry of ISO639_3_SEEDS) {
     const code = entry.iso6393.toLowerCase();
     if (!code) continue;
     const subtag = languageTags.language(code) ?? languageTags.type(code, 'extlang');
@@ -456,14 +457,14 @@ function getLanguageCatalogByCode(): Readonly<Record<string, LanguageCatalogEntr
       ...(entry.iso6392B ? { iso6392B: entry.iso6392B.toLowerCase() } : {}),
       ...(entry.iso6392T ? { iso6392T: entry.iso6392T.toLowerCase() } : {}),
       name: entry.name,
-      ...((entry as { invertedName?: string }).invertedName ? { invertedName: (entry as { invertedName?: string }).invertedName } : {}),
+      ...(entry.invertedName ? { invertedName: entry.invertedName } : {}),
       ...(() => { const zh = getLanguageLocalDisplayNameFromCatalog(code, 'zh-CN'); return zh ? { displayNameZh: zh } : {}; })(),
       aliases: [...getLanguageAliasesForCodeFromCatalog(code)],
       scope: ((subtag?.scope() ?? entry.scope ?? 'individual') as LanguageCatalogEntry['scope']),
       type: (entry.type as LanguageCatalogEntry['type']),
       descriptions: Array.from(new Set([
         entry.name,
-        (entry as { invertedName?: string }).invertedName,
+        entry.invertedName,
         ...(subtag?.descriptions() ?? []),
       ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0))),
       deprecated: subtag?.deprecated() !== null,
@@ -474,6 +475,54 @@ function getLanguageCatalogByCode(): Readonly<Record<string, LanguageCatalogEntr
   }
   _languageCatalogByCode = map;
   return _languageCatalogByCode;
+}
+
+type ParsedLanguageTag = {
+  formattedTag: string;
+  primaryLanguage: string;
+  scriptTag?: string;
+  regionTag?: string;
+  variantTag?: string;
+};
+
+function parseLanguageTag(input: string): ParsedLanguageTag | undefined {
+  try {
+    const locale = new Intl.Locale(input);
+    const formattedTag = locale.toString();
+    const segments = formattedTag.split('-');
+    const extlangSegment = segments[1];
+    const usesExtlang = Boolean(extlangSegment && /^[a-z]{3}$/i.test(extlangSegment));
+    const primaryLanguage = (extlangSegment && /^[a-z]{3}$/i.test(extlangSegment)
+      ? extlangSegment
+      : locale.language)?.trim().toLowerCase();
+
+    if (!primaryLanguage) {
+      return undefined;
+    }
+
+    const variantSegments = segments.filter((segment, index) => {
+      if (index === 0) {
+        return false;
+      }
+      if (usesExtlang && index === 1) {
+        return false;
+      }
+      return /^(?:[0-9][a-z0-9]{3}|[a-z0-9]{5,8})$/i.test(segment);
+    });
+    const variantTag = variantSegments.length > 0
+      ? variantSegments.join('-')
+      : undefined;
+
+    return {
+      formattedTag,
+      primaryLanguage,
+      ...(locale.script ? { scriptTag: locale.script } : {}),
+      ...(locale.region ? { regionTag: locale.region } : {}),
+      ...(variantTag ? { variantTag } : {}),
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 function resolveRuntimeLanguageCode(query: string | undefined): string | undefined {
@@ -1003,6 +1052,12 @@ export function pickAutoFillLanguageMatch(
   maxResults = 5,
 ): LanguageCatalogMatch | undefined {
   const matches = searchLanguageCatalog(query, locale, maxResults);
+  return pickAutoFillLanguageMatchFromSuggestions(matches);
+}
+
+export function pickAutoFillLanguageMatchFromSuggestions(
+  matches: readonly LanguageCatalogMatch[],
+): LanguageCatalogMatch | undefined {
   const exactMatch = matches.find((match) => match.matchSource === 'alias-exact' || match.matchSource === 'name-exact');
   if (exactMatch) return exactMatch;
   if (matches.length === 1 && matches[0]?.matchSource === 'prefix') {
@@ -1195,24 +1250,12 @@ export function resolveLanguageCodeInput(
     };
   }
 
-  const maybeTag = languageTags(normalized);
-  if (typeof maybeTag.valid !== 'function' || !maybeTag.valid()) {
+  const parsedTag = parseLanguageTag(normalized);
+  if (!parsedTag) {
     return { status: 'invalid', warnings: [] };
   }
 
-  let preferredTag = maybeTag;
-  try {
-    preferredTag = maybeTag.preferred?.() ?? maybeTag;
-  } catch {
-    preferredTag = maybeTag;
-  }
-  const subtags = preferredTag.subtags?.() ?? [];
-  const scriptSubtag = subtags.find((subtag) => subtag.type() === 'script');
-  const regionSubtag = subtags.find((subtag) => subtag.type() === 'region');
-  const variantSubtags = subtags.filter((subtag) => subtag.type() === 'variant');
-  const extlangSubtag = subtags.find((subtag) => subtag.type() === 'extlang');
-  const languageSubtag = extlangSubtag ?? preferredTag.language?.() ?? subtags.find((subtag) => subtag.type() === 'language');
-  const canonicalPrimary = languageSubtag?.format().toLowerCase();
+  const canonicalPrimary = parsedTag.primaryLanguage;
   const canonicalCode = canonicalPrimary
     ? (resolveAnyLanguageCode(canonicalPrimary).languageId ?? toIso639_3(canonicalPrimary))
     : undefined;
@@ -1222,7 +1265,7 @@ export function resolveLanguageCodeInput(
   }
 
   const entry = catalogByCode[canonicalCode]!;
-  const formattedTag = preferredTag.format?.() ?? normalized;
+  const formattedTag = parsedTag.formattedTag;
   const warnings = buildWarningsForEntry(entry, locale);
   if (formattedTag.toLowerCase() !== canonicalCode.toLowerCase()) {
     warnings.unshift(locale === 'zh-CN'
@@ -1235,9 +1278,9 @@ export function resolveLanguageCodeInput(
     languageId: entry.languageId,
     languageName: getLocaleDisplayName(entry, locale),
     ...(formattedTag.toLowerCase() !== canonicalCode.toLowerCase() ? { localeTag: formattedTag } : {}),
-    ...(scriptSubtag ? { scriptTag: scriptSubtag.format() } : {}),
-    ...(regionSubtag ? { regionTag: regionSubtag.format() } : {}),
-    ...(variantSubtags.length > 0 ? { variantTag: variantSubtags.map((subtag) => subtag.format()).join('-') } : {}),
+    ...(parsedTag.scriptTag ? { scriptTag: parsedTag.scriptTag } : {}),
+    ...(parsedTag.regionTag ? { regionTag: parsedTag.regionTag } : {}),
+    ...(parsedTag.variantTag ? { variantTag: parsedTag.variantTag } : {}),
     warnings,
   };
 }

@@ -18,6 +18,7 @@ const OUTPUT_DIR = path.resolve(process.cwd(), 'public/data/language-support');
 const OUTPUT_CORE_JSON = path.join(OUTPUT_DIR, 'language-display-names.core.json');
 const OUTPUT_ALIAS_JSON = path.join(OUTPUT_DIR, 'language-query-aliases.json');
 const OUTPUT_TS = path.resolve(process.cwd(), 'src/data/generated/languageNameCatalog.generated.ts');
+const OUTPUT_ISO_SEED_TS = path.resolve(process.cwd(), 'src/data/generated/iso6393Seed.generated.ts');
 
 const QUERY_LOCALES = [
   { locale: 'zh-CN', cldr: 'zh' },
@@ -430,6 +431,31 @@ function toTsModule(core, queryIndexes, aliasToCode, aliasesByCode) {
   ].join('\n');
 }
 
+function toIsoSeedTsModule() {
+  const rows = iso6393
+    .filter((entry) => entry.iso6393.trim().length > 0)
+    .map((entry) => ([
+      entry.iso6393.toLowerCase(),
+      entry.name,
+      ('invertedName' in entry && typeof entry.invertedName === 'string' && entry.invertedName.trim().length > 0)
+        ? entry.invertedName
+        : null,
+      entry.iso6391?.toLowerCase() ?? null,
+      entry.iso6392B?.toLowerCase() ?? null,
+      entry.iso6392T?.toLowerCase() ?? null,
+      entry.scope,
+      entry.type,
+    ]));
+
+  return [
+    "import type { Iso639_3SeedRow } from '../iso6393Seed';",
+    '',
+    'export const GENERATED_ISO6393_SEED_ROWS: readonly Iso639_3SeedRow[] = ',
+    `${JSON.stringify(rows, null, 2)} as const;`,
+    '',
+  ].join('\n');
+}
+
 async function main() {
   const [languages, cldrLanguageMaps, aliasSeed, displayOverrideSeed] = await Promise.all([
     loadTop500SeedLanguages(),
@@ -472,10 +498,12 @@ async function main() {
   );
 
   await writeFile(OUTPUT_TS, toTsModule(core, queryIndexes, aliasToCode, aliasesByCode), 'utf8');
+  await writeFile(OUTPUT_ISO_SEED_TS, toIsoSeedTsModule(), 'utf8');
 
   console.log(`Generated language name core: ${OUTPUT_CORE_JSON}`);
   console.log(`Generated language alias index: ${OUTPUT_ALIAS_JSON}`);
   console.log(`Generated runtime module: ${OUTPUT_TS}`);
+  console.log(`Generated ISO seed runtime module: ${OUTPUT_ISO_SEED_TS}`);
 }
 
 main().catch((error) => {

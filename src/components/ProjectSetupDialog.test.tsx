@@ -1,15 +1,23 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProjectSetupDialog } from './ProjectSetupDialog';
 import { renderWithLocale } from '../test/localeTestUtils';
 
-const { mockCreateOrthography, mockCloneOrthographyToLanguage, mockCreateOrthographyBridge, mockListLanguageCatalogEntries, mockUseOrthographies } = vi.hoisted(() => ({
+const {
+  mockCreateOrthography,
+  mockCloneOrthographyToLanguage,
+  mockCreateOrthographyBridge,
+  mockListLanguageCatalogEntries,
+  mockUseOrthographies,
+  mockSearchLanguageCatalogSuggestions,
+} = vi.hoisted(() => ({
   mockCreateOrthography: vi.fn(),
   mockCloneOrthographyToLanguage: vi.fn(),
   mockCreateOrthographyBridge: vi.fn(),
   mockListLanguageCatalogEntries: vi.fn(),
   mockUseOrthographies: vi.fn(),
+  mockSearchLanguageCatalogSuggestions: vi.fn(),
 }));
 
 vi.mock('../services/LinguisticService.orthography', () => ({
@@ -22,13 +30,49 @@ vi.mock('../services/LinguisticService.languageCatalog', () => ({
   listLanguageCatalogEntries: mockListLanguageCatalogEntries,
 }));
 
+vi.mock('../services/LanguageCatalogSearchService', () => ({
+  searchLanguageCatalogSuggestions: mockSearchLanguageCatalogSuggestions,
+}));
+
 vi.mock('../hooks/useOrthographies', () => ({
   useOrthographies: mockUseOrthographies,
 }));
 
 mockListLanguageCatalogEntries.mockResolvedValue([]);
+mockSearchLanguageCatalogSuggestions.mockImplementation(async ({ query }: { query: string }) => {
+  const normalized = query.trim().toLowerCase();
+  if (normalized === 'english') {
+    return [{
+      id: 'eng',
+      languageCode: 'eng',
+      primaryLabel: 'English',
+      matchedLabel: 'English',
+      matchedLabelKind: 'english',
+      matchSource: 'english-exact',
+      rank: 1,
+      hasRuntimeOverride: false,
+    }];
+  }
+  if (normalized === 'portuguese') {
+    return [{
+      id: 'por',
+      languageCode: 'por',
+      primaryLabel: 'Portuguese',
+      matchedLabel: 'Portuguese',
+      matchedLabelKind: 'english',
+      matchSource: 'english-exact',
+      rank: 1,
+      hasRuntimeOverride: false,
+    }];
+  }
+  return [];
+});
 
 describe('ProjectSetupDialog orthography creation', () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+  });
+
   afterEach(() => {
     cleanup();
     mockCreateOrthography.mockReset();
@@ -37,6 +81,35 @@ describe('ProjectSetupDialog orthography creation', () => {
     mockListLanguageCatalogEntries.mockReset();
     mockListLanguageCatalogEntries.mockResolvedValue([]);
     mockUseOrthographies.mockReset();
+    mockSearchLanguageCatalogSuggestions.mockReset();
+    mockSearchLanguageCatalogSuggestions.mockImplementation(async ({ query }: { query: string }) => {
+      const normalized = query.trim().toLowerCase();
+      if (normalized === 'english') {
+        return [{
+          id: 'eng',
+          languageCode: 'eng',
+          primaryLabel: 'English',
+          matchedLabel: 'English',
+          matchedLabelKind: 'english',
+          matchSource: 'english-exact',
+          rank: 1,
+          hasRuntimeOverride: false,
+        }];
+      }
+      if (normalized === 'portuguese') {
+        return [{
+          id: 'por',
+          languageCode: 'por',
+          primaryLabel: 'Portuguese',
+          matchedLabel: 'Portuguese',
+          matchedLabelKind: 'english',
+          matchSource: 'english-exact',
+          rank: 1,
+          hasRuntimeOverride: false,
+        }];
+      }
+      return [];
+    });
   });
 
   it('renders through DialogShell with panel footer actions', () => {
@@ -91,6 +164,9 @@ describe('ProjectSetupDialog orthography creation', () => {
 
     fireEvent.change(screen.getByRole('combobox', { name: /目标语言/ }), {
       target: { value: 'English' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: /语言代码/ }), {
+      target: { value: 'eng' },
     });
 
     await waitFor(() => {
@@ -152,6 +228,9 @@ describe('ProjectSetupDialog orthography creation', () => {
     fireEvent.change(screen.getByRole('combobox', { name: /目标语言/ }), {
       target: { value: 'English' },
     });
+    fireEvent.change(screen.getByRole('textbox', { name: /语言代码/ }), {
+      target: { value: 'eng' },
+    });
 
     await waitFor(() => {
       expect(screen.getAllByText('English Reviewed · Latn · practical').length).toBeGreaterThan(0);
@@ -161,7 +240,7 @@ describe('ProjectSetupDialog orthography creation', () => {
     expect(screen.queryByRole('button', { name: '管理写入桥接规则' })).toBeNull();
   });
 
-  it('fills ISO code from the shared language search input', () => {
+  it('accepts an ISO code entered alongside the shared language search input', () => {
     mockUseOrthographies.mockReturnValue([]);
 
     renderWithLocale(
@@ -174,6 +253,9 @@ describe('ProjectSetupDialog orthography creation', () => {
 
     fireEvent.change(screen.getByRole('combobox', { name: /目标语言/ }), {
       target: { value: 'Portuguese' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: /语言代码/ }), {
+      target: { value: 'por' },
     });
 
     expect((screen.getByRole('textbox', { name: /语言代码/ }) as HTMLInputElement).value).toBe('por');

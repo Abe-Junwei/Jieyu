@@ -283,10 +283,230 @@
   line-height: 1.6;
 }
 
+.language-metadata-workspace-subgroup {
+  display: grid;
+  gap: var(--language-metadata-space-3);
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 76%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
+}
+
+.language-metadata-workspace-subgroup-header {
+  display: grid;
+  gap: 4px;
+}
+
+.language-metadata-workspace-subgroup-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.language-metadata-workspace-subgroup-description {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
 .language-metadata-workspace-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--language-metadata-space-4);
+}
+
+.language-metadata-workspace-geography-coverage-layout,
+.language-metadata-workspace-geography-coordinates-layout {
+  display: grid;
+  gap: var(--language-metadata-space-4);
+  align-items: start;
+}
+
+.language-metadata-workspace-geography-coverage-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.language-metadata-workspace-geography-coordinates-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.language-metadata-workspace-geography-panel {
+  display: grid;
+  gap: var(--language-metadata-space-3);
+  min-width: 0;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 74%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 58%, var(--surface-panel));
+}
+
+.language-metadata-workspace-geography-panel-secondary,
+.language-metadata-workspace-geography-panel-preview {
+  background: color-mix(in srgb, var(--surface-panel) 96%, var(--surface-header));
+}
+
+.language-metadata-workspace-geography-panel-header {
+  display: grid;
+  gap: 4px;
+}
+
+.language-metadata-workspace-geography-panel-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.language-metadata-workspace-geography-panel-description {
+  margin: 0;
+  font-size: var(--language-metadata-meta-size);
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.language-metadata-workspace-administrative-picker {
+  display: grid;
+  gap: var(--language-metadata-space-3);
+}
+
+.language-metadata-workspace-administrative-search-shell {
+  display: grid;
+  gap: var(--language-metadata-space-3);
+}
+
+.language-metadata-workspace-administrative-search-anchor {
+  position: relative;
+}
+
+.language-metadata-workspace-administrative-search-summary {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.language-metadata-workspace-administrative-search-status {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.language-metadata-workspace-administrative-search-status-error {
+  color: var(--status-danger-foreground, #b42318);
+}
+
+.language-metadata-workspace-administrative-resolved-grid {
+  display: grid;
+  gap: var(--language-metadata-space-3);
+}
+
+.language-metadata-workspace-administrative-resolved-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--language-metadata-space-3);
+}
+
+.language-metadata-workspace-administrative-coverage-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+  gap: var(--language-metadata-space-3);
+  align-items: end;
+}
+
+.language-metadata-workspace-administrative-coverage-field {
+  min-width: 0;
+}
+
+.language-metadata-workspace-administrative-primary {
+  display: grid;
+  gap: var(--language-metadata-space-2);
+}
+
+.language-metadata-workspace-administrative-secondary {
+  display: grid;
+  gap: var(--language-metadata-space-2);
+}
+
+.language-metadata-workspace-administrative-primary-row,
+.language-metadata-workspace-administrative-secondary-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  align-items: end;
+}
+
+.language-metadata-workspace-administrative-connected-field {
+  min-width: 0;
+}
+
+.language-metadata-workspace-administrative-connected-field .language-metadata-workspace-select__control,
+.language-metadata-workspace-administrative-connected-field .input {
+  position: relative;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.language-metadata-workspace-administrative-connected-field .language-metadata-workspace-select__control,
+.language-metadata-workspace-administrative-text-input {
+  min-height: 40px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.language-metadata-workspace-administrative-connected-field:focus-within {
+  z-index: 2;
+}
+
+.language-metadata-workspace-administrative-connected-field .input {
+  min-height: 40px;
+  padding: 9px 12px;
+  background: var(--surface-raised);
+}
+
+.language-metadata-workspace-administrative-text-input {
+  padding: 9px 12px;
+}
+
+.language-metadata-workspace-administrative-text-input::placeholder {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.language-metadata-workspace-administrative-connected-field .input:focus {
+  outline: none;
+  border-color: var(--focus-ring, #4d90fe);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring, #4d90fe) 22%, transparent);
+}
+
+.language-metadata-workspace-administrative-primary-field-start .language-metadata-workspace-select__control,
+.language-metadata-workspace-administrative-secondary-field-start .input {
+  border-radius: 10px 0 0 10px !important;
+}
+
+.language-metadata-workspace-administrative-primary-field-middle .language-metadata-workspace-select__control,
+.language-metadata-workspace-administrative-secondary-field-middle .input {
+  margin-left: -1px !important;
+  border-radius: 0 !important;
+}
+
+.language-metadata-workspace-administrative-primary-field-end .language-metadata-workspace-select__control,
+.language-metadata-workspace-administrative-secondary-field-end .input {
+  margin-left: -1px !important;
+  border-radius: 0 10px 10px 0 !important;
+}
+
+.language-metadata-workspace-administrative-actions {
+  display: flex;
+  gap: var(--language-metadata-space-2);
+  align-items: end;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  min-height: 42px;
+  padding-top: var(--language-metadata-space-1);
+  border-top: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);
 }
 
 .language-metadata-workspace-field {
@@ -365,7 +585,7 @@
 
 .language-metadata-workspace-matrix-row {
   display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 0.85fr) minmax(0, 1.7fr) auto auto;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.9fr) auto auto;
   gap: var(--language-metadata-space-3);
   align-items: end;
   padding: 12px;
@@ -375,7 +595,7 @@
 }
 
 .language-metadata-workspace-matrix-row > .language-metadata-workspace-field-block {
-  grid-column: 3 / 4;
+  grid-column: 2 / 3;
 }
 
 .language-metadata-workspace-matrix-row > .language-metadata-workspace-checkbox-field {
@@ -389,11 +609,6 @@
   min-height: 40px;
   font-size: var(--language-metadata-meta-size);
   color: var(--text-secondary);
-}
-
-.language-metadata-workspace-textarea {
-  min-height: 88px;
-  resize: vertical;
 }
 
 .language-metadata-workspace-field-editor-card {
@@ -431,12 +646,38 @@
   color: var(--status-success-foreground, #0f7b6c);
 }
 
-/* ── 地理信息单行（纬度 + 经度 + 底图）| Geo row (lat + lng + provider) ── */
+/* ── 地理信息单行（纬度 + 经度 + 定位输入）| Geo row (lat + lng + location input) ── */
 .language-metadata-workspace-geo-row {
   display: grid;
-  grid-template-columns: 0.7fr 0.7fr 1fr 1.6fr;
+  grid-template-columns: 0.72fr 0.72fr minmax(0, 1.8fr);
   gap: var(--language-metadata-space-3);
   align-items: end;
+}
+
+.language-metadata-workspace-map-controls {
+  display: grid;
+  gap: var(--language-metadata-space-2);
+}
+
+.language-metadata-workspace-map-provider-field {
+  max-width: 100%;
+}
+
+.language-metadata-workspace-geography-map-shell {
+  display: grid;
+  min-height: 100%;
+}
+
+.language-metadata-workspace-geography-map-empty {
+  display: grid;
+  gap: var(--language-metadata-space-3);
+  min-height: 240px;
+  place-items: center;
+  padding: 18px;
+  border-radius: var(--language-metadata-space-2);
+  border: 1px dashed color-mix(in srgb, var(--border-soft) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 68%, transparent);
+  text-align: center;
 }
 
 .language-metadata-workspace-geo-field {
@@ -483,7 +724,7 @@
   margin: 2px 0 0;
   padding: 0;
   list-style: none;
-  background: var(--surface-raised, #fff);
+  background: var(--surface-panel);
   backdrop-filter: none;
   opacity: 1;
   border: 1px solid var(--border-soft);
@@ -516,11 +757,11 @@
 }
 
 .language-metadata-workspace-geocode-item:hover {
-  background: var(--surface-hover, var(--surface-raised));
+  background: var(--surface-bg);
 }
 
 .language-metadata-workspace-geocode-item-active {
-  background: color-mix(in srgb, var(--surface-hover, var(--surface-raised)) 82%, var(--surface-header));
+  background: var(--surface-bg);
 }
 
 .language-metadata-workspace-geocode-name {
@@ -537,22 +778,29 @@
 .language-metadata-workspace-map-provider-bar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--language-metadata-space-1);
   font-size: 0.82rem;
 }
 
 .language-metadata-workspace-map-provider-select {
-  flex: 1;
+  flex: 1 1 220px;
   min-width: 0;
   padding: 4px 8px;
   font-size: 0.82rem;
   border: 1px solid var(--border-soft);
   border-radius: var(--language-metadata-space-1);
-  background: var(--surface-raised);
+  background: var(--surface-panel);
   color: var(--text-primary);
   cursor: pointer;
   outline: none;
   appearance: auto;
+}
+
+.language-metadata-workspace-map-provider-select option,
+.language-metadata-workspace-administrative-coverage-field .input option {
+  background: var(--surface-panel);
+  color: var(--text-primary);
 }
 
 .language-metadata-workspace-map-provider-select:focus-visible {
@@ -732,6 +980,15 @@
     grid-template-columns: 1fr;
   }
 
+  .language-metadata-workspace-geography-coverage-layout,
+  .language-metadata-workspace-geography-coordinates-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .language-metadata-workspace-administrative-actions {
+    justify-content: flex-start;
+  }
+
   .language-metadata-workspace-matrix-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -747,12 +1004,36 @@
     grid-template-columns: 1fr;
   }
 
-  .language-metadata-workspace-geo-row {
-    grid-template-columns: 1fr 1fr;
+  .language-metadata-workspace-administrative-resolved-row {
+    grid-template-columns: 1fr;
   }
 
-  .language-metadata-workspace-geo-row > :nth-child(n+3) {
-    grid-column: 1 / -1;
+  .language-metadata-workspace-administrative-coverage-row {
+    grid-template-columns: 1fr;
+  }
+
+  .language-metadata-workspace-geo-row {
+    grid-template-columns: 1fr;
+  }
+
+  .language-metadata-workspace-administrative-primary-row,
+  .language-metadata-workspace-administrative-secondary-row {
+    grid-template-columns: 1fr;
+  }
+
+  .language-metadata-workspace-administrative-primary-row,
+  .language-metadata-workspace-administrative-secondary-row {
+    gap: var(--language-metadata-space-2);
+  }
+
+  .language-metadata-workspace-administrative-primary-field-start .language-metadata-workspace-select__control,
+  .language-metadata-workspace-administrative-primary-field-middle .language-metadata-workspace-select__control,
+  .language-metadata-workspace-administrative-primary-field-end .language-metadata-workspace-select__control,
+  .language-metadata-workspace-administrative-secondary-field-start .input,
+  .language-metadata-workspace-administrative-secondary-field-middle .input,
+  .language-metadata-workspace-administrative-secondary-field-end .input {
+    margin-left: 0 !important;
+    border-radius: 10px !important;
   }
 
   .language-metadata-workspace-matrix-header,
@@ -767,7 +1048,8 @@
   .language-metadata-workspace-toolbar > .btn,
   .language-metadata-workspace-matrix-header > .btn,
   .language-metadata-workspace-matrix-row > .btn,
-  .language-metadata-workspace-actions > .btn {
+  .language-metadata-workspace-actions > .btn,
+  .language-metadata-workspace-administrative-actions > .btn {
     width: 100%;
   }
 

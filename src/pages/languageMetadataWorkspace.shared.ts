@@ -39,6 +39,8 @@ export type LanguageMetadataDraft = {
   nativeName: string;
   aliasesText: string;
   genus: string;
+  subfamily: string;
+  branch: string;
   classificationPath: string;
   macrolanguage: string;
   scope: string;
@@ -61,6 +63,7 @@ export type LanguageMetadataDraft = {
   egids: string;
   documentationLevel: string;
   dialectsText: string;
+  vernacularsText: string;
   writingSystemsText: string;
   literacyRate: string;
   glottocode: string;
@@ -72,6 +75,7 @@ export type LanguageMetadataDraft = {
   longitude: string;
   changeReason: string;
   displayNameRows: LanguageDisplayNameDraftRow[];
+  displayNameHiddenRows: LanguageDisplayNameDraftRow[];
   customFieldValues: Record<string, string>;
 };
 
@@ -95,6 +99,219 @@ export function parseAliasText(value: string): string[] {
     .filter(Boolean);
 }
 
+export function parseLineSeparatedText(value: string): string[] {
+  return value
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+type ClassificationPathKey = 'genus' | 'subfamily' | 'branch' | 'dialects' | 'vernaculars';
+
+const CLASSIFICATION_PATH_LABEL_KEYS: Record<ClassificationPathKey, Parameters<typeof t>[1]> = {
+  genus: 'workspace.languageMetadata.genusLabel',
+  subfamily: 'workspace.languageMetadata.subfamilyLabel',
+  branch: 'workspace.languageMetadata.branchLabel',
+  dialects: 'workspace.languageMetadata.dialectsLabel',
+  vernaculars: 'workspace.languageMetadata.vernacularsLabel',
+};
+
+function normalizeClassificationPathList(values?: string[]): string[] {
+  return values?.map((item) => item.trim()).filter(Boolean) ?? [];
+}
+
+export function buildClassificationPathValue(value: {
+  genus?: string;
+  subfamily?: string;
+  branch?: string;
+  dialects?: string[];
+  vernaculars?: string[];
+}): string {
+  const dialects = normalizeClassificationPathList(value.dialects).join('、');
+  const vernaculars = normalizeClassificationPathList(value.vernaculars).join('、');
+
+  return [
+    value.genus?.trim(),
+    value.subfamily?.trim(),
+    value.branch?.trim(),
+    dialects,
+    vernaculars,
+  ]
+    .filter(Boolean)
+    .join(' / ');
+}
+
+export function buildClassificationPathDisplayLine(
+  locale: WorkspaceLocale,
+  value: {
+    genus?: string;
+    subfamily?: string;
+    branch?: string;
+    dialects?: string[];
+    vernaculars?: string[];
+  },
+): string {
+  const dialects = normalizeClassificationPathList(value.dialects);
+  const vernaculars = normalizeClassificationPathList(value.vernaculars);
+  const displayValues: Record<ClassificationPathKey, string> = {
+    genus: value.genus?.trim() ?? '',
+    subfamily: value.subfamily?.trim() ?? '',
+    branch: value.branch?.trim() ?? '',
+    dialects: dialects.join(locale === 'zh-CN' ? '、' : ', '),
+    vernaculars: vernaculars.join(locale === 'zh-CN' ? '、' : ', '),
+  };
+
+  return (Object.keys(CLASSIFICATION_PATH_LABEL_KEYS) as ClassificationPathKey[])
+    .flatMap((key) => (displayValues[key] ? [`${t(locale, CLASSIFICATION_PATH_LABEL_KEYS[key])}: ${displayValues[key]}`] : []))
+    .join(' / ');
+}
+
+type AdministrativeDivisionKey = 'country' | 'province' | 'city' | 'county' | 'township' | 'village';
+
+const ADMINISTRATIVE_DIVISION_LABEL_KEYS: Record<AdministrativeDivisionKey, Parameters<typeof t>[1]> = {
+  country: 'workspace.languageMetadata.administrativeDivisionCountryLabel',
+  province: 'workspace.languageMetadata.administrativeDivisionProvinceLabel',
+  city: 'workspace.languageMetadata.administrativeDivisionCityLabel',
+  county: 'workspace.languageMetadata.administrativeDivisionCountyLabel',
+  township: 'workspace.languageMetadata.administrativeDivisionTownshipLabel',
+  village: 'workspace.languageMetadata.administrativeDivisionVillageLabel',
+};
+
+const ADMINISTRATIVE_DIVISION_LABEL_ALIASES: Record<AdministrativeDivisionKey, string[]> = {
+  country: ['country', '国家'],
+  province: ['province', 'state', 'stateprovince', 'provincestate', '省', '州', '省州'],
+  city: ['city', '城市', '市'],
+  county: ['county', 'district', 'countydistrict', '县', '区', '县区'],
+  township: ['township', 'town', 'townshiptown', '乡', '镇', '乡镇'],
+  village: ['village', 'hamlet', '村', '村级'],
+};
+
+function normalizeAdministrativeDivisionLabel(value: string): string {
+  return value
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[\s/]/g, '');
+}
+
+function parseAdministrativeDivisionSegment(segment: string): { key: AdministrativeDivisionKey; value: string } | null {
+  const matched = segment.match(/^([^:：]+)\s*[:：]\s*(.+)$/);
+  if (!matched) {
+    return null;
+  }
+  const normalizedLabel = normalizeAdministrativeDivisionLabel(matched[1] ?? '');
+  const value = matched[2]?.trim() ?? '';
+  if (!normalizedLabel || !value) {
+    return null;
+  }
+  const key = (Object.entries(ADMINISTRATIVE_DIVISION_LABEL_ALIASES).find(([, aliases]) => aliases.some((alias) => normalizeAdministrativeDivisionLabel(alias) === normalizedLabel))?.[0] ?? null) as AdministrativeDivisionKey | null;
+  return key ? { key, value } : null;
+}
+
+function readAdministrativeDivisionDisplayLabel(locale: WorkspaceLocale, key: AdministrativeDivisionKey): string {
+  return t(locale, ADMINISTRATIVE_DIVISION_LABEL_KEYS[key]).replace(/\s*\/\s*/g, '');
+}
+
+function splitAdministrativeDivisionLine(line: string): { segments: string[]; hasAmbiguousSeparator: boolean } {
+  const separator = ' / ';
+  const segments: string[] = [];
+  let segmentStart = 0;
+  let cursor = 0;
+  let hasAmbiguousSeparator = false;
+
+  while (cursor < line.length) {
+    const separatorIndex = line.indexOf(separator, cursor);
+    if (separatorIndex < 0) {
+      break;
+    }
+
+    const left = line.slice(segmentStart, separatorIndex).trim();
+    const rightRemainder = line.slice(separatorIndex + separator.length);
+    const nextSeparatorIndex = rightRemainder.indexOf(separator);
+    const rightHead = (nextSeparatorIndex >= 0 ? rightRemainder.slice(0, nextSeparatorIndex) : rightRemainder).trim();
+    const leftHasLabel = /[:：]/.test(left);
+    const rightLooksLikeLabel = /^[^:：]+[:：]/.test(rightHead);
+
+    if (leftHasLabel && rightLooksLikeLabel) {
+      if (left) {
+        segments.push(left);
+      }
+      segmentStart = separatorIndex + separator.length;
+    } else if (leftHasLabel && !rightLooksLikeLabel) {
+      hasAmbiguousSeparator = true;
+    }
+
+    cursor = separatorIndex + separator.length;
+  }
+
+  const tail = line.slice(segmentStart).trim();
+  if (tail) {
+    segments.push(tail);
+  }
+
+  return {
+    segments: segments.length > 0 ? segments : [line.trim()],
+    hasAmbiguousSeparator,
+  };
+}
+
+export function buildAdministrativeDivisionDisplayLine(
+  locale: WorkspaceLocale,
+  value: {
+    country?: string;
+    province?: string;
+    city?: string;
+    county?: string;
+    township?: string;
+    village?: string;
+  },
+): string {
+  return (Object.keys(ADMINISTRATIVE_DIVISION_LABEL_KEYS) as AdministrativeDivisionKey[])
+    .flatMap((key) => {
+      const segmentValue = value[key]?.trim();
+      return segmentValue ? [`${readAdministrativeDivisionDisplayLabel(locale, key)}: ${segmentValue}`] : [];
+    })
+    .join(' / ');
+}
+
+export function parseAdministrativeDivisionText(value: string): Array<{
+  country?: string;
+  province?: string;
+  city?: string;
+  county?: string;
+  township?: string;
+  village?: string;
+  freeText?: string;
+}> {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const { segments: parts, hasAmbiguousSeparator } = splitAdministrativeDivisionLine(line);
+      if (hasAmbiguousSeparator) {
+        return { freeText: line };
+      }
+      const labeledParts = parts.map((segment) => parseAdministrativeDivisionSegment(segment));
+      if (labeledParts.length > 0 && labeledParts.every(Boolean)) {
+        return labeledParts.reduce<{
+          country?: string;
+          province?: string;
+          city?: string;
+          county?: string;
+          township?: string;
+          village?: string;
+        }>((result, segment) => ({
+          ...result,
+          ...(segment ? { [segment.key]: segment.value } : {}),
+        }), {});
+      }
+      if (labeledParts.some(Boolean)) {
+        return { freeText: line };
+      }
+      return { freeText: line };
+    });
+}
+
 export function createDisplayNameDraftRow(row?: Partial<Omit<LanguageDisplayNameDraftRow, 'key'>>): LanguageDisplayNameDraftRow {
   return {
     key: `display-name-row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -114,7 +331,11 @@ export {
   parseCustomFieldOptionsEditorValue,
 };
 
-function buildDisplayNameRows(entry: LanguageCatalogEntry | null, locale: WorkspaceLocale): LanguageDisplayNameDraftRow[] {
+function buildDisplayNameRows(
+  entry: LanguageCatalogEntry | null,
+  locale: WorkspaceLocale,
+  visibility: 'current-locale' | 'other-locales',
+): LanguageDisplayNameDraftRow[] {
   if (!entry) {
     return [];
   }
@@ -139,7 +360,8 @@ function buildDisplayNameRows(entry: LanguageCatalogEntry | null, locale: Worksp
       if (normalizedLocale === nativeLocaleKey && row.role === 'autonym' && normalizedValue === (entry.nativeName ?? '').trim()) {
         return false;
       }
-      return true;
+      const isCurrentLocale = normalizedLocale === currentLocaleKey;
+      return visibility === 'current-locale' ? isCurrentLocale : !isCurrentLocale;
     })
     .map((row) => createDisplayNameDraftRow({
       locale: row.locale,
@@ -222,6 +444,8 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
       nativeName: '',
       aliasesText: '',
       genus: '',
+      subfamily: '',
+      branch: '',
       classificationPath: '',
       macrolanguage: '',
       scope: '',
@@ -244,6 +468,7 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
       egids: '',
       documentationLevel: '',
       dialectsText: '',
+      vernacularsText: '',
       writingSystemsText: '',
       literacyRate: '',
       glottocode: '',
@@ -255,6 +480,7 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
       longitude: '',
       changeReason: '',
       displayNameRows: [],
+      displayNameHiddenRows: [],
       customFieldValues: {},
     };
   }
@@ -272,6 +498,8 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
     nativeName: entry.nativeName ?? '',
     aliasesText: entry.aliases.join('\n'),
     genus: entry.genus ?? '',
+    subfamily: entry.subfamily ?? '',
+    branch: entry.branch ?? '',
     classificationPath: entry.classificationPath ?? '',
     macrolanguage: entry.macrolanguage ?? '',
     scope: entry.scope ?? '',
@@ -287,13 +515,14 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
     speakerTrend: entry.speakerTrend ?? '',
     countriesText: entry.countries?.join(', ') ?? '',
     macroarea: entry.macroarea ?? '',
-    administrativeDivisionsText: entry.administrativeDivisions?.map((d) => d.freeText ?? [d.country, d.province, d.city, d.county, d.township].filter(Boolean).join(' / ')).join('\n') ?? '',
+    administrativeDivisionsText: entry.administrativeDivisions?.map((d) => d.freeText ?? buildAdministrativeDivisionDisplayLine(locale, d)).join('\n') ?? '',
     intergenerationalTransmission: entry.intergenerationalTransmission ?? '',
     domainsText: entry.domains?.join(', ') ?? '',
     officialStatus: entry.officialStatus ?? '',
     egids: entry.egids ?? '',
     documentationLevel: entry.documentationLevel ?? '',
     dialectsText: entry.dialects?.join('\n') ?? '',
+    vernacularsText: entry.vernaculars?.join('\n') ?? '',
     writingSystemsText: entry.writingSystems?.join(', ') ?? '',
     literacyRate: entry.literacyRate !== undefined ? String(entry.literacyRate) : '',
     glottocode: entry.glottocode ?? '',
@@ -306,7 +535,8 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
     // 自定义字段值映射（全部转为 string 供表单绑定） | Custom field values (all stringified for form binding)
     customFieldValues: buildCustomFieldDraftValues(entry.customFields),
     changeReason: '',
-    displayNameRows: buildDisplayNameRows(entry, locale),
+    displayNameRows: buildDisplayNameRows(entry, locale, 'current-locale'),
+    displayNameHiddenRows: buildDisplayNameRows(entry, locale, 'other-locales'),
   };
 }
 
@@ -326,9 +556,13 @@ export function readHistoryFieldLabel(locale: WorkspaceLocale, field: string): s
     aliases: 'workspace.languageMetadata.aliasesLabel',
     scope: 'workspace.languageMetadata.scopeLabel',
     genus: 'workspace.languageMetadata.genusLabel',
+    subfamily: 'workspace.languageMetadata.subfamilyLabel',
+    branch: 'workspace.languageMetadata.branchLabel',
     classificationPath: 'workspace.languageMetadata.classificationPathLabel',
     macrolanguage: 'workspace.languageMetadata.macrolanguageLabel',
     languageType: 'workspace.languageMetadata.languageTypeLabel',
+    dialects: 'workspace.languageMetadata.dialectsLabel',
+    vernaculars: 'workspace.languageMetadata.vernacularsLabel',
     visibility: 'workspace.languageMetadata.visibilityLabel',
     latitude: 'workspace.languageMetadata.latitudeLabel',
     longitude: 'workspace.languageMetadata.longitudeLabel',

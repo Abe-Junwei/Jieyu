@@ -569,6 +569,93 @@ describe('useTranscriptionAiController', () => {
     expect(riskCheck?.riskSummary).toContain('第 1 条句段');
   });
 
+  it('publishes waveform analysis summary through AI chat context', () => {
+    const overlapUtterance = {
+      ...makeUtteranceWithId('utt-1', 'media-1'),
+      endTime: 1.5,
+    } as UtteranceDocType;
+    const lowConfidenceUtterance = {
+      ...makeUtteranceWithId('utt-2', 'media-1'),
+      startTime: 1.2,
+      endTime: 2.4,
+      ai_metadata: { confidence: 0.61 },
+    } as UtteranceDocType;
+    const gapTargetUtterance = {
+      ...makeUtteranceWithId('utt-3', 'media-1'),
+      startTime: 3.5,
+      endTime: 4.4,
+    } as UtteranceDocType;
+
+    renderHook(() => useTranscriptionAiController({
+      utterances: [overlapUtterance, lowConfidenceUtterance, gapTargetUtterance],
+      utterancesOnCurrentMedia: [overlapUtterance, lowConfidenceUtterance, gapTargetUtterance],
+      selectedUnitIds: new Set(['utt-2']),
+      selectedUtterance: lowConfidenceUtterance,
+      selectedTimelineOwnerUtterance: lowConfidenceUtterance,
+      selectedLayerId: '',
+      selectionSnapshot: {
+        timelineUnit: null,
+        selectedUnitKind: 'utterance',
+        activeUtteranceUnitId: lowConfidenceUtterance.id,
+        selectedUtterance: lowConfidenceUtterance,
+        selectedRowMeta: null,
+        selectedLayerId: null,
+        selectedText: '低置信句段',
+        selectedUnitStartSec: 1,
+        selectedUnitEndSec: 2.5,
+      },
+      layers: [],
+      transcriptionLayers: [],
+      translationLayers: [],
+      layerLinks: [],
+      getUtteranceTextForLayer: (utterance) => utterance.id,
+      formatTime: (seconds) => `${seconds}`,
+      utteranceCount: 3,
+      translationLayerCount: 0,
+      aiConfidenceAvg: 0.8,
+      undoHistory: [],
+      createLayerWithActiveContext: vi.fn(async () => true),
+      createTranscriptionSegment: vi.fn(async () => undefined),
+      splitTranscriptionSegment: vi.fn(async () => undefined),
+      mergeSelectedUtterances: vi.fn(async () => undefined),
+      deleteUtterance: vi.fn(async () => undefined),
+      deleteSelectedUtterances: vi.fn(async () => undefined),
+      deleteLayer: vi.fn(async () => undefined),
+      toggleLayerLink: vi.fn(async () => undefined),
+      saveUtteranceText: vi.fn(async () => undefined),
+      saveTextTranslationForUtterance: vi.fn(async () => undefined),
+      saveSegmentContentForLayer: vi.fn(async () => undefined),
+      updateTokenPos: vi.fn(),
+      batchUpdateTokenPosByForm: vi.fn(async () => 0),
+      updateTokenGloss: vi.fn(),
+      selectUtterance: vi.fn(),
+      setSaveState: vi.fn(),
+      translationDrafts: {},
+      translationTextByLayer: new Map(),
+      locale: 'zh-CN',
+      playerCurrentTime: 1.3,
+      executeActionRef: { current: undefined },
+      openSearchRef: { current: undefined },
+      seekToTimeRef: { current: undefined },
+      splitAtTimeRef: { current: undefined },
+      zoomToSegmentRef: { current: undefined },
+      handleExecuteRecommendation: vi.fn(),
+    }));
+
+    const latestAiChatCall = mockUseAiChat.mock.calls[mockUseAiChat.mock.calls.length - 1];
+    const aiChatOptions = latestAiChatCall?.[0];
+    const context = aiChatOptions?.getContext?.();
+
+    expect(context?.longTerm?.waveformAnalysis).toEqual(expect.objectContaining({
+      lowConfidenceCount: 1,
+      overlapCount: 1,
+      gapCount: 1,
+      selectionLowConfidenceCount: 1,
+      selectionOverlapCount: 1,
+      selectionGapCount: 1,
+    }));
+  });
+
   it('materializes and previews delete selectors against independent layer segments on the current timeline', async () => {
     const { handler, aiChatOptions } = renderIndependentSegmentTimelineController();
     expect(aiChatOptions).toBeTruthy();

@@ -42,7 +42,7 @@ export function PdfViewerPanel({
 
   const handleNextPage = useCallback(() => {
     setCurrentPage((p) => Math.min(totalPages, p + 1));
-  }, []);
+  }, [totalPages]);
 
   const summaryProps = {
     ...(searchSnippet ? { supportingText: searchSnippet, supportingClassName: 'pdf-viewer-panel-snippet' } : {}),

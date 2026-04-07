@@ -307,7 +307,7 @@ describe('EmbeddingSearchService', () => {
     expect(runtime.preloadCount).toBe(2);
   });
 
-  it('does not cache preload when provider reports fallback mode', async () => {
+  it('caches preload even when provider reports fallback mode', async () => {
     await db.embeddings.put({
       id: 'utterance::utt_1::test-model::v-test',
       sourceType: 'utterance',
@@ -325,7 +325,7 @@ describe('EmbeddingSearchService', () => {
     await service.searchSimilarUtterances('hello', { modelId: 'test-model', modelVersion: 'v-test' });
     await service.searchSimilarUtterances('world', { modelId: 'test-model', modelVersion: 'v-test' });
 
-    expect(runtime.preloadCount).toBe(2);
+    expect(runtime.preloadCount).toBe(1);
   });
 });
 
@@ -643,5 +643,146 @@ describe('EmbeddingSearchService — searchMultiSource', () => {
       minScore: 0, // 高 keywordWeight 时 fusedScore 可能低于默认阈值，测试时禁用阈值 | fusedScore may fall below default threshold with high keywordWeight; disable for this test
     });
     expect(overrideResult.matches.length).toBeGreaterThan(0);
+  });
+
+  // ── minScore 过滤 | minScore filtering ────────────────────────────────────
+
+  it('minScore filters out low-fused candidates', async () => {
+    const now = new Date().toISOString();
+
+    // 向量分数低的候选 | Low vector score candidate
+    await db.embeddings.put({
+      id: 'utterance::utt_low::test-model::v-test',
+      sourceType: 'utterance',
+      sourceId: 'utt_low',
+      model: 'test-model',
+      modelVersion: 'v-test',
+      contentHash: 'h1',
+      vector: [0.1, 0.99], // 与 query [1,0] 余弦相似度较低 | Low cosine similarity with query [1,0]
+      createdAt: now,
+    });
+    await putCanonicalUtteranceSegmentation({
+      utteranceId: 'utt_low',
+      segmentId: 'segv2_tier_1_utt_low',
+      contentId: 'utxt_low',
+      layerId: 'tier_1',
+      text: 'unrelated content about weather patterns',
+      now,
+    });
+
+    const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
+
+    // 高 minScore → 过滤掉低分结果 | High minScore filters them out
+    const highMin = await service.searchMultiSourceHybrid('phonology', ['utterance'], {
+      modelId: 'test-model',
+      modelVersion: 'v-test',
+      topK: 5,
+      minScore: 0.9,
+    });
+    expect(highMin.matches.length).toBe(0);
+
+    // minScore=0 → 保留所有 | minScore=0 keeps all
+    const noMin = await service.searchMultiSourceHybrid('phonology', ['utterance'], {
+      modelId: 'test-model',
+      modelVersion: 'v-test',
+      topK: 5,
+      minScore: 0,
+    });
+    expect(noMin.matches.length).toBeGreaterThan(0);
+  });
+
+  // ── PDF 无向量候选 + 无 candidateSet → 回退全表扫描 | PDF no vector + no candidateSet → fallback scan ──
+
+  it('pdf fallback scan when no vector matches and no candidateSet', async () => {
+    const now = new Date().toISOString();
+
+    // 只创建 PDF media_item，不创建 embedding | Only PDF media, no embedding
+    await db.media_items.put({
+      id: 'media_pdf_scan',
+      textId: 'text_scan',
+      filename: 'elicitation-guide.pdf',
+      details: {
+        mimeType: 'application/pdf',
+        extractedText: 'Elicitation guide for phonological analysis and morphology.',
+      },
+      isOfflineCached: true,
+      createdAt: now,
+    });
+
+    const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
+    const result = await service.searchMultiSourceHybrid('elicitation morphology', ['pdf'], {
+      modelId: 'test-model',
+      modelVersion: 'v-test',
+      topK: 3,
+      keywordWeight: 0.9,
+      minScore: 0,
+    });
+
+    // 无向量候选但全表扫描回退应命中 | No vector but fallback scan should hit
+    expect(result.matches.length).toBeGreaterThan(0);
+    expect(result.matches[0]?.sourceType).toBe('pdf');
+    expect(result.matches[0]?.sourceId).toBe('media_pdf_scan');
+  });
+
+  // ── 空 query → 返回空 | blank query → empty ──────────────────────────────
+
+  it('hybrid search with blank query returns empty matches', async () => {
+    const now = new Date().toISOString();
+    await db.embeddings.put({
+      id: 'utterance::utt_any::test-model::v-test',
+      sourceType: 'utterance',
+      sourceId: 'utt_any',
+      model: 'test-model',
+      modelVersion: 'v-test',
+      contentHash: 'h1',
+      vector: [1, 0],
+      createdAt: now,
+    });
+
+    const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
+    const result = await service.searchMultiSourceHybrid('', ['utterance'], {
+      modelId: 'test-model',
+      modelVersion: 'v-test',
+    });
+    expect(result.matches).toEqual([]);
+  });
+
+  // ── queryExpansion 场景权重 | queryExpansion scenario profile ──────────────
+
+  it('queryExpansion scenario uses higher keyword weight', async () => {
+    const now = new Date().toISOString();
+
+    // 一个向量匹配弱但关键词匹配强的候选 | Weak vector but strong keyword candidate
+    await db.embeddings.put({
+      id: 'utterance::utt_kw_strong::test-model::v-test',
+      sourceType: 'utterance',
+      sourceId: 'utt_kw_strong',
+      model: 'test-model',
+      modelVersion: 'v-test',
+      contentHash: 'h1',
+      vector: [0.6, 0.8], // 与 [1,0] 余弦中等 | Medium cosine with [1,0]
+      createdAt: now,
+    });
+    await putCanonicalUtteranceSegmentation({
+      utteranceId: 'utt_kw_strong',
+      segmentId: 'segv2_tier_1_utt_kw_strong',
+      contentId: 'utxt_kw_strong',
+      layerId: 'tier_1',
+      text: 'tonal elicitation frame for consonant clusters',
+      now,
+    });
+
+    const service = new EmbeddingSearchService(new QueryRuntime([1, 0]));
+
+    // queryExpansion: keywordWeight=0.45 | queryExpansion profile
+    const result = await service.searchMultiSourceHybrid('consonant tonal', ['utterance'], {
+      modelId: 'test-model',
+      modelVersion: 'v-test',
+      topK: 3,
+      fusionScenario: 'queryExpansion',
+      minScore: 0,
+    });
+    expect(result.matches.length).toBeGreaterThan(0);
+    expect(result.matches[0]?.sourceId).toBe('utt_kw_strong');
   });
 });

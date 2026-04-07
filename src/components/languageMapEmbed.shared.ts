@@ -189,39 +189,6 @@ export function writeMapProviderConfig(config: MapProviderConfig): void {
   }
 }
 
-// ─── 地名搜索（Nominatim 地理编码）| Place name search (Nominatim geocoding) ───
-export interface GeocodeSuggestion {
-  displayName: string;
-  lat: number;
-  lng: number;
-}
-
-/**
- * 通过 Nominatim 搜索地名并返回候选列表
- * Search place names via Nominatim and return candidate list
- */
-export async function geocodeSearch(query: string, locale: string, signal?: AbortSignal): Promise<GeocodeSuggestion[]> {
-  if (!query.trim()) return [];
-  const lang = locale.startsWith('zh') ? 'zh' : 'en';
-  const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
-    q: query.trim(),
-    format: 'json',
-    limit: '5',
-    'accept-language': lang,
-  })}`;
-  // 浏览器禁止设置 User-Agent header，已移除 | Browser forbids setting User-Agent header, removed
-  const res = await fetch(url, {
-    ...(signal != null && { signal }),
-  });
-  if (!res.ok) return [];
-  const data = (await res.json()) as Array<{ display_name: string; lat: string; lon: string }>;
-  return data.map((item) => ({
-    displayName: item.display_name,
-    lat: Number(item.lat),
-    lng: Number(item.lon),
-  }));
-}
-
 // ─── 样式构建 | Style builders ───
 function buildOsmStyle(): StyleSpecification {
   return {

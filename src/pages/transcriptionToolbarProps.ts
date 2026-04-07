@@ -1,6 +1,8 @@
 import type { RefObject } from 'react';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { t, type Locale } from '../i18n';
+import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
+import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
 import type { UttOpsMenuState } from './TranscriptionPage.UIState';
 import type { TranscriptionPageToolbarProps } from './TranscriptionPage.Toolbar';
 
@@ -16,6 +18,10 @@ interface CreateTranscriptionToolbarPropsInput {
     setVolume: (volume: number) => void;
     seekBySeconds: (delta: number) => void;
   };
+  waveformDisplayMode: WaveformDisplayMode;
+  setWaveformDisplayMode: (mode: WaveformDisplayMode) => void;
+  waveformVisualStyle: WaveformVisualStyle;
+  setWaveformVisualStyle: (style: WaveformVisualStyle) => void;
   globalLoopPlayback: boolean;
   setGlobalLoopPlayback: (loop: boolean) => void;
   handleGlobalPlayPauseAction: () => void;
@@ -54,6 +60,10 @@ export function createTranscriptionToolbarProps(
     isPlaying: input.player.isPlaying,
     playbackRate: input.player.playbackRate,
     onPlaybackRateChange: input.player.setPlaybackRate,
+    waveformDisplayMode: input.waveformDisplayMode,
+    onWaveformDisplayModeChange: input.setWaveformDisplayMode,
+    waveformVisualStyle: input.waveformVisualStyle,
+    onWaveformVisualStyleChange: input.setWaveformVisualStyle,
     volume: input.player.volume,
     onVolumeChange: input.player.setVolume,
     loop: input.globalLoopPlayback,

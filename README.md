@@ -58,6 +58,15 @@ npm run build:guard
 VITE_MAP_PROXY_BASE_URL=https://your-gateway.example.com/maps
 ```
 
+可选降级开关（默认开启）：
+
+```bash
+VITE_MAP_PROXY_FALLBACK_ON_ERROR=true
+```
+
+当代理模式下 MapTiler 地理编码请求失败时，会自动回退到直连 Nominatim；
+如需严格仅走代理，可设置为 `false`。
+
 启用后：
 
 - MapTiler 样式与地理编码请求优先走代理端点，不在 URL 中暴露前端 Key。

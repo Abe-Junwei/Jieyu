@@ -24,6 +24,7 @@ import {
 } from '../components/transcription/TranscriptionLayoutSections';
 import type { WaveSurferRegion } from '../hooks/useWaveSurfer';
 import { t, tf, type Locale } from '../i18n';
+import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { formatTime } from '../utils/transcriptionFormatters';
 
 interface WaveformNoteIndicator {
@@ -32,6 +33,27 @@ interface WaveformNoteIndicator {
   widthPx: number;
   count: number;
   layerId?: string;
+}
+
+interface WaveformLowConfidenceOverlay {
+  id: string;
+  leftPx: number;
+  widthPx: number;
+  confidence: number;
+}
+
+interface WaveformOverlapOverlay {
+  id: string;
+  leftPx: number;
+  widthPx: number;
+  concurrentCount: number;
+}
+
+interface WaveformGapOverlay {
+  id: string;
+  leftPx: number;
+  widthPx: number;
+  gapSeconds: number;
 }
 
 export interface OrchestratorWaveformContentProps {
@@ -83,7 +105,9 @@ export interface OrchestratorWaveformContentProps {
   isResizingVideoRightPanel: boolean;
   handleVideoPreviewResizeStart: React.PointerEventHandler<HTMLDivElement>;
   handleVideoRightPanelResizeStart: React.PointerEventHandler<HTMLDivElement>;
+  waveformDisplayMode: WaveformDisplayMode;
   waveCanvasRef: MutableRefObject<HTMLDivElement | null>;
+  playerSpectrogramRef: MutableRefObject<HTMLDivElement | null>;
   playerWaveformRef: MutableRefObject<HTMLDivElement | null>;
   playerSeekTo: (time: number) => void;
   playerPlayRegion: (start: number, end: number, resume?: boolean) => void;
@@ -94,6 +118,9 @@ export interface OrchestratorWaveformContentProps {
 
   // Note indicators
   waveformNoteIndicators: WaveformNoteIndicator[];
+  waveformLowConfidenceOverlays: WaveformLowConfidenceOverlay[];
+  waveformOverlapOverlays: WaveformOverlapOverlay[];
+  waveformGapOverlays: WaveformGapOverlay[];
   setNotePopover: (v: NotePopoverState) => void;
 
   // Snap guides
@@ -165,13 +192,18 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
     isResizingVideoRightPanel,
     handleVideoPreviewResizeStart,
     handleVideoRightPanelResizeStart,
+    waveformDisplayMode,
     waveCanvasRef,
+    playerSpectrogramRef,
     playerWaveformRef,
     playerSeekTo,
     playerPlayRegion,
     waveLassoRect,
     waveLassoHintCount,
     waveformNoteIndicators,
+    waveformLowConfidenceOverlays,
+    waveformOverlapOverlays,
+    waveformGapOverlays,
     setNotePopover,
     snapGuideVisible,
     snapGuideLeft,
@@ -256,10 +288,46 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
                 onVideoPreviewResizeStart={handleVideoPreviewResizeStart}
                 onVideoRightPanelResizeStart={handleVideoRightPanelResizeStart}
                 waveformStripHeight={waveformHeight}
+                waveformDisplayMode={waveformDisplayMode}
                 waveCanvasRef={waveCanvasRef}
+                playerSpectrogramRef={playerSpectrogramRef}
                 playerWaveformRef={playerWaveformRef}
                 onSeek={playerSeekTo}
                 onPlayRegion={playerPlayRegion}
+                waveformShellOverlay={(
+                  <div className="waveform-analysis-overlay" aria-hidden="true">
+                    {waveformLowConfidenceOverlays.map(({ id, leftPx, widthPx, confidence }) => (
+                      <div
+                        key={`confidence-${id}`}
+                        className="waveform-analysis-band waveform-analysis-band-confidence"
+                        style={{ left: leftPx, width: widthPx }}
+                        title={tf(locale, 'transcription.wave.analysis.lowConfidenceTitle', { confidence: Math.round(confidence * 100) })}
+                      >
+                        {widthPx >= 46 ? <span>{t(locale, 'transcription.wave.analysis.lowConfidence')}</span> : null}
+                      </div>
+                    ))}
+                    {waveformOverlapOverlays.map(({ id, leftPx, widthPx, concurrentCount }) => (
+                      <div
+                        key={`overlap-${id}`}
+                        className="waveform-analysis-band waveform-analysis-band-overlap"
+                        style={{ left: leftPx, width: widthPx }}
+                        title={tf(locale, 'transcription.wave.analysis.overlapTitle', { count: concurrentCount })}
+                      >
+                        {widthPx >= 52 ? <span>{tf(locale, 'transcription.wave.analysis.overlap', { count: concurrentCount })}</span> : null}
+                      </div>
+                    ))}
+                    {waveformGapOverlays.map(({ id, leftPx, widthPx, gapSeconds }) => (
+                      <div
+                        key={`gap-${id}`}
+                        className="waveform-analysis-band waveform-analysis-band-gap"
+                        style={{ left: leftPx, width: widthPx }}
+                        title={tf(locale, 'transcription.wave.analysis.gapTitle', { seconds: gapSeconds.toFixed(1) })}
+                      >
+                        {widthPx >= 52 ? <span>{tf(locale, 'transcription.wave.analysis.gap', { seconds: gapSeconds.toFixed(1) })}</span> : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 waveformOverlay={(
                   <>
                     {waveLassoRect ? (

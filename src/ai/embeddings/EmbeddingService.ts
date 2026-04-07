@@ -10,8 +10,9 @@ import {
   extractPdfTextFragments,
   extractPdfTextFragmentsFromSource,
   isPdfMediaItem,
-  splitPdfFragmentsToChunks,
 } from './pdfTextUtils';
+import { semanticChunk } from './semanticChunker';
+import { DEFAULT_LOCAL_EMBEDDING_MODEL_ID } from './localEmbeddingModelConfig';
 
 export interface EmbeddingBuildSource {
   sourceType: EmbeddingSourceType;
@@ -50,7 +51,6 @@ export interface BuildEmbeddingsResult {
   usingFallback?: boolean;
 }
 
-const DEFAULT_MODEL_ID = 'Xenova/multilingual-e5-small';
 const DEFAULT_MODEL_VERSION = '2026-03';
 const DEFAULT_BATCH_SIZE = 8;
 const log = createLogger('EmbeddingService');
@@ -120,20 +120,38 @@ export class EmbeddingService {
       const content = note.content as Record<string, string>;
       const text = (content['und'] ?? content['en'] ?? Object.values(content).find((v) => v.trim()) ?? '').trim();
       if (!text) continue;
-      sources.push({ sourceType: 'note', sourceId: note.id, text });
+
+      // 长笔记（> 300 字）走语义分块 | Long notes (>300 chars) use semantic chunking
+      if (text.length > 300) {
+        const chunks = semanticChunk(text, { maxChars: 600, overlapSentences: 1 });
+        for (let ci = 0; ci < chunks.length; ci += 1) {
+          const chunkText = chunks[ci];
+          if (chunkText && chunkText.trim()) {
+            sources.push({
+              sourceType: 'note',
+              sourceId: chunks.length > 1 ? `${note.id}#chunk=${ci + 1}` : note.id,
+              text: chunkText.trim(),
+            });
+          }
+        }
+      } else {
+        sources.push({ sourceType: 'note', sourceId: note.id, text });
+      }
     }
     return this.buildEmbeddings(sources, options);
   }
 
   /**
    * 从 media_items 抽取 PDF 文本并向量化 | Build PDF embeddings from media_items extracted text fields.
+   * 阶段 A：使用语义感知分块（句子边界 + 滑动窗口重叠）替代硬字符数切分。
+   * Phase A: uses semantic-aware chunking (sentence boundary + sliding overlap) instead of hard char truncation.
    */
   async buildPdfEmbeddings(options?: BuildEmbeddingsOptions): Promise<BuildEmbeddingsResult> {
     const db = await getDb();
     const mediaRows = await db.collections.media_items.find().exec();
-    const chunkSizeChars = Number.isFinite(options?.chunkSizeChars)
-      ? Math.max(160, Math.floor(options?.chunkSizeChars ?? 720))
-      : 720;
+    const maxChars = Number.isFinite(options?.chunkSizeChars)
+      ? Math.max(160, Math.floor(options?.chunkSizeChars ?? 600))
+      : 600;
 
     const sources: EmbeddingBuildSource[] = [];
     for (const row of mediaRows) {
@@ -170,14 +188,22 @@ export class EmbeddingService {
           fragments = [];
         }
       }
-      const chunks = splitPdfFragmentsToChunks(fragments, chunkSizeChars);
-      for (const chunk of chunks) {
-        if (!chunk.text.trim()) continue;
-        sources.push({
-          sourceType: 'pdf',
-          sourceId: buildPdfEmbeddingSourceId(media.id, chunk.page, chunk.chunk),
-          text: chunk.text,
-        });
+
+      // 阶段 A：语义感知分块 — 跨 fragment 拼接文本后整体分块，保留页码元数据
+      // Phase A: semantic chunking — concatenate fragment text then chunk, preserving page metadata
+      let globalChunkIndex = 0;
+      for (const fragment of fragments) {
+        if (!fragment.text.trim()) continue;
+        const chunks = semanticChunk(fragment.text, { maxChars, overlapSentences: 1 });
+        for (const chunkText of chunks) {
+          if (!chunkText.trim()) continue;
+          globalChunkIndex += 1;
+          sources.push({
+            sourceType: 'pdf',
+            sourceId: buildPdfEmbeddingSourceId(media.id, fragment.page, globalChunkIndex),
+            text: chunkText,
+          });
+        }
       }
     }
 
@@ -188,7 +214,7 @@ export class EmbeddingService {
     sources: EmbeddingBuildSource[],
     options?: BuildEmbeddingsOptions,
   ): Promise<BuildEmbeddingsResult> {
-    const modelId = options?.modelId ?? DEFAULT_MODEL_ID;
+    const modelId = options?.modelId ?? this.provider.modelId ?? DEFAULT_LOCAL_EMBEDDING_MODEL_ID;
     const modelVersion = options?.modelVersion ?? DEFAULT_MODEL_VERSION;
     const batchSize = normalizeBatchSize(options?.batchSize);
     const retries = normalizeRetries(options?.retries);

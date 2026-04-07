@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from '../contexts/AppSidePaneContext';
 import type { OrthographyDocType } from '../db';
 import { LocaleProvider } from '../i18n';
-import { OrthographyWorkspacePage } from './OrthographyWorkspacePage';
+import { OrthographyManagerPage } from './OrthographyManagerPage';
 
 const { mockListOrthographies, mockUpdateOrthography, mockListLanguageCatalogEntries } = vi.hoisted(() => ({
   mockListOrthographies: vi.fn(),
@@ -42,7 +42,7 @@ function SidePaneSnapshot() {
   );
 }
 
-describe('OrthographyWorkspacePage', () => {
+describe('OrthographyManagerPage', () => {
   beforeEach(() => {
     mockListOrthographies.mockReset();
     mockUpdateOrthography.mockReset();
@@ -147,7 +147,7 @@ describe('OrthographyWorkspacePage', () => {
           <AppSidePaneProvider>
             <SidePaneSnapshot />
             <Routes>
-              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -158,7 +158,10 @@ describe('OrthographyWorkspacePage', () => {
       expect(screen.getAllByText('Bridge Orthography · Latn · practical').length).toBeGreaterThan(0);
     });
 
-    expect(mockListOrthographies).toHaveBeenCalledWith({ includeBuiltIns: true });
+    expect(mockListOrthographies).toHaveBeenCalledWith({
+      includeBuiltIns: true,
+      orthographyIds: ['orth-source'],
+    });
     expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith({
       locale: 'zh-CN',
       languageIds: ['eng', 'zho'],
@@ -183,7 +186,7 @@ describe('OrthographyWorkspacePage', () => {
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -221,7 +224,7 @@ describe('OrthographyWorkspacePage', () => {
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -252,7 +255,7 @@ describe('OrthographyWorkspacePage', () => {
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -283,7 +286,7 @@ describe('OrthographyWorkspacePage', () => {
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -307,7 +310,7 @@ describe('OrthographyWorkspacePage', () => {
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -331,7 +334,12 @@ describe('OrthographyWorkspacePage', () => {
 
     fireEvent.change(languageNameInput, { target: { value: 'Portuguese' } });
     await waitFor(() => {
-      expect((languageNameInput as HTMLInputElement).value).toBe('Portuguese · 葡萄牙语 · português');
+      expect((languageNameInput as HTMLInputElement).value).toBe('Portuguese');
+      expect((languageCodeInput as HTMLInputElement).value).toBe('');
+    });
+
+    fireEvent.change(languageCodeInput, { target: { value: 'por' } });
+    await waitFor(() => {
       expect((languageCodeInput as HTMLInputElement).value).toBe('por');
     });
 
@@ -355,7 +363,7 @@ describe('OrthographyWorkspacePage', () => {
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -386,7 +394,7 @@ describe('OrthographyWorkspacePage', () => {
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -424,7 +432,7 @@ describe('OrthographyWorkspacePage', () => {
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -464,7 +472,7 @@ describe('OrthographyWorkspacePage', () => {
         <LocaleProvider locale={locale}>
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -538,7 +546,7 @@ describe('OrthographyWorkspacePage', () => {
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -578,7 +586,7 @@ describe('OrthographyWorkspacePage', () => {
           <AppSidePaneProvider>
             <SidePaneSnapshot />
             <Routes>
-              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
@@ -619,7 +627,7 @@ describe('OrthographyWorkspacePage', () => {
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
-              <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+              <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>

@@ -1,6 +1,7 @@
 import '../styles/pages/language-metadata-workspace.css';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, useLocale } from '../i18n';
 import { buildPersistedCustomFieldValues } from '../services/LanguageMetadataCustomFields';
@@ -19,10 +20,13 @@ import { LanguageMetadataWorkspaceDetailColumn } from './LanguageMetadataWorkspa
 import {
   LANGUAGE_ID_PARAM,
   NEW_LANGUAGE_ID,
+  buildClassificationPathValue,
   buildDraft,
   createDisplayNameDraftRow,
   normalizeDisplayNameRows,
+  parseAdministrativeDivisionText,
   parseAliasText,
+  parseLineSeparatedText,
   readDisplayNameMatrixFallback,
   readEntryKindLabel,
   type HistoryItem,
@@ -48,17 +52,41 @@ export function LanguageMetadataWorkspacePage() {
   const [draft, setDraft] = useState<LanguageMetadataDraft>(() => buildDraft(null, locale));
   const deferredSearchText = useDeferredValue(searchText);
   const selectedLanguageId = searchParams.get(LANGUAGE_ID_PARAM) ?? '';
-  // 跟踪上一次选中 ID，避免仅 entries 变化时重置未保存草稿 | Track previous selection to prevent resetting unsaved draft on entries-only change
-  const prevSelectedLanguageIdRef = useRef<string | null>(null);
+  // 跟踪最近一次已完成草稿装载的语言 ID，避免仅 entries 变化时覆盖未保存草稿 | Track last hydrated language id to avoid clobbering unsaved draft on entries-only refreshes
+  const lastHydratedLanguageIdRef = useRef<string | null>(null);
+
+  const browseLanguageIds = useMemo(() => {
+    const ids = new Set<string>();
+    projectLanguageIds.forEach((languageId) => {
+      const normalizedId = languageId.trim();
+      if (normalizedId) {
+        ids.add(normalizedId);
+      }
+    });
+    const normalizedSelectedId = selectedLanguageId.trim();
+    if (normalizedSelectedId && normalizedSelectedId !== NEW_LANGUAGE_ID) {
+      ids.add(normalizedSelectedId);
+    }
+    return Array.from(ids);
+  }, [projectLanguageIds, selectedLanguageId]);
 
   const loadEntries = async (nextSearchText: string) => {
     setLoading(true);
     try {
-      const records = await listLanguageCatalogEntries({
-        locale,
-        searchText: nextSearchText,
-        includeHidden: true,
-      });
+      const normalizedSearchText = nextSearchText.trim();
+      const records = normalizedSearchText
+        ? await listLanguageCatalogEntries({
+          locale,
+          searchText: normalizedSearchText,
+          includeHidden: true,
+        })
+        : browseLanguageIds.length > 0
+          ? await listLanguageCatalogEntries({
+            locale,
+            includeHidden: true,
+            languageIds: browseLanguageIds,
+          })
+          : [];
       setEntries(records);
       setError('');
       return records;
@@ -73,16 +101,14 @@ export function LanguageMetadataWorkspacePage() {
 
   useEffect(() => {
     void loadEntries(deferredSearchText.trim());
-  }, [deferredSearchText, locale]);
+  }, [browseLanguageIds, deferredSearchText, locale]);
 
   useEffect(() => {
-    const selectionChanged = prevSelectedLanguageIdRef.current !== selectedLanguageId;
-    prevSelectedLanguageIdRef.current = selectedLanguageId;
-
     if (selectedLanguageId === NEW_LANGUAGE_ID) {
-      // 仅在切换到新建时初始化草稿，搜索导致的 entries 变化不重置 | Only init draft on switch-to-new, not on entries-only change
-      if (selectionChanged) {
+      // 仅在首次进入新建模式时初始化草稿，搜索导致的 entries 变化不重置 | Only initialize on first entry into new mode, not on entries-only refreshes
+      if (lastHydratedLanguageIdRef.current !== NEW_LANGUAGE_ID) {
         setDraft(buildDraft(null, locale));
+        lastHydratedLanguageIdRef.current = NEW_LANGUAGE_ID;
       }
       return;
     }
@@ -96,12 +122,16 @@ export function LanguageMetadataWorkspacePage() {
     }
 
     if (selectedEntry) {
-      setDraft(buildDraft(selectedEntry, locale));
+      if (lastHydratedLanguageIdRef.current !== selectedEntry.id) {
+        setDraft(buildDraft(selectedEntry, locale));
+        lastHydratedLanguageIdRef.current = selectedEntry.id;
+      }
       return;
     }
 
-    if (entries.length === 0) {
+    if (entries.length === 0 && !selectedLanguageId) {
       setDraft(buildDraft(null, locale));
+      lastHydratedLanguageIdRef.current = null;
     }
   }, [entries, locale, searchParams, selectedLanguageId, setSearchParams]);
 
@@ -182,7 +212,7 @@ export function LanguageMetadataWorkspacePage() {
   const handleAddDisplayNameRow = () => {
     setDraft((prev) => ({
       ...prev,
-      displayNameRows: [...prev.displayNameRows, createDisplayNameDraftRow()],
+      displayNameRows: [...prev.displayNameRows, createDisplayNameDraftRow({ locale })],
     }));
     setSaveError('');
     setSaveSuccess('');
@@ -218,11 +248,20 @@ export function LanguageMetadataWorkspacePage() {
   };
 
   const handleSave = async () => {
-    const matrixRows = normalizeDisplayNameRows(draft.displayNameRows);
+    const matrixRows = normalizeDisplayNameRows([...draft.displayNameHiddenRows, ...draft.displayNameRows]);
     const matrixFallback = readDisplayNameMatrixFallback(matrixRows, locale);
     const englishName = draft.englishName.trim() || matrixFallback.englishName || '';
     const localName = draft.localName.trim() || matrixFallback.localName || '';
     const nativeName = draft.nativeName.trim() || matrixFallback.nativeName || '';
+    const dialects = parseLineSeparatedText(draft.dialectsText);
+    const vernaculars = parseLineSeparatedText(draft.vernacularsText);
+    const classificationPath = buildClassificationPathValue({
+      genus: draft.genus,
+      subfamily: draft.subfamily,
+      branch: draft.branch,
+      dialects,
+      vernaculars,
+    }) || draft.classificationPath.trim();
 
     if (!englishName && !localName && matrixRows.length === 0) {
       setSaveError(t(locale, 'workspace.languageMetadata.errorNameRequired'));
@@ -246,7 +285,9 @@ export function LanguageMetadataWorkspacePage() {
         displayNames: matrixRows,
         aliases: parseAliasText(draft.aliasesText),
         genus: draft.genus.trim(),
-        classificationPath: draft.classificationPath.trim(),
+        subfamily: draft.subfamily.trim(),
+        branch: draft.branch.trim(),
+        classificationPath,
         macrolanguage: draft.macrolanguage.trim(),
         scope: draft.scope.trim() ? draft.scope as LanguageCatalogEntry['scope'] : undefined,
         languageType: draft.languageType.trim() ? draft.languageType as LanguageCatalogEntry['languageType'] : undefined,
@@ -261,13 +302,14 @@ export function LanguageMetadataWorkspacePage() {
         ...(draft.speakerTrend.trim() ? { speakerTrend: draft.speakerTrend as NonNullable<LanguageCatalogEntry['speakerTrend']> } : {}),
         ...(draft.countriesText.trim() ? { countries: draft.countriesText.split(',').map((c) => c.trim()).filter(Boolean) } : {}),
         ...(draft.macroarea.trim() ? { macroarea: draft.macroarea as NonNullable<LanguageCatalogEntry['macroarea']> } : {}),
-        ...(draft.administrativeDivisionsText.trim() ? { administrativeDivisions: draft.administrativeDivisionsText.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => ({ freeText: line })) } : {}),
+        ...(draft.administrativeDivisionsText.trim() ? { administrativeDivisions: parseAdministrativeDivisionText(draft.administrativeDivisionsText) } : {}),
         ...(draft.intergenerationalTransmission.trim() ? { intergenerationalTransmission: draft.intergenerationalTransmission as NonNullable<LanguageCatalogEntry['intergenerationalTransmission']> } : {}),
         ...(draft.domainsText.trim() ? { domains: draft.domainsText.split(',').map((d) => d.trim()).filter(Boolean) as NonNullable<LanguageCatalogEntry['domains']> } : {}),
         ...(draft.officialStatus.trim() ? { officialStatus: draft.officialStatus as NonNullable<LanguageCatalogEntry['officialStatus']> } : {}),
         egids: draft.egids.trim(),
         ...(draft.documentationLevel.trim() ? { documentationLevel: draft.documentationLevel as NonNullable<LanguageCatalogEntry['documentationLevel']> } : {}),
-        ...(draft.dialectsText.trim() ? { dialects: draft.dialectsText.split('\n').map((d) => d.trim()).filter(Boolean) } : {}),
+        ...(dialects.length ? { dialects } : {}),
+        ...(vernaculars.length ? { vernaculars } : {}),
         ...(draft.writingSystemsText.trim() ? { writingSystems: draft.writingSystemsText.split(',').map((w) => w.trim()).filter(Boolean) } : {}),
         ...(draft.literacyRate.trim() ? { literacyRate: Number(draft.literacyRate.trim()) } : {}),
         glottocode: draft.glottocode.trim(),
@@ -365,7 +407,7 @@ export function LanguageMetadataWorkspacePage() {
           <span className="app-side-pane-section-title">{t(locale, 'workspace.languageMetadata.sidePaneQuickAccess')}</span>
         </div>
         <div className="app-side-pane-nav app-side-pane-feature-nav">
-          <Link to="/assets/orthographies" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openOrthographyWorkspace')}</Link>
+          <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openOrthographyWorkspace')}</OrthographyPanelLink>
           <Link to="/assets/orthography-bridges" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openBridgeWorkspace')}</Link>
         </div>
       </section>

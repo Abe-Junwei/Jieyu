@@ -5,6 +5,7 @@ import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
 import { formatSidePaneLayerLabel, getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { formatConstraintLabel } from './SidePaneSidebar.shared';
+import { OrthographyPanelLink } from './OrthographyPanelLink';
 import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 
 type SidePaneSidebarFocusedLayerInspectorProps = {
@@ -47,13 +48,6 @@ export function SidePaneSidebarFocusedLayerInspector({
     ? orthographies.find((orthography) => orthography.id === focusedLayer.orthographyId)
     : undefined;
   const targetOrthographyBadge = targetOrthography ? getOrthographyCatalogBadgeInfo(locale, targetOrthography) : null;
-  const orthographyWorkspaceHref = (() => {
-    if (!targetOrthography) return '';
-    const params = new URLSearchParams();
-    params.set('orthographyId', targetOrthography.id);
-    params.set('fromLayerId', focusedLayer.id);
-    return `/assets/orthographies?${params.toString()}`;
-  })();
 
   return (
     <section className="transcription-side-pane-inspector" aria-label={messages.inspectorAria}>
@@ -118,12 +112,13 @@ export function SidePaneSidebarFocusedLayerInspector({
       ) : null}
       {targetOrthography ? (
         <div className="transcription-side-pane-inspector-note">
-          <a
+          <OrthographyPanelLink
             className="btn btn-ghost"
-            href={orthographyWorkspaceHref}
+            orthographyId={targetOrthography.id}
+            fromLayerId={focusedLayer.id}
           >
             {messages.inspectorBridgeRulesButton}
-          </a>
+          </OrthographyPanelLink>
           <div>{messages.inspectorBridgeRulesHint}</div>
         </div>
       ) : null}

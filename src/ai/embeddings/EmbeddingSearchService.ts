@@ -9,6 +9,7 @@ import {
   listUtteranceTextsFromSegmentation,
   listUtteranceTextsByUtterances,
 } from '../../services/LayerSegmentationTextService';
+import { DEFAULT_LOCAL_EMBEDDING_MODEL_ID } from './localEmbeddingModelConfig';
 
 export interface SearchSimilarUtterancesOptions {
   modelId?: string;
@@ -38,7 +39,6 @@ export interface SearchSimilarUtterancesResult {
   warningCode?: 'query-embedding-unavailable';
 }
 
-const DEFAULT_MODEL_ID = 'Xenova/multilingual-e5-small';
 const DEFAULT_MODEL_VERSION = '2026-03';
 const DEFAULT_MIN_SCORE = 0.3;
 
@@ -159,17 +159,14 @@ export class EmbeddingSearchService {
 
   private async ensurePreloaded(cacheKey: string): Promise<void> {
     if (this.preloadedCacheKey === cacheKey) return;
-
-    let usingFallback = false;
     await this.provider.preload?.({
-      onProgress: (progress) => {
-        if (progress.usingFallback) {
-          usingFallback = true;
-        }
+      onProgress: () => {
+        // 预热阶段无论真实模型还是降级 fallback，都视为已初始化。
+        // Worker 会在降级冷却窗口后于 embed 路径内自行重试真实模型。
       },
     });
 
-    this.preloadedCacheKey = usingFallback ? null : cacheKey;
+    this.preloadedCacheKey = cacheKey;
   }
 
   async searchSimilarUtterances(
@@ -181,7 +178,7 @@ export class EmbeddingSearchService {
       return { query: '', matches: [] };
     }
 
-    const modelId = options?.modelId ?? DEFAULT_MODEL_ID;
+    const modelId = options?.modelId ?? this.provider.modelId ?? DEFAULT_LOCAL_EMBEDDING_MODEL_ID;
     const modelVersion = options?.modelVersion ?? DEFAULT_MODEL_VERSION;
     const topK = normalizeTopK(options?.topK);
     const minScore = options?.minScore ?? DEFAULT_MIN_SCORE;
@@ -243,7 +240,7 @@ export class EmbeddingSearchService {
       return { query: normalizedQuery || '', matches: [] };
     }
 
-    const modelId = options?.modelId ?? DEFAULT_MODEL_ID;
+    const modelId = options?.modelId ?? this.provider.modelId ?? DEFAULT_LOCAL_EMBEDDING_MODEL_ID;
     const modelVersion = options?.modelVersion ?? DEFAULT_MODEL_VERSION;
     const topK = normalizeTopK(options?.topK);
     const minScore = options?.minScore ?? DEFAULT_MIN_SCORE;
@@ -342,7 +339,7 @@ export class EmbeddingSearchService {
     }
 
     const db = await getDb();
-    const modelId = options?.modelId ?? DEFAULT_MODEL_ID;
+    const modelId = options?.modelId ?? this.provider.modelId ?? DEFAULT_LOCAL_EMBEDDING_MODEL_ID;
     const modelVersion = options?.modelVersion ?? DEFAULT_MODEL_VERSION;
     const candidateSet = options?.candidateSourceIds
       ? new Set(options.candidateSourceIds)

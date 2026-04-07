@@ -229,6 +229,51 @@ describe('LinguisticService smoke tests', () => {
     });
   });
 
+  it('lists orthographies with scoped language filters, search filters, and explicit selections', async () => {
+    await db.orthographies.bulkPut([
+      {
+        id: 'orth_scope_eng',
+        name: { eng: 'English Practical' },
+        languageId: 'eng',
+        scriptTag: 'Latn',
+        type: 'practical',
+        direction: 'ltr',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'orth_scope_zho',
+        name: { zho: '中文方案' },
+        languageId: 'zho',
+        scriptTag: 'Hans',
+        type: 'practical',
+        direction: 'ltr',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'orth_scope_fra',
+        name: { fra: 'Orthographe francaise' },
+        languageId: 'fra',
+        scriptTag: 'Latn',
+        type: 'practical',
+        direction: 'ltr',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+
+    const listed = await LinguisticService.listOrthographies({
+      includeBuiltIns: false,
+      languageIds: ['eng'],
+      orthographyIds: ['orth_scope_zho'],
+      searchText: 'english',
+      searchLanguageIds: ['eng'],
+    });
+
+    expect(listed.map((orthography) => orthography.id)).toEqual(['orth_scope_eng', 'orth_scope_zho']);
+  });
+
   it('can materialize and update a built-in orthography from the workspace', async () => {
     const updated = await LinguisticService.updateOrthography({
       id: 'eng-latn',
@@ -2836,5 +2881,42 @@ describe('resolveLanguageQuery', () => {
 
   it('returns undefined for unrecognised input', () => {
     expect(LinguisticService.resolveLanguageQuery('xyznonexistent')).toBeUndefined();
+  });
+});
+
+describe('listCustomFieldDefinitions', () => {
+  beforeEach(async () => {
+    await db.open();
+    await clearDatabase();
+    clearLanguageCatalogRuntimeCache();
+  });
+
+  it('按 sortOrder 返回自定义字段定义 | returns definitions sorted by sortOrder', async () => {
+    const b = await LinguisticService.upsertCustomFieldDefinition({
+      name: { 'zh-CN': 'B 字段', 'en-US': 'Field B' },
+      fieldType: 'text',
+      sortOrder: 2,
+    });
+    const a = await LinguisticService.upsertCustomFieldDefinition({
+      name: { 'zh-CN': 'A 字段', 'en-US': 'Field A' },
+      fieldType: 'number',
+      sortOrder: 1,
+    });
+
+    const defs = await LinguisticService.listCustomFieldDefinitions();
+    expect(defs.length).toBe(2);
+    expect(defs[0]?.id).toBe(a.id);
+    expect(defs[1]?.id).toBe(b.id);
+  });
+
+  it('删除后不再返回 | does not return deleted definitions', async () => {
+    const def = await LinguisticService.upsertCustomFieldDefinition({
+      name: { 'zh-CN': '临时字段', 'en-US': 'Temp field' },
+      fieldType: 'text',
+    });
+    await LinguisticService.deleteCustomFieldDefinition(def.id);
+
+    const defs = await LinguisticService.listCustomFieldDefinitions();
+    expect(defs.find((d) => d.id === def.id)).toBeUndefined();
   });
 });

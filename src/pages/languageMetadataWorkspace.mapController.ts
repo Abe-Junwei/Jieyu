@@ -23,6 +23,12 @@ import {
 } from '../components/languageGeocoder';
 import { readMapProxyBaseUrl } from '../components/mapProxyConfig';
 import type { WorkspaceLocale, LanguageMetadataDraft, LanguageMetadataDraftChangeHandler } from './languageMetadataWorkspace.shared';
+import {
+  getCountryOptions,
+  normalizeCountryCodesForGeocoder,
+  parseCountriesText,
+  resolveCountryCodes,
+} from './languageMetadataWorkspace.country';
 
 // ─── 返回类型 | Return type ───
 export type MapControllerState = ReturnType<typeof useLanguageMetadataMapController>;
@@ -102,13 +108,9 @@ export function useLanguageMetadataMapController(locale: WorkspaceLocale, draft:
   const parsedLatitude = Number(draft.latitude);
   const parsedLongitude = Number(draft.longitude);
   const hasCurrentCoordinates = !Number.isNaN(parsedLatitude) && !Number.isNaN(parsedLongitude);
-  const countryCodes = useMemo(
-    () => draft.countriesText
-      .split(',')
-      .map((item) => item.trim().toLowerCase())
-      .filter((item) => /^[a-z]{2}$/.test(item)),
-    [draft.countriesText],
-  );
+  const countryCodes = useMemo(() => normalizeCountryCodesForGeocoder(
+    resolveCountryCodes(parseCountriesText(draft.countriesText), getCountryOptions(locale)),
+  ), [draft.countriesText, locale]);
 
   const runReverseGeocode = (latitude: number, longitude: number) => {
     if (!geocoderCapabilities.supportsReverseGeocode) {

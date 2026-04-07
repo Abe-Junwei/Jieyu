@@ -2,6 +2,8 @@ import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'reac
 import type { OrthographyDocType, UtteranceDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
+import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
+import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
 import type WaveSurfer from 'wavesurfer.js';
 import type { UttOpsMenuState } from './TranscriptionPage.UIState';
 import type { TranscriptionPageTimelineContentProps } from './TranscriptionPage.TimelineContent';
@@ -26,6 +28,10 @@ export interface UseTranscriptionSectionViewModelsInput {
     duration: number;
     instanceRef: RefObject<WaveSurfer | null>;
   };
+  waveformDisplayMode: WaveformDisplayMode;
+  setWaveformDisplayMode: (mode: WaveformDisplayMode) => void;
+  waveformVisualStyle: WaveformVisualStyle;
+  setWaveformVisualStyle: (style: WaveformVisualStyle) => void;
   globalLoopPlayback: boolean;
   setGlobalLoopPlayback: (loop: boolean) => void;
   handleGlobalPlayPauseAction: () => void;

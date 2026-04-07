@@ -112,6 +112,22 @@
   width: 100%;
 }
 
+.orthography-workspace-empty-callout {
+  display: grid;
+  gap: var(--orthography-space-2);
+  margin-top: var(--orthography-space-3);
+  padding: var(--orthography-space-4);
+  border: 1px dashed color-mix(in srgb, var(--state-warning-text, #b45309) 35%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-warning-bg, #fef3c7));
+}
+
+.orthography-workspace-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--orthography-space-2);
+}
+
 /* 项目语言过滤切换 | Project language filter toggle */
 .orthography-workspace-filter-toggle {
   display: flex;

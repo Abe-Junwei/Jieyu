@@ -10,6 +10,7 @@ import {
   buildWhisperTranscriptionEndpoints,
   createTranscriptionTimeoutController,
 } from './VoiceInputService.probes';
+import type { WhisperXVadService } from './vad/WhisperXVadService';
 import { createLogger } from '../observability/logger';
 import { decodeEscapedUnicode } from '../utils/decodeEscapedUnicode';
 
@@ -35,8 +36,18 @@ export class RecordingExecutor {
   private recordedChunks: Blob[] = [];
   private _isRecording = false;
   private _stopRecordingPromise: Promise<void> | null = null;
+  /** 可选 VAD 服务，启用后在发送 STT 前过滤静音 | Optional VAD service; when set, filters silence before STT */
+  private _vadService: WhisperXVadService | null = null;
 
   constructor(private readonly callbacks: RecordingCallbacks) {}
+
+  /**
+   * 设置 VAD 服务实例（由 VoiceInputService 按需初始化后注入）。
+   * Set VAD service instance (injected by VoiceInputService after lazy init).
+   */
+  setVadService(service: WhisperXVadService | null): void {
+    this._vadService = service;
+  }
 
   get isRecording(): boolean {
     return this._isRecording;
@@ -169,6 +180,64 @@ export class RecordingExecutor {
     const audioBlob = new Blob(this.recordedChunks, { type: 'audio/webm' });
     this.recordedChunks = [];
 
+
+    // VAD 预处理：若 VAD 服务可用且引擎为 whisper-local，先检测是否包含语音（带缓存）
+    // VAD pre-check: if VAD service is available and engine is whisper-local, verify speech presence (with cache)
+    if (this._vadService && currentEngine === 'whisper-local') {
+      let audioCtx: AudioContext | null = null;
+      try {
+        audioCtx = new AudioContext();
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+        // ==== VAD 缓存集成 ====
+        // 优先用 mediaId，否则用音频 hash
+        let mediaId = (config as any).mediaId as string | undefined;
+        if (!mediaId) {
+          // 无 mediaId 时用音频内容 hash（极简实现：前 256 字节 base64）
+          const hash = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer.slice(0, 256))));
+          mediaId = `blob:${hash}`;
+        }
+        // 动态导入 VadCacheService，避免循环依赖
+        const { vadCache } = await import('./vad/VadCacheService');
+        let segments = vadCache.get(mediaId)?.segments;
+        if (!segments) {
+          segments = await this._vadService.detectSpeechSegments(audioBuffer);
+          vadCache.set(mediaId, {
+            engine: this._vadService.constructor?.name === 'WhisperXVadService' ? 'silero' : 'energy',
+            segments,
+            durationSec: audioBuffer.duration,
+            cachedAt: Date.now(),
+          });
+        }
+        log.debug('VAD pre-check completed', {
+          segmentCount: segments.length,
+          totalDurationSec: audioBuffer.duration.toFixed(2),
+          cacheKey: mediaId,
+        });
+        if (segments.length === 0) {
+          log.debug('VAD: no speech detected, skipping STT');
+          this.callbacks.emitResult({ text: '', isFinal: true, confidence: 0, lang: config.lang, engine: currentEngine });
+          return;
+        }
+      } catch (vadErr) {
+        // VAD 失败不中断转写流程 | VAD failure does not block transcription
+        log.warn('VAD pre-check failed, proceeding with STT', {
+          error: vadErr instanceof Error ? vadErr.message : String(vadErr),
+        });
+      } finally {
+        if (audioCtx) {
+          try {
+            await audioCtx.close();
+          } catch (closeError) {
+            log.warn('VAD AudioContext close failed', {
+              error: closeError instanceof Error ? closeError.message : String(closeError),
+            });
+          }
+        }
+      }
+    }
+
     // Route based on the active engine: try the primary engine first,
     // fall back to the other if unavailable.
     if (currentEngine === 'commercial' && config.commercialFallback) {
@@ -194,7 +263,7 @@ export class RecordingExecutor {
     commercialFallback?: CommercialSttProvider;
   }): Promise<void> {
     const baseUrl = config.whisperServerUrl?.replace(/\/+$/, '') ?? 'http://localhost:3040';
-    const model = config.whisperServerModel ?? 'ggml-small-q5_k.bin';
+    const model = config.whisperServerModel ?? 'ggml-distil-whisper-large-v3.bin';
 
     try {
       const result = await this.transcribeWithWhisperServer(audioBlob, baseUrl, model, config.lang);

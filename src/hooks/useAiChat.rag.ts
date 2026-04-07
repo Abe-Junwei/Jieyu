@@ -4,6 +4,8 @@ import { extractPdfSnippet } from '../ai/embeddings/pdfTextUtils';
 import { splitPdfCitationRef } from '../utils/citationJumpUtils';
 import { normalizeCitationSnippetPlainText, RAG_CITATION_INSTRUCTION } from '../utils/citationFootnoteUtils';
 import { isSearchFusionScenario, type SearchFusionScenario } from '../ai/embeddings/searchFusionProfiles';
+import { evaluateRagQuality } from '../ai/embeddings/ragQualityEvaluator';
+import { shouldRetrieve } from '../ai/ragReflection';
 import { withTimeout } from './useAiChat.config';
 import { createLogger } from '../observability/logger';
 import { listUtteranceTextsByUtterance } from '../services/LayerSegmentationTextService';
@@ -13,6 +15,10 @@ const log = createLogger('useAiChat.rag');
 export interface RagEnrichmentResult {
   contextBlock: string;
   citations: AiMessageCitation[];
+  /** Self-RAG 反思判定 | Self-RAG reflection verdict */
+  reflectionVerdict?: 'skip' | 'force' | 'retrieve';
+  /** CRAG 质量判定 | CRAG quality verdict (only set when CRAG runs) */
+  cragVerdict?: 'correct' | 'ambiguous' | 'incorrect';
 }
 
 interface EnrichContextWithRagParams {
@@ -79,13 +85,27 @@ export async function enrichContextWithRag({
     return { contextBlock, citations: [] };
   }
 
+  // Self-RAG 反思判断：跳过闲聊/纯操作指令，避免无效检索
+  // Self-RAG reflection gate: skip greetings and pure commands
+  const reflectionVerdict = shouldRetrieve(userText);
+  if (reflectionVerdict === 'skip') {
+    log.debug('Self-RAG: skip verdict, bypassing retrieval', {
+      preview: userText.slice(0, 60),
+    });
+    return { contextBlock, citations: [], reflectionVerdict: 'skip' };
+  }
+
   try {
     const { scenario, queryText } = resolveRagFusionScenarioInput(userText);
+    // force 判定：扩大召回范围（topK 8、更低阈值），跳过 CRAG 质量门控
+    // force verdict: widen recall (topK 8, lower threshold), skip CRAG quality gate
+    const isForced = reflectionVerdict === 'force';
+    const searchTopK = isForced ? 8 : 5;
     const ragResult = await withTimeout(
       embeddingSearchService.searchMultiSourceHybrid(
         queryText,
         ['utterance', 'note', 'pdf'],
-        { topK: 5, fusionScenario: scenario },
+        { topK: searchTopK, fusionScenario: scenario },
       ),
       ragContextTimeoutMs,
       `RAG context timed out after ${ragContextTimeoutMs}ms`,
@@ -97,7 +117,7 @@ export async function enrichContextWithRag({
         embeddingSearchService.searchMultiSourceHybrid(
           queryText,
           ['utterance', 'note', 'pdf'],
-          { topK: 5, fusionScenario: scenario, minScore: 0.1 },
+          { topK: searchTopK, fusionScenario: scenario, minScore: isForced ? 0.05 : 0.1 },
         ),
         ragContextTimeoutMs,
         `RAG fallback timed out after ${ragContextTimeoutMs}ms`,
@@ -105,12 +125,59 @@ export async function enrichContextWithRag({
       activeMatches = fallbackResult.matches;
     }
 
+    // CRAG 质量评估：三路分支（correct / ambiguous / incorrect）
+    // force 判定跳过 CRAG 门控（用户明确需要检索结果）
+    // CRAG quality gate: three-branch verdict; force verdict bypasses gate
+    let cragVerdict: 'correct' | 'ambiguous' | 'incorrect' | undefined;
+    if (!isForced) {
+      const ragQuality = evaluateRagQuality(activeMatches, queryText);
+      cragVerdict = ragQuality.verdict;
+      if (ragQuality.verdict === 'incorrect') {
+        log.debug('CRAG: incorrect verdict, skipping RAG injection', {
+          maxScore: ragQuality.maxScore,
+          queryPreview: queryText.slice(0, 80),
+        });
+        return { contextBlock, citations: [], reflectionVerdict, cragVerdict: 'incorrect' };
+      }
+      if (ragQuality.verdict === 'ambiguous' && ragQuality.refinedQuery) {
+        // AMBIGUOUS: 用扩展查询重搜一次，关键词权重 0.45 | Re-search with keyword expansion
+        log.debug('CRAG: ambiguous verdict, re-searching with queryExpansion profile', {
+          maxScore: ragQuality.maxScore,
+          scoreGap: ragQuality.scoreGap,
+          refinedQuery: ragQuality.refinedQuery.slice(0, 60),
+        });
+        try {
+          const expandedResult = await withTimeout(
+            embeddingSearchService.searchMultiSourceHybrid(
+              ragQuality.refinedQuery,
+              ['utterance', 'note', 'pdf'],
+              { topK: 5, fusionScenario: 'queryExpansion' },
+            ),
+            ragContextTimeoutMs,
+            `CRAG re-search timed out after ${ragContextTimeoutMs}ms`,
+          );
+          if (expandedResult.matches.length > 0) {
+            activeMatches = expandedResult.matches;
+          }
+        } catch (expandErr) {
+          log.warn('CRAG re-search failed, continuing with original matches', {
+            error: expandErr instanceof Error ? expandErr.message : String(expandErr),
+          });
+        }
+      }
+    } else {
+      log.debug('Self-RAG: force verdict, bypassing CRAG quality gate', {
+        matchCount: activeMatches.length,
+        queryPreview: queryText.slice(0, 60),
+      });
+    }
+
     if (activeMatches.length === 0) {
-      log.debug('RAG no matches, proceeding without context augmentation', {
+      log.debug('RAG no matches after CRAG evaluation, proceeding without context augmentation', {
         queryPreview: queryText.slice(0, 80),
         scenario,
       });
-      return { contextBlock, citations: [] };
+      return { contextBlock, citations: [], reflectionVerdict };
     }
 
     const db = await getDb();
@@ -125,7 +192,9 @@ export async function enrichContextWithRag({
         let snippet = '';
 
         if (match.sourceType === 'note') {
-          const noteRows = await db.collections.user_notes.findByIndex('id', match.sourceId);
+          // 分块笔记 sourceId 带 #chunk=N 后缀，需取 baseRef 查库 | Chunked note sourceId has #chunk=N suffix, strip to base ID for DB lookup
+          const { baseRef: noteBaseId } = splitPdfCitationRef(match.sourceId);
+          const noteRows = await db.collections.user_notes.findByIndex('id', noteBaseId);
           const noteDoc = noteRows[0]?.toJSON();
           if (noteDoc?.content) {
             const contentByLang = noteDoc.content as Record<string, string>;
@@ -183,14 +252,16 @@ export async function enrichContextWithRag({
     );
     const seen = new Set<string>();
     const dedupedSources = rawRagSources.filter((source) => {
-      const key = `${source.citation.type}:${source.citation.refId}`;
+      // 同一笔记/PDF 不同 chunk 归一化为同一 base ID 去重 | Normalize chunk sourceIds to base ID for dedup
+      const { baseRef } = splitPdfCitationRef(source.citation.refId);
+      const key = `${source.citation.type}:${baseRef}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
 
     if (dedupedSources.length === 0) {
-      return { contextBlock, citations: [] };
+      return { contextBlock, citations: [], reflectionVerdict, ...(cragVerdict !== undefined && { cragVerdict }) };
     }
 
     const ragLines = dedupedSources.map(
@@ -199,6 +270,8 @@ export async function enrichContextWithRag({
     return {
       contextBlock: `${contextBlock}\n[RELEVANT_CONTEXT]\n${ragLines.join('\n')}\n${RAG_CITATION_INSTRUCTION}`,
       citations: dedupedSources.map((source) => source.citation),
+      reflectionVerdict,
+      ...(cragVerdict !== undefined && { cragVerdict }),
     };
   } catch (error) {
     // 区分可恢复与不可恢复错误 | Distinguish recoverable from non-recoverable errors
@@ -212,6 +285,6 @@ export async function enrichContextWithRag({
         error: error instanceof Error ? error.message : String(error),
       });
     }
-    return { contextBlock, citations: [] };
+    return { contextBlock, citations: [], reflectionVerdict };
   }
 }

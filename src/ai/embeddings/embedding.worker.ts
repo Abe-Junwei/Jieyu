@@ -1,4 +1,10 @@
 import type { EmbeddingRuntimeProgress } from './EmbeddingRuntime';
+import {
+  createFeatureExtractionPipelineWithFallback,
+  configureTransformersEmbeddingRuntime,
+  type TransformersFeatureExtractionPipeline,
+  type TransformersEmbeddingRuntimeConfig,
+} from './transformersRuntimeConfig';
 
 type WorkerRequestType = 'preload' | 'embed';
 
@@ -15,6 +21,8 @@ interface WorkerPreloadRequest extends WorkerRequestBase {
 interface WorkerEmbedRequest extends WorkerRequestBase {
   type: 'embed';
   texts: string[];
+  /** 模型输出维度，默认 384（e5-small / Arctic-Embed-XS）| Model output dimension, default 384 */
+  dimension?: number;
 }
 
 type WorkerRequest = WorkerPreloadRequest | WorkerEmbedRequest;
@@ -39,9 +47,10 @@ interface ExtractorState {
   extractor: EmbeddingExtractor;
   degraded: boolean;
   reason?: string;
+  runtimeConfig?: TransformersEmbeddingRuntimeConfig;
 }
 
-const DEFAULT_DIMENSION = 256;
+const DEFAULT_DIMENSION = 384;
 const DEGRADED_RETRY_COOLDOWN_MS = 30_000;
 
 let cachedModelId = '';
@@ -99,48 +108,76 @@ function fallbackEmbedding(text: string, dimension = DEFAULT_DIMENSION): number[
   return vector.map((value) => value / norm);
 }
 
-async function createTransformerExtractor(modelId: string, requestId: string): Promise<EmbeddingExtractor> {
-  const transformers = await import('@xenova/transformers');
+interface TransformerExtractorState {
+  extractor: EmbeddingExtractor;
+  runtimeConfig: TransformersEmbeddingRuntimeConfig;
+}
 
-  // 生产构建时让 ONNX 从 Worker 同源加载 WASM（已由 vite 插件复制）
-  // In production builds, load WASM from same origin as the worker (copied by vite plugin)
-  if (typeof transformers.env?.backends?.onnx?.wasm !== 'undefined') {
-    const workerUrl = (self as unknown as { location?: { href?: string } }).location?.href ?? '';
-    if (workerUrl && !workerUrl.includes('node_modules')) {
-      const wasmDir = workerUrl.substring(0, workerUrl.lastIndexOf('/') + 1);
-      transformers.env.backends.onnx.wasm.wasmPaths = wasmDir;
-    }
-  }
+function formatInitError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
-  const pipeline = await transformers.pipeline('feature-extraction', modelId, {
-    progress_callback: (event: { progress?: number; loaded?: number; total?: number; status?: string }) => {
-      const progress: EmbeddingRuntimeProgress = {
-        stage: 'loading',
-      };
-      if (typeof event.loaded === 'number') progress.loaded = event.loaded;
-      if (typeof event.total === 'number') progress.total = event.total;
-      if (typeof event.status === 'string') progress.message = event.status;
+async function createTransformerExtractor(modelId: string, requestId: string): Promise<TransformerExtractorState> {
+  // 从 @huggingface/transformers v4 动态加载 | Dynamic import from @huggingface/transformers v4
+  const transformers = await import('@huggingface/transformers');
+  const workerHref = (self as unknown as { location?: { href?: string } }).location?.href;
+
+  const runtimeConfig = await configureTransformersEmbeddingRuntime({
+    transformers,
+    ...(workerHref ? { workerHref } : {}),
+  });
+
+  const pipelineProgressCallback = (event: { progress?: number; loaded?: number; total?: number; status?: string }) => {
+    const progress: EmbeddingRuntimeProgress = {
+      stage: 'loading',
+    };
+    if (typeof event.loaded === 'number') progress.loaded = event.loaded;
+    if (typeof event.total === 'number') progress.total = event.total;
+    if (typeof event.status === 'string') progress.message = event.status;
+    postProgress(requestId, {
+      ...progress,
+    });
+  };
+
+  const pipelineState = await createFeatureExtractionPipelineWithFallback({
+    transformers,
+    modelId,
+    preferredDevice: runtimeConfig.device,
+    progressCallback: pipelineProgressCallback,
+    onWebgpuFallback: (error) => {
       postProgress(requestId, {
-        ...progress,
+        stage: 'loading',
+        message: `webgpu init failed; retry wasm: ${formatInitError(error)}`,
       });
     },
   });
 
-  return async (text: string): Promise<number[]> => {
-    const tensor = await pipeline(text, {
-      pooling: 'mean',
-      normalize: true,
-    }) as { data?: Float32Array | number[] };
+  const resolvedRuntimeConfig = pipelineState.device === runtimeConfig.device
+    ? runtimeConfig
+    : {
+      ...runtimeConfig,
+      device: pipelineState.device,
+    };
+  const pipeline: TransformersFeatureExtractionPipeline = pipelineState.pipeline;
 
-    if (Array.isArray(tensor.data)) return tensor.data;
-    if (tensor.data instanceof Float32Array) return Array.from(tensor.data);
-    return fallbackEmbedding(text);
+  return {
+    runtimeConfig: resolvedRuntimeConfig,
+    extractor: async (text: string): Promise<number[]> => {
+      const tensor = await pipeline(text, {
+        pooling: 'mean',
+        normalize: true,
+      }) as { data?: Float32Array | number[] };
+
+      if (Array.isArray(tensor.data)) return tensor.data;
+      if (tensor.data instanceof Float32Array) return Array.from(tensor.data);
+      return fallbackEmbedding(text);
+    },
   };
 }
 
-async function ensureExtractor(modelId: string, requestId: string, forceRetry = false): Promise<ExtractorState> {
+async function ensureExtractor(modelId: string, requestId: string): Promise<ExtractorState> {
   const degradedCooldownElapsed = cachedDegraded && (Date.now() - cachedLoadedAt >= DEGRADED_RETRY_COOLDOWN_MS);
-  if (cachedExtractor && cachedModelId === modelId && !(forceRetry && cachedDegraded) && !degradedCooldownElapsed) {
+  if (cachedExtractor && cachedModelId === modelId && !degradedCooldownElapsed) {
     return {
       extractor: cachedExtractor,
       degraded: cachedDegraded,
@@ -149,7 +186,8 @@ async function ensureExtractor(modelId: string, requestId: string, forceRetry = 
   }
 
   try {
-    cachedExtractor = await createTransformerExtractor(modelId, requestId);
+    const transformerState = await createTransformerExtractor(modelId, requestId);
+    cachedExtractor = transformerState.extractor;
     cachedModelId = modelId;
     cachedDegraded = false;
     cachedDegradedReason = undefined;
@@ -157,6 +195,7 @@ async function ensureExtractor(modelId: string, requestId: string, forceRetry = 
     return {
       extractor: cachedExtractor,
       degraded: false,
+      runtimeConfig: transformerState.runtimeConfig,
     };
   } catch (error) {
     cachedExtractor = async (text: string) => fallbackEmbedding(text);
@@ -177,7 +216,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
     const request = event.data;
 
     try {
-      const extractorState = await ensureExtractor(request.modelId, request.requestId, request.type === 'preload');
+      const extractorState = await ensureExtractor(request.modelId, request.requestId);
       const extractor = extractorState.extractor;
 
       if (request.type === 'preload') {
@@ -186,16 +225,22 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           usingFallback: extractorState.degraded,
           message: extractorState.degraded
             ? `fallback:${extractorState.reason ?? 'model unavailable'}`
-            : 'model ready',
+            : `model ready; device=${extractorState.runtimeConfig?.device ?? 'unknown'}; cache=${extractorState.runtimeConfig?.browserCacheEnabled ? 'browser' : 'off'}${extractorState.runtimeConfig?.cacheDir ? `; cacheDir=${extractorState.runtimeConfig.cacheDir}` : ''}`,
         });
         postResult(request.requestId, { ok: true, vectors: [] });
         return;
       }
 
+      // 降级提取器需使用请求中的维度 | Degraded extractor should use request dimension
+      const dim = request.type === 'embed' ? request.dimension : undefined;
+      const wrappedExtractor: EmbeddingExtractor = extractorState.degraded && dim
+        ? (text) => Promise.resolve(fallbackEmbedding(text, dim))
+        : extractor;
+
       const vectors: number[][] = [];
       for (let i = 0; i < request.texts.length; i += 1) {
         const text = request.texts[i] ?? '';
-        const vector = await extractor(text);
+        const vector = await wrappedExtractor(text);
         vectors.push(vector);
         postProgress(request.requestId, {
           stage: 'embedding',

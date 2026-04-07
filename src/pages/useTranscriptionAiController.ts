@@ -26,6 +26,8 @@ import { loadOrthographyRuntime } from '../utils/loadOrthographyRuntime';
 import { createTranscriptionAiToolRiskCheck } from './transcriptionAiToolRiskCheck';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import { buildAiSegmentTargetDescriptors, resolveAiSegmentTargetScopeUtterances } from './useTranscriptionAiController.segmentTargets';
+import { buildWaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
+import { vadCache } from '../services/vad/VadCacheService';
 
 const TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX = '\u5237\u65b0 AI \u5de5\u5177\u5ba1\u8ba1\u65e5\u5fd7\u5931\u8d25\uff1a';
 
@@ -251,7 +253,16 @@ export function useTranscriptionAiController(
     return aiToolCallHandler(preparedCall);
   }, [aiToolCallHandler, materializeAiToolCall]);
 
-  const buildAiPromptContext = useCallback(() => buildTranscriptionAiPromptContext({
+  const buildAiPromptContext = useCallback(() => {
+    const currentMediaId = input.selectedTimelineMedia?.id;
+    const cachedVad = currentMediaId ? vadCache.get(currentMediaId) : null;
+    return buildTranscriptionAiPromptContext({
+    waveformAnalysis: buildWaveformAnalysisPromptSummary(input.utterancesOnCurrentMedia, {
+      ...(input.selectionSnapshot.selectedUnitStartSec !== undefined ? { selectionStartTime: input.selectionSnapshot.selectedUnitStartSec } : {}),
+      ...(input.selectionSnapshot.selectedUnitEndSec !== undefined ? { selectionEndTime: input.selectionSnapshot.selectedUnitEndSec } : {}),
+      audioTimeSec: aiAudioTimeRef.current,
+      ...(cachedVad ? { vadSegments: cachedVad.segments } : {}),
+    }),
     selectionSnapshot: input.selectionSnapshot,
     selectedUnitIds: Array.from(input.selectedUnitIds).slice(0, 12),
     utteranceCount: input.utteranceCount,
@@ -262,7 +273,8 @@ export function useTranscriptionAiController(
     recommendations: aiRecommendationRef.current,
     audioTimeSec: aiAudioTimeRef.current,
     recentEdits: input.undoHistory.slice(0, 5).map((item) => String(item)),
-  }), [input.aiConfidenceAvg, input.selectedUnitIds, input.selectionSnapshot, input.translationLayerCount, input.undoHistory, input.utteranceCount]);
+  });
+  }, [input.aiConfidenceAvg, input.selectedUnitIds, input.selectionSnapshot, input.selectedTimelineMedia?.id, input.translationLayerCount, input.undoHistory, input.utteranceCount]);
 
   const handleAiToolRiskCheck = createTranscriptionAiToolRiskCheck({
     locale,
@@ -313,6 +325,7 @@ export function useTranscriptionAiController(
     aiPanelMode,
     selectUtterance: input.selectUtterance,
     setSaveState: input.setSaveState,
+    mediaId: input.selectedTimelineMedia?.id,
   });
 
   useEffect(() => { const nextPersona = taskToPersona(aiCurrentTask); setAiDerivedPersona((prev) => (prev === nextPersona ? prev : nextPersona)); }, [aiCurrentTask]);

@@ -32,6 +32,10 @@ export interface UseOrchestratorViewModelsInput {
   // ── SectionViewModelsInput deps ──
   selectedTimelineMediaFilename: string | null;
   player: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['player'];
+  waveformDisplayMode: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['waveformDisplayMode'];
+  setWaveformDisplayMode: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['setWaveformDisplayMode'];
+  waveformVisualStyle: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['waveformVisualStyle'];
+  setWaveformVisualStyle: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['setWaveformVisualStyle'];
   globalLoopPlayback: boolean;
   setGlobalLoopPlayback: (v: boolean) => void;
   handleGlobalPlayPauseAction: () => void;
@@ -115,6 +119,10 @@ export function useOrchestratorViewModels(
     locale: input.locale,
     selectedTimelineMediaFilename: input.selectedTimelineMediaFilename,
     player: input.player,
+    waveformDisplayMode: input.waveformDisplayMode,
+    setWaveformDisplayMode: input.setWaveformDisplayMode,
+    waveformVisualStyle: input.waveformVisualStyle,
+    setWaveformVisualStyle: input.setWaveformVisualStyle,
     globalLoopPlayback: input.globalLoopPlayback,
     setGlobalLoopPlayback: input.setGlobalLoopPlayback,
     handleGlobalPlayPauseAction: input.handleGlobalPlayPauseAction,

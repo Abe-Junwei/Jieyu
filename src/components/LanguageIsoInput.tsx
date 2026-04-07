@@ -2,6 +2,10 @@ import { useEffect, useId, useMemo, useReducer, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import {
   formatLanguageCatalogMatch,
+  getLanguageCatalogEntry,
+  pickAutoFillLanguageMatchFromSuggestions,
+  type LanguageCatalogMatch,
+  type LanguageCatalogMatchSource,
   type LanguageSearchLocale,
 } from '../utils/langMapping';
 import type { ResolveLanguageDisplayName } from '../utils/languageDisplayNameResolver';
@@ -17,8 +21,53 @@ import {
 } from '../utils/languageInputReducer';
 import { getLanguageInputMessages } from '../i18n/languageInputMessages';
 import type { Locale } from '../i18n/index';
+import {
+  searchLanguageCatalogSuggestions,
+  type LanguageCatalogSearchSuggestion,
+} from '../services/LanguageCatalogSearchService';
 
 export type { LanguageIsoInputValue } from '../utils/languageInputTypes';
+
+const LANGUAGE_SUGGESTION_LIMIT = 5;
+const LANGUAGE_SUGGESTION_DEBOUNCE_MS = 120;
+
+function mapSearchSuggestionSource(matchSource: string): LanguageCatalogMatchSource {
+  if (matchSource === 'code-exact') {
+    return 'iso6393-exact';
+  }
+  if (matchSource === 'code-prefix') {
+    return 'prefix';
+  }
+  if (matchSource === 'code-contains') {
+    return 'contains';
+  }
+  if (matchSource === 'alias-exact') {
+    return 'alias-exact';
+  }
+  if (matchSource.endsWith('-exact')) {
+    return 'name-exact';
+  }
+  if (matchSource.endsWith('-prefix')) {
+    return 'prefix';
+  }
+  return 'contains';
+}
+
+function toLanguageCatalogMatch(suggestion: LanguageCatalogSearchSuggestion): LanguageCatalogMatch | null {
+  const entry = getLanguageCatalogEntry(suggestion.id) ?? getLanguageCatalogEntry(suggestion.languageCode);
+  if (!entry) {
+    return null;
+  }
+
+  return {
+    entry,
+    score: suggestion.rank,
+    matchSource: mapSearchSuggestionSource(suggestion.matchSource),
+    matchedLabel: suggestion.matchedLabel,
+    matchedLabelKind: suggestion.matchedLabelKind,
+    warnings: [],
+  };
+}
 
 type LanguageIsoInputProps = {
   locale: LanguageSearchLocale;
@@ -86,6 +135,57 @@ export function LanguageIsoInput({
   const visibleCodeError = error || (!suppressCodeError ? assistState.codeError : '');
   const codeErrorId = `${fieldIdPrefix}-language-code-error`;
   const committedValueKey = serializeLanguageInputValue(committedValue);
+
+  useEffect(() => {
+    const activeNameQuery = model.draft.activeField === 'name' ? model.draft.nameInput.trim() : '';
+    if (!activeNameQuery || disabled || model.status === 'selected' || model.draft.codeInput.trim().length > 0) {
+      return;
+    }
+
+    let cancelled = false;
+    const timerId = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const suggestions = await searchLanguageCatalogSuggestions({
+            query: activeNameQuery,
+            locale,
+            limit: LANGUAGE_SUGGESTION_LIMIT,
+          });
+          if (cancelled) {
+            return;
+          }
+
+          const nextMatches = suggestions
+            .map((suggestion) => toLanguageCatalogMatch(suggestion))
+            .filter((match): match is LanguageCatalogMatch => Boolean(match));
+          const autoFillMatch = pickAutoFillLanguageMatchFromSuggestions(nextMatches);
+
+          dispatch({
+            type: 'nameSuggestionsResolved',
+            query: activeNameQuery,
+            suggestions: nextMatches,
+            ...(autoFillMatch
+              ? { autoFillMatch }
+              : {}),
+          });
+        } catch {
+          if (cancelled) {
+            return;
+          }
+          dispatch({
+            type: 'nameSuggestionsResolved',
+            query: activeNameQuery,
+            suggestions: [],
+          });
+        }
+      })();
+    }, LANGUAGE_SUGGESTION_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timerId);
+    };
+  }, [disabled, locale, model.draft.activeField, model.draft.codeInput, model.draft.nameInput, model.status]);
 
   useEffect(() => {
     const localeChanged = locale !== lastSeenLocaleRef.current;

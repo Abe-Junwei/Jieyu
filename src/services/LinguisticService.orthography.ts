@@ -6,6 +6,8 @@ import {
 } from '../db';
 import {
   getBuiltInOrthographyById,
+  listBuiltInOrthographies,
+  listBuiltInOrthographiesByIds,
   listAllBuiltInOrthographies,
 } from '../data/builtInOrthographies';
 import { getLanguageCatalogEntry as getLanguageCatalogWorkspaceEntry } from './LinguisticService.languageCatalog';
@@ -43,6 +45,10 @@ export interface CloneOrthographyToLanguageInput extends Omit<CreateOrthographyI
 
 export interface ListOrthographyRecordsSelector {
   languageId?: string;
+  languageIds?: readonly string[];
+  orthographyIds?: readonly string[];
+  searchText?: string;
+  searchLanguageIds?: readonly string[];
   includeBuiltIns?: boolean;
 }
 
@@ -188,6 +194,73 @@ function mergeOrthographyCatalogRows(
   return Array.from(deduped.values());
 }
 
+function buildOrthographySearchText(orthography: OrthographyDocType): string {
+  return [
+    readAnyMultiLangLabel(orthography.name),
+    orthography.abbreviation,
+    orthography.id,
+    orthography.languageId,
+    orthography.scriptTag,
+    orthography.type,
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function normalizeSelectorValues(values: readonly string[] | undefined): string[] | undefined {
+  if (!values) {
+    return undefined;
+  }
+
+  const normalizedValues = Array.from(new Set(
+    values
+      .map((value) => value.trim())
+      .filter(Boolean),
+  ));
+
+  return normalizedValues.length > 0 ? normalizedValues : undefined;
+}
+
+function normalizeLanguageSelectorValues(values: readonly string[] | undefined): string[] | undefined {
+  if (!values) {
+    return undefined;
+  }
+
+  const normalizedValues = Array.from(new Set(
+    values
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+  ));
+
+  return normalizedValues.length > 0 ? normalizedValues : undefined;
+}
+
+async function listScopedBuiltInOrthographies(
+  selector: ListOrthographyRecordsSelector,
+): Promise<OrthographyDocType[]> {
+  if (!selector.includeBuiltIns) {
+    return [];
+  }
+
+  const normalizedLanguageIds = normalizeLanguageSelectorValues([
+    ...(selector.languageId?.trim() ? [selector.languageId.trim()] : []),
+    ...(selector.languageIds ?? []),
+  ]);
+  const normalizedOrthographyIds = normalizeSelectorValues(selector.orthographyIds);
+  const scopedLoads: Promise<OrthographyDocType[]>[] = [];
+
+  if (normalizedLanguageIds && normalizedLanguageIds.length > 0) {
+    scopedLoads.push(listBuiltInOrthographies(normalizedLanguageIds));
+  }
+  if (normalizedOrthographyIds && normalizedOrthographyIds.length > 0) {
+    scopedLoads.push(listBuiltInOrthographiesByIds(normalizedOrthographyIds));
+  }
+  if (scopedLoads.length === 0) {
+    scopedLoads.push(listAllBuiltInOrthographies());
+  }
+
+  const rows = await Promise.all(scopedLoads);
+  return rows.flat();
+}
+
 async function deactivateSiblingActiveBridges(input: {
   bridgesTable: Awaited<ReturnType<typeof getDb>>['dexie']['orthography_bridges'];
   sourceOrthographyId: string;
@@ -234,9 +307,16 @@ export async function listOrthographyRecords(
   selector: ListOrthographyRecordsSelector = {},
 ): Promise<OrthographyDocType[]> {
   const db = await getDb();
+  const normalizedLanguageIds = normalizeLanguageSelectorValues([
+    ...(selector.languageId?.trim() ? [selector.languageId.trim()] : []),
+    ...(selector.languageIds ?? []),
+  ]);
+  const normalizedOrthographyIds = normalizeSelectorValues(selector.orthographyIds);
+  const normalizedSearchText = selector.searchText?.trim().toLowerCase() || '';
+  const normalizedSearchLanguageIds = normalizeLanguageSelectorValues(selector.searchLanguageIds);
   const [docs, builtInRows] = await Promise.all([
     db.collections.orthographies.find().exec(),
-    selector.includeBuiltIns ? listAllBuiltInOrthographies() : Promise.resolve([] as OrthographyDocType[]),
+    listScopedBuiltInOrthographies(selector),
   ]);
   const dbRows = docs.map((doc) => doc.toJSON());
   const rows = selector.includeBuiltIns
@@ -245,10 +325,36 @@ export async function listOrthographyRecords(
 
   return rows
     .filter((orthography) => {
-      if (selector.languageId && orthography.languageId !== selector.languageId) {
+      const normalizedOrthographyLanguageId = orthography.languageId?.trim().toLowerCase() ?? '';
+      const matchesExplicitOrthographyId = normalizedOrthographyIds?.includes(orthography.id) ?? false;
+      if (matchesExplicitOrthographyId) {
+        return true;
+      }
+
+      const matchesScopeLanguage = normalizedLanguageIds
+        ? normalizedLanguageIds.includes(normalizedOrthographyLanguageId)
+        : null;
+      const scopeMatches = matchesScopeLanguage === null ? true : matchesScopeLanguage;
+      if (!scopeMatches) {
         return false;
       }
-      return true;
+
+      const matchesSearchText = normalizedSearchText
+        ? buildOrthographySearchText(orthography).includes(normalizedSearchText)
+        : null;
+      const matchesSearchLanguage = normalizedSearchLanguageIds
+        ? normalizedSearchLanguageIds.includes(normalizedOrthographyLanguageId)
+        : null;
+
+      if (matchesSearchText === null && matchesSearchLanguage === null) {
+        return true;
+      }
+
+      if (matchesSearchText !== null && matchesSearchLanguage !== null) {
+        return matchesSearchText || matchesSearchLanguage;
+      }
+
+      return Boolean(matchesSearchText ?? matchesSearchLanguage);
     })
     .sort((left, right) => {
       const leftLanguageId = left.languageId ?? '';
@@ -611,11 +717,10 @@ export async function getActiveOrthographyBridgeRecord(
 
   const preferred = candidates
     .filter((doc) => doc.status === 'active')
-    .sort((left, right) => {
-      const rankDiff = rankOrthographyBridgeStatus(left.status) - rankOrthographyBridgeStatus(right.status);
-      if (rankDiff !== 0) return rankDiff;
-      return (right.updatedAt || right.createdAt).localeCompare(left.updatedAt || left.createdAt);
-    })[0];
+    // 已过滤为 active，按最近更新时间取首条 | All active, pick most recently updated
+    .sort((left, right) =>
+      (right.updatedAt || right.createdAt).localeCompare(left.updatedAt || left.createdAt),
+    )[0];
 
   return preferred ?? null;
 }

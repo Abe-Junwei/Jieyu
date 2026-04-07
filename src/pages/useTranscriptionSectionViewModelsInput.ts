@@ -10,6 +10,10 @@ export function useTranscriptionSectionViewModelsInput(
     locale: input.locale,
     selectedTimelineMediaFilename: input.selectedTimelineMediaFilename,
     player: input.player,
+    waveformDisplayMode: input.waveformDisplayMode,
+    setWaveformDisplayMode: input.setWaveformDisplayMode,
+    waveformVisualStyle: input.waveformVisualStyle,
+    setWaveformVisualStyle: input.setWaveformVisualStyle,
     globalLoopPlayback: input.globalLoopPlayback,
     setGlobalLoopPlayback: input.setGlobalLoopPlayback,
     handleGlobalPlayPauseAction: input.handleGlobalPlayPauseAction,
@@ -93,6 +97,8 @@ export function useTranscriptionSectionViewModelsInput(
     input.notePopoverOpen,
     input.orthographies,
     input.player,
+    input.setWaveformDisplayMode,
+    input.setWaveformVisualStyle,
     input.redo,
     input.rulerView,
     input.searchOverlayRequest,
@@ -119,6 +125,8 @@ export function useTranscriptionSectionViewModelsInput(
     input.undoLabel,
     input.utterancesOnCurrentMedia,
     input.waveCanvasRef,
+    input.waveformDisplayMode,
+    input.waveformVisualStyle,
     input.zoomPxPerSec,
   ]);
 }

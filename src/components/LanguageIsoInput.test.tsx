@@ -1,10 +1,19 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { renderWithLocale } from '../test/localeTestUtils';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
+import { searchLanguageCatalog } from '../utils/langMapping';
+
+const { mockSearchLanguageCatalogSuggestions } = vi.hoisted(() => ({
+  mockSearchLanguageCatalogSuggestions: vi.fn(),
+}));
+
+vi.mock('../services/LanguageCatalogSearchService', () => ({
+  searchLanguageCatalogSuggestions: mockSearchLanguageCatalogSuggestions,
+}));
 
 const resolveInjectedLanguageDisplayName = (languageId: string | undefined) => {
   if (languageId?.trim().toLowerCase() === 'eng') {
@@ -23,8 +32,33 @@ function extractIsoCodeFromSuggestion(option: HTMLElement): string {
   return lastMatch[1].toLowerCase();
 }
 
+function mapMatchSource(matchSource: string, matchedLabelKind: string): string {
+  if (matchSource === 'iso6393-exact') return 'code-exact';
+  if (matchSource === 'alias-exact') return 'alias-exact';
+  if (matchSource === 'name-exact') return `${matchedLabelKind}-exact`;
+  if (matchSource === 'prefix') return matchedLabelKind === 'code' ? 'code-prefix' : `${matchedLabelKind}-prefix`;
+  return matchedLabelKind === 'code' ? 'code-contains' : `${matchedLabelKind}-contains`;
+}
+
+beforeEach(() => {
+  mockSearchLanguageCatalogSuggestions.mockImplementation(async ({ query, locale, limit = 5 }: { query: string; locale: 'zh-CN' | 'en-US'; limit?: number }) => (
+    searchLanguageCatalog(query, locale, limit).map((match) => ({
+      id: match.entry.languageId,
+      languageCode: match.entry.iso6393,
+      primaryLabel: match.matchedLabel,
+      matchedLabel: match.matchedLabel,
+      matchedLabelKind: match.matchedLabelKind,
+      matchSource: mapMatchSource(match.matchSource, match.matchedLabelKind),
+      rank: match.score,
+      hasRuntimeOverride: false,
+    }))
+  ));
+});
+
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
+  mockSearchLanguageCatalogSuggestions.mockReset();
 });
 
 function StatefulLanguageIsoInputHarness({ locale = 'en-US' }: { locale?: 'zh-CN' | 'en-US' }) {
@@ -68,16 +102,18 @@ describe('LanguageIsoInput', () => {
 
     fireEvent.change(languageNameInput, { target: { value: 'Chinese' } });
 
-    const listbox = scopedQueries.getByRole('listbox', { name: 'Language name' });
-    const options = scopedQueries.getAllByRole('option');
+    return waitFor(() => {
+      const listbox = scopedQueries.getByRole('listbox', { name: 'Language name' });
+      const options = scopedQueries.getAllByRole('option');
 
-    expect(languageNameInput.getAttribute('aria-autocomplete')).toBe('list');
-    expect(languageNameInput.getAttribute('aria-controls')).toBe(listbox.id);
-    expect(languageNameInput.getAttribute('aria-expanded')).toBe('true');
-    expect(options.length).toBeGreaterThan(1);
+      expect(languageNameInput.getAttribute('aria-autocomplete')).toBe('list');
+      expect(languageNameInput.getAttribute('aria-controls')).toBe(listbox.id);
+      expect(languageNameInput.getAttribute('aria-expanded')).toBe('true');
+      expect(options.length).toBeGreaterThan(1);
+    });
   });
 
-  it('supports explicit keyboard selection from ambiguous suggestions', () => {
+  it('supports explicit keyboard selection from ambiguous suggestions', async () => {
     const view = renderWithLocale(<StatefulLanguageIsoInputHarness />, 'en-US');
     const scopedQueries = within(view.container);
 
@@ -86,7 +122,7 @@ describe('LanguageIsoInput', () => {
 
     fireEvent.change(languageNameInput, { target: { value: 'Chinese' } });
 
-    const options = scopedQueries.getAllByRole('option');
+  const options = await waitFor(() => scopedQueries.getAllByRole('option'));
     expect(options.length).toBeGreaterThan(1);
 
     fireEvent.keyDown(languageNameInput, { key: 'ArrowDown' });
@@ -96,7 +132,7 @@ describe('LanguageIsoInput', () => {
     expect(languageCodeInput.value).toBe('cmn');
   });
 
-  it('does not navigate or commit suggestions beyond the rendered list', () => {
+  it('does not navigate or commit suggestions beyond the rendered list', async () => {
     const view = renderWithLocale(<StatefulLanguageIsoInputHarness />, 'en-US');
     const scopedQueries = within(view.container);
 
@@ -105,7 +141,7 @@ describe('LanguageIsoInput', () => {
 
     fireEvent.change(languageNameInput, { target: { value: 'Chinese' } });
 
-    const options = scopedQueries.getAllByRole('option');
+  const options = await waitFor(() => scopedQueries.getAllByRole('option'));
     expect(options.length).toBe(4);
 
     for (let index = 0; index < 6; index += 1) {
@@ -122,7 +158,7 @@ describe('LanguageIsoInput', () => {
     expect(languageCodeInput.value).toBe(extractIsoCodeFromSuggestion(activeVisibleOption!));
   });
 
-  it('supports mouse selection from ambiguous suggestions', () => {
+  it('supports mouse selection from ambiguous suggestions', async () => {
     const view = renderWithLocale(<StatefulLanguageIsoInputHarness />, 'en-US');
     const scopedQueries = within(view.container);
 
@@ -130,12 +166,12 @@ describe('LanguageIsoInput', () => {
     const languageCodeInput = scopedQueries.getByRole('textbox', { name: 'Language code' }) as HTMLInputElement;
 
     fireEvent.change(languageNameInput, { target: { value: 'Chinese' } });
-    fireEvent.click(scopedQueries.getAllByRole('option')[0]!);
+    fireEvent.click((await waitFor(() => scopedQueries.getAllByRole('option')))[0]!);
 
     expect(languageCodeInput.value).toBe('cmn');
   });
 
-  it('clears the previous code before resolving a newly typed language name', () => {
+  it('clears the previous code before resolving a newly typed language name', async () => {
     const view = renderWithLocale(<PrefilledLanguageIsoInputHarness />, 'en-US');
     const scopedQueries = within(view.container);
 
@@ -146,7 +182,9 @@ describe('LanguageIsoInput', () => {
     expect(languageCodeInput.value).toBe('');
 
     fireEvent.change(languageNameInput, { target: { value: 'Portuguese' } });
-    expect(languageCodeInput.value).toBe('por');
+    await waitFor(() => {
+      expect(languageCodeInput.value).toBe('por');
+    });
   });
 
   it('keeps a two-letter code draft until blur commits it', () => {
@@ -246,7 +284,7 @@ describe('LanguageIsoInput', () => {
     expect(languageNameInput.value).toBe('法语 · français · French');
   });
 
-  it('shows input-first composite labels after the name field blurs', () => {
+  it('shows input-first composite labels after the name field blurs', async () => {
     const view = renderWithLocale(<StatefulLanguageIsoInputHarness />, 'zh-CN');
     const scopedQueries = within(view.container);
 
@@ -256,11 +294,15 @@ describe('LanguageIsoInput', () => {
     fireEvent.change(languageNameInput, { target: { value: 'French' } });
     expect(languageNameInput.value).toBe('French');
 
+    await waitFor(() => {
+      expect((scopedQueries.getByRole('textbox', { name: 'Language code' }) as HTMLInputElement).value).toBe('fra');
+    });
+
     fireEvent.blur(languageNameInput);
     expect(languageNameInput.value).toBe('French · français');
   });
 
-  it('shows locale label before native when the hit came from an English name in a zh locale', () => {
+  it('shows locale label before native when the hit came from an English name in a zh locale', async () => {
     const view = renderWithLocale(<StatefulLanguageIsoInputHarness locale="zh-CN" />, 'zh-CN');
     const scopedQueries = within(view.container);
 
@@ -268,12 +310,15 @@ describe('LanguageIsoInput', () => {
 
     fireEvent.focus(languageNameInput);
     fireEvent.change(languageNameInput, { target: { value: 'French' } });
+    await waitFor(() => {
+      expect((scopedQueries.getByRole('textbox', { name: 'Language code' }) as HTMLInputElement).value).toBe('fra');
+    });
     fireEvent.blur(languageNameInput);
 
     expect(languageNameInput.value).toBe('French · 法语 · français');
   });
 
-  it('shows locale label before English when the hit came from a native name in a zh locale', () => {
+  it('shows locale label before English when the hit came from a native name in a zh locale', async () => {
     const view = renderWithLocale(<StatefulLanguageIsoInputHarness locale="zh-CN" />, 'zh-CN');
     const scopedQueries = within(view.container);
 
@@ -281,8 +326,96 @@ describe('LanguageIsoInput', () => {
 
     fireEvent.focus(languageNameInput);
     fireEvent.change(languageNameInput, { target: { value: 'français' } });
+    await waitFor(() => {
+      expect((scopedQueries.getByRole('textbox', { name: 'Language code' }) as HTMLInputElement).value).toBe('fra');
+    });
     fireEvent.blur(languageNameInput);
 
     expect(languageNameInput.value).toBe('français · 法语 · French');
+  });
+
+  it('ignores stale async suggestion responses when an older search resolves last', async () => {
+    vi.useFakeTimers();
+
+    let resolveFrench: ((value: Awaited<ReturnType<typeof mockSearchLanguageCatalogSuggestions>>) => void) | null = null;
+    let resolveGerman: ((value: Awaited<ReturnType<typeof mockSearchLanguageCatalogSuggestions>>) => void) | null = null;
+    mockSearchLanguageCatalogSuggestions.mockImplementation(({ query, locale, limit = 5 }: { query: string; locale: 'zh-CN' | 'en-US'; limit?: number }) => {
+      const suggestions = searchLanguageCatalog(query, locale, limit).map((match) => ({
+        id: match.entry.languageId,
+        languageCode: match.entry.iso6393,
+        primaryLabel: match.matchedLabel,
+        matchedLabel: match.matchedLabel,
+        matchedLabelKind: match.matchedLabelKind,
+        matchSource: mapMatchSource(match.matchSource, match.matchedLabelKind),
+        rank: match.score,
+        hasRuntimeOverride: false,
+      }));
+
+      return new Promise((resolve) => {
+        if (query === 'French') {
+          resolveFrench = resolve;
+          return;
+        }
+        if (query === 'German') {
+          resolveGerman = resolve;
+          return;
+        }
+        resolve(suggestions);
+      });
+    });
+
+    const view = renderWithLocale(<StatefulLanguageIsoInputHarness />, 'en-US');
+    const scopedQueries = within(view.container);
+    const languageNameInput = scopedQueries.getByRole('combobox', { name: 'Language name' }) as HTMLInputElement;
+    const languageCodeInput = scopedQueries.getByRole('textbox', { name: 'Language code' }) as HTMLInputElement;
+
+    fireEvent.change(languageNameInput, { target: { value: 'French' } });
+    await act(async () => {
+      vi.advanceTimersByTime(120);
+      await Promise.resolve();
+    });
+
+    fireEvent.change(languageNameInput, { target: { value: 'German' } });
+    await act(async () => {
+      vi.advanceTimersByTime(120);
+      await Promise.resolve();
+    });
+
+    expect(resolveFrench).toBeTypeOf('function');
+    expect(resolveGerman).toBeTypeOf('function');
+
+    await act(async () => {
+      resolveFrench?.(searchLanguageCatalog('French', 'en-US', 5).map((match) => ({
+        id: match.entry.languageId,
+        languageCode: match.entry.iso6393,
+        primaryLabel: match.matchedLabel,
+        matchedLabel: match.matchedLabel,
+        matchedLabelKind: match.matchedLabelKind,
+        matchSource: mapMatchSource(match.matchSource, match.matchedLabelKind),
+        rank: match.score,
+        hasRuntimeOverride: false,
+      })));
+      await Promise.resolve();
+    });
+
+    expect(languageNameInput.value).toBe('German');
+    expect(languageCodeInput.value).toBe('');
+
+    await act(async () => {
+      resolveGerman?.(searchLanguageCatalog('German', 'en-US', 5).map((match) => ({
+        id: match.entry.languageId,
+        languageCode: match.entry.iso6393,
+        primaryLabel: match.matchedLabel,
+        matchedLabel: match.matchedLabel,
+        matchedLabelKind: match.matchedLabelKind,
+        matchSource: mapMatchSource(match.matchSource, match.matchedLabelKind),
+        rank: match.score,
+        hasRuntimeOverride: false,
+      })));
+      await Promise.resolve();
+    });
+
+    expect(languageNameInput.value).toBe('German · Deutsch');
+    expect(languageCodeInput.value).toBe('deu');
   });
 });

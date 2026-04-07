@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react';
-import * as pdfjsLib from 'pdfjs-dist';
+import { useEffect, useRef, useState } from 'react';
 import { createLogger } from '../observability/logger';
+import { loadPdfJsRuntime } from '../services/PdfJsRuntime';
+
+type PdfDocumentProxy = import('pdfjs-dist').PDFDocumentProxy;
 
 interface PdfTextItem {
   str: string;
@@ -42,12 +44,10 @@ export function PdfViewerRenderer({
 }: PdfViewerRendererProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const textLayerRef = useRef<HTMLDivElement | null>(null);
-  const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
+  const pdfDocRef = useRef<PdfDocumentProxy | null>(null);
   const highlightedTextsRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-  }, []);
+  const [documentVersion, setDocumentVersion] = useState(0);
+  const [highlightVersion, setHighlightVersion] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -55,9 +55,11 @@ export function PdfViewerRenderer({
       try {
         onLoadingChange(true);
         onErrorChange(null);
+        const pdfjsLib = await loadPdfJsRuntime();
         const doc = await pdfjsLib.getDocument(url).promise;
         if (!isMounted) return;
         pdfDocRef.current = doc;
+        setDocumentVersion((version) => version + 1);
         onTotalPagesChange(doc.numPages);
         const resolvedPage = Math.max(1, Math.min(initialPage ?? 1, doc.numPages));
         onPageResolved?.(resolvedPage);
@@ -77,26 +79,33 @@ export function PdfViewerRenderer({
   useEffect(() => {
     if (!pdfDocRef.current || !canvasRef.current) return;
     let isMounted = true;
+    let renderTask: import('pdfjs-dist').RenderTask | null = null;
 
     const renderPage = async () => {
       try {
         onErrorChange(null);
         const page = await pdfDocRef.current?.getPage(currentPage);
-        if (!page || !canvasRef.current) return;
+        if (!isMounted || !page || !canvasRef.current) return;
         const viewport = page.getViewport({ scale: 1.5 });
         const canvas = canvasRef.current;
+        const canvasContext = canvas.getContext('2d');
+
+        if (!canvasContext) {
+          throw new Error('Failed to acquire PDF canvas context');
+        }
 
         canvas.width = viewport.width;
         canvas.height = viewport.height;
 
-        await page.render({
-          canvas,
-          viewport,
-        }).promise;
+        renderTask = page.render({ canvas, canvasContext, viewport });
+        await renderTask.promise;
+        renderTask = null;
 
+        if (!isMounted) return;
         if (textLayerRef.current) {
           textLayerRef.current.textContent = '';
           const textContent = await page.getTextContent();
+          if (!isMounted) return;
           const textItems = textContent.items.filter(isPdfTextItem) as unknown as PdfTextItem[];
           const spans = textItems.map((item) => {
             const span = document.createElement('span');
@@ -136,46 +145,79 @@ export function PdfViewerRenderer({
     void renderPage();
     return () => {
       isMounted = false;
+      renderTask?.cancel();
     };
-  }, [currentPage, onErrorChange]);
+  }, [currentPage, documentVersion, highlightVersion, onErrorChange]);
 
   useEffect(() => {
-    if (!searchSnippet?.trim() || !pdfDocRef.current) return;
+    const doc = pdfDocRef.current;
+    if (!doc) {
+      return;
+    }
+
+    const normalizedSnippet = searchSnippet?.trim().toLowerCase() ?? '';
+    if (!normalizedSnippet) {
+      if (highlightedTextsRef.current.size > 0) {
+        highlightedTextsRef.current.clear();
+        setHighlightVersion((version) => version + 1);
+      }
+      return;
+    }
+
+    let cancelled = false;
 
     const searchAndHighlight = async () => {
-      const snippet = searchSnippet.trim().toLowerCase();
-      highlightedTextsRef.current.clear();
+      const nextHighlights = new Set<string>();
+      let matchedPage: number | undefined;
 
       try {
-        for (let i = 1; i <= pdfDocRef.current!.numPages; i += 1) {
-          const page = await pdfDocRef.current!.getPage(i);
+        for (let i = 1; i <= doc.numPages; i += 1) {
+          const page = await doc.getPage(i);
           const textContent = await page.getTextContent();
+          if (cancelled) break;
           const textItems = textContent.items.filter(isPdfTextItem) as unknown as PdfTextItem[];
           const pageText = textItems.map((item) => item.str).join(' ').toLowerCase();
 
-          if (!pageText.includes(snippet)) continue;
+          if (!pageText.includes(normalizedSnippet)) continue;
 
-          const words = textItems.filter((item) => item.str.toLowerCase().includes(snippet));
+          // 注：逐项匹配只能高亮完整词组在单个 TextItem 内的情况；
+          // 跨 item 边界的词组页面跳转正确，但高亮不会出现。
+          // Note: per-item filter highlights only when the full snippet falls within one TextItem;
+          // cross-boundary multi-word snippets still navigate to the correct page but won't be highlighted.
+          const words = textItems.filter((item) => item.str.toLowerCase().includes(normalizedSnippet));
           words.forEach((word) => {
-            highlightedTextsRef.current.add(word.str);
+            nextHighlights.add(word.str.trim());
           });
-
-          if (i !== currentPage) {
-            onPageResolved?.(i);
-          }
-          return;
+          matchedPage = i;
+          break;
         }
       } catch (err) {
-        log.warn('Failed to search snippet in PDF document', {
-          currentPage,
-          snippetLength: snippet.length,
-          error: err instanceof Error ? err.message : String(err),
-        });
+        if (!cancelled) {
+          log.warn('Failed to search snippet in PDF document', {
+            currentPage,
+            snippetLength: normalizedSnippet.length,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      highlightedTextsRef.current = nextHighlights;
+      setHighlightVersion((version) => version + 1);
+
+      if (matchedPage && matchedPage !== currentPage) {
+        onPageResolved?.(matchedPage);
       }
     };
 
     void searchAndHighlight();
-  }, [currentPage, onPageResolved, searchSnippet]);
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage, documentVersion, onPageResolved, searchSnippet]);
 
   return (
     <div

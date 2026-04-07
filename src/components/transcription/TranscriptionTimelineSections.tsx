@@ -14,6 +14,7 @@ import { TimeRuler } from '../TimeRuler';
 import { WaveformOverviewBar } from '../WaveformOverviewBar';
 import type { WaveSurferRegion } from '../../hooks/useWaveSurfer';
 import { t, useLocale } from '../../i18n';
+import { getWaveformDisplayHeights, type WaveformDisplayMode } from '../../utils/waveformDisplayMode';
 
 export type VideoLayoutMode = 'top' | 'right' | 'left';
 
@@ -33,11 +34,14 @@ type VideoPreviewSectionProps = {
   onVideoPreviewResizeStart: PointerEventHandler<HTMLDivElement>;
   onVideoRightPanelResizeStart: PointerEventHandler<HTMLDivElement>;
   waveformStripHeight: number;
+  waveformDisplayMode: WaveformDisplayMode;
   waveCanvasRef: MutableRefObject<HTMLDivElement | null>;
+  playerSpectrogramRef: MutableRefObject<HTMLDivElement | null>;
   playerWaveformRef: MutableRefObject<HTMLDivElement | null>;
   onSeek: (time: number) => void;
   onPlayRegion: (start: number, end: number, resume?: boolean) => void;
   waveformOverlay?: ReactNode;
+  waveformShellOverlay?: ReactNode;
 };
 
 export function VideoPreviewSection({
@@ -56,31 +60,51 @@ export function VideoPreviewSection({
   onVideoPreviewResizeStart,
   onVideoRightPanelResizeStart,
   waveformStripHeight,
+  waveformDisplayMode,
   waveCanvasRef,
+  playerSpectrogramRef,
   playerWaveformRef,
   onSeek,
   onPlayRegion,
   waveformOverlay,
+  waveformShellOverlay,
 }: VideoPreviewSectionProps) {
   const locale = useLocale();
-  const renderWaveCanvas = () => (
+  const { waveformPrimaryHeight, spectrogramHeight } = getWaveformDisplayHeights(waveformStripHeight, waveformDisplayMode);
+  const renderWaveDisplay = () => (
     <div
-      ref={(el) => {
-        waveCanvasRef.current = el;
-        playerWaveformRef.current = el;
-      }}
-      className="wave-canvas transcription-wave-canvas"
-      style={selectedMediaIsVideo
-        ? ({ height: waveformStripHeight, minHeight: waveformStripHeight } as CSSProperties)
-        : undefined}
-    />
+      className={`waveform-display-shell waveform-display-shell-${waveformDisplayMode}`}
+      style={{
+        '--waveform-primary-height': `${waveformPrimaryHeight}px`,
+        '--waveform-spectrogram-height': `${spectrogramHeight}px`,
+        height: waveformStripHeight,
+        minHeight: waveformStripHeight,
+      } as CSSProperties}
+    >
+      <div className="waveform-primary-stage">
+        <div
+          ref={(el) => {
+            waveCanvasRef.current = el;
+            playerWaveformRef.current = el;
+          }}
+          className={`wave-canvas transcription-wave-canvas transcription-wave-canvas-${waveformDisplayMode}`}
+          style={{ height: waveformPrimaryHeight, minHeight: waveformPrimaryHeight } as CSSProperties}
+        />
+        {waveformOverlay}
+      </div>
+      <div
+        ref={playerSpectrogramRef}
+        className={`transcription-wave-spectrogram ${waveformDisplayMode === 'waveform' ? 'transcription-wave-spectrogram-hidden' : ''}`}
+        aria-hidden={waveformDisplayMode === 'waveform'}
+      />
+      {waveformShellOverlay}
+    </div>
   );
 
   if (!selectedMediaIsVideo) {
     return (
       <div className="video-preview-layout-wave">
-        {renderWaveCanvas()}
-        {waveformOverlay}
+        {renderWaveDisplay()}
       </div>
     );
   }
@@ -101,8 +125,7 @@ export function VideoPreviewSection({
   return (
     <div className={`video-preview-layout ${layoutClass}`}>
       <div className="video-preview-layout-wave">
-        {renderWaveCanvas()}
-        {waveformOverlay}
+        {renderWaveDisplay()}
       </div>
 
       {/* 侧边布局拖拽手柄（左/右均复用，CSS order 决定位置）| Side-layout resize handle, CSS order positions it */}

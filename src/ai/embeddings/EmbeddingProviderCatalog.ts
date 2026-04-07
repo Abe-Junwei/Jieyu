@@ -16,8 +16,10 @@ import type {
   EmbeddingProviderDefinition,
   EmbeddingProviderKind,
 } from './EmbeddingProvider';
-
-const DEFAULT_LOCAL_MODEL = 'Xenova/multilingual-e5-small';
+import {
+  ARCTIC_LOCAL_EMBEDDING_MODEL_ID,
+  DEFAULT_LOCAL_EMBEDDING_MODEL_ID,
+} from './localEmbeddingModelConfig';
 
 class LazyEmbeddingProvider implements EmbeddingProvider {
   private providerPromise: Promise<EmbeddingProvider> | null = null;
@@ -56,8 +58,8 @@ class LazyEmbeddingProvider implements EmbeddingProvider {
 function createLazyLocalProvider(config: EmbeddingProviderCreateConfig): EmbeddingProvider {
   return new LazyEmbeddingProvider(
     'local',
-    'Xenova E5 Small (\u672c\u5730)',
-    config.model || DEFAULT_LOCAL_MODEL,
+    'HuggingFace Local Embedding (\u672c\u5730)',
+    config.model || DEFAULT_LOCAL_EMBEDDING_MODEL_ID,
     async () => {
       const module = await import('./providers/LocalEmbeddingProvider');
       return new module.LocalEmbeddingProvider(config);
@@ -85,15 +87,15 @@ function createLazyRemoteProvider(
 const PROVIDERS: Record<EmbeddingProviderKind, EmbeddingProviderDefinition> = {
   local: {
     kind: 'local',
-    label: 'Xenova E5 Small (\u672c\u5730)',
-    description: 'HuggingFace @xenova/transformers\u672c\u5730\u5411\u91cf\u6a21\u578b\uff0c\u5b8c\u5168\u79bb\u7ebf\u8fd0\u884c\u3002\u9ed8\u8ba4\u6a21\u578b\uff1aXenova/multilingual-e5-small\u3002',
+    label: 'HuggingFace Local Embedding (\u672c\u5730)',
+    description: `HuggingFace \u672c\u5730\u5411\u91cf\u6a21\u578b\uff0c\u5b8c\u5168\u79bb\u7ebf\u8fd0\u884c\u3002\u9ed8\u8ba4\u6a21\u578b\uff1a${DEFAULT_LOCAL_EMBEDDING_MODEL_ID}\uff1b\u5df2\u8bc4\u4f30\u5019\u9009\uff1a${ARCTIC_LOCAL_EMBEDDING_MODEL_ID}\u3002`,
     tag: '\u672c\u5730',
     fields: [
       {
         key: 'model',
         label: 'Model ID',
         type: 'text',
-        placeholder: 'Xenova/multilingual-e5-small',
+        placeholder: DEFAULT_LOCAL_EMBEDDING_MODEL_ID,
         required: false,
       },
     ],

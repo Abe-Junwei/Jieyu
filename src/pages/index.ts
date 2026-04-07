@@ -1,6 +1,6 @@
 export { AnalysisPage } from './AnalysisPage';
 export { AnnotationPage } from './AnnotationPage';
 export { LexiconPage } from './LexiconPage';
-export { OrthographyWorkspacePage } from './OrthographyWorkspacePage';
+export { OrthographyManagerPage } from './OrthographyManagerPage';
 export { TranscriptionPage } from './TranscriptionPage';
 export { WritingPage } from './WritingPage';

@@ -20,7 +20,7 @@ vi.mock('./pages/AnalysisPage', () => ({ AnalysisPage: () => <div>analysis-page<
 vi.mock('./pages/WritingPage', () => ({ WritingPage: () => <div>writing-page</div> }));
 vi.mock('./pages/LexiconPage', () => ({ LexiconPage: () => <div>lexicon-page</div> }));
 vi.mock('./pages/LanguageMetadataWorkspacePage', () => ({ LanguageMetadataWorkspacePage: () => <div>language-metadata-page</div> }));
-vi.mock('./pages/OrthographyWorkspacePage', () => ({ OrthographyWorkspacePage: () => <div>orthography-workspace-page</div> }));
+vi.mock('./pages/OrthographyManagerPage', () => ({ OrthographyManagerPage: () => <div>orthography-manager-page</div> }));
 vi.mock('./pages/OrthographyBridgeWorkspacePage', () => ({ OrthographyBridgeWorkspacePage: () => <div>orthography-bridge-workspace-page</div> }));
 
 beforeAll(() => {
@@ -81,10 +81,25 @@ describe('App shell', () => {
     expect(screen.getAllByRole('link', { name: /Writing|写作/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /Lexicon|词典/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /Language Metadata|语言元数据/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: /Orthographies|正字法/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /Orthographies|正字法/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /Orthography Bridges|正字法桥接/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText(/功能面板内容区|Feature panel content area/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Language Assets|语言资产/).length).toBeGreaterThan(0);
+  });
+
+  it('opens orthography manager as a modal panel over the current page from the left rail button', async () => {
+    render(
+      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Orthographies|正字法/ })[0]!);
+
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
+    expect(await screen.findByText('orthography-manager-page')).toBeTruthy();
+      expect(await screen.findByText('orthography-manager-page')).toBeTruthy();
+    expect(screen.getAllByRole('dialog', { name: /Orthographies|正字法/ }).length).toBeGreaterThan(0);
   });
 
   it('persists locale preference and rerenders shell copy after toggling language', () => {
@@ -115,6 +130,7 @@ describe('App shell', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText('orthography-workspace-page')).toBeTruthy();
+    expect((await screen.findAllByText('orthography-manager-page')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('orthography-manager-page')).length).toBeGreaterThan(0);
   });
 });

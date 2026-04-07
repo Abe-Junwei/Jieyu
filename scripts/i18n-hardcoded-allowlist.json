@@ -60,6 +60,8 @@
     { "pathPrefix": "src/components/ProjectSetupDialog.tsx", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/components/ai/useAiPromptTemplates.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/ai/ChatOrchestrator.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/ai/embeddings/ragQualityEvaluator.ts", "reason": "data-dictionary" },
+    { "pathPrefix": "src/ai/embeddings/searchFusionProfiles.ts", "reason": "runtime-template-message" },
 
     { "pathPrefix": "src/data/builtInOrthographies.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/data/generated/languageNameCatalog.generated.ts", "reason": "data-dictionary" },
@@ -68,6 +70,7 @@
 
     { "pathPrefix": "src/services/LinguisticService.ts", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/services/LinguisticService.orthography.ts", "reason": "validation-and-guard-message" },
+    { "pathPrefix": "src/pages/languageMetadataWorkspace.shared.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/components/languageMapEmbed.shared.ts", "reason": "data-dictionary" },
     { "pathPrefix": "src/services/stt/providerMetadata.ts", "reason": "provider-protocol" },
 

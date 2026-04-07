@@ -2,8 +2,8 @@
  * Embedding 端到端冒烟测试（浏览器运行时）
  * End-to-end smoke test for the embedding pipeline (browser runtime).
  *
- * 验证完整链路：WorkerEmbeddingRuntime → embedding.worker.ts → @xenova/transformers → ONNX → 向量
- * Validates full chain: WorkerEmbeddingRuntime → embedding.worker.ts → @xenova/transformers → ONNX → vectors
+ * 验证完整链路：WorkerEmbeddingRuntime → embedding.worker.ts → @huggingface/transformers v4 → ONNX → 向量
+ * Validates full chain: WorkerEmbeddingRuntime → embedding.worker.ts → @huggingface/transformers v4 → ONNX → vectors
  *
  * 用法 / Usage:
  *   在浏览器控制台运行：import('/src/ai/embeddings/embeddingSmokeTest.ts').then(m => m.runEmbeddingSmokeTest())
@@ -11,6 +11,7 @@
  */
 
 import { WorkerEmbeddingRuntime, type EmbeddingRuntimeProgress } from './EmbeddingRuntime';
+import { DEFAULT_LOCAL_EMBEDDING_MODEL_ID } from './localEmbeddingModelConfig';
 
 export interface SmokeTestResult {
   ok: boolean;
@@ -41,7 +42,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 export async function runEmbeddingSmokeTest(
-  modelId = 'Xenova/multilingual-e5-small',
+  modelId = DEFAULT_LOCAL_EMBEDDING_MODEL_ID,
 ): Promise<SmokeTestResult> {
   const stages: string[] = [];
   let usingFallback = false;

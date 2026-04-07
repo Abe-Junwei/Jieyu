@@ -92,7 +92,9 @@ export async function handleTranscriptionCitationJump({
   }
 
   if (citationType === 'note') {
-    const note = await appDb.user_notes.get(refId);
+    // 分块笔记 refId 可能带 #chunk=N 后缀，需取 base ID 查库 | Chunked note refId may have #chunk=N suffix, strip for DB lookup
+    const noteBaseId = refId.includes('#') ? refId.slice(0, refId.indexOf('#')) : refId;
+    const note = await appDb.user_notes.get(noteBaseId);
     if (!note) {
       onSetSidebarError(t(uiLocale, 'transcription.citation.noteNotFound'));
       return;

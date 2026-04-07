@@ -6,11 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from '../contexts/AppSidePaneContext';
 import type { OrthographyDocType } from '../db';
 import { LocaleProvider } from '../i18n';
+import { searchLanguageCatalog } from '../utils/langMapping';
 import { OrthographyBridgeWorkspacePage } from './OrthographyBridgeWorkspacePage';
 
-const { mockListOrthographies, mockListLanguageCatalogEntries } = vi.hoisted(() => ({
+const { mockListOrthographies, mockListLanguageCatalogEntries, mockProjectLanguageIds, mockSearchLanguageCatalogSuggestions } = vi.hoisted(() => ({
   mockListOrthographies: vi.fn(),
   mockListLanguageCatalogEntries: vi.fn(),
+  mockProjectLanguageIds: [] as string[],
+  mockSearchLanguageCatalogSuggestions: vi.fn(),
 }));
 
 vi.mock('../services/LinguisticService.orthography', () => ({
@@ -21,12 +24,13 @@ vi.mock('../services/LinguisticService.languageCatalog', () => ({
   listLanguageCatalogEntries: mockListLanguageCatalogEntries,
 }));
 
-vi.mock('../hooks/useProjectLanguageIds', () => {
-  const stableIds: string[] = [];
-  return {
-    useProjectLanguageIds: () => ({ projectLanguageIds: stableIds, loading: false }),
-  };
-});
+vi.mock('../services/LanguageCatalogSearchService', () => ({
+  searchLanguageCatalogSuggestions: mockSearchLanguageCatalogSuggestions,
+}));
+
+vi.mock('../hooks/useProjectLanguageIds', () => ({
+  useProjectLanguageIds: () => ({ projectLanguageIds: mockProjectLanguageIds, loading: false }),
+}));
 
 vi.mock('../components/OrthographyBridgeManager', () => ({
   OrthographyBridgeManager: ({
@@ -57,8 +61,37 @@ function SidePaneSnapshot() {
 
 describe('OrthographyBridgeWorkspacePage', () => {
   beforeEach(() => {
+    mockProjectLanguageIds.splice(0, mockProjectLanguageIds.length);
     mockListOrthographies.mockReset();
     mockListLanguageCatalogEntries.mockReset();
+    mockSearchLanguageCatalogSuggestions.mockReset();
+
+    mockListLanguageCatalogEntries.mockResolvedValue([
+      {
+        id: 'eng',
+        entryKind: 'built-in',
+        hasPersistedRecord: false,
+        languageCode: 'eng',
+        englishName: 'English',
+        localName: '英语',
+        aliases: [],
+        sourceType: 'built-in-generated',
+        visibility: 'visible',
+        displayNames: [],
+      },
+      {
+        id: 'zho',
+        entryKind: 'built-in',
+        hasPersistedRecord: false,
+        languageCode: 'zho',
+        englishName: 'Chinese',
+        localName: '中文',
+        aliases: [],
+        sourceType: 'built-in-generated',
+        visibility: 'visible',
+        displayNames: [],
+      },
+    ]);
 
     mockListOrthographies.mockResolvedValue([
       {
@@ -82,6 +115,18 @@ describe('OrthographyBridgeWorkspacePage', () => {
         updatedAt: '2026-04-04T00:00:00.000Z',
       },
     ] satisfies OrthographyDocType[]);
+    mockSearchLanguageCatalogSuggestions.mockImplementation(async ({ query, locale, limit = 5 }: { query: string; locale: 'zh-CN' | 'en-US'; limit?: number }) => (
+      searchLanguageCatalog(query, locale, limit).map((match) => ({
+        id: match.entry.languageId,
+        languageCode: match.entry.iso6393,
+        primaryLabel: match.matchedLabel,
+        matchedLabel: match.matchedLabel,
+        matchedLabelKind: match.matchedLabelKind,
+        matchSource: match.matchSource,
+        rank: match.score,
+        hasRuntimeOverride: false,
+      }))
+    ));
   });
 
   afterEach(() => {
@@ -134,6 +179,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
       expect(screen.getByTestId('orthography-bridge-manager').textContent).toContain('target:orth-target');
     });
 
+    expect(mockListOrthographies).toHaveBeenCalledWith({ includeBuiltIns: true, orthographyIds: ['orth-target'] });
     expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith({
       locale: 'zh-CN',
       languageIds: ['eng', 'zho'],
@@ -143,12 +189,22 @@ describe('OrthographyBridgeWorkspacePage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('orthography-bridge-manager').textContent).toContain('eng:英语资产标签');
     });
-    expect(screen.getByTestId('orthography-bridge-manager').textContent).toContain('zho:中文资产标签');
     expect(screen.getByTestId('side-pane-title').textContent).toBe('正字法桥接工作台');
 
     fireEvent.change(screen.getByRole('searchbox', { name: '按语言、名称或脚本筛选目标正字法' }), { target: { value: '英语资产标签' } });
 
     await waitFor(() => {
+      expect(mockSearchLanguageCatalogSuggestions).toHaveBeenCalledWith({
+        query: '英语资产标签',
+        locale: 'zh-CN',
+        limit: 24,
+      });
+      const lastCall = mockListOrthographies.mock.calls[mockListOrthographies.mock.calls.length - 1]?.[0] as Record<string, unknown> | undefined;
+      expect(lastCall).toEqual(expect.objectContaining({
+        includeBuiltIns: true,
+        orthographyIds: ['orth-target'],
+        searchText: '英语资产标签',
+      }));
       expect(screen.getAllByText('Bridge Orthography · Latn · practical').length).toBeGreaterThan(0);
     });
   });
@@ -243,6 +299,84 @@ describe('OrthographyBridgeWorkspacePage', () => {
 
     await waitFor(() => {
       expect(screen.getAllByText('Custom Orthography · Latn · practical').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('loads only project orthographies plus the selected target on the default project-only view', async () => {
+    mockProjectLanguageIds.push('eng');
+
+    render(
+      <MemoryRouter initialEntries={['/assets/orthography-bridges?targetOrthographyId=orth-alt']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/assets/orthography-bridges" element={<OrthographyBridgeWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(mockListOrthographies).toHaveBeenCalledWith({
+        includeBuiltIns: true,
+        languageIds: ['eng'],
+        orthographyIds: ['orth-alt'],
+      });
+    });
+  });
+
+  it('switches from project-only scope to the full bridge catalog when the user selects all', async () => {
+    mockProjectLanguageIds.push('eng');
+
+    render(
+      <MemoryRouter initialEntries={['/assets/orthography-bridges?targetOrthographyId=orth-target']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/assets/orthography-bridges" element={<OrthographyBridgeWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(mockListOrthographies).toHaveBeenCalledWith({
+        includeBuiltIns: true,
+        languageIds: ['eng'],
+        orthographyIds: ['orth-target'],
+      });
+    });
+
+    fireEvent.click(screen.getByRole('radio', { name: '全部' }));
+
+    await waitFor(() => {
+      const lastCall = mockListOrthographies.mock.calls[mockListOrthographies.mock.calls.length - 1]?.[0];
+      expect(lastCall).toEqual({ includeBuiltIns: true });
+    });
+  });
+
+  it('keeps the bridge list idle without project context until search or explicit browse-all', async () => {
+    render(
+      <MemoryRouter initialEntries={['/assets/orthography-bridges']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <Routes>
+              <Route path="/assets/orthography-bridges" element={<OrthographyBridgeWorkspacePage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('当前没有项目语言上下文。先搜索目标正字法，或手动展开全部目录。')).toBeTruthy();
+    expect(mockListOrthographies).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '全部' }));
+
+    await waitFor(() => {
+      expect(mockListOrthographies).toHaveBeenCalledWith({ includeBuiltIns: true });
     });
   });
 });

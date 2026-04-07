@@ -100,15 +100,37 @@ export class VolcEngineSttProvider implements CommercialSttProvider {
     const json = await resp.json() as {
       text?: string;
       result?: string;
+      confidence?: number;
+      utterances?: Array<{ text?: string; confidence?: number; start_time?: number; end_time?: number }>;
     };
 
     const text = json.text ?? json.result ?? '';
+
+    // 火山引擎可能在 utterances 数组中返回逐句置信度，按时长加权平均。
+    // VolcEngine may return per-utterance confidence in the utterances array.
+    let confidence = 1.0;
+    if (typeof json.confidence === 'number') {
+      confidence = Math.max(0, Math.min(1, json.confidence));
+    } else if (Array.isArray(json.utterances) && json.utterances.length > 0) {
+      let totalDuration = 0;
+      let weightedSum = 0;
+      for (const u of json.utterances) {
+        if (typeof u.confidence !== 'number') continue;
+        const dur = (u.end_time ?? 0) - (u.start_time ?? 0);
+        const d = dur > 0 ? dur : 1;
+        weightedSum += d * u.confidence;
+        totalDuration += d;
+      }
+      if (totalDuration > 0) confidence = Math.max(0, Math.min(1, weightedSum / totalDuration));
+    } else if (text.trim().length === 0) {
+      confidence = 0.1;
+    }
 
     return {
       text,
       lang,
       isFinal: true,
-      confidence: 1.0,
+      confidence,
       engine: 'commercial',
       audioBlob,
     };

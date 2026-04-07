@@ -7,6 +7,8 @@ import {
   type PointerEvent as ReactPointerEvent,
   type SetStateAction,
 } from 'react';
+import { isWaveformDisplayMode, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
+import { isWaveformVisualStyle, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
 
 interface WaveformResizeState {
   startY: number;
@@ -18,6 +20,10 @@ interface UseWaveformRuntimeControllerResult {
   waveformHeight: number;
   amplitudeScale: number;
   setAmplitudeScale: Dispatch<SetStateAction<number>>;
+  waveformDisplayMode: WaveformDisplayMode;
+  setWaveformDisplayMode: Dispatch<SetStateAction<WaveformDisplayMode>>;
+  waveformVisualStyle: WaveformVisualStyle;
+  setWaveformVisualStyle: Dispatch<SetStateAction<WaveformVisualStyle>>;
   isResizingWaveform: boolean;
   handleWaveformResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void;
 }
@@ -34,9 +40,31 @@ function readStoredClampedNumber(key: string, min: number, max: number, fallback
   }
 }
 
+function readStoredWaveformVisualStyle(): WaveformVisualStyle {
+  try {
+    const stored = localStorage.getItem('jieyu:waveform-visual-style');
+    if (!stored || !isWaveformVisualStyle(stored)) return 'balanced';
+    return stored;
+  } catch {
+    return 'balanced';
+  }
+}
+
+function readStoredWaveformDisplayMode(): WaveformDisplayMode {
+  try {
+    const stored = localStorage.getItem('jieyu:waveform-display-mode');
+    if (!stored || !isWaveformDisplayMode(stored)) return 'waveform';
+    return stored;
+  } catch {
+    return 'waveform';
+  }
+}
+
 export function useWaveformRuntimeController(): UseWaveformRuntimeControllerResult {
   const [waveformHeight, setWaveformHeight] = useState<number>(() => readStoredClampedNumber('jieyu:waveform-height', 80, 400, 180));
   const [amplitudeScale, setAmplitudeScale] = useState<number>(() => readStoredClampedNumber('jieyu:amplitude-scale', 0.25, 4, 1));
+  const [waveformDisplayMode, setWaveformDisplayMode] = useState<WaveformDisplayMode>(() => readStoredWaveformDisplayMode());
+  const [waveformVisualStyle, setWaveformVisualStyle] = useState<WaveformVisualStyle>(() => readStoredWaveformVisualStyle());
   const waveformResizeRef = useRef<WaveformResizeState | null>(null);
   const [isResizingWaveform, setIsResizingWaveform] = useState(false);
 
@@ -68,6 +96,22 @@ export function useWaveformRuntimeController(): UseWaveformRuntimeControllerResu
       // no-op
     }
   }, [amplitudeScale]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('jieyu:waveform-display-mode', waveformDisplayMode);
+    } catch {
+      // no-op
+    }
+  }, [waveformDisplayMode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('jieyu:waveform-visual-style', waveformVisualStyle);
+    } catch {
+      // no-op
+    }
+  }, [waveformVisualStyle]);
 
   // 波形拖拽改变高度与增益倍率 | Resize waveform and sync amplitude while dragging
   useEffect(() => {
@@ -111,6 +155,10 @@ export function useWaveformRuntimeController(): UseWaveformRuntimeControllerResu
     waveformHeight,
     amplitudeScale,
     setAmplitudeScale,
+    waveformDisplayMode,
+    setWaveformDisplayMode,
+    waveformVisualStyle,
+    setWaveformVisualStyle,
     isResizingWaveform,
     handleWaveformResizeStart,
   };

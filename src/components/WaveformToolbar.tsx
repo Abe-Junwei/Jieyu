@@ -1,6 +1,8 @@
 import { Children, memo, type ReactNode } from 'react';
 import { FastForward, Pause, Play, Repeat, Rewind, Trash2, Volume2, Zap } from 'lucide-react';
 import { t, tf, useLocale } from '../i18n';
+import { WAVEFORM_DISPLAY_MODE_OPTIONS, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
+import { WAVEFORM_VISUAL_STYLE_OPTIONS, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
 
 interface WaveformToolbarProps {
   filename: string;
@@ -8,6 +10,10 @@ interface WaveformToolbarProps {
   isPlaying: boolean;
   playbackRate: number;
   onPlaybackRateChange: (rate: number) => void;
+  waveformDisplayMode: WaveformDisplayMode;
+  onWaveformDisplayModeChange: (mode: WaveformDisplayMode) => void;
+  waveformVisualStyle: WaveformVisualStyle;
+  onWaveformVisualStyleChange: (style: WaveformVisualStyle) => void;
   volume: number;
   onVolumeChange: (vol: number) => void;
   loop: boolean;
@@ -29,6 +35,10 @@ export const WaveformToolbar = memo(function WaveformToolbar({
   isPlaying,
   playbackRate,
   onPlaybackRateChange,
+  waveformDisplayMode,
+  onWaveformDisplayModeChange,
+  waveformVisualStyle,
+  onWaveformVisualStyleChange,
   volume,
   onVolumeChange,
   loop,
@@ -81,6 +91,33 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           <option value="1.25">1.25x</option>
           <option value="1.5">1.5x</option>
           <option value="2">2.0x</option>
+        </select>
+        <select
+          className="speed-select transcription-wave-toolbar-mode-select"
+          value={waveformDisplayMode}
+          onChange={(event) => onWaveformDisplayModeChange(event.target.value as WaveformDisplayMode)}
+          aria-label={t(locale, 'transcription.wave.toolbar.displayMode')}
+          title={t(locale, 'transcription.wave.toolbar.displayMode')}
+        >
+          {WAVEFORM_DISPLAY_MODE_OPTIONS.map((mode) => (
+            <option key={mode} value={mode}>
+              {t(locale, `transcription.wave.toolbar.displayMode.${mode}` as const)}
+            </option>
+          ))}
+        </select>
+        <select
+          className="speed-select transcription-wave-toolbar-style-select"
+          value={waveformVisualStyle}
+          onChange={(event) => onWaveformVisualStyleChange(event.target.value as WaveformVisualStyle)}
+          aria-label={t(locale, 'transcription.wave.toolbar.visualStyle')}
+          title={t(locale, 'transcription.wave.toolbar.visualStyle')}
+          disabled={waveformDisplayMode === 'spectrogram'}
+        >
+          {WAVEFORM_VISUAL_STYLE_OPTIONS.map((style) => (
+            <option key={style} value={style}>
+              {t(locale, `transcription.wave.toolbar.visualStyle.${style}` as const)}
+            </option>
+          ))}
         </select>
         <button
           className={`icon-btn ${loop ? 'icon-btn-active' : ''}`}

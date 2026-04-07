@@ -9,6 +9,8 @@ import type { CustomFieldDefinitionDocType } from '../db';
 import type { LanguageCatalogEntry } from '../services/LinguisticService.languageCatalog';
 import { LanguageMetadataWorkspacePage } from './LanguageMetadataWorkspacePage';
 
+const PROJECT_LANGUAGE_IDS = ['eng'] as const;
+
 const {
   mockListLanguageCatalogEntries,
   mockListLanguageCatalogHistory,
@@ -18,6 +20,7 @@ const {
   mockUpsertCustomFieldDefinition,
   mockDeleteCustomFieldDefinition,
   mockLookupIso639_3Seed,
+  mockForwardGeocode,
   mockReverseGeocode,
 } = vi.hoisted(() => ({
   mockListLanguageCatalogEntries: vi.fn(),
@@ -28,6 +31,7 @@ const {
   mockUpsertCustomFieldDefinition: vi.fn(),
   mockDeleteCustomFieldDefinition: vi.fn(),
   mockLookupIso639_3Seed: vi.fn(),
+  mockForwardGeocode: vi.fn(),
   mockReverseGeocode: vi.fn(),
 }));
 
@@ -43,7 +47,7 @@ vi.mock('../services/LinguisticService.languageCatalog', () => ({
 }));
 
 vi.mock('../components/languageGeocoder', () => ({
-  forwardGeocode: vi.fn(async () => []),
+  forwardGeocode: mockForwardGeocode,
   reverseGeocode: mockReverseGeocode,
   readGeocoderCapabilities: vi.fn(() => ({
     supportsForwardGeocode: true,
@@ -52,6 +56,121 @@ vi.mock('../components/languageGeocoder', () => ({
     supportsCountryFilter: true,
     supportsStructuredQuery: true,
   })),
+}));
+
+vi.mock('country-state-city', () => ({
+  Country: {
+    getAllCountries: () => [
+      { name: 'China', isoCode: 'CN' },
+      { name: 'Nepal', isoCode: 'NP' },
+    ],
+  },
+  State: {
+    getStatesOfCountry: (countryCode: string) => {
+      if (countryCode === 'CN') {
+        return [
+          { name: 'Yunnan', isoCode: 'YN' },
+          { name: 'Sichuan', isoCode: 'SC' },
+        ];
+      }
+      if (countryCode === 'NP') {
+        return [
+          { name: 'Bagmati', isoCode: 'BA' },
+        ];
+      }
+      return [];
+    },
+  },
+  City: {
+    getCitiesOfState: (countryCode: string, stateCode: string) => {
+      if (countryCode === 'CN' && stateCode === 'YN') {
+        return [
+          { name: 'Kunming', countryCode: 'CN', stateCode: 'YN' },
+          { name: 'Dali', countryCode: 'CN', stateCode: 'YN' },
+        ];
+      }
+      if (countryCode === 'CN' && stateCode === 'SC') {
+        return [
+          { name: 'Chengdu', countryCode: 'CN', stateCode: 'SC' },
+        ];
+      }
+      if (countryCode === 'NP' && stateCode === 'BA') {
+        return [
+          { name: 'Kathmandu', countryCode: 'NP', stateCode: 'BA' },
+        ];
+      }
+      return [];
+    },
+    getCitiesOfCountry: (countryCode: string) => {
+      if (countryCode === 'CN') {
+        return [
+          { name: 'Kunming', countryCode: 'CN', stateCode: 'YN' },
+          { name: 'Chengdu', countryCode: 'CN', stateCode: 'SC' },
+        ];
+      }
+      if (countryCode === 'NP') {
+        return [
+          { name: 'Kathmandu', countryCode: 'NP', stateCode: 'BA' },
+        ];
+      }
+      return [];
+    },
+  },
+}));
+
+vi.mock('react-select', () => ({
+  __esModule: true,
+  default: ({
+    options = [],
+    value,
+    onChange,
+    isMulti = false,
+    isDisabled = false,
+    placeholder,
+    'aria-label': ariaLabel,
+  }: {
+    options?: Array<{ value: string; label: string }>;
+    value?: { value: string; label: string } | Array<{ value: string; label: string }> | null;
+    onChange?: (nextValue: unknown) => void;
+    isMulti?: boolean;
+    isDisabled?: boolean;
+    placeholder?: string;
+    'aria-label'?: string;
+  }) => {
+    const currentValue = isMulti
+      ? Array.isArray(value)
+        ? value.map((item) => item.value)
+        : []
+      : !Array.isArray(value) && value
+        ? value.value
+        : '';
+
+    return (
+      <select
+        aria-label={ariaLabel}
+        disabled={isDisabled}
+        multiple={isMulti}
+        value={currentValue}
+        onChange={(event) => {
+          if (isMulti) {
+            const nextValue = Array.from(event.currentTarget.selectedOptions)
+              .map((option) => options.find((item) => item.value === option.value) ?? null)
+              .filter((item): item is { value: string; label: string } => item !== null);
+            onChange?.(nextValue);
+            return;
+          }
+
+          const nextValue = options.find((item) => item.value === event.currentTarget.value) ?? null;
+          onChange?.(nextValue);
+        }}
+      >
+        {!isMulti ? <option value="">{placeholder ?? ''}</option> : null}
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+    );
+  },
 }));
 
 vi.mock('../components/LanguageMapEmbed', () => ({
@@ -75,7 +194,7 @@ vi.mock('../components/LanguageMapEmbed', () => ({
 }));
 
 vi.mock('../hooks/useProjectLanguageIds', () => ({
-  useProjectLanguageIds: () => ({ projectLanguageIds: ['eng'], loading: false }),
+  useProjectLanguageIds: () => ({ projectLanguageIds: PROJECT_LANGUAGE_IDS, loading: false }),
 }));
 
 let currentEntries: LanguageCatalogEntry[] = [];
@@ -99,6 +218,7 @@ function createEntry(overrides: Partial<LanguageCatalogEntry> = {}): LanguageCat
     languageCode: 'eng',
     englishName: 'English',
     localName: '英语',
+    genus: '印欧语系',
     aliases: ['英文'],
     sourceType: 'built-in-generated',
     visibility: 'visible',
@@ -116,10 +236,10 @@ function createEntry(overrides: Partial<LanguageCatalogEntry> = {}): LanguageCat
   };
 }
 
-function renderWorkspace(initialPath = '/assets/language-metadata?languageId=eng') {
+function renderWorkspace(initialPath = '/assets/language-metadata?languageId=eng', locale: 'zh-CN' | 'en-US' = 'zh-CN') {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
-      <LocaleProvider locale="zh-CN">
+      <LocaleProvider locale={locale}>
         <AppSidePaneProvider>
           <SidePaneSnapshot />
           <Routes>
@@ -141,6 +261,16 @@ function SidePaneSnapshot() {
       <div data-testid="side-pane-content">{registration?.content ?? null}</div>
     </>
   );
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 }
 
 describe('LanguageMetadataWorkspacePage', () => {
@@ -181,12 +311,37 @@ describe('LanguageMetadataWorkspacePage', () => {
     mockUpsertCustomFieldDefinition.mockReset();
     mockDeleteCustomFieldDefinition.mockReset();
     mockLookupIso639_3Seed.mockReset();
+    mockForwardGeocode.mockReset();
     mockReverseGeocode.mockReset();
 
-    mockListLanguageCatalogEntries.mockImplementation(async () => currentEntries);
+    mockListLanguageCatalogEntries.mockImplementation(async (input: {
+      searchText?: string;
+      languageIds?: readonly string[];
+    }) => {
+      const normalizedSearchText = input.searchText?.trim().toLowerCase() ?? '';
+      const requestedIds = input.languageIds?.map((languageId) => languageId.trim().toLowerCase()).filter(Boolean);
+      const baseEntries = requestedIds && requestedIds.length > 0
+        ? currentEntries.filter((entry) => requestedIds.includes(entry.id.toLowerCase()))
+        : currentEntries;
+
+      if (!normalizedSearchText) {
+        return baseEntries;
+      }
+
+      return currentEntries.filter((entry) => [
+        entry.id,
+        entry.languageCode,
+        entry.localName,
+        entry.englishName,
+        ...(entry.aliases ?? []),
+      ]
+        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+        .some((value) => value.toLowerCase().includes(normalizedSearchText)));
+    });
     mockListLanguageCatalogHistory.mockImplementation(async (languageId: string) => currentHistory.filter((item) => item.languageId === languageId));
     mockListCustomFieldDefinitions.mockImplementation(async () => currentFieldDefinitions);
     mockLookupIso639_3Seed.mockReturnValue(undefined);
+    mockForwardGeocode.mockResolvedValue([]);
     mockUpsertCustomFieldDefinition.mockImplementation(async (input: Partial<CustomFieldDefinitionDocType>) => ({
       id: String(input.id ?? 'custom-field'),
       name: input.name ?? { 'zh-CN': '新字段' },
@@ -221,10 +376,16 @@ describe('LanguageMetadataWorkspacePage', () => {
       expect(screen.getByDisplayValue('英语')).toBeTruthy();
     });
 
+    expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith(expect.objectContaining({
+      locale: 'zh-CN',
+      includeHidden: true,
+      languageIds: ['eng'],
+    }));
+
     expect(screen.getByTestId('side-pane-title').textContent).toBe('语言元数据工作台');
 
-    fireEvent.change(screen.getByDisplayValue('英语'), { target: { value: '英语（覆盖）' } });
-    fireEvent.change(screen.getByDisplayValue('English'), { target: { value: 'English Override' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '当前语言显示名' }), { target: { value: '英语（覆盖）' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '英文名' }), { target: { value: 'English Override' } });
     fireEvent.change(screen.getByPlaceholderText('建议说明为何修改、来源依据或兼容性背景。'), { target: { value: '修正工作台展示名' } });
     fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
 
@@ -254,7 +415,6 @@ describe('LanguageMetadataWorkspacePage', () => {
     const newRow = matrixRows[matrixRows.length - 1] as HTMLElement;
     const newRowQueries = within(newRow);
 
-    fireEvent.change(newRowQueries.getByPlaceholderText('例如 fr-FR、zh-TW、native'), { target: { value: 'es-ES' } });
     fireEvent.change(newRowQueries.getByRole('textbox', { name: '显示值' }), { target: { value: 'inglés alternativo' } });
     fireEvent.change(newRowQueries.getByRole('combobox', { name: '角色' }), { target: { value: 'menu' } });
 
@@ -268,10 +428,34 @@ describe('LanguageMetadataWorkspacePage', () => {
     expect(calls[calls.length - 1]?.[0]).toMatchObject({
       id: 'eng',
       displayNames: expect.arrayContaining([
+        expect.objectContaining({ locale: 'zh-CN', role: 'menu', value: 'inglés alternativo' }),
         expect.objectContaining({ locale: 'fr-FR', role: 'preferred', value: 'anglais' }),
-        expect.objectContaining({ locale: 'es-ES', role: 'menu', value: 'inglés alternativo' }),
       ]),
     });
+  });
+
+  it('keeps unsaved draft edits when the catalog list refreshes for the same selected entry', async () => {
+    renderWorkspace('/assets/language-metadata?languageId=user:demo-language');
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
+    });
+
+    const englishNameInput = screen.getByRole('textbox', { name: '英文名' }) as HTMLInputElement;
+    fireEvent.change(englishNameInput, { target: { value: 'Unsaved Override' } });
+    expect(englishNameInput.value).toBe('Unsaved Override');
+
+    fireEvent.change(screen.getByRole('searchbox', { name: '按名称、别名、代码或标准标识筛选' }), { target: { value: '示例' } });
+
+    await waitFor(() => {
+      expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith(expect.objectContaining({
+        locale: 'zh-CN',
+        searchText: '示例',
+        includeHidden: true,
+      }));
+    });
+
+    expect((screen.getByRole('textbox', { name: '英文名' }) as HTMLInputElement).value).toBe('Unsaved Override');
   });
 
   it('can switch to custom creation mode and request deletion for persisted custom entries', async () => {
@@ -280,6 +464,12 @@ describe('LanguageMetadataWorkspacePage', () => {
     await waitFor(() => {
       expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
     });
+
+    expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith(expect.objectContaining({
+      locale: 'zh-CN',
+      includeHidden: true,
+      languageIds: expect.arrayContaining(['eng', 'user:demo-language']),
+    }));
 
     expect(await screen.findByText((content) => content.includes('变更字段：') && content.includes('英文名') && content.includes('别名 / 检索标签'))).toBeTruthy();
     expect(screen.getByText('根据术语表修正英文名与检索别名。')).toBeTruthy();
@@ -377,6 +567,36 @@ describe('LanguageMetadataWorkspacePage', () => {
     });
   });
 
+  it('generates classification path from family fields when saving', async () => {
+    renderWorkspace('/assets/language-metadata?languageId=user:demo-language');
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByRole('textbox', { name: '语系' }), { target: { value: '汉藏语系' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '语族' }), { target: { value: '藏缅语族' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '语支' }), { target: { value: '缅语支' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '方言' }), { target: { value: '阿昌话\n梁河话' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '土语' }), { target: { value: '户撒土语' } });
+
+    expect((screen.getByRole('textbox', { name: '谱系路径' }) as HTMLInputElement).value).toBe('语系: 汉藏语系 / 语族: 藏缅语族 / 语支: 缅语支 / 方言: 阿昌话、梁河话 / 土语: 户撒土语');
+
+    fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
+
+    await waitFor(() => {
+      expect(mockUpsertLanguageCatalogEntry).toHaveBeenCalled();
+    });
+
+    const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
+    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+      id: 'user:demo-language',
+      classificationPath: '汉藏语系 / 藏缅语族 / 缅语支 / 阿昌话、梁河话 / 户撒土语',
+      dialects: ['阿昌话', '梁河话'],
+      vernaculars: ['户撒土语'],
+    });
+  });
+
   it('updates coordinates from map drag and persists reverse-geocoded location state', async () => {
     currentEntries = [
       createEntry({
@@ -398,8 +618,11 @@ describe('LanguageMetadataWorkspacePage', () => {
     fireEvent.click(screen.getByRole('button', { name: '模拟地图拖拽' }));
 
     await waitFor(() => {
-      expect((screen.getByRole('textbox', { name: '纬度' }) as HTMLInputElement).value).toBe('30.67');
-      expect((screen.getByRole('textbox', { name: '经度' }) as HTMLInputElement).value).toBe('104.06');
+      expect(mockReverseGeocode).toHaveBeenCalledWith(expect.objectContaining({
+        latitude: 30.67,
+        longitude: 104.06,
+        locale: 'zh-CN',
+      }));
     });
 
     expect(await screen.findByText((content) => content.includes('当前位置：成都，中国'))).toBeTruthy();
@@ -416,10 +639,432 @@ describe('LanguageMetadataWorkspacePage', () => {
       latitude: 30.67,
       longitude: 104.06,
     });
-    expect(mockReverseGeocode).toHaveBeenCalledWith(expect.objectContaining({
-      latitude: 30.67,
-      longitude: 104.06,
-      locale: 'zh-CN',
-    }));
+  });
+
+  it('renders the map immediately after manually entering valid coordinates', async () => {
+    renderWorkspace('/assets/language-metadata?languageId=user:demo-language');
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByRole('textbox', { name: '纬度' }), { target: { value: '35.8617' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '经度' }), { target: { value: '104.1954' } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-language-map')).toBeTruthy();
+    });
+
+    expect(screen.getByTestId('mock-language-map-coords').textContent).toBe('35.8617,104.1954');
+  });
+
+  it('appends a searched administrative division and persists structured geography data', async () => {
+    mockForwardGeocode.mockResolvedValue([
+      {
+        id: 'nominatim:kunming',
+        displayName: '昆明市, 云南省, 中国',
+        primaryText: '昆明市',
+        secondaryText: '昆明市, 云南省, 中国',
+        lat: 25.0438,
+        lng: 102.71,
+        provider: 'nominatim',
+        administrativeHierarchy: {
+          country: '中国',
+          countryCode: 'CN',
+          province: '云南省',
+          city: '昆明市',
+          county: '五华区',
+          township: '普吉街道',
+          village: '篆塘社区',
+        },
+      },
+    ]);
+
+    renderWorkspace('/assets/language-metadata?languageId=user:demo-language');
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByRole('textbox', { name: '检索地点并补全行政区' }), { target: { value: '昆明市' } });
+    fireEvent.click(screen.getByRole('button', { name: '检索' }));
+    await waitFor(() => {
+      expect(mockForwardGeocode).toHaveBeenCalled();
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /昆明市/ }));
+    fireEvent.click(screen.getByRole('button', { name: '加入列表' }));
+
+    expect((screen.getByRole('textbox', { name: '已选行政区条目' }) as HTMLTextAreaElement).value).toContain('国家: 中国 / 省州: 云南省 / 城市: 昆明市 / 县区: 五华区 / 乡镇: 普吉街道 / 村: 篆塘社区');
+    expect(await screen.findByTestId('mock-language-map')).toBeTruthy();
+    expect(screen.getByTestId('mock-language-map-coords').textContent).toBe('25.0438,102.71');
+    expect(screen.getByText((content) => content.includes('当前位置：昆明市, 云南省, 中国'))).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
+
+    await waitFor(() => {
+      expect(mockUpsertLanguageCatalogEntry).toHaveBeenCalled();
+    });
+
+    const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
+    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+      id: 'user:demo-language',
+      countries: ['CN'],
+      administrativeDivisions: [
+        {
+          country: '中国',
+          province: '云南省',
+          city: '昆明市',
+          county: '五华区',
+          township: '普吉街道',
+          village: '篆塘社区',
+        },
+      ],
+    });
+  });
+
+  it('keeps latest administrative search results when an earlier request resolves later', async () => {
+    const firstSearch = createDeferred<Array<{
+      id: string;
+      displayName: string;
+      primaryText: string;
+      secondaryText?: string;
+      lat: number;
+      lng: number;
+      provider: 'nominatim';
+    }>>();
+    const secondSearch = createDeferred<Array<{
+      id: string;
+      displayName: string;
+      primaryText: string;
+      secondaryText?: string;
+      lat: number;
+      lng: number;
+      provider: 'nominatim';
+    }>>();
+
+    mockForwardGeocode
+      .mockImplementationOnce(async () => firstSearch.promise)
+      .mockImplementationOnce(async () => secondSearch.promise);
+
+    renderWorkspace('/assets/language-metadata?languageId=user:demo-language');
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
+    });
+
+    const adminSearchInput = screen.getByRole('textbox', { name: '检索地点并补全行政区' });
+
+    fireEvent.change(adminSearchInput, { target: { value: '昆明' } });
+    fireEvent.keyDown(adminSearchInput, { key: 'Enter' });
+
+    fireEvent.change(adminSearchInput, { target: { value: '大理' } });
+    fireEvent.keyDown(adminSearchInput, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(mockForwardGeocode).toHaveBeenCalledTimes(2);
+    });
+
+    secondSearch.resolve([
+      {
+        id: 'nominatim:dali',
+        displayName: '大理白族自治州, 云南省, 中国',
+        primaryText: '大理市',
+        secondaryText: '大理白族自治州, 云南省, 中国',
+        lat: 25.6,
+        lng: 100.27,
+        provider: 'nominatim',
+      },
+    ]);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /大理市/ })).toBeTruthy();
+    });
+
+    firstSearch.resolve([
+      {
+        id: 'nominatim:kunming',
+        displayName: '昆明市, 云南省, 中国',
+        primaryText: '昆明市',
+        secondaryText: '昆明市, 云南省, 中国',
+        lat: 25.04,
+        lng: 102.71,
+        provider: 'nominatim',
+      },
+    ]);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /大理市/ })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /昆明市/ })).toBeNull();
+    });
+  });
+
+  it('geocodes manually edited administrative divisions when adding without choosing a search result', async () => {
+    mockForwardGeocode.mockResolvedValue([
+      {
+        id: 'nominatim:dali-heqing',
+        displayName: '鹤庆县, 大理白族自治州, 云南省, 中国',
+        primaryText: '鹤庆县',
+        secondaryText: '鹤庆县, 大理白族自治州, 云南省, 中国',
+        lat: 26.5606,
+        lng: 100.1766,
+        provider: 'nominatim',
+        administrativeHierarchy: {
+          country: '中国',
+          countryCode: 'CN',
+          province: '云南省',
+          city: '大理白族自治州',
+          county: '鹤庆县',
+        },
+      },
+    ]);
+
+    renderWorkspace('/assets/language-metadata?languageId=user:demo-language');
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
+    });
+
+    expect(screen.queryByTestId('mock-language-map')).toBeNull();
+
+    fireEvent.change(screen.getByRole('textbox', { name: '国家' }), { target: { value: '中国' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '省 / 州' }), { target: { value: '云南省' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '城市' }), { target: { value: '大理白族自治州' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '县 / 区' }), { target: { value: '鹤庆县' } });
+
+    await waitFor(() => {
+      expect((screen.getByRole('button', { name: '加入列表' }) as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '加入列表' }));
+
+    await waitFor(() => {
+      expect(mockForwardGeocode).toHaveBeenCalledWith(expect.objectContaining({
+        query: '鹤庆县, 大理白族自治州, 云南省, 中国',
+        structuredAddress: true,
+        limit: 1,
+      }));
+    });
+
+    expect(await screen.findByTestId('mock-language-map')).toBeTruthy();
+    expect(screen.getByTestId('mock-language-map-coords').textContent).toBe('26.5606,100.1766');
+    expect(screen.getByText((content) => content.includes('当前位置：鹤庆县, 大理白族自治州, 云南省, 中国'))).toBeTruthy();
+    expect((screen.getByRole('textbox', { name: '已选行政区条目' }) as HTMLTextAreaElement).value).toContain('国家: 中国 / 省州: 云南省 / 城市: 大理白族自治州 / 县区: 鹤庆县');
+
+    fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
+
+    await waitFor(() => {
+      expect(mockUpsertLanguageCatalogEntry).toHaveBeenCalled();
+    });
+
+    const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
+    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+      countries: ['中国'],
+      administrativeDivisions: [
+        {
+          country: '中国',
+          province: '云南省',
+          city: '大理白族自治州',
+          county: '鹤庆县',
+        },
+      ],
+    });
+  });
+
+  it('reuses legacy localized country names as geocode country filters in english locale', async () => {
+    mockForwardGeocode.mockResolvedValue([]);
+
+    currentEntries = [
+      createEntry({
+        id: 'user:demo-language',
+        entryKind: 'custom',
+        hasPersistedRecord: true,
+        languageCode: 'demo',
+        englishName: 'Demo Language',
+        localName: '示例语言',
+        aliases: ['示例'],
+        sourceType: 'user-custom',
+        displayNames: [],
+        countries: ['中国'],
+      }),
+    ];
+
+    renderWorkspace('/assets/language-metadata?languageId=user:demo-language', 'en-US');
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Demo Language')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search a place and complete the hierarchy' }), { target: { value: 'Kunming' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+    await waitFor(() => {
+      expect(mockForwardGeocode).toHaveBeenCalledWith(expect.objectContaining({
+        query: 'Kunming',
+        countryCodes: ['cn'],
+      }));
+    });
+  });
+
+  it('keeps existing administrative-division lines visible and editable in the geography picker', async () => {
+    currentEntries = [
+      createEntry({
+        id: 'user:demo-language',
+        entryKind: 'custom',
+        hasPersistedRecord: true,
+        languageCode: 'demo',
+        englishName: 'Demo Language',
+        localName: '示例语言',
+        aliases: ['示例'],
+        sourceType: 'user-custom',
+        displayNames: [],
+        administrativeDivisions: [
+          {
+            country: '中国',
+            province: '云南省',
+            city: '昆明市',
+          },
+        ],
+      }),
+    ];
+
+    renderWorkspace('/assets/language-metadata?languageId=user:demo-language');
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
+    });
+
+    const divisionsInput = await screen.findByRole('textbox', { name: '已选行政区条目' }) as HTMLTextAreaElement;
+    expect(divisionsInput.value).toContain('国家: 中国 / 省州: 云南省 / 城市: 昆明市');
+
+    fireEvent.change(divisionsInput, {
+      target: {
+        value: '国家: 中国 / 省州: 云南省 / 城市: 昆明市\nCountry: Nepal / State: Bagmati / City: Kathmandu',
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
+
+    await waitFor(() => {
+      expect(mockUpsertLanguageCatalogEntry).toHaveBeenCalled();
+    });
+
+    const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
+    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+      administrativeDivisions: [
+        {
+          country: '中国',
+          province: '云南省',
+          city: '昆明市',
+        },
+        {
+          country: 'Nepal',
+          province: 'Bagmati',
+          city: 'Kathmandu',
+        },
+      ],
+    });
+  });
+
+  it('keeps legacy country names without appending duplicate ISO codes when adding administrative divisions', async () => {
+    mockForwardGeocode.mockResolvedValue([
+      {
+        id: 'nominatim:kunming',
+        displayName: '昆明市, 云南省, 中国',
+        primaryText: '昆明市',
+        secondaryText: '昆明市, 云南省, 中国',
+        lat: 25.0438,
+        lng: 102.71,
+        provider: 'nominatim',
+        administrativeHierarchy: {
+          country: '中国',
+          countryCode: 'CN',
+          province: '云南省',
+          city: '昆明市',
+        },
+      },
+    ]);
+
+    currentEntries = [
+      createEntry({
+        id: 'user:demo-language',
+        entryKind: 'custom',
+        hasPersistedRecord: true,
+        languageCode: 'demo',
+        englishName: 'Demo Language',
+        localName: '示例语言',
+        aliases: ['示例'],
+        sourceType: 'user-custom',
+        displayNames: [],
+        countries: ['China'],
+      }),
+    ];
+
+    renderWorkspace('/assets/language-metadata?languageId=user:demo-language');
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByRole('textbox', { name: '检索地点并补全行政区' }), { target: { value: '昆明市' } });
+    fireEvent.click(screen.getByRole('button', { name: '检索' }));
+    fireEvent.click(await screen.findByRole('button', { name: /昆明市/ }));
+    fireEvent.click(screen.getByRole('button', { name: '加入列表' }));
+    fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
+
+    await waitFor(() => {
+      expect(mockUpsertLanguageCatalogEntry).toHaveBeenCalled();
+    });
+
+    const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
+    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+      id: 'user:demo-language',
+      countries: ['China'],
+      administrativeDivisions: [
+        {
+          country: '中国',
+          province: '云南省',
+          city: '昆明市',
+        },
+      ],
+    });
+  });
+
+  it('does not append duplicate localized country names when ISO code already exists', async () => {
+    mockForwardGeocode.mockResolvedValue([]);
+
+    currentEntries = [
+      createEntry({
+        id: 'user:demo-language',
+        entryKind: 'custom',
+        hasPersistedRecord: true,
+        languageCode: 'demo',
+        englishName: 'Demo Language',
+        localName: '示例语言',
+        aliases: ['示例'],
+        sourceType: 'user-custom',
+        displayNames: [],
+        countries: ['CN'],
+      }),
+    ];
+
+    renderWorkspace('/assets/language-metadata?languageId=user:demo-language');
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByRole('textbox', { name: '国家' }), { target: { value: '中国' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '城市' }), { target: { value: '昆明市' } });
+    fireEvent.click(screen.getByRole('button', { name: '加入列表' }));
+    fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
+
+    await waitFor(() => {
+      expect(mockUpsertLanguageCatalogEntry).toHaveBeenCalled();
+    });
+
+    const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
+    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+      id: 'user:demo-language',
+      countries: ['CN'],
+    });
   });
 });

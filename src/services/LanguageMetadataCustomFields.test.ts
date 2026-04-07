@@ -88,6 +88,25 @@ describe('LanguageMetadataCustomFields', () => {
     });
   });
 
+  it('drops draft keys that no longer have active field definitions', () => {
+    expect(buildPersistedCustomFieldValues({
+      archiveUrl: 'https://example.com/archive',
+      removedField: 'should-not-persist',
+    }, [
+      {
+        id: 'archiveUrl',
+        name: { 'zh-CN': '档案链接' },
+        fieldType: 'url',
+        required: true,
+        sortOrder: 0,
+        createdAt: '2026-04-07T00:00:00.000Z',
+        updatedAt: '2026-04-07T00:00:00.000Z',
+      },
+    ], 'zh-CN')).toEqual({
+      archiveUrl: 'https://example.com/archive',
+    });
+  });
+
   it('returns localized validation errors for invalid draft values', () => {
     expect(validateCustomFieldDraftValue({
       id: 'orthography',

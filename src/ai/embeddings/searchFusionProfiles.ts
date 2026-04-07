@@ -2,13 +2,14 @@
  * Search fusion weight profiles for different scenarios.
  */
 
-export type SearchFusionScenario = 'qa' | 'review' | 'terminology' | 'balanced';
+export type SearchFusionScenario = 'qa' | 'review' | 'terminology' | 'balanced' | 'queryExpansion';
 
 export const SEARCH_FUSION_SCENARIOS: readonly SearchFusionScenario[] = [
   'qa',
   'review',
   'terminology',
   'balanced',
+  'queryExpansion',
 ];
 
 export interface FusionWeights {
@@ -52,7 +53,13 @@ export const SEARCH_FUSION_PROFILES: Record<SearchFusionScenario, FusionWeights>
     vectorWeight: 0.4,
     keywordWeight: 0.35,
     fullTextWeight: 0.25,
-    description: '\u5e73\u8861\u6a21\u5f0f | Balanced mode\uff1a\u901a\u7528\u5e73\u8861\u914d\u7f6e',
+    description: '平衡模式 | Balanced mode：通用平衡配置',
+  },
+  queryExpansion: {
+    vectorWeight: 0.35,
+    keywordWeight: 0.45,
+    fullTextWeight: 0.20,
+    description: 'CRAG 查询扩展模式 | CRAG query expansion mode：强化关键词召回，用于 AMBIGUOUS 路径重搜',
   },
 };
 

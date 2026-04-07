@@ -1,0 +1,336 @@
+.orthography-manager-page {
+  display: grid;
+  justify-items: center;
+  padding: 12px 0 24px;
+}
+
+.orthography-manager-panel-shell {
+  --dialog-auto-width: 520px;
+  width: min(100%, 520px);
+}
+
+.orthography-manager-panel-body {
+  display: grid;
+  gap: 10px;
+}
+
+.orthography-manager-panel-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.orthography-manager-panel-shell .dialog-header {
+  min-height: 40px;
+  padding: 10px 16px;
+}
+
+.orthography-manager-panel-shell .dialog-shell__title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.orthography-manager-panel-shell .dialog-footer {
+  padding: 10px 16px;
+}
+
+.orthography-manager-panel-link {
+  text-decoration: none;
+}
+
+.orthography-manager-context-note,
+.orthography-manager-state {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.orthography-manager-context-note {
+  padding: 0 2px;
+}
+
+.orthography-manager-state-error {
+  color: var(--state-danger-text);
+}
+
+.orthography-manager-state-success {
+  color: var(--state-success-text, #15803d);
+}
+
+.orthography-manager-state-warning {
+  color: var(--state-warning-text, #b45309);
+}
+
+.orthography-manager-toolbar {
+  display: grid;
+  gap: 6px;
+}
+
+.orthography-manager-search {
+  width: 100%;
+}
+
+.orthography-manager-filter-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.orthography-manager-filter-toggle .panel-button {
+  min-height: 26px;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.orthography-manager-callout {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed color-mix(in srgb, var(--state-warning-text, #b45309) 35%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-warning-bg, #fef3c7));
+}
+
+.orthography-manager-list {
+  display: grid;
+  border-top: 1px solid color-mix(in srgb, var(--border-soft) 42%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 42%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 98%, transparent);
+}
+
+.orthography-manager-list-item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 42%, transparent);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  align-content: start;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: background 140ms ease, box-shadow 140ms ease;
+}
+
+.orthography-manager-list-item:last-child {
+  border-bottom: 0;
+}
+
+.orthography-manager-list-item:hover {
+  background: color-mix(in srgb, var(--surface-header) 72%, transparent);
+}
+
+.orthography-manager-list-item:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+.orthography-manager-list-item-active {
+  background: color-mix(in srgb, var(--state-info-bg) 78%, var(--surface-panel));
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--header-accent) 72%, transparent);
+}
+
+.orthography-manager-list-label {
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.orthography-manager-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.orthography-manager-divider {
+  height: 1px;
+  border: 0;
+  margin: 0;
+  background: color-mix(in srgb, var(--border-soft) 42%, transparent);
+}
+
+.orthography-manager-highlight-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--header-accent) 20%, var(--border-soft));
+  background: color-mix(in srgb, var(--state-info-bg) 66%, var(--surface-panel));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.orthography-manager-highlight-label,
+.orthography-manager-basic-grid dt {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.orthography-manager-highlight-value,
+.orthography-manager-basic-grid dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.orthography-manager-highlight-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.orthography-manager-form-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.orthography-manager-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.orthography-manager-form-span-2 {
+  grid-column: 1 / -1;
+}
+
+.orthography-manager-subsection {
+  display: grid;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-header) 82%, transparent);
+}
+
+.orthography-manager-subsection-title {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.orthography-manager-checkbox-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.orthography-manager-array-list {
+  display: grid;
+  gap: 10px;
+}
+
+.orthography-manager-array-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.orthography-manager-array-value {
+  min-width: 0;
+}
+
+.orthography-manager-array-add {
+  justify-self: start;
+}
+
+.orthography-manager-textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.orthography-manager-codearea {
+  min-height: 140px;
+  font-family: var(--font-mono);
+}
+
+.orthography-manager-advanced {
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-header) 65%, transparent);
+}
+
+.orthography-manager-advanced-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.orthography-manager-advanced-summary::-webkit-details-marker {
+  display: none;
+}
+
+.orthography-manager-advanced-summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 0.15s ease;
+}
+
+.orthography-manager-advanced[open] > .orthography-manager-advanced-summary::before {
+  transform: rotate(90deg);
+}
+
+.orthography-manager-advanced-meta {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.orthography-manager-advanced-body {
+  display: grid;
+  gap: 12px;
+  padding: 0 12px 12px;
+}
+
+.orthography-manager-basic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.orthography-manager-basic-grid div {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
+}
+
+@media (max-width: 720px) {
+  .orthography-manager-panel-shell {
+    width: 100%;
+  }
+
+  .orthography-manager-panel-shell .dialog-header,
+  .orthography-manager-panel-shell .dialog-footer {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .orthography-manager-form-grid,
+  .orthography-manager-basic-grid,
+  .orthography-manager-array-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

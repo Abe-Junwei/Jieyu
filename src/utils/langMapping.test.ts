@@ -84,6 +84,22 @@ describe('langMapping input helpers', () => {
     expect(nextState.resolution.regionTag).toBe('HK');
   });
 
+  it('emits macrolanguage guidance for macrolanguage codes', () => {
+    const resolved = resolveLanguageCodeInput('ara', 'zh-CN');
+
+    expect(resolved.status).toBe('resolved');
+    expect(resolved.warnings.some((warning) => warning.includes('宏语言'))).toBe(true);
+  });
+
+  it('emits preferred-code guidance for deprecated ISO 639-3 codes', () => {
+    const resolved = resolveLanguageCodeInput('ajp', 'zh-CN');
+
+    expect(resolved.status).toBe('resolved');
+    expect(resolved.warnings).toEqual(expect.arrayContaining([
+      expect.stringContaining('建议改用 apc'),
+    ]));
+  });
+
   it('picks an exact auto-fill match when the language name is unambiguous', () => {
     const match = pickAutoFillLanguageMatch('Portuguese', 'en-US');
 

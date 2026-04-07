@@ -1,11 +1,12 @@
+/// <reference types="vitest/config" />
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { copyFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
 /**
- * 将 onnxruntime-web WASM 文件复制到构建输出，供 @xenova/transformers Worker 运行时加载。
- * Copies onnxruntime-web WASM files to build output so the @xenova/transformers worker can load them at runtime.
+ * 将 onnxruntime-web WASM 文件复制到构建输出，供 @huggingface/transformers Worker 运行时加载。
+ * Copies onnxruntime-web WASM files to build output so the @huggingface/transformers worker can load them at runtime.
  */
 function copyOnnxWasm(): Plugin {
   return {
@@ -17,7 +18,7 @@ function copyOnnxWasm(): Plugin {
       try {
         mkdirSync(outDir, { recursive: true });
         for (const file of readdirSync(wasmSrc)) {
-          if (file.endsWith('.wasm')) {
+          if (file.endsWith('.wasm') || file.endsWith('.onnx_data')) {
             copyFileSync(join(wasmSrc, file), join(outDir, file));
           }
         }
@@ -69,12 +70,31 @@ export default defineConfig({
             return 'linguistic-core-runtime';
           }
           if (
-            id.includes('/src/utils/langMapping.ts')
-            || id.includes('/src/data/languageNameCatalog.ts')
-            || id.includes('/src/data/generated/languageNameCatalog.generated.ts')
-            || id.includes('/src/data/languageCatalogRuntimeCache.ts')
+            id.includes('/src/data/generated/languageNameCatalog.generated.ts')
+          ) {
+            return 'language-name-baseline';
+          }
+          if (
+            id.includes('/node_modules/language-subtag-registry/')
             || id.includes('/node_modules/language-tags/')
-            || id.includes('/node_modules/iso-639-3/')
+          ) {
+            return 'language-subtag-registry';
+          }
+          if (
+            id.includes('/node_modules/iso-639-3/')
+            || id.includes('/src/data/generated/iso6393Seed.generated.ts')
+            || id.includes('/src/data/iso6393Seed.ts')
+          ) {
+            return 'language-iso-database';
+          }
+          if (
+            id.includes('/src/data/languageNameCatalog.ts')
+            || id.includes('/src/data/languageCatalogRuntimeCache.ts')
+          ) {
+            return 'language-display-runtime';
+          }
+          if (
+            id.includes('/src/utils/langMapping.ts')
           ) {
             return 'language-mapping-runtime';
           }
@@ -103,9 +123,11 @@ export default defineConfig({
           if (
             id.includes('/src/services/IntentRouter.ts')
             || id.includes('/src/services/voiceIntentRefine.ts')
-            || id.includes('/src/services/VoiceIntentLlmResolver.ts')
           ) {
             return 'voice-intent-runtime';
+          }
+          if (id.includes('/src/services/VoiceIntentLlmResolver.ts')) {
+            return 'voice-intent-llm-runtime';
           }
           if (id.includes('/src/services/VoiceSessionStore.ts')) {
             return 'voice-session-runtime';
@@ -123,7 +145,7 @@ export default defineConfig({
           if (id.includes('/onnxruntime-web/')) {
             return 'onnxruntime-vendor';
           }
-          if (id.includes('/@xenova/transformers/')) {
+          if (id.includes('/@huggingface/transformers/') || id.includes('/@xenova/transformers/')) {
             return 'transformers-vendor';
           }
           if (id.includes('/@maptiler/') || id.includes('/maplibre-gl/')) {
@@ -132,6 +154,20 @@ export default defineConfig({
           return undefined;
         },
       },
+    },
+  },
+  test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      reportsDirectory: 'coverage',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/*.d.ts',
+        'src/data/generated/**',
+        'src/main.tsx',
+      ],
     },
   },
 });

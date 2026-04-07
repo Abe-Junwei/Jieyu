@@ -8,6 +8,7 @@ interface ImportMetaEnv {
 	readonly VITE_SENTRY_ENVIRONMENT?: string;
 	readonly VITE_SENTRY_SEND_DEFAULT_PII?: string;
 	readonly VITE_MAP_PROXY_BASE_URL?: string;
+	readonly VITE_MAP_PROXY_FALLBACK_ON_ERROR?: string;
 }
 
 interface ImportMeta {

@@ -1,5 +1,6 @@
 import type { AiPromptContext } from '../hooks/useAiChat';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
+import type { WaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
 
 interface BuildTranscriptionAiPromptContextParams {
   selectionSnapshot: TranscriptionSelectionSnapshot;
@@ -7,6 +8,7 @@ interface BuildTranscriptionAiPromptContextParams {
   utteranceCount: number;
   translationLayerCount: number;
   aiConfidenceAvg: number | null;
+  waveformAnalysis?: WaveformAnalysisPromptSummary;
   observerStage: string | null;
   topLexemes: string[];
   recommendations: string[];
@@ -20,6 +22,7 @@ export function buildTranscriptionAiPromptContext({
   utteranceCount,
   translationLayerCount,
   aiConfidenceAvg,
+  waveformAnalysis,
   observerStage,
   topLexemes,
   recommendations,
@@ -56,6 +59,7 @@ export function buildTranscriptionAiPromptContext({
         translationLayerCount,
         aiConfidenceAvg,
       },
+      ...(waveformAnalysis ? { waveformAnalysis } : {}),
       ...(observerStage ? { observerStage } : {}),
       topLexemes,
       recommendations,

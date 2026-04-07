@@ -24,6 +24,10 @@ export function useTranscriptionSectionViewModels(
     locale,
     selectedTimelineMediaFilename,
     player,
+    waveformDisplayMode,
+    setWaveformDisplayMode,
+    waveformVisualStyle,
+    setWaveformVisualStyle,
     globalLoopPlayback,
     setGlobalLoopPlayback,
     handleGlobalPlayPauseAction,
@@ -100,6 +104,10 @@ export function useTranscriptionSectionViewModels(
     locale,
     selectedTimelineMediaFilename,
     player,
+    waveformDisplayMode,
+    setWaveformDisplayMode,
+    waveformVisualStyle,
+    setWaveformVisualStyle,
     globalLoopPlayback,
     setGlobalLoopPlayback,
     handleGlobalPlayPauseAction,
@@ -133,7 +141,10 @@ export function useTranscriptionSectionViewModels(
     hasSelectedTimelineMedia, importFileRef, loadSnapshot, locale, lowConfidenceCount,
     notePopoverOpen, player, redo, selectedMediaUrl, selectedTimelineMediaFilename,
     selectedTimelineUnit, setGlobalLoopPlayback, setShowAudioImport, setShowProjectSetup,
-    setUttOpsMenu, showExportMenu, toggleNotes, undo, undoLabel,
+    setWaveformDisplayMode,
+    setUttOpsMenu, setWaveformVisualStyle, showExportMenu, toggleNotes, undo, undoLabel,
+    waveformDisplayMode,
+    waveformVisualStyle,
   ]);
 
   const timelineTopProps = useMemo<TranscriptionPageTimelineTopProps>(() => createTranscriptionTimelineTopProps({

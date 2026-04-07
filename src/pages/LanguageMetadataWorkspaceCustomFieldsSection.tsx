@@ -25,6 +25,15 @@ type LanguageMetadataWorkspaceCustomFieldsSectionProps = {
   cf: CustomFieldControllerState;
 };
 
+function parseOptionalFiniteNumber(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function withOptionalDefinitionField<K extends keyof CustomFieldControllerState['fieldDefs'][number]>(
   definition: CustomFieldControllerState['fieldDefs'][number],
   key: K,
@@ -142,7 +151,7 @@ export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf
                           className="input"
                           type="number"
                           value={def.minValue ?? ''}
-                          onChange={(event) => cf.handleFieldDefLocalChange(withOptionalDefinitionField(def, 'minValue', event.target.value.trim() ? Number(event.target.value) : undefined))}
+                          onChange={(event) => cf.handleFieldDefLocalChange(withOptionalDefinitionField(def, 'minValue', parseOptionalFiniteNumber(event.target.value)))}
                           onBlur={() => cf.handleFieldDefBlur(def.id)}
                         />
                       </label>
@@ -152,7 +161,7 @@ export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf
                           className="input"
                           type="number"
                           value={def.maxValue ?? ''}
-                          onChange={(event) => cf.handleFieldDefLocalChange(withOptionalDefinitionField(def, 'maxValue', event.target.value.trim() ? Number(event.target.value) : undefined))}
+                          onChange={(event) => cf.handleFieldDefLocalChange(withOptionalDefinitionField(def, 'maxValue', parseOptionalFiniteNumber(event.target.value)))}
                           onBlur={() => cf.handleFieldDefBlur(def.id)}
                         />
                       </label>
@@ -210,7 +219,7 @@ export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf
                               def,
                               'defaultValue',
                               nextValue.trim()
-                                ? (def.fieldType === 'number' ? Number(nextValue) : nextValue)
+                                ? (def.fieldType === 'number' ? parseOptionalFiniteNumber(nextValue) : nextValue)
                                 : undefined,
                             ));
                           }}

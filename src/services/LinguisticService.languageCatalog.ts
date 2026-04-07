@@ -1,4 +1,3 @@
-import { iso6393 } from 'iso-639-3';
 import {
   getDb,
   type CustomFieldDefinitionDocType,
@@ -26,32 +25,12 @@ import { t, tf, type Locale } from '../i18n';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { newId } from '../utils/transcriptionFormatters';
 import { validateCustomFieldDefinitionInput } from './LanguageMetadataCustomFields';
-
-type Iso6393Record = (typeof iso6393)[number];
-
-const ISO_639_3_BY_CODE = new Map<string, Iso6393Record>(
-  iso6393
-    .filter((entry) => entry.iso6393.trim().length > 0)
-    .map((entry) => [entry.iso6393.toLowerCase(), entry] as const),
-);
+import { lookupIso639_3Seed } from './languageCatalogSeedLookup';
+export { lookupIso639_3Seed, type Iso639_3Seed } from './languageCatalogSeedLookup';
 
 /**
  * ISO 639-3 种子数据（同步查询） | ISO 639-3 seed data (sync lookup)
  */
-export type Iso639_3Seed = {
-  name: string;
-  iso6391?: string | undefined;
-  iso6392B?: string | undefined;
-  iso6392T?: string | undefined;
-  scope: string;
-  type: string;
-};
-
-/** 同步查询 ISO 639-3 种子记录 | Synchronously look up an ISO 639-3 seed record */
-export function lookupIso639_3Seed(code: string): Iso639_3Seed | undefined {
-  return ISO_639_3_BY_CODE.get(code.trim().toLowerCase());
-}
-
 export type LanguageCatalogEntryKind = 'built-in' | 'override' | 'custom';
 
 export type LanguageCatalogDisplayNameEntry = {
@@ -83,6 +62,8 @@ export type LanguageCatalogEntry = {
   aliases: string[];
   scope?: LanguageDocType['scope'];
   genus?: string;
+  subfamily?: string;
+  branch?: string;
   classificationPath?: string;
   macrolanguage?: string;
   languageType?: LanguageDocType['languageType'];
@@ -105,6 +86,7 @@ export type LanguageCatalogEntry = {
   egids?: string;
   documentationLevel?: LanguageDocType['documentationLevel'];
   dialects?: string[];
+  vernaculars?: string[];
   writingSystems?: string[];
   literacyRate?: number;
   latitude?: number;
@@ -135,6 +117,8 @@ export type UpsertLanguageCatalogEntryInput = {
   aliases?: string[];
   scope?: LanguageDocType['scope'];
   genus?: string;
+  subfamily?: string;
+  branch?: string;
   classificationPath?: string;
   macrolanguage?: string;
   languageType?: LanguageDocType['languageType'];
@@ -157,6 +141,7 @@ export type UpsertLanguageCatalogEntryInput = {
   egids?: string;
   documentationLevel?: LanguageDocType['documentationLevel'];
   dialects?: string[];
+  vernaculars?: string[];
   writingSystems?: string[];
   literacyRate?: number;
   latitude?: number;
@@ -338,10 +323,14 @@ function buildComparableHistoryPatch(entry: LanguageCatalogEntry | null): Record
     aliases: normalizedAliases,
     scope: entry.scope ?? null,
     genus: entry.genus ?? null,
+    subfamily: entry.subfamily ?? null,
+    branch: entry.branch ?? null,
     classificationPath: entry.classificationPath ?? null,
     macrolanguage: entry.macrolanguage ?? null,
     languageType: entry.languageType ?? null,
     modality: entry.modality ?? null,
+    dialects: entry.dialects ?? null,
+    vernaculars: entry.vernaculars ?? null,
     reviewStatus: entry.reviewStatus ?? null,
     visibility: entry.visibility,
     ...(normalizedNotes ? { notes: normalizedNotes } : {}),
@@ -932,7 +921,7 @@ function projectLanguageCatalogEntry(input: {
   displayNames: readonly LanguageDisplayNameDocType[];
   aliases: readonly LanguageAliasDocType[];
 }): LanguageCatalogEntry {
-  const isoRecord = ISO_639_3_BY_CODE.get(input.languageId);
+  const isoRecord = lookupIso639_3Seed(input.languageId);
   const generated = GENERATED_LANGUAGE_DISPLAY_NAME_CORE[input.languageId];
   const builtInAliases = GENERATED_LANGUAGE_ALIASES_BY_CODE[input.languageId] ?? [];
   const languageDoc = input.languageDoc;
@@ -975,6 +964,8 @@ function projectLanguageCatalogEntry(input: {
   const resolvedWikidataId = languageDoc?.wikidataId;
   const resolvedScope = languageDoc?.scope ?? isoRecord?.scope;
   const resolvedGenus = languageDoc?.genus;
+  const resolvedSubfamily = languageDoc?.subfamily;
+  const resolvedBranch = languageDoc?.branch;
   const resolvedClassificationPath = languageDoc?.classificationPath;
   const resolvedMacrolanguage = languageDoc?.macrolanguage;
   const resolvedLanguageType = languageDoc?.languageType ?? isoRecord?.type;
@@ -1003,6 +994,8 @@ function projectLanguageCatalogEntry(input: {
     aliases,
     ...(resolvedScope ? { scope: resolvedScope } : {}),
     ...(resolvedGenus ? { genus: resolvedGenus } : {}),
+    ...(resolvedSubfamily ? { subfamily: resolvedSubfamily } : {}),
+    ...(resolvedBranch ? { branch: resolvedBranch } : {}),
     ...(resolvedClassificationPath ? { classificationPath: resolvedClassificationPath } : {}),
     ...(resolvedMacrolanguage ? { macrolanguage: resolvedMacrolanguage } : {}),
     ...(resolvedLanguageType ? { languageType: resolvedLanguageType } : {}),
@@ -1025,6 +1018,7 @@ function projectLanguageCatalogEntry(input: {
     ...(languageDoc?.egids ? { egids: languageDoc.egids } : {}),
     ...(languageDoc?.documentationLevel ? { documentationLevel: languageDoc.documentationLevel } : {}),
     ...(languageDoc?.dialects?.length ? { dialects: languageDoc.dialects } : {}),
+    ...(languageDoc?.vernaculars?.length ? { vernaculars: languageDoc.vernaculars } : {}),
     ...(languageDoc?.writingSystems?.length ? { writingSystems: languageDoc.writingSystems } : {}),
     ...(languageDoc?.literacyRate !== undefined ? { literacyRate: languageDoc.literacyRate } : {}),
     ...(resolvedLatitude !== undefined ? { latitude: resolvedLatitude } : {}),
@@ -1141,7 +1135,11 @@ export async function listLanguageCatalogEntries(input: {
       entry.localName,
       entry.nativeName,
       entry.genus,
+      entry.subfamily,
+      entry.branch,
       entry.classificationPath,
+      ...(entry.dialects ?? []),
+      ...(entry.vernaculars ?? []),
       entry.glottocode,
       entry.wikidataId,
       ...entry.aliases,
@@ -1179,7 +1177,7 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
   const locale: Locale = rawLocale.toLowerCase().startsWith('en') ? 'en-US' : 'zh-CN';
 
   // 首次创建时从 iso-639-3 包自动回填缺失字段 | Auto-fill missing fields from iso-639-3 package on first creation
-  const isoSeed = !existing ? ISO_639_3_BY_CODE.get(languageId) : undefined;
+  const isoSeed = !existing ? lookupIso639_3Seed(languageId) : undefined;
 
   const englishName = normalizeOptionalValue(input.englishName) ?? (!existing ? isoSeed?.name : undefined);
   const localName = normalizeOptionalValue(input.localName);
@@ -1233,6 +1231,8 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
   const normWikidataId = normalizeOptionalValue(input.wikidataId);
   const normMacrolanguage = normalizeOptionalValue(input.macrolanguage);
   const normGenus = normalizeOptionalValue(input.genus);
+  const normSubfamily = normalizeOptionalValue(input.subfamily);
+  const normBranch = normalizeOptionalValue(input.branch);
   const normClassificationPath = normalizeOptionalValue(input.classificationPath);
   const normalizedDisplayNameInput = input.displayNames?.map((row) => ({
     locale: normalizeValidatedDisplayLocale(row.locale, locale),
@@ -1275,6 +1275,8 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
     ...(hasMacrolanguage && normMacrolanguage ? { macrolanguage: normMacrolanguage } : {}),
     ...(!hasGenus && existing?.genus ? { genus: existing.genus } : {}),
     ...(hasGenus && normGenus ? { genus: normGenus } : {}),
+    ...(hasOwnField(input, 'subfamily') ? (normSubfamily ? { subfamily: normSubfamily } : {}) : existing?.subfamily ? { subfamily: existing.subfamily } : {}),
+    ...(hasOwnField(input, 'branch') ? (normBranch ? { branch: normBranch } : {}) : existing?.branch ? { branch: existing.branch } : {}),
     ...(!hasClassificationPath && existing?.classificationPath ? { classificationPath: existing.classificationPath } : {}),
     ...(hasClassificationPath && normClassificationPath ? { classificationPath: normClassificationPath } : {}),
     ...(!hasModality && existing?.modality ? { modality: existing.modality } : {}),
@@ -1304,6 +1306,7 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
     ...(hasOwnField(input, 'egids') ? (input.egids ? { egids: input.egids } : {}) : existing?.egids ? { egids: existing.egids } : {}),
     ...(hasOwnField(input, 'documentationLevel') ? (input.documentationLevel ? { documentationLevel: input.documentationLevel } : {}) : existing?.documentationLevel ? { documentationLevel: existing.documentationLevel } : {}),
     ...(hasOwnField(input, 'dialects') ? (input.dialects?.length ? { dialects: input.dialects } : {}) : existing?.dialects?.length ? { dialects: existing.dialects } : {}),
+    ...(hasOwnField(input, 'vernaculars') ? (input.vernaculars?.length ? { vernaculars: input.vernaculars } : {}) : existing?.vernaculars?.length ? { vernaculars: existing.vernaculars } : {}),
     ...(hasOwnField(input, 'writingSystems') ? (input.writingSystems?.length ? { writingSystems: input.writingSystems } : {}) : existing?.writingSystems?.length ? { writingSystems: existing.writingSystems } : {}),
     ...(hasOwnField(input, 'literacyRate') ? (input.literacyRate !== undefined ? { literacyRate: input.literacyRate } : {}) : existing?.literacyRate !== undefined ? { literacyRate: existing.literacyRate } : {}),
     ...(hasOwnField(input, 'customFields')

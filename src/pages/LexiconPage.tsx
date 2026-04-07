@@ -2,6 +2,7 @@ import '../styles/pages/feature-availability.css';
 import '../styles/pages/lexicon-workspace.css';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { PanelSection } from '../components/ui/PanelSection';
 import { PanelSummary } from '../components/ui/PanelSummary';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
@@ -125,7 +126,7 @@ export function LexiconPage() {
         </div>
         <div className="app-side-pane-nav app-side-pane-feature-nav">
           <Link to="/transcription" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'app.featureAvailability.backToTranscription')}</Link>
-          <Link to="/assets/orthographies" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.lexicon.openOrthographyWorkspace')}</Link>
+          <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.lexicon.openOrthographyWorkspace')}</OrthographyPanelLink>
         </div>
       </section>
     </div>

@@ -119,11 +119,17 @@ export class GeminiSttProvider implements CommercialSttProvider {
 
     const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
+    // Gemini 通过 LLM 生成转写，无原生置信度信号；
+    // 用文本长度启发式估算：空结果置信度低，有内容则给合理估值。
+    // Gemini is LLM-based transcription — no native confidence signal.
+    // Use a heuristic: empty result → low confidence, non-empty → reasonable estimate.
+    const confidence = text.trim().length === 0 ? 0.1 : 0.85;
+
     return {
       text,
       lang,
       isFinal: true,
-      confidence: 1.0,
+      confidence,
       engine: 'commercial',
       audioBlob,
     };

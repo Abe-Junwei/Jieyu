@@ -3,7 +3,10 @@ import { PanelSummary } from '../components/ui/PanelSummary';
 import { t, tf } from '../i18n';
 import type { LanguageCatalogDisplayNameEntry, LanguageCatalogEntry, LanguageCatalogVisibility } from '../services/LinguisticService';
 import {
+  buildClassificationPathDisplayLine,
+  buildClassificationPathValue,
   LANGUAGE_DISPLAY_NAME_ROLE_OPTIONS,
+  parseLineSeparatedText,
   readEntryKindLabel,
   readHistoryFieldLabel,
   type HistoryItem,
@@ -77,6 +80,23 @@ export function LanguageMetadataWorkspaceDetailColumn({
   const visibilityLabel = draft.visibility === 'hidden'
     ? t(locale, 'workspace.languageMetadata.visibilityHidden')
     : t(locale, 'workspace.languageMetadata.visibilityVisible');
+  const classificationPathPreview = buildClassificationPathDisplayLine(locale, {
+    genus: draft.genus,
+    subfamily: draft.subfamily,
+    branch: draft.branch,
+    dialects: parseLineSeparatedText(draft.dialectsText),
+    vernaculars: parseLineSeparatedText(draft.vernacularsText),
+  }) || draft.classificationPath;
+
+  const syncClassificationPath = (next: Partial<Pick<LanguageMetadataDraft, 'genus' | 'subfamily' | 'branch' | 'dialectsText' | 'vernacularsText'>>) => {
+    onDraftChange('classificationPath', buildClassificationPathValue({
+      genus: next.genus ?? draft.genus,
+      subfamily: next.subfamily ?? draft.subfamily,
+      branch: next.branch ?? draft.branch,
+      dialects: parseLineSeparatedText(next.dialectsText ?? draft.dialectsText),
+      vernaculars: parseLineSeparatedText(next.vernacularsText ?? draft.vernacularsText),
+    }));
+  };
   const summaryName = draft.localName.trim() || selectedEntry?.localName || t(locale, 'workspace.languageMetadata.createCustom');
   const summaryEnglish = draft.englishName.trim() || selectedEntry?.englishName || t(locale, 'workspace.languageMetadata.notSet');
   const summaryCode = draft.languageCode.trim() || draft.iso6393.trim() || selectedEntry?.languageCode || t(locale, 'workspace.languageMetadata.notSet');
@@ -157,6 +177,65 @@ export function LanguageMetadataWorkspaceDetailColumn({
                 <input className="input" type="text" value={draft.nativeName} onChange={(event) => onDraftChange('nativeName', event.target.value)} />
               </label>
             </div>
+
+            <div className="language-metadata-workspace-subgroup">
+              <div className="language-metadata-workspace-subgroup-header">
+                <span className="language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.aliasesLabel')}</span>
+                <p className="language-metadata-workspace-subgroup-description">{t(locale, 'workspace.languageMetadata.aliasesPlaceholder')}</p>
+              </div>
+              <div className="language-metadata-workspace-field language-metadata-workspace-field-block">
+                <input
+                  className="input"
+                  type="text"
+                  value={draft.aliasesText}
+                  onChange={(event) => onDraftChange('aliasesText', event.target.value)}
+                  placeholder={t(locale, 'workspace.languageMetadata.aliasesPlaceholder')}
+                  aria-label={t(locale, 'workspace.languageMetadata.aliasesLabel')}
+                />
+              </div>
+            </div>
+
+            <div className="language-metadata-workspace-subgroup language-metadata-workspace-matrix-fieldset">
+              <div className="language-metadata-workspace-matrix-header">
+                <div>
+                  <span className="language-metadata-workspace-matrix-title">{t(locale, 'workspace.languageMetadata.matrixTitle')}</span>
+                  <p className="language-metadata-workspace-matrix-description">{t(locale, 'workspace.languageMetadata.matrixDescription')}</p>
+                </div>
+                <button type="button" className="btn btn-ghost" onClick={onAddDisplayNameRow}>{t(locale, 'workspace.languageMetadata.matrixAddRow')}</button>
+              </div>
+
+              {draft.displayNameRows.length > 0 ? (
+                <div className="language-metadata-workspace-matrix-list" role="list" aria-label={t(locale, 'workspace.languageMetadata.matrixTitle')}>
+                  {draft.displayNameRows.map((row) => (
+                    <div key={row.key} className="language-metadata-workspace-matrix-row" role="listitem">
+                      <label className="language-metadata-workspace-field">
+                        <span>{t(locale, 'workspace.languageMetadata.matrixRoleLabel')}</span>
+                        <select
+                          className="input"
+                          value={row.role}
+                          onChange={(event) => onDisplayNameRowChange(row.key, 'role', event.target.value as LanguageDisplayNameDraftRow['role'])}
+                        >
+                          {LANGUAGE_DISPLAY_NAME_ROLE_OPTIONS.map((role) => (
+                            <option key={role} value={role}>{readDisplayNameRoleLabel(locale, role)}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
+                        <span>{t(locale, 'workspace.languageMetadata.matrixValueLabel')}</span>
+                        <input className="input" type="text" value={row.value} onChange={(event) => onDisplayNameRowChange(row.key, 'value', event.target.value)} />
+                      </label>
+                      <label className="language-metadata-workspace-checkbox-field">
+                        <input type="checkbox" checked={row.isPreferred} onChange={(event) => onDisplayNameRowChange(row.key, 'isPreferred', event.target.checked)} />
+                        <span>{t(locale, 'workspace.languageMetadata.matrixPreferredLabel')}</span>
+                      </label>
+                      <button type="button" className="btn btn-ghost btn-danger" onClick={() => onRemoveDisplayNameRow(row.key)}>{t(locale, 'workspace.languageMetadata.matrixRemoveRow')}</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="language-metadata-workspace-state">{t(locale, 'workspace.languageMetadata.matrixEmpty')}</p>
+              )}
+            </div>
           </section>
 
           <section className="language-metadata-workspace-subsection">
@@ -200,11 +279,24 @@ export function LanguageMetadataWorkspaceDetailColumn({
             <div className="language-metadata-workspace-grid">
               <label className="language-metadata-workspace-field">
                 <span>{t(locale, 'workspace.languageMetadata.genusLabel')}</span>
-                <input className="input" type="text" value={draft.genus} onChange={(event) => onDraftChange('genus', event.target.value)} />
+                <input className="input" type="text" value={draft.genus} onChange={(event) => {
+                  onDraftChange('genus', event.target.value);
+                  syncClassificationPath({ genus: event.target.value });
+                }} />
               </label>
               <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.classificationPathLabel')}</span>
-                <input className="input" type="text" value={draft.classificationPath} onChange={(event) => onDraftChange('classificationPath', event.target.value)} />
+                <span>{t(locale, 'workspace.languageMetadata.subfamilyLabel')}</span>
+                <input className="input" type="text" value={draft.subfamily} onChange={(event) => {
+                  onDraftChange('subfamily', event.target.value);
+                  syncClassificationPath({ subfamily: event.target.value });
+                }} />
+              </label>
+              <label className="language-metadata-workspace-field">
+                <span>{t(locale, 'workspace.languageMetadata.branchLabel')}</span>
+                <input className="input" type="text" value={draft.branch} onChange={(event) => {
+                  onDraftChange('branch', event.target.value);
+                  syncClassificationPath({ branch: event.target.value });
+                }} />
               </label>
               <label className="language-metadata-workspace-field">
                 <span>{t(locale, 'workspace.languageMetadata.macrolanguageLabel')}</span>
@@ -241,146 +333,142 @@ export function LanguageMetadataWorkspaceDetailColumn({
                 </select>
               </label>
             </div>
+            <div className="language-metadata-workspace-grid">
+              <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
+                <span>{t(locale, 'workspace.languageMetadata.dialectsLabel')}</span>
+                <textarea className="input language-metadata-workspace-textarea" value={draft.dialectsText} onChange={(event) => {
+                  onDraftChange('dialectsText', event.target.value);
+                  syncClassificationPath({ dialectsText: event.target.value });
+                }} placeholder={t(locale, 'workspace.languageMetadata.dialectsPlaceholder')} />
+              </label>
+              <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
+                <span>{t(locale, 'workspace.languageMetadata.vernacularsLabel')}</span>
+                <textarea className="input language-metadata-workspace-textarea" value={draft.vernacularsText} onChange={(event) => {
+                  onDraftChange('vernacularsText', event.target.value);
+                  syncClassificationPath({ vernacularsText: event.target.value });
+                }} placeholder={t(locale, 'workspace.languageMetadata.vernacularsPlaceholder')} />
+              </label>
+              <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
+                <span>{t(locale, 'workspace.languageMetadata.classificationPathLabel')}</span>
+                <input className="input" type="text" value={classificationPathPreview} readOnly aria-readonly="true" />
+              </label>
+            </div>
           </section>
 
-          {/* 使用人口 | Speaker population */}
+          <LanguageMetadataWorkspaceGeographySection locale={locale} draft={draft} onDraftChange={onDraftChange} map={map} />
+
           <section className="language-metadata-workspace-subsection">
             <div className="language-metadata-workspace-subsection-header">
               <h3 className="language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionPopulation')}</h3>
               <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionPopulationDescription')}</p>
             </div>
-            <div className="language-metadata-workspace-grid">
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.speakerCountL1Label')}</span>
-                <input className="input" type="number" min="0" value={draft.speakerCountL1} onChange={(event) => onDraftChange('speakerCountL1', event.target.value)} />
-              </label>
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.speakerCountL2Label')}</span>
-                <input className="input" type="number" min="0" value={draft.speakerCountL2} onChange={(event) => onDraftChange('speakerCountL2', event.target.value)} />
-              </label>
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.speakerCountSourceLabel')}</span>
-                <input className="input" type="text" value={draft.speakerCountSource} onChange={(event) => onDraftChange('speakerCountSource', event.target.value)} />
-              </label>
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.speakerCountYearLabel')}</span>
-                <input className="input" type="number" value={draft.speakerCountYear} onChange={(event) => onDraftChange('speakerCountYear', event.target.value)} />
-              </label>
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.speakerTrendLabel')}</span>
-                <select className="input" value={draft.speakerTrend} onChange={(event) => onDraftChange('speakerTrend', event.target.value)}>
-                  <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
-                  <option value="growing">{t(locale, 'workspace.languageMetadata.speakerTrendGrowing')}</option>
-                  <option value="stable">{t(locale, 'workspace.languageMetadata.speakerTrendStable')}</option>
-                  <option value="shrinking">{t(locale, 'workspace.languageMetadata.speakerTrendShrinking')}</option>
-                  <option value="unknown">{t(locale, 'workspace.languageMetadata.speakerTrendUnknown')}</option>
-                </select>
-              </label>
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.literacyRateLabel')}</span>
-                <input className="input" type="number" min="0" max="100" step="0.1" value={draft.literacyRate} onChange={(event) => onDraftChange('literacyRate', event.target.value)} />
-              </label>
+            <div className="language-metadata-workspace-subgroup">
+              <div className="language-metadata-workspace-subgroup-header">
+                <span className="language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupUsagePopulationTitle')}</span>
+                <p className="language-metadata-workspace-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupUsagePopulationDescription')}</p>
+              </div>
+              <div className="language-metadata-workspace-grid">
+                <label className="language-metadata-workspace-field">
+                  <span>{t(locale, 'workspace.languageMetadata.speakerCountL1Label')}</span>
+                  <input className="input" type="text" inputMode="numeric" value={draft.speakerCountL1} onChange={(event) => onDraftChange('speakerCountL1', event.target.value)} />
+                </label>
+                <label className="language-metadata-workspace-field">
+                  <span>{t(locale, 'workspace.languageMetadata.speakerCountL2Label')}</span>
+                  <input className="input" type="text" inputMode="numeric" value={draft.speakerCountL2} onChange={(event) => onDraftChange('speakerCountL2', event.target.value)} />
+                </label>
+                <label className="language-metadata-workspace-field">
+                  <span>{t(locale, 'workspace.languageMetadata.speakerCountSourceLabel')}</span>
+                  <input className="input" type="text" value={draft.speakerCountSource} onChange={(event) => onDraftChange('speakerCountSource', event.target.value)} />
+                </label>
+                <label className="language-metadata-workspace-field">
+                  <span>{t(locale, 'workspace.languageMetadata.speakerCountYearLabel')}</span>
+                  <input className="input" type="text" inputMode="numeric" value={draft.speakerCountYear} onChange={(event) => onDraftChange('speakerCountYear', event.target.value)} />
+                </label>
+                <label className="language-metadata-workspace-field">
+                  <span>{t(locale, 'workspace.languageMetadata.speakerTrendLabel')}</span>
+                  <select className="input" value={draft.speakerTrend} onChange={(event) => onDraftChange('speakerTrend', event.target.value)}>
+                    <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
+                    <option value="growing">{t(locale, 'workspace.languageMetadata.speakerTrendGrowing')}</option>
+                    <option value="stable">{t(locale, 'workspace.languageMetadata.speakerTrendStable')}</option>
+                    <option value="shrinking">{t(locale, 'workspace.languageMetadata.speakerTrendShrinking')}</option>
+                    <option value="unknown">{t(locale, 'workspace.languageMetadata.speakerTrendUnknown')}</option>
+                  </select>
+                </label>
+                <label className="language-metadata-workspace-field">
+                  <span>{t(locale, 'workspace.languageMetadata.literacyRateLabel')}</span>
+                  <input className="input" type="text" inputMode="decimal" value={draft.literacyRate} onChange={(event) => onDraftChange('literacyRate', event.target.value)} />
+                </label>
+              </div>
             </div>
-          </section>
 
-          {/* 扩展地理信息 | Extended geography */}
-          <section className="language-metadata-workspace-subsection">
-            <div className="language-metadata-workspace-subsection-header">
-              <h3 className="language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionGeographyExtended')}</h3>
-              <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionGeographyExtendedDescription')}</p>
-            </div>
-            <div className="language-metadata-workspace-grid">
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.countriesLabel')}</span>
-                <input className="input" type="text" value={draft.countriesText} onChange={(event) => onDraftChange('countriesText', event.target.value)} placeholder={t(locale, 'workspace.languageMetadata.countriesPlaceholder')} />
-              </label>
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.macroareaLabel')}</span>
-                <select className="input" value={draft.macroarea} onChange={(event) => onDraftChange('macroarea', event.target.value)}>
-                  <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
-                  <option value="Africa">{t(locale, 'workspace.languageMetadata.macroareaAfrica')}</option>
-                  <option value="Eurasia">{t(locale, 'workspace.languageMetadata.macroareaEurasia')}</option>
-                  <option value="Papunesia">{t(locale, 'workspace.languageMetadata.macroareaPapunesia')}</option>
-                  <option value="Australia">{t(locale, 'workspace.languageMetadata.macroareaAustralia')}</option>
-                  <option value="North America">{t(locale, 'workspace.languageMetadata.macroareaNorthAmerica')}</option>
-                  <option value="South America">{t(locale, 'workspace.languageMetadata.macroareaSouthAmerica')}</option>
-                </select>
-              </label>
-            </div>
-            <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
-              <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionsLabel')}</span>
-              <textarea className="input language-metadata-workspace-textarea" value={draft.administrativeDivisionsText} onChange={(event) => onDraftChange('administrativeDivisionsText', event.target.value)} placeholder={t(locale, 'workspace.languageMetadata.administrativeDivisionsPlaceholder')} />
-            </label>
-          </section>
-
-          {/* 语言活力 | Language vitality */}
-          <section className="language-metadata-workspace-subsection">
-            <div className="language-metadata-workspace-subsection-header">
-              <h3 className="language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionVitality')}</h3>
-              <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionVitalityDescription')}</p>
-            </div>
-            <div className="language-metadata-workspace-grid">
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.endangermentLevelLabel')}</span>
-                <select className="input" value={draft.endangermentLevel} onChange={(event) => onDraftChange('endangermentLevel', event.target.value)}>
-                  <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
-                  <option value="safe">{t(locale, 'workspace.languageMetadata.endangermentLevelSafe')}</option>
-                  <option value="vulnerable">{t(locale, 'workspace.languageMetadata.endangermentLevelVulnerable')}</option>
-                  <option value="definitely_endangered">{t(locale, 'workspace.languageMetadata.endangermentLevelDefinitelyEndangered')}</option>
-                  <option value="severely_endangered">{t(locale, 'workspace.languageMetadata.endangermentLevelSeverelyEndangered')}</option>
-                  <option value="critically_endangered">{t(locale, 'workspace.languageMetadata.endangermentLevelCriticallyEndangered')}</option>
-                  <option value="extinct">{t(locale, 'workspace.languageMetadata.endangermentLevelExtinct')}</option>
-                </select>
-              </label>
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.aesStatusLabel')}</span>
-                <select className="input" value={draft.aesStatus} onChange={(event) => onDraftChange('aesStatus', event.target.value)}>
-                  <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
-                  <option value="not_endangered">{t(locale, 'workspace.languageMetadata.aesNotEndangered')}</option>
-                  <option value="threatened">{t(locale, 'workspace.languageMetadata.aesThreatened')}</option>
-                  <option value="shifting">{t(locale, 'workspace.languageMetadata.aesShifting')}</option>
-                  <option value="moribund">{t(locale, 'workspace.languageMetadata.aesMoribund')}</option>
-                  <option value="nearly_extinct">{t(locale, 'workspace.languageMetadata.aesNearlyExtinct')}</option>
-                  <option value="extinct">{t(locale, 'workspace.languageMetadata.aesExtinct')}</option>
-                </select>
-              </label>
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.endangermentSourceLabel')}</span>
-                <input className="input" type="text" value={draft.endangermentSource} onChange={(event) => onDraftChange('endangermentSource', event.target.value)} />
-              </label>
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.endangermentAssessmentYearLabel')}</span>
-                <input className="input" type="number" value={draft.endangermentAssessmentYear} onChange={(event) => onDraftChange('endangermentAssessmentYear', event.target.value)} />
-              </label>
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.intergenerationalTransmissionLabel')}</span>
-                <select className="input" value={draft.intergenerationalTransmission} onChange={(event) => onDraftChange('intergenerationalTransmission', event.target.value)}>
-                  <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
-                  <option value="all_ages">{t(locale, 'workspace.languageMetadata.intergenerationalAllAges')}</option>
-                  <option value="adults_only">{t(locale, 'workspace.languageMetadata.intergenerationalAdultsOnly')}</option>
-                  <option value="elderly_only">{t(locale, 'workspace.languageMetadata.intergenerationalElderlyOnly')}</option>
-                  <option value="very_few">{t(locale, 'workspace.languageMetadata.intergenerationalVeryFew')}</option>
-                  <option value="none">{t(locale, 'workspace.languageMetadata.intergenerationalNone')}</option>
-                </select>
-              </label>
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.domainsLabel')}</span>
-                <input className="input" type="text" value={draft.domainsText} onChange={(event) => onDraftChange('domainsText', event.target.value)} placeholder={t(locale, 'workspace.languageMetadata.domainsPlaceholder')} />
-              </label>
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.officialStatusLabel')}</span>
-                <select className="input" value={draft.officialStatus} onChange={(event) => onDraftChange('officialStatus', event.target.value)}>
-                  <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
-                  <option value="national">{t(locale, 'workspace.languageMetadata.officialStatusNational')}</option>
-                  <option value="regional">{t(locale, 'workspace.languageMetadata.officialStatusRegional')}</option>
-                  <option value="recognized_minority">{t(locale, 'workspace.languageMetadata.officialStatusRecognizedMinority')}</option>
-                  <option value="none">{t(locale, 'workspace.languageMetadata.officialStatusNone')}</option>
-                </select>
-              </label>
-              <label className="language-metadata-workspace-field">
-                <span>{t(locale, 'workspace.languageMetadata.egidsLabel')}</span>
-                <input className="input" type="text" value={draft.egids} onChange={(event) => onDraftChange('egids', event.target.value)} />
-              </label>
+            <div className="language-metadata-workspace-subgroup">
+              <div className="language-metadata-workspace-subgroup-header">
+                <span className="language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupUsageVitalityTitle')}</span>
+                <p className="language-metadata-workspace-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupUsageVitalityDescription')}</p>
+              </div>
+              <div className="language-metadata-workspace-grid">
+                <label className="language-metadata-workspace-field">
+                  <span>{t(locale, 'workspace.languageMetadata.endangermentLevelLabel')}</span>
+                  <select className="input" value={draft.endangermentLevel} onChange={(event) => onDraftChange('endangermentLevel', event.target.value)}>
+                    <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
+                    <option value="safe">{t(locale, 'workspace.languageMetadata.endangermentLevelSafe')}</option>
+                    <option value="vulnerable">{t(locale, 'workspace.languageMetadata.endangermentLevelVulnerable')}</option>
+                    <option value="definitely_endangered">{t(locale, 'workspace.languageMetadata.endangermentLevelDefinitelyEndangered')}</option>
+                    <option value="severely_endangered">{t(locale, 'workspace.languageMetadata.endangermentLevelSeverelyEndangered')}</option>
+                    <option value="critically_endangered">{t(locale, 'workspace.languageMetadata.endangermentLevelCriticallyEndangered')}</option>
+                    <option value="extinct">{t(locale, 'workspace.languageMetadata.endangermentLevelExtinct')}</option>
+                  </select>
+                </label>
+                <label className="language-metadata-workspace-field">
+                  <span>{t(locale, 'workspace.languageMetadata.aesStatusLabel')}</span>
+                  <select className="input" value={draft.aesStatus} onChange={(event) => onDraftChange('aesStatus', event.target.value)}>
+                    <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
+                    <option value="not_endangered">{t(locale, 'workspace.languageMetadata.aesNotEndangered')}</option>
+                    <option value="threatened">{t(locale, 'workspace.languageMetadata.aesThreatened')}</option>
+                    <option value="shifting">{t(locale, 'workspace.languageMetadata.aesShifting')}</option>
+                    <option value="moribund">{t(locale, 'workspace.languageMetadata.aesMoribund')}</option>
+                    <option value="nearly_extinct">{t(locale, 'workspace.languageMetadata.aesNearlyExtinct')}</option>
+                    <option value="extinct">{t(locale, 'workspace.languageMetadata.aesExtinct')}</option>
+                  </select>
+                </label>
+                <label className="language-metadata-workspace-field">
+                  <span>{t(locale, 'workspace.languageMetadata.endangermentSourceLabel')}</span>
+                  <input className="input" type="text" value={draft.endangermentSource} onChange={(event) => onDraftChange('endangermentSource', event.target.value)} />
+                </label>
+                <label className="language-metadata-workspace-field">
+                  <span>{t(locale, 'workspace.languageMetadata.endangermentAssessmentYearLabel')}</span>
+                  <input className="input" type="text" inputMode="numeric" value={draft.endangermentAssessmentYear} onChange={(event) => onDraftChange('endangermentAssessmentYear', event.target.value)} />
+                </label>
+                <label className="language-metadata-workspace-field">
+                  <span>{t(locale, 'workspace.languageMetadata.intergenerationalTransmissionLabel')}</span>
+                  <select className="input" value={draft.intergenerationalTransmission} onChange={(event) => onDraftChange('intergenerationalTransmission', event.target.value)}>
+                    <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
+                    <option value="all_ages">{t(locale, 'workspace.languageMetadata.intergenerationalAllAges')}</option>
+                    <option value="adults_only">{t(locale, 'workspace.languageMetadata.intergenerationalAdultsOnly')}</option>
+                    <option value="elderly_only">{t(locale, 'workspace.languageMetadata.intergenerationalElderlyOnly')}</option>
+                    <option value="very_few">{t(locale, 'workspace.languageMetadata.intergenerationalVeryFew')}</option>
+                    <option value="none">{t(locale, 'workspace.languageMetadata.intergenerationalNone')}</option>
+                  </select>
+                </label>
+                <label className="language-metadata-workspace-field">
+                  <span>{t(locale, 'workspace.languageMetadata.domainsLabel')}</span>
+                  <input className="input" type="text" value={draft.domainsText} onChange={(event) => onDraftChange('domainsText', event.target.value)} placeholder={t(locale, 'workspace.languageMetadata.domainsPlaceholder')} />
+                </label>
+                <label className="language-metadata-workspace-field">
+                  <span>{t(locale, 'workspace.languageMetadata.officialStatusLabel')}</span>
+                  <select className="input" value={draft.officialStatus} onChange={(event) => onDraftChange('officialStatus', event.target.value)}>
+                    <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
+                    <option value="national">{t(locale, 'workspace.languageMetadata.officialStatusNational')}</option>
+                    <option value="regional">{t(locale, 'workspace.languageMetadata.officialStatusRegional')}</option>
+                    <option value="recognized_minority">{t(locale, 'workspace.languageMetadata.officialStatusRecognizedMinority')}</option>
+                    <option value="none">{t(locale, 'workspace.languageMetadata.officialStatusNone')}</option>
+                  </select>
+                </label>
+                <label className="language-metadata-workspace-field">
+                  <span>{t(locale, 'workspace.languageMetadata.egidsLabel')}</span>
+                  <input className="input" type="text" value={draft.egids} onChange={(event) => onDraftChange('egids', event.target.value)} />
+                </label>
+              </div>
             </div>
           </section>
 
@@ -407,76 +495,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
                 <input className="input" type="text" value={draft.writingSystemsText} onChange={(event) => onDraftChange('writingSystemsText', event.target.value)} placeholder={t(locale, 'workspace.languageMetadata.writingSystemsPlaceholder')} />
               </label>
             </div>
-            <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
-              <span>{t(locale, 'workspace.languageMetadata.dialectsLabel')}</span>
-              <textarea className="input language-metadata-workspace-textarea" value={draft.dialectsText} onChange={(event) => onDraftChange('dialectsText', event.target.value)} placeholder={t(locale, 'workspace.languageMetadata.dialectsPlaceholder')} />
-            </label>
           </section>
-
-          <section className="language-metadata-workspace-subsection">
-            <div className="language-metadata-workspace-subsection-header">
-              <h3 className="language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.aliasesLabel')}</h3>
-              <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.aliasesPlaceholder')}</p>
-            </div>
-            <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
-              <span>{t(locale, 'workspace.languageMetadata.aliasesLabel')}</span>
-              <textarea className="input language-metadata-workspace-textarea" value={draft.aliasesText} onChange={(event) => onDraftChange('aliasesText', event.target.value)} placeholder={t(locale, 'workspace.languageMetadata.aliasesPlaceholder')} />
-            </label>
-          </section>
-
-          <section className="language-metadata-workspace-subsection language-metadata-workspace-matrix-fieldset">
-            <div className="language-metadata-workspace-matrix-header">
-              <div>
-                <span className="language-metadata-workspace-matrix-title">{t(locale, 'workspace.languageMetadata.matrixTitle')}</span>
-                <p className="language-metadata-workspace-matrix-description">{t(locale, 'workspace.languageMetadata.matrixDescription')}</p>
-              </div>
-              <button type="button" className="btn btn-ghost" onClick={onAddDisplayNameRow}>{t(locale, 'workspace.languageMetadata.matrixAddRow')}</button>
-            </div>
-
-            {draft.displayNameRows.length > 0 ? (
-              <div className="language-metadata-workspace-matrix-list" role="list" aria-label={t(locale, 'workspace.languageMetadata.matrixTitle')}>
-                {draft.displayNameRows.map((row) => (
-                  <div key={row.key} className="language-metadata-workspace-matrix-row" role="listitem">
-                    <label className="language-metadata-workspace-field">
-                      <span>{t(locale, 'workspace.languageMetadata.matrixLocaleLabel')}</span>
-                      <input
-                        className="input"
-                        type="text"
-                        value={row.locale}
-                        onChange={(event) => onDisplayNameRowChange(row.key, 'locale', event.target.value)}
-                        placeholder={t(locale, 'workspace.languageMetadata.matrixLocalePlaceholder')}
-                      />
-                    </label>
-                    <label className="language-metadata-workspace-field">
-                      <span>{t(locale, 'workspace.languageMetadata.matrixRoleLabel')}</span>
-                      <select
-                        className="input"
-                        value={row.role}
-                        onChange={(event) => onDisplayNameRowChange(row.key, 'role', event.target.value as LanguageDisplayNameDraftRow['role'])}
-                      >
-                        {LANGUAGE_DISPLAY_NAME_ROLE_OPTIONS.map((role) => (
-                          <option key={role} value={role}>{readDisplayNameRoleLabel(locale, role)}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
-                      <span>{t(locale, 'workspace.languageMetadata.matrixValueLabel')}</span>
-                      <input className="input" type="text" value={row.value} onChange={(event) => onDisplayNameRowChange(row.key, 'value', event.target.value)} />
-                    </label>
-                    <label className="language-metadata-workspace-checkbox-field">
-                      <input type="checkbox" checked={row.isPreferred} onChange={(event) => onDisplayNameRowChange(row.key, 'isPreferred', event.target.checked)} />
-                      <span>{t(locale, 'workspace.languageMetadata.matrixPreferredLabel')}</span>
-                    </label>
-                    <button type="button" className="btn btn-ghost btn-danger" onClick={() => onRemoveDisplayNameRow(row.key)}>{t(locale, 'workspace.languageMetadata.matrixRemoveRow')}</button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="language-metadata-workspace-state">{t(locale, 'workspace.languageMetadata.matrixEmpty')}</p>
-            )}
-          </section>
-
-          <LanguageMetadataWorkspaceGeographySection locale={locale} draft={draft} onDraftChange={onDraftChange} map={map} />
 
           <section className="language-metadata-workspace-subsection">
             <div className="language-metadata-workspace-subsection-header">

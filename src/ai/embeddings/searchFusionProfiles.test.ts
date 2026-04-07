@@ -10,7 +10,7 @@ import {
 
 describe('searchFusionProfiles', () => {
   it('exposes all expected scenarios', () => {
-    expect(SEARCH_FUSION_SCENARIOS).toEqual(['qa', 'review', 'terminology', 'balanced']);
+    expect(SEARCH_FUSION_SCENARIOS).toEqual(['qa', 'review', 'terminology', 'balanced', 'queryExpansion']);
   });
 
   it('recognizes valid scenarios', () => {

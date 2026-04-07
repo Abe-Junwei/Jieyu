@@ -216,6 +216,14 @@
   color: var(--text-primary);
 }
 
+.transcription-wave-toolbar-style-select {
+  min-width: 92px;
+}
+
+.transcription-wave-toolbar-mode-select {
+  min-width: 104px;
+}
+
 :root[data-theme='dark'] .app-shell-transcription .transcription-wave-toolbar-right:not(.transcription-wave-toolbar-right-portaled) {
   background: color-mix(in srgb, var(--surface-panel) 90%, transparent);
   border-color: var(--border-soft);

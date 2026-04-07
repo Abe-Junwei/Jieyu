@@ -14,6 +14,8 @@ export interface EmbeddingRuntimeProgress {
 export interface EmbeddingRuntimeOptions {
   modelId: string;
   retries?: number;
+  /** 嵌入维度（降级用），如 384（Arctic-Embed-XS）| Embedding dimension for fallback, e.g. 384 for Arctic-Embed-XS */
+  dimension?: number;
   onProgress?: (progress: EmbeddingRuntimeProgress) => void;
 }
 
@@ -38,6 +40,8 @@ interface WorkerPreloadRequest extends WorkerRequestBase {
 interface WorkerEmbedRequest extends WorkerRequestBase {
   type: 'embed';
   texts: string[];
+  /** 模型输出维度，用于降级哈希向量 | Model output dimension for fallback hash embedding */
+  dimension?: number;
 }
 
 type WorkerRequest = WorkerPreloadRequest | WorkerEmbedRequest;
@@ -128,6 +132,7 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
         type: 'embed',
         modelId: options.modelId,
         texts,
+        ...(options.dimension !== undefined && { dimension: options.dimension }),
       }, options.onProgress),
       normalizeRetries(options.retries),
     );

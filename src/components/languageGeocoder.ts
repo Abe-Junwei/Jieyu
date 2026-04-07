@@ -17,6 +17,16 @@ export interface GeocodeQueryBias {
   radiusKm?: number;
 }
 
+export interface GeocodeAdministrativeHierarchy {
+  country?: string;
+  countryCode?: string;
+  province?: string;
+  city?: string;
+  county?: string;
+  township?: string;
+  village?: string;
+}
+
 export interface GeocodeSuggestion {
   id: string;
   displayName: string;
@@ -27,6 +37,8 @@ export interface GeocodeSuggestion {
   provider: GeocoderProviderKind;
   confidence?: number;
   bbox?: [number, number, number, number];
+  matchedLanguageTag?: string;
+  administrativeHierarchy?: GeocodeAdministrativeHierarchy;
 }
 
 export interface ForwardGeocodeOptions {
@@ -37,6 +49,7 @@ export interface ForwardGeocodeOptions {
   limit?: number;
   bias?: GeocodeQueryBias;
   countryCodes?: string[];
+  structuredAddress?: boolean;
 }
 
 export interface ReverseGeocodeOptions {
@@ -54,8 +67,25 @@ export interface ReverseGeocodeResult {
   longitude: number;
 }
 
+type ForwardGeocodeInternalOptions = ForwardGeocodeOptions & {
+  bypassProxy?: boolean;
+};
+
+type ReverseGeocodeInternalOptions = ReverseGeocodeOptions & {
+  bypassProxy?: boolean;
+};
+
 const CACHE_TTL_MS = 30_000;
+const CACHE_MAX_ENTRIES = 64;
 const geocodeCache = new Map<string, { expiresAt: number; results: GeocodeSuggestion[] }>();
+
+export function resetGeocoderCacheForTests(): void {
+  geocodeCache.clear();
+}
+
+function readMapProxyFallbackEnabled(): boolean {
+  return import.meta.env.VITE_MAP_PROXY_FALLBACK_ON_ERROR !== 'false';
+}
 
 function readLocaleLanguage(locale: string): string {
   return locale.startsWith('zh') ? 'zh' : 'en';
@@ -66,6 +96,81 @@ function readProvider(providerConfig: MapProviderConfig): GeocoderProviderKind {
     return 'maptiler';
   }
   return 'nominatim';
+}
+
+function normalizeNameCandidate(value: string): string {
+  return value.normalize('NFKC').trim().toLowerCase();
+}
+
+function cleanAdministrativeName(value?: string): string | undefined {
+  const normalized = value?.trim();
+  return normalized ? normalized : undefined;
+}
+
+function pickAdministrativeName(
+  address: Record<string, string | undefined>,
+  keys: string[],
+  exclude?: string,
+): string | undefined {
+  const normalizedExclude = normalizeNameCandidate(exclude ?? '');
+  for (const key of keys) {
+    const candidate = cleanAdministrativeName(address[key]);
+    if (!candidate) {
+      continue;
+    }
+    if (normalizedExclude && normalizeNameCandidate(candidate) === normalizedExclude) {
+      continue;
+    }
+    return candidate;
+  }
+  return undefined;
+}
+
+function detectMatchedLanguageTag(query: string, namedetails?: Record<string, string>): string | undefined {
+  const normalizedQuery = normalizeNameCandidate(query);
+  if (!normalizedQuery || !namedetails) {
+    return undefined;
+  }
+  for (const [key, value] of Object.entries(namedetails)) {
+    if (!value || normalizeNameCandidate(value) !== normalizedQuery) {
+      continue;
+    }
+    if (key.startsWith('name:')) {
+      return key.slice('name:'.length);
+    }
+  }
+  return undefined;
+}
+
+function buildAdministrativeHierarchyFromNominatimAddress(
+  address?: Record<string, string | undefined>,
+): GeocodeAdministrativeHierarchy | undefined {
+  if (!address) {
+    return undefined;
+  }
+
+  const country = cleanAdministrativeName(address.country);
+  const province = pickAdministrativeName(address, ['state', 'province', 'region']);
+  const city = pickAdministrativeName(address, ['city', 'town', 'municipality', 'state_district', 'county']);
+  let county = pickAdministrativeName(address, ['county', 'district', 'city_district', 'borough', 'suburb'], city);
+  const township = pickAdministrativeName(address, ['town', 'township', 'suburb', 'quarter', 'neighbourhood'], county ?? city);
+  const village = pickAdministrativeName(address, ['village', 'hamlet', 'isolated_dwelling', 'allotments'], township ?? county ?? city);
+
+  if (!county) {
+    county = pickAdministrativeName(address, ['state_district'], city);
+  }
+
+  const hierarchy: GeocodeAdministrativeHierarchy = {
+    ...(country ? { country } : {}),
+    ...(address.country_code ? { countryCode: address.country_code.toUpperCase() } : {}),
+    ...(province ? { province } : {}),
+    ...(city ? { city } : {}),
+    ...(county ? { county } : {}),
+    ...(township ? { township } : {}),
+    ...(village ? { village } : {}),
+  };
+
+  return Object.keys(hierarchy).length > 0 ? hierarchy : undefined;
 }
 
 export function readGeocoderCapabilities(providerConfig: MapProviderConfig): GeocoderCapabilities {
@@ -125,7 +230,7 @@ function readCachedResults(cacheKey: string): GeocodeSuggestion[] | undefined {
   return cached.results;
 }
 
-async function forwardGeocodeWithNominatim(options: ForwardGeocodeOptions): Promise<GeocodeSuggestion[]> {
+async function forwardGeocodeWithNominatim(options: ForwardGeocodeInternalOptions): Promise<GeocodeSuggestion[]> {
   const params = new URLSearchParams({
     q: options.query.trim(),
     format: 'jsonv2',
@@ -133,6 +238,10 @@ async function forwardGeocodeWithNominatim(options: ForwardGeocodeOptions): Prom
     dedupe: '1',
     'accept-language': readLocaleLanguage(options.locale),
   });
+  if (options.structuredAddress) {
+    params.set('addressdetails', '1');
+    params.set('namedetails', '1');
+  }
   const viewbox = buildBiasViewbox(options.bias);
   if (viewbox) {
     params.set('viewbox', viewbox);
@@ -140,7 +249,9 @@ async function forwardGeocodeWithNominatim(options: ForwardGeocodeOptions): Prom
   if (options.countryCodes?.length) {
     params.set('countrycodes', options.countryCodes.join(','));
   }
-  const endpoint = buildMapProxyUrl('/nominatim/search', params)
+  const endpoint = options.bypassProxy
+    ? `https://nominatim.openstreetmap.org/search?${params}`
+    : buildMapProxyUrl('/nominatim/search', params)
     ?? `https://nominatim.openstreetmap.org/search?${params}`;
   const res = await fetch(endpoint, {
     ...(options.signal ? { signal: options.signal } : {}),
@@ -156,9 +267,15 @@ async function forwardGeocodeWithNominatim(options: ForwardGeocodeOptions): Prom
     lon: string;
     importance?: number;
     boundingbox?: string[];
+    address?: Record<string, string | undefined>;
+    namedetails?: Record<string, string>;
   }>;
   return data.map((item) => {
     const bbox = parseBoundingBox(item.boundingbox);
+    const administrativeHierarchy = buildAdministrativeHierarchyFromNominatimAddress(item.address);
+    const matchedLanguageTag = item.namedetails
+      ? detectMatchedLanguageTag(options.query, item.namedetails)
+      : undefined;
     return {
       id: `nominatim:${item.place_id}`,
       displayName: item.display_name,
@@ -169,6 +286,8 @@ async function forwardGeocodeWithNominatim(options: ForwardGeocodeOptions): Prom
       provider: 'nominatim' as const,
       ...(item.importance !== undefined ? { confidence: item.importance } : {}),
       ...(bbox ? { bbox } : {}),
+      ...(administrativeHierarchy ? { administrativeHierarchy } : {}),
+      ...(matchedLanguageTag ? { matchedLanguageTag } : {}),
     };
   });
 }
@@ -196,7 +315,7 @@ async function forwardGeocodeWithMaptiler(options: ForwardGeocodeOptions): Promi
     ...(options.signal ? { signal: options.signal } : {}),
   });
   if (!res.ok) {
-    return [];
+    throw new Error(`maptiler-forward-${res.status}`);
   }
   const data = (await res.json()) as {
     features?: Array<{
@@ -224,7 +343,7 @@ async function forwardGeocodeWithMaptiler(options: ForwardGeocodeOptions): Promi
 }
 
 export async function forwardGeocode(options: ForwardGeocodeOptions): Promise<GeocodeSuggestion[]> {
-  const provider = readProvider(options.providerConfig);
+  const provider = options.structuredAddress ? 'nominatim' : readProvider(options.providerConfig);
   const cacheKey = JSON.stringify({
     provider,
     query: options.query.trim().toLowerCase(),
@@ -232,26 +351,49 @@ export async function forwardGeocode(options: ForwardGeocodeOptions): Promise<Ge
     countryCodes: options.countryCodes ?? [],
     bias: options.bias ?? null,
     limit: options.limit ?? 5,
+    structuredAddress: options.structuredAddress ?? false,
   });
   const cached = readCachedResults(cacheKey);
   if (cached) {
     return cached;
   }
   const results = provider === 'maptiler'
-    ? await forwardGeocodeWithMaptiler(options)
+    ? await (async () => {
+      try {
+        return await forwardGeocodeWithMaptiler(options);
+      } catch (error) {
+        if (
+          options.providerConfig.kind === 'maptiler'
+          && Boolean(readMapProxyBaseUrl())
+          && readMapProxyFallbackEnabled()
+          && !options.signal?.aborted
+        ) {
+          return forwardGeocodeWithNominatim({ ...options, bypassProxy: true });
+        }
+        throw error;
+      }
+    })()
     : await forwardGeocodeWithNominatim(options);
+  if (geocodeCache.size >= CACHE_MAX_ENTRIES) {
+    const oldest = geocodeCache.keys().next().value;
+    if (oldest !== undefined) {
+      geocodeCache.delete(oldest);
+    }
+  }
   geocodeCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, results });
   return results;
 }
 
-async function reverseGeocodeWithNominatim(options: ReverseGeocodeOptions): Promise<ReverseGeocodeResult | null> {
+async function reverseGeocodeWithNominatim(options: ReverseGeocodeInternalOptions): Promise<ReverseGeocodeResult | null> {
   const params = new URLSearchParams({
     lat: String(options.latitude),
     lon: String(options.longitude),
     format: 'jsonv2',
     'accept-language': readLocaleLanguage(options.locale),
   });
-  const endpoint = buildMapProxyUrl('/nominatim/reverse', params)
+  const endpoint = options.bypassProxy
+    ? `https://nominatim.openstreetmap.org/reverse?${params}`
+    : buildMapProxyUrl('/nominatim/reverse', params)
     ?? `https://nominatim.openstreetmap.org/reverse?${params}`;
   const res = await fetch(endpoint, {
     ...(options.signal ? { signal: options.signal } : {}),
@@ -286,7 +428,7 @@ async function reverseGeocodeWithMaptiler(options: ReverseGeocodeOptions): Promi
     ...(options.signal ? { signal: options.signal } : {}),
   });
   if (!res.ok) {
-    return null;
+    throw new Error(`maptiler-reverse-${res.status}`);
   }
   const data = (await res.json()) as { features?: Array<{ place_name: string }> };
   const first = data.features?.[0];
@@ -303,7 +445,21 @@ async function reverseGeocodeWithMaptiler(options: ReverseGeocodeOptions): Promi
 
 export async function reverseGeocode(options: ReverseGeocodeOptions): Promise<ReverseGeocodeResult | null> {
   const provider = readProvider(options.providerConfig);
-  return provider === 'maptiler'
-    ? reverseGeocodeWithMaptiler(options)
-    : reverseGeocodeWithNominatim(options);
+  if (provider !== 'maptiler') {
+    return reverseGeocodeWithNominatim(options);
+  }
+
+  try {
+    return await reverseGeocodeWithMaptiler(options);
+  } catch (error) {
+    if (
+      options.providerConfig.kind === 'maptiler'
+      && Boolean(readMapProxyBaseUrl())
+      && readMapProxyFallbackEnabled()
+      && !options.signal?.aborted
+    ) {
+      return reverseGeocodeWithNominatim({ ...options, bypassProxy: true });
+    }
+    throw error;
+  }
 }

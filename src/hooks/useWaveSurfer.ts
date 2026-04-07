@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
+import SpectrogramPlugin from 'wavesurfer.js/dist/plugins/spectrogram.esm.js';
 import { evaluateSegmentTimeUpdateGuard, type SegmentSeekGuard } from '../utils/segmentPlaybackGuard';
+import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
+import { getWaveformVisualStylePreset, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
 import { createLogger } from '../observability/logger';
 import { useLatest } from './useLatest';
 
@@ -70,6 +73,10 @@ export interface UseWaveSurferOptions {
   waveformHeight?: number;
   /** 波形增益倍率（1 = 默认，>1 峰值放大）| Amplitude scale multiplier via barHeight */
   amplitudeScale?: number;
+  /** 波形显示模式 | Waveform display mode */
+  waveformDisplayMode?: WaveformDisplayMode;
+  /** 波形视觉样式 | Waveform visual style */
+  waveformVisualStyle?: WaveformVisualStyle;
 }
 
 export function useWaveSurfer(options: UseWaveSurferOptions) {
@@ -79,8 +86,11 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   const cbRef = useLatest(options);
 
   const waveformRef = useRef<HTMLDivElement | null>(null);
+  const spectrogramRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<WaveSurfer | null>(null);
   const regionsRef = useRef<ReturnType<typeof RegionsPlugin.create> | null>(null);
+  const mediaUrlRef = useRef<string | undefined>(mediaUrl);
+  const restorePlaybackRef = useRef<{ time: number; shouldResume: boolean } | null>(null);
   // Segment-bounded playback: when set, auto-stop (or loop) at this time.
   const segmentBoundsRef = useRef<{ start: number; end: number } | null>(null);
   // Guard that filters stale timeupdate events until the seek lands in segment bounds.
@@ -111,11 +121,25 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     volRef.current = v;
   }, []);
 
+  const showSpectrogram = options.waveformDisplayMode === 'spectrogram' || options.waveformDisplayMode === 'split';
+
   // ---- Core lifecycle: create / destroy WaveSurfer when media URL changes ----
   useEffect(() => {
     const container = waveformRef.current;
     if (!container) return;
     let disposed = false;
+    const visualStylePreset = getWaveformVisualStylePreset(options.waveformVisualStyle);
+    const spectrogramContainer = spectrogramRef.current;
+    const hadPreviousInstance = instanceRef.current != null;
+
+    if (hadPreviousInstance && mediaUrl && mediaUrl === mediaUrlRef.current) {
+      restorePlaybackRef.current = {
+        time: instanceRef.current?.getCurrentTime() || 0,
+        shouldResume: instanceRef.current?.isPlaying() || false,
+      };
+    } else {
+      restorePlaybackRef.current = null;
+    }
 
     instanceRef.current?.destroy();
     instanceRef.current = null;
@@ -126,27 +150,53 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     setIsPlaying(false);
     setLoadError(null);
 
-    if (!mediaUrl) return;
+    if (!mediaUrl) {
+      mediaUrlRef.current = undefined;
+      return;
+    }
 
     const plugin = RegionsPlugin.create();
     regionsRef.current = plugin;
+    const plugins: Array<ReturnType<typeof RegionsPlugin.create> | ReturnType<typeof SpectrogramPlugin.create>> = [plugin];
+
+    if (showSpectrogram && spectrogramContainer) {
+      plugins.push(SpectrogramPlugin.create({
+        container: spectrogramContainer,
+        height: options.waveformHeight ?? 180,
+        labels: false,
+        scale: 'mel',
+        fftSamples: 1024,
+        gainDB: 22,
+        rangeDB: 78,
+        colorMap: 'roseus',
+        maxCanvasWidth: 16000,
+        useWebWorker: true,
+      }));
+    }
+
+    const waveformWaveColor = options.waveformDisplayMode === 'spectrogram'
+      ? 'transparent'
+      : visualStylePreset.waveColor;
+    const waveformProgressColor = options.waveformDisplayMode === 'spectrogram'
+      ? 'transparent'
+      : visualStylePreset.progressColor;
 
     const ws = WaveSurfer.create({
       container,
-      waveColor: 'color-mix(in srgb, var(--text-secondary) 70%, transparent)',
-      progressColor: 'var(--state-info-solid)',
-      cursorColor: 'var(--state-danger-solid)',
+      waveColor: waveformWaveColor,
+      progressColor: waveformProgressColor,
+      cursorColor: visualStylePreset.cursorColor,
       height: options.waveformHeight ?? 180,
       normalize: true,
       dragToSeek: false,
       autoScroll: options.autoScrollDuringPlayback !== false,
       autoCenter: options.autoScrollDuringPlayback !== false,
-      plugins: [plugin],
+      plugins,
       minPxPerSec: options.zoomLevel ?? 40,
-      barWidth: 2,
+      barWidth: visualStylePreset.barWidth,
       barHeight: options.amplitudeScale ?? 1,
-      barGap: 1,
-      barRadius: 1,
+      barGap: visualStylePreset.barGap,
+      barRadius: visualStylePreset.barRadius,
     });
 
     instanceRef.current = ws;
@@ -158,7 +208,22 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       if (disposed) return;
       setIsReady(true);
       setLoadError(null);
-      setDuration(ws.getDuration() || 0);
+      const nextDuration = ws.getDuration() || 0;
+      setDuration(nextDuration);
+      mediaUrlRef.current = mediaUrl;
+
+      const restorePlayback = restorePlaybackRef.current;
+      if (restorePlayback) {
+        restorePlaybackRef.current = null;
+        const nextTime = Math.max(0, Math.min(restorePlayback.time, nextDuration));
+        if (nextTime > 0) {
+          ws.setTime(nextTime);
+          setCurrentTime(nextTime);
+        }
+        if (restorePlayback.shouldResume) {
+          void ws.play();
+        }
+      }
     });
     // 监听 WaveSurfer 的加载错误事件，将错误暴露给消费方 | Expose media load errors to consumers
     ws.on('error', (err: Error) => {
@@ -238,7 +303,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       regionAbortRef.current.forEach((ac) => ac.abort());
       regionAbortRef.current = new Map();
     };
-  }, [mediaUrl]);
+  }, [mediaUrl, showSpectrogram]);
 
   // ---- Incremental sync (no instance recreation) ----
   useEffect(() => {
@@ -653,6 +718,25 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     instanceRef.current?.setOptions({ barHeight: options.amplitudeScale });
   }, [isReady, options.amplitudeScale]);
 
+  useEffect(() => {
+    if (!isReady) return;
+    const visualStylePreset = getWaveformVisualStylePreset(options.waveformVisualStyle);
+    const waveformWaveColor = options.waveformDisplayMode === 'spectrogram'
+      ? 'transparent'
+      : visualStylePreset.waveColor;
+    const waveformProgressColor = options.waveformDisplayMode === 'spectrogram'
+      ? 'transparent'
+      : visualStylePreset.progressColor;
+    instanceRef.current?.setOptions({
+      waveColor: waveformWaveColor,
+      progressColor: waveformProgressColor,
+      cursorColor: visualStylePreset.cursorColor,
+      barWidth: visualStylePreset.barWidth,
+      barGap: visualStylePreset.barGap,
+      barRadius: visualStylePreset.barRadius,
+    });
+  }, [isReady, options.waveformDisplayMode, options.waveformVisualStyle]);
+
   // Toggle playback auto-scroll behavior (used by zoom-to-fit mode).
   useEffect(() => {
     if (!isReady) return;
@@ -664,6 +748,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
 
   return {
     waveformRef,
+    spectrogramRef,
     instanceRef,
     regionHandlesRef,
     isReady,

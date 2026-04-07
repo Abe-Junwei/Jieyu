@@ -1,9 +1,7 @@
-import '../styles/pages/orthography-workspace.css';
+import '../styles/pages/orthography-manager-panel.css';
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getOrthographyCatalogBadgeInfo } from '../components/orthographyCatalogUi';
-import { PanelSection } from '../components/ui/PanelSection';
-import { PanelSummary } from '../components/ui/PanelSummary';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { OrthographyDocType } from '../db';
 import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
@@ -15,24 +13,32 @@ import {
   listOrthographyRecords,
   updateOrthographyRecord,
 } from '../services/LinguisticService.orthography';
-import { OrthographyWorkspaceEditor } from './OrthographyWorkspaceEditor';
+import { OrthographyManagerPanel } from './OrthographyManagerPanel';
+import {
+  buildOrthographyBrowseSelector,
+  buildOrthographyBrowseState,
+} from './orthographyBrowse.shared';
 import {
   areDraftsEqual,
   buildOrthographyDraft,
-  buildSearchText,
   parseConversionRulesJson,
   parseDraftList,
   parseOptionalNumber,
   type OrthographyDraft,
   type NormalizationForm,
-} from './orthographyWorkspacePage.utils';
+} from './orthographyManager.shared';
 import type { LanguageIsoInputValue } from '../components/LanguageIsoInput';
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 import { normalizeLanguageInputAssetId } from '../utils/languageInputHostState';
+import { searchLanguageCatalogSuggestions } from '../services/LanguageCatalogSearchService';
 
 const ORTHOGRAPHY_ID_PARAM = 'orthographyId';
 
-export function OrthographyWorkspacePage() {
+export function OrthographyManagerPage({
+  registerSidePane = true,
+}: {
+  registerSidePane?: boolean;
+} = {}) {
   const locale = useLocale();
   const builderMessages = getOrthographyBuilderMessages(locale);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -43,6 +49,7 @@ export function OrthographyWorkspacePage() {
   const [saveSuccess, setSaveSuccess] = useState('');
   const [saving, setSaving] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [browseAllWithoutProject, setBrowseAllWithoutProject] = useState(false);
   const [draft, setDraft] = useState<OrthographyDraft | null>(null);
   const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>({ languageName: '', languageCode: '' });
   const deferredSearchText = useDeferredValue(searchText);
@@ -57,52 +64,71 @@ export function OrthographyWorkspacePage() {
   const { resolveLanguageCode, resolveLabel, resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale, {
     languageIds: orthographyLanguageIds,
   });
+  const selectedOrthographyId = searchParams.get(ORTHOGRAPHY_ID_PARAM) ?? '';
+  const browseState = useMemo(() => buildOrthographyBrowseState({
+    projectLanguageIds,
+    projectOnly,
+    selectedOrthographyId,
+    searchText: deferredSearchText,
+    browseAllWithoutProject,
+  }), [browseAllWithoutProject, deferredSearchText, projectLanguageIds, projectOnly, selectedOrthographyId]);
+  const {
+    normalizedSearchText,
+    showUnscopedIdleState,
+  } = browseState;
 
   // M3: 正字法数据不依赖 locale，移除多余的重取触发 | Orthography data is locale-independent; remove unnecessary refetch trigger
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    void listOrthographyRecords({ includeBuiltIns: true })
-      .then((records) => {
+    const loadOrthographies = async () => {
+      setLoading(true);
+
+      try {
+        const searchLanguageIds = normalizedSearchText
+          ? (await searchLanguageCatalogSuggestions({
+            query: normalizedSearchText,
+            locale,
+            limit: 24,
+          })).map((suggestion) => suggestion.id)
+          : [];
+        const selector = buildOrthographyBrowseSelector({
+          selectedOrthographyId,
+          searchLanguageIds,
+          state: browseState,
+        });
+
+        if (!selector) {
+          if (cancelled) return;
+          setOrthographies([]);
+          setError('');
+          return;
+        }
+
+        const records = await listOrthographyRecords(selector);
         if (cancelled) return;
         setOrthographies(records);
         setError('');
-      })
-      .catch((loadError) => {
+      } catch (loadError) {
         if (cancelled) return;
         setOrthographies([]);
         setError(loadError instanceof Error ? loadError.message : t(locale, 'workspace.orthography.errorFallback'));
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) {
           setLoading(false);
         }
-      });
+      }
+    };
+
+    void loadOrthographies();
 
     return () => {
       cancelled = true;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- 数据加载不依赖 locale，但 catch 中错误文案需要 locale | Data fetch is locale-independent, but error message formatting needs locale
-  }, [locale]);
+  }, [browseState, locale, normalizedSearchText, selectedOrthographyId]);
 
-  const normalizedSearchText = deferredSearchText.trim().toLowerCase();
-  const filteredOrthographies = useMemo(() => {
-    // 先按项目语言过滤，再按搜索文字过滤 | Filter by project languages first, then by search text
-    const projectIdSet = projectOnly && projectLanguageIds.length > 0 ? new Set(projectLanguageIds) : null;
-    let result = orthographies;
-    if (projectIdSet) {
-      result = result.filter((orthography) => {
-        const languageId = orthography.languageId?.trim().toLowerCase();
-        return languageId ? projectIdSet.has(languageId) : false;
-      });
-    }
-    if (normalizedSearchText) {
-      result = result.filter((orthography) => buildSearchText(orthography, resolveLabel(orthography.languageId)).includes(normalizedSearchText));
-    }
-    return result;
-  }, [normalizedSearchText, orthographies, projectLanguageIds, projectOnly, resolveLabel]);
+  const filteredOrthographies = orthographies;
 
-  const selectedOrthographyId = searchParams.get(ORTHOGRAPHY_ID_PARAM) ?? '';
   const selectedOrthography = orthographies.find((orthography) => orthography.id === selectedOrthographyId) ?? null;
   const selectedBadge = selectedOrthography ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography) : null;
   const fromLayerId = searchParams.get('fromLayerId');
@@ -143,7 +169,7 @@ export function OrthographyWorkspacePage() {
 
     const nextLanguageName = resolveLabel(baselineDraft.languageId);
     setLanguageInput((prev) => {
-      if (prev.languageCode.trim().toLowerCase() !== baselineDraft.languageId || prev.languageName === nextLanguageName) {
+      if (prev.languageAssetId !== baselineDraft.languageId || prev.languageName === nextLanguageName) {
         return prev;
       }
       return {
@@ -321,6 +347,7 @@ export function OrthographyWorkspacePage() {
       ? formatOrthographyOptionLabel(selectedOrthography, locale)
       : t(locale, 'workspace.orthography.sidePaneSubtitle'),
     content: sidePaneContent,
+    enabled: registerSidePane,
   });
 
   const handleSaveDraft = async () => {
@@ -465,118 +492,41 @@ export function OrthographyWorkspacePage() {
   };
 
   return (
-    <section className="panel orthography-workspace" aria-labelledby="orthography-workspace-title">
-      <header className="orthography-workspace-hero">
-        <span className="orthography-workspace-badge">{t(locale, 'workspace.orthography.badge')}</span>
-        <h2 id="orthography-workspace-title">{t(locale, 'workspace.orthography.title')}</h2>
-        <p className="orthography-workspace-summary">{t(locale, 'workspace.orthography.summary')}</p>
-        {fromLayerId ? <p className="orthography-workspace-context">{t(locale, 'workspace.orthography.fromLayerHint')}</p> : null}
-      </header>
-
-      <div className="orthography-workspace-layout">
-        <PanelSection
-          className="orthography-workspace-list-panel"
-          title={t(locale, 'workspace.orthography.listTitle')}
-          description={t(locale, 'workspace.orthography.listDescription')}
-        >
-          <input
-            className="input orthography-workspace-search"
-            type="search"
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            placeholder={t(locale, 'workspace.orthography.searchPlaceholder')}
-            aria-label={t(locale, 'workspace.orthography.searchPlaceholder')}
-          />
-          {projectLanguageIds.length > 0 ? (
-            <div className="orthography-workspace-filter-toggle" role="radiogroup" aria-label={t(locale, 'workspace.orthography.filterProjectOnly')}>
-              <button type="button" role="radio" aria-checked={projectOnly} className={`btn${projectOnly ? ' btn-active' : ''}`} onClick={() => setProjectOnly(true)}>{t(locale, 'workspace.orthography.filterProjectOnly')}</button>
-              <button type="button" role="radio" aria-checked={!projectOnly} className={`btn${!projectOnly ? ' btn-active' : ''}`} onClick={() => setProjectOnly(false)}>{t(locale, 'workspace.orthography.filterShowAll')}</button>
-            </div>
-          ) : null}
-
-          {loading ? <p className="orthography-workspace-state">{t(locale, 'workspace.orthography.loading')}</p> : null}
-          {!loading && error ? <p className="orthography-workspace-state orthography-workspace-state-error">{t(locale, 'workspace.orthography.errorPrefix').replace('{message}', error)}</p> : null}
-          {!loading && !error && filteredOrthographies.length === 0 ? <p className="orthography-workspace-state">{t(locale, 'workspace.orthography.emptyList')}</p> : null}
-
-          <div className="orthography-workspace-list" role="list" aria-label={t(locale, 'workspace.orthography.listTitle')}>
-            {filteredOrthographies.map((orthography) => {
-              const badge = getOrthographyCatalogBadgeInfo(locale, orthography);
-              const active = orthography.id === selectedOrthography?.id;
-              return (
-                <button
-                  key={orthography.id}
-                  type="button"
-                  className={`orthography-workspace-list-item${active ? ' orthography-workspace-list-item-active' : ''}`}
-                  onClick={() => handleSelectOrthography(orthography.id)}
-                >
-                  <span className="orthography-workspace-list-label">{formatOrthographyOptionLabel(orthography, locale)}</span>
-                  <span className="orthography-workspace-list-meta">
-                    <span>{resolveLabel(orthography.languageId)}</span>
-                    <span className={badge.className}>{badge.label}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </PanelSection>
-
-        <div className="orthography-workspace-detail-column">
-          {selectedOrthography ? (
-            <>
-              <PanelSummary
-                className="orthography-workspace-summary-card"
-                title={t(locale, 'workspace.orthography.detailTitle')}
-                description={formatOrthographyOptionLabel(selectedOrthography, locale)}
-                meta={selectedBadge ? <span className={selectedBadge.className}>{selectedBadge.label}</span> : undefined}
-                supportingText={t(locale, 'workspace.orthography.detailDescription')}
-              />
-
-              <OrthographyWorkspaceEditor
-                locale={locale}
-                builderMessages={builderMessages}
-                selectedOrthography={selectedOrthography}
-                {...(selectedBadge?.label ? { selectedBadgeLabel: selectedBadge.label } : {})}
-                draft={draft}
-                languageInput={languageInput}
-                resolveLanguageDisplayName={resolveLanguageDisplayName}
-                isDirty={isDirty}
-                saving={saving}
-                saveError={saveError}
-                saveSuccess={saveSuccess}
-                onDraftChange={handleDraftChange}
-                onLanguageInputChange={handleLanguageInputChange}
-                onResetDraft={handleResetDraft}
-                onSaveDraft={() => {
-                  void handleSaveDraft();
-                }}
-              />
-              <PanelSection
-                className="orthography-workspace-bridge-panel"
-                title={t(locale, 'workspace.orthography.bridgeTitle')}
-                description={t(locale, 'workspace.orthography.bridgeDescription')}
-              >
-                <Link
-                  to={bridgeWorkspaceHref}
-                  className="button secondary"
-                  onClick={(event) => {
-                    if (!confirmDiscardDirtyDraft()) {
-                      event.preventDefault();
-                    }
-                  }}
-                >
-                  {t(locale, 'workspace.orthography.openBridgeWorkspace')}
-                </Link>
-              </PanelSection>
-            </>
-          ) : (
-            <PanelSummary
-              className="orthography-workspace-summary-card"
-              title={t(locale, 'workspace.orthography.detailTitle')}
-              supportingText={t(locale, 'workspace.orthography.emptySelection')}
-            />
-          )}
-        </div>
-      </div>
+    <section className="orthography-manager-page">
+      <OrthographyManagerPanel
+        locale={locale}
+        builderMessages={builderMessages}
+        fromLayerId={fromLayerId}
+        projectLanguageIds={projectLanguageIds}
+        searchText={searchText}
+        projectOnly={projectOnly}
+        showUnscopedIdleState={showUnscopedIdleState}
+        loading={loading}
+        error={error}
+        filteredOrthographies={filteredOrthographies}
+        selectedOrthography={selectedOrthography}
+        {...(selectedBadge?.label ? { selectedBadgeLabel: selectedBadge.label } : {})}
+        draft={draft}
+        languageInput={languageInput}
+        resolveLabel={resolveLabel}
+        resolveLanguageDisplayName={resolveLanguageDisplayName}
+        isDirty={isDirty}
+        saving={saving}
+        saveError={saveError}
+        saveSuccess={saveSuccess}
+        bridgeWorkspaceHref={bridgeWorkspaceHref}
+        onSearchTextChange={setSearchText}
+        onProjectOnlyChange={setProjectOnly}
+        onBrowseAll={() => setBrowseAllWithoutProject(true)}
+        onSelectOrthography={handleSelectOrthography}
+        onDraftChange={handleDraftChange}
+        onLanguageInputChange={handleLanguageInputChange}
+        onResetDraft={handleResetDraft}
+        onSaveDraft={() => {
+          void handleSaveDraft();
+        }}
+        onBeforeOpenBridge={confirmDiscardDirtyDraft}
+      />
     </section>
   );
 }

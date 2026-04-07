@@ -101,6 +101,32 @@ const LONG_TERM_TEMPLATES: ContextFieldTemplate[] = [
       return `projectStats(utterances=${s.utteranceCount ?? 0}, translationLayers=${s.translationLayerCount ?? 0}, aiConfidenceAvg=${typeof s.aiConfidenceAvg === 'number' ? s.aiConfidenceAvg.toFixed(3) : 'n/a'})`;
     },
   },
+  {
+    key: 'waveformAnalysis',
+    render: (v) => {
+      const summary = v as {
+        lowConfidenceCount?: number;
+        overlapCount?: number;
+        gapCount?: number;
+        maxGapSeconds?: number;
+        selectionLowConfidenceCount?: number;
+        selectionOverlapCount?: number;
+        selectionGapCount?: number;
+        activeSignals?: string[];
+      };
+      const segments = [
+        `lowConfidence=${summary.lowConfidenceCount ?? 0}`,
+        `overlaps=${summary.overlapCount ?? 0}`,
+        `gaps=${summary.gapCount ?? 0}`,
+        `maxGapSec=${typeof summary.maxGapSeconds === 'number' ? summary.maxGapSeconds.toFixed(1) : '0.0'}`,
+      ];
+      if (summary.selectionLowConfidenceCount !== undefined) segments.push(`selectionLowConfidence=${summary.selectionLowConfidenceCount}`);
+      if (summary.selectionOverlapCount !== undefined) segments.push(`selectionOverlaps=${summary.selectionOverlapCount}`);
+      if (summary.selectionGapCount !== undefined) segments.push(`selectionGaps=${summary.selectionGapCount}`);
+      if (summary.activeSignals && summary.activeSignals.length > 0) segments.push(`activeSignals=${summary.activeSignals.join(' | ')}`);
+      return `waveformAnalysis(${segments.join(', ')})`;
+    },
+  },
   { key: 'observerStage', render: (v) => `observerStage=${v}` },
   { key: 'topLexemes', render: (v) => `topLexemes=${(v as string[]).join(', ')}` },
   { key: 'recommendations', render: (v) => `recommendations=${(v as string[]).join(' | ')}` },

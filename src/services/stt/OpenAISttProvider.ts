@@ -8,6 +8,7 @@
  */
 
 import type { CommercialSttProvider, SttResult } from '../VoiceInputService';
+import { computeWhisperConfidence, tryParseVerboseResponse } from './sttConfidence';
 
 export interface OpenAISttProviderConfig {
   apiKey: string;
@@ -51,6 +52,7 @@ export class OpenAISttProvider implements CommercialSttProvider {
     const formData = new FormData();
     formData.append('file', audioBlob, 'recording.webm');
     formData.append('model', this.config.model);
+    formData.append('response_format', 'verbose_json');
 
     const langCode = toIso639_1(lang);
     if (langCode) formData.append('language', langCode);
@@ -67,13 +69,15 @@ export class OpenAISttProvider implements CommercialSttProvider {
       throw new Error(`OpenAI Audio STT failed: ${resp.status} ${text}`);
     }
 
-    const json = await resp.json() as { text?: string };
+    const json = await resp.json() as Record<string, unknown>;
+    const verbose = tryParseVerboseResponse(json);
+    const confidence = verbose ? computeWhisperConfidence(verbose) : 1.0;
 
     return {
-      text: json.text ?? '',
+      text: (verbose?.text ?? (json.text as string | undefined)) ?? '',
       lang,
       isFinal: true,
-      confidence: 1.0,
+      confidence,
       engine: 'commercial',
       audioBlob,
     };

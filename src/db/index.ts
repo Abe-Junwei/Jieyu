@@ -329,6 +329,8 @@ interface LanguageDocType {
   scope?: 'individual' | 'macrolanguage' | 'collection' | 'special' | 'private-use';
   macrolanguage?: string;
   genus?: string;
+  subfamily?: string;
+  branch?: string;
   classificationPath?: string;
   modality?: 'spoken' | 'signed' | 'written' | 'mixed';
   languageType?: 'living' | 'historical' | 'extinct' | 'ancient' | 'constructed' | 'special';
@@ -349,13 +351,14 @@ interface LanguageDocType {
   speakerTrend?: 'growing' | 'stable' | 'shrinking' | 'unknown';
   countries?: string[];
   macroarea?: 'Africa' | 'Eurasia' | 'Papunesia' | 'Australia' | 'North America' | 'South America';
-  administrativeDivisions?: { country?: string; province?: string; city?: string; county?: string; township?: string; freeText?: string }[];
+  administrativeDivisions?: { country?: string; province?: string; city?: string; county?: string; township?: string; village?: string; freeText?: string }[];
   intergenerationalTransmission?: 'all_ages' | 'adults_only' | 'elderly_only' | 'very_few' | 'none';
   domains?: ('home' | 'education' | 'government' | 'media' | 'religion' | 'commerce' | 'literature')[];
   officialStatus?: 'national' | 'regional' | 'recognized_minority' | 'none';
   egids?: string;
   documentationLevel?: 'undocumented' | 'marginally' | 'fragmentary' | 'fair' | 'well_documented';
   dialects?: string[];
+  vernaculars?: string[];
   writingSystems?: string[];
   literacyRate?: number;
   latitude?: number;
@@ -1224,6 +1227,7 @@ const languageDocSchema = z.object({
     city: z.string().optional(),
     county: z.string().optional(),
     township: z.string().optional(),
+    village: z.string().optional(),
     freeText: z.string().optional(),
   })).optional(),
   intergenerationalTransmission: z.enum(['all_ages', 'adults_only', 'elderly_only', 'very_few', 'none']).optional(),

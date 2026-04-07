@@ -1,7 +1,7 @@
 /**
  * Embedding Provider Interface
  *
- * Pluggable interface for embedding models — local (@xenova/transformers) or remote (REST API).
+ * Pluggable interface for embedding models — local (@huggingface/transformers) or remote (REST API).
  *
  * Design: each provider wraps an EmbeddingRuntime and exposes a simpler `embed(texts)`
  * surface. The registry (EmbeddingProviderCatalog.ts) creates providers by kind.

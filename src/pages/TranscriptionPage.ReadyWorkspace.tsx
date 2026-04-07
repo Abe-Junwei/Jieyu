@@ -411,6 +411,10 @@ function TranscriptionPageReadyWorkspace({
     waveformHeight,
     amplitudeScale,
     setAmplitudeScale,
+    waveformDisplayMode,
+    setWaveformDisplayMode,
+    waveformVisualStyle,
+    setWaveformVisualStyle,
     isResizingWaveform,
     handleWaveformResizeStart,
   } = useWaveformRuntimeController();
@@ -665,6 +669,9 @@ function TranscriptionPageReadyWorkspace({
     waveformScrollLeft,
     handleTimelineScroll,
     waveformNoteIndicators,
+    waveformLowConfidenceOverlays,
+    waveformOverlapOverlays,
+    waveformGapOverlays,
     handleSegmentPlaybackRateChange,
     handleToggleSelectedWaveformLoop,
     handleToggleSelectedWaveformPlay,
@@ -683,6 +690,8 @@ function TranscriptionPageReadyWorkspace({
     waveformHeight,
     amplitudeScale,
     setAmplitudeScale,
+    waveformDisplayMode,
+    waveformVisualStyle,
     zoomPercent,
     setZoomPercent,
     zoomMode,
@@ -692,6 +701,7 @@ function TranscriptionPageReadyWorkspace({
     setUtteranceSelection,
     resolveNoteIndicatorTarget,
     tierContainerRef,
+    mediaId: selectedTimelineMedia?.id,
   });
 
   const selectionSnapshot = useTranscriptionSelectionSnapshot({
@@ -758,6 +768,7 @@ function TranscriptionPageReadyWorkspace({
     aiPanelMode,
     selectUtterance,
     setSaveState,
+    mediaId: selectedTimelineMedia?.id,
   });
 
   const handleExecuteObserverRecommendation = useCallback((item: { id: string }) => {
@@ -1447,6 +1458,10 @@ function TranscriptionPageReadyWorkspace({
     },
     selectedTimelineMediaFilename: selectedTimelineMedia?.filename ?? null,
     player,
+    waveformDisplayMode,
+    setWaveformDisplayMode,
+    waveformVisualStyle,
+    setWaveformVisualStyle,
     globalLoopPlayback,
     setGlobalLoopPlayback,
     handleGlobalPlayPauseAction,
@@ -1686,13 +1701,18 @@ function TranscriptionPageReadyWorkspace({
                   isResizingVideoRightPanel={isResizingVideoRightPanel}
                   handleVideoPreviewResizeStart={handleVideoPreviewResizeStart}
                   handleVideoRightPanelResizeStart={handleVideoRightPanelResizeStart}
+                  waveformDisplayMode={waveformDisplayMode}
                   waveCanvasRef={waveCanvasRef}
+                  playerSpectrogramRef={player.spectrogramRef}
                   playerWaveformRef={player.waveformRef}
                   playerSeekTo={player.seekTo}
                   playerPlayRegion={player.playRegion}
                   waveLassoRect={waveLassoRect}
                   waveLassoHintCount={waveLassoHintCount}
                   waveformNoteIndicators={waveformNoteIndicators}
+                  waveformLowConfidenceOverlays={waveformLowConfidenceOverlays}
+                  waveformOverlapOverlays={waveformOverlapOverlays}
+                  waveformGapOverlays={waveformGapOverlays}
                   setNotePopover={setNotePopover}
                   snapGuideVisible={snapGuide.visible}
                   snapGuideLeft={snapGuide.left}

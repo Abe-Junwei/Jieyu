@@ -20,6 +20,8 @@ export function taskToPersona(task: AiPanelTask): AiSystemPersonaKey {
 import type { UtteranceDocType } from '../db';
 import type { SaveState } from './useTranscriptionData';
 import { reportValidationError } from '../utils/validationErrorReporter';
+import { buildWaveformAnalysisOverlaySummary, buildWaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
+import { useVadCachedSegments } from './useVadCachedSegments';
 import { t, type Locale } from '../i18n';
 
 type ActionableRecommendation = Recommendation & {
@@ -36,10 +38,20 @@ const RECOMMENDATION_I18N_KEY_BY_ID = {
     detail: 'ai.observer.recommendation.collectingNext.detail',
     actionLabel: 'ai.observer.recommendation.collectingNext.actionLabel',
   },
+  'collecting-risk-review': {
+    title: 'ai.observer.recommendation.collectingRiskReview.title',
+    detail: 'ai.observer.recommendation.collectingRiskReview.detail',
+    actionLabel: 'ai.observer.recommendation.collectingRiskReview.actionLabel',
+  },
   'transcribing-jump-untagged': {
     title: 'ai.observer.recommendation.transcribingJumpUntagged.title',
     detail: 'ai.observer.recommendation.transcribingJumpUntagged.detail',
     actionLabel: 'ai.observer.recommendation.transcribingJumpUntagged.actionLabel',
+  },
+  'transcribing-risk-review': {
+    title: 'ai.observer.recommendation.transcribingRiskReview.title',
+    detail: 'ai.observer.recommendation.transcribingRiskReview.detail',
+    actionLabel: 'ai.observer.recommendation.transcribingRiskReview.actionLabel',
   },
   'transcribing-batch-pos': {
     title: 'ai.observer.recommendation.transcribingBatchPos.title',
@@ -93,6 +105,8 @@ export interface UseAiPanelLogicInput {
   aiPanelMode: AiPanelMode;
   selectUtterance: (id: string) => void;
   setSaveState: (s: SaveState) => void;
+  /** 当前媒体 ID，用于读取 VAD 缓存 | Current media ID for VAD cache lookup */
+  mediaId?: string;
 }
 
 export function useAiPanelLogic({
@@ -107,6 +121,7 @@ export function useAiPanelLogic({
   aiPanelMode,
   selectUtterance,
   setSaveState,
+  mediaId,
 }: UseAiPanelLogicInput) {
   // ── Lexeme search ──
   const [lexemeMatches, setLexemeMatches] = useState<Array<{ id: string; lemma: Record<string, string> }>>([]);
@@ -147,6 +162,17 @@ export function useAiPanelLogic({
     };
   }, [selectedUtterance?.id, selectedUtteranceText]);
 
+  const vadSegments = useVadCachedSegments(mediaId);
+
+  const waveformAnalysisOverlaySummary = useMemo(() => buildWaveformAnalysisOverlaySummary(utterances, {
+    ...(vadSegments ? { vadSegments } : {}),
+  }), [utterances, vadSegments]);
+
+  const waveformAnalysisSummary = useMemo(() => buildWaveformAnalysisPromptSummary(utterances, {
+    ...(selectedUtterance ? { selectionStartTime: selectedUtterance.startTime, selectionEndTime: selectedUtterance.endTime } : {}),
+    ...(vadSegments ? { vadSegments } : {}),
+  }), [selectedUtterance, utterances, vadSegments]);
+
   // ── Project observer ──
   const observer = useMemo(() => new ProjectObserver(), []);
   const observerResult = useMemo(() => {
@@ -165,11 +191,22 @@ export function useAiPanelLogic({
       transcribedRate: total === 0 ? 0 : transcribed / total,
       glossedRate: total === 0 ? 0 : glossed / total,
       verifiedRate: total === 0 ? 0 : verified / total,
+    }, {
+      lowConfidenceCount: waveformAnalysisSummary.lowConfidenceCount,
+      overlapCount: waveformAnalysisSummary.overlapCount,
+      gapCount: waveformAnalysisSummary.gapCount,
+      maxGapSeconds: waveformAnalysisSummary.maxGapSeconds,
+      ...(waveformAnalysisSummary.hotZones?.[0] ? { topHotZoneSeverity: waveformAnalysisSummary.hotZones[0].severity } : {}),
     });
-  }, [observer, utterances]);
+  }, [observer, utterances, waveformAnalysisSummary]);
 
   // ── Actionable recommendations ──
   const actionableObserverRecommendations = useMemo(() => {
+    const orderedUtterances = [...utterances].sort((left, right) => {
+      if (left.startTime !== right.startTime) return left.startTime - right.startTime;
+      if (left.endTime !== right.endTime) return left.endTime - right.endTime;
+      return left.id.localeCompare(right.id);
+    });
     const nextUntranscribed = utterances.find((u) => {
       if (u.annotationStatus === 'transcribed' || u.annotationStatus === 'translated' || u.annotationStatus === 'glossed' || u.annotationStatus === 'verified') {
         return false;
@@ -185,6 +222,30 @@ export function useAiPanelLogic({
     const riskCandidate = utterances
       .filter((u) => typeof u.ai_metadata?.confidence === 'number')
       .sort((a, b) => (a.ai_metadata?.confidence ?? 1) - (b.ai_metadata?.confidence ?? 1))[0];
+
+    const overlapCandidate = (() => {
+      const firstBand = waveformAnalysisOverlaySummary.overlapBands[0];
+      if (!firstBand) return undefined;
+      return orderedUtterances.find((utterance) => utterance.startTime < firstBand.endTime && utterance.endTime > firstBand.startTime);
+    })();
+
+    const gapCandidate = (() => {
+      const firstBand = waveformAnalysisOverlaySummary.gapBands[0];
+      if (!firstBand) return undefined;
+      return orderedUtterances.find((utterance) => utterance.startTime >= firstBand.endTime - 0.0005);
+    })();
+
+    const hasWaveformRiskSignals = waveformAnalysisSummary.lowConfidenceCount > 0
+      || waveformAnalysisSummary.overlapCount > 0
+      || waveformAnalysisSummary.gapCount > 0;
+
+    const hasSelectedWaveformRisk = (waveformAnalysisSummary.selectionLowConfidenceCount ?? 0) > 0
+      || (waveformAnalysisSummary.selectionOverlapCount ?? 0) > 0
+      || (waveformAnalysisSummary.selectionGapCount ?? 0) > 0;
+
+    const riskTargetUtterance = hasSelectedWaveformRisk && selectedUtterance
+      ? selectedUtterance
+      : riskCandidate ?? overlapCandidate ?? gapCandidate;
 
     const batchPosCandidate = (() => {
       for (const utterance of utterances) {
@@ -224,7 +285,29 @@ export function useAiPanelLogic({
       return null;
     })();
 
-    return observerResult.recommendations.map((item): ActionableRecommendation => {
+    const prioritizedRecommendations = [
+      ...((hasWaveformRiskSignals && observerResult.stage === 'collecting')
+        ? [{
+          id: 'collecting-risk-review',
+          priority: 104,
+          title: '',
+          detail: '',
+          actionLabel: '',
+        }]
+        : []),
+      ...((hasWaveformRiskSignals && observerResult.stage === 'transcribing')
+        ? [{
+          id: 'transcribing-risk-review',
+          priority: 96,
+          title: '',
+          detail: '',
+          actionLabel: '',
+        }]
+        : []),
+      ...observerResult.recommendations,
+    ].sort((left, right) => right.priority - left.priority);
+
+    return prioritizedRecommendations.map((item): ActionableRecommendation => {
       const localizedItem = localizeRecommendation(locale, item);
 
       if (localizedItem.id === 'transcribing-batch-pos') {
@@ -249,13 +332,18 @@ export function useAiPanelLogic({
         };
       }
 
-      if (localizedItem.id === 'glossing-risk-review' || localizedItem.id === 'reviewing-risk-review') {
+      if (
+        localizedItem.id === 'collecting-risk-review'
+        || localizedItem.id === 'transcribing-risk-review'
+        || localizedItem.id === 'glossing-risk-review'
+        || localizedItem.id === 'reviewing-risk-review'
+      ) {
         return {
           ...localizedItem,
           actionType: 'risk_review',
-          ...(riskCandidate ? { targetUtteranceId: riskCandidate.id } : {}),
-          ...((riskCandidate && typeof riskCandidate.ai_metadata?.confidence === 'number')
-            ? { targetConfidence: riskCandidate.ai_metadata.confidence }
+          ...(riskTargetUtterance ? { targetUtteranceId: riskTargetUtterance.id } : {}),
+          ...((riskTargetUtterance && typeof riskTargetUtterance.ai_metadata?.confidence === 'number')
+            ? { targetConfidence: riskTargetUtterance.ai_metadata.confidence }
             : {}),
         };
       }
@@ -272,7 +360,7 @@ export function useAiPanelLogic({
         ...(targetUtteranceId ? { targetUtteranceId } : {}),
       };
     });
-  }, [locale, observerResult.recommendations, utterances]);
+  }, [locale, observerResult.recommendations, observerResult.stage, selectedUtterance, utterances, waveformAnalysisOverlaySummary.gapBands, waveformAnalysisOverlaySummary.overlapBands, waveformAnalysisSummary.gapCount, waveformAnalysisSummary.lowConfidenceCount, waveformAnalysisSummary.overlapCount, waveformAnalysisSummary.selectionGapCount, waveformAnalysisSummary.selectionLowConfidenceCount, waveformAnalysisSummary.selectionOverlapCount]);
 
   // ── AI-derived values ──
   const selectedAiWarning = useMemo(() => {
@@ -320,7 +408,11 @@ export function useAiPanelLogic({
     }
 
     const confidence = selectedUtterance.ai_metadata?.confidence;
-    if (selectedAiWarning || (typeof confidence === 'number' && confidence < 0.7)) {
+    const selectedWaveformRisk = (waveformAnalysisSummary.selectionLowConfidenceCount ?? 0) > 0
+      || (waveformAnalysisSummary.selectionOverlapCount ?? 0) > 0
+      || (waveformAnalysisSummary.selectionGapCount ?? 0) > 0;
+
+    if (selectedAiWarning || selectedWaveformRisk || (typeof confidence === 'number' && confidence < 0.7)) {
       return 'risk_review';
     }
 
@@ -351,6 +443,9 @@ export function useAiPanelLogic({
     selectedTranslationGapCount,
     selectedUtterance,
     selectedUtteranceText,
+    waveformAnalysisSummary.selectionGapCount,
+    waveformAnalysisSummary.selectionLowConfidenceCount,
+    waveformAnalysisSummary.selectionOverlapCount,
   ]);
 
   const aiVisibleCards = useMemo<Record<AiPanelCardKey, boolean>>(() => {

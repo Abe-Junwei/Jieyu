@@ -285,6 +285,28 @@ describe('aiCurrentTask', () => {
     );
     expect(result.current.aiCurrentTask).not.toBe('ai_chat_setup');
   });
+
+  it('returns risk_review when the selected utterance is inside a waveform overlap window', () => {
+    const overlappingSelectedUtterance = utt('u-selected', {
+      startTime: 1.2,
+      endTime: 2.4,
+      ai_metadata: { confidence: 0.92 },
+    });
+
+    const { result } = renderHook(() =>
+      useAiPanelLogic(makeInput({
+        utterances: [
+          utt('u-anchor', { startTime: 0, endTime: 1.5, transcription: { default: 'done' } }),
+          overlappingSelectedUtterance,
+          utt('u-gap', { startTime: 3.5, endTime: 4.1 }),
+        ],
+        selectedUtterance: overlappingSelectedUtterance,
+        selectedUtteranceText: 'a',
+      }))
+    );
+
+    expect(result.current.aiCurrentTask).toBe('risk_review');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -345,6 +367,28 @@ describe('lexemeMatches', () => {
     });
 
     expect(result.current.lexemeMatches).toEqual([lexeme('new', 'beta')]);
+  });
+});
+
+describe('actionableObserverRecommendations', () => {
+  it('prepends waveform risk review during transcribing stage when waveform risk signals exist', () => {
+    const { result } = renderHook(() =>
+      useAiPanelLogic(makeInput({
+        utterances: [
+          utt('u1', { startTime: 0, endTime: 1.5, transcription: { default: 'done' } }),
+          utt('u2', { startTime: 1.2, endTime: 2.4, ai_metadata: { confidence: 0.61 } }),
+          utt('u3', { startTime: 3.5, endTime: 4.2 }),
+        ],
+      }))
+    );
+
+    expect(result.current.observerResult.stage).toBe('transcribing');
+    expect(result.current.actionableObserverRecommendations[0]).toEqual(expect.objectContaining({
+      id: 'transcribing-risk-review',
+      actionType: 'risk_review',
+      targetUtteranceId: 'u2',
+      targetConfidence: 0.61,
+    }));
   });
 });
 

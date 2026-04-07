@@ -1,10 +1,8 @@
 import {
   formatLanguageDisplayName,
   getLanguageCatalogEntry,
-  pickAutoFillLanguageMatch,
   resolveLanguageCodeInput,
   resolveLanguageCodeInputChange,
-  searchLanguageCatalog,
   type LanguageCatalogMatch,
   type LanguageSearchLocale,
 } from './langMapping';
@@ -52,6 +50,7 @@ export type LanguageInputModel = {
 
 export type LanguageInputEvent =
   | { type: 'nameChanged'; value: string }
+  | { type: 'nameSuggestionsResolved'; query: string; suggestions: LanguageCatalogMatch[]; autoFillMatch?: LanguageCatalogMatch }
   | { type: 'codeFocused' }
   | { type: 'codeChanged'; value: string }
   | { type: 'nameSuggestionHovered'; index: number }
@@ -82,6 +81,10 @@ function resolveLanguageDisplayMode(value: LanguageIsoInputValue): LanguageInput
 function optionalTrimmedValue(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function normalizeLanguageNameQuery(value: string | undefined): string {
+  return value?.normalize('NFKC').trim().toLowerCase() ?? '';
 }
 
 function normalizeLanguageValue(
@@ -206,7 +209,6 @@ function buildModelFromExternalValue(
   }
 
   const trimmedName = normalizedValue.languageName.trim();
-  const suggestions = trimmedName ? searchLanguageCatalog(trimmedName, locale, 5) : [];
 
   return {
     draft: {
@@ -216,9 +218,9 @@ function buildModelFromExternalValue(
     },
     committed: null,
     selectedOption: null,
-    suggestions,
+    suggestions: [],
     activeSuggestionIndex: -1,
-    status: trimmedName ? (suggestions.length > 0 ? 'suggesting' : 'editing-name') : 'idle',
+    status: trimmedName ? 'editing-name' : 'idle',
     lastChangeSource: changeSource,
   };
 }
@@ -302,7 +304,7 @@ export function selectLanguageInputAssistState(
   locale: LanguageSearchLocale,
   messages?: LanguageInputAssistMessages,
 ): LanguageInputAssistState {
-  const ambiguityHint = model.suggestions.length > 1 && !pickAutoFillLanguageMatch(model.draft.nameInput, locale)
+  const ambiguityHint = model.suggestions.length > 1
     ? (messages?.ambiguityHint ?? (locale === 'zh-CN'
       ? '\u5b58\u5728\u591a\u4e2a\u53ef\u80fd\u8bed\u8a00\uff0c\u8bf7\u9009\u62e9\u66f4\u5177\u4f53\u9879\u3002'
       : 'Multiple languages matched. Please choose a more specific option.'))
@@ -339,7 +341,6 @@ export function selectLanguageInputAssistState(
 
 function clearModelForNameDraft(
   nextNameInput: string,
-  suggestions: LanguageCatalogMatch[],
 ): LanguageInputModel {
   return {
     draft: {
@@ -349,11 +350,11 @@ function clearModelForNameDraft(
     },
     committed: null,
     selectedOption: null,
-    suggestions,
+    suggestions: [],
     activeSuggestionIndex: -1,
     status: nextNameInput.trim().length === 0
       ? 'idle'
-      : (suggestions.length > 0 ? 'suggesting' : 'invalid'),
+      : 'suggesting',
     lastChangeSource: 'user-name-input',
   };
 }
@@ -387,36 +388,54 @@ export function reduceLanguageInput(
     }
 
     case 'nameChanged': {
-      const nextNameInput = event.value;
-      const trimmedName = nextNameInput.trim();
-      if (!trimmedName) {
-        return clearModelForNameDraft(nextNameInput, []);
+      return clearModelForNameDraft(event.value);
+    }
+
+    case 'nameSuggestionsResolved': {
+      const normalizedCurrentQuery = normalizeLanguageNameQuery(model.draft.nameInput);
+      const normalizedResolvedQuery = normalizeLanguageNameQuery(event.query);
+      if (!normalizedCurrentQuery || normalizedCurrentQuery !== normalizedResolvedQuery) {
+        return model;
+      }
+      if (model.draft.codeInput.trim().length > 0) {
+        return model;
       }
 
-      const nextMatch = pickAutoFillLanguageMatch(nextNameInput, locale);
-      if (!nextMatch) {
-        return clearModelForNameDraft(nextNameInput, searchLanguageCatalog(nextNameInput, locale, 5));
+      if (event.autoFillMatch) {
+        const committed = buildCommittedValueFromMatch(event.autoFillMatch, locale, options);
+        const resolvedCommitted = committed.displayMode === 'input-first'
+          ? {
+            ...committed,
+            languageName: model.draft.nameInput.trim(),
+            preferredDisplayName: model.draft.nameInput.trim(),
+          }
+          : committed;
+        return {
+          draft: {
+            nameInput: model.draft.nameInput,
+            codeInput: resolvedCommitted.languageCode,
+            activeField: 'name',
+          },
+          committed: resolvedCommitted,
+          selectedOption: resolvedCommitted,
+          suggestions: [],
+          activeSuggestionIndex: -1,
+          status: 'selected',
+          lastChangeSource: 'user-name-input',
+        };
       }
 
-      const committed = buildCommittedValueFromMatch(nextMatch, locale, options);
-      const resolvedCommitted = committed.displayMode === 'input-first'
-        ? {
-          ...committed,
-          languageName: trimmedName,
-          preferredDisplayName: trimmedName,
-        }
-        : committed;
       return {
         draft: {
-          nameInput: nextNameInput,
-          codeInput: resolvedCommitted.languageCode,
+          nameInput: model.draft.nameInput,
+          codeInput: '',
           activeField: 'name',
         },
-        committed: resolvedCommitted,
-        selectedOption: resolvedCommitted,
-        suggestions: [],
+        committed: null,
+        selectedOption: null,
+        suggestions: event.suggestions,
         activeSuggestionIndex: -1,
-        status: 'selected',
+        status: event.suggestions.length > 0 ? 'suggesting' : 'invalid',
         lastChangeSource: 'user-name-input',
       };
     }
@@ -598,28 +617,6 @@ export function reduceLanguageInput(
       }
 
       // 输入结束后统一退出编辑态，让无效值在 blur 后可见 | Exit editing mode on blur so invalid values become visible after typing
-      if (model.status === 'invalid') {
-        return {
-          ...model,
-          draft: {
-            ...model.draft,
-            activeField: null,
-          },
-          lastChangeSource: 'blur-commit',
-        };
-      }
-
-      if (model.status === 'selected' || model.status === 'idle') {
-        return {
-          ...model,
-          draft: {
-            ...model.draft,
-            activeField: null,
-          },
-          lastChangeSource: 'blur-commit',
-        };
-      }
-
       return {
         ...model,
         draft: {

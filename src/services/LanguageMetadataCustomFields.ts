@@ -256,7 +256,7 @@ export function parseCustomFieldDraftMultiselectValue(value: string): string[] {
     // 兼容旧版逗号协议 | Backward compatibility for legacy comma-delimited values
   }
 
-  return trimmed.split(', ').map((item) => item.trim()).filter(Boolean);
+  return trimmed.split(',').map((item) => item.trim()).filter(Boolean);
 }
 
 export function buildCustomFieldDraftValues(customFields?: LanguageDocType['customFields']): Record<string, string> {
@@ -397,10 +397,7 @@ export function buildPersistedCustomFieldValues(
   for (const [fieldId, rawValue] of Object.entries(draftValues)) {
     const definition = definitionMap.get(fieldId);
     if (!definition) {
-      const trimmed = rawValue.trim();
-      if (trimmed) {
-        result[fieldId] = trimmed;
-      }
+      // 字段定义不存在时丢弃值，避免被删除字段在保存时“幽灵复活” | Drop values without active definitions to avoid resurrecting removed fields
       continue;
     }
 

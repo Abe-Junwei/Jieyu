@@ -14,6 +14,8 @@ import type { Region } from '../utils/regionDetection';
 import { createLogger } from '../observability/logger';
 import { VadMonitorRuntime } from './VoiceInputService.vad';
 import { RecordingExecutor } from './VoiceInputService.recording';
+import { WhisperXVadService } from './vad/WhisperXVadService';
+import { recommendVadStrategy } from './SttStrategyRouter';
 export {
   testOllamaWhisperAvailability,
   testWhisperServerAvailability,
@@ -235,6 +237,8 @@ export class VoiceInputService {
   // Recording — delegated to RecordingExecutor | 录音委托
   private recordingExecutor: RecordingExecutor;
   private sharedAnalysisStream: MediaStream | null = null;
+  /** WhisperX VAD 服务（按需惰性初始化）| WhisperX VAD service (lazily initialized) */
+  private _vadService: WhisperXVadService | null = null;
 
   // ── Language override (updated from UI without restarting engine) ──────────
 
@@ -365,6 +369,9 @@ export class VoiceInputService {
     this._disposed = false;
     this._config = { ...DEFAULT_CONFIG, ...config };
     this._intentionalStop = false;
+
+    this._syncVadForEngine(this._config.preferredEngine);
+
     void this._attemptEngineWithFallback(this._config.preferredEngine);
   }
 
@@ -414,6 +421,7 @@ export class VoiceInputService {
 
     for (const e of enginesToTry) {
       this._currentEngine = e;
+      this._syncVadForEngine(e);
       const started = this._startEngine(e);
       if (started) return;
       // Engine failed — reason was recorded by _startEngine
@@ -438,6 +446,45 @@ export class VoiceInputService {
       case 'commercial': return '\u5546\u4e1a STT';
       default: return e;
     }
+  }
+
+  private _shouldUseVadForEngine(engine: SttEngine): boolean {
+    return recommendVadStrategy({
+      preferred: engine,
+      online: typeof navigator === 'undefined' ? true : navigator.onLine,
+      ...(this._config.vadEnabled !== undefined && { vadEnabled: this._config.vadEnabled }),
+    });
+  }
+
+  private _syncVadForEngine(engine: SttEngine): void {
+    const useVad = this._shouldUseVadForEngine(engine);
+    if (useVad && !this._vadService) {
+      const vadService = new WhisperXVadService();
+      this._vadService = vadService;
+      vadService.init().then(() => {
+        if (this._disposed || this._vadService !== vadService) {
+          return;
+        }
+        log.debug('WhisperX VAD initialized');
+        this.recordingExecutor.setVadService(this._shouldUseVadForEngine(this._currentEngine) ? vadService : null);
+      }).catch((err) => {
+        if (this._vadService === vadService) {
+          this._vadService = null;
+        }
+        log.warn('WhisperX VAD init failed, proceeding without VAD', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        this.recordingExecutor.setVadService(null);
+      });
+      return;
+    }
+
+    if (useVad && this._vadService) {
+      this.recordingExecutor.setVadService(this._vadService);
+      return;
+    }
+
+    this.recordingExecutor.setVadService(null);
   }
 
   /**
@@ -630,6 +677,10 @@ export class VoiceInputService {
     this.vadMonitor.stopSilenceTimer();
     this.recordingExecutor.dispose();
     this.releaseSharedAnalysisStream();
+    if (this._vadService) {
+      this._vadService.dispose();
+      this._vadService = null;
+    }
   }
 
   // ── Private ──

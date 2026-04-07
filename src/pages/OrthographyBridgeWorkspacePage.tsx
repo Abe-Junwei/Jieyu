@@ -1,7 +1,8 @@
-import '../styles/pages/orthography-workspace.css';
+import '../styles/pages/orthography-bridge-workspace.css';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { OrthographyBridgeManager } from '../components/OrthographyBridgeManager';
+import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { getOrthographyCatalogBadgeInfo } from '../components/orthographyCatalogUi';
 import { PanelSection } from '../components/ui/PanelSection';
 import { PanelSummary } from '../components/ui/PanelSummary';
@@ -12,6 +13,11 @@ import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap'
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
 import { listOrthographyRecords } from '../services/LinguisticService.orthography';
+import { searchLanguageCatalogSuggestions } from '../services/LanguageCatalogSearchService';
+import {
+  buildOrthographyBrowseSelector,
+  buildOrthographyBrowseState,
+} from './orthographyBrowse.shared';
 
 const TARGET_ORTHOGRAPHY_ID_PARAM = 'targetOrthographyId';
 
@@ -22,6 +28,7 @@ export function OrthographyBridgeWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
+  const [browseAllWithoutProject, setBrowseAllWithoutProject] = useState(false);
   const deferredSearchText = useDeferredValue(searchText);
   const { projectLanguageIds } = useProjectLanguageIds();
   // 默认仅显示项目语言的正字法（有项目语言时） | Default to project-only when project has languages
@@ -34,58 +41,71 @@ export function OrthographyBridgeWorkspacePage() {
   const { resolveLabel } = useLanguageCatalogLabelMap(locale, {
     languageIds: orthographyLanguageIds,
   });
+  const selectedOrthographyId = searchParams.get(TARGET_ORTHOGRAPHY_ID_PARAM) ?? '';
+  const browseState = useMemo(() => buildOrthographyBrowseState({
+    projectLanguageIds,
+    projectOnly,
+    selectedOrthographyId,
+    searchText: deferredSearchText,
+    browseAllWithoutProject,
+  }), [browseAllWithoutProject, deferredSearchText, projectLanguageIds, projectOnly, selectedOrthographyId]);
+  const {
+    normalizedSearchText,
+    showUnscopedIdleState,
+  } = browseState;
 
   // M4: 正字法数据不依赖 locale，移除多余的重取触发 | Orthography data is locale-independent; remove unnecessary refetch trigger
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    void listOrthographyRecords({ includeBuiltIns: true })
-      .then((records) => {
+    const loadOrthographies = async () => {
+      setLoading(true);
+
+      try {
+        const searchLanguageIds = normalizedSearchText
+          ? (await searchLanguageCatalogSuggestions({
+            query: normalizedSearchText,
+            locale,
+            limit: 24,
+          })).map((suggestion) => suggestion.id)
+          : [];
+        const selector = buildOrthographyBrowseSelector({
+          selectedOrthographyId,
+          searchLanguageIds,
+          state: browseState,
+        });
+
+        if (!selector) {
+          if (cancelled) return;
+          setOrthographies([]);
+          setError('');
+          return;
+        }
+
+        const records = await listOrthographyRecords(selector);
         if (cancelled) return;
         setOrthographies(records);
         setError('');
-      })
-      .catch((loadError) => {
+      } catch (loadError) {
         if (cancelled) return;
         setOrthographies([]);
         setError(loadError instanceof Error ? loadError.message : t(locale, 'workspace.orthographyBridge.errorFallback'));
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) {
           setLoading(false);
         }
-      });
+      }
+    };
+
+    void loadOrthographies();
 
     return () => {
       cancelled = true;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- 数据加载不依赖 locale，但 catch 中错误文案需要 locale | Data fetch is locale-independent, but error message formatting needs locale
-  }, [locale]);
+  }, [browseState, locale, normalizedSearchText, selectedOrthographyId]);
 
-  const normalizedSearchText = deferredSearchText.trim().toLowerCase();
-  const filteredOrthographies = useMemo(() => {
-    // 先按项目语言过滤，再按搜索文字过滤 | Filter by project languages first, then by search text
-    const projectIdSet = projectOnly && projectLanguageIds.length > 0 ? new Set(projectLanguageIds) : null;
-    let result = orthographies;
-    if (projectIdSet) {
-      result = result.filter((orthography) => {
-        const languageId = orthography.languageId?.trim().toLowerCase();
-        return languageId ? projectIdSet.has(languageId) : false;
-      });
-    }
-    if (normalizedSearchText) {
-      result = result.filter((orthography) => [
-        formatOrthographyOptionLabel(orthography, locale),
-        resolveLabel(orthography.languageId),
-        orthography.languageId ?? '',
-        orthography.scriptTag ?? '',
-        orthography.type ?? '',
-      ].join(' ').toLowerCase().includes(normalizedSearchText));
-    }
-    return result;
-  }, [locale, normalizedSearchText, orthographies, projectLanguageIds, projectOnly, resolveLabel]);
+  const filteredOrthographies = orthographies;
 
-  const selectedOrthographyId = searchParams.get(TARGET_ORTHOGRAPHY_ID_PARAM) ?? '';
   const selectedOrthography = orthographies.find((orthography) => orthography.id === selectedOrthographyId) ?? null;
   const selectedBadge = selectedOrthography ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography) : null;
 
@@ -135,7 +155,7 @@ export function OrthographyBridgeWorkspacePage() {
         </div>
         <div className="app-side-pane-nav app-side-pane-feature-nav">
           <Link to="/assets/language-metadata" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.orthographyBridge.openLanguageMetadata')}</Link>
-          <Link to="/assets/orthographies" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.orthographyBridge.openOrthographyWorkspace')}</Link>
+          <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.orthographyBridge.openOrthographyWorkspace')}</OrthographyPanelLink>
         </div>
       </section>
     </div>
@@ -175,10 +195,18 @@ export function OrthographyBridgeWorkspacePage() {
               <button type="button" role="radio" aria-checked={!projectOnly} className={`btn${!projectOnly ? ' btn-active' : ''}`} onClick={() => setProjectOnly(false)}>{t(locale, 'workspace.orthographyBridge.filterShowAll')}</button>
             </div>
           ) : null}
+          {!projectLanguageIds.length && showUnscopedIdleState ? (
+            <div className="orthography-workspace-empty-callout">
+              <p className="orthography-workspace-state orthography-workspace-state-warning">{t(locale, 'workspace.orthographyBridge.unscopedPrompt')}</p>
+              <div className="orthography-workspace-inline-actions">
+                <button type="button" className="btn" onClick={() => setBrowseAllWithoutProject(true)}>{t(locale, 'workspace.orthographyBridge.filterShowAll')}</button>
+              </div>
+            </div>
+          ) : null}
 
           {loading ? <p className="orthography-workspace-state">{t(locale, 'workspace.orthographyBridge.loading')}</p> : null}
           {!loading && error ? <p className="orthography-workspace-state orthography-workspace-state-error">{t(locale, 'workspace.orthographyBridge.errorPrefix').replace('{message}', error)}</p> : null}
-          {!loading && !error && filteredOrthographies.length === 0 ? <p className="orthography-workspace-state">{t(locale, 'workspace.orthographyBridge.emptyList')}</p> : null}
+          {!loading && !error && !showUnscopedIdleState && filteredOrthographies.length === 0 ? <p className="orthography-workspace-state">{t(locale, 'workspace.orthographyBridge.emptyList')}</p> : null}
 
           <div className="orthography-workspace-list" role="list" aria-label={t(locale, 'workspace.orthographyBridge.listTitle')}>
             {filteredOrthographies.map((orthography) => {

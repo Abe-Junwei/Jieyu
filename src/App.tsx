@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AudioLines, BookType, Brain, FolderKanban, GitBranch, Languages, StickyNote, type LucideIcon } from 'lucide-react';
-import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { NavLink, Navigate, Route, Routes, useLocation, useNavigate, type Location } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
 import { AiPanelProvider } from './contexts/AiPanelContext';
@@ -16,7 +16,7 @@ const AnalysisPage = lazy(() => import('./pages/AnalysisPage').then(m => ({ defa
 const WritingPage = lazy(() => import('./pages/WritingPage').then(m => ({ default: m.WritingPage })));
 const LexiconPage = lazy(() => import('./pages/LexiconPage').then(m => ({ default: m.LexiconPage })));
 const LanguageMetadataWorkspacePage = lazy(() => import('./pages/LanguageMetadataWorkspacePage').then(m => ({ default: m.LanguageMetadataWorkspacePage })));
-const OrthographyWorkspacePage = lazy(() => import('./pages/OrthographyWorkspacePage').then(m => ({ default: m.OrthographyWorkspacePage })));
+const OrthographyManagerPage = lazy(() => import('./pages/OrthographyManagerPage').then(m => ({ default: m.OrthographyManagerPage })));
 const OrthographyBridgeWorkspacePage = lazy(() => import('./pages/OrthographyBridgeWorkspacePage').then(m => ({ default: m.OrthographyBridgeWorkspacePage })));
 
 type ThemeMode = 'light' | 'dark';
@@ -155,8 +155,11 @@ function AppShellSidePane({
 }
 
 export function App() {
+  const navigate = useNavigate();
   const location = useLocation();
+  const backgroundLocation = (location.state as { backgroundLocation?: Location } | null)?.backgroundLocation;
   const isTranscriptionRoute = location.pathname.startsWith('/transcription');
+  const isOrthographyModalOpen = location.pathname === '/assets/orthographies' && Boolean(backgroundLocation);
   const [locale, setLocale] = useState<Locale>(() => detectLocale());
   const shellBodyRef = useRef<HTMLDivElement | null>(null);
   const shellDragCleanupRef = useRef<(() => void) | null>(null);
@@ -331,11 +334,23 @@ export function App() {
 
   const primaryNavItems = useMemo(() => navGroups.flatMap((group) => group.items), [navGroups]);
   const navItems = useMemo(() => [...primaryNavItems, ...secondaryNavItems], [primaryNavItems, secondaryNavItems]);
+  const activePathname = backgroundLocation?.pathname ?? location.pathname;
 
   const activeNavItem = useMemo(() => (
-    navItems.find((item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`))
+    navItems.find((item) => activePathname === item.to || activePathname.startsWith(`${item.to}/`))
     ?? navItems[0]
-  ), [location.pathname, navItems]);
+  ), [activePathname, navItems]);
+
+  const handleOrthographyPanelToggle = useCallback(() => {
+    if (isOrthographyModalOpen) {
+      navigate(-1);
+      return;
+    }
+
+    navigate('/assets/orthographies', {
+      state: { backgroundLocation: backgroundLocation ?? location },
+    });
+  }, [backgroundLocation, isOrthographyModalOpen, location, navigate]);
 
   const handleSidePaneToggle = useCallback((event?: React.SyntheticEvent<HTMLElement>) => {
     event?.stopPropagation();
@@ -412,6 +427,21 @@ export function App() {
                 <div className="app-left-rail-group">
                   {secondaryNavItems.map((item) => {
                     const ItemIcon = item.icon;
+                    if (item.to === '/assets/orthographies') {
+                      return (
+                        <button
+                          key={item.to}
+                          type="button"
+                          className={isOrthographyModalOpen ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'}
+                          title={item.label}
+                          aria-label={item.label}
+                          onClick={handleOrthographyPanelToggle}
+                        >
+                          <ItemIcon size={17} aria-hidden="true" />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    }
                     return (
                       <NavLink
                         key={item.to}
@@ -460,7 +490,7 @@ export function App() {
             >
               <AiPanelProvider>
                 <Suspense fallback={<RouteLoading locale={locale} />}>
-                  <Routes>
+                  <Routes location={backgroundLocation ?? location}>
                     <Route path="/" element={<Navigate to="/transcription" replace />} />
                     <Route
                       path="/transcription"
@@ -471,12 +501,32 @@ export function App() {
                     <Route path="/writing" element={<WritingPage />} />
                     <Route path="/lexicon" element={<LexiconPage />} />
                     <Route path="/assets/language-metadata" element={<LanguageMetadataWorkspacePage />} />
-                    <Route path="/assets/orthographies" element={<OrthographyWorkspacePage />} />
+                                        <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
                     <Route path="/assets/orthography-bridges" element={<OrthographyBridgeWorkspacePage />} />
                     {/* 旧路由重定向，保持外部链接兼容 | Legacy route redirect for backward compatibility */}
                     <Route path="/lexicon/orthographies" element={<Navigate to="/assets/orthographies" replace />} />
                     <Route path="*" element={<NotFound locale={locale} />} />
                   </Routes>
+                  {backgroundLocation ? (
+                    <Routes>
+                      <Route
+                        path="/assets/orthographies"
+                        element={(
+                          <div className="dialog-overlay dialog-overlay-topmost" role="presentation" onMouseDown={handleOrthographyPanelToggle}>
+                            <div
+                              className="app-modal-panel-frame"
+                              role="dialog"
+                              aria-modal="true"
+                              aria-label={t(locale, 'app.nav.orthographies')}
+                              onMouseDown={(event) => event.stopPropagation()}
+                            >
+                                                          <OrthographyManagerPage registerSidePane={false} />
+                            </div>
+                          </div>
+                        )}
+                      />
+                    </Routes>
+                  ) : null}
                 </Suspense>
               </AiPanelProvider>
             </main>

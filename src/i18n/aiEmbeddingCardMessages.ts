@@ -36,7 +36,7 @@ const zhCN: AiEmbeddingCardMessages = {
   engineLabel: '\u5f15\u64ce',
   selectProviderTitle: '\u9009\u62e9 Embedding \u63d0\u4f9b\u5546',
   providerLabel: (kind) => {
-    if (kind === 'local') return '\u672c\u5730 (Xenova E5 Small)';
+    if (kind === 'local') return '\u672c\u5730 (HuggingFace)';
     if (kind === 'openai-compatible') return 'OpenAI \u517c\u5bb9';
     return 'MiniMax';
   },
@@ -71,7 +71,7 @@ const enUS: AiEmbeddingCardMessages = {
   engineLabel: 'Engine',
   selectProviderTitle: 'Select Embedding provider',
   providerLabel: (kind) => {
-    if (kind === 'local') return 'Local (Xenova E5 Small)';
+    if (kind === 'local') return 'Local (HuggingFace)';
     if (kind === 'openai-compatible') return 'OpenAI Compatible';
     return 'MiniMax';
   },

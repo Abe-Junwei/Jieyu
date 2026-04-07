@@ -1,6 +1,8 @@
 import type { RefObject } from 'react';
 import { WaveformToolbar } from '../components/WaveformToolbar';
 import { t, tf, useLocale } from '../i18n';
+import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
+import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
 
 export type TranscriptionPageToolbarProps = {
   filename: string;
@@ -8,6 +10,10 @@ export type TranscriptionPageToolbarProps = {
   isPlaying: boolean;
   playbackRate: number;
   onPlaybackRateChange: (rate: number) => void;
+  waveformDisplayMode: WaveformDisplayMode;
+  onWaveformDisplayModeChange: (mode: WaveformDisplayMode) => void;
+  waveformVisualStyle: WaveformVisualStyle;
+  onWaveformVisualStyleChange: (style: WaveformVisualStyle) => void;
   volume: number;
   onVolumeChange: (vol: number) => void;
   loop: boolean;
@@ -59,6 +65,10 @@ export function TranscriptionPageToolbar({
   isPlaying,
   playbackRate,
   onPlaybackRateChange,
+  waveformDisplayMode,
+  onWaveformDisplayModeChange,
+  waveformVisualStyle,
+  onWaveformVisualStyleChange,
   volume,
   onVolumeChange,
   loop,
@@ -99,6 +109,10 @@ export function TranscriptionPageToolbar({
       isPlaying={isPlaying}
       playbackRate={playbackRate}
       onPlaybackRateChange={onPlaybackRateChange}
+      waveformDisplayMode={waveformDisplayMode}
+      onWaveformDisplayModeChange={onWaveformDisplayModeChange}
+      waveformVisualStyle={waveformVisualStyle}
+      onWaveformVisualStyleChange={onWaveformVisualStyleChange}
       volume={volume}
       onVolumeChange={onVolumeChange}
       loop={loop}

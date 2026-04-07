@@ -266,6 +266,29 @@ export interface AiLongTermContext {
     translationLayerCount?: number;
     aiConfidenceAvg?: number | null;
   };
+  waveformAnalysis?: {
+    lowConfidenceCount?: number;
+    overlapCount?: number;
+    gapCount?: number;
+    maxGapSeconds?: number;
+    /** 风险热区（按严重度降序）| Risk hot-zones sorted by severity */
+    hotZones?: {
+      startTime: number;
+      endTime: number;
+      signalCount: number;
+      breakdown: { lowConfidence: number; overlap: number; gap: number };
+      severity: number;
+    }[];
+    /** 时间分布四分位 | Temporal quartile distribution */
+    temporalDistribution?: {
+      durationSec: number;
+      quartileRatios: [number, number, number, number];
+    };
+    selectionLowConfidenceCount?: number;
+    selectionOverlapCount?: number;
+    selectionGapCount?: number;
+    activeSignals?: string[];
+  };
   observerStage?: string;
   topLexemes?: string[];
   recommendations?: string[];

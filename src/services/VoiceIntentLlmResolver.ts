@@ -1,5 +1,4 @@
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
-import { createAiChatProvider } from '../ai/providers/providerCatalog';
 import type { ChatMessage } from '../ai/providers/LLMProvider';
 import { isActionId, type VoiceIntent } from './IntentRouter';
 
@@ -256,6 +255,7 @@ export async function resolveVoiceIntentWithLlmUsingConfig(
     };
   }
 
+  const { createAiChatProvider } = await import('../ai/providers/providerCatalog');
   const provider = createAiChatProvider(input.settings);
   const recentContext = input.recentContext ?? [];
   const modePrompt = config.modePrompts?.[input.mode] ?? DEFAULT_MODE_PROMPTS[input.mode];
