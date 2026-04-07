@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import '../styles/components/orthography-builder.css';
 import { getDb, type OrthographyDocType, type OrthographyBridgeDocType } from '../db';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { useOrthographies } from '../hooks/useOrthographies';
@@ -12,7 +13,12 @@ import {
   getOrthographyBridgeSyntaxHint,
 } from '../i18n/orthographyBuilderMessages';
 import { getOrthographyBridgeManagerMessages } from '../i18n/orthographyBridgeManagerMessages';
-import { LinguisticService } from '../services/LinguisticService';
+import {
+  createOrthographyBridgeRecord,
+  deleteOrthographyBridgeRecord,
+  listOrthographyBridgeRecords,
+  updateOrthographyBridgeRecord,
+} from '../services/LinguisticService.orthography';
 import {
   buildPrimaryAndEnglishLabels,
   readEnglishFallbackMultiLangLabel,
@@ -164,7 +170,7 @@ export function OrthographyBridgeManager({
     }
     setLoading(true);
     try {
-      const nextBridges = await LinguisticService.listOrthographyBridges({
+      const nextBridges = await listOrthographyBridgeRecords({
         targetOrthographyId: targetOrthography.id,
       });
       if (loadRequestVersionRef.current !== requestVersion) return;
@@ -248,7 +254,7 @@ export function OrthographyBridgeManager({
   const toggleBridgeStatus = useCallback(async (bridge: OrthographyBridgeDocType) => {
     setSaving(true);
     try {
-      await LinguisticService.updateOrthographyBridge({
+      await updateOrthographyBridgeRecord({
         id: bridge.id,
         status: bridge.status === 'active' ? 'draft' : 'active',
       });
@@ -263,7 +269,7 @@ export function OrthographyBridgeManager({
   const deleteBridge = useCallback(async (bridgeId: string) => {
     setSaving(true);
     try {
-      await LinguisticService.deleteOrthographyBridge(bridgeId);
+      await deleteOrthographyBridgeRecord(bridgeId);
       await loadBridges();
       if (editingBridgeId === bridgeId) {
         resetEditor();
@@ -334,7 +340,7 @@ export function OrthographyBridgeManager({
         })
         : null;
       if (isCreatingNew) {
-        await LinguisticService.createOrthographyBridge({
+        await createOrthographyBridgeRecord({
           sourceOrthographyId,
           targetOrthographyId: targetOrthography.id,
           ...(Object.keys(name).length ? { name } : {}),
@@ -348,7 +354,7 @@ export function OrthographyBridgeManager({
         });
       } else if (editingBridgeId) {
         const shouldClearName = !Object.keys(name).length && existingBridge?.name !== undefined;
-        await LinguisticService.updateOrthographyBridge({
+        await updateOrthographyBridgeRecord({
           id: editingBridgeId,
           sourceOrthographyId,
           targetOrthographyId: targetOrthography.id,

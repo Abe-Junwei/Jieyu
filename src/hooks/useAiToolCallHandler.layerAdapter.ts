@@ -1,4 +1,4 @@
-import { LinguisticService } from '../services/LinguisticService';
+import { resolveLanguageQuery } from '../utils/langMapping';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { createLogger } from '../observability/logger';
 import { t, tf } from '../i18n';
@@ -23,7 +23,7 @@ export const layerAdapter: ToolObjectAdapter = {
       if (!rawLang) {
         return { ok: false, message: t(locale, 'transcription.aiTool.layer.createTranscriptionMissingLanguageId') };
       }
-      const languageId = LinguisticService.resolveLanguageQuery(rawLang);
+      const languageId = resolveLanguageQuery(rawLang);
       if (!languageId) {
         return { ok: false, message: tf(locale, 'transcription.aiTool.layer.languageUnrecognized', { rawLang }) };
       }
@@ -48,7 +48,7 @@ export const layerAdapter: ToolObjectAdapter = {
       if (!rawLang) {
         return { ok: false, message: t(locale, 'transcription.aiTool.layer.createTranslationMissingLanguageId') };
       }
-      const languageId = LinguisticService.resolveLanguageQuery(rawLang);
+      const languageId = resolveLanguageQuery(rawLang);
       if (!languageId) {
         return { ok: false, message: tf(locale, 'transcription.aiTool.layer.languageUnrecognized', { rawLang }) };
       }

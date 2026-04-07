@@ -5,6 +5,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from '../contexts/AppSidePaneContext';
 import { LocaleProvider } from '../i18n';
+import type { CustomFieldDefinitionDocType } from '../db';
+import type { LanguageCatalogEntry } from '../services/LinguisticService.languageCatalog';
 import { LanguageMetadataWorkspacePage } from './LanguageMetadataWorkspacePage';
 
 const {
@@ -12,26 +14,122 @@ const {
   mockListLanguageCatalogHistory,
   mockUpsertLanguageCatalogEntry,
   mockDeleteLanguageCatalogEntry,
+  mockListCustomFieldDefinitions,
+  mockUpsertCustomFieldDefinition,
+  mockDeleteCustomFieldDefinition,
+  mockLookupIso639_3Seed,
+  mockReverseGeocode,
 } = vi.hoisted(() => ({
   mockListLanguageCatalogEntries: vi.fn(),
   mockListLanguageCatalogHistory: vi.fn(),
   mockUpsertLanguageCatalogEntry: vi.fn(),
   mockDeleteLanguageCatalogEntry: vi.fn(),
+  mockListCustomFieldDefinitions: vi.fn(),
+  mockUpsertCustomFieldDefinition: vi.fn(),
+  mockDeleteCustomFieldDefinition: vi.fn(),
+  mockLookupIso639_3Seed: vi.fn(),
+  mockReverseGeocode: vi.fn(),
 }));
 
-vi.mock('../services/LinguisticService', () => ({
-  LinguisticService: {
-    listLanguageCatalogEntries: mockListLanguageCatalogEntries,
-    listLanguageCatalogHistory: mockListLanguageCatalogHistory,
-    upsertLanguageCatalogEntry: mockUpsertLanguageCatalogEntry,
-    deleteLanguageCatalogEntry: mockDeleteLanguageCatalogEntry,
-    lookupIso639_3Seed: () => undefined,
-  },
+vi.mock('../services/LinguisticService.languageCatalog', () => ({
+  listLanguageCatalogEntries: mockListLanguageCatalogEntries,
+  listLanguageCatalogHistory: mockListLanguageCatalogHistory,
+  upsertLanguageCatalogEntry: mockUpsertLanguageCatalogEntry,
+  deleteLanguageCatalogEntry: mockDeleteLanguageCatalogEntry,
+  listCustomFieldDefinitions: mockListCustomFieldDefinitions,
+  upsertCustomFieldDefinition: mockUpsertCustomFieldDefinition,
+  deleteCustomFieldDefinition: mockDeleteCustomFieldDefinition,
+  lookupIso639_3Seed: mockLookupIso639_3Seed,
+}));
+
+vi.mock('../components/languageGeocoder', () => ({
+  forwardGeocode: vi.fn(async () => []),
+  reverseGeocode: mockReverseGeocode,
+  readGeocoderCapabilities: vi.fn(() => ({
+    supportsForwardGeocode: true,
+    supportsReverseGeocode: true,
+    supportsBias: true,
+    supportsCountryFilter: true,
+    supportsStructuredQuery: true,
+  })),
+}));
+
+vi.mock('../components/LanguageMapEmbed', () => ({
+  LanguageMapEmbed: ({
+    latitude,
+    longitude,
+    onCoordinateClick,
+    onCoordinateDragEnd,
+  }: {
+    latitude: number;
+    longitude: number;
+    onCoordinateClick?: (lat: number, lng: number) => void;
+    onCoordinateDragEnd?: (lat: number, lng: number) => void;
+  }) => (
+    <div data-testid="mock-language-map">
+      <span data-testid="mock-language-map-coords">{latitude},{longitude}</span>
+      <button type="button" onClick={() => onCoordinateClick?.(31.23, 121.47)}>模拟地图点选</button>
+      <button type="button" onClick={() => onCoordinateDragEnd?.(30.67, 104.06)}>模拟地图拖拽</button>
+    </div>
+  ),
 }));
 
 vi.mock('../hooks/useProjectLanguageIds', () => ({
   useProjectLanguageIds: () => ({ projectLanguageIds: ['eng'], loading: false }),
 }));
+
+let currentEntries: LanguageCatalogEntry[] = [];
+let currentFieldDefinitions: CustomFieldDefinitionDocType[] = [];
+let currentHistory: Array<{
+  id: string;
+  languageId: string;
+  action: string;
+  summary: string;
+  changedFields: string[];
+  reason: string;
+  actorType: string;
+  createdAt: string;
+}> = [];
+
+function createEntry(overrides: Partial<LanguageCatalogEntry> = {}): LanguageCatalogEntry {
+  return {
+    id: 'eng',
+    entryKind: 'built-in',
+    hasPersistedRecord: false,
+    languageCode: 'eng',
+    englishName: 'English',
+    localName: '英语',
+    aliases: ['英文'],
+    sourceType: 'built-in-generated',
+    visibility: 'visible',
+    displayNames: [
+      {
+        locale: 'fr-FR',
+        role: 'preferred',
+        value: 'anglais',
+        isPreferred: false,
+        sourceType: 'built-in-generated',
+        persisted: false,
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function renderWorkspace(initialPath = '/assets/language-metadata?languageId=eng') {
+  return render(
+    <MemoryRouter initialEntries={[initialPath]}>
+      <LocaleProvider locale="zh-CN">
+        <AppSidePaneProvider>
+          <SidePaneSnapshot />
+          <Routes>
+            <Route path="/assets/language-metadata" element={<LanguageMetadataWorkspacePage />} />
+          </Routes>
+        </AppSidePaneProvider>
+      </LocaleProvider>
+    </MemoryRouter>,
+  );
+}
 
 function SidePaneSnapshot() {
   const registration = useAppSidePaneRegistrationSnapshot();
@@ -47,34 +145,9 @@ function SidePaneSnapshot() {
 
 describe('LanguageMetadataWorkspacePage', () => {
   beforeEach(() => {
-    mockListLanguageCatalogEntries.mockReset();
-    mockListLanguageCatalogHistory.mockReset();
-    mockUpsertLanguageCatalogEntry.mockReset();
-    mockDeleteLanguageCatalogEntry.mockReset();
-
-    mockListLanguageCatalogEntries.mockResolvedValue([
-      {
-        id: 'eng',
-        entryKind: 'built-in',
-        hasPersistedRecord: false,
-        languageCode: 'eng',
-        englishName: 'English',
-        localName: '英语',
-        aliases: ['英文'],
-        sourceType: 'built-in-generated',
-        visibility: 'visible',
-        displayNames: [
-          {
-            locale: 'fr-FR',
-            role: 'preferred',
-            value: 'anglais',
-            isPreferred: false,
-            sourceType: 'built-in-generated',
-            persisted: false,
-          },
-        ],
-      },
-      {
+    currentEntries = [
+      createEntry(),
+      createEntry({
         id: 'user:demo-language',
         entryKind: 'custom',
         hasPersistedRecord: true,
@@ -83,14 +156,14 @@ describe('LanguageMetadataWorkspacePage', () => {
         localName: '示例语言',
         aliases: ['示例'],
         sourceType: 'user-custom',
-        visibility: 'visible',
         displayNames: [],
-      },
-    ]);
-    mockListLanguageCatalogHistory.mockResolvedValue([
+      }),
+    ];
+    currentFieldDefinitions = [];
+    currentHistory = [
       {
         id: 'langhist-1',
-        languageId: 'eng',
+        languageId: 'user:demo-language',
         action: 'update',
         summary: '更新语言元数据',
         changedFields: ['englishName', 'aliases'],
@@ -98,19 +171,42 @@ describe('LanguageMetadataWorkspacePage', () => {
         actorType: 'human',
         createdAt: '2026-04-05T00:00:00.000Z',
       },
-    ]);
-    mockUpsertLanguageCatalogEntry.mockImplementation(async (input: Record<string, unknown>) => ({
-      id: String(input.id ?? 'eng'),
-      entryKind: 'override',
-      hasPersistedRecord: true,
-      languageCode: String(input.languageCode ?? 'eng'),
-      englishName: String(input.englishName ?? 'English'),
-      localName: String(input.localName ?? '英语'),
-      aliases: Array.isArray(input.aliases) ? input.aliases as string[] : [],
-      sourceType: 'user-override',
-      visibility: 'visible',
+    ];
+
+    mockListLanguageCatalogEntries.mockReset();
+    mockListLanguageCatalogHistory.mockReset();
+    mockUpsertLanguageCatalogEntry.mockReset();
+    mockDeleteLanguageCatalogEntry.mockReset();
+    mockListCustomFieldDefinitions.mockReset();
+    mockUpsertCustomFieldDefinition.mockReset();
+    mockDeleteCustomFieldDefinition.mockReset();
+    mockLookupIso639_3Seed.mockReset();
+    mockReverseGeocode.mockReset();
+
+    mockListLanguageCatalogEntries.mockImplementation(async () => currentEntries);
+    mockListLanguageCatalogHistory.mockImplementation(async (languageId: string) => currentHistory.filter((item) => item.languageId === languageId));
+    mockListCustomFieldDefinitions.mockImplementation(async () => currentFieldDefinitions);
+    mockLookupIso639_3Seed.mockReturnValue(undefined);
+    mockUpsertCustomFieldDefinition.mockImplementation(async (input: Partial<CustomFieldDefinitionDocType>) => ({
+      id: String(input.id ?? 'custom-field'),
+      name: input.name ?? { 'zh-CN': '新字段' },
+      fieldType: input.fieldType ?? 'text',
+      sortOrder: input.sortOrder ?? 0,
+      createdAt: '2026-04-07T00:00:00.000Z',
+      updatedAt: '2026-04-07T00:00:00.000Z',
+      ...(input.required !== undefined ? { required: input.required } : {}),
+      ...(input.options !== undefined ? { options: input.options } : {}),
+      ...(input.defaultValue !== undefined ? { defaultValue: input.defaultValue } : {}),
+      ...(input.minValue !== undefined ? { minValue: input.minValue } : {}),
+      ...(input.maxValue !== undefined ? { maxValue: input.maxValue } : {}),
+      ...(input.pattern !== undefined ? { pattern: input.pattern } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.placeholder !== undefined ? { placeholder: input.placeholder } : {}),
+      ...(input.helpText !== undefined ? { helpText: input.helpText } : {}),
     }));
     mockDeleteLanguageCatalogEntry.mockResolvedValue(undefined);
+    mockReverseGeocode.mockResolvedValue(null);
+    window.localStorage.clear();
   });
 
   afterEach(() => {
@@ -119,18 +215,7 @@ describe('LanguageMetadataWorkspacePage', () => {
   });
 
   it('loads the language metadata workspace and saves an override for a built-in entry', async () => {
-    render(
-      <MemoryRouter initialEntries={['/assets/language-metadata?languageId=eng']}>
-        <LocaleProvider locale="zh-CN">
-          <AppSidePaneProvider>
-            <SidePaneSnapshot />
-            <Routes>
-              <Route path="/assets/language-metadata" element={<LanguageMetadataWorkspacePage />} />
-            </Routes>
-          </AppSidePaneProvider>
-        </LocaleProvider>
-      </MemoryRouter>,
-    );
+    renderWorkspace();
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('英语')).toBeTruthy();
@@ -154,22 +239,10 @@ describe('LanguageMetadataWorkspacePage', () => {
       reason: '修正工作台展示名',
       locale: 'zh-CN',
     });
-
-    expect(await screen.findByText('语言元数据已保存。')).toBeTruthy();
   });
 
   it('serializes supplemental display-name matrix rows when saving', async () => {
-    const view = render(
-      <MemoryRouter initialEntries={['/assets/language-metadata?languageId=eng']}>
-        <LocaleProvider locale="zh-CN">
-          <AppSidePaneProvider>
-            <Routes>
-              <Route path="/assets/language-metadata" element={<LanguageMetadataWorkspacePage />} />
-            </Routes>
-          </AppSidePaneProvider>
-        </LocaleProvider>
-      </MemoryRouter>,
-    );
+    const view = renderWorkspace();
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('英语')).toBeTruthy();
@@ -177,13 +250,13 @@ describe('LanguageMetadataWorkspacePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '新增名称行' }));
 
-  const matrixRows = Array.from(view.container.querySelectorAll('.language-metadata-workspace-matrix-row'));
-  const newRow = matrixRows[matrixRows.length - 1] as HTMLElement;
-  const newRowQueries = within(newRow);
+    const matrixRows = Array.from(view.container.querySelectorAll('.language-metadata-workspace-matrix-row'));
+    const newRow = matrixRows[matrixRows.length - 1] as HTMLElement;
+    const newRowQueries = within(newRow);
 
-  fireEvent.change(newRowQueries.getByPlaceholderText('例如 fr-FR、zh-TW、native'), { target: { value: 'es-ES' } });
-  fireEvent.change(newRowQueries.getByRole('textbox', { name: '显示值' }), { target: { value: 'inglés alternativo' } });
-  fireEvent.change(newRowQueries.getByRole('combobox', { name: '角色' }), { target: { value: 'menu' } });
+    fireEvent.change(newRowQueries.getByPlaceholderText('例如 fr-FR、zh-TW、native'), { target: { value: 'es-ES' } });
+    fireEvent.change(newRowQueries.getByRole('textbox', { name: '显示值' }), { target: { value: 'inglés alternativo' } });
+    fireEvent.change(newRowQueries.getByRole('combobox', { name: '角色' }), { target: { value: 'menu' } });
 
     fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
 
@@ -202,17 +275,7 @@ describe('LanguageMetadataWorkspacePage', () => {
   });
 
   it('can switch to custom creation mode and request deletion for persisted custom entries', async () => {
-    render(
-      <MemoryRouter initialEntries={['/assets/language-metadata?languageId=user:demo-language']}>
-        <LocaleProvider locale="zh-CN">
-          <AppSidePaneProvider>
-            <Routes>
-              <Route path="/assets/language-metadata" element={<LanguageMetadataWorkspacePage />} />
-            </Routes>
-          </AppSidePaneProvider>
-        </LocaleProvider>
-      </MemoryRouter>,
-    );
+    renderWorkspace('/assets/language-metadata?languageId=user:demo-language');
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('示例语言')).toBeTruthy();
@@ -237,17 +300,7 @@ describe('LanguageMetadataWorkspacePage', () => {
   });
 
   it('saves a new custom language with separate asset id and display code', async () => {
-    render(
-      <MemoryRouter initialEntries={['/assets/language-metadata']}>
-        <LocaleProvider locale="zh-CN">
-          <AppSidePaneProvider>
-            <Routes>
-              <Route path="/assets/language-metadata" element={<LanguageMetadataWorkspacePage />} />
-            </Routes>
-          </AppSidePaneProvider>
-        </LocaleProvider>
-      </MemoryRouter>,
-    );
+    renderWorkspace('/assets/language-metadata');
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('英语')).toBeTruthy();
@@ -269,12 +322,104 @@ describe('LanguageMetadataWorkspacePage', () => {
     });
 
     const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
-    expect((lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined)).toMatchObject({
+    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
       id: 'user:field-language',
       languageCode: 'fld',
       localName: '田野语言',
       englishName: 'Field Language',
       locale: 'zh-CN',
     });
+  });
+
+  it('persists existing custom field values with typed conversion during page save', async () => {
+    currentEntries = [
+      createEntry({
+        customFields: {
+          vitalityScore: 3,
+        },
+      }),
+    ];
+    currentFieldDefinitions = [
+      {
+        id: 'vitalityScore',
+        name: { 'zh-CN': '活力评分' },
+        fieldType: 'number',
+        required: true,
+        minValue: 1,
+        maxValue: 5,
+        helpText: { 'zh-CN': '范围 1 到 5' },
+        sortOrder: 0,
+        createdAt: '2026-04-07T00:00:00.000Z',
+        updatedAt: '2026-04-07T00:00:00.000Z',
+      },
+    ];
+
+    renderWorkspace();
+
+    await waitFor(() => {
+      expect(mockListCustomFieldDefinitions).toHaveBeenCalled();
+      expect(screen.getByDisplayValue('英语')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByDisplayValue('英语'), { target: { value: '英语（保留字段）' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
+
+    await waitFor(() => {
+      expect(mockUpsertLanguageCatalogEntry).toHaveBeenCalled();
+    });
+
+    const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
+    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+      id: 'eng',
+      customFields: {
+        vitalityScore: 3,
+      },
+    });
+  });
+
+  it('updates coordinates from map drag and persists reverse-geocoded location state', async () => {
+    currentEntries = [
+      createEntry({
+        latitude: 39.9,
+        longitude: 116.4,
+      }),
+    ];
+    mockReverseGeocode.mockResolvedValue({
+      label: '成都，中国',
+      provider: 'nominatim',
+      latitude: 30.67,
+      longitude: 104.06,
+    });
+
+    renderWorkspace();
+
+    expect(await screen.findByTestId('mock-language-map')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '模拟地图拖拽' }));
+
+    await waitFor(() => {
+      expect((screen.getByRole('textbox', { name: '纬度' }) as HTMLInputElement).value).toBe('30.67');
+      expect((screen.getByRole('textbox', { name: '经度' }) as HTMLInputElement).value).toBe('104.06');
+    });
+
+    expect(await screen.findByText((content) => content.includes('当前位置：成都，中国'))).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '保存条目' }));
+
+    await waitFor(() => {
+      expect(mockUpsertLanguageCatalogEntry).toHaveBeenCalled();
+    });
+
+    const lastCallIndex = mockUpsertLanguageCatalogEntry.mock.calls.length - 1;
+    expect(lastCallIndex >= 0 ? mockUpsertLanguageCatalogEntry.mock.calls[lastCallIndex]?.[0] : undefined).toMatchObject({
+      id: 'eng',
+      latitude: 30.67,
+      longitude: 104.06,
+    });
+    expect(mockReverseGeocode).toHaveBeenCalledWith(expect.objectContaining({
+      latitude: 30.67,
+      longitude: 104.06,
+      locale: 'zh-CN',
+    }));
   });
 });

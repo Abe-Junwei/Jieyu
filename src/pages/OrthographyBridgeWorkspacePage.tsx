@@ -11,7 +11,7 @@ import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
-import { LinguisticService } from '../services/LinguisticService';
+import { listOrthographyRecords } from '../services/LinguisticService.orthography';
 
 const TARGET_ORTHOGRAPHY_ID_PARAM = 'targetOrthographyId';
 
@@ -39,7 +39,7 @@ export function OrthographyBridgeWorkspacePage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    void LinguisticService.listOrthographies({ includeBuiltIns: true })
+    void listOrthographyRecords({ includeBuiltIns: true })
       .then((records) => {
         if (cancelled) return;
         setOrthographies(records);

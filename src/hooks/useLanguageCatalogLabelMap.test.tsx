@@ -9,10 +9,8 @@ const { mockListLanguageCatalogEntries } = vi.hoisted(() => ({
   mockListLanguageCatalogEntries: vi.fn(),
 }));
 
-vi.mock('../services/LinguisticService', () => ({
-  LinguisticService: {
-    listLanguageCatalogEntries: mockListLanguageCatalogEntries,
-  },
+vi.mock('../services/LinguisticService.languageCatalog', () => ({
+  listLanguageCatalogEntries: mockListLanguageCatalogEntries,
 }));
 
 function HookHarness() {

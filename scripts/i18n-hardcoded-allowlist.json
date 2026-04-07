@@ -68,6 +68,8 @@
 
     { "pathPrefix": "src/services/LinguisticService.ts", "reason": "validation-and-guard-message" },
     { "pathPrefix": "src/services/LinguisticService.orthography.ts", "reason": "validation-and-guard-message" },
+    { "pathPrefix": "src/components/languageMapEmbed.shared.ts", "reason": "data-dictionary" },
+    { "pathPrefix": "src/services/stt/providerMetadata.ts", "reason": "provider-protocol" },
 
     { "pathPrefix": "src/i18n/aiChatHybridMessages.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/i18n/aiChatQuickPromptTemplates.ts", "reason": "runtime-template-message" },

@@ -301,6 +301,26 @@
   color: var(--text-secondary);
 }
 
+.language-metadata-workspace-field-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.language-metadata-workspace-field-required {
+  color: var(--status-danger-foreground, #b42318);
+}
+
+.language-metadata-workspace-field-helper {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.language-metadata-workspace-field-error {
+  font-size: 0.76rem;
+  color: var(--status-danger-foreground, #b42318);
+}
+
 /* 内联跳转按钮 | Inline jump button inside field hints */
 .language-metadata-workspace-inline-link {
   all: unset;
@@ -374,6 +394,27 @@
 .language-metadata-workspace-textarea {
   min-height: 88px;
   resize: vertical;
+}
+
+.language-metadata-workspace-field-editor-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--surface-panel) 92%, var(--surface-header));
+}
+
+.language-metadata-workspace-field-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.language-metadata-workspace-field-definition-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .language-metadata-workspace-state {
@@ -478,6 +519,10 @@
   background: var(--surface-hover, var(--surface-raised));
 }
 
+.language-metadata-workspace-geocode-item-active {
+  background: color-mix(in srgb, var(--surface-hover, var(--surface-raised)) 82%, var(--surface-header));
+}
+
 .language-metadata-workspace-geocode-name {
   line-height: 1.35;
 }
@@ -560,6 +605,22 @@
 .language-metadata-workspace-map-inner {
   width: 100%;
   height: 100%;
+}
+
+.language-metadata-workspace-search-marker {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 999px;
+  background: #2f6fed;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+}
+
+.language-metadata-workspace-search-marker-active {
+  background: #f97316;
+  transform: scale(1.15);
 }
 
 .language-metadata-workspace-map-wrapper:fullscreen {

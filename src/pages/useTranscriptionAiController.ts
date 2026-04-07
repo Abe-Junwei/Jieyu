@@ -11,9 +11,7 @@ import type {
 import { useAiChat } from '../hooks/useAiChat';
 import { useAiPanelLogic, taskToPersona, type ActionableRecommendation } from '../hooks/useAiPanelLogic';
 import { useAiToolCallHandler } from '../hooks/useAiToolCallHandler';
-import {
-  materializePendingToolCallTargets,
-} from '../hooks/useAiToolCallHandler.segmentTargeting';
+import { materializePendingToolCallTargets } from '../hooks/useAiToolCallHandler.segmentTargeting';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { Locale } from '../i18n';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
@@ -24,13 +22,10 @@ import { buildTranscriptionAiPromptContext } from './TranscriptionPage.aiPromptC
 import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
-import { bridgeTextForLayerTarget, resolveFallbackSourceOrthographyId } from '../utils/orthographyRuntime';
+import { loadOrthographyRuntime } from '../utils/loadOrthographyRuntime';
 import { createTranscriptionAiToolRiskCheck } from './transcriptionAiToolRiskCheck';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
-import {
-  buildAiSegmentTargetDescriptors,
-  resolveAiSegmentTargetScopeUtterances,
-} from './useTranscriptionAiController.segmentTargets';
+import { buildAiSegmentTargetDescriptors, resolveAiSegmentTargetScopeUtterances } from './useTranscriptionAiController.segmentTargets';
 
 const TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX = '\u5237\u65b0 AI \u5de5\u5177\u5ba1\u8ba1\u65e5\u5fd7\u5931\u8d25\uff1a';
 
@@ -193,11 +188,12 @@ export function useTranscriptionAiController(
     selectedSegmentTargetId,
   ]);
 
-  const bridgeTextForLayerWrite = useCallback(({ text, targetLayerId, selectedLayerId }: {
+  const bridgeTextForLayerWrite = useCallback(async ({ text, targetLayerId, selectedLayerId }: {
     text: string;
     targetLayerId?: string;
     selectedLayerId?: string;
   }) => {
+    const { bridgeTextForLayerTarget, resolveFallbackSourceOrthographyId } = await loadOrthographyRuntime();
     const effectiveSelectedLayerId = (selectedLayerId ?? input.selectedLayerId).trim();
     const fallbackSourceOrthographyId = resolveFallbackSourceOrthographyId({
       layers: input.layers,

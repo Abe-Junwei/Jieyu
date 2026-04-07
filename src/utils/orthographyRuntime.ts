@@ -1,5 +1,5 @@
 import type { LayerDocType } from '../db';
-import { LinguisticService } from '../services/LinguisticService';
+import { applyOrthographyBridgeRecord } from '../services/LinguisticService.orthography';
 
 type LayerOrthographyRef = Pick<LayerDocType, 'id' | 'orthographyId' | 'bridgeId'>;
 type TranscriptionLayerRef = Pick<LayerDocType, 'layerType' | 'orthographyId'>;
@@ -28,7 +28,7 @@ export async function applyOrthographyBridgeIfNeeded(input: {
     return { text: input.text };
   }
   const bridgeId = input.bridgeId?.trim();
-  return LinguisticService.applyOrthographyBridge({
+  return applyOrthographyBridgeRecord({
     text: input.text,
     sourceOrthographyId,
     targetOrthographyId,

@@ -1,5 +1,4 @@
 import { featureFlags } from '../config/featureFlags';
-import { LinguisticService } from '../../services/LinguisticService';
 import { buildAiToolRequestId } from '../toolRequestId';
 import {
   formatActionClarify,
@@ -30,6 +29,7 @@ import {
   validateToolArgumentsZod,
 } from './toolCallSchemas';
 import { decodeEscapedUnicode, escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
+import { resolveLanguageQuery } from '../../utils/langMapping';
 
 interface RawToolCallEnvelope {
   name: string;
@@ -1087,7 +1087,7 @@ function isDeicticConfirmationMessage(userText: string): boolean {
 export function extractClarifyLanguagePatch(userText: string): Record<string, string> | null {
   const trimmed = userText.trim().replace(escapedUnicodeRegExp('[\\u7684\\u90a3\\u4e2a\\u5427]$', 'g'), '').trim();
   if (!trimmed || trimmed.length > 20) return null;
-  const resolved = LinguisticService.resolveLanguageQuery(trimmed);
+  const resolved = resolveLanguageQuery(trimmed);
   if (!resolved) return null;
   return { languageId: resolved, languageQuery: trimmed };
 }

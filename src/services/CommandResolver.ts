@@ -12,7 +12,7 @@
  */
 
 import type { AiChatToolCall, AiChatToolName } from '../hooks/useAiChat';
-import { LinguisticService } from './LinguisticService';
+import { resolveLanguageQuery } from '../utils/langMapping';
 
 function parseChineseInteger(raw: string): number | null {
   const normalized = raw.trim().replace(/两/g, '二');
@@ -126,7 +126,7 @@ function buildLayerCreateCall(
 ): { name: AiChatToolName; arguments: Record<string, unknown> } {
   const trimmed = rawLang.trim();
   // 直接查数据库，未命中则返回空参数交由澄清流程 | Query database directly; if no match, return empty args for clarify flow.
-  const languageId = trimmed ? LinguisticService.resolveLanguageQuery(trimmed) : undefined;
+  const languageId = trimmed ? resolveLanguageQuery(trimmed) : undefined;
   return {
     name,
     arguments: {

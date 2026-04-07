@@ -2,8 +2,7 @@ import type { LayerDocType, UtteranceDocType } from '../db';
 import { t, tf, type Locale } from '../i18n';
 import type { AiChatToolCall, AiToolRiskCheckResult } from '../hooks/useAiChat';
 import type { SegmentTargetDescriptor } from '../hooks/useAiToolCallHandler.segmentTargeting';
-import { SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
-import { LinguisticService } from '../services/LinguisticService';
+import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import { listUniqueNonEmptyMultiLangLabels } from '../utils/multiLangLabels';
 
 interface CreateTranscriptionAiToolRiskCheckInput {
@@ -147,7 +146,7 @@ export function createTranscriptionAiToolRiskCheck({
         if (layerType && languageQuery) {
           const pool = layerType === 'translation' ? translationLayers
             : layerType === 'transcription' ? transcriptionLayers : [];
-          const code = LinguisticService.resolveLanguageQuery(languageQuery);
+          const code = resolveLanguageQuery(languageQuery);
           const matchTokens = [languageQuery.toLowerCase(), ...(code ? [code] : [])];
           const entry = code ? SUPPORTED_VOICE_LANGS.flatMap((group) => group.langs).find((lang) => lang.code === code) : undefined;
           if (entry) {

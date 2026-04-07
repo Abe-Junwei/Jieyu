@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Locale } from '../i18n';
-import type { LanguageCatalogEntry } from '../services/LinguisticService';
+import type { LanguageCatalogEntry } from '../services/LinguisticService.languageCatalog';
+import { listLanguageCatalogEntries } from '../services/LinguisticService.languageCatalog';
 import type { ResolveLanguageDisplayName } from '../utils/languageDisplayNameResolver';
-import { LinguisticService } from '../services/LinguisticService';
 import { getLanguageDisplayName } from '../utils/langMapping';
 
 type UseLanguageCatalogLabelMapOptions = {
@@ -45,7 +45,7 @@ export function useLanguageCatalogLabelMap(locale: Locale, options?: UseLanguage
       };
     }
 
-    void LinguisticService.listLanguageCatalogEntries({
+    void listLanguageCatalogEntries({
       locale,
       ...(normalizedLanguageIds ? { languageIds: normalizedLanguageIds } : {}),
     })

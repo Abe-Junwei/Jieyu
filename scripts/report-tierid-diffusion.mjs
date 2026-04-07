@@ -10,6 +10,7 @@ const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
 const ALLOWED_FILE_PATHS = new Set([
   'src/services/TierBridgeService.ts',
   'src/services/LinguisticService.constraints.ts',
+  'src/services/LinguisticService.tiers.ts',
   'src/services/LinguisticService.ts',
   'src/db/index.ts',
 ]);

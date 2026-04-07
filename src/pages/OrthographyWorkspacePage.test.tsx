@@ -14,12 +14,13 @@ const { mockListOrthographies, mockUpdateOrthography, mockListLanguageCatalogEnt
   mockListLanguageCatalogEntries: vi.fn(),
 }));
 
-vi.mock('../services/LinguisticService', () => ({
-  LinguisticService: {
-    listOrthographies: mockListOrthographies,
-    updateOrthography: mockUpdateOrthography,
-    listLanguageCatalogEntries: mockListLanguageCatalogEntries,
-  },
+vi.mock('../services/LinguisticService.orthography', () => ({
+  listOrthographyRecords: mockListOrthographies,
+  updateOrthographyRecord: mockUpdateOrthography,
+}));
+
+vi.mock('../services/LinguisticService.languageCatalog', () => ({
+  listLanguageCatalogEntries: mockListLanguageCatalogEntries,
 }));
 
 vi.mock('../hooks/useProjectLanguageIds', () => {

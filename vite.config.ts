@@ -55,33 +55,28 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (
-            id.includes('/src/pages/TranscriptionPage.SidePane')
-            || id.includes('/src/components/SidePaneSidebar')
-            || id.includes('/src/components/LayerActionPopover')
-            || id.includes('/src/components/SidePaneActionModal')
+            id.includes('/src/services/JymService')
           ) {
-            return 'TranscriptionPage.SidePane';
+            return 'TranscriptionPage.ImportExport.archive';
           }
           if (
-            id.includes('/src/hooks/useImportExport.importHandlers')
-            || id.includes('/src/hooks/useImportExport.archiveHandlers')
-            || id.includes('/src/hooks/useImportExport.additionalTierHandlers')
-            || id.includes('/src/hooks/useImportExport.importHelpers')
-            || id.includes('/src/hooks/useImportExport.annotationImport')
-            || id.includes('/src/services/EafService')
-            || id.includes('/src/services/TextGridService')
-            || id.includes('/src/services/TranscriberService')
-            || id.includes('/src/services/FlexService')
-            || id.includes('/src/services/ToolboxService')
-            || id.includes('/src/services/JymService')
-            || id.includes('/src/services/TierBridgeService')
-            || id.includes('/src/services/LayerConstraintService')
-            || id.includes('/src/services/LayerTierUnifiedService')
-            || id.includes('/src/services/LayerSegmentationTextService')
-            || id.includes('/src/services/LayerSegmentationV2Service')
-            || id.includes('/src/services/LayerSegmentQueryService')
+            id.includes('/src/services/LayerSegmentationTextService.ts')
+            || id.includes('/src/services/LayerSegmentGraphService.ts')
+            || id.includes('/src/services/LegacyMirrorService.ts')
+            || id.includes('/src/services/LayerSegmentQueryService.ts')
+            || id.includes('/src/ai/embeddings/EmbeddingInvalidationService.ts')
           ) {
-            return 'TranscriptionPage.ImportExport';
+            return 'linguistic-core-runtime';
+          }
+          if (
+            id.includes('/src/utils/langMapping.ts')
+            || id.includes('/src/data/languageNameCatalog.ts')
+            || id.includes('/src/data/generated/languageNameCatalog.generated.ts')
+            || id.includes('/src/data/languageCatalogRuntimeCache.ts')
+            || id.includes('/node_modules/language-tags/')
+            || id.includes('/node_modules/iso-639-3/')
+          ) {
+            return 'language-mapping-runtime';
           }
           // 仅抽离语音域业务代码，降低主页面 chunk 且避免循环分包 | Extract only voice-domain app code to reduce main chunk without circular chunking
           if (id.includes('/src/services/VoiceInputService')) {
@@ -105,13 +100,6 @@ export default defineConfig({
           if (id.includes('/src/services/WakeWordDetector.ts')) {
             return 'voice-wake-runtime';
           }
-          // 已有 lazy 边界的语音 UI / runtime 不应被粗粒度 voice-core 吞并 | Preserve existing lazy boundaries for voice UI and runtime wiring
-          if (id.includes('/src/components/VoiceAgentWidget')) {
-            return 'voice-widget';
-          }
-          if (id.includes('/src/hooks/useVoiceAgent.ts')) {
-            return 'voice-agent-core';
-          }
           if (
             id.includes('/src/services/IntentRouter.ts')
             || id.includes('/src/services/voiceIntentRefine.ts')
@@ -122,14 +110,6 @@ export default defineConfig({
           if (id.includes('/src/services/VoiceSessionStore.ts')) {
             return 'voice-session-runtime';
           }
-          if (
-            id.includes('/src/hooks/useVoiceDock.ts')
-            || id.includes('/src/hooks/useVoiceInteraction.ts')
-            || id.includes('/src/services/voiceIntentUi.ts')
-          ) {
-            return 'voice-agent-core';
-          }
-
           if (!id.includes('node_modules')) return undefined;
           if (id.includes('/@sentry/')) {
             return 'sentry-vendor';

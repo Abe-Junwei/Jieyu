@@ -8,11 +8,12 @@
 
 import { memo, useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { Brain, Check, ChevronDown, History, Mic, MicOff, SlidersHorizontal, X } from 'lucide-react';
-import { getConfidenceColor, type VoiceAgentMode, type VoiceAgentState, type VoicePendingConfirm } from '../hooks/useVoiceAgent';
+import type { VoiceAgentMode, VoiceAgentState, VoicePendingConfirm } from '../hooks/useVoiceAgent';
+import { getConfidenceColor } from '../hooks/voiceAgentPresentation';
 import { SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import type { SttEngine } from '../services/VoiceInputService';
-import { commercialProviderDefinitions } from '../services/stt';
+import { commercialProviderDefinitions } from '../services/stt/providerMetadata';
 import type { CommercialProviderKind } from '../services/VoiceInputService';
 import type { ActionIntent, VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import { t, tf, useLocale } from '../i18n';

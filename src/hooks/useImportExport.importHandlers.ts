@@ -24,8 +24,7 @@ import { createLogger } from '../observability/logger';
 import { toErrorMessage } from '../utils/saveStateError';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
-import { applyOrthographyBridgeIfNeeded } from '../utils/orthographyRuntime';
-import { createImportExportArchiveHandlers } from './useImportExport.archiveHandlers';
+import { loadOrthographyRuntime } from '../utils/loadOrthographyRuntime';
 import { importAdditionalTiers } from './useImportExport.additionalTierHandlers';
 import {
   DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
@@ -68,13 +67,6 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
     normalizeSpeakerLookupKey,
   } = input;
 
-  const { previewProjectArchiveImport, importProjectArchive } = createImportExportArchiveHandlers({
-    activeTextId,
-    loadSnapshot,
-    locale,
-    setSaveState,
-  });
-
   const handleImportFile = async (
     file: File,
     importWriteStrategy: AnnotationImportBridgeStrategy = DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
@@ -82,6 +74,13 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
     const name = file.name.toLowerCase();
     const isJieyuArchive = name.endsWith('.jym') || name.endsWith('.jyt');
     if (isJieyuArchive) {
+      const { createImportExportArchiveHandlers } = await import('./useImportExport.archiveHandlers');
+      const { importProjectArchive } = createImportExportArchiveHandlers({
+        activeTextId,
+        loadSnapshot,
+        locale,
+        setSaveState,
+      });
       await importProjectArchive(file, 'replace-all');
       return;
     }
@@ -186,6 +185,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         if (!inputData.text || !targetOrthographyId) {
           return inputData.text;
         }
+        const { applyOrthographyBridgeIfNeeded } = await loadOrthographyRuntime();
         return (await applyOrthographyBridgeIfNeeded({
           text: inputData.text,
           ...(inputData.sourceOrthographyId !== undefined ? { sourceOrthographyId: inputData.sourceOrthographyId } : {}),
@@ -657,8 +657,6 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
   };
 
   return {
-    previewProjectArchiveImport,
-    importProjectArchive,
     handleImportFile,
   };
 }

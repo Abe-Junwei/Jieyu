@@ -1,6 +1,6 @@
 import type { LayerDocType, UtteranceDocType } from '../db';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
-import { bridgeTextForLayerTarget, resolveFallbackSourceOrthographyId } from '../utils/orthographyRuntime';
+import { loadOrthographyRuntime } from '../utils/loadOrthographyRuntime';
 
 interface ResolveVoiceDictationTargetInput {
   selectedLayerId: string | null;
@@ -42,6 +42,10 @@ export function resolveVoiceDictationTarget(input: ResolveVoiceDictationTargetIn
 }
 
 export async function bridgeVoiceDictationText(input: TransformVoiceDictationTextInput) {
+  const {
+    bridgeTextForLayerTarget,
+    resolveFallbackSourceOrthographyId,
+  } = await loadOrthographyRuntime();
   const fallbackSourceOrthographyId = resolveFallbackSourceOrthographyId({
     layers: input.layers,
     selectedLayerId: input.selectedLayerId,

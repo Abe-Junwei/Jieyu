@@ -25,6 +25,7 @@ import { LANGUAGE_NAME_QUERY_LOCALES, type LanguageNameQueryLocale } from '../da
 import { t, tf, type Locale } from '../i18n';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { newId } from '../utils/transcriptionFormatters';
+import { validateCustomFieldDefinitionInput } from './LanguageMetadataCustomFields';
 
 type Iso6393Record = (typeof iso6393)[number];
 
@@ -1482,21 +1483,37 @@ export async function upsertCustomFieldDefinition(input: {
   fieldType: CustomFieldValueType;
   options?: string[];
   description?: MultiLangString;
+  required?: boolean;
+  defaultValue?: string | number | boolean | string[];
+  placeholder?: MultiLangString;
+  helpText?: MultiLangString;
+  minValue?: number;
+  maxValue?: number;
+  pattern?: string;
+  sortOrder?: number;
 }): Promise<CustomFieldDefinitionDocType> {
   const db = await getDb();
   const now = new Date().toISOString();
   const existing = input.id ? await db.dexie.custom_field_definitions.get(input.id) : undefined;
+  const normalized = validateCustomFieldDefinitionInput(input);
   const maxSort = existing
     ? existing.sortOrder
     : (await db.dexie.custom_field_definitions.toArray()).reduce((max, d) => Math.max(max, d.sortOrder), -1) + 1;
 
   const doc: CustomFieldDefinitionDocType = {
-    id: input.id ?? newId('cfd'),
-    name: input.name,
-    fieldType: input.fieldType,
-    ...(input.options?.length ? { options: input.options } : {}),
-    ...(input.description && Object.values(input.description).some((v) => v.trim()) ? { description: input.description } : {}),
-    sortOrder: maxSort,
+    id: normalized.id ?? newId('cfd'),
+    name: normalized.name,
+    fieldType: normalized.fieldType,
+    ...(normalized.options?.length ? { options: normalized.options } : {}),
+    ...(normalized.description ? { description: normalized.description } : {}),
+    ...(normalized.required ? { required: true } : {}),
+    ...(normalized.defaultValue !== undefined ? { defaultValue: normalized.defaultValue } : {}),
+    ...(normalized.placeholder ? { placeholder: normalized.placeholder } : {}),
+    ...(normalized.helpText ? { helpText: normalized.helpText } : {}),
+    ...(normalized.minValue !== undefined ? { minValue: normalized.minValue } : {}),
+    ...(normalized.maxValue !== undefined ? { maxValue: normalized.maxValue } : {}),
+    ...(normalized.pattern ? { pattern: normalized.pattern } : {}),
+    sortOrder: normalized.sortOrder ?? maxSort,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
@@ -1518,8 +1535,9 @@ export async function deleteCustomFieldDefinition(id: string): Promise<void> {
       }
 
       const { [id]: _removed, ...restCustomFields } = customFields;
+      const { customFields: _currentCustomFields, ...restLanguage } = language;
       return [{
-        ...language,
+        ...restLanguage,
         ...(Object.keys(restCustomFields).length > 0 ? { customFields: restCustomFields } : {}),
         updatedAt: new Date().toISOString(),
       } satisfies LanguageDocType];

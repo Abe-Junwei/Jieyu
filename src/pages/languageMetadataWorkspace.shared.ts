@@ -1,6 +1,13 @@
 import type { LanguageCatalogHistoryDocType } from '../db';
 import { t } from '../i18n';
 import type { LanguageCatalogDisplayNameEntry, LanguageCatalogEntry, LanguageCatalogVisibility } from '../services/LinguisticService';
+import {
+  buildCustomFieldDraftValues,
+  formatCustomFieldOptionsEditorValue,
+  parseCustomFieldDraftMultiselectValue,
+  parseCustomFieldOptionsEditorValue,
+  serializeCustomFieldDraftValue,
+} from '../services/LanguageMetadataCustomFields';
 
 export const LANGUAGE_ID_PARAM = 'languageId';
 export const NEW_LANGUAGE_ID = '__new__';
@@ -99,6 +106,13 @@ export function createDisplayNameDraftRow(row?: Partial<Omit<LanguageDisplayName
     sourceType: row?.sourceType ?? 'user-override',
   };
 }
+
+export {
+  serializeCustomFieldDraftValue,
+  parseCustomFieldDraftMultiselectValue,
+  formatCustomFieldOptionsEditorValue,
+  parseCustomFieldOptionsEditorValue,
+};
 
 function buildDisplayNameRows(entry: LanguageCatalogEntry | null, locale: WorkspaceLocale): LanguageDisplayNameDraftRow[] {
   if (!entry) {
@@ -290,9 +304,7 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
     latitude: entry.latitude !== undefined ? String(entry.latitude) : '',
     longitude: entry.longitude !== undefined ? String(entry.longitude) : '',
     // 自定义字段值映射（全部转为 string 供表单绑定） | Custom field values (all stringified for form binding)
-    customFieldValues: Object.fromEntries(
-      Object.entries(entry.customFields ?? {}).map(([k, v]) => [k, Array.isArray(v) ? v.join(', ') : String(v)])
-    ),
+    customFieldValues: buildCustomFieldDraftValues(entry.customFields),
     changeReason: '',
     displayNameRows: buildDisplayNameRows(entry, locale),
   };

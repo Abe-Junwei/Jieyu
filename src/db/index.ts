@@ -379,6 +379,13 @@ interface CustomFieldDefinitionDocType {
   fieldType: CustomFieldValueType;
   options?: string[];
   description?: MultiLangString;
+  required?: boolean;
+  defaultValue?: string | number | boolean | string[];
+  placeholder?: MultiLangString;
+  helpText?: MultiLangString;
+  minValue?: number;
+  maxValue?: number;
+  pattern?: string;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -1245,6 +1252,13 @@ const customFieldDefinitionDocSchema = z.object({
   fieldType: customFieldValueTypeSchema,
   options: z.array(z.string()).optional(),
   description: multiLangStringSchema.optional(),
+  required: z.boolean().optional(),
+  defaultValue: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]).optional(),
+  placeholder: multiLangStringSchema.optional(),
+  helpText: multiLangStringSchema.optional(),
+  minValue: z.number().finite().optional(),
+  maxValue: z.number().finite().optional(),
+  pattern: z.string().optional(),
   sortOrder: z.number().int(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,

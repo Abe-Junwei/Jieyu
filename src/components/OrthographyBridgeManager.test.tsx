@@ -31,12 +31,15 @@ const {
 
 vi.mock('../services/LinguisticService', () => ({
   LinguisticService: {
-    listOrthographyBridges: mockListOrthographyBridges,
-    createOrthographyBridge: mockCreateOrthographyBridge,
-    updateOrthographyBridge: mockUpdateOrthographyBridge,
-    deleteOrthographyBridge: mockDeleteOrthographyBridge,
     listLanguageCatalogEntries: vi.fn().mockResolvedValue([]),
   },
+}));
+
+vi.mock('../services/LinguisticService.orthography', () => ({
+  listOrthographyBridgeRecords: mockListOrthographyBridges,
+  createOrthographyBridgeRecord: mockCreateOrthographyBridge,
+  updateOrthographyBridgeRecord: mockUpdateOrthographyBridge,
+  deleteOrthographyBridgeRecord: mockDeleteOrthographyBridge,
 }));
 
 vi.mock('../hooks/useOrthographies', () => ({

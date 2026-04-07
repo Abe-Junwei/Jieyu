@@ -1969,6 +1969,35 @@ describe('LinguisticService smoke tests', () => {
     });
   });
 
+  it('regression: deleting the last custom field definition removes persisted customFields entirely', async () => {
+    const removedDefinition = await LinguisticService.upsertCustomFieldDefinition({
+      name: { 'zh-CN': '唯一字段' },
+      fieldType: 'text',
+    });
+
+    await LinguisticService.upsertLanguageCatalogEntry({
+      id: 'user:custom-field-delete-last',
+      languageCode: 'cfe',
+      locale: 'zh-CN',
+      localName: '最后字段语言',
+      englishName: 'Last Field Language',
+      customFields: {
+        [removedDefinition.id]: 'remove',
+      },
+    });
+
+    await LinguisticService.deleteCustomFieldDefinition(removedDefinition.id);
+
+    const saved = await db.languages.get('user:custom-field-delete-last');
+    expect(saved?.customFields).toBeUndefined();
+
+    const entry = await LinguisticService.getLanguageCatalogEntry({
+      languageId: 'user:custom-field-delete-last',
+      locale: 'zh-CN',
+    });
+    expect(entry?.customFields).toBeUndefined();
+  });
+
   it('rejects conflicting or highly ambiguous aliases before saving', async () => {
     await expect(LinguisticService.upsertLanguageCatalogEntry({
       id: 'user:conflict-language',

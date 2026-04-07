@@ -12,12 +12,10 @@ const { mockCreateOrthography, mockCloneOrthographyToLanguage, mockCreateOrthogr
   mockUseOrthographies: vi.fn(),
 }));
 
-vi.mock('../services/LinguisticService', () => ({
-  LinguisticService: {
-    createOrthography: mockCreateOrthography,
-    cloneOrthographyToLanguage: mockCloneOrthographyToLanguage,
-    createOrthographyBridge: mockCreateOrthographyBridge,
-  },
+vi.mock('../services/LinguisticService.orthography', () => ({
+  createOrthographyRecord: mockCreateOrthography,
+  cloneOrthographyRecordToLanguage: mockCloneOrthographyToLanguage,
+  createOrthographyBridgeRecord: mockCreateOrthographyBridge,
 }));
 
 vi.mock('./useOrthographies', () => ({

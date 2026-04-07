@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MultiLangString, OrthographyDocType } from '../db';
 import { useLocale } from '../i18n';
-import { LinguisticService } from '../services/LinguisticService';
+import {
+  cloneOrthographyRecordToLanguage,
+  createOrthographyBridgeRecord,
+  createOrthographyRecord,
+} from '../services/LinguisticService.orthography';
 import { getLanguageDisplayName } from '../utils/langMapping';
 import {
   resolveOrthographyRenderPolicy,
@@ -801,8 +805,8 @@ export function useOrthographyPicker(
       }
 
       const created = createMode === 'ipa'
-        ? await LinguisticService.createOrthography(orthographyDraft)
-        : await LinguisticService.cloneOrthographyToLanguage({
+        ? await createOrthographyRecord(orthographyDraft)
+        : await cloneOrthographyRecordToLanguage({
           sourceOrthographyId: resolvedSourceOrthographyId,
           targetLanguageId: languageId,
           ...orthographyDraft,
@@ -812,7 +816,7 @@ export function useOrthographyPicker(
       if (bridgeRules && canConfigureBridge) {
         try {
           const sampleInput = draftBridgeSampleInput.trim();
-          await LinguisticService.createOrthographyBridge({
+          await createOrthographyBridgeRecord({
             sourceOrthographyId: resolvedSourceOrthographyId,
             targetOrthographyId: created.id,
             engine: draftBridgeEngine,

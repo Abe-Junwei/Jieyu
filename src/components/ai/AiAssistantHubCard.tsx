@@ -1,7 +1,7 @@
 import { Check, MessageSquare, Mic, MicOff, X } from 'lucide-react';
 import { t, useLocale } from '../../i18n';
 import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
-import { getConfidenceColor } from '../../hooks/useVoiceAgent';
+import { getConfidenceColor } from '../../hooks/voiceAgentPresentation';
 import { AiChatCard } from './AiChatCard';
 
 const MODE_LABEL_KEYS: Record<'command' | 'dictation' | 'analysis', 'ai.assistantHub.mode.command' | 'ai.assistantHub.mode.dictation' | 'ai.assistantHub.mode.analysis'> = {

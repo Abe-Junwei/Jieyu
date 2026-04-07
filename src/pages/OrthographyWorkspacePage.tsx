@@ -11,6 +11,10 @@ import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap'
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
 import { getOrthographyBuilderMessages } from '../i18n/orthographyBuilderMessages';
+import {
+  listOrthographyRecords,
+  updateOrthographyRecord,
+} from '../services/LinguisticService.orthography';
 import { OrthographyWorkspaceEditor } from './OrthographyWorkspaceEditor';
 import {
   areDraftsEqual,
@@ -22,7 +26,6 @@ import {
   type OrthographyDraft,
   type NormalizationForm,
 } from './orthographyWorkspacePage.utils';
-import { LinguisticService } from '../services/LinguisticService';
 import type { LanguageIsoInputValue } from '../components/LanguageIsoInput';
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 import { normalizeLanguageInputAssetId } from '../utils/languageInputHostState';
@@ -59,7 +62,7 @@ export function OrthographyWorkspacePage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    void LinguisticService.listOrthographies({ includeBuiltIns: true })
+    void listOrthographyRecords({ includeBuiltIns: true })
       .then((records) => {
         if (cancelled) return;
         setOrthographies(records);
@@ -361,7 +364,7 @@ export function OrthographyWorkspacePage() {
     setSaveError('');
     setSaveSuccess('');
     try {
-      const updated = await LinguisticService.updateOrthography({
+      const updated = await updateOrthographyRecord({
         id: selectedOrthography.id,
         languageId: draft.languageId.trim().toLowerCase(),
         name: {

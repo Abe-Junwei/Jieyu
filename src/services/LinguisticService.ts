@@ -14,11 +14,6 @@ import {
   type UtteranceTextDocType,
   type TextDocType,
   type MediaItemDocType,
-  type TierDefinitionDocType,
-  type TierAnnotationDocType,
-  type AuditLogDocType,
-  type AuditSource,
-  type AnchorDocType,
   type OrthographyDocType,
   type OrthographyBridgeDocType,
   type SpeakerDocType,
@@ -26,9 +21,6 @@ import {
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { newId } from '../../src/utils/transcriptionFormatters';
 import {
-  assertReviewProtection,
-  assertStableId,
-  normalizeTierAnnotationDocForStorage,
   normalizeUtteranceDocForStorage,
 } from '../../src/utils/camDataUtils';
 import {
@@ -54,50 +46,26 @@ import {
 import { LegacyMirrorService } from './LegacyMirrorService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import {
-  type ConstraintSeverity,
-  type ConstraintViolation,
   type ImportQualityReport,
-  type TierSaveResult,
-  validateTierConstraints,
 } from './LinguisticService.constraints';
-import {
-  applyOrthographyBridgeRecord,
-  cloneOrthographyRecordToLanguage,
-  createOrthographyRecord,
-  createOrthographyBridgeRecord,
-  deleteOrthographyBridgeRecord,
-  getActiveOrthographyBridgeRecord,
-  listOrthographyRecords,
-  listOrthographyBridgeRecords,
-  previewOrthographyBridgeText,
-  updateOrthographyRecord,
-  updateOrthographyBridgeRecord,
-  type ApplyOrthographyBridgeInput,
-  type CloneOrthographyToLanguageInput,
-  type CreateOrthographyInput,
-  type CreateOrthographyBridgeInput,
-  type GetActiveOrthographyBridgeInput,
-  type ListOrthographyRecordsSelector,
-  type ListOrthographyBridgesSelector,
-  type PreviewOrthographyBridgeInput,
-  type UpdateOrthographyInput,
-  type UpdateOrthographyBridgeInput,
+import type {
+  ApplyOrthographyBridgeInput,
+  CloneOrthographyToLanguageInput,
+  CreateOrthographyInput,
+  CreateOrthographyBridgeInput,
+  GetActiveOrthographyBridgeInput,
+  ListOrthographyRecordsSelector,
+  ListOrthographyBridgesSelector,
+  PreviewOrthographyBridgeInput,
+  UpdateOrthographyInput,
+  UpdateOrthographyBridgeInput,
 } from './LinguisticService.orthography';
-import {
-  deleteLanguageCatalogEntry,
-  deleteCustomFieldDefinition,
-  getLanguageCatalogEntry,
-  listCustomFieldDefinitions,
-  listLanguageCatalogEntries,
-  listLanguageCatalogHistory,
-  lookupIso639_3Seed,
-  refreshLanguageCatalogReadModel,
-  upsertCustomFieldDefinition,
-  upsertLanguageCatalogEntry,
-  type LanguageCatalogEntry,
-  type UpsertLanguageCatalogEntryInput,
+import type {
+  LanguageCatalogEntry,
+  UpsertLanguageCatalogEntryInput,
 } from './LinguisticService.languageCatalog';
-export type { Iso639_3Seed } from './LinguisticService.languageCatalog';
+import { lookupIso639_3Seed } from './languageCatalogSeedLookup';
+export type { Iso639_3Seed } from './languageCatalogSeedLookup';
 
 export {
   type ConstraintSeverity,
@@ -123,86 +91,23 @@ import {
   resolveLanguageQuery as resolveLanguageQueryImpl,
   searchLanguageCatalog,
 } from '../utils/langMapping';
+import { previewOrthographyBridge as previewOrthographyBridgeText } from '../utils/orthographyBridges';
 export type {
   LanguageCatalogMatch,
   LanguageCatalogMatchSource,
   LanguageSearchLocale,
 } from '../utils/langMapping';
 
-// ── Audit log infrastructure ──────────────────────────────────
-
-/** Fields tracked per collection. Only changes to these fields generate audit entries. */
-const TRACKED_FIELDS: Record<string, readonly string[]> = {
-  tier_annotations: ['value', 'startTime', 'endTime', 'startAnchorId', 'endAnchorId', 'isVerified', 'parentAnnotationId'],
-  tier_definitions: ['parentTierId', 'tierType', 'contentType', 'name'],
-  utterances: ['transcription', 'startTime', 'endTime'],
-};
-
-let auditIdCounter = 0;
-
-function generateAuditId(): string {
-  return `audit_${Date.now()}_${++auditIdCounter}`;
+function loadTierService() {
+  return import('./LinguisticService.tiers');
 }
 
-function stringify(value: unknown): string {
-  if (value === undefined) return '';
-  if (typeof value === 'string') return value;
-  return JSON.stringify(value);
+function loadOrthographyService() {
+  return import('./LinguisticService.orthography');
 }
 
-async function writeAuditLog(
-  collection: string,
-  documentId: string,
-  action: AuditLogDocType['action'],
-  source: AuditSource,
-  changes?: Array<{ field: string; oldValue?: unknown; newValue?: unknown }>,
-): Promise<void> {
-  const db = await getDb();
-  const timestamp = new Date().toISOString();
-
-  if (action === 'create' || action === 'delete' || !changes || changes.length === 0) {
-    await db.collections.audit_logs.insert({
-      id: generateAuditId(),
-      collection,
-      documentId,
-      action,
-      source,
-      timestamp,
-    });
-    return;
-  }
-
-  for (const change of changes) {
-    await db.collections.audit_logs.insert({
-      id: generateAuditId(),
-      collection,
-      documentId,
-      action,
-      field: change.field,
-      oldValue: stringify(change.oldValue),
-      newValue: stringify(change.newValue),
-      source,
-      timestamp,
-    });
-  }
-}
-
-function diffTrackedFields(
-  collection: string,
-  oldDoc: Record<string, unknown>,
-  newDoc: Record<string, unknown>,
-): Array<{ field: string; oldValue: unknown; newValue: unknown }> {
-  const fields = TRACKED_FIELDS[collection];
-  if (!fields) return [];
-  const changes: Array<{ field: string; oldValue: unknown; newValue: unknown }> = [];
-  for (const field of fields) {
-    const ov = stringify(oldDoc[field]);
-    const nv = stringify(newDoc[field]);
-    if (ov !== nv) {
-      changes.push({ field, oldValue: oldDoc[field], newValue: newDoc[field] });
-    }
-  }
-  return changes;
+function loadLanguageCatalogService() {
+  return import('./LinguisticService.languageCatalog');
 }
 
 export class LinguisticService {
@@ -1030,294 +935,44 @@ export class LinguisticService {
     return importDatabaseFromJson(payload, { strategy });
   }
 
-  // ── Tier definition CRUD ───────────────────────────────────
-
-  static async getTierDefinitions(textId: string): Promise<TierDefinitionDocType[]> {
-    const db = await getDb();
-    const docs = await db.collections.tier_definitions.findByIndex('textId', textId);
-    return docs.map((doc) => doc.toJSON());
+  static async getTierDefinitions(...args: Parameters<(typeof import('./LinguisticService.tiers'))['getTierDefinitions']>) {
+    return (await loadTierService()).getTierDefinitions(...args);
   }
 
-  /** Internal: persist tier definition + audit, no constraint validation. */
-  private static async _persistTierDefinition(data: TierDefinitionDocType, source: AuditSource): Promise<string> {
-    const db = await getDb();
-    const existing = await db.collections.tier_definitions.findOne({ selector: { id: data.id } }).exec();
-    const doc = await db.collections.tier_definitions.insert(data);
-    if (existing) {
-      const changes = diffTrackedFields('tier_definitions', existing.toJSON() as unknown as Record<string, unknown>, data as unknown as Record<string, unknown>);
-      if (changes.length > 0) {
-        await writeAuditLog('tier_definitions', data.id, 'update', source, changes);
-      }
-    } else {
-      await writeAuditLog('tier_definitions', data.id, 'create', source);
-    }
-    return doc.primary;
+  static async saveTierDefinition(...args: Parameters<(typeof import('./LinguisticService.tiers'))['saveTierDefinition']>) {
+    return (await loadTierService()).saveTierDefinition(...args);
   }
 
-  /**
-   * Save tier definition with structural constraint validation (R1, S5, S6).
-   * Errors block the save; warnings are returned but the save proceeds.
-   */
-  static async saveTierDefinition(data: TierDefinitionDocType, source: AuditSource = 'human'): Promise<TierSaveResult> {
-    const db = await getDb();
-
-    // Load all tier definitions for the same text
-    const allDocs = await db.collections.tier_definitions.findByIndex('textId', data.textId);
-    const allTiers = allDocs.map((d) => d.toJSON());
-
-    // Simulate adding/updating this tier
-    const merged = allTiers.filter((t) => t.id !== data.id);
-    merged.push(data);
-
-    // Validate structural rules (no annotations needed for R1, S5, S6)
-    const violations = validateTierConstraints(merged, []);
-    const errors = violations.filter((v) => v.severity === 'error');
-    if (errors.length > 0) {
-      return { id: '', errors, warnings: [] };
-    }
-
-    const id = await this._persistTierDefinition(data, source);
-    const warnings = violations.filter((v) => v.severity === 'warning');
-    return { id, errors: [], warnings };
+  static async removeTierDefinition(...args: Parameters<(typeof import('./LinguisticService.tiers'))['removeTierDefinition']>) {
+    return (await loadTierService()).removeTierDefinition(...args);
   }
 
-  /**
-   * Remove tier definition with cascade: deletes all annotations on this tier,
-   * and rejects if child tiers still reference it.
-   */
-  static async removeTierDefinition(id: string, source: AuditSource = 'human'): Promise<{ errors: ConstraintViolation[] }> {
-    const db = await getDb();
-
-    // Check for child tiers that reference this tier as parent
-    const allDocs = await db.collections.tier_definitions.findByIndex('parentTierId', id);
-    const childTiers = allDocs.map((d) => d.toJSON());
-    if (childTiers.length > 0) {
-      return {
-        errors: childTiers.map((ct) => ({
-          rule: 'CASCADE',
-          severity: 'error' as ConstraintSeverity,
-          tierId: id,
-          message: `Cannot delete: child tier "${ct.key}" (${ct.id}) still references this tier as parent.`,
-        })),
-      };
-    }
-
-    // Cascade: delete all annotations belonging to this tier (including owned anchors)
-    const annDocs = await db.collections.tier_annotations.findByIndex('tierId', id);
-    const tierAnns = annDocs.map((d) => d.toJSON());
-    for (const ann of tierAnns) {
-      if (ann.startAnchorId) await db.collections.anchors.remove(ann.startAnchorId);
-      if (ann.endAnchorId) await db.collections.anchors.remove(ann.endAnchorId);
-      await db.collections.tier_annotations.remove(ann.id);
-      await writeAuditLog('tier_annotations', ann.id, 'delete', source);
-    }
-
-    await db.collections.tier_definitions.remove(id);
-    await writeAuditLog('tier_definitions', id, 'delete', source);
-    return { errors: [] };
+  static async getTierAnnotations(...args: Parameters<(typeof import('./LinguisticService.tiers'))['getTierAnnotations']>) {
+    return (await loadTierService()).getTierAnnotations(...args);
   }
 
-  // ── Tier annotation CRUD ───────────────────────────────────
-
-  static async getTierAnnotations(tierId: string): Promise<TierAnnotationDocType[]> {
-    const db = await getDb();
-    const docs = await db.collections.tier_annotations.findByIndex('tierId', tierId);
-    return docs.map((doc) => doc.toJSON());
+  static async saveTierAnnotation(...args: Parameters<(typeof import('./LinguisticService.tiers'))['saveTierAnnotation']>) {
+    return (await loadTierService()).saveTierAnnotation(...args);
   }
 
-  /** Internal: load tier definitions + annotations for a given textId. */
-  private static async _loadTierGraph(textId: string) {
-    const db = await getDb();
-    const tierDocs = await db.collections.tier_definitions.findByIndex('textId', textId);
-    const tiers = tierDocs.map((d) => d.toJSON());
-    const tierIds = tiers.map((t) => t.id);
-    const annDocs = await db.collections.tier_annotations.findByIndexAnyOf('tierId', tierIds);
-    const annotations = annDocs.map((d) => d.toJSON());
-    return { tiers, annotations };
+  static async removeTierAnnotation(...args: Parameters<(typeof import('./LinguisticService.tiers'))['removeTierAnnotation']>) {
+    return (await loadTierService()).removeTierAnnotation(...args);
   }
 
-  /** Internal: persist tier annotation + anchors + audit, no constraint validation. */
-  private static async _persistTierAnnotation(data: TierAnnotationDocType, source: AuditSource, mediaId?: string): Promise<string> {
-    const db = await getDb();
-    data = normalizeTierAnnotationDocForStorage(data, {
-      actorType: source === 'ai' ? 'ai' : source === 'system' ? 'system' : 'human',
-      method: source === 'ai' ? 'auto-gloss' : source === 'system' ? 'migration' : 'manual',
-    });
-
-    // Enforce CAM write contract: stable IDs and confirmed-review lock for AI writes.
-    assertStableId(data.id, 'tier annotation');
-    assertReviewProtection(data.provenance?.reviewStatus, source);
-
-    // Create anchors for time-bearing annotations (dual-write: keep startTime/endTime as cache)
-    if (mediaId && data.startTime !== undefined && data.endTime !== undefined) {
-      const now = new Date().toISOString();
-      const startTime = data.startTime;
-      const endTime = data.endTime;
-      if (!data.startAnchorId) {
-        const startAnchor: AnchorDocType = { id: newId('anc'), mediaId, time: startTime, createdAt: now };
-        await db.collections.anchors.insert(startAnchor);
-        data = { ...data, startAnchorId: startAnchor.id };
-      }
-      if (!data.endAnchorId) {
-        const endAnchor: AnchorDocType = { id: newId('anc'), mediaId, time: endTime, createdAt: now };
-        await db.collections.anchors.insert(endAnchor);
-        data = { ...data, endAnchorId: endAnchor.id };
-      }
-    }
-
-    const existing = await db.collections.tier_annotations.findOne({ selector: { id: data.id } }).exec();
-    const doc = await db.collections.tier_annotations.insert(data);
-    if (existing) {
-      const changes = diffTrackedFields('tier_annotations', existing.toJSON() as unknown as Record<string, unknown>, data as unknown as Record<string, unknown>);
-      if (changes.length > 0) {
-        await writeAuditLog('tier_annotations', data.id, 'update', source, changes);
-      }
-    } else {
-      await writeAuditLog('tier_annotations', data.id, 'create', source);
-    }
-    return doc.primary;
+  static async saveTierAnnotationsBatch(...args: Parameters<(typeof import('./LinguisticService.tiers'))['saveTierAnnotationsBatch']>) {
+    return (await loadTierService()).saveTierAnnotationsBatch(...args);
   }
 
-  private static async _persistTierAnnotationAtomic(
-    data: TierAnnotationDocType,
-    source: AuditSource,
-    mediaId?: string,
-  ): Promise<string> {
-    const db = await getDb();
-    return db.dexie.transaction(
-      'rw',
-      [db.dexie.tier_annotations, db.dexie.anchors, db.dexie.audit_logs],
-      async () => this._persistTierAnnotation(data, source, mediaId),
-    );
+  static async getAuditLogs(...args: Parameters<(typeof import('./LinguisticService.tiers'))['getAuditLogs']>) {
+    return (await loadTierService()).getAuditLogs(...args);
   }
 
-  /**
-   * Save tier annotation with full constraint validation.
-   * Loads the tier graph context, simulates adding this annotation,
-   * then runs all 14 constraint rules. Errors block the save.
-   */
-  static async saveTierAnnotation(data: TierAnnotationDocType, source: AuditSource = 'human'): Promise<TierSaveResult> {
-    const db = await getDb();
-
-    // Look up the tier to get textId for loading the full context
-    const tierDoc = await db.collections.tier_definitions.findOne({ selector: { id: data.tierId } }).exec();
-    if (!tierDoc) {
-      return {
-        id: '',
-        errors: [{ rule: 'R2', severity: 'error', tierId: data.tierId, annotationId: data.id, message: `Annotation references non-existent tier "${data.tierId}".` }],
-        warnings: [],
-      };
-    }
-    const textId = tierDoc.toJSON().textId;
-
-    // Resolve mediaId for anchor creation
-    const mediaItems = await db.collections.media_items.findByIndex('textId', textId);
-    const mediaId = mediaItems[0]?.toJSON().id;
-
-    // Load full tier graph + annotations
-    const { tiers, annotations: existingAnns } = await this._loadTierGraph(textId);
-
-    // Merge: this annotation overrides any existing one with same id
-    const merged = new Map(existingAnns.map((a) => [a.id, a]));
-    merged.set(data.id, data);
-
-    // Validate full constraint set
-    const violations = validateTierConstraints(tiers, [...merged.values()]);
-    const errors = violations.filter((v) => v.severity === 'error');
-    if (errors.length > 0) {
-      return { id: '', errors, warnings: [] };
-    }
-
-    const id = await this._persistTierAnnotationAtomic(data, source, mediaId);
-    const warnings = violations.filter((v) => v.severity === 'warning');
-    return { id, errors: [], warnings };
+  static async getAuditLogsByCollection(...args: Parameters<(typeof import('./LinguisticService.tiers'))['getAuditLogsByCollection']>) {
+    return (await loadTierService()).getAuditLogsByCollection(...args);
   }
 
-  /**
-   * Remove tier annotation with cascade: deletes all child annotations
-   * that reference this annotation as parentAnnotationId.
-   * Also removes owned anchors (independent anchor model).
-   */
-  static async removeTierAnnotation(id: string, source: AuditSource = 'human'): Promise<void> {
-    const db = await getDb();
-
-    // Cascade: delete child annotations referencing this one
-    const childDocs = await db.collections.tier_annotations.findByIndex('parentAnnotationId', id);
-    const children = childDocs.map((d) => d.toJSON());
-    for (const child of children) {
-      await this.removeTierAnnotation(child.id, source);
-    }
-
-    // Delete owned anchors
-    const annDoc = await db.collections.tier_annotations.findOne({ selector: { id } }).exec();
-    if (annDoc) {
-      const ann = annDoc.toJSON();
-      if (ann.startAnchorId) await db.collections.anchors.remove(ann.startAnchorId);
-      if (ann.endAnchorId) await db.collections.anchors.remove(ann.endAnchorId);
-    }
-
-    await db.collections.tier_annotations.remove(id);
-    await writeAuditLog('tier_annotations', id, 'delete', source);
-  }
-
-  // ── Batch save with constraint validation ──────────────────
-
-  static async saveTierAnnotationsBatch(
-    textId: string,
-    newAnnotations: readonly TierAnnotationDocType[],
-  ): Promise<{ violations: ConstraintViolation[]; warnings: ConstraintViolation[] }> {
-
-    // Load current tier graph
-    const { tiers, annotations: existingAnns } = await this._loadTierGraph(textId);
-
-    // Resolve mediaId for anchor creation
-    const db = await getDb();
-    const mediaItems = await db.collections.media_items.findByIndex('textId', textId);
-    const mediaId = mediaItems[0]?.toJSON().id;
-
-    // Merge: new annotations override existing ones with same id
-    const merged = new Map(existingAnns.map((a) => [a.id, a]));
-    for (const ann of newAnnotations) {
-      merged.set(ann.id, ann);
-    }
-
-    // Validate
-    const allViolations = validateTierConstraints(tiers, [...merged.values()]);
-    const errors = allViolations.filter((v) => v.severity === 'error');
-    if (errors.length > 0) {
-      return { violations: errors, warnings: [] };
-    }
-
-    await db.dexie.transaction(
-      'rw',
-      [db.dexie.tier_annotations, db.dexie.anchors, db.dexie.audit_logs],
-      async () => {
-        for (const ann of newAnnotations) {
-          await this._persistTierAnnotation(ann, 'human', mediaId);
-        }
-      },
-    );
-
-    const warnings = allViolations.filter((v) => v.severity === 'warning');
-    return { violations: [], warnings };
-  }
-
-  // ── Audit log queries ──────────────────────────────────────
-
-  static async getAuditLogs(documentId: string): Promise<AuditLogDocType[]> {
-    const db = await getDb();
-    const docs = await db.collections.audit_logs.findByIndex('documentId', documentId);
-    return docs
-      .map((d) => d.toJSON())
-      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  }
-
-  static async getAuditLogsByCollection(collection: string): Promise<AuditLogDocType[]> {
-    const db = await getDb();
-    const docs = await db.collections.audit_logs.findByIndex('collection', collection);
-    return docs
-      .map((d) => d.toJSON())
-      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  static async pruneAuditLogs(...args: Parameters<(typeof import('./LinguisticService.tiers'))['pruneAuditLogs']>) {
+    return (await loadTierService()).pruneAuditLogs(...args);
   }
 
   // ── Project initialization ─────────────────────────────────
@@ -1355,33 +1010,33 @@ export class LinguisticService {
   }
 
   static async createOrthography(input: CreateOrthographyInput): Promise<OrthographyDocType> {
-    return createOrthographyRecord(input);
+    return (await loadOrthographyService()).createOrthographyRecord(input);
   }
 
   static async cloneOrthographyToLanguage(input: CloneOrthographyToLanguageInput): Promise<OrthographyDocType> {
-    return cloneOrthographyRecordToLanguage(input);
+    return (await loadOrthographyService()).cloneOrthographyRecordToLanguage(input);
   }
 
   static async listOrthographies(selector: ListOrthographyRecordsSelector = {}): Promise<OrthographyDocType[]> {
-    return listOrthographyRecords(selector);
+    return (await loadOrthographyService()).listOrthographyRecords(selector);
   }
 
   static async updateOrthography(input: UpdateOrthographyInput): Promise<OrthographyDocType> {
-    return updateOrthographyRecord(input);
+    return (await loadOrthographyService()).updateOrthographyRecord(input);
   }
 
   static async createOrthographyBridge(input: CreateOrthographyBridgeInput): Promise<OrthographyBridgeDocType> {
-    return createOrthographyBridgeRecord(input);
+    return (await loadOrthographyService()).createOrthographyBridgeRecord(input);
   }
 
   static async listOrthographyBridges(
     selector: ListOrthographyBridgesSelector = {},
   ): Promise<OrthographyBridgeDocType[]> {
-    return listOrthographyBridgeRecords(selector);
+    return (await loadOrthographyService()).listOrthographyBridgeRecords(selector);
   }
 
   static async updateOrthographyBridge(input: UpdateOrthographyBridgeInput): Promise<OrthographyBridgeDocType> {
-    return updateOrthographyBridgeRecord(input);
+    return (await loadOrthographyService()).updateOrthographyBridgeRecord(input);
   }
 
   static async listLanguageCatalogEntries(input: {
@@ -1390,18 +1045,18 @@ export class LinguisticService {
     includeHidden?: boolean;
     languageIds?: readonly string[];
   }): Promise<LanguageCatalogEntry[]> {
-    return listLanguageCatalogEntries(input);
+    return (await loadLanguageCatalogService()).listLanguageCatalogEntries(input);
   }
 
   static async getLanguageCatalogEntry(input: {
     languageId: string;
     locale: 'zh-CN' | 'en-US';
   }): Promise<LanguageCatalogEntry | null> {
-    return getLanguageCatalogEntry(input);
+    return (await loadLanguageCatalogService()).getLanguageCatalogEntry(input);
   }
 
   static async upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEntryInput): Promise<LanguageCatalogEntry> {
-    return upsertLanguageCatalogEntry(input);
+    return (await loadLanguageCatalogService()).upsertLanguageCatalogEntry(input);
   }
 
   static async deleteLanguageCatalogEntry(input: {
@@ -1409,27 +1064,27 @@ export class LinguisticService {
     reason?: string;
     locale: 'zh-CN' | 'en-US';
   }): Promise<void> {
-    return deleteLanguageCatalogEntry(input);
+    return (await loadLanguageCatalogService()).deleteLanguageCatalogEntry(input);
   }
 
   static async listLanguageCatalogHistory(languageId: string) {
-    return listLanguageCatalogHistory(languageId);
+    return (await loadLanguageCatalogService()).listLanguageCatalogHistory(languageId);
   }
 
   static async listCustomFieldDefinitions() {
-    return listCustomFieldDefinitions();
+    return (await loadLanguageCatalogService()).listCustomFieldDefinitions();
   }
 
-  static async upsertCustomFieldDefinition(input: Parameters<typeof upsertCustomFieldDefinition>[0]) {
-    return upsertCustomFieldDefinition(input);
+  static async upsertCustomFieldDefinition(input: Parameters<(typeof import('./LinguisticService.languageCatalog'))['upsertCustomFieldDefinition']>[0]) {
+    return (await loadLanguageCatalogService()).upsertCustomFieldDefinition(input);
   }
 
   static async deleteCustomFieldDefinition(id: string) {
-    return deleteCustomFieldDefinition(id);
+    return (await loadLanguageCatalogService()).deleteCustomFieldDefinition(id);
   }
 
   static async refreshLanguageCatalogReadModel(): Promise<void> {
-    return refreshLanguageCatalogReadModel();
+    return (await loadLanguageCatalogService()).refreshLanguageCatalogReadModel();
   }
 
   /**
@@ -1458,19 +1113,19 @@ export class LinguisticService {
   }
 
   static async deleteOrthographyBridge(id: string): Promise<void> {
-    return deleteOrthographyBridgeRecord(id);
+    return (await loadOrthographyService()).deleteOrthographyBridgeRecord(id);
   }
 
   static async getActiveOrthographyBridge(
     input: GetActiveOrthographyBridgeInput,
   ): Promise<OrthographyBridgeDocType | null> {
-    return getActiveOrthographyBridgeRecord(input);
+    return (await loadOrthographyService()).getActiveOrthographyBridgeRecord(input);
   }
 
   static async applyOrthographyBridge(
     input: ApplyOrthographyBridgeInput,
   ): Promise<{ text: string; bridgeId?: string }> {
-    return applyOrthographyBridgeRecord(input);
+    return (await loadOrthographyService()).applyOrthographyBridgeRecord(input);
   }
 
   static previewOrthographyBridge(input: PreviewOrthographyBridgeInput): string {
@@ -1736,12 +1391,4 @@ export class LinguisticService {
     );
   }
 
-  /** Prune audit logs older than the given number of days. */
-  static async pruneAuditLogs(maxAgeDays: number = 90): Promise<number> {
-    const db = await getDb();
-    const cutoff = new Date(Date.now() - maxAgeDays * 86_400_000).toISOString();
-    const old = await db.dexie.audit_logs.where('timestamp').below(cutoff).primaryKeys();
-    await db.dexie.audit_logs.bulkDelete(old);
-    return old.length;
-  }
 }

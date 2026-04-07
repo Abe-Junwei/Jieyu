@@ -2,9 +2,17 @@ import '../styles/pages/language-metadata-workspace.css';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
-import type { LanguageCatalogEntry } from '../services/LinguisticService';
 import { t, useLocale } from '../i18n';
-import { LinguisticService } from '../services/LinguisticService';
+import { buildPersistedCustomFieldValues } from '../services/LanguageMetadataCustomFields';
+import {
+  deleteLanguageCatalogEntry,
+  listCustomFieldDefinitions,
+  listLanguageCatalogEntries,
+  listLanguageCatalogHistory,
+  upsertLanguageCatalogEntry,
+  type LanguageCatalogEntry,
+} from '../services/LinguisticService.languageCatalog';
+import { lookupIso639_3Seed } from '../services/languageCatalogSeedLookup';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { LanguageMetadataWorkspaceCatalogPanel } from './LanguageMetadataWorkspaceCatalogPanel';
 import { LanguageMetadataWorkspaceDetailColumn } from './LanguageMetadataWorkspaceDetailColumn';
@@ -46,7 +54,7 @@ export function LanguageMetadataWorkspacePage() {
   const loadEntries = async (nextSearchText: string) => {
     setLoading(true);
     try {
-      const records = await LinguisticService.listLanguageCatalogEntries({
+      const records = await listLanguageCatalogEntries({
         locale,
         searchText: nextSearchText,
         includeHidden: true,
@@ -121,7 +129,7 @@ export function LanguageMetadataWorkspacePage() {
     }
 
     let cancelled = false;
-    void LinguisticService.listLanguageCatalogHistory(selectedEntry.id)
+    void listLanguageCatalogHistory(selectedEntry.id)
       .then((records) => {
         if (!cancelled) {
           setHistoryItems(records.slice(-6).reverse());
@@ -145,7 +153,7 @@ export function LanguageMetadataWorkspacePage() {
       if ((key === 'idInput' || key === 'languageCode') && selectedLanguageId === NEW_LANGUAGE_ID) {
         const code = (value as string).trim().toLowerCase();
         if (code.length >= 2) {
-          const seed = LinguisticService.lookupIso639_3Seed(code);
+          const seed = lookupIso639_3Seed(code);
           if (seed) {
             if (next.englishName === '' && seed.name) next.englishName = seed.name;
             if (next.iso6391 === '' && seed.iso6391) next.iso6391 = seed.iso6391;
@@ -224,7 +232,7 @@ export function LanguageMetadataWorkspacePage() {
 
     setSaving(true);
     try {
-      const saved = await LinguisticService.upsertLanguageCatalogEntry({
+      const saved = await upsertLanguageCatalogEntry({
         ...(selectedEntry ? { id: selectedEntry.id } : draft.idInput.trim() ? { id: draft.idInput.trim() } : {}),
         languageCode: draft.languageCode.trim(),
         canonicalTag: draft.canonicalTag.trim(),
@@ -273,34 +281,8 @@ export function LanguageMetadataWorkspacePage() {
         },
         // 自定义字段：按字段定义还原类型，并以完整对象覆盖持久层 | Custom fields: restore typed values and replace the persisted object as a whole
         customFields: await (async () => {
-          const defs = await LinguisticService.listCustomFieldDefinitions();
-          const defMap = new Map(defs.map((d) => [d.id, d]));
-          const result: Record<string, string | number | boolean | string[]> = {};
-          for (const [fid, raw] of Object.entries(draft.customFieldValues)) {
-            const trimmed = raw.trim();
-            if (!trimmed) continue;
-            const def = defMap.get(fid);
-            if (!def) {
-              result[fid] = trimmed;
-              continue;
-            }
-            switch (def.fieldType) {
-              case 'number': {
-                const n = Number(trimmed);
-                if (!Number.isNaN(n)) result[fid] = n;
-                break;
-              }
-              case 'boolean':
-                result[fid] = trimmed === 'true';
-                break;
-              case 'multiselect':
-                result[fid] = trimmed.split(', ').map((s) => s.trim()).filter(Boolean);
-                break;
-              default:
-                result[fid] = trimmed;
-            }
-          }
-          return result;
+          const defs = await listCustomFieldDefinitions();
+          return buildPersistedCustomFieldValues(draft.customFieldValues, defs, locale);
         })(),
         ...(draft.changeReason.trim() ? { reason: draft.changeReason.trim() } : {}),
         locale,
@@ -327,7 +309,7 @@ export function LanguageMetadataWorkspacePage() {
 
     setDeleting(true);
     try {
-      await LinguisticService.deleteLanguageCatalogEntry({
+      await deleteLanguageCatalogEntry({
         languageId: selectedEntry.id,
         ...(draft.changeReason.trim() ? { reason: draft.changeReason.trim() } : {}),
         locale,
