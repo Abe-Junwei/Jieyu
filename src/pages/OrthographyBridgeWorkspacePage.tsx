@@ -155,7 +155,7 @@ export function OrthographyBridgeWorkspacePage() {
         </div>
         <div className="app-side-pane-nav app-side-pane-feature-nav">
           <Link to="/assets/language-metadata" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.orthographyBridge.openLanguageMetadata')}</Link>
-          <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.orthographyBridge.openOrthographyWorkspace')}</OrthographyPanelLink>
+          <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.orthographyBridge.openOrthographyManager')}</OrthographyPanelLink>
         </div>
       </section>
     </div>

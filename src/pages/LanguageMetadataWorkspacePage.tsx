@@ -407,7 +407,7 @@ export function LanguageMetadataWorkspacePage() {
           <span className="app-side-pane-section-title">{t(locale, 'workspace.languageMetadata.sidePaneQuickAccess')}</span>
         </div>
         <div className="app-side-pane-nav app-side-pane-feature-nav">
-          <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openOrthographyWorkspace')}</OrthographyPanelLink>
+          <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openOrthographyManager')}</OrthographyPanelLink>
           <Link to="/assets/orthography-bridges" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openBridgeWorkspace')}</Link>
         </div>
       </section>

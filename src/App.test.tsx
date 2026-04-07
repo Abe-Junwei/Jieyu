@@ -98,7 +98,18 @@ describe('App shell', () => {
 
     expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
     expect(await screen.findByText('orthography-manager-page')).toBeTruthy();
-      expect(await screen.findByText('orthography-manager-page')).toBeTruthy();
+    expect(screen.getAllByRole('dialog', { name: /Orthographies|正字法/ }).length).toBeGreaterThan(0);
+  });
+
+  it('opens orthography manager as a modal over the transcription page when visited directly', async () => {
+    render(
+      <MemoryRouter initialEntries={['/assets/orthographies']} future={ROUTER_FUTURE_FLAGS}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
+    expect((await screen.findAllByText('orthography-manager-page')).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('dialog', { name: /Orthographies|正字法/ }).length).toBeGreaterThan(0);
   });
 
@@ -131,6 +142,7 @@ describe('App shell', () => {
     );
 
     expect((await screen.findAllByText('orthography-manager-page')).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText('orthography-manager-page')).length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
+    expect(screen.getAllByRole('dialog', { name: /Orthographies|正字法/ }).length).toBeGreaterThan(0);
   });
 });

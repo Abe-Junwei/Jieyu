@@ -129,6 +129,6 @@ describe('LexiconPage', () => {
     );
 
     expect(await screen.findByText('当前词典里还没有词条；后续可从导入、标注回链或人工创建补齐。')).toBeTruthy();
-    expect(screen.getByRole('link', { name: '打开正字法工作台' }).getAttribute('href')).toBe('/assets/orthographies');
+    expect(screen.getByRole('link', { name: '打开正字法管理器' }).getAttribute('href')).toBe('/assets/orthographies');
   });
 });

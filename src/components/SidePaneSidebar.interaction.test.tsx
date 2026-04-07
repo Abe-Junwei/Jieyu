@@ -1103,7 +1103,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
 
     const workspaceLink = inspector.getByRole('link', { name: '打开正字法桥接工作台' });
     expect(workspaceLink.getAttribute('href')).toBe('/assets/orthographies?orthographyId=orth-bridge&fromLayerId=layer_trc_bridge');
-    expect(inspector.getByText('写入桥接规则已迁移到独立的正字法工作台，当前检视器只保留跳转入口。')).toBeTruthy();
+    expect(inspector.getByText('写入桥接规则已迁移到独立的正字法管理器，当前检视器只保留跳转入口。')).toBeTruthy();
   });
 
   it('keeps hook order stable when the focused-layer inspector switches from empty to populated', async () => {

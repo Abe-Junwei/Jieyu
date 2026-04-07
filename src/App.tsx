@@ -159,7 +159,21 @@ export function App() {
   const location = useLocation();
   const backgroundLocation = (location.state as { backgroundLocation?: Location } | null)?.backgroundLocation;
   const isTranscriptionRoute = location.pathname.startsWith('/transcription');
-  const isOrthographyModalOpen = location.pathname === '/assets/orthographies' && Boolean(backgroundLocation);
+  const fallbackOrthographyBackgroundLocation = useMemo<Location | null>(() => {
+    if (location.pathname !== '/assets/orthographies' || backgroundLocation) {
+      return null;
+    }
+
+    return {
+      pathname: '/transcription',
+      search: '',
+      hash: '',
+      state: null,
+      key: 'orthography-modal-fallback',
+    };
+  }, [backgroundLocation, location.pathname]);
+  const orthographyModalBackgroundLocation = backgroundLocation ?? fallbackOrthographyBackgroundLocation;
+  const isOrthographyModalOpen = location.pathname === '/assets/orthographies';
   const [locale, setLocale] = useState<Locale>(() => detectLocale());
   const shellBodyRef = useRef<HTMLDivElement | null>(null);
   const shellDragCleanupRef = useRef<(() => void) | null>(null);
@@ -334,7 +348,7 @@ export function App() {
 
   const primaryNavItems = useMemo(() => navGroups.flatMap((group) => group.items), [navGroups]);
   const navItems = useMemo(() => [...primaryNavItems, ...secondaryNavItems], [primaryNavItems, secondaryNavItems]);
-  const activePathname = backgroundLocation?.pathname ?? location.pathname;
+  const activePathname = orthographyModalBackgroundLocation?.pathname ?? location.pathname;
 
   const activeNavItem = useMemo(() => (
     navItems.find((item) => activePathname === item.to || activePathname.startsWith(`${item.to}/`))
@@ -343,14 +357,21 @@ export function App() {
 
   const handleOrthographyPanelToggle = useCallback(() => {
     if (isOrthographyModalOpen) {
-      navigate(-1);
+      if (backgroundLocation) {
+        navigate(-1);
+        return;
+      }
+
+      navigate(orthographyModalBackgroundLocation?.pathname ?? '/transcription', {
+        replace: true,
+      });
       return;
     }
 
     navigate('/assets/orthographies', {
       state: { backgroundLocation: backgroundLocation ?? location },
     });
-  }, [backgroundLocation, isOrthographyModalOpen, location, navigate]);
+  }, [backgroundLocation, isOrthographyModalOpen, location, navigate, orthographyModalBackgroundLocation?.pathname]);
 
   const handleSidePaneToggle = useCallback((event?: React.SyntheticEvent<HTMLElement>) => {
     event?.stopPropagation();
@@ -490,7 +511,7 @@ export function App() {
             >
               <AiPanelProvider>
                 <Suspense fallback={<RouteLoading locale={locale} />}>
-                  <Routes location={backgroundLocation ?? location}>
+                  <Routes location={orthographyModalBackgroundLocation ?? location}>
                     <Route path="/" element={<Navigate to="/transcription" replace />} />
                     <Route
                       path="/transcription"
@@ -501,13 +522,12 @@ export function App() {
                     <Route path="/writing" element={<WritingPage />} />
                     <Route path="/lexicon" element={<LexiconPage />} />
                     <Route path="/assets/language-metadata" element={<LanguageMetadataWorkspacePage />} />
-                                        <Route path="/assets/orthographies" element={<OrthographyManagerPage />} />
                     <Route path="/assets/orthography-bridges" element={<OrthographyBridgeWorkspacePage />} />
                     {/* 旧路由重定向，保持外部链接兼容 | Legacy route redirect for backward compatibility */}
                     <Route path="/lexicon/orthographies" element={<Navigate to="/assets/orthographies" replace />} />
                     <Route path="*" element={<NotFound locale={locale} />} />
                   </Routes>
-                  {backgroundLocation ? (
+                  {isOrthographyModalOpen ? (
                     <Routes>
                       <Route
                         path="/assets/orthographies"
@@ -520,7 +540,7 @@ export function App() {
                               aria-label={t(locale, 'app.nav.orthographies')}
                               onMouseDown={(event) => event.stopPropagation()}
                             >
-                                                          <OrthographyManagerPage registerSidePane={false} />
+                              <OrthographyManagerPage registerSidePane={false} />
                             </div>
                           </div>
                         )}

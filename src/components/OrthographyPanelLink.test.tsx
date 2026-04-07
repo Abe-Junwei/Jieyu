@@ -22,14 +22,14 @@ describe('OrthographyPanelLink', () => {
         <Routes>
           <Route
             path="/lexicon"
-            element={<OrthographyPanelLink>打开正字法工作台</OrthographyPanelLink>}
+            element={<OrthographyPanelLink>打开正字法管理器</OrthographyPanelLink>}
           />
           <Route path="/assets/orthographies" element={<LocationStateProbe />} />
         </Routes>
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole('link', { name: '打开正字法工作台' }));
+    fireEvent.click(screen.getByRole('link', { name: '打开正字法管理器' }));
 
     expect(screen.getAllByTestId('location-state-probe')[0]?.textContent).toBe('/assets/orthographies|/lexicon?filter=all');
   });

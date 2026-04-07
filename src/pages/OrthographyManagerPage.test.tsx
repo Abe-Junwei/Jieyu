@@ -140,7 +140,7 @@ describe('OrthographyManagerPage', () => {
     vi.clearAllMocks();
   });
 
-  it('loads the orthography workspace, selects the requested orthography, and registers side-pane summary', async () => {
+  it('loads the orthography manager, selects the requested orthography, and registers side-pane summary', async () => {
     render(
       <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
@@ -174,7 +174,7 @@ describe('OrthographyManagerPage', () => {
         expect(link.getAttribute('href')).toBe('/assets/orthography-bridges?targetOrthographyId=orth-source');
       });
     });
-    expect(screen.getByTestId('side-pane-title').textContent).toBe('正字法工作台');
+    expect(screen.getByTestId('side-pane-title').textContent).toBe('正字法管理器');
     await waitFor(() => {
       expect(screen.getByTestId('side-pane-content').textContent).toContain('Bridge Orthography · Latn · practical');
     });
@@ -562,6 +562,12 @@ describe('OrthographyManagerPage', () => {
     });
 
     fireEvent.change(assetIdInput, { target: { value: 'user:field-language' } });
+
+    await waitFor(() => {
+      expect((assetIdInput as HTMLInputElement).value).toBe('user:field-language');
+      expect((screen.getAllByRole('button', { name: '保存元数据' })[0] as HTMLButtonElement).disabled).toBe(false);
+    });
+
     fireEvent.click(screen.getAllByRole('button', { name: '保存元数据' })[0]!);
 
     await waitFor(() => {
