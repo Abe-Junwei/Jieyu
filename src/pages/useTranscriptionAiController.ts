@@ -274,7 +274,7 @@ export function useTranscriptionAiController(
     audioTimeSec: aiAudioTimeRef.current,
     recentEdits: input.undoHistory.slice(0, 5).map((item) => String(item)),
   });
-  }, [input.aiConfidenceAvg, input.selectedUnitIds, input.selectionSnapshot, input.selectedTimelineMedia?.id, input.translationLayerCount, input.undoHistory, input.utteranceCount]);
+  }, [input.aiConfidenceAvg, input.selectedUnitIds, input.selectionSnapshot, input.selectedTimelineMedia?.id, input.translationLayerCount, input.undoHistory, input.utteranceCount, input.utterancesOnCurrentMedia]);
 
   const handleAiToolRiskCheck = createTranscriptionAiToolRiskCheck({
     locale,
