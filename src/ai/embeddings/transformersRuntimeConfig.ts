@@ -1,4 +1,4 @@
-export type TransformersEmbeddingDevice = 'webgpu' | 'wasm';
+export type TransformersEmbeddingDevice = 'webgpu' | 'wasm' | 'cpu';
 
 type RequestAdapterLike = () => Promise<unknown>;
 
@@ -47,6 +47,8 @@ export interface ConfigureTransformersEmbeddingRuntimeOptions {
   workerHref?: string;
   cacheDir?: string;
   navigatorLike?: NavigatorLike;
+  browserCacheAvailable?: boolean;
+  browserRuntime?: boolean;
 }
 
 export interface TransformersEmbeddingRuntimeConfig {
@@ -64,7 +66,8 @@ export interface CreateFeatureExtractionPipelineWithFallbackOptions {
   onWebgpuFallback?: (error: unknown) => void;
 }
 
-const DEFAULT_CACHE_DIR = '/jieyu-models';
+const DEFAULT_BROWSER_CACHE_DIR = '/jieyu-models';
+const DEFAULT_NODE_CACHE_DIR = '.jieyu-models';
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object') return null;
@@ -80,17 +83,31 @@ export function resolveTransformersWorkerWasmPath(workerHref?: string): string |
   return normalizedHref.slice(0, slashIndex + 1);
 }
 
+export function detectTransformersBrowserCacheAvailability(
+  browserCacheAvailable: boolean | undefined = typeof globalThis.caches !== 'undefined',
+): boolean {
+  return browserCacheAvailable;
+}
+
+export function detectTransformersBrowserRuntime(
+  browserRuntime: boolean | undefined = typeof window !== 'undefined'
+    || typeof WorkerGlobalScope !== 'undefined',
+): boolean {
+  return browserRuntime;
+}
+
 // 设备能力检测 | Device capability detection
 export async function detectTransformersEmbeddingDevice(
   navigatorLike: NavigatorLike | undefined = globalThis.navigator as NavigatorLike | undefined,
+  browserRuntime = detectTransformersBrowserRuntime(),
 ): Promise<TransformersEmbeddingDevice> {
   try {
     const gpu = navigatorLike?.gpu;
-    if (!gpu) return 'wasm';
+    if (!gpu) return browserRuntime ? 'wasm' : 'cpu';
     const adapter = await gpu.requestAdapter();
-    return adapter ? 'webgpu' : 'wasm';
+    return adapter ? 'webgpu' : (browserRuntime ? 'wasm' : 'cpu');
   } catch {
-    return 'wasm';
+    return browserRuntime ? 'wasm' : 'cpu';
   }
 }
 
@@ -98,14 +115,16 @@ export async function detectTransformersEmbeddingDevice(
 export async function configureTransformersEmbeddingRuntime(
   options: ConfigureTransformersEmbeddingRuntimeOptions,
 ): Promise<TransformersEmbeddingRuntimeConfig> {
-  const device = await detectTransformersEmbeddingDevice(options.navigatorLike);
-  const cacheDir = options.cacheDir ?? DEFAULT_CACHE_DIR;
+  const browserRuntime = detectTransformersBrowserRuntime(options.browserRuntime);
+  const device = await detectTransformersEmbeddingDevice(options.navigatorLike, browserRuntime);
+  const cacheDir = options.cacheDir ?? (browserRuntime ? DEFAULT_BROWSER_CACHE_DIR : DEFAULT_NODE_CACHE_DIR);
+  const browserCacheEnabled = detectTransformersBrowserCacheAvailability(options.browserCacheAvailable);
   const env = asRecord(options.transformers.env);
   const wasmPaths = resolveTransformersWorkerWasmPath(options.workerHref);
 
   if (env) {
     env.cacheDir = cacheDir;
-    env.useBrowserCache = true;
+    env.useBrowserCache = browserCacheEnabled;
 
     const backends = asRecord(env.backends);
     const onnx = asRecord(backends?.onnx);
@@ -118,7 +137,7 @@ export async function configureTransformersEmbeddingRuntime(
   return {
     device,
     cacheDir,
-    browserCacheEnabled: true,
+    browserCacheEnabled,
     ...(wasmPaths ? { wasmPaths } : {}),
   };
 }

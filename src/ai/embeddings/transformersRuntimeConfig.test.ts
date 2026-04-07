@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createFeatureExtractionPipelineWithFallback,
   configureTransformersEmbeddingRuntime,
+  detectTransformersBrowserCacheAvailability,
+  detectTransformersBrowserRuntime,
   detectTransformersEmbeddingDevice,
   resolveTransformersWorkerWasmPath,
 } from './transformersRuntimeConfig';
@@ -13,16 +15,20 @@ describe('transformersRuntimeConfig', () => {
       gpu: {
         requestAdapter: async () => ({ name: 'mock-adapter' }),
       },
-    })).resolves.toBe('webgpu');
+    }, true)).resolves.toBe('webgpu');
   });
 
-  it('falls back to wasm when navigator.gpu is unavailable', async () => {
-    await expect(detectTransformersEmbeddingDevice(undefined)).resolves.toBe('wasm');
+  it('falls back to wasm when browser runtime has no gpu', async () => {
+    await expect(detectTransformersEmbeddingDevice(undefined, true)).resolves.toBe('wasm');
     await expect(detectTransformersEmbeddingDevice({
       gpu: {
         requestAdapter: async () => null,
       },
-    })).resolves.toBe('wasm');
+    }, true)).resolves.toBe('wasm');
+  });
+
+  it('falls back to cpu when non-browser runtime has no gpu', async () => {
+    await expect(detectTransformersEmbeddingDevice(undefined, false)).resolves.toBe('cpu');
   });
 
   it('derives same-origin wasm path from worker href', () => {
@@ -56,7 +62,9 @@ describe('transformersRuntimeConfig', () => {
     };
 
     const runtime = await configureTransformersEmbeddingRuntime({
+      browserRuntime: true,
       transformers,
+      browserCacheAvailable: true,
       workerHref: 'https://example.com/assets/embedding.worker.js',
       navigatorLike: {
         gpu: {
@@ -74,6 +82,35 @@ describe('transformersRuntimeConfig', () => {
     expect(transformers.env.cacheDir).toBe('/jieyu-models');
     expect(transformers.env.useBrowserCache).toBe(true);
     expect(transformers.env.backends.onnx.wasm.wasmPaths).toBe('https://example.com/assets/');
+  });
+
+  it('disables browser cache when cache storage is unavailable', async () => {
+    const transformers: {
+      env: {
+        cacheDir?: string;
+        useBrowserCache?: boolean;
+      };
+    } = {
+      env: {},
+    };
+
+    const runtime = await configureTransformersEmbeddingRuntime({
+      browserRuntime: false,
+      transformers,
+      browserCacheAvailable: false,
+    });
+
+    expect(runtime.device).toBe('cpu');
+    expect(runtime.cacheDir).toBe('.jieyu-models');
+    expect(runtime.browserCacheEnabled).toBe(false);
+    expect(transformers.env.useBrowserCache).toBe(false);
+  });
+
+  it('detects browser runtime and cache availability from runtime globals', () => {
+    expect(detectTransformersBrowserRuntime(true)).toBe(true);
+    expect(detectTransformersBrowserRuntime(false)).toBe(false);
+    expect(detectTransformersBrowserCacheAvailability(true)).toBe(true);
+    expect(detectTransformersBrowserCacheAvailability(false)).toBe(false);
   });
 
   it('falls back from webgpu to wasm when pipeline init fails on webgpu', async () => {

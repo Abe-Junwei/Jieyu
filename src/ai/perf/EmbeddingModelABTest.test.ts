@@ -35,12 +35,14 @@ import {
   DEFAULT_LOCAL_EMBEDDING_MODEL_ID,
 } from '../embeddings/localEmbeddingModelConfig';
 import {
-  createFeatureExtractionPipelineWithFallback,
   ARCTIC_LOAD_TIME_RATIO_THRESHOLD,
   ARCTIC_RECALL_RATIO_THRESHOLD,
   decideDefaultLocalEmbeddingModel,
 } from './embeddingModelDecision';
-import { configureTransformersEmbeddingRuntime } from '../embeddings/transformersRuntimeConfig';
+import {
+  configureTransformersEmbeddingRuntime,
+  createFeatureExtractionPipelineWithFallback,
+} from '../embeddings/transformersRuntimeConfig';
 
 const RUN_REAL_MODEL_EVAL = process.env.JIEYU_REAL_EMBEDDING_AB === '1';
 const describeRealModelEval = RUN_REAL_MODEL_EVAL ? describe : describe.skip;
