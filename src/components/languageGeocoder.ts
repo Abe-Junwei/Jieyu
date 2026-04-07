@@ -1,4 +1,5 @@
 import type { MapProviderConfig } from './languageMapEmbed.shared';
+import { buildMapProxyUrl, readMapProxyBaseUrl } from './mapProxyConfig';
 
 export type GeocoderProviderKind = 'nominatim' | 'maptiler';
 
@@ -61,7 +62,7 @@ function readLocaleLanguage(locale: string): string {
 }
 
 function readProvider(providerConfig: MapProviderConfig): GeocoderProviderKind {
-  if (providerConfig.kind === 'maptiler' && providerConfig.apiKey.trim()) {
+  if (providerConfig.kind === 'maptiler' && (providerConfig.apiKey.trim() || readMapProxyBaseUrl())) {
     return 'maptiler';
   }
   return 'nominatim';
@@ -139,7 +140,9 @@ async function forwardGeocodeWithNominatim(options: ForwardGeocodeOptions): Prom
   if (options.countryCodes?.length) {
     params.set('countrycodes', options.countryCodes.join(','));
   }
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+  const endpoint = buildMapProxyUrl('/nominatim/search', params)
+    ?? `https://nominatim.openstreetmap.org/search?${params}`;
+  const res = await fetch(endpoint, {
     ...(options.signal ? { signal: options.signal } : {}),
   });
   if (!res.ok) {
@@ -172,7 +175,6 @@ async function forwardGeocodeWithNominatim(options: ForwardGeocodeOptions): Prom
 
 async function forwardGeocodeWithMaptiler(options: ForwardGeocodeOptions): Promise<GeocodeSuggestion[]> {
   const params = new URLSearchParams({
-    key: options.providerConfig.apiKey,
     language: readLocaleLanguage(options.locale),
     limit: String(options.limit ?? 5),
   });
@@ -182,7 +184,15 @@ async function forwardGeocodeWithMaptiler(options: ForwardGeocodeOptions): Promi
   if (options.countryCodes?.length) {
     params.set('country', options.countryCodes.join(','));
   }
-  const res = await fetch(`https://api.maptiler.com/geocoding/${encodeURIComponent(options.query.trim())}.json?${params}`, {
+  const proxyEndpoint = buildMapProxyUrl(`/maptiler/geocoding/${encodeURIComponent(options.query.trim())}.json`, params);
+  const endpoint = proxyEndpoint
+    ?? (() => {
+      const directParams = new URLSearchParams(params);
+      directParams.set('key', options.providerConfig.apiKey);
+      return `https://api.maptiler.com/geocoding/${encodeURIComponent(options.query.trim())}.json?${directParams}`;
+    })();
+
+  const res = await fetch(endpoint, {
     ...(options.signal ? { signal: options.signal } : {}),
   });
   if (!res.ok) {
@@ -241,7 +251,9 @@ async function reverseGeocodeWithNominatim(options: ReverseGeocodeOptions): Prom
     format: 'jsonv2',
     'accept-language': readLocaleLanguage(options.locale),
   });
-  const res = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
+  const endpoint = buildMapProxyUrl('/nominatim/reverse', params)
+    ?? `https://nominatim.openstreetmap.org/reverse?${params}`;
+  const res = await fetch(endpoint, {
     ...(options.signal ? { signal: options.signal } : {}),
   });
   if (!res.ok) {
@@ -261,10 +273,16 @@ async function reverseGeocodeWithNominatim(options: ReverseGeocodeOptions): Prom
 
 async function reverseGeocodeWithMaptiler(options: ReverseGeocodeOptions): Promise<ReverseGeocodeResult | null> {
   const params = new URLSearchParams({
-    key: options.providerConfig.apiKey,
     language: readLocaleLanguage(options.locale),
   });
-  const res = await fetch(`https://api.maptiler.com/geocoding/${options.longitude},${options.latitude}.json?${params}`, {
+  const proxyEndpoint = buildMapProxyUrl(`/maptiler/geocoding/${options.longitude},${options.latitude}.json`, params);
+  const endpoint = proxyEndpoint
+    ?? (() => {
+      const directParams = new URLSearchParams(params);
+      directParams.set('key', options.providerConfig.apiKey);
+      return `https://api.maptiler.com/geocoding/${options.longitude},${options.latitude}.json?${directParams}`;
+    })();
+  const res = await fetch(endpoint, {
     ...(options.signal ? { signal: options.signal } : {}),
   });
   if (!res.ok) {

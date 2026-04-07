@@ -101,7 +101,7 @@ export function LanguageMetadataWorkspaceGeographySection({
                 ))}
               </select>
             )}
-            {map.activeProviderDef.requiresKey && (
+            {map.mapProviderRequiresManualKey && (
               <button
                 type="button"
                 className="btn btn-ghost language-metadata-workspace-map-config-btn"
@@ -116,7 +116,7 @@ export function LanguageMetadataWorkspaceGeographySection({
         </div>
       </div>
 
-      {map.showMapConfig && map.activeProviderDef.requiresKey && (
+      {map.showMapConfig && map.mapProviderRequiresManualKey && (
         <div className="language-metadata-workspace-map-config-panel">
           <label className="language-metadata-workspace-field">
             <span>{map.activeProviderDef.keyLabel}</span>

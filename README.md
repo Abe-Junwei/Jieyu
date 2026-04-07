@@ -50,6 +50,27 @@ npm run build
 npm run build:guard
 ```
 
+## 地图代理（可选）
+
+为减少前端暴露第三方地图 Key，可配置代理基址：
+
+```bash
+VITE_MAP_PROXY_BASE_URL=https://your-gateway.example.com/maps
+```
+
+启用后：
+
+- MapTiler 样式与地理编码请求优先走代理端点，不在 URL 中暴露前端 Key。
+- Nominatim 正反向地理编码同样优先走代理端点（便于统一限流与审计）。
+- 未配置该变量时，自动回退到原有直连模式。
+
+当前前端约定的代理路径：
+
+- `/maptiler/maps/:styleId/style.json`
+- `/maptiler/geocoding/:queryOrLngLat.json`
+- `/nominatim/search`
+- `/nominatim/reverse`
+
 ## 主要入口
 
 - 应用启动入口：[src/main.tsx](src/main.tsx)

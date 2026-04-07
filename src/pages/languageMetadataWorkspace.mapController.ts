@@ -21,6 +21,7 @@ import {
   reverseGeocode,
   type GeocodeSuggestion,
 } from '../components/languageGeocoder';
+import { readMapProxyBaseUrl } from '../components/mapProxyConfig';
 import type { WorkspaceLocale, LanguageMetadataDraft, LanguageMetadataDraftChangeHandler } from './languageMetadataWorkspace.shared';
 
 // ─── 返回类型 | Return type ───
@@ -35,6 +36,9 @@ export function useLanguageMetadataMapController(locale: WorkspaceLocale, draft:
     () => MAP_PROVIDERS.find((p) => p.kind === mapProviderConfig.kind) ?? MAP_PROVIDERS[0]!,
     [mapProviderConfig.kind],
   );
+  const mapProxyEnabled = Boolean(readMapProxyBaseUrl());
+  const mapProviderSupportsProxyKeyless = mapProxyEnabled && mapProviderConfig.kind === 'maptiler';
+  const mapProviderRequiresManualKey = activeProviderDef.requiresKey && !mapProviderSupportsProxyKeyless;
 
   const handleMapProviderChange = (kind: MapProviderKind) => {
     const savedKeys: Partial<Record<MapProviderKind, string>> = {
@@ -46,7 +50,9 @@ export function useLanguageMetadataMapController(locale: WorkspaceLocale, draft:
     writeMapProviderConfig(next);
     setMapProviderConfig(next);
     setMapKeyInput(restoredKey);
-    setShowMapConfig(!restoredKey && (MAP_PROVIDERS.find((p) => p.kind === kind)?.requiresKey ?? false));
+    const selectedProviderRequiresManualKey = (MAP_PROVIDERS.find((p) => p.kind === kind)?.requiresKey ?? false)
+      && !(mapProxyEnabled && kind === 'maptiler');
+    setShowMapConfig(!restoredKey && selectedProviderRequiresManualKey);
   };
 
   const handleSaveMapKey = () => {
@@ -59,7 +65,7 @@ export function useLanguageMetadataMapController(locale: WorkspaceLocale, draft:
     setShowMapConfig(false);
   };
 
-  const mapProviderNeedsKey = activeProviderDef.requiresKey && !mapProviderConfig.apiKey.trim();
+  const mapProviderNeedsKey = mapProviderRequiresManualKey && !mapProviderConfig.apiKey.trim();
 
   const handleClearMapKey = () => {
     const savedKeys = { ...mapProviderConfig.apiKeysByProvider };
@@ -68,7 +74,7 @@ export function useLanguageMetadataMapController(locale: WorkspaceLocale, draft:
     writeMapProviderConfig(next);
     setMapProviderConfig(next);
     setMapKeyInput('');
-    setShowMapConfig(true);
+    setShowMapConfig(mapProviderRequiresManualKey);
   };
 
   const handleMapStyleChange = (styleId: string) => {
@@ -255,6 +261,7 @@ export function useLanguageMetadataMapController(locale: WorkspaceLocale, draft:
     showMapConfig,
     setShowMapConfig,
     activeProviderDef,
+    mapProviderRequiresManualKey,
     mapProviderNeedsKey,
     availableStyles,
     geocoderCapabilities,

@@ -75,6 +75,7 @@ describe('useLanguageMetadataMapController', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     window.localStorage.clear();
+    window.sessionStorage.clear();
     mockForwardGeocode.mockReset();
     mockReverseGeocode.mockReset();
     mockReadGeocoderCapabilities.mockReset();
@@ -89,6 +90,7 @@ describe('useLanguageMetadataMapController', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
   });
 
   it('keeps config panel open after clearing a required provider key', () => {
@@ -228,5 +230,52 @@ describe('useLanguageMetadataMapController', () => {
 
     expect(mockReverseGeocode).toHaveBeenCalledTimes(1);
     expect(result.current.selectedPlaceLabel).toBe('Chengdu, Sichuan, China');
+  });
+
+  it('stores provider keys in session storage instead of local storage', () => {
+    const onDraftChange = vi.fn<(field: keyof LanguageMetadataDraft, value: LanguageMetadataDraft[keyof LanguageMetadataDraft]) => void>();
+    const { result } = renderHook(() => useLanguageMetadataMapController('zh-CN', createDraft(), onDraftChange));
+
+    act(() => {
+      result.current.handleMapProviderChange('maptiler');
+    });
+
+    act(() => {
+      result.current.setMapKeyInput('session-only-key');
+    });
+
+    act(() => {
+      result.current.handleSaveMapKey();
+    });
+
+    const persistedConfig = JSON.parse(window.localStorage.getItem('jieyu:map-provider') ?? '{}') as Record<string, unknown>;
+    const persistedKeys = JSON.parse(window.sessionStorage.getItem('jieyu:map-provider-keys') ?? '{}') as Record<string, string>;
+
+    expect(persistedConfig.kind).toBe('maptiler');
+    expect(persistedConfig.styleId).toBe('streets-v2');
+    expect(persistedConfig.apiKey).toBeUndefined();
+    expect(persistedConfig.apiKeysByProvider).toBeUndefined();
+    expect(persistedKeys.maptiler).toBe('session-only-key');
+  });
+
+  it('does not require manual key for maptiler when proxy base URL is configured', () => {
+    vi.stubEnv('VITE_MAP_PROXY_BASE_URL', 'https://proxy.example.com/maps');
+    window.localStorage.setItem('jieyu:map-provider', JSON.stringify({
+      kind: 'maptiler',
+      styleId: 'streets-v2',
+    }));
+
+    const onDraftChange = vi.fn<(field: keyof LanguageMetadataDraft, value: LanguageMetadataDraft[keyof LanguageMetadataDraft]) => void>();
+    const { result } = renderHook(() => useLanguageMetadataMapController('zh-CN', createDraft(), onDraftChange));
+
+    expect(result.current.mapProviderConfig.kind).toBe('maptiler');
+    expect(result.current.mapProviderRequiresManualKey).toBe(false);
+    expect(result.current.mapProviderNeedsKey).toBe(false);
+
+    act(() => {
+      result.current.handleMapProviderChange('maptiler');
+    });
+
+    expect(result.current.showMapConfig).toBe(false);
   });
 });

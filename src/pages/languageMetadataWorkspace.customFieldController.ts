@@ -7,7 +7,10 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { t, tf } from '../i18n';
-import { applyCustomFieldDraftDefaults } from '../services/LanguageMetadataCustomFields';
+import {
+  applyCustomFieldDraftDefaults,
+  CUSTOM_FIELD_RENDERER_REGISTRY,
+} from '../services/LanguageMetadataCustomFields';
 import {
   deleteCustomFieldDefinition,
   listCustomFieldDefinitions,
@@ -18,6 +21,112 @@ import type { LanguageMetadataDraft, LanguageMetadataDraftChangeHandler, Workspa
 
 // ─── 返回类型 | Return type ───
 export type CustomFieldControllerState = ReturnType<typeof useLanguageMetadataCustomFieldController>;
+
+function buildCustomFieldDefinitionUpsertPayload(definition: CustomFieldDefinitionDocType) {
+  return {
+    id: definition.id,
+    name: definition.name,
+    fieldType: definition.fieldType,
+    ...(definition.options?.length ? { options: definition.options } : {}),
+    ...(definition.description ? { description: definition.description } : {}),
+    ...(definition.required ? { required: true } : {}),
+    ...(definition.defaultValue !== undefined ? { defaultValue: definition.defaultValue } : {}),
+    ...(definition.placeholder ? { placeholder: definition.placeholder } : {}),
+    ...(definition.helpText ? { helpText: definition.helpText } : {}),
+    ...(definition.minValue !== undefined ? { minValue: definition.minValue } : {}),
+    ...(definition.maxValue !== undefined ? { maxValue: definition.maxValue } : {}),
+    ...(definition.pattern ? { pattern: definition.pattern } : {}),
+    sortOrder: definition.sortOrder,
+  };
+}
+
+function normalizeFieldTypeChangeDefinition(
+  definition: CustomFieldDefinitionDocType,
+  nextFieldType: CustomFieldValueType,
+  locale: WorkspaceLocale,
+): CustomFieldDefinitionDocType {
+  const descriptor = CUSTOM_FIELD_RENDERER_REGISTRY[nextFieldType];
+  const fallbackOptionLabel = `${t(locale, 'workspace.languageMetadata.customFieldTypeSelect')} 1`;
+  const normalizedOptions = (definition.options ?? [])
+    .map((option) => option.trim())
+    .filter(Boolean)
+    .filter((option, index, list) => list.indexOf(option) === index);
+  const options = descriptor.supportsOptions
+    ? (normalizedOptions.length > 0 ? normalizedOptions : [fallbackOptionLabel])
+    : undefined;
+
+  const {
+    options: _oldOptions,
+    minValue: _oldMinValue,
+    maxValue: _oldMaxValue,
+    pattern: _oldPattern,
+    defaultValue: oldDefaultValue,
+    ...rest
+  } = definition;
+
+  const migratedDefaultValue = (() => {
+    if (oldDefaultValue === undefined) {
+      return undefined;
+    }
+
+    switch (nextFieldType) {
+      case 'number': {
+        const numeric = typeof oldDefaultValue === 'number' ? oldDefaultValue : Number(String(oldDefaultValue).trim());
+        return Number.isFinite(numeric) ? numeric : undefined;
+      }
+      case 'boolean': {
+        if (typeof oldDefaultValue === 'boolean') {
+          return oldDefaultValue;
+        }
+        const normalized = String(oldDefaultValue).trim().toLowerCase();
+        if (normalized === 'true') {
+          return true;
+        }
+        if (normalized === 'false') {
+          return false;
+        }
+        return undefined;
+      }
+      case 'select': {
+        const candidate = Array.isArray(oldDefaultValue)
+          ? oldDefaultValue[0]
+          : String(oldDefaultValue).trim();
+        return candidate && options?.includes(candidate) ? candidate : undefined;
+      }
+      case 'multiselect': {
+        const candidates = Array.isArray(oldDefaultValue)
+          ? oldDefaultValue
+          : [String(oldDefaultValue).trim()];
+        const filtered = candidates.filter((item) => item && Boolean(options?.includes(item)));
+        return filtered.length > 0 ? filtered : undefined;
+      }
+      case 'url': {
+        const candidate = String(oldDefaultValue).trim();
+        if (!candidate) {
+          return undefined;
+        }
+        try {
+          new URL(candidate);
+          return candidate;
+        } catch {
+          return undefined;
+        }
+      }
+      case 'text':
+        return String(oldDefaultValue).trim() || undefined;
+    }
+  })();
+
+  return {
+    ...rest,
+    fieldType: nextFieldType,
+    ...(options ? { options } : {}),
+    ...(descriptor.supportsNumericRange && definition.minValue !== undefined ? { minValue: definition.minValue } : {}),
+    ...(descriptor.supportsNumericRange && definition.maxValue !== undefined ? { maxValue: definition.maxValue } : {}),
+    ...(descriptor.supportsPattern && definition.pattern?.trim() ? { pattern: definition.pattern.trim() } : {}),
+    ...(migratedDefaultValue !== undefined ? { defaultValue: migratedDefaultValue } : {}),
+  };
+}
 
 export function useLanguageMetadataCustomFieldController(
   locale: WorkspaceLocale,
@@ -71,21 +180,7 @@ export function useLanguageMetadataCustomFieldController(
     const buffered = editingDefsRef.current.get(defId);
     if (!buffered) return;
     try {
-      const saved = await upsertCustomFieldDefinition({
-        id: buffered.id,
-        name: buffered.name,
-        fieldType: buffered.fieldType,
-        ...(buffered.options?.length ? { options: buffered.options } : {}),
-        ...(buffered.description ? { description: buffered.description } : {}),
-        ...(buffered.required ? { required: true } : {}),
-        ...(buffered.defaultValue !== undefined ? { defaultValue: buffered.defaultValue } : {}),
-        ...(buffered.placeholder ? { placeholder: buffered.placeholder } : {}),
-        ...(buffered.helpText ? { helpText: buffered.helpText } : {}),
-        ...(buffered.minValue !== undefined ? { minValue: buffered.minValue } : {}),
-        ...(buffered.maxValue !== undefined ? { maxValue: buffered.maxValue } : {}),
-        ...(buffered.pattern ? { pattern: buffered.pattern } : {}),
-        sortOrder: buffered.sortOrder,
-      });
+      const saved = await upsertCustomFieldDefinition(buildCustomFieldDefinitionUpsertPayload(buffered));
       setFieldDefs((prev) => prev.map((d) => d.id === saved.id ? saved : d));
       setEditingDefs((prev) => { const next = new Map(prev); next.delete(defId); return next; });
     } catch (err) {
@@ -95,25 +190,11 @@ export function useLanguageMetadataCustomFieldController(
 
   const handleFieldTypeChange = useCallback(async (def: CustomFieldDefinitionDocType, newType: CustomFieldValueType) => {
     const previous = def;
-    const updated = { ...def, fieldType: newType };
+    const updated = normalizeFieldTypeChangeDefinition(def, newType, locale);
     setEditingDefs((prev) => new Map(prev).set(def.id, updated));
     setFieldDefs((prev) => prev.map((d) => d.id === def.id ? updated : d));
     try {
-      const saved = await upsertCustomFieldDefinition({
-        id: updated.id,
-        name: updated.name,
-        fieldType: updated.fieldType,
-        ...(updated.options?.length ? { options: updated.options } : {}),
-        ...(updated.description ? { description: updated.description } : {}),
-        ...(updated.required ? { required: true } : {}),
-        ...(updated.defaultValue !== undefined ? { defaultValue: updated.defaultValue } : {}),
-        ...(updated.placeholder ? { placeholder: updated.placeholder } : {}),
-        ...(updated.helpText ? { helpText: updated.helpText } : {}),
-        ...(updated.minValue !== undefined ? { minValue: updated.minValue } : {}),
-        ...(updated.maxValue !== undefined ? { maxValue: updated.maxValue } : {}),
-        ...(updated.pattern ? { pattern: updated.pattern } : {}),
-        sortOrder: updated.sortOrder,
-      });
+      const saved = await upsertCustomFieldDefinition(buildCustomFieldDefinitionUpsertPayload(updated));
       setFieldDefs((prev) => prev.map((d) => d.id === saved.id ? saved : d));
       setEditingDefs((prev) => { const next = new Map(prev); next.delete(def.id); return next; });
     } catch (err) {
@@ -161,19 +242,7 @@ export function useLanguageMetadataCustomFieldController(
 
     try {
       await Promise.all(nextDefinitions.map((definition) => upsertCustomFieldDefinition({
-        id: definition.id,
-        name: definition.name,
-        fieldType: definition.fieldType,
-        ...(definition.options?.length ? { options: definition.options } : {}),
-        ...(definition.description ? { description: definition.description } : {}),
-        ...(definition.required ? { required: true } : {}),
-        ...(definition.defaultValue !== undefined ? { defaultValue: definition.defaultValue } : {}),
-        ...(definition.placeholder ? { placeholder: definition.placeholder } : {}),
-        ...(definition.helpText ? { helpText: definition.helpText } : {}),
-        ...(definition.minValue !== undefined ? { minValue: definition.minValue } : {}),
-        ...(definition.maxValue !== undefined ? { maxValue: definition.maxValue } : {}),
-        ...(definition.pattern ? { pattern: definition.pattern } : {}),
-        sortOrder: definition.sortOrder,
+        ...buildCustomFieldDefinitionUpsertPayload(definition),
       })));
     } catch (err) {
       console.error(t(locale, 'workspace.languageMetadata.customFieldReorderLogError'), err);

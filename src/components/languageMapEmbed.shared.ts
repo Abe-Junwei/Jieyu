@@ -1,4 +1,5 @@
 import type { StyleSpecification } from 'maplibre-gl';
+import { buildMapProxyUrl } from './mapProxyConfig';
 
 // ─── 地图服务商类型 | Map provider kind ───
 export type MapProviderKind = 'osm' | 'tianditu' | 'maptiler';
@@ -91,24 +92,77 @@ export const MAP_PROVIDERS: MapProviderDefinition[] = [
   },
 ];
 
-// ─── localStorage 持久化 | localStorage persistence ───
+// ─── 存储键 | Storage keys ───
 const STORAGE_KEY = 'jieyu:map-provider';
+const SESSION_KEY_STORAGE_KEY = 'jieyu:map-provider-keys';
+
+function readSessionProviderKeys(): Partial<Record<MapProviderKind, string>> {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw) as Partial<Record<MapProviderKind, string>>;
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .filter(([provider, value]) => MAP_PROVIDERS.some((item) => item.kind === provider) && typeof value === 'string' && value.trim().length > 0)
+        .map(([provider, value]) => [provider, value.trim()]),
+    ) as Partial<Record<MapProviderKind, string>>;
+  } catch {
+    return {};
+  }
+}
+
+function writeSessionProviderKeys(keys: Partial<Record<MapProviderKind, string>>): void {
+  try {
+    const normalizedEntries = Object.entries(keys)
+      .filter(([provider, value]) => MAP_PROVIDERS.some((item) => item.kind === provider) && typeof value === 'string' && value.trim().length > 0)
+      .map(([provider, value]) => [provider, value.trim()] as const);
+
+    if (normalizedEntries.length === 0) {
+      sessionStorage.removeItem(SESSION_KEY_STORAGE_KEY);
+      return;
+    }
+
+    sessionStorage.setItem(SESSION_KEY_STORAGE_KEY, JSON.stringify(Object.fromEntries(normalizedEntries)));
+  } catch {
+    /* ignore */
+  }
+}
 
 export function readMapProviderConfig(): MapProviderConfig {
   try {
+    const sessionKeys = readSessionProviderKeys();
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<MapProviderConfig>;
       if (parsed.kind && MAP_PROVIDERS.some((p) => p.kind === parsed.kind)) {
-        const apiKeysByProvider = (parsed.apiKeysByProvider as Partial<Record<MapProviderKind, string>>) ?? {};
-        const apiKey = parsed.apiKey || apiKeysByProvider[parsed.kind] || '';
+        const legacyKeys = (parsed.apiKeysByProvider as Partial<Record<MapProviderKind, string>>) ?? {};
+        const mergedKeys = {
+          ...legacyKeys,
+          ...sessionKeys,
+          ...(typeof parsed.apiKey === 'string' && parsed.apiKey.trim().length > 0 ? { [parsed.kind]: parsed.apiKey.trim() } : {}),
+        };
+        if (Object.keys(mergedKeys).length > 0) {
+          writeSessionProviderKeys(mergedKeys);
+        }
+
         return {
           kind: parsed.kind,
-          apiKey,
+          apiKey: mergedKeys[parsed.kind] ?? '',
           styleId: parsed.styleId || getDefaultStyleId(parsed.kind),
-          apiKeysByProvider: { ...apiKeysByProvider, ...(apiKey ? { [parsed.kind]: apiKey } : {}) },
+          apiKeysByProvider: mergedKeys,
         };
       }
+    }
+
+    if (Object.keys(sessionKeys).length > 0) {
+      return {
+        kind: 'osm',
+        apiKey: sessionKeys.osm ?? '',
+        styleId: 'standard',
+        apiKeysByProvider: sessionKeys,
+      };
     }
   } catch {
     /* ignore */
@@ -118,7 +172,18 @@ export function readMapProviderConfig(): MapProviderConfig {
 
 export function writeMapProviderConfig(config: MapProviderConfig): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    const trimmedActiveKey = config.apiKey.trim();
+    const keyStore: Partial<Record<MapProviderKind, string>> = {
+      ...config.apiKeysByProvider,
+      ...(trimmedActiveKey ? { [config.kind]: trimmedActiveKey } : {}),
+    };
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      kind: config.kind,
+      styleId: config.styleId,
+    }));
+
+    writeSessionProviderKeys(keyStore);
   } catch {
     /* ignore */
   }
@@ -211,6 +276,10 @@ export function buildMapStyle(providerConfig: MapProviderConfig, locale: string)
   switch (providerConfig.kind) {
     case 'maptiler': {
       const sid = providerConfig.styleId || 'streets-v2';
+      const proxyStyleUrl = buildMapProxyUrl(`/maptiler/maps/${encodeURIComponent(sid)}/style.json`, new URLSearchParams({ language: lang }));
+      if (proxyStyleUrl) {
+        return proxyStyleUrl;
+      }
       return `https://api.maptiler.com/maps/${sid}/style.json?key=${providerConfig.apiKey}&language=${lang}`;
     }
     case 'tianditu':
