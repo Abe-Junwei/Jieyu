@@ -60,6 +60,7 @@ export class VadCacheService {
     if (Date.now() - entry.cachedAt > TTL_MS) {
       this.memoryCache.delete(mediaId);
       this.accessOrder = this.accessOrder.filter((id) => id !== mediaId);
+      this.persist();
       return null;
     }
     // LRU touch

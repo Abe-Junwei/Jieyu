@@ -11,6 +11,7 @@ import {
   createTranscriptionTimeoutController,
 } from './VoiceInputService.probes';
 import type { WhisperXVadService } from './vad/WhisperXVadService';
+import { tryParseVerboseResponse, computeWhisperConfidence } from './stt/sttConfidence';
 import { createLogger } from '../observability/logger';
 import { decodeEscapedUnicode } from '../utils/decodeEscapedUnicode';
 
@@ -188,23 +189,26 @@ export class RecordingExecutor {
       try {
         audioCtx = new AudioContext();
         const arrayBuffer = await audioBlob.arrayBuffer();
-        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
         // ==== VAD 缓存集成 ====
         // 优先用 mediaId，否则用音频 hash
+        // 注意：hash 必须在 decodeAudioData 之前计算，因为 decode 会 detach ArrayBuffer
         let mediaId = (config as any).mediaId as string | undefined;
         if (!mediaId) {
           // 无 mediaId 时用音频内容 hash（极简实现：前 256 字节 base64）
           const hash = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer.slice(0, 256))));
           mediaId = `blob:${hash}`;
         }
+
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
         // 动态导入 VadCacheService，避免循环依赖
         const { vadCache } = await import('./vad/VadCacheService');
         let segments = vadCache.get(mediaId)?.segments;
         if (!segments) {
           segments = await this._vadService.detectSpeechSegments(audioBuffer);
           vadCache.set(mediaId, {
-            engine: this._vadService.constructor?.name === 'WhisperXVadService' ? 'silero' : 'energy',
+            // WhisperXVadService 使用 Worker，存在 worker 属性；VadService（能量）无此属性
+            engine: 'worker' in (this._vadService as object) ? 'silero' : 'energy',
             segments,
             durationSec: audioBuffer.duration,
             cachedAt: Date.now(),
@@ -315,6 +319,7 @@ export class RecordingExecutor {
       const body = new FormData();
       body.append('file', audioBlob, 'recording.webm');
       body.append('model', model);
+      body.append('response_format', 'verbose_json');
       if (lang) body.append('language', lang);
 
       const { controller, clear } = createTranscriptionTimeoutController();
@@ -331,12 +336,14 @@ export class RecordingExecutor {
           continue;
         }
 
-        const json = await resp.json() as { text?: string };
+        const json = await resp.json() as Record<string, unknown>;
+        const verbose = tryParseVerboseResponse(json);
+        const confidence = verbose ? computeWhisperConfidence(verbose) : 1.0;
         return {
-          text: json.text ?? '',
+          text: (json.text as string | undefined) ?? '',
           lang: lang ?? 'unknown',
           isFinal: true,
-          confidence: 1.0,
+          confidence,
           engine: 'whisper-local',
           audioBlob,
         };
