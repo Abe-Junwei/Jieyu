@@ -472,7 +472,7 @@
 }
 
 :root[data-theme='dark'] .app-side-pane-body-slot .transcription-side-pane-item:hover {
-  background: color-mix(in srgb, rgb(255 255 255) 7%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 7%, transparent);
 }
 
 :root[data-theme='dark'] .app-side-pane-body-slot .transcription-side-pane-item-active {
@@ -518,7 +518,7 @@
 }
 
 :root[data-theme='dark'] .app-side-pane-body-slot .transcription-side-pane-actions-portaled .transcription-side-pane-quick-action:hover:not(:disabled) {
-  background: color-mix(in srgb, rgb(255 255 255) 7%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 7%, transparent);
 }
 
 .transcription-side-pane-overview::-webkit-scrollbar {
@@ -800,4 +800,40 @@
 .transcription-side-pane-repair-group-label {
   font-weight: 600;
   margin-bottom: 4px;
+}
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.app-side-pane-body-slot:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.app-side-pane-group-toggle-static:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.transcription-side-pane-actions-portaled:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.transcription-side-pane-inspector-del-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.transcription-side-pane-quick-action:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.transcription-side-pane-quick-action-label:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.transcription-side-pane-speaker-mini-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
 }

@@ -1191,3 +1191,29 @@
   color: var(--text-muted, var(--text-secondary));
   font-variant-numeric: tabular-nums;
 }
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.voice-agent-disclosure-header:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.voice-agent-disclosure-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.voice-agent-learning-clear-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.voice-agent-mic-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.voice-agent-mode-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}

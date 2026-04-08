@@ -276,7 +276,7 @@
 :root[data-theme='dark'] .ai-chat-message-assistant .ai-chat-message-surface {
   background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
   border-color: color-mix(in srgb, var(--border-soft) 18%, transparent);
-  box-shadow: 0 1px 0 color-mix(in srgb, rgb(255 255 255) 1.2%, transparent), 0 16px 38px color-mix(in srgb, var(--shadow-color) 24%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--surface-panel) 4%, transparent), 0 16px 38px color-mix(in srgb, var(--shadow-color) 24%, transparent);
 }
 
 
@@ -293,4 +293,15 @@
 :root[data-theme='dark'] .ai-chat-message-action-btn:hover {
   color: var(--text-primary);
   background: transparent;
+}
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.ai-chat-message-copy-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
 }

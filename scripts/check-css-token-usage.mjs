@@ -9,8 +9,23 @@ const args = new Set(process.argv.slice(2));
 const writeBaseline = args.has('--write-baseline');
 const strict = !args.has('--no-strict');
 
-const LINE_PATTERN = /(#([0-9a-fA-F]{3,8})\b|rgba?\()/g;
+const LINE_PATTERNS = [
+  /#([0-9a-fA-F]{3,8})\b/g,
+  /rgba?\(/g,
+  /hsla?\(/g,
+];
 const ALLOW_RAW_COLOR_FILES = new Set(['src/styles/tokens.css']);
+
+function countRawColorMatches(line) {
+  if (line.includes('data:image/')) return 0;
+
+  let count = 0;
+  for (const pattern of LINE_PATTERNS) {
+    pattern.lastIndex = 0;
+    count += (line.match(pattern) ?? []).length;
+  }
+  return count;
+}
 
 function walkFiles(dirPath, matcher) {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
@@ -59,8 +74,7 @@ function main() {
     const content = fs.readFileSync(filePath, 'utf8');
     let count = 0;
     for (const line of content.split(/\r?\n/)) {
-      LINE_PATTERN.lastIndex = 0;
-      count += (line.match(LINE_PATTERN) ?? []).length;
+      count += countRawColorMatches(line);
     }
 
     if (count > 0) {

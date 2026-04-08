@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import * as csstree from 'css-tree';
 
 const ROOT = process.cwd();
 const STYLES_DIR = path.join(ROOT, 'src', 'styles');
@@ -45,27 +46,60 @@ function writeBaselineFile(allowedUnused) {
 function collectCssClasses() {
   const cssFiles = walkFiles(STYLES_DIR, (p) => p.endsWith('.css'));
   const classes = new Set();
-  const classRe = /\.([_a-zA-Z]+[_a-zA-Z0-9-]*)/g;
+
   for (const filePath of cssFiles) {
     const content = fs.readFileSync(filePath, 'utf8');
-    let match;
-    while ((match = classRe.exec(content))) {
-      classes.add(match[1]);
-    }
+    const ast = csstree.parse(content, { positions: false, parseValue: false });
+    csstree.walk(ast, (node) => {
+      if (node.type === 'ClassSelector') {
+        classes.add(node.name);
+      }
+    });
   }
+
   return [...classes].sort();
 }
 
 function collectUsedClasses() {
   const srcFiles = walkFiles(SRC_DIR, (p) => /\.(ts|tsx|js|jsx)$/.test(p));
   const used = new Set();
+  const dynamicPrefixes = new Set();
+
+  function recordClassToken(raw) {
+    raw
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter(Boolean)
+      .forEach((token) => used.add(token));
+  }
+
+  function recordTemplateLiteral(raw) {
+    const staticOnly = raw.replace(/\$\{[^}]+\}/g, ' ');
+    recordClassToken(staticOnly);
+
+    for (const match of raw.matchAll(/([A-Za-z_][A-Za-z0-9-]*)-\$\{/g)) {
+      dynamicPrefixes.add(`${match[1]}-`);
+    }
+  }
 
   for (const filePath of srcFiles) {
     const content = fs.readFileSync(filePath, 'utf8');
 
     for (const match of content.matchAll(/className\s*=\s*(?:"([^"]+)"|'([^']+)')/g)) {
-      const raw = match[1] ?? match[2] ?? '';
-      raw.split(/\s+/).map((token) => token.trim()).filter(Boolean).forEach((token) => used.add(token));
+      const raw = (match[1] ?? match[2] ?? '').trim();
+      recordClassToken(raw);
+    }
+
+    for (const match of content.matchAll(/className\s*=\s*\{`([^`]+)`\}/g)) {
+      const raw = (match[1] ?? '').trim();
+      recordTemplateLiteral(raw);
+    }
+
+    for (const match of content.matchAll(/\b(?:clsx|cn)\(([^)]*)\)/g)) {
+      const raw = match[1] ?? '';
+      for (const tokenMatch of raw.matchAll(/['"]([^'"]+)['"]/g)) {
+        recordClassToken(tokenMatch[1]);
+      }
     }
 
     for (const match of content.matchAll(/classList\.(?:add|remove|toggle)\(([^\)]*)\)/g)) {
@@ -83,7 +117,7 @@ function collectUsedClasses() {
     }
   }
 
-  return used;
+  return { used, dynamicPrefixes };
 }
 
 function isAutoAllowed(className) {
@@ -94,10 +128,22 @@ function isAutoAllowed(className) {
     || className === 'secondary';
 }
 
+function matchesDynamicPrefix(className, dynamicPrefixes) {
+  for (const prefix of dynamicPrefixes) {
+    if (className.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
 function main() {
   const cssClasses = collectCssClasses();
-  const usedClasses = collectUsedClasses();
-  const unused = cssClasses.filter((className) => !usedClasses.has(className) && !isAutoAllowed(className));
+  const { used: usedClasses, dynamicPrefixes } = collectUsedClasses();
+  const unused = cssClasses.filter((className) => {
+    if (usedClasses.has(className)) return false;
+    if (matchesDynamicPrefix(className, dynamicPrefixes)) return false;
+    if (isAutoAllowed(className)) return false;
+    return true;
+  });
 
   if (writeBaseline) {
     writeBaselineFile(unused);

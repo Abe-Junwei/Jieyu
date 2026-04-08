@@ -46,11 +46,17 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     input.utterancesLength,
     input.vadCacheStatus,
     input.acousticRuntimeStatus,
-    input.acousticRuntimeStatus,
     input.acousticSummary,
     input.acousticInspector,
+    input.pinnedInspector,
+    input.selectedHotspotTimeSec,
     input.acousticDetail,
+    input.acousticConfigOverride,
     input.handleJumpToAcousticHotspot,
+    input.handlePinInspector,
+    input.handleClearPinnedInspector,
+    input.handleSelectHotspot,
+    input.handleChangeAcousticConfig,
   ]);
 
   useEffect(() => {

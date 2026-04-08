@@ -1,25 +1,5 @@
 {
-  "generatedAt": "2026-04-08T09:59:29.078Z",
-  "total": 110,
-  "files": {
-    "src/styles/foundation/context-menu.css": 4,
-    "src/styles/foundation/dialog-shell.css": 8,
-    "src/styles/foundation/media-controls.css": 11,
-    "src/styles/foundation/waveform-display.css": 21,
-    "src/styles/global.css": 2,
-    "src/styles/pages/ai-sidebar-shell.css": 2,
-    "src/styles/pages/feature-availability.css": 9,
-    "src/styles/pages/language-metadata-workspace.css": 8,
-    "src/styles/pages/lexicon-workspace.css": 6,
-    "src/styles/pages/orthography-manager-panel.css": 5,
-    "src/styles/pages/orthography-workspace.css": 5,
-    "src/styles/pages/transcription-layout.css": 2,
-    "src/styles/pages/transcription-toolbar.css": 2,
-    "src/styles/pages/transcription-waveform.css": 11,
-    "src/styles/panels/action-dialogs.css": 4,
-    "src/styles/panels/ai-chat-composer.css": 1,
-    "src/styles/panels/ai-chat-thread.css": 1,
-    "src/styles/panels/analysis-panel.css": 6,
-    "src/styles/panels/layer-list.css": 2
-  }
+  "generatedAt": "2026-04-08T13:37:05.633Z",
+  "total": 0,
+  "files": {}
 }

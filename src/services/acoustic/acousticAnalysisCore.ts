@@ -425,6 +425,68 @@ function computeLpcCoefficients(autocorrelation: Float32Array, order: number): {
   return { coefficients, error: predictionError };
 }
 
+/**
+ * Burg method for LPC coefficient estimation.
+ * More numerically stable than autocorrelation method for formant extraction.
+ */
+function computeLpcCoefficientsBurg(signal: Float32Array, order: number): { coefficients: Float32Array; error: number } | null {
+  const N = signal.length;
+  if (N <= order) return null;
+
+  const coefficients = new Float32Array(order + 1);
+  coefficients[0] = 1;
+
+  let energy = 0;
+  for (let i = 0; i < N; i += 1) {
+    energy += (signal[i] ?? 0) * (signal[i] ?? 0);
+  }
+  energy /= N;
+  if (energy <= EPSILON) return null;
+
+  const forward = new Float32Array(N);
+  const backward = new Float32Array(N);
+  for (let i = 0; i < N; i += 1) {
+    forward[i] = signal[i] ?? 0;
+    backward[i] = signal[i] ?? 0;
+  }
+
+  let predictionError = energy;
+
+  for (let m = 1; m <= order; m += 1) {
+    let numerator = 0;
+    let denominator = 0;
+    for (let i = m; i < N; i += 1) {
+      numerator += (forward[i] ?? 0) * (backward[i - 1] ?? 0);
+      denominator += (forward[i] ?? 0) * (forward[i] ?? 0) + (backward[i - 1] ?? 0) * (backward[i - 1] ?? 0);
+    }
+    if (denominator <= EPSILON) return null;
+
+    const reflection = -2 * numerator / denominator;
+
+    const tempCoeffs = coefficients.slice();
+    for (let j = 1; j < m; j += 1) {
+      coefficients[j] = (tempCoeffs[j] ?? 0) + reflection * (tempCoeffs[m - j] ?? 0);
+    }
+    coefficients[m] = reflection;
+
+    predictionError *= 1 - reflection * reflection;
+    if (!Number.isFinite(predictionError) || predictionError <= EPSILON) return null;
+
+    const newForward = new Float32Array(N);
+    const newBackward = new Float32Array(N);
+    for (let i = m; i < N; i += 1) {
+      newForward[i] = (forward[i] ?? 0) + reflection * (backward[i - 1] ?? 0);
+      newBackward[i] = (backward[i - 1] ?? 0) + reflection * (forward[i] ?? 0);
+    }
+    for (let i = m; i < N; i += 1) {
+      forward[i] = newForward[i] ?? 0;
+      backward[i] = newBackward[i] ?? 0;
+    }
+  }
+
+  return { coefficients, error: predictionError };
+}
+
 function estimateFormants(frame: Float32Array, sampleRate: number): {
   formantF1Hz: number | null;
   formantF2Hz: number | null;
@@ -446,8 +508,13 @@ function estimateFormants(frame: Float32Array, sampleRate: number): {
   }
 
   const lpcOrder = clamp(Math.floor(sampleRate / 1000) + 8, 10, 16);
-  const autocorrelation = computeAutocorrelation(emphasized, lpcOrder);
-  const lpc = computeLpcCoefficients(autocorrelation, lpcOrder);
+
+  // Try Burg method first (more stable), fall back to autocorrelation
+  let lpc = computeLpcCoefficientsBurg(emphasized, lpcOrder);
+  if (!lpc) {
+    const autocorrelation = computeAutocorrelation(emphasized, lpcOrder);
+    lpc = computeLpcCoefficients(autocorrelation, lpcOrder);
+  }
   if (!lpc) {
     return { formantF1Hz: null, formantF2Hz: null, formantReliability: null };
   }
@@ -497,7 +564,13 @@ function estimateFormants(frame: Float32Array, sampleRate: number): {
   selected.sort((left, right) => left.frequencyHz - right.frequencyHz);
   const f1 = selected[0]?.frequencyHz ?? null;
   const f2 = selected[1]?.frequencyHz ?? null;
-  const normalizedError = 1 - clamp((lpc.error / Math.max(autocorrelation[0] ?? 1, EPSILON)), 0, 1);
+  // Compute signal energy for reliability normalization (works for both Burg and autocorrelation paths)
+  let signalEnergy = 0;
+  for (let i = 0; i < emphasized.length; i += 1) {
+    signalEnergy += emphasized[i]! * emphasized[i]!;
+  }
+  signalEnergy /= emphasized.length;
+  const normalizedError = 1 - clamp((lpc.error / Math.max(signalEnergy, EPSILON)), 0, 1);
   const reliability = clamp(normalizedError * (selected.length / 2), 0, 1);
 
   return {

@@ -182,3 +182,14 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.btn-danger:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.btn-ghost:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}

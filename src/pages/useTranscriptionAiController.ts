@@ -71,6 +71,7 @@ export function useTranscriptionAiController(
     selectionStartSec: input.selectionSnapshot.selectedUnitStartSec,
     selectionEndSec: input.selectionSnapshot.selectedUnitEndSec,
     seekToTimeRef: input.seekToTimeRef,
+    configOverride: input.acousticConfigOverride,
   });
 
   const refreshAiToolDecisionLogs = useCallback(async () => {

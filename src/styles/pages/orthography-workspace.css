@@ -44,11 +44,11 @@
 }
 
 .orthography-workspace-state-success {
-  color: var(--state-success-text, #15803d);
+  color: var(--state-success-text);
 }
 
 .orthography-workspace-state-warning {
-  color: var(--state-warning-text, #b45309);
+  color: var(--state-warning-text);
 }
 
 .orthography-workspace-layout {
@@ -96,9 +96,9 @@
   gap: var(--orthography-space-2);
   margin-top: var(--orthography-space-3);
   padding: var(--orthography-space-4);
-  border: 1px dashed color-mix(in srgb, var(--state-warning-text, #b45309) 35%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--state-warning-text) 35%, transparent);
   border-radius: var(--radius-2xl);
-  background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-warning-bg, #fef3c7));
+  background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-warning-bg));
 }
 
 .orthography-workspace-inline-actions {
@@ -165,7 +165,7 @@
 
 .orthography-workspace-list-item-active {
   background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-info-bg));
-  box-shadow: 0 8px 18px color-mix(in srgb, rgb(14 165 233) 8%, transparent);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--state-info-solid) 8%, transparent);
 }
 
 .orthography-workspace-list-item-active::before {

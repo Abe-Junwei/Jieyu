@@ -54,7 +54,7 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
       onClose={onClose}
       topmost
       dir={uiTextDirection}
-      className="shortcuts-panel panel-design-match panel-design-match-dialog"
+      className="pnl-shortcuts-panel panel-design-match panel-design-match-dialog"
       ariaLabel={messages.panelAriaLabel}
       title={messages.panelTitle}
       headerClassName="shortcuts-panel-header"

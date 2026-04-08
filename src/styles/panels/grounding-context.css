@@ -473,3 +473,14 @@
   color: var(--text-primary);
   cursor: pointer;
 }
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.gc-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.grounding-context-empty:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}

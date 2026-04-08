@@ -26,7 +26,7 @@ describe('ShortcutsPanel', () => {
     const keycaps = document.querySelectorAll('kbd');
 
     expect(dialog.className).toContain('dialog-card');
-    expect(dialog.className).toContain('shortcuts-panel');
+    expect(dialog.className).toContain('pnl-shortcuts-panel');
     expect(closeButton.closest('.dialog-header')).toBeTruthy();
     expect(screen.getByText('播放控制')).toBeTruthy();
     expect(screen.getByText('编辑操作')).toBeTruthy();

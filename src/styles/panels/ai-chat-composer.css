@@ -79,7 +79,7 @@
   border-radius: var(--radius-pill);
   border-color: color-mix(in srgb, var(--border-soft) 88%, transparent);
   background: color-mix(in srgb, var(--surface-header) 94%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, rgb(255 255 255) 38%, transparent), 0 1px 2px color-mix(in srgb, var(--shadow-color) 3%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-panel) 38%, transparent), 0 1px 2px color-mix(in srgb, var(--shadow-color) 3%, transparent);
 }
 
 .ai-chat-input.ai-chat-input-composer.has-ghost-suggestion {
@@ -173,4 +173,10 @@
 
 :root[data-theme='dark'] .ai-chat-composer-shortcut:hover:not(:disabled) {
   background: color-mix(in srgb, var(--header-accent) 18%, var(--surface-panel));
+}
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.ai-chat-composer-send-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
 }

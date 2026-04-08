@@ -109,7 +109,7 @@ export const NotePanel = memo(function NotePanel({
 
   return (
     <DialogShell
-      className="note-panel panel-design-match panel-design-match-dialog"
+      className="pnl-note-panel panel-design-match panel-design-match-dialog"
       headerClassName="note-panel-header"
       bodyClassName="note-panel-body"
       title={messages.panelTitle(targetLabel)}

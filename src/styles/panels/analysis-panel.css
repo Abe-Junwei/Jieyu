@@ -1,6 +1,6 @@
 /* AiAnalysisPanel-owned shell and stats blocks */
 
-.transcription-analysis-panel {
+.pnl-analysis-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100%;
@@ -110,7 +110,8 @@
 .transcription-analysis-acoustic-tone-section,
 .transcription-analysis-acoustic-hotspots-section,
 .transcription-analysis-acoustic-navigation-section,
-.transcription-analysis-acoustic-export-section {
+.transcription-analysis-acoustic-export-section,
+.transcription-analysis-acoustic-provider-section {
   min-width: 0;
 }
 
@@ -198,11 +199,11 @@
 }
 
 .transcription-analysis-acoustic-tone-legend-item-f0 {
-  color: color-mix(in srgb, var(--state-info-solid) 88%, #2bb0d8);
+  color: color-mix(in srgb, var(--state-info-solid) 88%, var(--state-info-border));
 }
 
 .transcription-analysis-acoustic-tone-legend-item-intensity {
-  color: color-mix(in srgb, var(--state-success-solid, #209268) 84%, #6fcf97);
+  color: color-mix(in srgb, var(--state-success-solid) 84%, var(--state-success-border));
 }
 
 .transcription-analysis-acoustic-tone-chart {
@@ -234,11 +235,11 @@
 }
 
 .transcription-analysis-acoustic-tone-line-f0 {
-  stroke: color-mix(in srgb, var(--state-info-solid) 88%, #2bb0d8);
+  stroke: color-mix(in srgb, var(--state-info-solid) 88%, var(--state-info-border));
 }
 
 .transcription-analysis-acoustic-tone-line-intensity {
-  stroke: color-mix(in srgb, var(--state-success-solid, #209268) 84%, #6fcf97);
+  stroke: color-mix(in srgb, var(--state-success-solid) 84%, var(--state-success-border));
 }
 
 .transcription-analysis-acoustic-tone-footer {
@@ -416,4 +417,65 @@
   border-color: color-mix(in srgb, var(--header-accent) 28%, var(--border-soft));
   background: color-mix(in srgb, var(--state-info-bg) 82%, var(--surface-panel));
   color: var(--state-info-solid);
+}
+
+/* ── Wave A: pinned inspector & dual-point comparison ── */
+
+.transcription-analysis-acoustic-pinned-readout {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm, 4px);
+  background: color-mix(in srgb, var(--surface-panel) 90%, var(--state-info-bg));
+  font-size: calc(0.78rem * var(--ui-font-scale, 1));
+}
+
+.transcription-analysis-acoustic-comparison {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 4px;
+  padding: 4px 0;
+  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+}
+
+/* ── Wave B: parameter presets ── */
+
+.transcription-analysis-acoustic-param-presets {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.transcription-analysis-acoustic-preset-select {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  font-size: calc(0.78rem * var(--ui-font-scale, 1));
+}
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.transcription-analysis-acoustic-nav-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.transcription-analysis-panel-footer:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.transcription-assistant-hub-tab:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.transcription-assistant-hub-tab-active:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
 }

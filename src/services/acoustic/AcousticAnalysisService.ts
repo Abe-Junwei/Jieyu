@@ -8,6 +8,11 @@ import {
   type AcousticFeatureResult,
 } from '../../utils/acousticOverlayTypes';
 import { acousticAnalysisCacheDB } from './AcousticAnalysisCacheDB';
+import {
+  LOCAL_ACOUSTIC_PROVIDER_DEFINITION,
+  resolveAcousticProviderState,
+  type ResolvedAcousticProviderState,
+} from './acousticProviderContract';
 
 const log = createLogger('AcousticAnalysisService');
 
@@ -70,12 +75,14 @@ interface AnalyzeMediaInput extends AnalyzeRequestOptions {
   mediaKey: string;
   mediaUrl: string;
   config?: Partial<AcousticAnalysisConfig>;
+  providerId?: string;
 }
 
 interface AnalyzeAudioBufferInput extends AnalyzeRequestOptions {
   mediaKey: string;
   audioBuffer: AudioBuffer;
   config?: Partial<AcousticAnalysisConfig>;
+  providerId?: string;
 }
 
 interface AcousticAnalysisServiceOptions {
@@ -201,8 +208,17 @@ export class AcousticAnalysisService {
 
   async analyzeMedia(input: AnalyzeMediaInput): Promise<AcousticFeatureResult> {
     const config = normalizeConfig(input.config);
-    const cacheKey = buildAcousticCacheKey(input.mediaKey, config);
+    const providerState = resolveAcousticProviderState(input.providerId);
+    const providerAwareMediaKey = `${input.mediaKey}::${providerState.effectiveProviderId}`;
+    const cacheKey = buildAcousticCacheKey(providerAwareMediaKey, config);
     return this.runCachedAnalysis(cacheKey, input.mediaKey, async (options) => {
+      if (providerState.fellBackToLocal) {
+        log.info('Acoustic provider unavailable, falling back to local provider', {
+          requestedProviderId: providerState.requestedProviderId,
+          effectiveProviderId: providerState.effectiveProviderId,
+          reason: providerState.fallbackReason,
+        });
+      }
       let audioContext: AudioContextLike | null = null;
       try {
         if (options.signal?.aborted) {
@@ -216,9 +232,10 @@ export class AcousticAnalysisService {
         audioContext = this.audioContextFactory?.() ?? createBrowserAudioContext();
         const audioBuffer = await audioContext.decodeAudioData(audioBytes);
         return this.performAnalyzeAudioBuffer({
-          mediaKey: input.mediaKey,
+          mediaKey: providerAwareMediaKey,
           audioBuffer,
           config,
+          providerId: providerState.effectiveProviderId,
           signal: options.signal,
           onProgress: options.onProgress,
         });
@@ -230,14 +247,21 @@ export class AcousticAnalysisService {
 
   async analyzeAudioBuffer(input: AnalyzeAudioBufferInput): Promise<AcousticFeatureResult> {
     const config = normalizeConfig(input.config);
-    const cacheKey = buildAcousticCacheKey(input.mediaKey, config);
+    const providerState = resolveAcousticProviderState(input.providerId);
+    const providerAwareMediaKey = `${input.mediaKey}::${providerState.effectiveProviderId}`;
+    const cacheKey = buildAcousticCacheKey(providerAwareMediaKey, config);
     return this.runCachedAnalysis(cacheKey, input.mediaKey, (options) => this.performAnalyzeAudioBuffer({
-      mediaKey: input.mediaKey,
+      mediaKey: providerAwareMediaKey,
       audioBuffer: input.audioBuffer,
       config,
+      providerId: providerState.effectiveProviderId,
       signal: options.signal,
       onProgress: options.onProgress,
     }), input);
+  }
+
+  resolveProviderState(preferredProviderId?: string | null): ResolvedAcousticProviderState {
+    return resolveAcousticProviderState(preferredProviderId);
   }
 
   private async runCachedAnalysis(
@@ -300,6 +324,10 @@ export class AcousticAnalysisService {
 
   private async performAnalyzeAudioBuffer(input: AnalyzeAudioBufferInput): Promise<AcousticFeatureResult> {
     const config = normalizeConfig(input.config);
+    const providerState = resolveAcousticProviderState(input.providerId);
+    if (providerState.effectiveProviderId !== LOCAL_ACOUSTIC_PROVIDER_DEFINITION.id) {
+      throw new Error(`Unsupported acoustic provider: ${providerState.effectiveProviderId}`);
+    }
     const mono = downmixToMono(input.audioBuffer);
     return this.dispatchToWorker({
       requestId: buildRequestId(),

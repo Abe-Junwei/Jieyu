@@ -184,3 +184,9 @@ npm run scaffold:ui-surface -- --type=dialog --name=SpeakerAudit
 1. `docs-governance`
 2. `quality`
 3. `build-guard`
+
+### 7.5 治理执行记录
+
+季度复盘与持续治理结果请记录在：
+
+1. `docs/architecture/CSS治理执行记录.md`

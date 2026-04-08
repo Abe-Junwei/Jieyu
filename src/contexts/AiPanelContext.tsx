@@ -67,10 +67,17 @@ export type AiPanelContextValue = {
   acousticRuntimeStatus?: AcousticRuntimeStatus;
   acousticSummary?: AcousticPromptSummary | null;
   acousticInspector?: AcousticInspectorReadout | null;
+  pinnedInspector?: AcousticInspectorReadout | null;
+  selectedHotspotTimeSec?: number | null;
   acousticDetail?: AcousticPanelDetail | null;
   onJumpToTranslationGap?: () => void;
   onJumpToAcousticHotspot?: (timeSec: number) => void;
+  onPinInspector?: () => void;
+  onClearPinnedInspector?: () => void;
+  onSelectHotspot?: (timeSec: number | null) => void;
   onChangeAiPanelMode?: (mode: AiPanelMode) => void;
+  onChangeAcousticConfig?: (config: Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig>) => void;
+  acousticConfigOverride?: Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig> | null;
 };
 
 export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
@@ -87,7 +94,10 @@ export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
   acousticRuntimeStatus: { state: 'idle' },
   acousticSummary: null,
   acousticInspector: null,
+  pinnedInspector: null,
+  selectedHotspotTimeSec: null,
   acousticDetail: null,
+  acousticConfigOverride: null,
 };
 
 export const AiPanelContext = createContext<AiPanelContextValue | null>(null);

@@ -1,4 +1,4 @@
-.note-panel {
+.pnl-note-panel {
   box-shadow: 0 10px 24px color-mix(in srgb, var(--shadow-color) 12%, transparent);
 }
 
@@ -171,4 +171,10 @@
 
 .note-panel-btn-cancel {
   color: var(--text-secondary);
+}
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.note-panel-delete:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
 }

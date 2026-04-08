@@ -105,7 +105,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   padding: var(--language-metadata-space-3) 4px var(--language-metadata-space-1);
   user-select: none;
 }
@@ -147,7 +147,7 @@
 
 .language-metadata-workspace-list-item-active {
   background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-info-bg));
-  box-shadow: 0 8px 18px color-mix(in srgb, rgb(14 165 233) 8%, transparent);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--state-info-solid) 8%, transparent);
 }
 
 .language-metadata-workspace-list-item-active::before {
@@ -464,7 +464,7 @@
 }
 
 .language-metadata-workspace-field-required {
-  color: var(--status-danger-foreground, #b42318);
+  color: var(--status-danger-foreground);
 }
 
 .language-metadata-workspace-field-helper {
@@ -474,7 +474,7 @@
 
 .language-metadata-workspace-field-error {
   font-size: 0.76rem;
-  color: var(--status-danger-foreground, #b42318);
+  color: var(--status-danger-foreground);
 }
 
 /* 内联跳转按钮 | Inline jump button inside field hints */
@@ -600,11 +600,11 @@
 }
 
 .language-metadata-workspace-state-error {
-  color: var(--status-danger-foreground, #b42318);
+  color: var(--status-danger-foreground);
 }
 
 .language-metadata-workspace-state-success {
-  color: var(--status-success-foreground, #0f7b6c);
+  color: var(--status-success-foreground);
 }
 
 /* ── 地理信息单行（纬度 + 经度 + 定位输入）| Geo row (lat + lng + location input) ── */
@@ -765,8 +765,8 @@
 }
 
 .language-metadata-workspace-map-provider-select:focus-visible {
-  border-color: var(--focus-ring, #4d90fe);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring, #4d90fe) 25%, transparent);
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 25%, transparent);
 }
 
 .language-metadata-workspace-map-config-btn {
@@ -993,8 +993,8 @@
   .language-metadata-workspace-administrative-secondary-field-start .input,
   .language-metadata-workspace-administrative-secondary-field-middle .input,
   .language-metadata-workspace-administrative-secondary-field-end .input {
-    margin-left: 0 !important;
-    border-radius: 10px !important;
+    margin-left: 0;
+    border-radius: 10px;
   }
 
   .language-metadata-workspace-matrix-header,
@@ -1026,4 +1026,15 @@
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.language-metadata-workspace-map-config-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.language-metadata-workspace-map-fullscreen-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
 }

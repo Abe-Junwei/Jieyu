@@ -1,3 +1,28 @@
 {
-  "entries": []
+  "entries": [
+    {
+      "className": "transcription-analysis-panel",
+      "status": "deprecated",
+      "replacement": "pnl-analysis-panel",
+      "removeAfter": "2026-08-31"
+    },
+    {
+      "className": "note-panel",
+      "status": "deprecated",
+      "replacement": "pnl-note-panel",
+      "removeAfter": "2026-08-31"
+    },
+    {
+      "className": "pdf-viewer-panel",
+      "status": "deprecated",
+      "replacement": "pnl-pdf-viewer-panel",
+      "removeAfter": "2026-08-31"
+    },
+    {
+      "className": "shortcuts-panel",
+      "status": "deprecated",
+      "replacement": "pnl-shortcuts-panel",
+      "removeAfter": "2026-08-31"
+    }
+  ]
 }

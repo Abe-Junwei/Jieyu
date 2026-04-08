@@ -31,6 +31,7 @@
     "check:css-layer-boundary": "node scripts/check-css-layer-boundary.mjs",
     "check:css-motion-accessibility": "node scripts/check-css-motion-accessibility.mjs",
     "check:css-a11y": "node scripts/check-css-a11y.mjs",
+    "check:css-a11y:write-baseline": "node scripts/check-css-a11y.mjs --write-baseline",
     "check:css-compat": "node scripts/check-css-compat.mjs",
     "check:css-naming-convention": "node scripts/check-css-naming-convention.mjs",
     "check:css-naming-convention:write-baseline": "node scripts/check-css-naming-convention.mjs --write-baseline",

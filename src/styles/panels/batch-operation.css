@@ -165,3 +165,9 @@
   border-radius: var(--radius-pill);
   padding: 2px 8px;
 }
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.batch-operation-reset-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}

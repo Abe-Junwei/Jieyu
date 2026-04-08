@@ -175,3 +175,14 @@
   background: var(--state-danger-text);
   color: var(--surface-panel);
 }
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.icon-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.panel-design-match-dialog:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}

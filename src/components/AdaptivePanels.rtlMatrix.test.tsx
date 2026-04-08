@@ -66,7 +66,7 @@ describe('Adaptive panel RTL interaction matrix', () => {
       </LocaleProvider>,
     );
 
-    const panel = view.container.querySelector('.note-panel') as HTMLDivElement;
+    const panel = view.container.querySelector('.pnl-note-panel') as HTMLDivElement;
     expect(panel).toBeTruthy();
     expect(panel.getAttribute('dir')).toBe(direction);
 

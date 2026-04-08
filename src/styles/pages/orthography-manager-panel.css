@@ -59,11 +59,11 @@
 }
 
 .orthography-manager-state-success {
-  color: var(--state-success-text, #15803d);
+  color: var(--state-success-text);
 }
 
 .orthography-manager-state-warning {
-  color: var(--state-warning-text, #b45309);
+  color: var(--state-warning-text);
 }
 
 .orthography-manager-toolbar {
@@ -99,9 +99,9 @@
   display: grid;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px dashed color-mix(in srgb, var(--state-warning-text, #b45309) 35%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--state-warning-text) 35%, transparent);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-warning-bg, #fef3c7));
+  background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-warning-bg));
 }
 
 .orthography-manager-callout.orthography-builder-hint {
@@ -181,7 +181,7 @@
   border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--header-accent) 20%, var(--border-soft));
   background: color-mix(in srgb, var(--state-info-bg) 66%, var(--surface-panel));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, rgb(255 255 255) 55%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-panel) 55%, transparent);
 }
 
 .orthography-manager-highlight-card.panel-section {

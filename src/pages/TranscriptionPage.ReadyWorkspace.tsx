@@ -813,6 +813,10 @@ function TranscriptionPageReadyWorkspace({
     : undefined;
   const showBottomToolbarAiProgress = bottomToolbarAcousticRuntimeStatus?.state === 'error';
 
+  const [pinnedInspector, setPinnedInspector] = useState<AcousticInspectorReadout | null>(null);
+  const [selectedHotspotTimeSec, setSelectedHotspotTimeSec] = useState<number | null>(null);
+  const [acousticConfigOverride, setAcousticConfigOverride] = useState<Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig> | null>(null);
+
   const acousticInspector = useMemo<AcousticInspectorReadout | null>(() => {
     const activeReadout = spectrogramHoverReadout
       ? {
@@ -849,6 +853,22 @@ function TranscriptionPageReadyWorkspace({
         : {}),
     };
   }, [deferredAiRuntime.acousticSummary, spectrogramHoverReadout, waveformHoverReadout]);
+
+  const handlePinInspector = useCallback(() => {
+    if (acousticInspector) setPinnedInspector({ ...acousticInspector });
+  }, [acousticInspector]);
+
+  const handleClearPinnedInspector = useCallback(() => {
+    setPinnedInspector(null);
+  }, []);
+
+  const handleSelectHotspot = useCallback((timeSec: number | null) => {
+    setSelectedHotspotTimeSec(timeSec);
+  }, []);
+
+  const handleChangeAcousticConfig = useCallback((config: Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig>) => {
+    setAcousticConfigOverride((prev) => ({ ...prev, ...config }));
+  }, []);
 
   const {
     handleSearchReplace,
@@ -967,10 +987,17 @@ function TranscriptionPageReadyWorkspace({
     acousticRuntimeStatus: deferredAiRuntime.acousticRuntimeStatus,
     acousticSummary: deferredAiRuntime.acousticSummary,
     acousticInspector,
+    pinnedInspector,
+    selectedHotspotTimeSec,
     acousticDetail: deferredAiRuntime.acousticDetail,
+    acousticConfigOverride,
     selectedTranslationGapCount,
     handleJumpToTranslationGap,
     handleJumpToAcousticHotspot: deferredAiRuntime.onJumpToAcousticHotspot,
+    handlePinInspector,
+    handleClearPinnedInspector,
+    handleSelectHotspot,
+    handleChangeAcousticConfig,
     setAiPanelContext,
     selectedTimelineUnit,
     saveSegmentContentForLayer,
@@ -2036,6 +2063,7 @@ function TranscriptionPageReadyWorkspace({
                       setAiSidebarError,
                       embeddingProviderConfig,
                       setEmbeddingProviderConfig,
+                      acousticConfigOverride,
                     }}
                     onRuntimeStateChange={handleDeferredAiRuntimeChange}
                   />

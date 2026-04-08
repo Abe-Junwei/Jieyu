@@ -42,9 +42,16 @@ export interface UseTranscriptionAssistantControllerInput {
   acousticRuntimeStatus?: AiPanelContextValue['acousticRuntimeStatus'];
   acousticSummary?: AiPanelContextValue['acousticSummary'];
   acousticInspector?: AiPanelContextValue['acousticInspector'];
+  pinnedInspector?: AiPanelContextValue['pinnedInspector'];
+  selectedHotspotTimeSec?: AiPanelContextValue['selectedHotspotTimeSec'];
   acousticDetail?: AiPanelContextValue['acousticDetail'];
   handleJumpToTranslationGap: NonNullable<AiPanelContextValue['onJumpToTranslationGap']>;
   handleJumpToAcousticHotspot?: AiPanelContextValue['onJumpToAcousticHotspot'];
+  handlePinInspector?: AiPanelContextValue['onPinInspector'];
+  handleClearPinnedInspector?: AiPanelContextValue['onClearPinnedInspector'];
+  handleSelectHotspot?: AiPanelContextValue['onSelectHotspot'];
+  handleChangeAcousticConfig?: AiPanelContextValue['onChangeAcousticConfig'];
+  acousticConfigOverride?: AiPanelContextValue['acousticConfigOverride'];
   setAiPanelContext: Dispatch<SetStateAction<AiPanelContextValue>>;
   selectedTimelineUnit: TimelineUnit | null;
   saveSegmentContentForLayer: (segmentId: string, layerId: string, value: string) => Promise<void>;

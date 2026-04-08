@@ -63,14 +63,14 @@ describe('NotePanel', () => {
 
   it('renders panel shell with summary, sections, and header close action', () => {
     const { view } = renderPanel();
-    const panel = view.container.querySelector('.note-panel') as HTMLDivElement;
+    const panel = view.container.querySelector('.pnl-note-panel') as HTMLDivElement;
     const closeButton = screen.getByRole('button', { name: '关闭备注面板' });
     const addButton = screen.getByRole('button', { name: '新增备注' });
     const composerInput = screen.getByRole('textbox', { name: '新备注内容' });
     const categorySelect = screen.getByRole('combobox', { name: '新备注分类' });
 
     expect(panel.className).toContain('dialog-card');
-    expect(panel.className).toContain('note-panel');
+    expect(panel.className).toContain('pnl-note-panel');
     expect(closeButton.closest('.dialog-header')).toBeTruthy();
     expect(addButton.className).toContain('panel-button--primary');
     expect(composerInput).toBeTruthy();

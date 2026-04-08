@@ -82,6 +82,7 @@ export interface UseTranscriptionAiControllerInput {
   setAiSidebarError?: React.Dispatch<React.SetStateAction<string | null>>;
   embeddingProviderConfig?: { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string };
   setEmbeddingProviderConfig?: React.Dispatch<React.SetStateAction<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>>;
+  acousticConfigOverride?: Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig> | null;
 }
 
 export interface UseTranscriptionAiControllerResult {

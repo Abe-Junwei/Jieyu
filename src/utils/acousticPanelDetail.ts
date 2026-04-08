@@ -2,6 +2,8 @@ import type { AcousticFeatureResult } from './acousticOverlayTypes';
 
 export type AcousticPanelTrend = 'rising' | 'falling' | 'flat' | 'mixed';
 
+export type AcousticCalibrationStatus = 'exploratory' | 'calibrated';
+
 export interface AcousticPanelFramePoint {
   timeSec: number;
   relativeTimeSec: number;
@@ -76,6 +78,25 @@ function clamp(value: number, min: number, max: number): number {
 function average(values: number[]): number | null {
   if (values.length === 0) return null;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+export function deriveAcousticCalibrationStatus(detail: AcousticPanelDetail | null): AcousticCalibrationStatus {
+  if (!detail || detail.sampleCount <= 0) return 'exploratory';
+
+  const formantFrames = detail.frames.filter(
+    (frame) => typeof frame.formantF1Hz === 'number' && typeof frame.formantF2Hz === 'number',
+  );
+  const formantCoverage = formantFrames.length / detail.sampleCount;
+  const formantReliability = average(
+    formantFrames
+      .map((frame) => frame.formantReliability)
+      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value)),
+  ) ?? 0;
+
+  // Calibration gate heuristic: enough formant coverage + stable reliability.
+  return formantFrames.length >= 24 && formantCoverage >= 0.35 && formantReliability >= 0.55
+    ? 'calibrated'
+    : 'exploratory';
 }
 
 function normalize(value: number, min: number, max: number): number {
@@ -277,4 +298,64 @@ export function serializeAcousticPanelDetailJson(detail: AcousticPanelDetail): s
 
 export function buildAcousticExportFileStem(detail: AcousticPanelDetail): string {
   return `${sanitizeFileStem(detail.mediaKey)}-${detail.selectionStartSec.toFixed(2)}-${detail.selectionEndSec.toFixed(2)}s`;
+}
+
+/**
+ * Serialize acoustic pitch data as Praat PitchTier text format.
+ * This format can be loaded directly in Praat via "Read from file…".
+ */
+export function serializeAcousticPitchTierText(detail: AcousticPanelDetail): string {
+  const voicedFrames = detail.frames.filter((frame) => frame.f0Hz != null);
+  const lines: string[] = [
+    'File type = "ooTextFile"',
+    'Object class = "PitchTier"',
+    '',
+    `xmin = ${detail.selectionStartSec}`,
+    `xmax = ${detail.selectionEndSec}`,
+    `points: size = ${voicedFrames.length}`,
+  ];
+
+  for (let index = 0; index < voicedFrames.length; index += 1) {
+    const frame = voicedFrames[index]!;
+    lines.push(`points [${index + 1}]:`);
+    lines.push(`    number = ${frame.timeSec}`);
+    lines.push(`    value = ${frame.f0Hz!}`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Serialize acoustic panel detail as JSON with full metadata for research reproducibility.
+ * Includes algorithm version, parameters, calibration version, and sample rate.
+ */
+export function serializeAcousticPanelDetailJsonResearch(detail: AcousticPanelDetail): string {
+  const calibrationStatus = deriveAcousticCalibrationStatus(detail);
+  return JSON.stringify({
+    format: 'jieyu-acoustic-export',
+    formatVersion: 2,
+    exportedAt: new Date().toISOString(),
+    mediaKey: detail.mediaKey,
+    sampleRate: detail.sampleRate,
+    algorithmVersion: detail.algorithmVersion,
+    modelVersion: detail.modelVersion,
+    persistenceVersion: detail.persistenceVersion,
+    calibrationStatus,
+    parameters: {
+      frameStepSec: detail.frameStepSec,
+      analysisWindowSec: detail.analysisWindowSec,
+      yinThreshold: detail.yinThreshold,
+      silenceRmsThreshold: detail.silenceRmsThreshold,
+    },
+    selection: {
+      startSec: detail.selectionStartSec,
+      endSec: detail.selectionEndSec,
+    },
+    statistics: {
+      sampleCount: detail.sampleCount,
+      voicedSampleCount: detail.voicedSampleCount,
+    },
+    toneBins: detail.toneBins,
+    frames: detail.frames,
+  }, null, 2);
 }

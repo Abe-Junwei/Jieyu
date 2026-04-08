@@ -1650,3 +1650,24 @@ select.ai-cfg-input,
 .ai-chat-candidate-chip {
   white-space: nowrap;
 }
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.ai-chat-header-config-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.transcription-ai-mode-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.transcription-assistant-hub-tab:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.transcription-assistant-hub-tab-active:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}

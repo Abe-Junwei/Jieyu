@@ -1,4 +1,4 @@
-.shortcuts-panel {
+.pnl-shortcuts-panel {
   width: min(var(--dialog-auto-width, 480px), 92vw);
   max-width: 92vw;
   max-height: 80vh;
@@ -68,7 +68,7 @@
   text-align: right;
 }
 
-.shortcuts-panel kbd {
+.pnl-shortcuts-panel kbd {
   display: inline-block;
   background: color-mix(in srgb, var(--surface-header) 84%, transparent);
   border: 1px solid var(--border-soft);
@@ -77,4 +77,10 @@
   font-size: 0.73rem;
   font-family: inherit;
   color: var(--text-primary);
+}
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.shortcuts-panel-table:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
 }

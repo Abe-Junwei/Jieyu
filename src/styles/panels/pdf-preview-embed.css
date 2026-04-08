@@ -131,10 +131,21 @@
 
 @media (max-width: 960px) {
   .transcription-pdf-preview-panel {
-    right: 8px !important;
-    bottom: 8px !important;
+    right: 8px;
+    bottom: 8px;
     width: min(96vw, 640px);
     height: min(68vh, 640px);
     min-width: min(96vw, 340px);
   }
+}
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.transcription-pdf-preview-close:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.transcription-pdf-preview-nav:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
 }

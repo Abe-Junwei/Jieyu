@@ -54,7 +54,7 @@ describe('PdfViewerPanel', () => {
       />,
     );
 
-    const root = view.container.querySelector('.pdf-viewer-panel') as HTMLDivElement;
+    const root = view.container.querySelector('.pnl-pdf-viewer-panel') as HTMLDivElement;
     const navButtons = view.container.querySelectorAll('.pdf-viewer-panel-nav');
 
     expect(root).toBeTruthy();

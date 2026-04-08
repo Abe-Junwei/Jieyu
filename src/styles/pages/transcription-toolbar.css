@@ -615,8 +615,8 @@
 
 .speed-select:focus-visible {
   outline: none;
-  border-color: color-mix(in srgb, rgb(37 99 235) 40%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, rgb(147 197 253) 20%, transparent);
+  border-color: color-mix(in srgb, var(--state-info-solid) 40%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-border) 20%, transparent);
 }
 
 .compact-volume {
@@ -677,4 +677,25 @@ select.input,
   background-repeat: no-repeat;
   background-position: calc(100% - 26px) 50%, calc(100% - 10px) 50%;
   background-size: 1px 14px, 10px 10px;
+}
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.icon-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.icon-btn-danger:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.transcription-ai-observer-rec-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.transcription-import-media-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
 }

@@ -382,3 +382,14 @@
   border-color: color-mix(in srgb, var(--state-info-border) 92%, transparent);
   background: color-mix(in srgb, var(--state-info-bg) 84%, var(--surface-panel));
 }
+
+/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
+.dialog-header:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}

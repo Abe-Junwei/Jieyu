@@ -20,7 +20,7 @@
   padding: 4px 10px;
   font-size: calc(12px * var(--ui-font-scale, 1));
   color: var(--text-secondary);
-  background: color-mix(in srgb, var(--surface-panel) 92%, #f4efe4 8%);
+  background: color-mix(in srgb, var(--surface-panel) 92%, var(--surface-header) 8%);
   width: fit-content;
 }
 
@@ -96,16 +96,16 @@
 }
 
 .lexicon-workspace-detail-grid div {
-  border: 1px solid color-mix(in srgb, var(--panel-border, #d6d6d6) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--panel-border, var(--border-soft)) 85%, transparent);
   border-radius: var(--radius-xl);
   padding: 10px 12px;
-  background: color-mix(in srgb, var(--panel-surface, var(--surface-panel)) 96%, #eef3f8 4%);
+  background: color-mix(in srgb, var(--panel-surface, var(--surface-panel)) 96%, var(--surface-header) 4%);
 }
 
 .lexicon-workspace-detail-grid dt {
   margin: 0 0 4px;
   font-size: calc(12px * var(--ui-font-scale, 1));
-  color: var(--text-secondary, #5f6368);
+  color: var(--text-secondary);
 }
 
 .lexicon-workspace-detail-grid dd {
@@ -135,11 +135,11 @@
 }
 
 .lexicon-workspace-state {
-  color: var(--text-secondary, #5f6368);
+  color: var(--text-secondary);
 }
 
 .lexicon-workspace-state-error {
-  color: var(--danger-text, #b42318);
+  color: var(--state-danger-text);
 }
 
 @media (max-width: 960px) {

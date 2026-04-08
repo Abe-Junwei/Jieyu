@@ -51,7 +51,7 @@ export function PdfViewerPanel({
 
   return (
     <EmbeddedPanelShell
-      className="pdf-viewer-panel"
+      className="pnl-pdf-viewer-panel"
       bodyClassName="pdf-viewer-panel-body"
       footerClassName="pdf-viewer-panel-footer"
       title={resolvedTitle}
