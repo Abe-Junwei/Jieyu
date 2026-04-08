@@ -1,5 +1,5 @@
 import { createLogger } from '../../observability/logger';
-import { WhisperXVadService, type SpeechSegment } from './WhisperXVadService';
+import { WhisperXVadService, type DetectSpeechSegmentsOptions, type SpeechSegment } from './WhisperXVadService';
 import { vadCache, type VadCacheEntry } from './VadCacheService';
 
 const log = createLogger('VadMediaCacheService');
@@ -17,9 +17,17 @@ interface AudioContextLike {
 
 interface VadRuntimeLike {
   init?: () => Promise<void>;
-  detectSpeechSegments: (buffer: AudioBuffer) => Promise<SpeechSegment[]>;
+  detectSpeechSegments: (buffer: AudioBuffer, options?: DetectSpeechSegmentsOptions) => Promise<SpeechSegment[]>;
   dispose?: () => void;
   getRuntimeEngine?: () => 'silero' | 'energy';
+}
+
+export interface VadCacheWarmupStatus {
+  state: 'warming';
+  engine?: 'silero' | 'energy';
+  progressRatio: number;
+  processedFrames: number;
+  totalFrames: number;
 }
 
 export interface EnsureVadCacheForMediaOptions {
@@ -32,6 +40,48 @@ export interface EnsureVadCacheForMediaOptions {
 }
 
 const inflightByMediaId = new Map<string, Promise<VadCacheEntry | null>>();
+const warmupStatusByMediaId = new Map<string, VadCacheWarmupStatus>();
+const warmupListenersByMediaId = new Map<string, Set<() => void>>();
+
+function emitWarmupStatus(mediaId: string): void {
+  warmupListenersByMediaId.get(mediaId)?.forEach((listener) => {
+    listener();
+  });
+}
+
+function setWarmupStatus(mediaId: string, status: VadCacheWarmupStatus): void {
+  warmupStatusByMediaId.set(mediaId, status);
+  emitWarmupStatus(mediaId);
+}
+
+function clearWarmupStatus(mediaId: string): void {
+  if (!warmupStatusByMediaId.delete(mediaId)) return;
+  emitWarmupStatus(mediaId);
+}
+
+export function getVadCacheWarmupStatus(mediaId: string | undefined): VadCacheWarmupStatus | null {
+  if (!mediaId) return null;
+  return warmupStatusByMediaId.get(mediaId) ?? null;
+}
+
+export function subscribeVadCacheWarmupStatus(mediaId: string | undefined, onStoreChange: () => void): () => void {
+  if (!mediaId) {
+    return () => {};
+  }
+
+  const listeners = warmupListenersByMediaId.get(mediaId) ?? new Set<() => void>();
+  listeners.add(onStoreChange);
+  warmupListenersByMediaId.set(mediaId, listeners);
+
+  return () => {
+    const current = warmupListenersByMediaId.get(mediaId);
+    if (!current) return;
+    current.delete(onStoreChange);
+    if (current.size === 0) {
+      warmupListenersByMediaId.delete(mediaId);
+    }
+  };
+}
 
 function createBrowserAudioContext(): AudioContextLike {
   const AudioContextCtor = window.AudioContext ?? (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -74,6 +124,13 @@ export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOpti
   const task = (async () => {
     let audioContext: AudioContextLike | null = null;
     try {
+      setWarmupStatus(mediaId, {
+        state: 'warming',
+        engine: vadRuntime.getRuntimeEngine?.(),
+        progressRatio: 0,
+        processedFrames: 0,
+        totalFrames: 0,
+      });
       if (vadRuntime.init) {
         try {
           await vadRuntime.init();
@@ -93,7 +150,17 @@ export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOpti
       const audioData = await response.arrayBuffer();
       audioContext = audioContextFactory();
       const audioBuffer = await audioContext.decodeAudioData(audioData);
-      const segments = await vadRuntime.detectSpeechSegments(audioBuffer);
+      const segments = await vadRuntime.detectSpeechSegments(audioBuffer, {
+        onProgress: (progress) => {
+          setWarmupStatus(mediaId, {
+            state: 'warming',
+            engine: vadRuntime.getRuntimeEngine?.(),
+            progressRatio: progress.ratio,
+            processedFrames: progress.processedFrames,
+            totalFrames: progress.totalFrames,
+          });
+        },
+      });
 
       const entry: VadCacheEntry = {
         engine: vadRuntime.getRuntimeEngine?.() ?? 'energy',
@@ -102,6 +169,7 @@ export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOpti
         cachedAt: now(),
       };
       vadCache.set(mediaId, entry);
+      clearWarmupStatus(mediaId);
       return entry;
     } catch (error) {
       log.warn('Failed to warm VAD cache for media', {
@@ -109,6 +177,7 @@ export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOpti
         mediaUrl,
         error: error instanceof Error ? error.message : String(error),
       });
+      clearWarmupStatus(mediaId);
       return null;
     } finally {
       inflightByMediaId.delete(mediaId);

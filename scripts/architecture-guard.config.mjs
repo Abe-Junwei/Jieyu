@@ -500,22 +500,6 @@ export const architectureGuardRules = [
     ],
   },
   {
-    file: 'src/styles/shared.css',
-    forbiddenRegexes: [
-      /^\.panel-design-match/m,
-      /^\.note-panel/m,
-      /^\.note-popover/m,
-      /^\.ai-chat-prompt-lab/m,
-      /^\.ai-chat-replay-panel/m,
-      /^\.pdf-viewer-panel/m,
-      /^\.shortcuts-panel/m,
-      /^\.transcription-screen-focus-mode/m,
-      /^\.focus-mode-badge/m,
-      /^\.lane-link-/m,
-      /^\.waveform-overview-/m,
-    ],
-  },
-  {
     file: 'src/styles/pages/transcription-waveform.css',
     forbiddenRegexes: [
       /^\.dialog-overlay/m,

@@ -106,7 +106,7 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  background: color-mix(in srgb, rgb(30 41 59) 92%, transparent);
+  background: color-mix(in srgb, var(--shadow-color) 92%, transparent);
   color: color-mix(in srgb, var(--surface-header) 84%, transparent);
   padding: 2px 8px;
   border-radius: var(--radius-xs);
@@ -149,7 +149,7 @@
 .video-player-progress {
   position: relative;
   height: 6px;
-  background: color-mix(in srgb, rgb(255 255 255) 15%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 15%, transparent);
   border-radius: 3px;
   cursor: pointer;
   overflow: visible;
@@ -237,7 +237,7 @@
   justify-content: center;
   background: transparent;
   border: none;
-  color: color-mix(in srgb, rgb(255 255 255) 85%, transparent);
+  color: color-mix(in srgb, var(--surface-panel) 85%, transparent);
   cursor: pointer;
   padding: 5px 6px;
   border-radius: var(--radius-sm);
@@ -245,17 +245,21 @@
 }
 
 .video-player-btn:hover {
-  background: color-mix(in srgb, rgb(255 255 255) 12%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 12%, transparent);
   color: var(--surface-panel);
 }
 
 .video-player-btn:active {
-  background: color-mix(in srgb, rgb(255 255 255) 20%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 20%, transparent);
+}
+
+.video-player-fit-mode-btn {
+  min-width: 28px;
 }
 
 /* Time display */
 .video-player-time {
-  color: color-mix(in srgb, rgb(255 255 255) 80%, transparent);
+  color: color-mix(in srgb, var(--surface-panel) 80%, transparent);
   font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
   padding: 0 6px;
@@ -280,8 +284,8 @@
   position: absolute;
   bottom: calc(100% + 6px);
   right: 0;
-  background: color-mix(in srgb, rgb(30 41 59) 96%, transparent);
-  border: 1px solid color-mix(in srgb, rgb(255 255 255) 12%, transparent);
+  background: color-mix(in srgb, var(--shadow-color) 96%, transparent);
+  border: 1px solid color-mix(in srgb, var(--surface-panel) 12%, transparent);
   border-radius: var(--radius-md);
   padding: 4px;
   display: flex;
@@ -294,7 +298,7 @@
 .video-player-rate-option {
   background: transparent;
   border: none;
-  color: color-mix(in srgb, rgb(255 255 255) 75%, transparent);
+  color: color-mix(in srgb, var(--surface-panel) 75%, transparent);
   cursor: pointer;
   padding: 6px 12px;
   border-radius: 5px;
@@ -304,7 +308,7 @@
 }
 
 .video-player-rate-option:hover {
-  background: color-mix(in srgb, rgb(255 255 255) 10%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 10%, transparent);
   color: var(--surface-panel);
 }
 
@@ -320,7 +324,7 @@
   appearance: none;
   width: 70px;
   height: 4px;
-  background: color-mix(in srgb, rgb(255 255 255) 20%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 20%, transparent);
   border-radius: 2px;
   cursor: pointer;
   outline: none;

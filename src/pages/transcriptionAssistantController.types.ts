@@ -39,6 +39,7 @@ export interface UseTranscriptionAssistantControllerInput {
   aiVisibleCards: AiPanelContextValue['aiVisibleCards'];
   selectedTranslationGapCount: number;
   vadCacheStatus?: AiPanelContextValue['vadCacheStatus'];
+  acousticRuntimeStatus?: AiPanelContextValue['acousticRuntimeStatus'];
   acousticSummary?: AiPanelContextValue['acousticSummary'];
   acousticInspector?: AiPanelContextValue['acousticInspector'];
   acousticDetail?: AiPanelContextValue['acousticDetail'];

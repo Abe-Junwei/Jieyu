@@ -109,7 +109,7 @@ export function AiEmbeddingCard() {
           id={providerSelectId}
           value={embeddingProviderKind ?? 'local'}
           onChange={(e) => onSetEmbeddingProviderKind?.(e.currentTarget.value as EmbeddingProviderKind)}
-          className="ai-card-select"
+          className="ai-card-select select-caret"
           title={messages.selectProviderTitle}
         >
           {(['local', 'openai-compatible', 'minimax'] as EmbeddingProviderKind[]).map((k) => (
@@ -126,12 +126,12 @@ export function AiEmbeddingCard() {
           {embeddingAvailability === 'testing' ? '…' : messages.testButton}
         </button>
         {embeddingAvailability === 'available' && (
-          <span style={{ fontSize: 'calc(11px * var(--ui-font-scale, 1))', color: 'var(--state-success-solid)', display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span className="ai-embed-status ai-embed-status-available">
             <Check size={12} /> {messages.available}
           </span>
         )}
         {embeddingAvailability === 'unavailable' && (
-          <span style={{ fontSize: 'calc(11px * var(--ui-font-scale, 1))', color: 'var(--state-danger-solid)' }} title={embeddingError ?? undefined}>
+          <span className="ai-embed-status ai-embed-status-unavailable" title={embeddingError ?? undefined}>
             {embeddingError ? `${messages.unavailable}: ${embeddingError}` : messages.unavailable}
           </span>
         )}
@@ -144,19 +144,19 @@ export function AiEmbeddingCard() {
         <button type="button" className="icon-btn ai-btn-action ai-btn-min-refresh" disabled={!onRefreshEmbeddingTasks || !!aiEmbeddingBusy} onClick={() => void onRefreshEmbeddingTasks?.()}>{messages.refresh}</button>
       </div>
 
-      {aiEmbeddingProgressLabel && <p className="small-text" style={{ marginBottom: 6 }}>{aiEmbeddingProgressLabel}</p>}
+      {aiEmbeddingProgressLabel && <p className="small-text ai-embed-note">{aiEmbeddingProgressLabel}</p>}
       {aiEmbeddingLastResult && (
-        <p className="small-text" style={{ marginBottom: 6 }}>
+        <p className="small-text ai-embed-note">
           {messages.lastRun(aiEmbeddingLastResult.generated, aiEmbeddingLastResult.total, aiEmbeddingLastResult.skipped)}
         </p>
       )}
-      {aiEmbeddingLastError && <p className="inspector-warning" style={{ marginBottom: 6 }}>{aiEmbeddingLastError}</p>}
-      {aiEmbeddingWarning && <p style={{ marginBottom: 6, fontSize: 'calc(11px * var(--ui-font-scale, 1))', color: 'var(--state-warning-text)', background: 'var(--state-warning-bg)', border: '1px solid var(--state-warning-border)', borderRadius: 6, padding: '4px 6px' }}>{aiEmbeddingWarning}</p>}
+      {aiEmbeddingLastError && <p className="inspector-warning ai-embed-note">{aiEmbeddingLastError}</p>}
+      {aiEmbeddingWarning && <p className="ai-embed-warning">{aiEmbeddingWarning}</p>}
       {(taskSummary.pending > 0 || taskSummary.running > 0 || taskSummary.failed > 0 || taskSummary.done > 0) && (
         <div className="ai-card-row ai-card-row-gap-sm ai-card-margin-bottom-sm">
           {taskSummary.pending > 0 && <span className="transcription-ai-tag">{messages.queued(taskSummary.pending)}</span>}
           {taskSummary.running > 0 && <span className="transcription-ai-tag">{messages.running(taskSummary.running)}</span>}
-          {taskSummary.failed > 0 && <span className="transcription-ai-tag" style={{ color: 'var(--state-danger-text)', borderColor: 'color-mix(in srgb, var(--state-danger-text) 24%, transparent)', background: 'var(--state-danger-bg)' }}>{messages.failed(taskSummary.failed)}</span>}
+          {taskSummary.failed > 0 && <span className="transcription-ai-tag transcription-ai-tag-danger">{messages.failed(taskSummary.failed)}</span>}
           {taskSummary.done > 0 && <span className="transcription-ai-tag">{messages.done(taskSummary.done)}</span>}
         </div>
       )}
@@ -167,7 +167,7 @@ export function AiEmbeddingCard() {
           <select
             value={taskTypeFilter}
             onChange={(e) => setTaskTypeFilter(e.target.value as 'all' | 'embed' | 'gloss')}
-            className="ai-card-filter-select"
+            className="ai-card-filter-select select-caret"
             aria-label={messages.recentTasks}
           >
             <option value="all">{messages.all}</option>

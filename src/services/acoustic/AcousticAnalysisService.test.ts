@@ -40,17 +40,21 @@ function createMockWorker(counter: { count: number }) {
     onerror: null,
     postMessage(message: {
       requestId: string;
-      mediaKey: string;
-      pcm: Float32Array;
-      sampleRate: number;
-      config: AcousticAnalysisConfig;
+      type: 'analyze' | 'cancel';
+      mediaKey?: string;
+      pcm?: Float32Array;
+      sampleRate?: number;
+      config?: AcousticAnalysisConfig;
     }) {
+      if (message.type === 'cancel') {
+        return;
+      }
       counter.count += 1;
       const result = computeAcousticAnalysis({
-        mediaKey: message.mediaKey,
-        sampleRate: message.sampleRate,
-        pcm: message.pcm,
-        config: message.config,
+        mediaKey: message.mediaKey!,
+        sampleRate: message.sampleRate!,
+        pcm: message.pcm!,
+        config: message.config!,
       });
       queueMicrotask(() => {
         worker.onmessage?.({
@@ -194,6 +198,98 @@ describe('AcousticAnalysisService', () => {
     expect(workerCounter.count).toBe(2);
     expect(firstResult.mediaKey).toBe('media-concurrent-a');
     expect(secondResult.mediaKey).toBe('media-concurrent-b');
+    service.dispose();
+  });
+
+  it('forwards worker progress updates to the caller', async () => {
+    const service = new AcousticAnalysisService({
+      workerFactory: () => ({
+        onmessage: null,
+        onerror: null,
+        postMessage(message: { requestId: string; type: 'analyze' | 'cancel' }) {
+          if (message.type === 'cancel') return;
+          queueMicrotask(() => {
+            this.onmessage?.({
+              data: {
+                type: 'progress',
+                requestId: message.requestId,
+                progress: {
+                  phase: 'analyzing',
+                  processedFrames: 8,
+                  totalFrames: 20,
+                  ratio: 0.4,
+                },
+              },
+            } as MessageEvent<unknown>);
+            this.onmessage?.({
+              data: {
+                type: 'result',
+                requestId: message.requestId,
+                ok: true,
+                result: computeAcousticAnalysis({
+                  mediaKey: 'media-progress',
+                  sampleRate: 16000,
+                  pcm: buildSineWave({ frequencyHz: 200, durationSec: 1, sampleRate: 16000 }),
+                  config: DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
+                }),
+              },
+            } as MessageEvent<unknown>);
+          });
+        },
+        terminate() {},
+      } as never),
+    });
+    const progress = [] as number[];
+
+    await service.analyzeAudioBuffer({
+      mediaKey: 'media-progress',
+      audioBuffer: buildAudioBuffer(buildSineWave({ frequencyHz: 200, durationSec: 1, sampleRate: 16000 }), 16000),
+      onProgress: (entry) => {
+        progress.push(entry.ratio);
+      },
+    });
+
+    expect(progress).toEqual([0.4]);
+    service.dispose();
+  });
+
+  it('cancels an in-flight worker request when the signal aborts', async () => {
+    const messages: Array<{ requestId: string; type: 'analyze' | 'cancel' }> = [];
+    const service = new AcousticAnalysisService({
+      workerFactory: () => ({
+        onmessage: null,
+        onerror: null,
+        postMessage(message: { requestId: string; type: 'analyze' | 'cancel' }) {
+          messages.push(message);
+        },
+        terminate() {},
+      } as never),
+    });
+    const controller = new AbortController();
+
+    const promise = service.analyzeAudioBuffer({
+      mediaKey: 'media-abort',
+      audioBuffer: buildAudioBuffer(buildSineWave({ frequencyHz: 220, durationSec: 1, sampleRate: 16000 }), 16000),
+      signal: controller.signal,
+    });
+
+    await new Promise<void>((resolve) => {
+      const start = Date.now();
+      const tick = () => {
+        if (messages.length > 0 || Date.now() - start > 100) {
+          resolve();
+          return;
+        }
+        setTimeout(tick, 0);
+      };
+      tick();
+    });
+    controller.abort();
+
+    await expect(promise).rejects.toMatchObject({ name: 'AbortError', message: 'Acoustic analysis aborted' });
+    expect(messages[0]?.type).toBe('analyze');
+    expect(messages[1]?.type).toBe('cancel');
+    expect(messages[1]?.requestId).toBe(messages[0]?.requestId);
     service.dispose();
   });
 });

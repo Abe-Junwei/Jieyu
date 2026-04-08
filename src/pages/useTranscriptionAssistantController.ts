@@ -45,6 +45,8 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     input.translationLayersLength,
     input.utterancesLength,
     input.vadCacheStatus,
+    input.acousticRuntimeStatus,
+    input.acousticRuntimeStatus,
     input.acousticSummary,
     input.acousticInspector,
     input.acousticDetail,

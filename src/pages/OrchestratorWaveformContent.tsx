@@ -11,9 +11,11 @@
 import React, { type MutableRefObject, type RefObject } from 'react';
 import type { UtteranceDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
+import type { AcousticRuntimeStatus, VadCacheStatus } from '../contexts/AiPanelContext';
 import { WaveformHoverTooltip } from '../components/transcription/WaveformHoverTooltip';
 import { WaveformReadoutCard } from '../components/transcription/WaveformReadoutCard';
 import { WaveformLeftStatusStrip } from '../components/transcription/WaveformLeftStatusStrip';
+import { ToolbarAiProgress } from '../components/transcription/toolbar/ToolbarAiProgress';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
 import { NoteDocumentIcon } from '../components/NoteDocumentIcon';
 import {
@@ -149,6 +151,8 @@ export interface OrchestratorWaveformContentProps {
   acousticOverlayIntensityPath: string | null;
   acousticOverlayVisibleSummary: AcousticOverlayVisibleSummary | null;
   acousticOverlayLoading: boolean;
+  acousticRuntimeStatus?: AcousticRuntimeStatus;
+  vadCacheStatus?: VadCacheStatus;
   waveformHoverReadout: WaveformHoverReadout | null;
   spectrogramHoverReadout: SpectrogramHoverReadout | null;
   handleSpectrogramMouseMove: React.MouseEventHandler<HTMLDivElement>;
@@ -243,6 +247,8 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
     acousticOverlayIntensityPath,
     acousticOverlayVisibleSummary,
     acousticOverlayLoading,
+    acousticRuntimeStatus,
+    vadCacheStatus,
     waveformHoverReadout,
     spectrogramHoverReadout,
     handleSpectrogramMouseMove,
@@ -366,6 +372,12 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
                 )}
                 waveformShellOverlay={(
                   <div className="waveform-analysis-overlay" aria-hidden="true">
+                    <div className="waveform-runtime-status">
+                      <ToolbarAiProgress
+                        acousticRuntimeStatus={acousticRuntimeStatus}
+                        vadCacheStatus={vadCacheStatus}
+                      />
+                    </div>
                     {activeReadout ? (
                       <WaveformReadoutCard readout={activeReadout} formatTime={formatTime} />
                     ) : null}
@@ -459,12 +471,8 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
                     {waveformNoteIndicators.map(({ uttId, leftPx, widthPx, count, layerId }) => (
                       <div
                         key={`note-${uttId}`}
-                        style={{
-                          position: 'absolute', top: 0, left: leftPx + widthPx - 26,
-                          width: 16, height: '100%', pointerEvents: 'auto', zIndex: 6,
-                          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-                          paddingBottom: 2, cursor: 'pointer',
-                        }}
+                        className="waveform-note-indicator-trigger"
+                        style={{ left: leftPx + widthPx - 26 }}
                         onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -472,9 +480,9 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
                         }}
                       >
                         <NoteDocumentIcon
+                          className="waveform-note-indicator-icon"
                           ariaLabel={tf(locale, 'transcription.notes.count', { count })}
                           title={tf(locale, 'transcription.notes.count', { count })}
-                          style={{ width: 16, height: 16, color: 'var(--state-info-border)', opacity: 0.92 }}
                         />
                       </div>
                     ))}
@@ -522,7 +530,7 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
               )}
             </>
           ) : (
-            <div className="wave-empty transcription-wave-empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <div className="wave-empty transcription-wave-empty-centered">
               {!selectedMediaUrl ? (
                 <button
                   className="transcription-import-media-btn"

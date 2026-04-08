@@ -267,8 +267,8 @@
 }
 
 .transcription-ai-panel-resizer:hover::before {
-  background: color-mix(in srgb, rgb(37 99 235) 42%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, rgb(147 197 253) 24%, transparent);
+  background: color-mix(in srgb, var(--state-info-solid) 42%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-solid) 24%, transparent);
 }
 
 @media (max-width: 640px) {

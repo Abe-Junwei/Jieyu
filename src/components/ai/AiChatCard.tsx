@@ -764,9 +764,9 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
 
       {/* P0: Provider config panel (collapsible below header) */}
       {aiChatSettings && showProviderConfig && (
-        <div style={{ borderBottom: '1px dashed var(--border-soft)', padding: '6px 10px 8px', display: 'grid', gap: 6 }}>
+        <div className="ai-chat-provider-config-panel">
           {activeProviderDefinition.fields.map((field) => (
-            <div key={field.key} style={{ display: 'grid', gridTemplateColumns: '72px 1fr', gap: 6, alignItems: 'center' }}>
+            <div key={field.key} className="ai-chat-provider-config-row">
               <span className="ai-cfg-label">{field.label}</span>
               {field.type === 'select' ? (
                 <select
@@ -789,25 +789,23 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               )}
             </div>
           ))}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="ai-chat-provider-config-actions">
             <button
               type="button"
-              className={`icon-btn${aiConnectionTestStatus === 'success' ? ' ai-conn-ok' : ''}`}
+              className={`icon-btn ai-chat-provider-config-action-btn${aiConnectionTestStatus === 'success' ? ' ai-conn-ok' : ''}`}
               disabled={!onTestAiConnection || aiConnectionTestStatus === 'testing'}
-              style={{ height: 'calc(26px * var(--ui-font-scale, 1))', minWidth: 'calc(80px * var(--ui-font-scale, 1))', fontSize: 'calc(12px * var(--ui-font-scale, 1))' }}
               onClick={() => { if (!onTestAiConnection) return; void onTestAiConnection(); }}
             >
               {aiConnectionTestStatus === 'testing'
                 ? t(locale, 'ai.chat.testing')
                 : aiConnectionTestStatus === 'success'
-                  ? <><Check size={12} strokeWidth={2.5} style={{ marginRight: 2, verticalAlign: -1 }} />{cardMessages.connected}</>
+                  ? <><Check size={12} strokeWidth={2.5} className="ai-chat-provider-config-check-icon" />{cardMessages.connected}</>
                   : t(locale, 'ai.chat.testConnection')}
             </button>
             {hasApiKeyField && (
               <button
                 type="button"
-                className="icon-btn"
-                style={{ height: 'calc(26px * var(--ui-font-scale, 1))', minWidth: 'calc(96px * var(--ui-font-scale, 1))', fontSize: 'calc(12px * var(--ui-font-scale, 1))' }}
+                className="icon-btn ai-chat-provider-config-action-btn ai-chat-provider-config-action-btn-clear-key"
                 onClick={() => onUpdateAiChatSettings?.({ apiKey: '' })}
               >
                 {cardMessages.clearCurrentKey}
@@ -825,7 +823,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
       ) : (
         <>
           {/* Message viewport */}
-          <div ref={messageViewportRef} className="ai-chat-message-viewport" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          <div ref={messageViewportRef} className="ai-chat-message-viewport">
             {messages.length === 0 ? (
               <p className="small-text">{t(locale, 'ai.chat.noMessages')}</p>
             ) : (
@@ -922,20 +920,8 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                             </span>
                             {/* \\u53ef\\u6298\\u53e0\\u7684\\u63a8\\u7406\\u8fc7\\u7a0b | Collapsible reasoning content */}
                             {hasReasoning && isReasoningExpanded && (
-                              <div
-                                className="ai-chat-reasoning-block"
-                                style={{
-                                  marginTop: 6,
-                                  padding: '4px 8px',
-                                  background: 'color-mix(in srgb, var(--text-secondary) 8%, transparent)',
-                                  borderRadius: 4,
-                                  fontSize: 'calc(11px * var(--ui-font-scale, 1))',
-                                  color: 'var(--text-secondary)',
-                                  lineHeight: 1.5,
-                                  fontStyle: 'italic',
-                                }}
-                              >
-                                <div style={{ fontWeight: 600, marginBottom: 2, fontStyle: 'normal' }}>
+                              <div className="ai-chat-reasoning-block">
+                                <div className="ai-chat-reasoning-title">
                                   {cardMessages.reasoning}
                                 </div>
                                 <div>{reasoningContent}</div>
@@ -973,8 +959,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                 {hasReasoning && (
                                   <button
                                     type="button"
-                                    className="ai-chat-message-action-btn"
-                                    style={{ fontStyle: 'italic' }}
+                                    className="ai-chat-message-action-btn ai-chat-message-action-btn-italic"
                                     onClick={() => {
                                       setExpandedReasoningIds((prev) => {
                                         const next = new Set(prev);
@@ -1138,7 +1123,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               </button>
             </div>
             {(transientBlockedReason || inputBlockedReason) && (
-              <p className="small-text" style={{ margin: 0, color: 'var(--state-warning-text)' }}>{transientBlockedReason ?? inputBlockedReason}</p>
+              <p className="small-text ai-chat-composer-warning">{transientBlockedReason ?? inputBlockedReason}</p>
             )}
 
             <div className={`ai-chat-prompt-lab-panel ${showPromptLab ? 'is-open' : 'is-closed'}${promptTemplates.length === 0 ? ' is-empty' : ''}`}>
@@ -1241,13 +1226,13 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                     {!hasDecisionLogs && (
                       <p className="ai-chat-fold-empty">{cardMessages.noDecisionsYet}</p>
                     )}
-                    <div style={{ display: 'grid', gap: 6 }}>
+                    <div className="ai-chat-decision-list">
                       {(aiToolDecisionLogs ?? []).map((item) => {
                         const canReplay = typeof item.requestId === 'string' && item.requestId.trim().length > 0;
                         const isLoading = replayLoadingRequestId === item.requestId;
                         const isSelected = selectedReplayBundle?.requestId === item.requestId;
                         return (
-                          <div key={item.id} className="ai-chat-decision-item" style={{ display: 'grid', gap: 4, fontSize: 'calc(10px * var(--ui-font-scale, 1))' }}>
+                          <div key={item.id} className="ai-chat-decision-item ai-chat-decision-item-compact">
                             <div className="ai-chat-decision-item-meta">
                               <span className="ai-chat-decision-item-main">{item.toolName || cardMessages.unknownTool} · {formatToolDecision(isZh, item.decision)}</span>
                               <em className="ai-chat-decision-item-time">{new Date(item.timestamp).toLocaleTimeString()}</em>
@@ -1256,8 +1241,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                               <div className="ai-chat-decision-item-actions">
                                 <button
                                   type="button"
-                                  className="icon-btn"
-                                  style={{ height: 'calc(22px * var(--ui-font-scale, 1))', minWidth: 'calc(96px * var(--ui-font-scale, 1))', fontSize: 'calc(10px * var(--ui-font-scale, 1))' }}
+                                  className="icon-btn ai-chat-decision-action-btn ai-chat-decision-action-btn-wide"
                                   disabled={isLoading}
                                   onClick={() => void openReplayBundle(item.requestId!)}
                                 >
@@ -1265,8 +1249,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                 </button>
                                 <button
                                   type="button"
-                                  className="icon-btn"
-                                  style={{ height: 'calc(22px * var(--ui-font-scale, 1))', minWidth: 'calc(92px * var(--ui-font-scale, 1))', fontSize: 'calc(10px * var(--ui-font-scale, 1))' }}
+                                  className="icon-btn ai-chat-decision-action-btn ai-chat-decision-action-btn-mid"
                                   onClick={() => void exportGoldenSnapshot(item.requestId!)}
                                 >
                                   {exportedSnapshotRequestId === item.requestId
@@ -1279,7 +1262,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                         );
                       })}
                       {replayErrorMessage && (
-                        <div style={{ fontSize: 'calc(10px * var(--ui-font-scale, 1))', color: 'var(--state-danger-text)' }}>{replayErrorMessage}</div>
+                        <div className="ai-chat-decision-error">{replayErrorMessage}</div>
                       )}
                       {selectedReplayBundle && (
                         <AiChatReplayDetailPanel

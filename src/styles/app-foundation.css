@@ -1,7 +1,5 @@
 @import './global.css';
 @import './pages/app-shell-layout.css';
-@import './foundation/media-controls.css';
-@import './foundation/context-menu.css';
 @import './foundation/dialog-shell.css';
 @import './foundation/panel-primitives.css';
 @import './foundation/panel-design-presets.css';

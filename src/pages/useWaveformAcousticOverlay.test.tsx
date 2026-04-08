@@ -66,7 +66,8 @@ describe('useWaveformAcousticOverlay', () => {
       expect(result.current.acousticOverlayF0Path).toContain('M');
     });
 
-    expect(mockAnalyzeMedia).toHaveBeenCalledWith({ mediaKey: 'media-1', mediaUrl: '/media/demo.wav' });
+    expect(mockAnalyzeMedia).toHaveBeenCalledWith(expect.objectContaining({ mediaKey: 'media-1', mediaUrl: '/media/demo.wav' }));
+    expect(mockAnalyzeMedia.mock.calls[0]?.[0]).toHaveProperty('signal');
     expect(result.current.acousticOverlayIntensityPath).toBeNull();
     expect(result.current.acousticOverlayVisibleSummary).toEqual({
       f0MeanHz: 168,

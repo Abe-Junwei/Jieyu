@@ -167,9 +167,9 @@
 }
 
 .panel-feedback--warn {
-  border: 1px solid color-mix(in srgb, var(--state-warning-border, #f59e0b) 30%, transparent);
-  background: color-mix(in srgb, var(--state-warning-bg, #fffbeb) 74%, var(--surface-panel));
-  color: var(--state-warning-text, #92400e);
+  border: 1px solid color-mix(in srgb, var(--state-warning-border) 30%, transparent);
+  background: color-mix(in srgb, var(--state-warning-bg) 74%, var(--surface-panel));
+  color: var(--state-warning-text);
 }
 
 /* 反馈消息堆叠容器 | Feedback message stack */
@@ -255,7 +255,7 @@
 .language-iso-input-suggestion {
   appearance: none;
   border: 1px solid var(--border-color, var(--border-soft));
-  background: color-mix(in srgb, var(--panel-bg, var(--surface-panel)) 86%, var(--accent-soft, #dbeafe));
+  background: color-mix(in srgb, var(--panel-bg, var(--surface-panel)) 86%, var(--accent-soft, var(--state-info-bg)));
   color: var(--text-primary);
   border-radius: var(--radius-pill);
   padding: 5px 10px;
@@ -266,7 +266,7 @@
 
 .language-iso-input-suggestion:hover:not(:disabled),
 .language-iso-input-suggestion:focus-visible {
-  border-color: var(--accent-color, #2563eb);
+  border-color: var(--accent-color, var(--state-info-solid));
   outline: none;
 }
 
@@ -298,7 +298,7 @@
   background: var(--panel-bg, var(--surface-panel));
   border: 1px solid var(--border-color, var(--border-soft));
   border-radius: var(--radius-sm);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-color) 12%, transparent);
   list-style: none;
 }
 
@@ -313,7 +313,7 @@
 
 .script-tag-combobox-option:hover,
 .script-tag-combobox-option.is-active {
-  background: color-mix(in srgb, var(--accent-soft, #dbeafe) 50%, transparent);
+  background: color-mix(in srgb, var(--accent-soft, var(--state-info-bg)) 50%, transparent);
 }
 
 .script-tag-combobox-code {
@@ -323,7 +323,7 @@
 }
 
 .script-tag-combobox-name {
-  color: var(--text-secondary, #666);
+  color: var(--text-secondary);
 }
 
 @media (max-width: 720px) {

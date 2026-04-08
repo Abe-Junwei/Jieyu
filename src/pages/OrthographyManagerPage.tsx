@@ -387,13 +387,15 @@ export function OrthographyManagerPage({
       return;
     }
 
+    const normalizedLanguageId = normalizeLanguageInputAssetId(languageInput);
+
     setSaving(true);
     setSaveError('');
     setSaveSuccess('');
     try {
       const updated = await updateOrthographyRecord({
         id: selectedOrthography.id,
-        languageId: draft.languageId.trim().toLowerCase(),
+        languageId: normalizedLanguageId,
         name: {
           ...buildPrimaryAndEnglishLabels({
             primaryLabel: primaryName,

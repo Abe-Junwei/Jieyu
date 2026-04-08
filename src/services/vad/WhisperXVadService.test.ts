@@ -52,6 +52,9 @@ class FakeWorker {
     } else if (msg.type === 'detect') {
       queueMicrotask(() => {
         this.onmessage?.({
+          data: { type: 'progress', id: msg.id, processedFrames: 16, totalFrames: 32, ratio: 0.5 },
+        } as unknown as MessageEvent);
+        this.onmessage?.({
           data: {
             type: 'result',
             id: msg.id,
@@ -109,6 +112,20 @@ describe('WhisperXVadService', () => {
       expect(seg.confidence).toBeGreaterThanOrEqual(0);
       expect(seg.confidence).toBeLessThanOrEqual(1);
     }
+  });
+
+  it('转发 Worker 进度事件 | forwards Worker progress events', async () => {
+    const svc = new WhisperXVadService();
+    await svc.init();
+    const progress = [] as number[];
+
+    await svc.detectSpeechSegments(makeAudioBuffer(3), {
+      onProgress: (entry) => {
+        progress.push(entry.ratio);
+      },
+    });
+
+    expect(progress).toContain(0.5);
   });
 
   // ── 能量降级路径 | Energy fallback path ─────────────────────────────────
@@ -195,6 +212,39 @@ describe('WhisperXVadService', () => {
     const svc = new WhisperXVadService();
     await svc.init();
     await expect(svc.detectSpeechSegments(makeAudioBuffer(2))).rejects.toThrow('ONNX inference failed');
+  });
+
+  it('abort signal 会取消对应检测请求 | abort signal cancels in-flight detection', async () => {
+    const seenMessages: Array<{ type: string; id?: string }> = [];
+
+    class AbortAwareWorker {
+      onmessage: MessageHandler | null = null;
+      onerror: ((e: ErrorEvent) => void) | null = null;
+      postMessage(data: unknown): void {
+        const msg = data as { type: string; id?: string };
+        seenMessages.push(msg);
+        if (msg.type === 'init') {
+          queueMicrotask(() => {
+            this.onmessage?.({ data: { type: 'ready' } } as MessageEvent);
+          });
+        }
+      }
+      terminate(): void { /* no-op */ }
+    }
+
+    // @ts-expect-error — 测试环境下替换全局 Worker
+    globalThis.Worker = AbortAwareWorker;
+
+    const svc = new WhisperXVadService();
+    await svc.init();
+    const controller = new AbortController();
+    const promise = svc.detectSpeechSegments(makeAudioBuffer(2), { signal: controller.signal });
+
+    controller.abort();
+
+    await expect(promise).rejects.toMatchObject({ name: 'AbortError', message: 'VAD detect aborted' });
+    expect(seenMessages.some((message) => message.type === 'detect')).toBe(true);
+    expect(seenMessages.some((message) => message.type === 'cancel')).toBe(true);
   });
 
   // ── Worker 创建失败 | Worker creation failure ───────────────────────────

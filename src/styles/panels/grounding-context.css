@@ -265,6 +265,13 @@
   background: var(--bg-primary, var(--surface-panel));
 }
 
+.gc-segment-card,
+.gc-profile-card,
+.gc-hotspots-card,
+.gc-corpus-card {
+  min-width: 0;
+}
+
 .gc-card-header {
   display: flex;
   align-items: center;

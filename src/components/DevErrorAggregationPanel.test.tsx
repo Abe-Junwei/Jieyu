@@ -41,9 +41,9 @@ describe('DevErrorAggregationPanel', () => {
     expect(panel).toBeTruthy();
     expect(summary).toBeTruthy();
     expect(list).toBeTruthy();
-    expect(panel.style.position).toBe('fixed');
-    expect(panel.style.right).toBe('12px');
-    expect(panel.style.bottom).toBe('12px');
+    expect(panel.getAttribute('style')).toContain('--dev-error-panel-min-width');
+    expect(panel.getAttribute('style')).toContain('--dev-error-panel-max-width');
+    expect(panel.getAttribute('style')).toContain('--dev-error-panel-font-size');
     expect(summary.textContent).toContain('Error Aggregation (1)');
   });
 

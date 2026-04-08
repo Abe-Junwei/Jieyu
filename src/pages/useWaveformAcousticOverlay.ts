@@ -60,23 +60,23 @@ export function useWaveformAcousticOverlay(input: UseWaveformAcousticOverlayInpu
 
     const service = AcousticAnalysisService.getInstance();
     const mediaKey = input.mediaId ?? input.selectedMediaUrl;
-    let cancelled = false;
+    const controller = new AbortController();
     setAcousticOverlayLoading(true);
     setAcousticAnalysis(null);
 
-    service.analyzeMedia({ mediaKey, mediaUrl: input.selectedMediaUrl }).then((result) => {
-      if (cancelled) return;
+    service.analyzeMedia({ mediaKey, mediaUrl: input.selectedMediaUrl, signal: controller.signal }).then((result) => {
+      if (controller.signal.aborted) return;
       setAcousticAnalysis(result);
     }).catch(() => {
-      if (cancelled) return;
+      if (controller.signal.aborted) return;
       setAcousticAnalysis(null);
     }).finally(() => {
-      if (cancelled) return;
+      if (controller.signal.aborted) return;
       setAcousticOverlayLoading(false);
     });
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [input.acousticOverlayMode, input.mediaId, input.selectedMediaUrl, input.waveformDisplayMode]);
 

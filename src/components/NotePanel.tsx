@@ -204,7 +204,7 @@ export const NotePanel = memo(function NotePanel({
         />
         <div className="note-panel-add-actions">
           <select
-            className="panel-input note-panel-category-select"
+            className="panel-input note-panel-category-select select-caret"
             value={newCategory}
             onChange={(e: ChangeEvent<HTMLSelectElement>) => setNewCategory(e.target.value as NoteCategory | '')}
             aria-label={messages.newNoteCategoryLabel}

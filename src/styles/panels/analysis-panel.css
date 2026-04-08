@@ -99,6 +99,21 @@
   min-width: 0;
 }
 
+.transcription-analysis-acoustic-overview-section,
+.transcription-analysis-acoustic-runtime-section,
+.transcription-analysis-acoustic-inspector-section,
+.transcription-analysis-acoustic-diagnostics-section,
+.transcription-analysis-acoustic-descriptor-section,
+.transcription-analysis-acoustic-hotspot-detailed,
+.transcription-analysis-acoustic-slice-section,
+.transcription-analysis-acoustic-formant-section,
+.transcription-analysis-acoustic-tone-section,
+.transcription-analysis-acoustic-hotspots-section,
+.transcription-analysis-acoustic-navigation-section,
+.transcription-analysis-acoustic-export-section {
+  min-width: 0;
+}
+
 .transcription-analysis-acoustic-panel {
   display: grid;
   gap: 8px;

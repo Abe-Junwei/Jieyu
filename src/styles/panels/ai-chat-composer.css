@@ -159,6 +159,11 @@
   font-weight: 600;
 }
 
+.ai-chat-composer-warning {
+  margin: 0;
+  color: var(--state-warning-text);
+}
+
 /* ── Dark theme overrides ── */
 :root[data-theme='dark'] .ai-chat-composer-shortcut,
 :root[data-theme='dark'] .ai-chat-input.ai-chat-input-composer {

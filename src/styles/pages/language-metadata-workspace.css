@@ -564,6 +564,31 @@
   gap: 0.5rem;
 }
 
+.language-metadata-workspace-inline-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.language-metadata-workspace-field-toolbar-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.language-metadata-workspace-inline-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.language-metadata-workspace-inline-field-top {
+  align-items: flex-start;
+}
+
+.language-metadata-workspace-inline-field-label {
+  min-width: 4em;
+}
+
 .language-metadata-workspace-field-definition-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -653,7 +678,7 @@
 
 .language-metadata-workspace-geocode-results {
   position: absolute;
-  z-index: 20;
+  z-index: var(--z-toolbar);
   top: 100%;
   left: 0;
   right: 0;
@@ -795,15 +820,15 @@
   width: 14px;
   height: 14px;
   padding: 0;
-  border: 2px solid color-mix(in srgb, rgb(255 255 255) 95%, transparent);
+  border: 2px solid color-mix(in srgb, var(--surface-panel) 95%, transparent);
   border-radius: var(--radius-pill);
-  background: #2f6fed;
+  background: var(--state-info-solid);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--shadow-color) 22%, transparent);
   cursor: pointer;
 }
 
 .language-metadata-workspace-search-marker-active {
-  background: #f97316;
+  background: var(--state-warning-solid);
   transform: scale(1.15);
 }
 
@@ -821,7 +846,7 @@
   position: absolute;
   top: 76px;
   right: 10px;
-  z-index: 10;
+  z-index: var(--z-header);
   width: 29px;
   height: 29px;
   padding: 0;

@@ -23,7 +23,7 @@
 .waveform-primary-stage {
   position: relative;
   min-width: 0;
-  z-index: 1;
+  z-index: var(--z-base);
 }
 
 .waveform-display-shell-waveform .waveform-primary-stage {
@@ -71,7 +71,7 @@
   overflow: hidden;
   border-radius: var(--radius-lg);
   background:
-    linear-gradient(180deg, color-mix(in srgb, rgb(10 18 34) 96%, transparent), color-mix(in srgb, rgb(14 30 58) 94%, transparent));
+    linear-gradient(180deg, color-mix(in srgb, var(--shadow-color) 96%, transparent), color-mix(in srgb, var(--shadow-color) 94%, var(--state-info-solid) 6%));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-soft) 72%, transparent);
   pointer-events: none;
 }
@@ -92,7 +92,7 @@
 .transcription-wave-spectrogram-overlay {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: var(--z-raised);
   pointer-events: auto;
   cursor: crosshair;
 }
@@ -107,14 +107,14 @@
   min-width: 138px;
   padding: 8px 10px;
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, rgb(12 18 30) 76%, transparent);
-  color: color-mix(in srgb, rgb(241 245 249) 96%, transparent);
+  background: color-mix(in srgb, var(--shadow-color) 76%, transparent);
+  color: color-mix(in srgb, var(--surface-header) 96%, transparent);
   font-size: calc(11px * var(--ui-font-scale, 1));
   line-height: 1.2;
   box-shadow: 0 8px 24px color-mix(in srgb, var(--shadow-color) 22%, transparent);
   backdrop-filter: blur(6px);
   pointer-events: none;
-  z-index: 4;
+  z-index: var(--z-overlay);
 }
 
 .transcription-wave-corner-readout span {
@@ -126,15 +126,32 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 3;
+  z-index: var(--z-overlay-base);
   overflow: hidden;
+}
+
+.waveform-runtime-status {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  max-width: min(42vw, 320px);
+  z-index: var(--z-overlay);
+}
+
+.waveform-runtime-status .toolbar-ai-progress {
+  justify-content: flex-start;
+}
+
+.waveform-runtime-status .toolbar-ai-progress-badge {
+  max-width: min(100%, 260px);
+  background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
 }
 
 .waveform-acoustic-overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 4;
+  z-index: var(--z-overlay);
   overflow: hidden;
 }
 
@@ -152,13 +169,13 @@
 }
 
 .waveform-acoustic-path-f0 {
-  stroke: color-mix(in srgb, rgb(15 118 110) 96%, transparent);
+  stroke: color-mix(in srgb, var(--state-success-text) 96%, transparent);
   stroke-width: 2.25;
-  filter: drop-shadow(0 0 4px color-mix(in srgb, rgb(20 184 166) 18%, transparent));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--state-success-solid) 18%, transparent));
 }
 
 .waveform-acoustic-path-intensity {
-  stroke: color-mix(in srgb, rgb(202 138 4) 92%, transparent);
+  stroke: color-mix(in srgb, var(--state-warning-solid) 92%, transparent);
   stroke-width: 1.8;
   stroke-dasharray: 5 3;
 }
@@ -192,15 +209,15 @@
 }
 
 .waveform-acoustic-chip-f0 {
-  background: color-mix(in srgb, rgb(20 184 166) 14%, transparent);
-  color: rgb(15, 118, 110);
-  border: 1px solid color-mix(in srgb, rgb(13 148 136) 28%, transparent);
+  background: color-mix(in srgb, var(--state-success-solid) 14%, transparent);
+  color: var(--state-success-text);
+  border: 1px solid color-mix(in srgb, var(--state-success-solid) 28%, transparent);
 }
 
 .waveform-acoustic-chip-intensity {
   background: color-mix(in srgb, var(--state-warning-solid) 16%, transparent);
-  color: rgb(161, 98, 7);
-  border: 1px solid color-mix(in srgb, rgb(202 138 4) 28%, transparent);
+  color: var(--state-warning-text);
+  border: 1px solid color-mix(in srgb, var(--state-warning-solid) 28%, transparent);
 }
 
 .waveform-analysis-band {
@@ -233,23 +250,23 @@
 }
 
 .waveform-analysis-band-confidence span {
-  color: #8a4b00;
+  color: var(--state-warning-text);
 }
 
 .waveform-analysis-band-overlap {
-  background: linear-gradient(180deg, color-mix(in srgb, rgb(239 68 68) 24%, transparent), color-mix(in srgb, rgb(239 68 68) 12%, transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, rgb(220 38 38) 42%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-danger-solid) 24%, transparent), color-mix(in srgb, var(--state-danger-solid) 12%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-danger-solid) 42%, transparent);
 }
 
 .waveform-analysis-band-overlap span {
-  color: #8f1010;
+  color: var(--state-danger-text);
 }
 
 .waveform-analysis-band-gap {
-  background: linear-gradient(180deg, color-mix(in srgb, rgb(14 165 233) 22%, transparent), color-mix(in srgb, rgb(14 165 233) 10%, transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, rgb(2 132 199) 36%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-solid) 22%, transparent), color-mix(in srgb, var(--state-info-solid) 10%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 36%, transparent);
 }
 
 .waveform-analysis-band-gap span {
-  color: #0f4c76;
+  color: var(--state-info-text);
 }

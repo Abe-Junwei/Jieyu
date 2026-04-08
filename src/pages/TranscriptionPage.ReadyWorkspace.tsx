@@ -25,6 +25,7 @@ import {
 import { LeftRailProjectHub } from '../components/transcription/LeftRailProjectHub';
 import { OrchestratorWaveformContent } from './OrchestratorWaveformContent';
 import { TrackFocusToolbarControls } from '../components/transcription/toolbar/TrackFocusToolbarControls';
+import { ToolbarAiProgress } from '../components/transcription/toolbar/ToolbarAiProgress';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { useAiPanelContextUpdater, AiPanelContext } from '../contexts/AiPanelContext';
 import type { AcousticInspectorReadout } from '../contexts/AiPanelContext';
@@ -759,6 +760,7 @@ function TranscriptionPageReadyWorkspace({
       trackRecommendationEvent: undefined,
     },
     aiToolDecisionLogs: [],
+    acousticRuntimeStatus: { state: 'idle' },
     acousticSummary: null,
     acousticDetail: null,
     onJumpToAcousticHotspot: () => undefined,
@@ -799,6 +801,17 @@ function TranscriptionPageReadyWorkspace({
   const handleDeferredAiRuntimeChange = useCallback((runtimeState: DeferredTranscriptionAiRuntimeState) => {
     setDeferredAiRuntime(runtimeState);
   }, []);
+
+  const waveformAcousticRuntimeStatus = deferredAiRuntime.acousticRuntimeStatus?.state === 'loading'
+    ? deferredAiRuntime.acousticRuntimeStatus
+    : undefined;
+  const waveformVadCacheStatus = vadCacheStatus?.state === 'warming'
+    ? vadCacheStatus
+    : undefined;
+  const bottomToolbarAcousticRuntimeStatus = deferredAiRuntime.acousticRuntimeStatus?.state === 'error'
+    ? deferredAiRuntime.acousticRuntimeStatus
+    : undefined;
+  const showBottomToolbarAiProgress = bottomToolbarAcousticRuntimeStatus?.state === 'error';
 
   const acousticInspector = useMemo<AcousticInspectorReadout | null>(() => {
     const activeReadout = spectrogramHoverReadout
@@ -951,6 +964,7 @@ function TranscriptionPageReadyWorkspace({
     aiCurrentTask,
     aiVisibleCards,
     vadCacheStatus,
+    acousticRuntimeStatus: deferredAiRuntime.acousticRuntimeStatus,
     acousticSummary: deferredAiRuntime.acousticSummary,
     acousticInspector,
     acousticDetail: deferredAiRuntime.acousticDetail,
@@ -1672,7 +1686,11 @@ function TranscriptionPageReadyWorkspace({
             ) : null}
             <section className="transcription-waveform" ref={waveformSectionRef}>
               <Suspense fallback={null}>
-                <TranscriptionPageToolbar {...toolbarProps} />
+                <TranscriptionPageToolbar
+                  {...toolbarProps}
+                  acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus}
+                  vadCacheStatus={vadCacheStatus}
+                />
               </Suspense>
             </section>
             <LeftRailProjectHub
@@ -1781,6 +1799,8 @@ function TranscriptionPageReadyWorkspace({
                   acousticOverlayIntensityPath={acousticOverlayIntensityPath}
                   acousticOverlayVisibleSummary={acousticOverlayVisibleSummary}
                   acousticOverlayLoading={acousticOverlayLoading}
+                  acousticRuntimeStatus={waveformAcousticRuntimeStatus}
+                  vadCacheStatus={waveformVadCacheStatus}
                   waveformHoverReadout={waveformHoverReadout}
                   spectrogramHoverReadout={spectrogramHoverReadout}
                   handleSpectrogramMouseMove={handleSpectrogramMouseMove}
@@ -1922,6 +1942,10 @@ function TranscriptionPageReadyWorkspace({
                       speakerFocusTargetKey={speakerFocusTargetKey ?? ''}
                       onSpeakerFocusTargetKeyChange={handleSpeakerFocusTargetChange}
                       onCycleSpeakerFocusMode={cycleSpeakerFocusMode}
+                    />
+                    {showBottomToolbarAiProgress ? <div className="toolbar-sep" style={{ margin: '0 6px' }} /> : null}
+                    <ToolbarAiProgress
+                      acousticRuntimeStatus={bottomToolbarAcousticRuntimeStatus}
                     />
                     <div className="toolbar-sep" style={{ margin: '0 6px' }} />
                     <ObserverStatusSection

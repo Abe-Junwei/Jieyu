@@ -23,6 +23,7 @@ import type { SaveState } from './useTranscriptionData';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import { buildWaveformAnalysisOverlaySummary, buildWaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
 import { useVadCacheEntry } from './useVadCachedSegments';
+import { useVadCacheWarmupStatus } from './useVadCacheWarmupStatus';
 import { t, type Locale } from '../i18n';
 
 type ActionableRecommendation = Recommendation & {
@@ -164,12 +165,22 @@ export function useAiPanelLogic({
   }, [selectedUtterance?.id, selectedUtteranceText]);
 
   const vadCacheEntry = useVadCacheEntry(mediaId);
+  const vadWarmupStatus = useVadCacheWarmupStatus(mediaId);
   const vadSegments = vadCacheEntry?.segments;
   const vadCacheStatus = useMemo<VadCacheStatus>(() => {
     if (!mediaId) {
       return { state: 'unavailable' };
     }
     if (!vadCacheEntry) {
+      if (vadWarmupStatus?.state === 'warming') {
+        return {
+          state: 'warming',
+          engine: vadWarmupStatus.engine,
+          progressRatio: vadWarmupStatus.progressRatio,
+          processedFrames: vadWarmupStatus.processedFrames,
+          totalFrames: vadWarmupStatus.totalFrames,
+        };
+      }
       return { state: 'missing' };
     }
     return {
@@ -177,7 +188,7 @@ export function useAiPanelLogic({
       engine: vadCacheEntry.engine,
       segmentCount: vadCacheEntry.segments.length,
     };
-  }, [mediaId, vadCacheEntry]);
+  }, [mediaId, vadCacheEntry, vadWarmupStatus]);
 
   const waveformAnalysisOverlaySummary = useMemo(() => buildWaveformAnalysisOverlaySummary(utterances, {
     ...(vadSegments ? { vadSegments } : {}),

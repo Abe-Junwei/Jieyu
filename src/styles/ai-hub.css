@@ -20,7 +20,7 @@
   border-radius: 0;
   background: transparent;
   position: relative;
-  z-index: 2;
+  z-index: var(--z-raised);
 }
 
 .ai-chat-voice-drawer-head,
@@ -41,19 +41,19 @@
   line-height: 1.2;
   cursor: pointer;
   position: relative;
-  z-index: 2;
+  z-index: var(--z-raised);
   transition: background var(--rail-motion), border-color var(--rail-motion), color var(--rail-motion), box-shadow var(--rail-motion);
 }
 
 .ai-chat-voice-drawer-head {
-  --ai-fold-head-bg: color-mix(in srgb, rgb(239 246 255) 58%, transparent);
+  --ai-fold-head-bg: color-mix(in srgb, var(--state-info-bg) 58%, transparent);
   --ai-fold-head-border: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
   --ai-fold-head-shadow: inset 0 -1px 0 color-mix(in srgb, var(--state-info-solid) 10%, transparent);
   --ai-fold-head-color: var(--state-info-solid);
-  --ai-fold-head-hover-bg: color-mix(in srgb, rgb(239 246 255) 68%, transparent);
+  --ai-fold-head-hover-bg: color-mix(in srgb, var(--state-info-bg) 68%, transparent);
   --ai-fold-head-hover-border: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
-  --ai-fold-head-hover-shadow: inset 0 -1px 0 color-mix(in srgb, var(--state-info-solid) 16%, transparent), 0 2px 8px color-mix(in srgb, rgb(29 78 216) 8%, transparent);
-  --ai-fold-head-open-bg: color-mix(in srgb, rgb(239 246 255) 72%, transparent);
+  --ai-fold-head-hover-shadow: inset 0 -1px 0 color-mix(in srgb, var(--state-info-solid) 16%, transparent), 0 2px 8px color-mix(in srgb, var(--state-info-solid) 8%, transparent);
+  --ai-fold-head-open-bg: color-mix(in srgb, var(--state-info-bg) 72%, transparent);
   --ai-fold-head-open-border: color-mix(in srgb, var(--state-info-solid) 34%, transparent);
   --ai-fold-head-open-shadow: inset 0 -1px 0 color-mix(in srgb, var(--state-info-solid) 16%, transparent);
   appearance: none;
@@ -129,7 +129,7 @@
   max-height: 0;
   padding: 0 8px;
   opacity: 0;
-  background: color-mix(in srgb, rgb(239 246 255) 42%, transparent);
+  background: color-mix(in srgb, var(--state-info-bg) 42%, transparent);
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   transition: max-height var(--ai-fold-expand-duration) var(--ai-fold-ease), padding var(--ai-fold-expand-duration) var(--ai-fold-ease), opacity var(--ai-fold-fade-duration) var(--ai-fold-ease);
@@ -139,7 +139,7 @@
   max-height: var(--ai-voice-drawer-max-height, clamp(140px, 36vh, 380px));
   padding: 6px 8px 4px;
   opacity: 1;
-  background: color-mix(in srgb, rgb(239 246 255) 52%, transparent);
+  background: color-mix(in srgb, var(--state-info-bg) 52%, transparent);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -155,7 +155,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(to bottom, color-mix(in srgb, rgb(239 246 255) 90%, transparent), color-mix(in srgb, rgb(239 246 255) 0%, transparent));
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--state-info-bg) 90%, transparent), color-mix(in srgb, var(--state-info-bg) 0%, transparent));
 }
 
 .ai-chat-voice-drawer-resizer::before,
@@ -173,7 +173,7 @@
 .ai-chat-voice-drawer.is-resizing .ai-chat-voice-drawer-resizer::before,
 .ai-chat-decision-panel.is-resizing .ai-chat-decision-panel-resizer::before {
   width: calc(42px * var(--ui-font-scale, 1));
-  background: color-mix(in srgb, rgb(29 78 216) 62%, transparent);
+  background: color-mix(in srgb, var(--state-info-solid) 62%, transparent);
 }
 
 .ai-chat-decision-panel {
@@ -185,14 +185,14 @@
 }
 
 .ai-chat-decision-panel-head {
-  --ai-fold-head-bg: color-mix(in srgb, rgb(239 246 255) 50%, transparent);
+  --ai-fold-head-bg: color-mix(in srgb, var(--state-info-bg) 50%, transparent);
   --ai-fold-head-border: color-mix(in srgb, var(--state-info-solid) 20%, transparent);
   --ai-fold-head-shadow: inset 0 -1px 0 color-mix(in srgb, var(--state-info-solid) 7%, transparent);
   --ai-fold-head-color: var(--state-info-solid);
-  --ai-fold-head-hover-bg: color-mix(in srgb, rgb(239 246 255) 58%, transparent);
+  --ai-fold-head-hover-bg: color-mix(in srgb, var(--state-info-bg) 58%, transparent);
   --ai-fold-head-hover-border: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
-  --ai-fold-head-hover-shadow: inset 0 -1px 0 color-mix(in srgb, var(--state-info-solid) 12%, transparent), 0 2px 6px color-mix(in srgb, rgb(29 78 216) 6%, transparent);
-  --ai-fold-head-open-bg: color-mix(in srgb, rgb(239 246 255) 62%, transparent);
+  --ai-fold-head-hover-shadow: inset 0 -1px 0 color-mix(in srgb, var(--state-info-solid) 12%, transparent), 0 2px 6px color-mix(in srgb, var(--state-info-solid) 6%, transparent);
+  --ai-fold-head-open-bg: color-mix(in srgb, var(--state-info-bg) 62%, transparent);
   --ai-fold-head-open-border: color-mix(in srgb, var(--state-info-solid) 28%, transparent);
   --ai-fold-head-open-shadow: inset 0 -1px 0 color-mix(in srgb, var(--state-info-solid) 12%, transparent);
 }
@@ -218,7 +218,7 @@
   --ai-fold-head-hover-bg: color-mix(in srgb, var(--surface-panel) 88%, transparent);
   --ai-fold-head-hover-border: color-mix(in srgb, var(--text-tertiary) 28%, transparent);
   --ai-fold-head-hover-shadow: inset 0 -1px 0 color-mix(in srgb, var(--text-tertiary) 12%, transparent), 0 2px 6px color-mix(in srgb, var(--shadow-color) 4%, transparent);
-  --ai-fold-head-open-bg: color-mix(in srgb, rgb(255 255 255) 96%, transparent);
+  --ai-fold-head-open-bg: color-mix(in srgb, var(--surface-panel) 96%, transparent);
   --ai-fold-head-open-border: color-mix(in srgb, var(--text-tertiary) 30%, transparent);
   --ai-fold-head-open-shadow: inset 0 -1px 0 color-mix(in srgb, var(--text-tertiary) 12%, transparent);
 }
@@ -345,6 +345,17 @@
   border-bottom: 1px solid color-mix(in srgb, var(--text-tertiary) 18%, transparent);
 }
 
+.ai-chat-decision-item-compact {
+  display: grid;
+  gap: 4px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
+}
+
+.ai-chat-decision-list {
+  display: grid;
+  gap: 6px;
+}
+
 .ai-chat-decision-item-meta {
   display: flex;
   align-items: baseline;
@@ -367,6 +378,24 @@
   flex-wrap: wrap;
 }
 
+.ai-chat-decision-action-btn {
+  height: calc(22px * var(--ui-font-scale, 1));
+  font-size: calc(10px * var(--ui-font-scale, 1));
+}
+
+.ai-chat-decision-action-btn-wide {
+  min-width: calc(96px * var(--ui-font-scale, 1));
+}
+
+.ai-chat-decision-action-btn-mid {
+  min-width: calc(92px * var(--ui-font-scale, 1));
+}
+
+.ai-chat-decision-error {
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  color: var(--state-danger-text);
+}
+
 .ai-chat-decision-item-time {
   flex: 0 0 calc(74px * var(--ui-font-scale, 1));
   width: calc(74px * var(--ui-font-scale, 1));
@@ -378,15 +407,15 @@
 
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
   .ai-chat-voice-drawer-head {
-    background: color-mix(in srgb, rgb(239 246 255) 88%, transparent);
+    background: color-mix(in srgb, var(--state-info-bg) 88%, transparent);
   }
 
   .ai-chat-decision-panel-head {
-    background: color-mix(in srgb, rgb(239 246 255) 82%, transparent);
+    background: color-mix(in srgb, var(--state-info-bg) 82%, transparent);
   }
 
   .ai-chat-voice-drawer-body {
-    background: color-mix(in srgb, rgb(239 246 255) 72%, transparent);
+    background: color-mix(in srgb, var(--state-info-bg) 72%, transparent);
   }
 }
 
@@ -509,7 +538,7 @@
 
   .transcription-assistant-hub-tab-active {
     color: var(--tab-hover);
-    background: color-mix(in srgb, rgb(255 255 255) 75%, transparent);
+    background: color-mix(in srgb, var(--surface-panel) 75%, transparent);
     border-color: var(--border-soft);
   }
 
@@ -520,7 +549,7 @@
     gap: 8px;
     padding: 6px 10px;
     border-bottom: 1px solid var(--border-soft);
-    background: color-mix(in srgb, rgb(255 255 255) 40%, transparent);
+    background: color-mix(in srgb, var(--surface-panel) 40%, transparent);
     flex-shrink: 0;
   }
 
@@ -623,6 +652,14 @@
   min-height: 0;
   overflow: hidden;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 4%, transparent);
+}
+
+.transcription-ai-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
 }
 
 .transcription-ai-card-embedded {
@@ -766,8 +803,8 @@
   gap: 6px;
   padding: 6px 8px;
   border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, rgb(251 191 36) 40%, transparent);
-  background: color-mix(in srgb, rgb(254 249 195) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--state-warning-border) 56%, transparent);
+  background: color-mix(in srgb, var(--state-warning-bg) 85%, transparent);
   color: var(--state-warning-text);
   font-size: calc(12px * var(--ui-font-scale, 1));
 }
@@ -777,8 +814,8 @@
   font-size: calc(12px * var(--ui-font-scale, 1));
   padding: 6px 8px;
   border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, rgb(248 113 113) 40%, transparent);
-  background: color-mix(in srgb, rgb(254 226 226) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--state-danger-border) 52%, transparent);
+  background: color-mix(in srgb, var(--state-danger-bg) 85%, transparent);
 }
 
 .transcription-ai-assistant-chat {
@@ -989,7 +1026,7 @@ select.ai-cfg-input,
 }
 
 .ai-chat-provider-status-dot-error {
-  border-color: color-mix(in srgb, rgb(239 68 68) 56%, transparent);
+  border-color: color-mix(in srgb, var(--state-danger-solid) 56%, transparent);
   background: var(--state-danger-solid);
 }
 
@@ -1011,6 +1048,41 @@ select.ai-cfg-input,
   line-height: 26px;
   white-space: nowrap;
   user-select: none;
+}
+
+.ai-chat-provider-config-panel {
+  border-bottom: 1px dashed var(--border-soft);
+  padding: 6px 10px 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.ai-chat-provider-config-row {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 6px;
+  align-items: center;
+}
+
+.ai-chat-provider-config-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-chat-provider-config-action-btn {
+  height: calc(26px * var(--ui-font-scale, 1));
+  min-width: calc(80px * var(--ui-font-scale, 1));
+  font-size: calc(12px * var(--ui-font-scale, 1));
+}
+
+.ai-chat-provider-config-action-btn-clear-key {
+  min-width: calc(96px * var(--ui-font-scale, 1));
+}
+
+.ai-chat-provider-config-check-icon {
+  margin-right: 2px;
+  vertical-align: -1px;
 }
 
 /* AI 配置面板：输入框与选择框 | AI config panel: input & select */
@@ -1102,7 +1174,7 @@ select.ai-cfg-input,
 
 :root[data-theme='dark'] .ai-chat-provider-status-dot {
   border-color: color-mix(in srgb, var(--text-tertiary) 20%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, rgb(37 37 38) 95%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--surface-panel) 95%, transparent);
 }
 
 
@@ -1185,13 +1257,19 @@ select.ai-cfg-input,
   font-size: 0.94rem;
 }
 
+.transcription-wave-empty-centered {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .inspector-warning {
   margin-top: 8px;
   border-radius: var(--radius-md);
   padding: 8px 10px;
-  background: color-mix(in srgb, rgb(254 240 138) 55%, transparent);
+  background: color-mix(in srgb, var(--state-warning-bg) 55%, transparent);
   color: var(--state-warning-text);
-  border: 1px solid color-mix(in srgb, rgb(217 119 6) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--state-warning-border) 35%, transparent);
   animation: inspectorPulse 1.4s ease-in-out infinite;
 }
 
@@ -1318,14 +1396,14 @@ select.ai-cfg-input,
 
 .audio-drop-zone:hover {
   border-color: var(--header-accent);
-  background: color-mix(in srgb, rgb(99 102 241) 4%, transparent);
+  background: color-mix(in srgb, var(--state-info-solid) 4%, transparent);
 }
 
 .audio-drop-zone-filled {
   border-style: solid;
   border-color: var(--header-accent);
   color: var(--text-primary, var(--text-primary));
-  background: color-mix(in srgb, rgb(99 102 241) 4%, transparent);
+  background: color-mix(in srgb, var(--state-info-solid) 4%, transparent);
 }
 
 
@@ -1487,6 +1565,41 @@ select.ai-cfg-input,
   min-width: 64px;
 }
 
+.ai-embed-status {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ai-embed-status-available {
+  color: var(--state-success-solid);
+}
+
+.ai-embed-status-unavailable {
+  color: var(--state-danger-solid);
+}
+
+.ai-embed-note {
+  margin-bottom: 6px;
+}
+
+.ai-embed-warning {
+  margin-bottom: 6px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--state-warning-text);
+  background: var(--state-warning-bg);
+  border: 1px solid var(--state-warning-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+}
+
+.transcription-ai-tag-danger {
+  color: var(--state-danger-text);
+  border-color: color-mix(in srgb, var(--state-danger-text) 24%, transparent);
+  background: var(--state-danger-bg);
+}
+
 .ai-embed-actions-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr auto;
@@ -1518,4 +1631,22 @@ select.ai-cfg-input,
 
 .ai-text-12 {
   font-size: calc(12px * var(--ui-font-scale, 1));
+}
+
+.ai-text-muted-11 {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.ai-chat-metrics-bar {
+  min-width: 0;
+}
+
+.ai-chat-candidate-chips {
+  min-width: 0;
+}
+
+.ai-chat-candidate-chip {
+  white-space: nowrap;
 }

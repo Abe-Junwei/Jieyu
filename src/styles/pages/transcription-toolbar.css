@@ -295,7 +295,7 @@
   gap: 10px;
   padding: 6px 12px 8px;
   border-top: 1px solid color-mix(in srgb, var(--text-tertiary) 28%, transparent);
-  background: color-mix(in srgb, rgb(241 245 249) 40%, transparent);
+  background: color-mix(in srgb, var(--border-soft) 28%, transparent);
   flex-shrink: 0;
 }
 
@@ -317,15 +317,15 @@
   font-size: 0.7rem;
   font-weight: 500;
   color: var(--state-info-solid);
-  background: color-mix(in srgb, rgb(37 99 235) 8%, transparent);
-  border: 1px solid color-mix(in srgb, rgb(37 99 235) 20%, transparent);
+  background: color-mix(in srgb, var(--state-info-solid) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--state-info-solid) 20%, transparent);
   border-radius: var(--radius-xs);
   cursor: pointer;
   transition: background 0.15s;
 }
 
 .transcription-ai-observer-rec-btn:hover {
-  background: color-mix(in srgb, rgb(37 99 235) 14%, transparent);
+  background: color-mix(in srgb, var(--state-info-solid) 14%, transparent);
 }
 
 /* Observer status bar inside transcription-list-toolbar-left */
@@ -376,7 +376,7 @@
   margin: 12px;
   border-color: color-mix(in srgb, var(--text-tertiary) 35%, transparent);
   color: var(--text-secondary);
-  background: color-mix(in srgb, rgb(241 245 249) 60%, transparent);
+  background: color-mix(in srgb, var(--border-soft) 38%, transparent);
 }
 
 .transcription-import-media-btn {
@@ -386,7 +386,7 @@
   padding: 10px 18px;
   border: 1px dashed color-mix(in srgb, var(--text-tertiary) 50%, transparent);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, rgb(255 255 255) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 70%, transparent);
   color: var(--text-secondary);
   font-size: 0.9rem;
   font-weight: 500;
@@ -422,7 +422,7 @@
   padding: 2px 8px;
   border: 1px solid color-mix(in srgb, var(--state-warning-solid) 50%, transparent);
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, rgb(254 243 199) 80%, transparent);
+  background: color-mix(in srgb, var(--state-warning-bg) 80%, transparent);
   color: var(--state-warning-text);
   font-size: 0.72rem;
   font-weight: 700;
@@ -432,9 +432,9 @@
 
 .toolbar-track-mode-badge {
   padding: 2px 8px;
-  border: 1px solid color-mix(in srgb, rgb(37 99 235) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--state-info-border) 92%, transparent);
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, rgb(219 234 254) 70%, transparent);
+  background: color-mix(in srgb, var(--state-info-bg-strong) 70%, transparent);
   color: var(--state-info-solid);
   font-size: 0.72rem;
   font-weight: 700;
@@ -444,9 +444,9 @@
 
 .toolbar-lock-conflict-badge {
   padding: 2px 8px;
-  border: 1px solid color-mix(in srgb, rgb(220 38 38) 42%, transparent);
+  border: 1px solid color-mix(in srgb, var(--state-danger-border) 92%, transparent);
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, rgb(254 226 226) 90%, transparent);
+  background: color-mix(in srgb, var(--state-danger-bg) 90%, transparent);
   color: var(--state-danger-text);
   font-size: 0.72rem;
   font-weight: 700;
@@ -455,14 +455,14 @@
 }
 
 .toolbar-lock-conflict-badge:hover {
-  background: color-mix(in srgb, rgb(254 202 202) 95%, transparent);
+  background: color-mix(in srgb, var(--state-danger-border) 82%, transparent);
 }
 
 .toolbar-focus-mode-badge {
   padding: 2px 8px;
-  border: 1px solid color-mix(in srgb, rgb(51 65 85) 28%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-strong) 28%, transparent);
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, rgb(241 245 249) 92%, transparent);
+  background: color-mix(in srgb, var(--border-soft) 72%, transparent);
   color: var(--text-primary);
   font-size: 0.72rem;
   font-weight: 700;
@@ -471,12 +471,12 @@
 }
 
 .toolbar-focus-mode-badge:hover {
-  background: color-mix(in srgb, rgb(226 232 240) 95%, transparent);
+  background: var(--overlay-hover-soft);
 }
 
 .toolbar-focus-mode-badge-active {
-  border-color: color-mix(in srgb, rgb(2 132 199) 45%, transparent);
-  background: color-mix(in srgb, rgb(186 230 253) 70%, transparent);
+  border-color: color-mix(in srgb, var(--state-info-border-strong) 88%, transparent);
+  background: color-mix(in srgb, var(--state-info-bg-strong) 70%, transparent);
   color: var(--state-info-text);
 }
 
@@ -496,8 +496,8 @@
 
 .toolbar-focus-target-select:focus-visible {
   outline: none;
-  border-color: color-mix(in srgb, rgb(2 132 199) 50%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, rgb(186 230 253) 80%, transparent);
+  border-color: color-mix(in srgb, var(--state-info-border-strong) 92%, transparent);
+  box-shadow: 0 0 0 2px var(--focus-ring-soft);
 }
 
 .track-focus-toolbar-controls {
@@ -506,6 +506,48 @@
   gap: 8px;
   min-width: 0;
   flex-wrap: nowrap;
+}
+
+.toolbar-ai-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.toolbar-ai-progress-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: min(100%, 220px);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header));
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toolbar-ai-progress-badge-acoustic {
+  border-color: color-mix(in srgb, var(--state-info-border) 92%, transparent);
+  background: color-mix(in srgb, var(--state-info-bg-strong) 70%, transparent);
+  color: var(--state-info-solid);
+}
+
+.toolbar-ai-progress-badge-vad {
+  border-color: color-mix(in srgb, var(--state-warning-solid) 52%, transparent);
+  background: color-mix(in srgb, var(--state-warning-bg) 86%, transparent);
+  color: var(--state-warning-text);
+}
+
+.toolbar-ai-progress-badge-error {
+  border-color: color-mix(in srgb, var(--state-danger-border) 92%, transparent);
+  background: color-mix(in srgb, var(--state-danger-bg) 90%, transparent);
+  color: var(--state-danger-text);
 }
 
 .play-btn,

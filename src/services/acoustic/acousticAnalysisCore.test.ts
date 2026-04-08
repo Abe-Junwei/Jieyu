@@ -46,6 +46,10 @@ describe('computeAcousticAnalysis', () => {
     expect(result.summary.spectralCentroidMeanHz ?? 0).toBeGreaterThan(0);
     expect(result.summary.spectralRolloffMeanHz ?? 0).toBeGreaterThan(0);
     expect(result.summary.zeroCrossingRateMean ?? 0).toBeGreaterThan(0);
+    expect(result.summary.spectralFlatnessMean ?? 0).toBeGreaterThan(0);
+    expect(result.summary.loudnessMeanDb).not.toBeNull();
+    expect(Array.isArray(result.summary.mfccMeanCoefficients)).toBe(true);
+    expect((result.summary.mfccMeanCoefficients?.length ?? 0)).toBeGreaterThanOrEqual(3);
     expect(result.summary.formantFrameCount ?? 0).toBeGreaterThanOrEqual(0);
     if ((result.summary.formantFrameCount ?? 0) > 0) {
       expect(result.summary.formantF1MeanHz ?? 0).toBeGreaterThan(0);
@@ -74,6 +78,9 @@ describe('computeAcousticAnalysis', () => {
     expect(result.summary.f0MeanHz).toBeNull();
     expect(result.summary.spectralCentroidMeanHz).toBeNull();
     expect(result.summary.spectralRolloffMeanHz).toBeNull();
+    expect(result.summary.spectralFlatnessMean).toBeNull();
+    expect(result.summary.loudnessMeanDb).toBeNull();
+    expect(result.summary.mfccMeanCoefficients).toBeNull();
     expect(result.summary.formantF1MeanHz).toBeNull();
     expect(result.summary.formantF2MeanHz).toBeNull();
     expect(result.summary.formantFrameCount ?? 0).toBe(0);

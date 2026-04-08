@@ -162,6 +162,10 @@
   gap: var(--orthography-builder-space-2);
 }
 
+.orthography-builder-language-field {
+  min-width: 0;
+}
+
 .orthography-builder-panel-compact .language-iso-input-grid {
   grid-template-columns: minmax(0, 1.8fr) minmax(88px, 0.8fr);
 }
@@ -190,6 +194,10 @@
   gap: var(--orthography-builder-space-2);
 }
 
+.orthography-builder-bridge-group-content {
+  min-width: 0;
+}
+
 .orthography-builder-top-notes {
   grid-template-columns: 1fr;
 }
@@ -203,6 +211,10 @@
   border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
   border-radius: var(--radius-md);
   background: var(--surface-panel);
+}
+
+.orthography-builder-bridge-hint-box {
+  border-style: dashed;
 }
 
 .orthography-builder-context-box {

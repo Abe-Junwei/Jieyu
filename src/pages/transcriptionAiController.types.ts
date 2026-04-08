@@ -16,6 +16,7 @@ import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import type { ActionableRecommendation } from '../hooks/useAiPanelLogic';
 import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
 import type { AcousticPanelDetail } from '../utils/acousticPanelDetail';
+import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
 import type { useAiChat } from '../hooks/useAiChat';
 import type { useAiPanelLogic } from '../hooks/useAiPanelLogic';
 
@@ -99,6 +100,7 @@ export interface UseTranscriptionAiControllerResult {
   selectedTranslationGapCount: number;
   aiCurrentTask: ReturnType<typeof useAiPanelLogic>['aiCurrentTask'];
   aiVisibleCards: ReturnType<typeof useAiPanelLogic>['aiVisibleCards'];
+  acousticRuntimeStatus: AcousticRuntimeStatus;
   acousticSummary: AcousticPromptSummary | null;
   acousticDetail: AcousticPanelDetail | null;
   handleJumpToTranslationGap: () => void;

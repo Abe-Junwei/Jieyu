@@ -173,7 +173,7 @@
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
-  background: color-mix(in srgb, rgb(30 41 59) 88%, transparent);
+  background: color-mix(in srgb, var(--shadow-color) 88%, transparent);
   color: color-mix(in srgb, var(--surface-header) 84%, transparent);
   padding: 6px 16px;
   border-radius: var(--radius-3xl);
@@ -185,7 +185,7 @@
 }
 
 .focus-mode-badge:hover {
-  background: color-mix(in srgb, rgb(30 41 59) 100%, transparent);
+  background: color-mix(in srgb, var(--shadow-color) 100%, transparent);
 }
 
 @media (max-width: 640px) {
@@ -270,7 +270,7 @@
   justify-content: center;
   transition: background 0.15s;
   position: relative;
-  z-index: 2;
+  z-index: var(--z-raised);
 }
 
 .video-preview-resize-handle:hover,
@@ -380,7 +380,7 @@
   justify-content: center;
   transition: background 0.15s;
   position: relative;
-  z-index: 2;
+  z-index: var(--z-raised);
 }
 
 .video-preview-right-resize-handle:hover,

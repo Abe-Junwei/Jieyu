@@ -32,6 +32,7 @@ describe('TranscriptionPageAssistantBridge', () => {
     const stableMetrics = { turnCount: 0 };
     const stableTaskSession = { id: 'task-1', status: 'idle' };
     const stableLogs = [{ id: 'log-1', toolName: 'noop', decision: 'allow', timestamp: '2026-04-06T00:00:00.000Z' }];
+    const stableAcousticRuntimeStatus = { state: 'ready', phase: 'done', progressRatio: 1, processedFrames: 16, totalFrames: 16 } as const;
     const stableAcousticSummary = {
       selectionStartSec: 1.2,
       selectionEndSec: 3.4,
@@ -100,6 +101,7 @@ describe('TranscriptionPageAssistantBridge', () => {
       selectedTranslationGapCount: 0,
       aiCurrentTask: null,
       aiVisibleCards: [],
+      acousticRuntimeStatus: stableAcousticRuntimeStatus,
       acousticSummary: stableAcousticSummary,
       acousticDetail: stableAcousticDetail,
       handleJumpToTranslationGap: vi.fn(),
@@ -119,6 +121,7 @@ describe('TranscriptionPageAssistantBridge', () => {
     const firstCallCount = onRuntimeStateChange.mock.calls.length;
     expect(firstCallCount).toBeGreaterThan(0);
     expect(onRuntimeStateChange.mock.calls[0]?.[0]).toEqual(expect.objectContaining({
+      acousticRuntimeStatus: expect.objectContaining({ state: 'ready', progressRatio: 1 }),
       acousticSummary: expect.objectContaining({ selectionStartSec: 1.2, selectionEndSec: 3.4 }),
       acousticDetail: expect.objectContaining({ selectionStartSec: 1.2, sampleCount: 4 }),
       onJumpToAcousticHotspot: stableJumpToAcousticHotspot,

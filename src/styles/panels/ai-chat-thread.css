@@ -129,6 +129,24 @@
   word-break: break-word;
 }
 
+.ai-chat-reasoning-block {
+  min-width: 0;
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: color-mix(in srgb, var(--text-secondary) 8%, transparent);
+  border-radius: 4px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.ai-chat-reasoning-title {
+  font-weight: 600;
+  margin-bottom: 2px;
+  font-style: normal;
+}
+
 .ai-chat-message-actions {
   display: flex;
   justify-content: flex-start;
@@ -188,6 +206,10 @@
   text-underline-offset: 2px;
   transition: color var(--rail-motion), text-decoration-color var(--rail-motion), opacity var(--rail-motion);
   opacity: 0.84;
+}
+
+.ai-chat-message-action-btn-italic {
+  font-style: italic;
 }
 
 .ai-chat-message-action-btn:hover {

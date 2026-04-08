@@ -127,7 +127,7 @@
 
 .context-menu-danger .context-menu-item-icon {
   color: currentColor;
-  border-color: color-mix(in srgb, rgb(220 38 38) 16%, transparent);
+  border-color: color-mix(in srgb, var(--state-danger-solid) 16%, transparent);
   background: linear-gradient(180deg, var(--state-danger-bg) 0%, var(--state-danger-bg) 100%);
   opacity: 0.92;
 }
@@ -156,10 +156,10 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-soft) 60%, transparent);
 }
 .context-menu-item:hover:not(:disabled) .context-menu-item-selection-dot {
-  border-color: color-mix(in srgb, rgb(100 116 139) 60%, transparent);
+  border-color: color-mix(in srgb, var(--text-secondary) 60%, transparent);
 }
 .context-menu-item:hover:not(:disabled) .context-menu-item-selection-dot.context-menu-item-selection-selected {
-  border-color: color-mix(in srgb, rgb(29 78 216) 48%, transparent);
+  border-color: color-mix(in srgb, var(--state-info-solid) 48%, transparent);
   background: var(--state-info-solid);
 }
 .context-menu-item:focus-visible {
@@ -229,7 +229,7 @@
 .context-menu-search-input:focus {
   border-color: var(--state-info-border);
   background: var(--surface-panel);
-  box-shadow: 0 0 0 3px color-mix(in srgb, rgb(96 165 250) 18%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-solid) 18%, transparent);
 }
 
 .context-menu-search-input::placeholder {

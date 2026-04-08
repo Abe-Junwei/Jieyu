@@ -13,7 +13,17 @@ const PRE_EMPHASIS_ALPHA = 0.97;
 const FORMANT_MIN_HZ = 150;
 const FORMANT_MAX_HZ = 4200;
 const FORMANT_MIN_SEPARATION_HZ = 180;
+const MEL_FILTER_COUNT = 26;
+const MFCC_COEFFICIENT_COUNT = 13;
 const hannWindowCache = new Map<number, Float32Array>();
+const melFilterBankCache = new Map<string, Float32Array[]>();
+
+interface AcousticAnalysisComputeOptions {
+  onProgress?: (processedFrames: number, totalFrames: number) => void;
+  shouldCancel?: () => boolean;
+  yieldEveryFrames?: number;
+  yieldControl?: () => Promise<void>;
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -70,6 +80,14 @@ function computeZeroCrossingRate(frame: Float32Array): number {
   }
 
   return crossingCount / (frame.length - 1);
+}
+
+function hzToMel(value: number): number {
+  return 2595 * Math.log10(1 + (value / 700));
+}
+
+function melToHz(value: number): number {
+  return 700 * ((10 ** (value / 2595)) - 1);
 }
 
 function computeMagnitudeSpectrum(frame: Float32Array): { magnitudes: Float32Array; fftSize: number } {
@@ -135,21 +153,90 @@ function computeMagnitudeSpectrum(frame: Float32Array): { magnitudes: Float32Arr
   return { magnitudes, fftSize };
 }
 
+function getMelFilterBank(sampleRate: number, fftSize: number, filterCount = MEL_FILTER_COUNT): Float32Array[] {
+  const key = `${sampleRate}:${fftSize}:${filterCount}`;
+  const cached = melFilterBankCache.get(key);
+  if (cached) return cached;
+
+  const binCount = (fftSize >> 1) + 1;
+  const lowMel = hzToMel(20);
+  const highMel = hzToMel(Math.min(sampleRate / 2, 8_000));
+  const melPoints = Array.from({ length: filterCount + 2 }, (_, index) => lowMel + ((highMel - lowMel) * index) / (filterCount + 1));
+  const hzPoints = melPoints.map((value) => melToHz(value));
+  const bins = hzPoints.map((value) => clamp(Math.floor((fftSize + 1) * value / sampleRate), 0, binCount - 1));
+
+  const filters = Array.from({ length: filterCount }, () => new Float32Array(binCount));
+  for (let filterIndex = 0; filterIndex < filterCount; filterIndex += 1) {
+    const left = bins[filterIndex] ?? 0;
+    const center = bins[filterIndex + 1] ?? left;
+    const right = bins[filterIndex + 2] ?? center;
+    const filter = filters[filterIndex]!;
+
+    for (let bin = left; bin < center; bin += 1) {
+      const denominator = Math.max(center - left, 1);
+      filter[bin] = (bin - left) / denominator;
+    }
+    for (let bin = center; bin <= right; bin += 1) {
+      const denominator = Math.max(right - center, 1);
+      filter[bin] = (right - bin) / denominator;
+    }
+  }
+
+  melFilterBankCache.set(key, filters);
+  return filters;
+}
+
+function computeMfcc(logMelEnergies: Float32Array, coefficientCount = MFCC_COEFFICIENT_COUNT): number[] {
+  const coefficients = new Array<number>(coefficientCount).fill(0);
+  const filterCount = logMelEnergies.length;
+  if (filterCount === 0) return coefficients;
+
+  for (let coefficientIndex = 0; coefficientIndex < coefficientCount; coefficientIndex += 1) {
+    let sum = 0;
+    for (let filterIndex = 0; filterIndex < filterCount; filterIndex += 1) {
+      sum += (logMelEnergies[filterIndex] ?? 0) * Math.cos((Math.PI * coefficientIndex * (filterIndex + 0.5)) / filterCount);
+    }
+    coefficients[coefficientIndex] = sum;
+  }
+
+  return coefficients;
+}
+
+function averageCoefficientVectors(vectors: number[][]): number[] | null {
+  if (vectors.length === 0) return null;
+  const coefficientCount = vectors[0]?.length ?? 0;
+  if (coefficientCount <= 0) return null;
+
+  return Array.from({ length: coefficientCount }, (_, coefficientIndex) => (
+    vectors.reduce((sum, vector) => sum + (vector[coefficientIndex] ?? 0), 0) / vectors.length
+  ));
+}
+
 function computeSpectralDescriptors(frame: Float32Array, sampleRate: number): {
   spectralCentroidHz: number | null;
   spectralRolloffHz: number | null;
   zeroCrossingRate: number | null;
+  spectralFlatness: number | null;
+  loudnessDb: number | null;
+  mfccCoefficients: number[] | null;
 } {
   const zeroCrossingRate = computeZeroCrossingRate(frame);
   const { magnitudes, fftSize } = computeMagnitudeSpectrum(frame);
+  const powerSpectrum = new Float32Array(magnitudes.length);
 
   let totalMagnitude = 0;
   let weightedFrequencySum = 0;
+  let totalPower = 0;
+  let sumLogPower = 0;
   for (let index = 0; index < magnitudes.length; index += 1) {
     const magnitude = magnitudes[index] ?? 0;
     const frequency = (index * sampleRate) / fftSize;
+    const power = magnitude * magnitude;
+    powerSpectrum[index] = power;
     totalMagnitude += magnitude;
     weightedFrequencySum += frequency * magnitude;
+    totalPower += power;
+    sumLogPower += Math.log(Math.max(power, EPSILON));
   }
 
   if (totalMagnitude <= EPSILON) {
@@ -157,6 +244,9 @@ function computeSpectralDescriptors(frame: Float32Array, sampleRate: number): {
       spectralCentroidHz: null,
       spectralRolloffHz: null,
       zeroCrossingRate,
+      spectralFlatness: null,
+      loudnessDb: null,
+      mfccCoefficients: null,
     };
   }
 
@@ -172,11 +262,122 @@ function computeSpectralDescriptors(frame: Float32Array, sampleRate: number): {
     }
   }
 
+  const arithmeticMeanPower = totalPower / Math.max(powerSpectrum.length, 1);
+  const spectralFlatness = arithmeticMeanPower > EPSILON
+    ? Math.exp(sumLogPower / Math.max(powerSpectrum.length, 1)) / arithmeticMeanPower
+    : null;
+
+  const melFilters = getMelFilterBank(sampleRate, fftSize);
+  const logMelEnergies = new Float32Array(melFilters.length);
+  let totalMelEnergy = 0;
+  for (let filterIndex = 0; filterIndex < melFilters.length; filterIndex += 1) {
+    const filter = melFilters[filterIndex]!;
+    let energy = 0;
+    for (let bin = 0; bin < powerSpectrum.length; bin += 1) {
+      energy += (filter[bin] ?? 0) * (powerSpectrum[bin] ?? 0);
+    }
+    totalMelEnergy += energy;
+    logMelEnergies[filterIndex] = Math.log(Math.max(energy, EPSILON));
+  }
+  const loudnessDb = 10 * Math.log10(Math.max(totalMelEnergy, EPSILON));
+  const mfccCoefficients = computeMfcc(logMelEnergies);
+
   return {
     spectralCentroidHz: centroidHz,
     spectralRolloffHz: rolloffHz,
     zeroCrossingRate,
+    spectralFlatness,
+    loudnessDb,
+    mfccCoefficients,
   };
+}
+
+function analyzeAcousticFrame(
+  frame: Float32Array,
+  timeSec: number,
+  sampleRate: number,
+  config: AcousticAnalysisConfig,
+): AcousticFrame {
+  const rms = computeRms(frame);
+  const intensityDb = computeIntensityDb(rms);
+
+  if (rms < config.silenceRmsThreshold) {
+    return {
+      timeSec,
+      f0Hz: null,
+      intensityDb,
+      reliability: 0,
+      spectralCentroidHz: null,
+      spectralRolloffHz: null,
+      zeroCrossingRate: null,
+      spectralFlatness: null,
+      loudnessDb: null,
+      mfccCoefficients: null,
+      formantF1Hz: null,
+      formantF2Hz: null,
+      formantReliability: null,
+    };
+  }
+
+  const { f0Hz, reliability } = estimatePitchYin(frame, sampleRate, config);
+  const {
+    spectralCentroidHz,
+    spectralRolloffHz,
+    zeroCrossingRate,
+    spectralFlatness,
+    loudnessDb,
+    mfccCoefficients,
+  } = computeSpectralDescriptors(frame, sampleRate);
+  const { formantF1Hz, formantF2Hz, formantReliability } = reliability >= 0.35
+    ? estimateFormants(frame, sampleRate)
+    : { formantF1Hz: null, formantF2Hz: null, formantReliability: null };
+
+  return {
+    timeSec,
+    f0Hz,
+    intensityDb,
+    reliability,
+    spectralCentroidHz,
+    spectralRolloffHz,
+    zeroCrossingRate,
+    spectralFlatness,
+    loudnessDb,
+    mfccCoefficients,
+    formantF1Hz,
+    formantF2Hz,
+    formantReliability,
+  };
+}
+
+function buildAcousticResult(
+  mediaKey: string,
+  sampleRate: number,
+  pcmLength: number,
+  config: AcousticAnalysisConfig,
+  frames: AcousticFrame[],
+): AcousticFeatureResult {
+  const durationSec = pcmLength / sampleRate;
+  const hotspots = computeHotspots(frames);
+  return {
+    mediaKey,
+    sampleRate,
+    durationSec,
+    config,
+    frames,
+    hotspots,
+    summary: computeSummary(frames, durationSec),
+  };
+}
+
+function getTotalFrameCount(pcmLength: number, windowSize: number, hopSize: number): number {
+  if (pcmLength < windowSize) return 0;
+  return Math.floor((pcmLength - windowSize) / hopSize) + 1;
+}
+
+function createAbortError(): Error {
+  const error = new Error('Acoustic analysis aborted');
+  error.name = 'AbortError';
+  return error;
 }
 
 function computeAutocorrelation(input: Float32Array, order: number): Float32Array {
@@ -393,6 +594,15 @@ function computeSummary(frames: AcousticFrame[], durationSec: number): AcousticA
   const zeroCrossingRates = frames
     .map((frame) => frame.zeroCrossingRate)
     .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  const spectralFlatnessValues = frames
+    .map((frame) => frame.spectralFlatness)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  const loudnessValues = frames
+    .map((frame) => frame.loudnessDb)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  const mfccVectors = frames
+    .map((frame) => frame.mfccCoefficients)
+    .filter((value): value is number[] => Array.isArray(value) && value.length > 0);
   const formantPairs = frames
     .filter((frame) => typeof frame.formantF1Hz === 'number' && Number.isFinite(frame.formantF1Hz)
       && typeof frame.formantF2Hz === 'number' && Number.isFinite(frame.formantF2Hz))
@@ -437,6 +647,9 @@ function computeSummary(frames: AcousticFrame[], durationSec: number): AcousticA
     spectralCentroidMeanHz: spectralCentroids.length > 0 ? spectralCentroids.reduce((sum, value) => sum + value, 0) / spectralCentroids.length : null,
     spectralRolloffMeanHz: spectralRolloffs.length > 0 ? spectralRolloffs.reduce((sum, value) => sum + value, 0) / spectralRolloffs.length : null,
     zeroCrossingRateMean: zeroCrossingRates.length > 0 ? zeroCrossingRates.reduce((sum, value) => sum + value, 0) / zeroCrossingRates.length : null,
+    spectralFlatnessMean: spectralFlatnessValues.length > 0 ? spectralFlatnessValues.reduce((sum, value) => sum + value, 0) / spectralFlatnessValues.length : null,
+    loudnessMeanDb: loudnessValues.length > 0 ? loudnessValues.reduce((sum, value) => sum + value, 0) / loudnessValues.length : null,
+    mfccMeanCoefficients: averageCoefficientVectors(mfccVectors),
     formantF1MeanHz,
     formantF2MeanHz,
     formantFrameCount: formantPairs.length,
@@ -564,54 +777,47 @@ export function computeAcousticAnalysis(request: AcousticAnalysisRequest): Acous
 
   for (let start = 0; start + windowSize <= pcm.length; start += hopSize) {
     const frame = pcm.subarray(start, start + windowSize);
-    const rms = computeRms(frame);
-    const intensityDb = computeIntensityDb(rms);
     const timeSec = (start + Math.floor(windowSize / 2)) / sampleRate;
-
-    if (rms < config.silenceRmsThreshold) {
-      frames.push({
-        timeSec,
-        f0Hz: null,
-        intensityDb,
-        reliability: 0,
-        spectralCentroidHz: null,
-        spectralRolloffHz: null,
-        zeroCrossingRate: null,
-        formantF1Hz: null,
-        formantF2Hz: null,
-        formantReliability: null,
-      });
-      continue;
-    }
-
-    const { f0Hz, reliability } = estimatePitchYin(frame, sampleRate, config);
-    const { spectralCentroidHz, spectralRolloffHz, zeroCrossingRate } = computeSpectralDescriptors(frame, sampleRate);
-    const { formantF1Hz, formantF2Hz, formantReliability } = reliability >= 0.35
-      ? estimateFormants(frame, sampleRate)
-      : { formantF1Hz: null, formantF2Hz: null, formantReliability: null };
-    frames.push({
-      timeSec,
-      f0Hz,
-      intensityDb,
-      reliability,
-      spectralCentroidHz,
-      spectralRolloffHz,
-      zeroCrossingRate,
-      formantF1Hz,
-      formantF2Hz,
-      formantReliability,
-    });
+    frames.push(analyzeAcousticFrame(frame, timeSec, sampleRate, config));
   }
 
-  const durationSec = pcm.length / sampleRate;
-  const hotspots = computeHotspots(frames);
-  return {
-    mediaKey,
-    sampleRate,
-    durationSec,
-    config,
-    frames,
-    hotspots,
-    summary: computeSummary(frames, durationSec),
-  };
+  return buildAcousticResult(mediaKey, sampleRate, pcm.length, config, frames);
+}
+
+export async function computeAcousticAnalysisAsync(
+  request: AcousticAnalysisRequest,
+  options: AcousticAnalysisComputeOptions = {},
+): Promise<AcousticFeatureResult> {
+  const { pcm, sampleRate, config, mediaKey } = request;
+  const windowSize = Math.max(64, Math.round(config.analysisWindowSec * sampleRate));
+  const hopSize = Math.max(1, Math.round(config.frameStepSec * sampleRate));
+  const totalFrames = getTotalFrameCount(pcm.length, windowSize, hopSize);
+  const frames: AcousticFrame[] = [];
+  const yieldEveryFrames = Math.max(1, options.yieldEveryFrames ?? 12);
+  const yieldControl = options.yieldControl ?? (() => new Promise<void>((resolve) => {
+    setTimeout(resolve, 0);
+  }));
+
+  let processedFrames = 0;
+  for (let start = 0; start + windowSize <= pcm.length; start += hopSize) {
+    if (options.shouldCancel?.()) {
+      throw createAbortError();
+    }
+
+    const frame = pcm.subarray(start, start + windowSize);
+    const timeSec = (start + Math.floor(windowSize / 2)) / sampleRate;
+    frames.push(analyzeAcousticFrame(frame, timeSec, sampleRate, config));
+    processedFrames += 1;
+
+    if (options.onProgress && (processedFrames === totalFrames || processedFrames % yieldEveryFrames === 0)) {
+      options.onProgress(processedFrames, totalFrames);
+    }
+
+    if (processedFrames < totalFrames && processedFrames % yieldEveryFrames === 0) {
+      await yieldControl();
+    }
+  }
+
+  options.onProgress?.(totalFrames, totalFrames);
+  return buildAcousticResult(mediaKey, sampleRate, pcm.length, config, frames);
 }

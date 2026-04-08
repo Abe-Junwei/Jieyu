@@ -30,7 +30,7 @@ body {
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
   padding: clamp(16px, 2.5vw, 28px);
-  box-shadow: 0 1px 2px color-mix(in srgb, rgb(31 35 40) 8%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 8%, transparent);
 }
 
 .panel h2 {
@@ -46,10 +46,7 @@ body {
 :root[data-theme='dark'] .panel p {
   color: var(--text-secondary);
 }
-.note-panel-category-select,
-.search-replace-select,
-.ai-card-select,
-.ai-card-filter-select {
+.select-caret {
   -webkit-appearance: none;
   appearance: none;
   field-sizing: content;
@@ -66,13 +63,10 @@ body {
   background-position: calc(100% - 26px) 50%, calc(100% - 10px) 50%;
   background-size: 1px 14px, 10px 10px;
 }
-.note-panel-category-select:focus,
-.search-replace-select:focus,
-.ai-card-select:focus,
-.ai-card-filter-select:focus {
+.select-caret:focus {
   outline: none;
   border-color: var(--state-info-border);
-  box-shadow: 0 0 0 3px color-mix(in srgb, rgb(147 197 253) 22%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-solid) 22%, transparent);
 }
 .hint {
   margin-top: 14px;

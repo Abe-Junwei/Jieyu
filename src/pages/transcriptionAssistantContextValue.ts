@@ -27,6 +27,7 @@ interface BuildTranscriptionAssistantContextValueInput {
   aiVisibleCards: AiPanelContextValue['aiVisibleCards'];
   selectedTranslationGapCount: number;
   vadCacheStatus?: AiPanelContextValue['vadCacheStatus'];
+  acousticRuntimeStatus?: AiPanelContextValue['acousticRuntimeStatus'];
   acousticSummary?: AiPanelContextValue['acousticSummary'];
   acousticInspector?: AiPanelContextValue['acousticInspector'];
   acousticDetail?: AiPanelContextValue['acousticDetail'];
@@ -51,6 +52,7 @@ export function buildTranscriptionAssistantContextValue(input: BuildTranscriptio
     aiPanelMode: input.aiPanelMode,
     selectedTranslationGapCount: input.selectedTranslationGapCount,
     ...(input.vadCacheStatus !== undefined ? { vadCacheStatus: input.vadCacheStatus } : {}),
+    ...(input.acousticRuntimeStatus !== undefined ? { acousticRuntimeStatus: input.acousticRuntimeStatus } : {}),
     ...(input.acousticSummary !== undefined ? { acousticSummary: input.acousticSummary } : {}),
     ...(input.acousticInspector !== undefined ? { acousticInspector: input.acousticInspector } : {}),
     ...(input.acousticDetail !== undefined ? { acousticDetail: input.acousticDetail } : {}),

@@ -45,6 +45,10 @@
   min-height: 0;
 }
 
+.note-popover-summary {
+  min-width: 0;
+}
+
 .note-popover-list {
   overflow-y: auto;
   padding: 0;
@@ -158,6 +162,12 @@
 
 .note-popover-btn {
   white-space: nowrap;
+}
+
+.note-popover-btn-save,
+.note-popover-btn-cancel,
+.note-popover-btn-add {
+  min-width: 72px;
 }
 
 /* ── Note indicator (from ai-hub.css) ── */

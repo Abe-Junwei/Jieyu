@@ -6,9 +6,20 @@ import type { AcousticPanelDetail } from '../utils/acousticPanelDetail';
 import type { AcousticHotspotKind } from '../utils/acousticOverlayTypes';
 
 export type VadCacheStatus = {
-  state: 'unavailable' | 'missing' | 'ready';
+  state: 'unavailable' | 'missing' | 'warming' | 'ready';
   engine?: 'silero' | 'energy';
   segmentCount?: number;
+  progressRatio?: number;
+  processedFrames?: number;
+  totalFrames?: number;
+};
+
+export type AcousticRuntimeStatus = {
+  state: 'idle' | 'loading' | 'ready' | 'error';
+  phase?: 'analyzing' | 'done';
+  progressRatio?: number;
+  processedFrames?: number;
+  totalFrames?: number;
 };
 
 export type AcousticInspectorReadout = {
@@ -53,6 +64,7 @@ export type AiPanelContextValue = {
   aiVisibleCards?: Record<AiPanelCardKey, boolean>;
   selectedTranslationGapCount?: number;
   vadCacheStatus?: VadCacheStatus;
+  acousticRuntimeStatus?: AcousticRuntimeStatus;
   acousticSummary?: AcousticPromptSummary | null;
   acousticInspector?: AcousticInspectorReadout | null;
   acousticDetail?: AcousticPanelDetail | null;
@@ -72,6 +84,7 @@ export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
   lexemeMatches: [],
   aiPanelMode: 'auto',
   selectedTranslationGapCount: 0,
+  acousticRuntimeStatus: { state: 'idle' },
   acousticSummary: null,
   acousticInspector: null,
   acousticDetail: null,

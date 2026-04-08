@@ -12,7 +12,7 @@ vi.mock('./VadCacheService', () => ({
   },
 }));
 
-import { ensureVadCacheForMedia } from './VadMediaCacheService';
+import { ensureVadCacheForMedia, getVadCacheWarmupStatus } from './VadMediaCacheService';
 
 describe('VadMediaCacheService', () => {
   beforeEach(() => {
@@ -85,6 +85,41 @@ describe('VadMediaCacheService', () => {
       cachedAt: 456,
     });
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('publishes and clears warmup progress while VAD cache is warming', async () => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(16),
+    }));
+    const decodeAudioData = vi.fn(async () => ({ duration: 3.2 } as AudioBuffer));
+    const vadRuntime = {
+      init: vi.fn(async () => undefined),
+      detectSpeechSegments: vi.fn(async (_buffer: AudioBuffer, options) => {
+        options?.onProgress?.({ phase: 'detecting', processedFrames: 16, totalFrames: 32, ratio: 0.5 });
+        expect(getVadCacheWarmupStatus('media-progress')).toEqual({
+          state: 'warming',
+          engine: 'silero',
+          progressRatio: 0.5,
+          processedFrames: 16,
+          totalFrames: 32,
+        });
+        return [{ start: 0.1, end: 1.4, confidence: 0.93 }];
+      }),
+      getRuntimeEngine: vi.fn(() => 'silero' as const),
+    };
+
+    const result = await ensureVadCacheForMedia({
+      mediaId: 'media-progress',
+      mediaUrl: 'blob:media-progress',
+      fetchImpl,
+      audioContextFactory: () => ({ decodeAudioData }),
+      vadRuntime,
+      now: () => 456,
+    });
+
+    expect(result).not.toBeNull();
+    expect(getVadCacheWarmupStatus('media-progress')).toBeNull();
   });
 
   it('deduplicates concurrent warmup requests for the same media', async () => {

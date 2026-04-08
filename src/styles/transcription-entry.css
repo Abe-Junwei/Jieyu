@@ -1,5 +1,7 @@
 @import './panel-blocks.css';
 @import './ai-sidebar-entry.css';
+@import './foundation/context-menu.css';
+@import './foundation/media-controls.css';
 @import './foundation/waveform-display.css';
 @import './panels/layer-list.css';
 @import './pages/transcription-layout.css';

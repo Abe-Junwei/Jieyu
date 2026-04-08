@@ -3,6 +3,10 @@
   max-height: 85vh;
 }
 
+.audio-import-dialog.dialog-card {
+  width: min(720px, calc(100vw - 32px));
+}
+
 .side-pane-action-modal-speaker.dialog-card {
   width: min(var(--dialog-auto-width, 560px), 92vw);
   max-height: 85vh;
@@ -53,6 +57,10 @@
   gap: 6px 10px;
   font-size: 0.68rem;
   color: var(--text-secondary);
+}
+
+.transcription-side-pane-speaker-panel-summary {
+  min-width: 0;
 }
 
 .speaker-management-dialog-actions,
@@ -114,6 +122,10 @@
   font-size: 0.7rem;
 }
 
+.transcription-side-pane-speaker-mini-btn-danger {
+  color: var(--state-danger-text);
+}
+
 .side-pane-dialog-speaker .transcription-side-pane-speaker-group-body {
   gap: 4px;
   padding-left: 10px;
@@ -129,6 +141,10 @@
 .speaker-action-dialog-summary,
 .layer-action-dialog-summary {
   min-width: 0;
+}
+
+.speaker-action-dialog {
+  width: min(560px, calc(100vw - 32px));
 }
 
 .speaker-management-panel-card {
@@ -176,6 +192,10 @@
 .speaker-rail-batch-panel {
   display: grid;
   gap: 12px;
+}
+
+.timeline-lane-lock-dialog {
+  width: min(520px, calc(100vw - 32px));
 }
 
 .speaker-rail-form-section {
@@ -299,7 +319,7 @@
  *    L0  标题   16px / 600  --text-primary    (.dialog-shell__title)
  *    L1  字段标签 12px / 600  --text-secondary  (field-label, legend, language grid > span)
  *    L2  提示   11px / 500  --text-tertiary   (.panel-note, .dialog-hint, alias-hint)
- *    L3  按钮   12px / 600  #f8fafc on solid  (.panel-button--primary)
+ *    L3  按钮   12px / 600  --text-on-solid on solid  (.panel-button--primary)
  * ────────────────────────────────────────────────────────── */
 
 /* 头部 / 尾部内距与字重 | Header / footer padding & title weight */
@@ -394,7 +414,7 @@
 }
 
 .layer-action-dialog-auto-linked-hint {
-  color: var(--state-info-solid, #2563eb);
+  color: var(--state-info-solid);
 }
 
 /* 主按钮禁用态：实色灰底 | Primary button disabled: solid gray */
@@ -407,8 +427,8 @@
 
 /* 主按钮启用态：实色蓝底 | Primary button enabled: solid blue */
 .layer-action-dialog .panel-button--primary:not(:disabled) {
-  background: var(--state-info-solid, #2563eb);
-  border-color: var(--state-info-solid, #2563eb);
+  background: var(--state-info-solid);
+  border-color: var(--state-info-solid);
   color: var(--text-on-solid);
 }
 

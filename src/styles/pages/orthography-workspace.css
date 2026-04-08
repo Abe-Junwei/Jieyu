@@ -178,12 +178,27 @@
   line-height: 1.45;
 }
 
+.orthography-workspace-list-item-label {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
 .orthography-workspace-list-meta {
   display: flex;
   flex-wrap: wrap;
   gap: var(--orthography-space-2);
   align-items: center;
   font-size: var(--orthography-meta-size);
+  color: var(--text-secondary);
+}
+
+.orthography-workspace-list-item-meta {
+  color: inherit;
+  font-size: inherit;
+}
+
+.orthography-workspace-summary-meta {
   color: var(--text-secondary);
 }
 

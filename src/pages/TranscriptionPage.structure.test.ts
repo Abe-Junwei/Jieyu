@@ -101,6 +101,20 @@ describe('TranscriptionPage structure invariants', () => {
     expect(waveformResizeHandle.start).toBeGreaterThan(waveformArea.end);
   });
 
+  it('keeps waveform runtime progress badges wired into the waveform overlay', () => {
+    const waveformContentPath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');
+    const waveformContentCode = fs.readFileSync(waveformContentPath, 'utf8');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
+    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+
+    expect(waveformContentCode.includes("import { ToolbarAiProgress } from '../components/transcription/toolbar/ToolbarAiProgress';")).toBe(true);
+    expect(waveformContentCode.includes('className="waveform-runtime-status"')).toBe(true);
+    expect(waveformContentCode.includes('acousticRuntimeStatus={acousticRuntimeStatus}')).toBe(true);
+    expect(waveformContentCode.includes('vadCacheStatus={vadCacheStatus}')).toBe(true);
+    expect(orchestratorCode.includes('acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus}')).toBe(true);
+    expect(orchestratorCode.includes('vadCacheStatus={vadCacheStatus}')).toBe(true);
+  });
+
   it('keeps media-scoped speaker focus memory restore logic', () => {
     const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
@@ -558,7 +572,10 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('const shouldRenderDialogs = Boolean(')).toBe(true);
     expect(orchestratorCode.includes('const shouldRenderPdfRuntime = pdfRuntimeProps.previewRequest.request !== null;')).toBe(true);
     expect(orchestratorCode.includes('const shouldRenderBatchOps = showBatchOperationPanel;')).toBe(true);
-    expect(orchestratorCode.includes('<TranscriptionPageToolbar {...toolbarProps} />')).toBe(true);
+    expect(orchestratorCode.includes('<TranscriptionPageToolbar')).toBe(true);
+    expect(orchestratorCode.includes('{...toolbarProps}')).toBe(true);
+    expect(orchestratorCode.includes('acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus}')).toBe(true);
+    expect(orchestratorCode.includes('vadCacheStatus={vadCacheStatus}')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageTimelineTop {...timelineTopProps} />')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageTimelineContent {...timelineContentProps} />')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageAiSidebar')).toBe(true);

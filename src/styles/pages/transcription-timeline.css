@@ -170,7 +170,7 @@
   right: 0;
   height: 3px;
   background: linear-gradient(90deg, color-mix(in srgb, var(--state-info-solid) 22%, transparent), color-mix(in srgb, var(--state-info-solid) 95%, transparent) 18%, color-mix(in srgb, var(--state-info-solid) 95%, transparent) 82%, color-mix(in srgb, var(--state-info-solid) 22%, transparent));
-  box-shadow: 0 0 0 1px color-mix(in srgb, rgb(96 165 250) 16%, transparent), 0 0 14px color-mix(in srgb, var(--state-info-solid) 22%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 16%, transparent), 0 0 14px color-mix(in srgb, var(--state-info-solid) 22%, transparent);
   pointer-events: none;
   z-index: calc(var(--z-overlay) + 1);
 }
@@ -184,19 +184,19 @@
 }
 
 .timeline-lane-bundle-target {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-solid) 8%, transparent), color-mix(in srgb, rgb(96 165 250) 14%, transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, rgb(96 165 250) 14%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-solid) 8%, transparent), color-mix(in srgb, var(--state-info-solid) 14%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 14%, transparent);
 }
 
 .timeline-lane-bundle-target .timeline-lane-label {
-  background: linear-gradient(180deg, color-mix(in srgb, rgb(239 246 255) 96%, transparent), color-mix(in srgb, rgb(219 234 254) 92%, transparent));
-  border-right-color: color-mix(in srgb, rgb(96 165 250) 34%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-bg) 96%, transparent), color-mix(in srgb, var(--state-info-bg) 92%, transparent));
+  border-right-color: color-mix(in srgb, var(--state-info-solid) 34%, transparent);
   color: var(--text-secondary);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, rgb(96 165 250) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 12%, transparent);
 }
 
 .timeline-lane-bundle-target .timeline-lane-label::after {
-  background: color-mix(in srgb, rgb(96 165 250) 32%, transparent);
+  background: color-mix(in srgb, var(--state-info-solid) 32%, transparent);
 }
 
 /* ─── Bundle 层级连接线 | Bundle hierarchy connector ─── */
@@ -213,7 +213,7 @@
   right: 6px;
   top: 0;
   bottom: 0;
-  z-index: 2;
+  z-index: var(--z-raised);
   pointer-events: none;
   overflow: visible;
 }
@@ -224,7 +224,7 @@
   top: 0;
   bottom: 0;
   width: 0;
-  z-index: 2;
+  z-index: var(--z-raised);
   pointer-events: none;
   flex-shrink: 0;
 }
@@ -235,8 +235,8 @@
 }
 
 .lane-link-connector {
-  --lane-link-color: color-mix(in srgb, rgb(100 116 139) 54%, transparent);
-  --lane-link-color-active: color-mix(in srgb, rgb(71 85 105) 78%, transparent);
+  --lane-link-color: color-mix(in srgb, var(--text-secondary) 54%, transparent);
+  --lane-link-color-active: color-mix(in srgb, var(--text-primary) 78%, transparent);
   --lane-link-stroke: 1px;
   --lane-link-marker-size: 7px;
   --lane-link-root-elbow: 14px;
@@ -402,12 +402,12 @@
 
 .timeline-lane-translation .timeline-text-item {
   background: transparent;
-  border-color: color-mix(in srgb, rgb(15 157 88) 18%, transparent);
+  border-color: color-mix(in srgb, var(--state-success-solid) 18%, transparent);
 }
 
 .timeline-lane-translation .timeline-text-item:hover {
   background: transparent;
-  border-color: color-mix(in srgb, rgb(15 157 88) 30%, transparent);
+  border-color: color-mix(in srgb, var(--state-success-solid) 30%, transparent);
 }
 
 .timeline-lane-translation .timeline-text-item-active {
@@ -416,7 +416,7 @@
 }
 
 .timeline-lane-focused {
-  background: linear-gradient(180deg, color-mix(in srgb, rgb(191 219 254) 24%, transparent) 0%, color-mix(in srgb, rgb(219 234 254) 22%, transparent) 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-bg) 24%, transparent) 0%, color-mix(in srgb, var(--state-info-bg) 22%, transparent) 100%);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 24%, transparent);
 }
 
@@ -433,7 +433,7 @@
 
 .timeline-lane-collapsed {
   cursor: pointer;
-  background: linear-gradient(180deg, color-mix(in srgb, rgb(226 232 240) 42%, transparent) 0%, color-mix(in srgb, rgb(241 245 249) 38%, transparent) 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 42%, transparent) 0%, color-mix(in srgb, var(--surface-header) 38%, transparent) 100%);
 }
 
 .timeline-lane-collapsed.timeline-lane-text-only {
@@ -457,7 +457,7 @@
   pointer-events: auto;
   cursor: pointer;
   border: 1px solid color-mix(in srgb, var(--state-warning-solid) 45%, transparent);
-  background: color-mix(in srgb, rgb(255 247 237) 92%, transparent);
+  background: color-mix(in srgb, var(--state-warning-bg) 92%, transparent);
   color: var(--state-warning-text);
   border-radius: var(--radius-pill);
   padding: 0 6px;
@@ -469,7 +469,7 @@
 
 .timeline-lane-overlap-hint:hover {
   border-color: color-mix(in srgb, var(--state-warning-solid) 65%, transparent);
-  background: color-mix(in srgb, rgb(255 237 213) 96%, transparent);
+  background: color-mix(in srgb, var(--state-warning-bg) 96%, transparent);
 }
 
 .timeline-lane-overlap-hint:focus-visible {
@@ -532,14 +532,14 @@
 }
 
 .timeline-lane-flash {
-  background: linear-gradient(180deg, color-mix(in srgb, rgb(219 234 254) 50%, transparent) 0%, color-mix(in srgb, rgb(191 219 254) 45%, transparent) 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-bg) 50%, transparent) 0%, color-mix(in srgb, var(--state-info-bg) 45%, transparent) 100%);
 }
 
 .timeline-lane-flash .timeline-lane-label {
-  border-right-color: color-mix(in srgb, rgb(37 99 235) 45%, transparent);
+  border-right-color: color-mix(in srgb, var(--state-info-solid) 45%, transparent);
   background: linear-gradient(180deg, var(--state-info-bg) 0%, var(--state-info-border) 100%);
   color: var(--state-info-solid);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, rgb(37 99 235) 32%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 32%, transparent);
 }
 
 /* Timeline lane header (interactive label area) */
@@ -681,8 +681,8 @@
   right: 6px;
   padding: 0 4px;
   border-radius: var(--radius-pill);
-  border: 1px solid color-mix(in srgb, rgb(37 99 235) 45%, transparent);
-  background: color-mix(in srgb, rgb(219 234 254) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--state-info-solid) 45%, transparent);
+  background: color-mix(in srgb, var(--state-info-bg) 92%, transparent);
   color: var(--state-info-solid);
   font-size: 0.62rem;
   font-weight: 700;
@@ -718,15 +718,15 @@
 }
 
 .timeline-annotation-confidence-low {
-  background: color-mix(in srgb, rgb(239 68 68) 11%, transparent);
-  border-color: color-mix(in srgb, rgb(239 68 68) 55%, transparent);
+  background: color-mix(in srgb, var(--state-danger-solid) 11%, transparent);
+  border-color: color-mix(in srgb, var(--state-danger-solid) 55%, transparent);
 }
 
 .timeline-annotation-confidence-low::after {
   content: '';
   position: absolute;
   inset: 0;
-  border-top: 2px solid color-mix(in srgb, rgb(239 68 68) 70%, transparent);
+  border-top: 2px solid color-mix(in srgb, var(--state-danger-solid) 70%, transparent);
   border-radius: var(--radius-md);
   pointer-events: none;
 }
@@ -888,7 +888,7 @@
 }
 
 .timeline-text-item-status-dot-action:focus-visible {
-  outline: 2px solid color-mix(in srgb, rgb(37 99 235) 55%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--state-info-solid) 55%, transparent);
   outline-offset: 2px;
 }
 
@@ -1156,9 +1156,9 @@
   transform: translate(-50%, -50%);
   width: 18px;
   height: 16px;
-  border: 1px solid color-mix(in srgb, rgb(100 116 139) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 45%, transparent);
   border-radius: 5px;
-  background: color-mix(in srgb, rgb(255 255 255) 94%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
   color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
@@ -1175,9 +1175,9 @@
 }
 
 .time-ruler-lane-toggle:hover {
-  border-color: color-mix(in srgb, rgb(37 99 235) 36%, transparent);
+  border-color: color-mix(in srgb, var(--state-info-solid) 36%, transparent);
   background: var(--state-info-bg);
-  box-shadow: 0 2px 6px color-mix(in srgb, rgb(30 64 175) 10%, transparent);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--state-info-solid) 10%, transparent);
 }
 
 .time-ruler-lane-toggle:focus-visible {

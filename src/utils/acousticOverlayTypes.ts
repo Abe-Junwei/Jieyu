@@ -10,6 +10,9 @@ export interface AcousticFrame {
   spectralCentroidHz?: number | null;
   spectralRolloffHz?: number | null;
   zeroCrossingRate?: number | null;
+  spectralFlatness?: number | null;
+  loudnessDb?: number | null;
+  mfccCoefficients?: number[] | null;
   formantF1Hz?: number | null;
   formantF2Hz?: number | null;
   formantReliability?: number | null;
@@ -56,12 +59,22 @@ export interface AcousticAnalysisSummary {
   spectralCentroidMeanHz?: number | null;
   spectralRolloffMeanHz?: number | null;
   zeroCrossingRateMean?: number | null;
+  spectralFlatnessMean?: number | null;
+  loudnessMeanDb?: number | null;
+  mfccMeanCoefficients?: number[] | null;
   formantF1MeanHz?: number | null;
   formantF2MeanHz?: number | null;
   formantFrameCount?: number;
   vowelSpaceCentroidF1Hz?: number | null;
   vowelSpaceCentroidF2Hz?: number | null;
   vowelSpaceSpread?: number | null;
+}
+
+export interface AcousticAnalysisProgress {
+  phase: 'analyzing' | 'done';
+  processedFrames: number;
+  totalFrames: number;
+  ratio: number;
 }
 
 export interface AcousticFeatureResult {

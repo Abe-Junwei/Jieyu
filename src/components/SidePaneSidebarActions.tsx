@@ -122,16 +122,9 @@ export function SidePaneSidebarActions({
 
       <div
         aria-label={messages.uiFontScaleAria}
-        style={{
-          border: '1px solid var(--border-soft)',
-          borderRadius: 8,
-          padding: '8px 10px',
-          background: 'var(--surface-elevated)',
-          display: 'grid',
-          gap: 6,
-        }}
+        className="transcription-side-pane-card"
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: '0.72rem' }}>
+        <div className="transcription-side-pane-card-header">
           <strong>{messages.uiFontScaleTitle}</strong>
           <span>{messages.uiFontScaleValue(uiFontScalePercent)} · {uiFontScaleModeLabel}</span>
         </div>
@@ -146,7 +139,7 @@ export function SidePaneSidebarActions({
             onUiFontScaleChange?.(Number(event.target.value) / 100);
           }}
         />
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="transcription-side-pane-card-footer">
           <button
             type="button"
             className="btn btn-ghost"
@@ -180,7 +173,7 @@ export function SidePaneSidebarActions({
               </option>
             ))}
           </select>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+          <label className="transcription-side-pane-inline-checkbox">
             <input
               type="checkbox"
               checked={quickDeleteKeepUtterances}
@@ -207,12 +200,12 @@ export function SidePaneSidebarActions({
       )}
 
       {layerCreateMessage && (
-        <p className="small-text" style={{ margin: 0, fontSize: '0.7rem' }}>
+        <p className="small-text transcription-side-pane-message">
           {layerCreateMessage}
         </p>
       )}
       {constraintRepairMessage && (
-        <p className="small-text" style={{ margin: 0, fontSize: '0.7rem' }}>
+        <p className="small-text transcription-side-pane-message">
           {constraintRepairMessage}
         </p>
       )}
@@ -224,17 +217,9 @@ export function SidePaneSidebarActions({
       ) && (
         <div
           aria-label={messages.repairDetailsAria}
-          style={{
-            border: '1px solid var(--border-soft)',
-            borderRadius: 8,
-            padding: '8px 10px',
-            fontSize: '0.72rem',
-            lineHeight: 1.45,
-            color: 'var(--text-primary)',
-            background: 'var(--surface-elevated)',
-          }}
+          className="transcription-side-pane-repair-details"
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <div className="transcription-side-pane-repair-header">
             <strong>{messages.repairDetailsTitle}</strong>
             <button
               type="button"
@@ -248,13 +233,9 @@ export function SidePaneSidebarActions({
           {!constraintRepairDetailsCollapsed && groupedConstraintRepairDetails.map((group) => (
             <div
               key={`group-${group.layerId}`}
-              style={{
-                borderTop: '1px dashed var(--border-soft)',
-                paddingTop: 6,
-                marginTop: 6,
-              }}
+              className="transcription-side-pane-repair-group"
             >
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>{group.label}</div>
+              <div className="transcription-side-pane-repair-group-label">{group.label}</div>
               {group.repairs.map((item, index) => (
                 <div key={`repair-${item.layerId}-${item.code}-${index}`}>
                   [repaired][{item.code}] {item.message}

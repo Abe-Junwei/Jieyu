@@ -162,9 +162,11 @@ describe('OrthographyManagerPage', () => {
       includeBuiltIns: true,
       orthographyIds: ['orth-source'],
     });
-    expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith({
-      locale: 'zh-CN',
-      languageIds: ['eng', 'zho'],
+    await waitFor(() => {
+      expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith({
+        locale: 'zh-CN',
+        languageIds: ['eng', 'zho'],
+      });
     });
 
     await waitFor(() => {

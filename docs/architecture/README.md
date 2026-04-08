@@ -3,7 +3,7 @@ title: Architecture 文档索引
 doc_type: architecture-index
 status: active
 owner: repo
-last_reviewed: 2026-04-06
+last_reviewed: 2026-04-08
 source_of_truth: current-state-index
 ---
 
@@ -24,6 +24,9 @@ source_of_truth: current-state-index
 
 - [provider-neutral-orthography-interop-contract.md](provider-neutral-orthography-interop-contract.md)
   - 用途：正字法互操作的长期兼容性合同。
+
+- [CSS架构与模板复用规范.md](CSS%E6%9E%B6%E6%9E%84%E4%B8%8E%E6%A8%A1%E6%9D%BF%E5%A4%8D%E7%94%A8%E8%A7%84%E8%8C%83.md)
+  - 用途：CSS 分层边界、命名规范、治理脚本与面板/对话框自动模板约定。
 
 ## 收录原则
 

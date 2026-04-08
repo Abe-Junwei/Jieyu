@@ -42,6 +42,9 @@ describe('buildTranscriptionAiPromptContext', () => {
         spectralCentroidMeanHz: 1180,
         spectralRolloffMeanHz: 2520,
         zeroCrossingRateMean: 0.048,
+        spectralFlatnessMean: 0.231,
+        loudnessMeanDb: -17.4,
+        mfccMeanCoefficients: [12.4, -3.2, 1.9],
         formantF1MeanHz: 560,
         formantF2MeanHz: 1760,
         vowelSpaceSpread: 220,
@@ -72,6 +75,9 @@ describe('buildTranscriptionAiPromptContext', () => {
     expect(block).toContain('centroidMean=1180');
     expect(block).toContain('rolloffMean=2520');
     expect(block).toContain('zcrMean=4.8%');
+    expect(block).toContain('flatnessMean=0.231');
+    expect(block).toContain('loudnessMean=-17.4dB');
+    expect(block).toContain('mfcc=12.40/-3.20/1.90');
     expect(block).toContain('formantF1Mean=560');
     expect(block).toContain('formantF2Mean=1760');
     expect(block).toContain('runtime=yin-v2-spectral@16000Hz');

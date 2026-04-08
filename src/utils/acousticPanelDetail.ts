@@ -12,6 +12,9 @@ export interface AcousticPanelFramePoint {
   spectralCentroidHz?: number | null;
   spectralRolloffHz?: number | null;
   zeroCrossingRate?: number | null;
+  spectralFlatness?: number | null;
+  loudnessDb?: number | null;
+  mfccCoefficients?: number[] | null;
   formantF1Hz?: number | null;
   formantF2Hz?: number | null;
   formantReliability?: number | null;
@@ -129,6 +132,9 @@ export function buildAcousticPanelDetail(
     spectralCentroidHz: frame.spectralCentroidHz,
     spectralRolloffHz: frame.spectralRolloffHz,
     zeroCrossingRate: frame.zeroCrossingRate,
+    spectralFlatness: frame.spectralFlatness,
+    loudnessDb: frame.loudnessDb,
+    mfccCoefficients: frame.mfccCoefficients,
     formantF1Hz: frame.formantF1Hz,
     formantF2Hz: frame.formantF2Hz,
     formantReliability: frame.formantReliability,
@@ -226,7 +232,7 @@ export function buildAcousticInspectorSlice(
 }
 
 export function serializeAcousticPanelDetailCsv(detail: AcousticPanelDetail): string {
-  const header = ['timeSec', 'relativeTimeSec', 'timeRatio', 'f0Hz', 'intensityDb', 'reliability', 'spectralCentroidHz', 'spectralRolloffHz', 'zeroCrossingRate', 'formantF1Hz', 'formantF2Hz', 'formantReliability'];
+  const header = ['timeSec', 'relativeTimeSec', 'timeRatio', 'f0Hz', 'intensityDb', 'reliability', 'spectralCentroidHz', 'spectralRolloffHz', 'zeroCrossingRate', 'spectralFlatness', 'loudnessDb', 'mfcc1', 'mfcc2', 'mfcc3', 'formantF1Hz', 'formantF2Hz', 'formantReliability'];
   const rows = detail.frames.map((frame) => [
     frame.timeSec.toFixed(4),
     frame.relativeTimeSec.toFixed(4),
@@ -237,6 +243,11 @@ export function serializeAcousticPanelDetailCsv(detail: AcousticPanelDetail): st
     frame.spectralCentroidHz == null ? '' : frame.spectralCentroidHz.toFixed(4),
     frame.spectralRolloffHz == null ? '' : frame.spectralRolloffHz.toFixed(4),
     frame.zeroCrossingRate == null ? '' : frame.zeroCrossingRate.toFixed(4),
+    frame.spectralFlatness == null ? '' : frame.spectralFlatness.toFixed(4),
+    frame.loudnessDb == null ? '' : frame.loudnessDb.toFixed(4),
+    frame.mfccCoefficients?.[0] == null ? '' : frame.mfccCoefficients[0].toFixed(4),
+    frame.mfccCoefficients?.[1] == null ? '' : frame.mfccCoefficients[1].toFixed(4),
+    frame.mfccCoefficients?.[2] == null ? '' : frame.mfccCoefficients[2].toFixed(4),
     frame.formantF1Hz == null ? '' : frame.formantF1Hz.toFixed(4),
     frame.formantF2Hz == null ? '' : frame.formantF2Hz.toFixed(4),
     frame.formantReliability == null ? '' : frame.formantReliability.toFixed(4),

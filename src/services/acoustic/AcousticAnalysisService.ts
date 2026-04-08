@@ -4,6 +4,7 @@ import {
   buildAcousticCacheKey,
   DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
   type AcousticAnalysisConfig,
+  type AcousticAnalysisProgress,
   type AcousticFeatureResult,
 } from '../../utils/acousticOverlayTypes';
 import { acousticAnalysisCacheDB } from './AcousticAnalysisCacheDB';
@@ -22,19 +23,32 @@ interface AudioContextLike {
 }
 
 interface WorkerLike {
-  onmessage: ((event: MessageEvent<AcousticWorkerResult>) => void) | null;
+  onmessage: ((event: MessageEvent<AcousticWorkerResponse>) => void) | null;
   onerror: ((event: ErrorEvent) => void) | null;
   postMessage: (message: AcousticWorkerRequest, transfer?: Transferable[]) => void;
   terminate: () => void;
 }
 
-interface AcousticWorkerRequest {
+interface AcousticAnalyzeWorkerRequest {
   requestId: string;
   type: 'analyze';
   mediaKey: string;
   pcm: Float32Array;
   sampleRate: number;
   config: AcousticAnalysisConfig;
+}
+
+interface AcousticCancelWorkerRequest {
+  requestId: string;
+  type: 'cancel';
+}
+
+type AcousticWorkerRequest = AcousticAnalyzeWorkerRequest | AcousticCancelWorkerRequest;
+
+interface AcousticWorkerProgress {
+  type: 'progress';
+  requestId: string;
+  progress: AcousticAnalysisProgress;
 }
 
 interface AcousticWorkerResult {
@@ -45,13 +59,20 @@ interface AcousticWorkerResult {
   error?: string;
 }
 
-interface AnalyzeMediaInput {
+type AcousticWorkerResponse = AcousticWorkerProgress | AcousticWorkerResult;
+
+interface AnalyzeRequestOptions {
+  signal?: AbortSignal;
+  onProgress?: (progress: AcousticAnalysisProgress) => void;
+}
+
+interface AnalyzeMediaInput extends AnalyzeRequestOptions {
   mediaKey: string;
   mediaUrl: string;
   config?: Partial<AcousticAnalysisConfig>;
 }
 
-interface AnalyzeAudioBufferInput {
+interface AnalyzeAudioBufferInput extends AnalyzeRequestOptions {
   mediaKey: string;
   audioBuffer: AudioBuffer;
   config?: Partial<AcousticAnalysisConfig>;
@@ -108,6 +129,33 @@ function downmixToMono(audioBuffer: AudioBuffer): Float32Array {
   return mono;
 }
 
+function createAbortError(): Error {
+  const error = new Error('Acoustic analysis aborted');
+  error.name = 'AbortError';
+  return error;
+}
+
+function wrapPromiseWithSignal<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) {
+    return Promise.reject(createAbortError());
+  }
+  return new Promise<T>((resolve, reject) => {
+    const handleAbort = () => {
+      signal.removeEventListener('abort', handleAbort);
+      reject(createAbortError());
+    };
+    signal.addEventListener('abort', handleAbort, { once: true });
+    promise.then((value) => {
+      signal.removeEventListener('abort', handleAbort);
+      resolve(value);
+    }).catch((error) => {
+      signal.removeEventListener('abort', handleAbort);
+      reject(error);
+    });
+  });
+}
+
 async function closeAudioContext(audioContext: AudioContextLike | null): Promise<void> {
   if (!audioContext?.close) return;
   try {
@@ -154,9 +202,12 @@ export class AcousticAnalysisService {
   async analyzeMedia(input: AnalyzeMediaInput): Promise<AcousticFeatureResult> {
     const config = normalizeConfig(input.config);
     const cacheKey = buildAcousticCacheKey(input.mediaKey, config);
-    return this.runCachedAnalysis(cacheKey, input.mediaKey, async () => {
+    return this.runCachedAnalysis(cacheKey, input.mediaKey, async (options) => {
       let audioContext: AudioContextLike | null = null;
       try {
+        if (options.signal?.aborted) {
+          throw createAbortError();
+        }
         const response = await this.fetchImpl?.(input.mediaUrl);
         if (!response?.ok) {
           throw new Error(`Failed to fetch audio: ${response?.status ?? 'unknown'}`);
@@ -168,36 +219,45 @@ export class AcousticAnalysisService {
           mediaKey: input.mediaKey,
           audioBuffer,
           config,
+          signal: options.signal,
+          onProgress: options.onProgress,
         });
       } finally {
         await closeAudioContext(audioContext);
       }
-    });
+    }, input);
   }
 
   async analyzeAudioBuffer(input: AnalyzeAudioBufferInput): Promise<AcousticFeatureResult> {
     const config = normalizeConfig(input.config);
     const cacheKey = buildAcousticCacheKey(input.mediaKey, config);
-    return this.runCachedAnalysis(cacheKey, input.mediaKey, () => this.performAnalyzeAudioBuffer({
+    return this.runCachedAnalysis(cacheKey, input.mediaKey, (options) => this.performAnalyzeAudioBuffer({
       mediaKey: input.mediaKey,
       audioBuffer: input.audioBuffer,
       config,
-    }));
+      signal: options.signal,
+      onProgress: options.onProgress,
+    }), input);
   }
 
   private async runCachedAnalysis(
     cacheKey: string,
     mediaKey: string,
-    runner: () => Promise<AcousticFeatureResult>,
+    runner: (options: AnalyzeRequestOptions) => Promise<AcousticFeatureResult>,
+    options: AnalyzeRequestOptions,
   ): Promise<AcousticFeatureResult> {
+    if (options.signal?.aborted) {
+      throw createAbortError();
+    }
+
     const cached = await this.getCached(cacheKey);
     if (cached) return cached;
 
     const pending = this.pending.get(cacheKey);
-    if (pending) return pending;
+    if (pending) return wrapPromiseWithSignal(pending, options.signal);
 
     const task = (async () => {
-      const result = await runner();
+      const result = await runner(options);
       await this.setCached(cacheKey, mediaKey, result);
       return result;
     })().finally(() => {
@@ -205,17 +265,36 @@ export class AcousticAnalysisService {
     });
 
     this.pending.set(cacheKey, task);
+    if (options.signal) {
+      task.catch(() => undefined);
+    }
     return task;
   }
 
-  private async dispatchToWorker(request: AcousticWorkerRequest): Promise<AcousticFeatureResult> {
+  private async dispatchToWorker(request: AcousticAnalyzeWorkerRequest, options: AnalyzeRequestOptions = {}): Promise<AcousticFeatureResult> {
+    if (options.signal?.aborted) {
+      throw createAbortError();
+    }
+
     const worker = this.ensureWorker();
+    const abortListener = () => {
+      this.pendingWorkerRequests.reject(request.requestId, createAbortError());
+      worker.postMessage({ type: 'cancel', requestId: request.requestId });
+    };
+    if (options.signal) {
+      options.signal.addEventListener('abort', abortListener, { once: true });
+    }
+
     return this.pendingWorkerRequests.track(request.requestId, () => {
       try {
         worker.postMessage(request, [request.pcm.buffer]);
       } catch (error) {
         throw error instanceof Error ? error : new Error(String(error));
       }
+    }, {
+      onProgress: options.onProgress,
+    }).finally(() => {
+      options.signal?.removeEventListener('abort', abortListener);
     });
   }
 
@@ -229,15 +308,24 @@ export class AcousticAnalysisService {
       pcm: mono,
       sampleRate: input.audioBuffer.sampleRate,
       config,
-    });
+    }, input);
   }
 
   private ensureWorker(): WorkerLike {
     if (!this.worker) {
       this.worker = this.workerFactory?.() ?? (new Worker(new URL('./acousticAnalysis.worker.ts', import.meta.url), { type: 'module' }) as unknown as WorkerLike);
-      this.worker.onmessage = (event: MessageEvent<AcousticWorkerResult>) => {
+      this.worker.onmessage = (event: MessageEvent<AcousticWorkerResponse>) => {
         const payload = event.data;
-        if (!payload || payload.type !== 'result' || !payload.requestId) {
+        if (!payload?.requestId) {
+          return;
+        }
+
+        if (payload.type === 'progress') {
+          this.pendingWorkerRequests.notifyProgress(payload.requestId, payload.progress);
+          return;
+        }
+
+        if (payload.type !== 'result') {
           return;
         }
 

@@ -50,6 +50,11 @@
   gap: 6px;
 }
 
+.left-rail-project-import-strategy-section,
+.left-rail-project-import-table-section {
+  min-width: 0;
+}
+
 .left-rail-project-import-strategy legend {
   padding: 0 4px;
   font-size: 0.74rem;
@@ -90,7 +95,7 @@
   background: color-mix(in srgb, var(--surface-header) 92%, var(--surface-panel));
   color: var(--text-secondary);
   font-weight: 700;
-  z-index: 1;
+  z-index: var(--z-base);
 }
 
 .left-rail-project-import-table tr:last-child td {

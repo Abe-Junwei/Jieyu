@@ -146,8 +146,8 @@
 
 .seg-mark-status kbd {
   display: inline-block;
-  background: color-mix(in srgb, rgb(255 255 255) 15%, transparent);
-  border: 1px solid color-mix(in srgb, rgb(255 255 255) 25%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--surface-panel) 25%, transparent);
   border-radius: var(--radius-xs);
   padding: 0 5px;
   font-size: 0.78rem;
@@ -242,7 +242,7 @@
   font-size: calc(11px * var(--ui-font-scale, 1));
   font-weight: 600;
   color: var(--text-primary);
-  background: color-mix(in srgb, rgb(255 255 255) 92%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 92%, transparent);
   border: 1px solid color-mix(in srgb, var(--text-tertiary) 38%, transparent);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 8%, transparent);
   transition: opacity 0.12s ease, transform 0.12s ease;
@@ -257,6 +257,27 @@
   border: 2px solid color-mix(in srgb, var(--state-info-solid) 80%, transparent);
   background: color-mix(in srgb, var(--state-info-solid) 32%, transparent);
   border-radius: 0;
+}
+
+.waveform-note-indicator-trigger {
+  position: absolute;
+  top: 0;
+  width: 16px;
+  height: 100%;
+  pointer-events: auto;
+  z-index: 6;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 2px;
+  cursor: pointer;
+}
+
+.waveform-note-indicator-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--state-info-border);
+  opacity: 0.92;
 }
 
 /* Region action overlay: play / loop buttons on selected segment */
@@ -296,23 +317,23 @@
 
 .region-action-btn:hover {
   opacity: 1;
-  background: color-mix(in srgb, rgb(241 245 249) 84%, transparent);
-  border-color: color-mix(in srgb, rgb(100 116 139) 44%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 84%, transparent);
+  border-color: color-mix(in srgb, var(--text-secondary) 44%, transparent);
   box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 10%, transparent);
   color: var(--text-primary);
 }
 
 .region-action-btn:active {
-  background: color-mix(in srgb, rgb(226 232 240) 86%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 86%, transparent);
   box-shadow: inset 0 1px 2px color-mix(in srgb, var(--shadow-color) 8%, transparent);
 }
 
 .region-action-btn-active {
   color: var(--state-info-solid);
-  border-color: color-mix(in srgb, rgb(37 99 235) 50%, transparent);
-  background: color-mix(in srgb, rgb(219 234 254) 86%, transparent);
+  border-color: color-mix(in srgb, var(--state-info-solid) 50%, transparent);
+  background: color-mix(in srgb, var(--state-info-bg) 86%, transparent);
   opacity: 1;
-  box-shadow: 0 1px 3px color-mix(in srgb, rgb(37 99 235) 16%, transparent);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--state-info-solid) 16%, transparent);
 }
 
 .region-action-btn-active svg {
@@ -382,10 +403,10 @@
 .segment-speed-label-reset {
   cursor: pointer;
   color: var(--state-info-solid);
-  background: color-mix(in srgb, rgb(219 234 254) 70%, transparent);
+  background: color-mix(in srgb, var(--state-info-bg) 70%, transparent);
 }
 
 .segment-speed-label-reset:hover {
-  background: color-mix(in srgb, rgb(191 219 254) 90%, transparent);
+  background: color-mix(in srgb, var(--state-info-bg) 90%, transparent);
   color: var(--state-info-solid);
 }

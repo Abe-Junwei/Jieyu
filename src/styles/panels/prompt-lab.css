@@ -18,6 +18,11 @@
   min-width: 0;
 }
 
+.ai-chat-prompt-lab-section-separated {
+  border-top: 1px solid color-mix(in srgb, var(--border-soft) 80%, transparent);
+  padding-top: 8px;
+}
+
 .ai-chat-prompt-lab-template-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
@@ -80,6 +85,10 @@
 .ai-chat-prompt-lab-action-btn,
 .ai-chat-prompt-lab-mini-btn {
   white-space: nowrap;
+}
+
+.ai-chat-prompt-lab-action-btn-primary {
+  min-width: 112px;
 }
 
 @media (max-width: 720px) {

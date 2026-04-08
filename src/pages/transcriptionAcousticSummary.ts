@@ -26,6 +26,9 @@ export interface AcousticPromptSummary {
   spectralCentroidMeanHz?: number | null;
   spectralRolloffMeanHz?: number | null;
   zeroCrossingRateMean?: number | null;
+  spectralFlatnessMean?: number | null;
+  loudnessMeanDb?: number | null;
+  mfccMeanCoefficients?: number[] | null;
   formantF1MeanHz?: number | null;
   formantF2MeanHz?: number | null;
   formantFrameCount?: number;
@@ -105,6 +108,15 @@ export function buildAcousticPromptSummary(
   const zeroCrossingRates = frames
     .map((frame) => frame.zeroCrossingRate)
     .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  const spectralFlatnessValues = frames
+    .map((frame) => frame.spectralFlatness)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  const loudnessValues = frames
+    .map((frame) => frame.loudnessDb)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  const mfccVectors = frames
+    .map((frame) => frame.mfccCoefficients)
+    .filter((value): value is number[] => Array.isArray(value) && value.length > 0);
   const formantPairs = frames
     .filter((frame) => typeof frame.formantF1Hz === 'number' && Number.isFinite(frame.formantF1Hz)
       && typeof frame.formantF2Hz === 'number' && Number.isFinite(frame.formantF2Hz))
@@ -143,6 +155,13 @@ export function buildAcousticPromptSummary(
     spectralCentroidMeanHz: spectralCentroids.length > 0 ? spectralCentroids.reduce((sum, value) => sum + value, 0) / spectralCentroids.length : null,
     spectralRolloffMeanHz: spectralRolloffs.length > 0 ? spectralRolloffs.reduce((sum, value) => sum + value, 0) / spectralRolloffs.length : null,
     zeroCrossingRateMean: zeroCrossingRates.length > 0 ? zeroCrossingRates.reduce((sum, value) => sum + value, 0) / zeroCrossingRates.length : null,
+    spectralFlatnessMean: spectralFlatnessValues.length > 0 ? spectralFlatnessValues.reduce((sum, value) => sum + value, 0) / spectralFlatnessValues.length : null,
+    loudnessMeanDb: loudnessValues.length > 0 ? loudnessValues.reduce((sum, value) => sum + value, 0) / loudnessValues.length : null,
+    mfccMeanCoefficients: mfccVectors.length > 0
+      ? Array.from({ length: mfccVectors[0]?.length ?? 0 }, (_, coefficientIndex) => (
+        mfccVectors.reduce((sum, vector) => sum + (vector[coefficientIndex] ?? 0), 0) / mfccVectors.length
+      ))
+      : null,
     formantF1MeanHz: formantPairs.length > 0 ? formantPairs.reduce((sum, pair) => sum + pair.f1Hz, 0) / formantPairs.length : null,
     formantF2MeanHz: formantPairs.length > 0 ? formantPairs.reduce((sum, pair) => sum + pair.f2Hz, 0) / formantPairs.length : null,
     formantFrameCount: formantPairs.length,

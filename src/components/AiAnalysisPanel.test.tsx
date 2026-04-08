@@ -204,6 +204,43 @@ describe('AiAnalysisPanel embedding integration', () => {
     expect(within(statsSection as HTMLElement).getByText(/3 段|3 segments/i)).toBeTruthy();
   });
 
+  it('renders VAD warmup progress in stats tab', () => {
+    const { container } = render(
+      <AiPanelContext.Provider value={makeContextValue({
+        aiCurrentTask: 'transcription',
+        vadCacheStatus: { state: 'warming', engine: 'silero', progressRatio: 0.5, processedFrames: 16, totalFrames: 32 },
+      })}
+      >
+        <EmbeddingProvider value={makeEmbeddingContextValue()}>
+          <AiAnalysisPanel isCollapsed={false} activeTab="stats" />
+        </EmbeddingProvider>
+      </AiPanelContext.Provider>,
+    );
+
+    const statsSection = container.querySelector('.transcription-analysis-stats-section');
+    expect(statsSection).toBeTruthy();
+    expect(within(statsSection as HTMLElement).getByText(/50%/i)).toBeTruthy();
+    expect(within(statsSection as HTMLElement).getByText(/16\/32/i)).toBeTruthy();
+  });
+
+  it('renders acoustic runtime progress while analysis is still loading', () => {
+    const { container } = render(
+      <AiPanelContext.Provider value={makeContextValue({
+        acousticRuntimeStatus: { state: 'loading', phase: 'analyzing', progressRatio: 0.4, processedFrames: 8, totalFrames: 20 },
+        vadCacheStatus: { state: 'warming', engine: 'silero', progressRatio: 0.5, processedFrames: 16, totalFrames: 32 },
+      })}
+      >
+        <EmbeddingProvider value={makeEmbeddingContextValue()}>
+          <AiAnalysisPanel isCollapsed={false} activeTab="acoustic" />
+        </EmbeddingProvider>
+      </AiPanelContext.Provider>,
+    );
+
+    expect(within(container).getAllByText(/40%/i).length).toBeGreaterThan(0);
+    expect(within(container).getAllByText(/8\/20/i).length).toBeGreaterThan(0);
+    expect(within(container).getByText(/50%/i)).toBeTruthy();
+  });
+
   it('renders dedicated acoustic tab content and supports jumping to hotspots', () => {
     const onJumpToAcousticHotspot = vi.fn();
     const createObjectURL = vi.fn(() => 'blob:acoustic-export');
@@ -222,6 +259,7 @@ describe('AiAnalysisPanel embedding integration', () => {
 
     const { container } = render(
       <AiPanelContext.Provider value={makeContextValue({
+        acousticRuntimeStatus: { state: 'ready', phase: 'done', progressRatio: 1, processedFrames: 20, totalFrames: 20 },
         acousticSummary: {
           selectionStartSec: 1.2,
           selectionEndSec: 3.4,
@@ -238,6 +276,9 @@ describe('AiAnalysisPanel embedding integration', () => {
           spectralCentroidMeanHz: 1180,
           spectralRolloffMeanHz: 2520,
           zeroCrossingRateMean: 0.048,
+          spectralFlatnessMean: 0.231,
+          loudnessMeanDb: -17.4,
+          mfccMeanCoefficients: [12.4, -3.2, 1.9],
           formantF1MeanHz: 560,
           formantF2MeanHz: 1760,
           vowelSpaceSpread: 220,
@@ -276,11 +317,11 @@ describe('AiAnalysisPanel embedding integration', () => {
           sampleCount: 5,
           voicedSampleCount: 5,
           frames: [
-            { timeSec: 2.0, relativeTimeSec: 0.8, timeRatio: 0.36, f0Hz: 212, intensityDb: -16.8, reliability: 0.66, spectralCentroidHz: 980, spectralRolloffHz: 2120, zeroCrossingRate: 0.036, formantF1Hz: 490, formantF2Hz: 1500, formantReliability: 0.52, normalizedF0: 0.18, normalizedIntensity: 0.22 },
-            { timeSec: 2.04, relativeTimeSec: 0.84, timeRatio: 0.38, f0Hz: 225, intensityDb: -14.6, reliability: 0.7, spectralCentroidHz: 1120, spectralRolloffHz: 2320, zeroCrossingRate: 0.042, formantF1Hz: 520, formantF2Hz: 1640, formantReliability: 0.58, normalizedF0: 0.34, normalizedIntensity: 0.48 },
-            { timeSec: 2.08, relativeTimeSec: 0.88, timeRatio: 0.4, f0Hz: 241, intensityDb: -13.2, reliability: 0.76, spectralCentroidHz: 1264, spectralRolloffHz: 2710, zeroCrossingRate: 0.052, formantF1Hz: 560, formantF2Hz: 1760, formantReliability: 0.62, normalizedF0: 0.54, normalizedIntensity: 0.64 },
-            { timeSec: 2.12, relativeTimeSec: 0.92, timeRatio: 0.42, f0Hz: 256, intensityDb: -12.6, reliability: 0.81, spectralCentroidHz: 1310, spectralRolloffHz: 2830, zeroCrossingRate: 0.056, formantF1Hz: 590, formantF2Hz: 1860, formantReliability: 0.66, normalizedF0: 0.72, normalizedIntensity: 0.76 },
-            { timeSec: 2.16, relativeTimeSec: 0.96, timeRatio: 0.44, f0Hz: 272, intensityDb: -12.1, reliability: 0.86, spectralCentroidHz: 1360, spectralRolloffHz: 2920, zeroCrossingRate: 0.06, formantF1Hz: 640, formantF2Hz: 1940, formantReliability: 0.7, normalizedF0: 0.92, normalizedIntensity: 0.88 },
+            { timeSec: 2.0, relativeTimeSec: 0.8, timeRatio: 0.36, f0Hz: 212, intensityDb: -16.8, reliability: 0.66, spectralCentroidHz: 980, spectralRolloffHz: 2120, zeroCrossingRate: 0.036, spectralFlatness: 0.182, loudnessDb: -19.8, mfccCoefficients: [11.8, -3.9, 1.2], formantF1Hz: 490, formantF2Hz: 1500, formantReliability: 0.52, normalizedF0: 0.18, normalizedIntensity: 0.22 },
+            { timeSec: 2.04, relativeTimeSec: 0.84, timeRatio: 0.38, f0Hz: 225, intensityDb: -14.6, reliability: 0.7, spectralCentroidHz: 1120, spectralRolloffHz: 2320, zeroCrossingRate: 0.042, spectralFlatness: 0.204, loudnessDb: -18.4, mfccCoefficients: [12.0, -3.5, 1.5], formantF1Hz: 520, formantF2Hz: 1640, formantReliability: 0.58, normalizedF0: 0.34, normalizedIntensity: 0.48 },
+            { timeSec: 2.08, relativeTimeSec: 0.88, timeRatio: 0.4, f0Hz: 241, intensityDb: -13.2, reliability: 0.76, spectralCentroidHz: 1264, spectralRolloffHz: 2710, zeroCrossingRate: 0.052, spectralFlatness: 0.231, loudnessDb: -17.4, mfccCoefficients: [12.4, -3.2, 1.9], formantF1Hz: 560, formantF2Hz: 1760, formantReliability: 0.62, normalizedF0: 0.54, normalizedIntensity: 0.64 },
+            { timeSec: 2.12, relativeTimeSec: 0.92, timeRatio: 0.42, f0Hz: 256, intensityDb: -12.6, reliability: 0.81, spectralCentroidHz: 1310, spectralRolloffHz: 2830, zeroCrossingRate: 0.056, spectralFlatness: 0.252, loudnessDb: -16.8, mfccCoefficients: [12.9, -2.9, 2.2], formantF1Hz: 590, formantF2Hz: 1860, formantReliability: 0.66, normalizedF0: 0.72, normalizedIntensity: 0.76 },
+            { timeSec: 2.16, relativeTimeSec: 0.96, timeRatio: 0.44, f0Hz: 272, intensityDb: -12.1, reliability: 0.86, spectralCentroidHz: 1360, spectralRolloffHz: 2920, zeroCrossingRate: 0.06, spectralFlatness: 0.267, loudnessDb: -16.0, mfccCoefficients: [13.2, -2.5, 2.4], formantF1Hz: 640, formantF2Hz: 1940, formantReliability: 0.7, normalizedF0: 0.92, normalizedIntensity: 0.88 },
           ],
           toneBins: [
             { index: 0, timeSec: 1.3, timeRatio: 0, f0Hz: 120, intensityDb: -26, reliability: 0.62, normalizedF0: 0.05, normalizedIntensity: 0.1 },
@@ -306,6 +347,9 @@ describe('AiAnalysisPanel embedding integration', () => {
     expect(within(container).getByText(/1180 Hz/i)).toBeTruthy();
     expect(within(container).getByText(/2520 Hz/i)).toBeTruthy();
     expect(within(container).getByText(/4.8%/i)).toBeTruthy();
+    expect(within(container).getAllByText(/0.231/i).length).toBeGreaterThan(0);
+    expect(within(container).getAllByText(/-17.4 dB/i).length).toBeGreaterThan(0);
+    expect(within(container).getAllByText(/12.40 \/ -3.20 \/ 1.90/i).length).toBeGreaterThan(0);
     expect(within(container).getByText(/运行参数|Runtime Parameters/i)).toBeTruthy();
     expect(within(container).getByText(/yin-v2-spectral/i)).toBeTruthy();
     expect(within(container).getByText(/Formant and Vowel Space|Formant 与元音空间/i)).toBeTruthy();

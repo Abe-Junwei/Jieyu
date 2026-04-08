@@ -1,5 +1,7 @@
 import type { RefObject } from 'react';
 import { WaveformToolbar } from '../components/WaveformToolbar';
+import type { AcousticRuntimeStatus, VadCacheStatus } from '../contexts/AiPanelContext';
+import { ToolbarAiProgress } from '../components/transcription/toolbar/ToolbarAiProgress';
 import { t, tf, useLocale } from '../i18n';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
@@ -60,6 +62,8 @@ export type TranscriptionPageToolbarProps = {
   onAutoSegment?: () => void;
   /** VAD 运行中 | True while VAD is running */
   autoSegmentBusy?: boolean;
+  acousticRuntimeStatus?: AcousticRuntimeStatus;
+  vadCacheStatus?: VadCacheStatus;
 };
 
 export function TranscriptionPageToolbar({
@@ -104,8 +108,13 @@ export function TranscriptionPageToolbar({
   lowConfidenceCount,
   onAutoSegment,
   autoSegmentBusy,
+  acousticRuntimeStatus,
+  vadCacheStatus,
 }: TranscriptionPageToolbarProps) {
   const locale = useLocale();
+  const showToolbarAiProgress = acousticRuntimeStatus?.state === 'loading'
+    || acousticRuntimeStatus?.state === 'error'
+    || vadCacheStatus?.state === 'warming';
 
   return (
     <WaveformToolbar
@@ -141,6 +150,12 @@ export function TranscriptionPageToolbar({
           ⚠ {lowConfidenceCount}
         </span>
       )}
+      {showToolbarAiProgress ? (
+        <ToolbarAiProgress
+          acousticRuntimeStatus={acousticRuntimeStatus}
+          vadCacheStatus={vadCacheStatus}
+        />
+      ) : null}
     </WaveformToolbar>
   );
 }

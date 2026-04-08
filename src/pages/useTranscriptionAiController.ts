@@ -61,6 +61,7 @@ export function useTranscriptionAiController(
   const setAiSidebarError = input.setAiSidebarError ?? setInternalAiSidebarError;
 
   const {
+    acousticRuntimeStatus,
     acousticSummary,
     acousticDetail,
     handleJumpToAcousticHotspot,
@@ -290,6 +291,7 @@ export function useTranscriptionAiController(
     selectedTranslationGapCount,
     aiCurrentTask,
     aiVisibleCards,
+    acousticRuntimeStatus,
     acousticSummary,
     acousticDetail,
     handleJumpToTranslationGap,

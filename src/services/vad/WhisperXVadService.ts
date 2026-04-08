@@ -30,6 +30,13 @@ export interface SpeechSegment {
   confidence?: number;
 }
 
+export interface WhisperXVadProgress {
+  phase: 'detecting' | 'done';
+  processedFrames: number;
+  totalFrames: number;
+  ratio: number;
+}
+
 export interface WhisperXVadOptions {
   /** VAD Worker 模型 URL，默认 '/models/silero_vad.onnx' */
   modelUrl?: string;
@@ -37,12 +44,23 @@ export interface WhisperXVadOptions {
   initTimeoutMs?: number;
 }
 
+export interface DetectSpeechSegmentsOptions {
+  signal?: AbortSignal;
+  onProgress?: (progress: WhisperXVadProgress) => void;
+}
+
+function createAbortError(): Error {
+  const error = new Error('VAD detect aborted');
+  error.name = 'AbortError';
+  return error;
+}
+
 // ── WhisperXVadService ────────────────────────────────────────────────────────
 
 export class WhisperXVadService {
   private worker: Worker | null = null;
   private ready = false;
-  private readonly pendingRequests = new PendingWorkerRequestStore<SpeechSegment[]>();
+  private readonly pendingRequests = new PendingWorkerRequestStore<SpeechSegment[], WhisperXVadProgress>();
 
   constructor(private readonly options: WhisperXVadOptions = {}) {}
 
@@ -71,12 +89,22 @@ export class WhisperXVadService {
       }
 
       this.worker.onmessage = (event: MessageEvent) => {
-        const msg = event.data as { type: string; id?: string; segments?: VadWorkerSegment[]; message?: string };
+        const msg = event.data as { type: string; id?: string; segments?: VadWorkerSegment[]; message?: string; processedFrames?: number; totalFrames?: number; ratio?: number };
 
         if (msg.type === 'ready') {
           clearTimeout(timer);
           this.ready = true;
           resolve();
+          return;
+        }
+
+        if (msg.type === 'progress' && msg.id) {
+          this.pendingRequests.notifyProgress(msg.id, {
+            phase: (msg.ratio ?? 0) >= 1 ? 'done' : 'detecting',
+            processedFrames: msg.processedFrames ?? 0,
+            totalFrames: msg.totalFrames ?? 0,
+            ratio: msg.ratio ?? 0,
+          });
           return;
         }
 
@@ -120,21 +148,35 @@ export class WhisperXVadService {
    * Detects speech segments in an AudioBuffer.
    * Falls back to energy-based detection if the Worker is unavailable.
    */
-  async detectSpeechSegments(buffer: AudioBuffer): Promise<SpeechSegment[]> {
+  async detectSpeechSegments(buffer: AudioBuffer, options: DetectSpeechSegmentsOptions = {}): Promise<SpeechSegment[]> {
     if (!this.ready || !this.worker) {
       log.debug('VAD Worker not ready, falling back to energy-based VAD');
       return detectVadSegments(buffer).map((s) => ({ start: s.start, end: s.end }));
+    }
+
+    if (options.signal?.aborted) {
+      throw createAbortError();
     }
 
     // 提取单声道 PCM | Extract mono PCM
     const pcm = extractMonoPcm(buffer);
 
     const id = generateId();
+    const abortListener = () => {
+      this.pendingRequests.reject(id, createAbortError());
+      this.worker?.postMessage({ type: 'cancel', id });
+    };
+    options.signal?.addEventListener('abort', abortListener, { once: true });
+
     return this.pendingRequests.track(id, () => {
       this.worker!.postMessage(
         { type: 'detect', id, pcm, sampleRate: buffer.sampleRate },
         [pcm.buffer],
       );
+    }, {
+      onProgress: options.onProgress,
+    }).finally(() => {
+      options.signal?.removeEventListener('abort', abortListener);
     });
   }
 

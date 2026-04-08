@@ -39,6 +39,10 @@
   min-height: 0;
 }
 
+.note-panel-summary {
+  min-width: 0;
+}
+
 .note-panel-list {
   display: grid;
   gap: 8px;
@@ -140,8 +144,18 @@
   flex-wrap: wrap;
 }
 
+.note-panel-edit {
+  display: grid;
+  gap: 8px;
+}
+
 .note-panel-btn {
   white-space: nowrap;
+}
+
+.note-panel-btn-save,
+.note-panel-btn-add {
+  min-width: 88px;
 }
 
 .note-panel-category-select {

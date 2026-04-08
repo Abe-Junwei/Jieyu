@@ -206,7 +206,7 @@ export function SearchReplaceOverlay({
             setScope(e.target.value as SearchScope);
             setCurrentIndex(0);
           }}
-          className="search-replace-select"
+          className="search-replace-select select-caret"
           title={messages.scopeTitle}
           aria-label={messages.scopeTitle}
         >
@@ -221,7 +221,7 @@ export function SearchReplaceOverlay({
             setLayerKinds(next === 'all' ? [] : [next as 'transcription' | 'translation' | 'gloss']);
             setCurrentIndex(0);
           }}
-          className="search-replace-select"
+          className="search-replace-select select-caret"
           title={messages.layerKindTitle}
           aria-label={messages.layerKindTitle}
         >

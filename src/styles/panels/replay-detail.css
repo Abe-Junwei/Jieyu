@@ -28,6 +28,10 @@
   justify-content: flex-end;
 }
 
+.ai-chat-replay-panel-actions-footer {
+  justify-content: flex-end;
+}
+
 .ai-chat-replay-panel-summary,
 .ai-chat-replay-panel-section {
   min-width: 0;

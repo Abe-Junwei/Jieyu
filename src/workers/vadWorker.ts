@@ -8,8 +8,10 @@
  * 消息协议 | Message protocol:
  *   In:  { type: 'init', modelUrl: string }
  *        { type: 'detect', id: string, pcm: Float32Array, sampleRate: number }
+ *        { type: 'cancel', id: string }
  *        { type: 'reset' }
  *   Out: { type: 'ready' }
+ *        { type: 'progress', id: string, processedFrames: number, totalFrames: number, ratio: number }
  *        { type: 'result', id: string, segments: VadWorkerSegment[] }
  *        { type: 'error', id?: string, message: string }
  */
@@ -45,6 +47,7 @@ type OnnxTensor = {
 let session: OnnxSession | null = null;
 let h0: Float32Array = new Float32Array(2 * 1 * 64); // hidden state
 let c0: Float32Array = new Float32Array(2 * 1 * 64); // cell state
+const cancelledRequestIds = new Set<string>();
 
 function resetState(): void {
   h0.fill(0);
@@ -80,20 +83,43 @@ self.onmessage = async (event: MessageEvent) => {
         return;
       }
       try {
+        cancelledRequestIds.delete(msg.id!);
         const pcm = msg.pcm!;
         const sr = msg.sampleRate ?? SILERO_SAMPLE_RATE;
 
         // 重采样到 16kHz（如需）| Resample to 16kHz if needed
         const resampled = sr === SILERO_SAMPLE_RATE ? pcm : resampleLinear(pcm, sr, SILERO_SAMPLE_RATE);
 
-        const segments = await runSileroVad(resampled);
+        const segments = await runSileroVad(resampled, {
+          requestId: msg.id!,
+          shouldCancel: () => cancelledRequestIds.has(msg.id!),
+          onProgress: (processedFrames, totalFrames) => {
+            self.postMessage({
+              type: 'progress',
+              id: msg.id,
+              processedFrames,
+              totalFrames,
+              ratio: totalFrames > 0 ? processedFrames / totalFrames : 1,
+            });
+          },
+        });
+        cancelledRequestIds.delete(msg.id!);
         self.postMessage({ type: 'result', id: msg.id, segments });
       } catch (err) {
+        const aborted = cancelledRequestIds.has(msg.id!);
+        cancelledRequestIds.delete(msg.id!);
         self.postMessage({
           type: 'error',
           id: msg.id,
-          message: `VAD detect failed: ${err instanceof Error ? err.message : String(err)}`,
+          message: aborted ? 'VAD detect aborted' : `VAD detect failed: ${err instanceof Error ? err.message : String(err)}`,
         });
+      }
+      break;
+    }
+
+    case 'cancel': {
+      if (msg.id) {
+        cancelledRequestIds.add(msg.id);
       }
       break;
     }
@@ -114,12 +140,25 @@ self.onmessage = async (event: MessageEvent) => {
  * 对 PCM 数据逐帧运行 Silero VAD ONNX 推理，返回语音段列表。
  * Runs Silero VAD ONNX frame-by-frame over PCM data and returns speech segments.
  */
-async function runSileroVad(pcm: Float32Array): Promise<VadWorkerSegment[]> {
+async function runSileroVad(
+  pcm: Float32Array,
+  options: {
+    requestId: string;
+    shouldCancel?: () => boolean;
+    onProgress?: (processedFrames: number, totalFrames: number) => void;
+  },
+): Promise<VadWorkerSegment[]> {
   const ort = await import('onnxruntime-web');
   const frameCount = Math.floor(pcm.length / FRAME_SIZE);
   const frameProbs: number[] = [];
 
   for (let fi = 0; fi < frameCount; fi++) {
+    if (options.shouldCancel?.()) {
+      const abortError = new Error('VAD detect aborted');
+      abortError.name = 'AbortError';
+      throw abortError;
+    }
+
     const frame = pcm.slice(fi * FRAME_SIZE, (fi + 1) * FRAME_SIZE);
 
     const inputTensor = new ort.Tensor('float32', frame, [1, FRAME_SIZE]);
@@ -142,8 +181,13 @@ async function runSileroVad(pcm: Float32Array): Promise<VadWorkerSegment[]> {
     const newC = outputs['cn']?.data as Float32Array;
     if (newH) h0 = new Float32Array(newH);
     if (newC) c0 = new Float32Array(newC);
+
+    if (options.onProgress && (fi === frameCount - 1 || (fi + 1) % 16 === 0)) {
+      options.onProgress(fi + 1, frameCount);
+    }
   }
 
+  options.onProgress?.(frameCount, frameCount);
   return frameProbsToSegments(frameProbs, FRAME_SIZE, SILERO_SAMPLE_RATE);
 }
 
