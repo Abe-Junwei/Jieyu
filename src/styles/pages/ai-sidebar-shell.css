@@ -27,7 +27,7 @@
   justify-content: center;
   gap: 6px;
   padding: 8px 12px;
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   font-weight: 600;
   color: var(--text-secondary);
   background: transparent;
@@ -53,7 +53,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--header-accent) 16%, var(--surface-panel));
   color: var(--header-accent);
   font-size: calc(10px * var(--ui-font-scale, 1));
@@ -182,7 +182,7 @@
 
 .transcription-ai-panel-toggle:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-solid) 20%, transparent);
   opacity: 1;
 }
 
@@ -194,7 +194,7 @@
 
 .transcription-panel-toggle-icon {
   display: inline-block;
-  font-size: 15px;
+  font-size: calc(15px * var(--ui-font-scale, 1));
   font-weight: 650;
   line-height: 1;
 }
@@ -262,13 +262,13 @@
   right: 50%;
   width: 1px;
   transform: translateX(50%);
-  background: rgba(148, 163, 184, 0.32);
+  background: color-mix(in srgb, var(--text-tertiary) 32%, transparent);
   transition: background-color var(--shell-motion-fast) ease, box-shadow var(--shell-motion-fast) ease;
 }
 
 .transcription-ai-panel-resizer:hover::before {
-  background: rgba(37, 99, 235, 0.42);
-  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.24);
+  background: color-mix(in srgb, rgb(37 99 235) 42%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, rgb(147 197 253) 24%, transparent);
 }
 
 @media (max-width: 640px) {

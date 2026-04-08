@@ -42,7 +42,7 @@
 .ai-chat-replay-panel-code {
   margin: 0;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-header) 72%, var(--panel-design-surface-color));
   border: 1px solid var(--panel-design-border-color);
   font-size: 0.76rem;

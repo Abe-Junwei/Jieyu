@@ -1,0 +1,346 @@
+@media (max-width: 900px) {
+  .transcription-voice-dock {
+    right: 8px;
+    left: 10px;
+    width: auto;
+    max-width: none;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    padding: 9px 10px;
+  }
+
+  .transcription-voice-dock::before {
+    display: none;
+  }
+
+  .transcription-voice-bubble {
+    --bubble-offset-x: 0px;
+    right: 8px;
+    border-radius: var(--radius-pill);
+  }
+
+  .transcription-voice-dock-idle {
+    width: auto;
+  }
+}
+
+/* ── 语段密度热力条 | Segment density heatmap strip ──────────────────────────── */
+.time-ruler-heat {
+  position: absolute;
+  bottom: 2px;
+  height: 4px;
+  opacity: 0.7;
+  pointer-events: none;
+  border-radius: 1px;
+}
+
+/* ── 波形增益控制 | Waveform amplitude gain control ──────────────────────────── */
+.waveform-left-status-item-gain {
+  flex-direction: row;
+  align-items: center;
+  gap: 3px;
+  pointer-events: auto;
+}
+
+.waveform-gain-slider {
+  width: 52px;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--state-info-solid);
+  pointer-events: auto;
+}
+
+.waveform-gain-reset {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  min-width: 22px;
+  pointer-events: auto;
+}
+
+.waveform-gain-reset:hover {
+  color: var(--state-info-solid);
+}
+
+.waveform-left-status-item-layout {
+  pointer-events: auto;
+}
+
+.waveform-layout-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  background: var(--surface-elevated);
+  overflow: hidden;
+}
+
+.waveform-layout-toggle-btn {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  line-height: 1;
+  font-weight: 700;
+  min-width: 20px;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+.waveform-layout-toggle-btn:hover {
+  background: var(--border-soft);
+}
+
+.waveform-layout-toggle-btn.active {
+  color: var(--text-primary);
+  background: var(--state-info-border);
+}
+
+/* ── 波形悬停文本预览 | Waveform hover tooltip text preview ──────────────────── */
+.waveform-hover-tooltip {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: color-mix(in srgb, rgb(30 41 59) 92%, transparent);
+  color: color-mix(in srgb, var(--surface-header) 84%, transparent);
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: var(--z-context-menu);
+}
+
+.waveform-hover-tooltip-text {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 清洁焦点模式 | Clean / Focus annotation mode ───────────────────────────── */
+/* ─── Video Player ─────────────────────────────────────────────── */
+
+.video-player {
+  background: var(--surface-overlay);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  user-select: none;
+}
+
+.video-player-controls {
+  background: color-mix(in srgb, var(--shadow-color) 92%, transparent);
+  padding: 8px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Progress bar */
+.video-player-progress {
+  position: relative;
+  height: 6px;
+  background: color-mix(in srgb, rgb(255 255 255) 15%, transparent);
+  border-radius: 3px;
+  cursor: pointer;
+  overflow: visible;
+}
+
+.video-player-progress:hover {
+  height: 8px;
+}
+
+.video-player-progress-filled {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: var(--state-info-solid);
+  border-radius: 3px;
+  pointer-events: none;
+  transition: width 0.1s linear;
+}
+
+.video-player-progress-thumb {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  background: var(--surface-panel);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--shadow-color) 40%, transparent);
+}
+
+.video-player-progress:hover .video-player-progress-thumb {
+  opacity: 1;
+}
+
+/* Sub-selection highlight */
+.video-player-subselection {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: color-mix(in srgb, var(--state-success-solid) 45%, transparent);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+/* Region markers */
+.video-player-region {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.video-player-region.active {
+  background: color-mix(in srgb, var(--state-info-solid) 45%, transparent);
+}
+
+.video-player-region.primary {
+  background: color-mix(in srgb, var(--state-warning-solid) 30%, transparent);
+}
+
+/* Button row */
+.video-player-btn-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.video-player-left-controls,
+.video-player-right-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.video-player-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: color-mix(in srgb, rgb(255 255 255) 85%, transparent);
+  cursor: pointer;
+  padding: 5px 6px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s, color 0.15s;
+}
+
+.video-player-btn:hover {
+  background: color-mix(in srgb, rgb(255 255 255) 12%, transparent);
+  color: var(--surface-panel);
+}
+
+.video-player-btn:active {
+  background: color-mix(in srgb, rgb(255 255 255) 20%, transparent);
+}
+
+/* Time display */
+.video-player-time {
+  color: color-mix(in srgb, rgb(255 255 255) 80%, transparent);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+/* Playback rate */
+.video-player-rate-wrap {
+  position: relative;
+}
+
+.video-player-rate-btn {
+  gap: 3px;
+}
+
+.video-player-rate-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.video-player-rate-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: color-mix(in srgb, rgb(30 41 59) 96%, transparent);
+  border: 1px solid color-mix(in srgb, rgb(255 255 255) 12%, transparent);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  min-width: 72px;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--shadow-color) 40%, transparent);
+  z-index: var(--z-toast);
+}
+
+.video-player-rate-option {
+  background: transparent;
+  border: none;
+  color: color-mix(in srgb, rgb(255 255 255) 75%, transparent);
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 5px;
+  font-size: 0.80rem;
+  text-align: center;
+  transition: background 0.12s, color 0.12s;
+}
+
+.video-player-rate-option:hover {
+  background: color-mix(in srgb, rgb(255 255 255) 10%, transparent);
+  color: var(--surface-panel);
+}
+
+.video-player-rate-option.active {
+  background: var(--state-info-solid);
+  color: var(--surface-panel);
+  font-weight: 600;
+}
+
+/* Volume slider */
+.video-player-volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 70px;
+  height: 4px;
+  background: color-mix(in srgb, rgb(255 255 255) 20%, transparent);
+  border-radius: 2px;
+  cursor: pointer;
+  outline: none;
+}
+
+.video-player-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--surface-panel);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.video-player-volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--surface-panel);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}

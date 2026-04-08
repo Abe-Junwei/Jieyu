@@ -35,22 +35,22 @@
 
 .batch-operation-preview-card {
   border: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--surface-panel) 99%, var(--surface-header));
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--shadow-color) 8%, transparent);
 }
 
 .batch-operation-preview-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
 }
 
 .batch-operation-preview-filter-btn {
   min-height: 24px;
   padding: 1px 6px;
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
 }
 
 .batch-operation-table-wrap {
@@ -89,7 +89,7 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid color-mix(in srgb, var(--border-soft) 85%, transparent);
   font-size: 0.72rem;
   font-weight: 600;
@@ -114,7 +114,7 @@
   width: 16px;
   height: 16px;
   cursor: nwse-resize;
-  z-index: 10;
+  z-index: var(--z-header);
 }
 
 .batch-operation-reset-btn {
@@ -126,10 +126,42 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 
 .batch-operation-reset-btn:hover {
-  background: rgba(15, 23, 42, 0.05);
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
   color: var(--text-primary);
+}
+
+.batch-operation-th {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  position: sticky;
+  top: 0;
+  background: var(--surface-header);
+  z-index: var(--z-base);
+}
+
+.batch-operation-td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--surface-header);
+  vertical-align: top;
+}
+
+.batch-operation-td-content {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--surface-header);
+  vertical-align: top;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.batch-badge {
+  display: inline-block;
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
 }

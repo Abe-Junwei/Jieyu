@@ -442,16 +442,6 @@ export const architectureGuardRules = [
     ],
   },
   {
-    file: 'src/styles/panels/ai-analysis-panel.css',
-    requiredLiterals: [
-      '.transcription-analysis-panel {',
-      '.transcription-analysis-panel-header {',
-      '.transcription-analysis-panel-body {',
-      '.transcription-analysis-panel-footer {',
-      '.transcription-ai-stats-panel {',
-    ],
-  },
-  {
     file: 'src/styles/panels/left-rail-project-hub.css',
     requiredLiterals: [
       '.left-rail-project-hub-root {',
@@ -526,7 +516,7 @@ export const architectureGuardRules = [
     ],
   },
   {
-    file: 'src/styles/transcription.css',
+    file: 'src/styles/pages/transcription-waveform.css',
     forbiddenRegexes: [
       /^\.dialog-overlay/m,
       /^\.dialog-card\s*\{/m,

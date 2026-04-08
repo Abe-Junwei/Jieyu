@@ -198,13 +198,13 @@
   left: 50%;
   width: 1px;
   transform: translateX(-50%);
-  background: rgba(148, 163, 184, 0.32);
+  background: color-mix(in srgb, var(--text-tertiary) 32%, transparent);
   transition: background-color var(--shell-motion-fast) ease, box-shadow var(--shell-motion-fast) ease;
 }
 
 .app-side-pane-resizer:hover::before {
-  background: rgba(37, 99, 235, 0.42);
-  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.24);
+  background: color-mix(in srgb, rgb(37 99 235) 42%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, rgb(147 197 253) 24%, transparent);
 }
 
 .app-side-pane-collapse-toggle:hover {
@@ -216,12 +216,12 @@
 
 .app-side-pane-collapse-toggle:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-solid) 20%, transparent);
   opacity: 1;
 }
 
 .app-side-pane-collapse-toggle span {
-  font-size: 15px;
+  font-size: calc(15px * var(--ui-font-scale, 1));
   font-weight: 650;
   line-height: 1;
 }
@@ -270,8 +270,8 @@
   align-content: start;
   gap: 8px;
   padding: 10px;
-  border: 1px dashed rgba(148, 163, 184, 0.35);
-  border-radius: 8px;
+  border: 1px dashed color-mix(in srgb, var(--text-tertiary) 35%, transparent);
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-header) 94%, transparent);
   color: var(--text-secondary);
 }
@@ -328,4 +328,158 @@
     margin-top: 6px;
     padding-top: 6px;
   }
+}
+/* ── App shell layout (from global.css) ── */
+/* Action buttons */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.app-side-pane-section-title {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.app-side-pane-group {
+  border: 1px solid color-mix(in srgb, rgb(208 215 222) 50%, transparent);
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--surface-panel) 96%, transparent);
+}
+
+.app-side-pane-group-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  padding: 9px 10px;
+  cursor: pointer;
+  transition: background-color var(--shell-motion-fast) ease, border-color var(--shell-motion-fast) ease;
+}
+
+.app-side-pane-group-toggle:hover {
+  background: color-mix(in srgb, rgb(208 215 222) 24%, transparent);
+}
+
+.app-side-pane-nav {
+  display: grid;
+  gap: 4px;
+  padding: 0 6px 8px;
+}
+
+.side-pane-nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: border-color var(--shell-motion-fast) ease, background-color var(--shell-motion-fast) ease, color var(--shell-motion-fast) ease;
+}
+
+.side-pane-nav-link:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, rgb(208 215 222) 30%, transparent);
+}
+
+:root[data-theme='dark'] .side-pane-nav-link:hover {
+  background: color-mix(in srgb, rgb(255 255 255) 7%, transparent);
+}
+
+:root[data-theme='dark'] .app-side-pane-group {
+  border-color: color-mix(in srgb, rgb(75 85 99) 60%, transparent);
+  background: color-mix(in srgb, rgb(37 37 38) 60%, transparent);
+}
+
+:root[data-theme='dark'] .app-side-pane-group-toggle:hover {
+  background: color-mix(in srgb, rgb(255 255 255) 5%, transparent);
+}
+
+.side-pane-nav-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-solid) 20%, transparent);
+}
+
+.left-rail-btn {
+  width: 100%;
+  min-height: 48px;
+  border-radius: var(--radius-xs);
+  border: 0;
+  border-left: 2px solid transparent;
+  color: var(--tab-text-muted);
+  text-decoration: none;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  text-align: center;
+  padding: 6px 4px;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.left-rail-btn:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, rgb(208 215 222) 24%, transparent);
+}
+
+.left-rail-btn-active {
+  color: var(--text-primary);
+  border-left-color: color-mix(in srgb, var(--state-info-solid) 95%, transparent);
+  background: color-mix(in srgb, var(--state-info-solid) 10%, transparent);
+}
+
+.left-rail-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, rgb(14 165 233) 20%, transparent);
+}
+
+@media (max-width: 900px) {
+  .left-rail-btn {
+    min-height: 52px;
+    font-size: calc(9px * var(--ui-font-scale, 1));
+  }
+}
+
+@media (max-width: 640px) {
+  .header-actions {
+    gap: 4px;
+  }
+  .left-rail-btn {
+    min-height: 46px;
+    border-radius: var(--radius-md);
+  }
+  .left-rail-btn span {
+    display: none;
+  }
+}
+/* ── 首屏过渡抑制：避免初始挂载时的布局过渡产生 CLS | Suppress layout transitions on initial mount to prevent CLS ── */
+:root:not([data-motion-ready]) .app-side-pane,
+:root:not([data-motion-ready]) .app-side-pane-collapse-toggle,
+:root:not([data-motion-ready]) .app-side-pane-handle-cluster,
+:root:not([data-motion-ready]) .transcription-ai-panel,
+:root:not([data-motion-ready]) .transcription-ai-panel-toggle,
+:root:not([data-motion-ready]) .transcription-ai-panel-resizer::before,
+:root:not([data-motion-ready]) .transcription-ai-panel-handle-cluster,
+:root:not([data-motion-ready]) .transcription-list-panel,
+:root:not([data-motion-ready]) .transcription-workspace::after,
+:root:not([data-motion-ready]) .transcription-list-main::before,
+:root:not([data-motion-ready]) .transcription-side-pane {
+  transition-duration: 0s !important;
 }

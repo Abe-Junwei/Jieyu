@@ -9,9 +9,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: rgba(224, 242, 254, 0.9);
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--state-info-border) 55%, transparent);
+  background: var(--state-info-bg);
   color: var(--state-info-text);
   font-size: 0.72rem;
   font-weight: 700;
@@ -35,9 +35,9 @@
   overflow-y: auto;
   z-index: calc(var(--z-timeline-sticky) + 16);
   border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-panel);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--text-primary) 16%, transparent);
   padding: 8px;
   color: var(--text-primary);
   display: grid;
@@ -45,14 +45,14 @@
 }
 
 .transcription-undo-history-title {
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 6px;
 }
 
 .transcription-undo-history-item {
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   color: var(--text-primary);
   line-height: 1.45;
   padding: 4px 6px;
@@ -60,7 +60,7 @@
   background: color-mix(in srgb, var(--surface-header) 78%, var(--surface-panel));
   width: 100%;
   text-align: left;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
@@ -82,7 +82,7 @@
   .transcription-undo-chip {
     width: 28px;
     height: 28px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     justify-content: center;
     padding: 0;
   }

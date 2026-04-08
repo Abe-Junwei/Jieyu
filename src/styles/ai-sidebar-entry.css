@@ -1,3 +1,5 @@
 @import './pages/ai-sidebar-shell.css';
-@import './ai-hub-shared.css';
+@import './panels/grounding-context.css';
+@import './panels/ai-chat-composer.css';
+@import './panels/voice-agent.css';
 @import './ai-hub.css';

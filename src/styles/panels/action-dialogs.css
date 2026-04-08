@@ -67,8 +67,8 @@
 .speaker-management-dialog-actions .panel-button,
 .layer-action-dialog-actions .panel-button,
 .layer-action-dialog-btn {
-  min-height: 30px;
-  border-radius: 7px;
+  min-height: var(--btn-h-compact);
+  border-radius: var(--radius-sm);
 }
 
 .speaker-management-dialog-actions-fill .btn,
@@ -77,8 +77,8 @@
 }
 
 .speaker-management-control {
-  min-height: 30px;
-  border-radius: 6px;
+  min-height: var(--btn-h-compact);
+  border-radius: var(--radius-sm);
   font-size: 0.78rem;
   line-height: 1.5;
   padding: 0 10px;
@@ -89,8 +89,8 @@
 }
 
 .side-pane-dialog-speaker .transcription-side-pane-speaker-chip {
-  min-height: 30px;
-  border-radius: 999px;
+  min-height: var(--btn-h-compact);
+  border-radius: var(--radius-pill);
   padding: 0 10px;
   font-size: 0.74rem;
 }
@@ -98,18 +98,18 @@
 .side-pane-dialog-speaker .transcription-side-pane-speaker-group {
   gap: 6px;
   padding: 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .side-pane-dialog-speaker .transcription-side-pane-speaker-group-toggle {
-  min-height: 28px;
-  border-radius: 7px;
+  min-height: var(--btn-h-sm);
+  border-radius: var(--radius-sm);
   padding: 0 8px;
 }
 
 .side-pane-dialog-speaker .transcription-side-pane-speaker-mini-btn {
   min-height: 22px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 0 8px;
   font-size: 0.7rem;
 }
@@ -157,6 +157,22 @@
   line-height: 1.5;
 }
 
+.confirm-delete-dialog,
+.delete-layer-confirm-dialog {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.confirm-delete-dialog-summary,
+.delete-layer-confirm-summary,
+.speaker-rail-summary-card {
+  min-width: 0;
+}
+
+.confirm-delete-dialog-section,
+.delete-layer-confirm-section {
+  min-width: 0;
+}
+
 .speaker-rail-batch-panel {
   display: grid;
   gap: 12px;
@@ -200,9 +216,9 @@
 
 .layer-action-dialog-input {
   width: 100%;
-  min-height: 30px;
+  min-height: var(--btn-h-compact);
   box-sizing: border-box;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.5;
   padding: 0 10px;
@@ -213,7 +229,7 @@
   -webkit-appearance: none;
   padding-right: 38px;
   background-image:
-    linear-gradient(180deg, rgba(148, 163, 184, 0.24), rgba(148, 163, 184, 0.1)),
+    linear-gradient(180deg, color-mix(in srgb, var(--text-tertiary) 24%, transparent), color-mix(in srgb, var(--text-tertiary) 10%, transparent)),
     var(--select-caret-icon);
   background-repeat: no-repeat;
   background-position: calc(100% - 28px) 50%, calc(100% - 12px) 50%;
@@ -247,17 +263,12 @@
 .layer-action-dialog-btn-danger {
   background: var(--state-danger-solid);
   border-color: var(--state-danger-solid);
-  color: #fff;
+  color: var(--text-on-solid);
 }
 
 @media (max-width: 640px) {
   .layer-action-dialog-input {
-    min-height: 30px;
-    font-size: calc(12px * var(--ui-font-scale, 1));
-  }
-
-  .layer-action-dialog-btn {
-    min-height: 30px;
+    min-height: var(--btn-h-compact);
     font-size: calc(12px * var(--ui-font-scale, 1));
   }
 }
@@ -322,7 +333,8 @@
 }
 
 /* L1 字段标签 12px/600 (已在全局声明，此处确认) | L1 field label 12px/600 */
-.layer-action-dialog .layer-action-dialog-field-label {
+.layer-action-dialog .layer-action-dialog-field-label,
+.layer-action-dialog .dialog-field-label {
   font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 600;
   color: var(--text-secondary);
@@ -369,7 +381,7 @@
 /* L3 别名辅助提示 | L3 alias helper hint */
 .layer-action-dialog-alias-hint {
   margin: 0;
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary);
   font-size: calc(11px * var(--ui-font-scale, 1));
   font-weight: 500;
   line-height: 1.5;
@@ -378,12 +390,9 @@
 /* L1 反馈块 12px/500 | L1 Feedback block 12px/500 */
 .layer-action-dialog .panel-feedback {
   padding: 7px 8px;
-  border-radius: 8px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
-  font-weight: 500;
+  border-radius: var(--radius-md);
 }
 
-/* 自动关联父层提示（蓝色） | Auto-linked parent hint (blue) */
 .layer-action-dialog-auto-linked-hint {
   color: var(--state-info-solid, #2563eb);
 }
@@ -391,23 +400,23 @@
 /* 主按钮禁用态：实色灰底 | Primary button disabled: solid gray */
 .layer-action-dialog .panel-button--primary:disabled {
   opacity: 1;
-  background: #94a3b8;
-  border-color: #94a3b8;
-  color: #f8fafc;
+  background: var(--text-tertiary);
+  border-color: var(--text-tertiary);
+  color: var(--surface-panel);
 }
 
 /* 主按钮启用态：实色蓝底 | Primary button enabled: solid blue */
 .layer-action-dialog .panel-button--primary:not(:disabled) {
   background: var(--state-info-solid, #2563eb);
   border-color: var(--state-info-solid, #2563eb);
-  color: #fff;
+  color: var(--text-on-solid);
 }
 
 /* L4 主按钮 12px/600 | L4 Primary button 12px/600 */
 .layer-action-dialog .panel-button--primary {
   padding: 6px 10px;
   min-height: unset;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 600;
 }
@@ -429,10 +438,6 @@
   align-items: center;
   gap: 3px;
   padding: 0 8px;
-  min-height: 30px;
-  border-radius: 6px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
-  font-weight: 600;
-  white-space: nowrap;
-  flex-shrink: 0;
+  min-height: var(--btn-h-compact);
+  border-radius: var(--radius-sm);
 }

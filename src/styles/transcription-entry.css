@@ -1,6 +1,8 @@
 @import './panel-blocks.css';
 @import './ai-sidebar-entry.css';
+@import './foundation/waveform-display.css';
+@import './panels/layer-list.css';
 @import './pages/transcription-layout.css';
 @import './pages/transcription-toolbar.css';
 @import './pages/transcription-timeline.css';
-@import './transcription.css';
+@import './pages/transcription-waveform.css';

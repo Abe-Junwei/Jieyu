@@ -23,11 +23,11 @@
   align-items: center;
   width: fit-content;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: calc(0.72rem * var(--ui-font-scale, 1));
   font-weight: 700;
   color: var(--state-info-text);
-  background: rgba(14, 165, 233, 0.08);
+  background: var(--bg-info-tint);
 }
 
 .orthography-workspace-summary,
@@ -62,12 +62,7 @@
 .orthography-workspace-summary-card,
 .orthography-workspace-basic-panel,
 .orthography-workspace-bridge-panel {
-  border-radius: 16px;
-}
-
-/* ── 表单文字层级收口 | Normalize form typography hierarchy ── */
-.orthography-workspace-basic-panel {
-  font-family: var(--font-base);
+  border-radius: var(--radius-2xl);
 }
 
 .orthography-workspace :is(.dialog-field, .language-iso-input .dialog-field) {
@@ -87,22 +82,6 @@
   font-weight: 600;
 }
 
-.orthography-workspace-basic-panel :is(.input, input, select, textarea) {
-  font-family: var(--font-base);
-  font-size: var(--orthography-body-size);
-  line-height: 1.5;
-  color: var(--text-primary);
-}
-
-.orthography-workspace-basic-panel :is(.input, input, select, textarea)::placeholder {
-  color: var(--text-secondary);
-}
-
-.orthography-workspace-basic-panel .orthography-builder-checkbox {
-  font-size: calc(0.82rem * var(--ui-font-scale, 1));
-  color: var(--text-primary);
-}
-
 .orthography-workspace-detail-column {
   display: grid;
   gap: var(--orthography-space-5);
@@ -118,7 +97,7 @@
   margin-top: var(--orthography-space-3);
   padding: var(--orthography-space-4);
   border: 1px dashed color-mix(in srgb, var(--state-warning-text, #b45309) 35%, transparent);
-  border-radius: 14px;
+  border-radius: var(--radius-2xl);
   background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-warning-bg, #fef3c7));
 }
 
@@ -147,14 +126,14 @@
   width: 100%;
   padding: var(--orthography-space-4) 14px;
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--radius-2xl);
   background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
   color: var(--text-primary);
   text-align: left;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 3%, transparent);
   transition: background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
@@ -163,30 +142,30 @@
   position: absolute;
   inset: 10px auto 10px 0;
   width: 3px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   transition: background 140ms ease;
 }
 
 .orthography-workspace-list-item:hover {
   background: color-mix(in srgb, var(--surface-panel) 90%, var(--surface-header));
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--shadow-color) 6%, transparent);
   transform: translateY(-1px);
 }
 
 .orthography-workspace-list-item:active {
   transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--shadow-color) 5%, transparent);
 }
 
 .orthography-workspace-list-item:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--focus-ring), 0 6px 16px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 0 0 2px var(--focus-ring), 0 6px 16px color-mix(in srgb, var(--shadow-color) 6%, transparent);
 }
 
 .orthography-workspace-list-item-active {
   background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-info-bg));
-  box-shadow: 0 8px 18px rgba(14, 165, 233, 0.08);
+  box-shadow: 0 8px 18px color-mix(in srgb, rgb(14 165 233) 8%, transparent);
 }
 
 .orthography-workspace-list-item-active::before {
@@ -208,47 +187,12 @@
   color: var(--text-secondary);
 }
 
-.orthography-workspace-basic-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--orthography-space-4);
-  margin: 0;
-}
-
-.orthography-workspace-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--orthography-space-4);
-}
-
-.orthography-workspace-form-stack {
-  display: grid;
-  gap: var(--orthography-space-5);
-}
-
 .orthography-workspace-subsection {
   display: grid;
   gap: var(--orthography-space-3);
   padding: var(--orthography-space-4);
-  border-radius: 16px;
+  border-radius: var(--radius-2xl);
   background: color-mix(in srgb, var(--surface-header) 82%, transparent);
-}
-
-.orthography-workspace-subsection-header {
-  display: grid;
-  gap: var(--orthography-space-1);
-}
-
-.orthography-workspace-subsection-title {
-  margin: 0;
-  font-size: var(--orthography-title-size);
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.45;
-}
-
-.orthography-workspace-form-span-2 {
-  grid-column: 1 / -1;
 }
 
 .orthography-workspace-textarea {
@@ -261,59 +205,14 @@
   font-family: var(--font-mono);
 }
 
-/* ── 复选框横排行 | Horizontal checkbox row ── */
-.orthography-workspace-checkbox-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--orthography-space-2) var(--orthography-space-5);
-}
-
 /* ── 高级折叠区 | Advanced collapsible section ── */
 .orthography-workspace-advanced {
-  border-radius: 16px;
+  border-radius: var(--radius-2xl);
   background: color-mix(in srgb, var(--surface-header) 65%, transparent);
-}
-
-.orthography-workspace-advanced-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--orthography-space-2);
-  row-gap: var(--orthography-space-1);
-  padding: var(--orthography-space-3) 14px;
-  cursor: pointer;
-  font-size: var(--orthography-title-size);
-  font-weight: 700;
-  color: var(--text-primary);
-  user-select: none;
-  list-style: none;
-  flex-wrap: wrap;
-}
-
-.orthography-workspace-advanced-summary::-webkit-details-marker {
-  display: none;
-}
-
-.orthography-workspace-advanced-summary::before {
-  content: '▸';
-  display: inline-block;
-  transition: transform 0.15s ease;
 }
 
 .orthography-workspace-advanced[open] > .orthography-workspace-advanced-summary::before {
   transform: rotate(90deg);
-}
-
-.orthography-workspace-advanced-meta {
-  font-size: var(--orthography-note-size);
-  font-weight: 400;
-  color: var(--text-secondary);
-}
-
-.orthography-workspace-advanced-body {
-  display: grid;
-  gap: var(--orthography-space-4);
-  padding: 0 14px 14px;
 }
 
 /* ── 分隔线 | Thin divider ── */
@@ -324,70 +223,7 @@
   background: color-mix(in srgb, var(--border-soft) 42%, transparent);
 }
 
-.orthography-workspace-form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--orthography-space-2);
-  margin-top: var(--orthography-space-4);
-}
-
-.orthography-workspace-array-list {
-  display: grid;
-  gap: var(--orthography-space-3);
-}
-
-.orthography-workspace-array-row {
-  display: grid;
-  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) auto;
-  gap: var(--orthography-space-3);
-  align-items: end;
-}
-
-.orthography-workspace-array-value {
-  min-width: 0;
-}
-
 .orthography-workspace-array-add,
-.orthography-workspace-array-remove {
-  white-space: nowrap;
-}
-
-.orthography-workspace-basic-grid div {
-  display: grid;
-  gap: 4px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--surface-header) 94%, transparent);
-}
-
-.orthography-workspace-basic-grid dt {
-  font-size: var(--orthography-note-size);
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-
-.orthography-workspace-basic-grid dd {
-  margin: 0;
-  font-size: var(--orthography-body-size);
-  line-height: 1.5;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.orthography-workspace-advanced-body {
-  font-family: var(--font-base);
-  color: var(--text-primary);
-}
-
-.orthography-workspace-advanced-body .orthography-builder-checkbox {
-  font-size: var(--orthography-body-size);
-  color: var(--text-primary);
-}
-
-.orthography-workspace-advanced-meta {
-  line-height: 1.5;
-}
-
 /* ── 桥接规则面板排版收口 | Normalize bridge rule panel typography ── */
 .orthography-workspace-bridge-panel .orthography-builder-panel {
   font-family: var(--font-base);
@@ -410,7 +246,7 @@
   margin-top: 0;
   padding: var(--orthography-space-4);
   border-top: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--surface-header) 68%, transparent);
 }
 
@@ -516,7 +352,7 @@
   width: 100%;
   min-height: 128px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   box-sizing: border-box;
 }
 

@@ -1,0 +1,135 @@
+/* 搜索替换面板 | Search & replace panel */
+.search-replace-overlay {
+  width: min(88vw, 760px);
+  min-width: min(520px, 88vw);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-soft);
+  background: var(--surface-panel);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--text-primary) 18%, transparent);
+  color: var(--text-primary);
+}
+
+.search-replace-row,
+.search-replace-toolbar,
+.search-replace-plan-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.search-replace-input,
+.search-replace-select,
+.search-replace-btn {
+  border: 1px solid var(--border-strong);
+  background: color-mix(in srgb, var(--surface-panel) 92%, white 8%);
+  color: var(--text-primary);
+}
+
+.search-replace-input,
+.search-replace-select {
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  font-size: calc(14px * var(--ui-font-scale, 1));
+}
+.search-replace-input {
+  flex: 1;
+  outline: none;
+}
+
+.search-replace-input-compact {
+  padding-block: 6px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+}
+
+.search-replace-count {
+  min-width: 56px;
+  text-align: center;
+  white-space: nowrap;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+}
+
+.search-replace-btn {
+  border-radius: var(--radius-md);
+  padding: 5px 8px;
+  cursor: pointer;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  line-height: 1.2;
+}
+
+.search-replace-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.search-replace-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+}
+
+.search-replace-alert,
+.search-replace-preview,
+.search-replace-plan {
+  border-radius: var(--radius-lg);
+  padding: 8px 10px;
+  line-height: 1.5;
+}
+
+.search-replace-alert {
+  border: 1px solid color-mix(in srgb, var(--state-danger-solid) 28%, transparent);
+  background: color-mix(in srgb, var(--state-danger-bg) 82%, var(--surface-panel));
+  color: var(--state-danger-text);
+  font-size: calc(12px * var(--ui-font-scale, 1));
+}
+
+:root[data-theme='dark'] .search-replace-alert {
+  background: color-mix(in srgb, var(--state-danger-bg) 45%, var(--surface-panel));
+  color: var(--state-danger-border);
+}
+
+.search-replace-preview,
+.search-replace-plan {
+  border: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--surface-header) 84%, transparent);
+  font-size: calc(12px * var(--ui-font-scale, 1));
+}
+
+.search-replace-mark {
+  padding: 0 1px;
+  color: var(--state-warning-text);
+  background: var(--state-warning-bg);
+}
+
+.search-replace-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.search-replace-plan-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.search-replace-plan-item {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .search-replace-overlay {
+    min-width: 0;
+    width: calc(100vw - 20px);
+  }
+  .search-replace-row,
+  .search-replace-toolbar,
+  .search-replace-plan-actions {
+    flex-wrap: wrap;
+  }
+}

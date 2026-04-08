@@ -34,7 +34,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: none;
@@ -49,8 +49,8 @@
 }
 
 .orthography-builder-panel-compact .orthography-builder-control-compact {
-  min-height: 34px;
-  border-radius: 8px;
+  min-height: var(--input-h-md);
+  border-radius: var(--radius-md);
 }
 
 .orthography-builder-panel-shell .orthography-builder-panel {
@@ -72,7 +72,7 @@
 
 .orthography-builder-dialog-host .dialog-shell__title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: calc(14px * var(--ui-font-scale, 1));
 }
 
 .orthography-builder-panel :is(.input, input, select, textarea) {
@@ -82,14 +82,14 @@
 
 .orthography-builder-panel :is(.orthography-builder-control, .orthography-builder-language-input .input, .orthography-builder-language-input input, .script-tag-combobox .input) {
   width: 100%;
-  min-height: 36px;
+  min-height: var(--input-h-lg);
   box-sizing: border-box;
   padding: 0 10px;
   border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 100%, transparent);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
   color: var(--panel-design-title-color, var(--text-primary));
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.35;
   box-shadow: none;
 }
@@ -104,7 +104,7 @@
   -webkit-appearance: none;
   padding-right: 38px;
   background-image:
-    linear-gradient(180deg, rgba(148, 163, 184, 0.24), rgba(148, 163, 184, 0.1)),
+    linear-gradient(180deg, color-mix(in srgb, var(--text-tertiary) 24%, transparent), color-mix(in srgb, var(--text-tertiary) 10%, transparent)),
     var(--select-caret-icon);
   background-repeat: no-repeat;
   background-position: calc(100% - 28px) 50%, calc(100% - 12px) 50%;
@@ -116,27 +116,27 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 34px;
+  min-height: var(--input-h-md);
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 100%, transparent);
-  background: #fff;
+  background: var(--surface-panel);
   color: var(--panel-design-text-color, var(--text-secondary));
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.35;
   font-weight: 600;
   box-shadow: none;
 }
 
 .orthography-builder-panel .orthography-builder-btn-ghost {
-  background: #fff;
+  background: var(--surface-panel);
   color: var(--panel-design-text-color, var(--text-secondary));
 }
 
 .orthography-builder-panel .orthography-builder-btn-primary {
   border-color: var(--panel-design-accent-color);
   background: var(--panel-design-accent-color);
-  color: #f8fafc;
+  color: var(--surface-panel);
 }
 
 .orthography-builder-panel :is(.input, input, select, textarea)::placeholder {
@@ -148,7 +148,7 @@
 }
 
 .orthography-builder-panel :is(.dialog-field, .language-iso-input .dialog-field) > span {
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 600;
   line-height: 1.45;
   color: var(--text-secondary);
@@ -201,12 +201,12 @@
 .orthography-builder-inline-summary {
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
 }
 
 .orthography-builder-context-box {
-  background: color-mix(in srgb, var(--state-info-bg) 40%, white);
+  background: color-mix(in srgb, var(--state-info-bg) 40%, var(--surface-panel));
 }
 
 .orthography-builder-context-list,
@@ -215,7 +215,7 @@
   padding-left: 18px;
   display: grid;
   gap: 3px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.5;
   color: var(--text-primary);
 }
@@ -226,10 +226,9 @@
 }
 
 .orthography-builder-rule-label,
-.orthography-builder-field-inline-label,
 .orthography-builder-group-title {
   margin: 0;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 600;
   line-height: 1.45;
   color: var(--text-secondary);
@@ -259,7 +258,7 @@
 
 .orthography-builder-group-description {
   margin: 0;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -283,7 +282,7 @@
 }
 
 .orthography-builder-field-label {
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   line-height: 1.35;
   font-weight: 600;
   color: var(--text-secondary);
@@ -294,7 +293,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -343,25 +342,25 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.5;
   color: var(--text-primary);
 }
 
 .orthography-builder-render-preview-warning {
   padding: 7px 8px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--state-warning-bg) 84%, white);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--state-warning-bg) 84%, var(--surface-panel));
   color: var(--state-warning-text);
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.5;
 }
 
 .orthography-builder-render-preview-sample {
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px dashed color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
-  background: color-mix(in srgb, var(--surface-header) 72%, white);
+  background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
   color: var(--text-primary);
   font-size: 0.95rem;
   line-height: 1.5;
@@ -370,13 +369,13 @@
 
 .orthography-builder-panel-compact .orthography-builder-render-preview-sample {
   padding: 8px 10px;
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
 }
 
 .orthography-builder-helper-text {
   display: grid;
   gap: 2px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -409,18 +408,18 @@
 .orthography-builder-advanced-toggle-btn {
   all: unset;
   cursor: pointer;
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   font-weight: 600;
   line-height: 1.35;
-  color: #94a3b8;
+  color: var(--text-tertiary);
 }
 
 /* 创建模式区域视觉提权 | Create-mode section visual emphasis */
 .orthography-builder-panel-compact .orthography-builder-group-create-mode {
   padding: 8px 10px;
-  border: 1px solid #dbeafe;
-  border-radius: 8px;
-  background: #f0f9ff;
+  border: 1px solid var(--state-info-border);
+  border-radius: var(--radius-md);
+  background: var(--state-info-bg);
 }
 
 /* 渲染预览去边框（只读展示） | Render preview: remove border (read-only display) */
@@ -428,14 +427,14 @@
   gap: 6px;
   padding: 8px 10px;
   border: none;
-  background: #f8fafc;
+  background: var(--surface-panel);
 }
 
 /* 高级设置折叠整体容器 | Advanced settings unified toggle+panel container */
 .orthography-builder-advanced-group {
   border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
-  border-radius: 8px;
-  background: #f8fafc;
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
   overflow: hidden;
 }
 
@@ -455,16 +454,16 @@
 .orthography-builder-workspace-note {
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
-  border-radius: 8px;
-  background: #f8fafc;
-  font-size: 11px;
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+  font-size: calc(11px * var(--ui-font-scale, 1));
   line-height: 1.5;
   color: var(--text-secondary);
 }
 
 .orthography-builder-panel-compact .orthography-builder-workspace-note {
   padding: 7px 9px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .orthography-builder-checkbox {
@@ -472,7 +471,7 @@
   align-items: center;
   gap: 8px;
   min-height: 30px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.45;
   color: var(--text-primary);
 }
@@ -508,22 +507,22 @@
 
 .orthography-builder-validation-box {
   border: 1px solid transparent;
-  background: #fff;
+  background: var(--surface-panel);
 }
 
 .orthography-builder-validation-box-error {
   border-color: color-mix(in srgb, var(--state-danger-text) 28%, transparent);
-  background: color-mix(in srgb, var(--state-danger-bg) 82%, white);
+  background: color-mix(in srgb, var(--state-danger-bg) 82%, var(--surface-panel));
 }
 
 .orthography-builder-validation-box-neutral {
   border-color: color-mix(in srgb, var(--panel-design-border-color) 68%, transparent);
-  background: color-mix(in srgb, var(--surface-header) 80%, white);
+  background: color-mix(in srgb, var(--surface-header) 80%, var(--surface-panel));
 }
 
 .orthography-builder-validation-box-warn {
   border-color: color-mix(in srgb, var(--state-warning-text) 28%, transparent);
-  background: color-mix(in srgb, var(--state-warning-bg) 84%, white);
+  background: color-mix(in srgb, var(--state-warning-bg) 84%, var(--surface-panel));
 }
 
 .orthography-builder-warning-actions {
@@ -535,7 +534,7 @@
 }
 
 .orthography-builder-warning-note {
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.5;
   color: var(--state-warning-text);
 }
@@ -544,14 +543,14 @@
   white-space: pre-wrap;
   word-break: break-word;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   color: var(--text-primary);
 }
 
 .orthography-builder-hint {
   border-color: color-mix(in srgb, var(--state-info-solid) 18%, transparent);
-  background: color-mix(in srgb, var(--state-info-bg) 84%, white);
-  font-size: 12px;
+  background: color-mix(in srgb, var(--state-info-bg) 84%, var(--surface-panel));
+  font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 600;
   line-height: 1.5;
   color: var(--state-info-solid);

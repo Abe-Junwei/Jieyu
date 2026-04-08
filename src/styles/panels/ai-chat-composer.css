@@ -1,0 +1,171 @@
+/* AI对话编辑器 | AI chat composer */
+.ai-chat-composer {
+  display: grid;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.ai-chat-composer-shortcuts {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding-inline: 8px;
+  min-width: 0;
+}
+
+.ai-chat-composer-shortcuts-list {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.ai-chat-composer-shortcuts-list::-webkit-scrollbar {
+  display: none;
+}
+
+.ai-chat-composer-shortcut {
+  height: calc(24px * var(--ui-font-scale, 1));
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 0 calc(11px * var(--ui-font-scale, 1));
+  font-family: var(--font-chat);
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 86%, transparent);
+  color: var(--text-secondary);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  box-shadow: none;
+  transition: border-color 0.14s ease, background 0.14s ease, color 0.14s ease, transform 0.14s ease;
+}
+
+.ai-chat-composer-shortcut:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.ai-chat-composer-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-inline: 8px;
+}
+
+.ai-chat-composer-input-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ai-chat-input.ai-chat-input-composer {
+  flex: 1 1 auto;
+  width: 100%;
+  height: calc(44px * var(--ui-font-scale, 1));
+  margin-inline: 0;
+  padding: 0 calc(17px * var(--ui-font-scale, 1));
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  border-radius: var(--radius-pill);
+  border-color: color-mix(in srgb, var(--border-soft) 88%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 94%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, rgb(255 255 255) 38%, transparent), 0 1px 2px color-mix(in srgb, var(--shadow-color) 3%, transparent);
+}
+
+.ai-chat-input.ai-chat-input-composer.has-ghost-suggestion {
+  color: transparent;
+  caret-color: var(--text-primary);
+}
+
+.ai-chat-input-ghost-suggestion {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 0 calc(17px * var(--ui-font-scale, 1));
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: left;
+  font: inherit;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-style: italic;
+  cursor: text;
+  overflow: hidden;
+}
+
+.ai-chat-input-ghost-prefix {
+  flex: 0 0 auto;
+  font-size: inherit;
+  font-weight: 500;
+  font-style: inherit;
+  letter-spacing: 0;
+  color: inherit;
+}
+
+.ai-chat-input-ghost-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: inherit;
+  font-weight: 500;
+  font-style: inherit;
+}
+
+.ai-chat-composer-send-btn {
+  width: calc(42px * var(--ui-font-scale, 1));
+  min-width: calc(42px * var(--ui-font-scale, 1));
+  height: calc(42px * var(--ui-font-scale, 1));
+  padding: 0;
+  border-radius: var(--radius-pill);
+  box-shadow: none;
+  align-self: center;
+  transition: border-color 0.14s ease, background 0.14s ease, color 0.14s ease, transform 0.14s ease, box-shadow 0.14s ease;
+}
+
+.ai-chat-composer-send-btn {
+  border: 1px solid color-mix(in srgb, var(--header-accent) 30%, transparent);
+  background: color-mix(in srgb, var(--header-accent) 90%, var(--state-success-solid));
+  color: var(--text-on-solid);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--header-accent) 18%, transparent);
+}
+
+.ai-chat-composer-send-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--header-accent) 38%, transparent);
+  background: color-mix(in srgb, var(--header-accent) 96%, var(--state-success-solid));
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--header-accent) 24%, transparent);
+}
+
+.ai-chat-composer-send-btn.is-streaming {
+  width: auto;
+  min-width: calc(56px * var(--ui-font-scale, 1));
+  padding-inline: calc(14px * var(--ui-font-scale, 1));
+  font-family: var(--font-chat);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 600;
+}
+
+/* ── Dark theme overrides ── */
+:root[data-theme='dark'] .ai-chat-composer-shortcut,
+:root[data-theme='dark'] .ai-chat-input.ai-chat-input-composer {
+  background: color-mix(in srgb, var(--surface-panel) 84%, transparent);
+  border-color: var(--border-soft);
+}
+
+:root[data-theme='dark'] .ai-chat-composer-shortcut:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--header-accent) 18%, var(--surface-panel));
+}

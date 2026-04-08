@@ -15,18 +15,18 @@
 .lexicon-workspace-summary-meta {
   display: inline-flex;
   align-items: center;
-  border: 1px solid color-mix(in srgb, var(--panel-border, #d6d6d6) 85%, transparent);
-  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 85%, transparent);
+  border-radius: var(--radius-pill);
   padding: 4px 10px;
-  font-size: 12px;
-  color: var(--text-secondary, #5f6368);
-  background: color-mix(in srgb, var(--panel-surface, #ffffff) 92%, #f4efe4 8%);
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--surface-panel) 92%, #f4efe4 8%);
   width: fit-content;
 }
 
 .lexicon-workspace-summary {
   margin: 0;
-  color: var(--text-secondary, #5f6368);
+  color: var(--text-secondary);
 }
 
 .lexicon-workspace-layout {
@@ -57,17 +57,17 @@
   flex-direction: column;
   gap: 6px;
   width: 100%;
-  border: 1px solid var(--panel-border, #d6d6d6);
-  border-radius: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-xl);
   padding: 12px 14px;
-  background: var(--panel-surface, #ffffff);
+  background: var(--surface-panel);
   color: inherit;
   text-align: left;
 }
 
 .lexicon-workspace-list-item-active {
-  border-color: var(--accent-color, #5f6fff);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-color, #5f6fff) 30%, transparent);
+  border-color: var(--header-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--header-accent) 30%, transparent);
 }
 
 .lexicon-workspace-list-label {
@@ -78,8 +78,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px 12px;
-  font-size: 12px;
-  color: var(--text-secondary, #5f6368);
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
 }
 
 .lexicon-workspace-detail-column {
@@ -97,14 +97,14 @@
 
 .lexicon-workspace-detail-grid div {
   border: 1px solid color-mix(in srgb, var(--panel-border, #d6d6d6) 85%, transparent);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 10px 12px;
-  background: color-mix(in srgb, var(--panel-surface, #ffffff) 96%, #eef3f8 4%);
+  background: color-mix(in srgb, var(--panel-surface, var(--surface-panel)) 96%, #eef3f8 4%);
 }
 
 .lexicon-workspace-detail-grid dt {
   margin: 0 0 4px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   color: var(--text-secondary, #5f6368);
 }
 

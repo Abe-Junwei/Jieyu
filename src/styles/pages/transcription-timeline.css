@@ -25,8 +25,8 @@
 
 .timeline-lasso-rect {
   position: absolute;
-  border: 1.5px dashed rgba(69, 121, 245, 0.7);
-  background: rgba(69, 121, 245, 0.10);
+  border: 1.5px dashed color-mix(in srgb, var(--state-info-solid) 70%, transparent);
+  background: color-mix(in srgb, var(--state-info-solid) 10%, transparent);
   border-radius: 2px;
   pointer-events: none;
   z-index: var(--z-header);
@@ -91,7 +91,7 @@
 .transcription-waveform-resize-dots {
   width: 34px;
   height: 3px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--text-secondary);
   position: relative;
 }
@@ -103,7 +103,7 @@
   left: 0;
   width: 100%;
   height: 3px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--text-secondary);
 }
 
@@ -137,21 +137,21 @@
   right: 0;
   bottom: 3px;
   height: 2px;
-  background: rgba(148, 163, 184, 0);
+  background: color-mix(in srgb, var(--text-tertiary) 0%, transparent);
   transition: background-color 140ms ease;
   border-radius: 1px;
 }
 
 .timeline-lane:hover .timeline-lane-resize-handle::after,
 .timeline-lane-resizing .timeline-lane-resize-handle::after {
-  background: rgba(59, 130, 246, 0.65);
+  background: color-mix(in srgb, var(--state-info-solid) 65%, transparent);
 }
 
 .timeline-lane-row-dragging {
   transform: translateY(var(--timeline-lane-drag-offset, 0px));
   z-index: var(--z-overlay);
   will-change: transform;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--shadow-color) 14%, transparent);
   filter: saturate(1.02);
   transition: none;
 }
@@ -169,8 +169,8 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.22), rgba(59, 130, 246, 0.95) 18%, rgba(59, 130, 246, 0.95) 82%, rgba(59, 130, 246, 0.22));
-  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.16), 0 0 14px rgba(59, 130, 246, 0.22);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--state-info-solid) 22%, transparent), color-mix(in srgb, var(--state-info-solid) 95%, transparent) 18%, color-mix(in srgb, var(--state-info-solid) 95%, transparent) 82%, color-mix(in srgb, var(--state-info-solid) 22%, transparent));
+  box-shadow: 0 0 0 1px color-mix(in srgb, rgb(96 165 250) 16%, transparent), 0 0 14px color-mix(in srgb, var(--state-info-solid) 22%, transparent);
   pointer-events: none;
   z-index: calc(var(--z-overlay) + 1);
 }
@@ -184,19 +184,19 @@
 }
 
 .timeline-lane-bundle-target {
-  background: linear-gradient(180deg, rgba(59, 130, 246, 0.08), rgba(96, 165, 250, 0.14));
-  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.14);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-solid) 8%, transparent), color-mix(in srgb, rgb(96 165 250) 14%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, rgb(96 165 250) 14%, transparent);
 }
 
 .timeline-lane-bundle-target .timeline-lane-label {
-  background: linear-gradient(180deg, rgba(239, 246, 255, 0.96), rgba(219, 234, 254, 0.92));
-  border-right-color: rgba(96, 165, 250, 0.34);
+  background: linear-gradient(180deg, color-mix(in srgb, rgb(239 246 255) 96%, transparent), color-mix(in srgb, rgb(219 234 254) 92%, transparent));
+  border-right-color: color-mix(in srgb, rgb(96 165 250) 34%, transparent);
   color: var(--text-secondary);
-  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.12);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, rgb(96 165 250) 12%, transparent);
 }
 
 .timeline-lane-bundle-target .timeline-lane-label::after {
-  background: rgba(96, 165, 250, 0.32);
+  background: color-mix(in srgb, rgb(96 165 250) 32%, transparent);
 }
 
 /* ─── Bundle 层级连接线 | Bundle hierarchy connector ─── */
@@ -235,8 +235,8 @@
 }
 
 .lane-link-connector {
-  --lane-link-color: rgba(100, 116, 139, 0.54);
-  --lane-link-color-active: rgba(71, 85, 105, 0.78);
+  --lane-link-color: color-mix(in srgb, rgb(100 116 139) 54%, transparent);
+  --lane-link-color-active: color-mix(in srgb, rgb(71 85 105) 78%, transparent);
   --lane-link-stroke: 1px;
   --lane-link-marker-size: 7px;
   --lane-link-root-elbow: 14px;
@@ -281,7 +281,7 @@
   width: 5px;
   height: 5px;
   background: var(--lane-link-color);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   opacity: 0.82;
 }
 
@@ -397,17 +397,17 @@
 }
 
 .timeline-lane-translation {
-  background: rgba(16, 185, 129, 0.04);
+  background: color-mix(in srgb, var(--state-success-solid) 4%, transparent);
 }
 
 .timeline-lane-translation .timeline-text-item {
   background: transparent;
-  border-color: rgba(15, 157, 88, 0.18);
+  border-color: color-mix(in srgb, rgb(15 157 88) 18%, transparent);
 }
 
 .timeline-lane-translation .timeline-text-item:hover {
   background: transparent;
-  border-color: rgba(15, 157, 88, 0.30);
+  border-color: color-mix(in srgb, rgb(15 157 88) 30%, transparent);
 }
 
 .timeline-lane-translation .timeline-text-item-active {
@@ -416,13 +416,13 @@
 }
 
 .timeline-lane-focused {
-  background: linear-gradient(180deg, rgba(191, 219, 254, 0.24) 0%, rgba(219, 234, 254, 0.22) 100%);
-  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.24);
+  background: linear-gradient(180deg, color-mix(in srgb, rgb(191 219 254) 24%, transparent) 0%, color-mix(in srgb, rgb(219 234 254) 22%, transparent) 100%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 24%, transparent);
 }
 
 .timeline-lane-focused .timeline-lane-label {
   color: var(--state-info-solid);
-  border-right-color: rgba(59, 130, 246, 0.38);
+  border-right-color: color-mix(in srgb, var(--state-info-solid) 38%, transparent);
   background: linear-gradient(180deg, var(--state-info-bg) 0%, var(--state-info-border) 100%);
 }
 
@@ -433,7 +433,7 @@
 
 .timeline-lane-collapsed {
   cursor: pointer;
-  background: linear-gradient(180deg, rgba(226, 232, 240, 0.42) 0%, rgba(241, 245, 249, 0.38) 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, rgb(226 232 240) 42%, transparent) 0%, color-mix(in srgb, rgb(241 245 249) 38%, transparent) 100%);
 }
 
 .timeline-lane-collapsed.timeline-lane-text-only {
@@ -456,24 +456,24 @@
   z-index: var(--z-overlay-base);
   pointer-events: auto;
   cursor: pointer;
-  border: 1px solid rgba(245, 158, 11, 0.45);
-  background: rgba(255, 247, 237, 0.92);
+  border: 1px solid color-mix(in srgb, var(--state-warning-solid) 45%, transparent);
+  background: color-mix(in srgb, rgb(255 247 237) 92%, transparent);
   color: var(--state-warning-text);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0 6px;
-  font-size: 10px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
   line-height: 14px;
   font-weight: 700;
   white-space: nowrap;
 }
 
 .timeline-lane-overlap-hint:hover {
-  border-color: rgba(245, 158, 11, 0.65);
-  background: rgba(255, 237, 213, 0.96);
+  border-color: color-mix(in srgb, var(--state-warning-solid) 65%, transparent);
+  background: color-mix(in srgb, rgb(255 237 213) 96%, transparent);
 }
 
 .timeline-lane-overlap-hint:focus-visible {
-  outline: 2px solid rgba(59, 130, 246, 0.65);
+  outline: 2px solid color-mix(in srgb, var(--state-info-solid) 65%, transparent);
   outline-offset: 1px;
 }
 
@@ -532,14 +532,14 @@
 }
 
 .timeline-lane-flash {
-  background: linear-gradient(180deg, rgba(219, 234, 254, 0.5) 0%, rgba(191, 219, 254, 0.45) 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, rgb(219 234 254) 50%, transparent) 0%, color-mix(in srgb, rgb(191 219 254) 45%, transparent) 100%);
 }
 
 .timeline-lane-flash .timeline-lane-label {
-  border-right-color: rgba(37, 99, 235, 0.45);
+  border-right-color: color-mix(in srgb, rgb(37 99 235) 45%, transparent);
   background: linear-gradient(180deg, var(--state-info-bg) 0%, var(--state-info-border) 100%);
   color: var(--state-info-solid);
-  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.32);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, rgb(37 99 235) 32%, transparent);
 }
 
 /* Timeline lane header (interactive label area) */
@@ -571,7 +571,7 @@
   bottom: 0;
   border-radius: 0;
   background: transparent;
-  border: 1px solid rgba(26, 115, 232, 0.20);
+  border: 1px solid color-mix(in srgb, var(--state-info-solid) 20%, transparent);
   overflow: visible;
   cursor: pointer;
   display: flex;
@@ -619,7 +619,7 @@
 
 .timeline-annotation:hover {
   background: transparent;
-  border-color: rgba(26, 115, 232, 0.30);
+  border-color: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
 }
 
 .timeline-annotation > span:not(.timeline-annotation-speaker-badge) {
@@ -653,7 +653,7 @@
   height: 14px;
   line-height: 14px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.64rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -680,9 +680,9 @@
   top: 3px;
   right: 6px;
   padding: 0 4px;
-  border-radius: 999px;
-  border: 1px solid rgba(37, 99, 235, 0.45);
-  background: rgba(219, 234, 254, 0.92);
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, rgb(37 99 235) 45%, transparent);
+  background: color-mix(in srgb, rgb(219 234 254) 92%, transparent);
   color: var(--state-info-solid);
   font-size: 0.62rem;
   font-weight: 700;
@@ -692,7 +692,7 @@
 
 .timeline-annotation-selected {
   background: transparent;
-  border-color: rgba(26, 115, 232, 0.30);
+  border-color: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
   z-index: var(--z-base);
 }
 
@@ -704,30 +704,30 @@
 
 /* 低置信度语段着色 | Low-confidence segment highlight */
 .timeline-annotation-confidence-mid {
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.55);
+  background: color-mix(in srgb, var(--state-warning-solid) 12%, transparent);
+  border-color: color-mix(in srgb, var(--state-warning-solid) 55%, transparent);
 }
 
 .timeline-annotation-confidence-mid::after {
   content: '';
   position: absolute;
   inset: 0;
-  border-top: 2px solid rgba(245, 158, 11, 0.65);
-  border-radius: 8px;
+  border-top: 2px solid color-mix(in srgb, var(--state-warning-solid) 65%, transparent);
+  border-radius: var(--radius-md);
   pointer-events: none;
 }
 
 .timeline-annotation-confidence-low {
-  background: rgba(239, 68, 68, 0.11);
-  border-color: rgba(239, 68, 68, 0.55);
+  background: color-mix(in srgb, rgb(239 68 68) 11%, transparent);
+  border-color: color-mix(in srgb, rgb(239 68 68) 55%, transparent);
 }
 
 .timeline-annotation-confidence-low::after {
   content: '';
   position: absolute;
   inset: 0;
-  border-top: 2px solid rgba(239, 68, 68, 0.70);
-  border-radius: 8px;
+  border-top: 2px solid color-mix(in srgb, rgb(239 68 68) 70%, transparent);
+  border-radius: var(--radius-md);
   pointer-events: none;
 }
 
@@ -757,7 +757,7 @@
 .timeline-annotation-input:focus {
   background: var(--surface-panel);
   border-color: var(--state-info-solid);
-  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.16);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-solid) 16%, transparent);
 }
 
 .timeline-annotation-has-tools .timeline-annotation-input {
@@ -802,7 +802,7 @@
   height: var(--timeline-lane-content-height, 42px);
   border-radius: 0;
   background: transparent;
-  border: 1px solid rgba(26, 115, 232, 0.18);
+  border: 1px solid color-mix(in srgb, var(--state-info-solid) 18%, transparent);
   cursor: pointer;
   overflow: hidden;
   transition: background 0.12s, border-color 0.12s;
@@ -821,7 +821,7 @@
   height: 14px;
   line-height: 14px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.64rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -851,13 +851,13 @@
 
 .timeline-text-item.timeline-text-item-editing {
   opacity: 1;
-  border-color: rgba(26, 115, 232, 0.56);
-  box-shadow: inset 0 0 0 1px rgba(26, 115, 232, 0.18);
+  border-color: color-mix(in srgb, var(--state-info-solid) 56%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 18%, transparent);
 }
 
 .timeline-text-item:hover {
   background: transparent;
-  border-color: rgba(26, 115, 232, 0.30);
+  border-color: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
 }
 
 .timeline-text-item-active {
@@ -871,7 +871,7 @@
   right: 6px;
   width: 7px;
   height: 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   pointer-events: none;
   z-index: var(--z-overlay-base);
 }
@@ -888,7 +888,7 @@
 }
 
 .timeline-text-item-status-dot-action:focus-visible {
-  outline: 2px solid rgba(37, 99, 235, 0.55);
+  outline: 2px solid color-mix(in srgb, rgb(37 99 235) 55%, transparent);
   outline-offset: 2px;
 }
 
@@ -943,7 +943,7 @@
 .timeline-text-input:focus {
   background: var(--surface-panel);
   border-color: var(--state-info-solid);
-  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.16);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-solid) 16%, transparent);
 }
 
 .timeline-text-item-has-tools .timeline-text-input {
@@ -1111,14 +1111,152 @@
   position: fixed;
   z-index: var(--z-timeline-tooltip);
   transform: translate(-50%, -100%);
-  background: rgba(15, 23, 42, 0.86);
+  background: color-mix(in srgb, var(--shadow-color) 86%, transparent);
   color: var(--surface-elevated);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.3;
   pointer-events: none;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   box-shadow: none;
+}
+/* ── Time ruler (from ai-hub.css) ── */
+/* ── Time ruler (ELAN-style adaptive) ───────────── */
+.time-ruler {
+  position: relative;
+  height: 28px;
+  max-width: 100%;
+  flex-shrink: 0;
+  border-top: 1px solid var(--text-secondary);
+  background: color-mix(in srgb, var(--surface-header) 84%, transparent);
+  user-select: none;
+  overflow: visible;
+  z-index: calc(var(--z-timeline-sticky) + 2);
+}
+
+/* 时间尺同位分隔线，保持上下视觉连续 | Matching separator on ruler for vertical continuity */
+.time-ruler::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--lane-label-width);
+  width: 1px;
+  background: var(--border-soft);
+  pointer-events: none;
+  z-index: var(--z-overlay-base);
+}
+
+.time-ruler-lane-toggle {
+  position: absolute;
+  left: calc(var(--lane-label-width) + 2px);
+  top: 1px;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 16px;
+  border: 1px solid color-mix(in srgb, rgb(100 116 139) 45%, transparent);
+  border-radius: 5px;
+  background: color-mix(in srgb, rgb(255 255 255) 94%, transparent);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  z-index: calc(var(--z-timeline-sticky) + 3);
+  transition: left 220ms cubic-bezier(0.22, 0.61, 0.36, 1), background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+/* 拖拽调整 lane-label 宽度期间禁用 left transition | Disable left transition during lane-label resize drag */
+.lane-label-resizing .time-ruler-lane-toggle {
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.time-ruler-lane-toggle:hover {
+  border-color: color-mix(in srgb, rgb(37 99 235) 36%, transparent);
+  background: var(--state-info-bg);
+  box-shadow: 0 2px 6px color-mix(in srgb, rgb(30 64 175) 10%, transparent);
+}
+
+.time-ruler-lane-toggle:focus-visible {
+  outline: 2px solid var(--state-info-border);
+  outline-offset: 1px;
+}
+
+.time-ruler-lane-toggle-triangle {
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: border-color 160ms ease;
+}
+
+.time-ruler-lane-toggle-triangle-left {
+  border-right: 6px solid var(--text-secondary);
+  margin-left: -1px;
+}
+
+.time-ruler-lane-toggle-triangle-right {
+  border-left: 6px solid var(--text-secondary);
+  margin-right: -1px;
+}
+
+.time-ruler-lane-toggle:hover .time-ruler-lane-toggle-triangle-left {
+  border-right-color: var(--state-info-solid);
+}
+
+.time-ruler-lane-toggle:hover .time-ruler-lane-toggle-triangle-right {
+  border-left-color: var(--state-info-solid);
+}
+
+/* 时间尺内容偏移，与波形区域对齐 | Time ruler inner offset aligned with waveform area */
+.time-ruler-inner {
+  position: relative;
+  height: 100%;
+  margin-left: var(--lane-label-width);
+  cursor: grab;
+}
+
+.time-ruler-inner:active {
+  cursor: grabbing;
+}
+
+.time-ruler-tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 6px;
+  background: var(--text-secondary);
+  pointer-events: none;
+}
+
+.time-ruler-tick-major {
+  height: 12px;
+  background: var(--text-secondary);
+}
+
+.time-ruler-label {
+  position: absolute;
+  top: 13px;
+  transform: translateX(2px);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.time-ruler-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--state-danger-solid);
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: var(--z-base);
+  transition: left 0.06s linear;
 }

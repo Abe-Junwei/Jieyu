@@ -4,9 +4,9 @@
   min-width: 0;
   padding: 12px;
   border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--shadow-color) 4%, transparent);
 }
 
 .panel-section--emphasis {
@@ -76,7 +76,7 @@
   min-height: 24px;
   padding: 2px 8px;
   border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--surface-panel) 96%, transparent);
   color: var(--text-secondary);
   font-size: calc(0.72rem * var(--ui-font-scale, 1));
@@ -105,9 +105,10 @@
 .panel-input {
   width: 100%;
   min-width: 0;
+  min-height: var(--input-h-md);
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-panel);
   color: var(--text-primary);
   font: inherit;
@@ -125,10 +126,10 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 32px;
+  min-height: var(--btn-h-md);
   padding: 6px 10px;
   border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-header) 74%, transparent);
   color: var(--text-primary);
   font: inherit;
@@ -189,7 +190,7 @@
   margin: 0;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   display: grid;
   gap: 8px;
 }
@@ -213,3 +214,98 @@
 .panel-radio input {
   margin: 2px 0 0;
 }
+
+.panel-button--sm      { min-height: var(--btn-h-sm); }
+.panel-button--compact { min-height: var(--btn-h-compact); border-radius: var(--radius-sm); }
+
+/* ── 紧凑徽章 | Compact tag ──────────────────────────────────── */
+.panel-tag {
+  display: inline-block;
+  width: fit-content;
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  font-size: calc(0.7rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+}
+
+/* ── 表单字段修饰 | Form field modifiers ──────────────────────── */
+.dialog-field--half { flex: 1 1 calc(50% - 6px); min-width: 120px; }
+.dialog-field--third { flex: 1 1 calc(33.3% - 6px); min-width: 100px; }
+
+.dialog-field-label {
+  font-size: calc(0.82rem * var(--ui-font-scale, 1));
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.dialog-field-hint {
+  margin: 0;
+  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.dialog-field-error {
+  margin: 0;
+  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  color: var(--state-danger-text);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* ── 操作按钮组 | Action button group ─────────────────────────── */
+.action-button-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-button-group--start { justify-content: flex-start; }
+.action-button-group--end { justify-content: flex-end; }
+.action-button-group--center { justify-content: center; }
+.action-button-group--space-between { justify-content: space-between; }
+.action-button-group--compact { gap: 4px; }
+
+/* ── 面板状态展示 | Panel state display ───────────────────────── */
+.panel-state-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  text-align: center;
+  min-height: 80px;
+}
+
+.panel-state-display-title {
+  font-size: calc(0.88rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.panel-state-display-desc {
+  margin: 0;
+  font-size: calc(0.82rem * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 36ch;
+}
+
+.panel-state-display--empty .panel-state-display-desc {
+  color: var(--text-secondary);
+}
+
+.panel-state-display--loading .panel-state-display-desc {
+  color: var(--state-success-text);
+}
+
+.panel-state-display--error .panel-state-display-desc {
+  color: var(--state-danger-text);
+}
+
+.panel-state-display-action {
+  margin-top: 4px;
+}
+

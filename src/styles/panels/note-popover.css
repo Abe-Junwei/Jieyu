@@ -5,7 +5,7 @@
   max-height: min(82vh, 720px);
   display: flex;
   flex-direction: column;
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
 }
 
 .note-popover-dialog {
@@ -64,7 +64,7 @@
 .note-popover-tag {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.68rem;
   font-weight: 500;
   cursor: pointer;
@@ -100,7 +100,7 @@
   width: 20px;
   height: 20px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
@@ -158,4 +158,74 @@
 
 .note-popover-btn {
   white-space: nowrap;
+}
+
+/* ── Note indicator (from ai-hub.css) ── */
+/* ── Note Indicator ─────────────────────────── */
+.note-indicator {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: color 0.15s, background 0.15s;
+}
+.note-indicator:hover {
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+}
+.note-indicator-active {
+  color: var(--state-warning-solid);
+}
+.note-indicator-active:hover {
+  color: var(--state-warning-text);
+}
+.note-indicator-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--state-warning-solid);
+  color: var(--surface-panel);
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 14px;
+  text-align: center;
+}
+
+/* ── Timeline annotation note icon ──────────── */
+.timeline-annotation-note-icon {
+  position: absolute;
+  bottom: 2px;
+  right: 10px;
+  display: block;
+  width: 16px;
+  height: 16px;
+  color: var(--state-info-border);
+  cursor: pointer;
+  z-index: var(--z-overlay);
+  opacity: 0.85;
+  transition: opacity 0.15s, color 0.15s;
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+
+.timeline-annotation-note-icon-active {
+  color: var(--state-info-border);
+  opacity: 0.88;
+}
+
+.timeline-annotation-note-icon:hover {
+  color: var(--state-info-border);
+  opacity: 1;
 }

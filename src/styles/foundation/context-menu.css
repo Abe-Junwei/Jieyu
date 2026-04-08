@@ -1,0 +1,237 @@
+/* 上下文菜单 | Context menu */
+/* Menu system exception: not subject to panel-design-match alignment. */
+.context-menu {
+  min-width: 180px;
+  max-height: min(72vh, 560px);
+  background: color-mix(in srgb, var(--surface-panel) 99%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 94%, transparent);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--shadow-color) 13%, transparent);
+  padding: 6px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: inherit;
+  font-weight: 520;
+  text-align: left;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.context-menu-item-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.context-menu-item-trailing {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+}
+
+.context-menu-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 78%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-elevated) 92%, transparent);
+  color: var(--text-secondary);
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.context-menu-item-selection {
+  position: relative;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.context-menu-item-selection-dot {
+  width: 8px;
+  height: 8px;
+  border: 1px solid color-mix(in srgb, var(--text-tertiary) 45%, transparent);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--surface-panel) 95%, transparent);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.context-menu-item-selection-dot.context-menu-item-selection-selected {
+  border-color: color-mix(in srgb, var(--state-info-solid) 50%, transparent);
+  background: var(--state-info-solid);
+}
+
+.context-menu-item-selection-check {
+  width: 12px;
+  height: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.context-menu-item-selection-check::before {
+  content: '✓';
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  line-height: 1;
+  font-weight: 700;
+  color: var(--state-info-solid);
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.context-menu-item-selection-check.context-menu-item-selection-selected::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.context-menu-item-meta {
+  color: var(--text-secondary);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.context-menu-item-category:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-header) 88%, transparent);
+}
+
+.context-menu-item-category .context-menu-item-icon {
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--surface-elevated) 96%, transparent);
+}
+
+.context-menu-danger .context-menu-item-icon {
+  color: currentColor;
+  border-color: color-mix(in srgb, rgb(220 38 38) 16%, transparent);
+  background: linear-gradient(180deg, var(--state-danger-bg) 0%, var(--state-danger-bg) 100%);
+  opacity: 0.92;
+}
+
+.context-menu-item-category .context-menu-item-meta {
+  color: var(--text-secondary);
+}
+
+.context-menu-item-separator-before {
+  position: relative;
+  margin-top: 4px;
+  padding-top: 9px;
+}
+
+.context-menu-item-separator-before::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 0;
+  border-top: 1px solid color-mix(in srgb, var(--text-tertiary) 20%, transparent);
+}
+
+.context-menu-item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-header) 90%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-soft) 60%, transparent);
+}
+.context-menu-item:hover:not(:disabled) .context-menu-item-selection-dot {
+  border-color: color-mix(in srgb, rgb(100 116 139) 60%, transparent);
+}
+.context-menu-item:hover:not(:disabled) .context-menu-item-selection-dot.context-menu-item-selection-selected {
+  border-color: color-mix(in srgb, rgb(29 78 216) 48%, transparent);
+  background: var(--state-info-solid);
+}
+.context-menu-item:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--surface-header) 92%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-border) 72%, transparent), 0 0 0 3px color-mix(in srgb, var(--state-info-solid) 10%, transparent);
+}
+.context-menu-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.context-menu-danger {
+  color: var(--state-danger-solid);
+}
+.context-menu-shortcut {
+  margin-left: 24px;
+  color: var(--text-secondary);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+}
+.context-menu-caret {
+  margin-left: 24px;
+  color: var(--text-secondary);
+  font-size: calc(12px * var(--ui-font-scale, 1));
+}
+.context-menu-submenu {
+  min-width: 200px;
+  max-height: min(72vh, 520px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.context-menu-submenu-export {
+  max-height: 220px;
+}
+
+.context-menu-search {
+  padding: 6px 8px 8px;
+}
+
+.context-menu-search-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.context-menu-search-title {
+  color: var(--text-secondary);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.context-menu-search-input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
+  color: var(--text-primary);
+  font: inherit;
+  outline: none;
+}
+
+.context-menu-search-input:focus {
+  border-color: var(--state-info-border);
+  background: var(--surface-panel);
+  box-shadow: 0 0 0 3px color-mix(in srgb, rgb(96 165 250) 18%, transparent);
+}
+
+.context-menu-search-input::placeholder {
+  color: var(--text-secondary);
+}

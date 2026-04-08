@@ -1,0 +1,1175 @@
+/* 语音代理组件 | Voice agent widget */
+/* ── Voice Agent Widget ── */
+
+:root {
+  --voice-confidence-high: var(--state-success-solid);
+  --voice-confidence-mid: var(--state-warning-solid);
+  --voice-confidence-low: var(--state-danger-solid);
+}
+
+:root[data-theme='dark'] {
+  --voice-confidence-high: var(--state-success-text);
+  --voice-confidence-mid: var(--state-warning-solid);
+  --voice-confidence-low: var(--state-danger-text);
+}
+
+.voice-agent-widget {
+  position: relative;
+  width: 100%;
+}
+
+.voice-agent-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+}
+
+.voice-agent-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voice-agent-header-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.voice-agent-header-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.voice-agent-status-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.voice-agent-state-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.voice-agent-state-badge-idle {
+  background: color-mix(in srgb, var(--text-tertiary) 14%, transparent);
+  color: var(--text-secondary);
+}
+
+.voice-agent-state-badge-listening {
+  background: color-mix(in srgb, var(--state-success-solid) 14%, transparent);
+  color: var(--state-success-text);
+  border-color: color-mix(in srgb, var(--state-success-solid) 20%, transparent);
+}
+
+.voice-agent-state-badge-routing {
+  background: color-mix(in srgb, rgb(234 179 8) 14%, transparent);
+  color: var(--state-warning-text);
+  border-color: color-mix(in srgb, rgb(234 179 8) 20%, transparent);
+}
+
+.voice-agent-state-badge-executing {
+  background: color-mix(in srgb, var(--state-info-solid) 14%, transparent);
+  color: var(--state-info-solid);
+  border-color: color-mix(in srgb, var(--state-info-solid) 20%, transparent);
+}
+
+.voice-agent-environment-line {
+  margin-top: 2px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.voice-agent-disclosure-toggle,
+.voice-agent-disclosure-header {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.voice-agent-disclosure-toggle {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 10px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+}
+
+.voice-agent-disclosure-header {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 700;
+}
+
+.voice-agent-disclosure-toggle:hover,
+.voice-agent-disclosure-header:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.voice-agent-disclosure-toggle svg:last-child,
+.voice-agent-disclosure-header svg:last-child {
+  transition: transform 0.14s ease;
+}
+
+.voice-agent-disclosure-toggle.is-open svg:last-child,
+.voice-agent-disclosure.is-open .voice-agent-disclosure-header svg:last-child {
+  transform: rotate(180deg);
+}
+
+.voice-agent-mode-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: color-mix(in srgb, var(--shadow-color) 4%, transparent);
+  border-radius: var(--radius-lg);
+  width: fit-content;
+}
+
+:root[data-theme='dark'] .voice-agent-mode-bar {
+  background: color-mix(in srgb, rgb(255 255 255) 6%, transparent);
+}
+
+.voice-agent-mode-btn {
+  min-width: calc(58px * var(--ui-font-scale, 1));
+  height: 30px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.voice-agent-mode-btn:hover {
+  background: color-mix(in srgb, var(--shadow-color) 6%, transparent);
+}
+
+:root[data-theme='dark'] .voice-agent-mode-btn:hover {
+  background: color-mix(in srgb, rgb(255 255 255) 8%, transparent);
+}
+
+.voice-agent-mode-btn-active {
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+}
+
+.transcription-voice-dock {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: var(--z-modal-backdrop);
+  width: min(516px, calc(100vw - 18px));
+  padding: 10px 12px 12px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 78%, var(--state-info-border) 22%);
+  border-radius: 22px;
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--shadow-color) 20%, transparent), 0 4px 10px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+  backdrop-filter: blur(8px);
+  background:
+    radial-gradient(110% 120% at 100% 0%, color-mix(in srgb, var(--state-info-solid) 16%, transparent), color-mix(in srgb, var(--state-info-solid) 0%, transparent) 52%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 93%, var(--state-info-bg) 7%), var(--surface-panel));
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  position: fixed;
+  overflow: visible;
+}
+
+.transcription-voice-dock::before {
+  content: '';
+  position: absolute;
+  top: 14%;
+  right: -10px;
+  width: 10px;
+  height: 72%;
+  border-radius: 0 12px 12px 0;
+  background: linear-gradient(180deg, color-mix(in srgb, rgb(14 165 233) 34%, transparent), color-mix(in srgb, rgb(14 165 233) 6%, transparent));
+  opacity: 0.72;
+}
+
+.transcription-voice-bubble {
+  --bubble-offset-x: 0px;
+  position: fixed;
+  z-index: var(--z-modal-backdrop);
+  width: 62px;
+  height: 62px;
+  padding: 0;
+  gap: 0;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 72%, var(--state-info-border) 28%);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--shadow-color) 22%, transparent), 0 4px 10px color-mix(in srgb, var(--shadow-color) 15%, transparent);
+  background:
+    radial-gradient(140% 120% at 100% 0%, color-mix(in srgb, rgb(14 165 233) 28%, transparent), color-mix(in srgb, rgb(14 165 233) 0%, transparent) 56%),
+    var(--surface-panel);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: none;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-radius 0.18s ease;
+  transform: translateX(var(--bubble-offset-x));
+}
+
+.transcription-voice-bubble:hover {
+  transform: translateX(var(--bubble-offset-x)) translateY(-2px) scale(1.015);
+}
+
+.transcription-voice-bubble.transcription-voice-dragging {
+  opacity: 0.86;
+  transform: translateX(var(--bubble-offset-x)) scale(1.06);
+}
+
+.transcription-voice-bubble-edge {
+  --bubble-offset-x: 9px;
+  border-top-right-radius: 14px;
+  border-bottom-right-radius: 14px;
+}
+
+.transcription-voice-bubble-active {
+  color: var(--state-danger-solid);
+  border-color: color-mix(in srgb, rgb(239 68 68) 45%, transparent);
+  box-shadow: 0 14px 28px color-mix(in srgb, rgb(239 68 68) 22%, transparent), 0 4px 10px color-mix(in srgb, var(--shadow-color) 15%, transparent);
+}
+
+.transcription-voice-bubble-dot {
+  position: absolute;
+  top: 11px;
+  right: 11px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.transcription-voice-bubble-dot-active {
+  background: var(--state-danger-solid);
+  box-shadow: 0 0 0 4px color-mix(in srgb, rgb(239 68 68) 18%, transparent);
+  animation: voiceBubbleDotPulse 1.1s ease-in-out infinite;
+}
+
+@keyframes voiceBubbleDotPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+:root[data-theme='dark'] .transcription-voice-dock {
+  border-color: color-mix(in srgb, var(--border-soft) 64%, var(--state-info-border) 36%);
+  box-shadow: 0 16px 34px color-mix(in srgb, rgb(2 6 23) 50%, transparent), 0 4px 12px color-mix(in srgb, rgb(2 6 23) 36%, transparent);
+  background:
+    radial-gradient(110% 120% at 100% 0%, color-mix(in srgb, rgb(56 189 248) 22%, transparent), color-mix(in srgb, rgb(56 189 248) 0%, transparent) 54%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 88%, var(--surface-overlay) 12%), var(--surface-panel));
+}
+
+.transcription-voice-dock-idle {
+  width: fit-content;
+  max-width: min(432px, calc(100vw - 24px));
+}
+
+.transcription-voice-dock-idle .voice-agent-shell {
+  gap: 8px;
+  padding: 0;
+}
+
+.transcription-voice-dock-active {
+  transform: translateY(0);
+}
+
+.transcription-voice-dock:hover {
+  transform: translateY(-2px);
+}
+
+.transcription-voice-dock.transcription-voice-dragging {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.voice-agent-mic-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(52px * var(--ui-font-scale, 1));
+  height: 52px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-soft);
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+  cursor: pointer;
+  touch-action: none;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.voice-agent-mic-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.voice-agent-mic-btn-active {
+  border-color: var(--state-danger-solid);
+  color: var(--state-danger-solid);
+  background: color-mix(in srgb, rgb(239 68 68) 8%, transparent);
+  animation: voicePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes voicePulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, rgb(239 68 68) 30%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, rgb(239 68 68) 0%, transparent); }
+}
+
+@keyframes recordingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.voice-agent-mic-btn-recording {
+  border-color: var(--state-danger-solid);
+  color: var(--state-danger-solid);
+  background: color-mix(in srgb, rgb(220 38 38) 12%, transparent);
+  animation: voicePulse 0.8s ease-in-out infinite;
+}
+
+.voice-agent-recording-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: color-mix(in srgb, rgb(220 38 38) 10%, transparent);
+  border-radius: var(--radius-xl);
+  border: 1px solid color-mix(in srgb, rgb(220 38 38) 30%, transparent);
+}
+
+.voice-agent-recording-dot {
+  width: calc(7px * var(--ui-font-scale, 1));
+  height: 7px;
+  border-radius: 50%;
+  background: var(--state-danger-solid);
+  animation: recordingPulse 1s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.voice-agent-recording-time {
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-variant-numeric: tabular-nums;
+  color: var(--state-danger-solid);
+  font-weight: 500;
+}
+
+.voice-agent-energy-bar {
+  width: calc(52px * var(--ui-font-scale, 1));
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--shadow-color) 10%, transparent);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+:root[data-theme='dark'] .voice-agent-energy-bar {
+  background: color-mix(in srgb, rgb(255 255 255) 10%, transparent);
+}
+
+.voice-agent-energy-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--state-success-solid), var(--state-warning-solid), var(--state-danger-solid));
+  background-size: 200% 100%;
+  transition: width 0.08s linear;
+  max-width: 100%;
+}
+
+.voice-agent-session-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius-2xl);
+  border: 1.5px solid var(--border-soft);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 94%, var(--state-info-bg) 6%), var(--surface-panel));
+  transition: border-color 0.2s ease, background 0.2s ease;
+  overflow: hidden;
+}
+
+.voice-agent-session-card-command {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 92%, var(--state-info-bg) 8%), var(--surface-panel));
+}
+
+.voice-agent-session-card-dictation {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 90%, var(--state-success-bg) 10%), var(--surface-panel));
+}
+
+.voice-agent-session-card-analysis {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 92%, var(--state-info-bg) 8%), var(--surface-panel));
+}
+
+.voice-agent-session-card.is-empty {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 96%, var(--surface-elevated) 4%), var(--surface-panel));
+}
+
+.voice-agent-session-card.is-live {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, rgb(255 255 255) 20%, transparent), 0 8px 18px color-mix(in srgb, var(--shadow-color) 5%, transparent);
+}
+
+.voice-agent-session-card.is-live::before {
+  content: '';
+  display: block;
+  height: 3px;
+  margin: -12px -12px 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--state-info-solid) 65%, transparent), color-mix(in srgb, var(--state-success-solid) 65%, transparent));
+}
+
+.voice-agent-session-card-dictation.is-live::before {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--state-success-solid) 80%, transparent), color-mix(in srgb, var(--state-success-solid) 60%, transparent));
+}
+
+.voice-agent-session-card-analysis.is-live::before {
+  background: linear-gradient(90deg, color-mix(in srgb, rgb(168 85 247) 78%, transparent), color-mix(in srgb, rgb(99 102 241) 58%, transparent));
+}
+
+.voice-agent-session-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.voice-agent-session-kicker {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.voice-agent-session-note {
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+}
+
+.voice-agent-session-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.voice-agent-session-badge,
+.voice-agent-session-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.voice-agent-session-badge-command {
+  background: color-mix(in srgb, var(--state-info-solid) 12%, transparent);
+  color: var(--state-info-solid);
+}
+
+.voice-agent-session-badge-dictation {
+  background: color-mix(in srgb, var(--state-success-solid) 12%, transparent);
+  color: var(--state-success-text);
+}
+
+.voice-agent-session-badge-analysis {
+  background: color-mix(in srgb, rgb(168 85 247) 12%, transparent);
+  color: var(--state-info-solid);
+}
+
+.voice-agent-session-chip {
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-soft);
+}
+
+.voice-agent-session-signal-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-agent-session-body {
+  font-size: calc(14px * var(--ui-font-scale, 1));
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 44px;
+}
+
+.voice-agent-session-body.is-placeholder {
+  color: var(--text-secondary);
+}
+
+.voice-agent-interim {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.voice-agent-final {
+  color: var(--text-primary);
+}
+
+.voice-agent-session-target {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+}
+
+.voice-agent-session-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.voice-agent-session-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 10px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, rgb(255 255 255) 56%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-tertiary) 16%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, rgb(255 255 255) 35%, transparent);
+}
+
+:root[data-theme='dark'] .voice-agent-session-cell {
+  background: color-mix(in srgb, var(--shadow-color) 34%, transparent);
+  border-color: color-mix(in srgb, var(--text-tertiary) 14%, transparent);
+}
+
+.voice-agent-session-target-label {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.voice-agent-session-target-value {
+  min-width: 0;
+  line-height: 1.45;
+}
+
+@media (max-width: 840px) {
+  .voice-agent-header-main {
+    align-items: flex-start;
+  }
+
+  .voice-agent-disclosure-toggle {
+    margin-left: auto;
+  }
+
+  .voice-agent-session-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .voice-agent-session-heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.voice-agent-confidence {
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.voice-agent-notice-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voice-agent-confirm {
+  gap: 0;
+  width: 100%;
+  max-height: none;
+  overflow: hidden;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  color: var(--text-primary);
+}
+
+.voice-agent-confirm-header {
+  align-items: flex-start;
+}
+
+.voice-agent-confirm-header h3 {
+  color: var(--text-primary);
+}
+
+.voice-agent-confirm-body {
+  gap: 10px;
+}
+
+.voice-agent-confirm-label {
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.voice-agent-confirm-fuzzy {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+}
+
+.voice-agent-confirm-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.voice-agent-confirm-btn {
+  white-space: nowrap;
+}
+
+.voice-agent-disambiguation {
+  background: var(--panel-design-surface-color);
+}
+
+.voice-agent-disambiguation-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voice-agent-disambiguation-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  text-align: left;
+}
+
+.voice-agent-disambiguation-score {
+  color: var(--state-warning-text);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 600;
+}
+
+/* 消歧面板 | Disambiguation panel */
+.voice-agent-disambig {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--state-warning-bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--state-warning-border);
+  font-size: calc(13px * var(--ui-font-scale, 1));
+}
+
+.voice-agent-error {
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  color: var(--state-danger-text);
+  padding: 10px 12px;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, rgb(254 226 226) 88%, transparent);
+  border: 1px solid color-mix(in srgb, rgb(239 68 68) 24%, transparent);
+}
+
+:root[data-theme='dark'] .voice-agent-error {
+  color: var(--state-danger-border);
+  background: color-mix(in srgb, rgb(127 29 29) 46%, transparent);
+}
+
+.voice-agent-disclosure-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voice-agent-disclosure {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--surface-panel) 96%, var(--state-info-bg) 4%);
+  overflow: hidden;
+}
+
+.voice-agent-disclosure-panel {
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.voice-agent-disclosure-title {
+  color: var(--text-primary);
+}
+
+.voice-agent-disclosure-title-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-agent-settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.voice-agent-provider-overview,
+.voice-agent-enhancement-config {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voice-agent-provider-overview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.voice-agent-provider-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-agent-provider-refresh-icon.spinning {
+  animation: voice-agent-spin 1s linear infinite;
+}
+
+.voice-agent-provider-status-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.voice-agent-provider-status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-panel) 94%, var(--state-info-bg) 6%);
+}
+
+.voice-agent-provider-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+  background: var(--text-tertiary);
+}
+
+.voice-agent-provider-status-dot-ok {
+  background: var(--state-success-solid);
+}
+
+.voice-agent-provider-status-dot-error {
+  background: var(--state-danger-solid);
+}
+
+.voice-agent-provider-status-dot-idle {
+  background: var(--text-tertiary);
+}
+
+.voice-agent-provider-status-name {
+  flex: 1;
+  min-width: 0;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--text-primary);
+}
+
+.voice-agent-provider-status-text {
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+}
+
+@keyframes voice-agent-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.voice-agent-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.voice-agent-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.voice-agent-field-label {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.voice-agent-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.voice-agent-safe-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.voice-agent-safe-toggle input[type="checkbox"] {
+  width: calc(16px * var(--ui-font-scale, 1));
+  height: 16px;
+  accent-color: var(--state-info-solid);
+}
+
+.voice-agent-safe-label {
+  white-space: nowrap;
+}
+
+.voice-agent-wakeword-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.voice-agent-wakeword-toggle input[type="checkbox"] {
+  width: calc(16px * var(--ui-font-scale, 1));
+  height: 16px;
+  accent-color: var(--state-info-solid);
+}
+
+.voice-agent-wakeword-label {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  white-space: nowrap;
+}
+
+.voice-agent-learning-count {
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  background: var(--voice-confidence-high, var(--state-success-solid));
+  color: var(--surface-panel);
+  border-radius: var(--radius-md);
+  padding: 0 4px;
+  min-width: calc(14px * var(--ui-font-scale, 1));
+  text-align: center;
+}
+
+.voice-agent-learning-panel {
+  background: transparent;
+}
+
+.voice-agent-learning-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.voice-agent-learning-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(18px * var(--ui-font-scale, 1));
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.voice-agent-learning-clear-btn:hover {
+  background: var(--error-bg, var(--state-danger-bg));
+  color: var(--error, var(--state-danger-solid));
+  border-color: var(--error, var(--state-danger-solid));
+}
+
+.voice-agent-learning-empty {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 8px 0;
+}
+
+.voice-agent-learning-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.voice-agent-learning-entry {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  padding: 2px 0;
+}
+
+.voice-agent-learning-phrase {
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-agent-learning-arrow {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.voice-agent-learning-action {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.voice-agent-learning-reason {
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  border-radius: 3px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+.voice-agent-learning-reason-updated {
+  background: var(--state-warning-bg);
+  color: var(--state-warning-text);
+}
+
+.voice-agent-learning-reason-conflict {
+  background: var(--state-danger-bg);
+  color: var(--state-danger-solid);
+}
+
+.voice-agent-learning-reason-unchanged {
+  background: var(--surface-raised);
+  color: var(--text-tertiary);
+}
+
+.voice-agent-learning-reason-empty {
+  background: var(--surface-raised);
+  color: var(--text-tertiary);
+}
+
+.voice-agent-wakeword-energy {
+  width: calc(56px * var(--ui-font-scale, 1));
+  height: 6px;
+  background: var(--bg-tertiary, var(--border-soft));
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.voice-agent-wakeword-energy-fill {
+  height: 100%;
+  background: var(--state-info-solid);
+  transition: width 80ms linear;
+}
+
+/* ARIA live region — visually hidden but readable by screen readers */
+.voice-agent-aria-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.voice-agent-vad-dot {
+  width: calc(10px * var(--ui-font-scale, 1));
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.voice-agent-vad-dot-active {
+  background: var(--state-success-solid);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--state-success-solid) 18%, transparent);
+  animation: voiceVadPulse 1.1s ease-in-out infinite;
+}
+
+@keyframes voiceVadPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.22); }
+}
+
+.voice-agent-lang-select {
+  width: fit-content;
+  inline-size: fit-content;
+  min-width: 12ch;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  padding: 6px 34px 6px 10px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.voice-agent-engine-select {
+  width: fit-content;
+  inline-size: fit-content;
+  min-width: 12ch;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  padding: 6px 34px 6px 10px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.voice-agent-insights-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.voice-agent-insights-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  padding: 4px;
+  background: color-mix(in srgb, var(--shadow-color) 4%, transparent);
+  border-radius: var(--radius-lg);
+}
+
+:root[data-theme='dark'] .voice-agent-insights-tabs {
+  background: color-mix(in srgb, rgb(255 255 255) 6%, transparent);
+}
+
+.voice-agent-insights-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.voice-agent-insights-tab.is-active {
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+}
+
+.voice-agent-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.voice-agent-history-entry {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 6px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--shadow-color) 3%, transparent);
+}
+
+:root[data-theme='dark'] .voice-agent-history-entry {
+  background: color-mix(in srgb, rgb(255 255 255) 4%, transparent);
+}
+
+.voice-agent-history-type {
+  flex-shrink: 0;
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+.voice-agent-history-type-action { background: color-mix(in srgb, var(--state-success-solid) 15%, transparent); color: var(--state-success-text); }
+.voice-agent-history-type-chat { background: color-mix(in srgb, var(--state-info-solid) 15%, transparent); color: var(--state-info-solid); }
+.voice-agent-history-type-dictation { background: color-mix(in srgb, rgb(168 85 247) 15%, transparent); color: var(--state-info-solid); }
+.voice-agent-history-type-tool { background: color-mix(in srgb, var(--state-warning-solid) 15%, transparent); color: var(--state-warning-text); }
+.voice-agent-history-text {
+  flex: 1;
+  color: var(--text-secondary, var(--text-secondary));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-agent-history-conf {
+  flex-shrink: 0;
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  color: var(--text-muted, var(--text-secondary));
+  font-variant-numeric: tabular-nums;
+}

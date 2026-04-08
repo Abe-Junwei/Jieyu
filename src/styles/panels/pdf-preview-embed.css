@@ -10,15 +10,15 @@
   max-height: 86vh;
   background: var(--surface-panel);
   border: 1px solid var(--state-info-border);
-  border-radius: 12px;
-  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.2);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 16px 42px color-mix(in srgb, var(--shadow-color) 20%, transparent);
   overflow: hidden;
   resize: both;
-  z-index: 420;
+  z-index: var(--z-floating-panel);
 }
 
 .transcription-pdf-preview-panel.is-dragging {
-  box-shadow: 0 20px 54px rgba(15, 23, 42, 0.3);
+  box-shadow: 0 20px 54px color-mix(in srgb, var(--shadow-color) 30%, transparent);
 }
 
 .transcription-pdf-preview-header {
@@ -39,7 +39,7 @@
 }
 
 .transcription-pdf-preview-title {
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
   line-height: 1;
   color: var(--text-primary);
   white-space: nowrap;
@@ -49,12 +49,12 @@
 }
 
 .transcription-pdf-preview-page-tag {
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   line-height: 1;
   color: var(--state-info-solid);
   background: var(--state-info-bg);
   border: 1px solid var(--state-info-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 4px 8px;
   white-space: nowrap;
 }
@@ -69,9 +69,9 @@
   border: 1px solid var(--state-info-border);
   background: var(--surface-panel);
   color: var(--text-primary);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 4px 9px;
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -91,9 +91,9 @@
   border: 1px solid var(--state-info-border);
   background: var(--surface-panel);
   color: var(--text-primary);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 600;
   cursor: pointer;
 }

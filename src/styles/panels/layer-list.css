@@ -1,0 +1,736 @@
+/* 层列表侧栏 | Layer list side pane */
+.transcription-side-pane-item-row-dragging {
+  transform: translateY(var(--transcription-side-pane-drag-offset, 0px)) scale(1.02);
+  z-index: var(--z-overlay);
+  will-change: transform;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--text-primary) 14%, transparent);
+  filter: saturate(1.02);
+  transition: none;
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+}
+
+.transcription-side-pane-item-row-boundary-highlight-top::before,
+.transcription-side-pane-item-row-boundary-highlight-bottom::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--state-info-solid) 16%, transparent), color-mix(in srgb, var(--state-info-solid) 92%, transparent) 16%, color-mix(in srgb, var(--state-info-solid) 92%, transparent) 84%, color-mix(in srgb, var(--state-info-solid) 16%, transparent));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--state-info-border) 12%, transparent), 0 0 12px color-mix(in srgb, var(--state-info-solid) 18%, transparent);
+  pointer-events: none;
+  z-index: calc(var(--z-overlay) + 1);
+}
+
+.transcription-side-pane-item-row-boundary-highlight-top::before {
+  top: -1px;
+}
+
+.transcription-side-pane-item-row-boundary-highlight-bottom::after {
+  bottom: -1px;
+}
+
+.transcription-side-pane-item-row-bundle-target {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-solid) 6%, transparent), color-mix(in srgb, var(--state-info-border) 12%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-border) 12%, transparent);
+}
+/* ── 层列表行 | Layer list rows ── */
+
+/* — 行按钮：flex 布局，chip + label 水平排列 | Row button — */
+.transcription-side-pane-item {
+  position: relative;
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-align: left;
+  cursor: grab;
+  transition: background-color 100ms ease;
+}
+
+/* — 行容器：底部分隔线 | Row wrapper with separator — */
+.transcription-side-pane-item-row {
+  position: relative;
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--text-primary) 6%, transparent);
+  transition: background-color 100ms ease;
+}
+
+.transcription-side-pane-item-row:last-child {
+  border-bottom: none;
+}
+
+.transcription-side-pane-item-row:hover {
+  background: transparent;
+}
+
+.transcription-side-pane-item:hover {
+  background: color-mix(in srgb, var(--surface-header) 84%, transparent);
+}
+
+.transcription-side-pane-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--state-info-solid) 55%, transparent);
+}
+
+/* — 类型 chip：写/译 小方块 | Type chip — */
+.transcription-side-pane-item-chip {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.transcription-side-pane-item-transcription .transcription-side-pane-item-chip {
+  background: var(--state-info-bg);
+  color: var(--state-info-solid);
+}
+
+.transcription-side-pane-item-translation .transcription-side-pane-item-chip {
+  background: var(--state-info-bg);
+  color: var(--state-info-solid);
+}
+
+/* — 依赖层缩进（翻译层 + 有parent的转写层）| Dependent row indent — */
+.transcription-side-pane-item-translation,
+.transcription-side-pane-item-dependent {
+  padding-left: 18px;
+}
+
+/* — label 区：名称 + 别名 | Label area — */
+.transcription-side-pane-item-label {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  flex: 1;
+}
+
+.transcription-side-pane-item-label strong {
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transcription-side-pane-item-label > span {
+  color: var(--text-secondary);
+  font-size: 0.6rem;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transcription-side-pane-item-alias {
+  color: var(--text-secondary);
+}
+
+.transcription-side-pane-item > span:not(.lane-link-stack):not(.transcription-side-pane-item-label):not(.transcription-side-pane-item-chip) {
+  display: none;
+}
+
+/* — 选中态：左侧竖条 + 底色 | Active state: left bar + tint — */
+.transcription-side-pane-item-active {
+  background: var(--state-info-bg);
+  box-shadow: inset 3px 0 0 var(--color-primary, var(--state-info-solid));
+}
+
+.transcription-side-pane-item-active .transcription-side-pane-item-label strong {
+  color: var(--state-info-solid);
+}
+
+.transcription-side-pane-item-active:hover {
+  background: var(--state-info-bg);
+}
+
+.transcription-side-pane-item-flash {
+  background: var(--state-info-bg);
+}
+
+/* — 拖拽源位置占位符 | Dragging placeholder — */
+.transcription-side-pane-item-dragging {
+  opacity: 0;
+  cursor: grabbing;
+  border: 2px dashed var(--text-secondary);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-header) 84%, transparent);
+  min-height: 32px;
+}
+
+/* — 拖拽手柄 | Drag handle — */
+.transcription-side-pane-item-drag-handle {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: grab;
+  flex-shrink: 0;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.transcription-side-pane-item:hover .transcription-side-pane-item-drag-handle {
+  opacity: 1;
+}
+
+.transcription-side-pane-item-dragging .transcription-side-pane-item-drag-handle {
+  cursor: grabbing;
+}
+
+/* — 插入指示器 | Drop indicator — */
+.transcription-side-pane-drop-indicator {
+  position: absolute;
+  top: -1px;
+  left: 4px;
+  right: 4px;
+  height: 3px;
+  background: var(--color-primary, var(--state-info-solid));
+  border-radius: 3px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.transcription-side-pane-drop-indicator::before,
+.transcription-side-pane-drop-indicator::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-primary, var(--state-info-solid));
+  transform: translateY(-50%);
+}
+
+.transcription-side-pane-drop-indicator::before {
+  left: -2px;
+}
+
+.transcription-side-pane-drop-indicator::after {
+  right: -2px;
+}
+
+.transcription-side-pane-item-flash {
+  background: var(--state-info-bg);
+  box-shadow: inset 3px 0 0 var(--state-info-solid);
+}
+
+/* — 空状态引导卡片 | Empty state guide card — */
+.transcription-side-pane-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 12px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.transcription-side-pane-empty-icon {
+  font-size: 1.6rem;
+  opacity: 0.5;
+}
+
+.transcription-side-pane-empty-hint {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+}
+
+.transcription-side-pane-speaker-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+  padding: 2px 0 4px;
+  border-bottom: 1px dashed color-mix(in srgb, var(--border-soft) 72%, transparent);
+}
+
+.transcription-side-pane-speaker-chip {
+  --speaker-color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 90%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.66rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.transcription-side-pane-speaker-chip:hover {
+  border-color: color-mix(in srgb, var(--speaker-color) 55%, var(--state-info-border));
+  color: var(--text-primary);
+}
+
+.transcription-side-pane-speaker-chip-active {
+  border-color: color-mix(in srgb, var(--speaker-color) 65%, var(--state-info-solid));
+  background: color-mix(in srgb, var(--speaker-color) 16%, var(--state-info-bg));
+  color: var(--text-primary);
+}
+
+.transcription-side-pane-speaker-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--speaker-color);
+  flex-shrink: 0;
+}
+
+.transcription-side-pane-speaker-name {
+  max-width: 56px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transcription-side-pane-speaker-count {
+  opacity: 0.75;
+}
+
+.transcription-side-pane-speaker-groups {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.transcription-side-pane-speaker-group {
+  border: 1px solid color-mix(in srgb, var(--border-soft) 60%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-panel) 90%, transparent);
+}
+
+.transcription-side-pane-speaker-group-head {
+  --speaker-color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 3px 4px;
+}
+
+.transcription-side-pane-speaker-group-toggle {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--text-primary);
+  cursor: pointer;
+  flex: 1;
+  text-align: left;
+}
+
+.transcription-side-pane-speaker-group-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.transcription-side-pane-speaker-mini-btn {
+  height: 20px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 72%, transparent);
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  font-weight: 600;
+  padding: 0 7px;
+  cursor: pointer;
+}
+
+.transcription-side-pane-speaker-mini-btn:hover {
+  border-color: color-mix(in srgb, var(--speaker-color, var(--state-info-solid)) 55%, var(--state-info-border));
+  color: var(--text-primary);
+}
+
+.transcription-side-pane-speaker-mini-btn-active {
+  border-color: color-mix(in srgb, var(--speaker-color, var(--state-info-solid)) 65%, var(--state-info-solid));
+  background: color-mix(in srgb, var(--speaker-color, var(--state-info-solid)) 15%, var(--state-info-bg));
+  color: var(--text-primary);
+}
+
+.transcription-side-pane-speaker-group-body {
+  border-top: 1px dashed color-mix(in srgb, var(--border-soft) 64%, transparent);
+  padding: 4px 8px 5px;
+  color: var(--text-secondary);
+  font-size: 0.66rem;
+}
+
+.transcription-side-pane-overview {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 4px 2px;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-secondary) 35%, transparent) transparent;
+}
+
+.transcription-side-pane-overview-portaled {
+  width: 100%;
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 2px;
+  gap: 10px;
+}
+
+.transcription-side-pane-portaled-stack {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.app-side-pane-body-slot .app-side-pane-group-toggle-static {
+  cursor: default;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.app-side-pane-body-slot .app-side-pane-group-toggle-static:hover {
+  background: transparent;
+}
+
+.app-side-pane-body-slot .app-side-pane-layer-list,
+.app-side-pane-body-slot .app-side-pane-layer-inspector-wrap {
+  padding: 8px 6px;
+}
+
+.app-side-pane-body-slot .app-side-pane-layer-actions-wrap {
+  padding: 8px 6px;
+}
+
+.app-side-pane-body-slot .app-side-pane-layer-list {
+  gap: 4px;
+}
+
+.app-side-pane-body-slot .app-side-pane-layer-inspector-wrap {
+  gap: 0;
+}
+
+.app-side-pane-body-slot .transcription-side-pane-item-row {
+  border-bottom: none;
+  border-radius: var(--radius-sm);
+}
+
+.app-side-pane-body-slot .transcription-side-pane-item {
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.app-side-pane-body-slot .transcription-side-pane-item:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--surface-header) 60%, transparent);
+}
+
+.app-side-pane-body-slot .transcription-side-pane-item-active {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--state-info-solid) 28%, transparent);
+  background: color-mix(in srgb, var(--state-info-solid) 10%, transparent);
+  box-shadow: inset 2px 0 0 var(--state-info-solid);
+}
+
+:root[data-theme='dark'] .app-side-pane-body-slot .transcription-side-pane-item:hover {
+  background: color-mix(in srgb, rgb(255 255 255) 7%, transparent);
+}
+
+:root[data-theme='dark'] .app-side-pane-body-slot .transcription-side-pane-item-active {
+  border-color: color-mix(in srgb, var(--state-info-solid) 38%, transparent);
+  background: color-mix(in srgb, var(--state-info-solid) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--state-info-solid);
+}
+
+.app-side-pane-body-slot .transcription-side-pane-inspector {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  gap: 8px;
+}
+
+.app-side-pane-body-slot .transcription-side-pane-actions-portaled {
+  padding: 0;
+  gap: 4px;
+  position: relative;
+  bottom: auto;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.app-side-pane-body-slot .transcription-side-pane-actions-portaled .transcription-side-pane-quick-action {
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 8px 10px;
+}
+
+.app-side-pane-body-slot .transcription-side-pane-actions-portaled .transcription-side-pane-quick-action-label {
+  color: inherit;
+}
+
+.app-side-pane-body-slot .transcription-side-pane-actions-portaled .transcription-side-pane-quick-action:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--surface-header) 60%, transparent);
+}
+
+:root[data-theme='dark'] .app-side-pane-body-slot .transcription-side-pane-actions-portaled .transcription-side-pane-quick-action:hover:not(:disabled) {
+  background: color-mix(in srgb, rgb(255 255 255) 7%, transparent);
+}
+
+.transcription-side-pane-overview::-webkit-scrollbar {
+  width: 4px;
+}
+
+.transcription-side-pane-overview::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.transcription-side-pane-overview::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-secondary) 35%, transparent);
+  border-radius: var(--radius-pill);
+}
+
+/* ── 聚焦层详情 | Focused layer inspector ── */
+.transcription-side-pane-inspector {
+  margin: 6px 4px 2px;
+  padding: 8px 10px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* — 头部行：chip + 标题 + 删除 | Header row — */
+.transcription-side-pane-inspector-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.transcription-side-pane-inspector-chip {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.transcription-side-pane-inspector-chip[data-layer-type='transcription'] {
+  background: color-mix(in srgb, var(--state-info-solid) 12%, transparent);
+  color: var(--state-info-solid);
+}
+
+.transcription-side-pane-inspector-chip[data-layer-type='translation'] {
+  background: color-mix(in srgb, var(--state-info-solid) 12%, transparent);
+  color: var(--state-info-solid);
+}
+
+.transcription-side-pane-inspector-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.transcription-side-pane-inspector-del-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  color: var(--border-soft);
+  font-size: 0.58rem;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.transcription-side-pane-inspector-del-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--state-danger-bg) 65%, transparent);
+  color: var(--state-danger-solid);
+}
+
+.transcription-side-pane-inspector-del-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+/* — 属性列表：标签在上，值在下 | Properties: label above, value below — */
+.transcription-side-pane-inspector-props {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.transcription-side-pane-inspector-props > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.transcription-side-pane-inspector-props dt {
+  font-size: 0.56rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.transcription-side-pane-inspector-props dd {
+  font-size: 0.68rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  margin: 0;
+}
+
+/* — 保留的旧类名兼容 | Legacy class compat — */
+.transcription-side-pane-inspector-head {
+  display: contents;
+}
+
+.transcription-side-pane-inspector-head strong {
+  display: none;
+}
+
+/* — 属性列表内下拉框 | Inspector inline select — */
+.transcription-side-pane-inspector-select {
+  width: 100%;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 3px 6px;
+  font-size: 0.62rem;
+  color: var(--text-secondary);
+  background: var(--surface-panel);
+  outline: none;
+}
+
+.transcription-side-pane-inspector-select:focus-visible {
+  border-color: var(--state-info-solid);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--state-info-solid) 30%, transparent);
+}
+
+.transcription-side-pane-inspector-note,
+.transcription-side-pane-inspector-empty {
+  font-size: 0.62rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  padding: 4px 0;
+}
+
+/* ── 底部操作栏 | Bottom action bar ── */
+.transcription-side-pane-actions {
+  padding: 6px 4px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  position: sticky;
+  bottom: 0;
+  background: color-mix(in srgb, var(--surface-panel) 96%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.transcription-side-pane-quick-action {
+  flex: 1;
+  border: none;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-panel) 70%, transparent);
+  color: var(--text-secondary);
+  line-height: 1.2;
+  padding: 5px 8px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.transcription-side-pane-quick-action-label {
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transcription-side-pane-quick-action-icon {
+  font-size: 0.82rem;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.transcription-side-pane-quick-action:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--state-info-bg) 85%, transparent);
+}
+
+.transcription-side-pane-quick-action:hover:not(:disabled) .transcription-side-pane-quick-action-label {
+  color: var(--state-info-solid);
+}
+
+.transcription-side-pane-quick-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

@@ -1,0 +1,404 @@
+/* AiAnalysisPanel-owned shell and stats blocks */
+
+.transcription-analysis-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+}
+
+.transcription-analysis-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--panel-design-border-color);
+  background: var(--panel-design-surface-color);
+}
+
+.transcription-analysis-toolbar-title {
+  font-size: calc(16px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--panel-design-title-color);
+}
+
+.transcription-analysis-panel-body {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  grid-auto-rows: max-content;
+  gap: 12px;
+  padding: 12px 16px;
+  overflow-y: auto;
+}
+
+.transcription-analysis-panel-summary,
+.transcription-analysis-stats-section {
+  min-width: 0;
+}
+
+.transcription-analysis-tab-content {
+  min-height: 0;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.transcription-analysis-tab-content .transcription-ai-card {
+  margin: 0;
+}
+
+.transcription-ai-stats-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.transcription-analysis-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
+}
+
+.transcription-analysis-stats-row:last-child {
+  border-bottom: none;
+}
+
+.transcription-analysis-stats-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.transcription-analysis-stats-label-accent {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.transcription-analysis-stats-value {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  font-weight: 600;
+  text-align: right;
+}
+
+.transcription-analysis-stats-row-accent .transcription-analysis-stats-value {
+  color: var(--state-info-solid);
+}
+
+.transcription-analysis-acoustic-section {
+  min-width: 0;
+}
+
+.transcription-analysis-acoustic-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.transcription-analysis-acoustic-hero {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.transcription-analysis-acoustic-hero-card {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--surface-panel) 88%, var(--state-info-bg));
+}
+
+.transcription-analysis-acoustic-hero-label {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.transcription-analysis-acoustic-hero-value {
+  color: var(--text-primary);
+  font-size: 0.96rem;
+  line-height: 1.2;
+}
+
+.transcription-analysis-acoustic-empty {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.6;
+}
+
+.transcription-analysis-acoustic-diagnostics-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.transcription-analysis-acoustic-diagnostic-item {
+  display: inline-flex;
+}
+
+.transcription-analysis-acoustic-inspector-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.transcription-analysis-acoustic-tone-card {
+  display: grid;
+  gap: 10px;
+}
+
+.transcription-analysis-acoustic-tone-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.transcription-analysis-acoustic-tone-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.73rem;
+  line-height: 1.4;
+}
+
+.transcription-analysis-acoustic-tone-legend-item::before {
+  content: '';
+  width: 10px;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+
+.transcription-analysis-acoustic-tone-legend-item-f0 {
+  color: color-mix(in srgb, var(--state-info-solid) 88%, #2bb0d8);
+}
+
+.transcription-analysis-acoustic-tone-legend-item-intensity {
+  color: color-mix(in srgb, var(--state-success-solid, #209268) 84%, #6fcf97);
+}
+
+.transcription-analysis-acoustic-tone-chart {
+  min-height: 84px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 92%, var(--state-info-bg)) 0%, color-mix(in srgb, var(--surface-header) 78%, transparent) 100%);
+}
+
+.transcription-analysis-acoustic-tone-chart svg {
+  display: block;
+  width: 100%;
+  height: 68px;
+}
+
+.transcription-analysis-acoustic-tone-grid {
+  fill: none;
+  stroke: color-mix(in srgb, var(--border-soft) 72%, transparent);
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+
+.transcription-analysis-acoustic-tone-line {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.transcription-analysis-acoustic-tone-line-f0 {
+  stroke: color-mix(in srgb, var(--state-info-solid) 88%, #2bb0d8);
+}
+
+.transcription-analysis-acoustic-tone-line-intensity {
+  stroke: color-mix(in srgb, var(--state-success-solid, #209268) 84%, #6fcf97);
+}
+
+.transcription-analysis-acoustic-tone-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.transcription-analysis-acoustic-hotspots {
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.transcription-analysis-acoustic-hotspots-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.transcription-analysis-acoustic-hotspots-list {
+  display: grid;
+  gap: 8px;
+}
+
+.transcription-analysis-acoustic-hotspot {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-info-bg));
+  padding: 8px 10px;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.transcription-analysis-acoustic-hotspot:hover {
+  border-color: color-mix(in srgb, var(--state-info-solid) 34%, var(--border-soft));
+  background: color-mix(in srgb, var(--surface-panel) 78%, var(--state-info-bg));
+  transform: translateY(-1px);
+}
+
+.transcription-analysis-acoustic-hotspot:disabled {
+  cursor: default;
+  transform: none;
+  opacity: 0.72;
+}
+
+.transcription-analysis-acoustic-hotspot-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.transcription-analysis-acoustic-hotspot-kind {
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.transcription-analysis-acoustic-hotspot-time {
+  color: var(--state-info-solid);
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.transcription-analysis-acoustic-hotspot-description {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+
+.transcription-analysis-acoustic-hotspot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.transcription-analysis-acoustic-navigation-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.transcription-analysis-acoustic-export-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.transcription-analysis-acoustic-export-note {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  line-height: 1.6;
+}
+
+.transcription-analysis-acoustic-nav-btn {
+  min-height: 34px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-header) 76%, transparent);
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.transcription-analysis-acoustic-nav-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--state-info-solid) 26%, var(--border-soft));
+  background: color-mix(in srgb, var(--surface-panel) 72%, var(--state-info-bg));
+}
+
+.transcription-analysis-acoustic-nav-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+@media (max-width: 960px) {
+  .transcription-analysis-acoustic-hero,
+  .transcription-analysis-acoustic-navigation-list,
+  .transcription-analysis-acoustic-export-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+.transcription-analysis-panel-footer {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--panel-design-border-color);
+  padding: 0 16px 12px;
+}
+
+.transcription-analysis-panel-footer .transcription-assistant-hub-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-header) 74%, transparent);
+  color: var(--text-primary);
+  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.transcription-analysis-panel-footer .transcription-assistant-hub-tab:hover:not(.transcription-assistant-hub-tab-active) {
+  background: color-mix(in srgb, var(--surface-header) 60%, var(--surface-panel));
+}
+
+.transcription-analysis-panel-footer .transcription-assistant-hub-tab-active {
+  border-color: color-mix(in srgb, var(--header-accent) 28%, var(--border-soft));
+  background: color-mix(in srgb, var(--state-info-bg) 82%, var(--surface-panel));
+  color: var(--state-info-solid);
+}
