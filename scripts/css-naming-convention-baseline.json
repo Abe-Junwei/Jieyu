@@ -1,0 +1,9 @@
+{
+  "generatedAt": "2026-04-08T12:06:15.525Z",
+  "allowNoPnlRootFiles": [
+    "src/styles/panels/analysis-panel.css",
+    "src/styles/panels/note-panel.css",
+    "src/styles/panels/pdf-viewer-panel.css",
+    "src/styles/panels/shortcuts-panel.css"
+  ]
+}

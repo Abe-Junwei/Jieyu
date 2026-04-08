@@ -28,6 +28,9 @@ source_of_truth: current-state-index
 - [CSS架构与模板复用规范.md](CSS%E6%9E%B6%E6%9E%84%E4%B8%8E%E6%A8%A1%E6%9D%BF%E5%A4%8D%E7%94%A8%E8%A7%84%E8%8C%83.md)
   - 用途：CSS 分层边界、命名规范、治理脚本与面板/对话框自动模板约定。
 
+- [CSS浏览器兼容矩阵.md](CSS%E6%B5%8F%E8%A7%88%E5%99%A8%E5%85%BC%E5%AE%B9%E7%9F%A9%E9%98%B5.md)
+  - 用途：CSS 现代特性兼容策略、降级规则与 CI 校验入口。
+
 ## 收录原则
 
 - 内容必须对当前实现仍然有效。

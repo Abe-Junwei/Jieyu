@@ -1,0 +1,16 @@
+{
+  "features": {
+    "color-mix": {
+      "policy": "progressive-enhancement",
+      "fallbackRequired": false
+    },
+    "field-sizing": {
+      "policy": "progressive-enhancement",
+      "fallbackRequired": false
+    },
+    "backdrop-filter": {
+      "policy": "requires-supports-fallback",
+      "fallbackRequired": true
+    }
+  }
+}
