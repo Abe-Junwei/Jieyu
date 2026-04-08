@@ -1,6 +1,7 @@
 import { Children, memo, type ReactNode } from 'react';
 import { FastForward, Pause, Play, Repeat, Rewind, Trash2, Volume2, Zap } from 'lucide-react';
 import { t, tf, useLocale } from '../i18n';
+import { ACOUSTIC_OVERLAY_MODES, type AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import { WAVEFORM_DISPLAY_MODE_OPTIONS, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { WAVEFORM_VISUAL_STYLE_OPTIONS, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
 
@@ -14,6 +15,8 @@ interface WaveformToolbarProps {
   onWaveformDisplayModeChange: (mode: WaveformDisplayMode) => void;
   waveformVisualStyle: WaveformVisualStyle;
   onWaveformVisualStyleChange: (style: WaveformVisualStyle) => void;
+  acousticOverlayMode: AcousticOverlayMode;
+  onAcousticOverlayModeChange: (mode: AcousticOverlayMode) => void;
   volume: number;
   onVolumeChange: (vol: number) => void;
   loop: boolean;
@@ -39,6 +42,8 @@ export const WaveformToolbar = memo(function WaveformToolbar({
   onWaveformDisplayModeChange,
   waveformVisualStyle,
   onWaveformVisualStyleChange,
+  acousticOverlayMode,
+  onAcousticOverlayModeChange,
   volume,
   onVolumeChange,
   loop,
@@ -102,6 +107,19 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           {WAVEFORM_DISPLAY_MODE_OPTIONS.map((mode) => (
             <option key={mode} value={mode}>
               {t(locale, `transcription.wave.toolbar.displayMode.${mode}` as const)}
+            </option>
+          ))}
+        </select>
+        <select
+          className="speed-select transcription-wave-toolbar-style-select"
+          value={acousticOverlayMode}
+          onChange={(event) => onAcousticOverlayModeChange(event.target.value as AcousticOverlayMode)}
+          aria-label={t(locale, 'transcription.wave.toolbar.acousticOverlay')}
+          title={t(locale, 'transcription.wave.toolbar.acousticOverlay')}
+        >
+          {ACOUSTIC_OVERLAY_MODES.map((mode) => (
+            <option key={mode} value={mode}>
+              {t(locale, `transcription.wave.toolbar.acousticOverlay.${mode}` as const)}
             </option>
           ))}
         </select>

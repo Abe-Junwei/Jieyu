@@ -1,0 +1,80 @@
+import type { Dispatch, SetStateAction } from 'react';
+import type { LayerDocType, UtteranceDocType } from '../db';
+import type { AiPanelContextValue } from '../contexts/AiPanelContext';
+import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
+import type { AiChatSettings } from '../hooks/useAiChat';
+import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
+import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
+import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
+
+interface SelectedRowMetaLike {
+  rowNumber: number;
+  start: number;
+  end: number;
+}
+
+interface ReadyStateLike {
+  phase: string;
+  dbName?: string;
+  utteranceCount?: number;
+  translationLayerCount?: number;
+}
+
+export interface UseTranscriptionAssistantControllerInput {
+  state: ReadyStateLike;
+  utterancesLength: number;
+  translationLayersLength: number;
+  aiConfidenceAvg: number | null;
+  selectedTimelineOwnerUtterance: UtteranceDocType | null;
+  selectedTimelineRowMeta: SelectedRowMetaLike | null;
+  selectedAiWarning: boolean;
+  lexemeMatches: AiPanelContextValue['lexemeMatches'];
+  handleOpenWordNote: AiPanelContextValue['onOpenWordNote'];
+  handleOpenMorphemeNote: AiPanelContextValue['onOpenMorphemeNote'];
+  handleUpdateTokenPos: AiPanelContextValue['onUpdateTokenPos'];
+  handleBatchUpdateTokenPosByForm: AiPanelContextValue['onBatchUpdateTokenPosByForm'];
+  aiPanelMode: NonNullable<AiPanelContextValue['aiPanelMode']>;
+  setAiPanelMode: Dispatch<SetStateAction<NonNullable<AiPanelContextValue['aiPanelMode']>>>;
+  aiCurrentTask: AiPanelContextValue['aiCurrentTask'];
+  aiVisibleCards: AiPanelContextValue['aiVisibleCards'];
+  selectedTranslationGapCount: number;
+  vadCacheStatus?: AiPanelContextValue['vadCacheStatus'];
+  acousticSummary?: AiPanelContextValue['acousticSummary'];
+  acousticInspector?: AiPanelContextValue['acousticInspector'];
+  acousticDetail?: AiPanelContextValue['acousticDetail'];
+  handleJumpToTranslationGap: NonNullable<AiPanelContextValue['onJumpToTranslationGap']>;
+  handleJumpToAcousticHotspot?: AiPanelContextValue['onJumpToAcousticHotspot'];
+  setAiPanelContext: Dispatch<SetStateAction<AiPanelContextValue>>;
+  selectedTimelineUnit: TimelineUnit | null;
+  saveSegmentContentForLayer: (segmentId: string, layerId: string, value: string) => Promise<void>;
+  selectedLayerId: string | null;
+  defaultTranscriptionLayerId?: string;
+  translationLayers: LayerDocType[];
+  layers: LayerDocType[];
+  utterancesOnCurrentMedia: UtteranceDocType[];
+  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
+  saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
+  saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
+  setSaveState: (state: SaveState) => void;
+  nextUtteranceIdForVoiceDictation?: string;
+  selectUtterance: (utteranceId: string) => void;
+  aiChatEnabled: boolean;
+  aiChatSettings: AiChatSettings;
+  pushUndo: (label: string) => void;
+  setUtterances: Dispatch<SetStateAction<UtteranceDocType[]>>;
+}
+
+export interface UseTranscriptionAssistantControllerResult {
+  aiPanelContextValue: AiPanelContextValue;
+  handleResolveVoiceIntentWithLlm: (input: {
+    text: string;
+    mode: VoiceAgentMode;
+    session: VoiceSession;
+  }) => Promise<VoiceIntent | null>;
+  handleVoiceDictation: (text: string) => void;
+  voiceDictationPipeline?: {
+    callbacks: DictationPipelineCallbacks;
+    config?: QuickDictationConfig;
+  };
+  handleVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => Promise<{ ok: boolean; message: string }>;
+}

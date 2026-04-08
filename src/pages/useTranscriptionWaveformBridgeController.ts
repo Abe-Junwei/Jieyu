@@ -1,13 +1,9 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
-  type Dispatch,
   type MouseEvent as ReactMouseEvent,
-  type MutableRefObject,
-  type SetStateAction,
   type UIEvent as ReactUIEvent,
   type WheelEvent as ReactWheelEvent,
 } from 'react';
@@ -15,156 +11,25 @@ import { useLasso, type SubSelectDrag } from '../hooks/useLasso';
 import { useLatest } from '../hooks/useLatest';
 import { useWaveSurfer } from '../hooks/useWaveSurfer';
 import { useZoom } from '../hooks/useZoom';
-import { buildWaveformAnalysisOverlaySummary } from '../utils/waveformAnalysisOverlays';
+import { useEnsureVadCache } from '../hooks/useEnsureVadCache';
 import { useVadCachedSegments } from '../hooks/useVadCachedSegments';
-import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
-import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
-import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { useWaveformSelectionController } from './useWaveformSelectionController';
+import type {
+  UseTranscriptionWaveformBridgeControllerInput,
+  UseTranscriptionWaveformBridgeControllerResult,
+  WaveformInteractionHandlerRefs,
+} from './transcriptionWaveformBridge.types';
+import { useWaveformAcousticOverlay } from './useWaveformAcousticOverlay';
+import { useWaveformSignalOverlays } from './useWaveformSignalOverlays';
 
-interface TimeRangeLike {
-  startTime: number;
-  endTime: number;
-}
-
-interface WaveformNoteIndicator {
-  uttId: string;
-  leftPx: number;
-  widthPx: number;
-  count: number;
-  layerId?: string;
-}
-
-interface WaveformLowConfidenceOverlay {
-  id: string;
-  leftPx: number;
-  widthPx: number;
-  confidence: number;
-}
-
-interface WaveformOverlapOverlay {
-  id: string;
-  leftPx: number;
-  widthPx: number;
-  concurrentCount: number;
-}
-
-interface WaveformGapOverlay {
-  id: string;
-  leftPx: number;
-  widthPx: number;
-  gapSeconds: number;
-}
-
-export interface WaveformInteractionHandlerRefs {
-  handleWaveformRegionAltPointerDownRef: MutableRefObject<((regionId: string, time: number, pointerId: number, clientX: number) => void) | undefined>;
-  handleWaveformRegionClickRef: MutableRefObject<((regionId: string, clickTime: number, event: MouseEvent) => void) | undefined>;
-  handleWaveformRegionDoubleClickRef: MutableRefObject<((regionId: string, start: number, end: number) => void) | undefined>;
-  handleWaveformRegionCreateRef: MutableRefObject<((start: number, end: number) => void) | undefined>;
-  handleWaveformRegionContextMenuRef: MutableRefObject<((regionId: string, x: number, y: number) => void) | undefined>;
-  handleWaveformRegionUpdateRef: MutableRefObject<((regionId: string, start: number, end: number) => void) | undefined>;
-  handleWaveformRegionUpdateEndRef: MutableRefObject<((regionId: string, start: number, end: number) => void) | undefined>;
-  handleWaveformTimeUpdateRef: MutableRefObject<((time: number) => void) | undefined>;
-}
-
-interface UseTranscriptionWaveformBridgeControllerInput {
-  activeLayerIdForEdits: string;
-  layers: LayerDocType[];
-  layerById: ReadonlyMap<string, LayerDocType>;
-  defaultTranscriptionLayerId?: string;
-  segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]>;
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  selectedTimelineUnit: TimelineUnit | null;
-  selectedTimelineUnitForTime: TimeRangeLike | null;
-  selectedUtteranceIds: Set<string>;
-  selectedMediaUrl: string | undefined;
-  waveformHeight: number;
-  amplitudeScale: number;
-  setAmplitudeScale: Dispatch<SetStateAction<number>>;
-  waveformDisplayMode: WaveformDisplayMode;
-  waveformVisualStyle: WaveformVisualStyle;
-  zoomPercent: number;
-  setZoomPercent: Dispatch<SetStateAction<number>>;
-  zoomMode: 'fit-all' | 'fit-selection' | 'custom';
-  setZoomMode: Dispatch<SetStateAction<'fit-all' | 'fit-selection' | 'custom'>>;
-  clearUtteranceSelection: () => void;
-  createUtteranceFromSelection: (start: number, end: number) => Promise<void>;
-  setUtteranceSelection: (primaryId: string, ids: Set<string>) => void;
-  resolveNoteIndicatorTarget: (unitId: string, layerId?: string, scope?: 'timeline' | 'waveform') => { count: number; layerId?: string } | null;
-  tierContainerRef: MutableRefObject<HTMLDivElement | null>;
-  /** 当前媒体 ID，用于读取 VAD 缓存 | Current media ID for VAD cache lookup */
-  mediaId?: string;
-}
-
-interface UseTranscriptionWaveformBridgeControllerResult {
-  waveformAreaRef: MutableRefObject<HTMLDivElement | null>;
-  waveCanvasRef: MutableRefObject<HTMLDivElement | null>;
-  player: ReturnType<typeof useWaveSurfer>;
-  useSegmentWaveformRegions: boolean;
-  waveformTimelineItems: Array<LayerSegmentDocType | UtteranceDocType>;
-  waveformRegions: Array<{ id: string; start: number; end: number }>;
-  selectedWaveformRegionId: string;
-  waveformActiveRegionIds: Set<string>;
-  waveformPrimaryRegionId: string;
-  selectedWaveformTimelineItem: LayerSegmentDocType | UtteranceDocType | null;
-  waveformFocused: boolean;
-  segmentLoopPlayback: boolean;
-  setSegmentLoopPlayback: Dispatch<SetStateAction<boolean>>;
-  globalLoopPlayback: boolean;
-  setGlobalLoopPlayback: Dispatch<SetStateAction<boolean>>;
-  segmentPlaybackRate: number;
-  segMarkStart: number | null;
-  setSegMarkStart: Dispatch<SetStateAction<number | null>>;
-  dragPreview: { id: string; start: number; end: number } | null;
-  setDragPreview: Dispatch<SetStateAction<{ id: string; start: number; end: number } | null>>;
-  skipSeekForIdRef: MutableRefObject<string | null>;
-  creatingSegmentRef: MutableRefObject<boolean>;
-  markingModeRef: MutableRefObject<boolean>;
-  subSelectionRange: { start: number; end: number } | null;
-  setSubSelectionRange: Dispatch<SetStateAction<{ start: number; end: number } | null>>;
-  subSelectDragRef: MutableRefObject<SubSelectDrag | null>;
-  waveLassoRect: {
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    mode: 'select' | 'create';
-    hitCount: number;
-  } | null;
-  waveLassoHintCount: number;
-  lassoRect: { x: number; y: number; w: number; h: number } | null;
-  handleLassoPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
-  handleLassoPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
-  handleLassoPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
-  fitPxPerSec: number;
-  zoomPxPerSec: number;
-  maxZoomPercent: number;
-  rulerView: { start: number; end: number } | null;
-  zoomToPercent: (percent: number, centerRatio?: number, mode?: 'fit-all' | 'fit-selection' | 'custom') => void;
-  zoomToUtterance: (startTime: number, endTime: number) => void;
-  hoverTime: { time: number; x: number; y: number } | null;
-  handleWaveformAreaFocus: () => void;
-  handleWaveformAreaBlur: () => void;
-  handleWaveformAreaMouseMove: (event: ReactMouseEvent<HTMLDivElement>) => void;
-  handleWaveformAreaMouseLeave: () => void;
-  handleWaveformAreaWheel: (event: ReactWheelEvent<HTMLDivElement>) => void;
-  waveformScrollLeft: number;
-  handleTimelineScroll: (event: ReactUIEvent<HTMLDivElement>) => void;
-  waveformNoteIndicators: WaveformNoteIndicator[];
-  waveformLowConfidenceOverlays: WaveformLowConfidenceOverlay[];
-  waveformOverlapOverlays: WaveformOverlapOverlay[];
-  waveformGapOverlays: WaveformGapOverlay[];
-  handleSegmentPlaybackRateChange: (rate: number) => void;
-  handleToggleSelectedWaveformLoop: () => void;
-  handleToggleSelectedWaveformPlay: () => void;
-  waveformInteractionHandlerRefs: WaveformInteractionHandlerRefs;
-}
+export type { WaveformInteractionHandlerRefs } from './transcriptionWaveformBridge.types';
 
 export function useTranscriptionWaveformBridgeController(
   input: UseTranscriptionWaveformBridgeControllerInput,
 ): UseTranscriptionWaveformBridgeControllerResult {
   const { setZoomPercent, setAmplitudeScale } = input;
+  useEnsureVadCache(input.mediaId, input.selectedMediaUrl);
   const vadSegments = useVadCachedSegments(input.mediaId);
   const waveformAreaRef = useRef<HTMLDivElement | null>(null);
   const waveCanvasRef = useRef<HTMLDivElement | null>(null);
@@ -278,51 +143,44 @@ export function useTranscriptionWaveformBridgeController(
     return () => { ws.un('scroll', onScroll); };
   }, [player.isReady, player.instanceRef]);
 
-  const waveformNoteIndicators = useMemo(() => {
-    if (!player.isReady) return [];
-    const ws = player.instanceRef.current;
-    if (!ws) return [];
-    const result: WaveformNoteIndicator[] = [];
-    for (const item of waveformTimelineItems) {
-      const noteIndicator = input.resolveNoteIndicatorTarget(item.id, input.activeLayerIdForEdits || undefined, 'waveform');
-      if (!noteIndicator) continue;
-      const leftPx = item.startTime * zoomPxPerSec - waveformScrollLeft;
-      const widthPx = (item.endTime - item.startTime) * zoomPxPerSec;
-      result.push({
-        uttId: item.id,
-        leftPx,
-        widthPx,
-        count: noteIndicator.count,
-        ...(noteIndicator.layerId ? { layerId: noteIndicator.layerId } : {}),
-      });
-    }
-    return result;
-  }, [input.activeLayerIdForEdits, input.resolveNoteIndicatorTarget, player.instanceRef, player.isReady, waveformScrollLeft, waveformTimelineItems, zoomPxPerSec]);
-
-  const waveformAnalysisSummary = useMemo(() => buildWaveformAnalysisOverlaySummary(input.utterancesOnCurrentMedia, {
+  const {
+    waveformNoteIndicators,
+    waveformLowConfidenceOverlays,
+    waveformOverlapOverlays,
+    waveformGapOverlays,
+  } = useWaveformSignalOverlays({
+    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
     ...(vadSegments ? { vadSegments } : {}),
-  }), [input.utterancesOnCurrentMedia, vadSegments]);
+    waveformTimelineItems,
+    activeLayerIdForEdits: input.activeLayerIdForEdits,
+    resolveNoteIndicatorTarget: input.resolveNoteIndicatorTarget,
+    waveformScrollLeft,
+    zoomPxPerSec,
+  });
 
-  const waveformLowConfidenceOverlays = useMemo(() => waveformAnalysisSummary.lowConfidenceBands.map((band) => ({
-    id: band.id,
-    leftPx: band.startTime * zoomPxPerSec - waveformScrollLeft,
-    widthPx: Math.max(2, (band.endTime - band.startTime) * zoomPxPerSec),
-    confidence: band.confidence,
-  })), [waveformAnalysisSummary.lowConfidenceBands, waveformScrollLeft, zoomPxPerSec]);
-
-  const waveformOverlapOverlays = useMemo(() => waveformAnalysisSummary.overlapBands.map((band) => ({
-    id: band.id,
-    leftPx: band.startTime * zoomPxPerSec - waveformScrollLeft,
-    widthPx: Math.max(2, (band.endTime - band.startTime) * zoomPxPerSec),
-    concurrentCount: band.concurrentCount,
-  })), [waveformAnalysisSummary.overlapBands, waveformScrollLeft, zoomPxPerSec]);
-
-  const waveformGapOverlays = useMemo(() => waveformAnalysisSummary.gapBands.map((band) => ({
-    id: band.id,
-    leftPx: band.startTime * zoomPxPerSec - waveformScrollLeft,
-    widthPx: Math.max(2, (band.endTime - band.startTime) * zoomPxPerSec),
-    gapSeconds: band.gapSeconds,
-  })), [waveformAnalysisSummary.gapBands, waveformScrollLeft, zoomPxPerSec]);
+  const {
+    acousticOverlayViewportWidth,
+    acousticOverlayF0Path,
+    acousticOverlayIntensityPath,
+    acousticOverlayVisibleSummary,
+    acousticOverlayLoading,
+    waveformHoverReadout,
+    spectrogramHoverReadout,
+    handleSpectrogramMouseMove,
+    handleSpectrogramMouseLeave,
+    handleSpectrogramClick,
+  } = useWaveformAcousticOverlay({
+    selectedMediaUrl: input.selectedMediaUrl,
+    mediaId: input.mediaId,
+    acousticOverlayMode: input.acousticOverlayMode,
+    waveformDisplayMode: input.waveformDisplayMode,
+    containerWidth,
+    waveformScrollLeft,
+    zoomPxPerSec,
+    hoverTime,
+    playerDuration: player.duration,
+    seekTo: player.seekTo,
+  });
 
   const {
     waveLassoRect,
@@ -407,7 +265,7 @@ export function useTranscriptionWaveformBridgeController(
     setHoverTime(null);
   }, []);
 
-  const handleWaveformAreaWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
+  const handleWaveformAreaWheel = (event: ReactWheelEvent<HTMLDivElement>): void => {
     if (event.ctrlKey) {
       event.preventDefault();
       event.stopPropagation();
@@ -421,15 +279,15 @@ export function useTranscriptionWaveformBridgeController(
       const delta = event.deltaY > 0 ? -0.1 : 0.1;
       setAmplitudeScale((prev) => Math.min(4, Math.max(0.25, prev + delta)));
     }
-  }, [setAmplitudeScale, setZoomPercent]);
+  };
 
-  const handleTimelineScroll = useCallback((event: ReactUIEvent<HTMLDivElement>) => {
+  const handleTimelineScroll = (event: ReactUIEvent<HTMLDivElement>): void => {
     const ws = player.instanceRef.current;
     if (ws) {
       ws.setScroll(event.currentTarget.scrollLeft);
     }
     setWaveformScrollLeft(event.currentTarget.scrollLeft);
-  }, [player.instanceRef]);
+  };
 
   useEffect(() => {
     const currentSelectedTimelineUnitId = input.selectedTimelineUnit?.unitId ?? '';
@@ -454,21 +312,21 @@ export function useTranscriptionWaveformBridgeController(
     player.seekTo(input.selectedTimelineUnitForTime.startTime);
   }, [input.selectedTimelineUnitForTime, player.isReady, player.seekTo]);
 
-  const resolveSelectedPlaybackRange = useCallback(() => {
+  const resolveSelectedPlaybackRange = () => {
     if (!selectedWaveformTimelineItem) return null;
     return subSelectionRange ?? {
       start: selectedWaveformTimelineItem.startTime,
       end: selectedWaveformTimelineItem.endTime,
     };
-  }, [selectedWaveformTimelineItem, subSelectionRange]);
+  };
 
-  const handleSegmentPlaybackRateChange = useCallback((rate: number) => {
+  const handleSegmentPlaybackRateChange = (rate: number): void => {
     setSegmentPlaybackRate(rate);
     const ws = player.instanceRef.current;
     if (ws && player.isPlaying) {
       ws.setPlaybackRate(rate);
     }
-  }, [player.instanceRef, player.isPlaying]);
+  };
 
   const handleToggleSelectedWaveformLoop = useCallback(() => {
     if (segmentLoopPlayback) {
@@ -543,6 +401,16 @@ export function useTranscriptionWaveformBridgeController(
     waveformLowConfidenceOverlays,
     waveformOverlapOverlays,
     waveformGapOverlays,
+    acousticOverlayViewportWidth,
+    acousticOverlayF0Path,
+    acousticOverlayIntensityPath,
+    acousticOverlayVisibleSummary,
+    acousticOverlayLoading,
+    waveformHoverReadout,
+    spectrogramHoverReadout,
+    handleSpectrogramMouseMove,
+    handleSpectrogramMouseLeave,
+    handleSpectrogramClick,
     handleSegmentPlaybackRateChange,
     handleToggleSelectedWaveformLoop,
     handleToggleSelectedWaveformPlay,

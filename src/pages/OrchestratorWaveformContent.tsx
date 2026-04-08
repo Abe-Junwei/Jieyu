@@ -12,6 +12,7 @@ import React, { type MutableRefObject, type RefObject } from 'react';
 import type { UtteranceDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import { WaveformHoverTooltip } from '../components/transcription/WaveformHoverTooltip';
+import { WaveformReadoutCard } from '../components/transcription/WaveformReadoutCard';
 import { WaveformLeftStatusStrip } from '../components/transcription/WaveformLeftStatusStrip';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
 import { NoteDocumentIcon } from '../components/NoteDocumentIcon';
@@ -24,6 +25,7 @@ import {
 } from '../components/transcription/TranscriptionLayoutSections';
 import type { WaveSurferRegion } from '../hooks/useWaveSurfer';
 import { t, tf, type Locale } from '../i18n';
+import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { formatTime } from '../utils/transcriptionFormatters';
 
@@ -54,6 +56,26 @@ interface WaveformGapOverlay {
   leftPx: number;
   widthPx: number;
   gapSeconds: number;
+}
+
+interface AcousticOverlayVisibleSummary {
+  f0MeanHz: number | null;
+  intensityPeakDb: number | null;
+  voicedFrameCount: number;
+  frameCount: number;
+}
+
+interface SpectrogramHoverReadout {
+  timeSec: number;
+  frequencyHz: number;
+  f0Hz: number | null;
+  intensityDb: number | null;
+}
+
+interface WaveformHoverReadout {
+  timeSec: number;
+  f0Hz: number | null;
+  intensityDb: number | null;
 }
 
 export interface OrchestratorWaveformContentProps {
@@ -121,6 +143,17 @@ export interface OrchestratorWaveformContentProps {
   waveformLowConfidenceOverlays: WaveformLowConfidenceOverlay[];
   waveformOverlapOverlays: WaveformOverlapOverlay[];
   waveformGapOverlays: WaveformGapOverlay[];
+  acousticOverlayMode: AcousticOverlayMode;
+  acousticOverlayViewportWidth: number;
+  acousticOverlayF0Path: string | null;
+  acousticOverlayIntensityPath: string | null;
+  acousticOverlayVisibleSummary: AcousticOverlayVisibleSummary | null;
+  acousticOverlayLoading: boolean;
+  waveformHoverReadout: WaveformHoverReadout | null;
+  spectrogramHoverReadout: SpectrogramHoverReadout | null;
+  handleSpectrogramMouseMove: React.MouseEventHandler<HTMLDivElement>;
+  handleSpectrogramMouseLeave: React.MouseEventHandler<HTMLDivElement>;
+  handleSpectrogramClick: React.MouseEventHandler<HTMLDivElement>;
   setNotePopover: (v: NotePopoverState) => void;
 
   // Snap guides
@@ -204,6 +237,17 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
     waveformLowConfidenceOverlays,
     waveformOverlapOverlays,
     waveformGapOverlays,
+    acousticOverlayMode,
+    acousticOverlayViewportWidth,
+    acousticOverlayF0Path,
+    acousticOverlayIntensityPath,
+    acousticOverlayVisibleSummary,
+    acousticOverlayLoading,
+    waveformHoverReadout,
+    spectrogramHoverReadout,
+    handleSpectrogramMouseMove,
+    handleSpectrogramMouseLeave,
+    handleSpectrogramClick,
     setNotePopover,
     snapGuideVisible,
     snapGuideLeft,
@@ -224,6 +268,23 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
     mediaFileInputRef,
     handleWaveformResizeStart,
   } = props;
+
+  const activeReadout = spectrogramHoverReadout
+    ? {
+        source: 'spectrogram' as const,
+        timeSec: spectrogramHoverReadout.timeSec,
+        frequencyHz: spectrogramHoverReadout.frequencyHz,
+        f0Hz: spectrogramHoverReadout.f0Hz,
+        intensityDb: spectrogramHoverReadout.intensityDb,
+      }
+    : waveformHoverReadout
+      ? {
+          source: 'waveform' as const,
+          timeSec: waveformHoverReadout.timeSec,
+          f0Hz: waveformHoverReadout.f0Hz,
+          intensityDb: waveformHoverReadout.intensityDb,
+        }
+      : null;
 
   return (
     <>
@@ -294,8 +355,20 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
                 playerWaveformRef={playerWaveformRef}
                 onSeek={playerSeekTo}
                 onPlayRegion={playerPlayRegion}
+                spectrogramOverlay={(
+                  <div
+                    className="transcription-wave-spectrogram-overlay"
+                    onMouseMove={handleSpectrogramMouseMove}
+                    onMouseLeave={handleSpectrogramMouseLeave}
+                    onClick={handleSpectrogramClick}
+                    role="presentation"
+                  />
+                )}
                 waveformShellOverlay={(
                   <div className="waveform-analysis-overlay" aria-hidden="true">
+                    {activeReadout ? (
+                      <WaveformReadoutCard readout={activeReadout} formatTime={formatTime} />
+                    ) : null}
                     {waveformLowConfidenceOverlays.map(({ id, leftPx, widthPx, confidence }) => (
                       <div
                         key={`confidence-${id}`}
@@ -330,6 +403,42 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
                 )}
                 waveformOverlay={(
                   <>
+                    {acousticOverlayMode !== 'none' ? (
+                      <div className="waveform-acoustic-overlay" aria-hidden="true">
+                        <svg
+                          viewBox={`0 0 ${Math.max(1, acousticOverlayViewportWidth)} 100`}
+                          preserveAspectRatio="none"
+                        >
+                          {acousticOverlayIntensityPath ? (
+                            <path className="waveform-acoustic-path waveform-acoustic-path-intensity" d={acousticOverlayIntensityPath} />
+                          ) : null}
+                          {acousticOverlayF0Path ? (
+                            <path className="waveform-acoustic-path waveform-acoustic-path-f0" d={acousticOverlayF0Path} />
+                          ) : null}
+                        </svg>
+                        <div className="waveform-acoustic-legend">
+                          {acousticOverlayLoading ? (
+                            <span className="waveform-acoustic-chip waveform-acoustic-chip-neutral">
+                              {t(locale, 'transcription.wave.acoustic.loading')}
+                            </span>
+                          ) : null}
+                          {!activeReadout && acousticOverlayMode !== 'intensity' ? (
+                            <span className="waveform-acoustic-chip waveform-acoustic-chip-f0">
+                              {t(locale, 'transcription.wave.acoustic.f0')}
+                              {' '}
+                              {acousticOverlayVisibleSummary?.f0MeanHz != null ? `${Math.round(acousticOverlayVisibleSummary.f0MeanHz)} Hz` : '—'}
+                            </span>
+                          ) : null}
+                          {!activeReadout && acousticOverlayMode !== 'f0' ? (
+                            <span className="waveform-acoustic-chip waveform-acoustic-chip-intensity">
+                              {t(locale, 'transcription.wave.acoustic.intensity')}
+                              {' '}
+                              {acousticOverlayVisibleSummary?.intensityPeakDb != null ? `${acousticOverlayVisibleSummary.intensityPeakDb.toFixed(1)} dB` : '—'}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
                     {waveLassoRect ? (
                       <div
                         className={`wave-lasso-rect ${waveLassoRect.mode === 'create' ? 'wave-lasso-rect-create' : 'wave-lasso-rect-select'}`}

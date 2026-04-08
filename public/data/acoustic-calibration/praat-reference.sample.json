@@ -1,0 +1,11 @@
+{
+  "sampleId": "praat-reference-sample",
+  "sampleRate": 16000,
+  "frames": [
+    { "timeSec": 0.50, "f0Hz": 186.0, "intensityDb": -18.1, "formantF1Hz": 520.0, "formantF2Hz": 1680.0 },
+    { "timeSec": 0.70, "f0Hz": 194.0, "intensityDb": -17.4, "formantF1Hz": 548.0, "formantF2Hz": 1760.0 },
+    { "timeSec": 0.90, "f0Hz": 202.0, "intensityDb": -16.7, "formantF1Hz": 576.0, "formantF2Hz": 1840.0 },
+    { "timeSec": 1.10, "f0Hz": 210.0, "intensityDb": -16.0, "formantF1Hz": 602.0, "formantF2Hz": 1910.0 },
+    { "timeSec": 1.30, "f0Hz": 218.0, "intensityDb": -15.4, "formantF1Hz": 628.0, "formantF2Hz": 1980.0 }
+  ]
+}

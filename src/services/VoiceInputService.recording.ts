@@ -6,6 +6,7 @@
  */
 
 import type { SttResult, SttEngine, CommercialSttProvider } from './VoiceInputService';
+import type { SttEnhancementConfig, SttEnhancementProvider } from './stt/enhancementRegistry';
 import {
   buildWhisperTranscriptionEndpoints,
   createTranscriptionTimeoutController,
@@ -94,6 +95,8 @@ export class RecordingExecutor {
     whisperServerUrl?: string;
     whisperServerModel?: string;
     lang: string;
+    sttEnhancement?: SttEnhancementProvider;
+    sttEnhancementConfig?: SttEnhancementConfig;
     commercialFallback?: CommercialSttProvider;
   }): Promise<void> {
     // Re-entrant guard: if a stop is already in flight, await it instead of racing
@@ -132,6 +135,8 @@ export class RecordingExecutor {
     whisperServerUrl?: string;
     whisperServerModel?: string;
     lang: string;
+    sttEnhancement?: SttEnhancementProvider;
+    sttEnhancementConfig?: SttEnhancementConfig;
     commercialFallback?: CommercialSttProvider;
   }): Promise<void> {
     const recorder = this.mediaRecorder;
@@ -207,8 +212,7 @@ export class RecordingExecutor {
         if (!segments) {
           segments = await this._vadService.detectSpeechSegments(audioBuffer);
           vadCache.set(mediaId, {
-            // WhisperXVadService 使用 Worker，存在 worker 属性；VadService（能量）无此属性
-            engine: 'worker' in (this._vadService as object) ? 'silero' : 'energy',
+            engine: this._vadService.getRuntimeEngine?.() ?? 'energy',
             segments,
             durationSec: audioBuffer.duration,
             cachedAt: Date.now(),
@@ -247,7 +251,7 @@ export class RecordingExecutor {
     if (currentEngine === 'commercial' && config.commercialFallback) {
       try {
         const commercialResult = await this.runCommercialTranscription(config.commercialFallback, audioBlob, config.lang);
-        this.callbacks.emitResult(commercialResult);
+        this.callbacks.emitResult(await this.applyEnhancement(commercialResult, audioBlob, config));
         return;
       } catch (err) {
         // Commercial failed — try whisper-server as fallback
@@ -264,6 +268,8 @@ export class RecordingExecutor {
     whisperServerUrl?: string;
     whisperServerModel?: string;
     lang: string;
+    sttEnhancement?: SttEnhancementProvider;
+    sttEnhancementConfig?: SttEnhancementConfig;
     commercialFallback?: CommercialSttProvider;
   }): Promise<void> {
     const baseUrl = config.whisperServerUrl?.replace(/\/+$/, '') ?? 'http://localhost:3040';
@@ -271,12 +277,12 @@ export class RecordingExecutor {
 
     try {
       const result = await this.transcribeWithWhisperServer(audioBlob, baseUrl, model, config.lang);
-      this.callbacks.emitResult(result);
+      this.callbacks.emitResult(await this.applyEnhancement(result, audioBlob, config));
     } catch (err) {
       if (config.commercialFallback) {
         try {
           const commercialResult = await this.runCommercialTranscription(config.commercialFallback, audioBlob, config.lang);
-          this.callbacks.emitResult(commercialResult);
+          this.callbacks.emitResult(await this.applyEnhancement(commercialResult, audioBlob, config));
           return;
         } catch (fallbackErr) {
           log.warn('commercial fallback transcription failed', { fallbackErr });
@@ -360,5 +366,52 @@ export class RecordingExecutor {
     }
 
     throw new Error(`${WHISPER_SERVER_TRANSCRIPTION_FAILED_PREFIX}${failures.join('\n')}`);
+  }
+
+  private async applyEnhancement(
+    result: SttResult,
+    audioBlob: Blob,
+    config: {
+      lang: string;
+      sttEnhancement?: SttEnhancementProvider;
+      sttEnhancementConfig?: SttEnhancementConfig;
+    },
+  ): Promise<SttResult> {
+    if (!config.sttEnhancement || !result.text.trim()) {
+      return result;
+    }
+
+    try {
+      const enhancement = await config.sttEnhancement.enhance({
+        transcriptText: result.text,
+        lang: config.lang,
+        audioBlob,
+      }, config.sttEnhancementConfig ?? {});
+
+      return {
+        ...result,
+        ...(enhancement.wordTimings ? { wordTimings: enhancement.wordTimings } : {}),
+        ...(enhancement.speakerTurns ? { speakerTurns: enhancement.speakerTurns } : {}),
+        enhancement: {
+          kind: config.sttEnhancement.kind,
+          applied: true,
+          ...(enhancement.wordTimings ? { wordTimingCount: enhancement.wordTimings.length } : {}),
+          ...(enhancement.speakerTurns ? { speakerTurnCount: enhancement.speakerTurns.length } : {}),
+        },
+      };
+    } catch (error) {
+      log.warn('STT enhancement failed, returning base transcript', {
+        kind: config.sttEnhancement.kind,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return {
+        ...result,
+        enhancement: {
+          kind: config.sttEnhancement.kind,
+          applied: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
   }
 }

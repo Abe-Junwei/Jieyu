@@ -270,7 +270,8 @@ function buildTemporalDistribution(
   const quartileCounts: [number, number, number, number] = [0, 0, 0, 0];
   for (const mid of allMidpoints) {
     const idx = Math.min(3, Math.floor(mid / q));
-    quartileCounts[idx] += 1;
+    const currentCount = quartileCounts[idx] ?? 0;
+    quartileCounts[idx] = currentCount + 1;
   }
   return {
     durationSec,
@@ -293,8 +294,9 @@ export function buildWaveformAnalysisPromptSummary(
   },
 ): WaveformAnalysisPromptSummary {
   const summary = buildWaveformAnalysisOverlaySummary(utterances, {
-    ...options,
-    vadSegments: options?.vadSegments,
+    ...(options?.lowConfidenceThreshold !== undefined ? { lowConfidenceThreshold: options.lowConfidenceThreshold } : {}),
+    ...(options?.gapThresholdSeconds !== undefined ? { gapThresholdSeconds: options.gapThresholdSeconds } : {}),
+    ...(options?.vadSegments !== undefined ? { vadSegments: options.vadSegments } : {}),
   });
   const maxGapSeconds = summary.gapBands.reduce((maxSeconds, band) => Math.max(maxSeconds, band.gapSeconds), 0);
 

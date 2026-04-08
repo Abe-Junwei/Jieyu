@@ -42,12 +42,15 @@ interface StoragePayload {
   accessOrder: string[];
 }
 
+type VadCacheListener = () => void;
+
 // ── Service ──────────────────────────────────────────────────────────────────
 
 export class VadCacheService {
   private memoryCache = new Map<string, VadCacheEntry>();
   private accessOrder: string[] = [];
   private loaded = false;
+  private listeners = new Set<VadCacheListener>();
 
   /**
    * 获取缓存的 VAD 结果（未命中返回 null）
@@ -61,6 +64,7 @@ export class VadCacheService {
       this.memoryCache.delete(mediaId);
       this.accessOrder = this.accessOrder.filter((id) => id !== mediaId);
       this.persist();
+      this.emitChange();
       return null;
     }
     // LRU touch
@@ -80,6 +84,7 @@ export class VadCacheService {
     this.accessOrder.push(mediaId);
     this.evictIfNeeded();
     this.persist();
+    this.emitChange();
   }
 
   /**
@@ -91,6 +96,7 @@ export class VadCacheService {
     this.memoryCache.delete(mediaId);
     this.accessOrder = this.accessOrder.filter((id) => id !== mediaId);
     this.persist();
+    this.emitChange();
   }
 
   /**
@@ -106,12 +112,21 @@ export class VadCacheService {
     } catch {
       // localStorage 不可用时静默失败
     }
+    this.emitChange();
   }
 
   /** 返回当前缓存条目数（用于诊断）| Return current cache size for diagnostics */
   get size(): number {
     this.ensureLoaded();
     return this.memoryCache.size;
+  }
+
+  /** 订阅缓存变更 | Subscribe to cache mutations */
+  subscribe(listener: VadCacheListener): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   // ── Internal ──
@@ -157,6 +172,12 @@ export class VadCacheService {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch {
       // localStorage 写入失败时静默降级（不影响功能）
+    }
+  }
+
+  private emitChange(): void {
+    for (const listener of this.listeners) {
+      listener();
     }
   }
 }

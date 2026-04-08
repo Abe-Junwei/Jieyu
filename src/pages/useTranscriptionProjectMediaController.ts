@@ -7,6 +7,7 @@ import { t } from '../i18n';
 import { createLogger } from '../observability/logger';
 import { LinguisticService } from '../services/LinguisticService';
 import { detectVadSegments, loadAudioBuffer } from '../services/VadService';
+import { ensureVadCacheForMedia } from '../services/vad/VadMediaCacheService';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { SearchableItem } from '../utils/searchReplaceUtils';
@@ -52,6 +53,16 @@ interface UseTranscriptionProjectMediaControllerResult {
   setProjectDeleteConfirm: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
+async function resolveAutoSegmentCandidates(mediaId: string | undefined, mediaUrl: string): Promise<Array<{ start: number; end: number }>> {
+  const cachedEntry = await ensureVadCacheForMedia({ mediaId, mediaUrl });
+  if (cachedEntry) {
+    return cachedEntry.segments;
+  }
+
+  const audioBuffer = await loadAudioBuffer(mediaUrl);
+  return detectVadSegments(audioBuffer);
+}
+
 export function useTranscriptionProjectMediaController(
   input: UseTranscriptionProjectMediaControllerInput,
 ): UseTranscriptionProjectMediaControllerResult {
@@ -95,8 +106,7 @@ export function useTranscriptionProjectMediaController(
     setAutoSegmentBusy(true);
     fireAndForget((async () => {
       try {
-        const audioBuf = await loadAudioBuffer(mediaUrl);
-        const segments = detectVadSegments(audioBuf);
+        const segments = await resolveAutoSegmentCandidates(selectedTimelineMedia?.id, mediaUrl);
         const newSegs = segments.filter((seg) => !utterancesOnCurrentMedia.some(
           (utterance) => utterance.startTime < seg.end - 0.05 && utterance.endTime > seg.start + 0.05,
         ));
@@ -114,7 +124,7 @@ export function useTranscriptionProjectMediaController(
         setAutoSegmentBusy(false);
       }
     })());
-  }, [autoSegmentBusy, createUtteranceFromSelectionRouted, selectedMediaUrl, setSaveState, utterancesOnCurrentMedia]);
+  }, [autoSegmentBusy, createUtteranceFromSelectionRouted, locale, selectedMediaUrl, selectedTimelineMedia?.id, setSaveState, tfB, utterancesOnCurrentMedia]);
 
   const handleDeleteCurrentAudio = useCallback(() => {
     if (!selectedTimelineMedia) return;

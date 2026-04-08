@@ -296,4 +296,42 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
 
     expect(fetchMock).toHaveBeenCalled();
   });
+
+  it('applies configured STT enhancement metadata after successful transcription', async () => {
+    const enhancementProvider = {
+      kind: 'whisperx-align' as const,
+      isAvailable: vi.fn(async () => true),
+      enhance: vi.fn(async () => ({
+        wordTimings: [{ word: 'transcribed', start: 0, end: 0.8, confidence: 0.96 }],
+        speakerTurns: [{ speaker: 'S1', start: 0, end: 0.8 }],
+      })),
+    };
+
+    const executor = new RecordingExecutor(callbacks);
+
+    await executor.startRecording();
+    await executor.stopRecording('whisper-local', {
+      whisperServerUrl: 'http://localhost:8080',
+      lang: 'en',
+      sttEnhancement: enhancementProvider,
+      sttEnhancementConfig: { endpointUrl: 'http://localhost:8765/enhance', language: 'en' },
+    });
+
+    expect(enhancementProvider.enhance).toHaveBeenCalledTimes(1);
+    expect(emitResult).toHaveBeenCalledWith(expect.objectContaining({
+      text: 'transcribed',
+      enhancement: expect.objectContaining({
+        kind: 'whisperx-align',
+        applied: true,
+        wordTimingCount: 1,
+        speakerTurnCount: 1,
+      }),
+      wordTimings: expect.arrayContaining([
+        expect.objectContaining({ word: 'transcribed' }),
+      ]),
+      speakerTurns: expect.arrayContaining([
+        expect.objectContaining({ speaker: 'S1' }),
+      ]),
+    }));
+  });
 });

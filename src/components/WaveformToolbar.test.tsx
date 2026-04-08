@@ -8,7 +8,8 @@ describe('WaveformToolbar', () => {
   it('exposes accessible names for transport, speed, and volume controls', () => {
     const onPlaybackRateChange = vi.fn();
     const onWaveformDisplayModeChange = vi.fn<(mode: 'waveform' | 'spectrogram' | 'split') => void>();
-    const onWaveformVisualStyleChange = vi.fn<(style: 'balanced' | 'dense' | 'contrast') => void>();
+    const onWaveformVisualStyleChange = vi.fn<(style: 'balanced' | 'dense' | 'contrast' | 'praat') => void>();
+    const onAcousticOverlayModeChange = vi.fn<(mode: 'none' | 'f0' | 'intensity' | 'both') => void>();
     const onVolumeChange = vi.fn();
 
     render(
@@ -23,6 +24,8 @@ describe('WaveformToolbar', () => {
           onWaveformDisplayModeChange={onWaveformDisplayModeChange}
           waveformVisualStyle="balanced"
           onWaveformVisualStyleChange={onWaveformVisualStyleChange}
+          acousticOverlayMode="none"
+          onAcousticOverlayModeChange={onAcousticOverlayModeChange}
           volume={0.5}
           onVolumeChange={onVolumeChange}
           loop={false}
@@ -35,6 +38,7 @@ describe('WaveformToolbar', () => {
 
     fireEvent.change(screen.getByRole('combobox', { name: /语段播放速度/i }), { target: { value: '1.5' } });
     fireEvent.change(screen.getByRole('combobox', { name: /显示模式/i }), { target: { value: 'split' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /声学叠加/i }), { target: { value: 'both' } });
     fireEvent.change(screen.getByRole('combobox', { name: /波形样式/i }), { target: { value: 'contrast' } });
     fireEvent.change(screen.getByRole('slider', { name: /音量/i }), { target: { value: '0.8' } });
 
@@ -43,6 +47,7 @@ describe('WaveformToolbar', () => {
     expect(screen.getByRole('button', { name: '开启全局循环播放' })).toBeTruthy();
     expect(onPlaybackRateChange).toHaveBeenCalledWith(1.5);
     expect(onWaveformDisplayModeChange).toHaveBeenCalledWith('split');
+    expect(onAcousticOverlayModeChange).toHaveBeenCalledWith('both');
     expect(onWaveformVisualStyleChange).toHaveBeenCalledWith('contrast');
     expect(onVolumeChange).toHaveBeenCalledWith(0.8);
   });

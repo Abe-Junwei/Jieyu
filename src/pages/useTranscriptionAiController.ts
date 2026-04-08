@@ -1,118 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AiPanelMode } from '../components/AiAnalysisPanel';
 import type { AiObserverRecommendation } from '../components/transcription/toolbar/ObserverStatus';
-import type {
-  LayerDocType,
-  LayerLinkDocType,
-  LayerSegmentDocType,
-  MediaItemDocType,
-  UtteranceDocType,
-} from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import { useAiChat } from '../hooks/useAiChat';
 import { useAiPanelLogic, taskToPersona, type ActionableRecommendation } from '../hooks/useAiPanelLogic';
 import { useAiToolCallHandler } from '../hooks/useAiToolCallHandler';
 import { materializePendingToolCallTargets } from '../hooks/useAiToolCallHandler.segmentTargeting';
-import type { SaveState } from '../hooks/transcriptionTypes';
-import type { Locale } from '../i18n';
-import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import { createDeferredEmbeddingSearchService } from '../ai/embeddings/DeferredEmbeddingSearchService';
 import { listRecentAiToolDecisionLogs } from '../ai/auditReplay';
 import { buildTranscriptionAiPromptContext } from './TranscriptionPage.aiPromptContext';
 import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { fireAndForget } from '../utils/fireAndForget';
-import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import { loadOrthographyRuntime } from '../utils/loadOrthographyRuntime';
 import { createTranscriptionAiToolRiskCheck } from './transcriptionAiToolRiskCheck';
-import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import { buildAiSegmentTargetDescriptors, resolveAiSegmentTargetScopeUtterances } from './useTranscriptionAiController.segmentTargets';
 import { buildWaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
 import { vadCache } from '../services/vad/VadCacheService';
+import type {
+  UseTranscriptionAiControllerInput,
+  UseTranscriptionAiControllerResult,
+} from './transcriptionAiController.types';
+import { useTranscriptionAiAcousticRuntime } from './useTranscriptionAiAcousticRuntime';
+
+export type {
+  UseTranscriptionAiControllerInput,
+  UseTranscriptionAiControllerResult,
+} from './transcriptionAiController.types';
 
 const TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX = '\u5237\u65b0 AI \u5de5\u5177\u5ba1\u8ba1\u65e5\u5fd7\u5931\u8d25\uff1a';
-
-export interface UseTranscriptionAiControllerInput {
-  utterances: UtteranceDocType[];
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  selectedUnitIds: Set<string>;
-  selectedUtterance: UtteranceDocType | null;
-  selectedTimelineOwnerUtterance: UtteranceDocType | null;
-  selectedTimelineSegment?: LayerSegmentDocType | null;
-  selectedTimelineMedia?: MediaItemDocType;
-  selectedLayerId: string;
-  activeLayerIdForEdits?: string;
-  resolveSegmentRoutingForLayer?: (layerId?: string) => SegmentRoutingResult;
-  segmentsByLayer?: ReadonlyMap<string, LayerSegmentDocType[]>;
-  segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, { text?: string }>>;
-  selectionSnapshot: TranscriptionSelectionSnapshot;
-  layers: LayerDocType[];
-  transcriptionLayers: LayerDocType[];
-  translationLayers: LayerDocType[];
-  layerLinks: LayerLinkDocType[];
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
-  formatTime: (seconds: number) => string;
-  utteranceCount: number;
-  translationLayerCount: number;
-  aiConfidenceAvg: number | null;
-  undoHistory: unknown[];
-  createLayerWithActiveContext: (
-    layerType: 'transcription' | 'translation',
-    input: { languageId: string; alias?: string },
-    modality?: 'text' | 'audio' | 'mixed',
-  ) => Promise<boolean>;
-  createTranscriptionSegment: (targetId: string) => Promise<void>;
-  splitTranscriptionSegment: (targetId: string, splitTime: number) => Promise<void>;
-  mergeWithPrevious?: (id: string) => Promise<void>;
-  mergeWithNext?: (id: string) => Promise<void>;
-  mergeSelectedUtterances: (ids: Set<string>) => Promise<void>;
-  mergeSelectedSegments?: (ids: Set<string>) => Promise<void>;
-  deleteUtterance: (id: string) => Promise<void>;
-  deleteSelectedUtterances: (ids: Set<string>) => Promise<void>;
-  deleteLayer: (id: string, options?: { keepUtterances?: boolean }) => Promise<void>;
-  toggleLayerLink: (transcriptionLayerKey: string, layerId: string) => Promise<void>;
-  saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
-  saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
-  saveSegmentContentForLayer: (segmentId: string, layerId: string, value: string) => Promise<void>;
-  updateTokenPos: (tokenId: string, pos: string | null) => Promise<void> | void;
-  batchUpdateTokenPosByForm: (utteranceId: string, form: string, pos: string | null) => Promise<number> | number;
-  updateTokenGloss: (tokenId: string, gloss: string | null, lang?: string) => Promise<void> | void;
-  selectUtterance: (id: string) => void;
-  setSaveState: React.Dispatch<React.SetStateAction<SaveState>>;
-  translationDrafts: Record<string, string>;
-  translationTextByLayer: Map<string, Map<string, { text?: string }>>;
-  locale: Locale;
-  playerCurrentTime: number;
-  executeActionRef: React.MutableRefObject<((actionId: string) => void) | undefined>;
-  openSearchRef: React.MutableRefObject<((detail?: AppShellOpenSearchDetail) => void) | undefined>;
-  seekToTimeRef: React.MutableRefObject<((timeSeconds: number) => void) | undefined>;
-  splitAtTimeRef: React.MutableRefObject<((timeSeconds: number) => boolean) | undefined>;
-  zoomToSegmentRef: React.MutableRefObject<((segmentId: string, zoomLevel?: number) => boolean) | undefined>;
-  handleExecuteRecommendation: (item: ActionableRecommendation) => Promise<void> | void;
-  aiSidebarError?: string | null;
-  setAiSidebarError?: React.Dispatch<React.SetStateAction<string | null>>;
-  embeddingProviderConfig?: { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string };
-  setEmbeddingProviderConfig?: React.Dispatch<React.SetStateAction<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>>;
-}
-
-export interface UseTranscriptionAiControllerResult {
-  aiPanelMode: AiPanelMode;
-  setAiPanelMode: React.Dispatch<React.SetStateAction<AiPanelMode>>;
-  aiSidebarError: string | null;
-  setAiSidebarError: React.Dispatch<React.SetStateAction<string | null>>;
-  embeddingProviderConfig: { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string };
-  setEmbeddingProviderConfig: React.Dispatch<React.SetStateAction<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>>;
-  aiToolDecisionLogs: Array<{ id: string; toolName: string; decision: string; requestId?: string; timestamp: string }>;
-  aiChat: ReturnType<typeof useAiChat>;
-  lexemeMatches: ReturnType<typeof useAiPanelLogic>['lexemeMatches'];
-  observerResult: ReturnType<typeof useAiPanelLogic>['observerResult'];
-  actionableObserverRecommendations: ReturnType<typeof useAiPanelLogic>['actionableObserverRecommendations'];
-  selectedAiWarning: boolean;
-  selectedTranslationGapCount: number;
-  aiCurrentTask: ReturnType<typeof useAiPanelLogic>['aiCurrentTask'];
-  aiVisibleCards: ReturnType<typeof useAiPanelLogic>['aiVisibleCards'];
-  handleJumpToTranslationGap: () => void;
-  handleExecuteObserverRecommendation: (item: AiObserverRecommendation) => void;
-}
 
 export function useTranscriptionAiController(
   input: UseTranscriptionAiControllerInput,
@@ -143,6 +59,18 @@ export function useTranscriptionAiController(
   const [internalAiSidebarError, setInternalAiSidebarError] = useState<string | null>(null);
   const aiSidebarError = input.aiSidebarError ?? internalAiSidebarError;
   const setAiSidebarError = input.setAiSidebarError ?? setInternalAiSidebarError;
+
+  const {
+    acousticSummary,
+    acousticDetail,
+    handleJumpToAcousticHotspot,
+  } = useTranscriptionAiAcousticRuntime({
+    selectedMediaUrl: input.selectedMediaUrl,
+    selectedTimelineMediaId: input.selectedTimelineMedia?.id,
+    selectionStartSec: input.selectionSnapshot.selectedUnitStartSec,
+    selectionEndSec: input.selectionSnapshot.selectedUnitEndSec,
+    seekToTimeRef: input.seekToTimeRef,
+  });
 
   const refreshAiToolDecisionLogs = useCallback(async () => {
     try {
@@ -263,6 +191,7 @@ export function useTranscriptionAiController(
       audioTimeSec: aiAudioTimeRef.current,
       ...(cachedVad ? { vadSegments: cachedVad.segments } : {}),
     }),
+    ...(acousticSummary ? { acousticSummary } : {}),
     selectionSnapshot: input.selectionSnapshot,
     selectedUnitIds: Array.from(input.selectedUnitIds).slice(0, 12),
     utteranceCount: input.utteranceCount,
@@ -274,7 +203,7 @@ export function useTranscriptionAiController(
     audioTimeSec: aiAudioTimeRef.current,
     recentEdits: input.undoHistory.slice(0, 5).map((item) => String(item)),
   });
-  }, [input.aiConfidenceAvg, input.selectedUnitIds, input.selectionSnapshot, input.selectedTimelineMedia?.id, input.translationLayerCount, input.undoHistory, input.utteranceCount, input.utterancesOnCurrentMedia]);
+  }, [acousticSummary, input.aiConfidenceAvg, input.selectedUnitIds, input.selectionSnapshot, input.selectedTimelineMedia?.id, input.translationLayerCount, input.undoHistory, input.utteranceCount, input.utterancesOnCurrentMedia]);
 
   const handleAiToolRiskCheck = createTranscriptionAiToolRiskCheck({
     locale,
@@ -312,6 +241,7 @@ export function useTranscriptionAiController(
     selectedTranslationGapCount,
     aiCurrentTask,
     aiVisibleCards,
+    vadCacheStatus,
     handleJumpToTranslationGap,
   } = useAiPanelLogic({
     locale: input.locale,
@@ -325,21 +255,19 @@ export function useTranscriptionAiController(
     aiPanelMode,
     selectUtterance: input.selectUtterance,
     setSaveState: input.setSaveState,
-    mediaId: input.selectedTimelineMedia?.id,
+    ...(input.selectedTimelineMedia?.id !== undefined ? { mediaId: input.selectedTimelineMedia.id } : {}),
   });
 
-  useEffect(() => { const nextPersona = taskToPersona(aiCurrentTask); setAiDerivedPersona((prev) => (prev === nextPersona ? prev : nextPersona)); }, [aiCurrentTask]);
-  useEffect(() => { aiAudioTimeRef.current = input.playerCurrentTime; }, [input.playerCurrentTime]);
+  aiAudioTimeRef.current = input.playerCurrentTime;
+  aiObserverStageRef.current = observerResult.stage;
+  aiRecommendationRef.current = actionableObserverRecommendations
+    .slice(0, 4)
+    .map((item) => `${item.title}: ${item.detail}`);
+  aiLexemeSummaryRef.current = lexemeMatches
+    .slice(0, 6)
+    .map((item) => Object.values(item.lemma)[0] ?? item.id);
 
-  useEffect(() => {
-    aiObserverStageRef.current = observerResult.stage;
-    aiRecommendationRef.current = actionableObserverRecommendations
-      .slice(0, 4)
-      .map((item) => `${item.title}: ${item.detail}`);
-    aiLexemeSummaryRef.current = lexemeMatches
-      .slice(0, 6)
-      .map((item) => Object.values(item.lemma)[0] ?? item.id);
-  }, [actionableObserverRecommendations, lexemeMatches, observerResult.stage]);
+  useEffect(() => { const nextPersona = taskToPersona(aiCurrentTask); setAiDerivedPersona((prev) => (prev === nextPersona ? prev : nextPersona)); }, [aiCurrentTask]);
 
   const handleExecuteObserverRecommendation = useCallback((item: AiObserverRecommendation) => {
     const match = actionableObserverRecommendations.find((candidate) => candidate.id === item.id);
@@ -362,7 +290,10 @@ export function useTranscriptionAiController(
     selectedTranslationGapCount,
     aiCurrentTask,
     aiVisibleCards,
+    acousticSummary,
+    acousticDetail,
     handleJumpToTranslationGap,
+    handleJumpToAcousticHotspot,
     handleExecuteObserverRecommendation,
   };
 }

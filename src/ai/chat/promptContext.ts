@@ -127,6 +127,37 @@ const LONG_TERM_TEMPLATES: ContextFieldTemplate[] = [
       return `waveformAnalysis(${segments.join(', ')})`;
     },
   },
+  {
+    key: 'acousticSummary',
+    render: (v) => {
+      const summary = v as {
+        selectionStartSec: number;
+        selectionEndSec: number;
+        f0MinHz?: number | null;
+        f0MaxHz?: number | null;
+        f0MeanHz?: number | null;
+        intensityPeakDb?: number | null;
+        reliabilityMean?: number | null;
+        spectralCentroidMeanHz?: number | null;
+        spectralRolloffMeanHz?: number | null;
+        zeroCrossingRateMean?: number | null;
+        sampleRateHz?: number;
+        algorithmVersion?: string;
+        analysisWindowSec?: number;
+        frameStepSec?: number;
+        formantF1MeanHz?: number | null;
+        formantF2MeanHz?: number | null;
+        vowelSpaceSpread?: number | null;
+        voicedFrameCount?: number;
+        frameCount?: number;
+        hotspots?: Array<{ kind: string; timeSec: number; score: number }>;
+      };
+      const hotspots = summary.hotspots && summary.hotspots.length > 0
+        ? `, hotspots=${summary.hotspots.map((item) => `${item.kind}@${item.timeSec.toFixed(2)}s`).join('|')}`
+        : '';
+      return `acousticSummary(selectionSec=${summary.selectionStartSec.toFixed(2)}-${summary.selectionEndSec.toFixed(2)}, f0Min=${typeof summary.f0MinHz === 'number' ? Math.round(summary.f0MinHz) : 'n/a'}, f0Max=${typeof summary.f0MaxHz === 'number' ? Math.round(summary.f0MaxHz) : 'n/a'}, f0Mean=${typeof summary.f0MeanHz === 'number' ? Math.round(summary.f0MeanHz) : 'n/a'}, intensityPeak=${typeof summary.intensityPeakDb === 'number' ? `${summary.intensityPeakDb.toFixed(1)}dB` : 'n/a'}, reliability=${typeof summary.reliabilityMean === 'number' ? summary.reliabilityMean.toFixed(2) : 'n/a'}, centroidMean=${typeof summary.spectralCentroidMeanHz === 'number' ? Math.round(summary.spectralCentroidMeanHz) : 'n/a'}, rolloffMean=${typeof summary.spectralRolloffMeanHz === 'number' ? Math.round(summary.spectralRolloffMeanHz) : 'n/a'}, zcrMean=${typeof summary.zeroCrossingRateMean === 'number' ? `${(summary.zeroCrossingRateMean * 100).toFixed(1)}%` : 'n/a'}, formantF1Mean=${typeof summary.formantF1MeanHz === 'number' ? Math.round(summary.formantF1MeanHz) : 'n/a'}, formantF2Mean=${typeof summary.formantF2MeanHz === 'number' ? Math.round(summary.formantF2MeanHz) : 'n/a'}, vowelSpread=${typeof summary.vowelSpaceSpread === 'number' ? Math.round(summary.vowelSpaceSpread) : 'n/a'}, runtime=${summary.algorithmVersion ?? 'unknown'}@${typeof summary.sampleRateHz === 'number' ? `${summary.sampleRateHz}Hz` : 'n/a'}, win=${typeof summary.analysisWindowSec === 'number' ? summary.analysisWindowSec.toFixed(3) : 'n/a'}s, step=${typeof summary.frameStepSec === 'number' ? summary.frameStepSec.toFixed(3) : 'n/a'}s, voicedFrames=${summary.voicedFrameCount ?? 0}/${summary.frameCount ?? 0}${hotspots})`;
+    },
+  },
   { key: 'observerStage', render: (v) => `observerStage=${v}` },
   { key: 'topLexemes', render: (v) => `topLexemes=${(v as string[]).join(', ')}` },
   { key: 'recommendations', render: (v) => `recommendations=${(v as string[]).join(' | ')}` },

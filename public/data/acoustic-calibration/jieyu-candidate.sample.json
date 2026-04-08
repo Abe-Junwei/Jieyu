@@ -1,0 +1,11 @@
+{
+  "sampleId": "jieyu-candidate-sample",
+  "sampleRate": 16000,
+  "frames": [
+    { "timeSec": 0.50, "f0Hz": 184.5, "intensityDb": -18.4, "formantF1Hz": 534.0, "formantF2Hz": 1708.0 },
+    { "timeSec": 0.70, "f0Hz": 196.2, "intensityDb": -17.0, "formantF1Hz": 560.0, "formantF2Hz": 1784.0 },
+    { "timeSec": 0.90, "f0Hz": 203.5, "intensityDb": -16.8, "formantF1Hz": 584.0, "formantF2Hz": 1856.0 },
+    { "timeSec": 1.10, "f0Hz": 208.7, "intensityDb": -15.7, "formantF1Hz": 616.0, "formantF2Hz": 1938.0 },
+    { "timeSec": 1.30, "f0Hz": 219.8, "intensityDb": -15.0, "formantF1Hz": 642.0, "formantF2Hz": 2004.0 }
+  ]
+}

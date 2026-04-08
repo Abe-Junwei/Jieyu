@@ -42,6 +42,7 @@ type VideoPreviewSectionProps = {
   onPlayRegion: (start: number, end: number, resume?: boolean) => void;
   waveformOverlay?: ReactNode;
   waveformShellOverlay?: ReactNode;
+  spectrogramOverlay?: ReactNode;
 };
 
 export function VideoPreviewSection({
@@ -68,6 +69,7 @@ export function VideoPreviewSection({
   onPlayRegion,
   waveformOverlay,
   waveformShellOverlay,
+  spectrogramOverlay,
 }: VideoPreviewSectionProps) {
   const locale = useLocale();
   const { waveformPrimaryHeight, spectrogramHeight } = getWaveformDisplayHeights(waveformStripHeight, waveformDisplayMode);
@@ -96,7 +98,9 @@ export function VideoPreviewSection({
         ref={playerSpectrogramRef}
         className={`transcription-wave-spectrogram ${waveformDisplayMode === 'waveform' ? 'transcription-wave-spectrogram-hidden' : ''}`}
         aria-hidden={waveformDisplayMode === 'waveform'}
-      />
+      >
+        {waveformDisplayMode !== 'waveform' ? spectrogramOverlay : null}
+      </div>
       {waveformShellOverlay}
     </div>
   );

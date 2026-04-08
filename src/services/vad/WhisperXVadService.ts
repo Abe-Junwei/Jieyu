@@ -17,6 +17,7 @@
 import { detectVadSegments } from '../VadService';
 import type { VadWorkerSegment } from '../../workers/vadWorker';
 import { createLogger } from '../../observability/logger';
+import { PendingWorkerRequestStore } from '../PendingWorkerRequestStore';
 
 const log = createLogger('WhisperXVadService');
 
@@ -41,10 +42,7 @@ export interface WhisperXVadOptions {
 export class WhisperXVadService {
   private worker: Worker | null = null;
   private ready = false;
-  private pendingCallbacks = new Map<string, {
-    resolve: (segs: SpeechSegment[]) => void;
-    reject: (err: Error) => void;
-  }>();
+  private readonly pendingRequests = new PendingWorkerRequestStore<SpeechSegment[]>();
 
   constructor(private readonly options: WhisperXVadOptions = {}) {}
 
@@ -83,26 +81,18 @@ export class WhisperXVadService {
         }
 
         if (msg.type === 'result' && msg.id) {
-          const cb = this.pendingCallbacks.get(msg.id);
-          if (cb) {
-            this.pendingCallbacks.delete(msg.id);
-            cb.resolve((msg.segments ?? []).map((s) => ({
-              start: s.start,
-              end: s.end,
-              confidence: s.confidence,
-            })));
-          }
+          this.pendingRequests.resolve(msg.id, (msg.segments ?? []).map((s) => ({
+            start: s.start,
+            end: s.end,
+            confidence: s.confidence,
+          })));
           return;
         }
 
         if (msg.type === 'error') {
           log.warn('VAD Worker error', { message: msg.message });
           if (msg.id) {
-            const cb = this.pendingCallbacks.get(msg.id);
-            if (cb) {
-              this.pendingCallbacks.delete(msg.id);
-              cb.reject(new Error(msg.message ?? 'VAD worker error'));
-            }
+            this.pendingRequests.reject(msg.id, new Error(msg.message ?? 'VAD worker error'));
           } else if (!this.ready) {
             clearTimeout(timer);
             reject(new Error(msg.message ?? 'VAD worker error'));
@@ -139,15 +129,18 @@ export class WhisperXVadService {
     // 提取单声道 PCM | Extract mono PCM
     const pcm = extractMonoPcm(buffer);
 
-    return new Promise<SpeechSegment[]>((resolve, reject) => {
-      const id = generateId();
-      this.pendingCallbacks.set(id, { resolve, reject });
-
+    const id = generateId();
+    return this.pendingRequests.track(id, () => {
       this.worker!.postMessage(
         { type: 'detect', id, pcm, sampleRate: buffer.sampleRate },
-        [pcm.buffer], // 转移所有权避免拷贝 | Transfer ownership to avoid copy
+        [pcm.buffer],
       );
     });
+  }
+
+  /** 返回当前实际运行引擎 | Report the currently active runtime engine */
+  getRuntimeEngine(): 'silero' | 'energy' {
+    return this.ready && this.worker ? 'silero' : 'energy';
   }
 
   /** 重置 Silero 隐藏状态（切换音频文件时调用）| Reset Silero hidden state (call on audio file switch) */
@@ -162,10 +155,7 @@ export class WhisperXVadService {
     this.worker?.terminate();
     this.worker = null;
     this.ready = false;
-    for (const cb of this.pendingCallbacks.values()) {
-      cb.reject(new Error('WhisperXVadService disposed'));
-    }
-    this.pendingCallbacks.clear();
+    this.pendingRequests.rejectAll(new Error('WhisperXVadService disposed'));
   }
 }
 

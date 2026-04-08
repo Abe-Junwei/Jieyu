@@ -16,6 +16,13 @@ import { VadMonitorRuntime } from './VoiceInputService.vad';
 import { RecordingExecutor } from './VoiceInputService.recording';
 import { WhisperXVadService } from './vad/WhisperXVadService';
 import { recommendVadStrategy } from './SttStrategyRouter';
+import type {
+  SttEnhancementConfig,
+  SttEnhancementKind,
+  SttEnhancementProvider,
+  SttEnhancementSpeakerTurn,
+  SttEnhancementWordTiming,
+} from './stt/enhancementRegistry';
 export {
   testOllamaWhisperAvailability,
   testWhisperServerAvailability,
@@ -35,6 +42,15 @@ export interface SttResult {
   confidence: number;            // 0-1
   engine: SttEngine;
   audioBlob?: Blob;
+  wordTimings?: SttEnhancementWordTiming[];
+  speakerTurns?: SttEnhancementSpeakerTurn[];
+  enhancement?: {
+    kind: SttEnhancementKind;
+    applied: boolean;
+    error?: string;
+    wordTimingCount?: number;
+    speakerTurnCount?: number;
+  };
   alternatives?: Array<{
     text: string;
     confidence: number;
@@ -59,6 +75,10 @@ export interface VoiceInputConfig {
   whisperServerUrl?: string;
   /** Whisper-server model name, e.g. 'ggml-small-q5_k.bin' */
   whisperServerModel?: string;
+  /** Optional alignment/diarization enhancement that runs after STT returns text. */
+  sttEnhancement?: SttEnhancementProvider;
+  /** Configuration passed to the selected STT enhancement provider. */
+  sttEnhancementConfig?: SttEnhancementConfig;
   /**
    * Pluggable commercial STT provider.
    * Tried automatically when all local engines (Web Speech + Whisper Local) fail.
@@ -253,6 +273,17 @@ export class VoiceInputService {
     if (this.recognition) {
       this.recognition.lang = lang;
     }
+  }
+
+  setSttEnhancement(
+    provider: SttEnhancementProvider | undefined,
+    config: SttEnhancementConfig | undefined,
+  ): void {
+    this._config = {
+      ...this._config,
+      sttEnhancement: provider,
+      sttEnhancementConfig: config,
+    };
   }
 
   async ensureSharedAnalysisStream(): Promise<MediaStream | null> {
@@ -662,6 +693,8 @@ export class VoiceInputService {
       ...(this._config.whisperServerUrl !== undefined && { whisperServerUrl: this._config.whisperServerUrl }),
       ...(this._config.whisperServerModel !== undefined && { whisperServerModel: this._config.whisperServerModel }),
       lang: this._config.lang,
+      ...(this._config.sttEnhancement !== undefined && { sttEnhancement: this._config.sttEnhancement }),
+      ...(this._config.sttEnhancementConfig !== undefined && { sttEnhancementConfig: this._config.sttEnhancementConfig }),
       ...(this._config.commercialFallback !== undefined && { commercialFallback: this._config.commercialFallback }),
     });
   }

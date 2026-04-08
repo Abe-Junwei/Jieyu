@@ -3,70 +3,44 @@ import {
   useEffect,
   useRef,
   useState,
-  type Dispatch,
   type PointerEvent as ReactPointerEvent,
-  type SetStateAction,
 } from 'react';
-import { isWaveformDisplayMode, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
-import { isWaveformVisualStyle, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
-
-interface WaveformResizeState {
-  startY: number;
-  startHeight: number;
-  startAmplitude: number;
-}
-
-interface UseWaveformRuntimeControllerResult {
-  waveformHeight: number;
-  amplitudeScale: number;
-  setAmplitudeScale: Dispatch<SetStateAction<number>>;
-  waveformDisplayMode: WaveformDisplayMode;
-  setWaveformDisplayMode: Dispatch<SetStateAction<WaveformDisplayMode>>;
-  waveformVisualStyle: WaveformVisualStyle;
-  setWaveformVisualStyle: Dispatch<SetStateAction<WaveformVisualStyle>>;
-  isResizingWaveform: boolean;
-  handleWaveformResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void;
-}
-
-function readStoredClampedNumber(key: string, min: number, max: number, fallback: number): number {
-  try {
-    const stored = localStorage.getItem(key);
-    if (!stored) return fallback;
-    const parsed = Number(stored);
-    if (Number.isNaN(parsed)) return fallback;
-    return Math.min(Math.max(parsed, min), max);
-  } catch {
-    return fallback;
-  }
-}
-
-function readStoredWaveformVisualStyle(): WaveformVisualStyle {
-  try {
-    const stored = localStorage.getItem('jieyu:waveform-visual-style');
-    if (!stored || !isWaveformVisualStyle(stored)) return 'balanced';
-    return stored;
-  } catch {
-    return 'balanced';
-  }
-}
-
-function readStoredWaveformDisplayMode(): WaveformDisplayMode {
-  try {
-    const stored = localStorage.getItem('jieyu:waveform-display-mode');
-    if (!stored || !isWaveformDisplayMode(stored)) return 'waveform';
-    return stored;
-  } catch {
-    return 'waveform';
-  }
-}
+import type { UseWaveformRuntimeControllerResult } from './waveformRuntimeStorage';
+import {
+  readStoredAcousticOverlayMode,
+  readStoredClampedNumber,
+  readStoredWaveformDisplayMode,
+  readStoredWaveformVisualStyle,
+  type WaveformResizeState,
+} from './waveformRuntimeStorage';
 
 export function useWaveformRuntimeController(): UseWaveformRuntimeControllerResult {
   const [waveformHeight, setWaveformHeight] = useState<number>(() => readStoredClampedNumber('jieyu:waveform-height', 80, 400, 180));
   const [amplitudeScale, setAmplitudeScale] = useState<number>(() => readStoredClampedNumber('jieyu:amplitude-scale', 0.25, 4, 1));
   const [waveformDisplayMode, setWaveformDisplayMode] = useState<WaveformDisplayMode>(() => readStoredWaveformDisplayMode());
   const [waveformVisualStyle, setWaveformVisualStyle] = useState<WaveformVisualStyle>(() => readStoredWaveformVisualStyle());
+  const [acousticOverlayMode, setAcousticOverlayMode] = useState<AcousticOverlayMode>(() => readStoredAcousticOverlayMode());
   const waveformResizeRef = useRef<WaveformResizeState | null>(null);
   const [isResizingWaveform, setIsResizingWaveform] = useState(false);
+  /** 记录非 split 模式下用户设置的基础高度，用于从 split 切回时恢复 */
+  const baseHeightRef = useRef(readStoredClampedNumber('jieyu:waveform-height', 80, 400, 180));
+
+  // 切换到 split 模式时自动扩展高度，确保两个面板都有足够空间
+  // Auto-expand height when switching to split mode so both panels have room
+  useEffect(() => {
+    if (waveformDisplayMode === 'split') {
+      if (waveformHeight < 240) {
+        baseHeightRef.current = waveformHeight;
+        setWaveformHeight(260);
+      }
+    } else {
+      // 从 split 切回时恢复之前的基础高度 | Restore base height when leaving split
+      if (baseHeightRef.current > 0 && baseHeightRef.current < 240) {
+        setWaveformHeight(baseHeightRef.current);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to mode changes
+  }, [waveformDisplayMode]);
 
   const handleWaveformResizeStart = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -79,39 +53,17 @@ export function useWaveformRuntimeController(): UseWaveformRuntimeControllerResu
     setIsResizingWaveform(true);
   }, [amplitudeScale, waveformHeight]);
 
-  // 持久化波形高度 | Persist waveform height
   useEffect(() => {
     try {
       localStorage.setItem('jieyu:waveform-height', String(waveformHeight));
-    } catch {
-      // no-op
-    }
-  }, [waveformHeight]);
-
-  // 持久化增益倍率 | Persist amplitude scale
-  useEffect(() => {
-    try {
       localStorage.setItem('jieyu:amplitude-scale', String(amplitudeScale));
-    } catch {
-      // no-op
-    }
-  }, [amplitudeScale]);
-
-  useEffect(() => {
-    try {
       localStorage.setItem('jieyu:waveform-display-mode', waveformDisplayMode);
-    } catch {
-      // no-op
-    }
-  }, [waveformDisplayMode]);
-
-  useEffect(() => {
-    try {
       localStorage.setItem('jieyu:waveform-visual-style', waveformVisualStyle);
+      localStorage.setItem('jieyu:acoustic-overlay-mode', acousticOverlayMode);
     } catch {
       // no-op
     }
-  }, [waveformVisualStyle]);
+  }, [acousticOverlayMode, amplitudeScale, waveformDisplayMode, waveformHeight, waveformVisualStyle]);
 
   // 波形拖拽改变高度与增益倍率 | Resize waveform and sync amplitude while dragging
   useEffect(() => {
@@ -159,6 +111,8 @@ export function useWaveformRuntimeController(): UseWaveformRuntimeControllerResu
     setWaveformDisplayMode,
     waveformVisualStyle,
     setWaveformVisualStyle,
+    acousticOverlayMode,
+    setAcousticOverlayMode,
     isResizingWaveform,
     handleWaveformResizeStart,
   };

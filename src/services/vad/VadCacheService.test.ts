@@ -123,4 +123,19 @@ describe('VadCacheService', () => {
     svc.set('x', { engine: 'silero', segments: [], durationSec: 1, cachedAt: Date.now() });
     expect(svc.size).toBe(1);
   });
+
+  it('notifies subscribers when entries change', () => {
+    const svc = makeService();
+    const listener = vi.fn();
+    const unsubscribe = svc.subscribe(listener);
+
+    svc.set('media-sub', { engine: 'silero', segments: [], durationSec: 1, cachedAt: Date.now() });
+    svc.invalidate('media-sub');
+
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    unsubscribe();
+    svc.clear();
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
 });

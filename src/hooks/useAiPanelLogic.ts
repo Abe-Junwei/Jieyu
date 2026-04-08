@@ -3,6 +3,7 @@ import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiA
 import { LinguisticService } from '../services/LinguisticService';
 import { ProjectObserver, type Recommendation } from '../ai/ProjectObserver';
 import type { AiSystemPersonaKey } from './useAiChat';
+import type { VadCacheStatus } from '../contexts/AiPanelContext';
 
 const TASK_TO_PERSONA: Record<AiPanelTask, AiSystemPersonaKey> = {
   segmentation: 'transcription',
@@ -21,7 +22,7 @@ import type { UtteranceDocType } from '../db';
 import type { SaveState } from './useTranscriptionData';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import { buildWaveformAnalysisOverlaySummary, buildWaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
-import { useVadCachedSegments } from './useVadCachedSegments';
+import { useVadCacheEntry } from './useVadCachedSegments';
 import { t, type Locale } from '../i18n';
 
 type ActionableRecommendation = Recommendation & {
@@ -162,7 +163,21 @@ export function useAiPanelLogic({
     };
   }, [selectedUtterance?.id, selectedUtteranceText]);
 
-  const vadSegments = useVadCachedSegments(mediaId);
+  const vadCacheEntry = useVadCacheEntry(mediaId);
+  const vadSegments = vadCacheEntry?.segments;
+  const vadCacheStatus = useMemo<VadCacheStatus>(() => {
+    if (!mediaId) {
+      return { state: 'unavailable' };
+    }
+    if (!vadCacheEntry) {
+      return { state: 'missing' };
+    }
+    return {
+      state: 'ready',
+      engine: vadCacheEntry.engine,
+      segmentCount: vadCacheEntry.segments.length,
+    };
+  }, [mediaId, vadCacheEntry]);
 
   const waveformAnalysisOverlaySummary = useMemo(() => buildWaveformAnalysisOverlaySummary(utterances, {
     ...(vadSegments ? { vadSegments } : {}),
@@ -197,8 +212,8 @@ export function useAiPanelLogic({
       gapCount: waveformAnalysisSummary.gapCount,
       maxGapSeconds: waveformAnalysisSummary.maxGapSeconds,
       ...(waveformAnalysisSummary.hotZones?.[0] ? { topHotZoneSeverity: waveformAnalysisSummary.hotZones[0].severity } : {}),
-    });
-  }, [observer, utterances, waveformAnalysisSummary]);
+    }, locale);
+  }, [locale, observer, utterances, waveformAnalysisSummary]);
 
   // ── Actionable recommendations ──
   const actionableObserverRecommendations = useMemo(() => {
@@ -577,6 +592,7 @@ export function useAiPanelLogic({
     nextTranslationGapUtteranceId,
     aiCurrentTask,
     aiVisibleCards,
+    vadCacheStatus,
     handleJumpToTranslationGap,
   };
 }

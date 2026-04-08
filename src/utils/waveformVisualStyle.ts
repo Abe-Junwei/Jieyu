@@ -1,4 +1,4 @@
-export const WAVEFORM_VISUAL_STYLE_OPTIONS = ['balanced', 'dense', 'contrast'] as const;
+export const WAVEFORM_VISUAL_STYLE_OPTIONS = ['balanced', 'dense', 'contrast', 'praat'] as const;
 
 export type WaveformVisualStyle = (typeof WAVEFORM_VISUAL_STYLE_OPTIONS)[number];
 
@@ -34,6 +34,15 @@ export function getWaveformVisualStylePreset(style: WaveformVisualStyle | undefi
         barWidth: 3,
         barGap: 1,
         barRadius: 2,
+      };
+    case 'praat':
+      return {
+        waveColor: 'color-mix(in srgb, var(--text-primary) 72%, var(--border-soft))',
+        progressColor: 'color-mix(in srgb, var(--state-info-solid) 80%, var(--text-primary))',
+        cursorColor: 'var(--state-danger-solid)',
+        barWidth: 0,
+        barGap: 0,
+        barRadius: 0,
       };
     case 'balanced':
     default:
