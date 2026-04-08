@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ProjectObserver, inferStage, generateRecommendations, computeMultiSignalRiskScore } from './ProjectObserver';
 import type { ObserverMetrics, WaveformSignals } from './ProjectObserver';
+import type { Locale } from '../i18n';
 
 const glossingMetrics: ObserverMetrics = {
   utteranceCount: 100,
@@ -94,5 +95,16 @@ describe('ProjectObserver.evaluate', () => {
     expect(result.stage).toBe('glossing');
     const riskRec = result.recommendations.find((r) => r.id === 'glossing-risk-review')!;
     expect(riskRec.detail).toContain('综合风险分');
+  });
+
+  it('renders localized recommendation copy for english locale', () => {
+    const observer = new ProjectObserver();
+    const result = observer.evaluate(glossingMetrics, {
+      lowConfidenceCount: 80, overlapCount: 30, gapCount: 10, maxGapSeconds: 8, topHotZoneSeverity: 0.9,
+    }, 'en-US' satisfies Locale);
+
+    const riskRec = result.recommendations.find((r) => r.id === 'glossing-risk-review')!;
+    expect(riskRec.title).toBe('Review high-risk segments first');
+    expect(riskRec.detail).toContain('Risk score');
   });
 });

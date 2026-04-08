@@ -7,12 +7,21 @@
  */
 
 import { memo, useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
-import { Brain, Check, ChevronDown, History, Mic, MicOff, SlidersHorizontal, X } from 'lucide-react';
+import { Brain, Check, ChevronDown, History, Mic, MicOff, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
 import type { VoiceAgentMode, VoiceAgentState, VoicePendingConfirm } from '../hooks/useVoiceAgent';
 import { getConfidenceColor } from '../hooks/voiceAgentPresentation';
 import { SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import type { SttEngine } from '../services/VoiceInputService';
+import {
+  getCompatibleSttEnhancements,
+  sttProviderDefinitions,
+  type ProviderReachability,
+  type SttEnhancementConfig,
+  type SttEnhancementFailureKind,
+  type SttEnhancementReachability,
+  type SttEnhancementSelectionKind,
+} from '../services/stt';
 import { commercialProviderDefinitions } from '../services/stt/providerMetadata';
 import type { CommercialProviderKind } from '../services/VoiceInputService';
 import type { ActionIntent, VoiceIntent, VoiceSession } from '../services/IntentRouter';
@@ -24,7 +33,7 @@ import {
   loadVoiceAliasLearningLog,
   type VoiceAliasLearningLogEntry,
 } from '../services/voiceIntentUi';
-import { DialogShell } from './ui/DialogShell';
+import { DialogShell, PanelButton, PanelChip } from './ui';
 
 // ── Types ──
 
@@ -63,6 +72,15 @@ export interface VoiceAgentWidgetProps {
   commercialProviderKind: CommercialProviderKind;
   /** Commercial provider config (full object) */
   commercialProviderConfig: { apiKey?: string; baseUrl?: string; model?: string; appId?: string; accessToken?: string };
+  providerStatusMap?: ProviderReachability[];
+  enhancementStatus?: SttEnhancementReachability | null;
+  onRefreshProviderStatus?: () => Promise<void>;
+  localWhisperConfig?: { baseUrl?: string; model?: string };
+  onLocalWhisperConfigChange?: (config: { baseUrl?: string; model?: string }) => void;
+  sttEnhancementKind?: SttEnhancementSelectionKind;
+  sttEnhancementConfig?: SttEnhancementConfig;
+  onSttEnhancementKindChange?: (kind: SttEnhancementSelectionKind) => void;
+  onSttEnhancementConfigChange?: (config: SttEnhancementConfig) => void;
   /** 听写预览文本样式 | Preview text props for dictation snippets */
   dictationPreviewTextProps?: OrthographyPreviewTextProps;
   /** 当前语音写入/作用目标摘要 | Current target summary for voice actions */
@@ -141,6 +159,35 @@ function isVolcengine(kind: CommercialProviderKind): boolean {
   return kind === 'volcengine';
 }
 
+function getProviderStatusTone(available: boolean | undefined): 'ok' | 'error' | 'idle' {
+  if (available === true) return 'ok';
+  if (available === false) return 'error';
+  return 'idle';
+}
+
+function getProviderStatusLabel(locale: ReturnType<typeof useLocale>, available: boolean | undefined): string {
+  if (available === true) return t(locale, 'transcription.voiceWidget.provider.available');
+  if (available === false) return t(locale, 'transcription.voiceWidget.provider.unavailable');
+  return t(locale, 'transcription.voiceWidget.provider.unknown');
+}
+
+function getEnhancementFailureKindLabel(locale: ReturnType<typeof useLocale>, errorKind: SttEnhancementFailureKind | undefined): string | null {
+  switch (errorKind) {
+    case 'missing-config':
+      return t(locale, 'transcription.voiceWidget.enhancement.errorKind.missingConfig');
+    case 'timeout':
+      return t(locale, 'transcription.voiceWidget.enhancement.errorKind.timeout');
+    case 'network':
+      return t(locale, 'transcription.voiceWidget.enhancement.errorKind.network');
+    case 'http':
+      return t(locale, 'transcription.voiceWidget.enhancement.errorKind.http');
+    case 'unknown':
+      return t(locale, 'transcription.voiceWidget.enhancement.errorKind.unknown');
+    default:
+      return null;
+  }
+}
+
 // ── Component ──
 
 export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgentWidgetProps) {
@@ -170,6 +217,15 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
     session,
     commercialProviderKind,
     commercialProviderConfig,
+    providerStatusMap = [],
+    enhancementStatus = null,
+    onRefreshProviderStatus,
+    localWhisperConfig,
+    onLocalWhisperConfigChange,
+    sttEnhancementKind = 'none',
+    sttEnhancementConfig,
+    onSttEnhancementKindChange,
+    onSttEnhancementConfigChange,
     dictationPreviewTextProps,
     targetSummary,
     statusSummary,
@@ -202,7 +258,6 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
   const [showSettings, setShowSettings] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [insightTab, setInsightTab] = useState<'history' | 'learning'>('history');
-  const showCommercialConfig = showSettings && engine === 'commercial';
 
   // Local state for commercial config fields (initialized from prop, synced via useEffect)
   const [localApiKey, setLocalApiKey] = useState('');
@@ -210,8 +265,14 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
   const [localModel, setLocalModel] = useState('');
   const [localAppId, setLocalAppId] = useState('');
   const [localAccessToken, setLocalAccessToken] = useState('');
+  const [localWhisperBaseUrl, setLocalWhisperBaseUrl] = useState('');
+  const [localWhisperModel, setLocalWhisperModel] = useState('');
+  const [localEnhancementEndpointUrl, setLocalEnhancementEndpointUrl] = useState('');
+  const [localEnhancementModel, setLocalEnhancementModel] = useState('');
+  const [localEnhancementLanguage, setLocalEnhancementLanguage] = useState('');
   const [providerAvailability, setProviderAvailability] = useState<'idle' | 'testing' | 'available' | 'unavailable'>('idle');
   const [providerError, setProviderError] = useState<string | null>(null);
+  const [providerStatusRefreshing, setProviderStatusRefreshing] = useState(false);
   const [learningLogEntries, setLearningLogEntries] = useState<VoiceAliasLearningLogEntry[]>([]);
   /** Current ARIA live announcement text. */
   const [ariaAnnouncement, setAriaAnnouncement] = useState('');
@@ -251,11 +312,30 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
     setLocalModel(commercialProviderConfig.model ?? '');
     setLocalAppId(commercialProviderConfig.appId ?? '');
     setLocalAccessToken(commercialProviderConfig.accessToken ?? '');
+    setLocalWhisperBaseUrl(localWhisperConfig?.baseUrl ?? '');
+    setLocalWhisperModel(localWhisperConfig?.model ?? '');
+    setLocalEnhancementEndpointUrl(sttEnhancementConfig?.endpointUrl ? String(sttEnhancementConfig.endpointUrl) : '');
+    setLocalEnhancementModel(sttEnhancementConfig?.model ? String(sttEnhancementConfig.model) : '');
+    setLocalEnhancementLanguage(sttEnhancementConfig?.language ? String(sttEnhancementConfig.language) : '');
     setProviderAvailability('idle');
     setProviderError(null);
     providerTestVersionRef.current += 1;
     lastTestRef.current = null; // invalidate cached test result
-  }, [commercialProviderConfig, commercialProviderKind]);
+  }, [commercialProviderConfig, commercialProviderKind, localWhisperConfig, sttEnhancementConfig, sttEnhancementKind]);
+
+  useEffect(() => {
+    if (!showSettings || !onRefreshProviderStatus) return;
+    let cancelled = false;
+    setProviderStatusRefreshing(true);
+    void onRefreshProviderStatus().finally(() => {
+      if (!cancelled) {
+        setProviderStatusRefreshing(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [onRefreshProviderStatus, showSettings]);
 
   const handleTestProvider = useCallback(async () => {
     const unavailableLabel = t(locale, 'transcription.voiceWidget.provider.unavailable');
@@ -297,6 +377,24 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
       accessToken: newAccessToken,
     });
   };
+
+  const notifyLocalWhisperConfigChange = (baseUrl: string, model: string) => {
+    onLocalWhisperConfigChange?.({ baseUrl, model });
+  };
+
+  const notifyEnhancementConfigChange = (endpointUrl: string, model: string, language: string) => {
+    onSttEnhancementConfigChange?.({ endpointUrl, model, language });
+  };
+
+  const handleRefreshProviderStatus = useCallback(async () => {
+    if (!onRefreshProviderStatus) return;
+    setProviderStatusRefreshing(true);
+    try {
+      await onRefreshProviderStatus();
+    } finally {
+      setProviderStatusRefreshing(false);
+    }
+  }, [onRefreshProviderStatus]);
 
   const modeLabels: Record<VoiceAgentMode, string> = {
     command: t(locale, MODE_LABEL_KEYS.command),
@@ -345,6 +443,28 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
   const detailSummary = mode === 'command' ? lastIntentSummary : selectionSummary;
   const insightCount = session.entries.length + learningLogEntries.length;
   const agentStateLabel = t(locale, AGENT_STATE_LABEL_KEYS[agentState]);
+  const showProviderConfig = showSettings && (engine === 'commercial' || engine === 'whisper-local');
+  const compatibleEnhancements = getCompatibleSttEnhancements(engine);
+  const providerStatuses = sttProviderDefinitions.map((definition) => {
+    const status = providerStatusMap.find((entry) => entry.kind === definition.kind);
+    return {
+      ...definition,
+      available: status?.available,
+      error: status?.error,
+    };
+  });
+  const selectedEnhancementDefinition = sttEnhancementKind === 'none'
+    ? null
+    : compatibleEnhancements.find((definition) => definition.kind === sttEnhancementKind) ?? null;
+  const enhancementStatusTone = selectedEnhancementDefinition
+    ? getProviderStatusTone(enhancementStatus?.available)
+    : 'idle';
+  const enhancementStatusText = selectedEnhancementDefinition
+    ? getProviderStatusLabel(locale, enhancementStatus?.available)
+    : null;
+  const enhancementFailureKindLabel = selectedEnhancementDefinition
+    ? getEnhancementFailureKindLabel(locale, enhancementStatus?.errorKind)
+    : null;
 
   return (
     <div className="voice-agent-widget">
@@ -497,30 +617,29 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                 bodyClassName="voice-agent-confirm-body"
                 footerClassName="voice-agent-confirm-actions"
                 title={t(locale, 'transcription.voiceWidget.disambiguation.aria')}
-                actions={<span className="panel-chip panel-chip--warning voice-agent-confirm-fuzzy">{t(locale, 'transcription.voiceWidget.disambiguation.badge')}</span>}
+                actions={<PanelChip variant="warning" className="voice-agent-confirm-fuzzy">{t(locale, 'transcription.voiceWidget.disambiguation.badge')}</PanelChip>}
                 footer={(
-                  <button
-                    type="button"
-                    className="panel-button panel-button--ghost voice-agent-confirm-btn voice-agent-confirm-no"
+                  <PanelButton
+                    variant="ghost"
+                    className="voice-agent-confirm-btn voice-agent-confirm-no"
                     onClick={onDismissDisambiguation}
                     aria-label={t(locale, 'transcription.voiceWidget.disambiguation.cancelAria')}
                   >
                     {t(locale, 'ai.assistantHub.cancel')}
-                  </button>
+                  </PanelButton>
                 )}
               >
                   <p className="voice-agent-confirm-label">{t(locale, 'transcription.voiceWidget.disambiguation.label')}</p>
                   <div className="voice-agent-disambiguation-options">
                   {disambiguationOptions.map((option) => (
-                    <button
+                    <PanelButton
                       key={option.actionId}
-                      type="button"
-                      className="panel-button voice-agent-disambiguation-option"
+                      className="voice-agent-disambiguation-option"
                       onClick={() => onSelectDisambiguation(option.actionId)}
                     >
                       <span>{getActionLabel(option.actionId, locale)}</span>
                       <span className="voice-agent-disambiguation-score">{Math.round(option.confidence * 100)}%</span>
-                    </button>
+                    </PanelButton>
                   ))}
                 </div>
               </DialogShell>
@@ -536,25 +655,25 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                 bodyClassName="voice-agent-confirm-body"
                 footerClassName="voice-agent-confirm-actions"
                 title={t(locale, 'transcription.voiceWidget.confirm.aria')}
-                actions={pendingConfirm.fromFuzzy ? <span className="panel-chip panel-chip--warning voice-agent-confirm-fuzzy">{t(locale, 'ai.assistantHub.fuzzyMatch')}</span> : undefined}
+                actions={pendingConfirm.fromFuzzy ? <PanelChip variant="warning" className="voice-agent-confirm-fuzzy">{t(locale, 'ai.assistantHub.fuzzyMatch')}</PanelChip> : undefined}
                 footer={(
                   <>
-                    <button
-                      type="button"
-                      className="panel-button panel-button--primary voice-agent-confirm-btn voice-agent-confirm-yes"
+                    <PanelButton
+                      variant="primary"
+                      className="voice-agent-confirm-btn voice-agent-confirm-yes"
                       onClick={onConfirm}
                       aria-label={t(locale, 'ai.assistantHub.confirm')}
                     >
                       {t(locale, 'ai.assistantHub.confirm')}
-                    </button>
-                    <button
-                      type="button"
-                      className="panel-button panel-button--ghost voice-agent-confirm-btn voice-agent-confirm-no"
+                    </PanelButton>
+                    <PanelButton
+                      variant="ghost"
+                      className="voice-agent-confirm-btn voice-agent-confirm-no"
                       onClick={onCancel}
                       aria-label={t(locale, 'ai.assistantHub.cancel')}
                     >
                       {t(locale, 'ai.assistantHub.cancel')}
-                    </button>
+                    </PanelButton>
                   </>
                 )}
               >
@@ -654,23 +773,52 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                   )}
                 </div>
 
-                {showCommercialConfig && (
+                <div className="voice-agent-provider-overview">
+                  <div className="voice-agent-provider-overview-header">
+                    <span className="voice-agent-field-label">{t(locale, 'transcription.voiceWidget.settings.providerHealth')}</span>
+                    <button
+                      type="button"
+                      className="icon-btn voice-agent-provider-refresh-btn"
+                      disabled={providerStatusRefreshing || !onRefreshProviderStatus}
+                      onClick={handleRefreshProviderStatus}
+                    >
+                      <RefreshCw size={12} className={providerStatusRefreshing ? 'voice-agent-provider-refresh-icon spinning' : 'voice-agent-provider-refresh-icon'} />
+                      <span>{providerStatusRefreshing ? t(locale, 'ai.chat.testing') : t(locale, 'transcription.voiceWidget.settings.refreshProviders')}</span>
+                    </button>
+                  </div>
+                  <div className="voice-agent-provider-status-list">
+                    {providerStatuses.map((provider) => {
+                      const statusTone = getProviderStatusTone(provider.available);
+                      return (
+                        <div key={provider.kind} className="voice-agent-provider-status-item" title={provider.error ?? provider.description}>
+                          <span className={`voice-agent-provider-status-dot voice-agent-provider-status-dot-${statusTone}`} aria-hidden="true" />
+                          <span className="voice-agent-provider-status-name">{provider.label}</span>
+                          <span className="voice-agent-provider-status-text">{getProviderStatusLabel(locale, provider.available)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {showProviderConfig && (
                   <div className="voice-agent-commercial-config">
-                    <div className="voice-agent-commercial-provider-row">
-                      <select
-                        className="voice-agent-commercial-provider-select"
-                        value={commercialProviderKind}
-                        onChange={(e) => onSetCommercialProviderKind(e.currentTarget.value as CommercialProviderKind)}
-                        title={t(locale, 'transcription.voiceWidget.settings.commercialProvider')}
-                        aria-label={t(locale, 'transcription.voiceWidget.settings.commercialProvider')}
-                      >
-                        {commercialProviderDefinitions.map((def) => (
-                          <option key={def.kind} value={def.kind}>
-                            {def.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {engine === 'commercial' && (
+                      <div className="voice-agent-commercial-provider-row">
+                        <select
+                          className="voice-agent-commercial-provider-select"
+                          value={commercialProviderKind}
+                          onChange={(e) => onSetCommercialProviderKind(e.currentTarget.value as CommercialProviderKind)}
+                          title={t(locale, 'transcription.voiceWidget.settings.commercialProvider')}
+                          aria-label={t(locale, 'transcription.voiceWidget.settings.commercialProvider')}
+                        >
+                          {commercialProviderDefinitions.map((def) => (
+                            <option key={def.kind} value={def.kind}>
+                              {def.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
 
                     <div className="voice-agent-config-actions">
                       <button
@@ -695,7 +843,34 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                     </div>
 
                     <div className="voice-agent-commercial-fields">
-                      {isVolcengine(commercialProviderKind) ? (
+                      {engine === 'whisper-local' ? (
+                        <>
+                          <input
+                            className="voice-agent-commercial-input"
+                            type="text"
+                            value={localWhisperBaseUrl}
+                            onChange={(e) => {
+                              const value = e.currentTarget.value;
+                              setLocalWhisperBaseUrl(value);
+                              notifyLocalWhisperConfigChange(value, localWhisperModel);
+                            }}
+                            placeholder={t(locale, 'transcription.voiceWidget.placeholder.baseUrlOptional')}
+                            aria-label={t(locale, 'transcription.voiceWidget.label.baseUrl')}
+                          />
+                          <input
+                            className="voice-agent-commercial-input"
+                            type="text"
+                            value={localWhisperModel}
+                            onChange={(e) => {
+                              const value = e.currentTarget.value;
+                              setLocalWhisperModel(value);
+                              notifyLocalWhisperConfigChange(localWhisperBaseUrl, value);
+                            }}
+                            placeholder={t(locale, 'transcription.voiceWidget.placeholder.whisperModel')}
+                            aria-label={t(locale, 'transcription.voiceWidget.label.model')}
+                          />
+                        </>
+                      ) : isVolcengine(commercialProviderKind) ? (
                         <>
                           <input
                             className="voice-agent-commercial-input"
@@ -741,6 +916,89 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                         </>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {engine !== 'web-speech' && (
+                  <div className="voice-agent-enhancement-config">
+                    <label className="voice-agent-field">
+                      <span className="voice-agent-field-label">{t(locale, 'transcription.voiceWidget.settings.enhancement')}</span>
+                      <select
+                        className="voice-agent-commercial-provider-select"
+                        value={sttEnhancementKind}
+                        onChange={(e) => onSttEnhancementKindChange?.(e.currentTarget.value as SttEnhancementSelectionKind)}
+                        aria-label={t(locale, 'transcription.voiceWidget.settings.enhancement')}
+                      >
+                        <option value="none">{t(locale, 'transcription.voiceWidget.settings.enhancementNone')}</option>
+                        {compatibleEnhancements.map((definition) => (
+                          <option key={definition.kind} value={definition.kind}>
+                            {definition.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {sttEnhancementKind !== 'none' && (
+                      <>
+                        {selectedEnhancementDefinition && (
+                          <div className="voice-agent-provider-overview voice-agent-enhancement-overview">
+                            <div className="voice-agent-provider-overview-header">
+                              <span className="voice-agent-field-label">{t(locale, 'transcription.voiceWidget.settings.enhancementHealth')}</span>
+                            </div>
+                            <div className="voice-agent-provider-status-list">
+                              <div className="voice-agent-provider-status-item" title={enhancementStatus?.error ?? selectedEnhancementDefinition.description}>
+                                <span className={`voice-agent-provider-status-dot voice-agent-provider-status-dot-${enhancementStatusTone}`} aria-hidden="true" />
+                                <span className="voice-agent-provider-status-name">{selectedEnhancementDefinition.label}</span>
+                                <span className="voice-agent-provider-status-text">{enhancementStatusText}</span>
+                              </div>
+                            </div>
+                            <div className="voice-agent-provider-status-note">
+                              <span>{t(locale, 'transcription.voiceWidget.enhancement.externalHint')}</span>
+                              {enhancementFailureKindLabel ? <span>{enhancementFailureKindLabel}</span> : null}
+                              {enhancementStatus?.error ? <span>{enhancementStatus.error}</span> : null}
+                            </div>
+                          </div>
+                        )}
+                        <div className="voice-agent-commercial-fields">
+                          <input
+                            className="voice-agent-commercial-input"
+                            type="text"
+                            value={localEnhancementEndpointUrl}
+                            onChange={(e) => {
+                              const value = e.currentTarget.value;
+                              setLocalEnhancementEndpointUrl(value);
+                              notifyEnhancementConfigChange(value, localEnhancementModel, localEnhancementLanguage);
+                            }}
+                            placeholder={t(locale, 'transcription.voiceWidget.placeholder.enhancementEndpoint')}
+                            aria-label={t(locale, 'transcription.voiceWidget.label.endpointUrl')}
+                          />
+                          <input
+                            className="voice-agent-commercial-input"
+                            type="text"
+                            value={localEnhancementModel}
+                            onChange={(e) => {
+                              const value = e.currentTarget.value;
+                              setLocalEnhancementModel(value);
+                              notifyEnhancementConfigChange(localEnhancementEndpointUrl, value, localEnhancementLanguage);
+                            }}
+                            placeholder={t(locale, 'transcription.voiceWidget.placeholder.enhancementModel')}
+                            aria-label={t(locale, 'transcription.voiceWidget.label.model')}
+                          />
+                          <input
+                            className="voice-agent-commercial-input"
+                            type="text"
+                            value={localEnhancementLanguage}
+                            onChange={(e) => {
+                              const value = e.currentTarget.value;
+                              setLocalEnhancementLanguage(value);
+                              notifyEnhancementConfigChange(localEnhancementEndpointUrl, localEnhancementModel, value);
+                            }}
+                            placeholder={t(locale, 'transcription.voiceWidget.placeholder.enhancementLanguage')}
+                            aria-label={t(locale, 'transcription.voiceWidget.label.language')}
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

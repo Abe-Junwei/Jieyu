@@ -102,7 +102,7 @@ describe('Adaptive panel RTL interaction matrix', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog.getAttribute('dir')).toBe(direction);
 
-    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(computeAdaptivePanelWidthMock).toHaveBeenCalledWith(expect.objectContaining({ direction }));
   });

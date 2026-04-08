@@ -1,4 +1,5 @@
 import type { ElementType, ReactNode } from 'react';
+import { joinClassNames } from './classNames';
 
 interface PanelSectionProps {
   as?: ElementType;
@@ -13,10 +14,6 @@ interface PanelSectionProps {
   metaClassName?: string;
   emphasis?: boolean;
   children?: ReactNode;
-}
-
-function joinClassNames(...tokens: Array<string | false | null | undefined>) {
-  return tokens.filter(Boolean).join(' ');
 }
 
 export function PanelSection({

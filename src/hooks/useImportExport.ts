@@ -18,6 +18,48 @@ type ExportSupportModules = {
   orthographyRuntime: typeof import('../utils/orthographyRuntime');
 };
 
+function normalizeSpeakerLookupKey(value: string | undefined) {
+  return value?.trim().toLocaleLowerCase('zh-Hans-CN') ?? '';
+}
+
+function resolveRelevantExportSpeakerIds(
+  currentUtterances: UtteranceDocType[],
+  layerSegments?: Map<string, LayerSegmentDocType[]>,
+) {
+  const ids = new Set<string>();
+  for (const utterance of currentUtterances) {
+    const speakerId = utterance.speakerId?.trim();
+    if (speakerId) ids.add(speakerId);
+  }
+  if (layerSegments) {
+    for (const segments of layerSegments.values()) {
+      for (const segment of segments) {
+        const speakerId = segment.speakerId?.trim();
+        if (speakerId) ids.add(speakerId);
+      }
+    }
+  }
+  return ids;
+}
+
+function loadArchiveHandlersModule(
+  ref: React.MutableRefObject<Promise<typeof import('./useImportExport.archiveHandlers')> | null>,
+) {
+  if (!ref.current) {
+    ref.current = import('./useImportExport.archiveHandlers');
+  }
+  return ref.current;
+}
+
+function loadImportHandlersModule(
+  ref: React.MutableRefObject<Promise<typeof import('./useImportExport.importHandlers')> | null>,
+) {
+  if (!ref.current) {
+    ref.current = import('./useImportExport.importHandlers');
+  }
+  return ref.current;
+}
+
 export interface UseImportExportInput {
   activeTextId: string | null;
   getActiveTextId: () => Promise<string | null>;
@@ -67,30 +109,6 @@ export function useImportExport(input: UseImportExportInput) {
   const orthographyLanguageIds = Array.from(new Set(layers.map((layer) => layer.languageId).filter((languageId): languageId is string => Boolean(languageId))));
   const orthographies = useOrthographies(orthographyLanguageIds);
 
-  const normalizeSpeakerLookupKey = useCallback((value: string | undefined) => {
-    return value?.trim().toLocaleLowerCase('zh-Hans-CN') ?? '';
-  }, []);
-
-  const resolveRelevantExportSpeakerIds = useCallback((
-    currentUtterances: UtteranceDocType[],
-    layerSegments?: Map<string, LayerSegmentDocType[]>,
-  ) => {
-    const ids = new Set<string>();
-    for (const utterance of currentUtterances) {
-      const speakerId = utterance.speakerId?.trim();
-      if (speakerId) ids.add(speakerId);
-    }
-    if (layerSegments) {
-      for (const segments of layerSegments.values()) {
-        for (const segment of segments) {
-          const speakerId = segment.speakerId?.trim();
-          if (speakerId) ids.add(speakerId);
-        }
-      }
-    }
-    return ids;
-  }, []);
-
   const importFileRef = useRef<HTMLInputElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -121,20 +139,6 @@ export function useImportExport(input: UseImportExportInput) {
   }, []);
 
   const loadArchiveExportModule = () => loadCachedModule(archiveExportModuleRef, () => import('../services/JymService'));
-
-  const loadArchiveHandlersModule = useCallback(async () => {
-    if (!archiveHandlersModuleRef.current) {
-      archiveHandlersModuleRef.current = import('./useImportExport.archiveHandlers');
-    }
-    return archiveHandlersModuleRef.current;
-  }, []);
-
-  const loadImportHandlersModule = useCallback(async () => {
-    if (!importHandlersModuleRef.current) {
-      importHandlersModuleRef.current = import('./useImportExport.importHandlers');
-    }
-    return importHandlersModuleRef.current;
-  }, []);
 
   // Use centralized click-outside pattern to avoid race condition with click handlers
   useClickOutside(
@@ -433,7 +437,7 @@ export function useImportExport(input: UseImportExportInput) {
   }, [loadArchiveExportModule, selectedUtteranceMedia, setSaveState]);
 
   const previewProjectArchiveImport = useCallback(async (file: File) => {
-    const archiveHandlersModule = await loadArchiveHandlersModule();
+    const archiveHandlersModule = await loadArchiveHandlersModule(archiveHandlersModuleRef);
     const { previewProjectArchiveImport: previewImport } = archiveHandlersModule.createImportExportArchiveHandlers({
       activeTextId,
       loadSnapshot,
@@ -441,10 +445,10 @@ export function useImportExport(input: UseImportExportInput) {
       setSaveState,
     });
     return previewImport(file);
-  }, [activeTextId, loadArchiveHandlersModule, loadSnapshot, locale, setSaveState]);
+  }, [activeTextId, loadSnapshot, locale, setSaveState]);
 
   const importProjectArchive = useCallback(async (file: File, strategy: import('../db').ImportConflictStrategy) => {
-    const archiveHandlersModule = await loadArchiveHandlersModule();
+    const archiveHandlersModule = await loadArchiveHandlersModule(archiveHandlersModuleRef);
     const { importProjectArchive: importArchive } = archiveHandlersModule.createImportExportArchiveHandlers({
       activeTextId,
       loadSnapshot,
@@ -452,13 +456,13 @@ export function useImportExport(input: UseImportExportInput) {
       setSaveState,
     });
     return importArchive(file, strategy);
-  }, [activeTextId, loadArchiveHandlersModule, loadSnapshot, locale, setSaveState]);
+  }, [activeTextId, loadSnapshot, locale, setSaveState]);
 
   const handleImportFile = useCallback(async (
     file: File,
     importWriteStrategy?: import('./useImportExport.annotationImport').AnnotationImportBridgeStrategy,
   ) => {
-    const importHandlersModule = await loadImportHandlersModule();
+    const importHandlersModule = await loadImportHandlersModule(importHandlersModuleRef);
     const { handleImportFile: importFile } = importHandlersModule.createImportExportImportHandlers({
       activeTextId,
       getActiveTextId,
@@ -471,7 +475,7 @@ export function useImportExport(input: UseImportExportInput) {
       normalizeSpeakerLookupKey,
     });
     return importFile(file, importWriteStrategy);
-  }, [activeTextId, defaultTranscriptionLayerId, getActiveTextId, layers, loadImportHandlersModule, loadSnapshot, locale, normalizeSpeakerLookupKey, selectedUtteranceMedia, setSaveState]);
+  }, [activeTextId, defaultTranscriptionLayerId, getActiveTextId, layers, loadSnapshot, locale, selectedUtteranceMedia, setSaveState]);
 
   return {
     importFileRef,

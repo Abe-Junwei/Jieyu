@@ -1,12 +1,23 @@
 import { useCallback, useState } from 'react';
-import type { CommercialProviderKind } from '../services/VoiceInputService';
-import type { CommercialProviderCreateConfig, ProviderReachability } from '../services/stt';
+import type { CommercialProviderKind, SttEngine } from '../services/VoiceInputService';
+import type {
+  CommercialProviderCreateConfig,
+  ProviderReachability,
+  SttEnhancementConfig,
+  SttEnhancementReachability,
+  SttEnhancementSelectionKind,
+} from '../services/stt';
 import type { VoicePreset } from '../utils/voicePresets';
 
 interface UseVoiceAgentProviderControlsInput {
   loadSttRuntime: () => Promise<typeof import('../services/stt')>;
+  engineState: SttEngine;
+  whisperServerUrl: string;
+  whisperServerModel: string;
   commercialProviderKindState: CommercialProviderKind;
   commercialProviderConfigState?: CommercialProviderCreateConfig;
+  sttEnhancementKindState: SttEnhancementSelectionKind;
+  sttEnhancementConfigState?: SttEnhancementConfig;
   commercialProviderKindRef: { current: CommercialProviderKind };
   commercialProviderConfigRef: { current: CommercialProviderCreateConfig | undefined };
   switchEngine: (engine: import('../services/VoiceInputService').SttEngine) => void;
@@ -15,20 +26,43 @@ interface UseVoiceAgentProviderControlsInput {
 
 export function useVoiceAgentProviderControls(input: UseVoiceAgentProviderControlsInput) {
   const [providerStatusMap, setProviderStatusMap] = useState<ProviderReachability[]>([]);
+  const [enhancementStatus, setEnhancementStatus] = useState<SttEnhancementReachability | null>(null);
 
   const refreshProviderStatus = useCallback(async () => {
-    const { probeAllCommercialProviders } = await input.loadSttRuntime();
+    const { probeAllSttProviders, probeSelectedSttEnhancement } = await input.loadSttRuntime();
     const configs: Partial<Record<CommercialProviderKind, CommercialProviderCreateConfig>> = {};
     if (input.commercialProviderConfigRef.current) {
       configs[input.commercialProviderKindRef.current] = input.commercialProviderConfigRef.current;
     }
-    const results = await probeAllCommercialProviders(configs);
+    const [results, nextEnhancementStatus] = await Promise.all([
+      probeAllSttProviders({
+        whisperLocalConfig: {
+          baseUrl: input.whisperServerUrl,
+          model: input.whisperServerModel,
+        },
+        commercialConfigs: configs,
+      }),
+      probeSelectedSttEnhancement(
+        input.sttEnhancementKindState,
+        input.sttEnhancementConfigState ?? {},
+      ),
+    ]);
     setProviderStatusMap(results);
+    setEnhancementStatus(nextEnhancementStatus);
   }, [input]);
 
   const testCommercialProvider = useCallback(async (): Promise<{ available: boolean; error?: string }> => {
-    const { testCommercialProvider } = await input.loadSttRuntime();
-    return testCommercialProvider(input.commercialProviderKindState, input.commercialProviderConfigState ?? {});
+    const { testSttProvider } = await input.loadSttRuntime();
+    if (input.engineState === 'whisper-local') {
+      return testSttProvider('whisper-local', {
+        baseUrl: input.whisperServerUrl,
+        model: input.whisperServerModel,
+      });
+    }
+    if (input.engineState === 'commercial') {
+      return testSttProvider(input.commercialProviderKindState, input.commercialProviderConfigState ?? {});
+    }
+    return testSttProvider('web-speech', {});
   }, [input]);
 
   const selectPreset = useCallback((preset: VoicePreset) => {
@@ -40,6 +74,7 @@ export function useVoiceAgentProviderControls(input: UseVoiceAgentProviderContro
 
   return {
     providerStatusMap,
+    enhancementStatus,
     refreshProviderStatus,
     selectPreset,
     testCommercialProvider,

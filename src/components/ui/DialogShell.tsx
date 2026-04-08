@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode, Ref } from 'react';
+import { joinClassNames } from './classNames';
 
 interface DialogShellProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   containerRef?: Ref<HTMLDivElement>;
@@ -14,10 +15,6 @@ interface DialogShellProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'>
   compact?: boolean;
   wide?: boolean;
   children: ReactNode;
-}
-
-function joinClassNames(...tokens: Array<string | false | null | undefined>) {
-  return tokens.filter(Boolean).join(' ');
 }
 
 export function DialogShell({

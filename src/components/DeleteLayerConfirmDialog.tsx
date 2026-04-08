@@ -1,8 +1,6 @@
-import { memo, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { useFocusTrap } from '../hooks/useFocusTrap';
+import { memo } from 'react';
 import { t, tf, useLocale } from '../i18n';
-import { DialogShell } from './ui/DialogShell';
+import { ModalPanel, PanelButton, PanelChip, PanelNote } from './ui';
 import { PanelSection } from './ui/PanelSection';
 import { PanelSummary } from './ui/PanelSummary';
 
@@ -29,58 +27,52 @@ export const DeleteLayerConfirmDialog = memo(function DeleteLayerConfirmDialog({
   onCancel,
   onConfirm,
 }: DeleteLayerConfirmDialogProps) {
-  const dialogRef = useRef<HTMLDivElement>(null);
   const locale = useLocale();
-  useFocusTrap(dialogRef, open, onCancel);
-
-  if (!open) return null;
 
   const layerTypeLabel = layerType === 'translation'
     ? t(locale, 'transcription.dialog.deleteLayerTypeTranslation')
     : t(locale, 'transcription.dialog.deleteLayerTypeTranscription');
 
-  const dialog = (
-    <div className="dialog-overlay" onClick={onCancel} role="presentation">
-      <DialogShell
-        containerRef={dialogRef}
-        className="delete-layer-confirm-dialog panel-design-match panel-design-match-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="delete-layer-title"
-        title={<span id="delete-layer-title">{t(locale, 'transcription.dialog.deleteLayerTitle')}</span>}
-        footer={(
-          <>
-            <button className="panel-button panel-button--ghost" onClick={onCancel}>{t(locale, 'transcription.dialog.cancel')}</button>
-            <button className="panel-button panel-button--danger" onClick={onConfirm}>{t(locale, 'transcription.dialog.deleteLayerConfirmButton')}</button>
-          </>
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
+  return (
+    <ModalPanel
+      isOpen={open}
+      onClose={onCancel}
+      hideCloseButton
+      className="delete-layer-confirm-dialog panel-design-match panel-design-match-dialog"
+      ariaLabelledBy="delete-layer-title"
+      title={<span id="delete-layer-title">{t(locale, 'transcription.dialog.deleteLayerTitle')}</span>}
+      footer={(
+        <>
+          <PanelButton variant="ghost" onClick={onCancel}>{t(locale, 'transcription.dialog.cancel')}</PanelButton>
+          <PanelButton variant="danger" onClick={onConfirm}>{t(locale, 'transcription.dialog.deleteLayerConfirmButton')}</PanelButton>
+        </>
+      )}
+    >
         <PanelSummary
           className="delete-layer-confirm-summary"
           description={tf(locale, 'transcription.dialog.deleteLayerConfirm', { layerName })}
           meta={(
             <div className="panel-meta">
-              <span className="panel-chip">{tf(locale, 'transcription.dialog.deleteLayerType', { layerType: layerTypeLabel })}</span>
-              <span className={`panel-chip${textCount > 0 ? ' panel-chip--danger' : ''}`}>
+              <PanelChip>{tf(locale, 'transcription.dialog.deleteLayerType', { layerType: layerTypeLabel })}</PanelChip>
+              <PanelChip variant={textCount > 0 ? 'danger' : 'default'}>
                 {tf(locale, 'transcription.dialog.deleteLayerTextCount', { count: textCount })}
-              </span>
+              </PanelChip>
             </div>
           )}
           supportingText={t(locale, 'transcription.dialog.deleteLayerIrreversibleWarning')}
           supportingClassName="dialog-supporting-note-danger"
         >
           {textCount > 0 ? (
-            <p className="panel-note panel-note--danger">
+            <PanelNote variant="danger">
               {t(locale, 'transcription.dialog.deleteLayerTextDestructiveHint')}
-            </p>
+            </PanelNote>
           ) : null}
         </PanelSummary>
         {warningMessage ? (
           <PanelSection className="delete-layer-confirm-section">
-            <p className="panel-note delete-layer-confirm-warning">
+            <PanelNote className="delete-layer-confirm-warning">
               {t(locale, 'transcription.dialog.deleteLayerWarningPrefix')} {warningMessage}
-            </p>
+            </PanelNote>
           </PanelSection>
         ) : null}
         <PanelSection className="delete-layer-confirm-section">
@@ -92,14 +84,10 @@ export const DeleteLayerConfirmDialog = memo(function DeleteLayerConfirmDialog({
             />
             <span>{t(locale, 'transcription.dialog.deleteLayerKeepUtterances')}</span>
           </label>
-          <p className="panel-note">
+          <PanelNote>
             {t(locale, 'transcription.dialog.deleteLayerKeepUtterancesHint')}
-          </p>
+          </PanelNote>
         </PanelSection>
-      </DialogShell>
-    </div>
+    </ModalPanel>
   );
-
-  if (typeof document === 'undefined') return null;
-  return createPortal(dialog, document.body);
 });

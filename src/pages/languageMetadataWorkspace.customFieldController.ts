@@ -171,10 +171,10 @@ export function useLanguageMetadataCustomFieldController(
     }
   }, [locale]);
 
-  const handleFieldDefLocalChange = useCallback((def: CustomFieldDefinitionDocType) => {
+  const handleFieldDefLocalChange = (def: CustomFieldDefinitionDocType) => {
     setEditingDefs((prev) => new Map(prev).set(def.id, def));
     setFieldDefs((prev) => prev.map((d) => d.id === def.id ? def : d));
-  }, []);
+  };
 
   const handleFieldDefBlur = useCallback(async (defId: string) => {
     const buffered = editingDefsRef.current.get(defId);

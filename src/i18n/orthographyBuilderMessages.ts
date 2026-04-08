@@ -11,6 +11,9 @@ export type OrthographyBuilderMessages = {
   identitySectionTitle: string;
   renderSectionTitle: string;
   bridgeSectionTitle: string;
+  localizedNamesSectionTitle: string;
+  examplesSectionTitle: string;
+  advancedSectionTitle: string;
   bridgeSectionDescription: string;
   sourceLanguagePlaceholder: string;
   sourceLanguageCodePlaceholder: string;
@@ -127,6 +130,9 @@ const zhCN: OrthographyBuilderMessages = {
   identitySectionTitle: '\u547d\u540d',
   renderSectionTitle: '\u6e32\u67d3\u8bbe\u7f6e',
   bridgeSectionTitle: '\u6865\u63a5\u8bbe\u7f6e',
+  localizedNamesSectionTitle: '\u9644\u52a0\u8bed\u8a00\u6807\u7b7e',
+  examplesSectionTitle: '\u5b57\u8868\u793a\u4f8b',
+  advancedSectionTitle: '\u9ad8\u7ea7\u8bbe\u7f6e',
   bridgeSectionDescription: '\u53ea\u6709\u5f53\u4f60\u5e0c\u671b\u65b0\u65b9\u6848\u521b\u5efa\u540e\u7acb\u5373\u53ef\u4ece\u6765\u6e90\u65b9\u6848\u63a8\u5bfc\u65f6\uff0c\u624d\u5728\u8fd9\u91cc\u8865\u4e00\u6761\u8d77\u6b65\u6865\u63a5\u3002\u5b8c\u6574\u6865\u63a5\u8bbe\u8ba1\u4e0e\u540e\u7eed\u7ef4\u62a4\u8bf7\u53bb\u5de5\u4f5c\u53f0\u3002',
   sourceLanguagePlaceholder: '\u8bf7\u9009\u62e9\u6765\u6e90\u8bed\u8a00\u2026',
   sourceLanguageCodePlaceholder: '\u4f8b\uff1aeng',
@@ -243,6 +249,9 @@ const enUS: OrthographyBuilderMessages = {
   identitySectionTitle: 'Naming',
   renderSectionTitle: 'Rendering',
   bridgeSectionTitle: 'Bridge',
+  localizedNamesSectionTitle: 'Additional language labels',
+  examplesSectionTitle: 'Exemplar sets',
+  advancedSectionTitle: 'Advanced settings',
   bridgeSectionDescription: 'Only add a starter bridge here when the new orthography should be immediately derivable from the source. Full bridge design and ongoing maintenance stay in the workspace.',
 
   sourceLanguagePlaceholder: 'Select source language\u2026',

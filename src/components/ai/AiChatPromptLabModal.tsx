@@ -5,6 +5,7 @@ import { useLocale } from '../../i18n';
 import { computeAdaptivePanelWidth } from '../../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../../hooks/useViewportWidth';
+import { PanelButton, PanelChip } from '../ui';
 import { PanelSection } from '../ui/PanelSection';
 import { PanelSummary } from '../ui/PanelSummary';
 import { EmbeddedPanelShell } from '../ui/EmbeddedPanelShell';
@@ -84,11 +85,11 @@ export function AiChatPromptLabModal({
         maxWidth: `min(100%, ${wideWidth}px)`,
       }}
       title={messages.overviewTitle}
-      actions={<span className="panel-chip">{messages.templateCount(promptTemplates.length)}</span>}
+      actions={<PanelChip>{messages.templateCount(promptTemplates.length)}</PanelChip>}
       footer={(
         <div className="ai-chat-prompt-lab-action-row ai-chat-prompt-lab-action-row-footer">
-          <button type="button" className="panel-button ai-chat-prompt-lab-action-btn" disabled={templateTitleInput.trim().length === 0 || templateContentInput.trim().length === 0} onClick={onSaveTemplate}>{editingTemplateId ? messages.update : messages.save}</button>
-          <button type="button" className="panel-button panel-button--primary ai-chat-prompt-lab-action-btn ai-chat-prompt-lab-action-btn-primary" disabled={templateContentInput.trim().length === 0} onClick={onInjectAndClose}>{messages.injectToInput}</button>
+          <PanelButton className="ai-chat-prompt-lab-action-btn" disabled={templateTitleInput.trim().length === 0 || templateContentInput.trim().length === 0} onClick={onSaveTemplate}>{editingTemplateId ? messages.update : messages.save}</PanelButton>
+          <PanelButton variant="primary" className="ai-chat-prompt-lab-action-btn ai-chat-prompt-lab-action-btn-primary" disabled={templateContentInput.trim().length === 0} onClick={onInjectAndClose}>{messages.injectToInput}</PanelButton>
         </div>
       )}
     >
@@ -97,7 +98,7 @@ export function AiChatPromptLabModal({
         description={messages.panelNote}
         meta={(
           <div className="panel-meta">
-            <span className={`panel-chip${hasDraft ? ' panel-chip--warning' : ''}`}>{draftStatusLabel}</span>
+            <PanelChip variant={hasDraft ? 'warning' : 'default'}>{draftStatusLabel}</PanelChip>
           </div>
         )}
       />
@@ -109,9 +110,9 @@ export function AiChatPromptLabModal({
           promptTemplates.map((item) => (
             <div key={item.id} className="ai-chat-prompt-lab-template-row">
               <span className="small-text ai-chat-prompt-lab-item-title ai-chat-prompt-lab-item-title-ellipsis" title={item.content}>{item.title}</span>
-              <button type="button" className="panel-button ai-chat-prompt-lab-mini-btn" onClick={() => onInjectTemplate(item.content)}>{messages.inject}</button>
-              <button type="button" className="panel-button ai-chat-prompt-lab-mini-btn" onClick={() => onEditTemplate(item)}>{messages.edit}</button>
-              <button type="button" className="panel-button panel-button--danger ai-chat-prompt-lab-mini-btn ai-chat-prompt-lab-mini-btn-danger" onClick={() => onRemoveTemplate(item.id)}>{messages.deleteShort}</button>
+              <PanelButton className="ai-chat-prompt-lab-mini-btn" onClick={() => onInjectTemplate(item.content)}>{messages.inject}</PanelButton>
+              <PanelButton className="ai-chat-prompt-lab-mini-btn" onClick={() => onEditTemplate(item)}>{messages.edit}</PanelButton>
+              <PanelButton variant="danger" className="ai-chat-prompt-lab-mini-btn ai-chat-prompt-lab-mini-btn-danger" onClick={() => onRemoveTemplate(item.id)}>{messages.deleteShort}</PanelButton>
             </div>
           ))
         )}
@@ -141,7 +142,7 @@ export function AiChatPromptLabModal({
         />
         <div className="ai-chat-prompt-lab-token-row">
           {['selected_text', 'current_utterance', 'lexicon_summary', 'project_stage', 'current_row'].map((token) => (
-            <button key={token} type="button" className="panel-button ai-chat-prompt-lab-token-btn" onClick={() => onAppendPromptVariable(token)}>{`{{${token}}}`}</button>
+            <PanelButton key={token} className="ai-chat-prompt-lab-token-btn" onClick={() => onAppendPromptVariable(token)}>{`{{${token}}}`}</PanelButton>
           ))}
         </div>
       </PanelSection>

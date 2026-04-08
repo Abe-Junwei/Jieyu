@@ -3,9 +3,7 @@ import { Plus, Trash2, X } from 'lucide-react';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
 import { useOptionalLocale } from '../i18n';
 import { getNotePanelMessages } from '../i18n/notePanelMessages';
-import { DialogShell } from './ui/DialogShell';
-import { PanelSection } from './ui/PanelSection';
-import { PanelSummary } from './ui/PanelSummary';
+import { DialogOverlay, DialogShell, PanelButton, PanelChip, PanelSection, PanelSummary } from './ui';
 
 interface NotePopoverProps {
   x: number;
@@ -163,10 +161,10 @@ export const NotePopover = memo(function NotePopover({
         description={targetLabel ? undefined : messages.emptyStateHint}
         meta={(
           <div className="panel-meta">
-            <span className="panel-chip">{messages.noteCount(notes.length)}</span>
-            <span className={`panel-chip${hasNotes ? '' : ' panel-chip--danger'}`}>
+            <PanelChip>{messages.noteCount(notes.length)}</PanelChip>
+            <PanelChip variant={hasNotes ? undefined : 'danger'}>
               {categories.find((category) => category.value === newCategory)?.label ?? messages.noCategory}
-            </span>
+            </PanelChip>
           </div>
         )}
         supportingText={hasNotes ? messages.editHint : messages.emptyStateHint}
@@ -197,8 +195,8 @@ export const NotePopover = memo(function NotePopover({
                     autoFocus
                   />
                   <div className="note-popover-edit-actions">
-                    <button type="button" className="panel-button panel-button--success note-popover-btn note-popover-btn-save" onClick={() => handleEditSave(note.id)}>{messages.save}</button>
-                    <button type="button" className="panel-button panel-button--ghost note-popover-btn note-popover-btn-cancel" onClick={() => setEditingId(null)}>{messages.cancel}</button>
+                    <PanelButton variant="success" className="note-popover-btn note-popover-btn-save" onClick={() => handleEditSave(note.id)}>{messages.save}</PanelButton>
+                    <PanelButton variant="ghost" className="note-popover-btn note-popover-btn-cancel" onClick={() => setEditingId(null)}>{messages.cancel}</PanelButton>
                   </div>
                 </div>
               ) : (
@@ -249,9 +247,9 @@ export const NotePopover = memo(function NotePopover({
               </button>
             ))}
           </div>
-          <button type="button" className="panel-button panel-button--primary note-popover-btn note-popover-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
+          <PanelButton variant="primary" className="note-popover-btn note-popover-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
             <Plus size={12} /> {messages.add}
-          </button>
+          </PanelButton>
         </div>
       </PanelSection>
     </DialogShell>
@@ -259,9 +257,9 @@ export const NotePopover = memo(function NotePopover({
 
   if (isDialogMode) {
     return (
-      <div className="dialog-overlay dialog-overlay-topmost" role="presentation" onMouseDown={onClose}>
+      <DialogOverlay onClose={onClose} topmost closeOn="mousedown">
         <div onMouseDown={(event) => event.stopPropagation()}>{popoverCard}</div>
-      </div>
+      </DialogOverlay>
     );
   }
 

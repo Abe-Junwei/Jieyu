@@ -116,6 +116,11 @@ function AssistantVoiceRuntime({
     commercialProviderConfig,
     setCommercialProviderConfig,
     localWhisperConfig,
+    handleLocalWhisperConfigChange,
+    sttEnhancementKind,
+    sttEnhancementConfig,
+    handleSttEnhancementKindChange,
+    handleSttEnhancementConfigChange,
   } = useVoiceDock({
     ...(voice.context.activeTextPrimaryLanguageId !== undefined ? { activeTextPrimaryLanguageId: voice.context.activeTextPrimaryLanguageId } : {}),
     getActiveTextPrimaryLanguageId: voice.context.getActiveTextPrimaryLanguageId,
@@ -154,6 +159,8 @@ function AssistantVoiceRuntime({
     aiIsStreaming: aiChatContextValue.aiIsStreaming ?? false,
     aiMessages: aiChatContextValue.aiMessages ?? [],
     localWhisperConfig,
+    sttEnhancementKind,
+    sttEnhancementConfig,
     commercialProviderKind,
     commercialProviderConfig,
     onCommercialConfigChange: handleCommercialConfigChange,
@@ -248,6 +255,15 @@ function AssistantVoiceRuntime({
             session={voiceAgent.session}
             commercialProviderKind={voiceAgent.commercialProviderKind}
             commercialProviderConfig={voiceAgent.commercialProviderConfig}
+            providerStatusMap={voiceAgent.providerStatusMap}
+            enhancementStatus={voiceAgent.enhancementStatus}
+            onRefreshProviderStatus={voiceAgent.refreshProviderStatus}
+            localWhisperConfig={localWhisperConfig}
+            onLocalWhisperConfigChange={handleLocalWhisperConfigChange}
+            sttEnhancementKind={sttEnhancementKind}
+            sttEnhancementConfig={sttEnhancementConfig}
+            onSttEnhancementKindChange={handleSttEnhancementKindChange}
+            onSttEnhancementConfigChange={handleSttEnhancementConfigChange}
             {...(voice.target.dictationPreviewTextProps !== undefined ? { dictationPreviewTextProps: voice.target.dictationPreviewTextProps } : {})}
             targetSummary={voiceTargetSummary}
             statusSummary={voiceStatusSummary}

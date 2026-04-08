@@ -1,4 +1,5 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
+import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { OrthographyDocType, UtteranceDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
@@ -32,6 +33,8 @@ export interface UseTranscriptionSectionViewModelsInput {
   setWaveformDisplayMode: (mode: WaveformDisplayMode) => void;
   waveformVisualStyle: WaveformVisualStyle;
   setWaveformVisualStyle: (style: WaveformVisualStyle) => void;
+  acousticOverlayMode: AcousticOverlayMode;
+  setAcousticOverlayMode: (mode: AcousticOverlayMode) => void;
   globalLoopPlayback: boolean;
   setGlobalLoopPlayback: (loop: boolean) => void;
   handleGlobalPlayPauseAction: () => void;

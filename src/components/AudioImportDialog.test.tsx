@@ -67,7 +67,7 @@ describe('AudioImportDialog', () => {
       <AudioImportDialog isOpen onClose={onClose} onImport={onImport} />,
     );
 
-    const input = view.container.querySelector('input[type="file"]') as HTMLInputElement;
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(['audio'], 'demo.wav', { type: 'audio/wav' });
 
     fireEvent.change(input, { target: { files: [file] } });

@@ -6,6 +6,7 @@ import { useOrthographies } from '../hooks/useOrthographies';
 import { formatOrthographyOptionLabel, groupOrthographiesForSelect } from '../hooks/useOrthographyPicker';
 import { useLocale } from '../i18n';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
+import { FormField } from './ui';
 import {
   getOrthographyBuilderMessages,
   getOrthographyCatalogGroupLabel,
@@ -497,8 +498,7 @@ export function OrthographyBridgeManager({
                       disabled={saving}
                       error=""
                     />
-                    <label className="dialog-field">
-                      <span>{managerMessages.sourceLanguageAssetIdLabel}</span>
+                    <FormField label={managerMessages.sourceLanguageAssetIdLabel}>
                       <input
                         className={fieldClassName}
                         type="text"
@@ -508,11 +508,10 @@ export function OrthographyBridgeManager({
                         aria-label={managerMessages.sourceLanguageAssetIdLabel}
                         disabled={saving}
                       />
-                    </label>
+                    </FormField>
                   </div>
 
-                  <label className="dialog-field">
-                    <span>{managerMessages.sourceOrthographyLabel}</span>
+                  <FormField label={managerMessages.sourceOrthographyLabel}>
                     <select
                       className={fieldClassName}
                       value={sourceOrthographyId}
@@ -530,12 +529,11 @@ export function OrthographyBridgeManager({
                         </optgroup>
                       ))}
                     </select>
-                  </label>
+                  </FormField>
                 </div>
 
                 <div className="orthography-workspace-bridge-group orthography-workspace-bridge-group-meta">
-                  <label className="dialog-field">
-                    <span>{managerMessages.ruleNameZhLabel}</span>
+                  <FormField label={managerMessages.ruleNameZhLabel}>
                     <input
                       className={fieldClassName}
                       type="text"
@@ -543,10 +541,9 @@ export function OrthographyBridgeManager({
                       onChange={(event) => setDraftPrimaryName(event.target.value)}
                       placeholder={managerMessages.ruleNameZhPlaceholder}
                     />
-                  </label>
+                  </FormField>
 
-                  <label className="dialog-field">
-                    <span>{managerMessages.ruleNameEnLabel}</span>
+                  <FormField label={managerMessages.ruleNameEnLabel}>
                     <input
                       className={fieldClassName}
                       type="text"
@@ -554,10 +551,9 @@ export function OrthographyBridgeManager({
                       onChange={(event) => setDraftEnglishFallbackName(event.target.value)}
                       placeholder={managerMessages.ruleNameEnPlaceholder}
                     />
-                  </label>
+                  </FormField>
 
-                  <label className="dialog-field">
-                    <span>{managerMessages.statusLabel}</span>
+                  <FormField label={managerMessages.statusLabel}>
                     <select
                       className={fieldClassName}
                       value={draftStatus}
@@ -567,10 +563,9 @@ export function OrthographyBridgeManager({
                       <option value="active">{managerMessages.statusActive}</option>
                       <option value="deprecated">{managerMessages.statusDeprecated}</option>
                     </select>
-                  </label>
+                  </FormField>
 
-                  <label className="dialog-field">
-                    <span>{builderMessages.bridgeEngineLabel}</span>
+                  <FormField label={builderMessages.bridgeEngineLabel}>
                     <select
                       className={fieldClassName}
                       value={draftBridgeEngine}
@@ -580,7 +575,7 @@ export function OrthographyBridgeManager({
                       <option value="icu-rule">{builderMessages.bridgeEngineIcuRule}</option>
                       <option value="manual">{builderMessages.bridgeEngineManual}</option>
                     </select>
-                  </label>
+                  </FormField>
 
                   <label className="orthography-builder-checkbox orthography-workspace-bridge-checkbox-row">
                     <input
@@ -609,8 +604,7 @@ export function OrthographyBridgeManager({
                     <span>{bridgeSyntaxHint}</span>
                   </div>
 
-                  <label className="dialog-field">
-                    <span>{builderMessages.bridgeInputPreviewLabel}</span>
+                  <FormField label={builderMessages.bridgeInputPreviewLabel}>
                     <input
                       className={fieldClassName}
                       type="text"
@@ -618,7 +612,7 @@ export function OrthographyBridgeManager({
                       onChange={(event) => setDraftBridgeSampleInput(event.target.value)}
                       placeholder={builderMessages.bridgeInputPreviewPlaceholder}
                     />
-                  </label>
+                  </FormField>
 
                   <div className="orthography-builder-rule-block">
                     <span className="orthography-builder-rule-label">{builderMessages.bridgeSampleCaseLabel}</span>

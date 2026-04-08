@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { useVoiceAgent } from './useVoiceAgent';
 import {
@@ -110,6 +110,19 @@ const voiceInputServiceMockState = vi.hoisted(() => {
 vi.mock('../services/VoiceInputService', voiceInputServiceMockState.createVoiceInputServiceMockModule);
 vi.mock('../services/VoiceInputService.ts', voiceInputServiceMockState.createVoiceInputServiceMockModule);
 
+const sttRuntimeMockState = vi.hoisted(() => {
+  const testSttProvider = vi.fn(async () => ({ available: true }));
+  return {
+    testSttProvider,
+  };
+});
+
+vi.mock('../services/stt', () => ({
+  testSttProvider: sttRuntimeMockState.testSttProvider,
+  testCommercialProvider: vi.fn(async () => ({ available: true })),
+  probeAllCommercialProviders: vi.fn(async () => []),
+}));
+
 vi.mock('../services/EarconService', () => ({
   playActivate:   vi.fn(),
   playDeactivate: vi.fn(),
@@ -131,6 +144,11 @@ const makeExecuteAction = () => vi.fn<(actionId: ActionId) => void>();
 // ── Tests ──
 
 describe('useVoiceAgent', () => {
+  beforeEach(() => {
+    sttRuntimeMockState.testSttProvider.mockReset();
+    sttRuntimeMockState.testSttProvider.mockResolvedValue({ available: true });
+  });
+
   const dispatchSttResult = async (payload: {
     text: string;
     confidence?: number;
@@ -416,6 +434,28 @@ describe('useVoiceAgent', () => {
       expect(result.current.pendingConfirm).toBeNull();
       await act(async () => { result.current.cancelPending(); });
       expect(result.current.pendingConfirm).toBeNull();
+    });
+  });
+
+  describe('provider probing', () => {
+    it('tests whisper-local availability with configured URL and model', async () => {
+      const { result } = renderHook(() =>
+        useVoiceAgent({
+          executeAction: makeExecuteAction(),
+          whisperServerUrl: 'http://localhost:7777',
+          whisperServerModel: 'ggml-test.bin',
+        }),
+      );
+
+      await act(async () => {
+        const probe = await result.current.testWhisperLocal();
+        expect(probe.available).toBe(true);
+      });
+
+      expect(sttRuntimeMockState.testSttProvider).toHaveBeenCalledWith('whisper-local', {
+        baseUrl: 'http://localhost:7777',
+        model: 'ggml-test.bin',
+      });
     });
   });
 

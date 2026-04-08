@@ -4,6 +4,8 @@ import {
   type UseTranscriptionAiControllerInput,
   type UseTranscriptionAiControllerResult,
 } from './useTranscriptionAiController';
+import type { AcousticPromptSummary } from './TranscriptionPage.aiPromptContext';
+import type { AcousticPanelDetail } from '../utils/acousticPanelDetail';
 
 type DeferredAiChatState = {
   enabled: UseTranscriptionAiControllerResult['aiChat']['enabled'];
@@ -32,6 +34,9 @@ type DeferredAiChatState = {
 export interface DeferredTranscriptionAiRuntimeState {
   aiChat: DeferredAiChatState;
   aiToolDecisionLogs: UseTranscriptionAiControllerResult['aiToolDecisionLogs'];
+  acousticSummary: AcousticPromptSummary | null;
+  acousticDetail: AcousticPanelDetail | null;
+  onJumpToAcousticHotspot: (timeSec: number) => void;
 }
 
 interface TranscriptionPageAssistantBridgeProps {
@@ -46,6 +51,9 @@ function TranscriptionPageAssistantBridge({
   const {
     aiChat,
     aiToolDecisionLogs,
+    acousticSummary,
+    acousticDetail,
+    handleJumpToAcousticHotspot,
   } = useTranscriptionAiController(controllerInput);
 
   const runtimeState = useMemo<DeferredTranscriptionAiRuntimeState>(() => ({
@@ -73,7 +81,12 @@ function TranscriptionPageAssistantBridge({
       trackRecommendationEvent: aiChat.trackRecommendationEvent,
     },
     aiToolDecisionLogs,
+    acousticSummary,
+    acousticDetail,
+    onJumpToAcousticHotspot: handleJumpToAcousticHotspot,
   }), [
+    acousticDetail,
+    acousticSummary,
     aiChat.cancelPendingToolCall,
     aiChat.clear,
     aiChat.confirmPendingToolCall,
@@ -96,6 +109,7 @@ function TranscriptionPageAssistantBridge({
     aiChat.trackRecommendationEvent,
     aiChat.updateSettings,
     aiToolDecisionLogs,
+    handleJumpToAcousticHotspot,
   ]);
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 import type { RefObject } from 'react';
 import { WaveformToolbar } from '../components/WaveformToolbar';
 import { t, tf, useLocale } from '../i18n';
+import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
 
@@ -14,6 +15,8 @@ export type TranscriptionPageToolbarProps = {
   onWaveformDisplayModeChange: (mode: WaveformDisplayMode) => void;
   waveformVisualStyle: WaveformVisualStyle;
   onWaveformVisualStyleChange: (style: WaveformVisualStyle) => void;
+  acousticOverlayMode: AcousticOverlayMode;
+  onAcousticOverlayModeChange: (mode: AcousticOverlayMode) => void;
   volume: number;
   onVolumeChange: (vol: number) => void;
   loop: boolean;
@@ -69,6 +72,8 @@ export function TranscriptionPageToolbar({
   onWaveformDisplayModeChange,
   waveformVisualStyle,
   onWaveformVisualStyleChange,
+  acousticOverlayMode,
+  onAcousticOverlayModeChange,
   volume,
   onVolumeChange,
   loop,
@@ -113,6 +118,8 @@ export function TranscriptionPageToolbar({
       onWaveformDisplayModeChange={onWaveformDisplayModeChange}
       waveformVisualStyle={waveformVisualStyle}
       onWaveformVisualStyleChange={onWaveformVisualStyleChange}
+      acousticOverlayMode={acousticOverlayMode}
+      onAcousticOverlayModeChange={onAcousticOverlayModeChange}
       volume={volume}
       onVolumeChange={onVolumeChange}
       loop={loop}

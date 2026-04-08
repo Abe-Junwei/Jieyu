@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { normalizeLocale, t } from '../i18n';
 import { getConfirmDeleteDialogMessages } from '../i18n/confirmDeleteDialogMessages';
-import { DialogShell } from './ui/DialogShell';
+import { ModalPanel, PanelButton } from './ui';
 import { PanelSection } from './ui/PanelSection';
 import { PanelSummary } from './ui/PanelSummary';
 
@@ -43,7 +43,6 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
   textCount,
   emptyCount,
 }: ConfirmDeleteDialogProps) {
-  if (!open) return null;
   const uiLocale = normalizeLocale(locale) ?? 'zh-CN';
   const messages = getConfirmDeleteDialogMessages(uiLocale);
 
@@ -63,21 +62,20 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
   const displayTitle = isSegmentDelete ? messages.defaultTitle : title;
 
   return (
-    <div className="dialog-overlay" onClick={onCancel}>
-      <DialogShell
-        className="confirm-delete-dialog panel-design-match panel-design-match-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label={displayTitle}
-        title={displayTitle}
-        footer={(
-          <>
-            <button className="panel-button panel-button--ghost" onClick={onCancel}>{t(uiLocale, 'transcription.dialog.cancel')}</button>
-            <button className="panel-button panel-button--danger" onClick={onConfirm}>{t(uiLocale, 'transcription.dialog.deleteLayerConfirmButton')}</button>
-          </>
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalPanel
+      isOpen={open}
+      onClose={onCancel}
+      hideCloseButton
+      className="confirm-delete-dialog panel-design-match panel-design-match-dialog"
+      ariaLabel={displayTitle}
+      title={displayTitle}
+      footer={(
+        <>
+          <PanelButton variant="ghost" onClick={onCancel}>{t(uiLocale, 'transcription.dialog.cancel')}</PanelButton>
+          <PanelButton variant="danger" onClick={onConfirm}>{t(uiLocale, 'transcription.dialog.deleteLayerConfirmButton')}</PanelButton>
+        </>
+      )}
+    >
         <PanelSummary
           className="confirm-delete-dialog-summary"
           description={displayDescription}
@@ -96,7 +94,6 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
             </label>
           </PanelSection>
         )}
-      </DialogShell>
-    </div>
+    </ModalPanel>
   );
 });

@@ -1,3 +1,5 @@
+import { t, tf, type Locale } from '../i18n';
+
 export type ProjectStage = 'collecting' | 'transcribing' | 'glossing' | 'reviewing';
 
 export interface ObserverMetrics {
@@ -18,6 +20,17 @@ export interface Recommendation {
 export interface ObserverResult {
   stage: ProjectStage;
   recommendations: Recommendation[];
+}
+
+function makeRecommendation(locale: Locale, id: string, priority: number): Recommendation {
+  const baseKey = `ai.observer.recommendation.${id}` as const;
+  return {
+    id,
+    priority,
+    title: t(locale, `${baseKey}.title`),
+    detail: t(locale, `${baseKey}.detail`),
+    actionLabel: t(locale, `${baseKey}.actionLabel`),
+  };
 }
 
 export function inferStage(metrics: ObserverMetrics): ProjectStage {
@@ -58,44 +71,32 @@ export function computeMultiSignalRiskScore(signals: WaveformSignals, utteranceC
   return Math.round(Math.min(100, raw * 100));
 }
 
-export function generateRecommendations(metrics: ObserverMetrics, waveformSignals?: WaveformSignals): Recommendation[] {
+export function generateRecommendations(
+  metrics: ObserverMetrics,
+  waveformSignals?: WaveformSignals,
+  locale: Locale = 'zh-CN',
+): Recommendation[] {
   const stage = inferStage(metrics);
   const riskScore = waveformSignals ? computeMultiSignalRiskScore(waveformSignals, metrics.utteranceCount) : 0;
 
   if (stage === 'collecting') {
-    return [{
-      id: 'collecting-next',
-      priority: 100,
-      title: '先完成分段与转写覆盖',
-      detail: '建议先补齐当前媒体的基础分段，并完成主要语段转写。',
-      actionLabel: '跳转处理',
-    }];
+    return [makeRecommendation(locale, 'collectingNext', 100)];
   }
   if (stage === 'transcribing') {
     const recs: Recommendation[] = [
-      {
-        id: 'transcribing-jump-untagged',
-        priority: 92,
-        title: '跳转到未标注语段',
-        detail: '优先处理包含未标注 POS 的语段，快速提升标注覆盖。',
-        actionLabel: '跳转未标注',
-      },
-      {
-        id: 'transcribing-batch-pos',
-        priority: 90,
-        title: '执行同词形批量 POS',
-        detail: '对同词形且已知词性的 token 执行批量赋值，减少重复操作。',
-        actionLabel: '批量 POS',
-      },
+      makeRecommendation(locale, 'transcribingJumpUntagged', 92),
+      makeRecommendation(locale, 'transcribingBatchPos', 90),
     ];
     // 重叠信号额外提醒 | Overlap signal warning
     if (waveformSignals && waveformSignals.overlapCount >= 3) {
       recs.push({
         id: 'transcribing-overlap-warn',
         priority: 88,
-        title: '存在多处说话人重叠',
-        detail: `检测到 ${waveformSignals.overlapCount} 处重叠，建议检查分段边界后再标注。`,
-        actionLabel: '查看重叠',
+        title: t(locale, 'ai.observer.recommendation.transcribingOverlapWarn.title'),
+        detail: tf(locale, 'ai.observer.recommendation.transcribingOverlapWarn.detail', {
+          count: waveformSignals.overlapCount,
+        }),
+        actionLabel: t(locale, 'ai.observer.recommendation.transcribingOverlapWarn.actionLabel'),
       });
     }
     return recs;
@@ -105,28 +106,24 @@ export function generateRecommendations(metrics: ObserverMetrics, waveformSignal
       {
         id: 'glossing-risk-review',
         priority: Math.min(99, 85 + Math.round(riskScore * 0.1)),
-        title: '优先复核高风险语段',
+        title: t(locale, 'ai.observer.recommendation.glossingRiskReview.title'),
         detail: riskScore > 30
-          ? `综合风险分 ${riskScore}/100，含低置信度、重叠、间隙多种信号，建议集中复核。`
-          : '先处理低置信度语段，可快速降低错误传播。',
-        actionLabel: '风险复核',
+          ? tf(locale, 'ai.observer.recommendation.glossingRiskReview.detailHigh', { riskScore })
+          : t(locale, 'ai.observer.recommendation.glossingRiskReview.detail'),
+        actionLabel: t(locale, 'ai.observer.recommendation.glossingRiskReview.actionLabel'),
       },
-      {
-        id: 'glossing-next',
-        priority: 80,
-        title: '进入校核阶段',
-        detail: '建议优先复核低置信度条目并统一标签规范。',
-        actionLabel: '跳转处理',
-      },
+      makeRecommendation(locale, 'glossingNext', 80),
     ];
     // 大间隙提醒 | Large gap warning
     if (waveformSignals && waveformSignals.maxGapSeconds > 3) {
       recs.push({
         id: 'glossing-gap-warn',
         priority: 82,
-        title: '存在较大静音间隙',
-        detail: `最大间隙 ${waveformSignals.maxGapSeconds.toFixed(1)}s，可能需要补充分段或标记静音区。`,
-        actionLabel: '查看间隙',
+        title: t(locale, 'ai.observer.recommendation.glossingGapWarn.title'),
+        detail: tf(locale, 'ai.observer.recommendation.glossingGapWarn.detail', {
+          maxGapSeconds: waveformSignals.maxGapSeconds.toFixed(1),
+        }),
+        actionLabel: t(locale, 'ai.observer.recommendation.glossingGapWarn.actionLabel'),
       });
     }
     return recs;
@@ -135,28 +132,22 @@ export function generateRecommendations(metrics: ObserverMetrics, waveformSignal
     {
       id: 'reviewing-risk-review',
       priority: Math.min(99, 75 + Math.round(riskScore * 0.15)),
-      title: '复核剩余风险语段',
+      title: t(locale, 'ai.observer.recommendation.reviewingRiskReview.title'),
       detail: riskScore > 20
-        ? `综合风险分 ${riskScore}/100，导出前建议集中复核风险区域。`
-        : '导出前优先检查低置信度或可疑语段。',
-      actionLabel: '风险复核',
+        ? tf(locale, 'ai.observer.recommendation.reviewingRiskReview.detailHigh', { riskScore })
+        : t(locale, 'ai.observer.recommendation.reviewingRiskReview.detail'),
+      actionLabel: t(locale, 'ai.observer.recommendation.reviewingRiskReview.actionLabel'),
     },
-    {
-      id: 'reviewing-next',
-      priority: 70,
-      title: '准备导出前检查',
-      detail: '建议执行一致性检查与导出预检。',
-      actionLabel: '查看语段',
-    },
+    makeRecommendation(locale, 'reviewingNext', 70),
   ];
   return reviewRecs;
 }
 
 export class ProjectObserver {
-  evaluate(metrics: ObserverMetrics, waveformSignals?: WaveformSignals): ObserverResult {
+  evaluate(metrics: ObserverMetrics, waveformSignals?: WaveformSignals, locale: Locale = 'zh-CN'): ObserverResult {
     return {
       stage: inferStage(metrics),
-      recommendations: generateRecommendations(metrics, waveformSignals),
+      recommendations: generateRecommendations(metrics, waveformSignals, locale),
     };
   }
 }

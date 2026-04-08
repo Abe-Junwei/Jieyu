@@ -211,6 +211,67 @@ describe('useVoiceInteraction', () => {
     expect(result.current.voiceSelectionSummary).toBe('12.00 - 15.00');
   });
 
+  it('uses unified provider metadata for environment summary labels', () => {
+    mockUseVoiceAgent.mockReturnValue({
+      mode: 'dictation',
+      agentState: 'idle',
+      listening: false,
+      engine: 'whisper-local',
+      detectedLang: null,
+      notifyAiStreamStarted: vi.fn(),
+      notifyAiStreamFinished: vi.fn(),
+      testWhisperLocal: vi.fn(async () => ({ available: true })),
+      setExternalError: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      commercialProviderKind: 'groq',
+      commercialProviderConfig: {},
+      toggle: vi.fn(),
+      switchEngine: vi.fn(),
+      startRecording: vi.fn(async () => undefined),
+      stopRecording: vi.fn(async () => undefined),
+      isRecording: false,
+      disambiguationOptions: [],
+      pendingConfirm: null,
+      error: null,
+    });
+
+    const trcDefault = makeLayer('trc-default', 'transcription');
+    const { result } = renderHook(() => useVoiceInteraction({
+      effectiveVoiceCorpusLang: 'zho',
+      voiceCorpusLangOverride: null,
+      executeAction: vi.fn(async () => undefined),
+      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+      handleVoiceDictation: vi.fn(),
+      onVoiceAnalysisResult: vi.fn(),
+      selection: {
+        activeUtteranceUnitId: 'utt-1',
+        selectedUtterance: { id: 'utt-1', startTime: 0, endTime: 1 },
+        selectedRowMeta: null,
+        selectedLayerId: trcDefault.id,
+        selectedUnitKind: 'utterance',
+        selectedTimeRangeLabel: '0.00 - 1.00',
+      },
+      defaultTranscriptionLayerId: trcDefault.id,
+      translationLayers: [],
+      layers: [trcDefault],
+      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+      formatTime: (seconds) => seconds.toFixed(2),
+      aiChatSend: vi.fn(async () => undefined),
+      aiIsStreaming: false,
+      aiMessages: [],
+      localWhisperConfig: {},
+      commercialProviderKind: 'groq',
+      commercialProviderConfig: {},
+      onCommercialConfigChange: vi.fn(),
+      setCommercialProviderKind: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      featureVoiceEnabled: true,
+      toggleVoiceRef: { current: undefined },
+    }));
+
+    expect(result.current.voiceEnvironmentSummary).toContain('Distil-Whisper');
+  });
+
   it('surfaces analysis writeback failure in voice status and external error', async () => {
     const setExternalError = vi.fn();
     const setAnalysisFillCallback = vi.fn((utteranceId: string | null, callback: (content: string) => void) => {

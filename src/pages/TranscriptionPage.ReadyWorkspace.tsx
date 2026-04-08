@@ -5,7 +5,7 @@
  * 从轻量壳组件中拆出的 ready 态重运行时 | Heavy ready-state runtime extracted from the lightweight shell.
  */
 
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Merge as _Merge,
   Pause as _Pause,
@@ -27,6 +27,7 @@ import { OrchestratorWaveformContent } from './OrchestratorWaveformContent';
 import { TrackFocusToolbarControls } from '../components/transcription/toolbar/TrackFocusToolbarControls';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { useAiPanelContextUpdater, AiPanelContext } from '../contexts/AiPanelContext';
+import type { AcousticInspectorReadout } from '../contexts/AiPanelContext';
 import { ToastProvider } from '../contexts/ToastContext';
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
 import { useRecording } from '../hooks/useRecording';
@@ -415,6 +416,8 @@ function TranscriptionPageReadyWorkspace({
     setWaveformDisplayMode,
     waveformVisualStyle,
     setWaveformVisualStyle,
+    acousticOverlayMode,
+    setAcousticOverlayMode,
     isResizingWaveform,
     handleWaveformResizeStart,
   } = useWaveformRuntimeController();
@@ -672,6 +675,16 @@ function TranscriptionPageReadyWorkspace({
     waveformLowConfidenceOverlays,
     waveformOverlapOverlays,
     waveformGapOverlays,
+    acousticOverlayViewportWidth,
+    acousticOverlayF0Path,
+    acousticOverlayIntensityPath,
+    acousticOverlayVisibleSummary,
+    acousticOverlayLoading,
+    waveformHoverReadout,
+    spectrogramHoverReadout,
+    handleSpectrogramMouseMove,
+    handleSpectrogramMouseLeave,
+    handleSpectrogramClick,
     handleSegmentPlaybackRateChange,
     handleToggleSelectedWaveformLoop,
     handleToggleSelectedWaveformPlay,
@@ -692,6 +705,7 @@ function TranscriptionPageReadyWorkspace({
     setAmplitudeScale,
     waveformDisplayMode,
     waveformVisualStyle,
+    acousticOverlayMode,
     zoomPercent,
     setZoomPercent,
     zoomMode,
@@ -701,7 +715,7 @@ function TranscriptionPageReadyWorkspace({
     setUtteranceSelection,
     resolveNoteIndicatorTarget,
     tierContainerRef,
-    mediaId: selectedTimelineMedia?.id,
+    ...(selectedTimelineMedia?.id !== undefined ? { mediaId: selectedTimelineMedia.id } : {}),
   });
 
   const selectionSnapshot = useTranscriptionSelectionSnapshot({
@@ -745,6 +759,9 @@ function TranscriptionPageReadyWorkspace({
       trackRecommendationEvent: undefined,
     },
     aiToolDecisionLogs: [],
+    acousticSummary: null,
+    acousticDetail: null,
+    onJumpToAcousticHotspot: () => undefined,
   } as unknown as DeferredTranscriptionAiRuntimeState));
 
   const {
@@ -755,6 +772,7 @@ function TranscriptionPageReadyWorkspace({
     selectedTranslationGapCount,
     aiCurrentTask,
     aiVisibleCards,
+    vadCacheStatus,
     handleJumpToTranslationGap,
   } = useAiPanelLogic({
     locale,
@@ -768,7 +786,7 @@ function TranscriptionPageReadyWorkspace({
     aiPanelMode,
     selectUtterance,
     setSaveState,
-    mediaId: selectedTimelineMedia?.id,
+    ...(selectedTimelineMedia?.id !== undefined ? { mediaId: selectedTimelineMedia.id } : {}),
   });
 
   const handleExecuteObserverRecommendation = useCallback((item: { id: string }) => {
@@ -781,6 +799,43 @@ function TranscriptionPageReadyWorkspace({
   const handleDeferredAiRuntimeChange = useCallback((runtimeState: DeferredTranscriptionAiRuntimeState) => {
     setDeferredAiRuntime(runtimeState);
   }, []);
+
+  const acousticInspector = useMemo<AcousticInspectorReadout | null>(() => {
+    const activeReadout = spectrogramHoverReadout
+      ? {
+          source: 'spectrogram' as const,
+          timeSec: spectrogramHoverReadout.timeSec,
+          frequencyHz: spectrogramHoverReadout.frequencyHz,
+          f0Hz: spectrogramHoverReadout.f0Hz,
+          intensityDb: spectrogramHoverReadout.intensityDb,
+        }
+      : waveformHoverReadout
+        ? {
+            source: 'waveform' as const,
+            timeSec: waveformHoverReadout.timeSec,
+            f0Hz: waveformHoverReadout.f0Hz,
+            intensityDb: waveformHoverReadout.intensityDb,
+          }
+        : null;
+
+    if (!activeReadout) return null;
+
+    const hotspots = deferredAiRuntime.acousticSummary?.hotspots ?? [];
+    const nearestHotspot = hotspots
+      .map((hotspot) => ({ hotspot, distance: Math.abs(hotspot.timeSec - activeReadout.timeSec) }))
+      .sort((left, right) => left.distance - right.distance)[0];
+    const matchedHotspot = nearestHotspot && nearestHotspot.distance <= 0.2 ? nearestHotspot.hotspot : null;
+    const selectionStart = deferredAiRuntime.acousticSummary?.selectionStartSec;
+    const selectionEnd = deferredAiRuntime.acousticSummary?.selectionEndSec;
+
+    return {
+      ...activeReadout,
+      ...(matchedHotspot ? { matchedHotspotKind: matchedHotspot.kind, matchedHotspotTimeSec: matchedHotspot.timeSec } : {}),
+      ...(selectionStart !== undefined && selectionEnd !== undefined
+        ? { inSelection: activeReadout.timeSec >= selectionStart && activeReadout.timeSec <= selectionEnd }
+        : {}),
+    };
+  }, [deferredAiRuntime.acousticSummary, spectrogramHoverReadout, waveformHoverReadout]);
 
   const {
     handleSearchReplace,
@@ -895,8 +950,13 @@ function TranscriptionPageReadyWorkspace({
     setAiPanelMode,
     aiCurrentTask,
     aiVisibleCards,
+    vadCacheStatus,
+    acousticSummary: deferredAiRuntime.acousticSummary,
+    acousticInspector,
+    acousticDetail: deferredAiRuntime.acousticDetail,
     selectedTranslationGapCount,
     handleJumpToTranslationGap,
+    handleJumpToAcousticHotspot: deferredAiRuntime.onJumpToAcousticHotspot,
     setAiPanelContext,
     selectedTimelineUnit,
     saveSegmentContentForLayer,
@@ -1462,6 +1522,8 @@ function TranscriptionPageReadyWorkspace({
     setWaveformDisplayMode,
     waveformVisualStyle,
     setWaveformVisualStyle,
+    acousticOverlayMode,
+    setAcousticOverlayMode,
     globalLoopPlayback,
     setGlobalLoopPlayback,
     handleGlobalPlayPauseAction,
@@ -1713,6 +1775,17 @@ function TranscriptionPageReadyWorkspace({
                   waveformLowConfidenceOverlays={waveformLowConfidenceOverlays}
                   waveformOverlapOverlays={waveformOverlapOverlays}
                   waveformGapOverlays={waveformGapOverlays}
+                  acousticOverlayMode={acousticOverlayMode}
+                  acousticOverlayViewportWidth={acousticOverlayViewportWidth}
+                  acousticOverlayF0Path={acousticOverlayF0Path}
+                  acousticOverlayIntensityPath={acousticOverlayIntensityPath}
+                  acousticOverlayVisibleSummary={acousticOverlayVisibleSummary}
+                  acousticOverlayLoading={acousticOverlayLoading}
+                  waveformHoverReadout={waveformHoverReadout}
+                  spectrogramHoverReadout={spectrogramHoverReadout}
+                  handleSpectrogramMouseMove={handleSpectrogramMouseMove}
+                  handleSpectrogramMouseLeave={handleSpectrogramMouseLeave}
+                  handleSpectrogramClick={handleSpectrogramClick}
                   setNotePopover={setNotePopover}
                   snapGuideVisible={snapGuide.visible}
                   snapGuideLeft={snapGuide.left}
@@ -1889,6 +1962,7 @@ function TranscriptionPageReadyWorkspace({
                       selectedTimelineOwnerUtterance: selectedTimelineOwnerUtterance ?? null,
                       selectedTimelineSegment: selectedTimelineSegment ?? null,
                       ...(selectedTimelineMedia ? { selectedTimelineMedia } : {}),
+                      ...(selectedMediaUrl ? { selectedMediaUrl } : {}),
                       selectedLayerId,
                       activeLayerIdForEdits,
                       resolveSegmentRoutingForLayer,

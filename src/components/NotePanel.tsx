@@ -7,6 +7,7 @@ import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
 import { DialogShell } from './ui/DialogShell';
+import { PanelButton, PanelChip } from './ui';
 import { PanelSection } from './ui/PanelSection';
 import { PanelSummary } from './ui/PanelSummary';
 
@@ -127,10 +128,10 @@ export const NotePanel = memo(function NotePanel({
         description={targetLabel}
         meta={(
           <div className="panel-meta">
-            <span className="panel-chip">{messages.noteCount(notes.length)}</span>
-            <span className={`panel-chip${hasNotes ? '' : ' panel-chip--danger'}`}>
+            <PanelChip>{messages.noteCount(notes.length)}</PanelChip>
+            <PanelChip variant={hasNotes ? undefined : 'danger'}>
               {hasNotes ? messages.notesSectionTitle : messages.empty}
-            </span>
+            </PanelChip>
           </div>
         )}
         supportingText={hasNotes ? messages.editHint : messages.emptyStateHint}
@@ -161,12 +162,12 @@ export const NotePanel = memo(function NotePanel({
                     autoFocus
                   />
                   <div className="note-panel-edit-actions">
-                    <button type="button" className="panel-button panel-button--success note-panel-btn note-panel-btn-save" onClick={() => handleEditSave(note.id)}>
+                    <PanelButton variant="success" className="note-panel-btn note-panel-btn-save" onClick={() => handleEditSave(note.id)}>
                       {messages.save}
-                    </button>
-                    <button type="button" className="panel-button panel-button--ghost note-panel-btn note-panel-btn-cancel" onClick={() => setEditingId(null)}>
+                    </PanelButton>
+                    <PanelButton variant="ghost" className="note-panel-btn note-panel-btn-cancel" onClick={() => setEditingId(null)}>
                       {messages.cancel}
-                    </button>
+                    </PanelButton>
                   </div>
                 </div>
               ) : (
@@ -215,9 +216,9 @@ export const NotePanel = memo(function NotePanel({
               </option>
             ))}
           </select>
-          <button type="button" className="panel-button panel-button--primary note-panel-btn note-panel-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
+          <PanelButton variant="primary" className="note-panel-btn note-panel-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
             <Plus size={14} /> {messages.add}
-          </button>
+          </PanelButton>
         </div>
       </PanelSection>
     </DialogShell>

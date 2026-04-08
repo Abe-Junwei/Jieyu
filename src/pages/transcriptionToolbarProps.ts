@@ -1,6 +1,7 @@
 import type { RefObject } from 'react';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { t, type Locale } from '../i18n';
+import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
 import type { UttOpsMenuState } from './TranscriptionPage.UIState';
@@ -22,6 +23,8 @@ interface CreateTranscriptionToolbarPropsInput {
   setWaveformDisplayMode: (mode: WaveformDisplayMode) => void;
   waveformVisualStyle: WaveformVisualStyle;
   setWaveformVisualStyle: (style: WaveformVisualStyle) => void;
+  acousticOverlayMode: AcousticOverlayMode;
+  setAcousticOverlayMode: (mode: AcousticOverlayMode) => void;
   globalLoopPlayback: boolean;
   setGlobalLoopPlayback: (loop: boolean) => void;
   handleGlobalPlayPauseAction: () => void;
@@ -64,6 +67,8 @@ export function createTranscriptionToolbarProps(
     onWaveformDisplayModeChange: input.setWaveformDisplayMode,
     waveformVisualStyle: input.waveformVisualStyle,
     onWaveformVisualStyleChange: input.setWaveformVisualStyle,
+    acousticOverlayMode: input.acousticOverlayMode,
+    onAcousticOverlayModeChange: input.setAcousticOverlayMode,
     volume: input.player.volume,
     onVolumeChange: input.player.setVolume,
     loop: input.globalLoopPlayback,

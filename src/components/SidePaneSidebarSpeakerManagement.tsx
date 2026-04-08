@@ -3,6 +3,7 @@ import type { SpeakerRailContextValue } from '../contexts/SpeakerRailContext';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { fireAndForget } from '../utils/fireAndForget';
 import { SidePaneActionModal } from './SidePaneActionModal';
+import { ActionButtonGroup, FormField, PanelButton, PanelChip } from './ui';
 import { PanelSection } from './ui/PanelSection';
 import { PanelSummary } from './ui/PanelSummary';
 
@@ -129,20 +130,18 @@ export function SidePaneSidebarSpeakerManagement({
       className="side-pane-dialog-speaker"
       footer={(
         <div className="speaker-management-footer-actions">
-          <button
-            type="button"
-            className="panel-button panel-button--ghost"
+          <PanelButton
+            variant="ghost"
             onClick={onClose}
           >
             {messages.cancelButton}
-          </button>
-          <button
-            type="button"
-            className="panel-button panel-button--primary"
+          </PanelButton>
+          <PanelButton
+            variant="primary"
             onClick={onClose}
           >
             {messages.closeButton}
-          </button>
+          </PanelButton>
         </div>
       )}
     >
@@ -151,33 +150,31 @@ export function SidePaneSidebarSpeakerManagement({
         description={speakerCtx.selectedSpeakerSummary}
         meta={(
           <div className="transcription-side-pane-speaker-panel-meta panel-meta">
-            <span className="panel-chip">{messages.speakerEntityCount(speakerCtx.speakerOptions.length)}</span>
-            <span className="panel-chip">{messages.speakerReferencedInScope(speakerCtx.speakerFilterOptions.length)}</span>
-            <span className="panel-chip">{speakerCtx.speakerReferenceStatsReady ? messages.speakerReferencedProject(projectReferencedSpeakerCount) : messages.speakerReferencedProjectPending}</span>
-            <span className="panel-chip">{speakerCtx.speakerReferenceStatsReady ? messages.speakerUnusedCount(unusedSpeakerCount) : messages.speakerUnusedCountPending}</span>
-            <span className="panel-chip">{messages.speakerDuplicateGroupCount(duplicateSpeakerGroupCount)}</span>
-            <span className="panel-chip">{messages.speakerSelectedUtteranceCount(speakerCtx.selectedUtteranceIds.size)}</span>
+            <PanelChip>{messages.speakerEntityCount(speakerCtx.speakerOptions.length)}</PanelChip>
+            <PanelChip>{messages.speakerReferencedInScope(speakerCtx.speakerFilterOptions.length)}</PanelChip>
+            <PanelChip>{speakerCtx.speakerReferenceStatsReady ? messages.speakerReferencedProject(projectReferencedSpeakerCount) : messages.speakerReferencedProjectPending}</PanelChip>
+            <PanelChip>{speakerCtx.speakerReferenceStatsReady ? messages.speakerUnusedCount(unusedSpeakerCount) : messages.speakerUnusedCountPending}</PanelChip>
+            <PanelChip>{messages.speakerDuplicateGroupCount(duplicateSpeakerGroupCount)}</PanelChip>
+            <PanelChip>{messages.speakerSelectedUtteranceCount(speakerCtx.selectedUtteranceIds.size)}</PanelChip>
           </div>
         )}
       >
         {speakerCtx.speakerReferenceStatsReady && unusedSpeakerCount > 0 && (
-          <div className="speaker-management-dialog-actions speaker-management-dialog-actions-fill">
-            <button
-              className="panel-button"
+          <ActionButtonGroup className="speaker-management-dialog-actions speaker-management-dialog-actions-fill">
+            <PanelButton
               disabled={speakerCtx.speakerSaving}
               onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleDeleteUnusedSpeakers); }}
               title={messages.speakerCleanupUnusedTitle}
             >
               {messages.speakerCleanupUnusedButton(unusedSpeakerCount)}
-            </button>
-          </div>
+            </PanelButton>
+          </ActionButtonGroup>
         )}
       </PanelSummary>
 
       <PanelSection className="speaker-management-panel-card transcription-side-pane-speaker-panel-section" title={messages.speakerBatchAssignTitle}>
         <div className="speaker-management-panel-grid">
-          <div className="dialog-field">
-            <label className="layer-action-dialog-field-label" htmlFor={`${fieldIdPrefix}-batch-speaker`}>{messages.speakerTargetPlaceholder}</label>
+          <FormField htmlFor={`${fieldIdPrefix}-batch-speaker`} label={messages.speakerTargetPlaceholder}>
             <select
               id={`${fieldIdPrefix}-batch-speaker`}
               className="input layer-action-dialog-input speaker-management-control"
@@ -190,28 +187,26 @@ export function SidePaneSidebarSpeakerManagement({
                 <option key={speaker.id} value={speaker.id}>{speaker.name}</option>
               ))}
             </select>
-          </div>
-          <div className="speaker-management-dialog-actions speaker-management-dialog-actions-fill">
-            <button
-              className="panel-button panel-button--primary"
+          </FormField>
+          <ActionButtonGroup className="speaker-management-dialog-actions speaker-management-dialog-actions-fill">
+            <PanelButton
+              variant="primary"
               disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0 || speakerCtx.batchSpeakerId.trim().length === 0}
               onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleAssignSpeakerToSelectedRouted); }}
             >
               {messages.speakerApplyButton}
-            </button>
-            <button
-              className="panel-button"
+            </PanelButton>
+            <PanelButton
               disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0}
               onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleClearSpeakerOnSelectedRouted); }}
               title={messages.speakerClearTitle}
             >
               {messages.speakerClearButton}
-            </button>
-          </div>
+            </PanelButton>
+          </ActionButtonGroup>
         </div>
         <div className="speaker-management-panel-grid speaker-management-panel-grid-secondary">
-          <div className="dialog-field">
-            <label className="layer-action-dialog-field-label" htmlFor={`${fieldIdPrefix}-speaker-draft`}>{messages.speakerDraftPlaceholder}</label>
+          <FormField htmlFor={`${fieldIdPrefix}-speaker-draft`} label={messages.speakerDraftPlaceholder}>
             <input
               id={`${fieldIdPrefix}-speaker-draft`}
               className="input layer-action-dialog-input speaker-management-control"
@@ -220,25 +215,24 @@ export function SidePaneSidebarSpeakerManagement({
               onChange={(e) => speakerCtx.setSpeakerDraftName(e.target.value)}
               disabled={speakerCtx.speakerSaving}
             />
-          </div>
-          <div className="speaker-management-dialog-actions speaker-management-dialog-actions-fill">
-            <button
-              className="panel-button"
+          </FormField>
+          <ActionButtonGroup className="speaker-management-dialog-actions speaker-management-dialog-actions-fill">
+            <PanelButton
               disabled={speakerCtx.speakerSaving || speakerCtx.speakerDraftName.trim().length === 0}
               onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleCreateSpeakerOnly); }}
               title={messages.speakerCreateOnlyTitle}
             >
               {messages.speakerCreateOnlyButton}
-            </button>
-            <button
-              className="panel-button panel-button--primary"
+            </PanelButton>
+            <PanelButton
+              variant="primary"
               disabled={speakerCtx.speakerSaving || speakerCtx.selectedUtteranceIds.size === 0 || speakerCtx.speakerDraftName.trim().length === 0}
               onClick={() => { runSpeakerPanelActionAndClose(speakerCtx.handleCreateSpeakerAndAssign); }}
               title={messages.speakerCreateAssignTitle}
             >
               {messages.speakerCreateAssignButton}
-            </button>
-          </div>
+            </PanelButton>
+          </ActionButtonGroup>
         </div>
       </PanelSection>
 

@@ -118,6 +118,13 @@
   --bg-success-tint: color-mix(in srgb, var(--state-success-solid) 12%, transparent);
   --bg-warning-tint: color-mix(in srgb, var(--state-warning-solid) 10%, transparent);
   --bg-danger-tint: color-mix(in srgb, var(--state-danger-solid) 12%, transparent);
+  --overlay-hover-soft: color-mix(in srgb, var(--border-soft) 24%, transparent);
+  --overlay-hover-muted: color-mix(in srgb, var(--border-soft) 30%, transparent);
+  --overlay-dark-hover: color-mix(in srgb, var(--surface-panel) 7%, transparent);
+  --surface-dark-card: color-mix(in srgb, var(--surface-panel) 60%, transparent);
+  --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) 20%, transparent);
+  --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) 42%, transparent);
+  --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
 }
 
 /* ── 暗色主题 | Dark theme ── */
@@ -168,4 +175,11 @@
 
   --text-tertiary: #6e7681;
   --text-on-solid: #ffffff;
+  --overlay-hover-soft: color-mix(in srgb, var(--surface-panel) 7%, transparent);
+  --overlay-hover-muted: color-mix(in srgb, var(--surface-panel) 5%, transparent);
+  --overlay-dark-hover: color-mix(in srgb, var(--surface-panel) 9%, transparent);
+  --surface-dark-card: color-mix(in srgb, var(--surface-panel) 66%, transparent);
+  --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
+  --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) 44%, transparent);
+  --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) 28%, transparent);
 }

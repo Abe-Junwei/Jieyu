@@ -7,6 +7,7 @@ import {
   normalizeImpactPreviewLines,
 } from './aiChatCardUtils';
 import { resolveTextDirectionFromLocale } from '../../utils/panelAdaptiveLayout';
+import { PanelButton, PanelChip, PanelNote } from '../ui';
 import { PanelSection } from '../ui/PanelSection';
 import { PanelSummary } from '../ui/PanelSummary';
 
@@ -74,16 +75,16 @@ export function AiChatAlertsPanel({
             description={summaryDescription}
             meta={(
               <div className="panel-meta ai-chat-alerts-summary-meta">
-                <span className={`panel-chip${hasToolPending ? ' panel-chip--warning' : ''}`}>{t(locale, 'ai.alerts.pendingToolCall')}</span>
-                <span className="panel-chip">{alertCount}</span>
-                <button
-                  type="button"
+                <PanelChip variant={hasToolPending ? 'warning' : undefined}>{t(locale, 'ai.alerts.pendingToolCall')}</PanelChip>
+                <PanelChip>{alertCount}</PanelChip>
+                <PanelButton
+                  variant="ghost"
+                  className="ai-chat-alerts-toggle"
                   onClick={onToggleAlertBar}
-                  className="panel-button panel-button--ghost ai-chat-alerts-toggle"
                   aria-expanded={showAlertBar}
                 >
                   {showAlertBar ? t(locale, 'ai.alerts.hide') : t(locale, 'ai.alerts.expand')}
-                </button>
+                </PanelButton>
               </div>
             )}
             supportingText={hasToolPending ? t(locale, 'ai.alerts.pendingToolCall') : undefined}
@@ -120,12 +121,12 @@ export function AiChatAlertsPanel({
                       </ul>
                     )}
                     <div className="ai-chat-alerts-actions">
-                      <button type="button" className="panel-button panel-button--danger ai-chat-alerts-action-btn" disabled={!onConfirmPendingToolCall} onClick={() => void onConfirmPendingToolCall?.()}>{formatPendingConfirmActionLabel(isZh, aiPendingToolCall.call.name)}</button>
-                      <button type="button" className="panel-button panel-button--ghost ai-chat-alerts-action-btn" disabled={!onCancelPendingToolCall} onClick={() => void onCancelPendingToolCall?.()}>{t(locale, 'ai.alerts.cancel')}</button>
+                      <PanelButton variant="danger" className="ai-chat-alerts-action-btn" disabled={!onConfirmPendingToolCall} onClick={() => void onConfirmPendingToolCall?.()}>{formatPendingConfirmActionLabel(isZh, aiPendingToolCall.call.name)}</PanelButton>
+                      <PanelButton variant="ghost" className="ai-chat-alerts-action-btn" disabled={!onCancelPendingToolCall} onClick={() => void onCancelPendingToolCall?.()}>{t(locale, 'ai.alerts.cancel')}</PanelButton>
                     </div>
                   </>
                 ) : (
-                  <p className="panel-note ai-chat-alerts-demo-note">{t(locale, 'ai.alerts.demoModeHint')}</p>
+                  <PanelNote className="ai-chat-alerts-demo-note">{t(locale, 'ai.alerts.demoModeHint')}</PanelNote>
                 )}
               </PanelSection>
             )}

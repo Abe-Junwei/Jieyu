@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from 'react';
+import { joinClassNames } from './classNames';
 
 interface EmbeddedPanelShellProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   className?: string;
@@ -11,10 +12,6 @@ interface EmbeddedPanelShellProps extends Omit<HTMLAttributes<HTMLDivElement>, '
   actions?: ReactNode;
   footer?: ReactNode;
   children: ReactNode;
-}
-
-function joinClassNames(...tokens: Array<string | false | null | undefined>) {
-  return tokens.filter(Boolean).join(' ');
 }
 
 export function EmbeddedPanelShell({

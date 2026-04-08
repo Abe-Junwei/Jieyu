@@ -111,6 +111,8 @@ export interface VoiceAgentServiceState {
   isRecording: boolean;
   commercialProviderKind: CommercialProviderKind;
   commercialProviderConfig: CommercialProviderCreateConfig;
+  sttEnhancementKind: import('./stt').SttEnhancementSelectionKind;
+  sttEnhancementConfig: import('./stt').SttEnhancementConfig;
   energyLevel: number;
   recordingDuration: number;
   wakeWordEnabled: boolean;
@@ -134,6 +136,8 @@ export interface VoiceAgentServiceOptions {
   whisperServerModel?: string;
   commercialProviderKind?: CommercialProviderKind;
   commercialProviderConfig?: CommercialProviderCreateConfig;
+  sttEnhancementKind?: import('./stt').SttEnhancementSelectionKind;
+  sttEnhancementConfig?: import('./stt').SttEnhancementConfig;
   /** Called when the user confirms a pending action */
   onExecuteAction?: (actionId: ActionId, params?: { segmentIndex?: number }) => void;
   /** Called for dictation text insertion */
@@ -203,6 +207,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   private _locale: Locale;
   private readonly _whisperServerUrl: string;
   private readonly _whisperServerModel: string;
+  private _sttEnhancementKind: import('./stt').SttEnhancementSelectionKind;
+  private _sttEnhancementConfig: import('./stt').SttEnhancementConfig;
   private readonly _onExecuteAction: ((actionId: ActionId, params?: { segmentIndex?: number }) => void) | undefined;
   private readonly _onInsertDictation: ((text: string) => void) | undefined;
   private readonly _onTransformDictationPipelineFill: ((input: { layer: AnnotationLayer; text: string; segmentId: string }) => Promise<string>) | undefined;
@@ -255,6 +261,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       ...(options.whisperServerModel !== undefined && { whisperServerModel: options.whisperServerModel }),
       ...(options.commercialProviderKind !== undefined && { commercialProviderKind: options.commercialProviderKind }),
       ...(options.commercialProviderConfig !== undefined && { commercialProviderConfig: options.commercialProviderConfig }),
+      ...(options.sttEnhancementKind !== undefined && { sttEnhancementKind: options.sttEnhancementKind }),
+      ...(options.sttEnhancementConfig !== undefined && { sttEnhancementConfig: options.sttEnhancementConfig }),
     });
     this._corpusLang = options.corpusLang ?? 'cmn';
     this._langOverride = options.langOverride ?? null;
@@ -265,6 +273,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     this._whisperServerModel = runtimeConfig.whisperServerModel;
     this._commercialProviderKind = runtimeConfig.commercialProviderKind;
     this._commercialProviderConfig = runtimeConfig.commercialProviderConfig;
+    this._sttEnhancementKind = runtimeConfig.sttEnhancementKind;
+    this._sttEnhancementConfig = runtimeConfig.sttEnhancementConfig;
     this._intentAliasMap = loadVoiceIntentAliasMap();
     this._onExecuteAction = options.onExecuteAction;
     this._onInsertDictation = options.onInsertDictation;
@@ -325,6 +335,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       isRecording: this._isRecording,
       commercialProviderKind: this._commercialProviderKind,
       commercialProviderConfig: this._commercialProviderConfig,
+      sttEnhancementKind: this._sttEnhancementKind,
+      sttEnhancementConfig: this._sttEnhancementConfig,
       energyLevel: this._energyLevel,
       recordingDuration: this._recordingDuration,
       wakeWordEnabled: this._wakeWordEnabled,
@@ -388,6 +400,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       isRecording: this._isRecording,
       commercialProviderKind: this._commercialProviderKind,
       commercialProviderConfig: this._commercialProviderConfig,
+      sttEnhancementKind: this._sttEnhancementKind,
+      sttEnhancementConfig: this._sttEnhancementConfig,
       energyLevel: this._energyLevel,
       recordingDuration: this._recordingDuration,
       wakeWordEnabled: this._wakeWordEnabled,
@@ -494,6 +508,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       whisperServerModel: this._whisperServerModel,
       commercialProviderKind: this._commercialProviderKind,
       commercialProviderConfig: this._commercialProviderConfig,
+      sttEnhancementKind: this._sttEnhancementKind,
+      sttEnhancementConfig: this._sttEnhancementConfig,
       loadSttRuntime,
     });
     try {
@@ -695,6 +711,18 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     this._emitStateChange();
   }
 
+  setSttEnhancementKind(kind: import('./stt').SttEnhancementSelectionKind): void {
+    this._sttEnhancementKind = kind;
+    this._syncVoiceServiceEnhancementConfig();
+    this._emitStateChange();
+  }
+
+  setSttEnhancementConfig(config: import('./stt').SttEnhancementConfig): void {
+    this._sttEnhancementConfig = config;
+    this._syncVoiceServiceEnhancementConfig();
+    this._emitStateChange();
+  }
+
   async testCommercialProvider(): Promise<{ available: boolean; error?: string }> {
     return testVoiceAgentCommercialProvider(
       this._commercialProviderKind,
@@ -731,6 +759,37 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       this._voiceService.setLang(bcp47);
     }
     this._emitStateChange();
+  }
+
+  private _syncVoiceServiceEnhancementConfig(): void {
+    if (!this._voiceService) {
+      return;
+    }
+
+    if (this._sttEnhancementKind === 'none') {
+      this._voiceService.setSttEnhancement(undefined, undefined);
+      return;
+    }
+
+    void loadSttRuntime().then(({ createSttEnhancementProvider }) => {
+      if (!this._voiceService) {
+        return;
+      }
+
+      if (this._sttEnhancementKind === 'none') {
+        this._voiceService.setSttEnhancement(undefined, undefined);
+        return;
+      }
+
+      this._voiceService.setSttEnhancement(
+        createSttEnhancementProvider(this._sttEnhancementKind),
+        this._sttEnhancementConfig,
+      );
+    }).catch((error) => {
+      log.warn('failed to sync STT enhancement config to VoiceInputService', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
   }
 
   // ── Confirmation ──────────────────────────────────────────────────────

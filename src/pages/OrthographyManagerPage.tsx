@@ -494,6 +494,7 @@ export function OrthographyManagerPage({
   return (
     <section className="orthography-manager-page">
       <OrthographyManagerPanel
+        embedded={!registerSidePane}
         locale={locale}
         builderMessages={builderMessages}
         fromLayerId={fromLayerId}

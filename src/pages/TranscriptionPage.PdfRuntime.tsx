@@ -1,4 +1,4 @@
-import '../styles/pdf-preview.css';
+import '../styles/panels/pdf-preview-embed.css';
 import { useCallback, useEffect, useRef } from 'react';
 import { PdfPreviewSection } from '../components/PdfPreviewSection';
 import { usePdfPreview } from '../hooks/usePdfPreview';

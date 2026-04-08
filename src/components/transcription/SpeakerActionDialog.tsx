@@ -1,12 +1,7 @@
-import { memo, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { memo, useMemo } from 'react';
 import type { SpeakerActionDialogState } from '../../hooks/speakerManagement/types';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { t, tf, useLocale } from '../../i18n';
-import { DialogShell } from '../ui/DialogShell';
-import { PanelSection } from '../ui/PanelSection';
-import { PanelSummary } from '../ui/PanelSummary';
+import { FormField, ModalPanel, PanelButton, PanelChip, PanelSection, PanelSummary } from '../ui';
 
 type SpeakerActionDialogProps = {
   state: SpeakerActionDialogState | null;
@@ -26,11 +21,10 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
   onTargetSpeakerChange,
 }: SpeakerActionDialogProps) {
   const locale = useLocale();
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, state !== null, onClose);
 
-  if (!state) return null;
-  if (typeof document === 'undefined') return null;
+  if (!state) {
+    return <ModalPanel isOpen={false} onClose={onClose} title="" />;
+  }
 
   const isRename = state.mode === 'rename';
   const isMerge = state.mode === 'merge';
@@ -83,70 +77,55 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
   const riskCopy = isDelete
     ? t(locale, 'transcription.speakerDialog.deleteEntityRisk')
     : null;
-  const confirmButtonClassName = isClear || isDelete ? 'panel-button panel-button--danger' : 'panel-button panel-button--primary';
+  const confirmButtonVariant = (isClear || isDelete) ? 'danger' as const : 'primary' as const;
   const summaryProps = {
     ...(riskCopy ? { supportingText: riskCopy, supportingClassName: 'panel-note panel-note--danger' } : {}),
   };
 
-  return createPortal(
-    <div className="dialog-overlay dialog-overlay-topmost" onClick={onClose} role="presentation">
-      <DialogShell
-        containerRef={dialogRef}
-        className="speaker-action-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="speaker-dialog-title"
-        title={<span id="speaker-dialog-title">{dialogTitle}</span>}
-        titleClassName="speaker-action-dialog-title"
-        bodyClassName="speaker-action-dialog-body"
-        footerClassName="speaker-action-dialog-footer"
-        actions={(
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={onClose}
-            aria-label={`${dialogTitle} ${t(locale, 'transcription.dialog.cancel')}`}
-            title={`${dialogTitle} ${t(locale, 'transcription.dialog.cancel')}`}
-            disabled={busy}
+  return (
+    <ModalPanel
+      isOpen={state !== null}
+      onClose={onClose}
+      ariaLabelledBy="speaker-dialog-title"
+      className="speaker-action-dialog"
+      headerClassName="speaker-action-dialog-header"
+      bodyClassName="speaker-action-dialog-body"
+      footerClassName="speaker-action-dialog-footer"
+      title={<span id="speaker-dialog-title">{dialogTitle}</span>}
+      closeLabel={`${dialogTitle} ${t(locale, 'transcription.dialog.cancel')}`}
+      footer={(
+        <>
+          <PanelButton variant="ghost" onClick={onClose} disabled={busy}>{t(locale, 'transcription.dialog.cancel')}</PanelButton>
+          <PanelButton
+            variant={confirmButtonVariant}
+            onClick={onConfirm}
+            disabled={confirmDisabled}
           >
-            <X size={18} />
-          </button>
-        )}
-        footer={(
-          <>
-            <button className="panel-button panel-button--ghost" onClick={onClose} disabled={busy}>{t(locale, 'transcription.dialog.cancel')}</button>
-            <button
-              className={confirmButtonClassName}
-              onClick={onConfirm}
-              disabled={confirmDisabled}
-            >
-              {busy
-                ? t(locale, 'transcription.speakerDialog.processing')
-                : isRename
-                  ? t(locale, 'transcription.speakerDialog.confirmRename')
-                  : isMerge
-                    ? t(locale, 'transcription.speakerDialog.confirmMerge')
-                    : isDelete
-                      ? t(locale, 'transcription.speakerDialog.confirmDeleteEntity')
-                      : t(locale, 'transcription.speakerDialog.confirmClearTag')}
-            </button>
-          </>
-        )}
-        onClick={(event) => event.stopPropagation()}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
+            {busy
+              ? t(locale, 'transcription.speakerDialog.processing')
+              : isRename
+                ? t(locale, 'transcription.speakerDialog.confirmRename')
+                : isMerge
+                  ? t(locale, 'transcription.speakerDialog.confirmMerge')
+                  : isDelete
+                    ? t(locale, 'transcription.speakerDialog.confirmDeleteEntity')
+                    : t(locale, 'transcription.speakerDialog.confirmClearTag')}
+          </PanelButton>
+        </>
+      )}
+    >
         <PanelSummary
           className="speaker-action-dialog-summary"
           description={summaryCopy}
           meta={(
             <div className="panel-meta">
               {summaryMeta.map((item, index) => (
-                <span
+                <PanelChip
                   key={`${item}-${index}`}
-                  className={`panel-chip${riskCopy && index === 1 ? ' panel-chip--danger' : ''}`}
+                  variant={riskCopy && index === 1 ? 'danger' : 'default'}
                 >
                   {item}
-                </span>
+                </PanelChip>
               ))}
             </div>
           )}
@@ -155,8 +134,7 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
 
           {isRename && (
             <PanelSection className="speaker-action-dialog-field-stack">
-              <div className="dialog-field">
-                <label htmlFor="speaker-rename-input">{t(locale, 'transcription.speakerDialog.renameLabel')}</label>
+              <FormField htmlFor="speaker-rename-input" label={t(locale, 'transcription.speakerDialog.renameLabel')}>
                 <input
                   id="speaker-rename-input"
                   className="input panel-input layer-action-dialog-input"
@@ -165,14 +143,13 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
                   placeholder={state.speakerName}
                   autoFocus
                 />
-              </div>
+              </FormField>
             </PanelSection>
           )}
 
           {isMerge && (
             <PanelSection className="speaker-action-dialog-field-stack">
-              <div className="dialog-field">
-                <label htmlFor="speaker-merge-target">{t(locale, 'transcription.speakerDialog.mergeTargetLabel')}</label>
+              <FormField htmlFor="speaker-merge-target" label={t(locale, 'transcription.speakerDialog.mergeTargetLabel')}>
                 <select
                   id="speaker-merge-target"
                   className="input panel-input layer-action-dialog-input"
@@ -184,14 +161,13 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
                     <option key={candidate.key} value={candidate.key}>{candidate.name}</option>
                   ))}
                 </select>
-              </div>
+              </FormField>
             </PanelSection>
           )}
 
           {isDelete && (
             <PanelSection className="speaker-action-dialog-field-stack">
-              <div className="dialog-field">
-                <label htmlFor="speaker-delete-target">{t(locale, 'transcription.speakerDialog.deleteStrategyLabel')}</label>
+              <FormField htmlFor="speaker-delete-target" label={t(locale, 'transcription.speakerDialog.deleteStrategyLabel')}>
                 <select
                   id="speaker-delete-target"
                   className="input panel-input layer-action-dialog-input"
@@ -206,11 +182,9 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
                     </option>
                   ))}
                 </select>
-              </div>
+              </FormField>
             </PanelSection>
           )}
-      </DialogShell>
-    </div>,
-    document.body,
+    </ModalPanel>
   );
 });

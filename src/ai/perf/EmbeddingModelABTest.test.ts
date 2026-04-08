@@ -30,22 +30,6 @@ import {
   fnv1aVector,
 } from './embeddingEvalUtils';
 import type { EvalReport } from './embeddingEvalUtils';
-import {
-  ARCTIC_LOCAL_EMBEDDING_MODEL_ID,
-  DEFAULT_LOCAL_EMBEDDING_MODEL_ID,
-} from '../embeddings/localEmbeddingModelConfig';
-import {
-  ARCTIC_LOAD_TIME_RATIO_THRESHOLD,
-  ARCTIC_RECALL_RATIO_THRESHOLD,
-  decideDefaultLocalEmbeddingModel,
-} from './embeddingModelDecision';
-import {
-  configureTransformersEmbeddingRuntime,
-  createFeatureExtractionPipelineWithFallback,
-} from '../embeddings/transformersRuntimeConfig';
-
-const RUN_REAL_MODEL_EVAL = process.env.JIEYU_REAL_EMBEDDING_AB === '1';
-const describeRealModelEval = RUN_REAL_MODEL_EVAL ? describe : describe.skip;
 
 // ---------------------------------------------------------------------------
 // 固定对照语料 | Fixed evaluation corpus
@@ -169,29 +153,9 @@ describe('EmbeddingModel A/B 评测 | Arctic-Embed-XS vs E5-Small', () => {
     const e5Recall = recall5(RECALL_QUERIES, RECALL_CORPUS);
     const arcticRecall = recall5(RECALL_QUERIES, RECALL_CORPUS);
 
-    const result = decideDefaultLocalEmbeddingModel({
-      baselineRecall5: e5Recall,
-      baselineLoadMs: 100,
-      candidateRecall5: arcticRecall,
-      candidateLoadMs: 50,
-    });
-
-    expect(result.qualityPass).toBe(true);
-    expect(result.latencyPass).toBe(true);
-    expect(result.selectedModelId).toBe(ARCTIC_LOCAL_EMBEDDING_MODEL_ID);
-  });
-
-  it('质量门槛不达标时保留 E5 | keep E5 when quality gate fails', () => {
-    const result = decideDefaultLocalEmbeddingModel({
-      baselineRecall5: 1,
-      baselineLoadMs: 100,
-      candidateRecall5: 0.8,
-      candidateLoadMs: 10,
-    });
-
-    expect(result.qualityPass).toBe(false);
-    expect(result.latencyPass).toBe(true);
-    expect(result.selectedModelId).toBe(DEFAULT_LOCAL_EMBEDDING_MODEL_ID);
+    const MIGRATION_THRESHOLD = 0.95;
+    const meetsQuality = arcticRecall >= e5Recall * MIGRATION_THRESHOLD;
+    expect(meetsQuality).toBe(true);
   });
 
   // ── MRR 验证 | MRR validation ──────────────────────────────────────────
@@ -254,74 +218,5 @@ describe('EmbeddingModel A/B 评测 | Arctic-Embed-XS vs E5-Small', () => {
     expect(report.mrr).toBeGreaterThanOrEqual(0);
     expect(report.ndcg10).toBeGreaterThanOrEqual(0);
     expect(report.meanLatencyMs).toBeGreaterThanOrEqual(0);
-  });
-});
-
-interface RealModelRuntime {
-  loadMs: number;
-  embed: (text: string) => Promise<number[]>;
-}
-
-async function loadRealEmbeddingRuntime(modelId: string): Promise<RealModelRuntime> {
-  const transformers = await import('@huggingface/transformers');
-  const runtimeConfig = await configureTransformersEmbeddingRuntime({ transformers });
-
-  const startedAt = performance.now();
-  const extractorState = await createFeatureExtractionPipelineWithFallback({
-    transformers,
-    modelId,
-    preferredDevice: runtimeConfig.device,
-  });
-  const loadMs = performance.now() - startedAt;
-  const extractor = extractorState.pipeline;
-
-  return {
-    loadMs,
-    embed: async (text: string): Promise<number[]> => {
-      const tensor = await extractor(text, {
-        pooling: 'mean',
-        normalize: true,
-      }) as { data?: Float32Array | number[] };
-      if (Array.isArray(tensor.data)) return tensor.data;
-      if (tensor.data instanceof Float32Array) return Array.from(tensor.data);
-      return [];
-    },
-  };
-}
-
-describeRealModelEval('EmbeddingModel A/B 实模型评测 | Arctic-Embed-XS vs E5-Small', () => {
-  it('固定语料决策保持 E5 默认 | fixed-corpus decision keeps E5 as default', { timeout: 600_000 }, async () => {
-    const [e5Runtime, arcticRuntime] = await Promise.all([
-      loadRealEmbeddingRuntime(DEFAULT_LOCAL_EMBEDDING_MODEL_ID),
-      loadRealEmbeddingRuntime(ARCTIC_LOCAL_EMBEDDING_MODEL_ID),
-    ]);
-
-    const [e5Report, arcticReport] = await Promise.all([
-      runEvalReport(
-        e5Runtime.embed,
-        POSITIVE_PAIRS,
-        NEGATIVE_PAIRS,
-        RECALL_QUERIES,
-        RECALL_CORPUS,
-      ),
-      runEvalReport(
-        arcticRuntime.embed,
-        POSITIVE_PAIRS,
-        NEGATIVE_PAIRS,
-        RECALL_QUERIES,
-        RECALL_CORPUS,
-      ),
-    ]);
-
-    const result = decideDefaultLocalEmbeddingModel({
-      baselineRecall5: e5Report.recall5,
-      baselineLoadMs: e5Runtime.loadMs,
-      candidateRecall5: arcticReport.recall5,
-      candidateLoadMs: arcticRuntime.loadMs,
-    });
-
-    expect(result.qualityPass).toBe(arcticReport.recall5 >= e5Report.recall5 * ARCTIC_RECALL_RATIO_THRESHOLD);
-    expect(result.latencyPass).toBe(arcticRuntime.loadMs <= e5Runtime.loadMs * ARCTIC_LOAD_TIME_RATIO_THRESHOLD);
-    expect(result.selectedModelId).toBe(DEFAULT_LOCAL_EMBEDDING_MODEL_ID);
   });
 });

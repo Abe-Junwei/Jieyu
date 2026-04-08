@@ -1,5 +1,6 @@
 import { PanelSection } from '../components/ui/PanelSection';
 import { PanelSummary } from '../components/ui/PanelSummary';
+import { PanelFeedback } from '../components/ui/PanelFeedback';
 import { t, tf } from '../i18n';
 import type { LanguageCatalogDisplayNameEntry, LanguageCatalogEntry, LanguageCatalogVisibility } from '../services/LinguisticService';
 import {
@@ -151,13 +152,13 @@ export function LanguageMetadataWorkspaceDetailColumn({
                 <span>{t(locale, 'workspace.languageMetadata.languageCodeLabel')}</span>
                 <input className="input" type="text" value={draft.languageCode} onChange={(event) => onDraftChange('languageCode', event.target.value)} />
                 {duplicateHint && (
-                  <span className="panel-feedback panel-feedback--warn">
+                  <PanelFeedback level="warn">
                     {tf(locale, 'workspace.languageMetadata.duplicateCodeHint', { name: duplicateHint.name, id: duplicateHint.id })}
                     {' '}
                     <button type="button" className="language-metadata-workspace-inline-link" onClick={() => onSelectEntry(duplicateHint.id)}>
                       {t(locale, 'workspace.languageMetadata.duplicateCodeJump')}
                     </button>
-                  </span>
+                  </PanelFeedback>
                 )}
               </label>
               <label className="language-metadata-workspace-field">

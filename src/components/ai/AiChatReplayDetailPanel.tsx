@@ -11,6 +11,7 @@ import { useLocale } from '../../i18n';
 import { computeAdaptivePanelWidth } from '../../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../../hooks/useViewportWidth';
+import { PanelButton, PanelChip } from '../ui';
 import { PanelSection } from '../ui/PanelSection';
 import { PanelSummary } from '../ui/PanelSummary';
 import { EmbeddedPanelShell } from '../ui/EmbeddedPanelShell';
@@ -81,8 +82,8 @@ export function AiChatReplayDetailPanel({
       title={messages.title}
       footer={(
         <div className="ai-chat-replay-panel-actions ai-chat-replay-panel-actions-footer">
-          <button type="button" className="panel-button ai-chat-replay-panel-btn" onClick={onToggleDetail}>{showReplayDetailPanel ? messages.hideDetail : messages.showDetail}</button>
-          <button type="button" className="panel-button ai-chat-replay-panel-btn" onClick={onClose}>{messages.close}</button>
+          <PanelButton className="ai-chat-replay-panel-btn" onClick={onToggleDetail}>{showReplayDetailPanel ? messages.hideDetail : messages.showDetail}</PanelButton>
+          <PanelButton className="ai-chat-replay-panel-btn" onClick={onClose}>{messages.close}</PanelButton>
         </div>
       )}
     >
@@ -92,10 +93,10 @@ export function AiChatReplayDetailPanel({
         description={`${messages.request}: ${compactInternalId(selectedReplayBundle.requestId)}`}
         meta={(
           <div className="panel-meta">
-            <span className={`panel-chip${selectedReplayBundle.replayable ? ' panel-chip--success' : ' panel-chip--danger'}`}>
+            <PanelChip variant={selectedReplayBundle.replayable ? 'success' : 'danger'}>
               {formatReplayableLabel(isZh, selectedReplayBundle.replayable)}
-            </span>
-            <span className="panel-chip">{showReplayDetailPanel ? messages.hideDetail : messages.showDetail}</span>
+            </PanelChip>
+            <PanelChip>{showReplayDetailPanel ? messages.hideDetail : messages.showDetail}</PanelChip>
           </div>
         )}
         supportingText={latestDecisionLabel ? `${messages.latestDecision}: ${latestDecisionLabel}` : undefined}
@@ -144,21 +145,19 @@ export function AiChatReplayDetailPanel({
                   e.currentTarget.value = '';
                 }}
               />
-              <button
-                type="button"
-                className="panel-button ai-chat-replay-panel-btn ai-chat-replay-panel-btn-compact"
+              <PanelButton
+                className="ai-chat-replay-panel-btn ai-chat-replay-panel-btn-compact"
                 onClick={() => importFileInputRef.current?.click()}
               >
                 {messages.importAndCompare}
-              </button>
+              </PanelButton>
               {compareSnapshot && (
-                <button
-                  type="button"
-                  className="panel-button ai-chat-replay-panel-btn ai-chat-replay-panel-btn-compact"
+                <PanelButton
+                  className="ai-chat-replay-panel-btn ai-chat-replay-panel-btn-compact"
                   onClick={onClearCompare}
                 >
                   {messages.clearDiff}
-                </button>
+                </PanelButton>
               )}
             </div>
           {snapshotDiff && compareSnapshot && (

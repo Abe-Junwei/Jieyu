@@ -21,6 +21,7 @@ import {
 } from '../utils/languageInputReducer';
 import { getLanguageInputMessages } from '../i18n/languageInputMessages';
 import type { Locale } from '../i18n/index';
+import { PanelFeedback } from './ui';
 import {
   searchLanguageCatalogSuggestions,
   type LanguageCatalogSearchSuggestion,
@@ -371,7 +372,7 @@ export function LanguageIsoInput({
 
         {assistState.ambiguityHint && <p className="dialog-hint">{assistState.ambiguityHint}</p>}
         {assistState.warning && <p className="dialog-hint">{assistState.warning}</p>}
-        {visibleCodeError && <p id={codeErrorId} className="panel-feedback panel-feedback--error">{visibleCodeError}</p>}
+        {visibleCodeError && <PanelFeedback id={codeErrorId} level="error">{visibleCodeError}</PanelFeedback>}
       </div>
     </div>
   );

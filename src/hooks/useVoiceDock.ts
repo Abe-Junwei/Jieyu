@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fireAndForget } from '../utils/fireAndForget';
 import { createLogger } from '../observability/logger';
+import type { SttEnhancementConfig, SttEnhancementSelectionKind } from '../services/stt';
 
 export type CommercialProviderKind = 'groq' | 'gemini' | 'openai-audio' | 'custom-http' | 'minimax' | 'volcengine';
 
@@ -17,8 +18,11 @@ export type VoiceLocalWhisperConfig = {
   model?: string;
 };
 
+export type VoiceSttEnhancementConfig = SttEnhancementConfig;
+
 const VOICE_COMMERCIAL_STT_STORAGE_KEY = 'jieyu.voiceAgent.commercialStt';
 const VOICE_LOCAL_WHISPER_STORAGE_KEY = 'jieyu.voiceAgent.localWhisper';
+const VOICE_STT_ENHANCEMENT_STORAGE_KEY = 'jieyu.voiceAgent.sttEnhancement';
 const log = createLogger('useVoiceDock');
 
 function sanitizeCommercialConfig(config: CommercialProviderConfig | undefined): CommercialProviderConfig {
@@ -83,6 +87,53 @@ function loadLocalWhisperConfig(): VoiceLocalWhisperConfig {
   return { baseUrl: 'http://localhost:3040', model: 'ggml-small-q5_k.bin' };
 }
 
+function sanitizeEnhancementConfig(config: VoiceSttEnhancementConfig | undefined): VoiceSttEnhancementConfig {
+  if (!config) return {};
+  return {
+    ...(typeof config.endpointUrl === 'string' ? { endpointUrl: config.endpointUrl } : {}),
+    ...(typeof config.model === 'string' ? { model: config.model } : {}),
+    ...(typeof config.language === 'string' ? { language: config.language } : {}),
+  };
+}
+
+function isEnhancementKind(value: unknown): value is Exclude<SttEnhancementSelectionKind, 'none'> {
+  return value === 'whisperx-align' || value === 'mfa-align' || value === 'pyannote-diarize';
+}
+
+function loadSttEnhancementSelection(): {
+  kind: SttEnhancementSelectionKind;
+  config: VoiceSttEnhancementConfig;
+} {
+  try {
+    const raw = window.localStorage.getItem(VOICE_STT_ENHANCEMENT_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<{ kind: SttEnhancementSelectionKind; config: VoiceSttEnhancementConfig }>;
+      return {
+        kind: isEnhancementKind(parsed.kind) ? parsed.kind : 'none',
+        config: sanitizeEnhancementConfig(parsed.config),
+      };
+    }
+  } catch (error) {
+    log.warn('Failed to load STT enhancement config from localStorage', {
+      key: VOICE_STT_ENHANCEMENT_STORAGE_KEY,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  return { kind: 'none', config: {} };
+}
+
+function saveSttEnhancementSelection(kind: SttEnhancementSelectionKind, config: VoiceSttEnhancementConfig): void {
+  try {
+    window.localStorage.setItem(VOICE_STT_ENHANCEMENT_STORAGE_KEY, JSON.stringify({ kind, config: sanitizeEnhancementConfig(config) }));
+  } catch (error) {
+    log.warn('Failed to save STT enhancement config to localStorage', {
+      key: VOICE_STT_ENHANCEMENT_STORAGE_KEY,
+      kind,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 function saveLocalWhisperConfig(config: VoiceLocalWhisperConfig): void {
   try {
     window.localStorage.setItem(VOICE_LOCAL_WHISPER_STORAGE_KEY, JSON.stringify(config));
@@ -114,6 +165,8 @@ export function useVoiceDock({
   const [commercialProviderKind, setCommercialProviderKind] = useState<CommercialProviderKind>(() => loadCommercialSttConfig().kind);
   const [commercialProviderConfig, setCommercialProviderConfig] = useState<CommercialProviderConfig>(() => loadCommercialSttConfig().config);
   const [localWhisperConfig, setLocalWhisperConfig] = useState<VoiceLocalWhisperConfig>(() => loadLocalWhisperConfig());
+  const [sttEnhancementKind, setSttEnhancementKind] = useState<SttEnhancementSelectionKind>(() => loadSttEnhancementSelection().kind);
+  const [sttEnhancementConfig, setSttEnhancementConfig] = useState<VoiceSttEnhancementConfig>(() => loadSttEnhancementSelection().config);
 
   useEffect(() => {
     const preferredLanguage = activeTextPrimaryLanguageId?.trim();
@@ -158,6 +211,10 @@ export function useVoiceDock({
     saveLocalWhisperConfig(localWhisperConfig);
   }, [localWhisperConfig]);
 
+  useEffect(() => {
+    saveSttEnhancementSelection(sttEnhancementKind, sttEnhancementConfig);
+  }, [sttEnhancementConfig, sttEnhancementKind]);
+
   const effectiveVoiceCorpusLang = (voiceCorpusLangOverride ?? voiceCorpusLang ?? 'cmn').toLowerCase();
 
   const handleVoiceSetLangOverride = useCallback((lang: string | null) => {
@@ -171,6 +228,14 @@ export function useVoiceDock({
 
   const handleLocalWhisperConfigChange = useCallback((config: VoiceLocalWhisperConfig) => {
     setLocalWhisperConfig(config);
+  }, []);
+
+  const handleSttEnhancementKindChange = useCallback((kind: SttEnhancementSelectionKind) => {
+    setSttEnhancementKind(kind);
+  }, []);
+
+  const handleSttEnhancementConfigChange = useCallback((config: VoiceSttEnhancementConfig) => {
+    setSttEnhancementConfig(config);
   }, []);
 
   const handleVoiceDockDragStart = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
@@ -253,5 +318,11 @@ export function useVoiceDock({
     localWhisperConfig,
     setLocalWhisperConfig,
     handleLocalWhisperConfigChange,
+    sttEnhancementKind,
+    setSttEnhancementKind,
+    sttEnhancementConfig,
+    setSttEnhancementConfig,
+    handleSttEnhancementKindChange,
+    handleSttEnhancementConfigChange,
   };
 }

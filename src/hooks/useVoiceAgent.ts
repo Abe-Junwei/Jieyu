@@ -10,7 +10,12 @@ import type {
   VoiceSession,
 } from '../services/IntentRouter';
 import { toBcp47 } from '../utils/langMapping';
-import type { CommercialProviderCreateConfig } from '../services/stt';
+import type {
+  CommercialProviderCreateConfig,
+  SttEnhancementConfig,
+  SttEnhancementReachability,
+  SttEnhancementSelectionKind,
+} from '../services/stt';
 import { useLatest } from './useLatest';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import { useVoiceAgentDictationPipeline } from './useVoiceAgentDictationPipeline';
@@ -102,6 +107,10 @@ export interface UseVoiceAgentOptions {
   commercialProviderKind?: CommercialProviderKind;
   /** Commercial STT provider config (used when engine === 'commercial') */
   commercialProviderConfig?: CommercialProviderCreateConfig;
+  /** Optional post-STT enhancement provider selection. */
+  sttEnhancementKind?: SttEnhancementSelectionKind;
+  /** Enhancement provider config for external alignment/diarization services. */
+  sttEnhancementConfig?: SttEnhancementConfig;
   /** Initial wake-word detection state */
   initialWakeWordEnabled?: boolean;
 }
@@ -120,6 +129,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     whisperServerModel = 'ggml-small-q5_k.bin',
     commercialProviderKind = 'groq',
     commercialProviderConfig,
+    sttEnhancementKind = 'none',
+    sttEnhancementConfig,
     initialWakeWordEnabled = false,
   } = options;
 
@@ -160,6 +171,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const engineRef = useLatest(engine);
   const commercialProviderKindRef = useLatest(commercialProviderKindState);
   const commercialProviderConfigRef = useLatest(commercialProviderConfigState);
+  const sttEnhancementKindRef = useLatest(sttEnhancementKind);
+  const sttEnhancementConfigRef = useLatest(sttEnhancementConfig);
   const langOverrideRef = useLatest(langOverride);
   const energyLevelRef = useRef(0);
   const recordingDurationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -253,6 +266,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     langOverrideRef,
     commercialProviderKindRef,
     commercialProviderConfigRef,
+    sttEnhancementKindRef,
+    sttEnhancementConfigRef,
     aliasMapRef,
     energyLevelRef,
     pendingAiResponseCountRef,
@@ -421,12 +436,12 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   }, [clearAiThinking]);
 
   const testWhisperLocal = useCallback(async (): Promise<{ available: boolean; error?: string }> => {
-    const { testWhisperServerAvailability } = await loadVoiceInputRuntime();
-    return testWhisperServerAvailability(
-      'http://localhost:3040',
-      'ggml-small-q5_k.bin',
-    );
-  }, []);
+    const { testSttProvider } = await loadSttRuntime();
+    return testSttProvider('whisper-local', {
+      baseUrl: whisperServerUrl,
+      model: whisperServerModel,
+    });
+  }, [loadSttRuntime, whisperServerModel, whisperServerUrl]);
 
   const setAnalysisFillCallback = useCallback((
     utteranceId: string | null,
@@ -438,14 +453,20 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
 
   const {
     providerStatusMap,
+    enhancementStatus,
     refreshProviderStatus,
     selectPreset,
     testCommercialProvider,
   } = useVoiceAgentProviderControls({
     loadSttRuntime,
     commercialProviderKindState,
+    engineState: engine,
     commercialProviderKindRef,
     commercialProviderConfigRef,
+    sttEnhancementKindState: sttEnhancementKind,
+    sttEnhancementConfigState: sttEnhancementConfig,
+    whisperServerUrl,
+    whisperServerModel,
     switchEngine,
     setCommercialProviderKind,
     ...(commercialProviderConfigState !== undefined ? { commercialProviderConfigState } : {}),
@@ -474,6 +495,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     startRecording,
     stopRecording,
     providerStatusMap,
+    enhancementStatus: enhancementStatus as SttEnhancementReachability | null,
     refreshProviderStatus,
     selectPreset,
     setAnalysisFillCallback,

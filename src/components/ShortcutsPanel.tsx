@@ -1,16 +1,14 @@
 /**
  * Keyboard shortcuts reference panel.
  */
-import { useEffect, useMemo } from 'react';
-import { X } from 'lucide-react';
+import { useMemo } from 'react';
 import { DEFAULT_KEYBINDINGS, formatKeyComboForDisplay } from '../services/KeybindingService';
 import { useOptionalLocale } from '../i18n';
 import { getShortcutsPanelMessages } from '../i18n/shortcutsPanelMessages';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
-import { DialogShell } from './ui/DialogShell';
-import { PanelSection } from './ui/PanelSection';
+import { ModalPanel, PanelSection } from './ui';
 
 interface ShortcutsPanelProps {
   onClose: () => void;
@@ -43,14 +41,6 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
     view: messages.categoryView,
     voice: messages.categoryVoice,
   };
-  // Close on Escape.
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
-    };
-    window.addEventListener('keydown', handler, { capture: true });
-    return () => window.removeEventListener('keydown', handler, { capture: true });
-  }, [onClose]);
 
   const grouped = CATEGORY_ORDER.map((cat) => ({
     cat,
@@ -59,35 +49,20 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
   })).filter((g) => g.entries.length > 0);
 
   return (
-    <div
-      className="dialog-overlay dialog-overlay-topmost"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      role="presentation"
+    <ModalPanel
+      isOpen
+      onClose={onClose}
+      topmost
       dir={uiTextDirection}
+      className="shortcuts-panel panel-design-match panel-design-match-dialog"
+      ariaLabel={messages.panelAriaLabel}
+      title={messages.panelTitle}
+      headerClassName="shortcuts-panel-header"
+      bodyClassName="shortcuts-panel-body"
+      titleClassName="shortcuts-panel-title"
+      closeLabel={messages.closePanelAriaLabel}
+      style={{ width: `min(${panelWidth}px, 92vw)` }}
     >
-      <DialogShell
-        className="shortcuts-panel panel-design-match panel-design-match-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label={messages.panelAriaLabel}
-        dir={uiTextDirection}
-        headerClassName="shortcuts-panel-header"
-        bodyClassName="shortcuts-panel-body"
-        title={messages.panelTitle}
-        titleClassName="shortcuts-panel-title"
-        actions={(
-          <button
-            type="button"
-            className="shortcuts-panel-close icon-btn"
-            onClick={onClose}
-            aria-label={messages.closePanelAriaLabel}
-          >
-            <X size={16} />
-          </button>
-        )}
-        style={{ width: `min(${panelWidth}px, 92vw)` }}
-        onClick={(e) => e.stopPropagation()}
-      >
           {grouped.map(({ cat, label, entries }) => (
             <PanelSection key={cat} className="shortcuts-panel-group" title={label}>
               <table className="shortcuts-panel-table">
@@ -107,7 +82,6 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
               </table>
             </PanelSection>
           ))}
-      </DialogShell>
-    </div>
+    </ModalPanel>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   getStructuredErrorAggregation,
   type ErrorAggregationEntry,
@@ -8,6 +8,7 @@ import { getDevErrorAggregationPanelMessages, type DevErrorAggregationPanelMessa
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
+import '../styles/panels/dev-error-aggregation.css';
 
 function formatEntryLabel(entry: ErrorAggregationEntry, messages: DevErrorAggregationPanelMessages): string {
   const severity = entry.recoverable ? messages.recoverable : messages.fatal;
@@ -56,31 +57,22 @@ export function DevErrorAggregationPanel() {
 
   if (entries.length === 0) return null;
 
+  const panelStyle = {
+    '--dev-error-panel-min-width': `${panelMinWidth}px`,
+    '--dev-error-panel-max-width': `${panelMaxWidth}px`,
+    '--dev-error-panel-font-size': `${Math.max(11, Math.round(12 * uiFontScale))}px`,
+  } as CSSProperties;
+
   return (
     <details
       className="dev-error-aggregation-panel"
       dir={uiTextDirection}
-      style={{
-        position: 'fixed',
-        right: 12,
-        bottom: 12,
-        zIndex: 2000,
-        minWidth: panelMinWidth,
-        maxWidth: panelMaxWidth,
-        maxHeight: 260,
-        overflow: 'auto',
-        background: 'color-mix(in srgb, var(--surface-overlay) 86%, transparent)',
-        color: 'var(--surface-panel)',
-        borderRadius: 8,
-        border: '1px solid color-mix(in srgb, var(--surface-panel) 16%, transparent)',
-        padding: '6px 8px',
-        fontSize: Math.max(11, Math.round(12 * uiFontScale)),
-      }}
+      style={panelStyle}
     >
-      <summary className="dev-error-aggregation-panel-summary" style={{ cursor: 'pointer', userSelect: 'none' }}>
+      <summary className="dev-error-aggregation-panel-summary">
         {messages.summary(entries.length)}
       </summary>
-      <div className="dev-error-aggregation-panel-list" style={{ marginTop: 6, display: 'grid', gap: 4 }}>
+      <div className="dev-error-aggregation-panel-list">
         {entries.slice(0, 20).map((entry) => (
           <div key={`${entry.category}:${entry.action}:${entry.i18nKey ?? ''}:${entry.recoverable}`}>
             <strong>{entry.count}x</strong>

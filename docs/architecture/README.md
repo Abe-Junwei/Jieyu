@@ -16,6 +16,9 @@ source_of_truth: current-state-index
 - [仓库现状与代码地图.md](%E4%BB%93%E5%BA%93%E7%8E%B0%E7%8A%B6%E4%B8%8E%E4%BB%A3%E7%A0%81%E5%9C%B0%E5%9B%BE.md)
   - 用途：仓库全局现状、代码地图、功能域总表。
 
+- [转写工作区声学分析现状.md](%E8%BD%AC%E5%86%99%E5%B7%A5%E4%BD%9C%E5%8C%BA%E5%A3%B0%E5%AD%A6%E5%88%86%E6%9E%90%E7%8E%B0%E7%8A%B6.md)
+  - 用途：转写工作区声学分析能力的当前实现边界、代码挂点与未完成项。
+
 - [术语表.md](%E6%9C%AF%E8%AF%AD%E8%A1%A8.md)
   - 用途：统一 layer / tier / track / lane 等核心术语与边界。
 

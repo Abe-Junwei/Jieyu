@@ -36,6 +36,8 @@ export interface UseOrchestratorViewModelsInput {
   setWaveformDisplayMode: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['setWaveformDisplayMode'];
   waveformVisualStyle: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['waveformVisualStyle'];
   setWaveformVisualStyle: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['setWaveformVisualStyle'];
+  acousticOverlayMode: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['acousticOverlayMode'];
+  setAcousticOverlayMode: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['setAcousticOverlayMode'];
   globalLoopPlayback: boolean;
   setGlobalLoopPlayback: (v: boolean) => void;
   handleGlobalPlayPauseAction: () => void;
@@ -123,6 +125,8 @@ export function useOrchestratorViewModels(
     setWaveformDisplayMode: input.setWaveformDisplayMode,
     waveformVisualStyle: input.waveformVisualStyle,
     setWaveformVisualStyle: input.setWaveformVisualStyle,
+    acousticOverlayMode: input.acousticOverlayMode,
+    setAcousticOverlayMode: input.setAcousticOverlayMode,
     globalLoopPlayback: input.globalLoopPlayback,
     setGlobalLoopPlayback: input.setGlobalLoopPlayback,
     handleGlobalPlayPauseAction: input.handleGlobalPlayPauseAction,

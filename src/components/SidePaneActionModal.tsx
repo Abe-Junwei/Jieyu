@@ -8,7 +8,7 @@ import { useLocale } from '../i18n';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
-import { DialogShell } from './ui/DialogShell';
+import { DialogOverlay, DialogShell } from './ui';
 
 interface SidePaneActionModalProps {
   ariaLabel: string;
@@ -72,13 +72,12 @@ export function SidePaneActionModal({
   }
 
   return createPortal(
-    <div
-      className="dialog-overlay dialog-overlay-topmost"
+    <DialogOverlay
+      onClose={onClose}
+      topmost
       onMouseDown={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
-      onClick={onClose}
       onKeyDown={handleKeyDown}
-      role="presentation"
       hidden={hidden}
       aria-hidden={hidden ? 'true' : undefined}
       style={hidden ? { display: 'none' } : undefined}
@@ -111,7 +110,7 @@ export function SidePaneActionModal({
       >
         {children}
       </DialogShell>
-    </div>,
+    </DialogOverlay>,
     document.body,
   );
 }

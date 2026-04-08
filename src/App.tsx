@@ -8,6 +8,7 @@ import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from './conte
 import { usePanelAutoCollapse } from './hooks/usePanelAutoCollapse';
 import { usePanelResize } from './hooks/usePanelResize';
 import { LOCALE_PREFERENCE_STORAGE_KEY, LocaleProvider, detectLocale, setStoredLocalePreference, t, type Locale } from './i18n';
+import { DialogOverlay } from './components/ui/DialogOverlay';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const TranscriptionPage = lazy(() => import('./pages/TranscriptionPage').then(m => ({ default: m.TranscriptionPage })));
@@ -532,7 +533,7 @@ export function App() {
                       <Route
                         path="/assets/orthographies"
                         element={(
-                          <div className="dialog-overlay dialog-overlay-topmost" role="presentation" onMouseDown={handleOrthographyPanelToggle}>
+                          <DialogOverlay topmost closeOn="mousedown" onClose={handleOrthographyPanelToggle}>
                             <div
                               className="app-modal-panel-frame"
                               role="dialog"
@@ -542,7 +543,7 @@ export function App() {
                             >
                               <OrthographyManagerPage registerSidePane={false} />
                             </div>
-                          </div>
+                          </DialogOverlay>
                         )}
                       />
                     </Routes>

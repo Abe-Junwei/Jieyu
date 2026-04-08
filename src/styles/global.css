@@ -95,10 +95,14 @@ body {
 
 .input {
   width: 100%;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-lg);
-  padding: 9px 10px;
-  font-size: 0.95rem;
+  min-height: var(--input-h-md);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  box-sizing: border-box;
 }
 
 .small-text {
@@ -113,12 +117,14 @@ body {
 }
 
 .btn {
-  border: 1px solid var(--state-info-solid);
+  min-height: var(--btn-h-md);
+  border: 1px solid color-mix(in srgb, var(--state-info-border) 92%, transparent);
   border-radius: var(--radius-md);
-  background: var(--state-info-solid);
-  color: var(--surface-panel);
-  padding: 9px 14px;
+  background: color-mix(in srgb, var(--state-info-bg) 82%, var(--surface-panel));
+  color: var(--state-info-solid);
+  padding: 6px 10px;
   cursor: pointer;
+  font-size: calc(0.76rem * var(--ui-font-scale, 1));
   font-weight: 600;
 }
 
@@ -133,12 +139,13 @@ body {
 }
 
 .btn-danger {
-  border: 1px solid var(--state-danger-solid);
-  background: var(--state-danger-solid);
+  border-color: color-mix(in srgb, var(--state-danger-border) 92%, transparent);
+  background: color-mix(in srgb, var(--state-danger-bg) 84%, var(--surface-panel));
+  color: var(--state-danger-text);
 }
 
 .btn-danger:hover {
-  border-color: var(--state-danger-solid);
+  color: var(--surface-panel);
   background: var(--state-danger-solid);
 }
 
@@ -153,8 +160,9 @@ body {
 }
 
 :root[data-theme='dark'] .btn-danger {
-  border-color: var(--state-danger-solid);
-  background: var(--state-danger-solid);
+  border-color: color-mix(in srgb, var(--state-danger-border) 92%, transparent);
+  background: color-mix(in srgb, var(--state-danger-bg) 84%, var(--surface-panel));
+  color: var(--state-danger-text);
 }
 
 :root[data-theme='dark'] .btn-danger:hover {

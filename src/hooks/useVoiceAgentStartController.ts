@@ -5,7 +5,11 @@ import { createLogger } from '../observability/logger';
 import { detectRegion } from '../utils/regionDetection';
 import { toBcp47 } from '../utils/langMapping';
 import type { SttEngine, VoiceInputService as VoiceInputServiceType } from '../services/VoiceInputService';
-import type { CommercialProviderCreateConfig } from '../services/stt';
+import type {
+  CommercialProviderCreateConfig,
+  SttEnhancementConfig,
+  SttEnhancementSelectionKind,
+} from '../services/stt';
 import type { Locale } from '../i18n';
 import { t } from '../i18n';
 import { bindVoiceInputService } from './useVoiceAgent.serviceBindings';
@@ -31,6 +35,8 @@ interface UseVoiceAgentStartControllerOptions {
   langOverrideRef: RefLike<string | null | undefined>;
   commercialProviderKindRef: RefLike<'gemini' | 'openai-audio' | 'groq' | 'custom-http' | 'minimax' | 'volcengine'>;
   commercialProviderConfigRef: RefLike<CommercialProviderCreateConfig | undefined>;
+  sttEnhancementKindRef: RefLike<SttEnhancementSelectionKind>;
+  sttEnhancementConfigRef: RefLike<SttEnhancementConfig | undefined>;
   aliasMapRef: RefLike<Record<string, string>>;
   energyLevelRef: RefLike<number>;
   pendingAiResponseCountRef: RefLike<number>;
@@ -118,6 +124,8 @@ export function useVoiceAgentStartController({
   langOverrideRef,
   commercialProviderKindRef,
   commercialProviderConfigRef,
+  sttEnhancementKindRef,
+  sttEnhancementConfigRef,
   aliasMapRef,
   energyLevelRef,
   pendingAiResponseCountRef,
@@ -192,12 +200,20 @@ export function useVoiceAgentStartController({
       startConfig.whisperServerUrl = whisperServerUrl;
       startConfig.whisperServerModel = whisperServerModel;
     }
-    if (runtimeEngine === 'commercial' && commercialProviderConfigRef.current) {
-      const { createCommercialProvider } = await loadSttRuntime();
+    if ((runtimeEngine === 'commercial' && commercialProviderConfigRef.current) || sttEnhancementKindRef.current !== 'none') {
+      const { createCommercialProvider, createSttEnhancementProvider } = await loadSttRuntime();
+      if (sttEnhancementKindRef.current !== 'none') {
+        startConfig.sttEnhancement = createSttEnhancementProvider(sttEnhancementKindRef.current);
+        if (sttEnhancementConfigRef.current) {
+          startConfig.sttEnhancementConfig = sttEnhancementConfigRef.current;
+        }
+      }
+      if (runtimeEngine === 'commercial' && commercialProviderConfigRef.current) {
       startConfig.commercialFallback = createCommercialProvider(
         commercialProviderKindRef.current,
         commercialProviderConfigRef.current,
       );
+      }
     }
 
     try {
@@ -240,6 +256,8 @@ export function useVoiceAgentStartController({
     modeRef,
     pendingAiResponseCountRef,
     serviceRef,
+    sttEnhancementConfigRef,
+    sttEnhancementKindRef,
     setAgentState,
     setEnergyLevel,
     setError,

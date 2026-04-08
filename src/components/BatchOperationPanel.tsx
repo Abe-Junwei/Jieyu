@@ -5,9 +5,7 @@ import { useDraggablePanel } from '../hooks/useDraggablePanel';
 import { useLocale } from '../i18n';
 import { getBatchOperationPanelMessages } from '../i18n/batchOperationPanelMessages';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
-import { DialogShell } from './ui/DialogShell';
-import { PanelSection } from './ui/PanelSection';
-import { PanelSummary } from './ui/PanelSummary';
+import { DialogOverlay, DialogShell, FormField, PanelButton, PanelChip, PanelSection, PanelSummary } from './ui';
 
 type BatchTab = 'offset' | 'scale' | 'split' | 'merge';
 type PreviewScope = 'selected' | 'layer-all';
@@ -584,7 +582,7 @@ export function BatchOperationPanel({
   };
 
   return (
-    <div className="dialog-overlay dialog-overlay-topmost" onClick={onClose}>
+    <DialogOverlay onClose={onClose} topmost>
       <DialogShell
         className="batch-operation-dialog"
         role="dialog"
@@ -621,8 +619,8 @@ export function BatchOperationPanel({
         footerClassName="batch-operation-footer"
         footer={(
           <>
-            <button className="panel-button panel-button--ghost" onClick={onClose} disabled={running}>{messages.close}</button>
-            <button className="panel-button panel-button--primary" disabled={!canRunCurrentAction} onClick={handleSubmit}>{submitLabel}</button>
+            <PanelButton variant="ghost" onClick={onClose} disabled={running}>{messages.close}</PanelButton>
+            <PanelButton variant="primary" disabled={!canRunCurrentAction} onClick={handleSubmit}>{submitLabel}</PanelButton>
           </>
         )}
         style={{
@@ -640,9 +638,9 @@ export function BatchOperationPanel({
           descriptionClassName={preview.blockingCount > 0 ? 'batch-operation-summary-copy-danger' : undefined}
           meta={(
             <div className="panel-meta">
-              <span className="panel-chip panel-chip--success">{messages.passCount(preview.okCount)}</span>
-              <span className="panel-chip panel-chip--warning">{messages.warnCount(preview.warningCount)}</span>
-              <span className="panel-chip panel-chip--danger">{messages.blockCount(preview.blockingCount)}</span>
+              <PanelChip variant="success">{messages.passCount(preview.okCount)}</PanelChip>
+              <PanelChip variant="warning">{messages.warnCount(preview.warningCount)}</PanelChip>
+              <PanelChip variant="danger">{messages.blockCount(preview.blockingCount)}</PanelChip>
             </div>
           )}
           supportingText={previewScope === 'layer-all' ? messages.layerAllHint(previewTargets.length) : undefined}
@@ -658,36 +656,31 @@ export function BatchOperationPanel({
 
             {tab === 'offset' && (
               <div className="batch-operation-controls-grid">
-                <div className="dialog-field">
-                  <label htmlFor="batch-operation-offset">{messages.offsetSeconds}</label>
+                <FormField htmlFor="batch-operation-offset" label={messages.offsetSeconds}>
                   <input id="batch-operation-offset" value={deltaSec} onChange={(e) => setDeltaSec(e.target.value)} className="input panel-input layer-action-dialog-input" />
-                </div>
+                </FormField>
               </div>
             )}
 
             {tab === 'scale' && (
               <div className="batch-operation-controls-grid">
-                <div className="dialog-field">
-                  <label htmlFor="batch-operation-scale-factor">{messages.scaleFactor}</label>
+                <FormField htmlFor="batch-operation-scale-factor" label={messages.scaleFactor}>
                   <input id="batch-operation-scale-factor" value={scaleFactor} onChange={(e) => setScaleFactor(e.target.value)} className="input panel-input layer-action-dialog-input" />
-                </div>
-                <div className="dialog-field">
-                  <label htmlFor="batch-operation-anchor-time">{messages.anchorTime}</label>
+                </FormField>
+                <FormField htmlFor="batch-operation-anchor-time" label={messages.anchorTime}>
                   <input id="batch-operation-anchor-time" value={anchorTime} onChange={(e) => setAnchorTime(e.target.value)} className="input panel-input layer-action-dialog-input" placeholder={messages.anchorPlaceholder} />
-                </div>
+                </FormField>
               </div>
             )}
 
             {tab === 'split' && (
               <div className="batch-operation-controls-grid">
-                <div className="dialog-field">
-                  <label htmlFor="batch-operation-regex-pattern">{messages.regexPattern}</label>
+                <FormField htmlFor="batch-operation-regex-pattern" label={messages.regexPattern}>
                   <input id="batch-operation-regex-pattern" value={regexPattern} onChange={(e) => setRegexPattern(e.target.value)} className="input panel-input layer-action-dialog-input" />
-                </div>
-                <div className="dialog-field">
-                  <label htmlFor="batch-operation-regex-flags">{messages.regexFlags}</label>
+                </FormField>
+                <FormField htmlFor="batch-operation-regex-flags" label={messages.regexFlags}>
                   <input id="batch-operation-regex-flags" value={regexFlags} onChange={(e) => setRegexFlags(e.target.value)} className="input panel-input layer-action-dialog-input" />
-                </div>
+                </FormField>
               </div>
             )}
 
@@ -698,8 +691,7 @@ export function BatchOperationPanel({
 
           <PanelSection className="batch-operation-section batch-operation-section-dense" title={messages.rowPreviewTitle}>
             <div className="batch-operation-controls-grid batch-operation-controls-grid-inline">
-              <div className="dialog-field">
-                <label htmlFor="batch-operation-preview-scope">{messages.previewScopeLabel}</label>
+              <FormField htmlFor="batch-operation-preview-scope" label={messages.previewScopeLabel}>
                 <select
                   id="batch-operation-preview-scope"
                   aria-label={messages.previewScopeAria}
@@ -710,10 +702,9 @@ export function BatchOperationPanel({
                   <option value="selected">{messages.previewScopeSelected}</option>
                   <option value="layer-all">{messages.previewScopeLayerAll}</option>
                 </select>
-              </div>
+              </FormField>
 
-              <div className="dialog-field">
-                <label htmlFor="batch-operation-preview-layer">{messages.previewLayerLabel}</label>
+              <FormField htmlFor="batch-operation-preview-layer" label={messages.previewLayerLabel}>
                 <select
                   id="batch-operation-preview-layer"
                   aria-label={messages.previewLayerAria}
@@ -727,7 +718,7 @@ export function BatchOperationPanel({
                     <option key={layer.id} value={layer.id}>{layer.label}</option>
                   ))}
                 </select>
-              </div>
+              </FormField>
             </div>
           </PanelSection>
 
@@ -737,12 +728,12 @@ export function BatchOperationPanel({
             meta={(
               <div className="batch-operation-preview-toggle">
               {(showOnlyConflicts || preview.warningCount > 0 || preview.blockingCount > 0) && (
-                <button
-                  className="panel-button batch-operation-preview-filter-btn"
+                <PanelButton
+                  className="batch-operation-preview-filter-btn"
                   onClick={() => setShowOnlyConflicts((v) => !v)}
                 >
                   {showOnlyConflicts ? messages.showAll : messages.showConflictsOnly}
-                </button>
+                </PanelButton>
               )}
             </div>
             )}
@@ -813,6 +804,6 @@ export function BatchOperationPanel({
 
         <div className="batch-operation-resize-handle" onPointerDown={handleResizeStart} aria-hidden="true" />
       </DialogShell>
-    </div>
+    </DialogOverlay>
   );
 }

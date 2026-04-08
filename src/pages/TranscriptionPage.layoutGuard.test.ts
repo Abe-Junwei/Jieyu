@@ -168,7 +168,7 @@ describe('Transcription layout guard', () => {
     expect(portaledBlock).toContain('display: grid;');
     expect(portaledBlock).toContain('overflow-y: auto;');
 
-    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/transcription.css');
+    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
     expect(legacyCssCode).not.toContain(portaledSelector);
   });
@@ -199,7 +199,7 @@ describe('Transcription layout guard', () => {
     const barSelector = '.transcription-ai-observer-status-bar {';
     expect(cssCode.indexOf(barSelector)).toBeGreaterThanOrEqual(0);
 
-    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/transcription.css');
+    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
     expect(legacyCssCode).not.toContain(observerSelector);
   });
@@ -225,7 +225,7 @@ describe('Transcription layout guard', () => {
     const laneStart = cssCode.indexOf(laneSelector);
     expect(laneStart).toBeGreaterThanOrEqual(0);
 
-    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/transcription.css');
+    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
     expect(legacyCssCode).not.toContain(scrollSelector);
     expect(legacyCssCode).not.toContain(laneSelector);
@@ -241,7 +241,7 @@ describe('Transcription layout guard', () => {
     const overviewSelector = '.waveform-overview-bar {';
     expect(timelineCssCode.indexOf(overviewSelector)).toBeGreaterThanOrEqual(0);
 
-    const sharedCssPath = path.resolve(process.cwd(), 'src/styles/shared.css');
+    const sharedCssPath = path.resolve(process.cwd(), 'src/styles/foundation/media-controls.css');
     const sharedCssCode = fs.readFileSync(sharedCssPath, 'utf8');
     expect(sharedCssCode).not.toContain(laneLinkSelector);
     expect(sharedCssCode).not.toContain(overviewSelector);
@@ -257,7 +257,7 @@ describe('Transcription layout guard', () => {
     const laneFocusedRegex = /^\.timeline-lane-focused\s*\{/m;
     expect(laneFocusedRegex.test(timelineCssCode)).toBe(true);
 
-    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/transcription.css');
+    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
     expect(laneLabelRegex.test(legacyCssCode)).toBe(false);
     expect(laneFocusedRegex.test(legacyCssCode)).toBe(false);
@@ -305,7 +305,7 @@ describe('Transcription layout guard', () => {
     expect(block).toContain('cursor: ew-resize;');
     expect(block).toContain('pointer-events: auto;');
 
-    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/transcription.css');
+    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
     expect(legacyCssCode).not.toContain(selector);
   });
@@ -322,7 +322,7 @@ describe('Transcription layout guard', () => {
     const subtrackBlock = timelineCssCode.slice(subtrackStart, subtrackEnd + 1);
     expect(subtrackBlock).toContain('pointer-events: none;');
 
-    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/transcription.css');
+    const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
     expect(legacyCssCode).not.toContain(subtrackSelector);
 

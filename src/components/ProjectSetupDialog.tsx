@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from 'react';
-import { ChevronLeft, Plus, X } from 'lucide-react';
+import { ChevronLeft, Plus } from 'lucide-react';
 import { OrthographyBuilderPanel } from './OrthographyBuilderPanel';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
@@ -13,7 +13,7 @@ import {
 } from '../hooks/useOrthographyPicker';
 import { getOrthographyCatalogGroupLabel, getOrthographyBuilderMessages } from '../i18n/orthographyBuilderMessages';
 import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
-import { DialogShell } from './ui/DialogShell';
+import { FormField, ModalPanel, PanelButton, PanelFeedback } from './ui';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { buildLanguageInputSeed, getDisplayedLanguageInputLabel, normalizeLanguageInputCode } from '../utils/languageInputHostState';
 import { focusFirstInvalidLanguageCodeInput } from '../utils/focusInvalidLanguageInput';
@@ -118,17 +118,15 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
   );
   const builderFooter = (
     <>
-      <button
-        type="button"
-        className="panel-button panel-button--ghost"
+      <PanelButton
+        variant="ghost"
         disabled={orthographyPicker.submitting}
         onClick={orthographyPicker.cancelCreate}
       >
         {builderMessages.cancelCreate}
-      </button>
-      <button
-        type="button"
-        className="panel-button panel-button--primary"
+      </PanelButton>
+      <PanelButton
+        variant="primary"
         disabled={orthographyPicker.submitting}
         onClick={() => { void orthographyPicker.createOrthography(); }}
       >
@@ -137,42 +135,36 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
           : orthographyPicker.requiresRenderWarningConfirmation
             ? builderMessages.confirmRiskAndCreate
             : builderMessages.createAndSelect}
-      </button>
+      </PanelButton>
     </>
   );
 
   return (
-    <div className="dialog-overlay" onClick={handleClose}>
-      <DialogShell
-        className={`project-setup-dialog${orthographyPicker.isCreating ? ' orthography-builder-dialog-host' : ''}`}
-        style={orthographyPicker.isCreating ? { '--dialog-auto-width': '404px' } as React.CSSProperties : undefined}
-        role="dialog"
-        aria-modal="true"
-        aria-label={messages.title}
-        title={orthographyPicker.isCreating ? builderBreadcrumbTitle : messages.title}
-        actions={(
-          <button className="icon-btn" onClick={handleClose} title={messages.close} aria-label={messages.close}>
-            <X size={18} />
-          </button>
-        )}
-        footer={orthographyPicker.isCreating ? builderFooter : (
-          <>
-            <button className="panel-button panel-button--ghost" onClick={handleClose} disabled={submitting}>
-              {messages.cancel}
-            </button>
-            <button
-              className="panel-button panel-button--primary"
-              disabled={!canSubmit}
-              onClick={() => {
-                void handleSubmit();
-              }}
-            >
-              {submitting ? messages.creating : messages.createProject}
-            </button>
-          </>
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalPanel
+      isOpen={isOpen}
+      onClose={handleClose}
+      className={`project-setup-dialog${orthographyPicker.isCreating ? ' orthography-builder-dialog-host' : ''}`}
+      style={orthographyPicker.isCreating ? { '--dialog-auto-width': '404px' } as React.CSSProperties : undefined}
+      ariaLabel={messages.title}
+      title={orthographyPicker.isCreating ? builderBreadcrumbTitle : messages.title}
+      closeLabel={messages.close}
+      footer={orthographyPicker.isCreating ? builderFooter : (
+        <>
+          <PanelButton variant="ghost" onClick={handleClose} disabled={submitting}>
+            {messages.cancel}
+          </PanelButton>
+          <PanelButton
+            variant="primary"
+            disabled={!canSubmit}
+            onClick={() => {
+              void handleSubmit();
+            }}
+          >
+            {submitting ? messages.creating : messages.createProject}
+          </PanelButton>
+        </>
+      )}
+    >
         {orthographyPicker.isCreating ? (
           <OrthographyBuilderPanel
             picker={orthographyPicker}
@@ -186,8 +178,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
           />
         ) : (
           <>
-          <label className="dialog-field">
-            <span>{messages.titleZhLabel}<em>*</em></span>
+          <FormField label={<>{messages.titleZhLabel}<em>*</em></>}>
             <input
               className="input panel-input"
               type="text"
@@ -196,10 +187,9 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
               placeholder={messages.titleZhPlaceholder}
               autoFocus
             />
-          </label>
+          </FormField>
 
-          <label className="dialog-field">
-            <span>{messages.titleEnLabel}</span>
+          <FormField label={messages.titleEnLabel}>
             <input
               className="input panel-input"
               type="text"
@@ -207,9 +197,9 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
               onChange={(e) => setEnglishFallbackTitle(e.target.value)}
               placeholder={messages.titleEnPlaceholder}
             />
-          </label>
+          </FormField>
 
-          <div className="dialog-field">
+          <FormField>
             <LanguageIsoInput
               locale={locale}
               value={languageInput}
@@ -228,13 +218,10 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
               disabled={submitting}
               error={resolvedLanguageError}
             />
-          </div>
+          </FormField>
 
           {effectiveLang && (
-            <div className="dialog-field">
-              <label htmlFor={`${fieldIdPrefix}-orthography`}>
-                <span>{messages.orthographyLabel}</span>
-              </label>
+            <FormField htmlFor={`${fieldIdPrefix}-orthography`} label={<span>{messages.orthographyLabel}</span>}>
               <div className="dialog-field-select-with-btn">
                 <select
                   id={`${fieldIdPrefix}-orthography`}
@@ -253,15 +240,15 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
                     </optgroup>
                   ))}
                 </select>
-                <button
-                  type="button"
-                  className="panel-button panel-button--ghost dialog-field-inline-btn"
+                <PanelButton
+                  variant="ghost"
+                  className="dialog-field-inline-btn"
                   onClick={() => orthographyPicker.handleSelectionChange(ORTHOGRAPHY_CREATE_SENTINEL)}
                   title={messages.createOrthography}
                 >
                   <Plus size={14} />
                   <span>{messages.newOrthographyButton}</span>
-                </button>
+                </PanelButton>
               </div>
 
               {orthographyPicker.orthographies.length === 0 && (
@@ -276,18 +263,17 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
               )}
 
               {orthographyPicker.error && (
-                <p className="panel-feedback panel-feedback--error">{orthographyPicker.error}</p>
+                <PanelFeedback level="error">{orthographyPicker.error}</PanelFeedback>
               )}
               {orthographySelectionError && (
-                <p className="panel-feedback panel-feedback--error">{orthographySelectionError}</p>
+                <PanelFeedback level="error">{orthographySelectionError}</PanelFeedback>
               )}
-            </div>
+            </FormField>
           )}
 
-          {error && <p className="panel-feedback panel-feedback--error">{error}</p>}
+          {error && <PanelFeedback level="error">{error}</PanelFeedback>}
           </>
         )}
-      </DialogShell>
-    </div>
+    </ModalPanel>
   );
 }

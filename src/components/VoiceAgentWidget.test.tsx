@@ -223,4 +223,41 @@ describe('VoiceAgentWidget', () => {
     expect(onTestCommercialProvider).toHaveBeenCalledTimes(2);
     expect(screen.queryByText(/^可用$|^Available$/i)).toBeNull();
   });
+
+  it('renders provider status overview and local whisper settings', async () => {
+    const onLocalWhisperConfigChange = vi.fn();
+    const onRefreshProviderStatus = vi.fn(async () => undefined);
+
+    render(
+      <VoiceAgentWidget
+        {...makeProps({
+          engine: 'whisper-local',
+          providerStatusMap: [
+            { kind: 'web-speech', engine: 'web-speech', available: true },
+            { kind: 'whisper-local', engine: 'whisper-local', available: false, error: 'offline' },
+          ],
+          localWhisperConfig: {
+            baseUrl: 'http://localhost:3040',
+            model: 'ggml-test.bin',
+          },
+          onLocalWhisperConfigChange,
+          onRefreshProviderStatus,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Toggle voice settings|切换语音设置/i }));
+
+    expect(await screen.findByText(/Provider 状态|Provider status/i)).toBeTruthy();
+    expect(screen.getAllByText(/Web Speech/i).length).toBeGreaterThan(0);
+    expect(screen.getByDisplayValue('http://localhost:3040')).toBeTruthy();
+
+    fireEvent.change(screen.getByDisplayValue('ggml-test.bin'), { target: { value: 'ggml-next.bin' } });
+
+    expect(onLocalWhisperConfigChange).toHaveBeenCalledWith({
+      baseUrl: 'http://localhost:3040',
+      model: 'ggml-next.bin',
+    });
+    expect(onRefreshProviderStatus).toHaveBeenCalled();
+  });
 });

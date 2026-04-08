@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useOptionalLocale } from '../i18n';
 import { getPdfViewerPanelMessages } from '../i18n/pdfViewerPanelMessages';
+import { PanelButton, PanelChip } from './ui';
 import { PanelSummary } from './ui/PanelSummary';
 import { EmbeddedPanelShell } from './ui/EmbeddedPanelShell';
 
@@ -58,22 +59,20 @@ export function PdfViewerPanel({
         <>
           <div className="pdf-viewer-panel-page-status">{messages.pageStatus(currentPage, totalPages)}</div>
           <div className="pdf-viewer-panel-toolbar">
-            <button
-              type="button"
-              className="panel-button pdf-viewer-panel-nav"
+            <PanelButton
+              className="pdf-viewer-panel-nav"
               onClick={handlePrevPage}
               disabled={currentPage <= 1}
             >
               {messages.prevPage}
-            </button>
-            <button
-              type="button"
-              className="panel-button pdf-viewer-panel-nav"
+            </PanelButton>
+            <PanelButton
+              className="pdf-viewer-panel-nav"
               onClick={handleNextPage}
               disabled={currentPage >= totalPages}
             >
               {messages.nextPage}
-            </button>
+            </PanelButton>
           </div>
         </>
       )}
@@ -83,8 +82,8 @@ export function PdfViewerPanel({
         description={searchSnippet ? messages.searchHint : messages.noSearchHint}
         meta={(
           <div className="panel-meta">
-            <span className="panel-chip">{messages.pageStatus(currentPage, totalPages)}</span>
-            {searchSnippet ? <span className="panel-chip">{messages.searchHit}</span> : null}
+            <PanelChip>{messages.pageStatus(currentPage, totalPages)}</PanelChip>
+            {searchSnippet ? <PanelChip>{messages.searchHit}</PanelChip> : null}
           </div>
         )}
         {...summaryProps}

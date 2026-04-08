@@ -14,73 +14,11 @@ import { reportValidationError } from '../utils/validationErrorReporter';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import { bridgeVoiceDictationText, createVoiceDictationPipeline, persistVoiceDictationToUtterance, resolveVoiceDictationTarget } from './voiceDictationRuntime';
 import { buildTranscriptionAssistantContextValue } from './transcriptionAssistantContextValue';
+import type {
+  UseTranscriptionAssistantControllerInput,
+  UseTranscriptionAssistantControllerResult,
+} from './transcriptionAssistantController.types';
 import { t, useLocale } from '../i18n';
-
-interface SelectedRowMetaLike {
-  rowNumber: number;
-  start: number;
-  end: number;
-}
-
-interface ReadyStateLike {
-  phase: string;
-  dbName?: string;
-  utteranceCount?: number;
-  translationLayerCount?: number;
-}
-interface UseTranscriptionAssistantControllerInput {
-  state: ReadyStateLike;
-  utterancesLength: number;
-  translationLayersLength: number;
-  aiConfidenceAvg: number | null;
-  selectedTimelineOwnerUtterance: UtteranceDocType | null;
-  selectedTimelineRowMeta: SelectedRowMetaLike | null;
-  selectedAiWarning: boolean;
-  lexemeMatches: AiPanelContextValue['lexemeMatches'];
-  handleOpenWordNote: AiPanelContextValue['onOpenWordNote'];
-  handleOpenMorphemeNote: AiPanelContextValue['onOpenMorphemeNote'];
-  handleUpdateTokenPos: AiPanelContextValue['onUpdateTokenPos'];
-  handleBatchUpdateTokenPosByForm: AiPanelContextValue['onBatchUpdateTokenPosByForm'];
-  aiPanelMode: NonNullable<AiPanelContextValue['aiPanelMode']>;
-  setAiPanelMode: Dispatch<SetStateAction<NonNullable<AiPanelContextValue['aiPanelMode']>>>;
-  aiCurrentTask: AiPanelContextValue['aiCurrentTask'];
-  aiVisibleCards: AiPanelContextValue['aiVisibleCards'];
-  selectedTranslationGapCount: number;
-  handleJumpToTranslationGap: NonNullable<AiPanelContextValue['onJumpToTranslationGap']>;
-  setAiPanelContext: Dispatch<SetStateAction<AiPanelContextValue>>;
-  selectedTimelineUnit: TimelineUnit | null;
-  saveSegmentContentForLayer: (segmentId: string, layerId: string, value: string) => Promise<void>;
-  selectedLayerId: string | null;
-  defaultTranscriptionLayerId?: string;
-  translationLayers: LayerDocType[];
-  layers: LayerDocType[];
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
-  saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
-  saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
-  setSaveState: (state: SaveState) => void;
-  nextUtteranceIdForVoiceDictation?: string;
-  selectUtterance: (utteranceId: string) => void;
-  aiChatEnabled: boolean;
-  aiChatSettings: AiChatSettings;
-  pushUndo: (label: string) => void;
-  setUtterances: Dispatch<SetStateAction<UtteranceDocType[]>>;
-}
-
-interface UseTranscriptionAssistantControllerResult {
-  aiPanelContextValue: AiPanelContextValue;
-  handleResolveVoiceIntentWithLlm: (input: {
-    text: string;
-    mode: VoiceAgentMode;
-    session: VoiceSession;
-  }) => Promise<VoiceIntent | null>;
-  handleVoiceDictation: (text: string) => void;
-  voiceDictationPipeline?: {
-    callbacks: DictationPipelineCallbacks;
-    config?: QuickDictationConfig;
-  };
-  handleVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => Promise<{ ok: boolean; message: string }>;
-}
 export function useTranscriptionAssistantController(input: UseTranscriptionAssistantControllerInput): UseTranscriptionAssistantControllerResult {
   const locale = useLocale();
   const { pushUndo, setUtterances, setSaveState } = input;
@@ -106,6 +44,11 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     input.state.utteranceCount,
     input.translationLayersLength,
     input.utterancesLength,
+    input.vadCacheStatus,
+    input.acousticSummary,
+    input.acousticInspector,
+    input.acousticDetail,
+    input.handleJumpToAcousticHotspot,
   ]);
 
   useEffect(() => {

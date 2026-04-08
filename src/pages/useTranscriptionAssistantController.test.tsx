@@ -80,7 +80,10 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     aiCurrentTask: 'transcription',
     aiVisibleCards: undefined,
     selectedTranslationGapCount: 2,
+    vadCacheStatus: { state: 'ready', engine: 'silero', segmentCount: 4 },
+    acousticSummary: null,
     handleJumpToTranslationGap: vi.fn(),
+    handleJumpToAcousticHotspot: vi.fn(),
     setAiPanelContext: vi.fn() as unknown as Dispatch<SetStateAction<AiPanelContextValue>>,
     selectedTimelineUnit: null as TimelineUnit | null,
     saveSegmentContentForLayer: vi.fn(async () => undefined),
@@ -144,9 +147,59 @@ describe('useTranscriptionAssistantController', () => {
   });
 
   it('publishes AI panel context with derived ready-state stats', async () => {
+    const handleJumpToAcousticHotspot = vi.fn();
     const setAiPanelContext = vi.fn() as unknown as Dispatch<SetStateAction<AiPanelContextValue>>;
 
-    renderHook(() => useTranscriptionAssistantController(createBaseInput({ setAiPanelContext })));
+    renderHook(() => useTranscriptionAssistantController(createBaseInput({
+      setAiPanelContext,
+      acousticSummary: {
+        selectionStartSec: 1,
+        selectionEndSec: 2,
+        f0MinHz: 120,
+        f0MaxHz: 180,
+        f0MeanHz: 150,
+        intensityPeakDb: -10,
+        reliabilityMean: 0.8,
+        voicedFrameCount: 8,
+        frameCount: 10,
+      },
+      acousticInspector: {
+        source: 'spectrogram',
+        timeSec: 1.45,
+        frequencyHz: 312,
+        f0Hz: 154,
+        intensityDb: -18.4,
+        matchedHotspotKind: 'pitch_break',
+        matchedHotspotTimeSec: 1.5,
+        inSelection: true,
+      },
+      acousticDetail: {
+        mediaKey: 'media-1',
+        sampleRate: 16000,
+        algorithmVersion: 'yin-v2-spectral',
+        modelVersion: 'none',
+        persistenceVersion: 'phase1-v2',
+        frameStepSec: 0.01,
+        analysisWindowSec: 0.04,
+        yinThreshold: 0.15,
+        silenceRmsThreshold: 0.01,
+        selectionStartSec: 1,
+        selectionEndSec: 2,
+        sampleCount: 3,
+        voicedSampleCount: 3,
+        frames: [
+          { timeSec: 1.1, relativeTimeSec: 0.1, timeRatio: 0.1, f0Hz: 132, intensityDb: -20, reliability: 0.72, normalizedF0: 0.1, normalizedIntensity: 0.2 },
+          { timeSec: 1.4, relativeTimeSec: 0.4, timeRatio: 0.4, f0Hz: 154, intensityDb: -18.4, reliability: 0.8, normalizedF0: 0.56, normalizedIntensity: 0.55 },
+          { timeSec: 1.8, relativeTimeSec: 0.8, timeRatio: 0.8, f0Hz: 168, intensityDb: -16.2, reliability: 0.86, normalizedF0: 0.84, normalizedIntensity: 0.8 },
+        ],
+        toneBins: [
+          { index: 0, timeSec: 1.1, timeRatio: 0, f0Hz: 132, intensityDb: -20, reliability: 0.72, normalizedF0: 0.1, normalizedIntensity: 0.2 },
+          { index: 1, timeSec: 1.4, timeRatio: 0.5, f0Hz: 154, intensityDb: -18.4, reliability: 0.8, normalizedF0: 0.56, normalizedIntensity: 0.55 },
+          { index: 2, timeSec: 1.8, timeRatio: 1, f0Hz: 168, intensityDb: -16.2, reliability: 0.86, normalizedF0: 0.84, normalizedIntensity: 0.8 },
+        ],
+      },
+      handleJumpToAcousticHotspot,
+    })));
 
     await waitFor(() => {
       expect(setAiPanelContext).toHaveBeenCalledWith(expect.objectContaining({
@@ -154,6 +207,22 @@ describe('useTranscriptionAssistantController', () => {
         utteranceCount: 1,
         translationLayerCount: 1,
         selectedTranslationGapCount: 2,
+        vadCacheStatus: { state: 'ready', engine: 'silero', segmentCount: 4 },
+        acousticSummary: expect.objectContaining({
+          selectionStartSec: 1,
+          selectionEndSec: 2,
+        }),
+        acousticInspector: expect.objectContaining({
+          source: 'spectrogram',
+          timeSec: 1.45,
+          matchedHotspotKind: 'pitch_break',
+        }),
+        acousticDetail: expect.objectContaining({
+          selectionStartSec: 1,
+          selectionEndSec: 2,
+          sampleCount: 3,
+        }),
+        onJumpToAcousticHotspot: handleJumpToAcousticHotspot,
       }));
     });
   });

@@ -3,7 +3,7 @@ import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import SpectrogramPlugin from 'wavesurfer.js/dist/plugins/spectrogram.esm.js';
 import { evaluateSegmentTimeUpdateGuard, type SegmentSeekGuard } from '../utils/segmentPlaybackGuard';
-import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
+import { getWaveformDisplayHeights, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { getWaveformVisualStylePreset, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
 import { createLogger } from '../observability/logger';
 import { useLatest } from './useLatest';
@@ -130,6 +130,11 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     let disposed = false;
     const visualStylePreset = getWaveformVisualStylePreset(options.waveformVisualStyle);
     const spectrogramContainer = spectrogramRef.current;
+    const totalHeight = options.waveformHeight ?? 180;
+    const mode = options.waveformDisplayMode ?? 'waveform';
+    const splitHeights = getWaveformDisplayHeights(totalHeight, mode);
+    const effectiveWaveformHeight = mode === 'split' ? splitHeights.waveformPrimaryHeight : totalHeight;
+    const effectiveSpectrogramHeight = mode === 'split' ? splitHeights.spectrogramHeight : totalHeight;
     const hadPreviousInstance = instanceRef.current != null;
 
     if (hadPreviousInstance && mediaUrl && mediaUrl === mediaUrlRef.current) {
@@ -159,10 +164,11 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     regionsRef.current = plugin;
     const plugins: Array<ReturnType<typeof RegionsPlugin.create> | ReturnType<typeof SpectrogramPlugin.create>> = [plugin];
 
+    let spectrogramPlugin: ReturnType<typeof SpectrogramPlugin.create> | null = null;
     if (showSpectrogram && spectrogramContainer) {
-      plugins.push(SpectrogramPlugin.create({
+      spectrogramPlugin = SpectrogramPlugin.create({
         container: spectrogramContainer,
-        height: options.waveformHeight ?? 180,
+        height: effectiveSpectrogramHeight,
         labels: false,
         scale: 'mel',
         fftSamples: 1024,
@@ -171,7 +177,8 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         colorMap: 'roseus',
         maxCanvasWidth: 16000,
         useWebWorker: true,
-      }));
+      });
+      plugins.push(spectrogramPlugin);
     }
 
     const waveformWaveColor = options.waveformDisplayMode === 'spectrogram'
@@ -186,7 +193,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       waveColor: waveformWaveColor,
       progressColor: waveformProgressColor,
       cursorColor: visualStylePreset.cursorColor,
-      height: options.waveformHeight ?? 180,
+      height: effectiveWaveformHeight,
       normalize: true,
       dragToSeek: false,
       autoScroll: options.autoScrollDuringPlayback !== false,
@@ -198,6 +205,31 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       barGap: visualStylePreset.barGap,
       barRadius: visualStylePreset.barRadius,
     });
+
+    // Fix: wavesurfer.js SpectrogramPlugin.onInit() always appends its wrapper to
+    // wavesurfer's own container, ignoring the user-specified `container` option.
+    // Relocate the wrapper to the dedicated spectrogram container and synchronise
+    // scroll position via CSS transform so it stays aligned with the waveform.
+    //
+    // The plugin also sets `width:100%; overflow:hidden` on its wrapper via the
+    // fillParent path.  After relocation "100%" resolves to the viewport-sized
+    // spectrogram container, which clips absolute-positioned canvases that extend
+    // beyond the viewport.  Override to `overflow:visible` so canvases are only
+    // clipped by the outer spectrogramContainer and translateX works correctly.
+    if (spectrogramPlugin && spectrogramContainer) {
+      const specWrapper = (spectrogramPlugin as unknown as { wrapper?: HTMLElement }).wrapper;
+      if (specWrapper instanceof HTMLElement) {
+        spectrogramContainer.appendChild(specWrapper);
+        specWrapper.style.overflow = 'visible';
+        const syncScroll = () => {
+          if (disposed) return;
+          specWrapper.style.transform = `translateX(-${ws.getScroll()}px)`;
+        };
+        ws.on('scroll', syncScroll);
+        // Also sync after zoom / redraw so the spectrogram doesn't lag behind
+        ws.on('redraw', () => requestAnimationFrame(syncScroll));
+      }
+    }
 
     instanceRef.current = ws;
     ws.setVolume(volRef.current);
@@ -307,11 +339,11 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
 
   // ---- Incremental sync (no instance recreation) ----
   useEffect(() => {
+    instanceRef.current?.setVolume(volume);
     // Don't override the segment-specific rate while segment playback is active.
     if (segmentRateActiveRef.current) return;
     instanceRef.current?.setPlaybackRate(playbackRate);
-  }, [playbackRate]);
-  useEffect(() => { instanceRef.current?.setVolume(volume); }, [volume]);
+  }, [playbackRate, volume]);
 
   // ---- Region rendering ----
   // Keep a map of region handles so we can update colors without clearing.
@@ -709,8 +741,12 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   // 波形高度变化时动态更新 | Update waveform height dynamically
   useEffect(() => {
     if (!isReady || options.waveformHeight == null) return;
-    instanceRef.current?.setOptions({ height: options.waveformHeight });
-  }, [isReady, options.waveformHeight]);
+    const total = options.waveformHeight;
+    const mode = options.waveformDisplayMode ?? 'waveform';
+    const { waveformPrimaryHeight } = getWaveformDisplayHeights(total, mode);
+    const h = mode === 'split' ? waveformPrimaryHeight : total;
+    instanceRef.current?.setOptions({ height: h });
+  }, [isReady, options.waveformHeight, options.waveformDisplayMode]);
 
   // 增益倍率变化时动态更新 | Update amplitude scale (barHeight) dynamically
   useEffect(() => {

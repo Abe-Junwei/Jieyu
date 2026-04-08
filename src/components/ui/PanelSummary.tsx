@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { PanelSection } from './PanelSection';
+import { joinClassNames } from './classNames';
 
 interface PanelSummaryProps {
   className?: string | undefined;
@@ -13,10 +14,6 @@ interface PanelSummaryProps {
   supportingText?: ReactNode | undefined;
   supportingClassName?: string | undefined;
   children?: ReactNode | undefined;
-}
-
-function joinClassNames(...tokens: Array<string | false | null | undefined>) {
-  return tokens.filter(Boolean).join(' ');
 }
 
 export function PanelSummary({

@@ -1,6 +1,26 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import type { UtteranceDocType } from '../db';
 import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiAnalysisPanel';
+import type { AcousticPromptSummary } from '../pages/TranscriptionPage.aiPromptContext';
+import type { AcousticPanelDetail } from '../utils/acousticPanelDetail';
+import type { AcousticHotspotKind } from '../utils/acousticOverlayTypes';
+
+export type VadCacheStatus = {
+  state: 'unavailable' | 'missing' | 'ready';
+  engine?: 'silero' | 'energy';
+  segmentCount?: number;
+};
+
+export type AcousticInspectorReadout = {
+  source: 'waveform' | 'spectrogram';
+  timeSec: number;
+  frequencyHz?: number | null;
+  f0Hz?: number | null;
+  intensityDb?: number | null;
+  matchedHotspotKind?: AcousticHotspotKind | null;
+  matchedHotspotTimeSec?: number | null;
+  inSelection?: boolean;
+};
 
 export type AiPanelContextValue = {
   // ── Database / session stats ──
@@ -32,7 +52,12 @@ export type AiPanelContextValue = {
   aiCurrentTask?: AiPanelTask;
   aiVisibleCards?: Record<AiPanelCardKey, boolean>;
   selectedTranslationGapCount?: number;
+  vadCacheStatus?: VadCacheStatus;
+  acousticSummary?: AcousticPromptSummary | null;
+  acousticInspector?: AcousticInspectorReadout | null;
+  acousticDetail?: AcousticPanelDetail | null;
   onJumpToTranslationGap?: () => void;
+  onJumpToAcousticHotspot?: (timeSec: number) => void;
   onChangeAiPanelMode?: (mode: AiPanelMode) => void;
 };
 
@@ -47,6 +72,9 @@ export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
   lexemeMatches: [],
   aiPanelMode: 'auto',
   selectedTranslationGapCount: 0,
+  acousticSummary: null,
+  acousticInspector: null,
+  acousticDetail: null,
 };
 
 export const AiPanelContext = createContext<AiPanelContextValue | null>(null);

@@ -13,6 +13,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { useVoiceAgent } from './useVoiceAgent';
 import { applyVoiceCommercialConfigChange } from '../utils/voiceCommercialConfigSync';
 import type { CommercialProviderKind, SttEngine } from '../services/VoiceInputService';
+import { getActiveSttProviderMetadata } from '../services/stt/providerMetadata';
+import type { SttEnhancementConfig, SttEnhancementSelectionKind } from '../services/stt';
 import type { LayerDocType } from '../db';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import { useLocale } from '../i18n';
@@ -82,6 +84,8 @@ interface UseVoiceInteractionOptions {
   aiIsStreaming: boolean;
   aiMessages: VoiceMessageLike[];
   localWhisperConfig: LocalWhisperConfigLike;
+  sttEnhancementKind?: SttEnhancementSelectionKind;
+  sttEnhancementConfig?: SttEnhancementConfig;
   commercialProviderKind: CommercialProviderKind;
   commercialProviderConfig?: CommercialProviderConfigLike;
   onCommercialConfigChange: (config: CommercialProviderConfigLike) => void;
@@ -134,6 +138,8 @@ export function useVoiceInteraction({
   aiIsStreaming,
   aiMessages,
   localWhisperConfig,
+  sttEnhancementKind = 'none',
+  sttEnhancementConfig = {},
   commercialProviderKind,
   commercialProviderConfig,
   onCommercialConfigChange,
@@ -207,6 +213,8 @@ export function useVoiceInteraction({
     ...(localWhisperConfig.model ? { whisperServerModel: localWhisperConfig.model } : {}),
     commercialProviderKind,
     ...(commercialProviderConfig !== undefined ? { commercialProviderConfig } : {}),
+    sttEnhancementKind,
+    sttEnhancementConfig,
   };
 
   const voiceAgent = useVoiceAgent(voiceAgentOptions);
@@ -297,16 +305,22 @@ export function useVoiceInteraction({
     const currentLanguage = voiceCorpusLangOverride === '__auto__'
       ? messages.autoDetectLanguage
       : formatLanguageLabel(voiceCorpusLangOverride ?? effectiveVoiceCorpusLang);
-    const currentEngine = voiceAgent.engine === 'web-speech'
-      ? 'Web Speech'
-      : voiceAgent.engine === 'whisper-local'
-        ? 'Ollama Whisper'
-        : messages.commercialModel;
+    const currentEngine = getActiveSttProviderMetadata(
+      voiceAgent.engine,
+      voiceAgent.commercialProviderKind,
+    ).label;
     const detectedLanguage = voiceCorpusLangOverride === '__auto__' && voiceAgent.detectedLang
       ? messages.detectedLanguageSuffix(formatLanguageLabel(voiceAgent.detectedLang))
       : '';
     return `${currentLanguage} · ${currentEngine}${detectedLanguage}`;
-  }, [effectiveVoiceCorpusLang, messages, voiceCorpusLangOverride, voiceAgent.detectedLang, voiceAgent.engine]);
+  }, [
+    effectiveVoiceCorpusLang,
+    messages,
+    voiceCorpusLangOverride,
+    voiceAgent.commercialProviderKind,
+    voiceAgent.detectedLang,
+    voiceAgent.engine,
+  ]);
 
   const voiceSelectionSummary = useMemo(() => {
     if (selection.selectedTimeRangeLabel) {

@@ -8,7 +8,7 @@ import type { VoiceAgentServiceState, VoiceAgentMode } from './VoiceAgentService
 import type { VoiceIntent, VoiceSession, ActionId } from './IntentRouter';
 import type { SttEngine } from './VoiceInputService';
 import type { CommercialProviderKind } from './VoiceInputService';
-import type { CommercialProviderCreateConfig } from './stt';
+import type { CommercialProviderCreateConfig, SttEnhancementConfig, SttEnhancementSelectionKind } from './stt';
 
 export interface VoiceAgentServiceStateSnapshotInput {
   listening: boolean;
@@ -26,6 +26,8 @@ export interface VoiceAgentServiceStateSnapshotInput {
   isRecording: boolean;
   commercialProviderKind: CommercialProviderKind;
   commercialProviderConfig: CommercialProviderCreateConfig;
+  sttEnhancementKind: SttEnhancementSelectionKind;
+  sttEnhancementConfig: SttEnhancementConfig;
   energyLevel: number;
   recordingDuration: number;
   wakeWordEnabled: boolean;
@@ -54,6 +56,8 @@ export function buildVoiceAgentServiceStateSnapshot(
     isRecording: input.isRecording,
     commercialProviderKind: input.commercialProviderKind,
     commercialProviderConfig: input.commercialProviderConfig,
+    sttEnhancementKind: input.sttEnhancementKind,
+    sttEnhancementConfig: input.sttEnhancementConfig,
     energyLevel: input.energyLevel,
     recordingDuration: input.recordingDuration,
     wakeWordEnabled: input.wakeWordEnabled,

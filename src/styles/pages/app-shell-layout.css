@@ -203,8 +203,8 @@
 }
 
 .app-side-pane-resizer:hover::before {
-  background: color-mix(in srgb, rgb(37 99 235) 42%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, rgb(147 197 253) 24%, transparent);
+  background: var(--focus-ring-strong);
+  box-shadow: 0 0 0 3px var(--focus-ring-glow);
 }
 
 .app-side-pane-collapse-toggle:hover {
@@ -347,9 +347,17 @@
 }
 
 .app-side-pane-group {
-  border: 1px solid color-mix(in srgb, rgb(208 215 222) 50%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 50%, transparent);
   border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--surface-panel) 96%, transparent);
+}
+
+.app-side-pane-layer-group {
+  min-height: 0;
+}
+
+.app-side-pane-layer-actions-group {
+  flex-shrink: 0;
 }
 
 .app-side-pane-group-toggle {
@@ -367,7 +375,7 @@
 }
 
 .app-side-pane-group-toggle:hover {
-  background: color-mix(in srgb, rgb(208 215 222) 24%, transparent);
+  background: var(--overlay-hover-soft);
 }
 
 .app-side-pane-nav {
@@ -393,20 +401,20 @@
 .side-pane-nav-link:hover {
   color: var(--text-primary);
   border-color: var(--border-strong);
-  background: color-mix(in srgb, rgb(208 215 222) 30%, transparent);
+  background: var(--overlay-hover-muted);
 }
 
 :root[data-theme='dark'] .side-pane-nav-link:hover {
-  background: color-mix(in srgb, rgb(255 255 255) 7%, transparent);
+  background: var(--overlay-dark-hover);
 }
 
 :root[data-theme='dark'] .app-side-pane-group {
-  border-color: color-mix(in srgb, rgb(75 85 99) 60%, transparent);
-  background: color-mix(in srgb, rgb(37 37 38) 60%, transparent);
+  border-color: color-mix(in srgb, var(--border-strong) 60%, transparent);
+  background: var(--surface-dark-card);
 }
 
 :root[data-theme='dark'] .app-side-pane-group-toggle:hover {
-  background: color-mix(in srgb, rgb(255 255 255) 5%, transparent);
+  background: var(--overlay-hover-muted);
 }
 
 .side-pane-nav-link:focus-visible {
@@ -436,7 +444,11 @@
 
 .left-rail-btn:hover {
   color: var(--text-primary);
-  background: color-mix(in srgb, rgb(208 215 222) 24%, transparent);
+  background: var(--overlay-hover-soft);
+}
+
+.left-rail-btn-utility {
+  border-left-style: dashed;
 }
 
 .left-rail-btn-active {
@@ -447,7 +459,7 @@
 
 .left-rail-btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, rgb(14 165 233) 20%, transparent);
+  box-shadow: 0 0 0 3px var(--focus-ring-soft);
 }
 
 @media (max-width: 900px) {

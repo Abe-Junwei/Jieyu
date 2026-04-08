@@ -25,9 +25,18 @@ import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
-import { DialogShell } from './ui/DialogShell';
-import { PanelSection } from './ui/PanelSection';
-import { PanelSummary } from './ui/PanelSummary';
+import {
+  DialogOverlay,
+  DialogShell,
+  FormField,
+  PanelButton,
+  PanelChip,
+  PanelFeedback,
+  PanelFeedbackStack,
+  PanelNote,
+  PanelSection,
+  PanelSummary,
+} from './ui';
 import {
   buildLanguageInputSeed,
   getDisplayedLanguageInputLabel,
@@ -424,20 +433,20 @@ export function LayerActionPopover({
     : `${actionMessages.requiredPrefix}${createLanguageRequiredMessage}`;
   const summaryMeta = (
     <div className="panel-meta">
-      <span className="panel-chip">{actionMessages.deleteLayer}</span>
-      <span className="panel-chip panel-chip--danger">{deletableLayers.length}</span>
+      <PanelChip>{actionMessages.deleteLayer}</PanelChip>
+      <PanelChip variant="danger">{deletableLayers.length}</PanelChip>
     </div>
   );
   const createFooter = (
-    <button
-      className="panel-button panel-button--primary"
+    <PanelButton
+      variant="primary"
       disabled={action === 'create-translation'
         ? (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || Boolean(customLanguageError) || Boolean(orthographySelectionError) || translationCreateDisabledReason.length > 0)
         : (isLoading || orthographyPicker.submitting || orthographyPicker.isCreating || !hasValidLanguage || Boolean(customLanguageError) || Boolean(orthographySelectionError) || transcriptionCreateDisabledReason.length > 0)}
       onClick={handleCreate}
     >
       {label}
-    </button>
+    </PanelButton>
   );
   /* 面包屑标题 + 构建器专属 footer | Breadcrumb title + builder-specific footer */
   const builderMessages = getOrthographyBuilderMessages(locale);
@@ -453,17 +462,15 @@ export function LayerActionPopover({
   );
   const builderFooter = (
     <>
-      <button
-        type="button"
-        className="panel-button panel-button--ghost"
+      <PanelButton
+        variant="ghost"
         disabled={orthographyPicker.submitting}
         onClick={orthographyPicker.cancelCreate}
       >
         {builderMessages.cancelCreate}
-      </button>
-      <button
-        type="button"
-        className="panel-button panel-button--primary"
+      </PanelButton>
+      <PanelButton
+        variant="primary"
         disabled={orthographyPicker.submitting}
         onClick={() => { void orthographyPicker.createOrthography(); }}
       >
@@ -472,21 +479,21 @@ export function LayerActionPopover({
           : orthographyPicker.requiresRenderWarningConfirmation
             ? builderMessages.confirmRiskAndCreate
             : builderMessages.createAndSelect}
-      </button>
+      </PanelButton>
     </>
   );
   const deleteFooter = (
     <>
-      <button className="panel-button panel-button--ghost" onClick={deleteConfirm ? handleCancelDelete : onClose} disabled={isLoading}>
+      <PanelButton variant="ghost" onClick={deleteConfirm ? handleCancelDelete : onClose} disabled={isLoading}>
         {actionMessages.cancel}
-      </button>
-      <button
-        className="panel-button panel-button--danger"
+      </PanelButton>
+      <PanelButton
+        variant="danger"
         disabled={deleteConfirm ? isLoading : (!deleteLayerId || isLoading)}
         onClick={deleteConfirm ? handleConfirmDelete : handleDelete}
       >
         {deleteConfirm ? actionMessages.confirmDelete : actionMessages.deleteAction}
-      </button>
+      </PanelButton>
     </>
   );
   const orthographyFieldId = `${fieldIdPrefix}-orthography`;
@@ -497,10 +504,10 @@ export function LayerActionPopover({
   const deleteLayerFieldId = `${fieldIdPrefix}-delete-layer`;
 
   const popover = (
-    <div
-      className="dialog-overlay dialog-overlay-topmost"
-      role="presentation"
-      onMouseDown={onClose}
+    <DialogOverlay
+      onClose={onClose}
+      topmost
+      closeOn="mousedown"
     >
       <DialogShell
         className={`layer-action-dialog${orthographyPicker.isCreating ? ' orthography-builder-dialog-host' : ''}`}
@@ -556,8 +563,7 @@ export function LayerActionPopover({
                   {actionMessages.deleteLayerConfirmMessage(deleteConfirm.layerName, deleteConfirm.textCount)}
                 </p>
               ) : (
-                <div className="dialog-field">
-                  <label className="layer-action-dialog-field-label" htmlFor={deleteLayerFieldId}>{actionMessages.deleteLayer}</label>
+                <FormField htmlFor={deleteLayerFieldId} label={actionMessages.deleteLayer}>
                   <select
                     id={deleteLayerFieldId}
                     className="input panel-input layer-action-dialog-input"
@@ -570,7 +576,7 @@ export function LayerActionPopover({
                       </option>
                     ))}
                   </select>
-                </div>
+                </FormField>
               )}
             </PanelSection>
           </>
@@ -590,7 +596,7 @@ export function LayerActionPopover({
           />
         ) : (
           <>
-            <div className="dialog-field">
+            <FormField>
               <LanguageIsoInput
                 locale={locale}
                 value={languageInput}
@@ -603,9 +609,8 @@ export function LayerActionPopover({
                 error={customLanguageError}
                 disabled={isLoading || orthographyPicker.submitting}
               />
-            </div>
-            <div className="dialog-field">
-              <label className="layer-action-dialog-field-label" htmlFor={`${fieldIdPrefix}-language-asset-id`}>{actionMessages.languageAssetIdLabel}</label>
+            </FormField>
+            <FormField htmlFor={`${fieldIdPrefix}-language-asset-id`} label={actionMessages.languageAssetIdLabel}>
               <input
                 id={`${fieldIdPrefix}-language-asset-id`}
                 className="input panel-input layer-action-dialog-input"
@@ -618,11 +623,10 @@ export function LayerActionPopover({
                 placeholder={actionMessages.languageAssetIdPlaceholder}
                 disabled={isLoading || orthographyPicker.submitting}
               />
-            </div>
+            </FormField>
             {resolvedLanguageId && (
               <div className="layer-action-dialog-field-group">
-                <div className="dialog-field">
-                  <label className="layer-action-dialog-field-label" htmlFor={orthographyFieldId}>{actionMessages.orthographyFieldLabel}</label>
+                <FormField htmlFor={orthographyFieldId} label={actionMessages.orthographyFieldLabel}>
                   <div className="layer-action-dialog-select-with-btn">
                     <select
                       id={orthographyFieldId}
@@ -641,38 +645,37 @@ export function LayerActionPopover({
                         </optgroup>
                       ))}
                     </select>
-                    <button
-                      type="button"
-                      className="panel-button panel-button--ghost layer-action-dialog-inline-btn"
+                    <PanelButton
+                      variant="ghost"
+                      className="layer-action-dialog-inline-btn"
                       onClick={() => orthographyPicker.handleSelectionChange(ORTHOGRAPHY_CREATE_SENTINEL)}
                       title={actionMessages.createOrthography}
                     >
                       <Plus size={14} />
                       <span>{actionMessages.newOrthographyButton}</span>
-                    </button>
+                    </PanelButton>
                   </div>
-                </div>
+                </FormField>
                 {orthographyPicker.orthographies.length === 0 && (
-                  <p className="panel-note layer-action-dialog-meta-note">
+                  <PanelNote className="layer-action-dialog-meta-note">
                     {actionMessages.orthographyHint}
-                  </p>
+                  </PanelNote>
                 )}
                 {selectedOrthography && selectedOrthographyBadge && (
-                  <div className="panel-note layer-action-dialog-meta-note" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <PanelNote className="layer-action-dialog-meta-note" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                     <span>{formatOrthographyOptionLabel(selectedOrthography, locale)}</span>
                     <span className={selectedOrthographyBadge.className}>{selectedOrthographyBadge.label}</span>
-                  </div>
+                  </PanelNote>
                 )}
                 {orthographyPicker.error && (
-                  <p className="panel-feedback panel-feedback--error">{orthographyPicker.error}</p>
+                  <PanelFeedback level="error">{orthographyPicker.error}</PanelFeedback>
                 )}
                 {orthographySelectionError && (
-                  <p className="panel-feedback panel-feedback--error">{orthographySelectionError}</p>
+                  <PanelFeedback level="error">{orthographySelectionError}</PanelFeedback>
                 )}
               </div>
             )}
-            <div className="dialog-field">
-              <label className="layer-action-dialog-field-label" htmlFor={aliasFieldId}>{actionMessages.aliasShortPlaceholder}</label>
+            <FormField htmlFor={aliasFieldId} label={actionMessages.aliasShortPlaceholder}>
               <input
                 id={aliasFieldId}
                 className="input panel-input layer-action-dialog-input"
@@ -681,11 +684,10 @@ export function LayerActionPopover({
                 onChange={(e) => setAlias(e.target.value)}
               />
               <p className="layer-action-dialog-alias-hint">{actionMessages.aliasHint}</p>
-            </div>
+            </FormField>
             {action === 'create-translation' && (
               <div className="layer-action-dialog-field-group">
-                <div className="dialog-field">
-                  <label className="layer-action-dialog-field-label" htmlFor={modalityFieldId}>{actionMessages.modalityLabel}</label>
+                <FormField htmlFor={modalityFieldId} label={actionMessages.modalityLabel}>
                   <select
                     id={modalityFieldId}
                     className="input panel-input layer-action-dialog-input"
@@ -696,13 +698,12 @@ export function LayerActionPopover({
                     <option value="audio">{actionMessages.modalityAudio}</option>
                     <option value="mixed">{actionMessages.modalityMixed}</option>
                   </select>
-                </div>
-                <p className="panel-note layer-action-dialog-meta-note">
+                </FormField>
+                <PanelNote className="layer-action-dialog-meta-note">
                   {actionMessages.translationBoundarySource}
-                </p>
+                </PanelNote>
                 {independentParentLayers.length > 1 && (
-                  <div className="dialog-field">
-                    <label className="layer-action-dialog-field-label" htmlFor={translationParentLayerFieldId}>{actionMessages.selectParentLayer}</label>
+                  <FormField htmlFor={translationParentLayerFieldId} label={actionMessages.selectParentLayer}>
                     <select
                       id={translationParentLayerFieldId}
                       className="input panel-input layer-action-dialog-input"
@@ -714,12 +715,12 @@ export function LayerActionPopover({
                         <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
                       ))}
                     </select>
-                  </div>
+                  </FormField>
                 )}
                 {autoParentLayer && (
-                  <p className="panel-note layer-action-dialog-meta-note layer-action-dialog-auto-linked-hint">
+                  <PanelNote className="layer-action-dialog-meta-note layer-action-dialog-auto-linked-hint">
                     {actionMessages.autoLinkedParent(formatParentLayerOptionLabel(autoParentLayer))}
-                  </p>
+                  </PanelNote>
                 )}
               </div>
             )}
@@ -751,8 +752,7 @@ export function LayerActionPopover({
                   </label>
                 </fieldset>
                 {constraint === 'symbolic_association' && independentParentLayers.length > 1 && (
-                  <div className="dialog-field">
-                    <label className="layer-action-dialog-field-label" htmlFor={transcriptionParentLayerFieldId}>{actionMessages.selectParentLayer}</label>
+                  <FormField htmlFor={transcriptionParentLayerFieldId} label={actionMessages.selectParentLayer}>
                     <select
                       id={transcriptionParentLayerFieldId}
                       className="input panel-input layer-action-dialog-input"
@@ -764,47 +764,47 @@ export function LayerActionPopover({
                         <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
                       ))}
                     </select>
-                  </div>
+                  </FormField>
                 )}
                 {constraint === 'symbolic_association' && autoParentLayer && (
-                  <p className="panel-note layer-action-dialog-meta-note layer-action-dialog-auto-linked-hint">
+                  <PanelNote className="layer-action-dialog-meta-note layer-action-dialog-auto-linked-hint">
                     {actionMessages.autoLinkedParent(formatParentLayerOptionLabel(autoParentLayer))}
-                  </p>
+                  </PanelNote>
                 )}
               </div>
             )}
             {showCreateFailure && (
-              <div
+              <PanelFeedback
                 role="alert"
                 aria-live="assertive"
-                className="panel-feedback panel-feedback--error"
+                level="error"
               >
                 {actionMessages.createFailedPrefix}{createFailureMessage}
-              </div>
+              </PanelFeedback>
             )}
             {(translationCreateDisabledReason || transcriptionCreateDisabledReason || !hasValidLanguage) && (
-              <div className="panel-feedback-stack">
+              <PanelFeedbackStack>
                 {translationCreateDisabledReason && (
-                  <p className="panel-feedback panel-feedback--error">
+                  <PanelFeedback level="error">
                     {actionMessages.currentRestrictionTranslation}{translationCreateDisabledReason}
-                  </p>
+                  </PanelFeedback>
                 )}
                 {transcriptionCreateDisabledReason && (
-                  <p className="panel-feedback panel-feedback--error">
+                  <PanelFeedback level="error">
                     {actionMessages.currentRestrictionTranscription}{transcriptionCreateDisabledReason}
-                  </p>
+                  </PanelFeedback>
                 )}
                 {!hasValidLanguage && (
-                  <p className="panel-feedback panel-feedback--info">
+                  <PanelFeedback level="info">
                     {createLanguageRequiredText}
-                  </p>
+                  </PanelFeedback>
                 )}
-              </div>
+              </PanelFeedbackStack>
             )}
           </>
         )}
       </DialogShell>
-      </div>
+      </DialogOverlay>
   );
 
   return ReactDOM.createPortal(popover, document.body);

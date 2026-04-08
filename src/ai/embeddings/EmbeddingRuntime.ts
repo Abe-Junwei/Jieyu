@@ -1,3 +1,5 @@
+import { PendingWorkerRequestStore } from '../../services/PendingWorkerRequestStore';
+
 export type EmbeddingProgressStage = 'loading' | 'embedding' | 'ready';
 
 export interface EmbeddingRuntimeProgress {
@@ -62,12 +64,6 @@ interface WorkerProgressMessage {
 
 type WorkerResponseMessage = WorkerResultMessage | WorkerProgressMessage;
 
-interface PendingRequest {
-  resolve: (value: WorkerResultMessage) => void;
-  reject: (reason?: unknown) => void;
-  onProgress?: (progress: EmbeddingRuntimeProgress) => void;
-}
-
 function newRequestId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -80,35 +76,33 @@ function normalizeRetries(retries: number | undefined): number {
 export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
   private readonly worker: Worker;
 
-  private readonly pending = new Map<string, PendingRequest>();
+  private readonly pending = new PendingWorkerRequestStore<WorkerResultMessage, EmbeddingRuntimeProgress>();
 
   constructor() {
     this.worker = new Worker(new URL('./embedding.worker.ts', import.meta.url), { type: 'module' });
     this.worker.onmessage = (event: MessageEvent<WorkerResponseMessage>) => {
       const payload = event.data;
-      const pending = this.pending.get(payload.requestId);
-      if (!pending) return;
+      if (!this.pending.get(payload.requestId)) return;
 
       if (payload.type === 'progress') {
-        pending.onProgress?.(payload.progress);
+        this.pending.notifyProgress(payload.requestId, payload.progress);
         return;
       }
 
-      this.pending.delete(payload.requestId);
       if (payload.ok) {
-        pending.resolve(payload);
+        this.pending.resolve(payload.requestId, payload);
       } else {
-        pending.reject(new Error(payload.error ?? 'Embedding worker request failed'));
+        this.pending.reject(payload.requestId, new Error(payload.error ?? 'Embedding worker request failed'));
       }
     };
 
     this.worker.onerror = (event: ErrorEvent) => {
       const message = event.message?.trim() || 'Embedding worker runtime error';
-      this.rejectAllPending(new Error(message));
+      this.pending.rejectAll(new Error(message));
     };
 
     this.worker.onmessageerror = () => {
-      this.rejectAllPending(new Error('Embedding worker message decode error'));
+      this.pending.rejectAll(new Error('Embedding worker message decode error'));
     };
   }
 
@@ -145,7 +139,7 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
     this.worker.onerror = null;
     this.worker.onmessageerror = null;
     this.worker.terminate();
-    this.rejectAllPending(new Error('Embedding worker terminated'));
+    this.pending.rejectAll(new Error('Embedding worker terminated'));
   }
 
   private async runWithRetry<T>(runner: () => Promise<T>, retries: number): Promise<T> {
@@ -161,25 +155,16 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
   }
 
   private postRequest(request: WorkerRequest, onProgress?: (progress: EmbeddingRuntimeProgress) => void): Promise<WorkerResultMessage> {
-    return new Promise<WorkerResultMessage>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        if (this.pending.delete(request.requestId)) {
-          reject(new Error(`Embedding request timed out after 60s (${request.requestId})`));
-        }
-      }, 60_000);
-      const wrappedResolve = (value: WorkerResultMessage) => { clearTimeout(timer); resolve(value); };
-      const wrappedReject = (reason?: unknown) => { clearTimeout(timer); reject(reason); };
-      this.pending.set(request.requestId, onProgress
-        ? { resolve: wrappedResolve, reject: wrappedReject, onProgress }
-        : { resolve: wrappedResolve, reject: wrappedReject });
-      this.worker.postMessage(request);
-    });
-  }
-
-  private rejectAllPending(error: Error): void {
-    for (const entry of this.pending.values()) {
-      entry.reject(error);
-    }
-    this.pending.clear();
+    return this.pending.track(
+      request.requestId,
+      () => {
+        this.worker.postMessage(request);
+      },
+      {
+        timeoutMs: 60_000,
+        timeoutMessage: `Embedding request timed out after 60s (${request.requestId})`,
+        ...(onProgress ? { onProgress } : {}),
+      },
+    );
   }
 }

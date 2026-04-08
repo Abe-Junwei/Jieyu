@@ -4,7 +4,11 @@
  */
 
 import type { CommercialProviderKind, SttEngine } from './VoiceInputService';
-import type { CommercialProviderCreateConfig } from './stt';
+import type {
+  CommercialProviderCreateConfig,
+  SttEnhancementConfig,
+  SttEnhancementSelectionKind,
+} from './stt';
 import type { Region } from '../utils/regionDetection';
 
 export interface BuildVoiceAgentStartConfigParams {
@@ -15,6 +19,8 @@ export interface BuildVoiceAgentStartConfigParams {
   whisperServerModel: string;
   commercialProviderKind: CommercialProviderKind;
   commercialProviderConfig: CommercialProviderCreateConfig;
+  sttEnhancementKind: SttEnhancementSelectionKind;
+  sttEnhancementConfig: SttEnhancementConfig;
   loadSttRuntime: () => Promise<typeof import('./stt')>;
 }
 
@@ -30,6 +36,8 @@ export async function buildVoiceAgentStartConfig(
   whisperServerUrl?: string;
   whisperServerModel?: string;
   commercialFallback?: Awaited<ReturnType<Awaited<ReturnType<BuildVoiceAgentStartConfigParams['loadSttRuntime']>>['createCommercialProvider']>>;
+  sttEnhancement?: Awaited<ReturnType<Awaited<ReturnType<BuildVoiceAgentStartConfigParams['loadSttRuntime']>>['createSttEnhancementProvider']>>;
+  sttEnhancementConfig?: SttEnhancementConfig;
 }> {
   const startConfig: {
     lang: string;
@@ -41,6 +49,8 @@ export async function buildVoiceAgentStartConfig(
     whisperServerUrl?: string;
     whisperServerModel?: string;
     commercialFallback?: Awaited<ReturnType<Awaited<ReturnType<BuildVoiceAgentStartConfigParams['loadSttRuntime']>>['createCommercialProvider']>>;
+    sttEnhancement?: Awaited<ReturnType<Awaited<ReturnType<BuildVoiceAgentStartConfigParams['loadSttRuntime']>>['createSttEnhancementProvider']>>;
+    sttEnhancementConfig?: SttEnhancementConfig;
   } = {
     lang: params.lang,
     continuous: true,
@@ -55,12 +65,18 @@ export async function buildVoiceAgentStartConfig(
     startConfig.whisperServerModel = params.whisperServerModel;
   }
 
-  if (params.runtimeEngine === 'commercial' && params.commercialProviderConfig) {
-    const { createCommercialProvider } = await params.loadSttRuntime();
-    startConfig.commercialFallback = createCommercialProvider(
-      params.commercialProviderKind,
-      params.commercialProviderConfig,
-    );
+  if ((params.runtimeEngine === 'commercial' && params.commercialProviderConfig) || params.sttEnhancementKind !== 'none') {
+    const { createCommercialProvider, createSttEnhancementProvider } = await params.loadSttRuntime();
+    if (params.runtimeEngine === 'commercial' && params.commercialProviderConfig) {
+      startConfig.commercialFallback = createCommercialProvider(
+        params.commercialProviderKind,
+        params.commercialProviderConfig,
+      );
+    }
+    if (params.sttEnhancementKind !== 'none') {
+      startConfig.sttEnhancement = createSttEnhancementProvider(params.sttEnhancementKind);
+      startConfig.sttEnhancementConfig = params.sttEnhancementConfig;
+    }
   }
 
   return startConfig;

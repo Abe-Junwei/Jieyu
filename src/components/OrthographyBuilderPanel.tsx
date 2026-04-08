@@ -10,6 +10,7 @@ import {
   getOrthographyBridgeSyntaxHint,
 } from '../i18n/orthographyBuilderMessages';
 import { EmbeddedPanelShell } from './ui/EmbeddedPanelShell';
+import { PanelFeedback, PanelFeedbackStack } from './ui';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
 import { ScriptTagCombobox } from './ScriptTagCombobox';
 import {
@@ -740,11 +741,11 @@ export function OrthographyBuilderPanel({
       {picker.error && (
         compact
           ? (
-            <div className="panel-feedback-stack">
-              <p className="panel-feedback panel-feedback--error">{picker.error}</p>
-            </div>
+            <PanelFeedbackStack>
+              <PanelFeedback level="error">{picker.error}</PanelFeedback>
+            </PanelFeedbackStack>
           )
-          : <p className="panel-feedback panel-feedback--error">{picker.error}</p>
+          : <PanelFeedback level="error">{picker.error}</PanelFeedback>
       )}
 
       {!hideActions && (

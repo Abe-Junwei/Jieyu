@@ -1,6 +1,5 @@
 import {
   FolderKanban,
-  X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -15,7 +14,9 @@ import {
 import { getSidePaneSidebarMessages } from '../../i18n/sidePaneSidebarMessages';
 import type { JieyuArchiveImportPreview } from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';
-import { DialogShell } from '../ui/DialogShell';
+import { ModalPanel } from '../ui/ModalPanel';
+import { PanelButton } from '../ui/PanelButton';
+import { PanelChip } from '../ui/PanelChip';
 import { PanelSection } from '../ui/PanelSection';
 import { PanelSummary } from '../ui/PanelSummary';
 
@@ -318,6 +319,14 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     sidePaneMessages.quickActionSpeakerManagement,
   ]);
 
+  const handleCloseProjectImport = useCallback(() => {
+    if (!projectImportState?.importing) setProjectImportState(null);
+  }, [projectImportState?.importing]);
+
+  const handleCloseAnnotationImport = useCallback(() => {
+    if (!annotationImportState?.importing) setAnnotationImportState(null);
+  }, [annotationImportState?.importing]);
+
   if (!hostElement) return null;
 
   const buttonNode = (
@@ -378,68 +387,55 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     />
   ) : null;
 
-  const projectImportDialogNode = projectImportState ? createPortal(
-    <div className="dialog-overlay dialog-overlay-topmost" role="presentation" onClick={() => {
-      if (!projectImportState.importing) setProjectImportState(null);
-    }}>
-      <DialogShell
-        className="left-rail-project-import-dialog dialog-card-wide panel-design-match panel-design-match-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t(locale, 'transcription.projectHub.importDialogTitle')}
-        title={t(locale, 'transcription.projectHub.importDialogTitle')}
-        headerClassName="left-rail-project-import-header"
-        actions={(
-          <button
-            type="button"
-            className="icon-btn"
+  const projectImportDialogNode = (
+    <ModalPanel
+      isOpen={projectImportState !== null}
+      onClose={handleCloseProjectImport}
+      topmost
+      className="left-rail-project-import-dialog dialog-card-wide panel-design-match panel-design-match-dialog"
+      ariaLabel={t(locale, 'transcription.projectHub.importDialogTitle')}
+      title={t(locale, 'transcription.projectHub.importDialogTitle')}
+      headerClassName="left-rail-project-import-header"
+      closeLabel={`${t(locale, 'transcription.projectHub.importDialogTitle')} ${t(locale, 'transcription.dialog.cancel')}`}
+      closeDisabled={projectImportState?.importing}
+      footerClassName="left-rail-project-import-actions"
+      footer={projectImportState ? (
+        <>
+          <PanelButton
+            variant="ghost"
             disabled={projectImportState.importing}
             onClick={() => setProjectImportState(null)}
-            aria-label={`${t(locale, 'transcription.projectHub.importDialogTitle')} ${t(locale, 'transcription.dialog.cancel')}`}
-            title={`${t(locale, 'transcription.projectHub.importDialogTitle')} ${t(locale, 'transcription.dialog.cancel')}`}
           >
-            <X size={18} />
-          </button>
-        )}
-        footerClassName="left-rail-project-import-actions"
-        footer={(
-          <>
-            <button
-              type="button"
-              className="panel-button panel-button--ghost"
-              disabled={projectImportState.importing}
-              onClick={() => setProjectImportState(null)}
-            >
-              {t(locale, 'transcription.dialog.cancel')}
-            </button>
-            <button
-              type="button"
-              className="panel-button panel-button--primary"
-              disabled={projectImportState.importing}
-              onClick={() => {
-                fireAndForget(handleConfirmProjectImport());
-              }}
-            >
-              {projectImportState.importing
-                ? t(locale, 'transcription.projectHub.importing')
-                : t(locale, 'transcription.projectHub.confirmImport')}
-            </button>
-          </>
-        )}
-        onClick={(event) => event.stopPropagation()}
-      >
+            {t(locale, 'transcription.dialog.cancel')}
+          </PanelButton>
+          <PanelButton
+            variant="primary"
+            disabled={projectImportState.importing}
+            onClick={() => {
+              fireAndForget(handleConfirmProjectImport());
+            }}
+          >
+            {projectImportState.importing
+              ? t(locale, 'transcription.projectHub.importing')
+              : t(locale, 'transcription.projectHub.confirmImport')}
+          </PanelButton>
+        </>
+      ) : undefined}
+    >
+      {projectImportState && (
+        <>
           <PanelSummary
             className="left-rail-project-import-summary"
             title={projectImportState.file.name}
             description={tf(locale, 'transcription.projectHub.importDialogKind', { kind: projectImportState.preview.kind.toUpperCase() })}
             meta={(
               <div className="panel-meta">
-                <span className="panel-chip">{tf(locale, 'transcription.projectHub.importDialogExportedAt', { at: projectImportState.preview.manifest.exportedAt })}</span>
-                <span className={`panel-chip${projectImportState.preview.totalConflicts > 0 ? ' panel-chip--warning' : ''}`}>{tf(locale, 'transcription.projectHub.importDialogStats', {
+                <PanelChip>{tf(locale, 'transcription.projectHub.importDialogExportedAt', { at: projectImportState.preview.manifest.exportedAt })}</PanelChip>
+                <PanelChip variant={projectImportState.preview.totalConflicts > 0 ? 'warning' : 'default'}>{tf(locale, 'transcription.projectHub.importDialogStats', {
                   incoming: projectImportState.preview.totalIncoming,
                   conflicts: projectImportState.preview.totalConflicts,
                   insertable: previewInsertEstimate,
-                })}</span>
+                })}</PanelChip>
               </div>
             )}
           />
@@ -498,59 +494,46 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             </table>
           </div>
           </PanelSection>
-      </DialogShell>
-    </div>,
-    document.body,
-  ) : null;
+        </>
+      )}
+    </ModalPanel>
+  );
 
-  const annotationImportDialogNode = annotationImportState ? createPortal(
-    <div className="dialog-overlay dialog-overlay-topmost" role="presentation" onClick={() => {
-      if (!annotationImportState.importing) setAnnotationImportState(null);
-    }}>
-      <DialogShell
-        className="left-rail-project-import-dialog panel-design-match panel-design-match-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t(locale, 'transcription.projectHub.annotationImportDialogTitle')}
-        title={t(locale, 'transcription.projectHub.annotationImportDialogTitle')}
-        actions={(
-          <button
-            type="button"
-            className="icon-btn"
+  const annotationImportDialogNode = (
+    <ModalPanel
+      isOpen={annotationImportState !== null}
+      onClose={handleCloseAnnotationImport}
+      topmost
+      className="left-rail-project-import-dialog panel-design-match panel-design-match-dialog"
+      ariaLabel={t(locale, 'transcription.projectHub.annotationImportDialogTitle')}
+      title={t(locale, 'transcription.projectHub.annotationImportDialogTitle')}
+      closeLabel={`${t(locale, 'transcription.projectHub.annotationImportDialogTitle')} ${t(locale, 'transcription.dialog.cancel')}`}
+      closeDisabled={annotationImportState?.importing}
+      footer={annotationImportState ? (
+        <>
+          <PanelButton
+            variant="ghost"
             disabled={annotationImportState.importing}
             onClick={() => setAnnotationImportState(null)}
-            aria-label={`${t(locale, 'transcription.projectHub.annotationImportDialogTitle')} ${t(locale, 'transcription.dialog.cancel')}`}
-            title={`${t(locale, 'transcription.projectHub.annotationImportDialogTitle')} ${t(locale, 'transcription.dialog.cancel')}`}
           >
-            <X size={18} />
-          </button>
-        )}
-        footer={(
-          <>
-            <button
-              type="button"
-              className="panel-button panel-button--ghost"
-              disabled={annotationImportState.importing}
-              onClick={() => setAnnotationImportState(null)}
-            >
-              {t(locale, 'transcription.dialog.cancel')}
-            </button>
-            <button
-              type="button"
-              className="panel-button panel-button--primary"
-              disabled={annotationImportState.importing}
-              onClick={() => {
-                fireAndForget(handleConfirmAnnotationImport());
-              }}
-            >
-              {annotationImportState.importing
-                ? t(locale, 'transcription.projectHub.importing')
-                : t(locale, 'transcription.projectHub.confirmAnnotationImport')}
-            </button>
-          </>
-        )}
-        onClick={(event) => event.stopPropagation()}
-      >
+            {t(locale, 'transcription.dialog.cancel')}
+          </PanelButton>
+          <PanelButton
+            variant="primary"
+            disabled={annotationImportState.importing}
+            onClick={() => {
+              fireAndForget(handleConfirmAnnotationImport());
+            }}
+          >
+            {annotationImportState.importing
+              ? t(locale, 'transcription.projectHub.importing')
+              : t(locale, 'transcription.projectHub.confirmAnnotationImport')}
+          </PanelButton>
+        </>
+      ) : undefined}
+    >
+      {annotationImportState && (
+        <>
         <PanelSummary
           className="left-rail-project-import-summary"
           title={annotationImportState.file.name}
@@ -591,10 +574,10 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             </label>
           </fieldset>
         </PanelSection>
-      </DialogShell>
-    </div>,
-    document.body,
-  ) : null;
+        </>
+      )}
+    </ModalPanel>
+  );
 
   return (
     <>

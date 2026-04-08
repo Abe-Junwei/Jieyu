@@ -3,6 +3,7 @@ import type { LayerDocType } from '../db';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { fireAndForget } from '../utils/fireAndForget';
 import { formatSidePaneLayerLabel } from '../utils/transcriptionFormatters';
+import { ActionButtonGroup } from './ui';
 import { SidePaneActionModal } from './SidePaneActionModal';
 import { SidePaneSidebarSpeakerManagement } from './SidePaneSidebarSpeakerManagement';
 
@@ -187,7 +188,7 @@ export function SidePaneSidebarActions({
             />
             {messages.deleteKeepUtterances}
           </label>
-          <div className="layer-action-dialog-actions">
+          <ActionButtonGroup className="layer-action-dialog-actions">
             <button
               className="layer-action-dialog-btn layer-action-dialog-btn-danger"
               disabled={!quickDeleteLayerId}
@@ -201,7 +202,7 @@ export function SidePaneSidebarActions({
               {messages.deleteButton}
             </button>
             <button className="layer-action-dialog-btn layer-action-dialog-btn-ghost" onClick={() => setLayerActionPanel(null)}>{messages.cancelButton}</button>
-          </div>
+          </ActionButtonGroup>
         </SidePaneActionModal>
       )}
 

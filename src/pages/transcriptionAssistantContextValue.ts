@@ -26,7 +26,12 @@ interface BuildTranscriptionAssistantContextValueInput {
   aiCurrentTask: AiPanelContextValue['aiCurrentTask'];
   aiVisibleCards: AiPanelContextValue['aiVisibleCards'];
   selectedTranslationGapCount: number;
+  vadCacheStatus?: AiPanelContextValue['vadCacheStatus'];
+  acousticSummary?: AiPanelContextValue['acousticSummary'];
+  acousticInspector?: AiPanelContextValue['acousticInspector'];
+  acousticDetail?: AiPanelContextValue['acousticDetail'];
   handleJumpToTranslationGap: NonNullable<AiPanelContextValue['onJumpToTranslationGap']>;
+  handleJumpToAcousticHotspot?: AiPanelContextValue['onJumpToAcousticHotspot'];
 }
 
 export function buildTranscriptionAssistantContextValue(input: BuildTranscriptionAssistantContextValueInput): AiPanelContextValue {
@@ -45,7 +50,12 @@ export function buildTranscriptionAssistantContextValue(input: BuildTranscriptio
     lexemeMatches: input.lexemeMatches,
     aiPanelMode: input.aiPanelMode,
     selectedTranslationGapCount: input.selectedTranslationGapCount,
+    ...(input.vadCacheStatus !== undefined ? { vadCacheStatus: input.vadCacheStatus } : {}),
+    ...(input.acousticSummary !== undefined ? { acousticSummary: input.acousticSummary } : {}),
+    ...(input.acousticInspector !== undefined ? { acousticInspector: input.acousticInspector } : {}),
+    ...(input.acousticDetail !== undefined ? { acousticDetail: input.acousticDetail } : {}),
     onJumpToTranslationGap: input.handleJumpToTranslationGap,
+    ...(input.handleJumpToAcousticHotspot ? { onJumpToAcousticHotspot: input.handleJumpToAcousticHotspot } : {}),
     onChangeAiPanelMode: input.setAiPanelMode,
     ...(input.handleOpenWordNote ? { onOpenWordNote: input.handleOpenWordNote } : {}),
     ...(input.handleOpenMorphemeNote ? { onOpenMorphemeNote: input.handleOpenMorphemeNote } : {}),

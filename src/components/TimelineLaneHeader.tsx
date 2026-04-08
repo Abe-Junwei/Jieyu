@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { X } from 'lucide-react';
 import type { LayerLinkDocType, LayerDocType, LayerDisplaySettings, OrthographyDocType } from '../db';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { buildLayerBundles } from '../services/LayerOrderingService';
@@ -13,9 +12,7 @@ import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
 import { useTimelineLaneHeaderDrag } from './useTimelineLaneHeaderDrag';
-import { DialogShell } from './ui/DialogShell';
-import { PanelSection } from './ui/PanelSection';
-import { PanelSummary } from './ui/PanelSummary';
+import { ModalPanel, PanelButton, PanelSection, PanelSummary } from './ui';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
@@ -507,41 +504,22 @@ export function TimelineLaneHeader({
       )}
 
       {laneLockDialog && (
-        <div
-          className="dialog-overlay dialog-overlay-topmost"
-          onClick={closeLaneLockDialog}
-          onMouseDown={(event) => event.stopPropagation()}
-          onPointerDown={(event) => event.stopPropagation()}
-          role="presentation"
+        <ModalPanel
+          isOpen={Boolean(laneLockDialog)}
+          onClose={closeLaneLockDialog}
+          topmost
+          className="timeline-lane-lock-dialog panel-design-match panel-design-match-dialog"
+          ariaLabel={decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}
+          title={decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}
+          closeLabel={decodeEscapedUnicode('\\u5173\\u95ed\\u9501\\u5b9a\\u8f68\\u9053\\u9762\\u677f')}
+          style={{ width: laneLockDialogWidth, maxWidth: 'calc(100vw - 32px)', height: 'auto' }}
+          footer={(
+            <>
+              <PanelButton variant="ghost" onClick={closeLaneLockDialog}>{decodeEscapedUnicode('\\u53d6\\u6d88')}</PanelButton>
+              <PanelButton variant="primary" onClick={confirmLaneLockDialog}>{decodeEscapedUnicode('\\u786e\\u8ba4\\u9501\\u5b9a')}</PanelButton>
+            </>
+          )}
         >
-          <DialogShell
-            className="timeline-lane-lock-dialog panel-design-match panel-design-match-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-label={decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}
-            title={decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}
-            actions={(
-              <button
-                type="button"
-                className="icon-btn"
-                onClick={closeLaneLockDialog}
-                aria-label={decodeEscapedUnicode('\\u5173\\u95ed\\u9501\\u5b9a\\u8f68\\u9053\\u9762\\u677f')}
-                title={decodeEscapedUnicode('\\u5173\\u95ed')}
-              >
-                <X size={18} />
-              </button>
-            )}
-            onClick={(event) => event.stopPropagation()}
-            onMouseDown={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
-            style={{ width: laneLockDialogWidth, maxWidth: 'calc(100vw - 32px)', height: 'auto' }}
-            footer={(
-              <>
-                <button type="button" className="panel-button panel-button--ghost" onClick={closeLaneLockDialog}>{decodeEscapedUnicode('\\u53d6\\u6d88')}</button>
-                <button type="button" className="panel-button panel-button--primary" onClick={confirmLaneLockDialog}>{decodeEscapedUnicode('\\u786e\\u8ba4\\u9501\\u5b9a')}</button>
-              </>
-            )}
-          >
             <div className="speaker-rail-batch-panel">
               <PanelSummary
                 className="speaker-rail-summary-card"
@@ -577,8 +555,7 @@ export function TimelineLaneHeader({
                 {laneLockError && <p className="speaker-rail-form-error">{laneLockError}</p>}
               </PanelSection>
             </div>
-          </DialogShell>
-        </div>
+        </ModalPanel>
       )}
 
     </div>
