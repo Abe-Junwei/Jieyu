@@ -345,7 +345,7 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(hookCode.includes("const [laneLabelWidth, setLaneLabelWidth] = useState<number>(() => readStoredClampedNumber('jieyu:lane-label-width', 40, 180, 64));")).toBe(true);
     expect(hookCode.includes('const handleLaneLabelWidthResizeStart = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {')).toBe(true);
-    expect(hookCode.includes("const [videoLayoutMode, setVideoLayoutMode] = useState<VideoLayoutMode>(() => readStoredVideoLayoutMode());")).toBe(true);
+    expect(hookCode.includes('const [videoLayoutMode, setVideoLayoutMode] = useState<VideoLayoutMode>(readStoredVideoLayoutModePreference);')).toBe(true);
     expect(hookCode.includes('const handleVideoRightPanelResizeStart = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {')).toBe(true);
     expect(hookCode.includes("if (hasMod && event.shiftKey && !event.altKey && event.key.toLowerCase() === 'f') {")).toBe(true);
     expect(hookCode.includes("localStorage.setItem('jieyu:lane-heights', JSON.stringify(timelineLaneHeights));")).toBe(true);
@@ -835,7 +835,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('const handleWaveformResizeStart = useCallback(')).toBe(false);
 
     expect(hookCode.includes("localStorage.setItem('jieyu:waveform-height'")).toBe(true);
-    expect(hookCode.includes("localStorage.setItem('jieyu:amplitude-scale'")).toBe(true);
+    expect(hookCode.includes('localStorage.setItem(WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY, String(amplitudeScale));')).toBe(true);
     expect(hookCode.includes('setIsResizingWaveform(true);')).toBe(true);
   });
 

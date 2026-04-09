@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   useTranscriptionAiController,
   type UseTranscriptionAiControllerInput,
@@ -58,10 +58,60 @@ interface TranscriptionPageAssistantBridgeProps {
   onRuntimeStateChange: (state: DeferredTranscriptionAiRuntimeState) => void;
 }
 
+function buildRuntimeStateFingerprint(state: DeferredTranscriptionAiRuntimeState): string {
+  try {
+    const visited = new WeakSet<object>();
+    return JSON.stringify({
+      aiChat: {
+        enabled: state.aiChat.enabled,
+        providerLabel: state.aiChat.providerLabel,
+        settings: state.aiChat.settings,
+        messages: state.aiChat.messages,
+        isStreaming: state.aiChat.isStreaming,
+        lastError: state.aiChat.lastError,
+        connectionTestStatus: state.aiChat.connectionTestStatus,
+        connectionTestMessage: state.aiChat.connectionTestMessage,
+        contextDebugSnapshot: state.aiChat.contextDebugSnapshot,
+        pendingToolCall: state.aiChat.pendingToolCall,
+        taskSession: state.aiChat.taskSession,
+        metrics: state.aiChat.metrics,
+        sessionMemory: state.aiChat.sessionMemory,
+      },
+      aiToolDecisionLogs: state.aiToolDecisionLogs,
+      acousticRuntimeStatus: state.acousticRuntimeStatus,
+      acousticSummary: state.acousticSummary,
+      acousticDetail: state.acousticDetail,
+      acousticDetailFullMedia: state.acousticDetailFullMedia,
+      acousticBatchDetails: state.acousticBatchDetails,
+      acousticBatchSelectionCount: state.acousticBatchSelectionCount,
+      acousticBatchDroppedSelectionRanges: state.acousticBatchDroppedSelectionRanges,
+      acousticCalibrationStatus: state.acousticCalibrationStatus,
+      acousticProviderState: state.acousticProviderState,
+    }, (_key, value) => {
+      if (typeof value === 'function') return undefined;
+      if (value && typeof value === 'object') {
+        if (visited.has(value as object)) return '[Circular]';
+        visited.add(value as object);
+      }
+      return value;
+    }) ?? '';
+  } catch {
+    return [
+      state.aiChat.enabled ? 'chat:1' : 'chat:0',
+      `messages:${state.aiChat.messages.length}`,
+      `streaming:${state.aiChat.isStreaming ? 1 : 0}`,
+      `runtime:${state.acousticRuntimeStatus.phase ?? 'none'}`,
+      `provider:${state.acousticProviderState.healthState ?? 'unknown'}`,
+    ].join('|');
+  }
+}
+
 function TranscriptionPageAssistantBridge({
   controllerInput,
   onRuntimeStateChange,
 }: TranscriptionPageAssistantBridgeProps) {
+  const lastFingerprintRef = useRef<string>('');
+
   const {
     aiChat,
     aiToolDecisionLogs,
@@ -147,9 +197,18 @@ function TranscriptionPageAssistantBridge({
     handleJumpToAcousticHotspot,
   ]);
 
+  const runtimeStateFingerprint = useMemo(
+    () => buildRuntimeStateFingerprint(runtimeState),
+    [runtimeState],
+  );
+
   useEffect(() => {
+    if (lastFingerprintRef.current === runtimeStateFingerprint) {
+      return;
+    }
+    lastFingerprintRef.current = runtimeStateFingerprint;
     onRuntimeStateChange(runtimeState);
-  }, [onRuntimeStateChange, runtimeState]);
+  }, [onRuntimeStateChange, runtimeState, runtimeStateFingerprint]);
 
   return null;
 }
