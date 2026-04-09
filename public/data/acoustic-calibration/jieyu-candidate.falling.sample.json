@@ -1,0 +1,11 @@
+{
+  "sampleId": "jieyu-candidate-falling-sample",
+  "sampleRate": 16000,
+  "frames": [
+    { "timeSec": 0.40, "f0Hz": 230.4, "intensityDb": -15.1, "formantF1Hz": 652.0, "formantF2Hz": 2168.0 },
+    { "timeSec": 0.60, "f0Hz": 225.7, "intensityDb": -15.0, "formantF1Hz": 634.0, "formantF2Hz": 2099.0 },
+    { "timeSec": 0.80, "f0Hz": 214.8, "intensityDb": -16.2, "formantF1Hz": 616.0, "formantF2Hz": 2038.0 },
+    { "timeSec": 1.00, "f0Hz": 209.9, "intensityDb": -16.3, "formantF1Hz": 598.0, "formantF2Hz": 1970.0 },
+    { "timeSec": 1.20, "f0Hz": 202.5, "intensityDb": -17.4, "formantF1Hz": 579.0, "formantF2Hz": 1916.0 }
+  ]
+}

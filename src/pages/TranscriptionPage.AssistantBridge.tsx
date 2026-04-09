@@ -6,7 +6,13 @@ import {
 } from './useTranscriptionAiController';
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
 import type { AcousticPromptSummary } from './TranscriptionPage.aiPromptContext';
-import type { AcousticPanelDetail } from '../utils/acousticPanelDetail';
+import type {
+  AcousticBatchSelectionRange,
+  AcousticCalibrationStatus,
+  AcousticPanelBatchDetail,
+  AcousticPanelDetail,
+} from '../utils/acousticPanelDetail';
+import type { ResolvedAcousticProviderState } from '../services/acoustic/acousticProviderContract';
 
 type DeferredAiChatState = {
   enabled: UseTranscriptionAiControllerResult['aiChat']['enabled'];
@@ -38,6 +44,12 @@ export interface DeferredTranscriptionAiRuntimeState {
   acousticRuntimeStatus: AcousticRuntimeStatus;
   acousticSummary: AcousticPromptSummary | null;
   acousticDetail: AcousticPanelDetail | null;
+  acousticDetailFullMedia: AcousticPanelDetail | null;
+  acousticBatchDetails: AcousticPanelBatchDetail[];
+  acousticBatchSelectionCount: number;
+  acousticBatchDroppedSelectionRanges: AcousticBatchSelectionRange[];
+  acousticCalibrationStatus: AcousticCalibrationStatus;
+  acousticProviderState: ResolvedAcousticProviderState;
   onJumpToAcousticHotspot: (timeSec: number) => void;
 }
 
@@ -56,6 +68,12 @@ function TranscriptionPageAssistantBridge({
     acousticRuntimeStatus,
     acousticSummary,
     acousticDetail,
+    acousticDetailFullMedia,
+    acousticBatchDetails,
+    acousticBatchSelectionCount,
+    acousticBatchDroppedSelectionRanges,
+    acousticCalibrationStatus,
+    acousticProviderState,
     handleJumpToAcousticHotspot,
   } = useTranscriptionAiController(controllerInput);
 
@@ -87,8 +105,20 @@ function TranscriptionPageAssistantBridge({
     acousticRuntimeStatus,
     acousticSummary,
     acousticDetail,
+    acousticDetailFullMedia,
+    acousticBatchDetails,
+    acousticBatchSelectionCount,
+    acousticBatchDroppedSelectionRanges,
+    acousticCalibrationStatus,
+    acousticProviderState,
     onJumpToAcousticHotspot: handleJumpToAcousticHotspot,
   }), [
+    acousticBatchDetails,
+    acousticBatchDroppedSelectionRanges,
+    acousticBatchSelectionCount,
+    acousticCalibrationStatus,
+    acousticDetailFullMedia,
+    acousticProviderState,
     acousticRuntimeStatus,
     acousticDetail,
     acousticSummary,

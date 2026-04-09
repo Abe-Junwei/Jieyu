@@ -4,6 +4,8 @@ export type AcousticPanelTrend = 'rising' | 'falling' | 'flat' | 'mixed';
 
 export type AcousticCalibrationStatus = 'exploratory' | 'calibrated';
 
+export const ACOUSTIC_CALIBRATION_VERSION = 'acoustic-calibration-fixed-v1-2026-04-09';
+
 export interface AcousticPanelFramePoint {
   timeSec: number;
   relativeTimeSec: number;
@@ -68,6 +70,25 @@ export interface AcousticPanelDetail {
   toneBins: AcousticPanelToneBin[];
 }
 
+export interface AcousticBatchSelectionRange {
+  selectionId: string;
+  selectionLabel?: string;
+  selectionStartSec: number;
+  selectionEndSec: number;
+}
+
+export interface AcousticPanelBatchDetail {
+  selectionId: string;
+  selectionLabel?: string;
+  detail: AcousticPanelDetail;
+  calibrationStatus: AcousticCalibrationStatus;
+}
+
+export interface AcousticPanelBatchBuildResult {
+  details: AcousticPanelBatchDetail[];
+  droppedSelectionRanges: AcousticBatchSelectionRange[];
+}
+
 const DEFAULT_TONE_BIN_COUNT = 24;
 const DEFAULT_SLICE_HALF_WINDOW_SEC = 0.06;
 
@@ -119,19 +140,78 @@ function sanitizeFileStem(value: string): string {
   return normalized || 'acoustic-selection';
 }
 
-export function buildAcousticPanelDetail(
-  analysis: AcousticFeatureResult | null,
-  selectionStartSec?: number,
-  selectionEndSec?: number,
-): AcousticPanelDetail | null {
-  if (!analysis || selectionStartSec === undefined || selectionEndSec === undefined || selectionEndSec <= selectionStartSec) {
-    return null;
-  }
+function csvEscape(value: string): string {
+  if (!/[",\n\r]/.test(value)) return value;
+  return `"${value.replace(/"/g, '""')}"`;
+}
 
-  const selectionDurationSec = selectionEndSec - selectionStartSec;
-  const sourceFrames = analysis.frames.filter((frame) => frame.timeSec >= selectionStartSec && frame.timeSec <= selectionEndSec);
+function csvCell(value: string | number | null | undefined): string {
+  if (value == null) return '';
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(value) : '';
+  }
+  return csvEscape(value);
+}
+
+function joinCsvRow(values: Array<string | number | null | undefined>): string {
+  return values.map((value) => csvCell(value)).join(',');
+}
+
+function lowerBoundByTime<T extends { timeSec: number }>(frames: T[], timeSec: number): number {
+  let low = 0;
+  let high = frames.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    const midTime = frames[mid]?.timeSec ?? Number.POSITIVE_INFINITY;
+    if (midTime < timeSec) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+}
+
+function upperBoundByTime<T extends { timeSec: number }>(frames: T[], timeSec: number): number {
+  let low = 0;
+  let high = frames.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    const midTime = frames[mid]?.timeSec ?? Number.POSITIVE_INFINITY;
+    if (midTime <= timeSec) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+}
+
+function selectAnalysisFramesByRange(
+  analysis: AcousticFeatureResult,
+  selectionStartSec: number,
+  selectionEndSec: number,
+): AcousticFeatureResult['frames'] {
+  const frames = analysis.frames;
+  if (frames.length === 0) return [];
+  const isTerminalSelection = Math.abs(selectionEndSec - analysis.durationSec) <= 1e-6;
+  const startIndex = lowerBoundByTime(frames, selectionStartSec);
+  const endIndex = isTerminalSelection
+    ? upperBoundByTime(frames, selectionEndSec)
+    : lowerBoundByTime(frames, selectionEndSec);
+  if (endIndex <= startIndex) return [];
+  return frames.slice(startIndex, endIndex);
+}
+
+function buildAcousticPanelDetailFromFrames(
+  analysis: AcousticFeatureResult,
+  selectionStartSec: number,
+  selectionEndSec: number,
+  sourceFrames: AcousticFeatureResult['frames'],
+): AcousticPanelDetail | null {
   if (sourceFrames.length === 0) return null;
 
+  const selectionDurationSec = selectionEndSec - selectionStartSec;
   const voicedF0Values = sourceFrames
     .map((frame) => frame.f0Hz)
     .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
@@ -150,15 +230,15 @@ export function buildAcousticPanelDetail(
     f0Hz: frame.f0Hz,
     intensityDb: frame.intensityDb,
     reliability: frame.reliability,
-    spectralCentroidHz: frame.spectralCentroidHz,
-    spectralRolloffHz: frame.spectralRolloffHz,
-    zeroCrossingRate: frame.zeroCrossingRate,
-    spectralFlatness: frame.spectralFlatness,
-    loudnessDb: frame.loudnessDb,
-    mfccCoefficients: frame.mfccCoefficients,
-    formantF1Hz: frame.formantF1Hz,
-    formantF2Hz: frame.formantF2Hz,
-    formantReliability: frame.formantReliability,
+    ...(frame.spectralCentroidHz !== undefined ? { spectralCentroidHz: frame.spectralCentroidHz } : {}),
+    ...(frame.spectralRolloffHz !== undefined ? { spectralRolloffHz: frame.spectralRolloffHz } : {}),
+    ...(frame.zeroCrossingRate !== undefined ? { zeroCrossingRate: frame.zeroCrossingRate } : {}),
+    ...(frame.spectralFlatness !== undefined ? { spectralFlatness: frame.spectralFlatness } : {}),
+    ...(frame.loudnessDb !== undefined ? { loudnessDb: frame.loudnessDb } : {}),
+    ...(frame.mfccCoefficients !== undefined ? { mfccCoefficients: frame.mfccCoefficients } : {}),
+    ...(frame.formantF1Hz !== undefined ? { formantF1Hz: frame.formantF1Hz } : {}),
+    ...(frame.formantF2Hz !== undefined ? { formantF2Hz: frame.formantF2Hz } : {}),
+    ...(frame.formantReliability !== undefined ? { formantReliability: frame.formantReliability } : {}),
     normalizedF0: typeof frame.f0Hz === 'number' ? normalize(frame.f0Hz, f0Min, f0Max) : null,
     normalizedIntensity: normalize(frame.intensityDb, intensityMin, intensityMax),
   }));
@@ -213,6 +293,74 @@ export function buildAcousticPanelDetail(
   };
 }
 
+export function buildAcousticPanelDetail(
+  analysis: AcousticFeatureResult | null,
+  selectionStartSec?: number,
+  selectionEndSec?: number,
+): AcousticPanelDetail | null {
+  if (!analysis || selectionStartSec === undefined || selectionEndSec === undefined || selectionEndSec <= selectionStartSec) {
+    return null;
+  }
+  const sourceFrames = selectAnalysisFramesByRange(analysis, selectionStartSec, selectionEndSec);
+  return buildAcousticPanelDetailFromFrames(
+    analysis,
+    selectionStartSec,
+    selectionEndSec,
+    sourceFrames,
+  );
+}
+
+export function buildAcousticPanelBatchDetails(
+  analysis: AcousticFeatureResult | null,
+  ranges: AcousticBatchSelectionRange[] | null | undefined,
+): AcousticPanelBatchDetail[] {
+  return buildAcousticPanelBatchBuildResult(analysis, ranges).details;
+}
+
+export function buildAcousticPanelBatchBuildResult(
+  analysis: AcousticFeatureResult | null,
+  ranges: AcousticBatchSelectionRange[] | null | undefined,
+): AcousticPanelBatchBuildResult {
+  if (!analysis || !ranges || ranges.length === 0) {
+    return {
+      details: [],
+      droppedSelectionRanges: [],
+    };
+  }
+
+  const details: AcousticPanelBatchDetail[] = [];
+  const droppedSelectionRanges: AcousticBatchSelectionRange[] = [];
+
+  ranges.forEach((range) => {
+    const sourceFrames = selectAnalysisFramesByRange(
+      analysis,
+      range.selectionStartSec,
+      range.selectionEndSec,
+    );
+    const detail = buildAcousticPanelDetailFromFrames(
+      analysis,
+      range.selectionStartSec,
+      range.selectionEndSec,
+      sourceFrames,
+    );
+    if (!detail) {
+      droppedSelectionRanges.push(range);
+      return;
+    }
+    details.push({
+      selectionId: range.selectionId,
+      ...(range.selectionLabel ? { selectionLabel: range.selectionLabel } : {}),
+      detail,
+      calibrationStatus: deriveAcousticCalibrationStatus(detail),
+    });
+  });
+
+  return {
+    details,
+    droppedSelectionRanges,
+  };
+}
+
 export function buildAcousticInspectorSlice(
   detail: AcousticPanelDetail | null,
   centerTimeSec?: number,
@@ -224,7 +372,9 @@ export function buildAcousticInspectorSlice(
 
   const startSec = Math.max(detail.selectionStartSec, centerTimeSec - halfWindowSec);
   const endSec = Math.min(detail.selectionEndSec, centerTimeSec + halfWindowSec);
-  const windowFrames = detail.frames.filter((frame) => frame.timeSec >= startSec && frame.timeSec <= endSec);
+  const startIndex = lowerBoundByTime(detail.frames, startSec);
+  const endIndex = upperBoundByTime(detail.frames, endSec);
+  const windowFrames = endIndex > startIndex ? detail.frames.slice(startIndex, endIndex) : [];
   if (windowFrames.length === 0) return null;
 
   const voicedFrames = windowFrames.filter((frame) => typeof frame.f0Hz === 'number');
@@ -272,7 +422,35 @@ export function serializeAcousticPanelDetailCsv(detail: AcousticPanelDetail): st
     frame.formantF1Hz == null ? '' : frame.formantF1Hz.toFixed(4),
     frame.formantF2Hz == null ? '' : frame.formantF2Hz.toFixed(4),
     frame.formantReliability == null ? '' : frame.formantReliability.toFixed(4),
-  ].join(','));
+  ]).map((row) => joinCsvRow(row));
+  return [header.join(','), ...rows].join('\n');
+}
+
+export function serializeAcousticPanelBatchDetailCsv(items: AcousticPanelBatchDetail[]): string {
+  const header = ['selectionId', 'selectionLabel', 'selectionStartSec', 'selectionEndSec', 'timeSec', 'relativeTimeSec', 'timeRatio', 'f0Hz', 'intensityDb', 'reliability', 'spectralCentroidHz', 'spectralRolloffHz', 'zeroCrossingRate', 'spectralFlatness', 'loudnessDb', 'mfcc1', 'mfcc2', 'mfcc3', 'formantF1Hz', 'formantF2Hz', 'formantReliability'];
+  const rows = items.flatMap((item) => item.detail.frames.map((frame) => [
+    item.selectionId,
+    item.selectionLabel ?? '',
+    item.detail.selectionStartSec.toFixed(4),
+    item.detail.selectionEndSec.toFixed(4),
+    frame.timeSec.toFixed(4),
+    frame.relativeTimeSec.toFixed(4),
+    frame.timeRatio.toFixed(4),
+    frame.f0Hz == null ? '' : frame.f0Hz.toFixed(4),
+    frame.intensityDb.toFixed(4),
+    frame.reliability.toFixed(4),
+    frame.spectralCentroidHz == null ? '' : frame.spectralCentroidHz.toFixed(4),
+    frame.spectralRolloffHz == null ? '' : frame.spectralRolloffHz.toFixed(4),
+    frame.zeroCrossingRate == null ? '' : frame.zeroCrossingRate.toFixed(4),
+    frame.spectralFlatness == null ? '' : frame.spectralFlatness.toFixed(4),
+    frame.loudnessDb == null ? '' : frame.loudnessDb.toFixed(4),
+    frame.mfccCoefficients?.[0] == null ? '' : frame.mfccCoefficients[0].toFixed(4),
+    frame.mfccCoefficients?.[1] == null ? '' : frame.mfccCoefficients[1].toFixed(4),
+    frame.mfccCoefficients?.[2] == null ? '' : frame.mfccCoefficients[2].toFixed(4),
+    frame.formantF1Hz == null ? '' : frame.formantF1Hz.toFixed(4),
+    frame.formantF2Hz == null ? '' : frame.formantF2Hz.toFixed(4),
+    frame.formantReliability == null ? '' : frame.formantReliability.toFixed(4),
+  ])).map((row) => joinCsvRow(row));
   return [header.join(','), ...rows].join('\n');
 }
 
@@ -296,8 +474,42 @@ export function serializeAcousticPanelDetailJson(detail: AcousticPanelDetail): s
   }, null, 2);
 }
 
+export function serializeAcousticPanelBatchDetailJson(items: AcousticPanelBatchDetail[]): string {
+  return JSON.stringify({
+    format: 'jieyu-acoustic-export-batch',
+    formatVersion: 1,
+    exportedAt: new Date().toISOString(),
+    itemCount: items.length,
+    items: items.map((item) => ({
+      selectionId: item.selectionId,
+      ...(item.selectionLabel ? { selectionLabel: item.selectionLabel } : {}),
+      calibrationStatus: item.calibrationStatus,
+      mediaKey: item.detail.mediaKey,
+      sampleRate: item.detail.sampleRate,
+      algorithmVersion: item.detail.algorithmVersion,
+      modelVersion: item.detail.modelVersion,
+      persistenceVersion: item.detail.persistenceVersion,
+      frameStepSec: item.detail.frameStepSec,
+      analysisWindowSec: item.detail.analysisWindowSec,
+      yinThreshold: item.detail.yinThreshold,
+      silenceRmsThreshold: item.detail.silenceRmsThreshold,
+      selectionStartSec: item.detail.selectionStartSec,
+      selectionEndSec: item.detail.selectionEndSec,
+      sampleCount: item.detail.sampleCount,
+      voicedSampleCount: item.detail.voicedSampleCount,
+      toneBins: item.detail.toneBins,
+      frames: item.detail.frames,
+    })),
+  }, null, 2);
+}
+
 export function buildAcousticExportFileStem(detail: AcousticPanelDetail): string {
   return `${sanitizeFileStem(detail.mediaKey)}-${detail.selectionStartSec.toFixed(2)}-${detail.selectionEndSec.toFixed(2)}s`;
+}
+
+export function buildAcousticBatchExportFileStem(items: AcousticPanelBatchDetail[]): string {
+  const mediaKey = items[0]?.detail.mediaKey ?? 'acoustic-selection';
+  return `${sanitizeFileStem(mediaKey)}-batch-${items.length}-selections`;
 }
 
 /**
@@ -340,6 +552,7 @@ export function serializeAcousticPanelDetailJsonResearch(detail: AcousticPanelDe
     algorithmVersion: detail.algorithmVersion,
     modelVersion: detail.modelVersion,
     persistenceVersion: detail.persistenceVersion,
+    calibrationVersion: ACOUSTIC_CALIBRATION_VERSION,
     calibrationStatus,
     parameters: {
       frameStepSec: detail.frameStepSec,
@@ -357,5 +570,41 @@ export function serializeAcousticPanelDetailJsonResearch(detail: AcousticPanelDe
     },
     toneBins: detail.toneBins,
     frames: detail.frames,
+  }, null, 2);
+}
+
+export function serializeAcousticPanelBatchDetailJsonResearch(items: AcousticPanelBatchDetail[]): string {
+  return JSON.stringify({
+    format: 'jieyu-acoustic-export-batch-research',
+    formatVersion: 1,
+    exportedAt: new Date().toISOString(),
+    calibrationVersion: ACOUSTIC_CALIBRATION_VERSION,
+    itemCount: items.length,
+    items: items.map((item) => ({
+      selectionId: item.selectionId,
+      ...(item.selectionLabel ? { selectionLabel: item.selectionLabel } : {}),
+      calibrationStatus: item.calibrationStatus,
+      mediaKey: item.detail.mediaKey,
+      sampleRate: item.detail.sampleRate,
+      algorithmVersion: item.detail.algorithmVersion,
+      modelVersion: item.detail.modelVersion,
+      persistenceVersion: item.detail.persistenceVersion,
+      parameters: {
+        frameStepSec: item.detail.frameStepSec,
+        analysisWindowSec: item.detail.analysisWindowSec,
+        yinThreshold: item.detail.yinThreshold,
+        silenceRmsThreshold: item.detail.silenceRmsThreshold,
+      },
+      selection: {
+        startSec: item.detail.selectionStartSec,
+        endSec: item.detail.selectionEndSec,
+      },
+      statistics: {
+        sampleCount: item.detail.sampleCount,
+        voicedSampleCount: item.detail.voicedSampleCount,
+      },
+      toneBins: item.detail.toneBins,
+      frames: item.detail.frames,
+    })),
   }, null, 2);
 }

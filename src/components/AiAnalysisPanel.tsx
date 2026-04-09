@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Bot, WandSparkles } from 'lucide-react';
 import { t, tf, useLocale } from '../i18n';
 import { useAiPanelContext } from '../contexts/AiPanelContext';
@@ -8,18 +8,37 @@ import { PanelSection } from './ui/PanelSection';
 import { PanelSummary } from './ui/PanelSummary';
 import type { AcousticDiagnosticKey } from '../pages/TranscriptionPage.aiPromptContext';
 import {
+  buildAcousticBatchExportFileStem,
   buildAcousticExportFileStem,
   buildAcousticInspectorSlice,
+  serializeAcousticPanelBatchDetailCsv,
+  serializeAcousticPanelBatchDetailJson,
+  serializeAcousticPanelBatchDetailJsonResearch,
   serializeAcousticPanelDetailCsv,
   serializeAcousticPanelDetailJson,
+  serializeAcousticPanelDetailJsonResearch,
   serializeAcousticPitchTierText,
+  type AcousticPanelBatchDetail,
+  type AcousticPanelDetail,
   type AcousticPanelTrend,
 } from '../utils/acousticPanelDetail';
-import type { AcousticHotspotKind } from '../utils/acousticOverlayTypes';
+import {
+  DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
+  type AcousticAnalysisConfig,
+  type AcousticHotspotKind,
+} from '../utils/acousticOverlayTypes';
 import {
   ACOUSTIC_ANALYSIS_PRESETS,
   type AcousticAnalysisPresetKey,
 } from '../utils/acousticAnalysisPresets';
+import {
+  acousticProviderDefinitions,
+  persistAcousticProviderRuntimeConfig,
+  probeExternalAcousticProviderHealth,
+  resolveAcousticProviderRuntimeConfig,
+  type AcousticProviderRuntimeConfig,
+  type ExternalAcousticProviderHealthCheckResult,
+} from '../services/acoustic/acousticProviderContract';
 
 export type AiPanelMode = 'auto' | 'all';
 
@@ -90,6 +109,218 @@ function buildNormalizedPath(
     .join(' ');
 }
 
+function findNearestFrameByTime<T extends { timeSec: number }>(frames: T[], timeSec: number | undefined): T | null {
+  if (timeSec === undefined || frames.length === 0) return null;
+  let low = 0;
+  let high = frames.length - 1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    const midTime = frames[mid]?.timeSec ?? Number.POSITIVE_INFINITY;
+    if (midTime < timeSec) {
+      low = mid + 1;
+    } else if (midTime > timeSec) {
+      high = mid - 1;
+    } else {
+      return frames[mid] ?? null;
+    }
+  }
+
+  const right = low < frames.length ? frames[low] : null;
+  const left = low > 0 ? (frames[low - 1] ?? null) : null;
+  if (!left) return right;
+  if (!right) return left;
+  return Math.abs(left.timeSec - timeSec) <= Math.abs(right.timeSec - timeSec) ? left : right;
+}
+
+type AcousticExportFormat = 'csv' | 'json' | 'json_research' | 'pitchtier';
+
+type AcousticExportWorkerRequest = {
+  requestId: string;
+  type: 'serialize';
+  scope: 'single' | 'batch';
+  format: AcousticExportFormat;
+  payload: AcousticPanelDetail | AcousticPanelBatchDetail[];
+};
+
+type AcousticExportWorkerResponse = {
+  requestId: string;
+  ok: boolean;
+  content?: string;
+  error?: string;
+};
+
+const MAX_ACOUSTIC_EXPORT_FRAME_COUNT = 120_000;
+const MAX_ACOUSTIC_EXPORT_ESTIMATED_BYTES = 48 * 1024 * 1024;
+const ACOUSTIC_EXPORT_ESTIMATED_BYTES_PER_FRAME = 256;
+const ACOUSTIC_EXPORT_ESTIMATED_BYTES_PER_TONE_BIN = 96;
+
+type AcousticExportPayloadStats = {
+  frameCount: number;
+  toneBinCount: number;
+  estimatedBytes: number;
+};
+
+function measureAcousticExportPayloadStats(
+  scope: 'single' | 'batch',
+  payload: AcousticPanelDetail | AcousticPanelBatchDetail[],
+): AcousticExportPayloadStats {
+  if (scope === 'single') {
+    const detail = payload as AcousticPanelDetail;
+    const frameCount = detail.frames.length;
+    const toneBinCount = detail.toneBins.length;
+    return {
+      frameCount,
+      toneBinCount,
+      estimatedBytes: (frameCount * ACOUSTIC_EXPORT_ESTIMATED_BYTES_PER_FRAME)
+        + (toneBinCount * ACOUSTIC_EXPORT_ESTIMATED_BYTES_PER_TONE_BIN),
+    };
+  }
+
+  const items = payload as AcousticPanelBatchDetail[];
+  const frameCount = items.reduce((sum, item) => sum + item.detail.frames.length, 0);
+  const toneBinCount = items.reduce((sum, item) => sum + item.detail.toneBins.length, 0);
+  return {
+    frameCount,
+    toneBinCount,
+    estimatedBytes: (frameCount * ACOUSTIC_EXPORT_ESTIMATED_BYTES_PER_FRAME)
+      + (toneBinCount * ACOUSTIC_EXPORT_ESTIMATED_BYTES_PER_TONE_BIN),
+  };
+}
+
+function resolveAcousticExportMimeType(format: AcousticExportFormat): string {
+  if (format === 'csv') return 'text/csv;charset=utf-8';
+  if (format === 'pitchtier') return 'text/plain;charset=utf-8';
+  return 'application/json;charset=utf-8';
+}
+
+function resolveAcousticExportFilename(stem: string, format: AcousticExportFormat): string {
+  if (format === 'csv') return `${stem}.csv`;
+  if (format === 'pitchtier') return `${stem}.PitchTier`;
+  if (format === 'json_research') return `${stem}.research.json`;
+  return `${stem}.json`;
+}
+
+function serializeAcousticExportSync(
+  scope: 'single' | 'batch',
+  format: AcousticExportFormat,
+  payload: AcousticPanelDetail | AcousticPanelBatchDetail[],
+): string | null {
+  if (scope === 'batch') {
+    const items = payload as AcousticPanelBatchDetail[];
+    if (format === 'pitchtier') return null;
+    if (format === 'csv') return serializeAcousticPanelBatchDetailCsv(items);
+    if (format === 'json_research') return serializeAcousticPanelBatchDetailJsonResearch(items);
+    return serializeAcousticPanelBatchDetailJson(items);
+  }
+
+  const detail = payload as AcousticPanelDetail;
+  if (format === 'csv') return serializeAcousticPanelDetailCsv(detail);
+  if (format === 'pitchtier') return serializeAcousticPitchTierText(detail);
+  if (format === 'json_research') return serializeAcousticPanelDetailJsonResearch(detail);
+  return serializeAcousticPanelDetailJson(detail);
+}
+
+async function serializeAcousticExportWithWorker(
+  scope: 'single' | 'batch',
+  format: AcousticExportFormat,
+  payload: AcousticPanelDetail | AcousticPanelBatchDetail[],
+): Promise<string | null> {
+  if (scope === 'batch' && format === 'pitchtier') {
+    return null;
+  }
+
+  if (typeof Worker === 'undefined') {
+    return serializeAcousticExportSync(scope, format, payload);
+  }
+
+  return new Promise<string | null>((resolve, reject) => {
+    const worker = new Worker(new URL('../workers/acousticExport.worker.ts', import.meta.url), { type: 'module' });
+    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    let settled = false;
+    const rejectAndCleanup = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      worker.terminate();
+      reject(error);
+    };
+    const resolveAndCleanup = (content: string) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      worker.terminate();
+      resolve(content);
+    };
+    const timeoutId = window.setTimeout(() => {
+      rejectAndCleanup(new Error('Acoustic export serialization timed out'));
+    }, 30_000);
+
+    worker.onmessage = (event: MessageEvent<AcousticExportWorkerResponse>) => {
+      const message = event.data;
+      if (!message || message.requestId !== requestId) return;
+      if (!message.ok) {
+        rejectAndCleanup(new Error(message.error ?? 'Acoustic export serialization failed'));
+        return;
+      }
+      resolveAndCleanup(message.content ?? '');
+    };
+
+    worker.onerror = () => {
+      rejectAndCleanup(new Error('Acoustic export worker failed'));
+    };
+
+    const request: AcousticExportWorkerRequest = {
+      requestId,
+      type: 'serialize',
+      scope,
+      format,
+      payload,
+    };
+    try {
+      worker.postMessage(request);
+    } catch (error) {
+      rejectAndCleanup(error instanceof Error ? error : new Error('Acoustic export worker failed'));
+    }
+  });
+}
+
+function formatDelta(
+  current: number | null | undefined,
+  baseline: number | null | undefined,
+  unit: string,
+  digits: number,
+): string | null {
+  if (typeof current !== 'number' || typeof baseline !== 'number') return null;
+  return `${(current - baseline).toFixed(digits)} ${unit}`;
+}
+
+const ACOUSTIC_NUMERIC_BOUNDS: Record<
+keyof Pick<AcousticAnalysisConfig, 'pitchFloorHz' | 'pitchCeilingHz' | 'analysisWindowSec' | 'frameStepSec' | 'silenceRmsThreshold'>,
+{ min: number; max: number }
+> = {
+  pitchFloorHz: { min: 30, max: 500 },
+  pitchCeilingHz: { min: 80, max: 1200 },
+  analysisWindowSec: { min: 0.01, max: 0.12 },
+  frameStepSec: { min: 0.002, max: 0.04 },
+  silenceRmsThreshold: { min: 0.001, max: 0.2 },
+};
+
+function resolvePresetKeyFromOverride(
+  override: Partial<AcousticAnalysisConfig> | null | undefined,
+): AcousticAnalysisPresetKey {
+  if (!override || Object.keys(override).length === 0) return 'default';
+
+  const preset = ACOUSTIC_ANALYSIS_PRESETS.find((item) => {
+    if (item.key === 'default' || item.key === 'custom') return false;
+    const presetKeys = Object.keys(item.config) as Array<keyof AcousticAnalysisConfig>;
+    const overrideKeys = Object.keys(override) as Array<keyof AcousticAnalysisConfig>;
+    if (presetKeys.length !== overrideKeys.length) return false;
+    return presetKeys.every((configKey) => override[configKey] === item.config[configKey]);
+  });
+
+  return preset?.key ?? 'custom';
+}
+
 function downloadTextPayload(filename: string, content: string, mimeType: string): void {
   const blob = new Blob([content], { type: mimeType });
   const url = window.URL.createObjectURL(blob);
@@ -98,6 +329,38 @@ function downloadTextPayload(filename: string, content: string, mimeType: string
   anchor.download = filename;
   anchor.click();
   window.URL.revokeObjectURL(url);
+}
+
+type ProviderConfigSaveState = 'idle' | 'saved' | 'error';
+const PROVIDER_PREFERENCE_AUTO = '__auto__';
+type AcousticConfigOverride = Partial<AcousticAnalysisConfig> | null;
+
+function pruneAcousticConfigOverride(override: AcousticConfigOverride): AcousticConfigOverride {
+  if (!override) return null;
+  const entries = Object.entries(override)
+    .filter(([, value]) => value !== undefined)
+    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+  if (entries.length === 0) return null;
+  return Object.fromEntries(entries) as Partial<AcousticAnalysisConfig>;
+}
+
+function areAcousticConfigOverridesEqual(
+  left: AcousticConfigOverride,
+  right: AcousticConfigOverride,
+): boolean {
+  const normalizedLeft = pruneAcousticConfigOverride(left);
+  const normalizedRight = pruneAcousticConfigOverride(right);
+  if (normalizedLeft === null || normalizedRight === null) {
+    return normalizedLeft === normalizedRight;
+  }
+
+  const leftEntries = Object.entries(normalizedLeft).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+  const rightEntries = Object.entries(normalizedRight).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+  if (leftEntries.length !== rightEntries.length) return false;
+  return leftEntries.every(([key, value], index) => {
+    const [rightKey, rightValue] = rightEntries[index] ?? [];
+    return key === rightKey && value === rightValue;
+  });
 }
 
 interface AiAnalysisPanelProps {
@@ -128,25 +391,222 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     acousticSummary,
     acousticInspector,
     pinnedInspector,
-    selectedHotspotTimeSec: _selectedHotspotTimeSec,
+    selectedHotspotTimeSec,
     acousticDetail,
+    acousticDetailFullMedia,
+    acousticBatchDetails,
+    acousticBatchSelectionCount,
+    acousticBatchDroppedSelectionRanges,
+    acousticCalibrationStatus,
     onJumpToAcousticHotspot,
     onPinInspector,
     onClearPinnedInspector,
-    onSelectHotspot: _onSelectHotspot,
+    onSelectHotspot,
     onChangeAcousticConfig,
+    onResetAcousticConfig,
     acousticConfigOverride,
+    acousticProviderPreference,
+    acousticProviderState,
+    onChangeAcousticProvider,
+    onRefreshAcousticProviderState,
   } = useAiPanelContext();
 
   const [activePreset, setActivePreset] = useState<AcousticAnalysisPresetKey>('default');
+  const [draftAcousticConfigOverride, setDraftAcousticConfigOverride] = useState<AcousticConfigOverride>(() => acousticConfigOverride ?? null);
+  const [exportScope, setExportScope] = useState<'selection' | 'full_media' | 'batch_selection'>('selection');
+  const [providerRuntimeConfig, setProviderRuntimeConfig] = useState<AcousticProviderRuntimeConfig>(() => resolveAcousticProviderRuntimeConfig());
+  const [providerSaveState, setProviderSaveState] = useState<ProviderConfigSaveState>('idle');
+  const [providerSaveError, setProviderSaveError] = useState<string | null>(null);
+  const [providerHealthChecking, setProviderHealthChecking] = useState(false);
+  const [providerHealthResult, setProviderHealthResult] = useState<ExternalAcousticProviderHealthCheckResult | null>(null);
+  const [acousticExporting, setAcousticExporting] = useState(false);
+  const [acousticExportError, setAcousticExportError] = useState<string | null>(null);
+  const providerHealthAbortRef = useRef<AbortController | null>(null);
+  const providerHealthRequestSeqRef = useRef(0);
+
+  const effectiveDraftAcousticConfig = useMemo<AcousticAnalysisConfig>(() => ({
+    ...DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
+    ...(draftAcousticConfigOverride ?? {}),
+  }), [draftAcousticConfigOverride]);
+  const hasPendingAcousticConfigChanges = !areAcousticConfigOverridesEqual(
+    draftAcousticConfigOverride,
+    acousticConfigOverride ?? null,
+  );
+
+  useEffect(() => {
+    setDraftAcousticConfigOverride(acousticConfigOverride ?? null);
+  }, [acousticConfigOverride]);
+
+  useEffect(() => {
+    const resolvedPreset = resolvePresetKeyFromOverride(draftAcousticConfigOverride);
+    setActivePreset((previous) => (previous === resolvedPreset ? previous : resolvedPreset));
+  }, [draftAcousticConfigOverride]);
 
   const handlePresetChange = useCallback((key: AcousticAnalysisPresetKey) => {
+    if (key === 'custom') return;
     setActivePreset(key);
-    const preset = ACOUSTIC_ANALYSIS_PRESETS.find((p) => p.key === key);
-    if (preset && onChangeAcousticConfig) {
-      onChangeAcousticConfig(key === 'default' ? {} : preset.config);
+    if (key === 'default') {
+      setDraftAcousticConfigOverride(null);
+      return;
     }
-  }, [onChangeAcousticConfig]);
+    const preset = ACOUSTIC_ANALYSIS_PRESETS.find((p) => p.key === key);
+    if (preset) {
+      setDraftAcousticConfigOverride(preset.config);
+    }
+  }, []);
+
+  const handleNumericConfigChange = useCallback((key: keyof Pick<AcousticAnalysisConfig, 'pitchFloorHz' | 'pitchCeilingHz' | 'analysisWindowSec' | 'frameStepSec' | 'silenceRmsThreshold'>) => (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const raw = event.target.value.trim();
+    if (raw.length === 0) return;
+
+    const value = Number(raw);
+    if (!Number.isFinite(value)) return;
+
+    const bounds = ACOUSTIC_NUMERIC_BOUNDS[key];
+    const clampedValue = Math.min(bounds.max, Math.max(bounds.min, value));
+    if (clampedValue === effectiveDraftAcousticConfig[key]) return;
+
+    setActivePreset('custom');
+    setDraftAcousticConfigOverride((previous) => ({
+      ...(previous ?? {}),
+      [key]: clampedValue,
+    }));
+  }, [effectiveDraftAcousticConfig]);
+
+  const handleResetAcousticConfigDraft = useCallback(() => {
+    setActivePreset('default');
+    setDraftAcousticConfigOverride(null);
+  }, []);
+
+  const handleApplyAcousticConfig = useCallback(() => {
+    if (!hasPendingAcousticConfigChanges) return;
+    const normalizedDraft = pruneAcousticConfigOverride(draftAcousticConfigOverride);
+    if (!normalizedDraft) {
+      onResetAcousticConfig?.();
+      return;
+    }
+    onChangeAcousticConfig?.(normalizedDraft, { replace: true });
+  }, [draftAcousticConfigOverride, hasPendingAcousticConfigChanges, onChangeAcousticConfig, onResetAcousticConfig]);
+
+  const handleProviderRoutingStrategyChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    const nextStrategy = event.target.value === 'prefer-external' ? 'prefer-external' : 'local-first';
+    setProviderRuntimeConfig((previous) => ({
+      ...previous,
+      routingStrategy: nextStrategy,
+    }));
+    setProviderSaveState('idle');
+    setProviderSaveError(null);
+  }, []);
+
+  const handleProviderExternalEnabledChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const checked = event.target.checked;
+    setProviderRuntimeConfig((previous) => ({
+      ...previous,
+      externalProvider: {
+        ...previous.externalProvider,
+        enabled: checked,
+      },
+    }));
+    setProviderSaveState('idle');
+    setProviderSaveError(null);
+  }, []);
+
+  const handleProviderEndpointChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const endpoint = event.target.value;
+    setProviderRuntimeConfig((previous) => ({
+      ...previous,
+      externalProvider: {
+        ...previous.externalProvider,
+        endpoint,
+      },
+    }));
+    setProviderSaveState('idle');
+    setProviderSaveError(null);
+  }, []);
+
+  const handleProviderApiKeyChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const apiKey = event.target.value;
+    setProviderRuntimeConfig((previous) => ({
+      ...previous,
+      externalProvider: {
+        ...previous.externalProvider,
+        apiKey,
+      },
+    }));
+    setProviderSaveState('idle');
+    setProviderSaveError(null);
+  }, []);
+
+  const handleProviderTimeoutChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const value = Number(event.target.value);
+    if (!Number.isFinite(value)) return;
+    const timeoutMs = Math.max(500, Math.min(120_000, Math.round(value)));
+    setProviderRuntimeConfig((previous) => ({
+      ...previous,
+      externalProvider: {
+        ...previous.externalProvider,
+        timeoutMs,
+      },
+    }));
+    setProviderSaveState('idle');
+    setProviderSaveError(null);
+  }, []);
+
+  const handleReloadProviderConfig = useCallback(() => {
+    const next = resolveAcousticProviderRuntimeConfig();
+    setProviderRuntimeConfig(next);
+    setProviderSaveState('idle');
+    setProviderSaveError(null);
+    setProviderHealthResult(null);
+    onRefreshAcousticProviderState?.();
+  }, [onRefreshAcousticProviderState]);
+
+  const handleSaveProviderConfig = useCallback(() => {
+    try {
+      const persisted = persistAcousticProviderRuntimeConfig(providerRuntimeConfig);
+      setProviderRuntimeConfig(persisted);
+      setProviderSaveState('saved');
+      setProviderSaveError(null);
+      setProviderHealthResult(null);
+      onRefreshAcousticProviderState?.();
+    } catch (error) {
+      setProviderSaveState('error');
+      setProviderSaveError(error instanceof Error ? error.message : String(error));
+    }
+  }, [onRefreshAcousticProviderState, providerRuntimeConfig]);
+
+  const handleCheckProviderHealth = useCallback(async () => {
+    const requestSeq = providerHealthRequestSeqRef.current + 1;
+    providerHealthRequestSeqRef.current = requestSeq;
+    providerHealthAbortRef.current?.abort();
+    const controller = new AbortController();
+    providerHealthAbortRef.current = controller;
+    setProviderHealthChecking(true);
+
+    try {
+      const result = await probeExternalAcousticProviderHealth({
+        runtimeConfig: providerRuntimeConfig,
+        signal: controller.signal,
+      });
+      if (providerHealthRequestSeqRef.current !== requestSeq || controller.signal.aborted) {
+        return;
+      }
+      setProviderHealthResult(result);
+    } finally {
+      if (providerHealthRequestSeqRef.current === requestSeq) {
+        setProviderHealthChecking(false);
+      }
+      if (providerHealthAbortRef.current === controller) {
+        providerHealthAbortRef.current = null;
+      }
+    }
+  }, [providerRuntimeConfig]);
+
+  useEffect(() => () => {
+    providerHealthAbortRef.current?.abort();
+  }, []);
 
   const shouldShow = (card: AiPanelCardKey): boolean => {
     if (!aiVisibleCards) return true;
@@ -192,6 +652,12 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
       : acousticRuntimeStatus?.state === 'error'
         ? t(locale, 'ai.acoustic.runtimeProgressFailed')
         : t(locale, 'ai.stats.acousticUnavailable');
+  const acousticRuntimeErrorMessage = acousticRuntimeStatus?.state === 'error'
+    ? acousticRuntimeStatus.errorMessage ?? null
+    : null;
+  const acousticRuntimeErrorSummary = acousticRuntimeStatus?.state === 'error'
+    ? t(locale, 'ai.acoustic.runtimeErrorHint')
+    : null;
   const hotspotKindLabel: Record<AcousticHotspotKind, string> = {
     pitch_peak: t(locale, 'ai.stats.acousticHotspot.pitchPeak'),
     pitch_break: t(locale, 'ai.stats.acousticHotspot.pitchBreak'),
@@ -235,18 +701,15 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     () => buildAcousticInspectorSlice(acousticDetail ?? null, acousticInspector?.timeSec),
     [acousticDetail, acousticInspector?.timeSec],
   );
+  const acousticComparisonDetail = acousticDetailFullMedia ?? acousticDetail;
   const acousticDescriptorFrame = useMemo(() => {
-    if (!acousticDetail || acousticDetail.frames.length === 0 || acousticInspector?.timeSec === undefined) {
-      return null;
-    }
-
-    return acousticDetail.frames.reduce((closest, current) => {
-      if (!closest) return current;
-      return Math.abs(current.timeSec - acousticInspector.timeSec) < Math.abs(closest.timeSec - acousticInspector.timeSec)
-        ? current
-        : closest;
-    }, acousticDetail.frames[0] ?? null);
-  }, [acousticDetail, acousticInspector?.timeSec]);
+    if (!acousticComparisonDetail) return null;
+    return findNearestFrameByTime(acousticComparisonDetail.frames, acousticInspector?.timeSec);
+  }, [acousticComparisonDetail, acousticInspector?.timeSec]);
+  const pinnedDescriptorFrame = useMemo(() => {
+    if (!acousticComparisonDetail) return null;
+    return findNearestFrameByTime(acousticComparisonDetail.frames, pinnedInspector?.timeSec);
+  }, [acousticComparisonDetail, pinnedInspector?.timeSec]);
   const vowelSpacePoints = useMemo(() => {
     if (!acousticDetail) return [] as Array<{ x: number; y: number; f1Hz: number; f2Hz: number }>;
 
@@ -286,22 +749,114 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     mixed: t(locale, 'ai.acoustic.trend.mixed'),
   };
 
-  const handleExportAcoustic = (format: 'csv' | 'json' | 'pitchtier') => {
-    if (!acousticDetail) return;
-    const stem = buildAcousticExportFileStem(acousticDetail);
-    if (format === 'csv') {
-      downloadTextPayload(`${stem}.csv`, serializeAcousticPanelDetailCsv(acousticDetail), 'text/csv;charset=utf-8');
+  const exportTargetDetail = exportScope === 'full_media'
+    ? (acousticDetailFullMedia ?? acousticDetail)
+    : exportScope === 'selection'
+      ? acousticDetail
+      : null;
+  const exportBatchDetails = acousticBatchDetails ?? [];
+  const batchSelectionCount = acousticBatchSelectionCount ?? exportBatchDetails.length;
+  const droppedBatchRanges = acousticBatchDroppedSelectionRanges ?? [];
+  const batchSkippedCount = droppedBatchRanges.length;
+  const droppedBatchLabels = droppedBatchRanges
+    .map((item) => item.selectionLabel ?? item.selectionId)
+    .slice(0, 8);
+  const droppedBatchLabelText = droppedBatchLabels.join(', ');
+  const isBatchExportScope = exportScope === 'batch_selection';
+  const canExportBatch = exportBatchDetails.length > 1;
+  const providerSaveMessage = providerSaveState === 'saved'
+    ? t(locale, 'ai.acoustic.providerSaved')
+    : providerSaveState === 'error'
+      ? (providerSaveError ?? t(locale, 'ai.acoustic.providerSaveFailed'))
+      : null;
+  const providerHealthLabelMap: Record<ExternalAcousticProviderHealthCheckResult['state'], string> = {
+    available: t(locale, 'ai.acoustic.providerHealthAvailable'),
+    disabled: t(locale, 'ai.acoustic.providerHealthDisabled'),
+    unconfigured: t(locale, 'ai.acoustic.providerHealthUnconfigured'),
+    aborted: t(locale, 'ai.acoustic.providerHealthAborted'),
+    unauthorized: t(locale, 'ai.acoustic.providerHealthUnauthorized'),
+    forbidden: t(locale, 'ai.acoustic.providerHealthForbidden'),
+    timeout: t(locale, 'ai.acoustic.providerHealthTimeout'),
+    'network-error': t(locale, 'ai.acoustic.providerHealthNetworkError'),
+    'http-error': t(locale, 'ai.acoustic.providerHealthHttpError'),
+    'unknown-error': t(locale, 'ai.acoustic.providerHealthUnknownError'),
+  };
+  const providerHealthLabel = providerHealthChecking
+    ? t(locale, 'ai.acoustic.providerHealthChecking')
+    : providerHealthResult
+      ? providerHealthLabelMap[providerHealthResult.state]
+      : t(locale, 'ai.acoustic.providerHealthIdle');
+  const providerHealthLatencyLabel = providerHealthResult?.latencyMs != null
+    ? tf(locale, 'ai.acoustic.providerHealthLatency', { latencyMs: String(providerHealthResult.latencyMs) })
+    : null;
+  const providerHealthMeta = providerHealthResult
+    ? providerHealthResult.state === 'available'
+      ? providerHealthLatencyLabel
+      : providerHealthResult.message ?? providerHealthLatencyLabel
+    : null;
+  const providerConfigured = acousticProviderState?.reachability.available ?? false;
+
+  useEffect(() => {
+    if (exportScope !== 'batch_selection' || canExportBatch) return;
+    setExportScope(acousticDetail ? 'selection' : 'full_media');
+  }, [acousticDetail, canExportBatch, exportScope]);
+
+  const handleExportAcoustic = async (format: AcousticExportFormat) => {
+    if (acousticExporting) return;
+
+    const scope: 'single' | 'batch' = isBatchExportScope ? 'batch' : 'single';
+    if (scope === 'batch') {
+      if (!canExportBatch) return;
+      if (format === 'pitchtier') return;
+    } else if (!exportTargetDetail) {
       return;
     }
-    if (format === 'pitchtier') {
-      downloadTextPayload(`${stem}.PitchTier`, serializeAcousticPitchTierText(acousticDetail), 'text/plain;charset=utf-8');
+
+    const payload = scope === 'batch'
+      ? exportBatchDetails
+      : exportTargetDetail;
+    if (!payload) return;
+
+    const payloadStats = measureAcousticExportPayloadStats(scope, payload);
+    if (payloadStats.frameCount > MAX_ACOUSTIC_EXPORT_FRAME_COUNT || payloadStats.estimatedBytes > MAX_ACOUSTIC_EXPORT_ESTIMATED_BYTES) {
+      const estimatedMiB = Math.max(1, Math.round(payloadStats.estimatedBytes / (1024 * 1024)));
+      setAcousticExportError(locale.startsWith('zh')
+        ? `导出数据过大（约 ${estimatedMiB} MB / ${payloadStats.frameCount} 帧），请缩小导出范围后重试。`
+        : `Export payload is too large (~${estimatedMiB} MB / ${payloadStats.frameCount} frames). Narrow the export scope and retry.`);
       return;
     }
-    downloadTextPayload(`${stem}.json`, serializeAcousticPanelDetailJson(acousticDetail), 'application/json;charset=utf-8');
+
+    const stem = scope === 'batch'
+      ? buildAcousticBatchExportFileStem(exportBatchDetails)
+      : buildAcousticExportFileStem(exportTargetDetail!);
+
+    setAcousticExporting(true);
+    setAcousticExportError(null);
+    try {
+      let content: string | null = null;
+      try {
+        content = await serializeAcousticExportWithWorker(scope, format, payload);
+      } catch {
+        content = serializeAcousticExportSync(scope, format, payload);
+      }
+      if (content == null) return;
+      downloadTextPayload(
+        resolveAcousticExportFilename(stem, format),
+        content,
+        resolveAcousticExportMimeType(format),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setAcousticExportError(locale.startsWith('zh')
+        ? `导出失败：${message}`
+        : `Export failed: ${message}`);
+    } finally {
+      setAcousticExporting(false);
+    }
   };
 
   return (
-    <div className="pnl-analysis-panel panel-design-match-content">
+    <div className="pnl-analysis-panel panel-design-match-content" data-ai-analysis-panel="true">
       <div className="transcription-analysis-panel-header">
         <div className="transcription-ai-header-title">
           <Bot size={14} />
@@ -480,6 +1035,15 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                   <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.runtimeProgress')}</span>
                   <span className="transcription-analysis-stats-value">{acousticRuntimeLabel}</span>
                 </div>
+                {acousticRuntimeErrorSummary ? (
+                  <p className="transcription-analysis-acoustic-export-note">{acousticRuntimeErrorSummary}</p>
+                ) : null}
+                {acousticRuntimeErrorMessage ? (
+                  <details className="transcription-analysis-acoustic-export-note">
+                    <summary>{t(locale, 'ai.acoustic.runtimeErrorDetails')}</summary>
+                    <p className="transcription-analysis-acoustic-export-note">{acousticRuntimeErrorMessage}</p>
+                  </details>
+                ) : null}
                 <div className="transcription-analysis-stats-row">
                   <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.runtimeVad')}</span>
                   <span className="transcription-analysis-stats-value">{vadCacheLabel}</span>
@@ -496,17 +1060,102 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                           onChange={(event) => handlePresetChange(event.target.value as AcousticAnalysisPresetKey)}
                         >
                           {ACOUSTIC_ANALYSIS_PRESETS.map((preset) => (
-                            <option key={preset.key} value={preset.key}>{preset.label}</option>
+                            <option key={preset.key} value={preset.key} disabled={preset.key === 'custom'}>{preset.label}</option>
                           ))}
                         </select>
                       </span>
                     </div>
-                    {acousticConfigOverride && Object.keys(acousticConfigOverride).length > 0 ? (
+                    {activePreset === 'custom' ? (
                       <div className="transcription-analysis-stats-row">
                         <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.paramOverride')}</span>
                         <span className="transcription-analysis-stats-value">
                           <PanelChip variant="warning">{t(locale, 'ai.acoustic.paramCustomActive')}</PanelChip>
                         </span>
+                      </div>
+                    ) : null}
+                    <div className="transcription-analysis-acoustic-param-grid">
+                      <label className="transcription-analysis-acoustic-param-field">
+                        <span>{t(locale, 'ai.acoustic.paramPitchFloor')}</span>
+                        <input
+                          className="transcription-analysis-acoustic-param-input"
+                          type="number"
+                          min={30}
+                          max={500}
+                          step={1}
+                          value={effectiveDraftAcousticConfig.pitchFloorHz}
+                          onChange={handleNumericConfigChange('pitchFloorHz')}
+                        />
+                      </label>
+                      <label className="transcription-analysis-acoustic-param-field">
+                        <span>{t(locale, 'ai.acoustic.paramPitchCeiling')}</span>
+                        <input
+                          className="transcription-analysis-acoustic-param-input"
+                          type="number"
+                          min={80}
+                          max={1200}
+                          step={1}
+                          value={effectiveDraftAcousticConfig.pitchCeilingHz}
+                          onChange={handleNumericConfigChange('pitchCeilingHz')}
+                        />
+                      </label>
+                      <label className="transcription-analysis-acoustic-param-field">
+                        <span>{t(locale, 'ai.acoustic.paramWindow')}</span>
+                        <input
+                          className="transcription-analysis-acoustic-param-input"
+                          type="number"
+                          min={0.01}
+                          max={0.12}
+                          step={0.001}
+                          value={effectiveDraftAcousticConfig.analysisWindowSec}
+                          onChange={handleNumericConfigChange('analysisWindowSec')}
+                        />
+                      </label>
+                      <label className="transcription-analysis-acoustic-param-field">
+                        <span>{t(locale, 'ai.acoustic.paramFrameStep')}</span>
+                        <input
+                          className="transcription-analysis-acoustic-param-input"
+                          type="number"
+                          min={0.002}
+                          max={0.04}
+                          step={0.001}
+                          value={effectiveDraftAcousticConfig.frameStepSec}
+                          onChange={handleNumericConfigChange('frameStepSec')}
+                        />
+                      </label>
+                      <label className="transcription-analysis-acoustic-param-field">
+                        <span>{t(locale, 'ai.acoustic.paramSilenceThreshold')}</span>
+                        <input
+                          className="transcription-analysis-acoustic-param-input"
+                          type="number"
+                          min={0.001}
+                          max={0.2}
+                          step={0.001}
+                          value={effectiveDraftAcousticConfig.silenceRmsThreshold}
+                          onChange={handleNumericConfigChange('silenceRmsThreshold')}
+                        />
+                      </label>
+                    </div>
+                    {onChangeAcousticConfig || onResetAcousticConfig ? (
+                      <div className="transcription-analysis-acoustic-inspector-actions">
+                        <button
+                          type="button"
+                          className="transcription-analysis-acoustic-nav-btn"
+                          onClick={handleResetAcousticConfigDraft}
+                        >
+                          {t(locale, 'ai.acoustic.paramResetDraft')}
+                        </button>
+                        <button
+                          type="button"
+                          className="transcription-analysis-acoustic-nav-btn"
+                          onClick={handleApplyAcousticConfig}
+                          disabled={
+                            !hasPendingAcousticConfigChanges
+                            || (!draftAcousticConfigOverride && !onResetAcousticConfig)
+                            || (Boolean(draftAcousticConfigOverride) && !onChangeAcousticConfig)
+                          }
+                        >
+                          {t(locale, 'ai.acoustic.paramApply')}
+                        </button>
                       </div>
                     ) : null}
                   </div>
@@ -616,6 +1265,34 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                                 : t(locale, 'ai.stats.acousticUnavailable')}
                             </span>
                           </div>
+                          <div className="transcription-analysis-stats-row">
+                            <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.comparisonDeltaSpectralCentroid')}</span>
+                            <span className="transcription-analysis-stats-value">
+                              {formatDelta(acousticDescriptorFrame?.spectralCentroidHz, pinnedDescriptorFrame?.spectralCentroidHz, 'Hz', 0)
+                                ?? t(locale, 'ai.stats.acousticUnavailable')}
+                            </span>
+                          </div>
+                          <div className="transcription-analysis-stats-row">
+                            <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.comparisonDeltaSpectralRolloff')}</span>
+                            <span className="transcription-analysis-stats-value">
+                              {formatDelta(acousticDescriptorFrame?.spectralRolloffHz, pinnedDescriptorFrame?.spectralRolloffHz, 'Hz', 0)
+                                ?? t(locale, 'ai.stats.acousticUnavailable')}
+                            </span>
+                          </div>
+                          <div className="transcription-analysis-stats-row">
+                            <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.comparisonDeltaFormantF1')}</span>
+                            <span className="transcription-analysis-stats-value">
+                              {formatDelta(acousticDescriptorFrame?.formantF1Hz, pinnedDescriptorFrame?.formantF1Hz, 'Hz', 0)
+                                ?? t(locale, 'ai.stats.acousticUnavailable')}
+                            </span>
+                          </div>
+                          <div className="transcription-analysis-stats-row">
+                            <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.comparisonDeltaFormantF2')}</span>
+                            <span className="transcription-analysis-stats-value">
+                              {formatDelta(acousticDescriptorFrame?.formantF2Hz, pinnedDescriptorFrame?.formantF2Hz, 'Hz', 0)
+                                ?? t(locale, 'ai.stats.acousticUnavailable')}
+                            </span>
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -644,7 +1321,10 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                           <button
                             type="button"
                             className="transcription-analysis-acoustic-nav-btn"
-                            onClick={() => onJumpToAcousticHotspot(acousticInspector.matchedHotspotTimeSec as number)}
+                            onClick={() => {
+                              onSelectHotspot?.(acousticInspector.matchedHotspotTimeSec as number);
+                              onJumpToAcousticHotspot(acousticInspector.matchedHotspotTimeSec as number);
+                            }}
                           >
                             {t(locale, 'ai.acoustic.inspectorJumpHotspot')}
                           </button>
@@ -794,7 +1474,9 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
               className="transcription-analysis-acoustic-section transcription-analysis-acoustic-formant-section"
               title={t(locale, 'ai.acoustic.formantTitle')}
               description={t(locale, 'ai.acoustic.formantDescription')}
-              meta={<PanelChip variant="warning">{t(locale, 'ai.acoustic.formantExploratory')}</PanelChip>}
+              meta={acousticCalibrationStatus === 'calibrated'
+                ? <PanelChip>{t(locale, 'ai.acoustic.formantCalibrated')}</PanelChip>
+                : <PanelChip variant="warning">{t(locale, 'ai.acoustic.formantExploratory')}</PanelChip>}
             >
               <div className="transcription-analysis-acoustic-panel">
                 <div className="transcription-analysis-stats-row">
@@ -889,14 +1571,20 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                     const hotspotF0 = formatHz(hotspot.f0Hz);
                     const hotspotIntensity = formatDb(hotspot.intensityDb);
                     const hotspotReliability = formatRatio(hotspot.reliability);
+                    const isSelectedHotspot = selectedHotspotTimeSec != null
+                      && Math.abs(selectedHotspotTimeSec - hotspot.timeSec) <= 0.01;
 
                     return (
                       <button
                         key={`${hotspot.kind}-${hotspot.timeSec}`}
                         type="button"
-                        className="transcription-analysis-acoustic-hotspot transcription-analysis-acoustic-hotspot-detailed"
-                        onClick={() => onJumpToAcousticHotspot?.(hotspot.timeSec)}
+                        className={`transcription-analysis-acoustic-hotspot transcription-analysis-acoustic-hotspot-detailed${isSelectedHotspot ? ' is-selected' : ''}`}
+                        onClick={() => {
+                          onSelectHotspot?.(hotspot.timeSec);
+                          onJumpToAcousticHotspot?.(hotspot.timeSec);
+                        }}
                         title={tf(locale, 'ai.stats.acousticHotspotJump', { kind: hotspotKindLabel[hotspot.kind], timeSec: hotspot.timeSec.toFixed(2) })}
+                        aria-pressed={isSelectedHotspot}
                         disabled={!onJumpToAcousticHotspot}
                       >
                         <div className="transcription-analysis-acoustic-hotspot-head">
@@ -930,7 +1618,10 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                 <button
                   type="button"
                   className="transcription-analysis-acoustic-nav-btn"
-                  onClick={() => onJumpToAcousticHotspot?.(acousticSummary.selectionStartSec)}
+                  onClick={() => {
+                    onSelectHotspot?.(null);
+                    onJumpToAcousticHotspot?.(acousticSummary.selectionStartSec);
+                  }}
                   disabled={!onJumpToAcousticHotspot}
                 >
                   {t(locale, 'ai.acoustic.jumpSelectionStart')}
@@ -938,7 +1629,10 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                 <button
                   type="button"
                   className="transcription-analysis-acoustic-nav-btn"
-                  onClick={() => onJumpToAcousticHotspot?.(acousticSummary.selectionEndSec)}
+                  onClick={() => {
+                    onSelectHotspot?.(null);
+                    onJumpToAcousticHotspot?.(acousticSummary.selectionEndSec);
+                  }}
                   disabled={!onJumpToAcousticHotspot}
                 >
                   {t(locale, 'ai.acoustic.jumpSelectionEnd')}
@@ -946,7 +1640,11 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                 <button
                   type="button"
                   className="transcription-analysis-acoustic-nav-btn"
-                  onClick={() => topHotspot && onJumpToAcousticHotspot?.(topHotspot.timeSec)}
+                  onClick={() => {
+                    if (!topHotspot) return;
+                    onSelectHotspot?.(topHotspot.timeSec);
+                    onJumpToAcousticHotspot?.(topHotspot.timeSec);
+                  }}
                   disabled={!onJumpToAcousticHotspot || !topHotspot}
                 >
                   {t(locale, 'ai.acoustic.jumpTopHotspot')}
@@ -954,40 +1652,118 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
               </div>
             </PanelSection>
           ) : null}
-          {activeTab === 'acoustic' && acousticDetail ? (
+          {activeTab === 'acoustic' && (acousticDetail || acousticDetailFullMedia || canExportBatch) ? (
             <PanelSection
               className="transcription-analysis-acoustic-section transcription-analysis-acoustic-export-section"
               title={t(locale, 'ai.acoustic.exportTitle')}
               description={t(locale, 'ai.acoustic.exportDescription')}
             >
+              <div className="transcription-analysis-acoustic-export-scope">
+                <button
+                  type="button"
+                  className={`transcription-analysis-acoustic-nav-btn ${exportScope === 'selection' ? 'is-active' : ''}`}
+                  onClick={() => setExportScope('selection')}
+                  disabled={acousticExporting}
+                >
+                  {t(locale, 'ai.acoustic.exportScopeSelection')}
+                </button>
+                <button
+                  type="button"
+                  className={`transcription-analysis-acoustic-nav-btn ${exportScope === 'full_media' ? 'is-active' : ''}`}
+                  onClick={() => setExportScope('full_media')}
+                  disabled={acousticExporting || !acousticDetailFullMedia}
+                >
+                  {t(locale, 'ai.acoustic.exportScopeFullMedia')}
+                </button>
+                <button
+                  type="button"
+                  className={`transcription-analysis-acoustic-nav-btn ${exportScope === 'batch_selection' ? 'is-active' : ''}`}
+                  onClick={() => setExportScope('batch_selection')}
+                  disabled={acousticExporting || !canExportBatch}
+                >
+                  {t(locale, 'ai.acoustic.exportScopeBatchSelection')}
+                </button>
+              </div>
               <div className="transcription-analysis-acoustic-export-actions">
                 <button
                   type="button"
                   className="transcription-analysis-acoustic-nav-btn"
-                  onClick={() => handleExportAcoustic('csv')}
+                  onClick={() => {
+                    void handleExportAcoustic('csv');
+                  }}
+                  disabled={acousticExporting || (isBatchExportScope ? !canExportBatch : !exportTargetDetail)}
                 >
                   {t(locale, 'ai.acoustic.exportCsv')}
                 </button>
                 <button
                   type="button"
                   className="transcription-analysis-acoustic-nav-btn"
-                  onClick={() => handleExportAcoustic('json')}
+                  onClick={() => {
+                    void handleExportAcoustic('json');
+                  }}
+                  disabled={acousticExporting || (isBatchExportScope ? !canExportBatch : !exportTargetDetail)}
                 >
                   {t(locale, 'ai.acoustic.exportJson')}
                 </button>
                 <button
                   type="button"
                   className="transcription-analysis-acoustic-nav-btn"
-                  onClick={() => handleExportAcoustic('pitchtier')}
+                  onClick={() => {
+                    void handleExportAcoustic('pitchtier');
+                  }}
+                  disabled={acousticExporting || isBatchExportScope || !exportTargetDetail}
                 >
                   {t(locale, 'ai.acoustic.exportPitchTier')}
                 </button>
+                <button
+                  type="button"
+                  className="transcription-analysis-acoustic-nav-btn"
+                  onClick={() => {
+                    void handleExportAcoustic('json_research');
+                  }}
+                  disabled={acousticExporting || (isBatchExportScope ? !canExportBatch : !exportTargetDetail)}
+                >
+                  {t(locale, 'ai.acoustic.exportJsonResearch')}
+                </button>
               </div>
+                {isBatchExportScope ? (
+                <p className="transcription-analysis-acoustic-export-note">
+                  {tf(locale, 'ai.acoustic.exportBatchSelectionCount', { count: exportBatchDetails.length })}
+                </p>
+              ) : exportTargetDetail ? (
+                <p className="transcription-analysis-acoustic-export-note">
+                  {tf(locale, 'ai.acoustic.exportSampleCount', { count: exportTargetDetail.sampleCount })}
+                </p>
+              ) : null}
+              {isBatchExportScope ? (
+                <p className="transcription-analysis-acoustic-export-note">{t(locale, 'ai.acoustic.exportPitchTierBatchNote')}</p>
+              ) : null}
+                {batchSkippedCount > 0 ? (
+                  <p className="transcription-analysis-acoustic-export-note">
+                    {tf(locale, 'ai.acoustic.exportBatchSelectionSummary', {
+                      selected: String(batchSelectionCount),
+                      exported: String(exportBatchDetails.length),
+                      skipped: String(batchSkippedCount),
+                    })}
+                  </p>
+                ) : null}
+                {batchSkippedCount > 0 && droppedBatchLabelText ? (
+                  <p className="transcription-analysis-acoustic-export-note">
+                    {tf(locale, 'ai.acoustic.exportBatchSelectionDropped', {
+                      ids: droppedBatchLabelText,
+                    })}
+                  </p>
+                ) : null}
+              {acousticExportError ? (
+                <p className="transcription-analysis-acoustic-export-note" role="status">
+                  {acousticExportError}
+                </p>
+              ) : null}
               <p className="transcription-analysis-acoustic-export-note">{t(locale, 'ai.acoustic.exportBackendNote')}</p>
             </PanelSection>
           ) : null}
           {/* ── Wave E: Provider extension section ── */}
-          {activeTab === 'acoustic' && acousticRuntimeStatus?.state === 'ready' ? (
+          {activeTab === 'acoustic' ? (
             <PanelSection
               className="transcription-analysis-acoustic-section transcription-analysis-acoustic-provider-section"
               title={t(locale, 'ai.acoustic.providerTitle')}
@@ -997,13 +1773,130 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                 <div className="transcription-analysis-stats-row">
                   <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.providerDefault')}</span>
                   <span className="transcription-analysis-stats-value">
-                    <PanelChip>{t(locale, 'ai.acoustic.providerLocal')}</PanelChip>
+                    <PanelChip>{acousticProviderState?.effectiveProviderId ?? 'local-yin-spectral'}</PanelChip>
                   </span>
                 </div>
                 <div className="transcription-analysis-stats-row">
                   <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.providerEnhanced')}</span>
-                  <span className="transcription-analysis-stats-value">{t(locale, 'ai.acoustic.providerNoneConfigured')}</span>
+                  <span className="transcription-analysis-stats-value">
+                    {onChangeAcousticProvider ? (
+                      <select
+                        className="transcription-analysis-acoustic-preset-select"
+                        value={acousticProviderPreference ?? PROVIDER_PREFERENCE_AUTO}
+                        onChange={(event) => onChangeAcousticProvider(event.target.value === PROVIDER_PREFERENCE_AUTO ? null : event.target.value)}
+                      >
+                        <option value={PROVIDER_PREFERENCE_AUTO}>{t(locale, 'ai.acoustic.providerAuto')}</option>
+                        {acousticProviderDefinitions.map((provider) => (
+                          <option key={provider.id} value={provider.id}>{provider.label}</option>
+                        ))}
+                      </select>
+                    ) : t(locale, 'ai.acoustic.providerNoneConfigured')}
+                  </span>
                 </div>
+                <div className="transcription-analysis-stats-row">
+                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.providerRoutingStrategy')}</span>
+                  <span className="transcription-analysis-stats-value">
+                    <select
+                      className="transcription-analysis-acoustic-preset-select"
+                      value={providerRuntimeConfig.routingStrategy}
+                      onChange={handleProviderRoutingStrategyChange}
+                    >
+                      <option value="local-first">{t(locale, 'ai.acoustic.providerRoutingLocalFirst')}</option>
+                      <option value="prefer-external">{t(locale, 'ai.acoustic.providerRoutingPreferExternal')}</option>
+                    </select>
+                  </span>
+                </div>
+                <div className="transcription-analysis-acoustic-param-grid transcription-analysis-acoustic-provider-grid">
+                  <label className="transcription-analysis-acoustic-provider-toggle">
+                    <input
+                      type="checkbox"
+                      checked={providerRuntimeConfig.externalProvider.enabled}
+                      onChange={handleProviderExternalEnabledChange}
+                    />
+                    <span>{t(locale, 'ai.acoustic.providerExternalEnabled')}</span>
+                  </label>
+                  <label className="transcription-analysis-acoustic-param-field">
+                    <span>{t(locale, 'ai.acoustic.providerTimeoutMs')}</span>
+                    <input
+                      className="transcription-analysis-acoustic-param-input"
+                      type="number"
+                      min={500}
+                      max={120000}
+                      step={100}
+                      value={providerRuntimeConfig.externalProvider.timeoutMs}
+                      onChange={handleProviderTimeoutChange}
+                    />
+                  </label>
+                  <label className="transcription-analysis-acoustic-param-field transcription-analysis-acoustic-provider-field-wide">
+                    <span>{t(locale, 'ai.acoustic.providerEndpoint')}</span>
+                    <input
+                      className="transcription-analysis-acoustic-param-input"
+                      type="url"
+                      placeholder="https://example.com/acoustic/analyze"
+                      value={providerRuntimeConfig.externalProvider.endpoint ?? ''}
+                      onChange={handleProviderEndpointChange}
+                    />
+                  </label>
+                  <label className="transcription-analysis-acoustic-param-field transcription-analysis-acoustic-provider-field-wide">
+                    <span>{t(locale, 'ai.acoustic.providerApiKey')}</span>
+                    <input
+                      className="transcription-analysis-acoustic-param-input"
+                      type="password"
+                      value={providerRuntimeConfig.externalProvider.apiKey ?? ''}
+                      onChange={handleProviderApiKeyChange}
+                    />
+                  </label>
+                </div>
+                <div className="transcription-analysis-acoustic-inspector-actions">
+                  <button
+                    type="button"
+                    className="transcription-analysis-acoustic-nav-btn"
+                    onClick={handleSaveProviderConfig}
+                  >
+                    {t(locale, 'ai.acoustic.providerSave')}
+                  </button>
+                  <button
+                    type="button"
+                    className="transcription-analysis-acoustic-nav-btn"
+                    onClick={handleReloadProviderConfig}
+                  >
+                    {t(locale, 'ai.acoustic.providerReload')}
+                  </button>
+                  <button
+                    type="button"
+                    className="transcription-analysis-acoustic-nav-btn"
+                    onClick={() => { void handleCheckProviderHealth(); }}
+                    disabled={providerHealthChecking}
+                  >
+                    {t(locale, 'ai.acoustic.providerCheckHealth')}
+                  </button>
+                </div>
+                <div className="transcription-analysis-stats-row">
+                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.providerStatus')}</span>
+                  <span className="transcription-analysis-stats-value">
+                    {providerConfigured
+                      ? t(locale, 'ai.acoustic.providerStatusAvailable')
+                      : t(locale, 'ai.acoustic.providerStatusUnavailable')}
+                  </span>
+                </div>
+                <div className="transcription-analysis-stats-row">
+                  <span className="transcription-analysis-stats-label">{t(locale, 'ai.acoustic.providerHealthLabel')}</span>
+                  <span className="transcription-analysis-stats-value">{providerHealthLabel}</span>
+                </div>
+                {providerHealthMeta ? (
+                  <p className="transcription-analysis-acoustic-export-note">{providerHealthMeta}</p>
+                ) : null}
+                {acousticProviderState?.fellBackToLocal ? (
+                  <p className="transcription-analysis-acoustic-export-note">
+                    {acousticProviderState.fallbackReason ?? t(locale, 'ai.acoustic.providerNote')}
+                  </p>
+                ) : null}
+                {providerHealthResult?.state === 'unauthorized' || providerHealthResult?.state === 'forbidden' ? (
+                  <p className="transcription-analysis-acoustic-export-note">{t(locale, 'ai.acoustic.providerAuthHint')}</p>
+                ) : null}
+                {providerSaveMessage ? (
+                  <p className="transcription-analysis-acoustic-export-note">{providerSaveMessage}</p>
+                ) : null}
                 <p className="transcription-analysis-acoustic-export-note">{t(locale, 'ai.acoustic.providerNote')}</p>
               </div>
             </PanelSection>

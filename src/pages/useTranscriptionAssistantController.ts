@@ -1,17 +1,14 @@
-import { useCallback, useEffect, useMemo, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { DEFAULT_VOICE_INTENT_RESOLVER_CONFIG } from '../ai/config/voiceIntentResolver';
 import { featureFlags } from '../ai/config/featureFlags';
-import { getDb, type LayerDocType, type UtteranceDocType } from '../db';
+import { getDb, type UtteranceDocType } from '../db';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
-import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import { isSegmentTimelineUnit } from '../hooks/transcriptionTypes';
-import type { AiChatSettings } from '../hooks/useAiChat';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
-import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
+import type { VoiceSession } from '../services/IntentRouter';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
-import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import { bridgeVoiceDictationText, createVoiceDictationPipeline, persistVoiceDictationToUtterance, resolveVoiceDictationTarget } from './voiceDictationRuntime';
 import { buildTranscriptionAssistantContextValue } from './transcriptionAssistantContextValue';
 import type {
@@ -51,12 +48,22 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     input.pinnedInspector,
     input.selectedHotspotTimeSec,
     input.acousticDetail,
+    input.acousticDetailFullMedia,
+    input.acousticBatchDetails,
+    input.acousticBatchSelectionCount,
+    input.acousticBatchDroppedSelectionRanges,
+    input.acousticCalibrationStatus,
     input.acousticConfigOverride,
+    input.acousticProviderPreference,
+    input.acousticProviderState,
     input.handleJumpToAcousticHotspot,
     input.handlePinInspector,
     input.handleClearPinnedInspector,
     input.handleSelectHotspot,
     input.handleChangeAcousticConfig,
+    input.handleResetAcousticConfig,
+    input.handleChangeAcousticProvider,
+    input.handleRefreshAcousticProviderState,
   ]);
 
   useEffect(() => {

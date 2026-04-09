@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AiPanelMode } from '../components/AiAnalysisPanel';
 import type { AiObserverRecommendation } from '../components/transcription/toolbar/ObserverStatus';
-import type { LayerDocType, LayerLinkDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import { useAiChat } from '../hooks/useAiChat';
-import { useAiPanelLogic, taskToPersona, type ActionableRecommendation } from '../hooks/useAiPanelLogic';
+import { useAiPanelLogic, taskToPersona } from '../hooks/useAiPanelLogic';
 import { useAiToolCallHandler } from '../hooks/useAiToolCallHandler';
 import { materializePendingToolCallTargets } from '../hooks/useAiToolCallHandler.segmentTargeting';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
@@ -59,19 +58,35 @@ export function useTranscriptionAiController(
   const [internalAiSidebarError, setInternalAiSidebarError] = useState<string | null>(null);
   const aiSidebarError = input.aiSidebarError ?? internalAiSidebarError;
   const setAiSidebarError = input.setAiSidebarError ?? setInternalAiSidebarError;
+  const acousticBatchSelectionRanges = useMemo(() => input.utterancesOnCurrentMedia
+    .filter((utterance) => input.selectedUnitIds.has(utterance.id))
+    .map((utterance) => ({
+      selectionId: utterance.id,
+      selectionLabel: utterance.id,
+      selectionStartSec: utterance.startTime,
+      selectionEndSec: utterance.endTime,
+    })), [input.selectedUnitIds, input.utterancesOnCurrentMedia]);
 
   const {
     acousticRuntimeStatus,
     acousticSummary,
     acousticDetail,
+    acousticDetailFullMedia,
+    acousticBatchDetails,
+    acousticBatchSelectionCount,
+    acousticBatchDroppedSelectionRanges,
+    acousticCalibrationStatus,
+    acousticProviderState,
     handleJumpToAcousticHotspot,
   } = useTranscriptionAiAcousticRuntime({
-    selectedMediaUrl: input.selectedMediaUrl,
-    selectedTimelineMediaId: input.selectedTimelineMedia?.id,
-    selectionStartSec: input.selectionSnapshot.selectedUnitStartSec,
-    selectionEndSec: input.selectionSnapshot.selectedUnitEndSec,
+    batchSelectionRanges: acousticBatchSelectionRanges,
+    ...(input.selectedMediaUrl !== undefined ? { selectedMediaUrl: input.selectedMediaUrl } : {}),
+    ...(input.selectedTimelineMedia?.id !== undefined ? { selectedTimelineMediaId: input.selectedTimelineMedia.id } : {}),
+    ...(input.selectionSnapshot.selectedUnitStartSec !== undefined ? { selectionStartSec: input.selectionSnapshot.selectedUnitStartSec } : {}),
+    ...(input.selectionSnapshot.selectedUnitEndSec !== undefined ? { selectionEndSec: input.selectionSnapshot.selectedUnitEndSec } : {}),
     seekToTimeRef: input.seekToTimeRef,
-    configOverride: input.acousticConfigOverride,
+    ...(input.acousticConfigOverride !== undefined ? { configOverride: input.acousticConfigOverride } : {}),
+    ...(input.acousticProviderPreference !== undefined ? { providerPreference: input.acousticProviderPreference } : {}),
   });
 
   const refreshAiToolDecisionLogs = useCallback(async () => {
@@ -243,7 +258,6 @@ export function useTranscriptionAiController(
     selectedTranslationGapCount,
     aiCurrentTask,
     aiVisibleCards,
-    vadCacheStatus,
     handleJumpToTranslationGap,
   } = useAiPanelLogic({
     locale: input.locale,
@@ -295,6 +309,12 @@ export function useTranscriptionAiController(
     acousticRuntimeStatus,
     acousticSummary,
     acousticDetail,
+    acousticDetailFullMedia,
+    acousticBatchDetails,
+    acousticBatchSelectionCount,
+    acousticBatchDroppedSelectionRanges,
+    acousticCalibrationStatus,
+    acousticProviderState,
     handleJumpToTranslationGap,
     handleJumpToAcousticHotspot,
     handleExecuteObserverRecommendation,

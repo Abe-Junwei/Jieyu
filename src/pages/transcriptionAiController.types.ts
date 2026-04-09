@@ -15,10 +15,16 @@ import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSna
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import type { ActionableRecommendation } from '../hooks/useAiPanelLogic';
 import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
-import type { AcousticPanelDetail } from '../utils/acousticPanelDetail';
+import type {
+  AcousticBatchSelectionRange,
+  AcousticCalibrationStatus,
+  AcousticPanelBatchDetail,
+  AcousticPanelDetail,
+} from '../utils/acousticPanelDetail';
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
 import type { useAiChat } from '../hooks/useAiChat';
 import type { useAiPanelLogic } from '../hooks/useAiPanelLogic';
+import type { ResolvedAcousticProviderState } from '../services/acoustic/acousticProviderContract';
 
 export interface UseTranscriptionAiControllerInput {
   utterances: UtteranceDocType[];
@@ -83,6 +89,7 @@ export interface UseTranscriptionAiControllerInput {
   embeddingProviderConfig?: { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string };
   setEmbeddingProviderConfig?: React.Dispatch<React.SetStateAction<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>>;
   acousticConfigOverride?: Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig> | null;
+  acousticProviderPreference?: string | null;
 }
 
 export interface UseTranscriptionAiControllerResult {
@@ -104,6 +111,12 @@ export interface UseTranscriptionAiControllerResult {
   acousticRuntimeStatus: AcousticRuntimeStatus;
   acousticSummary: AcousticPromptSummary | null;
   acousticDetail: AcousticPanelDetail | null;
+  acousticDetailFullMedia: AcousticPanelDetail | null;
+  acousticBatchDetails: AcousticPanelBatchDetail[];
+  acousticBatchSelectionCount: number;
+  acousticBatchDroppedSelectionRanges: AcousticBatchSelectionRange[];
+  acousticCalibrationStatus: AcousticCalibrationStatus;
+  acousticProviderState: ResolvedAcousticProviderState;
   handleJumpToTranslationGap: () => void;
   handleJumpToAcousticHotspot: (timeSec: number) => void;
   handleExecuteObserverRecommendation: (item: AiObserverRecommendation) => void;

@@ -33,13 +33,23 @@ interface BuildTranscriptionAssistantContextValueInput {
   pinnedInspector?: AiPanelContextValue['pinnedInspector'];
   selectedHotspotTimeSec?: AiPanelContextValue['selectedHotspotTimeSec'];
   acousticDetail?: AiPanelContextValue['acousticDetail'];
+  acousticDetailFullMedia?: AiPanelContextValue['acousticDetailFullMedia'];
+  acousticBatchDetails?: AiPanelContextValue['acousticBatchDetails'];
+  acousticBatchSelectionCount?: AiPanelContextValue['acousticBatchSelectionCount'];
+  acousticBatchDroppedSelectionRanges?: AiPanelContextValue['acousticBatchDroppedSelectionRanges'];
+  acousticCalibrationStatus?: AiPanelContextValue['acousticCalibrationStatus'];
   handleJumpToTranslationGap: NonNullable<AiPanelContextValue['onJumpToTranslationGap']>;
   handleJumpToAcousticHotspot?: AiPanelContextValue['onJumpToAcousticHotspot'];
   handlePinInspector?: AiPanelContextValue['onPinInspector'];
   handleClearPinnedInspector?: AiPanelContextValue['onClearPinnedInspector'];
   handleSelectHotspot?: AiPanelContextValue['onSelectHotspot'];
   handleChangeAcousticConfig?: AiPanelContextValue['onChangeAcousticConfig'];
+  handleResetAcousticConfig?: AiPanelContextValue['onResetAcousticConfig'];
+  handleChangeAcousticProvider?: AiPanelContextValue['onChangeAcousticProvider'];
+  handleRefreshAcousticProviderState?: AiPanelContextValue['onRefreshAcousticProviderState'];
   acousticConfigOverride?: AiPanelContextValue['acousticConfigOverride'];
+  acousticProviderPreference?: AiPanelContextValue['acousticProviderPreference'];
+  acousticProviderState?: AiPanelContextValue['acousticProviderState'];
 }
 
 export function buildTranscriptionAssistantContextValue(input: BuildTranscriptionAssistantContextValueInput): AiPanelContextValue {
@@ -65,13 +75,23 @@ export function buildTranscriptionAssistantContextValue(input: BuildTranscriptio
     ...(input.pinnedInspector !== undefined ? { pinnedInspector: input.pinnedInspector } : {}),
     ...(input.selectedHotspotTimeSec !== undefined ? { selectedHotspotTimeSec: input.selectedHotspotTimeSec } : {}),
     ...(input.acousticDetail !== undefined ? { acousticDetail: input.acousticDetail } : {}),
+    ...(input.acousticDetailFullMedia !== undefined ? { acousticDetailFullMedia: input.acousticDetailFullMedia } : {}),
+    ...(input.acousticBatchDetails !== undefined ? { acousticBatchDetails: input.acousticBatchDetails } : {}),
+    ...(input.acousticBatchSelectionCount !== undefined ? { acousticBatchSelectionCount: input.acousticBatchSelectionCount } : {}),
+    ...(input.acousticBatchDroppedSelectionRanges !== undefined ? { acousticBatchDroppedSelectionRanges: input.acousticBatchDroppedSelectionRanges } : {}),
+    ...(input.acousticCalibrationStatus !== undefined ? { acousticCalibrationStatus: input.acousticCalibrationStatus } : {}),
     ...(input.acousticConfigOverride !== undefined ? { acousticConfigOverride: input.acousticConfigOverride } : {}),
+    ...(input.acousticProviderPreference !== undefined ? { acousticProviderPreference: input.acousticProviderPreference } : {}),
+    ...(input.acousticProviderState !== undefined ? { acousticProviderState: input.acousticProviderState } : {}),
     onJumpToTranslationGap: input.handleJumpToTranslationGap,
     ...(input.handleJumpToAcousticHotspot ? { onJumpToAcousticHotspot: input.handleJumpToAcousticHotspot } : {}),
     ...(input.handlePinInspector ? { onPinInspector: input.handlePinInspector } : {}),
     ...(input.handleClearPinnedInspector ? { onClearPinnedInspector: input.handleClearPinnedInspector } : {}),
     ...(input.handleSelectHotspot ? { onSelectHotspot: input.handleSelectHotspot } : {}),
     ...(input.handleChangeAcousticConfig ? { onChangeAcousticConfig: input.handleChangeAcousticConfig } : {}),
+    ...(input.handleResetAcousticConfig ? { onResetAcousticConfig: input.handleResetAcousticConfig } : {}),
+    ...(input.handleChangeAcousticProvider ? { onChangeAcousticProvider: input.handleChangeAcousticProvider } : {}),
+    ...(input.handleRefreshAcousticProviderState ? { onRefreshAcousticProviderState: input.handleRefreshAcousticProviderState } : {}),
     onChangeAiPanelMode: input.setAiPanelMode,
     ...(input.handleOpenWordNote ? { onOpenWordNote: input.handleOpenWordNote } : {}),
     ...(input.handleOpenMorphemeNote ? { onOpenMorphemeNote: input.handleOpenMorphemeNote } : {}),

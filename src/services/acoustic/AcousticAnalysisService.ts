@@ -9,7 +9,12 @@ import {
 } from '../../utils/acousticOverlayTypes';
 import { acousticAnalysisCacheDB } from './AcousticAnalysisCacheDB';
 import {
+  isAllowedExternalProviderEndpoint,
+  type AcousticProviderAnalyzeInput,
+  type AcousticProviderRuntimeConfig,
+  type ExternalAcousticProviderConfig,
   LOCAL_ACOUSTIC_PROVIDER_DEFINITION,
+  resolveAcousticProviderRuntimeConfig,
   resolveAcousticProviderState,
   type ResolvedAcousticProviderState,
 } from './acousticProviderContract';
@@ -85,10 +90,20 @@ interface AnalyzeAudioBufferInput extends AnalyzeRequestOptions {
   providerId?: string;
 }
 
+interface AnalyzeAudioBufferExecutionInput extends AnalyzeAudioBufferInput {
+  runtimeConfig: AcousticProviderRuntimeConfig;
+  providerState: ResolvedAcousticProviderState;
+}
+
 interface AcousticAnalysisServiceOptions {
   fetchImpl?: (input: string) => Promise<AudioResponseLike>;
   audioContextFactory?: () => AudioContextLike;
   workerFactory?: () => WorkerLike;
+  providerRuntimeConfigResolver?: () => AcousticProviderRuntimeConfig;
+  externalProviderAnalyze?: (input: AcousticProviderAnalyzeInput & {
+    providerId: string;
+    externalConfig: ExternalAcousticProviderConfig;
+  }) => Promise<AcousticFeatureResult>;
   now?: () => number;
 }
 
@@ -99,6 +114,7 @@ interface CacheEntry {
 }
 
 const MAX_CACHE_ENTRIES = 8;
+const MAX_EXTERNAL_PROVIDER_PCM_BYTES = 64 * 1024 * 1024;
 
 function createBrowserAudioContext(): AudioContextLike {
   const AudioContextCtor = window.AudioContext ?? (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -189,9 +205,11 @@ export class AcousticAnalysisService {
   private readonly fetchImpl: AcousticAnalysisServiceOptions['fetchImpl'];
   private readonly audioContextFactory: AcousticAnalysisServiceOptions['audioContextFactory'];
   private readonly workerFactory: AcousticAnalysisServiceOptions['workerFactory'];
+  private readonly providerRuntimeConfigResolver: NonNullable<AcousticAnalysisServiceOptions['providerRuntimeConfigResolver']>;
+  private readonly externalProviderAnalyzeImpl: NonNullable<AcousticAnalysisServiceOptions['externalProviderAnalyze']>;
   private readonly now: NonNullable<AcousticAnalysisServiceOptions['now']>;
   private worker: WorkerLike | null = null;
-  private readonly pendingWorkerRequests = new PendingWorkerRequestStore<AcousticFeatureResult>();
+  private readonly pendingWorkerRequests = new PendingWorkerRequestStore<AcousticFeatureResult, AcousticAnalysisProgress>();
 
   constructor(options: AcousticAnalysisServiceOptions = {}) {
     this.fetchImpl = options.fetchImpl ?? (async (input: string) => {
@@ -203,13 +221,32 @@ export class AcousticAnalysisService {
       new URL('./acousticAnalysis.worker.ts', import.meta.url),
       { type: 'module' },
     ) as unknown as WorkerLike);
+    this.providerRuntimeConfigResolver = options.providerRuntimeConfigResolver ?? resolveAcousticProviderRuntimeConfig;
+    this.externalProviderAnalyzeImpl = options.externalProviderAnalyze ?? this.analyzeWithExternalProvider.bind(this);
     this.now = options.now ?? Date.now;
+  }
+
+  private resolveRuntimeConfig(): AcousticProviderRuntimeConfig {
+    return this.providerRuntimeConfigResolver();
+  }
+
+  private buildProviderCacheScope(
+    providerState: ResolvedAcousticProviderState,
+    runtimeConfig: AcousticProviderRuntimeConfig,
+  ): string {
+    if (providerState.effectiveProviderId !== 'enhanced-provider') {
+      return providerState.effectiveProviderId;
+    }
+    const endpoint = runtimeConfig.externalProvider.endpoint?.trim() ?? 'unconfigured';
+    return `${providerState.effectiveProviderId}:${endpoint}`;
   }
 
   async analyzeMedia(input: AnalyzeMediaInput): Promise<AcousticFeatureResult> {
     const config = normalizeConfig(input.config);
-    const providerState = resolveAcousticProviderState(input.providerId);
-    const providerAwareMediaKey = `${input.mediaKey}::${providerState.effectiveProviderId}`;
+    const runtimeConfig = this.resolveRuntimeConfig();
+    const providerState = resolveAcousticProviderState(input.providerId, { runtimeConfig });
+    const providerCacheScope = this.buildProviderCacheScope(providerState, runtimeConfig);
+    const providerAwareMediaKey = `${input.mediaKey}::${providerCacheScope}`;
     const cacheKey = buildAcousticCacheKey(providerAwareMediaKey, config);
     return this.runCachedAnalysis(cacheKey, input.mediaKey, async (options) => {
       if (providerState.fellBackToLocal) {
@@ -232,12 +269,14 @@ export class AcousticAnalysisService {
         audioContext = this.audioContextFactory?.() ?? createBrowserAudioContext();
         const audioBuffer = await audioContext.decodeAudioData(audioBytes);
         return this.performAnalyzeAudioBuffer({
-          mediaKey: providerAwareMediaKey,
+          mediaKey: input.mediaKey,
           audioBuffer,
           config,
-          providerId: providerState.effectiveProviderId,
-          signal: options.signal,
-          onProgress: options.onProgress,
+          providerId: providerState.requestedProviderId,
+          runtimeConfig,
+          providerState,
+          ...(options.signal ? { signal: options.signal } : {}),
+          ...(options.onProgress ? { onProgress: options.onProgress } : {}),
         });
       } finally {
         await closeAudioContext(audioContext);
@@ -247,21 +286,25 @@ export class AcousticAnalysisService {
 
   async analyzeAudioBuffer(input: AnalyzeAudioBufferInput): Promise<AcousticFeatureResult> {
     const config = normalizeConfig(input.config);
-    const providerState = resolveAcousticProviderState(input.providerId);
-    const providerAwareMediaKey = `${input.mediaKey}::${providerState.effectiveProviderId}`;
+    const runtimeConfig = this.resolveRuntimeConfig();
+    const providerState = resolveAcousticProviderState(input.providerId, { runtimeConfig });
+    const providerCacheScope = this.buildProviderCacheScope(providerState, runtimeConfig);
+    const providerAwareMediaKey = `${input.mediaKey}::${providerCacheScope}`;
     const cacheKey = buildAcousticCacheKey(providerAwareMediaKey, config);
     return this.runCachedAnalysis(cacheKey, input.mediaKey, (options) => this.performAnalyzeAudioBuffer({
-      mediaKey: providerAwareMediaKey,
+      mediaKey: input.mediaKey,
       audioBuffer: input.audioBuffer,
       config,
-      providerId: providerState.effectiveProviderId,
-      signal: options.signal,
-      onProgress: options.onProgress,
+      providerId: providerState.requestedProviderId,
+      runtimeConfig,
+      providerState,
+      ...(options.signal ? { signal: options.signal } : {}),
+      ...(options.onProgress ? { onProgress: options.onProgress } : {}),
     }), input);
   }
 
   resolveProviderState(preferredProviderId?: string | null): ResolvedAcousticProviderState {
-    return resolveAcousticProviderState(preferredProviderId);
+    return resolveAcousticProviderState(preferredProviderId, { runtimeConfig: this.resolveRuntimeConfig() });
   }
 
   private async runCachedAnalysis(
@@ -316,19 +359,44 @@ export class AcousticAnalysisService {
         throw error instanceof Error ? error : new Error(String(error));
       }
     }, {
-      onProgress: options.onProgress,
+      ...(options.onProgress ? { onProgress: options.onProgress } : {}),
     }).finally(() => {
       options.signal?.removeEventListener('abort', abortListener);
     });
   }
 
-  private async performAnalyzeAudioBuffer(input: AnalyzeAudioBufferInput): Promise<AcousticFeatureResult> {
+  private async performAnalyzeAudioBuffer(input: AnalyzeAudioBufferExecutionInput): Promise<AcousticFeatureResult> {
     const config = normalizeConfig(input.config);
-    const providerState = resolveAcousticProviderState(input.providerId);
-    if (providerState.effectiveProviderId !== LOCAL_ACOUSTIC_PROVIDER_DEFINITION.id) {
-      throw new Error(`Unsupported acoustic provider: ${providerState.effectiveProviderId}`);
-    }
+    const runtimeConfig = input.runtimeConfig;
+    const providerState = input.providerState;
     const mono = downmixToMono(input.audioBuffer);
+
+    if (providerState.effectiveProviderId !== LOCAL_ACOUSTIC_PROVIDER_DEFINITION.id) {
+      try {
+        return await this.externalProviderAnalyzeImpl({
+          mediaKey: input.mediaKey,
+          pcm: mono,
+          sampleRate: input.audioBuffer.sampleRate,
+          config,
+          providerId: providerState.effectiveProviderId,
+          externalConfig: runtimeConfig.externalProvider,
+          ...(input.signal ? { signal: input.signal } : {}),
+          ...(input.onProgress ? { onProgress: (processedFrames, totalFrames) => input.onProgress?.({
+            phase: 'analyzing',
+            processedFrames,
+            totalFrames,
+            ratio: totalFrames > 0 ? processedFrames / totalFrames : 0,
+          }) } : {}),
+        });
+      } catch (error) {
+        log.warn('External acoustic provider failed, falling back to local provider', {
+          requestedProviderId: providerState.requestedProviderId,
+          effectiveProviderId: providerState.effectiveProviderId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
     return this.dispatchToWorker({
       requestId: buildRequestId(),
       type: 'analyze',
@@ -337,6 +405,85 @@ export class AcousticAnalysisService {
       sampleRate: input.audioBuffer.sampleRate,
       config,
     }, input);
+  }
+
+  private async analyzeWithExternalProvider(input: AcousticProviderAnalyzeInput & {
+    providerId: string;
+    externalConfig: ExternalAcousticProviderConfig;
+  }): Promise<AcousticFeatureResult> {
+    const endpoint = input.externalConfig.endpoint?.trim();
+    if (!endpoint) {
+      throw new Error('External provider endpoint is not configured.');
+    }
+    if (!isAllowedExternalProviderEndpoint(endpoint)) {
+      throw new Error('External provider endpoint must use HTTPS. HTTP is allowed only for localhost.');
+    }
+
+    const timeoutController = new AbortController();
+    const timeoutMs = input.externalConfig.timeoutMs;
+    const timeoutId = globalThis.setTimeout(() => timeoutController.abort(), timeoutMs);
+
+    const abortListener = () => timeoutController.abort();
+    if (input.signal) {
+      if (input.signal.aborted) {
+        timeoutController.abort();
+      } else {
+        input.signal.addEventListener('abort', abortListener, { once: true });
+      }
+    }
+
+    const cleanup = () => {
+      globalThis.clearTimeout(timeoutId);
+      input.signal?.removeEventListener('abort', abortListener);
+    };
+    try {
+      if (input.pcm.byteLength > MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
+        throw new Error(`External provider payload exceeds limit (${MAX_EXTERNAL_PROVIDER_PCM_BYTES} bytes)`);
+      }
+
+      const pcmBuffer = input.pcm.byteOffset === 0 && input.pcm.byteLength === input.pcm.buffer.byteLength
+        ? input.pcm.buffer
+        : input.pcm.buffer.slice(input.pcm.byteOffset, input.pcm.byteOffset + input.pcm.byteLength);
+      const metadata = {
+        mediaKey: input.mediaKey,
+        providerId: input.providerId,
+        sampleRate: input.sampleRate,
+        config: input.config,
+      };
+      const formData = new FormData();
+      formData.set('metadata', JSON.stringify(metadata));
+      formData.set('pcm_f32le', new Blob([pcmBuffer], { type: 'application/octet-stream' }), `${input.mediaKey}.f32`);
+
+      const request = (async () => {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            accept: 'application/json',
+            'x-jieyu-acoustic-wire-format': 'multipart-f32-v1',
+            ...(input.externalConfig.apiKey ? { authorization: `Bearer ${input.externalConfig.apiKey}` } : {}),
+          },
+          body: formData,
+          signal: timeoutController.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`External provider request failed: ${response.status}`);
+        }
+
+        const payload = await response.json();
+        if (!payload || typeof payload !== 'object' || !('result' in payload)) {
+          throw new Error('External provider returned malformed payload.');
+        }
+
+        return (payload as { result: AcousticFeatureResult }).result;
+      })();
+
+      const result = await wrapPromiseWithSignal(request, input.signal);
+      input.onProgress?.(1, 1);
+      return result;
+    } finally {
+      cleanup();
+    }
   }
 
   private ensureWorker(): WorkerLike {

@@ -109,10 +109,43 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(waveformContentCode.includes("import { ToolbarAiProgress } from '../components/transcription/toolbar/ToolbarAiProgress';")).toBe(true);
     expect(waveformContentCode.includes('className="waveform-runtime-status"')).toBe(true);
-    expect(waveformContentCode.includes('acousticRuntimeStatus={acousticRuntimeStatus}')).toBe(true);
-    expect(waveformContentCode.includes('vadCacheStatus={vadCacheStatus}')).toBe(true);
+    expect(waveformContentCode.includes('...(acousticRuntimeStatus !== undefined ? { acousticRuntimeStatus } : {})')).toBe(true);
+    expect(waveformContentCode.includes('...(vadCacheStatus !== undefined ? { vadCacheStatus } : {})')).toBe(true);
     expect(orchestratorCode.includes('acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus}')).toBe(true);
     expect(orchestratorCode.includes('vadCacheStatus={vadCacheStatus}')).toBe(true);
+  });
+
+  it('keeps selected hotspot marker wiring between panel state and waveform overlay', () => {
+    const waveformContentPath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');
+    const waveformContentCode = fs.readFileSync(waveformContentPath, 'utf8');
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
+    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const markerIndex = waveformContentCode.indexOf('className="waveform-analysis-hotspot-line"');
+    const waveformOverlayIndex = waveformContentCode.indexOf('waveformOverlay={({');
+
+    expect(waveformContentCode.includes('selectedHotspotTimeSec?: number | null;')).toBe(true);
+    expect(waveformContentCode.includes('const selectedHotspotLeftPx = typeof selectedHotspotTimeSec === \'number\'' )).toBe(true);
+    expect(waveformContentCode.includes("const shouldRenderSelectedHotspot = waveformDisplayMode === 'waveform'")).toBe(true);
+    expect(waveformContentCode.includes('className="waveform-guide-overlay"')).toBe(true);
+    expect(waveformContentCode.includes('className="waveform-analysis-hotspot-line"')).toBe(true);
+    expect(markerIndex).toBeGreaterThan(waveformOverlayIndex);
+    expect(orchestratorCode.includes('selectedHotspotTimeSec={selectedHotspotTimeSec}')).toBe(true);
+  });
+
+  it('preserves hotspot selection during loading recompute and clears stale selection when summary is unavailable', () => {
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
+    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+
+    expect(orchestratorCode.includes('const activeAcousticHotspots = deferredAiRuntime.acousticSummary?.hotspots ?? [];')).toBe(true);
+    expect(orchestratorCode.includes('setSelectedHotspotTimeSec(null);')).toBe(true);
+    expect(orchestratorCode.includes('setPinnedInspector(null);')).toBe(true);
+    expect(orchestratorCode.includes("if (deferredAiRuntime.acousticRuntimeStatus?.state === 'loading') {")).toBe(true);
+    expect(orchestratorCode.includes('if (deferredAiRuntime.acousticSummary == null) {')).toBe(true);
+    expect(orchestratorCode.includes('setSelectedHotspotTimeSec(null);')).toBe(true);
+    expect(orchestratorCode.includes('const stillExists = activeAcousticHotspots.some((hotspot) => Math.abs(hotspot.timeSec - selectedHotspotTimeSec) <= 0.01);')).toBe(true);
+    expect(orchestratorCode.includes('const selectionDuration = deferredAiRuntime.acousticSummary?.durationSec;')).toBe(true);
+    expect(orchestratorCode.includes('const isTerminalSelection = selectionEnd !== undefined')).toBe(true);
+    expect(orchestratorCode.includes('(isTerminalSelection ? activeReadout.timeSec <= selectionEnd : activeReadout.timeSec < selectionEnd)')).toBe(true);
   });
 
   it('keeps media-scoped speaker focus memory restore logic', () => {

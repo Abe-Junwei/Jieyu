@@ -2,8 +2,14 @@ import { createContext, useContext, useMemo, useState } from 'react';
 import type { UtteranceDocType } from '../db';
 import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiAnalysisPanel';
 import type { AcousticPromptSummary } from '../pages/TranscriptionPage.aiPromptContext';
-import type { AcousticPanelDetail } from '../utils/acousticPanelDetail';
+import type {
+  AcousticBatchSelectionRange,
+  AcousticCalibrationStatus,
+  AcousticPanelBatchDetail,
+  AcousticPanelDetail,
+} from '../utils/acousticPanelDetail';
 import type { AcousticHotspotKind } from '../utils/acousticOverlayTypes';
+import type { ResolvedAcousticProviderState } from '../services/acoustic/acousticProviderContract';
 
 export type VadCacheStatus = {
   state: 'unavailable' | 'missing' | 'warming' | 'ready';
@@ -20,6 +26,7 @@ export type AcousticRuntimeStatus = {
   progressRatio?: number;
   processedFrames?: number;
   totalFrames?: number;
+  errorMessage?: string;
 };
 
 export type AcousticInspectorReadout = {
@@ -70,13 +77,26 @@ export type AiPanelContextValue = {
   pinnedInspector?: AcousticInspectorReadout | null;
   selectedHotspotTimeSec?: number | null;
   acousticDetail?: AcousticPanelDetail | null;
+  acousticDetailFullMedia?: AcousticPanelDetail | null;
+  acousticBatchDetails?: AcousticPanelBatchDetail[];
+  acousticBatchSelectionCount?: number;
+  acousticBatchDroppedSelectionRanges?: AcousticBatchSelectionRange[];
+  acousticCalibrationStatus?: AcousticCalibrationStatus;
+  acousticProviderPreference?: string | null;
+  acousticProviderState?: ResolvedAcousticProviderState | null;
   onJumpToTranslationGap?: () => void;
   onJumpToAcousticHotspot?: (timeSec: number) => void;
   onPinInspector?: () => void;
   onClearPinnedInspector?: () => void;
   onSelectHotspot?: (timeSec: number | null) => void;
   onChangeAiPanelMode?: (mode: AiPanelMode) => void;
-  onChangeAcousticConfig?: (config: Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig>) => void;
+  onChangeAcousticConfig?: (
+    config: Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig>,
+    options?: { replace?: boolean },
+  ) => void;
+  onResetAcousticConfig?: () => void;
+  onChangeAcousticProvider?: (providerId: string | null) => void;
+  onRefreshAcousticProviderState?: () => void;
   acousticConfigOverride?: Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig> | null;
 };
 
@@ -97,6 +117,13 @@ export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
   pinnedInspector: null,
   selectedHotspotTimeSec: null,
   acousticDetail: null,
+  acousticDetailFullMedia: null,
+  acousticBatchDetails: [],
+  acousticBatchSelectionCount: 0,
+  acousticBatchDroppedSelectionRanges: [],
+  acousticCalibrationStatus: 'exploratory',
+  acousticProviderPreference: null,
+  acousticProviderState: null,
   acousticConfigOverride: null,
 };
 

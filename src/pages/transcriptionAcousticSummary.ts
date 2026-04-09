@@ -92,7 +92,11 @@ export function buildAcousticPromptSummary(
     return null;
   }
 
-  const frames = analysis.frames.filter((frame) => frame.timeSec >= selectionStartSec && frame.timeSec <= selectionEndSec);
+  const isTerminalSelection = Math.abs(selectionEndSec - analysis.durationSec) <= 1e-6;
+  const frames = analysis.frames.filter((frame) => (
+    frame.timeSec >= selectionStartSec
+    && (isTerminalSelection ? frame.timeSec <= selectionEndSec : frame.timeSec < selectionEndSec)
+  ));
   if (frames.length === 0) return null;
 
   const voicedFrames = frames.filter((frame) => frame.f0Hz != null);
@@ -125,7 +129,10 @@ export function buildAcousticPromptSummary(
       f2Hz: frame.formantF2Hz as number,
     }));
   const hotspots = analysis.hotspots
-    .filter((hotspot) => hotspot.timeSec >= selectionStartSec && hotspot.timeSec <= selectionEndSec)
+    .filter((hotspot) => (
+      hotspot.timeSec >= selectionStartSec
+      && (isTerminalSelection ? hotspot.timeSec <= selectionEndSec : hotspot.timeSec < selectionEndSec)
+    ))
     .sort((left, right) => right.score - left.score)
     .slice(0, 4)
     .map((hotspot) => ({

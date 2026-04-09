@@ -57,4 +57,10 @@ export const ACOUSTIC_ANALYSIS_PRESETS: AcousticAnalysisPreset[] = [
       yinThreshold: 0.2,
     },
   },
+  {
+    key: 'custom',
+    label: 'Custom',
+    description: 'Manually edited analysis parameters',
+    config: {},
+  },
 ];

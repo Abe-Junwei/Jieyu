@@ -29,7 +29,7 @@ export function TranscriptionPageAiPanelHandle({
 						setIsAiPanelCollapsed(false);
 					}
 				}}
-				style={{ display: isAiPanelCollapsed ? undefined : 'none' }}
+				hidden={!isAiPanelCollapsed}
 				aria-hidden="true"
 			/>
 			<div

@@ -22,6 +22,7 @@ import {
   ToolbarRightSection,
   ZoomControlsSection,
 } from '../components/transcription/TranscriptionLayoutSections';
+import { TimelineStyledSection } from '../components/transcription/TimelineStyledContainer';
 import { LeftRailProjectHub } from '../components/transcription/LeftRailProjectHub';
 import { OrchestratorWaveformContent } from './OrchestratorWaveformContent';
 import { TrackFocusToolbarControls } from '../components/transcription/toolbar/TrackFocusToolbarControls';
@@ -53,6 +54,7 @@ import { t, tf, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import { formatSidePaneLayerLabel, formatTime } from '../utils/transcriptionFormatters';
+import { AcousticAnalysisService } from '../services/acoustic/AcousticAnalysisService';
 import { useTranscriptionAssistantSidebarController } from './useTranscriptionAssistantSidebarController';
 import { useWaveformRuntimeController } from './useWaveformRuntimeController';
 import { useBatchOperationController } from './useBatchOperationController';
@@ -735,6 +737,7 @@ function TranscriptionPageReadyWorkspace({
   const [aiPanelMode, setAiPanelMode] = useState<'auto' | 'all'>('auto');
   const [aiSidebarError, setAiSidebarError] = useState<string | null>(null);
   const [embeddingProviderConfig, setEmbeddingProviderConfig] = useState(() => loadEmbeddingProviderConfig());
+  const [acousticProviderPreference, setAcousticProviderPreference] = useState<string | null>(null);
   const [deferredAiRuntime, setDeferredAiRuntime] = useState<DeferredTranscriptionAiRuntimeState>(() => ({
     aiChat: {
       enabled: false,
@@ -763,6 +766,17 @@ function TranscriptionPageReadyWorkspace({
     acousticRuntimeStatus: { state: 'idle' },
     acousticSummary: null,
     acousticDetail: null,
+    acousticDetailFullMedia: null,
+    acousticBatchDetails: [],
+    acousticBatchSelectionCount: 0,
+    acousticBatchDroppedSelectionRanges: [],
+    acousticCalibrationStatus: 'exploratory',
+    acousticProviderState: {
+      requestedProviderId: 'local-yin-spectral',
+      effectiveProviderId: 'local-yin-spectral',
+      reachability: { id: 'local-yin-spectral', available: true, latencyMs: 0 },
+      fellBackToLocal: false,
+    },
     onJumpToAcousticHotspot: () => undefined,
   } as unknown as DeferredTranscriptionAiRuntimeState));
 
@@ -816,6 +830,27 @@ function TranscriptionPageReadyWorkspace({
   const [pinnedInspector, setPinnedInspector] = useState<AcousticInspectorReadout | null>(null);
   const [selectedHotspotTimeSec, setSelectedHotspotTimeSec] = useState<number | null>(null);
   const [acousticConfigOverride, setAcousticConfigOverride] = useState<Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig> | null>(null);
+  const activeAcousticHotspots = deferredAiRuntime.acousticSummary?.hotspots ?? [];
+
+  useEffect(() => {
+    setSelectedHotspotTimeSec(null);
+    setPinnedInspector(null);
+  }, [selectedTimelineMedia?.id, selectedMediaUrl]);
+
+  useEffect(() => {
+    if (selectedHotspotTimeSec == null) return;
+    if (deferredAiRuntime.acousticRuntimeStatus?.state === 'loading') {
+      return;
+    }
+    if (deferredAiRuntime.acousticSummary == null) {
+      setSelectedHotspotTimeSec(null);
+      return;
+    }
+    const stillExists = activeAcousticHotspots.some((hotspot) => Math.abs(hotspot.timeSec - selectedHotspotTimeSec) <= 0.01);
+    if (!stillExists) {
+      setSelectedHotspotTimeSec(null);
+    }
+  }, [activeAcousticHotspots, deferredAiRuntime.acousticRuntimeStatus?.state, deferredAiRuntime.acousticSummary, selectedHotspotTimeSec]);
 
   const acousticInspector = useMemo<AcousticInspectorReadout | null>(() => {
     const activeReadout = spectrogramHoverReadout
@@ -844,12 +879,19 @@ function TranscriptionPageReadyWorkspace({
     const matchedHotspot = nearestHotspot && nearestHotspot.distance <= 0.2 ? nearestHotspot.hotspot : null;
     const selectionStart = deferredAiRuntime.acousticSummary?.selectionStartSec;
     const selectionEnd = deferredAiRuntime.acousticSummary?.selectionEndSec;
+    const selectionDuration = deferredAiRuntime.acousticSummary?.durationSec;
+    const isTerminalSelection = selectionEnd !== undefined
+      && selectionDuration !== undefined
+      && Math.abs(selectionEnd - selectionDuration) <= 1e-6;
 
     return {
       ...activeReadout,
       ...(matchedHotspot ? { matchedHotspotKind: matchedHotspot.kind, matchedHotspotTimeSec: matchedHotspot.timeSec } : {}),
       ...(selectionStart !== undefined && selectionEnd !== undefined
-        ? { inSelection: activeReadout.timeSec >= selectionStart && activeReadout.timeSec <= selectionEnd }
+        ? {
+            inSelection: activeReadout.timeSec >= selectionStart
+              && (isTerminalSelection ? activeReadout.timeSec <= selectionEnd : activeReadout.timeSec < selectionEnd),
+          }
         : {}),
     };
   }, [deferredAiRuntime.acousticSummary, spectrogramHoverReadout, waveformHoverReadout]);
@@ -866,9 +908,34 @@ function TranscriptionPageReadyWorkspace({
     setSelectedHotspotTimeSec(timeSec);
   }, []);
 
-  const handleChangeAcousticConfig = useCallback((config: Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig>) => {
-    setAcousticConfigOverride((prev) => ({ ...prev, ...config }));
+  const handleChangeAcousticConfig = useCallback((
+    config: Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig>,
+    options?: { replace?: boolean },
+  ) => {
+    setAcousticConfigOverride((prev) => {
+      if (options?.replace) {
+        return { ...config };
+      }
+      return { ...(prev ?? {}), ...config };
+    });
   }, []);
+
+  const handleResetAcousticConfig = useCallback(() => {
+    setAcousticConfigOverride(null);
+  }, []);
+
+  const handleChangeAcousticProvider = useCallback((providerId: string | null) => {
+    setAcousticProviderPreference(providerId);
+  }, []);
+
+  const handleRefreshAcousticProviderState = () => {
+    const service = AcousticAnalysisService.getInstance();
+    const nextProviderState = service.resolveProviderState(acousticProviderPreference);
+    setDeferredAiRuntime((previous) => ({
+      ...previous,
+      acousticProviderState: nextProviderState,
+    }));
+  };
 
   const {
     handleSearchReplace,
@@ -990,7 +1057,14 @@ function TranscriptionPageReadyWorkspace({
     pinnedInspector,
     selectedHotspotTimeSec,
     acousticDetail: deferredAiRuntime.acousticDetail,
+    acousticDetailFullMedia: deferredAiRuntime.acousticDetailFullMedia,
+    acousticBatchDetails: deferredAiRuntime.acousticBatchDetails,
+    acousticBatchSelectionCount: deferredAiRuntime.acousticBatchSelectionCount,
+    acousticBatchDroppedSelectionRanges: deferredAiRuntime.acousticBatchDroppedSelectionRanges,
+    acousticCalibrationStatus: deferredAiRuntime.acousticCalibrationStatus,
     acousticConfigOverride,
+    acousticProviderPreference,
+    acousticProviderState: deferredAiRuntime.acousticProviderState,
     selectedTranslationGapCount,
     handleJumpToTranslationGap,
     handleJumpToAcousticHotspot: deferredAiRuntime.onJumpToAcousticHotspot,
@@ -998,6 +1072,9 @@ function TranscriptionPageReadyWorkspace({
     handleClearPinnedInspector,
     handleSelectHotspot,
     handleChangeAcousticConfig,
+    handleResetAcousticConfig,
+    handleChangeAcousticProvider,
+    handleRefreshAcousticProviderState,
     setAiPanelContext,
     selectedTimelineUnit,
     saveSegmentContentForLayer,
@@ -1683,15 +1760,19 @@ function TranscriptionPageReadyWorkspace({
   // ═══════════════════════════════════════════════════════
 
   return (
-    <section
+    <TimelineStyledSection
       className="transcription-screen"
       ref={screenRef}
       dir={uiTextDirection}
-      style={{
+      layoutStyle={{
         '--ui-font-scale': String(uiFontScale),
         '--dialog-auto-width': `${adaptiveDialogWidth}px`,
         '--dialog-compact-auto-width': `${adaptiveDialogCompactWidth}px`,
         '--dialog-wide-auto-width': `${adaptiveDialogWideWidth}px`,
+        '--transcription-ai-width': `${aiPanelWidth}px`,
+        '--transcription-ai-visible-width': `${isAiPanelCollapsed ? 0 : aiPanelWidth}px`,
+        '--lane-label-width': isTimelineLaneHeaderCollapsed ? '0px' : `${laneLabelWidth}px`,
+        '--video-left-panel-width': videoLayoutMode === 'left' ? `${videoRightPanelWidth + 8}px` : '0px',
       } as React.CSSProperties}
     >
       {state.phase === 'loading' && <p className="hint">{t(locale, 'transcription.status.loading')}</p>}
@@ -1746,8 +1827,8 @@ function TranscriptionPageReadyWorkspace({
             <input
               ref={mediaFileInputRef}
               type="file"
-              accept=".mp3,.wav,.ogg,.webm,.m4a,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv"
               className="transcription-media-file-input"
+              accept=".mp3,.wav,.ogg,.webm,.m4a,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv"
               aria-label={t(locale, 'transcription.importDialog.selectMedia')}
               onChange={handleDirectMediaImport}
             />
@@ -1756,14 +1837,9 @@ function TranscriptionPageReadyWorkspace({
             <main
               ref={workspaceRef}
               className={`transcription-workspace ${isAiPanelCollapsed ? 'transcription-workspace-ai-collapsed' : ''}`}
-              style={{
-                '--transcription-ai-width': `${aiPanelWidth}px`,
-                '--transcription-ai-visible-width': `${isAiPanelCollapsed ? 0 : aiPanelWidth}px`,
-              } as React.CSSProperties}
             >
               <section
                 className={`transcription-list-panel ${isTimelineLaneHeaderCollapsed ? 'transcription-list-panel-lane-header-collapsed' : ''}`}
-                style={{ '--lane-label-width': isTimelineLaneHeaderCollapsed ? '0px' : `${laneLabelWidth}px`, '--video-left-panel-width': videoLayoutMode === 'left' ? `${videoRightPanelWidth + 8}px` : '0px' } as React.CSSProperties}
               >
                 <OrchestratorWaveformContent
                   locale={locale}
@@ -1826,10 +1902,11 @@ function TranscriptionPageReadyWorkspace({
                   acousticOverlayIntensityPath={acousticOverlayIntensityPath}
                   acousticOverlayVisibleSummary={acousticOverlayVisibleSummary}
                   acousticOverlayLoading={acousticOverlayLoading}
-                  acousticRuntimeStatus={waveformAcousticRuntimeStatus}
-                  vadCacheStatus={waveformVadCacheStatus}
+                  {...(waveformAcousticRuntimeStatus ? { acousticRuntimeStatus: waveformAcousticRuntimeStatus } : {})}
+                  {...(waveformVadCacheStatus ? { vadCacheStatus: waveformVadCacheStatus } : {})}
                   waveformHoverReadout={waveformHoverReadout}
                   spectrogramHoverReadout={spectrogramHoverReadout}
+                  selectedHotspotTimeSec={selectedHotspotTimeSec}
                   handleSpectrogramMouseMove={handleSpectrogramMouseMove}
                   handleSpectrogramMouseLeave={handleSpectrogramMouseLeave}
                   handleSpectrogramClick={handleSpectrogramClick}
@@ -1972,7 +2049,7 @@ function TranscriptionPageReadyWorkspace({
                     />
                     {showBottomToolbarAiProgress ? <div className="toolbar-sep toolbar-sep-compact-gap" /> : null}
                     <ToolbarAiProgress
-                      acousticRuntimeStatus={bottomToolbarAcousticRuntimeStatus}
+                      {...(bottomToolbarAcousticRuntimeStatus ? { acousticRuntimeStatus: bottomToolbarAcousticRuntimeStatus } : {})}
                     />
                     <div className="toolbar-sep toolbar-sep-compact-gap" />
                     <ObserverStatusSection
@@ -2064,6 +2141,7 @@ function TranscriptionPageReadyWorkspace({
                       embeddingProviderConfig,
                       setEmbeddingProviderConfig,
                       acousticConfigOverride,
+                      acousticProviderPreference,
                     }}
                     onRuntimeStateChange={handleDeferredAiRuntimeChange}
                   />
@@ -2161,7 +2239,7 @@ function TranscriptionPageReadyWorkspace({
           displayStyleControl={displayStyleControl}
         />
       </Suspense>
-    </section>
+    </TimelineStyledSection>
   );
 }
 

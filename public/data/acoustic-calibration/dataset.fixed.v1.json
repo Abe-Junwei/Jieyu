@@ -1,0 +1,29 @@
+{
+  "version": "acoustic-calibration-fixed-v1-2026-04-09",
+  "description": "Fixed multi-sample dataset for Wave C acoustic calibration gate.",
+  "coverageThreshold": 0.7,
+  "maxDeltaSec": 0.015,
+  "thresholds": {
+    "f0Hz": 20,
+    "intensityDb": 3,
+    "formantF1Hz": 180,
+    "formantF2Hz": 280
+  },
+  "samples": [
+    {
+      "id": "sample-rising-vowel",
+      "reference": "praat-reference.sample.json",
+      "candidate": "jieyu-candidate.sample.json"
+    },
+    {
+      "id": "sample-falling-vowel",
+      "reference": "praat-reference.falling.sample.json",
+      "candidate": "jieyu-candidate.falling.sample.json"
+    },
+    {
+      "id": "sample-level-vowel",
+      "reference": "praat-reference.level.sample.json",
+      "candidate": "jieyu-candidate.level.sample.json"
+    }
+  ]
+}

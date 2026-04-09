@@ -198,6 +198,64 @@ describe('useTranscriptionAssistantController', () => {
           { index: 2, timeSec: 1.8, timeRatio: 1, f0Hz: 168, intensityDb: -16.2, reliability: 0.86, normalizedF0: 0.84, normalizedIntensity: 0.8 },
         ],
       },
+      acousticBatchDetails: [
+        {
+          selectionId: 'utt-1',
+          selectionLabel: 'utt-1',
+          calibrationStatus: 'exploratory',
+          detail: {
+            mediaKey: 'media-1',
+            sampleRate: 16000,
+            algorithmVersion: 'yin-v2-spectral',
+            modelVersion: 'none',
+            persistenceVersion: 'phase1-v2',
+            frameStepSec: 0.01,
+            analysisWindowSec: 0.04,
+            yinThreshold: 0.15,
+            silenceRmsThreshold: 0.01,
+            selectionStartSec: 1,
+            selectionEndSec: 2,
+            sampleCount: 2,
+            voicedSampleCount: 2,
+            frames: [
+              { timeSec: 1.1, relativeTimeSec: 0.1, timeRatio: 0.1, f0Hz: 132, intensityDb: -20, reliability: 0.72, normalizedF0: 0.1, normalizedIntensity: 0.2 },
+              { timeSec: 1.4, relativeTimeSec: 0.4, timeRatio: 0.4, f0Hz: 154, intensityDb: -18.4, reliability: 0.8, normalizedF0: 0.56, normalizedIntensity: 0.55 },
+            ],
+            toneBins: [
+              { index: 0, timeSec: 1.1, timeRatio: 0, f0Hz: 132, intensityDb: -20, reliability: 0.72, normalizedF0: 0.1, normalizedIntensity: 0.2 },
+              { index: 1, timeSec: 1.4, timeRatio: 1, f0Hz: 154, intensityDb: -18.4, reliability: 0.8, normalizedF0: 0.56, normalizedIntensity: 0.55 },
+            ],
+          },
+        },
+        {
+          selectionId: 'utt-2',
+          selectionLabel: 'utt-2',
+          calibrationStatus: 'exploratory',
+          detail: {
+            mediaKey: 'media-1',
+            sampleRate: 16000,
+            algorithmVersion: 'yin-v2-spectral',
+            modelVersion: 'none',
+            persistenceVersion: 'phase1-v2',
+            frameStepSec: 0.01,
+            analysisWindowSec: 0.04,
+            yinThreshold: 0.15,
+            silenceRmsThreshold: 0.01,
+            selectionStartSec: 2,
+            selectionEndSec: 3,
+            sampleCount: 2,
+            voicedSampleCount: 2,
+            frames: [
+              { timeSec: 2.1, relativeTimeSec: 0.1, timeRatio: 0.1, f0Hz: 162, intensityDb: -17.8, reliability: 0.75, normalizedF0: 0.1, normalizedIntensity: 0.2 },
+              { timeSec: 2.4, relativeTimeSec: 0.4, timeRatio: 0.4, f0Hz: 171, intensityDb: -15.9, reliability: 0.82, normalizedF0: 0.56, normalizedIntensity: 0.55 },
+            ],
+            toneBins: [
+              { index: 0, timeSec: 2.1, timeRatio: 0, f0Hz: 162, intensityDb: -17.8, reliability: 0.75, normalizedF0: 0.1, normalizedIntensity: 0.2 },
+              { index: 1, timeSec: 2.4, timeRatio: 1, f0Hz: 171, intensityDb: -15.9, reliability: 0.82, normalizedF0: 0.56, normalizedIntensity: 0.55 },
+            ],
+          },
+        },
+      ],
       handleJumpToAcousticHotspot,
     })));
 
@@ -222,6 +280,10 @@ describe('useTranscriptionAssistantController', () => {
           selectionEndSec: 2,
           sampleCount: 3,
         }),
+        acousticBatchDetails: expect.arrayContaining([
+          expect.objectContaining({ selectionId: 'utt-1' }),
+          expect.objectContaining({ selectionId: 'utt-2' }),
+        ]),
         onJumpToAcousticHotspot: handleJumpToAcousticHotspot,
       }));
     });
