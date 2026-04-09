@@ -709,7 +709,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                   <label className="voice-agent-field">
                     <span className="voice-agent-field-label">{t(locale, 'transcription.voiceWidget.settings.recognitionLanguage')}</span>
                     <select
-                      className="voice-agent-lang-select"
+                      className="voice-agent-lang-select select-caret"
                       value={langOverride ?? corpusLang}
                       onChange={(e) => onSetLangOverride(e.currentTarget.value)}
                       title={t(locale, 'transcription.voiceWidget.settings.recognitionLanguage')}
@@ -731,7 +731,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                   <label className="voice-agent-field">
                     <span className="voice-agent-field-label">{t(locale, 'transcription.voiceWidget.settings.engine')}</span>
                     <select
-                      className="voice-agent-engine-select"
+                      className="voice-agent-engine-select select-caret"
                       value={engine}
                       onChange={(e) => onSwitchEngine(e.currentTarget.value as SttEngine)}
                       title={t(locale, 'transcription.voiceWidget.settings.engine')}

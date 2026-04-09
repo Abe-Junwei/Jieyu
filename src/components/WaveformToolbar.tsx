@@ -62,7 +62,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
   const hasRightControls = Children.toArray(children).length > 0;
 
   return (
-    <div className="transcription-wave-toolbar">
+    <div className={`transcription-wave-toolbar transcription-wave-toolbar-shell${hasRightControls ? ' transcription-wave-toolbar-shell-has-right-controls' : ''}`}>
       <div className="transcription-wave-toolbar-left">
         <div className="transcription-wave-toolbar-meta">
           <div className="transcription-file-brand">

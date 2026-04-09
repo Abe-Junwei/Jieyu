@@ -429,7 +429,7 @@ export function OrthographyBridgeManager({
         <div className="orthography-builder-grid">
           <div className="orthography-builder-preview-box">
             <span className="orthography-builder-rule-label">{managerMessages.targetOrthographyLabel}</span>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="orthography-builder-inline-badges">
               <span>{targetLabel}</span>
               {targetBadge ? <span className={targetBadge.className}>{targetBadge.label}</span> : null}
             </div>

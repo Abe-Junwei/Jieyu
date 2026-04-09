@@ -406,32 +406,16 @@ export function TimelineLaneHeader({
   const isDropBelow = !isDropInsideDraggedBlock && dropTargetIndex === layerIndex + 1 && !isDragged;
 
   return (
-    <div style={{ position: 'relative', display: 'contents' }}>
+    <div className="timeline-lane-header-wrapper">
       {/* Drop indicator lines */}
       {isDropAbove && (
         <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '2px',
-            backgroundColor: 'var(--color-primary, var(--state-info-solid))',
-            zIndex: 10,
-          }}
+          className="timeline-lane-drop-indicator timeline-lane-drop-indicator-top"
         />
       )}
       {isDropBelow && (
         <div
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '2px',
-            backgroundColor: 'var(--color-primary, var(--state-info-solid))',
-            zIndex: 10,
-          }}
+          className="timeline-lane-drop-indicator timeline-lane-drop-indicator-bottom"
         />
       )}
 

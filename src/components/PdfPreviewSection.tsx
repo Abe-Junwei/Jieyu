@@ -103,7 +103,6 @@ export function PdfPreviewSection({
             src={pdfPreview.url}
             title={pdfPreview.title}
             className="transcription-pdf-preview-iframe"
-            style={{ width: '100%', height: '100%', border: 'none', background: 'var(--surface-panel)' }}
           />
         )}
       </div>

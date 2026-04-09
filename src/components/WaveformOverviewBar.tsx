@@ -119,7 +119,6 @@ export function WaveformOverviewBar({
       <canvas
         ref={canvasRef}
         className="waveform-overview-canvas"
-        style={{ width: '100%', height: 20, display: 'block' }}
         onClick={seekFromPointer}
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId);

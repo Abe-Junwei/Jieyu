@@ -1,0 +1,20 @@
+{
+  "entries": [
+    {
+      "label": "generic control primitives",
+      "ownerFile": "src/styles/foundation/control-primitives.css",
+      "patterns": [
+        "^\\.select-caret(?=[:\\s,{])",
+        "^\\.input(?=[:\\s,{])",
+        "^\\.textarea(?=[:\\s,{])",
+        "^\\.btn(?=[:\\s,{])",
+        "^\\.btn-ghost(?=[:\\s,{])",
+        "^\\.btn-danger(?=[:\\s,{])",
+        "^\\.icon-btn(?=[:\\s,{])",
+        "^\\.icon-btn\\.icon-btn-danger(?=[:\\s,{])",
+        "^\\.icon-btn\\.icon-btn-active(?=[:\\s,{])",
+        "^\\.icon-btn-danger(?=[:\\s,{])"
+      ]
+    }
+  ]
+}

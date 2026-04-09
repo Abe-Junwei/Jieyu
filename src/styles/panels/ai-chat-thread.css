@@ -248,7 +248,7 @@
   outline-offset: 1px;
 }
 
-.icon-btn.ai-chat-message-copy-btn {
+.ai-chat-message-copy-btn {
   width: 18px;
   min-width: 18px;
   height: 18px;
@@ -261,7 +261,7 @@
   opacity: 0.8;
 }
 
-.icon-btn.ai-chat-message-copy-btn:hover:not(:disabled) {
+.ai-chat-message-copy-btn:hover:not(:disabled) {
   color: var(--text-primary);
   background: color-mix(in srgb, var(--surface-header) 72%, transparent);
   opacity: 1;
@@ -297,11 +297,6 @@
 
 /* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
 .ai-chat-message-copy-btn:focus-visible {
-  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
-  outline-offset: 2px;
-}
-
-.icon-btn:focus-visible {
   outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
   outline-offset: 2px;
 }

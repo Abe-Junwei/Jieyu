@@ -46,14 +46,14 @@
   align-items: start;
 }
 
-.language-metadata-workspace :is(.input, input, select, textarea) {
+.language-metadata-workspace :is(input, select, textarea) {
   font-family: var(--font-base);
   font-size: var(--language-metadata-body-size);
   line-height: 1.5;
   color: var(--text-primary);
 }
 
-.language-metadata-workspace :is(.input, input, select) {
+.language-metadata-workspace :is(input, select) {
   min-height: var(--input-h-xl);
 }
 
@@ -79,8 +79,7 @@
   width: 100%;
 }
 
-.language-metadata-workspace-list-count,
-.language-metadata-workspace-summary-meta {
+.language-metadata-workspace-list-count {
   font-size: var(--language-metadata-meta-size);
   color: var(--text-secondary);
 }
@@ -341,7 +340,6 @@
   background: color-mix(in srgb, var(--surface-header) 58%, var(--surface-panel));
 }
 
-.language-metadata-workspace-geography-panel-secondary,
 .language-metadata-workspace-geography-panel-preview {
   background: color-mix(in srgb, var(--surface-panel) 96%, var(--surface-header));
 }
@@ -386,12 +384,6 @@
   line-height: 1.4;
 }
 
-.language-metadata-workspace-administrative-search-status {
-  margin: 0;
-  font-size: 0.76rem;
-  color: var(--text-secondary);
-}
-
 .language-metadata-workspace-administrative-resolved-grid {
   display: grid;
   gap: var(--language-metadata-space-3);
@@ -414,17 +406,6 @@
   min-width: 0;
 }
 
-.language-metadata-workspace-administrative-primary {
-  display: grid;
-  gap: var(--language-metadata-space-2);
-}
-
-.language-metadata-workspace-administrative-secondary {
-  display: grid;
-  gap: var(--language-metadata-space-2);
-}
-
-.language-metadata-workspace-administrative-primary-row,
 .language-metadata-workspace-administrative-text-input {
   padding: 9px 12px;
 }
@@ -665,7 +646,7 @@
   gap: var(--language-metadata-space-1);
 }
 
-.language-metadata-workspace-geocode-bar > .input {
+.language-metadata-workspace-geocode-bar > input {
   flex: 1;
   min-width: 0;
 }
@@ -759,7 +740,7 @@
 }
 
 .language-metadata-workspace-map-provider-select option,
-.language-metadata-workspace-administrative-coverage-field .input option {
+.language-metadata-workspace-administrative-coverage-field select option {
   background: var(--surface-panel);
   color: var(--text-primary);
 }
@@ -977,26 +958,6 @@
     grid-template-columns: 1fr;
   }
 
-  .language-metadata-workspace-administrative-primary-row,
-  .language-metadata-workspace-administrative-secondary-row {
-    grid-template-columns: 1fr;
-  }
-
-  .language-metadata-workspace-administrative-primary-row,
-  .language-metadata-workspace-administrative-secondary-row {
-    gap: var(--language-metadata-space-2);
-  }
-
-  .language-metadata-workspace-administrative-primary-field-start .language-metadata-workspace-select__control,
-  .language-metadata-workspace-administrative-primary-field-middle .language-metadata-workspace-select__control,
-  .language-metadata-workspace-administrative-primary-field-end .language-metadata-workspace-select__control,
-  .language-metadata-workspace-administrative-secondary-field-start .input,
-  .language-metadata-workspace-administrative-secondary-field-middle .input,
-  .language-metadata-workspace-administrative-secondary-field-end .input {
-    margin-left: 0;
-    border-radius: 10px;
-  }
-
   .language-metadata-workspace-matrix-header,
   .language-metadata-workspace-matrix-row {
     grid-template-columns: 1fr;
@@ -1006,11 +967,11 @@
     align-items: stretch;
   }
 
-  .language-metadata-workspace-toolbar > .btn,
-  .language-metadata-workspace-matrix-header > .btn,
-  .language-metadata-workspace-matrix-row > .btn,
-  .language-metadata-workspace-actions > .btn,
-  .language-metadata-workspace-administrative-actions > .btn {
+  .language-metadata-workspace-toolbar > button,
+  .language-metadata-workspace-matrix-header > button,
+  .language-metadata-workspace-matrix-row > button,
+  .language-metadata-workspace-actions > button,
+  .language-metadata-workspace-administrative-actions > button {
     width: 100%;
   }
 

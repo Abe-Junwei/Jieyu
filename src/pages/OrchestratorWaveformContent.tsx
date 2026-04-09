@@ -155,6 +155,7 @@ export interface OrchestratorWaveformContentProps {
   vadCacheStatus?: VadCacheStatus;
   waveformHoverReadout: WaveformHoverReadout | null;
   spectrogramHoverReadout: SpectrogramHoverReadout | null;
+  selectedHotspotTimeSec?: number | null;
   handleSpectrogramMouseMove: React.MouseEventHandler<HTMLDivElement>;
   handleSpectrogramMouseLeave: React.MouseEventHandler<HTMLDivElement>;
   handleSpectrogramClick: React.MouseEventHandler<HTMLDivElement>;
@@ -251,6 +252,7 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
     vadCacheStatus,
     waveformHoverReadout,
     spectrogramHoverReadout,
+    selectedHotspotTimeSec,
     handleSpectrogramMouseMove,
     handleSpectrogramMouseLeave,
     handleSpectrogramClick,
@@ -291,6 +293,14 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
           intensityDb: waveformHoverReadout.intensityDb,
         }
       : null;
+  const selectedHotspotLeftPx = typeof selectedHotspotTimeSec === 'number'
+    ? (selectedHotspotTimeSec * zoomPxPerSec) - waveformScrollLeft
+    : null;
+  const shouldRenderSelectedHotspot = waveformDisplayMode === 'waveform'
+    && selectedHotspotLeftPx != null
+    && Number.isFinite(selectedHotspotLeftPx)
+    && selectedHotspotLeftPx >= -6
+    && selectedHotspotLeftPx <= acousticOverlayViewportWidth + 6;
 
   return (
     <>
@@ -374,8 +384,8 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
                   <div className="waveform-analysis-overlay" aria-hidden="true">
                     <div className="waveform-runtime-status">
                       <ToolbarAiProgress
-                        acousticRuntimeStatus={acousticRuntimeStatus}
-                        vadCacheStatus={vadCacheStatus}
+                        {...(acousticRuntimeStatus !== undefined ? { acousticRuntimeStatus } : {})}
+                        {...(vadCacheStatus !== undefined ? { vadCacheStatus } : {})}
                       />
                     </div>
                     {activeReadout ? (
@@ -415,6 +425,12 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
                 )}
                 waveformOverlay={(
                   <>
+                    {shouldRenderSelectedHotspot ? (
+                      <div
+                        className="waveform-analysis-hotspot-marker"
+                        style={{ left: selectedHotspotLeftPx as number }}
+                      />
+                    ) : null}
                     {acousticOverlayMode !== 'none' ? (
                       <div className="waveform-acoustic-overlay" aria-hidden="true">
                         <svg

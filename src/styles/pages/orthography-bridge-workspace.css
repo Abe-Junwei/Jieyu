@@ -31,7 +31,6 @@
 }
 
 .orthography-workspace-summary,
-.orthography-workspace-context,
 .orthography-workspace-state {
   margin: 0;
   font-size: var(--orthography-meta-size);
@@ -41,10 +40,6 @@
 
 .orthography-workspace-state-error {
   color: var(--state-danger-text);
-}
-
-.orthography-workspace-state-success {
-  color: var(--state-success-text);
 }
 
 .orthography-workspace-state-warning {
@@ -60,7 +55,6 @@
 
 .orthography-workspace-list-panel,
 .orthography-workspace-summary-card,
-.orthography-workspace-basic-panel,
 .orthography-workspace-bridge-panel {
   border-radius: var(--radius-2xl);
 }
@@ -75,11 +69,11 @@
   color: var(--text-secondary);
 }
 
-.orthography-workspace :is(.btn, .btn-ghost, .btn-danger) {
-  font-family: var(--font-base);
-  font-size: var(--orthography-note-size);
-  line-height: 1.5;
-  font-weight: 600;
+.orthography-workspace {
+  --btn-font-family: var(--font-base);
+  --btn-font-size: var(--orthography-note-size);
+  --btn-line-height: 1.5;
+  --btn-font-weight: 600;
 }
 
 .orthography-workspace-detail-column {
@@ -172,25 +166,10 @@
   background: color-mix(in srgb, var(--header-accent) 72%, transparent);
 }
 
-.orthography-workspace-list-label {
-  font-size: var(--orthography-body-size);
-  font-weight: 600;
-  line-height: 1.45;
-}
-
 .orthography-workspace-list-item-label {
   font-size: inherit;
   font-weight: inherit;
   line-height: inherit;
-}
-
-.orthography-workspace-list-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--orthography-space-2);
-  align-items: center;
-  font-size: var(--orthography-meta-size);
-  color: var(--text-secondary);
 }
 
 .orthography-workspace-list-item-meta {
@@ -202,43 +181,6 @@
   color: var(--text-secondary);
 }
 
-.orthography-workspace-subsection {
-  display: grid;
-  gap: var(--orthography-space-3);
-  padding: var(--orthography-space-4);
-  border-radius: var(--radius-2xl);
-  background: color-mix(in srgb, var(--surface-header) 82%, transparent);
-}
-
-.orthography-workspace-textarea {
-  min-height: 84px;
-  resize: vertical;
-}
-
-.orthography-workspace-codearea {
-  min-height: 140px;
-  font-family: var(--font-mono);
-}
-
-/* ── 高级折叠区 | Advanced collapsible section ── */
-.orthography-workspace-advanced {
-  border-radius: var(--radius-2xl);
-  background: color-mix(in srgb, var(--surface-header) 65%, transparent);
-}
-
-.orthography-workspace-advanced[open] > .orthography-workspace-advanced-summary::before {
-  transform: rotate(90deg);
-}
-
-/* ── 分隔线 | Thin divider ── */
-.orthography-workspace-divider {
-  height: 1px;
-  border: 0;
-  margin: 2px 0;
-  background: color-mix(in srgb, var(--border-soft) 42%, transparent);
-}
-
-.orthography-workspace-array-add,
 /* ── 桥接规则面板排版收口 | Normalize bridge rule panel typography ── */
 .orthography-workspace-bridge-panel .orthography-builder-panel {
   font-family: var(--font-base);
@@ -355,7 +297,7 @@
   border-inline-start: 3px solid color-mix(in srgb, var(--state-warning-text) 72%, transparent);
 }
 
-.orthography-workspace-bridge-panel :is(.input, input, select, textarea) {
+.orthography-workspace-bridge-panel :is(input, select, textarea) {
   font-family: var(--font-base);
   font-size: var(--orthography-body-size);
   line-height: 1.5;
@@ -371,7 +313,7 @@
   box-sizing: border-box;
 }
 
-.orthography-workspace-bridge-panel :is(.input, input, select, textarea)::placeholder {
+.orthography-workspace-bridge-panel :is(input, select, textarea)::placeholder {
   color: var(--text-secondary);
 }
 
@@ -414,35 +356,11 @@
     grid-template-columns: 1fr;
   }
 
-  .orthography-workspace-basic-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .orthography-workspace-form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .orthography-workspace-array-row {
-    grid-template-columns: 1fr;
-  }
-
   .orthography-workspace-bridge-panel :is(
     .orthography-workspace-bridge-group-source,
     .orthography-workspace-bridge-group-meta,
     .orthography-builder-bridge-grid
   ) {
     grid-template-columns: 1fr;
-  }
-
-  .orthography-workspace-form-span-2 {
-    grid-column: auto;
-  }
-
-  .orthography-workspace-form-actions {
-    justify-content: stretch;
-  }
-
-  .orthography-workspace-form-actions .btn {
-    flex: 1 1 0;
   }
 }

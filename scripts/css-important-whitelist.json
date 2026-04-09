@@ -1,0 +1,54 @@
+{
+  "allowed": [
+    {
+      "file": "src/styles/foundation/waveform-display.css",
+      "snippet": "height: 100% !important;",
+      "reason": "Waveform container inline height override"
+    },
+    {
+      "file": "src/styles/foundation/waveform-display.css",
+      "snippet": "max-height: 100% !important;",
+      "reason": "Waveform container inline height override"
+    },
+    {
+      "file": "src/styles/global.css",
+      "snippet": "animation-duration: 0.01ms !important;",
+      "reason": "Reduced motion fallback"
+    },
+    {
+      "file": "src/styles/global.css",
+      "snippet": "animation-iteration-count: 1 !important;",
+      "reason": "Reduced motion fallback"
+    },
+    {
+      "file": "src/styles/global.css",
+      "snippet": "transition-duration: 0.01ms !important;",
+      "reason": "Reduced motion fallback"
+    },
+    {
+      "file": "src/styles/global.css",
+      "snippet": "scroll-behavior: auto !important;",
+      "reason": "Reduced motion fallback"
+    },
+    {
+      "file": "src/styles/pages/app-shell-layout.css",
+      "snippet": "transition-duration: 0s !important;",
+      "reason": "Side pane drag interaction override"
+    },
+    {
+      "file": "src/styles/pages/transcription-waveform.css",
+      "snippet": "scrollbar-width: none !important;",
+      "reason": "Hide native waveform scrollbars"
+    },
+    {
+      "file": "src/styles/pages/transcription-waveform.css",
+      "snippet": "scrollbar-color: transparent transparent !important;",
+      "reason": "Hide native waveform scrollbars"
+    },
+    {
+      "file": "src/styles/pages/transcription-waveform.css",
+      "snippet": "display: none !important;",
+      "reason": "Hide WebKit scrollbar"
+    }
+  ]
+}

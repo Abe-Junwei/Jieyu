@@ -21,7 +21,7 @@ export function TranscriptionPageAiPanelHandle({
 	handleAiPanelToggle,
 }: Props) {
 	return (
-		<div className="transcription-ai-panel-handle-cluster">
+		<div className={`transcription-ai-panel-handle-cluster${isAiPanelCollapsed ? ' transcription-ai-panel-handle-collapsed' : ''}`}>
 			<div
 				className="transcription-ai-panel-hover-zone"
 				onMouseEnter={() => {

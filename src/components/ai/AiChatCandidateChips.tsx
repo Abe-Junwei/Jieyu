@@ -29,13 +29,12 @@ export function AiChatCandidateChips({
   const displayCandidates = candidates.length > 0 ? candidates : fallbackCandidates;
 
   return (
-    <div className="ai-chat-candidate-chips" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 0', flexShrink: 0 }}>
+    <div className="ai-chat-candidate-chips">
       {displayCandidates.map((candidate) => (
         <button
           key={candidate.key}
           type="button"
           className="icon-btn ai-chat-candidate-chip"
-          style={{ height: 'calc(26px * var(--ui-font-scale, 1))', fontSize: 'calc(11px * var(--ui-font-scale, 1))', padding: '0 calc(10px * var(--ui-font-scale, 1))', borderRadius: 13 }}
           disabled={!onSendAiMessage || aiIsStreaming || debugUiShowAll}
           onClick={() => {
             if (debugUiShowAll) return;

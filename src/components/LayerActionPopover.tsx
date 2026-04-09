@@ -662,7 +662,7 @@ export function LayerActionPopover({
                   </PanelNote>
                 )}
                 {selectedOrthography && selectedOrthographyBadge && (
-                  <PanelNote className="layer-action-dialog-meta-note" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <PanelNote className="layer-action-dialog-meta-note dialog-hint-inline">
                     <span>{formatOrthographyOptionLabel(selectedOrthography, locale)}</span>
                     <span className={selectedOrthographyBadge.className}>{selectedOrthographyBadge.label}</span>
                   </PanelNote>

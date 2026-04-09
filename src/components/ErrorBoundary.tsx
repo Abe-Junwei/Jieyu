@@ -33,16 +33,15 @@ class ErrorBoundaryImpl extends Component<ErrorBoundaryImplProps, { error: Error
         return this.props.fallback(error, this.reset);
       }
       return (
-        <section className="panel" style={{ padding: '2rem' }}>
+        <section className="panel app-error-boundary">
           <h2>{t(locale, 'app.errorBoundary.title')}</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{error.message}</p>
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <p className="app-error-boundary__message">{error.message}</p>
+          <div className="app-error-boundary__actions">
             <button className="btn" onClick={this.reset}>
               {t(locale, 'app.errorBoundary.retry')}
             </button>
             <button
-              className="btn"
-              style={{ background: 'var(--border-soft)', color: 'var(--text-primary)' }}
+              className="btn app-error-boundary__reload-btn"
               onClick={() => window.location.reload()}
             >
               {t(locale, 'app.errorBoundary.reload')}

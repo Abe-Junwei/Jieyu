@@ -9,6 +9,10 @@
   margin-top: 2px;
 }
 
+.left-rail-project-hub-file-input {
+  display: none;
+}
+
 .left-rail-project-import-dialog {
   width: min(760px, calc(100vw - 32px));
   max-height: min(86vh, 720px);

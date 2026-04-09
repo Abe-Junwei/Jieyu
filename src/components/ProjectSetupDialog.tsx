@@ -256,7 +256,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
               )}
 
               {selectedOrthography && selectedOrthographyBadge && (
-                <p className="dialog-hint" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <p className="dialog-hint dialog-hint-inline">
                   <span>{formatOrthographyOptionLabel(selectedOrthography, locale)}</span>
                   <span className={selectedOrthographyBadge.className}>{selectedOrthographyBadge.label}</span>
                 </p>

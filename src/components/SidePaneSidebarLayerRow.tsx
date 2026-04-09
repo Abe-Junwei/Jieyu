@@ -62,7 +62,6 @@ export const SidePaneSidebarLayerRow = memo(function SidePaneSidebarLayerRow({
         boundaryHighlight === 'bottom' ? 'transcription-side-pane-item-row-boundary-highlight-bottom' : '',
         bundleTargetHighlighted ? 'transcription-side-pane-item-row-bundle-target' : '',
       ].filter(Boolean).join(' ')}
-      style={{ position: 'relative' }}
     >
       {showDropIndicator && (
         <div className="transcription-side-pane-drop-indicator" />

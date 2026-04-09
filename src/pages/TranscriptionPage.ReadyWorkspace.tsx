@@ -1747,8 +1747,8 @@ function TranscriptionPageReadyWorkspace({
               ref={mediaFileInputRef}
               type="file"
               accept=".mp3,.wav,.ogg,.webm,.m4a,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv"
+              className="transcription-media-file-input"
               aria-label={t(locale, 'transcription.importDialog.selectMedia')}
-              style={{ display: 'none' }}
               onChange={handleDirectMediaImport}
             />
 
@@ -1955,7 +1955,7 @@ function TranscriptionPageReadyWorkspace({
                       onSnapEnabledChange={setSnapEnabled}
                       onAutoScrollEnabledChange={setAutoScrollEnabled}
                     />
-                    <div className="toolbar-sep" style={{ margin: '0 6px' }} />
+                    <div className="toolbar-sep toolbar-sep-compact-gap" />
                     <TrackFocusToolbarControls
                       trackModeLabel={trackModeLabel}
                       laneLockCount={Object.keys(effectiveLaneLockMap).length}
@@ -1970,11 +1970,11 @@ function TranscriptionPageReadyWorkspace({
                       onSpeakerFocusTargetKeyChange={handleSpeakerFocusTargetChange}
                       onCycleSpeakerFocusMode={cycleSpeakerFocusMode}
                     />
-                    {showBottomToolbarAiProgress ? <div className="toolbar-sep" style={{ margin: '0 6px' }} /> : null}
+                    {showBottomToolbarAiProgress ? <div className="toolbar-sep toolbar-sep-compact-gap" /> : null}
                     <ToolbarAiProgress
                       acousticRuntimeStatus={bottomToolbarAcousticRuntimeStatus}
                     />
-                    <div className="toolbar-sep" style={{ margin: '0 6px' }} />
+                    <div className="toolbar-sep toolbar-sep-compact-gap" />
                     <ObserverStatusSection
                       observerStage={observerResult.stage}
                       recommendations={actionableObserverRecommendations || []}

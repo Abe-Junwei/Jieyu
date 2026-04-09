@@ -1,4 +1,5 @@
 @import './global.css';
+@import './foundation/control-primitives.css';
 @import './pages/app-shell-layout.css';
 @import './foundation/dialog-shell.css';
 @import './foundation/panel-primitives.css';

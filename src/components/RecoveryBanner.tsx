@@ -21,8 +21,8 @@ export function RecoveryBanner({
   }
 
   return (
-    <div style={{ background: 'var(--state-warning-bg)', borderBottom: '1px solid var(--state-warning-solid)', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 12, fontSize: 13 }}>
-      <span>
+    <div className="app-recovery-banner">
+      <span className="app-recovery-banner__text">
         {t(locale, 'transcription.recovery.prompt')}
         {recoveryDiffSummary && (
           <>
@@ -35,10 +35,10 @@ export function RecoveryBanner({
           </>
         )}
       </span>
-      <button type="button" style={{ padding: '2px 10px', borderRadius: 4, background: 'var(--state-warning-solid)', color: 'var(--surface-panel)', border: 'none', cursor: 'pointer', fontWeight: 600 }} onClick={onApply}>
+      <button type="button" className="app-recovery-banner__button app-recovery-banner__button--apply" onClick={onApply}>
         {t(locale, 'transcription.recovery.apply')}
       </button>
-      <button type="button" style={{ padding: '2px 10px', borderRadius: 4, background: 'var(--border-soft)', border: 'none', cursor: 'pointer' }} onClick={onDismiss}>
+      <button type="button" className="app-recovery-banner__button app-recovery-banner__button--dismiss" onClick={onDismiss}>
         {t(locale, 'transcription.recovery.dismiss')}
       </button>
     </div>

@@ -218,16 +218,6 @@
 .panel-button--sm      { min-height: var(--btn-h-sm); }
 .panel-button--compact { min-height: var(--btn-h-compact); border-radius: var(--radius-sm); }
 
-/* ── 紧凑徽章 | Compact tag ──────────────────────────────────── */
-.panel-tag {
-  display: inline-block;
-  width: fit-content;
-  padding: 1px 6px;
-  border-radius: var(--radius-xs);
-  font-size: calc(0.7rem * var(--ui-font-scale, 1));
-  font-weight: 600;
-}
-
 /* ── 表单字段修饰 | Form field modifiers ──────────────────────── */
 .dialog-field--half { flex: 1 1 calc(50% - 6px); min-width: 120px; }
 .dialog-field--third { flex: 1 1 calc(33.3% - 6px); min-width: 100px; }

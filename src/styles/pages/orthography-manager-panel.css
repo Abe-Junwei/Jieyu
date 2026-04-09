@@ -1,17 +1,25 @@
 .orthography-manager-page {
-  display: grid;
-  justify-items: center;
-  padding: 12px 0 24px;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  padding: 0;
 }
 
 .orthography-manager-panel-shell {
-  --dialog-auto-width: 520px;
-  width: min(100%, 520px);
+  --dialog-auto-width: 100%;
+  width: 100%;
+  min-height: 100%;
+  border-radius: 28px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 96%, white), color-mix(in srgb, var(--surface-header) 42%, var(--surface-panel)) 100%);
+  box-shadow: 0 28px 56px color-mix(in srgb, var(--shadow-color) 18%, transparent);
 }
 
 .orthography-manager-panel-body {
   display: grid;
-  gap: 10px;
+  gap: 14px;
 }
 
 .orthography-manager-panel-footer {
@@ -21,21 +29,35 @@
 }
 
 .orthography-manager-panel-shell .dialog-header {
-  min-height: 40px;
-  padding: 10px 16px;
+  min-height: 60px;
+  padding: 18px 20px 14px;
+  align-items: flex-start;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 94%, white), color-mix(in srgb, var(--surface-panel) 88%, var(--surface-header)) 100%);
 }
 
 .orthography-manager-panel-shell .dialog-shell__title {
-  font-size: calc(14px * var(--ui-font-scale, 1));
-  font-weight: 600;
+  padding-right: 40px;
+  font-size: calc(18px * var(--ui-font-scale, 1));
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.orthography-manager-panel-shell .dialog-body {
+  padding: 14px 20px 20px;
 }
 
 .orthography-manager-panel-shell .dialog-footer {
-  padding: 10px 16px;
+  padding: 14px 20px 18px;
+  background: color-mix(in srgb, var(--surface-header) 82%, white);
 }
 
 .orthography-manager-panel-link {
   text-decoration: none;
+}
+
+.orthography-manager-panel-close {
+  flex-shrink: 0;
 }
 
 .orthography-manager-context-note,
@@ -47,10 +69,6 @@
 }
 
 .orthography-manager-context-note {
-  padding: 0 2px;
-}
-
-.orthography-manager-context-note.orthography-builder-workspace-note {
   padding: 8px 10px;
 }
 
@@ -71,12 +89,15 @@
   gap: 6px;
 }
 
-.orthography-manager-browser.panel-section {
-  padding: 10px;
+.orthography-manager-browser {
+  padding: 12px;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--surface-panel) 94%, white);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 70%, transparent);
 }
 
-.orthography-manager-browser-body.panel-section__body {
-  gap: 8px;
+.orthography-manager-browser-body {
+  gap: 10px;
 }
 
 .orthography-manager-search {
@@ -104,12 +125,10 @@
   background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-warning-bg));
 }
 
-.orthography-manager-callout.orthography-builder-hint {
-  padding: 10px 12px;
-}
-
 .orthography-manager-list {
   display: grid;
+  max-height: 240px;
+  overflow-y: auto;
   overflow: clip;
   border: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);
   border-radius: var(--radius-lg);
@@ -177,15 +196,11 @@
 .orthography-manager-highlight-card {
   display: grid;
   gap: 8px;
-  padding: 10px 12px;
-  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  border-radius: 22px;
   border: 1px solid color-mix(in srgb, var(--header-accent) 20%, var(--border-soft));
   background: color-mix(in srgb, var(--state-info-bg) 66%, var(--surface-panel));
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-panel) 55%, transparent);
-}
-
-.orthography-manager-highlight-card.panel-section {
-  padding: 10px 12px;
 }
 
 .orthography-manager-highlight-card .panel-section__header {
@@ -217,10 +232,7 @@
 
 .orthography-manager-form-stack {
   display: grid;
-  gap: 12px;
-}
-
-.orthography-manager-form-stack.orthography-builder-panel {
+  gap: 14px;
   margin-top: 0;
 }
 
@@ -267,26 +279,17 @@
 
 .orthography-manager-subsection {
   display: grid;
-  gap: 10px;
-  padding: 10px;
-  border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--surface-header) 82%, transparent);
-}
-
-.orthography-manager-subsection.orthography-builder-group {
+  gap: 12px;
+  padding: 14px;
   border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--surface-header) 84%, white);
 }
 
 .orthography-manager-subsection-title {
   margin: 0;
-  font-size: calc(13px * var(--ui-font-scale, 1));
-  line-height: 1.45;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.orthography-manager-subsection-title.orthography-builder-group-title {
   font-size: calc(12px * var(--ui-font-scale, 1));
+  line-height: 1.45;
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -328,12 +331,9 @@
 }
 
 .orthography-manager-advanced {
+  border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--surface-header) 65%, transparent);
-}
-
-.orthography-manager-advanced.orthography-builder-advanced-group {
-  border-color: color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
 }
 
 .orthography-manager-advanced-summary {
@@ -374,10 +374,6 @@
   display: grid;
   gap: 12px;
   padding: 0 12px 12px;
-}
-
-.orthography-manager-advanced-body.orthography-builder-advanced-panel {
-  padding: 0 12px 12px;
   border-top: none;
 }
 
@@ -399,10 +395,16 @@
 @media (max-width: 720px) {
   .orthography-manager-panel-shell {
     width: 100%;
+    border-radius: 22px;
   }
 
   .orthography-manager-panel-shell .dialog-header,
   .orthography-manager-panel-shell .dialog-footer {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .orthography-manager-panel-shell .dialog-body {
     padding-left: 12px;
     padding-right: 12px;
   }

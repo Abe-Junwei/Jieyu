@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import type { UtteranceDocType } from '../db';
 import { t, useLocale } from '../i18n';
@@ -189,25 +189,32 @@ export function TimeRuler({
           window.addEventListener('mouseup', onUp);
         }}
       >
-        {ticks.map((tk) => {
-          const leftPct = `${((tk.time - start) / windowSec) * 100}%`;
-          return (
-            <Fragment key={`tk-${tk.time}`}>
-              <div
-                className={`time-ruler-tick ${tk.kind === 'major' ? 'time-ruler-tick-major' : ''}`}
-                style={{ left: leftPct }}
-              />
-              {tk.kind === 'major' && (
-                <div
-                  className="time-ruler-label"
-                  style={{ left: leftPct }}
-                >
-                  {fmtLabel(tk.time)}
-                </div>
-              )}
-            </Fragment>
-          );
-        })}
+        <svg className="time-ruler-overlay" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">
+          {ticks.map((tk) => {
+            const leftPct = ((tk.time - start) / windowSec) * 100;
+            return (
+              <g key={`tk-${tk.time}`}>
+                <line
+                  className={`time-ruler-tick-line ${tk.kind === 'major' ? 'time-ruler-tick-line-major' : ''}`}
+                  x1={leftPct}
+                  x2={leftPct}
+                  y1={0}
+                  y2={tk.kind === 'major' ? 12 : 6}
+                />
+                {tk.kind === 'major' ? (
+                  <text
+                    className="time-ruler-label-text"
+                    x={leftPct}
+                    y={21}
+                    dx={2}
+                  >
+                    {fmtLabel(tk.time)}
+                  </text>
+                ) : null}
+              </g>
+            );
+          })}
+        </svg>
         {/* 语段密度热力条 | Segment density heatmap strip */}
         {densitySegments.map((seg, i) => {
           const leftPct = ((seg.start - start) / windowSec) * 100;

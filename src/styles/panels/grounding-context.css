@@ -107,27 +107,6 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 40%, transparent);
 }
 
-.transcription-voice-dock-idle .voice-agent-session-card,
-.transcription-voice-dock-idle .voice-agent-notice-stack,
-.transcription-voice-dock-idle .voice-agent-disclosure-group,
-.transcription-voice-dock-idle .voice-agent-environment-line {
-  display: none;
-}
-
-.transcription-voice-dock-idle .voice-agent-header {
-  gap: 0;
-}
-
-.transcription-voice-dock-idle .voice-agent-status-line {
-  white-space: nowrap;
-}
-
-@media (max-width: 1280px) {
-  .voice-agent-settings-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 .grounding-context {
   font-size: calc(11px * var(--ui-font-scale, 1));
 }
@@ -459,19 +438,6 @@
 .gc-corpus-score {
   font-size: calc(9px * var(--ui-font-scale, 1));
   color: var(--text-muted, var(--text-secondary));
-}
-
-.voice-agent-engine-select {
-  width: fit-content;
-  inline-size: fit-content;
-  min-width: 12ch;
-  padding: 4px 34px 4px 8px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
-  border: 1px solid var(--border, var(--border-soft));
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary, var(--surface-panel));
-  color: var(--text-primary);
-  cursor: pointer;
 }
 
 /* 键盘焦点可见性补齐 | Keyboard focus visibility parity */

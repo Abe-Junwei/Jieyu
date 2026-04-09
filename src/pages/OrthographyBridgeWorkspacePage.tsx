@@ -1,4 +1,4 @@
-import '../styles/pages/orthography-workspace.css';
+import '../styles/pages/orthography-bridge-workspace.css';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { OrthographyBridgeManager } from '../components/OrthographyBridgeManager';

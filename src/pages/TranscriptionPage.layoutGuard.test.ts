@@ -79,10 +79,24 @@ describe('Transcription layout guard', () => {
   });
 
   it('keeps SidePaneActionModal dialog-card width policy clamped to viewport', () => {
+    const shellCssPath = path.resolve(process.cwd(), 'src/styles/foundation/dialog-shell.css');
+    const shellCssCode = fs.readFileSync(shellCssPath, 'utf8');
     const cssPath = path.resolve(process.cwd(), 'src/styles/panels/action-dialogs.css');
     const cssCode = fs.readFileSync(cssPath, 'utf8');
 
-    const standardSelector = '.side-pane-action-modal.dialog-card';
+    const dialogCardSelector = '.dialog-card {';
+    const dialogCardStart = shellCssCode.indexOf(dialogCardSelector);
+
+    expect(dialogCardStart).toBeGreaterThanOrEqual(0);
+
+    const dialogCardEnd = shellCssCode.indexOf('}', dialogCardStart);
+    expect(dialogCardEnd).toBeGreaterThan(dialogCardStart);
+
+    const dialogCardBlock = shellCssCode.slice(dialogCardStart, dialogCardEnd + 1);
+    expect(dialogCardBlock).toContain('width: min(var(--dialog-auto-width, 480px), 92vw);');
+    expect(dialogCardBlock).toContain('max-height: 85vh;');
+
+    const standardSelector = '.side-pane-action-modal {';
     const standardStart = cssCode.indexOf(standardSelector);
 
     expect(standardStart).toBeGreaterThanOrEqual(0);
@@ -95,7 +109,7 @@ describe('Transcription layout guard', () => {
     expect(standardBlock).toContain('92vw');
     expect(standardBlock).toContain('max-height');
 
-    const speakerSelector = '.side-pane-action-modal-speaker.dialog-card';
+    const speakerSelector = '.side-pane-action-modal-speaker {';
     const speakerStart = cssCode.indexOf(speakerSelector);
 
     expect(speakerStart).toBeGreaterThanOrEqual(0);
@@ -150,7 +164,7 @@ describe('Transcription layout guard', () => {
     expect(toolbarBlock).toContain('display: flex;');
     expect(toolbarBlock).toContain('justify-content: space-between;');
 
-    const floatingSelector = '.app-shell-transcription .transcription-wave-toolbar-right:not(.transcription-wave-toolbar-right-portaled) {';
+    const floatingSelector = '.transcription-wave-toolbar-shell-has-right-controls .transcription-wave-toolbar-right {';
     const floatingStart = cssCode.indexOf(floatingSelector);
     expect(floatingStart).toBeGreaterThanOrEqual(0);
     const floatingEnd = cssCode.indexOf('}', floatingStart);
@@ -159,18 +173,9 @@ describe('Transcription layout guard', () => {
     expect(floatingBlock).toContain('position: fixed;');
     expect(floatingBlock).toContain('width: clamp(240px, calc(var(--side-pane-width) + var(--side-pane-gap)), 340px);');
 
-    const portaledSelector = '.app-left-rail-bottom-slot .transcription-wave-toolbar-right-portaled {';
-    const portaledStart = cssCode.indexOf(portaledSelector);
-    expect(portaledStart).toBeGreaterThanOrEqual(0);
-    const portaledEnd = cssCode.indexOf('}', portaledStart);
-    expect(portaledEnd).toBeGreaterThan(portaledStart);
-    const portaledBlock = cssCode.slice(portaledStart, portaledEnd + 1);
-    expect(portaledBlock).toContain('display: grid;');
-    expect(portaledBlock).toContain('overflow-y: auto;');
-
     const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
-    expect(legacyCssCode).not.toContain(portaledSelector);
+    expect(legacyCssCode).not.toContain(floatingSelector);
   });
 
   it('keeps panel block aggregation out of the global app entry', () => {

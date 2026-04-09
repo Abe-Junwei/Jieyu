@@ -62,17 +62,14 @@
 }
 
 /* 弹窗头部图标按钮：无边框、透明底 | Dialog header icon buttons: borderless, transparent */
-.dialog-header .icon-btn {
-  border: none;
-  background: transparent;
-  height: 24px;
-  min-width: 24px;
-  border-radius: var(--radius-sm);
-  padding: 0;
-}
-
-.dialog-header .icon-btn:hover {
-  background: color-mix(in srgb, var(--border-soft) 40%, transparent);
+.dialog-header {
+  --icon-btn-border: none;
+  --icon-btn-background: transparent;
+  --icon-btn-height: 24px;
+  --icon-btn-min-width: 24px;
+  --icon-btn-border-radius: var(--radius-sm);
+  --icon-btn-padding: 0;
+  --icon-btn-hover-background: color-mix(in srgb, var(--border-soft) 40%, transparent);
 }
 
 /* 面包屑标题：父级 > 子级切换 | Breadcrumb title: parent > child navigation */
@@ -142,6 +139,13 @@
   font-size: calc(0.78rem * var(--ui-font-scale, 1));
   line-height: 1.5;
   color: var(--text-secondary);
+}
+
+.dialog-hint-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* 通用反馈卡片（错误/信息） | Generic feedback card (error / info) */
@@ -216,12 +220,28 @@
   color: var(--text-secondary);
 }
 
-.dialog-field .input,
-.dialog-field input,
-.dialog-field select {
+.dialog-field :is(input, select, textarea) {
   padding: 7px 10px;
   border: 1px solid var(--border-color, var(--border-soft));
   border-radius: var(--radius-sm);
+}
+
+.dialog-field select:not(.select-caret) {
+  -webkit-appearance: none;
+  appearance: none;
+  field-sizing: content;
+  width: fit-content;
+  inline-size: fit-content;
+  max-width: 100%;
+  height: auto;
+  line-height: 1.25;
+  padding-right: 34px;
+  background-image:
+    linear-gradient(180deg, color-mix(in srgb, var(--text-tertiary) 26%, transparent), color-mix(in srgb, var(--text-tertiary) 12%, transparent)),
+    var(--select-caret-icon);
+  background-repeat: no-repeat;
+  background-position: calc(100% - 26px) 50%, calc(100% - 10px) 50%;
+  background-size: 1px 14px, 10px 10px;
 }
 
 .language-iso-input {
@@ -352,10 +372,10 @@
   gap: 6px;
 }
 
-.dialog-card-compact .icon-btn {
-  height: 30px;
-  min-width: 30px;
-  border-radius: var(--radius-md);
+.dialog-card-compact {
+  --icon-btn-height: 30px;
+  --icon-btn-min-width: 30px;
+  --icon-btn-border-radius: var(--radius-md);
 }
 
 /* ── 对话框分段标签 | Dialog segmented tabs ── */
@@ -385,11 +405,6 @@
 
 /* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
 .dialog-header:focus-visible {
-  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
-  outline-offset: 2px;
-}
-
-.icon-btn:focus-visible {
   outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
   outline-offset: 2px;
 }

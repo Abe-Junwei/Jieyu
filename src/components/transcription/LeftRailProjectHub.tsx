@@ -353,7 +353,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         type="file"
         accept=".jyt,.jym"
         aria-label={t(locale, 'transcription.projectHub.importProject')}
-        style={{ display: 'none' }}
+        className="left-rail-project-hub-file-input"
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) {
@@ -367,7 +367,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         type="file"
         accept=".eaf,.textgrid,.TextGrid,.trs,.flextext,.txt,.toolbox"
         aria-label={t(locale, 'transcription.projectHub.importAnnotation')}
-        style={{ display: 'none' }}
+        className="left-rail-project-hub-file-input"
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) handleAnnotationImportPicked(file);

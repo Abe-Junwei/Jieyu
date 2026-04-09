@@ -220,35 +220,15 @@ export function PdfViewerRenderer({
   }, [currentPage, documentVersion, onPageResolved, searchSnippet]);
 
   return (
-    <div
-      style={{
-        flex: 1,
-        position: 'relative',
-        overflow: 'auto',
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'center',
-        padding: 16,
-      }}
-    >
-      <div style={{ position: 'relative', background: 'var(--surface-panel)', boxShadow: '0 2px 8px color-mix(in srgb, var(--text-primary) 10%, transparent)' }}>
+    <div className="pdf-viewer-panel-renderer">
+      <div className="pdf-viewer-panel-canvas-shell">
         <canvas
           ref={canvasRef}
-          style={{
-            display: 'block',
-            maxWidth: '100%',
-            height: 'auto',
-          }}
+          className="pdf-viewer-panel-canvas"
         />
         <div
           ref={textLayerRef}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            color: 'transparent',
-            zIndex: 10,
-          }}
+          className="pdf-viewer-panel-text-layer-root"
         />
       </div>
     </div>

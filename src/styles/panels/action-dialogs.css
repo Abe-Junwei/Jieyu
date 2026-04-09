@@ -1,13 +1,17 @@
-.side-pane-action-modal.dialog-card {
+.side-pane-action-modal {
   width: min(var(--dialog-auto-width, 360px), 92vw);
   max-height: 85vh;
 }
 
-.audio-import-dialog.dialog-card {
+.audio-import-dialog {
   width: min(720px, calc(100vw - 32px));
 }
 
-.side-pane-action-modal-speaker.dialog-card {
+.audio-import-dialog-file-input {
+  display: none;
+}
+
+.side-pane-action-modal-speaker {
   width: min(var(--dialog-auto-width, 560px), 92vw);
   max-height: 85vh;
 }
@@ -71,7 +75,6 @@
   flex-wrap: wrap;
 }
 
-.speaker-management-dialog-actions .btn,
 .speaker-management-dialog-actions .panel-button,
 .layer-action-dialog-actions .panel-button,
 .layer-action-dialog-btn {
@@ -79,7 +82,6 @@
   border-radius: var(--radius-sm);
 }
 
-.speaker-management-dialog-actions-fill .btn,
 .speaker-management-dialog-actions-fill .panel-button {
   flex: 1 1 0;
 }

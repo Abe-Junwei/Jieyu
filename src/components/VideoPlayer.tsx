@@ -122,20 +122,14 @@ export function VideoPlayer({
   return (
     <div
       ref={containerRef}
-      className={`video-player ${className}`}
-      style={{ width: '100%' }}
+      className={`video-player video-player-fit-${videoFitMode} ${className}`}
+      style={{ '--video-player-height': `${videoHeight}px` } as React.CSSProperties}
     >
       {/* Native HTML5 video element */}
       <video
         ref={player.videoRef}
         src={mediaUrl}
-        style={{
-          width: '100%',
-          height: videoHeight,
-          backgroundColor: 'var(--surface-overlay)',
-          display: 'block',
-          objectFit: videoFitMode === 'fill' ? 'cover' : videoFitMode === 'original' ? 'none' : 'contain',
-        }}
+        className="video-player-media"
         onClick={() => player.togglePlayback()}
         playsInline
         autoPlay={autoPlay}

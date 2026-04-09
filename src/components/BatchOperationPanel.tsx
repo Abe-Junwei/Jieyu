@@ -777,8 +777,7 @@ export function BatchOperationPanel({
                         {onJumpToUtterance && (
                           <td className="batch-operation-td">
                             <button
-                              className="icon-btn"
-                              style={{ fontSize: 11, padding: '1px 6px' }}
+                              className="icon-btn batch-operation-jump-btn"
                               onClick={() => {
                                 onJumpToUtterance(row.id);
                                 onClose();

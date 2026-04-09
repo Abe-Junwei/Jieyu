@@ -1,0 +1,153 @@
+.select-caret {
+  -webkit-appearance: none;
+  appearance: none;
+  field-sizing: content;
+  width: fit-content;
+  inline-size: fit-content;
+  max-width: 100%;
+  height: auto;
+  line-height: 1.25;
+  padding-right: 34px;
+  background-image:
+    linear-gradient(180deg, color-mix(in srgb, var(--text-tertiary) 26%, transparent), color-mix(in srgb, var(--text-tertiary) 12%, transparent)),
+    var(--select-caret-icon);
+  background-repeat: no-repeat;
+  background-position: calc(100% - 26px) 50%, calc(100% - 10px) 50%;
+  background-size: 1px 14px, 10px 10px;
+}
+
+.select-caret:focus {
+  outline: none;
+  border-color: var(--state-info-border);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-solid) 22%, transparent);
+}
+
+.input {
+  width: 100%;
+  min-height: var(--input-min-height, var(--input-h-md));
+  border: 1px solid var(--input-border-color, color-mix(in srgb, var(--border-soft) 90%, transparent));
+  border-radius: var(--input-border-radius, var(--radius-md));
+  background: var(--input-background, var(--surface-panel));
+  color: var(--input-color, var(--text-primary));
+  padding: var(--input-padding, 8px 10px);
+  font-size: var(--input-font-size, calc(0.76rem * var(--ui-font-scale, 1)));
+  line-height: var(--input-line-height, 1.4);
+  box-sizing: border-box;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: var(--textarea-min-height, 88px);
+}
+
+.btn {
+  min-height: var(--btn-min-height, var(--btn-h-md));
+  border: 1px solid var(--btn-border-color, color-mix(in srgb, var(--state-info-border) 92%, transparent));
+  border-radius: var(--btn-border-radius, var(--radius-md));
+  background: var(--btn-background, color-mix(in srgb, var(--state-info-bg) 82%, var(--surface-panel)));
+  color: var(--btn-color, var(--state-info-solid));
+  padding: var(--btn-padding, 6px 10px);
+  cursor: pointer;
+  font-family: var(--btn-font-family, inherit);
+  font-size: var(--btn-font-size, calc(0.76rem * var(--ui-font-scale, 1)));
+  line-height: var(--btn-line-height, 1.4);
+  font-weight: var(--btn-font-weight, 600);
+  box-shadow: var(--btn-box-shadow, none);
+}
+
+.btn-ghost {
+  background: var(--btn-ghost-background, var(--surface-panel));
+  color: var(--btn-ghost-color, var(--text-primary));
+  border-color: var(--btn-ghost-border-color, var(--header-border));
+}
+
+.btn-ghost:hover {
+  background: var(--btn-ghost-hover-background, var(--surface-elevated));
+  color: var(--btn-ghost-hover-color, var(--btn-ghost-color, var(--text-primary)));
+  border-color: var(--btn-ghost-hover-border-color, var(--btn-ghost-border-color, var(--header-border)));
+}
+
+.btn-danger {
+  border-color: var(--btn-danger-border-color, color-mix(in srgb, var(--state-danger-border) 92%, transparent));
+  background: var(--btn-danger-background, color-mix(in srgb, var(--state-danger-bg) 84%, var(--surface-panel)));
+  color: var(--btn-danger-color, var(--state-danger-text));
+}
+
+.btn-danger:hover {
+  color: var(--btn-danger-hover-color, var(--surface-panel));
+  background: var(--btn-danger-hover-background, var(--state-danger-solid));
+  border-color: var(--btn-danger-hover-border-color, var(--btn-danger-border-color, color-mix(in srgb, var(--state-danger-border) 92%, transparent)));
+}
+
+:root[data-theme='dark'] .btn-ghost {
+  background: var(--btn-ghost-background-dark, var(--surface-panel));
+  color: var(--btn-ghost-color-dark, var(--text-primary));
+  border-color: var(--btn-ghost-border-color-dark, var(--border-strong));
+}
+
+:root[data-theme='dark'] .btn-ghost:hover {
+  background: var(--btn-ghost-hover-background-dark, color-mix(in srgb, var(--surface-header) 88%, transparent));
+}
+
+:root[data-theme='dark'] .btn-danger {
+  border-color: var(--btn-danger-border-color-dark, color-mix(in srgb, var(--state-danger-border) 92%, transparent));
+  background: var(--btn-danger-background-dark, color-mix(in srgb, var(--state-danger-bg) 84%, var(--surface-panel)));
+  color: var(--btn-danger-color-dark, var(--state-danger-text));
+}
+
+:root[data-theme='dark'] .btn-danger:hover {
+  border-color: var(--btn-danger-hover-border-color-dark, var(--state-danger-border));
+  background: var(--btn-danger-hover-background-dark, var(--state-danger-solid));
+}
+
+.btn:disabled,
+.btn-ghost:disabled,
+.input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.icon-btn {
+  border: var(--icon-btn-border, 1px solid var(--border-soft));
+  background: var(--icon-btn-background, var(--surface-panel));
+  color: var(--icon-btn-color, var(--text-primary));
+  border-radius: var(--icon-btn-border-radius, var(--radius-lg));
+  height: var(--icon-btn-height, 34px);
+  min-width: var(--icon-btn-min-width, 34px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: var(--icon-btn-padding, 0);
+  box-shadow: var(--icon-btn-box-shadow, none);
+}
+
+.icon-btn:hover:not(:disabled) {
+  border-color: var(--icon-btn-hover-border-color, currentColor);
+  background: var(--icon-btn-hover-background, var(--icon-btn-background, var(--surface-panel)));
+  color: var(--icon-btn-hover-color, var(--icon-btn-color, var(--text-primary)));
+  transform: var(--icon-btn-hover-transform, none);
+}
+
+.icon-btn.icon-btn-danger {
+  color: var(--icon-btn-danger-color, var(--state-danger-solid));
+  border-color: var(--icon-btn-danger-border-color, var(--state-danger-border));
+  --icon-btn-hover-background: var(--icon-btn-danger-hover-background, var(--state-danger-bg));
+  --icon-btn-hover-border-color: var(--icon-btn-danger-hover-border-color, var(--state-danger-solid));
+  --icon-btn-hover-color: var(--icon-btn-danger-hover-color, var(--icon-btn-danger-color, var(--state-danger-solid)));
+}
+
+.icon-btn.icon-btn-active {
+  color: var(--icon-btn-active-color, var(--state-info-solid));
+  border-color: var(--icon-btn-active-border-color, var(--state-info-solid));
+  background: var(--icon-btn-active-background, var(--state-info-bg));
+}
+
+.btn:focus-visible,
+.btn-ghost:focus-visible,
+.btn-danger:focus-visible,
+.icon-btn:focus-visible,
+.icon-btn-danger:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}

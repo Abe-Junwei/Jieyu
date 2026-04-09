@@ -113,6 +113,21 @@
   flex-direction: column;
 }
 
+.wave-empty {
+  margin-top: 10px;
+  border: 1px dashed var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  color: var(--text-secondary);
+  font-size: 0.94rem;
+}
+
+.transcription-wave-empty-centered {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .transcription-waveform-area:focus-visible {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--state-success-solid) 50%, transparent);
   border-radius: var(--radius-xs);

@@ -96,6 +96,10 @@
   margin-right: var(--transcription-ai-visible-width);
 }
 
+.transcription-media-file-input {
+  display: none;
+}
+
 .transcription-list-main {
   flex: 1;
   min-height: 0;

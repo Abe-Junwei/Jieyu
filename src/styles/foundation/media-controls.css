@@ -1,28 +1,3 @@
-@media (max-width: 900px) {
-  .transcription-voice-dock {
-    right: 8px;
-    left: 10px;
-    width: auto;
-    max-width: none;
-    bottom: max(10px, env(safe-area-inset-bottom));
-    padding: 9px 10px;
-  }
-
-  .transcription-voice-dock::before {
-    display: none;
-  }
-
-  .transcription-voice-bubble {
-    --bubble-offset-x: 0px;
-    right: 8px;
-    border-radius: var(--radius-pill);
-  }
-
-  .transcription-voice-dock-idle {
-    width: auto;
-  }
-}
-
 /* ── 语段密度热力条 | Segment density heatmap strip ──────────────────────────── */
 .time-ruler-heat {
   position: absolute;
@@ -131,10 +106,27 @@
 /* ─── Video Player ─────────────────────────────────────────────── */
 
 .video-player {
+  width: 100%;
   background: var(--surface-overlay);
   border-radius: var(--radius-md);
   overflow: hidden;
   user-select: none;
+}
+
+.video-player-media {
+  width: 100%;
+  height: var(--video-player-height, 360px);
+  background: var(--surface-overlay);
+  display: block;
+  object-fit: contain;
+}
+
+.video-player-fit-fill .video-player-media {
+  object-fit: cover;
+}
+
+.video-player-fit-original .video-player-media {
+  object-fit: none;
 }
 
 .video-player-controls {

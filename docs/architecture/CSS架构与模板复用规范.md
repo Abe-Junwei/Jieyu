@@ -19,6 +19,10 @@ source_of_truth: css-architecture-governance
 - `src/styles/app-foundation.css` 只允许导入 `global.css`、`foundation/*` 与 `pages/app-shell-layout.css`。
 - `src/styles/transcription-entry.css` 只允许导入 `panel-blocks.css`、`ai-sidebar-entry.css`、`foundation/*`、`panels/*`、`pages/*`。
 
+基础控件所有权：
+- `src/styles/foundation/control-primitives.css` 统一拥有 `.btn`、`.btn-ghost`、`.btn-danger`、`.input`、`.textarea`、`.select-caret`、`.icon-btn`。
+- `global.css` 不再接受上述根选择器回流；页面层只允许对这些类做上下文覆盖，不允许重新定义根选择器。
+
 ## 2. 命名规则
 
 - 基础层：保留既有 `dialog-shell*` / `panel-*` 语义前缀。
@@ -29,10 +33,23 @@ source_of_truth: css-architecture-governance
 
 ## 3. 样式治理基线
 
+重复类统计口径：
+- `check:css-dup-selectors` 只统计“根定义类”重复，不再把 contextual override、容器内 descendant 引用、`is-*` / `has-*` 状态类当成重复债务。
+- 通用 primitive 与 dialog shell 的变体治理，优先通过 owner + CSS variables 收口，而不是为压数字继续制造特异性选择器。
+
+未使用选择器统计口径：
+- `check:css-unused-selectors` 以 CSS AST 收集类名，并联合识别 `className`、任意 `*ClassName` 转发 props、`className={[...].join(' ')}`、对象字面量内的 `className` / `*ClassName`、`.className = ...`、`classNamePrefix`、`clsx/cn`、`classList`、`querySelector/closest`。
+- 模板字符串中的条件分支字面量（例如 `${cond ? 'foo-active' : ''}`）也会参与类名识别，避免把状态类当成 unused。
+- 已知第三方运行时前缀（当前为 `maplibregl-*`）不计入 unused debt，避免把外部控件类误判为仓库死代码。
+- 测试文件会额外识别字符串字面量、模板字符串与正则中的类名引用，避免把 layout guard / RTL 查询辅助类误判为死代码。
+
 已接入检查脚本：
 - `npm run check:css-inline-style`
 - `npm run check:css-token-usage`
 - `npm run check:css-dup-selectors`
+- `npm run check:css-debt-thresholds`
+- `npm run check:css-important-whitelist`
+- `npm run check:css-ownership`
 - `npm run check:css-layer-boundary`
 - `npm run check:css-architecture`
 
@@ -40,6 +57,14 @@ source_of_truth: css-architecture-governance
 - `scripts/css-inline-style-baseline.json`
 - `scripts/css-token-usage-baseline.json`
 - `scripts/css-dup-selectors-baseline.json`
+
+Phase 1 配置文件：
+- `scripts/css-debt-thresholds.json`
+- `scripts/css-important-whitelist.json`
+- `scripts/css-ownership-config.json`
+
+燃尽报告命令：
+- `npm run report:css-debt-thresholds`
 
 当完成阶段性清理后，运行以下命令刷新基线：
 
@@ -168,8 +193,12 @@ npm run scaffold:ui-surface -- --type=dialog --name=SpeakerAudit
 4. `npm run check:css-a11y`
 5. `npm run check:css-naming-convention`
 6. `npm run check:css-unused-selectors`
-7. `npm run check:css-deprecation-window`
-8. `npm run test:visual-css`
+7. `npm run check:css-debt-thresholds`
+8. `npm run check:css-important-whitelist`
+9. `npm run check:css-ownership`
+10. `npm run check:css-deprecation-window`
+11. `npm run check:css-deprecated-usage`
+12. `npm run test:visual-css`
 
 ### 7.3 Build 预算门禁（由 `build-guard` 触发）
 

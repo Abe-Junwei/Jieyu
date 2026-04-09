@@ -75,12 +75,12 @@
   font-size: calc(14px * var(--ui-font-scale, 1));
 }
 
-.orthography-builder-panel :is(.input, input, select, textarea) {
+.orthography-builder-panel :is(input, select, textarea) {
   font-family: var(--font-base);
   color: var(--text-primary);
 }
 
-.orthography-builder-panel :is(.orthography-builder-control, .orthography-builder-language-input .input, .orthography-builder-language-input input, .script-tag-combobox .input) {
+.orthography-builder-panel :is(.orthography-builder-control, .orthography-builder-language-input input, .script-tag-combobox input) {
   width: 100%;
   min-height: var(--input-h-lg);
   box-sizing: border-box;
@@ -139,7 +139,7 @@
   color: var(--surface-panel);
 }
 
-.orthography-builder-panel :is(.input, input, select, textarea)::placeholder {
+.orthography-builder-panel :is(input, select, textarea)::placeholder {
   color: var(--text-secondary);
 }
 
@@ -211,6 +211,13 @@
   border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
   border-radius: var(--radius-md);
   background: var(--surface-panel);
+}
+
+.orthography-builder-inline-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .orthography-builder-bridge-hint-box {

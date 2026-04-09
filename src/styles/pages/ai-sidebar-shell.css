@@ -60,18 +60,6 @@
   line-height: 1;
 }
 
-.transcription-hub-sidebar-panel {
-  display: none;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.transcription-hub-sidebar-panel.is-active {
-  display: flex;
-}
-
 .transcription-hub-sidebar-panel-body {
   flex: 1;
   overflow-y: auto;
@@ -186,7 +174,7 @@
   opacity: 1;
 }
 
-.transcription-workspace:not(.transcription-workspace-ai-collapsed) .transcription-ai-panel-toggle {
+.transcription-ai-panel-handle-cluster:not(.transcription-ai-panel-handle-collapsed) .transcription-ai-panel-toggle {
   background: color-mix(in srgb, var(--tab-active) 88%, var(--surface-header));
   border-color: var(--header-border);
   color: var(--text-secondary);
@@ -199,7 +187,7 @@
   line-height: 1;
 }
 
-.transcription-workspace-ai-collapsed .transcription-ai-panel-toggle {
+.transcription-ai-panel-handle-cluster.transcription-ai-panel-handle-collapsed .transcription-ai-panel-toggle {
   width: calc(12px * var(--ui-font-scale, 1));
   height: 48px;
   border-radius: 6px 0 0 6px;
@@ -245,12 +233,12 @@
   border-left-color: var(--header-border);
 }
 
-.transcription-workspace-ai-collapsed .transcription-ai-panel-resizer {
+.transcription-ai-panel-handle-cluster.transcription-ai-panel-handle-collapsed .transcription-ai-panel-resizer {
   transform: translateX(0);
   pointer-events: none;
 }
 
-.transcription-workspace-ai-collapsed .transcription-ai-panel-hover-zone {
+.transcription-ai-panel-handle-cluster.transcription-ai-panel-handle-collapsed .transcription-ai-panel-hover-zone {
   display: block;
 }
 

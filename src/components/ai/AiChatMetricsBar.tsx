@@ -17,19 +17,13 @@ export function AiChatMetricsBar({
   const messages = getAiChatMetricsBarMessages(isZh);
 
   return (
-    <div
-      className="ai-chat-metrics-bar"
-      style={{
-        display: 'flex', gap: 8, flexWrap: 'wrap', padding: '3px 0',
-        fontSize: 'calc(10px * var(--ui-font-scale, 1))', color: 'var(--text-secondary)', flexShrink: 0,
-      }}
-    >
+    <div className="ai-chat-metrics-bar">
       <span title={messages.turnsTitle}>{messages.turnsLabel} {aiInteractionMetrics.turnCount}</span>
       {aiInteractionMetrics.successCount > 0 && (
-        <span style={{ color: 'var(--state-success-text)' }} title={messages.successesTitle}>✓ {aiInteractionMetrics.successCount}</span>
+        <span className="ai-chat-metrics-bar__item ai-chat-metrics-bar__item--success" title={messages.successesTitle}>✓ {aiInteractionMetrics.successCount}</span>
       )}
       {aiInteractionMetrics.failureCount > 0 && (
-        <span style={{ color: 'var(--state-danger-solid)' }} title={messages.failuresTitle}>✗ {aiInteractionMetrics.failureCount}</span>
+        <span className="ai-chat-metrics-bar__item ai-chat-metrics-bar__item--failure" title={messages.failuresTitle}>✗ {aiInteractionMetrics.failureCount}</span>
       )}
       {aiInteractionMetrics.clarifyCount > 0 && (
         <span title={messages.clarificationsTitle}>{messages.clarificationsLabel} {aiInteractionMetrics.clarifyCount}</span>
@@ -41,10 +35,10 @@ export function AiChatMetricsBar({
         <span title={messages.explainFallbacksTitle}>{messages.explainFallbacksLabel} {aiInteractionMetrics.explainFallbackCount}</span>
       )}
       {aiInteractionMetrics.recoveryCount > 0 && (
-        <span style={{ color: 'var(--state-info-solid)' }} title={messages.recoveriesTitle}>{messages.recoveriesLabel} {aiInteractionMetrics.recoveryCount}</span>
+        <span className="ai-chat-metrics-bar__item ai-chat-metrics-bar__item--recovery" title={messages.recoveriesTitle}>{messages.recoveriesLabel} {aiInteractionMetrics.recoveryCount}</span>
       )}
       {aiSessionMemory?.lastToolName && (
-        <span style={{ marginLeft: 'auto', fontStyle: 'italic' }} title={messages.lastToolTitle}>
+        <span className="ai-chat-metrics-bar__last-tool" title={messages.lastToolTitle}>
           {formatToolName(isZh, aiSessionMemory.lastToolName)}
         </span>
       )}

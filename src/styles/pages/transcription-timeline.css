@@ -1095,16 +1095,20 @@
   justify-content: center;
 }
 
-.timeline-empty-actions-row .btn {
+.timeline-empty-actions-row > button {
   background: color-mix(in srgb, var(--surface-header) 84%, transparent);
   color: var(--text-primary);
   border: 1px solid var(--border-soft);
   box-shadow: none;
 }
 
-.timeline-empty-actions-row .btn:hover {
+.timeline-empty-actions-row > button:hover {
   background: var(--border-soft);
   border-color: var(--text-secondary);
+}
+
+.timeline-empty-action-icon {
+  margin-right: 6px;
 }
 
 .timeline-resize-tooltip {
@@ -1121,6 +1125,28 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   box-shadow: none;
+}
+
+.timeline-lane-header-wrapper {
+  position: relative;
+  display: contents;
+}
+
+.timeline-lane-drop-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-primary, var(--state-info-solid));
+  z-index: 10;
+}
+
+.timeline-lane-drop-indicator-top {
+  top: 0;
+}
+
+.timeline-lane-drop-indicator-bottom {
+  bottom: 0;
 }
 /* ── Time ruler (from ai-hub.css) ── */
 /* ── Time ruler (ELAN-style adaptive) ───────────── */
@@ -1223,30 +1249,26 @@
   cursor: grabbing;
 }
 
-.time-ruler-tick {
+.time-ruler-overlay {
   position: absolute;
-  top: 0;
-  width: 1px;
-  height: 6px;
-  background: var(--text-secondary);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
   pointer-events: none;
 }
 
-.time-ruler-tick-major {
-  height: 12px;
-  background: var(--text-secondary);
+.time-ruler-tick-line {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
 }
 
-.time-ruler-label {
-  position: absolute;
-  top: 13px;
-  transform: translateX(2px);
+.time-ruler-label-text {
+  fill: var(--text-secondary);
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
-  white-space: nowrap;
   line-height: 1;
-  pointer-events: none;
 }
 
 .time-ruler-cursor {
@@ -1259,12 +1281,6 @@
   pointer-events: none;
   z-index: var(--z-base);
   transition: left 0.06s linear;
-}
-
-/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
-.btn:focus-visible {
-  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
-  outline-offset: 2px;
 }
 
 .timeline-annotation:focus-visible {
@@ -1280,6 +1296,15 @@
 .timeline-annotation-resize-handle:focus-visible {
   outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
   outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .timeline-scroll {
+    flex: 1;
+    min-height: 0;
+    transition: none;
+    filter: none;
+  }
 }
 
 .timeline-annotation-selected:focus-visible {

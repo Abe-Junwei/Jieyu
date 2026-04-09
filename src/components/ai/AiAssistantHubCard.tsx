@@ -41,7 +41,7 @@ export function AiAssistantHubCard() {
   return (
     <section className="transcription-ai-card transcription-ai-assistant-hub">
       <div className="transcription-ai-assistant-head">
-        <div className="transcription-ai-card-head" style={{ marginBottom: 0 }}>
+        <div className="transcription-ai-card-head transcription-ai-card-head-compact">
           <span>{t(locale, 'ai.assistantHub.title')}</span>
           <span className={`transcription-ai-tag ${voiceListening ? 'transcription-ai-assistant-tag-active' : ''}`}>
             {voiceListening ? t(locale, 'ai.assistantHub.voiceLive') : t(locale, 'ai.assistantHub.voiceIdle')}
@@ -51,7 +51,7 @@ export function AiAssistantHubCard() {
 
       <div className="transcription-ai-assistant-voice">
         {!voiceEnabled ? (
-          <p className="small-text" style={{ margin: 0 }}>
+          <p className="small-text transcription-ai-assistant-muted-text">
             {t(locale, 'ai.assistantHub.disabled')}
           </p>
         ) : (

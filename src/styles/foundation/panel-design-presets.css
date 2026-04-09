@@ -19,7 +19,7 @@
   font-family: inherit;
 }
 
-.panel-design-match-dialog.dialog-card {
+.panel-design-match-dialog {
   border-color: var(--panel-design-border-color);
   background: var(--panel-design-surface-color);
   border-radius: var(--radius-xl);
@@ -68,12 +68,43 @@
   background: var(--panel-design-surface-color);
 }
 
-.panel-design-match-dialog .icon-btn {
-  color: var(--panel-design-muted-color);
+.panel-design-match-dialog {
+  --icon-btn-color: var(--panel-design-muted-color);
+  --icon-btn-hover-color: var(--panel-design-text-color);
 }
 
-.panel-design-match-dialog .icon-btn:hover {
-  color: var(--panel-design-text-color);
+.panel-design-match,
+.panel-design-match-content {
+  --input-min-height: var(--input-h-sm);
+  --input-padding: 6px 8px;
+  --input-border-color: var(--panel-design-border-color);
+  --input-border-radius: var(--radius-sm);
+  --input-background: var(--panel-design-surface-color);
+  --input-color: var(--panel-design-title-color);
+  --input-font-size: calc(12px * var(--ui-font-scale, 1));
+  --input-line-height: 1.5;
+  --textarea-min-height: 44px;
+  --btn-min-height: var(--input-h-sm);
+  --btn-padding: 6px 10px;
+  --btn-border-radius: var(--radius-sm);
+  --btn-border-color: var(--panel-design-border-color);
+  --btn-background: var(--panel-design-surface-color);
+  --btn-color: var(--panel-design-text-color);
+  --btn-font-size: calc(12px * var(--ui-font-scale, 1));
+  --btn-line-height: 1.5;
+  --btn-font-weight: 600;
+  --btn-box-shadow: none;
+  --btn-ghost-border-color: var(--panel-design-border-color);
+  --btn-ghost-background: var(--panel-design-surface-color);
+  --btn-ghost-color: var(--panel-design-text-color);
+  --btn-ghost-hover-background: var(--panel-design-surface-color);
+  --btn-ghost-hover-color: var(--panel-design-text-color);
+  --btn-danger-border-color: var(--state-danger-text);
+  --btn-danger-background: var(--state-danger-text);
+  --btn-danger-color: var(--surface-panel);
+  --btn-danger-hover-border-color: var(--state-danger-text);
+  --btn-danger-hover-background: var(--state-danger-text);
+  --btn-danger-hover-color: var(--surface-panel);
 }
 
 .panel-design-match :is(.panel-section, .panel-section--emphasis),
@@ -124,8 +155,8 @@
   color: var(--state-danger-text);
 }
 
-.panel-design-match :is(.panel-input, .input),
-.panel-design-match-content :is(.panel-input, .input) {
+.panel-design-match :is(.panel-input),
+.panel-design-match-content :is(.panel-input) {
   min-height: var(--input-h-sm);
   padding: 6px 8px;
   border-color: var(--panel-design-border-color);
@@ -136,13 +167,13 @@
   line-height: 1.5;
 }
 
-.panel-design-match :is(textarea.panel-input, textarea.input),
-.panel-design-match-content :is(textarea.panel-input, textarea.input) {
+.panel-design-match :is(textarea.panel-input),
+.panel-design-match-content :is(textarea.panel-input) {
   min-height: 44px;
 }
 
-.panel-design-match :is(.panel-button, .btn),
-.panel-design-match-content :is(.panel-button, .btn) {
+.panel-design-match :is(.panel-button),
+.panel-design-match-content :is(.panel-button) {
   min-height: var(--input-h-sm);
   padding: 6px 10px;
   border-radius: var(--radius-sm);
@@ -155,31 +186,25 @@
   box-shadow: none;
 }
 
-.panel-design-match :is(.panel-button--primary, .btn-primary),
-.panel-design-match-content :is(.panel-button--primary, .btn-primary) {
+.panel-design-match :is(.panel-button--primary),
+.panel-design-match-content :is(.panel-button--primary) {
   border-color: var(--panel-design-accent-color);
   background: var(--panel-design-accent-color);
   color: var(--surface-panel);
 }
 
-.panel-design-match :is(.panel-button--ghost, .btn-ghost),
-.panel-design-match-content :is(.panel-button--ghost, .btn-ghost) {
+.panel-design-match :is(.panel-button--ghost),
+.panel-design-match-content :is(.panel-button--ghost) {
   border-color: var(--panel-design-border-color);
   background: var(--panel-design-surface-color);
   color: var(--panel-design-text-color);
 }
 
-.panel-design-match :is(.panel-button--danger, .btn-danger),
-.panel-design-match-content :is(.panel-button--danger, .btn-danger) {
+.panel-design-match :is(.panel-button--danger),
+.panel-design-match-content :is(.panel-button--danger) {
   border-color: var(--state-danger-text);
   background: var(--state-danger-text);
   color: var(--surface-panel);
-}
-
-/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
-.icon-btn:focus-visible {
-  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
-  outline-offset: 2px;
 }
 
 .panel-design-match-dialog:focus-visible {

@@ -147,6 +147,20 @@
   background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
 }
 
+.waveform-analysis-hotspot-marker {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-solid) 80%, transparent), color-mix(in srgb, var(--state-warning-solid) 72%, transparent));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--surface-panel) 64%, transparent),
+    0 0 12px color-mix(in srgb, var(--state-info-solid) 42%, transparent);
+  pointer-events: none;
+  z-index: calc(var(--z-overlay) + 1);
+}
+
 .waveform-acoustic-overlay {
   position: absolute;
   inset: 0;

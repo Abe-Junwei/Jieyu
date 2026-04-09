@@ -421,67 +421,67 @@
   gap: 10px;
 }
 
-.app-side-pane-body-slot .app-side-pane-group-toggle-static {
+.transcription-side-pane-portaled-stack .app-side-pane-group-toggle-static {
   cursor: default;
   border-bottom: 1px solid var(--border-soft);
 }
 
-.app-side-pane-body-slot .app-side-pane-group-toggle-static:hover {
+.transcription-side-pane-portaled-stack .app-side-pane-group-toggle-static:hover {
   background: transparent;
 }
 
-.app-side-pane-body-slot .app-side-pane-layer-list,
-.app-side-pane-body-slot .app-side-pane-layer-inspector-wrap {
+.transcription-side-pane-portaled-stack .app-side-pane-layer-list,
+.transcription-side-pane-portaled-stack .app-side-pane-layer-inspector-wrap {
   padding: 8px 6px;
 }
 
-.app-side-pane-body-slot .app-side-pane-layer-actions-wrap {
+.transcription-side-pane-portaled-stack .app-side-pane-layer-actions-wrap {
   padding: 8px 6px;
 }
 
-.app-side-pane-body-slot .app-side-pane-layer-list {
+.transcription-side-pane-portaled-stack .app-side-pane-layer-list {
   gap: 4px;
 }
 
-.app-side-pane-body-slot .app-side-pane-layer-inspector-wrap {
+.transcription-side-pane-portaled-stack .app-side-pane-layer-inspector-wrap {
   gap: 0;
 }
 
-.app-side-pane-body-slot .transcription-side-pane-item-row {
+.transcription-side-pane-portaled-stack .transcription-side-pane-item-row {
   border-bottom: none;
   border-radius: var(--radius-sm);
 }
 
-.app-side-pane-body-slot .transcription-side-pane-item {
+.transcription-side-pane-portaled-stack .transcription-side-pane-item {
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   padding: 8px 10px;
 }
 
-.app-side-pane-body-slot .transcription-side-pane-item:hover {
+.transcription-side-pane-portaled-stack .transcription-side-pane-item:hover {
   color: var(--text-primary);
   border-color: var(--border-strong);
   background: color-mix(in srgb, var(--surface-header) 60%, transparent);
 }
 
-.app-side-pane-body-slot .transcription-side-pane-item-active {
+.transcription-side-pane-portaled-stack .transcription-side-pane-item-active {
   color: var(--text-primary);
   border-color: color-mix(in srgb, var(--state-info-solid) 28%, transparent);
   background: color-mix(in srgb, var(--state-info-solid) 10%, transparent);
   box-shadow: inset 2px 0 0 var(--state-info-solid);
 }
 
-:root[data-theme='dark'] .app-side-pane-body-slot .transcription-side-pane-item:hover {
+:root[data-theme='dark'] .transcription-side-pane-portaled-stack .transcription-side-pane-item:hover {
   background: color-mix(in srgb, var(--surface-panel) 7%, transparent);
 }
 
-:root[data-theme='dark'] .app-side-pane-body-slot .transcription-side-pane-item-active {
+:root[data-theme='dark'] .transcription-side-pane-portaled-stack .transcription-side-pane-item-active {
   border-color: color-mix(in srgb, var(--state-info-solid) 38%, transparent);
   background: color-mix(in srgb, var(--state-info-solid) 16%, transparent);
   box-shadow: inset 2px 0 0 var(--state-info-solid);
 }
 
-.app-side-pane-body-slot .transcription-side-pane-inspector {
+.transcription-side-pane-portaled-stack .transcription-side-pane-inspector {
   margin: 0;
   padding: 0;
   border: none;
@@ -489,7 +489,7 @@
   gap: 8px;
 }
 
-.app-side-pane-body-slot .transcription-side-pane-actions-portaled {
+.transcription-side-pane-portaled-stack .transcription-side-pane-actions-portaled {
   padding: 0;
   gap: 4px;
   position: relative;
@@ -499,7 +499,7 @@
   -webkit-backdrop-filter: none;
 }
 
-.app-side-pane-body-slot .transcription-side-pane-actions-portaled .transcription-side-pane-quick-action {
+.transcription-side-pane-portaled-stack .transcription-side-pane-actions-portaled .transcription-side-pane-quick-action {
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -507,17 +507,17 @@
   padding: 8px 10px;
 }
 
-.app-side-pane-body-slot .transcription-side-pane-actions-portaled .transcription-side-pane-quick-action-label {
+.transcription-side-pane-portaled-stack .transcription-side-pane-actions-portaled .transcription-side-pane-quick-action-label {
   color: inherit;
 }
 
-.app-side-pane-body-slot .transcription-side-pane-actions-portaled .transcription-side-pane-quick-action:hover:not(:disabled) {
+.transcription-side-pane-portaled-stack .transcription-side-pane-actions-portaled .transcription-side-pane-quick-action:hover:not(:disabled) {
   color: var(--text-primary);
   border-color: var(--border-strong);
   background: color-mix(in srgb, var(--surface-header) 60%, transparent);
 }
 
-:root[data-theme='dark'] .app-side-pane-body-slot .transcription-side-pane-actions-portaled .transcription-side-pane-quick-action:hover:not(:disabled) {
+:root[data-theme='dark'] .transcription-side-pane-portaled-stack .transcription-side-pane-actions-portaled .transcription-side-pane-quick-action:hover:not(:disabled) {
   background: color-mix(in srgb, var(--surface-panel) 7%, transparent);
 }
 
@@ -642,15 +642,6 @@
   color: var(--text-primary);
   font-weight: 600;
   margin: 0;
-}
-
-/* — 保留的旧类名兼容 | Legacy class compat — */
-.transcription-side-pane-inspector-head {
-  display: contents;
-}
-
-.transcription-side-pane-inspector-head strong {
-  display: none;
 }
 
 /* — 属性列表内下拉框 | Inspector inline select — */
@@ -803,7 +794,7 @@
 }
 
 /* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
-.app-side-pane-body-slot:focus-visible {
+.transcription-side-pane-portaled-stack:focus-visible {
   outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
   outline-offset: 2px;
 }

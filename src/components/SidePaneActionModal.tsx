@@ -80,7 +80,6 @@ export function SidePaneActionModal({
       onKeyDown={handleKeyDown}
       hidden={hidden}
       aria-hidden={hidden ? 'true' : undefined}
-      style={hidden ? { display: 'none' } : undefined}
     >
       <DialogShell
         className={`side-pane-action-modal${isSpeakerModal ? ' side-pane-action-modal-speaker' : ''}${className ? ` ${className}` : ''}`}

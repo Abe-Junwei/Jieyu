@@ -46,28 +46,6 @@ body {
 :root[data-theme='dark'] .panel p {
   color: var(--text-secondary);
 }
-.select-caret {
-  -webkit-appearance: none;
-  appearance: none;
-  field-sizing: content;
-  width: fit-content;
-  inline-size: fit-content;
-  max-width: 100%;
-  height: auto;
-  line-height: 1.25;
-  padding-right: 34px;
-  background-image:
-    linear-gradient(180deg, color-mix(in srgb, var(--text-tertiary) 26%, transparent), color-mix(in srgb, var(--text-tertiary) 12%, transparent)),
-    var(--select-caret-icon);
-  background-repeat: no-repeat;
-  background-position: calc(100% - 26px) 50%, calc(100% - 10px) 50%;
-  background-size: 1px 14px, 10px 10px;
-}
-.select-caret:focus {
-  outline: none;
-  border-color: var(--state-info-border);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-solid) 22%, transparent);
-}
 .hint {
   margin-top: 14px;
   color: var(--state-success-text);
@@ -78,97 +56,62 @@ body {
   color: var(--state-danger-text);
 }
 
-.action-row {
-  margin-top: 16px;
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-/* ── 通用表单元素 | Generic form elements ── */
-
-.input {
-  width: 100%;
-  min-height: var(--input-h-md);
-  border: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
-  border-radius: var(--radius-md);
-  background: var(--surface-panel);
-  color: var(--text-primary);
-  padding: 8px 10px;
-  font-size: calc(0.76rem * var(--ui-font-scale, 1));
-  box-sizing: border-box;
-}
-
 .small-text {
   margin-top: 8px;
   font-size: 0.9rem;
   color: var(--text-secondary);
 }
 
-.textarea {
-  resize: vertical;
-  min-height: 88px;
+.app-recovery-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--state-warning-solid);
+  background: var(--state-warning-bg);
+  font-size: 13px;
 }
 
-.btn {
-  min-height: var(--btn-h-md);
-  border: 1px solid color-mix(in srgb, var(--state-info-border) 92%, transparent);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--state-info-bg) 82%, var(--surface-panel));
-  color: var(--state-info-solid);
-  padding: 6px 10px;
+.app-recovery-banner__text {
+  min-width: 0;
+}
+
+.app-recovery-banner__button {
+  border: none;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  padding: 2px 10px;
+}
+
+.app-recovery-banner__button--apply {
+  background: var(--state-warning-solid);
+  color: var(--surface-panel);
   font-weight: 600;
 }
 
-.btn-ghost {
-  background: var(--surface-panel);
+.app-recovery-banner__button--dismiss {
+  background: var(--border-soft);
   color: var(--text-primary);
-  border: 1px solid var(--header-border);
 }
 
-.btn-ghost:hover {
-  background: var(--surface-elevated);
+.app-error-boundary {
+  padding: 2rem;
 }
 
-.btn-danger {
-  border-color: color-mix(in srgb, var(--state-danger-border) 92%, transparent);
-  background: color-mix(in srgb, var(--state-danger-bg) 84%, var(--surface-panel));
-  color: var(--state-danger-text);
+.app-error-boundary__message {
+  color: var(--text-secondary);
+  font-size: 14px;
 }
 
-.btn-danger:hover {
-  color: var(--surface-panel);
-  background: var(--state-danger-solid);
+.app-error-boundary__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
 }
 
-:root[data-theme='dark'] .btn-ghost {
-  background: var(--surface-panel);
+.app-error-boundary__reload-btn {
+  background: var(--border-soft);
   color: var(--text-primary);
-  border-color: var(--border-strong);
-}
-
-:root[data-theme='dark'] .btn-ghost:hover {
-  background: color-mix(in srgb, var(--surface-header) 88%, transparent);
-}
-
-:root[data-theme='dark'] .btn-danger {
-  border-color: color-mix(in srgb, var(--state-danger-border) 92%, transparent);
-  background: color-mix(in srgb, var(--state-danger-bg) 84%, var(--surface-panel));
-  color: var(--state-danger-text);
-}
-
-:root[data-theme='dark'] .btn-danger:hover {
-  border-color: var(--state-danger-border);
-  background: var(--state-danger-solid);
-}
-
-.btn:disabled,
-.btn-ghost:disabled,
-.input:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 
 /* 降低动态效果：尊重系统“减少动态”偏好 | Reduced motion fallback */
@@ -181,15 +124,4 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-/* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
-.btn-danger:focus-visible {
-  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
-  outline-offset: 2px;
-}
-
-.btn-ghost:focus-visible {
-  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
-  outline-offset: 2px;
 }
