@@ -7,24 +7,28 @@ import {
 } from 'react';
 import type { UseWaveformRuntimeControllerResult } from './waveformRuntimeStorage';
 import {
-  readStoredAcousticOverlayMode,
   readStoredClampedNumber,
-  readStoredWaveformVisualStyle,
   type WaveformResizeState,
 } from './waveformRuntimeStorage';
 import {
+  ACOUSTIC_OVERLAY_MODE_STORAGE_KEY,
+  WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY,
   WAVEFORM_HEIGHT_STORAGE_KEY,
+  WAVEFORM_VISUAL_STYLE_STORAGE_KEY,
+  readStoredAcousticOverlayModePreference,
+  readStoredWaveformAmplitudeScalePreference,
   readStoredWaveformDisplayModePreference,
   readStoredWaveformHeightPreference,
+  readStoredWaveformVisualStylePreference,
   subscribeWaveformRuntimePreferenceChanged,
 } from '../utils/waveformRuntimePreferenceSync';
 
 export function useWaveformRuntimeController(): UseWaveformRuntimeControllerResult {
   const [waveformHeight, setWaveformHeight] = useState<number>(readStoredWaveformHeightPreference);
-  const [amplitudeScale, setAmplitudeScale] = useState<number>(() => readStoredClampedNumber('jieyu:amplitude-scale', 0.25, 4, 1));
+  const [amplitudeScale, setAmplitudeScale] = useState<number>(readStoredWaveformAmplitudeScalePreference);
   const [waveformDisplayMode, setWaveformDisplayMode] = useState<WaveformDisplayMode>(readStoredWaveformDisplayModePreference);
-  const [waveformVisualStyle, setWaveformVisualStyle] = useState<WaveformVisualStyle>(() => readStoredWaveformVisualStyle());
-  const [acousticOverlayMode, setAcousticOverlayMode] = useState<AcousticOverlayMode>(() => readStoredAcousticOverlayMode());
+  const [waveformVisualStyle, setWaveformVisualStyle] = useState<WaveformVisualStyle>(readStoredWaveformVisualStylePreference);
+  const [acousticOverlayMode, setAcousticOverlayMode] = useState<AcousticOverlayMode>(readStoredAcousticOverlayModePreference);
   const waveformResizeRef = useRef<WaveformResizeState | null>(null);
   const [isResizingWaveform, setIsResizingWaveform] = useState(false);
   /** 记录非 split 模式下用户设置的基础高度，用于从 split 切回时恢复 */
@@ -65,10 +69,10 @@ export function useWaveformRuntimeController(): UseWaveformRuntimeControllerResu
   useEffect(() => {
     try {
       localStorage.setItem('jieyu:waveform-height', String(waveformHeight));
-      localStorage.setItem('jieyu:amplitude-scale', String(amplitudeScale));
+      localStorage.setItem(WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY, String(amplitudeScale));
       localStorage.setItem('jieyu:waveform-display-mode', waveformDisplayMode);
-      localStorage.setItem('jieyu:waveform-visual-style', waveformVisualStyle);
-      localStorage.setItem('jieyu:acoustic-overlay-mode', acousticOverlayMode);
+      localStorage.setItem(WAVEFORM_VISUAL_STYLE_STORAGE_KEY, waveformVisualStyle);
+      localStorage.setItem(ACOUSTIC_OVERLAY_MODE_STORAGE_KEY, acousticOverlayMode);
     } catch {
       // no-op
     }
@@ -77,9 +81,15 @@ export function useWaveformRuntimeController(): UseWaveformRuntimeControllerResu
   // 监听设置面板变更事件，保证当前转写页立刻应用波形默认值 | Listen to settings changes so active transcription view updates immediately
   useEffect(() => subscribeWaveformRuntimePreferenceChanged(() => {
     const nextHeight = readStoredWaveformHeightPreference();
+    const nextAmplitudeScale = readStoredWaveformAmplitudeScalePreference();
     const nextDisplayMode = readStoredWaveformDisplayModePreference();
+    const nextVisualStyle = readStoredWaveformVisualStylePreference();
+    const nextOverlayMode = readStoredAcousticOverlayModePreference();
     setWaveformHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+    setAmplitudeScale((prev) => (prev === nextAmplitudeScale ? prev : nextAmplitudeScale));
     setWaveformDisplayMode((prev) => (prev === nextDisplayMode ? prev : nextDisplayMode));
+    setWaveformVisualStyle((prev) => (prev === nextVisualStyle ? prev : nextVisualStyle));
+    setAcousticOverlayMode((prev) => (prev === nextOverlayMode ? prev : nextOverlayMode));
   }), []);
 
   // 波形拖拽改变高度与增益倍率 | Resize waveform and sync amplitude while dragging

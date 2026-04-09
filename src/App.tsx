@@ -7,7 +7,7 @@ import { AiPanelProvider } from './contexts/AiPanelContext';
 import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from './contexts/AppSidePaneContext';
 import { usePanelAutoCollapse } from './hooks/usePanelAutoCollapse';
 import { SettingsModal } from './components/SettingsModal';
-import { persistUiFontScalePreference } from './utils/panelAdaptiveLayout';
+import { persistUiFontScalePreference, readPersistedUiFontScalePreference, type UiFontScaleMode } from './utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from './hooks/useUiFontScaleRuntime';
 import { usePanelResize } from './hooks/usePanelResize';
 import { LOCALE_PREFERENCE_STORAGE_KEY, LocaleProvider, detectLocale, setStoredLocalePreference, t, type Locale } from './i18n';
@@ -195,7 +195,7 @@ export function App() {
   const shellDragCleanupRef = useRef<(() => void) | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>(readInitialThemeMode);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { uiFontScale } = useUiFontScaleRuntime(locale);
+  const { uiFontScale, uiFontScaleMode } = useUiFontScaleRuntime(locale);
 
   useEffect(() => {
     const applied = resolveAppliedTheme(themeMode);
@@ -444,8 +444,16 @@ export function App() {
   }, []);
 
   const handleFontScaleChange = useCallback((scale: number) => {
-    persistUiFontScalePreference({ mode: scale === 1 ? 'auto' : 'manual', manualScale: scale });
+    persistUiFontScalePreference({ mode: 'manual', manualScale: scale });
   }, []);
+
+  const handleFontScaleModeChange = useCallback((mode: UiFontScaleMode) => {
+    const current = readPersistedUiFontScalePreference();
+    persistUiFontScalePreference({
+      mode,
+      manualScale: mode === 'manual' ? uiFontScale : current.manualScale,
+    });
+  }, [uiFontScale]);
 
   const handleSettingsOpen = useCallback(() => setIsSettingsOpen(true), []);
   const handleSettingsClose = useCallback(() => setIsSettingsOpen(false), []);
@@ -642,7 +650,9 @@ export function App() {
               onThemeChange={setThemeMode}
               onLocaleChange={handleLocaleChange}
               fontScale={uiFontScale}
+              fontScaleMode={uiFontScaleMode}
               onFontScaleChange={handleFontScaleChange}
+              onFontScaleModeChange={handleFontScaleModeChange}
             />
           </div>
         </AppSidePaneProvider>

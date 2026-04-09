@@ -4,6 +4,7 @@ import type { MutableRefObject } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType } from '../db';
 import { useTranscriptionWorkspaceLayoutController } from './useTranscriptionWorkspaceLayoutController';
+import { emitWorkspaceLayoutPreferenceChanged } from '../utils/workspaceLayoutPreferenceSync';
 
 function makeLayer(id: string): LayerDocType {
   return {
@@ -131,5 +132,32 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
 
     expect(document.body.style.userSelect).toBe('');
     expect(document.body.style.cursor).toBe('');
+  });
+
+  it('applies video layout defaults immediately after settings update event', () => {
+    localStorage.setItem('jieyu:video-preview-height', '220');
+    localStorage.setItem('jieyu:video-right-panel-width', '360');
+    localStorage.setItem('jieyu:video-layout-mode', 'top');
+
+    const { result } = renderHook(() => useTranscriptionWorkspaceLayoutController({
+      layers: [makeLayer('layer-a')],
+      selectedTimelineOwnerUtteranceId: undefined,
+      utteranceRowRef: makeUtteranceRowRef(),
+    }));
+
+    expect(result.current.videoPreviewHeight).toBe(220);
+    expect(result.current.videoRightPanelWidth).toBe(360);
+    expect(result.current.videoLayoutMode).toBe('top');
+
+    act(() => {
+      localStorage.setItem('jieyu:video-preview-height', '420');
+      localStorage.setItem('jieyu:video-right-panel-width', '520');
+      localStorage.setItem('jieyu:video-layout-mode', 'left');
+      emitWorkspaceLayoutPreferenceChanged();
+    });
+
+    expect(result.current.videoPreviewHeight).toBe(420);
+    expect(result.current.videoRightPanelWidth).toBe(520);
+    expect(result.current.videoLayoutMode).toBe('left');
   });
 });

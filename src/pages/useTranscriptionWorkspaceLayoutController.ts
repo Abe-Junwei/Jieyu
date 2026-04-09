@@ -12,6 +12,12 @@ import type { VideoLayoutMode } from '../components/transcription/TranscriptionT
 import type { LayerDocType } from '../db';
 import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/useTimelineLaneHeightResize';
 import { createLogger } from '../observability/logger';
+import {
+  readStoredVideoLayoutModePreference,
+  readStoredVideoPreviewHeightPreference,
+  readStoredVideoRightPanelWidthPreference,
+  subscribeWorkspaceLayoutPreferenceChanged,
+} from '../utils/workspaceLayoutPreferenceSync';
 
 const log = createLogger('TranscriptionWorkspaceLayout');
 
@@ -120,19 +126,6 @@ function readStoredWorkspaceZoomMode(): 'fit-all' | 'fit-selection' | 'custom' {
   }
 }
 
-function readStoredVideoLayoutMode(): VideoLayoutMode {
-  try {
-    const stored = localStorage.getItem('jieyu:video-layout-mode');
-    return stored === 'right' || stored === 'left' ? stored : 'top';
-  } catch (error) {
-    log.warn('Failed to read video layout mode from localStorage, fallback to default', {
-      storageKey: 'jieyu:video-layout-mode',
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return 'top';
-  }
-}
-
 function resetDocumentResizeStyles(): void {
   document.body.style.userSelect = '';
   document.body.style.cursor = '';
@@ -147,13 +140,13 @@ export function useTranscriptionWorkspaceLayoutController(
   const [laneLabelWidth, setLaneLabelWidth] = useState<number>(() => readStoredClampedNumber('jieyu:lane-label-width', 40, 180, 64));
   const laneLabelWidthRef = useRef<number>(laneLabelWidth);
   const [timelineLaneHeights, setTimelineLaneHeights] = useState<Record<string, number>>(() => readStoredLaneHeights());
-  const [videoPreviewHeight, setVideoPreviewHeight] = useState<number>(() => readStoredClampedNumber('jieyu:video-preview-height', 120, 600, 220));
+  const [videoPreviewHeight, setVideoPreviewHeight] = useState<number>(readStoredVideoPreviewHeightPreference);
   const videoPreviewResizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const [isResizingVideoPreview, setIsResizingVideoPreview] = useState(false);
-  const [videoRightPanelWidth, setVideoRightPanelWidth] = useState<number>(() => readStoredClampedNumber('jieyu:video-right-panel-width', 260, 720, 360));
+  const [videoRightPanelWidth, setVideoRightPanelWidth] = useState<number>(readStoredVideoRightPanelWidthPreference);
   const videoRightPanelResizeRef = useRef<{ startX: number; startWidth: number; factor: number } | null>(null);
   const [isResizingVideoRightPanel, setIsResizingVideoRightPanel] = useState(false);
-  const [videoLayoutMode, setVideoLayoutMode] = useState<VideoLayoutMode>(() => readStoredVideoLayoutMode());
+  const [videoLayoutMode, setVideoLayoutMode] = useState<VideoLayoutMode>(readStoredVideoLayoutModePreference);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(() => readStoredBoolean(WORKSPACE_AUTO_SCROLL_KEY, true));
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -162,6 +155,21 @@ export function useTranscriptionWorkspaceLayoutController(
   useEffect(() => {
     laneLabelWidthRef.current = laneLabelWidth;
   }, [laneLabelWidth]);
+
+  useEffect(() => subscribeWorkspaceLayoutPreferenceChanged(() => {
+    setVideoPreviewHeight((prev) => {
+      const next = readStoredVideoPreviewHeightPreference();
+      return prev === next ? prev : next;
+    });
+    setVideoRightPanelWidth((prev) => {
+      const next = readStoredVideoRightPanelWidthPreference();
+      return prev === next ? prev : next;
+    });
+    setVideoLayoutMode((prev) => {
+      const next = readStoredVideoLayoutModePreference();
+      return prev === next ? prev : next;
+    });
+  }), []);
 
   const toggleTimelineLaneHeader = useCallback(() => {
     setIsTimelineLaneHeaderCollapsed((prev) => !prev);

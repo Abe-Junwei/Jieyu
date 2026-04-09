@@ -75,7 +75,9 @@ function renderModal(overrides: Partial<SettingsModalProps> = {}) {
     onThemeChange: vi.fn(),
     onLocaleChange: vi.fn(),
     fontScale: 1,
+    fontScaleMode: 'auto',
     onFontScaleChange: vi.fn(),
+    onFontScaleModeChange: vi.fn(),
     version: '0.1.0',
     ...overrides,
   };
@@ -112,6 +114,13 @@ describe('Appearance tab', () => {
     renderModal({ onLocaleChange });
     fireEvent.click(screen.getByText('English'));
     expect(onLocaleChange).toHaveBeenCalledWith('en-US');
+  });
+
+  it('calls onFontScaleModeChange when toggling font mode', () => {
+    const onFontScaleModeChange = vi.fn();
+    renderModal({ fontScaleMode: 'manual', onFontScaleModeChange });
+    fireEvent.click(screen.getByRole('button', { name: '自动' }));
+    expect(onFontScaleModeChange).toHaveBeenCalledWith('auto');
   });
 
   it('renders section title above section body', () => {
@@ -169,6 +178,21 @@ describe('AI tab', () => {
     // Provider select is rendered with options
     const select = screen.getByRole('combobox') as HTMLSelectElement;
     expect(select.value).toBe('mock');
+  });
+
+  it('persists embedding defaults and acoustic runtime defaults', async () => {
+    renderModal();
+    fireEvent.click(screen.getByText('AI'));
+
+    await waitFor(() => expect(screen.getByText('Embedding 默认值')).toBeTruthy());
+
+    const embeddingRow = screen.getByText('Embedding 服务商').closest('.settings-row') as HTMLElement;
+    fireEvent.click(within(embeddingRow).getByRole('button', { name: 'MiniMax' }));
+    expect(localStorage.getItem('jieyu.embeddingProvider')).toContain('"kind":"minimax"');
+
+    fireEvent.change(screen.getByDisplayValue('10000'), { target: { value: '15000' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存声学默认值' }));
+    expect(localStorage.getItem('jieyu.acoustic.external.timeoutMs')).toBe('15000');
   });
 });
 
@@ -232,6 +256,37 @@ describe('Playback tab', () => {
     expect(localStorage.getItem('jieyu:waveform-height')).toBe('240');
   });
 
+  it('persists advanced waveform defaults to localStorage', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('播放'));
+
+    fireEvent.change(screen.getByLabelText('默认振幅倍率'), { target: { value: '1.75' } });
+    expect(localStorage.getItem('jieyu:amplitude-scale')).toBe('1.75');
+
+    const visualStyleRow = screen.getByText('默认视觉样式').closest('.settings-row') as HTMLElement;
+    fireEvent.click(within(visualStyleRow).getByRole('button', { name: 'Praat' }));
+    expect(localStorage.getItem('jieyu:waveform-visual-style')).toBe('praat');
+
+    const overlayRow = screen.getByText('默认声学叠加').closest('.settings-row') as HTMLElement;
+    fireEvent.click(within(overlayRow).getByRole('button', { name: '基频 + 强度' }));
+    expect(localStorage.getItem('jieyu:acoustic-overlay-mode')).toBe('both');
+  });
+
+  it('persists video layout defaults to localStorage', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('播放'));
+
+    const layoutRow = screen.getByText('视频布局模式').closest('.settings-row') as HTMLElement;
+    fireEvent.click(within(layoutRow).getByRole('button', { name: '左侧' }));
+    expect(localStorage.getItem('jieyu:video-layout-mode')).toBe('left');
+
+    fireEvent.change(screen.getByLabelText('视频预览高度'), { target: { value: '320' } });
+    expect(localStorage.getItem('jieyu:video-preview-height')).toBe('320');
+
+    fireEvent.change(screen.getByLabelText('右侧面板宽度'), { target: { value: '520' } });
+    expect(localStorage.getItem('jieyu:video-right-panel-width')).toBe('520');
+  });
+
   it('applies accessibility toggles to html class and localStorage', () => {
     renderModal();
     fireEvent.click(screen.getByText('播放'));
@@ -273,6 +328,19 @@ describe('Data tab', () => {
     renderModal();
     fireEvent.click(screen.getByText('数据'));
     expect(screen.getByText('本地存储用量')).toBeTruthy();
+  });
+
+  it('persists map defaults and resets voice dock position', () => {
+    localStorage.setItem('jieyu.voiceDock.pos', JSON.stringify({ right: 20, bottom: 20 }));
+    renderModal();
+    fireEvent.click(screen.getByText('数据'));
+
+    const mapProviderRow = screen.getByText('地图服务商默认值').closest('.settings-row') as HTMLElement;
+    fireEvent.click(within(mapProviderRow).getByRole('button', { name: 'MapTiler' }));
+    expect(localStorage.getItem('jieyu:map-provider')).toContain('"kind":"maptiler"');
+
+    fireEvent.click(screen.getByRole('button', { name: '重置位置' }));
+    expect(localStorage.getItem('jieyu.voiceDock.pos')).toBeNull();
   });
 });
 

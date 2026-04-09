@@ -29,9 +29,17 @@ import { getSettingsModalMessages } from '../i18n/settingsModalMessages';
 import { getShortcutsPanelMessages } from '../i18n/shortcutsPanelMessages';
 import type { Locale } from '../i18n';
 import {
+  ACOUSTIC_OVERLAY_MODE_STORAGE_KEY,
+  WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY,
   WAVEFORM_DISPLAY_MODE_STORAGE_KEY,
   WAVEFORM_HEIGHT_STORAGE_KEY,
+  WAVEFORM_VISUAL_STYLE_STORAGE_KEY,
   emitWaveformRuntimePreferenceChanged,
+  readStoredAcousticOverlayModePreference,
+  readStoredWaveformAmplitudeScalePreference,
+  readStoredWaveformDisplayModePreference,
+  readStoredWaveformHeightPreference,
+  readStoredWaveformVisualStylePreference,
 } from '../utils/waveformRuntimePreferenceSync';
 import {
   NEW_SEGMENT_SELECTION_BEHAVIOR_KEY,
@@ -41,6 +49,31 @@ import {
   type NewSegmentSelectionBehavior,
   type WaveformDoubleClickAction,
 } from '../utils/transcriptionInteractionPreferences';
+import { ACOUSTIC_OVERLAY_MODES, type AcousticOverlayMode } from '../utils/acousticOverlayTypes';
+import { WAVEFORM_VISUAL_STYLE_OPTIONS, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
+import type { UiFontScaleMode } from '../utils/panelAdaptiveLayout';
+import {
+  WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY,
+  WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY,
+  WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY,
+  emitWorkspaceLayoutPreferenceChanged,
+  readStoredVideoLayoutModePreference,
+  readStoredVideoPreviewHeightPreference,
+  readStoredVideoRightPanelWidthPreference,
+} from '../utils/workspaceLayoutPreferenceSync';
+import {
+  persistAcousticProviderRuntimeConfig,
+  resolveAcousticProviderRuntimeConfig,
+  type AcousticProviderRoutingStrategy,
+  type AcousticProviderRuntimeConfig,
+} from '../services/acoustic/acousticProviderContract';
+import {
+  EMBEDDING_PROVIDER_STORAGE_KEY,
+  loadEmbeddingProviderConfig,
+  saveEmbeddingProviderConfig,
+  type EmbeddingProviderConfig,
+} from '../pages/TranscriptionPage.helpers';
+import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -53,9 +86,31 @@ const WORKSPACE_SNAP_KEY = 'jieyu:workspace-snap-enabled';
 const WORKSPACE_DEFAULT_ZOOM_MODE_KEY = 'jieyu:workspace-default-zoom-mode';
 const ACCESSIBILITY_REDUCED_MOTION_KEY = 'jieyu:accessibility-reduced-motion';
 const ACCESSIBILITY_HIGH_CONTRAST_KEY = 'jieyu:accessibility-high-contrast';
+const AI_CONTEXT_DEBUG_KEY = 'jieyu.aiChat.debugContext';
+const VOICE_DOCK_POSITION_STORAGE_KEY = 'jieyu.voiceDock.pos';
+const MAP_PROVIDER_STORAGE_KEY = 'jieyu:map-provider';
 
 type WorkspaceZoomMode = 'fit-all' | 'fit-selection' | 'custom';
 type WaveformDisplayPreference = 'waveform' | 'spectrogram' | 'split';
+type VideoLayoutPreference = 'top' | 'left' | 'right';
+type MapProviderKind = 'osm' | 'tianditu' | 'maptiler';
+
+type MapProviderPreference = {
+  kind: MapProviderKind;
+  styleId: string;
+};
+
+const MAP_PROVIDER_OPTIONS: Array<{ value: MapProviderKind; label: string }> = [
+  { value: 'osm', label: 'OpenStreetMap' },
+  { value: 'tianditu', label: 'Tianditu' },
+  { value: 'maptiler', label: 'MapTiler' },
+];
+
+const EMBEDDING_PROVIDER_OPTIONS: Array<{ value: EmbeddingProviderKind; label: string }> = [
+  { value: 'local', label: 'Local' },
+  { value: 'openai-compatible', label: 'OpenAI Compatible' },
+  { value: 'minimax', label: 'MiniMax' },
+];
 
 // 已知缓存键 | Known cache storage keys
 const CACHE_ENTRIES = [
@@ -77,8 +132,12 @@ export interface SettingsModalProps {
   onLocaleChange: (locale: Locale) => void;
   /** 当前字体缩放值 | Current UI font scale */
   fontScale: number;
+  /** 字体缩放模式 | UI font scale mode */
+  fontScaleMode: UiFontScaleMode;
   /** 字体缩放回调 | Font scale change handler */
   onFontScaleChange: (scale: number) => void;
+  /** 字体缩放模式切换回调 | Font scale mode change handler */
+  onFontScaleModeChange: (mode: UiFontScaleMode) => void;
   /** 应用版本 | App version string */
   version?: string;
 }
@@ -154,14 +213,74 @@ function readStoredWorkspaceZoomMode(): WorkspaceZoomMode {
 
 function readStoredWaveformDisplayMode(): WaveformDisplayPreference {
   try {
-    const stored = localStorage.getItem(WAVEFORM_DISPLAY_MODE_STORAGE_KEY);
-    if (stored === 'waveform' || stored === 'spectrogram' || stored === 'split') {
-      return stored;
-    }
-    return 'waveform';
+    return readStoredWaveformDisplayModePreference();
   } catch {
     return 'waveform';
   }
+}
+
+function getMapStyleOptions(kind: MapProviderKind): Array<{ value: string; label: string }> {
+  if (kind === 'tianditu') {
+    return [
+      { value: 'vec', label: 'Vector' },
+      { value: 'img', label: 'Satellite' },
+      { value: 'ter', label: 'Terrain' },
+    ];
+  }
+  if (kind === 'maptiler') {
+    return [
+      { value: 'streets-v2', label: 'Streets' },
+      { value: 'satellite', label: 'Satellite' },
+      { value: 'outdoor-v2', label: 'Outdoor' },
+      { value: 'topo-v2', label: 'Topo' },
+      { value: 'basic-v2', label: 'Basic' },
+    ];
+  }
+  return [{ value: 'standard', label: 'Standard' }];
+}
+
+function getDefaultMapStyleId(kind: MapProviderKind): string {
+  return getMapStyleOptions(kind)[0]?.value ?? 'standard';
+}
+
+function readStoredMapProviderPreference(): MapProviderPreference {
+  try {
+    const raw = localStorage.getItem(MAP_PROVIDER_STORAGE_KEY);
+    if (!raw) {
+      return { kind: 'osm', styleId: 'standard' };
+    }
+    const parsed = JSON.parse(raw) as Partial<MapProviderPreference>;
+    const kind = parsed.kind === 'tianditu' || parsed.kind === 'maptiler' ? parsed.kind : 'osm';
+    const styleOptions = getMapStyleOptions(kind);
+    const styleId = typeof parsed.styleId === 'string' && styleOptions.some((opt) => opt.value === parsed.styleId)
+      ? parsed.styleId
+      : getDefaultMapStyleId(kind);
+    return { kind, styleId };
+  } catch {
+    return { kind: 'osm', styleId: 'standard' };
+  }
+}
+
+function persistMapProviderPreference(preference: MapProviderPreference): void {
+  try {
+    localStorage.setItem(MAP_PROVIDER_STORAGE_KEY, JSON.stringify(preference));
+  } catch {
+    // ignore
+  }
+}
+
+function normalizeEmbeddingProviderConfig(
+  config: EmbeddingProviderConfig,
+): EmbeddingProviderConfig {
+  const baseUrl = config.baseUrl?.trim();
+  const apiKey = config.apiKey?.trim();
+  const model = config.model?.trim();
+  return {
+    kind: config.kind,
+    ...(baseUrl ? { baseUrl } : {}),
+    ...(apiKey ? { apiKey } : {}),
+    ...(model ? { model } : {}),
+  };
 }
 
 function estimateLocalStorageUsage(): string {
@@ -273,7 +392,9 @@ export function SettingsModal({
   onThemeChange,
   onLocaleChange,
   fontScale,
+  fontScaleMode,
   onFontScaleChange,
+  onFontScaleModeChange,
   version,
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
@@ -363,6 +484,103 @@ export function SettingsModal({
     ].filter((g) => g.items.length > 0);
   }, [locale]);
 
+  const [embeddingProviderDefault, setEmbeddingProviderDefault] = useState<EmbeddingProviderConfig>(() => loadEmbeddingProviderConfig());
+  const [acousticRuntimeDraft, setAcousticRuntimeDraft] = useState<AcousticProviderRuntimeConfig>(() => resolveAcousticProviderRuntimeConfig());
+  const [acousticRuntimeSaved, setAcousticRuntimeSaved] = useState(false);
+  const [acousticRuntimeError, setAcousticRuntimeError] = useState<string | null>(null);
+  const [aiContextDebugEnabled, setAiContextDebugEnabled] = useState<boolean>(() => readStoredBoolean(AI_CONTEXT_DEBUG_KEY, false));
+
+  const persistEmbeddingProviderDefault = useCallback((config: EmbeddingProviderConfig) => {
+    const normalized = normalizeEmbeddingProviderConfig(config);
+    setEmbeddingProviderDefault(normalized);
+    saveEmbeddingProviderConfig(normalized);
+  }, []);
+
+  const handleEmbeddingProviderKindChange = useCallback((kind: EmbeddingProviderKind) => {
+    persistEmbeddingProviderDefault({ ...embeddingProviderDefault, kind });
+  }, [embeddingProviderDefault, persistEmbeddingProviderDefault]);
+
+  const handleEmbeddingProviderBaseUrlChange = useCallback((value: string) => {
+    persistEmbeddingProviderDefault({ ...embeddingProviderDefault, baseUrl: value });
+  }, [embeddingProviderDefault, persistEmbeddingProviderDefault]);
+
+  const handleEmbeddingProviderApiKeyChange = useCallback((value: string) => {
+    persistEmbeddingProviderDefault({ ...embeddingProviderDefault, apiKey: value });
+  }, [embeddingProviderDefault, persistEmbeddingProviderDefault]);
+
+  const handleEmbeddingProviderModelChange = useCallback((value: string) => {
+    persistEmbeddingProviderDefault({ ...embeddingProviderDefault, model: value });
+  }, [embeddingProviderDefault, persistEmbeddingProviderDefault]);
+
+  const handleAcousticRuntimeRoutingChange = useCallback((mode: AcousticProviderRoutingStrategy) => {
+    setAcousticRuntimeSaved(false);
+    setAcousticRuntimeError(null);
+    setAcousticRuntimeDraft((prev) => ({
+      ...prev,
+      routingStrategy: mode,
+    }));
+  }, []);
+
+  const handleAcousticRuntimeExternalEnabledChange = useCallback((enabled: boolean) => {
+    setAcousticRuntimeSaved(false);
+    setAcousticRuntimeError(null);
+    setAcousticRuntimeDraft((prev) => ({
+      ...prev,
+      externalProvider: {
+        ...prev.externalProvider,
+        enabled,
+      },
+    }));
+  }, []);
+
+  const handleAcousticRuntimeEndpointChange = useCallback((value: string) => {
+    setAcousticRuntimeSaved(false);
+    setAcousticRuntimeError(null);
+    setAcousticRuntimeDraft((prev) => ({
+      ...prev,
+      externalProvider: {
+        ...prev.externalProvider,
+        endpoint: value,
+      },
+    }));
+  }, []);
+
+  const handleAcousticRuntimeTimeoutChange = useCallback((value: number) => {
+    const timeoutMs = Number.isFinite(value)
+      ? Math.min(120000, Math.max(500, Math.round(value)))
+      : 10000;
+    setAcousticRuntimeSaved(false);
+    setAcousticRuntimeError(null);
+    setAcousticRuntimeDraft((prev) => ({
+      ...prev,
+      externalProvider: {
+        ...prev.externalProvider,
+        timeoutMs,
+      },
+    }));
+  }, []);
+
+  const handleAcousticRuntimeSave = useCallback(() => {
+    try {
+      const persisted = persistAcousticProviderRuntimeConfig(acousticRuntimeDraft);
+      setAcousticRuntimeDraft(persisted);
+      setAcousticRuntimeSaved(true);
+      setAcousticRuntimeError(null);
+    } catch (error) {
+      setAcousticRuntimeSaved(false);
+      setAcousticRuntimeError(error instanceof Error ? error.message : String(error));
+    }
+  }, [acousticRuntimeDraft]);
+
+  const handleAiContextDebugChange = useCallback((enabled: boolean) => {
+    setAiContextDebugEnabled(enabled);
+    try {
+      localStorage.setItem(AI_CONTEXT_DEBUG_KEY, enabled ? '1' : '0');
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // ── 播放偏好 | Playback preferences ──
 
   const [defaultPlaybackRate, setDefaultPlaybackRate] = useState(readDefaultPlaybackRate);
@@ -372,9 +590,18 @@ export function SettingsModal({
   const [waveformDoubleClickActionDefault, setWaveformDoubleClickActionDefault] = useState<WaveformDoubleClickAction>(readStoredWaveformDoubleClickAction);
   const [newSegmentSelectionBehaviorDefault, setNewSegmentSelectionBehaviorDefault] = useState<NewSegmentSelectionBehavior>(readStoredNewSegmentSelectionBehavior);
   const [waveformDisplayDefault, setWaveformDisplayDefault] = useState<WaveformDisplayPreference>(readStoredWaveformDisplayMode);
-  const [waveformDefaultHeight, setWaveformDefaultHeight] = useState<number>(() => readStoredClampedNumber(WAVEFORM_HEIGHT_STORAGE_KEY, 80, 400, 180));
+  const [waveformDefaultHeight, setWaveformDefaultHeight] = useState<number>(readStoredWaveformHeightPreference);
+  const [waveformAmplitudeDefault, setWaveformAmplitudeDefault] = useState<number>(readStoredWaveformAmplitudeScalePreference);
+  const [waveformVisualStyleDefault, setWaveformVisualStyleDefault] = useState<WaveformVisualStyle>(readStoredWaveformVisualStylePreference);
+  const [waveformOverlayDefault, setWaveformOverlayDefault] = useState<AcousticOverlayMode>(readStoredAcousticOverlayModePreference);
+  const [videoLayoutDefault, setVideoLayoutDefault] = useState<VideoLayoutPreference>(readStoredVideoLayoutModePreference);
+  const [videoPreviewHeightDefault, setVideoPreviewHeightDefault] = useState<number>(readStoredVideoPreviewHeightPreference);
+  const [videoRightPanelWidthDefault, setVideoRightPanelWidthDefault] = useState<number>(readStoredVideoRightPanelWidthPreference);
   const [reducedMotionEnabled, setReducedMotionEnabled] = useState<boolean>(() => readStoredBoolean(ACCESSIBILITY_REDUCED_MOTION_KEY, false));
   const [highContrastEnabled, setHighContrastEnabled] = useState<boolean>(() => readStoredBoolean(ACCESSIBILITY_HIGH_CONTRAST_KEY, false));
+
+  const [mapProviderDefault, setMapProviderDefault] = useState<MapProviderPreference>(readStoredMapProviderPreference);
+  const [voiceDockPositionResetAt, setVoiceDockPositionResetAt] = useState<number | null>(null);
 
   const handlePlaybackRateChange = useCallback((rate: number) => {
     setDefaultPlaybackRate(rate);
@@ -394,6 +621,26 @@ export function SettingsModal({
   const handleWorkspaceZoomModeChange = useCallback((mode: WorkspaceZoomMode) => {
     setWorkspaceZoomModeDefault(mode);
     try { localStorage.setItem(WORKSPACE_DEFAULT_ZOOM_MODE_KEY, mode); } catch { /* ignore */ }
+  }, []);
+
+  const handleVideoLayoutDefaultChange = useCallback((mode: VideoLayoutPreference) => {
+    setVideoLayoutDefault(mode);
+    try { localStorage.setItem(WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY, mode); } catch { /* ignore */ }
+    emitWorkspaceLayoutPreferenceChanged();
+  }, []);
+
+  const handleVideoPreviewHeightDefaultChange = useCallback((nextHeight: number) => {
+    const normalized = Math.min(600, Math.max(120, Math.round(nextHeight)));
+    setVideoPreviewHeightDefault(normalized);
+    try { localStorage.setItem(WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY, String(normalized)); } catch { /* ignore */ }
+    emitWorkspaceLayoutPreferenceChanged();
+  }, []);
+
+  const handleVideoRightPanelWidthDefaultChange = useCallback((nextWidth: number) => {
+    const normalized = Math.min(720, Math.max(260, Math.round(nextWidth)));
+    setVideoRightPanelWidthDefault(normalized);
+    try { localStorage.setItem(WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY, String(normalized)); } catch { /* ignore */ }
+    emitWorkspaceLayoutPreferenceChanged();
   }, []);
 
   const handleWaveformDoubleClickActionChange = useCallback((mode: WaveformDoubleClickAction) => {
@@ -416,6 +663,25 @@ export function SettingsModal({
     const normalized = Math.min(400, Math.max(80, Math.round(nextHeight)));
     setWaveformDefaultHeight(normalized);
     try { localStorage.setItem(WAVEFORM_HEIGHT_STORAGE_KEY, String(normalized)); } catch { /* ignore */ }
+    emitWaveformRuntimePreferenceChanged();
+  }, []);
+
+  const handleWaveformAmplitudeDefaultChange = useCallback((nextAmplitude: number) => {
+    const normalized = Math.min(4, Math.max(0.25, Number(nextAmplitude.toFixed(2))));
+    setWaveformAmplitudeDefault(normalized);
+    try { localStorage.setItem(WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY, String(normalized)); } catch { /* ignore */ }
+    emitWaveformRuntimePreferenceChanged();
+  }, []);
+
+  const handleWaveformVisualStyleDefaultChange = useCallback((style: WaveformVisualStyle) => {
+    setWaveformVisualStyleDefault(style);
+    try { localStorage.setItem(WAVEFORM_VISUAL_STYLE_STORAGE_KEY, style); } catch { /* ignore */ }
+    emitWaveformRuntimePreferenceChanged();
+  }, []);
+
+  const handleWaveformOverlayDefaultChange = useCallback((mode: AcousticOverlayMode) => {
+    setWaveformOverlayDefault(mode);
+    try { localStorage.setItem(ACOUSTIC_OVERLAY_MODE_STORAGE_KEY, mode); } catch { /* ignore */ }
     emitWaveformRuntimePreferenceChanged();
   }, []);
 
@@ -458,6 +724,33 @@ export function SettingsModal({
     } catch { /* ignore */ }
   }, [msg.dataResetConfirm]);
 
+  const handleMapProviderKindChange = useCallback((kind: MapProviderKind) => {
+    const next = {
+      kind,
+      styleId: getDefaultMapStyleId(kind),
+    } as MapProviderPreference;
+    setMapProviderDefault(next);
+    persistMapProviderPreference(next);
+  }, []);
+
+  const handleMapProviderStyleChange = useCallback((styleId: string) => {
+    const next = {
+      ...mapProviderDefault,
+      styleId,
+    };
+    setMapProviderDefault(next);
+    persistMapProviderPreference(next);
+  }, [mapProviderDefault]);
+
+  const handleResetVoiceDockPosition = useCallback(() => {
+    try {
+      localStorage.removeItem(VOICE_DOCK_POSITION_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    setVoiceDockPositionResetAt(Date.now());
+  }, []);
+
   // 关闭时重置瞬态 | Reset transient state on close
   useEffect(() => {
     if (!isOpen) {
@@ -465,7 +758,16 @@ export function SettingsModal({
       setClearedCaches(new Set());
       setAiSaveFlash(false);
       setAiSettings(null);
+      setAcousticRuntimeSaved(false);
+      setAcousticRuntimeError(null);
+      setAcousticRuntimeDraft(resolveAcousticProviderRuntimeConfig());
+      setVoiceDockPositionResetAt(null);
+      return;
     }
+    setEmbeddingProviderDefault(loadEmbeddingProviderConfig());
+    setAcousticRuntimeDraft(resolveAcousticProviderRuntimeConfig());
+    setMapProviderDefault(readStoredMapProviderPreference());
+    setAiContextDebugEnabled(readStoredBoolean(AI_CONTEXT_DEBUG_KEY, false));
   }, [isOpen]);
 
   // ── Memos ──
@@ -488,6 +790,11 @@ export function SettingsModal({
   const localeOptions = useMemo(() => [
     { value: 'zh-CN' as const, label: msg.localeChinese },
     { value: 'en-US' as const, label: msg.localeEnglish },
+  ], [msg]);
+
+  const fontScaleModeOptions = useMemo(() => [
+    { value: 'auto' as const, label: msg.fontScaleModeAuto },
+    { value: 'manual' as const, label: msg.fontScaleModeManual },
   ], [msg]);
 
   const toggleOptions = useMemo(() => [
@@ -517,13 +824,57 @@ export function SettingsModal({
     { value: 'split' as const, label: msg.waveformDisplaySplit },
   ], [msg]);
 
+  const waveformVisualStyleOptions = useMemo(
+    () => WAVEFORM_VISUAL_STYLE_OPTIONS.map((style) => {
+      const labelMap: Record<WaveformVisualStyle, string> = {
+        balanced: msg.waveformVisualStyleBalanced,
+        dense: msg.waveformVisualStyleDense,
+        contrast: msg.waveformVisualStyleContrast,
+        praat: msg.waveformVisualStylePraat,
+      };
+      return {
+        value: style,
+        label: labelMap[style],
+      };
+    }),
+    [msg],
+  );
+
+  const waveformOverlayOptions = useMemo(
+    () => ACOUSTIC_OVERLAY_MODES.map((mode) => {
+      const labelMap: Record<AcousticOverlayMode, string> = {
+        none: msg.waveformOverlayNone,
+        f0: msg.waveformOverlayF0,
+        intensity: msg.waveformOverlayIntensity,
+        both: msg.waveformOverlayBoth,
+      };
+      return {
+        value: mode,
+        label: labelMap[mode],
+      };
+    }),
+    [msg],
+  );
+
+  const videoLayoutModeOptions = useMemo(() => [
+    { value: 'top' as const, label: msg.videoLayoutTop },
+    { value: 'left' as const, label: msg.videoLayoutLeft },
+    { value: 'right' as const, label: msg.videoLayoutRight },
+  ], [msg]);
+
+  const acousticRoutingOptions = useMemo(() => [
+    { value: 'local-first' as const, label: msg.aiAcousticRoutingLocalFirst },
+    { value: 'prefer-external' as const, label: msg.aiAcousticRoutingPreferExternal },
+  ], [msg]);
+
   const handleFontScaleInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onFontScaleModeChange('manual');
     onFontScaleChange(Number(e.target.value));
-  }, [onFontScaleChange]);
+  }, [onFontScaleChange, onFontScaleModeChange]);
 
   const handleFontScaleReset = useCallback(() => {
-    onFontScaleChange(1);
-  }, [onFontScaleChange]);
+    onFontScaleModeChange('auto');
+  }, [onFontScaleModeChange]);
 
   // 快捷键分组 | Shortcut categories
   const shortcutCategoryLabels: Record<string, string> = {
@@ -569,6 +920,13 @@ export function SettingsModal({
                 <OptionGroup value={locale} options={localeOptions} onChange={onLocaleChange} />
               </SettingsSection>
               <SettingsSection title={msg.fontScaleLabel}>
+                <SettingRow label={msg.fontScaleModeLabel}>
+                  <OptionGroup
+                    value={fontScaleMode}
+                    options={fontScaleModeOptions}
+                    onChange={onFontScaleModeChange}
+                  />
+                </SettingRow>
                 <div className="settings-font-scale-row">
                   <input
                     type="range"
@@ -579,9 +937,10 @@ export function SettingsModal({
                     step={0.05}
                     value={fontScale}
                     onChange={handleFontScaleInput}
+                    disabled={fontScaleMode === 'auto'}
                   />
                   <span className="settings-font-scale-value">{Math.round(fontScale * 100)}%</span>
-                  {fontScale !== 1 && (
+                  {fontScaleMode !== 'auto' && (
                     <button
                       type="button"
                       className="settings-font-scale-reset-btn"
@@ -715,6 +1074,99 @@ export function SettingsModal({
                       ))}
                     </SettingsSection>
                   )}
+                  <SettingsSection title={msg.aiEmbeddingDefaultsTitle}>
+                    <SettingRow label={msg.aiEmbeddingProviderLabel}>
+                      <OptionGroup
+                        value={embeddingProviderDefault.kind}
+                        options={EMBEDDING_PROVIDER_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+                        onChange={handleEmbeddingProviderKindChange}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiEmbeddingModelLabel}>
+                      <input
+                        className="settings-input"
+                        value={embeddingProviderDefault.model ?? ''}
+                        placeholder={msg.aiEmbeddingModelPlaceholder}
+                        onChange={(e) => handleEmbeddingProviderModelChange(e.currentTarget.value)}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiEmbeddingBaseUrlLabel}>
+                      <input
+                        className="settings-input"
+                        value={embeddingProviderDefault.baseUrl ?? ''}
+                        placeholder={msg.aiEmbeddingBaseUrlPlaceholder}
+                        onChange={(e) => handleEmbeddingProviderBaseUrlChange(e.currentTarget.value)}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiEmbeddingApiKeyLabel}>
+                      <input
+                        className="settings-input"
+                        type="password"
+                        value={embeddingProviderDefault.apiKey ?? ''}
+                        placeholder={msg.aiEmbeddingApiKeyPlaceholder}
+                        onChange={(e) => handleEmbeddingProviderApiKeyChange(e.currentTarget.value)}
+                      />
+                    </SettingRow>
+                  </SettingsSection>
+
+                  <SettingsSection title={msg.aiAcousticDefaultsTitle}>
+                    <SettingRow label={msg.aiAcousticRoutingLabel}>
+                      <OptionGroup
+                        value={acousticRuntimeDraft.routingStrategy}
+                        options={acousticRoutingOptions}
+                        onChange={handleAcousticRuntimeRoutingChange}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiAcousticExternalEnabledLabel}>
+                      <OptionGroup
+                        value={acousticRuntimeDraft.externalProvider.enabled ? 'on' : 'off'}
+                        options={toggleOptions}
+                        onChange={(value) => handleAcousticRuntimeExternalEnabledChange(value === 'on')}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiAcousticEndpointLabel}>
+                      <input
+                        className="settings-input"
+                        value={acousticRuntimeDraft.externalProvider.endpoint ?? ''}
+                        placeholder={msg.aiAcousticEndpointPlaceholder}
+                        onChange={(e) => handleAcousticRuntimeEndpointChange(e.currentTarget.value)}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiAcousticTimeoutLabel}>
+                      <div className="settings-inline-row">
+                        <input
+                          type="number"
+                          className="settings-input"
+                          min={500}
+                          max={120000}
+                          step={100}
+                          value={acousticRuntimeDraft.externalProvider.timeoutMs}
+                          onChange={(e) => handleAcousticRuntimeTimeoutChange(Number(e.currentTarget.value))}
+                        />
+                        <span className="settings-range-value">ms</span>
+                      </div>
+                    </SettingRow>
+                    <div className="settings-inline-row">
+                      <button type="button" className="settings-link-btn" onClick={handleAcousticRuntimeSave}>
+                        {msg.aiAcousticSaveButton}
+                      </button>
+                      {acousticRuntimeSaved ? <span className="settings-save-flash">{msg.aiSaved}</span> : null}
+                    </div>
+                    {acousticRuntimeError ? <p className="settings-ai-note">{acousticRuntimeError}</p> : null}
+                  </SettingsSection>
+
+                  {import.meta.env.DEV ? (
+                    <SettingsSection title={msg.aiDebugTitle}>
+                      <SettingRow label={msg.aiDebugContextLabel}>
+                        <OptionGroup
+                          value={aiContextDebugEnabled ? 'on' : 'off'}
+                          options={toggleOptions}
+                          onChange={(value) => handleAiContextDebugChange(value === 'on')}
+                        />
+                      </SettingRow>
+                    </SettingsSection>
+                  ) : null}
+
                   <p className="settings-ai-note">{msg.aiConfigNote}</p>
                 </div>
               ) : null}
@@ -753,6 +1205,46 @@ export function SettingsModal({
                     options={workspaceZoomModeOptions}
                     onChange={handleWorkspaceZoomModeChange}
                   />
+                </SettingRow>
+              </SettingsSection>
+
+              <SettingsSection title={msg.videoLayoutDefaultsTitle}>
+                <SettingRow label={msg.videoLayoutModeLabel}>
+                  <OptionGroup
+                    value={videoLayoutDefault}
+                    options={videoLayoutModeOptions}
+                    onChange={handleVideoLayoutDefaultChange}
+                  />
+                </SettingRow>
+                <SettingRow label={msg.videoPreviewHeightLabel}>
+                  <div className="settings-range-control">
+                    <input
+                      type="range"
+                      className="settings-font-scale-slider"
+                      aria-label={msg.videoPreviewHeightLabel}
+                      min={120}
+                      max={600}
+                      step={10}
+                      value={videoPreviewHeightDefault}
+                      onChange={(e) => handleVideoPreviewHeightDefaultChange(Number(e.target.value))}
+                    />
+                    <span className="settings-range-value">{videoPreviewHeightDefault}px</span>
+                  </div>
+                </SettingRow>
+                <SettingRow label={msg.videoRightPanelWidthLabel}>
+                  <div className="settings-range-control">
+                    <input
+                      type="range"
+                      className="settings-font-scale-slider"
+                      aria-label={msg.videoRightPanelWidthLabel}
+                      min={260}
+                      max={720}
+                      step={10}
+                      value={videoRightPanelWidthDefault}
+                      onChange={(e) => handleVideoRightPanelWidthDefaultChange(Number(e.target.value))}
+                    />
+                    <span className="settings-range-value">{videoRightPanelWidthDefault}px</span>
+                  </div>
                 </SettingRow>
               </SettingsSection>
 
@@ -796,6 +1288,35 @@ export function SettingsModal({
                     <span className="settings-range-value">{waveformDefaultHeight}px</span>
                   </div>
                 </SettingRow>
+                <SettingRow label={msg.waveformAmplitudeLabel}>
+                  <div className="settings-range-control">
+                    <input
+                      type="range"
+                      className="settings-font-scale-slider"
+                      aria-label={msg.waveformAmplitudeLabel}
+                      min={0.25}
+                      max={4}
+                      step={0.05}
+                      value={waveformAmplitudeDefault}
+                      onChange={(e) => handleWaveformAmplitudeDefaultChange(Number(e.target.value))}
+                    />
+                    <span className="settings-range-value">{waveformAmplitudeDefault.toFixed(2)}x</span>
+                  </div>
+                </SettingRow>
+                <SettingRow label={msg.waveformVisualStyleLabel}>
+                  <OptionGroup
+                    value={waveformVisualStyleDefault}
+                    options={waveformVisualStyleOptions}
+                    onChange={handleWaveformVisualStyleDefaultChange}
+                  />
+                </SettingRow>
+                <SettingRow label={msg.waveformOverlayLabel}>
+                  <OptionGroup
+                    value={waveformOverlayDefault}
+                    options={waveformOverlayOptions}
+                    onChange={handleWaveformOverlayDefaultChange}
+                  />
+                </SettingRow>
               </SettingsSection>
 
               <SettingsSection title={msg.accessibilityDefaultsTitle}>
@@ -820,6 +1341,34 @@ export function SettingsModal({
           {/* ── 数据 | Data ── */}
           {activeTab === 'data' && (
             <div className="settings-sections-stack">
+              <SettingsSection title={msg.dataWorkspaceIntegrationTitle}>
+                <SettingRow label={msg.dataMapProviderLabel}>
+                  <OptionGroup
+                    value={mapProviderDefault.kind}
+                    options={MAP_PROVIDER_OPTIONS}
+                    onChange={handleMapProviderKindChange}
+                  />
+                </SettingRow>
+                <SettingRow label={msg.dataMapStyleLabel}>
+                  <select
+                    className="settings-select"
+                    value={mapProviderDefault.styleId}
+                    onChange={(e) => handleMapProviderStyleChange(e.currentTarget.value)}
+                  >
+                    {getMapStyleOptions(mapProviderDefault.kind).map((style) => (
+                      <option key={style.value} value={style.value}>{style.label}</option>
+                    ))}
+                  </select>
+                </SettingRow>
+                <div className="settings-data-row">
+                  <span className="settings-data-label">{msg.dataVoiceDockPositionLabel}</span>
+                  <button type="button" className="settings-link-btn" onClick={handleResetVoiceDockPosition}>
+                    {msg.dataVoiceDockResetBtn}
+                  </button>
+                </div>
+                {voiceDockPositionResetAt ? <div className="settings-data-cleared">{msg.dataCleared}</div> : null}
+              </SettingsSection>
+
               <SettingsSection title={msg.tabData}>
                 {CACHE_ENTRIES.map((entry) => (
                   <div key={entry.id} className="settings-data-row">

@@ -18,6 +18,9 @@ export type SettingsModalMessages = {
   localeChinese: string;
   localeEnglish: string;
   fontScaleLabel: string;
+  fontScaleModeLabel: string;
+  fontScaleModeAuto: string;
+  fontScaleModeManual: string;
   fontScaleReset: string;
   // 快捷键 | Shortcuts
   shortcutRecording: string;
@@ -40,6 +43,13 @@ export type SettingsModalMessages = {
   zoomModeFitAll: string;
   zoomModeFitSelection: string;
   zoomModeCustom: string;
+  videoLayoutDefaultsTitle: string;
+  videoLayoutModeLabel: string;
+  videoLayoutTop: string;
+  videoLayoutLeft: string;
+  videoLayoutRight: string;
+  videoPreviewHeightLabel: string;
+  videoRightPanelWidthLabel: string;
   selectionEditDefaultsTitle: string;
   doubleClickActionLabel: string;
   doubleClickActionZoom: string;
@@ -53,6 +63,17 @@ export type SettingsModalMessages = {
   waveformDisplaySpectrogram: string;
   waveformDisplaySplit: string;
   waveformHeightLabel: string;
+  waveformAmplitudeLabel: string;
+  waveformVisualStyleLabel: string;
+  waveformVisualStyleBalanced: string;
+  waveformVisualStyleDense: string;
+  waveformVisualStyleContrast: string;
+  waveformVisualStylePraat: string;
+  waveformOverlayLabel: string;
+  waveformOverlayNone: string;
+  waveformOverlayF0: string;
+  waveformOverlayIntensity: string;
+  waveformOverlayBoth: string;
   accessibilityDefaultsTitle: string;
   accessibilityReducedMotionLabel: string;
   accessibilityHighContrastLabel: string;
@@ -68,6 +89,31 @@ export type SettingsModalMessages = {
   dataCacheVad: string;
   dataCacheLanguageCatalog: string;
   dataCacheEmbeddingProvider: string;
+  dataWorkspaceIntegrationTitle: string;
+  dataMapProviderLabel: string;
+  dataMapStyleLabel: string;
+  dataVoiceDockPositionLabel: string;
+  dataVoiceDockResetBtn: string;
+  // AI advanced
+  aiEmbeddingDefaultsTitle: string;
+  aiEmbeddingProviderLabel: string;
+  aiEmbeddingModelLabel: string;
+  aiEmbeddingModelPlaceholder: string;
+  aiEmbeddingBaseUrlLabel: string;
+  aiEmbeddingBaseUrlPlaceholder: string;
+  aiEmbeddingApiKeyLabel: string;
+  aiEmbeddingApiKeyPlaceholder: string;
+  aiAcousticDefaultsTitle: string;
+  aiAcousticRoutingLabel: string;
+  aiAcousticRoutingLocalFirst: string;
+  aiAcousticRoutingPreferExternal: string;
+  aiAcousticExternalEnabledLabel: string;
+  aiAcousticEndpointLabel: string;
+  aiAcousticEndpointPlaceholder: string;
+  aiAcousticTimeoutLabel: string;
+  aiAcousticSaveButton: string;
+  aiDebugTitle: string;
+  aiDebugContextLabel: string;
   // 关于 | About
   aboutVersion: string;
   aboutDescription: string;
@@ -91,6 +137,9 @@ const zhCN: SettingsModalMessages = {
   localeChinese: '中文',
   localeEnglish: 'English',
   fontScaleLabel: '字体缩放',
+  fontScaleModeLabel: '字号策略',
+  fontScaleModeAuto: '自动',
+  fontScaleModeManual: '手动',
   fontScaleReset: '重置',
   shortcutRecording: '请按下快捷键…',
   shortcutReset: '恢复默认',
@@ -110,6 +159,13 @@ const zhCN: SettingsModalMessages = {
   zoomModeFitAll: '适应全部',
   zoomModeFitSelection: '适应选区',
   zoomModeCustom: '自定义',
+  videoLayoutDefaultsTitle: '视频布局默认值',
+  videoLayoutModeLabel: '视频布局模式',
+  videoLayoutTop: '上方',
+  videoLayoutLeft: '左侧',
+  videoLayoutRight: '右侧',
+  videoPreviewHeightLabel: '视频预览高度',
+  videoRightPanelWidthLabel: '右侧面板宽度',
   selectionEditDefaultsTitle: '选择与编辑默认值',
   doubleClickActionLabel: '波形双击行为',
   doubleClickActionZoom: '缩放到选区',
@@ -123,6 +179,17 @@ const zhCN: SettingsModalMessages = {
   waveformDisplaySpectrogram: '频谱',
   waveformDisplaySplit: '分屏',
   waveformHeightLabel: '默认波形高度',
+  waveformAmplitudeLabel: '默认振幅倍率',
+  waveformVisualStyleLabel: '默认视觉样式',
+  waveformVisualStyleBalanced: '平衡',
+  waveformVisualStyleDense: '紧凑',
+  waveformVisualStyleContrast: '高对比',
+  waveformVisualStylePraat: 'Praat',
+  waveformOverlayLabel: '默认声学叠加',
+  waveformOverlayNone: '关闭',
+  waveformOverlayF0: '基频',
+  waveformOverlayIntensity: '强度',
+  waveformOverlayBoth: '基频 + 强度',
   accessibilityDefaultsTitle: '可访问性偏好',
   accessibilityReducedMotionLabel: '减少动态效果',
   accessibilityHighContrastLabel: '增强对比度',
@@ -137,6 +204,30 @@ const zhCN: SettingsModalMessages = {
   dataCacheVad: 'VAD 缓存',
   dataCacheLanguageCatalog: '语言目录缓存',
   dataCacheEmbeddingProvider: '嵌入模型配置',
+  dataWorkspaceIntegrationTitle: '工作台与集成',
+  dataMapProviderLabel: '地图服务商默认值',
+  dataMapStyleLabel: '地图样式默认值',
+  dataVoiceDockPositionLabel: '语音浮窗位置',
+  dataVoiceDockResetBtn: '重置位置',
+  aiEmbeddingDefaultsTitle: 'Embedding 默认值',
+  aiEmbeddingProviderLabel: 'Embedding 服务商',
+  aiEmbeddingModelLabel: 'Embedding 模型',
+  aiEmbeddingModelPlaceholder: '留空使用默认模型',
+  aiEmbeddingBaseUrlLabel: 'Embedding Base URL',
+  aiEmbeddingBaseUrlPlaceholder: 'https://api.example.com/v1',
+  aiEmbeddingApiKeyLabel: 'Embedding API Key',
+  aiEmbeddingApiKeyPlaceholder: 'sk-...',
+  aiAcousticDefaultsTitle: '声学 Provider 默认值',
+  aiAcousticRoutingLabel: '路由策略',
+  aiAcousticRoutingLocalFirst: '本地优先',
+  aiAcousticRoutingPreferExternal: '外部优先',
+  aiAcousticExternalEnabledLabel: '启用外部 Provider',
+  aiAcousticEndpointLabel: '外部 Endpoint',
+  aiAcousticEndpointPlaceholder: 'https://example.com/health',
+  aiAcousticTimeoutLabel: '探测超时',
+  aiAcousticSaveButton: '保存声学默认值',
+  aiDebugTitle: '调试开关（开发环境）',
+  aiDebugContextLabel: '输出 AI 上下文调试信息',
   aboutVersion: '版本',
   aboutDescription: '解语 Jieyu — 濒危语言科研协作平台',
   aboutRepo: '项目仓库',
@@ -159,6 +250,9 @@ const enUS: SettingsModalMessages = {
   localeChinese: '中文',
   localeEnglish: 'English',
   fontScaleLabel: 'Font scale',
+  fontScaleModeLabel: 'Font mode',
+  fontScaleModeAuto: 'Auto',
+  fontScaleModeManual: 'Manual',
   fontScaleReset: 'Reset',
   shortcutRecording: 'Press a key…',
   shortcutReset: 'Reset',
@@ -178,6 +272,13 @@ const enUS: SettingsModalMessages = {
   zoomModeFitAll: 'Fit all',
   zoomModeFitSelection: 'Fit selection',
   zoomModeCustom: 'Custom',
+  videoLayoutDefaultsTitle: 'Video Layout Defaults',
+  videoLayoutModeLabel: 'Video layout mode',
+  videoLayoutTop: 'Top',
+  videoLayoutLeft: 'Left',
+  videoLayoutRight: 'Right',
+  videoPreviewHeightLabel: 'Video preview height',
+  videoRightPanelWidthLabel: 'Right panel width',
   selectionEditDefaultsTitle: 'Selection & Edit Defaults',
   doubleClickActionLabel: 'Waveform double-click action',
   doubleClickActionZoom: 'Zoom to selection',
@@ -191,6 +292,17 @@ const enUS: SettingsModalMessages = {
   waveformDisplaySpectrogram: 'Spectrogram',
   waveformDisplaySplit: 'Split',
   waveformHeightLabel: 'Default waveform height',
+  waveformAmplitudeLabel: 'Default amplitude scale',
+  waveformVisualStyleLabel: 'Default visual style',
+  waveformVisualStyleBalanced: 'Balanced',
+  waveformVisualStyleDense: 'Dense',
+  waveformVisualStyleContrast: 'Contrast',
+  waveformVisualStylePraat: 'Praat',
+  waveformOverlayLabel: 'Default acoustic overlay',
+  waveformOverlayNone: 'None',
+  waveformOverlayF0: 'F0',
+  waveformOverlayIntensity: 'Intensity',
+  waveformOverlayBoth: 'F0 + Intensity',
   accessibilityDefaultsTitle: 'Accessibility Preferences',
   accessibilityReducedMotionLabel: 'Reduce motion',
   accessibilityHighContrastLabel: 'Increase contrast',
@@ -205,6 +317,30 @@ const enUS: SettingsModalMessages = {
   dataCacheVad: 'VAD cache',
   dataCacheLanguageCatalog: 'Language catalog cache',
   dataCacheEmbeddingProvider: 'Embedding provider config',
+  dataWorkspaceIntegrationTitle: 'Workspace Integrations',
+  dataMapProviderLabel: 'Default map provider',
+  dataMapStyleLabel: 'Default map style',
+  dataVoiceDockPositionLabel: 'Voice dock position',
+  dataVoiceDockResetBtn: 'Reset position',
+  aiEmbeddingDefaultsTitle: 'Embedding Defaults',
+  aiEmbeddingProviderLabel: 'Embedding provider',
+  aiEmbeddingModelLabel: 'Embedding model',
+  aiEmbeddingModelPlaceholder: 'Leave blank to use provider default',
+  aiEmbeddingBaseUrlLabel: 'Embedding base URL',
+  aiEmbeddingBaseUrlPlaceholder: 'https://api.example.com/v1',
+  aiEmbeddingApiKeyLabel: 'Embedding API key',
+  aiEmbeddingApiKeyPlaceholder: 'sk-...',
+  aiAcousticDefaultsTitle: 'Acoustic Provider Defaults',
+  aiAcousticRoutingLabel: 'Routing strategy',
+  aiAcousticRoutingLocalFirst: 'Local first',
+  aiAcousticRoutingPreferExternal: 'Prefer external',
+  aiAcousticExternalEnabledLabel: 'Enable external provider',
+  aiAcousticEndpointLabel: 'External endpoint',
+  aiAcousticEndpointPlaceholder: 'https://example.com/health',
+  aiAcousticTimeoutLabel: 'Probe timeout',
+  aiAcousticSaveButton: 'Save acoustic defaults',
+  aiDebugTitle: 'Debug (Dev only)',
+  aiDebugContextLabel: 'Enable AI context debug output',
   aboutVersion: 'Version',
   aboutDescription: 'Jieyu — Endangered Language Research Platform',
   aboutRepo: 'Repository',
