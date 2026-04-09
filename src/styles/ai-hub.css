@@ -47,15 +47,15 @@
 
 .ai-chat-voice-drawer-head {
   --ai-fold-head-bg: color-mix(in srgb, var(--state-info-bg) 58%, transparent);
-  --ai-fold-head-border: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
-  --ai-fold-head-shadow: inset 0 -1px 0 color-mix(in srgb, var(--state-info-solid) 10%, transparent);
+  --ai-fold-head-border: color-mix(in srgb, var(--state-info-solid) 18%, transparent);
+  --ai-fold-head-shadow: 0 1px 2px color-mix(in srgb, var(--state-info-solid) 6%, transparent), inset 0 1px 0 color-mix(in srgb, white 46%, transparent);
   --ai-fold-head-color: var(--state-info-solid);
   --ai-fold-head-hover-bg: color-mix(in srgb, var(--state-info-bg) 68%, transparent);
   --ai-fold-head-hover-border: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
-  --ai-fold-head-hover-shadow: inset 0 -1px 0 color-mix(in srgb, var(--state-info-solid) 16%, transparent), 0 2px 8px color-mix(in srgb, var(--state-info-solid) 8%, transparent);
+  --ai-fold-head-hover-shadow: 0 6px 16px color-mix(in srgb, var(--state-info-solid) 8%, transparent), inset 0 1px 0 color-mix(in srgb, white 52%, transparent);
   --ai-fold-head-open-bg: color-mix(in srgb, var(--state-info-bg) 72%, transparent);
   --ai-fold-head-open-border: color-mix(in srgb, var(--state-info-solid) 34%, transparent);
-  --ai-fold-head-open-shadow: inset 0 -1px 0 color-mix(in srgb, var(--state-info-solid) 16%, transparent);
+  --ai-fold-head-open-shadow: 0 8px 20px color-mix(in srgb, var(--state-info-solid) 10%, transparent), inset 0 1px 0 color-mix(in srgb, white 56%, transparent);
   appearance: none;
   -webkit-appearance: none;
 }
@@ -63,7 +63,7 @@
 .ai-chat-voice-drawer-head,
 .ai-chat-decision-panel-head,
 .ai-chat-prompt-lab-panel-head {
-  border: 1px solid var(--ai-fold-head-border);
+  border: 0;
   background: var(--ai-fold-head-bg);
   box-shadow: var(--ai-fold-head-shadow);
   color: var(--ai-fold-head-color);
@@ -126,15 +126,15 @@
 
 .ai-chat-voice-drawer-body {
   overflow: hidden;
-  max-height: 0;
-  padding: 0 8px;
+  --ai-fold-head-border: color-mix(in srgb, var(--state-info-solid) 18%, transparent);
+  --ai-fold-head-shadow: 0 1px 2px color-mix(in srgb, var(--state-info-solid) 6%, transparent), inset 0 1px 0 color-mix(in srgb, white 46%, transparent);
   opacity: 0;
   background: color-mix(in srgb, var(--state-info-bg) 42%, transparent);
   -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  --ai-fold-head-hover-shadow: 0 6px 16px color-mix(in srgb, var(--state-info-solid) 8%, transparent), inset 0 1px 0 color-mix(in srgb, white 52%, transparent);
   transition: max-height var(--ai-fold-expand-duration) var(--ai-fold-ease), padding var(--ai-fold-expand-duration) var(--ai-fold-ease), opacity var(--ai-fold-fade-duration) var(--ai-fold-ease);
 }
-
+  --ai-fold-head-open-shadow: 0 8px 20px color-mix(in srgb, var(--state-info-solid) 10%, transparent), inset 0 1px 0 color-mix(in srgb, white 56%, transparent);
 .ai-chat-voice-drawer.is-open .ai-chat-voice-drawer-body {
   max-height: var(--ai-voice-drawer-max-height, clamp(140px, 36vh, 380px));
   padding: 6px 8px 4px;
@@ -187,14 +187,14 @@
 .ai-chat-decision-panel-head {
   --ai-fold-head-bg: color-mix(in srgb, var(--state-info-bg) 50%, transparent);
   --ai-fold-head-border: color-mix(in srgb, var(--state-info-solid) 20%, transparent);
-  --ai-fold-head-shadow: inset 0 -1px 0 color-mix(in srgb, var(--state-info-solid) 7%, transparent);
+  --ai-fold-head-shadow: 0 1px 2px color-mix(in srgb, var(--state-info-solid) 5%, transparent), inset 0 1px 0 color-mix(in srgb, white 42%, transparent);
   --ai-fold-head-color: var(--state-info-solid);
   --ai-fold-head-hover-bg: color-mix(in srgb, var(--state-info-bg) 58%, transparent);
   --ai-fold-head-hover-border: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
-  --ai-fold-head-hover-shadow: inset 0 -1px 0 color-mix(in srgb, var(--state-info-solid) 12%, transparent), 0 2px 6px color-mix(in srgb, var(--state-info-solid) 6%, transparent);
+  --ai-fold-head-hover-shadow: 0 6px 14px color-mix(in srgb, var(--state-info-solid) 7%, transparent), inset 0 1px 0 color-mix(in srgb, white 48%, transparent);
   --ai-fold-head-open-bg: color-mix(in srgb, var(--state-info-bg) 62%, transparent);
   --ai-fold-head-open-border: color-mix(in srgb, var(--state-info-solid) 28%, transparent);
-  --ai-fold-head-open-shadow: inset 0 -1px 0 color-mix(in srgb, var(--state-info-solid) 12%, transparent);
+  --ai-fold-head-open-shadow: 0 8px 18px color-mix(in srgb, var(--state-info-solid) 8%, transparent), inset 0 1px 0 color-mix(in srgb, white 52%, transparent);
 }
 
 .ai-chat-prompt-lab-panel {
@@ -213,14 +213,14 @@
 .ai-chat-prompt-lab-panel-head {
   --ai-fold-head-bg: color-mix(in srgb, var(--surface-panel) 74%, transparent);
   --ai-fold-head-border: color-mix(in srgb, var(--text-tertiary) 20%, transparent);
-  --ai-fold-head-shadow: inset 0 -1px 0 color-mix(in srgb, var(--text-tertiary) 8%, transparent);
+  --ai-fold-head-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 4%, transparent), inset 0 1px 0 color-mix(in srgb, white 42%, transparent);
   --ai-fold-head-color: var(--text-primary);
   --ai-fold-head-hover-bg: color-mix(in srgb, var(--surface-panel) 88%, transparent);
   --ai-fold-head-hover-border: color-mix(in srgb, var(--text-tertiary) 28%, transparent);
-  --ai-fold-head-hover-shadow: inset 0 -1px 0 color-mix(in srgb, var(--text-tertiary) 12%, transparent), 0 2px 6px color-mix(in srgb, var(--shadow-color) 4%, transparent);
+  --ai-fold-head-hover-shadow: 0 6px 14px color-mix(in srgb, var(--shadow-color) 5%, transparent), inset 0 1px 0 color-mix(in srgb, white 48%, transparent);
   --ai-fold-head-open-bg: color-mix(in srgb, var(--surface-panel) 96%, transparent);
   --ai-fold-head-open-border: color-mix(in srgb, var(--text-tertiary) 30%, transparent);
-  --ai-fold-head-open-shadow: inset 0 -1px 0 color-mix(in srgb, var(--text-tertiary) 12%, transparent);
+  --ai-fold-head-open-shadow: 0 8px 18px color-mix(in srgb, var(--shadow-color) 6%, transparent), inset 0 1px 0 color-mix(in srgb, white 54%, transparent);
 }
 
 .ai-chat-prompt-lab-panel-title {
@@ -414,10 +414,11 @@
     background: color-mix(in srgb, var(--state-info-bg) 82%, transparent);
   }
 
-  .ai-chat-voice-drawer-body {
-    background: color-mix(in srgb, var(--state-info-bg) 72%, transparent);
+  .ai-chat-prompt-lab-panel-head {
+    background: color-mix(in srgb, var(--surface-panel) 92%, var(--surface-header));
   }
 }
+
 
 .ai-chat-decision-item:last-child {
   border-bottom: 0;
@@ -531,7 +532,8 @@
 
 @media (max-width: 960px) {
 
-  [data-ai-analysis-panel] .transcription-assistant-hub-tab:hover:not(.transcription-assistant-hub-tab-active) {
+  [data-ai-analysis-panel] .transcription-assistant-hub-tab:hover:not(.transcription-assistant-hub-tab-active),
+  [data-ai-analysis-panel] .transcription-assistant-hub-tab:focus-visible:not(.transcription-assistant-hub-tab-active) {
     color: var(--tab-hover);
     background: color-mix(in srgb, var(--text-tertiary) 8%, transparent);
   }
@@ -1298,6 +1300,8 @@ select.ai-cfg-input {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
 }
 
 

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import * as csstree from 'css-tree';
 import { collectDuplicateClassStats } from './css-duplicate-class-governance.mjs';
+import { collectInlineStyleStats } from './css-inline-style-governance.mjs';
 import { collectUnusedSelectorStats } from './css-unused-selector-governance.mjs';
 
 const ROOT = process.cwd();
@@ -42,31 +43,6 @@ function loadConfig() {
     throw new Error(`missing config: ${path.relative(ROOT, CONFIG_PATH)}`);
   }
   return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-}
-
-function collectInlineStyleStats() {
-  const sourceFiles = walkFiles(SRC_DIR, (filePath) => filePath.endsWith('.tsx') || filePath.endsWith('.jsx'));
-  const linePattern = /style\s*=\s*\{\{/g;
-  let total = 0;
-  const files = [];
-
-  for (const filePath of sourceFiles) {
-    const relPath = toPosix(filePath);
-    if (shouldSkipSource(relPath)) continue;
-    const content = fs.readFileSync(filePath, 'utf8');
-    let count = 0;
-    for (const line of content.split(/\r?\n/)) {
-      linePattern.lastIndex = 0;
-      count += (line.match(linePattern) ?? []).length;
-    }
-    if (count > 0) {
-      files.push([relPath, count]);
-      total += count;
-    }
-  }
-
-  files.sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
-  return { total, files };
 }
 
 function collectDuplicateStats() {
@@ -114,7 +90,7 @@ function main() {
   const inlineStats = collectInlineStyleStats();
   const duplicateStats = collectDuplicateStats();
   const unusedStats = collectUnusedStats();
-  const failures = [];
+  const failures = [...inlineStats.whitelistFailures];
 
   const inlineConfig = readMetricConfig(config, 'inlineStyleOccurrences');
   const duplicateConfig = readMetricConfig(config, 'duplicateClassNames');
@@ -122,9 +98,13 @@ function main() {
 
   printMetric(
     'inlineStyleOccurrences',
-    inlineStats.total,
+    inlineStats.effectiveTotal,
     inlineConfig,
-    inlineStats.files.slice(0, 6).map(([file, count]) => `${file}: ${count}`),
+    [
+      `rawTotal=${inlineStats.rawTotal}`,
+      `whitelistedTotal=${inlineStats.approvedTotal}`,
+      ...inlineStats.effectiveFiles.slice(0, 6).map(([file, count]) => `${file}: ${count}`),
+    ],
   );
   printMetric(
     'duplicateClassNames',
@@ -139,8 +119,8 @@ function main() {
     unusedStats.unused.slice(0, 6),
   );
 
-  if (inlineStats.total > inlineConfig.maxTotal) {
-    failures.push(`inlineStyleOccurrences exceeded max: ${inlineStats.total} > ${inlineConfig.maxTotal}`);
+  if (inlineStats.effectiveTotal > inlineConfig.maxTotal) {
+    failures.push(`inlineStyleOccurrences exceeded max: ${inlineStats.effectiveTotal} > ${inlineConfig.maxTotal}`);
   }
   if (duplicateStats.total > duplicateConfig.maxTotal) {
     failures.push(`duplicateClassNames exceeded max: ${duplicateStats.total} > ${duplicateConfig.maxTotal}`);

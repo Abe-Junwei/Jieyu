@@ -2,7 +2,7 @@ import '../styles/components/orthography-builder.css';
 import '../styles/foundation/dialog-shell.css';
 import '../styles/foundation/panel-design-presets.css';
 import '../styles/foundation/panel-primitives.css';
-import { Link } from 'react-router-dom';
+import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
 import { getOrthographyCatalogBadgeInfo } from '../components/orthographyCatalogUi';
 import { LanguageIsoInput, type LanguageIsoInputValue } from '../components/LanguageIsoInput';
 import { ScriptTagCombobox } from '../components/ScriptTagCombobox';
@@ -90,7 +90,7 @@ export function OrthographyManagerPanel({
   onBeforeOpenBridge,
 }: OrthographyManagerPanelProps) {
   const panelActions = selectedOrthography ? (
-    <Link
+    <LanguageAssetRouteLink
       to={bridgeWorkspaceHref}
       className="panel-button panel-button--ghost orthography-manager-panel-link"
       onClick={(event) => {
@@ -100,13 +100,14 @@ export function OrthographyManagerPanel({
       }}
     >
       {t(locale, 'workspace.orthography.openBridgeWorkspace')}
-    </Link>
+    </LanguageAssetRouteLink>
   ) : undefined;
 
   return (
     <EmbeddedPanelShell
-      className="orthography-manager-panel-shell"
-      bodyClassName="orthography-manager-panel-body"
+      className="language-asset-workspace-shell orthography-manager-panel-shell"
+      headerClassName="language-asset-workspace-hero orthography-manager-panel-header"
+      bodyClassName="language-asset-workspace-flow orthography-manager-panel-body"
       footerClassName="orthography-manager-panel-footer"
       title={t(locale, 'workspace.orthography.title')}
       actions={panelActions}
@@ -122,6 +123,25 @@ export function OrthographyManagerPanel({
       ) : null}
     >
       {fromLayerId ? <p className="orthography-manager-context-note orthography-builder-workspace-note">{t(locale, 'workspace.orthography.fromLayerHint')}</p> : null}
+
+      {selectedOrthography ? (
+        <>
+          <section className="orthography-manager-highlight-card panel-section panel-section--emphasis" aria-label={t(locale, 'workspace.orthography.detailTitle')}>
+            <div className="panel-section__header">
+              <div className="panel-section__copy">
+                <p className="orthography-manager-highlight-label">{t(locale, 'workspace.orthography.languageAssetIdLabel')}</p>
+                <p className="orthography-manager-highlight-value">{selectedOrthography.languageId ?? t(locale, 'workspace.orthography.notSet')}</p>
+              </div>
+              <div className="panel-section__meta orthography-manager-highlight-meta">
+                <PanelChip>{resolveLabel(selectedOrthography.languageId)}</PanelChip>
+                {selectedBadgeLabel ? <PanelChip>{selectedBadgeLabel}</PanelChip> : null}
+              </div>
+            </div>
+          </section>
+
+          {isDirty ? <PanelNote className="orthography-manager-state orthography-manager-state-warning">{t(locale, 'workspace.orthography.unsavedHint')}</PanelNote> : null}
+        </>
+      ) : null}
 
       <section className="orthography-manager-browser panel-section" aria-label={t(locale, 'workspace.orthography.listTitle')}>
         <div className="panel-section__body orthography-builder-group-body orthography-manager-browser-body">
@@ -192,29 +212,14 @@ export function OrthographyManagerPanel({
         </div>
       </section>
 
-      <hr className="orthography-manager-divider" />
-
       {selectedOrthography ? (
         <>
-          <section className="orthography-manager-highlight-card panel-section panel-section--emphasis" aria-label={t(locale, 'workspace.orthography.detailTitle')}>
-            <div className="panel-section__header">
-              <div className="panel-section__copy">
-                <p className="orthography-manager-highlight-label">{t(locale, 'workspace.orthography.languageAssetIdLabel')}</p>
-                <p className="orthography-manager-highlight-value">{selectedOrthography.languageId ?? t(locale, 'workspace.orthography.notSet')}</p>
-              </div>
-              <div className="panel-section__meta orthography-manager-highlight-meta">
-                <PanelChip>{resolveLabel(selectedOrthography.languageId)}</PanelChip>
-                {selectedBadgeLabel ? <PanelChip>{selectedBadgeLabel}</PanelChip> : null}
-              </div>
-            </div>
-          </section>
-
-          {isDirty ? <PanelNote className="orthography-manager-state orthography-manager-state-warning">{t(locale, 'workspace.orthography.unsavedHint')}</PanelNote> : null}
+          <hr className="orthography-manager-divider" />
 
           {draft ? (
             <div className="orthography-manager-form-stack orthography-builder-panel orthography-builder-panel-compact">
               <section className="orthography-manager-subsection orthography-builder-group orthography-builder-group-divided">
-                <h3 className="orthography-manager-subsection-title orthography-builder-group-title">{builderMessages.identitySectionTitle}</h3>
+                <h3 className="panel-title-primary orthography-manager-subsection-title orthography-builder-group-title">{builderMessages.identitySectionTitle}</h3>
                 <div className="orthography-manager-form-grid">
                   <div className="orthography-manager-form-span-2">
                     <LanguageIsoInput
@@ -292,7 +297,7 @@ export function OrthographyManagerPanel({
               </section>
 
               <section className="orthography-manager-subsection orthography-builder-group orthography-builder-group-divided">
-                <h3 className="orthography-manager-subsection-title orthography-builder-group-title">{builderMessages.renderSectionTitle}</h3>
+                <h3 className="panel-title-primary orthography-manager-subsection-title orthography-builder-group-title">{builderMessages.renderSectionTitle}</h3>
                 <div className="orthography-manager-form-grid">
                   <FormField label={builderMessages.primaryFontLabel} className="orthography-manager-form-span-half">
                     <input className="panel-input" type="text" value={draft.primaryFonts} onChange={(event) => onDraftChange('primaryFonts', event.target.value)} placeholder={builderMessages.primaryFontPlaceholder} />
@@ -323,7 +328,7 @@ export function OrthographyManagerPanel({
               </section>
 
               <section className="orthography-manager-subsection orthography-builder-group orthography-builder-group-divided">
-                <h3 className="orthography-manager-subsection-title orthography-builder-group-title">{builderMessages.localizedNamesSectionTitle}</h3>
+                <h3 className="panel-title-primary orthography-manager-subsection-title orthography-builder-group-title">{builderMessages.localizedNamesSectionTitle}</h3>
                 <div className="orthography-manager-array-list">
                   {draft.localizedNameEntries.map((entry, index) => (
                     <div key={`${entry.languageTag}-${index}`} className="orthography-manager-array-row">
@@ -368,7 +373,7 @@ export function OrthographyManagerPanel({
 
                 <hr className="orthography-manager-divider" />
 
-                <h3 className="orthography-manager-subsection-title orthography-builder-group-title">{builderMessages.examplesSectionTitle}</h3>
+                <h3 className="panel-title-primary orthography-manager-subsection-title orthography-builder-group-title">{builderMessages.examplesSectionTitle}</h3>
                 <div className="orthography-manager-form-grid">
                   <FormField label={builderMessages.exemplarLabel} className="orthography-manager-form-span-half">
                     <textarea className="panel-input orthography-manager-textarea" value={draft.exemplarMain} onChange={(event) => onDraftChange('exemplarMain', event.target.value)} placeholder={builderMessages.exemplarPlaceholder} />
@@ -390,7 +395,7 @@ export function OrthographyManagerPanel({
 
               <details className="orthography-manager-advanced orthography-builder-advanced-group">
                 <summary className="orthography-manager-advanced-summary">
-                  <span className="orthography-builder-group-title">{builderMessages.advancedSectionTitle}</span>
+                  <span className="panel-title-secondary orthography-builder-group-title">{builderMessages.advancedSectionTitle}</span>
                   <span className="orthography-manager-advanced-meta">
                     {draft.catalogReviewStatus ? resolveCatalogReviewStatusLabel(locale, draft.catalogReviewStatus) : null}
                     {draft.catalogPriority ? ` · ${resolveCatalogPriorityLabel(locale, draft.catalogPriority)}` : null}

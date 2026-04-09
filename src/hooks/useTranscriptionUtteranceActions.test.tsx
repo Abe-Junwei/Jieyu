@@ -946,6 +946,55 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     expect(latest?.unitId).toBeTruthy();
   });
 
+  it('createUtteranceFromSelection keeps current selection when selectionBehavior is keep-current', async () => {
+    const now = new Date().toISOString();
+    const setSelectedTimelineUnit = vi.fn();
+
+    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+      defaultTranscriptionLayerId: 'trc-default',
+      layerById: new Map(),
+      selectedUtteranceMedia: {
+        id: 'media-1',
+        textId: 'text-1',
+        filename: 'demo.wav',
+        duration: 120,
+        sourceType: 'upload',
+        createdAt: now,
+        updatedAt: now,
+      } as never,
+      translations: [],
+      utterancesRef: { current: [] },
+      utterancesOnCurrentMediaRef: { current: [] },
+      getUtteranceTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, utteranceId: null } },
+      timingUndoRef: { current: null },
+      pushUndo: vi.fn(),
+      createAnchor: vi.fn(async (_db, mediaId, time) => ({
+        id: `a_${time}`,
+        mediaId,
+        time,
+        createdAt: now,
+      } as AnchorDocType)),
+      updateAnchorTime: vi.fn(),
+      pruneOrphanAnchors: vi.fn(),
+      setSaveState: vi.fn(),
+      setSnapGuide: vi.fn(),
+      setMediaItems: vi.fn(),
+      setTranslations: vi.fn(),
+      setUtterances: vi.fn(),
+      setUtteranceDrafts: vi.fn(),
+      activeUtteranceUnitId: '',
+      setSelectedUtteranceIds: vi.fn(),
+      setSelectedTimelineUnit: setSelectedTimelineUnit as any,
+    }));
+
+    await act(async () => {
+      await result.current.createUtteranceFromSelection(1.0, 2.0, { selectionBehavior: 'keep-current' });
+    });
+
+    expect(setSelectedTimelineUnit).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'utterance' }));
+  });
+
   it('projects a new utterance to both dependent transcription layer and its parent root', async () => {
     const now = new Date().toISOString();
     const rootLayer = makeLayer({

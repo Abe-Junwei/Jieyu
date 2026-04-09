@@ -117,6 +117,16 @@ export function saveUserOverride(id: string, combo: KeyCombo): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(Object.fromEntries(map)));
 }
 
+export function removeUserOverride(id: string): void {
+  const map = loadUserOverrides();
+  map.delete(id);
+  if (map.size === 0) {
+    localStorage.removeItem(STORAGE_KEY);
+  } else {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(Object.fromEntries(map)));
+  }
+}
+
 export function resetUserOverrides(): void {
   localStorage.removeItem(STORAGE_KEY);
 }

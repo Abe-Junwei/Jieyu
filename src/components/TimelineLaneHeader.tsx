@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import type { LayerLinkDocType, LayerDocType, LayerDisplaySettings, OrthographyDocType } from '../db';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { buildLayerBundles } from '../services/LayerOrderingService';
-import { buildLayerLinkConnectorLayout, getLayerLinkConnectorColors, getLayerLinkStackWidth } from '../utils/layerLinkConnector';
+import { buildLayerLinkConnectorLayout, getLayerLinkStackWidth } from '../utils/layerLinkConnector';
 import { useLocale } from '../i18n';
 import { getTimelineLaneHeaderMessages } from '../i18n/timelineLaneHeaderMessages';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
@@ -61,6 +61,45 @@ interface TimelineLaneHeaderProps {
 interface LaneLockDialogState {
   initialLaneIndex: number;
   selectedSpeakerHint: string;
+}
+
+const LANE_LINK_COLUMN_WIDTH = 18;
+const LANE_LINK_TRUNK_X = 16;
+const LANE_LINK_MARKER_X = 2;
+const LANE_LINK_ELBOW_START_X = 6;
+
+function renderLaneLinkConnectorSvg(
+  segment: { column: number; colorIndex: number; role: 'bundle-root' | 'bundle-child-middle' | 'bundle-child-end' },
+) {
+  const connectorClasses = `lane-link-connector-svg lane-link-connector-svg-${segment.role} lane-link-connector-svg-color-${segment.colorIndex % 6}`;
+  const offsetX = segment.column * LANE_LINK_COLUMN_WIDTH;
+  return (
+    <g
+      key={`${segment.column}-${segment.role}-${segment.colorIndex}`}
+      className={connectorClasses}
+      transform={`translate(${offsetX} 0)`}
+    >
+      {segment.role === 'bundle-root' ? (
+        <>
+          <line className="lane-link-connector-svg-trunk" x1={LANE_LINK_TRUNK_X} x2={LANE_LINK_TRUNK_X} y1={50} y2={100} />
+          <line className="lane-link-connector-svg-elbow" x1={LANE_LINK_MARKER_X + 1} x2={LANE_LINK_TRUNK_X} y1={50} y2={50} />
+          <circle className="lane-link-connector-svg-dot" cx={LANE_LINK_MARKER_X} cy={50} r={2.5} />
+        </>
+      ) : (
+        <>
+          <line
+            className="lane-link-connector-svg-trunk"
+            x1={LANE_LINK_TRUNK_X}
+            x2={LANE_LINK_TRUNK_X}
+            y1={0}
+            y2={segment.role === 'bundle-child-end' ? 50 : 100}
+          />
+          <line className="lane-link-connector-svg-elbow" x1={LANE_LINK_ELBOW_START_X} x2={LANE_LINK_TRUNK_X} y1={50} y2={50} />
+          <polygon className="lane-link-connector-svg-arrow" points={`${LANE_LINK_MARKER_X},50 ${LANE_LINK_ELBOW_START_X},46 ${LANE_LINK_ELBOW_START_X},54`} />
+        </>
+      )}
+    </g>
+  );
 }
 
 function formatTrackModeMenuLabel(mode: TranscriptionTrackDisplayMode): string {
@@ -437,30 +476,13 @@ export function TimelineLaneHeader({
           const connectorStackWidth = getLayerLinkStackWidth(connectorLayout.maxColumns);
           return (
             <span className="lane-link-stack" aria-hidden="true" style={{ width: connectorStackWidth }}>
-              {rowSegments.map((segment) => (
-                (() => {
-                  const colors = getLayerLinkConnectorColors(segment.colorIndex);
-                  return (
-                <span
-                  key={`${segment.column}-${segment.role}-${segment.colorIndex}`}
-                  className={[
-                    'lane-link-connector',
-                    segment.role === 'bundle-root' ? 'lane-link-connector--bundle-root' : '',
-                    segment.role === 'bundle-child-middle' ? 'lane-link-connector--bundle-child-middle' : '',
-                    segment.role === 'bundle-child-end' ? 'lane-link-connector--bundle-child-end' : '',
-                  ].filter(Boolean).join(' ')}
-                  style={{
-                    '--lane-link-column': segment.column,
-                    '--lane-link-color': colors.base,
-                    '--lane-link-color-active': colors.active,
-                  } as React.CSSProperties}
-                >
-                  {segment.role === 'bundle-root' ? <span className="lane-link-connector-root-marker" /> : null}
-                  {segment.role !== 'bundle-root' ? <span className="lane-link-connector-child-marker" /> : null}
-                </span>
-                  );
-                })()
-              ))}
+              <svg
+                className="lane-link-stack-svg"
+                viewBox={`0 0 ${connectorStackWidth} 100`}
+                preserveAspectRatio="none"
+              >
+                {rowSegments.map((segment) => renderLaneLinkConnectorSvg(segment))}
+              </svg>
             </span>
           );
         })()}
@@ -496,7 +518,7 @@ export function TimelineLaneHeader({
           ariaLabel={decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}
           title={decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}
           closeLabel={decodeEscapedUnicode('\\u5173\\u95ed\\u9501\\u5b9a\\u8f68\\u9053\\u9762\\u677f')}
-          style={{ width: laneLockDialogWidth, maxWidth: 'calc(100vw - 32px)', height: 'auto' }}
+            layoutStyle={{ width: laneLockDialogWidth, maxWidth: 'calc(100vw - 32px)', height: 'auto' }}
           footer={(
             <>
               <PanelButton variant="ghost" onClick={closeLaneLockDialog}>{decodeEscapedUnicode('\\u53d6\\u6d88')}</PanelButton>

@@ -29,13 +29,13 @@ export function LanguageMetadataWorkspaceGeographySection({
   return (
     <section className="language-metadata-workspace-subsection">
       <div className="language-metadata-workspace-subsection-header">
-        <h3 className="language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionGeography')}</h3>
+        <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionGeography')}</h3>
         <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionGeographyDescription')}</p>
       </div>
 
       <div className="language-metadata-workspace-subgroup">
         <div className="language-metadata-workspace-subgroup-header">
-          <span className="language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoverageTitle')}</span>
+          <span className="panel-title-secondary language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoverageTitle')}</span>
           <p className="language-metadata-workspace-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoverageDescription')}</p>
         </div>
 
@@ -57,14 +57,14 @@ export function LanguageMetadataWorkspaceGeographySection({
 
       <div className="language-metadata-workspace-subgroup">
         <div className="language-metadata-workspace-subgroup-header">
-          <span className="language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoordinatesTitle')}</span>
+          <span className="panel-title-secondary language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoordinatesTitle')}</span>
           <p className="language-metadata-workspace-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoordinatesDescription')}</p>
         </div>
 
         <div className="language-metadata-workspace-geography-coordinates-layout">
           <div className="language-metadata-workspace-geography-panel">
             <div className="language-metadata-workspace-geography-panel-header">
-              <span className="language-metadata-workspace-geography-panel-title">{t(locale, 'workspace.languageMetadata.geographyCoordinatesEditorTitle')}</span>
+              <span className="panel-title-eyebrow language-metadata-workspace-geography-panel-title">{t(locale, 'workspace.languageMetadata.geographyCoordinatesEditorTitle')}</span>
               <p className="language-metadata-workspace-geography-panel-description">{t(locale, 'workspace.languageMetadata.geographyCoordinatesEditorDescription')}</p>
             </div>
 
@@ -186,7 +186,7 @@ export function LanguageMetadataWorkspaceGeographySection({
 
           <div className="language-metadata-workspace-geography-panel language-metadata-workspace-geography-panel-preview">
             <div className="language-metadata-workspace-geography-panel-header">
-              <span className="language-metadata-workspace-geography-panel-title">{t(locale, 'workspace.languageMetadata.geographyCoordinatesPreviewTitle')}</span>
+              <span className="panel-title-eyebrow language-metadata-workspace-geography-panel-title">{t(locale, 'workspace.languageMetadata.geographyCoordinatesPreviewTitle')}</span>
               <p className="language-metadata-workspace-geography-panel-description">{t(locale, 'workspace.languageMetadata.geographyCoordinatesPreviewDescription')}</p>
             </div>
 

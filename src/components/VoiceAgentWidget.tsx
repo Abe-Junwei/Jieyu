@@ -6,7 +6,7 @@
  * @see 解语-语音智能体架构设计方案 §4.6
  */
 
-import { memo, useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { memo, useCallback, useEffect, useId, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { Brain, Check, ChevronDown, History, Mic, MicOff, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
 import type { VoiceAgentMode, VoiceAgentState, VoicePendingConfirm } from '../hooks/useVoiceAgent';
 import { getConfidenceColor } from '../hooks/voiceAgentPresentation';
@@ -250,9 +250,13 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
 
   const displayText = interimText || finalText;
   const confidenceColor = confidence > 0 ? getConfidenceColor(confidence) : undefined;
+  const energyFillPercent = Math.min(100, energyLevel * 500);
+  const wakeWordEnergyFillPercent = Math.min(100, wakeWordEnergyLevel * 500);
+  const energyGradientId = useId();
+  const wakeWordEnergyGradientId = useId();
 
   const confidenceStyle: CSSProperties | undefined = confidenceColor
-    ? { borderColor: confidenceColor }
+    ? { borderColor: confidenceColor, '--voice-agent-confidence-color': confidenceColor } as CSSProperties
     : undefined;
 
   const [showSettings, setShowSettings] = useState(false);
@@ -560,10 +564,16 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                   title={tf(locale, 'transcription.voiceWidget.signal.volume', { percent: Math.round(energyLevel * 500) })}
                   aria-label={tf(locale, 'transcription.voiceWidget.signal.volume', { percent: Math.round(energyLevel * 500) })}
                 >
-                  <div
-                    className="voice-agent-energy-fill"
-                    style={{ width: `${Math.min(100, energyLevel * 500)}%` }}
-                  />
+                  <svg className="voice-agent-energy-meter" viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true">
+                    <defs>
+                      <linearGradient id={energyGradientId} x1="0" x2="1" y1="0" y2="0">
+                        <stop offset="0%" stopColor="var(--state-success-solid)" />
+                        <stop offset="60%" stopColor="var(--state-warning-solid)" />
+                        <stop offset="100%" stopColor="var(--state-danger-solid)" />
+                      </linearGradient>
+                    </defs>
+                    <rect className="voice-agent-energy-fill" x={0} y={0} width={energyFillPercent} height={6} rx={3} ry={3} fill={`url(#${energyGradientId})`} />
+                  </svg>
                 </div>
               </div>
             )}
@@ -573,7 +583,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
               </span>
             )}
             {confidence > 0 && (
-              <span className="voice-agent-confidence" style={{ color: confidenceColor }}>
+              <span className="voice-agent-confidence">
                 {Math.round(confidence * 100)}%
               </span>
             )}
@@ -765,10 +775,15 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
 
                   {wakeWordEnabled && !listening && (
                     <div className="voice-agent-wakeword-energy" title={tf(locale, 'transcription.voiceWidget.signal.wakeEnergy', { percent: Math.round(wakeWordEnergyLevel * 500) })}>
-                      <div
-                        className="voice-agent-wakeword-energy-fill"
-                        style={{ width: `${Math.min(100, wakeWordEnergyLevel * 500)}%` }}
-                      />
+                      <svg className="voice-agent-energy-meter" viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true">
+                        <defs>
+                          <linearGradient id={wakeWordEnergyGradientId} x1="0" x2="1" y1="0" y2="0">
+                            <stop offset="0%" stopColor="var(--state-info-solid)" />
+                            <stop offset="100%" stopColor="color-mix(in srgb, var(--state-info-solid) 70%, var(--surface-panel))" />
+                          </linearGradient>
+                        </defs>
+                        <rect className="voice-agent-wakeword-energy-fill" x={0} y={0} width={wakeWordEnergyFillPercent} height={6} rx={3} ry={3} fill={`url(#${wakeWordEnergyGradientId})`} />
+                      </svg>
                     </div>
                   )}
                 </div>

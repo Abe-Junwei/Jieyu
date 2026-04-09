@@ -32,12 +32,15 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     localStorage.clear();
   });
 
-  it('hydrates persisted workspace layout state, prunes stale lane heights, and auto-scrolls the selected row', async () => {
+  it('hydrates persisted workspace layout state, prunes stale lane heights, and respects stored auto-scroll preference', async () => {
     localStorage.setItem('jieyu:lane-label-width', '999');
     localStorage.setItem('jieyu:lane-heights', JSON.stringify({ 'layer-a': 168, stale: 220 }));
     localStorage.setItem('jieyu:video-preview-height', '80');
     localStorage.setItem('jieyu:video-right-panel-width', '1000');
     localStorage.setItem('jieyu:video-layout-mode', 'left');
+    localStorage.setItem('jieyu:workspace-auto-scroll-enabled', '0');
+    localStorage.setItem('jieyu:workspace-snap-enabled', '1');
+    localStorage.setItem('jieyu:workspace-default-zoom-mode', 'custom');
 
     const scrollSpy = vi.fn();
     const utteranceRowRef = makeUtteranceRowRef(scrollSpy);
@@ -52,12 +55,15 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     expect(result.current.videoPreviewHeight).toBe(120);
     expect(result.current.videoRightPanelWidth).toBe(720);
     expect(result.current.videoLayoutMode).toBe('left');
+    expect(result.current.autoScrollEnabled).toBe(false);
+    expect(result.current.snapEnabled).toBe(true);
+    expect(result.current.zoomMode).toBe('custom');
 
     await waitFor(() => {
       expect(result.current.timelineLaneHeights).toEqual({ 'layer-a': 168 });
     });
 
-    expect(scrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'nearest' });
+    expect(scrollSpy).not.toHaveBeenCalled();
     expect(localStorage.getItem('jieyu:lane-heights')).toBe(JSON.stringify({ 'layer-a': 168 }));
   });
 
@@ -87,8 +93,17 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
       result.current.handleTimelineLaneHeightChange('layer-a', 144);
     });
 
+    act(() => {
+      result.current.setAutoScrollEnabled(false);
+      result.current.setSnapEnabled(true);
+      result.current.setZoomMode('fit-selection');
+    });
+
     await waitFor(() => {
       expect(localStorage.getItem('jieyu:lane-heights')).toBe(JSON.stringify({ 'layer-a': 144 }));
+      expect(localStorage.getItem('jieyu:workspace-auto-scroll-enabled')).toBe('0');
+      expect(localStorage.getItem('jieyu:workspace-snap-enabled')).toBe('1');
+      expect(localStorage.getItem('jieyu:workspace-default-zoom-mode')).toBe('fit-selection');
     });
   });
 

@@ -511,7 +511,7 @@ export function LayerActionPopover({
     >
       <DialogShell
         className={`layer-action-dialog${orthographyPicker.isCreating ? ' orthography-builder-dialog-host' : ''}`}
-        style={{ '--dialog-auto-width': orthographyPicker.isCreating ? '404px' : `${Math.max(panelMinWidth, dialogAutoWidth)}px` } as React.CSSProperties}
+        layoutStyle={{ '--dialog-auto-width': orthographyPicker.isCreating ? '404px' : `${Math.max(panelMinWidth, dialogAutoWidth)}px` } as React.CSSProperties}
         bodyClassName="layer-action-dialog-body"
         title={orthographyPicker.isCreating ? builderBreadcrumbTitle : label}
         headerClassName="layer-action-dialog-header"

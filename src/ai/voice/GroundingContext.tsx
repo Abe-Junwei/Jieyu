@@ -5,7 +5,7 @@
  * understand why the AI chose a given action.
  */
 
-import { memo, useState } from 'react';
+import { memo, useId, useState } from 'react';
 import { ChevronDown, ChevronRight, Brain, User, Layers, AlertTriangle } from 'lucide-react';
 import type { GroundingContextData } from '../../services/VoiceAgentGroundingContext';
 
@@ -99,6 +99,8 @@ const UserProfileCard = memo(function UserProfileCard({ profile }: { profile: Gr
 
 const HotspotsCard = memo(function HotspotsCard({ hotspots }: { hotspots: GroundingContextData['attentionHotspots'] }) {
   if (hotspots.length === 0) return null;
+  const hotspotGradientIdPrefix = useId().replace(/:/g, '-');
+
   return (
     <div className="gc-card gc-hotspots-card">
       <div className="gc-card-header">
@@ -107,15 +109,27 @@ const HotspotsCard = memo(function HotspotsCard({ hotspots }: { hotspots: Ground
         <span className="gc-badge-count">{hotspots.length}</span>
       </div>
       <div className="gc-hotspots-list">
-        {hotspots.slice(0, 5).map((h) => (
+        {hotspots.slice(0, 5).map((h, hotspotIndex) => {
+          const hotspotGradientId = `${hotspotGradientIdPrefix}-${hotspotIndex}`;
+          return (
           <div key={h.segmentId} className="gc-hotspot-item">
             <span className="gc-hotspot-idx">#{h.index}</span>
-            <div className="gc-hotspot-bar-bg">
-              <div className="gc-hotspot-bar-fill" style={{ width: `${h.score * 100}%` }} />
+            <div className="gc-hotspot-bar-bg" aria-hidden="true">
+              <svg className="gc-hotspot-bar-svg" viewBox="0 0 100 4" preserveAspectRatio="none" focusable="false">
+                <defs>
+                  <linearGradient id={hotspotGradientId} x1="0%" y1="50%" x2="100%" y2="50%">
+                    <stop offset="0%" stopColor="var(--state-warning-solid)" />
+                    <stop offset="100%" stopColor="var(--state-danger-solid)" />
+                  </linearGradient>
+                </defs>
+                <rect className="gc-hotspot-bar-track" x="0" y="0" width="100" height="4" rx="2" ry="2" />
+                <rect className="gc-hotspot-bar-fill" x="0" y="0" width={Math.max(0, Math.min(100, h.score * 100))} height="4" rx="2" ry="2" fill={`url(#${hotspotGradientId})`} />
+              </svg>
             </div>
             <span className="gc-hotspot-score">{(h.score * 100).toFixed(0)}%</span>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

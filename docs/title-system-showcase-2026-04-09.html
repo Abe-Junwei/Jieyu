@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Title System Showcase</title>
+    <style>
+      :root {
+        --bg: #eef2f7;
+        --panel: rgba(255, 255, 255, 0.88);
+        --panel-strong: #ffffff;
+        --header: #f5f7fb;
+        --border: rgba(79, 94, 119, 0.18);
+        --shadow: rgba(24, 39, 75, 0.12);
+        --shadow-soft: rgba(24, 39, 75, 0.06);
+        --text-primary: #172033;
+        --text-secondary: #56627a;
+        --accent: #2457c5;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "SF Pro Display", "PingFang SC", "Noto Sans SC", sans-serif;
+        color: var(--text-primary);
+        background:
+          radial-gradient(circle at top left, rgba(36, 87, 197, 0.14), transparent 34%),
+          radial-gradient(circle at top right, rgba(16, 185, 129, 0.1), transparent 28%),
+          linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      }
+
+      .board {
+        width: min(1320px, calc(100vw - 48px));
+        margin: 0 auto;
+        padding: 40px 0 64px;
+      }
+
+      .hero {
+        display: grid;
+        gap: 14px;
+        margin-bottom: 28px;
+      }
+
+      .hero-kicker {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        padding: 6px 12px;
+        border: 1px solid rgba(36, 87, 197, 0.14);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .hero h1 {
+        margin: 0;
+        font-size: clamp(28px, 4vw, 44px);
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+      }
+
+      .hero p {
+        margin: 0;
+        max-width: 860px;
+        color: var(--text-secondary);
+        font-size: 15px;
+        line-height: 1.75;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 22px;
+        align-items: start;
+      }
+
+      .panel {
+        border: 1px solid var(--border);
+        border-radius: 28px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(247, 250, 255, 0.96));
+        box-shadow: 0 24px 56px var(--shadow);
+        overflow: hidden;
+      }
+
+      .panel-header {
+        padding: 18px 22px;
+        border-bottom: 1px solid var(--border);
+        background: linear-gradient(180deg, rgba(250, 252, 255, 0.98), rgba(244, 247, 252, 0.94));
+      }
+
+      .dialog-title {
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.25;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+
+      .panel-body {
+        display: grid;
+        gap: 18px;
+        padding: 22px;
+      }
+
+      .token-list {
+        display: grid;
+        gap: 12px;
+      }
+
+      .token {
+        display: grid;
+        gap: 8px;
+        padding: 16px 18px;
+        border: 0;
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(247, 250, 255, 0.92));
+        box-shadow: 0 10px 24px var(--shadow-soft);
+      }
+
+      .token-label {
+        color: var(--text-secondary);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .spec-primary {
+        margin: 0;
+        color: var(--text-primary);
+        font-size: 13.44px;
+        line-height: 1.45;
+        font-weight: 700;
+        text-align: center;
+      }
+
+      .spec-secondary {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 12px;
+        line-height: 1.45;
+        font-weight: 600;
+        text-align: left;
+      }
+
+      .spec-eyebrow {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 11.2px;
+        line-height: 1.3;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        text-align: left;
+      }
+
+      .caption {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 13px;
+        line-height: 1.65;
+      }
+
+      .workspace {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+        border: 0;
+        border-radius: 24px;
+        background: rgba(252, 253, 255, 0.72);
+      }
+
+      .section {
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+        border: 0;
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(246, 249, 254, 0.9));
+        box-shadow: 0 1px 2px var(--shadow-soft);
+      }
+
+      .subgroup {
+        display: grid;
+        gap: 8px;
+        padding: 14px;
+        border: 0;
+        border-radius: 16px;
+        background: rgba(243, 247, 252, 0.92);
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .field span {
+        color: var(--text-secondary);
+        font-size: 12px;
+      }
+
+      .field-box {
+        min-height: 42px;
+        border: 1px solid rgba(79, 94, 119, 0.16);
+        border-radius: 12px;
+        background: var(--panel-strong);
+      }
+
+      .eyebrow-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .side-pane-card,
+      .settings-card {
+        display: grid;
+        gap: 12px;
+        padding: 18px;
+        border: 0;
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(247, 250, 255, 0.88));
+        box-shadow: 0 8px 22px var(--shadow-soft);
+      }
+
+      .settings-rail {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .settings-rail::before,
+      .settings-rail::after {
+        content: "";
+        flex: 1 1 auto;
+        height: 1px;
+        background: rgba(79, 94, 119, 0.18);
+      }
+
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .meta-card {
+        position: relative;
+        display: grid;
+        gap: 6px;
+        padding: 12px 14px 12px 18px;
+        border: 0;
+        border-radius: 16px;
+        background: rgba(243, 247, 252, 0.92);
+      }
+
+      .meta-card::before {
+        content: "";
+        position: absolute;
+        inset: 12px auto 12px 0;
+        width: 3px;
+        border-radius: 999px;
+        background: rgba(36, 87, 197, 0.46);
+      }
+
+      .meta-card strong {
+        font-size: 13px;
+      }
+
+      .ai-strip {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(234, 242, 255, 0.92), rgba(246, 250, 255, 0.9));
+        box-shadow: 0 8px 18px var(--shadow-soft);
+      }
+
+      .ai-strip-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.55);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(24, 39, 75, 0.06);
+      }
+
+      .tiny-note {
+        color: var(--text-secondary);
+        font-size: 11px;
+      }
+
+      @media (max-width: 980px) {
+        .board {
+          width: min(100vw - 24px, 1320px);
+          padding-top: 24px;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .eyebrow-row,
+        .meta-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <section class="hero">
+        <span class="hero-kicker">Title System · 2026-04-09</span>
+        <h1>低边框内容层：靠留白、色阶与标题建立层级</h1>
+        <p>本稿展示执行后的新策略：一级 section title 居中，二级标题左对齐；内容层大幅减少边框，仅保留柔和表面色差与少量阴影。强调层与弹框仍保留更明确的结构边界。</p>
+      </section>
+
+      <section class="grid">
+        <div class="panel">
+          <div class="panel-header">
+            <h2 class="dialog-title">Dialog / Modal 顶栏标题示例</h2>
+          </div>
+          <div class="panel-body">
+            <div class="workspace">
+              <article class="section">
+                <h3 class="spec-primary">地理信息 | Geography</h3>
+                <p class="caption">一级标题现在在 section 内居中，章节主要靠标题、留白和表面层次建立，不再靠外围描边。</p>
+
+                <section class="subgroup">
+                  <h4 class="spec-secondary">地理覆盖范围 | Coverage Scope</h4>
+                  <p class="caption">二级标题维持左侧对齐，用于承接字段说明、列表和表单内容；子块本身不再额外描边。</p>
+                  <div class="field">
+                    <span>宏观区域</span>
+                    <div class="field-box"></div>
+                  </div>
+                  <div class="field">
+                    <span>国家 / 地区</span>
+                    <div class="field-box"></div>
+                  </div>
+                </section>
+
+                <section class="subgroup">
+                  <h4 class="spec-secondary">坐标与地图 | Coordinates & Map</h4>
+                  <div class="eyebrow-row">
+                    <div class="side-pane-card">
+                      <span class="spec-eyebrow">Coordinates Editor</span>
+                      <p class="caption">eyebrow 继续用于轻量标签标题，用色和字距承担识别作用。</p>
+                    </div>
+                    <div class="side-pane-card">
+                      <span class="spec-eyebrow">Coordinates Preview</span>
+                      <p class="caption">适合预览、侧栏模块、配置导引这类密度较高的标题。</p>
+                    </div>
+                  </div>
+                </section>
+              </article>
+
+              <article class="section">
+                <h3 class="spec-primary">渲染设置 | Rendering</h3>
+                <p class="caption">正字法管理中的一级分节同样去掉外框，统一回到“内容面”语言。</p>
+                <section class="subgroup">
+                  <h4 class="spec-secondary">字体与方向 | Fonts & Direction</h4>
+                  <div class="meta-grid">
+                    <div class="meta-card">
+                      <span class="token-label">Primary Font</span>
+                      <strong>Noto Sans Arabic</strong>
+                    </div>
+                    <div class="meta-card">
+                      <span class="token-label">Direction</span>
+                      <strong>RTL</strong>
+                    </div>
+                  </div>
+                </section>
+              </article>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2 class="dialog-title">统一标题 Token</h2>
+          </div>
+          <div class="panel-body">
+            <div class="token-list">
+              <article class="token">
+                <span class="token-label">Level 1 · panel-title-primary</span>
+                <h3 class="spec-primary">语言身份 | Identity</h3>
+                <p class="caption">13.44px / 700 / 1.45 / text-primary / 居中</p>
+              </article>
+
+              <article class="token">
+                <span class="token-label">Level 2 · panel-title-secondary</span>
+                <h4 class="spec-secondary">别名集合 | Aliases</h4>
+                <p class="caption">12px / 600 / 1.45 / text-secondary / 左对齐</p>
+              </article>
+
+              <article class="token">
+                <span class="token-label">Eyebrow · panel-title-eyebrow</span>
+                <div class="settings-card">
+                  <span class="spec-eyebrow">Quick Access</span>
+                  <div class="settings-rail">
+                    <span class="spec-eyebrow">Waveform Display</span>
+                  </div>
+                </div>
+                <p class="caption">11.2px / 700 / uppercase / 0.06em / 左对齐</p>
+              </article>
+
+              <article class="token">
+                <span class="token-label">Dialog Title</span>
+                <h2 class="dialog-title">设置 | Settings</h2>
+                <p class="caption">16px / 600 / 1.25 / panel-design-title-color</p>
+              </article>
+
+              <article class="token">
+                <span class="token-label">Low-border AI / Insight</span>
+                <div class="ai-strip">
+                  <div class="ai-strip-head">
+                    <span class="spec-eyebrow">AI Context</span>
+                    <span class="tiny-note">updated 8s ago</span>
+                  </div>
+                  <div class="meta-card">
+                    <span class="token-label">Insight Band</span>
+                    <strong>语料覆盖 78%</strong>
+                    <span class="caption">摘要信息改成信息带，而不是独立厚卡片。</span>
+                  </div>
+                </div>
+                <p class="caption">局部工具面与摘要卡统一回到“柔和面层 + 轻阴影 + 侧向强调条”。</p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+  </html>

@@ -183,53 +183,6 @@
   animation: snapGlow 0.85s ease-in-out infinite;
 }
 
-.snap-line {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  z-index: var(--z-panel-toggle);
-  transform: translateX(-50%);
-}
-
-.snap-line span {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.62rem;
-  font-weight: 700;
-  padding: 1px 4px;
-  border-radius: var(--radius-pill);
-  color: var(--surface-panel);
-}
-
-.snap-line-left {
-  background: color-mix(in srgb, var(--state-success-solid) 90%, transparent);
-}
-
-.snap-line-left span {
-  background: color-mix(in srgb, var(--state-success-solid) 90%, transparent);
-}
-
-.snap-line-right {
-  background: color-mix(in srgb, var(--state-warning-solid) 90%, transparent);
-}
-
-.snap-line-right span {
-  background: color-mix(in srgb, var(--state-warning-solid) 90%, transparent);
-}
-
-.snap-line-near {
-  width: 3px;
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--state-warning-solid) 18%, transparent), 0 0 16px color-mix(in srgb, var(--state-warning-solid) 55%, transparent);
-}
-
-.snap-line-near span {
-  background: color-mix(in srgb, var(--state-warning-solid) 95%, transparent);
-  color: var(--text-primary);
-}
-
 @keyframes snapGlow {
   0%,
   100% {
@@ -240,18 +193,25 @@
     opacity: 0.62;
   }
 }
-.wave-lasso-rect {
+.wave-lasso-overlay {
   position: absolute;
-  border-radius: 2px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
+  overflow: visible;
   z-index: calc(var(--z-modal) - 50);
+}
+
+.wave-lasso-rect {
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
   box-sizing: border-box;
 }
 
 .wave-lasso-hint {
-  position: absolute;
-  left: 8px;
-  top: 8px;
+  display: inline-flex;
+  align-items: center;
   padding: 2px 7px;
   border-radius: var(--radius-pill);
   font-size: calc(11px * var(--ui-font-scale, 1));

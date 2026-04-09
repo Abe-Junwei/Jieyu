@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';
 
@@ -155,6 +155,14 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
 }
 
 describe('useTranscriptionTimelineInteractionController', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
   it('routes search replace to transcription and translation saves', () => {
     const saveUtteranceText = vi.fn(async () => undefined);
     const saveTextTranslationForUtterance = vi.fn(async () => undefined);
@@ -291,6 +299,27 @@ describe('useTranscriptionTimelineInteractionController', () => {
       await Promise.resolve();
     });
     expect(createUtteranceFromSelection).toHaveBeenCalledWith(2.5, 3.5);
+  });
+
+  it('creates segment on double-click when preference is set to create-segment', async () => {
+    localStorage.setItem('jieyu:waveform-double-click-action', 'create-segment');
+
+    const zoomToUtterance = vi.fn();
+    const createUtteranceFromSelection = vi.fn(async () => undefined);
+    const { result } = renderHook(() => useTranscriptionTimelineInteractionController(createBaseInput({
+      zoomToUtterance,
+      createUtteranceFromSelection,
+    })));
+
+    act(() => {
+      result.current.handleWaveformRegionDoubleClick('seg-1', 1, 2);
+    });
+
+    expect(zoomToUtterance).not.toHaveBeenCalled();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(createUtteranceFromSelection).toHaveBeenCalledWith(1, 2);
   });
 
   it('captures Alt pointerdown into sub-selection drag state', () => {

@@ -403,7 +403,7 @@ export function OrthographyBridgeManager({
 
   return (
     <div className={panelClassName}>
-      <div className="orthography-builder-actions">
+      <div className="orthography-builder-actions orthography-builder-toolbar-actions">
         {!hideToggleButton && (
           <button
             type="button"
@@ -668,7 +668,7 @@ export function OrthographyBridgeManager({
                   )}
                 </div>
 
-                <div className="orthography-builder-actions">
+                <div className="orthography-builder-actions orthography-builder-footer-actions">
                   <button
                     type="button"
                     className="btn"

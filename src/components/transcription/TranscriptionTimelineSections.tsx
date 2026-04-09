@@ -12,6 +12,7 @@ import type { UtteranceDocType } from '../../db';
 import { VideoPlayer } from '../VideoPlayer';
 import { TimeRuler } from '../TimeRuler';
 import { WaveformOverviewBar } from '../WaveformOverviewBar';
+import { TimelineStyledContainer } from './TimelineStyledContainer';
 import type { WaveSurferRegion } from '../../hooks/useWaveSurfer';
 import { t, useLocale } from '../../i18n';
 import { getWaveformDisplayHeights, type WaveformDisplayMode } from '../../utils/waveformDisplayMode';
@@ -74,13 +75,13 @@ export function VideoPreviewSection({
   const locale = useLocale();
   const { waveformPrimaryHeight, spectrogramHeight } = getWaveformDisplayHeights(waveformStripHeight, waveformDisplayMode);
   const renderWaveDisplay = () => (
-    <div
+    <TimelineStyledContainer
       className={`waveform-display-shell waveform-display-shell-${waveformDisplayMode}`}
-      style={{
+      layoutStyle={{
+        '--waveform-height': `${waveformPrimaryHeight}px`,
         '--waveform-primary-height': `${waveformPrimaryHeight}px`,
         '--waveform-spectrogram-height': `${spectrogramHeight}px`,
-        height: waveformStripHeight,
-        minHeight: waveformStripHeight,
+        '--waveform-shell-height': `${waveformStripHeight}px`,
       } as CSSProperties}
     >
       <div className="waveform-primary-stage">
@@ -90,7 +91,6 @@ export function VideoPreviewSection({
             playerWaveformRef.current = el;
           }}
           className={`wave-canvas transcription-wave-canvas transcription-wave-canvas-${waveformDisplayMode}`}
-          style={{ height: waveformPrimaryHeight, minHeight: waveformPrimaryHeight } as CSSProperties}
         />
         {waveformOverlay}
       </div>
@@ -102,7 +102,7 @@ export function VideoPreviewSection({
         {waveformDisplayMode !== 'waveform' ? spectrogramOverlay : null}
       </div>
       {waveformShellOverlay}
-    </div>
+    </TimelineStyledContainer>
   );
 
   if (!selectedMediaIsVideo) {
@@ -127,7 +127,13 @@ export function VideoPreviewSection({
       : 'video-preview-layout-top';
 
   return (
-    <div className={`video-preview-layout ${layoutClass}`}>
+    <TimelineStyledContainer
+      className={`video-preview-layout ${layoutClass}`}
+      layoutStyle={{
+        '--video-preview-panel-width': isSideLayout ? `${videoRightPanelWidth}px` : '100%',
+        '--video-preview-panel-height': `${isSideLayout ? waveformStripHeight : videoPreviewHeight}px`,
+      } as CSSProperties}
+    >
       <div className="video-preview-layout-wave">
         {renderWaveDisplay()}
       </div>
@@ -145,14 +151,9 @@ export function VideoPreviewSection({
         </div>
       )}
 
-      <div
-        className="video-preview-layout-video"
-        style={isSideLayout
-          ? { width: videoRightPanelWidth, maxWidth: 'calc(100% - 220px)' }
-          : { width: '100%' }}
-      >
+      <div className="video-preview-layout-video">
         {/* 视频预览面板（可拖动）| Video preview panel (drag-resizable) */}
-        <div className="video-preview-panel" style={{ height: isSideLayout ? waveformStripHeight : videoPreviewHeight }}>
+        <div className="video-preview-panel">
           <VideoPlayer
             mediaUrl={selectedMediaUrl}
             regions={waveformRegions}
@@ -184,7 +185,7 @@ export function VideoPreviewSection({
           </div>
         )}
       </div>
-    </div>
+    </TimelineStyledContainer>
   );
 }
 

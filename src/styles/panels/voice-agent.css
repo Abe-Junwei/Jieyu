@@ -273,13 +273,13 @@
   background: color-mix(in srgb, var(--surface-panel) 10%, transparent);
 }
 
-.voice-agent-energy-fill {
+.voice-agent-energy-meter {
+  width: 100%;
   height: 100%;
-  border-radius: 3px;
-  background: linear-gradient(to right, var(--state-success-solid), var(--state-warning-solid), var(--state-danger-solid));
-  background-size: 200% 100%;
-  transition: width 0.08s linear;
-  max-width: 100%;
+  display: block;
+}
+
+.voice-agent-energy-fill {
 }
 
 .voice-agent-session-card {
@@ -477,6 +477,7 @@
   font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 600;
   flex-shrink: 0;
+  color: var(--voice-agent-confidence-color, var(--text-secondary));
 }
 
 .voice-agent-notice-stack {
@@ -888,9 +889,6 @@
 }
 
 .voice-agent-wakeword-energy-fill {
-  height: 100%;
-  background: var(--state-info-solid);
-  transition: width 80ms linear;
 }
 
 /* ARIA live region — visually hidden but readable by screen readers */

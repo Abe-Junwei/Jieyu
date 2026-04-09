@@ -2,6 +2,7 @@ import type { HTMLAttributes, ReactNode } from 'react';
 import { joinClassNames } from './classNames';
 
 interface EmbeddedPanelShellProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
+  layoutStyle?: React.CSSProperties;
   className?: string;
   headerClassName?: string;
   headerProps?: HTMLAttributes<HTMLDivElement>;
@@ -15,6 +16,7 @@ interface EmbeddedPanelShellProps extends Omit<HTMLAttributes<HTMLDivElement>, '
 }
 
 export function EmbeddedPanelShell({
+  layoutStyle,
   className,
   headerClassName,
   headerProps,
@@ -37,6 +39,7 @@ export function EmbeddedPanelShell({
         'panel-design-match-dialog',
         className,
       )}
+      style={layoutStyle}
       {...divProps}
     >
       {hasHeader ? (

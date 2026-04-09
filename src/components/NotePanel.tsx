@@ -120,7 +120,7 @@ export const NotePanel = memo(function NotePanel({
         </button>
       )}
       dir={uiTextDirection}
-      style={{ width: `min(${panelWidth}px, 100%)`, fontSize: `calc(1rem * ${uiFontScale})` }}
+        layoutStyle={{ width: `min(${panelWidth}px, 100%)`, fontSize: `calc(1rem * ${uiFontScale})` }}
     >
       <PanelSummary
         className="note-panel-summary"

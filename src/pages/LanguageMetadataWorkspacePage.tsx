@@ -1,6 +1,7 @@
 import '../styles/pages/language-metadata-workspace.css';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
+import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
 import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, useLocale } from '../i18n';
@@ -35,7 +36,11 @@ import {
   type WorkspaceLocale,
 } from './languageMetadataWorkspace.shared';
 
-export function LanguageMetadataWorkspacePage() {
+export function LanguageMetadataWorkspacePage({
+  registerSidePane = true,
+}: {
+  registerSidePane?: boolean;
+} = {}) {
   // M1: useLocale() 返回 Locale 与 WorkspaceLocale 类型一致，无需强转 | useLocale() returns Locale which matches WorkspaceLocale
   const locale: WorkspaceLocale = useLocale();
   const { projectLanguageIds } = useProjectLanguageIds();
@@ -408,7 +413,7 @@ export function LanguageMetadataWorkspacePage() {
         </div>
         <div className="app-side-pane-nav app-side-pane-feature-nav">
           <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openOrthographyManager')}</OrthographyPanelLink>
-          <Link to="/assets/orthography-bridges" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openBridgeWorkspace')}</Link>
+          <LanguageAssetRouteLink to="/assets/orthography-bridges" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.languageMetadata.openBridgeWorkspace')}</LanguageAssetRouteLink>
         </div>
       </section>
     </div>
@@ -418,17 +423,18 @@ export function LanguageMetadataWorkspacePage() {
     title: t(locale, 'workspace.languageMetadata.sidePaneTitle'),
     subtitle: selectedEntry?.localName ?? t(locale, 'workspace.languageMetadata.sidePaneSubtitle'),
     content: sidePaneContent,
+    enabled: registerSidePane,
   });
 
   return (
-    <section className="panel language-metadata-workspace" aria-labelledby="language-metadata-workspace-title">
-      <header className="language-metadata-workspace-hero">
+    <section className="panel language-asset-workspace-shell language-metadata-workspace" aria-labelledby="language-metadata-workspace-title">
+      <header className="language-asset-workspace-hero language-metadata-workspace-hero">
         <span className="language-metadata-workspace-badge">{t(locale, 'workspace.languageMetadata.badge')}</span>
         <h2 id="language-metadata-workspace-title">{t(locale, 'workspace.languageMetadata.title')}</h2>
         <p className="language-metadata-workspace-summary">{t(locale, 'workspace.languageMetadata.summary')}</p>
       </header>
 
-      <div className="language-metadata-workspace-layout">
+      <div className="language-asset-workspace-flow language-metadata-workspace-layout">
         <LanguageMetadataWorkspaceCatalogPanel
           locale={locale}
           entries={entries}

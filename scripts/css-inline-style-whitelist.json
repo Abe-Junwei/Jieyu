@@ -1,0 +1,124 @@
+{
+  "allowed": [
+    {
+      "file": "src/components/BatchOperationPanel.tsx",
+      "reason": "Draggable batch-operation panel uses runtime left/top/width/height geometry.",
+      "reviewer": "GitHub Copilot + junwei",
+      "reviewedAt": "2026-04-09",
+      "snippets": [
+        {
+          "anchor": "left: `${position.x}px`",
+          "reviewedSha256": "8d3cff84373a87b26e59c1195ca36e7dd761d536c6450f2134b74066ac6a394c"
+        }
+      ]
+    },
+    {
+      "file": "src/components/ContextMenu.tsx",
+      "reason": "Portaled submenu placement depends on runtime anchor geometry.",
+      "reviewer": "GitHub Copilot + junwei",
+      "reviewedAt": "2026-04-09",
+      "snippets": [
+        {
+          "anchor": "left: submenu.left",
+          "reviewedSha256": "393bddb99a89ceefc5d1078088f712e420876ddb2fca97c4f481cb5bcc8096f8"
+        }
+      ]
+    },
+    {
+      "file": "src/components/OrthographyBuilderPanel.tsx",
+      "reason": "Render preview typography must reflect runtime font family, direction, and bidi policy.",
+      "reviewer": "GitHub Copilot + junwei",
+      "reviewedAt": "2026-04-09",
+      "snippets": [
+        {
+          "anchor": "fontFamily: picker.draftRenderPolicy.defaultFontCss",
+          "reviewedSha256": "5625763456d0ae407761c92860e04ca89a6d8c17c55828df17706d9e53ca4879"
+        }
+      ]
+    },
+    {
+      "file": "src/components/PdfPreviewSection.tsx",
+      "reason": "Floating PDF preview panel preserves draggable right/bottom coordinates.",
+      "reviewer": "GitHub Copilot + junwei",
+      "reviewedAt": "2026-04-09",
+      "snippets": [
+        {
+          "anchor": "right: `${pdfPreviewPos.right}px`",
+          "reviewedSha256": "2f3ced1b5874f44e11f9043443d81c75e87c4ff81a2eebd0fb1da6e524ab601b"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TimelineAnnotationItem.tsx",
+      "reason": "Timeline annotation layout uses per-item left/width geometry and speaker color variables.",
+      "reviewer": "GitHub Copilot + junwei",
+      "reviewedAt": "2026-04-09",
+      "snippets": [
+        {
+          "anchor": "'--speaker-color': speakerColor",
+          "reviewedSha256": "405a9dad5417a97912144d2aafdc459d3c0bae7c6cbcc35dc0fab576a2368258"
+        }
+      ]
+    },
+    {
+      "file": "src/components/VideoPlayer.tsx",
+      "reason": "Video player height is driven by runtime preview sizing.",
+      "reviewer": "GitHub Copilot + junwei",
+      "reviewedAt": "2026-04-09",
+      "snippets": [
+        {
+          "anchor": "'--video-player-height': `${videoHeight}px`",
+          "reviewedSha256": "ea8d3e53e5cb5161e0744092b0ea4aa01aa7ab93cb0814405e64432b62d703ae"
+        }
+      ]
+    },
+    {
+      "file": "src/components/transcription/RegionActionOverlay.tsx",
+      "reason": "Selected-region action overlay follows runtime waveform x-position.",
+      "reviewer": "GitHub Copilot + junwei",
+      "reviewedAt": "2026-04-09",
+      "snippets": [
+        {
+          "anchor": "left: Math.max(0, leftPx)",
+          "reviewedSha256": "636538aa21c63d1e17a2c092a74fbab8afbd934f548271b6fd91aad4b914d970"
+        }
+      ]
+    },
+    {
+      "file": "src/components/transcription/WaveformHoverTooltip.tsx",
+      "reason": "Waveform hover tooltip follows live pointer coordinates.",
+      "reviewer": "GitHub Copilot + junwei",
+      "reviewedAt": "2026-04-09",
+      "snippets": [
+        {
+          "anchor": "left: x, top: y",
+          "reviewedSha256": "43c825d78495c6e8298a13e07dea2a5d19bbb34a91267ac5d1ab34fd647b4fec"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/OrchestratorWaveformContent.tsx",
+      "reason": "Waveform note indicator trigger follows runtime note marker geometry.",
+      "reviewer": "GitHub Copilot + junwei",
+      "reviewedAt": "2026-04-09",
+      "snippets": [
+        {
+          "anchor": "left: leftPx + widthPx - 26",
+          "reviewedSha256": "1fc188785a56fc9c4569ac46f545ed8a580b84f6ad77b2ee8c4529f69e86cdb5"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/TranscriptionPage.ReadyWorkspace.tsx",
+      "reason": "Timeline resize tooltip is positioned from live pointer geometry.",
+      "reviewer": "GitHub Copilot + junwei",
+      "reviewedAt": "2026-04-09",
+      "snippets": [
+        {
+          "anchor": "left: timelineResizeTooltip.x, top: timelineResizeTooltip.y - 16",
+          "reviewedSha256": "bf9634c49a9f1f37ab588f1b6604e0e33125ee3bde4b56cc80376af880a77a8e"
+        }
+      ]
+    }
+  ]
+}

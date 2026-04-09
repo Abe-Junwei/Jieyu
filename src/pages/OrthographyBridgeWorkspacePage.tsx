@@ -1,6 +1,7 @@
 import '../styles/pages/orthography-bridge-workspace.css';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
+import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
 import { OrthographyBridgeManager } from '../components/OrthographyBridgeManager';
 import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { getOrthographyCatalogBadgeInfo } from '../components/orthographyCatalogUi';
@@ -21,7 +22,11 @@ import {
 
 const TARGET_ORTHOGRAPHY_ID_PARAM = 'targetOrthographyId';
 
-export function OrthographyBridgeWorkspacePage() {
+export function OrthographyBridgeWorkspacePage({
+  registerSidePane = true,
+}: {
+  registerSidePane?: boolean;
+} = {}) {
   const locale = useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
   const [orthographies, setOrthographies] = useState<OrthographyDocType[]>([]);
@@ -154,7 +159,7 @@ export function OrthographyBridgeWorkspacePage() {
           <span className="app-side-pane-section-title">{t(locale, 'workspace.orthographyBridge.sidePaneQuickAccess')}</span>
         </div>
         <div className="app-side-pane-nav app-side-pane-feature-nav">
-          <Link to="/assets/language-metadata" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.orthographyBridge.openLanguageMetadata')}</Link>
+          <LanguageAssetRouteLink to="/assets/language-metadata" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.orthographyBridge.openLanguageMetadata')}</LanguageAssetRouteLink>
           <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.orthographyBridge.openOrthographyManager')}</OrthographyPanelLink>
         </div>
       </section>
@@ -165,17 +170,18 @@ export function OrthographyBridgeWorkspacePage() {
     title: t(locale, 'workspace.orthographyBridge.sidePaneTitle'),
     subtitle: selectedOrthography ? formatOrthographyOptionLabel(selectedOrthography, locale) : t(locale, 'workspace.orthographyBridge.sidePaneSubtitle'),
     content: sidePaneContent,
+    enabled: registerSidePane,
   });
 
   return (
-    <section className="panel orthography-workspace" aria-labelledby="orthography-bridge-workspace-title">
-      <header className="orthography-workspace-hero">
+    <section className="panel language-asset-workspace-shell orthography-workspace" aria-labelledby="orthography-bridge-workspace-title">
+      <header className="language-asset-workspace-hero orthography-workspace-hero">
         <span className="orthography-workspace-badge">{t(locale, 'workspace.orthographyBridge.badge')}</span>
         <h2 id="orthography-bridge-workspace-title">{t(locale, 'workspace.orthographyBridge.title')}</h2>
         <p className="orthography-workspace-summary">{t(locale, 'workspace.orthographyBridge.summary')}</p>
       </header>
 
-      <div className="orthography-workspace-layout">
+      <div className="language-asset-workspace-flow orthography-workspace-layout">
         <PanelSection
           className="orthography-workspace-list-panel"
           title={t(locale, 'workspace.orthographyBridge.listTitle')}

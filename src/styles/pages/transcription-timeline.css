@@ -24,12 +24,19 @@
 }
 
 .timeline-lasso-rect {
-  position: absolute;
   border: 1.5px dashed color-mix(in srgb, var(--state-info-solid) 70%, transparent);
   background: color-mix(in srgb, var(--state-info-solid) 10%, transparent);
-  border-radius: 2px;
   pointer-events: none;
   z-index: var(--z-header);
+}
+
+.timeline-lasso-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
 }
 
 .timeline-lane {
@@ -213,154 +220,93 @@
   right: 6px;
   top: 0;
   bottom: 0;
+  width: 18px;
   z-index: var(--z-raised);
   pointer-events: none;
   overflow: visible;
 }
 
-.lane-link-connector {
-  position: absolute;
-  right: 2px;
-  top: 0;
-  bottom: 0;
-  width: 0;
-  z-index: var(--z-raised);
-  pointer-events: none;
-  flex-shrink: 0;
+.lane-link-stack-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
-.lane-link-connector::before,
-.lane-link-connector::after {
-  transition: background-color 160ms ease, opacity 160ms ease;
-}
-
-.lane-link-connector {
+.lane-link-connector-svg {
   --lane-link-color: color-mix(in srgb, var(--text-secondary) 54%, transparent);
   --lane-link-color-active: color-mix(in srgb, var(--text-primary) 78%, transparent);
   --lane-link-stroke: 1px;
-  --lane-link-marker-size: 7px;
-  --lane-link-root-elbow: 14px;
 }
 
-/* 根层：从中线向下延伸 bundle 主干 | Root row: extend bundle trunk downward from midpoint */
-.lane-link-connector--bundle-root::before {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 50%;
-  bottom: -1px;
-  width: var(--lane-link-stroke);
-  background: var(--lane-link-color);
+.lane-link-connector-svg-color-0 {
+  --lane-link-color: color-mix(in srgb, var(--state-info-solid) 62%, transparent);
+  --lane-link-color-active: color-mix(in srgb, var(--state-info-solid) 88%, transparent);
 }
 
-.lane-link-connector-root-marker {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  width: var(--lane-link-root-elbow);
-  height: 8px;
-  transform: translateY(-50%);
+.lane-link-connector-svg-color-1 {
+  --lane-link-color: color-mix(in srgb, var(--state-success-solid) 62%, transparent);
+  --lane-link-color-active: color-mix(in srgb, var(--state-success-solid) 88%, transparent);
 }
 
-.lane-link-connector-root-marker::before {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: calc(50% - (var(--lane-link-stroke) / 2));
-  width: calc(var(--lane-link-root-elbow) - 4px);
-  height: var(--lane-link-stroke);
-  background: var(--lane-link-color);
-  opacity: 0.88;
+.lane-link-connector-svg-color-2 {
+  --lane-link-color: color-mix(in srgb, var(--state-warning-text) 62%, transparent);
+  --lane-link-color-active: color-mix(in srgb, var(--state-warning-text) 88%, transparent);
 }
 
-.lane-link-connector-root-marker::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: calc(50% - (var(--lane-link-marker-size) / 2));
-  width: 5px;
-  height: 5px;
-  background: var(--lane-link-color);
-  border-radius: var(--radius-pill);
-  opacity: 0.82;
+.lane-link-connector-svg-color-3 {
+  --lane-link-color: color-mix(in srgb, var(--state-info-solid) 52%, var(--state-danger-solid) 10%);
+  --lane-link-color-active: color-mix(in srgb, var(--state-info-solid) 74%, var(--state-danger-solid) 14%);
 }
 
-/* 中间子层：主干整行贯穿 | Middle child row: full-height trunk */
-.lane-link-connector--bundle-child-middle::before {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: -1px;
-  bottom: -1px;
-  width: var(--lane-link-stroke);
-  background: var(--lane-link-color);
+.lane-link-connector-svg-color-4 {
+  --lane-link-color: color-mix(in srgb, var(--state-danger-solid) 62%, transparent);
+  --lane-link-color-active: color-mix(in srgb, var(--state-danger-solid) 88%, transparent);
 }
 
-/* 末尾子层：主干在中线收口 | Last child row: trunk closes at midpoint */
-.lane-link-connector--bundle-child-end::before {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: -1px;
-  bottom: 50%;
-  width: var(--lane-link-stroke);
-  background: var(--lane-link-color);
+.lane-link-connector-svg-color-5 {
+  --lane-link-color: color-mix(in srgb, var(--text-secondary) 62%, transparent);
+  --lane-link-color-active: color-mix(in srgb, var(--text-primary) 88%, transparent);
 }
 
-/* 子层横向折线 | Child elbow connector */
-.lane-link-connector--bundle-child-middle::after,
-.lane-link-connector--bundle-child-end::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: calc(50% - 4px);
-  width: 12px;
-  height: 8px;
-  background: linear-gradient(var(--lane-link-color), var(--lane-link-color));
-  background-repeat: no-repeat;
-  background-size: 10px var(--lane-link-stroke);
-  background-position: right center;
+.lane-link-connector-svg-trunk,
+.lane-link-connector-svg-elbow,
+.lane-link-connector-svg-dot,
+.lane-link-connector-svg-arrow {
+  transition: stroke 160ms ease, fill 160ms ease, opacity 160ms ease;
+}
+
+.lane-link-connector-svg-trunk,
+.lane-link-connector-svg-elbow {
+  stroke: var(--lane-link-color);
+  stroke-width: var(--lane-link-stroke);
+  vector-effect: non-scaling-stroke;
+}
+
+.lane-link-connector-svg-elbow {
   opacity: 0.86;
 }
 
-.lane-link-connector-child-marker {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  width: var(--lane-link-root-elbow);
-  height: 8px;
-  transform: translateY(-50%);
+.lane-link-connector-svg-dot {
+  fill: var(--lane-link-color);
+  opacity: 0.82;
 }
 
-.lane-link-connector-child-marker::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: calc(50% - (var(--lane-link-marker-size) / 2));
-  width: var(--lane-link-marker-size);
-  height: var(--lane-link-marker-size);
-  background: var(--lane-link-color);
-  clip-path: polygon(0 50%, 100% 0, 100% 100%);
+.lane-link-connector-svg-arrow {
+  fill: var(--lane-link-color);
   opacity: 0.76;
 }
-
-/* rail 里横向折线略短，避免过于顶到文字 | Slightly shorter elbows inside the rail */
-.timeline-lane-label .lane-link-connector--bundle-child-middle::after,
-.timeline-lane-label .lane-link-connector--bundle-child-end::after {
-  width: 11px;
+.timeline-lane-label:hover .lane-link-connector-svg-trunk,
+.timeline-lane-label:hover .lane-link-connector-svg-elbow,
+.timeline-lane-label:focus-within .lane-link-connector-svg-trunk,
+.timeline-lane-label:focus-within .lane-link-connector-svg-elbow {
+  stroke: var(--lane-link-color-active);
 }
 
-.timeline-lane-label:hover .lane-link-connector::before,
-.timeline-lane-label:hover .lane-link-connector::after,
-.timeline-lane-label:hover .lane-link-connector-root-marker::before,
-.timeline-lane-label:hover .lane-link-connector-root-marker::after,
-.timeline-lane-label:hover .lane-link-connector-child-marker::after,
-.timeline-lane-label:focus-within .lane-link-connector::before,
-.timeline-lane-label:focus-within .lane-link-connector::after,
-.timeline-lane-label:focus-within .lane-link-connector-root-marker::before,
-.timeline-lane-label:focus-within .lane-link-connector-root-marker::after,
-.timeline-lane-label:focus-within .lane-link-connector-child-marker::after {
-  background: var(--lane-link-color-active);
+.timeline-lane-label:hover .lane-link-connector-svg-dot,
+.timeline-lane-label:hover .lane-link-connector-svg-arrow,
+.timeline-lane-label:focus-within .lane-link-connector-svg-dot,
+.timeline-lane-label:focus-within .lane-link-connector-svg-arrow {
+  fill: var(--lane-link-color-active);
 }
 
 /* ── 鸟瞰导航条 | Waveform overview / minimap bar ───────────────────────────── */
@@ -450,7 +396,7 @@
 
 .timeline-lane-overlap-hint {
   position: absolute;
-  right: 6px;
+  width: 48px;
   top: 50%;
   transform: translateY(-50%);
   z-index: var(--z-overlay-base);
@@ -576,10 +522,11 @@
   cursor: pointer;
   display: flex;
   align-items: center;
-  padding: 0 4px;
+  padding: 0 6px;
   font-size: 0.78rem;
   color: var(--text-primary);
   transition: background 0.12s, border-color 0.12s;
+  justify-content: center;
   pointer-events: auto;
 }
 
@@ -783,6 +730,7 @@
 .timeline-lane-text-only-track {
   position: relative;
   height: var(--timeline-lane-content-height, 42px);
+  width: var(--timeline-lane-track-width, 0px);
 }
 
 .timeline-lane-text-only > .timeline-lane-label {
@@ -1271,16 +1219,30 @@
   line-height: 1;
 }
 
-.time-ruler-cursor {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--state-danger-solid);
-  border-radius: 1px;
-  pointer-events: none;
-  z-index: var(--z-base);
-  transition: left 0.06s linear;
+.time-ruler-heat-band {
+  opacity: 0.7;
+}
+
+.time-ruler-heat-band-level-1 {
+  fill: color-mix(in srgb, var(--state-success-solid) 42%, transparent);
+}
+
+.time-ruler-heat-band-level-2 {
+  fill: color-mix(in srgb, var(--state-warning-solid) 46%, transparent);
+}
+
+.time-ruler-heat-band-level-3 {
+  fill: color-mix(in srgb, var(--state-warning-text) 48%, transparent);
+}
+
+.time-ruler-heat-band-level-4 {
+  fill: color-mix(in srgb, var(--state-danger-solid) 52%, transparent);
+}
+
+.time-ruler-cursor-line {
+  stroke: var(--state-danger-solid);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
 }
 
 .timeline-annotation:focus-visible {

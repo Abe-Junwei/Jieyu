@@ -1,0 +1,151 @@
+.language-asset-workspace-shell {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 28px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 96%, white), color-mix(in srgb, var(--surface-header) 42%, var(--surface-panel)) 100%);
+  box-shadow: 0 28px 56px color-mix(in srgb, var(--shadow-color) 18%, transparent);
+}
+
+.language-asset-workspace-shell > * {
+  min-width: 0;
+}
+
+.language-asset-workspace-hero {
+  display: grid;
+  gap: 6px;
+  padding: 0 52px 14px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 52%, transparent);
+}
+
+.language-asset-workspace-hero h2 {
+  margin: 0;
+  font-size: calc(1.18rem * var(--ui-font-scale, 1));
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.language-asset-workspace-flow {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+}
+
+.language-asset-workspace-shell :is(.panel-section, .panel-summary) {
+  border-color: color-mix(in srgb, var(--border-soft) 82%, transparent);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--shadow-color) 7%, transparent);
+}
+
+.language-asset-workspace-shell .panel-section--emphasis {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 90%, white), color-mix(in srgb, var(--surface-panel) 92%, var(--surface-header)) 100%);
+}
+
+.language-asset-workspace-shell :is(.panel-section__header, .panel-section__body) {
+  gap: 12px;
+}
+
+.language-asset-workspace-shell .panel-summary__supporting {
+  max-width: 56ch;
+}
+
+.language-asset-workspace-shell :is(.language-metadata-workspace-state, .orthography-workspace-state, .orthography-manager-state) {
+  margin: 0;
+  font-size: var(--language-asset-note-size, calc(0.8rem * var(--ui-font-scale, 1)));
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.language-asset-workspace-shell :is(.language-metadata-workspace-state-error, .orthography-manager-state-error, .orthography-workspace-state-error) {
+  color: var(--language-asset-state-danger-color, var(--state-danger-text));
+}
+
+.language-asset-workspace-shell :is(.language-metadata-workspace-state-success, .orthography-manager-state-success) {
+  color: var(--language-asset-state-success-color, var(--state-success-text));
+}
+
+.language-asset-workspace-shell :is(.orthography-workspace-state-warning, .orthography-manager-state-warning) {
+  color: var(--language-asset-state-warning-color, var(--state-warning-text));
+}
+
+.language-asset-workspace-shell :is(.language-metadata-workspace-list, .orthography-workspace-list, .orthography-manager-list) {
+  max-height: var(--language-asset-list-max-height, 260px);
+  overflow: auto;
+  padding-right: 2px;
+}
+
+@media (max-width: 900px) {
+  .language-asset-workspace-shell {
+    padding: 18px 16px;
+    border-radius: 24px;
+  }
+
+  .language-asset-workspace-hero {
+    padding-right: 44px;
+  }
+}
+
+/* 2026-04-09 语言资产工作区统一收口 | Unified workspace shell flattening */
+.language-asset-workspace-shell {
+  gap: 18px;
+  padding: 22px;
+  border-radius: 24px;
+  border-color: color-mix(in srgb, var(--border-soft) 76%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 98%, white), color-mix(in srgb, var(--surface-header) 26%, var(--surface-panel)) 100%);
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--shadow-color) 11%, transparent);
+}
+
+.language-asset-workspace-hero {
+  gap: 8px;
+  padding-bottom: 16px;
+  border-bottom-color: color-mix(in srgb, var(--border-soft) 44%, transparent);
+}
+
+.language-asset-workspace-flow {
+  gap: 16px;
+}
+
+.language-asset-workspace-shell :is(.panel-section, .panel-summary) {
+  gap: 12px;
+  padding: 16px;
+  border-color: color-mix(in srgb, var(--border-soft) 70%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--surface-panel) 99%, var(--surface-header));
+  box-shadow: none;
+}
+
+.language-asset-workspace-shell .panel-summary {
+  padding-block: 14px;
+  background: color-mix(in srgb, var(--surface-header) 58%, var(--surface-panel));
+}
+
+.language-asset-workspace-shell .panel-section--emphasis {
+  background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
+}
+
+.language-asset-workspace-shell :is(.panel-section__header, .panel-section__body) {
+  gap: 10px;
+}
+
+.language-asset-workspace-shell .panel-summary .panel-section__header {
+  align-items: center;
+}
+
+.language-asset-workspace-shell .panel-summary__supporting {
+  max-width: 60ch;
+}
+
+@media (max-width: 900px) {
+  .language-asset-workspace-shell {
+    padding: 18px 16px;
+  }
+}

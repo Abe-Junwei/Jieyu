@@ -15,6 +15,10 @@ import { createLogger } from '../observability/logger';
 
 const log = createLogger('TranscriptionWorkspaceLayout');
 
+const WORKSPACE_DEFAULT_ZOOM_MODE_KEY = 'jieyu:workspace-default-zoom-mode';
+const WORKSPACE_AUTO_SCROLL_KEY = 'jieyu:workspace-auto-scroll-enabled';
+const WORKSPACE_SNAP_KEY = 'jieyu:workspace-snap-enabled';
+
 type UseTranscriptionWorkspaceLayoutControllerInput = {
   layers: LayerDocType[];
   selectedTimelineOwnerUtteranceId: string | undefined;
@@ -84,6 +88,38 @@ function readStoredLaneHeights(): Record<string, number> {
   return {};
 }
 
+function readStoredBoolean(key: string, fallback: boolean): boolean {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored === null) return fallback;
+    if (stored === '1' || stored === 'true') return true;
+    if (stored === '0' || stored === 'false') return false;
+    return fallback;
+  } catch (error) {
+    log.warn('Failed to read boolean workspace layout preference from localStorage', {
+      storageKey: key,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return fallback;
+  }
+}
+
+function readStoredWorkspaceZoomMode(): 'fit-all' | 'fit-selection' | 'custom' {
+  try {
+    const stored = localStorage.getItem(WORKSPACE_DEFAULT_ZOOM_MODE_KEY);
+    if (stored === 'fit-all' || stored === 'fit-selection' || stored === 'custom') {
+      return stored;
+    }
+    return 'fit-all';
+  } catch (error) {
+    log.warn('Failed to read workspace zoom mode from localStorage, fallback to default', {
+      storageKey: WORKSPACE_DEFAULT_ZOOM_MODE_KEY,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return 'fit-all';
+  }
+}
+
 function readStoredVideoLayoutMode(): VideoLayoutMode {
   try {
     const stored = localStorage.getItem('jieyu:video-layout-mode');
@@ -106,7 +142,7 @@ export function useTranscriptionWorkspaceLayoutController(
   input: UseTranscriptionWorkspaceLayoutControllerInput,
 ): UseTranscriptionWorkspaceLayoutControllerResult {
   const [zoomPercent, setZoomPercent] = useState(100);
-  const [zoomMode, setZoomMode] = useState<'fit-all' | 'fit-selection' | 'custom'>('fit-all');
+  const [zoomMode, setZoomMode] = useState<'fit-all' | 'fit-selection' | 'custom'>(() => readStoredWorkspaceZoomMode());
   const [isTimelineLaneHeaderCollapsed, setIsTimelineLaneHeaderCollapsed] = useState(false);
   const [laneLabelWidth, setLaneLabelWidth] = useState<number>(() => readStoredClampedNumber('jieyu:lane-label-width', 40, 180, 64));
   const laneLabelWidthRef = useRef<number>(laneLabelWidth);
@@ -118,10 +154,10 @@ export function useTranscriptionWorkspaceLayoutController(
   const videoRightPanelResizeRef = useRef<{ startX: number; startWidth: number; factor: number } | null>(null);
   const [isResizingVideoRightPanel, setIsResizingVideoRightPanel] = useState(false);
   const [videoLayoutMode, setVideoLayoutMode] = useState<VideoLayoutMode>(() => readStoredVideoLayoutMode());
-  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(() => readStoredBoolean(WORKSPACE_AUTO_SCROLL_KEY, true));
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [snapEnabled, setSnapEnabled] = useState(false);
+  const [snapEnabled, setSnapEnabled] = useState<boolean>(() => readStoredBoolean(WORKSPACE_SNAP_KEY, false));
 
   useEffect(() => {
     laneLabelWidthRef.current = laneLabelWidth;
@@ -358,6 +394,39 @@ export function useTranscriptionWorkspaceLayoutController(
       });
     }
   }, [videoRightPanelWidth]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(WORKSPACE_DEFAULT_ZOOM_MODE_KEY, zoomMode);
+    } catch (error) {
+      log.warn('Failed to persist workspace zoom mode to localStorage', {
+        storageKey: WORKSPACE_DEFAULT_ZOOM_MODE_KEY,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }, [zoomMode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(WORKSPACE_AUTO_SCROLL_KEY, autoScrollEnabled ? '1' : '0');
+    } catch (error) {
+      log.warn('Failed to persist workspace auto-scroll preference to localStorage', {
+        storageKey: WORKSPACE_AUTO_SCROLL_KEY,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }, [autoScrollEnabled]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(WORKSPACE_SNAP_KEY, snapEnabled ? '1' : '0');
+    } catch (error) {
+      log.warn('Failed to persist workspace snap preference to localStorage', {
+        storageKey: WORKSPACE_SNAP_KEY,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }, [snapEnabled]);
 
   const closeShortcuts = useCallback(() => {
     setShowShortcuts(false);

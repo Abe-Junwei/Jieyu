@@ -16,8 +16,8 @@
   position: relative;
   min-width: 0;
   width: 100%;
-  height: var(--waveform-height, 180px);
-  min-height: var(--waveform-height, 180px);
+  height: var(--waveform-shell-height, var(--waveform-height, 180px));
+  min-height: var(--waveform-shell-height, var(--waveform-height, 180px));
 }
 
 .waveform-primary-stage {
@@ -147,18 +147,61 @@
   background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
 }
 
-.waveform-analysis-hotspot-marker {
+.waveform-guide-overlay {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
-  width: 2px;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-solid) 80%, transparent), color-mix(in srgb, var(--state-warning-solid) 72%, transparent));
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--surface-panel) 64%, transparent),
-    0 0 12px color-mix(in srgb, var(--state-info-solid) 42%, transparent);
+  inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   z-index: calc(var(--z-overlay) + 1);
+}
+
+.waveform-analysis-hotspot-line {
+  stroke: color-mix(in srgb, var(--state-info-solid) 82%, var(--state-warning-solid) 18%);
+  stroke-width: 2;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 0 1px color-mix(in srgb, var(--surface-panel) 64%, transparent)) drop-shadow(0 0 12px color-mix(in srgb, var(--state-info-solid) 42%, transparent));
+}
+
+.waveform-snap-guide-line {
+  stroke-width: 2;
+  transform: translateX(-1px);
+}
+
+.waveform-snap-guide-line-left {
+  stroke: color-mix(in srgb, var(--state-success-solid) 90%, transparent);
+}
+
+.waveform-snap-guide-line-right {
+  stroke: color-mix(in srgb, var(--state-warning-solid) 90%, transparent);
+}
+
+.waveform-snap-guide-line-near {
+  stroke-width: 3;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--state-warning-solid) 18%, transparent)) drop-shadow(0 0 16px color-mix(in srgb, var(--state-warning-solid) 55%, transparent));
+}
+
+.waveform-snap-guide-label {
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-weight: 700;
+  paint-order: stroke;
+  stroke-width: 6;
+  stroke-linejoin: round;
+}
+
+.waveform-snap-guide-label-left {
+  fill: var(--surface-panel);
+  stroke: color-mix(in srgb, var(--state-success-solid) 90%, transparent);
+}
+
+.waveform-snap-guide-label-right {
+  fill: var(--surface-panel);
+  stroke: color-mix(in srgb, var(--state-warning-solid) 90%, transparent);
+}
+
+.waveform-snap-guide-label-near {
+  fill: var(--text-primary);
+  stroke: color-mix(in srgb, var(--state-warning-solid) 95%, transparent);
 }
 
 .waveform-acoustic-overlay {
@@ -234,53 +277,48 @@
   border: 1px solid color-mix(in srgb, var(--state-warning-solid) 28%, transparent);
 }
 
-.waveform-analysis-band {
+.waveform-analysis-band-overlay {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
-  min-width: 2px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  overflow: hidden;
-  box-sizing: border-box;
-  padding: 6px 8px;
-  backdrop-filter: blur(1px);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
-.waveform-analysis-band span {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.waveform-analysis-band-shape {
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.waveform-analysis-band-label {
   font-size: calc(11px * var(--ui-font-scale, 1));
-  line-height: 1;
   font-weight: 700;
+  dominant-baseline: hanging;
 }
 
 .waveform-analysis-band-confidence {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--state-warning-solid) 24%, transparent), color-mix(in srgb, var(--state-warning-solid) 12%, transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-warning-solid) 44%, transparent);
+  fill: color-mix(in srgb, var(--state-warning-solid) 18%, transparent);
+  stroke: color-mix(in srgb, var(--state-warning-solid) 44%, transparent);
 }
 
-.waveform-analysis-band-confidence span {
-  color: var(--state-warning-text);
+.waveform-analysis-band-label-confidence {
+  fill: var(--state-warning-text);
 }
 
 .waveform-analysis-band-overlap {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--state-danger-solid) 24%, transparent), color-mix(in srgb, var(--state-danger-solid) 12%, transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-danger-solid) 42%, transparent);
+  fill: color-mix(in srgb, var(--state-danger-solid) 18%, transparent);
+  stroke: color-mix(in srgb, var(--state-danger-solid) 42%, transparent);
 }
 
-.waveform-analysis-band-overlap span {
-  color: var(--state-danger-text);
+.waveform-analysis-band-label-overlap {
+  fill: var(--state-danger-text);
 }
 
 .waveform-analysis-band-gap {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-solid) 22%, transparent), color-mix(in srgb, var(--state-info-solid) 10%, transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 36%, transparent);
+  fill: color-mix(in srgb, var(--state-info-solid) 16%, transparent);
+  stroke: color-mix(in srgb, var(--state-info-solid) 36%, transparent);
 }
 
-.waveform-analysis-band-gap span {
-  color: var(--state-info-text);
+.waveform-analysis-band-label-gap {
+  fill: var(--state-info-text);
 }

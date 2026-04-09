@@ -75,7 +75,7 @@ export function AiChatReplayDetailPanel({
       bodyClassName="ai-chat-replay-panel-body"
       footerClassName="ai-chat-replay-panel-footer"
       dir={uiTextDirection}
-      style={{
+      layoutStyle={{
         minWidth: `min(100%, ${compactWidth}px)`,
         maxWidth: `min(100%, ${wideWidth}px)`,
       }}

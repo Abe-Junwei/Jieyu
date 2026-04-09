@@ -116,12 +116,14 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
 describe('useTranscriptionSegmentCreationController', () => {
   beforeEach(() => {
     window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, 'zh-CN');
+    window.localStorage.removeItem('jieyu:new-segment-selection-behavior');
     mockCreateSegment.mockClear();
     mockCreateSegmentWithParentConstraint.mockClear();
   });
 
   afterEach(() => {
     window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
+    window.localStorage.removeItem('jieyu:new-segment-selection-behavior');
   });
 
   it('creates independent segments with overlapping utterance linkage and focused speaker', async () => {
@@ -221,6 +223,21 @@ describe('useTranscriptionSegmentCreationController', () => {
     }));
   });
 
+  it('keeps current selection when segment selection preference is keep-current', async () => {
+    window.localStorage.setItem('jieyu:new-segment-selection-behavior', 'keep-current');
+
+    const selectTimelineUnit = vi.fn();
+    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
+      selectTimelineUnit,
+    })));
+
+    await act(async () => {
+      await result.current.createUtteranceFromSelectionRouted(1.2, 2.4);
+    });
+
+    expect(selectTimelineUnit).not.toHaveBeenCalled();
+  });
+
   it('reports an error when time-subdivision selection has no parent utterance', async () => {
     const pushUndo = vi.fn();
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
@@ -273,6 +290,7 @@ describe('useTranscriptionSegmentCreationController', () => {
     expect(createUtteranceFromSelection).toHaveBeenCalledWith(4, 5, {
       speakerId: 'spk-focus',
       focusedLayerId: 'layer-seg',
+      selectionBehavior: 'select-created',
     });
 
     await act(async () => {
@@ -280,5 +298,28 @@ describe('useTranscriptionSegmentCreationController', () => {
     });
 
     expect(createNextUtterance).toHaveBeenCalledWith(expect.objectContaining({ id: 'utt-1' }), 10);
+  });
+
+  it('passes keep-current selection behavior to utterance creation when preference is enabled', async () => {
+    window.localStorage.setItem('jieyu:new-segment-selection-behavior', 'keep-current');
+
+    const createUtteranceFromSelection = vi.fn(async () => undefined);
+    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
+      resolveSegmentRoutingForLayer: () => ({
+        layer: makeLayer('layer-main'),
+        segmentSourceLayer: undefined,
+        sourceLayerId: '',
+        editMode: 'utterance',
+      }),
+      createUtteranceFromSelection,
+    })));
+
+    await act(async () => {
+      await result.current.createUtteranceFromSelectionRouted(4, 5);
+    });
+
+    expect(createUtteranceFromSelection).toHaveBeenCalledWith(4, 5, expect.objectContaining({
+      selectionBehavior: 'keep-current',
+    }));
   });
 });

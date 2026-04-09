@@ -61,7 +61,7 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
       bodyClassName="shortcuts-panel-body"
       titleClassName="shortcuts-panel-title"
       closeLabel={messages.closePanelAriaLabel}
-      style={{ width: `min(${panelWidth}px, 92vw)` }}
+      layoutStyle={{ width: `min(${panelWidth}px, 92vw)` }}
     >
           {grouped.map(({ cat, label, entries }) => (
             <PanelSection key={cat} className="shortcuts-panel-group" title={label}>

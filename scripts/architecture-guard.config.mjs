@@ -354,6 +354,15 @@ export const architectureGuardRules = [
     ],
   },
   {
+    file: 'src/styles/foundation/control-primitives.css',
+    requiredLiterals: [
+      '.select-caret {',
+      '.input {',
+      '.btn {',
+      '.icon-btn {',
+    ],
+  },
+  {
     file: 'src/styles/pages/transcription-layout.css',
     requiredLiterals: [
       '.app-shell-transcription {',
@@ -426,7 +435,7 @@ export const architectureGuardRules = [
   {
     file: 'src/styles/panels/shortcuts-panel.css',
     requiredLiterals: [
-      '.shortcuts-panel {',
+      '.pnl-shortcuts-panel {',
       '.shortcuts-panel-header {',
       '.shortcuts-panel-body {',
       '.shortcuts-panel-table {',
@@ -462,6 +471,13 @@ export const architectureGuardRules = [
   {
     file: 'src/styles/global.css',
     forbiddenRegexes: [
+      /^\.select-caret(?=[:\s,{])/m,
+      /^\.input(?=[:\s,{])/m,
+      /^\.textarea(?=[:\s,{])/m,
+      /^\.btn(?=[:\s,{])/m,
+      /^\.btn-ghost(?=[:\s,{])/m,
+      /^\.btn-danger(?=[:\s,{])/m,
+      /^\.icon-btn(?=[:\s,{])/m,
       /^\.app-shell\s*\{/m,
       /^\.app-shell-body\s*\{/m,
       /^\.app-main\s*\{/m,

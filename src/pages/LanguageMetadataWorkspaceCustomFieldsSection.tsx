@@ -54,7 +54,7 @@ export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf
   return (
     <section className="language-metadata-workspace-subsection">
       <div className="language-metadata-workspace-subsection-header">
-        <h3 className="language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionCustomFields')}</h3>
+        <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionCustomFields')}</h3>
         <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionCustomFieldsDescription')}</p>
         <div className="language-metadata-workspace-inline-actions">
           <button type="button" className="btn btn-ghost" onClick={cf.handleAddFieldDef}>{t(locale, 'workspace.languageMetadata.customFieldAdd')}</button>

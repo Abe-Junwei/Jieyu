@@ -25,6 +25,20 @@ import { useWaveformSignalOverlays } from './useWaveformSignalOverlays';
 
 export type { WaveformInteractionHandlerRefs } from './transcriptionWaveformBridge.types';
 
+const DEFAULT_PLAYBACK_RATE_KEY = 'jieyu:default-playback-rate';
+
+function readDefaultPlaybackRate(): number {
+  try {
+    const stored = localStorage.getItem(DEFAULT_PLAYBACK_RATE_KEY);
+    if (!stored) return 1;
+    const parsed = Number(stored);
+    if (Number.isNaN(parsed)) return 1;
+    return [0.5, 0.75, 1, 1.25, 1.5, 2].includes(parsed) ? parsed : 1;
+  } catch {
+    return 1;
+  }
+}
+
 export function useTranscriptionWaveformBridgeController(
   input: UseTranscriptionWaveformBridgeControllerInput,
 ): UseTranscriptionWaveformBridgeControllerResult {
@@ -36,7 +50,7 @@ export function useTranscriptionWaveformBridgeController(
   const [waveformFocused, setWaveformFocused] = useState(false);
   const [segmentLoopPlayback, setSegmentLoopPlayback] = useState(false);
   const [globalLoopPlayback, setGlobalLoopPlayback] = useState(false);
-  const [segmentPlaybackRate, setSegmentPlaybackRate] = useState(1);
+  const [segmentPlaybackRate, setSegmentPlaybackRate] = useState(readDefaultPlaybackRate);
   const [hoverTime, setHoverTime] = useState<{ time: number; x: number; y: number } | null>(null);
   const [segMarkStart, setSegMarkStart] = useState<number | null>(null);
   const [dragPreview, setDragPreview] = useState<{ id: string; start: number; end: number } | null>(null);
@@ -296,7 +310,7 @@ export function useTranscriptionWaveformBridgeController(
       setSegmentLoopPlayback(false);
     }
     if (prev !== currentSelectedTimelineUnitId) {
-      setSegmentPlaybackRate(1);
+      setSegmentPlaybackRate(readDefaultPlaybackRate());
     }
     previousSelectedTimelineUnitIdRef.current = currentSelectedTimelineUnitId;
   }, [input.selectedTimelineUnit?.unitId, segmentLoopPlayback]);
@@ -322,6 +336,11 @@ export function useTranscriptionWaveformBridgeController(
 
   const handleSegmentPlaybackRateChange = (rate: number): void => {
     setSegmentPlaybackRate(rate);
+    try {
+      localStorage.setItem(DEFAULT_PLAYBACK_RATE_KEY, String(rate));
+    } catch {
+      // no-op
+    }
     const ws = player.instanceRef.current;
     if (ws && player.isPlaying) {
       ws.setPlaybackRate(rate);

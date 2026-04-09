@@ -30,6 +30,7 @@ import {
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { TranscriptionTimelineTextTranslationItem } from './TranscriptionTimelineTextTranslationItem';
+import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import {
   buildSegmentSpeakerLayoutMaps,
   EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID,
@@ -379,14 +380,14 @@ export function TranscriptionTimelineTextOnly({
           ? (activeLayout.overlapCycleItemsByGroupId.get('__all__') ?? EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID)
           : EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID;
         return (
-        <div
+        <TimelineStyledContainer
           key={`tl-${layer.id}`}
           className={`timeline-lane timeline-lane-text-only ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${isCollapsed ? 'timeline-lane-collapsed' : ''} ${usesSegmentTimeline && isMultiTrackMode && activeLayout.subTrackCount > 1 ? 'timeline-lane-speaker-layered' : ''}`}
-          style={{
-            position: 'relative',
+          layoutStyle={{
             '--timeline-lane-height': `${visibleLaneHeight}px`,
             '--timeline-lane-content-height': `${Math.max(16, (baseLaneHeight - 12))}px`,
             '--timeline-subtrack-height': `${baseLaneHeight}px`,
+            '--timeline-lane-track-width': `${laneTotalSize}px`,
           } as React.CSSProperties}
           onPointerDown={(e) => {
             if (!isCollapsed) return;
@@ -437,7 +438,7 @@ export function TranscriptionTimelineTextOnly({
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
             {...(displayStyleControl && { displayStyleControl })}
           />
-          {!isCollapsed && <div className="timeline-lane-text-only-track" style={{ width: `${laneTotalSize}px` }}>
+          {!isCollapsed && <div className="timeline-lane-text-only-track">
           {laneVirtualItems.map((virtualItem) => {
             const rawItem = layerItems[virtualItem.index];
             if (!rawItem) return null;
@@ -473,10 +474,10 @@ export function TranscriptionTimelineTextOnly({
               ? (activeLayout.placements.get(utt.id)?.subTrackIndex ?? 0)
               : 0;
             return (
-              <div
+              <TimelineStyledContainer
                 key={utt.id}
                 className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${shouldHideForFocus ? ' timeline-text-item-focus-hidden' : ''}${shouldDimForFocus ? ' timeline-text-item-focus-dim' : ''}`}
-                style={{
+                layoutStyle={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
                   ...(usesSegmentTimeline && isMultiTrackMode ? { top: subTrackIndex * baseLaneHeight, height: baseLaneHeight } : {}),
@@ -588,7 +589,7 @@ export function TranscriptionTimelineTextOnly({
                     }
                   }}
                 />
-              </div>
+              </TimelineStyledContainer>
             );
           })}
           </div>}
@@ -598,7 +599,7 @@ export function TranscriptionTimelineTextOnly({
             role="separator"
             aria-orientation="horizontal"
           />}
-        </div>
+        </TimelineStyledContainer>
       );
         }
 
@@ -627,13 +628,13 @@ export function TranscriptionTimelineTextOnly({
           ? resolveOrthographyRenderPolicy(layer.languageId, displayStyleControl.orthographies, layer.orthographyId)
           : undefined;
         return (
-        <div
+        <TimelineStyledContainer
           key={`tl-${layer.id}`}
           className={`timeline-lane timeline-lane-text-only timeline-lane-translation ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${isCollapsed ? 'timeline-lane-collapsed' : ''}`}
-          style={{
-            position: 'relative',
+          layoutStyle={{
             '--timeline-lane-height': `${isCollapsed ? 14 : (laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)}px`,
             '--timeline-lane-content-height': `${Math.max(16, ((isCollapsed ? 14 : (laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)) - 12))}px`,
+            '--timeline-lane-track-width': `${laneTotalSize}px`,
           } as React.CSSProperties}
           onPointerDown={(e) => {
             if (!isCollapsed) return;
@@ -665,7 +666,7 @@ export function TranscriptionTimelineTextOnly({
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
             {...(displayStyleControl && { displayStyleControl })}
           />
-          {!isCollapsed && <div className="timeline-lane-text-only-track" style={{ width: `${laneTotalSize}px` }}>
+          {!isCollapsed && <div className="timeline-lane-text-only-track">
           {laneVirtualItems.map((virtualItem) => {
             const rawItem = layerItems[virtualItem.index];
             if (!rawItem) return null;
@@ -699,7 +700,7 @@ export function TranscriptionTimelineTextOnly({
                 isDimmed={isDimmed}
                 saveStatus={saveStatus}
                 usesOwnSegments={usesOwnSegments}
-                style={{
+                layoutStyle={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
                   ...layerDisplaySettingsToStyle(displaySettingsForRender, renderPolicy),
@@ -735,7 +736,7 @@ export function TranscriptionTimelineTextOnly({
             role="separator"
             aria-orientation="horizontal"
           />}
-        </div>
+        </TimelineStyledContainer>
       );})}
 
       {layerAction && (

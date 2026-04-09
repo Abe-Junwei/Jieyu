@@ -100,5 +100,5 @@ export function buildLayerLinkConnectorLayout(
 
 export function getLayerLinkStackWidth(maxColumns: number): number {
   if (maxColumns <= 0) return 0;
-  return 18;
+  return Math.max(18, maxColumns * 18);
 }

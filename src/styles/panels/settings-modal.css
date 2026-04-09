@@ -1,0 +1,596 @@
+/* ── 设置面板 | Settings Modal ───────────────────────────── */
+
+.pnl-settings-modal {
+  width: min(520px, 92vw);
+  max-width: 92vw;
+  max-height: 80vh;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 94%, transparent);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--surface-panel) 99%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.settings-modal-header {
+  flex-shrink: 0;
+  min-height: 42px;
+  padding: 8px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 82%, var(--surface-panel));
+}
+
+.settings-modal-title {
+  min-width: 0;
+}
+
+.settings-modal-body {
+  overflow: hidden;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 108px 1fr;
+  min-height: 280px;
+  height: 100%;
+  flex: 1 1 auto;
+}
+
+/* ── 标签页导航 | Tab bar ── */
+.settings-tab-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-right: 1px solid color-mix(in srgb, var(--border-soft) 42%, transparent);
+  padding: 10px 8px;
+  background: color-mix(in srgb, var(--surface-header) 58%, var(--surface-panel));
+  min-width: 0;
+}
+
+.settings-tab-btn {
+  all: unset;
+  cursor: pointer;
+  padding: 7px 9px;
+  font-size: calc(0.82rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-left: 2px solid transparent;
+  border-radius: 6px;
+  transition: color var(--shell-motion-fast, 140ms), border-color var(--shell-motion-fast, 140ms), background var(--shell-motion-fast, 140ms);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-tab-btn:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--surface-panel) 70%, var(--header-accent) 10%);
+}
+
+.settings-tab-btn[aria-selected="true"] {
+  color: var(--header-accent);
+  border-left-color: var(--header-accent);
+  background: color-mix(in srgb, var(--header-accent) 12%, var(--surface-panel));
+}
+
+.settings-tab-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* ── 标签页内容 | Tab content ── */
+.settings-tab-content {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 200px;
+  background: var(--surface-panel);
+}
+
+.settings-sections-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  padding: 10px 0;
+}
+
+.settings-section-rail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  min-width: 0;
+  width: 100%;
+}
+
+.settings-section-title {
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  user-select: none;
+}
+
+.settings-section-title::before,
+.settings-section-title::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: color-mix(in srgb, var(--border-soft) 82%, transparent);
+}
+
+.settings-section-title-text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+.settings-section-body {
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+/* ── 设置行 | Setting row ── */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 24%, transparent);
+  gap: 12px;
+}
+
+.settings-inline-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-row:last-child {
+  border-bottom: none;
+}
+
+.settings-row-label {
+  font-size: calc(0.84rem * var(--ui-font-scale, 1));
+  font-weight: 500;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.settings-row-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ── 选项按钮组 | Option button group ── */
+.settings-option-group {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.settings-option-btn {
+  all: unset;
+  cursor: pointer;
+  padding: 4px 12px;
+  font-size: calc(0.78rem * var(--ui-font-scale, 1));
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--surface-panel);
+  border-right: 1px solid var(--border-soft);
+  transition: background var(--shell-motion-fast, 140ms), color var(--shell-motion-fast, 140ms);
+}
+
+.settings-option-btn:last-child {
+  border-right: none;
+}
+
+.settings-option-btn:hover {
+  background: var(--surface-header);
+  color: var(--text-primary);
+}
+
+.settings-option-btn[aria-pressed="true"] {
+  background: var(--header-accent);
+  color: var(--text-on-solid);
+}
+
+.settings-option-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* ── 字体缩放滑块 | Font scale slider ── */
+.settings-font-scale-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.settings-range-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-range-value {
+  min-width: 4.5ch;
+  text-align: right;
+  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-font-scale-slider {
+  width: 120px;
+  accent-color: var(--header-accent);
+}
+
+.settings-font-scale-value {
+  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 3ch;
+  text-align: center;
+}
+
+.settings-font-scale-reset-btn {
+  all: unset;
+  cursor: pointer;
+  font-size: calc(0.72rem * var(--ui-font-scale, 1));
+  color: var(--header-accent);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.settings-font-scale-reset-btn:hover {
+  background: color-mix(in srgb, var(--header-accent) 10%, transparent);
+}
+
+.settings-font-scale-reset-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+}
+
+/* ── 关于页 | About section ── */
+.settings-about-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-about-name {
+  font-size: calc(1rem * var(--ui-font-scale, 1));
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.settings-about-desc {
+  font-size: calc(0.82rem * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.settings-about-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: calc(0.8rem * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+}
+
+.settings-about-row strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ── 快捷键编辑 | Shortcut editing ── */
+
+.settings-shortcuts-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 2px 2px;
+}
+
+.settings-link-btn {
+  all: unset;
+  cursor: pointer;
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
+  color: var(--header-accent);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.settings-link-btn:hover {
+  background: color-mix(in srgb, var(--header-accent) 10%, transparent);
+}
+
+.settings-link-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+}
+
+.settings-link-btn-sm {
+  font-size: calc(0.7rem * var(--ui-font-scale, 1));
+  padding: 1px 4px;
+}
+
+.shortcuts-kbd-editable {
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 6px;
+  transition: border-color var(--shell-motion-fast, 140ms), background var(--shell-motion-fast, 140ms);
+}
+
+.shortcuts-kbd-editable:hover {
+  border-color: var(--header-accent);
+  background: color-mix(in srgb, var(--header-accent) 8%, transparent);
+}
+
+.shortcuts-kbd-editable:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.shortcuts-kbd-customized {
+  border-color: var(--header-accent);
+  color: var(--header-accent);
+}
+
+.shortcuts-row-editing {
+  background: color-mix(in srgb, var(--header-accent) 6%, transparent);
+}
+
+.shortcuts-recording-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  color: var(--header-accent);
+  font-weight: 600;
+  animation: settings-pulse 1.2s ease-in-out infinite;
+}
+
+.shortcuts-esc-hint {
+  font-size: calc(0.68rem * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.shortcuts-customized-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: calc(0.66rem * var(--ui-font-scale, 1));
+  color: var(--header-accent);
+  background: color-mix(in srgb, var(--header-accent) 12%, transparent);
+  padding: 1px 5px;
+  border-radius: 3px;
+  vertical-align: middle;
+  font-weight: 500;
+}
+
+@keyframes settings-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── AI 设置 | AI settings ── */
+
+.settings-ai-loading {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 24px 0;
+}
+
+.settings-select {
+  padding: 4px 8px;
+  font-size: calc(0.78rem * var(--ui-font-scale, 1));
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  min-width: 160px;
+}
+
+.settings-select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.settings-input {
+  padding: 4px 8px;
+  font-size: calc(0.78rem * var(--ui-font-scale, 1));
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  min-width: 180px;
+}
+
+.settings-input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.settings-save-flash {
+  font-size: calc(0.72rem * var(--ui-font-scale, 1));
+  color: var(--status-success, #22c55e);
+  font-weight: 500;
+  animation: settings-flash-in 200ms ease-out;
+}
+
+.settings-ai-note {
+  margin-top: 12px;
+  font-size: calc(0.74rem * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+@keyframes settings-flash-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 数据管理 | Data management ── */
+
+.settings-data-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 50%, transparent);
+}
+
+.settings-data-row:last-child {
+  border-bottom: none;
+}
+
+.settings-data-label {
+  font-size: calc(0.82rem * var(--ui-font-scale, 1));
+  color: var(--text-primary);
+}
+
+.settings-data-value {
+  font-size: calc(0.78rem * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-data-cleared {
+  font-size: calc(0.74rem * var(--ui-font-scale, 1));
+  color: var(--status-success, #22c55e);
+  font-weight: 500;
+}
+
+.settings-data-row-storage {
+  margin-top: 6px;
+}
+
+.settings-data-reset-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border-soft) 50%, transparent);
+}
+
+.settings-danger-btn {
+  all: unset;
+  cursor: pointer;
+  padding: 6px 14px;
+  font-size: calc(0.78rem * var(--ui-font-scale, 1));
+  font-weight: 500;
+  color: var(--status-error, #ef4444);
+  border: 1px solid var(--status-error, #ef4444);
+  border-radius: 6px;
+  transition: background var(--shell-motion-fast, 140ms);
+}
+
+.settings-danger-btn:hover {
+  background: color-mix(in srgb, var(--status-error, #ef4444) 10%, transparent);
+}
+
+.settings-danger-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (max-width: 860px) {
+  .pnl-settings-modal {
+    width: min(680px, 96vw);
+  }
+
+  .settings-layout {
+    grid-template-columns: 92px 1fr;
+  }
+
+  .settings-section {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-section-rail {
+    border-bottom: none;
+    justify-content: center;
+    padding: 8px 0 2px;
+  }
+
+  .settings-section-rail span {
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+    letter-spacing: 0.02em;
+  }
+
+  .settings-section-body {
+    padding: 6px 0 10px;
+  }
+
+  .settings-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .settings-row-control {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .settings-font-scale-row {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .settings-range-control {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .settings-font-scale-slider {
+    width: min(220px, 60vw);
+  }
+}
+
+@media (max-width: 620px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-tab-bar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+    border-right: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 80%, transparent);
+    padding: 8px;
+  }
+
+  .settings-tab-btn {
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 6px;
+  }
+
+  .settings-tab-btn[aria-selected="true"] {
+    border-left-color: transparent;
+    border-bottom-color: var(--header-accent);
+  }
+}

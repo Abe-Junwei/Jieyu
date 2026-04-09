@@ -1,3 +1,5 @@
+@import './language-asset-workspace.css';
+
 .orthography-workspace {
   --orthography-space-1: 4px;
   --orthography-space-2: 8px;
@@ -8,13 +10,15 @@
   --orthography-body-size: calc(0.82rem * var(--ui-font-scale, 1));
   --orthography-note-size: calc(0.76rem * var(--ui-font-scale, 1));
   --orthography-meta-size: calc(0.78rem * var(--ui-font-scale, 1));
+  --language-asset-note-size: var(--orthography-meta-size);
+  --language-asset-list-max-height: 260px;
   display: grid;
-  gap: var(--orthography-space-5);
-  max-width: 1280px;
+  gap: 14px;
+  max-width: none;
+  min-height: 100%;
 }
 
 .orthography-workspace-hero {
-  display: grid;
   gap: var(--orthography-space-2);
 }
 
@@ -30,26 +34,20 @@
   background: var(--bg-info-tint);
 }
 
-.orthography-workspace-summary,
-.orthography-workspace-state {
+.orthography-workspace-summary {
   margin: 0;
   font-size: var(--orthography-meta-size);
   color: var(--text-secondary);
   line-height: 1.6;
 }
 
-.orthography-workspace-state-error {
-  color: var(--state-danger-text);
-}
-
-.orthography-workspace-state-warning {
-  color: var(--state-warning-text);
-}
-
 .orthography-workspace-layout {
   display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-  gap: var(--orthography-space-5);
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    'detail'
+    'list';
+  gap: 12px;
   align-items: start;
 }
 
@@ -57,6 +55,20 @@
 .orthography-workspace-summary-card,
 .orthography-workspace-bridge-panel {
   border-radius: var(--radius-2xl);
+}
+
+.orthography-workspace-list-panel {
+  grid-area: list;
+  overflow: hidden;
+}
+
+.orthography-workspace-summary-card {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 88%, white), color-mix(in srgb, var(--surface-panel) 92%, var(--surface-header)) 100%);
+}
+
+.orthography-workspace-bridge-panel {
+  background: color-mix(in srgb, var(--surface-panel) 97%, var(--surface-header));
 }
 
 .orthography-workspace :is(.dialog-field, .language-iso-input .dialog-field) {
@@ -78,7 +90,8 @@
 
 .orthography-workspace-detail-column {
   display: grid;
-  gap: var(--orthography-space-5);
+  grid-area: detail;
+  gap: 12px;
 }
 
 .orthography-workspace-search {
@@ -88,7 +101,6 @@
 .orthography-workspace-empty-callout {
   display: grid;
   gap: var(--orthography-space-2);
-  margin-top: var(--orthography-space-3);
   padding: var(--orthography-space-4);
   border: 1px dashed color-mix(in srgb, var(--state-warning-text) 35%, transparent);
   border-radius: var(--radius-2xl);
@@ -104,8 +116,8 @@
 /* 项目语言过滤切换 | Project language filter toggle */
 .orthography-workspace-filter-toggle {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
-  margin-top: var(--orthography-space-2, 6px);
 }
 
 .orthography-workspace-list {
@@ -208,19 +220,24 @@
 }
 
 .orthography-workspace-bridge-panel .orthography-builder-bridge-grid {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
 }
 
 .orthography-workspace-bridge-panel .orthography-workspace-bridge-group {
   display: grid;
   gap: var(--orthography-space-4);
+  grid-column: 1 / -1;
 }
 
 .orthography-workspace-bridge-panel .orthography-workspace-bridge-group-source,
 .orthography-workspace-bridge-panel .orthography-workspace-bridge-group-meta {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
+}
+
+.orthography-workspace-bridge-panel .orthography-workspace-bridge-group-source > :first-child {
+  grid-column: span 2;
 }
 
 .orthography-workspace-bridge-panel .orthography-workspace-bridge-group-meta {
@@ -237,11 +254,33 @@
 }
 
 .orthography-workspace-bridge-panel .orthography-workspace-bridge-group-content {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--orthography-space-4);
 }
 
 .orthography-workspace-bridge-panel .orthography-builder-rule-block {
   gap: var(--orthography-space-2);
+  grid-column: span 2;
+}
+
+.orthography-workspace-bridge-panel .orthography-builder-bridge-hint-box,
+.orthography-workspace-bridge-panel .orthography-builder-validation-box,
+.orthography-workspace-bridge-panel .orthography-builder-preview-box,
+.orthography-workspace-bridge-panel .orthography-builder-actions {
+  grid-column: span 1;
+}
+
+.orthography-workspace-bridge-panel .orthography-builder-actions {
+  align-self: end;
+  padding-top: 0;
+  border-top: 0;
+  justify-content: flex-start;
+}
+
+.orthography-workspace-bridge-panel .orthography-workspace-bridge-group-content > .dialog-field,
+.orthography-workspace-bridge-panel .orthography-workspace-bridge-group-content > .orthography-builder-validation-box,
+.orthography-workspace-bridge-panel .orthography-workspace-bridge-group-content > .orthography-builder-preview-box {
+  min-width: 0;
 }
 
 .orthography-workspace-bridge-panel .orthography-workspace-bridge-checkbox-row {
@@ -359,8 +398,132 @@
   .orthography-workspace-bridge-panel :is(
     .orthography-workspace-bridge-group-source,
     .orthography-workspace-bridge-group-meta,
-    .orthography-builder-bridge-grid
+    .orthography-builder-bridge-grid,
+    .orthography-workspace-bridge-group-content
   ) {
     grid-template-columns: 1fr;
   }
+
+  .orthography-workspace-bridge-panel .orthography-workspace-bridge-group-source > :first-child,
+  .orthography-workspace-bridge-panel .orthography-builder-rule-block,
+  .orthography-workspace-bridge-panel .orthography-builder-bridge-hint-box,
+  .orthography-workspace-bridge-panel .orthography-builder-validation-box,
+  .orthography-workspace-bridge-panel .orthography-builder-preview-box,
+  .orthography-workspace-bridge-panel .orthography-builder-actions {
+    grid-column: auto;
+  }
+
+  .orthography-workspace-bridge-panel .orthography-builder-actions {
+    padding-top: var(--orthography-space-2);
+    border-top: 1px solid color-mix(in srgb, var(--border-soft) 36%, transparent);
+  }
+}
+
+/* 2026-04-09 设计稿落地：摘要优先、列表更轻、管理区更稳、桥接 footer bar */
+@media (min-width: 1100px) {
+  .orthography-workspace-layout {
+    grid-template-columns: minmax(300px, 0.76fr) minmax(0, 1.24fr);
+    grid-template-areas: 'list detail';
+    gap: 20px;
+    align-items: start;
+  }
+}
+
+.orthography-workspace-detail-column {
+  gap: 14px;
+}
+
+.orthography-workspace-summary-card {
+  border-color: color-mix(in srgb, var(--border-soft) 62%, transparent);
+  background: color-mix(in srgb, #F3F7FB 92%, var(--surface-panel));
+}
+
+.orthography-workspace-list-panel {
+  background: color-mix(in srgb, var(--surface-header) 34%, var(--surface-panel));
+}
+
+.orthography-workspace-bridge-panel {
+  background: color-mix(in srgb, var(--surface-panel) 99%, var(--surface-header));
+}
+
+.orthography-workspace-list-panel .panel-section__copy,
+.orthography-workspace-bridge-panel .panel-section__copy {
+  width: 100%;
+}
+
+.orthography-workspace-list-panel .panel-section__title,
+.orthography-workspace-bridge-panel .panel-section__title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.orthography-workspace-list-panel .panel-section__title::before,
+.orthography-workspace-list-panel .panel-section__title::after,
+.orthography-workspace-bridge-panel .panel-section__title::before,
+.orthography-workspace-bridge-panel .panel-section__title::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: color-mix(in srgb, var(--border-soft) 92%, transparent);
+}
+
+.orthography-workspace-list-panel .panel-section__description,
+.orthography-workspace-bridge-panel .panel-section__description {
+  max-width: 56ch;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.orthography-workspace-list-item {
+  border: 1px solid color-mix(in srgb, var(--border-soft) 62%, transparent);
+  box-shadow: none;
+}
+
+.orthography-workspace-list-item:hover {
+  box-shadow: none;
+}
+
+.orthography-workspace-bridge-panel .orthography-builder-toolbar-actions {
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 4px;
+}
+
+.orthography-workspace-bridge-panel .orthography-builder-bridge-panel {
+  gap: 16px;
+  padding: 18px 0 0;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border-soft) 44%, transparent);
+  border-radius: 0;
+  background: transparent;
+}
+
+.orthography-workspace-bridge-panel .orthography-builder-preview-box,
+.orthography-workspace-bridge-panel .orthography-builder-validation-box,
+.orthography-workspace-bridge-panel .orthography-builder-hint,
+.orthography-workspace-bridge-panel .orthography-builder-rule-block {
+  border-radius: 18px;
+}
+
+.orthography-workspace-bridge-panel .orthography-builder-preview-box,
+.orthography-workspace-bridge-panel .orthography-builder-hint,
+.orthography-workspace-bridge-panel .orthography-builder-validation-box-neutral {
+  background: color-mix(in srgb, var(--surface-header) 42%, var(--surface-panel));
+}
+
+.orthography-workspace-bridge-panel .orthography-builder-footer-actions {
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--border-soft) 44%, transparent);
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--surface-header) 28%, transparent));
 }

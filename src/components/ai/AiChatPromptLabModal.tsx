@@ -80,7 +80,7 @@ export function AiChatPromptLabModal({
       bodyClassName="ai-chat-prompt-lab-body"
       footerClassName="ai-chat-prompt-lab-footer"
       dir={uiTextDirection}
-      style={{
+      layoutStyle={{
         minWidth: `min(100%, ${compactWidth}px)`,
         maxWidth: `min(100%, ${wideWidth}px)`,
       }}

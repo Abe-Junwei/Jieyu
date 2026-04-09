@@ -1,14 +1,17 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { AudioLines, BookType, Brain, FolderKanban, GitBranch, Languages, StickyNote, type LucideIcon } from 'lucide-react';
+import { AudioLines, BookType, Brain, FolderKanban, GitBranch, Languages, Settings, StickyNote, type LucideIcon } from 'lucide-react';
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate, type Location } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
 import { AiPanelProvider } from './contexts/AiPanelContext';
 import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from './contexts/AppSidePaneContext';
 import { usePanelAutoCollapse } from './hooks/usePanelAutoCollapse';
+import { SettingsModal } from './components/SettingsModal';
+import { persistUiFontScalePreference } from './utils/panelAdaptiveLayout';
+import { useUiFontScaleRuntime } from './hooks/useUiFontScaleRuntime';
 import { usePanelResize } from './hooks/usePanelResize';
 import { LOCALE_PREFERENCE_STORAGE_KEY, LocaleProvider, detectLocale, setStoredLocalePreference, t, type Locale } from './i18n';
-import { DialogOverlay } from './components/ui/DialogOverlay';
+import { LanguageAssetRouteDialog } from './components/ui/LanguageAssetRouteDialog';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const TranscriptionPage = lazy(() => import('./pages/TranscriptionPage').then(m => ({ default: m.TranscriptionPage })));
@@ -20,7 +23,13 @@ const LanguageMetadataWorkspacePage = lazy(() => import('./pages/LanguageMetadat
 const OrthographyManagerPage = lazy(() => import('./pages/OrthographyManagerPage').then(m => ({ default: m.OrthographyManagerPage })));
 const OrthographyBridgeWorkspacePage = lazy(() => import('./pages/OrthographyBridgeWorkspacePage').then(m => ({ default: m.OrthographyBridgeWorkspacePage })));
 
-type ThemeMode = 'light' | 'dark';
+const LANGUAGE_ASSET_MODAL_PATHS = [
+  '/assets/language-metadata',
+  '/assets/orthographies',
+  '/assets/orthography-bridges',
+] as const;
+
+type ThemeMode = 'light' | 'dark' | 'system';
 
 type NavItem = {
   to: string;
@@ -63,7 +72,13 @@ function readPersistedSidePaneWidth(): number {
 
 function readInitialThemeMode(): ThemeMode {
   const stored = readLocalStorageValue('jieyu-theme');
-  if (stored === 'light' || stored === 'dark') return stored;
+  if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+  return 'system';
+}
+
+/** 将主题模式解析为实际 data-theme 值 | Resolve theme mode to actual applied theme */
+function resolveAppliedTheme(mode: ThemeMode): 'light' | 'dark' {
+  if (mode === 'light' || mode === 'dark') return mode;
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
@@ -160,8 +175,9 @@ export function App() {
   const location = useLocation();
   const backgroundLocation = (location.state as { backgroundLocation?: Location } | null)?.backgroundLocation;
   const isTranscriptionRoute = location.pathname.startsWith('/transcription');
-  const fallbackOrthographyBackgroundLocation = useMemo<Location | null>(() => {
-    if (location.pathname !== '/assets/orthographies' || backgroundLocation) {
+  const isLanguageAssetModalOpen = LANGUAGE_ASSET_MODAL_PATHS.includes(location.pathname as typeof LANGUAGE_ASSET_MODAL_PATHS[number]);
+  const fallbackLanguageAssetBackgroundLocation = useMemo<Location | null>(() => {
+    if (!isLanguageAssetModalOpen || backgroundLocation) {
       return null;
     }
 
@@ -170,23 +186,37 @@ export function App() {
       search: '',
       hash: '',
       state: null,
-      key: 'orthography-modal-fallback',
+      key: 'language-asset-modal-fallback',
     };
-  }, [backgroundLocation, location.pathname]);
-  const orthographyModalBackgroundLocation = backgroundLocation ?? fallbackOrthographyBackgroundLocation;
-  const isOrthographyModalOpen = location.pathname === '/assets/orthographies';
+  }, [backgroundLocation, isLanguageAssetModalOpen]);
+  const languageAssetModalBackgroundLocation = backgroundLocation ?? fallbackLanguageAssetBackgroundLocation;
   const [locale, setLocale] = useState<Locale>(() => detectLocale());
   const shellBodyRef = useRef<HTMLDivElement | null>(null);
   const shellDragCleanupRef = useRef<(() => void) | null>(null);
-  const [themeMode] = useState<ThemeMode>(readInitialThemeMode);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(readInitialThemeMode);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { uiFontScale } = useUiFontScaleRuntime(locale);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', themeMode);
+    const applied = resolveAppliedTheme(themeMode);
+    document.documentElement.setAttribute('data-theme', applied);
     try {
       window.localStorage.setItem('jieyu-theme', themeMode);
     } catch {
       // Ignore theme persistence failures and keep the current session theme.
     }
+  }, [themeMode]);
+
+  // 跟随系统主题变化 | Listen for system color-scheme changes when mode is 'system'
+  useEffect(() => {
+    if (themeMode !== 'system') return;
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = () => {
+      document.documentElement.setAttribute('data-theme', mql.matches ? 'dark' : 'light');
+    };
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
   }, [themeMode]);
 
   // 首屏渲染后启用布局过渡，避免初始挂载产生 CLS | Enable layout transitions after first paint to prevent CLS
@@ -349,30 +379,53 @@ export function App() {
 
   const primaryNavItems = useMemo(() => navGroups.flatMap((group) => group.items), [navGroups]);
   const navItems = useMemo(() => [...primaryNavItems, ...secondaryNavItems], [primaryNavItems, secondaryNavItems]);
-  const activePathname = orthographyModalBackgroundLocation?.pathname ?? location.pathname;
+  const activePathname = languageAssetModalBackgroundLocation?.pathname ?? location.pathname;
 
   const activeNavItem = useMemo(() => (
     navItems.find((item) => activePathname === item.to || activePathname.startsWith(`${item.to}/`))
     ?? navItems[0]
   ), [activePathname, navItems]);
 
-  const handleOrthographyPanelToggle = useCallback(() => {
-    if (isOrthographyModalOpen) {
-      if (backgroundLocation) {
-        navigate(-1);
-        return;
-      }
+  const handleLanguageAssetModalClose = useCallback(() => {
+    if (!isLanguageAssetModalOpen) {
+      return;
+    }
 
-      navigate(orthographyModalBackgroundLocation?.pathname ?? '/transcription', {
+    if (backgroundLocation) {
+      navigate({
+        pathname: backgroundLocation.pathname,
+        search: backgroundLocation.search,
+        hash: backgroundLocation.hash,
+      }, {
         replace: true,
+        state: backgroundLocation.state,
       });
       return;
     }
 
-    navigate('/assets/orthographies', {
-      state: { backgroundLocation: backgroundLocation ?? location },
+    navigate(languageAssetModalBackgroundLocation?.pathname ?? '/transcription', {
+      replace: true,
     });
-  }, [backgroundLocation, isOrthographyModalOpen, location, navigate, orthographyModalBackgroundLocation?.pathname]);
+  }, [backgroundLocation, isLanguageAssetModalOpen, languageAssetModalBackgroundLocation?.pathname, navigate]);
+
+  const handleLanguageAssetModalToggle = useCallback((to: typeof LANGUAGE_ASSET_MODAL_PATHS[number]) => {
+    if (location.pathname === to) {
+      handleLanguageAssetModalClose();
+      return;
+    }
+
+    navigate(to, {
+      state: { backgroundLocation: languageAssetModalBackgroundLocation ?? location },
+    });
+  }, [handleLanguageAssetModalClose, languageAssetModalBackgroundLocation, location, navigate]);
+
+  const isLanguageAssetRouteActive = useCallback((to: string) => {
+    if (location.pathname === to) {
+      return true;
+    }
+
+    return activePathname === to || activePathname.startsWith(`${to}/`);
+  }, [activePathname, location.pathname]);
 
   const handleSidePaneToggle = useCallback((event?: React.SyntheticEvent<HTMLElement>) => {
     event?.stopPropagation();
@@ -384,6 +437,18 @@ export function App() {
     setStoredLocalePreference(nextLocale);
     setLocale(nextLocale);
   }, [locale]);
+
+  const handleLocaleChange = useCallback((nextLocale: Locale) => {
+    setStoredLocalePreference(nextLocale);
+    setLocale(nextLocale);
+  }, []);
+
+  const handleFontScaleChange = useCallback((scale: number) => {
+    persistUiFontScalePreference({ mode: scale === 1 ? 'auto' : 'manual', manualScale: scale });
+  }, []);
+
+  const handleSettingsOpen = useCallback(() => setIsSettingsOpen(true), []);
+  const handleSettingsClose = useCallback(() => setIsSettingsOpen(false), []);
 
   const shellStyle = useMemo(() => ({
     ['--side-pane-width' as '--side-pane-width']: isSidePaneCollapsed ? '0px' : `${sidePaneWidth}px`,
@@ -449,34 +514,18 @@ export function App() {
                 <div className="app-left-rail-group">
                   {secondaryNavItems.map((item) => {
                     const ItemIcon = item.icon;
-                    if (item.to === '/assets/orthographies') {
-                      return (
-                        <button
-                          key={item.to}
-                          type="button"
-                          className={isOrthographyModalOpen ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'}
-                          title={item.label}
-                          aria-label={item.label}
-                          onClick={handleOrthographyPanelToggle}
-                        >
-                          <ItemIcon size={17} aria-hidden="true" />
-                          <span>{item.label}</span>
-                        </button>
-                      );
-                    }
                     return (
-                      <NavLink
+                      <button
                         key={item.to}
-                        to={item.to}
-                        className={({ isActive }) =>
-                          isActive ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'
-                        }
+                        type="button"
+                        className={isLanguageAssetRouteActive(item.to) ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'}
                         title={item.label}
                         aria-label={item.label}
+                        onClick={() => handleLanguageAssetModalToggle(item.to as typeof LANGUAGE_ASSET_MODAL_PATHS[number])}
                       >
                         <ItemIcon size={17} aria-hidden="true" />
                         <span>{item.label}</span>
-                      </NavLink>
+                      </button>
                     );
                   })}
                 </div>
@@ -496,6 +545,15 @@ export function App() {
                 <Languages size={17} aria-hidden="true" />
                 <span>{locale === 'zh-CN' ? 'EN' : 'ZH'}</span>
               </button>
+              <button
+                type="button"
+                className="left-rail-btn left-rail-btn-utility"
+                aria-label={locale === 'zh-CN' ? '设置' : 'Settings'}
+                title={locale === 'zh-CN' ? '设置' : 'Settings'}
+                onClick={handleSettingsOpen}
+              >
+                <Settings size={17} aria-hidden="true" />
+              </button>
             </aside>
 
             <AppShellSidePane
@@ -512,7 +570,7 @@ export function App() {
             >
               <AiPanelProvider>
                 <Suspense fallback={<RouteLoading locale={locale} />}>
-                  <Routes location={orthographyModalBackgroundLocation ?? location}>
+                  <Routes location={languageAssetModalBackgroundLocation ?? location}>
                     <Route path="/" element={<Navigate to="/transcription" replace />} />
                     <Route
                       path="/transcription"
@@ -528,22 +586,45 @@ export function App() {
                     <Route path="/lexicon/orthographies" element={<Navigate to="/assets/orthographies" replace />} />
                     <Route path="*" element={<NotFound locale={locale} />} />
                   </Routes>
-                  {isOrthographyModalOpen ? (
+                  {isLanguageAssetModalOpen ? (
                     <Routes>
+                      <Route
+                        path="/assets/language-metadata"
+                        element={(
+                          <LanguageAssetRouteDialog
+                            ariaLabel={t(locale, 'app.nav.languageMetadata')}
+                            closeLabel={t(locale, 'transcription.importDialog.close')}
+                            onClose={handleLanguageAssetModalClose}
+                            surfaceVariant="workspace"
+                          >
+                            <LanguageMetadataWorkspacePage registerSidePane={false} />
+                          </LanguageAssetRouteDialog>
+                        )}
+                      />
                       <Route
                         path="/assets/orthographies"
                         element={(
-                          <DialogOverlay topmost closeOn="mousedown" onClose={handleOrthographyPanelToggle}>
-                            <div
-                              className="app-modal-panel-frame"
-                              role="dialog"
-                              aria-modal="true"
-                              aria-label={t(locale, 'app.nav.orthographies')}
-                              onMouseDown={(event) => event.stopPropagation()}
-                            >
-                              <OrthographyManagerPage registerSidePane={false} />
-                            </div>
-                          </DialogOverlay>
+                          <LanguageAssetRouteDialog
+                            ariaLabel={t(locale, 'app.nav.orthographies')}
+                            closeLabel={t(locale, 'transcription.importDialog.close')}
+                            onClose={handleLanguageAssetModalClose}
+                            surfaceVariant="workspace"
+                          >
+                            <OrthographyManagerPage registerSidePane={false} />
+                          </LanguageAssetRouteDialog>
+                        )}
+                      />
+                      <Route
+                        path="/assets/orthography-bridges"
+                        element={(
+                          <LanguageAssetRouteDialog
+                            ariaLabel={t(locale, 'app.nav.orthographyBridges')}
+                            closeLabel={t(locale, 'transcription.importDialog.close')}
+                            onClose={handleLanguageAssetModalClose}
+                            surfaceVariant="workspace"
+                          >
+                            <OrthographyBridgeWorkspacePage registerSidePane={false} />
+                          </LanguageAssetRouteDialog>
                         )}
                       />
                     </Routes>
@@ -553,6 +634,16 @@ export function App() {
             </main>
             </div>
             {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
+            <SettingsModal
+              isOpen={isSettingsOpen}
+              onClose={handleSettingsClose}
+              locale={locale}
+              themeMode={themeMode}
+              onThemeChange={setThemeMode}
+              onLocaleChange={handleLocaleChange}
+              fontScale={uiFontScale}
+              onFontScaleChange={handleFontScaleChange}
+            />
           </div>
         </AppSidePaneProvider>
       </LocaleProvider>

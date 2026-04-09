@@ -44,6 +44,8 @@ interface ModalPanelProps {
   containerRef?: Ref<HTMLDivElement>;
   /** 内联样式 | Inline style for the shell */
   style?: React.CSSProperties;
+  /** 布局样式宿主 | Layout style host for the shell */
+  layoutStyle?: React.CSSProperties;
   /** 隐藏默认关闭按钮 | Hide the default close button */
   hideCloseButton?: boolean;
   /** 禁用关闭按钮 | Disable the close button */
@@ -77,6 +79,7 @@ export function ModalPanel({
   footerClassName,
   containerRef,
   style,
+  layoutStyle,
   hideCloseButton,
   closeDisabled,
   closeLabel = 'Close',
@@ -116,7 +119,7 @@ export function ModalPanel({
         footer={footer}
         {...(compact !== undefined && { compact })}
         {...(wide !== undefined && { wide })}
-        {...(style !== undefined && { style })}
+        layoutStyle={layoutStyle ?? style}
         {...(dir !== undefined && { dir })}
         {...(ariaLabel !== undefined && { 'aria-label': ariaLabel })}
         {...(ariaLabelledBy !== undefined && { 'aria-labelledby': ariaLabelledBy })}

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from './App';
@@ -80,11 +80,39 @@ describe('App shell', () => {
     expect(screen.getAllByRole('link', { name: /Analysis|分析/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /Writing|写作/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /Lexicon|词典/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: /Language Metadata|语言元数据/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /Language Metadata|语言元数据/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: /Orthographies|正字法/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: /Orthography Bridges|正字法桥接/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /Orthography Bridges|正字法桥接/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText(/功能面板内容区|Feature panel content area/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Language Assets|语言资产/).length).toBeGreaterThan(0);
+  });
+
+  it('opens language metadata as a modal panel over the current page from the left rail button', async () => {
+    render(
+      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Language Metadata|语言元数据/ })[0]!);
+
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
+    expect(await screen.findByText('language-metadata-page')).toBeTruthy();
+    expect(screen.getAllByRole('dialog', { name: /Language Metadata|语言元数据/ }).length).toBeGreaterThan(0);
+  });
+
+  it('opens orthography bridges as a modal panel over the current page from the left rail button', async () => {
+    render(
+      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Orthography Bridges|正字法桥接/ })[0]!);
+
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
+    expect(await screen.findByText('orthography-bridge-workspace-page')).toBeTruthy();
+    expect(screen.getAllByRole('dialog', { name: /Orthography Bridges|正字法桥接/ }).length).toBeGreaterThan(0);
   });
 
   it('opens orthography manager as a modal panel over the current page from the left rail button', async () => {
@@ -101,6 +129,28 @@ describe('App shell', () => {
     expect(screen.getAllByRole('dialog', { name: /Orthographies|正字法/ }).length).toBeGreaterThan(0);
   });
 
+  it('closes language-asset modal directly to background page after modal-to-modal navigation', async () => {
+    render(
+      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Language Metadata|语言元数据/ })[0]!);
+    expect(await screen.findByText('language-metadata-page')).toBeTruthy();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Orthography Bridges|正字法桥接/ })[0]!);
+    expect(await screen.findByText('orthography-bridge-workspace-page')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Close|关闭/ }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /Orthography Bridges|正字法桥接/ })).toBeNull();
+      expect(screen.queryByRole('dialog', { name: /Language Metadata|语言元数据/ })).toBeNull();
+    });
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
+  });
+
   it('opens orthography manager as a modal over the transcription page when visited directly', async () => {
     render(
       <MemoryRouter initialEntries={['/assets/orthographies']} future={ROUTER_FUTURE_FLAGS}>
@@ -110,7 +160,37 @@ describe('App shell', () => {
 
     expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
     expect((await screen.findAllByText('orthography-manager-page')).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('dialog', { name: /Orthographies|正字法/ }).length).toBeGreaterThan(0);
+    const dialog = screen.getAllByRole('dialog', { name: /Orthographies|正字法/ })[0];
+    expect(dialog).toBeTruthy();
+    expect(dialog.className).toContain('language-asset-modal-surface--workspace');
+  });
+
+  it('opens language metadata as a modal over the transcription page when visited directly', async () => {
+    render(
+      <MemoryRouter initialEntries={['/assets/language-metadata']} future={ROUTER_FUTURE_FLAGS}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
+    expect((await screen.findAllByText('language-metadata-page')).length).toBeGreaterThan(0);
+    const dialog = screen.getAllByRole('dialog', { name: /Language Metadata|语言元数据/ })[0];
+    expect(dialog).toBeTruthy();
+    expect(dialog.className).toContain('language-asset-modal-surface--workspace');
+  });
+
+  it('opens orthography bridges as a modal over the transcription page when visited directly', async () => {
+    render(
+      <MemoryRouter initialEntries={['/assets/orthography-bridges']} future={ROUTER_FUTURE_FLAGS}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByTestId('transcription-page')[0]?.textContent).toContain('transcription-ready');
+    expect((await screen.findAllByText('orthography-bridge-workspace-page')).length).toBeGreaterThan(0);
+    const dialog = screen.getAllByRole('dialog', { name: /Orthography Bridges|正字法桥接/ })[0];
+    expect(dialog).toBeTruthy();
+    expect(dialog.className).toContain('language-asset-modal-surface--workspace');
   });
 
   it('persists locale preference and rerenders shell copy after toggling language', () => {

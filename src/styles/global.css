@@ -114,6 +114,23 @@ body {
   color: var(--text-primary);
 }
 
+:root.jieyu-reduced-motion *,
+:root.jieyu-reduced-motion *::before,
+:root.jieyu-reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+:root.jieyu-high-contrast {
+  --border-soft: color-mix(in srgb, var(--text-primary) 32%, transparent);
+}
+
+:root.jieyu-high-contrast *:focus-visible {
+  outline-width: 3px !important;
+}
+
 /* 降低动态效果：尊重系统“减少动态”偏好 | Reduced motion fallback */
 @media (prefers-reduced-motion: reduce) {
   *,

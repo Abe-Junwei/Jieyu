@@ -489,10 +489,37 @@
   font-size: 0.76rem;
 }
 
+.transcription-analysis-acoustic-provider-grid {
+  align-items: end;
+}
+
+.transcription-analysis-acoustic-provider-field-wide {
+  grid-column: 1 / -1;
+}
+
+.transcription-analysis-acoustic-provider-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.transcription-analysis-acoustic-provider-toggle input {
+  width: 14px;
+  height: 14px;
+}
+
 @media (max-width: 960px) {
   .transcription-analysis-acoustic-param-grid,
   .transcription-analysis-acoustic-export-scope {
     grid-template-columns: 1fr;
+  }
+
+  .transcription-analysis-acoustic-provider-field-wide {
+    grid-column: auto;
   }
 }
 

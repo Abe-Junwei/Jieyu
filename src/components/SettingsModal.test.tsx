@@ -1,0 +1,302 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SettingsModal, type SettingsModalProps } from './SettingsModal';
+
+// Mock ModalPanel / PanelSection — render children directly
+vi.mock('./ui', () => ({
+  ModalPanel: ({ isOpen, children, title }: { isOpen: boolean; children: React.ReactNode; title?: string }) =>
+    isOpen ? <div data-testid="modal">{title && <h2>{title}</h2>}{children}</div> : null,
+  PanelSection: ({ children, title }: { children: React.ReactNode; title?: string }) =>
+    <section><h3>{title}</h3>{children}</section>,
+}));
+
+// Mock AI settings storage (async crypto)
+vi.mock('../ai/config/aiChatSettingsStorage', () => ({
+  loadAiChatSettingsFromStorage: vi.fn(async () => ({
+    providerKind: 'mock',
+    baseUrl: '',
+    model: '',
+    apiKey: '',
+    apiKeysByProvider: {},
+    toolFeedbackStyle: 'detailed',
+    endpointUrl: '',
+    authHeaderName: '',
+    authScheme: 'Bearer',
+    responseFormat: 'openai',
+  })),
+  persistAiChatSettings: vi.fn(async () => {}),
+}));
+
+// Mock provider catalog — minimal definitions
+vi.mock('../ai/providers/providerCatalog', () => ({
+  aiChatProviderDefinitions: [
+    { kind: 'mock', label: 'Mock', description: 'Local mock', fields: [] },
+    { kind: 'deepseek', label: 'DeepSeek', description: 'DeepSeek API', fields: [
+      { key: 'baseUrl', label: 'Base URL', type: 'text', placeholder: 'https://...', required: true },
+      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...', required: true },
+    ] },
+  ],
+  normalizeAiChatSettings: vi.fn((raw: Record<string, unknown> = {}) => ({
+    providerKind: 'mock',
+    baseUrl: '',
+    model: '',
+    apiKey: '',
+    apiKeysByProvider: {},
+    toolFeedbackStyle: 'detailed',
+    endpointUrl: '',
+    authHeaderName: '',
+    authScheme: 'Bearer',
+    responseFormat: 'openai',
+    ...raw,
+  })),
+}));
+
+// Mock KeybindingService — keep minimal
+const mockOverrides = new Map<string, string>();
+vi.mock('../services/KeybindingService', () => ({
+  DEFAULT_KEYBINDINGS: [
+    { id: 'playPause', label: '播放/暂停', defaultKey: 'space', scope: 'waveform', category: 'playback' },
+    { id: 'undo', label: '撤销', defaultKey: 'mod+z', scope: 'global', category: 'editing' },
+  ],
+  formatKeyComboForDisplay: (combo: string) => combo.toUpperCase(),
+  loadUserOverrides: () => new Map(mockOverrides),
+  saveUserOverride: vi.fn((id: string, combo: string) => { mockOverrides.set(id, combo); }),
+  removeUserOverride: vi.fn((id: string) => { mockOverrides.delete(id); }),
+  resetUserOverrides: vi.fn(() => { mockOverrides.clear(); }),
+}));
+
+function renderModal(overrides: Partial<SettingsModalProps> = {}) {
+  const props: SettingsModalProps = {
+    isOpen: true,
+    onClose: vi.fn(),
+    locale: 'zh-CN',
+    themeMode: 'system',
+    onThemeChange: vi.fn(),
+    onLocaleChange: vi.fn(),
+    fontScale: 1,
+    onFontScaleChange: vi.fn(),
+    version: '0.1.0',
+    ...overrides,
+  };
+  return render(<SettingsModal {...props} />);
+}
+
+beforeEach(() => {
+  mockOverrides.clear();
+  localStorage.clear();
+  document.documentElement.classList.remove('jieyu-reduced-motion', 'jieyu-high-contrast');
+});
+
+afterEach(cleanup);
+
+// ── 外观标签 | Appearance tab ──────────────────────────────
+
+describe('Appearance tab', () => {
+  it('renders theme, locale, and font-scale settings', () => {
+    renderModal();
+    expect(screen.getByText('主题')).toBeTruthy();
+    expect(screen.getByText('界面语言')).toBeTruthy();
+    expect(screen.getByText('字体缩放')).toBeTruthy();
+  });
+
+  it('calls onThemeChange when clicking theme option', () => {
+    const onThemeChange = vi.fn();
+    renderModal({ onThemeChange });
+    fireEvent.click(screen.getByText('浅色'));
+    expect(onThemeChange).toHaveBeenCalledWith('light');
+  });
+
+  it('calls onLocaleChange when clicking locale option', () => {
+    const onLocaleChange = vi.fn();
+    renderModal({ onLocaleChange });
+    fireEvent.click(screen.getByText('English'));
+    expect(onLocaleChange).toHaveBeenCalledWith('en-US');
+  });
+
+  it('renders section title above section body', () => {
+    renderModal();
+    const section = screen.getByLabelText('主题');
+    const first = section.firstElementChild as HTMLElement | null;
+    const second = section.children.item(1) as HTMLElement | null;
+
+    expect(first?.className).toContain('settings-section-rail');
+    expect(second?.className).toContain('settings-section-body');
+
+    const titleText = section.querySelector('.settings-section-title-text');
+    expect(titleText?.textContent).toBe('主题');
+  });
+});
+
+// ── 快捷键标签 | Shortcuts tab ─────────────────────────────
+
+describe('Shortcuts tab', () => {
+  it('shows keybinding entries grouped by category', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('快捷键'));
+    expect(screen.getByText('SPACE')).toBeTruthy();
+    expect(screen.getByText('播放/暂停')).toBeTruthy();
+    expect(screen.getByText('MOD+Z')).toBeTruthy();
+  });
+
+  it('enters editing mode on kbd click and cancels with Escape', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('快捷键'));
+    const kbd = screen.getByText('SPACE');
+    fireEvent.click(kbd);
+    expect(screen.getByText(/请按下快捷键/)).toBeTruthy();
+
+    // Escape cancels
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByText(/请按下快捷键/)).toBeNull();
+  });
+
+  it('shows "全部恢复默认" when there are overrides', async () => {
+    mockOverrides.set('playPause', 'p');
+    renderModal();
+    fireEvent.click(screen.getByText('快捷键'));
+    expect(screen.getByText('全部恢复默认')).toBeTruthy();
+  });
+});
+
+// ── AI 标签 | AI tab ───────────────────────────────────────
+
+describe('AI tab', () => {
+  it('loads AI settings and renders provider select', async () => {
+    renderModal();
+    fireEvent.click(screen.getByText('AI'));
+    await waitFor(() => expect(screen.getByText('AI 服务商')).toBeTruthy());
+    // Provider select is rendered with options
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    expect(select.value).toBe('mock');
+  });
+});
+
+// ── 播放标签 | Playback tab ────────────────────────────────
+
+describe('Playback tab', () => {
+  it('renders default playback rate options', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('播放'));
+    expect(screen.getByText('1×')).toBeTruthy();
+    expect(screen.getByText('0.5×')).toBeTruthy();
+    expect(screen.getByText('2×')).toBeTruthy();
+  });
+
+  it('persists selected rate to localStorage', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('播放'));
+    fireEvent.click(screen.getByText('1.5×'));
+    expect(localStorage.getItem('jieyu:default-playback-rate')).toBe('1.5');
+  });
+
+  it('persists workflow defaults to localStorage', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('播放'));
+
+    const autoFollowRow = screen.getByText('自动跟随选中语段').closest('.settings-row') as HTMLElement;
+    fireEvent.click(within(autoFollowRow).getByRole('button', { name: '关闭' }));
+    expect(localStorage.getItem('jieyu:workspace-auto-scroll-enabled')).toBe('0');
+
+    const snapRow = screen.getByText('吸附到零交叉').closest('.settings-row') as HTMLElement;
+    fireEvent.click(within(snapRow).getByRole('button', { name: '开启' }));
+    expect(localStorage.getItem('jieyu:workspace-snap-enabled')).toBe('1');
+
+    const zoomModeRow = screen.getByText('默认缩放模式').closest('.settings-row') as HTMLElement;
+    fireEvent.click(within(zoomModeRow).getByRole('button', { name: '适应选区' }));
+    expect(localStorage.getItem('jieyu:workspace-default-zoom-mode')).toBe('fit-selection');
+  });
+
+  it('persists selection and edit defaults to localStorage', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('播放'));
+
+    const doubleClickRow = screen.getByText('波形双击行为').closest('.settings-row') as HTMLElement;
+    fireEvent.click(within(doubleClickRow).getByRole('button', { name: '按双击区间创建语段' }));
+    expect(localStorage.getItem('jieyu:waveform-double-click-action')).toBe('create-segment');
+
+    const newSegmentSelectionRow = screen.getByText('新建后选中行为').closest('.settings-row') as HTMLElement;
+    fireEvent.click(within(newSegmentSelectionRow).getByRole('button', { name: '保持当前选中' }));
+    expect(localStorage.getItem('jieyu:new-segment-selection-behavior')).toBe('keep-current');
+  });
+
+  it('persists waveform display defaults to localStorage', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('播放'));
+
+    const displayModeRow = screen.getByText('波形显示模式').closest('.settings-row') as HTMLElement;
+    fireEvent.click(within(displayModeRow).getByRole('button', { name: '频谱' }));
+    expect(localStorage.getItem('jieyu:waveform-display-mode')).toBe('spectrogram');
+
+    fireEvent.change(screen.getByLabelText('默认波形高度'), { target: { value: '240' } });
+    expect(localStorage.getItem('jieyu:waveform-height')).toBe('240');
+  });
+
+  it('applies accessibility toggles to html class and localStorage', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('播放'));
+
+    const reducedMotionRow = screen.getByText('减少动态效果').closest('.settings-row') as HTMLElement;
+    fireEvent.click(within(reducedMotionRow).getByRole('button', { name: '开启' }));
+    expect(document.documentElement.classList.contains('jieyu-reduced-motion')).toBe(true);
+    expect(localStorage.getItem('jieyu:accessibility-reduced-motion')).toBe('1');
+
+    const highContrastRow = screen.getByText('增强对比度').closest('.settings-row') as HTMLElement;
+    fireEvent.click(within(highContrastRow).getByRole('button', { name: '开启' }));
+    expect(document.documentElement.classList.contains('jieyu-high-contrast')).toBe(true);
+    expect(localStorage.getItem('jieyu:accessibility-high-contrast')).toBe('1');
+  });
+});
+
+// ── 数据标签 | Data tab ────────────────────────────────────
+
+describe('Data tab', () => {
+  it('shows cache entries with clear buttons', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('数据'));
+    expect(screen.getByText('字体覆盖缓存')).toBeTruthy();
+    expect(screen.getByText('VAD 缓存')).toBeTruthy();
+    expect(screen.getAllByText('清除').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('clears a specific cache and shows "已清除"', () => {
+    localStorage.setItem('jieyu:font-coverage-cache:v2', 'data');
+    renderModal();
+    fireEvent.click(screen.getByText('数据'));
+    const clearBtns = screen.getAllByText('清除');
+    fireEvent.click(clearBtns[0]!);
+    expect(screen.getByText('已清除')).toBeTruthy();
+    expect(localStorage.getItem('jieyu:font-coverage-cache:v2')).toBeNull();
+  });
+
+  it('shows storage usage estimate', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('数据'));
+    expect(screen.getByText('本地存储用量')).toBeTruthy();
+  });
+});
+
+// ── 关于标签 | About tab ───────────────────────────────────
+
+describe('About tab', () => {
+  it('shows version and description', () => {
+    renderModal({ version: '1.2.3' });
+    fireEvent.click(screen.getByText('关于'));
+    expect(screen.getByText('解语 Jieyu')).toBeTruthy();
+    expect(screen.getByText('1.2.3')).toBeTruthy();
+  });
+});
+
+// ── 标签切换 | Tab switching ───────────────────────────────
+
+describe('Tab switching', () => {
+  it('switches between all 6 tabs', () => {
+    renderModal();
+    const tabLabels = ['外观', '快捷键', 'AI', '播放', '数据', '关于'];
+    for (const label of tabLabels) {
+      fireEvent.click(screen.getByRole('tab', { name: label }));
+    }
+    // After clicking "关于", the about section should be visible
+    expect(screen.getByText('解语 Jieyu')).toBeTruthy();
+  });
+});

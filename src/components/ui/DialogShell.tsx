@@ -3,6 +3,7 @@ import { joinClassNames } from './classNames';
 
 interface DialogShellProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   containerRef?: Ref<HTMLDivElement>;
+  layoutStyle?: React.CSSProperties;
   className?: string;
   headerClassName?: string;
   headerProps?: HTMLAttributes<HTMLDivElement>;
@@ -19,6 +20,7 @@ interface DialogShellProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'>
 
 export function DialogShell({
   containerRef,
+  layoutStyle,
   className,
   headerClassName,
   headerProps,
@@ -46,6 +48,7 @@ export function DialogShell({
         wide && 'dialog-card-wide',
         className,
       )}
+      style={layoutStyle}
       {...divProps}
     >
       {hasHeader ? (

@@ -105,7 +105,7 @@ export function SidePaneActionModal({
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
-        style={{ '--dialog-auto-width': `${dialogAutoWidth}px` } as React.CSSProperties}
+        layoutStyle={{ '--dialog-auto-width': `${dialogAutoWidth}px` } as React.CSSProperties}
       >
         {children}
       </DialogShell>

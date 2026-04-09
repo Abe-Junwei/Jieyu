@@ -111,10 +111,10 @@
 .panel-design-match-content :is(.panel-section, .panel-section--emphasis) {
   gap: 8px;
   padding: 8px;
-  border: 1px solid var(--panel-design-border-color);
+  border: 0;
   border-radius: var(--radius-md);
-  background: var(--panel-design-surface-color);
-  box-shadow: none;
+  background: color-mix(in srgb, var(--panel-design-surface-color) 96%, white);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
 }
 
 .panel-design-match :is(.panel-section__header, .panel-section__meta),

@@ -1,21 +1,24 @@
-import type { ComponentPropsWithoutRef, ReactNode, Ref } from 'react';
+import type { ComponentPropsWithoutRef, CSSProperties, ReactNode, Ref } from 'react';
 import ZoomControls, { type ZoomControlsProps } from './toolbar/ZoomControls';
 import ObserverStatus, { type ObserverStatusProps } from './toolbar/ObserverStatus';
 import UndoHistory, { type UndoHistoryProps } from './toolbar/UndoHistory';
 
-type WaveformAreaSectionProps = Omit<ComponentPropsWithoutRef<'div'>, 'children' | 'ref'> & {
+type WaveformAreaSectionProps = Omit<ComponentPropsWithoutRef<'div'>, 'children' | 'ref' | 'style'> & {
   containerRef?: Ref<HTMLDivElement>;
+  layoutStyle?: CSSProperties;
   children: ReactNode;
 };
 
 export function WaveformAreaSection({
   containerRef,
+  layoutStyle,
   children,
   ...divProps
 }: WaveformAreaSectionProps) {
   return (
     <div
       ref={containerRef}
+      style={layoutStyle}
       {...divProps}
     >
       {children}

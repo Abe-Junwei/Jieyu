@@ -29,15 +29,10 @@
 }
 
 .orthography-builder-panel-compact .orthography-builder-group-title {
-  color: var(--panel-design-text-color, var(--text-secondary));
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  font-size: calc(12px * var(--ui-font-scale, 1));
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: none;
 }
 
 .orthography-builder-panel-compact .orthography-builder-group-title::before,
@@ -68,11 +63,6 @@
 
 .orthography-builder-dialog-host .dialog-footer {
   padding: 10px 12px;
-}
-
-.orthography-builder-dialog-host .dialog-shell__title {
-  font-weight: 600;
-  font-size: calc(14px * var(--ui-font-scale, 1));
 }
 
 .orthography-builder-panel :is(input, select, textarea) {
@@ -244,13 +234,16 @@
   gap: 2px;
 }
 
-.orthography-builder-rule-label,
-.orthography-builder-group-title {
+.orthography-builder-rule-label {
   margin: 0;
   font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 600;
   line-height: 1.45;
   color: var(--text-secondary);
+}
+
+.orthography-builder-group-title {
+  margin: 0;
 }
 
 .orthography-builder-group {

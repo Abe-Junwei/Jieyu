@@ -20,9 +20,7 @@
 }
 
 .shortcuts-panel-title {
-  font-weight: 700;
-  font-size: calc(0.92rem * var(--ui-font-scale, 1));
-  color: var(--text-primary);
+  min-width: 0;
 }
 
 .shortcuts-panel-body {

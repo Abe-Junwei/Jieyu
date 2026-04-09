@@ -193,7 +193,7 @@ describe('TimelineLaneHeader track mode menu', () => {
       allLayers: [root, child],
     });
 
-    expect(view.container.querySelector('.lane-link-connector')).toBeTruthy();
+    expect(view.container.querySelector('.lane-link-connector-svg')).toBeTruthy();
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));
     fireEvent.mouseEnter(await findMenuButton('视图'));
@@ -214,7 +214,7 @@ describe('TimelineLaneHeader track mode menu', () => {
       />,
     );
 
-    expect(view.container.querySelector('.lane-link-connector')).toBeFalsy();
+    expect(view.container.querySelector('.lane-link-connector-svg')).toBeFalsy();
     fireEvent.contextMenu(screen.getByText('Layer 1'));
     fireEvent.mouseEnter(await findMenuButton('视图'));
     toggleItem = await findMenuButton('显示层级关系（暂无可用链接）');
@@ -234,12 +234,55 @@ describe('TimelineLaneHeader track mode menu', () => {
       />,
     );
 
-    expect(view.container.querySelector('.lane-link-connector')).toBeTruthy();
+    expect(view.container.querySelector('.lane-link-connector-svg')).toBeTruthy();
     fireEvent.contextMenu(screen.getByText('Layer 1'));
     fireEvent.mouseEnter(await findMenuButton('视图'));
     toggleItem = await findMenuButton('隐藏层级关系');
     expect(toggleItem.disabled).toBe(false);
   });
+
+  it('uses max bundle column width and offsets connector svg by column index', () => {
+    const rootA = {
+      ...makeLayer('root-a'),
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+    } as LayerDocType;
+    const childA = {
+      ...makeLayer('child-a'),
+      layerType: 'translation',
+      key: 'trl_a',
+      languageId: 'eng',
+      parentLayerId: rootA.id,
+      sortOrder: 1,
+    } as LayerDocType;
+    const rootB = {
+      ...makeLayer('root-b'),
+      constraint: 'independent_boundary',
+      sortOrder: 2,
+    } as LayerDocType;
+    const childB = {
+      ...makeLayer('child-b'),
+      layerType: 'translation',
+      key: 'trl_b',
+      languageId: 'fra',
+      parentLayerId: rootB.id,
+      sortOrder: 3,
+    } as LayerDocType;
+
+    const view = renderHeader(undefined, {
+      layer: rootB,
+      allLayers: [rootA, childA, rootB, childB],
+    });
+
+    const stack = view.container.querySelector('.lane-link-stack') as HTMLElement | null;
+    const svg = view.container.querySelector('.lane-link-stack-svg') as SVGElement | null;
+    const connectorGroup = view.container.querySelector('.lane-link-connector-svg') as SVGGElement | null;
+
+    expect(stack?.style.width).toBe('36px');
+    expect(svg?.getAttribute('viewBox')).toBe('0 0 36 100');
+    expect(connectorGroup?.getAttribute('transform')).toBe('translate(18 0)');
+  });
+
   it('routes font selection through display style submenu update', async () => {
     const onUpdate = vi.fn();
 

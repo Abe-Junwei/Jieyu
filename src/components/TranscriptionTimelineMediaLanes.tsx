@@ -32,6 +32,7 @@ import {
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { TranscriptionTimelineMediaTranslationRow } from './TranscriptionTimelineMediaTranslationRow';
 import { TranscriptionTimelineMediaTranscriptionLane } from './TranscriptionTimelineMediaTranscriptionLane';
+import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import {
   buildSegmentSpeakerLayoutMaps,
   EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID,
@@ -68,6 +69,7 @@ function prioritizeOverlapCycleItems(
 
   return next;
 }
+
 function buildSegmentsByOverlapGroup(
   segments: LayerSegmentDocType[],
   layout: SpeakerLayerLayoutResult,
@@ -461,17 +463,22 @@ export function TranscriptionTimelineMediaLanes({
   }, []);
 
   return (
-    <div className="timeline-content" style={{ width: playerDuration * zoomPxPerSec }}>
+    <TimelineStyledContainer
+      className="timeline-content"
+      layoutStyle={{ width: playerDuration * zoomPxPerSec }}
+    >
       {lassoRect && (
-        <div
-          className="timeline-lasso-rect"
-          style={{
-            left: lassoRect.x,
-            top: lassoRect.y,
-            width: lassoRect.w,
-            height: lassoRect.h,
-          }}
-        />
+        <svg className="timeline-lasso-overlay" aria-hidden="true">
+          <rect
+            className="timeline-lasso-rect"
+            x={lassoRect.x}
+            y={lassoRect.y}
+            width={lassoRect.w}
+            height={lassoRect.h}
+            rx={2}
+            ry={2}
+          />
+        </svg>
       )}
       {allLayersOrdered.map((layer, idx) => {
         if (layer.layerType === 'transcription') {
@@ -615,11 +622,10 @@ export function TranscriptionTimelineMediaLanes({
           defaultTranscriptionLayerId,
         );
         return (
-        <div
+        <TimelineStyledContainer
           key={`tl-${layer.id}`}
           className={`timeline-lane timeline-lane-translation ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${isCollapsed ? 'timeline-lane-collapsed' : ''}`}
-          style={{
-            position: 'relative',
+          layoutStyle={{
             '--timeline-lane-height': `${visibleLaneHeight}px`,
           } as React.CSSProperties}
           onPointerDown={(e) => handleLanePointerDown(layer.id, isCollapsed, e)}
@@ -685,7 +691,7 @@ export function TranscriptionTimelineMediaLanes({
             role="separator"
             aria-orientation="horizontal"
           />}
-        </div>
+        </TimelineStyledContainer>
       );})}
 
       {layerAction && (
@@ -713,6 +719,6 @@ export function TranscriptionTimelineMediaLanes({
         onCancel={cancelDeleteLayerConfirm}
         onConfirm={() => { fireAndForget(confirmDeleteLayer()); }}
       />
-    </div>
+    </TimelineStyledContainer>
   );
 }

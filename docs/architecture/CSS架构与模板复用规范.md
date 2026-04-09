@@ -3,7 +3,7 @@ title: CSS 架构与模板复用规范
 doc_type: architecture-spec
 status: active
 owner: repo
-last_reviewed: 2026-04-08
+last_reviewed: 2026-04-09
 source_of_truth: css-architecture-governance
 ---
 
@@ -219,3 +219,31 @@ npm run scaffold:ui-surface -- --type=dialog --name=SpeakerAudit
 季度复盘与持续治理结果请记录在：
 
 1. `docs/architecture/CSS治理执行记录.md`
+
+## 8. 面板 Section 标题统一规范
+
+适用范围：`src/styles/panels/*` 下所有“分组 section + 表单/列表内容”类型面板。
+
+1. 标题位置
+- Section 标题必须位于每个 section 的上方，不允许与正文内容同一行并排。
+- 推荐 DOM 结构：
+	- 外层：`section`
+	- 标题容器：`*-section-rail`（或同语义命名）
+	- 标题文本：`*-section-title-text`
+	- 正文容器：`*-section-body`
+
+2. 文案规则
+- 标题文案必须单行显示：`white-space: nowrap`。
+- 超长标题必须可控截断：`overflow: hidden` + `text-overflow: ellipsis`。
+- 标题文本必须居中。
+
+3. 视觉规则
+- 禁止使用高饱和色块背景作为 section 标题底色。
+- 标题分隔优先使用“中性细线 + 文案”模式，参考正字法构建器（Orthography Builder）紧凑态。
+- 标题颜色优先使用中性文本色或其轻度混合色，避免抢占正文层级。
+
+4. 回归约束
+- 组件测试必须包含 section 结构断言：标题容器在前、正文容器在后。
+- CSS 回归至少通过：
+	1. `npm run check:css-a11y`
+	2. `npm run test:visual-css`

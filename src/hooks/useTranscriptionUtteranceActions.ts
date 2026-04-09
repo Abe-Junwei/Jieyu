@@ -396,7 +396,11 @@ export function useTranscriptionUtteranceActions({
     });
   }, [createAnchor, locale, pushUndo, selectUtterancePrimary, setSaveState, setUtteranceDrafts, setUtterances]);
 
-  const createUtteranceFromSelection = useCallback(async (start: number, end: number, options?: { speakerId?: string; focusedLayerId?: string }) => {
+  const createUtteranceFromSelection = useCallback(async (
+    start: number,
+    end: number,
+    options?: { speakerId?: string; focusedLayerId?: string; selectionBehavior?: 'select-created' | 'keep-current' },
+  ) => {
     const media = selectedUtteranceMedia;
     if (!media) {
       reportValidationError({
@@ -498,7 +502,9 @@ export function useTranscriptionUtteranceActions({
 
     setUtterances((prev) => [...prev, newUtterance]);
     setUtteranceDrafts((prev) => ({ ...prev, [createdId]: '' }));
-    selectUtterancePrimary(createdId);
+    if (options?.selectionBehavior !== 'keep-current') {
+      selectUtterancePrimary(createdId);
+    }
     setSaveState({
       kind: 'done',
       message: tf(locale, 'transcription.utteranceAction.done.createFromSelection', {

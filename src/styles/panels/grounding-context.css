@@ -116,18 +116,20 @@
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  background: transparent;
-  border: 1px solid var(--border, var(--border-soft));
+  background: color-mix(in srgb, var(--surface-panel) 72%, transparent);
+  border: 0;
   border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--text-secondary);
   font-size: calc(11px * var(--ui-font-scale, 1));
-  transition: color 0.15s, border-color 0.15s;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 
 .grounding-context-empty .gc-toggle:hover {
   color: var(--text-primary);
-  border-color: var(--accent, var(--state-info-solid));
+  background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--shadow-color) 7%, transparent);
 }
 
 .grounding-context-visible {
@@ -140,19 +142,21 @@
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  background: transparent;
-  border: 1px solid var(--border, var(--border-soft));
+  background: color-mix(in srgb, var(--surface-panel) 74%, transparent);
+  border: 0;
   border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--text-secondary);
   font-size: calc(11px * var(--ui-font-scale, 1));
-  transition: color 0.15s, border-color 0.15s;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s;
   width: 100%;
 }
 
 .gc-toggle:hover {
   color: var(--accent, var(--state-info-solid));
-  border-color: var(--accent, var(--state-info-solid));
+  background: color-mix(in srgb, var(--surface-panel) 90%, transparent);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--shadow-color) 7%, transparent);
 }
 
 .gc-adoption-rate {
@@ -164,9 +168,10 @@
 
 .gc-panel {
   margin-top: 6px;
-  border: 1px solid var(--border, var(--border-soft));
+  border: 0;
   border-radius: var(--radius-md);
-  background: var(--bg-secondary, var(--surface-elevated));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 90%, white), color-mix(in srgb, var(--surface-elevated) 92%, var(--surface-header)) 100%);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--shadow-color) 8%, transparent);
   overflow: hidden;
 }
 
@@ -175,8 +180,9 @@
   align-items: center;
   gap: 4px;
   padding: 5px 8px;
-  border-bottom: 1px solid var(--border, var(--border-soft));
-  background: var(--bg-primary, var(--surface-panel));
+  border-bottom: 0;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--border-soft) 34%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 92%, transparent);
 }
 
 .gc-expand-btn {
@@ -238,10 +244,11 @@
 }
 
 .gc-card {
-  border: 1px solid var(--border, var(--border-soft));
+  border: 0;
   border-radius: var(--radius-sm);
   padding: 6px 8px;
-  background: var(--bg-primary, var(--surface-panel));
+  background: color-mix(in srgb, var(--surface-panel) 82%, var(--surface-header));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 48%, transparent);
 }
 
 .gc-segment-card,
@@ -373,20 +380,22 @@
 .gc-hotspot-bar-bg {
   flex: 1;
   height: 4px;
-  background: var(--bg-secondary, var(--border-soft));
   border-radius: 2px;
   overflow: hidden;
 }
 
-:root[data-theme='dark'] .gc-hotspot-bar-bg {
-  background: var(--border, var(--border-soft));
+.gc-hotspot-bar-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-.gc-hotspot-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--state-warning-solid), var(--state-danger-solid));
-  border-radius: 2px;
-  transition: width 0.3s ease;
+.gc-hotspot-bar-track {
+  fill: var(--bg-secondary, var(--border-soft));
+}
+
+:root[data-theme='dark'] .gc-hotspot-bar-track {
+  fill: var(--border, var(--border-soft));
 }
 
 .gc-hotspot-score {

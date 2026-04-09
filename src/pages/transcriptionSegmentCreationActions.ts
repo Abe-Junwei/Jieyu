@@ -7,12 +7,14 @@ import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import { t, tf, type Locale } from '../i18n';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { formatTime, newId } from '../utils/transcriptionFormatters';
+import { readStoredNewSegmentSelectionBehavior, type NewSegmentSelectionBehavior } from '../utils/transcriptionInteractionPreferences';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 
 export interface CreateUtteranceOptions {
   speakerId?: string;
   focusedLayerId?: string;
+  selectionBehavior?: NewSegmentSelectionBehavior;
 }
 
 export interface UseTranscriptionSegmentCreationControllerInput {
@@ -60,7 +62,9 @@ export function createTranscriptionSegmentCreationActions(
     await input.reloadSegments();
     await input.refreshSegmentUndoSnapshot();
     await input.reloadSegmentContents();
-    input.selectTimelineUnit(createSegmentTarget(input.activeLayerIdForEdits, segment.id));
+    if (readStoredNewSegmentSelectionBehavior() === 'select-created') {
+      input.selectTimelineUnit(createSegmentTarget(input.activeLayerIdForEdits, segment.id));
+    }
     input.setSaveState({
       kind: 'done',
       message: tf(locale, messageKey, {
@@ -281,6 +285,7 @@ export function createTranscriptionSegmentCreationActions(
     await input.createUtteranceFromSelection(start, end, {
       ...(input.speakerFocusTargetKey ? { speakerId: input.speakerFocusTargetKey } : {}),
       ...(input.activeLayerIdForEdits ? { focusedLayerId: input.activeLayerIdForEdits } : {}),
+      selectionBehavior: readStoredNewSegmentSelectionBehavior(),
     });
   };
 

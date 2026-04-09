@@ -4,6 +4,7 @@ import type {
   UtteranceDocType,
 } from '../db';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
+import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { fireAndForget } from '../utils/fireAndForget';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
@@ -92,9 +93,9 @@ export function TranscriptionTimelineMediaTranslationRow({
   ) : undefined;
 
   return (
-    <div
+    <TimelineStyledContainer
       className="timeline-annotation-subtrack"
-      style={{
+      layoutStyle={{
         top: 0,
         height: baseLaneHeight,
       }}
@@ -147,6 +148,6 @@ export function TranscriptionTimelineMediaTranslationRow({
           }
         },
       })}
-    </div>
+    </TimelineStyledContainer>
   );
 }

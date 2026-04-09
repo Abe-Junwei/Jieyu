@@ -140,7 +140,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
         <div className="language-metadata-workspace-form-stack">
           <section className="language-metadata-workspace-subsection">
             <div className="language-metadata-workspace-subsection-header">
-              <h3 className="language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionIdentity')}</h3>
+              <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionIdentity')}</h3>
               <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionIdentityDescription')}</p>
             </div>
             <div className="language-metadata-workspace-grid">
@@ -181,7 +181,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
 
             <div className="language-metadata-workspace-subgroup">
               <div className="language-metadata-workspace-subgroup-header">
-                <span className="language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.aliasesLabel')}</span>
+                <span className="panel-title-secondary language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.aliasesLabel')}</span>
                 <p className="language-metadata-workspace-subgroup-description">{t(locale, 'workspace.languageMetadata.aliasesPlaceholder')}</p>
               </div>
               <div className="language-metadata-workspace-field language-metadata-workspace-field-block">
@@ -241,7 +241,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
 
           <section className="language-metadata-workspace-subsection">
             <div className="language-metadata-workspace-subsection-header">
-              <h3 className="language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionStandards')}</h3>
+              <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionStandards')}</h3>
               <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionStandardsDescription')}</p>
             </div>
             <div className="language-metadata-workspace-grid">
@@ -274,7 +274,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
 
           <section className="language-metadata-workspace-subsection">
             <div className="language-metadata-workspace-subsection-header">
-              <h3 className="language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionClassification')}</h3>
+              <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionClassification')}</h3>
               <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionClassificationDescription')}</p>
             </div>
             <div className="language-metadata-workspace-grid">
@@ -360,12 +360,12 @@ export function LanguageMetadataWorkspaceDetailColumn({
 
           <section className="language-metadata-workspace-subsection">
             <div className="language-metadata-workspace-subsection-header">
-              <h3 className="language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionPopulation')}</h3>
+              <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionPopulation')}</h3>
               <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionPopulationDescription')}</p>
             </div>
             <div className="language-metadata-workspace-subgroup">
               <div className="language-metadata-workspace-subgroup-header">
-                <span className="language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupUsagePopulationTitle')}</span>
+                <span className="panel-title-secondary language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupUsagePopulationTitle')}</span>
                 <p className="language-metadata-workspace-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupUsagePopulationDescription')}</p>
               </div>
               <div className="language-metadata-workspace-grid">
@@ -404,7 +404,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
 
             <div className="language-metadata-workspace-subgroup">
               <div className="language-metadata-workspace-subgroup-header">
-                <span className="language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupUsageVitalityTitle')}</span>
+                <span className="panel-title-secondary language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupUsageVitalityTitle')}</span>
                 <p className="language-metadata-workspace-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupUsageVitalityDescription')}</p>
               </div>
               <div className="language-metadata-workspace-grid">
@@ -476,7 +476,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
           {/* 文献与文字 | Documentation & writing */}
           <section className="language-metadata-workspace-subsection">
             <div className="language-metadata-workspace-subsection-header">
-              <h3 className="language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionDocumentation')}</h3>
+              <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionDocumentation')}</h3>
               <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionDocumentationDescription')}</p>
             </div>
             <div className="language-metadata-workspace-grid">
@@ -500,7 +500,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
 
           <section className="language-metadata-workspace-subsection">
             <div className="language-metadata-workspace-subsection-header">
-              <h3 className="language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionNotes')}</h3>
+              <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionNotes')}</h3>
               <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionNotesDescription')}</p>
             </div>
             <div className="language-metadata-workspace-grid">
@@ -523,21 +523,23 @@ export function LanguageMetadataWorkspaceDetailColumn({
           <LanguageMetadataWorkspaceCustomFieldsSection locale={locale} draft={draft} cf={cf} />
         </div>
 
-        {saveError ? <p className="language-metadata-workspace-state language-metadata-workspace-state-error">{saveError}</p> : null}
-        {saveSuccess ? <p className="language-metadata-workspace-state language-metadata-workspace-state-success">{saveSuccess}</p> : null}
+        <div className="language-metadata-workspace-footer">
+          {saveError ? <p className="language-metadata-workspace-state language-metadata-workspace-state-error">{saveError}</p> : null}
+          {saveSuccess ? <p className="language-metadata-workspace-state language-metadata-workspace-state-success">{saveSuccess}</p> : null}
 
-        <div className="language-metadata-workspace-actions">
-          <button type="button" className="btn btn-ghost" onClick={onResetDraft}>{t(locale, 'workspace.languageMetadata.resetButton')}</button>
-          {selectedEntry?.hasPersistedRecord ? (
-            <button type="button" className="btn btn-danger" onClick={onDelete} disabled={deleting}>
-              {deleting
-                ? t(locale, 'workspace.languageMetadata.deleting')
-                : selectedEntry.entryKind === 'custom'
-                  ? t(locale, 'workspace.languageMetadata.deleteCustomButton')
-                  : t(locale, 'workspace.languageMetadata.deleteOverrideButton')}
-            </button>
-          ) : null}
-          <button type="button" className="btn" onClick={onSave} disabled={saving}>{saving ? t(locale, 'workspace.languageMetadata.saving') : t(locale, 'workspace.languageMetadata.saveButton')}</button>
+          <div className="language-metadata-workspace-actions">
+            <button type="button" className="btn btn-ghost" onClick={onResetDraft}>{t(locale, 'workspace.languageMetadata.resetButton')}</button>
+            {selectedEntry?.hasPersistedRecord ? (
+              <button type="button" className="btn btn-danger" onClick={onDelete} disabled={deleting}>
+                {deleting
+                  ? t(locale, 'workspace.languageMetadata.deleting')
+                  : selectedEntry.entryKind === 'custom'
+                    ? t(locale, 'workspace.languageMetadata.deleteCustomButton')
+                    : t(locale, 'workspace.languageMetadata.deleteOverrideButton')}
+              </button>
+            ) : null}
+            <button type="button" className="btn" onClick={onSave} disabled={saving}>{saving ? t(locale, 'workspace.languageMetadata.saving') : t(locale, 'workspace.languageMetadata.saveButton')}</button>
+          </div>
         </div>
       </PanelSection>
 

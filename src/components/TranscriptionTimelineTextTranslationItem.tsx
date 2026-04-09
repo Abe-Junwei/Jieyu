@@ -5,6 +5,7 @@ import type {
 } from '../db';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
+import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { t, useLocale } from '../i18n';
 
 type SaveStatus = 'dirty' | 'saving' | 'error' | undefined;
@@ -21,7 +22,7 @@ interface TranscriptionTimelineTextTranslationItemProps {
   isDimmed: boolean;
   saveStatus: SaveStatus;
   usesOwnSegments: boolean;
-  style: React.CSSProperties;
+  layoutStyle: React.CSSProperties;
   dir: string | undefined;
   audioMedia: MediaItemDocType | undefined;
   recording: boolean;
@@ -67,7 +68,7 @@ export function TranscriptionTimelineTextTranslationItem({
   isDimmed,
   saveStatus,
   usesOwnSegments,
-  style,
+  layoutStyle,
   dir,
   audioMedia,
   recording,
@@ -120,9 +121,9 @@ export function TranscriptionTimelineTextTranslationItem({
   };
 
   return (
-    <div
+    <TimelineStyledContainer
       className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${showAudioTools ? ' timeline-text-item-has-tools' : ''}${isAudioOnlyLayer ? ' timeline-text-item-audio-only' : ''}`}
-      style={style}
+      layoutStyle={layoutStyle}
       dir={dir}
       onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e)}
       onContextMenu={(e) => handleAnnotationContextMenu?.(utt.id, utt, layer.id, e)}
@@ -229,6 +230,6 @@ export function TranscriptionTimelineTextTranslationItem({
           }}
         />
       )}
-    </div>
+    </TimelineStyledContainer>
   );
 }

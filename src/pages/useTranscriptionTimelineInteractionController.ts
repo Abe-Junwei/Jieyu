@@ -7,6 +7,7 @@ import { handleTranscriptionCitationJump } from './TranscriptionPage.citationJum
 import { snapToZeroCrossing } from '../services/AudioAnalysisService';
 import { fireAndForget } from '../utils/fireAndForget';
 import { t } from '../i18n';
+import { readStoredWaveformDoubleClickAction } from '../utils/transcriptionInteractionPreferences';
 import {
   resolveTranscriptionSelectionAnchor,
   resolveTranscriptionUnitTarget,
@@ -364,8 +365,12 @@ export function useTranscriptionTimelineInteractionController(
   }, [input.activeLayerIdForEdits, input.manualSelectTsRef, input.player, input.selectSegmentRange, input.selectTimelineUnit, input.selectUtteranceRange, input.selectedTimelineUnit, input.setSubSelectionRange, input.toggleSegmentSelection, input.toggleUtteranceSelection, input.useSegmentWaveformRegions, input.waveformTimelineItems]);
 
   const handleWaveformRegionDoubleClick = useCallback((_regionId: string, start: number, end: number) => {
+    if (readStoredWaveformDoubleClickAction() === 'create-segment') {
+      fireAndForget(input.createUtteranceFromSelection(start, end));
+      return;
+    }
     input.zoomToUtterance(start, end);
-  }, [input.zoomToUtterance]);
+  }, [input.createUtteranceFromSelection, input.zoomToUtterance]);
 
   const handleWaveformRegionCreate = useCallback((start: number, end: number) => {
     fireAndForget(input.createUtteranceFromSelection(start, end));

@@ -247,6 +247,7 @@
 /* ── 视频预览面板 | Video Preview Panel ── */
 .video-preview-panel {
   flex-shrink: 0;
+  height: var(--video-preview-panel-height, auto);
   overflow: hidden;
   background: var(--surface-overlay);
   display: flex;
@@ -322,6 +323,7 @@
 
 .video-preview-layout-video {
   flex-shrink: 0;
+  width: var(--video-preview-panel-width, 100%);
 }
 
 .video-preview-layout-top {
@@ -350,6 +352,7 @@
 
 .video-preview-layout-right .video-preview-layout-video {
   padding: 2px 0;
+  max-width: calc(100% - 220px);
 }
 
 /* 左侧视频面板布局：视频在左(order:1)、拖柄(order:2)、波形在右(order:3) | Left video panel: video(1), handle(2), wave(3) */
@@ -362,6 +365,7 @@
 .video-preview-layout-left .video-preview-layout-video {
   order: 1;
   padding: 2px 0;
+  max-width: calc(100% - 220px);
 }
 
 .video-preview-layout-left .video-preview-right-resize-handle {

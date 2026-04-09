@@ -19,7 +19,10 @@ import { TranscriptionTimelineMediaTranscriptionRow } from './TranscriptionTimel
 import {
   resolveSpeakerFocusKeyFromUtterance,
 } from './transcriptionTimelineSegmentSpeakerLayout';
+import { TimelineStyledButton, TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { t, useLocale } from '../i18n';
+
+const COLLAPSED_OVERLAP_HINT_TRACK_WIDTH = 48;
 
 interface TranscriptionLaneProps {
   layer: LayerDocType;
@@ -174,11 +177,10 @@ export function TranscriptionTimelineMediaTranscriptionLane({
   const locale = useLocale();
 
   return (
-    <div
+    <TimelineStyledContainer
       key={`tl-${layer.id}`}
       className={`timeline-lane ${layer.id === flashLayerRowId ? 'timeline-lane-flash' : ''} ${layer.id === focusedLayerRowId ? 'timeline-lane-focused' : ''} ${resizingLayerId === layer.id ? 'timeline-lane-resizing' : ''} ${effectiveCollapsed ? 'timeline-lane-collapsed' : ''} ${isMultiTrackMode && !effectiveCollapsed && activeLayerLayout.subTrackCount > 1 ? 'timeline-lane-speaker-layered' : ''}`}
-      style={{
-        position: 'relative',
+      layoutStyle={{
         '--timeline-lane-height': `${visibleLaneHeight}px`,
         '--timeline-subtrack-height': `${baseLaneHeight}px`,
       } as React.CSSProperties}
@@ -221,12 +223,12 @@ export function TranscriptionTimelineMediaTranscriptionLane({
         {...(displayStyleControl && { displayStyleControl })}
       />
       {isMultiTrackMode && isCollapsed && collapsedOverlapMarkers.map((group) => (
-        <button
+        <TimelineStyledButton
           key={`ov-hint-${layer.id}-${group.id}`}
           type="button"
           className="timeline-lane-overlap-hint"
           title={t(locale, 'transcription.timeline.overlapTempExpand')}
-          style={{ left: group.centerTime * zoomPxPerSec }}
+          layoutStyle={{ left: Math.max(0, (group.centerTime * zoomPxPerSec) - (COLLAPSED_OVERLAP_HINT_TRACK_WIDTH / 2)) }}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
@@ -234,7 +236,7 @@ export function TranscriptionTimelineMediaTranscriptionLane({
           }}
         >
           {group.speakerCount}人
-        </button>
+        </TimelineStyledButton>
       ))}
       {!effectiveCollapsed && visibleUtterances.map((utt) => {
         const utteranceSpeakerKey = usesSegmentTimeline
@@ -256,34 +258,30 @@ export function TranscriptionTimelineMediaTranscriptionLane({
               total: overlapCycleItems.length,
             }
           : undefined;
+        const subTrackTop = (isMultiTrackMode ? (placement?.subTrackIndex ?? 0) : 0) * baseLaneHeight;
         return (
-          <div
+          <TranscriptionTimelineMediaTranscriptionRow
             key={`trc-sub-${layer.id}-${utt.id}`}
-            style={{
-              top: (isMultiTrackMode ? (placement?.subTrackIndex ?? 0) : 0) * baseLaneHeight,
-            }}
-          >
-            <TranscriptionTimelineMediaTranscriptionRow
-              utt={utt as UtteranceDocType}
-              layer={layer}
-              layerForDisplay={layerForDisplay}
-              baseLaneHeight={baseLaneHeight}
-              draft={draft}
-              draftKey={draftKey}
-              sourceText={sourceText}
-              usesSegmentTimeline={usesSegmentTimeline}
-              shouldHideForFocus={shouldHideForFocus}
-              shouldDimForFocus={shouldDimForFocus}
-              {...(overlapCycleItems ? { overlapCycleItems } : {})}
-              {...(overlapCycleStatus ? { overlapCycleStatus } : {})}
-              saveSegmentContentForLayer={saveSegmentContentForLayer}
-              scheduleAutoSave={scheduleAutoSave}
-              clearAutoSaveTimer={clearAutoSaveTimer}
-              saveUtteranceText={saveUtteranceText}
-              setUtteranceDrafts={setUtteranceDrafts}
-              renderAnnotationItem={renderAnnotationItem}
-            />
-          </div>
+            utt={utt as UtteranceDocType}
+            layer={layer}
+            layerForDisplay={layerForDisplay}
+            baseLaneHeight={baseLaneHeight}
+            subTrackTop={subTrackTop}
+            draft={draft}
+            draftKey={draftKey}
+            sourceText={sourceText}
+            usesSegmentTimeline={usesSegmentTimeline}
+            shouldHideForFocus={shouldHideForFocus}
+            shouldDimForFocus={shouldDimForFocus}
+            {...(overlapCycleItems ? { overlapCycleItems } : {})}
+            {...(overlapCycleStatus ? { overlapCycleStatus } : {})}
+            saveSegmentContentForLayer={saveSegmentContentForLayer}
+            scheduleAutoSave={scheduleAutoSave}
+            clearAutoSaveTimer={clearAutoSaveTimer}
+            saveUtteranceText={saveUtteranceText}
+            setUtteranceDrafts={setUtteranceDrafts}
+            renderAnnotationItem={renderAnnotationItem}
+          />
         );
       })}
       {!effectiveCollapsed && <div
@@ -292,6 +290,6 @@ export function TranscriptionTimelineMediaTranscriptionLane({
         role="separator"
         aria-orientation="horizontal"
       />}
-    </div>
+    </TimelineStyledContainer>
   );
 }

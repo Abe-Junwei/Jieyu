@@ -127,14 +127,6 @@ export function TimeRuler({
     return segments.filter((s) => s.level > 0);
   }, [utterances, duration]);
 
-  const HEAT_COLORS = [
-    '',
-    'color-mix(in srgb, var(--state-success-solid) 42%, transparent)',
-    'color-mix(in srgb, var(--state-warning-solid) 46%, transparent)',
-    'color-mix(in srgb, var(--state-warning-text) 48%, transparent)',
-    'color-mix(in srgb, var(--state-danger-solid) 52%, transparent)',
-  ];
-
   return (
     <div className="time-ruler">
       <button
@@ -189,22 +181,40 @@ export function TimeRuler({
           window.addEventListener('mouseup', onUp);
         }}
       >
-        <svg className="time-ruler-overlay" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">
+        <svg className="time-ruler-overlay" aria-hidden="true">
+          {densitySegments.map((seg, i) => {
+            const leftPct = ((seg.start - start) / windowSec) * 100;
+            const widthPct = ((seg.end - seg.start) / windowSec) * 100;
+            if (leftPct + widthPct < 0 || leftPct > 100) return null;
+            return (
+              <rect
+                key={`heat-${i}`}
+                className={`time-ruler-heat-band time-ruler-heat-band-level-${seg.level}`}
+                x={`${Math.max(0, leftPct)}%`}
+                y={24}
+                width={`${Math.min(100, leftPct + widthPct) - Math.max(0, leftPct)}%`}
+                height={4}
+                rx={1}
+                ry={1}
+              />
+            );
+          })}
           {ticks.map((tk) => {
             const leftPct = ((tk.time - start) / windowSec) * 100;
+            const left = `${leftPct}%`;
             return (
               <g key={`tk-${tk.time}`}>
                 <line
                   className={`time-ruler-tick-line ${tk.kind === 'major' ? 'time-ruler-tick-line-major' : ''}`}
-                  x1={leftPct}
-                  x2={leftPct}
+                  x1={left}
+                  x2={left}
                   y1={0}
                   y2={tk.kind === 'major' ? 12 : 6}
                 />
                 {tk.kind === 'major' ? (
                   <text
                     className="time-ruler-label-text"
-                    x={leftPct}
+                    x={left}
                     y={21}
                     dx={2}
                   >
@@ -214,28 +224,14 @@ export function TimeRuler({
               </g>
             );
           })}
+          <line
+            className="time-ruler-cursor-line"
+            x1={`${((currentTime - start) / windowSec) * 100}%`}
+            x2={`${((currentTime - start) / windowSec) * 100}%`}
+            y1={0}
+            y2={28}
+          />
         </svg>
-        {/* 语段密度热力条 | Segment density heatmap strip */}
-        {densitySegments.map((seg, i) => {
-          const leftPct = ((seg.start - start) / windowSec) * 100;
-          const widthPct = ((seg.end - seg.start) / windowSec) * 100;
-          if (leftPct + widthPct < 0 || leftPct > 100) return null;
-          return (
-            <div
-              key={`heat-${i}`}
-              className="time-ruler-heat"
-              style={{
-                left: `${Math.max(0, leftPct)}%`,
-                width: `${Math.min(100, leftPct + widthPct) - Math.max(0, leftPct)}%`,
-                background: HEAT_COLORS[seg.level] ?? '',
-              }}
-            />
-          );
-        })}
-        <div
-          className="time-ruler-cursor"
-          style={{ left: `${((currentTime - start) / windowSec) * 100}%` }}
-        />
       </div>
     </div>
   );

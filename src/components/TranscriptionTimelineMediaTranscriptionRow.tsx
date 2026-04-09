@@ -1,5 +1,6 @@
 import type { LayerDocType, UtteranceDocType } from '../db';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
+import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { fireAndForget } from '../utils/fireAndForget';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { t, useLocale } from '../i18n';
@@ -44,6 +45,7 @@ export function TranscriptionTimelineMediaTranscriptionRow({
   layer,
   layerForDisplay,
   baseLaneHeight,
+  subTrackTop = 0,
   draft,
   draftKey,
   sourceText,
@@ -61,10 +63,10 @@ export function TranscriptionTimelineMediaTranscriptionRow({
 }: TranscriptionTimelineMediaTranscriptionRowProps) {
   const locale = useLocale();
   return (
-    <div
+    <TimelineStyledContainer
       className={`timeline-annotation-subtrack${shouldHideForFocus ? ' timeline-annotation-subtrack-focus-hidden' : ''}${shouldDimForFocus ? ' timeline-annotation-subtrack-focus-dim' : ''}`}
-      style={{
-        top: 0,
+      layoutStyle={{
+        top: subTrackTop,
         height: baseLaneHeight,
       }}
     >
@@ -103,6 +105,6 @@ export function TranscriptionTimelineMediaTranscriptionRow({
           }
         },
       })}
-    </div>
+    </TimelineStyledContainer>
   );
 }

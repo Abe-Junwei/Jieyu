@@ -22,6 +22,12 @@ type VideoPlayerProps = {
 
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const VIDEO_FIT_MODE_STORAGE_KEY = 'jieyu.video.fitMode';
+const VIDEO_PROGRESS_OVERLAY_WIDTH = 1000;
+const VIDEO_PROGRESS_OVERLAY_HEIGHT = 140;
+const VIDEO_PROGRESS_BAR_Y = 40;
+const VIDEO_PROGRESS_BAR_HEIGHT = 60;
+const VIDEO_PROGRESS_BAR_RADIUS = 30;
+const VIDEO_PROGRESS_THUMB_RADIUS = 70;
 
 type VideoFitMode = 'fit' | 'fill' | 'original';
 
@@ -109,15 +115,14 @@ export function VideoPlayer({
     [player, regions, onRegionClick, isReady],
   );
 
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
-
-  const subSelectionStyle =
-    subSelection && duration > 0
-      ? {
-          left: `${(subSelection.start / duration) * 100}%`,
-          width: `${((subSelection.end - subSelection.start) / duration) * 100}%`,
-        }
-      : undefined;
+  const progressRatio = duration > 0 ? currentTime / duration : 0;
+  const progressOverlayX = progressRatio * VIDEO_PROGRESS_OVERLAY_WIDTH;
+  const subSelectionOverlay = subSelection && duration > 0
+    ? {
+        x: (subSelection.start / duration) * VIDEO_PROGRESS_OVERLAY_WIDTH,
+        width: ((subSelection.end - subSelection.start) / duration) * VIDEO_PROGRESS_OVERLAY_WIDTH,
+      }
+    : null;
 
   return (
     <div
@@ -144,29 +149,57 @@ export function VideoPlayer({
           onClick={handleProgressClick}
           title={formatTime(currentTime)}
         >
-          {/* Sub-selection highlight */}
-          {subSelectionStyle && (
-            <div className="video-player-subselection" style={subSelectionStyle} />
-          )}
-
-          {/* Region markers */}
-          {regions?.map((region) => {
-            const left = duration > 0 ? (region.start / duration) * 100 : 0;
-            const width = duration > 0 ? ((region.end - region.start) / duration) * 100 : 0;
-            const isActive = activeRegionIds?.has(region.id);
-            const isPrimary = region.id === primaryRegionId;
-            return (
-              <div
-                key={region.id}
-                className={`video-player-region ${isActive ? 'active' : ''} ${isPrimary ? 'primary' : ''}`}
-                style={{ left: `${left}%`, width: `${width}%` }}
+          <svg
+            className="video-player-progress-overlay"
+            viewBox={`0 0 ${VIDEO_PROGRESS_OVERLAY_WIDTH} ${VIDEO_PROGRESS_OVERLAY_HEIGHT}`}
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            {subSelectionOverlay ? (
+              <rect
+                className="video-player-subselection"
+                x={subSelectionOverlay.x}
+                y={VIDEO_PROGRESS_BAR_Y}
+                width={subSelectionOverlay.width}
+                height={VIDEO_PROGRESS_BAR_HEIGHT}
+                rx={VIDEO_PROGRESS_BAR_RADIUS}
+                ry={VIDEO_PROGRESS_BAR_RADIUS}
               />
-            );
-          })}
-
-          {/* Playback progress */}
-          <div className="video-player-progress-filled" style={{ width: `${progressPercent}%` }} />
-          <div className="video-player-progress-thumb" style={{ left: `${progressPercent}%` }} />
+            ) : null}
+            {regions?.map((region) => {
+              const left = duration > 0 ? (region.start / duration) * VIDEO_PROGRESS_OVERLAY_WIDTH : 0;
+              const width = duration > 0 ? ((region.end - region.start) / duration) * VIDEO_PROGRESS_OVERLAY_WIDTH : 0;
+              const isActive = activeRegionIds?.has(region.id);
+              const isPrimary = region.id === primaryRegionId;
+              return (
+                <rect
+                  key={region.id}
+                  className={`video-player-region ${isActive ? 'active' : ''} ${isPrimary ? 'primary' : ''}`}
+                  x={left}
+                  y={VIDEO_PROGRESS_BAR_Y}
+                  width={width}
+                  height={VIDEO_PROGRESS_BAR_HEIGHT}
+                  rx={20}
+                  ry={20}
+                />
+              );
+            })}
+            <rect
+              className="video-player-progress-filled"
+              x={0}
+              y={VIDEO_PROGRESS_BAR_Y}
+              width={progressOverlayX}
+              height={VIDEO_PROGRESS_BAR_HEIGHT}
+              rx={VIDEO_PROGRESS_BAR_RADIUS}
+              ry={VIDEO_PROGRESS_BAR_RADIUS}
+            />
+            <circle
+              className="video-player-progress-thumb"
+              cx={progressOverlayX}
+              cy={VIDEO_PROGRESS_OVERLAY_HEIGHT / 2}
+              r={VIDEO_PROGRESS_THUMB_RADIUS}
+            />
+          </svg>
         </div>
 
         {/* Control buttons row */}

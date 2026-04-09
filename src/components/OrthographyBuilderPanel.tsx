@@ -47,7 +47,7 @@ function renderGroup(title: string, children: ReactNode, key: string, descriptio
   return (
     <section key={key} className={`orthography-builder-group${className ? ` ${className}` : ''}`}>
       <div className="orthography-builder-group-header">
-        <h3 className="orthography-builder-group-title">{title}</h3>
+        <h3 className="panel-title-primary orthography-builder-group-title">{title}</h3>
         {description ? <p className="orthography-builder-group-description">{description}</p> : null}
       </div>
       <div className="orthography-builder-group-body">{children}</div>
